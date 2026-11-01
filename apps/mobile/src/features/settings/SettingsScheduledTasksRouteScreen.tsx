@@ -88,6 +88,7 @@ import { appAtomRegistry } from "../../state/atom-registry";
 import {
   formatNextScheduledTaskRun,
   formatScheduledTaskInterval,
+  formatScheduledTaskTime,
 } from "./scheduledTaskPresentation";
 import { useT } from "../../hooks/useT"; // fork: i18n
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
@@ -123,7 +124,7 @@ function formatTime(value: string): string {
   if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return value;
   const time = new Date();
   time.setHours(hours ?? 9, minutes ?? 0, 0, 0);
-  return time.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return formatScheduledTaskTime(time); // fork: interface language
 }
 
 function timePickerValue(value: string): Date {

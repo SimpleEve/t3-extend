@@ -1,3 +1,10 @@
+import {
+  getUiLocale,
+  translate,
+  uiLocaleFormatTag,
+  type UiLocale,
+} from "@t3tools/client-runtime/i18n"; // fork: i18n
+
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -28,30 +35,51 @@ function localCalendarDay(date: Date): number {
   return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY;
 }
 
-export function formatNextScheduledTaskRun(nextRunAt: string, now: number): string {
+/** A time of day in the interface language, like the web's timestamps. */
+export function formatScheduledTaskTime(date: Date, locale: UiLocale = getUiLocale()): string {
+  return date.toLocaleTimeString(uiLocaleFormatTag(locale), { hour: "numeric", minute: "2-digit" });
+}
+
+export function formatNextScheduledTaskRun(
+  nextRunAt: string,
+  now: number,
+  locale: UiLocale = getUiLocale(), // fork: interface language
+): string {
+  const t = (source: string, params?: Record<string, string | number>) =>
+    translate(locale, source, params);
+  const formatTag = uiLocaleFormatTag(locale);
   const next = new Date(nextRunAt);
   const current = new Date(now);
   const remaining = next.getTime() - now;
-  if (!Number.isFinite(remaining)) return "Next run unavailable";
-  if (remaining <= 0) return "Next run due";
+  if (!Number.isFinite(remaining)) return t("Next run unavailable");
+  if (remaining <= 0) return t("Next run due");
 
   const days = localCalendarDay(next) - localCalendarDay(current);
   if (days === 0) {
-    if (remaining < MINUTE) return "Next run in less than a minute";
-    const unit = remaining < HOUR ? "minute" : "hour";
+    if (remaining < MINUTE) return t("Next run in less than a minute");
     const count = Math.round(remaining / (remaining < HOUR ? MINUTE : HOUR));
-    return `Next run in ${count} ${unit}${count === 1 ? "" : "s"}`;
+    if (remaining < HOUR) {
+      return count === 1
+        ? t("Next run in {count} minute", { count })
+        : t("Next run in {count} minutes", { count });
+    }
+    return count === 1
+      ? t("Next run in {count} hour", { count })
+      : t("Next run in {count} hours", { count });
   }
 
-  const time = next.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  if (days === 1) return `Next run tomorrow at ${time}`;
+  const time = formatScheduledTaskTime(next, locale);
+  if (days === 1) return t("Next run tomorrow at {time}", { time });
   if (days <= 7) {
-    return `Next run next ${next.toLocaleDateString([], { weekday: "long" })} at ${time}`;
+    return t("Next run next {weekday} at {time}", {
+      weekday: next.toLocaleDateString(formatTag, { weekday: "long" }),
+      time,
+    });
   }
-  const date = next.toLocaleDateString([], {
+  const date = next.toLocaleDateString(formatTag, {
     month: "short",
     day: "numeric",
     ...(next.getFullYear() !== current.getFullYear() ? { year: "numeric" as const } : {}),
   });
-  return `Next run ${date} at ${time}`;
+  return t("Next run {date} at {time}", { date, time });
 }

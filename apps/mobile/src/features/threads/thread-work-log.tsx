@@ -104,7 +104,8 @@ import Animated, {
 import { useAssetUrl } from "../../state/assets";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
 import { useOpenLinkedThread } from "./useOpenLinkedThread";
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
+import { uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const SHIMMER_WIDTH = 72;
 const SHIMMER_SWEEP_MS = 1_350;
@@ -925,6 +926,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
   },
 ) {
   const t = useT();
+  const formatTag = uiLocaleFormatTag(useUiLocale()); // fork: times follow the interface language
   const { row, expanded } = props;
   const openLinkedThread = useOpenLinkedThread();
   const streamsOutput =
@@ -941,7 +943,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
     const timestamp = new Date(row.createdAt);
     const resetAt = failureItem.failure.resetAt;
     const resetTime = resetAt
-      ? new Date(resetAt).toLocaleString(undefined, {
+      ? new Date(resetAt).toLocaleString(formatTag, {
           month: "short",
           day: "numeric",
           hour: "numeric",
@@ -983,10 +985,10 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
               </Text>
             ) : null}
             <Text
-              accessibilityLabel={timestamp.toLocaleString()}
+              accessibilityLabel={timestamp.toLocaleString(formatTag)}
               className="shrink-0 text-xs text-foreground-subtle"
             >
-              {timestamp.toLocaleString(undefined, {
+              {timestamp.toLocaleString(formatTag, {
                 month: "short",
                 day: "numeric",
                 hour: "numeric",
