@@ -6,8 +6,10 @@ import { showAnchoredCopySuccessToast } from "../ui/anchoredCopyToast";
 import { InlineButton } from "../ui/button";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { useT } from "../../hooks/useT";
 
 export function AboutVersionTitle() {
+  const t = useT();
   const copyButtonRef = useRef<HTMLButtonElement>(null);
   const { copyToClipboard } = useCopyToClipboard<void>({
     target: "version",
@@ -16,7 +18,7 @@ export function AboutVersionTitle() {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Could not copy version",
+          title: t("Could not copy version"),
           description: error.message,
         }),
       );
@@ -25,7 +27,7 @@ export function AboutVersionTitle() {
 
   return (
     <span className="inline-flex items-baseline gap-2">
-      <span>Version</span>
+      <span>{t("Version")}</span>
       <code className="text-2xs font-medium">
         <Tooltip>
           <TooltipTrigger
@@ -33,14 +35,14 @@ export function AboutVersionTitle() {
               <InlineButton
                 ref={copyButtonRef}
                 tone="muted"
-                aria-label={`Copy version ${APP_VERSION}`}
+                aria-label={t("Copy version {APP_VERSION}", { APP_VERSION })}
                 onClick={() => copyToClipboard(APP_VERSION, undefined)}
               >
                 {APP_VERSION}
               </InlineButton>
             }
           />
-          <TooltipPopup>Copy version</TooltipPopup>
+          <TooltipPopup>{t("Copy version")}</TooltipPopup>
         </Tooltip>
       </code>
     </span>

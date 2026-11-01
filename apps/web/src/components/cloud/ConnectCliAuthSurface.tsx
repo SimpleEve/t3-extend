@@ -10,6 +10,7 @@ import { isElectron } from "../../env";
 import { StandalonePage, StandalonePageHeader } from "../ui/standalone-page";
 import { resolveClerkSignInProps } from "../clerk/authRedirect";
 import { Button } from "../ui/button";
+import { useT } from "../../hooks/useT";
 
 const invalidLinkMessage = {
   context: "Authorization request",
@@ -19,6 +20,7 @@ const invalidLinkMessage = {
 } as const;
 
 export function ConnectCliAuthorizeSurface() {
+  const t = useT();
   const [request] = useState(() => readConnectAuthorizeRequest(new URL(window.location.href)));
   const clerk = useClerk();
   const { isLoaded, isSignedIn } = useAuth();
@@ -61,7 +63,11 @@ export function ConnectCliAuthorizeSurface() {
   if (!request) {
     return (
       <StandalonePage>
-        <StandalonePageHeader {...invalidLinkMessage} />
+        <StandalonePageHeader
+          context={t(invalidLinkMessage.context)}
+          title={t(invalidLinkMessage.title)}
+          description={t(invalidLinkMessage.description)}
+        />
       </StandalonePage>
     );
   }
@@ -69,18 +75,18 @@ export function ConnectCliAuthorizeSurface() {
   return (
     <StandalonePage>
       <StandalonePageHeader
-        context="Browser authorization"
-        title="Connecting your terminal"
+        context={t("Browser authorization")}
+        title={t("Connecting your terminal")}
         description={
           isSignedIn
-            ? "Redirecting to authorize T3 Connect for your CLI…"
-            : "Sign in to continue authorizing T3 Connect for your CLI."
+            ? t("Redirecting to authorize T3 Connect for your CLI…")
+            : t("Sign in to continue authorizing T3 Connect for your CLI.")
         }
       />
       {isLoaded && !isSignedIn ? (
         <div className="mt-6">
           <Button type="button" onClick={openSignIn}>
-            Sign in
+            {t("Sign in")}
           </Button>
         </div>
       ) : null}

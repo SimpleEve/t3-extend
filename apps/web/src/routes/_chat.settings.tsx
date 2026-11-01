@@ -45,6 +45,7 @@ function RestoreDeviceDefaultsButton({ onRestored }: { onRestored: () => void })
 }
 
 function SettingsScopeBoundary({ pathname, children }: { pathname: string; children: ReactNode }) {
+  const t = useT();
   const { scope, connectedEnvironments } = useSettingsScope();
   const { environments } = useEnvironments();
   const hash = useLocation({ select: (location) => location.hash });
@@ -65,8 +66,13 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
         eligibleEnvironmentIds={autoSettlementAvailability.eligibleEnvironmentIds}
       >
         {autoSettlementAvailability.eligibleEnvironmentIds.length > 0
-          ? `${searchTarget.title} requires a supporting environment. Choose one to continue.`
-          : `${searchTarget.title} requires a supporting environment. Connect or update an environment to continue.`}
+          ? t("{title} requires a supporting environment. Choose one to continue.", {
+              title: searchTarget.title,
+            })
+          : t(
+              "{title} requires a supporting environment. Connect or update an environment to continue.",
+              { title: searchTarget.title },
+            )}
       </SettingsScopeNotice>
     );
   }
@@ -83,7 +89,10 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
         : "all";
     return (
       <SettingsScopeNotice target={target} targetId={hash}>
-        {`${searchTarget.title} is not available for the selected target. Choose its owning scope to continue.`}
+        {t(
+          "{title} is not available for the selected target. Choose its owning scope to continue.",
+          { title: searchTarget.title },
+        )}
       </SettingsScopeNotice>
     );
   }
@@ -100,7 +109,7 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
     return (
       <SettingsPageContainer>
         <p className="text-sm text-muted-foreground">
-          Reconnect {scope.label} to change its settings.
+          {t("Reconnect {label} to change its settings.", { label: scope.label })}
         </p>
       </SettingsPageContainer>
     );

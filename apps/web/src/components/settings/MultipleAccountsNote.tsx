@@ -4,6 +4,7 @@ import { InfoIcon } from "lucide-react";
 
 import { serverEnvironment } from "../../state/server";
 import { Alert, AlertDescription } from "../ui/alert";
+import { useT } from "../../hooks/useT";
 
 const MULTIPLE_ACCOUNTS_FAQ_URL =
   "https://github.com/pingdotgg/t3code/blob/main/docs/user/faq.md#can-i-add-a-bunch-of-accounts-for-one-provider";
@@ -21,6 +22,7 @@ export function MultipleAccountsNote({
   readonly environmentId: EnvironmentId;
   readonly driver: ProviderDriverKind;
 }) {
+  const t = useT();
   const providers = useAtomValue(serverEnvironment.providersValueAtom(environmentId));
   const providerName = PROVIDER_NAMES.get(driver);
   const hasSignedInAccount =
@@ -34,14 +36,16 @@ export function MultipleAccountsNote({
       <InfoIcon aria-hidden />
       <AlertDescription>
         <p>
-          We do not recommend managing multiple {providerName} accounts in T3 Code.{" "}
+          {t("We do not recommend managing multiple {providerName} accounts in T3 Code.", {
+            providerName,
+          })}{" "}
           <a
             href={MULTIPLE_ACCOUNTS_FAQ_URL}
             target="_blank"
             rel="noreferrer"
             className="underline underline-offset-2 hover:text-foreground"
           >
-            More info
+            {t("More info")}
           </a>
         </p>
       </AlertDescription>

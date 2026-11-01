@@ -4,23 +4,25 @@ import { useId } from "react";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import { Badge } from "../ui/badge";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
+import { useT } from "../../hooks/useT";
 
 /** The machine choice for linking by an address typed in. */
 export const ANOTHER_ADDRESS = "another-address";
 
 /** Whether a machine is linked already, or how this app knows it when not connected to it. */
 export function LinkMachineBadge({ machine }: { readonly machine: LinkableMachine }) {
+  const t = useT();
   if (machine.linked) {
     return (
       <Badge variant="success" size="sm">
-        Linked
+        {t("Linked")}
       </Badge>
     );
   }
   if (machine.connected) return null;
   return (
     <Badge variant="outline" size="sm">
-      {machine.connectOnly ? "T3 Connect" : "Not connected"}
+      {machine.connectOnly ? "T3 Connect" : t("Not connected")}
     </Badge>
   );
 }
@@ -46,11 +48,12 @@ export function LinkMachineSelect({
   readonly onChange: (value: string) => void;
   readonly disabled: boolean;
 }) {
+  const t = useT();
   const labelId = useId();
   return (
     <div className="space-y-1.5">
       <span id={labelId} className="block text-xs font-medium text-foreground">
-        Machine
+        {t("Machine")}
       </span>
       <Select
         value={value}
@@ -78,7 +81,7 @@ export function LinkMachineSelect({
             </SelectItem>
           ))}
           <SelectItem value={ANOTHER_ADDRESS} hideIndicator>
-            Another address…
+            {t("Another address…")}
           </SelectItem>
         </SelectPopup>
       </Select>

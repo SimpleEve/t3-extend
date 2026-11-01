@@ -10,9 +10,11 @@ import { Button } from "../ui/button";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { SettingsRow } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
-import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { FORK } from "@t3tools/shared/forkIdentity";
+import { useT } from "../../hooks/useT"; // fork: identity
 
 export function CliCommandSettingsRow() {
+  const t = useT();
   const bridge = getDesktopCliCommandBridge();
   const query = useEnvironmentQuery(bridge ? desktopCliCommandStateAtom : null);
   const state = query.data;
@@ -27,8 +29,8 @@ export function CliCommandSettingsRow() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: action === "install" ? "Could not install t3" : "Could not remove t3",
-            description: error instanceof Error ? error.message : "Something went wrong.",
+            title: action === "install" ? t("Could not install t3") : t("Could not remove t3"),
+            description: error instanceof Error ? error.message : t("Something went wrong."),
           }),
         );
       })
@@ -56,7 +58,7 @@ export function CliCommandSettingsRow() {
           disabled={pending || query.isPending}
           onClick={() => change(installed ? "uninstall" : "install")}
         >
-          {installed ? "Remove" : "Install"}
+          {installed ? t("Remove") : t("Install")}
         </Button>
       }
     />

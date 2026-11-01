@@ -49,10 +49,10 @@ export function UiLanguageRow() {
             <SelectPopup align="end" alignItemWithTrigger={false}>
               <SelectItem value="system">{optionLabel("system")}</SelectItem>
               <SelectItem value="en" lang="en">
-                {LANGUAGE_NAMES.en}
+                {t(LANGUAGE_NAMES.en)}
               </SelectItem>
               <SelectItem value="zh-Hans" lang="zh-Hans">
-                {LANGUAGE_NAMES["zh-Hans"]}
+                {t(LANGUAGE_NAMES["zh-Hans"])}
               </SelectItem>
             </SelectPopup>
           </Select>

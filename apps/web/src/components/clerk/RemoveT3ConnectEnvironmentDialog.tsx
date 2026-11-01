@@ -14,6 +14,7 @@ import {
 } from "../ui/alert-dialog";
 import { Button, InlineButton } from "../ui/button";
 import { useT3ConnectAccountPage } from "./T3ConnectAccountPages";
+import { useT } from "../../hooks/useT";
 
 export function RemoveT3ConnectEnvironmentDialog({
   environmentLabel,
@@ -26,6 +27,7 @@ export function RemoveT3ConnectEnvironmentDialog({
   readonly onCancel: () => void;
   readonly onConfirm: () => void;
 }) {
+  const t = useT();
   const accountPage = useT3ConnectAccountPage();
   const discovery = useRelayEnvironmentDiscovery();
   const registration = environmentId
@@ -46,11 +48,18 @@ export function RemoveT3ConnectEnvironmentDialog({
         openAccountPage();
       }}
     >
-      T3 Connect settings
+      {t("T3 Connect settings")}
     </InlineButton>
   ) : (
-    "T3 Connect settings"
+    t("T3 Connect settings")
   );
+  // The link sits mid-sentence, so split the translated sentence around its placeholder.
+  const [registeredBefore, registeredAfter] = t(
+    "It stays on your T3 Connect account and keeps its host space. Deregister it in {accountPageLink} to free it.",
+  ).split("{accountPageLink}");
+  const [unknownBefore, unknownAfter] = t(
+    "This doesn't change your T3 Connect account. To deregister it there, use {accountPageLink}.",
+  ).split("{accountPageLink}");
 
   return (
     <>
@@ -62,30 +71,34 @@ export function RemoveT3ConnectEnvironmentDialog({
       >
         <AlertDialogPopup>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {shown.label} from this device?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("Remove {label} from this device?", { label: shown.label ?? "" })}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This forgets its pairing, credentials, and cached threads here.
+              {t("This forgets its pairing, credentials, and cached threads here.")}
             </AlertDialogDescription>
             <AlertDialogDescription>
               {shown.registration === "registered" ? (
                 <>
-                  It stays on your T3 Connect account and keeps its host space. Deregister it in{" "}
-                  {accountPageLink} to free it.
+                  {registeredBefore}
+                  {accountPageLink}
+                  {registeredAfter}
                 </>
               ) : shown.registration === "unregistered" ? (
-                "It's no longer on your T3 Connect account."
+                t("It's no longer on your T3 Connect account.")
               ) : (
                 <>
-                  This doesn't change your T3 Connect account. To deregister it there, use{" "}
-                  {accountPageLink}.
+                  {unknownBefore}
+                  {accountPageLink}
+                  {unknownAfter}
                 </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
+            <AlertDialogClose render={<Button variant="outline" />}>{t("Cancel")}</AlertDialogClose>
             <Button variant="destructive" onClick={onConfirm}>
-              Remove from this device
+              {t("Remove from this device")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogPopup>

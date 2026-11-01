@@ -78,12 +78,15 @@ export function useCommandPaletteThemeItems() {
     groups: [
       {
         value: "themes",
-        label: "Change theme",
+        label: t("Change theme"),
         items: themeCards.map(({ id, label, previews }) => ({
           kind: "action",
           value: id === null ? "theme:standard" : `theme:palette:${id}`,
           title: label,
-          description: previews.length === 1 ? `For ${previews[0]!.mode} mode` : undefined,
+          description:
+            previews.length === 1
+              ? t("For {mode} mode", { mode: t(previews[0]!.mode === "dark" ? "Dark" : "Light") })
+              : undefined,
           searchTerms: [label, "theme", "appearance"],
           icon: <PaletteIcon className={ITEM_ICON_CLASS} />,
           titleTrailingContent: (
@@ -126,7 +129,7 @@ export function useCommandPaletteThemeItems() {
     groups: [
       {
         value: "appearance",
-        label: "Change appearance",
+        label: t("Change appearance"),
         items: APPEARANCE_OPTIONS.map(({ mode, label, icon: Icon }) => ({
           kind: "action",
           value: `appearance:${mode}`,

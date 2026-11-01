@@ -3,6 +3,7 @@ import { useId } from "react";
 
 import { accessConfig } from "../auth/ConnectAgentSurface";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
+import { useT } from "../../hooks/useT";
 
 /** What agents here may do in an environment being linked, with what that does not allow. */
 export function LinkAccessPicker({
@@ -14,12 +15,13 @@ export function LinkAccessPicker({
   readonly onChange: (access: AuthMcpClientAccess) => void;
   readonly disabled?: boolean;
 }) {
+  const t = useT();
   const labelId = useId();
   const selected = accessConfig[value];
   return (
     <div className="space-y-1.5">
       <span id={labelId} className="block text-xs font-medium">
-        What agents here may do there
+        {t("What agents here may do there")}
       </span>
       <Select
         value={value}
@@ -32,7 +34,7 @@ export function LinkAccessPicker({
           <SelectValue>
             <span className="flex items-center gap-2">
               <selected.icon aria-hidden className="size-4" />
-              {selected.label}
+              {t(selected.label)}
             </span>
           </SelectValue>
         </SelectTrigger>
@@ -44,9 +46,9 @@ export function LinkAccessPicker({
                 <span className="grid min-w-0 gap-0.5 py-0.5">
                   <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
                     <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-                    {label}
+                    {t(label)}
                   </span>
-                  <span className="text-xs leading-4 text-muted-foreground">{description}</span>
+                  <span className="text-xs leading-4 text-muted-foreground">{t(description)}</span>
                 </span>
               </SelectItem>
             );
@@ -54,9 +56,10 @@ export function LinkAccessPicker({
         </SelectPopup>
       </Select>
       <p className="text-xs text-muted-foreground">
-        {selected.description} An agent never gets more access there than its own mode here. Below
-        full access, it can change only threads this link started, not that machine's own threads,
-        projects or settings.
+        {t(
+          "{description} An agent never gets more access there than its own mode here. Below full access, it can change only threads this link started, not that machine's own threads, projects or settings.",
+          { description: selected.description },
+        )}
       </p>
     </div>
   );

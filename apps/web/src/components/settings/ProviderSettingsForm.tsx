@@ -29,6 +29,7 @@ export type SettingsFormDefinition = Pick<ProviderClientDefinition, "settingsSch
   readonly driverKind?: ProviderClientDefinition["driverKind"];
 };
 import { SettingsRow } from "./settingsLayout";
+import { useT } from "../../hooks/useT";
 
 export interface ProviderSettingsFieldModel {
   readonly key: string;
@@ -207,6 +208,7 @@ function ProviderCommandArguments({
   value,
   onChange,
 }: Pick<ProviderSettingsFormProps, "value" | "onChange">) {
+  const t = useT();
   const args = configuredCommandArgs(value);
   const [storedDraft, setDraft] = useState(() => seedRowsDraft(args, toCommandArgumentRows));
   const draft = reconcileRowsDraft(storedDraft, args, commandArgumentsEqual, toCommandArgumentRows);
@@ -224,7 +226,7 @@ function ProviderCommandArguments({
   return (
     <SettingsRow
       title="Arguments"
-      description="One literal argument per row, in launch order."
+      description={t("One literal argument per row, in launch order.")}
       control={
         <Button
           type="button"
@@ -233,7 +235,7 @@ function ProviderCommandArguments({
           onClick={() => updateArguments([...rows, makeCommandArgumentDraftRow("")])}
         >
           <PlusIcon />
-          Add argument
+          {t("Add argument")}
         </Button>
       }
     >
@@ -252,7 +254,7 @@ function ProviderCommandArguments({
                     ),
                   )
                 }
-                aria-label={`Argument ${index + 1}`}
+                aria-label={t("Argument {index}", { index: index + 1 })}
                 spellCheck={false}
               />
               <Button
@@ -262,7 +264,7 @@ function ProviderCommandArguments({
                 onClick={() =>
                   updateArguments(rows.filter((current) => current.id !== argument.id))
                 }
-                aria-label={`Remove argument ${index + 1}`}
+                aria-label={t("Remove argument {index}", { index: index + 1 })}
               >
                 <XIcon />
               </Button>
@@ -343,6 +345,7 @@ function SecretSettingsControl({
   readonly environmentId: EnvironmentId;
   readonly onChange: ProviderSettingsFormProps["onChange"];
 }) {
+  const t = useT();
   const sources = useSecretSources(environmentId);
   const saved =
     value !== null && typeof value === "object"
@@ -372,7 +375,7 @@ function SecretSettingsControl({
           size="icon-sm"
           variant="ghost-destructive"
           onClick={() => onChange(nextProviderConfigWithFieldValue(value, field, ""))}
-          aria-label={`Clear ${field.label}`}
+          aria-label={t("Clear {label}", { label: field.label })}
         >
           <XIcon className="size-3.5" />
         </Button>
@@ -449,6 +452,7 @@ function ProviderSettingsFieldRow({
   onChange,
   environmentId,
 }: ProviderSettingsFieldRowProps) {
+  const t = useT();
   const inputId = `${idPrefix}-${field.key}`;
   const descriptionClassName =
     variant === "dialog"
@@ -520,7 +524,7 @@ function ProviderSettingsFieldRow({
               size="icon-sm"
               variant="ghost-destructive"
               onClick={() => onChange(nextProviderConfigWithFieldValue(value, field, ""))}
-              aria-label={`Clear ${field.label}`}
+              aria-label={t("Clear {label}", { label: field.label })}
             >
               <XIcon className="size-3.5" />
             </Button>

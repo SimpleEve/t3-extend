@@ -14,6 +14,7 @@ import { Button } from "./ui/button";
 import { Kbd, KbdGroup } from "./ui/kbd";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "./ui/select";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
+import { useT } from "../hooks/useT";
 
 export function remoteProjectSourceIcon(
   source: AddProjectRemoteSource,
@@ -80,6 +81,7 @@ export function NewProjectPublishHostPicker(props: {
   readonly value: SourceControlProviderKind;
   readonly onValueChange: (kind: SourceControlProviderKind) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   return (
     <span
@@ -101,7 +103,7 @@ export function NewProjectPublishHostPicker(props: {
           if (kind !== null) props.onValueChange(kind);
         }}
       >
-        <SelectTrigger size="xs" variant="ghost" aria-label="Host for the new repository">
+        <SelectTrigger size="xs" variant="ghost" aria-label={t("Host for the new repository")}>
           <SelectValue>
             {(kind: SourceControlProviderKind) => sourceControlClients.get(kind).label}
           </SelectValue>
@@ -127,6 +129,7 @@ export function NewProjectSummary(props: {
   readonly projectsRoot: string | null;
   readonly environmentLabel: string | null;
 }) {
+  const t = useT();
   return (
     <div className="p-2 pb-0">
       <div className="flex min-h-8 items-center gap-2 rounded-sm px-2 py-1.5">
@@ -135,13 +138,22 @@ export function NewProjectSummary(props: {
         </CommandPaletteTitleIcon>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-foreground text-sm">
-            {props.name.length > 0 ? props.name : "New project"}
+            {props.name.length > 0 ? props.name : t("New project")}
           </span>
           <span className="truncate text-muted-foreground/85 text-xs">
-            {props.name.length > 0
-              ? `Creates ${props.pathPreview}`
-              : `Goes in ${props.projectsRoot}`}
-            {props.environmentLabel === null ? null : ` on ${props.environmentLabel}`}
+            {props.environmentLabel === null
+              ? props.name.length > 0
+                ? t("Creates {pathPreview}", { pathPreview: props.pathPreview })
+                : t("Goes in {projectsRoot}", { projectsRoot: props.projectsRoot ?? "" })
+              : props.name.length > 0
+                ? t("Creates {pathPreview} on {environmentLabel}", {
+                    pathPreview: props.pathPreview,
+                    environmentLabel: props.environmentLabel,
+                  })
+                : t("Goes in {projectsRoot} on {environmentLabel}", {
+                    projectsRoot: props.projectsRoot ?? "",
+                    environmentLabel: props.environmentLabel,
+                  })}
           </span>
         </span>
       </div>
@@ -154,9 +166,10 @@ export function RemoteRepositorySummary(props: {
   readonly title: string;
   readonly description: string;
 }) {
+  const t = useT();
   return (
     <div className="shrink-0 p-2 pb-0">
-      <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">Repository</div>
+      <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">{t("Repository")}</div>
       <div className="flex min-h-8 items-center gap-2 rounded-sm px-2 py-1.5">
         <CommandPaletteTitleIcon>
           {remoteProjectSourceIcon(props.source, ITEM_ICON_CLASS)}

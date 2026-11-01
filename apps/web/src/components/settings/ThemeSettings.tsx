@@ -937,7 +937,7 @@ export function ThemeLibrary({
             toastManager.add(
               stackedThreadToast({
                 type: "success",
-                title: `${importedTheme.label} added`,
+                title: t("{label} added", { label: importedTheme.label }),
                 description: `It’s now your ${modes[0]!} theme.`,
               }),
             );
@@ -947,8 +947,8 @@ export function ThemeLibrary({
           toastManager.add(
             stackedThreadToast({
               type: "success",
-              title: `${importedTheme.label} added`,
-              description: "It’s now active.",
+              title: t("{label} added", { label: importedTheme.label }),
+              description: t("It’s now active."),
             }),
           );
           return true;
