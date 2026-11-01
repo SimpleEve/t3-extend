@@ -21,7 +21,8 @@ const pendingCatalogs = new Map<UiLocale, Promise<Catalog | null>>();
 
 /**
  * Loads a locale's catalog once. Resolves `null` for English, which has none,
- * and when the load fails; a failure is not cached, so the next call retries.
+ * and when the load fails. The next call imports again, but browsers cache the
+ * failed module, so it fails again until the page reloads.
  */
 export function loadUiCatalog(locale: UiLocale): Promise<Catalog | null> {
   if (locale === "en") return Promise.resolve(null);

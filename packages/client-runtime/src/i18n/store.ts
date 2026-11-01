@@ -38,7 +38,8 @@ export function translatorFor(locale: UiLocale): Translator {
 /**
  * Switches the interface language once its catalog has loaded, so nothing
  * renders half translated. A newer request wins over a slower older one, and
- * a failed load keeps the current language; asking again retries the load.
+ * a failed load keeps the current language. Browsers cache a failed module load,
+ * so asking again on the same page does not retry; only a page reload recovers.
  */
 export async function setUiLocale(locale: UiLocale): Promise<void> {
   requestedLocale = locale;

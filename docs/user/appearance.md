@@ -27,7 +27,8 @@ On web and desktop, choose **Settings → Appearance → Language** to show the 
 or Simplified Chinese (简体中文). The change applies right away, including the desktop app's menus.
 **Follow system** uses your system language: Simplified Chinese when it is Chinese in Simplified
 script, and English otherwise, including for Traditional Chinese. Each device or browser keeps its
-own choice.
+own choice. If the Chinese language pack can't be downloaded, for example over a dropped
+connection, the interface stays in English and offers to reload the page.
 
 Only part of the interface is translated so far; the rest stays in English. Your threads, project
 names, and agent replies are never translated.

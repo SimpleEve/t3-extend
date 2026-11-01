@@ -12,12 +12,13 @@ import { clearChunkReloadGuard, reloadOnceForChunkLoadError } from "./lib/chunkR
 import { startUiLanguage } from "./uiLanguage"; // fork: interface language
 
 const router = startAppServices();
-const uiLanguageReady = startUiLanguage(); // fork: interface language
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 
 let chunkLoadFailed = false;
 let reloadScheduled = false;
+// fork: interface language
+const uiLanguage = startUiLanguage({ isReloadScheduled: () => reloadScheduled });
 window.addEventListener("vite:preloadError", (event) => {
   chunkLoadFailed = true;
   if (reloadOnceForChunkLoadError()) {
@@ -39,12 +40,15 @@ const managedAuthShellModule =
 export const startup = Promise.all([
   managedAuthShellModule?.then((module) => module.default) ?? null,
   router.load(),
-  uiLanguageReady, // fork: a saved Chinese UI paints translated, without an English flash
+  uiLanguage.firstPaint, // fork: a saved Chinese UI paints translated, without an English flash
 ])
   .then(([ManagedAuthShell]) => {
     // Route chunk failures resolve router.load() and surface later through the error boundary.
     if (reloadScheduled) return;
-    if (!chunkLoadFailed) clearChunkReloadGuard();
+    // fork: a catalog chunk can fail after first paint; clearing before it settles could loop reloads.
+    void uiLanguage.settled.then(() => {
+      if (!chunkLoadFailed) clearChunkReloadGuard();
+    });
     ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <React.StrictMode>
         {ManagedAuthShell && clerkPublishableKey ? (

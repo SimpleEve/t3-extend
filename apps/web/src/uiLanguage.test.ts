@@ -19,6 +19,8 @@ vi.mock("./hooks/useSettings", () => ({
   },
 }));
 
+const startOptions = { isReloadScheduled: () => false };
+
 async function setup(hydrated: Promise<void>) {
   settings.uiLanguage = "zh-Hans";
   settings.hydrated = hydrated;
@@ -43,7 +45,7 @@ async function setup(hydrated: Promise<void>) {
 describe("startUiLanguage", () => {
   it("paints in the saved language without waiting on the timer when settings read quickly", async () => {
     using env = await setup(Promise.resolve());
-    await startUiLanguage();
+    await startUiLanguage(startOptions).firstPaint;
     expect(getUiLocale()).toBe("zh-Hans");
     expect(env.root.lang).toBe("zh-Hans");
   });
@@ -52,7 +54,7 @@ describe("startUiLanguage", () => {
     let finishHydration!: () => void;
     using env = await setup(new Promise((resolve) => (finishHydration = resolve)));
     let painted = false;
-    const ready = startUiLanguage().then(() => (painted = true));
+    const ready = startUiLanguage(startOptions).firstPaint.then(() => (painted = true));
 
     await vi.advanceTimersByTimeAsync(FIRST_PAINT_LANGUAGE_WAIT_MS - 1);
     expect(painted).toBe(false);

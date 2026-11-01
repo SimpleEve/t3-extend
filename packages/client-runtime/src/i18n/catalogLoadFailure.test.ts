@@ -12,7 +12,7 @@ vi.mock("./catalogs/zh-Hans/index.ts", () => {
 });
 
 describe("UI locale store when a catalog fails to load", () => {
-  it("keeps the current locale, tells no one, and retries on the next request", async () => {
+  it("keeps the current locale, tells no one, and imports again on the next request", async () => {
     const seen: string[] = [];
     const unsubscribe = subscribeUiLocale(() => seen.push(getUiLocale()));
     await setUiLocale("zh-Hans");
