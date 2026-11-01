@@ -411,7 +411,7 @@ export default {
   "Starting device…": "正在启动设备…",
   "Installing device support…": "正在安装设备支持…",
   "Finding devices…": "正在查找设备…",
-  "The device hub failed to start.": "设备中心启动失败。",
+  "The device hub failed to start.": "设备 Hub 启动失败。",
   "No simulators or emulators were found on this environment.": "这个环境中没有找到模拟器。",
   "Open {name}": "打开 {name}",
   "Start {name}": "启动 {name}",
@@ -491,4 +491,67 @@ export default {
   Grant: "授予",
   "Event log": "事件日志",
   "No events yet.": "还没有事件。",
+  "{platform} available": "{platform} 可用",
+  "{platform} unavailable": "{platform} 不可用",
+  "Device support could not start.": "设备支持无法启动。",
+  "Installing device tools…": "正在安装设备工具…",
+  "Starting device tools…": "正在启动设备工具…",
+  "Check the host connection and network access, then retry. Your device settings are saved.":
+    "请检查主机连接和网络访问，然后重试。你的设备设置已保存。",
+  "The Android device list may be incomplete. Check the device host and try again.":
+    "Android 设备列表可能不完整。请检查设备主机后重试。",
+  "{platform} support was not detected.": "没有检测到 {platform} 支持。",
+  "Xcode is installed, but no iOS Simulator is available. Install a runtime in Xcode Settings → Components.":
+    "已安装 Xcode，但没有可用的 iOS 模拟器。请在 Xcode 设置 → Components 中安装运行时。",
+  "The Android SDK is installed, but no virtual device exists. Create one in Android Studio → Device Manager.":
+    "已安装 Android SDK，但没有虚拟设备。请在 Android Studio → Device Manager 中创建一个。",
+  "{host} starts iOS Simulators in the cloud with EAS Simulator.":
+    "{host} 通过 EAS Simulator 在云端启动 iOS 模拟器。",
+  "{host} starts Android emulators in the cloud with EAS Simulator.":
+    "{host} 通过 EAS Simulator 在云端启动 Android 模拟器。",
+  "Xcode and iOS Simulator are available on {host}.": "{host} 上可以使用 Xcode 和 iOS 模拟器。",
+  "Xcode and iOS Simulator are available.": "可以使用 Xcode 和 iOS 模拟器。",
+  "The Android SDK and Emulator are available on {host}.":
+    "{host} 上可以使用 Android SDK 和模拟器。",
+  "The Android SDK and Emulator are available.": "可以使用 Android SDK 和模拟器。",
+  "Set up devices": "设置设备",
+  "Review what runs on this environment before using simulators and emulators.":
+    "使用模拟器之前，先确认这个环境上会运行哪些组件。",
+  Simulators: "模拟器",
+  "Enable the device hub": "启用设备 Hub",
+  "Enable device hub": "启用设备 Hub",
+  "Enable this environment to open simulators and emulators, whether they run here or on a remote device host.":
+    "让这个环境可以打开模拟器，无论它们运行在本机还是远程设备主机上。",
+  "Check simulator support": "检查模拟器支持",
+  "Allow agent control": "允许 Agent 控制",
+  "Allow new agent sessions in this environment to start and control local and remote devices, with required tools set up automatically.":
+    "允许这个环境中新的 Agent 会话启动并控制本地和远程设备，所需工具会自动安装。",
+  "Allow agents to control devices": "允许 Agent 控制设备",
+  "Leave this off to keep manual device controls without giving agents access.":
+    "保持关闭时，你仍可以手动操作设备，但 Agent 无法访问。",
+  "Installing device hub…": "正在安装设备 Hub…",
+  "Starting device hub…": "正在启动设备 Hub…",
+  "Updating device hub…": "正在更新设备 Hub…",
+  "Device hub is ready.": "设备 Hub 已就绪。",
+  "You can use either platform. Fixing a missing platform does not block the other one.":
+    "两个平台都可以单独使用。修复缺失的平台不会影响另一个。",
+  "Installing agent tools…": "正在安装 Agent 工具…",
+  "Starting agent tools…": "正在启动 Agent 工具…",
+  "Updating agent access…": "正在更新 Agent 访问…",
+  "Agent tools are ready.": "Agent 工具已就绪。",
+  "{tool}: version {version}. Show details": "{tool}：版本 {version}。显示详情",
+  "{tool}: not installed. Show details": "{tool}：未安装。显示详情",
+  "{tool}: version unknown. Show details": "{tool}：版本未知。显示详情",
+  "Versions unavailable": "无法获取版本",
+  Versions: "版本",
+  "Agent device": "agent-device",
+  "Starting…": "正在启动…",
+  "Version unknown": "版本未知",
+  "Not running": "未运行",
+  Required: "需要",
+  Installed: "已安装",
+  "Versions have not been checked.": "还没有检查版本。",
+  "Managed by {owner}. Tools update automatically on this host when needed.":
+    "由 {owner} 管理。需要时，工具会在这台主机上自动更新。",
+  "Tools update automatically on this host when needed.": "需要时，工具会在这台主机上自动更新。",
 } satisfies Record<string, string>;

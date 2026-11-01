@@ -497,10 +497,11 @@ export default {
   "Updating…": "正在更新…",
   "Update to v{requiredVersion}": "更新到 v{requiredVersion}",
   "Check versions": "检查版本",
-  "Open simulators and emulators in the Device panel. Hub:": "在设备面板中打开模拟器。Hub：",
+  "Open simulators and emulators in the Device panel. Hub: {versions}":
+    "在设备面板中打开模拟器。Hub：{versions}",
   "Device hub": "设备 Hub",
-  "New agent sessions can open and drive these devices. agent-device:":
-    "新的 Agent 会话可以打开并操作这些设备。agent-device：",
+  "New agent sessions can open and drive these devices. agent-device: {versions}":
+    "新的 Agent 会话可以打开并操作这些设备。agent-device：{versions}",
   "Agent device access": "Agent 设备访问",
   "Allow agents in this project to use the shared browser. Applies when the agent session next starts.":
     "允许此项目中的 Agent 使用共享浏览器。在 Agent 会话下次启动时生效。",

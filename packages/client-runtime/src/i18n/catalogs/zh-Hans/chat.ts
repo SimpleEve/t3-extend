@@ -735,4 +735,13 @@ export default {
   "Run in terminal": "在终端中运行",
   "Show diagram": "显示图表",
   "diagram source|Show code": "显示源码",
+  "1 changed file": "1 个文件有改动",
+  "{count} changed files": "{count} 个文件有改动",
+  "Open diff": "打开差异",
+  "Open the full diff": "打开完整差异",
+  "1 more file in the full diff": "完整差异中还有 1 个文件",
+  "{count} more files in the full diff": "完整差异中还有 {count} 个文件",
+  "Copy table": "复制表格",
+  "Copy as Markdown": "复制为 Markdown",
+  "Copy as CSV": "复制为 CSV",
 } satisfies Record<string, string>;
