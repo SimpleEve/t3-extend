@@ -1,0 +1,22 @@
+# frpc：运行在家里那台装着 T3 Extend 的电脑上。
+# 复制为 ~/frpc.toml，把三处 <...> 换成你自己的值，然后运行 `frpc -c ~/frpc.toml`，
+# 或者在 T3 Extend 的 Settings → Sharing & access → Tunnel command 里填这条命令。
+
+# VPS 的公网 IP 或域名。
+serverAddr = "<VPS_IP_OR_DOMAIN>"
+serverPort = 7000
+
+auth.method = "token"
+# 与 VPS 上 .env 里的 FRP_AUTH_TOKEN 相同。
+auth.token = "<FRP_AUTH_TOKEN>"
+
+# 与 frps 的 transport.tls.force 对应。
+transport.tls.enable = true
+
+[[proxies]]
+name = "t3-extend"
+type = "tcp"
+localIP = "127.0.0.1"
+# T3 Extend 桌面版的后端端口默认是 3873；headless 用 `t3x serve --port 3873` 固定它。
+localPort = 3873
+remotePort = 7001

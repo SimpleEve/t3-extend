@@ -94,6 +94,37 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的私有二开 for
 - 其他上游文件各一两行：`SidebarThreadHeader.tsx`（切换按钮）、`CommandPalette.tsx`（两条命令，定义在 `CommandPaletteSidebarViewItems.tsx`）、`chatRouteCommands.ts`（`chat.new`）、`lib/sidebarTree.ts`（`aria-level` 按祖先数计算，支持第三层）。
 - 快捷键没有加，因为要改 `packages/contracts/src/keybindings.ts`。
 
+## 自建连接
+
+用自己的 VPS（frps + Caddy）代替 T3 Connect。部署包和中文文档在 `infra/self-host/`，用户说明在 `docs/user/remote-access.md` 的 "Your own public address" 一节。设备把自建地址当作一条普通的 `Bearer` 路由，配对沿用 `https://host/pair#token=<一次性码>`。不自托管 `infra/relay`，不复用 `providerKind: "t3_relay"`。
+
+- contracts：`ServerDirectEndpointKind` 加了 `"public"`，这是唯一的 contracts 改动。旧客户端通过 `ForwardCompatibleArray` 跳过这一项（`packages/contracts/src/server.test.ts` 有用例）。
+- 公网地址的规范化、环境变量名、文件格式和桌面 bridge 类型放在 `packages/shared/src/selfHost.ts`。只接受不带路径的 `https://` origin。
+- server：`environment/PublicUrls.ts` 合并 `T3CODE_PUBLIC_URLS` 和保存的文件（默认 `<stateDir>/public-urls.json`，可以用 `T3CODE_PUBLIC_URLS_FILE` 指定）。每次读取 server config 时重新读文件，所以增删地址不用重启。`DirectEndpoints` 把这些地址上报为 `"public"`。
+- CLI：`cli/publicUrlFlags.ts` 定义 `--public-url`（可重复，替换保存的列表）和 `--clear-public-urls`，`serve`、`start`、默认命令和 `up` 都能用。`t3 pair --base-url` 复用 `cli/auth.ts` 的 flag，先用 descriptor 确认地址指向的是这台 server，再打印二维码。
+- 认证限速：`auth/AuthAttemptLimiter.ts` 是一个全局 HttpRouter middleware，只作用于 `POST /oauth/token` 和 `POST /api/auth/browser-session`。它只统计 401 失败（400 不算），1 分钟内失败 20 次就锁 60 秒，期间返回 429 和 `retry-after`。经隧道来的请求都来自 loopback，所以不按 IP 区分。
+- client-runtime：`mergeLearnedRoutes` 只接受 https 的 `"public"` 地址，排序沿用 `ROUTE_KIND_RANK`（局域网和 tailnet 优先，然后是 public，最后是 relay），supervisor 的预检和回切逻辑不变。mobile 用的是同一个 registry，不需要改。
+- desktop：`selfHost/DesktopSelfHost.ts` 把地址存在 `<stateDir>/public-urls.json`，主后端通过 `T3CODE_PUBLIC_URLS_FILE` 读同一个文件。隧道命令存在 `self-host-tunnel.json`，由 `selfHost/ManagedTunnel.ts` 托管：用登录 shell 运行，退出后指数退避重启（1 秒起，最长 60 秒），关闭开关或退出应用时停止整个进程组。只有本机渲染进程的 `window.t3xSelfHostBridge` 能访问它，没有任何 RPC 入口。
+- web：`components/settings/SelfHostSettings.tsx` 和 `fork/selfHostStore.ts`。中文译文在 `catalogs/zh-Hans/sharing.ts`。
+
+上游文件里的接线（都带 `// fork:`）：
+
+1. `packages/contracts/src/server.ts`：`ServerDirectEndpointKind`。
+2. `packages/client-runtime/src/connection/routes.ts`：`mergeLearnedRoutes` 里的 https 检查。
+3. `apps/server/src/environment/DirectEndpoints.ts`：取 `PublicUrls`，在返回前追加 `"public"` 地址。
+4. `apps/server/src/server.ts`：两处 import；`DirectEndpoints.layer` 提供 `PublicUrls.layer`；`layerMakeRoutes` 提供限速 middleware。
+5. `apps/server/src/cli/config.ts`：`sharedServerCommandFlags` 展开 `publicUrlFlags`。
+6. `apps/server/src/cli/server.ts`：handler 的参数类型，以及 `resolveServerConfig` 之后调用 `applyPublicUrlFlags`。
+7. `apps/server/src/cli/up.ts`：flag 和 handler。
+8. `apps/server/src/cli/auth.ts`：`baseUrlFlag` 改为导出。
+9. `apps/server/src/cli/pair.ts`：import、两个错误类和 `resolveBaseUrlPairingBase`、flag、handler 里的分支。
+10. `apps/desktop/src/main.ts`：`layerDesktopFoundation` 加入 `DesktopSelfHost.layer`。
+11. `apps/desktop/src/preload.ts`：暴露 `t3xSelfHostBridge`。
+12. `apps/desktop/src/ipc/DesktopIpcHandlers.ts`：调用 `installSelfHostIpc()`。
+13. `apps/desktop/src/ipc/methods/serverExposure.ts`：`getAdvertisedEndpoints` 追加自建地址，生成配对二维码时可以选到它们。
+14. `apps/desktop/src/backend/DesktopBackendConfiguration.ts`：主后端的 env 加上 `T3CODE_PUBLIC_URLS_FILE` 和 `T3CODE_PUBLIC_URLS`（合并 `T3CODE_DESKTOP_HTTPS_ENDPOINTS`）。WSL 后端不加。
+15. `apps/web/src/components/settings/ConnectionsSettings.tsx`：Network access 关闭时也显示自建地址；在 Tailscale 行之后渲染 `<SelfHostSettings />`。
+
 ## 同步上游
 
 ```bash

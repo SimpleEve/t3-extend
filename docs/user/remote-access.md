@@ -205,6 +205,34 @@ For a plain HTTP LAN endpoint, use the direct pairing URL in a browser that can
 open it, or pair from the desktop app. On mobile, an IP address entered without a
 scheme uses HTTP, so include `https://` when your server uses HTTPS.
 
+### Your own public address
+
+If you run a reverse tunnel or proxy on a server you control, such as frp behind
+Caddy on a VPS, T3 Extend can use that HTTPS address instead of T3 Connect.
+[Self-hosted connection](../../infra/self-host/README.md) has a ready setup.
+
+1. In the desktop app, open **Settings → Sharing & access → Public addresses**
+   and add the address, for example `https://t3.example.com`. It must be
+   `https://` and have no path. Network access can stay off; the tunnel reaches
+   the app over `127.0.0.1`.
+2. Create a pairing link and choose the address under **Share**.
+
+Devices that already paired over your LAN or tailnet learn the address the next
+time they connect, and use it when the faster routes don't answer. Removing the
+address stops reporting it; to cut off a device, revoke its session.
+
+**Tunnel command** can keep the tunnel client running while the app is open,
+for example `frpc -c ~/frpc.toml`. The command runs on this computer as you,
+and only this computer's desktop app can change it.
+
+On a headless server, save the address with `t3 up --public-url <url>` (repeat
+for several, `--clear-public-urls` to remove them) or set `T3CODE_PUBLIC_URLS`,
+and print a QR code with `t3 pair --base-url <url>`.
+
+Whoever runs the proxy can read your traffic, because TLS ends there. Use a
+server only you control. Failed pairing codes are rate limited: after 20
+failures in a minute, new pairings wait 60 seconds.
+
 ## Desktop-managed SSH
 
 In the desktop app, open **Settings → Environments → Add environment**, choose

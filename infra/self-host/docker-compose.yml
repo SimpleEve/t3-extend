@@ -1,0 +1,42 @@
+# 在你自己的 VPS 上运行：Caddy 终止 TLS 并自动申请证书，frps 接受家里 frpc 的连接。
+# 先复制 .env.example 为 .env，填好域名、邮箱和 token。
+#
+# 对外只开放：
+#   80/tcp、443/tcp  Caddy（证书签发和 HTTPS）
+#   7000/tcp         frps 控制端口（家里的 frpc 连这里）
+# frps 的数据端口 7001 只在 compose 内部网络里，Caddy 经内部网络访问它，不映射到宿主机。
+
+services:
+  frps:
+    image: fatedier/frps:v0.61.1
+    restart: unless-stopped
+    command: ["-c", "/etc/frp/frps.toml"]
+    environment:
+      FRP_AUTH_TOKEN: ${FRP_AUTH_TOKEN:?在 .env 里设置 FRP_AUTH_TOKEN}
+    volumes:
+      - ./frps.toml:/etc/frp/frps.toml:ro
+    ports:
+      - "7000:7000"
+    # 7001 故意不写在 ports 里。
+    expose:
+      - "7001"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - frps
+    environment:
+      T3_DOMAIN: ${T3_DOMAIN:?在 .env 里设置 T3_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?在 .env 里设置 ACME_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
