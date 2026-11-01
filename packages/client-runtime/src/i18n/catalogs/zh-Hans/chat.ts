@@ -260,5 +260,78 @@ export default {
   "Edit from here": "从这里编辑",
   "Show less": "收起",
   "Show full message": "显示完整消息",
+  // Composer stash and send toasts
+  "Stashed files belong to another environment": "暂存的文件属于另一个环境",
+  "Restore this prompt in the environment that received its files.":
+    "请在收到这些文件的环境中恢复这条提示词。",
+  "Restored prompt may reappear in the stash": "已恢复的提示词可能会重新出现在暂存区",
+  "Browser storage rejected the update, so this entry could still be there after a reload.":
+    "浏览器存储拒绝了这次更新，所以重新加载后这一条可能还在。",
+  "Some attachments were not restored": "部分附件没有恢复",
+  "Stash entry may come back": "这条暂存可能会回来",
+  "Browser storage rejected the delete, so this prompt could reappear after a reload.":
+    "浏览器存储拒绝了这次删除，所以重新加载后这条提示词可能会重新出现。",
+  "Stash again once its chip resolves.": "标签加载完成后再暂存。",
+  "Attach dropped files again or remove them before stashing":
+    "暂存前请重新附加拖入的文件，或将其移除",
+  "Wait for file uploads before stashing this prompt": "请等文件上传完成后再暂存这条提示词",
+  "Could not stash this prompt": "无法暂存这条提示词",
+  "Browser storage rejected the write, so the composer was left as-is. Free up site data and try again.":
+    "浏览器存储拒绝了写入，输入框保持不变。请清理网站数据后重试。",
+  "Stashed prompt will not survive a reload": "暂存的提示词在重新加载后会丢失",
+  "Browser storage is unavailable, so this stash is kept in memory only for this session.":
+    "浏览器存储不可用，这次暂存只保存在本次会话的内存中。",
+  "Oldest stashed prompt discarded": "已丢弃最早的暂存提示词",
+  "The stash holds {count} prompts; the oldest was removed to make room.":
+    "暂存区最多保存 {count} 条提示词，已移除最早的一条。",
+  "Stashed images were not saved": "暂存的图片没有保存",
+  "The prompt was stashed, but browser storage rejected its images. They will be missing if you reload.":
+    "提示词已暂存，但浏览器存储拒绝了其中的图片，重新加载后这些图片会丢失。",
+  "Stashed images did not attach": "暂存的图片没有附加上",
+  "That prompt was restored or deleted before 1 image finished saving. Re-attach it if you still need it.":
+    "那条提示词在 1 张图片保存完成前就被恢复或删除了。如果还需要，请重新附加。",
+  "That prompt was restored or deleted before {count} images finished saving. Re-attach them if you still need them.":
+    "那条提示词在 {count} 张图片保存完成前就被恢复或删除了。如果还需要，请重新附加。",
+  "Annotation attached to draft": "标注已附加到草稿",
+  "Sending is unavailable right now. Finish the current action, then send.":
+    "现在无法发送。请先完成当前操作再发送。",
+  "Not connected: message not sent": "未连接：消息没有发送",
+  "Reconnecting to the environment. Try again once it is connected.":
+    "正在重新连接环境，连接后请重试。",
+  "Side chat not started": "侧边对话没有开始",
+  "Side chats take text only": "侧边对话只支持文字",
+  "Remove the attachments and context, then send it again.": "请移除附件和上下文后再发送。",
+  "Update this server before starting multiple models.": "请先更新这个 server 再启动多个模型。",
+  "Choose models and a base branch": "请选择模型和基础分支",
+  "Multiple models need a new thread in a Git project. Each gets its own worktree.":
+    "多个模型需要在 Git 项目中新建对话，每个模型使用各自的 worktree。",
+  "its machine": "它所在的机器",
+  "Attached thread is on another machine": "附加的对话在另一台机器上",
+  "This machine's agent can't read {title}. Remove it, or switch back to {owner} to send.":
+    "这台机器上的 Agent 无法读取 {title}。请移除它，或切回 {owner} 再发送。",
+  "Start a Codex thread first": "请先开始一个 Codex 对话",
+  "Send a message before you submit feedback.": "提交反馈前请先发送一条消息。",
+  "Choose a project first": "请先选择项目",
+  "This draft no longer points to an available project.": "这个草稿指向的项目已不可用。",
+  "Select a base branch before sending in New worktree mode.":
+    "在新建 worktree 模式下发送前，请先选择基础分支。",
+  "Retry or remove failed uploads before sending.": "发送前请重试或移除上传失败的文件。",
+  "This connection cannot change threads.": "这个连接没有修改对话的权限。",
+  "Send approval feedback without attachments or added context.":
+    "发送批准反馈时不能带附件或额外上下文。",
+  "Approval declined. Your message changed, so it wasn't sent.":
+    "已拒绝批准。你的消息有改动，所以没有发送。",
+  "Your message changed, so it wasn't sent.": "你的消息有改动，所以没有发送。",
+  "An approval is already being answered, so your message wasn't sent.":
+    "已经有一个批准正在处理，所以你的消息没有发送。",
+  "Another approval arrived, so your message wasn't sent.":
+    "又来了一个批准请求，所以你的消息没有发送。",
+  "Send again when it's ready.": "准备好后再发送。",
+  "Could not open a fresh composer": "无法打开新的输入框",
+  "Started in background": "已在后台开始",
+  "Failed to send message.": "无法发送消息。",
+  "Background task failed": "后台任务失败",
+  "Could not start thread": "无法开始对话",
+  "Open draft": "打开草稿",
   // PLACEHOLDER_CHAT_MORE
 } satisfies Record<string, string>;
