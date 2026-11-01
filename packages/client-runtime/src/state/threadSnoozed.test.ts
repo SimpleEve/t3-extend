@@ -4,6 +4,7 @@ import { TurnId } from "@t3tools/contracts";
 import type { SnoozePresetSetting } from "@t3tools/contracts/settings";
 import { describe, expect, it } from "vite-plus/test";
 
+import { uiLocaleFormatTag } from "../i18n/locale.ts";
 import { loadUiCatalog, translate } from "../i18n/translate.ts";
 
 import {
@@ -289,7 +290,10 @@ describe("resolveSnoozePresets", () => {
       formatTime,
       ...(presets ? { presets } : {}),
       ...(options.chinese
-        ? { translate: (source, params) => translate("zh-Hans", source, params) }
+        ? {
+            translate: (source, params) => translate("zh-Hans", source, params),
+            weekdayLocale: uiLocaleFormatTag("zh-Hans"),
+          }
         : {}),
     }).map((preset) => `${preset.label} ${preset.whenLabel}`);
 
@@ -303,6 +307,17 @@ describe("resolveSnoozePresets", () => {
         { kind: "after", minutes: 180 },
       ]),
     ).toEqual(["In 3 hours 23:00", "In 6 hours Thu 2:00", "Tomorrow 21:00", "Next week Mon 18:00"]);
+  });
+
+  it("names the wake day in the interface language only when asked", async () => {
+    await loadUiCatalog("zh-Hans");
+    // Wednesday 20:00; English output without a locale is what mobile relies on.
+    expect(menu(localDate(2026, 4, 8, 20), [{ kind: "after", minutes: 360 }])).toEqual([
+      "In 6 hours Thu 2:00",
+    ]);
+    expect(
+      menu(localDate(2026, 4, 8, 20), [{ kind: "after", minutes: 360 }], { chinese: true }),
+    ).toEqual(["6 小时后 周四 2:00"]);
   });
 
   it("drops a today preset once its time passes and moves a weekday on that day to next week", () => {
@@ -345,7 +360,7 @@ describe("resolveSnoozePresets", () => {
     ]);
     expect(menu(localDate(2026, 9, 4, 10), theo, { chinese: true })).toEqual([
       "明天 21:00",
-      "下周 Mon 18:00",
+      "下周 周一 18:00",
       "下周五 17:00",
     ]);
     expect(

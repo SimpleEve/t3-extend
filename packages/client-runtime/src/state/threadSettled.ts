@@ -200,6 +200,8 @@ export interface SnoozePresetOptions {
   readonly presets?: ReadonlyArray<SnoozePresetSetting>;
   readonly formatTime?: (date: Date) => string;
   readonly translate?: SnoozeLabelTranslator;
+  /** fork: `Intl` tag for the weekday in `whenLabel`; unset keeps the runtime's default locale. */
+  readonly weekdayLocale?: string;
 }
 
 const englishSnoozeLabel: SnoozeLabelTranslator = (source, params) =>
@@ -285,6 +287,7 @@ export function resolveSnoozePreset(
   now: Date,
   formatTime: (date: Date) => string = snoozeTimeOfDayLabel,
   translate: SnoozeLabelTranslator = englishSnoozeLabel,
+  weekdayLocale?: string, // fork: interface language
 ): SnoozePreset | null {
   let wake: Date;
   let daysAhead = 0;
@@ -307,7 +310,7 @@ export function resolveSnoozePreset(
     whenLabel:
       labelNamesDay || wake.toDateString() === now.toDateString()
         ? time
-        : `${wake.toLocaleDateString(undefined, { weekday: "short" })} ${time}`,
+        : `${wake.toLocaleDateString(weekdayLocale, { weekday: "short" })} ${time}`,
     snoozedUntil: wake.toISOString(),
   };
 }
@@ -324,7 +327,14 @@ export function resolveSnoozePresets(
   return (
     (options.presets ?? DEFAULT_SNOOZE_PRESETS)
       .flatMap(
-        (setting) => resolveSnoozePreset(setting, now, options.formatTime, options.translate) ?? [],
+        (setting) =>
+          resolveSnoozePreset(
+            setting,
+            now,
+            options.formatTime,
+            options.translate,
+            options.weekdayLocale, // fork
+          ) ?? [],
       )
       // flatMap returned a new array; Hermes has no `toSorted`.
       .sort((a, b) => wakeMinute(a) - wakeMinute(b))
@@ -347,6 +357,7 @@ export function pickSnoozePreset(input: {
   readonly presets?: ReadonlyArray<SnoozePresetSetting>;
   readonly formatTime?: (date: Date) => string;
   readonly translate?: SnoozeLabelTranslator;
+  readonly weekdayLocale?: string; // fork
 }): SnoozePreset | undefined {
   const original = input.shown.find((preset) => preset.id === input.id);
   const ahead =
@@ -355,7 +366,15 @@ export function pickSnoozePreset(input: {
     (candidate) => candidate.kind === "after" && snoozePresetId(candidate) === input.id,
   );
   return (
-    (setting && resolveSnoozePreset(setting, input.now, input.formatTime, input.translate)) ?? ahead
+    (setting &&
+      resolveSnoozePreset(
+        setting,
+        input.now,
+        input.formatTime,
+        input.translate,
+        input.weekdayLocale, // fork
+      )) ??
+    ahead
   );
 }
 

@@ -1,0 +1,127 @@
+// Workspace panels beside the chat: diffs, PRs, files, terminal, browser, and devices.
+// Terms follow i18n/GLOSSARY.md. Shared words live in common.ts.
+export default {
+  // Source control actions in the thread header and details panel
+  Commit: "提交",
+  Push: "推送",
+  Pull: "拉取",
+  "Create {pr}": "创建 {pr}",
+  "Commit & push": "提交并推送",
+  "Commit, push & {pr}": "提交、推送并创建 {pr}",
+  "Push & create {pr}": "推送并创建 {pr}",
+  "Publish repository": "发布仓库",
+  "Sync ref": "同步分支",
+  "Git action in progress.": "Git 操作进行中。",
+  "Git status is unavailable.": "无法获取 Git 状态。",
+  "Create and checkout a ref before pushing or opening a {kind}.":
+    "请先创建并切换到一个分支，再推送或创建 {kind}。",
+  "Branch is up to date. No action needed.": "分支已是最新，无需操作。",
+  "No local commits to push.": "没有可推送的本地提交。",
+  "Branch has diverged from upstream. Rebase/merge first.":
+    "分支已与上游分叉，请先 rebase 或 merge。",
+  "Pulling latest changes...": "正在拉取最新更改…",
+  "Starting source control action...": "正在启动源代码管理操作…",
+  'on "{branch}". You can continue on this ref or create a feature ref and run the same action there.':
+    "，目标是“{branch}”。你可以继续在这个分支上操作，也可以新建一个功能分支，在那里执行同样的操作。",
+  "Commit & push to default ref?": "提交并推送到默认分支？",
+  "This action will commit and push changes {suffix}": "此操作会提交并推送更改{suffix}",
+  "Commit & push to {branch}": "提交并推送到 {branch}",
+  "Push to default ref?": "推送到默认分支？",
+  "This action will push local commits {suffix}": "此操作会推送本地提交{suffix}",
+  "Push to {branch}": "推送到 {branch}",
+  "Commit, push & create {pr} from default ref?": "从默认分支提交、推送并创建 {pr}？",
+  "This action will commit, push, and create a {kind} {suffix}":
+    "此操作会提交、推送并创建 {kind}{suffix}",
+  "Commit, push & create {pr}": "提交、推送并创建 {pr}",
+  "Push & create {pr} from default ref?": "从默认分支推送并创建 {pr}？",
+  "This action will push local commits and create a {kind} {suffix}":
+    "此操作会推送本地提交并创建 {kind}{suffix}",
+  "There are no changes to commit, so a feature branch can't be named. Create a branch yourself or continue on {branch}.":
+    "没有可提交的更改，所以无法为功能分支命名。请自己创建分支，或继续在 {branch} 上操作。",
+  "Worktree is clean. Make changes before committing.": "工作区没有更改，请先修改再提交。",
+  "Commit is currently unavailable.": "现在无法提交。",
+  "Detached HEAD: check out a branch before pushing.":
+    "HEAD 处于分离状态：请先切换到一个分支再推送。",
+  "Commit or stash local changes before pushing.": "请先提交或 stash 本地更改再推送。",
+  "Branch is behind upstream. Pull/rebase before pushing.":
+    "分支落后于上游，请先 pull 或 rebase 再推送。",
+  'Add an "origin" remote before pushing.': "请先添加名为“origin”的 remote 再推送。",
+  "Push is currently unavailable.": "现在无法推送。",
+  "Detached HEAD: check out a branch before creating a {kind}.":
+    "HEAD 处于分离状态：请先切换到一个分支再创建 {kind}。",
+  'Add an "origin" remote before creating a {kind}.':
+    "请先添加名为“origin”的 remote 再创建 {kind}。",
+  "No local commits to include in a {kind}.": "没有可放进 {kind} 的本地提交。",
+  "Branch is behind upstream. Pull/rebase before creating a {kind}.":
+    "分支落后于上游，请先 pull 或 rebase 再创建 {kind}。",
+  "Create {kind} is currently unavailable.": "现在无法创建 {kind}。",
+  "Commit changes": "提交更改",
+  "Review and confirm your commit. Leave the message blank to auto-generate one.":
+    "检查并确认这次提交。提交信息留空会自动生成。",
+  "This connection cannot change source control.": "这个连接没有修改源代码管理的权限。",
+  "This action is currently unavailable.": "现在无法执行这个操作。",
+  "Action failed": "操作失败",
+  "Created {pr}": "已创建 {pr}",
+  "Pull failed": "拉取失败",
+  Pulled: "已拉取",
+  "Already up to date": "已是最新",
+  "Updated {branch} from {upstream}": "已从 {upstream} 更新 {branch}",
+  "Updated {branch} from upstream": "已从上游更新 {branch}",
+  "{branch} is already synchronized.": "{branch} 已同步。",
+  "Editor opening is unavailable.": "无法打开编辑器。",
+  "Unable to open file": "无法打开文件",
+  "Git initialization failed": "Git 初始化失败",
+  "Publish repository...": "发布仓库…",
+  "Detached HEAD: create and check out a branch to enable push and {kind} actions.":
+    "HEAD 处于分离状态：创建并切换到一个分支后才能推送和创建 {kind}。",
+  "Behind upstream. Pull/rebase first.": "落后于上游，请先 pull 或 rebase。",
+  "Initializing...": "正在初始化…",
+  "Initialize Git": "初始化 Git",
+  "Git actions": "Git 操作",
+  "Git action options": "Git 操作选项",
+  Changes: "更改",
+  "Default branch": "默认分支",
+  Files: "文件",
+  "({selected} of {total})": "（{selected}/{total}）",
+  "button|Done": "完成",
+  none: "无",
+  "Open {path} in editor": "在编辑器中打开 {path}",
+  Excluded: "已排除",
+  "Commit message (optional)": "提交信息（可选）",
+  "Leave empty to auto-generate": "留空则自动生成",
+  "Commit on new branch": "在新分支上提交",
+  "Run action on default branch?": "在默认分支上执行操作？",
+  Abort: "中止",
+  Continue: "继续",
+  "Check out feature branch & continue": "切换到功能分支并继续",
+  Provider: "Provider",
+  Repository: "仓库",
+  Summary: "摘要",
+  "Pick where to host it, then point us at a repo to push to.":
+    "选择托管位置，再指定要推送的仓库。",
+  "Setup Required": "需要设置",
+  "Open Settings -> Source control to configure this provider.":
+    "打开设置 → 源代码管理来配置这个 provider。",
+  "Provider status unavailable. Open Settings -> Source control and rescan.":
+    "无法获取 provider 状态。请打开设置 → 源代码管理并重新扫描。",
+  "{provider} is not authenticated. Open Settings -> Source control for setup guidance.":
+    "{provider} 未登录。请打开设置 → 源代码管理查看设置指引。",
+  Visibility: "可见性",
+  Private: "私有",
+  "Only invited people": "仅受邀的人",
+  Public: "公开",
+  "Anyone on the web": "所有人",
+  "git remote|Remote": "Remote",
+  Protocol: "协议",
+  "Publish failed": "发布失败",
+  "Repository published": "仓库已发布",
+  "Repository created": "仓库已创建",
+  "{branch} is now live on {provider}.": "{branch} 已发布到 {provider}。",
+  'Remote "{remote}" is set up. Make a commit and push it to share your code.':
+    "已设置 remote“{remote}”。提交并推送后即可分享代码。",
+  "Open on {provider}": "在 {provider} 上打开",
+  "Publish result unavailable.": "无法获取发布结果。",
+  "Publishing...": "正在发布…",
+  Publish: "发布",
+  // PLACEHOLDER_WORKSPACE_MORE
+} satisfies Record<string, string>;
