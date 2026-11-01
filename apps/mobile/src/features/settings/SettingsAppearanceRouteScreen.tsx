@@ -8,12 +8,15 @@ import { CodeAppearanceSection } from "./appearance/sections/CodeAppearanceSecti
 import { TerminalAppearanceSection } from "./appearance/sections/TerminalAppearanceSection";
 import { TextAppearanceSection } from "./appearance/sections/TextAppearanceSection";
 import { ThemeAppearanceSection } from "./appearance/sections/ThemeAppearanceSection";
+import { LanguageAppearanceSection } from "./appearance/sections/LanguageAppearanceSection"; // fork: i18n
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function SettingsAppearanceRouteScreen() {
   const insets = useSafeAreaInsets();
+  const t = useT();
 
   return (
-    <SettingsScreen title="Appearance">
+    <SettingsScreen title={t("Appearance")}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
@@ -23,6 +26,7 @@ export function SettingsAppearanceRouteScreen() {
           paddingBottom: Math.max(insets.bottom, 18) + 18,
         }}
       >
+        <LanguageAppearanceSection />
         <ThemeAppearanceSection />
         {Platform.OS === "android" ? <AndroidNavigationAppearanceSection /> : null}
         <TextAppearanceSection />

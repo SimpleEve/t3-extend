@@ -94,6 +94,7 @@ import { pruneNewTaskFlowStates } from "./features/threads/new-task-flow-state";
 import { pruneNewTaskBranchCheckouts } from "./features/threads/NewTaskDraftRouteScreen";
 import { installAppUpdateChecks } from "./features/updates/app-updates";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { installUiLanguageRuntime, useUiLanguageReady } from "./fork/uiLanguage"; // fork: i18n
 
 import "../global.css";
 
@@ -189,6 +190,7 @@ const appServiceDisposers = [
     shellStateAtom: environmentShell.stateAtom,
   }),
   installAppearanceRuntime(),
+  installUiLanguageRuntime(), // fork: i18n
   installSubscriptionUsageRefresh(),
   installPermissionUpdateNotice(),
   installThreadOutboxDelivery(),
@@ -204,7 +206,9 @@ disposeOnFoundationReplace(typeof module === "undefined" ? undefined : module.ho
 });
 
 function SplashScreenCoordinator() {
-  const { isReady } = useAppearancePreferences();
+  const { isReady: appearanceReady } = useAppearancePreferences();
+  const languageReady = useUiLanguageReady(); // fork: i18n
+  const isReady = appearanceReady && languageReady; // fork: i18n
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- hides the native splash screen once appearance preferences have loaded
   useEffect(() => {
