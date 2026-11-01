@@ -273,7 +273,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
     <>
       <SettingsEnvironmentFilterHeader />
       <SettingsScreen
-        title={PAGE_TITLES[props.page]}
+        title={t(PAGE_TITLES[props.page])}
         trailing={<AndroidSettingsEnvironmentFilter />}
       >
         <ScrollView

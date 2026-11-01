@@ -16,6 +16,8 @@ import {
   type NativeStackNavigationOptions,
 } from "@react-navigation/native-stack";
 import type { ReactNode } from "react";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { useUiLocale } from "./hooks/useT"; // fork: i18n
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { useResolveClassNames } from "uniwind";
 
@@ -225,6 +227,8 @@ const THREAD_SETTINGS_SHEET_OPTIONS = {
   nativeContentInsetHorizontally: false,
 };
 
+// fork: i18n. Screen titles below are getters, read each time the navigator renders, so they
+// follow the interface language; a plain string would keep the language the module loaded in.
 // Settings pages are root routes so they share the workspace's columns and header. The
 // `Settings` route marks the Settings tab as open (see settings-navigation.ts).
 const SETTINGS_PAGE_OPTIONS = SHEET_GLASS_HEADER_OPTIONS;
@@ -235,7 +239,9 @@ const SETTINGS_SCREENS = {
     linking: "settings",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Settings",
+      get title() {
+        return translate(getUiLocale(), "Settings");
+      },
       ...(Platform.OS === "android" ? { animation: "none" as const } : {}),
       // Android draws its own app bar here. Hidden only from inside the screen, the native one
       // showed for the first frame of the Settings tab and pushed the page down.
@@ -248,71 +254,130 @@ const SETTINGS_SCREENS = {
     linking: "settings/environments",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Environments",
+      get title() {
+        return translate(getUiLocale(), "Environments");
+      },
     },
   }),
   SettingsEnvironmentDetail: createNativeStackScreen({
     screen: SettingsEnvironmentDetailRouteScreen,
     linking: "settings/environments/:environmentId",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Environment" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Environment");
+      },
+    },
   }),
   // Old links to New threads and Agent behavior open Threads, which absorbed them.
   SettingsEnvironmentNewThreads: createNativeStackScreen({
     screen: SettingsThreadsRouteScreen,
     linking: "settings/new-threads",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Threads" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Threads");
+      },
+    },
   }),
   SettingsEnvironmentSourceControl: createNativeStackScreen({
     screen: SettingsEnvironmentSourceControlRouteScreen,
     linking: "settings/source-control",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Source control" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Source control");
+      },
+    },
   }),
   SettingsEnvironmentAgentBehavior: createNativeStackScreen({
     screen: SettingsThreadsRouteScreen,
     linking: "settings/agent-behavior",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Threads" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Threads");
+      },
+    },
   }),
   SettingsWorktrees: createNativeStackScreen({
     screen: SettingsWorktreesRouteScreen,
     linking: "settings/worktrees",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Worktrees" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Worktrees");
+      },
+    },
   }),
   SettingsLabs: createNativeStackScreen({
     screen: SettingsLabsRouteScreen,
     linking: "settings/labs",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Labs" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Labs");
+      },
+    },
   }),
   SettingsProviderAccounts: createNativeStackScreen({
     screen: SettingsProviderAccountsRouteScreen,
     linking: "settings/provider-accounts",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Providers" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Providers");
+      },
+    },
   }),
   SettingsEnvironmentMaintenance: createNativeStackScreen({
     screen: SettingsEnvironmentMaintenanceRouteScreen,
     linking: "settings/maintenance",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Maintenance" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Maintenance");
+      },
+    },
   }),
   SettingsNotifications: createNativeStackScreen({
     screen: SettingsNotificationsRouteScreen,
     linking: "settings/notifications",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Notifications" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Notifications");
+      },
+    },
   }),
   SettingsThreads: createNativeStackScreen({
     screen: SettingsThreadsRouteScreen,
     linking: "settings/thread-preferences",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Threads" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Threads");
+      },
+    },
   }),
   SettingsAbout: createNativeStackScreen({
     screen: SettingsAboutRouteScreen,
     linking: "settings/about",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "About" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "About");
+      },
+    },
   }),
   SettingsEnvironmentNew: createNativeStackScreen({
     screen: ConnectionsNewRouteScreen,
     linking: "settings/environment-new",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Add Environment",
+      get title() {
+        return translate(getUiLocale(), "Add Environment");
+      },
     },
   }),
   SettingsArchive: createNativeStackScreen({
@@ -320,20 +385,29 @@ const SETTINGS_SCREENS = {
     linking: "settings/archive",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Archive",
+      get title() {
+        return translate(getUiLocale(), "Archive");
+      },
     },
   }),
   SettingsNavigation: createNativeStackScreen({
     screen: SettingsNavigationRouteScreen,
     linking: "settings/navigation-tabs",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Navigation tabs" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Navigation tabs");
+      },
+    },
   }),
   SettingsAppearance: createNativeStackScreen({
     screen: SettingsAppearanceRouteScreen,
     linking: "settings/appearance",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Appearance",
+      get title() {
+        return translate(getUiLocale(), "Appearance");
+      },
     },
   }),
   SettingsProjectGrouping: createNativeStackScreen({
@@ -341,7 +415,9 @@ const SETTINGS_SCREENS = {
     linking: "settings/project-grouping",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "General",
+      get title() {
+        return translate(getUiLocale(), "General");
+      },
     },
   }),
   SettingsOrganization: createNativeStackScreen({
@@ -349,20 +425,29 @@ const SETTINGS_SCREENS = {
     linking: "settings/organization",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "General",
+      get title() {
+        return translate(getUiLocale(), "General");
+      },
     },
   }),
   SettingsProjectOverview: createNativeStackScreen({
     screen: SettingsProjectOverviewRouteScreen,
     linking: "settings/project",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Projects" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Projects");
+      },
+    },
   }),
   SettingsKeyboard: createNativeStackScreen({
     screen: SettingsKeyboardRouteScreen,
     linking: "settings/keyboard",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Keyboard",
+      get title() {
+        return translate(getUiLocale(), "Keyboard");
+      },
     },
   }),
   SettingsMicrophone: createNativeStackScreen({
@@ -370,7 +455,9 @@ const SETTINGS_SCREENS = {
     linking: "settings/microphone",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Microphone",
+      get title() {
+        return translate(getUiLocale(), "Microphone");
+      },
     },
   }),
   SettingsFollowUp: createNativeStackScreen({
@@ -378,7 +465,9 @@ const SETTINGS_SCREENS = {
     linking: "settings/follow-ups",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Chat",
+      get title() {
+        return translate(getUiLocale(), "Chat");
+      },
     },
   }),
   SettingsScheduledTasks: createNativeStackScreen({
@@ -386,22 +475,39 @@ const SETTINGS_SCREENS = {
     linking: "settings/scheduled-tasks",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Scheduled tasks",
+      get title() {
+        return translate(getUiLocale(), "Scheduled tasks");
+      },
       headerTitleStyle: { fontSize: 16, fontWeight: "800" },
     },
   }),
   SettingsScheduledTaskNew: createNativeStackScreen({
     screen: SettingsScheduledTaskNewRouteScreen,
     linking: "settings/scheduled-tasks/new",
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "New scheduled task" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "New scheduled task");
+      },
+    },
   }),
   SettingsScheduledTaskEdit: createNativeStackScreen({
     screen: SettingsScheduledTaskEditRouteScreen,
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Edit scheduled task" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Edit scheduled task");
+      },
+    },
   }),
   SettingsScheduledTaskBranch: createNativeStackScreen({
     screen: ScheduledTaskBranchPickerRouteScreen,
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Base branch" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Base branch");
+      },
+    },
   }),
   SettingsScheduledTaskModel: createNativeStackScreen({
     screen: ScheduledTaskModelPickerRouteScreen,
@@ -420,7 +526,9 @@ const SETTINGS_SCREENS = {
     linking: "settings/client-storage",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Client Storage",
+      get title() {
+        return translate(getUiLocale(), "Client Storage");
+      },
     },
   }),
   SettingsDiagnostics: createNativeStackScreen({
@@ -428,21 +536,30 @@ const SETTINGS_SCREENS = {
     linking: "settings/diagnostics",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Diagnostics",
+      get title() {
+        return translate(getUiLocale(), "Diagnostics");
+      },
     },
   }),
   // These params snapshot the tap time, local filters, and freshly aggregated pools.
   // A linking path would round-trip them as URL query strings and preserve stale values.
   SettingsUsageAccount: createNativeStackScreen({
     screen: UsageLimitAccountScreen,
-    options: { ...SETTINGS_PAGE_OPTIONS, title: "Account" },
+    options: {
+      ...SETTINGS_PAGE_OPTIONS,
+      get title() {
+        return translate(getUiLocale(), "Account");
+      },
+    },
   }),
   SettingsOpenSourceLicenses: createNativeStackScreen({
     screen: SettingsOpenSourceLicensesRouteScreen,
     linking: "settings/open-source-licenses",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Open source licenses",
+      get title() {
+        return translate(getUiLocale(), "Open source licenses");
+      },
     },
   }),
   SettingsOpenSourceLicense: createNativeStackScreen({
@@ -450,7 +567,9 @@ const SETTINGS_SCREENS = {
     linking: "settings/open-source-licenses/:entryKey",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "License notice",
+      get title() {
+        return translate(getUiLocale(), "License notice");
+      },
     },
   }),
   SettingsUsage: createNativeStackScreen({
@@ -458,7 +577,9 @@ const SETTINGS_SCREENS = {
     linking: "settings/usage",
     options: {
       ...SETTINGS_PAGE_OPTIONS,
-      title: "Usage",
+      get title() {
+        return translate(getUiLocale(), "Usage");
+      },
     },
   }),
   SettingsAuth: createNativeStackScreen({
@@ -729,17 +850,32 @@ const RootStackConfig = createWorkspaceStackNavigator({
     NewTaskProject: createNativeStackScreen({
       screen: NewTaskRouteScreen,
       linking: { path: "new", alias: ["new/project"] },
-      options: { ...GLASS_HEADER_OPTIONS, title: "Choose project" },
+      options: {
+        ...GLASS_HEADER_OPTIONS,
+        get title() {
+          return translate(getUiLocale(), "Choose project");
+        },
+      },
     }),
     NewTaskEnvironment: createNativeStackScreen({
       linking: "new/draft/environment",
       screen: NewTaskEnvironmentPickerRouteScreen,
-      options: { ...GLASS_HEADER_OPTIONS, title: "Environment" },
+      options: {
+        ...GLASS_HEADER_OPTIONS,
+        get title() {
+          return translate(getUiLocale(), "Environment");
+        },
+      },
     }),
     NewTaskBranch: createNativeStackScreen({
       linking: "new/draft/branch",
       screen: NewTaskBranchPickerRouteScreen,
-      options: { ...GLASS_HEADER_OPTIONS, title: "Branch" },
+      options: {
+        ...GLASS_HEADER_OPTIONS,
+        get title() {
+          return translate(getUiLocale(), "Branch");
+        },
+      },
     }),
     AddProject: createNativeStackScreen({
       linking: "new/add-project",
@@ -747,7 +883,9 @@ const RootStackConfig = createWorkspaceStackNavigator({
 
       options: {
         ...GLASS_HEADER_OPTIONS,
-        title: "Add project",
+        get title() {
+          return translate(getUiLocale(), "Add project");
+        },
       },
     }),
     AddProjectRepository: createNativeStackScreen({
@@ -850,7 +988,9 @@ const RootStackConfig = createWorkspaceStackNavigator({
       linking: `${THREAD_LINKING_PREFIX}/files`,
       options: {
         ...GLASS_HEADER_OPTIONS,
-        title: "Files",
+        get title() {
+          return translate(getUiLocale(), "Files");
+        },
       },
     }),
     ThreadFile: createNativeStackScreen({
@@ -966,7 +1106,9 @@ const RootStackConfig = createWorkspaceStackNavigator({
       linking: "settings/legal",
       options: {
         ...LEGAL_DOCUMENT_HEADER_OPTIONS,
-        title: "Legal",
+        get title() {
+          return translate(getUiLocale(), "Legal");
+        },
       },
     }),
     ConnectOnboarding: createNativeStackScreen({
@@ -975,7 +1117,9 @@ const RootStackConfig = createWorkspaceStackNavigator({
       options: {
         // Android root formSheets lack a native stack bar; the route provides AndroidSheetHeader.
         ...(Platform.OS === "android" ? { headerShown: false } : SHEET_SOLID_HEADER_OPTIONS),
-        title: "Set up T3 Connect",
+        get title() {
+          return translate(getUiLocale(), "Set up T3 Connect");
+        },
         gestureEnabled: true,
         ...HORIZONTAL_FORM_SHEET_OPTIONS,
         sheetAllowedDetents: formSheetDetents(0.6, 0.95),
@@ -986,7 +1130,9 @@ const RootStackConfig = createWorkspaceStackNavigator({
       screen: ConnectionsRouteScreen,
       linking: "connections",
       options: {
-        title: "Environments",
+        get title() {
+          return translate(getUiLocale(), "Environments");
+        },
         ...(Platform.OS === "android"
           ? { presentation: "card" as const, headerShown: false }
           : {
@@ -1002,7 +1148,9 @@ const RootStackConfig = createWorkspaceStackNavigator({
       options: {
         // Mount the iOS header immediately to avoid remounting the pairing form.
         ...(Platform.OS === "ios" ? SHEET_GLASS_HEADER_OPTIONS : undefined),
-        title: "Add Environment",
+        get title() {
+          return translate(getUiLocale(), "Add Environment");
+        },
         ...HORIZONTAL_FORM_SHEET_OPTIONS,
         sheetAllowedDetents: [0.55, 0.7],
         sheetGrabberVisible: true,
@@ -1059,6 +1207,7 @@ registerPresentedRoutes(
 );
 
 export const RootStack = RootStackConfig.with(function AdaptiveRootStack({ Navigator }) {
+  useUiLocale(); // fork: i18n, re-renders the navigator so screen titles follow the language
   const { width, height } = useWindowDimensions();
   const nativeMetrics = useNativeLayoutMetrics();
   const usesSplitView = deriveLayout({ width, height, nativeMetrics }).usesSplitView;
