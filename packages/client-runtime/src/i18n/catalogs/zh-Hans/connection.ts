@@ -636,4 +636,11 @@ export default {
     "此环境由桌面端管理。请从桌面应用打开，或者粘贴明确签发的引导凭据。",
   "This environment accepts one-time pairing tokens. Pairing links can open this page directly, or you can paste the token here.":
     "此环境接受一次性配对令牌。配对链接可以直接打开此页面，你也可以在这里粘贴令牌。",
+  "No hosts match “{query}”.": "没有与“{query}”匹配的主机。",
+  "Failed to switch the backend on.": "无法开启后端。",
+  "Failed to switch the backend off.": "无法关闭后端。",
+  "Could not switch backend on": "无法开启后端",
+  "Could not switch backend off": "无法关闭后端",
+  "Switch off {label}": "关闭 {label}",
+  "Switch on {label}": "开启 {label}",
 } satisfies Record<string, string>;

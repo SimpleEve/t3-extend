@@ -567,7 +567,7 @@ export function AddEnvironmentDialog({
                   </AutocompleteList>
                 ) : (
                   <AutocompleteEmpty className="break-all">
-                    No hosts match "{savedBackendSshHost.trim()}".
+                    {t("No hosts match “{query}”.", { query: savedBackendSshHost.trim() })}
                   </AutocompleteEmpty>
                 )}
               </AutocompletePopup>
