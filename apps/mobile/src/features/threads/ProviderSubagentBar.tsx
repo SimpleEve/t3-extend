@@ -9,6 +9,7 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { Button } from "../../components/ui/Button";
 import { useVisibleSecondClock } from "./use-visible-second-clock";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function ProviderSubagentBar(props: {
   readonly provider: { readonly driver: string; readonly iconUrl?: string | undefined } | null;
@@ -17,6 +18,7 @@ export function ProviderSubagentBar(props: {
   readonly status: ProviderSubagentStatus | null;
   readonly onOpenParent: (() => void) | null;
 }) {
+  const t = useT();
   const live = props.status !== null && isOrchestrationV2WorkActive(props.status.status);
   const nowMs = useVisibleSecondClock(live);
   const statusLabel = formatProviderSubagentStatus(props.status, nowMs);
@@ -60,7 +62,7 @@ export function ProviderSubagentBar(props: {
         </Text>
       </View>
       {props.onOpenParent ? (
-        <Button label="Open parent" tone="secondary" onPress={props.onOpenParent} />
+        <Button label={t("Open parent")} tone="secondary" onPress={props.onOpenParent} />
       ) : null}
     </View>
   );

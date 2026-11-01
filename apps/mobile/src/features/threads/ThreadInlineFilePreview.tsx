@@ -19,6 +19,7 @@ import {
   releaseAudioSession,
 } from "../../lib/audioSession";
 import { usePlaybackAudioPlayer } from "../voice-input/usePlaybackAudioPlayer";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 type PreviewProps = {
   readonly source: FilePreviewSource;
@@ -29,10 +30,11 @@ type PreviewProps = {
 };
 
 function FileCardHeader(props: PreviewProps) {
+  const t = useT();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Open ${props.source.name}`}
+      accessibilityLabel={t("Open {name}", { name: props.source.name ?? "" })}
       onPress={props.onOpen}
       onLongPress={props.onLongPress}
       className="h-[72px] flex-row items-center gap-3 p-3 active:bg-subtle"
@@ -60,6 +62,7 @@ function timestamp(seconds: number) {
 }
 
 function InlineAudio(props: PreviewProps & { readonly resolveUri: () => Promise<string | null> }) {
+  const t = useT();
   // An empty source keeps native buffering off until the user explicitly plays.
   const player = usePlaybackAudioPlayer(null);
   const status = useAudioPlayerStatus(player);
@@ -188,7 +191,7 @@ function InlineAudio(props: PreviewProps & { readonly resolveUri: () => Promise<
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
-            playing ? "Pause audio" : error || status.error ? "Retry audio" : "Play audio"
+            playing ? t("Pause audio") : error || status.error ? t("Retry audio") : t("Play audio")
           }
           accessibilityState={{ busy }}
           onPress={toggle}
@@ -210,9 +213,9 @@ function InlineAudio(props: PreviewProps & { readonly resolveUri: () => Promise<
           </View>
           <Text className="text-xs text-foreground-muted" numberOfLines={1}>
             {error || status.error
-              ? "Unavailable · tap play to retry"
+              ? t("Unavailable · tap play to retry")
               : busy
-                ? "Loading…"
+                ? t("Loading…")
                 : `${timestamp(status.currentTime)} / ${status.isLoaded ? timestamp(status.duration) : "--:--"}`}
           </Text>
         </View>

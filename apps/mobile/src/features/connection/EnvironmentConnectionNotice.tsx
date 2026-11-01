@@ -9,21 +9,27 @@ import { SymbolView } from "../../components/ui/AppSymbol";
 import { View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
+import { useT } from "../../hooks/useT"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
-function noticeTitle(phase: EnvironmentConnectionPhase, environmentLabel: string): string {
+function noticeTitle(
+  phase: EnvironmentConnectionPhase,
+  environmentLabel: string,
+  t: Translator,
+): string {
   switch (phase) {
     case "offline":
-      return "You are offline";
+      return t("You are offline");
     case "connecting":
-      return `Connecting to ${environmentLabel}...`;
+      return t("Connecting to {name}...", { name: environmentLabel });
     case "reconnecting":
-      return `Reconnecting to ${environmentLabel}...`;
+      return t("Reconnecting to {name}...", { name: environmentLabel });
     case "unsupported":
-      return "Client not supported";
+      return t("Client not supported");
     case "error":
-      return `${environmentLabel} is unavailable`;
+      return t("{name} is unavailable", { name: environmentLabel });
     case "available":
-      return `${environmentLabel} is disconnected`;
+      return t("{name} is disconnected", { name: environmentLabel });
     case "connected":
       return "";
   }
@@ -33,22 +39,30 @@ function noticeDetail(
   phase: EnvironmentConnectionPhase,
   resourceName: string,
   error: string | null,
+  t: Translator,
 ): string {
   if (error) {
-    return phase === "reconnecting" ? `The app will keep retrying automatically. ${error}` : error;
+    return phase === "reconnecting"
+      ? t("The app will keep retrying automatically. {error}", { error })
+      : error;
   }
 
+  // fork: i18n. `resourceName` is an English noun from the caller ("terminal", "review").
+  const resource = t(resourceName);
   switch (phase) {
     case "offline":
-      return `Cached data remains available. The ${resourceName} will load when your connection returns.`;
+      return t(
+        "Cached data remains available. The {resource} will load when your connection returns.",
+        { resource },
+      );
     case "connecting":
     case "reconnecting":
-      return `The ${resourceName} will load as soon as the environment is ready.`;
+      return t("The {resource} will load as soon as the environment is ready.", { resource });
     case "unsupported":
-      return "Use compatible versions of the app and server to connect.";
+      return t("Use compatible versions of the app and server to connect.");
     case "available":
     case "error":
-      return `Reconnect the environment to load the ${resourceName}.`;
+      return t("Reconnect the environment to load the {resource}.", { resource });
     case "connected":
       return "";
   }
@@ -60,6 +74,7 @@ export function EnvironmentConnectionNotice(props: {
   readonly resourceName: string;
   readonly onRetry: () => void;
 }) {
+  const t = useT();
   const isRetrying =
     props.connection.phase === "connecting" || props.connection.phase === "reconnecting";
 
@@ -78,10 +93,10 @@ export function EnvironmentConnectionNotice(props: {
         )}
 
         <Text className="text-center text-lg font-t3-bold text-foreground">
-          {noticeTitle(props.connection.phase, props.environmentLabel)}
+          {noticeTitle(props.connection.phase, props.environmentLabel, t)}
         </Text>
         <Text className="text-center text-sm leading-normal text-foreground-muted">
-          {noticeDetail(props.connection.phase, props.resourceName, props.connection.error)}
+          {noticeDetail(props.connection.phase, props.resourceName, props.connection.error, t)}
           {props.connection.traceId ? (
             <ConnectionTraceId traceId={props.connection.traceId} />
           ) : null}
@@ -89,7 +104,7 @@ export function EnvironmentConnectionNotice(props: {
 
         {props.connection.phase !== "offline" && props.connection.phase !== "unsupported" ? (
           <View className="mt-1">
-            <Button label="Retry now" tone="secondary" onPress={props.onRetry} />
+            <Button label={t("Retry now")} tone="secondary" onPress={props.onRetry} />
           </View>
         ) : null}
       </View>

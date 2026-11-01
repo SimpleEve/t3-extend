@@ -27,6 +27,7 @@ import {
   collectComposerInlineTokens,
   type ComposerInlineToken,
 } from "@t3tools/shared/composerInlineTokens";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const isMessageContext = Schema.is(OrchestrationMessageContext);
 const decodeMessageContext = Schema.decodeUnknownOption(OrchestrationMessageContext);
@@ -36,10 +37,15 @@ export function composerContextSendBlockReason(
 ): string | null {
   if (!context) return null;
   if (context.records.length > COMPOSER_CONTEXT_MAX_RECORDS) {
-    return `Remove context items until there are at most ${COMPOSER_CONTEXT_MAX_RECORDS}.`;
+    return translate(getUiLocale(), "Remove context items until there are at most {count}.", {
+      count: COMPOSER_CONTEXT_MAX_RECORDS,
+    });
   }
   return !isMessageContext(context) || decodeMessageContext(context)._tag === "None"
-    ? "This draft has too much context to send. Remove some context items and try again."
+    ? translate(
+        getUiLocale(),
+        "This draft has too much context to send. Remove some context items and try again.",
+      )
     : null;
 }
 

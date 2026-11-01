@@ -44,6 +44,7 @@ import {
 import { resolveCloudPublicConfig } from "../cloud/publicConfig";
 import { supportsAgentAwarenessPush } from "./capabilities";
 import { makeRelayDeviceRegistrationRequest, resolveApsEnvironment } from "./registrationPayload";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const REMOTE_ACTIVITY_REGISTRATION_RETRY_MS = 15_000;
 
@@ -457,7 +458,7 @@ function armAgentAwarenessLiveActivityForLocalWorkNow(input: {
     const activity = startAgentLiveActivity(
       {
         title: "T3 Code",
-        subtitle: "Agent work in progress",
+        subtitle: translate(getUiLocale(), "Agent work in progress"),
         activeCount: 1,
         updatedAt: nowIso,
         activities: [
@@ -468,7 +469,7 @@ function armAgentAwarenessLiveActivityForLocalWorkNow(input: {
             threadTitle: input.threadTitle,
             modelTitle: "",
             phase: "starting",
-            status: "Connecting",
+            status: translate(getUiLocale(), "Connecting"),
             updatedAt: nowIso,
             deepLink: "/",
           },

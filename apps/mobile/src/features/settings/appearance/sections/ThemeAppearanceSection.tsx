@@ -18,6 +18,7 @@ import {
 import { getMobileUniwindThemeName } from "../../../../lib/mobileThemeRuntime";
 import { cn } from "../../../../lib/cn";
 import { useAppearancePreferences } from "../AppearancePreferencesProvider";
+import { useT } from "../../../../hooks/useT"; // fork: i18n
 
 const APPEARANCE_MODES: ReadonlyArray<{
   readonly id: MobileThemeMode;
@@ -122,10 +123,19 @@ function ThemeCard(props: {
   readonly onSelect: (appearance: MobileThemeAppearance) => void;
   readonly themeId: MobileThemeId;
 }) {
+  const t = useT();
   const choice = (appearance: MobileThemeAppearance, selected: boolean) => (
     <Pressable
-      accessibilityHint={`Sets the ${appearance} appearance only`}
-      accessibilityLabel={`${props.label} ${appearance} theme`}
+      accessibilityHint={
+        appearance === "light"
+          ? t("Sets the light appearance only")
+          : t("Sets the dark appearance only")
+      }
+      accessibilityLabel={
+        appearance === "light"
+          ? t("{theme} light theme", { theme: props.label })
+          : t("{theme} dark theme", { theme: props.label })
+      }
       accessibilityRole="button"
       accessibilityState={{ disabled: props.disabled, selected }}
       className={cn(
@@ -153,8 +163,8 @@ function ThemeCard(props: {
   return (
     <View className="min-w-36 flex-1 basis-[47%] gap-3 rounded-[24px] border border-border bg-grouped-card px-2 py-4">
       <Pressable
-        accessibilityHint="Sets both light and dark appearances"
-        accessibilityLabel={`${props.label} theme`}
+        accessibilityHint={t("Sets both light and dark appearances")}
+        accessibilityLabel={t("{theme} theme", { theme: props.label })}
         accessibilityRole="button"
         accessibilityState={{
           disabled: props.disabled,
@@ -252,9 +262,10 @@ function ModeCard(props: {
   readonly selected: boolean;
   readonly themeIds: MobileThemeIds;
 }) {
+  const t = useT();
   return (
     <Pressable
-      accessibilityLabel={`${props.label} appearance`}
+      accessibilityLabel={t("{mode} appearance", { mode: props.label })}
       accessibilityRole="radio"
       accessibilityState={{ checked: props.selected, disabled: props.disabled }}
       className={cn(
@@ -285,6 +296,7 @@ function SectionLabel({ children }: { readonly children: string }) {
 }
 
 export function ThemeAppearanceSection() {
+  const t = useT();
   const {
     isReady,
     setThemeIdForAppearance,
@@ -298,13 +310,13 @@ export function ThemeAppearanceSection() {
   return (
     <View className="gap-6">
       <View className="gap-2">
-        <SectionLabel>Color scheme</SectionLabel>
+        <SectionLabel>{t("Color scheme")}</SectionLabel>
         <View accessibilityRole="radiogroup" className="flex-row gap-2">
           {APPEARANCE_MODES.map((mode) => (
             <ModeCard
               disabled={!isReady}
               key={mode.id}
-              label={mode.label}
+              label={t(mode.label)}
               mode={mode.id}
               onPress={() => setThemeMode(mode.id)}
               selected={mode.id === themeMode}
@@ -315,7 +327,7 @@ export function ThemeAppearanceSection() {
       </View>
 
       <View className="gap-3">
-        <SectionLabel>Themes</SectionLabel>
+        <SectionLabel>{t("Themes")}</SectionLabel>
         <View className="flex-row flex-wrap gap-3">
           {MOBILE_THEME_OPTIONS.filter(
             (theme) => theme.id !== "material-you" || systemColorsAvailable,

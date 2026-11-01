@@ -16,12 +16,14 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { vcsActionManager, vcsEnvironment } from "../../state/vcs";
 import { useVcsActionState } from "../../state/use-vcs-action-state";
 import { ThreadHeader } from "./ThreadHeader";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function DraftThreadHeader(props: {
   readonly thread: EnvironmentThreadShell;
   readonly project: EnvironmentProject;
   readonly cwd: string | null;
 }) {
+  const t = useT();
   const navigation = useNavigation();
   const { themeVariables } = useAppearancePreferences();
   const environmentId = props.thread.environmentId;
@@ -45,11 +47,11 @@ export function DraftThreadHeader(props: {
     });
   };
   const requiresThread = () =>
-    Dialog.alert("Available after the first message", "This action needs a saved thread.");
+    Dialog.alert(t("Available after the first message"), t("This action needs a saved thread."));
   return (
     <ThreadHeader
       draft
-      title="New thread"
+      title={t("New thread")}
       subtitle=""
       headerColor={themeVariables["--color-header"]}
       usesNativeHeaderGlass={NATIVE_LIQUID_GLASS_SUPPORTED}
@@ -83,7 +85,7 @@ export function DraftThreadHeader(props: {
           if (!canWriteGit || !props.cwd) return;
           const result = await pull({ environmentId, input: { cwd: props.cwd } });
           if (AsyncResult.isFailure(result))
-            Dialog.alert("Could not pull", String(Cause.squash(result.cause)));
+            Dialog.alert(t("Could not pull"), String(Cause.squash(result.cause)));
         },
         onRunAction: async (input) => {
           if (!canWriteGit || !props.cwd) return null;
@@ -93,7 +95,7 @@ export function DraftThreadHeader(props: {
             actionId: uuidv4(),
           });
           if (AsyncResult.isFailure(result)) {
-            Dialog.alert("Git action failed", String(Cause.squash(result.cause)));
+            Dialog.alert(t("Git action failed"), String(Cause.squash(result.cause)));
             return null;
           }
           return result.value;

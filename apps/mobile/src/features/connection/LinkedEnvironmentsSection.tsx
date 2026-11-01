@@ -12,11 +12,13 @@ import { peerLinkEnvironment } from "../../state/peerLinks";
 import { useEnvironmentQuery } from "../../state/query";
 import { useEnvironmentScope } from "../../state/session";
 import { SettingsSection } from "../settings/components/SettingsSection";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function LinkedEnvironmentsSection(props: {
   readonly environmentId: EnvironmentId;
   readonly environmentLabel: string;
 }) {
+  const t = useT();
   const config = useEnvironmentServerConfig(props.environmentId);
   const canRead = useEnvironmentScope(props.environmentId, AuthAccessReadScope);
   const supported = canRead && offersLinkedEnvironments(config);
@@ -44,19 +46,23 @@ export function LinkedEnvironmentsSection(props: {
   const now = DateTime.makeUnsafe(nowMs);
   return (
     <View className="mt-5 gap-3">
-      <SettingsSection title={`Linked from ${props.environmentLabel}`}>
+      <SettingsSection
+        title={t("Linked from {environmentLabel}", { environmentLabel: props.environmentLabel })}
+      >
         {links.data.links.map((link) => {
           const health = peerLinkHealth(link, now);
           const status =
             health.kind === "expired"
-              ? "Expired. Link it again with a new pairing code."
+              ? t("Expired. Link it again with a new pairing code.")
               : health.kind === "unreachable"
-                ? (health.detail ?? "Not answering right now.")
+                ? (health.detail ?? t("Not answering right now."))
                 : health.kind === "failing"
                   ? health.detail
                   : health.expiresInDays !== null
-                    ? `Expires in ${health.expiresInDays} ${health.expiresInDays === 1 ? "day" : "days"}`
-                    : "Reachable";
+                    ? health.expiresInDays === 1
+                      ? t("Expires in 1 day")
+                      : t("Expires in {count} days", { count: health.expiresInDays })
+                    : t("Reachable");
           return (
             <View key={link.environmentId} className="gap-0.5 p-4">
               <Text className="text-base font-t3-bold text-foreground">{link.label}</Text>

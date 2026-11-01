@@ -7,21 +7,23 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { useAssetUrl } from "../../state/assets";
 import { assetImageSource } from "../../lib/assetImageSource";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function ComposerQueuedEditBanner(props: {
   readonly saving: boolean;
   readonly onCancel: () => void;
 }) {
+  const t = useT();
   return (
     <View className="flex-row items-center gap-2 px-4 pb-2">
       <SymbolView name="pencil" size={12} tintColorClassName="accent-foreground-muted" />
       <Text className="min-w-0 flex-1 text-xs text-foreground-muted" numberOfLines={1}>
-        Editing queued message
+        {t("Editing queued message")}
       </Text>
       <Button
-        label="Cancel"
+        label={t("Cancel")}
         tone="text"
-        accessibilityLabel="Cancel editing queued message"
+        accessibilityLabel={t("Cancel editing queued message")}
         disabled={props.saving}
         onPress={props.onCancel}
       />
@@ -63,6 +65,7 @@ function QueuedEditAttachmentChip(props: {
   readonly disabled: boolean;
   readonly onRemove: (attachmentId: string) => void;
 }) {
+  const t = useT();
   const { attachment } = props;
   const isImage = attachment.mimeType.startsWith("image/");
   const resource = {
@@ -98,7 +101,7 @@ function QueuedEditAttachmentChip(props: {
       </Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Remove ${attachment.name}`}
+        accessibilityLabel={t("Remove {name}", { name: attachment.name })}
         disabled={props.disabled}
         hitSlop={8}
         onPress={() => props.onRemove(attachment.id)}

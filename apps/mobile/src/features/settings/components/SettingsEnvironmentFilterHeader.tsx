@@ -8,10 +8,12 @@ import { ENVIRONMENT_MACHINE_SYMBOLS } from "../../../components/EnvironmentMach
 import { NativeStackScreenOptions } from "../../../native/StackHeader";
 import { withNativeGlassHeaderItem } from "../../layout/native-glass-header-items";
 import { useSettingsEnvironmentFilter } from "../settings-environment-filter";
+import { useT } from "../../../hooks/useT"; // fork: i18n
 
 export function SettingsEnvironmentFilterHeader(props: {
   readonly trailingItems?: readonly NativeStackHeaderItem[];
 }) {
+  const t = useT();
   const {
     availableTargets,
     selectedTargets,
@@ -47,23 +49,23 @@ export function SettingsEnvironmentFilterHeader(props: {
       options={{
         unstable_headerRightItems: () => [
           withNativeGlassHeaderItem({
-            accessibilityLabel: "Filter settings environments and projects",
+            accessibilityLabel: t("Filter settings environments and projects"),
             icon: { name: filterIcon, type: "sfSymbol" },
             label: "",
             type: "menu",
             menu: {
-              title: "Settings scope",
+              title: t("Settings scope"),
               items: [
                 {
                   type: "submenu",
                   label:
                     selectedIds === null
-                      ? "All environments"
+                      ? t("All environments")
                       : `${selectedTargets.length} ${selectedTargets.length === 1 ? "environment" : "environments"}`,
                   items: [
                     {
                       type: "action",
-                      label: "All connected environments",
+                      label: t("All connected environments"),
                       state: selectedIds === null ? "on" : undefined,
                       onPress: selectAll,
                     },
@@ -90,11 +92,11 @@ export function SettingsEnvironmentFilterHeader(props: {
                   label:
                     selectableProjectGroups.find((group) => group.key === selectedProjectKey)
                       ?.label ??
-                    (selectedProjectKey === null ? "All projects" : "Unavailable project"),
+                    (selectedProjectKey === null ? t("All projects") : t("Unavailable project")),
                   items: [
                     {
                       type: "action",
-                      label: "All projects",
+                      label: t("All projects"),
                       state: selectedProjectKey === null ? "on" : undefined,
                       onPress: () => selectProject(null),
                     },
@@ -117,6 +119,7 @@ export function SettingsEnvironmentFilterHeader(props: {
 }
 
 export function AndroidSettingsEnvironmentFilter() {
+  const t = useT();
   const {
     availableTargets,
     selectedIds,
@@ -135,17 +138,17 @@ export function AndroidSettingsEnvironmentFilter() {
     <Menu
       accessible
       accessibilityRole="button"
-      accessibilityLabel="Filter settings environments and projects"
-      title="Settings scope"
+      accessibilityLabel={t("Filter settings environments and projects")}
+      title={t("Settings scope")}
       actions={[
         {
           id: "all",
-          title: "All connected environments",
+          title: t("All connected environments"),
           state: selectedIds === null ? ("on" as const) : ("off" as const),
         },
         ...availableTargets.map((entry) => ({
           id: `environment:${entry.environmentId}`,
-          title: `Environment · ${entry.label}`,
+          title: t("Environment · {label}", { label: entry.label }),
           image: ENVIRONMENT_MACHINE_SYMBOLS[resolveEnvironmentMachineKind(entry.serverConfig)],
           subtitle: entry.displayUrl ?? undefined,
           state:
@@ -155,7 +158,7 @@ export function AndroidSettingsEnvironmentFilter() {
         })),
         {
           id: "project:all",
-          title: "All projects",
+          title: t("All projects"),
           state: selectedProjectKey === null ? ("on" as const) : ("off" as const),
         },
         ...selectableProjectGroups.map((group) => ({
@@ -182,7 +185,7 @@ export function AndroidSettingsEnvironmentFilter() {
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Filter settings environments and projects"
+        accessibilityLabel={t("Filter settings environments and projects")}
         className="size-11 items-center justify-center rounded-full"
       >
         <SymbolView name={filterIcon} size={22} tintColorClassName="accent-icon" />

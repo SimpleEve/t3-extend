@@ -6,6 +6,7 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
 
 import { ConnectionStatusDot } from "../connection/ConnectionStatusDot";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function DraftEnvironmentControl(props: {
   readonly label: string;
@@ -14,11 +15,16 @@ export function DraftEnvironmentControl(props: {
   readonly disabled: boolean;
   readonly onChooseEnvironment: () => void;
 }) {
+  const t = useT();
   const disconnected = props.connectionState !== "connected";
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Choose environment, ${props.label}, ${disconnected ? "Offline" : "Connected"}`}
+      accessibilityLabel={
+        disconnected
+          ? t("Choose environment, {label}, Offline", { label: props.label })
+          : t("Choose environment, {label}, Connected", { label: props.label })
+      }
       disabled={props.disabled}
       onPress={props.onChooseEnvironment}
       className="flex-row items-center gap-1.5 rounded-xl px-3 py-2 active:opacity-65"

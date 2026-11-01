@@ -200,6 +200,7 @@ import type { ThreadContentPresentation } from "./threadContentPresentation";
 import { resolveThreadFeedSubmissionAnchor } from "./thread-feed-live-follow";
 import { useOpenLinkedThread } from "./useOpenLinkedThread";
 import { useGlobalVoiceInput } from "../voice-input/VoiceInputProvider";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export interface ThreadDetailScreenProps {
   readonly header?: React.ReactNode;
@@ -362,6 +363,7 @@ export function ThreadDetailScreen(props: ThreadDetailScreenProps) {
 }
 
 function ThreadDetailBody(props: ThreadDetailScreenProps) {
+  const t = useT();
   const usesNativeWorkspaceColumns = useNativeWorkspaceColumnsSupported();
   const { layout } = useAdaptiveWorkspaceLayout();
   const deviceType = useDeviceType();
@@ -523,9 +525,9 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
       case "cached":
       case "synchronizing":
         if (contentPresentationKind === "ready") {
-          return "Syncing messages...";
+          return t("Syncing messages...");
         }
-        return contentPresentationKind === "loading" ? "Loading messages..." : null;
+        return contentPresentationKind === "loading" ? t("Loading messages...") : null;
       default:
         return null;
     }
@@ -576,17 +578,23 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
     });
     setForceStoppingKey((current) => (current === threadKey ? null : current));
     if (result._tag === "Failure") {
-      if (!isAtomCommandInterrupted(result)) Dialog.alert("Could not force stop the agent");
+      if (!isAtomCommandInterrupted(result)) Dialog.alert(t("Could not force stop the agent"));
       return;
     }
     const others = result.value.sharedWithThreadIds.length;
     if (result.value.outcome === "releasing") {
-      Dialog.alert("Turn stopped; the agent is still shutting down");
+      Dialog.alert(t("Turn stopped; the agent is still shutting down"));
     }
     if (result.value.outcome === "shared") {
       Dialog.alert(
-        "Turn stopped; the agent process kept running",
-        `It is shared with ${others === 0 ? "other" : others} working ${others === 1 ? "thread" : "threads"}. Stop those to free it.`,
+        t("Turn stopped; the agent process kept running"),
+        others === 0
+          ? t("It is shared with other working threads. Stop those to free it.")
+          : others === 1
+            ? t("It is shared with 1 working thread. Stop that to free it.")
+            : t("It is shared with {count} working threads. Stop those to free it.", {
+                count: others,
+              }),
       );
     }
   };
@@ -663,8 +671,8 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
       Dialog.alert(
-        "Could not update thread",
-        error instanceof Error ? error.message : "Try again.",
+        t("Could not update thread"),
+        error instanceof Error ? error.message : t("Try again."),
       );
     }
   };
@@ -687,19 +695,21 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
       return {
         kind: "stop",
         unresponsive,
-        label: unresponsive ? "Not responding to Stop" : "Stopping…",
+        label: unresponsive ? t("Not responding to Stop") : t("Stopping…"),
         action:
           unresponsive && canForceStop
             ? {
-                label: forceStoppingKey === selectedThreadKey ? "Force stopping..." : "Force stop",
-                accessibilityLabel: "Force stop the agent",
+                label:
+                  forceStoppingKey === selectedThreadKey ? t("Force stopping...") : t("Force stop"),
+                accessibilityLabel: t("Force stop the agent"),
                 disabled: forceStoppingKey === selectedThreadKey,
                 onPress: () =>
                   Dialog.confirm({
-                    title: "Force stop the agent?",
-                    message:
+                    title: t("Force stop the agent?"),
+                    message: t(
                       "It has not answered Stop. Force stop ends the turn and kills the agent's processes, unless other working threads share them.",
-                    confirmText: "Force stop",
+                    ),
+                    confirmText: t("Force stop"),
                     destructive: true,
                     onConfirm: () => void forceStop(runStop.runId),
                   }),
@@ -714,7 +724,7 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
       if (props.worktreeSetup) return null;
       return {
         kind: "preparing",
-        label: props.creationState.preparingWorktree ? "Setting up worktree…" : "Starting…",
+        label: props.creationState.preparingWorktree ? t("Setting up worktree…") : t("Starting…"),
       };
     }
     if (props.creationState?.kind === "failed") {
@@ -728,7 +738,9 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
       return {
         kind: "child-input",
         label: childThreadInputsTitle(childThreadInputs),
-        accessibilityLabel: `Open ${childInput.hasPendingApprovals ? "approval" : "question"} from ${childInput.title}`,
+        accessibilityLabel: childInput.hasPendingApprovals
+          ? t("Open approval from {title}", { title: childInput.title })
+          : t("Open question from {title}", { title: childInput.title }),
         onPress: () => {
           Keyboard.dismiss();
           openLinkedThread({ environmentId: props.environmentId, threadId: childInput.id });
@@ -757,8 +769,8 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
           });
         },
         action: {
-          label: statusPending ? "Stopping..." : "Stop",
-          accessibilityLabel: "Stop background work",
+          label: statusPending ? t("Stopping...") : t("Stop"),
+          accessibilityLabel: t("Stop background work"),
           disabled: !props.canOperateThread || statusPending,
           onPress: () => void runStatusAction("stop"),
         },
@@ -768,11 +780,13 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
       const state = snoozed ? "snoozed" : settled ? "settled" : "woke";
       const label =
         snoozed && snoozedUntil !== null
-          ? `Snoozed, wakes in ${snoozeWakeLabel(snoozedUntil, { now: lifecycleNow })}`
+          ? t("Snoozed, wakes in {time}", {
+              time: snoozeWakeLabel(snoozedUntil, { now: lifecycleNow }),
+            })
           : settled
-            ? "Settled"
-            : "Woke from snooze";
-      const actionLabel = snoozed ? "Wake now" : settled ? "Un-settle" : "Dismiss";
+            ? t("Settled", undefined, "sidebar section")
+            : t("Woke from snooze");
+      const actionLabel = snoozed ? t("Wake now") : settled ? t("Un-settle") : t("Dismiss");
       return {
         kind: "lifecycle",
         state,
@@ -780,10 +794,10 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
         action: {
           label: statusPending
             ? snoozed
-              ? "Waking..."
+              ? t("Waking...")
               : settled
-                ? "Un-settling..."
-                : "Dismissing..."
+                ? t("Un-settling...")
+                : t("Dismissing...")
             : actionLabel,
           accessibilityLabel: actionLabel,
           disabled: !props.canOperateThread || statusPending,
@@ -1195,8 +1209,8 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
             if (feedbackTarget?.supportsFeedback) {
               if (hasAttachmentsOrContext) {
                 Dialog.alert(
-                  "Approval feedback",
-                  "Send approval feedback without attachments or added context.",
+                  t("Approval feedback"),
+                  t("Send approval feedback without attachments or added context."),
                 );
                 return false;
               }
@@ -1266,8 +1280,8 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
     if (AsyncResult.isFailure(edited)) {
       const error = squashAtomCommandFailure(edited);
       Dialog.alert(
-        "Could not edit message",
-        error instanceof Error ? error.message : "Please try again.",
+        t("Could not edit message"),
+        error instanceof Error ? error.message : t("Please try again."),
       );
       return;
     }
@@ -1372,7 +1386,7 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
             renderFallback={(fallback) => (
               <RenderFailureView
                 {...fallback}
-                title="The conversation couldn't be displayed"
+                title={t("The conversation couldn't be displayed")}
                 bottomInset={estimatedOverlayHeight}
               />
             )}
@@ -1673,9 +1687,9 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
                         placeholder={
                           props.activePendingApproval
                             ? props.activePendingApproval.supportsFeedback
-                              ? "Send feedback to decline this request"
-                              : "Send a message to decline and redirect the agent"
-                            : "Ask anything"
+                              ? t("Send feedback to decline this request")
+                              : t("Send a message to decline and redirect the agent")
+                            : t("Ask anything")
                         }
                         contentMaxWidth={contentMaxWidth}
                         draftControls={props.draftMode?.controls}
@@ -1697,7 +1711,7 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
                             ? props.draftMode.sendBlockedReason
                             : props.creationState?.kind === "preparing" &&
                                 !props.creationState.serverOwned
-                              ? "Starting the task…"
+                              ? t("Starting the task…")
                               : null
                         }
                         interactionLocked={props.draftMode?.interactionLocked}

@@ -9,12 +9,14 @@ import { useToolbarLayout } from "../../components/ui/useToolbarLayout";
 import { MOBILE_MOTION } from "../../lib/designTokens";
 import { APP_BAR_HEIGHT } from "../../lib/layoutMetrics";
 import type { GitActionProgress } from "../../state/use-vcs-action-state";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function GitActionProgressOverlay(props: {
   readonly progress: GitActionProgress;
   readonly onDismiss: () => void;
   readonly onOpenPullRequest?: (url: string) => Promise<boolean>;
 }) {
+  const t = useT();
   const { progress, onDismiss } = props;
   const openPullRequest = props.onOpenPullRequest;
   const insets = useSafeAreaInsets();
@@ -49,7 +51,7 @@ export function GitActionProgressOverlay(props: {
     >
       <Toast
         singleLine
-        message={progress.label ?? "Source control"}
+        message={progress.label ?? t("Source control")}
         description={progress.description ?? undefined}
         tone={
           progress.phase === "error"
@@ -59,7 +61,7 @@ export function GitActionProgressOverlay(props: {
               : "default"
         }
         busy={progress.phase === "running"}
-        action={progress.prUrl ? { label: "View", onPress: handlePress } : undefined}
+        action={progress.prUrl ? { label: t("View"), onPress: handlePress } : undefined}
       />
     </Animated.View>
   );

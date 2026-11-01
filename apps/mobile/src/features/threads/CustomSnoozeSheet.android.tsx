@@ -39,6 +39,7 @@ import {
   applySnoozePickerTime,
   snoozeDateToPickerDate,
 } from "./customSnoozeDate";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 type Props = Parameters<typeof SharedCustomSnoozeSheet>[0];
 
@@ -59,6 +60,7 @@ function systemUses24HourClock() {
 }
 
 export function CustomSnoozeSheet(props: Props) {
+  const t = useT();
   const { themeAppearance, themeVariables: colors } = useAppearancePreferences();
   const [is24Hour, setIs24Hour] = useState(systemUses24HourClock);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to AppState to re-read the native 24-hour clock setting when the app resumes
@@ -85,7 +87,9 @@ export function CustomSnoozeSheet(props: Props) {
     const snoozedUntil = resolveCustomSnooze(input, new Date());
     if (!snoozedUntil) {
       setError(
-        mode === "date" ? "Choose a date and time in the future." : "Enter a positive duration.",
+        mode === "date"
+          ? t("Choose a date and time in the future.")
+          : t("Enter a positive duration."),
       );
       return;
     }
@@ -142,7 +146,7 @@ export function CustomSnoozeSheet(props: Props) {
                 verticalArrangement={{ spacedBy: 16 }}
                 modifiers={[fillMaxWidth(), padding(24, 24, 24, 16)]}
               >
-                <Text style={titleTypography}>Custom snooze</Text>
+                <Text style={titleTypography}>{t("Custom snooze")}</Text>
                 <RNHostView matchContents={{ vertical: true }} modifiers={[fillMaxWidth()]}>
                   <SegmentedControl
                     variant="card"
@@ -256,13 +260,13 @@ export function CustomSnoozeSheet(props: Props) {
                     onClick={props.onClose}
                     colors={{ contentColor: colors["--color-foreground"] }}
                   >
-                    <Text style={bodyTypography}>Cancel</Text>
+                    <Text style={bodyTypography}>{t("Cancel")}</Text>
                   </TextButton>
                   <TextButton
                     onClick={submit}
                     colors={{ contentColor: colors["--color-foreground"] }}
                   >
-                    <Text style={bodyTypography}>Snooze</Text>
+                    <Text style={bodyTypography}>{t("Snooze")}</Text>
                   </TextButton>
                 </Row>
               </Column>

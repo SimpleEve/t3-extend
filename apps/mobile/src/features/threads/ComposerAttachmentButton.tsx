@@ -4,6 +4,7 @@ import { Pressable } from "react-native";
 import { useAndroidControlSizing } from "../../components/ui/useAndroidControlSizing";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { Menu } from "../../components/ui/Menu";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 const ATTACHMENT_MENU_ACTIONS: MenuAction[] = [
   { id: "photos", title: "Photo Library", image: "photo" },
@@ -17,10 +18,15 @@ export function ComposerAttachmentButton(props: {
   readonly onPickMedia: () => Promise<void>;
   readonly onPickFiles: () => Promise<void>;
 }) {
+  const t = useT();
   const { scale } = useAndroidControlSizing();
+  const attachmentActions = ATTACHMENT_MENU_ACTIONS.map((action) => ({
+    ...action,
+    title: t(action.title),
+  }));
   const button = (
     <Pressable
-      accessibilityLabel="Add attachment"
+      accessibilityLabel={t("Add attachment")}
       accessibilityRole="button"
       accessibilityState={{ disabled: props.disabled }}
       className="size-[44px] shrink-0 items-center justify-center rounded-full active:opacity-70 disabled:opacity-50"
@@ -44,9 +50,9 @@ export function ComposerAttachmentButton(props: {
   return (
     <Menu
       accessible
-      accessibilityLabel="Add attachment"
+      accessibilityLabel={t("Add attachment")}
       accessibilityRole="button"
-      actions={ATTACHMENT_MENU_ACTIONS}
+      actions={attachmentActions}
       onPressAction={({ nativeEvent }) => {
         if (nativeEvent.event === "photos") {
           void props.onPickMedia();

@@ -3,6 +3,7 @@ import { clampFileAttachmentUploadBytes } from "@t3tools/client-runtime/state/at
 
 import { parseLegacyNewTaskDraftKey } from "../state/new-task-draft-key";
 import type { DraftComposerAttachment } from "./composerImages";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface ComposerAttachmentUploadRequest {
   readonly environmentId: EnvironmentId;
@@ -77,7 +78,9 @@ export function composerAttachmentUploadBlockReason(input: {
   for (const attachment of input.attachments) {
     if (!canUploadComposerAttachment(attachment, input.serverConfig)) continue;
     const state = input.states[composerAttachmentUploadKey(input.environmentId, attachment.id)];
-    if (state?.status === "failed") return "Retry or remove the failed attachment";
+    if (state?.status === "failed") {
+      return translate(getUiLocale(), "Retry or remove the failed attachment");
+    }
   }
   return null;
 }

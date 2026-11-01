@@ -31,6 +31,7 @@ import { subagentThreadTarget } from "./threadAgentsPresentation";
 import { WorkLogBlock } from "./work-log-layout";
 
 import { useOpenThreadInspector } from "./thread-inspector-navigation";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 type SubagentItem = Extract<OrchestrationV2TurnItem, { type: "subagent" }>;
 type AgentTiming = Pick<OrchestrationV2Subagent, "status" | "startedAt" | "completedAt">;
@@ -106,6 +107,7 @@ export function ThreadSubagentGroup(props: {
   readonly iconSubtleColor: ColorValue;
   readonly onToggleRow: (rowId: string, anchorKey: string) => void;
 }) {
+  const t = useT();
   const config = useAtomValue(serverEnvironment.configValueAtom(props.environmentId));
   const navigation = useNavigation();
   const openInspector = useOpenThreadInspector();
@@ -199,10 +201,10 @@ export function ThreadSubagentGroup(props: {
                 accessibilityRole={target === null ? undefined : "link"}
                 accessibilityHint={
                   target !== null
-                    ? "Opens this agent's thread"
+                    ? t("Opens this agent's thread")
                     : agent.remoteChild !== undefined
-                      ? `Runs on ${agent.remoteChild.label}`
-                      : "Provider-managed agent"
+                      ? t("Runs on {label}", { label: agent.remoteChild.label })
+                      : t("Provider-managed agent")
                 }
                 disabled={target === null}
                 onPress={() => {

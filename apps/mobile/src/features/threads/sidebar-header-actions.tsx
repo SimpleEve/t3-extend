@@ -1,5 +1,6 @@
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { Pressable, View } from "react-native";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export interface SidebarHeaderActionsProps {
   readonly onOpenSettings: () => void;
@@ -29,10 +30,11 @@ function FallbackHeaderButton(props: {
 }
 
 export function SidebarHeaderActions(props: SidebarHeaderActionsProps) {
+  const t = useT();
   return (
     <View className="flex-row items-center gap-0.5">
       <FallbackHeaderButton
-        accessibilityLabel="Open settings"
+        accessibilityLabel={t("Open settings")}
         icon="gearshape"
         onPress={props.onOpenSettings}
       />
