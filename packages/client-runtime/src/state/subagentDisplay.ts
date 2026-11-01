@@ -7,23 +7,41 @@ import type {
 import { formatModelSlugName, resolveSelectableModel } from "@t3tools/shared/model";
 import { fileBasename } from "@t3tools/shared/path";
 import { resolveModelShortName } from "../providerClients.ts";
+import { englishWorkLogPhrase, type WorkLogPhraseTranslator } from "../work-log/phrase.ts"; // fork
 import { isTerminalSubagentStatus } from "./subagentRuntime.ts";
 
 export function subagentGroupSummary(
   members: ReadonlyArray<{ readonly status: OrchestrationV2TurnItemStatus }>,
+  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ) {
   const active = members.some(
     ({ status }) => status === "pending" || status === "running" || status === "waiting",
   );
+  const count = members.length;
   return {
-    label: `${active ? "Kicked off" : "Ran"} ${members.length} ${members.length === 1 ? "subagent" : "subagents"}`,
+    label: active
+      ? count === 1
+        ? t("Kicked off 1 subagent")
+        : t("Kicked off {count} subagents", { count })
+      : count === 1
+        ? t("Ran 1 subagent")
+        : t("Ran {count} subagents", { count }),
     active,
     failed: members.some(({ status }) => status === "failed"),
   };
 }
 
+const SUBAGENT_STATUS_COUNT_PHRASES = {
+  working: "{count} working",
+  done: "{count} done",
+  failed: "{count} failed",
+  stopped: "{count} stopped",
+  idle: "{count} idle",
+} as const;
+
 export function summarizeSubagentStatuses(
   statuses: ReadonlyArray<OrchestrationV2TurnItemStatus>,
+  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ): string {
   const counts = { working: 0, done: 0, failed: 0, stopped: 0, idle: 0 };
   for (const status of statuses) {
@@ -35,7 +53,7 @@ export function summarizeSubagentStatuses(
   }
   return (Object.keys(counts) as Array<keyof typeof counts>)
     .filter((key) => counts[key] > 0)
-    .map((key) => `${counts[key]} ${key}`)
+    .map((key) => t(SUBAGENT_STATUS_COUNT_PHRASES[key], { count: counts[key] }))
     .join(" · ");
 }
 

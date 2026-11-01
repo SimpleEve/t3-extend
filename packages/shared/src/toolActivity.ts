@@ -358,38 +358,57 @@ function searchTargetName(value: string | undefined): string | undefined {
   return value.split(/[\\/]/u).findLast((part) => part.length > 0 && part !== ".");
 }
 
+// fork: tool labels take an optional translator for the interface language; without one the
+// English is unchanged. Each label is one whole phrase because word order differs by language.
+/** Translates an English source phrase; `{name}` placeholders take `params`. */
+export type ToolLabelTranslator = (
+  source: string,
+  params?: Readonly<Record<string, string | number>>,
+) => string;
+
+const englishToolLabel: ToolLabelTranslator = (source, params) =>
+  source.replace(/\{(\w+)\}/g, (match, name: string) =>
+    params && Object.hasOwn(params, name) ? String(params[name]) : match,
+  );
+
 export function formatSearchToolLabel(
   data: Record<string, unknown> | undefined,
+  t: ToolLabelTranslator = englishToolLabel, // fork
 ): string | undefined {
   const input = searchInputRecord(data);
   const query = firstInputString(input, SEARCH_QUERY_KEYS);
   const glob = firstInputString(input, SEARCH_GLOB_KEYS);
   const target = searchTargetName(firstInputString(input, SEARCH_TARGET_KEYS));
   if (query && target) {
-    return `Searched ${query} in ${target}`;
+    return t("Searched {query} in {target}", { query, target });
   }
   if (glob && target) {
-    return `Searched files ${glob} in ${target}`;
+    return t("Searched files {glob} in {target}", { glob, target });
   }
   if (glob) {
-    return `Searched files ${glob}`;
+    return t("Searched files {glob}", { glob });
   }
   if (query) {
-    return `Searched ${query}`;
+    return t("Searched {query}", { query });
   }
   if (target) {
-    return `Searched in ${target}`;
+    return t("Searched in {target}", { target });
   }
   return undefined;
 }
 
-export function formatReadToolLabel(path: string, extraCount = 0): string {
+export function formatReadToolLabel(
+  path: string,
+  extraCount = 0,
+  t: ToolLabelTranslator = englishToolLabel, // fork
+): string {
   const trimmed = path.trim();
-  const suffix = extraCount > 0 ? ` +${extraCount} more` : "";
   if (!trimmed) {
-    return `Read file${suffix}`;
+    return extraCount > 0 ? t("Read file +{count} more", { count: extraCount }) : t("Read file");
   }
-  return `Read ${trimmed}${suffix}`;
+  return extraCount > 0
+    ? t("Read {path} +{count} more", { path: trimmed, count: extraCount })
+    : t("Read {path}", { path: trimmed });
 }
 
 export interface ToolActivityPresentationInput {

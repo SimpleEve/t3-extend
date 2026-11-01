@@ -31,8 +31,10 @@ import {
   shouldCollapseUserMessage,
   resolveAssistantMessageCopyState,
   type MessagesTimelineRow,
+  liveWorkEntryLabel,
   workEntryDisplayLabel,
 } from "./MessagesTimeline.logic";
+import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
 
 describe("resolveAssistantMessageCopyState", () => {
   it("copies the rendered representation of Codex directives", () => {
@@ -2505,7 +2507,7 @@ describe("deriveMessagesTimelineRows", () => {
     ["the only failure is visible", ["completed", "info", "failed"], true],
   ] as const)(
     "uses the final tool call for mixed work groups when %s",
-    (_, statuses, hasFailure) => {
+    async (_, statuses, hasFailure) => {
       const timelineEntries = statuses.map((status, index) => {
         const id = `work-${index}`;
         const createdAt = `2026-01-01T00:00:0${index}Z`;
@@ -2550,8 +2552,44 @@ describe("deriveMessagesTimelineRows", () => {
           groupedEntries: [{ tone: "error", label: "Command failed" }],
         });
       }
+      await loadUiCatalog("zh-Hans");
+      const translated = deriveMessagesTimelineRows({
+        timelineEntries,
+        isWorking: false,
+        activeTurnStartedAt: null,
+        turnDiffSummaries: [],
+        supportsConversationRollback: false,
+        translate: translatorFor("zh-Hans"),
+      });
+      expect(translated.find((row) => row.kind === "work-toggle")).toMatchObject({
+        summary: statuses.some((status) => status === "error")
+          ? "收到了 1 条更新，使用了 1 个工具"
+          : "使用了 2 个工具，收到了 1 条更新",
+      });
     },
   );
+
+  it.each([
+    ["inProgress", "pnpm test", "Running pnpm", "正在运行 pnpm"],
+    ["failed", "pnpm test", "Failed pnpm", "pnpm 运行失败"],
+    ["declined", "pnpm test", "Declined pnpm", "已拒绝运行 pnpm"],
+    ["stopped", "pnpm test", "Stopped pnpm", "已停止 pnpm"],
+    ["completed", "pnpm test", "Ran pnpm", "运行了 pnpm"],
+    ["completed", "$(cmd)", "Ran command", "运行了命令"],
+  ] as const)("labels a %s command row %j", async (status, command, english, chinese) => {
+    const entry = {
+      id: "work",
+      createdAt: "2026-01-01T00:00:00Z",
+      label: "Ran command",
+      tone: "tool" as const,
+      itemType: "command_execution" as const,
+      command,
+      toolLifecycleStatus: status,
+    };
+    await loadUiCatalog("zh-Hans");
+    expect(liveWorkEntryLabel(entry, undefined, false)).toBe(english);
+    expect(liveWorkEntryLabel(entry, undefined, false, translatorFor("zh-Hans"))).toBe(chinese);
+  });
 });
 
 describe("v2 run and attempt history", () => {

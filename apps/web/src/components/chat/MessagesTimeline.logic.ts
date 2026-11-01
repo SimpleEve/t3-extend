@@ -20,6 +20,8 @@ import {
   commandProgramName,
 } from "@t3tools/client-runtime/work-log/command-label";
 import {
+  englishWorkLogPhrase, // fork
+  type WorkLogPhraseTranslator, // fork
   liveActivityToolStatus,
   normalizeCompactToolLabel,
   resolveWorkEntryToolPresentation,
@@ -94,16 +96,21 @@ function workEntryIsActiveTurnActivity(entry: WorkLogEntry): boolean {
   );
 }
 
-function singleToolCallLabel(entry: WorkLogEntry): string {
-  if (entry.itemType === "reasoning") return entry.detail?.trim().replace(/\s+/g, " ") || "Thought";
+function singleToolCallLabel(
+  entry: WorkLogEntry,
+  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
+): string {
+  if (entry.itemType === "reasoning") {
+    return entry.detail?.trim().replace(/\s+/g, " ") || t("Thought");
+  }
   const toolPresentation = resolveWorkEntryToolPresentation(entry, "completed");
   if (toolPresentation) return toolPresentation.displayName;
   const item = entry.structuredPayload;
   const title =
     item?.type === "dynamic_tool" ? dynamicToolTitle(item.toolName, item.input, item.title) : null;
   if (title) return title;
-  if (entry.itemType === "web_search") return entry.toolTitle ?? "Web search";
-  return workEntryDisplayLabel(entry, undefined);
+  if (entry.itemType === "web_search") return entry.toolTitle ?? t("Web search");
+  return workEntryDisplayLabel(entry, undefined, t);
 }
 
 function workEntryToolDataRecord(entry: WorkLogEntry): Record<string, unknown> | undefined {
@@ -131,7 +138,11 @@ function workEntryReadPaths(entry: WorkLogEntry, workspaceRoot: string | undefin
   );
 }
 
-export function workEntryDisplayLabel(entry: WorkLogEntry, workspaceRoot: string | undefined) {
+export function workEntryDisplayLabel(
+  entry: WorkLogEntry,
+  workspaceRoot: string | undefined,
+  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
+) {
   if (entry.itemType === "system_notice") return entry.label;
   if (entry.itemType === "reasoning" || entry.tone === "thinking") {
     const thought = entry.detail?.trim().replace(/\s+/g, " ");
@@ -145,12 +156,12 @@ export function workEntryDisplayLabel(entry: WorkLogEntry, workspaceRoot: string
     const searchLabel =
       entry.itemType === "file_search"
         ? entry.label
-        : formatSearchToolLabel(workEntryToolDataRecord(entry));
+        : formatSearchToolLabel(workEntryToolDataRecord(entry), t);
     if (searchLabel) return searchLabel;
   }
   const readPaths = action === "read" ? workEntryReadPaths(entry, workspaceRoot) : [];
   if (action === "read" && readPaths[0]) {
-    return formatReadToolLabel(readPaths[0], readPaths.length - 1);
+    return formatReadToolLabel(readPaths[0], readPaths.length - 1, t);
   }
   const providerRetry =
     entry.projectedItem?.item.type === "error" && entry.projectedItem.item.retry !== undefined;
@@ -169,10 +180,10 @@ export function workEntryDisplayLabel(entry: WorkLogEntry, workspaceRoot: string
     const path = formatWorkspaceRelativePath(firstPath, workspaceRoot);
     return entry.changedFiles!.length === 1
       ? path
-      : `${path} +${entry.changedFiles!.length - 1} more`;
+      : t("{path} +{count} more", { path, count: entry.changedFiles!.length - 1 });
   }
   if (action === "read" && !entry.viewedImagePath) {
-    return "Read file";
+    return t("Read file");
   }
   const heading = normalizeCompactToolLabel(entry.toolTitle || entry.label);
   return `${heading.charAt(0).toUpperCase()}${heading.slice(1)}`;
@@ -231,16 +242,26 @@ export function workEntryReadOutput(
   return null;
 }
 
+// fork: one whole phrase per status, with and without a program name, for word order.
+const LIVE_COMMAND_PHRASES = {
+  inProgress: ["Running {program}", "Running command"],
+  failed: ["Failed {program}", "Failed command"],
+  declined: ["Declined {program}", "Declined command"],
+  stopped: ["Stopped {program}", "Stopped command"],
+  completed: ["Ran {program}", "Ran command"],
+} as const;
+
 export function liveWorkEntryLabel(
   entry: WorkLogEntry,
   workspaceRoot: string | undefined,
   active: boolean,
+  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ) {
   const status = liveActivityToolStatus(entry.toolLifecycleStatus, active);
   if (entry.itemType === "reasoning") {
     return (
       entry.detail?.trim().replace(/\s+/g, " ") ||
-      (status === "inProgress" ? "Thinking" : "Thought")
+      (status === "inProgress" ? t("Thinking") : t("Thought"))
     );
   }
   const toolPresentation = resolveWorkEntryToolPresentation({
@@ -250,19 +271,19 @@ export function liveWorkEntryLabel(
   if (toolPresentation) return toolPresentation.displayName;
   const command = entry.command?.trim();
   if (command) {
-    const verb =
-      status === "inProgress"
-        ? "Running"
-        : status === "failed"
-          ? "Failed"
-          : status === "declined"
-            ? "Declined"
-            : status === "stopped"
-              ? "Stopped"
-              : "Ran";
-    return `${verb} ${commandProgramName(command) ?? "command"}`;
+    const [withProgram, withoutProgram] =
+      LIVE_COMMAND_PHRASES[
+        status === "inProgress" ||
+        status === "failed" ||
+        status === "declined" ||
+        status === "stopped"
+          ? status
+          : "completed"
+      ];
+    const program = commandProgramName(command);
+    return program === null ? t(withoutProgram) : t(withProgram, { program });
   }
-  return workEntryDisplayLabel(entry, workspaceRoot);
+  return workEntryDisplayLabel(entry, workspaceRoot, t);
 }
 
 export function workEntryIsVisibleInGroup(
@@ -1407,6 +1428,8 @@ export function deriveMessagesTimelineRows(input: {
   threadStartCheckpointReady?: boolean;
   availableRevertTurnCounts?: ReadonlySet<number> | undefined;
   worktreeSetup?: WorktreeSetupSnapshot | null;
+  /** fork: interface language for tool summaries; a new translator re-derives every row. */
+  translate?: WorkLogPhraseTranslator;
 }): MessagesTimelineRow[] {
   const timelineEntries = timelineRowEntries(input.timelineEntries);
   const isPendingApproval = (entry: WorkLogEntry) => {
@@ -1883,8 +1906,8 @@ export function deriveMessagesTimelineRows(input: {
             isExpandedToolGroup: false,
             displayLabel:
               toolGroupAction(singleEntry) === "edit"
-                ? summarizeToolGroup(visibleGroupedEntries).summary
-                : singleToolCallLabel(singleEntry),
+                ? summarizeToolGroup(visibleGroupedEntries, input.translate).summary
+                : singleToolCallLabel(singleEntry, input.translate),
           });
         } else {
           const groupId = workGroupId(timelineEntry.id);
@@ -1920,7 +1943,7 @@ export function deriveMessagesTimelineRows(input: {
             summary:
               singleEntry !== null && !workLogEntryIsToolLike(singleEntry)
                 ? singleEntry.label
-                : summarizeToolGroup(visibleGroupedEntries).summary,
+                : summarizeToolGroup(visibleGroupedEntries, input.translate).summary,
             summaryKind,
             ...(groupToolSurface ? { toolSurface: groupToolSurface } : {}),
             ...(groupToolIcon ? { toolIcon: groupToolIcon } : {}),

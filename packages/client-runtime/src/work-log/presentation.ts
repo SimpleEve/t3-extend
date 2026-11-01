@@ -28,6 +28,9 @@ import {
   t3ToolResultIndicatesFailure,
   type T3ToolSummaryCall,
 } from "@t3tools/client-runtime/t3ToolSummary";
+import { englishWorkLogPhrase, type WorkLogPhraseTranslator } from "./phrase.ts"; // fork
+
+export { englishWorkLogPhrase, type WorkLogPhraseTranslator }; // fork
 
 export type WorkLogToolLifecycleStatus = RuntimeItemStatus | "stopped" | "idle";
 
@@ -419,41 +422,50 @@ function toolGroupActionCount(
   return changedFiles.size + editsWithoutFileDetails;
 }
 
-function toolGroupActionLabel(action: ToolGroupAction, count: number): string {
-  switch (action) {
-    case "link-pr":
-      return `Linked ${count} ${count === 1 ? "pull request" : "pull requests"}`;
-    case "unlink-pr":
-      return `Unlinked ${count} ${count === 1 ? "pull request" : "pull requests"}`;
-    case "watch-pr":
-      return `Watching ${count} ${count === 1 ? "pull request" : "pull requests"}`;
-    case "unwatch-pr":
-      return `Stopped watching ${count} ${count === 1 ? "pull request" : "pull requests"}`;
-    case "list-prs":
-      return count === 1
-        ? "Checked linked pull requests"
-        : `Checked linked pull requests ${count} times`;
-    case "read":
-      return `Read ${count} ${count === 1 ? "file" : "files"}`;
-    case "edit":
-      return `Changed ${count} ${count === 1 ? "file" : "files"}`;
-    case "command":
-      return `Ran ${count} ${count === 1 ? "command" : "commands"}`;
-    case "thread-create":
-      return `Created ${count} ${count === 1 ? "thread" : "threads"}`;
-    case "device":
-      return `Used device controls ${count} ${count === 1 ? "time" : "times"}`;
-    case "browser":
-      return `Used browser ${count} ${count === 1 ? "time" : "times"}`;
-    case "search":
-      return `Searched the web ${count} ${count === 1 ? "time" : "times"}`;
-    case "code-search":
-      return `Searched code ${count} ${count === 1 ? "time" : "times"}`;
-    case "other":
-      return `Used ${count} ${count === 1 ? "tool" : "tools"}`;
-    case "update":
-      return `Received ${count} ${count === 1 ? "update" : "updates"}`;
+const TOOL_GROUP_ACTION_PHRASES: Readonly<
+  Record<ToolGroupAction, readonly [one: string, many: string]>
+> = {
+  "link-pr": ["Linked 1 pull request", "Linked {count} pull requests"],
+  "unlink-pr": ["Unlinked 1 pull request", "Unlinked {count} pull requests"],
+  "watch-pr": ["Watching 1 pull request", "Watching {count} pull requests"],
+  "unwatch-pr": ["Stopped watching 1 pull request", "Stopped watching {count} pull requests"],
+  "list-prs": ["Checked linked pull requests", "Checked linked pull requests {count} times"],
+  read: ["Read 1 file", "Read {count} files"],
+  edit: ["Changed 1 file", "Changed {count} files"],
+  command: ["Ran 1 command", "Ran {count} commands"],
+  "thread-create": ["Created 1 thread", "Created {count} threads"],
+  device: ["Used device controls 1 time", "Used device controls {count} times"],
+  browser: ["Used browser 1 time", "Used browser {count} times"],
+  search: ["Searched the web 1 time", "Searched the web {count} times"],
+  "code-search": ["Searched code 1 time", "Searched code {count} times"],
+  other: ["Used 1 tool", "Used {count} tools"],
+  update: ["Received 1 update", "Received {count} updates"],
+};
+
+function toolGroupActionLabel(
+  action: ToolGroupAction,
+  count: number,
+  t: WorkLogPhraseTranslator = englishWorkLogPhrase,
+): string {
+  const [one, many] = TOOL_GROUP_ACTION_PHRASES[action];
+  return count === 1 ? t(one) : t(many, { count });
+}
+
+/** "A", "A and B", "A, B, and C" in English; each language's catalog sets its own joiners. */
+function joinPhrases(
+  items: ReadonlyArray<string>,
+  t: WorkLogPhraseTranslator,
+  context?: string,
+): string {
+  if (items.length < 2) return items[0] ?? "";
+  if (items.length === 2) {
+    return t("{first} and {second}", { first: items[0]!, second: items[1]! }, context);
   }
+  return t(
+    "{rest}, and {last}",
+    { rest: items.slice(0, -1).join(t(", ", undefined, context)), last: items.at(-1)! },
+    context,
+  );
 }
 
 function t3ToolSummaryCall(entry: WorkLogPresentationEntry): T3ToolSummaryCall {
@@ -514,14 +526,18 @@ function summaryActionPriority(action: ToolGroupAction | T3McpToolSummaryAction)
   }
 }
 
-export function summarizeToolGroup(entries: ReadonlyArray<WorkLogPresentationEntry>): {
+export function summarizeToolGroup(
+  entries: ReadonlyArray<WorkLogPresentationEntry>,
+  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
+): {
   summary: string;
   hasFailure: boolean;
 } {
   const toolEntries = entries.filter((entry) => entry.itemType !== "reasoning");
   if (entries.length > 0 && toolEntries.length === 0) {
     return {
-      summary: entries.length === 1 ? "Thought" : `Thought (×${entries.length})`,
+      summary:
+        entries.length === 1 ? t("Thought") : t("Thought (×{count})", { count: entries.length }),
       hasFailure: false,
     };
   }
@@ -560,6 +576,7 @@ export function summarizeToolGroup(entries: ReadonlyArray<WorkLogPresentationEnt
           label: toolGroupActionLabel(
             group.action,
             toolGroupActionCount(group.action, group.entries),
+            t,
           ),
           failedCount: group.entries.filter(workEntryDisplayIndicatesToolFailure).length,
         }),
@@ -572,15 +589,14 @@ export function summarizeToolGroup(entries: ReadonlyArray<WorkLogPresentationEnt
   if (sources.size > 0) {
     const sourceValues = [...sources.values()];
     const sourceNames = [...new Set(sourceValues.map((source) => source.name))];
-    const formattedNames =
-      sourceNames.length < 2
-        ? sourceNames[0]!
-        : sourceNames.length === 2
-          ? sourceNames.join(" and ")
-          : `${sourceNames.slice(0, -1).join(", ")}, and ${sourceNames.at(-1)}`;
+    const names = joinPhrases(sourceNames, t);
     const allIntegrations = sourceValues.every((source) => source.kind === "integration");
     labels.unshift(
-      `Used ${formattedNames}${allIntegrations ? ` ${sourceNames.length === 1 ? "integration" : "integrations"}` : ""}`,
+      !allIntegrations
+        ? t("Used {names}", { names })
+        : sourceNames.length === 1
+          ? t("Used {names} integration", { names })
+          : t("Used {names} integrations", { names }),
     );
   }
   const sourcedCount = entries.filter(
@@ -591,15 +607,16 @@ export function summarizeToolGroup(entries: ReadonlyArray<WorkLogPresentationEnt
   const remainingCount =
     entries.length - sourcedCount - selected.reduce((count, group) => count + group.count, 0);
   if (remainingCount > 0) {
-    labels.push(`Performed ${remainingCount} other ${remainingCount === 1 ? "action" : "actions"}`);
+    labels.push(
+      remainingCount === 1
+        ? t("Performed 1 other action")
+        : t("Performed {count} other actions", { count: remainingCount }),
+    );
   }
   const sentenceLabels = labels.map((label, index) =>
     index === 0 ? label : label.charAt(0).toLowerCase() + label.slice(1),
   );
-  const summary =
-    sentenceLabels.length < 3
-      ? sentenceLabels.join(" and ")
-      : `${sentenceLabels.slice(0, -1).join(", ")}, and ${sentenceLabels.at(-1)}`;
+  const summary = joinPhrases(sentenceLabels, t, "tool summary");
   return { summary, hasFailure: summaries.some((group) => group.failedCount > 0) };
 }
 

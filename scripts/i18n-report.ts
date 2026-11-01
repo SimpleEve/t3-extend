@@ -11,6 +11,7 @@ const ROOTS = [
   "apps/desktop/src",
   "apps/mobile/src", // fork: mobile calls t() since the new browser tab panel
   "packages/client-runtime/src",
+  "packages/shared/src", // fork: tool labels in shared take a translator
 ];
 const CATALOG_ROOT = "packages/client-runtime/src/i18n/catalogs";
 // Mirrors CONTEXT_SEPARATOR in packages/client-runtime/src/i18n/translate.ts.
