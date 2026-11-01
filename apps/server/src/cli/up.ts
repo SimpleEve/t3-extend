@@ -27,6 +27,7 @@ import {
 } from "./connect.ts";
 import { resolveHostCliCommand } from "./invocation.ts";
 import * as CliService from "./service.ts";
+import { applyPublicUrlFlags, publicUrlFlags } from "./publicUrlFlags.ts"; // fork: self-hosted public route
 
 type Route = "connect" | "lan";
 type Routes = Readonly<Record<Route, boolean>>;
@@ -423,6 +424,7 @@ export const upCommand = Command.make("up", {
     Flag.withDefault(false),
   ),
   headless: headlessFlag,
+  ...publicUrlFlags, // fork: self-hosted public route
 }).pipe(
   Command.withShortDescription("Set up remote access and the T3 Code background service."),
   Command.withDescription(
@@ -436,7 +438,11 @@ export const upCommand = Command.make("up", {
     { command: "t3 up --yes", description: "Take the defaults with no questions." },
     { command: "t3 status --json", description: "Read the settings from a script." },
   ]),
-  Command.withHandler((flags) => runCloudCommand(flags, setUp(flags), { quietLogs: true })),
+  Command.withHandler((flags) =>
+    runCloudCommand(flags, applyPublicUrlFlags(flags).pipe(Effect.andThen(setUp(flags))), {
+      quietLogs: true,
+    }),
+  ), // fork: self-hosted public route (applyPublicUrlFlags)
 );
 
 export const connectCommand = Command.make("connect", {

@@ -267,6 +267,37 @@ describe("t3 pair", () => {
     ).pipe(Effect.provide(NodeServices.layer)),
   );
 
+  it.effect("pairs through --base-url only after it answers as this server", () =>
+    withDescriptorServer((origin) =>
+      withDescriptorServer(
+        (otherOrigin) =>
+          Effect.gen(function* () {
+            const baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-pair-base-"));
+            yield* persistServerRuntimeState({
+              path: NodePath.join(baseDir, "userdata", "server-runtime.json"),
+              state: yield* makePersistedServerRuntimeState({
+                config: { host: "127.0.0.1", devUrl: undefined },
+                port: Number(new URL(origin).port),
+              }),
+            });
+
+            const output = yield* captureStdout(
+              runCli(["pair", "--base-dir", baseDir, "--base-url", `${origin}/ignored/path`]),
+            );
+            assert.include(output, `Pairing URL: ${origin}/pair#token=`);
+            assert.include(output, `the link uses ${origin}`);
+
+            const error = yield* provideCliTestLayers(
+              runCli(["pair", "--base-dir", baseDir, "--base-url", otherOrigin]).pipe(Effect.flip),
+            );
+            assert.include(String(error), "answers as a different T3 Code server");
+          }),
+        "127.0.0.1",
+        { ...testDescriptor, environmentId: "someone-else" },
+      ),
+    ).pipe(Effect.provide(NodeServices.layer)),
+  );
+
   it.effect("ignores runtime state whose recorded pid is no longer alive", () =>
     withDescriptorServer((origin) =>
       Effect.gen(function* () {

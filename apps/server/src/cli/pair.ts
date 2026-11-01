@@ -44,6 +44,7 @@ import {
   renderTerminalQrCode,
   resolveHeadlessConnectionString,
 } from "../startupAccess.ts";
+import { baseUrlFlag } from "./auth.ts"; // fork: `t3 pair --base-url`
 import { authScopesFlag } from "./authScopes.ts";
 import { baseDirFlag, DurationFromString } from "./config.ts";
 
@@ -142,6 +143,55 @@ export class ServePortOccupiedError extends Schema.TaggedError<ServePortOccupied
     return `HTTPS port ${String(this.servePort)} on the tailnet already serves something that is not a T3 Code server. Pass --tailscale-serve-port to publish this one on another port.`;
   }
 }
+
+// fork: `t3 pair --base-url`
+export class BaseUrlServesOtherEnvironmentError extends Schema.TaggedError<BaseUrlServesOtherEnvironmentError>()(
+  "BaseUrlServesOtherEnvironmentError",
+  { origin: Schema.String },
+) {
+  override get message(): string {
+    return `${this.origin} answers as a different T3 Code server. Check where its tunnel or proxy points.`;
+  }
+}
+
+export class BaseUrlConflictsWithTailscaleError extends Schema.TaggedError<BaseUrlConflictsWithTailscaleError>()(
+  "BaseUrlConflictsWithTailscaleError",
+  {},
+) {
+  override get message(): string {
+    return "Pass either --base-url or --tailscale, not both.";
+  }
+}
+
+/** fork: a pairing URL for an address the user put in front of this server, checked before printing. */
+const resolveBaseUrlPairingBase = Effect.fn("pair.resolveBaseUrlPairingBase")(function* (input: {
+  readonly target: DiscoveredPairTarget;
+  readonly baseUrl: URL;
+}) {
+  const notes: Array<string> = [];
+  const origin = input.baseUrl.origin;
+  if (input.baseUrl.pathname !== "/" || input.baseUrl.search !== "") {
+    notes.push(`T3 Code runs at the root of an address, so the link uses ${origin}.`);
+  }
+  if (input.baseUrl.protocol === "http:" && !isLoopbackHost(input.baseUrl.hostname)) {
+    notes.push(
+      "This address is plain HTTP. Anyone on the path can read the pairing code and the session it unlocks; use HTTPS outside your own network.",
+    );
+  }
+  const probed = yield* probeEnvironmentDescriptor(origin);
+  if (probed._tag === "descriptor") {
+    if (probed.descriptor.environmentId !== input.target.descriptor.environmentId) {
+      return yield* new BaseUrlServesOtherEnvironmentError({ origin });
+    }
+  } else {
+    notes.push(
+      probed._tag === "unreachable"
+        ? `${origin} did not answer from this machine. The link still works once the address reaches this server.`
+        : `${origin} answered, but not as a T3 Code server. Check where its tunnel or proxy points.`,
+    );
+  }
+  return { baseUrl: `${origin}/`, notes };
+});
 
 const resolveDirectPairingBaseUrl = (state: PersistedServerRuntimeState): string =>
   state.devUrl ??
@@ -478,6 +528,7 @@ export const pairCommand = Command.make("pair", {
   label: labelFlag,
   tailscale: tailscaleFlag,
   tailscaleServePort: tailscaleServePortFlag,
+  baseUrl: baseUrlFlag, // fork: `t3 pair --base-url`
 }).pipe(
   Command.withDescription(
     "Mint a pairing token for a running T3 Code server and print it as a QR code.",
@@ -501,7 +552,13 @@ export const pairCommand = Command.make("pair", {
 
       const notes: Array<string> = [];
       let pairingBaseUrl: string;
-      if (flags.tailscale) {
+      // fork: `t3 pair --base-url`
+      if (Option.isSome(flags.baseUrl)) {
+        if (flags.tailscale) return yield* new BaseUrlConflictsWithTailscaleError();
+        const resolved = yield* resolveBaseUrlPairingBase({ target, baseUrl: flags.baseUrl.value });
+        pairingBaseUrl = resolved.baseUrl;
+        notes.push(...resolved.notes);
+      } else if (flags.tailscale) {
         const resolved = yield* resolveTailscalePairingBase({
           target,
           servePort: flags.tailscaleServePort,

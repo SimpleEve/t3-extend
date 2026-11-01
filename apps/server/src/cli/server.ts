@@ -10,6 +10,7 @@ import * as ServerConfig from "../config.ts";
 import { awaitLauncherLoss } from "../launcherWatch.ts";
 import { runServer } from "../server.ts";
 import { type CliServerFlags, resolveServerConfig, sharedServerCommandFlags } from "./config.ts";
+import { applyPublicUrlFlags, type PublicUrlFlags } from "./publicUrlFlags.ts"; // fork: self-hosted public route
 
 const encodeCommand = Schema.encodeEffect(Schema.fromJsonString(Schema.String));
 
@@ -21,7 +22,7 @@ function ignoreClosedLauncherPipe(error: NodeJS.ErrnoException): void {
 }
 
 const runServerCommand = Effect.fn("server.runServerCommand")(function* (
-  flags: CliServerFlags,
+  flags: CliServerFlags & PublicUrlFlags, // fork: self-hosted public route
   options?: {
     readonly startupPresentation?: ServerConfig.StartupPresentation;
     readonly forceAutoBootstrapProjectFromCwd?: boolean;
@@ -30,6 +31,7 @@ const runServerCommand = Effect.fn("server.runServerCommand")(function* (
 ) {
   const logLevel = yield* GlobalFlag.LogLevel;
   const config = yield* resolveServerConfig(flags, logLevel, options);
+  yield* applyPublicUrlFlags(flags).pipe(Effect.provideService(ServerConfig.ServerConfig, config)); // fork: self-hosted public route
   const run = runServer.pipe(Effect.provideService(ServerConfig.ServerConfig, config));
   if (config.mode !== "desktop" || config.desktopBootstrapToken === undefined) return yield* run;
   yield* Effect.sync(() => {
@@ -46,7 +48,7 @@ const runServerCommand = Effect.fn("server.runServerCommand")(function* (
 });
 
 export const runDefaultServerCommand = Effect.fn("server.runDefaultServerCommand")(function* (
-  flags: CliServerFlags,
+  flags: CliServerFlags & PublicUrlFlags, // fork: self-hosted public route
 ) {
   if (Option.isSome(flags.cwd)) {
     const cwd = flags.cwd.value.trim();

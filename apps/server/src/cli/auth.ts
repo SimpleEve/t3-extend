@@ -68,7 +68,8 @@ const subjectFlag = Flag.String("subject").pipe(
   Flag.optional,
 );
 
-const baseUrlFlag = Flag.String("base-url").pipe(
+export const baseUrlFlag = Flag.String("base-url").pipe(
+  // fork: shared with `t3 pair --base-url`
   Flag.withSchema(
     Schema.URLFromString.pipe(
       Schema.check(

@@ -13,6 +13,7 @@ import { describe, expect, it } from "vite-plus/test";
 import * as ServerConfig from "../config.ts";
 import * as DirectEndpoints from "./DirectEndpoints.ts";
 import { resolveBoundEndpoints } from "./DirectEndpoints.ts";
+import * as PublicUrls from "./PublicUrls.ts";
 
 const INTERFACES: ReturnType<typeof NodeOS.networkInterfaces> = {
   lo0: [
@@ -268,12 +269,17 @@ const layerServeConfig = Layer.effect(
   Layer.provide(NodeServices.layer),
 );
 
-const resolveWithServe = (probeStatus: number) =>
+const resolveWithServe = (probeStatus: number, publicUrls: ReadonlyArray<string> = []) =>
   Effect.flatMap(DirectEndpoints.DirectEndpoints, (service) => service.resolve()).pipe(
     Effect.provide(
       DirectEndpoints.layer.pipe(
         Layer.provide(
-          Layer.mergeAll(layerServeConfig, layerTailscaleUp, layerServeProbe(probeStatus)),
+          Layer.mergeAll(
+            layerServeConfig,
+            layerTailscaleUp,
+            layerServeProbe(probeStatus),
+            PublicUrls.layerStatic(publicUrls),
+          ),
         ),
       ),
     ),
@@ -291,6 +297,15 @@ describe("DirectEndpoints Tailscale Serve", () => {
   effectIt.effect("leaves the tailnet name out when Serve is not forwarding", () =>
     Effect.gen(function* () {
       expect(yield* resolveWithServe(502)).toEqual([]);
+    }),
+  );
+
+  effectIt.effect("reports public URLs after the private routes, even on loopback", () =>
+    Effect.gen(function* () {
+      expect(yield* resolveWithServe(200, ["https://t3.example.com"])).toEqual([
+        { kind: "tailnet", httpBaseUrl: "https://bb-1.tail1234.ts.net/" },
+        { kind: "public", httpBaseUrl: "https://t3.example.com/" },
+      ]);
     }),
   );
 });
