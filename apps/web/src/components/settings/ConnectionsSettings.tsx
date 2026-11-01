@@ -134,6 +134,8 @@ import {
   SavedBackendListRow,
 } from "./SavedEnvironmentRows";
 import { AddEnvironmentDialog } from "./AddEnvironmentDialog";
+import { SelfHostSettings } from "./SelfHostSettings"; // fork: self-hosted connection
+import { isSelfHostEndpoint } from "~/fork/selfHostStore"; // fork: self-hosted connection
 
 const DEFAULT_TAILSCALE_SERVE_PORT = 443;
 const EMPTY_ADVERTISED_ENDPOINTS: ReadonlyArray<AdvertisedEndpoint> = [];
@@ -604,7 +606,8 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
   const tailscaleHttpsEndpoint = desktopAdvertisedEndpoints.find(isTailscaleHttpsEndpoint) ?? null;
   const visibleDesktopNetworkAdvertisedEndpoints = isLocalBackendNetworkAccessible
     ? desktopAdvertisedEndpoints.filter((endpoint) => !isTailscaleHttpsEndpoint(endpoint))
-    : [];
+    : // fork: self-hosted connection. A reverse tunnel reaches a loopback-only backend.
+      desktopAdvertisedEndpoints.filter(isSelfHostEndpoint);
   const visibleDesktopAdvertisedEndpoints = tailscaleHttpsEndpoint
     ? [...visibleDesktopNetworkAdvertisedEndpoints, tailscaleHttpsEndpoint]
     : visibleDesktopNetworkAdvertisedEndpoints;
@@ -1107,6 +1110,8 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
                 {renderNetworkAccessRow()}
                 {renderEndpointRows()}
                 {renderTailscaleRow()}
+                <SelfHostSettings />
+                {/* fork: self-hosted connection */}
                 {renderWslRow()}
                 {canReadRelay || canManageRelay ? (
                   <CloudLinkRow canReadRelay={canReadRelay} canManageRelay={canManageRelay} />

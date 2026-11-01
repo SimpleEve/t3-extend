@@ -4,6 +4,7 @@ import commandPalette from "./commandPalette.ts";
 import common from "./common.ts";
 import desktop from "./desktop.ts";
 import settings from "./settings.ts";
+import sharing from "./sharing.ts";
 import sidebar from "./sidebar.ts";
 import time from "./time.ts";
 
@@ -15,6 +16,7 @@ export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   common,
   desktop,
   settings,
+  sharing,
   sidebar,
   time,
 };
