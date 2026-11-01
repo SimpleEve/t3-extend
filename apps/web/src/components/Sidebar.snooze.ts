@@ -1,4 +1,9 @@
-import { getUiLocale, translate, type Translator } from "@t3tools/client-runtime/i18n";
+import {
+  getUiLocale,
+  translate,
+  uiLocaleFormatTag,
+  type Translator,
+} from "@t3tools/client-runtime/i18n";
 import type { EnvironmentId } from "@t3tools/contracts";
 import type { TimestampFormat } from "@t3tools/contracts/settings";
 import {
@@ -53,8 +58,8 @@ export function pickSnoozePreset(
   if (!picked) {
     toastManager.add({
       type: "warning",
-      title: "Could not snooze thread",
-      description: "That snooze time has passed. Choose another time.",
+      title: translate(getUiLocale(), "Could not snooze thread"), // fork: interface language
+      description: translate(getUiLocale(), "That snooze time has passed. Choose another time."),
     });
   }
   return picked;
@@ -70,5 +75,6 @@ function snoozeOptions(timestampFormat: TimestampFormat, environmentId: Environm
     // fork: presets resolve when a menu opens, so the label reads the language at that moment.
     translate: (source: string, params?: Readonly<Record<string, string | number>>) =>
       translate(getUiLocale(), source, params),
+    weekdayLocale: uiLocaleFormatTag(getUiLocale()), // fork: "Thu 9:00" follows the interface
   };
 }

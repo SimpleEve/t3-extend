@@ -16,6 +16,8 @@ import {
   usePendingReviewComments,
   usePullRequestReviewStore,
 } from "./pullRequestReviewStore";
+import { useT } from "~/hooks/useT"; // fork: interface language
+import { changeRequestTerm } from "./changeRequestTerm";
 
 export function PullRequestComposer({
   environmentId,
@@ -39,7 +41,11 @@ export function PullRequestComposer({
   onReviewSubmitted: () => void;
   openReviewRequest?: number | undefined;
 }) {
-  const term = sourceControlClients.get(detail.provider).changeRequest.singular;
+  const t = useT();
+  const term = changeRequestTerm(
+    sourceControlClients.get(detail.provider).changeRequest.singular,
+    t,
+  );
   const [open, setOpen] = useState(false);
   const [reviewPending, setReviewPending] = useState(false);
   const [requestedMode, setRequestedMode] = useState<"comment" | "review">("comment");
@@ -80,10 +86,15 @@ export function PullRequestComposer({
         render={<Button size="icon" variant="glass" />}
         aria-label={
           pendingComments.length > 0
-            ? `Review ${term}, ${pendingComments.length} ${pendingComments.length === 1 ? "comment" : "comments"} pending`
+            ? pendingComments.length === 1
+              ? t("Review {kind}, 1 comment pending", { kind: term })
+              : t("Review {kind}, {count} comments pending", {
+                  kind: term,
+                  count: pendingComments.length,
+                })
             : reviewStarted || !canComment
-              ? `Review ${term}`
-              : `Comment on ${term}`
+              ? t("Review {kind}", { kind: term })
+              : t("Comment on {kind}", { kind: term })
         }
       >
         <MessageSquareIcon className="size-4" />
@@ -108,7 +119,7 @@ export function PullRequestComposer({
         <div className="mb-3 flex items-center justify-between gap-2">
           {canComment && verdicts.length > 0 ? (
             <ToggleGroup
-              aria-label="Composer mode"
+              aria-label={t("Composer mode")}
               variant="segmented"
               value={[mode]}
               onValueChange={(next) => {
@@ -116,14 +127,18 @@ export function PullRequestComposer({
                 if (value === "comment" || value === "review") setRequestedMode(value);
               }}
             >
-              <Toggle value="comment">Comment</Toggle>
+              <Toggle value="comment">{t("Comment")}</Toggle>
               <Toggle value="review">
-                {pendingComments.length > 0 ? `Review (${pendingComments.length})` : "Review"}
+                {pendingComments.length > 0
+                  ? t("Review ({count})", { count: pendingComments.length })
+                  : t("Review")}
               </Toggle>
             </ToggleGroup>
           ) : (
             <PopoverTitle>
-              {mode === "review" ? `Review ${term}` : `Comment on ${term}`}
+              {mode === "review"
+                ? t("Review {kind}", { kind: term })
+                : t("Comment on {kind}", { kind: term })}
             </PopoverTitle>
           )}
           <div className="flex items-center gap-1">
@@ -131,8 +146,8 @@ export function PullRequestComposer({
               <Button
                 size="icon-xs"
                 variant="ghost"
-                aria-label="Discard pending line comments"
-                title="Discard pending line comments"
+                aria-label={t("Discard pending line comments")}
+                title={t("Discard pending line comments")}
                 disabled={reviewPending}
                 onClick={() => clearComments(reviewKey)}
               >
@@ -141,7 +156,7 @@ export function PullRequestComposer({
             ) : null}
             <PopoverClose
               render={<Button size="icon-xs" variant="ghost" />}
-              aria-label="Close composer"
+              aria-label={t("Close composer")}
             >
               <XIcon className="size-3.5" />
             </PopoverClose>

@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import { MorphIcon } from "~/components/MorphIcon";
 import { cn } from "~/lib/utils";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
+import { useT } from "~/hooks/useT"; // fork: interface language
 import {
   ANCHORED_COPY_TOAST_TIMEOUT_MS,
   showAnchoredCopyErrorToast,
@@ -28,6 +29,7 @@ export const MessageCopyButton = memo(function MessageCopyButton({
   variant?: "outline" | "ghost";
   className?: string;
 }) {
+  const t = useT();
   const ref = useRef<HTMLButtonElement>(null);
   const { copyToClipboard, isCopied } = useCopyToClipboard<void>({
     onCopy: () => showAnchoredCopySuccessToast(ref),
@@ -41,7 +43,7 @@ export const MessageCopyButton = memo(function MessageCopyButton({
       <TooltipTrigger
         render={
           <Button
-            aria-label={label}
+            aria-label={t(label)}
             disabled={isCopied}
             onClick={() => copyToClipboard(text)}
             ref={ref}
@@ -58,7 +60,7 @@ export const MessageCopyButton = memo(function MessageCopyButton({
         />
       </TooltipTrigger>
       <TooltipPopup>
-        <p>{label}</p>
+        <p>{t(label)}</p>
       </TooltipPopup>
     </Tooltip>
   );

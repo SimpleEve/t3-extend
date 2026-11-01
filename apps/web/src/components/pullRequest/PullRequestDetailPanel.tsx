@@ -157,22 +157,26 @@ import {
 import { PullRequestGuideTab } from "./PullRequestGuideTab";
 import { guideRunKey, useGuideRunStore } from "./guide/guideRunStore";
 import { useReviewGuideWriter } from "./guide/useReviewGuideWriter";
+import { useT } from "~/hooks/useT"; // fork: interface language
+import { changeRequestTerm } from "./changeRequestTerm";
+import type { Translator } from "@t3tools/client-runtime/i18n";
 
-const actionFailureLabels = (term: string): Record<PullRequestAction, string> => ({
-  merge: `Could not merge this ${term}`,
+// fork: the toast reads these when it shows, so `t` translates whole sentences then.
+const actionFailureLabels = (term: string, t: Translator): Record<PullRequestAction, string> => ({
+  merge: t("Could not merge this {kind}", { kind: term }),
   ready: "Could not mark this ready for review",
   draft: "Could not convert this to a draft",
-  close: `Could not close this ${term}`,
-  reopen: `Could not reopen this ${term}`,
+  close: t("Could not close this {kind}", { kind: term }),
+  reopen: t("Could not reopen this {kind}", { kind: term }),
   "update-branch": "Could not update this branch",
   "enable-auto-merge": "Could not turn on auto-merge",
   "disable-auto-merge": "Could not turn off auto-merge",
-  revert: `Could not open a revert ${term}`,
+  revert: t("Could not open a revert {kind}", { kind: term }),
   "delete-branch": "Could not delete this branch",
   "approve-workflows": "Could not approve workflows",
 });
 
-const actionFailureHints = (term: string): Record<PullRequestAction, string> => ({
+const actionFailureHints = (term: string, t: Translator): Record<PullRequestAction, string> => ({
   merge:
     "The host refused the merge. Check that you have write access, that the checks it requires have passed, and that the branch is not conflicting.",
   ready: "The host refused it. Check that you have write access to this repository.",
@@ -186,7 +190,10 @@ const actionFailureHints = (term: string): Record<PullRequestAction, string> => 
     "The host refused it. Check that this repository allows auto-merge, that you have write access, and that there is something left for it to wait on.",
   "disable-auto-merge":
     "The host refused it. Check that you have write access, and that the merge has not already happened.",
-  revert: `The host refused it. Check that you have write access and that this ${term} was merged on the host.`,
+  revert: t(
+    "The host refused it. Check that you have write access and that this {kind} was merged on the host.",
+    { kind: term },
+  ),
   "delete-branch":
     "The host refused it. Check that you have write access to the source repository and that the branch has not moved since this page loaded.",
   "approve-workflows":
@@ -300,6 +307,7 @@ export function PullRequestDetailPanel({
   initialTab?: PullRequestDetailTab;
   onTabChange?: ((tab: PullRequestDetailTab) => void) | undefined;
 }) {
+  const t = useT();
   const environmentConfigs = useServerConfigs();
   const projects = useProjects();
   const project = projects.find(
@@ -671,21 +679,24 @@ export function PullRequestDetailPanel({
       const failure = squashAtomCommandFailure(result);
       const hint =
         updateMethod === "rebase"
-          ? UPDATE_BRANCH_REBASE_FAILURE_HINT
-          : actionFailureHints(terminology.singular)[action];
+          ? t(UPDATE_BRANCH_REBASE_FAILURE_HINT)
+          : t(actionFailureHints(changeRequestTerm(terminology.singular, t), t)[action]);
       toastManager.add({
         type: "error",
-        title: actionFailureLabels(terminology.singular)[action],
+        title: t(actionFailureLabels(changeRequestTerm(terminology.singular, t), t)[action]),
         description: readableFailure(failure, hint),
       });
       onActed?.(action, "failed");
       return false;
     }
     if (action === "revert") {
-      toastManager.add({ type: "success", title: `Revert ${terminology.singular} opened` });
+      toastManager.add({
+        type: "success",
+        title: t("Revert {kind} opened", { kind: changeRequestTerm(terminology.singular, t) }),
+      });
     }
     if (action === "delete-branch") {
-      toastManager.add({ type: "success", title: "Branch deleted" });
+      toastManager.add({ type: "success", title: t("Branch deleted") });
     }
     if (pullRequestActionNeedsHostRefresh(action)) {
       void refreshFromHost();
@@ -715,7 +726,7 @@ export function PullRequestDetailPanel({
     });
     if (commentResult._tag === "Failure") {
       setPendingAction(null);
-      toastManager.add({ type: "error", title: "Could not post the comment" });
+      toastManager.add({ type: "error", title: t("Could not post the comment") });
       return { commentPosted: false };
     }
     const actionSucceeded = await finishAction(action);
@@ -807,11 +818,13 @@ export function PullRequestDetailPanel({
       writeTaskToComposer(attachTarget, task);
       toastManager.add({
         type: "success",
-        title: "Added to the composer",
+        title: t("Added to the composer"),
         description:
           task.prompt.length > 0
-            ? "The question is in the composer. Read it over, then send."
-            : `The ${terminology.singular} is in the composer. Type your question, then send.`,
+            ? t("The question is in the composer. Read it over, then send.")
+            : t("The {kind} is in the composer. Type your question, then send.", {
+                kind: changeRequestTerm(terminology.singular, t),
+              }),
       });
       return;
     }
@@ -838,18 +851,20 @@ export function PullRequestDetailPanel({
     if (opened === null) {
       toastManager.add({
         type: "error",
-        title: "Could not open a thread",
-        description: "Try again from the project, or open a thread first.",
+        title: t("Could not open a thread"),
+        description: t("Try again from the project, or open a thread first."),
       });
       return;
     }
     toastManager.add({
       type: "success",
-      title: "Asked in a thread",
+      title: t("Asked in a thread"),
       description:
         task.prompt.length > 0
-          ? "The question is in the composer. Read it over, then send."
-          : `The ${terminology.singular} is in the composer. Type your question, then send.`,
+          ? t("The question is in the composer. Read it over, then send.")
+          : t("The {kind} is in the composer. Type your question, then send.", {
+              kind: changeRequestTerm(terminology.singular, t),
+            }),
     });
   };
 
@@ -863,8 +878,8 @@ export function PullRequestDetailPanel({
       writeTaskToComposer(attachTarget, task);
       toastManager.add({
         type: "success",
-        title: "Added to the composer",
-        description: "The task is in the composer. Read it over, then send.",
+        title: t("Added to the composer"),
+        description: t("The task is in the composer. Read it over, then send."),
       });
       return;
     }
@@ -884,7 +899,9 @@ export function PullRequestDetailPanel({
     setHandoff(kind);
     const toastId = toastManager.add({
       type: "loading",
-      title: `Preparing the ${terminology.singular} checkout...`,
+      title: t("Preparing the {kind} checkout...", {
+        kind: changeRequestTerm(terminology.singular, t),
+      }),
     });
     const projectRef = scopeProjectRef(
       actingEnvironmentId,
@@ -899,8 +916,8 @@ export function PullRequestDetailPanel({
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
-        title: "Could not open a thread for the checkout",
-        description: "Try again from the project, or open a thread first.",
+        title: t("Could not open a thread for the checkout"),
+        description: t("Try again from the project, or open a thread first."),
       });
       return;
     }
@@ -913,7 +930,9 @@ export function PullRequestDetailPanel({
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
-        title: `Could not prepare the ${terminology.singular} checkout`,
+        title: t("Could not prepare the {kind} checkout", {
+          kind: changeRequestTerm(terminology.singular, t),
+        }),
         description: checkoutFailureDescription(
           isAtomCommandInterrupted(prepared) ? undefined : squashAtomCommandFailure(prepared),
         ),
@@ -933,8 +952,11 @@ export function PullRequestDetailPanel({
       // Sending after failed rebinding would use the previous checkout.
       toastManager.update(toastId, {
         type: "error",
-        title: "Checked out, but the thread stayed where it was",
-        description: `The checkout is ready on \`${prepared.value.branch}\`. Point a thread at it from the branch picker, then ask again.`,
+        title: t("Checked out, but the thread stayed where it was"),
+        description: t(
+          "The checkout is ready on {branch}. Point a thread at it from the branch picker, then ask again.",
+          { branch: `\`${prepared.value.branch}\`` },
+        ),
       });
       return;
     }
@@ -945,11 +967,15 @@ export function PullRequestDetailPanel({
         prepared.value.isOnPullRequestHead
           ? {
               type: "success",
-              title: mode === "local" ? "Checked out here" : "Checked out",
+              title: mode === "local" ? t("Checked out here") : t("Checked out"),
               description:
                 mode === "local"
-                  ? `This repository is on the ${terminology.singular}'s branch, with a thread open on it.`
-                  : `The ${terminology.singular} is in its own worktree, with a thread open on it.`,
+                  ? t("This repository is on the {kind}'s branch, with a thread open on it.", {
+                      kind: changeRequestTerm(terminology.singular, t),
+                    })
+                  : t("The {kind} is in its own worktree, with a thread open on it.", {
+                      kind: changeRequestTerm(terminology.singular, t),
+                    }),
             }
           : offHeadPullRequestCheckoutToast(terminology),
       );
@@ -961,8 +987,8 @@ export function PullRequestDetailPanel({
       prepared.value.isOnPullRequestHead
         ? {
             type: "success",
-            title: "Checkout ready",
-            description: "The task is in the composer. Read it over, then send.",
+            title: t("Checkout ready"),
+            description: t("The task is in the composer. Read it over, then send."),
           }
         : offHeadPullRequestCheckoutToast(terminology),
     );
@@ -1117,7 +1143,7 @@ export function PullRequestDetailPanel({
   const armedMergeMethod = detail?.autoMergeMethod;
   const armedAutoMergeLabel = armedMergeMethod
     ? `Auto-merge (${PULL_REQUEST_MERGE_METHOD_LABELS[armedMergeMethod].toLowerCase()})`
-    : "Auto-merge";
+    : t("Auto-merge");
   const workflowApprovalsRequired =
     detail?.state === "open" ? (detail.workflowApprovalsRequired ?? 0) : 0;
   const freshness = detail === null ? null : resolveBaseFreshness(detail);
@@ -1188,8 +1214,14 @@ export function PullRequestDetailPanel({
     if (detail === null) return;
     const confirmed = await readLocalApi()?.dialogs.confirm(
       [
-        `Delete branch ${detail.headBranch}?`,
-        `This deletes ${detail.headBranch} from ${detail.headRepositoryNameWithOwner ?? detail.repository}. Local branches and worktrees are not changed.`,
+        t("Delete branch {branch}?", { branch: detail.headBranch }),
+        t(
+          "This deletes {branch} from {repository}. Local branches and worktrees are not changed.",
+          {
+            branch: detail.headBranch,
+            repository: detail.headRepositoryNameWithOwner ?? detail.repository,
+          },
+        ),
       ].join("\n"),
       { variant: "destructive" },
     );
@@ -1199,7 +1231,7 @@ export function PullRequestDetailPanel({
     workflowApprovalsRequired > 0 && !checksStale && can("approve-workflows");
   const checksSummary = checksStale
     ? checksState === null
-      ? "No checks reported"
+      ? t("No checks reported")
       : pullRequestChecksStatePresentation(checksState).label
     : detail
       ? summarizePullRequestChecks(detail.checks)
@@ -1293,7 +1325,7 @@ export function PullRequestDetailPanel({
             <TooltipProvider delay={150} closeDelay={150} timeout={400}>
               {!nativeStack && supportsStackActions && nativeStackQuery.error ? (
                 <Button variant="ghost" size="xs" onClick={nativeStackQuery.refresh}>
-                  Retry stack lookup
+                  {t("Retry stack lookup")}
                 </Button>
               ) : null}
               {nativeStack ? (
@@ -1399,7 +1431,9 @@ export function PullRequestDetailPanel({
             <Button
               size="icon-xs"
               variant="ghost"
-              aria-label={`Collapse ${terminology.singular} panel`}
+              aria-label={t("Collapse {kind} panel", {
+                kind: changeRequestTerm(terminology.singular, t),
+              })}
               onClick={onClose}
             >
               <PanelRightIcon className="size-3.5" />
@@ -1555,11 +1589,17 @@ export function PullRequestDetailPanel({
                     key={detail.headBranch}
                     value={detail.headBranch}
                     target="branch name"
-                    copyLabel={`Copy ${terminology.singular} branch`}
-                    copiedLabel="Branch name copied"
+                    copyLabel={t("Copy {kind} branch", {
+                      kind: changeRequestTerm(terminology.singular, t),
+                    })}
+                    copiedLabel={t("Branch name copied")}
                   />
                 }
-                files={`${detail.changedFiles.toLocaleString()} ${detail.changedFiles === 1 ? "file" : "files"}`}
+                files={
+                  detail.changedFiles === 1
+                    ? t("1 file")
+                    : t("{count} files", { count: detail.changedFiles.toLocaleString() })
+                }
                 diffStat={
                   <PullRequestChangeBreakdownStat
                     environmentId={environmentId}
@@ -1594,7 +1634,7 @@ export function PullRequestDetailPanel({
               ) : (
                 <PullRequestChecksStatusLine
                   className="text-muted-foreground"
-                  aria-label={checksSummary ? `Checks: ${checksSummary}` : "Checks"}
+                  aria-label={checksSummary ? `Checks: ${checksSummary}` : t("Checks")}
                   icon={
                     checksState !== null ? (
                       <PullRequestChecksPopover
@@ -1622,7 +1662,7 @@ export function PullRequestDetailPanel({
                     className="inline-flex items-center gap-1"
                     aria-label={
                       activityError
-                        ? "Comments unavailable"
+                        ? t("Comments unavailable")
                         : `${detail.commentCount.toLocaleString()} ${
                             detail.commentCount === 1 ? "comment" : "comments"
                           }`
@@ -1639,7 +1679,7 @@ export function PullRequestDetailPanel({
                     className="inline-flex items-center gap-1"
                     aria-label={
                       activityError
-                        ? "Commits unavailable"
+                        ? t("Commits unavailable")
                         : `${detail.commits.length.toLocaleString()} ${
                             detail.commits.length === 1 ? "commit" : "commits"
                           }`
@@ -1672,15 +1712,15 @@ export function PullRequestDetailPanel({
                   variant="ghost-muted"
                   aria-label={
                     timelineOrder === "newest"
-                      ? "Show oldest activity first"
-                      : "Show newest activity first"
+                      ? t("Show oldest activity first")
+                      : t("Show newest activity first")
                   }
                   onClick={() =>
                     setTimelineOrder((value) => (value === "newest" ? "oldest" : "newest"))
                   }
                 >
                   <ArrowDownUpIcon aria-hidden className="size-3" />
-                  {timelineOrder === "newest" ? "Newest first" : "Oldest first"}
+                  {timelineOrder === "newest" ? t("Newest first") : t("Oldest first")}
                 </Button>
               </div>
             ) : null}
@@ -1719,7 +1759,12 @@ export function PullRequestDetailPanel({
             {...(isPullRequestNotFound(detailQuery.failure)
               ? {
                   title: `${capitalizeTerm(terminology.singular)} #${reference.number} not found`,
-                  error: `It may be an issue rather than a ${terminology.singular}, or this account can't see it.`,
+                  error: t(
+                    "It may be an issue rather than a {kind}, or this account can't see it.",
+                    {
+                      kind: changeRequestTerm(terminology.singular, t),
+                    },
+                  ),
                 }
               : { error: detailQuery.error })}
             refreshing={detailQuery.isPending}
@@ -1817,7 +1862,11 @@ export function PullRequestDetailPanel({
               <div className={cn("absolute inset-0", tab !== "code" && "invisible")}>
                 <Suspense
                   fallback={
-                    <DiffPanelLoadingState label={`Loading ${terminology.singular} diff...`} />
+                    <DiffPanelLoadingState
+                      label={t("Loading {kind} diff...", {
+                        kind: changeRequestTerm(terminology.singular, t),
+                      })}
+                    />
                   }
                 >
                   <PullRequestCodeTab
