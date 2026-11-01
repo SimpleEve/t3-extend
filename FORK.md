@@ -163,6 +163,48 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 
 上游文件里的接线（都带 `// fork:`）：`ThreadHeader.tsx`（prop 和 Android 按钮）、`ThreadRouteScreen.tsx`（按 `serverBrowser` 传回调）、`PreviewStreamWebView.tsx`（`PHONE_STREAM_QUALITY`）、`serverBrowserStream.ts`（`quality`）。`BrowserPreviewRouteScreen.tsx`（`newTab` 参数、改用 `useBrowserTabSelection`、"+"、几处 `t()`）、`scripts/i18n-report.ts`（扫描 `apps/mobile/src`）。
 
+## 打包与签名
+
+两条命令，都可以直接重跑：
+
+```bash
+vp run fork:dist:mac       # → release/fork-mac/T3-Extend-<版本>-arm64.dmg（附 .sha256）
+vp run fork:dist:android   # → release/fork-android/T3-Extend-<版本>-arm64-v8a.apk（附 .sha256）
+```
+
+`release/` 已在 gitignore 里。Android 命令要先设好上文"Android 开发环境"里的环境变量。
+
+前置条件：
+
+- macOS 签名身份：登录钥匙串里的自签名证书 `T3 Extend Code Signing`（`security find-identity -v -p codesigning` 能看到）。换身份用 `--identity` 或 `T3EXTEND_MAC_SIGN_IDENTITY`。
+- Rust：`native/resource-monitor` 依赖的 `sysinfo` 要求 rustc 1.95，默认 stable 是 1.89。只加装、不改默认工具链：`RUSTUP_DIST_SERVER=https://rsproxy.cn RUSTUP_UPDATE_ROOT=https://rsproxy.cn/rustup rustup toolchain install 1.95.0 --profile minimal`。脚本用 `RUSTUP_TOOLCHAIN=1.95.0` 从源码编译 resource-monitor（`--rust-toolchain` 可改），并清掉 `T3CODE_DESKTOP_REUSE_RESOURCE_MONITOR`。
+- Node：系统的 26.5.1 能打出来。如果打包报 Node 版本不对，改用 `vp env exec --node 26.12.1 node scripts/fork-dist-mac.ts`。
+- Android keystore：`~/.config/t3extend/android-release.jks`（目录 0700、文件 0600），PKCS12，alias `t3extend`，RSA 4096，有效期 10000 天，store 和 key 是同一个密码。密码只存在 macOS Keychain 的 generic password 条目里，account 和 service 都是 `t3extend-android-release`。新机器上用 `node scripts/fork-build-android-release.ts --create-keystore` 生成一次。已有 keystore 或 Keychain 条目时它会拒绝执行。
+
+macOS 流水线（`scripts/fork-dist-mac.ts`）：
+
+1. `build-desktop-artifact.ts --target dir` 打出未签名（ad-hoc）的 `.app`。
+2. `@electron/osx-sign` 由内向外签名：嵌套的二进制和原生模块、frameworks、helpers、主程序。开启 hardened runtime，不打时间戳（Apple 的时间戳服务只给 Apple 签发的证书加签）。osx-sign 自己查找身份时不带 `-p codesigning`，所以看不到自签名证书。脚本先自己解析出 SHA-1 再传给它，并关掉它的身份校验。
+3. 用 `hdiutil` 打出带 `/Applications` 链接的 UDZO DMG，再对 DMG 签名，然后挂载 DMG，校验里面的 app。没有上游 DMG 的背景图和窗口布局。
+
+entitlements 在 `packaging/fork-macos/`。主程序用 `entitlements.plist`，内容是 `renderMacPasskeyEntitlements` 去掉 team id、associated-domains、keychain-access-groups 和 passkey 后剩下的项：JIT、unsigned executable memory、disable-library-validation、camera、audio-input。helper 和其他嵌套程序用 `entitlements.inherit.plist`，内容就是 electron-builder 默认的前三项，和上游签名构建一致。
+
+Android 流水线（`scripts/fork-build-android-release.ts`）：`APP_VARIANT=production` 跑 `expo prebuild --clean`，并检查 applicationId 是 `com.simpleeve.t3extend`；从 Keychain 读出密码；运行 `gradlew --no-daemon app:assembleRelease`，签名配置用 `android.injected.signing.*` 注入。store file 和 alias 走 `-P`，两个密码走 `ORG_GRADLE_PROJECT_*` 环境变量，所以不会出现在命令行和日志里。`--no-daemon` 是为了不留一个持有密码的常驻 daemon。build.gradle、`app.config.ts` 和 plugins 都不改，native fingerprint 不变。最后用 apksigner 确认 APK 证书就是 keystore 里的证书。默认只打 `arm64-v8a`，`--abi` 可改。`apps/mobile/android` 是生成出来的目录，之后跑 `mobile:install` 会重新 prebuild 成 development。
+
+安装：
+
+- macOS：打开 DMG，把 `T3 Extend (Beta).app` 拖进 `/Applications`。第一次打开如果被 Gatekeeper 拦下，在 Finder 里右键选"打开"，或者执行 `xattr -d com.apple.quarantine "/Applications/T3 Extend (Beta).app"`。
+- 第一次启动时，macOS 会询问是否允许 `T3 Extend (Beta)` 访问钥匙串项 `t3extend Safe Storage`，选"始终允许"。不点的话，主线程会一直阻塞在读取 Keychain 上，这时 app 不响应退出，第一次 SIGTERM 也不会生效。签名身份不变，所以重新打包以后 designated requirement（`identifier "com.simpleeve.t3extend" and certificate leaf = H"4c50…5d"`）也不变，按理不会再问。这一点没有实测。
+- Android：`adb install -r <apk>`，或者把 APK 传到手机上安装。它和 dev client（`.dev`）是两个应用，可以并存。
+
+**备份**：把 `android-release.jks` 和它的密码（`security find-generic-password -a t3extend-android-release -s t3extend-android-release -w`）一起放到离线的地方。两者丢了任何一个，以后的 APK 都不能覆盖安装已装的版本，只能先卸载，应用数据会一起清掉。
+
+签名的限制：
+
+- 自签名证书不能公证。拷到别的 Mac 上会被 Gatekeeper 拦下，要用上面的右键打开或 `xattr`。本机关闭了 Gatekeeper 评估（`spctl --status` 显示 `assessments disabled`），所以本机上 `spctl -a -t exec -vv` 显示的是 `accepted` / `override=security disabled`，看不到拒绝。
+- passkey 和 Associated Domains 需要 Apple 签发的 provisioning profile，不可用。
+- 只打 arm64，没有 universal 版本，也没有 Linux 和 Windows 的 fork 打包。
+
 ## 同步上游
 
 ```bash
@@ -174,5 +216,7 @@ vp run fork:guard        # 上游新增的官方身份字面量会在这里报�
 vp run i18n:report       # 上游改过的英文文案会列为 stale
 vp run check:changed
 ```
+
+要出包时，先看上游有没有改 `build-desktop-artifact.ts` 里的 `renderMacPasskeyEntitlements`（以及 electron-builder 的 mac 配置）。新增的不依赖 team 的 entitlements 要同步到 `packaging/fork-macos/`：hardened runtime 缺了 entitlements，app 往往一启动就崩，而 `codesign --verify` 检查不出来。`fork-dist-mac.ts` 还依赖 `--target dir` 的产物位置（`<output-dir>/mac-arm64/*.app`）。所以同步之后的第一次打包，要真正把 app 启动起来验证一遍。
 
 `fork:guard`（`scripts/fork-identity-guard.ts`）扫描 `apps/*/src`、`packages`、`scripts` 等代码路径，查找 `com.t3tools.t3code`、`t3code-v2`、`t3code-dev`、`t3code://`、`"\.t3"`、`pingdotgg/t3code`、官方 EAS 和 PostHog 地址。新出现的命中要么改成引用 `forkIdentity.ts`，要么在脚本的 `ALLOWED` 里加一条并写明理由。白名单条目不再命中时，守卫也会报错，提醒删掉它。
