@@ -116,7 +116,7 @@ function LinkedEnvironmentRow({
     const result = await unlink({ environmentId, input: { environmentId: link.environmentId } });
     setBusy(false);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      failureToast("Could not forget the link", String(squashAtomCommandFailure(result)));
+      failureToast(t("Could not forget the link"), String(squashAtomCommandFailure(result)));
     }
   };
   const status =
@@ -217,7 +217,7 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
     const minted = await mintPairingCodeOn(targetId, access);
     if (Result.isSuccess(minted)) return minted.success;
     setMintFailed((failed) => new Set(failed).add(targetId));
-    failureToast("Could not link the environment", linkRequestFailureMessage(minted.failure));
+    failureToast(t("Could not link the environment"), linkRequestFailureMessage(minted.failure, t));
     return null;
   };
   const submit = async () => {
@@ -252,7 +252,7 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
       });
       handleOpenChange(false);
     } else if (!isAtomCommandInterrupted(result)) {
-      failureToast("Could not link the environment", String(squashAtomCommandFailure(result)));
+      failureToast(t("Could not link the environment"), String(squashAtomCommandFailure(result)));
     }
   };
   return (

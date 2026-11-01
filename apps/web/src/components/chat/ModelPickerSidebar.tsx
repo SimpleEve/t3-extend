@@ -10,19 +10,29 @@ import {
   shouldShowInstanceBadge,
   type ProviderInstanceEntry,
 } from "../../providerInstances";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork
+import { useT } from "~/hooks/useT"; // fork: interface language
 
 function describeUnavailableInstance(entry: ProviderInstanceEntry): string {
+  const t = (source: string, params?: Readonly<Record<string, string>>) =>
+    translate(getUiLocale(), source, params); // fork: interface language
   const label = entry.displayName;
   if (!entry.enabled || entry.status === "disabled") {
-    return `${label}: Disabled in settings.`;
+    return t("{provider}: Disabled in settings.", { provider: label });
   }
   if (entry.status === "ready" && entry.isAvailable) {
     return label;
   }
   const kind =
-    entry.status === "error" ? "Unavailable" : entry.status === "warning" ? "Limited" : "Not ready";
+    entry.status === "error"
+      ? t("Unavailable")
+      : entry.status === "warning"
+        ? t("Limited")
+        : t("Not ready");
   const msg = entry.snapshot.message?.trim();
-  return msg ? `${label}: ${kind}. ${msg}` : `${label}: ${kind}.`;
+  return msg
+    ? t("{provider}: {state}. {message}", { provider: label, state: kind, message: msg })
+    : t("{provider}: {state}.", { provider: label, state: kind });
 }
 
 const PICKER_TOOLTIP_SIDE = "left" as const;
@@ -38,6 +48,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
   selectableUnavailableInstanceIds?: ReadonlySet<ProviderInstanceId>;
   getDisabledInstanceTooltip?: (entry: ProviderInstanceEntry) => string;
 }) {
+  const t = useT(); // fork: interface language
   const handleSelect = (instanceId: ProviderInstanceId | "favorites") => {
     props.onSelectInstance(instanceId);
   };
@@ -70,7 +81,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
     <Toolbar.Root
       className="w-11 shrink-0 overflow-hidden bg-muted/30"
       data-model-picker-sidebar="true"
-      aria-label="Providers"
+      aria-label={t("Providers")}
       orientation="vertical"
       onKeyDown={(event) => {
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -102,7 +113,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                         )}
                         onClick={() => handleSelect("favorites")}
                         type="button"
-                        aria-label="Favorites"
+                        aria-label={t("Favorites")}
                         aria-pressed={props.selectedInstanceId === "favorites"}
                       >
                         <StarIcon className="size-5 fill-current shrink-0" aria-hidden />
@@ -114,7 +125,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                     sideOffset={PICKER_TOOLTIP_SIDE_OFFSET}
                     align="center"
                   >
-                    Favorites
+                    {t("Favorites")}
                   </TooltipPopup>
                 </Tooltip>
               </div>

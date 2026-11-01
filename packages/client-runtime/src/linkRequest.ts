@@ -13,6 +13,7 @@ import * as Option from "effect/Option";
 import type { EnvironmentPresentation } from "./connection/presentation.ts";
 import { connectionRoutes, routeHttpBaseUrl } from "./connection/routes.ts";
 import type { RelayDiscoveredEnvironment } from "./relay/discovery.ts";
+import { englishWorkLogPhrase, type WorkLogPhraseTranslator } from "./work-log/phrase.ts"; // fork
 
 export type LinkRequestItem = Extract<OrchestrationV2TurnItem, { readonly type: "link_request" }>;
 
@@ -214,30 +215,38 @@ export function linkRequestDisplay(
   >,
   visibility: "local" | "inherited" | "synthetic",
   accessLabel: (access: AuthMcpClientAccess) => string,
+  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ): LinkRequestDisplay {
   switch (item.linkStatus) {
     case "pending":
       return visibility === "local"
         ? { kind: "pending" }
-        : { kind: "pending-elsewhere", label: "Waiting for an answer in the original thread" };
-    case "linked":
+        : { kind: "pending-elsewhere", label: t("Waiting for an answer in the original thread") };
+    case "linked": {
+      const target = item.linkedLabel ?? linkRequestTargetName(item);
       return {
         kind: "answered",
         outcome: "linked",
-        label: `Linked ${item.linkedLabel ?? linkRequestTargetName(item)}${
-          item.linkedAccess === undefined ? "" : ` · ${accessLabel(item.linkedAccess)}`
-        }`,
+        label:
+          item.linkedAccess === undefined
+            ? t("Linked {target}", { target })
+            : t("Linked {target} · {access}", { target, access: accessLabel(item.linkedAccess) }),
       };
+    }
     case "declined":
-      return { kind: "answered", outcome: "declined", label: "Declined" };
+      return { kind: "answered", outcome: "declined", label: t("Declined") };
     case "failed":
       return {
         kind: "answered",
         outcome: "failed",
-        label: `Could not link: ${item.failure ?? "the other environment refused"}`,
+        // The failure text comes from the other environment and stays as sent.
+        label:
+          item.failure === undefined
+            ? t("Could not link: the other environment refused")
+            : t("Could not link: {reason}", { reason: item.failure }),
       };
     case "cancelled":
-      return { kind: "answered", outcome: "ended", label: "Request ended" };
+      return { kind: "answered", outcome: "ended", label: t("Request ended") };
   }
 }
 
@@ -297,7 +306,10 @@ const USER_FACING_FAILURE_TAGS = new Set([
  * through: anything else (transport or encoding failures) gets the generic
  * copy, so the pairing code can never surface in the UI.
  */
-export function linkRequestFailureMessage(failure: unknown): string {
+export function linkRequestFailureMessage(
+  failure: unknown,
+  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
+): string {
   if (
     typeof failure === "object" &&
     failure !== null &&
@@ -310,5 +322,5 @@ export function linkRequestFailureMessage(failure: unknown): string {
   ) {
     return failure.message;
   }
-  return "Could not answer the request. Try again.";
+  return t("Could not answer the request. Try again.");
 }
