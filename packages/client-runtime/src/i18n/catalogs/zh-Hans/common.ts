@@ -35,4 +35,9 @@ export default {
   Remote: "远程",
   // The label of threads outside any project; UI copy, not a project name.
   "No project": "无项目",
+  "Copy error": "复制错误信息",
+  "Copied error": "已复制错误信息",
+  "Show details": "显示详情",
+  "Dismiss notification": "关闭通知",
+  "Hide details": "隐藏详情",
 } satisfies Record<string, string>;
