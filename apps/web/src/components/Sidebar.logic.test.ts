@@ -1,5 +1,6 @@
 import { presentThreadShell } from "@t3tools/client-runtime/state/models";
 import { isThreadWorking as isSidebarThreadWorking } from "@t3tools/client-runtime/state/thread-inbox";
+import { buildProjectViewFolders } from "@t3tools/client-runtime/state/thread-grouping";
 import * as DateTime from "effect/DateTime";
 import { deriveActiveWorkStartedAt } from "../session-logic.ts";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -38,6 +39,7 @@ import {
   resolveSidebarDropVerb,
   groupSidebarThreadsByProject,
   resolveSidebarFolderDot,
+  resolveSidebarThreadSection,
   sidebarFolderExpansionKeys,
 } from "./Sidebar.logic";
 import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
@@ -1695,6 +1697,50 @@ describe("groupSidebarThreadsByProject", () => {
       { projectKey: "t3code", threads: ["a", "b"] },
       { projectKey: "fleet", threads: [] },
     ]);
+  });
+});
+
+describe("project-view thread selection", () => {
+  it("keeps pinned, snoozed, and settled threads out of project folders", () => {
+    const environmentId = EnvironmentId.make("environment-local");
+    const projectId = ProjectId.make("project-1");
+    const makeThread = (
+      id: string,
+      status: { readonly pinned: boolean; readonly snoozed: boolean; readonly settled: boolean },
+    ) => ({
+      id: ThreadId.make(id),
+      environmentId,
+      projectId,
+      worktreePath: null,
+      branch: "main",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      latestRun: null,
+      latestUserAuthoredMessageAt: "2026-10-01T00:00:00.000Z",
+      ...status,
+    });
+    const active = makeThread("active", { pinned: false, snoozed: false, settled: false });
+    const pinned = makeThread("pinned", { pinned: true, snoozed: false, settled: false });
+    const snoozed = makeThread("snoozed", { pinned: false, snoozed: true, settled: false });
+    const settled = makeThread("settled", { pinned: false, snoozed: false, settled: true });
+    const threads = [active, pinned, snoozed, settled];
+
+    const activeThreads = threads.filter(
+      (thread) =>
+        resolveSidebarThreadSection({
+          pinned: thread.pinned,
+          snoozed: thread.snoozed,
+          settled: thread.settled,
+        }) === "active",
+    );
+    const [folder] = buildProjectViewFolders({
+      folders: [{ group: { projectKey: "project-1" }, threads: activeThreads }],
+      isCollapsed: () => false,
+      openThreadKey: null,
+      threadKey: (thread) => thread.id,
+    });
+
+    expect(folder?.threads.map((thread) => thread.id)).toEqual([active.id]);
+    expect(folder?.worktrees).toBeNull();
   });
 });
 
