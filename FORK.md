@@ -119,7 +119,7 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的私有二开 for
 8. `apps/server/src/cli/auth.ts`：`baseUrlFlag` 改为导出。
 9. `apps/server/src/cli/pair.ts`：import、两个错误类和 `resolveBaseUrlPairingBase`、flag、handler 里的分支。
 10. `apps/desktop/src/main.ts`：`layerDesktopFoundation` 加入 `DesktopSelfHost.layer`。
-11. `apps/desktop/src/preload.ts`：暴露 `t3xSelfHostBridge`。
+11. `apps/desktop/src/preload.ts`：暴露 `t3xSelfHostBridge`。沙箱 preload 的 `require` 解析不了 workspace 包，所以运行时值只能从相对模块导入，bridge 名在 `selfHost/selfHostChannels.ts` 里另存一份，`selfHost/preloadSandbox.test.ts` 检查导入并比对两边的值。
 12. `apps/desktop/src/ipc/DesktopIpcHandlers.ts`：调用 `installSelfHostIpc()`。
 13. `apps/desktop/src/ipc/methods/serverExposure.ts`：`getAdvertisedEndpoints` 追加自建地址，生成配对二维码时可以选到它们。
 14. `apps/desktop/src/backend/DesktopBackendConfiguration.ts`：主后端的 env 加上 `T3CODE_PUBLIC_URLS_FILE` 和 `T3CODE_PUBLIC_URLS`（合并 `T3CODE_DESKTOP_HTTPS_ENDPOINTS`）。WSL 后端不加。

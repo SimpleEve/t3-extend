@@ -10,11 +10,7 @@ import { exposeClerkBridge } from "@clerk/electron/preload";
 import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 
 import * as IpcChannels from "./ipc/channels.ts";
-import {
-  SELF_HOST_BRIDGE_GLOBAL,
-  type SelfHostBridge,
-  type SelfHostState,
-} from "@t3tools/shared/selfHost"; // fork: self-hosted connection
+import type { SelfHostBridge, SelfHostState } from "@t3tools/shared/selfHost"; // fork: self-hosted connection
 import * as SelfHostIpcChannels from "./selfHost/selfHostChannels.ts"; // fork: self-hosted connection
 import { mergeLegacyLocalStorage } from "./legacyLocalStorageMerge.ts";
 
@@ -79,7 +75,7 @@ function unwrapEnsureSshEnvironmentResult(result: unknown) {
 }
 
 // fork: self-hosted connection
-contextBridge.exposeInMainWorld(SELF_HOST_BRIDGE_GLOBAL, {
+contextBridge.exposeInMainWorld(SelfHostIpcChannels.SELF_HOST_BRIDGE_GLOBAL, {
   getState: () => ipcRenderer.invoke(SelfHostIpcChannels.GET_SELF_HOST_STATE_CHANNEL),
   setPublicUrls: (urls) =>
     ipcRenderer.invoke(SelfHostIpcChannels.SET_SELF_HOST_PUBLIC_URLS_CHANNEL, urls),
