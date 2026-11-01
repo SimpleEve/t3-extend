@@ -27,6 +27,8 @@
     "typecheck": "vp run -r --cache --concurrency-limit 4 typecheck",
     "tc": "vp run -r --cache --concurrency-limit 4 typecheck",
     "check:changed": "node scripts/check-changed.ts",
+    "fork:dist:android": "node scripts/fork-build-android-release.ts",
+    "fork:dist:mac": "node scripts/fork-dist-mac.ts",
     "fork:guard": "node scripts/fork-identity-guard.ts",
     "i18n:report": "node scripts/i18n-report.ts",
     "report:renders": "node scripts/render-metrics.ts",
