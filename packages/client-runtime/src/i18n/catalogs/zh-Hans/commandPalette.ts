@@ -17,7 +17,6 @@ export default {
   "No matching commands, projects, or threads.": "没有匹配的命令、项目或对话。",
 
   // Commands
-  "New thread in": "新建对话于",
   "New thread in...": "在指定项目中新建对话…",
   "New thread without a project": "新建不属于项目的对话",
   "Triage an issue": "排查问题",

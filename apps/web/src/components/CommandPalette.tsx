@@ -1220,13 +1220,17 @@ function OpenCommandPaletteDialog(props: {
       null;
 
     if (activeProjectTitle) {
+      // fork: split the template so word order can follow the language around the bold name.
+      const [beforeProject, afterProject] = t("New thread in {project}").split("{project}");
       actionItems.push({
         kind: "action",
         value: "action:new-thread",
         searchTerms: ["new thread", "chat", "create", "draft"],
         title: (
           <>
-            {t("New thread in")} <span className="font-semibold">{activeProjectTitle}</span>
+            {beforeProject}
+            <span className="font-semibold">{activeProjectTitle}</span>
+            {afterProject}
           </>
         ),
         searchTitle: `New thread in ${activeProjectTitle}`,

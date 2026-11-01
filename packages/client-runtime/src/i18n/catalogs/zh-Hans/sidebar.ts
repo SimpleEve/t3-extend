@@ -64,7 +64,7 @@ export default {
   "Regenerating…": "正在重新生成…",
   "Mark unread": "标为未读",
   "Show all projects": "显示全部项目",
-  "Filter by {project}": "只看 {project}",
+  "Filter by {project}": "仅显示 {project}",
   "Turn into project": "转为项目",
   "Auto-settle behavior": "自动标为已处理",
   "Archive thread": "归档对话",
