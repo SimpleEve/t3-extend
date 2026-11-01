@@ -1,5 +1,9 @@
 // fork: self-hosted connection. Desktop-only rows in Settings → Sharing & access.
-import { normalizePublicUrl, type ManagedTunnelStatus } from "@t3tools/shared/selfHost";
+import {
+  normalizePublicUrl,
+  type ManagedTunnelExit,
+  type ManagedTunnelStatus,
+} from "@t3tools/shared/selfHost";
 import { PlusIcon, XIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
@@ -31,6 +35,17 @@ const statusLabel = (t: Translator, status: ManagedTunnelStatus): string => {
       return t("Running");
     case "backing-off":
       return t("Restarting");
+  }
+};
+
+const exitLabel = (t: Translator, exit: ManagedTunnelExit): string => {
+  switch (exit._tag) {
+    case "spawn-failed":
+      return t("Could not start the command.");
+    case "exited":
+      return t("The command exited with code {code}.", { code: exit.code });
+    case "signaled":
+      return t("The command was stopped by {signal}.", { signal: exit.signal });
   }
 };
 
@@ -87,6 +102,9 @@ export function SelfHostSettings() {
   };
 
   const tunnel = state?.tunnel ?? null;
+  // An error line the command printed says more than how it ended.
+  const tunnelProblem =
+    tunnel?.lastError ?? (tunnel?.lastExit ? exitLabel(t, tunnel.lastExit) : null);
   const command = commandDraft ?? tunnel?.command ?? "";
   const commandChanged = tunnel !== null && command.trim() !== tunnel.command;
   const saveTunnel = (enabled: boolean) =>
@@ -161,7 +179,7 @@ export function SelfHostSettings() {
           "Optional. T3 Extend runs this command while the app is open, restarts it if it exits, and stops it when you quit. It runs on this computer as you, for example frpc -c ~/frpc.toml.",
         )}
         status={
-          tunnel && (tunnel.enabled || tunnel.lastError) ? (
+          tunnel && (tunnel.enabled || tunnelProblem) ? (
             <span className="flex flex-wrap items-center gap-1.5">
               <Badge variant={STATUS_BADGE[tunnel.status]} size="sm">
                 {statusLabel(t, tunnel.status)}
@@ -169,8 +187,8 @@ export function SelfHostSettings() {
               {tunnel.restarts > 0 ? (
                 <span>{t("Restarted {count} times", { count: tunnel.restarts })}</span>
               ) : null}
-              {tunnel.lastError ? (
-                <span className="block w-full break-all text-destructive">{tunnel.lastError}</span>
+              {tunnelProblem ? (
+                <span className="block w-full break-all text-destructive">{tunnelProblem}</span>
               ) : null}
             </span>
           ) : null

@@ -6,6 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as PlatformError from "effect/PlatformError";
 import * as Queue from "effect/Queue";
 import * as Ref from "effect/Ref";
 import * as Sink from "effect/Sink";
@@ -16,17 +17,30 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as ManagedTunnel from "./ManagedTunnel.ts";
 
 interface FakeChild {
-  readonly exit: Deferred.Deferred<ChildProcessSpawner.ExitCode>;
+  readonly exit: Deferred.Deferred<ChildProcessSpawner.ExitCode, PlatformError.PlatformError>;
   readonly killed: Deferred.Deferred<void>;
 }
 
 /** Each spawn hands its child to the test; closing the spawn scope marks it killed. */
-const harness = Effect.gen(function* () {
+const harness = Effect.fn(function* (options?: {
+  readonly spawnFails?: boolean;
+  readonly stderr?: string;
+}) {
   const children = yield* Queue.unbounded<FakeChild>();
   const commands = yield* Ref.make<ReadonlyArray<ReadonlyArray<string>>>([]);
   const spawner = ChildProcessSpawner.make((command) =>
     Effect.gen(function* () {
-      const exit = yield* Deferred.make<ChildProcessSpawner.ExitCode>();
+      if (options?.spawnFails) {
+        return yield* PlatformError.systemError({
+          _tag: "NotFound",
+          module: "ChildProcess",
+          method: "spawn",
+        });
+      }
+      const exit = yield* Deferred.make<
+        ChildProcessSpawner.ExitCode,
+        PlatformError.PlatformError
+      >();
       const killed = yield* Deferred.make<void>();
       yield* Effect.addFinalizer(() => Deferred.succeed(killed, undefined));
       if (command._tag === "StandardCommand") {
@@ -43,7 +57,7 @@ const harness = Effect.gen(function* () {
         stdout: Stream.make(new TextEncoder().encode("start frpc service\n")),
         stderr: Stream.make(
           new TextEncoder().encode(
-            "\u001b[31m[E] [client] connect to server error: refused\u001b[0m\n",
+            options?.stderr ?? "\u001b[31m[E] [client] connect to server error: refused\u001b[0m\n",
           ),
         ),
         all: Stream.empty,
@@ -59,10 +73,13 @@ const harness = Effect.gen(function* () {
 });
 
 const run = <A, E>(
-  body: (input: Effect.Success<typeof harness>) => Effect.Effect<A, E, ManagedTunnel.ManagedTunnel>,
+  body: (
+    input: Effect.Success<ReturnType<typeof harness>>,
+  ) => Effect.Effect<A, E, ManagedTunnel.ManagedTunnel>,
+  options?: Parameters<typeof harness>[0],
 ) =>
   Effect.gen(function* () {
-    const input = yield* harness;
+    const input = yield* harness(options);
     return yield* body(input).pipe(Effect.provide(input.layer));
   }).pipe(
     Effect.provideService(HostProcess.Platform, "darwin"),
@@ -89,6 +106,7 @@ describe("ManagedTunnel", () => {
         const exited = Option.getOrThrow(yield* Fiber.join(backingOff));
         assert.strictEqual(exited.status, "backing-off");
         assert.include(exited.lastError ?? "", "connect to server error");
+        assert.deepEqual(exited.lastExit, { _tag: "exited", code: 1 });
         assert.notInclude(exited.recentOutput.join("\n"), "\u001b");
 
         // No respawn before the first backoff step ends.
@@ -104,6 +122,63 @@ describe("ManagedTunnel", () => {
         assert.strictEqual((yield* tunnel.state).status, "stopped");
       }),
     ),
+  );
+
+  it.effect("tells an exit code, a signal, and a failed start apart", () =>
+    Effect.gen(function* () {
+      const nextBackOff = (tunnel: ManagedTunnel.ManagedTunnel["Service"], restarts: number) =>
+        tunnel.changes.pipe(
+          Stream.filter((state) => state.status === "backing-off" && state.restarts === restarts),
+          Stream.runHead,
+          Effect.map(Option.getOrThrow),
+          Effect.forkChild({ startImmediately: true }),
+        );
+
+      yield* run(
+        ({ children }) =>
+          Effect.gen(function* () {
+            const tunnel = yield* ManagedTunnel.ManagedTunnel;
+            yield* tunnel.configure({ command: "frpc", enabled: true });
+
+            const exited = yield* nextBackOff(tunnel, 1);
+            yield* Deferred.succeed(
+              (yield* Queue.take(children)).exit,
+              ChildProcessSpawner.ExitCode(2),
+            );
+            const afterExit = yield* Fiber.join(exited);
+            assert.deepEqual(afterExit.lastExit, { _tag: "exited", code: 2 });
+            assert.isNull(afterExit.lastError);
+
+            const signaled = yield* nextBackOff(tunnel, 2);
+            yield* TestClock.adjust(Duration.seconds(1));
+            yield* Deferred.fail(
+              (yield* Queue.take(children)).exit,
+              PlatformError.systemError({
+                _tag: "Unknown",
+                module: "ChildProcess",
+                method: "exitCode",
+                cause: new Error("Process interrupted due to receipt of signal: 'SIGTERM'"),
+              }),
+            );
+            assert.deepEqual((yield* Fiber.join(signaled)).lastExit, {
+              _tag: "signaled",
+              signal: "SIGTERM",
+            });
+          }),
+        { stderr: "start frpc service\n" },
+      );
+
+      yield* run(
+        () =>
+          Effect.gen(function* () {
+            const tunnel = yield* ManagedTunnel.ManagedTunnel;
+            const failed = yield* nextBackOff(tunnel, 1);
+            yield* tunnel.configure({ command: "frpc", enabled: true });
+            assert.deepEqual((yield* Fiber.join(failed)).lastExit, { _tag: "spawn-failed" });
+          }),
+        { spawnFails: true },
+      );
+    }),
   );
 
   it("doubles the restart delay while the client keeps crashing", () => {

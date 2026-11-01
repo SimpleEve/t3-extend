@@ -61,14 +61,21 @@ export function encodePublicUrlsDocument(urls: ReadonlyArray<string>): string {
 
 export type ManagedTunnelStatus = "stopped" | "starting" | "running" | "backing-off";
 
+/** Why the last attempt ended; shown while the tunnel waits to restart. */
+export type ManagedTunnelExit =
+  | { readonly _tag: "spawn-failed" }
+  | { readonly _tag: "exited"; readonly code: number }
+  | { readonly _tag: "signaled"; readonly signal: string };
+
 export interface ManagedTunnelState {
   readonly command: string;
   readonly enabled: boolean;
   readonly status: ManagedTunnelStatus;
   readonly pid: number | null;
   readonly restarts: number;
-  /** Last error or exit reason, already bounded for display. */
+  /** Last error line the command printed, already bounded for display. */
   readonly lastError: string | null;
+  readonly lastExit: ManagedTunnelExit | null;
   /** Recent output lines, newest last. */
   readonly recentOutput: ReadonlyArray<string>;
 }

@@ -1,5 +1,5 @@
 import * as HostProcess from "@t3tools/shared/HostProcess";
-import type { ManagedTunnelState } from "@t3tools/shared/selfHost";
+import type { ManagedTunnelExit, ManagedTunnelState } from "@t3tools/shared/selfHost";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
@@ -40,6 +40,8 @@ const RESTART_STABLE_UPTIME_MS = 30_000;
 const RECENT_OUTPUT_LINES = 40;
 const MAX_LINE_LENGTH = 300;
 const MAX_ERROR_LENGTH = 500;
+// The Node spawner fails `exitCode` only for a signal, naming it in the cause's message.
+const SIGNAL_IN_MESSAGE = /signal: '([A-Z0-9]+)'/u;
 const OUTPUT_DRAIN_TIMEOUT = Duration.seconds(1);
 
 export const restartDelayMs = (previousDelayMs: number, uptimeMs: number): number =>
@@ -86,8 +88,15 @@ const stoppedState = (command: string, enabled: boolean): ManagedTunnelState => 
   pid: null,
   restarts: 0,
   lastError: null,
+  lastExit: null,
   recentOutput: [],
 });
+
+const signalOf = (error: { readonly reason: { readonly cause?: unknown } }): string => {
+  const cause = error.reason.cause;
+  const match = cause instanceof Error ? SIGNAL_IN_MESSAGE.exec(cause.message) : null;
+  return match?.[1] ?? "unknown";
+};
 
 const make = Effect.gen(function* () {
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
@@ -124,39 +133,55 @@ const make = Effect.gen(function* () {
 
   // One child per attempt; closing the attempt's scope kills its process group.
   const runOnce = Effect.fn("desktop.managedTunnel.run")(function* (command: string) {
+    // The spawn is this attempt's only failure; the child's own end is a ManagedTunnelExit.
     const child = yield* spawner.spawn(shellCommand(command, platform, environment));
     yield* update((state) => ({ ...state, status: "running", pid: Number(child.pid) }));
     const readers = [
       yield* Effect.forkScoped(readLines(child.stdout)),
       yield* Effect.forkScoped(readLines(child.stderr)),
     ];
-    const exitCode = yield* child.exitCode;
+    const exit = yield* child.exitCode.pipe(
+      Effect.map((code): ManagedTunnelExit => ({ _tag: "exited", code: Number(code) })),
+      Effect.catch((error) =>
+        Effect.succeed<ManagedTunnelExit>({ _tag: "signaled", signal: signalOf(error) }),
+      ),
+    );
     // Keep the last lines it printed; a grandchild holding the pipe must not stall the restart.
     yield* Fiber.joinAll(readers).pipe(Effect.timeoutOption(OUTPUT_DRAIN_TIMEOUT));
-    return exitCode;
+    return exit;
   }, Effect.scoped);
 
   // Runs for the tunnel's whole enabled lifetime; each attempt has its own span.
   const supervise = Effect.fnUntraced(function* (command: string) {
     let delayMs = 0;
     for (;;) {
-      yield* update((state) => ({ ...state, status: "starting", pid: null, lastError: null }));
+      yield* update((state) => ({
+        ...state,
+        status: "starting",
+        pid: null,
+        lastError: null,
+        lastExit: null,
+      }));
       const startedAt = yield* Clock.currentTimeMillis;
       const exit = yield* Effect.exit(runOnce(command));
       const uptimeMs = (yield* Clock.currentTimeMillis) - startedAt;
-      const reason = Exit.isSuccess(exit)
-        ? `Exited with code ${String(Number(exit.value))}.`
-        : "Could not start the command.";
+      const lastExit: ManagedTunnelExit = Exit.isSuccess(exit)
+        ? exit.value
+        : { _tag: "spawn-failed" };
       delayMs = restartDelayMs(delayMs, uptimeMs);
       yield* update((state) => ({
         ...state,
         status: "backing-off",
         pid: null,
         restarts: state.restarts + 1,
-        // An exit right after an error line keeps that line; it says more than the code.
-        lastError: state.lastError ?? reason,
+        lastExit,
       }));
-      yield* Effect.logWarning("managed tunnel exited; restarting", { uptimeMs, delayMs });
+      yield* Effect.logWarning("managed tunnel exited; restarting", {
+        uptimeMs,
+        delayMs,
+        exit: lastExit,
+        ...(Exit.isFailure(exit) ? { cause: exit.cause } : {}),
+      });
       yield* Effect.sleep(Duration.millis(delayMs));
     }
   });

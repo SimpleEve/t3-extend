@@ -25,4 +25,7 @@ export default {
   Restarting: "正在重启",
   "Could not update the tunnel": "无法更新隧道",
   "Could not restart the tunnel": "无法重启隧道",
+  "Could not start the command.": "无法启动命令。",
+  "The command exited with code {code}.": "命令已退出，退出码 {code}。",
+  "The command was stopped by {signal}.": "命令被信号 {signal} 终止。",
 };

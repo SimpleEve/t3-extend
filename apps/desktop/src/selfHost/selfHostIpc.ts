@@ -27,6 +27,13 @@ const SelfHostStateSchema = Schema.Struct({
     pid: Schema.NullOr(Schema.Number),
     restarts: Schema.Number,
     lastError: Schema.NullOr(Schema.String),
+    lastExit: Schema.NullOr(
+      Schema.Union([
+        Schema.TaggedStruct("spawn-failed", {}),
+        Schema.TaggedStruct("exited", { code: Schema.Number }),
+        Schema.TaggedStruct("signaled", { signal: Schema.String }),
+      ]),
+    ),
     recentOutput: Schema.Array(Schema.String),
   }),
 });
