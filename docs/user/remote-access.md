@@ -292,6 +292,12 @@ On a phone, tap the floating preview's corner dot to show its controls, then
 **Pop into separate window** to keep watching in picture-in-picture over other
 apps.
 
+On Android, tap the globe in a thread's header to open a new tab: enter an
+address, or pick one of the host's [local servers](#local-servers). The page
+runs on the host, so `localhost:5173` is the host's dev server, not your phone.
+The **+** in the browser's header opens another tab. Opening tabs needs a
+connection that can operate the browser; read-only connections can still watch.
+
 ### Local servers
 
 The browser lists ports held by processes your terminals and agents started.
