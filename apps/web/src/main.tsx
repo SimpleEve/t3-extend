@@ -9,8 +9,10 @@ import { isElectron } from "./env";
 import { startAppServices } from "./appInit";
 import { AppRoot } from "./AppRoot";
 import { clearChunkReloadGuard, reloadOnceForChunkLoadError } from "./lib/chunkReloadGuard";
+import { startUiLanguage } from "./uiLanguage"; // fork: interface language
 
 const router = startAppServices();
+const uiLanguageReady = startUiLanguage(); // fork: interface language
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 
@@ -37,6 +39,7 @@ const managedAuthShellModule =
 export const startup = Promise.all([
   managedAuthShellModule?.then((module) => module.default) ?? null,
   router.load(),
+  uiLanguageReady, // fork: a saved Chinese UI paints translated, without an English flash
 ])
   .then(([ManagedAuthShell]) => {
     // Route chunk failures resolve router.load() and surface later through the error boundary.

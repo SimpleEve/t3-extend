@@ -13,6 +13,7 @@ import {
   usePrimarySettingsAvailable,
 } from "../../hooks/useSettings";
 import { cn } from "../../lib/utils";
+import { useT } from "../../hooks/useT";
 import { WorkspacePageContainer, type WorkspacePageWidth } from "../WorkspacePageContainer";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -216,6 +217,7 @@ export function SettingsSection({
   children: ReactNode;
 }) {
   const targetRef = useSettingsSearchTarget<HTMLElement>(sectionProps.id);
+  const t = useT();
 
   return (
     <section
@@ -225,7 +227,7 @@ export function SettingsSection({
       className={cn(!hideTitle && "space-y-2.5", className)}
     >
       {hideTitle ? (
-        <h2 className="sr-only">{title}</h2>
+        <h2 className="sr-only">{t(title)}</h2>
       ) : (
         <div
           data-settings-scroll-target
@@ -234,7 +236,7 @@ export function SettingsSection({
           <div className="flex min-w-0 items-center gap-1">
             <h2 className="flex min-h-7 items-center gap-2 text-base font-semibold text-foreground">
               {icon}
-              {title}
+              {t(title)}
             </h2>
             {titleAction}
           </div>
@@ -320,6 +322,7 @@ export function SettingsRow({
   children?: ReactNode;
 }) {
   const targetRef = useSettingsSearchTarget<HTMLDivElement>(rowProps.id);
+  const t = useT();
   const primarySettingsAvailable = usePrimarySettingsAvailable();
   const context = useOptionalSettingsScope();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
@@ -467,7 +470,9 @@ export function SettingsRow({
       <div className="flex flex-col gap-3 @min-[32rem]/settings-row:grid @min-[32rem]/settings-row:grid-cols-[minmax(0,1fr)_minmax(10rem,auto)] @min-[32rem]/settings-row:items-center @min-[32rem]/settings-row:gap-8">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex min-h-5 items-center gap-1.5">
-            <h3 className="text-sm font-medium text-foreground">{title}</h3>
+            <h3 className="text-sm font-medium text-foreground">
+              {typeof title === "string" ? t(title) : title}
+            </h3>
             {renderedInheritance ? (
               <span
                 className={cn(
@@ -522,6 +527,7 @@ export function SettingResetButton({
   disabled?: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   return (
     <Tooltip>
       <TooltipTrigger
@@ -529,7 +535,7 @@ export function SettingResetButton({
           <Button
             size="icon-micro"
             variant="ghost-muted"
-            aria-label={`Reset ${label} to default`}
+            aria-label={t("Reset {label} to default", { label: t(label) })}
             disabled={disabled}
             onClick={(event) => {
               event.stopPropagation();
@@ -540,7 +546,7 @@ export function SettingResetButton({
           </Button>
         }
       />
-      <TooltipPopup side="top">{tooltip}</TooltipPopup>
+      <TooltipPopup side="top">{t(tooltip)}</TooltipPopup>
     </Tooltip>
   );
 }

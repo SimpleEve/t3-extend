@@ -104,6 +104,15 @@ describe("searchSettings", () => {
     ).toEqual(["network-access", "connections-environment"]);
   });
 
+  it("finds the interface language in English and Chinese, and by translated titles", () => {
+    for (const query of ["language", "语言", "中文"]) {
+      expect(searchSettings(query)[0]?.id, query).toBe("ui-language");
+    }
+    const t = (source: string) => (source === "Chat width" ? "聊天宽度" : source);
+    expect(searchSettings("聊天宽度", SETTINGS_SEARCH_ITEMS, t)[0]?.id).toBe("chat-width");
+    expect(searchSettings("聊天宽度")).toEqual([]);
+  });
+
   it("hides desktop-only settings from browser search", () => {
     expect(SETTINGS_SEARCH_ITEMS.some((item) => item.id === "quit-confirmation")).toBe(true);
     expect(searchSettings("hold to quit")).toEqual([]);

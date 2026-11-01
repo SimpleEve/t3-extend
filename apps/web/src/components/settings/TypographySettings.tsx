@@ -13,6 +13,7 @@ import {
 } from "@t3tools/contracts/settings";
 import * as Schema from "effect/Schema";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
+import { useT } from "../../hooks/useT";
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
 import { isMacPlatform } from "../../lib/utils";
 import { Input } from "../ui/input";
@@ -203,11 +204,12 @@ function TerminalFontRow() {
 function FontSmoothingRow() {
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
+  const t = useT();
   if (!isMacPlatform(navigator.platform)) return null;
   return (
     <SettingsRow
       {...searchableSetting("font-smoothing")}
-      description="Use thinner grayscale text smoothing instead of the macOS default."
+      description={t("Use thinner grayscale text smoothing instead of the macOS default.")}
       resetAction={
         settings.fontSmoothing !== DEFAULT_UNIFIED_SETTINGS.fontSmoothing ? (
           <SettingResetButton
@@ -222,7 +224,7 @@ function FontSmoothingRow() {
         <Switch
           checked={settings.fontSmoothing}
           onCheckedChange={(checked) => updateSettings({ fontSmoothing: Boolean(checked) })}
-          aria-label="Font smoothing"
+          aria-label={t("Font smoothing")}
         />
       }
     />
@@ -230,12 +232,13 @@ function FontSmoothingRow() {
 }
 
 function WordWrapRow() {
+  const t = useT();
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
   return (
     <SettingsRow
       {...searchableSetting("word-wrap")}
-      description="Wrap long lines in code blocks, diffs, and file previews by default."
+      description={t("Wrap long lines in code blocks, diffs, and file previews by default.")}
       resetAction={
         settings.wordWrap !== DEFAULT_UNIFIED_SETTINGS.wordWrap ? (
           <SettingResetButton
@@ -248,7 +251,7 @@ function WordWrapRow() {
         <Switch
           checked={settings.wordWrap}
           onCheckedChange={(checked) => updateSettings({ wordWrap: Boolean(checked) })}
-          aria-label="Wrap code, diffs, and file previews by default"
+          aria-label={t("Wrap code, diffs, and file previews by default")}
         />
       }
     />
@@ -273,15 +276,18 @@ function SeparateFontsRow({
   readonly checked: boolean;
   readonly onCheckedChange: (checked: boolean) => void;
 }) {
+  const t = useT();
   return (
     <SettingsRow
       {...searchableSetting("separate-fonts")}
-      description="Set the prompt, code, and terminal fonts separately instead of one monospace font."
+      description={t(
+        "Set the prompt, code, and terminal fonts separately instead of one monospace font.",
+      )}
       control={
         <Switch
           checked={checked}
           onCheckedChange={(next) => onCheckedChange(Boolean(next))}
-          aria-label="Separate fonts"
+          aria-label={t("Separate fonts")}
         />
       }
     />
@@ -380,6 +386,7 @@ function FontFamilySettingsRow({
     onChange: (v: number) => void;
   };
 }) {
+  const t = useT();
   const trimmed = value.trim();
   const [draft, setDraft] = useState(value);
   const [draftSettled, setDraftSettled] = useState(true);
@@ -429,14 +436,14 @@ function FontFamilySettingsRow({
   };
   const resetAction =
     value !== defaultValue || size.value !== size.defaultValue ? (
-      <SettingResetButton label={title.toLowerCase()} onClick={resetToDefault} />
+      <SettingResetButton label={t(title).toLowerCase()} onClick={resetToDefault} />
     ) : null;
   const fontEnumeration = useFontEnumeration();
   const [inputFocused, setInputFocused] = useState(false);
   const familyControl =
     fontEnumeration.status === "granted" ? (
       <FontFamilyPicker
-        ariaLabel={`${title} family`}
+        ariaLabel={t("{title} family", { title: t(title) })}
         defaultFamily={defaultFamily}
         selectedFamily={trimmed}
         requireMonospace={requireMonospace}
@@ -446,7 +453,7 @@ function FontFamilySettingsRow({
     ) : (
       <Input
         size="sm"
-        aria-label={`${title} family`}
+        aria-label={t("{title} family", { title: t(title) })}
         aria-invalid={draftPending || undefined}
         autoCapitalize="off"
         autoComplete="off"
@@ -505,7 +512,7 @@ function FontFamilySettingsRow({
           }
         }}
       >
-        <SelectTrigger size="sm" className="w-22 shrink-0" aria-label={size.label}>
+        <SelectTrigger size="sm" className="w-22 shrink-0" aria-label={t(size.label)}>
           <SelectValue>{size.value} px</SelectValue>
         </SelectTrigger>
         <SelectPopup align="end" alignItemWithTrigger={false}>
@@ -524,7 +531,7 @@ function FontFamilySettingsRow({
     <SettingsRow
       {...(id !== undefined ? { id } : {})}
       title={title}
-      description={description}
+      description={t(description)}
       resetAction={resetAction}
       control={control}
     >

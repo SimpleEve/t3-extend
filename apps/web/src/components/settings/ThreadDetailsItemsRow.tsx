@@ -12,14 +12,18 @@ import { Button } from "../ui/button";
 import { Menu, MenuPopup, MenuTrigger } from "../ui/menu";
 import { SettingResetButton, SettingsRow } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
+import { useT } from "../../hooks/useT";
 
 export function ThreadDetailsItemsRow() {
+  const t = useT();
   const visibility = useClientSettings(resolveThreadDetailsVisibility);
   const enabled = THREAD_DETAILS_ITEMS.filter((item) => visibility[item.id]).length;
   return (
     <SettingsRow
       {...searchableSetting("thread-details-items")}
-      description="Choose what the thread details card shows. You can also right-click the card."
+      description={t(
+        "Choose what the thread details card shows. You can also right-click the card.",
+      )}
       resetAction={
         isDefaultThreadDetailsVisibility(visibility) ? null : (
           <SettingResetButton
@@ -36,11 +40,14 @@ export function ThreadDetailsItemsRow() {
                 variant="outline"
                 size="sm"
                 className="w-full justify-between sm:w-40"
-                aria-label={`Thread details: ${enabled} of ${THREAD_DETAILS_ITEMS.length} on`}
+                aria-label={t("Thread details: {enabled} of {total} on", {
+                  enabled,
+                  total: THREAD_DETAILS_ITEMS.length,
+                })}
               />
             }
           >
-            {enabled} of {THREAD_DETAILS_ITEMS.length} on
+            {t("{enabled} of {total} on", { enabled, total: THREAD_DETAILS_ITEMS.length })}
             <ChevronDownIcon aria-hidden />
           </MenuTrigger>
           <MenuPopup align="end">

@@ -3,12 +3,16 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { type ReactNode, useLayoutEffect } from "react";
 import { cn } from "~/lib/utils";
+import { useT } from "~/hooks/useT";
 import {
   animateSidebarLayoutChanges,
   sidebarMarkerId,
   type SidebarListMarker,
 } from "../Sidebar.logic";
 import { SIDEBAR_SORTABLE_DRAG_DISABLED } from "./SidebarThreadRow";
+
+// Section names such as "Active" read differently from the same English word elsewhere.
+const SIDEBAR_SECTION_CONTEXT = "sidebar section";
 
 function SortableSidebarMarker(props: {
   marker: SidebarListMarker;
@@ -51,6 +55,7 @@ export function SidebarSectionPlaceholder(props: {
   showHint: boolean;
   isDropTarget: boolean;
 }) {
+  const t = useT();
   return (
     <SortableSidebarMarker
       marker={props.marker}
@@ -65,7 +70,7 @@ export function SidebarSectionPlaceholder(props: {
             props.isDropTarget && "border-primary/40 bg-primary/5 text-primary",
           )}
         >
-          {props.label}
+          {t(props.label, undefined, SIDEBAR_SECTION_CONTEXT)}
         </div>
       ) : null}
     </SortableSidebarMarker>
@@ -78,6 +83,7 @@ export function SidebarDragBoundary(props: {
   visible: boolean;
   isDropTarget: boolean;
 }) {
+  const t = useT();
   return (
     <SortableSidebarMarker
       marker={props.marker}
@@ -92,7 +98,7 @@ export function SidebarDragBoundary(props: {
               props.isDropTarget ? "text-primary" : "text-sidebar-foreground/80",
             )}
           >
-            {props.label}
+            {t(props.label, undefined, SIDEBAR_SECTION_CONTEXT)}
           </span>
           <span
             aria-hidden
@@ -117,6 +123,7 @@ export function SidebarSectionHeader(props: {
   isDropTarget?: boolean;
   toggle: { expanded: boolean; onToggle: () => void };
 }) {
+  const t = useT();
   const shelf =
     props.marker === "working-header"
       ? "working"
@@ -139,7 +146,7 @@ export function SidebarSectionHeader(props: {
         data-testid={`sidebar-${shelf}-shelf-toggle`}
         accessory={<span className="font-normal tabular-nums">{props.count}</span>}
       >
-        {props.label}
+        {t(props.label, undefined, SIDEBAR_SECTION_CONTEXT)}
       </CollapsibleSectionHeader>
     </SortableSidebarMarker>
   );

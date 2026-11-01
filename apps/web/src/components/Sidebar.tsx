@@ -256,6 +256,7 @@ import { SidebarHeaderIconButton, SidebarThreadHeader } from "./sidebar/SidebarT
 import { TooltipProvider } from "./ui/tooltip";
 import { composerDraftHasUserContent, DraftId, useComposerDraftStore } from "../composerDraftStore";
 import { useThreadRouteTarget } from "../hooks/useThreadRouteTarget";
+import { useT } from "../hooks/useT";
 import {
   SidebarSearchResultRow,
   SortableThreadRow,
@@ -820,6 +821,7 @@ function isOptimisticDropReleased(input: {
 
 // Build maps in a hook so the compiler can prove they are frozen and cache them.
 function useSidebarLookups() {
+  const t = useT();
   const projects = useProjects();
   const environments = useEnvironmentIdentities();
   const serverConfigs = useServerConfigs();
@@ -842,7 +844,7 @@ function useSidebarLookups() {
     projectGroups.map((project) => [project.projectKey, project] as const),
   );
   const projectScopeItems = [
-    { value: "all", label: "All projects" },
+    { value: "all", label: t("All projects") },
     ...pickableProjectGroups(projectGroups).map((project) => ({
       value: project.projectKey,
       label: project.displayName,
@@ -912,6 +914,7 @@ function readRouteThreadKey(router: AnyRouter): string | null {
 }
 
 export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReveal }) {
+  const t = useT();
   const {
     projects,
     serverConfigs,
@@ -2546,11 +2549,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           projectByKey.get(`${session.environmentId}:${session.projectId}`)?.workspaceRoot;
         const clicked = await settlePromise(() =>
           api.contextMenu.show(
-            buildDraftActionMenuItems({
-              hasPath: Boolean(workspacePath),
-              hasBranch: Boolean(session.branch),
-              hasProject: projectGroup != null,
-            }),
+            buildDraftActionMenuItems(
+              {
+                hasPath: Boolean(workspacePath),
+                hasBranch: Boolean(session.branch),
+                hasProject: projectGroup != null,
+              },
+              t,
+            ),
             position,
           ),
         );
@@ -2620,40 +2626,43 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           ) ?? null;
         const clicked = await settlePromise(() =>
           api.contextMenu.show(
-            buildThreadActionMenuItems({
-              canOperate: readEnvironmentScope(
-                threadRef.environmentId,
-                AuthOrchestrationOperateScope,
-              ),
-              branch: thread.branch ?? null,
-              // An archived project is not a filter choice.
-              projectFilter:
-                threadProjectGroup && !threadProjectGroup.archived
-                  ? {
-                      label: threadProjectGroup.displayName,
-                      isActive: projectScopeKeys.includes(threadProjectGroup.projectKey),
-                    }
-                  : null,
-              isPinned,
-              isSettled,
-              autoSettleEnabled: thread.autoSettleDisabledAt == null,
-              isSnoozed,
-              canSnoozeNow: canSnooze(thread, { now: new Date().toISOString() }),
-              isRegeneratingTitle,
-              isRunning: !threadRuntimeCanArchive(thread.runtime),
-              canShareWithGuest: appAtomRegistry.get(
-                canShareWithGuestAtom(threadRef.environmentId),
-              ),
-              canTurnIntoProject: canTurnThreadIntoProject(threadRef),
-              supports: {
-                settlement: configLoaded,
-                autoSettleOptOut: supportsAutoSettleOptOut,
-                snooze: configLoaded,
-                pinning: configLoaded,
-                titleRegeneration: configLoaded,
+            buildThreadActionMenuItems(
+              {
+                canOperate: readEnvironmentScope(
+                  threadRef.environmentId,
+                  AuthOrchestrationOperateScope,
+                ),
+                branch: thread.branch ?? null,
+                // An archived project is not a filter choice.
+                projectFilter:
+                  threadProjectGroup && !threadProjectGroup.archived
+                    ? {
+                        label: threadProjectGroup.displayName,
+                        isActive: projectScopeKeys.includes(threadProjectGroup.projectKey),
+                      }
+                    : null,
+                isPinned,
+                isSettled,
+                autoSettleEnabled: thread.autoSettleDisabledAt == null,
+                isSnoozed,
+                canSnoozeNow: canSnooze(thread, { now: new Date().toISOString() }),
+                isRegeneratingTitle,
+                isRunning: !threadRuntimeCanArchive(thread.runtime),
+                canShareWithGuest: appAtomRegistry.get(
+                  canShareWithGuestAtom(threadRef.environmentId),
+                ),
+                canTurnIntoProject: canTurnThreadIntoProject(threadRef),
+                supports: {
+                  settlement: configLoaded,
+                  autoSettleOptOut: supportsAutoSettleOptOut,
+                  snooze: configLoaded,
+                  pinning: configLoaded,
+                  titleRegeneration: configLoaded,
+                },
+                snoozePresets,
               },
-              snoozePresets,
-            }),
+              t,
+            ),
             position,
           ),
         );
@@ -3033,8 +3042,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       <SidebarHeaderIconButton
                         label={
                           scopedProjectGroups.length > 0
-                            ? `Filter threads by project: ${scopedProjectGroups.map((project) => project.displayName).join(", ")}`
-                            : "Filter threads by project"
+                            ? t("Filter threads by project: {projects}", {
+                                projects: scopedProjectGroups
+                                  .map((project) => project.displayName)
+                                  .join(", "),
+                              })
+                            : t("Filter threads by project")
                         }
                       />
                     }
@@ -3063,8 +3076,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                     className="max-w-[min(18rem,var(--available-width))] overflow-hidden"
                   >
                     <ComboboxSearchInput
-                      aria-label="Search projects"
-                      placeholder="Search projects..."
+                      aria-label={t("Search projects")}
+                      placeholder={t("Search projects...")}
                       value={projectScopeMenuState.query}
                       onKeyDown={(event) => {
                         if (
@@ -3109,7 +3122,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         })
                       }
                     />
-                    <ComboboxEmpty>No matching projects.</ComboboxEmpty>
+                    <ComboboxEmpty>{t("No matching projects.")}</ComboboxEmpty>
                     <ComboboxList aria-multiselectable>
                       {(item: (typeof projectScopeItems)[number]) => {
                         const project = projectGroupByScopeKey.get(item.value) ?? null;
@@ -3157,7 +3170,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                 variant="ghost-muted"
                                 tabIndex={-1}
                                 aria-hidden="true"
-                                title={`Project settings for ${project.displayName}`}
+                                title={t("Project settings for {project}", {
+                                  project: project.displayName,
+                                })}
                                 className={canPinProject(project) ? undefined : "ml-auto"}
                                 onPointerDown={(event) => event.stopPropagation()}
                                 onClick={(event) => {

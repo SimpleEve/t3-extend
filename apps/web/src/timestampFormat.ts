@@ -1,4 +1,11 @@
 import { type TimestampFormat } from "@t3tools/contracts/settings";
+import {
+  formatCompactElapsedLabel,
+  formatRelativeElapsedLabel,
+  getUiLocale,
+  uiLocaleFormatTag,
+  type UiLocale,
+} from "@t3tools/client-runtime/i18n";
 
 function getTimestampFormatOptions(
   timestampFormat: TimestampFormat,
@@ -97,10 +104,24 @@ export function parseTimestampDate(isoDate: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-// Deliberately not the host locale: the tooltip's ordinal suffix and
-// day-before-month order below are English, so a localized month alone would
-// read "4th Juni 2026".
+// fork: the date follows the interface language, not the host locale. English
+// keeps its ordinal suffix and day-before-month order; other languages format
+// the whole date themselves, so a localized month never reads "4th Juni 2026".
 const monthNameFormatter = new Intl.DateTimeFormat("en-US", { month: "long" });
+const localizedDateFormatters = new Map<UiLocale, Intl.DateTimeFormat>();
+
+function localizedDateFormatter(locale: UiLocale): Intl.DateTimeFormat {
+  let formatter = localizedDateFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(uiLocaleFormatTag(locale), {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    localizedDateFormatters.set(locale, formatter);
+  }
+  return formatter;
+}
 
 function ordinalSuffix(day: number): string {
   const lastTwo = day % 100;
@@ -120,10 +141,12 @@ function ordinalSuffix(day: number): string {
 export function formatChatTimestampTooltip(
   isoDate: string,
   timestampFormat: TimestampFormat,
+  locale: UiLocale = getUiLocale(),
 ): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
   const time = formatShortTimestamp(isoDate, timestampFormat);
+  if (locale !== "en") return `${localizedDateFormatter(locale).format(date)} ${time}`;
   const day = date.getDate();
   const month = monthNameFormatter.format(date);
   const year = date.getFullYear();
@@ -194,7 +217,8 @@ type RelativeTimeParts = { value: string; suffix: string | null };
 export type RelativeTimeState =
   | { status: "missing" }
   | { status: "invalid" }
-  | { status: "relative"; value: string; suffix: string | null };
+  // fork: `label` is the whole phrase in the interface language; value and suffix stay English.
+  | { status: "relative"; value: string; suffix: string | null; label: string };
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 3_600_000;
@@ -247,10 +271,23 @@ export function formatRelativeTime(
   return elapsedMs === null ? null : formatRelativeElapsed(elapsedMs);
 }
 
-export function formatRelativeTimeLabel(isoDate: string, nowMs: number = Date.now()) {
-  const relative = formatRelativeTime(isoDate, nowMs);
-  if (!relative) return "";
-  return relative.suffix ? `${relative.value} ${relative.suffix}` : relative.value;
+export function formatRelativeTimeLabel(
+  isoDate: string,
+  nowMs: number = Date.now(),
+  locale: UiLocale = getUiLocale(),
+) {
+  const elapsedMs = relativeTimeElapsedMs(isoDate, nowMs);
+  return elapsedMs === null ? "" : formatRelativeElapsedLabel(locale, elapsedMs);
+}
+
+/** "5m", or "now" under a minute, for dense rows such as the sidebar. */
+export function formatCompactRelativeTimeLabel(
+  isoDate: string,
+  nowMs: number,
+  locale: UiLocale,
+): string {
+  const elapsedMs = relativeTimeElapsedMs(isoDate, nowMs);
+  return elapsedMs === null ? "" : formatCompactElapsedLabel(locale, elapsedMs);
 }
 
 export function formatElapsedDurationLabel(isoDate: string, nowMs: number = Date.now()): string {

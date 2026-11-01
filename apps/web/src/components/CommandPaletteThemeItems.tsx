@@ -4,6 +4,7 @@ import { MonitorIcon, MoonIcon, PaletteIcon, SunIcon } from "lucide-react";
 import { useCustomThemes } from "../hooks/useCustomThemes";
 import { useEnvironmentThemeDefinitions } from "../hooks/useEnvironmentTheme";
 import { useTheme } from "../hooks/useTheme";
+import { useT } from "../hooks/useT";
 import { getThemeDefinition } from "../themePalette";
 import {
   ADDON_ICON_CLASS,
@@ -63,13 +64,14 @@ export function useCommandPaletteThemeItems() {
     setTheme,
     setThemeHalf,
   } = useTheme();
+  const t = useT();
   const themeCards = useThemeCards();
 
   const changeThemeItem: CommandPaletteSubmenuItem = {
     kind: "submenu",
     value: "action:change-theme",
     searchTerms: ["change theme", "appearance", "colors", "palette"],
-    title: "Change theme",
+    title: t("Change theme"),
     icon: <PaletteIcon className={ITEM_ICON_CLASS} />,
     addonIcon: <PaletteIcon className={ADDON_ICON_CLASS} />,
     shortcutCommand: "theme.select",
@@ -87,7 +89,7 @@ export function useCommandPaletteThemeItems() {
           titleTrailingContent: (
             <span className="flex shrink-0 items-center gap-2">
               {(themeHalves?.[resolvedTheme] ?? getThemeDefinition(theme)?.id ?? null) === id ? (
-                <span className="text-xs text-muted-foreground/70">Current</span>
+                <span className="text-xs text-muted-foreground/70">{t("Current")}</span>
               ) : null}
               <span className="flex items-center gap-1" aria-hidden>
                 {previews.map((preview) => (
@@ -117,7 +119,7 @@ export function useCommandPaletteThemeItems() {
     kind: "submenu",
     value: "action:change-appearance",
     searchTerms: ["change appearance", "light", "dark", "system", "mode", "toggle"],
-    title: "Change appearance",
+    title: t("Change appearance"),
     icon: <MonitorIcon className={ITEM_ICON_CLASS} />,
     addonIcon: <MonitorIcon className={ADDON_ICON_CLASS} />,
     shortcutCommand: "appearance.cycle",
@@ -128,12 +130,12 @@ export function useCommandPaletteThemeItems() {
         items: APPEARANCE_OPTIONS.map(({ mode, label, icon: Icon }) => ({
           kind: "action",
           value: `appearance:${mode}`,
-          title: label,
-          searchTerms: [label, "appearance", "mode"],
+          title: t(label),
+          searchTerms: [t(label), label, "appearance", "mode"],
           icon: <Icon className={ITEM_ICON_CLASS} />,
           titleTrailingContent:
             appearanceMode === mode ? (
-              <span className="text-xs text-muted-foreground/70">Current</span>
+              <span className="text-xs text-muted-foreground/70">{t("Current")}</span>
             ) : undefined,
           run: async () => {
             if (!setAppearanceMode(mode)) notifyThemeSaveFailure();

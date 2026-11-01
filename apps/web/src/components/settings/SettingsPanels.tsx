@@ -1,3 +1,4 @@
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 import { useAtomValue } from "@effect/atom-react";
 import { NotificationSettings } from "./NotificationSettings";
 import { PRIVACY_POLICY_URL } from "../../legalLinks";
@@ -442,6 +443,7 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.timestampFormat !== DEFAULT_UNIFIED_SETTINGS.timestampFormat
       ? ["Time format"]
       : []),
+    ...(settings.uiLanguage !== DEFAULT_UNIFIED_SETTINGS.uiLanguage ? ["Language"] : []), // fork
     ...(settings.notificationMode !== DEFAULT_UNIFIED_SETTINGS.notificationMode
       ? ["Thread notifications"]
       : []),
@@ -549,10 +551,16 @@ export function useSettingsRestore(onRestored?: () => void) {
   const restoreDefaults = async () => {
     if (changedSettingLabels.length === 0) return;
     const api = readLocalApi();
+    const locale = getUiLocale(); // fork: interface language
     const confirmed = await (api ?? ensureLocalApi()).dialogs.confirm(
-      ["Restore default settings?", `This will reset: ${changedSettingLabels.join(", ")}.`].join(
-        "\n",
-      ),
+      [
+        translate(locale, "Restore default settings?"),
+        translate(locale, "This will reset: {settings}.", {
+          settings: changedSettingLabels
+            .map((label) => translate(locale, label))
+            .join(translate(locale, ", ")),
+        }),
+      ].join("\n"),
       { variant: "destructive" },
     );
     if (!confirmed) return;
@@ -604,6 +612,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       effortDisplay: DEFAULT_UNIFIED_SETTINGS.effortDisplay,
       mathRenderingEnabled: DEFAULT_UNIFIED_SETTINGS.mathRenderingEnabled,
       timestampFormat: DEFAULT_UNIFIED_SETTINGS.timestampFormat,
+      uiLanguage: DEFAULT_UNIFIED_SETTINGS.uiLanguage, // fork: interface language
       notificationMode: DEFAULT_UNIFIED_SETTINGS.notificationMode,
       inAppNotificationsEnabled: DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled,
       wordWrap: DEFAULT_UNIFIED_SETTINGS.wordWrap,

@@ -14,6 +14,7 @@ import { TYPOGRAPHY_ADVANCED_STORAGE_KEY } from "../../appearanceFonts";
 import { writeLocalStorageValue } from "../../hooks/useLocalStorage";
 import { commandLabel } from "./KeybindingsSettings.logic";
 import type { ResolvedSettingsScope } from "./settingsScope";
+import type { Translator } from "@t3tools/client-runtime/i18n";
 
 export type SettingsPath =
   | "/settings/projects"
@@ -292,6 +293,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [
       "new thread default runtime mode supervised approvals auto accept edits full access",
     ],
+  },
+  {
+    // fork: interface language
+    id: "ui-language",
+    title: "Language",
+    to: "/settings/appearance",
+    searchTerms: ["language locale interface translation english chinese 语言 中文 简体中文 界面"],
   },
   {
     id: "color-scheme",
@@ -1356,6 +1364,8 @@ export function settingsForThisPlatform(
 export function searchSettings(
   query: string,
   items: ReadonlyArray<SettingsSearchItem> = SETTINGS_SEARCH_ITEMS,
+  // fork: also match the titles the user reads in their interface language.
+  t: Translator = (source) => source,
 ): ReadonlyArray<SettingsSearchItem> {
   const normalizedQuery = normalizeSearchText(query);
   if (normalizedQuery.length === 0) return [];
@@ -1363,16 +1373,20 @@ export function searchSettings(
 
   return settingsForThisPlatform(items)
     .flatMap((item, index) => {
-      const title = normalizeSearchText(item.title);
+      const titles = [
+        ...new Set([normalizeSearchText(item.title), normalizeSearchText(t(item.title))]),
+      ];
+      const sectionLabel = SETTINGS_SECTION_LABELS[item.to];
       const fields = [
-        title,
-        normalizeSearchText(SETTINGS_SECTION_LABELS[item.to]),
+        ...titles,
+        normalizeSearchText(sectionLabel),
+        normalizeSearchText(t(sectionLabel)),
         ...(item.searchTerms ?? []).map(normalizeSearchText),
       ];
       if (!queryTokens.every((token) => fields.some((field) => field.includes(token)))) return [];
 
       const exactPhraseField = fields.findIndex((field) => field.includes(normalizedQuery));
-      const rank =
+      const titleRank = (title: string) =>
         title === normalizedQuery
           ? 5
           : title.startsWith(normalizedQuery)
@@ -1381,9 +1395,8 @@ export function searchSettings(
               ? 3
               : queryTokens.every((token) => title.includes(token))
                 ? 2
-                : exactPhraseField >= 0
-                  ? 1
-                  : 0;
+                : 0;
+      const rank = Math.max(...titles.map(titleRank), exactPhraseField >= 0 ? 1 : 0);
       return [{ item, index, rank }];
     })
     .toSorted(

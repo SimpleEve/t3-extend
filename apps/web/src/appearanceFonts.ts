@@ -10,8 +10,9 @@ import {
   MIN_PROMPT_FONT_SIZE,
 } from "@t3tools/contracts";
 
+// fork: Simplified Chinese faces after system-ui, so CJK glyphs never fall to a Japanese face.
 export const DEFAULT_SANS_FONT_STACK =
-  '-apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, sans-serif';
+  '-apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
 
 // Some engines map `ui-monospace` to a proportional font, so prefer concrete names.
 export const DEFAULT_CODE_FONT_STACK =
