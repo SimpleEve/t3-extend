@@ -27,6 +27,9 @@ const observeEndpointUrl = repoEnv.T3CODE_RELAY_URL?.trim()
 // fork: no official EAS project; set both to use your own for OTA and EAS builds.
 const easProjectId = repoEnv.T3EXTEND_EAS_PROJECT_ID?.trim() || undefined;
 const easOwner = repoEnv.T3EXTEND_EAS_OWNER?.trim() || undefined;
+// fork: expo-observe's Android module throws at startup without a project id. This one names no
+// project; without a relay its endpoint is `.invalid` and observe.ts keeps dispatching off.
+const OBSERVE_PLACEHOLDER_PROJECT_ID = "00000000-0000-4000-8000-000000000000";
 
 const fromRepoRoot = (relativePath: string) => `../../${relativePath}`;
 const androidAdaptiveForeground = "./assets/android-icon-foreground.png";
@@ -463,7 +466,7 @@ const config: ExpoConfig = {
       tracesToken: repoEnv.EXPO_PUBLIC_OTLP_TRACES_TOKEN ?? null,
     },
     eas: {
-      ...(easProjectId === undefined ? {} : { projectId: easProjectId }), // fork: opt-in EAS
+      projectId: easProjectId ?? OBSERVE_PLACEHOLDER_PROJECT_ID, // fork: opt-in EAS
       observe: { endpointUrl: observeEndpointUrl },
     },
   },
