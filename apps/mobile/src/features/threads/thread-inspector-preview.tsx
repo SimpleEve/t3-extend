@@ -25,6 +25,7 @@ import {
   ThreadInspectorNavigationContext,
   type ThreadInspectorTarget,
 } from "./thread-inspector-navigation";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export interface ThreadInspectorPresentation {
   readonly onClose: () => void;
@@ -34,18 +35,19 @@ export interface ThreadInspectorPresentation {
 export function ThreadInspectorHeader(
   props: ThreadInspectorPresentation & { readonly title: string },
 ) {
+  const t = useT();
   return (
     <>
       <NativeStackScreenOptions options={{ headerShown: true, headerTransparent: true }} />
       <SheetHeader
         title={props.title}
         onClose={props.onClose}
-        accessibilityLabel="Close thread preview"
+        accessibilityLabel={t("Close thread preview")}
         trailing={
           props.onMaximize ? (
             <IconButton
               icon="arrow.up.left.and.arrow.down.right"
-              accessibilityLabel="Maximize thread"
+              accessibilityLabel={t("Maximize thread")}
               onPress={props.onMaximize}
             />
           ) : undefined

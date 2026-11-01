@@ -12,8 +12,10 @@ import { useRemoteConnections } from "../../state/use-remote-environment-registr
 import { LocalEnvironmentList } from "./LocalEnvironmentList";
 import { PullRequestRoutingSettings } from "./PullRequestRoutingSettings";
 import { LinkedEnvironmentsSection } from "./LinkedEnvironmentsSection";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function ConnectionsRouteScreen() {
+  const t = useT();
   const {
     connectedEnvironments,
     onReconnectEnvironment,
@@ -32,11 +34,11 @@ export function ConnectionsRouteScreen() {
     <View collapsable={false} className="flex-1 bg-sheet">
       {Platform.OS === "android" ? (
         <AndroidScreenHeader
-          title="Environments"
+          title={t("Environments")}
           onBack={() => navigation.goBack()}
           actions={[
             {
-              accessibilityLabel: "Add environment",
+              accessibilityLabel: t("Add environment"),
               icon: "plus",
               onPress: () => navigation.navigate("ConnectionsNew"),
             },

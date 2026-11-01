@@ -24,6 +24,7 @@ import { ThreadSwipeable } from "../home/thread-swipe-actions";
 import { ListActionRow as SettingsActionRow } from "../../components/ui/ListActionRow";
 import { SettingsDragHandle } from "./components/SettingsDragHandle";
 import { SettingsSection } from "./components/SettingsSection";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 type MicrophonePermission = "checking" | "granted" | "ask" | "denied";
 
@@ -89,6 +90,7 @@ const KINDS: Record<
 };
 
 export function SettingsMicrophoneRouteScreen() {
+  const t = useT();
   const insets = useSafeAreaInsets();
   const preferencesResult = useAtomValue(mobilePreferencesAtom);
   const savePreferences = useAtomSet(updateMobilePreferencesAtom);
@@ -146,10 +148,10 @@ export function SettingsMicrophoneRouteScreen() {
       >
         {permission === "ask" || permission === "denied" ? (
           <>
-            <SettingsSection title="Microphone access">
+            <SettingsSection title={t("Microphone access")}>
               <SettingsActionRow
                 icon="mic"
-                label={permission === "ask" ? "Allow microphone access" : "Open Settings"}
+                label={permission === "ask" ? t("Allow microphone access") : t("Open Settings")}
                 onPress={
                   permission === "ask" ? requestPermission : () => void Linking.openSettings()
                 }
@@ -157,12 +159,16 @@ export function SettingsMicrophoneRouteScreen() {
             </SettingsSection>
             <Text className="px-2 text-sm text-foreground-muted">
               {permission === "ask"
-                ? "Voice input needs microphone access before it can record or list your microphones."
-                : "Microphone access is off for T3 Code. Turn it on in Settings to use voice input."}
+                ? t(
+                    "Voice input needs microphone access before it can record or list your microphones.",
+                  )
+                : t(
+                    "Microphone access is off for T3 Code. Turn it on in Settings to use voice input.",
+                  )}
             </Text>
           </>
         ) : null}
-        <SettingsSection title="Preferred order">
+        <SettingsSection title={t("Preferred order")}>
           {entries.map((entry, index) => {
             const key = microphoneEntryKey(entry);
             const shift =
@@ -197,9 +203,9 @@ export function SettingsMicrophoneRouteScreen() {
           })}
         </SettingsSection>
         <Text className="px-2 text-sm text-foreground-muted">
-          Voice input records from the first connected microphone in this list. Wired and Bluetooth
-          devices are added by name after you use voice input with them connected; until then, the
-          Other row ranks them. Swipe a device left to forget it.
+          {t(
+            "Voice input records from the first connected microphone in this list. Wired and Bluetooth devices are added by name after you use voice input with them connected; until then, the Other row ranks them. Swipe a device left to forget it.",
+          )}
         </Text>
       </ScrollView>
     </View>
@@ -220,6 +226,7 @@ function MicrophoneRow(props: {
   readonly onStep: (direction: "up" | "down") => void;
   readonly onForget: (() => void) | undefined;
 }) {
+  const t = useT();
   const { lifted, offset, entry, onForget } = props;
   const kind = KINDS[entry.kind];
   const title = isMicrophoneDevice(entry) ? entry.name : kind.row;
@@ -240,7 +247,7 @@ function MicrophoneRow(props: {
       <View
         accessible
         accessibilityLabel={`${title}, ${kind.label}, ${props.position} of ${props.count}`}
-        accessibilityActions={onForget ? [{ name: "forget", label: "Forget" }] : undefined}
+        accessibilityActions={onForget ? [{ name: "forget", label: t("Forget") }] : undefined}
         onAccessibilityAction={({ nativeEvent }) => {
           if (nativeEvent.actionName === "forget") onForget?.();
         }}
@@ -281,10 +288,10 @@ function MicrophoneRow(props: {
           fullSwipeWidth={windowWidth - 40}
           onDelete={onForget}
           primaryAction={{
-            accessibilityLabel: `Forget ${title}`,
+            accessibilityLabel: t("Forget {title}", { title }),
             destructive: true,
             icon: "trash",
-            label: "Forget",
+            label: t("Forget"),
             onPress: onForget,
           }}
           secondaryAction={null}

@@ -19,10 +19,12 @@ import {
   useLinkedPullRequestLines,
 } from "./LinkedPullRequestList";
 import { useLinkedPullRequestActions } from "./useLinkedPullRequestActions";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function ThreadPullRequestsSheet(
   _props: StaticScreenProps<{ readonly environmentId: string; readonly threadId: string }>,
 ) {
+  const t = useT();
   const { layout } = useAdaptiveWorkspaceLayout();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -46,7 +48,7 @@ export function ThreadPullRequestsSheet(
   });
   const rowInputs = { lines, actions };
   const { singular } = actions.terminology;
-  const title = `Linked ${actions.terminology.plural}`;
+  const title = t("Linked {plural}", { plural: actions.terminology.plural });
 
   const content = (
     <View className="flex-1 android:bg-sheet-solid ios:bg-screen">
@@ -83,7 +85,7 @@ export function ThreadPullRequestsSheet(
         }
         ListEmptyComponent={
           <Text className="pt-6 text-center text-sm text-foreground-muted">
-            No linked {actions.terminology.plural}.
+            {t("No linked {plural}.", { plural: actions.terminology.plural })}
           </Text>
         }
       />
@@ -98,7 +100,7 @@ export function ThreadPullRequestsSheet(
           <Toolbar placement="right">
             <Toolbar.Button
               icon="plus"
-              accessibilityLabel={`Link ${singular}`}
+              accessibilityLabel={t("Link {singular}", { singular })}
               onPress={actions.promptLink}
             />
           </Toolbar>
@@ -119,7 +121,7 @@ export function ThreadPullRequestsSheet(
           actions.canLink
             ? [
                 {
-                  accessibilityLabel: `Link ${singular}`,
+                  accessibilityLabel: t("Link {singular}", { singular }),
                   icon: "plus",
                   onPress: actions.promptLink,
                 },

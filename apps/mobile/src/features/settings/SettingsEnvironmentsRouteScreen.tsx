@@ -24,10 +24,12 @@ import {
   SHOWCASE_AVAILABLE_CLOUD_ENVIRONMENTS,
   SHOWCASE_CONNECTED_CLOUD_ENVIRONMENTS,
 } from "../showcase/showcaseEnvironmentRows";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 const SHOWCASE_ENABLED = process.env.EXPO_PUBLIC_SHOWCASE === "1";
 
 export function SettingsEnvironmentsRouteScreen() {
+  const t = useT();
   const {
     connectedEnvironments,
     onReconnectEnvironment,
@@ -93,15 +95,15 @@ export function SettingsEnvironmentsRouteScreen() {
 
   return (
     <SettingsScreen
-      title="Environments"
+      title={t("Environments")}
       trailing={
         Platform.OS === "android" && relaySession ? (
           <AndroidAnchoredMenu
-            title="Environment options"
+            title={t("Environment options")}
             actions={[
               {
                 id: "refresh",
-                title: "Refresh cloud environments",
+                title: t("Refresh cloud environments"),
                 attributes: { disabled: isRefreshingCloud },
               },
             ]}
@@ -111,7 +113,7 @@ export function SettingsEnvironmentsRouteScreen() {
           >
             {(open) => (
               <AndroidHeaderIconButton
-                accessibilityLabel="Environment options"
+                accessibilityLabel={t("Environment options")}
                 icon="ellipsis"
                 onPress={open}
               />
@@ -121,7 +123,7 @@ export function SettingsEnvironmentsRouteScreen() {
       }
       actions={[
         {
-          accessibilityLabel: "Add environment",
+          accessibilityLabel: t("Add environment"),
           icon: "plus",
           tintColor: headerIconColor,
           onPress: () => navigation.navigate("SettingsEnvironmentNew"),

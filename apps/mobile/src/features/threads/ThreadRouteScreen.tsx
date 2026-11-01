@@ -120,6 +120,7 @@ import {
 } from "./thread-inspector-preview";
 import type { ThreadInspectorTarget } from "./thread-inspector-navigation";
 import { useSelectWorkspaceDetail } from "../workspace/useSelectWorkspaceDetail";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 function InspectorPaneRoleActivation() {
   useAdaptiveWorkspacePaneRole("inspector");
@@ -132,6 +133,7 @@ function firstRouteParam(value: string | string[] | undefined): string | null {
 }
 
 function ThreadRouteFallbackLayout(props: { readonly children: ReactNode }) {
+  const t = useT();
   const goBack = useWorkspaceBackNavigation("threads");
   const { layout } = useAdaptiveWorkspaceLayout();
   const { themeVariables } = useAppearancePreferences();
@@ -141,7 +143,7 @@ function ThreadRouteFallbackLayout(props: { readonly children: ReactNode }) {
   return (
     <>
       <AppBar
-        title="Thread"
+        title={t("Thread")}
         options={{ contentStyle: { backgroundColor: themeVariables["--color-header"] } }}
         onBack={layout.usesSplitView ? undefined : goBack}
         hideBottomBorder
@@ -152,10 +154,11 @@ function ThreadRouteFallbackLayout(props: { readonly children: ReactNode }) {
 }
 
 function OpeningThreadLoadingScreen() {
+  const t = useT();
   return (
     <ThreadRouteFallbackLayout>
       <LoadingScreen
-        message="Opening thread…"
+        message={t("Opening thread…")}
         messagePlacement="above-spinner"
         embedded={Platform.OS === "android"}
       />
@@ -181,6 +184,7 @@ function ThreadUnavailableScreen(props: {
   readonly actionLabel: string;
   readonly onAction: () => void;
 }) {
+  const t = useT();
   return (
     <ThreadRouteFallbackLayout>
       <ScrollView
@@ -194,8 +198,8 @@ function ThreadUnavailableScreen(props: {
         className="bg-screen flex-1 android:bg-transparent"
       >
         <EmptyState
-          title="Thread unavailable"
-          detail="This thread is not available in the current mobile snapshot."
+          title={t("Thread unavailable")}
+          detail={t("This thread is not available in the current mobile snapshot.")}
           actionLabel={props.actionLabel}
           onAction={props.onAction}
         />
@@ -245,6 +249,7 @@ export function ThreadRouteScreen(props: ThreadRouteScreenProps) {
 }
 
 function LiveThreadRouteController(props: ThreadRouteScreenProps) {
+  const t = useT();
   useAndroidWorkspaceBack("threads");
   const connectionsReady = useConnectionsReady();
   const { connectionState } = useRemoteConnectionStatus();
@@ -280,7 +285,7 @@ function LiveThreadRouteController(props: ThreadRouteScreenProps) {
     <>
       {props.inspectorPresentation ? (
         <ThreadInspectorHeader
-          title={selectedThread?.title ?? "Thread"}
+          title={selectedThread?.title ?? t("Thread")}
           {...props.inspectorPresentation}
         />
       ) : null}
@@ -333,7 +338,7 @@ function LiveThreadRouteController(props: ThreadRouteScreenProps) {
   return withInspectorHeader(
     <ThreadUnavailableScreen
       actionLabel={
-        routeEnvironmentRuntime === null ? "Manage environments" : "Reconnect environment"
+        routeEnvironmentRuntime === null ? t("Manage environments") : t("Reconnect environment")
       }
       onAction={() => {
         if (routeEnvironmentRuntime !== null) {
@@ -351,6 +356,7 @@ function ThreadRouteContent(
     readonly selectedThreadDetailState: ReturnType<typeof useSelectedThreadDetailState>;
   },
 ) {
+  const t = useT();
   const { themeVariables } = useAppearancePreferences();
   const headerColor = themeVariables["--color-header"];
   const { fileInspector, layout, panes, showAuxiliaryPane, toggleAuxiliaryPane } =
@@ -538,9 +544,9 @@ function ThreadRouteContent(
     selectedEnvironmentConnection?.environmentLabel ?? null,
     // A linked environment's delegated task names its parent; other linked work its origin.
     delegatedFrom !== null
-      ? `Subagent of ${delegatedFromThread?.title ?? delegatedFrom.title}`
+      ? t("Subagent of {title}", { title: delegatedFromThread?.title ?? delegatedFrom.title })
       : selectedThread?.linkOrigin
-        ? `From ${selectedThread.linkOrigin.label}`
+        ? t("From {label}", { label: selectedThread.linkOrigin.label })
         : null,
   ]
     .filter(Boolean)
@@ -651,7 +657,7 @@ function ThreadRouteContent(
         cwd={selectedThreadCwd}
         environmentId={selectedThread.environmentId}
         headerInset={inspectorHeaderInset}
-        projectName={selectedThreadProject?.title ?? "Files"}
+        projectName={selectedThreadProject?.title ?? t("Files")}
         selectedPath={null}
         onSelectFile={handleSelectInspectorFile}
       />
@@ -730,8 +736,8 @@ function ThreadRouteContent(
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
       Dialog.alert(
-        "Could not resume thread",
-        error instanceof Error ? error.message : "Try again.",
+        t("Could not resume thread"),
+        error instanceof Error ? error.message : t("Try again."),
       );
     }
   };
@@ -833,7 +839,7 @@ function ThreadRouteContent(
     auxiliaryPaneControl:
       !layout.usesSplitView && fileInspector.supported && selectedThreadCwd !== null
         ? {
-            accessibilityLabel: "Toggle inspector",
+            accessibilityLabel: t("Toggle inspector"),
             onPress: handleToggleInspector,
           }
         : undefined,
@@ -875,7 +881,7 @@ function ThreadRouteContent(
       await recoverFailedThreadDraft(creation);
     } catch (error) {
       Dialog.alert(
-        "Could not restore draft",
+        t("Could not restore draft"),
         error instanceof Error ? error.message : String(error),
       );
       return;

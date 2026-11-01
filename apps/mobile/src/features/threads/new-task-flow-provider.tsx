@@ -108,6 +108,7 @@ import {
 } from "./new-task-flow-state";
 import { useEnvironmentShellReadiness } from "../../state/shell";
 import { useConnectionsReady, useWorkspaceEnvironments } from "../../state/workspace";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 type WorkspaceMode = "local" | "worktree";
 
@@ -225,6 +226,7 @@ export function NewTaskFlowProvider(
     routeDraftId?: string;
   }>,
 ) {
+  const t = useT();
   const projects = useProjects();
   const threads = useThreadShells();
   const { savedConnectionsById } = useSavedRemoteConnections();
@@ -620,10 +622,10 @@ export function NewTaskFlowProvider(
     if (!isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
       Dialog.alert(
-        "Could not switch machine",
+        t("Could not switch machine"),
         error instanceof Error
           ? error.message
-          : "The folder for threads without a project could not be created.",
+          : t("The folder for threads without a project could not be created."),
       );
     }
     return false;

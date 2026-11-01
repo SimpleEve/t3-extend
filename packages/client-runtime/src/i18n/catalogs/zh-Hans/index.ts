@@ -5,7 +5,9 @@ import commandPalette from "./commandPalette.ts";
 import common from "./common.ts";
 import connection from "./connection.ts";
 import desktop from "./desktop.ts";
+import mobile from "./mobile.ts";
 import mobileBrowser from "./mobileBrowser.ts";
+import mobileSettings from "./mobileSettings.ts";
 import pullRequest from "./pullRequest.ts";
 import settings from "./settings.ts";
 import settingsPanels from "./settingsPanels.ts";
@@ -23,7 +25,9 @@ export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   common,
   connection,
   desktop,
+  mobile,
   mobileBrowser,
+  mobileSettings,
   pullRequest,
   settings,
   settingsPanels,

@@ -36,6 +36,7 @@ import { useMobileNavigationTheme } from "../../lib/useMobileNavigationTheme";
 
 import { NATIVE_LIQUID_GLASS_SUPPORTED } from "../../native/native-glass";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 const durationAmounts = Array.from({ length: 99 }, (_, index) => index + 1);
 const SnoozeStack = createNativeStackNavigator<{ CustomSnooze: undefined }>();
@@ -53,6 +54,7 @@ export function CustomSnoozeSheet(props: {
   readonly onClose: () => void;
   readonly onSnooze: (snoozedUntil: string) => void;
 }) {
+  const t = useT();
   const { width, height } = useWindowDimensions();
   const [mode, setMode] = useState<CustomSnoozeInput["mode"]>("date");
   const [date, setDate] = useState(() => new Date(Date.now() + 3_600_000));
@@ -75,7 +77,9 @@ export function CustomSnoozeSheet(props: {
     const snoozedUntil = resolveCustomSnooze(input, new Date());
     if (!snoozedUntil) {
       setError(
-        mode === "date" ? "Choose a date and time in the future." : "Enter a positive duration.",
+        mode === "date"
+          ? t("Choose a date and time in the future.")
+          : t("Enter a positive duration."),
       );
       return;
     }
@@ -117,7 +121,7 @@ export function CustomSnoozeSheet(props: {
                 modifiers={[padding({ all: 16 }), foregroundStyle(colors["--color-foreground"])]}
               >
                 <Picker
-                  label="Snooze mode"
+                  label={t("Snooze mode")}
                   selection={mode}
                   onSelectionChange={(value: CustomSnoozeInput["mode"]) => {
                     setMode(value);
@@ -127,13 +131,13 @@ export function CustomSnoozeSheet(props: {
                 >
                   {modes.map((option) => (
                     <Text key={option.value} modifiers={[tag(option.value)]}>
-                      {option.label}
+                      {t(option.label)}
                     </Text>
                   ))}
                 </Picker>
                 {mode === "date" ? (
                   <DatePicker
-                    title="Snooze until"
+                    title={t("Snooze until")}
                     selection={date}
                     displayedComponents={["date", "hourAndMinute"]}
                     onDateChange={updateDate}
@@ -146,7 +150,7 @@ export function CustomSnoozeSheet(props: {
                 ) : (
                   <HStack spacing={0}>
                     <Picker
-                      label="Duration amount"
+                      label={t("Duration amount")}
                       selection={amount}
                       onSelectionChange={(value: number) => {
                         setAmount(value);
@@ -169,7 +173,7 @@ export function CustomSnoozeSheet(props: {
                       ))}
                     </Picker>
                     <Picker
-                      label="Duration unit"
+                      label={t("Duration unit")}
                       selection={unit}
                       onSelectionChange={(value: typeof unit) => {
                         setUnit(value);
@@ -190,7 +194,7 @@ export function CustomSnoozeSheet(props: {
                             foregroundStyle(colors["--color-foreground"]),
                           ]}
                         >
-                          {option.label}
+                          {t(option.label)}
                         </Text>
                       ))}
                     </Picker>
@@ -222,6 +226,7 @@ function SnoozePopoverNavigation(props: {
   readonly onSubmit: () => void;
   readonly children: ReactNode;
 }) {
+  const t = useT();
   const navigationTheme = useMobileNavigationTheme();
   const { themeVariables: colors } = useAppearancePreferences();
 
@@ -243,17 +248,17 @@ function SnoozePopoverNavigation(props: {
                   headerTintColor: colors["--color-foreground"],
                   headerTitleStyle: { fontSize: 17, fontWeight: "700" },
                   headerTransparent: NATIVE_LIQUID_GLASS_SUPPORTED,
-                  title: "Custom snooze",
+                  title: t("Custom snooze"),
                 }}
               >
                 <SnoozeStack.Screen name="CustomSnooze">
                   {() => (
                     <>
                       <SheetHeader
-                        title="Custom snooze"
+                        title={t("Custom snooze")}
                         onCancel={props.onClose}
-                        accessibilityLabel="Cancel custom snooze"
-                        confirm={{ label: "Snooze", onPress: props.onSubmit }}
+                        accessibilityLabel={t("Cancel custom snooze")}
+                        confirm={{ label: t("Snooze"), onPress: props.onSubmit }}
                       />
                       <ScrollView
                         contentInsetAdjustmentBehavior="automatic"

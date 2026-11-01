@@ -3,6 +3,7 @@ import { View } from "react-native";
 
 import { RenderErrorBoundary, RenderFailureView } from "../../components/RenderErrorBoundary";
 import { NativeInspectorContent } from "../../native/NativeInspectorContent";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export type ThreadInspectorMode = "route" | "git" | "files" | "preview";
 
@@ -14,6 +15,7 @@ function InspectorContentPane(props: {
   readonly resetKeys: readonly [string | null, string | null];
   readonly visible: boolean;
 }) {
+  const t = useT();
   if (!props.mounted) {
     return null;
   }
@@ -35,7 +37,7 @@ function InspectorContentPane(props: {
         resetKeys={props.resetKeys}
         renderFallback={(fallback) => (
           <NativeInspectorContent>
-            <RenderFailureView {...fallback} title="The inspector couldn't be displayed" />
+            <RenderFailureView {...fallback} title={t("The inspector couldn't be displayed")} />
           </NativeInspectorContent>
         )}
       >

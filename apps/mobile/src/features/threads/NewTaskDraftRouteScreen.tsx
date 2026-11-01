@@ -36,6 +36,8 @@ import { ThreadScreenFallback } from "./ThreadScreenHost";
 import { NewTaskDraftScreen } from "./NewTaskDraftScreen";
 
 import type { NewTaskDraftRouteParams } from "./thread-route-state";
+import { useT } from "../../hooks/useT"; // fork: i18n
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 export type { NewTaskDraftRouteParams } from "./thread-route-state";
 
 const branchCheckouts = makeNewTaskBranchCheckouts({
@@ -66,8 +68,10 @@ const branchCheckouts = makeNewTaskBranchCheckouts({
     if (!isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
       Dialog.alert(
-        "Could not switch branch",
-        error instanceof Error ? error.message : "The branch could not be checked out.",
+        translate(getUiLocale(), "Could not switch branch"),
+        error instanceof Error
+          ? error.message
+          : translate(getUiLocale(), "The branch could not be checked out."),
       );
     }
     rootNavigationRef.dispatch({
@@ -88,6 +92,7 @@ const idleBranchCheckoutAtom = Atom.make(AsyncResult.initial<BranchCheckoutResul
 );
 
 export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraftRouteParams>) {
+  const t = useT();
   const currentRoute = useRoute();
   const params = route.params ?? {};
   const draftId = Array.isArray(params.draftId) ? params.draftId[0] : params.draftId;
@@ -198,9 +203,9 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
     <>
       {preparingBranch ? (
         <ThreadScreenFallback>
-          <NativeStackScreenOptions options={{ title: "New thread" }} />
+          <NativeStackScreenOptions options={{ title: t("New thread") }} />
           <View className="flex-1 items-center justify-center bg-screen">
-            <Text className="text-foreground">Switching branch...</Text>
+            <Text className="text-foreground">{t("Switching branch...")}</Text>
           </View>
         </ThreadScreenFallback>
       ) : (

@@ -37,6 +37,8 @@ import {
 import { useSettingsEnvironmentFilter } from "./settings-environment-filter";
 import { filterSettingsSections } from "./settings-search";
 import { NativePrimaryColumnContext } from "../../native/v5-workspace-context";
+import { useT } from "../../hooks/useT"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function SettingsRouteScreen() {
   const { layout } = useAdaptiveWorkspaceLayout();
@@ -61,6 +63,7 @@ export function SettingsListScreen(props: {
   const workspace = useWorkspaceTabs();
   const inSidebar = props.sidebar;
   const selected = props.selected;
+  const t = useT();
   const sidebar = inSidebar ? { selected } : null;
   const content = hasCloudPublicConfig() ? (
     <ConfiguredSettingsRouteScreen />
@@ -74,7 +77,7 @@ export function SettingsListScreen(props: {
         <SettingsEnvironmentFilterHeader />
         {Platform.OS === "android" ? (
           <SettingsScreen
-            title="Settings"
+            title={t("Settings")}
             workspaceRoot={inSidebar}
             trailing={<AndroidSettingsEnvironmentFilter />}
             search={
@@ -83,7 +86,7 @@ export function SettingsListScreen(props: {
                     value: workspace.state.tabs.settings.query,
                     onChangeText: (query) =>
                       workspace.dispatch({ type: "query", tab: "settings", query }),
-                    placeholder: "Search settings",
+                    placeholder: t("Search settings"),
                   }
                 : undefined
             }
@@ -110,11 +113,12 @@ function ConfiguredSettingsRouteScreen() {
   const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const { user } = useUser();
   const { savedConnectionsById } = useSavedRemoteConnections();
+  const t = useT();
   const accountLabel = !isLoaded
-    ? "Checking"
+    ? t("Checking")
     : !isSignedIn
-      ? "Sign in"
-      : (user?.primaryEmailAddress?.emailAddress ?? "Signed in");
+      ? t("Sign in")
+      : (user?.primaryEmailAddress?.emailAddress ?? t("Signed in"));
 
   return (
     <SettingsList
@@ -127,11 +131,11 @@ function ConfiguredSettingsRouteScreen() {
           disabled: !isLoaded,
           onPress: () => navigation.navigate("SettingsAuth"),
         },
-        environmentsRow(Object.keys(savedConnectionsById).length),
+        environmentsRow(Object.keys(savedConnectionsById).length, t),
         {
           id: "SettingsNotifications",
           icon: "bell.badge",
-          label: "Notifications",
+          label: t("Notifications"),
           target: "SettingsNotifications",
         },
       ]}
@@ -141,14 +145,17 @@ function ConfiguredSettingsRouteScreen() {
 
 function LocalSettingsRouteScreen() {
   const { savedConnectionsById } = useSavedRemoteConnections();
-  return <SettingsList connections={[environmentsRow(Object.keys(savedConnectionsById).length)]} />;
+  const t = useT();
+  return (
+    <SettingsList connections={[environmentsRow(Object.keys(savedConnectionsById).length, t)]} />
+  );
 }
 
-function environmentsRow(count: number): SettingsListRow {
+function environmentsRow(count: number, t: Translator): SettingsListRow {
   return {
     id: "SettingsEnvironments",
     icon: "desktopcomputer",
-    label: "Environments",
+    label: t("Environments"),
     value: `${count}`,
     valuePosition: "trailing",
     target: "SettingsEnvironments",
@@ -167,8 +174,13 @@ function SettingsList(props: { readonly connections: readonly SettingsListRow[] 
   const query = workspace?.state.tabs.settings.query ?? "";
   const overflowRows = useOverflowRows();
   const indexSections = useSettingsIndexSections();
+  const t = useT();
   const sections = filterSettingsSections(
-    [{ rows: overflowRows }, { title: "Connections", rows: props.connections }, ...indexSections],
+    [
+      { rows: overflowRows },
+      { title: t("Connections"), rows: props.connections },
+      ...indexSections,
+    ],
     query,
   );
 
@@ -200,8 +212,8 @@ function SettingsList(props: { readonly connections: readonly SettingsListRow[] 
         ) : (
           <EmptyState
             variant="plain"
-            title="No results"
-            detail={`No settings match “${query.trim()}”.`}
+            title={t("No results")}
+            detail={t("No settings match “{query}”.", { query: query.trim() })}
           />
         )}
       </ScrollView>
@@ -211,6 +223,7 @@ function SettingsList(props: { readonly connections: readonly SettingsListRow[] 
 
 function useSettingsIndexSections(): SettingsListSection[] {
   const { selectedTargets, projectGroups, selectedProjectKey } = useSettingsEnvironmentFilter();
+  const t = useT();
   const noServerTargets = selectedTargets.length === 0;
   const selectedProject = projectGroups.find((group) => group.key === selectedProjectKey);
   const scopedProjectMembers =
@@ -225,7 +238,7 @@ function useSettingsIndexSections(): SettingsListSection[] {
           representative: scopedProjectMembers[0]!,
           members: scopedProjectMembers,
         })
-      : (selectedProject?.label ?? "Unavailable project");
+      : (selectedProject?.label ?? t("Unavailable project"));
   const page = (
     target: SettingsPageTarget,
     icon: SettingsListRow["icon"],
@@ -238,47 +251,51 @@ function useSettingsIndexSections(): SettingsListSection[] {
   return [
     {
       rows: [
-        page("SettingsOrganization", "gearshape", "General"),
-        page("SettingsAppearance", "paintbrush", "Appearance"),
-        page("SettingsFollowUp", "bubble.left.and.bubble.right", "Chat"),
+        page("SettingsOrganization", "gearshape", t("General")),
+        page("SettingsAppearance", "paintbrush", t("Appearance")),
+        page("SettingsFollowUp", "bubble.left.and.bubble.right", t("Chat")),
         ...(navigationCustomizationAvailable()
-          ? [page("SettingsNavigation", "line.3.horizontal", "Navigation tabs")]
+          ? [page("SettingsNavigation", "line.3.horizontal", t("Navigation tabs"))]
           : []),
         ...(Platform.OS === "ios"
           ? [
-              page("SettingsKeyboard", "keyboard", "Keyboard"),
-              page("SettingsMicrophone", "mic", "Microphone"),
+              page("SettingsKeyboard", "keyboard", t("Keyboard")),
+              page("SettingsMicrophone", "mic", t("Microphone")),
             ]
           : []),
       ],
     },
     {
-      title: "Agents",
+      title: t("Agents"),
       rows: [
-        serverPage("SettingsProviderAccounts", "person.crop.circle", "Providers"),
-        serverPage("SettingsThreads", "text.bubble", "Threads"),
-        page("SettingsScheduledTasks", "clock", "Scheduled tasks"),
+        serverPage("SettingsProviderAccounts", "person.crop.circle", t("Providers")),
+        serverPage("SettingsThreads", "text.bubble", t("Threads")),
+        page("SettingsScheduledTasks", "clock", t("Scheduled tasks")),
       ],
     },
     {
-      title: "Code",
+      title: t("Code"),
       rows: [
         page(
           "SettingsProjectOverview",
           "folder",
-          "Projects",
+          t("Projects"),
           selectedProjectKey !== null ? { value: projectLabel } : undefined,
         ),
-        serverPage("SettingsEnvironmentSourceControl", "arrow.triangle.branch", "Source control"),
-        serverPage("SettingsWorktrees", "square.on.square", "Worktrees"),
+        serverPage(
+          "SettingsEnvironmentSourceControl",
+          "arrow.triangle.branch",
+          t("Source control"),
+        ),
+        serverPage("SettingsWorktrees", "square.on.square", t("Worktrees")),
       ],
     },
     {
       rows: [
-        serverPage("SettingsEnvironmentMaintenance", "arrow.clockwise", "Maintenance"),
-        page("SettingsLabs", "sparkles", "Labs"),
-        page("SettingsAbout", "info.circle", "About"),
-        page("SettingsArchive", "archivebox", "Archive"),
+        serverPage("SettingsEnvironmentMaintenance", "arrow.clockwise", t("Maintenance")),
+        page("SettingsLabs", "sparkles", t("Labs")),
+        page("SettingsAbout", "info.circle", t("About")),
+        page("SettingsArchive", "archivebox", t("Archive")),
       ],
     },
   ];
@@ -291,10 +308,11 @@ function useOverflowRows(): SettingsListRow[] {
   const tabs =
     Platform.OS === "android" && layout.usesSplitView ? [] : overflowNavigationTabs(order, hidden);
   const selectTab = useSelectWorkspaceTab();
+  const t = useT();
   return tabs.map((tab) => ({
     id: tab,
     icon: NAVIGATION_TAB_ICONS[tab],
-    label: WORKSPACE_TAB_LABELS[tab],
+    label: t(WORKSPACE_TAB_LABELS[tab]),
     onPress: () => selectTab(tab),
   }));
 }

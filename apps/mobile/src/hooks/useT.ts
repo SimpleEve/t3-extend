@@ -7,8 +7,6 @@ import {
 } from "@t3tools/client-runtime/i18n";
 import { useSyncExternalStore } from "react";
 
-// fork: mobile does not choose a language yet, so this stays English until a
-// language setting calls `setUiLocale`.
 export function useUiLocale(): UiLocale {
   return useSyncExternalStore(subscribeUiLocale, getUiLocale, getUiLocale);
 }

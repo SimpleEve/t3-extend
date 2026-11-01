@@ -19,6 +19,7 @@ import { WorkspaceSearchField } from "./WorkspaceSearchField";
 import { useWorkspaceTabs } from "./WorkspaceTabsContext";
 import { WORKSPACE_TOOLBAR, type WorkspaceTab } from "./workspace-tabs-state";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 const TABS: ReadonlyArray<{ id: WorkspaceTab; label: string; icon: AppSymbolName }> = [
   { id: "threads", label: "Threads", icon: "text.bubble" },
@@ -31,12 +32,13 @@ function ToolbarButton(props: {
   onPress: () => void;
   size?: number;
 }) {
+  const t = useT();
   const size = props.size ?? WORKSPACE_TOOLBAR.height;
   return (
     <GlassSurface style={{ width: size, height: size, borderRadius: size / 2 }}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={props.label}
+        accessibilityLabel={t(props.label)}
         onPress={props.onPress}
         className="flex-1 items-center justify-center"
       >
@@ -50,6 +52,7 @@ export function WorkspaceToolbar(props: {
   readonly sidebar?: boolean;
   readonly onNewTask: () => void;
 }) {
+  const t = useT();
   const workspace = useWorkspaceTabs();
   const input = useRef<TextInputInstance>(null);
   const [focusRequest, setFocusRequest] = useState(0);
@@ -113,7 +116,7 @@ export function WorkspaceToolbar(props: {
           <View className="flex-row items-center" style={{ gap }}>
             {!keyboardVisible && !expanded ? (
               <ToolbarButton
-                label={`Show tabs, ${activeTab.label} selected`}
+                label={t("Show tabs, {label} selected", { label: t(activeTab.label) })}
                 icon={activeTab.icon}
                 size={48}
                 onPress={() => dispatch({ type: "expand" })}
@@ -130,7 +133,12 @@ export function WorkspaceToolbar(props: {
                 focusSearch();
               }}
             />
-            <ToolbarButton label="Cancel search" icon="xmark" size={48} onPress={cancelSearch} />
+            <ToolbarButton
+              label={t("Cancel search")}
+              icon="xmark"
+              size={48}
+              onPress={cancelSearch}
+            />
           </View>
         ) : null}
         {showNavigation ? <WorkspaceDock onNewTask={props.onNewTask} /> : null}

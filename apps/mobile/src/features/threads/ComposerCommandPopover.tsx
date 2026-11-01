@@ -20,6 +20,8 @@ import { ENVIRONMENT_MACHINE_SYMBOLS } from "../../components/EnvironmentMachine
 import { GlassSurface } from "../../components/ui/GlassSurface";
 import { PierreEntryIcon } from "../../components/PierreEntryIcon";
 import { pullRequestStatus } from "../pull-requests/pullRequestStatus";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { useT } from "../../hooks/useT"; // fork: i18n
 export type ComposerCommandItem =
   | {
       readonly id: string;
@@ -126,36 +128,40 @@ function itemIcon(item: ComposerCommandItem): AppSymbolName | null {
   }
 }
 
-function groupLabel(triggerKind: ComposerTriggerKind | null): string | null {
+function groupLabel(triggerKind: ComposerTriggerKind | null, t: Translator): string | null {
   switch (triggerKind) {
     case "pull-request":
-      return "Pull requests";
+      return t("Pull requests");
     case "slash-command":
-      return "Commands";
+      return t("Commands");
     case "skill":
-      return "Skills";
+      return t("Skills");
     case "path":
-      return "Files";
+      return t("Files");
     default:
       return null;
   }
 }
 
-function emptyText(triggerKind: ComposerTriggerKind | null, isLoading: boolean): string {
+function emptyText(
+  triggerKind: ComposerTriggerKind | null,
+  isLoading: boolean,
+  t: Translator,
+): string {
   if (isLoading) {
-    return triggerKind === "path" ? "Searching files…" : "Loading…";
+    return triggerKind === "path" ? t("Searching files…") : t("Loading…");
   }
   switch (triggerKind) {
     case "pull-request":
-      return "No matching pull requests.";
+      return t("No matching pull requests.");
     case "path":
-      return "No matching files or folders.";
+      return t("No matching files or folders.");
     case "skill":
-      return "No skills found.";
+      return t("No skills found.");
     case "slash-command":
-      return "No matching commands.";
+      return t("No matching commands.");
     default:
-      return "No results.";
+      return t("No results.");
   }
 }
 
@@ -210,7 +216,8 @@ const CommandRow = memo(function CommandRow(props: {
 export const ComposerCommandPopover = memo(function ComposerCommandPopover(
   props: ComposerCommandPopoverProps,
 ) {
-  const label = groupLabel(props.triggerKind);
+  const t = useT();
+  const label = groupLabel(props.triggerKind, t);
 
   return (
     <PopoverSurface>
@@ -240,7 +247,7 @@ export const ComposerCommandPopover = memo(function ComposerCommandPopover(
       ) : (
         <View className="px-3.5 py-2.5">
           <Text className="text-xs text-foreground-tertiary">
-            {props.error ?? emptyText(props.triggerKind, props.isLoading)}
+            {props.error ?? emptyText(props.triggerKind, props.isLoading, t)}
           </Text>
         </View>
       )}

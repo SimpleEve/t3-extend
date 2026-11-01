@@ -10,6 +10,7 @@ import { mobilePreferencesAtom, updateMobilePreferencesAtom } from "../../state/
 import { ListChoiceRow as SettingsChoiceRow } from "../../components/ui/ListChoiceRow";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsScreen } from "./components/SettingsScreen";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 const FOLLOW_UP_OPTIONS: ReadonlyArray<{
   readonly behavior: FollowUpBehavior;
@@ -29,6 +30,7 @@ const FOLLOW_UP_OPTIONS: ReadonlyArray<{
 ];
 
 export function SettingsFollowUpRouteScreen() {
+  const t = useT();
   const insets = useSafeAreaInsets();
   const preferencesResult = useAtomValue(mobilePreferencesAtom);
   const savePreferences = useAtomSet(updateMobilePreferencesAtom);
@@ -45,12 +47,12 @@ export function SettingsFollowUpRouteScreen() {
       contentContainerClassName="gap-3 px-5 pt-4"
       contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 18) + 18 }}
     >
-      <SettingsSection title="While the agent is running">
+      <SettingsSection title={t("While the agent is running")}>
         {FOLLOW_UP_OPTIONS.map((option, index) => (
           <SettingsChoiceRow
             key={option.behavior}
-            label={option.label}
-            description={option.description}
+            label={t(option.label)}
+            description={t(option.description)}
             selected={selectedBehavior === option.behavior}
             separated={index > 0}
             disabled={!preferencesReady}
@@ -59,14 +61,15 @@ export function SettingsFollowUpRouteScreen() {
         ))}
       </SettingsSection>
       <Text className="px-2 text-sm text-foreground-muted">
-        Long-press the send button to use the other option for a single message. With a hardware
-        keyboard, hold Command while sending.
+        {t(
+          "Long-press the send button to use the other option for a single message. With a hardware keyboard, hold Command while sending.",
+        )}
       </Text>
     </ScrollView>
   );
 
   return Platform.OS === "android" ? (
-    <SettingsScreen title="Chat">{content}</SettingsScreen>
+    <SettingsScreen title={t("Chat")}>{content}</SettingsScreen>
   ) : (
     <View collapsable={false} className="flex-1 bg-sheet">
       {content}

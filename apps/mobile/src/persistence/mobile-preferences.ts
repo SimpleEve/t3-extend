@@ -14,6 +14,7 @@ import {
   type PullRequestMergeMethod,
   type SidebarProjectGroupingMode,
 } from "@t3tools/contracts";
+import type { UiLanguageSetting } from "@t3tools/contracts/settings"; // fork: interface language
 import type { AndroidNavigationStyle } from "../lib/androidNavigationStyle";
 import type { ComposerEnterBehavior } from "../lib/composerEnterBehavior";
 import type { FollowUpBehavior } from "../lib/followUpBehavior";
@@ -96,6 +97,8 @@ export interface Preferences {
   readonly lightThemeId?: MobileThemeId;
   readonly darkThemeId?: MobileThemeId;
   readonly themeMode?: MobileThemeMode;
+  /** fork: interface language. Unset means "system"; read it with `uiLanguageSettingOf`. */
+  readonly uiLanguage?: UiLanguageSetting;
   readonly androidNavigationStyle?: AndroidNavigationStyle;
   readonly baseFontSize?: number;
   readonly terminalFontSize?: number | null;
@@ -128,6 +131,11 @@ export interface Preferences {
   readonly threadListFilters?: ThreadListFilters;
   readonly pullRequestListFilters?: PullRequestListPreferences;
   readonly workspaceSelections?: WorkspaceSelections;
+}
+
+// fork: interface language
+export function uiLanguageSettingOf(preferences: Preferences | null): UiLanguageSetting {
+  return preferences?.uiLanguage ?? "system";
 }
 
 export class MobilePreferencesLoadError extends Schema.TaggedError<MobilePreferencesLoadError>()(
@@ -178,6 +186,7 @@ function sanitizePreferences(parsed: Preferences): Preferences {
     lightThemeId?: MobileThemeId;
     darkThemeId?: MobileThemeId;
     themeMode?: MobileThemeMode;
+    uiLanguage?: UiLanguageSetting; // fork: interface language
     androidNavigationStyle?: AndroidNavigationStyle;
     baseFontSize?: number;
     terminalFontSize?: number | null;
@@ -258,6 +267,14 @@ function sanitizePreferences(parsed: Preferences): Preferences {
     parsed.themeMode === "dark"
   ) {
     preferences.themeMode = parsed.themeMode;
+  }
+  // fork: interface language
+  if (
+    parsed.uiLanguage === "system" ||
+    parsed.uiLanguage === "en" ||
+    parsed.uiLanguage === "zh-Hans"
+  ) {
+    preferences.uiLanguage = parsed.uiLanguage;
   }
   if (parsed.androidNavigationStyle === "one-ui" || parsed.androidNavigationStyle === "material") {
     preferences.androidNavigationStyle = parsed.androidNavigationStyle;

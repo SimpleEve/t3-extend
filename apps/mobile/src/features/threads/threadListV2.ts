@@ -42,6 +42,7 @@ import {
   reconcilePendingThreadOrder,
   type PendingThreadOrder,
 } from "./threadOrder";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export const threadListInboxReturns = createInboxReturnTracker();
 
@@ -81,9 +82,13 @@ export function resolveThreadListV2SnoozePresets(input: {
   readonly secondary: "snooze" | null;
   readonly now: string;
   readonly presets: ReadonlyArray<SnoozePresetSetting> | undefined;
+  readonly translate?: Translator; // fork: i18n
 }): ReadonlyArray<SnoozePreset> {
   return input.secondary === "snooze"
-    ? resolveSnoozePresets(new Date(input.now), presetOptions(input.presets))
+    ? resolveSnoozePresets(new Date(input.now), {
+        ...presetOptions(input.presets),
+        ...(input.translate ? { translate: input.translate } : {}),
+      })
     : [];
 }
 
@@ -442,6 +447,7 @@ export function threadListV2ListItemsAreEqual(
 function resolveThreadListV2ItemTimeLabel(
   item: ThreadListV2Item,
   showSnoozeWakeLabel: boolean,
+  translate: Translator | undefined,
 ): string {
   const { thread, variant, snoozed } = item;
   if (showSnoozeWakeLabel) return "";
@@ -456,6 +462,8 @@ function resolveThreadListV2ItemTimeLabel(
     variant === "slim" && !snoozed ? resolveSettledThreadTimestamp(thread) : null;
   return relativeTime(
     settledTimestamp ?? thread.latestUserMessageAt ?? thread.updatedAt ?? thread.createdAt,
+    undefined,
+    translate,
   );
 }
 
@@ -472,6 +480,7 @@ export function buildThreadListV2ListItems(input: {
   readonly settledShelfExpanded?: boolean;
   readonly settledShelfHeaderIndex?: number | null;
   readonly snoozeLabelNow?: string;
+  readonly translate?: Translator; // fork: i18n
   readonly snoozeEnvironmentIds?: ReadonlySet<EnvironmentId>;
   readonly queuedThreadKeys?: ReadonlySet<string>;
   readonly moveAvailability?: ReadonlyMap<string, ThreadMoveAvailability>;
@@ -481,7 +490,10 @@ export function buildThreadListV2ListItems(input: {
   const threadItems = input.items.map((item): ThreadListV2ListItem => {
     const snoozeWakeLabelText =
       item.snoozed && item.thread.snoozedUntil != null && input.snoozeLabelNow !== undefined
-        ? snoozeWakeLabel(item.thread.snoozedUntil, { now: input.snoozeLabelNow })
+        ? snoozeWakeLabel(item.thread.snoozedUntil, {
+            now: input.snoozeLabelNow,
+            ...(input.translate ? { translate: input.translate } : {}),
+          })
         : undefined;
     // Put the clock on items so recycler equality limits ticks to rows displaying snooze preset times.
     const snoozePresetMinute =
@@ -500,7 +512,11 @@ export function buildThreadListV2ListItems(input: {
       key: `v2-thread:${item.thread.environmentId}:${item.thread.id}`,
       item,
       snoozeWakeLabelText,
-      timeLabel: resolveThreadListV2ItemTimeLabel(item, snoozeWakeLabelText !== undefined),
+      timeLabel: resolveThreadListV2ItemTimeLabel(
+        item,
+        snoozeWakeLabelText !== undefined,
+        input.translate,
+      ),
       snoozePresetMinute,
       showTrailingDivider: false,
       hasQueuedMessages:

@@ -17,6 +17,7 @@ import { useAtomCommand } from "../../../state/use-atom-command";
 import type { SettingsTarget } from "../settings-environment-filter";
 import { SettingsRow } from "./SettingsRow";
 import { SettingsSection } from "./SettingsSection";
+import { useT } from "../../../hooks/useT"; // fork: i18n
 
 const failureMessage = (cause: Cause.Cause<unknown>) => {
   const error = Cause.squash(cause);
@@ -98,6 +99,7 @@ function AppSignInRow(props: {
   readonly appSignIn: SourceControlAppSignIn;
   readonly disabled: boolean;
 }) {
+  const t = useT();
   const { environment, definition, appSignIn } = props;
   const environmentId = environment.environmentId;
   const host = appSignIn.hosts[0] ?? "";
@@ -121,10 +123,13 @@ function AppSignInRow(props: {
     void Clipboard.setStringAsync(prompt.userCode).catch(() => undefined);
     Alert.alert(
       prompt.userCode,
-      `Enter this code on GitHub, then approve ${appSignIn.appName}. It is copied. The server finishes signing in even if you leave the app.`,
+      t(
+        "Enter this code on GitHub, then approve {appName}. It is copied. The server finishes signing in even if you leave the app.",
+        { appName: appSignIn.appName },
+      ),
       [
         {
-          text: "Cancel",
+          text: t("Cancel"),
           style: "cancel",
           onPress: () => {
             attempt.current = null;
@@ -132,7 +137,7 @@ function AppSignInRow(props: {
             void cancel({ environmentId, input });
           },
         },
-        { text: "Open GitHub", onPress: () => openUrl(prompt.verificationUri) },
+        { text: t("Open GitHub"), onPress: () => openUrl(prompt.verificationUri) },
       ],
     );
   };
@@ -142,7 +147,7 @@ function AppSignInRow(props: {
     const started = await start({ environmentId, input });
     if (started._tag !== "Success") {
       setPending(null);
-      Alert.alert("Could not start the sign-in", failureMessage(started.cause));
+      Alert.alert(t("Could not start the sign-in"), failureMessage(started.cause));
       return;
     }
     const prompt = started.value;
@@ -154,7 +159,7 @@ function AppSignInRow(props: {
     attempt.current = null;
     setPending(null);
     if (finished._tag !== "Success") {
-      Alert.alert("Sign-in did not finish", failureMessage(finished.cause));
+      Alert.alert(t("Sign-in did not finish"), failureMessage(finished.cause));
     }
   };
 
@@ -173,11 +178,13 @@ function AppSignInRow(props: {
     if (signedIn) {
       Alert.alert(
         appSignIn.appName,
-        "Signed in. GitHub requests use the app's higher rate limit, in repositories where the app is installed.",
+        t(
+          "Signed in. GitHub requests use the app's higher rate limit, in repositories where the app is installed.",
+        ),
         [
-          { text: "Install on an organization", onPress: () => openUrl(appSignIn.installUrl) },
-          { text: "Sign out", style: "destructive", onPress: signOut },
-          { text: "Cancel", style: "cancel" },
+          { text: t("Install on an organization"), onPress: () => openUrl(appSignIn.installUrl) },
+          { text: t("Sign out"), style: "destructive", onPress: signOut },
+          { text: t("Cancel"), style: "cancel" },
         ],
       );
     } else if (pending !== null && pending !== "starting") {
@@ -193,12 +200,12 @@ function AppSignInRow(props: {
       label={props.label}
       value={
         signedIn
-          ? "Signed in"
+          ? t("Signed in")
           : pending === "starting"
-            ? "Starting…"
+            ? t("Starting…")
             : pending !== null
-              ? `Enter ${pending.userCode}`
-              : "Sign in"
+              ? t("Enter {userCode}", { userCode: pending.userCode })
+              : t("Sign in")
       }
       disabled={props.disabled}
       onPress={onPress}

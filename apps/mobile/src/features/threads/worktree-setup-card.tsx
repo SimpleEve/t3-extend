@@ -15,6 +15,7 @@ import { SymbolView, type AppSymbolName } from "../../components/ui/AppSymbol";
 import { WorktreeSetupSheet } from "./worktree-setup-sheet";
 import { ShimmeringWorkContent } from "./thread-work-log";
 import { useVisibleSecondClock } from "./use-visible-second-clock";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export interface WorktreeSetupCardProps {
   snapshot: WorktreeSetupSnapshot;
@@ -40,32 +41,33 @@ const icons: Record<WorktreeSetupStage["status"], AppSymbolName> = {
 };
 
 export function WorktreeSetupCard(props: WorktreeSetupCardProps) {
+  const t = useT();
   const { snapshot, turnStarted, turnStartedAt, working } = props;
   const handedOff = turnStarted && worktreeSetupAgentStarted(snapshot);
   const running = snapshot.phase === "running";
   const backgroundSetup = handedOff && running;
-  const scriptName = snapshot.setupScript?.name ?? "Setup script";
+  const scriptName = snapshot.setupScript?.name ?? t("Setup script");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const now = useVisibleSecondClock(running || working);
   const failed =
     snapshot.phase === "failed" || snapshot.stages.some((stage) => stage.status === "failed");
   const label =
     handedOff && working
-      ? `Working for ${elapsed(turnStartedAt, null, now) ?? "0s"}`
+      ? t("Working for {duration}", { duration: elapsed(turnStartedAt, null, now) ?? "0s" })
       : running
         ? handedOff
-          ? "Setup continues…"
-          : "Setting up worktree…"
+          ? t("Setup continues…")
+          : t("Setting up worktree…")
         : snapshot.phase === "cancelled"
-          ? "Worktree setup cancelled"
+          ? t("Worktree setup cancelled")
           : snapshot.phase === "failed"
-            ? "Worktree setup failed"
+            ? t("Worktree setup failed")
             : failed
-              ? "Setup script failed"
-              : "Worktree ready";
+              ? t("Setup script failed")
+              : t("Worktree ready");
 
   return (
-    <View accessibilityLabel="Worktree setup" className="py-1">
+    <View accessibilityLabel={t("Worktree setup")} className="py-1">
       <View className="min-h-11 flex-row items-center gap-2 border-b border-border px-1">
         <HeaderLabel
           label={label}
@@ -84,8 +86,10 @@ export function WorktreeSetupCard(props: WorktreeSetupCardProps) {
           accessibilityRole="button"
           accessibilityLabel={
             backgroundSetup
-              ? `Background setup is still running: ${scriptName}. Show setup progress.`
-              : "Worktree setup details"
+              ? t("Background setup is still running: {scriptName}. Show setup progress.", {
+                  scriptName,
+                })
+              : t("Worktree setup details")
           }
           accessibilityState={{ expanded: detailsOpen }}
           onPress={() => setDetailsOpen(true)}
@@ -116,7 +120,7 @@ export function WorktreeSetupCard(props: WorktreeSetupCardProps) {
               />
             ) : null}
             <Text numberOfLines={1} className="shrink text-2xs text-foreground-secondary">
-              {backgroundSetup ? "Background setup" : "Details"}
+              {backgroundSetup ? t("Background setup") : t("Details")}
             </Text>
             {!backgroundSetup ? (
               <SymbolView name="chevron.right" size={10} tintColorClassName="accent-icon-muted" />
@@ -148,11 +152,15 @@ export function WorktreeSetupCard(props: WorktreeSetupCardProps) {
 }
 
 export function WorktreeWorkingHeader({ startedAt }: { startedAt: string }) {
+  const t = useT();
   const now = useVisibleSecondClock(true);
   return (
     <View className="py-1">
       <View className="min-h-11 flex-row items-center border-b border-border px-1">
-        <HeaderLabel label={`Working for ${elapsed(startedAt, null, now) ?? "0s"}`} active />
+        <HeaderLabel
+          label={t("Working for {duration}", { duration: elapsed(startedAt, null, now) ?? "0s" })}
+          active
+        />
       </View>
     </View>
   );
@@ -197,6 +205,7 @@ function SetupDetailsSheet({
   onClose,
   now,
 }: WorktreeSetupCardProps & { onClose: () => void; now: number }) {
+  const t = useT();
   const insets = useSafeAreaInsets();
   const [bodyHeight, setBodyHeight] = useState(0);
   const canCancel = snapshot.phase === "running" && !turnStarted;
@@ -231,9 +240,9 @@ function SetupDetailsSheet({
         {canCancel ? (
           <View className="mt-3 flex-row items-center justify-end gap-4 border-t border-border pt-1">
             <Button
-              label="Cancel setup"
+              label={t("Cancel setup")}
               tone="danger"
-              accessibilityLabel="Cancel worktree setup"
+              accessibilityLabel={t("Cancel worktree setup")}
               onPress={() => {
                 onClose();
                 onCancel();
@@ -241,7 +250,7 @@ function SetupDetailsSheet({
             />
             {onWorkLocally ? (
               <Button
-                label="Work locally"
+                label={t("Work locally")}
                 tone="secondary"
                 onPress={() => {
                   onClose();
@@ -347,9 +356,10 @@ function StageRow({
 const OUTPUT_TAIL_SLOTS = [0, 1, 2, 3] as const;
 
 function OutputTail({ lines, failed }: { lines: ReadonlyArray<string>; failed: boolean }) {
+  const t = useT();
   return (
     <View
-      accessibilityLabel="Setup script output"
+      accessibilityLabel={t("Setup script output")}
       className={
         failed
           ? "mb-2 ml-8 rounded-md border border-danger-border bg-danger px-3 py-2"
