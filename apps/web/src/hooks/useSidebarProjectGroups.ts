@@ -3,7 +3,10 @@ import {
   getProjectOrderKey,
   selectProjectGroupingSettings,
 } from "@t3tools/client-runtime/state/project-grouping";
-import { buildSidebarProjectSnapshots } from "../sidebarProjectGrouping";
+import {
+  buildSidebarProjectSnapshots,
+  translateScratchProjectName,
+} from "../sidebarProjectGrouping";
 import { useEnvironmentIdentities, usePrimaryEnvironmentId } from "../state/environments";
 import { useDelegatedUnderParent, useProjects, useQuietThreadShells } from "../state/entities";
 import { legacyProjectCwdPreferenceKey, useUiStateStore } from "../uiStateStore";
@@ -43,6 +46,6 @@ export function useSidebarProjectGroups() {
   });
   // fork: the grouped scratch label is UI copy; translate it after sorting so order stays stable.
   return sortSidebarV2ProjectGroups(unsortedGroups, threads, sortOrder, delegatedUnderParent).map(
-    (group) => (group.isScratch ? { ...group, displayName: t("No project") } : group),
+    (group) => translateScratchProjectName(group, t),
   );
 }

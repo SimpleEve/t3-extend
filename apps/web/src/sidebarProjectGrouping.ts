@@ -5,6 +5,7 @@ import {
   resolveScratchProjectScopeKey,
   type ProjectGroupingSettings,
 } from "@t3tools/client-runtime/state/project-grouping";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import type { Project } from "./types";
 
 export type EnvironmentPresence = "local-only" | "remote-only" | "mixed";
@@ -183,6 +184,13 @@ export function buildSidebarProjectSnapshots(input: {
       archived: group.archived,
     };
   });
+}
+
+// fork: the scratch group's name is UI copy, decided by identity; ordinary names are user content.
+export function translateScratchProjectName<
+  T extends Pick<SidebarProjectSnapshot, "isScratch" | "displayName">,
+>(group: T, t: Translator): T {
+  return group.isScratch ? { ...group, displayName: t("No project") } : group;
 }
 
 export function buildSidebarProjectPickerEntries(input: {

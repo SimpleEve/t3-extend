@@ -9,7 +9,11 @@ import { useClientSettings } from "../hooks/useSettings";
 import { getProjectOrderKey } from "@t3tools/client-runtime/state/project-grouping";
 import { useProjects, useThreadShells } from "../state/entities";
 import { useEnvironments, usePrimaryEnvironmentId } from "../state/environments";
-import { buildSidebarProjectSnapshots } from "../sidebarProjectGrouping";
+import { useT } from "../hooks/useT"; // fork: interface language
+import {
+  buildSidebarProjectSnapshots,
+  translateScratchProjectName,
+} from "../sidebarProjectGrouping";
 import { legacyProjectCwdPreferenceKey, useUiStateStore } from "../uiStateStore";
 import { orderItemsByPreferredIds, sortLogicalProjectsForSidebar } from "./Sidebar.logic";
 
@@ -59,6 +63,7 @@ export function useSortedProjectGroups(environmentLabelById: ReadonlyMap<Environ
   const projectOrder = useUiStateStore((store) => store.projectOrder);
   const clientSettings = useClientSettings(selectCommandPaletteClientSettings);
   const primaryEnvironmentId = usePrimaryEnvironmentId();
+  const t = useT(); // fork: interface language
   const projectGroupingSettings = {
     sidebarProjectGroupingMode: clientSettings.sidebarProjectGroupingMode,
     sidebarProjectGroupingOverrides: clientSettings.sidebarProjectGroupingOverrides,
@@ -82,5 +87,5 @@ export function useSortedProjectGroups(environmentLabelById: ReadonlyMap<Environ
     unsortedProjectGroups,
     threads,
     clientSettings.sidebarProjectSortOrder,
-  );
+  ).map((group) => translateScratchProjectName(group, t)); // fork: interface language
 }
