@@ -230,8 +230,9 @@ for several, `--clear-public-urls` to remove them) or set `T3CODE_PUBLIC_URLS`,
 and print a QR code with `t3 pair --base-url <url>`.
 
 Whoever runs the proxy can read your traffic, because TLS ends there. Use a
-server only you control. Failed pairing codes are rate limited: after 20
-failures in a minute, new pairings wait 60 seconds.
+server only you control. Failed pairing codes are rate limited per client
+address: after 20 failures in a minute, that address waits 60 seconds. Other
+devices, and this machine itself, can still pair.
 
 ## Desktop-managed SSH
 

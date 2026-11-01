@@ -18,7 +18,7 @@ T3 自己的认证不受影响：
 
 - 配对码是一次性的，5 分钟过期，换到的是可以单独撤销的会话。
 - 直连配对得到 Bearer 会话，30 天有效。设备丢了，到 Settings → Sharing & access 的 Authorized clients 里撤销它，或者在家里电脑上运行 `t3x auth session list` 和 `t3x auth session revoke <id>`。
-- 一次性码兑换（`/oauth/token`）和浏览器登录（`/api/auth/browser-session`）有失败限速：1 分钟内失败 20 次就锁 60 秒，期间返回 429。经隧道来的请求在 server 看来都来自本机，所以这个限制是全局的。它防止有人猜码，代价是有人恶意试错时，你自己新配对设备也要等这 60 秒，已经配对的设备不受影响。
+- 用配对码兑换会话的请求（`/oauth/token`、浏览器登录 `/api/auth/browser-session`、Agent 连接批准页）有失败限速，按客户端地址分别计数：同一个地址 1 分钟内失败 20 次，只锁这个地址 60 秒，期间返回 429。经隧道来的请求由 Caddy 在 `X-Forwarded-For` 里带上真实地址，server 按它区分客户端，所以别人恶意试错锁不住你自己的设备；家里电脑本机发起的请求（桌面版启动、`t3x` 命令）不计数。配对码本身有 60 位随机性，5 分钟过期，用一次就失效，限速只是挡掉噪音。
 
 ## 你需要准备
 
@@ -97,7 +97,7 @@ t3x up --clear-public-urls                            # 删除保存的公网地
 | 浏览器打不开地址，证书错误 | A 记录是否生效（`dig t3.example.com`），80/443 是否放行，`docker compose logs caddy`                                 |
 | 502 Bad Gateway            | frpc 没连上：看 Tunnel command 的状态和错误，或者 `docker compose logs frps`；token 是否一致；家里 T3 是否在运行     |
 | 能打开页面但配对失败       | 先在家里电脑上访问 `curl https://t3.example.com/.well-known/t3/environment`，看返回的 environmentId 是否就是这台机器 |
-| 配对时提示 429             | 最近失败次数太多，等一分钟再试                                                                                       |
+| 配对时提示 429             | 这个地址最近失败次数太多，等一分钟再试                                                                               |
 | 手机出门后连不上           | 在家里先连一次，让它学到公网地址；或者用公网地址重新配对一次                                                         |
 
 ## 零代码的备选方案：Headscale + 自建国内 DERP
