@@ -180,7 +180,7 @@ export function buildThreadActionMenuItems(
       ? [
           {
             id: "regenerate-title" as const,
-            label: state.isRegeneratingTitle ? t("Regenerating…") : "Regenerate title",
+            label: state.isRegeneratingTitle ? t("Regenerating…") : t("Regenerate title"),
             icon: "refresh-cw",
             disabled: state.isRegeneratingTitle,
           },

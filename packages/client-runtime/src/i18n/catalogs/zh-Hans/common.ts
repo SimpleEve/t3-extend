@@ -29,4 +29,10 @@ export default {
   "New thread": "新建对话",
   "Share with guest": "与访客共享",
   "Discard draft": "丢弃草稿",
+  Close: "关闭",
+  "Close (Esc)": "关闭（Esc）",
+  Back: "返回",
+  Remote: "远程",
+  // The label of threads outside any project; UI copy, not a project name.
+  "No project": "无项目",
 } satisfies Record<string, string>;

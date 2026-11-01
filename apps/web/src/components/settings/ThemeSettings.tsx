@@ -160,7 +160,7 @@ function ThemeLibraryCard({
             <div className="relative">
               {variantNavigation ? (
                 <div
-                  aria-label="Light and dark theme variants"
+                  aria-label={t("Light and dark theme variants")}
                   className="relative h-20"
                   role="group"
                   onBlurCapture={(event) => {
@@ -189,8 +189,22 @@ function ThemeLibraryCard({
                           <button
                             aria-label={
                               options.length > 1
-                                ? `Choose ${mode} variant, ${options.length} options, currently ${selected.option.label}`
-                                : `Use ${mode} variant, currently ${selected.option.label}`
+                                ? mode === "light"
+                                  ? t("Choose light variant, {count} options, currently {theme}", {
+                                      count: options.length,
+                                      theme: selected.option.label,
+                                    })
+                                  : t("Choose dark variant, {count} options, currently {theme}", {
+                                      count: options.length,
+                                      theme: selected.option.label,
+                                    })
+                                : mode === "light"
+                                  ? t("Use light variant, currently {theme}", {
+                                      theme: selected.option.label,
+                                    })
+                                  : t("Use dark variant, currently {theme}", {
+                                      theme: selected.option.label,
+                                    })
                             }
                             aria-pressed={isActive}
                             className="absolute left-1/2 top-2 z-20 flex size-14 items-center justify-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-5 focus-visible:outline-foreground/60"
@@ -246,10 +260,26 @@ function ThemeLibraryCard({
                               return (
                                 <ThemeVariantTooltip
                                   key={option.label}
-                                  label={`Use ${option.label} for ${mode} mode`}
+                                  label={
+                                    mode === "light"
+                                      ? t("Use {theme} for light mode", { theme: option.label })
+                                      : t("Use {theme} for dark mode", { theme: option.label })
+                                  }
                                 >
                                   <button
-                                    aria-label={`Use ${option.label} for ${mode} mode${optionIsActive ? ", currently active" : ""}`}
+                                    aria-label={
+                                      mode === "light"
+                                        ? optionIsActive
+                                          ? t("Use {theme} for light mode, currently active", {
+                                              theme: option.label,
+                                            })
+                                          : t("Use {theme} for light mode", { theme: option.label })
+                                        : optionIsActive
+                                          ? t("Use {theme} for dark mode, currently active", {
+                                              theme: option.label,
+                                            })
+                                          : t("Use {theme} for dark mode", { theme: option.label })
+                                    }
                                     aria-pressed={optionIsActive}
                                     className={cn(
                                       "absolute left-1/2 top-1 z-30 flex size-7 items-center justify-center rounded-full bg-background shadow-sm outline-none transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",

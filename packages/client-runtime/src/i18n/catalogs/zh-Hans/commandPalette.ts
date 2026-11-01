@@ -41,4 +41,17 @@ export default {
   "Unpin project": "取消置顶项目",
   "Focus Next Workspace Area": "聚焦下一个工作区域",
   "Focus Previous Workspace Area": "聚焦上一个工作区域",
+
+  // Search field placeholders
+  "Search commands, projects, and threads...": "搜索命令、项目和对话…",
+  "Search...": "搜索…",
+  "Enter project path (e.g. ~/projects/my-app)": "输入项目路径（例如 ~/projects/my-app）",
+  "Enter path (e.g. ~/projects/my-app)": "输入路径（例如 ~/projects/my-app）",
+
+  // Footer hints; key names (Enter, Esc) stay as they are.
+  Navigate: "导航",
+  Select: "选择",
+  "Searching messages…": "正在搜索消息…",
+  "Command palette": "命令面板",
+  "Toggle theme editor": "切换主题编辑器",
 } satisfies Record<string, string>;

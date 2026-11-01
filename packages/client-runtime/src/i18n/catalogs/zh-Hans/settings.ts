@@ -50,4 +50,5 @@ export default {
   "Theme mix": "主题组合",
   "Diff colors": "差异颜色",
   "Time format": "时间格式",
+  "Restore device defaults": "恢复本设备默认设置",
 } satisfies Record<string, string>;

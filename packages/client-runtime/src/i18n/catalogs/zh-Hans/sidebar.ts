@@ -69,6 +69,35 @@ export default {
   "Auto-settle behavior": "自动标为已处理",
   "Archive thread": "归档对话",
 
+  // Thread status pills (also in command palette rows)
+  Completed: "已完成",
+  Connecting: "连接中",
+  "Pending Approval": "待批准",
+  "Awaiting Input": "待输入",
+  "Guest Request": "访客请求",
+  "Plan Ready": "计划已就绪",
+  "Terminal process running": "终端进程正在运行",
+
+  // Project folder status, read after the project name
+  ", needs you": "，需要你处理",
+  ", failed": "，失败",
+  ", done": "，已完成",
+  ", working": "，运行中",
+  "New thread in {project}": "在 {project} 中新建对话",
+  "Thread title": "对话标题",
+  "Thread search results": "对话搜索结果",
+
+  // Chrome: header, footer, and the sidebar rail
+  "Toggle main sidebar": "切换主侧边栏",
+  "Go back": "后退",
+  "Go forward": "前进",
+  "T3 Code home": "T3 Code 首页",
+  "Pull requests": "PR",
+  Usage: "用量",
+  "Toggle Sidebar": "切换侧边栏",
+  "Resize Sidebar": "调整侧边栏宽度",
+  "Drag to resize sidebar": "拖动以调整侧边栏宽度",
+
   // Snooze presets, as whole phrases
   "In 1 minute": "1 分钟后",
   "In {count} minutes": "{count} 分钟后",

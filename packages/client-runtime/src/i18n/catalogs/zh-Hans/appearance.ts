@@ -129,4 +129,21 @@ export default {
   "Wrap long lines in code blocks, diffs, and file previews by default.":
     "默认在代码块、差异和文件预览中自动换行。",
   "Wrap code, diffs, and file previews by default": "默认对代码、差异和文件预览自动换行",
+
+  // Theme cards and variant pickers
+  "Light and dark theme variants": "浅色和深色主题变体",
+  "Use {theme} light mode": "使用 {theme} 的浅色模式",
+  "Use {theme} dark mode": "使用 {theme} 的深色模式",
+  "Choose light variant, {count} options, currently {theme}":
+    "选择浅色变体，共 {count} 个，当前为 {theme}",
+  "Choose dark variant, {count} options, currently {theme}":
+    "选择深色变体，共 {count} 个，当前为 {theme}",
+  "Use light variant, currently {theme}": "使用浅色变体，当前为 {theme}",
+  "Use dark variant, currently {theme}": "使用深色变体，当前为 {theme}",
+  "Use {theme} for light mode": "浅色模式使用 {theme}",
+  "Use {theme} for dark mode": "深色模式使用 {theme}",
+  "Use {theme} for light mode, currently active": "浅色模式使用 {theme}，当前正在使用",
+  "Use {theme} for dark mode, currently active": "深色模式使用 {theme}，当前正在使用",
+  "Prompt font preview": "提示词字体预览",
+  "Terminal font preview": "终端字体预览",
 } satisfies Record<string, string>;
