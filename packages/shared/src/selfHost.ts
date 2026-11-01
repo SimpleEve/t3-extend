@@ -59,7 +59,7 @@ export function encodePublicUrlsDocument(urls: ReadonlyArray<string>): string {
   return `${JSON.stringify({ urls: normalizePublicUrls(urls) }, null, 2)}\n`;
 }
 
-export type ManagedTunnelStatus = "stopped" | "starting" | "running" | "backing-off" | "failed";
+export type ManagedTunnelStatus = "stopped" | "starting" | "running" | "backing-off";
 
 export interface ManagedTunnelState {
   readonly command: string;
@@ -95,3 +95,5 @@ export interface SelfHostBridge {
   readonly restartTunnel: () => Promise<SelfHostState>;
   readonly onState: (listener: (state: SelfHostState) => void) => () => void;
 }
+
+export const SELF_HOST_BRIDGE_GLOBAL = "t3xSelfHostBridge";

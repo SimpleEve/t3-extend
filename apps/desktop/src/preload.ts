@@ -10,6 +10,12 @@ import { exposeClerkBridge } from "@clerk/electron/preload";
 import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 
 import * as IpcChannels from "./ipc/channels.ts";
+import {
+  SELF_HOST_BRIDGE_GLOBAL,
+  type SelfHostBridge,
+  type SelfHostState,
+} from "@t3tools/shared/selfHost"; // fork: self-hosted connection
+import * as SelfHostIpcChannels from "./selfHost/selfHostChannels.ts"; // fork: self-hosted connection
 import { mergeLegacyLocalStorage } from "./legacyLocalStorageMerge.ts";
 
 const SNAP_SHOT_EVENT_TYPES = new Set([
@@ -71,6 +77,22 @@ function unwrapEnsureSshEnvironmentResult(result: unknown) {
   }
   return result as Awaited<ReturnType<DesktopBridge["ensureSshEnvironment"]>>;
 }
+
+// fork: self-hosted connection
+contextBridge.exposeInMainWorld(SELF_HOST_BRIDGE_GLOBAL, {
+  getState: () => ipcRenderer.invoke(SelfHostIpcChannels.GET_SELF_HOST_STATE_CHANNEL),
+  setPublicUrls: (urls) =>
+    ipcRenderer.invoke(SelfHostIpcChannels.SET_SELF_HOST_PUBLIC_URLS_CHANNEL, urls),
+  setTunnel: (input) => ipcRenderer.invoke(SelfHostIpcChannels.SET_SELF_HOST_TUNNEL_CHANNEL, input),
+  restartTunnel: () => ipcRenderer.invoke(SelfHostIpcChannels.RESTART_SELF_HOST_TUNNEL_CHANNEL),
+  onState: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, state: SelfHostState) => listener(state);
+    ipcRenderer.on(SelfHostIpcChannels.SELF_HOST_STATE_CHANNEL, wrapped);
+    return () => {
+      ipcRenderer.removeListener(SelfHostIpcChannels.SELF_HOST_STATE_CHANNEL, wrapped);
+    };
+  },
+} satisfies SelfHostBridge);
 
 contextBridge.exposeInMainWorld("desktopBridge", {
   getAppBranding: () => {

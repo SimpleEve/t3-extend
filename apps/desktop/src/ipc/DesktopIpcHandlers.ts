@@ -66,6 +66,7 @@ import {
   setSnapShotShortcutSuppressed,
 } from "./methods/snapShot.ts";
 import * as PreviewIpc from "./methods/preview.ts";
+import { installSelfHostIpc } from "../selfHost/selfHostIpc.ts"; // fork: self-hosted connection
 import * as AppActivationIpc from "./methods/appActivation.ts";
 import * as WebLinksIpc from "./methods/webLinks.ts";
 import {
@@ -129,6 +130,7 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
   yield* ipc.handle(setServerExposureMode);
   yield* ipc.handle(setTailscaleServeEnabled);
   yield* ipc.handle(getAdvertisedEndpoints);
+  yield* installSelfHostIpc(); // fork: self-hosted connection
 
   yield* ipc.handle(getWslState);
   yield* ipc.handle(setWslBackendEnabled);
