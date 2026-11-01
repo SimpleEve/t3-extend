@@ -236,7 +236,7 @@ function PairingForm({
               />
               <View className="ml-4 border-t border-border-subtle" />
               <PairingInputRow
-                label={t("Code")}
+                label={t("Code", undefined, "pairing code")}
                 placeholder={t("Pairing code")}
                 returnKeyType="go"
                 value={codeInput}

@@ -723,6 +723,7 @@ export default {
   "Scanned QR code was not recognized.": "无法识别扫描到的二维码。",
   "Or enter it": "或者手动输入",
   "Pairing code": "配对码",
+  "pairing code|Code": "配对码",
   "For machines on your local network or tailnet. The machine keeps its own provider credentials.":
     "适用于局域网或 tailnet 中的机器。provider 凭据仍保存在那台机器上。",
   "Scan QR code": "扫描二维码",

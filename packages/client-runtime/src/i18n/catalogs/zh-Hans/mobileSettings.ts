@@ -396,7 +396,7 @@ export default {
     "使用基础分支所跟踪的远程分支的最新提交，即使名称不同。否则使用 origin 上的同名分支。如果远程分支不存在，则使用你的本地分支。",
   "Worktree submodules": "worktree 子模块",
   "Manage environments": "管理环境",
-  "Server and provider updates": "server 和 provider 更新",
+  "Server and provider updates": "服务器与 provider 更新",
   Updates: "更新",
   "Check provider updates": "检查 provider 更新",
   "Environment-wide setting. Select All projects to change it.":
