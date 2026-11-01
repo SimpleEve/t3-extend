@@ -93,6 +93,7 @@ import {
 import { pruneNewTaskFlowStates } from "./features/threads/new-task-flow-state";
 import { pruneNewTaskBranchCheckouts } from "./features/threads/NewTaskDraftRouteScreen";
 import { installAppUpdateChecks } from "./features/updates/app-updates";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 
 import "../global.css";
 
@@ -122,7 +123,14 @@ function getAppStateFromPath(path: string, options: Parameters<typeof getStateFr
 }
 
 const appLinking = {
-  prefixes: [Linking.createURL("/"), "t3code://", "t3code-dev://", "t3code-preview://"],
+  // fork: own schemes first; official ones still open, so official QR codes and links work.
+  prefixes: [
+    Linking.createURL("/"),
+    ...[FORK.scheme, FORK.schemeDev, FORK.schemePreview].map((scheme) => `${scheme}://`),
+    "t3code://",
+    "t3code-dev://",
+    "t3code-preview://",
+  ],
   config: { initialRouteName: "Home" },
   filter: (url: string) => shouldHandleAppLink(url, hasCloudPublicConfig()),
   getInitialURL: async () => (await Linking.getInitialURL()) ?? (await launchWorkspaceURL()),

@@ -116,6 +116,7 @@ const handleCheckForUpdatesMenuClick = Effect.gen(function* () {
 export const make = Effect.gen(function* () {
   const electronMenu = yield* ElectronMenu.ElectronMenu;
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
+  const updates = yield* DesktopUpdates.DesktopUpdates;
   const context = yield* Effect.context<DesktopApplicationMenuRuntimeServices>();
   const runPromise = Effect.runPromiseWith(context);
 
@@ -157,6 +158,11 @@ export const make = Effect.gen(function* () {
     const mainContentsClick = (command: DesktopWindow.MainWindowContentsCommand) => () => {
       runMenuEffect(command, runMainContentsCommand(command));
     };
+    // fork: no "Check for Updates..." when the build has no update feed.
+    const checkForUpdatesItems: Electron.MenuItemConstructorOptions[] =
+      (yield* updates.hasUpdateFeed)
+        ? [{ label: "Check for Updates...", click: checkForUpdatesClick }]
+        : [];
     const template: Electron.MenuItemConstructorOptions[] = [];
 
     if (environment.platform === "darwin") {
@@ -164,10 +170,7 @@ export const make = Effect.gen(function* () {
         label: environment.displayName,
         submenu: [
           { role: "about", label: `About ${environment.displayName}` },
-          {
-            label: "Check for Updates...",
-            click: checkForUpdatesClick,
-          },
+          ...checkForUpdatesItems, // fork: feed-gated
           { type: "separator" },
           {
             label: "Settings...",
@@ -305,12 +308,7 @@ export const make = Effect.gen(function* () {
       },
       {
         role: "help",
-        submenu: [
-          {
-            label: "Check for Updates...",
-            click: checkForUpdatesClick,
-          },
-        ],
+        submenu: checkForUpdatesItems, // fork: feed-gated
       },
     );
 

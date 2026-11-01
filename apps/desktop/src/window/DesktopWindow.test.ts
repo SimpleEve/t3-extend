@@ -1053,9 +1053,10 @@ describe("DesktopWindow", () => {
           return yield* Effect.die("will-navigate listener was not registered");
         }
         for (const [url, expectedPrevented] of [
-          ["t3code-dev://app/threads?id=1#latest", false],
-          ["t3code-dev://other/", true],
-          ["t3code://app/", true],
+          ["t3extend-dev://app/threads?id=1#latest", false],
+          ["t3extend-dev://other/", true],
+          ["t3extend://app/", true],
+          ["t3code-dev://app/", true],
         ] as const) {
           const preventDefault = vi.fn();
           willNavigate({ preventDefault }, url);

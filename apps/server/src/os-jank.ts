@@ -11,6 +11,7 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as NodeOS from "node:os";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 
 function logPathHydrationWarning(message: string, error?: unknown): void {
   process.stderr.write(
@@ -123,7 +124,7 @@ export const expandHomePath = Effect.fn(function* (input: string) {
 export const resolveBaseDir = Effect.fn(function* (raw: string | undefined) {
   const { join, resolve } = yield* Path.Path;
   if (!raw || raw.trim().length === 0) {
-    return join(yield* HostProcess.HomeDirectory, ".t3");
+    return join(yield* HostProcess.HomeDirectory, FORK.homeDirName); // fork: own T3 home
   }
   return resolve(yield* expandHomePath(raw.trim()));
 });

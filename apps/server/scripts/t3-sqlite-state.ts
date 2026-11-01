@@ -15,6 +15,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 import { Argument, Command, Flag } from "effect/cli";
 
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
+import { devSeedHomeCandidates } from "@t3tools/shared/forkIdentity"; // fork: shared homes
 
 export const SqliteStateOperation = Schema.Literals(["query", "exec"]);
 export type SqliteStateOperation = typeof SqliteStateOperation.Type;
@@ -62,7 +63,7 @@ export class SqliteStateSharedHomeMutationError extends Schema.TaggedError<Sqlit
   {},
 ) {
   override get message(): string {
-    return "Refusing to mutate the shared ~/.t3 database. Use an isolated --base-dir.";
+    return "Refusing to mutate a shared ~/.t3extend or ~/.t3 database. Use an isolated --base-dir.";
   }
 }
 
@@ -181,7 +182,12 @@ export const runSqliteState = Effect.fn("runSqliteState")(function* (
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const baseDir = path.resolve(input.baseDir);
-  const sharedHome = path.resolve(options.sharedHome ?? path.join(NodeOS.homedir(), ".t3"));
+  // fork: neither the fork's nor official T3 Code's live home may be mutated.
+  const sharedHomes = (
+    options.sharedHome === undefined
+      ? devSeedHomeCandidates(NodeOS.homedir(), path.join)
+      : [options.sharedHome]
+  ).map((home) => path.resolve(home));
   const databasePath = path.join(baseDir, "userdata", "statev2.sqlite");
   const source = yield* resolveSqlSource(input.sql, input.file);
 
@@ -189,12 +195,14 @@ export const runSqliteState = Effect.fn("runSqliteState")(function* (
     return yield* new SqliteStateDatabaseMissingError({ databasePath });
   }
   if (input.operation === "exec") {
-    const [canonicalBaseDir, canonicalSharedHome] = yield* Effect.all([
-      fs.realPath(baseDir),
-      fs.realPath(sharedHome).pipe(Effect.orElseSucceed(() => sharedHome)),
-    ]);
-    if (canonicalBaseDir === canonicalSharedHome) {
-      return yield* new SqliteStateSharedHomeMutationError();
+    const canonicalBaseDir = yield* fs.realPath(baseDir);
+    for (const sharedHome of sharedHomes) {
+      const canonicalSharedHome = yield* fs
+        .realPath(sharedHome)
+        .pipe(Effect.orElseSucceed(() => sharedHome));
+      if (canonicalBaseDir === canonicalSharedHome) {
+        return yield* new SqliteStateSharedHomeMutationError();
+      }
     }
   }
 

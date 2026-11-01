@@ -2,8 +2,11 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import { compareSemverVersions } from "./semver.ts";
+import { FORK } from "./forkIdentity.ts"; // fork: identity
 
-const CLI_RELEASE_REPOSITORY = "pingdotgg/t3code";
+// fork: private and archive-less, so anonymous release lookups and downloads 404 before any
+// install step; local self-update can never swap this fork for official T3 Code.
+const CLI_RELEASE_REPOSITORY = FORK.releaseRepository;
 export const CLI_RELEASES_PAGE_URL = `https://github.com/${CLI_RELEASE_REPOSITORY}/releases`;
 export const CLI_RELEASE_CHECKSUMS_FILE = "SHA256SUMS";
 export const CLI_RELEASE_BASE_URL_ENV = "T3CODE_RELEASE_BASE_URL";

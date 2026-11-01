@@ -183,6 +183,8 @@ export class DesktopUpdates extends Context.Service<
     >;
     readonly emitState: Effect.Effect<void>;
     readonly disabledReason: Effect.Effect<Option.Option<string>>;
+    /** fork: builds without a feed hide update entry points instead of offering a dead end. */
+    readonly hasUpdateFeed: Effect.Effect<boolean>;
     readonly configure: Effect.Effect<void, never, Scope.Scope>;
     /** `minimumVersion` is a track switch's checked release; nothing older is offered after. */
     readonly setChannel: (
@@ -1065,6 +1067,9 @@ export const make = Effect.gen(function* () {
     ),
     emitState,
     disabledReason: resolveDisabledReason,
+    hasUpdateFeed: readAppUpdateYml.pipe(
+      Effect.map((appUpdateYml) => Option.isSome(appUpdateYml) || config.mockUpdates),
+    ),
     configure: Effect.gen(function* () {
       const context = yield* Effect.context<never>();
       const runEffect = (effect: Effect.Effect<void>) => {

@@ -147,10 +147,13 @@ describe("remote", () => {
   it("round-trips pairing urls through app links on every channel scheme", () => {
     const pairingUrl = "https://vps.example.com/pair#token=ABC123";
     const appLink = buildPairingAppLink(pairingUrl);
-    expect(appLink.startsWith("t3code://pair?")).toBe(true);
-    expect(readPairingAppLink(appLink)).toBe(pairingUrl);
-    expect(readPairingAppLink(appLink.replace("t3code:", "t3code-dev:"))).toBe(pairingUrl);
-    expect(readPairingAppLink("t3code://pair")).toBeNull();
+    expect(appLink.startsWith("t3extend://pair?")).toBe(true);
+    // Fork clients also open official T3 Code links, so either app's QR code pairs.
+    for (const scheme of ["t3extend", "t3extend-dev", "t3extend-preview", "t3code", "t3code-dev"]) {
+      expect(readPairingAppLink(appLink.replace("t3extend:", `${scheme}:`))).toBe(pairingUrl);
+    }
+    expect(readPairingAppLink(appLink.replace("t3extend:", "t3codex:"))).toBeNull();
+    expect(readPairingAppLink("t3extend://pair")).toBeNull();
     expect(readPairingAppLink(appLink.replace("//pair?", "//pair/other?"))).toBeNull();
     expect(
       readPairingAppLink(`t3code://threads?pairingUrl=${encodeURIComponent(pairingUrl)}`),

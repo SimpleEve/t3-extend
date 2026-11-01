@@ -152,7 +152,7 @@ function AgentActivity(
   const deepLinkRow = attentionRow ?? row0;
   const deepLink =
     deepLinkRow && deepLinkRow.deepLink.startsWith("/") && !deepLinkRow.deepLink.startsWith("//")
-      ? `t3code://${deepLinkRow.deepLink.slice(1)}`
+      ? `t3extend://${deepLinkRow.deepLink.slice(1)}` // fork: widget bundles cannot import
       : null;
   const linkModifiers = deepLink ? [widgetURL(deepLink)] : [];
 

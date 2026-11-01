@@ -22,6 +22,7 @@ import { ChildProcess } from "effect/process";
 
 import { type DevShareError, shareDevServer, unshareDevServer } from "./lib/dev-share.ts";
 import { loadRepoEnv } from "./lib/public-config.ts";
+import { devSeedHomeCandidates, FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 
 Object.assign(process.env, loadRepoEnv());
 
@@ -59,8 +60,9 @@ export function isProxiableBindHost(host: string): boolean {
   );
 }
 
-export const DEFAULT_T3_HOME = Effect.map(Effect.service(Path.Path), (path) =>
-  path.join(NodeOS.homedir(), ".t3"),
+export const DEFAULT_T3_HOME = Effect.map(
+  Effect.service(Path.Path),
+  (path) => path.join(NodeOS.homedir(), FORK.homeDirName), // fork: own T3 home
 );
 
 const MODE_ARGS = {
@@ -633,7 +635,17 @@ const prepareFirstStart = Effect.fn("dev-runner.prepareFirstStart")(function* (i
         );
       }
     }
-    const source = path.join(yield* HostProcess.HomeDirectory, ".t3", "userdata", "statev2.sqlite");
+    // fork: seed from the fork's own database first, else official T3 Code's (read-only either way).
+    const sources = devSeedHomeCandidates(yield* HostProcess.HomeDirectory, path.join).map((home) =>
+      path.join(home, "userdata", "statev2.sqlite"),
+    );
+    let source = sources.at(-1)!;
+    for (const candidate of sources) {
+      if (yield* exists(candidate)) {
+        source = candidate;
+        break;
+      }
+    }
     // A V1 state.sqlite counts as data too: the server imports it only while
     // statev2.sqlite is missing, so seeding would hide it.
     if (
@@ -966,7 +978,7 @@ const devRunnerCli = Command.make("dev-runner", {
   ),
   seed: Flag.Boolean("seed").pipe(
     Flag.withDescription(
-      "Seed an empty worktree database from ~/.t3 on first start (read-only, via migrate-dev-db) if the source is at most 500 MiB. On by default; --no-seed or T3CODE_DEV_SEED=0 skips it.",
+      "Seed an empty worktree database from ~/.t3extend (else ~/.t3) on first start (read-only, via migrate-dev-db) if the source is at most 500 MiB. On by default; --no-seed or T3CODE_DEV_SEED=0 skips it.",
     ),
     Flag.withFallbackConfig(optionalBooleanConfig("T3CODE_DEV_SEED")),
   ),

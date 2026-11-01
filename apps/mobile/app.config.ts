@@ -2,6 +2,7 @@ import type { ExpoConfig } from "expo/config";
 
 import { BRAND_ASSET_PATHS } from "../../scripts/lib/brand-assets.ts";
 import { loadRepoEnv } from "../../scripts/lib/public-config.ts";
+import { FORK } from "../../packages/shared/src/forkIdentity.ts"; // fork: identity
 
 type AppVariant = "development" | "preview" | "production";
 
@@ -22,6 +23,10 @@ const IOS_BUNDLE_IDENTIFIER_PATTERN = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
 const observeEndpointUrl = repoEnv.T3CODE_RELAY_URL?.trim()
   ? new URL("/v1/mobile/observe", repoEnv.T3CODE_RELAY_URL.trim()).toString()
   : "https://observe.invalid";
+
+// fork: no official EAS project; set both to use your own for OTA and EAS builds.
+const easProjectId = repoEnv.T3EXTEND_EAS_PROJECT_ID?.trim() || undefined;
+const easOwner = repoEnv.T3EXTEND_EAS_OWNER?.trim() || undefined;
 
 const fromRepoRoot = (relativePath: string) => `../../${relativePath}`;
 const androidAdaptiveForeground = "./assets/android-icon-foreground.png";
@@ -77,26 +82,26 @@ const RELEASE_ASSETS = {
 
 const VARIANT_CONFIG = {
   development: {
-    appName: "T3 Code Dev",
-    scheme: "t3code-dev",
-    iosBundleIdentifier: "com.t3tools.t3code.dev",
-    androidPackage: "com.t3tools.t3code.dev",
+    appName: `${FORK.appBaseName} Dev`, // fork: identity
+    scheme: FORK.schemeDev,
+    iosBundleIdentifier: `${FORK.appId}.dev`,
+    androidPackage: `${FORK.appId}.dev`,
     relyingParty: "clerk.t3.codes",
     assets: DEVELOPMENT_ASSETS,
   },
   preview: {
-    appName: "T3 Code Preview",
-    scheme: "t3code-preview",
-    iosBundleIdentifier: "com.t3tools.t3code.preview",
-    androidPackage: "com.t3tools.t3code.preview",
+    appName: `${FORK.appBaseName} Preview`, // fork: identity
+    scheme: FORK.schemePreview,
+    iosBundleIdentifier: `${FORK.appId}.preview`,
+    androidPackage: `${FORK.appId}.preview`,
     relyingParty: "clerk.t3.codes",
     assets: PREVIEW_ASSETS,
   },
   production: {
-    appName: "T3 Code",
-    scheme: "t3code",
-    iosBundleIdentifier: "com.t3tools.t3code",
-    androidPackage: "com.t3tools.t3code",
+    appName: FORK.appBaseName, // fork: identity
+    scheme: FORK.scheme,
+    iosBundleIdentifier: FORK.appId,
+    androidPackage: FORK.appId,
     relyingParty: "clerk.t3.codes",
     assets: RELEASE_ASSETS,
   },
@@ -236,9 +241,10 @@ const config: ExpoConfig = {
   orientation: "portrait",
   icon: variant.assets.appIcon,
   userInterfaceStyle: "automatic",
+  // fork: OTA only from an explicitly configured EAS project, never official T3 Code's.
   updates: {
-    enabled: repoEnv.T3CODE_MOBILE_UPDATES_ENABLED !== "0",
-    url: "https://u.expo.dev/d763fcb8-d37c-41ea-a773-b54a0ab4a454",
+    enabled: repoEnv.T3CODE_MOBILE_UPDATES_ENABLED === "1" && easProjectId !== undefined,
+    ...(easProjectId === undefined ? {} : { url: `https://u.expo.dev/${easProjectId}` }),
     checkAutomatically: "ON_LOAD",
     fallbackToCacheTimeout: 0,
   },
@@ -457,11 +463,11 @@ const config: ExpoConfig = {
       tracesToken: repoEnv.EXPO_PUBLIC_OTLP_TRACES_TOKEN ?? null,
     },
     eas: {
-      projectId: "d763fcb8-d37c-41ea-a773-b54a0ab4a454",
+      ...(easProjectId === undefined ? {} : { projectId: easProjectId }), // fork: opt-in EAS
       observe: { endpointUrl: observeEndpointUrl },
     },
   },
-  owner: "pingdotgg",
+  ...(easOwner === undefined ? {} : { owner: easOwner }), // fork: opt-in EAS
   experiments: {
     // Metro only runs babel-plugin-react-compiler when this is set; see src/reactCompilerCoverage.test.ts.
     reactCompiler: true,

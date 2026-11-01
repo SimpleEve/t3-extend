@@ -29,8 +29,8 @@ export class DeviceError extends Schema.TaggedError<DeviceError>()("DeviceError"
   message: Schema.String,
 }) {}
 
-export const APP_ID = "com.t3tools.t3code.dev";
-export const SCHEME = "t3code-dev";
+export const APP_ID = "com.simpleeve.t3extend.dev";
+export const SCHEME = "t3extend-dev";
 
 export interface ProbeState {
   readonly route: {

@@ -297,6 +297,38 @@ it.layer(NodeServices.layer)("migrate-dev-db", (it) => {
     }),
   );
 
+  it.effect("defaults to the fork's database and falls back to official T3 Code's", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const home = yield* fs.makeTempDirectoryScoped({ prefix: "migrate-dev-db-home-" });
+      const destDir = yield* fs.makeTempDirectoryScoped({ prefix: "migrate-dev-db-dest-" });
+      yield* createFixtureSource(path.join(home, ".t3extend"));
+      const official = path.join(home, ".t3", "userdata", "statev2.sqlite");
+      yield* fs.makeDirectory(path.dirname(official), { recursive: true });
+      yield* fs.writeFileString(official, "not a database");
+      const input = { baseDir: destDir, projects: 5, threadsPerProject: 2 };
+
+      // The unreadable official file would fail the copy, so success means the fork's was used.
+      const fromFork = yield* runMigrateDevDb(input, { homeDirectory: home });
+      assert.isNotEmpty(fromFork.projects);
+
+      yield* fs.remove(path.join(home, ".t3extend"), { recursive: true });
+      yield* fs.remove(path.join(home, ".t3"), { recursive: true });
+      yield* createFixtureSource(path.join(home, ".t3"));
+      const fromOfficial = yield* runMigrateDevDb(input, { homeDirectory: home });
+      assert.isNotEmpty(fromOfficial.projects);
+      for (const shared of [".t3extend", ".t3"]) {
+        yield* fs.makeDirectory(path.join(home, shared), { recursive: true });
+        const error = yield* runMigrateDevDb(
+          { ...input, baseDir: path.join(home, shared) },
+          { homeDirectory: home },
+        ).pipe(Effect.flip);
+        assert.equal(error._tag, "MigrateDevDbSharedHomeError");
+      }
+    }),
+  );
+
   it.effect("refuses to rebuild the shared home", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;

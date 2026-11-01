@@ -179,6 +179,46 @@ it.layer(NodeServices.layer)("ensurePinnedRuntimeInstalled", (it) => {
     }),
   );
 
+  it.effect("fails on the fork's unpublished releases before touching any installed runtime", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-pinned-fork-release-" });
+      const installed = pinnedRuntimePaths(path, baseDir, "1.2.2", "linux");
+      yield* fs.makeDirectory(installed.versionDir, { recursive: true });
+      yield* fs.writeFileString(installed.entryPath, "#!/bin/sh\n");
+      yield* fs.writeFileString(installed.sentinelPath, "1.2.2\n");
+      const requests: string[] = [];
+      const commands: string[] = [];
+      const error = yield* ensurePinnedRuntimeInstalled({
+        baseDir,
+        version,
+        fs,
+        path,
+        platform: "linux",
+        arch: "x64",
+        httpClient: HttpClient.make((request) => {
+          requests.push(request.url);
+          return Effect.succeed(
+            HttpClientResponse.fromWeb(request, new Response("Not Found", { status: 404 })),
+          );
+        }),
+        runner: extractingRunner(fs, path, commands),
+        validate: () => Effect.die("must not validate a missing release"),
+      }).pipe(Effect.flip);
+      assert.instanceOf(error, PinnedRuntimeInstallError);
+      assert.equal(error.step, "downloading the t3 release checksums");
+      assert.deepEqual(requests, [
+        `https://github.com/SimpleEve/t3-extend/releases/download/v${version}/SHA256SUMS`,
+      ]);
+      assert.deepEqual(commands, []);
+      assert.equal(yield* fs.readFileString(installed.entryPath), "#!/bin/sh\n");
+      assert.deepEqual(yield* fs.readDirectory(path.join(baseDir, "runtime", "versions")), [
+        "1.2.2",
+      ]);
+    }),
+  );
+
   it.effect("validates a staging tree before atomically publishing it", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;

@@ -19,6 +19,7 @@ import * as ProjectionStore from "../src/orchestration-v2/ProjectionStore.ts";
 import { rebuildMessageSearch } from "../src/orchestration-v2/messageSearchIndex.ts";
 import { migrationManifest, runMigrations } from "../src/persistence/Migrations.ts";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
+import { devSeedHomeCandidates } from "@t3tools/shared/forkIdentity"; // fork: seed homes
 
 export class MigrateDevDbNotInWorktreeError extends Schema.TaggedError<MigrateDevDbNotInWorktreeError>()(
   "MigrateDevDbNotInWorktreeError",
@@ -34,7 +35,7 @@ export class MigrateDevDbSharedHomeError extends Schema.TaggedError<MigrateDevDb
   {},
 ) {
   override get message(): string {
-    return "Refusing to rebuild the shared ~/.t3 database. Use an isolated --base-dir.";
+    return "Refusing to rebuild a shared ~/.t3extend or ~/.t3 database. Use an isolated --base-dir.";
   }
 }
 
@@ -125,6 +126,8 @@ export interface RunMigrateDevDbInput {
 export interface RunMigrateDevDbOptions {
   /** Test override for the directory writes must never target. */
   readonly sharedHome?: string | undefined;
+  /** fork: test override for the user home holding ~/.t3extend and ~/.t3. */
+  readonly homeDirectory?: string | undefined;
 }
 
 interface KeptProject {
@@ -440,10 +443,21 @@ export const runMigrateDevDb = Effect.fn("runMigrateDevDb")(function* (
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
 
-  const sharedHome = path.resolve(options.sharedHome ?? path.join(NodeOS.homedir(), ".t3"));
-  const sourcePath = path.resolve(
-    input.source ?? path.join(sharedHome, "userdata", "statev2.sqlite"),
-  );
+  // fork: protect both homes; seed from the fork's database, falling back to official T3 Code's.
+  const sharedHomes = (
+    options.sharedHome === undefined
+      ? devSeedHomeCandidates(options.homeDirectory ?? NodeOS.homedir(), path.join)
+      : [options.sharedHome]
+  ).map((home) => path.resolve(home));
+  const sharedSources = sharedHomes.map((home) => path.join(home, "userdata", "statev2.sqlite"));
+  let defaultSource = sharedSources[0]!;
+  for (const candidate of sharedSources) {
+    if (yield* fs.exists(candidate).pipe(Effect.orElseSucceed(() => false))) {
+      defaultSource = candidate;
+      break;
+    }
+  }
+  const sourcePath = path.resolve(input.source ?? defaultSource);
 
   const baseDir =
     input.baseDir !== undefined
@@ -459,12 +473,14 @@ export const runMigrateDevDb = Effect.fn("runMigrateDevDb")(function* (
   if (!(yield* fs.exists(sourcePath))) {
     return yield* new MigrateDevDbSourceMissingError({ sourcePath });
   }
-  const [canonicalBaseDir, canonicalSharedHome] = yield* Effect.all([
-    fs.realPath(baseDir).pipe(Effect.orElseSucceed(() => baseDir)),
-    fs.realPath(sharedHome).pipe(Effect.orElseSucceed(() => sharedHome)),
-  ]);
-  if (canonicalBaseDir === canonicalSharedHome) {
-    return yield* new MigrateDevDbSharedHomeError();
+  const canonicalBaseDir = yield* fs.realPath(baseDir).pipe(Effect.orElseSucceed(() => baseDir));
+  for (const sharedHome of sharedHomes) {
+    const canonicalSharedHome = yield* fs
+      .realPath(sharedHome)
+      .pipe(Effect.orElseSucceed(() => sharedHome));
+    if (canonicalBaseDir === canonicalSharedHome) {
+      return yield* new MigrateDevDbSharedHomeError();
+    }
   }
   // Both destination and snapshot are deleted below; reject sources resolving to either.
   const canonicalSourcePath = yield* fs
@@ -591,7 +607,9 @@ export const migrateDevDbCommand = Command.make(
     ),
     source: Flag.String("source").pipe(
       Flag.optional,
-      Flag.withDescription("Source database. Defaults to ~/.t3/userdata/statev2.sqlite."),
+      Flag.withDescription(
+        "Source database. Defaults to ~/.t3extend/userdata/statev2.sqlite, else ~/.t3/userdata/statev2.sqlite.",
+      ),
     ),
   },
   ({ projects, threadsPerProject, baseDir, source }) =>
@@ -618,7 +636,7 @@ export const migrateDevDbCommand = Command.make(
     }),
 ).pipe(
   Command.withDescription(
-    "Rebuild the worktree dev database from a pruned snapshot of the real ~/.t3 data, then run migrations.",
+    "Rebuild the worktree dev database from a pruned snapshot of the real ~/.t3extend (else ~/.t3) data, then run migrations.",
   ),
 );
 

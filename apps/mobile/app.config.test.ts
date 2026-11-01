@@ -22,12 +22,20 @@ it.each(["prod", ""])("rejects APP_VARIANT=%j before selecting production IDs", 
 });
 
 it.each([
-  [undefined, "com.t3tools.t3code"],
-  ["development", "com.t3tools.t3code.dev"],
-  ["preview", "com.t3tools.t3code.preview"],
-  ["production", "com.t3tools.t3code"],
-])("keeps the iOS and Android identifiers for APP_VARIANT=%j", async (value, identifier) => {
-  const config = await loadConfig(value);
-  expect(config.ios?.bundleIdentifier).toBe(identifier);
-  expect(config.android?.package).toBe(identifier);
-});
+  [undefined, "com.simpleeve.t3extend", "t3extend"],
+  ["development", "com.simpleeve.t3extend.dev", "t3extend-dev"],
+  ["preview", "com.simpleeve.t3extend.preview", "t3extend-preview"],
+  ["production", "com.simpleeve.t3extend", "t3extend"],
+])(
+  "keeps the fork's identifiers and no official OTA source for APP_VARIANT=%j",
+  async (value, identifier, scheme) => {
+    const config = await loadConfig(value);
+    expect(config.ios?.bundleIdentifier).toBe(identifier);
+    expect(config.android?.package).toBe(identifier);
+    expect(config.scheme).toBe(scheme);
+    expect(config.updates).not.toHaveProperty("url");
+    expect(config.updates?.enabled).toBe(false);
+    expect(config.extra?.eas).not.toHaveProperty("projectId");
+    expect(config).not.toHaveProperty("owner");
+  },
+);
