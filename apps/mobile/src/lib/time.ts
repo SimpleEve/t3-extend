@@ -1,20 +1,26 @@
-export function relativeTime(input: string, nowMs: number = Date.now()): string {
+import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+
+export function relativeTime(
+  input: string,
+  nowMs: number = Date.now(),
+  t: Translator = translatorFor("en"), // fork: i18n
+): string {
   const timestamp = Date.parse(input);
   if (Number.isNaN(timestamp)) {
-    return "<1m";
+    return t("<1m");
   }
 
   const deltaSeconds = Math.max(0, Math.floor((nowMs - timestamp) / 1000));
-  if (deltaSeconds < 60) return "<1m";
+  if (deltaSeconds < 60) return t("<1m");
 
   const deltaMinutes = Math.floor(deltaSeconds / 60);
-  if (deltaMinutes < 60) return `${deltaMinutes}m`;
+  if (deltaMinutes < 60) return t("{count}m", { count: deltaMinutes });
 
   const deltaHours = Math.floor(deltaMinutes / 60);
-  if (deltaHours < 24) return `${deltaHours}h`;
+  if (deltaHours < 24) return t("{count}h", { count: deltaHours });
 
   const deltaDays = Math.floor(deltaHours / 24);
-  return `${deltaDays}d`;
+  return t("{count}d", { count: deltaDays });
 }
 
 /** Milliseconds until the relative-time label next changes. */

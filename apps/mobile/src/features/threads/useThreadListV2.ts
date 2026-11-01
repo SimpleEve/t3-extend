@@ -12,6 +12,7 @@ import {
   threadListInboxReturns,
 } from "./threadListV2";
 import { computeThreadMoveAvailability } from "./threadOrder";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 /**
  * Screens' select handlers read the content-only key set; a fresh one per list rebuild gave
@@ -66,6 +67,7 @@ export function useThreadListV2(input: {
   readonly settledShelfExpanded: boolean;
   readonly selectedThreadKey: string | null;
 }) {
+  const t = useT();
   const { threads, workingShelfEnabled } = input;
   // A thread can stop working when the threads change, or when its exit grace expires.
   const inboxVersion = useSyncExternalStore(
@@ -169,6 +171,7 @@ export function useThreadListV2(input: {
     settledShelfExpanded: input.settledShelfExpanded,
     settledShelfHeaderIndex: layout.settledShelfHeaderIndex,
     snoozeLabelNow: `${input.now.slice(0, 16)}:00.000Z`,
+    translate: t,
     snoozeEnvironmentIds: input.snoozeEnvironmentIds,
     queuedThreadKeys: input.queuedThreadKeys,
     moveAvailability,

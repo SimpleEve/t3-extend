@@ -776,4 +776,6 @@ export default {
   // Notifications generated on the device
   "Agent alerts": "Agent 提醒",
   "Agent work in progress": "Agent 正在工作",
+  // Thread list times; the other units are in time.ts
+  "<1m": "不到 1 分钟",
 } satisfies Record<string, string>;
