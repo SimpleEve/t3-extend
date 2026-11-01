@@ -1,0 +1,71 @@
+// Thread sidebar: header, sections, row status, row actions, and the thread menu.
+// Concepts follow docs/user/thread-sidebar.md; terms follow i18n/GLOSSARY.md.
+export default {
+  // Section names, keyed by context because the bare words mean other things elsewhere.
+  "sidebar section|Pinned": "已置顶",
+  "sidebar section|Active": "进行中",
+  "sidebar section|Working": "运行中",
+  "sidebar section|Snoozed": "稍后处理",
+  "sidebar section|Settled": "已处理",
+
+  // Header
+  "Search threads": "搜索对话",
+  "Clear thread search": "清除对话搜索",
+  "New thread ({shortcut})": "新建对话（{shortcut}）",
+  "New thread in current project: Shift+click": "在当前项目中新建对话：Shift+点击",
+  "New thread in current project: Shift+click ({shortcut})":
+    "在当前项目中新建对话：Shift+点击（{shortcut}）",
+  "All projects": "全部项目",
+  "Filter threads by project": "按项目筛选对话",
+  "Filter threads by project: {projects}": "按项目筛选对话：{projects}",
+  "Search projects": "搜索项目",
+  "Search projects...": "搜索项目…",
+  "No matching projects.": "没有匹配的项目。",
+
+  // Row status
+  Working: "运行中",
+  Goal: "目标",
+  Waiting: "等待中",
+  Approval: "待批准",
+  Input: "待输入",
+  Request: "请求",
+  Limited: "已限额",
+  Failed: "失败",
+  Woke: "已唤醒",
+  Done: "已完成",
+  Pinned: "已置顶",
+  "Unsent draft": "未发送的草稿",
+  "Usage limit reached": "已达到用量上限",
+  "Error occurred": "发生错误",
+  "{count} terminal process running": "{count} 个终端进程正在运行",
+  "{count} terminal processes running": "{count} 个终端进程正在运行",
+
+  // Row actions and drag badges
+  Pin: "置顶",
+  Unpin: "取消置顶",
+  Settle: "标为已处理",
+  "Un-settle": "移出已处理",
+  Wake: "唤醒",
+  "Snooze thread": "稍后处理对话",
+  "Unpin thread": "取消置顶对话",
+  "Settle thread": "将对话标为已处理",
+  "Un-settle thread": "将对话移出已处理",
+  "Wake thread now": "立即唤醒对话",
+  "Dismiss Woke notification": "关闭唤醒提醒",
+
+  // Thread menu
+  "Find in thread": "在对话中查找",
+  "New thread on {branch}": "在 {branch} 上新建对话",
+  "Pin thread": "置顶对话",
+  "Wake thread": "唤醒对话",
+  Snooze: "稍后处理",
+  "Rename thread": "重命名对话",
+  "Regenerate title": "重新生成标题",
+  "Regenerating…": "正在重新生成…",
+  "Mark unread": "标为未读",
+  "Show all projects": "显示全部项目",
+  "Filter by {project}": "只看 {project}",
+  "Turn into project": "转为项目",
+  "Auto-settle behavior": "自动标为已处理",
+  "Archive thread": "归档对话",
+} satisfies Record<string, string>;

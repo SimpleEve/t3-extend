@@ -291,6 +291,14 @@ describe("ClientSettings notifications", () => {
   });
 });
 
+describe("ClientSettings interface language", () => {
+  it("follows the system language unless a saved value says otherwise", () => {
+    expect(decodeClientSettings({}).uiLanguage).toBe("system");
+    expect(decodeClientSettings({ uiLanguage: "zh-Hans" }).uiLanguage).toBe("zh-Hans");
+    expect(decodeClientSettingsPatch({})).not.toHaveProperty("uiLanguage");
+  });
+});
+
 describe("ClientSettings quit confirmation", () => {
   it.each([
     [true, "hold"],
