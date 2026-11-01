@@ -190,10 +190,32 @@ export interface SnoozePreset {
   readonly snoozedUntil: string;
 }
 
+/** Translates a preset label's English source; `{name}` placeholders take `params`. */
+export type SnoozeLabelTranslator = (
+  source: string,
+  params?: Readonly<Record<string, string | number>>,
+) => string;
+
 export interface SnoozePresetOptions {
   readonly presets?: ReadonlyArray<SnoozePresetSetting>;
   readonly formatTime?: (date: Date) => string;
+  readonly translate?: SnoozeLabelTranslator;
 }
+
+const englishSnoozeLabel: SnoozeLabelTranslator = (source, params) =>
+  source.replace(/\{(\w+)\}/g, (match, name: string) =>
+    params && Object.hasOwn(params, name) ? String(params[name]) : match,
+  );
+
+const WEEKDAY_LABELS = {
+  sunday: "Sunday",
+  monday: "Monday",
+  tuesday: "Tuesday",
+  wednesday: "Wednesday",
+  thursday: "Thursday",
+  friday: "Friday",
+  saturday: "Saturday",
+} as const;
 
 function snoozeTimeOfDayLabel(date: Date): string {
   return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
@@ -208,19 +230,21 @@ function addSnoozeDays(base: Date, days: number): Date {
   return next;
 }
 
-function pluralize(count: number, unit: string): string {
-  return `${count} ${unit}${count === 1 ? "" : "s"}`;
+/** "In 3 hours", "In 90 minutes", "In 2 days": the largest unit that divides evenly. */
+function snoozeDurationLabel(minutes: number, t: SnoozeLabelTranslator): string {
+  if (minutes % (24 * 60) === 0) {
+    const count = minutes / (24 * 60);
+    return count === 1 ? t("In 1 day") : t("In {count} days", { count });
+  }
+  if (minutes % 60 === 0) {
+    const count = minutes / 60;
+    return count === 1 ? t("In 1 hour") : t("In {count} hours", { count });
+  }
+  return minutes === 1 ? t("In 1 minute") : t("In {count} minutes", { count: minutes });
 }
 
-/** "3 hours", "90 minutes", "2 days": the largest unit that divides evenly. */
-function formatSnoozeDuration(minutes: number): string {
-  if (minutes % (24 * 60) === 0) return pluralize(minutes / (24 * 60), "day");
-  if (minutes % 60 === 0) return pluralize(minutes / 60, "hour");
-  return pluralize(minutes, "minute");
-}
-
-function capitalize(word: string): string {
-  return word[0]!.toUpperCase() + word.slice(1);
+function namesNextWeek(setting: SnoozePresetSetting, daysAhead: number): boolean {
+  return setting.kind === "at" && daysAhead > 1 && setting.day === "monday";
 }
 
 function snoozePresetDaysAhead(
@@ -233,15 +257,21 @@ function snoozePresetDaysAhead(
 }
 
 /** Labels follow the actual day gap, so a Monday option on a Sunday reads "Tomorrow". */
-function snoozePresetLabel(setting: SnoozePresetSetting, daysAhead: number): string {
-  if (setting.kind === "after") return `In ${formatSnoozeDuration(setting.minutes)}`;
-  if (daysAhead === 0) {
+function snoozePresetLabel(
+  setting: SnoozePresetSetting,
+  daysAhead: number,
+  t: SnoozeLabelTranslator,
+): string {
+  if (setting.kind === "after") return snoozeDurationLabel(setting.minutes, t);
+  // "today" and "tomorrow" always land here; naming them narrows `day` to a weekday below.
+  if (daysAhead === 0 || setting.day === "today") {
     const hour = Number(setting.time.slice(0, 2));
-    return hour < 12 ? "This morning" : hour < 17 ? "This afternoon" : "This evening";
+    return hour < 12 ? t("This morning") : hour < 17 ? t("This afternoon") : t("This evening");
   }
-  if (daysAhead === 1) return "Tomorrow";
-  if (setting.day === "monday") return "Next week";
-  return daysAhead === 7 ? `Next ${capitalize(setting.day)}` : capitalize(setting.day);
+  if (daysAhead === 1 || setting.day === "tomorrow") return t("Tomorrow");
+  if (namesNextWeek(setting, daysAhead)) return t("Next week");
+  const day = t(WEEKDAY_LABELS[setting.day]);
+  return daysAhead === 7 ? t("Next {day}", { day }) : day;
 }
 
 export function snoozePresetId(setting: SnoozePresetSetting): string {
@@ -254,6 +284,7 @@ export function resolveSnoozePreset(
   setting: SnoozePresetSetting,
   now: Date,
   formatTime: (date: Date) => string = snoozeTimeOfDayLabel,
+  translate: SnoozeLabelTranslator = englishSnoozeLabel,
 ): SnoozePreset | null {
   let wake: Date;
   let daysAhead = 0;
@@ -266,9 +297,9 @@ export function resolveSnoozePreset(
     // A today option whose time has passed is left out until tomorrow.
     if (wake.getTime() <= now.getTime()) return null;
   }
-  const label = snoozePresetLabel(setting, daysAhead);
+  const label = snoozePresetLabel(setting, daysAhead, translate);
   // Durations and "Next week" don't name the wake day, so a wake on another day shows it.
-  const labelNamesDay = setting.kind === "at" && label !== "Next week";
+  const labelNamesDay = setting.kind === "at" && !namesNextWeek(setting, daysAhead);
   const time = formatTime(wake);
   return {
     id: snoozePresetId(setting),
@@ -292,7 +323,9 @@ export function resolveSnoozePresets(
   const seen = new Set<number>();
   return (
     (options.presets ?? DEFAULT_SNOOZE_PRESETS)
-      .flatMap((setting) => resolveSnoozePreset(setting, now, options.formatTime) ?? [])
+      .flatMap(
+        (setting) => resolveSnoozePreset(setting, now, options.formatTime, options.translate) ?? [],
+      )
       // flatMap returned a new array; Hermes has no `toSorted`.
       .sort((a, b) => wakeMinute(a) - wakeMinute(b))
       .filter((preset) => {
@@ -313,6 +346,7 @@ export function pickSnoozePreset(input: {
   readonly now: Date;
   readonly presets?: ReadonlyArray<SnoozePresetSetting>;
   readonly formatTime?: (date: Date) => string;
+  readonly translate?: SnoozeLabelTranslator;
 }): SnoozePreset | undefined {
   const original = input.shown.find((preset) => preset.id === input.id);
   const ahead =
@@ -320,18 +354,26 @@ export function pickSnoozePreset(input: {
   const setting = (input.presets ?? DEFAULT_SNOOZE_PRESETS).find(
     (candidate) => candidate.kind === "after" && snoozePresetId(candidate) === input.id,
   );
-  return (setting && resolveSnoozePreset(setting, input.now, input.formatTime)) ?? ahead;
+  return (
+    (setting && resolveSnoozePreset(setting, input.now, input.formatTime, input.translate)) ?? ahead
+  );
 }
 
-export function snoozeWakeLabel(snoozedUntil: string, options: { readonly now: string }): string {
+export function snoozeWakeLabel(
+  snoozedUntil: string,
+  options: { readonly now: string; readonly translate?: SnoozeLabelTranslator },
+): string {
+  const t = options.translate ?? englishSnoozeLabel;
   const wakeMs = Date.parse(snoozedUntil);
   const nowMs = Date.parse(options.now);
-  if (Number.isNaN(wakeMs) || Number.isNaN(nowMs)) return "now";
+  if (Number.isNaN(wakeMs) || Number.isNaN(nowMs)) return t("now");
   const remainingMs = wakeMs - nowMs;
-  if (remainingMs <= 0) return "now";
-  if (remainingMs < HOUR_MS) return `${Math.max(1, Math.ceil(remainingMs / 60_000))}m`;
-  if (remainingMs < DAY_MS) return `${Math.ceil(remainingMs / HOUR_MS)}h`;
-  return `${Math.ceil(remainingMs / DAY_MS)}d`;
+  if (remainingMs <= 0) return t("now");
+  if (remainingMs < HOUR_MS) {
+    return t("{count}m", { count: Math.max(1, Math.ceil(remainingMs / 60_000)) });
+  }
+  if (remainingMs < DAY_MS) return t("{count}h", { count: Math.ceil(remainingMs / HOUR_MS) });
+  return t("{count}d", { count: Math.ceil(remainingMs / DAY_MS) });
 }
 
 export type CustomSnoozeInput =

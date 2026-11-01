@@ -8,4 +8,6 @@ export default {
   "{count}m": "{count} 分钟",
   "{count}h": "{count} 小时",
   "{count}d": "{count} 天",
+  // A snoozed thread's time left once it is due; "now" alone means "just now".
+  "time remaining|now": "马上",
 } satisfies Record<string, string>;
