@@ -777,6 +777,11 @@ export default {
     "选择你信任的环境，让它们共享 PR 数据并互相使用源代码管理权限。两个环境都需要开启。只对这个客户端生效。",
   "Failed to connect. Reconnecting... Reason: {error}": "连接失败，正在重新连接... 原因：{error}",
   "Connection failed. Reason: {error}": "连接失败。原因：{error}",
+  // Thread connection banner
+  "Failed to connect. Retrying {name}...": "连接失败，正在重试 {name}...",
+  "Failed to connect to {name}": "无法连接到 {name}",
+  "Failed to connect to {name}: {error}": "无法连接到 {name}：{error}",
+  "{name} is not connected": "{name} 未连接",
   // Workspace navigation
   "New chat": "新聊天",
   "All sections are hidden": "所有分区都已隐藏",
