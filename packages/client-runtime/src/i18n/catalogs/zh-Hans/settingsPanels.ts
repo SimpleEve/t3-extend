@@ -1869,6 +1869,8 @@ export default {
   Submodules: "子模块",
   "Start from remote": "从远程分支开始",
   "Add project starts in": "添加项目的起始目录",
+  'Leave empty to use "~/" when the Add Project browser opens.':
+    "留空时，打开添加项目的目录浏览器会从“~/”开始。",
   "Unpin confirmation": "取消置顶确认",
   "Archive confirmation": "归档确认",
   "Delete confirmation": "删除确认",
