@@ -17,6 +17,7 @@ import {
   usePendingReviewComments,
   usePullRequestReviewStore,
 } from "./pullRequestReviewStore";
+import { useT } from "~/hooks/useT"; // fork: interface language
 
 const VERDICTS: ReadonlyArray<{
   readonly value: PullRequestReviewVerdict;
@@ -66,6 +67,7 @@ export function PullRequestReviewForm({
   onPendingChange: (pending: boolean) => void;
   onSubmitted: () => void;
 }) {
+  const t = useT();
   const [requestedVerdict, setRequestedVerdict] = useState<PullRequestReviewVerdict>("comment");
   const comments = usePendingReviewComments(reference);
   const reviewKey = pullRequestReviewKey(reference);
@@ -99,7 +101,7 @@ export function PullRequestReviewForm({
     if (result._tag === "Failure") {
       toastManager.add({
         type: "error",
-        title: "The review could not be submitted",
+        title: t("The review could not be submitted"),
         description: readableFailure(
           squashAtomCommandFailure(result),
           "The host refused the review. Your draft is still here to try again.",
@@ -124,10 +126,10 @@ export function PullRequestReviewForm({
       : verdict === "approve" || summary.trim().length > 0 || comments.length > 0;
   const placeholder =
     selectedVerdict === undefined || canSubmit(selectedVerdict.value, "")
-      ? "Summarize your review (optional)"
+      ? t("Summarize your review (optional)")
       : selectedVerdict.value === "request-changes" && requestChangesSummaryRequired
-        ? "Summarize your review (required to request changes)"
-        : "Summarize your review or add line comments";
+        ? t("Summarize your review (required to request changes)")
+        : t("Summarize your review or add line comments");
 
   return (
     <>
@@ -136,7 +138,7 @@ export function PullRequestReviewForm({
         rows={3}
         value={body}
         placeholder={placeholder}
-        aria-label="Review summary"
+        aria-label={t("Review summary")}
         onChange={(event) => setSummary(reviewKey, event.target.value)}
       />
       <div className="mt-2 flex justify-end gap-2">
@@ -148,7 +150,11 @@ export function PullRequestReviewForm({
               if (value !== null) setRequestedVerdict(value);
             }}
           >
-            <SelectTrigger size="xs" className="mr-auto w-auto min-w-0" aria-label="Review verdict">
+            <SelectTrigger
+              size="xs"
+              className="mr-auto w-auto min-w-0"
+              aria-label={t("Review verdict")}
+            >
               <span className="flex items-center gap-1.5">
                 {selectedVerdict?.icon}
                 {selectedVerdict?.label}
@@ -175,7 +181,7 @@ export function PullRequestReviewForm({
             if (selectedVerdict !== undefined) void submit(selectedVerdict);
           }}
         >
-          {pending ? "Submitting..." : "Submit review"}
+          {pending ? t("Submitting...") : t("Submit review")}
         </Button>
       </div>
     </>

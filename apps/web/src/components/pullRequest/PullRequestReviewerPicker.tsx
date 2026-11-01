@@ -15,6 +15,7 @@ import { toastManager } from "../ui/toast";
 import { PullRequestCandidatePicker } from "./PullRequestCandidatePicker";
 import { PullRequestActorLabel } from "./pullRequestPresentation";
 import { readableFailure } from "./pullRequestDetail.logic";
+import { useT } from "~/hooks/useT"; // fork: interface language
 
 function matches(candidate: PullRequestReviewerCandidate, query: string): boolean {
   if (query.length === 0) return true;
@@ -34,6 +35,7 @@ export function PullRequestReviewerPicker({
   reference: PullRequestRef;
   allowed: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export function PullRequestReviewerPicker({
   return (
     <PullRequestCandidatePicker
       icon={<UserPlusIcon className="size-3.5" />}
-      label="Request a review"
+      label={t("Request a review")}
       allowed={allowed}
       disabledReason="Asking someone to review needs write access on this repository"
       open={open}
@@ -112,7 +114,7 @@ export function PullRequestReviewerPicker({
             <span className="shrink-0 text-muted-foreground">team</span>
           ) : null}
           {candidate.isRequested ? (
-            <CheckIcon aria-label="Already asked" className="size-3.5 shrink-0" />
+            <CheckIcon aria-label={t("Already asked")} className="size-3.5 shrink-0" />
           ) : null}
         </>
       )}

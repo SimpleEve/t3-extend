@@ -11,6 +11,7 @@ import { toastManager } from "../ui/toast";
 import { PullRequestCandidatePicker } from "./PullRequestCandidatePicker";
 import { readableFailure } from "./pullRequestDetail.logic";
 import { pullRequestLabelColor } from "./pullRequestList.logic";
+import { useT } from "~/hooks/useT"; // fork: interface language
 
 function matches(candidate: PullRequestLabelCandidate, query: string): boolean {
   if (query.length === 0) return true;
@@ -30,6 +31,7 @@ export function PullRequestLabelPicker({
   reference: PullRequestRef;
   allowed: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState<string | null>(null);
@@ -71,7 +73,7 @@ export function PullRequestLabelPicker({
   return (
     <PullRequestCandidatePicker
       icon={<TagIcon className="size-3.5" />}
-      label="Change labels"
+      label={t("Change labels")}
       allowed={allowed}
       disabledReason="Changing labels needs triage access on this repository"
       open={open}
@@ -107,7 +109,7 @@ export function PullRequestLabelPicker({
               ) : null}
             </span>
             {candidate.isApplied ? (
-              <CheckIcon aria-label="Applied" className="size-3.5 shrink-0" />
+              <CheckIcon aria-label={t("Applied")} className="size-3.5 shrink-0" />
             ) : null}
           </>
         );
