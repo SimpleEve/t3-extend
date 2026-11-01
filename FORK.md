@@ -33,6 +33,7 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的私有二开 for
   - 移动端默认关闭 OTA，也不带官方 EAS 的 `projectId` 和 `owner`。
 - 配对链接两种都认：fork 客户端能扫官方 server 的二维码（`t3code://pair`），fork 生成的链接是 `t3extend://pair`。
   mobile 把 `pair` 当作 `connections/new` 的别名（`apps/mobile/src/Stack.tsx`），系统相机扫码直接进添加环境页。上游只在 `__DEV__` 下用链接里的 `pairingUrl` 预填表单，release 包会打开空表单。
+  Android 冷启动时，启动画面会挡住窗口绘制，这期间弹出的 formSheet 会停在屏幕外。所以冷启动链接的初始 state 先不带弹层，等启动画面隐藏后再 navigate 过去（`apps/mobile/src/fork/initialLinkSheet.ts`）。
 
 例外和限制：
 
