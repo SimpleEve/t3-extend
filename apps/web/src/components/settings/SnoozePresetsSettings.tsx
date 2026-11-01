@@ -35,7 +35,8 @@ import {
   useScopedSettingsMixed,
   useUpdateScopedSettings,
 } from "./useScopedSettings";
-import { useT } from "../../hooks/useT";
+import { uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: interface language
+import { useT, useUiLocale } from "../../hooks/useT";
 
 const UNIT_MINUTES = { minutes: 1, hours: 60, days: 24 * 60 } as const;
 type DurationUnit = keyof typeof UNIT_MINUTES;
@@ -235,6 +236,7 @@ function SnoozePresetList(props: {
   onSettle: () => void;
 }) {
   const t = useT();
+  const weekdayLocale = uiLocaleFormatTag(useUiLocale()); // fork: preview matches the menus
   const nowMinute = useNowMinute();
   const now = new Date(`${nowMinute}Z`);
   const formatTime = (date: Date) =>
@@ -242,20 +244,25 @@ function SnoozePresetList(props: {
   const seenIds = new Set<string>();
   const seenWakes = new Set<string>();
   const previews = props.presets.map((preset) => {
-    const resolved = resolveSnoozePreset(preset, now, formatTime);
-    if (resolved === null) return { tone: "muted", text: "Passed for today" } as const;
+    const resolved = resolveSnoozePreset(preset, now, formatTime, t, weekdayLocale); // fork
+    if (resolved === null) return { tone: "muted", text: t("Passed for today") } as const;
     if (seenIds.has(resolved.id)) {
-      return { tone: "muted", text: "Duplicate of an option above" } as const;
+      return { tone: "muted", text: t("Duplicate of an option above") } as const;
     }
     if (seenWakes.has(resolved.snoozedUntil)) {
-      return { tone: "muted", text: "Same time as an option above" } as const;
+      return { tone: "muted", text: t("Same time as an option above") } as const;
     }
     seenIds.add(resolved.id);
     seenWakes.add(resolved.snoozedUntil);
     return { tone: "menu", label: resolved.label, when: resolved.whenLabel } as const;
   });
 
-  const menuPresets = resolveSnoozePresets(now, { presets: props.presets, formatTime });
+  const menuPresets = resolveSnoozePresets(now, {
+    presets: props.presets,
+    formatTime,
+    translate: t, // fork: interface language
+    weekdayLocale,
+  });
   const repeatedLabels = new Set(
     menuPresets
       .map((preset) => preset.label)

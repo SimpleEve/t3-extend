@@ -278,7 +278,10 @@ function AggregateCard({
         <MetricPair label="CPU" value={`${aggregate.currentCpuPercent.toFixed(1)}%`} />
         <MetricPair label={t("Memory")} value={formatBytes(aggregate.currentRssBytes)} />
         <MetricPair label={t("Read")} value={formatRate(aggregate.ioReadBytesPerSecond)} />
-        <MetricPair label={t("Write")} value={formatRate(aggregate.ioWriteBytesPerSecond)} />
+        <MetricPair
+          label={t("Write", undefined, "disk io")}
+          value={formatRate(aggregate.ioWriteBytesPerSecond)}
+        />
       </div>
     </div>
   );
@@ -700,7 +703,9 @@ function HistoryProcessTable({
               <th className="px-3 py-2 text-right font-semibold">{t("Peak CPU")}</th>
               <th className="px-3 py-2 text-right font-semibold">{t("Peak Mem")}</th>
               <th className="px-3 py-2 text-right font-semibold">{t("Read")}</th>
-              <th className="px-3 py-2 text-right font-semibold">{t("Write")}</th>
+              <th className="px-3 py-2 text-right font-semibold">
+                {t("Write", undefined, "disk io")}
+              </th>
               <th className="px-3 py-2 text-right font-semibold">{t("Samples")}</th>
               <th className="px-3 py-2 text-right font-semibold sm:pr-5">PID</th>
             </tr>

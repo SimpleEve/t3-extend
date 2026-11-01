@@ -326,7 +326,7 @@ function AboutVersionSection() {
                   disabled={updateRun !== null}
                   onClick={() => setSwitchChannel(selectedUpdateChannel)}
                 >
-                  {t("Review")}
+                  {t("Review", undefined, "update channel")}
                 </Button>
               </>
             ) : (

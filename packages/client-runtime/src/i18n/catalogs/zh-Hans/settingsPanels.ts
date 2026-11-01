@@ -870,7 +870,7 @@ export default {
   "Waiting for sample": "正在等待样本",
   Updated: "已更新",
   Read: "读取",
-  Write: "写入",
+  "disk io|Write": "写入",
   "Available when this page runs inside the desktop app.": "此页面在桌面应用中运行时可用。",
   "Desktop only": "仅桌面端",
   "Resource history period": "资源历史时段",
@@ -1099,7 +1099,7 @@ export default {
   "Update check failed.": "检查更新失败。",
   "1 machine still runs": "还有 1 台机器在运行",
   "{unswitchedMachines} machines still run": "还有 {unswitchedMachines} 台机器在运行",
-  Review: "查看",
+  "update channel|Review": "查看",
   "Switches this app and every connected machine whose database the target release supports.":
     "切换此应用，以及所有数据库受目标版本支持的已连接机器。",
   "Update track": "更新通道",
@@ -1843,7 +1843,7 @@ export default {
   Hold: "按住",
   "Double press": "双击",
   "System default": "系统默认",
-  Stacked: "堆叠",
+  Stacked: "上下排列",
   Split: "并排",
   "Text appears once the agent finishes its turn.": "Agent 完成本轮次后才显示文本。",
   "Each paragraph or code block appears as soon as it is complete.":
@@ -1894,7 +1894,7 @@ export default {
   "Environment icon": "环境图标",
   "Network access": "网络访问",
   "Hold webhooks while offline": "离线时暂存 webhook",
-  "This machine": "这台机器",
+  "This machine": "本机",
   "Load balancing": "负载均衡",
   "Pull request sharing": "PR 共享",
   "Secret providers": "密钥 provider",
@@ -2000,4 +2000,7 @@ export default {
   Clone: "克隆",
   "Create & Add": "创建并添加",
   Lookup: "查找",
+  "Passed for today": "今天的时间已过",
+  "Duplicate of an option above": "与上面的选项重复",
+  "Same time as an option above": "与上面的选项时间相同",
 } satisfies Record<string, string>;

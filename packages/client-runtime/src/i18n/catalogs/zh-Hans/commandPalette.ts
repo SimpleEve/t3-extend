@@ -78,7 +78,7 @@ export default {
   "Windows-style paths are only supported on Windows.": "Windows 风格的路径只在 Windows 上支持。",
   "Relative paths require an active project.": "相对路径需要有一个当前项目。",
   "Failed to open project": "无法打开项目",
-  "An error occurred.": "发生了错误。",
+  "An error occurred.": "发生错误。",
   "Cannot add project": "无法添加项目",
   "This connection cannot add projects.": "此连接无法添加项目。",
   "Repository lookup failed": "仓库查找失败",

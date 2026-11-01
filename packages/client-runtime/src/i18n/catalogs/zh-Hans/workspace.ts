@@ -207,7 +207,7 @@ export default {
   "Disable line wrapping": "关闭自动换行",
   "Enable line wrapping": "开启自动换行",
   "Show whitespace changes": "显示空白字符的更改",
-  "Hide whitespace changes": "隐藏空白字符的更改",
+  "Hide whitespace changes": "隐藏空白变更",
   "Hide test files": "隐藏测试文件",
   "Show 1 hidden test file": "显示 1 个已隐藏的测试文件",
   "Show {count} hidden test files": "显示 {count} 个已隐藏的测试文件",
