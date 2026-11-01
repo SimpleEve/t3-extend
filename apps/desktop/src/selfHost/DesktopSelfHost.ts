@@ -23,6 +23,9 @@ import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as ManagedTunnel from "./ManagedTunnel.ts";
 
 const TUNNEL_SETTINGS_FILE_NAME = "self-host-tunnel.json";
+// The tunnel command runs on this machine, so other local users must not edit it.
+const SETTINGS_FILE_MODE = 0o600;
+const SETTINGS_DIRECTORY_MODE = 0o700;
 const MAX_COMMAND_LENGTH = 2_000;
 
 const TunnelSettingsDocument = Schema.Struct({
@@ -113,11 +116,15 @@ const make = Effect.gen(function* () {
     content: string,
   ) {
     const tempPath = `${path}.${process.pid}.tmp`;
-    yield* fs.makeDirectory(environment.stateDir, { recursive: true }).pipe(
-      Effect.andThen(fs.writeFileString(tempPath, content)),
-      Effect.andThen(fs.rename(tempPath, path)),
-      Effect.mapError((cause) => new DesktopSelfHostWriteError({ path, cause })),
-    );
+    yield* fs
+      .makeDirectory(environment.stateDir, { recursive: true, mode: SETTINGS_DIRECTORY_MODE })
+      .pipe(
+        Effect.andThen(fs.writeFileString(tempPath, content, { mode: SETTINGS_FILE_MODE })),
+        // `mode` applies only on creation, and a leftover temp file keeps its old mode.
+        Effect.andThen(fs.chmod(tempPath, SETTINGS_FILE_MODE)),
+        Effect.andThen(fs.rename(tempPath, path)),
+        Effect.mapError((cause) => new DesktopSelfHostWriteError({ path, cause })),
+      );
   });
 
   const getState = Effect.gen(function* () {

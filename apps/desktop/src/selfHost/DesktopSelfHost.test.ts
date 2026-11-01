@@ -69,10 +69,17 @@ describe("DesktopSelfHost", () => {
         const environment = yield* DesktopEnvironment.DesktopEnvironment;
         const state = yield* selfHost.setPublicUrls(["https://t3.example.com", "not a url"]);
         yield* selfHost.setTunnel({ command: "  frpc -c ~/frpc.toml  ", enabled: true });
+        const modeOf = (path: string) =>
+          fs.stat(path).pipe(Effect.map((info) => info.mode & 0o777));
         return {
           state,
           file: yield* fs.readFileString(DesktopSelfHost.publicUrlsFilePath(environment)),
           publicUrls: yield* selfHost.publicUrls,
+          modes: [
+            yield* modeOf(environment.stateDir),
+            yield* modeOf(DesktopSelfHost.publicUrlsFilePath(environment)),
+            yield* modeOf(environment.path.join(environment.stateDir, "self-host-tunnel.json")),
+          ],
         };
       }).pipe(Effect.provide(layerFor(baseDir, spawned, env)), Effect.scoped);
 
@@ -80,6 +87,9 @@ describe("DesktopSelfHost", () => {
       assert.deepEqual(first.state.environmentPublicUrls, ["https://env.example.com/"]);
       assert.deepEqual(first.publicUrls, ["https://env.example.com/", "https://t3.example.com/"]);
       assert.include(first.file, "https://t3.example.com/");
+      if (HostProcess.Platform.defaultValue() !== "win32") {
+        assert.deepEqual(first.modes, [0o700, 0o600, 0o600]);
+      }
       assert.strictEqual(yield* Ref.get(spawned), 1);
 
       const restarted = yield* Effect.gen(function* () {
