@@ -14,11 +14,14 @@ import { ControlPill } from "../../components/ui/ControlPill";
 import { useAppForeground } from "../../lib/appState";
 import { AppBar } from "../../components/ui/AppBar";
 
-import { useThreadServerBrowserTabs } from "../../state/preview";
+import { useHardwareBack } from "../../lib/backHandler";
+import { useT } from "../../hooks/useT";
+import { useCanOpenBrowserTab, useThreadServerBrowserTabs } from "../../state/preview";
 import { usePreparedConnection } from "../../state/session";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { BrowserTabMenu } from "./BrowserTabMenu";
 import { browserTabTitle, browserTabUrl, latestBrowserTab } from "./browserTabs";
+import { NewBrowserTabPanel } from "./NewBrowserTabPanel";
 import {
   PreviewStreamWebView,
   type PreviewPictureInPictureState,
@@ -33,6 +36,8 @@ type BrowserPreviewRouteScreenProps = StaticScreenProps<{
   readonly environmentId: string;
   readonly threadId: string;
   readonly tabId?: string;
+  /** Opens the new tab panel first, even when the thread already has tabs. */
+  readonly newTab?: string;
 }>;
 
 export function BrowserPreviewRouteScreen({ route }: BrowserPreviewRouteScreenProps) {
@@ -55,6 +60,7 @@ export function BrowserPreviewRouteScreen({ route }: BrowserPreviewRouteScreenPr
               environmentId={EnvironmentId.make(route.params.environmentId)}
               threadId={ThreadId.make(route.params.threadId)}
               initialTabId={route.params.tabId ?? null}
+              startWithNewTab={route.params.newTab !== undefined}
               onClose={onClose}
             />
           )}
@@ -68,13 +74,16 @@ function BrowserPreviewScreen({
   environmentId,
   threadId,
   initialTabId,
+  startWithNewTab,
   onClose,
 }: {
   readonly environmentId: EnvironmentId;
   readonly threadId: ThreadId;
   readonly initialTabId: string | null;
+  readonly startWithNewTab: boolean;
   readonly onClose: () => void;
 }) {
+  const t = useT();
   const insets = useSafeAreaInsets();
   const { themeVariables } = useAppearancePreferences();
   const prepared = usePreparedConnection(environmentId);
@@ -87,45 +96,76 @@ function BrowserPreviewScreen({
   const [canControl, setCanControl] = useState(false);
   const streamRef = useRef<PreviewStreamRef>(null);
   const { tabs, loaded } = useThreadServerBrowserTabs({ environmentId, threadId, enabled: true });
-  const tab = tabs.find((entry) => entry.tabId === selectedTabId) ?? latestBrowserTab(tabs);
+  const canOpenTab = useCanOpenBrowserTab(environmentId);
+  const [composing, setComposing] = useState(startWithNewTab);
+  // The tab `preview.open` returned, until its event lands in the tab list.
+  const [pendingTabId, setPendingTabId] = useState<string | null>(null);
+  if (pendingTabId !== null && tabs.some((entry) => entry.tabId === pendingTabId)) {
+    setPendingTabId(null);
+  }
+  const tab =
+    tabs.find((entry) => entry.tabId === selectedTabId) ??
+    (pendingTabId === null ? latestBrowserTab(tabs) : null);
   const pdfUri =
     tab?.navStatus._tag === "Success" ? previewPdfAssetUrl(tab.navStatus.url, httpBaseUrl) : null;
   const tabId = tab?.tabId ?? null;
-  if (tabId !== null && tabId !== selectedTabId) {
+  if (tabId !== null && tabId !== selectedTabId && pendingTabId === null) {
     setPictureInPicture(NO_PICTURE_IN_PICTURE);
     setSelectedTabId(tabId);
   }
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- closes the focused route through the navigator once the thread has no browser tabs left
   useEffect(() => {
-    if (focused && loaded && tabs.length === 0) onClose();
-  }, [focused, loaded, tabs.length, onClose]);
+    if (focused && loaded && tabs.length === 0 && !composing && pendingTabId === null) onClose();
+  }, [focused, loaded, tabs.length, composing, pendingTabId, onClose]);
+  // Back leaves the panel for the open tabs; with none open it closes the browser.
+  useHardwareBack(composing && tabs.length > 0, () => {
+    setComposing(false);
+    return true;
+  });
+  const onTabOpened = (next: string) => {
+    setPictureInPicture(NO_PICTURE_IN_PICTURE);
+    setPendingTabId(next);
+    setSelectedTabId(next);
+    setComposing(false);
+  };
   const onPictureInPicture = (state: PreviewPictureInPictureState, detail?: string) => {
     setPictureInPicture({ supported: state.supported, active: state.active });
-    if (detail) Dialog.alert("Picture in picture is unavailable", detail);
+    if (detail) Dialog.alert(t("Picture in picture is unavailable"), detail);
   };
   const selectTab = (next: string) => {
     setPictureInPicture(NO_PICTURE_IN_PICTURE);
     setSelectedTabId(next);
+    setComposing(false);
   };
   const live = (focused && foreground) || pictureInPicture.active;
+  const title = composing ? t("New tab") : tab ? browserTabTitle(tab) : t("Browser");
+  const onBack = composing && tabs.length > 0 ? () => setComposing(false) : onClose;
+  const newTabAction = {
+    accessibilityLabel: t("New tab"),
+    icon: "plus" as const,
+    selected: composing,
+    onPress: () => setComposing(true),
+  };
 
   return (
     <View className="flex-1 bg-sheet" style={{ paddingBottom: insets.bottom }}>
       <AppBar
-        title={tab ? browserTabTitle(tab) : "Browser"}
+        title={title}
         sidebar={false}
-        onBack={onClose}
+        onBack={onBack}
         options={{ headerBackVisible: false }}
         actions={
           // Android WebView cannot play video in picture in picture.
           Platform.OS === "ios" &&
+          !composing &&
           pictureInPicture.supported &&
           (pictureInPicture.active || pdfUri === null)
             ? [
+                newTabAction,
                 {
                   accessibilityLabel: pictureInPicture.active
-                    ? "Exit picture in picture"
-                    : "Picture in picture",
+                    ? t("Exit picture in picture")
+                    : t("Picture in picture"),
                   icon: {
                     ios: pictureInPicture.active ? "pip.exit" : "pip.enter",
                     android: "visibility",
@@ -134,13 +174,13 @@ function BrowserPreviewScreen({
                   onPress: () => streamRef.current?.togglePictureInPicture(),
                 },
               ]
-            : []
+            : [newTabAction]
         }
         menus={
           tabs.length > 1
             ? [
                 {
-                  title: "Tabs",
+                  title: t("Tabs"),
                   icon: "square.on.square",
                   items: tabs.map((entry) => ({
                     id: entry.tabId,
@@ -155,13 +195,16 @@ function BrowserPreviewScreen({
         }
       />
       {Platform.OS === "ios" ? (
-        <SheetHeader
-          title={tab ? browserTabTitle(tab) : "Browser"}
-          onClose={onClose}
-          accessibilityLabel="Close browser"
-        />
+        <SheetHeader title={title} onClose={onClose} accessibilityLabel={t("Close browser")} />
       ) : null}
-      {tab ? (
+      {composing ? (
+        <NewBrowserTabPanel
+          environmentId={environmentId}
+          threadId={threadId}
+          canOpen={canOpenTab}
+          onOpened={onTabOpened}
+        />
+      ) : tab ? (
         <>
           <BrowserAddressBar
             key={`address:${tab.tabId}`}

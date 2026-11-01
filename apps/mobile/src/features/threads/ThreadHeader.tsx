@@ -7,6 +7,7 @@ import type { ThreadInspectorMode } from "./thread-inspector-content-stack";
 import { useThreadHeaderOptions } from "./useThreadHeaderOptions";
 import { useWorkspaceBackNavigation } from "../workspace/useAndroidWorkspaceNavigation";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
+import { useT } from "../../hooks/useT";
 
 export function ThreadHeader(
   props: Parameters<typeof useThreadHeaderOptions>[0] & {
@@ -17,8 +18,11 @@ export function ThreadHeader(
     readonly onToggleInspector: () => void;
     readonly onOpenGitInspector: () => void;
     readonly onOpenFilesInspector: () => void;
+    // fork: opens the browser's new tab panel; absent when the host has no server browser.
+    readonly onOpenNewBrowserTab?: () => void;
   },
 ) {
+  const t = useT();
   const goBack = useWorkspaceBackNavigation("threads");
   const { layout, panes, toggleAuxiliaryPane, composerKeyboardActive } =
     useAdaptiveWorkspaceLayout();
@@ -49,6 +53,13 @@ export function ThreadHeader(
         onPress: () => onOpenTerminal(null),
       });
     }
+    if (props.onOpenNewBrowserTab) {
+      actions.push({
+        accessibilityLabel: t("New browser tab"),
+        icon: "globe",
+        onPress: props.onOpenNewBrowserTab,
+      });
+    }
     actions.push({
       accessibilityLabel: "Open git controls",
       icon: "point.topleft.down.curvedto.point.bottomright.up",
@@ -74,6 +85,8 @@ export function ThreadHeader(
     props.hasThreadCwd,
     props.hasWorkspaceRoot,
     props.gitControls.canOpenTerminal,
+    props.onOpenNewBrowserTab,
+    t,
   ]);
 
   return (

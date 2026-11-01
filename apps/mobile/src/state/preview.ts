@@ -4,6 +4,7 @@ import { PREVIEW_STREAM_BASE_PATH } from "@t3tools/client-runtime/preview/server
 import { createPreviewEnvironmentAtoms } from "@t3tools/client-runtime/state/preview";
 import { resolveDeviceHubAccess } from "@t3tools/client-runtime/state/deviceHubAccess";
 import type {
+  DiscoveredLocalServerList,
   EnvironmentId,
   PreviewEvent,
   PreviewListResult,
@@ -175,4 +176,22 @@ export function usePreviewStreamAccess(environmentId: EnvironmentId) {
     refresh: query.refresh,
     retryAfter: (delayMs: number) => retryPreviewStreamAccess(environmentId, delayMs),
   };
+}
+
+/** Servers listening on the environment's host, including any of `configuredUrls` that answer. */
+export function useDiscoveredLocalServers(
+  environmentId: EnvironmentId,
+  configuredUrls: ReadonlyArray<string>,
+): DiscoveredLocalServerList | null {
+  const query = useEnvironmentQuery(
+    previewEnvironment.discoveredServers({
+      environmentId,
+      input: configuredUrls.length > 0 ? { configuredUrls } : {},
+    }),
+  );
+  return query.data;
+}
+
+export function useCanOpenBrowserTab(environmentId: EnvironmentId): boolean {
+  return useAtomValue(previewEnvironment.open.permissionAtom(environmentId));
 }

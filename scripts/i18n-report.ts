@@ -6,7 +6,12 @@ import * as NodePath from "node:path";
 // whose English source no longer appears in code (usually because upstream reworded it).
 // It only reports and always exits 0; see FORK.md "多语言".
 
-const ROOTS = ["apps/web/src", "apps/desktop/src", "packages/client-runtime/src"];
+const ROOTS = [
+  "apps/web/src",
+  "apps/desktop/src",
+  "apps/mobile/src",
+  "packages/client-runtime/src",
+];
 const CATALOG_ROOT = "packages/client-runtime/src/i18n/catalogs";
 // Mirrors CONTEXT_SEPARATOR in packages/client-runtime/src/i18n/translate.ts.
 const CONTEXT_SEPARATOR = "|";

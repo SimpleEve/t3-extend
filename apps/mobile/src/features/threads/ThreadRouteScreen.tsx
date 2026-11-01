@@ -30,7 +30,7 @@ import {
   projectScriptTerminalInput,
   resolveProjectScripts,
 } from "@t3tools/shared/projectScripts";
-import { Platform } from "react-native";
+import { Keyboard, Platform } from "react-native";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useConnectionsReady } from "../../state/workspace";
@@ -605,6 +605,15 @@ function ThreadRouteContent(
     setChosenInspectorMode(props.renderInspector === undefined ? "files" : "route");
     showAuxiliaryPane("inspector");
   };
+  const handleOpenNewBrowserTab = () => {
+    if (selectedThread === null) return;
+    Keyboard.dismiss();
+    navigation.navigate("ThreadBrowserPreview", {
+      environmentId: String(selectedThread.environmentId),
+      threadId: String(selectedThread.id),
+      newTab: "1",
+    });
+  };
   const handleToggleInspector = () => {
     if (inspectorMode === null) {
       handleOpenFilesInspector();
@@ -1022,6 +1031,12 @@ function ThreadRouteContent(
                 onToggleInspector={handleToggleInspector}
                 onOpenGitInspector={handleOpenGitInspector}
                 onOpenFilesInspector={handleOpenFilesInspector}
+                onOpenNewBrowserTab={
+                  // fork: the new tab panel opens pages in the host's headless browser.
+                  routeEnvironmentRuntime?.serverConfig?.environment.capabilities.serverBrowser
+                    ? handleOpenNewBrowserTab
+                    : undefined
+                }
                 onReturnToThread={props.onReturnToThread}
               />
             )
