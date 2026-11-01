@@ -36,6 +36,10 @@ import {
   type PreviewStreamConfiguration,
 } from "./preview-stream-document";
 
+// fork: phones often stream over a public route and a dense screen hides JPEG loss, so frames
+// use quality 60 instead of the server's 70. Frame size already stops at the view's px (at most 2x).
+const PHONE_STREAM_QUALITY = 60;
+
 export interface PreviewStreamRef {
   readonly command: (input: PreviewStreamInput) => void;
   readonly paste: () => void;
@@ -112,7 +116,7 @@ function offerDownload(download: PreviewStreamDownload) {
 const MAX_REFUSALS = 3;
 
 export function PreviewStreamWebView(
-  props: Omit<PreviewStreamConfiguration, "access"> &
+  props: Omit<PreviewStreamConfiguration, "access" | "quality"> &
     Omit<NativeStreamBridge, "onUnauthorized" | "onRefused"> & {
       readonly environmentId: EnvironmentId;
       readonly paused?: boolean;
@@ -162,7 +166,7 @@ export function PreviewStreamWebView(
 function AuthorizedPreviewStream({
   ref,
   ...props
-}: PreviewStreamConfiguration & NativeStreamBridge) {
+}: Omit<PreviewStreamConfiguration, "quality"> & NativeStreamBridge) {
   const [attempt, setAttempt] = useState(0);
   const [previousAccess, setPreviousAccess] = useState(props.access);
   // Wait for refreshed access, including cookie credentials with unchanged JSON.
@@ -178,6 +182,7 @@ function AuthorizedPreviewStream({
     tabId: props.tabId,
     interactive: props.interactive,
     background: props.background,
+    quality: PHONE_STREAM_QUALITY,
   } satisfies PreviewStreamConfiguration);
   return (
     <PreviewStreamDocumentView

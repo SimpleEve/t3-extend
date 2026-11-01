@@ -12,6 +12,8 @@ export interface PreviewStreamConfiguration {
   readonly tabId: string;
   readonly interactive: boolean;
   readonly background: string;
+  /** JPEG quality the server encodes frames at. */
+  readonly quality: number;
 }
 
 export type PreviewStreamMessage =

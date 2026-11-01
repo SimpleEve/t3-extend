@@ -167,6 +167,7 @@ export function start(configuration: PreviewStreamConfiguration) {
         tabId: configuration.tabId,
         maxWidth: cap.width,
         maxHeight: cap.height,
+        quality: configuration.quality,
         interactive,
       },
       {

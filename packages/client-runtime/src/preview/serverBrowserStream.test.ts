@@ -63,6 +63,27 @@ describe("preview stream control", () => {
     dialog: null,
   };
 
+  it("asks for the viewer's frame size and quality", () => {
+    const { client, socket } = connect();
+    expect(new URL(socket.url).searchParams.get("quality")).toBeNull();
+    client.stop();
+    createPreviewStreamClient(
+      { ...target, quality: 60 },
+      {
+        onFrame: vi.fn(),
+        onViewport: vi.fn(),
+        onConnectedChange: vi.fn(),
+        onUnauthorized: vi.fn(),
+      },
+    ).stop();
+    const params = new URL(FakeSocket.current.url).searchParams;
+    expect([params.get("maxWidth"), params.get("maxHeight"), params.get("quality")]).toEqual([
+      "800",
+      "600",
+      "60",
+    ]);
+  });
+
   it("does not grant control from malformed dialog metadata", () => {
     const { client, socket, onControl } = connect();
     socket.message(

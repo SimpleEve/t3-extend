@@ -178,6 +178,8 @@ export interface PreviewStreamTarget {
   /** Viewer backing-store size in device px. The server never sends larger frames. */
   readonly maxWidth: number;
   readonly maxHeight: number;
+  /** JPEG quality, 1 to 100; the server uses 70 when omitted. */
+  readonly quality?: number; // fork: mobile streams lighter frames.
   /** Passive viewers reduce their own access, including automatic control grants. */
   readonly interactive?: boolean;
 }
@@ -215,6 +217,7 @@ export function createPreviewStreamClient(
     maxWidth: String(Math.max(1, Math.round(target.maxWidth))),
     maxHeight: String(Math.max(1, Math.round(target.maxHeight))),
   });
+  if (target.quality !== undefined) query.set("quality", String(Math.round(target.quality))); // fork: see `quality`.
   if (target.interactive === false) query.set("interactive", "false");
   const url = withDeviceHubQuery(`${target.access.wsBase}/ws?${query.toString()}`, target.access);
   let stopped = false;
