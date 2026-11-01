@@ -98,7 +98,7 @@ export default {
   "composer context": "输入框上下文",
   "Keep branch and worktree controls below the composer after a thread starts.":
     "对话开始后，仍在输入框下方保留分支和 worktree 控件。",
-  "Keep composer context visible in active threads": "在进行中的对话里保持显示输入框上下文",
+  "Keep composer context visible in active threads": "在进行中的对话中保持显示输入框上下文",
 
   Typography: "字体",
   "Interface font": "界面字体",

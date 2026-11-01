@@ -29,9 +29,9 @@ export default {
   Code: "代码",
   Connections: "连接",
 
-  "Settings sections": "设置分区",
+  "Settings sections": "设置分组",
   "Settings content": "设置内容",
-  "Settings breadcrumb": "设置路径",
+  "Settings breadcrumb": "设置导航路径",
   "Search settings": "搜索设置",
   "Clear settings search": "清除设置搜索",
   "No settings found": "没有找到设置",
