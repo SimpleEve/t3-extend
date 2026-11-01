@@ -130,12 +130,13 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的私有二开 for
 手机上可以自己新建 Browser 标签页，打开宿主机上的页面。页面在宿主机的 headless Chrome 里渲染，手机只收 JPEG 帧（server 已有的 `/api/preview-stream`），所以 `localhost` 指宿主机，也没有 Android cleartext 和 mixed content 的问题。不改 server 和 contracts；原生 WebView 直连 dev server 涉及同源安全，没有做。用户说明在 `docs/user/remote-access.md` 的 "Browser on a remote environment"。
 
 - 面板：`apps/mobile/src/features/browser/NewBrowserTabPanel.tsx`，嵌在 `BrowserPreviewRouteScreen` 里（路由参数 `newTab`），不是单独的路由。地址规范化和本地服务列表是纯函数，在 `newBrowserTab.ts`：复用 shared 的 `resolveAddressBarInput`，但不回落到搜索；本地服务列表订阅 `previewEnvironment.discoveredServers`，带上项目脚本的 Preview URL。
+- 选中哪个标签页、新建模式、等待刚打开的标签页：纯函数在 `browserTabSelection.ts`，计时器和关闭事件订阅在 `useBrowserTabSelection.ts`。`preview.open` 返回的标签页最多等 10 秒（`PENDING_BROWSER_TAB_TIMEOUT_MS`），超时或收到它的 `closed` 事件就停止等待并提示"标签页没有打开"，然后按常规处理：没有标签页就关闭浏览器，有就显示最新的。
 - 入口：Android 对话页标题栏的地球按钮（`ThreadHeader.tsx` 的 `onOpenNewBrowserTab`，只在 `capabilities.serverBrowser` 时传）；浏览器标题栏的 "+"（两个平台都有）。iOS 对话页标题栏走原生 header item，没有加入口。
 - 权限：`previewEnvironment.open.permissionAtom`（`preview:operate`）。没有权限时入口照常显示，面板里说明原因并禁用输入。
 - 推流：手机请求 `quality=60`（server 默认 70）。帧尺寸本来就按视图像素（最多 2x）封顶，没有再改。`PreviewStreamTarget` 加了可选的 `quality`（`packages/client-runtime/src/preview/serverBrowserStream.ts`）。
 - i18n：`apps/mobile/src/hooks/useT.ts` 写法同 web。mobile 还没有语言设置，所以暂时显示英文。译文在 `catalogs/zh-Hans/mobileBrowser.ts`；`i18n:report` 也扫描 `apps/mobile/src` 了。
 
-上游文件里的接线（都带 `// fork:`）：`ThreadHeader.tsx`（prop 和 Android 按钮）、`ThreadRouteScreen.tsx`（按 `serverBrowser` 传回调）、`PreviewStreamWebView.tsx`（`PHONE_STREAM_QUALITY`）、`serverBrowserStream.ts`（`quality`）。`BrowserPreviewRouteScreen.tsx` 改动较多：新建模式、待定标签页、"+"、几处 `t()`。
+上游文件里的接线（都带 `// fork:`）：`ThreadHeader.tsx`（prop 和 Android 按钮）、`ThreadRouteScreen.tsx`（按 `serverBrowser` 传回调）、`PreviewStreamWebView.tsx`（`PHONE_STREAM_QUALITY`）、`serverBrowserStream.ts`（`quality`）。`BrowserPreviewRouteScreen.tsx`（`newTab` 参数、改用 `useBrowserTabSelection`、"+"、几处 `t()`）、`scripts/i18n-report.ts`（扫描 `apps/mobile/src`）。
 
 ## 同步上游
 

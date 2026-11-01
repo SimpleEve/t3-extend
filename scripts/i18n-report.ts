@@ -9,7 +9,7 @@ import * as NodePath from "node:path";
 const ROOTS = [
   "apps/web/src",
   "apps/desktop/src",
-  "apps/mobile/src",
+  "apps/mobile/src", // fork: mobile calls t() since the new browser tab panel
   "packages/client-runtime/src",
 ];
 const CATALOG_ROOT = "packages/client-runtime/src/i18n/catalogs";
