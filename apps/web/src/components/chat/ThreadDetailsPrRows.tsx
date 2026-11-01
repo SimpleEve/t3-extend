@@ -21,6 +21,7 @@ import { MorphIcon } from "~/components/MorphIcon";
 import { linkedPullRequestSnapshotStatus, prStatusIndicator } from "../ThreadStatusIndicators";
 
 import { ThreadDetailsPrRow } from "./ThreadDetailsPrRow";
+import { useT } from "~/hooks/useT"; // fork: interface language
 
 function ThreadDetailsPrLinkRow({
   environmentId,
@@ -75,6 +76,7 @@ export function ThreadDetailsPrRows({
   currentLink: ThreadPullRequestLink | null;
   onOpenLink: (event: ReactMouseEvent<HTMLElement>, url: string) => void;
 }) {
+  const t = useT(); // fork: interface language
   const [expanded, setExpanded] = useState(false);
   const watch = useAtomCommand(threadEnvironment.watchPullRequest, { reportFailure: true });
   const stopWatching = (link: ThreadPullRequestLink | null) =>
@@ -131,7 +133,7 @@ export function ThreadDetailsPrRows({
           // Chevrons, not plus and minus: the plus already means "add" in this card.
           icon={expanded ? ChevronUp : ChevronDown}
         />
-        {expanded ? "Show less" : `Show ${rest.length} more`}
+        {expanded ? t("Show less") : t("Show {count} more", { count: rest.length })}
       </ThreadDetailsControl>
     </>
   );

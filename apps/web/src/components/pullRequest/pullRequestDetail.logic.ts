@@ -47,6 +47,13 @@ export const PULL_REQUEST_MERGE_METHOD_LABELS: Record<PullRequestMergeMethod, st
   rebase: "Rebase and merge",
 };
 
+// fork: whole labels so a translation can order them; English matches the old lowercased form.
+export const AUTO_MERGE_METHOD_LABELS: Record<PullRequestMergeMethod, string> = {
+  merge: "Auto-merge (merge)",
+  squash: "Auto-merge (squash and merge)",
+  rebase: "Auto-merge (rebase and merge)",
+};
+
 export function allowsSinglePullRequestMerge(input: {
   supportsStackActions: boolean;
   hasStack: boolean;

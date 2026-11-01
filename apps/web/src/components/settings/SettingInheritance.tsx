@@ -439,12 +439,14 @@ export function SettingInheritance({
                           </span>
                           <span className="max-w-32 truncate text-muted-foreground tabular-nums">
                             {isProjectScopedSettingKey(key)
-                              ? formatValue(
-                                  key,
-                                  members.find(
-                                    (member) =>
-                                      member.target.environmentId === project.environmentId,
-                                  )?.overrides[project.projectId]?.[key],
+                              ? t(
+                                  formatValue(
+                                    key,
+                                    members.find(
+                                      (member) =>
+                                        member.target.environmentId === project.environmentId,
+                                    )?.overrides[project.projectId]?.[key],
+                                  ),
                                 )
                               : null}
                           </span>

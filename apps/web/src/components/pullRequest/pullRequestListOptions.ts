@@ -38,3 +38,11 @@ export const SORT_OPTIONS = [
   { value: "largest", label: "Largest shown", Icon: Maximize2Icon },
   { value: "smallest", label: "Smallest shown", Icon: Minimize2Icon },
 ] as const satisfies ReadonlyArray<PullRequestFilterOption<PullRequestListSort>>;
+
+// fork: these options hold fixed English; translate them where the menus render.
+export function translateFilterOptions<Option extends { readonly label: string }>(
+  options: ReadonlyArray<Option>,
+  t: (source: string) => string,
+): ReadonlyArray<Option> {
+  return options.map((option) => ({ ...option, label: t(option.label) }));
+}

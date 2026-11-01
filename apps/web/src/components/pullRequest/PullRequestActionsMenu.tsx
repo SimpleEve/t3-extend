@@ -395,7 +395,7 @@ export function PullRequestActionsMenu({
                     >
                       <span className="flex min-w-0 items-center gap-2">
                         <PullRequestGlyph.merged className="size-3.5" />
-                        <span>{PULL_REQUEST_MERGE_METHOD_LABELS[method]}</span>
+                        <span>{t(PULL_REQUEST_MERGE_METHOD_LABELS[method])}</span>
                       </span>
                     </MenuRadioItem>
                   ))}

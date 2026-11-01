@@ -24,6 +24,7 @@ import {
   PullRequestRowLines,
 } from "./PullRequestListRow";
 import { PullRequestLabelChip, PullRequestReviewDecisionGlyph } from "./pullRequestPresentation";
+import { useT } from "~/hooks/useT"; // fork: interface language
 
 const LABEL_SLOTS = [
   { overflow: "@xl/pr-row-meta:hidden" },
@@ -100,6 +101,7 @@ function PullRequestRowImpl({
   sweeping?: boolean;
   onCloseSweepStart?: (entry: EnvironmentPullRequestEntry, event: PointerEvent) => void;
 }) {
+  const t = useT(); // fork: interface language
   const { Icon, providerName, terminology } = getSourceControlPresentationForKind(entry.provider);
   return (
     <div
@@ -211,7 +213,7 @@ function PullRequestRowImpl({
                       matched in the description
                     </span>
                   </TooltipTrigger>
-                  <TooltipPopup side="top">Matched in the description</TooltipPopup>
+                  <TooltipPopup side="top">{t("Matched in the description")}</TooltipPopup>
                 </Tooltip>
               ) : null}
               {showProvider ? (

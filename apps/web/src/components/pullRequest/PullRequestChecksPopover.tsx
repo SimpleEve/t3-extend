@@ -169,8 +169,8 @@ export function PullRequestChecksPopover({
         nativeButton={variant === "count"}
         aria-label={
           variant === "count"
-            ? `Open checks: ${summary ?? presentation.label}`
-            : `Checks: ${presentation.label}`
+            ? t("Open checks: {summary}", { summary: summary ?? t(presentation.label) })
+            : t("Checks: {summary}", { summary: t(presentation.label) })
         }
         render={
           variant === "count" ? (

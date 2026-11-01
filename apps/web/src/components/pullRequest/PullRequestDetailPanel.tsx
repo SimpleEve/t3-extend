@@ -127,6 +127,7 @@ import {
   pullRequestCheckoutCommand,
   pullRequestFindingKey,
   pullRequestHandoffLabels,
+  AUTO_MERGE_METHOD_LABELS, // fork
   PULL_REQUEST_MERGE_METHOD_LABELS,
   checkoutFailureDescription,
   readableFailure,
@@ -1136,13 +1137,13 @@ export function PullRequestDetailPanel({
     projectDefaultMergeMethod,
     lastSelectedMergeMethod,
   );
-  const selectedMergeMethodLabel = PULL_REQUEST_MERGE_METHOD_LABELS[selectedMergeMethod];
-  const pendingAutoMergeLabel = `Auto-merge (${selectedMergeMethodLabel.toLowerCase()})`;
+  const selectedMergeMethodLabel = t(PULL_REQUEST_MERGE_METHOD_LABELS[selectedMergeMethod]);
+  const pendingAutoMergeLabel = t(AUTO_MERGE_METHOD_LABELS[selectedMergeMethod]);
   const conflicting = isPullRequestConflicting(detail);
   const autoMergeArmed = detail?.state === "open" && detail.autoMergeEnabled === true;
   const armedMergeMethod = detail?.autoMergeMethod;
   const armedAutoMergeLabel = armedMergeMethod
-    ? `Auto-merge (${PULL_REQUEST_MERGE_METHOD_LABELS[armedMergeMethod].toLowerCase()})`
+    ? t(AUTO_MERGE_METHOD_LABELS[armedMergeMethod])
     : t("Auto-merge");
   const workflowApprovalsRequired =
     detail?.state === "open" ? (detail.workflowApprovalsRequired ?? 0) : 0;
@@ -1232,7 +1233,7 @@ export function PullRequestDetailPanel({
   const checksSummary = checksStale
     ? checksState === null
       ? t("No checks reported")
-      : pullRequestChecksStatePresentation(checksState).label
+      : t(pullRequestChecksStatePresentation(checksState).label)
     : detail
       ? summarizePullRequestChecks(detail.checks)
       : null;

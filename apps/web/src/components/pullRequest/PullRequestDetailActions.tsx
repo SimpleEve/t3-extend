@@ -234,7 +234,9 @@ export function PullRequestPrimaryAction({
             }
           />
           <TooltipPopup side="top">
-            {armedAutoMergeLabel}: the host will merge this on its own once its requirements are met
+            {t("{label}: the host will merge this on its own once its requirements are met", {
+              label: armedAutoMergeLabel,
+            })}
           </TooltipPopup>
         </Tooltip>
       ) : null}
@@ -323,7 +325,9 @@ export function PullRequestPrimaryAction({
             }
           />
           <TooltipPopup side="top">
-            {armedAutoMergeLabel}: the host will merge this on its own once its requirements are met
+            {t("{label}: the host will merge this on its own once its requirements are met", {
+              label: armedAutoMergeLabel,
+            })}
           </TooltipPopup>
         </Tooltip>
       ) : primaryAction === "merge" ? (

@@ -16,7 +16,12 @@ import { WorkspacePageHeader } from "../WorkspacePageHeader";
 import { workspaceAreaProps } from "../../lib/workspaceFocus";
 import { PullRequestCompactFilterMenu } from "./PullRequestCompactFilterMenu";
 import type { PullRequestFilterOption } from "./PullRequestListFilters";
-import { INVOLVEMENT_TABS, STATE_TABS } from "./pullRequestListOptions";
+import {
+  INVOLVEMENT_TABS,
+  STATE_TABS,
+  translateFilterOptions, // fork
+} from "./pullRequestListOptions";
+import { useT } from "~/hooks/useT"; // fork: interface language
 
 function ExpandableSearch({
   searchInput,
@@ -35,6 +40,7 @@ function ExpandableSearch({
    */
   onFocusWithin?: (focused: boolean) => void;
 }) {
+  const t = useT(); // fork: interface language
   const containerRef = useRef<HTMLDivElement | null>(null);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- focuses the search input DOM node when the topbar search opens
   useEffect(() => {
@@ -60,7 +66,7 @@ function ExpandableSearch({
     <Button
       size="icon-sm"
       variant="ghost"
-      aria-label="Search pull requests"
+      aria-label={t("Search pull requests")}
       onClick={() => onOpenChange(true)}
     >
       <SearchIcon className="size-4" />
@@ -109,7 +115,8 @@ export function PullRequestsColumn({
   listBody: ReactNode;
   scrollRef: RefObject<HTMLDivElement | null>;
 }) {
-  const contentArea = workspaceAreaProps("pull-requests", 1, "Pull requests");
+  const t = useT(); // fork: interface language
+  const contentArea = workspaceAreaProps("pull-requests", 1, t("Pull requests"));
   const markerRef = useRef<HTMLDivElement | null>(null);
   const [condensed, setCondensed] = useState(false);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- IntersectionObserver on the scroll marker condenses the topbar
@@ -181,21 +188,21 @@ export function PullRequestsColumn({
             {searchExpanded ? null : <WorkspaceBreadcrumbSeparator />}
             <WorkspaceBreadcrumbItem className="shrink gap-1.5">
               <PullRequestCompactFilterMenu
-                label="Filter by state"
+                label={t("Filter by state")}
                 value={state}
-                options={STATE_TABS}
+                options={translateFilterOptions(STATE_TABS, t)}
                 onChange={onState}
                 className="shrink-0"
               />
               <PullRequestCompactFilterMenu
-                label="Filter by involvement"
+                label={t("Filter by involvement")}
                 value={involvement}
-                options={INVOLVEMENT_TABS}
+                options={translateFilterOptions(INVOLVEMENT_TABS, t)}
                 onChange={onInvolvement}
               />
               {hostMenuOptions.length > 2 ? (
                 <PullRequestCompactFilterMenu
-                  label="Filter by host"
+                  label={t("Filter by host")}
                   value={host ?? ""}
                   options={hostMenuOptions}
                   onChange={(next) => onHost(next === "" ? undefined : next)}
@@ -204,7 +211,7 @@ export function PullRequestsColumn({
             </WorkspaceBreadcrumbItem>
           </WorkspaceBreadcrumb>
         ) : (
-          <WorkspaceBreadcrumb ariaLabel="Pull requests breadcrumb">
+          <WorkspaceBreadcrumb ariaLabel={t("Pull requests breadcrumb")}>
             <WorkspaceBreadcrumbItem current>
               <h1 className="truncate">Pull requests</h1>
             </WorkspaceBreadcrumbItem>
@@ -241,11 +248,11 @@ export function PullRequestsColumn({
               {sortMenu}
               {filtersMenu}
               <PullRequestCompactFilterMenu
-                label="Filter by provider"
+                label={t("Filter by provider")}
                 outlined
                 iconOnly={host !== undefined}
                 triggerIcon={<Plug2Icon aria-hidden className="size-4" />}
-                triggerLabel="All"
+                triggerLabel={t("All")}
                 value={host ?? ""}
                 options={hostMenuOptions}
                 onChange={(next) => onHost(next === "" ? undefined : next)}
@@ -273,11 +280,12 @@ function PullRequestRefreshControl({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
+  const t = useT(); // fork: interface language
   return (
     <Button
       size={compact ? "icon-sm" : "icon"}
       variant={compact ? "ghost" : "outline"}
-      aria-label="Refresh pull requests"
+      aria-label={t("Refresh pull requests")}
       onClick={onRefresh}
       disabled={refreshing}
     >

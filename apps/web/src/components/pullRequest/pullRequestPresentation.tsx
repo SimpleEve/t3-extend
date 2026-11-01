@@ -35,6 +35,8 @@ import {
   type PullRequestStatePresentation,
   type PullRequestGlyphIcon,
 } from "./pullRequestIcons";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork
+import { useT } from "~/hooks/useT"; // fork: interface language
 
 export function PullRequestLabelChip({
   label,
@@ -89,14 +91,15 @@ export function PullRequestReviewDecisionGlyph({
 }: {
   decision: PullRequestReviewDecision;
 }) {
+  const t = useT(); // fork: interface language
   const presentation = reviewDecisionPresentation(decision);
   return (
     <Tooltip>
       <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
         <presentation.Icon aria-hidden className={cn("size-3.5", presentation.toneClassName)} />
-        <span className="sr-only">{presentation.label}</span>
+        <span className="sr-only">{t(presentation.label)}</span>
       </TooltipTrigger>
-      <TooltipPopup>{presentation.label}</TooltipPopup>
+      <TooltipPopup>{t(presentation.label)}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -124,8 +127,12 @@ function resolvePullRequestConflict(input: {
   if (input.state !== "open" || input.isDraft || input.mergeability !== "conflicting") {
     return null;
   }
+  // fork: read the language when the glyph renders; its component re-renders on a change.
+  const t = translatorFor(getUiLocale());
   return {
-    label: input.baseBranch ? `Conflicts with ${input.baseBranch}` : "Has conflicts",
+    label: input.baseBranch
+      ? t("Conflicts with {branch}", { branch: input.baseBranch })
+      : t("Has conflicts"),
     toneClassName: "text-destructive",
     Icon: PullRequestGlyph.conflicting,
   };
@@ -140,17 +147,18 @@ export function PullRequestStateGlyph({
   isDraft: boolean;
   className?: string;
 }) {
+  const t = useT(); // fork: interface language
   const presentation = resolvePullRequestState({ state, isDraft });
   return (
     <Tooltip>
       <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
         <presentation.Icon
           role="img"
-          aria-label={presentation.label}
+          aria-label={t(presentation.label)}
           className={cn("size-4 shrink-0", presentation.toneClassName, className)}
         />
       </TooltipTrigger>
-      <TooltipPopup>{presentation.label}</TooltipPopup>
+      <TooltipPopup>{t(presentation.label)}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -168,6 +176,7 @@ export function PullRequestConflictGlyph({
   baseBranch?: string;
   className?: string;
 }) {
+  const t = useT(); // fork: interface language
   const presentation = resolvePullRequestConflict({
     state,
     isDraft,
@@ -180,11 +189,11 @@ export function PullRequestConflictGlyph({
       <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
         <presentation.Icon
           role="img"
-          aria-label={presentation.label}
+          aria-label={t(presentation.label)}
           className={cn("size-4 shrink-0", presentation.toneClassName, className)}
         />
       </TooltipTrigger>
-      <TooltipPopup>{presentation.label}</TooltipPopup>
+      <TooltipPopup>{t(presentation.label)}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -221,9 +230,11 @@ function isWorkflowApprovalCheck(check: Pick<PullRequestCheck, "status" | "url">
 export function pullRequestCheckStatusLabel(
   check: Pick<PullRequestCheck, "status" | "url">,
 ): string {
+  // fork: callers render this string; read the language when they do.
+  const t = translatorFor(getUiLocale());
   return isWorkflowApprovalCheck(check)
-    ? "Awaiting approval"
-    : CHECK_STATUS_PRESENTATION[check.status].label;
+    ? t("Awaiting approval")
+    : t(CHECK_STATUS_PRESENTATION[check.status].label);
 }
 
 export function PullRequestCheckStatusIcon({ status }: { status: PullRequestCheckStatus }) {
@@ -327,8 +338,15 @@ export function pullRequestReviewOutcomeRingClassName(
   return stale ? presentation.staleRingClassName : presentation.ringClassName;
 }
 
+// fork: whole phrases per outcome; callers render the string, so read the language here.
+const REVIEW_OUTCOME_STALE_LABELS = {
+  approved: "Approved earlier changes",
+  "changes-requested": "Changes requested earlier changes",
+  dismissed: "Review dismissed earlier changes",
+} as const satisfies Record<PullRequestReviewOutcome, string>;
+
 export function pullRequestReviewOutcomeStaleLabel(outcome: PullRequestReviewOutcome): string {
-  return `${REVIEW_OUTCOME_PRESENTATION[outcome].label} earlier changes`;
+  return translatorFor(getUiLocale())(REVIEW_OUTCOME_STALE_LABELS[outcome]);
 }
 
 export function PullRequestReviewOutcomeIcon({
@@ -370,7 +388,7 @@ export function PullRequestReviewOutcomeAvatarBadge({
 }
 
 export function pullRequestReviewOutcomeLabel(outcome: PullRequestReviewOutcome): string {
-  return REVIEW_OUTCOME_PRESENTATION[outcome].label;
+  return translatorFor(getUiLocale())(REVIEW_OUTCOME_PRESENTATION[outcome].label); // fork
 }
 
 export function PullRequestReviewOutcomeBadge({
@@ -380,12 +398,13 @@ export function PullRequestReviewOutcomeBadge({
   outcome: PullRequestReviewOutcome;
   className?: string;
 }) {
+  const t = useT(); // fork: interface language
   const presentation = REVIEW_OUTCOME_PRESENTATION[outcome];
   return (
     <Badge size="sm" variant={presentation.badgeVariant} className={className}>
       <span className="inline-flex items-baseline gap-1">
         <presentation.Icon aria-hidden className="size-3 self-center" />
-        <span>{presentation.label}</span>
+        <span>{t(presentation.label)}</span>
       </span>
     </Badge>
   );
@@ -436,6 +455,7 @@ export function PullRequestActorLabel({
   tooltip?: boolean;
   profileUrl?: string | null;
 }) {
+  const t = useT(); // fork: interface language
   const login = actor?.login ?? "ghost";
   const label = (
     <span className={cn("flex min-w-0 items-baseline", variant === "label" && "gap-1.5")}>
@@ -459,7 +479,7 @@ export function PullRequestActorLabel({
                   href={profileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={`Open ${login}'s profile`}
+                  aria-label={t("Open {login}'s profile", { login })}
                 />
               }
             />
@@ -472,7 +492,7 @@ export function PullRequestActorLabel({
       </TooltipTrigger>
       <TooltipPopup side="top">
         {actor?.name && actor.name !== login ? `${actor.name} (@${login})` : login}
-        {profileUrl ? " · Open profile" : ""}
+        {profileUrl ? t(" · Open profile") : ""}
       </TooltipPopup>
     </Tooltip>
   );
@@ -531,7 +551,9 @@ export function PullRequestMetaLine({
 }
 
 export function summarizePullRequestChecks(checks: ReadonlyArray<PullRequestCheck>): string {
-  if (checks.length === 0) return "No checks reported";
+  // fork: callers render this string; read the language when they do.
+  const t = translatorFor(getUiLocale());
+  if (checks.length === 0) return t("No checks reported");
   const actionRequired = checks.filter((check) => check.status === "action-required");
   const workflowApprovalRequired = actionRequired.filter(isWorkflowApprovalCheck).length;
   const otherActionRequired = actionRequired.length - workflowApprovalRequired;
@@ -540,16 +562,31 @@ export function summarizePullRequestChecks(checks: ReadonlyArray<PullRequestChec
   ).length;
   const pending = checks.filter((check) => check.status === "pending").length;
   const passed = checks.filter((check) => check.status === "success").length;
-  if (failed > 0) return `${failed} of ${checks.length} failing`;
+  const total = checks.length;
+  if (failed > 0) return t("{count} of {total} failing", { count: failed, total });
   if (workflowApprovalRequired > 0 && otherActionRequired > 0) {
-    return `${workflowApprovalRequired} ${workflowApprovalRequired === 1 ? "workflow" : "workflows"} and ${otherActionRequired} ${otherActionRequired === 1 ? "check" : "checks"} awaiting action`;
+    const workflows =
+      workflowApprovalRequired === 1
+        ? t("1 workflow")
+        : t("{count} workflows", { count: workflowApprovalRequired });
+    const others =
+      otherActionRequired === 1
+        ? t("1 check")
+        : t("{count} checks", { count: otherActionRequired });
+    return t("{workflows} and {checks} awaiting action", { workflows, checks: others });
   }
   if (workflowApprovalRequired > 0) {
-    return `${workflowApprovalRequired} ${workflowApprovalRequired === 1 ? "workflow" : "workflows"} awaiting approval`;
+    return workflowApprovalRequired === 1
+      ? t("1 workflow awaiting approval")
+      : t("{count} workflows awaiting approval", { count: workflowApprovalRequired });
   }
   if (otherActionRequired > 0) {
-    return `${otherActionRequired} ${otherActionRequired === 1 ? "check" : "checks"} awaiting action`;
+    return otherActionRequired === 1
+      ? t("1 check awaiting action")
+      : t("{count} checks awaiting action", { count: otherActionRequired });
   }
-  if (pending > 0) return `${pending} of ${checks.length} running`;
-  return passed === checks.length ? "All checks passed" : `${passed} of ${checks.length} passing`;
+  if (pending > 0) return t("{count} of {total} running", { count: pending, total });
+  return passed === total
+    ? t("All checks passed")
+    : t("{count} of {total} passing", { count: passed, total });
 }
