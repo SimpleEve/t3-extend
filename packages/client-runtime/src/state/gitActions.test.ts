@@ -1,6 +1,7 @@
 import { SourceControlProviderKind, type VcsStatusResult } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
+import { loadUiCatalog } from "../i18n/translate.ts";
 import { sourceControlClients } from "../sourceControlClients.ts";
 import {
   buildMenuItems,
@@ -76,6 +77,24 @@ describe("git action copy", () => {
         hasOriginRemote: true,
       }),
     ).toBe("No local commits to include in an MR.");
+  });
+
+  it("translates for another interface language without the English article", async () => {
+    await loadUiCatalog("zh-Hans");
+    const items = buildMenuItems(status(gitLab), false, true, "zh-Hans");
+    expect(items.map((item) => item.label)).toEqual(["提交", "推送", "创建 MR"]);
+    expect(
+      getGitActionDisabledReason({
+        item: items[2]!,
+        gitStatus: status(gitLab),
+        isBusy: false,
+        hasOriginRemote: true,
+        locale: "zh-Hans",
+      }),
+    ).toBe("没有可放进 MR 的本地提交。");
+    expect(
+      resolveQuickAction(status({ ...gitLab, pr: openPr }), false, false, true, "zh-Hans").label,
+    ).toBe("查看 MR");
   });
 
   it("names the host's change request in the default-branch dialog", () => {

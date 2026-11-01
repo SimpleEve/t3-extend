@@ -1,4 +1,5 @@
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { SymbolView } from "../../../components/ui/AppSymbol";
 import type { ComponentProps } from "react";
 import { View } from "react-native";
@@ -36,34 +37,40 @@ export function statusSummary(
     readonly pr?: { readonly state?: string; readonly number?: number } | null;
     readonly sourceControlProvider?: { readonly kind: string } | null;
   } | null,
+  t: Translator, // fork: i18n
 ): string {
   if (!gitStatus) {
-    return "Loading branch status\u2026";
+    return t("Loading branch status\u2026");
   }
 
   if (!gitStatus.isRepo) {
-    return "Not a git repository";
+    return t("Not a git repository");
   }
 
   const parts: string[] = [];
   if (gitStatus.hasWorkingTreeChanges) {
     const fileCount = gitStatus.workingTree?.files.length ?? 0;
-    parts.push(`${fileCount} file${fileCount === 1 ? "" : "s"} changed`);
+    parts.push(fileChangedLabel(t, fileCount));
   } else {
-    parts.push("Clean");
+    parts.push(t("Clean", undefined, "git status"));
   }
   if ((gitStatus.aheadCount ?? 0) > 0) {
-    parts.push(`${gitStatus.aheadCount} ahead`);
+    parts.push(t("{count} ahead", { count: gitStatus.aheadCount ?? 0 }));
   }
   if ((gitStatus.behindCount ?? 0) > 0) {
-    parts.push(`${gitStatus.behindCount} behind`);
+    parts.push(t("{count} behind", { count: gitStatus.behindCount ?? 0 }));
   }
   if (gitStatus.pr?.state === "open") {
     const { shortLabel } = sourceControlClients.get(
       gitStatus.sourceControlProvider?.kind,
     ).changeRequest;
-    parts.push(`${shortLabel} #${gitStatus.pr.number} open`);
+    parts.push(t("{pr} #{number} open", { pr: shortLabel, number: String(gitStatus.pr.number) }));
   }
 
   return parts.join(" \u00b7 ");
+}
+
+// fork: i18n, singular and plural are whole keys so other languages can drop the plural.
+export function fileChangedLabel(t: Translator, count: number): string {
+  return count === 1 ? t("{count} file changed", { count }) : t("{count} files changed", { count });
 }

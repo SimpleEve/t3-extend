@@ -4,6 +4,8 @@ import type {
   VcsStatusResult,
 } from "@t3tools/contracts";
 import { type ChangeRequestTerminology, sourceControlClients } from "../sourceControlClients.ts";
+import type { UiLocale } from "../i18n/locale.ts"; // fork: i18n
+import { translatorFor } from "../i18n/store.ts"; // fork: i18n
 
 export type GitActionIconName = "commit" | "push" | "pr";
 
@@ -49,13 +51,20 @@ export function changeRequestTerminologyFor(
   return sourceControlClients.get(gitStatus?.sourceControlProvider?.kind).changeRequest;
 }
 
+// fork: English keeps the host's article ("a PR", "an MR"); other languages have none.
+function kindWithArticle(locale: UiLocale, terminology: ChangeRequestTerminology): string {
+  return locale === "en" ? terminology.shortLabelWithArticle : terminology.shortLabel;
+}
+
 export function buildMenuItems(
   gitStatus: VcsStatusResult | null,
   isBusy: boolean,
   hasOriginRemote = true,
+  locale: UiLocale = "en", // fork: interface language
 ): GitActionMenuItem[] {
   if (!gitStatus) return [];
   const terminology = changeRequestTerminologyFor(gitStatus);
+  const t = translatorFor(locale);
 
   const hasBranch = gitStatus.refName !== null;
   const hasChanges = gitStatus.hasWorkingTreeChanges;
@@ -82,7 +91,7 @@ export function buildMenuItems(
   return [
     {
       id: "commit",
-      label: "Commit",
+      label: t("Commit"),
       disabled: !canCommit,
       icon: "commit",
       kind: "open_dialog",
@@ -90,7 +99,7 @@ export function buildMenuItems(
     },
     {
       id: "push",
-      label: "Push",
+      label: t("Push"),
       disabled: !canPush,
       icon: "push",
       kind: "open_dialog",
@@ -99,14 +108,14 @@ export function buildMenuItems(
     hasOpenPr
       ? {
           id: "pr",
-          label: `View ${terminology.shortLabel}`,
+          label: t("View {pr}", { pr: terminology.shortLabel }),
           disabled: !canOpenPr,
           icon: "pr",
           kind: "open_pr",
         }
       : {
           id: "pr",
-          label: `Create ${terminology.shortLabel}`,
+          label: t("Create {pr}", { pr: terminology.shortLabel }),
           disabled: !canCreatePr,
           icon: "pr",
           kind: "open_dialog",
@@ -120,17 +129,24 @@ export function resolveQuickAction(
   isBusy: boolean,
   isDefaultBranch = false,
   hasOriginRemote = true,
+  locale: UiLocale = "en", // fork: interface language
 ): GitQuickAction {
+  const t = translatorFor(locale);
   if (isBusy) {
-    return { label: "Commit", disabled: true, kind: "show_hint", hint: "Git action in progress." };
+    return {
+      label: t("Commit"),
+      disabled: true,
+      kind: "show_hint",
+      hint: t("Git action in progress."),
+    };
   }
 
   if (!gitStatus) {
     return {
-      label: "Commit",
+      label: t("Commit"),
       disabled: true,
       kind: "show_hint",
-      hint: "Git status is unavailable.",
+      hint: t("Git status is unavailable."),
     };
   }
 
@@ -144,22 +160,29 @@ export function resolveQuickAction(
 
   if (!hasBranch) {
     return {
-      label: "Commit",
+      label: t("Commit"),
       disabled: true,
       kind: "show_hint",
-      hint: `Create and checkout a branch before pushing or opening ${terminology.shortLabelWithArticle}.`,
+      hint: t("Create and checkout a branch before pushing or opening {kind}.", {
+        kind: kindWithArticle(locale, terminology),
+      }),
     };
   }
 
   if (hasChanges) {
     if (isBehind || (!gitStatus.hasUpstream && !hasOriginRemote)) {
-      return { label: "Commit", disabled: false, kind: "run_action", action: "commit" };
+      return { label: t("Commit"), disabled: false, kind: "run_action", action: "commit" };
     }
     if (hasOpenPr || isDefaultBranch) {
-      return { label: "Commit & push", disabled: false, kind: "run_action", action: "commit_push" };
+      return {
+        label: t("Commit & push"),
+        disabled: false,
+        kind: "run_action",
+        action: "commit_push",
+      };
     }
     return {
-      label: `Commit, push & ${terminology.shortLabel}`,
+      label: t("Commit, push & {pr}", { pr: terminology.shortLabel }),
       disabled: false,
       kind: "run_action",
       action: "commit_push_pr",
@@ -169,36 +192,46 @@ export function resolveQuickAction(
   if (!gitStatus.hasUpstream) {
     if (!hasOriginRemote) {
       if (hasOpenPr && !isAhead) {
-        return { label: `View ${terminology.shortLabel}`, disabled: false, kind: "open_pr" };
+        return {
+          label: t("View {pr}", { pr: terminology.shortLabel }),
+          disabled: false,
+          kind: "open_pr",
+        };
       }
       return {
-        label: "Push",
+        label: t("Push"),
         disabled: true,
         kind: "show_hint",
-        hint: `Add an "origin" remote before pushing or creating ${terminology.shortLabelWithArticle}.`,
+        hint: t('Add an "origin" remote before pushing or creating {kind}.', {
+          kind: kindWithArticle(locale, terminology),
+        }),
       };
     }
     if (!isAhead) {
       if (hasOpenPr) {
-        return { label: `View ${terminology.shortLabel}`, disabled: false, kind: "open_pr" };
+        return {
+          label: t("View {pr}", { pr: terminology.shortLabel }),
+          disabled: false,
+          kind: "open_pr",
+        };
       }
       return {
-        label: "Push",
+        label: t("Push"),
         disabled: true,
         kind: "show_hint",
-        hint: "No local commits to push.",
+        hint: t("No local commits to push."),
       };
     }
     if (hasOpenPr || isDefaultBranch) {
       return {
-        label: "Push",
+        label: t("Push"),
         disabled: false,
         kind: "run_action",
         action: isDefaultBranch ? "commit_push" : "push",
       };
     }
     return {
-      label: `Push & create ${terminology.shortLabel}`,
+      label: t("Push & create {pr}", { pr: terminology.shortLabel }),
       disabled: false,
       kind: "run_action",
       action: "create_pr",
@@ -207,16 +240,16 @@ export function resolveQuickAction(
 
   if (isDiverged) {
     return {
-      label: "Sync branch",
+      label: t("Sync branch"),
       disabled: true,
       kind: "show_hint",
-      hint: "Branch has diverged from upstream. Rebase/merge first.",
+      hint: t("Branch has diverged from upstream. Rebase/merge first."),
     };
   }
 
   if (isBehind) {
     return {
-      label: "Pull",
+      label: t("Pull"),
       disabled: false,
       kind: "run_pull",
     };
@@ -225,14 +258,14 @@ export function resolveQuickAction(
   if (isAhead) {
     if (hasOpenPr || isDefaultBranch) {
       return {
-        label: "Push",
+        label: t("Push"),
         disabled: false,
         kind: "run_action",
         action: isDefaultBranch ? "commit_push" : "push",
       };
     }
     return {
-      label: `Push & create ${terminology.shortLabel}`,
+      label: t("Push & create {pr}", { pr: terminology.shortLabel }),
       disabled: false,
       kind: "run_action",
       action: "create_pr",
@@ -240,14 +273,18 @@ export function resolveQuickAction(
   }
 
   if (hasOpenPr && gitStatus.hasUpstream) {
-    return { label: `View ${terminology.shortLabel}`, disabled: false, kind: "open_pr" };
+    return {
+      label: t("View {pr}", { pr: terminology.shortLabel }),
+      disabled: false,
+      kind: "open_pr",
+    };
   }
 
   return {
-    label: "Commit",
+    label: t("Commit"),
     disabled: true,
     kind: "show_hint",
-    hint: "Branch is up to date. No action needed.",
+    hint: t("Branch is up to date. No action needed."),
   };
 }
 
@@ -256,11 +293,14 @@ export function getGitActionDisabledReason(input: {
   gitStatus: VcsStatusResult | null;
   isBusy: boolean;
   hasOriginRemote: boolean;
+  locale?: UiLocale; // fork: interface language
 }): string | null {
   const { item, gitStatus, isBusy, hasOriginRemote } = input;
+  const locale = input.locale ?? "en";
+  const t = translatorFor(locale);
   if (!item.disabled) return null;
-  if (isBusy) return "Git action in progress.";
-  if (!gitStatus) return "Git status is unavailable.";
+  if (isBusy) return t("Git action in progress.");
+  if (!gitStatus) return t("Git status is unavailable.");
 
   const hasBranch = gitStatus.refName !== null;
   const hasChanges = gitStatus.hasWorkingTreeChanges;
@@ -271,46 +311,54 @@ export function getGitActionDisabledReason(input: {
 
   if (item.id === "commit") {
     if (!hasChanges) {
-      return "Worktree is clean. Make changes before committing.";
+      return t("Worktree is clean. Make changes before committing.");
     }
-    return "Commit is currently unavailable.";
+    return t("Commit is currently unavailable.");
   }
 
   if (item.id === "push") {
     if (!hasBranch) {
-      return "Detached HEAD: checkout a branch before pushing.";
+      return t("Detached HEAD: checkout a branch before pushing.");
     }
     if (hasChanges) {
-      return "Commit or stash local changes before pushing.";
+      return t("Commit or stash local changes before pushing.");
     }
     if (isBehind) {
-      return "Branch is behind upstream. Pull/rebase before pushing.";
+      return t("Branch is behind upstream. Pull/rebase before pushing.");
     }
     if (!gitStatus.hasUpstream && !hasOriginRemote) {
-      return 'Add an "origin" remote before pushing.';
+      return t('Add an "origin" remote before pushing.');
     }
     if (!isAhead) {
-      return "No local commits to push.";
+      return t("No local commits to push.");
     }
-    return "Push is currently unavailable.";
+    return t("Push is currently unavailable.");
   }
 
   if (hasOpenPr) {
-    return `View ${terminology.shortLabel} is currently unavailable.`;
+    return t("View {pr} is currently unavailable.", { pr: terminology.shortLabel });
   }
   if (!hasBranch) {
-    return `Detached HEAD: checkout a branch before creating ${terminology.shortLabelWithArticle}.`;
+    return t("Detached HEAD: checkout a branch before creating {kind}.", {
+      kind: kindWithArticle(locale, terminology),
+    });
   }
   if (!gitStatus.hasUpstream && !hasOriginRemote) {
-    return `Add an "origin" remote before creating ${terminology.shortLabelWithArticle}.`;
+    return t('Add an "origin" remote before creating {kind}.', {
+      kind: kindWithArticle(locale, terminology),
+    });
   }
   if ((gitStatus.aheadOfDefaultCount ?? gitStatus.aheadCount) <= 0) {
-    return `No local commits to include in ${terminology.shortLabelWithArticle}.`;
+    return t("No local commits to include in {kind}.", {
+      kind: kindWithArticle(locale, terminology),
+    });
   }
   if (isBehind) {
-    return `Branch is behind upstream. Pull/rebase before creating ${terminology.shortLabelWithArticle}.`;
+    return t("Branch is behind upstream. Pull/rebase before creating {kind}.", {
+      kind: kindWithArticle(locale, terminology),
+    });
   }
-  return `Create ${terminology.shortLabel} is currently unavailable.`;
+  return t("Create {kind} is currently unavailable.", { kind: terminology.shortLabel });
 }
 
 export function requiresDefaultBranchConfirmation(
