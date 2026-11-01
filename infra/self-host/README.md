@@ -51,7 +51,17 @@ Docker 发布的端口会绕过 ufw 规则，所以端口要在云厂商的安�
 ### 1. 安装 frpc
 
 - macOS：`brew install frpc`
-- Linux / Windows：到 <https://github.com/fatedier/frp/releases> 下载与 VPS 上 frps 相同或更新的版本，把其中的 `frpc` 放进 PATH。
+- Linux / Windows：到 <https://github.com/fatedier/frp/releases> 下载，把其中的 `frpc` 放进 PATH。
+
+部署包固定的是 frps 0.61.1（`docker-compose.yml`）。已经实测能连通的组合是 frpc 0.70.0 + frps 0.61.1。`brew install` 装的是 Homebrew 当前的最新版，可能比 0.70.0 新，没有验证过。装好后先确认两端版本：
+
+```bash
+frpc -v                            # 家里的电脑
+docker compose images frps         # VPS 上，TAG 一列是 frps 的版本
+docker compose logs frps | grep "client login info"   # frpc 连上后，这一行里的 version [...] 是客户端版本
+```
+
+frpc 连不上、日志里有 `login to the server failed` 之类的错误时，先把两端换成上面这组已验证的版本。
 
 ### 2. 配置 frpc
 
