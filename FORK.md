@@ -101,7 +101,14 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 
 `i18n:report`（`scripts/i18n-report.ts`）扫描 `apps/web/src`、`apps/desktop/src`、`apps/mobile/src`、`packages/client-runtime/src` 里的 `t("...")` 一类调用，列出 catalog 里缺失的 key，以及 catalog 里有、代码里已经找不到的 key（通常是上游改了英文）。只报告，不阻断。同步上游后跑一次，把失效的 key 改成新英文。
 
-已翻译：设置页导航和面包屑、外观页、侧边栏表头与分区、线程状态和行操作、线程右键菜单和多选菜单、撤销提示、自定义稍后处理弹窗、命令面板的分组和静态命令、通用确认框、相对时间、桌面菜单和原生对话框。mobile 只接入了新建浏览器标签页（见下文"手机新建浏览器标签页"），还没有语言设置。
+已翻译：设置页导航和面包屑、外观页、侧边栏表头与分区、线程状态和行操作、线程右键菜单和多选菜单、撤销提示、自定义稍后处理弹窗、命令面板的分组和静态命令、通用确认框、相对时间、桌面菜单和原生对话框。
+
+mobile：
+
+- 入口是 Settings → Appearance → Language，字段是 mobile 偏好里的 `uiLanguage`（`apps/mobile/src/persistence/mobile-preferences.ts`），取值和 web 相同。旧数据没有这个字段，按 `system` 读（`uiLanguageSettingOf`）。
+- 系统语言不加原生依赖：Android 读 `I18nManager.getConstants().localeIdentifier`，iOS 读 `Settings.get("AppleLanguages")`，都取不到时用 `Intl.DateTimeFormat().resolvedOptions().locale`。Android 的值是 Java `Locale.toString()` 格式（`zh_CN_#Hans`），`androidLocaleTag` 先转成 BCP 47 再交给 `resolveUiLanguage`。iOS 优先读用户的语言列表，因为 `Intl` 的默认 locale 可能受 app 声明的本地化限制（没有在真机上验证）。这些都是启动时读一次的常量，改系统语言后要重启 app 才生效。
+- 启动：`apps/mobile/src/fork/uiLanguage.ts` 订阅偏好，启动画面要等偏好读出、语言生效后才隐藏。要加载中文 catalog 时最多等 `FIRST_FRAME_LANGUAGE_WAIT_MS`（1000ms），超时先显示英文，加载完再切换。英文不加载 catalog，不增加等待。加载失败保持当前语言，只记一条 warning。
+- 译文在 `catalogs/zh-Hans/mobile.ts`（首页、对话列表、对话页、输入框、连接、通知）和 `mobileSettings.ts`（设置各页）。Android 底部导航的标签文字写在原生模块里，没有翻译。
 
 ## 侧边栏视图
 
@@ -159,7 +166,7 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 - 入口：Android 对话页标题栏的地球按钮（`ThreadHeader.tsx` 的 `onOpenNewBrowserTab`，只在 `capabilities.serverBrowser` 时传）；浏览器标题栏的 "+"（两个平台都有）。iOS 对话页标题栏走原生 header item，没有加入口。
 - 权限：`previewEnvironment.open.permissionAtom`（`preview:operate`）。没有权限时入口照常显示，面板里说明原因并禁用输入。
 - 推流：手机请求 `quality=60`（server 默认 70）。帧尺寸本来就按视图像素（最多 2x）封顶，没有再改。`PreviewStreamTarget` 加了可选的 `quality`（`packages/client-runtime/src/preview/serverBrowserStream.ts`）。
-- i18n：`apps/mobile/src/hooks/useT.ts` 写法同 web。mobile 还没有语言设置，所以暂时显示英文。译文在 `catalogs/zh-Hans/mobileBrowser.ts`；`i18n:report` 也扫描 `apps/mobile/src` 了。
+- i18n：`apps/mobile/src/hooks/useT.ts` 写法同 web，语言设置见上文"多语言"。译文在 `catalogs/zh-Hans/mobileBrowser.ts`；`i18n:report` 也扫描 `apps/mobile/src` 了。
 
 上游文件里的接线（都带 `// fork:`）：`ThreadHeader.tsx`（prop 和 Android 按钮）、`ThreadRouteScreen.tsx`（按 `serverBrowser` 传回调）、`PreviewStreamWebView.tsx`（`PHONE_STREAM_QUALITY`）、`serverBrowserStream.ts`（`quality`）。`BrowserPreviewRouteScreen.tsx`（`newTab` 参数、改用 `useBrowserTabSelection`、"+"、几处 `t()`）、`scripts/i18n-report.ts`（扫描 `apps/mobile/src`）。
 

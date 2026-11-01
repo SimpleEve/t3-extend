@@ -74,6 +74,8 @@ for (const file of ROOTS.flatMap(sourceFiles)) {
   for (const pattern of CALL_PATTERNS) {
     for (const match of text.matchAll(pattern)) {
       const source = unescape(match[1]!);
+      // A called source is in code even when quote pairing above went off track.
+      literals.add(source);
       if (!called.has(source)) called.set(source, NodePath.relative(process.cwd(), file));
     }
   }
