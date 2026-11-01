@@ -898,7 +898,7 @@ function ThreadSettingsOptionsItem(props: {
         <Animated.View layout={THREAD_SETTINGS_OPTIONS_LAYOUT_TRANSITION}>
           <DisclosureRow
             isLast
-            label={t("Runtime")}
+            label={t("Runtime", undefined, "runtime mode")}
             value={t(
               session.runtimeModeChoices.find((choice) => choice.mode === session.runtimeMode)
                 ?.label ?? "",
@@ -1361,7 +1361,7 @@ function ThreadSettingsModelsScreen() {
           onOpenSubmenu={(submenu) => {
             const title =
               submenu.kind === "runtime"
-                ? t("Runtime")
+                ? t("Runtime", undefined, "runtime mode")
                 : (session.displayedDescriptors.find(
                     (descriptor) => descriptor.type === "select" && descriptor.id === submenu.id,
                   )?.label ?? t("Option"));

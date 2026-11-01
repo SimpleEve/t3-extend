@@ -50,7 +50,7 @@ export default {
   "Checkout switched, but the thread could not be updated": "已切换 checkout，但无法更新对话",
   "Failed to stop background work.": "无法停止后台任务。",
   "This thread is no longer available": "这个对话已不存在",
-  "Could not snooze thread": "无法稍后处理对话",
+  "Could not snooze thread": "无法将对话设为稍后处理",
   "That snooze time has passed. Choose another time.": "这个时间已经过了，请选择其他时间。",
 
   // Composer
@@ -62,7 +62,7 @@ export default {
   Message: "消息",
   "Message {title}": "给 {title} 发消息",
   "Send feedback to decline this request": "发送反馈以拒绝这个请求",
-  "Send a message to decline and redirect the agent": "发送消息以拒绝，并给 Agent 新的方向",
+  "Send a message to decline and redirect the agent": "发送消息以拒绝，并重新引导 Agent",
   "Choose an option above": "请选择上面的一个选项",
   "Type your own answer, or leave this blank to use the selected option":
     "输入你自己的回答，或留空以使用所选选项",
@@ -458,8 +458,8 @@ export default {
   "Dismiss message from {name}": "忽略 {name} 的消息",
   "Send message from {name}": "发送 {name} 的消息",
   Send: "发送",
-  "Link a machine to this environment": "把一台机器关联到这个环境",
-  "Link {target} to this environment": "把 {target} 关联到这个环境",
+  "Link a machine to this environment": "将一台机器关联到这个环境",
+  "Link {target} to this environment": "将 {target} 关联到这个环境",
   "Choose machine…": "选择机器…",
   "Review link…": "查看关联…",
   "Only a session that manages access here can answer this.":
@@ -580,7 +580,7 @@ export default {
   "Open approval": "打开批准请求",
   "Open question": "打开问题",
   "Failed to resume goal.": "无法恢复目标。",
-  Resume: "恢复",
+  Resume: "继续",
   "Failed to clear goal.": "无法清除目标。",
   Clear: "清除",
   "Pursuing goal": "正在推进目标",

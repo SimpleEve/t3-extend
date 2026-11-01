@@ -391,7 +391,7 @@ function useThreadGitHeaderActionItems(props: ThreadGitControlsProps): ThreadGit
                 : t("Turn diffs and worktree changes"),
             disabled: !model.isRepo || props.hasThread === false,
             icon: { name: "text.bubble", type: "sfSymbol" },
-            label: t("Review changes"),
+            label: t("Review changes", undefined, "git"),
             onPress: model.openReview,
             type: "action",
           },
@@ -568,7 +568,7 @@ function threadGitMenuDefinition(
       },
       {
         id: "git-review",
-        title: t("Review changes"),
+        title: t("Review changes", undefined, "git"),
         icon: "text.bubble",
         disabled: !model.isRepo || props.hasThread === false,
         subtitle:

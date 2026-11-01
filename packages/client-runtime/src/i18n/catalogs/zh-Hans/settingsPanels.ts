@@ -467,7 +467,7 @@ export default {
   Responsive: "自适应",
   "Default viewport width": "默认视口宽度",
   "Default viewport height": "默认视口高度",
-  Rotate: "旋转",
+  Rotate: "轮换",
   "Page zoom applied to new browser tabs.": "新浏览器标签页使用的页面缩放。",
   "Default browser zoom": "默认浏览器缩放",
   "The color scheme pages are told to prefer. System follows your OS setting.":
@@ -861,7 +861,7 @@ export default {
   "Retry setup status": "重新获取设置状态",
   "Discovering sign-in methods…": "正在查找登录方式…",
   "No in-app sign-in advertised. Follow the provider's docs to finish setup.":
-    "没有提供应用内登录。请按照 provider 的文档完成设置。",
+    "这个 provider 没有提供应用内登录。请按照它的文档完成设置。",
   "Skip for now": "暂时跳过",
   "Machines you trust here can read PR data through each other's source control access. Enable both machines. Read and act may use broader permissions than the machine that owns them. This applies only to this device.":
     "你在这里信任的机器可以通过彼此的源代码管理访问权限读取 PR 数据。两台机器都需要开启。“读取并操作”使用的权限可能比拥有它的机器更宽。此设置只对此设备生效。",
@@ -945,7 +945,7 @@ export default {
   Filters: "过滤条件",
   "Run only when every filter matches. Other requests are logged as filtered. Separate “is one of” values with commas; a value can't contain a comma.":
     "只有所有过滤条件都匹配时才运行。其他请求会记录为已过滤。“是其中之一”的多个值用逗号分隔；值本身不能包含逗号。",
-  "Add filter": "添加过滤条件",
+  "Add filter": "添加筛选条件",
   "Filter {index} path": "过滤条件 {index} 的路径",
   "Remove filter {index}": "移除过滤条件 {index}",
   "Filter {index} test": "过滤条件 {index} 的判断方式",
@@ -1174,11 +1174,11 @@ export default {
   "Compact idle threads": "压缩空闲对话",
   "Add project base directory": "添加项目的基础目录",
   "Automatically resume threads when their usage limits reset. You can cancel auto-resume in each thread.":
-    "用量限制重置后自动继续对话。你可以在每个对话中取消自动继续。",
-  "Resume after usage limits": "用量限制重置后继续",
+    "用量上限重置后自动继续对话。你可以在每个对话中取消自动继续。",
+  "Resume after usage limits": "用量上限重置后继续",
   "Snooze threads until their usage limits reset. Enable auto-resume to continue the agent after the reset.":
-    "把对话稍后处理到用量限制重置为止。开启自动继续后，重置后 Agent 会继续工作。",
-  "Snooze until limits reset": "稍后处理到限制重置",
+    "把对话稍后处理到用量上限重置为止。开启自动继续后，重置后 Agent 会继续工作。",
+  "Snooze until limits reset": "稍后处理到上限重置",
   "Settle a thread when its pull request merges. Closed pull requests still settle automatically.":
     "PR 合并后把对话标为已处理。关闭的 PR 也仍会自动标为已处理。",
   "Auto-settle merged threads": "合并后自动标为已处理",
@@ -1747,7 +1747,7 @@ export default {
   Status: "状态",
   Models: "模型",
   Arguments: "参数",
-  "Limited permissions": "受限权限",
+  "Limited permissions": "权限受限",
   "provider health check interval": "provider 健康检查间隔",
   "Cursor account": "Cursor 账号",
   "Setup unavailable": "无法设置",
@@ -1791,7 +1791,7 @@ export default {
   "compact idle threads": "压缩空闲对话",
   "New projects": "新项目",
   "add project base directory": "添加项目的基础目录",
-  "Usage limits": "用量限制",
+  "Usage limits": "用量上限",
   "auto-settle on merge": "合并后自动标为已处理",
   "Text generation": "文本生成",
   "text generation model": "文本生成模型",
@@ -1867,7 +1867,7 @@ export default {
   "Provider update checks": "provider 更新检查",
   "New threads": "新对话",
   Submodules: "子模块",
-  "Start from remote": "从远程创建",
+  "Start from remote": "从远程分支开始",
   "Add project starts in": "添加项目的起始目录",
   "Unpin confirmation": "取消置顶确认",
   "Archive confirmation": "归档确认",
@@ -1960,7 +1960,7 @@ export default {
   Error: "错误",
   Warning: "警告",
   "Read projects and threads. Cannot start, message or change anything.":
-    "读取项目和对话。不能启动、发送消息或更改任何内容。",
+    "可以读取项目和对话。不能启动、发送消息或修改任何内容。",
   "This connect link is incomplete": "这个连接链接不完整",
   "The link is missing its authorization request. Re-run `t3 connect` in your terminal and open the freshly printed URL.":
     "链接缺少授权请求。请在终端中重新运行 `t3 connect`，然后打开新打印出来的 URL。",
@@ -1979,14 +1979,14 @@ export default {
   "Enter a pairing code.": "请输入配对码。",
   "Set by desktop": "由桌面端设置",
   Supervised: "受监督",
-  "Ask before commands and file changes.": "执行命令和修改文件前先询问。",
+  "Ask before commands and file changes.": "运行命令和修改文件前先询问。",
   "Auto-accept edits": "自动接受编辑",
   "Auto-approve edits, ask before other actions.": "自动批准编辑，其他操作前先询问。",
   Auto: "自动",
   "Supported providers approve routine actions; others still ask.":
-    "支持的 provider 会自动批准常规操作，其他的仍会询问。",
+    "支持的 provider 会自动批准常规操作；其他 provider 仍会询问。",
   "Full access": "完全访问",
-  "Allow commands and edits without prompts.": "允许执行命令和编辑，不再询问。",
+  "Allow commands and edits without prompts.": "允许运行命令和编辑，不再询问。",
   Inherits: "继承",
   Never: "从不",
   "Pauses probes for idle clients, locked hosts, or low power mode.":
