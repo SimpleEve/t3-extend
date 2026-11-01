@@ -64,10 +64,14 @@ describe("UI locale store", () => {
     const unsubscribe = subscribeUiLocale(() => seen.push(getUiLocale()));
     const toChinese = setUiLocale("zh-Hans");
     const backToEnglish = setUiLocale("en");
-    await Promise.all([toChinese, backToEnglish]);
-    expect(getUiLocale()).toBe("en");
-    expect(seen).toEqual([]);
+    const backToChinese = setUiLocale("zh-Hans");
+    await Promise.all([toChinese, backToEnglish, backToChinese]);
+    expect(getUiLocale()).toBe("zh-Hans");
+    expect(seen).toEqual(["zh-Hans"]);
 
+    __setUiCatalogForTests("zh-Hans", null);
+    await setUiLocale("en");
+    seen.length = 0;
     await setUiLocale("zh-Hans");
     expect(seen).toEqual(["zh-Hans"]);
     expect(translatorFor("zh-Hans")("Settings")).toBe("设置");
