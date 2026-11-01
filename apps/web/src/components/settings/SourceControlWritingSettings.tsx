@@ -336,7 +336,7 @@ export function SourceControlWritingSettingsSection() {
                       modelOptionsByInstance={reviewGuideModelOptionsByInstance}
                       triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
                       triggerAriaLabel={t("Review guide model")}
-                      {...(mixedReviewGuideModel ? { triggerLabel: "Mixed" } : {})}
+                      {...(mixedReviewGuideModel ? { triggerLabel: t("Mixed") } : {})}
                       getModelDisabledReason={writerModelDisabledReason}
                       onInstanceModelChange={(instanceId, model) => {
                         const reason = writerModelDisabledReason(instanceId, model);
@@ -535,7 +535,7 @@ export function SourceControlWritingSettingsSection() {
                     modelOptionsByInstance={modelOptionsByInstance}
                     triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
                     triggerAriaLabel={t("Source control writer model")}
-                    {...(mixedWriterModel ? { triggerLabel: "Mixed" } : {})}
+                    {...(mixedWriterModel ? { triggerLabel: t("Mixed") } : {})}
                     {...(environmentId
                       ? {
                           onOpenProviderSetup: (instanceId: ProviderInstanceId) => {

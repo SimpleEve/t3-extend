@@ -75,7 +75,8 @@ function AccessScopeSummary({
   readonly label: string;
 }) {
   const t = useT();
-  const scopeCountLabel = `${scopes.length} ${scopes.length === 1 ? "scope" : "scopes"}`;
+  const scopeCountLabel =
+    scopes.length === 1 ? t("1 scope") : t("{count} scopes", { count: scopes.length });
 
   return (
     <Popover>

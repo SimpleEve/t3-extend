@@ -147,10 +147,11 @@ const BACKEND_VALUE_WSL_OFF = "backend:wsl-off";
 
 // Subscribes on its own so desktop download progress does not re-render the page.
 function LocalVersionStatusLabel() {
+  const t = useT();
   const updateState = useDesktopUpdateState();
   return (
     <span className="text-xs text-muted-foreground">
-      {resolveLocalVersionStatusLabel(updateState)}
+      {resolveLocalVersionStatusLabel(updateState, t)}
     </span>
   );
 }
@@ -1169,6 +1170,7 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
               summary={summarizeAuthorizedClients(
                 desktopClientSessions,
                 visibleDesktopPairingLinks,
+                t,
               )}
               control={
                 canWriteAccess ? (

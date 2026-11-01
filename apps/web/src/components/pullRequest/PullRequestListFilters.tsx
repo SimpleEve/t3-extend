@@ -354,7 +354,7 @@ function PullRequestAuthorFilter({
     <MenuSub>
       <MenuSubTrigger>
         <UserRoundIcon aria-hidden className="size-3.5" />
-        <span className="flex-1">Author</span>
+        <span className="flex-1">{t("Author")}</span>
         <span className="min-w-0 max-w-32 truncate text-xs text-muted-foreground">
           {value ?? t("Anyone")}
         </span>
@@ -459,7 +459,7 @@ function PullRequestLabelFilter({
     <MenuSub>
       <MenuSubTrigger>
         <TagIcon aria-hidden className="size-3.5" />
-        <span className="flex-1">Labels</span>
+        <span className="flex-1">{t("Labels")}</span>
         <span className="text-xs text-muted-foreground">
           {value.length === 0 ? t("Any") : t("{count} selected", { count: value.length })}
         </span>

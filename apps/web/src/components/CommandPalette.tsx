@@ -1015,11 +1015,14 @@ function OpenCommandPaletteDialog(props: {
 
     for (const source of orderedSources) {
       const label = addProjectRemoteSourceLabel(source);
-      const title = source === "url" ? "Git URL" : `${label} repository`;
+      const title = source === "url" ? "Git URL" : t("{label} repository", { label });
       const description =
         source === "url"
-          ? "Clone from a remote URL"
-          : `Clone ${label} ${addProjectRemoteSourcePathHint(source)}`;
+          ? t("Clone from a remote URL")
+          : t("Clone {label} {pathHint}", {
+              label,
+              pathHint: addProjectRemoteSourcePathHint(source),
+            });
       const readiness = readinessBySource(source);
       const disabledHint = readiness.hint;
 
@@ -1040,7 +1043,10 @@ function OpenCommandPaletteDialog(props: {
               }
             />
             <TooltipPopup align="end" side="left">
-              {disabledHint ?? "Open Settings -> Source control to configure this provider."}
+              {/* fork: hints are fixed English install and setup guidance. */}
+              {disabledHint
+                ? t(disabledHint)
+                : t("Open Settings -> Source control to configure this provider.")}
             </TooltipPopup>
           </Tooltip>
         </span>

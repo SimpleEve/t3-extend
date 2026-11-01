@@ -28,7 +28,7 @@ import {
 } from "../../state/desktopSnapShot";
 import { toastManager } from "../ui/toast";
 import { primaryServerKeybindingsAtom } from "../../state/server";
-import { commandLabel } from "./KeybindingsSettings.logic";
+import { translatedCommandLabel } from "./KeybindingsSettings.logic";
 import {
   snapShotStatus,
   snapShotShortcutStatus,
@@ -138,7 +138,10 @@ export function SnapShotSettings() {
   const shortcutCheckIdRef = useRef(0);
   const unavailableMessage = snapShotUnavailableMessage(Boolean(bridge));
   const captureAvailable = Boolean(bridge) && state !== null && state.mode !== "unavailable";
-  const feedbackUnavailable = snapShotFeedbackUnavailableMessage(state);
+  // fork: the logic helpers return fixed English, or a message the desktop sent.
+  const feedbackMessage = snapShotFeedbackUnavailableMessage(state);
+  const feedbackUnavailable = feedbackMessage ? t(feedbackMessage) : feedbackMessage;
+  const accessibilityUnavailable = snapShotAccessibilityUnavailableMessage(state);
   const managedShortcut = state?.linuxBackend === "niri" || state?.linuxBackend === "hyprland";
   const shortcutChanged = !managedShortcut && !sameSnapShotShortcut(candidate, savedShortcut);
   const displayShortcut = shortcutChanged ? candidate : (state?.shortcut ?? savedShortcut);
@@ -149,7 +152,11 @@ export function SnapShotSettings() {
     shortcutChanged && candidateConflict === null && shortcutCheck.availability?.available === true;
   const soundSelection = settings.snapShotPlaySound ? settings.snapShotSound : "off";
   const soundLabel =
-    soundSelection === "off" ? "Off" : soundSelection === "soft-pop" ? "Whoosh (Default)" : "Click";
+    soundSelection === "off"
+      ? t("Off")
+      : soundSelection === "soft-pop"
+        ? t("Whoosh (Default)")
+        : t("Click");
 
   const setup = async (action: DesktopSnapShotSetupAction) => {
     if (!bridge || setupBusy) return;
@@ -254,21 +261,24 @@ export function SnapShotSettings() {
       }),
   });
 
+  const fixedShortcutStatus = snapShotShortcutStatus(state);
   const shortcutStatus = recording
-    ? "Press your shortcut. Esc cancels."
+    ? t("Press your shortcut. Esc cancels.")
     : candidateConflict
-      ? `T3 Code already uses this for "${commandLabel(candidateConflict)}".`
+      ? t('T3 Code already uses this for "{command}".', {
+          command: translatedCommandLabel(candidateConflict, t),
+        })
       : shortcutCheck.status === "checking"
-        ? "Checking shortcut…"
+        ? t("Checking shortcut…")
         : shortcutCheck.availability
           ? shortcutCheck.availability.available
-            ? "Ready to save."
+            ? t("Ready to save.")
             : shortcutCheck.availability.message
           : state?.mode === "portal" &&
               !state.shortcutLabel &&
               isModifierPairShortcut(displayShortcut)
-            ? "Try a shortcut such as Ctrl+Shift+2."
-            : snapShotShortcutStatus(state);
+            ? t("Try a shortcut such as Ctrl+Shift+2.")
+            : fixedShortcutStatus && t(fixedShortcutStatus);
 
   const openSetup = async (requested: CaptureSetupStep | "resume" = "resume") => {
     if (!state || setupBusy) return;
@@ -356,14 +366,14 @@ export function SnapShotSettings() {
         <SettingsUnavailableGroup message={unavailableMessage}>
           <SettingsRow
             {...searchableSetting("snap-shot-enabled")}
-            description={snapShotDescription(state)}
+            description={t(snapShotDescription(state))}
             status={
               bridge
                 ? setupBusy && !wizard
-                  ? "Updating capture settings…"
+                  ? t("Updating capture settings…")
                   : refreshError
                     ? `${refreshError.title}. ${refreshError.message}`
-                    : snapShotStatus(state, settings.snapShotEnabled)
+                    : t(snapShotStatus(state, settings.snapShotEnabled))
                 : undefined
             }
             control={
@@ -376,7 +386,7 @@ export function SnapShotSettings() {
                     disabled={setupBusy}
                     onClick={() => void openSetup()}
                   >
-                    {snapShotSetupButtonLabel(state)}
+                    {t(snapShotSetupButtonLabel(state))}
                   </Button>
                 ) : null}
                 <Switch
@@ -397,7 +407,7 @@ export function SnapShotSettings() {
               <SettingsRow
                 {...searchableSetting("snap-shot-accessibility")}
                 description={t("Include text and controls when the app makes them available.")}
-                status={snapShotAccessibilityUnavailableMessage(state)}
+                status={accessibilityUnavailable && t(accessibilityUnavailable)}
                 control={
                   <Switch
                     checked={
@@ -478,7 +488,7 @@ export function SnapShotSettings() {
                 control={
                   <Menu>
                     <MenuTrigger
-                      aria-label={"Snapshot sound: " + soundLabel}
+                      aria-label={t("Snapshot sound: {sound}", { sound: soundLabel })}
                       render={<SelectButton size="sm" />}
                       className="w-auto min-w-0"
                       disabled={!captureAvailable}

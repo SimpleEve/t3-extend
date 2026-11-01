@@ -1,6 +1,7 @@
 import { ChevronDownIcon, PaperclipIcon } from "lucide-react";
 
 import { Button } from "../ui/button";
+import { useT } from "~/hooks/useT";
 
 export function WorkspaceFileDropOverlay() {
   return (
@@ -28,6 +29,7 @@ export function ScrollToEndButton(props: {
   readonly summary: string | null;
   readonly onScrollToEnd: () => void;
 }) {
+  const t = useT();
   return (
     <div
       className="chat-scroll-to-bottom pointer-events-none absolute z-30 flex justify-center py-1.5"
@@ -42,7 +44,7 @@ export function ScrollToEndButton(props: {
         variant="glass"
       >
         <ChevronDownIcon className="size-3.5" />
-        Scroll to end
+        {t("Scroll to end")}
         {props.summary === null ? null : (
           <span className="text-muted-foreground">
             <span aria-hidden>· </span>

@@ -744,4 +744,12 @@ export default {
   "Copy table": "复制表格",
   "Copy as Markdown": "复制为 Markdown",
   "Copy as CSV": "复制为 CSV",
+  "More composer controls": "更多输入框控件",
+  "Attach files": "附加文件",
+  "Code block actions": "代码块操作",
+  "Jump to message: {message}": "跳到消息：{message}",
+  "User message": "用户消息",
+  "Previous turn": "上一轮次",
+  "Next turn": "下一轮次",
+  "Scroll to end": "滚动到底部",
 } satisfies Record<string, string>;
