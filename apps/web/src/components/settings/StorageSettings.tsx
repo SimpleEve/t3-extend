@@ -48,6 +48,7 @@ import {
 } from "./useScopedSettings";
 import { settingsScopeEnvironmentLabel } from "./settingsScopeAxis";
 import { useT } from "../../hooks/useT";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork
 
 export function WorktreesDirectoryRow() {
   const t = useT();
@@ -177,12 +178,13 @@ const KEEP_WHEN_LABELS = {
 function lastRunSummary(
   entries: readonly { readonly label: string; readonly counts: string }[],
   machineCount: number,
+  t: Translator, // fork: interface language
 ) {
   const first = entries[0];
   if (!first) return "";
   if (machineCount <= 1) return first.counts;
   if (entries.length === machineCount && entries.every((entry) => entry.counts === first.counts)) {
-    return `${first.counts} on every machine`;
+    return t("{counts} on every machine", { counts: first.counts });
   }
   return entries.map((entry) => `${entry.label}: ${entry.counts}`).join(" · ");
 }
@@ -245,7 +247,9 @@ function CleanupResults({
                 <span className="text-xs text-muted-foreground">
                   {[
                     entry.kind !== "worktree" && entry.files !== null
-                      ? `${entry.files.toLocaleString()} ${entry.files === 1 ? "file" : "files"}`
+                      ? entry.files === 1
+                        ? t("1 file")
+                        : t("{count} files", { count: entry.files.toLocaleString() })
                       : null,
                     entry.bytes !== null ? formatBytes(entry.bytes) : null,
                   ]
@@ -334,10 +338,21 @@ function CleanupSection() {
       report,
       label: settingsScopeEnvironmentLabel(environment, connectedEnvironments),
       counts: report
-        ? `${report.counts.removed} removed, ${report.counts.kept} kept${report.counts.failed > 0 ? `, ${report.counts.failed} failed` : ""}`
+        ? report.counts.failed > 0
+          ? t("{removed} removed, {kept} kept, {failed} failed", report.counts)
+          : t("{removed} removed, {kept} kept", report.counts)
         : "",
       description: report
-        ? `Last run ${formatRelativeTimeLabel(report.finishedAt, nowMs)}. ${formatBytes(report.bytesFreed)} recovered.${report.counts.failed > 0 ? ` ${report.counts.failed} ${report.counts.failed === 1 ? "item" : "items"} couldn't be removed.` : ""}`
+        ? `${t("Last run {time}. {size} recovered.", {
+            time: formatRelativeTimeLabel(report.finishedAt, nowMs),
+            size: formatBytes(report.bytesFreed),
+          })}${
+            report.counts.failed === 0
+              ? ""
+              : report.counts.failed === 1
+                ? t(" 1 item couldn't be removed.")
+                : t(" {count} items couldn't be removed.", { count: report.counts.failed })
+          }`
         : query?.failed
           ? t("Could not load the last run.")
           : query?.loading
@@ -410,6 +425,7 @@ function CleanupSection() {
           summary={lastRunSummary(
             summaries.filter(({ report }) => report !== null),
             connectedEnvironments.length,
+            t,
           )}
         >
           {summaries.map(
@@ -486,7 +502,7 @@ export function WorktreeCleanupSection() {
           key
         ] !== settings[key],
     )
-      ? "Mixed across selected machines"
+      ? t("Mixed across selected machines")
       : undefined;
   const update = (patch: Partial<StorageCleanupSettings>) =>
     updateSettings({ storageCleanup: patch });
@@ -626,7 +642,7 @@ export function WorktreeCleanupSection() {
                     status={[
                       ruleStatus("worktreeSettledAfterDays"),
                       environments.length > connectedEnvironments.length
-                        ? "Offline machines will not get this setting"
+                        ? t("Offline machines will not get this setting")
                         : undefined,
                     ]
                       .filter(Boolean)
@@ -739,11 +755,11 @@ export function StorageCleanupSections() {
   const settledLogsStatus = useDebouncedValue(`${targetIdsKey}:${logsMixed}`, 300);
   const artifactsStatus =
     targets.length > 1 && settledArtifactsStatus === `${targetIdsKey}:true`
-      ? "Mixed across selected machines"
+      ? t("Mixed across selected machines")
       : undefined;
   const logsStatus =
     targets.length > 1 && settledLogsStatus === `${targetIdsKey}:true`
-      ? "Mixed across selected machines"
+      ? t("Mixed across selected machines")
       : undefined;
   if (scope.kind === "project" || scope.kind === "checkout") return null;
   const update = (patch: Partial<StorageCleanupSettings>) =>

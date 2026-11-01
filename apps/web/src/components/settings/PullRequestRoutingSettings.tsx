@@ -16,6 +16,7 @@ import { EnvironmentRow, EnvironmentTransportLabel } from "./EnvironmentRow";
 import { FoldedSettingsSection } from "./FoldedSettingsSection";
 import { searchableSetting } from "./settingsSearch";
 import { useT } from "../../hooks/useT";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork
 
 const options: ReadonlyArray<{ value: PullRequestRoutingPermission; label: string }> = [
   { value: "off", label: "Off" },
@@ -23,19 +24,28 @@ const options: ReadonlyArray<{ value: PullRequestRoutingPermission; label: strin
   { value: "read-write", label: "Read and act" },
 ];
 
-const summaryLabels = { "read-write": "read and act", read: "read PRs" } as const;
+// fork: one whole phrase per permission so a translation can order it.
+const summaryLabels = {
+  "read-write": "{machines} read and act",
+  read: "{machines} read PRs",
+} as const;
 
 function summarizePullRequestRouting(
   entries: ReadonlyArray<{
     readonly label: string;
     readonly permission: PullRequestRoutingPermission;
   }>,
+  t: Translator, // fork: interface language
 ): string | null {
   const groups = (["read-write", "read"] as const).flatMap((permission) => {
     const labels = entries.filter((entry) => entry.permission === permission);
     return labels.length === 0
       ? []
-      : [`${labels.map((entry) => entry.label).join(", ")} ${summaryLabels[permission]}`];
+      : [
+          t(summaryLabels[permission], {
+            machines: labels.map((entry) => entry.label).join(t(", ")),
+          }),
+        ];
   });
   return groups.length === 0 ? null : groups.join(" · ");
 }
@@ -64,7 +74,8 @@ export function PullRequestRoutingSettings({
             label: environment.label,
             permission: pullRequestRoutingPermissionFor(environment.entry, permissions),
           })),
-        ) ?? "Off"
+          t,
+        ) ?? t("Off")
       }
     >
       <p className="px-3 py-2.5 text-xs text-muted-foreground sm:px-4">

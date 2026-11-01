@@ -12,6 +12,7 @@ import { EnvironmentRow, EnvironmentTransportLabel } from "./EnvironmentRow";
 import { FoldedSettingsSection } from "./FoldedSettingsSection";
 import { searchableSetting } from "./settingsSearch";
 import { useT } from "../../hooks/useT";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork
 
 const preferences = [
   { value: 100, label: "Prefer" },
@@ -28,19 +29,23 @@ function loadPreferenceForWeight(weight: number | undefined): LoadPreference {
   return weight < 50 ? 25 : 100;
 }
 
-function preferenceLabel(preference: LoadPreference): string {
-  return preferences.find((entry) => entry.value === preference)!.label;
-}
+// fork: one whole phrase per preference so a translation can order it.
+const PREFERENCE_SUMMARIES = {
+  100: "{machine} prefer",
+  25: "{machine} less often",
+  0: "{machine} manual only",
+} as const;
 
 function summarizeLoadPreferences(
   environments: ReadonlyArray<Pick<EnvironmentPresentation, "environmentId" | "label">>,
   weights: Readonly<Record<string, number>>,
+  t: Translator, // fork: interface language
 ): string | null {
   const parts = environments.flatMap((environment) => {
     const preference = loadPreferenceForWeight(weights[environment.environmentId]);
     return preference === 50
       ? []
-      : [`${environment.label} ${preferenceLabel(preference).toLowerCase()}`];
+      : [t(PREFERENCE_SUMMARIES[preference], { machine: environment.label })];
   });
   return parts.length === 0 ? null : parts.join(" · ");
 }
@@ -66,8 +71,8 @@ export function LoadBalancingSettings({
       title={title}
       summary={
         settings.loadBalancingEnabled
-          ? summarizeLoadPreferences(environments, settings.loadBalancingWeights)
-          : "Off"
+          ? summarizeLoadPreferences(environments, settings.loadBalancingWeights, t)
+          : t("Off")
       }
       control={
         <Switch

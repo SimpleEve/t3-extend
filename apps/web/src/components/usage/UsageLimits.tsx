@@ -42,6 +42,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { UsageLimitsPooled } from "./UsageLimitsPooled";
 import { PROVIDER_PRESENTATION } from "./usageProviders";
 import { useT } from "../../hooks/useT";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork
 
 const PACE: Record<LimitPace, { readonly label: string; readonly icon: typeof GaugeIcon }> = {
   ahead: { label: "Ahead of pace: spending faster than the window elapses", icon: TrendingUpIcon },
@@ -129,13 +130,13 @@ function WindowBar({
   const remaining = remainingPercent(window);
   const timeLeft = paceRemainingPercent(window, now);
   const [barRef, paceMark] = usePaceMark(timeLeft);
-  const resetsIn = formatResetsIn(window, now);
+  const resetsIn = formatResetsIn(window, now, t);
   const resetsAt = window.resetsAt
     ? formatUpcomingTimestamp(window.resetsAt, timestampFormat, now)
     : null;
-  const summary = `${window.label}: ${remaining}% left${
-    timeLeft === null ? "" : `, ${timeLeft}% of the window left`
-  }${resetsIn ? `, ${resetsIn}` : ""}`;
+  const summary = `${window.label}: ${t("{remaining}% left", { remaining })}${
+    timeLeft === null ? "" : t(", {timeLeft}% of the window left", { timeLeft })
+  }${resetsIn ? `${t(", ")}${resetsIn}` : ""}`;
 
   return (
     <Tooltip>
@@ -216,7 +217,7 @@ export function LimitWindows({
     >
       {windows.map((window) => {
         const pace = paceOf(window, now);
-        const resetsIn = formatResetsIn(window, now);
+        const resetsIn = formatResetsIn(window, now, t);
         return (
           <Fragment key={window.id}>
             <span className="flex min-w-0 items-center gap-2 text-xs">
@@ -315,16 +316,27 @@ export function resetCreditsSummary(
   credits: ServerProviderResetCredits,
   now: number,
   compact = false,
+  t: Translator, // fork: interface language
 ): string {
   const expiresIn = credits.nextExpiresAt
     ? formatDuration(Date.parse(credits.nextExpiresAt) - now)
     : null;
-  if (credits.availableCount === 0) return "No reset credits banked";
-  if (compact)
-    return `${credits.availableCount} banked${expiresIn ? ` · expires in ${expiresIn}` : ""}`;
-  return `${credits.availableCount} ${credits.availableCount === 1 ? "reset credit" : "reset credits"} banked${
-    expiresIn ? ` · next expires in ${expiresIn}` : ""
-  }`;
+  if (credits.availableCount === 0) return t("No reset credits banked");
+  const count = credits.availableCount;
+  if (compact) {
+    return expiresIn
+      ? t("{count} banked · expires in {duration}", { count, duration: expiresIn })
+      : t("{count} banked", { count });
+  }
+  // fork: whole phrases per count and expiry so a translation can order them.
+  if (count === 1) {
+    return expiresIn
+      ? t("1 reset credit banked · next expires in {duration}", { duration: expiresIn })
+      : t("1 reset credit banked");
+  }
+  return expiresIn
+    ? t("{count} reset credits banked · next expires in {duration}", { count, duration: expiresIn })
+    : t("{count} reset credits banked", { count });
 }
 
 export function ResetCredits({
@@ -346,7 +358,7 @@ export function ResetCredits({
   if (credits.availableCount === 0 && status === null) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-      <span className="tabular-nums">{resetCreditsSummary(credits, now)}</span>
+      <span className="tabular-nums">{resetCreditsSummary(credits, now, false, t)}</span>
       {credits.availableCount > 0 ? (
         <Button
           size="xs"

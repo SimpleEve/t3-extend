@@ -231,7 +231,7 @@ export function SourceControlAppSignInSettings({
             <Button
               size="icon-xs"
               variant="ghost"
-              aria-label={t("Copy code")}
+              aria-label={t("Copy code", undefined, "device code")}
               onClick={() => copyToClipboard(waiting.userCode, undefined)}
             >
               <MorphIcon className="size-3.5" icon={isCopied ? Check : Copy} />

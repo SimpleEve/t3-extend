@@ -663,12 +663,24 @@ export function formatDuration(ms: number): string {
   return `${minutes}m`;
 }
 
-export function formatResetsIn(window: ServerProviderUsageWindow, now: number): string | null {
+// fork: reset labels take an optional translator; without one the English is unchanged.
+type ResetLabelTranslator = (source: string, params?: Readonly<Record<string, string>>) => string;
+
+const englishResetLabel: ResetLabelTranslator = (source, params) =>
+  source.replace(/\{(\w+)\}/g, (match, name: string) =>
+    params && Object.hasOwn(params, name) ? params[name]! : match,
+  );
+
+export function formatResetsIn(
+  window: ServerProviderUsageWindow,
+  now: number,
+  t: ResetLabelTranslator = englishResetLabel, // fork: interface language
+): string | null {
   const resetsAt = resetMillis(window);
   if (resetsAt === null) return null;
-  if (resetsAt <= now) return "resets now";
-  if (resetsAt - now < MINUTE) return "Resets momentarily";
-  return `resets in ${formatDuration(resetsAt - now)}`;
+  if (resetsAt <= now) return t("resets now");
+  if (resetsAt - now < MINUTE) return t("Resets momentarily");
+  return t("resets in {duration}", { duration: formatDuration(resetsAt - now) });
 }
 
 export const USAGE_LIMITS_COMMAND = {

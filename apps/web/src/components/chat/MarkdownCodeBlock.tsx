@@ -28,6 +28,7 @@ import {
 } from "./MarkdownCodeBlock.logic";
 import { reportMarkdownActionFailure } from "./markdownActionFailure";
 import { PierreEntryIcon } from "./PierreEntryIcon";
+import { useT } from "~/hooks/useT"; // fork: interface language
 
 const MAX_HIGHLIGHT_CACHE_ENTRIES = 500;
 const MAX_HIGHLIGHT_CACHE_MEMORY_BYTES = 50 * 1024 * 1024;
@@ -151,6 +152,7 @@ export function MarkdownCodeBlock({
   diagram?: boolean;
   children: ReactNode;
 }) {
+  const t = useT(); // fork: interface language
   const { copyToClipboard, isCopied: copied } = useCopyToClipboard({
     timeout: 1200,
     onError: (cause) =>
@@ -164,8 +166,8 @@ export function MarkdownCodeBlock({
       ),
   });
   const [wrapped, setWrapped] = useState(() => getClientSettings().wordWrap);
-  const wrapLabel = wrapped ? "Disable line wrap" : "Wrap lines";
-  const copyLabel = copied ? "Copied" : "Copy code";
+  const wrapLabel = wrapped ? t("Disable line wrap") : t("Wrap lines");
+  const copyLabel = copied ? t("Copied") : t("Copy code", undefined, "code block");
   const command = code.trim();
   const canRun =
     onRunShellCommand !== undefined &&
@@ -248,13 +250,13 @@ export function MarkdownCodeBlock({
                     variant="ghost-muted"
                     size="icon-xs"
                     onClick={() => onRunShellCommand(command)}
-                    aria-label="Run in terminal"
+                    aria-label={t("Run in terminal")}
                   />
                 }
               >
                 <PlayIcon className="size-3" />
               </TooltipTrigger>
-              <TooltipPopup side="top">Run in terminal</TooltipPopup>
+              <TooltipPopup side="top">{t("Run in terminal")}</TooltipPopup>
             </Tooltip>
           ) : null}
           {viewToggle}
