@@ -124,7 +124,18 @@ describe("AuthAttemptLimiter middleware", () => {
   it.effect("answers 429 after rejected codes without touching other auth routes", () =>
     Effect.gen(function* () {
       const crypto = yield* Crypto.Crypto;
-      const context = Context.make(Crypto.Crypto, crypto);
+      const context = Context.make(Crypto.Crypto, crypto).pipe(
+        Context.add(
+          ServerSecretStore.ServerSecretStore,
+          ServerSecretStore.ServerSecretStore.of({
+            get: () => Effect.succeedNone,
+            set: () => Effect.void,
+            create: () => Effect.void,
+            getOrCreateRandom: () => Effect.die("Not used by these routes."),
+            remove: () => Effect.void,
+          }),
+        ),
+      );
       return yield* Effect.acquireUseRelease(
         Effect.sync(() => HttpRouter.toWebHandler(layerRoutes, { disableLogger: true })),
         (web) =>
