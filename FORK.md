@@ -100,9 +100,14 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 3. 跑 `vp run i18n:report`，按 "missing" 列表在对应 area 的 catalog 里补译文，按术语表翻译。
 4. 跑 `vp test run packages/client-runtime/src/i18n/i18n.test.ts`：检查占位符一致、没有破折号、跨文件同 key 同译文。
 
-`i18n:report`（`scripts/i18n-report.ts`）扫描 `apps/web/src`、`apps/desktop/src`、`apps/mobile/src`、`packages/client-runtime/src` 里的 `t("...")` 一类调用，列出 catalog 里缺失的 key，以及 catalog 里有、代码里已经找不到的 key（通常是上游改了英文）。只报告，不阻断。同步上游后跑一次，把失效的 key 改成新英文。
+`i18n:report`（`scripts/i18n-report.ts`）扫描 `apps/web/src`、`apps/desktop/src`、`apps/mobile/src`、`packages/client-runtime/src`、`packages/shared/src`、`packages/contracts/src` 里的 `t("...")` 一类调用，列出 catalog 里缺失的 key，以及 catalog 里有、代码里已经找不到的 key（通常是上游改了英文）。判断 stale 时，代码里的字符串字面量和 `t()` 的 key 都算出现过。只报告，不阻断。同步上游后跑一次，把失效的 key 改成新英文。它只能发现 catalog 缺条目，发现不了调用点没包 `t()` 的硬编码英文，后者要在真实客户端里切到中文看。
 
-已翻译：设置页导航和面包屑、外观页、侧边栏表头与分区、线程状态和行操作、线程右键菜单和多选菜单、撤销提示、自定义稍后处理弹窗、命令面板的分组和静态命令、通用确认框、相对时间、桌面菜单和原生对话框。
+已翻译（约 5,500 条）：
+
+- web 和桌面：全部设置页与用量页、连接与配对、onboarding、命令面板、侧边栏、对话页（标题栏、Git 操作、状态行、输入框、时间线和工具调用摘要、各类卡片和横幅、模型选择器）、右侧面板（diff、文件、终端、浏览器、设备）、PR 面板和 PR 列表页、toast、通用确认框、相对时间和稍后处理的星期、桌面菜单和原生对话框。
+- mobile：首页与对话列表、对话页与 Git 面板、输入框、新任务、连接与配对、设置各页（含页标题）、通知、浏览器页、无障碍标签。
+
+还是英文（需要时再排期）：T3 MCP 工具的摘要（约 55 种动作）、后台任务标题、PR 操作的部分 toast、约 30 处设置页模板字符串、`ServerUpdateAction`；mobile 的 PR、终端、文件、代码审查、用量、归档、语音输入几个 tab，Git 的子页面，Android 底部导航（原生模块），以及部分仍跟随系统 locale 的时间。client-runtime 里 web 和 mobile 共用的拼接文案（工具摘要、稍后处理、Git 菜单、诊断等）都用可选的翻译参数：不传时英文输出不变。
 
 mobile：
 
