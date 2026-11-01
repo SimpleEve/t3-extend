@@ -12,6 +12,7 @@ import { useT } from "~/hooks/useT";
 import { Button } from "../ui/button";
 import { SidebarInput, SidebarMenuButton } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { SidebarViewToggle } from "./SidebarViewToggle"; // fork: sidebar views
 
 export interface SidebarThreadHeaderProps {
   searchFieldRef?: RefObject<HTMLDivElement | null>;
@@ -106,6 +107,8 @@ export function SidebarThreadHeader({
       <div className="flex shrink-0 items-center">
         {hasProjects ? (
           <>
+            {/* fork: sidebar views */}
+            <SidebarViewToggle />
             {projectScope}
             <SidebarHeaderIconButton label={t("Add project")} onClick={onNewProject}>
               <FolderPlusIcon />

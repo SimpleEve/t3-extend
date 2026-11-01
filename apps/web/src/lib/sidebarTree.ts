@@ -86,15 +86,23 @@ export function installSidebarTree(root: HTMLElement) {
     tabStop = selected;
     setTabIndex(root, selected ? -1 : 0);
     const siblings = new Map<string, HTMLElement[]>();
+    const byId = new Map(rows.map((row) => [row.dataset.sidebarRow, row]));
+    // fork: project-view worktree rows nest a third level, so count ancestors.
+    const levelOf = (row: HTMLElement) => {
+      let level = 1;
+      for (let parent = row.dataset.sidebarParent; parent && level < 8; level++) {
+        parent = byId.get(parent)?.dataset.sidebarParent;
+      }
+      return level;
+    };
     for (const row of rows) {
       const parent = row.dataset.sidebarParent ?? "";
       const group = siblings.get(parent) ?? [];
       group.push(row);
       siblings.set(parent, group);
-      setAttribute(row, "aria-level", parent ? "2" : "1");
+      setAttribute(row, "aria-level", String(levelOf(row)));
       setTabIndex(row, row === selected ? 0 : -1);
     }
-    const byId = new Map(rows.map((row) => [row.dataset.sidebarRow, row]));
     for (const control of ownTabIndex.keys()) if (!control.isConnected) ownTabIndex.delete(control);
     for (const control of root.querySelectorAll<HTMLElement>(CONTROL)) {
       if (control.matches(ROW) || control.matches(TEXT_ENTRY)) continue;

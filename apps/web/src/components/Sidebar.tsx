@@ -268,6 +268,13 @@ import {
   SidebarProjectFolderHeader,
   sidebarFolderRowId,
 } from "./sidebar/SidebarProjectFolderHeader";
+// fork: T3 Extend's project view nests worktree subgroups in project folders.
+import { useSidebarViewMode } from "../fork/sidebarViewStore";
+import { type SidebarFolderView, useProjectViewFolders } from "../fork/useProjectViewFolders";
+import {
+  SidebarWorktreeGroupHeader,
+  sidebarWorktreeRowId,
+} from "./sidebar/SidebarWorktreeGroupHeader";
 import {
   SidebarDragBoundary,
   SidebarSectionHeader,
@@ -536,8 +543,16 @@ function useSidebarThreads(input: {
   const visibleWorkingThreads = workingShelfExpanded
     ? workingThreads
     : routeThreadOnly(workingThreads, routeRowThreadKey);
-  const projectFolders =
-    folderGroups === null
+  // fork: the project view lays out its own folders, with worktree subgroups and folds.
+  const projectView = useProjectViewFolders({
+    folderGroups,
+    activeThreads,
+    keepEmpty,
+    routeRowThreadKey,
+  });
+  const projectFolders: readonly SidebarFolderView[] | null =
+    projectView?.folders ??
+    (folderGroups === null
       ? null
       : groupSidebarThreadsByProject(folderGroups, activeThreads, keepEmpty).map((folder) => {
           const collapsed = !resolveProjectExpanded(
@@ -555,7 +570,7 @@ function useSidebarThreads(input: {
               ? folder.threads.filter((thread) => threadShellKey(thread) !== routeRowThreadKey)
               : EMPTY_THREADS,
           };
-        });
+        }));
   const orderedThreads = [
     ...pinnedThreads,
     ...(projectFolders === null
@@ -603,6 +618,7 @@ function useSidebarThreads(input: {
     toggleWorkingShelf: () => setWorkingShelfExpanded((value) => !value),
     projectFolders,
     toggleProjectFolder: (group: SidebarProjectSnapshot) => {
+      if (projectView !== null) return projectView.toggleFolder(group); // fork: project view folds
       const keys = sidebarFolderExpansionKeys(group);
       setProjectExpanded(keys, !resolveProjectExpanded(projectExpandedById, keys));
     },
@@ -1008,7 +1024,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       );
     },
   });
-  const boringSidebarEnabled = useBoringSidebarEnabled();
+  // fork: the project view folds by project, so it takes every boring-mode branch:
+  // folders, no Working shelf, no drag, and New thread in the current project.
+  const sidebarViewMode = useSidebarViewMode();
+  const boringSidebarEnabled = useBoringSidebarEnabled() || sidebarViewMode === "project";
   const folderRowsMultiline = useClientSettings((settings) => settings.boringSidebarMultilineRows);
   const newThreadContext = useHandleNewThread();
   // Row callbacks capture only the handler; the rest of the context changes with the route.
@@ -2329,14 +2348,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               : []),
             {
               id: "settle",
-              label: `Settle (${count})`,
+              label: t("Settle ({count})", { count }), // fork: interface language
               disabled: settlingThreads.length === 0 || !canOperateThreads(settlingThreads),
             },
             ...(canSnoozeSelection
               ? [
                   {
                     id: "snooze",
-                    label: `Snooze (${count})`,
+                    label: t("Snooze ({count})", { count }), // fork: interface language
                     disabled: !canOperateThreads(selectedThreads),
                     children: [
                       ...snoozePresets.map((preset) => ({
@@ -2346,7 +2365,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       })),
                       {
                         id: "snooze:custom",
-                        label: "Custom…",
+                        label: t("Custom…"), // fork: interface language
                         separatorBefore: snoozePresets.length > 0,
                         disabled: !canOperateThreads(selectedThreads),
                       },
@@ -2364,10 +2383,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                   },
                 ]
               : []),
-            { id: "mark-unread", label: `Mark unread (${count})` },
+            { id: "mark-unread", label: t("Mark unread ({count})", { count }) }, // fork
             {
               id: "delete",
-              label: `Delete (${count})`,
+              label: t("Delete ({count})", { count }), // fork: interface language
               destructive: true,
               disabled: !canOperateThreads(selectedThreads),
             },
@@ -3468,6 +3487,30 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                 onContextMenu={handleProjectFolderContextMenu}
                               />,
                             );
+                            // fork: project view draws each worktree's header above its rows.
+                            if (folder.worktrees) {
+                              const folderRowId = sidebarFolderRowId(folder.group.projectKey);
+                              for (const worktree of folder.worktrees) {
+                                items.push(
+                                  <SidebarWorktreeGroupHeader
+                                    key={`worktree:${worktree.key}`}
+                                    worktree={worktree}
+                                    group={folder.group}
+                                    folderRowId={folderRowId}
+                                  />,
+                                );
+                                for (const thread of worktree.visibleThreads) {
+                                  items.push(
+                                    renderThreadRow(
+                                      thread,
+                                      "active",
+                                      sidebarWorktreeRowId(worktree.key),
+                                    ),
+                                  );
+                                }
+                              }
+                              continue;
+                            }
                             for (const thread of folder.threads) {
                               items.push(
                                 renderThreadRow(

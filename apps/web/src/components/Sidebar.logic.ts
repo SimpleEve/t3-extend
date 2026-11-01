@@ -2,6 +2,7 @@ import type { EnvironmentServerConfig } from "@t3tools/client-runtime/connection
 import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { resolveThreadWorkingStartedAt } from "@t3tools/client-runtime/state/models";
 import { isShownUnderParent } from "@t3tools/client-runtime/state/threads";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import { threadPullRequestSearchTerms } from "@t3tools/shared/threadPullRequests";
 import * as React from "react";
@@ -677,13 +678,15 @@ export function buildBulkTitleRegenerationContextMenuItem(input: {
   if (input.actionableCount === 0) {
     return {
       id: "regenerate-title",
-      label: `Regenerating… (${input.supportedCount})`,
+      label: translate(getUiLocale(), "Regenerating… ({count})", { count: input.supportedCount }), // fork
       disabled: true,
     };
   }
   return {
     id: "regenerate-title",
-    label: `Regenerate titles (${input.actionableCount})`,
+    label: translate(getUiLocale(), "Regenerate titles ({count})", {
+      count: input.actionableCount,
+    }), // fork
   };
 }
 
@@ -691,7 +694,11 @@ export function buildBulkUnpinContextMenuItem(input: {
   pinnedCount: number;
 }): ContextMenuItem<"unpin"> | null {
   if (input.pinnedCount === 0) return null;
-  return { id: "unpin", label: `Unpin (${input.pinnedCount})` };
+  // fork: interface language
+  return {
+    id: "unpin",
+    label: translate(getUiLocale(), "Unpin ({count})", { count: input.pinnedCount }),
+  };
 }
 
 export interface ThreadStatusPill {

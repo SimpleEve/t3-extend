@@ -76,7 +76,23 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的私有二开 for
 
 `i18n:report`（`scripts/i18n-report.ts`）扫描 `apps/web/src`、`apps/desktop/src`、`packages/client-runtime/src` 里的 `t("...")` 一类调用，列出 catalog 里缺失的 key，以及 catalog 里有、代码里已经找不到的 key（通常是上游改了英文）。只报告，不阻断。同步上游后跑一次，把失效的 key 改成新英文。
 
-首批已翻译：设置页导航和面包屑、外观页、侧边栏表头与分区、线程状态和行操作、线程右键菜单、命令面板的分组和静态命令、通用确认框、相对时间、桌面菜单和原生对话框。mobile 还没有接入。
+已翻译：设置页导航和面包屑、外观页、侧边栏表头与分区、线程状态和行操作、线程右键菜单和多选菜单、撤销提示、自定义稍后处理弹窗、命令面板的分组和静态命令、通用确认框、相对时间、桌面菜单和原生对话框。mobile 还没有接入。
+
+## 侧边栏视图
+
+侧边栏有"按状态"（上游的 Inbox，默认）和"按项目"两种视图，后者在项目文件夹下再按 worktree 分子组。用户说明见 `docs/user/thread-sidebar.md` 的 "Choose a sidebar view"。
+
+- 视图和折叠状态存在 fork 自己的 store（`apps/web/src/fork/sidebarViewStore.ts`，localStorage key `t3extend:sidebar-view:v1`），按设备保存，不进 `ClientSettings`，不改 contracts。折叠 key 带视图前缀（`sidebarGroupCollapseKey`），切换视图不会串组。
+- 分组是纯函数，放在 `packages/client-runtime/src/state/threadGrouping.ts`（`@t3tools/client-runtime/state/thread-grouping`），web 和以后的 Android 共用。
+- 按项目视图复用 boring 的所有分支：没有 Working shelf、不能拖拽、`chat.new` 在当前项目新建。Labs 里的 boring sidebar 只影响按状态视图。
+- `Sidebar.tsx` 的接线（都带 `// fork:`）：
+  1. 文件头的 import（`useSidebarViewMode`、`useProjectViewFolders`、`SidebarWorktreeGroupHeader`）。
+  2. `useSidebarThreads` 里 `projectFolders` 先取 `useProjectViewFolders` 的结果，`orderedThreadKeys` 因此跟着屏幕顺序走。
+  3. `useSidebarThreads` 返回的 `toggleProjectFolder`：按项目视图下写 fork store。
+  4. `Sidebar` 组件里 `boringSidebarEnabled` 加上 `|| sidebarViewMode === "project"`。
+  5. 列表渲染的文件夹循环：有 `folder.worktrees` 时先画 worktree 子组标题，再画行。
+- 其他上游文件各一两行：`SidebarThreadHeader.tsx`（切换按钮）、`CommandPalette.tsx`（两条命令，定义在 `CommandPaletteSidebarViewItems.tsx`）、`chatRouteCommands.ts`（`chat.new`）、`lib/sidebarTree.ts`（`aria-level` 按祖先数计算，支持第三层）。
+- 快捷键没有加，因为要改 `packages/contracts/src/keybindings.ts`。
 
 ## 同步上游
 

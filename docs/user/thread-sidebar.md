@@ -145,6 +145,24 @@ choice.
 While this is on, the active list is ordered by when each thread last came back to you, so you
 cannot drag or move threads within it. Your saved order returns when you turn it off.
 
+### Choose a sidebar view
+
+On web and desktop, use the view button beside the project filter at the top of the sidebar,
+or **Sidebar: Group by status** and **Sidebar: Group by project** in the command palette.
+Each device keeps its own choice.
+
+**By status** is the default list described above. **By project** puts active threads in a
+folder for each project, in your project order. When a project has threads in a worktree, its
+folder splits them by checkout: the project's main checkout comes first, marked **Main**, then
+its worktrees, the one you most recently sent a message in first. A checkout is labeled with its branch,
+or the worktree's folder name. Worktrees on different machines stay separate. A project whose
+threads are all in its main checkout lists them directly. Click a folder or a checkout to close
+it; it shows how many threads it holds, and a dot when one of them needs you. The thread you have
+open stays visible. Pinned threads stay above the folders, and Snoozed and Settled stay below
+them. **New thread** starts in the current project. In this view you cannot drag threads, and
+the Working section is off. The view lists
+worktrees that have threads; a worktree with no threads does not appear.
+
 ### Group threads by project (beta)
 
 Turn on **Settings → Labs → Boring sidebar (group by project)** on web and desktop to put active

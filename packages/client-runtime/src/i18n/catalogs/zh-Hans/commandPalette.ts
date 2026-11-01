@@ -40,6 +40,9 @@ export default {
   "Unpin project": "取消置顶项目",
   "Focus Next Workspace Area": "聚焦下一个工作区域",
   "Focus Previous Workspace Area": "聚焦上一个工作区域",
+  // fork: sidebar views
+  "Sidebar: Group by status": "侧边栏：按状态",
+  "Sidebar: Group by project": "侧边栏：按项目",
 
   // Search field placeholders
   "Search commands, projects, and threads...": "搜索命令、项目和对话…",

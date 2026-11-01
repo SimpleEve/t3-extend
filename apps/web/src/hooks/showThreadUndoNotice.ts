@@ -11,6 +11,12 @@ import { announce, cancelAnnouncement } from "../lib/announce";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { primaryServerKeybindingsAtom } from "../state/server";
 import * as ThreadUndo from "@t3tools/client-runtime/state/thread-undo";
+import {
+  getUiLocale,
+  translate,
+  translatorFor,
+  type Translator,
+} from "@t3tools/client-runtime/i18n"; // fork: interface language
 
 type UndoOptions = {
   action: "Settled" | "Snoozed" | "Unpinned" | "Archived" | "Discarded";
@@ -28,14 +34,45 @@ type UndoNotice = {
 
 export const useThreadUndoNotice = create<{ notice: UndoNotice | null }>(() => ({ notice: null }));
 
+// fork: whole phrases per action and number, so translations never assemble grammar.
+const SUMMARY_SOURCES: Record<UndoOptions["action"], readonly [one: string, many: string]> = {
+  Settled: ["Settled 1 thread", "Settled {count} threads"],
+  Snoozed: ["Snoozed 1 thread", "Snoozed {count} threads"],
+  Unpinned: ["Unpinned 1 thread", "Unpinned {count} threads"],
+  Archived: ["Archived 1 thread", "Archived {count} threads"],
+  Discarded: ["Discarded 1 draft", "Discarded {count} drafts"],
+};
+
+// fork: the footer's short form, which drops the noun.
+const COMPACT_SUMMARY_SOURCES: Record<UndoOptions["action"], readonly [one: string, many: string]> =
+  {
+    Settled: ["Settled", "Settled {count}"],
+    Snoozed: ["Snoozed", "Snoozed {count}"],
+    Unpinned: ["Unpinned", "Unpinned {count}"],
+    Archived: ["Archived", "Archived {count}"],
+    Discarded: ["Discarded", "Discarded {count}"],
+  };
+
 function threadUndoNoticeSummary(notice: Pick<UndoNotice, "action" | "count">): string {
-  const noun = notice.action === "Discarded" ? "draft" : "thread";
-  return `${notice.action} ${notice.count} ${noun}${notice.count === 1 ? "" : "s"}`;
+  const [one, many] = SUMMARY_SOURCES[notice.action];
+  return translate(getUiLocale(), notice.count === 1 ? one : many, { count: notice.count });
 }
 
-export function threadUndoLabel(keybindings: Parameters<typeof shortcutLabelForCommand>[0]) {
+/** The undo notice's short summary in the sidebar footer. */
+export function threadUndoCompactSummary(
+  notice: Pick<UndoNotice, "action" | "count">,
+  t: Translator,
+): string {
+  const [one, many] = COMPACT_SUMMARY_SOURCES[notice.action];
+  return t(notice.count === 1 ? one : many, { count: notice.count }, "undo notice");
+}
+
+export function threadUndoLabel(
+  keybindings: Parameters<typeof shortcutLabelForCommand>[0],
+  t: Translator = translatorFor(getUiLocale()), // fork: interface language
+) {
   const shortcut = shortcutLabelForCommand(keybindings, "thread.undo");
-  return shortcut ? `${shortcut} to undo` : "Undo";
+  return shortcut ? t("{shortcut} to undo", { shortcut }) : t("Undo");
 }
 
 let announcedSummary: string | null = null;
@@ -50,7 +87,10 @@ function setNotice(notice: UndoNotice | null) {
   announcedSummary = summary;
   if (summary) {
     const label = threadUndoLabel(appAtomRegistry.get(primaryServerKeybindingsAtom));
-    announce(`${summary}, ${label}`, "thread-undo-notice");
+    announce(
+      translate(getUiLocale(), "{summary}, {undo}", { summary, undo: label }), // fork
+      "thread-undo-notice",
+    );
   } else {
     cancelAnnouncement("thread-undo-notice");
   }

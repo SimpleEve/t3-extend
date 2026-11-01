@@ -25,6 +25,8 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 | session（登录会话）     | 会话                   | Agent session 也译"会话"                       |
 | project                 | 项目                   |                                                |
 | worktree                | worktree               | 不译                                           |
+| main checkout           | 主 checkout            | 项目的原始目录，和 linked worktree 相对        |
+| Main（worktree 徽标）   | 主                     | 按项目视图里主 checkout 子组的标记             |
 | branch                  | 分支                   |                                                |
 | commit                  | 提交                   |                                                |
 | PR / pull request       | PR                     | 按钮里的 "pull requests" 也写 PR               |
@@ -67,3 +69,5 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 
 - `Snooze` 的动作和 `Snoozed` 分区都译"稍后处理"，与起始表一致；唤醒类动作单独用"唤醒"。
 - `Un-settle` 起始表没有给出，译"移出已处理"，和"标为已处理"成对。
+- `main checkout` 译"主 checkout"：checkout 和 worktree 一样不译，"主"和 linked worktree 区分开。徽标只写"主"。
+- 撤销提示的短格式（`Settled`、`Snoozed {count}` 等）带 `undo notice` context，避免和分区名、状态名共用同一个 key。
