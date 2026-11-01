@@ -57,6 +57,31 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的私有二开 for
 - 系统 Node 是 26.5.1，仓库锁定 26.12.1。开发和测试用系统 Node；打包时如果因为 Node 版本报错，用 `vp env exec --node 26.12.1 <命令>`。
 - 提交前跑 `vp run fork:guard` 和 `vp run check:changed`。
 
+## Android 开发环境
+
+本机没有系统 JDK（`/usr/bin/java` 是占位程序），`ANDROID_HOME` 默认也没设。每个 shell 先执行：
+
+```bash
+export PATH="$HOME/.local/share/vite-plus/bin:$PATH:$HOME/.local/share/vite-plus/fallback-bin"
+export ANDROID_HOME="$HOME/Library/Android/sdk" ANDROID_SDK_ROOT="$HOME/Library/Android/sdk"
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"   # JBR 21
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
+```
+
+- SDK 版本由 RN 0.88 的 `react-native/gradle/libs.versions.toml` 决定，Expo 的 `ExpoRootProjectPlugin` 原样采用：compileSdk 37、targetSdk 36、build-tools 37.0.0、NDK 27.1.12297006，原生库用 CMake 3.22.1。用 `sdkmanager --install "platforms;android-37.0" "platforms;android-36" "build-tools;37.0.0" "ndk;27.1.12297006" "cmake;3.22.1"` 补齐。升级 RN 后以 `libs.versions.toml` 为准。
+- 测试用专用 AVD `t3extend-test`（pixel_8，`system-images;android-36;google_apis_playstore;arm64-v8a`，数据分区 6G、内存 4G、host GPU）。`Medium_Phone` 是用户自己的 AVD，不要用。启动：`emulator -avd t3extend-test -no-snapshot-save -no-boot-anim -no-window`，放在 tmux 这类持久 PTY 里，`nohup ... &` 会被 agent 执行器回收。关闭用 `adb -s emulator-5554 emu kill`。
+- `vp run mobile:install android emulator-5554` 的产物在 `~/.cache/t3code/native-clients/artifacts/android/development-arm64-v8a/<fingerprint>/app-debug.apk`，构建日志在同目录的 `logs/`。这个缓存目录和官方 T3 Code 的 checkout 共用，靠 fingerprint 区分，不冲突。
+- 冷启动 dev client 用 `am start -n com.simpleeve.t3extend.dev/.MainActivity`。`monkey -p ...` 在这个镜像上不发 intent，直接以 -5 退出。
+- 本机 8081 被 Docker Desktop 占用（只监听 127.0.0.1），Metro 改端口：`vp run dev:client --port 8091`，再 `adb reverse tcp:8091 tcp:8091`，打开 `t3extend-dev://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8091`。
+- 网速：dl.google.com 约 1 MB/s，Maven Central 只有约 150 KB/s，services.gradle.org 约 700 KB/s。第一次构建（全新 Gradle 缓存）总共约 50 分钟：配置阶段下载依赖 27 分钟，编译 22 分钟；NDK 下载约 25 分钟。之后的增量构建十几秒。阿里云 Maven（`maven.aliyun.com/repository/{google,central,gradle-plugin}`）和腾讯云 Gradle 分发（`mirrors.cloud.tencent.com/gradle/`）实测 15 到 20 MB/s。要用镜像时，用独立的 `GRADLE_USER_HOME`（例如 `~/.cache/t3extend-gradle`），把改写仓库地址的 init 脚本放在它的 `init.d` 下，不要改 `~/.gradle`。
+
+### 没有 EAS projectId 时 expo-observe 起不来（已修复）
+
+`expo-observe` 的 Android 原生模块在启动时检查 APK 内嵌配置里的 `extra.eas.projectId`，值为空就抛错，dev client 加载 bundle 时会红屏：`Project ID is required to send observability metrics`。fork 默认不带官方 EAS 项目，所以 `apps/mobile/app.config.ts` 在没有设置 `T3EXTEND_EAS_PROJECT_ID` 时填入占位值 `00000000-0000-4000-8000-000000000000`，`updates` 不受影响。这个占位值不对应任何项目。没有 relay 时，observe 的上报地址是 `https://observe.invalid`，`observe.ts` 也会关闭发送，所以不会向任何地方上报。
+
+`extra` 不参与 native fingerprint，改它不会让 `mobile:install` 自动重编。以后改了 `extra` 里会写进 APK 的值，要把 `~/.cache/t3code/native-clients/artifacts/android/development-arm64-v8a/<fingerprint>`（连同同名 `.json`）和 `~/.cache/t3code/native-clients/android/` 下的设备记录移走，再跑一次 `mobile:install`。
+
 ## 多语言
 
 界面支持英文和简体中文，入口是 Settings → Appearance → Language（设置字段 `ClientSettings.uiLanguage`：`system` / `en` / `zh-Hans`，与上游开放的 PR #27965 同名）。只在客户端保存，不进 server settings。
