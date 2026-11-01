@@ -8,7 +8,8 @@ export default {
   Chat: "聊天",
   "Diffs & pull requests": "差异与 PR",
   Keybindings: "快捷键",
-  SnapShots: "截图",
+  // Feature name; the snapshot action is 截图.
+  SnapShots: "SnapShots",
   Providers: "Provider",
   Threads: "对话",
   Browser: "浏览器",

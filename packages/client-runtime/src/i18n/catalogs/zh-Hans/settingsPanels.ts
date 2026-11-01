@@ -1148,7 +1148,7 @@ export default {
     "在 / 命令菜单中也显示技能。输入 $ 时始终会显示技能。",
   "Show skills in slash menu": "在斜杠菜单中显示技能",
   "Follow-up behavior": "追加消息的处理方式",
-  Queue: "排队",
+  Queue: "排队发送",
   Steer: "引导",
   "Choose colors for additions and deletions, including change counts.":
     "选择新增和删除的颜色，包括变更计数。",

@@ -93,7 +93,7 @@ export default {
   "Run action on default branch?": "在默认分支上执行操作？",
   Abort: "中止",
   Continue: "继续",
-  "Check out feature branch & continue": "切换到功能分支并继续",
+  "Check out feature branch & continue": "检出功能分支并继续",
   Provider: "Provider",
   Repository: "仓库",
   Summary: "摘要",
