@@ -57,6 +57,27 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的私有二开 for
 - 系统 Node 是 26.5.1，仓库锁定 26.12.1。开发和测试用系统 Node；打包时如果因为 Node 版本报错，用 `vp env exec --node 26.12.1 <命令>`。
 - 提交前跑 `vp run fork:guard` 和 `vp run check:changed`。
 
+## 多语言
+
+界面支持英文和简体中文，入口是 Settings → Appearance → Language（设置字段 `ClientSettings.uiLanguage`：`system` / `en` / `zh-Hans`，与上游开放的 PR #27965 同名）。只在客户端保存，不进 server settings。
+
+方案是零依赖字典，英文原文作 key：`t("Archive thread")`。查不到译文就显示英文，所以上游改了文案只会让译文暂时变回英文；合并冲突时新旧文案都能直接看到。
+
+- 模块：`packages/client-runtime/src/i18n/`。`translate()` 是纯函数，Electron 主进程也用它；`setUiLocale` 先用动态 `import()` 加载 catalog 再切换，英文模式不加载任何 catalog。web 的 hook 是 `apps/web/src/hooks/useT.ts`。
+- 术语表和翻译规则：`packages/client-runtime/src/i18n/GLOSSARY.md`。不能在模块顶层调用 `t()`。
+- 译文：`packages/client-runtime/src/i18n/catalogs/zh-Hans/<area>.ts`，按界面分文件。
+
+给新界面加翻译：
+
+1. 在上游文件里只把字符串字面量包进 `t()`（组件里 `const t = useT();`），不要顺手重构。非 React 代码用 `translate(getUiLocale(), "...")`，在显示时读取语言。模块级常量保留英文，在渲染处 `t(label)`。
+2. 用户内容、面向模型的文案、server 错误、日志不翻译。
+3. 跑 `vp run i18n:report`，按 "missing" 列表在对应 area 的 catalog 里补译文，按术语表翻译。
+4. 跑 `vp test run packages/client-runtime/src/i18n/i18n.test.ts`：检查占位符一致、没有破折号、跨文件同 key 同译文。
+
+`i18n:report`（`scripts/i18n-report.ts`）扫描 `apps/web/src`、`apps/desktop/src`、`packages/client-runtime/src` 里的 `t("...")` 一类调用，列出 catalog 里缺失的 key，以及 catalog 里有、代码里已经找不到的 key（通常是上游改了英文）。只报告，不阻断。同步上游后跑一次，把失效的 key 改成新英文。
+
+首批已翻译：设置页导航和面包屑、外观页、侧边栏表头与分区、线程状态和行操作、线程右键菜单、命令面板的分组和静态命令、通用确认框、相对时间、桌面菜单和原生对话框。mobile 还没有接入。
+
 ## 同步上游
 
 ```bash
@@ -65,6 +86,7 @@ git merge upstream/main
 # 解决冲突：fork 的改动都在带 `// fork:` 注释的行上，保留 fork 的值，接受上游其余改动。
 vp i
 vp run fork:guard        # 上游新增的官方身份字面量会在这里报出来
+vp run i18n:report       # 上游改过的英文文案会列为 stale
 vp run check:changed
 ```
 
