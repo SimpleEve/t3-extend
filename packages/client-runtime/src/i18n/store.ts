@@ -37,11 +37,13 @@ export function translatorFor(locale: UiLocale): Translator {
 
 /**
  * Switches the interface language once its catalog has loaded, so nothing
- * renders half translated. A newer request wins over a slower older one.
+ * renders half translated. A newer request wins over a slower older one, and
+ * a failed load keeps the current language; asking again retries the load.
  */
 export async function setUiLocale(locale: UiLocale): Promise<void> {
   requestedLocale = locale;
-  await loadUiCatalog(locale);
+  const catalog = await loadUiCatalog(locale);
+  if (locale !== "en" && catalog === null) return;
   if (requestedLocale !== locale || currentLocale === locale) return;
   currentLocale = locale;
   for (const listener of listeners) listener();

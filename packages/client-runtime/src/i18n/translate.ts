@@ -19,7 +19,10 @@ const catalogLoaders: Readonly<Record<Exclude<UiLocale, "en">, () => Promise<Cat
 const loadedCatalogs = new Map<UiLocale, Catalog>();
 const pendingCatalogs = new Map<UiLocale, Promise<Catalog | null>>();
 
-/** Loads a locale's catalog once. English has none; a failed load leaves the UI in English. */
+/**
+ * Loads a locale's catalog once. Resolves `null` for English, which has none,
+ * and when the load fails; a failure is not cached, so the next call retries.
+ */
 export function loadUiCatalog(locale: UiLocale): Promise<Catalog | null> {
   if (locale === "en") return Promise.resolve(null);
   const loaded = loadedCatalogs.get(locale);

@@ -1,4 +1,9 @@
-import { resolveUiLanguage, setUiLocale, type UiLocale } from "@t3tools/client-runtime/i18n";
+import {
+  getUiLocale,
+  resolveUiLanguage,
+  setUiLocale,
+  type UiLocale,
+} from "@t3tools/client-runtime/i18n";
 import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts/settings";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -15,7 +20,7 @@ import * as DesktopClientSettings from "./DesktopClientSettings.ts";
 export class DesktopUiLanguage extends Context.Service<
   DesktopUiLanguage,
   {
-    /** Resolves the saved language, loads its catalog, and makes it current for native copy. */
+    /** Resolves the saved language, loads its catalog, and returns the language now current. */
     readonly apply: Effect.Effect<UiLocale>;
   }
 >()("@t3tools/desktop/settings/DesktopUiLanguage") {}
@@ -32,7 +37,8 @@ const make = Effect.gen(function* () {
     });
     const locale = resolveUiLanguage(setting, yield* electronApp.preferredSystemLanguages);
     yield* Effect.promise(() => setUiLocale(locale));
-    return locale;
+    // A catalog that failed to load leaves the previous language current.
+    return getUiLocale();
   }).pipe(Effect.withSpan("desktop.uiLanguage.apply"));
 
   return DesktopUiLanguage.of({ apply });
