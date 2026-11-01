@@ -14,14 +14,15 @@ import { ControlPill } from "../../components/ui/ControlPill";
 import { useAppForeground } from "../../lib/appState";
 import { AppBar } from "../../components/ui/AppBar";
 
-import { useHardwareBack } from "../../lib/backHandler";
+// fork: translated strings and the new tab mode.
 import { useT } from "../../hooks/useT";
 import { useCanOpenBrowserTab, useThreadServerBrowserTabs } from "../../state/preview";
 import { usePreparedConnection } from "../../state/session";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { BrowserTabMenu } from "./BrowserTabMenu";
-import { browserTabTitle, browserTabUrl, latestBrowserTab } from "./browserTabs";
+import { browserTabTitle, browserTabUrl } from "./browserTabs";
 import { NewBrowserTabPanel } from "./NewBrowserTabPanel";
+import { useBrowserTabSelection } from "./useBrowserTabSelection";
 import {
   PreviewStreamWebView,
   type PreviewPictureInPictureState,
@@ -36,6 +37,7 @@ type BrowserPreviewRouteScreenProps = StaticScreenProps<{
   readonly environmentId: string;
   readonly threadId: string;
   readonly tabId?: string;
+  // fork: opens the new tab panel from the thread's entry.
   /** Opens the new tab panel first, even when the thread already has tabs. */
   readonly newTab?: string;
 }>;
@@ -60,6 +62,7 @@ export function BrowserPreviewRouteScreen({ route }: BrowserPreviewRouteScreenPr
               environmentId={EnvironmentId.make(route.params.environmentId)}
               threadId={ThreadId.make(route.params.threadId)}
               initialTabId={route.params.tabId ?? null}
+              // fork: new tab mode.
               startWithNewTab={route.params.newTab !== undefined}
               onClose={onClose}
             />
@@ -90,61 +93,47 @@ function BrowserPreviewScreen({
   const httpBaseUrl = Option.isSome(prepared) ? prepared.value.httpBaseUrl : null;
   const focused = useIsFocused();
   const foreground = useAppForeground();
-  const [selectedTabId, setSelectedTabId] = useState(initialTabId);
   const [pictureInPicture, setPictureInPicture] = useState(NO_PICTURE_IN_PICTURE);
   const [streaming, setStreaming] = useState(false);
   const [canControl, setCanControl] = useState(false);
   const streamRef = useRef<PreviewStreamRef>(null);
   const { tabs, loaded } = useThreadServerBrowserTabs({ environmentId, threadId, enabled: true });
+  // fork: tab selection, the new tab panel, and the wait for an opened tab live in this hook.
   const canOpenTab = useCanOpenBrowserTab(environmentId);
-  const [composing, setComposing] = useState(startWithNewTab);
-  // The tab `preview.open` returned, until its event lands in the tab list.
-  const [pendingTabId, setPendingTabId] = useState<string | null>(null);
-  if (pendingTabId !== null && tabs.some((entry) => entry.tabId === pendingTabId)) {
-    setPendingTabId(null);
-  }
-  const tab =
-    tabs.find((entry) => entry.tabId === selectedTabId) ??
-    (pendingTabId === null ? latestBrowserTab(tabs) : null);
+  const browser = useBrowserTabSelection({
+    environmentId,
+    threadId,
+    tabs,
+    initialTabId,
+    startWithNewTab,
+    onSelectedTabChange: () => setPictureInPicture(NO_PICTURE_IN_PICTURE),
+    onClose,
+  });
+  const { tab, composing } = browser;
   const pdfUri =
     tab?.navStatus._tag === "Success" ? previewPdfAssetUrl(tab.navStatus.url, httpBaseUrl) : null;
   const tabId = tab?.tabId ?? null;
-  if (tabId !== null && tabId !== selectedTabId && pendingTabId === null) {
-    setPictureInPicture(NO_PICTURE_IN_PICTURE);
-    setSelectedTabId(tabId);
-  }
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- closes the focused route through the navigator once the thread has no browser tabs left
   useEffect(() => {
-    if (focused && loaded && tabs.length === 0 && !composing && pendingTabId === null) onClose();
-  }, [focused, loaded, tabs.length, composing, pendingTabId, onClose]);
-  // Back leaves the panel for the open tabs; with none open it closes the browser.
-  useHardwareBack(composing && tabs.length > 0, () => {
-    setComposing(false);
-    return true;
-  });
-  const onTabOpened = (next: string) => {
-    setPictureInPicture(NO_PICTURE_IN_PICTURE);
-    setPendingTabId(next);
-    setSelectedTabId(next);
-    setComposing(false);
-  };
+    if (focused && loaded && browser.shouldClose) onClose(); // fork: wait for the new tab panel and opened tabs
+  }, [focused, loaded, browser.shouldClose, onClose]);
   const onPictureInPicture = (state: PreviewPictureInPictureState, detail?: string) => {
     setPictureInPicture({ supported: state.supported, active: state.active });
     if (detail) Dialog.alert(t("Picture in picture is unavailable"), detail);
   };
   const selectTab = (next: string) => {
     setPictureInPicture(NO_PICTURE_IN_PICTURE);
-    setSelectedTabId(next);
-    setComposing(false);
+    browser.select(next); // fork: also leaves the new tab panel
   };
   const live = (focused && foreground) || pictureInPicture.active;
+  // fork: new tab mode's title, back, and "+" action.
   const title = composing ? t("New tab") : tab ? browserTabTitle(tab) : t("Browser");
-  const onBack = composing && tabs.length > 0 ? () => setComposing(false) : onClose;
+  const onBack = composing ? browser.leave : onClose;
   const newTabAction = {
     accessibilityLabel: t("New tab"),
     icon: "plus" as const,
     selected: composing,
-    onPress: () => setComposing(true),
+    onPress: browser.compose,
   };
 
   return (
@@ -197,12 +186,13 @@ function BrowserPreviewScreen({
       {Platform.OS === "ios" ? (
         <SheetHeader title={title} onClose={onClose} accessibilityLabel={t("Close browser")} />
       ) : null}
+      {/* fork: new tab panel */}
       {composing ? (
         <NewBrowserTabPanel
           environmentId={environmentId}
           threadId={threadId}
           canOpen={canOpenTab}
-          onOpened={onTabOpened}
+          onOpened={browser.opened}
         />
       ) : tab ? (
         <>

@@ -15,6 +15,7 @@ export default {
     "请输入 localhost:5173 或 example.com 这样的网址。",
   "Only http and https addresses open in the browser.": "浏览器只能打开 http 和 https 地址。",
   "Could not open a browser tab": "无法打开浏览器标签页",
+  "The browser tab did not open": "标签页没有打开",
   "This connection can view browser tabs but not open them.":
     "这个连接只能查看浏览器标签页，不能新建。",
 
