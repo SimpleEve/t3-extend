@@ -13,6 +13,11 @@ const ROOTS = [
   "packages/client-runtime/src",
   "packages/shared/src", // fork: tool labels in shared take a translator
   "packages/contracts/src", // fork: fixed labels from contracts are translated where shown
+  // fork: provider and source control packages annotate settings fields and install hints the web shows.
+  ...NodeFS.readdirSync("packages")
+    .filter((name) => /^(provider|source-control)-/u.test(name))
+    .map((name) => `packages/${name}/src`),
+  "apps/server/src/sourceControl", // fork: git and jj install hints
 ];
 const CATALOG_ROOT = "packages/client-runtime/src/i18n/catalogs";
 // Mirrors CONTEXT_SEPARATOR in packages/client-runtime/src/i18n/translate.ts.
@@ -30,6 +35,8 @@ const CALL_PATTERNS: ReadonlyArray<RegExp> = [
   new RegExp(String.raw`<Translated\s+source=` + STRING, "g"),
 ];
 const ANY_STRING = new RegExp(STRING, "g");
+// fork: a template with `${}` matches the catalog key it renders to, interpolations as wildcards.
+const INTERPOLATED_TEMPLATE = /`((?:[^`\\$]|\\.|\$(?!\{))*\$\{(?:[^`\\]|\\.)*)`/g;
 
 function sourceFilesIn(dir: string): string[] {
   if (!NodeFS.existsSync(dir)) return [];
@@ -82,11 +89,17 @@ function catalogKeys(locale: string): ReadonlyArray<string> {
 
 const called = new Map<string, string>();
 const literals = new Set<string>();
+const templates: RegExp[] = [];
 for (const file of ROOTS.flatMap(sourceFiles)) {
   const text = NodeFS.readFileSync(file, "utf8");
   for (const match of text.matchAll(ANY_STRING)) literals.add(unescape(match[1]!));
   // JSX attribute strings are not JS string literals, but carry English sources too.
   for (const match of text.matchAll(/=\s*"([^"\n]*)"/g)) literals.add(match[1]!);
+  for (const match of text.matchAll(INTERPOLATED_TEMPLATE)) {
+    const parts = match[1]!.replace(/\\(.)/gs, "$1").split(/\$\{[^}]*\}/u);
+    const escaped = parts.map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    templates.push(new RegExp(`^${escaped.join(".+")}$`, "su"));
+  }
   for (const pattern of CALL_PATTERNS) {
     for (const match of text.matchAll(pattern)) {
       const source = quotedSource(match);
@@ -111,7 +124,8 @@ for (const locale of NodeFS.readdirSync(CATALOG_ROOT)) {
   const missing = [...called].filter(([source]) => !sources.has(source));
   const stale = keys.filter((key) => {
     const separator = key.indexOf(CONTEXT_SEPARATOR);
-    return !literals.has(separator < 0 ? key : key.slice(separator + 1));
+    const source = separator < 0 ? key : key.slice(separator + 1);
+    return !literals.has(source) && !templates.some((template) => template.test(source));
   });
   missingTotal += missing.length;
   staleTotal += stale.length;

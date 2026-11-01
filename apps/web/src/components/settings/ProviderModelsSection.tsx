@@ -335,9 +335,11 @@ export function ProviderModelsSection({
             </Button>
           ) : null}
           <span className="text-xs text-muted-foreground">
-            {models.length} model{models.length === 1 ? "" : "s"}
+            {models.length === 1 ? t("1 model") : t("{count} models", { count: models.length })}
             {favoriteCount > 0
-              ? ` · ${favoriteCount} favorite${favoriteCount === 1 ? "" : "s"}`
+              ? favoriteCount === 1
+                ? t(" · 1 favorite")
+                : t(" · {count} favorites", { count: favoriteCount })
               : ""}
             {hiddenCount > 0 ? t(" · {hiddenCount} hidden", { hiddenCount }) : ""}
           </span>
@@ -538,7 +540,7 @@ function ProviderModelRow({
       </span>
       <span className="text-2xs text-muted-foreground/70">
         {capLabels.length > 0 ? (
-          <span className="hidden sm:inline">{capLabels.join(" · ")}</span>
+          <span className="hidden sm:inline">{capLabels.map((label) => t(label)).join(" · ")}</span>
         ) : null}
       </span>
       <span className="flex shrink-0 items-center justify-end gap-0.5">
@@ -626,7 +628,7 @@ function ProviderModelRow({
             aria-label={t("Show {name} in the model picker", { name: model.name })}
           />
         </TooltipTrigger>
-        <TooltipPopup side="top">{pickerTooltip}</TooltipPopup>
+        <TooltipPopup side="top">{t(pickerTooltip)}</TooltipPopup>
       </Tooltip>
     </div>
   );

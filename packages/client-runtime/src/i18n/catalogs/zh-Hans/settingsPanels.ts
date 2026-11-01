@@ -1216,7 +1216,10 @@ export default {
     "T3 Code 使用的依赖、资源和可选工具的声明。",
   "View licenses": "查看许可",
   "Open all environments": "打开所有环境",
-  "Applying settings for": "正在应用设置到",
+  "Applying settings for {projects} on {environments}":
+    "正在把设置应用到 {projects}，环境：{environments}",
+  "Applying settings for {projects} across {environments}":
+    "正在把设置应用到 {projects}，范围：{environments}",
   "No matches found.": "没有找到匹配项。",
   "Environment scope": "环境范围",
   "No environments": "没有环境",
@@ -2041,4 +2044,103 @@ export default {
   "{count} reset credits banked · next expires in {duration}":
     "存有 {count} 次重置额度 · 最近一次 {duration} 后过期",
   "{count} reset credits banked": "存有 {count} 次重置额度",
+  seconds: "秒",
+  "1 model": "1 个模型",
+  "{count} models": "{count} 个模型",
+  " · 1 favorite": " · 收藏 1 个",
+  " · {count} favorites": " · 收藏 {count} 个",
+  "Fast mode": "快速模式",
+  "No reasoning": "不支持推理",
+  "Custom models are always shown in the picker": "自定义模型始终显示在选择器中",
+  "Hidden from picker": "已从选择器中隐藏",
+  "Shown in picker": "显示在选择器中",
+  "Checking provider status": "正在检查 provider 状态",
+  "Waiting for the server to report installation and authentication details.":
+    "正在等待服务器报告安装和认证信息。",
+  "This provider is installed but disabled for new sessions in T3 Code.":
+    "这个 provider 已安装，但在 T3 Code 中对新会话停用。",
+  "Not found": "未找到",
+  "CLI not detected on PATH.": "PATH 中没有检测到 CLI。",
+  "Not authenticated · {authLabel}": "未认证 · {authLabel}",
+  "Installed · Sign-in not checked": "已安装 · 未检查登录状态",
+  "Needs attention": "需要处理",
+  "The provider is installed, but the server could not fully verify it.":
+    "provider 已安装，但服务器无法完整验证它。",
+  "The provider failed its startup checks.": "provider 没有通过启动检查。",
+  "Authenticated · {authLabel}": "已认证 · {authLabel}",
+  Executable: "可执行文件",
+  "Executable name or path on this environment.": "此环境上的可执行文件名或路径。",
+  "When you return": "你回来时",
+  "Before the cache expires (beta)": "缓存过期前（beta）",
+  "Use default": "使用默认值",
+  "Launch arguments": "启动参数",
+  "Path to the Codex binary used by this instance.": "这个实例使用的 Codex 可执行文件路径。",
+  "Custom Codex home and config directory.": "自定义 Codex home 和配置目录。",
+  "Account-specific Codex home. Keeps auth.json separate while sharing state from CODEX_HOME.":
+    "按账号区分的 Codex home。auth.json 单独保存，其余状态与 CODEX_HOME 共享。",
+  "Additional CLI arguments passed to codex app-server on session start.":
+    "会话启动时传给 codex app-server 的额外 CLI 参数。",
+  "Path to the Claude binary used by this instance.": "这个实例使用的 Claude 可执行文件路径。",
+  "CLAUDE_CONFIG_DIR path": "CLAUDE_CONFIG_DIR 路径",
+  "Custom Claude home and config directory. Keeps .claude.json and .claude separate.":
+    "自定义 Claude home 和配置目录。.claude.json 和 .claude 单独保存。",
+  "Additional CLI arguments passed on session start.": "会话启动时传入的额外 CLI 参数。",
+  "Auto-compact after": "自动压缩阈值",
+  "Compact after 100,000 to 1,000,000 tokens. Leave empty to use Claude's default.":
+    "在 100,000 到 1,000,000 token 之间压缩。留空则使用 Claude 的默认值。",
+  "When to compact an idle thread over 200,000 tokens: after you return, just before its prompt cache expires, or never. Overrides the default in Providers > Advanced.":
+    "什么时候压缩超过 200,000 token 的空闲对话：你回来之后、提示词缓存即将过期之前，或者从不。会覆盖 Provider > 高级中的默认设置。",
+  "Google account": "Google 账号",
+  "Gemini Enterprise": "Gemini Enterprise",
+  "Gemini API key": "Gemini API 密钥",
+  "Agent Platform (Vertex AI)": "Agent Platform（Vertex AI）",
+  "Google accounts use your subscription; API keys and Agent Platform bill usage.":
+    "Google 账号使用你的订阅；API 密钥和 Agent Platform 按用量计费。",
+  "API key": "API 密钥",
+  "Gemini or Vertex AI express key. Stored separately on the host.":
+    "Gemini 或 Vertex AI 快捷密钥。在主机上单独保存。",
+  "GCP project": "GCP 项目",
+  "Required for Gemini Enterprise. Agent Platform uses it when no API key is set.":
+    "Gemini Enterprise 必填。没有设置 API 密钥时，Agent Platform 会使用它。",
+  "GCP location": "GCP 区域",
+  "Region for Gemini Enterprise or Agent Platform.":
+    "Gemini Enterprise 或 Agent Platform 使用的区域。",
+  "Custom ACP executable. Leave empty to select automatically.":
+    "自定义 ACP 可执行文件。留空则自动选择。",
+  "ACP source": "ACP 来源",
+  "ACP Registry": "ACP Registry",
+  "Local command": "本地命令",
+  "Registry agent ID": "Registry Agent ID",
+  "Agent identifier from the official ACP Registry, for example 'devin'.":
+    "官方 ACP Registry 中的 Agent 标识，例如“devin”。",
+  "Executable override": "覆盖可执行文件",
+  "Executable on this environment. For registry agents, this overrides the distribution executable while keeping its arguments and environment.":
+    "此环境上的可执行文件。对于 Registry 中的 Agent，它会替换发行版自带的可执行文件，但保留其参数和环境变量。",
+  "Authentication method": "认证方式",
+  "Optional ACP authentication method ID. By default, the first agent-managed method is selected.":
+    "可选的 ACP 认证方式 ID。默认选择第一个由 Agent 管理的方式。",
+  "Path to the fx binary. All fx instances on this machine share its fx login.":
+    "fx 可执行文件路径。这台机器上的所有 fx 实例共享它的 fx 登录。",
+  "Path to the Grok CLI binary.": "Grok CLI 可执行文件路径。",
+  "Path to the Muse Code binary on this environment. Sign in with muse login on that host.":
+    "此环境上的 Muse Code 可执行文件路径。在该主机上用 muse login 登录。",
+  "Path to the OpenCode binary.": "OpenCode 可执行文件路径。",
+  "Server URL": "服务器 URL",
+  "Leave blank to let T3 Code spawn the server when needed.":
+    "留空时，T3 Code 会在需要时自动启动服务器。",
+  "Server password": "服务器密码",
+  "Stored separately on the host.": "在主机上单独保存。",
+  "Path to the Pi coding agent binary.": "Pi 编程 Agent 的可执行文件路径。",
+  "Additional CLI arguments passed to pi --mode rpc on session start.":
+    "会话启动时传给 pi --mode rpc 的额外 CLI 参数。",
+  "Access token": "访问令牌",
+  "Scoped to one repository, project, or workspace. Create it in that item's Bitbucket settings.":
+    "只作用于一个仓库、项目或工作区。在对应条目的 Bitbucket 设置中创建。",
+  "Atlassian account email": "Atlassian 账号邮箱",
+  "With an API token instead of an access token.": "与 API 令牌搭配使用，代替访问令牌。",
+  "API token": "API 令牌",
+  "Reaches every repository your Atlassian account can. Give it read and write access to repositories and pull requests, and read:user:bitbucket.":
+    "可以访问你的 Atlassian 账号能访问的所有仓库。请授予仓库和 PR 的读写权限，以及 read:user:bitbucket。",
+  "A git.cafe token, used before CAFE_TOKEN and the cafe login, so GitCafe works without the CLI signed in.":
+    "git.cafe 令牌，优先于 CAFE_TOKEN 和 cafe 登录使用，这样 CLI 没登录时 GitCafe 也能工作。",
 } satisfies Record<string, string>;
