@@ -110,6 +110,21 @@ for (const file of ROOTS.flatMap(sourceFiles)) {
   }
 }
 
+// fork: keybinding labels are derived from command ids (commandLabel in
+// apps/web/src/components/settings/KeybindingsSettings.logic.ts), so count those as in code.
+const titleCase = (segment: string) =>
+  segment
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .split(/[-_\s]+/)
+    .filter((part) => part.length > 0)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
+for (const match of NodeFS.readFileSync("packages/contracts/src/keybindings.ts", "utf8").matchAll(
+  /"([a-z][A-Za-z]*(?:\.[A-Za-z0-9]+)+)"/g,
+)) {
+  literals.add(match[1]!.split(".").map(titleCase).join(": "));
+}
+
 const lines: string[] = [];
 let missingTotal = 0;
 let staleTotal = 0;

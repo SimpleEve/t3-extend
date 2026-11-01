@@ -56,7 +56,6 @@ import {
   filterKeybindingRows,
   buildKeybindingCommandOptions,
   buildWhenVariableOptions,
-  commandLabel,
   DEFAULT_WHEN_VARIABLE,
   isKnownWhenVariable,
   keybindingConflictLabels,
@@ -67,6 +66,7 @@ import {
   type KeybindingGroup,
   type KeybindingRow,
   type WhenVariableOption,
+  translatedCommandLabel,
   unknownWhenVariables,
   whenAstToExpression,
   whenNodeRemoveLabel,
@@ -266,10 +266,13 @@ function UnknownWhenVariableWarning({
 function KeybindingConflictWarning({ labels }: { labels: ReadonlyArray<string> }) {
   const t = useT();
   if (labels.length === 0) return null;
+  const shown = labels.slice(0, 3).join(t(", "));
   const description =
     labels.length === 1
-      ? `Conflicts with ${labels[0]}.`
-      : `Conflicts with ${labels.slice(0, 3).join(", ")}${labels.length > 3 ? ", and more" : ""}.`;
+      ? t("Conflicts with {command}.", { command: shown })
+      : labels.length > 3
+        ? t("Conflicts with {commands}, and more.", { commands: shown })
+        : t("Conflicts with {commands}.", { commands: shown });
 
   return (
     <WarningTooltipIcon label={description}>
@@ -616,7 +619,9 @@ function WhenExpressionBuilder({
     <div className="w-[min(34rem,calc(100vw-2rem))] space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-medium text-foreground">{t("When")}</div>
+          <div className="text-sm font-medium text-foreground">
+            {t("When", undefined, "keybinding condition")}
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button type="button" variant="outline" size="compact" onClick={addRootCondition}>
@@ -727,16 +732,18 @@ function useKeybindingRowEditor({
   allRows: ReadonlyArray<KeybindingRow>;
   onSave: (input: ServerUpsertKeybindingInput) => void;
 }) {
+  const t = useT();
   const [draft, setDraft] = useReducer(keybindingRowDraftReducer, row, createKeybindingRowDraft);
   const pillRef = useRef<HTMLButtonElement>(null);
   const { keyDraft, whenDraft, isRecording, isWhenDraftValid } = draft;
   const whenDraftExpression = whenAstToExpression(whenDraft);
   const isDirty = keyDraft !== row.key || whenDraftExpression !== row.when;
-  const conflictLabels = keybindingConflictLabels(allRows, {
-    rowId: row.id,
-    key: keyDraft,
-    when: whenDraftExpression,
-  });
+  const conflictLabels = keybindingConflictLabels(
+    allRows,
+    { rowId: row.id, key: keyDraft, when: whenDraftExpression },
+    undefined,
+    t,
+  );
 
   const save = () => {
     onSave({
@@ -839,7 +846,7 @@ function KeybindingKeyControl({
           type="button"
           onClick={() => setDraft({ isRecording: true })}
           aria-label={t("Edit shortcut for {commandLabel}: {shortcutLabel}", {
-            commandLabel: commandLabel(row.command),
+            commandLabel: translatedCommandLabel(row.command, t),
             shortcutLabel: formatShortcutLabel(row.binding.shortcut),
           })}
           className={cn(
@@ -854,7 +861,7 @@ function KeybindingKeyControl({
           data-keybinding-capture=""
           autoFocus={isRecording}
           aria-label={t("Keybinding for {commandLabel}", {
-            commandLabel: commandLabel(row.command),
+            commandLabel: translatedCommandLabel(row.command, t),
           })}
           value={isRecording ? "" : keyDraft}
           placeholder={isRecording ? t("Press shortcut") : t("Unassigned")}
@@ -945,7 +952,7 @@ function KeybindingRowMenu({
             size="icon-sm"
             disabled={isSaving}
             aria-label={t("Actions for {commandLabel}", {
-              commandLabel: commandLabel(row.command),
+              commandLabel: translatedCommandLabel(row.command, t),
             })}
           />
         }
@@ -978,10 +985,11 @@ function KeybindingSourceBadge({ source }: { source: KeybindingRow["source"] }) 
 }
 
 function KeybindingRowTitle({ row }: { row: KeybindingRow }) {
+  const t = useT();
   return (
     <Tooltip>
       <TooltipTrigger render={<span className="flex items-center gap-2" />}>
-        {commandLabel(row.command)}
+        {translatedCommandLabel(row.command, t)}
         <KeybindingSourceBadge source={row.source} />
       </TooltipTrigger>
       <TooltipPopup side="top">{row.command}</TooltipPopup>
@@ -1001,9 +1009,11 @@ function KeybindingRowWhen({
   const t = useT();
   return (
     <span className="flex h-6 items-center gap-1.5">
-      <span className="text-xs leading-none text-muted-foreground/70">{t("When")}</span>
+      <span className="text-xs leading-none text-muted-foreground/70">
+        {t("When", undefined, "keybinding condition")}
+      </span>
       <WhenClauseControl
-        label={commandLabel(row.command)}
+        label={translatedCommandLabel(row.command, t)}
         expression={editor.whenDraftExpression}
         value={editor.whenDraft}
         variables={variables}
@@ -1065,6 +1075,7 @@ function useNewKeybindingDraft({
   allRows: ReadonlyArray<KeybindingRow>;
   onSave: (input: ServerUpsertKeybindingInput) => void;
 }) {
+  const t = useT();
   const [commandDraft, setCommandDraft] = useState<KeybindingCommand | "">("");
   const [draft, setDraft] = useReducer(keybindingRowDraftReducer, {
     keyDraft: "",
@@ -1074,12 +1085,15 @@ function useNewKeybindingDraft({
   });
   const { keyDraft, whenDraft, isRecording, isWhenDraftValid } = draft;
   const whenDraftExpression = whenAstToExpression(whenDraft);
-  const conflictLabels = keybindingConflictLabels(allRows, {
-    rowId: "new",
-    key: keyDraft,
-    when: whenDraftExpression,
-  });
-  const commandLabelText = commandDraft ? commandLabel(commandDraft) : "new keybinding";
+  const conflictLabels = keybindingConflictLabels(
+    allRows,
+    { rowId: "new", key: keyDraft, when: whenDraftExpression },
+    undefined,
+    t,
+  );
+  const commandLabelText = commandDraft
+    ? translatedCommandLabel(commandDraft, t)
+    : t("new keybinding");
   const canSave = Boolean(commandDraft) && keyDraft.trim().length > 0 && isWhenDraftValid;
 
   const save = () => {
@@ -1156,7 +1170,7 @@ function NewKeybindingCommandSelect({
       <SelectContent alignItemWithTrigger={false} matchTriggerWidth={false} className="max-h-72">
         {commandOptions.map((command) => (
           <SelectItem key={command} value={command} className="w-full">
-            <span className="truncate">{commandLabel(command)}</span>
+            <span className="truncate">{translatedCommandLabel(command, t)}</span>
           </SelectItem>
         ))}
       </SelectContent>
@@ -1253,7 +1267,9 @@ function NewKeybindingSettingsRow(props: NewKeybindingProps) {
       title="New keybinding"
       description={
         <span className="flex h-6 items-center gap-1.5">
-          <span className="text-xs leading-none text-muted-foreground/70">{t("When")}</span>
+          <span className="text-xs leading-none text-muted-foreground/70">
+            {t("When", undefined, "keybinding condition")}
+          </span>
           <NewKeybindingWhen draft={draft} variables={variables} />
         </span>
       }
@@ -1375,7 +1391,7 @@ export function KeybindingsSettingsPanel() {
   }
   const whenVariables = buildWhenVariableOptions();
   const { commandOptions, allRows } = useKeybindingCatalog();
-  const rows = filterKeybindingRows(allRows, query);
+  const rows = filterKeybindingRows(allRows, query, t);
   const groups = groupKeybindingRows(rows);
   const anchorIds = keybindingAnchorIds(rows);
 
