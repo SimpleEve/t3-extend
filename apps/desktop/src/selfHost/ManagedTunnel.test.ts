@@ -40,7 +40,7 @@ const harness = Effect.gen(function* () {
         kill: () => Effect.void,
         unref: Effect.succeed(Effect.void),
         stdin: Sink.drain,
-        stdout: Stream.make(new TextEncoder().encode("login to server success\n")),
+        stdout: Stream.make(new TextEncoder().encode("start frpc service\n")),
         stderr: Stream.make(
           new TextEncoder().encode(
             "\u001b[31m[E] [client] connect to server error: refused\u001b[0m\n",

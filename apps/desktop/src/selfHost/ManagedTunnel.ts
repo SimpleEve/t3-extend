@@ -57,6 +57,9 @@ const cleanLine = (line: string): string =>
 const isErrorOutput = (line: string): boolean =>
   /\[[EWF]\]|\b(?:error|fatal|panic|fail(?:ed|ure)?|refused|denied|unauthori[sz]ed)\b/iu.test(line);
 
+/** frpc says `login to server success` and `start proxy success` once it reconnects. */
+const isRecoveredOutput = (line: string): boolean => /\bsuccess\b/iu.test(line);
+
 const shellCommand = (
   command: string,
   platform: NodeJS.Platform,
@@ -102,7 +105,11 @@ const make = Effect.gen(function* () {
     update((state) => ({
       ...state,
       recentOutput: [...state.recentOutput, line].slice(-RECENT_OUTPUT_LINES),
-      ...(isErrorOutput(line) ? { lastError: line.slice(0, MAX_ERROR_LENGTH) } : {}),
+      ...(isErrorOutput(line)
+        ? { lastError: line.slice(0, MAX_ERROR_LENGTH) }
+        : isRecoveredOutput(line)
+          ? { lastError: null }
+          : {}),
     }));
 
   const readLines = (stream: Stream.Stream<Uint8Array, unknown>) =>
