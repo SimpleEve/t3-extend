@@ -47,9 +47,8 @@ function requireEnv(name: string): string {
   return value;
 }
 
-const javaHome = requireEnv("JAVA_HOME");
-const androidHome = requireEnv("ANDROID_HOME");
-const keytool = NodePath.join(javaHome, "bin/keytool");
+// keytool ships with the JDK, so both flows need JAVA_HOME; only the build needs the SDK.
+const keytool = NodePath.join(requireEnv("JAVA_HOME"), "bin/keytool");
 
 function run(
   command: string,
@@ -85,6 +84,14 @@ function readKeychainPassword(): string | undefined {
   return result.status === 0 ? result.stdout.trimEnd() : undefined;
 }
 
+function deleteKeychainItem(): void {
+  NodeChildProcess.spawnSync(
+    "security",
+    ["delete-generic-password", "-a", keychainService, "-s", keychainService],
+    { stdio: "ignore" },
+  );
+}
+
 function createKeystore(): void {
   if (NodeFS.existsSync(keystorePath)) {
     throw new Error(`${keystorePath} already exists; refusing to replace a release key.`);
@@ -100,42 +107,59 @@ function createKeystore(): void {
   const directory = NodePath.dirname(keystorePath);
   NodeFS.mkdirSync(directory, { recursive: true, mode: 0o700 });
   NodeFS.chmodSync(directory, 0o700);
-  // PKCS12 keeps a single password, so the key password is the store password.
-  run(
-    keytool,
-    [
-      "-genkeypair",
-      "-keystore",
-      keystorePath,
-      "-storetype",
-      "PKCS12",
-      "-alias",
-      flags.alias,
-      "-keyalg",
-      "RSA",
-      "-keysize",
-      "4096",
-      "-validity",
-      "10000",
-      "-dname",
-      `CN=${FORK.appBaseName}, O=SimpleEve`,
-      "-storepass:env",
-      "T3EXTEND_STORE_PASSWORD",
-      "-keypass:env",
-      "T3EXTEND_STORE_PASSWORD",
-    ],
-    { env: { ...process.env, T3EXTEND_STORE_PASSWORD: password } },
+  // Same directory as the final path, so publishing it is a single atomic link.
+  const pendingPath = NodePath.join(
+    directory,
+    `.${NodePath.basename(keystorePath)}.${process.pid}.pending`,
   );
-  NodeFS.chmodSync(keystorePath, 0o600);
-  // `security -i` reads its command from stdin, which keeps the password out of argv. Its
-  // output is dropped because an error message could echo the command back.
-  const stored = NodeChildProcess.spawnSync("security", ["-i"], {
-    input: `add-generic-password -a ${keychainService} -s ${keychainService} -w ${password}\n`,
-    stdio: ["pipe", "ignore", "ignore"],
-  });
-  if (stored.status !== 0) throw new Error("security add-generic-password failed.");
-  if (readKeychainPassword() !== password) {
-    throw new Error("The Keychain item does not round-trip; the keystore was kept, check both.");
+  let keychainAttempted = false;
+  try {
+    // PKCS12 keeps a single password, so the key password is the store password.
+    run(
+      keytool,
+      [
+        "-genkeypair",
+        "-keystore",
+        pendingPath,
+        "-storetype",
+        "PKCS12",
+        "-alias",
+        flags.alias,
+        "-keyalg",
+        "RSA",
+        "-keysize",
+        "4096",
+        "-validity",
+        "10000",
+        "-dname",
+        `CN=${FORK.appBaseName}, O=SimpleEve`,
+        "-storepass:env",
+        "T3EXTEND_STORE_PASSWORD",
+        "-keypass:env",
+        "T3EXTEND_STORE_PASSWORD",
+      ],
+      { env: { ...process.env, T3EXTEND_STORE_PASSWORD: password } },
+    );
+    NodeFS.chmodSync(pendingPath, 0o600);
+    // `security -i` reads its command from stdin, which keeps the password out of argv. Its
+    // output is dropped because an error message could echo the command back.
+    keychainAttempted = true;
+    const stored = NodeChildProcess.spawnSync("security", ["-i"], {
+      input: `add-generic-password -a ${keychainService} -s ${keychainService} -w ${password}\n`,
+      stdio: ["pipe", "ignore", "ignore"],
+    });
+    if (stored.status !== 0) throw new Error("security add-generic-password failed.");
+    if (readKeychainPassword() !== password) {
+      throw new Error(`Keychain item "${keychainService}" does not read back the new password.`);
+    }
+    // link fails if the final path appeared meanwhile, so an existing key is never replaced.
+    NodeFS.linkSync(pendingPath, keystorePath);
+  } catch (error) {
+    // The item did not exist before this run, so anything under its name is ours to remove.
+    if (keychainAttempted) deleteKeychainItem();
+    throw error;
+  } finally {
+    NodeFS.rmSync(pendingPath, { force: true });
   }
   log(`Created ${keystorePath} (alias ${flags.alias}) and Keychain item ${keychainService}.`);
   log("Back up the keystore and the Keychain password now: see FORK.md.");
@@ -162,7 +186,7 @@ function certificateSha256(password: string): string {
 }
 
 function newestBuildTools(): string {
-  const root = NodePath.join(androidHome, "build-tools");
+  const root = NodePath.join(requireEnv("ANDROID_HOME"), "build-tools");
   const versions = NodeFS.readdirSync(root).sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true }),
   );
@@ -170,6 +194,7 @@ function newestBuildTools(): string {
 }
 
 function buildRelease(): void {
+  requireEnv("ANDROID_HOME");
   if (!NodeFS.existsSync(keystorePath)) {
     throw new Error(`${keystorePath} is missing. Create it once with --create-keystore.`);
   }

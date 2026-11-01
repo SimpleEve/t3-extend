@@ -124,18 +124,57 @@ async function signApp(appPath: string, identityHash: string): Promise<void> {
   });
 }
 
+/** Regular files only; recursive readdir would follow framework `Versions/Current` symlinks. */
+function regularFiles(directory: string): ReadonlyArray<string> {
+  return NodeFS.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = NodePath.join(directory, entry.name);
+    if (entry.isDirectory()) return regularFiles(entryPath);
+    return entry.isFile() ? [entryPath] : [];
+  });
+}
+
+function listMachO(appPath: string): ReadonlyArray<string> {
+  const files = regularFiles(appPath);
+  // -0 ends each name with NUL, so names containing ": " parse unambiguously. Universal
+  // binaries add "(for architecture …)" lines whose name is not in `files`; they are skipped.
+  const fileNames = new Set(files);
+  return capture("file", ["-0", "-N", "--", ...files])
+    .split("\n")
+    .map((line) => line.split("\0"))
+    .filter(([name, description]) => fileNames.has(name!) && description?.includes("Mach-O"))
+    .map(([name]) => name!);
+}
+
+function signatureProblem(filePath: string): string | undefined {
+  const verified = NodeChildProcess.spawnSync("codesign", ["--verify", "--strict", filePath], {
+    encoding: "utf8",
+  });
+  if (verified.status !== 0) return verified.stderr.trim() || "codesign --verify failed";
+  const details = capture("codesign", ["-dv", "--verbose=4", filePath]);
+  if (!details.includes(`Authority=${identity}\n`)) return `not signed by ${identity}`;
+  if (!/^CodeDirectory .*flags=0x[0-9a-f]+\([^)]*\bruntime\b/mu.test(details)) {
+    return "no hardened runtime flag";
+  }
+  return undefined;
+}
+
 function verifyApp(appPath: string): void {
+  // Per-file checks come first so a failure names the offending files.
+  const machO = listMachO(appPath);
+  if (machO.length === 0) throw new Error(`No Mach-O files found in ${appPath}.`);
+  const problems = machO.flatMap((filePath) => {
+    const problem = signatureProblem(filePath);
+    return problem === undefined ? [] : [`${NodePath.relative(appPath, filePath)}: ${problem}`];
+  });
+  if (problems.length > 0) {
+    throw new Error(`Mach-O signature check failed in ${appPath}:\n${problems.join("\n")}`);
+  }
   capture("codesign", ["--verify", "--deep", "--strict", "--verbose=2", appPath]);
   const details = capture("codesign", ["-dv", "--verbose=4", appPath]);
-  if (!details.includes(`Authority=${identity}`)) {
-    throw new Error(`The app is not signed by ${identity}:\n${details}`);
-  }
   if (!/^TeamIdentifier=not set$/mu.test(details)) {
     throw new Error(`The app unexpectedly carries a Team ID:\n${details}`);
   }
-  if (!/flags=0x10000\(runtime\)/u.test(details)) {
-    throw new Error(`The app is not signed with the hardened runtime:\n${details}`);
-  }
+  log(`Verified ${machO.length} Mach-O files in ${NodePath.basename(appPath)}.`);
 }
 
 function plistValue(appPath: string, key: string): string {
@@ -159,7 +198,6 @@ function buildDmg(appPath: string, identityHash: string): string {
     // ditto keeps the signature's extended attributes and symlinks intact.
     run("ditto", [appPath, NodePath.join(staging, NodePath.basename(appPath))]);
     NodeFS.symlinkSync("/Applications", NodePath.join(staging, "Applications"));
-    NodeFS.rmSync(dmgPath, { force: true });
     run("hdiutil", [
       "create",
       "-volname",
@@ -180,26 +218,54 @@ function buildDmg(appPath: string, identityHash: string): string {
   return dmgPath;
 }
 
+function tryRun(command: string, args: ReadonlyArray<string>): boolean {
+  log(`$ ${command} ${args.join(" ")}`);
+  return NodeChildProcess.spawnSync(command, args, { stdio: "inherit" }).status === 0;
+}
+
 function verifyDmg(dmgPath: string, appName: string): void {
   const mountPoint = NodeFS.mkdtempSync(NodePath.join(outputDir, ".mnt-"));
-  run("hdiutil", ["attach", "-readonly", "-nobrowse", "-mountpoint", mountPoint, dmgPath]);
+  let attached = false;
+  let failure: unknown;
   try {
+    run("hdiutil", ["attach", "-readonly", "-nobrowse", "-mountpoint", mountPoint, dmgPath]);
+    attached = true;
     const mountedApp = NodePath.join(mountPoint, appName);
     if (!NodeFS.existsSync(mountedApp)) {
       throw new Error(`${appName} is missing from the mounted DMG.`);
     }
-    capture("codesign", ["--verify", "--deep", "--strict", mountedApp]);
-  } finally {
-    run("hdiutil", ["detach", mountPoint]);
-    NodeFS.rmSync(mountPoint, { recursive: true, force: true });
+    verifyApp(mountedApp);
+  } catch (error) {
+    failure = error;
   }
+  // Cleanup must not mask the verification error, and must never delete through a live mount.
+  const detached =
+    !attached ||
+    tryRun("hdiutil", ["detach", mountPoint]) ||
+    tryRun("hdiutil", ["detach", "-force", mountPoint]);
+  if (detached) NodeFS.rmSync(mountPoint, { recursive: true, force: true });
+  if (failure !== undefined) throw failure;
+  if (!detached) throw new Error(`Could not detach ${mountPoint}; detach it by hand.`);
 }
 
 function sha256(filePath: string): string {
   return NodeCrypto.createHash("sha256").update(NodeFS.readFileSync(filePath)).digest("hex");
 }
 
+/** Remove this script's own outputs so a rerun never sees a stale .app, DMG or checksum. */
+function cleanOutputs(): void {
+  if (!NodeFS.existsSync(outputDir)) return;
+  const dmgPrefix = `${FORK.appBaseName.replaceAll(" ", "-")}-`;
+  for (const entry of NodeFS.readdirSync(outputDir)) {
+    const ours =
+      (!flags["skip-build"] && entry === "mac-arm64") ||
+      (entry.startsWith(dmgPrefix) && /-arm64\.dmg(\.sha256)?$/u.test(entry));
+    if (ours) NodeFS.rmSync(NodePath.join(outputDir, entry), { recursive: true, force: true });
+  }
+}
+
 const identityHash = preflight();
+cleanOutputs();
 if (!flags["skip-build"]) buildApp();
 const appPath = findApp();
 await signApp(appPath, identityHash);
