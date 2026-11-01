@@ -558,6 +558,8 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         undefined,
       );
       assert.isNull(release.publish);
+      // fork: the Simplified Chinese interface needs Chromium's zh-CN resources.
+      assert.deepStrictEqual(release.electronLanguages, ["en-US", "zh-CN"]);
     }).pipe(
       Effect.provide(
         ConfigProvider.layer(

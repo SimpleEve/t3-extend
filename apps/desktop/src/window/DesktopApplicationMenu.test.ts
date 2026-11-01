@@ -3,6 +3,8 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import { DEFAULT_CLIENT_SETTINGS, type UiLanguageSetting } from "@t3tools/contracts/settings";
 
 import type * as Electron from "electron";
 
@@ -14,6 +16,8 @@ import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 import * as DesktopWindow from "./DesktopWindow.ts";
+import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import * as DesktopUiLanguage from "../settings/DesktopUiLanguage.ts";
 
 const environmentInput = {
   dirname: "/repo/apps/desktop/dist-electron",
@@ -31,6 +35,7 @@ const layerElectronApp = Layer.succeed(ElectronApp.ElectronApp, {
   metadata: Effect.die("unexpected metadata read"),
   name: Effect.succeed("T3 Code"),
   systemLocale: Effect.succeed("en-US"),
+  preferredSystemLanguages: Effect.succeed(["en-US"]),
   whenReady: Effect.void,
   requestSingleInstanceLock: Effect.succeed(true),
   quit: Effect.void,
@@ -110,6 +115,7 @@ const configureMenu = (
   applicationMenuTemplate: Deferred.Deferred<readonly Electron.MenuItemConstructorOptions[]>,
   environment: Partial<DesktopEnvironment.MakeDesktopEnvironmentInput> = {},
   hasUpdateFeed = true,
+  uiLanguage: UiLanguageSetting = "system",
 ) =>
   Effect.gen(function* () {
     const menu = yield* DesktopApplicationMenu.DesktopApplicationMenu;
@@ -120,6 +126,15 @@ const configureMenu = (
         Layer.provideMerge(layerElectronMenu(applicationMenuTemplate)),
         Layer.provideMerge(layerDesktopWindow(selectedAction)),
         Layer.provideMerge(layerDesktopUpdates(hasUpdateFeed)),
+        Layer.provideMerge(
+          DesktopUiLanguage.layer.pipe(
+            Layer.provide(
+              DesktopClientSettings.layerTest(
+                Option.some({ ...DEFAULT_CLIENT_SETTINGS, uiLanguage }),
+              ),
+            ),
+          ),
+        ),
         Layer.provideMerge(layerElectronDialog),
         Layer.provideMerge(layerElectronApp),
         Layer.provideMerge(
@@ -221,6 +236,40 @@ describe("DesktopApplicationMenu", () => {
           hasUpdateFeed ? 2 : 0,
         );
       }
+    }),
+  );
+
+  it.effect("builds the menu in the saved interface language, roles included", () =>
+    Effect.gen(function* () {
+      const labelsFor = (uiLanguage: UiLanguageSetting) =>
+        Effect.gen(function* () {
+          const applicationMenuTemplate =
+            yield* Deferred.make<readonly Electron.MenuItemConstructorOptions[]>();
+          yield* configureMenu(
+            yield* Deferred.make<string>(),
+            applicationMenuTemplate,
+            { platform: "darwin" },
+            true,
+            uiLanguage,
+          );
+          const template = yield* Deferred.await(applicationMenuTemplate);
+          const edit = template[2];
+          return {
+            top: template.map((item) => item.label),
+            edit: Array.isArray(edit?.submenu) ? edit.submenu.map((item) => item.label) : [],
+          };
+        });
+
+      const chinese = yield* labelsFor("zh-Hans");
+      assert.deepStrictEqual(chinese.top.slice(1), ["文件", "编辑", "视图", "窗口", "帮助"]);
+      assert.include(chinese.edit, "粘贴为纯文本");
+      assert.include(chinese.edit, "撤销");
+
+      // English keeps Electron's own role labels; the system language here is en-US.
+      const system = yield* labelsFor("system");
+      assert.deepStrictEqual(system.top.slice(1), ["File", "Edit", "View", undefined, undefined]);
+      assert.include(system.edit, "Paste as Text");
+      assert.include(system.edit, undefined);
     }),
   );
 

@@ -5,6 +5,7 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import type * as Electron from "electron";
+import { getUiLocale, translate, type TranslateParams } from "@t3tools/client-runtime/i18n";
 
 import { makeComponentLogger } from "../app/DesktopObservability.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
@@ -12,6 +13,7 @@ import * as ElectronMenu from "../electron/ElectronMenu.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 import * as DesktopWindow from "./DesktopWindow.ts";
+import * as DesktopUiLanguage from "../settings/DesktopUiLanguage.ts";
 
 export class DesktopApplicationMenuActionError extends Schema.TaggedError<DesktopApplicationMenuActionError>()(
   "DesktopApplicationMenuActionError",
@@ -64,6 +66,8 @@ const runMainContentsCommand = Effect.fn("desktop.menu.runMainContentsCommand")(
   yield* desktopWindow.runMainContentsCommand(command);
 });
 
+const t = (source: string, params?: TranslateParams) => translate(getUiLocale(), source, params);
+
 const checkForUpdatesFromMenu = Effect.gen(function* () {
   const updates = yield* DesktopUpdates.DesktopUpdates;
   const electronDialog = yield* ElectronDialog.ElectronDialog;
@@ -73,17 +77,19 @@ const checkForUpdatesFromMenu = Effect.gen(function* () {
   if (updateState.status === "up-to-date") {
     yield* electronDialog.showMessageBox({
       type: "info",
-      title: "You're up to date!",
-      message: `T3 Code ${updateState.currentVersion} is currently the newest version available.`,
-      buttons: ["OK"],
+      title: t("You're up to date!"),
+      message: t("T3 Code {version} is currently the newest version available.", {
+        version: updateState.currentVersion,
+      }),
+      buttons: [t("OK")],
     });
   } else if (updateState.status === "error") {
     yield* electronDialog.showMessageBox({
       type: "warning",
-      title: "Update check failed",
-      message: "Could not check for updates.",
-      detail: updateState.message ?? "An unknown error occurred. Please try again later.",
-      buttons: ["OK"],
+      title: t("Update check failed"),
+      message: t("Could not check for updates."),
+      detail: updateState.message ?? t("An unknown error occurred. Please try again later."),
+      buttons: [t("OK")],
     });
   }
 }).pipe(Effect.withSpan("desktop.menu.checkForUpdates"));
@@ -98,10 +104,10 @@ const handleCheckForUpdatesMenuClick = Effect.gen(function* () {
     });
     yield* electronDialog.showMessageBox({
       type: "info",
-      title: "Updates unavailable",
-      message: "Automatic updates are not available right now.",
+      title: t("Updates unavailable"),
+      message: t("Automatic updates are not available right now."),
       detail: disabledReason.value,
-      buttons: ["OK"],
+      buttons: [t("OK")],
     });
     return;
   }
@@ -117,6 +123,7 @@ export const make = Effect.gen(function* () {
   const electronMenu = yield* ElectronMenu.ElectronMenu;
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
   const updates = yield* DesktopUpdates.DesktopUpdates;
+  const uiLanguage = yield* DesktopUiLanguage.DesktopUiLanguage;
   const context = yield* Effect.context<DesktopApplicationMenuRuntimeServices>();
   const runPromise = Effect.runPromiseWith(context);
 
@@ -137,6 +144,15 @@ export const make = Effect.gen(function* () {
   };
 
   const configure = Effect.gen(function* () {
+    // fork: build the menu in the interface language; settings changes call configure again.
+    const locale = yield* uiLanguage.apply;
+    const label = (source: string, params?: TranslateParams) => translate(locale, source, params);
+    // Electron names role items in English; label them only when a translation is wanted.
+    const role = <R extends NonNullable<Electron.MenuItemConstructorOptions["role"]>>(
+      itemRole: R,
+      source: string,
+    ): Electron.MenuItemConstructorOptions =>
+      locale === "en" ? { role: itemRole } : { role: itemRole, label: label(source) };
     const checkForUpdatesClick = () => {
       runMenuEffect("check-for-updates", handleCheckForUpdatesMenuClick);
     };
@@ -161,7 +177,7 @@ export const make = Effect.gen(function* () {
     // fork: no "Check for Updates..." when the build has no update feed.
     const checkForUpdatesItems: Electron.MenuItemConstructorOptions[] =
       (yield* updates.hasUpdateFeed)
-        ? [{ label: "Check for Updates...", click: checkForUpdatesClick }]
+        ? [{ label: label("Check for Updates..."), click: checkForUpdatesClick }]
         : [];
     const template: Electron.MenuItemConstructorOptions[] = [];
 
@@ -169,35 +185,35 @@ export const make = Effect.gen(function* () {
       template.push({
         label: environment.displayName,
         submenu: [
-          { role: "about", label: `About ${environment.displayName}` },
+          { role: "about", label: label("About {name}", { name: environment.displayName }) },
           ...checkForUpdatesItems, // fork: feed-gated
           { type: "separator" },
           {
-            label: "Settings...",
+            label: label("Settings..."),
             accelerator: "CmdOrCtrl+,",
             click: settingsClick,
           },
           { type: "separator" },
-          { role: "services" },
+          role("services", "Services"),
           { type: "separator" },
-          { role: "hide", label: `Hide ${environment.displayName}` },
-          { role: "hideOthers" },
-          { role: "unhide" },
+          { role: "hide", label: label("Hide {name}", { name: environment.displayName }) },
+          role("hideOthers", "Hide Others"),
+          role("unhide", "Show All"),
           { type: "separator" },
-          { role: "quit", label: `Quit ${environment.displayName}` },
+          { role: "quit", label: label("Quit {name}", { name: environment.displayName }) },
         ],
       });
     }
 
     template.push(
       {
-        label: "File",
+        label: label("File"),
         submenu: [
           ...(environment.platform === "darwin"
             ? []
             : [
                 {
-                  label: "Settings...",
+                  label: label("Settings..."),
                   accelerator: "CmdOrCtrl+,",
                   click: settingsClick,
                 },
@@ -205,58 +221,65 @@ export const make = Effect.gen(function* () {
               ]),
           // Cmd/Ctrl+W belongs to the renderer's tab close; it must never close the window.
           environment.platform === "darwin"
-            ? { label: "Close Window", click: (_item, window) => window?.close() }
-            : { role: "quit" },
+            ? { label: label("Close Window"), click: (_item, window) => window?.close() }
+            : role("quit", "Quit"),
         ],
       },
       {
-        label: "Edit",
+        label: label("Edit"),
         submenu: [
-          { role: "undo" },
-          { role: "redo" },
+          role("undo", "Undo"),
+          role("redo", "Redo"),
           { type: "separator" },
-          { role: "cut" },
-          { role: "copy" },
-          { role: "paste" },
+          role("cut", "Cut"),
+          role("copy", "Copy"),
+          role("paste", "Paste"),
           {
-            label: "Paste as Text",
+            label: label("Paste as Text"),
             accelerator: "CmdOrCtrl+Shift+V",
             click: pasteAsTextClick,
           },
-          { role: "delete" },
+          role("delete", "Delete"),
           { type: "separator" },
-          { role: "selectAll" },
+          role("selectAll", "Select All"),
           ...(environment.platform === "darwin"
             ? [
                 { type: "separator" as const },
                 {
-                  label: "Speech",
-                  submenu: [{ role: "startSpeaking" as const }, { role: "stopSpeaking" as const }],
+                  label: label("Speech"),
+                  submenu: [
+                    role("startSpeaking", "Start Speaking"),
+                    role("stopSpeaking", "Stop Speaking"),
+                  ],
                 },
               ]
             : []),
         ],
       },
       {
-        label: "View",
+        label: label("View"),
         submenu: [
           /* Native reload/DevTools/zoom roles target focused guests; these commands must target the app. */
-          { label: "Reload", accelerator: "CmdOrCtrl+R", click: mainContentsClick("reload") },
           {
-            label: "Force Reload",
+            label: label("Reload"),
+            accelerator: "CmdOrCtrl+R",
+            click: mainContentsClick("reload"),
+          },
+          {
+            label: label("Force Reload"),
             accelerator: "Shift+CmdOrCtrl+R",
             click: mainContentsClick("forceReload"),
           },
           {
-            label: "Toggle Developer Tools",
+            label: label("Toggle Developer Tools"),
             accelerator: environment.platform === "darwin" ? "Alt+Command+I" : "Ctrl+Shift+I",
             click: mainContentsClick("toggleDevTools"),
           },
           { type: "separator" },
-          { label: "Actual Size", accelerator: "CmdOrCtrl+0", click: zoomClick("reset") },
-          { label: "Zoom In", accelerator: "CmdOrCtrl+=", click: zoomClick("in") },
+          { label: label("Actual Size"), accelerator: "CmdOrCtrl+0", click: zoomClick("reset") },
+          { label: label("Zoom In"), accelerator: "CmdOrCtrl+=", click: zoomClick("in") },
           {
-            label: "Zoom In",
+            label: label("Zoom In"),
             accelerator: "CmdOrCtrl+Plus",
             visible: false,
             click: zoomClick("in"),
@@ -264,50 +287,50 @@ export const make = Effect.gen(function* () {
           ...(environment.platform === "darwin"
             ? [
                 {
-                  label: "Zoom In",
+                  label: label("Zoom In"),
                   accelerator: "CmdOrCtrl+Shift+=",
                   visible: false,
                   click: zoomClick("in"),
                 },
               ]
             : []),
-          { label: "Zoom Out", accelerator: "CmdOrCtrl+-", click: zoomClick("out") },
+          { label: label("Zoom Out"), accelerator: "CmdOrCtrl+-", click: zoomClick("out") },
           // Keypad codes do not match number-row accelerators.
           {
-            label: "Actual Size",
+            label: label("Actual Size"),
             accelerator: "CmdOrCtrl+num0",
             visible: false,
             click: zoomClick("reset"),
           },
           {
-            label: "Zoom In",
+            label: label("Zoom In"),
             accelerator: "CmdOrCtrl+numadd",
             visible: false,
             click: zoomClick("in"),
           },
           {
-            label: "Zoom Out",
+            label: label("Zoom Out"),
             accelerator: "CmdOrCtrl+numsub",
             visible: false,
             click: zoomClick("out"),
           },
           { type: "separator" },
-          { role: "togglefullscreen" },
+          role("togglefullscreen", "Toggle Full Screen"),
         ],
       },
       {
         // Electron's default Window submenu adds a Ctrl+W close role off macOS.
-        role: "windowMenu",
+        ...role("windowMenu", "Window"),
         submenu: [
-          { role: "minimize" },
-          { role: "zoom" },
+          role("minimize", "Minimize"),
+          role("zoom", "Zoom"),
           ...(environment.platform === "darwin"
-            ? [{ type: "separator" as const }, { role: "front" as const }]
+            ? [{ type: "separator" as const }, role("front", "Bring All to Front")]
             : []),
         ],
       },
       {
-        role: "help",
+        ...role("help", "Help"),
         submenu: checkForUpdatesItems, // fork: feed-gated
       },
     );

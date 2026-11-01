@@ -974,7 +974,8 @@ interface StagePackageJson {
 }
 
 export const STAGE_INSTALL_ARGS = ["install", "--prod"] as const;
-export const DESKTOP_ELECTRON_LANGUAGES = ["en-US"] as const;
+// fork: zh-CN keeps Chromium's and AppKit's own strings (spellcheck, native menus) translatable.
+export const DESKTOP_ELECTRON_LANGUAGES = ["en-US", "zh-CN"] as const;
 export const DESKTOP_FILE_EXCLUSIONS = [
   // Cursor walks from argv[1] to platform assets; helpers and native addons need real paths outside ASAR.
   "!**/node_modules/@cursor/sdk-*/**/*",
