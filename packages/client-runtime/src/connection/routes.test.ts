@@ -305,6 +305,45 @@ describe("learned routes", () => {
     ]);
   });
 
+  // fork: self-hosted public route
+  it("learns a public address over a LAN pairing and ranks it between tailnet and T3 Connect", () => {
+    const entry = entryWithRoutes(relayOnly, [LAN, RELAY]);
+    const routes = mergeLearnedRoutes({
+      entry,
+      activeRoute: LAN,
+      reported: [
+        { kind: "public", httpBaseUrl: "https://t3.example.com/" },
+        { kind: "public", httpBaseUrl: "http://plain.example.com/" },
+        { kind: "tailnet", httpBaseUrl: "https://desk.tail1234.ts.net/" },
+        { kind: "some-future-kind", httpBaseUrl: "https://future.example.com/" },
+      ],
+      allowInsecure: true,
+    })!;
+    expect(ids(routes)).toEqual([
+      "lan",
+      `learned:${ENVIRONMENT_ID}:https://desk.tail1234.ts.net@lan`,
+      `learned:${ENVIRONMENT_ID}:https://t3.example.com@lan`,
+      `learned:${ENVIRONMENT_ID}:https://future.example.com@lan`,
+      "relay",
+    ]);
+    const publicRoute = routes[2]!;
+    expect(connectionRouteKind(publicRoute)).toBe("public");
+    expect(sendsTokenInClear(routes, publicRoute)).toBe(false);
+    expect(profileOf(publicRoute)).toMatchObject({ wsBaseUrl: "wss://t3.example.com/" });
+
+    // Removing the address on the server drops the learned route on the next connect.
+    expect(
+      ids(
+        mergeLearnedRoutes({
+          entry: entryWithRoutes(relayOnly, routes),
+          activeRoute: LAN,
+          reported: [{ kind: "tailnet", httpBaseUrl: "https://desk.tail1234.ts.net/" }],
+          allowInsecure: true,
+        }),
+      ),
+    ).toEqual(["lan", `learned:${ENVIRONMENT_ID}:https://desk.tail1234.ts.net@lan`, "relay"]);
+  });
+
   it("skips plain HTTP from an HTTPS page and never learns loopback", () => {
     expect(
       mergeLearnedRoutes({

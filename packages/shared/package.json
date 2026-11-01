@@ -179,6 +179,10 @@
       "types": "./src/remote.ts",
       "import": "./src/remote.ts"
     },
+    "./selfHost": {
+      "types": "./src/selfHost.ts",
+      "import": "./src/selfHost.ts"
+    },
     "./relaySigning": {
       "types": "./src/relaySigning.ts",
       "import": "./src/relaySigning.ts"

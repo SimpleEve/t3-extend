@@ -583,8 +583,11 @@ export function environmentThemeFileHasColors(file: EnvironmentThemeFile): boole
   );
 }
 
-/** tailnet means this machine's Tailscale interface; other private addresses are lan. */
-export const ServerDirectEndpointKind = Schema.Literals(["lan", "tailnet"]);
+/**
+ * tailnet means this machine's Tailscale interface; other private addresses are lan.
+ * public is an HTTPS origin the owner put in front of this server, such as a reverse tunnel.
+ */
+export const ServerDirectEndpointKind = Schema.Literals(["lan", "tailnet", "public"]); // fork: self-hosted public route
 export type ServerDirectEndpointKind = typeof ServerDirectEndpointKind.Type;
 
 export const ServerDirectEndpoint = Schema.Struct({

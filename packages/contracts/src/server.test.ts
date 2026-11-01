@@ -1,11 +1,13 @@
 import * as Schema from "effect/Schema";
 import { describe, expect, it } from "vite-plus/test";
 
+import { ForwardCompatibleArray, TrimmedNonEmptyString } from "./baseSchemas.ts";
 import { ExecutionEnvironmentDescriptor } from "./environment.ts";
 import {
   OtlpEndpointCheckInput,
   resolveEnvironmentMachineKind,
   ServerObservability,
+  ServerDirectEndpoint,
   ServerProvider,
   ServerProviders,
 } from "./server.ts";
@@ -69,6 +71,32 @@ describe("server config forward compatibility", () => {
     expect(parsed.usageLimits?.windows).toEqual([
       { id: "primary", kind: "session", label: "Session", usedPercent: 12 },
     ]);
+  });
+});
+
+// The element schema as released before `public` existed.
+const decodeEndpointsBeforePublic = Schema.decodeUnknownSync(
+  ForwardCompatibleArray(
+    Schema.Struct({
+      kind: Schema.Literals(["lan", "tailnet"]),
+      httpBaseUrl: TrimmedNonEmptyString,
+    }),
+  ),
+);
+const decodeEndpoints = Schema.decodeUnknownSync(ForwardCompatibleArray(ServerDirectEndpoint));
+
+describe("ServerDirectEndpoint forward compatibility", () => {
+  const reported = [
+    { kind: "lan", httpBaseUrl: "http://192.168.1.20:3873/" },
+    { kind: "public", httpBaseUrl: "https://t3.example.com/" },
+  ];
+
+  it("lets a client from before the public kind keep the routes it knows", () => {
+    expect(decodeEndpointsBeforePublic(reported)).toEqual([reported[0]]);
+  });
+
+  it("decodes public endpoints in this build", () => {
+    expect(decodeEndpoints(reported)).toEqual(reported);
   });
 });
 

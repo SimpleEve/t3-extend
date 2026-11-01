@@ -233,6 +233,8 @@ export function mergeLearnedRoutes(input: {
     }
     if (url.protocol !== "http:" && url.protocol !== "https:") continue;
     if (url.protocol === "http:" && !input.allowInsecure) continue;
+    // fork: self-hosted public route. A public address is reached over the internet, so HTTPS only.
+    if (endpoint.kind === "public" && url.protocol !== "https:") continue;
     // A loopback address names whichever device opens it, never the server.
     if (isLocalLoopbackHost(url.hostname)) continue;
     reported.set(url.origin, url);
