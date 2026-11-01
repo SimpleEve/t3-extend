@@ -1,0 +1,69 @@
+# T3 Extend
+
+T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的私有二开 fork（`SimpleEve/t3-extend`）。它的开发版、测试版和打包产物都可以和本机安装的官方 T3 Code 同时运行，互不改写对方的数据、命令、服务和更新。
+
+## 身份
+
+所有 fork 身份集中在 `packages/shared/src/forkIdentity.ts`。上游文件里引用它的地方都只改一行，并带 `// fork:` 注释。不能 import 的地方（`apps/desktop/package.json` 的 `productName`、`apps/desktop/scripts/electron-launcher.mjs`、`apps/mobile/package.json` 的 `--scheme`、iOS 小组件、移动端测试脚本）直接写字面量。
+
+| 项                                    | 官方 T3 Code                                    | T3 Extend                                                                   |
+| ------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------- |
+| 应用名                                | T3 Code (Beta / Nightly / Dev)                  | T3 Extend (Beta / Nightly / Dev)                                            |
+| appId / bundle id / Android 包名      | `com.t3tools.t3code`                            | `com.simpleeve.t3extend`，移动端变体加 `.dev` / `.preview`                  |
+| Electron userData                     | `t3code-v2` / `t3code-dev`                      | `t3extend` / `t3extend-dev`                                                 |
+| URL scheme                            | `t3code` / `t3code-dev` / `t3code-preview`      | `t3extend` / `t3extend-dev` / `t3extend-preview`                            |
+| T3 home                               | `~/.t3`                                         | `~/.t3extend`                                                               |
+| CLI shim 与 PATH 软链接               | `t3`                                            | `t3x`                                                                       |
+| 开机服务                              | `com.t3tools.t3code.service` / `t3code.service` | `com.simpleeve.t3extend.service` / `t3extend.service`                       |
+| 默认端口（桌面后端、headless server） | 3773                                            | 3873                                                                        |
+| server 发布源                         | `pingdotgg/t3code`                              | `SimpleEve/t3-extend`（私有，没有发布归档）                                 |
+| 桌面更新 feed                         | GitHub Releases                                 | 无，除非构建时设置 `T3CODE_DESKTOP_UPDATE_REPOSITORY`                       |
+| 移动端 OTA                            | 官方 EAS 项目                                   | 无，除非设置 `T3EXTEND_EAS_PROJECT_ID` 和 `T3CODE_MOBILE_UPDATES_ENABLED=1` |
+| telemetry                             | 默认开                                          | 默认关，`T3CODE_TELEMETRY_ENABLED=true` 才上报                              |
+
+没有改的：server 的 npm 包名和 `bin`（`t3`，改了会破坏 `--filter=t3`）、`t3code:*` localStorage key（userData 和 origin 已经不同）、版本号、CLI 帮助文本里的命令名。
+
+## 共存保证
+
+- 两个应用各用各的 userData、single-instance lock、T3 home、数据库、`secrets/`、worktree 目录、launchd label 和 systemd unit，互不干扰。
+- 桌面版写的是 `~/.t3extend/bin/t3x`，以及 PATH 上的 `t3x` 软链接，不会碰官方的 `~/.t3/bin/t3`、`/opt/homebrew/bin/t3`。
+- fork 不会被官方更新覆盖：
+  - 桌面构建只认显式设置的 `T3CODE_DESKTOP_UPDATE_REPOSITORY`，不会从 CI 的 `GITHUB_REPOSITORY` 推断 feed。没有 feed 时不生成 `app-update.yml`，菜单里也没有 "Check for Updates..."。
+  - server 自更新（`t3x update`、客户端的 "Update everything"、`t3x service install`）从 `SimpleEve/t3-extend` 查询和下载。这个仓库是私有的，没有发布归档，匿名请求在查询 release 或下载 `SHA256SUMS` 时就会 404，此时还没有删除或替换任何已安装的运行时（`apps/server/src/cloud/pinnedRuntime.test.ts` 有对应用例）。
+  - 移动端默认关闭 OTA，也不带官方 EAS 的 `projectId` 和 `owner`。
+- 配对链接两种都认：fork 客户端能扫官方 server 的二维码（`t3code://pair`），fork 生成的链接是 `t3extend://pair`。
+
+例外和限制：
+
+- SSH 远程主机默认装的是同版本的官方 server 归档（`OFFICIAL_CLI_RELEASE_DOWNLOAD_URL`），不影响本机的 fork。
+- 没有官方 `.env`，所以 T3 Connect、guest link、移动推送、passkey 默认都不可用。Clerk 回跳绑定的是官方 scheme，即使自己提供 `.env`，Connect 登录也可能失败。
+- `t3x service install` 同样需要下载 server 归档，在 fork 发布自己的归档之前会失败。可以用 `T3CODE_RELEASE_BASE_URL` 指向自己的发布镜像。
+- Linux 打包身份（`executableName`、`StartupWMClass`、metainfo、`.desktop` 名称）还没有改。
+- 远程 model manifest 仍然读上游的 `raw.githubusercontent.com/pingdotgg/t3code`，它是只读数据。
+
+## 开发流程
+
+- 只在 linked worktree 里开发和测试。主 checkout（`~/projects/t3-extend`）只用来合并和同步上游。
+- shell 里先把 vp 放进 PATH，不要 source `~/.config/vite-plus/env`：
+
+  ```bash
+  export PATH="$HOME/.local/share/vite-plus/bin:$PATH:$HOME/.local/share/vite-plus/fallback-bin"
+  ```
+
+- 在 linked worktree 里跑 `vp run dev`，状态放在 worktree 自己的 `.t3`。第一次启动时会从 `~/.t3extend/userdata/statev2.sqlite` 只读拷贝种子数据；fork home 没有数据库时，改用官方的 `~/.t3/userdata/statev2.sqlite`。`vp run migrate-dev-db` 用同样的规则。
+- 主 checkout 不带参数时，dev 的 baseDir 是 `~/.t3extend`，也就是 fork 正在使用的数据。确实要在主 checkout 跑 dev，必须带 `--home-dir`，例如 `vp run dev --home-dir ~/.t3extend-dev`。
+- 系统 Node 是 26.5.1，仓库锁定 26.12.1。开发和测试用系统 Node；打包时如果因为 Node 版本报错，用 `vp env exec --node 26.12.1 <命令>`。
+- 提交前跑 `vp run fork:guard` 和 `vp run check:changed`。
+
+## 同步上游
+
+```bash
+git fetch upstream
+git merge upstream/main
+# 解决冲突：fork 的改动都在带 `// fork:` 注释的行上，保留 fork 的值，接受上游其余改动。
+vp i
+vp run fork:guard        # 上游新增的官方身份字面量会在这里报出来
+vp run check:changed
+```
+
+`fork:guard`（`scripts/fork-identity-guard.ts`）扫描 `apps/*/src`、`packages`、`scripts` 等代码路径，查找 `com.t3tools.t3code`、`t3code-v2`、`t3code-dev`、`t3code://`、`"\.t3"`、`pingdotgg/t3code`、官方 EAS 和 PostHog 地址。新出现的命中要么改成引用 `forkIdentity.ts`，要么在脚本的 `ALLOWED` 里加一条并写明理由。白名单条目不再命中时，守卫也会报错，提醒删掉它。
