@@ -17,8 +17,17 @@ import {
   readThreadUndoNotice,
   useThreadUndoNotice,
 } from "./thread-undo-notice";
+import { useT } from "../../hooks/useT"; // fork: i18n
+
+// fork: i18n. Whole sentences per action, keyed by the notice's English action word.
+const UNDO_NOTICE_MESSAGE = {
+  Settled: "Settled thread",
+  Snoozed: "Snoozed thread",
+  Unpinned: "Unpinned thread",
+} as const;
 
 export function ThreadUndoNotice(props: { readonly visible: boolean }) {
+  const t = useT();
   const floatingTabsEnabled = useAndroidFloatingTabs();
   const notice = useThreadUndoNotice();
   const insets = useSafeAreaInsets();
@@ -78,9 +87,9 @@ export function ThreadUndoNotice(props: { readonly visible: boolean }) {
       pointerEvents="box-none"
     >
       <Toast
-        message={`${notice.action} thread`}
+        message={t(UNDO_NOTICE_MESSAGE[notice.action])}
         action={{
-          label: "Undo",
+          label: t("Undo"),
           onPress: () => {
             void notice.undo();
           },

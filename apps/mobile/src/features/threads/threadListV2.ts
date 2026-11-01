@@ -42,6 +42,7 @@ import {
   reconcilePendingThreadOrder,
   type PendingThreadOrder,
 } from "./threadOrder";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export const threadListInboxReturns = createInboxReturnTracker();
 
@@ -81,9 +82,13 @@ export function resolveThreadListV2SnoozePresets(input: {
   readonly secondary: "snooze" | null;
   readonly now: string;
   readonly presets: ReadonlyArray<SnoozePresetSetting> | undefined;
+  readonly translate?: Translator; // fork: i18n
 }): ReadonlyArray<SnoozePreset> {
   return input.secondary === "snooze"
-    ? resolveSnoozePresets(new Date(input.now), presetOptions(input.presets))
+    ? resolveSnoozePresets(new Date(input.now), {
+        ...presetOptions(input.presets),
+        ...(input.translate ? { translate: input.translate } : {}),
+      })
     : [];
 }
 

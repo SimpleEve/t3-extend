@@ -3,7 +3,9 @@ import appearance from "./appearance.ts";
 import commandPalette from "./commandPalette.ts";
 import common from "./common.ts";
 import desktop from "./desktop.ts";
+import mobile from "./mobile.ts";
 import mobileBrowser from "./mobileBrowser.ts";
+import mobileSettings from "./mobileSettings.ts";
 import settings from "./settings.ts";
 import sharing from "./sharing.ts";
 import sidebar from "./sidebar.ts";
@@ -16,7 +18,9 @@ export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   commandPalette,
   common,
   desktop,
+  mobile,
   mobileBrowser,
+  mobileSettings,
   settings,
   sharing,
   sidebar,
