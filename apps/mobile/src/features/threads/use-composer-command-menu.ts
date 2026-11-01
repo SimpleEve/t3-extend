@@ -13,6 +13,8 @@ import {
   matchComposerThreadItems,
 } from "@t3tools/client-runtime/composerThreadItems";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 const EMPTY_THREAD_SHELLS: ReadonlyArray<EnvironmentThreadShell> = [];
 const EMPTY_ENVIRONMENTS: ReadonlyArray<ComposerEnvironmentCandidate> = [];
@@ -109,7 +111,9 @@ export function buildComposerSlashCommandItems(input: {
     ServerProvider,
     "driver" | "slashCommands" | "showInteractionModeToggle"
   > | null;
+  readonly t?: Translator; // fork: interface language
 }): ComposerCommandItem[] {
+  const t = input.t ?? ((source: string) => source);
   const query = input.query.toLowerCase();
   const allowInteractionMode =
     input.allowInteractionMode && input.selectedProviderStatus?.showInteractionModeToggle !== false;
@@ -119,21 +123,21 @@ export function buildComposerSlashCommandItems(input: {
       type: "slash-command",
       command: "model",
       label: "/model",
-      description: "Switch model",
+      description: t("Switch model"),
     },
     {
       id: "cmd:plan",
       type: "slash-command",
       command: "plan",
       label: "/plan",
-      description: "Switch to plan mode",
+      description: t("Switch to plan mode"),
     },
     {
       id: "cmd:default",
       type: "slash-command",
       command: "default",
       label: "/default",
-      description: "Switch to default mode",
+      description: t("Switch to default mode"),
     },
   ] satisfies ComposerCommandItem[];
   const items: ComposerCommandItem[] = builtIn.filter(
@@ -253,6 +257,7 @@ export function useComposerCommandMenu({
   }));
   // Thread mentions rank by recency as of when the composer mounted.
   const [now] = useState(() => Date.now());
+  const t = useT(); // fork: i18n
   const insertedSelection = useComposerDraftSelection(ownerKey, draftMessage);
   const selection = resolveComposerMenuSelection({
     draftMessage,
@@ -350,6 +355,7 @@ export function useComposerCommandMenu({
         hasCompactableConversation,
         offersUsageLimits,
         allowInteractionMode: onUpdateInteractionMode !== undefined,
+        t,
         selectedProviderStatus: selectedProviderStatus
           ? {
               ...selectedProviderStatus,
@@ -466,10 +472,11 @@ export function useComposerCommandMenu({
             excludeThreadId: currentThreadId,
             query: trigger.query,
             now,
+            t,
           })
         : [];
       const environmentItems = environmentId
-        ? matchComposerEnvironmentItems({ environments, environmentId, query: trigger.query })
+        ? matchComposerEnvironmentItems({ environments, environmentId, query: trigger.query, t })
         : [];
       return [
         ...threadItems,

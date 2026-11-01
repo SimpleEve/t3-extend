@@ -7,10 +7,14 @@ import {
 } from "@t3tools/contracts";
 import { foldSearchQuery, rankSearchItems, scoreThreadSearch } from "@t3tools/shared/paletteSearch";
 
+import type { Translator } from "./i18n/store.ts"; // fork: i18n
+import { interpolate } from "./i18n/translate.ts"; // fork: i18n
 import type { EnvironmentThreadShell } from "./state/models.ts";
 import { threadSearchSubject, type ThreadSearchShell } from "./state/threadSearch.ts";
 
 const COMPOSER_THREAD_RESULT_LIMIT = 5;
+
+const untranslated: Translator = (source, params) => interpolate(source, params); // fork: i18n
 
 export type ComposerThreadCandidate = ThreadSearchShell &
   Pick<EnvironmentThreadShell, "archivedAt" | "lineage">;
@@ -38,7 +42,9 @@ export function matchComposerThreadItems(input: {
   query: string;
   /** Recency is measured against this time. */
   now: number;
+  t?: Translator; // fork: interface language, English when omitted
 }): ComposerThreadItem[] {
+  const t = input.t ?? untranslated;
   const query = foldSearchQuery(input.query);
   if (query.length === 0) return [];
   const candidates = input.shells.filter(
@@ -66,7 +72,7 @@ export function matchComposerThreadItems(input: {
         type: "thread",
         thread: { environmentId: shell.environmentId, threadId: shell.id },
         label: shell.title,
-        description: machine === undefined ? "Thread" : `Thread on ${machine}`,
+        description: machine === undefined ? t("Thread") : t("Thread on {machine}", { machine }),
       };
     });
 }
@@ -95,7 +101,9 @@ export function matchComposerEnvironmentItems(input: {
   environments: ReadonlyArray<ComposerEnvironmentCandidate>;
   environmentId: EnvironmentId;
   query: string;
+  t?: Translator; // fork: interface language, English when omitted
 }): ComposerEnvironmentItem[] {
+  const t = input.t ?? untranslated;
   const query = input.query.trim().toLowerCase();
   if (query.length === 0) return [];
   return input.environments
@@ -110,6 +118,6 @@ export function matchComposerEnvironmentItems(input: {
       environmentId: environment.environmentId,
       machine: environment.machine,
       label: environment.label,
-      description: "Machine",
+      description: t("Machine"),
     }));
 }

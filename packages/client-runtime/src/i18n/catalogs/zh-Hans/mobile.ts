@@ -228,6 +228,11 @@ export default {
   "Agents here can then launch, message and wait on threads there. It appears in that machine's Connections, where it can be revoked.":
     "之后这里的 Agent 就能在那里启动对话、发送消息和等待结果。关联会显示在那台机器的“连接”中，可以在那里撤销。",
   Machine: "机器",
+  "Thread on {machine}": "{machine} 上的对话",
+  // Built-in slash commands in the composer
+  "Switch model": "切换模型",
+  "Switch to plan mode": "切换到计划模式",
+  "Switch to default mode": "切换到默认模式",
   "Another address…": "其他地址…",
   "Link a machine this app does not know, by its https or Tailscale address.":
     "通过 https 或 Tailscale 地址，关联一台这个应用不认识的机器。",

@@ -1,6 +1,9 @@
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
+import { translatorFor } from "./i18n/store.ts";
+import { loadUiCatalog } from "./i18n/translate.ts";
+
 import {
   matchComposerEnvironmentItems,
   matchComposerThreadItems,
@@ -54,7 +57,8 @@ it("ranks thread mentions like the palette and leaves out subagent threads", () 
   expect(items.map((item) => item.thread.threadId)).toEqual(["word", "newer-mid-word"]);
 });
 
-it("also offers threads on linked machines, naming the machine, but no other machine's", () => {
+it("also offers threads on linked machines, naming the machine, but no other machine's", async () => {
+  await loadUiCatalog("zh-Hans");
   const vps = EnvironmentId.make("env-vps");
   const items = matchComposerThreadItems({
     shells: [
@@ -76,6 +80,20 @@ it("also offers threads on linked machines, naming the machine, but no other mac
       description: "Thread on Hetzner VPS",
     },
   ]);
+
+  const translated = matchComposerThreadItems({
+    shells: [
+      shell("here", "Deploy script"),
+      shell("there", "Deploy script", { environmentId: vps }),
+    ],
+    environmentId,
+    linkedEnvironments: new Map([[vps, "Hetzner VPS"]]),
+    excludeThreadId: null,
+    query: "deploy",
+    now: Date.parse("2026-10-23T00:00:00.000Z"),
+    t: translatorFor("zh-Hans"),
+  });
+  expect(translated.map((item) => item.description)).toEqual(["对话", "Hetzner VPS 上的对话"]);
 });
 
 describe("matchComposerEnvironmentItems", () => {
