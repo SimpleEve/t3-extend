@@ -187,4 +187,7 @@ export default {
   "Edit snooze options": "编辑稍后处理选项",
   "Choose a valid date and time in the future.": "请选择一个未来的有效日期和时间。",
   "Enter a positive duration.": "请输入大于 0 的时长。",
+  Loading: "正在加载",
+  "Could not load older threads. Retry": "无法加载更早的对话，点击重试",
+  "Show {count} more": "再显示 {count} 个",
 } satisfies Record<string, string>;

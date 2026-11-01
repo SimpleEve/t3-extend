@@ -12,7 +12,8 @@ import { CalendarIcon, Settings2Icon } from "lucide-react";
 import { Calendar } from "./ui/calendar";
 import { weekStartsOn } from "../timestampFormat";
 import { useNowMinute } from "../hooks/useNowMinute";
-import { useT } from "../hooks/useT"; // fork: interface language
+import { uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: interface language
+import { useT, useUiLocale } from "../hooks/useT"; // fork: interface language
 import { Popover, PopoverTrigger, PopoverPopup } from "./ui/popover";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -65,6 +66,7 @@ export function CustomSnoozeDialogHost() {
 
 function CustomSnoozeDialog() {
   const t = useT(); // fork: interface language
+  const uiLocale = useUiLocale(); // fork: the date button names months in the interface language
   const id = useId();
   const navigate = useNavigate();
   const [initial] = useState(() => new Date(Date.now() + 3_600_000));
@@ -140,7 +142,7 @@ function CustomSnoozeDialog() {
                             />
                           }
                         >
-                          {date.toLocaleDateString(undefined, {
+                          {date.toLocaleDateString(uiLocaleFormatTag(uiLocale), {
                             month: "short",
                             day: "numeric",
                             year: "numeric",
