@@ -32,6 +32,7 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的私有二开 for
   - server 自更新（`t3x update`、客户端的 "Update everything"、`t3x service install`）从 `SimpleEve/t3-extend` 查询和下载。这个仓库是私有的，没有发布归档，匿名请求在查询 release 或下载 `SHA256SUMS` 时就会 404。已经装好的运行时（带 sentinel 的版本目录）不会被删除或替换，`apps/server/src/cloud/pinnedRuntime.test.ts` 有对应用例。唯一的例外是目标版本目录里上次没下载完的残留：上游逻辑会在下载前先清掉它。
   - 移动端默认关闭 OTA，也不带官方 EAS 的 `projectId` 和 `owner`。
 - 配对链接两种都认：fork 客户端能扫官方 server 的二维码（`t3code://pair`），fork 生成的链接是 `t3extend://pair`。
+  mobile 把 `pair` 当作 `connections/new` 的别名（`apps/mobile/src/Stack.tsx`），系统相机扫码直接进添加环境页。上游只在 `__DEV__` 下用链接里的 `pairingUrl` 预填表单，release 包会打开空表单。
 
 例外和限制：
 
