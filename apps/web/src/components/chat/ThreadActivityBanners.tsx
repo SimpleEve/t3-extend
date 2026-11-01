@@ -29,17 +29,19 @@ import { Button, InlineButton } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
 import type { ThreadNowItem } from "./ThreadNow";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork
 import { interpolateNodes } from "~/lib/interpolateNodes"; // fork
 
 /** Subagents and side chats waiting on the user, unless the parent is itself waiting on them. */
 export function childInputNowItem(input: {
+  // fork: from the caller's useT(), so a language switch re-renders this item.
+  readonly t: Translator;
   readonly childThreadInputs: ReadonlyArray<EnvironmentThreadShell>;
   readonly parentAwaitingUser: boolean;
   readonly onOpenThread: (threadId: ThreadId) => void;
 }): (ThreadNowItem & { readonly waitingLabel: string }) | null {
   // fork: callers re-render on a language change, so read it when the item is built.
-  const t = translatorFor(getUiLocale());
+  const { t } = input;
   const { childThreadInputs, onOpenThread } = input;
   const first = childThreadInputs[0];
   if (!first || input.parentAwaitingUser) return null;
@@ -76,12 +78,14 @@ export function childInputNowItem(input: {
 
 /** The thread's goal, for the end of the timeline. */
 export function goalNowItem(input: {
+  // fork: from the caller's useT(), so a language switch re-renders this item.
+  readonly t: Translator;
   readonly threadId: ThreadId;
   readonly goal: OrchestrationV2ProviderGoal;
   readonly isWorking: boolean;
   readonly onSendCommand: (text: string, failureMessage: string) => Promise<void>;
 }): ThreadNowItem {
-  const t = translatorFor(getUiLocale());
+  const { t } = input;
   const { isWorking, onSendCommand } = input;
   const presentation = presentProviderGoal(input.goal, isWorking);
   return {
@@ -118,13 +122,15 @@ export function goalNowItem(input: {
 
 /** A Stop the provider has not finished; Force stop once it stops answering. */
 export function runStopNowItem(input: {
+  // fork: from the caller's useT(), so a language switch re-renders this item.
+  readonly t: Translator;
   readonly threadId: ThreadId;
   readonly stop: RunStopPresentation;
   readonly canForceStop: boolean;
   readonly forceStopping: boolean;
   readonly onForceStop: () => void;
 }): ThreadNowItem {
-  const t = translatorFor(getUiLocale());
+  const { t } = input;
   const unresponsive = input.stop.state === "unresponsive";
   const requestedAtMs = Date.parse(input.stop.requestedAt);
   return {
@@ -159,6 +165,8 @@ export function runStopNowItem(input: {
 
 /** Background commands and subagents, for the end of the timeline. */
 export function backgroundWorkNowItem(input: {
+  // fork: from the caller's useT(), so a language switch re-renders this item.
+  readonly t: Translator;
   readonly threadId: ThreadId;
   readonly tasks: ReadonlyArray<OrchestrationV2PendingBackgroundTask>;
   readonly turnItems: ThreadStructure["turnItems"];
@@ -167,7 +175,7 @@ export function backgroundWorkNowItem(input: {
   readonly onStop: () => Promise<void>;
   readonly onOpenThread: (threadId: ThreadId) => void;
 }): ThreadNowItem | null {
-  const t = translatorFor(getUiLocale());
+  const { t } = input;
   const { onOpenThread } = input;
   const presentation = presentPendingBackgroundWork(input.tasks);
   if (presentation === null) return null;
@@ -248,6 +256,8 @@ export function backgroundWorkNowItem(input: {
 
 /** The local checkout moved off the branch this thread last ran on. */
 export function branchMismatchBannerItem(input: {
+  // fork: from the caller's useT(), so a language switch re-renders this item.
+  readonly t: Translator;
   readonly mismatchKey: string;
   readonly mismatch: { readonly threadBranch: string; readonly currentBranch: string };
   readonly restoreDisabled: boolean;
@@ -255,7 +265,7 @@ export function branchMismatchBannerItem(input: {
   readonly onRestore: () => void;
   readonly onDismiss: () => void;
 }): ComposerBannerStackItem {
-  const t = translatorFor(getUiLocale());
+  const { t } = input;
   const { mismatch } = input;
   return {
     id: `branch-mismatch:${input.mismatchKey}`,

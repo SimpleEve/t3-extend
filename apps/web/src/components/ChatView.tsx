@@ -23,6 +23,7 @@ import {
 } from "./chat/optimisticUserMessages";
 import { useTimelineRewind } from "./chat/useTimelineRewind";
 import { useThreadLifecycle } from "./chat/useThreadLifecycle";
+import { useT } from "../hooks/useT"; // fork: interface language
 import { useRightPanelActions } from "./chat/useRightPanelActions";
 import { type TerminalLaunchContext, useChatTerminalActions } from "./chat/useChatTerminalActions";
 import { useComposerSend } from "./chat/useComposerSend";
@@ -410,6 +411,7 @@ type ChatViewProps =
 const DismissedFallbackWindowSchema = Schema.NullOr(Schema.String);
 
 export default function ChatView(props: ChatViewProps) {
+  const t = useT(); // fork: banner builders take the translator so they follow a language switch
   const {
     environmentId,
     threadId,
@@ -2621,6 +2623,7 @@ export default function ChatView(props: ChatViewProps) {
       ...projectCloneItems,
       ...systemComposerBannerItems,
       branchMismatchBannerItem({
+        t,
         mismatchKey: activeBranchMismatchKey,
         mismatch: localCheckoutBranchMismatch,
         restoreDisabled: !canWriteSourceControl || isRestoringThreadBranch,

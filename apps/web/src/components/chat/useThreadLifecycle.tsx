@@ -460,6 +460,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   const onOpenRelatedThreadStable = useStableCallback(onOpenRelatedThread);
   const childThreadInputs = useChildThreadInputs(activeThreadRef);
   const childInputNow = childInputNowItem({
+    t,
     childThreadInputs,
     parentAwaitingUser: Boolean(
       activePendingApproval || activePendingUserInput || activeThreadShell?.hasPendingUserInput,
@@ -532,6 +533,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   const goalNow =
     activeThread && activeGoal !== null
       ? goalNowItem({
+          t,
           threadId: activeThread.id,
           goal: activeGoal,
           isWorking,
@@ -548,6 +550,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   const runStopNow =
     activeThread && runStop !== null
       ? runStopNowItem({
+          t,
           threadId: activeThread.id,
           stop: runStop,
           canForceStop: forceStop.canForceStop,
@@ -557,6 +560,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
       : null;
   const backgroundWorkNow = activeThread
     ? backgroundWorkNowItem({
+        t,
         threadId: activeThread.id,
         tasks: activeBackgroundTasks,
         turnItems,
