@@ -1,5 +1,6 @@
 import type { EnvironmentMachineKind } from "@t3tools/contracts";
 import { SymbolView, type AppSymbolName } from "./ui/AppSymbol";
+import { useT } from "../hooks/useT"; // fork: i18n
 
 export const ENVIRONMENT_MACHINE_SYMBOLS = {
   server: "server.rack",
@@ -26,9 +27,10 @@ export function EnvironmentMachineSymbol(props: {
   readonly size: number;
   readonly tintColorClassName: string;
 }) {
+  const t = useT(); // fork: i18n
   return (
     <SymbolView
-      accessibilityLabel={ENVIRONMENT_MACHINE_KIND_LABELS[props.kind]}
+      accessibilityLabel={t(ENVIRONMENT_MACHINE_KIND_LABELS[props.kind], undefined, "machine kind")}
       name={ENVIRONMENT_MACHINE_SYMBOLS[props.kind]}
       size={props.size}
       tintColorClassName={props.tintColorClassName}

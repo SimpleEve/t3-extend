@@ -17,7 +17,7 @@ import {
 } from "@react-navigation/native-stack";
 import type { ReactNode } from "react";
 import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { useUiLocale } from "./hooks/useT"; // fork: i18n
+import { useT, useUiLocale } from "./hooks/useT"; // fork: i18n
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { useResolveClassNames } from "uniwind";
 
@@ -672,6 +672,7 @@ function RootStackLayout(props: {
 }
 
 function NotFoundScreen() {
+  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const screenBgStyle = StyleSheet.flatten(useResolveClassNames("bg-screen"));
   const primaryBgStyle = StyleSheet.flatten(useResolveClassNames("bg-primary"));
@@ -698,13 +699,13 @@ function NotFoundScreen() {
       style={[{ flex: 1 }, screenBgStyle]}
     >
       <Text className="text-3xl font-t3-bold text-foreground" selectable>
-        Route not found
+        {t("Route not found")}
       </Text>
       <Pressable
         style={returnHomeButtonStyle}
         onPress={() => navigation.dispatch(StackActions.replace("Home"))}
       >
-        <Text className="text-base font-t3-bold text-primary-foreground">Return home</Text>
+        <Text className="text-base font-t3-bold text-primary-foreground">{t("Return home")}</Text>
       </Pressable>
     </ScrollView>
   );
