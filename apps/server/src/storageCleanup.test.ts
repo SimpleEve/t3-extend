@@ -2468,7 +2468,9 @@ it.live("keeps saved usage data when removing a settled checkout", () =>
 
 // fork: worktrees shared with official T3 Code are never cleaned, `git clean` included.
 describe("worktrees shared with official T3 Code", () => {
+  const modes = ["uncommitted-changes", "tracked-changes", "any-local-files"] as const;
   const sharedCleanupTest = (
+    mode: (typeof modes)[number],
     shareIt: (input: {
       readonly home: string;
       readonly baseDir: string;
@@ -2483,9 +2485,10 @@ describe("worktrees shared with official T3 Code", () => {
         return yield* Effect.gen(function* () {
           const fixture = yield* cleanupFixture();
           const { service, worktree, config, setPolicy } = fixture;
-          // Untracked files are what `git clean` would delete once the keep rule lets the worktree go.
-          setPolicy("tracked-changes");
-          yield* fs.writeFileString(`${worktree}/scratch.txt`, "keep me\n");
+          setPolicy(mode);
+          // `tracked-changes` is the mode that runs `git clean` once the worktree looks removable.
+          if (expected === "kept" || mode === "tracked-changes")
+            yield* fs.writeFileString(`${worktree}/scratch.txt`, "keep me\n");
           yield* shareIt({ home, baseDir: config.baseDir, worktree });
           const report = yield* service.runNow;
           const entry = report.entries.find((candidate) => candidate.path === worktree);
@@ -2504,8 +2507,9 @@ describe("worktrees shared with official T3 Code", () => {
       }),
     );
 
-  it.live("keeps a worktree inside official T3 Code's worktrees folder", () =>
+  it.live.each(modes)("keeps a worktree inside official T3 Code's worktrees folder, %s", (mode) =>
     sharedCleanupTest(
+      mode,
       // Official's folder is `<home>/.t3/worktrees`; this environment's own folder is the same place.
       ({ home, baseDir }) =>
         Effect.flatMap(FileSystem.FileSystem, (fs) => fs.symlink(baseDir, `${home}/.t3`)).pipe(
@@ -2515,15 +2519,16 @@ describe("worktrees shared with official T3 Code", () => {
     ),
   );
 
-  it.live("keeps a worktree an import marked as shared", () =>
+  it.live.each(modes)("keeps a worktree an import marked as shared, %s", (mode) =>
     sharedCleanupTest(
+      mode,
       ({ worktree }) =>
         Effect.flatMap(SharedWorktreePolicy, (policy) => policy.markShared([worktree])),
       "kept",
     ),
   );
 
-  it.live("still removes a worktree nothing ties to official T3 Code", () =>
-    sharedCleanupTest(() => Effect.void, "removed"),
+  it.live.each(modes)("still removes a worktree nothing ties to official T3 Code, %s", (mode) =>
+    sharedCleanupTest(mode, () => Effect.void, "removed"),
   );
 });

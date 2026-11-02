@@ -1288,6 +1288,38 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     });
   };
 
+  /**
+   * Before any thread row is committed: in memory first (what removals consult), then in the
+   * database (what a restart loads). Over-marking is harmless, since these worktrees belong to T3 Code
+   * and T3 Extend must never remove them anyway. Idempotent, so a resumed run repeats it safely.
+   */
+  const markWorktrees = Effect.fn("T3CodeImport.markWorktrees")(function* (
+    threads: ReadonlyArray<SourceThread>,
+  ) {
+    const worktrees = [
+      ...new Set(
+        threads.flatMap((thread) =>
+          thread.worktree === null ? [] : [path.resolve(thread.worktree)],
+        ),
+      ),
+    ];
+    if (worktrees.length === 0) return;
+    yield* sharedWorktrees.markShared(worktrees);
+    const importedAt = yield* nowIso;
+    yield* sql.withTransaction(
+      Effect.forEach(
+        worktrees,
+        (worktree) =>
+          sql.unsafe(
+            `INSERT OR IGNORE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at)
+             VALUES ('worktree', ?, ?, 'shared', 'created by T3 Code', ?)`,
+            [worktree, worktree, importedAt],
+          ),
+        { discard: true },
+      ),
+    );
+  });
+
   const copyThread = Effect.fn("T3CodeImport.copyThread")(function* (
     context: RunContext,
     thread: SourceThread,
@@ -1309,16 +1341,6 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
        VALUES ('thread', ?, ?, 'copying', ?, ?)`,
       [thread.id, targetThread, thread.worktree, yield* nowIso],
     );
-    // Marked before any thread row exists, so no clean-up sweep can see the thread without its mark.
-    if (thread.worktree !== null) {
-      yield* sql.unsafe(
-        `INSERT OR IGNORE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at)
-         VALUES ('worktree', ?, ?, 'shared', 'created by T3 Code', ?)`,
-        [path.resolve(thread.worktree), path.resolve(thread.worktree), yield* nowIso],
-      );
-      yield* sharedWorktrees.markShared([path.resolve(thread.worktree)]);
-    }
-
     const refs = yield* copyCheckpointRefs({
       src,
       thread,
@@ -1779,6 +1801,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       ),
     };
 
+    yield* markWorktrees(analysis.toCopy);
     let importedProjects = 0;
     for (const project of analysis.projects.values()) {
       if (project.existing) continue;

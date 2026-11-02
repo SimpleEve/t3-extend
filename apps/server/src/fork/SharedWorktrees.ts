@@ -137,14 +137,15 @@ export const ensureImportTables = Effect.fn("SharedWorktrees.ensureImportTables"
 });
 
 /**
- * Loads the import's markers once and keeps them in memory, so a removal does no database I/O.
- * When they cannot be loaded, everything outside T3 Extend's own worktrees folder is refused.
+ * Loads the import's markers and keeps them in memory, so a removal does no database I/O.
+ * While they are unknown, everything outside T3 Extend's own worktrees folder is refused; the next
+ * `markShared` (the start of an import) tries the load again.
  */
 export const layer = Layer.effect(
   SharedWorktreePolicy,
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const loaded = yield* ensureImportTables().pipe(
+    const load = ensureImportTables().pipe(
       Effect.andThen(
         sql.unsafe<{ readonly source_id: string }>(
           `SELECT source_id FROM fork_t3code_import_map WHERE kind = 'worktree'`,
@@ -158,36 +159,35 @@ export const layer = Layer.effect(
         ),
       ),
       Effect.orElseSucceed(() => null),
+      // Reloaded later from `markShared`, whose caller owns no SqlClient of its own to lend.
+      Effect.provideService(SqlClient.SqlClient, sql),
     );
-    // null: the markers are unknown, which stays so until restart.
-    const markers = yield* Ref.make<ReadonlySet<string> | null>(
-      loaded === null ? null : new Set(loaded),
-    );
+    const initial = yield* load;
+    // `loaded: false` means the database's markers are unknown; `marked` still holds what this process was told.
+    const state = yield* Ref.make({ loaded: initial !== null, marked: new Set(initial ?? []) });
 
     return SharedWorktreePolicy.of({
       live: true,
       refusal: Effect.fn("SharedWorktrees.refusal")(function* (input) {
         const { where, target, spellings } = yield* locate(input);
         if (where === "official") return OFFICIAL_FOLDER_REASON;
-        const known = yield* Ref.get(markers);
-        if (known === null) {
-          // Imported worktrees never live in this environment's own folder, so its clean-up keeps working.
-          return where === "own"
-            ? null
-            : `Could not check whether this worktree is shared with ${OFFICIAL_APP_NAME}, so T3 Extend leaves it alone.`;
-        }
-        for (const source of known) {
+        const { loaded, marked: sources } = yield* Ref.get(state);
+        for (const source of sources) {
           const marked = yield* spellings(source);
           if (marked.some((spelling) => target.includes(spelling))) {
             return `This worktree was created by ${OFFICIAL_APP_NAME} and is shared with it. T3 Extend never removes it.`;
           }
         }
-        return null;
+        if (loaded || where === "own") return null;
+        // Imported worktrees never live in this environment's own folder, so its clean-up keeps working.
+        return `Could not check whether this worktree is shared with ${OFFICIAL_APP_NAME}, so T3 Extend leaves it alone.`;
       }),
       markShared: Effect.fn("SharedWorktrees.markShared")(function* (paths) {
-        yield* Ref.update(markers, (known) =>
-          known === null ? null : new Set([...known, ...paths]),
-        );
+        const reloaded = (yield* Ref.get(state)).loaded ? null : yield* load;
+        yield* Ref.update(state, (current) => ({
+          loaded: current.loaded || reloaded !== null,
+          marked: new Set([...current.marked, ...(reloaded ?? []), ...paths]),
+        }));
       }),
     });
   }),

@@ -63,7 +63,7 @@ const makeLivePolicy = Effect.fn("SharedWorktrees.testkit.makePolicy")(function*
     Layer.provide(Layer.succeed(SqlClient.SqlClient, sql)),
     Layer.build,
   );
-  return Context.get(context, SharedWorktrees.SharedWorktreePolicy);
+  return { policy: Context.get(context, SharedWorktrees.SharedWorktreePolicy), sql };
 });
 
 /**
@@ -88,7 +88,7 @@ export const makeGuardedRemoveWorktree = Effect.fn("SharedWorktrees.testkit.make
       Effect.provide(NodeServices.layer),
       Effect.map((context) => Context.get(context, ServerConfig.ServerConfig)),
     );
-    const policy = yield* makeLivePolicy({
+    const { policy, sql } = yield* makeLivePolicy({
       ...(options.marked === undefined ? {} : { marked: options.marked }),
       ...(options.unreadable === undefined ? {} : { unreadable: options.unreadable }),
     });
@@ -119,6 +119,6 @@ export const makeGuardedRemoveWorktree = Effect.fn("SharedWorktrees.testkit.make
         .removeWorktree(input)
         .pipe(Effect.provideService(HostProcess.HomeDirectory, options.home));
     };
-    return { removeWorktree, attempts, spawned, config, policy };
+    return { removeWorktree, attempts, spawned, config, policy, sql };
   },
 );

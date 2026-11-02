@@ -835,6 +835,21 @@ const make = Effect.gen(function* () {
         return reason;
       };
       yield* Effect.gen(function* () {
+        // fork: the one gate. A worktree shared with T3 Code is skipped before any Git command or
+        // file operation on it, `git clean` included; removeLinkedWorktree's own check covers other callers.
+        const sharedReason = yield* sharedWorktrees
+          .refusal({ cwd: project?.workspaceRoot ?? worktreePath, path: worktreePath })
+          .pipe(
+            Effect.provideService(ServerConfig.ServerConfig, config),
+            Effect.provideService(FileSystem.FileSystem, fs),
+            Effect.provideService(Path.Path, path),
+          );
+        if (sharedReason !== null) {
+          yield* Effect.logDebug("storage cleanup skipped a worktree shared with T3 Code", {
+            path: worktreePath,
+          });
+          return keep("shared with T3 Code");
+        }
         if (!(yield* fs.exists(worktreePath))) return;
         if (deleted && !settings.worktreeOnDelete) return keep("no rules apply");
         if (members.length > 1 && worktreeOwner(members) === undefined)
@@ -855,15 +870,6 @@ const make = Effect.gen(function* () {
           return keep("worktree is a symbolic link");
         if (!roots.some((root) => inside(root, realPath)))
           return keep("outside the managed worktree folder");
-        // fork: before any step that deletes files, `git clean` included.
-        const sharedReason = yield* sharedWorktrees
-          .refusal({ cwd: project.workspaceRoot, path: worktreePath })
-          .pipe(
-            Effect.provideService(ServerConfig.ServerConfig, config),
-            Effect.provideService(FileSystem.FileSystem, fs),
-            Effect.provideService(Path.Path, path),
-          );
-        if (sharedReason !== null) return keep("shared with T3 Code");
         if (yield* containsProjectRoot(worktreePath, [project, ...snapshot.projects]))
           return keep("contains a project checkout");
         if ((yield* fs.stat(path.join(worktreePath, ".git"))).type !== "File")

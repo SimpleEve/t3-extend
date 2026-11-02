@@ -10,6 +10,7 @@ import {
   type T3CodeImportSelection,
 } from "@t3tools/contracts";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
+import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -372,6 +373,8 @@ const withService = <A, E, R>(
     readonly sourceThroughMigration?: number;
     readonly managedPolicy?: ManagedPolicySummary;
     readonly withoutSharedWorktreePolicy?: boolean;
+    /** Receives how many worktree markers the database held each time the import marks in memory. */
+    readonly markCalls?: Array<number>;
   },
   use: (input: {
     readonly service: T3CodeImport.T3CodeImport["Service"];
@@ -454,7 +457,29 @@ const withService = <A, E, R>(
             SharedWorktrees.SharedWorktreePolicy,
             SharedWorktrees.SharedWorktreePolicy.defaultValue(),
           )
-        : SharedWorktrees.layer;
+        : options.markCalls === undefined
+          ? SharedWorktrees.layer
+          : Layer.effect(
+              SharedWorktrees.SharedWorktreePolicy,
+              Effect.gen(function* () {
+                const sqlClient = yield* SqlClient.SqlClient;
+                const built = yield* Layer.build(SharedWorktrees.layer);
+                const base = Context.get(built, SharedWorktrees.SharedWorktreePolicy);
+                const calls = options.markCalls!;
+                return SharedWorktrees.SharedWorktreePolicy.of({
+                  ...base,
+                  markShared: Effect.fn("test.markShared")(function* (paths) {
+                    const rows = yield* sqlClient
+                      .unsafe<{ readonly count: number }>(
+                        `SELECT COUNT(*) AS count FROM fork_t3code_import_map WHERE kind = 'worktree'`,
+                      )
+                      .pipe(Effect.orDie);
+                    calls.push(Number(rows[0]!.count));
+                    yield* base.markShared(paths);
+                  }),
+                });
+              }),
+            );
     const layer = T3CodeImport.layerWithSourceHome(home).pipe(
       Layer.provideMerge(mocks),
       // The policy the server provides once at its base, over the same database.
@@ -1068,6 +1093,97 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
         }),
       ),
   );
+
+  {
+    const selection = () =>
+      selectionOf({
+        threadIds: [ThreadId.make(T_STOPPED), ThreadId.make(T_SOLO)],
+        scheduledTasks: [],
+        files: [],
+      });
+    const lastState = (service: T3CodeImport.T3CodeImport["Service"]) =>
+      Effect.gen(function* () {
+        yield* service.start(selection());
+        const last = yield* service.state.pipe(
+          Stream.filter((state) => state.status === "finished" || state.status === "failed"),
+          Stream.runHead,
+        );
+        return Option.getOrThrow(last);
+      });
+    const count = (sql: SqlClient.SqlClient, table: string, where = "1 = 1") =>
+      sql
+        .unsafe<{ readonly count: number }>(`SELECT COUNT(*) AS count FROM ${table} WHERE ${where}`)
+        .pipe(Effect.map((rows) => Number(rows[0]!.count)));
+    const worktreesOf = (home: string) => [
+      `${home}/worktrees/kept/feature`,
+      `${home}/worktrees/gone`,
+    ];
+    const refused = (home: string, repo: string, config: ServerConfig.ServerConfig["Service"]) =>
+      Effect.gen(function* () {
+        const policy = yield* SharedWorktrees.SharedWorktreePolicy;
+        return yield* Effect.forEach(worktreesOf(home), (worktree) =>
+          policy.refusal({ cwd: repo, path: worktree }).pipe(
+            Effect.provideService(ServerConfig.ServerConfig, config),
+            Effect.map((reason) => reason !== null),
+          ),
+        );
+      });
+
+    it.effect("marks every selected worktree, in memory first, before the first thread row", () => {
+      const markCalls: Array<number> = [];
+      return withService({ markCalls }, ({ service, sql }) =>
+        Effect.gen(function* () {
+          yield* sql`CREATE TABLE order_log (markers INTEGER)`;
+          yield* sql`CREATE TRIGGER log_markers BEFORE INSERT ON orchestration_v2_projection_threads
+            BEGIN INSERT INTO order_log SELECT COUNT(*) FROM fork_t3code_import_map WHERE kind = 'worktree'; END`;
+          assert.equal((yield* lastState(service)).status, "finished");
+          // Memory is marked while the database holds nothing yet, and the database holds both
+          // worktrees by the time the first thread row is written.
+          assert.deepStrictEqual(markCalls, [0]);
+          const seen = yield* sql<{ markers: number }>`SELECT markers FROM order_log`;
+          assert.isAbove(seen.length, 1);
+          assert.isTrue(seen.every((row) => row.markers === 2));
+        }),
+      );
+    });
+
+    it.effect(
+      "a failed marker write commits no thread, and a resumed run marks the same rows once",
+      () =>
+        withService({}, ({ service, sql, home, repo, config }) =>
+          Effect.gen(function* () {
+            yield* sql`CREATE TRIGGER refuse_markers BEFORE INSERT ON fork_t3code_import_map
+            WHEN NEW.kind = 'worktree' BEGIN SELECT RAISE(ABORT, 'markers unavailable'); END`;
+            assert.equal((yield* lastState(service)).status, "failed");
+            assert.equal(yield* count(sql, "orchestration_v2_projection_threads"), 0);
+            // Memory was marked first, so the worktrees are protected even though the database is not.
+            assert.deepStrictEqual(yield* refused(home, repo, config), [true, true]);
+
+            yield* sql`DROP TRIGGER refuse_markers`;
+            assert.equal((yield* lastState(service)).status, "finished");
+            assert.equal(yield* count(sql, "fork_t3code_import_map", "kind = 'worktree'"), 2);
+            assert.equal(yield* count(sql, "orchestration_v2_projection_threads"), 2);
+            // Running it all again repeats nothing.
+            assert.equal((yield* lastState(service)).status, "finished");
+            assert.equal(yield* count(sql, "fork_t3code_import_map", "kind = 'worktree'"), 2);
+          }),
+        ),
+    );
+
+    it.effect("an import that stops after its first thread leaves every worktree protected", () =>
+      withService({}, ({ service, sql, home, repo, config }) =>
+        Effect.gen(function* () {
+          yield* sql`CREATE TRIGGER stop_after_first BEFORE INSERT ON orchestration_v2_projection_threads
+            WHEN (SELECT COUNT(*) FROM orchestration_v2_projection_threads) >= 1
+            BEGIN SELECT RAISE(ABORT, 'interrupted'); END`;
+          assert.equal((yield* lastState(service)).status, "failed");
+          assert.isAtLeast(yield* count(sql, "orchestration_v2_projection_threads"), 1);
+          assert.deepStrictEqual(yield* refused(home, repo, config), [true, true]);
+          assert.equal(yield* count(sql, "fork_t3code_import_map", "kind = 'worktree'"), 2);
+        }),
+      ),
+    );
+  }
 
   it.effect("refuses to start without the server's shared-worktree policy", () =>
     Effect.gen(function* () {

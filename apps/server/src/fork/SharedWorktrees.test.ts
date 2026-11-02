@@ -6,7 +6,9 @@ import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 
-import { requireLivePolicy, SharedWorktreePolicy } from "./SharedWorktrees.ts";
+import * as SqlClient from "effect/sql/SqlClient";
+
+import { ensureImportTables, requireLivePolicy, SharedWorktreePolicy } from "./SharedWorktrees.ts";
 import { makeGuardedRemoveWorktree } from "./SharedWorktrees.testkit.ts";
 
 const path_ = (...segments: Array<string>) => segments.join("/");
@@ -126,6 +128,36 @@ it.layer(NodeServices.layer)("SharedWorktrees", (it) => {
         assert.isTrue(
           Exit.isSuccess(yield* refused(path.join(guarded.config.worktreesDir, "repo", "branch"))),
         );
+        assert.strictEqual(guarded.spawned.length, 1);
+      }),
+  );
+
+  it.effect(
+    "recovers the known markers at the next import once the database is readable again",
+    () =>
+      Effect.gen(function* () {
+        const { path, root, guarded, refused } = yield* setup({ unreadable: true });
+        const outside = path.join(root, "mine", "feature");
+        const fromImport = path.join(root, "mine", "imported");
+        const fromDatabase = path.join(root, "elsewhere", "Marked");
+
+        // Still unreadable: the import's own marks hold, everything else outside stays refused.
+        yield* guarded.policy.markShared([fromImport]);
+        assert.isTrue(Exit.isFailure(yield* refused(outside)));
+        assert.isTrue(Exit.isFailure(yield* refused(fromImport)));
+
+        yield* guarded.sql`DROP TABLE fork_t3code_import_map`;
+        yield* ensureImportTables().pipe(Effect.provideService(SqlClient.SqlClient, guarded.sql));
+        yield* guarded.sql`INSERT INTO fork_t3code_import_map
+          (kind, source_id, target_id, state, imported_at)
+          VALUES ('worktree', ${fromDatabase}, ${fromDatabase}, 'shared', 'now')`;
+        // Nothing reloads by itself; the next import does.
+        assert.isTrue(Exit.isFailure(yield* refused(outside)));
+
+        yield* guarded.policy.markShared([fromImport]);
+        assert.isTrue(Exit.isSuccess(yield* refused(outside)));
+        assert.isTrue(Exit.isFailure(yield* refused(fromDatabase)));
+        assert.isTrue(Exit.isFailure(yield* refused(fromImport)));
         assert.strictEqual(guarded.spawned.length, 1);
       }),
   );
