@@ -39,9 +39,8 @@ import {
   applySnoozePickerTime,
   snoozeDateToPickerDate,
 } from "./customSnoozeDate";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { uiFormatLocale } from "../../lib/time"; // fork: i18n
+import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
+import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 
 type Props = Parameters<typeof SharedCustomSnoozeSheet>[0];
 
@@ -63,6 +62,7 @@ function systemUses24HourClock() {
 
 export function CustomSnoozeSheet(props: Props) {
   const t = useT();
+  const locale = useUiLocale(); // fork: i18n
   const { themeAppearance, themeVariables: colors } = useAppearancePreferences();
   const [is24Hour, setIs24Hour] = useState(systemUses24HourClock);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to AppState to re-read the native 24-hour clock setting when the app resumes
@@ -167,18 +167,21 @@ export function CustomSnoozeSheet(props: Props) {
                       options={[
                         {
                           value: "date",
-                          label: date.toLocaleDateString(uiFormatLocale(getUiLocale()), {
+                          label: date.toLocaleDateString(uiFormatLocale(locale), {
                             month: "short",
                             day: "numeric",
                           }),
                         },
                         {
                           value: "time",
-                          label: date.toLocaleTimeString(uiFormatLocale(getUiLocale()), {
-                            hour: "numeric",
-                            minute: "2-digit",
-                            hourCycle: is24Hour ? "h23" : "h12",
-                          }),
+                          label: date.toLocaleTimeString(
+                            uiFormatLocale(locale),
+                            uiFormatOptions(locale, {
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hourCycle: is24Hour ? "h23" : "h12",
+                            }),
+                          ),
                         },
                       ]}
                       selected={picker}

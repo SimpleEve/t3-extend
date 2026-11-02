@@ -67,5 +67,9 @@ describe("uiFormatLocale", () => {
     expect(
       evening.toLocaleTimeString(uiFormatLocale("zh-Hans"), uiFormatOptions("zh-Hans", options)),
     ).toBe("21:05");
+    // A 12-hour device clock still applies in English but not in Chinese.
+    const deviceClock = { ...options, hourCycle: "h12" } as const;
+    expect(uiFormatOptions("en", deviceClock)).toEqual(deviceClock);
+    expect(uiFormatOptions("zh-Hans", deviceClock)).toEqual({ ...options, hour12: false });
   });
 });

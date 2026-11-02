@@ -15,7 +15,10 @@ export function uiFormatOptions(
   locale: UiLocale,
   options: Intl.DateTimeFormatOptions = {},
 ): Intl.DateTimeFormatOptions {
-  return locale === "en" ? options : { ...options, hour12: false };
+  if (locale === "en") return options;
+  // hour12 outranks hourCycle in the spec; drop it anyway rather than rely on Hermes following that.
+  const { hourCycle: _deviceClock, ...rest } = options;
+  return { ...rest, hour12: false };
 }
 
 const messageTimeFormatters = new Map<UiLocale, Intl.DateTimeFormat>();

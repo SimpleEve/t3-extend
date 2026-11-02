@@ -2051,6 +2051,8 @@ export default {
   "resets row|resets now": "现在",
   "resets row|Resets momentarily": "马上",
   "resets row|resets in {duration}": "{duration} 后",
+  // Usage bars put ↻ where English drops "resets in".
+  "reset badge|resets in {duration}": "↻ {duration}",
   ", {timeLeft}% of the window left": "，时间窗口还剩 {timeLeft}%",
   ", 1 reset credit banked": "，存有 1 次重置额度",
   ", {count} reset credits banked": "，存有 {count} 次重置额度",

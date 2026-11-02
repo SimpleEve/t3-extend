@@ -359,6 +359,10 @@ function SegmentTriggers({
   const timeLeft = paceRemainingPercent(window, now);
   const [segmentRef, paceMark] = usePaceMark(timeLeft);
   const resetsIn = formatResetsIn(window, now, t);
+  // fork: the bar swaps "resets in" for ↻; a separate key does that once translated.
+  const resetsBadge = formatResetsIn(window, now, (source, params) =>
+    t(source, params, "reset badge"),
+  );
   const credits = account.limits.resetCredits?.availableCount ?? 0;
   return (
     <>
@@ -430,7 +434,7 @@ function SegmentTriggers({
           ) : null}
           {resetsIn || credits ? (
             <span className="ms-auto flex min-w-0 items-center gap-1.5 overflow-hidden rounded-sm bg-background/85 px-1.5 py-0.5 text-2xs whitespace-nowrap text-foreground tabular-nums">
-              {resetsIn?.replace("resets in ", "↻ ") ?? ""}
+              {resetsBadge?.replace("resets in ", "↻ ") ?? ""}
               {credits ? (
                 <>
                   {resetsIn ? (
@@ -469,6 +473,10 @@ function LegendRow({
   const { account, window } = payload;
   const remaining = remainingPercent(window);
   const resetsIn = formatResetsIn(window, now, t);
+  // fork: the bar swaps "resets in" for ↻; a separate key does that once translated.
+  const resetsBadge = formatResetsIn(window, now, (source, params) =>
+    t(source, params, "reset badge"),
+  );
   const credits = account.limits.resetCredits?.availableCount ?? 0;
   return (
     <PopoverTrigger
@@ -490,7 +498,7 @@ function LegendRow({
       <AccountName account={account} className="min-w-0 truncate font-medium text-foreground" />
       <span className="shrink-0 font-semibold text-foreground tabular-nums">{remaining}%</span>
       <span className="ms-auto flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground tabular-nums">
-        {resetsIn?.replace("resets in ", "↻ ") ?? ""}
+        {resetsBadge?.replace("resets in ", "↻ ") ?? ""}
         {credits ? (
           <>
             {resetsIn ? <span aria-hidden>·</span> : null}
