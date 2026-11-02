@@ -291,7 +291,14 @@ export default {
     "共享的内容已不在收件箱中。你可以继续编辑这份任务草稿。",
   "What should we work on?": "要做点什么？",
   "Opens the project picker": "打开项目选择器",
-  "What should we build": "要构建什么",
+  // The line break and {project} place the project picker in the hero.
+  "What should we build\nin {project}?": "在 {project} 里\n要构建什么？",
+  "on {label}": "在 {label} 上",
+  "Current worktree": "当前 worktree",
+  "Choose branch": "选择分支",
+  "From {label} (remote)": "来自 {label}（remote）",
+  "Show connection details for {title}": "显示 {title} 的连接详情",
+  "Hide connection details for {title}": "隐藏 {title} 的连接详情",
   "Switches to a new worktree": "切换到新的 worktree",
   "Switches to the current checkout": "切换到当前 checkout",
   "Your draft is saved on this device. Connect to an environment to choose its first model.":
@@ -777,6 +784,15 @@ export default {
     "选择你信任的环境，让它们共享 PR 数据并互相使用源代码管理权限。两个环境都需要开启。只对这个客户端生效。",
   "Failed to connect. Reconnecting... Reason: {error}": "连接失败，正在重新连接... 原因：{error}",
   "Connection failed. Reason: {error}": "连接失败。原因：{error}",
+  // Thread feed: folded work of a run, translated where the feed renders it.
+  "Earlier work": "更早的工作",
+  "Expand details for {environmentLabel}": "展开 {environmentLabel} 的详情",
+  "Collapse details for {environmentLabel}": "收起 {environmentLabel} 的详情",
+  // Thread connection banner
+  "Failed to connect. Retrying {name}...": "连接失败，正在重试 {name}...",
+  "Failed to connect to {name}": "无法连接到 {name}",
+  "Failed to connect to {name}: {error}": "无法连接到 {name}：{error}",
+  "{name} is not connected": "{name} 未连接",
   // Workspace navigation
   "New chat": "新聊天",
   "All sections are hidden": "所有分区都已隐藏",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   fillNewTaskWorkspaceBranch,
+  projectHeroLines,
   resolveNewTaskBranchLabel,
   resolveNewTaskBranchWorktreePath,
   resolveNewTaskLocalWorkspaceSelection,
@@ -61,6 +62,19 @@ describe("resolveNewTaskBranchLabel", () => {
         pullRequestReference,
       }),
     ).toBe(label);
+  });
+});
+
+describe("projectHeroLines", () => {
+  it("places the project picker where each language's template puts it", () => {
+    expect(projectHeroLines("What should we build\nin {project}?")).toEqual([
+      { before: "What should we build" },
+      { before: "in ", after: "?" },
+    ]);
+    expect(projectHeroLines("在 {project} 里\n要构建什么？")).toEqual([
+      { before: "在 ", after: " 里" },
+      { before: "要构建什么？" },
+    ]);
   });
 });
 

@@ -1208,6 +1208,18 @@ registerPresentedRoutes(
   }),
 );
 
+// fork: cold-start link sheets (fork/initialLinkSheet.ts) need the root form sheets.
+const rootFormSheetRoutes: ReadonlySet<string> = new Set(
+  Object.entries(RootStackConfig.config.screens ?? {}).flatMap(([name, screen]) => {
+    const options = (screen as { readonly options?: { readonly presentation?: string } }).options;
+    return options?.presentation === "formSheet" ? [name] : [];
+  }),
+);
+
+export function isRootFormSheetRoute(name: string): boolean {
+  return rootFormSheetRoutes.has(name);
+}
+
 export const RootStack = RootStackConfig.with(function AdaptiveRootStack({ Navigator }) {
   useUiLocale(); // fork: i18n, re-renders the navigator so screen titles follow the language
   const { width, height } = useWindowDimensions();

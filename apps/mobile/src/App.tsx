@@ -44,7 +44,12 @@ import {
   installAppearanceRuntime,
   useAppearancePreferences,
 } from "./features/settings/appearance/AppearancePreferencesProvider";
-import { RootStack, rootPathnameFromState, workspaceLocationFromState } from "./Stack";
+import {
+  isRootFormSheetRoute, // fork: cold-start link sheets
+  RootStack,
+  rootPathnameFromState,
+  workspaceLocationFromState,
+} from "./Stack";
 import { appAtomRegistry } from "./state/atom-registry";
 import { subscribeComposerDraftModelReconciliation } from "./state/use-composer-drafts";
 import { environmentThreadShells } from "./state/threads";
@@ -95,6 +100,7 @@ import { pruneNewTaskBranchCheckouts } from "./features/threads/NewTaskDraftRout
 import { installAppUpdateChecks } from "./features/updates/app-updates";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { installUiLanguageRuntime, useUiLanguageReady } from "./fork/uiLanguage"; // fork: i18n
+import { deferInitialLinkSheet, splashScreenHidden } from "./fork/initialLinkSheet"; // fork
 
 import "../global.css";
 
@@ -120,6 +126,7 @@ function getAppStateFromPath(path: string, options: Parameters<typeof getStateFr
     withoutPairingTarget,
     startDevAutoConnect,
     takeScheduledTaskNewLink,
+    (state) => deferInitialLinkSheet(state, isRootFormSheetRoute), // fork: cold-start link sheets
   );
 }
 
@@ -213,6 +220,7 @@ function SplashScreenCoordinator() {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- hides the native splash screen once appearance preferences have loaded
   useEffect(() => {
     if (isReady) void SplashScreen.hide();
+    if (isReady) splashScreenHidden(); // fork: cold-start link sheets
   }, [isReady]);
 
   return null;

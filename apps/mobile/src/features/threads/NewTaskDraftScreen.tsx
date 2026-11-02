@@ -87,6 +87,7 @@ import {
 import { resolveProjectThreadCreationBranch } from "./projectThreadCreationValidation";
 import { resolveDraftProjectSelection } from "./new-task-project-selection";
 import {
+  projectHeroLines, // fork: i18n
   resolveNewTaskBranchLabel,
   resolveNewTaskWorkspaceLabel,
 } from "./new-task-context-presentation";
@@ -539,11 +540,14 @@ export function NewTaskDraftScreen(props: {
     startFromOrigin: flow.startFromOrigin,
     workspaceMode: flow.workspaceMode,
     pullRequestReference: flow.pullRequestReference,
+    t, // fork: i18n
   });
-  const workspaceLabel = resolveNewTaskWorkspaceLabel({
-    workspaceMode: flow.workspaceMode,
-    worktreePath: flow.selectedWorktreePath,
-  });
+  const workspaceLabel = t(
+    resolveNewTaskWorkspaceLabel({
+      workspaceMode: flow.workspaceMode,
+      worktreePath: flow.selectedWorktreePath,
+    }),
+  ); // fork: i18n
   const showBranchLoading =
     environmentConnected && flow.branchesLoading && flow.availableBranches.length === 0;
 
@@ -758,28 +762,41 @@ export function NewTaskDraftScreen(props: {
   ) : (
     <View className="items-center gap-6 px-6" testID="new-task-hero">
       <View className="w-full items-center gap-1.5">
-        <Text className="text-center text-2xl font-t3-medium tracking-tight text-foreground">
-          {t("What should we build")}
-        </Text>
-        <View className="max-w-full flex-row items-center justify-center">
-          <Text className="text-2xl font-t3-medium tracking-tight text-foreground">in </Text>
-          <Pressable
-            accessibilityHint={t("Opens the project picker")}
-            accessibilityLabel={selectedProjectLabel ?? selectedProject.title}
-            accessibilityRole="button"
-            disabled={isComposerInteractionLocked}
-            onPress={chooseProject}
-            className="min-w-0 max-w-[250px] border-b border-foreground-muted active:opacity-65"
-          >
+        {/* fork: i18n. One template per language; its line break and {project} place the picker. */}
+        {projectHeroLines(t("What should we build\nin {project}?")).map((line) =>
+          line.after === undefined ? (
             <Text
-              className="text-2xl font-t3-medium tracking-tight text-foreground"
-              numberOfLines={1}
+              key={line.before}
+              className="text-center text-2xl font-t3-medium tracking-tight text-foreground"
             >
-              {selectedProjectLabel ?? selectedProject.title}
+              {line.before}
             </Text>
-          </Pressable>
-          <Text className="text-2xl font-t3-medium tracking-tight text-foreground">?</Text>
-        </View>
+          ) : (
+            <View key={line.before} className="max-w-full flex-row items-center justify-center">
+              <Text className="text-2xl font-t3-medium tracking-tight text-foreground">
+                {line.before}
+              </Text>
+              <Pressable
+                accessibilityHint={t("Opens the project picker")}
+                accessibilityLabel={selectedProjectLabel ?? selectedProject.title}
+                accessibilityRole="button"
+                disabled={isComposerInteractionLocked}
+                onPress={chooseProject}
+                className="min-w-0 max-w-[250px] border-b border-foreground-muted active:opacity-65"
+              >
+                <Text
+                  className="text-2xl font-t3-medium tracking-tight text-foreground"
+                  numberOfLines={1}
+                >
+                  {selectedProjectLabel ?? selectedProject.title}
+                </Text>
+              </Pressable>
+              <Text className="text-2xl font-t3-medium tracking-tight text-foreground">
+                {line.after}
+              </Text>
+            </View>
+          ),
+        )}
       </View>
 
       {environmentControl}
@@ -848,7 +865,10 @@ export function NewTaskDraftScreen(props: {
 
       <View className="min-w-0 shrink">
         <ComposerInlineControl
-          accessibilityLabel={`${flow.workspaceMode === "worktree" ? t("Base branch") : t("Branch")}: ${selectedBranchLabel}`}
+          accessibilityLabel={t("{label}: {value}", {
+            label: flow.workspaceMode === "worktree" ? t("Base branch") : t("Branch"),
+            value: selectedBranchLabel,
+          })} // fork: i18n
           chevronDirection="right"
           disabled={isComposerInteractionLocked || !flow.isGitRepo}
           icon="arrow.triangle.branch"

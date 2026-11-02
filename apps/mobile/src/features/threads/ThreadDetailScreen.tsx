@@ -685,6 +685,7 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
       connectionState: props.connectionStateLabel,
       environmentLabel: props.environmentLabel,
       onReconnect: props.onReconnectEnvironment,
+      t, // fork: i18n
     });
     if (connectionStatus !== null && !props.draftMode) {
       return connectionStatus;

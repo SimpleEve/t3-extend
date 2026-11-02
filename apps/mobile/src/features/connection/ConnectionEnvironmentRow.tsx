@@ -110,7 +110,13 @@ export function ConnectionEnvironmentRow(props: {
               ? t("Manage {environmentLabel}", {
                   environmentLabel: props.environment.environmentLabel,
                 })
-              : `${props.expanded ? t("Collapse") : t("Expand")} details for ${props.environment.environmentLabel}`
+              : props.expanded // fork: i18n
+                ? t("Collapse details for {environmentLabel}", {
+                    environmentLabel: props.environment.environmentLabel,
+                  })
+                : t("Expand details for {environmentLabel}", {
+                    environmentLabel: props.environment.environmentLabel,
+                  })
           }
           onPress={props.onToggle}
         >
@@ -191,7 +197,13 @@ export function ConnectionEnvironmentRow(props: {
               ? t("Manage {environmentLabel}", {
                   environmentLabel: props.environment.environmentLabel,
                 })
-              : `${props.expanded ? t("Collapse") : t("Expand")} details for ${props.environment.environmentLabel}`
+              : props.expanded // fork: i18n
+                ? t("Collapse details for {environmentLabel}", {
+                    environmentLabel: props.environment.environmentLabel,
+                  })
+                : t("Expand details for {environmentLabel}", {
+                    environmentLabel: props.environment.environmentLabel,
+                  })
           }
           onPress={props.onToggle}
           style={{

@@ -1647,7 +1647,9 @@ function RunFoldButton({
           numberOfLines={1}
           className="shrink font-t3-medium text-sm tabular-nums text-foreground-muted"
         >
-          {entry.label}
+          {entry.duration // fork: i18n
+            ? t(entry.labelTemplate, { duration: entry.duration })
+            : t(entry.labelTemplate)}
           {error ? ` · ${error}` : ""}
         </Text>
         <ThreadDisclosureChevron

@@ -18,6 +18,7 @@ import { useSyncExternalStore } from "react";
 import { themeColorWithContrast } from "../../lib/mobileTheme";
 import type { Alert, AlertButton } from "react-native";
 import type { ConfirmDialogRequest, TextInputDialogRequest } from "./Dialog.types";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type { ConfirmDialogRequest, TextInputDialogRequest } from "./Dialog.types";
 
@@ -68,9 +69,10 @@ function getPresented() {
 }
 
 export function alert(...[title, message, buttons, options]: Parameters<typeof Alert.alert>): void {
-  const actions = buttons?.length ? buttons.slice(0, 3) : [{ text: "OK" }];
+  const ok = translate(getUiLocale(), "OK"); // fork: i18n
+  const actions = buttons?.length ? buttons.slice(0, 3) : [{ text: ok }];
   const normalized = actions.map((action, index) =>
-    index === actions.length - 1 ? { ...action, text: action.text || "OK" } : action,
+    index === actions.length - 1 ? { ...action, text: action.text || ok } : action,
   );
   submitRequest({
     kind: "alert",
@@ -115,7 +117,7 @@ export function Host() {
           message: presented.request.message ?? undefined,
           confirmText: "",
         }}
-        alertActions={presented.request.buttons ?? [{ text: "OK" }]}
+        alertActions={presented.request.buttons ?? [{ text: translate(getUiLocale(), "OK") }]}
         dismissable={presented.request.options?.cancelable ?? false}
         onAlertAction={(action) => {
           dismiss(presented.id);
@@ -153,7 +155,10 @@ function DialogPresentation(props: DialogPresentationProps) {
     props.onConfirm(value);
   };
   const actions = props.alertActions ?? [
-    { text: props.request.cancelText ?? "Cancel", onPress: props.onCancel },
+    {
+      text: props.request.cancelText ?? translate(getUiLocale(), "Cancel"),
+      onPress: props.onCancel,
+    },
     {
       text: props.request.confirmText,
       style: props.request.destructive ? ("destructive" as const) : ("default" as const),
