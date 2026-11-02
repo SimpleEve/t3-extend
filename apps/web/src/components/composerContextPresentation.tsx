@@ -278,6 +278,7 @@ function FileContextChip(props: {
 }
 
 function PullRequestContextChip(props: { record: ReviewCommentContext; kind: ContextChipKind }) {
+  const t = useT(); // fork: interface language
   const actions = use(ComposerContextActionsContext);
   const metadata = props.record.pullRequest;
   if (metadata === undefined) return null;
@@ -286,7 +287,7 @@ function PullRequestContextChip(props: { record: ReviewCommentContext; kind: Con
       metadata={metadata}
       environmentId={actions.environmentId}
       label={reviewCommentContextLabel(props.record)}
-      kindLabel={pullRequestContextKindLabel(props.record)}
+      kindLabel={pullRequestContextKindLabel(props.record, t)}
       kind={props.kind}
       onOpen={actions.openPullRequest}
     />

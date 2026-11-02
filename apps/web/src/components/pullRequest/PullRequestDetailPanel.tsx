@@ -1768,7 +1768,10 @@ export function PullRequestDetailPanel({
           <PullRequestsUnavailableState
             {...(isPullRequestNotFound(detailQuery.failure)
               ? {
-                  title: `${capitalizeTerm(terminology.singular)} #${reference.number} not found`,
+                  title: t("{kind} #{number} not found", {
+                    kind: capitalizeTerm(changeRequestTerm(terminology.singular, t)),
+                    number: reference.number,
+                  }),
                   error: t(
                     "It may be an issue rather than a {kind}, or this account can't see it.",
                     {
