@@ -1,6 +1,39 @@
 // Settings pages other than Appearance, plus the usage page. Lowercase entries are the
 // labels the reset buttons read ("Reset {label} to default").
 export default {
+  // fork: import from official T3 Code
+  "Import from T3 Code": "从 T3 Code 导入",
+  "Could not import from T3 Code": "无法从 T3 Code 导入",
+  "No T3 Code data was found on this computer.": "这台电脑上没有找到 T3 Code 的数据。",
+  "This environment already uses T3 Code's data folder, so there is nothing to import.":
+    "此环境已在使用 T3 Code 的数据文件夹，没有可导入的内容。",
+  "T3 Code's data comes from a newer version than this app understands. Update this app first.":
+    "T3 Code 的数据来自比本应用更新的版本。请先更新本应用。",
+  "T3 Code's data comes from an older version. Open T3 Code once so it updates its data, then try again.":
+    "T3 Code 的数据来自较旧的版本。请先打开一次 T3 Code 让它升级数据，然后再试。",
+  "Bring your projects and threads from T3 Code on this computer into T3 Extend. T3 Code's own data is only read, never changed.":
+    "把这台电脑上 T3 Code 里的项目和对话带到 T3 Extend。T3 Code 自己的数据只读取，不会被改动。",
+  "Looking…": "查找中…",
+  "Review…": "查看…",
+  "Finished.": "已完成。",
+  "Choose which projects to bring over. Threads you already imported are skipped.":
+    "选择要带过来的项目。已经导入过的对话会被跳过。",
+  "Importing… this can take a few minutes for a large history.":
+    "正在导入…历史很多时可能需要几分钟。",
+  "Import {count} threads": "导入 {count} 个对话",
+  "T3 Code has no projects to import.": "T3 Code 里没有可导入的项目。",
+  "Nothing new": "没有新内容",
+  "{count} threads": "{count} 个对话",
+  "Joins the project you already have for this folder.": "会并入你在这个文件夹上已有的项目。",
+  "{count} threads already imported.": "已导入 {count} 个对话。",
+  "{count} threads are still working in T3 Code and will be skipped.":
+    "{count} 个对话仍在 T3 Code 中运行，将被跳过。",
+  "Imported {threads} threads and {projects} new projects.":
+    "已导入 {threads} 个对话和 {projects} 个新项目。",
+  "{count} threads were skipped because T3 Code is still working on them. Stop them there and import again.":
+    "{count} 个对话因为 T3 Code 仍在处理而被跳过。请先在那边停止它们，然后再导入一次。",
+  "Threads keep working in the folders they used. Open them from the sidebar.":
+    "对话仍然使用原来的文件夹。可以从侧边栏打开。",
   "{title} requires a supporting environment. Choose one to continue.":
     "{title}需要一个支持它的环境。选择一个环境以继续。",
   "{title} requires a supporting environment. Connect or update an environment to continue.":

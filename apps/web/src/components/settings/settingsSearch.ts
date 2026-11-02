@@ -235,6 +235,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["storage cleanup run now results report removed kept failed"],
   },
   {
+    id: "import-from-t3-code", // fork: import from official T3 Code
+    title: "Import from T3 Code",
+    to: "/settings/maintenance",
+    scope: "environment-defaults",
+    searchTerms: ["official migrate switch projects threads history data bring over"],
+  },
+  {
     id: "storage-worktrees",
     title: "Worktree cleanup",
     to: "/settings/worktrees",

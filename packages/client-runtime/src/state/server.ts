@@ -1180,6 +1180,18 @@ export function createServerEnvironmentAtoms<R, E>(
       tag: WS_METHODS.serverRunStorageCleanup,
       concurrency: { mode: "singleFlight", key: ({ environmentId }) => environmentId },
     }),
+    // fork: import from official T3 Code
+    previewT3CodeImport: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:preview-t3-code-import",
+      tag: WS_METHODS.serverPreviewT3CodeImport,
+      concurrency: { mode: "singleFlight", key: ({ environmentId }) => environmentId },
+    }),
+    // fork: import from official T3 Code
+    runT3CodeImport: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:run-t3-code-import",
+      tag: WS_METHODS.serverRunT3CodeImport,
+      concurrency: { mode: "singleFlight", key: ({ environmentId }) => environmentId },
+    }),
     prepareTriage: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:prepare-triage",
       tag: WS_METHODS.serverPrepareTriage,
