@@ -80,7 +80,8 @@ describe("mobile pull request actions", () => {
     await loadUiCatalog("zh-Hans");
     const zh = translatorFor("zh-Hans");
     expect(pullRequestActionLabel("reopen", GITHUB, t)).toBe("Reopen pull request");
-    expect(pullRequestActionLabel("reopen", GITHUB, zh)).toBe("重新打开 pull request");
+    expect(pullRequestActionLabel("reopen", GITHUB, zh)).toBe("重新打开 PR");
+    expect(pullRequestActionLabel("close", GITLAB, zh)).toBe("关闭 MR");
     expect(mergeUnavailableReason(detail(), false, GITHUB, zh)).toBe("这个环境连接是只读的。");
   });
 });

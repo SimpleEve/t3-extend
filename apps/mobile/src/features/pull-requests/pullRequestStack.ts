@@ -1,6 +1,7 @@
 import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 import type { PullRequestRef, PullRequestStack, ThreadPullRequestLink } from "@t3tools/contracts";
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 export function pullRequestStackMerge(
   stack: PullRequestStack,
@@ -16,9 +17,13 @@ export function pullRequestStackMerge(
   const { singular } = terminology;
   const reason =
     position < 0
-      ? t("This {singular} is no longer in the stack. Refresh it.", { singular })
+      ? t("This {singular} is no longer in the stack. Refresh it.", {
+          singular: changeRequestTerm(singular, t),
+        })
       : stack.layers[position]?.state !== "open" || layers.length === 0
-        ? t("There are no open layers to merge through this {singular}.", { singular })
+        ? t("There are no open layers to merge through this {singular}.", {
+            singular: changeRequestTerm(singular, t),
+          })
         : layers.some((layer) => layer.state !== "open")
           ? t("Reopen the closed layers before merging this stack.")
           : layers.some((layer) => layer.isDraft)

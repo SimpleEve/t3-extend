@@ -31,6 +31,7 @@ import { projectScriptMenuLabel } from "@t3tools/shared/projectScripts";
 import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 function truncateMiddle(value: string, maxLength: number): string {
   if (value.length <= maxLength) {
@@ -182,14 +183,16 @@ function useThreadGitControlModel(props: ThreadGitMenuProps) {
     if (!prUrl) {
       Dialog.alert(
         t("No open {shortLabel}", { shortLabel }),
-        t("This branch does not have an open {singular}.", { singular }),
+        t("This branch does not have an open {singular}.", {
+          singular: changeRequestTerm(singular, t),
+        }),
       );
       return;
     }
     if (!(await openPullRequest(prUrl))) {
       Dialog.alert(
         t("Unable to open {shortLabel}", { shortLabel }),
-        t("The {singular} could not be opened.", { singular }),
+        t("The {singular} could not be opened.", { singular: changeRequestTerm(singular, t) }),
       );
     }
   };

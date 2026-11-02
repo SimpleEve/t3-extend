@@ -131,6 +131,7 @@ import {
   sourceControlClients,
 } from "@t3tools/client-runtime/source-control-clients";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 const EMPTY_IDS: readonly string[] = [];
 
@@ -597,9 +598,9 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
         ) : null}
         <Toolbar placement="right">
           <Toolbar.Menu
-            title={capitalizeTerm(terminology.singular)}
+            title={capitalizeTerm(changeRequestTerm(terminology.singular, t))}
             accessibilityLabel={t("{singular} actions", {
-              singular: capitalizeTerm(terminology.singular),
+              singular: capitalizeTerm(changeRequestTerm(terminology.singular, t)),
             })}
             icon="ellipsis"
           >
@@ -1420,7 +1421,7 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
           <EmptyState
             title={t("Diff unavailable")}
             detail={t("Open this {singular} on its provider to view the changes.", {
-              singular: terminology.singular,
+              singular: changeRequestTerm(terminology.singular, t),
             })}
             variant="plain"
           />
@@ -1442,7 +1443,11 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
         ) : null}
         {parsed.kind === "files" && parsed.notice ? (
           <Text className="px-4 py-2 text-2xs text-foreground-muted">
-            {t(parsed.notice, { singular: terminology.singular }) /* fork: i18n */}
+            {
+              t(parsed.notice, {
+                singular: changeRequestTerm(terminology.singular, t),
+              }) /* fork: i18n */
+            }
           </Text>
         ) : null}
       </View>

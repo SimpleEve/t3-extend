@@ -52,6 +52,7 @@ import {
   useLinkedPullRequestLines,
 } from "../LinkedPullRequestList";
 import { useLinkedPullRequestActions } from "../useLinkedPullRequestActions";
+import { changeRequestTerm } from "../../../lib/changeRequestTerm"; // fork: i18n
 
 const HEADER_SCROLL_EDGE_EFFECTS = nativeHeaderScrollEdgeEffects(Platform.OS, Platform.Version);
 
@@ -149,14 +150,16 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
     if (!prUrl) {
       Dialog.alert(
         t("No open {shortLabel}", { shortLabel }),
-        t("This branch does not have an open {singular}.", { singular }),
+        t("This branch does not have an open {singular}.", {
+          singular: changeRequestTerm(singular, t),
+        }),
       );
       return;
     }
     if (!(await openPullRequest(prUrl))) {
       Dialog.alert(
         t("Unable to open {shortLabel}", { shortLabel }),
-        t("The {singular} could not be opened.", { singular }),
+        t("The {singular} could not be opened.", { singular: changeRequestTerm(singular, t) }),
       );
     }
   };
@@ -325,9 +328,11 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
         {linkedPrActions.canLink ? (
           <ListRow
             icon="link"
-            label={t("Link {singular}", { singular: linkedPrActions.terminology.singular })}
+            label={t("Link {singular}", {
+              singular: changeRequestTerm(linkedPrActions.terminology.singular, t),
+            })}
             description={t("Attach a {singular} by URL or number", {
-              singular: linkedPrActions.terminology.singular,
+              singular: changeRequestTerm(linkedPrActions.terminology.singular, t),
             })}
             onPress={linkedPrActions.promptLink}
           />
@@ -335,7 +340,11 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
       </ListSection>
 
       {linkedPrLines.length > 0 ? (
-        <ListSection title={t("Linked {plural}", { plural: linkedPrActions.terminology.plural })}>
+        <ListSection
+          title={t("Linked {plural}", {
+            plural: changeRequestTerm(linkedPrActions.terminology.plural, t),
+          })}
+        >
           {linkedPrLines.map((line, index) => (
             <LinkedPullRequestRow
               key={linkedPullRequestKey(line)}

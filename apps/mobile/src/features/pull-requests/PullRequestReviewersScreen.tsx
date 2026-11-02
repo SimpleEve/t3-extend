@@ -34,6 +34,7 @@ import {
 import { PullRequestAvatar } from "./PullRequestPresentation";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 function ReviewerScrollView(props: ScrollViewProps) {
   return (
@@ -197,7 +198,7 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
               {!allowed ? (
                 <Text className="text-xs text-foreground-muted">
                   {t("Requesting reviews requires write access and an open {singular}.", {
-                    singular,
+                    singular: changeRequestTerm(singular, t),
                   })}
                 </Text>
               ) : null}
@@ -294,7 +295,8 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
               <AppActivityIndicator />
             ) : (
               <Text className="text-danger-foreground">
-                {detail.error ?? t("Couldn't load this {singular}.", { singular })}
+                {detail.error ??
+                  t("Couldn't load this {singular}.", { singular: changeRequestTerm(singular, t) })}
               </Text>
             )
           ) : (

@@ -20,6 +20,7 @@ import { PullRequestSheetContent as SheetContent } from "./PullRequestSheetConte
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 import { usePullRequestPermissions } from "./usePullRequestPermissions";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 function useActionSubmission(params: PullRequestParams) {
   const t = useT(); // fork: i18n
@@ -256,7 +257,12 @@ export function PullRequestReviewSheet({
         <Text className="text-sm text-danger-foreground">
           {t(
             "You can no longer submit line comments on this {singular}. Your drafts are kept here.",
-            { singular: sourceControlClients.get(result.data?.provider).changeRequest.singular },
+            {
+              singular: changeRequestTerm(
+                sourceControlClients.get(result.data?.provider).changeRequest.singular,
+                t,
+              ),
+            },
           )}
         </Text>
       ) : null}

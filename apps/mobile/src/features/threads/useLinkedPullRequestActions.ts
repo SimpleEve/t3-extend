@@ -27,6 +27,7 @@ import { useEnvironmentScope } from "../../state/session";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 type MenuAction = MenuProps["actions"][number];
 
@@ -81,8 +82,12 @@ export function useLinkedPullRequestActions(input: {
     const environmentId = thread.environmentId;
     void run(
       linked
-        ? t("Couldn't link this {singular}", { singular: terminology.singular })
-        : t("Couldn't unlink this {singular}", { singular: terminology.singular }),
+        ? t("Couldn't link this {singular}", {
+            singular: changeRequestTerm(terminology.singular, t),
+          })
+        : t("Couldn't unlink this {singular}", {
+            singular: changeRequestTerm(terminology.singular, t),
+          }),
       mutation.type === "thread.pull-request.link"
         ? link({ environmentId, input: mutation.input })
         : unlink({ environmentId, input: mutation.input }),
@@ -92,11 +97,13 @@ export function useLinkedPullRequestActions(input: {
   const promptLink = () => {
     const { singular } = terminology;
     Dialog.prompt({
-      title: t("Link {singular}", { singular }),
+      title: t("Link {singular}", { singular: changeRequestTerm(singular, t) }),
       message: t("Paste a {singular} URL, or enter 123 / #123 for this thread's repository.", {
-        singular,
+        singular: changeRequestTerm(singular, t),
       }),
-      placeholder: t("{singular} URL or #42", { singular: capitalizeTerm(singular) }),
+      placeholder: t("{singular} URL or #42", {
+        singular: capitalizeTerm(changeRequestTerm(singular, t)),
+      }),
       initialValue: "",
       confirmText: t("Link"),
       onConfirm: (reference) => {
@@ -107,13 +114,16 @@ export function useLinkedPullRequestActions(input: {
         });
         if (resolved === null) {
           Dialog.alert(
-            t("Couldn't link this {singular}", { singular }),
-            t("Use a {singular} URL, 123, or #123.", { singular }),
+            t("Couldn't link this {singular}", { singular: changeRequestTerm(singular, t) }),
+            t("Use a {singular} URL, 123, or #123.", { singular: changeRequestTerm(singular, t) }),
           );
           return;
         }
         if ("error" in resolved) {
-          Dialog.alert(t("Couldn't link this {singular}", { singular }), resolved.error);
+          Dialog.alert(
+            t("Couldn't link this {singular}", { singular: changeRequestTerm(singular, t) }),
+            resolved.error,
+          );
           return;
         }
         setLinked(resolved.link, true);
@@ -160,7 +170,7 @@ export function useLinkedPullRequestActions(input: {
           ).changeRequest;
           Dialog.alert(
             t("Unable to open {shortLabel}", { shortLabel }),
-            t("The {singular} could not be opened.", { singular }),
+            t("The {singular} could not be opened.", { singular: changeRequestTerm(singular, t) }),
           );
         }
       });

@@ -26,6 +26,7 @@ import { usePullRequestPermissions } from "./usePullRequestPermissions";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
 import type { PullRequestStackState } from "./usePullRequestStack";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 export function PullRequestMergeControls(props: {
   readonly pr: PullRequestDetail;
@@ -168,7 +169,7 @@ export function PullRequestMergeControls(props: {
             )
           : action === "disable-auto-merge"
             ? t("Stop the provider from automatically merging this {singular}.", {
-                singular: terminology.singular,
+                singular: changeRequestTerm(terminology.singular, t),
               })
             : t("Merge #{number} into {baseBranch} using {method}.", {
                 number: pr.number,

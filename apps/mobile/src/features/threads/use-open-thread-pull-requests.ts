@@ -8,6 +8,7 @@ import {
   type ThreadPrPresentation,
 } from "../../state/thread-pr-presentation";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 /** Called once per thread list so virtualized rows share one stable handler. */
 export function useOpenThreadPullRequests() {
@@ -29,7 +30,9 @@ export function useOpenThreadPullRequests() {
       if (!opened)
         Dialog.alert(
           t("Unable to open {shortLabel}", { shortLabel: pr.changeRequest.shortLabel }),
-          t("The {singular} could not be opened.", { singular: pr.changeRequest.singular }),
+          t("The {singular} could not be opened.", {
+            singular: changeRequestTerm(pr.changeRequest.singular, t),
+          }),
         );
     });
   };

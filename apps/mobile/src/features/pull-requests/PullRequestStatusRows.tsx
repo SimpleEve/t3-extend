@@ -35,6 +35,7 @@ import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff"
 import { usePullRequestAction } from "./usePullRequestAction";
 import { usePullRequestAgentActions } from "./usePullRequestAgentActions";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 type RowProps = { readonly pr: PullRequestDetail; readonly params: PullRequestParams };
 const STATUS_ACTIONS: readonly PullRequestAction[] = [
@@ -60,7 +61,7 @@ export function PullRequestStatusMenu(props: RowProps) {
   const actions = STATUS_ACTIONS.filter(action.available);
   const status = pullRequestStatus(props.pr, t);
   const terminology = sourceControlClients.get(props.pr.provider).changeRequest;
-  const term = capitalizeTerm(terminology.singular);
+  const term = capitalizeTerm(changeRequestTerm(terminology.singular, t));
   const trigger = (
     <Pressable
       accessibilityRole={actions.length ? "button" : undefined}
@@ -93,7 +94,7 @@ export function PullRequestStatusMenu(props: RowProps) {
             selected,
             pullRequestActionLabel("close", terminology, t),
             t("Close this {singular} without merging its changes?", {
-              singular: terminology.singular,
+              singular: changeRequestTerm(terminology.singular, t),
             }),
           );
         else if (selected === "revert")
@@ -101,7 +102,7 @@ export function PullRequestStatusMenu(props: RowProps) {
             selected,
             pullRequestActionLabel("revert", terminology, t),
             t("Open a new {singular} that reverses these changes?", {
-              singular: terminology.singular,
+              singular: changeRequestTerm(terminology.singular, t),
             }),
           );
         else void action.perform(selected);
@@ -154,7 +155,7 @@ export function PullRequestChecksRow(props: RowProps) {
                   t("Approve workflows"),
                   t(
                     "Allow this {singular}'s workflows to run? Review the workflow changes first.",
-                    { singular: definition.changeRequest.singular },
+                    { singular: changeRequestTerm(definition.changeRequest.singular, t) },
                   ),
                 )
               }

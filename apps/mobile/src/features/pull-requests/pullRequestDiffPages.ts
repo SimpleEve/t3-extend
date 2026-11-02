@@ -1,7 +1,8 @@
 import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 import type { PullRequestDiffResult } from "@t3tools/contracts";
 import { buildReviewParsedDiff, type ReviewParsedDiff } from "../review/reviewModel";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 export interface PullRequestDiffPage {
   readonly cursor: string | null;
@@ -12,6 +13,7 @@ interface CachedPullRequestDiffPages {
   readonly pages: readonly PullRequestDiffPage[];
   readonly cache: WeakMap<PullRequestDiffResult, ReviewParsedDiff>;
   readonly parsed: ReviewParsedDiff;
+  readonly t: Translator; // fork: i18n, the notice is translated
 }
 
 // Keep only the latest combination per scoped first page; query results own its lifetime.
@@ -24,6 +26,7 @@ export function getCachedPullRequestDiffPages(
   pages: readonly PullRequestDiffPage[],
   scope: string,
   terminology: ChangeRequestTerminology,
+  t: Translator = translatorFor("en"), // fork: i18n
 ): ReviewParsedDiff {
   const first = pages[0];
   if (!first) return { kind: "empty" };
@@ -35,7 +38,8 @@ export function getCachedPullRequestDiffPages(
   }
   const previous = snapshots.get(key);
   if (
-    previous?.pages.length === pages.length &&
+    previous?.t === t &&
+    previous.pages.length === pages.length &&
     pages.every((page, index) => {
       const cached = previous.pages[index];
       return cached?.cursor === page.cursor && cached.result === page.result;
@@ -43,8 +47,8 @@ export function getCachedPullRequestDiffPages(
   )
     return previous.parsed;
   const cache = previous?.cache ?? new WeakMap<PullRequestDiffResult, ReviewParsedDiff>();
-  const parsed = combinePullRequestDiffPages(pages, cache, scope, terminology);
-  snapshots.set(key, { pages, cache, parsed });
+  const parsed = combinePullRequestDiffPages(pages, cache, scope, terminology, t);
+  snapshots.set(key, { pages, cache, parsed, t });
   return parsed;
 }
 
@@ -74,6 +78,7 @@ export function combinePullRequestDiffPages(
   cache: WeakMap<PullRequestDiffResult, ReviewParsedDiff>,
   scope: string,
   terminology: ChangeRequestTerminology,
+  t: Translator = translatorFor("en"), // fork: i18n
 ): ReviewParsedDiff {
   const parsed = pages.map((page) => {
     const cached = cache.get(page.result);
@@ -108,9 +113,9 @@ export function combinePullRequestDiffPages(
     notice:
       pages.some((page) => page.result.truncated) ||
       parsed.some((page) => page.kind === "raw" || (page.kind === "files" && page.notice !== null))
-        ? translatorFor(getUiLocale())(
+        ? t(
             "Some file contents are unavailable. Open the {singular} on its provider to see the full changes.",
-            { singular: terminology.singular },
+            { singular: changeRequestTerm(terminology.singular, t) },
           )
         : null,
   };

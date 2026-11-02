@@ -11,6 +11,7 @@ import type {
 import type { AppSymbolName } from "../../components/ui/AppSymbol";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 type ActionDetail = Pick<
   PullRequestDetail,
@@ -44,15 +45,15 @@ export function pullRequestActionLabel(
   const { singular } = terminology;
   switch (action) {
     case "merge":
-      return t("Merge {singular}", { singular });
+      return t("Merge {singular}", { singular: changeRequestTerm(singular, t) });
     case "ready":
       return t("Mark ready for review");
     case "draft":
       return t("Convert to draft");
     case "close":
-      return t("Close {singular}", { singular });
+      return t("Close {singular}", { singular: changeRequestTerm(singular, t) });
     case "reopen":
-      return t("Reopen {singular}", { singular });
+      return t("Reopen {singular}", { singular: changeRequestTerm(singular, t) });
     case "update-branch":
       return t("Update branch");
     case "enable-auto-merge":
@@ -60,7 +61,7 @@ export function pullRequestActionLabel(
     case "disable-auto-merge":
       return t("Disable auto-merge");
     case "revert":
-      return t("Create revert {singular}", { singular });
+      return t("Create revert {singular}", { singular: changeRequestTerm(singular, t) });
     case "delete-branch":
       return t("Delete branch");
     case "approve-workflows":
@@ -129,13 +130,19 @@ export function mergeUnavailableReason(
   t: Translator, // fork: i18n
 ) {
   const { singular } = terminology;
-  if (pr.state === "merged") return t("This {singular} has been merged.", { singular });
-  if (pr.state === "closed") return t("Reopen this {singular} before merging.", { singular });
+  if (pr.state === "merged")
+    return t("This {singular} has been merged.", { singular: changeRequestTerm(singular, t) });
+  if (pr.state === "closed")
+    return t("Reopen this {singular} before merging.", {
+      singular: changeRequestTerm(singular, t),
+    });
   if (!connectionAllowsWrites) return t("This environment connection is read-only.");
   if (!pr.capabilities.actions.includes("merge"))
     return t("This provider does not support merging here.");
   if (!pr.viewerPermissions.actions.includes("merge"))
-    return t("Your account cannot merge this {singular}.", { singular });
+    return t("Your account cannot merge this {singular}.", {
+      singular: changeRequestTerm(singular, t),
+    });
   if (pr.isDraft) return t("Mark this draft ready for review before merging.");
   if (pr.mergeability === "conflicting") return t(MERGE_CONFLICT_REASON);
   if (!allowedMergeMethods(pr).length) return t("This repository has no available merge methods.");

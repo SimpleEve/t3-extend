@@ -15,6 +15,7 @@ import { canPerformPullRequestAction } from "./pullRequestActions";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 import { usePullRequestPermissions } from "./usePullRequestPermissions";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 export function usePullRequestAction(params: PullRequestParams, pr: PullRequestDetail | null) {
   const t = useT(); // fork: i18n
@@ -41,7 +42,10 @@ export function usePullRequestAction(params: PullRequestParams, pr: PullRequestD
       const cause = squashAtomCommandFailure(response);
       Dialog.alert(
         t("Couldn't update this {singular}", {
-          singular: sourceControlClients.get(pr?.provider).changeRequest.singular,
+          singular: changeRequestTerm(
+            sourceControlClients.get(pr?.provider).changeRequest.singular,
+            t,
+          ),
         }),
         cause instanceof Error ? cause.message : t("Try again."),
       );

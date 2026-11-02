@@ -31,6 +31,7 @@ import { Sheet } from "./ui/Sheet";
 import { useAppearancePreferences } from "../features/settings/appearance/AppearancePreferencesProvider";
 import { getMobileTerminalTheme } from "../features/terminal/terminalTheme";
 import { useT } from "../hooks/useT"; // fork: i18n
+import { changeRequestTerm } from "../lib/changeRequestTerm"; // fork: i18n
 
 function ContextField(props: { label: string; value: string | null | undefined; code?: boolean }) {
   const t = useT(); // fork: i18n
@@ -188,7 +189,7 @@ export function ComposerContextSheet(props: {
     record?.kind === "review-comment" && "pullRequest" in record
       ? record.pullRequest?.url
       : undefined;
-  const changeRequestTerm = (
+  const changeRequestWord = (
     (pullRequestUrl ? sourceControlClients.findByChangeRequestUrl(pullRequestUrl) : undefined) ??
     sourceControlClients.get(undefined)
   ).changeRequest.singular;
@@ -378,7 +379,9 @@ export function ComposerContextSheet(props: {
               props.onClose();
               void openPullRequest(pullRequestUrl).catch(() =>
                 Dialog.alert(
-                  t("Could not open {changeRequestTerm}", { changeRequestTerm }),
+                  t("Could not open {changeRequestTerm}", {
+                    changeRequestTerm: changeRequestTerm(changeRequestWord, t),
+                  }),
                   t("Try again when connected."),
                 ),
               );
@@ -386,7 +389,9 @@ export function ComposerContextSheet(props: {
             className="rounded-xl bg-subtle p-4"
           >
             <Text className="text-foreground">
-              {t("Open {changeRequestTerm}", { changeRequestTerm })}
+              {t("Open {changeRequestTerm}", {
+                changeRequestTerm: changeRequestTerm(changeRequestWord, t),
+              })}
             </Text>
           </Pressable>
         ) : null}
@@ -400,7 +405,9 @@ export function ComposerContextSheet(props: {
         ) : null}
         {props.onOpenPullRequest && !pullRequestUrl ? (
           <Button
-            label={t("Open {changeRequestTerm}", { changeRequestTerm })}
+            label={t("Open {changeRequestTerm}", {
+              changeRequestTerm: changeRequestTerm(changeRequestWord, t),
+            })}
             tone="secondary"
             onPress={props.onOpenPullRequest}
             fullWidth

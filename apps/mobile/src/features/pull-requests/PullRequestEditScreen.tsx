@@ -17,6 +17,7 @@ import { PullRequestSheetContent } from "./PullRequestSheetContent";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 import { usePullRequestPermissions } from "./usePullRequestPermissions";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 export type PullRequestEditParams = PullRequestParams &
   (
@@ -74,7 +75,7 @@ export function PullRequestEditScreen({ route }: StaticScreenProps<PullRequestEd
           ? t("This device isn't allowed to change source control on this environment.")
           : params.field === "comment"
             ? t("You can't edit this comment.")
-            : t("You can't edit this {singular}.", { singular });
+            : t("You can't edit this {singular}.", { singular: changeRequestTerm(singular, t) });
   const unchanged = draft === null || draft === original;
   const invalid = params.field === "title" && value.trim().length === 0;
   const save = async () => {
@@ -139,9 +140,11 @@ export function PullRequestEditScreen({ route }: StaticScreenProps<PullRequestEd
         autoFocus
         accessibilityLabel={
           params.field === "title"
-            ? t("{singular} title", { singular: capitalizeTerm(singular) })
+            ? t("{singular} title", { singular: capitalizeTerm(changeRequestTerm(singular, t)) })
             : params.field === "body"
-              ? t("{singular} description", { singular: capitalizeTerm(singular) })
+              ? t("{singular} description", {
+                  singular: capitalizeTerm(changeRequestTerm(singular, t)),
+                })
               : t("Comment")
         }
         placeholder={params.field === "title" ? t("Title") : t("Write in Markdown…")}

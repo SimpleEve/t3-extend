@@ -10,6 +10,7 @@ import {
   resolveThreadPullRequestBadge,
 } from "@t3tools/client-runtime/thread-pull-requests";
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { changeRequestTerm } from "../lib/changeRequestTerm"; // fork: i18n
 
 export type ThreadPr = NonNullable<VcsStatusResult["pr"]>;
 
@@ -53,7 +54,7 @@ export function presentThreadPr(
     // fork: i18n
     accessibilityLabel: t("#{number} {singular} {state}", {
       number: pr.number,
-      singular: changeRequest.singular,
+      singular: changeRequestTerm(changeRequest.singular, t),
       state: t(isDraft ? "draft" : pr.state),
     }),
     textClassName: isDraft ? "text-foreground-muted" : PR_STATE_TEXT_CLASS[pr.state],
@@ -100,18 +101,18 @@ export function presentThreadLinkedPullRequests(
       badge.kind === "stack"
         ? t("{count} {singular}s in stack, {state}", {
             count: badge.layers,
-            singular: changeRequest.singular,
+            singular: changeRequestTerm(changeRequest.singular, t),
             state: isDraft ? t("draft") : state ? t(state) : t("status pending"),
           })
         : linkedCount !== null
           ? t("{count} linked {plural}, overall {state}", {
               count: linkedCount,
-              plural: changeRequest.plural,
+              plural: changeRequestTerm(changeRequest.plural, t),
               state: t(badge.state),
             })
           : t("#{number} {singular} {state}", {
               number: link.number,
-              singular: changeRequest.singular,
+              singular: changeRequestTerm(changeRequest.singular, t),
               state: state === null ? t("status pending") : isDraft ? t("draft") : t(state),
             }),
     textClassName:

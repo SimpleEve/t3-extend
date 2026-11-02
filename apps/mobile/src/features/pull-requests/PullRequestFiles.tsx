@@ -34,6 +34,7 @@ import { usePullRequestFilesViewed } from "./usePullRequestFilesViewed";
 import { pullRequestFileJumpScope, requestPullRequestFileJump } from "./pullRequestFileJump";
 import { useT } from "../../hooks/useT"; // fork: i18n
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 const BREAKDOWN_LABELS = {
   code: "Code",
@@ -250,7 +251,11 @@ function FilesFooter({ files }: { readonly files: ChangedFiles }) {
       ) : null}
       {parsed.kind === "files" && parsed.notice ? (
         <Text textRole="label" className="py-4 text-foreground-muted">
-          {t(parsed.notice, { singular: files.terminology.singular }) /* fork: i18n */}
+          {
+            t(parsed.notice, {
+              singular: changeRequestTerm(files.terminology.singular, t),
+            }) /* fork: i18n */
+          }
         </Text>
       ) : null}
     </>

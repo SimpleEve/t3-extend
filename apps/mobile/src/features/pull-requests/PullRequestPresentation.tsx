@@ -10,6 +10,7 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { cn } from "../../lib/cn";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 export function PullRequestReadStatus(props: {
   readonly pending: boolean;
@@ -21,7 +22,9 @@ export function PullRequestReadStatus(props: {
     <AppActivityIndicator className="my-12" colorClassName="accent-icon" />
   ) : props.error ? (
     <EmptyState
-      title={t("Couldn't load this {singular}", { singular: props.terminology.singular })}
+      title={t("Couldn't load this {singular}", {
+        singular: changeRequestTerm(props.terminology.singular, t),
+      })}
       detail={props.error}
       variant="plain"
     />

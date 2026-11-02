@@ -24,6 +24,7 @@ import { copyPullRequestLink, sharePullRequestLink } from "./pullRequestLink";
 import { pullRequestTarget } from "./usePullRequestDiff";
 import { useSelectWorkspaceDetail } from "../workspace/useSelectWorkspaceDetail";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 export function usePullRequestListActions(
   environmentIds: readonly EnvironmentId[],
@@ -110,7 +111,9 @@ export function usePullRequestListActions(
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
       Dialog.alert(
-        t("Couldn't update this {singular}", { singular: terminology.singular }),
+        t("Couldn't update this {singular}", {
+          singular: changeRequestTerm(terminology.singular, t),
+        }),
         cause instanceof Error ? cause.message : t("Try again."),
       );
     }
@@ -159,7 +162,7 @@ export function usePullRequestListActions(
     return [
       {
         id: "open",
-        title: t("Open {singular}", { singular: terminology.singular }),
+        title: t("Open {singular}", { singular: changeRequestTerm(terminology.singular, t) }),
         image: Platform.OS === "ios" ? "arrow.up.right" : "open_in_new",
       },
       ...(writableEnvironments.has(entry.environmentId) && entry.state === "open"

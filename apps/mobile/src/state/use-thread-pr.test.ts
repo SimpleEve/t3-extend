@@ -76,7 +76,7 @@ describe("presentThreadLinkedPullRequests", () => {
     await loadUiCatalog("zh-Hans");
     expect(
       presentThreadLinkedPullRequests([linkedPr(7)], translatorFor("zh-Hans"))?.accessibilityLabel,
-    ).toBe("#7 pull request 开放");
+    ).toBe("#7 PR 开放");
   });
 });
 
@@ -98,7 +98,7 @@ describe("presentThreadPr", () => {
       number: 42,
       state: "open",
       isDraft: true,
-      accessibilityLabel: "#42 pull request 草稿",
+      accessibilityLabel: "#42 PR 草稿",
     });
   });
 });
