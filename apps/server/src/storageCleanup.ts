@@ -48,7 +48,7 @@ import * as TerminalManager from "./terminal/Manager.ts";
 import { isFilesystemRoot, managedWorktreesDirectories } from "./worktreesDirectory.ts";
 import * as GitVcsDriver from "./vcs/GitVcsDriver.ts";
 import * as SharedWorktrees from "./fork/SharedWorktrees.ts"; // fork: shared worktrees are never cleaned
-import { removeLinkedWorktree } from "./vcs/worktreeRemoval.ts";
+import { removeLinkedWorktreeInSection } from "./vcs/worktreeRemoval.ts";
 import { withWorkspaceLease } from "./workspace/workspaceLease.ts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
@@ -1116,8 +1116,7 @@ const make = Effect.gen(function* () {
         // fork: `git clean` and the removal are one section, so an import cannot claim the path
         // after the check; the analysis above stays outside it.
         const kept = yield* sharedWorktrees
-          .exclusive(
-            { cwd: project.workspaceRoot, path: worktreePath },
+          .exclusive({ cwd: project.workspaceRoot, path: worktreePath }, (section) =>
             Effect.gen(function* () {
               // Clean only untracked files. Ordinary worktrees retain Git's final tracked-edit check.
               if (settings.worktreeKeepWhen === "tracked-changes")
@@ -1128,7 +1127,7 @@ const make = Effect.gen(function* () {
                 const changes = yield* localChangesReason(worktreePath, settings);
                 if (changes !== null) return changes;
               }
-              yield* removeLinkedWorktree({
+              yield* removeLinkedWorktreeInSection(section, {
                 operation: "StorageCleanup.cleanupGit",
                 cwd: project.workspaceRoot,
                 worktreePath,
@@ -1145,7 +1144,6 @@ const make = Effect.gen(function* () {
             Effect.provideService(ServerConfig.ServerConfig, config),
             Effect.provideService(FileSystem.FileSystem, fs),
             Effect.provideService(Path.Path, path),
-            Effect.provideService(SharedWorktrees.SharedWorktreePolicy, sharedWorktrees),
           );
         if (kept !== null) return keep(kept);
         entries.push({ ...entry, outcome: "removed", reason: sentence(removalReason), bytes });

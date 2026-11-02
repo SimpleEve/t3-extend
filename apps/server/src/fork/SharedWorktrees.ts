@@ -21,10 +21,13 @@ export class SharedWorktreeRefused extends Data.TaggedError("SharedWorktreeRefus
   readonly reason: string;
 }> {}
 
-/** Set inside a destructive section, so a nested one checks again without taking the permit twice. */
-const SectionHeld = Context.Reference<boolean>("t3x/fork/SharedWorktrees/SectionHeld", {
-  defaultValue: () => false,
-});
+declare const sectionBrand: unique symbol;
+
+/** Proof that the caller is inside `exclusive`; destructive helpers ask for it as an argument. */
+export interface SharedWorktreeSection {
+  readonly [sectionBrand]: true;
+}
+const section = {} as SharedWorktreeSection;
 
 export interface SharedWorktreePolicy {
   /** True only for the policy that knows which worktrees an import shared. */
@@ -35,13 +38,12 @@ export interface SharedWorktreePolicy {
     readonly path: string;
   }) => Effect.Effect<string | null, never, Environment>;
   /**
-   * Runs a destructive effect on a worktree only if it is still unshared. The live policy holds one
-   * permit across the check and the effect, which `markShared` also takes, so an import can never
-   * claim the path between the two. Keep analysis and database reads outside the effect.
+   * Runs a destructive effect only if the worktree is still unshared, holding the permit `markShared`
+   * also takes. Not reentrant: the effect gets proof of the section instead of calling this again.
    */
   readonly exclusive: <A, E, R>(
     input: { readonly cwd: string; readonly path: string },
-    effect: Effect.Effect<A, E, R>,
+    effect: (section: SharedWorktreeSection) => Effect.Effect<A, E, R>,
   ) => Effect.Effect<A, E | SharedWorktreeRefused, R | Environment>;
   /** Records worktrees an import left in official T3 Code's care, effective immediately. */
   readonly markShared: (paths: ReadonlyArray<string>) => Effect.Effect<void>;
@@ -109,11 +111,11 @@ const OFFICIAL_FOLDER_REASON = `This worktree lives in ${OFFICIAL_APP_NAME}'s wo
 const checkedThenRun = Effect.fn("SharedWorktrees.checkedThenRun")(function* <A, E, R>(
   refusal: SharedWorktreePolicy["refusal"],
   input: { readonly cwd: string; readonly path: string },
-  effect: Effect.Effect<A, E, R>,
+  effect: (section: SharedWorktreeSection) => Effect.Effect<A, E, R>,
 ) {
   const reason = yield* refusal(input);
   if (reason !== null) return yield* new SharedWorktreeRefused({ reason });
-  return yield* effect.pipe(Effect.provideService(SectionHeld, true));
+  return yield* effect(section);
 });
 
 /** Without markers: the path rule alone, which nothing can change, so it needs no lock. */
@@ -224,11 +226,9 @@ export const layer = Layer.effect(
       refusal,
       exclusive: Effect.fn("SharedWorktrees.exclusive")(function* <A, E, R>(
         input: { readonly cwd: string; readonly path: string },
-        effect: Effect.Effect<A, E, R>,
+        effect: (section: SharedWorktreeSection) => Effect.Effect<A, E, R>,
       ) {
-        const section = checkedThenRun(refusal, input, effect);
-        // A nested section already holds the permit, and Semaphore is not reentrant.
-        return (yield* SectionHeld) ? yield* section : yield* permit.withPermits(1)(section);
+        return yield* permit.withPermits(1)(checkedThenRun(refusal, input, effect));
       }),
       markShared: Effect.fn("SharedWorktrees.markShared")(function* (paths) {
         // The retried load is database I/O, so it stays outside the permit.
@@ -247,7 +247,7 @@ export const layer = Layer.effect(
 /** Runs a worktree removal only while the worktree is unshared, holding the policy's permit across check and removal. */
 export const whileRemovable = Effect.fn("SharedWorktrees.whileRemovable")(function* <A, E, R>(
   input: { readonly operation: string; readonly cwd: string; readonly path: string },
-  effect: Effect.Effect<A, E, R>,
+  effect: (section: SharedWorktreeSection) => Effect.Effect<A, E, R>,
 ) {
   const policy = yield* SharedWorktreePolicy;
   return yield* policy.exclusive(input, effect).pipe(

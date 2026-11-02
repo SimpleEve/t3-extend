@@ -224,8 +224,7 @@ it.layer(NodeServices.layer)("SharedWorktrees", (it) => {
         const release = yield* Deferred.make<void>();
         const inSection = yield* Effect.forkChild(
           provide(
-            policy.exclusive(
-              target,
+            policy.exclusive(target, () =>
               Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release))),
             ),
           ),
@@ -252,8 +251,7 @@ it.layer(NodeServices.layer)("SharedWorktrees", (it) => {
         const ran: Array<string> = [];
         const holder = yield* Effect.forkChild(
           provide(
-            policy.exclusive(
-              input("other"),
+            policy.exclusive(input("other"), () =>
               Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release))),
             ),
           ),
@@ -265,10 +263,7 @@ it.layer(NodeServices.layer)("SharedWorktrees", (it) => {
         });
         const waiting = yield* Effect.forkChild(
           provide(
-            policy.exclusive(
-              target,
-              Effect.sync(() => void ran.push("destroyed")),
-            ),
+            policy.exclusive(target, () => Effect.sync(() => void ran.push("destroyed"))),
           ).pipe(Effect.exit),
           { startImmediately: true },
         );
@@ -282,20 +277,44 @@ it.layer(NodeServices.layer)("SharedWorktrees", (it) => {
       }),
     );
 
-    it.effect("a nested section checks again without taking the permit a second time", () =>
+    it.effect("a mark cannot slip in while the section's own re-check is still running", () =>
       Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
         const { policy, input, provide } = yield* section();
-        const ran: Array<string> = [];
-        yield* provide(
-          policy.exclusive(
-            input("feature"),
-            policy.exclusive(
-              input("feature"),
-              Effect.sync(() => void ran.push("inner")),
-            ),
-          ),
+        const target = input("feature");
+        const paused = yield* Deferred.make<void>();
+        const resume = yield* Deferred.make<void>();
+        const log: Array<string> = [];
+        // The re-check reads the file system; hold it there, as a slow disk would.
+        const slowFs = FileSystem.FileSystem.of({
+          ...fs,
+          realPath: (candidate) =>
+            candidate === target.path
+              ? Deferred.succeed(paused, undefined).pipe(
+                  Effect.andThen(Deferred.await(resume)),
+                  Effect.andThen(fs.realPath(candidate)),
+                )
+              : fs.realPath(candidate),
+        });
+        const section_ = yield* Effect.forkChild(
+          provide(
+            policy.exclusive(target, () => Effect.sync(() => void log.push("destroyed"))),
+          ).pipe(Effect.provideService(FileSystem.FileSystem, slowFs)),
+          { startImmediately: true },
         );
-        assert.deepStrictEqual(ran, ["inner"]);
+        yield* Deferred.await(paused);
+        const marking = yield* Effect.forkChild(
+          policy
+            .markShared([target.path])
+            .pipe(Effect.andThen(Effect.sync(() => void log.push("marked")))),
+          { startImmediately: true },
+        );
+        // Taking the permit first is what keeps the mark out; a check outside it would let it finish here.
+        assert.isUndefined(marking.pollUnsafe());
+        yield* Deferred.succeed(resume, undefined);
+        yield* Fiber.join(section_);
+        yield* Fiber.join(marking);
+        assert.deepStrictEqual(log, ["destroyed", "marked"]);
       }),
     );
   }
