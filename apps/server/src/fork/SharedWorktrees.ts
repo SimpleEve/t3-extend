@@ -27,7 +27,12 @@ declare const sectionBrand: unique symbol;
 export interface SharedWorktreeSection {
   readonly [sectionBrand]: true;
 }
-const section = {} as SharedWorktreeSection;
+
+/** One per `exclusive` call, never exported: only an instance still `live` passes `assertSectionLive`. */
+class Section {
+  declare readonly [sectionBrand]: true;
+  live = true;
+}
 
 export interface SharedWorktreePolicy {
   /** True only for the policy that knows which worktrees an import shared. */
@@ -115,7 +120,15 @@ const checkedThenRun = Effect.fn("SharedWorktrees.checkedThenRun")(function* <A,
 ) {
   const reason = yield* refusal(input);
   if (reason !== null) return yield* new SharedWorktreeRefused({ reason });
-  return yield* effect(section);
+  const section = new Section();
+  // Dead on every exit, so a token kept past the section cannot act without the permit.
+  return yield* effect(section).pipe(
+    Effect.ensuring(
+      Effect.sync(() => {
+        section.live = false;
+      }),
+    ),
+  );
 });
 
 /** Without markers: the path rule alone, which nothing can change, so it needs no lock. */
@@ -264,4 +277,18 @@ export const whileRemovable = Effect.fn("SharedWorktrees.whileRemovable")(functi
         ),
     ),
   );
+});
+
+/** Fails unless the token is a real section token whose section is still running. */
+export const assertSectionLive = Effect.fn("SharedWorktrees.assertSectionLive")(function* (
+  section: SharedWorktreeSection,
+  input: { readonly operation: string; readonly cwd: string },
+) {
+  if (section instanceof Section && section.live) return;
+  return yield* new GitCommandError({
+    operation: input.operation,
+    command: "git worktree remove",
+    cwd: input.cwd,
+    detail: "The shared-worktree check that allowed this removal is no longer in effect.",
+  });
 });

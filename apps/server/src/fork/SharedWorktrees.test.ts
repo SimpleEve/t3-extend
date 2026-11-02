@@ -9,6 +9,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 
 import * as ServerConfig from "../config.ts";
+import { removeLinkedWorktreeInSection } from "../vcs/worktreeRemoval.ts";
 
 import * as SqlClient from "effect/sql/SqlClient";
 
@@ -17,6 +18,7 @@ import {
   requireLivePolicy,
   SharedWorktreePolicy,
   type SharedWorktreePolicy as SharedWorktreePolicyShape,
+  type SharedWorktreeSection,
 } from "./SharedWorktrees.ts";
 import { makeGuardedRemoveWorktree } from "./SharedWorktrees.testkit.ts";
 
@@ -315,6 +317,59 @@ it.layer(NodeServices.layer)("SharedWorktrees", (it) => {
         yield* Fiber.join(section_);
         yield* Fiber.join(marking);
         assert.deepStrictEqual(log, ["destroyed", "marked"]);
+      }),
+    );
+    const removal = (
+      target: { readonly cwd: string; readonly path: string },
+      removed: Array<string>,
+    ) => ({
+      operation: "test",
+      cwd: target.cwd,
+      worktreePath: target.path,
+      force: false,
+      execute: () => Effect.die("unused"),
+      run: () => Effect.sync(() => void removed.push(target.path)),
+    });
+
+    it.effect("a token kept past its section cannot remove", () =>
+      Effect.gen(function* () {
+        const { policy, input, provide } = yield* section();
+        const target = input("feature");
+        const removed: Array<string> = [];
+        const go = yield* Deferred.make<void>();
+        const refusedLate = yield* Deferred.make<boolean>();
+        yield* provide(
+          policy.exclusive(target, (token) =>
+            Effect.gen(function* () {
+              // Inside the section the same token works.
+              yield* removeLinkedWorktreeInSection(token, removal(target, removed));
+              yield* Effect.forkChild(
+                Deferred.await(go).pipe(
+                  Effect.andThen(removeLinkedWorktreeInSection(token, removal(target, removed))),
+                  Effect.exit,
+                  Effect.flatMap((exit) => Deferred.succeed(refusedLate, Exit.isFailure(exit))),
+                ),
+              );
+            }),
+          ),
+        );
+        yield* policy.markShared([target.path]);
+        yield* Deferred.succeed(go, undefined);
+        assert.isTrue(yield* Deferred.await(refusedLate));
+        assert.deepStrictEqual(removed, [target.path]);
+      }),
+    );
+
+    it.effect("a token that did not come from a section is refused", () =>
+      Effect.gen(function* () {
+        const { input } = yield* section();
+        const target = input("feature");
+        const removed: Array<string> = [];
+        const exit = yield* Effect.exit(
+          removeLinkedWorktreeInSection({} as SharedWorktreeSection, removal(target, removed)),
+        );
+        assert.isTrue(Exit.isFailure(exit));
+        assert.deepStrictEqual(removed, []);
       }),
     );
   }
