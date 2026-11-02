@@ -43,6 +43,7 @@ import { useThreadListV2ShelfPreferences } from "./use-thread-list-v2-shelf-pref
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { useT } from "../../hooks/useT"; // fork: i18n
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: i18n
 
 const keyOf = (thread: EnvironmentThreadShell) => scopedThreadKey(thread.environmentId, thread.id);
 type Section = "pinned" | "active" | "snoozed" | "settled";
@@ -494,10 +495,10 @@ function ThreadArrangementSheet(props: { onClose: () => void }) {
                         {thread ? (
                           <>
                             <Text numberOfLines={2} className="flex-1 text-base">
-                              {thread.title}
+                              {threadDisplayTitle(thread.title, t)}
                             </Text>
                             <DragHandle
-                              title={thread.title}
+                              title={threadDisplayTitle(thread.title, t)}
                               disabled={
                                 dropBusy ||
                                 pendingOrder !== null ||
@@ -592,7 +593,7 @@ function ThreadArrangementSheet(props: { onClose: () => void }) {
                       numberOfLines={visiblePreview.destination?.section ? 1 : 2}
                       className="text-base font-t3-medium"
                     >
-                      {visiblePreview.thread.title}
+                      {threadDisplayTitle(visiblePreview.thread.title, t)}
                     </Text>
                     {visiblePreview.destination?.section ? (
                       <Text className="text-xs text-foreground-muted">
