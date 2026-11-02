@@ -316,6 +316,7 @@ export default {
   "Watch {shortLabel}": "关注 {shortLabel}",
   "Old line {line}": "旧文件第 {line} 行",
   " · Resolved": " · 已解决",
+  "{count} comment · Tap to open": "{count} 条评论 · 轻点打开",
   "{count} comments · Tap to open": "{count} 条评论 · 轻点打开",
   "Pending review · Tap to edit": "待提交审查 · 轻点编辑",
   "Reviews approved": "审查已通过",

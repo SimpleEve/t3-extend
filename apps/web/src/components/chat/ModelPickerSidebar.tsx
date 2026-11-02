@@ -17,7 +17,8 @@ function describeUnavailableInstance(entry: ProviderInstanceEntry): string {
   const t = (source: string, params?: Readonly<Record<string, string>>) =>
     translate(getUiLocale(), source, params); // fork: interface language
   const label = entry.displayName;
-  if (!entry.enabled || entry.status === "disabled") {
+  // An unavailable instance (a driver this build lacks or the policy leaves out) says why instead.
+  if ((!entry.enabled && entry.isAvailable) || entry.status === "disabled") {
     return t("{provider}: Disabled in settings.", { provider: label });
   }
   if (entry.status === "ready" && entry.isAvailable) {

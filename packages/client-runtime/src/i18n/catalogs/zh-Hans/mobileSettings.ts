@@ -549,4 +549,20 @@ export default {
   // Settings pages: text around values
   "Last run failed: {error}": "上次运行失败：{error}",
   "Couldn't load the {document}": "无法加载{document}",
+  "Provider not allowed": "不允许使用该 provider",
+  "{message} Choose another model.": "{message}请选择其他模型。",
+  "Managed by {organization}": "由 {organization} 管理",
+  "Get help from {organization}": "向 {organization} 获取帮助",
+  "Voice input": "语音输入",
+  "Not available on this device": "此设备不可用",
+  "T3 Extend's voice input uses Apple's on-device speech transcription, which needs iOS 26 or later on a device that supports it. Without it, the composer has no microphone button, and allowing microphone access won't add one. Apple keyboard dictation is separate and isn't affected.":
+    "T3 Extend 的语音输入使用 Apple 的设备端语音转写，需要 iOS 26 或更高版本，并且设备要支持该功能。没有它时，输入框不会出现麦克风按钮，授予麦克风权限也不会增加。Apple 键盘听写是另一回事，不受影响。",
+  "Connect to load models": "连接后加载模型",
+  "Connect to {name}": "连接到 {name}",
+  "Once, {date} at {time}": "仅一次，{date} {time}",
+  "{denial} Switch the task to a timer, or turn it off, to save it.":
+    "{denial}请把任务改为定时或间隔运行，或将其关闭后再保存。",
+  "{field}, {label}": "{field}，{label}",
+  "Some settings are managed by {organizations} and cannot be changed here.":
+    "部分设置由 {organizations} 管理，无法在这里更改。",
 } satisfies Record<string, string>;

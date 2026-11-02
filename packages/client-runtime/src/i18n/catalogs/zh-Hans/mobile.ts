@@ -855,4 +855,6 @@ export default {
   "Agent work in progress": "Agent 正在工作",
   // Thread list times; the other units are in time.ts
   "<1m": "不到 1 分钟",
+  "{denial} Switch this thread's mode to continue.": "{denial}请切换此对话的模式后继续。",
+  Work: "工作",
 } satisfies Record<string, string>;
