@@ -11,7 +11,9 @@
  * The rule: text-sm and larger shift down a step and weights get lighter; sizes of 12px and below
  * (text-xs, text-2xs, text-3xs, text-[11px], ...) stay exactly as upstream draws them, so fixed
  * and truncated boxes keep their geometry. The only raises are scoped to one site each and are
- * listed in FORK.md (the diagnostics page, via `data-t3x-han-text`).
+ * listed in FORK.md: the 10px Han text on the diagnostics page (`data-t3x-han-text`, 11px),
+ * the Badges in SourceControlSettings and SelfHostSettings (same attribute, 11px from sm up),
+ * and the provider-initials Han badge (one grapheme at 10px, ProviderInstanceIcon).
  *
  * Absolute line boxes match English (20px for text-sm, 16px for text-xs, ...) so rows and
  * controls keep their height; only multi-line prose gets looser leading below.
@@ -84,15 +86,21 @@ html:lang(zh)
 
 /*
  * text-3xs (10px) is not raised globally: it sets fixed 16-24px counters and circles that show
- * digits. Only the diagnostics page, whose 10px text is Han, opts in with `data-t3x-han-text`
- * and gets 11px, the smallest Han that stays legible on macOS. The same attribute on a small
- * Badge (10px from sm up, in a 16px-high pill) raises just that badge to 11px.
+ * digits. Only the diagnostics elements that render Han carry `data-t3x-han-text` and get 11px,
+ * the smallest Han that stays legible on macOS. A Latin cell inside one (`data-t3x-latin`) keeps
+ * upstream's 10px.
  */
-html:lang(zh) [data-t3x-han-text] .text-3xs {
+html:lang(zh) [data-t3x-han-text]:not([data-slot="badge"]) {
   font-size: 0.6875rem;
   line-height: var(--tw-leading, calc(0.875 / 0.6875));
 }
 
+html:lang(zh) [data-t3x-han-text] [data-t3x-latin] {
+  font-size: 0.625rem;
+  line-height: calc(0.875 / 0.625);
+}
+
+/* The same attribute on a small Badge (10px from sm up, in a 16px-high pill) raises just it. */
 @media (width >= 40rem) {
   html:lang(zh) [data-slot="badge"][data-t3x-han-text] {
     font-size: 0.6875rem;

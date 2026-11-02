@@ -33,6 +33,8 @@ describe("resolveBadgeInitials", () => {
     expect(badge("Work")).toEqual({ text: "WO", han: false });
     expect(badge("A中")).toEqual({ text: "A中", han: false });
     expect(badge("𠮷野家")).toEqual({ text: "𠮷", han: true });
+    expect(badge("〆切")).toEqual({ text: "〆", han: true });
+    expect(badge("々木")).toEqual({ text: "々", han: true });
     expect(badge("葛\u{E0100}野")).toEqual({ text: "葛\u{E0100}", han: true });
   });
 });

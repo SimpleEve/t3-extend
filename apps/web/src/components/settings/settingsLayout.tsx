@@ -596,12 +596,10 @@ export function SettingsPageContainer({
   children,
   className,
   width = "readable",
-  hanText = false, // fork: the page's 10px text is Han in Chinese; zhTypography.css raises it
 }: {
   children: ReactNode;
   className?: string;
   width?: WorkspacePageWidth;
-  hanText?: boolean;
 }) {
   const navigate = useNavigate();
   const hash = useLocation({ select: (location) => location.hash });
@@ -628,7 +626,6 @@ export function SettingsPageContainer({
       <div
         className="topbar-scroll-fade scrollbar-gutter-both flex-1 overflow-y-auto"
         data-settings-page-scroll
-        data-t3x-han-text={hanText ? "" : undefined} // fork: see hanText
       >
         <WorkspacePageContainer width={width} className={cn("gap-8", className)}>
           <SettingsScopeSentence />
