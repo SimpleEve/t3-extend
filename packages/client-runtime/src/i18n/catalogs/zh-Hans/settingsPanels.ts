@@ -2554,4 +2554,9 @@ export default {
   // Timestamp formats.
   "12-hour": "12 小时制",
   "24-hour": "24 小时制",
+  // Option presets in the custom model editor; their saved values stay English.
+  Reasoning: "推理",
+  Speed: "速度",
+  "Fast Mode": "快速模式",
+  "model option|Thinking": "思考",
 } satisfies Record<string, string>;
