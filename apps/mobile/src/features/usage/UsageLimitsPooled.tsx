@@ -9,7 +9,9 @@ import {
   collectLimitPools,
   cursorUsageWindowDetails,
   displayLimitWindows,
+  formatResetDuration,
   formatResetsIn,
+  formatResetsInShort,
   paceRemainingPercent,
   remainingPercent,
   type LimitAccount,
@@ -220,11 +222,11 @@ function PoolWindowCard({
       {nextRefill ? (
         <Text className="text-xs tabular-nums text-foreground-muted">
           ↻ +{nextRefill.restoresPercent}%{" "}
-          {formatResetsIn(nextRefill.member.window, now, (source, params) =>
-            t(source, params, "resets row"),
-          )
-            ?.replace("resets in ", "in ")
-            .replace("resets now", "now")}
+          {
+            formatResetsInShort(nextRefill.member.window, now, (source, params) =>
+              t(source, params, "resets row"),
+            ) /* fork: i18n */
+          }
         </Text>
       ) : null}
     </>
@@ -245,7 +247,7 @@ function PoolWindowCard({
         const { account, window } = member;
         const timeLeft = paceRemainingPercent(window, now);
         const credits = account.limits.resetCredits?.availableCount ?? 0;
-        const resetsIn = formatResetsIn(window, now, t)?.replace("resets in ", "");
+        const resetsIn = formatResetDuration(window, now, t); // fork: i18n
         return (
           <Pressable
             key={account.key}
@@ -347,6 +349,7 @@ function PoolWindowCard({
         const segmentColor = normalizeProviderAccentColor(account.accentColor) ?? color;
         const credits = account.limits.resetCredits?.availableCount ?? 0;
         const resetsIn = formatResetsIn(window, now, t);
+        const resetDuration = formatResetDuration(window, now, t); // fork: i18n
         return (
           <Pressable
             key={account.key}
@@ -394,7 +397,7 @@ function PoolWindowCard({
                     tintColorClassName="accent-foreground-muted"
                   />
                   <Text className="text-xs tabular-nums text-foreground-muted">
-                    {resetsIn.replace("resets in ", "")}
+                    {resetDuration}
                   </Text>
                 </>
               ) : null}

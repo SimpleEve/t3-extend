@@ -653,16 +653,6 @@ function paceOfShares(usedPercent: number, elapsed: number): LimitPace {
   return "on";
 }
 
-export function formatDuration(ms: number): string {
-  const remaining = Math.max(0, ms);
-  const days = Math.floor(remaining / DAY);
-  const hours = Math.floor((remaining % DAY) / HOUR);
-  const minutes = Math.floor((remaining % HOUR) / MINUTE);
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-}
-
 // fork: reset labels take an optional translator; without one the English is unchanged.
 type ResetLabelTranslator = (source: string, params?: Readonly<Record<string, string>>) => string;
 
@@ -670,6 +660,20 @@ const englishResetLabel: ResetLabelTranslator = (source, params) =>
   source.replace(/\{(\w+)\}/g, (match, name: string) =>
     params && Object.hasOwn(params, name) ? params[name]! : match,
   );
+
+export function formatDuration(
+  ms: number,
+  t: ResetLabelTranslator = englishResetLabel, // fork: interface language
+): string {
+  const remaining = Math.max(0, ms);
+  const days = Math.floor(remaining / DAY);
+  const hours = Math.floor((remaining % DAY) / HOUR);
+  const minutes = Math.floor((remaining % HOUR) / MINUTE);
+  const unit = (source: string, count: number) => t(source, { count: String(count) });
+  if (days > 0) return `${unit("{count}d", days)} ${unit("{count}h", hours)}`;
+  if (hours > 0) return `${unit("{count}h", hours)} ${unit("{count}m", minutes)}`;
+  return unit("{count}m", minutes);
+}
 
 export function formatResetsIn(
   window: ServerProviderUsageWindow,
@@ -680,7 +684,33 @@ export function formatResetsIn(
   if (resetsAt === null) return null;
   if (resetsAt <= now) return t("resets now");
   if (resetsAt - now < MINUTE) return t("Resets momentarily");
-  return t("resets in {duration}", { duration: formatDuration(resetsAt - now) });
+  return t("resets in {duration}", { duration: formatDuration(resetsAt - now, t) });
+}
+
+/** fork: the time left alone ("5d 9h"), for rows that already say what resets. */
+export function formatResetDuration(
+  window: ServerProviderUsageWindow,
+  now: number,
+  t: ResetLabelTranslator = englishResetLabel,
+): string | null {
+  const resetsAt = resetMillis(window);
+  if (resetsAt === null) return null;
+  if (resetsAt <= now) return t("resets now");
+  if (resetsAt - now < MINUTE) return t("Resets momentarily");
+  return formatDuration(resetsAt - now, t);
+}
+
+/** fork: "in 5d 9h" or "now", for a refill line that leads with what comes back. */
+export function formatResetsInShort(
+  window: ServerProviderUsageWindow,
+  now: number,
+  t: ResetLabelTranslator = englishResetLabel,
+): string | null {
+  const resetsAt = resetMillis(window);
+  if (resetsAt === null) return null;
+  if (resetsAt <= now) return t("now");
+  if (resetsAt - now < MINUTE) return t("Resets momentarily");
+  return t("in {duration}", { duration: formatDuration(resetsAt - now, t) });
 }
 
 export const USAGE_LIMITS_COMMAND = {

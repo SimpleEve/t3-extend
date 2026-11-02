@@ -802,6 +802,13 @@ export default {
   "This connection cannot search host files.": "这个连接不能搜索主机上的文件。",
   "The environment request failed.": "环境请求失败。",
   "This environment could not report usage.": "这个环境无法上报用量。",
+  "Could not check this connection's access to diagnostics and usage.":
+    "无法检查这个连接是否有权查看诊断和用量。",
+  "This environment is not connected.": "这个环境没有连接。",
+  "This connection does not have access to diagnostics and usage.": "这个连接无权查看诊断和用量。",
+  "in {duration}": "{duration}后",
+  "resets row|in {duration}": "{duration}后",
+  "resets row|now": "现在",
   "Failed to refresh git status.": "无法刷新 git 状态。",
   "This connection cannot update the thread's branch.": "这个连接不能更新对话的分支。",
   "Refreshing source control status": "正在刷新源代码管理状态",
