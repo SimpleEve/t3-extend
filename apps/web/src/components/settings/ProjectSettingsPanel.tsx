@@ -282,6 +282,7 @@ function ProjectDetail({
       displayName: group.displayName,
       threads,
       unloadedThreadCount: readUnloadedThreadCount(members, threads),
+      t, // fork: interface language
     });
     const confirmed = await settlePromise(() =>
       api.dialogs.confirm(confirmationMessage, { variant: "destructive" }),

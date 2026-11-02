@@ -185,7 +185,10 @@ export function ServerUpdatesAction({
       if (desktopTargets.length > 0) {
         const confirmed =
           (await requestConfirmDialog(
-            `Update the T3 Code desktop apps on ${desktopTargets.map((target) => target.serverLabel).join(", ")}? They will close and relaunch on those machines.`,
+            t(
+              "Update the T3 Code desktop apps on {servers}? They will close and relaunch on those machines.",
+              { servers: desktopTargets.map((target) => target.serverLabel).join(t(", ")) },
+            ),
           )) ?? true;
         if (!confirmed) return;
       }
@@ -299,7 +302,10 @@ export function ServerUpdateAction({
     if (isDesktopAppUpdate) {
       const confirmed =
         (await requestConfirmDialog(
-          `Update the T3 Code desktop app that runs the ${serverLabel}? It will close and relaunch on that machine.`,
+          t(
+            "Update the T3 Code desktop app that runs the {server}? It will close and relaunch on that machine.",
+            { server: serverLabel },
+          ),
         )) ?? true;
       if (!confirmed) {
         return;

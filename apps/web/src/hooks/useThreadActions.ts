@@ -176,8 +176,8 @@ async function requestThreadUnpinConfirmation(input: {
   return settlePromise(() =>
     confirm(
       [
-        `Unpin thread "${input.title}"?`,
-        "This will move the thread out of your pinned section.",
+        translate(getUiLocale(), 'Unpin thread "{title}"?', { title: input.title }),
+        translate(getUiLocale(), "This will move the thread out of your pinned section."),
       ].join("\n"),
     ),
   );
@@ -515,10 +515,10 @@ export function useThreadActions() {
       const confirmationResult = await settlePromise(() =>
         localApi.dialogs.confirm(
           [
-            "This thread is the only one linked to this worktree:",
+            translate(getUiLocale(), "This thread is the only one linked to this worktree:"),
             displayWorktreePath ?? orphanedWorktreePath,
             "",
-            "Delete the worktree too?",
+            translate(getUiLocale(), "Delete the worktree too?"),
           ].join("\n"),
           { variant: "destructive" },
         ),
@@ -785,7 +785,7 @@ export function useThreadActions() {
     const resolved = resolveThreadTarget(target);
     const confirmationResult = await requestThreadUnpinConfirmation({
       enabled: confirmThreadUnpin,
-      title: resolved?.thread.title ?? "this thread",
+      title: resolved?.thread.title ?? translate(getUiLocale(), "this thread"),
       confirm: localApi ? (message) => localApi.dialogs.confirm(message) : null,
     });
     if (confirmationResult._tag === "Failure") {
@@ -922,12 +922,13 @@ export function useThreadActions() {
     const resolved = resolveThreadTarget(target);
 
     if (confirmThreadDelete && localApi) {
-      const title = resolved?.thread.title ?? "this thread";
+      const locale = getUiLocale();
+      const title = resolved?.thread.title ?? translate(locale, "this thread");
       const confirmationResult = await settlePromise(() =>
         localApi.dialogs.confirm(
           [
-            `Delete thread "${title}"?`,
-            "This permanently clears conversation history for this thread.",
+            translate(locale, 'Delete thread "{title}"?', { title }),
+            translate(locale, "This permanently clears conversation history for this thread."),
           ].join("\n"),
           { variant: "destructive" },
         ),

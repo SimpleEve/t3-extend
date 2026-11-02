@@ -1,5 +1,6 @@
 import type { DesktopUpdateActionResult, DesktopUpdateState } from "@t3tools/contracts";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type DesktopUpdateButtonAction = "download" | "install" | "none";
 
@@ -123,9 +124,13 @@ export function getDesktopUpdateButtonTooltip(state: DesktopUpdateState): string
 
 export function getDesktopUpdateInstallConfirmationMessage(
   state: Pick<DesktopUpdateState, "availableVersion" | "downloadedVersion">,
+  t: Translator = translatorFor("en"), // fork: interface language
 ): string {
   const version = state.downloadedVersion ?? state.availableVersion;
-  return `Install update${version ? ` ${version}` : ""} and restart T3 Code?\n\nAny running tasks will be interrupted. Make sure you're ready before continuing.`;
+  const question = version
+    ? t("Install update {version} and restart T3 Code?", { version })
+    : t("Install update and restart T3 Code?");
+  return `${question}\n\n${t("Any running tasks will be interrupted. Make sure you're ready before continuing.")}`;
 }
 
 export function getDesktopUpdateActionError(result: DesktopUpdateActionResult): string | null {

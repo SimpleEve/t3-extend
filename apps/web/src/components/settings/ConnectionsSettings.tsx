@@ -604,7 +604,12 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
       return;
     }
     const confirmed = await requestConfirmDialog(
-      `Remove ${environment.label} from this device?\nThis forgets its pairing, credentials, and cached threads here. Switch it off instead to keep it saved.`,
+      [
+        t("Remove {label} from this device?", { label: environment.label }),
+        t(
+          "This forgets its pairing, credentials, and cached threads here. Switch it off instead to keep it saved.",
+        ),
+      ].join("\n"),
       { variant: "destructive" },
     );
     if (confirmed === true) await removeSavedBackend(environment);

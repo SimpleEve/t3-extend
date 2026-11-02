@@ -788,4 +788,18 @@ export default {
   "Search files…": "搜索文件…",
   "Search project contents…": "搜索项目内容…",
   "Search in {projectName}": "在 {projectName} 中搜索",
+  // Confirmation dialogs for closing terminals and agent-controlled browsers.
+  'Close terminal "{label}"?': "关闭终端“{label}”？",
+  "This stops the running process and clears its history.":
+    "这会停止正在运行的进程并清除它的历史记录。",
+  "Close {count} terminals?": "关闭 {count} 个终端？",
+  "This stops their running processes and clears their histories: {labels}.":
+    "这会停止它们正在运行的进程并清除历史记录：{labels}。",
+  "Close browser while the agent is using it?": "Agent 正在使用这个浏览器，仍要关闭？",
+  "The agent is actively controlling this browser. Closing it may interrupt the current browser action.":
+    "Agent 正在控制这个浏览器，关闭它可能会中断当前的浏览器操作。",
+  "Close {count} browsers while the agent is using them?":
+    "Agent 正在使用这 {count} 个浏览器，仍要关闭？",
+  "The agent is actively controlling these browsers. Closing them may interrupt the current browser actions.":
+    "Agent 正在控制这些浏览器，关闭它们可能会中断当前的浏览器操作。",
 } satisfies Record<string, string>;

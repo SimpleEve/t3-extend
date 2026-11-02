@@ -265,4 +265,26 @@ export default {
   "Desktop app relaunched on {targetVersion}.": "桌面应用已重启，当前版本 {targetVersion}。",
   "Reconnected on t3@{targetVersion}.": "已重新连接，当前版本 t3@{targetVersion}。",
   "Switch tracks in About → Update track": "请到“关于 → 更新通道”切换通道",
+  // Confirmation dialogs; the dialog splits the title from the rest at the question mark.
+  'Archive thread "{title}"?': "归档对话“{title}”？",
+  'Delete thread "{title}"?': "删除对话“{title}”？",
+  "This permanently clears conversation history for this thread.":
+    "这会永久清除这个对话的对话记录。",
+  "Delete {count} thread?": "删除 {count} 个对话？",
+  "Delete {count} threads?": "删除 {count} 个对话？",
+  "This permanently clears conversation history for these threads.":
+    "这会永久清除这些对话的对话记录。",
+  'Unpin thread "{title}"?': "取消置顶对话“{title}”？",
+  "This will move the thread out of your pinned section.": "这个对话会移出“已置顶”分区。",
+  "this thread": "这个对话",
+  "This thread is the only one linked to this worktree:": "只有这个对话关联了这个 worktree：",
+  "Delete the worktree too?": "同时删除这个 worktree？",
+  "Install update {version} and restart T3 Code?": "安装更新 {version} 并重启 T3 Code？",
+  "Install update and restart T3 Code?": "安装更新并重启 T3 Code？",
+  "Any running tasks will be interrupted. Make sure you're ready before continuing.":
+    "正在运行的任务都会中断。请确认准备好后再继续。",
+  "Update the T3 Code desktop apps on {servers}? They will close and relaunch on those machines.":
+    "更新 {servers} 上的 T3 Code 桌面应用？它们会在这些机器上关闭并重新启动。",
+  "Update the T3 Code desktop app that runs the {server}? It will close and relaunch on that machine.":
+    "更新运行 {server} 的 T3 Code 桌面应用？它会在那台机器上关闭并重新启动。",
 } satisfies Record<string, string>;

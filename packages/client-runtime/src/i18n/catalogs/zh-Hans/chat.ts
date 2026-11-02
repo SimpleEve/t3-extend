@@ -1282,4 +1282,10 @@ export default {
   "Show requests": "显示请求",
   "Some requests are slow": "部分请求较慢",
   "Failed to copy": "无法复制",
+  // Confirmation dialogs from the composer and MCP apps.
+  "Remove {name} from the message?": "从消息中移除 {name}？",
+  "this image": "这张图片",
+  "It is referenced in your text; removing it also removes every reference.":
+    "你的文本引用了它，移除它也会删除所有引用。",
+  "Save {names} from {server}?": "保存来自 {server} 的 {names}？",
 } satisfies Record<string, string>;

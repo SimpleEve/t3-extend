@@ -2518,4 +2518,37 @@ export default {
   Seedling: "幼苗",
   "token price|Input": "输入",
   "token price|Output": "输出",
+  // Confirmation dialogs; the dialog splits the title from the rest at the question mark.
+  'Permanently delete native ACP session "{title}"?': "永久删除原生 ACP 会话“{title}”？",
+  'Disable ACP provider "{provider}"?': "停用 ACP provider“{provider}”？",
+  "Send SIGKILL to process {pid}? This cannot be handled by the process.":
+    "向进程 {pid} 发送 SIGKILL？进程无法处理这个信号。",
+  "Sign out of {provider} on {environment}? This stops running threads that share this sign-in. Thread history is kept.":
+    "在 {environment} 上退出 {provider}？共用这个登录的运行中对话会停止。对话记录会保留。",
+  "Remove the downloaded Antigravity runtime from {environment}? Google sign-in and thread history are kept.":
+    "从 {environment} 移除已下载的 Antigravity 运行时？Google 登录和对话记录会保留。",
+  "Rotate this webhook URL?": "轮换这个 webhook URL？",
+  "The current URL stops working.": "当前的 URL 会失效。",
+  "Rotate this webhook URL? The current URL stops working.":
+    "轮换这个 webhook URL？当前的 URL 会失效。",
+  'Remove checkout "{label}"?': "移除 checkout“{label}”？",
+  'Remove project "{label}"?': "移除项目“{label}”？",
+  'Remove checkout "{label}" and delete its {count} thread?':
+    "移除 checkout“{label}”并删除它的 {count} 个对话？",
+  'Remove checkout "{label}" and delete its {count} threads?':
+    "移除 checkout“{label}”并删除它的 {count} 个对话？",
+  'Remove project "{label}" and delete its {count} thread?':
+    "移除项目“{label}”并删除它的 {count} 个对话？",
+  'Remove project "{label}" and delete its {count} threads?':
+    "移除项目“{label}”并删除它的 {count} 个对话？",
+  "Path: {path}": "路径：{path}",
+  "Environment: {environment}": "环境：{environment}",
+  "This removes {count} grouped project entries.": "这会移除分组中的 {count} 个项目条目。",
+  "Those threads and any archived threads are deleted from T3 Code. Provider sessions are kept.":
+    "这些对话和所有已归档的对话都会从 T3 Code 中删除。provider 会话会保留。",
+  "Any archived threads are deleted from T3 Code. Provider sessions are kept.":
+    "所有已归档的对话都会从 T3 Code 中删除。provider 会话会保留。",
+  "This removes only the project entries, not the files on disk.":
+    "这只会移除项目条目，不会删除磁盘上的文件。",
+  "Other entries in this grouped project are unaffected.": "这个分组项目中的其他条目不受影响。",
 } satisfies Record<string, string>;
