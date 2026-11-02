@@ -5,8 +5,9 @@ import * as NodePath from "node:path";
 import { parseAst } from "vite-plus";
 
 // fork: lists English sources that call sites translate but a catalog lacks, catalog keys whose
-// English source no longer appears in code (usually because upstream reworded it), and English
-// JSX text that never reaches t(). It only reports and always exits 0; see FORK.md "多语言".
+// English source no longer appears in code (usually because upstream reworded it), English
+// JSX text and object-literal copy that never reach t(), and comparisons against translated
+// sources. It only reports and always exits 0; see FORK.md "多语言".
 
 const CATALOG_ROOT = "packages/client-runtime/src/i18n/catalogs";
 // Mirrors CONTEXT_SEPARATOR in packages/client-runtime/src/i18n/translate.ts.
@@ -81,9 +82,168 @@ function catalogKeys(locale: string): ReadonlyArray<string> {
   );
 }
 
+// fork: sources that reach t() on purpose and stay English in every language, so they are not
+// missing. Upstream passes whole label tables through t(); only these entries are names.
+const INTENTIONALLY_UNTRANSLATED = new Set([
+  // Search engines.
+  "Bing",
+  "Brave Search",
+  "DuckDuckGo",
+  "Ecosia",
+  "Google",
+  "Kagi",
+  // Products and providers.
+  "Claude Code",
+  "Codex",
+  "Pi",
+  "T3 Code",
+  // A named convention.
+  "Conventional Commits",
+  // A language's name is written in that language.
+  "English",
+]);
+
+const parsedPrograms = new Map<string, unknown>();
+// One parse per file in a report run: the missing check and every section walk the same trees.
+function parseSource(file: string, code: string): unknown {
+  let program = parsedPrograms.get(file);
+  if (program === undefined) {
+    program = parseAst(code, { lang: file.endsWith(".tsx") ? "tsx" : "ts" });
+    parsedPrograms.set(file, program);
+  }
+  return program;
+}
+
+export interface IndirectSource {
+  readonly line: number;
+  readonly source: string;
+}
+
+const unwrapExpression = (node: unknown): AstNode | null => {
+  if (!isAstNode(node)) return null;
+  return node.type === "TSAsExpression" ||
+    node.type === "TSSatisfiesExpression" ||
+    node.type === "ParenthesizedExpression"
+    ? unwrapExpression(node.expression)
+    : node;
+};
+
+const literalString = (node: unknown): string | null => {
+  const expression = unwrapExpression(node);
+  if (expression === null) return null;
+  if (expression.type === "Literal" && typeof expression.value === "string") {
+    return expression.value;
+  }
+  if (
+    expression.type === "TemplateLiteral" &&
+    (expression.expressions as ReadonlyArray<unknown>).length === 0
+  ) {
+    return (expression.quasis as ReadonlyArray<{ value: { cooked: string } }>)[0]!.value.cooked;
+  }
+  return null;
+};
+
+// The strings an access path reaches inside a literal; "*" stands for any key or element.
+function stringsAt(node: unknown, path: ReadonlyArray<string>): ReadonlyArray<string> {
+  const expression = unwrapExpression(node);
+  if (expression === null) return [];
+  if (path.length === 0) {
+    const value = literalString(expression);
+    return value === null ? [] : [value];
+  }
+  const [step, ...rest] = path;
+  if (expression.type === "ObjectExpression") {
+    return (expression.properties as ReadonlyArray<AstNode>).flatMap((property) => {
+      if (property.type !== "Property") return [];
+      const key = property.key as AstNode;
+      const name =
+        key.type === "Identifier" && property.computed !== true
+          ? String(key.name)
+          : literalString(key);
+      return step === "*" || name === step ? stringsAt(property.value, rest) : [];
+    });
+  }
+  if (expression.type === "ArrayExpression" && step === "*") {
+    return (expression.elements as ReadonlyArray<unknown>).flatMap((element) =>
+      stringsAt(element, rest),
+    );
+  }
+  return [];
+}
+
+/**
+ * Sources that the call patterns above cannot see: `translatorFor(locale)("…")`, and a module
+ * constant read through `t(CONST[key])`, `t(CONST.prop)`, or `t(CONST[key].prop)`, which may
+ * reach any of the constant's matching strings.
+ */
+export function scanIndirectSources(
+  code: string,
+  fileName: string,
+  program: unknown = parseAst(code, { lang: fileName.endsWith(".tsx") ? "tsx" : "ts" }),
+): ReadonlyArray<IndirectSource> {
+  const sources: IndirectSource[] = [];
+  const lineOf = (offset: number) => code.slice(0, offset).split("\n").length;
+  const constants = new Map<string, unknown>();
+  for (const statement of (program as { body: ReadonlyArray<AstNode> }).body) {
+    const declaration =
+      statement.type === "ExportNamedDeclaration" ? (statement.declaration as AstNode) : statement;
+    if (declaration?.type !== "VariableDeclaration") continue;
+    for (const declarator of declaration.declarations as ReadonlyArray<AstNode>) {
+      const id = declarator.id as AstNode;
+      if (id.type === "Identifier" && declarator.init)
+        constants.set(String(id.name), declarator.init);
+    }
+  }
+
+  const sourcesOf = (argument: unknown): ReadonlyArray<string> => {
+    const direct = literalString(argument);
+    if (direct !== null) return [direct];
+    const path: string[] = [];
+    let target = unwrapExpression(argument);
+    while (target?.type === "MemberExpression") {
+      const property = target.property as AstNode;
+      path.unshift(target.computed === true ? "*" : String(property.name));
+      target = unwrapExpression(target.object);
+    }
+    if (target?.type !== "Identifier" || path.length === 0) return [];
+    const constant = constants.get(String(target.name));
+    return constant === undefined ? [] : stringsAt(constant, path);
+  };
+
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (!isAstNode(node)) return;
+    if (node.type === "CallExpression") {
+      const callee = node.callee as AstNode;
+      const [first, second] = node.arguments as ReadonlyArray<unknown>;
+      const curried =
+        callee.type === "CallExpression" &&
+        (callee.callee as AstNode).type === "Identifier" &&
+        (callee.callee as AstNode).name === "translatorFor";
+      const named = callee.type === "Identifier" ? String(callee.name) : null;
+      let found: ReadonlyArray<string> = [];
+      if (curried) found = sourcesOf(first);
+      // Direct literals in t() and translate() are the regex patterns' job.
+      else if (named === "t" && literalString(first) === null) found = sourcesOf(first);
+      else if (named === "translate" && literalString(second) === null) found = sourcesOf(second);
+      for (const source of found) {
+        if (ENGLISH_WORD.test(source)) sources.push({ line: lineOf(node.start), source });
+      }
+    }
+    Object.values(node).forEach(walk);
+  };
+  walk(program);
+  return sources;
+}
+
 // fork: the "hard-coded" section finds English JSX that bypasses t(). The two allowlists below are
 // the only way an entry leaves the report, so a new one needs a reason a reviewer can check.
 const HARD_CODED_ROOTS = ["apps/web/src", "apps/mobile/src"];
+// The development catalog and its samples are a tool for building mobile, never shipped copy.
+const HARD_CODED_EXCLUDED_DIRS = ["apps/mobile/src/features/development/"];
 
 const TEXT_ATTRIBUTES = new Set([
   "alt",
@@ -281,7 +441,11 @@ function displayStrings(expression: AstNode): ReadonlyArray<DisplayString> {
   }
 }
 
-export function scanHardCodedText(code: string, fileName = ""): HardCodedScan {
+export function scanHardCodedText(
+  code: string,
+  fileName = "",
+  program: unknown = parseAst(code, { lang: "tsx" }),
+): HardCodedScan {
   const hits: HardCodedHit[] = [];
   const selfTranslated: string[] = [];
   const lineOf = (offset: number) => code.slice(0, offset).split("\n").length;
@@ -347,46 +511,375 @@ export function scanHardCodedText(code: string, fileName = ""): HardCodedScan {
     }
     Object.values(node).forEach(walk);
   };
-  walk(parseAst(code, { lang: "tsx" }));
+  walk(program);
   return { hits: hits.toSorted((left, right) => left.line - right.line), selfTranslated };
 }
 
-function hardCodedSection(called: Map<string, string>): {
+// fork: the "hard-coded (properties)" section finds interface copy in object literals, such as
+// menu items, toasts built in .ts helpers, and error messages, which the JSX scan cannot see.
+const UI_PROPERTIES = new Set([
+  "description",
+  "detail",
+  "heading",
+  "hint",
+  "label",
+  "message",
+  "placeholder",
+  "summary",
+  "text",
+  "title",
+  "tooltip",
+]);
+const UI_PROPERTY_SUFFIX = /(?:Label|Message|Text|Title)$/u;
+
+// Options of these calls name an operation for logs and spans; nothing renders their label.
+const OPERATION_LABEL_CALLS = new Set([
+  "executeAtomQuery",
+  "reportAtomCommandResult",
+  "runAtomCommand",
+  "useAtomCommand",
+  "useAtomQueryRunner",
+  "useOrchestrationCommand",
+]);
+
+// `path` skips a file, `path#property` one property in it. Each needs a reason a reviewer can check.
+const PROPERTY_ALLOWLIST = new Set([
+  // Programming language and product names stay English.
+  "apps/web/src/composer-code-languages.ts",
+  "apps/web/src/components/usage/usageProviders.ts",
+  // Sent to the server as the client's name in auth sessions.
+  "apps/web/src/connection/clientMetadata.ts#label",
+  // Thread titles and messages sent to the server: user content and model-facing text.
+  "apps/web/src/components/chat/useComposerResume.ts#text",
+  "apps/web/src/components/chat/useTimelineRewind.ts#title",
+  // Review comment contexts are written into the prompt.
+  "apps/web/src/components/pullRequest/pullRequestDetail.logic.ts#sectionTitle",
+  "apps/web/src/components/pullRequest/PullRequestCodeTab.tsx#sectionTitle",
+  // English on purpose: the catalog that would translate this toast is the one that failed.
+  "apps/web/src/uiLanguage.ts",
+]);
+
+/** A string literal that reads as copy: words with a space, a capital, or closing punctuation. */
+const looksLikeCopy = (text: string) =>
+  (/\s/u.test(text) || /^[A-Z][a-z]/u.test(text) || /[.?!:…]$/u.test(text)) &&
+  // Class lists such as "text-xl font-semibold" are styling.
+  !text.split(/\s+/u).every((token) => /[-:[]/u.test(token));
+
+export interface PropertyHit {
+  readonly line: number;
+  readonly property: string;
+  readonly text: string;
+}
+
+const isAllowlisted = (allowlist: ReadonlySet<string>, fileName: string, entry: string) =>
+  allowlist.has(fileName) || allowlist.has(`${fileName}#${entry}`);
+
+const propertyName = (property: AstNode): string | null => {
+  if (property.computed === true) return null;
+  const key = property.key as AstNode;
+  if (key.type === "Identifier") return String(key.name);
+  return key.type === "Literal" && typeof key.value === "string" ? key.value : null;
+};
+
+const calleeName = (callee: AstNode): string | null => {
+  if (callee.type === "Identifier") return String(callee.name);
+  if (callee.type === "MemberExpression" && (callee.property as AstNode).type === "Identifier") {
+    return String((callee.property as AstNode).name);
+  }
+  return null;
+};
+
+/**
+ * Interface copy assigned to object-literal properties. A plain literal that a catalog already
+ * holds counts as translated where it shows, the documented pattern for module constants; an
+ * interpolated template can never match a key, so it is always reported.
+ */
+export function scanPropertyText(
+  code: string,
+  fileName: string,
+  known: ReadonlySet<string>,
+  program: unknown = parseAst(code, { lang: fileName.endsWith(".tsx") ? "tsx" : "ts" }),
+): ReadonlyArray<PropertyHit> {
+  if (PROPERTY_ALLOWLIST.has(fileName)) return [];
+  const hits: PropertyHit[] = [];
+  const lineOf = (offset: number) => code.slice(0, offset).split("\n").length;
+  const operationOptions = new Set<unknown>();
+
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (!isAstNode(node)) return;
+    if (node.type === "CallExpression") {
+      const name = calleeName(node.callee as AstNode);
+      if (name !== null && OPERATION_LABEL_CALLS.has(name)) {
+        for (const argument of node.arguments as ReadonlyArray<unknown>) {
+          operationOptions.add(argument);
+        }
+      }
+    } else if (node.type === "ObjectExpression") {
+      for (const property of node.properties as ReadonlyArray<AstNode>) {
+        if (property.type !== "Property" || property.method === true) continue;
+        const name = propertyName(property);
+        if (name === null || !(UI_PROPERTIES.has(name) || UI_PROPERTY_SUFFIX.test(name))) continue;
+        if (name === "label" && operationOptions.has(node)) continue;
+        if (isAllowlisted(PROPERTY_ALLOWLIST, fileName, name)) continue;
+        for (const { start, text, interpolated } of displayStrings(property.value as AstNode)) {
+          if (!interpolated && known.has(text)) continue;
+          if (needsTranslation(text) && looksLikeCopy(text)) {
+            hits.push({ line: lineOf(start), property: name, text });
+          }
+        }
+      }
+    }
+    Object.values(node).forEach(walk);
+  };
+  walk(program);
+  return hits.toSorted((left, right) => left.line - right.line);
+}
+
+// fork: the "compared" section finds English sources that code compares against while the same
+// source is translated elsewhere: once the compared value is translated, the comparison silently
+// stops matching. Only sentence-like literals count; enum-like words are ids.
+const COMPARE_ROOTS = [
+  "apps/web/src",
+  "apps/mobile/src",
+  "apps/desktop/src",
+  "packages/client-runtime/src",
+  "packages/shared/src",
+];
+const COMPARE_METHODS = new Set(["endsWith", "has", "includes", "indexOf", "startsWith"]);
+const CONSTANT_NAME = /^[A-Z][A-Z0-9_]+$/u;
+
+// `path#text` pairs checked to compare an untranslated value. Each needs a reason.
+const COMPARED_ALLOWLIST = new Set([
+  // The activity's raw summary, translated only when the row renders.
+  "apps/mobile/src/features/threads/ThreadFeed.tsx#Context compacted",
+  "apps/web/src/components/chat/MessagesTimeline.tsx#Context compacted",
+  // An English sentinel for a detached checkout; the label is translated where it shows.
+  "apps/mobile/src/features/threads/git/GitBranchesSheet.tsx#Detached HEAD",
+  // The raw heading from the device source, translated only when it renders.
+  "apps/web/src/components/settings/DeviceSourcesSettings.tsx#Not available",
+  // The stored project title.
+  "apps/web/src/components/settings/ProjectSettingsPanel.tsx#No project",
+  // The raw label the source control action state was started with.
+  "apps/web/src/components/GitActionsControl.logic.ts#Running source control action",
+]);
+
+const sentenceLike = (text: string) =>
+  ENGLISH_WORD.test(text) && (/\s/u.test(text) || /[.?!:;,…]$/u.test(text));
+
+export interface Comparison {
+  readonly line: number;
+  readonly operator: string;
+  /** The compared text, or an upper-case constant's name to resolve across files. */
+  readonly text: string | null;
+  readonly constant: string | null;
+}
+
+export interface ComparisonScan {
+  readonly comparisons: ReadonlyArray<Comparison>;
+  readonly constants: ReadonlyMap<string, string>;
+}
+
+export function scanComparisons(
+  code: string,
+  fileName: string,
+  program: unknown = parseAst(code, { lang: fileName.endsWith(".tsx") ? "tsx" : "ts" }),
+): ComparisonScan {
+  const comparisons: Comparison[] = [];
+  const constants = new Map<string, string>();
+  const lineOf = (offset: number) => code.slice(0, offset).split("\n").length;
+  const record = (operand: unknown, start: number, operator: string) => {
+    if (!isAstNode(operand)) return;
+    if (operand.type === "Literal" && typeof operand.value === "string") {
+      comparisons.push({ line: lineOf(start), operator, text: operand.value, constant: null });
+    } else if (
+      operand.type === "TemplateLiteral" &&
+      (operand.expressions as ReadonlyArray<unknown>).length === 0
+    ) {
+      const [quasi] = operand.quasis as ReadonlyArray<{ value: { cooked: string } }>;
+      comparisons.push({
+        line: lineOf(start),
+        operator,
+        text: quasi!.value.cooked,
+        constant: null,
+      });
+    } else if (operand.type === "Identifier" && CONSTANT_NAME.test(String(operand.name))) {
+      comparisons.push({
+        line: lineOf(start),
+        operator,
+        text: null,
+        constant: String(operand.name),
+      });
+    }
+  };
+
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (!isAstNode(node)) return;
+    if (node.type === "VariableDeclarator") {
+      const id = node.id as AstNode;
+      const init = node.init as AstNode | null;
+      if (
+        id.type === "Identifier" &&
+        CONSTANT_NAME.test(String(id.name)) &&
+        init?.type === "Literal" &&
+        typeof init.value === "string"
+      ) {
+        constants.set(String(id.name), init.value);
+      }
+    } else if (node.type === "BinaryExpression" && /^[!=]==?$/u.test(String(node.operator))) {
+      record(node.left, node.start, String(node.operator));
+      record(node.right, node.start, String(node.operator));
+    } else if (node.type === "SwitchCase") {
+      record(node.test, node.start, "case");
+    } else if (node.type === "CallExpression") {
+      const callee = node.callee as AstNode;
+      const method = callee.type === "MemberExpression" ? calleeName(callee) : null;
+      if (method !== null && COMPARE_METHODS.has(method)) {
+        record((node.arguments as ReadonlyArray<unknown>)[0], node.start, `.${method}()`);
+      }
+    }
+    Object.values(node).forEach(walk);
+  };
+  walk(program);
+  return { comparisons, constants };
+}
+
+/** Comparisons against a sentence-like source that some call site also translates. */
+export function riskyComparisons(
+  scans: ReadonlyArray<readonly [file: string, scan: ComparisonScan]>,
+  translated: { has(source: string): boolean },
+): ReadonlyArray<{
+  readonly file: string;
+  readonly line: number;
+  readonly operator: string;
+  readonly text: string;
+}> {
+  const constants = new Map<string, string>();
+  for (const [, scan] of scans)
+    for (const [name, value] of scan.constants) constants.set(name, value);
+  return scans.flatMap(([file, scan]) =>
+    scan.comparisons.flatMap(({ line, operator, text, constant }) => {
+      const resolved = text ?? (constant === null ? undefined : constants.get(constant));
+      if (resolved === undefined || !sentenceLike(resolved) || !translated.has(resolved)) return [];
+      if (COMPARED_ALLOWLIST.has(`${file}#${resolved}`)) return [];
+      return [{ file, line, operator, text: resolved }];
+    }),
+  );
+}
+
+interface Section {
   readonly lines: ReadonlyArray<string>;
   readonly total: number;
-} {
-  const lines: string[] = [];
-  let total = 0;
-  const totals: string[] = [];
-  for (const root of HARD_CODED_ROOTS) {
-    let rootTotal = 0;
-    const files = NodeFS.readdirSync(root, { recursive: true, withFileTypes: true })
-      .filter((entry) => entry.isFile() && /(?<!\.test)\.tsx$/u.test(entry.name))
-      .map((entry) => NodePath.join(entry.parentPath, entry.name))
-      .toSorted();
-    for (const file of files) {
-      const { hits, selfTranslated } = scanHardCodedText(NodeFS.readFileSync(file, "utf8"), file);
-      for (const source of selfTranslated) {
-        if (!called.has(source)) called.set(source, file);
-      }
-      if (hits.length === 0) continue;
-      rootTotal += hits.length;
-      lines.push("", `  ${file} (${hits.length})`);
-      for (const { line, kind, text } of hits) lines.push(`    ${file}:${line} [${kind}] ${text}`);
-    }
-    total += rootTotal;
-    totals.push(`${root}: ${rootTotal}`);
-  }
+}
+
+function section(
+  title: string,
+  label: string,
+  perRoot: ReadonlyArray<readonly [root: string, lines: ReadonlyArray<string>, count: number]>,
+): Section {
+  const total = perRoot.reduce((sum, [, , count]) => sum + count, 0);
   return {
     lines: [
       "",
-      `hard-coded (${total}): English JSX that bypasses t(); allowlists are in scripts/i18n-report.ts`,
-      ...lines,
+      `${label} (${total}): ${title}`,
+      ...perRoot.flatMap(([, lines]) => lines),
       "",
-      `  hard-coded total ${total} (${totals.join(", ")})`,
+      `  ${label} total ${total} (${perRoot.map(([root, , count]) => `${root}: ${count}`).join(", ")})`,
     ],
     total,
   };
+}
+
+function hardCodedSections(
+  called: Map<string, string>,
+  known: ReadonlySet<string>,
+): readonly [Section, Section] {
+  const jsx: Array<readonly [string, string[], number]> = [];
+  const properties: Array<readonly [string, string[], number]> = [];
+  for (const root of HARD_CODED_ROOTS) {
+    const jsxLines: string[] = [];
+    const propertyLines: string[] = [];
+    let jsxCount = 0;
+    let propertyCount = 0;
+    const files = sourceFilesIn(root)
+      .filter((file) => !HARD_CODED_EXCLUDED_DIRS.some((dir) => file.startsWith(dir)))
+      .toSorted();
+    for (const file of files) {
+      const code = NodeFS.readFileSync(file, "utf8");
+      const program = parseSource(file, code);
+      if (file.endsWith(".tsx")) {
+        const { hits, selfTranslated } = scanHardCodedText(code, file, program);
+        for (const source of selfTranslated) {
+          if (!called.has(source)) called.set(source, file);
+        }
+        if (hits.length > 0) {
+          jsxCount += hits.length;
+          jsxLines.push("", `  ${file} (${hits.length})`);
+          for (const { line, kind, text } of hits)
+            jsxLines.push(`    ${file}:${line} [${kind}] ${text}`);
+        }
+      }
+      const hits = scanPropertyText(code, file, known, program);
+      if (hits.length === 0) continue;
+      propertyCount += hits.length;
+      propertyLines.push("", `  ${file} (${hits.length})`);
+      for (const { line, property, text } of hits) {
+        propertyLines.push(`    ${file}:${line} [${property}] ${text}`);
+      }
+    }
+    jsx.push([root, jsxLines, jsxCount]);
+    properties.push([root, propertyLines, propertyCount]);
+  }
+  return [
+    section(
+      "English JSX that bypasses t(); allowlists are in scripts/i18n-report.ts",
+      "hard-coded",
+      jsx,
+    ),
+    section(
+      "object-literal copy in .ts and .tsx that bypasses t(); allowlists are in scripts/i18n-report.ts",
+      "hard-coded (properties)",
+      properties,
+    ),
+  ];
+}
+
+function comparedSection(called: ReadonlyMap<string, string>): Section {
+  const perRoot = COMPARE_ROOTS.map((root) => {
+    const scans = sourceFiles(root)
+      .toSorted()
+      .map((file) => {
+        const code = NodeFS.readFileSync(file, "utf8");
+        return [file, scanComparisons(code, file, parseSource(file, code))] as const;
+      });
+    return [root, scans] as const;
+  });
+  const risky = riskyComparisons(
+    perRoot.flatMap(([, scans]) => scans),
+    called,
+  );
+  return section(
+    "English sources compared in code and translated elsewhere; the allowlist is in scripts/i18n-report.ts",
+    "compared",
+    COMPARE_ROOTS.map((root) => {
+      const hits = risky.filter(({ file }) => file.startsWith(`${root}/`));
+      return [
+        root,
+        hits.map(
+          ({ file, line, operator, text }) =>
+            `    ${file}:${line} ${operator} ${JSON.stringify(text)}`,
+        ),
+        hits.length,
+      ] as const;
+    }),
+  );
 }
 
 function main(): void {
@@ -425,6 +918,12 @@ function main(): void {
         if (!called.has(source)) called.set(source, NodePath.relative(process.cwd(), file));
       }
     }
+    // fork: curried translators and label tables read through t() carry sources too.
+    if (!/\btranslatorFor\(|\bt\(|\btranslate\(/u.test(text)) continue;
+    for (const { line, source } of scanIndirectSources(text, file, parseSource(file, text))) {
+      literals.add(source);
+      if (!called.has(source)) called.set(source, `${file}:${line}`);
+    }
   }
 
   // fork: keybinding labels are derived from command ids (commandLabel in
@@ -442,22 +941,26 @@ function main(): void {
     literals.add(match[1]!.split(".").map(titleCase).join(": "));
   }
 
-  const hardCoded = hardCodedSection(called);
+  const sourceOf = (key: string) => {
+    const separator = key.indexOf(CONTEXT_SEPARATOR);
+    return separator < 0 ? key : key.slice(separator + 1);
+  };
+  const locales = NodeFS.readdirSync(CATALOG_ROOT);
+  const keysByLocale = new Map(locales.map((locale) => [locale, catalogKeys(locale)]));
+  const known = new Set([...keysByLocale.values()].flat().map(sourceOf));
+  const [hardCoded, hardCodedProperties] = hardCodedSections(called, known);
+  const compared = comparedSection(called);
   const lines: string[] = [];
   let missingTotal = 0;
   let staleTotal = 0;
-  for (const locale of NodeFS.readdirSync(CATALOG_ROOT)) {
-    const keys = catalogKeys(locale);
-    const sources = new Set(
-      keys.map((key) => {
-        const separator = key.indexOf(CONTEXT_SEPARATOR);
-        return separator < 0 ? key : key.slice(separator + 1);
-      }),
+  for (const locale of locales) {
+    const keys = keysByLocale.get(locale)!;
+    const sources = new Set(keys.map(sourceOf));
+    const missing = [...called].filter(
+      ([source]) => !sources.has(source) && !INTENTIONALLY_UNTRANSLATED.has(source),
     );
-    const missing = [...called].filter(([source]) => !sources.has(source));
     const stale = keys.filter((key) => {
-      const separator = key.indexOf(CONTEXT_SEPARATOR);
-      const source = separator < 0 ? key : key.slice(separator + 1);
+      const source = sourceOf(key);
       return !literals.has(source) && !templates.some((template) => template.test(source));
     });
     missingTotal += missing.length;
@@ -473,8 +976,10 @@ function main(): void {
   }
   lines.push(
     ...hardCoded.lines,
+    ...hardCodedProperties.lines,
+    ...compared.lines,
     "",
-    `i18n report: ${missingTotal} missing, ${staleTotal} stale, ${hardCoded.total} hard-coded (report only)`,
+    `i18n report: ${missingTotal} missing, ${staleTotal} stale, ${hardCoded.total} hard-coded, ${hardCodedProperties.total} hard-coded (properties), ${compared.total} compared (report only)`,
   );
   process.stdout.write(`${lines.join("\n")}\n`);
 }
