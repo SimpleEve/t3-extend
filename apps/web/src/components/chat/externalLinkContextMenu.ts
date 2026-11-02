@@ -1,4 +1,5 @@
 import type { ContextMenuItem } from "@t3tools/contracts";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 type ExternalLinkContextMenuAction =
   | "open-in-preview"
@@ -100,7 +101,10 @@ export async function showExternalLinkContextMenu({
   let action: ExternalLinkContextMenuAction | null;
   try {
     action = await showContextMenu(
-      externalLinkContextMenuItems({ canOpenInPreview, threadLinkAction }),
+      externalLinkContextMenuItems({ canOpenInPreview, threadLinkAction }).map((item) => ({
+        ...item,
+        label: translate(getUiLocale(), item.label),
+      })),
       position,
     );
   } catch (cause) {

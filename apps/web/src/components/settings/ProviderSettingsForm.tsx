@@ -402,7 +402,9 @@ function ProviderSettingsSelect({
   const options = field.options ?? [];
   const fallback = options[0]?.value ?? "";
   const current = readProviderConfigString(value, field.key) || fallback;
-  const label = options.find((option) => option.value === current)?.label ?? current;
+  const t = useT();
+  const selected = options.find((option) => option.value === current);
+  const label = selected ? t(selected.label) : current;
   return (
     <Select
       value={current}
@@ -417,7 +419,7 @@ function ProviderSettingsSelect({
       <SelectPopup align="start" alignItemWithTrigger={false}>
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
-            {option.label}
+            {t(option.label)}
           </SelectItem>
         ))}
       </SelectPopup>
@@ -445,7 +447,7 @@ interface ProviderSettingsFieldRowProps {
 }
 
 function ProviderSettingsFieldRow({
-  field,
+  field: sourceField,
   value,
   idPrefix,
   variant,
@@ -453,6 +455,12 @@ function ProviderSettingsFieldRow({
   environmentId,
 }: ProviderSettingsFieldRowProps) {
   const t = useT();
+  // fork: labels and descriptions are fixed English from contracts schema annotations.
+  const field: ProviderSettingsFieldModel = {
+    ...sourceField,
+    label: t(sourceField.label),
+    description: sourceField.description === undefined ? undefined : t(sourceField.description),
+  };
   const inputId = `${idPrefix}-${field.key}`;
   const descriptionClassName =
     variant === "dialog"

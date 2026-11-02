@@ -1,4 +1,5 @@
 import * as DateTime from "effect/DateTime";
+import { interpolate, type Translator } from "@t3tools/client-runtime/i18n";
 
 import { resolveDesktopPairingUrl, resolveHostedPairingUrl } from "./pairingUrls";
 import { getPairingTokenFromUrl, setPairingTokenOnUrl } from "@t3tools/shared/remote";
@@ -95,12 +96,16 @@ export function isWslSettingsRowVisible(input: {
  * Once client/server versions match, this passive Version label follows the sidebar update action,
  * including retryable failures. Rechecks retain downloaded-update labels; `state` is null outside desktop.
  */
-export function resolveLocalVersionStatusLabel(state: DesktopUpdateState | null): string {
-  if (!state) return "Up to date";
+// fork: `t` translates the labels; English when omitted.
+export function resolveLocalVersionStatusLabel(
+  state: DesktopUpdateState | null,
+  t: Translator = (source, params) => interpolate(source, params),
+): string {
+  if (!state) return t("Up to date");
   if (state.status === "downloading") {
     return state.availableVersion
-      ? `Downloading update ${state.availableVersion}`
-      : "Downloading update";
+      ? t("Downloading update {version}", { version: state.availableVersion })
+      : t("Downloading update");
   }
   const action = resolveDesktopUpdateButtonAction(state);
   if (
@@ -109,14 +114,14 @@ export function resolveLocalVersionStatusLabel(state: DesktopUpdateState | null)
     (state.status === "checking" && state.downloadedVersion !== null)
   ) {
     const version = getDesktopUpdateDownloadedVersion(state);
-    return version ? `Update ${version} downloaded` : "Update downloaded";
+    return version ? t("Update {version} downloaded", { version }) : t("Update downloaded");
   }
   if (action === "download") {
     return state.availableVersion
-      ? `Update ${state.availableVersion} available`
-      : "Update available";
+      ? t("Update {version} available", { version: state.availableVersion })
+      : t("Update available");
   }
-  return "Up to date";
+  return t("Up to date");
 }
 
 export type QrEndpointOption = {
@@ -301,11 +306,14 @@ export function sortDesktopPairingLinks(links: ReadonlyArray<ServerPairingLinkRe
 export function summarizeAuthorizedClients(
   sessions: ReadonlyArray<ServerClientSessionRecord>,
   links: ReadonlyArray<ServerPairingLinkRecord>,
+  t: Translator = (source, params) => interpolate(source, params), // fork: interface language
 ): string {
   const parts = [
-    `${sessions.length} ${sessions.length === 1 ? "client" : "clients"}`,
+    sessions.length === 1 ? t("1 client") : t("{count} clients", { count: sessions.length }),
     links.length > 0
-      ? `${links.length} ${links.length === 1 ? "pairing link" : "pairing links"}`
+      ? links.length === 1
+        ? t("1 pairing link")
+        : t("{count} pairing links", { count: links.length })
       : null,
   ];
   return parts.filter((part): part is string => part !== null).join(" · ");

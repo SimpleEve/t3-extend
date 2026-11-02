@@ -165,7 +165,8 @@ function itemSummary({
   if (item.status !== "available") {
     return (
       <span>
-        {t("Not available on this server: {installHint}", { installHint: item.installHint })}
+        {/* fork: install hints are fixed English from each source control definition. */}
+        {t("Not available on this server: {installHint}", { installHint: t(item.installHint) })}
       </span>
     );
   }
@@ -188,7 +189,7 @@ function itemSummary({
     }
 
     if (!item.executable && auth.status === "unauthenticated") {
-      return <span>{t("Available. {installHint}", { installHint: item.installHint })}</span>;
+      return <span>{t("Available. {installHint}", { installHint: t(item.installHint) })}</span>;
     }
 
     if (auth.status === "unauthenticated" && auth.accounts?.some((entry) => entry.authenticated)) {
@@ -220,7 +221,7 @@ function itemSummary({
     const authDetail = optionLabel(auth.detail);
     return (
       <span>
-        {t("Could not verify {label}.", { label: item.label })} {authDetail ?? item.installHint}
+        {t("Could not verify {label}.", { label: item.label })} {authDetail ?? t(item.installHint)}
       </span>
     );
   }

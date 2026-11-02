@@ -99,7 +99,7 @@ export const TimelinePendingApprovalRow = memo(function TimelinePendingApprovalR
             </>
           ) : (
             <span className="text-warning">
-              Provider process is gone. Interrupt or restart the run to respond.
+              {t("Provider process is gone. Interrupt or restart the run to respond.")}
             </span>
           )}
           {approval.fullAccessOverride ? (

@@ -1,4 +1,9 @@
-import { DEFAULT_SERVER_SETTINGS, EnvironmentId, ProjectId } from "@t3tools/contracts";
+import {
+  DEFAULT_SERVER_SETTINGS,
+  EnvironmentId,
+  ProjectId,
+  ProviderInstanceId,
+} from "@t3tools/contracts";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -61,6 +66,27 @@ describe("settingInheritanceLayers", () => {
       ["environment", "Performance", true],
       ["built-in", "Balanced", false],
     ]);
+  });
+
+  it("translates fixed labels and keeps set values verbatim", () => {
+    const t = (source: string, params?: Readonly<Record<string, string | number>>) =>
+      `zh:${source.replace(/\{(\w+)\}/g, (_, name: string) => String(params?.[name]))}`;
+    const settings = {
+      ...DEFAULT_SERVER_SETTINGS,
+      sidebarAutoSettleAfterDays: 7,
+      // A model id that matches a catalog key must not be translated.
+      defaultModelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "Off" },
+    };
+    const target = {
+      environmentId,
+      label: "Laptop",
+      projectId: null,
+      ...resolveProjectSettings(settings, projectId),
+    };
+    const days = settingInheritanceLayers(target, settings, "sidebarAutoSettleAfterDays", t);
+    expect(days.map((layer) => layer.value)).toEqual(["zh:7 days", "zh:3 days"]);
+    const model = settingInheritanceLayers(target, settings, "defaultModelSelection", t);
+    expect(model.map((layer) => layer.value)).toEqual(["Off", "zh:Automatic"]);
   });
 
   it("shows the checkout's t3.json as a layer for file-backed keys", () => {

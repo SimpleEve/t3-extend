@@ -473,4 +473,5 @@ export default {
   "Auto-merge (merge)": "自动合并（合并）",
   "Auto-merge (squash and merge)": "自动合并（squash 后合并）",
   "Auto-merge (rebase and merge)": "自动合并（rebase 后合并）",
+  Author: "作者",
 } satisfies Record<string, string>;

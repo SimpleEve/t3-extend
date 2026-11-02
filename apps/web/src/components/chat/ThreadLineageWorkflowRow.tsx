@@ -20,6 +20,7 @@ import {
   THREAD_DETAILS_PANEL_SPLIT_GROUP_CLASS,
   THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS,
 } from "./threadDetailsPanelStyles";
+import { useT } from "~/hooks/useT";
 
 function phaseElapsed(phase: SubagentWorkflowGroup["phases"][number]) {
   const instants = (key: "startedAt" | "completedAt") =>
@@ -65,6 +66,7 @@ function WorkflowMemberRow({
   driver: ProviderDriverKind | undefined;
   onOpen: (threadId: string) => void;
 }) {
+  const t = useT();
   const threadId = member.childThreadId;
   const canOpen = threadId !== null;
   return (
@@ -75,7 +77,7 @@ function WorkflowMemberRow({
           render={
             <ThreadDetailsControl
               part="row"
-              aria-label={`Open ${member.title} chat`}
+              aria-label={t("Open {title} chat", { title: member.title })}
               disabled={!canOpen}
               onClick={() => canOpen && onOpen(threadId)}
             />
@@ -140,6 +142,7 @@ export function ThreadLineageWorkflowRow({
   readonly stopping: boolean;
   readonly stopDisabled: boolean;
 }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const [phaseOpen, setPhaseOpen] = useState<ReadonlyMap<number, boolean>>(() => new Map());
   const label = group.workflow.workflowName ?? group.workflow.title;
@@ -158,7 +161,7 @@ export function ThreadLineageWorkflowRow({
                     variant="ghost"
                     part="icon"
                     tone="destructive"
-                    aria-label={`Stop workflow ${label}`}
+                    aria-label={t("Stop workflow {label}", { label })}
                     disabled={stopDisabled}
                     onClick={onStop}
                   />
@@ -170,7 +173,7 @@ export function ThreadLineageWorkflowRow({
                   <SquareIcon aria-hidden className="size-3 fill-current" />
                 )}
               </TooltipTrigger>
-              <TooltipPopup side="left">Stop entire workflow</TooltipPopup>
+              <TooltipPopup side="left">{t("Stop entire workflow")}</TooltipPopup>
             </Tooltip>
           </div>
         ) : null}
@@ -180,7 +183,7 @@ export function ThreadLineageWorkflowRow({
           variant="ghost"
           part="secondary"
           aria-expanded={expanded}
-          aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
+          aria-label={expanded ? t("Collapse {label}", { label }) : t("Expand {label}", { label })}
           onClick={() => setExpanded((value) => !value)}
         >
           <ChevronDownIcon
@@ -203,16 +206,30 @@ export function ThreadLineageWorkflowRow({
                   variant="panel"
                   tone={phase.state === "running" ? "emphasized" : "muted"}
                   expanded={open}
-                  aria-label={`${open ? "Collapse" : "Expand"} ${phase.title} phase, ${status}`}
+                  aria-label={
+                    open
+                      ? t("Collapse {phase} phase, {status}", {
+                          phase: phase.title,
+                          status: t(status, undefined, "workflow phase"),
+                        })
+                      : t("Expand {phase} phase, {status}", {
+                          phase: phase.title,
+                          status: t(status, undefined, "workflow phase"),
+                        })
+                  }
                   onClick={() => setPhaseOpen((phases) => new Map(phases).set(phase.index, !open))}
                   accessory={
                     <>
                       {status === "failed" ? (
-                        <SectionHeaderStatus>Failed</SectionHeaderStatus>
+                        <SectionHeaderStatus>{t("Failed")}</SectionHeaderStatus>
                       ) : null}
                       <span className="shrink-0 text-2xs font-normal tabular-nums">
-                        {phase.settledCount}/{phase.members.length}{" "}
-                        {phase.members.length === 1 ? "agent" : "agents"}
+                        {phase.members.length === 1
+                          ? t("{settled}/1 agent", { settled: phase.settledCount })
+                          : t("{settled}/{count} agents", {
+                              settled: phase.settledCount,
+                              count: phase.members.length,
+                            })}
                       </span>
                       <span className="shrink-0 text-2xs font-normal tabular-nums empty:hidden">
                         <AgentElapsed agent={phaseElapsed(phase)} />
@@ -254,7 +271,9 @@ export function ThreadLineageWorkflowRow({
             />
           ))}
           {phases.length === 0 && group.unphasedMembers.length === 0 ? (
-            <li className="px-2.5 py-1.5 text-2xs text-muted-foreground/70">No agents yet</li>
+            <li className="px-2.5 py-1.5 text-2xs text-muted-foreground/70">
+              {t("No agents yet")}
+            </li>
           ) : null}
         </ul>
       ) : null}

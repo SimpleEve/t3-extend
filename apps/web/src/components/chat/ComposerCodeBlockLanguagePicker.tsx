@@ -20,6 +20,7 @@ import {
   ComboboxTrigger,
 } from "../ui/combobox";
 import { PierreEntryIcon } from "./PierreEntryIcon";
+import { useT } from "~/hooks/useT";
 
 function LanguageIcon(props: { language: string; theme: "light" | "dark" }) {
   const fileName = props.language ? syntheticFileNameForLanguageId(props.language) : "file.txt";
@@ -34,6 +35,10 @@ export function ComposerCodeBlockLanguagePicker(props: {
   disabled: boolean;
   onChange: (language: string) => void;
 }) {
+  const t = useT();
+  // Language names are proper nouns; only the plain-text entry is translated.
+  const languageLabel = (language: string) =>
+    language === "" ? t("Plain text", undefined, "code language") : codeLanguageLabel(language);
   const [query, setQuery] = useState("");
   const current = codeLanguageEntry(props.language)?.id ?? props.language;
   const items: CodeBlockLanguage[] = CODE_BLOCK_LANGUAGES.some((entry) => entry.id === current)
@@ -70,27 +75,29 @@ export function ComposerCodeBlockLanguagePicker(props: {
               variant="ghost-muted"
               size="xs"
               disabled={props.disabled}
-              aria-label={`Code language: ${codeLanguageLabel(props.language)}`}
+              aria-label={t("Code language: {language}", {
+                language: languageLabel(props.language),
+              })}
             />
           }
         >
           <LanguageIcon language={current} theme={props.theme} />
-          <span className="max-w-40 truncate">{codeLanguageLabel(props.language)}</span>
+          <span className="max-w-40 truncate">{languageLabel(props.language)}</span>
           <ChevronDownIcon className="opacity-60" />
         </ComboboxTrigger>
         <ComboboxPopup align="start" className="w-56">
           <ComboboxSearchInput
-            aria-label="Search languages"
-            placeholder="Search languages"
+            aria-label={t("Search languages")}
+            placeholder={t("Search languages")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <ComboboxEmpty>No matching languages.</ComboboxEmpty>
+          <ComboboxEmpty>{t("No matching languages.")}</ComboboxEmpty>
           <ComboboxList>
             {(entry: CodeBlockLanguage) => (
               <ComboboxItem key={entry.id || "plain"} value={entry}>
                 <LanguageIcon language={entry.id} theme={props.theme} />
-                <span className="min-w-0 flex-1 truncate">{entry.label}</span>
+                <span className="min-w-0 flex-1 truncate">{languageLabel(entry.id)}</span>
                 {entry.id === current ? <CheckIcon className="ml-auto" /> : null}
               </ComboboxItem>
             )}

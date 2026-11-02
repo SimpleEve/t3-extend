@@ -527,7 +527,9 @@ export function LiveWorkEntryTimelineRow({
       )}
       aria-label={
         failed
-          ? `${thoughtLine ? `${thoughtLine} ` : ""}${threadLabel?.text ?? label}, tool call failed`
+          ? t("{preview}, tool call failed", {
+              preview: `${thoughtLine ? `${thoughtLine} ` : ""}${threadLabel?.text ?? label}`,
+            })
           : undefined
       }
       aria-expanded={row.expanded}
@@ -624,9 +626,12 @@ function WorkGroupHeader(props: {
   timestampFormat: TimestampFormat;
   onToggle: () => void;
 }) {
+  const t = useT();
   return (
     <WorkLogButton
-      aria-label={props.failed ? `${props.label}, tool call failed` : props.label}
+      aria-label={
+        props.failed ? t("{preview}, tool call failed", { preview: props.label }) : props.label
+      }
       aria-expanded={props.expanded}
       onClick={props.onToggle}
       icon={

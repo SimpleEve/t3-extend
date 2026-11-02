@@ -41,6 +41,7 @@ import { toastManager } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
 import { refreshPreviewStreamAccess, usePreviewStreamAccess } from "~/state/previewStream";
 import { observeResize } from "~/lib/observeResize";
+import { useT } from "~/hooks/useT";
 
 export interface ServerBrowserHandle {
   readonly navigate: (url: string) => void;
@@ -154,6 +155,7 @@ export function ServerBrowserSurface(props: {
   readonly pdfUrl?: string | null;
   readonly ref?: Ref<ServerBrowserHandle>;
 }) {
+  const t = useT();
   const {
     environmentId,
     threadId,
@@ -753,7 +755,7 @@ export function ServerBrowserSurface(props: {
         )}
       >
         <span role="status" className="text-xs text-muted-foreground">
-          {previewStreamControlLabel(control)}
+          {t(previewStreamControlLabel(control), undefined, "browser control")}
         </span>
         {control?.canOperate ? (
           <Button
@@ -764,7 +766,7 @@ export function ServerBrowserSurface(props: {
               send({ type: control.controller === "you" ? "releaseControl" : "takeControl" })
             }
           >
-            {control.controller === "you" ? "Release control" : "Take control"}
+            {control.controller === "you" ? t("Release control") : t("Take control")}
           </Button>
         ) : null}
       </div>
@@ -796,8 +798,8 @@ export function ServerBrowserSurface(props: {
         {/* Pin top-left to avoid focus scrolling; 16px prevents iOS focus zoom. */}
         <textarea
           ref={inputRef}
-          aria-label="Browser page"
-          aria-description="Press Shift+Escape to leave the browser page."
+          aria-label={t("Browser page")}
+          aria-description={t("Press Shift+Escape to leave the browser page.")}
           autoCapitalize="off"
           autoComplete="off"
           autoCorrect="off"

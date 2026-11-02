@@ -300,7 +300,7 @@ function SnoozePresetList(props: {
             <div className="ml-auto flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
               {preview.tone === "menu" ? (
                 <span className="truncate">
-                  <span className="text-foreground">{preview.label}</span>
+                  <span className="text-foreground">{preview.label}</span>{" "}
                   <span className="ps-2 tabular-nums">{preview.when}</span>
                 </span>
               ) : (
@@ -321,7 +321,7 @@ function SnoozePresetList(props: {
       <p className="text-xs text-muted-foreground">
         {menuOrder.length === 0
           ? t("Menus offer only Custom…")
-          : `Menu now: ${menuOrder.join(" · ")}`}
+          : t("Menu now: {options}", { options: menuOrder.join(" · ") })}
       </p>
       <div>
         <Button
@@ -357,7 +357,10 @@ function SnoozePresetFields(props: {
     <div className="flex items-center gap-2">
       <Select
         value={when}
-        items={WHEN_LABELS}
+        // fork: the trigger reads labels from `items`, so they must be translated here.
+        items={Object.fromEntries(
+          WHEN_VALUES.map((value) => [value, t(WHEN_LABELS[value], undefined, "snooze when")]),
+        )}
         onValueChange={(value) => {
           const next = value === null ? null : withWhen(preset, value, memory);
           if (!next) return;
@@ -377,7 +380,7 @@ function SnoozePresetFields(props: {
         <SelectPopup>
           {WHEN_VALUES.map((value) => (
             <SelectItem hideIndicator key={value} value={value}>
-              {t(WHEN_LABELS[value])}
+              {t(WHEN_LABELS[value], undefined, "snooze when")}
             </SelectItem>
           ))}
         </SelectPopup>
@@ -389,7 +392,7 @@ function SnoozePresetFields(props: {
         />
       ) : (
         <>
-          <span className="text-xs text-muted-foreground">at</span>
+          <span className="text-xs text-muted-foreground">{t("at", undefined, "snooze time")}</span>
           <Input
             nativeInput
             size="sm"
@@ -416,6 +419,7 @@ function DurationFields(props: { minutes: number; onChange: (minutes: number) =>
   const unit =
     props.minutes % UNIT_MINUTES[chosenUnit] === 0 ? chosenUnit : splitMinutes(props.minutes).unit;
   const amount = props.minutes / UNIT_MINUTES[unit];
+  const unitLabels = amount === 1 ? SINGULAR_UNIT_LABELS : UNIT_LABELS;
   const maxAmount = Math.floor(MAX_SNOOZE_PRESET_MINUTES / UNIT_MINUTES[unit]);
   // Typing stays local until the field commits (blur, Enter, or a step), so half-typed
   // values never reach the server.
@@ -462,7 +466,12 @@ function DurationFields(props: { minutes: number; onChange: (minutes: number) =>
       </NumberField>
       <Select
         value={unit}
-        items={amount === 1 ? SINGULAR_UNIT_LABELS : UNIT_LABELS}
+        items={Object.fromEntries(
+          (Object.keys(UNIT_LABELS) as DurationUnit[]).map((value) => [
+            value,
+            t(unitLabels[value], undefined, "snooze unit"),
+          ]),
+        )}
         onValueChange={(value) => {
           if (value === "minutes" || value === "hours" || value === "days") {
             setChosenUnit(value);
@@ -476,7 +485,7 @@ function DurationFields(props: { minutes: number; onChange: (minutes: number) =>
         <SelectPopup>
           {(Object.keys(UNIT_LABELS) as DurationUnit[]).map((value) => (
             <SelectItem hideIndicator key={value} value={value}>
-              {(amount === 1 ? SINGULAR_UNIT_LABELS : UNIT_LABELS)[value]}
+              {t(unitLabels[value], undefined, "snooze unit")}
             </SelectItem>
           ))}
         </SelectPopup>

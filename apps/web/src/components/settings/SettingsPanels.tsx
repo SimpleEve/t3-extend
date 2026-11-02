@@ -1199,10 +1199,17 @@ export function ChatSettingsPanel() {
         <SettingsRow
           {...searchableSetting("follow-up-behavior")}
           description={
-            "Queue follow-ups while the agent runs or steer the current run. " +
-            (settings.sendShortcut === "mod-enter-multiline"
-              ? `Press ${modifierLabel} + Enter for single-line prompts or ${modifierLabel} + Shift + Enter for multiline prompts to do the opposite for one message.`
-              : `Press ${modifierLabel}${settings.sendShortcut === "mod-enter" ? " + Shift" : ""} + Enter to do the opposite for one message.`)
+            settings.sendShortcut === "mod-enter-multiline"
+              ? t(
+                  "Queue follow-ups while the agent runs or steer the current run. Press {modifier} + Enter for single-line prompts or {modifier} + Shift + Enter for multiline prompts to do the opposite for one message.",
+                  { modifier: modifierLabel },
+                )
+              : t(
+                  "Queue follow-ups while the agent runs or steer the current run. Press {shortcut} to do the opposite for one message.",
+                  {
+                    shortcut: `${modifierLabel}${settings.sendShortcut === "mod-enter" ? " + Shift" : ""} + Enter`,
+                  },
+                )
           }
           resetAction={
             settings.followUpBehavior !== DEFAULT_UNIFIED_SETTINGS.followUpBehavior ? (
@@ -1497,11 +1504,11 @@ function ScopedCompactIdleThreadsRow() {
             aria-label={t("Compact idle threads")}
           >
             <SelectValue>
-              {(value: string | null) =>
-                value === null
-                  ? t("Mixed")
-                  : IDLE_COMPACTION_MODES.find((mode) => mode.value === value)?.label
-              }
+              {(value: string | null) => {
+                if (value === null) return t("Mixed");
+                const mode = IDLE_COMPACTION_MODES.find((candidate) => candidate.value === value);
+                return mode ? t(mode.label) : undefined;
+              }}
             </SelectValue>
           </SelectTrigger>
           <SelectPopup align="end" alignItemWithTrigger={false}>
@@ -1513,7 +1520,7 @@ function ScopedCompactIdleThreadsRow() {
                 // A server from before modes has only the on/off switch, so it cannot store "Never".
                 disabled={mode.value === "off" && !idleCompaction.neverAvailable}
               >
-                {mode.label}
+                {t(mode.label)}
               </SelectItem>
             ))}
           </SelectPopup>
@@ -1807,7 +1814,7 @@ export function ThreadsSettingsPanel() {
                   instanceEntries={textGenerationModelInstanceEntries}
                   modelOptionsByInstance={textGenerationModelOptionsByInstance}
                   triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
-                  {...(mixedTextGenerationModel ? { triggerLabel: "Mixed" } : {})}
+                  {...(mixedTextGenerationModel ? { triggerLabel: t("Mixed") } : {})}
                   getModelDisabledReason={textGenerationModelDisabledReason}
                   {...(environmentId
                     ? {

@@ -3,6 +3,7 @@ import type {
   ServerProviderVersionAdvisory,
   ServerProviderCompatibilityAdvisory,
 } from "@t3tools/contracts";
+import { interpolate, type Translator } from "@t3tools/client-runtime/i18n";
 
 export const PROVIDER_STATUS_STYLES = {
   disabled: {
@@ -44,61 +45,69 @@ export function getProviderStatusKey(provider: ServerProvider | undefined): Prov
   return provider?.status ?? "warning";
 }
 
-export function getProviderSummary(provider: ServerProvider | undefined) {
+// fork: `t` translates the fixed copy; server messages stay as sent.
+export function getProviderSummary(
+  provider: ServerProvider | undefined,
+  t: Translator = (source, params) => interpolate(source, params),
+) {
   if (!provider) {
     return {
-      headline: "Checking provider status",
-      detail: "Waiting for the server to report installation and authentication details.",
+      headline: t("Checking provider status"),
+      detail: t("Waiting for the server to report installation and authentication details."),
     };
   }
   if (!provider.enabled || provider.status === "disabled") {
     return {
-      headline: "Disabled",
+      headline: t("Disabled"),
       detail:
-        provider.message ?? "This provider is installed but disabled for new sessions in T3 Code.",
+        provider.message ??
+        t("This provider is installed but disabled for new sessions in T3 Code."),
     };
   }
   if (!provider.installed) {
     return {
-      headline: "Not found",
-      detail: provider.message ?? "CLI not detected on PATH.",
+      headline: t("Not found"),
+      detail: provider.message ?? t("CLI not detected on PATH."),
     };
   }
   if (provider.auth.status === "unauthenticated") {
     const authLabel = provider.auth.label ?? provider.auth.type;
     return {
-      headline: authLabel ? `Not authenticated · ${authLabel}` : "Not authenticated",
+      headline: authLabel
+        ? t("Not authenticated · {authLabel}", { authLabel })
+        : t("Not authenticated"),
       detail: provider.message ?? null,
     };
   }
   if (isAntigravitySignInUnchecked(provider)) {
     return {
-      headline: "Installed · Sign-in not checked",
+      headline: t("Installed · Sign-in not checked"),
       detail: provider.message ?? null,
     };
   }
   if (provider.status === "warning") {
     return {
-      headline: "Needs attention",
+      headline: t("Needs attention"),
       detail:
-        provider.message ?? "The provider is installed, but the server could not fully verify it.",
+        provider.message ??
+        t("The provider is installed, but the server could not fully verify it."),
     };
   }
   if (provider.status === "error") {
     return {
-      headline: "Unavailable",
-      detail: provider.message ?? "The provider failed its startup checks.",
+      headline: t("Unavailable"),
+      detail: provider.message ?? t("The provider failed its startup checks."),
     };
   }
   if (provider.auth.status === "authenticated") {
     const authLabel = provider.auth.label ?? provider.auth.type;
     return {
-      headline: authLabel ? `Authenticated · ${authLabel}` : "Authenticated",
+      headline: authLabel ? t("Authenticated · {authLabel}", { authLabel }) : t("Authenticated"),
       detail: provider.message ?? null,
     };
   }
   return {
-    headline: "Available",
+    headline: t("Available"),
     detail: provider.message ?? null,
   };
 }

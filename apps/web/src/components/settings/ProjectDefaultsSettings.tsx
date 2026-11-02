@@ -165,7 +165,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
               modelOptionsByInstance={modelOptions}
               triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
               {...(mixedModel
-                ? { triggerLabel: automaticModel ? "Automatic (mixed)" : "Mixed" }
+                ? { triggerLabel: automaticModel ? t("Automatic (mixed)") : t("Mixed") }
                 : {})}
               getModelDisabledReason={modelDisabledReason}
               onOpenProviderSetup={(instanceId) => {
@@ -234,7 +234,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
             <SelectValue>
               {(value: string | null) =>
                 value === "local" || value === "worktree"
-                  ? resolveEnvModeLabel(value)
+                  ? t(resolveEnvModeLabel(value))
                   : unavailable
                     ? t("Unavailable")
                     : t("Mixed")
@@ -242,8 +242,8 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
             </SelectValue>
           </SelectTrigger>
           <SelectPopup align="end" alignItemWithTrigger={false}>
-            <SelectItem value="local">{resolveEnvModeLabel("local")}</SelectItem>
-            <SelectItem value="worktree">{resolveEnvModeLabel("worktree")}</SelectItem>
+            <SelectItem value="local">{t(resolveEnvModeLabel("local"))}</SelectItem>
+            <SelectItem value="worktree">{t(resolveEnvModeLabel("worktree"))}</SelectItem>
           </SelectPopup>
         </Select>
       }
@@ -278,9 +278,9 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
               triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
               triggerAriaLabel={t("Fallback model")}
               {...(mixedFallback
-                ? { triggerLabel: "Mixed" }
+                ? { triggerLabel: t("Mixed") }
                 : settings.fallbackModelSelection === null
-                  ? { triggerLabel: "None" }
+                  ? { triggerLabel: t("None") }
                   : {})}
               getModelDisabledReason={modelDisabledReason}
               onInstanceModelChange={(instanceId, model) => {
@@ -565,7 +565,7 @@ export function WorktreeSubmodulesRow() {
             <SelectValue>
               {(value: string | null) =>
                 isWorktreeSubmodules(value)
-                  ? WORKTREE_SUBMODULES_LABELS[value]
+                  ? t(WORKTREE_SUBMODULES_LABELS[value])
                   : unavailable
                     ? t("Unavailable")
                     : t("Mixed")
@@ -575,7 +575,7 @@ export function WorktreeSubmodulesRow() {
           <SelectPopup align="end" alignItemWithTrigger={false}>
             {WORKTREE_SUBMODULES_OPTIONS.map((option) => (
               <SelectItem key={option} value={option}>
-                {WORKTREE_SUBMODULES_LABELS[option]}
+                {t(WORKTREE_SUBMODULES_LABELS[option])}
               </SelectItem>
             ))}
           </SelectPopup>

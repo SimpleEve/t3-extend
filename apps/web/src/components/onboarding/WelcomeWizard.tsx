@@ -993,7 +993,7 @@ function AgentCard({
   const meta = providerClients.get(ProviderDriverKind.make(driver));
   const displayName =
     provider?.displayName || (driver === "claudeAgent" ? "Claude Code" : (meta?.label ?? driver));
-  const summary = getProviderSummary(provider);
+  const summary = getProviderSummary(provider, t);
   const providerState = getOnboardingProviderState(provider);
 
   return (

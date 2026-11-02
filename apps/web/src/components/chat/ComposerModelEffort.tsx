@@ -186,6 +186,7 @@ function ColumnRow(props: {
   disabled?: boolean;
   onPick: () => void;
 }) {
+  const t = useT(); // fork: interface language
   const rowProps = {
     type: "button",
     role: "radio",
@@ -204,11 +205,11 @@ function ColumnRow(props: {
       <span className="min-w-0 flex-1 truncate">{props.label}</span>
       {props.selected ? (
         <>
-          {props.isDefault ? <span className="sr-only">Default</span> : null}
+          {props.isDefault ? <span className="sr-only">{t("Default")}</span> : null}
           <CheckIcon aria-hidden="true" className="size-3.5" />
         </>
       ) : props.isDefault ? (
-        <span className="text-muted-foreground/70 text-xs">Default</span>
+        <span className="text-muted-foreground/70 text-xs">{t("Default")}</span>
       ) : null}
     </>
   );
@@ -367,6 +368,7 @@ function OptionMenuRow(props: {
   /** Holds the column's tab stop when the model has no levels. */
   tabStop: boolean;
 }) {
+  const t = useT(); // fork: interface language
   const { descriptor, traits } = props;
   const [open, setOpen] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -448,7 +450,7 @@ function OptionMenuRow(props: {
                   ) : null}
                 </span>
                 {choice.isDefault ? (
-                  <span className="text-muted-foreground/70 text-xs">Default</span>
+                  <span className="text-muted-foreground/70 text-xs">{t("Default")}</span>
                 ) : null}
                 <MenuRadioItemIndicator />
               </span>

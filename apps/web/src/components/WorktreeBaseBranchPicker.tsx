@@ -10,6 +10,7 @@ import { resolveBranchTriggerLabel, sanitizeNewRefName } from "./BranchToolbar.l
 import { MiddleTruncate } from "./ui/middle-truncate";
 import { Button } from "./ui/button";
 import { ComboboxTrigger } from "./ui/combobox";
+import { useT } from "../hooks/useT";
 
 export function WorktreeBaseBranchPicker({
   environmentId,
@@ -30,6 +31,7 @@ export function WorktreeBaseBranchPicker({
   disabled?: boolean;
   id?: string;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query.trim());
@@ -49,24 +51,30 @@ export function WorktreeBaseBranchPicker({
   const selectedRef =
     branches.refs.find((branch) => branch.name === value) ??
     selectedRefQuery.data?.refs.find((branch) => branch.name === value);
-  const label = resolveBranchTriggerLabel({
-    activeWorktreePath: null,
-    effectiveEnvMode: "worktree",
-    resolvedActiveBranch: value || null,
-    resolvedActiveBranchIsRemote: selectedRef ? selectedRef.isRemote === true : null,
-    startFromOrigin,
-  });
+  const label = resolveBranchTriggerLabel(
+    {
+      activeWorktreePath: null,
+      effectiveEnvMode: "worktree",
+      resolvedActiveBranch: value || null,
+      resolvedActiveBranchIsRemote: selectedRef ? selectedRef.isRemote === true : null,
+      startFromOrigin,
+    },
+    t,
+  );
   const branchByName = new Map(branches.refs.map((branch) => [branch.name, branch]));
   const items = [...branchByName.keys()];
   const hasNextPage = branches.data?.nextCursor != null;
   const statusText =
     branches.error ??
     (branches.isPending && branches.data === null
-      ? "Loading refs..."
+      ? t("Loading refs...")
       : branches.isFetchingNextPage
-        ? "Loading more refs..."
+        ? t("Loading more refs...")
         : hasNextPage
-          ? `Showing ${branches.refs.length} of ${branches.data?.totalCount} refs`
+          ? t("Showing {shown} of {total} refs", {
+              shown: branches.refs.length,
+              total: branches.data?.totalCount ?? 0,
+            })
           : null);
   const handleOpenChange = (next: boolean) => {
     setOpen(next);

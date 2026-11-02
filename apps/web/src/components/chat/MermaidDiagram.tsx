@@ -4,6 +4,7 @@ import { use, useState } from "react";
 
 import { serializeCodeBlockToMarkdown } from "../../markdown-clipboard";
 import { Button } from "../ui/button";
+import { useT } from "~/hooks/useT";
 
 type Pele = typeof import("pele/lazy");
 type PeleLoad = { readonly status: "loaded"; readonly pele: Pele } | { readonly status: "failed" };
@@ -226,6 +227,7 @@ export function MermaidDiagram({
   source: string;
   onExpand: (imageUrl: string) => void;
 }) {
+  const t = useT();
   const [, setAttempt] = useState(0);
   const [renderError, setRenderError] = useState<string | null>(null);
   const trimmedSource = source.trim();
@@ -276,7 +278,7 @@ export function MermaidDiagram({
       {renderError ? <DiagramError message={renderError} source={source} /> : null}
       <button
         type="button"
-        aria-label="Expand diagram"
+        aria-label={t("Expand diagram")}
         hidden={renderError !== null}
         className="block w-full cursor-zoom-in rounded-md focus-visible:outline-2 focus-visible:outline-ring"
         onClick={(event) => {
@@ -299,13 +301,16 @@ function DiagramError({
   source: string;
   onRetry?: () => void;
 }) {
+  const t = useT();
   return (
     <div>
       <div className="flex items-center justify-between gap-2">
-        <p className="m-0 text-xs text-destructive">Unable to render diagram: {message}</p>
+        <p className="m-0 text-xs text-destructive">
+          {t("Unable to render diagram: {message}", { message })}
+        </p>
         {onRetry ? (
           <Button type="button" variant="ghost" size="xs" onClick={onRetry}>
-            Retry
+            {t("Retry")}
           </Button>
         ) : null}
       </div>

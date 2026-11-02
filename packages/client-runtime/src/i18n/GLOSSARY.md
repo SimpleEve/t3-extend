@@ -93,6 +93,7 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 | rebase / merge / remote  | 不译                   | 按钮上的 "Merge" 动作译"合并"                                            |
 | MR / change request      | MR / 变更请求          | PR 和 MR 原样保留                                                        |
 | mention                  | 引用                   |                                                                          |
+| cite / citation          | 引述                   | 引用 Agent 回复里的一段文字；"引用"已给 mention                          |
 | annotation               | 标注                   |                                                                          |
 | Plan / Build（交互模式） | 计划 / 构建            | 用 `interaction mode` context；设置里的 "Plan" 指套餐                    |
 
@@ -128,3 +129,4 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 - `SnapShots` 是功能名，设置导航里原来译成"截图"，改回 SnapShots。
 - `Copy code` 拆成三种 context：默认（配对码）、`device code`（设备码）、`code block`（代码块）。Mermaid 的 "Show code" 用 `diagram source` context 译"显示源码"，因为连接页的 "Show code" 是配对码。
 - `Plan` 在设置里指套餐，计划卡片和交互模式分别用 `proposed plan`、`interaction mode` context 译"计划"。
+- `Plain text` 在设置里指明文（和"敏感"相对），代码块语言选择器用 `code language` context 译"纯文本"。

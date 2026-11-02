@@ -178,7 +178,7 @@ export function DeviceControlsRail(props: {
                   ).map(([value, label]) => (
                     <MenuRadioItem key={value} value={value}>
                       <span className="flex items-center gap-2">
-                        <span className="flex-1">{label}</span>
+                        <span className="flex-1">{t(label)}</span>
                         <MenuRadioItemIndicator />
                       </span>
                     </MenuRadioItem>

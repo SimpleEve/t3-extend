@@ -115,6 +115,7 @@ export default {
   "Terminal output, independent from code blocks and diffs.": "终端输出，与代码块和差异分开设置。",
   "Terminal font size": "终端字号",
   "Monospace font": "等宽字体",
+  '"{value}" isn\'t monospace': "“{value}”不是等宽字体",
   "Code blocks, diffs, file previews, and the terminal.": "代码块、差异、文件预览和终端。",
   "{title} family": "{title}名称",
   "Separate fonts": "分别设置字体",

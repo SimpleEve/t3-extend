@@ -6,6 +6,7 @@ import {
 } from "@t3tools/shared/keybindings";
 
 import { resolveShortcutCommand } from "../../keybindings";
+import { translate, __setUiCatalogForTests } from "@t3tools/client-runtime/i18n";
 
 import {
   buildKeybindingRows,
@@ -13,6 +14,7 @@ import {
   keybindingFromKeyboardEvent,
   parseWhenExpressionDraft,
   shortcutToKeybindingInput,
+  translatedCommandLabel,
   whenAstToExpression,
 } from "./KeybindingsSettings.logic";
 
@@ -299,5 +301,24 @@ describe("KeybindingsSettings.logic", () => {
     );
 
     expect(rows.map((row) => row.conflicts)).toEqual([[], []]);
+  });
+
+  it("translates command labels whole, splicing in script names and usage values", () => {
+    __setUiCatalogForTests("zh-Hans", {
+      "Chat: New": "对话：新建",
+      "Usage: {metric}": "用量：{metric}",
+      Cost: "费用",
+      "Run Script: {name}": "运行脚本：{name}",
+    });
+    const t = (source: string, params?: Readonly<Record<string, string | number>>) =>
+      translate("zh-Hans", source, params);
+    try {
+      expect(translatedCommandLabel("chat.new", t)).toBe("对话：新建");
+      expect(translatedCommandLabel("usage.cost", t)).toBe("用量：费用");
+      expect(translatedCommandLabel("script.dev-server.run", t)).toBe("运行脚本：Dev Server");
+      expect(translatedCommandLabel("terminal.new", t)).toBe("Terminal: New");
+    } finally {
+      __setUiCatalogForTests("zh-Hans", null);
+    }
   });
 });

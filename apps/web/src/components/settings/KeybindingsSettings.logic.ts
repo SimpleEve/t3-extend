@@ -16,6 +16,7 @@ import {
 import { shortcutConflictKey, shortcutKeyFromEvent } from "../../keybindings";
 import { isMacPlatform } from "../../lib/utils";
 import { METRIC_OPTIONS, WINDOW_OPTIONS } from "../usage/usageShortcuts";
+import type { Translator } from "@t3tools/client-runtime/i18n";
 
 // Rank every usage command; mixing rank and alphabetical comparisons makes order input-dependent.
 const usageCommandOrder = new Map<KeybindingCommand, number>(
@@ -182,6 +183,7 @@ export function keybindingConflictLabels(
   rows: ReadonlyArray<KeybindingRow>,
   input: { readonly rowId: string; readonly key: string; readonly when: string },
   platform = navigator.platform,
+  t?: Translator, // fork: labels in the interface language
 ): ReadonlyArray<string> {
   if (input.key.trim().length === 0) return [];
   const shortcut = parseKeybindingShortcut(input.key);
@@ -195,7 +197,9 @@ export function keybindingConflictLabels(
       shortcutConflictKey(candidate.binding.shortcut, platform) === conflictKey &&
       conflictsWithWhen(candidate.when, input.when)
     ) {
-      conflicts.push(commandLabel(candidate.command));
+      conflicts.push(
+        t ? translatedCommandLabel(candidate.command, t) : commandLabel(candidate.command),
+      );
     }
   }
   return [...new Set(conflicts)].toSorted();
@@ -297,6 +301,7 @@ export function buildKeybindingRows(
 export function filterKeybindingRows(
   rows: ReadonlyArray<KeybindingRow>,
   query: string,
+  t?: Translator, // fork: also match the label shown in the interface language
 ): ReadonlyArray<KeybindingRow> {
   const normalizedQuery = query.trim().toLowerCase();
   if (normalizedQuery.length === 0) return rows;
@@ -304,6 +309,8 @@ export function filterKeybindingRows(
     return (
       row.command.toLowerCase().includes(normalizedQuery) ||
       commandLabel(row.command).toLowerCase().includes(normalizedQuery) ||
+      (t !== undefined &&
+        translatedCommandLabel(row.command, t).toLowerCase().includes(normalizedQuery)) ||
       row.key.toLowerCase().includes(normalizedQuery) ||
       row.when.toLowerCase().includes(normalizedQuery) ||
       row.source.toLowerCase().includes(normalizedQuery)
@@ -387,6 +394,20 @@ export function commandLabel(command: KeybindingCommand): string {
     return `Run Script: ${titleCaseCommandSegment(raw.slice("script.".length, -".run".length))}`;
   }
   return raw.split(".").map(titleCaseCommandSegment).join(": ");
+}
+
+// fork: the English label is the catalog key, except where a name or metric is spliced in.
+export function translatedCommandLabel(command: KeybindingCommand, t: Translator): string {
+  const usageMetric = METRIC_OPTIONS.find((option) => option.command === command);
+  if (usageMetric) return t("Usage: {metric}", { metric: t(usageMetric.label) });
+  const usagePeriod = WINDOW_OPTIONS.find((option) => option.command === command);
+  if (usagePeriod) return t("Usage: Period: {period}", { period: t(usagePeriod.label) });
+  const raw = String(command);
+  if (raw.startsWith("script.") && raw.endsWith(".run")) {
+    const name = titleCaseCommandSegment(raw.slice("script.".length, -".run".length));
+    return t("Run Script: {name}", { name });
+  }
+  return t(commandLabel(command));
 }
 
 function titleCaseCommandSegment(segment: string): string {

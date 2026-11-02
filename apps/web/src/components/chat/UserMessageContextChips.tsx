@@ -61,11 +61,14 @@ import {
 } from "../../reviewCommentContext";
 import { TimelineRowCtx } from "./timelineRowContext";
 import { userMessageFileLabel } from "./TimelineUserMessageRow.logic";
+import { useT } from "~/hooks/useT";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 function UserMessageMentionChip(props: {
   record: Extract<KnownComposerContextRecord, { kind: "mention" }>;
   copyMarkdown: string;
 }) {
+  const t = useT();
   const ctx = use(TimelineRowCtx);
   return (
     <Tooltip>
@@ -74,7 +77,7 @@ function UserMessageMentionChip(props: {
           <ContextChip
             kind={documentChipKindForFileName(props.record.path) ?? "mention"}
             render={<button type="button" />}
-            aria-label={`Preview ${props.record.path}`}
+            aria-label={t("Preview {name}", { name: props.record.path })}
             data-markdown-copy={props.copyMarkdown}
             onClick={() => {
               if (ctx.threadRef)
@@ -143,6 +146,7 @@ function UserMessagePreviewAnnotationDetails(props: {
   record: Extract<KnownComposerContextRecord, { kind: "preview-annotation" }>;
   image: ChatImageAttachment | null;
 }) {
+  const t = useT();
   const ctx = use(TimelineRowCtx);
   const visibleElements = props.record.elements ?? [];
   return (
@@ -151,7 +155,7 @@ function UserMessagePreviewAnnotationDetails(props: {
         <button
           type="button"
           className="block max-h-64 w-full cursor-zoom-in overflow-hidden border-b border-border/70 bg-muted"
-          aria-label={`Preview ${props.image.name}`}
+          aria-label={t("Preview {name}", { name: props.image.name })}
           onClick={() => {
             if (!props.image) return;
             const preview = buildExpandedImagePreview([props.image], props.image.id);
@@ -160,18 +164,18 @@ function UserMessagePreviewAnnotationDetails(props: {
         >
           <img
             src={props.image.previewUrl}
-            alt="Annotated preview crop"
+            alt={t("Annotated preview crop")}
             className="max-h-64 w-full object-contain"
           />
         </button>
       ) : (
         <div className="border-b border-border/70 bg-muted/40 px-3 py-2 text-secondary-label text-xs">
-          Screenshot unavailable
+          {t("Screenshot unavailable")}
         </div>
       )}
       <div className="min-w-0 px-3 py-2.5">
         <div className="text-message-foreground text-xs font-medium">
-          {props.record.pageTitle?.trim() || props.record.pageUrl || "Preview annotation"}
+          {props.record.pageTitle?.trim() || props.record.pageUrl || t("Preview annotation")}
         </div>
         {props.record.comment ? (
           <div className="mt-1 whitespace-pre-wrap wrap-break-word text-sm">
@@ -277,11 +281,12 @@ interface UserMessageContextRenderContext {
 }
 
 function UnavailableUserMessageContextChip(props: UserMessageContextRenderContext) {
+  const t = useT();
   return (
     <UnresolvedChip
       label={props.reference.label}
       copyMarkdown={props.copyMarkdown}
-      tooltip="This context is no longer available."
+      tooltip={t("This context is no longer available.")}
     />
   );
 }
@@ -390,7 +395,14 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
             isVideo={isVideo}
             theme={context.resolvedTheme}
             disabled={disabled}
-            accessibleLabel={`${isVideo ? "Video" : "File"} attachment, ${label}, ${size}`}
+            accessibleLabel={
+              isVideo
+                ? translate(getUiLocale(), "Video attachment, {name}, {size}", {
+                    name: label,
+                    size,
+                  })
+                : translate(getUiLocale(), "File attachment, {name}, {size}", { name: label, size })
+            }
             copyMarkdown={context.copyMarkdown}
             onOpen={() =>
               isVideo ? context.onExpandVideo(attachment) : context.onOpenFile(attachment)
@@ -426,7 +438,9 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
         record.kind === "element" ? (
           <UserMessageContextPopover
             copyMarkdown={context.copyMarkdown}
-            accessibleLabel={`Browser element, ${record.label}`}
+            accessibleLabel={translate(getUiLocale(), "Browser element, {label}", {
+              label: record.label,
+            })}
             kind="element"
             icon={<MousePointerClickIcon />}
             label={record.label}
@@ -493,7 +507,9 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
         record.kind === "preview-annotation" ? (
           <UserMessageContextPopover
             copyMarkdown={context.copyMarkdown}
-            accessibleLabel={`Preview annotation, ${record.label}`}
+            accessibleLabel={translate(getUiLocale(), "Preview annotation, {label}", {
+              label: record.label,
+            })}
             kind="preview-annotation"
             icon={<MousePointerClickIcon />}
             label={record.label}

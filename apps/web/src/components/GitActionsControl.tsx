@@ -203,7 +203,7 @@ function getPublishProviderReadiness(input: {
     };
   }
   if (discovered.status !== "available") {
-    return { ready: false, hint: discovered.installHint };
+    return { ready: false, hint: t(discovered.installHint) };
   }
   if (discovered.auth.status === "unauthenticated") {
     return {

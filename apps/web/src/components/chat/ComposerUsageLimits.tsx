@@ -11,6 +11,8 @@ import { RedactedSensitiveText } from "../settings/RedactedSensitiveText";
 import { LimitWindows, ResetCredits } from "../usage/UsageLimits";
 import { ComposerBanner } from "./ComposerBanner";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
+import { useT } from "~/hooks/useT";
+import type { Translator } from "@t3tools/client-runtime/i18n";
 
 function accountLabel(account: UsageLimitsReport["accounts"][number]): string {
   if (!account.instanceId) return account.label;
@@ -24,6 +26,7 @@ function accountLabel(account: UsageLimitsReport["accounts"][number]): string {
 }
 
 function AccountSummary({ account }: { readonly account: UsageLimitsReport["accounts"][number] }) {
+  const t = useT();
   const label = accountLabel(account);
   return (
     <>
@@ -31,9 +34,9 @@ function AccountSummary({ account }: { readonly account: UsageLimitsReport["acco
         <RedactedSensitiveText
           key={label}
           value={label}
-          ariaLabel="Toggle account label visibility"
-          revealTooltip="Click to reveal account"
-          hideTooltip="Click to hide account"
+          ariaLabel={t("Toggle account label visibility")}
+          revealTooltip={t("Click to reveal account")}
+          hideTooltip={t("Click to hide account")}
           className="max-w-full truncate align-bottom font-sans text-xs leading-normal"
         />
       ) : (
@@ -44,26 +47,28 @@ function AccountSummary({ account }: { readonly account: UsageLimitsReport["acco
   );
 }
 
+// fork: `t` translates the banner copy.
 export function usageLimitsBannerItem(
   id: string,
   report: UsageLimitsReport,
   environmentId: EnvironmentId,
   onDismiss: () => void,
+  t: Translator,
 ): ComposerBannerStackItem {
   const [first] = report.accounts;
   const single = report.accounts.length === 1 && first ? first : null;
   const summary = single ? (
     <AccountSummary account={single} />
   ) : (
-    `${report.accounts.length} accounts`
+    t("{count} accounts", { count: report.accounts.length })
   );
   return {
     id,
     variant: "info",
     icon: <GaugeIcon />,
-    title: "Usage limits",
+    title: t("Usage limits"),
     description: summary,
-    dismissLabel: "Dismiss usage limits",
+    dismissLabel: t("Dismiss usage limits"),
     onDismiss,
     children: <UsageLimitsBannerBody report={report} environmentId={environmentId} />,
   };
@@ -77,6 +82,7 @@ export function modelFallbackBannerItem({
   timestampFormat,
   onUseDefault,
   onDismiss,
+  t,
 }: {
   readonly fallbackModelName: string;
   readonly defaultProviderName: string;
@@ -85,19 +91,25 @@ export function modelFallbackBannerItem({
   readonly timestampFormat: TimestampFormat;
   readonly onUseDefault: () => void;
   readonly onDismiss: () => void;
+  readonly t: Translator; // fork: interface language
 }): ComposerBannerStackItem {
   return {
     id: "fallback-model",
     variant: "info",
     icon: <GaugeIcon />,
-    title: `Using ${fallbackModelName}`,
-    description: `${defaultProviderName} is out of usage${resetsAt ? ` · resets ${formatUpcomingTimestamp(resetsAt, timestampFormat)}` : ""}`,
+    title: t("Using {model}", { model: fallbackModelName }),
+    description: resetsAt
+      ? t("{provider} is out of usage · resets {time}", {
+          provider: defaultProviderName,
+          time: formatUpcomingTimestamp(resetsAt, timestampFormat),
+        })
+      : t("{provider} is out of usage", { provider: defaultProviderName }),
     actions: (
       <Button size="xs" variant="ghost" onClick={onUseDefault}>
-        Use {defaultModelName}
+        {t("Use {model}", { model: defaultModelName })}
       </Button>
     ),
-    dismissLabel: "Dismiss fallback model notice",
+    dismissLabel: t("Dismiss fallback model notice"),
     onDismiss,
   };
 }
@@ -109,6 +121,7 @@ function UsageLimitsBannerBody({
   readonly report: UsageLimitsReport;
   readonly environmentId: EnvironmentId;
 }) {
+  const t = useT();
   const now = Date.parse(report.createdAt);
   return (
     <ComposerBanner.Scroll>
@@ -144,7 +157,7 @@ function UsageLimitsBannerBody({
                   className="self-start"
                   onClick={() => void ensureLocalApi().shell.openExternal(externalUsage.url)}
                 >
-                  Manage usage
+                  {t("Manage usage")}
                 </Button>
               ) : null}
               {resetCreditInput && account.limits.resetCredits ? (

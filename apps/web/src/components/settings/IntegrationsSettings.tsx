@@ -116,6 +116,7 @@ import { useSettingsScope } from "./SettingsScopeContext";
 import { BrowserImportWizard, type WizardTarget } from "./BrowserImportWizard";
 import type { ImportOutcome } from "./browserImportWizard.logic";
 import { useT } from "../../hooks/useT";
+import { interpolateNodes } from "../../lib/interpolateNodes";
 
 const FILL_VALUE = "fill";
 const RESPONSIVE_VALUE = "responsive";
@@ -953,16 +954,18 @@ function DeviceIntegrationControls({
         {...searchableSetting("device-hub")}
         serverScoped
         settingKeys={["enableDeviceSupport"]}
-        description={
-          <>
-            {t("Open simulators and emulators in the Device panel. Hub:")}{" "}
-            <DeviceToolVersions
-              action={versionActions("hub")}
-              kind="hub"
-              tools={state.hosts.find((host) => host.kind === "local")?.tools}
-            />
-          </>
-        }
+        description={interpolateNodes(
+          t("Open simulators and emulators in the Device panel. Hub: {versions}"),
+          {
+            versions: (
+              <DeviceToolVersions
+                action={versionActions("hub")}
+                kind="hub"
+                tools={state.hosts.find((host) => host.kind === "local")?.tools}
+              />
+            ),
+          },
+        )}
         control={
           <>
             {pending === "hub" ? <DeviceHubSetupStatus state={state} pending compact /> : null}
@@ -992,16 +995,18 @@ function DeviceIntegrationControls({
         {...searchableSetting("agent-device-access")}
         serverScoped
         settingKeys={["enableAgentDeviceAccess"]}
-        description={
-          <>
-            {t("New agent sessions can open and drive these devices. agent-device:")}{" "}
-            <DeviceToolVersions
-              action={versionActions("agent")}
-              kind="agent"
-              tools={state.hosts.find((host) => host.kind === "local")?.tools}
-            />
-          </>
-        }
+        description={interpolateNodes(
+          t("New agent sessions can open and drive these devices. agent-device: {versions}"),
+          {
+            versions: (
+              <DeviceToolVersions
+                action={versionActions("agent")}
+                kind="agent"
+                tools={state.hosts.find((host) => host.kind === "local")?.tools}
+              />
+            ),
+          },
+        )}
         control={
           <>
             {pending === "agent" ? <AgentDeviceSetupStatus state={state} pending compact /> : null}

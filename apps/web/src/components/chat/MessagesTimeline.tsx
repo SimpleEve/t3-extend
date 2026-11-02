@@ -1301,7 +1301,9 @@ const ConversationTimeline = memo(function ConversationTimeline({
           className="flex h-full items-center justify-center ps-(--chat-lane-inset-start) pe-(--chat-lane-inset-end)"
           style={{ paddingBottom: emptyPlaceholderInset }}
         >
-          <p className="text-sm text-muted-foreground">Send a message to start the conversation.</p>
+          <p className="text-sm text-muted-foreground">
+            {t("Send a message to start the conversation.")}
+          </p>
         </div>
       </>
     );
@@ -1643,8 +1645,9 @@ function useDeferredWorkLoading(
 }
 
 function WorkHistorySkeleton() {
+  const t = useT();
   return (
-    <div role="status" aria-label="Loading work history" className="space-y-2 px-1 pb-1 pt-3">
+    <div role="status" aria-label={t("Loading work history")} className="space-y-2 px-1 pb-1 pt-3">
       {[0, 1, 2].map((index) => (
         <div key={index} className="flex items-center gap-2" aria-hidden="true">
           <Skeleton className="size-3 shrink-0" />
