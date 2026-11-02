@@ -178,9 +178,10 @@ const ALLOWED: ReadonlyArray<Allowed> = [
   },
 ];
 
-// Brand guard: the app calls itself FORK.appBaseName in anything a user can read. "T3 Code" stays
-// only where it names official T3 Code or its services; each such place is listed with its reason.
-const BRAND_NAME = /T3 Code/u;
+// Brand guard: "T3 Code" stays only where it names official T3 Code, each place with its reason.
+// \s spans line breaks, so wrapped JSX text and template literals are caught. Concatenated names
+// (`"T3 " + "Code"`) are out of scope. A line starting with `//`, `/*` or `*` is a comment.
+const BRAND_NAME = /T3\s+Code/gu;
 const BRAND_ROOTS = [
   "apps/server/src/peer/PeerLinks.ts",
   "apps/server/src/device/EasDeviceHost.ts",
@@ -342,17 +343,80 @@ for (const root of BRAND_ROOTS) {
   for (const file of walk(root)) {
     if (!BRAND_SOURCE_FILE.test(file) || SKIPPED_FILE.test(file) || BRAND_SKIPPED_FILE.test(file))
       continue;
-    const lines = NodeFS.readFileSync(NodePath.join(repoRoot, file), "utf8").split("\n");
-    lines.forEach((line, index) => {
-      if (!BRAND_NAME.test(line) || COMMENT_LINE.test(line)) return;
+    const text = NodeFS.readFileSync(NodePath.join(repoRoot, file), "utf8");
+    const lines = text.split("\n");
+    for (const match of text.matchAll(BRAND_NAME)) {
+      const lineNumber = text.slice(0, match.index).split("\n").length;
+      const line = lines[lineNumber - 1] ?? "";
+      if (COMMENT_LINE.test(line)) continue;
       const allowed = ALLOWED_BRAND.find(
         (entry) =>
           (file === entry.path || file.startsWith(`${entry.path.replace(/\/$/u, "")}/`)) &&
           (entry.line === undefined || line.includes(entry.line)),
       );
       if (allowed) brandUsed.add(allowed);
-      else brandViolations.push(`${file}:${index + 1}: ${line.trim()}`);
-    });
+      else brandViolations.push(`${file}:${lineNumber}: ${line.trim()}`);
+    }
+  }
+}
+// Files that cannot import forkIdentity.ts (a launcher script, static HTML, JSON, SVG text) hold a
+// copy of the app's name. Each pattern must match and every captured name must be FORK.appBaseName.
+const STATIC_NAME_COPIES: ReadonlyArray<{
+  readonly path: string;
+  readonly patterns: ReadonlyArray<RegExp>;
+}> = [
+  {
+    path: "apps/desktop/scripts/electron-launcher.mjs",
+    patterns: [/"([^"]+) \((?:Dev|Beta)\)"/gu],
+  },
+  {
+    path: "apps/web/index.html",
+    patterns: [
+      /<title>(.+?) \(Beta\)<\/title>/gu,
+      /aria-label="(.+?) splash screen"/gu,
+      /id="boot-shell-logo"[^>]*alt="(.+?)"/gu,
+    ],
+  },
+  {
+    path: "apps/web/public/manifest.webmanifest",
+    patterns: [/"name": "(.+?)"/gu, /"short_name": "(.+?)"/gu],
+  },
+  {
+    path: "apps/desktop/resources/dmg/dmg-background-latest.svg",
+    patterns: [/Drag (.+?) into Applications\./gu],
+  },
+  {
+    path: "apps/desktop/resources/dmg/dmg-background-nightly.svg",
+    patterns: [/Drag (.+?) into Applications\./gu],
+  },
+];
+
+const driftProblems: Array<string> = [];
+const forkIdentityPath = NodePath.join(repoRoot, "packages/shared/src/forkIdentity.ts");
+const appBaseName = NodeFS.existsSync(forkIdentityPath)
+  ? /appBaseName:\s*"([^"]+)"/u.exec(NodeFS.readFileSync(forkIdentityPath, "utf8"))?.[1]
+  : undefined;
+if (appBaseName === undefined) {
+  driftProblems.push("packages/shared/src/forkIdentity.ts: FORK.appBaseName not found");
+} else {
+  for (const copy of STATIC_NAME_COPIES) {
+    const absolute = NodePath.join(repoRoot, copy.path);
+    if (!NodeFS.existsSync(absolute)) {
+      driftProblems.push(`${copy.path}: file missing; update STATIC_NAME_COPIES`);
+      continue;
+    }
+    const text = NodeFS.readFileSync(absolute, "utf8");
+    for (const pattern of copy.patterns) {
+      const names = [...text.matchAll(pattern)].map((match) => match[1]);
+      if (names.length === 0) driftProblems.push(`${copy.path}: no match for ${pattern}`);
+      for (const name of names) {
+        if (name !== appBaseName) {
+          driftProblems.push(
+            `${copy.path}: "${name}" does not match FORK.appBaseName "${appBaseName}"`,
+          );
+        }
+      }
+    }
   }
 }
 const brandStale = ALLOWED_BRAND.filter((entry) => !brandUsed.has(entry));
@@ -361,7 +425,8 @@ if (
   violations.length > 0 ||
   stale.length > 0 ||
   brandViolations.length > 0 ||
-  brandStale.length > 0
+  brandStale.length > 0 ||
+  driftProblems.length > 0
 ) {
   for (const violation of violations) process.stderr.write(`${violation}\n`);
   for (const entry of stale)
@@ -369,9 +434,11 @@ if (
   for (const violation of brandViolations) process.stderr.write(`${violation}\n`);
   for (const entry of brandStale)
     process.stderr.write(`stale brand allowlist entry: ${entry.path} ${entry.line ?? ""}\n`);
+  for (const problem of driftProblems) process.stderr.write(`${problem}\n`);
   process.stderr.write(
     `\nfork-identity-guard: ${violations.length} official identity literal(s), ${stale.length} stale allowlist entr(ies), ` +
-      `${brandViolations.length} user-visible "T3 Code" literal(s), ${brandStale.length} stale brand allowlist entr(ies).` +
+      `${brandViolations.length} user-visible "T3 Code" literal(s), ${brandStale.length} stale brand allowlist entr(ies), ` +
+      `${driftProblems.length} static name copy problem(s).` +
       "\nUse packages/shared/src/forkIdentity.ts (FORK.appBaseName for the app's name), or add an ALLOWED or ALLOWED_BRAND entry with a reason.\n",
   );
   process.exit(1);

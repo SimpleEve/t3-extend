@@ -64,6 +64,59 @@ it.layer(NodeServices.layer)("fork-identity-guard", (it) => {
     }),
   );
 
+  it.effect("rejects T3 Code split across lines in JSX text and template literals", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "fork-guard-multiline-" });
+      installGuard(root);
+      const source = path.join(root, "apps", "web", "src");
+      yield* fs.makeDirectory(source, { recursive: true });
+      yield* fs.writeFileString(
+        path.join(source, "heading.tsx"),
+        "export const Heading = () => (\n  <h1>\n    Welcome to T3\n    Code\n  </h1>\n);\n",
+      );
+      yield* fs.writeFileString(
+        path.join(source, "message.ts"),
+        "export const message = `Open the\nT3\n  Code window`;\nexport const second = `first line\nT3 Code`;\n",
+      );
+
+      const result = runGuard(root);
+      assert.notEqual(result.status, 0);
+      assert.include(result.stderr, "apps/web/src/heading.tsx:3");
+      assert.include(result.stderr, "apps/web/src/message.ts:2");
+      assert.include(result.stderr, "apps/web/src/message.ts:5");
+      assert.include(result.stderr, '3 user-visible "T3 Code" literal(s)');
+    }),
+  );
+
+  it.effect("rejects a static copy of the app name that drifted from forkIdentity.ts", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "fork-guard-drift-" });
+      installGuard(root);
+      yield* fs.makeDirectory(path.join(root, "packages", "shared", "src"), { recursive: true });
+      yield* fs.writeFileString(
+        path.join(root, "packages", "shared", "src", "forkIdentity.ts"),
+        'export const FORK = { appBaseName: "Renamed App" } as const;\n',
+      );
+      yield* fs.makeDirectory(path.join(root, "apps", "web", "public"), { recursive: true });
+      yield* fs.writeFileString(
+        path.join(root, "apps", "web", "public", "manifest.webmanifest"),
+        '{\n  "name": "Renamed App",\n  "short_name": "T3 Extend"\n}\n',
+      );
+
+      const result = runGuard(root);
+      assert.notEqual(result.status, 0);
+      assert.include(
+        result.stderr,
+        'apps/web/public/manifest.webmanifest: "T3 Extend" does not match FORK.appBaseName "Renamed App"',
+      );
+      assert.notInclude(result.stderr, 'manifest.webmanifest: "Renamed App"');
+    }),
+  );
+
   it.effect("rejects a stale allowlist entry", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
