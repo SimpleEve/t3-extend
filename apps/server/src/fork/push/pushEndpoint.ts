@@ -4,6 +4,18 @@ import { isPublicAddress, literalIp, systemLocalAddresses } from "./pushAddress.
 
 export const ALLOW_INSECURE_PUSH_ENDPOINTS_ENV = "T3CODE_PUSH_ALLOW_INSECURE_ENDPOINTS";
 
+/**
+ * The variable turns SSRF protection off, so only a development run (one with a dev URL, which
+ * is how the server tells dev from packaged) may act on it. Elsewhere it is ignored.
+ */
+export function insecureEndpointsDecision(input: {
+  readonly environment: NodeJS.ProcessEnv;
+  readonly development: boolean;
+}): "off" | "allowed" | "ignored" {
+  if (input.environment[ALLOW_INSECURE_PUSH_ENDPOINTS_ENV] !== "1") return "off";
+  return input.development ? "allowed" : "ignored";
+}
+
 export interface ValidatedPushEndpoint {
   readonly url: string;
   /** Host and non-default port only; safe to show and to log. */
@@ -33,7 +45,7 @@ export function validatePushEndpoint(
     return null;
   }
   if (!options.allowInsecure) {
-    const host = url.hostname.toLowerCase();
+    const host = url.hostname.toLowerCase().replace(/\.$/, "");
     if (host === "localhost" || host.endsWith(".localhost")) return null;
     const ip = literalIp(host);
     const local = (options.localAddresses ?? systemLocalAddresses)();

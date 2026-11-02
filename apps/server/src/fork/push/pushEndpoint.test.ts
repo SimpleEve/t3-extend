@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { validatePushEndpoint } from "./pushEndpoint.ts";
+import { insecureEndpointsDecision, validatePushEndpoint } from "./pushEndpoint.ts";
 
 const strict = { allowInsecure: false, localAddresses: () => ["93.184.216.99"] };
 
@@ -18,6 +18,7 @@ describe("validatePushEndpoint", () => {
     "http://ntfy.example.com/upAbCd",
     "https://user:pass@ntfy.example.com/upAbCd",
     "https://localhost/upAbCd",
+    "https://localhost./upAbCd",
     "https://push.localhost/upAbCd",
     "https://127.0.0.1/upAbCd",
     "https://2130706433/upAbCd",
@@ -42,5 +43,16 @@ describe("validatePushEndpoint", () => {
     expect(
       validatePushEndpoint("http://127.0.0.1:8080/upAbCd", { allowInsecure: true })?.host,
     ).toBe("127.0.0.1:8080");
+  });
+});
+
+describe("insecureEndpointsDecision", () => {
+  it.each([
+    [{}, true, "off"],
+    [{ T3CODE_PUSH_ALLOW_INSECURE_ENDPOINTS: "0" }, true, "off"],
+    [{ T3CODE_PUSH_ALLOW_INSECURE_ENDPOINTS: "1" }, false, "ignored"],
+    [{ T3CODE_PUSH_ALLOW_INSECURE_ENDPOINTS: "1" }, true, "allowed"],
+  ])("%j with development=%s is %s", (environment, development, expected) => {
+    expect(insecureEndpointsDecision({ environment, development })).toBe(expected);
   });
 });

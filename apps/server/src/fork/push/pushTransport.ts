@@ -10,8 +10,9 @@ import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import type * as Undici from "undici";
 
+import { ServerConfig } from "../../config.ts";
 import { isPublicAddress, literalIp, systemLocalAddresses } from "./pushAddress.ts";
-import { ALLOW_INSECURE_PUSH_ENDPOINTS_ENV } from "./pushEndpoint.ts";
+import { ALLOW_INSECURE_PUSH_ENDPOINTS_ENV, insecureEndpointsDecision } from "./pushEndpoint.ts";
 
 // fork: sends one encrypted push to an endpoint a paired device chose. The address the socket
 // connects to is checked inside the connection's own DNS lookup, so a name that rebinds between
@@ -195,6 +196,24 @@ export const layer = Layer.effect(
   PushTransport,
   Effect.gen(function* () {
     const environment = yield* HostProcess.Environment;
-    return yield* make({ allowPrivate: environment[ALLOW_INSECURE_PUSH_ENDPOINTS_ENV] === "1" });
+    const config = yield* ServerConfig;
+    const decision = insecureEndpointsDecision({
+      environment,
+      development: config.devUrl !== undefined,
+    });
+    if (decision === "allowed") {
+      yield* Effect.logWarning(
+        "SSRF protection for push endpoints is off: private and plain-http endpoints are accepted.",
+        { variable: ALLOW_INSECURE_PUSH_ENDPOINTS_ENV },
+      );
+    } else if (decision === "ignored") {
+      yield* Effect.logWarning(
+        "Ignoring a setting that would turn off SSRF protection for push endpoints; it only applies to development runs.",
+        {
+          variable: ALLOW_INSECURE_PUSH_ENDPOINTS_ENV,
+        },
+      );
+    }
+    return yield* make({ allowPrivate: decision === "allowed" });
   }),
 );

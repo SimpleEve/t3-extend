@@ -17,7 +17,8 @@ import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 
 import * as ServerSecretStore from "../../auth/ServerSecretStore.ts";
-import { ALLOW_INSECURE_PUSH_ENDPOINTS_ENV, validatePushEndpoint } from "./pushEndpoint.ts";
+import { ServerConfig } from "../../config.ts";
+import { insecureEndpointsDecision, validatePushEndpoint } from "./pushEndpoint.ts";
 import { decodeWebPushKeys } from "./webPush.ts";
 
 // fork: stored in the secret store, so the file is 0600 inside a 0700 directory and
@@ -163,10 +164,12 @@ export const make = Effect.fn("PushRegistrations.make")(function* (options: {
               error: error.message,
             }).pipe(
               Effect.andThen(
-                new PushRegistrationError({
-                  reason: "storage",
-                  message: "The push registration could not be saved on this environment.",
-                }),
+                Effect.fail(
+                  new PushRegistrationError({
+                    reason: "storage",
+                    message: "The push registration could not be saved on this environment.",
+                  }),
+                ),
               ),
             ),
           ),
@@ -306,6 +309,12 @@ export const layer = Layer.effect(
   PushRegistrations,
   Effect.gen(function* () {
     const environment = yield* HostProcess.Environment;
-    return yield* make({ allowInsecure: environment[ALLOW_INSECURE_PUSH_ENDPOINTS_ENV] === "1" });
+    const config = yield* ServerConfig;
+    // The transport layer logs the decision; this only follows it.
+    const decision = insecureEndpointsDecision({
+      environment,
+      development: config.devUrl !== undefined,
+    });
+    return yield* make({ allowInsecure: decision === "allowed" });
   }),
 );

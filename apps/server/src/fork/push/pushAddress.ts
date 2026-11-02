@@ -37,7 +37,9 @@ const v6 = (...groups: ReadonlyArray<number>): Bytes =>
 /** IPv6 prefixes that are never public. Ones that wrap an IPv4 address are handled separately. */
 const NON_PUBLIC_V6: ReadonlyArray<Range> = [
   [v6(0x0100), 64], // discard-only
-  [v6(0x2001, 0), 23], // IETF assignments: Teredo, benchmarking, ORCHID and the like
+  // IANA reserves the whole /23 for IETF protocol assignments and puts no RIR space in it; its
+  // globally reachable corners are anycast protocol services, never push servers.
+  [v6(0x2001, 0), 23], // Teredo, benchmarking, ORCHID and the like
   [v6(0x2001, 0x0db8), 32], // documentation
   [v6(0x3fff), 20], // documentation
   [v6(0x5f00), 16], // segment routing SIDs
