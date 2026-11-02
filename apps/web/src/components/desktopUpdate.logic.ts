@@ -80,46 +80,62 @@ export function getArm64IntelBuildWarningDescription(state: DesktopUpdateState):
 
   const action = resolveDesktopUpdateButtonAction(state);
   if (action === "download") {
-    return "This Mac has Apple Silicon, but T3 Code is still running the Intel build under Rosetta. Download the available update to switch to the native Apple Silicon build.";
+    return "This Mac has Apple Silicon, but T3 Extend is still running the Intel build under Rosetta. Download the available update to switch to the native Apple Silicon build.";
   }
   if (action === "install") {
-    return "This Mac has Apple Silicon, but T3 Code is still running the Intel build under Rosetta. Restart to install the downloaded Apple Silicon build.";
+    return "This Mac has Apple Silicon, but T3 Extend is still running the Intel build under Rosetta. Restart to install the downloaded Apple Silicon build.";
   }
-  return "This Mac has Apple Silicon, but T3 Code is still running the Intel build under Rosetta. The next app update will replace it with the native Apple Silicon build.";
+  return "This Mac has Apple Silicon, but T3 Extend is still running the Intel build under Rosetta. The next app update will replace it with the native Apple Silicon build.";
 }
 
-export function getDesktopUpdateButtonTooltip(state: DesktopUpdateState): string {
+export function getDesktopUpdateButtonTooltip(
+  state: DesktopUpdateState,
+  t: Translator = translatorFor("en"), // fork: interface language
+): string {
   if (
     state.notAppliedVersion !== undefined &&
     (state.status === "available" || state.status === "downloaded") &&
     getDesktopUpdateDownloadedVersion(state) === state.notAppliedVersion
   ) {
-    return `Update ${state.notAppliedVersion} did not apply. Click to retry.`;
+    return t("Update {version} did not apply. Click to retry.", {
+      version: state.notAppliedVersion,
+    });
   }
   if (state.status === "available") {
-    return `Update ${state.availableVersion ?? "available"} ready to download`;
+    return state.availableVersion
+      ? t("Update {version} ready to download", { version: state.availableVersion })
+      : t("Update available ready to download");
   }
   if (state.status === "downloading") {
-    const progress =
-      typeof state.downloadPercent === "number" ? ` (${Math.floor(state.downloadPercent)}%)` : "";
-    return `Downloading update${progress}`;
+    return typeof state.downloadPercent === "number"
+      ? t("Downloading update ({percent}%)", { percent: Math.floor(state.downloadPercent) })
+      : t("Downloading update");
   }
   if (state.status === "downloaded") {
-    return `Update ${state.downloadedVersion ?? state.availableVersion ?? "ready"} downloaded. Click to restart and install.`;
+    const version = state.downloadedVersion ?? state.availableVersion;
+    return version
+      ? t("Update {version} downloaded. Click to restart and install.", { version })
+      : t("Update ready downloaded. Click to restart and install.");
   }
   if (state.status === "error") {
     if (state.errorContext === "download" && state.availableVersion) {
-      return `Download failed for ${state.availableVersion}. Click to retry.`;
+      return t("Download failed for {version}. Click to retry.", {
+        version: state.availableVersion,
+      });
     }
     if (state.errorContext === "install" && state.downloadedVersion) {
-      return `Install failed for ${state.downloadedVersion}. Click to retry.`;
+      return t("Install failed for {version}. Click to retry.", {
+        version: state.downloadedVersion,
+      });
     }
     if (state.downloadedVersion) {
-      return `Update ${state.downloadedVersion} downloaded. Click to restart and install.`;
+      return t("Update {version} downloaded. Click to restart and install.", {
+        version: state.downloadedVersion,
+      });
     }
-    return state.message ?? "Update failed";
+    return state.message ?? t("Update failed");
   }
-  return "Up to date";
+  return t("Up to date");
 }
 
 export function getDesktopUpdateInstallConfirmationMessage(
@@ -128,8 +144,8 @@ export function getDesktopUpdateInstallConfirmationMessage(
 ): string {
   const version = state.downloadedVersion ?? state.availableVersion;
   const question = version
-    ? t("Install update {version} and restart T3 Code?", { version })
-    : t("Install update and restart T3 Code?");
+    ? t("Install update {version} and restart T3 Extend?", { version })
+    : t("Install update and restart T3 Extend?");
   return `${question}\n\n${t("Any running tasks will be interrupted. Make sure you're ready before continuing.")}`;
 }
 
@@ -155,18 +171,20 @@ export function canCheckForUpdate(state: DesktopUpdateState | null): boolean {
 export function getDesktopUpdateDisabledReason(
   state: Pick<DesktopUpdateState, "enabled" | "status" | "message"> | null,
   managedDenial?: string,
+  t: Translator = translatorFor("en"), // fork: interface language
 ): string | null {
   if (managedDenial !== undefined) return managedDenial;
   if (!state || (state.enabled && state.status !== "disabled")) return null;
-  return state.message?.trim() || "Automatic updates are not available in this build.";
+  return state.message?.trim() || t("Automatic updates are not available in this build.");
 }
 
 export function getDesktopUpdateIdleTooltip(
   state: Pick<DesktopUpdateState, "enabled" | "status" | "message"> | null,
   managedDenial?: string,
+  t: Translator = translatorFor("en"), // fork: interface language
 ) {
-  const disabledReason = getDesktopUpdateDisabledReason(state, managedDenial);
+  const disabledReason = getDesktopUpdateDisabledReason(state, managedDenial, t);
   return disabledReason
-    ? { title: "Updates unavailable", detail: disabledReason }
-    : { title: "Check for updates", detail: null };
+    ? { title: t("Updates unavailable"), detail: disabledReason }
+    : { title: t("Check for updates"), detail: null };
 }

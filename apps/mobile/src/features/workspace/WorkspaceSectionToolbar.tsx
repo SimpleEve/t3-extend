@@ -34,7 +34,7 @@ export function WorkspaceTabToolbarButtons() {
         <Toolbar.Button
           key={tab}
           identifier={`workspace-tab-${tab}`}
-          accessibilityLabel={WORKSPACE_TAB_LABELS[tab]}
+          accessibilityLabel={t(WORKSPACE_TAB_LABELS[tab])}
           icon={
             tab === "pullRequests"
               ? { type: "image", source: PULL_REQUEST_ICON, tinted: true }

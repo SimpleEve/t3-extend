@@ -114,7 +114,7 @@ describe("collectServerUpdateTargets", () => {
         entry.label,
         entry.reason,
       ]),
-    ).toEqual([["off", "Example Corp manages T3 Code updates."]]);
+    ).toEqual([["off", "Example Corp manages T3 Extend updates."]]);
     expect(
       collectServerUpdateTargets(
         machines.map((entry) => ({
@@ -244,7 +244,7 @@ describe("collectChannelSwitchTargets", () => {
       ["old-desktop", "needs a newer desktop app"],
       [
         "no-nightly",
-        "Example Corp manages T3 Code updates. Only stable releases can be installed.",
+        "Example Corp manages T3 Extend updates. Only stable releases can be installed.",
       ],
     ]);
   });

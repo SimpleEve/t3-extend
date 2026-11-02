@@ -783,7 +783,7 @@ export function ProviderInstanceCard({
     instance.displayName?.trim() || driverOption?.label || String(instance.driver);
   const accentColor = normalizeProviderAccentColor(instance.accentColor);
   const managedPolicy = useManagedPolicy(environmentId);
-  const instanceLocks = managedInstanceLocks(managedPolicy, instance.driver);
+  const instanceLocks = managedInstanceLocks(managedPolicy, instance.driver, t); // fork: interface language
   const managedDriverReason = isManagedDriverAllowed(managedPolicy, instance.driver)
     ? undefined
     : disallowedProviderMessage(

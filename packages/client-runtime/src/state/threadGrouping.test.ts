@@ -1,9 +1,15 @@
-import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
   buildProjectViewFolders,
+  flattenProjectViewFolders,
+  groupThreadsByProject,
   groupThreadsByWorktree,
+  projectViewFolderThreadCount,
+  resolveSidebarFolderDot,
+  resolveSidebarThreadStatus,
+  type ProjectViewRow,
   sidebarGroupCollapseKey,
   threadWorktreeGroupKey,
 } from "./threadGrouping.ts";
@@ -153,8 +159,212 @@ describe("buildProjectViewFolders", () => {
     expect(ids(foldedRepo!.hiddenThreads)).toEqual(["wt-a", "wt-a-2"]);
   });
 
+  it("flattens folders into header and thread rows, counting threads a fold hides", () => {
+    const shape = (rows: ReadonlyArray<ProjectViewRow<unknown, typeof main>>) =>
+      rows.map((row) =>
+        row.kind === "thread"
+          ? row.thread.id
+          : `${row.kind}:${row.collapseKey}:${row.count}${row.collapsed ? ":folded" : ""}`,
+      );
+    expect(shape(flattenProjectViewFolders(build([])))).toEqual([
+      "project:project:project:repo:3",
+      `worktree:project:worktree:${threadWorktreeGroupKey(main)}:1`,
+      "main",
+      `worktree:project:worktree:${threadWorktreeGroupKey(wtA)}:2`,
+      "wt-a",
+      "wt-a-2",
+      "project:project:project:docs:1",
+      "doc",
+    ]);
+    // A folded project drops its worktree headers but still counts every thread, and keeps the open one.
+    const folded = build(["project:project:repo"], "wt-a");
+    expect(projectViewFolderThreadCount(folded[0]!)).toBe(3);
+    expect(shape(flattenProjectViewFolders(folded)).slice(0, 2)).toEqual([
+      "project:project:project:repo:3:folded",
+      "wt-a",
+    ]);
+  });
+
   it("ignores another view's folds", () => {
     const [repoFolder] = build(["status:project:repo"]);
     expect(repoFolder?.collapsed).toBe(false);
+  });
+});
+
+describe("groupThreadsByProject", () => {
+  it("puts each thread in its project's folder and drops empty projects unless kept", () => {
+    const remote = EnvironmentId.make("environment-remote");
+    const t3code = ProjectId.make("t3code");
+    const t3codeRemote = ProjectId.make("t3code-remote");
+    const fleet = ProjectId.make("fleet");
+    const entry = (id: string, environmentId: EnvironmentId, project: ProjectId) => ({
+      id,
+      environmentId,
+      projectId: project,
+    });
+    const groups = [
+      {
+        projectKey: "t3code",
+        memberProjectRefs: [
+          { environmentId: laptop, projectId: t3code },
+          { environmentId: remote, projectId: t3codeRemote },
+        ],
+      },
+      { projectKey: "fleet", memberProjectRefs: [{ environmentId: laptop, projectId: fleet }] },
+      {
+        projectKey: "notes",
+        memberProjectRefs: [{ environmentId: laptop, projectId: ProjectId.make("notes") }],
+      },
+    ];
+    const threads = [
+      entry("a", laptop, t3code),
+      entry("orphan", laptop, ProjectId.make("deleted")),
+      entry("b", remote, t3codeRemote),
+    ];
+    const summarize = (keepEmpty: (group: (typeof groups)[number]) => boolean) =>
+      groupThreadsByProject(groups, threads, keepEmpty).map((folder) => [
+        folder.group.projectKey,
+        ids(folder.threads),
+      ]);
+
+    expect(summarize(() => true)).toEqual([
+      ["t3code", ["a", "b"]],
+      ["fleet", []],
+      ["notes", []],
+    ]);
+    expect(summarize(() => false)).toEqual([["t3code", ["a", "b"]]]);
+    expect(summarize((group) => group.projectKey === "fleet")).toEqual([
+      ["t3code", ["a", "b"]],
+      ["fleet", []],
+    ]);
+  });
+});
+
+const completedRun = {
+  runId: "turn-1" as never,
+  status: "completed" as const,
+  assistantMessageId: null,
+  requestedAt: "2026-03-09T10:00:00.000Z",
+  startedAt: "2026-03-09T10:00:00.000Z",
+  completedAt: "2026-03-09T10:05:00.000Z",
+};
+
+describe("resolveSidebarThreadStatus", () => {
+  const runtime = {
+    status: "running" as const,
+    activeRunId: null,
+    providerInstanceId: ProviderInstanceId.make("codex"),
+    providerName: "Codex",
+    lastError: null,
+    updatedAt: "2026-03-09T10:00:00.000Z",
+  };
+
+  const idle = { hasPendingApprovals: false, hasPendingUserInput: false, runtime: null };
+
+  it("prioritizes awaiting input over a running runtime, below approval", () => {
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        hasPendingUserInput: true,
+        runtime,
+        blockedOnThreadWait: true,
+      }),
+    ).toBe("input");
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        hasPendingApprovals: true,
+        hasPendingUserInput: true,
+        blockedOnThreadWait: true,
+        runtime,
+      }),
+    ).toBe("approval");
+  });
+
+  it("shows a waiting guest message as a Request, below the agent's own requests", () => {
+    expect(resolveSidebarThreadStatus({ ...idle, pendingGuestMessageCount: 1, runtime })).toBe(
+      "request",
+    );
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        hasPendingUserInput: true,
+        pendingGuestMessageCount: 1,
+      }),
+    ).toBe("input");
+  });
+
+  it("keeps usage-limit stops Limited and visible until the thread recovers", () => {
+    const limited = {
+      ...runtime,
+      status: "failed" as const,
+      lastError: "Plan limit reached",
+      lastErrorClass: "usage_limit" as const,
+    };
+    expect(resolveSidebarThreadStatus({ ...idle, runtime: limited })).toBe("limited");
+    expect(
+      resolveSidebarThreadStatus({ ...idle, runtime: { ...limited, status: "running" } }),
+    ).toBe("working");
+    expect(
+      resolveSidebarThreadStatus({ ...idle, runtime: { ...limited, status: "completed" } }),
+    ).toBe("ready");
+  });
+
+  it("reports failed only while the latest run failed", () => {
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        runtime: { ...runtime, status: "failed" as const, lastError: "boom" },
+      }),
+    ).toBe("failed");
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        runtime: { ...runtime, status: "completed" as const, lastError: "persisted" },
+      }),
+    ).toBe("ready");
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        runtime: { ...runtime, status: "idle" as const, lastError: "persisted" },
+      }),
+    ).toBe("waiting");
+  });
+});
+
+describe("resolveSidebarFolderDot", () => {
+  it("flags the most urgent hidden thread and stays quiet otherwise", () => {
+    const idle = {
+      hasActionableProposedPlan: false,
+      hasPendingApprovals: false,
+      hasPendingUserInput: false,
+      interactionMode: "default" as const,
+      latestRun: completedRun,
+      lastVisitedAt: "2026-03-09T10:06:00.000Z",
+      runtime: null,
+    };
+    const runtime = {
+      status: "running" as const,
+      activeRunId: null,
+      providerInstanceId: ProviderInstanceId.make("codex"),
+      providerName: "Codex",
+      lastError: null,
+      updatedAt: "2026-03-09T10:00:00.000Z",
+    };
+    const working = { ...idle, runtime };
+    const unread = { ...idle, lastVisitedAt: "2026-03-09T10:04:00.000Z" };
+    const limited = {
+      ...idle,
+      runtime: { ...runtime, status: "failed" as const, lastErrorClass: "usage_limit" as const },
+    };
+
+    expect(resolveSidebarFolderDot([idle])).toBeNull();
+    // A waiting thread stays quiet even with an unread completion, like its row.
+    expect(
+      resolveSidebarFolderDot([{ ...unread, runtime: { ...runtime, status: "idle" as const } }]),
+    ).toBeNull();
+    expect(resolveSidebarFolderDot([idle, working])).toBe("working");
+    expect(resolveSidebarFolderDot([working, unread])).toBe("unread");
+    expect(resolveSidebarFolderDot([unread, limited])).toBe("attention");
   });
 });

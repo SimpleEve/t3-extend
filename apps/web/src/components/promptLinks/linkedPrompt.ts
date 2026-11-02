@@ -13,8 +13,8 @@ export function warnAboutHiddenCharacters(prompt: LinkedPrompt): void {
     description: translate(
       getUiLocale(),
       prompt.hiddenCharacters === 1
-        ? "T3 Code removed {count} hidden character. Read the prompt before you send it."
-        : "T3 Code removed {count} hidden characters. Read the prompt before you send it.",
+        ? "T3 Extend removed {count} hidden character. Read the prompt before you send it."
+        : "T3 Extend removed {count} hidden characters. Read the prompt before you send it.",
       { count: prompt.hiddenCharacters },
     ),
     timeout: 0,

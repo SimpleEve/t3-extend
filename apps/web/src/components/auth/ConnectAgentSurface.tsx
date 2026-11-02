@@ -8,6 +8,7 @@ import {
   managedRuntimeModeCeilingMessage,
 } from "@t3tools/contracts";
 import { Radio as RadioPrimitive } from "@base-ui/react/radio";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import { isLoopbackHost } from "@t3tools/shared/preview";
 import { EyeIcon, type LucideIcon } from "lucide-react";
 import type * as Context from "effect/Context";
@@ -236,7 +237,7 @@ export function ConnectAgentSurface() {
                 key={option}
                 access={option}
                 selected={option === access}
-                managedReason={ceilingReason(details, option)}
+                managedReason={ceilingReason(details, option, t)}
               />
             ))}
           </RadioGroup>
@@ -311,13 +312,17 @@ function ConnectAgentHeading({
 }
 
 /** Why a managed policy keeps `access` from being granted, or undefined when it may be. */
-function ceilingReason(details: AuthMcpApprovalDetails, access: AuthMcpClientAccess) {
+function ceilingReason(
+  details: AuthMcpApprovalDetails,
+  access: AuthMcpClientAccess,
+  t: Translator, // fork: interface language
+) {
   const ceiling = details.runtimeModeCeiling;
   return ceiling === undefined ||
     access === "read-only" ||
     !isRuntimeModeAbove(access, ceiling.maxRuntimeMode)
     ? undefined
-    : managedRuntimeModeCeilingMessage(ceiling.organization, ceiling.maxRuntimeMode);
+    : managedRuntimeModeCeilingMessage(ceiling.organization, ceiling.maxRuntimeMode, t);
 }
 
 function AccessOption({

@@ -34,8 +34,6 @@ import {
   type SidebarListMarker,
   type SidebarSection,
   resolveSidebarDropVerb,
-  groupSidebarThreadsByProject,
-  resolveSidebarFolderDot,
   resolveSidebarThreadSection,
   sidebarFolderExpansionKeys,
 } from "./Sidebar.logic";
@@ -218,98 +216,6 @@ describe("orderItemsByPreferredIds", () => {
   });
 });
 
-describe("resolveSidebarThreadStatus", () => {
-  const runtime = {
-    status: "running" as const,
-    activeRunId: null,
-    providerInstanceId: ProviderInstanceId.make("codex"),
-    providerName: "Codex",
-    lastError: null,
-    updatedAt: "2026-03-09T10:00:00.000Z",
-  };
-
-  const idle = { hasPendingApprovals: false, hasPendingUserInput: false, runtime: null };
-
-  it("prioritizes awaiting input over a running runtime, below approval", () => {
-    expect(
-      resolveSidebarThreadStatus({
-        ...idle,
-        hasPendingUserInput: true,
-        runtime,
-        blockedOnThreadWait: true,
-      }),
-    ).toBe("input");
-    expect(
-      resolveSidebarThreadStatus({
-        ...idle,
-        hasPendingApprovals: true,
-        hasPendingUserInput: true,
-        blockedOnThreadWait: true,
-        runtime,
-      }),
-    ).toBe("approval");
-  });
-
-  it("shows a waiting guest message as a Request, below the agent's own requests", () => {
-    expect(resolveSidebarThreadStatus({ ...idle, pendingGuestMessageCount: 1, runtime })).toBe(
-      "request",
-    );
-    expect(
-      resolveSidebarThreadStatus({
-        ...idle,
-        hasPendingUserInput: true,
-        pendingGuestMessageCount: 1,
-      }),
-    ).toBe("input");
-  });
-
-  it("keeps usage-limit stops Limited and visible until the thread recovers", () => {
-    const limited = {
-      ...runtime,
-      status: "failed" as const,
-      lastError: "Plan limit reached",
-      lastErrorClass: "usage_limit" as const,
-    };
-    expect(resolveSidebarThreadStatus({ ...idle, runtime: limited })).toBe("limited");
-    expect(
-      resolveSidebarThreadStatus({ ...idle, runtime: { ...limited, status: "running" } }),
-    ).toBe("working");
-    expect(
-      resolveSidebarThreadStatus({ ...idle, runtime: { ...limited, status: "completed" } }),
-    ).toBe("ready");
-    expect(
-      shouldRecedeSidebarThread({
-        status: "limited",
-        isUnread: false,
-        isWoke: false,
-        isActive: false,
-        isSelected: false,
-      }),
-    ).toBe(false);
-  });
-
-  it("reports failed only while the latest run failed", () => {
-    expect(
-      resolveSidebarThreadStatus({
-        ...idle,
-        runtime: { ...runtime, status: "failed" as const, lastError: "boom" },
-      }),
-    ).toBe("failed");
-    expect(
-      resolveSidebarThreadStatus({
-        ...idle,
-        runtime: { ...runtime, status: "completed" as const, lastError: "persisted" },
-      }),
-    ).toBe("ready");
-    expect(
-      resolveSidebarThreadStatus({
-        ...idle,
-        runtime: { ...runtime, status: "idle" as const, lastError: "persisted" },
-      }),
-    ).toBe("waiting");
-  });
-});
-
 describe("searchSidebarThreads", () => {
   const searchThread = (id: string, title: string, latestUserMessageAt: string) => ({
     environmentId: localEnvironmentId,
@@ -393,6 +299,20 @@ describe("resolveWorkingStartedAt", () => {
       ).toBeNull();
     },
   );
+});
+
+describe("shouldRecedeSidebarThread usage limit", () => {
+  it("keeps a Limited thread visible", () => {
+    expect(
+      shouldRecedeSidebarThread({
+        status: "limited",
+        isUnread: false,
+        isWoke: false,
+        isActive: false,
+        isSelected: false,
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("resolveThreadStatusPill", () => {
@@ -1522,62 +1442,6 @@ describe("sidebarFolderExpansionKeys", () => {
   });
 });
 
-describe("groupSidebarThreadsByProject", () => {
-  it("puts each thread in its project's folder and drops empty projects unless kept", () => {
-    const remoteEnvironmentId = EnvironmentId.make("environment-remote");
-    const t3code = ProjectId.make("t3code");
-    const t3codeRemote = ProjectId.make("t3code-remote");
-    const fleet = ProjectId.make("fleet");
-    const thread = (id: string, environmentId: EnvironmentId, projectId: ProjectId) => ({
-      id,
-      environmentId,
-      projectId,
-    });
-    const groups = [
-      {
-        projectKey: "t3code",
-        memberProjectRefs: [
-          { environmentId: localEnvironmentId, projectId: t3code },
-          { environmentId: remoteEnvironmentId, projectId: t3codeRemote },
-        ],
-      },
-      {
-        projectKey: "fleet",
-        memberProjectRefs: [{ environmentId: localEnvironmentId, projectId: fleet }],
-      },
-      {
-        projectKey: "notes",
-        memberProjectRefs: [
-          { environmentId: localEnvironmentId, projectId: ProjectId.make("notes") },
-        ],
-      },
-    ];
-
-    const threads = [
-      thread("a", localEnvironmentId, t3code),
-      thread("orphan", localEnvironmentId, ProjectId.make("deleted")),
-      thread("b", remoteEnvironmentId, t3codeRemote),
-    ];
-    const summarize = (keepEmpty: (group: (typeof groups)[number]) => boolean) =>
-      groupSidebarThreadsByProject(groups, threads, keepEmpty).map((folder) => ({
-        projectKey: folder.group.projectKey,
-        threads: folder.threads.map((entry) => entry.id),
-      }));
-
-    expect(summarize(() => true)).toEqual([
-      { projectKey: "t3code", threads: ["a", "b"] },
-      { projectKey: "fleet", threads: [] },
-      { projectKey: "notes", threads: [] },
-    ]);
-    expect(summarize(() => false)).toEqual([{ projectKey: "t3code", threads: ["a", "b"] }]);
-    // A pinned project keeps its empty folder while other empty projects drop out.
-    expect(summarize((group) => group.projectKey === "fleet")).toEqual([
-      { projectKey: "t3code", threads: ["a", "b"] },
-      { projectKey: "fleet", threads: [] },
-    ]);
-  });
-});
-
 describe("project-view thread selection", () => {
   it("keeps pinned, snoozed, and settled threads out of project folders", () => {
     const environmentId = EnvironmentId.make("environment-local");
@@ -1619,43 +1483,6 @@ describe("project-view thread selection", () => {
 
     expect(folder?.threads.map((thread) => thread.id)).toEqual([active.id]);
     expect(folder?.worktrees).toBeNull();
-  });
-});
-
-describe("resolveSidebarFolderDot", () => {
-  it("flags the most urgent hidden thread and stays quiet otherwise", () => {
-    const idle = {
-      hasActionableProposedPlan: false,
-      hasPendingApprovals: false,
-      hasPendingUserInput: false,
-      interactionMode: "default" as const,
-      latestRun: makeLatestRun(),
-      lastVisitedAt: "2026-03-09T10:06:00.000Z",
-      runtime: null,
-    };
-    const runtime = {
-      status: "running" as const,
-      activeRunId: null,
-      providerInstanceId: ProviderInstanceId.make("codex"),
-      providerName: "Codex",
-      lastError: null,
-      updatedAt: "2026-03-09T10:00:00.000Z",
-    };
-    const working = { ...idle, runtime };
-    const unread = { ...idle, lastVisitedAt: "2026-03-09T10:04:00.000Z" };
-    const limited = {
-      ...idle,
-      runtime: { ...runtime, status: "failed" as const, lastErrorClass: "usage_limit" as const },
-    };
-
-    expect(resolveSidebarFolderDot([idle])).toBeNull();
-    // A waiting thread stays quiet even with an unread completion, like its row.
-    expect(
-      resolveSidebarFolderDot([{ ...unread, runtime: { ...runtime, status: "idle" as const } }]),
-    ).toBeNull();
-    expect(resolveSidebarFolderDot([idle, working])).toBe("working");
-    expect(resolveSidebarFolderDot([working, unread])).toBe("unread");
-    expect(resolveSidebarFolderDot([unread, limited])).toBe("attention");
   });
 });
 

@@ -14,6 +14,13 @@ import {
 } from "./threadListV2";
 import { computeThreadMoveAvailability } from "./threadOrder";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import type { SidebarViewMode } from "@t3tools/client-runtime/state/thread-grouping"; // fork: thread list views
+import { buildThreadListProjectRows, isGroupedByProject } from "../../fork/threadListProjectView"; // fork: thread list views
+import {
+  sortHomeProjectScopes,
+  type HomeProjectScope,
+  type HomeProjectSortOrder,
+} from "../home/homeThreadList"; // fork: thread list views
 
 /**
  * Screens' select handlers read the content-only key set; a fresh one per list rebuild gave
@@ -66,8 +73,16 @@ export function useThreadListV2(input: {
   readonly snoozedShelfExpanded: boolean;
   readonly settledShelfExpanded: boolean;
   readonly selectedThreadKey: string | null;
+  // fork: thread list views
+  readonly viewMode: SidebarViewMode;
+  readonly collapsedGroupKeys: ReadonlySet<string>;
+  readonly projectScopes: ReadonlyArray<HomeProjectScope>;
+  readonly projectSortOrder: HomeProjectSortOrder;
 }) {
   const t = useT();
+  // fork: thread list views. Grouped rows follow the send order, so there is no Working
+  // shelf and no manual reorder.
+  const groupedByProject = isGroupedByProject(input.viewMode, input.searchQuery);
   const { threads, workingShelfEnabled } = input;
   const layoutTime = useMemo(
     () => threadListV2LayoutTime({ threads, now: input.now, searchQuery: input.searchQuery }),
@@ -103,7 +118,7 @@ export function useThreadListV2(input: {
       });
     return new Map([
       ...sectionAvailability("pinned"),
-      ...(workingShelfEnabled ? [] : sectionAvailability("active")),
+      ...(workingShelfEnabled || groupedByProject ? [] : sectionAvailability("active")), // fork: thread list views
     ]);
   }, [
     threads,
@@ -115,6 +130,7 @@ export function useThreadListV2(input: {
     input.snoozeEnvironmentIds,
     input.queuedThreadKeys,
     workingShelfEnabled,
+    groupedByProject, // fork: thread list views
   ]);
   // Older settled threads load in pages; the shelf lists them only as far as they are loaded.
   const scopes = useMemo(
@@ -147,7 +163,7 @@ export function useThreadListV2(input: {
         queuedThreadKeys: input.queuedThreadKeys,
         settledLimit: input.settledLimit,
         now: layoutTime,
-        workingShelfEnabled,
+        workingShelfEnabled: workingShelfEnabled && !groupedByProject, // fork: thread list views
         workingShelfExpanded: input.workingShelfExpanded,
         inboxReturnAt: inbox.returnedAt,
         isWorking: inbox.isWorking,
@@ -180,6 +196,7 @@ export function useThreadListV2(input: {
       input.settledLimit,
       layoutTime,
       workingShelfEnabled,
+      groupedByProject, // fork: thread list views
       input.workingShelfExpanded,
       inbox.returnedAt,
       inbox.isWorking,
@@ -211,9 +228,44 @@ export function useThreadListV2(input: {
         (searchQuery.length === 0 || pendingTask.title.toLocaleLowerCase().includes(searchQuery)),
     );
   }, [input.projectRefs, input.searchQuery, input.pendingTasks, input.environmentId]);
+  // fork: thread list views
+  const projectView = useMemo(
+    () =>
+      groupedByProject
+        ? buildThreadListProjectRows({
+            items: layout.items,
+            firstShelfIndex: layout.snoozedShelfHeaderIndex ?? layout.settledShelfHeaderIndex,
+            groups: sortHomeProjectScopes({
+              scopes: input.projectScopes,
+              threads,
+              pendingTasks: input.pendingTasks,
+              projectSortOrder: input.projectSortOrder,
+            }).map((scope) => ({
+              projectKey: scope.key,
+              title: scope.title,
+              memberProjectRefs: scope.projectRefs,
+            })),
+            collapsedKeys: input.collapsedGroupKeys,
+            openThreadKey: input.selectedThreadKey,
+            otherTitle: t("Other projects"),
+          })
+        : undefined,
+    [
+      groupedByProject,
+      layout,
+      input.projectScopes,
+      threads,
+      input.pendingTasks,
+      input.projectSortOrder,
+      input.collapsedGroupKeys,
+      input.selectedThreadKey,
+      t,
+    ],
+  );
   const items = useMemo(
     () =>
       buildThreadListV2ListItems({
+        ...(projectView ? { projectView } : {}), // fork: thread list views
         items: layout.items,
         pendingTasks,
         workingCount: layout.workingCount,
@@ -233,6 +285,7 @@ export function useThreadListV2(input: {
         shelfPreferencesLoading: !input.shelfPreferencesLoaded,
       }),
     [
+      projectView,
       layout,
       pendingTasks,
       input.workingShelfExpanded,
@@ -246,7 +299,7 @@ export function useThreadListV2(input: {
       t,
     ],
   );
-  return { layout, items, contentOnlyThreadKeys, olderSettledShelf };
+  return { layout, items, contentOnlyThreadKeys, olderSettledShelf, groupedByProject }; // fork: thread list views
 }
 
 /** The list's scope per environment: its projects there, or every project. */

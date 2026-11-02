@@ -1,13 +1,14 @@
 import type { AuthClientPresentationMetadata } from "@t3tools/contracts";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 export function authClientMetadata(appVersion?: string): AuthClientPresentationMetadata {
   const osMajorVersion = Number.parseInt(Device.osVersion?.split(".")[0] ?? "", 10);
   const deviceModel = Device.modelName?.trim();
 
   return {
-    label: "T3 Code Mobile",
+    label: `${FORK.appBaseName} Mobile`,
     deviceType:
       Device.deviceType === Device.DeviceType.TABLET
         ? "tablet"

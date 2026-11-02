@@ -15,6 +15,18 @@ export function getTerminalLabel(terminalId: string): string {
   return terminalId;
 }
 
+/**
+ * fork: the server names a terminal "Terminal N" and clients match on that name, so it stays
+ * English as data. Show it in the interface language; any other name is shown as is.
+ */
+export function localizeTerminalLabel(
+  label: string,
+  t: (source: string, params?: Readonly<Record<string, string>>) => string,
+): string {
+  const number = /^Terminal (\d+)$/.exec(label)?.[1];
+  return number === undefined ? label : t("Terminal {number}", { number });
+}
+
 export function resolveTerminalSessionLabel(
   terminalId: string,
   summary: Pick<TerminalSummary, "label"> | null | undefined,

@@ -841,7 +841,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           className="me-1 text-2xs text-muted-foreground/70"
           data-user-message-attribution="t3code"
         >
-          {t("Sent by T3 Code")}
+          {t("Sent by T3 Extend")}
         </p>
       ) : null}
       {/* The row's heading already names the guest for screen readers. */}

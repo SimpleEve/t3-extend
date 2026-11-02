@@ -926,11 +926,15 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const compatibleRuntimeModeOptions = runtimeModeOptions
     .filter((option) => compatibleRuntimeModes.includes(option.mode))
     .map((option) => {
-      const disabledReason = managedRuntimeModeDenial(managedPolicy, option.mode);
+      const disabledReason = managedRuntimeModeDenial(managedPolicy, option.mode, t); // fork: interface language
       return disabledReason === undefined ? option : { ...option, disabledReason };
     });
   // A thread or draft already above the ceiling would be refused; offer the broadest mode left.
-  const runtimeModeCeilingDenial = managedRuntimeModeDenial(managedPolicy, compatibleRuntimeMode);
+  const runtimeModeCeilingDenial = managedRuntimeModeDenial(
+    managedPolicy,
+    compatibleRuntimeMode,
+    t,
+  ); // fork: interface language
   const runtimeModeCeilingFallback =
     runtimeModeCeilingDenial === undefined
       ? undefined

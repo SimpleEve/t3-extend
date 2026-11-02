@@ -15,6 +15,11 @@ import {
   type SidebarProjectGroupingMode,
 } from "@t3tools/contracts";
 import type { UiLanguageSetting } from "@t3tools/contracts/settings"; // fork: interface language
+import {
+  isSidebarViewMode,
+  type SidebarViewMode,
+} from "@t3tools/client-runtime/state/thread-grouping"; // fork: thread list views
+import { newestCollapsedKeys } from "../fork/threadListCollapse"; // fork: thread list views
 import type { AndroidNavigationStyle } from "../lib/androidNavigationStyle";
 import type { ComposerEnterBehavior } from "../lib/composerEnterBehavior";
 import type { FollowUpBehavior } from "../lib/followUpBehavior";
@@ -129,6 +134,10 @@ export interface Preferences {
   readonly threadListSnoozedShelfExpanded?: boolean;
   readonly threadListWorkingShelfExpanded?: boolean;
   readonly threadListFilters?: ThreadListFilters;
+  /** fork: "status" (the Inbox shelves) or "project" (threads grouped by project, then worktree). */
+  readonly threadListViewMode?: SidebarViewMode;
+  /** fork: fold keys from `sidebarGroupCollapseKey`; groups are open unless listed. */
+  readonly threadListCollapsedGroups?: readonly string[];
   readonly pullRequestListFilters?: PullRequestListPreferences;
   readonly workspaceSelections?: WorkspaceSelections;
 }
@@ -212,6 +221,8 @@ function sanitizePreferences(parsed: Preferences): Preferences {
     threadListSnoozedShelfExpanded?: boolean;
     threadListWorkingShelfExpanded?: boolean;
     threadListFilters?: ThreadListFilters;
+    threadListViewMode?: SidebarViewMode; // fork: thread list views
+    threadListCollapsedGroups?: readonly string[]; // fork: thread list views
     pullRequestListFilters?: PullRequestListPreferences;
     workspaceSelections?: WorkspaceSelections;
   } = {};
@@ -369,6 +380,15 @@ function sanitizePreferences(parsed: Preferences): Preferences {
   }
   if (isThreadListFilters(parsed.threadListFilters)) {
     preferences.threadListFilters = parsed.threadListFilters;
+  }
+  // fork: thread list views
+  if (isSidebarViewMode(parsed.threadListViewMode)) {
+    preferences.threadListViewMode = parsed.threadListViewMode;
+  }
+  if (Array.isArray(parsed.threadListCollapsedGroups)) {
+    preferences.threadListCollapsedGroups = newestCollapsedKeys(
+      parsed.threadListCollapsedGroups.filter((key): key is string => typeof key === "string"),
+    );
   }
   if (isPullRequestListPreferences(parsed.pullRequestListFilters)) {
     preferences.pullRequestListFilters = parsed.pullRequestListFilters;

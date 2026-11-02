@@ -522,6 +522,7 @@ function ThreadSettingsSessionProvider(
   const runtimeModeChoices = withManagedRuntimeModeLimits(
     runtimeModeChoicesForSupportedModes(displayedModel?.supportedRuntimeModes),
     [config?.managedPolicy],
+    t, // fork: interface language
   );
   const compatibleRuntimeMode = compatibleRuntimeModeForChoices(
     props.runtimeMode,

@@ -357,7 +357,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
 
     Dialog.alert(
       t("Disable notifications"),
-      t("Open system Settings to disable notifications for T3 Code."),
+      t("Open system Settings to disable notifications for T3 Extend."),
       [
         { text: t("Cancel"), style: "cancel" },
         { text: t("Open Settings"), onPress: () => void Linking.openSettings() },
@@ -490,7 +490,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
                   Dialog.alert(
                     t("Couldn't open Settings"),
                     t(
-                      "Open Android Settings, select T3 Code, then enable Live Updates in Notifications.",
+                      "Open Android Settings, select T3 Extend, then enable Live Updates in Notifications.",
                     ),
                   );
                 });

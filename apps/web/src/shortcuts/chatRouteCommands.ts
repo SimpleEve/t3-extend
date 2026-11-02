@@ -158,7 +158,7 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
               title: translate(getUiLocale(), "Preview is desktop-only"),
               description: translate(
                 getUiLocale(),
-                "Open T3 Code in the desktop app to use the in-app preview.",
+                "Open T3 Extend in the desktop app to use the in-app preview.",
               ),
             }),
           );

@@ -10,6 +10,7 @@ import { IPAD_HOME_TITLE_OFFSET } from "../lib/layoutMetrics";
 import { resolveMobileStageLabel } from "../lib/mobileBranding";
 import { useAndroidControlSizing } from "./ui/useAndroidControlSizing";
 import { useT } from "../hooks/useT"; // fork: i18n
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const BRAND_MAX_FONT_SCALE = 1.4;
@@ -43,7 +44,7 @@ export function CompactBrandTitle(
         props.fit && showStage ? (event) => setFullWidth(event.nativeEvent.layout.width) : undefined
       }
       aria-level={1}
-      accessibilityLabel={props.accessibilityLabel ?? t("T3 Code, Threads")}
+      accessibilityLabel={props.accessibilityLabel ?? t("T3 Extend, Threads")}
       accessible
       role="heading"
       className="flex-row items-center gap-1.5"
@@ -58,10 +59,10 @@ export function CompactBrandTitle(
       <Text
         allowFontScaling={props.allowFontScaling}
         maxFontSizeMultiplier={BRAND_MAX_FONT_SCALE}
-        className="font-t3-medium text-foreground-muted"
+        className="font-t3-medium text-primary-text" // fork: brand
         style={{ fontSize: 21 * scale, letterSpacing: -0.5 * scale }}
       >
-        Code
+        {FORK.wordmarkSuffix}
       </Text>
       {showStage ? (
         <View

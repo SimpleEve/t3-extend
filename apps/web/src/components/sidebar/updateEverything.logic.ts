@@ -1,4 +1,4 @@
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { getUiLocale, translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import type { ServerUpdateState } from "@t3tools/client-runtime/state/server";
 import {
   type DesktopUpdateChannel,
@@ -211,13 +211,14 @@ function managedMachineUpdateDenial(
   targetVersion: string | undefined,
 ): string | undefined {
   const policy = config.managedPolicy;
+  const t = translatorFor(getUiLocale()); // fork: interface language
   return (
-    managedUpdatesDenial(policy) ??
+    managedUpdatesDenial(policy, t) ??
     (policy !== undefined &&
     policy.limits?.updates?.allowNightly === false &&
     targetVersion !== undefined &&
     cliReleaseChannelOf(targetVersion) !== "stable"
-      ? managedNightlyDeniedMessage(policy.organization)
+      ? managedNightlyDeniedMessage(policy.organization, t)
       : undefined)
   );
 }

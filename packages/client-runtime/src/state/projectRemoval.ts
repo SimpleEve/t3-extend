@@ -55,10 +55,10 @@ export function planProjectRemoval<
     ...(threadCount > 0
       ? [
           t(
-            "Those threads and any archived threads are deleted from T3 Code. Provider sessions are kept.",
+            "Those threads and any archived threads are deleted from T3 Extend. Provider sessions are kept.",
           ),
         ]
-      : [t("Any archived threads are deleted from T3 Code. Provider sessions are kept.")]),
+      : [t("Any archived threads are deleted from T3 Extend. Provider sessions are kept.")]),
     isWholeGroup && !hasOtherMembers
       ? t("This removes only the project entries, not the files on disk.")
       : t("Other entries in this grouped project are unaffected."),

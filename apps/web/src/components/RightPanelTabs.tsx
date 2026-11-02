@@ -1,4 +1,5 @@
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
+import { TranslatedDndContext } from "~/fork/TranslatedDndContext"; // fork: i18n
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import {
   threadRuntimeIsActive,
@@ -23,10 +24,9 @@ import type {
   ResolvedKeybindingsConfig,
   ThreadId,
 } from "@t3tools/contracts";
-import { getTerminalLabel } from "@t3tools/shared/terminalLabels";
+import { getTerminalLabel, localizeTerminalLabel } from "@t3tools/shared/terminalLabels"; // fork: i18n
 import {
   closestCenter,
-  DndContext,
   type DragEndEvent,
   PointerSensor,
   useSensor,
@@ -174,7 +174,7 @@ function shouldOpenDefaultBrowserProfileFromMenuClick(pointerType: string | unde
 }
 
 const SURFACE_DISABLED_REASONS = {
-  browser: "Browser previews are only available in the T3 Code desktop app.",
+  browser: "Browser previews are only available in the T3 Extend desktop app.",
   terminal: "Terminal surfaces are only available from a project thread.",
   files: "Files are only available when a project is open.",
   diff: "Diff is only available for server threads in Git repositories.",
@@ -590,10 +590,11 @@ function surfaceTitle(
         Math.max(surface.relativePath.lastIndexOf("/"), surface.relativePath.lastIndexOf("\\")) + 1,
       );
     case "terminal":
-      return (
+      return localizeTerminalLabel(
         terminalLabelsById.get(surface.activeTerminalId) ??
-        getTerminalLabel(surface.activeTerminalId)
-      );
+          getTerminalLabel(surface.activeTerminalId),
+        t,
+      ); // fork: i18n
     case "pull-request":
       return `#${surface.number}`;
     case "pull-requests":
@@ -845,7 +846,7 @@ function SortableTabList(props: {
     if (toIndex >= 0) onMove?.(String(active.id), toIndex);
   };
   return (
-    <DndContext
+    <TranslatedDndContext
       sensors={sensors}
       collisionDetection={closestCenter}
       modifiers={TAB_DRAG_MODIFIERS}
@@ -854,7 +855,7 @@ function SortableTabList(props: {
       <SortableContext items={surfaceIds} strategy={horizontalListSortingStrategy}>
         {props.children}
       </SortableContext>
-    </DndContext>
+    </TranslatedDndContext>
   );
 }
 

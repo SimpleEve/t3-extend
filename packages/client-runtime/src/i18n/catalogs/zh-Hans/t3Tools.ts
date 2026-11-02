@@ -365,7 +365,7 @@ export default {
   "t3 tool target|a child task": "子任务",
   "t3 tool target|delegated task status": "委派任务的状态",
   "t3 tool target|a delegated task": "委派的任务",
-  "t3 tool target|a recurring task": "周期任务",
+  "t3 tool target|a task": "定时任务",
   "t3 tool target|scheduled tasks": "定时任务",
   "t3 tool target|a scheduled task": "定时任务",
   "t3 tool target|a secret": "密钥",

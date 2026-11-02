@@ -133,11 +133,14 @@ function HostedPromptLinkLanding({
           <AlertTitle>{t("This prompt had hidden characters, it may be malicious")}</AlertTitle>
           <AlertDescription>
             {prompt.hiddenCharacters === 1
-              ? t("T3 Code removed {count} hidden character. Read the prompt before you send it.", {
-                  count: prompt.hiddenCharacters,
-                })
+              ? t(
+                  "T3 Extend removed {count} hidden character. Read the prompt before you send it.",
+                  {
+                    count: prompt.hiddenCharacters,
+                  },
+                )
               : t(
-                  "T3 Code removed {count} hidden characters. Read the prompt before you send it.",
+                  "T3 Extend removed {count} hidden characters. Read the prompt before you send it.",
                   { count: prompt.hiddenCharacters },
                 )}
           </AlertDescription>

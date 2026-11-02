@@ -21,6 +21,7 @@ import {
   releaseCheckValue,
 } from "./environmentUpdateCheck";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 export function OutdatedServerUpdateSection({
   environmentId,
@@ -57,7 +58,7 @@ export function OutdatedServerUpdateSection({
     Dialog.alert(
       t("Update {label}?", { label }),
       t(
-        "Install T3 Code {targetVersion}. T3 Code restarts on that machine and reconnects. Running threads may be interrupted.",
+        "Install T3 Extend {targetVersion}. T3 Extend restarts on that machine and reconnects. Running threads may be interrupted.",
         { targetVersion },
       ),
       [
@@ -78,7 +79,7 @@ export function OutdatedServerUpdateSection({
   }
 
   return (
-    <SettingsSection title="T3 Code">
+    <SettingsSection title={FORK.appBaseName}>
       <View className="gap-1 p-4">
         <Text className="text-base text-foreground">
           {release
@@ -98,7 +99,7 @@ export function OutdatedServerUpdateSection({
                     targetVersion: release.targetVersion,
                   })
                 : t("No newer version is available yet.")
-              : t("This app needs a newer version of T3 Code on this machine.")}
+              : t("This app needs a newer version of T3 Extend on this machine.")}
         </Text>
         {error || state.status === "failed" ? (
           <Text selectable accessibilityRole="alert" className="text-sm text-danger-foreground">

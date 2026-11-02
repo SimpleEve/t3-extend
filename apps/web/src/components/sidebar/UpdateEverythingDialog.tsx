@@ -20,6 +20,7 @@ import { MiddleTruncate } from "../ui/middle-truncate";
 import { ScrollArea } from "../ui/scroll-area";
 import type { RestartingMachine, UpdateEverythingRow } from "./updateEverything.logic";
 import { useT } from "~/hooks/useT";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 const isRunning = (status: string) =>
   status === "preparing" || status === "starting" || status === "running";
@@ -139,7 +140,7 @@ function UpdateEverythingDialogContent({
         <AlertDialogDescription>
           {version !== null ? (
             <>
-              T3 Code <span className="font-mono text-xs">{version}</span>
+              {FORK.appBaseName} <span className="font-mono text-xs">{version}</span>
             </>
           ) : null}
           {version !== null && providerCount > 0 ? " · " : null}
@@ -161,7 +162,7 @@ function UpdateEverythingDialogContent({
           <div className="grid grid-cols-[minmax(4rem,max-content)_max-content_minmax(min-content,1fr)_max-content] gap-x-4 text-sm">
             <div className="col-span-full grid grid-cols-subgrid border-b pb-1.5 text-muted-foreground text-xs">
               <span>{t("Machine")}</span>
-              <span>T3 Code</span>
+              <span>{FORK.appBaseName}</span>
               <span>{t("Providers")}</span>
               <span />
             </div>

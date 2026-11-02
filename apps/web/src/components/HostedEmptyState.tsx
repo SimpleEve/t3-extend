@@ -45,7 +45,7 @@ export function HostedEmptyState() {
                 ? t("Turn it back on, or connect a different computer.")
                 : cloudEnabled
                   ? t("Your agents run on your computer.")
-                  : t("Your agents run on your computer. Start T3 Code there first.")}
+                  : t("Your agents run on your computer. Start T3 Extend there first.")}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>

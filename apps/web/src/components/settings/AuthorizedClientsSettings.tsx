@@ -599,7 +599,7 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
 }: AuthorizedClientsHeaderActionProps) {
   const t = useT();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
-  const pairingDenial = managedCapabilityDenial(usePrimaryManagedPolicy(), "remoteClients");
+  const pairingDenial = managedCapabilityDenial(usePrimaryManagedPolicy(), "remoteClients", t); // fork: interface language
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pairingLabel, setPairingLabel] = useState("");
   const [pairingScopes, setPairingScopes] = useState<ReadonlyArray<AuthGrantScope>>([
@@ -896,7 +896,7 @@ export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow
   const canDisableTailscaleServe =
     isTailscaleHttpsEndpoint(endpoint) && endpoint.status === "available";
   const shouldShowEndpointUrl = !needsTailscaleSetup;
-  const remoteDenial = managedCapabilityDenial(usePrimaryManagedPolicy(), "remoteClients");
+  const remoteDenial = managedCapabilityDenial(usePrimaryManagedPolicy(), "remoteClients", t); // fork: interface language
   return (
     <div className={endpointRowClassName(isAvailable)}>
       {isDefault ? (

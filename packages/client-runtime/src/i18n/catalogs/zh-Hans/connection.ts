@@ -6,8 +6,8 @@ export default {
   "No computer connected": "没有连接电脑",
   "Turn it back on, or connect a different computer.": "重新打开它，或连接另一台电脑。",
   "Your agents run on your computer.": "你的 Agent 在你的电脑上运行。",
-  "Your agents run on your computer. Start T3 Code there first.":
-    "你的 Agent 在你的电脑上运行。请先在那台电脑上启动 T3 Code。",
+  "Your agents run on your computer. Start T3 Extend there first.":
+    "你的 Agent 在你的电脑上运行。请先在那台电脑上启动 T3 Extend。",
   "Open Environments": "打开环境",
   "Signed in": "已登录",
   "Sign in": "登录",
@@ -163,16 +163,16 @@ export default {
     "你的账号下还没有发布其他环境。在另一台设备上发布后，它会显示在这里。",
   "Installing relay client": "正在安装中继客户端",
   "Install relay client?": "安装中继客户端？",
-  "T3 Code is preparing this environment for secure access through T3 Connect.":
-    "T3 Code 正在为此环境准备通过 T3 Connect 的安全访问。",
-  "T3 Code needs the relay client to make this environment available through T3 Connect.":
-    "T3 Code 需要中继客户端，才能让此环境通过 T3 Connect 访问。",
+  "T3 Extend is preparing this environment for secure access through T3 Connect.":
+    "T3 Extend 正在为此环境准备通过 T3 Connect 的安全访问。",
+  "T3 Extend needs the relay client to make this environment available through T3 Connect.":
+    "T3 Extend 需要中继客户端，才能让此环境通过 T3 Connect 访问。",
   "Relay client installation progress": "中继客户端安装进度",
-  "Keep T3 Code open while the relay client is installed.":
-    "安装中继客户端期间请保持 T3 Code 打开。",
+  "Keep T3 Extend open while the relay client is installed.":
+    "安装中继客户端期间请保持 T3 Extend 打开。",
   "Managed relay client": "托管中继客户端",
-  "T3 Code will download and install version {version} locally.":
-    "T3 Code 将在本地下载并安装 {version} 版本。",
+  "T3 Extend will download and install version {version} locally.":
+    "T3 Extend 将在本地下载并安装 {version} 版本。",
   "Download and install": "下载并安装",
   "{used} of {limit} tunnels in use": "已使用 {used} / {limit} 个隧道",
   "T3 Connect tunnels in use": "正在使用的 T3 Connect 隧道",
@@ -187,12 +187,12 @@ export default {
   "Could not read settings": "无法读取设置",
   "Still connecting": "仍在连接",
   "Your saved settings could not be loaded.": "无法加载你保存的设置。",
-  "T3 Code could not confirm this workspace.": "T3 Code 无法确认此工作区。",
+  "T3 Extend could not confirm this workspace.": "T3 Extend 无法确认此工作区。",
   Retry: "重试",
   "Some history was not imported": "部分历史记录没有导入",
   "Could not finish setup": "无法完成设置",
   "Your settings could not be saved. Try again.": "无法保存你的设置。请重试。",
-  "Set up T3 Code": "设置 T3 Code",
+  "Set up T3 Extend": "设置 T3 Extend",
   "Connect your computers": "连接你的电脑",
   "Choose one or more computers. We’ll set up agents and projects on each.":
     "选择一台或多台电脑。我们会在每台电脑上设置 Agent 和项目。",
@@ -202,21 +202,21 @@ export default {
     "未连接，因此设置会跳过 {labels}。你可以稍后在设置中配置它。",
   "Not connected, so setup skips {labels}. You can set them up later from Settings.":
     "未连接，因此设置会跳过 {labels}。你可以稍后在设置中配置它们。",
-  "T3 Code collects anonymous usage data to help us improve it. To read more about how your data is used and how to opt out, see our {link}.":
-    "T3 Code 会收集匿名使用数据来帮助我们改进。要了解你的数据如何被使用以及如何退出，请查看我们的{link}。",
+  "T3 Extend collects anonymous usage data to help us improve it. To read more about how your data is used and how to opt out, see our {link}.":
+    "T3 Extend 会收集匿名使用数据来帮助我们改进。要了解你的数据如何被使用以及如何退出，请查看我们的{link}。",
   "privacy policy": "隐私政策",
   "Loading sign-in…": "正在加载登录…",
   "Loading computers…": "正在加载电脑…",
   "No computers linked yet.": "还没有关联电脑。",
   "Run this on each computer you want to connect.": "在每台要连接的电脑上运行此命令。",
-  "Keep T3 Code running. Select the computers you want to set up above.":
-    "保持 T3 Code 运行。在上方选择要设置的电脑。",
+  "Keep T3 Extend running. Select the computers you want to set up above.":
+    "保持 T3 Extend 运行。在上方选择要设置的电脑。",
   "Pairing failed.": "配对失败。",
   "Pairing link": "配对链接",
   "Need a pairing link?": "需要配对链接？",
   Pair: "配对",
-  "On the computer with your code, start T3 Code or run {command}, then run:":
-    "在存放代码的电脑上启动 T3 Code 或运行 {command}，然后运行：",
+  "On the computer with your code, start T3 Extend or run {command}, then run:":
+    "在存放代码的电脑上启动 T3 Extend 或运行 {command}，然后运行：",
   "On a tailnet, run {command} instead.": "在 tailnet 中，改为运行 {command}。",
   "Connect your agents": "连接你的 Agent",
   "Choose an agent to start coding. You can add more later.":
@@ -421,8 +421,8 @@ export default {
   "WSL backend": "WSL 后端",
   "Default distro": "默认发行版",
   " (default)": "（默认）",
-  "Run only the WSL backend. T3 Code restarts when this changes.":
-    "只运行 WSL 后端。更改后 T3 Code 会重启。",
+  "Run only the WSL backend. T3 Extend restarts when this changes.":
+    "只运行 WSL 后端。更改后 T3 Extend 会重启。",
   "Run WSL only": "只运行 WSL",
   "Use Tailscale Serve to expose this backend through a MagicDNS HTTPS URL.":
     "使用 Tailscale Serve，通过 MagicDNS HTTPS URL 暴露此后端。",
@@ -445,10 +445,10 @@ export default {
     "此连接可以创建访问链接，但无法查看已授权的客户端。",
   "Enable network access?": "开启网络访问？",
   "Disable network access?": "关闭网络访问？",
-  "Let your other devices connect to T3 Code over the network. Pair devices to give them access. T3 Code will restart.":
-    "让你的其他设备通过网络连接 T3 Code。配对设备即可授予访问权限。T3 Code 将会重启。",
-  "Devices connected over your local network will disconnect. Existing tunnels, such as T3 Connect or Tailscale HTTPS, keep working. T3 Code will restart.":
-    "通过本地网络连接的设备会断开。现有隧道（例如 T3 Connect 或 Tailscale HTTPS）不受影响。T3 Code 将会重启。",
+  "Let your other devices connect to T3 Extend over the network. Pair devices to give them access. T3 Extend will restart.":
+    "让你的其他设备通过网络连接 T3 Extend。配对设备即可授予访问权限。T3 Extend 将会重启。",
+  "Devices connected over your local network will disconnect. Existing tunnels, such as T3 Connect or Tailscale HTTPS, keep working. T3 Extend will restart.":
+    "通过本地网络连接的设备会断开。现有隧道（例如 T3 Connect 或 Tailscale HTTPS）不受影响。T3 Extend 将会重启。",
   "Restart and enable": "重启并开启",
   "Restart and disable": "重启并关闭",
   "Turn off WSL and switch back to Windows?": "关闭 WSL 并切换回 Windows？",
@@ -457,29 +457,29 @@ export default {
   "Start the WSL backend": "启动 WSL 后端",
   "Run only the WSL backend?": "只运行 WSL 后端？",
   "Re-enable the Windows backend?": "重新启用 Windows 后端？",
-  "T3 Code will restart on the Windows backend. Threads and projects opened against WSL stay safe inside the distro and become available again when you re-enable WSL.":
-    "T3 Code 将以 Windows 后端重启。在 WSL 中打开的对话和项目会安全保留在发行版内，重新启用 WSL 后即可再次使用。",
-  "The WSL backend will stop. Threads and projects opened against WSL stay safe inside the distro, but they'll be unavailable in T3 Code until you re-enable WSL.":
-    "WSL 后端将停止。在 WSL 中打开的对话和项目会安全保留在发行版内，但在重新启用 WSL 之前无法在 T3 Code 中使用。",
-  "T3 Code will restart the WSL backend on the new distro. Sessions still running on the current distro will be interrupted.":
-    "T3 Code 将在新的发行版上重启 WSL 后端。当前发行版上仍在运行的会话会被中断。",
+  "T3 Extend will restart on the Windows backend. Threads and projects opened against WSL stay safe inside the distro and become available again when you re-enable WSL.":
+    "T3 Extend 将以 Windows 后端重启。在 WSL 中打开的对话和项目会安全保留在发行版内，重新启用 WSL 后即可再次使用。",
+  "The WSL backend will stop. Threads and projects opened against WSL stay safe inside the distro, but they'll be unavailable in T3 Extend until you re-enable WSL.":
+    "WSL 后端将停止。在 WSL 中打开的对话和项目会安全保留在发行版内，但在重新启用 WSL 之前无法在 T3 Extend 中使用。",
+  "T3 Extend will restart the WSL backend on the new distro. Sessions still running on the current distro will be interrupted.":
+    "T3 Extend 将在新的发行版上重启 WSL 后端。当前发行版上仍在运行的会话会被中断。",
   "Run the WSL backend alongside the Windows one, or stop the Windows backend and use only WSL? You can change this later from Settings.":
     "同时运行 WSL 和 Windows 后端，还是停止 Windows 后端、只使用 WSL？之后可以在设置中更改。",
-  "T3 Code will restart and start only the WSL backend. Your Windows-side projects won't be accessible until you turn this off again.":
-    "T3 Code 将重启并只启动 WSL 后端。在你再次关闭此选项之前，Windows 端的项目将无法访问。",
-  "T3 Code will restart and bring the Windows backend back up alongside WSL.":
-    "T3 Code 将重启，并重新启动 Windows 后端与 WSL 一同运行。",
+  "T3 Extend will restart and start only the WSL backend. Your Windows-side projects won't be accessible until you turn this off again.":
+    "T3 Extend 将重启并只启动 WSL 后端。在你再次关闭此选项之前，Windows 端的项目将无法访问。",
+  "T3 Extend will restart and bring the Windows backend back up alongside WSL.":
+    "T3 Extend 将重启，并重新启动 Windows 后端与 WSL 一同运行。",
   "Applying…": "正在应用…",
   "Use only WSL": "只使用 WSL",
   "Run both backends": "同时运行两个后端",
   "Disable WSL": "关闭 WSL",
   "Switch distro": "切换发行版",
   "Disable Tailscale HTTPS?": "关闭 Tailscale HTTPS？",
-  "T3 Code will restart the local backend without Tailscale Serve.":
-    "T3 Code 将在不启用 Tailscale Serve 的情况下重启本地后端。",
+  "T3 Extend will restart the local backend without Tailscale Serve.":
+    "T3 Extend 将在不启用 Tailscale Serve 的情况下重启本地后端。",
   "Set up Tailscale HTTPS?": "设置 Tailscale HTTPS？",
-  "T3 Code will restart the local backend with Tailscale Serve enabled and ask Tailscale to proxy HTTPS traffic to this backend.":
-    "T3 Code 将在启用 Tailscale Serve 的情况下重启本地后端，并请 Tailscale 把 HTTPS 流量代理到此后端。",
+  "T3 Extend will restart the local backend with Tailscale Serve enabled and ask Tailscale to proxy HTTPS traffic to this backend.":
+    "T3 Extend 将在启用 Tailscale Serve 的情况下重启本地后端，并请 Tailscale 把 HTTPS 流量代理到此后端。",
   "HTTPS port": "HTTPS 端口",
   "Enter a port from 1 to 65535.": "请输入 1 到 65535 之间的端口。",
   "HTTPS endpoint": "HTTPS 端点",
@@ -500,8 +500,8 @@ export default {
   "Not connected": "未连接",
   Machine: "机器",
   "Another address…": "其他地址…",
-  "Link another machine running T3 Code, such as a VPS, so agents here can launch and drive threads there.":
-    "关联另一台运行 T3 Code 的机器（例如 VPS），让这里的 Agent 可以在那边启动和驱动对话。",
+  "Link another machine running T3 Extend, such as a VPS, so agents here can launch and drive threads there.":
+    "关联另一台运行 T3 Extend 的机器（例如 VPS），让这里的 Agent 可以在那边启动和驱动对话。",
   "Forgetting…": "正在忘记…",
   Forget: "忘记",
   "Linked {label}": "已关联 {label}",
@@ -519,16 +519,16 @@ export default {
   "Create a link on {label}: Settings → Connections → Create link, then paste its code here.":
     "在 {label} 上创建链接：设置 → 连接 → 创建链接，然后把代码粘贴到这里。",
   "Linking…": "正在关联…",
-  "Run agents on this computer. Turn off to use T3 Code only with remote environments.":
-    "在这台电脑上运行 Agent。关闭后 T3 Code 只使用远程环境。",
+  "Run agents on this computer. Turn off to use T3 Extend only with remote environments.":
+    "在这台电脑上运行 Agent。关闭后 T3 Extend 只使用远程环境。",
   "Turned off. Agents only run in remote environments.": "已关闭。Agent 只在远程环境中运行。",
   "Local environment": "本地环境",
   "Turn off local environment?": "关闭本地环境？",
   "Turn on local environment?": "开启本地环境？",
-  "T3 Code will restart without running a server on this computer. Any agents and terminals running here will stop, and other devices will no longer be able to connect to this computer. Your projects, history, and remote environments are unaffected.":
-    "T3 Code 将重启，且不再在这台电脑上运行服务器。这里正在运行的 Agent 和终端都会停止，其他设备也将无法再连接这台电脑。你的项目、历史记录和远程环境不受影响。",
-  "T3 Code will restart and start running a server on this computer again.":
-    "T3 Code 将重启，并重新在这台电脑上运行服务器。",
+  "T3 Extend will restart without running a server on this computer. Any agents and terminals running here will stop, and other devices will no longer be able to connect to this computer. Your projects, history, and remote environments are unaffected.":
+    "T3 Extend 将重启，且不再在这台电脑上运行服务器。这里正在运行的 Agent 和终端都会停止，其他设备也将无法再连接这台电脑。你的项目、历史记录和远程环境不受影响。",
+  "T3 Extend will restart and start running a server on this computer again.":
+    "T3 Extend 将重启，并重新在这台电脑上运行服务器。",
   "Restart and turn off": "重启并关闭",
   "Restart and turn on": "重启并开启",
   "Trace ID copied": "已复制追踪 ID",
@@ -591,15 +591,16 @@ export default {
     "点击“添加环境”与另一个环境配对，或从 T3 Connect 连接一个。",
   "Click “Add environment” to pair another environment.": "点击“添加环境”与另一个环境配对。",
   "This device is offline": "此设备已离线",
-  "{host} runs an older T3 Code": "{host} 运行的是旧版 T3 Code",
+  "{host} runs an older T3 Extend": "{host} 运行的是旧版 T3 Extend",
   "This device's clock is off": "此设备的时钟不准",
   "{host} is not linked to your T3 Connect account": "{host} 没有关联到你的 T3 Connect 账号",
   "T3 Connect returned an error": "T3 Connect 返回了错误",
   "{host}'s tunnel is still being set up": "{host} 的隧道仍在设置中",
   "T3 Connect is not turned on for {host}": "{host} 没有开启 T3 Connect",
   "{host}'s tunnel is offline": "{host} 的隧道已离线",
-  "Tunnel works, but T3 Code on {host} did not answer": "隧道正常，但 {host} 上的 T3 Code 没有响应",
-  "T3 Code on {host} sent an unexpected answer": "{host} 上的 T3 Code 返回了意外的响应",
+  "Tunnel works, but T3 Extend on {host} did not answer":
+    "隧道正常，但 {host} 上的 T3 Extend 没有响应",
+  "T3 Extend on {host} sent an unexpected answer": "{host} 上的 T3 Extend 返回了意外的响应",
   "{host}'s tunnel address did not resolve": "无法解析 {host} 的隧道地址",
   "Secure connection to {host}'s tunnel failed": "与 {host} 隧道的安全连接失败",
   "{host}'s tunnel refused the connection": "{host} 的隧道拒绝了连接",
@@ -609,30 +610,30 @@ export default {
   "This device can't reach T3 Connect": "此设备无法访问 T3 Connect",
   "This device can't reach {host}'s tunnel": "此设备无法访问 {host} 的隧道",
   "T3 Connect could not reach {host}'s tunnel": "T3 Connect 无法访问 {host} 的隧道",
-  "T3 Code on {host} did not accept this device": "{host} 上的 T3 Code 没有接受此设备",
-  "T3 Code on {host} did not answer": "{host} 上的 T3 Code 没有响应",
+  "T3 Extend on {host} did not accept this device": "{host} 上的 T3 Extend 没有接受此设备",
+  "T3 Extend on {host} did not answer": "{host} 上的 T3 Extend 没有响应",
   "On {host}, check Settings > Sharing & access or run `t3 connect status`.":
     "在 {host} 上检查“设置 > 共享与访问”，或运行 `t3 connect status`。",
-  "Connect this device to the internet. T3 Code reconnects on its own.":
-    "把此设备连接到互联网。T3 Code 会自动重新连接。",
-  "Update T3 Code on {host}.": "更新 {host} 上的 T3 Code。",
+  "Connect this device to the internet. T3 Extend reconnects on its own.":
+    "把此设备连接到互联网。T3 Extend 会自动重新连接。",
+  "Update T3 Extend on {host}.": "更新 {host} 上的 T3 Extend。",
   "Turn on automatic date and time on this device and on {host}, then retry.":
     "在此设备和 {host} 上开启自动设置日期和时间，然后重试。",
   "Check that this device is signed in to the same T3 Connect account as the host.":
     "确认此设备登录的 T3 Connect 账号与主机相同。",
   "On {host}, open Settings > Sharing & access and turn T3 Connect on.":
     "在 {host} 上打开“设置 > 共享与访问”，然后开启 T3 Connect。",
-  "Wait a minute. T3 Code retries on its own.": "稍等一分钟。T3 Code 会自动重试。",
-  "Wait a few minutes. T3 Code retries on its own.": "稍等几分钟。T3 Code 会自动重试。",
+  "Wait a minute. T3 Extend retries on its own.": "稍等一分钟。T3 Extend 会自动重试。",
+  "Wait a few minutes. T3 Extend retries on its own.": "稍等几分钟。T3 Extend 会自动重试。",
   "If it keeps failing, copy the diagnostics and report it.":
     "如果一直失败，请复制诊断信息并报告问题。",
-  "Make sure {host} is awake and T3 Code is running on it.":
-    "确认 {host} 处于唤醒状态，并且正在运行 T3 Code。",
+  "Make sure {host} is awake and T3 Extend is running on it.":
+    "确认 {host} 处于唤醒状态，并且正在运行 T3 Extend。",
   "A VPN or Tailscale exit node on {host} can block the tunnel (port 7844). Turn it off or allow the tunnel.":
     "{host} 上的 VPN 或 Tailscale 出口节点可能会阻断隧道（端口 7844）。请关闭它或放行隧道。",
-  "Open or restart T3 Code on {host}.": "打开或重启 {host} 上的 T3 Code。",
+  "Open or restart T3 Extend on {host}.": "打开或重启 {host} 上的 T3 Extend。",
   "Make sure {host} is awake and online.": "确认 {host} 处于唤醒状态并且在线。",
-  "Restart T3 Code on this device.": "重启此设备上的 T3 Code。",
+  "Restart T3 Extend on this device.": "重启此设备上的 T3 Extend。",
   "If it keeps failing, remove {host} from this device and add it again.":
     "如果一直失败，请从此设备移除 {host} 后重新添加。",
   "Sign out of T3 Connect and sign in again.": "退出 T3 Connect 后重新登录。",
@@ -643,10 +644,10 @@ export default {
     "此设备上的 VPN、防火墙或 DNS 过滤可能会阻断隧道。",
   "Try another network, or add a direct route such as a Tailscale address.":
     "换一个网络试试，或添加直连路由，例如 Tailscale 地址。",
-  "Make sure T3 Code is running on {host}.": "确认 {host} 上正在运行 T3 Code。",
+  "Make sure T3 Extend is running on {host}.": "确认 {host} 上正在运行 T3 Extend。",
   "Retry. If it keeps failing, copy the diagnostics.": "重试。如果一直失败，请复制诊断信息。",
   "{host} tunnel": "{host} 隧道",
-  "T3 Code on {host}": "{host} 上的 T3 Code",
+  "T3 Extend on {host}": "{host} 上的 T3 Extend",
   "WSL only": "仅 WSL",
   "No environment selected": "未选择环境",
   "This app": "此应用",
@@ -701,8 +702,8 @@ export default {
   "Relay status unavailable": "中继状态不可用",
   "{value} of {length}": "{value}/{length}",
   "SSH verification required": "需要 SSH 验证",
-  "Enter the password or verification code required by {code}. T3 Code passes your response to the local SSH process and keeps it in memory to reuse for this host. T3 Code does not write it to disk.":
-    "请输入 {code} 要求的密码或验证码。T3 Code 会把它交给本地 SSH 进程，并保存在内存中供这台主机复用，不会写入磁盘。",
+  "Enter the password or verification code required by {code}. T3 Extend passes your response to the local SSH process and keeps it in memory to reuse for this host. T3 Extend does not write it to disk.":
+    "请输入 {code} 要求的密码或验证码。T3 Extend 会把它交给本地 SSH 进程，并保存在内存中供这台主机复用，不会写入磁盘。",
   "SSH keys may replace a password, but your server can still require a verification code.":
     "SSH 密钥可以代替密码，但你的服务器仍可能要求验证码。",
   "This link has ended or is not valid": "这个链接已结束或无效",
@@ -763,8 +764,8 @@ export default {
   "This forgets its pairing, credentials, and cached threads here. Switch it off instead to keep it saved.":
     "这会清除它在这里的配对、凭据和缓存的对话。想保留它的话，改为关闭即可。",
   "Remove {label} route?": "移除 {label} 路由？",
-  'Forget {label}? Agents here stop working there. Revoke "T3 Code · …" in {label}\'s Connections to end the session there too.':
-    "忘记 {label}？这里的 Agent 将无法再在那里工作。要同时结束那边的会话，请在 {label} 的“连接”中撤销“T3 Code · …”。",
+  'Forget {label}? Agents here stop working there. Revoke "T3 Extend · …" in {label}\'s Connections to end the session there too.':
+    "忘记 {label}？这里的 Agent 将无法再在那里工作。要同时结束那边的会话，请在 {label} 的“连接”中撤销“T3 Extend · …”。",
   // T3 Connect environment button states.
   "Reconnecting…": "正在重新连接…",
   "Connection failed": "连接失败",

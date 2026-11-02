@@ -388,7 +388,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
                       connectedEnvironments.map(
                         (environment) => environment.serverConfig?.managedPolicy,
                       ),
-                      (policy) => managedRuntimeModeDenial(policy, mode),
+                      (policy) => managedRuntimeModeDenial(policy, mode, t), // fork: interface language
                     );
                     return (
                       <SelectItem

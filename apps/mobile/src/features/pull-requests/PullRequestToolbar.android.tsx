@@ -76,7 +76,7 @@ export function PullRequestToolbar(props: {
         onCloseSearch={closeSearch}
         onOpenSearch={openSearch}
         searchAccessibilityLabel={t("Search pull requests")}
-        titleAccessibilityLabel={t("T3 Code, Pull requests")}
+        titleAccessibilityLabel={t("T3 Extend, Pull requests")}
         onOpenEnvironments={() => openSettings(navigation, "SettingsEnvironments")}
         filter={
           filters ? (

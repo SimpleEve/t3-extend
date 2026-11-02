@@ -168,6 +168,8 @@ describe("hourly usage formatting", () => {
       "{month} {day}": "{month}{day}日",
       "{date}, {time}": "{date} {time}",
       "{hour} today": "今天 {hour}",
+      "{hour} AM": "上午 {hour} 点",
+      "{hour} PM": "下午 {hour} 点",
       Nov: "11月",
     };
     const chinese = (source: string, params?: Readonly<Record<string, string>>) =>
@@ -186,6 +188,15 @@ describe("hourly usage formatting", () => {
     expect(
       formatRelativeHourShort(instant, "2026-11-02T20:00:00.000Z", "UTC", false, chinese),
     ).toBe("今天 15:00");
+    // The 12-hour clock names the meridiem in the interface language, including a repeated hour.
+    expect(formatHourShort(instant, "UTC", true, chinese)).toBe("下午 3 点");
+    expect(formatHourShort("2026-11-01T05:37:00.000Z", "America/New_York", true, chinese)).toBe(
+      "上午 1 点 EDT",
+    );
+    expect(formatDateTimeShort(instant, "UTC", true, chinese)).toBe("11月2日 下午 3 点");
+    for (const zone of ["UTC", "America/New_York", "Asia/Kathmandu"]) {
+      expect(formatHourShort(instant, zone, true, english)).toBe(formatHourShort(instant, zone));
+    }
   });
 
   it("builds an exact minute-aligned 24-hour request", () => {

@@ -20,6 +20,12 @@ export function SubscriptionUsage(props: SubscriptionUsageProps, environment: Wi
   "widget";
   // The widget runtime evaluates this function without the app's module scope.
   const now = Date.now();
+  // fork: i18n. The app sends the strings in the interface language; English is the fallback.
+  const text = (key: string, fallback: string, params: Record<string, string | number> = {}) =>
+    Object.keys(params).reduce(
+      (value, name) => value.split(`{${name}}`).join(String(params[name])),
+      props.strings?.[key] ?? fallback,
+    );
   const limit = 2;
   const mode = props.theme?.mode;
   const appearance =
@@ -40,9 +46,10 @@ export function SubscriptionUsage(props: SubscriptionUsageProps, environment: Wi
       }
     : getMaterialColors({ scheme: appearance });
   const muted = colors.onSurfaceVariant;
+  const connect = text("connect", "Open T3 to connect");
   const providers = props.providers ?? [
-    { name: "Codex", detail: "Open T3 to connect", windows: [], expiresAt: 0, totalWindows: 0 },
-    { name: "Claude", detail: "Open T3 to connect", windows: [], expiresAt: 0, totalWindows: 0 },
+    { name: "Codex", detail: connect, windows: [], expiresAt: 0, totalWindows: 0 },
+    { name: "Claude", detail: connect, windows: [], expiresAt: 0, totalWindows: 0 },
   ];
   return (
     // Android lacks widgetURL; one card Button routes taps to the app listener opening props.url.
@@ -71,7 +78,7 @@ export function SubscriptionUsage(props: SubscriptionUsageProps, environment: Wi
               </Text>
               {shown.length === 0 ? (
                 <Text color={muted} maxLines={1} style={{ fontSize: 11 }}>
-                  {stale ? "Open T3 to refresh" : provider.detail}
+                  {stale ? text("refresh", "Open T3 to refresh") : provider.detail}
                 </Text>
               ) : null}
               {shown.map((window) => {
@@ -83,7 +90,7 @@ export function SubscriptionUsage(props: SubscriptionUsageProps, environment: Wi
                       maxLines={1}
                       style={{ fontSize: 11 }}
                     >
-                      {`${window.label} · ${window.remaining}% left`}
+                      {`${window.label} · ${text("percentLeft", "{percent}% left", { percent: window.remaining })}`}
                     </Text>
                     <Column modifiers={[fillMaxWidth(), padding(0, 3, 0, 3)]}>
                       <LinearProgressIndicator
@@ -101,7 +108,7 @@ export function SubscriptionUsage(props: SubscriptionUsageProps, environment: Wi
               })}
               {hidden > 0 ? (
                 <Text color={muted} maxLines={1} style={{ fontSize: 10 }}>
-                  {`${hidden} more in T3`}
+                  {text("moreInApp", "{count} more in T3", { count: hidden })}
                 </Text>
               ) : null}
             </Column>
@@ -114,8 +121,9 @@ export function SubscriptionUsage(props: SubscriptionUsageProps, environment: Wi
           modifiers={[padding(0, 10, 0, 0)]}
         >
           {props.checkedAt
-            ? `As of ${new Date(props.checkedAt).toLocaleString(undefined, { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" })}`
-            : "Tap to connect in T3"}
+            ? (props.checkedAtLabel ??
+              `As of ${new Date(props.checkedAt).toLocaleString(undefined, { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" })}`)
+            : text("tapToConnect", "Tap to connect in T3")}
         </Text>
       </Column>
     </Button>

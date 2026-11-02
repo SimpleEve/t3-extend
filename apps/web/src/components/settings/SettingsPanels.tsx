@@ -165,7 +165,7 @@ function AboutVersionSection() {
   const selectedUpdateChannel = updateState?.channel ?? "latest";
   // The desktop updates this machine, whose policy the primary environment reports.
   const primaryPolicy = usePrimaryManagedPolicy();
-  const updatesDenial = hasDesktopBridge ? managedUpdatesDenial(primaryPolicy) : undefined;
+  const updatesDenial = hasDesktopBridge ? managedUpdatesDenial(primaryPolicy, t) : undefined; // fork: interface language
   const nightlyDeniedBy =
     hasDesktopBridge && primaryPolicy?.limits?.updates?.allowNightly === false
       ? primaryPolicy.organization
@@ -279,26 +279,27 @@ function AboutVersionSection() {
   };
 
   const action = updateState ? resolveDesktopUpdateButtonAction(updateState) : "none";
-  const buttonTooltip = updateState ? getDesktopUpdateButtonTooltip(updateState) : null;
+  const buttonTooltip = updateState ? getDesktopUpdateButtonTooltip(updateState, t) : null;
   const buttonDisabled =
     action === "none"
       ? !canCheckForUpdate(updateState)
       : isDesktopUpdateButtonDisabled(updateState);
 
-  const actionLabel: Record<string, string> = { download: "Download", install: "Install" };
+  // fork: interface language. The labels translate where they are built.
+  const actionLabel: Record<string, string> = { download: t("Download"), install: t("Install") };
   const statusLabel: Record<string, string> = {
-    checking: "Checking…",
-    downloading: "Downloading…",
+    checking: t("Checking…"),
+    downloading: t("Downloading…"),
     // Off its track, "up to date" only means no switch is pending; Review moves it.
-    ...(appOffTrack ? {} : { "up-to-date": "Up to Date" }),
+    ...(appOffTrack ? {} : { "up-to-date": t("Up to Date") }),
   };
   const buttonLabel =
-    actionLabel[action] ?? statusLabel[updateState?.status ?? ""] ?? "Check for Updates";
+    actionLabel[action] ?? statusLabel[updateState?.status ?? ""] ?? t("Check for Updates");
   const description =
     action === "download" || action === "install"
-      ? "Update available."
-      : (getDesktopUpdateDisabledReason(updateState, updatesDenial) ??
-        "Current version of the application.");
+      ? t("Update available.")
+      : (getDesktopUpdateDisabledReason(updateState, updatesDenial, t) ??
+        t("Current version of the application."));
 
   return (
     <>
@@ -334,7 +335,7 @@ function AboutVersionSection() {
                 selectedUpdateChannel === "nightly"
                   ? "{message} Nightly builds are not available; switch to Stable to keep getting updates."
                   : "{message} Nightly builds are not available.",
-                { message: managedUpdatesMessage(nightlyDeniedBy) },
+                { message: managedUpdatesMessage(nightlyDeniedBy, t) },
               )
             ) : unswitchedMachines > 0 ? (
               <>
@@ -2091,7 +2092,7 @@ export function MaintenanceSettingsPanel() {
 export function AboutSettingsPanel() {
   const t = useT();
   const primaryPolicy = usePrimaryManagedPolicy();
-  const telemetryOff = managedTelemetryOffMessage(primaryPolicy);
+  const telemetryOff = managedTelemetryOffMessage(primaryPolicy, t); // fork: interface language
   return (
     <SettingsPageContainer>
       <SettingsSection id="about" title="App">
@@ -2136,7 +2137,7 @@ export function AboutSettingsPanel() {
           {...searchableSetting("privacy-policy")}
           description={
             telemetryOff === undefined
-              ? t("How we handle your data, including the anonymous usage data T3 Code collects.")
+              ? t("How we handle your data, including the anonymous usage data T3 Extend collects.")
               : t("How we handle your data. {message}", { message: telemetryOff })
           }
           control={
@@ -2151,7 +2152,7 @@ export function AboutSettingsPanel() {
         />
         <SettingsRow
           {...searchableSetting("open-source-licenses")}
-          description={t("Notices for dependencies, assets, and optional tools used by T3 Code.")}
+          description={t("Notices for dependencies, assets, and optional tools used by T3 Extend.")}
           control={
             <Button
               render={<Link to="/settings/open-source-licenses" />}

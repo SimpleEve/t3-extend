@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  callCatalogKey,
   catalogKeySource,
   riskyComparisons,
+  scanCallKeys,
   scanComparisons,
   scanHardCodedText,
   scanIndirectSources,
   scanPropertyText,
+  templateSourcePattern,
 } from "./i18n-report.ts";
 
 const hitsOf = (code: string, fileName = "apps/web/src/Example.tsx") =>
@@ -216,6 +219,11 @@ describe("scanIndirectSources", () => {
       'const NAMES = { en: "English" };\ntranslate(locale, NAMES.en);',
       ["English"],
     ],
+    [
+      "both branches of a conditional constant read",
+      'const A = { x: "Open it", y: "Close it" };\nt(on ? A.x : A.y);',
+      ["Open it", "Close it"],
+    ],
   ])("finds %s", (_case, code, expected) => {
     expect(sourcesIn(code)).toEqual(expected);
   });
@@ -246,5 +254,55 @@ describe("catalogKeySource", () => {
     ],
   ])("reads %s", (_case, key, source) => {
     expect(catalogKeySource(key)).toBe(source);
+  });
+});
+
+describe("scanCallKeys", () => {
+  const keysIn = (code: string) =>
+    scanCallKeys(code, "apps/web/src/Example.tsx").map((call) => callCatalogKey(call));
+
+  it.each([
+    ["a bare call", 't("days");', ["days"]],
+    ["a call with params and no context", 't("Hello {name}", { name });', ["Hello {name}"]],
+    ["a context", 't("Main", undefined, "worktree badge");', ["worktree badge|Main"]],
+    [
+      "translate() with a locale first",
+      'translate(locale, "days", undefined, "unit");',
+      ["unit|days"],
+    ],
+    [
+      "both branches of a condition",
+      't(open ? "Collapse all" : "Expand all");',
+      ["Collapse all", "Expand all"],
+    ],
+  ])("finds the catalog key of %s", (_case, code, expected) => {
+    expect(keysIn(code)).toEqual(expected);
+  });
+
+  it("leaves out a context the code does not spell out, and sources without a word", () => {
+    expect(keysIn('t("Main", undefined, context);')).toEqual([null]);
+    expect(keysIn('t("1");')).toEqual([]);
+  });
+
+  it("tells a bare call from a contextual catalog entry: the key it needs differs", () => {
+    // The catalog holds "snooze unit|days"; a call without that context needs plain "days".
+    const [call] = scanCallKeys('t("days");', "apps/web/src/Example.tsx");
+    expect(callCatalogKey(call!)).toBe("days");
+    expect(callCatalogKey(call!)).not.toBe("snooze unit|days");
+  });
+});
+
+describe("templateSourcePattern", () => {
+  it("turns a template into a pattern for the sources it can render", () => {
+    const pattern = templateSourcePattern("Set up ${desktop} capture");
+    expect(pattern?.test("Set up GNOME capture")).toBe(true);
+    expect(pattern?.test("Check T3 Extend SnapShots in GNOME Extensions, then try again.")).toBe(
+      false,
+    );
+  });
+
+  it("drops a template with no word in its fixed text, which would match every sentence", () => {
+    expect(templateSourcePattern("${families}, ${defaultStack}")).toBeNull();
+    expect(templateSourcePattern("${a}${b}")).toBeNull();
   });
 });
