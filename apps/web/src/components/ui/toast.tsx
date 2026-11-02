@@ -587,6 +587,7 @@ function Toasts({ position }: { position: ToastPosition }) {
         )}
         data-position={position}
         data-slot="toast-viewport"
+        aria-label={t("Notifications")} // fork: Base UI defaults to English
         style={
           {
             "--toast-frontmost-height": `${visibleToastLayout.frontmostHeight}px`,
@@ -720,7 +721,11 @@ function AnchoredToasts() {
 
   return (
     <Toast.Portal data-slot="toast-portal-anchored">
-      <Toast.Viewport className="outline-none" data-slot="toast-viewport-anchored">
+      <Toast.Viewport
+        className="outline-none"
+        data-slot="toast-viewport-anchored"
+        aria-label={t("Notifications")} // fork: Base UI defaults to English
+      >
         {toasts
           .filter((toast) => shouldRenderThreadScopedToast(toast.data, activeThreadRef))
           .map((toast) => {

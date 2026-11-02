@@ -5,6 +5,10 @@ export default {
   "An error occurred.": "发生错误。",
   Copied: "已复制",
 
+  // Workspace region names read by screen readers.
+  Conversation: "对话内容",
+  "Message input": "消息输入框",
+
   // Thread header
   "Thread breadcrumb": "对话导航路径",
   "Open parent thread: {title}": "打开上级对话：{title}",
@@ -23,9 +27,8 @@ export default {
   "What should we work on?": "要做点什么？",
   "or start without a project": "或者不选项目直接开始",
   "draft hero|What should we build": "要做点什么",
-  "draft hero| in": "，在",
   "draft hero stacked|?": "？",
-  "draft hero inline|?": "？",
+  "What should we build in {project}?": "在 {project} 要做点什么？",
   "What went wrong?": "出了什么问题？",
   "This machine": "本机",
   "The agent reads T3 Code's logs and source here, and asks before it applies a fix or posts anything.":
