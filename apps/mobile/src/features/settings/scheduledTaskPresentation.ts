@@ -42,6 +42,17 @@ export function formatScheduledTaskTime(date: Date, locale: UiLocale): string {
   );
 }
 
+// fork: Hermes on Android names weekdays in English whatever the locale.
+const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
 export function formatNextScheduledTaskRun(
   nextRunAt: string,
   now: number,
@@ -74,7 +85,10 @@ export function formatNextScheduledTaskRun(
   if (days === 1) return t("Next run tomorrow at {time}", { time });
   if (days <= 7) {
     return t("Next run next {weekday} at {time}", {
-      weekday: next.toLocaleDateString(formatTag, { weekday: "long" }),
+      weekday:
+        locale === "en"
+          ? next.toLocaleDateString(formatTag, { weekday: "long" })
+          : t(WEEKDAY_NAMES[next.getDay()]!),
       time,
     });
   }

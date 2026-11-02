@@ -684,6 +684,11 @@ export default {
   "under pace": "慢于匀速",
   "{count} reset credit banked": "存有 {count} 次重置额度",
   " · next expires in {expiresIn}": " · 下次 {expiresIn}后过期",
+  // Thread arrangement sheet sections.
+  "Pinned ({count})": "已置顶（{count}）",
+  "Active ({count})": "进行中（{count}）",
+  "Snoozed ({count})": "稍后处理（{count}）",
+  "Settled ({count})": "已处理（{count}）",
   "Reset applied. Your windows have cleared.": "已重置，你的用量窗口已清空。",
   "Nothing to reset right now.": "现在没有需要重置的内容。",
   "No reset credit left.": "没有剩余的重置额度。",

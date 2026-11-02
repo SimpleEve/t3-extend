@@ -339,7 +339,7 @@ function PreviewStreamDocumentView({
       {!compact ? (
         <View className="flex-row items-center justify-between gap-2 border-b border-secondary-border px-3 py-2">
           <AppText className="text-xs text-foreground-muted">
-            {previewStreamControlLabel(control)}
+            {t(previewStreamControlLabel(control), undefined, "browser control")}
           </AppText>
           {control?.canOperate ? (
             <Button

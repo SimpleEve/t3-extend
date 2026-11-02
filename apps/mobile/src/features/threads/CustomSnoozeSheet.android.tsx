@@ -152,7 +152,7 @@ export function CustomSnoozeSheet(props: Props) {
                 <RNHostView matchContents={{ vertical: true }} modifiers={[fillMaxWidth()]}>
                   <SegmentedControl
                     variant="card"
-                    options={modes}
+                    options={modes.map((option) => ({ ...option, label: t(option.label) }))}
                     selected={mode}
                     onSelect={(value) => {
                       setMode(value);
@@ -247,7 +247,7 @@ export function CustomSnoozeSheet(props: Props) {
                   <RNHostView matchContents={{ vertical: true }} modifiers={[fillMaxWidth()]}>
                     <SegmentedControl
                       variant="card"
-                      options={units}
+                      options={units.map((option) => ({ ...option, label: t(option.label) }))}
                       selected={unit}
                       onSelect={setUnit}
                     />
