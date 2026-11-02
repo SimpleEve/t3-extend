@@ -137,14 +137,19 @@ export function sortAddProjectProviderSources(
   );
 }
 
+// fork: hints take an optional translator; without one the English is unchanged.
+type HintTranslator = (source: string, params?: Readonly<Record<string, string>>) => string;
+const englishHint: HintTranslator = (source, params) =>
+  source.replace(/\{(\w+)\}/g, (match, name: string) =>
+    params && Object.hasOwn(params, name) ? params[name]! : match,
+  );
+
 const READY: AddProjectRemoteSourceReadinessEntry = { ready: true, hint: null };
-const UNAVAILABLE: AddProjectRemoteSourceReadinessEntry = {
-  ready: false,
-  hint: "Provider status unavailable. Open Source Control settings and rescan.",
-};
+const UNAVAILABLE_HINT = "Provider status unavailable. Open Source Control settings and rescan.";
 
 export function buildAddProjectRemoteSourceReadiness(
   discovery: SourceControlDiscoveryResult | null,
+  t: HintTranslator = englishHint, // fork: interface language; English stays verbatim
 ): AddProjectRemoteSourceReadiness {
   const providerByKind = new Map(
     (discovery?.sourceControlProviders ?? []).map((provider) => [provider.kind, provider]),
@@ -152,14 +157,16 @@ export function buildAddProjectRemoteSourceReadiness(
   return (source) => {
     if (source === "url") return READY;
     const provider = providerByKind.get(source);
-    if (!provider) return UNAVAILABLE;
-    if (provider.status !== "available") return { ready: false, hint: provider.installHint };
+    if (!provider) return { ready: false, hint: t(UNAVAILABLE_HINT) };
+    if (provider.status !== "available") return { ready: false, hint: t(provider.installHint) };
     if (provider.auth.status === "unauthenticated") {
       return {
         ready: false,
         hint:
           Option.getOrNull(provider.auth.detail) ??
-          `${provider.label} is not authenticated. Open Source Control settings for setup guidance.`,
+          t("{label} is not authenticated. Open Source Control settings for setup guidance.", {
+            label: provider.label,
+          }),
       };
     }
     return READY;

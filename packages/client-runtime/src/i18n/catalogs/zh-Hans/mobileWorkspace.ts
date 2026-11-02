@@ -807,6 +807,9 @@ export default {
   "This environment is not connected.": "这个环境没有连接。",
   "This connection does not have access to diagnostics and usage.": "这个连接无权查看诊断和用量。",
   "in {duration}": "{duration}后",
+  "Failed to load archived threads.": "无法加载已归档的对话。",
+  "{label} is not authenticated. Open Source Control settings for setup guidance.":
+    "{label} 尚未登录。请打开源代码管理设置查看配置说明。",
   "resets row|in {duration}": "{duration}后",
   "resets row|now": "现在",
   "Failed to refresh git status.": "无法刷新 git 状态。",

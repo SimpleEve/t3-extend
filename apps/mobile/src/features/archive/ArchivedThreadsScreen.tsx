@@ -283,7 +283,9 @@ function ArchiveError(props: { readonly message: string; readonly onRetry: () =>
       <Text className="text-base font-t3-bold text-danger-foreground">
         {t("Could not load every archive")}
       </Text>
-      <Text className="mt-1 text-sm text-foreground-muted">{props.message}</Text>
+      <Text className="mt-1 text-sm text-foreground-muted">
+        {t(props.message) /* fork: i18n, the archive store keeps an English error */}
+      </Text>
       <View className="mt-3">
         <Button label={t("Try again")} tone="secondary" onPress={props.onRetry} />
       </View>

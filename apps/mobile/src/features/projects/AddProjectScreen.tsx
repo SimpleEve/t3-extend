@@ -545,7 +545,7 @@ export function AddProjectSourceScreen(props: { readonly environmentId?: string 
           input: {},
         }),
   );
-  const readiness = buildAddProjectRemoteSourceReadiness(discoveryState.data);
+  const readiness = buildAddProjectRemoteSourceReadiness(discoveryState.data, t); // fork: i18n
 
   return (
     <AddProjectShell title={t("Add project")}>

@@ -471,6 +471,8 @@ export default {
   "View instructions": "查看说明",
   "Copy skill": "复制技能",
   "Copy link": "复制链接",
+  "Open link": "打开链接",
+  "Share link": "分享链接",
   "Open file": "打开文件",
   "Context handoff pending": "上下文交接待处理",
   "No conversation yet": "还没有对话内容",
