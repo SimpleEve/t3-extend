@@ -493,7 +493,9 @@ export const findFirstAvailableOffset = Effect.fn("dev-runner.findFirstAvailable
       break;
     }
 
-    if (requireWebPort && !isBrowserAllowedPort(webPort)) {
+    // fork: `--share` publishes the web port on the tailnet and clears it first, which would take
+    // over this app's own Tailscale HTTPS route if the port were the same.
+    if (requireWebPort && (!isBrowserAllowedPort(webPort) || webPort === FORK.tailscaleServePort)) {
       continue;
     }
 

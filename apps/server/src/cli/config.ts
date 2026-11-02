@@ -27,7 +27,7 @@ import { resolveServiceLauncherMode } from "../cloud/serviceLauncherClient.ts";
 import * as ServerConfig from "../config.ts";
 import { expandHomePath, resolveBaseDir } from "../os-jank.ts";
 import { isProcessAlive, readPersistedServerRuntimeState } from "../serverRuntimeState.ts";
-import { FORK, forkTailscaleServePort } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { FORK, forkTailscaleServePort, OFFICIAL_APP_NAME } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { publicUrlFlags } from "./publicUrlFlags.ts"; // fork: self-hosted public route
 
 const modeFlag = Flag.Literals("mode", ServerConfig.RuntimeMode.literals).pipe(
@@ -409,17 +409,21 @@ export const resolveServerConfig = Effect.fn("config.resolveServerConfig")(funct
     ),
     () => false,
   );
-  const tailscaleServePort = forkTailscaleServePort(
-    // fork: own Tailscale Serve port; an inherited 443 would act on official T3 Code's mapping
-    Option.getOrElse(
-      resolveOptionPrecedence(
-        normalizedFlags.tailscaleServePort,
-        Option.fromUndefinedOr(env.tailscaleServePort),
-        Option.fromUndefinedOr(bootstrap?.tailscaleServePort),
-      ),
-      () => FORK.tailscaleServePort,
+  // fork: own Tailscale Serve port; an inherited 443 would act on official T3 Code's mapping
+  const requestedTailscaleServePort = Option.getOrElse(
+    resolveOptionPrecedence(
+      normalizedFlags.tailscaleServePort,
+      Option.fromUndefinedOr(env.tailscaleServePort),
+      Option.fromUndefinedOr(bootstrap?.tailscaleServePort),
     ),
+    () => FORK.tailscaleServePort,
   );
+  const tailscaleServePort = forkTailscaleServePort(requestedTailscaleServePort);
+  if (tailscaleServePort !== requestedTailscaleServePort) {
+    yield* Effect.logWarning(
+      `Tailscale HTTPS port ${requestedTailscaleServePort} is official ${OFFICIAL_APP_NAME}'s, so ${FORK.appBaseName} uses ${tailscaleServePort} instead.`,
+    );
+  }
   const staticDir = devUrl ? undefined : yield* ServerConfig.resolveStaticDir();
   const explicitHost = resolveOptionPrecedence(
     normalizedFlags.host,

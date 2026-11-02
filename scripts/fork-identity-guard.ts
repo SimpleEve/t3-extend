@@ -232,6 +232,11 @@ const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*)/u;
 
 const ALLOWED_BRAND: ReadonlyArray<Allowed> = [
   {
+    path: "packages/shared/src/forkIdentity.ts",
+    line: "OFFICIAL_APP_NAME",
+    reason: "The one place the official app's name is written, for text that must name it.",
+  },
+  {
     path: "scripts/build-desktop-artifact.ts",
     line: "is an open-source desktop app",
     reason: "Linux package description; Linux identity is out of scope until the fork ships Linux.",

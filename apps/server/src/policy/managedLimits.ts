@@ -99,14 +99,14 @@ const NOTHING_TO_CLOSE: ReadonlySet<TailscaleStderrDiagnostic | undefined> = new
 ]);
 
 /**
- * Turns off the Tailscale Serve routes that forward to the server at `target`, such as one
- * `t3 pair --tailscale` left from before the policy, and keeps every other route. Runs before the
- * server binds, and fails unless a fresh read shows no route here, since `off` can exit 0 and
- * leave it. Without the CLI, or with Tailscale down or logged out, nothing forwards.
+ * Turns off Tailscale Serve routes on `servePort` that forward to `target`, before the server
+ * binds, and fails unless a fresh read shows none left, since `off` can exit 0 and leave one.
+ * fork: other ports may be official T3 Code's, so they are only warned about, never closed.
  */
 export const closeTailscaleServeTo = Effect.fn("managedLimits.closeTailscaleServeTo")(function* (
   policy: PolicyDocument,
   target: { readonly host: string; readonly port: number },
+  servePort: number,
 ) {
   if (allowsRemoteClients(policy)) return;
   // Another app holds the port, so its routes are not ours to remove. It could let go before the
@@ -141,7 +141,18 @@ export const closeTailscaleServeTo = Effect.fn("managedLimits.closeTailscaleServ
       ),
     ),
   );
-  const found = yield* readRoutes;
+  const foundAll = yield* readRoutes;
+  const found = foundAll.filter((route) => route.servePort === servePort); // fork: own port only
+  const foreign = foundAll.filter((route) => route.servePort !== servePort);
+  for (const port of new Set(foreign.map((route) => route.servePort))) {
+    const route = foreign.find((candidate) => candidate.servePort === port)!;
+    const off = tailscaleServeOffArgs(route);
+    yield* Effect.logWarning(
+      `Tailscale Serve port ${String(port)} also forwards to this server. T3 Extend only manages its own port ${String(servePort)}, so it leaves this one alone. If it is a leftover from an earlier T3 Extend build, run "tailscale serve status" and, only if it points to this server's port, remove it yourself${
+        off === undefined ? "" : ` with "tailscale ${off.join(" ")}"`
+      }.`,
+    );
+  }
   if (found.length === 0) return;
   // `off` acts on the machine's current name, so a web route under a former name stays.
   const currentName = found.some((route) => route.mount !== undefined && route.owner === undefined)
@@ -171,7 +182,7 @@ export const closeTailscaleServeTo = Effect.fn("managedLimits.closeTailscaleServ
       ),
     );
   }
-  const left = yield* readRoutes;
+  const left = (yield* readRoutes).filter((route) => route.servePort === servePort);
   if (left.length > 0) {
     const describe = (route: TailscaleServeRoute) => {
       const where = `port ${route.servePort}${route.mount === undefined ? "" : ` at ${route.mount}`} here`;

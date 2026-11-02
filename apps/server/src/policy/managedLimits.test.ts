@@ -3,6 +3,8 @@ import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
 import * as PlatformError from "effect/PlatformError";
 import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
@@ -144,6 +146,10 @@ it.effect(
       readonly currentName?: string;
       /** The local port of the server being started; official T3 Code's is 3773, the fork's 3873. */
       readonly targetPort?: number;
+      /** This app's own HTTPS port; every route on another port is left alone. */
+      readonly servePort?: number;
+      /** Collects the warnings about routes on other ports. */
+      readonly warnings?: Array<string>;
       readonly status?: {
         readonly stdout: string;
         readonly exitCode: number;
@@ -160,14 +166,28 @@ it.effect(
     // (serve_v2.go removeWebServe), and `serve --tcp=<port> off` drops that port's forward.
     const close = (answers: Answers, offCalls: Array<ReadonlyArray<string>> = []) => {
       const web: Web = answers.web ?? {
-        "box.tailnet.ts.net:443": { "/": "http://127.0.0.1:3773" },
+        "box.tailnet.ts.net:8443": { "/": "http://127.0.0.1:3773" },
       };
       const tcp = answers.tcp ?? {};
       const currentName = answers.currentName ?? "box.tailnet.ts.net";
-      return ManagedLimits.closeTailscaleServeTo(desktopAndLocal, {
-        host: "127.0.0.1",
-        port: answers.targetPort ?? 3773,
-      }).pipe(
+      const warnings = answers.warnings;
+      return ManagedLimits.closeTailscaleServeTo(
+        desktopAndLocal,
+        { host: "127.0.0.1", port: answers.targetPort ?? 3773 },
+        answers.servePort ?? FORK.tailscaleServePort,
+      ).pipe(
+        Effect.provide(
+          warnings === undefined
+            ? Layer.empty
+            : Logger.layer(
+                [
+                  Logger.make(({ logLevel, message }) => {
+                    if (logLevel === "Warn") warnings.push(String(message));
+                  }),
+                ],
+                { mergeWithExisting: false },
+              ),
+        ),
         Effect.provideService(
           ChildProcessSpawner.ChildProcessSpawner,
           ChildProcessSpawner.make((command) => {
@@ -261,7 +281,7 @@ it.effect(
       // address on the same port; a TCP forward here goes too.
       for (const mount of ["/t3", "/"]) {
         const web: Web = {
-          "box.tailnet.ts.net:443": {
+          "box.tailnet.ts.net:8443": {
             [mount]: "http://127.0.0.1:3773",
             "/dashboard": "http://127.0.0.1:9000",
             "/other": "http://127.0.0.2:3773",
@@ -271,34 +291,77 @@ it.effect(
         const offCalls: Array<ReadonlyArray<string>> = [];
         yield* close({ web, tcp }, offCalls);
         assert.deepEqual(web, {
-          "box.tailnet.ts.net:443": {
+          "box.tailnet.ts.net:8443": {
             "/dashboard": "http://127.0.0.1:9000",
             "/other": "http://127.0.0.2:3773",
           },
         });
-        assert.deepEqual(tcp, {});
+        // fork: a forward on another port is not this app's, so it stays.
+        assert.deepEqual(tcp, { "7000": "127.0.0.1:3773" });
         assert.deepEqual(offCalls, [
-          ["serve", "--tcp=7000", "off"],
-          ["serve", "--https=443", `--set-path=${mount}`, "off"],
+          ["serve", `--https=${FORK.tailscaleServePort}`, `--set-path=${mount}`, "off"],
         ]);
       }
-      // fork: official T3 Code's route on 443 and the fork's on 8443 share the machine name; the
-      // fork turns off only the route to its own port and never touches 443.
+      const ownTcp: Record<string, string> = {
+        [String(FORK.tailscaleServePort)]: "127.0.0.1:3773",
+        "7000": "127.0.0.1:3773",
+      };
+      const ownTcpOffCalls: Array<ReadonlyArray<string>> = [];
+      yield* close({ web: {}, tcp: ownTcp }, ownTcpOffCalls);
+      assert.deepEqual(ownTcpOffCalls, [["serve", `--tcp=${FORK.tailscaleServePort}`, "off"]]);
+      assert.deepEqual(ownTcp, { "7000": "127.0.0.1:3773" });
+      // fork: official T3 Code's 443 route and this app's own share the machine name. Both forward
+      // to the port this server holds, so only the route on the app's own HTTPS port may go; the
+      // other is reported, once, with how to remove it by hand.
       const sideBySide: Web = {
-        "box.tailnet.ts.net:443": { "/": "http://127.0.0.1:3773" },
+        "box.tailnet.ts.net:443": { "/": "http://127.0.0.1:3873" },
         [`box.tailnet.ts.net:${FORK.tailscaleServePort}`]: { "/": "http://127.0.0.1:3873" },
       };
       const sideBySideOffCalls: Array<ReadonlyArray<string>> = [];
-      yield* close({ web: sideBySide, targetPort: 3873 }, sideBySideOffCalls);
+      const sideBySideWarnings: Array<string> = [];
+      yield* close(
+        { web: sideBySide, targetPort: 3873, warnings: sideBySideWarnings },
+        sideBySideOffCalls,
+      );
       assert.deepEqual(sideBySideOffCalls, [
         ["serve", `--https=${FORK.tailscaleServePort}`, "--set-path=/", "off"],
       ]);
-      assert.deepEqual(sideBySide["box.tailnet.ts.net:443"], { "/": "http://127.0.0.1:3773" });
+      assert.deepEqual(sideBySide["box.tailnet.ts.net:443"], { "/": "http://127.0.0.1:3873" });
+      assert.deepEqual(sideBySide[`box.tailnet.ts.net:${FORK.tailscaleServePort}`], {});
+      assert.equal(sideBySideWarnings.length, 1);
+      assert.include(sideBySideWarnings[0], "port 443 also forwards to this server");
+      assert.include(sideBySideWarnings[0], '"tailscale serve --https=443 --set-path=/ off"');
+      // A route left on the other port does not keep the server from starting.
+      const onlyForeign: Web = { "box.tailnet.ts.net:443": { "/": "http://127.0.0.1:3873" } };
+      const onlyForeignOffCalls: Array<ReadonlyArray<string>> = [];
+      const onlyForeignWarnings: Array<string> = [];
+      yield* close(
+        { web: onlyForeign, targetPort: 3873, warnings: onlyForeignWarnings },
+        onlyForeignOffCalls,
+      );
+      assert.deepEqual(onlyForeignOffCalls, []);
+      assert.equal(onlyForeignWarnings.length, 1);
+      // A target that might be another service on the other loopback is never closed.
+      for (const ambiguousHost of ["localhost", "[::]", "ip6-localhost"]) {
+        const ambiguousOffCalls: Array<ReadonlyArray<string>> = [];
+        const ambiguous = yield* close(
+          {
+            web: {
+              [`box.tailnet.ts.net:${FORK.tailscaleServePort}`]: {
+                "/": `http://${ambiguousHost}:3773`,
+              },
+            },
+          },
+          ambiguousOffCalls,
+        ).pipe(Effect.flip);
+        assert.deepEqual(ambiguousOffCalls, [], ambiguousHost);
+        assert.include(ambiguous.message, "might be another service", ambiguousHost);
+      }
       // `off` acts on the current name: a route under a former one is left, with how to clear it,
       // while one under the current name goes even if a former name has routes too.
       const renamed: Web = {
-        "old.tailnet.ts.net:443": { "/": "http://127.0.0.1:3773" },
-        "new.tailnet.ts.net:443": { "/": "http://127.0.0.1:9000" },
+        "old.tailnet.ts.net:8443": { "/": "http://127.0.0.1:3773" },
+        "new.tailnet.ts.net:8443": { "/": "http://127.0.0.1:9000" },
       };
       const renamedOffCalls: Array<ReadonlyArray<string>> = [];
       const former = yield* close(
@@ -306,24 +369,24 @@ it.effect(
         renamedOffCalls,
       ).pipe(Effect.flip);
       assert.deepEqual(renamedOffCalls, []);
-      assert.deepEqual(renamed["new.tailnet.ts.net:443"], { "/": "http://127.0.0.1:9000" });
+      assert.deepEqual(renamed["new.tailnet.ts.net:8443"], { "/": "http://127.0.0.1:9000" });
       assert.include(
         former.message,
         'under old.tailnet.ts.net, a former name of this machine, which "tailscale serve ... off" cannot reach; run "tailscale serve reset"',
       );
       const current: Web = {
-        "old.tailnet.ts.net:443": { "/": "http://127.0.0.1:9000" },
-        "new.tailnet.ts.net:443": { "/": "http://127.0.0.1:3773" },
+        "old.tailnet.ts.net:8443": { "/": "http://127.0.0.1:9000" },
+        "new.tailnet.ts.net:8443": { "/": "http://127.0.0.1:3773" },
       };
       yield* close({ web: current, currentName: "new.tailnet.ts.net" });
       assert.deepEqual(current, {
-        "old.tailnet.ts.net:443": { "/": "http://127.0.0.1:9000" },
-        "new.tailnet.ts.net:443": {},
+        "old.tailnet.ts.net:8443": { "/": "http://127.0.0.1:9000" },
+        "new.tailnet.ts.net:8443": {},
       });
       // A `localhost` target might reach another service on the other loopback, so it stays.
       const localhostOffCalls: Array<ReadonlyArray<string>> = [];
       const localhost = yield* close(
-        { web: { "box.tailnet.ts.net:443": { "/": "http://localhost:3773" } } },
+        { web: { "box.tailnet.ts.net:8443": { "/": "http://localhost:3773" } } },
         localhostOffCalls,
       ).pipe(Effect.flip);
       assert.deepEqual(localhostOffCalls, []);
@@ -333,7 +396,7 @@ it.effect(
         const stuck = yield* close(answers).pipe(Effect.flip);
         assert.include(
           stuck.message,
-          'Tailscale Serve forwards port 443 at / here; turn it off with "tailscale serve --https=443 --set-path=/ off"',
+          'Tailscale Serve forwards port 8443 at / here; turn it off with "tailscale serve --https=8443 --set-path=/ off"',
         );
       }
       // Routes the server must not remove itself: a Service's, and a foreground command's.
@@ -341,12 +404,12 @@ it.effect(
         stdout: JSON.stringify({
           Foreground: {
             session1: {
-              Web: { "box:443": { Handlers: { "/": { Proxy: "http://127.0.0.1:3773" } } } },
+              Web: { "box:8443": { Handlers: { "/": { Proxy: "http://127.0.0.1:3773" } } } },
             },
           },
           Services: {
             "svc:t3": {
-              Web: { "t3:443": { Handlers: { "/t3": { Proxy: "http://127.0.0.1:3773" } } } },
+              Web: { "t3:8443": { Handlers: { "/t3": { Proxy: "http://127.0.0.1:3773" } } } },
             },
           },
         }),
@@ -358,7 +421,7 @@ it.effect(
       assert.include(owned.message, 'stop the "tailscale serve" command that runs it');
       assert.include(
         owned.message,
-        '"tailscale serve --service=svc:t3 --https=443 --set-path=/t3 off"',
+        '"tailscale serve --service=svc:t3 --https=8443 --set-path=/t3 off"',
       );
       // An answer that cannot be read might hide a mapping, so the server does not start.
       const dialFailure = (reason: string) =>
@@ -385,10 +448,11 @@ it.effect(
         yield* close({ status: { stdout: "", exitCode: 1, stderr } });
       }
       const spawnFailing = (tag: "NotFound" | "PermissionDenied") =>
-        ManagedLimits.closeTailscaleServeTo(desktopAndLocal, {
-          host: "127.0.0.1",
-          port: 3773,
-        }).pipe(
+        ManagedLimits.closeTailscaleServeTo(
+          desktopAndLocal,
+          { host: "127.0.0.1", port: 3773 },
+          FORK.tailscaleServePort,
+        ).pipe(
           Effect.provideService(
             ChildProcessSpawner.ChildProcessSpawner,
             ChildProcessSpawner.make(() =>
@@ -400,10 +464,11 @@ it.effect(
         );
       yield* spawnFailing("NotFound");
       // Node throws this instead when PATH ends in a file.
-      yield* ManagedLimits.closeTailscaleServeTo(desktopAndLocal, {
-        host: "127.0.0.1",
-        port: 3773,
-      }).pipe(
+      yield* ManagedLimits.closeTailscaleServeTo(
+        desktopAndLocal,
+        { host: "127.0.0.1", port: 3773 },
+        FORK.tailscaleServePort,
+      ).pipe(
         Effect.provideService(
           ChildProcessSpawner.ChildProcessSpawner,
           ChildProcessSpawner.make(() =>

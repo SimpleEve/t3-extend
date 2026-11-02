@@ -482,6 +482,8 @@ export default {
     "T3 Extend 将在启用 Tailscale Serve 的情况下重启本地后端，并请 Tailscale 把 HTTPS 流量代理到此后端。",
   "HTTPS port": "HTTPS 端口",
   "Enter a port from 1 to 65535.": "请输入 1 到 65535 之间的端口。",
+  "{port} is used by official {officialApp}. {app} uses {forkPort}.":
+    "{port} 已被官方 {officialApp} 占用，{app} 使用 {forkPort}。",
   "HTTPS endpoint": "HTTPS 端点",
   "Pending MagicDNS endpoint": "等待 MagicDNS 端点",
   Enable: "开启",

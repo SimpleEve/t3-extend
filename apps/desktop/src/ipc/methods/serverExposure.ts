@@ -7,15 +7,24 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
 import * as DesktopLifecycle from "../../app/DesktopLifecycle.ts";
+import { OFFICIAL_APP_NAME, OFFICIAL_TAILSCALE_SERVE_PORT } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as DesktopServerExposure from "../../backend/DesktopServerExposure.ts";
 import * as DesktopSelfHost from "../../selfHost/DesktopSelfHost.ts"; // fork: self-hosted connection
 import { selfHostAdvertisedEndpoints } from "../../selfHost/selfHostEndpoints.ts"; // fork: self-hosted connection
 import * as IpcChannels from "../channels.ts";
 import * as DesktopIpc from "../DesktopIpc.ts";
 
+// fork: the settings page rejects 443 with a message; a caller that skips it is refused here too.
+const isNotOfficialServePort = Schema.makeFilter(
+  (port: number) => port !== OFFICIAL_TAILSCALE_SERVE_PORT,
+  {
+    expected: `a port other than ${OFFICIAL_TAILSCALE_SERVE_PORT}, which official ${OFFICIAL_APP_NAME} uses`,
+  },
+);
+
 const SetTailscaleServeEnabledInput = Schema.Struct({
   enabled: Schema.Boolean,
-  port: Schema.optionalKey(Schema.Number),
+  port: Schema.optionalKey(Schema.Number.check(isNotOfficialServePort)),
 });
 
 export const getServerExposureState = DesktopIpc.makeIpcMethod({

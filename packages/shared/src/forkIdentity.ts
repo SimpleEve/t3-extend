@@ -26,9 +26,15 @@ export const FORK = {
 } as const;
 
 /** Official T3 Code's HTTPS port on the tailnet name. The fork never publishes or removes a route on it. */
-const OFFICIAL_TAILSCALE_SERVE_PORT = 443;
+export const OFFICIAL_TAILSCALE_SERVE_PORT = 443;
 
-/** Any 443 that reaches the fork (old settings, env, flags) becomes the fork's own port. */
+/** How the official app is named in text the fork shows, so the brand guard has one place to allow. */
+export const OFFICIAL_APP_NAME = "T3 Code";
+
+/**
+ * Where no user can be shown a message (stored settings, environment, bootstrap, flags), a 443
+ * becomes the fork's own port. Typed input is rejected instead; see `tailscaleServePortProblem`.
+ */
 export const forkTailscaleServePort = (port: number): number =>
   port === OFFICIAL_TAILSCALE_SERVE_PORT ? FORK.tailscaleServePort : port;
 

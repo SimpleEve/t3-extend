@@ -345,7 +345,11 @@ const layerHttpServer = Layer.unwrap(
       tailscaleServeEnabled: config.tailscaleServeEnabled,
       privateNetworkOnly: config.privateNetworkOnly,
     });
-    yield* ManagedLimits.closeTailscaleServeTo(policy, { host: bindHost, port: config.port });
+    yield* ManagedLimits.closeTailscaleServeTo(
+      policy,
+      { host: bindHost, port: config.port },
+      config.tailscaleServePort, // fork: only this app's own HTTPS port
+    );
     return NodeHttpServer.layer(
       () => {
         const server = rejectRequestsUntilServing(

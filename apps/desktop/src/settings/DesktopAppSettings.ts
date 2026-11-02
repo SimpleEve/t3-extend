@@ -23,7 +23,12 @@ import {
   type LinuxPasswordStorePreference,
 } from "../linuxSecretStorage.ts";
 import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
-import { FORK, forkTailscaleServePort } from "@t3tools/shared/forkIdentity"; // fork: identity
+import {
+  FORK,
+  forkTailscaleServePort,
+  OFFICIAL_APP_NAME,
+  OFFICIAL_TAILSCALE_SERVE_PORT,
+} from "@t3tools/shared/forkIdentity"; // fork: identity
 import { isValidDistroName } from "../wsl/wslPathParsing.ts";
 
 export interface DesktopSettings {
@@ -392,6 +397,13 @@ function readSettings(
         onNone: () => Effect.succeed(defaultSettings),
         onSome: (raw) =>
           decodeDesktopSettingsJson(raw).pipe(
+            Effect.tap((parsed) =>
+              parsed.tailscaleServePort === OFFICIAL_TAILSCALE_SERVE_PORT
+                ? Effect.logWarning(
+                    `Saved Tailscale HTTPS port ${OFFICIAL_TAILSCALE_SERVE_PORT} is official ${OFFICIAL_APP_NAME}'s, so ${FORK.appBaseName} uses ${FORK.tailscaleServePort} instead.`,
+                  )
+                : Effect.void,
+            ), // fork: read from storage, so nobody is there to ask
             Effect.map((parsed) => normalizeDesktopSettingsDocument(parsed, appVersion)),
             Effect.orElseSucceed(() => defaultSettings),
           ),
