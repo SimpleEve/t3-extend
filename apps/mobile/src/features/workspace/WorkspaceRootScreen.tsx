@@ -47,6 +47,7 @@ import {
 import { openSettings } from "../settings/settings-navigation";
 import { useSelectWorkspaceTab } from "./useSelectWorkspaceTab";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 const TAB_TITLES = WORKSPACE_TAB_LABELS;
 
@@ -67,7 +68,7 @@ function WorkspaceRootTitle(props: {
     <View style={{ width: maxWidth, minHeight: 32, justifyContent: "center" }}>
       <WorkspaceConnectionTitle
         brand={
-          <CompactBrandTitle accessibilityLabel={t("T3 Code, {tabTitle}", { tabTitle })} fit />
+          <CompactBrandTitle accessibilityLabel={t("T3 Extend, {tabTitle}", { tabTitle })} fit />
         }
         maxWidth={maxWidth}
         onPress={props.onOpenEnvironments}
@@ -170,7 +171,7 @@ function WorkspaceRootContent() {
           />
         ) : (
           <AndroidScreenHeader
-            title="T3 Code"
+            title={FORK.appBaseName} // fork: brand
             titleContent={renderHeaderTitle()}
             actions={[
               ...(state.selectedTab === "threads" || state.selectedTab === "pullRequests"

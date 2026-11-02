@@ -86,6 +86,7 @@ import { CloudEnvironmentConnectRows } from "../cloud/CloudEnvironmentConnectLis
 import { presentSavedCloudEnvironmentConnection } from "../cloud/cloudEnvironmentConnectionPresentation";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
 import { T3Wordmark } from "../T3Wordmark";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { CommandBlock } from "../CommandBlock";
@@ -241,10 +242,10 @@ export function WelcomeWizard({
         <WizardHeader
           title={t("Set up T3 Code")}
           identity={
-            <div className="flex items-baseline gap-1.5" role="img" aria-label="T3 Code">
+            <div className="flex items-baseline gap-1.5" role="img" aria-label={FORK.appBaseName}>
               <T3Wordmark className="h-4 w-auto shrink-0" aria-hidden />
-              <span className="text-2xl font-medium tracking-tight text-muted-foreground">
-                Code
+              <span className="text-2xl font-medium tracking-tight text-primary">
+                {FORK.wordmarkSuffix}
               </span>
             </div>
           }

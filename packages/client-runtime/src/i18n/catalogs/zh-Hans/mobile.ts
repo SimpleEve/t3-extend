@@ -805,7 +805,7 @@ export default {
   "Select a pull request": "选择一个 PR",
   "Choose a pull request from the sidebar to review it.": "从侧边栏选择一个 PR 进行查看。",
   Navigation: "导航",
-  "T3 Code, {tabTitle}": "T3 Code，{tabTitle}",
+  "T3 Extend, {tabTitle}": "T3 Extend，{tabTitle}",
   "Search pull requests": "搜索 PR",
   "Show tabs, {label} selected": "显示标签，已选择{label}",
   "Cancel search": "取消搜索",

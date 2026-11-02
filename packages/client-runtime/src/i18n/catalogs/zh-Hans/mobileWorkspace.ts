@@ -9,7 +9,7 @@ export default {
   "checkpoint status|ready": "就绪",
 
   "Mobile control surface for your live coding environments": "随时掌控你运行中的编码环境",
-  "T3 Code, Threads": "T3 Code，对话",
+  "T3 Extend, Threads": "T3 Extend，对话",
   "Retry uploading {name}": "重新上传 {name}",
   "Uploading {name}, {percent}%": "正在上传 {name}，{percent}%",
   "The local file is unavailable. Attach it again.": "本地文件不可用，请重新添加。",

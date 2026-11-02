@@ -96,7 +96,7 @@ export default {
   "Toggle main sidebar": "切换主侧边栏",
   "Go back": "后退",
   "Go forward": "前进",
-  "T3 Code home": "T3 Code 首页",
+  "T3 Extend home": "T3 Extend 首页",
   "Pull requests": "PR",
   Usage: "用量",
   "Toggle Sidebar": "切换侧边栏",
