@@ -188,7 +188,7 @@ import {
   type LayoutVariant,
 } from "../../lib/layout";
 import { uuidv4 } from "../../lib/uuid";
-import { resolveNativeMarkdownTypography } from "../../lib/appearancePreferences";
+import { useMarkdownTypography } from "../../fork/useMarkdownTypography"; // fork: Chinese text sizes
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { PierreEntryIcon } from "../../components/PierreEntryIcon";
 import {
@@ -1315,8 +1315,7 @@ function MarkdownDetailsFold(props: {
 }
 
 function useMarkdownStyles(): MarkdownStyleSets {
-  const { appearance } = useAppearancePreferences();
-  const nativeMarkdownTypography = resolveNativeMarkdownTypography(appearance.baseFontSize);
+  const nativeMarkdownTypography = useMarkdownTypography(); // fork: Chinese text sizes
   const theme = useUniwindTheme();
   const markdownBodyColor = theme["--color-md-body"];
   const markdownStrongColor = theme["--color-md-strong"];

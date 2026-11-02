@@ -931,7 +931,7 @@ function DiagnosticsSettingsBody() {
   }
 
   return (
-    <SettingsPageContainer width="expanded" className="gap-10">
+    <SettingsPageContainer width="expanded" className="gap-10" hanText>
       <ResourceTelemetryDiagnostics environmentId={environmentId} />
 
       <SettingsSection

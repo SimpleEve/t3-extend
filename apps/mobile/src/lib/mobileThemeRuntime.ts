@@ -15,7 +15,7 @@ export type MobileUniwindThemeName =
 export interface MobileThemeRuntimeState {
   readonly baseFontSize: number;
   /** fork: Chinese text sizes. Text variables follow the loaded language. */
-  readonly uiLocale?: UiLocale;
+  readonly uiLocale: UiLocale;
   readonly themeAppearance: MobileThemeAppearance;
   readonly themeMode: MobileThemeMode;
 }

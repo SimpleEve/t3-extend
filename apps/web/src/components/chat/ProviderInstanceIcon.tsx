@@ -82,6 +82,10 @@ export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
       } as CSSProperties)
     : undefined;
   const badgeContent = props.badgeContent ?? "initials";
+  // fork: Han initials are one character, so the badge keeps its size
+  const initials = providerInstanceInitials(props.displayName);
+  const hanBadge = badgeContent === "initials" && /\p{Script=Han}/u.test(initials);
+  const badgeInitials = hanBadge ? (Array.from(initials)[0] ?? initials) : initials;
   const iconClassName = cn(props.size === "compact" && "size-3.5", props.iconClassName);
   const isAcpRegistry = props.driverKind === "acpRegistry";
   const acpRegistryIconUrl = resolveProviderInstanceAcpRegistryIconUrl({
@@ -128,15 +132,13 @@ export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
             props.size === "compact" &&
               "right-[-0.1875rem] bottom-[-0.1875rem] h-3 min-w-3 px-0.5 text-5xs",
             props.badgeClassName,
-            // fork: Han initials stay legible; Latin and digits keep the tiny size
-            badgeContent === "initials" &&
-              /\p{Script=Han}/u.test(providerInstanceInitials(props.displayName)) &&
-              "text-2xs",
+            // fork: a Han initial takes the largest size the 12px badge holds, geometry unchanged
+            hanBadge && "px-0 text-3xs",
           )}
           style={{ borderColor: indicatorBackground }}
           aria-hidden
         >
-          {badgeContent === "initials" ? providerInstanceInitials(props.displayName) : null}
+          {badgeContent === "initials" ? badgeInitials : null}
         </span>
       ) : null}
     </span>

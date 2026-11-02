@@ -1,4 +1,4 @@
-import { getUiLocale, type UiLocale } from "@t3tools/client-runtime/i18n"; // fork: Chinese text sizes
+import type { UiLocale } from "@t3tools/client-runtime/i18n"; // fork: Chinese text sizes
 import { scaledLocalizedFontSize, scaledLocalizedMarkdownFontSize } from "../fork/zhTypography"; // fork: Chinese text sizes
 import { MOBILE_CODE_SURFACE, MOBILE_TYPOGRAPHY } from "./typography";
 import {
@@ -147,7 +147,7 @@ export function resolveMobileCodeSurface(codeFontSize: number): ResolvedMobileCo
 
 export function resolveMarkdownFontSizes(
   baseFontSize: number,
-  locale: UiLocale = getUiLocale(), // fork: Chinese text sizes
+  locale: UiLocale, // fork: Chinese text sizes
 ): ResolvedMarkdownFontSizes {
   const base = normalizeBaseFontSize(baseFontSize);
   const scale = base / DEFAULT_BASE_FONT_SIZE;
@@ -187,7 +187,7 @@ const TEXT_SCALE_VARIABLE_ROLES = {
 
 export function resolveTextScaleVariables(
   baseFontSize: number,
-  locale: UiLocale = getUiLocale(), // fork: Chinese text sizes
+  locale: UiLocale, // fork: Chinese text sizes
 ): Record<string, number> {
   const variables: Record<string, number> = {};
 
@@ -211,7 +211,7 @@ export function scaledTypographyLineHeight(
 export function resolveScaledTextRole(
   role: keyof typeof MOBILE_TYPOGRAPHY,
   baseFontSize: number,
-  locale: UiLocale = getUiLocale(), // fork: Chinese text sizes
+  locale: UiLocale, // fork: Chinese text sizes
 ) {
   const typography = MOBILE_TYPOGRAPHY[role];
   const scale = normalizeBaseFontSize(baseFontSize) / DEFAULT_BASE_FONT_SIZE;
@@ -223,7 +223,7 @@ export function resolveScaledTextRole(
 
 export function resolveNativeMarkdownTypography(
   baseFontSize: number,
-  locale: UiLocale = getUiLocale(), // fork: Chinese text sizes
+  locale: UiLocale, // fork: Chinese text sizes
 ): NativeMarkdownTypography {
   const fontSizes = resolveMarkdownFontSizes(baseFontSize, locale);
   return {

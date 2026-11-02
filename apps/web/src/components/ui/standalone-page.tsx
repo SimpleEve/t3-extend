@@ -24,7 +24,12 @@ export function StandalonePageHeader({
   return (
     <>
       <div className="flex items-baseline justify-between gap-3 text-muted-foreground">
-        <span className="flex items-baseline gap-1.5" role="img" aria-label={FORK.appBaseName}>
+        <span
+          className="flex items-baseline gap-1.5"
+          role="img"
+          aria-label={FORK.appBaseName}
+          data-t3-wordmark // fork: keeps its English type in every language
+        >
           <T3Wordmark className="h-3 w-auto shrink-0 text-foreground" aria-hidden />
           <span className="text-lg font-medium tracking-tight text-primary">
             {FORK.wordmarkSuffix}
