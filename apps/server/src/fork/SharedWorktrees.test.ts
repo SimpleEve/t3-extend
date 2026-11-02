@@ -1,14 +1,23 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
+import * as Deferred from "effect/Deferred";
+import * as Fiber from "effect/Fiber";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 
+import * as ServerConfig from "../config.ts";
+
 import * as SqlClient from "effect/sql/SqlClient";
 
-import { ensureImportTables, requireLivePolicy, SharedWorktreePolicy } from "./SharedWorktrees.ts";
+import {
+  ensureImportTables,
+  requireLivePolicy,
+  SharedWorktreePolicy,
+  type SharedWorktreePolicy as SharedWorktreePolicyShape,
+} from "./SharedWorktrees.ts";
 import { makeGuardedRemoveWorktree } from "./SharedWorktrees.testkit.ts";
 
 const path_ = (...segments: Array<string>) => segments.join("/");
@@ -183,6 +192,113 @@ it.layer(NodeServices.layer)("SharedWorktrees", (it) => {
       assert.strictEqual(guarded.spawned.length, 1);
     }),
   );
+
+  {
+    const section = Effect.fn("section")(function* () {
+      const { path, root, guarded } = yield* setup();
+      const policy = guarded.policy;
+      const input = (name: string) => ({
+        cwd: root,
+        path: path.join(root, "mine", name),
+      });
+      const provide = <A, E>(
+        effect: Effect.Effect<A, E, FileSystem.FileSystem | Path.Path | ServerConfig.ServerConfig>,
+      ) => effect.pipe(Effect.provideService(ServerConfig.ServerConfig, guarded.config));
+      return { policy, input, provide, config: guarded.config };
+    });
+    const refusedNow = (
+      policy: SharedWorktreePolicyShape,
+      target: { readonly cwd: string; readonly path: string },
+      config: ServerConfig.ServerConfig["Service"],
+    ) =>
+      policy.refusal(target).pipe(
+        Effect.provideService(ServerConfig.ServerConfig, config),
+        Effect.map((reason) => reason !== null),
+      );
+
+    it.effect("a mark that starts during a section applies only after the section ends", () =>
+      Effect.gen(function* () {
+        const { policy, input, provide, config } = yield* section();
+        const target = input("feature");
+        const entered = yield* Deferred.make<void>();
+        const release = yield* Deferred.make<void>();
+        const inSection = yield* Effect.forkChild(
+          provide(
+            policy.exclusive(
+              target,
+              Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release))),
+            ),
+          ),
+        );
+        yield* Deferred.await(entered);
+        const marking = yield* Effect.forkChild(policy.markShared([target.path]), {
+          startImmediately: true,
+        });
+        assert.isUndefined(marking.pollUnsafe());
+        assert.isFalse(yield* refusedNow(policy, target, config));
+        yield* Deferred.succeed(release, undefined);
+        yield* Fiber.join(inSection);
+        yield* Fiber.join(marking);
+        assert.isTrue(yield* refusedNow(policy, target, config));
+      }),
+    );
+
+    it.effect("a section that gets the permit after a mark sees it and does not run", () =>
+      Effect.gen(function* () {
+        const { policy, input, provide } = yield* section();
+        const target = input("feature");
+        const entered = yield* Deferred.make<void>();
+        const release = yield* Deferred.make<void>();
+        const ran: Array<string> = [];
+        const holder = yield* Effect.forkChild(
+          provide(
+            policy.exclusive(
+              input("other"),
+              Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release))),
+            ),
+          ),
+        );
+        yield* Deferred.await(entered);
+        // The mark queues for the permit first, then the section that would clean the same path.
+        const marking = yield* Effect.forkChild(policy.markShared([target.path]), {
+          startImmediately: true,
+        });
+        const waiting = yield* Effect.forkChild(
+          provide(
+            policy.exclusive(
+              target,
+              Effect.sync(() => void ran.push("destroyed")),
+            ),
+          ).pipe(Effect.exit),
+          { startImmediately: true },
+        );
+        assert.isUndefined(waiting.pollUnsafe());
+        yield* Deferred.succeed(release, undefined);
+        yield* Fiber.join(holder);
+        yield* Fiber.join(marking);
+        const exit = yield* Fiber.join(waiting);
+        assert.isTrue(Exit.isFailure(exit));
+        assert.deepStrictEqual(ran, []);
+      }),
+    );
+
+    it.effect("a nested section checks again without taking the permit a second time", () =>
+      Effect.gen(function* () {
+        const { policy, input, provide } = yield* section();
+        const ran: Array<string> = [];
+        yield* provide(
+          policy.exclusive(
+            input("feature"),
+            policy.exclusive(
+              input("feature"),
+              Effect.sync(() => void ran.push("inner")),
+            ),
+          ),
+        );
+        assert.deepStrictEqual(ran, ["inner"]);
+      }),
+    );
+  }
 
   it.effect("start-up fails unless the live policy is provided", () =>
     Effect.gen(function* () {

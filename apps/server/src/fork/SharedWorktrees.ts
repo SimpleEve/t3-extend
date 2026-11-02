@@ -3,16 +3,28 @@ import { GitCommandError, OFFICIAL_APP_NAME } from "@t3tools/contracts";
 import { officialHomeDirectory } from "@t3tools/shared/forkIdentity";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Context from "effect/Context";
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as Ref from "effect/Ref";
+import * as Semaphore from "effect/Semaphore";
 import * as SqlClient from "effect/sql/SqlClient";
 
 import * as ServerConfig from "../config.ts";
 
 type Environment = FileSystem.FileSystem | Path.Path | ServerConfig.ServerConfig;
+
+/** A destructive section did not run because the worktree is shared with official T3 Code. */
+export class SharedWorktreeRefused extends Data.TaggedError("SharedWorktreeRefused")<{
+  readonly reason: string;
+}> {}
+
+/** Set inside a destructive section, so a nested one checks again without taking the permit twice. */
+const SectionHeld = Context.Reference<boolean>("t3x/fork/SharedWorktrees/SectionHeld", {
+  defaultValue: () => false,
+});
 
 export interface SharedWorktreePolicy {
   /** True only for the policy that knows which worktrees an import shared. */
@@ -22,6 +34,15 @@ export interface SharedWorktreePolicy {
     readonly cwd: string;
     readonly path: string;
   }) => Effect.Effect<string | null, never, Environment>;
+  /**
+   * Runs a destructive effect on a worktree only if it is still unshared. The live policy holds one
+   * permit across the check and the effect, which `markShared` also takes, so an import can never
+   * claim the path between the two. Keep analysis and database reads outside the effect.
+   */
+  readonly exclusive: <A, E, R>(
+    input: { readonly cwd: string; readonly path: string },
+    effect: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E | SharedWorktreeRefused, R | Environment>;
   /** Records worktrees an import left in official T3 Code's care, effective immediately. */
   readonly markShared: (paths: ReadonlyArray<string>) => Effect.Effect<void>;
 }
@@ -84,13 +105,25 @@ const locate = Effect.fn("SharedWorktrees.locate")(function* (input: {
 
 const OFFICIAL_FOLDER_REASON = `This worktree lives in ${OFFICIAL_APP_NAME}'s worktrees folder. T3 Extend never removes it.`;
 
-/** Without markers: the path rule alone. */
+/** Checks `refusal` again, then runs the effect; shared by both policies. */
+const checkedThenRun = Effect.fn("SharedWorktrees.checkedThenRun")(function* <A, E, R>(
+  refusal: SharedWorktreePolicy["refusal"],
+  input: { readonly cwd: string; readonly path: string },
+  effect: Effect.Effect<A, E, R>,
+) {
+  const reason = yield* refusal(input);
+  if (reason !== null) return yield* new SharedWorktreeRefused({ reason });
+  return yield* effect.pipe(Effect.provideService(SectionHeld, true));
+});
+
+/** Without markers: the path rule alone, which nothing can change, so it needs no lock. */
 const pathRulePolicy: SharedWorktreePolicy = {
   live: false,
   refusal: Effect.fn("SharedWorktrees.pathRule")(function* (input) {
     const { where } = yield* locate(input);
     return where === "official" ? OFFICIAL_FOLDER_REASON : null;
   }),
+  exclusive: (input, effect) => checkedThenRun(pathRulePolicy.refusal, input, effect),
   markShared: () => Effect.void,
 };
 
@@ -162,13 +195,15 @@ export const layer = Layer.effect(
       // Reloaded later from `markShared`, whose caller owns no SqlClient of its own to lend.
       Effect.provideService(SqlClient.SqlClient, sql),
     );
+    // One permit orders destructive sections against `markShared`'s in-memory update.
+    const permit = yield* Semaphore.make(1);
     const initial = yield* load;
     // `loaded: false` means the database's markers are unknown; `marked` still holds what this process was told.
     const state = yield* Ref.make({ loaded: initial !== null, marked: new Set(initial ?? []) });
 
-    return SharedWorktreePolicy.of({
-      live: true,
-      refusal: Effect.fn("SharedWorktrees.refusal")(function* (input) {
+    // Plain in-memory check: takes no permit, so a section can call it while holding the permit.
+    const refusal: SharedWorktreePolicy["refusal"] = Effect.fn("SharedWorktrees.refusal")(
+      function* (input) {
         const { where, target, spellings } = yield* locate(input);
         if (where === "official") return OFFICIAL_FOLDER_REASON;
         const { loaded, marked: sources } = yield* Ref.get(state);
@@ -181,29 +216,52 @@ export const layer = Layer.effect(
         if (loaded || where === "own") return null;
         // Imported worktrees never live in this environment's own folder, so its clean-up keeps working.
         return `Could not check whether this worktree is shared with ${OFFICIAL_APP_NAME}, so T3 Extend leaves it alone.`;
+      },
+    );
+
+    return SharedWorktreePolicy.of({
+      live: true,
+      refusal,
+      exclusive: Effect.fn("SharedWorktrees.exclusive")(function* <A, E, R>(
+        input: { readonly cwd: string; readonly path: string },
+        effect: Effect.Effect<A, E, R>,
+      ) {
+        const section = checkedThenRun(refusal, input, effect);
+        // A nested section already holds the permit, and Semaphore is not reentrant.
+        return (yield* SectionHeld) ? yield* section : yield* permit.withPermits(1)(section);
       }),
       markShared: Effect.fn("SharedWorktrees.markShared")(function* (paths) {
+        // The retried load is database I/O, so it stays outside the permit.
         const reloaded = (yield* Ref.get(state)).loaded ? null : yield* load;
-        yield* Ref.update(state, (current) => ({
-          loaded: current.loaded || reloaded !== null,
-          marked: new Set([...current.marked, ...(reloaded ?? []), ...paths]),
-        }));
+        yield* permit.withPermits(1)(
+          Ref.update(state, (current) => ({
+            loaded: current.loaded || reloaded !== null,
+            marked: new Set([...current.marked, ...(reloaded ?? []), ...paths]),
+          })),
+        );
       }),
     });
   }),
 );
 
-export const assertWorktreeRemovable = Effect.fn("SharedWorktrees.assertRemovable")(
-  function* (input: { readonly operation: string; readonly cwd: string; readonly path: string }) {
-    const policy = yield* SharedWorktreePolicy;
-    const reason = yield* policy.refusal(input);
-    if (reason !== null) {
-      return yield* new GitCommandError({
-        operation: input.operation,
-        command: "git worktree remove",
-        cwd: input.cwd,
-        detail: reason,
-      });
-    }
-  },
-);
+/** Runs a worktree removal only while the worktree is unshared, holding the policy's permit across check and removal. */
+export const whileRemovable = Effect.fn("SharedWorktrees.whileRemovable")(function* <A, E, R>(
+  input: { readonly operation: string; readonly cwd: string; readonly path: string },
+  effect: Effect.Effect<A, E, R>,
+) {
+  const policy = yield* SharedWorktreePolicy;
+  return yield* policy.exclusive(input, effect).pipe(
+    Effect.catchIf(
+      (error): error is SharedWorktreeRefused => error instanceof SharedWorktreeRefused,
+      (refused) =>
+        Effect.fail(
+          new GitCommandError({
+            operation: input.operation,
+            command: "git worktree remove",
+            cwd: input.cwd,
+            detail: refused.reason,
+          }),
+        ),
+    ),
+  );
+});

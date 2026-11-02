@@ -5,7 +5,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 
-import { assertWorktreeRemovable } from "../fork/SharedWorktrees.ts"; // fork: shared worktrees are never removed
+import { whileRemovable } from "../fork/SharedWorktrees.ts"; // fork: shared worktrees are never removed
 import type * as GitVcsDriver from "./GitVcsDriver.ts";
 
 const INDEX_LIST_MAX_BYTES = 64 * 1024 * 1024;
@@ -15,24 +15,31 @@ const INDEX_LIST_MAX_BYTES = 64 * 1024 * 1024;
  * On Windows, mirror Git's removal checks, then delete with Node's `rm`, which
  * unlinks junctions without following them. Git then removes the worktree metadata.
  */
-export const removeLinkedWorktree = Effect.fn("WorktreeRemoval.removeLinkedWorktree")(function* <
-  A,
-  E,
-  R,
->(input: {
+interface RemovalInput<A, E, R> {
   readonly operation: string;
   readonly cwd: string;
   readonly worktreePath: string;
   readonly force: boolean;
   readonly execute: GitVcsDriver.GitVcsDriver["Service"]["execute"];
   readonly run: (args: ReadonlyArray<string>) => Effect.Effect<A, E, R>;
-}) {
-  // fork: the one place every removal passes through; refuses worktrees shared with official T3 Code.
-  yield* assertWorktreeRemovable({
-    operation: input.operation,
-    cwd: input.cwd,
-    path: input.worktreePath,
-  });
+}
+
+// fork: the one place every removal passes through. Shared worktrees are refused, and the check
+// and the removal sit in one section that an import's marking cannot interleave with.
+export const removeLinkedWorktree = Effect.fn("WorktreeRemoval.removeLinkedWorktree")(function* <
+  A,
+  E,
+  R,
+>(input: RemovalInput<A, E, R>) {
+  return yield* whileRemovable(
+    { operation: input.operation, cwd: input.cwd, path: input.worktreePath },
+    removeUnguarded(input),
+  );
+});
+
+const removeUnguarded = Effect.fn("WorktreeRemoval.removeUnguarded")(function* <A, E, R>(
+  input: RemovalInput<A, E, R>,
+) {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const worktreePath = input.worktreePath;

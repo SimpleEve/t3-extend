@@ -1,5 +1,6 @@
 import {
   GitCommandError,
+  OFFICIAL_APP_NAME, // fork: names the app in the shared-worktree reason
   OrchestrationV2AppThreadJson,
   OrchestrationV2ProviderSessionJson,
 } from "@t3tools/contracts";
@@ -70,6 +71,9 @@ const decodePnpmModulesManifest = Schema.decodeUnknownEffect(
 const DAY_MS = 86_400_000;
 // Give settle scripts time to open terminals that protect the worktree.
 const SETTLE_SCRIPT_GRACE_MS = 60_000;
+// fork: shown in the clean-up report, which is English from the server.
+const sharedKeepReason = `shared with ${OFFICIAL_APP_NAME}`;
+
 // Worktree creation can precede its thread row, including review-guide checkouts.
 const ORPHAN_WORKTREE_GRACE_MS = 60 * 60 * 1_000;
 
@@ -845,10 +849,13 @@ const make = Effect.gen(function* () {
             Effect.provideService(Path.Path, path),
           );
         if (sharedReason !== null) {
-          yield* Effect.logDebug("storage cleanup skipped a worktree shared with T3 Code", {
-            path: worktreePath,
-          });
-          return keep("shared with T3 Code");
+          yield* Effect.logDebug(
+            `storage cleanup skipped a worktree shared with ${OFFICIAL_APP_NAME}`,
+            {
+              path: worktreePath,
+            },
+          );
+          return keep(sharedKeepReason);
         }
         if (!(yield* fs.exists(worktreePath))) return;
         if (deleted && !settings.worktreeOnDelete) return keep("no rules apply");
@@ -1106,27 +1113,41 @@ const make = Effect.gen(function* () {
           )
         )
           return keep("settings changed since check");
-        // Clean only untracked files. Ordinary worktrees retain Git's final tracked-edit check.
-        if (settings.worktreeKeepWhen === "tracked-changes")
-          yield* cleanupGit(worktreePath, ["clean", "-ffdx"], "git clean");
-        const submodules = yield* submoduleRemoval(worktreePath, settings);
-        if (submodules.reason !== null) return keep(submodules.reason);
-        if (submodules.force) {
-          const changes = yield* localChangesReason(worktreePath, settings);
-          if (changes !== null) return keep(changes);
-        }
-        yield* removeLinkedWorktree({
-          operation: "StorageCleanup.cleanupGit",
-          cwd: project.workspaceRoot,
-          worktreePath,
-          // Git requires force for submodules; recursive checks above cannot make removal atomic.
-          force: submodules.force,
-          execute: git.execute,
-          run: (args) => cleanupGit(project.workspaceRoot, [...args], "git worktree remove"),
-        }).pipe(
-          Effect.provideService(ServerConfig.ServerConfig, config), // fork: shared-worktree guard
-          Effect.provideService(SharedWorktrees.SharedWorktreePolicy, sharedWorktrees),
-        );
+        // fork: `git clean` and the removal are one section, so an import cannot claim the path
+        // after the check; the analysis above stays outside it.
+        const kept = yield* sharedWorktrees
+          .exclusive(
+            { cwd: project.workspaceRoot, path: worktreePath },
+            Effect.gen(function* () {
+              // Clean only untracked files. Ordinary worktrees retain Git's final tracked-edit check.
+              if (settings.worktreeKeepWhen === "tracked-changes")
+                yield* cleanupGit(worktreePath, ["clean", "-ffdx"], "git clean");
+              const submodules = yield* submoduleRemoval(worktreePath, settings);
+              if (submodules.reason !== null) return submodules.reason;
+              if (submodules.force) {
+                const changes = yield* localChangesReason(worktreePath, settings);
+                if (changes !== null) return changes;
+              }
+              yield* removeLinkedWorktree({
+                operation: "StorageCleanup.cleanupGit",
+                cwd: project.workspaceRoot,
+                worktreePath,
+                // Git requires force for submodules; recursive checks above cannot make removal atomic.
+                force: submodules.force,
+                execute: git.execute,
+                run: (args) => cleanupGit(project.workspaceRoot, [...args], "git worktree remove"),
+              });
+              return null;
+            }),
+          )
+          .pipe(
+            Effect.catchTags({ SharedWorktreeRefused: () => Effect.succeed(sharedKeepReason) }),
+            Effect.provideService(ServerConfig.ServerConfig, config),
+            Effect.provideService(FileSystem.FileSystem, fs),
+            Effect.provideService(Path.Path, path),
+            Effect.provideService(SharedWorktrees.SharedWorktreePolicy, sharedWorktrees),
+          );
+        if (kept !== null) return keep(kept);
         entries.push({ ...entry, outcome: "removed", reason: sentence(removalReason), bytes });
         yield* gitManager.invalidateStatus(project.workspaceRoot);
         // Preserve branch/path so ProviderTurnStartService can recreate the checkout on resume.

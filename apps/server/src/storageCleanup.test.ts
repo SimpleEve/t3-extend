@@ -14,6 +14,7 @@ import { TestClock } from "effect/testing";
 import * as SqlClient from "effect/sql/SqlClient";
 import {
   DEFAULT_SERVER_SETTINGS,
+  OFFICIAL_APP_NAME,
   type WorktreeKeepWhen,
   type StorageCleanupSettings,
   type TerminalMetadataStreamEvent,
@@ -2494,7 +2495,7 @@ describe("worktrees shared with official T3 Code", () => {
           const entry = report.entries.find((candidate) => candidate.path === worktree);
           expect(entry?.outcome).toBe(expected);
           if (expected === "kept") {
-            expect(entry?.reason).toBe("Shared with T3 Code");
+            expect(entry?.reason).toBe(`Shared with ${OFFICIAL_APP_NAME}`);
             expect(yield* fs.readFileString(`${worktree}/scratch.txt`)).toBe("keep me\n");
             expect(yield* fs.exists(`${worktree}/.git`)).toBe(true);
             expect(
