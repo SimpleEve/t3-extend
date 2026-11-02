@@ -7,12 +7,14 @@ import {
 import type { PullRequestParams } from "./usePullRequestDiff";
 import { usePullRequestConnected } from "./usePullRequestConnected";
 import { usePullRequestThreads } from "./usePullRequestThreads";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function usePullRequestAgentActions(
   params: PullRequestParams,
   pr: PullRequestDetail | null,
   filePath?: string,
 ) {
+  const t = useT(); // fork: i18n
   const links = usePullRequestThreads(params, pr, filePath);
   const connected = usePullRequestConnected(params.environmentId);
   const actions = pr ? pullRequestAgentActions(pr, links.canWatch) : [];
@@ -32,17 +34,17 @@ export function usePullRequestAgentActions(
     ...links.threads.map((thread) => ({
       id: `${task}:${thread.id}`,
       title: thread.title,
-      subtitle: thread.archivedAt ? "Archived thread" : "Continue thread",
+      subtitle: thread.archivedAt ? t("Archived thread") : t("Continue thread"),
       image: "bubble.left.and.bubble.right",
       attributes: { disabled: task !== "ask" && Boolean(thread.archivedAt) },
     })),
-    ...(links.canAsk ? [{ id: `${task}:new`, title: "Start a new thread", image: "plus" }] : []),
+    ...(links.canAsk ? [{ id: `${task}:new`, title: t("Start a new thread"), image: "plus" }] : []),
   ];
   const menuAction = (task: PullRequestAgentTask) => {
     const action = actions.find((action) => action.task === task);
     return {
       id: task,
-      title: action?.title ?? "Open thread",
+      title: action?.title ?? t("Open thread"),
       image: action?.icon,
       attributes: { disabled: disabled || !links.canAsk || action?.disabled },
       ...(links.threads.length > 1 ? { subactions: threadActions(task) } : {}),

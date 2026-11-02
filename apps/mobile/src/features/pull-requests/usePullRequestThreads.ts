@@ -43,6 +43,7 @@ import {
   pullRequestAgentPrompt,
   type PullRequestAgentTask,
 } from "./pullRequestAgentTasks";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 type LinkedThread = PullRequestLinkedThreadsResult["threads"][number];
 
@@ -51,6 +52,7 @@ export function usePullRequestThreads(
   pr: PullRequestDetail | null,
   filePath?: string,
 ) {
+  const t = useT(); // fork: i18n
   const target = pullRequestTarget(params);
   const config = useEnvironmentServerConfig(target.environmentId);
   const supported = threadPullRequestLinkMode(config?.environment.capabilities) === "multiple";
@@ -160,13 +162,19 @@ export function usePullRequestThreads(
       );
       previousPrompts.current.set(draftKey, pullRequestAgentPrompt(task, terminology));
       if (thread) openThread(thread);
-      else openThreadRoute({ draft: { draftId: draftKey, title: `Ask about #${pr.number}` } });
+      else
+        openThreadRoute({
+          draft: { draftId: draftKey, title: t("Ask about #{number}", { number: pr.number }) },
+        });
     });
     pending.current = false;
     setBusy(false);
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
-      Dialog.alert("Couldn't open a thread", cause instanceof Error ? cause.message : "Try again.");
+      Dialog.alert(
+        t("Couldn't open a thread"),
+        cause instanceof Error ? cause.message : t("Try again."),
+      );
     }
   };
   return {

@@ -32,6 +32,7 @@ import {
   pullRequestStatus,
 } from "./pullRequestStatus";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export const PullRequestListRow = memo(
   function PullRequestListRow(props: {
@@ -43,6 +44,7 @@ export const PullRequestListRow = memo(
     readonly getActions: (item: EnvironmentPullRequestListEntry) => MenuProps["actions"];
     readonly onAction: (item: EnvironmentPullRequestListEntry, action: string) => void;
   }) {
+    const t = useT(); // fork: i18n
     const { item } = props;
     const foreground = props.selected
       ? selectedThreadRowColors.foregroundClassName
@@ -74,8 +76,8 @@ export const PullRequestListRow = memo(
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ selected: props.selected, busy: props.busy }}
-            accessibilityLabel={`${capitalizeTerm(sourceControlClients.get(item.provider).changeRequest.singular)} ${item.number}, ${item.title}, ${status.label}${conflict ? `, ${conflict.label.toLowerCase()}` : ""}, by ${item.author?.login ?? "unknown author"}${review ? `, ${review.accessibleLabel}` : ""}${item.checksState ? `, checks ${item.checksState}` : ""}${item.stack ? `, stack ${item.stack.position} of ${item.stack.size}` : ""}${item.labels.length ? `, ${item.labels.map((label) => label.name).join(", ")}` : ""}, ${item.additions} additions, ${item.deletions} deletions`}
-            accessibilityHint="Double tap to open. Touch and hold for quick actions."
+            accessibilityLabel={`${capitalizeTerm(sourceControlClients.get(item.provider).changeRequest.singular)} ${item.number}, ${item.title}, ${status.label}${conflict ? `, ${conflict.label.toLowerCase()}` : ""}, ${t("by {author}", { author: item.author?.login ?? t("unknown author") })}${review ? `, ${review.accessibleLabel}` : ""}${item.checksState ? `, ${t("checks {checksState}", { checksState: t(item.checksState, undefined, "checks state") })}` : ""}${item.stack ? `, ${t("stack {position} of {size}", { position: item.stack.position, size: item.stack.size })}` : ""}${item.labels.length ? `, ${item.labels.map((label) => label.name).join(", ")}` : ""}, ${t("{additions} additions, {deletions} deletions", { additions: item.additions, deletions: item.deletions })}`}
+            accessibilityHint={t("Double tap to open. Touch and hold for quick actions.")}
             onPress={() => props.onSelect(item)}
             disabled={props.busy}
             style={props.sidebar ? THREAD_LIST_V2_SIDEBAR_ROW_STYLE : undefined}
@@ -176,7 +178,12 @@ export const PullRequestListRow = memo(
                   ) : null}
                 </View>
                 {checks ? (
-                  <View className="shrink-0" accessibilityLabel={`Checks ${item.checksState}`}>
+                  <View
+                    className="shrink-0"
+                    accessibilityLabel={t("Checks {checksState}", {
+                      checksState: t(item.checksState ?? "", undefined, "checks state"),
+                    })}
+                  >
                     <SymbolView name={checks.icon} size={13} tintColorClassName={checks.tint} />
                   </View>
                 ) : null}

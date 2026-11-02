@@ -1,9 +1,11 @@
 import type { PullRequestActivity, PullRequestCheck, PullRequestComment } from "@t3tools/contracts";
+import { setUiLocale } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 import {
   normalizedReviewState,
   pullRequestChecksSummary,
   pullRequestReviewSummary,
+  pullRequestStatus,
 } from "./pullRequestStatus";
 
 const author = { login: "julius", name: null, avatarUrl: null };
@@ -97,5 +99,18 @@ describe("mobile overview check status", () => {
     expect(
       pullRequestChecksSummary({ checks: [check("success"), check("pending"), check("failure")] }),
     ).toMatchObject({ title: "1 check failing", count: "1 of 3" });
+  });
+});
+
+describe("pullRequestStatus", () => {
+  it("names the state as a state, not the Open action", async () => {
+    expect(pullRequestStatus({ state: "open", isDraft: false }).label).toBe("Open");
+    await setUiLocale("zh-Hans");
+    try {
+      expect(pullRequestStatus({ state: "open", isDraft: false }).label).toBe("开放");
+      expect(pullRequestStatus({ state: "open", isDraft: true }).label).toBe("草稿");
+    } finally {
+      await setUiLocale("en");
+    }
   });
 });

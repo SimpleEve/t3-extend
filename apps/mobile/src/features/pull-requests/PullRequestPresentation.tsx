@@ -9,17 +9,19 @@ import { useResolveClassNames } from "uniwind";
 import { AppText as Text } from "../../components/ui/AppText";
 import { cn } from "../../lib/cn";
 import { EmptyState } from "../../components/ui/EmptyState";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function PullRequestReadStatus(props: {
   readonly pending: boolean;
   readonly error: string | null;
   readonly terminology: ChangeRequestTerminology;
 }) {
+  const t = useT(); // fork: i18n
   return props.pending ? (
     <AppActivityIndicator className="my-12" colorClassName="accent-icon" />
   ) : props.error ? (
     <EmptyState
-      title={`Couldn't load this ${props.terminology.singular}`}
+      title={t("Couldn't load this {singular}", { singular: props.terminology.singular })}
       detail={props.error}
       variant="plain"
     />

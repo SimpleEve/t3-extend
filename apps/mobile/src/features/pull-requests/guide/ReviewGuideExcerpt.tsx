@@ -12,6 +12,7 @@ import { useNativeReviewDiffBridge } from "../../review/useNativeReviewDiffBridg
 import { useAppearanceCodeSurface } from "../../settings/appearance/useAppearanceCodeSurface";
 import { useAppearancePreferences } from "../../settings/appearance/AppearancePreferencesProvider";
 import { PullRequestMarkdown } from "../PullRequestMarkdown";
+import { useT } from "../../../hooks/useT"; // fork: i18n
 
 const EMPTY_IDS: readonly string[] = [];
 
@@ -26,6 +27,7 @@ export function ReviewGuideExcerpt({
   readonly loading: boolean;
   readonly onOpen: () => void;
 }) {
+  const t = useT(); // fork: i18n
   const { nativeReviewDiffStyle, codeWordBreak } = useAppearanceCodeSurface();
   const { themeAppearance } = useAppearancePreferences();
   const slice = excerptPatch(file, excerpt);
@@ -61,7 +63,10 @@ export function ReviewGuideExcerpt({
       <View className="overflow-hidden rounded-lg border border-border-subtle">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Open ${excerpt.path} at line ${excerpt.start} in full diff`}
+          accessibilityLabel={t("Open {path} at line {start} in full diff", {
+            path: excerpt.path,
+            start: excerpt.start,
+          })}
           onPress={onOpen}
           className="min-h-11 flex-row items-center gap-3 border-b border-border-subtle px-3 py-2 active:opacity-60"
         >
@@ -115,8 +120,12 @@ export function ReviewGuideExcerpt({
         ) : (
           <Text className="p-3 text-xs text-foreground-muted">
             {loading
-              ? `Loading ${excerpt.path}…`
-              : `${excerpt.path}:${excerpt.start}–${excerpt.end} is not in the loaded diff.`}
+              ? t("Loading {path}…", { path: excerpt.path })
+              : t("{path}:{start}–{end} is not in the loaded diff.", {
+                  path: excerpt.path,
+                  start: excerpt.start,
+                  end: excerpt.end,
+                })}
           </Text>
         )}
       </View>
