@@ -57,7 +57,7 @@ export default {
   "Version {versionLabel}": "版本 {versionLabel}",
   "Clear cache for {label}?": "清除 {label} 的缓存？",
   "This removes offline threads, server metadata, and cached branches for this environment. The saved connection and credentials stay intact.":
-    "这会移除这个环境的离线对话、server 元数据和缓存的分支。保存的连接和凭据不受影响。",
+    "这会移除这个环境的离线对话、服务器元数据和缓存的分支。保存的连接和凭据不受影响。",
   "Clear Cache": "清除缓存",
   "Clear all client caches?": "清除所有客户端缓存？",
   "This removes offline data for every environment. Connections, credentials, account data, and app preferences stay intact.":
@@ -82,7 +82,7 @@ export default {
   "Install T3 Code {targetVersion}. The desktop app will close and relaunch. Running threads may be interrupted.":
     "安装 T3 Code {targetVersion}。桌面应用会关闭并重新启动。正在运行的对话可能会被中断。",
   "Install T3 Code {targetVersion}. The server will restart and reconnect. Running threads may be interrupted.":
-    "安装 T3 Code {targetVersion}。server 会重启并重新连接。正在运行的对话可能会被中断。",
+    "安装 T3 Code {targetVersion}。服务器会重启并重新连接。正在运行的对话可能会被中断。",
   "Updated to {targetVersion}.": "已更新到 {targetVersion}。",
   "This environment is no longer saved on this device.": "这台设备上已不再保存这个环境。",
   Connection: "连接",
@@ -463,11 +463,11 @@ export default {
   "Try Again": "重试",
   "Open in Browser": "在浏览器中打开",
   "The page could not be loaded.": "无法加载页面。",
-  "The server returned status {statusCode}.": "server 返回了状态码 {statusCode}。",
+  "The server returned status {statusCode}.": "服务器返回了状态码 {statusCode}。",
   "Use defaults": "使用默认设置",
   "Use environment defaults for this project": "这个项目使用环境的默认设置",
   "Enter this code on GitHub, then approve {appName}. It is copied. The server finishes signing in even if you leave the app.":
-    "在 GitHub 上输入这个代码，然后批准 {appName}。代码已复制。即使离开应用，server 也会完成登录。",
+    "在 GitHub 上输入这个代码，然后批准 {appName}。代码已复制。即使离开应用，服务器也会完成登录。",
   "Open GitHub": "打开 GitHub",
   "Could not start the sign-in": "无法开始登录",
   "Sign-in did not finish": "登录没有完成",

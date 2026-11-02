@@ -64,7 +64,7 @@ export default {
   "The PDF could not be loaded.": "无法加载这个 PDF。",
   "Could not load PDF": "无法加载 PDF",
   "Loading PDF...": "正在加载 PDF...",
-  "The server returned HTTP {statusCode}.": "server 返回了 HTTP {statusCode}。",
+  "The server returned HTTP {statusCode}.": "服务器返回了 HTTP {statusCode}。",
   "{projectTitle} favicon": "{projectTitle} 的图标",
   "This screen couldn't be displayed": "无法显示此页面",
   "Try again. If it keeps happening, copy the details for a bug report.":
@@ -203,19 +203,19 @@ export default {
   "Refreshing environments": "正在刷新环境",
   "Refresh environments": "刷新环境",
   "Sign in to your T3 account to set up T3 Connect.": "登录 T3 账号以设置 T3 Connect。",
-  "Could not deregister the server.": "无法注销这台 server。",
+  "Could not deregister the server.": "无法注销这台服务器。",
   "{message}\n\nTrace ID: {traceId}": "{message}\n\n跟踪 ID：{traceId}",
-  "Registered servers": "已注册的 server",
+  "Registered servers": "已注册的服务器",
   "Actions for {label}": "{label} 的操作",
-  "No servers registered": "没有已注册的 server",
+  "No servers registered": "没有已注册的服务器",
   "Link a server from its local Settings to reach it through T3 Connect.":
-    "在 server 本地的设置中关联后，就能通过 T3 Connect 访问它。",
+    "在服务器本地的设置中关联后，就能通过 T3 Connect 访问它。",
   "Connections on this device are managed in Settings.": "这台设备上的连接在设置中管理。",
   "Link date unavailable": "关联日期不可用",
   "Linked {date}": "关联于 {date}",
   "Managed tunnel": "托管隧道",
   "Activity publishing only": "仅发布活动",
-  "Deregister server?": "注销这台 server？",
+  "Deregister server?": "注销这台服务器？",
   "“{label}” will be removed from this account. T3 Connect access will be revoked, any managed tunnel will be removed, and a host space will become available. Local connections on your devices are not changed.":
     "“{label}”将从这个账号移除：T3 Connect 访问权限会被撤销，托管隧道会被移除，并释放一个主机名额。你设备上的本地连接不受影响。",
   "Available · Relay online": "可用 · 中继在线",
@@ -484,7 +484,7 @@ export default {
   "Load diff": "加载差异",
   "Base branch unavailable": "基准分支不可用",
   "Diff output hit the server size cap. Showing the available excerpt.":
-    "差异输出达到 server 的大小上限，显示可用的片段。",
+    "差异输出达到服务器的大小上限，显示可用的片段。",
   "Diff was truncated before it could be parsed completely. Showing the raw excerpt.":
     "差异在完整解析前被截断，显示原始片段。",
   "Unsupported diff format. Showing raw patch.": "差异格式不受支持，显示原始补丁。",
@@ -542,7 +542,7 @@ export default {
   "Retry import": "重新导入",
   "Retry cancel": "重新取消",
   "'{name}' was skipped because this server does not support files.":
-    "已跳过“{name}”，这台 server 不支持文件。",
+    "已跳过“{name}”，这台服务器不支持文件。",
   "Only the first {count} shared images were attached.": "只添加了分享的前 {count} 张图片。",
   "Only the first {count} shared files were attached.": "只添加了分享的前 {count} 个文件。",
   "One shared file could not be read.": "有一个分享的文件无法读取。",
@@ -647,7 +647,7 @@ export default {
     "{message} 请改为在那台机器的终端运行 {CLI_COMMAND}。",
   "Type {CLI_COMMAND} instead.": "请改为输入 {CLI_COMMAND}。",
   "This machine cannot start threads without a project.": "这台机器不能启动不属于项目的对话。",
-  "The server could not prepare it.": "server 无法准备它。",
+  "The server could not prepare it.": "服务器无法准备它。",
   "Drafts could not be loaded.": "无法加载草稿。",
   Triage: "Triage",
   "A new version has been downloaded and installs automatically the next time you leave the app. Install it now instead?":
@@ -732,9 +732,9 @@ export default {
   "Updating {provider}…": "正在更新 {provider}…",
   "Updating {count} providers…": "正在更新 {count} 个 provider…",
   "{environment} runs an older server version and is excluded from totals.":
-    "{environment} 运行的 server 版本较旧，未计入总量。",
+    "{environment} 运行的服务器版本较旧，未计入总量。",
   "This client is older than the server on {environment}; its usage is excluded from totals.":
-    "这个客户端比 {environment} 上的 server 旧，其用量未计入总量。",
+    "这个客户端比 {environment} 上的服务器旧，其用量未计入总量。",
 
   "Dismiss voice input error": "关闭语音输入错误",
   "Cancel dictation": "取消听写",

@@ -1,6 +1,14 @@
 // Mobile pull request tab: list, overview, files, discussion, review sheet, and guide.
 export default {
   "pull request state|Open": "开放",
+  "All states": "全部状态",
+  "All PRs": "全部 PR",
+  "All drafts": "全部草稿",
+  "All reviews": "全部审查",
+  "All checks": "全部检查",
+  "Open on {label}": "在 {label} 上打开",
+  "Some file contents are unavailable. Open the {singular} on its provider to see the full changes.":
+    "部分文件内容不可用。在托管平台上打开这个 {singular} 可查看完整更改。",
   "check status|Pending": "等待中",
   "checks state|passing": "通过",
   "checks state|failing": "失败",
@@ -362,7 +370,7 @@ export default {
   "Guide options": "导读选项",
   "Stop {number}: {title}": "第 {number} 站：{title}",
   "Start tour": "开始浏览",
-  "Review guides are disabled for this server.": "这台 server 已停用审查导读。",
+  "Review guides are disabled for this server.": "这台服务器已停用审查导读。",
   "Stop {number}": "第 {number} 站",
   "Stop {number} of {total}": "第 {number} / {total} 站",
   "This guide was rewritten. Go back to start the new tour.":

@@ -61,7 +61,7 @@ export default {
   "The thread could not be un-settled.": "无法将这个对话移出已处理。",
   "This connection cannot change threads.": "这个连接没有修改对话的权限。",
   "This environment's server does not support settling yet. Update the server to use Settle.":
-    "这个环境的 server 还不支持标为已处理。更新 server 后才能使用。",
+    "这个环境的服务器还不支持标为已处理。更新服务器后才能使用。",
   "This thread is working. Interrupt it first, then try again.":
     "这个对话正在运行。先中断它，再重试。",
   "Delete thread?": "删除对话？",
@@ -74,28 +74,28 @@ export default {
   "Could not undo thread action": "无法撤销对话操作",
   "Could not snooze thread": "无法将对话设为稍后处理",
   "This environment's server does not support snoozing yet. Update the server to use Snooze.":
-    "这个环境的 server 还不支持稍后处理。更新 server 后才能使用。",
+    "这个环境的服务器还不支持稍后处理。更新服务器后才能使用。",
   "This thread is waiting on you. Respond to the pending request before snoozing it.":
     "这个对话正在等你处理。先回应待处理的请求，再设为稍后处理。",
   "This thread is still starting a turn. Try again once it's running.":
     "这个对话还在启动轮次。等它开始运行后再试。",
   "Could not wake thread": "无法唤醒对话",
   "This environment's server does not support snoozing yet. Update the server to wake this thread.":
-    "这个环境的 server 还不支持稍后处理。更新 server 后才能唤醒这个对话。",
+    "这个环境的服务器还不支持稍后处理。更新服务器后才能唤醒这个对话。",
   "The thread could not be woken.": "无法唤醒这个对话。",
   "Could not pin thread": "无法置顶对话",
   "This environment's server does not support pinning yet. Update the server to use Pin.":
-    "这个环境的 server 还不支持置顶。更新 server 后才能使用。",
+    "这个环境的服务器还不支持置顶。更新服务器后才能使用。",
   "The thread could not be pinned.": "无法置顶这个对话。",
   "Could not unpin thread": "无法取消置顶对话",
   "The thread could not be unpinned.": "无法取消置顶这个对话。",
   "Could not update auto-settle": "无法更新自动标为已处理",
   "This environment's server does not support turning auto-settle off per thread yet. Update the server to use it.":
-    "这个环境的 server 还不支持按对话关闭自动标为已处理。更新 server 后才能使用。",
+    "这个环境的服务器还不支持按对话关闭自动标为已处理。更新服务器后才能使用。",
   "The auto-settle setting could not be changed.": "无法更改自动标为已处理的设置。",
   "Could not regenerate title": "无法重新生成标题",
   "This environment's server does not support title regeneration yet. Update the server to regenerate thread titles.":
-    "这个环境的 server 还不支持重新生成标题。更新 server 后才能重新生成对话标题。",
+    "这个环境的服务器还不支持重新生成标题。更新服务器后才能重新生成对话标题。",
   "The thread title could not be regenerated.": "无法重新生成对话标题。",
   "Thread title cannot be empty.": "对话标题不能为空。",
   "Could not rename thread": "无法重命名对话",
@@ -103,7 +103,7 @@ export default {
   Rename: "重命名",
   "Could not move thread": "无法移动对话",
   "This environment's server does not support reordering these threads. Update the server to arrange them.":
-    "这个环境的 server 还不支持调整这些对话的顺序。更新 server 后才能排列。",
+    "这个环境的服务器还不支持调整这些对话的顺序。更新服务器后才能排列。",
   "The thread could not be moved.": "无法移动这个对话。",
   "You are offline": "你已离线",
   "Syncing threads...": "正在同步对话...",
@@ -483,8 +483,8 @@ export default {
   "This workspace is not a git repository.": "这个工作区不是 git 仓库。",
   "This connection cannot change source control.": "这个连接没有修改源代码管理的权限。",
   "This action is unavailable.": "这个操作不可用。",
-  "No open {shortLabel}": "没有打开的 {shortLabel}",
-  "This branch does not have an open {singular}.": "这个分支没有打开的 {singular}。",
+  "No open {shortLabel}": "没有开放的 {shortLabel}",
+  "This branch does not have an open {singular}.": "这个分支没有开放的 {singular}。",
   "Choose a feature branch": "选择功能分支",
   "Switch branches before publishing changes from this draft.":
     "发布这份草稿的改动前，请先切换分支。",
@@ -764,7 +764,7 @@ export default {
   "The {resource} will load as soon as the environment is ready.":
     "环境就绪后会立即加载{resource}。",
   "Use compatible versions of the app and server to connect.":
-    "请使用相互兼容的应用和 server 版本进行连接。",
+    "请使用相互兼容的应用和服务器版本进行连接。",
   "Reconnect the environment to load the {resource}.": "重新连接环境以加载{resource}。",
   "Retry now": "立即重试",
   "Linked from {environmentLabel}": "关联自 {environmentLabel}",
