@@ -251,8 +251,8 @@ function UnknownWhenVariableWarning({
   if (identifiers.length === 0) return null;
   const label =
     identifiers.length === 1
-      ? `Unknown condition: ${identifiers[0]}`
-      : `Unknown conditions: ${identifiers.join(", ")}`;
+      ? t("Unknown condition: {identifier}", { identifier: identifiers[0]! })
+      : t("Unknown conditions: {identifiers}", { identifiers: identifiers.join(", ") });
 
   return (
     <WarningTooltipIcon label={label} focusable={focusable} className="size-4.5">
@@ -390,7 +390,7 @@ function WhenExpressionNodeEditor({
         />
         {onRemove ? (
           <WhenExpressionRemoveButton
-            label={whenNodeRemoveLabel(node, depth)}
+            label={t(whenNodeRemoveLabel(node, depth))}
             onRemove={onRemove}
           />
         ) : null}
@@ -419,7 +419,7 @@ function WhenExpressionNodeEditor({
           </Toggle>
           {onRemove ? (
             <WhenExpressionRemoveButton
-              label={whenNodeRemoveLabel(node, depth)}
+              label={t(whenNodeRemoveLabel(node, depth))}
               className="ml-auto"
               onRemove={onRemove}
             />
@@ -528,7 +528,7 @@ function WhenExpressionNodeEditor({
         </Button>
         {onRemove ? (
           <WhenExpressionRemoveButton
-            label={whenNodeRemoveLabel(node, depth)}
+            label={t(whenNodeRemoveLabel(node, depth))}
             className="ml-auto"
             onRemove={onRemove}
           />
@@ -580,7 +580,7 @@ function WhenExpressionBuilder({
   const expression = whenAstToExpression(value);
   const [expressionDraft, setExpressionDraft] = useState(expression);
   const parseResult = parseWhenExpressionDraft(expressionDraft);
-  const parseError = parseResult.ok ? null : parseResult.message;
+  const parseError = parseResult.ok ? null : t(parseResult.message);
   const unknownIdentifiers = parseResult.ok ? unknownWhenVariables(parseResult.value) : [];
 
   const updateExpressionDraft = (nextExpression: string) => {
@@ -976,10 +976,11 @@ function KeybindingRowMenu({
 }
 
 function KeybindingSourceBadge({ source }: { source: KeybindingRow["source"] }) {
+  const t = useT();
   if (source === "Default") return null;
   return (
     <Badge variant="outline" size="sm">
-      {source}
+      {t(source)}
     </Badge>
   );
 }
@@ -1163,6 +1164,10 @@ function NewKeybindingCommandSelect({
     <Select
       value={draft.commandDraft}
       onValueChange={(value) => draft.setCommandDraft(value as KeybindingCommand)}
+      items={commandOptions.map((command) => ({
+        value: command,
+        label: translatedCommandLabel(command, t),
+      }))}
     >
       <SelectTrigger size="sm" className={className}>
         <SelectValue placeholder={t("Command")} />
@@ -1316,7 +1321,10 @@ function KeybindingsGroups(props: KeybindingsGroupsProps) {
 }
 
 function BrowserKeybindingNotice() {
-  const message = "The browser may claim some shortcuts first. The desktop app receives them all.";
+  const t = useT();
+  const message = t(
+    "The browser may claim some shortcuts first. The desktop app receives them all.",
+  );
   return (
     <Tooltip>
       <TooltipTrigger

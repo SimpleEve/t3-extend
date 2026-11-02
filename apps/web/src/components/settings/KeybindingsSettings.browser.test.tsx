@@ -125,3 +125,18 @@ it("re-enables Save when a When editor closes on an expression it could not pars
   await expect.element(expression).toHaveValue("terminalFocus");
   await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
 });
+
+it("shows the chosen command's name, not its id, in the new keybinding picker", async () => {
+  await using screen = await render(
+    <RegistryProvider>
+      <KeybindingsSettingsPanel />
+    </RegistryProvider>,
+  );
+  await screen.getByRole("button", { name: "Add keybinding" }).click();
+  const picker = screen.getByRole("combobox");
+  await picker.click();
+  await screen.getByRole("option", { name: "Sidebar: Toggle" }).click();
+
+  await expect.element(picker).toHaveTextContent("Sidebar: Toggle");
+  await expect.element(picker).not.toHaveTextContent("sidebar.toggle");
+});

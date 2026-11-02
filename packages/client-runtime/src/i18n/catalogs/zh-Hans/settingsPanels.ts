@@ -558,6 +558,15 @@ export default {
   "When expression": "when 表达式",
   "Fix the expression above to continue editing visually.":
     "修正上面的表达式后才能继续可视化编辑。",
+  "Use variables with !, &&, ||, and parentheses.": "用变量搭配 !、&&、|| 和括号来写。",
+  "Clear all conditions": "清除所有条件",
+  "Remove condition": "移除条件",
+  "Remove group and its conditions": "移除分组及其中的条件",
+  "Unknown condition: {identifier}": "未知条件：{identifier}",
+  "Unknown conditions: {identifiers}": "未知条件：{identifiers}",
+  "Preview & diff": "预览与差异",
+  "The browser may claim some shortcuts first. The desktop app receives them all.":
+    "浏览器可能会先占用部分快捷键，桌面应用能收到全部快捷键。",
   "Edit shortcut for {commandLabel}: {shortcutLabel}":
     "编辑 {commandLabel} 的快捷键：{shortcutLabel}",
   "Keybinding for {commandLabel}": "{commandLabel} 的快捷键",
@@ -609,6 +618,12 @@ export default {
   "System alerts when a thread finishes, fails, or needs input or approval. Applies to this device while T3 Code is open.":
     "对话完成、失败或需要输入或批准时发出系统提醒。在 T3 Code 打开期间对此设备生效。",
   "Thread notifications": "对话通知",
+  "Notifications need a supported browser over HTTPS, or the desktop app. Sound only is still available.":
+    "通知需要通过 HTTPS 访问的受支持浏览器，或使用桌面应用。仍可选择“仅声音”。",
+  "Notifications are unavailable in this browser. Sound only is still available.":
+    "这个浏览器不支持通知。仍可选择“仅声音”。",
+  "Allow notifications in your browser or system settings, then choose this option again. Sound only is still available.":
+    "请在浏览器或系统设置中允许通知，然后重新选择这个选项。仍可选择“仅声音”。",
   "View project source for {name}": "查看 {name} 的项目源代码",
   "Project source": "项目源代码",
   "{totalCount} notices": "{totalCount} 条声明",
