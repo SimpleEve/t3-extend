@@ -71,9 +71,9 @@ describe("projectHeroLines", () => {
       { before: "What should we build" },
       { before: "in ", after: "?" },
     ]);
-    expect(projectHeroLines("在 {project} 里\n要构建什么？")).toEqual([
-      { before: "在 ", after: " 里" },
-      { before: "要构建什么？" },
+    expect(projectHeroLines("在 {project}\n要做点什么？")).toEqual([
+      { before: "在 ", after: "" },
+      { before: "要做点什么？" },
     ]);
   });
 });

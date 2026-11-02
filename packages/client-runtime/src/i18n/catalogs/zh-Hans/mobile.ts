@@ -292,7 +292,7 @@ export default {
   "What should we work on?": "要做点什么？",
   "Opens the project picker": "打开项目选择器",
   // The line break and {project} place the project picker in the hero.
-  "What should we build\nin {project}?": "在 {project} 里\n要构建什么？",
+  "What should we build\nin {project}?": "在 {project}\n要做点什么？",
   "on {label}": "在 {label} 上",
   "Current worktree": "当前 worktree",
   "Choose branch": "选择分支",
