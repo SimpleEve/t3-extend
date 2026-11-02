@@ -229,8 +229,8 @@ export function PullRequestMergeControls(props: {
       {permissions.connected &&
       reason &&
       reason !== t(MERGE_CONFLICT_REASON) &&
-      reason !== "Checking stack membership…" &&
-      !(checkingStack && reason === "Refresh the stack before merging.") ? (
+      reason !== t("Checking stack membership…") &&
+      !(checkingStack && reason === t("Refresh the stack before merging.")) ? (
         <Text className="px-1 text-xs text-foreground-muted">{reason}</Text>
       ) : null}
       {pr.autoMergeEnabled ? (
