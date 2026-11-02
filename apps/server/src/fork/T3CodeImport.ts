@@ -928,8 +928,12 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     if (files.rewrittenPaths > 0) {
       fixed.push({ code: "paths-rewritten", subject: "", count: files.rewrittenPaths });
     }
-    for (const instance of files.providerInstances) {
-      attention.push({ code: "provider-credential-imported", subject: instance.id });
+    if (files.providerInstances.length > 0) {
+      attention.push({
+        code: "provider-credential-imported",
+        subject: files.providerInstances.map((instance) => instance.id).join(", "),
+        count: files.providerInstances.length,
+      });
     }
 
     // What never crosses over: identity, credentials, and state kept in the other app's browser storage.

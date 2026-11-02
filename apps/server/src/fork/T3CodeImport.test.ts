@@ -467,8 +467,11 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
   it.effect(
     "sorts every selected item into fixed, skipped and needing attention before anything is written",
     () =>
-      withService({}, ({ service, sql }) =>
+      withService({}, ({ service, sql, sourcePath, repo }) =>
         Effect.gen(function* () {
+          const sourceBefore = yield* hashFile(sourcePath);
+          const refsBefore = git(repo, ["for-each-ref"]);
+          yield* service.preview;
           const report = yield* service.check(selectionOf());
           assert.deepStrictEqual(codes(report.fixed).toSorted(), [
             "attachments-copied",
@@ -505,11 +508,23 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
           ]) {
             assert.include(attention, code);
           }
+          // One line names every provider whose credential comes along.
+          const credentials = report.attention.filter(
+            (notice) => notice.code === "provider-credential-imported",
+          );
+          assert.equal(credentials.length, 1);
+          assert.equal(credentials[0]?.subject.split(", ").length, credentials[0]?.count);
           // The preflight reads only.
           const [rows] = yield* sql<{
             count: number;
           }>`SELECT COUNT(*) AS count FROM orchestration_v2_projection_threads`;
           assert.equal(rows?.count, 0);
+          const [bookkeeping] = yield* sql<{
+            count: number;
+          }>`SELECT (SELECT COUNT(*) FROM fork_t3code_import_map) + (SELECT COUNT(*) FROM fork_t3code_import_runs) AS count`;
+          assert.equal(bookkeeping?.count, 0);
+          assert.equal(yield* hashFile(sourcePath), sourceBefore);
+          assert.equal(git(repo, ["for-each-ref"]), refsBefore);
         }),
       ),
   );

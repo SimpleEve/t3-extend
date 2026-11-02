@@ -73,11 +73,13 @@ export default {
     "{count} 个对话以停止状态到达：运行中的提供方会话和待处理请求留在 {app}。",
   "{count} paths into {app}'s folder now point into T3 Extend's.":
     "{count} 个指向 {app} 文件夹的路径已改为指向 T3 Extend 的文件夹。",
+  "1 attachment or browser capture is copied with its thread.":
+    "1 个附件或浏览器截图会随对话一起复制。",
   "{count} attachments and browser captures are copied with their threads.":
     "{count} 个附件和浏览器截图会随对话一起复制。",
   "{subject} is imported and runs on its schedule right away.": "{subject} 导入后立即按计划运行。",
-  "Not imported: {subject}. Phones and browsers pair with T3 Extend again.":
-    "不会导入：{subject}。手机和浏览器需要重新与 T3 Extend 配对。",
+  "Identity stays with {app}: {subject}. Phones and browsers pair with T3 Extend again.":
+    "身份信息留在 {app}：{subject}。手机和浏览器需要重新与 T3 Extend 配对。",
   "{count} signing keys and cloud sign-in secrets belong to {app}'s identity.":
     "{count} 个签名密钥和云端登录机密属于 {app} 的身份。",
   "Saved remote environments are encrypted with {app}'s key. Add them again here.":
@@ -126,6 +128,8 @@ export default {
     "{count} 个检查点无法复制，因为它们的仓库已不存在。它们会显示为缺失。",
   "{subject}: its sign-in credential is copied together with the provider.":
     "{subject}：它的登录凭据随提供方一起复制。",
+  "{subject}: their sign-in credentials are copied together with their providers.":
+    "{subject}：它们的登录凭据随各自的提供方一起复制。",
   "{app} used the legacy sidebar. It is on here too (Settings → Labs).":
     "{app} 用的是旧版侧边栏，这里也已开启（设置 → 实验室）。",
   "{title} requires a supporting environment. Choose one to continue.":

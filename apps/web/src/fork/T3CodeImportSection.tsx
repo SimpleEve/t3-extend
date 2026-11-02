@@ -158,15 +158,19 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
         count,
       });
     case "attachments-copied":
-      return t("{count} attachments and browser captures are copied with their threads.", {
-        count,
-      });
+      return count === 1
+        ? t("1 attachment or browser capture is copied with its thread.")
+        : t("{count} attachments and browser captures are copied with their threads.", { count });
     case "task-imported-active":
       return t("{subject} is imported and runs on its schedule right away.", { subject });
     case "identity-skipped":
-      return t("Not imported: {subject}. Phones and browsers pair with T3 Extend again.", {
-        subject,
-      });
+      return t(
+        "Identity stays with {app}: {subject}. Phones and browsers pair with T3 Extend again.",
+        {
+          app: OFFICIAL_APP_NAME,
+          subject,
+        },
+      );
     case "signing-secrets-skipped":
       return t("{count} signing keys and cloud sign-in secrets belong to {app}'s identity.", {
         app: OFFICIAL_APP_NAME,
@@ -266,9 +270,11 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
         { count },
       );
     case "provider-credential-imported":
-      return t("{subject}: its sign-in credential is copied together with the provider.", {
-        subject,
-      });
+      return count === 1
+        ? t("{subject}: its sign-in credential is copied together with the provider.", { subject })
+        : t("{subject}: their sign-in credentials are copied together with their providers.", {
+            subject,
+          });
     case "sidebar-settings":
       return t("{app} used the legacy sidebar. It is on here too (Settings → Labs).", {
         app: OFFICIAL_APP_NAME,
