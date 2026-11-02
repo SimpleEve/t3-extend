@@ -44,6 +44,8 @@ export default {
   "This inline media could not be decoded.": "无法解码此内嵌媒体。",
   "The file could not be fetched. The host may block browser access (CORS), or the connection may be unavailable.":
     "无法获取该文件。托管它的主机可能禁止浏览器访问（CORS），或者连接不可用。",
+  "The file could not be fetched. Check the connection and try again.":
+    "无法获取该文件。请检查连接后重试。",
   "The file could not be fetched (HTTP {status}).": "无法获取该文件（HTTP {status}）。",
   "This link returned a web page instead of media. Open the original URL.":
     "此链接返回的是网页而不是媒体。请打开原始 URL。",
