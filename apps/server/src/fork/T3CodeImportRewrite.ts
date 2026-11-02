@@ -28,20 +28,39 @@ export interface Rewriter {
   readonly rewrittenPathCount: () => number;
 }
 
+/** Ids nest: the allocator joins `encodeURIComponent`ed parts, and those ids become parts of the next id. */
+const ENCODING_DEPTH = 4;
+
+/** Every spelling a mapped id takes inside other ids, source and target encoded alike. */
+const spellings = (ids: ReadonlyMap<string, string>): Map<string, string> => {
+  const all = new Map<string, string>();
+  for (const [source, target] of ids) {
+    let from = source;
+    let to = target;
+    for (let depth = 0; depth <= ENCODING_DEPTH; depth += 1) {
+      all.set(from, to);
+      from = encodeURIComponent(from);
+      to = encodeURIComponent(to);
+    }
+  }
+  return all;
+};
+
 export const makeRewriter = (input: {
   readonly ids: ReadonlyMap<string, string>;
   readonly sourceStateDir: string;
   readonly targetAttachmentsDir: string;
   readonly targetBrowserArtifactsDir: string;
 }): Rewriter => {
-  const allUuids = [...input.ids.keys()].every((id) => UUID_ONLY.test(id));
+  const ids = spellings(input.ids);
+  const allUuids = [...ids.keys()].every((id) => UUID_ONLY.test(id));
   const idPattern =
-    input.ids.size === 0
+    ids.size === 0
       ? null
       : allUuids
         ? new RegExp(UUID_SOURCE, "g")
         : new RegExp(
-            [...input.ids.keys()]
+            [...ids.keys()]
               .toSorted((a, b) => b.length - a.length)
               .map(escapeRegExp)
               .join("|"),
@@ -73,9 +92,7 @@ export const makeRewriter = (input: {
         });
       }
     }
-    return idPattern === null
-      ? next
-      : next.replace(idPattern, (match) => input.ids.get(match) ?? match);
+    return idPattern === null ? next : next.replace(idPattern, (match) => ids.get(match) ?? match);
   };
   return {
     rewrite,
@@ -122,4 +139,11 @@ export const detachProviderThread = (
     }),
     status,
   };
+};
+
+/** A subagent card whose child thread is not part of the import stays, but points at nothing. */
+export const unlinkSubagentChild = (payloadJson: string): string => {
+  const payload = parseObject(payloadJson);
+  if (payload === null) return payloadJson;
+  return JSON.stringify({ ...payload, childThreadId: null });
 };

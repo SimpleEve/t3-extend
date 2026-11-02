@@ -136,8 +136,10 @@ export const T3CodeImportNoticeCode = Schema.Literals([
   "task-runs-in-both",
   "task-once-passed",
   "task-webhook-url",
+  "task-webhook-secret",
   "subagents-omitted",
   "checkpoint-refs-unavailable",
+  "checkpoint-refs-conflict",
   "provider-credential-imported",
   "sidebar-settings",
 ]);

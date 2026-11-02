@@ -31,6 +31,7 @@ import * as ServerSettings from "../serverSettings.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as Keybindings from "../keybindings.ts";
 import * as T3CodeImport from "./T3CodeImport.ts";
+import { uuidFromDigest } from "./T3CodeImportRewrite.ts";
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const P_KEPT = id(1);
@@ -45,7 +46,15 @@ const T_PARENT = id(16);
 const T_SUB = id(17);
 const T_DELETED = id(18);
 const T_SOLO = id(19);
+/** What the allocator makes of a delegated task's thread: colons in the id, and `%3A` already inside it. */
+const T_COLON =
+  "thread:delegated-task:command%3Amcp%3A8842e825-5e61-4de5-8b58-077dd48645b7%3Adelegate-task%3Aimpl";
+const encodePart = (part: string | number) => encodeURIComponent(String(part));
+const joinId = (prefix: string, ...parts: ReadonlyArray<string | number>) =>
+  [prefix, ...parts.map(encodePart)].join(":");
+const colonScopeId = joinId("checkpoint-scope", "thread", T_COLON, "name", "root");
 const TASK_INTERVAL = "scheduled-task:aaaa";
+const TASK_SIGNED = "scheduled-task:ffff";
 const TASK_WEBHOOK = "scheduled-task:bbbb";
 const TASK_ORPHAN = "scheduled-task:cccc";
 const TASK_ONCE_PAST = "scheduled-task:dddd";
@@ -147,6 +156,11 @@ const createSourceHome = Effect.fn("createSourceHome")(function* (
     ordinalWithinScope: 0,
   });
   git(repo, ["update-ref", oldRef, "HEAD"]);
+  const colonRef = yield* checkpointRefForScopeOrdinal({
+    scopeId: colonScopeId as never,
+    ordinalWithinScope: 0,
+  });
+  git(repo, ["update-ref", colonRef, "HEAD"]);
   void crypto;
 
   yield* withDatabase(
@@ -202,6 +216,37 @@ const createSourceHome = Effect.fn("createSourceHome")(function* (
           updatedAt: thread[4],
         });
       }
+      yield* insertThread({
+        threadId: T_COLON,
+        projectId: P_SOLO,
+        runStatus: "completed",
+        payload: {},
+        updatedAt: "2026-08-07",
+      });
+      // The parent's card for its subagent, an event about it and a hand-off to it.
+      yield* sql`INSERT INTO orchestration_v2_projection_subagents
+        (subagent_id, thread_id, run_id, parent_node_id, provider, provider_thread_id, child_thread_id, origin, status, started_at, completed_at, updated_at, payload_json)
+        VALUES ('subagent-1', ${T_PARENT}, ${`run:thread:${T_PARENT}:ordinal:1`}, 'node', 'codex', NULL, ${T_SUB}, 'native', 'completed', '2026-08-01', '2026-08-02', '2026-08-02',
+          ${JSON.stringify({ subagentId: "subagent-1", childThreadId: T_SUB, parentThreadId: T_PARENT })})`;
+      yield* sql`INSERT INTO orchestration_events
+        (event_id, aggregate_kind, stream_id, stream_version, event_type, occurred_at, actor_kind, payload_json, metadata_json, application_event_version)
+        VALUES ('subagent-spawned', 'thread', ${T_PARENT}, 2, 'subagent.spawned', '2026-08-03', 'user',
+          ${JSON.stringify({ childThreadId: T_SUB, encoded: encodePart(T_SUB) })}, '{}', 2)`;
+      yield* sql`INSERT INTO orchestration_v2_projection_context_transfers
+        (context_transfer_id, source_thread_id, target_thread_id, type, status, updated_at, payload_json)
+        VALUES ('transfer-sub', ${T_PARENT}, ${T_SUB}, 'provider_handoff', 'completed', '2026-08-01', '{}')`;
+      // A thread whose id needs encoding in every id built from it.
+      const colonRunId = joinId("run", "thread", T_COLON, "ordinal", 1);
+      const colonNodeId = joinId("node", "run", colonRunId, "root");
+      yield* sql`INSERT INTO ${sql("orchestration_v2_projection_checkpoint_scopes")}
+        (scope_id, thread_id, run_id, node_id, parent_scope_id, provider_thread_id, kind, ordinal_within_parent, advances_app_run_count, created_at, payload_json)
+        VALUES (${colonScopeId}, ${T_COLON}, ${colonRunId}, ${colonNodeId}, NULL, 'provider-thread', 'root_run', 0, 1, '2026-08-01',
+          ${JSON.stringify({ id: colonScopeId, threadId: T_COLON, runId: colonRunId, nodeId: colonNodeId, cwd: repo })})`;
+      const colonCheckpointId = joinId("checkpoint", "scope", colonScopeId, "name", 0);
+      yield* sql`INSERT INTO ${sql("orchestration_v2_projection_checkpoints")}
+        (checkpoint_id, thread_id, scope_id, run_id, node_id, parent_checkpoint_id, ordinal_within_scope, app_run_ordinal, status, captured_at, payload_json)
+        VALUES (${colonCheckpointId}, ${T_COLON}, ${colonScopeId}, NULL, ${colonNodeId}, NULL, 0, NULL, 'ready', '2026-08-01',
+          ${JSON.stringify({ id: colonCheckpointId, ref: colonRef, scopeId: colonScopeId, threadId: T_COLON, ordinalWithinScope: 0, status: "ready" })})`;
       yield* sql`INSERT INTO ${sql("orchestration_v2_projection_checkpoint_scopes")}
         (scope_id, thread_id, run_id, node_id, parent_scope_id, provider_thread_id, kind, ordinal_within_parent, advances_app_run_count, created_at, payload_json)
         VALUES (${oldScopeId}, ${T_STOPPED}, ${`run:thread:${T_STOPPED}:ordinal:1`}, 'node', NULL, 'provider-thread', 'root_run', 0, 1, '2026-08-01',
@@ -249,6 +294,17 @@ const createSourceHome = Effect.fn("createSourceHome")(function* (
         TASK_ONCE_PAST,
         P_KEPT,
         { type: "once", runAt: "2020-01-01T00:00:00.000Z" },
+        1,
+        null,
+      );
+      yield* task(
+        TASK_SIGNED,
+        P_KEPT,
+        {
+          type: "webhook",
+          signature: { header: "x-signature", encoding: "hex", prefix: "sha256=" },
+          maxDeliveryAgeMinutes: null,
+        },
         1,
         null,
       );
@@ -401,6 +457,33 @@ const withService = <A, E, R>(
     ),
   );
 
+/** Official ids (in any spelling) still present in a text column of the target database. */
+const sourceIdsLeft = (sql: SqlClient.SqlClient, ids: ReadonlyArray<string>) =>
+  Effect.gen(function* () {
+    const spellings = ids.flatMap((id) => [id, encodePart(id), encodePart(encodePart(id))]);
+    const tables = yield* sql.unsafe<{ readonly name: string }>(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+         AND name NOT LIKE 'orchestration_v2_message_search%' AND name NOT LIKE 'fork_t3code_import_%'`,
+    );
+    const found: Array<string> = [];
+    for (const { name } of tables) {
+      const columns = yield* sql.unsafe<{ readonly name: string }>(
+        `SELECT name FROM pragma_table_info(?)`,
+        [name],
+      );
+      for (const spelling of new Set(spellings)) {
+        const hit = yield* sql.unsafe(
+          `SELECT 1 FROM "${name}" WHERE ${columns
+            .map((column) => `CAST("${column.name}" AS TEXT) LIKE ?`)
+            .join(" OR ")} LIMIT 1`,
+          columns.map(() => `%${spelling}%`),
+        );
+        if (hit.length > 0) found.push(`${name}: ${spelling}`);
+      }
+    }
+    return found;
+  });
+
 const runToEnd = (
   service: T3CodeImport.T3CodeImport["Service"],
   selection: T3CodeImportSelection,
@@ -454,7 +537,7 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
           );
           assert.deepStrictEqual(
             catalog.scheduledTasks.map((task) => task.enabled),
-            [true, false, true, true, true],
+            [true, false, true, true, true, true],
           );
           assert.deepStrictEqual(
             catalog.files.filter((file) => !file.available).map((file) => file.kind),
@@ -642,17 +725,14 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
           assert.isTrue(attachments[0]!.endsWith("-photo.png"));
           assert.isFalse(attachments[0]!.startsWith(T_STOPPED));
 
-          // Worktrees are shared: they stay where they are and cannot be removed from here.
+          // Worktrees are shared: they stay where they are, and the import records them so no remover touches them.
           const worktree = path.join(home, "worktrees", "kept", "feature");
-          const guard = yield* Effect.exit(
-            service.assertWorktreeNotShared({ cwd: repo, path: worktree }),
-          );
-          assert.equal(guard._tag, "Failure");
           assert.isTrue(yield* fs.exists(worktree));
-          yield* service.assertWorktreeNotShared({
-            cwd: repo,
-            path: path.join(home, "worktrees", "other"),
-          });
+          const shared = yield* sql<{
+            source_id: string;
+          }>`SELECT source_id FROM fork_t3code_import_map WHERE kind = 'worktree'`;
+          assert.isTrue(shared.some((row) => row.source_id === path.resolve(worktree)));
+          void repo;
 
           // Tasks, settings and the rest.
           assert.deepStrictEqual(
@@ -760,12 +840,17 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
   );
 
   it.effect(
-    "migrates an older source on a private copy and leaves the official file as it was",
+    "migrates an older source through a staging database, leaves the official file as it was and clears staging leftovers",
     () =>
       withService(
         { sourceThroughMigration: BUILD_MIGRATION_HEAD - 1 },
-        ({ service, sql, sourcePath }) =>
+        ({ service, sql, sourcePath, config }) =>
           Effect.gen(function* () {
+            const fs = yield* FileSystem.FileSystem;
+            const path = yield* Path.Path;
+            const leftover = path.join(config.stateDir, "t3-import-crashed");
+            yield* fs.makeDirectory(leftover, { recursive: true });
+            yield* fs.writeFileString(path.join(leftover, "partial.sqlite"), "half a staging file");
             const before = yield* hashFile(sourcePath);
             const selection = selectionOf({
               threadIds: [ThreadId.make(T_SOLO)],
@@ -783,6 +868,10 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
             }>`SELECT json_extract(payload_json, '$.settledOverride') AS settled FROM orchestration_v2_projection_threads`;
             assert.equal(repaired?.settled, "settled");
             assert.equal(yield* hashFile(sourcePath), before);
+            const staging = (yield* fs.readDirectory(config.stateDir)).filter((name) =>
+              name.startsWith("t3-import-"),
+            );
+            assert.deepStrictEqual(staging, []);
           }),
       ),
   );
@@ -844,6 +933,200 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
             ],
           );
         }),
+    ),
+  );
+  it.effect(
+    "never moves a checkpoint ref that already exists under the name a copy would take",
+    () =>
+      withService({}, ({ service, sql, repo }) =>
+        Effect.gen(function* () {
+          const crypto = yield* Crypto.Crypto;
+          const digest = yield* crypto
+            .digest("SHA-256", new TextEncoder().encode(`t3x-import|thread|${T_STOPPED}`))
+            .pipe(Effect.orDie);
+          const targetThread = uuidFromDigest(digest);
+          const targetRef = yield* checkpointRefForScopeOrdinal({
+            scopeId: oldScopeId.replace(T_STOPPED, targetThread) as never,
+            ordinalWithinScope: 0,
+          });
+          const sourceSha = git(repo, ["rev-parse", "HEAD"]).trim();
+          git(repo, ["commit", "-q", "--allow-empty", "-m", "continued in T3 Extend"]);
+          const otherSha = git(repo, ["rev-parse", "HEAD"]).trim();
+          assert.notEqual(otherSha, sourceSha);
+          git(repo, ["update-ref", targetRef, otherSha]);
+
+          const selection = selectionOf({
+            threadIds: [ThreadId.make(T_STOPPED)],
+            scheduledTasks: [],
+            files: [],
+          });
+          const result = yield* runToEnd(service, selection);
+
+          assert.equal(git(repo, ["rev-parse", targetRef]).trim(), otherSha);
+          assert.deepStrictEqual(
+            result.report.attention.filter((notice) => notice.code === "checkpoint-refs-conflict"),
+            [{ code: "checkpoint-refs-conflict", subject: "", count: 1 }],
+          );
+          assert.notInclude(codes(result.report.fixed), "checkpoint-refs-copied");
+          assert.notInclude(codes(result.report.attention), "checkpoint-refs-unavailable");
+          const [checkpoint] = yield* sql<{
+            status: string;
+          }>`SELECT status FROM orchestration_v2_projection_checkpoints`;
+          assert.equal(checkpoint?.status, "missing");
+        }),
+      ),
+  );
+
+  it.effect("treats a ref that already holds the same commit as copied", () =>
+    withService({}, ({ service, repo }) =>
+      Effect.gen(function* () {
+        const crypto = yield* Crypto.Crypto;
+        const digest = yield* crypto
+          .digest("SHA-256", new TextEncoder().encode(`t3x-import|thread|${T_STOPPED}`))
+          .pipe(Effect.orDie);
+        const targetRef = yield* checkpointRefForScopeOrdinal({
+          scopeId: oldScopeId.replace(T_STOPPED, uuidFromDigest(digest)) as never,
+          ordinalWithinScope: 0,
+        });
+        git(repo, ["update-ref", targetRef, "HEAD"]);
+        const result = yield* runToEnd(
+          service,
+          selectionOf({
+            threadIds: [ThreadId.make(T_STOPPED)],
+            scheduledTasks: [],
+            files: [],
+          }),
+        );
+        assert.equal(
+          result.report.fixed.find((notice) => notice.code === "checkpoint-refs-copied")?.count,
+          1,
+        );
+        assert.notInclude(codes(result.report.attention), "checkpoint-refs-conflict");
+        assert.equal(git(repo, ["rev-parse", targetRef]), git(repo, ["rev-parse", "HEAD"]));
+      }),
+    ),
+  );
+
+  it.effect(
+    "rewrites every spelling of a thread id that needs encoding, scope and ref included",
+    () =>
+      withService({}, ({ service, sql, repo }) =>
+        Effect.gen(function* () {
+          const result = yield* runToEnd(
+            service,
+            selectionOf({
+              threadIds: [ThreadId.make(T_COLON)],
+              scheduledTasks: [],
+              files: [],
+            }),
+          );
+          assert.equal(result.importedThreads, 1);
+          const [thread] = yield* sql<{
+            thread_id: string;
+          }>`SELECT thread_id FROM orchestration_v2_projection_threads`;
+          const target = thread!.thread_id;
+          assert.notEqual(target, T_COLON);
+
+          const [scope] = yield* sql<{
+            scope_id: string;
+            payload_json: string;
+          }>`SELECT scope_id, payload_json FROM orchestration_v2_projection_checkpoint_scopes`;
+          assert.notEqual(scope?.scope_id, colonScopeId);
+          assert.equal(
+            scope?.scope_id,
+            joinId("checkpoint-scope", "thread", target, "name", "root"),
+          );
+
+          const [checkpoint] = yield* sql<{
+            checkpoint_id: string;
+            status: string;
+            payload_json: string;
+          }>`SELECT checkpoint_id, status, payload_json FROM orchestration_v2_projection_checkpoints`;
+          const sourceRef = yield* checkpointRefForScopeOrdinal({
+            scopeId: colonScopeId as never,
+            ordinalWithinScope: 0,
+          });
+          const importedRef = (JSON.parse(checkpoint!.payload_json) as { ref: string }).ref;
+          assert.notEqual(importedRef, sourceRef);
+          assert.equal(checkpoint?.status, "ready");
+          // The copy resolves, and it is the commit the original names.
+          assert.equal(git(repo, ["rev-parse", importedRef]), git(repo, ["rev-parse", sourceRef]));
+          // The scope the ref name derives from is the imported one.
+          assert.equal(
+            importedRef,
+            yield* checkpointRefForScopeOrdinal({
+              scopeId: scope!.scope_id as never,
+              ordinalWithinScope: 0,
+            }),
+          );
+          assert.deepStrictEqual(yield* sourceIdsLeft(sql, [T_COLON, P_SOLO]), []);
+        }),
+      ),
+  );
+
+  it.effect("leaves no official id behind when a thread's subagents stay out", () =>
+    withService({}, ({ service, sql }) =>
+      Effect.gen(function* () {
+        const result = yield* runToEnd(
+          service,
+          selectionOf({
+            threadIds: [ThreadId.make(T_PARENT)],
+            includeSubagents: false,
+            scheduledTasks: [],
+            files: [],
+          }),
+        );
+        assert.equal(result.importedThreads, 1);
+        assert.include(codes(result.report.attention), "subagents-omitted");
+        // The card stays but opens nothing; the hand-off to the subagent is dropped.
+        const [card] = yield* sql<{
+          child_thread_id: string | null;
+          child: string | null;
+        }>`SELECT child_thread_id, json_extract(payload_json, '$.childThreadId') AS child FROM orchestration_v2_projection_subagents`;
+        assert.deepStrictEqual(card, { child_thread_id: null, child: null });
+        const [transfers] = yield* sql<{
+          count: number;
+        }>`SELECT COUNT(*) AS count FROM orchestration_v2_projection_context_transfers`;
+        assert.equal(transfers?.count, 0);
+        assert.deepStrictEqual(yield* sourceIdsLeft(sql, [T_PARENT, T_SUB, P_KEPT]), []);
+      }),
+    ),
+  );
+
+  it.effect("gives an imported signed webhook task a new signing secret and shows it once", () =>
+    withService({}, ({ service, sql, captured }) =>
+      Effect.gen(function* () {
+        const result = yield* runToEnd(
+          service,
+          selectionOf({
+            threadIds: [],
+            scheduledTasks: [{ taskId: TASK_SIGNED, enabled: true }],
+            files: [],
+          }),
+        );
+        const schedule = captured.tasks[0]?.schedule as {
+          signature: { secret: string };
+        };
+        assert.isString(schedule.signature.secret);
+        assert.notEqual(schedule.signature.secret, "secret"); // the official app's value
+        assert.deepStrictEqual(
+          result.report.attention
+            .filter((notice) => notice.code.startsWith("task-webhook"))
+            .map((notice) => [notice.code, notice.detail?.startsWith("/api/hooks/") ?? false]),
+          [
+            ["task-webhook-url", true],
+            ["task-webhook-secret", false],
+          ],
+        );
+        assert.equal(
+          result.report.attention.find((notice) => notice.code === "task-webhook-secret")?.detail,
+          schedule.signature.secret,
+        );
+        const [run] = yield* sql<{
+          summary_json: string;
+        }>`SELECT summary_json FROM fork_t3code_import_runs ORDER BY run_id DESC LIMIT 1`;
+        assert.notInclude(run!.summary_json, schedule.signature.secret);
+      }),
     ),
   );
 });

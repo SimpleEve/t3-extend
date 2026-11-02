@@ -6,15 +6,16 @@ export default {
   "Import from T3 Code": "从 T3 Code 导入",
   "Could not import from {app}": "无法从 {app} 导入",
   "Could not check the import": "无法检查这次导入",
-  "No {app} data was found on this computer.": "这台电脑上没有找到 {app} 的数据。",
+  "No {app} data was found on the computer that runs this environment.":
+    "运行此环境的电脑上没有找到 {app} 的数据。",
   "This environment already uses {app}'s data folder, so there is nothing to import.":
     "此环境已在使用 {app} 的数据文件夹，没有可导入的内容。",
   "{app}'s data comes from a newer version than this app understands. Update T3 Extend first.":
     "{app} 的数据来自比本应用更新的版本。请先更新 T3 Extend。",
   "{app}'s data has migrations this app does not share. Update T3 Extend first.":
     "{app} 的数据含有本应用没有的迁移。请先更新 T3 Extend。",
-  "Choose projects, threads, scheduled tasks and settings from {app} on this computer to bring into T3 Extend. {app}'s own data is only read, never changed.":
-    "选择这台电脑上 {app} 里的项目、对话、定时任务和设置，带到 T3 Extend。{app} 自己的数据只读取，不会被改动。",
+  "Choose projects, threads, scheduled tasks and settings from {app} on the computer that runs this environment to bring into T3 Extend. {app}'s own data is only read, never changed.":
+    "选择运行此环境的电脑上 {app} 里的项目、对话、定时任务和设置，带到 T3 Extend。{app} 自己的数据只读取，不会被改动。",
   "Looking…": "查找中…",
   "Choose…": "选择…",
   "Review…": "检查…",
@@ -31,6 +32,7 @@ export default {
   "already imported": "已导入",
   "busy in {app}": "{app} 正在运行",
   archived: "已归档",
+  "{count} subagent": "{count} 个子 Agent",
   "{count} subagents": "{count} 个子 Agent",
   "worktree is gone": "worktree 已不存在",
   "Scheduled tasks": "定时任务",
@@ -52,8 +54,12 @@ export default {
   "Preparing…": "准备中…",
   "You can keep using the app. Closing this window does not stop the import.":
     "你可以继续使用应用。关闭这个窗口不会中止导入。",
-  "Imported {threads} threads and {projects} new projects.":
-    "已导入 {threads} 个对话和 {projects} 个新项目。",
+  "Imported {threads} and {projects}.": "已导入 {threads}和 {projects}。",
+  "{count} thread": "{count} 个对话",
+  "{count} threads": "{count} 个对话",
+  "{count} new project": "{count} 个新项目",
+  "{count} new projects": "{count} 个新项目",
+  "Only on the host machine, with maintenance permission": "只能在主机上操作，且需要维护权限",
   "import dialog|Done": "完成",
   "Fixed automatically": "已自动处理",
   "Not imported": "未导入",
@@ -61,25 +67,40 @@ export default {
   "Nothing here.": "无。",
   "{subject} joins the project you already have for {detail}.":
     "{subject} 并入你在 {detail} 上已有的项目。",
+  "{count} thread gets a new id, so {app} and T3 Extend keep separate histories and checkpoints.":
+    "{count} 个对话会换上新的 id，让 {app} 和 T3 Extend 各自保留独立的历史和检查点。",
   "{count} threads get new ids, so {app} and T3 Extend keep separate histories and checkpoints.":
     "{count} 个对话会换上新的 id，让 {app} 和 T3 Extend 各自保留独立的历史和检查点。",
+  "{count} parent thread comes along because a thread you picked was forked from it.":
+    "{count} 个父对话会一起带过来，因为你选的对话是从它分叉出来的。",
   "{count} parent threads come along because the threads you picked were forked from them.":
     "{count} 个父对话会一起带过来，因为你选的对话是从它们分叉出来的。",
+  "{count} checkpoint ref is copied under a new name in your repositories.":
+    "{count} 个检查点 ref 会以新名字复制到你的仓库里。",
   "{count} checkpoint refs are copied under new names in your repositories.":
     "{count} 个检查点 ref 会以新名字复制到你的仓库里。",
+  "{count} thread had automatic usage-limit resume turned off, so it only runs when you continue it.":
+    "{count} 个对话的“用量限制后自动续跑”已被关闭，只有你继续它时才会运行。",
   "{count} threads had automatic usage-limit resume turned off, so they only run when you continue them.":
     "{count} 个对话的“用量限制后自动续跑”已被关闭，只有你继续它们时才会运行。",
+  "{count} thread arrives stopped: its live provider session and pending requests stay in {app}.":
+    "{count} 个对话以停止状态到达：运行中的提供方会话和待处理请求留在 {app}。",
   "{count} threads arrive stopped: live provider sessions and pending requests stay in {app}.":
     "{count} 个对话以停止状态到达：运行中的提供方会话和待处理请求留在 {app}。",
+  "{count} path into {app}'s folder now points into T3 Extend's.":
+    "{count} 个指向 {app} 文件夹的路径已改为指向 T3 Extend 的文件夹。",
   "{count} paths into {app}'s folder now point into T3 Extend's.":
     "{count} 个指向 {app} 文件夹的路径已改为指向 T3 Extend 的文件夹。",
-  "1 attachment or browser capture is copied with its thread.":
-    "1 个附件或浏览器截图会随对话一起复制。",
+  "{count} attachment or browser capture is copied with its thread.":
+    "{count} 个附件或浏览器截图会随对话一起复制。",
   "{count} attachments and browser captures are copied with their threads.":
     "{count} 个附件和浏览器截图会随对话一起复制。",
-  "{subject} is imported and runs on its schedule right away.": "{subject} 导入后立即按计划运行。",
+  "{subject} is imported and active. Its first run is at its next scheduled time.":
+    "{subject} 已导入并启用。它会在下一个计划时间首次运行。",
   "Identity stays with {app}: {subject}. Phones and browsers pair with T3 Extend again.":
     "身份信息留在 {app}：{subject}。手机和浏览器需要重新与 T3 Extend 配对。",
+  "{count} signing key or cloud sign-in secret belongs to {app}'s identity.":
+    "{count} 个签名密钥或云端登录机密属于 {app} 的身份。",
   "{count} signing keys and cloud sign-in secrets belong to {app}'s identity.":
     "{count} 个签名密钥和云端登录机密属于 {app} 的身份。",
   "Saved remote environments are encrypted with {app}'s key. Add them again here.":
@@ -112,20 +133,36 @@ export default {
     "Webhook 投递记录和重放状态留在 {app}。",
   "Provider {subject} already exists here and is left as it is.":
     "提供方 {subject} 在这里已存在，保持原样。",
+  "{count} worktree no longer exists on disk ({detail}). Its thread opens without files.":
+    "{count} 个 worktree 已不在磁盘上（{detail}）。它的对话打开后没有文件。",
   "{count} worktrees no longer exist on disk ({detail}). Their threads open without files.":
     "{count} 个 worktree 已不在磁盘上（{detail}）。它们的对话打开后没有文件。",
+  "{count} worktree stays where it is, shared with {app}. T3 Extend never deletes it.":
+    "{count} 个 worktree 留在原处，与 {app} 共用。T3 Extend 永远不会删除它。",
   "{count} worktrees stay where they are, shared with {app}. T3 Extend never deletes them.":
     "{count} 个 worktree 留在原处，与 {app} 共用。T3 Extend 永远不会删除它们。",
+  "Continue this thread in only one app: both would write the same provider session files (for example under ~/.claude and ~/.codex).":
+    "这个对话只在一个应用里继续：两边会写入同一份提供方会话文件（例如 ~/.claude 和 ~/.codex 下的）。",
   "Continue each of these {count} threads in only one app: both would write the same provider session files (for example under ~/.claude and ~/.codex).":
     "这 {count} 个对话每个只在一个应用里继续：两边会写入同一份提供方会话文件（例如 ~/.claude 和 ~/.codex 下的）。",
   "{subject} keeps running in {app} too until you pause it there.":
     "在 {app} 里暂停之前，{subject} 在那边也会继续运行。",
-  "{subject} listens at {detail} on this environment's address. Update whatever calls it.":
-    "{subject} 在此环境地址的 {detail} 上监听。请更新调用它的地方。",
-  "{count} subagent threads are left out. Their cards in the parent threads show as unavailable.":
-    "{count} 个子 Agent 对话没有带过来。父对话里对应的卡片会显示为不可用。",
+  "{subject}: its webhook URL changed. It now listens at {detail} on this environment's address. Update the sender.":
+    "{subject}：它的 webhook 地址变了，现在监听在此环境地址的 {detail}。请更新发送方。",
+  "{subject}: its signing secret changed to {detail}. Set it in the sender; it is shown only now.":
+    "{subject}：它的签名密钥已换成 {detail}。请在发送方里设置，这里只显示这一次。",
+  "{count} subagent thread is left out. Its card in the parent thread stays but cannot be opened.":
+    "{count} 个子 Agent 对话没有带过来。父对话里对应的卡片保留，但无法打开。",
+  "{count} subagent threads are left out. Their cards in the parent threads stay but cannot be opened.":
+    "{count} 个子 Agent 对话没有带过来。父对话里对应的卡片保留，但无法打开。",
+  "{count} checkpoint could not be copied because its repository is gone. It shows as missing.":
+    "{count} 个检查点无法复制，因为它的仓库已不存在。它会显示为缺失。",
   "{count} checkpoints could not be copied because their repository is gone. They show as missing.":
     "{count} 个检查点无法复制，因为它们的仓库已不存在。它们会显示为缺失。",
+  "{count} checkpoint was left out because the name it would take already points to a different commit. It shows as missing.":
+    "{count} 个检查点没有带过来，因为它要用的名字已指向另一个提交。它会显示为缺失。",
+  "{count} checkpoints were left out because the names they would take already point to different commits. They show as missing.":
+    "{count} 个检查点没有带过来，因为它们要用的名字已指向其他提交。它们会显示为缺失。",
   "{subject}: its sign-in credential is copied together with the provider.":
     "{subject}：它的登录凭据随提供方一起复制。",
   "{subject}: their sign-in credentials are copied together with their providers.":

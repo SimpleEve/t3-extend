@@ -125,80 +125,101 @@ const selectionFrom = (catalog: Available, draft: Draft): T3CodeImportSelection 
 function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
   const t = useT();
   const { subject, detail = "", count = 0 } = props.notice;
+  const app = OFFICIAL_APP_NAME;
+  const one = count === 1;
   switch (props.notice.code) {
     case "project-merged":
       return t("{subject} joins the project you already have for {detail}.", { subject, detail });
     case "thread-ids-renewed":
-      return t(
-        "{count} threads get new ids, so {app} and T3 Extend keep separate histories and checkpoints.",
-        { app: OFFICIAL_APP_NAME, count },
-      );
+      return one
+        ? t(
+            "{count} thread gets a new id, so {app} and T3 Extend keep separate histories and checkpoints.",
+            { app, count },
+          )
+        : t(
+            "{count} threads get new ids, so {app} and T3 Extend keep separate histories and checkpoints.",
+            { app, count },
+          );
     case "parents-pulled-in":
-      return t(
-        "{count} parent threads come along because the threads you picked were forked from them.",
-        { count },
-      );
+      return one
+        ? t("{count} parent thread comes along because a thread you picked was forked from it.", {
+            count,
+          })
+        : t(
+            "{count} parent threads come along because the threads you picked were forked from them.",
+            { count },
+          );
     case "checkpoint-refs-copied":
-      return t("{count} checkpoint refs are copied under new names in your repositories.", {
-        count,
-      });
+      return one
+        ? t("{count} checkpoint ref is copied under a new name in your repositories.", { count })
+        : t("{count} checkpoint refs are copied under new names in your repositories.", { count });
     case "limit-recovery-cleared":
-      return t(
-        "{count} threads had automatic usage-limit resume turned off, so they only run when you continue them.",
-        { count },
-      );
+      return one
+        ? t(
+            "{count} thread had automatic usage-limit resume turned off, so it only runs when you continue it.",
+            { count },
+          )
+        : t(
+            "{count} threads had automatic usage-limit resume turned off, so they only run when you continue them.",
+            { count },
+          );
     case "provider-session-detached":
-      return t(
-        "{count} threads arrive stopped: live provider sessions and pending requests stay in {app}.",
-        { app: OFFICIAL_APP_NAME, count },
-      );
+      return one
+        ? t(
+            "{count} thread arrives stopped: its live provider session and pending requests stay in {app}.",
+            { app, count },
+          )
+        : t(
+            "{count} threads arrive stopped: live provider sessions and pending requests stay in {app}.",
+            { app, count },
+          );
     case "paths-rewritten":
-      return t("{count} paths into {app}'s folder now point into T3 Extend's.", {
-        app: OFFICIAL_APP_NAME,
-        count,
-      });
+      return one
+        ? t("{count} path into {app}'s folder now points into T3 Extend's.", { app, count })
+        : t("{count} paths into {app}'s folder now point into T3 Extend's.", { app, count });
     case "attachments-copied":
-      return count === 1
-        ? t("1 attachment or browser capture is copied with its thread.")
+      return one
+        ? t("{count} attachment or browser capture is copied with its thread.", { count })
         : t("{count} attachments and browser captures are copied with their threads.", { count });
     case "task-imported-active":
-      return t("{subject} is imported and runs on its schedule right away.", { subject });
+      return t("{subject} is imported and active. Its first run is at its next scheduled time.", {
+        subject,
+      });
     case "identity-skipped":
       return t(
         "Identity stays with {app}: {subject}. Phones and browsers pair with T3 Extend again.",
-        {
-          app: OFFICIAL_APP_NAME,
-          subject,
-        },
+        { app, subject },
       );
     case "signing-secrets-skipped":
-      return t("{count} signing keys and cloud sign-in secrets belong to {app}'s identity.", {
-        app: OFFICIAL_APP_NAME,
-        count,
-      });
+      return one
+        ? t("{count} signing key or cloud sign-in secret belongs to {app}'s identity.", {
+            app,
+            count,
+          })
+        : t("{count} signing keys and cloud sign-in secrets belong to {app}'s identity.", {
+            app,
+            count,
+          });
     case "connection-catalog-skipped":
       return t("Saved remote environments are encrypted with {app}'s key. Add them again here.", {
-        app: OFFICIAL_APP_NAME,
+        app,
       });
     case "desktop-settings-skipped":
-      return t("Window size and position belong to the {app} window.", { app: OFFICIAL_APP_NAME });
+      return t("Window size and position belong to the {app} window.", { app });
     case "browser-profile-skipped":
       return t("The built-in browser's logins cannot be read by T3 Extend. Sign in again.");
     case "browser-storage-skipped":
       return t(
         "Unsent drafts, collapsed groups and other per-device state live in {app}'s own window and cannot be reached.",
-        { app: OFFICIAL_APP_NAME },
+        { app },
       );
     case "thread-busy":
       return t("{subject}: {app} is working on it right now. Stop it there and import again.", {
-        app: OFFICIAL_APP_NAME,
+        app,
         subject,
       });
     case "thread-parent-busy":
-      return t("{subject}: its parent thread is busy in {app}.", {
-        app: OFFICIAL_APP_NAME,
-        subject,
-      });
+      return t("{subject}: its parent thread is busy in {app}.", { app, subject });
     case "task-project-missing":
       return t("{subject}: its project is not part of this import.", { subject });
     case "task-thread-missing":
@@ -221,34 +242,40 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
     case "worktree-directories-skipped":
       return t("{subject}: T3 Extend never cleans up folders it did not create.", { subject });
     case "relay-state-skipped":
-      return t("Webhook delivery history and replay state stay in {app}.", {
-        app: OFFICIAL_APP_NAME,
-      });
+      return t("Webhook delivery history and replay state stay in {app}.", { app });
     case "provider-instance-exists":
       return t("Provider {subject} already exists here and is left as it is.", { subject });
     case "worktree-missing":
-      return t(
-        "{count} worktrees no longer exist on disk ({detail}). Their threads open without files.",
-        {
-          count,
-          detail,
-        },
-      );
+      return one
+        ? t(
+            "{count} worktree no longer exists on disk ({detail}). Its thread opens without files.",
+            { count, detail },
+          )
+        : t(
+            "{count} worktrees no longer exist on disk ({detail}). Their threads open without files.",
+            { count, detail },
+          );
     case "worktree-shared":
-      return t(
-        "{count} worktrees stay where they are, shared with {app}. T3 Extend never deletes them.",
-        { app: OFFICIAL_APP_NAME, count },
-      );
+      return one
+        ? t("{count} worktree stays where it is, shared with {app}. T3 Extend never deletes it.", {
+            app,
+            count,
+          })
+        : t(
+            "{count} worktrees stay where they are, shared with {app}. T3 Extend never deletes them.",
+            { app, count },
+          );
     case "provider-files-shared":
-      return t(
-        "Continue each of these {count} threads in only one app: both would write the same provider session files (for example under ~/.claude and ~/.codex).",
-        { count },
-      );
+      return one
+        ? t(
+            "Continue this thread in only one app: both would write the same provider session files (for example under ~/.claude and ~/.codex).",
+          )
+        : t(
+            "Continue each of these {count} threads in only one app: both would write the same provider session files (for example under ~/.claude and ~/.codex).",
+            { count },
+          );
     case "task-runs-in-both":
-      return t("{subject} keeps running in {app} too until you pause it there.", {
-        app: OFFICIAL_APP_NAME,
-        subject,
-      });
+      return t("{subject} keeps running in {app} too until you pause it there.", { app, subject });
     case "task-once-passed":
       return t(
         "{subject} was a one-time task whose time has already passed. It is imported turned off so it does not run right away.",
@@ -256,29 +283,52 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
       );
     case "task-webhook-url":
       return t(
-        "{subject} listens at {detail} on this environment's address. Update whatever calls it.",
+        "{subject}: its webhook URL changed. It now listens at {detail} on this environment's address. Update the sender.",
+        { subject, detail },
+      );
+    case "task-webhook-secret":
+      return t(
+        "{subject}: its signing secret changed to {detail}. Set it in the sender; it is shown only now.",
         { subject, detail },
       );
     case "subagents-omitted":
-      return t(
-        "{count} subagent threads are left out. Their cards in the parent threads show as unavailable.",
-        { count },
-      );
+      return one
+        ? t(
+            "{count} subagent thread is left out. Its card in the parent thread stays but cannot be opened.",
+            { count },
+          )
+        : t(
+            "{count} subagent threads are left out. Their cards in the parent threads stay but cannot be opened.",
+            { count },
+          );
     case "checkpoint-refs-unavailable":
-      return t(
-        "{count} checkpoints could not be copied because their repository is gone. They show as missing.",
-        { count },
-      );
+      return one
+        ? t(
+            "{count} checkpoint could not be copied because its repository is gone. It shows as missing.",
+            { count },
+          )
+        : t(
+            "{count} checkpoints could not be copied because their repository is gone. They show as missing.",
+            { count },
+          );
+    case "checkpoint-refs-conflict":
+      return one
+        ? t(
+            "{count} checkpoint was left out because the name it would take already points to a different commit. It shows as missing.",
+            { count },
+          )
+        : t(
+            "{count} checkpoints were left out because the names they would take already point to different commits. They show as missing.",
+            { count },
+          );
     case "provider-credential-imported":
-      return count === 1
+      return one
         ? t("{subject}: its sign-in credential is copied together with the provider.", { subject })
         : t("{subject}: their sign-in credentials are copied together with their providers.", {
             subject,
           });
     case "sidebar-settings":
-      return t("{app} used the legacy sidebar. It is on here too (Settings → Labs).", {
-        app: OFFICIAL_APP_NAME,
-      });
+      return t("{app} used the legacy sidebar. It is on here too (Settings → Labs).", { app });
   }
 }
 
@@ -364,9 +414,15 @@ function Finished(props: { readonly result: T3CodeImportResult; readonly onDone:
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm">
-        {t("Imported {threads} threads and {projects} new projects.", {
-          threads: result.importedThreads,
-          projects: result.importedProjects,
+        {t("Imported {threads} and {projects}.", {
+          threads:
+            result.importedThreads === 1
+              ? t("{count} thread", { count: result.importedThreads })
+              : t("{count} threads", { count: result.importedThreads }),
+          projects:
+            result.importedProjects === 1
+              ? t("{count} new project", { count: result.importedProjects })
+              : t("{count} new projects", { count: result.importedProjects }),
         })}
       </p>
       <Report report={result.report} />
@@ -463,7 +519,9 @@ function ProjectRow(props: {
                           : null,
                         thread.archived ? t("archived") : null,
                         thread.subagentCount > 0
-                          ? t("{count} subagents", { count: thread.subagentCount })
+                          ? thread.subagentCount === 1
+                            ? t("{count} subagent", { count: thread.subagentCount })
+                            : t("{count} subagents", { count: thread.subagentCount })
                           : null,
                         thread.worktree?.status === "missing" ? t("worktree is gone") : null,
                       ]
@@ -681,7 +739,9 @@ function ImportRow(props: {
   const unavailableText = (reason: Unavailable["reason"]) => {
     switch (reason) {
       case "source-missing":
-        return t("No {app} data was found on this computer.", { app: OFFICIAL_APP_NAME });
+        return t("No {app} data was found on the computer that runs this environment.", {
+          app: OFFICIAL_APP_NAME,
+        });
       case "source-is-this-database":
         return t(
           "This environment already uses {app}'s data folder, so there is nothing to import.",
@@ -707,10 +767,16 @@ function ImportRow(props: {
           ? searchableSetting("import-from-t3-code")
           : { title: t("Import from {app}", { app: OFFICIAL_APP_NAME }) })}
         description={t(
-          "Choose projects, threads, scheduled tasks and settings from {app} on this computer to bring into T3 Extend. {app}'s own data is only read, never changed.",
+          "Choose projects, threads, scheduled tasks and settings from {app} on the computer that runs this environment to bring into T3 Extend. {app}'s own data is only read, never changed.",
           { app: OFFICIAL_APP_NAME },
         )}
-        status={props.label === "" ? undefined : props.label}
+        status={
+          allowed
+            ? props.label === ""
+              ? undefined
+              : props.label
+            : t("Only on the host machine, with maintenance permission")
+        }
         control={
           <Button
             variant="outline"

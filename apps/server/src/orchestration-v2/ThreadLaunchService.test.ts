@@ -42,6 +42,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 import * as TestClock from "effect/testing/TestClock";
 
 import * as GitWorkflow from "../git/GitWorkflowService.ts";
+import { makeGuardedRemoveWorktree } from "../fork/SharedWorktrees.testkit.ts"; // fork
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as ProjectStore from "./ProjectStore.ts";
 import * as ProjectService from "../project/ProjectService.ts";
@@ -2213,6 +2214,45 @@ it.effect("cancels tracked setup before provider work is released", () =>
       assert.isEmpty(yield* outbox.listByCommandId(CommandId.make(`${input.commandId}:release`)));
     }).pipe(Effect.provide(harness.layer));
   }),
+);
+
+it.effect(
+  "never removes a worktree that official T3 Code owns when tracked setup is cancelled",
+  () =>
+    Effect.gen(function* () {
+      const entered = yield* Deferred.make<void>();
+      const removalAsked = yield* Deferred.make<void>();
+      const guarded = makeGuardedRemoveWorktree({
+        officialWorktreesDir: "/official-t3/worktrees",
+        marked: ["/repo-worktrees/feature"],
+      });
+      const harness = makeHarness({
+        runSetup: () => Deferred.succeed(entered, undefined).pipe(Effect.andThen(Effect.never)),
+        git: {
+          removeWorktree: (input) =>
+            guarded
+              .removeWorktree(input)
+              .pipe(Effect.ensuring(Deferred.succeed(removalAsked, undefined))),
+        },
+      });
+      yield* Effect.gen(function* () {
+        const launches = yield* ThreadLaunch.ThreadLaunchService;
+        const tracker = yield* WorktreeSetupTracker.WorktreeSetupTracker;
+        const launched = yield* launches.launch(
+          launchInput({
+            command: "launch:cancel-shared",
+            thread: "thread:cancel-shared",
+            message: "Start",
+            workspace: { type: "worktree", baseRef: "main" },
+          }),
+        );
+        yield* Deferred.await(entered);
+        assert.isTrue(yield* tracker.cancel(launched.threadId));
+        yield* Deferred.await(removalAsked);
+        assert.deepStrictEqual(guarded.attempts, ["/repo-worktrees/feature"]);
+        assert.deepStrictEqual(guarded.reachedGit, []);
+      }).pipe(Effect.provide(harness.layer));
+    }),
 );
 
 it.effect("stops an in-flight branch rename when tracked setup is cancelled", () =>

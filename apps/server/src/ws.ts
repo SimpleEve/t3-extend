@@ -3058,12 +3058,7 @@ export const layerWsRpc = (
         [WS_METHODS.vcsCreateWorktree]: (input) =>
           gitWorkflow.createWorktree(input).pipe(Effect.tap(() => refreshGitStatus(input.cwd))),
         [WS_METHODS.vcsRemoveWorktree]: (input) =>
-          t3CodeImport // fork: worktrees imported from T3 Code are shared with it and never removed here
-            .assertWorktreeNotShared(input)
-            .pipe(
-              Effect.andThen(gitWorkflow.removeWorktree(input)),
-              Effect.tap(() => refreshGitStatus(input.cwd)),
-            ),
+          gitWorkflow.removeWorktree(input).pipe(Effect.tap(() => refreshGitStatus(input.cwd))),
         [WS_METHODS.vcsCreateRef]: (input) =>
           gitWorkflow.createRef(input).pipe(Effect.tap(() => refreshGitStatus(input.cwd))),
         [WS_METHODS.vcsSwitchRef]: (input) =>

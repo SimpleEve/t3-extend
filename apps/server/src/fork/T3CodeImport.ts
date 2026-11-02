@@ -2,7 +2,6 @@
 import * as NodeOS from "node:os";
 
 import {
-  GitCommandError,
   type ProjectId,
   ProviderInstanceId,
   ScheduledTaskId,
@@ -50,12 +49,14 @@ import { BUILD_MIGRATION_HEAD, recordedMigrations } from "../persistence/databas
 import { migrationManifest, runMigrations } from "../persistence/Migrations.ts";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
 import * as ServerSettings from "../serverSettings.ts";
+import { ensureImportTables } from "./SharedWorktrees.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as Keybindings from "../keybindings.ts";
 import {
   clearLimitRecovery,
   detachProviderThread,
   makeRewriter,
+  unlinkSubagentChild,
   uuidFromDigest,
 } from "./T3CodeImportRewrite.ts";
 
@@ -150,6 +151,8 @@ interface Analysis {
   readonly alreadyImported: number;
   readonly projects: ReadonlyMap<string, ProjectTarget>;
   readonly threadTargets: ReadonlyMap<string, string>;
+  /** Subagents left behind: references to them still get the id they would have if imported later. */
+  readonly omittedTargets: ReadonlyMap<string, string>;
   readonly tasks: ReadonlyArray<{
     readonly row: Row;
     readonly enabled: boolean;
@@ -175,11 +178,6 @@ export class T3CodeImport extends Context.Service<
     /** Starts the import in the background; progress arrives through `state`. */
     readonly start: (selection: T3CodeImportSelection) => Effect.Effect<void, T3CodeImportError>;
     readonly state: Stream.Stream<T3CodeImportState>;
-    /** Imported threads keep using the official app's worktrees, which this app never removes. */
-    readonly assertWorktreeNotShared: (input: {
-      readonly cwd: string;
-      readonly path: string;
-    }) => Effect.Effect<void, GitCommandError>;
   }
 >()("t3/fork/T3CodeImport") {}
 
@@ -201,24 +199,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   const importLock = yield* Semaphore.make(1);
   const stateRef = yield* SubscriptionRef.make<T3CodeImportState>({ status: "idle" });
 
-  // Import bookkeeping lives in fork-owned tables created here, never in a numbered migration:
-  // a fork migration id would collide with upstream's next one (see FORK.md).
-  yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_map (
-    kind TEXT NOT NULL,
-    source_id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    state TEXT NOT NULL,
-    detail TEXT,
-    imported_at TEXT NOT NULL,
-    PRIMARY KEY (kind, source_id)
-  )`;
-  yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_runs (
-    run_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    started_at TEXT NOT NULL,
-    finished_at TEXT,
-    source_path TEXT NOT NULL,
-    summary_json TEXT
-  )`;
+  yield* ensureImportTables();
 
   const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
 
@@ -724,10 +705,14 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       }
     }
     let omittedSubagents = 0;
+    const omitted = new Set<string>();
     for (const thread of wanted.values()) {
       for (const sub of subagentDescendants(children, thread.id)) {
         if (selection.includeSubagents) wanted.set(sub.id, sub);
-        else omittedSubagents += 1;
+        else {
+          omittedSubagents += 1;
+          omitted.add(sub.id);
+        }
       }
     }
     if (pulledIn > 0) fixed.push({ code: "parents-pulled-in", subject: "", count: pulledIn });
@@ -796,6 +781,10 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     const threadTargets = new Map<string, string>();
     for (const [id, row] of doneThreads) threadTargets.set(id, row.target_id);
     for (const thread of toCopy) threadTargets.set(thread.id, yield* targetId("thread", thread.id));
+    const omittedTargets = new Map<string, string>();
+    for (const id of omitted) {
+      if (!threadTargets.has(id)) omittedTargets.set(id, yield* targetId("thread", id));
+    }
     if (toCopy.length > 0)
       fixed.push({ code: "thread-ids-renewed", subject: "", count: toCopy.length });
     const limitCleared = toCopy.filter((thread) => thread.hasLimitRecovery).length;
@@ -965,6 +954,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       alreadyImported,
       projects,
       threadTargets,
+      omittedTargets,
       tasks,
       files,
       checkpointCount,
@@ -1060,6 +1050,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   interface Counters {
     refsCopied: number;
     refsUnavailable: number;
+    refsConflicting: number;
     attachments: number;
     browserArtifacts: number;
     limitCleared: number;
@@ -1108,22 +1099,41 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       byRepo.set(repo, [...(byRepo.get(repo) ?? []), { oldRef: payload.ref, newRef }]);
     }
     for (const [repo, pairs] of byRepo) {
+      // One lookup for the source refs and the names they are about to take.
       const checked = yield* git
         .execute({
           operation: "T3CodeImport.checkRefs",
           cwd: repo,
           args: ["cat-file", "--batch-check"],
-          stdin: `${pairs.map((pair) => pair.oldRef).join("\n")}\n`,
+          stdin: `${[...pairs.map((pair) => pair.oldRef), ...pairs.map((pair) => pair.newRef)].join("\n")}\n`,
           allowNonZeroExit: true,
         })
         .pipe(Effect.mapError(failed));
       const lines = checked.stdout.split("\n");
-      const commands: Array<string> = [];
-      pairs.forEach((pair, index) => {
+      const shaAt = (index: number) => {
         const [sha, type] = (lines[index] ?? "").split(" ");
-        if (type === "missing" || sha === undefined || sha === "" || sha === pair.oldRef) {
+        return type === "missing" || sha === undefined || sha === "" ? null : sha;
+      };
+      const commands: Array<string> = [];
+      const queued = new Set<string>();
+      pairs.forEach((pair, index) => {
+        const sha = shaAt(index);
+        const existing = shaAt(pairs.length + index);
+        if (sha === null || pair.newRef === pair.oldRef) {
+          // A name equal to the source's would share the checkpoint with the other app.
           unavailable.add(pair.oldRef);
-        } else commands.push(`update ${pair.newRef} ${sha}`);
+        } else if (existing === null) {
+          if (!queued.has(pair.newRef)) {
+            queued.add(pair.newRef);
+            commands.push(`create ${pair.newRef} ${sha}`);
+          }
+        } else if (existing === sha) {
+          input.counters.refsCopied += 1;
+        } else {
+          // Never move a ref that already points somewhere else.
+          unavailable.add(pair.oldRef);
+          input.counters.refsConflicting += 1;
+        }
       });
       if (commands.length > 0) {
         yield* git
@@ -1157,7 +1167,6 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     readonly copiedFiles: Set<string>;
     readonly counters: Counters;
     readonly sourceStateDir: string;
-    readonly idMap: ReadonlyMap<string, string>;
     readonly projectRoots: ReadonlyMap<string, string>;
   }
 
@@ -1195,21 +1204,25 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     row: Row,
     targetProjectId: string,
     refs: { readonly refMap: Map<string, string>; readonly unavailable: Set<string> },
-  ): ReadonlyArray<unknown> | null => {
+  ): ReadonlyArray<unknown> => {
     const mapText = (text: string) => {
       const withRefs = text.includes("refs/t3/orchestration-v2/checkpoints")
         ? text.replace(REF_PATTERN, (ref) => refs.refMap.get(ref) ?? ref)
         : text;
       return context.rewrite(withRefs);
     };
-    if (table === SUBAGENTS_TABLE) {
-      const child = row.child_thread_id;
-      if (typeof child === "string" && !context.idMap.has(child)) return null;
-    }
     let overrides: Record<string, unknown> = {};
     const payloadSource = typeof row.payload_json === "string" ? row.payload_json : null;
+    const child = row.child_thread_id;
+    const childLeftOut =
+      table === SUBAGENTS_TABLE &&
+      typeof child === "string" &&
+      !context.analysis.threadTargets.has(child);
+    if (childLeftOut) overrides = { child_thread_id: null };
     if (payloadSource !== null) {
-      if (table === THREADS_TABLE) {
+      if (childLeftOut) {
+        overrides = { ...overrides, payload_json: unlinkSubagentChild(payloadSource) };
+      } else if (table === THREADS_TABLE) {
         const cleared = clearLimitRecovery(payloadSource);
         if (cleared.cleared) context.counters.limitCleared += 1;
         overrides = { payload_json: cleared.json, project_id: targetProjectId };
@@ -1275,10 +1288,9 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         );
         if (batch.length === 0) break;
         last = Number(batch[batch.length - 1]!["__rowid"]);
-        const values = batch.flatMap((row) => {
-          const next = transformRow(context, table.name, table.columns, row, targetProject, refs);
-          return next === null ? [] : [next];
-        });
+        const values = batch.map((row) =>
+          transformRow(context, table.name, table.columns, row, targetProject, refs),
+        );
         yield* sql.withTransaction(insertRows(table.name, table.columns, values));
       }
     }
@@ -1440,12 +1452,14 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   ) {
     const imported: Array<T3CodeImportResult["importedTasks"][number]> = [];
     const unreadable: Array<T3CodeImportNotice> = [];
+    const secretNotices: Array<T3CodeImportNotice> = [];
     for (const task of analysis.tasks) {
       const row = task.row;
       const sourceId = String(row.task_id);
       const id = ScheduledTaskId.make(`scheduled-task:import-${yield* targetId("task", sourceId)}`);
       const decode = <A>(schema: Schema.Decoder<A>, json: unknown) =>
         Schema.decodeUnknownEffect(Schema.fromJsonString(schema))(json);
+      let signingSecret: string | null = null;
       const saved = yield* Effect.gen(function* () {
         const schedule = yield* decode(ScheduledTaskUpsertSchedule, row.schedule_json);
         const workspaceStrategy = yield* decode(
@@ -1453,12 +1467,19 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
           row.workspace_strategy_json,
         );
         const modelSelection = yield* decode(ModelSelection, row.model_selection_json);
+        // The official secret is not carried over: the URL changes anyway, so the sender is updated either way.
+        if (schedule.type === "webhook" && schedule.signature != null) {
+          signingSecret = Buffer.from(yield* crypto.randomBytes(32)).toString("base64url");
+        }
         return yield* scheduledTasks.upsert({
           id,
           title: String(row.title) as never,
           prompt: String(row.prompt) as never,
           enabled: task.enabled,
-          schedule,
+          schedule:
+            schedule.type === "webhook" && schedule.signature != null && signingSecret !== null
+              ? { ...schedule, signature: { ...schedule.signature, secret: signingSecret } }
+              : schedule,
           projectId: task.targetProjectId as ProjectId,
           threadId: task.targetThreadId as ThreadId | null,
           workspaceStrategy,
@@ -1471,12 +1492,6 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         unreadable.push({ code: "task-unreadable", subject: String(row.title) });
         continue;
       }
-      if (typeof row.webhook_secret === "string") {
-        yield* sql.unsafe(`UPDATE scheduled_tasks SET webhook_secret = ? WHERE task_id = ?`, [
-          row.webhook_secret,
-          id,
-        ]);
-      }
       yield* sql.unsafe(
         `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at)
          VALUES ('task', ?, ?, 'done', NULL, ?)`,
@@ -1488,8 +1503,15 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         enabled: task.enabled,
         webhookPath: saved.value.task.webhook?.path ?? null,
       });
+      if (signingSecret !== null) {
+        secretNotices.push({
+          code: "task-webhook-secret",
+          subject: String(row.title),
+          detail: signingSecret,
+        });
+      }
     }
-    return { imported, unreadable };
+    return { imported, unreadable, secretNotices };
   });
 
   const importFiles = Effect.fn("T3CodeImport.importFiles")(function* (
@@ -1671,11 +1693,10 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     readonly analysis: Analysis;
   }) {
     const { src, sourceStateDir, runId, analysis } = input;
-    const idMap = new Map<string, string>();
-    for (const [id, target] of analysis.threadTargets) idMap.set(id, target);
-    for (const project of analysis.projects.values()) idMap.set(project.sourceId, project.targetId);
+    const ids = new Map<string, string>([...analysis.threadTargets, ...analysis.omittedTargets]);
+    for (const project of analysis.projects.values()) ids.set(project.sourceId, project.targetId);
     const rewriter = makeRewriter({
-      ids: idMap,
+      ids,
       sourceStateDir,
       targetAttachmentsDir: config.attachmentsDir,
       targetBrowserArtifactsDir: config.browserArtifactsDir,
@@ -1701,12 +1722,12 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       counters: {
         refsCopied: 0,
         refsUnavailable: 0,
+        refsConflicting: 0,
         attachments: 0,
         browserArtifacts: 0,
         limitCleared: 0,
       },
       sourceStateDir,
-      idMap,
       projectRoots: new Map(
         projectRootRows.map((row) => [String(row.project_id), String(row.workspace_root)]),
       ),
@@ -1739,7 +1760,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         .filter(
           (row) =>
             analysis.toCopy.some((thread) => thread.id === row.source_thread_id) &&
-            idMap.has(String(row.target_thread_id)),
+            analysis.threadTargets.has(String(row.target_thread_id)),
         )
         .map((row) =>
           columns.map((column) =>
@@ -1777,8 +1798,11 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       totalThreads: analysis.toCopy.length,
       currentTitle: null,
     });
-    const { imported: importedTasks, unreadable: unreadableTasks } =
-      yield* importScheduledTasks(analysis);
+    const {
+      imported: importedTasks,
+      unreadable: unreadableTasks,
+      secretNotices,
+    } = yield* importScheduledTasks(analysis);
 
     // The final list reports what actually happened.
     const counters = context.counters;
@@ -1798,9 +1822,13 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     );
     const attention = [
       ...replaceCount(
-        analysis.report.attention,
-        "checkpoint-refs-unavailable",
-        counters.refsUnavailable,
+        replaceCount(
+          analysis.report.attention,
+          "checkpoint-refs-unavailable",
+          counters.refsUnavailable - counters.refsConflicting,
+        ),
+        "checkpoint-refs-conflict",
+        counters.refsConflicting,
       ),
       ...lateAttention,
       ...importedTasks.flatMap((task) =>
@@ -1814,6 +1842,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
               },
             ],
       ),
+      ...secretNotices,
     ];
     const result: T3CodeImportResult = {
       importedProjects,
@@ -1825,7 +1854,17 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     };
     yield* sql.unsafe(
       `UPDATE fork_t3code_import_runs SET finished_at = ?, summary_json = ? WHERE run_id = ?`,
-      [yield* nowIso, encodeJson(result.report), runId],
+      [
+        yield* nowIso,
+        // A signing secret is shown once, in the dialog; the stored summary never holds it.
+        encodeJson({
+          ...result.report,
+          attention: result.report.attention.filter(
+            (notice) => notice.code !== "task-webhook-secret",
+          ),
+        }),
+        runId,
+      ],
     );
     return result;
   });
@@ -1873,6 +1912,15 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       );
     }
 
+    // Runs are serialized, so a staging folder still here belongs to a run a crash cut short.
+    const leftovers = yield* fs
+      .readDirectory(config.stateDir)
+      .pipe(Effect.orElseSucceed(() => [] as Array<string>));
+    for (const name of leftovers.filter((entry) => entry.startsWith("t3-import-"))) {
+      yield* fs
+        .remove(path.join(config.stateDir, name), { recursive: true, force: true })
+        .pipe(Effect.ignore);
+    }
     const tempDir = yield* fs.makeTempDirectoryScoped({
       directory: config.stateDir,
       prefix: "t3-import-",
@@ -1939,35 +1987,11 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     },
   );
 
-  const assertWorktreeNotShared: T3CodeImport["Service"]["assertWorktreeNotShared"] = (input) =>
-    sql
-      .unsafe<{ readonly source_id: string }>(
-        `SELECT source_id FROM fork_t3code_import_map WHERE kind = 'worktree' AND source_id = ?`,
-        [path.resolve(input.cwd, input.path)],
-      )
-      .pipe(
-        Effect.orElseSucceed(() => []),
-        Effect.flatMap((rows) =>
-          rows.length === 0
-            ? Effect.void
-            : Effect.fail(
-                new GitCommandError({
-                  operation: "T3CodeImport.assertWorktreeNotShared",
-                  command: "git worktree remove",
-                  cwd: input.cwd,
-                  detail:
-                    "This worktree was created by T3 Code and is shared with it. T3 Extend never removes it.",
-                }),
-              ),
-        ),
-      );
-
   return T3CodeImport.of({
     preview,
     check,
     start,
     state: SubscriptionRef.changes(stateRef),
-    assertWorktreeNotShared,
   });
 });
 

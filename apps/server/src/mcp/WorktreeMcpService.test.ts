@@ -21,6 +21,7 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import * as GitWorkflowService from "../git/GitWorkflowService.ts";
+import { makeGuardedRemoveWorktree } from "../fork/SharedWorktrees.testkit.ts"; // fork
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as ServerConfig from "../config.ts";
 import {
@@ -550,6 +551,20 @@ describe("t3_worktree_handoff", () => {
         force: true,
       });
       expect(harness.dispatch).not.toHaveBeenCalled();
+    });
+  });
+
+  it.effect("never removes a worktree under official T3 Code's folder when it backs out", () => {
+    const guarded = makeGuardedRemoveWorktree({ officialWorktreesDir: "/worktrees" });
+    const harness = makeHarness({
+      threadAttachedOnRecheck: true,
+      git: { removeWorktree: guarded.removeWorktree },
+    });
+    return Effect.gen(function* () {
+      const exit = yield* Effect.exit(runHandoff(harness, { branch: "feature/official-folder" }));
+      expectTypedFailure(exit, { _tag: "WorktreeMcpFailure", code: "already_in_worktree" });
+      expect(guarded.attempts).toEqual(["/worktrees/project/feature/official-folder"]);
+      expect(guarded.reachedGit).toEqual([]);
     });
   });
 
