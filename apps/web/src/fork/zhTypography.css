@@ -8,6 +8,11 @@
  * Appearance sets the root, and these scale with it. English never matches `:lang(zh)`, so
  * it renders exactly as upstream does.
  *
+ * The rule: text-sm and larger shift down a step and weights get lighter; sizes of 12px and below
+ * (text-xs, text-2xs, text-3xs, text-[11px], ...) stay exactly as upstream draws them, so fixed
+ * and truncated boxes keep their geometry. The only raises are scoped to one site each and are
+ * listed in FORK.md (the diagnostics page, via `data-t3x-han-text`).
+ *
  * Absolute line boxes match English (20px for text-sm, 16px for text-xs, ...) so rows and
  * controls keep their height; only multi-line prose gets looser leading below.
  *
@@ -22,7 +27,7 @@
   --text-base--line-height: calc(1.5 / 0.9375);
   --text-sm: 0.8125rem;
   --text-sm--line-height: calc(1.25 / 0.8125);
-  /* xs stays 12px; below that Han strokes start to fill in. */
+  /* xs and below stay as upstream: 12px, 11px, 10px. */
   --text-lg: 1.0625rem;
   --text-lg--line-height: calc(1.75 / 1.0625);
   --text-xl: 1.1875rem;
@@ -78,37 +83,19 @@ html:lang(zh)
 }
 
 /*
- * Sizes written as literals, which have no variable to move. Scoped to `html:lang(zh)` so user
- * content that carries its own lang="zh" inside the English UI is left alone. Unlayered, so these
- * win over Tailwind's layered utilities.
- */
-html:lang(zh) .text-2xs {
-  font-size: 0.71875rem;
-  line-height: var(--tw-leading, calc(1 / 0.71875));
-}
-
-/*
  * text-3xs (10px) is not raised globally: it sets fixed 16-24px counters and circles that show
- * digits. Only pages whose 10px text is Han opt in with the `data-t3x-han-text` attribute.
+ * digits. Only the diagnostics page, whose 10px text is Han, opts in with `data-t3x-han-text`
+ * and gets 11px, the smallest Han that stays legible on macOS. The same attribute on a small
+ * Badge (10px from sm up, in a 16px-high pill) raises just that badge to 11px.
  */
 html:lang(zh) [data-t3x-han-text] .text-3xs {
-  font-size: 0.71875rem;
-  line-height: var(--tw-leading, calc(0.875 / 0.71875));
-}
-
-/*
- * Controls and notices that use 11px and 10px directly: Han stops being legible below 11.5px.
- * The 8px and 7px provider-initials badges (text-4xs, text-5xs) stay as upstream has them; a Han
- * initial is sized at the call site (ProviderInstanceIcon).
- */
-html:lang(zh) .text-\[11px\] {
-  font-size: 0.71875rem;
+  font-size: 0.6875rem;
+  line-height: var(--tw-leading, calc(0.875 / 0.6875));
 }
 
 @media (width >= 40rem) {
-  html:lang(zh) .sm\:text-\[11px\],
-  html:lang(zh) .sm\:text-\[\.625rem\] {
-    font-size: 0.71875rem;
+  html:lang(zh) [data-slot="badge"][data-t3x-han-text] {
+    font-size: 0.6875rem;
   }
 }
 
@@ -140,14 +127,11 @@ html:lang(zh) .chat-markdown table {
   font-size: 0.8125rem;
 }
 
-html:lang(zh) .chat-markdown a[data-footnote-backref] {
-  font-size: 0.71875rem;
-}
-
 /*
  * The "T3 Extend" wordmark is a Latin logotype next to the T3 mark, so it keeps its English
- * sizes, weight and tracking in every language. Its containers carry `data-t3-wordmark`; the
- * tokens are restored for everything inside.
+ * sizes, weight and tracking in every language. `data-t3-wordmark` marks the one node that wraps
+ * only the T3 glyph and the suffix (never put anything else inside it, such as a stage pill: the
+ * restored tokens are inherited by everything within).
  */
 html:lang(zh) [data-t3-wordmark] {
   --text-sm: 0.875rem;

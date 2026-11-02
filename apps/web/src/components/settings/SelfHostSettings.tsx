@@ -127,7 +127,7 @@ export function SelfHostSettings() {
             <ul className="divide-y divide-border/50 overflow-hidden rounded-lg border border-border/60 bg-background/50">
               {state.environmentPublicUrls.map((url) => (
                 <AddressItem key={`env:${url}`} url={url}>
-                  <Badge variant="outline" size="sm">
+                  <Badge variant="outline" size="sm" data-t3x-han-text>
                     {t("Set by environment")}
                   </Badge>
                 </AddressItem>
@@ -183,7 +183,7 @@ export function SelfHostSettings() {
         status={
           tunnel && (tunnel.enabled || tunnelProblem) ? (
             <span className="flex flex-wrap items-center gap-1.5">
-              <Badge variant={STATUS_BADGE[tunnel.status]} size="sm">
+              <Badge variant={STATUS_BADGE[tunnel.status]} size="sm" data-t3x-han-text>
                 {statusLabel(t, tunnel.status)}
               </Badge>
               {tunnel.restarts > 0 ? (
