@@ -33,13 +33,13 @@ import * as Queue from "effect/Queue";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
-import * as FetchHttpClient from "effect/http/FetchHttpClient";
 
 import * as ServerSecretStore from "../src/auth/ServerSecretStore.ts";
 import * as SessionStore from "../src/auth/SessionStore.ts";
 import * as ServerEnvironment from "../src/environment/ServerEnvironment.ts";
 import * as PushNotifier from "../src/fork/push/PushNotifier.ts";
 import * as PushRegistrations from "../src/fork/push/PushRegistrations.ts";
+import * as PushTransport from "../src/fork/push/pushTransport.ts";
 import { decryptWebPush } from "../src/fork/push/webPush.ts";
 import * as ThreadManagement from "../src/orchestration-v2/ThreadManagementService.ts";
 import * as ProjectService from "../src/project/ProjectService.ts";
@@ -188,7 +188,11 @@ const program = Effect.gen(function* () {
       getEnvironmentId: Effect.succeed(ENVIRONMENT_ID),
       getDescriptor: Effect.succeed({ label: "Verification host" } as never),
     }),
-    Effect.provide(FetchHttpClient.layer),
+    // The check runs against a loopback ntfy, which a real environment refuses.
+    Effect.provideService(
+      PushTransport.PushTransport,
+      yield* PushTransport.make({ allowPrivate: true }),
+    ),
   );
 
   yield* registrations.upsert({

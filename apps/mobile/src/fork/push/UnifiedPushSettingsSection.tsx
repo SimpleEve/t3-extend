@@ -1,5 +1,6 @@
 import { type EnvironmentId } from "@t3tools/contracts";
 import { FORK } from "@t3tools/shared/forkIdentity";
+import { useAtomValue } from "@effect/atom-react";
 import { useRef, useState } from "react";
 import { Linking } from "react-native";
 
@@ -15,6 +16,7 @@ import {
   sendTestNotification,
 } from "./unifiedPushRegistration";
 import { unifiedPushSetupStep, type EnvironmentPushStatus } from "./pushRegistrationModel";
+import { pushEnvironment } from "./pushCommands";
 import { useUnifiedPushState } from "./pushStore";
 
 // fork: push notifications through the user's own UnifiedPush server (ntfy and the like).
@@ -113,13 +115,6 @@ export function UnifiedPushSettingsSection() {
       }
     });
 
-  const statusText = (status: EnvironmentPushStatus["state"]) =>
-    status === "registered"
-      ? t("Registered")
-      : status === "pending"
-        ? t("Registering…")
-        : t("Not registered");
-
   return (
     <>
       <SettingsSection title={t("Push without Google")}>
@@ -188,24 +183,44 @@ export function UnifiedPushSettingsSection() {
       </SettingsSection>
       {native.enabled && step === "ready"
         ? state.environments.map((environment) => (
-            <SettingsSection
+            <EnvironmentPushSection
               key={environment.environmentId}
-              title={environment.label || t("Environment")}
-            >
-              <SettingsRow
-                icon="checkmark.circle"
-                label={t("Status")}
-                value={statusText(environment.state)}
-              />
-              <SettingsRow
-                icon="bell.badge"
-                label={t("Send test notification")}
-                disabled={busy || environment.state !== "registered"}
-                onPress={() => void test(environment)}
-              />
-            </SettingsSection>
+              environment={environment}
+              busy={busy}
+              onTest={() => void test(environment)}
+            />
           ))
         : null}
     </>
+  );
+}
+
+function EnvironmentPushSection(props: {
+  readonly environment: EnvironmentPushStatus;
+  readonly busy: boolean;
+  readonly onTest: () => void;
+}) {
+  const t = useT();
+  const { environment } = props;
+  // The grant on that environment decides, as for every protected command.
+  const canTest = useAtomValue(
+    pushEnvironment.sendTest.permissionAtom(environment.environmentId as EnvironmentId),
+  );
+  const status =
+    environment.state === "registered"
+      ? t("Registered")
+      : environment.state === "pending"
+        ? t("Registering…")
+        : t("Not registered");
+  return (
+    <SettingsSection title={environment.label || t("Environment")}>
+      <SettingsRow icon="checkmark.circle" label={t("Status")} value={status} />
+      <SettingsRow
+        icon="bell.badge"
+        label={t("Send test notification")}
+        disabled={props.busy || !canTest || environment.state !== "registered"}
+        onPress={props.onTest}
+      />
+    </SettingsSection>
   );
 }

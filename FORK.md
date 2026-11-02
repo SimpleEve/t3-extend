@@ -239,11 +239,14 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - **触发条件**复用 relay 的规则，不另起一套：事件过滤复用 `AgentAwarenessRelay.shouldPublishAgentAwarenessEvent`，状态用 `projectThreadAwarenessV2`，按 relay 的 `agentActivityAlerts.ts` 只对"进入"需要批准、需要输入、完成、失败这几个阶段提醒，完成先等 5 秒确认没有后续，已完成超过 2 分钟的不提醒，子 agent 和侧聊不提醒，每台设备有自己的开关（`push.register` 里的 `preferences`）。服务端启动或首个设备注册时，已经在等待或完成的线程只记基线，不提醒。
 - **语言**放在手机上：服务端只发数据（类型、线程标题、项目、环境标签、id），手机上的 JS 在启动和每次界面语言变化时，把翻译好的模板（`pushTemplates.ts`，走 `t()` 和 zh-Hans 目录）交给原生接收器存起来，接收器填入标题后显示。这样翻译只有一份目录，应用没运行时也按手机当前界面语言显示，切换语言后马上生效。
 - **VAPID 不做**：UnifiedPush 的 endpoint 本身就是写入凭据，ntfy 对 `up*` 主题允许匿名写；连接库要求 VAPID 公钥时才需要，我们没传。伪造的推送因为无法用手机的密钥加密，会被连接库丢弃（`decrypted=false` 不显示）。
-- **fork 状态**：服务端的注册放在 `ServerSecretStore` 的 `fork-push-registrations`（0600 文件，0700 目录，原子写入），不碰数据库迁移。endpoint 必须是 https 且不指向本机或链路本地地址，不跟随重定向，日志只写主机名。手机端 endpoint 只在内存里，设置页只显示主机名。
+- **fork 状态**：服务端的注册放在 `ServerSecretStore` 的 `fork-push-registrations`（0600 文件，0700 目录，原子写入），不碰数据库迁移。日志只写主机名。写入先落盘再改内存，写失败就报 `PushRegistrationError(storage)`，内存不变；已结束的会话即使清理没写成功也不会再收到推送。手机端 endpoint 只在内存里，设置页只显示主机名。
 
-位置：服务端 `apps/server/src/fork/push/`，契约 `packages/contracts/src/forkPush.ts`（`push.*` 四个 RPC，权限 `orchestration:read`），手机 `apps/mobile/src/fork/push/` 和原生模块 `apps/mobile/modules/t3x-unified-push/`。端到端检查用 `apps/server/scripts/verify-ntfy-push.ts`（需要本机的 ntfy 容器，用法见脚本头部）。
+- **只推公网地址**（防 SSRF）：endpoint 是已配对设备给的，所以服务端只向公网单播地址 POST。`pushAddress.ts` 是范围表，拒绝回环、未指定、链路本地（含 169.254.169.254）、RFC 1918、CGNAT 100.64/10（Tailscale）、IPv6 ULA 和链路本地、多播、保留和文档地址、本机网卡地址，以及 IPv6 里嵌着的上述 IPv4（mapped、compatible、NAT64、6to4）。写出来的 IP 在注册时和发送前都查；域名由 `pushTransport.ts` 在 undici 连接自己的 DNS lookup 里解析全部 A/AAAA，任何一个不是公网就拒绝，所以 DNS rebinding 钻不了检查和连接之间的空子。主机名照常用于 SNI 和 Host。只看状态码，响应体立即销毁，不跟随重定向，连接超时 5 秒；不走代理，否则代理自己解析，检查就失效了。`T3CODE_PUSH_ALLOW_INSECURE_ENDPOINTS=1` 只给本机开发和集成检查用。
+- **RPC 模式**：`push.register`、`push.unregister`、`push.sendTest` 在 `CLIENT_GUARDED_RPC_SCOPES` 里（范围 `orchestration:read`，每台设备只管自己的注册，通知只含这台设备本来就能读的内容），手机用 `createEnvironmentRpcCommand`（`fork/push/pushCommands.ts`）；`push.status` 是普通读。
 
-上游文件里的接线（都带 `// fork:`）：`contracts/index.ts` 和 `rpc.ts`（并入 RPC 组）、`RpcAuthorization.ts` 和 `RpcInstrumentation.ts`（权限和指标表）、`ws.ts`（handler）、`server.ts`（layer）、`AgentAwarenessRelay.ts`（导出事件过滤）、`connection/runtime.ts`（同步 layer）、`androidNotifications.ts`（正在查看的线程不提醒）、`useConnectionController.ts`、`SettingsNotificationsRouteScreen.tsx`、`zh-Hans/index.ts`。
+位置：服务端 `apps/server/src/fork/push/`，契约 `packages/contracts/src/forkPush.ts`（`push.*` 四个 RPC），手机 `apps/mobile/src/fork/push/` 和原生模块 `apps/mobile/modules/t3x-unified-push/`。端到端检查用 `apps/server/scripts/verify-ntfy-push.ts`（需要本机的 ntfy 容器，用法见脚本头部）。
+
+上游文件里的接线（都带 `// fork:`）：`contracts/index.ts` 和 `rpc.ts`（并入 RPC 组）、`RpcAuthorization.ts` 和 `RpcInstrumentation.ts`（权限和指标表）、`ws.ts`（handler）、`server.ts`（layer）、`AgentAwarenessRelay.ts`（导出事件过滤）、`App.tsx`（安装注册同步）、`clientRpcPermissions.ts`（受保护的写入）、`androidNotifications.ts`（正在查看的线程不提醒）、`useConnectionController.ts`、`SettingsNotificationsRouteScreen.tsx`、`zh-Hans/index.ts`。
 
 新增原生模块和 Maven 依赖会改变 Android 的 native fingerprint（iOS 不变），之后要重新 `mobile:install` / 重新打 APK。
 

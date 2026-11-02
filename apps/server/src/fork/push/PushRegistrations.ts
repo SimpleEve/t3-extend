@@ -90,16 +90,23 @@ export class PushRegistrations extends Context.Service<
     readonly remove: (input: {
       readonly sessionId: AuthSessionId;
       readonly deviceId: string;
-    }) => Effect.Effect<boolean>;
-    readonly removeSession: (sessionId: AuthSessionId) => Effect.Effect<boolean>;
+    }) => Effect.Effect<boolean, PushRegistrationError>;
+    readonly removeSession: (
+      sessionId: AuthSessionId,
+    ) => Effect.Effect<boolean, PushRegistrationError>;
     /** Drops registrations of sessions that are no longer active, such as expired ones. */
-    readonly retainSessions: (active: ReadonlySet<string>) => Effect.Effect<number>;
+    readonly retainSessions: (
+      active: ReadonlySet<string>,
+    ) => Effect.Effect<number, PushRegistrationError>;
     readonly recordDelivery: (
       sessionId: AuthSessionId,
       delivery: Omit<StoredPushDelivery, "at">,
-    ) => Effect.Effect<void>;
+    ) => Effect.Effect<void, PushRegistrationError>;
     /** Removes the registration only if it still holds this endpoint, so a re-registration survives a late 410. */
-    readonly removeIfEndpoint: (sessionId: AuthSessionId, endpoint: string) => Effect.Effect<void>;
+    readonly removeIfEndpoint: (
+      sessionId: AuthSessionId,
+      endpoint: string,
+    ) => Effect.Effect<void, PushRegistrationError>;
   }
 >()("t3/fork/push/PushRegistrations") {}
 
@@ -138,22 +145,33 @@ export const make = Effect.fn("PushRegistrations.make")(function* (options: {
     );
 
   // Every mutation runs under the lock so concurrent RPCs cannot interleave read-modify-write.
+  // The file is written first and memory follows, so a failed write changes nothing and the
+  // caller is told, instead of being shown success for a registration that would not survive a restart.
   const mutate = <A>(
     change: (
       current: ReadonlyArray<StoredPushRegistration>,
     ) => readonly [next: ReadonlyArray<StoredPushRegistration>, result: A],
-  ) =>
+  ): Effect.Effect<A, PushRegistrationError> =>
     lock.withPermits(1)(
       Effect.gen(function* () {
         const current = yield* Ref.get(state);
         const [next, result] = change(current);
         if (next === current) return result;
-        yield* Ref.set(state, next);
         yield* persist(next).pipe(
           Effect.catch((error) =>
-            Effect.logWarning("Could not save push registrations.", { error: error.message }),
+            Effect.logWarning("Could not save push registrations.", {
+              error: error.message,
+            }).pipe(
+              Effect.andThen(
+                new PushRegistrationError({
+                  reason: "storage",
+                  message: "The push registration could not be saved on this environment.",
+                }),
+              ),
+            ),
           ),
         );
+        yield* Ref.set(state, next);
         return result;
       }),
     );
@@ -164,7 +182,7 @@ export const make = Effect.fn("PushRegistrations.make")(function* (options: {
       if (endpoint === null) {
         return yield* new PushRegistrationError({
           reason: "invalid_endpoint",
-          message: "The push endpoint must be an https URL that is not on this machine.",
+          message: "The push endpoint must be an https URL at a public address.",
         });
       }
       const keys = decodeWebPushKeys(registration.p256dh, registration.auth);

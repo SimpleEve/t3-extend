@@ -1,6 +1,6 @@
 import {
   CLIENT_GUARDED_RPC_SCOPES,
-  FORK_PUSH_RPC_SCOPES, // fork: UnifiedPush registrations
+  FORK_PUSH_READ_RPC_SCOPES, // fork: UnifiedPush registrations
   type DeviceListInput,
   clientRpcRequiredScopes,
   authScopeRequiredResponse,
@@ -40,7 +40,7 @@ type WsRpcMethod = RpcGroup.Rpcs<typeof WsRpcGroup>["_tag"];
 
 export const RPC_REQUIRED_SCOPES = {
   ...CLIENT_GUARDED_RPC_SCOPES,
-  ...FORK_PUSH_RPC_SCOPES, // fork: UnifiedPush registrations
+  ...FORK_PUSH_READ_RPC_SCOPES, // fork: UnifiedPush registrations
   [ORCHESTRATION_V2_WS_METHODS.dispatchCommand]: AuthOrchestrationOperateScope,
   [ORCHESTRATION_V2_WS_METHODS.getWorkflowScript]: AuthOrchestrationReadScope,
   [ORCHESTRATION_V2_WS_METHODS.getNativeChildWork]: AuthOrchestrationReadScope,

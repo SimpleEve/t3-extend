@@ -123,14 +123,19 @@ export const FORK_PUSH_RPCS = [
 ] as const;
 
 /**
- * A device is told about the threads it could read anyway, so reading them is
- * the scope. Enforced on the server by `RPC_REQUIRED_SCOPES`.
+ * A device is told about the threads it could read anyway, so reading them is the scope. Each
+ * device manages only its own registration. The writes are listed in `CLIENT_GUARDED_RPC_SCOPES`
+ * so the phone checks the grant on the environment it sends them to.
  */
-export const FORK_PUSH_RPC_SCOPES = {
+export const FORK_PUSH_GUARDED_RPC_SCOPES = {
   [FORK_PUSH_WS_METHODS.register]: AuthOrchestrationReadScope,
   [FORK_PUSH_WS_METHODS.unregister]: AuthOrchestrationReadScope,
-  [FORK_PUSH_WS_METHODS.status]: AuthOrchestrationReadScope,
   [FORK_PUSH_WS_METHODS.sendTest]: AuthOrchestrationReadScope,
+} as const;
+
+/** Reading a device's own status is an ordinary read. */
+export const FORK_PUSH_READ_RPC_SCOPES = {
+  [FORK_PUSH_WS_METHODS.status]: AuthOrchestrationReadScope,
 } as const;
 
 /** The plaintext inside each encrypted push. Phones format it in their own language. */

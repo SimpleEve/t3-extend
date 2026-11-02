@@ -100,6 +100,7 @@ import { pruneNewTaskBranchCheckouts } from "./features/threads/NewTaskDraftRout
 import { installAppUpdateChecks } from "./features/updates/app-updates";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { installUiLanguageRuntime, useUiLanguageReady } from "./fork/uiLanguage"; // fork: i18n
+import { installUnifiedPushRegistration } from "./fork/push/unifiedPushRegistration"; // fork: UnifiedPush
 import { deferInitialLinkSheet, splashScreenHidden } from "./fork/initialLinkSheet"; // fork
 
 import "../global.css";
@@ -204,6 +205,7 @@ const appServiceDisposers = [
   installComposerAttachmentUploads(),
   startIncomingShareInbox(),
   installAgentNotificationNavigation(linkToAppPath),
+  installUnifiedPushRegistration(), // fork: UnifiedPush
   installAppShortcuts(linkToAppPath),
   installAppUpdateChecks(),
   installShowcaseCapture(rootPathnameFromState),

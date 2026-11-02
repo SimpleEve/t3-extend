@@ -24,7 +24,6 @@ import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
-import * as FetchHttpClient from "effect/http/FetchHttpClient";
 
 import * as ServerSecretStore from "../../auth/ServerSecretStore.ts";
 import * as SessionStore from "../../auth/SessionStore.ts";
@@ -33,6 +32,7 @@ import * as ThreadManagement from "../../orchestration-v2/ThreadManagementServic
 import * as ProjectService from "../../project/ProjectService.ts";
 import * as PushNotifier from "./PushNotifier.ts";
 import * as PushRegistrations from "./PushRegistrations.ts";
+import * as PushTransport from "./pushTransport.ts";
 import { decryptWebPush } from "./webPush.ts";
 
 const NOW = "2026-11-02T12:00:00.000Z";
@@ -137,7 +137,6 @@ interface Sent {
   readonly url: string;
   readonly headers: Headers;
   readonly body: Uint8Array;
-  readonly redirect: string | undefined;
 }
 
 const makeHarness = Effect.fnUntraced(function* (
@@ -150,10 +149,17 @@ const makeHarness = Effect.fnUntraced(function* (
 ) {
   yield* TestClock.setTime(NOW_MS);
   const values = new Map<string, Uint8Array>();
+  const storage = { failWrites: false };
+  const write = (name: string, value: Uint8Array) =>
+    storage.failWrites
+      ? Effect.fail(
+          new ServerSecretStore.SecretStorePersistError({ resource: name, cause: "disk full" }),
+        )
+      : Effect.sync(() => void values.set(name, value));
   const secrets = ServerSecretStore.ServerSecretStore.of({
     get: (name) => Effect.sync(() => Option.fromUndefinedOr(values.get(name))),
-    create: (name, value) => Effect.sync(() => void values.set(name, value)),
-    set: (name, value) => Effect.sync(() => void values.set(name, value)),
+    create: write,
+    set: write,
     remove: (name) => Effect.sync(() => void values.delete(name)),
     getOrCreateRandom: unused,
   });
@@ -163,137 +169,137 @@ const makeHarness = Effect.fnUntraced(function* (
 
   const currentShell = yield* Ref.make<OrchestrationV2ThreadShell | null>(shell());
   const shellReads: ThreadId[] = [];
-  const domainEvents = yield* Queue.unbounded<OrchestrationV2DomainEvent>();
-  const domainPulls = yield* Queue.unbounded<void>();
-  const sessionChanges = yield* Queue.unbounded<{
-    readonly type: "clientRemoved";
-    readonly sessionId: AuthSessionId;
-  }>();
-  const sessionPulls = yield* Queue.unbounded<void>();
-
-  const threads = {
-    getThreadShell: (threadId: ThreadId) =>
-      Effect.sync(() => shellReads.push(threadId)).pipe(
-        Effect.andThen(options.readShell?.(threadId) ?? Ref.get(currentShell)),
-      ),
-    getShellSnapshot: () =>
-      Ref.get(currentShell).pipe(
-        Effect.map((current) => ({
-          schemaVersion: 2,
-          snapshotSequence: 1,
-          threads: current === null ? [] : [current],
-          archivedThreads: [],
-        })),
-      ),
-    listActiveShellIndex: () =>
-      Ref.get(currentShell).pipe(
-        Effect.map((current) =>
-          current === null ? [] : [{ id: current.id, lineage: current.lineage }],
-        ),
-      ),
-    streamDomainEvents: Stream.fromEffectRepeat(
-      Queue.offer(domainPulls, undefined).pipe(Effect.andThen(Queue.take(domainEvents))),
-    ),
-  } as unknown as ThreadManagement.ThreadManagementService["Service"];
-
-  const project = options.project ?? Option.some({ id: PROJECT_ID, title: "Web app" });
-  const projects = {
-    getById: () =>
-      Effect.succeed(
-        Option.map(project, (entry) => ({
-          ...entry,
-          workspaceRoot: "/workspace",
-          defaultModelSelection: null,
-          scripts: [],
-          createdAt: NOW,
-          updatedAt: NOW,
-          deletedAt: null,
-        })),
-      ),
-    snapshot: Effect.succeed({
-      projects: Option.isSome(project) ? [project.value] : [],
-    }),
-  } as unknown as ProjectService.ProjectService["Service"];
-
-  const sessionStore = {
-    listActive: () =>
-      Effect.succeed(
-        (options.activeSessions ?? ["session-1", "session-2", "session-3"]).map((sessionId) => ({
-          sessionId,
-        })),
-      ),
-    streamChanges: Stream.fromEffectRepeat(
-      Queue.offer(sessionPulls, undefined).pipe(Effect.andThen(Queue.take(sessionChanges))),
-    ),
-  } as unknown as SessionStore.SessionStore["Service"];
-
   const sent: Sent[] = [];
-  const fetch: typeof globalThis.fetch = Object.assign(
-    (
-      input: Parameters<typeof globalThis.fetch>[0],
-      init?: Parameters<typeof globalThis.fetch>[1],
-    ) => {
-      sent.push({
-        url: String(input),
-        headers: new Headers(init?.headers),
-        body: init?.body as Uint8Array,
-        redirect: init?.redirect,
-      });
-      const result =
-        options.respond?.(sent.length, String(input)) ?? new Response(null, { status: 200 });
-      return result instanceof Error ? Promise.reject(result) : Promise.resolve(result);
-    },
-    { preconnect: () => {} },
-  );
-
-  const notifier = yield* PushNotifier.make.pipe(
-    Effect.provideService(PushRegistrations.PushRegistrations, registrations),
-    Effect.provideService(ThreadManagement.ThreadManagementService, threads),
-    Effect.provideService(ProjectService.ProjectService, projects),
-    Effect.provideService(SessionStore.SessionStore, sessionStore),
-    Effect.provideService(ServerEnvironment.ServerEnvironment, {
-      getEnvironmentId: Effect.succeed(ENVIRONMENT_ID),
-      getDescriptor: Effect.succeed({ label: "Server label" } as never),
-    }),
-    Effect.provide(FetchHttpClient.layer),
-    Effect.provideService(FetchHttpClient.Fetch, fetch),
-  );
-
-  let eventCounter = 0;
-  const eventFor = (threadId: ThreadId, current: OrchestrationV2ThreadShell) =>
-    ({
-      id: EventId.make(`event:${threadId}:${eventCounter++}`),
-      type: "thread.settled",
-      threadId,
-      occurredAt: DateTime.makeUnsafe(NOW),
-      payload: current,
-    }) as unknown as OrchestrationV2DomainEvent;
-
-  /** Starts watching and waits for the consumers to be ready. */
-  const start = Effect.gen(function* () {
-    yield* notifier.start();
-    yield* Queue.take(domainPulls);
-    yield* Queue.take(sessionPulls);
+  const transport = PushTransport.PushTransport.of({
+    post: (input) =>
+      Effect.suspend(() => {
+        sent.push({ url: input.url, headers: new Headers(input.headers), body: input.body });
+        const result =
+          options.respond?.(sent.length, input.url) ?? new Response(null, { status: 200 });
+        return result instanceof Error
+          ? Effect.fail(new PushTransport.PushTransportError({ reason: "unreachable" }))
+          : Effect.succeed(result.status);
+      }),
   });
-  /** Delivers one domain event and waits until its delivery work has finished. */
-  const emit = Effect.fnUntraced(function* (
-    threadId: ThreadId = THREAD_ID,
-    current?: OrchestrationV2ThreadShell | null,
-  ) {
-    if (current !== undefined) yield* Ref.set(currentShell, current);
-    yield* Queue.offer(domainEvents, eventFor(threadId, current ?? shell()));
-    yield* Queue.take(domainPulls);
-    yield* notifier.drain;
-  });
-  const revokeSession = Effect.fnUntraced(function* (sessionId: string) {
-    yield* Queue.offer(sessionChanges, {
-      type: "clientRemoved",
-      sessionId: AuthSessionId.make(sessionId),
+
+  // One server process: its queues, notifier and consumers. `spawn` starts another over the same
+  // registrations and thread state, as a restart does.
+  const node = Effect.fnUntraced(function* () {
+    const domainEvents = yield* Queue.unbounded<OrchestrationV2DomainEvent>();
+    const domainPulls = yield* Queue.unbounded<void>();
+    const sessionChanges = yield* Queue.unbounded<{
+      readonly type: "clientRemoved";
+      readonly sessionId: AuthSessionId;
+    }>();
+    const sessionPulls = yield* Queue.unbounded<void>();
+
+    const threads = {
+      getThreadShell: (threadId: ThreadId) =>
+        Effect.sync(() => shellReads.push(threadId)).pipe(
+          Effect.andThen(options.readShell?.(threadId) ?? Ref.get(currentShell)),
+        ),
+      getShellSnapshot: () =>
+        Ref.get(currentShell).pipe(
+          Effect.map((current) => ({
+            schemaVersion: 2,
+            snapshotSequence: 1,
+            threads: current === null ? [] : [current],
+            archivedThreads: [],
+          })),
+        ),
+      listActiveShellIndex: () =>
+        Ref.get(currentShell).pipe(
+          Effect.map((current) =>
+            current === null ? [] : [{ id: current.id, lineage: current.lineage }],
+          ),
+        ),
+      streamDomainEvents: Stream.fromEffectRepeat(
+        Queue.offer(domainPulls, undefined).pipe(Effect.andThen(Queue.take(domainEvents))),
+      ),
+    } as unknown as ThreadManagement.ThreadManagementService["Service"];
+
+    const project = options.project ?? Option.some({ id: PROJECT_ID, title: "Web app" });
+    const projects = {
+      getById: () =>
+        Effect.succeed(
+          Option.map(project, (entry) => ({
+            ...entry,
+            workspaceRoot: "/workspace",
+            defaultModelSelection: null,
+            scripts: [],
+            createdAt: NOW,
+            updatedAt: NOW,
+            deletedAt: null,
+          })),
+        ),
+      snapshot: Effect.succeed({
+        projects: Option.isSome(project) ? [project.value] : [],
+      }),
+    } as unknown as ProjectService.ProjectService["Service"];
+
+    const sessionStore = {
+      listActive: () =>
+        Effect.succeed(
+          (options.activeSessions ?? ["session-1", "session-2", "session-3"]).map((sessionId) => ({
+            sessionId,
+          })),
+        ),
+      streamChanges: Stream.fromEffectRepeat(
+        Queue.offer(sessionPulls, undefined).pipe(Effect.andThen(Queue.take(sessionChanges))),
+      ),
+    } as unknown as SessionStore.SessionStore["Service"];
+
+    const notifier = yield* PushNotifier.make.pipe(
+      Effect.provideService(PushRegistrations.PushRegistrations, registrations),
+      Effect.provideService(ThreadManagement.ThreadManagementService, threads),
+      Effect.provideService(ProjectService.ProjectService, projects),
+      Effect.provideService(SessionStore.SessionStore, sessionStore),
+      Effect.provideService(ServerEnvironment.ServerEnvironment, {
+        getEnvironmentId: Effect.succeed(ENVIRONMENT_ID),
+        getDescriptor: Effect.succeed({ label: "Server label" } as never),
+      }),
+      Effect.provideService(PushTransport.PushTransport, transport),
+    );
+
+    let eventCounter = 0;
+    const eventFor = (threadId: ThreadId, current: OrchestrationV2ThreadShell) =>
+      ({
+        id: EventId.make(`event:${threadId}:${eventCounter++}`),
+        type: "thread.settled",
+        threadId,
+        occurredAt: DateTime.makeUnsafe(NOW),
+        payload: current,
+      }) as unknown as OrchestrationV2DomainEvent;
+
+    /** Starts watching and waits for the consumers to be ready. */
+    const start = Effect.gen(function* () {
+      yield* notifier.start();
+      yield* Queue.take(domainPulls);
+      yield* Queue.take(sessionPulls);
     });
-    yield* Queue.take(sessionPulls);
+    /** Delivers one domain event and waits until its delivery work has finished. */
+    const emit = Effect.fnUntraced(function* (
+      threadId: ThreadId = THREAD_ID,
+      current?: OrchestrationV2ThreadShell | null,
+    ) {
+      if (current !== undefined) yield* Ref.set(currentShell, current);
+      yield* Queue.offer(domainEvents, eventFor(threadId, current ?? shell()));
+      yield* Queue.take(domainPulls);
+      yield* notifier.drain;
+    });
+    const revokeSession = Effect.fnUntraced(function* (sessionId: string) {
+      yield* Queue.offer(sessionChanges, {
+        type: "clientRemoved",
+        sessionId: AuthSessionId.make(sessionId),
+      });
+      yield* Queue.take(sessionPulls);
+    });
+
+    return { notifier, start, emit, revokeSession };
   });
 
-  return { registrations, notifier, currentShell, shellReads, sent, start, emit, revokeSession };
+  const first = yield* node();
+  return { registrations, currentShell, shellReads, sent, storage, spawn: node, ...first };
 });
 
 const open = (receiver: Receiver, sent: Sent) =>
@@ -439,7 +445,6 @@ describe("push delivery", () => {
       assert.equal(sent[0]?.url, "https://ntfy.example.test/upDevice?up=1");
       assert.equal(sent[0]?.headers.get("content-encoding"), "aes128gcm");
       assert.equal(sent[0]?.headers.get("ttl"), "3600");
-      assert.equal(sent[0]?.redirect, "manual");
       const payload = open(receiver, sent[0]!);
       assert.equal(payload.kind, "test");
       assert.equal(payload.environmentLabel, "Mac mini");
@@ -772,6 +777,127 @@ describe("push triggers", () => {
       yield* emit(THREAD_ID, awaitingApproval());
       // session-2 does not want approvals and session-1 is gone.
       assert.equal(sent.length, 0);
+    }).pipe(Effect.scoped),
+  );
+});
+
+describe("push registration changes", () => {
+  const add = (
+    registrations: PushRegistrations.PushRegistrations["Service"],
+    sessionId: string,
+    endpoint: string,
+    deviceId = "device-1",
+  ) =>
+    registrations.upsert({
+      sessionId: session(sessionId),
+      registration: makeReceiver(endpoint, deviceId).input(),
+    });
+
+  it.effect("a new endpoint replaces the old one, and a late 410 for the old one keeps it", () =>
+    Effect.gen(function* () {
+      const { registrations } = yield* makeHarness();
+      yield* add(registrations, "session-1", "https://ntfy.example.test/upOld");
+      yield* add(registrations, "session-1", "https://ntfy.example.test/upNew");
+      assert.deepStrictEqual(
+        (yield* registrations.list).map((entry) => entry.endpoint),
+        ["https://ntfy.example.test/upNew"],
+      );
+      // A delivery that started before the change finds the old endpoint gone.
+      yield* registrations.removeIfEndpoint(
+        session("session-1"),
+        "https://ntfy.example.test/upOld",
+      );
+      assert.equal((yield* registrations.list).length, 1);
+      yield* registrations.removeIfEndpoint(
+        session("session-1"),
+        "https://ntfy.example.test/upNew",
+      );
+      assert.equal((yield* registrations.list).length, 0);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("a failed write reports the error and leaves the registrations as they were", () =>
+    Effect.gen(function* () {
+      const { registrations, storage } = yield* makeHarness();
+      yield* add(registrations, "session-1", "https://ntfy.example.test/upOne");
+      const before = yield* registrations.list;
+
+      storage.failWrites = true;
+      const failures = [
+        yield* add(registrations, "session-2", "https://ntfy.example.test/upTwo", "d2").pipe(
+          Effect.flip,
+        ),
+        yield* add(registrations, "session-1", "https://ntfy.example.test/upMoved").pipe(
+          Effect.flip,
+        ),
+        yield* registrations
+          .remove({ sessionId: session("session-1"), deviceId: "device-1" })
+          .pipe(Effect.flip),
+        yield* registrations.removeSession(session("session-1")).pipe(Effect.flip),
+        yield* registrations.retainSessions(new Set()).pipe(Effect.flip),
+      ];
+      assert.deepStrictEqual(
+        failures.map((failure) => failure.reason),
+        ["storage", "storage", "storage", "storage", "storage"],
+      );
+      assert.strictEqual(yield* registrations.list, before);
+
+      // Once the disk works again the same calls succeed.
+      storage.failWrites = false;
+      assert.equal(yield* registrations.removeSession(session("session-1")), true);
+      assert.equal((yield* registrations.list).length, 0);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("a revoked session is not pushed to even when its clean-up could not be saved", () =>
+    Effect.gen(function* () {
+      const { registrations, storage, notifier, start, emit, sent, revokeSession } =
+        yield* makeHarness({
+          activeSessions: ["session-2"],
+        });
+      yield* add(registrations, "session-1", "https://ntfy.example.test/upRevoked", "d1");
+      yield* registrations.upsert({
+        sessionId: session("session-2"),
+        registration: makeReceiver("https://ntfy.example.test/upLive", "d2").input(),
+      });
+      yield* notifier.prepare;
+      storage.failWrites = true;
+      yield* start;
+      yield* revokeSession("session-1");
+      assert.equal((yield* registrations.list).length, 2);
+
+      yield* emit(THREAD_ID, awaitingApproval());
+      assert.deepStrictEqual(
+        sent.map((entry) => entry.url),
+        ["https://ntfy.example.test/upLive"],
+      );
+    }).pipe(Effect.scoped),
+  );
+});
+
+describe("push after a restart", () => {
+  it.effect("does not announce again what the previous process already announced", () =>
+    Effect.gen(function* () {
+      const { registrations, notifier, spawn, start, emit, sent } = yield* makeHarness();
+      yield* registrations.upsert({
+        sessionId: session("session-1"),
+        registration: makeReceiver("https://ntfy.example.test/upRestart").input(),
+      });
+      yield* notifier.prepare;
+      yield* start;
+      yield* emit(THREAD_ID, awaitingApproval());
+      assert.equal(sent.length, 1);
+
+      // A new process starts with no memory of the thread, over the same registrations.
+      const restarted = yield* spawn();
+      yield* restarted.notifier.prepare;
+      yield* restarted.start;
+      yield* restarted.emit(THREAD_ID, awaitingApproval());
+      assert.equal(sent.length, 1);
+
+      // It still announces what happens next.
+      yield* restarted.emit(THREAD_ID, shell({ status: "failed" }));
+      assert.equal(sent.length, 2);
     }).pipe(Effect.scoped),
   );
 });

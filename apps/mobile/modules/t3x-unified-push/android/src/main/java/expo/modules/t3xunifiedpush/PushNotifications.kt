@@ -29,6 +29,13 @@ internal object PushNotifications {
   private const val SEEN_LIMIT = 64
   private const val DEFAULT_SCHEME = "t3extend"
 
+  // The tap opens this app only: JS hands the scheme over, and anything but the fork's own
+  // schemes (release, dev and preview builds) falls back to the default.
+  private val OWN_SCHEMES = setOf(DEFAULT_SCHEME, "$DEFAULT_SCHEME-dev", "$DEFAULT_SCHEME-preview")
+
+  fun ownScheme(candidate: String?): String =
+    candidate?.takeIf { it in OWN_SCHEMES } ?: DEFAULT_SCHEME
+
   @Volatile var threadOnScreen: String? = null
 
   @Synchronized
@@ -70,7 +77,7 @@ internal object PushNotifications {
       // One notification per thread: a newer state replaces the older one.
       .setGroup(if (alert.kind == "test") TAG else "$TAG:${alert.environmentId}/${alert.threadId}")
       .setContentIntent(
-        contentIntent(context, prefs.getString("scheme", null) ?: DEFAULT_SCHEME, route, id)
+        contentIntent(context, ownScheme(prefs.getString("scheme", null)), route, id)
       )
       .build()
     context.getSystemService(NotificationManager::class.java).notify(TAG, id, notification)

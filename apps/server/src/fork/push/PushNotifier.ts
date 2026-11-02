@@ -20,9 +20,6 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
-import * as FetchHttpClient from "effect/http/FetchHttpClient";
-import * as HttpClient from "effect/http/HttpClient";
-import * as HttpClientRequest from "effect/http/HttpClientRequest";
 
 import * as ServerEnvironment from "../../environment/ServerEnvironment.ts";
 import * as ThreadManagement from "../../orchestration-v2/ThreadManagementService.ts";
@@ -34,6 +31,7 @@ import {
 } from "../../relay/AgentAwarenessRelay.ts";
 import { forkParked } from "../../serverActivation.ts";
 import * as PushRegistrations from "./PushRegistrations.ts";
+import * as PushTransport from "./pushTransport.ts";
 import {
   buildPushPayload,
   COMPLETION_CONFIRMATION_MS,
@@ -87,7 +85,7 @@ export const make = Effect.gen(function* () {
   const projects = yield* ProjectService.ProjectService;
   const serverEnvironment = yield* ServerEnvironment.ServerEnvironment;
   const sessions = yield* SessionStore.SessionStore;
-  const httpClient = yield* HttpClient.HttpClient;
+  const transport = yield* PushTransport.PushTransport;
   const scope = yield* Effect.scope;
 
   // Last phase seen per thread; only moves into a new alertable phase notify.
@@ -103,28 +101,32 @@ export const make = Effect.gen(function* () {
       plaintext: new TextEncoder().encode(encodePayload(job.payload)),
       keys,
     });
-    return yield* httpClient
-      .execute(
-        HttpClientRequest.post(job.registration.endpoint).pipe(
-          HttpClientRequest.setHeaders({
-            "content-encoding": "aes128gcm",
-            ttl: "3600",
-            urgency: "high",
-          }),
-          HttpClientRequest.bodyUint8Array(body, "application/octet-stream"),
-        ),
-      )
+    return yield* transport
+      .post({
+        url: job.registration.endpoint,
+        headers: { "content-encoding": "aes128gcm", ttl: "3600", urgency: "high" },
+        body,
+      })
       .pipe(
+        // The transport bounds connecting and the response head; this bounds the whole attempt.
         Effect.timeout(DELIVERY_TIMEOUT),
-        // An endpoint that redirects is not one we agreed to post to.
-        Effect.provideService(FetchHttpClient.RequestInit, { redirect: "manual" }),
-        Effect.map((response) => ({
-          outcome: outcomeForStatus(response.status),
-          status: response.status,
-        })),
-        Effect.orElseSucceed(() => ({ outcome: "unreachable", status: null }) as const),
+        Effect.map((status) => ({ outcome: outcomeForStatus(status), status }) as const),
+        Effect.catch((error) =>
+          (error._tag === "PushTransportError" && error.reason === "blocked"
+            ? Effect.logWarning("push endpoint refused: it leads to a non-public address", {
+                host: PushRegistrations.endpointHost(job.registration.endpoint),
+              })
+            : Effect.void
+          ).pipe(Effect.as({ outcome: "unreachable", status: null } as const)),
+        ),
       );
   });
+
+  // A registration file that cannot be written must not stop alerts or the loops around them.
+  const keepGoing = (what: string) =>
+    Effect.catch((error: { readonly reason: string }) =>
+      Effect.logWarning(`push registrations: ${what} failed`, { reason: error.reason }),
+    );
 
   const deliver = Effect.fn("PushNotifier.deliver")(function* (job: DeliveryJob) {
     let result = yield* deliverOnce(job);
@@ -134,10 +136,9 @@ export const make = Effect.gen(function* () {
       result = yield* deliverOnce(job);
     }
     const sessionId = job.registration.sessionId;
-    yield* registrations.recordDelivery(sessionId, {
-      outcome: result.outcome,
-      httpStatus: result.status,
-    });
+    yield* registrations
+      .recordDelivery(sessionId, { outcome: result.outcome, httpStatus: result.status })
+      .pipe(keepGoing("recording a delivery"));
     // Only the host is logged: the endpoint is a credential.
     yield* Effect.logInfo("push delivery finished", {
       host: PushRegistrations.endpointHost(job.registration.endpoint),
@@ -146,7 +147,9 @@ export const make = Effect.gen(function* () {
       status: result.status,
     });
     if (result.outcome === "gone") {
-      yield* registrations.removeIfEndpoint(sessionId, job.registration.endpoint);
+      yield* registrations
+        .removeIfEndpoint(sessionId, job.registration.endpoint)
+        .pipe(keepGoing("removing an expired registration"));
     }
     return result;
   });
@@ -170,9 +173,16 @@ export const make = Effect.gen(function* () {
     const descriptor = yield* serverEnvironment.getDescriptor;
     const nowMs = (yield* DateTime.now).epochMilliseconds;
     const active = yield* activeSessionIds;
-    if (Option.isSome(active)) yield* registrations.retainSessions(active.value);
-    const targets = (yield* registrations.list).filter((registration) =>
-      preferenceAllows(registration.preferences, input.kind),
+    if (Option.isSome(active)) {
+      yield* registrations
+        .retainSessions(active.value)
+        .pipe(keepGoing("dropping registrations of ended sessions"));
+    }
+    // Memory may still hold an ended session when its clean-up could not be saved; it gets nothing.
+    const targets = (yield* registrations.list).filter(
+      (registration) =>
+        (Option.isNone(active) || active.value.has(registration.sessionId)) &&
+        preferenceAllows(registration.preferences, input.kind),
     );
     yield* Effect.forEach(
       targets,
@@ -321,11 +331,17 @@ export const make = Effect.gen(function* () {
   const start: PushNotifier["Service"]["start"] = Effect.fn("PushNotifier.start")(function* () {
     // A session that ended while the server was down (or expired) no longer gets pushes.
     const active = yield* activeSessionIds;
-    if (Option.isSome(active)) yield* registrations.retainSessions(active.value);
+    if (Option.isSome(active)) {
+      yield* registrations
+        .retainSessions(active.value)
+        .pipe(keepGoing("dropping registrations of ended sessions"));
+    }
     yield* forkParked(
       Stream.runForEach(sessions.streamChanges, (change) =>
         change.type === "clientRemoved"
-          ? registrations.removeSession(change.sessionId).pipe(Effect.asVoid)
+          ? registrations
+              .removeSession(change.sessionId)
+              .pipe(Effect.asVoid, keepGoing("dropping a revoked session's registration"))
           : Effect.void,
       ),
     );
@@ -348,4 +364,4 @@ export const make = Effect.gen(function* () {
   });
 });
 
-export const layer = Layer.effect(PushNotifier, make).pipe(Layer.provide(FetchHttpClient.layer));
+export const layer = Layer.effect(PushNotifier, make).pipe(Layer.provide(PushTransport.layer));

@@ -16,7 +16,7 @@ On Android, T3 Extend can deliver the same alerts without T3 Connect, Firebase o
 
 You need three things:
 
-1. **A push server.** [ntfy](https://ntfy.sh) works well and runs on the same server as your [self-hosted connection](../../infra/self-host/README.md), on its own address.
+1. **A push server** that is reachable at a public address. [ntfy](https://ntfy.sh) works well and runs on the same server as your [self-hosted connection](../../infra/self-host/README.md), on its own address. Environments only push to public addresses: a push server on your LAN, on this machine or on your tailnet is refused, and so is a name that resolves to one.
 2. **A push app on the phone** that speaks UnifiedPush. Install **ntfy** from F-Droid, open it, and in its settings set the default server to yours and sign in with the account you created for the phone.
 3. **T3 Extend's setting.** Open **Settings → Notifications**, turn on **Push notifications**, and allow notifications. If one push app is installed it is chosen for you; if several are, pick one.
 
