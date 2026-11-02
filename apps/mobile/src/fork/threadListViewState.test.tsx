@@ -4,13 +4,11 @@ import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import type { Preferences } from "../persistence/mobile-preferences";
+import { MAX_COLLAPSED_GROUPS, toggleCollapsedKey } from "./threadListCollapse";
 import {
-  MAX_COLLAPSED_GROUPS,
   resolveThreadListViewState,
-  toggleCollapsedKey,
   useThreadListViewState,
   VIEW_PREFERENCE_GRACE_MS,
-  type ThreadListViewState,
 } from "./threadListViewState";
 
 const stored = (preferences: Preferences) => AsyncResult.success(preferences);
@@ -61,25 +59,54 @@ describe("toggleCollapsedKey", () => {
   });
 });
 
-it("shows the status view once the grace runs out on a preference that never arrives, then the stored view", async () => {
+it("keeps what the user chose while the saved view was late, and saves it over the saved view", async () => {
   using _timers = { [Symbol.dispose]: () => vi.useRealTimers() };
   vi.useFakeTimers();
-  const seen: ThreadListViewState[] = [];
-  function Probe(props: { readonly result: AsyncResult.AsyncResult<Preferences, unknown> }) {
-    const state = useThreadListViewState(props.result);
+  type Result = AsyncResult.AsyncResult<Preferences, unknown>;
+  const saved: Array<(current: Preferences) => Partial<Preferences>> = [];
+  const save = (update: unknown) => {
+    if (typeof update === "object" && update !== null && "transform" in update) {
+      saved.push(update.transform as (typeof saved)[number]);
+    }
+  };
+  let api: ReturnType<typeof useThreadListViewState> | undefined;
+  function Probe(props: { readonly result: Result }) {
+    const state = useThreadListViewState(props.result, save);
     useLayoutEffect(() => {
-      seen.push(state);
+      api = state;
     });
     return null;
   }
   const root = createRoot(document.createElement("div"));
   await act(async () => root.render(<Probe result={AsyncResult.initial(true)} />));
-  expect(seen.at(-1)?.ready).toBe(false);
+  expect(api?.ready).toBe(false);
 
+  // Past the grace, the status view shows; the user switches views and folds a group.
   await act(async () => vi.advanceTimersByTime(VIEW_PREFERENCE_GRACE_MS));
-  expect(seen.at(-1)).toMatchObject({ ready: true, writable: false, viewMode: "status" });
+  expect(api).toMatchObject({ ready: true, viewMode: "status" });
+  await act(async () => {
+    api?.setViewMode("project");
+    api?.toggleGroup("project:project:repo");
+  });
+  expect(api).toMatchObject({ viewMode: "project", collapsed: ["project:project:repo"] });
+  expect(saved).toHaveLength(0);
 
-  await act(async () => root.render(<Probe result={stored({ threadListViewMode: "project" })} />));
-  expect(seen.at(-1)).toMatchObject({ ready: true, writable: true, viewMode: "project" });
+  // The saved view arrives and disagrees; the choices win, once, on top of what was saved.
+  const stored = {
+    threadListViewMode: "status",
+    threadListCollapsedGroups: ["old", "project:project:repo"],
+  } as const;
+  await act(async () => root.render(<Probe result={AsyncResult.success(stored)} />));
+  expect(saved).toHaveLength(1);
+  expect(saved[0]?.(stored)).toEqual({
+    threadListViewMode: "project",
+    threadListCollapsedGroups: ["old", "project:project:repo"],
+  });
+
+  // The saved value now carries the choices, so nothing is saved again.
+  const merged = { ...stored, ...saved[0]?.(stored) };
+  await act(async () => root.render(<Probe result={AsyncResult.success(merged)} />));
+  expect(api).toMatchObject({ viewMode: "project" });
+  expect(saved).toHaveLength(1);
   act(() => root.unmount());
 });

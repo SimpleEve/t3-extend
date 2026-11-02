@@ -81,6 +81,11 @@ describe("mobile preferences store", () => {
         "project:worktree:a",
       ]);
 
+      // Longer than the cap keeps the newest folds, like toggling does.
+      const long = Array.from({ length: 205 }, (_, index) => `k${index}`);
+      const trimmed = yield* loadStored({ threadListCollapsedGroups: long });
+      expect(trimmed.threadListCollapsedGroups).toEqual(long.slice(-200));
+
       const bad = yield* loadStored({ threadListViewMode: "grid", threadListCollapsedGroups: "x" });
       expect(bad.threadListViewMode).toBeUndefined();
       expect(bad.threadListCollapsedGroups).toBeUndefined();
