@@ -697,8 +697,7 @@ function projectViewListItems(
   translate: Translator | undefined,
 ): ThreadListV2ListItem[] {
   const itemByThread = new Map(items.map((item, index) => [item.thread, threadItems[index]!]));
-  const t = (text: string, context?: string) =>
-    translate ? translate(text, undefined, context) : text;
+  const t: Translator = translate ?? ((text) => text);
   return rows.flatMap((row): ThreadListV2ListItem[] => {
     if (row.kind === "thread") {
       const item = itemByThread.get(row.thread);
@@ -712,7 +711,7 @@ function projectViewListItems(
         level: worktree ? "worktree" : "project",
         collapseKey: row.collapseKey,
         title: worktree ? (worktree.label ?? t("Main checkout")) : row.group.title,
-        badge: worktree?.kind === "main" ? t("Main", "worktree badge") : null,
+        badge: worktree?.kind === "main" ? t("Main", undefined, "worktree badge") : null,
         count: row.count,
         collapsed: row.collapsed,
         // Like the web headers: a folded project says what its hidden rows need; a worktree

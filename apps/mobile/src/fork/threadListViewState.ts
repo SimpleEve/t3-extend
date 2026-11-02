@@ -51,7 +51,7 @@ interface ViewIntent {
 
 const NO_INTENT: ViewIntent = { viewMode: null, folds: {} };
 
-// Shared by every list and menu on screen, so a choice made in one shows in the others.
+// Module-level on purpose: the view lives in the one device-wide preferences store, not per environment, so every list and menu shares this pending choice and the grace.
 let intent = NO_INTENT;
 const intentListeners = new Set<() => void>();
 

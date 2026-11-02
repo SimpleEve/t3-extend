@@ -29,7 +29,7 @@ function readDataUrlBlob(src: string): Blob {
   const [mimeType = "", ...parameters] = url.slice("data:".length, comma).split(";");
   const payload = url.slice(comma + 1);
   try {
-    if (comma < 0) throw new Error("Missing data URL payload.");
+    if (comma < 0) throw new Error(translate(getUiLocale(), "Missing data URL payload.")); // fork: i18n
     const isBase64 = parameters.some((parameter) => parameter.trim().toLowerCase() === "base64");
     // Base64 text is ASCII, so any escape that is not valid UTF-8 is malformed anyway.
     const bytes = isBase64
@@ -37,7 +37,7 @@ function readDataUrlBlob(src: string): Blob {
       : decodePercentBytes(payload);
     return new Blob([bytes], { type: mimeType || "text/plain" });
   } catch (cause) {
-    throw new Error("This inline media could not be decoded.", { cause });
+    throw new Error(translate(getUiLocale(), "This inline media could not be decoded."), { cause }); // fork: i18n
   }
 }
 
@@ -57,10 +57,14 @@ async function fetchMediaBlob(src: string): Promise<Blob> {
       translate(getUiLocale(), "The file could not be fetched (HTTP {status}).", { status }), // fork: i18n
     );
   }
+  // fork: i18n
   throw new Error(
-    desktop
-      ? "The file could not be fetched. Check the connection and try again."
-      : "The file could not be fetched. The host may block browser access (CORS), or the connection may be unavailable.",
+    translate(
+      getUiLocale(),
+      desktop
+        ? "The file could not be fetched. Check the connection and try again."
+        : "The file could not be fetched. The host may block browser access (CORS), or the connection may be unavailable.",
+    ),
   );
 }
 
@@ -68,7 +72,12 @@ async function readMediaBlob(src: string): Promise<Blob> {
   if (/^data:/i.test(src)) return readDataUrlBlob(src);
   const blob = await fetchMediaBlob(src);
   if (blob.type.split(";", 1)[0] === "text/html") {
-    throw new Error("This link returned a web page instead of media. Open the original URL.");
+    throw new Error(
+      translate(
+        getUiLocale(),
+        "This link returned a web page instead of media. Open the original URL.",
+      ), // fork: i18n
+    );
   }
   return blob;
 }
@@ -97,28 +106,38 @@ export async function readMediaPng(src: string): Promise<Blob> {
       await image.decode();
     } catch (cause) {
       throw new Error(
-        "The browser could not decode this image for copying. Try saving it instead.",
-        {
-          cause,
-        },
+        translate(
+          getUiLocale(),
+          "The browser could not decode this image for copying. Try saving it instead.",
+        ),
+        { cause }, // fork: i18n
       );
     }
     const { naturalWidth: width, naturalHeight: height } = image;
     if (width <= 0 || height <= 0 || width * height > 64_000_000) {
       throw new Error(
-        "This image is too large or has no usable dimensions. Try saving it instead.",
+        translate(
+          getUiLocale(),
+          "This image is too large or has no usable dimensions. Try saving it instead.",
+        ), // fork: i18n
       );
     }
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d");
-    if (!context) throw new Error("Image copying is unavailable in this browser.");
+    if (!context) {
+      throw new Error(translate(getUiLocale(), "Image copying is unavailable in this browser.")); // fork: i18n
+    }
     context.drawImage(image, 0, 0);
     return await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
         (png) =>
-          png ? resolve(png) : reject(new Error("The image could not be converted to PNG.")),
+          png
+            ? resolve(png)
+            : reject(
+                new Error(translate(getUiLocale(), "The image could not be converted to PNG.")),
+              ), // fork: i18n
         "image/png",
       );
     });

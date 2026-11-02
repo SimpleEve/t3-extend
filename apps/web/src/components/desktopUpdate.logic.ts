@@ -181,9 +181,10 @@ export function getDesktopUpdateDisabledReason(
 export function getDesktopUpdateIdleTooltip(
   state: Pick<DesktopUpdateState, "enabled" | "status" | "message"> | null,
   managedDenial?: string,
+  t: Translator = translatorFor("en"), // fork: interface language
 ) {
-  const disabledReason = getDesktopUpdateDisabledReason(state, managedDenial);
+  const disabledReason = getDesktopUpdateDisabledReason(state, managedDenial, t);
   return disabledReason
-    ? { title: "Updates unavailable", detail: disabledReason }
-    : { title: "Check for updates", detail: null };
+    ? { title: t("Updates unavailable"), detail: disabledReason }
+    : { title: t("Check for updates"), detail: null };
 }

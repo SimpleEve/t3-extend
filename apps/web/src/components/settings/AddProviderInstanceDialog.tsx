@@ -379,7 +379,7 @@ export function AddProviderInstanceDialog({
   };
 
   // A policy that owns this driver's launch settings also rules out ChatGPT's own runtime.
-  const driverLocks = managedInstanceLocks(managedPolicy, driver);
+  const driverLocks = managedInstanceLocks(managedPolicy, driver, t); // fork: interface language
 
   const handleSave = async () => {
     if (!readEnvironmentScope(environmentId, AuthProvidersManageScope)) return;

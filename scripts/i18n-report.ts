@@ -30,6 +30,9 @@ const CALL_PATTERNS: ReadonlyArray<RegExp> = [
   new RegExp(String.raw`\bquantity\(\s*[^,]+,\s*"[^"]*"\s*,\s*` + QUOTED, "g"),
 ];
 const ANY_STRING = new RegExp(STRING, "g");
+// fork: any file that can hand text to a translator.
+const TRANSLATOR_USE = /\btranslatorFor\(|\bt\(|\btranslate\(|<Translated\b/u;
+const FIXED_WORD = /[A-Za-z]{3,}/u;
 // fork: a template with `${}` matches the catalog key it renders to, interpolations as wildcards.
 const INTERPOLATED_TEMPLATE = /`((?:[^`\\$]|\\.|\$(?!\{))*\$\{(?:[^`\\]|\\.)*)`/g;
 
@@ -206,6 +209,11 @@ export function scanIndirectSources(
   const sourcesOf = (argument: unknown): ReadonlyArray<string> => {
     const direct = literalString(argument);
     if (direct !== null) return [direct];
+    // fork: `t(cond ? "A" : "B")` reaches both branches.
+    const conditional = unwrapExpression(argument);
+    if (conditional?.type === "ConditionalExpression") {
+      return [conditional.consequent, conditional.alternate].flatMap(sourcesOf);
+    }
     const path: string[] = [];
     let target = unwrapExpression(argument);
     while (target?.type === "MemberExpression") {
@@ -245,6 +253,81 @@ export function scanIndirectSources(
   };
   walk(program);
   return sources;
+}
+
+export interface CallKey {
+  readonly source: string;
+  /** A literal context, null when the call passes none, undefined when it is not a literal. */
+  readonly context: string | null | undefined;
+}
+
+/**
+ * Direct `t(source, params, context)` and `translate(locale, source, params, context)` calls with
+ * their literal context. The catalog holds a contextual entry under `context|source`, so a call
+ * without that context does not reach it, whatever the bare source is called elsewhere.
+ */
+export function scanCallKeys(
+  code: string,
+  fileName: string,
+  program: unknown = parseAst(code, { lang: fileName.endsWith(".tsx") ? "tsx" : "ts" }),
+): ReadonlyArray<CallKey> {
+  const keys: CallKey[] = [];
+  const literalSources = (argument: unknown): ReadonlyArray<string> => {
+    const direct = literalString(argument);
+    if (direct !== null) return [direct];
+    const expression = unwrapExpression(argument);
+    return expression?.type === "ConditionalExpression"
+      ? [expression.consequent, expression.alternate].flatMap(literalSources)
+      : [];
+  };
+  const contextOf = (argument: unknown): string | null | undefined => {
+    if (argument === undefined) return null;
+    const literal = literalString(argument);
+    if (literal !== null) return literal;
+    const expression = unwrapExpression(argument);
+    return expression?.type === "Identifier" && expression.name === "undefined" ? null : undefined;
+  };
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (!isAstNode(node)) return;
+    if (node.type === "CallExpression") {
+      const callee = node.callee as AstNode;
+      const args = node.arguments as ReadonlyArray<unknown>;
+      const name = callee.type === "Identifier" ? String(callee.name) : null;
+      const offset = name === "t" ? 0 : name === "translate" ? 1 : null;
+      if (offset !== null && args.length > offset) {
+        for (const source of literalSources(args[offset])) {
+          if (ENGLISH_WORD.test(source)) {
+            keys.push({ source, context: contextOf(args[offset + 2]) });
+          }
+        }
+      }
+    }
+    Object.values(node).forEach(walk);
+  };
+  walk(program);
+  return keys;
+}
+
+/** The catalog key a call must find: `context|source`, or the bare source without a context. */
+export function callCatalogKey({ source, context }: CallKey): string | null {
+  return context === undefined
+    ? null
+    : context === null
+      ? source
+      : `${context}${CONTEXT_SEPARATOR}${source}`;
+}
+
+/** A template's text as a pattern for the sources it can render; null when it would match any text. */
+export function templateSourcePattern(template: string): RegExp | null {
+  const parts = template.replace(/\\(.)/gs, "$1").split(/\$\{[^}]*\}/u);
+  // Fixed text with no word (`${a}, ${b}`) matches every sentence, so no key could go stale.
+  if (!parts.some((part) => FIXED_WORD.test(part))) return null;
+  const escaped = parts.map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`^${escaped.join(".+")}$`, "su");
 }
 
 // fork: the "hard-coded" section finds English JSX that bypasses t(). The two allowlists below are
@@ -948,6 +1031,8 @@ function main(): void {
   ];
 
   const called = new Map<string, string>();
+  // fork: the catalog keys direct calls need, per source; null stands for a context not in the code.
+  const neededKeys = new Map<string, Set<string | null>>();
   const literals = new Set<string>();
   const templates: RegExp[] = [];
   for (const file of roots.flatMap(sourceFiles)) {
@@ -956,9 +1041,8 @@ function main(): void {
     // JSX attribute strings are not JS string literals, but carry English sources too.
     for (const match of text.matchAll(/=\s*"([^"\n]*)"/g)) literals.add(match[1]!);
     for (const match of text.matchAll(INTERPOLATED_TEMPLATE)) {
-      const parts = match[1]!.replace(/\\(.)/gs, "$1").split(/\$\{[^}]*\}/u);
-      const escaped = parts.map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-      templates.push(new RegExp(`^${escaped.join(".+")}$`, "su"));
+      const pattern = templateSourcePattern(match[1]!);
+      if (pattern !== null) templates.push(pattern);
     }
     for (const pattern of CALL_PATTERNS) {
       for (const match of text.matchAll(pattern)) {
@@ -969,7 +1053,12 @@ function main(): void {
       }
     }
     // fork: curried translators and label tables read through t() carry sources too.
-    if (!/\btranslatorFor\(|\bt\(|\btranslate\(/u.test(text)) continue;
+    if (!TRANSLATOR_USE.test(text)) continue;
+    for (const call of scanCallKeys(text, file, parseSource(file, text))) {
+      const needed = neededKeys.get(call.source) ?? new Set<string | null>();
+      needed.add(callCatalogKey(call));
+      neededKeys.set(call.source, needed);
+    }
     for (const { line, source } of scanIndirectSources(text, file, parseSource(file, text))) {
       literals.add(source);
       if (!called.has(source)) called.set(source, `${file}:${line}`);
@@ -1002,8 +1091,13 @@ function main(): void {
   for (const locale of locales) {
     const keys = keysByLocale.get(locale)!;
     const sources = new Set(keys.map(catalogKeySource));
+    const exactKeys = new Set(keys);
     const missing = [...called].filter(
-      ([source]) => !sources.has(source) && !INTENTIONALLY_UNTRANSLATED.has(source),
+      ([source]) =>
+        !INTENTIONALLY_UNTRANSLATED.has(source) &&
+        (!sources.has(source) ||
+          // fork: a contextual entry only serves calls that pass its context.
+          [...(neededKeys.get(source) ?? [])].some((key) => key !== null && !exactKeys.has(key))),
     );
     const stale = keys.filter((key) => {
       const source = catalogKeySource(key);

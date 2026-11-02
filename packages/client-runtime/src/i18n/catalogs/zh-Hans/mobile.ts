@@ -718,8 +718,6 @@ export default {
   "Could not update environment": "无法更新环境",
   "The environment could not be updated.": "无法更新这个环境。",
   "Manage {environmentLabel}": "管理 {environmentLabel}",
-  Collapse: "收起",
-  Expand: "展开",
   "Retrying · attempt {attempt}": "正在重试 · 第 {attempt} 次",
   "Enable {environmentLabel}": "启用 {environmentLabel}",
   "Managed by T3 Connect. Tunnel details update automatically.":
