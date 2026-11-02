@@ -2142,6 +2142,8 @@ export default {
   Nov: "11月",
   Dec: "12月",
   "{date}, {time}": "{date} {time}",
+  "{hour} AM": "上午 {hour} 点",
+  "{hour} PM": "下午 {hour} 点",
   "{hour} today": "今天 {hour}",
   "{hour} yesterday": "昨天 {hour}",
   "{start} to {end}": "{start} 至 {end}",
@@ -2691,6 +2693,7 @@ export default {
     "此应用找到的是 {found}，比 {version} 旧。请过几分钟再试。",
   "This app found no build of {version} to install.": "此应用没有找到可安装的 {version}。",
   "e.g. dsh": "例如 dsh",
+  "e.g. --chrome": "例如 --chrome",
   "t3x command": "t3x 命令",
   "This environment is managed by {organization}.": "此环境由 {organization} 管理。",
   "This environment is managed by {organization}. Some settings and features follow its policy.":

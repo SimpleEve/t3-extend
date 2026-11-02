@@ -1,3 +1,4 @@
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 /** Resolves web references without inheriting the desktop renderer's custom app scheme. */
 export function resolveProtocolRelativeMediaUrl(src: string): string {
   if (!src.startsWith("//")) return src;
@@ -51,7 +52,11 @@ async function fetchMediaBlob(src: string): Promise<Blob> {
     return new Blob([new Uint8Array(native.data)], { type: native.mimeType });
   }
   const status = native?.status ?? response?.status;
-  if (status !== undefined) throw new Error(`The file could not be fetched (HTTP ${status}).`);
+  if (status !== undefined) {
+    throw new Error(
+      translate(getUiLocale(), "The file could not be fetched (HTTP {status}).", { status }), // fork: i18n
+    );
+  }
   throw new Error(
     desktop
       ? "The file could not be fetched. Check the connection and try again."

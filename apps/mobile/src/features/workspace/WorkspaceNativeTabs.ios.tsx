@@ -127,7 +127,7 @@ export function WorkspaceNativeTabs(props: {
               key={slot}
               screenKey={slot}
               title=""
-              tabBarItemAccessibilityLabel={settings ? t("Settings") : WORKSPACE_TAB_LABELS[tab]}
+              tabBarItemAccessibilityLabel={settings ? t("Settings") : t(WORKSPACE_TAB_LABELS[tab])}
               ios={{
                 icon: settings
                   ? { type: "sfSymbol", name: "gearshape" }

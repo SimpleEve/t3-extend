@@ -4,6 +4,8 @@ import * as Linking from "expo-linking";
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import { useAppearancePreferences } from "../features/settings/appearance/AppearancePreferencesProvider";
+import type { UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { useUiLocale } from "../hooks/useT"; // fork: i18n
 import { environmentCatalog } from "../connection/catalog";
 import { environmentPresentations } from "../state/presentation";
 import { publishSubscriptionUsage } from "./publishSubscriptionUsage";
@@ -11,13 +13,17 @@ import { buildSubscriptionUsageSnapshot } from "./subscriptionUsageSnapshot";
 import { createWidgetTheme } from "./widgetTheme";
 
 // Isolate quota changes from the much busier thread/config presentation stream.
-const snapshotAtom = Atom.make((get) =>
-  buildSubscriptionUsageSnapshot(
-    get(environmentPresentations.presentationsWithProvidersAtom),
-    Linking.createURL("settings/usage", { queryParams: { tab: "limits" } }),
-    Platform.OS === "android" ? Infinity : 6,
-  ),
-).pipe(Atom.withEquality((a, b) => JSON.stringify(a) === JSON.stringify(b)));
+// fork: i18n. One snapshot per interface language, because the widget shows the strings in it.
+const snapshotAtom = Atom.family((locale: UiLocale) =>
+  Atom.make((get) =>
+    buildSubscriptionUsageSnapshot(
+      get(environmentPresentations.presentationsWithProvidersAtom),
+      Linking.createURL("settings/usage", { queryParams: { tab: "limits" } }),
+      Platform.OS === "android" ? Infinity : 6,
+      locale,
+    ),
+  ).pipe(Atom.withEquality((a, b) => JSON.stringify(a) === JSON.stringify(b))),
+);
 
 export function SubscriptionUsageCoordinator() {
   const {
@@ -27,7 +33,7 @@ export function SubscriptionUsageCoordinator() {
     isReady: appearanceReady,
   } = useAppearancePreferences();
   const catalog = useAtomValue(environmentCatalog.catalogValueAtom);
-  const snapshot = useAtomValue(snapshotAtom);
+  const snapshot = useAtomValue(snapshotAtom(useUiLocale())); // fork: i18n
   const androidAppearance = Platform.OS === "android" ? themeAppearance : null;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- publishes subscription usage and theme to the native home screen widget
   useEffect(() => {

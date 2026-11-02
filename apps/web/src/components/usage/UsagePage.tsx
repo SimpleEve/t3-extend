@@ -1054,7 +1054,7 @@ function UsageOverview({
                     >
                       <td className="py-2 text-foreground">
                         {"hourStart" in period
-                          ? formatHourShort(period.hourStart, shownWindow.timeZone, hour12)
+                          ? formatHourShort(period.hourStart, shownWindow.timeZone, hour12, t)
                           : formatDayShort(period.day, t)}
                       </td>
                       {activeProviders.map((provider) => (

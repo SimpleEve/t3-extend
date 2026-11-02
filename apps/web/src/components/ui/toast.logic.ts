@@ -1,3 +1,4 @@
+import { translate, type UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import type { ScopedThreadRef, ThreadId } from "@t3tools/contracts";
 
 /** Base UI updates omit undefined; clear actions with defined actionProps and empty children, treated as
@@ -112,4 +113,21 @@ export function shouldRenderThreadScopedToast(
   }
 
   return activeThreadRef?.threadId === toastThreadId;
+}
+
+/**
+ * fork: i18n. Client code raises toasts with fixed English error text (`new Error("Upload failed")`).
+ * Look that text up when the toast is shown; text that is already translated, or not in the
+ * catalog, passes through unchanged.
+ */
+export function localizeToastText<Options extends { title?: unknown; description?: unknown }>(
+  options: Options,
+  locale: UiLocale,
+): Options {
+  const localized = { ...options };
+  if (typeof options.title === "string") localized.title = translate(locale, options.title);
+  if (typeof options.description === "string") {
+    localized.description = translate(locale, options.description);
+  }
+  return localized;
 }

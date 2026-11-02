@@ -1,4 +1,5 @@
 import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
+import { localizeTerminalLabel } from "@t3tools/shared/terminalLabels"; // fork: i18n
 import { readLocalApi } from "~/localApi";
 
 let pendingConfirmations = 0;
@@ -14,11 +15,15 @@ export async function confirmTerminalClose(
   if (!localApi) return true;
   pendingConfirmations += 1;
   const locale = getUiLocale();
+  // fork: i18n. Show the generated "Terminal N" name in the interface language.
+  const localize = (label: string) =>
+    localizeTerminalLabel(label, (source, params) => translate(locale, source, params));
+  const names = labels.map(localize);
   try {
     return await localApi.dialogs.confirm(
       labels.length === 1
         ? [
-            translate(locale, 'Close terminal "{label}"?', { label: labels[0] }),
+            translate(locale, 'Close terminal "{label}"?', { label: localize(labels[0]) }),
             translate(locale, "This stops the running process and clears its history."),
           ].join("\n")
         : [
@@ -27,7 +32,7 @@ export async function confirmTerminalClose(
               locale,
               "This stops their running processes and clears their histories: {labels}.",
               {
-                labels: labels.map((label) => `"${label}"`).join(translate(locale, ", ")),
+                labels: names.map((label) => `"${label}"`).join(translate(locale, ", ")),
               },
             ),
           ].join("\n"),
