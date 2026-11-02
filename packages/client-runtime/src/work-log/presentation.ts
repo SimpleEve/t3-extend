@@ -12,6 +12,11 @@ import {
 import {
   resolveT3McpSummaryAction,
   resolveT3McpToolDefinition,
+  T3_TOOL_ACTION_CONTEXT,
+  T3_TOOL_CONTEXT,
+  T3_TOOL_DONE_CONTEXT,
+  T3_TOOL_RUNNING_CONTEXT,
+  T3_TOOL_TARGET_CONTEXT,
   type T3McpToolDefinition,
   type T3McpToolSummaryAction,
 } from "@t3tools/shared/t3McpToolPresentation";
@@ -170,22 +175,11 @@ function workEntryToolOutput(
 function resolveT3McpToolPresentation(
   definition: T3McpToolDefinition | null,
   status: string | undefined,
-  data?: unknown,
+  data: unknown,
+  t: WorkLogPhraseTranslator,
 ) {
   if (!definition) return null;
   const [action, running, completed, detail] = definition.labels;
-  const verb =
-    status === "inProgress"
-      ? running
-      : status === "completed"
-        ? completed
-        : status === "failed"
-          ? `Failed to ${action.toLowerCase()}`
-          : status === "declined"
-            ? `Declined to ${action.toLowerCase()}`
-            : status === "stopped"
-              ? `Stopped ${running.toLowerCase()}`
-              : running;
 
   const actionKind =
     definition.summaryAction === "link-pr" ||
@@ -210,9 +204,31 @@ function resolveT3McpToolPresentation(
     Number.isSafeInteger(number) &&
     number > 0
       ? `${shortLabel} #${number}`
-      : detail;
+      : t(detail, undefined, T3_TOOL_TARGET_CONTEXT);
+  const present = (verb: string, verbContext: string) =>
+    t("{verb} {target}", { verb: t(verb, undefined, verbContext), target }, T3_TOOL_CONTEXT);
+  const lowered = (verb: string, verbContext: string) =>
+    t(verb, undefined, verbContext).toLowerCase();
   return {
-    displayName: `${verb} ${target}`,
+    displayName:
+      status === "completed"
+        ? present(completed, T3_TOOL_DONE_CONTEXT)
+        : status === "failed"
+          ? t("Failed to {verb} {target}", {
+              verb: lowered(action, T3_TOOL_ACTION_CONTEXT),
+              target,
+            })
+          : status === "declined"
+            ? t("Declined to {verb} {target}", {
+                verb: lowered(action, T3_TOOL_ACTION_CONTEXT),
+                target,
+              })
+            : status === "stopped"
+              ? t("Stopped {verb} {target}", {
+                  verb: lowered(running, T3_TOOL_RUNNING_CONTEXT),
+                  target,
+                })
+              : present(running, T3_TOOL_RUNNING_CONTEXT),
     icon: definition.icon,
     ...(actionKind === undefined ? {} : { action: actionKind }),
   };
@@ -232,6 +248,7 @@ export function resolveWorkEntryToolPresentation(
     "label" | "toolTitle" | "toolData" | "toolLifecycleStatus" | "structuredPayload"
   >,
   fallbackStatus?: "inProgress" | "completed",
+  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ) {
   const definition = resolveT3McpToolDefinition(
     workEntryToolName(entry),
@@ -242,6 +259,7 @@ export function resolveWorkEntryToolPresentation(
     definition,
     definition && t3ToolResultIndicatesFailure(workEntryToolOutput(entry)) ? "failed" : status,
     entry.toolData,
+    t,
   );
 }
 

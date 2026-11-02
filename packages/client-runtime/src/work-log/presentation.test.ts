@@ -264,6 +264,23 @@ describe("tool summaries in the interface language", () => {
     expect(summarizeToolGroup(entries, zh()).summary).toBe(chinese);
   });
 
+  it.each([
+    ["inProgress", "Reading a project", "正在读取 项目"],
+    ["completed", "Read a project", "已读取 项目"],
+    ["failed", "Failed to read a project", "未能读取 项目"],
+    ["declined", "Declined to read a project", "已拒绝读取 项目"],
+    ["stopped", "Stopped reading a project", "已停止：正在读取 项目"],
+  ] as const)("names a %s T3 tool call", (toolLifecycleStatus, english, chinese) => {
+    const entry = {
+      label: "t3_project_read",
+      toolTitle: "t3_project_read",
+      toolData: { toolName: "t3_project_read" },
+      toolLifecycleStatus,
+    } as const;
+    expect(resolveWorkEntryToolPresentation(entry)?.displayName).toBe(english);
+    expect(resolveWorkEntryToolPresentation(entry, undefined, zh())?.displayName).toBe(chinese);
+  });
+
   it("labels subagent groups and their statuses", () => {
     const members = [{ status: "running" }, { status: "completed" }, { status: "failed" }] as const;
     expect(subagentGroupSummary(members).label).toBe("Kicked off 3 subagents");

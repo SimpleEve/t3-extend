@@ -13,6 +13,7 @@ import settings from "./settings.ts";
 import settingsPanels from "./settingsPanels.ts";
 import sharing from "./sharing.ts";
 import sidebar from "./sidebar.ts";
+import t3Tools from "./t3Tools.ts";
 import time from "./time.ts";
 import workspace from "./workspace.ts";
 
@@ -33,6 +34,7 @@ export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   settingsPanels,
   sharing,
   sidebar,
+  t3Tools,
   time,
   workspace,
 };
