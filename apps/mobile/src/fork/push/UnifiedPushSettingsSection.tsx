@@ -30,16 +30,14 @@ export function UnifiedPushSettingsSection() {
   const { native } = state;
   const step = unifiedPushSetupStep(state);
 
-  const run = async (action: () => Promise<void>) => {
-    if (inFlight.current) return;
+  const run = (action: () => Promise<void>): Promise<void> => {
+    if (inFlight.current) return Promise.resolve();
     inFlight.current = true;
     setBusy(true);
-    try {
-      await action();
-    } finally {
+    return action().finally(() => {
       inFlight.current = false;
       setBusy(false);
-    }
+    });
   };
 
   const toggle = (enabled: boolean) =>

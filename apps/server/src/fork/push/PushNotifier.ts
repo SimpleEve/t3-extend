@@ -221,7 +221,13 @@ export const make = Effect.gen(function* () {
 
   const processThread = Effect.fn("PushNotifier.processThread")(function* (threadId: ThreadId) {
     // No device registered means no reason to read anything.
-    if ((yield* registrations.list).length === 0) return;
+    if ((yield* registrations.list).length === 0) {
+      // Phases are not tracked while nobody listens; the next device starts from a fresh baseline.
+      seeded = false;
+      memory.clear();
+      completionDeadlines.clear();
+      return;
+    }
     yield* seed;
     const environmentId = yield* serverEnvironment.getEnvironmentId;
     const shell = yield* threads.getThreadShell(threadId);

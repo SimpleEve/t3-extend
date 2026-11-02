@@ -1,0 +1,15 @@
+# ntfy 作为 UnifiedPush 推送服务器。域名和 base-url 来自 docker-compose.yml 的环境变量。
+listen-http: ":80"
+# 前面是 Caddy，按 X-Forwarded-For 区分访客。
+behind-proxy: true
+cache-file: /var/cache/ntfy/cache.db
+auth-file: /var/lib/ntfy/user.db
+# 匿名用户默认什么都不能读写；手机用自己的账号读，T3 Extend 匿名只能写 up 开头的主题。
+auth-default-access: deny-all
+auth-access:
+  - "*:up*:write-only"
+# 不开放注册和网页登录，账号只在服务器上用命令行创建。
+enable-signup: false
+enable-login: false
+# 只转发 UnifiedPush，不需要邮件、附件和 iOS 中转。
+attachment-cache-dir: ""

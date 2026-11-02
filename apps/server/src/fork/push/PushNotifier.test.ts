@@ -137,7 +137,7 @@ interface Sent {
   readonly url: string;
   readonly headers: Headers;
   readonly body: Uint8Array;
-  readonly redirect: RequestRedirect | undefined;
+  readonly redirect: string | undefined;
 }
 
 const makeHarness = Effect.fnUntraced(function* (
@@ -259,9 +259,10 @@ const makeHarness = Effect.fnUntraced(function* (
     Effect.provideService(FetchHttpClient.Fetch, fetch),
   );
 
+  let eventCounter = 0;
   const eventFor = (threadId: ThreadId, current: OrchestrationV2ThreadShell) =>
     ({
-      id: EventId.make(`event:${threadId}:${Math.random()}`),
+      id: EventId.make(`event:${threadId}:${eventCounter++}`),
       type: "thread.settled",
       threadId,
       occurredAt: DateTime.makeUnsafe(NOW),
@@ -681,6 +682,27 @@ describe("push triggers", () => {
       yield* harness.start;
       yield* harness.emit(THREAD_ID, awaitingApproval());
       assert.equal(harness.sent.length, 0);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("starts from a fresh baseline after the last device unregisters", () =>
+    Effect.gen(function* () {
+      const { start, emit, sent, registrations, notifier } = yield* withDevices();
+      yield* start;
+      yield* registrations.remove({ sessionId: session("session-1"), deviceId: "device-all" });
+      yield* registrations.remove({
+        sessionId: session("session-2"),
+        deviceId: "device-failures",
+      });
+      // The thread starts waiting while nobody is registered.
+      yield* emit(THREAD_ID, awaitingApproval());
+      yield* registrations.upsert({
+        sessionId: session("session-1"),
+        registration: makeReceiver("https://ntfy.example.test/upAgain", "device-all").input(),
+      });
+      yield* notifier.prepare;
+      yield* emit(THREAD_ID, awaitingApproval());
+      assert.equal(sent.length, 0);
     }).pipe(Effect.scoped),
   );
 

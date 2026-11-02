@@ -1,4 +1,4 @@
-# T3_DOMAIN 和 ACME_EMAIL 来自 docker-compose.yml 的环境变量（.env）。
+# T3_DOMAIN、NTFY_DOMAIN 和 ACME_EMAIL 来自 docker-compose.yml 的环境变量（.env）。
 {
 	email {$ACME_EMAIL}
 }
@@ -16,4 +16,13 @@
 
 	# 不在这里加 basic auth：T3 的配对页、/.well-known 和 /oauth/token 必须能直接访问。
 	# 认证由 T3 server 负责（一次性配对码 + 可撤销会话 + 失败限速）。
+}
+
+# UnifiedPush 推送服务器 ntfy，用独立域名。T3 Extend 所在的电脑向它 POST 加密后的通知，手机上的 ntfy 应用订阅它。
+# 访问控制由 ntfy 自己负责（匿名不能读，匿名只能写 up 开头的主题），所以这里同样不加 basic auth。
+{$NTFY_DOMAIN} {
+    reverse_proxy ntfy:80 {
+        # 手机上的 ntfy 应用靠长连接（WebSocket / 流式响应）收消息，不能缓冲。
+        flush_interval -1
+    }
 }

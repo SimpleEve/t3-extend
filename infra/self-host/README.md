@@ -100,15 +100,54 @@ t3x up --clear-public-urls                            # 删除保存的公网地
 
 `--public-url` 可以重复写多次，每次传入的列表会替换之前保存的列表。也可以用环境变量 `T3CODE_PUBLIC_URLS=https://a.example.com,https://b.example.com`，它和保存的列表合并，但不会写入保存的列表。
 
+## 推送通知：ntfy（可选，Android）
+
+不想依赖 Firebase、Google Play 服务，也不用 T3 Connect，也能在手机上收到 Agent 完成、失败、需要批准、需要回答的提醒：同一台 VPS 上多跑一个 [ntfy](https://ntfy.sh)，它是 UnifiedPush 推送服务器。家里的 T3 Extend 把每条通知用手机的公钥加密后 POST 给 ntfy，手机上的 ntfy 应用收到后交给 T3 Extend 解密并显示。ntfy 只经手密文。
+
+```
+家里: T3 Extend ──HTTPS POST 密文──▶ VPS: Caddy ──▶ ntfy ◀──长连接── 手机: ntfy 应用 ──▶ T3 Extend 解密、显示
+```
+
+### 部署
+
+1. 给推送服务器再加一条 A 记录，例如 `ntfy.example.com → VPS 公网 IP`，在 `.env` 里填 `NTFY_DOMAIN=ntfy.example.com`。不需要放行新的端口，ntfy 的 80 端口只在 compose 内部网络里，由 Caddy 在 443 上代理。
+2. `docker compose up -d`。`ntfy/server.yml` 已经配好：
+   - `auth-default-access: deny-all`：匿名用户不能读任何主题。
+   - `auth-access: "*:up*:write-only"`：匿名用户只能**写**以 `up` 开头的主题，也就是 UnifiedPush 的主题。家里的 T3 Extend 不带账号，靠这一条推送。
+   - 关闭注册和网页登录，账号只在服务器上创建。
+3. 创建手机用的账号，只给读 `up*` 的权限：
+
+   ```bash
+   docker compose exec ntfy ntfy user add phone          # 按提示输入密码
+   docker compose exec ntfy ntfy access phone 'up*' read-only
+   docker compose exec ntfy ntfy access                  # 应该看到 phone 只读 up*，匿名只写 up*
+   ```
+
+### 手机
+
+1. 在 F-Droid 安装 **ntfy**，打开 Settings，把 Default server 设为 `https://ntfy.example.com`，在 Manage users 里添加 `phone` 账号和密码。
+2. 打开 T3 Extend → Settings → Notifications → Push notifications，允许通知。屏幕上会显示推送应用和服务器地址，每个环境一行"已注册"。点环境下的 Send test notification，几秒内应该收到测试通知。
+
+### 家里的电脑
+
+不需要额外配置。T3 Extend 把推送地址和密钥保存在状态目录的 `secrets/` 里（文件权限 0600）。家里的电脑必须能访问 `https://ntfy.example.com`。
+
+### 安全说明
+
+- 推送地址（含 `up…` 主题名）本身就是凭据：知道它的人可以往里写。T3 Extend 不会把完整地址写进日志或显示在界面上，只显示主机名。
+- 任何人往主题里写的数据，如果不是用手机的密钥加密的，手机上的连接库会直接丢弃，不会显示。
+
 ## 排查
 
-| 现象                       | 检查                                                                                                                 |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 浏览器打不开地址，证书错误 | A 记录是否生效（`dig t3.example.com`），80/443 是否放行，`docker compose logs caddy`                                 |
-| 502 Bad Gateway            | frpc 没连上：看 Tunnel command 的状态和错误，或者 `docker compose logs frps`；token 是否一致；家里 T3 是否在运行     |
-| 能打开页面但配对失败       | 先在家里电脑上访问 `curl https://t3.example.com/.well-known/t3/environment`，看返回的 environmentId 是否就是这台机器 |
-| 配对时提示 429             | 这个地址最近失败次数太多，等一分钟再试                                                                               |
-| 手机出门后连不上           | 在家里先连一次，让它学到公网地址；或者用公网地址重新配对一次                                                         |
+| 现象                         | 检查                                                                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 浏览器打不开地址，证书错误   | A 记录是否生效（`dig t3.example.com`），80/443 是否放行，`docker compose logs caddy`                                 |
+| 502 Bad Gateway              | frpc 没连上：看 Tunnel command 的状态和错误，或者 `docker compose logs frps`；token 是否一致；家里 T3 是否在运行     |
+| 能打开页面但配对失败         | 先在家里电脑上访问 `curl https://t3.example.com/.well-known/t3/environment`，看返回的 environmentId 是否就是这台机器 |
+| 配对时提示 429               | 这个地址最近失败次数太多，等一分钟再试                                                                               |
+| 手机出门后连不上             | 在家里先连一次，让它学到公网地址；或者用公网地址重新配对一次                                                         |
+| 测试通知提示服务器拒绝       | 推送服务器返回了 401 / 403：`docker compose exec ntfy ntfy access` 里匿名用户必须是 `write-only` 且主题是 `up*`      |
+| 测试通知发送成功但手机没收到 | 手机上的 ntfy 应用要保持后台运行（关掉电池优化），并用 `phone` 账号登录同一个服务器；看 ntfy 应用里是否有 `up…` 主题 |
 
 ## 零代码的备选方案：Headscale + 自建国内 DERP
 

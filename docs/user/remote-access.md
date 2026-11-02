@@ -229,6 +229,9 @@ On a headless server, save the address with `t3 up --public-url <url>` (repeat
 for several, `--clear-public-urls` to remove them) or set `T3CODE_PUBLIC_URLS`,
 and print a QR code with `t3 pair --base-url <url>`.
 
+The same server can also push alerts to your phone without Google services; see
+[Push without Google](./mobile-notifications.md#push-without-google).
+
 Whoever runs the proxy can read your traffic, because TLS ends there. Use a
 server only you control. Failed pairing codes are rate limited per client
 address: after 20 failures in a minute, that address waits 60 seconds. Other
