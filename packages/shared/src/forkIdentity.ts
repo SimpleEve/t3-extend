@@ -18,8 +18,25 @@ export const FORK = {
   bootServiceName: "t3extend",
   bootServiceLabel: "com.simpleeve.t3extend.service",
   defaultPort: 3873,
+  /** HTTPS port of the fork's Tailscale Serve route; official T3 Code takes 443 on the same tailnet name. */
+  tailscaleServePort: 8443,
+  /** First segment of the branch and ref names the fork writes into user repos; official T3 Code uses `t3` and `t3code`. */
+  gitNamespace: "t3x",
   releaseRepository: "SimpleEve/t3-extend",
 } as const;
+
+/** Official T3 Code's HTTPS port on the tailnet name. The fork never publishes or removes a route on it. */
+export const OFFICIAL_TAILSCALE_SERVE_PORT = 443;
+
+/** How the official app is named in text the fork shows, so the brand guard has one place to allow. */
+export const OFFICIAL_APP_NAME = "T3 Code";
+
+/**
+ * Where no user can be shown a message (stored settings, environment, bootstrap, flags), a 443
+ * becomes the fork's own port. Typed input is rejected instead; see `tailscaleServePortProblem`.
+ */
+export const forkTailscaleServePort = (port: number): number =>
+  port === OFFICIAL_TAILSCALE_SERVE_PORT ? FORK.tailscaleServePort : port;
 
 /** SSH remote hosts get official T3 Code's server; the fork publishes no server archives. */
 export const OFFICIAL_CLI_RELEASE_DOWNLOAD_URL =

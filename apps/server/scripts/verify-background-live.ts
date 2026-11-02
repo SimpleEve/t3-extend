@@ -1,4 +1,5 @@
 // @effect-diagnostics nodeBuiltinImport:off globalTimers:off globalDate:off globalFetch:off globalConsole:off preferSchemaOverJson:off - Host-side process verifier retains raw wire evidence and owns deadline timers.
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as NodeAssert from "node:assert/strict";
 import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "node:crypto";
@@ -219,7 +220,7 @@ function startServer() {
       host: "127.0.0.1",
       desktopBootstrapToken: bootstrap,
       tailscaleServeEnabled: false,
-      tailscaleServePort: 443,
+      tailscaleServePort: FORK.tailscaleServePort, // fork: own Tailscale Serve port
     }),
   );
   const ready = Promise.withResolvers<void>();

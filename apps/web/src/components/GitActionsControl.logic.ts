@@ -3,7 +3,7 @@ import type {
   GitStackedAction,
   VcsStatusResult,
 } from "@t3tools/contracts";
-import { isTemporaryWorktreeBranch } from "@t3tools/shared/git";
+import { looksLikeTemporaryWorktreeBranch } from "@t3tools/shared/git"; // fork: display-only predicate
 import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 import { translatorFor, type UiLocale } from "@t3tools/client-runtime/i18n";
 import {
@@ -461,8 +461,8 @@ export function resolveLiveThreadBranchUpdate(input: {
   if (
     input.threadBranch !== null &&
     input.gitStatus.refName !== null &&
-    !isTemporaryWorktreeBranch(input.threadBranch) &&
-    isTemporaryWorktreeBranch(input.gitStatus.refName)
+    !looksLikeTemporaryWorktreeBranch(input.threadBranch) &&
+    looksLikeTemporaryWorktreeBranch(input.gitStatus.refName)
   ) {
     return null;
   }

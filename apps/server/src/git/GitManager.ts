@@ -50,6 +50,7 @@ import {
 import {
   mergeGitStatusParts,
   resolveAutoFeatureBranchName,
+  PULL_REQUEST_BRANCH_PREFIX, // fork: own branch prefix
   sanitizeBranchFragment,
   sanitizeFeatureBranchName,
 } from "@t3tools/shared/git";
@@ -263,7 +264,7 @@ function resolvePullRequestWorktreeLocalBranchName(
 
   const sanitizedHeadBranch = sanitizeBranchFragment(pullRequest.headBranch).trim();
   const suffix = sanitizedHeadBranch.length > 0 ? sanitizedHeadBranch : "head";
-  return `t3code/pr-${pullRequest.number}/${suffix}`;
+  return `${PULL_REQUEST_BRANCH_PREFIX}-${pullRequest.number}/${suffix}`; // fork: own branch prefix
 }
 
 export function parseRepositoryNameWithOwnerFromRemoteUrl(

@@ -17,6 +17,7 @@ import * as Metric from "effect/Metric";
 import { assert, it } from "@effect/vitest";
 
 import { CheckpointRef, GitCommandError, VcsProcessExitError } from "@t3tools/contracts";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
 import * as ServerConfig from "../config.ts";
@@ -129,6 +130,50 @@ it.effect("lists the fetch and push URLs of a partial clone remote", () =>
         isPrimary: true,
       },
     ]);
+  }).pipe(Effect.scoped, Effect.provide(layerGitContract)),
+);
+
+it.effect("keeps the commit a reset moves away from under the fork's own ref", () =>
+  Effect.gen(function* () {
+    const fileSystem = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const driver = yield* GitVcsDriver.GitVcsDriver;
+    const cwd = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-pre-refresh-" });
+    const git = (args: ReadonlyArray<string>) =>
+      driver
+        .execute({ operation: "GitVcsDriver.test.preRefresh", cwd, args, timeoutMs: 10_000 })
+        .pipe(Effect.map((result) => result.stdout.trim()));
+    const commit = (file: string) =>
+      fileSystem
+        .writeFileString(path.join(cwd, file), `${file}\n`)
+        .pipe(
+          Effect.andThen(git(["add", file])),
+          Effect.andThen(git(["commit", "-m", file])),
+          Effect.andThen(git(["rev-parse", "HEAD"])),
+        );
+
+    yield* git(["init"]);
+    yield* git(["config", "user.email", "test@test.com"]);
+    yield* git(["config", "user.name", "Test"]);
+    yield* commit("base.txt");
+    const branch = yield* git(["symbolic-ref", "--short", "HEAD"]);
+    const previousHead = yield* commit("previous.txt");
+    yield* git(["checkout", "-b", "rewritten", "HEAD~1"]);
+    const targetCommit = yield* commit("rewritten.txt");
+    yield* git(["checkout", branch]);
+
+    const result = yield* driver.refreshCheckedOutBranch({
+      cwd,
+      targetCommit,
+      resetWhenHeadCommit: previousHead,
+    });
+
+    assert.deepStrictEqual(result, { headCommit: targetCommit, moved: true, onTarget: true });
+    assert.strictEqual(
+      yield* git(["rev-parse", `refs/${FORK.gitNamespace}/pre-refresh`]),
+      previousHead,
+    );
+    assert.strictEqual(yield* git(["for-each-ref", "refs/t3code"]), "");
   }).pipe(Effect.scoped, Effect.provide(layerGitContract)),
 );
 

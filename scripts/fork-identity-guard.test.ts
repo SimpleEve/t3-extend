@@ -44,6 +44,58 @@ it.layer(NodeServices.layer)("fork-identity-guard", (it) => {
     }),
   );
 
+  // Shared external state: each of these hands the fork something official T3 Code also owns.
+  it.effect.each([
+    "export const DEFAULT_TAILSCALE_SERVE_PORT = 443;",
+    "const settings = { tailscaleServePort: 443 };",
+    "const port = pick(flag, () => 443, other);",
+    'const ref = "refs/t3code/pre-refresh";',
+    "const ref = `refs/t3/review-guide/${runId}/base`;",
+    "const branch = `t3code/pr-${number}/${name}`;",
+    'export const WORKTREE_BRANCH_PREFIX = "t3";',
+    '  branchNamePrefix: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed("t3"))),',
+    "const own = new RegExp(`^(?:t3code(?:[-/]${hex}))$`);",
+    "const strip = new RegExp(`^(?:${PREFIX}|t3|t3code)/`);",
+  ])("rejects the shared-state literal %s", (source) =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "fork-guard-shared-" });
+      installGuard(root);
+      yield* fs.makeDirectory(path.join(root, "apps", "server", "src"), { recursive: true });
+      yield* fs.writeFileString(
+        path.join(root, "apps", "server", "src", "shared.ts"),
+        `${source}\n`,
+      );
+
+      const result = runGuard(root);
+      assert.notEqual(result.status, 0);
+      assert.include(result.stderr, "apps/server/src/shared.ts:1");
+    }),
+  );
+
+  it.effect(
+    "allows the display-only compatibility references it lists, and nothing else there",
+    () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const root = yield* fs.makeTempDirectoryScoped({ prefix: "fork-guard-compat-" });
+        installGuard(root);
+        const shared = path.join(root, "packages", "shared", "src");
+        yield* fs.makeDirectory(shared, { recursive: true });
+        yield* fs.writeFileString(
+          path.join(shared, "git.ts"),
+          'const OFFICIAL_WORKTREE_BRANCH_PREFIX = "t3";\nexport const WORKTREE_BRANCH_PREFIX = "t3";\n',
+        );
+
+        const result = runGuard(root);
+        assert.notEqual(result.status, 0);
+        assert.notInclude(result.stderr, "packages/shared/src/git.ts:1:");
+        assert.include(result.stderr, "packages/shared/src/git.ts:2:");
+      }),
+  );
+
   it.effect("rejects a user-visible T3 Code literal outside the brand allowlist", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;

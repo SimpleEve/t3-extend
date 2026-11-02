@@ -4,6 +4,7 @@ import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NetService from "@t3tools/shared/Net";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { assert, describe, it } from "@effect/vitest";
 import * as ByteSize from "effect/ByteSize";
@@ -225,6 +226,24 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           { port: 14_607, role: "server" },
           { port: 6567, role: "web" },
         ]);
+      }),
+    );
+
+    it.effect("never picks the fork's own Tailscale HTTPS port as the web port", () =>
+      Effect.gen(function* () {
+        const probed: Array<number> = [];
+        const offset = yield* findFirstAvailableOffset({
+          startOffset: FORK.tailscaleServePort - 5733,
+          requireServerPort: false,
+          requireWebPort: true,
+          checkPortAvailability: (port) => {
+            probed.push(port);
+            return Effect.succeed(true);
+          },
+        });
+
+        assert.equal(offset, FORK.tailscaleServePort - 5733 + 1);
+        assert.deepStrictEqual(probed, [FORK.tailscaleServePort + 1]);
       }),
     );
 

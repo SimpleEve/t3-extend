@@ -247,7 +247,7 @@ const makeTest = Effect.fn("ServerConfig.makeTest")(function* (
     autoBootstrapProjectFromCwd: false,
     logWebSocketEvents: false,
     tailscaleServeEnabled: false,
-    tailscaleServePort: 443,
+    tailscaleServePort: FORK.tailscaleServePort, // fork: own Tailscale Serve port
     port: 0,
     host: undefined,
     desktopBootstrapToken: undefined,

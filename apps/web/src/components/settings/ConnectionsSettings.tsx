@@ -1,4 +1,9 @@
 import { SessionPermissions } from "./SessionPermissions";
+import {
+  FORK,
+  OFFICIAL_APP_NAME,
+  OFFICIAL_TAILSCALE_SERVE_PORT,
+} from "@t3tools/shared/forkIdentity"; // fork: identity
 import { ChevronRightIcon, EllipsisIcon } from "lucide-react";
 import { useAtomValue } from "@effect/atom-react";
 import { useState } from "react";
@@ -32,6 +37,7 @@ import {
   missingTailscaleEndpointDescription,
   resolveLocalVersionStatusLabel,
   resolveTailscaleServeBaseUrl,
+  tailscaleServePortProblem,
 } from "./ConnectionsSettings.logic";
 import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settingsLayout";
 import { ManagedByOrganization } from "../ManagedPolicy";
@@ -140,7 +146,7 @@ import { SelfHostSettings } from "./SelfHostSettings"; // fork: self-hosted conn
 import { isSelfHostEndpoint } from "~/fork/selfHostStore";
 import { useT } from "../../hooks/useT"; // fork: self-hosted connection
 
-const DEFAULT_TAILSCALE_SERVE_PORT = 443;
+const DEFAULT_TAILSCALE_SERVE_PORT = FORK.tailscaleServePort; // fork: own Tailscale Serve port
 const EMPTY_ADVERTISED_ENDPOINTS: ReadonlyArray<AdvertisedEndpoint> = [];
 
 // Colons are invalid in distro names, keeping picker sentinels collision-free.
@@ -345,11 +351,8 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
     : currentAuthPolicy === "remote-reachable";
   const trimmedTailscaleServePortInput = tailscaleServePortInput.trim();
   const parsedTailscaleServePort = Number(trimmedTailscaleServePortInput);
-  const isTailscaleServePortValid =
-    /^\d+$/u.test(trimmedTailscaleServePortInput) &&
-    Number.isInteger(parsedTailscaleServePort) &&
-    parsedTailscaleServePort >= 1 &&
-    parsedTailscaleServePort <= 65_535;
+  const tailscaleServePortIssue = tailscaleServePortProblem(tailscaleServePortInput); // fork: 443 is rejected
+  const isTailscaleServePortValid = tailscaleServePortIssue === null;
 
   const pendingTailscaleServeBaseUrl = resolveTailscaleServeBaseUrl(
     pendingTailscaleServeEndpoint,
@@ -1468,7 +1471,17 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
                     disabled={isUpdatingTailscaleServe}
                   />
                 </label>
-                {!isTailscaleServePortValid ? (
+                {tailscaleServePortIssue === "official" ? (
+                  // fork: official T3 Code owns 443 on the same machine name
+                  <p className="mt-2 text-xs text-destructive">
+                    {t("{port} is used by official {officialApp}. {app} uses {forkPort}.", {
+                      port: OFFICIAL_TAILSCALE_SERVE_PORT,
+                      officialApp: OFFICIAL_APP_NAME,
+                      app: FORK.appBaseName,
+                      forkPort: FORK.tailscaleServePort,
+                    })}
+                  </p>
+                ) : tailscaleServePortIssue === "invalid" ? (
                   <p className="mt-2 text-xs text-destructive">
                     {t("Enter a port from 1 to 65535.")}
                   </p>

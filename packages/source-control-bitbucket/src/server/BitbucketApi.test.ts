@@ -1,4 +1,5 @@
 import { SourceControlProviderKind } from "@t3tools/contracts";
+import { PULL_REQUEST_BRANCH_PREFIX } from "@t3tools/shared/git"; // fork: own branch prefix
 import { assert, it, vi } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as ConfigProvider from "effect/ConfigProvider";
@@ -790,17 +791,17 @@ it.effect("checks out fork pull requests through an ensured fork remote", () => 
       cwd: "/repo",
       remoteName: "octocat",
       remoteBranch: "main",
-      localBranch: "t3code/pr-42/main",
+      localBranch: `${PULL_REQUEST_BRANCH_PREFIX}-42/main`,
     });
     assert.deepStrictEqual(git.setBranchUpstream.mock.calls[0]?.[0], {
       cwd: "/repo",
-      branch: "t3code/pr-42/main",
+      branch: `${PULL_REQUEST_BRANCH_PREFIX}-42/main`,
       remoteName: "octocat",
       remoteBranch: "main",
     });
     assert.deepStrictEqual(git.switchRef.mock.calls[0]?.[0], {
       cwd: "/repo",
-      refName: "t3code/pr-42/main",
+      refName: `${PULL_REQUEST_BRANCH_PREFIX}-42/main`,
     });
   }).pipe(Effect.provide(layer));
 });

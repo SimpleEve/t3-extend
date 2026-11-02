@@ -1,4 +1,5 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { it as effectIt } from "@effect/vitest";
 import type * as NodeOS from "node:os";
 import * as Effect from "effect/Effect";
@@ -262,7 +263,7 @@ const layerServeConfig = Layer.effect(
     ...config,
     host: "127.0.0.1",
     tailscaleServeEnabled: true,
-    tailscaleServePort: 443,
+    tailscaleServePort: FORK.tailscaleServePort,
   })),
 ).pipe(
   Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-direct-" })),
@@ -289,7 +290,10 @@ describe("DirectEndpoints Tailscale Serve", () => {
   effectIt.effect("lists the tailnet name once Serve answers for this server", () =>
     Effect.gen(function* () {
       expect(yield* resolveWithServe(200)).toEqual([
-        { kind: "tailnet", httpBaseUrl: "https://bb-1.tail1234.ts.net/" },
+        {
+          kind: "tailnet",
+          httpBaseUrl: `https://bb-1.tail1234.ts.net:${FORK.tailscaleServePort}/`,
+        },
       ]);
     }),
   );
@@ -303,7 +307,10 @@ describe("DirectEndpoints Tailscale Serve", () => {
   effectIt.effect("reports public URLs after the private routes, even on loopback", () =>
     Effect.gen(function* () {
       expect(yield* resolveWithServe(200, ["https://t3.example.com"])).toEqual([
-        { kind: "tailnet", httpBaseUrl: "https://bb-1.tail1234.ts.net/" },
+        {
+          kind: "tailnet",
+          httpBaseUrl: `https://bb-1.tail1234.ts.net:${FORK.tailscaleServePort}/`,
+        },
         { kind: "public", httpBaseUrl: "https://t3.example.com/" },
       ]);
     }),

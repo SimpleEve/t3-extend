@@ -1,4 +1,4 @@
-import { SourceControlProviderKind } from "@t3tools/contracts";
+import { DEFAULT_SERVER_SETTINGS, SourceControlProviderKind } from "@t3tools/contracts";
 import type { VcsStatusRemoteResult, VcsStatusResult } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -8,10 +8,12 @@ import {
   buildTemporaryWorktreeBranchName,
   flattenTemporaryWorktreeBranchName,
   isTemporaryWorktreeBranch,
+  looksLikeTemporaryWorktreeBranch,
   normalizeGitRemoteUrl,
   parseOriginUrlFromGitConfig,
   resolveAutoFeatureBranchName,
   sanitizeFeatureBranchName,
+  PULL_REQUEST_BRANCH_PREFIX,
   WORKTREE_BRANCH_PREFIX,
 } from "./git.ts";
 
@@ -152,18 +154,36 @@ describe("isTemporaryWorktreeBranch", () => {
     );
   });
 
-  it("matches legacy t3code temporary worktree refs", () => {
-    expect(isTemporaryWorktreeBranch("t3code/deadbeef")).toBe(true);
-    expect(isTemporaryWorktreeBranch("t3code-deadbeef")).toBe(true);
-    expect(isTemporaryWorktreeBranch("t3code/f4ae4e0e-f971-4d48-b4f2-9cf0aa54ab12")).toBe(true);
+  it("treats official T3 Code's temporary branches as not its own, but still labels them", () => {
+    expect(WORKTREE_BRANCH_PREFIX).not.toBe("t3");
+    expect(DEFAULT_SERVER_SETTINGS.branchNamePrefix).toBe(WORKTREE_BRANCH_PREFIX);
+    expect(PULL_REQUEST_BRANCH_PREFIX.startsWith("t3code")).toBe(false);
+    for (const official of [
+      "t3/deadbeef",
+      "t3-deadbeef",
+      "t3code/deadbeef",
+      "t3code-deadbeef",
+      "t3code/f4ae4e0e-f971-4d48-b4f2-9cf0aa54ab12",
+    ]) {
+      expect(isTemporaryWorktreeBranch(official), official).toBe(false);
+      expect(looksLikeTemporaryWorktreeBranch(official), official).toBe(true);
+    }
+    expect(looksLikeTemporaryWorktreeBranch(`${WORKTREE_BRANCH_PREFIX}/deadbeef`)).toBe(true);
+    expect(looksLikeTemporaryWorktreeBranch("t3/feature")).toBe(false);
     expect(
-      isTemporaryWorktreeBranch(`${WORKTREE_BRANCH_PREFIX}/f4ae4e0e-f971-4d48-b4f2-9cf0aa54ab12`),
+      looksLikeTemporaryWorktreeBranch(
+        `${WORKTREE_BRANCH_PREFIX}/f4ae4e0e-f971-4d48-b4f2-9cf0aa54ab12`,
+      ),
     ).toBe(false);
   });
 
   it("rejects UUID-shaped refs that are not RFC 4122 v4", () => {
-    expect(isTemporaryWorktreeBranch("t3code/f4ae4e0e-f971-1d48-b4f2-9cf0aa54ab12")).toBe(false);
-    expect(isTemporaryWorktreeBranch("t3code/f4ae4e0e-f971-4d48-c4f2-9cf0aa54ab12")).toBe(false);
+    expect(looksLikeTemporaryWorktreeBranch("t3code/f4ae4e0e-f971-1d48-b4f2-9cf0aa54ab12")).toBe(
+      false,
+    );
+    expect(looksLikeTemporaryWorktreeBranch("t3code/f4ae4e0e-f971-4d48-c4f2-9cf0aa54ab12")).toBe(
+      false,
+    );
   });
 
   it("matches the flat fallback used when a plain t3 branch exists", () => {

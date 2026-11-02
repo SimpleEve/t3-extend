@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import {
   applyWslEnableSelection,
   resolveTailscaleServeBaseUrl,
+  tailscaleServePortProblem,
   selectQrEndpointOption,
   togglePairingScopeSelection,
 } from "./ConnectionsSettings.logic";
@@ -39,6 +40,20 @@ describe("togglePairingScopeSelection", () => {
     },
   ] as const)("$label", ({ current, scope, checked, expected }) => {
     expect(togglePairingScopeSelection(current, scope, checked)).toEqual(expected);
+  });
+});
+
+describe("tailscaleServePortProblem", () => {
+  it.each([
+    ["8443", null],
+    [" 9443 ", null],
+    ["443", "official"],
+    ["0", "invalid"],
+    ["65536", "invalid"],
+    ["84x3", "invalid"],
+    ["", "invalid"],
+  ] as const)("reads %j as %s", (input, expected) => {
+    expect(tailscaleServePortProblem(input)).toBe(expected);
   });
 });
 

@@ -23,6 +23,12 @@ import {
   type LinuxPasswordStorePreference,
 } from "../linuxSecretStorage.ts";
 import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
+import {
+  FORK,
+  forkTailscaleServePort,
+  OFFICIAL_APP_NAME,
+  OFFICIAL_TAILSCALE_SERVE_PORT,
+} from "@t3tools/shared/forkIdentity"; // fork: identity
 import { isValidDistroName } from "../wsl/wslPathParsing.ts";
 
 export interface DesktopSettings {
@@ -46,7 +52,7 @@ export interface DesktopSettingsChange {
   readonly changed: boolean;
 }
 
-const DEFAULT_TAILSCALE_SERVE_PORT = 443;
+const DEFAULT_TAILSCALE_SERVE_PORT = FORK.tailscaleServePort; // fork: own Tailscale Serve port
 const MIN_MAIN_WINDOW_SIZE = {
   width: 840,
   height: 620,
@@ -185,8 +191,9 @@ export function resolveDefaultDesktopSettings(appVersion: string): DesktopSettin
 }
 
 function normalizeTailscaleServePort(value: unknown): number {
+  // fork: a persisted or requested 443 belongs to official T3 Code; move it to the fork's own port.
   return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65_535
-    ? value
+    ? forkTailscaleServePort(value)
     : DEFAULT_TAILSCALE_SERVE_PORT;
 }
 
@@ -390,6 +397,13 @@ function readSettings(
         onNone: () => Effect.succeed(defaultSettings),
         onSome: (raw) =>
           decodeDesktopSettingsJson(raw).pipe(
+            Effect.tap((parsed) =>
+              parsed.tailscaleServePort === OFFICIAL_TAILSCALE_SERVE_PORT
+                ? Effect.logWarning(
+                    `Saved Tailscale HTTPS port ${OFFICIAL_TAILSCALE_SERVE_PORT} is official ${OFFICIAL_APP_NAME}'s, so ${FORK.appBaseName} uses ${FORK.tailscaleServePort} instead.`,
+                  )
+                : Effect.void,
+            ), // fork: read from storage, so nobody is there to ask
             Effect.map((parsed) => normalizeDesktopSettingsDocument(parsed, appVersion)),
             Effect.orElseSucceed(() => defaultSettings),
           ),

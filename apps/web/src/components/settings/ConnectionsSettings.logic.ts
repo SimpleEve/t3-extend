@@ -1,4 +1,5 @@
 import * as DateTime from "effect/DateTime";
+import { OFFICIAL_TAILSCALE_SERVE_PORT } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { interpolate, translatorFor, type Translator } from "@t3tools/client-runtime/i18n";
 
 import { resolveDesktopPairingUrl, resolveHostedPairingUrl } from "./pairingUrls";
@@ -67,6 +68,16 @@ export function missingTailscaleEndpointDescription(
   return state && state.mode !== "network-accessible" && !state.tailscaleServeEnabled
     ? t("Turn on Network access to detect Tailscale.")
     : t("Start Tailscale to set up HTTPS access through MagicDNS.");
+}
+
+/** Why a typed Tailscale HTTPS port cannot be used; 443 belongs to the official app. */
+export function tailscaleServePortProblem(input: string): "invalid" | "official" | null {
+  const trimmed = input.trim();
+  const port = Number(trimmed);
+  if (!/^\d+$/u.test(trimmed) || !Number.isInteger(port) || port < 1 || port > 65_535) {
+    return "invalid";
+  }
+  return port === OFFICIAL_TAILSCALE_SERVE_PORT ? "official" : null; // fork: never offer 443
 }
 
 export function resolveTailscaleServeBaseUrl(

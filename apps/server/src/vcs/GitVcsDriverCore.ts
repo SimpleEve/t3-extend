@@ -22,6 +22,7 @@ import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import {
   GitCommandError,
   type GitCommandFailureReason,
@@ -4400,7 +4401,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
         yield* executeGit(
           "GitVcsDriver.refreshCheckedOutBranch.keepPrevious",
           input.cwd,
-          ["update-ref", "refs/t3code/pre-refresh", headCommit],
+          ["update-ref", `refs/${FORK.gitNamespace}/pre-refresh`, headCommit], // fork: own ref
           { fallbackErrorDetail: "git failed to record the previous checkout commit" },
         );
       }

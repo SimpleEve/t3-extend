@@ -171,6 +171,8 @@ Mobile keeps its manual environment selection.
 
 Join both devices to the same tailnet. In the desktop app, enable **Tailscale
 HTTPS** in **Settings → Sharing & access**. Turn it off there to remove that route.
+T3 Extend publishes on HTTPS port 8443, so it can stay on next to official T3 Code,
+which uses 443, and turning either off leaves the other's route alone.
 
 To start a command-line server with Tailscale HTTPS:
 
@@ -184,12 +186,12 @@ For an already-running server:
 t3 pair --tailscale
 ```
 
-The pairing link uses an address such as `https://machine.tailnet.ts.net/`.
+The pairing link uses an address such as `https://machine.tailnet.ts.net:8443/`.
 The mapping created by `pair --tailscale` persists across restarts. Remove its
 default-port mapping with:
 
 ```bash
-tailscale serve --https=443 --set-path=/ off
+tailscale serve --https=8443 --set-path=/ off
 ```
 
 If that port is already in use, choose another with
