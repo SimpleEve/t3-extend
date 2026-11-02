@@ -1005,6 +1005,17 @@ export default {
     "请启动 Tailscale，以通过 MagicDNS 设置 HTTPS 访问。",
   // fork: Settings → About, update button and tooltip
   "Check for Updates": "检查更新",
+  // fork: the joined sentence has no space; Chinese runs on after the full stop
+  "{message} Nightly builds are not available.": "{message}夜间版不可用。",
+  "{message} Nightly builds are not available; switch to Stable to keep getting updates.":
+    "{message}夜间版不可用；请切换到稳定版以继续获得更新。",
+  // fork: bare sources; the contextual entries above serve only calls that pass their context
+  days: "天",
+  minutes: "分钟",
+  default: "默认",
+  Archived: "已归档",
+  "Show full error": "显示完整错误",
+  "Checking for updates…": "正在检查更新…",
   "Up to Date": "已是最新",
   "Update available.": "有可用更新。",
   "Update {version} did not apply. Click to retry.": "更新 {version} 未能应用。点击重试。",
@@ -1088,8 +1099,6 @@ export default {
   "Each run continues this conversation, in its workspace and with its current model.":
     "每次运行都会在此对话的工作区中、用它当前的模型继续这个对话。",
   "Edit task": "编辑任务",
-  "Run a prompt automatically on an interval, at a fixed time, or when a webhook is called.":
-    "按间隔、在固定时间或在 webhook 被调用时自动运行一段提示词。",
   "Reconnect this environment before saving.": "保存前请重新连接此环境。",
   "Runs on": "运行于",
   "Unavailable environment": "不可用的环境",
@@ -2018,8 +2027,8 @@ export default {
   "Android list may be incomplete": "Android 列表可能不完整",
   Access: "访问权限",
   "Install the extension": "安装扩展",
-  "The T3 Extend GNOME extension lets you capture other windows and bring them into your draft. Sign out once after installing.":
-    "T3 Extend 的 GNOME 扩展可以截取其他窗口并放进你的草稿。安装后需要注销一次。",
+  "The T3 Code GNOME extension lets you capture other windows and bring them into your draft. Sign out once after installing.":
+    "T3 Code 的 GNOME 扩展可以截取其他窗口并放进你的草稿。安装后需要注销一次。",
   "Extension installed": "扩展已安装",
   "Save your work, then sign out and back in. Your setup will be waiting here.":
     "保存你的工作，然后注销并重新登录。你的设置会在这里等你。",
@@ -2029,14 +2038,14 @@ export default {
   "Open GNOME Extensions and turn on extensions, then check again.":
     "打开 GNOME 扩展并启用扩展，然后再检查一次。",
   "Enable the extension": "启用扩展",
-  "Enable T3 Extend SnapShots to start capturing windows.":
-    "启用 T3 Extend SnapShots 即可开始截取窗口。",
+  "Enable T3 Code SnapShots to start capturing windows.":
+    "启用 T3 Code SnapShots 即可开始截取窗口。",
   "Automatic capture isn't available": "无法自动截图",
   "Use Take snapshot from the command palette to choose a window.":
     "在命令面板中使用“截取快照”来选择窗口。",
   "Couldn't set up the extension": "无法设置扩展",
-  "Check T3 Extend SnapShots in GNOME Extensions, then try again.":
-    "在 GNOME 扩展中检查 T3 Extend SnapShots，然后重试。",
+  "Check T3 Code SnapShots in GNOME Extensions, then try again.":
+    "在 GNOME 扩展中检查 T3 Code SnapShots，然后重试。",
   "Not authenticated": "未认证",
   "Status unknown": "状态未知",
   "Repository conventions": "仓库惯例",
@@ -2278,8 +2287,8 @@ export default {
     "此环境上的 Muse Code 可执行文件路径。在该主机上用 muse login 登录。",
   "Path to the OpenCode binary.": "OpenCode 可执行文件路径。",
   "Server URL": "服务器 URL",
-  "Leave blank to let T3 Extend spawn the server when needed.":
-    "留空时，T3 Extend 会在需要时自动启动服务器。",
+  "Leave blank to let T3 Code spawn the server when needed.":
+    "留空时，T3 Code 会在需要时自动启动服务器。",
   "Server password": "服务器密码",
   "Stored separately on the host.": "在主机上单独保存。",
   "Path to the Pi coding agent binary.": "Pi 编程 Agent 的可执行文件路径。",

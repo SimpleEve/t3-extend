@@ -700,8 +700,7 @@ function projectViewListItems(
   translate: Translator | undefined,
 ): ThreadListV2ListItem[] {
   const itemByThread = new Map(items.map((item, index) => [item.thread, threadItems[index]!]));
-  const t = (text: string, context?: string) =>
-    translate ? translate(text, undefined, context) : text;
+  const t: Translator = translate ?? ((text) => text);
   // Rows after a worktree header sit one level under it; a project header ends that.
   let underWorktree = false;
   return rows.flatMap((row, index): ThreadListV2ListItem[] => {
