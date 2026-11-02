@@ -1153,6 +1153,7 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
   const cookieImportDenial = managedCapabilityDenial(
     usePrimaryManagedPolicy(),
     "browserCookieImport",
+    t, // fork: interface language
   );
   const [sources, setSources] = useState<ReadonlyArray<BrowserImportSource> | null>(null);
   const [importSession, setImportSession] = useState<{

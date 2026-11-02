@@ -556,7 +556,7 @@ function ConfiguredCloudLinkRow({ canManageRelay }: { readonly canManageRelay: b
   } = useCloudLinkController();
   const { openAuthPrompt } = useT3ConnectAuthPrompt();
   // The server unlinks and refuses relay changes under such a policy; unlinking stays possible.
-  const connectDenial = managedCapabilityDenial(usePrimaryManagedPolicy(), "connect");
+  const connectDenial = managedCapabilityDenial(usePrimaryManagedPolicy(), "connect", t); // fork: interface language
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUpdatingPreference, setIsUpdatingPreference] = useState(false);
 

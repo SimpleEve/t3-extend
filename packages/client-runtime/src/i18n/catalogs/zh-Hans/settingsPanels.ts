@@ -988,6 +988,36 @@ export default {
   "Every {minutes} min": "每 {minutes} 分钟",
   "Every {seconds} sec": "每 {seconds} 秒",
   "schedule summary|Daily": "每天",
+  // fork: managed-policy sentences. Contracts build the English; clients translate at render.
+  "{organization} manages {app} updates.": "{organization} 管理着 {app} 的更新。",
+  "{message} Only stable releases can be installed.": "{message}只能安装稳定版。",
+  "{organization}'s policy does not allow {capability}.":
+    "{organization} 的策略不允许{capability}。",
+  "{organization} limits threads to {mode}.": "{organization} 将对话限制为{mode}。",
+  "{organization} turned off anonymous usage data.": "{organization} 已关闭匿名使用数据。",
+  "connecting from other devices": "从其他设备连接",
+  "T3 Connect": "T3 Connect",
+  "webhook tasks": "webhook 任务",
+  "importing browser cookies": "导入浏览器 Cookie",
+  // fork: Settings → Sharing & access, Tailscale rows
+  "Turn on Network access to detect Tailscale.": "请开启网络访问以检测 Tailscale。",
+  "Start Tailscale to set up HTTPS access through MagicDNS.":
+    "请启动 Tailscale，以通过 MagicDNS 设置 HTTPS 访问。",
+  // fork: Settings → About, update button and tooltip
+  "Check for Updates": "检查更新",
+  "Up to Date": "已是最新",
+  "Update available.": "有可用更新。",
+  "Update {version} did not apply. Click to retry.": "更新 {version} 未能应用。点击重试。",
+  "Update {version} ready to download": "更新 {version} 可以下载",
+  "Update available ready to download": "有可用更新，可以下载",
+  "Downloading update ({percent}%)": "正在下载更新（{percent}%）",
+  "Update {version} downloaded. Click to restart and install.":
+    "更新 {version} 已下载。点击重启并安装。",
+  "Update ready downloaded. Click to restart and install.": "更新已下载。点击重启并安装。",
+  "Download failed for {version}. Click to retry.": "{version} 下载失败。点击重试。",
+  "Install failed for {version}. Click to retry.": "{version} 安装失败。点击重试。",
+  // fork: the once-schedule date field; BranchToolbar's "Run on" is a place
+  "schedule date|Run on": "运行时间",
   "in under a minute": "不到 1 分钟后",
   "in {count}m": "{count} 分钟后",
   "in {count}h": "{count} 小时后",

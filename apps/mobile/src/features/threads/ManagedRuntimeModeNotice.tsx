@@ -28,7 +28,7 @@ export function ManagedRuntimeModeNotice(props: {
   const t = useT();
   const draftSettings = useComposerDraftSettings(props.threadKey);
   const runtimeMode = draftSettings.runtimeMode ?? props.threadRuntimeMode;
-  const denial = managedRuntimeModeDenial(props.policy, runtimeMode);
+  const denial = managedRuntimeModeDenial(props.policy, runtimeMode, t); // fork: interface language
   if (denial === undefined) return null;
   const choices = runtimeModeChoicesForSupportedModes(props.supportedRuntimeModes);
   const target = clampManagedRuntimeMode(

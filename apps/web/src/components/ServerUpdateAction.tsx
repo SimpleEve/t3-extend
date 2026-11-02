@@ -37,7 +37,7 @@ import { Button } from "./ui/button";
 import { toastManager } from "./ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { useT } from "~/hooks/useT";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
+import { getUiLocale, translate, translatorFor } from "@t3tools/client-runtime/i18n";
 
 const UPDATE_STAGE_LABELS: Record<ServerUpdateStage, string> = {
   downloading: "Downloading…",
@@ -55,6 +55,7 @@ function readUpdatesDenial(environmentId: EnvironmentId): string | undefined {
   return managedUpdatesDenial(
     appAtomRegistry.get(environmentPresentations.serverConfigsAtom).get(environmentId)
       ?.managedPolicy,
+    translatorFor(getUiLocale()), // fork: interface language
   );
 }
 
@@ -286,7 +287,7 @@ export function ServerUpdateAction({
   const serverVersion = useServerConfigs().get(environmentId)?.environment.serverVersion;
   const sessionStateAtom = environmentSession.sessionStateAtom(environmentId);
   const canUpdate = useAtomValue(sessionStateAtom, canUpdateServer);
-  const updatesDenial = managedUpdatesDenial(useManagedPolicy(environmentId));
+  const updatesDenial = managedUpdatesDenial(useManagedPolicy(environmentId), t); // fork: interface language
   const update = useServerUpdate();
   const { copyToClipboard } = useCopyToClipboard<{ command: string }>({
     target: installation?.kind === "npm-global" ? "update command" : "relaunch command",

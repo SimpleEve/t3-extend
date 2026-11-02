@@ -277,7 +277,7 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
   const primaryServerConfig = primaryEnvironment?.serverConfig ?? null;
   const primaryManagedPolicy = primaryServerConfig?.managedPolicy;
   // Turning remote access off stays possible; only the way in is managed.
-  const remoteClientsDenial = managedCapabilityDenial(primaryManagedPolicy, "remoteClients");
+  const remoteClientsDenial = managedCapabilityDenial(primaryManagedPolicy, "remoteClients", t); // fork: interface language
   const primaryVersionMismatch = resolveServerConfigVersionMismatch(primaryServerConfig);
   const primaryServerUpdateState = useAtomValue(
     serverEnvironment.updateStateAtom(primaryEnvironmentId),
@@ -929,7 +929,7 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
           ? tailscaleHttpsEndpoint.status === "available"
             ? tailscaleHttpsEndpoint.httpBaseUrl
             : t("Use Tailscale Serve to expose this backend through a MagicDNS HTTPS URL.")
-          : missingTailscaleEndpointDescription(desktopServerExposureState)
+          : missingTailscaleEndpointDescription(desktopServerExposureState, t)
       }
       control={
         tailscaleHttpsEndpoint ? (

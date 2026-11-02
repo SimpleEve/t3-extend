@@ -201,7 +201,7 @@ function SidebarUpdateControl() {
   const t = useT();
   const state = useDesktopUpdateState();
   // The desktop updates this machine, whose policy the primary environment reports.
-  const updatesDenial = managedUpdatesDenial(usePrimaryManagedPolicy());
+  const updatesDenial = managedUpdatesDenial(usePrimaryManagedPolicy(), t); // fork: interface language
   const [isActionPending, setIsActionPending] = useState(false);
   const [isConfirmingEverything, setIsConfirmingEverything] = useState(false);
   const [checkAnimationKey, setCheckAnimationKey] = useState(0);
@@ -254,7 +254,7 @@ function SidebarUpdateControl() {
     ? everything.summary
     : showUpdateDetails
       ? state
-        ? getDesktopUpdateButtonTooltip(state)
+        ? getDesktopUpdateButtonTooltip(state, t)
         : "Update available"
       : showCheckIcon
         ? "Checking for updates…"

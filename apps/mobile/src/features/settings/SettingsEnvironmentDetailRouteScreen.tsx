@@ -101,7 +101,7 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
   const managedPolicy = config?.managedPolicy;
   const supportUrl = managedPolicy?.supportUrl;
   // The server refuses checks and installs; say so instead of offering them.
-  const updatesDenial = managedUpdatesDenial(managedPolicy);
+  const updatesDenial = managedUpdatesDenial(managedPolicy, t); // fork: interface language
 
   async function run(label: string, action: () => Promise<void>) {
     if (pendingRef.current) return;

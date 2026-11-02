@@ -725,7 +725,7 @@ function TaskForm({
   const config = useEnvironmentServerConfig(environmentId);
   const modelOptions = buildModelOptions(config, null, undefined, draft.projectId);
   // Existing webhook tasks keep the option so they can still switch to a timer.
-  const webhookDenial = managedCapabilityDenial(config?.managedPolicy, "webhookTasks");
+  const webhookDenial = managedCapabilityDenial(config?.managedPolicy, "webhookTasks", t); // fork: interface language
   const canOperate = useAtomValue(
     serverEnvironment.upsertScheduledTask.permissionAtom(environmentId),
   );

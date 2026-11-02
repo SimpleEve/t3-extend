@@ -328,7 +328,7 @@ function ConnectionStep({
 }) {
   const t = useT();
   const { environments } = useEnvironments();
-  const telemetryOff = managedTelemetryOffMessage(usePrimaryManagedPolicy());
+  const telemetryOff = managedTelemetryOffMessage(usePrimaryManagedPolicy(), t); // fork: interface language
   const privacyPolicyLink = (
     <a
       className="underline underline-offset-2 hover:text-foreground"
