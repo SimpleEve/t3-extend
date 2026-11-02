@@ -3,6 +3,7 @@ import * as NodeCrypto from "node:crypto";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { authScopeResponse, AuthStandardClientScopes } from "@t3tools/contracts";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import {
   computeDpopAccessTokenHash,
   computeDpopJwkThumbprint,
@@ -631,7 +632,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
         origin: "https://box.tail1234.ts.net",
         "x-forwarded-host": "box.tail1234.ts.net",
       });
-      yield* upgrade({ origin: "t3code://app" });
+      yield* upgrade({ origin: `${FORK.scheme}://app` }); // fork: own scheme
       yield* upgrade({ origin: "http://localhost:5733" });
       yield* upgrade({});
 

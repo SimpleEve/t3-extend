@@ -543,7 +543,7 @@ describe("presentPendingBackgroundWork", () => {
   });
 
   it.each([
-    [[{ taskId: "1", kind: "command", description: "make" }], "Running: make", "运行中：make"],
+    [[{ taskId: "1", kind: "command", description: "make" }], "Running · make", "运行中 · make"],
     [
       [{ taskId: "1", kind: "background_task" }],
       "Waiting on a background task",
