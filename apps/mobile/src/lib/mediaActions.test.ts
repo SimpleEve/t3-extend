@@ -21,6 +21,8 @@ vi.mock("react", () => ({
   useEffect: () => {},
   useRef: <A>(current: A) => ({ current }),
   useState: <A>(initial: A) => [initial, () => {}],
+  // fork: the interface-language hook reads its store through this
+  useSyncExternalStore: <A>(_subscribe: unknown, getSnapshot: () => A) => getSnapshot(),
 }));
 vi.mock("react-native", () => ({ Alert: { alert: vi.fn() } }));
 vi.mock("@react-navigation/native", () => ({
