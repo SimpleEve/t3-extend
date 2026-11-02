@@ -74,6 +74,14 @@ const CATALOG_KEY = new RegExp(
   "gm",
 );
 
+/** The English source of a catalog key. A context is lowercase words, so "a || b" keeps its bar. */
+export function catalogKeySource(key: string): string {
+  const separator = key.indexOf(CONTEXT_SEPARATOR);
+  return separator > 0 && /^[a-z][a-z0-9 -]*$/u.test(key.slice(0, separator))
+    ? key.slice(separator + 1)
+    : key;
+}
+
 function catalogKeys(locale: string): ReadonlyArray<string> {
   return sourceFilesIn(NodePath.join(CATALOG_ROOT, locale)).flatMap((file) =>
     [...NodeFS.readFileSync(file, "utf8").matchAll(CATALOG_KEY)].map((match) =>
@@ -289,6 +297,7 @@ const ALWAYS_ENGLISH_TEXT = new Set([
   "T3 Code",
   "T3 Connect",
   "T3 Extend",
+  "Tailscale HTTPS",
   // Formats, units, and key names.
   "Aa",
   "Alt",
@@ -555,8 +564,46 @@ const PROPERTY_ALLOWLIST = new Set([
   // Review comment contexts are written into the prompt.
   "apps/web/src/components/pullRequest/pullRequestDetail.logic.ts#sectionTitle",
   "apps/web/src/components/pullRequest/PullRequestCodeTab.tsx#sectionTitle",
+  "apps/web/src/reviewCommentContext.ts#rangeLabel",
   // English on purpose: the catalog that would translate this toast is the one that failed.
   "apps/web/src/uiLanguage.ts",
+  // Error objects that are logged or cross a boundary keep English where they are made; the
+  // display translates the known ones (connection/errorMessages.ts) or shows them as written.
+  "apps/web/src/browser/openFileInPreview.ts#message",
+  "apps/web/src/cloud/linkEnvironment.ts#message",
+  "apps/web/src/components/ChatMarkdown.tsx#message",
+  "apps/web/src/components/chat/citationProcedure.ts#message",
+  "apps/web/src/components/guest/guestTurnItemSource.ts#message",
+  "apps/web/src/components/settings/OpenSourceLicenses.tsx#message",
+  "apps/web/src/components/settings/scopedSettings.ts#message",
+  "apps/web/src/components/settings/useProjectScriptSettings.ts#message",
+  "apps/web/src/components/settings/useScopedSettings.ts#message",
+  "apps/web/src/connection/platform.ts#detail",
+  "apps/web/src/connection/storage.ts",
+  "apps/web/src/editorPreferences.ts#message",
+  "apps/web/src/hooks/useThreadActions.ts#message",
+  // Workers cannot read the interface language, and the RPC replies are internal.
+  "apps/web/src/components/files/binaryPreview.worker.ts",
+  "apps/web/src/components/files/officePreview.worker.ts",
+  "apps/web/src/components/files/office/worker-rpc.ts",
+  // Fallback page names stored in the parsed document beside the file's own titles.
+  "apps/web/src/components/files/extendedDocumentPreview.ts#title",
+  // Saved as editable descriptor values that the model picker shows as written.
+  "apps/web/src/components/settings/customModelEditor.logic.ts#label",
+  // Search text matched against typed queries; the visible title is JSX.
+  "apps/web/src/components/CommandPalette.tsx#searchTitle",
+  // Host-named search entries built at module load; fixed titles translate where shown.
+  "apps/web/src/components/settings/settingsSearch.ts#title",
+  // Not rendered.
+  "apps/web/src/components/RightPanelTabs.tsx#description",
+  "apps/web/src/components/chat/MarkdownFileLink.logic.ts#title",
+  "apps/web/src/versionSkew.ts#hint",
+  // Translated when the row renders (timelineLabels.ts matches the template).
+  "apps/web/src/components/chat/MessagesTimeline.logic.ts#label",
+  // Work log fallbacks; the timeline builds translated labels in MessagesTimeline.logic.ts.
+  "apps/web/src/session-logic.ts",
+  // Action state labels; GitActionsControl.logic.ts compares the English one.
+  "apps/web/src/state/sourceControlActions.ts#label",
 ]);
 
 /** A string literal that reads as copy: words with a space, a capital, or closing punctuation. */
@@ -627,6 +674,7 @@ export function scanPropertyText(
         if (isAllowlisted(PROPERTY_ALLOWLIST, fileName, name)) continue;
         for (const { start, text, interpolated } of displayStrings(property.value as AstNode)) {
           if (!interpolated && known.has(text)) continue;
+          if (INTENTIONALLY_UNTRANSLATED.has(text)) continue;
           if (needsTranslation(text) && looksLikeCopy(text)) {
             hits.push({ line: lineOf(start), property: name, text });
           }
@@ -941,13 +989,9 @@ function main(): void {
     literals.add(match[1]!.split(".").map(titleCase).join(": "));
   }
 
-  const sourceOf = (key: string) => {
-    const separator = key.indexOf(CONTEXT_SEPARATOR);
-    return separator < 0 ? key : key.slice(separator + 1);
-  };
   const locales = NodeFS.readdirSync(CATALOG_ROOT);
   const keysByLocale = new Map(locales.map((locale) => [locale, catalogKeys(locale)]));
-  const known = new Set([...keysByLocale.values()].flat().map(sourceOf));
+  const known = new Set([...keysByLocale.values()].flat().map(catalogKeySource));
   const [hardCoded, hardCodedProperties] = hardCodedSections(called, known);
   const compared = comparedSection(called);
   const lines: string[] = [];
@@ -955,12 +999,12 @@ function main(): void {
   let staleTotal = 0;
   for (const locale of locales) {
     const keys = keysByLocale.get(locale)!;
-    const sources = new Set(keys.map(sourceOf));
+    const sources = new Set(keys.map(catalogKeySource));
     const missing = [...called].filter(
       ([source]) => !sources.has(source) && !INTENTIONALLY_UNTRANSLATED.has(source),
     );
     const stale = keys.filter((key) => {
-      const source = sourceOf(key);
+      const source = catalogKeySource(key);
       return !literals.has(source) && !templates.some((template) => template.test(source));
     });
     missingTotal += missing.length;

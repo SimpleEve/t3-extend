@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  catalogKeySource,
   riskyComparisons,
   scanComparisons,
   scanHardCodedText,
@@ -231,5 +232,19 @@ describe("scanIndirectSources", () => {
     ["a plain variable", "t(label);"],
   ])("leaves out %s", (_case, code) => {
     expect(sourcesIn(code)).toEqual([]);
+  });
+});
+
+describe("catalogKeySource", () => {
+  it.each([
+    ["a plain key", "Archive thread", "Archive thread"],
+    ["a context key", "sidebar section|Active", "Active"],
+    [
+      "a source with a bar in it",
+      "Use !, &&, ||, and parentheses.",
+      "Use !, &&, ||, and parentheses.",
+    ],
+  ])("reads %s", (_case, key, source) => {
+    expect(catalogKeySource(key)).toBe(source);
   });
 });
