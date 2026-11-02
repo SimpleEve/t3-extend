@@ -10,6 +10,7 @@ import {
   type T3CodeImportResult,
   type T3CodeImportSelection,
   type ThreadId,
+  OFFICIAL_APP_NAME,
 } from "@t3tools/contracts";
 import {
   isAtomCommandInterrupted,
@@ -129,8 +130,8 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
       return t("{subject} joins the project you already have for {detail}.", { subject, detail });
     case "thread-ids-renewed":
       return t(
-        "{count} threads get new ids, so T3 Code and T3 Extend keep separate histories and checkpoints.",
-        { count },
+        "{count} threads get new ids, so {app} and T3 Extend keep separate histories and checkpoints.",
+        { app: OFFICIAL_APP_NAME, count },
       );
     case "parents-pulled-in":
       return t(
@@ -148,11 +149,14 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
       );
     case "provider-session-detached":
       return t(
-        "{count} threads arrive stopped: live provider sessions and pending requests stay in T3 Code.",
-        { count },
+        "{count} threads arrive stopped: live provider sessions and pending requests stay in {app}.",
+        { app: OFFICIAL_APP_NAME, count },
       );
     case "paths-rewritten":
-      return t("{count} paths into T3 Code's folder now point into T3 Extend's.", { count });
+      return t("{count} paths into {app}'s folder now point into T3 Extend's.", {
+        app: OFFICIAL_APP_NAME,
+        count,
+      });
     case "attachments-copied":
       return t("{count} attachments and browser captures are copied with their threads.", {
         count,
@@ -160,29 +164,37 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
     case "task-imported-active":
       return t("{subject} is imported and runs on its schedule right away.", { subject });
     case "identity-skipped":
-      return t("{subject} are not imported. Phones and browsers pair with T3 Extend again.", {
+      return t("Not imported: {subject}. Phones and browsers pair with T3 Extend again.", {
         subject,
       });
     case "signing-secrets-skipped":
-      return t("{count} signing keys and cloud sign-in secrets belong to T3 Code's identity.", {
+      return t("{count} signing keys and cloud sign-in secrets belong to {app}'s identity.", {
+        app: OFFICIAL_APP_NAME,
         count,
       });
     case "connection-catalog-skipped":
-      return t("Saved remote environments are encrypted with T3 Code's key. Add them again here.");
+      return t("Saved remote environments are encrypted with {app}'s key. Add them again here.", {
+        app: OFFICIAL_APP_NAME,
+      });
     case "desktop-settings-skipped":
-      return t("Window size and position belong to the T3 Code window.");
+      return t("Window size and position belong to the {app} window.", { app: OFFICIAL_APP_NAME });
     case "browser-profile-skipped":
       return t("The built-in browser's logins cannot be read by T3 Extend. Sign in again.");
     case "browser-storage-skipped":
       return t(
-        "Unsent drafts, collapsed groups and other per-device state live in T3 Code's own window and cannot be reached.",
+        "Unsent drafts, collapsed groups and other per-device state live in {app}'s own window and cannot be reached.",
+        { app: OFFICIAL_APP_NAME },
       );
     case "thread-busy":
-      return t("{subject}: T3 Code is working on it right now. Stop it there and import again.", {
+      return t("{subject}: {app} is working on it right now. Stop it there and import again.", {
+        app: OFFICIAL_APP_NAME,
         subject,
       });
     case "thread-parent-busy":
-      return t("{subject}: its parent thread is busy in T3 Code.", { subject });
+      return t("{subject}: its parent thread is busy in {app}.", {
+        app: OFFICIAL_APP_NAME,
+        subject,
+      });
     case "task-project-missing":
       return t("{subject}: its project is not part of this import.", { subject });
     case "task-thread-missing":
@@ -191,6 +203,13 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
       return t("{subject}: its definition could not be read here.", { subject });
     case "setting-rejected":
       return t("{subject} is not a setting T3 Extend can take.", { subject });
+    case "setting-managed":
+      return t("{subject} is managed by {detail} and cannot be changed by an import.", {
+        subject,
+        detail,
+      });
+    case "provider-instance-managed":
+      return t("Provider {subject} is not allowed by {detail}'s policy.", { subject, detail });
     case "client-setting-rejected":
       return t("{subject} is not an interface preference T3 Extend knows.", { subject });
     case "keybinding-rejected":
@@ -198,7 +217,9 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
     case "worktree-directories-skipped":
       return t("{subject}: T3 Extend never cleans up folders it did not create.", { subject });
     case "relay-state-skipped":
-      return t("Webhook delivery history and replay state stay in T3 Code.");
+      return t("Webhook delivery history and replay state stay in {app}.", {
+        app: OFFICIAL_APP_NAME,
+      });
     case "provider-instance-exists":
       return t("Provider {subject} already exists here and is left as it is.", { subject });
     case "worktree-missing":
@@ -211,8 +232,8 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
       );
     case "worktree-shared":
       return t(
-        "{count} worktrees stay where they are, shared with T3 Code. T3 Extend never deletes them.",
-        { count },
+        "{count} worktrees stay where they are, shared with {app}. T3 Extend never deletes them.",
+        { app: OFFICIAL_APP_NAME, count },
       );
     case "provider-files-shared":
       return t(
@@ -220,7 +241,15 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
         { count },
       );
     case "task-runs-in-both":
-      return t("{subject} keeps running in T3 Code too until you pause it there.", { subject });
+      return t("{subject} keeps running in {app} too until you pause it there.", {
+        app: OFFICIAL_APP_NAME,
+        subject,
+      });
+    case "task-once-passed":
+      return t(
+        "{subject} was a one-time task whose time has already passed. It is imported turned off so it does not run right away.",
+        { subject },
+      );
     case "task-webhook-url":
       return t(
         "{subject} listens at {detail} on this environment's address. Update whatever calls it.",
@@ -241,7 +270,9 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
         subject,
       });
     case "sidebar-settings":
-      return t("T3 Code used the legacy sidebar. It is on here too (Settings → Labs).");
+      return t("{app} used the legacy sidebar. It is on here too (Settings → Labs).", {
+        app: OFFICIAL_APP_NAME,
+      });
   }
 }
 
@@ -334,7 +365,7 @@ function Finished(props: { readonly result: T3CodeImportResult; readonly onDone:
       </p>
       <Report report={result.report} />
       <Button className="self-start" variant="outline" size="sm" onClick={props.onDone}>
-        {t("Done")}
+        {t("Done", undefined, "import dialog")}
       </Button>
     </div>
   );
@@ -421,7 +452,9 @@ function ProjectRow(props: {
                     <span className="block text-muted-foreground">
                       {[
                         thread.state === "imported" ? t("already imported") : null,
-                        thread.state === "busy" ? t("busy in T3 Code") : null,
+                        thread.state === "busy"
+                          ? t("busy in {app}", { app: OFFICIAL_APP_NAME })
+                          : null,
                         thread.archived ? t("archived") : null,
                         thread.subagentCount > 0
                           ? t("{count} subagents", { count: thread.subagentCount })
@@ -479,7 +512,9 @@ function ChooseStep(props: {
           </label>
         </div>
         {catalog.projects.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("T3 Code has no projects to import.")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("{app} has no projects to import.", { app: OFFICIAL_APP_NAME })}
+          </p>
         ) : (
           <div className="divide-y divide-border/60">
             {catalog.projects.map((project) => (
@@ -525,7 +560,9 @@ function ChooseStep(props: {
                   </div>
                   {choice.picked && (
                     <p className="ml-6 text-xs text-warning-foreground">
-                      {t("T3 Code keeps running its own copy until you pause it there.")}
+                      {t("{app} keeps running its own copy until you pause it there.", {
+                        app: OFFICIAL_APP_NAME,
+                      })}
                     </p>
                   )}
                 </li>
@@ -621,7 +658,7 @@ function ImportRow(props: {
     if (result._tag === "Success" || isAtomCommandInterrupted(result)) return;
     toastManager.add({
       type: "error",
-      title: t("Could not import from T3 Code"),
+      title: t("Could not import from {app}", { app: OFFICIAL_APP_NAME }),
       description: errorMessage(squashAtomCommandFailure(result)),
     });
     setStep({ kind: "review", catalog, draft, report: null });
@@ -638,17 +675,21 @@ function ImportRow(props: {
   const unavailableText = (reason: Unavailable["reason"]) => {
     switch (reason) {
       case "source-missing":
-        return t("No T3 Code data was found on this computer.");
+        return t("No {app} data was found on this computer.", { app: OFFICIAL_APP_NAME });
       case "source-is-this-database":
         return t(
-          "This environment already uses T3 Code's data folder, so there is nothing to import.",
+          "This environment already uses {app}'s data folder, so there is nothing to import.",
+          { app: OFFICIAL_APP_NAME },
         );
       case "source-schema-newer":
         return t(
-          "T3 Code's data comes from a newer version than this app understands. Update T3 Extend first.",
+          "{app}'s data comes from a newer version than this app understands. Update T3 Extend first.",
+          { app: OFFICIAL_APP_NAME },
         );
       case "source-schema-diverged":
-        return t("T3 Code's data has migrations this app does not share. Update T3 Extend first.");
+        return t("{app}'s data has migrations this app does not share. Update T3 Extend first.", {
+          app: OFFICIAL_APP_NAME,
+        });
     }
   };
 
@@ -658,9 +699,10 @@ function ImportRow(props: {
       <SettingsRow
         {...(props.searchable
           ? searchableSetting("import-from-t3-code")
-          : { title: t("Import from T3 Code") })}
+          : { title: t("Import from {app}", { app: OFFICIAL_APP_NAME }) })}
         description={t(
-          "Choose projects, threads, scheduled tasks and settings from T3 Code on this computer to bring into T3 Extend. T3 Code's own data is only read, never changed.",
+          "Choose projects, threads, scheduled tasks and settings from {app} on this computer to bring into T3 Extend. {app}'s own data is only read, never changed.",
+          { app: OFFICIAL_APP_NAME },
         )}
         status={props.label === "" ? undefined : props.label}
         control={
@@ -682,12 +724,12 @@ function ImportRow(props: {
       >
         <DialogPopup className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{t("Import from T3 Code")}</DialogTitle>
+            <DialogTitle>{t("Import from {app}", { app: OFFICIAL_APP_NAME })}</DialogTitle>
             <DialogDescription>
               {step.kind === "review"
                 ? t("Review what will happen, then confirm.")
                 : step.kind === "running"
-                  ? t("T3 Code's own data is only read, never changed.")
+                  ? t("{app}'s own data is only read, never changed.", { app: OFFICIAL_APP_NAME })
                   : t("Pick what to bring over. Threads you already imported are skipped.")}
             </DialogDescription>
           </DialogHeader>
@@ -766,13 +808,17 @@ function ImportRow(props: {
 }
 
 export function T3CodeImportSection() {
+  const t = useT();
   const { connectedEnvironments } = useSettingsScope();
   const supported = connectedEnvironments.filter(
     (environment) => environment.serverConfig?.environment.capabilities.t3CodeImport === true,
   );
   if (supported.length === 0) return null;
   return (
-    <SettingsSection id="import-from-t3-code" title="Import from T3 Code">
+    <SettingsSection
+      id="import-from-t3-code"
+      title={t("Import from {app}", { app: OFFICIAL_APP_NAME })}
+    >
       {supported.map((environment, index) => (
         <ImportRow
           key={environment.environmentId}

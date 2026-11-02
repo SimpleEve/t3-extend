@@ -11,6 +11,7 @@ import {
   ModelSelection,
   OrchestrationV2ThreadLaunchWorkspaceStrategy,
   ScheduledTaskUpsertSchedule,
+  isManagedSettingPath,
   T3CodeImportError,
   type T3CodeImportCatalog,
   type T3CodeImportFileKind,
@@ -106,6 +107,9 @@ const failed = (cause: unknown) => new T3CodeImportError({ reason: "failed", cau
 const quote = (identifier: string) => `"${identifier.replaceAll('"', '""')}"`;
 const decodeJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+const decodeScheduleJson = Schema.decodeUnknownOption(
+  Schema.fromJsonString(ScheduledTaskUpsertSchedule),
+);
 
 interface SourceThread {
   readonly id: string;
@@ -443,9 +447,12 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
             updatedAt: thread.updatedAt,
             archived: thread.archived,
             subagentCount: subagentDescendants(children, thread.id).length,
+            // A thread whose subagents did not all arrive (an interrupted run) can be picked again to finish.
             state: busy.has(thread.id)
               ? ("busy" as const)
-              : done.get(thread.id)?.state === "done"
+              : [thread, ...subagentDescendants(children, thread.id)].every(
+                    (member) => done.get(member.id)?.state === "done",
+                  )
                 ? ("imported" as const)
                 : ("importable" as const),
             worktree:
@@ -539,6 +546,9 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       return decodeJson(text.replaceAll(from, config.baseDir));
     };
 
+    const policy = settingsService.managedPolicy;
+    const managedBy = policy?.organization ?? "";
+    const allowedDrivers = policy?.limits?.providers?.allowedDrivers;
     const settingsPatch: Record<string, unknown> = {};
     let priceOverrides: unknown = undefined;
     const providerInstances: Array<{ id: string; config: unknown }> = [];
@@ -559,10 +569,19 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       for (const [key, value] of Object.entries(record)) {
         if (key === "providerInstances") {
           if (!wants.has("providerInstances")) continue;
+          if (isManagedSettingPath(policy, key)) {
+            skipped.push({ code: "setting-managed", subject: key, detail: managedBy });
+            continue;
+          }
           const here = yield* settingsService.getSettings.pipe(Effect.orElseSucceed(() => null));
           for (const [id, instance] of Object.entries((value ?? {}) as Record<string, unknown>)) {
             if (here !== null && id in here.providerInstances) {
               skipped.push({ code: "provider-instance-exists", subject: id });
+              continue;
+            }
+            const driver = String((instance as { driver?: unknown } | null)?.driver ?? "");
+            if (allowedDrivers !== undefined && !allowedDrivers.some((kind) => kind === driver)) {
+              skipped.push({ code: "provider-instance-managed", subject: id, detail: managedBy });
               continue;
             }
             providerInstances.push({ id, config: toFork(instance) });
@@ -570,13 +589,20 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
           continue;
         }
         if (key === "usagePriceOverrides") {
-          if (wants.has("usagePriceOverrides")) priceOverrides = value;
+          if (!wants.has("usagePriceOverrides")) continue;
+          if (isManagedSettingPath(policy, key)) {
+            skipped.push({ code: "setting-managed", subject: key, detail: managedBy });
+          } else priceOverrides = value;
           continue;
         }
         if (!wants.has("settings")) continue;
         if (key === "previousWorktreesDirectories") {
           // Folders listed here are ones T3 Extend would clean up; it must not take over the official app's.
           skipped.push({ code: "worktree-directories-skipped", subject: key });
+          continue;
+        }
+        if (isManagedSettingPath(policy, key)) {
+          skipped.push({ code: "setting-managed", subject: key, detail: managedBy });
           continue;
         }
         if (!patchKeys.has(key) || Option.isNone(decodePatch({ [key]: value }))) {
@@ -847,6 +873,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
 
     // Scheduled tasks.
     const tasks: Array<Analysis["tasks"][number]> = [];
+    const nowMillis = DateTime.toEpochMillis(yield* DateTime.now);
     const doneTasks = yield* mappedTargets("task");
     for (const choice of selection.scheduledTasks) {
       if (doneTasks.get(choice.taskId)?.state === "done") continue;
@@ -878,13 +905,19 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         skipped.push({ code: "task-thread-missing", subject: title });
         continue;
       }
+      const schedule = Option.getOrNull(decodeScheduleJson(row.schedule_json));
+      // A one-time run that is already due would fire the moment the task is saved.
+      const oncePassed =
+        schedule?.type === "once" &&
+        !(DateTime.toEpochMillis(DateTime.makeUnsafe(schedule.runAt)) > nowMillis);
       tasks.push({
         row,
-        enabled: choice.enabled,
+        enabled: choice.enabled && !oncePassed,
         targetProjectId: targetProject,
         targetThreadId: targetThread,
       });
-      if (choice.enabled) fixed.push({ code: "task-imported-active", subject: title });
+      if (oncePassed) attention.push({ code: "task-once-passed", subject: title });
+      else if (choice.enabled) fixed.push({ code: "task-imported-active", subject: title });
       attention.push({ code: "task-runs-in-both", subject: title });
     }
     if (tasks.some((task) => String(task.row.schedule_json).includes('"webhook"'))) {
@@ -1515,6 +1548,300 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     }
   });
 
+  /** One pass over the rows of `table` that match `where`, in batches, into `dst` under the columns both share. */
+  const transfer = Effect.fn("T3CodeImport.transfer")(function* (input: {
+    readonly src: SqlClient.SqlClient;
+    readonly dst: SqlClient.SqlClient;
+    readonly table: string;
+    readonly where: string;
+    readonly params: ReadonlyArray<unknown>;
+  }) {
+    const theirs = new Set(yield* columnsOf(input.dst, input.table));
+    const columns = (yield* columnsOf(input.src, input.table)).filter((name) => theirs.has(name));
+    if (columns.length === 0) return;
+    let last = -1;
+    for (;;) {
+      const batch = yield* input.src.unsafe<Row>(
+        `SELECT rowid AS "__rowid", * FROM ${quote(input.table)} WHERE ${input.where} AND rowid > ? ORDER BY rowid LIMIT ?`,
+        [...input.params, last, ROWS_PER_BATCH] as Array<never>,
+      );
+      if (batch.length === 0) return;
+      last = Number(batch[batch.length - 1]!["__rowid"]);
+      yield* input.dst.withTransaction(
+        Effect.forEach(
+          batch,
+          (row) =>
+            input.dst.unsafe(
+              `INSERT OR IGNORE INTO ${quote(input.table)} (${columns.map(quote).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
+              columns.map((column) => row[column]) as Array<never>,
+            ),
+          { discard: true },
+        ),
+      );
+    }
+  });
+
+  /**
+   * An older source is not copied whole (the real one is gigabytes). A new file gets the source's own
+   * schema by running the migrator up to the version the source was at, then only the picked rows,
+   * and the migrator carries it up to this build, so every later migration reaches those rows too.
+   */
+  const stageSelection = Effect.fn("T3CodeImport.stageSelection")(function* (input: {
+    readonly src: SqlClient.SqlClient;
+    readonly stagingPath: string;
+    readonly sourceVersion: number;
+    readonly threadIds: ReadonlyArray<string>;
+    readonly projectIds: ReadonlyArray<string>;
+  }) {
+    const staging = NodeSqliteClient.layer({ filename: input.stagingPath });
+    yield* runMigrations({ toMigrationInclusive: input.sourceVersion }).pipe(
+      Effect.provide(staging),
+    );
+    const tables = new Set(yield* threadTables());
+    yield* Effect.gen(function* () {
+      const dst = yield* SqlClient.SqlClient;
+      const present = new Set(
+        (yield* input.src.unsafe<{ readonly name: string }>(
+          `SELECT m.name FROM sqlite_master m, pragma_table_info(m.name) c
+           WHERE m.type = 'table' AND c.name = 'thread_id'`,
+        )).map((row) => row.name),
+      );
+      yield* transfer({
+        src: input.src,
+        dst,
+        table: "projection_projects",
+        where: "1 = 1",
+        params: [],
+      });
+      yield* transfer({
+        src: input.src,
+        dst,
+        table: "scheduled_tasks",
+        where: "1 = 1",
+        params: [],
+      });
+      for (const projectId of input.projectIds) {
+        yield* transfer({
+          src: input.src,
+          dst,
+          table: "orchestration_events",
+          where: "aggregate_kind = 'project' AND stream_id = ?",
+          params: [projectId],
+        });
+      }
+      for (const threadId of input.threadIds) {
+        for (const table of tables) {
+          if (!present.has(table)) continue;
+          yield* transfer({
+            src: input.src,
+            dst,
+            table,
+            where: "thread_id = ?",
+            params: [threadId],
+          });
+        }
+        yield* transfer({
+          src: input.src,
+          dst,
+          table: "orchestration_events",
+          where: "aggregate_kind = 'thread' AND stream_id = ?",
+          params: [threadId],
+        });
+        yield* transfer({
+          src: input.src,
+          dst,
+          table: TRANSFERS_TABLE,
+          where: "source_thread_id = ?",
+          params: [threadId],
+        });
+      }
+    }).pipe(Effect.provide(staging));
+    yield* runMigrations().pipe(Effect.provide(staging));
+  });
+
+  /** The copy proper: everything is read from `src`, which holds one consistent view of the picked rows. */
+  const copyAll = Effect.fn("T3CodeImport.copyAll")(function* (input: {
+    readonly src: SqlClient.SqlClient;
+    readonly sourceStateDir: string;
+    readonly runId: number;
+    readonly analysis: Analysis;
+  }) {
+    const { src, sourceStateDir, runId, analysis } = input;
+    const idMap = new Map<string, string>();
+    for (const [id, target] of analysis.threadTargets) idMap.set(id, target);
+    for (const project of analysis.projects.values()) idMap.set(project.sourceId, project.targetId);
+    const rewriter = makeRewriter({
+      ids: idMap,
+      sourceStateDir,
+      targetAttachmentsDir: config.attachmentsDir,
+      targetBrowserArtifactsDir: config.browserArtifactsDir,
+    });
+    const tableNames = yield* threadTables();
+    const tables = yield* Effect.forEach(tableNames, (name) =>
+      sharedColumns(src, name).pipe(Effect.map((columns) => ({ name, columns }))),
+    );
+    const eventColumns = (yield* sharedColumns(src, "orchestration_events")).filter(
+      (column) => column !== "sequence",
+    );
+    const projectRootRows = yield* src.unsafe<Row>(
+      `SELECT project_id, workspace_root FROM projection_projects`,
+    );
+    const context: RunContext = {
+      analysis,
+      src,
+      tables,
+      eventColumns,
+      rewrite: rewriter.rewrite,
+      referencedFiles: rewriter.referencedFiles,
+      copiedFiles: new Set(),
+      counters: {
+        refsCopied: 0,
+        refsUnavailable: 0,
+        attachments: 0,
+        browserArtifacts: 0,
+        limitCleared: 0,
+      },
+      sourceStateDir,
+      idMap,
+      projectRoots: new Map(
+        projectRootRows.map((row) => [String(row.project_id), String(row.workspace_root)]),
+      ),
+    };
+
+    let importedProjects = 0;
+    for (const project of analysis.projects.values()) {
+      if (project.existing) continue;
+      yield* copyProject(context, project);
+      importedProjects += 1;
+    }
+    let done = 0;
+    for (const thread of analysis.toCopy) {
+      yield* SubscriptionRef.set(stateRef, {
+        status: "running",
+        phase: "threads",
+        doneThreads: done,
+        totalThreads: analysis.toCopy.length,
+        currentTitle: thread.title,
+      });
+      yield* copyThread(context, thread);
+      done += 1;
+    }
+
+    // Hand-offs between two imported threads, now that both exist.
+    if (analysis.toCopy.length > 0) {
+      const columns = yield* sharedColumns(src, TRANSFERS_TABLE);
+      const transfers = yield* src.unsafe<Row>(`SELECT * FROM ${TRANSFERS_TABLE}`);
+      const rows = transfers
+        .filter(
+          (row) =>
+            analysis.toCopy.some((thread) => thread.id === row.source_thread_id) &&
+            idMap.has(String(row.target_thread_id)),
+        )
+        .map((row) =>
+          columns.map((column) =>
+            typeof row[column] === "string" ? context.rewrite(String(row[column])) : row[column],
+          ),
+        );
+      yield* sql.withTransaction(
+        Effect.forEach(
+          rows,
+          (values) =>
+            sql.unsafe(
+              `INSERT OR IGNORE INTO ${quote(TRANSFERS_TABLE)} (${columns.map(quote).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
+              values as Array<never>,
+            ),
+          { discard: true },
+        ),
+      );
+    }
+
+    yield* SubscriptionRef.set(stateRef, {
+      status: "running",
+      phase: "files",
+      doneThreads: done,
+      totalThreads: analysis.toCopy.length,
+      currentTitle: null,
+    });
+    const lateAttention: Array<T3CodeImportNotice> = [];
+    yield* copyReferencedFiles(context, []);
+    yield* importFiles(analysis, sourceStateDir, lateAttention);
+
+    yield* SubscriptionRef.set(stateRef, {
+      status: "running",
+      phase: "tasks",
+      doneThreads: done,
+      totalThreads: analysis.toCopy.length,
+      currentTitle: null,
+    });
+    const { imported: importedTasks, unreadable: unreadableTasks } =
+      yield* importScheduledTasks(analysis);
+
+    // The final list reports what actually happened.
+    const counters = context.counters;
+    const replaceCount = (
+      notices: ReadonlyArray<T3CodeImportNotice>,
+      code: T3CodeImportNotice["code"],
+      count: number,
+    ) => [
+      ...notices.filter((notice) => notice.code !== code),
+      ...(count > 0 ? [{ code, subject: "", count }] : []),
+    ];
+    let fixed = replaceCount(analysis.report.fixed, "checkpoint-refs-copied", counters.refsCopied);
+    fixed = replaceCount(
+      fixed,
+      "attachments-copied",
+      counters.attachments + counters.browserArtifacts,
+    );
+    const attention = [
+      ...replaceCount(
+        analysis.report.attention,
+        "checkpoint-refs-unavailable",
+        counters.refsUnavailable,
+      ),
+      ...lateAttention,
+      ...importedTasks.flatMap((task) =>
+        task.webhookPath === null
+          ? []
+          : [
+              {
+                code: "task-webhook-url" as const,
+                subject: task.title,
+                detail: task.webhookPath,
+              },
+            ],
+      ),
+    ];
+    const result: T3CodeImportResult = {
+      importedProjects,
+      importedThreads: analysis.toCopy.length,
+      existingThreads: analysis.alreadyImported,
+      importedTasks,
+      clientSettings: analysis.files.clientSettings,
+      report: { fixed, skipped: [...analysis.report.skipped, ...unreadableTasks], attention },
+    };
+    yield* sql.unsafe(
+      `UPDATE fork_t3code_import_runs SET finished_at = ?, summary_json = ? WHERE run_id = ?`,
+      [yield* nowIso, encodeJson(result.report), runId],
+    );
+    return result;
+  });
+
+  const inReadTransaction = Effect.fn("T3CodeImport.inReadTransaction")(function* <A, E, R>(
+    src: SqlClient.SqlClient,
+    use: Effect.Effect<A, E, R>,
+  ) {
+    yield* SubscriptionRef.set(stateRef, {
+      status: "running",
+      phase: "preparing",
+      doneThreads: 0,
+      totalThreads: 0,
+      currentTitle: null,
+    });
+    // One read transaction: every row comes from the same moment, however long the copy takes.
+    yield* src.unsafe("BEGIN").unprepared;
+    return yield* use.pipe(Effect.ensuring(src.unsafe("ROLLBACK").unprepared.pipe(Effect.ignore)));
+  });
+
   const runImport = Effect.fn("T3CodeImport.runImport")(function* (
     selection: T3CodeImportSelection,
   ) {
@@ -1524,200 +1851,54 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       `INSERT INTO fork_t3code_import_runs (started_at, source_path) VALUES (?, ?) RETURNING run_id`,
       [yield* nowIso, located.sourcePath],
     ))[0]!.run_id;
-
     const sourceStateDir = path.dirname(located.sourcePath);
-    // Older sources are migrated up on a private copy; the official database itself is never touched.
-    let dbPath = located.sourcePath;
-    if (located.needsMigration) {
-      const tempDir = yield* fs.makeTempDirectoryScoped({
-        directory: config.stateDir,
-        prefix: "t3-import-",
-      });
-      const copy = path.join(tempDir, "statev2.sqlite");
-      yield* withSource(located.sourcePath, (src) => src.unsafe(`VACUUM INTO ?`, [copy]));
-      yield* runMigrations().pipe(Effect.provide(NodeSqliteClient.layer({ filename: copy })));
-      dbPath = copy;
+
+    if (!located.needsMigration) {
+      return yield* withSource(located.sourcePath, (src) =>
+        inReadTransaction(
+          src,
+          Effect.gen(function* () {
+            const analysis = yield* analyse(
+              { dbPath: located.sourcePath, stateDir: sourceStateDir },
+              src,
+              selection,
+            );
+            return yield* copyAll({ src, sourceStateDir, runId, analysis });
+          }),
+        ),
+      );
     }
 
-    return yield* withSource(dbPath, (src) =>
-      Effect.gen(function* () {
-        yield* SubscriptionRef.set(stateRef, {
-          status: "running",
-          phase: "preparing",
-          doneThreads: 0,
-          totalThreads: 0,
-          currentTitle: null,
-        });
-        // One read transaction: every row comes from the same moment, however long the copy takes.
-        yield* src.unsafe("BEGIN").unprepared;
-        return yield* Effect.gen(function* () {
-          const analysis = yield* analyse({ dbPath, stateDir: sourceStateDir }, src, selection);
-          const idMap = new Map<string, string>();
-          for (const [id, target] of analysis.threadTargets) idMap.set(id, target);
-          for (const project of analysis.projects.values())
-            idMap.set(project.sourceId, project.targetId);
-          const rewriter = makeRewriter({
-            ids: idMap,
-            sourceStateDir,
-            targetAttachmentsDir: config.attachmentsDir,
-            targetBrowserArtifactsDir: config.browserArtifactsDir,
-          });
-          const tableNames = yield* threadTables();
-          const tables = yield* Effect.forEach(tableNames, (name) =>
-            sharedColumns(src, name).pipe(Effect.map((columns) => ({ name, columns }))),
-          );
-          const eventColumns = (yield* sharedColumns(src, "orchestration_events")).filter(
-            (column) => column !== "sequence",
-          );
-          const projectRootRows = yield* src.unsafe<Row>(
-            `SELECT project_id, workspace_root FROM projection_projects`,
-          );
-          const context: RunContext = {
-            analysis,
+    const tempDir = yield* fs.makeTempDirectoryScoped({
+      directory: config.stateDir,
+      prefix: "t3-import-",
+    });
+    const stagingPath = path.join(tempDir, "statev2.sqlite");
+    const sourceVersion = Math.max(
+      ...(recordedMigrations(located.sourcePath) ?? []).map(({ id }) => id),
+    );
+    const analysis = yield* withSource(located.sourcePath, (src) =>
+      inReadTransaction(
+        src,
+        Effect.gen(function* () {
+          const analysis = yield* analyse(
+            { dbPath: located.sourcePath, stateDir: sourceStateDir },
             src,
-            tables,
-            eventColumns,
-            rewrite: rewriter.rewrite,
-            referencedFiles: rewriter.referencedFiles,
-            copiedFiles: new Set(),
-            counters: {
-              refsCopied: 0,
-              refsUnavailable: 0,
-              attachments: 0,
-              browserArtifacts: 0,
-              limitCleared: 0,
-            },
-            sourceStateDir,
-            idMap,
-            projectRoots: new Map(
-              projectRootRows.map((row) => [String(row.project_id), String(row.workspace_root)]),
-            ),
-          };
-
-          let importedProjects = 0;
-          for (const project of analysis.projects.values()) {
-            if (project.existing) continue;
-            yield* copyProject(context, project);
-            importedProjects += 1;
-          }
-          let done = 0;
-          for (const thread of analysis.toCopy) {
-            yield* SubscriptionRef.set(stateRef, {
-              status: "running",
-              phase: "threads",
-              doneThreads: done,
-              totalThreads: analysis.toCopy.length,
-              currentTitle: thread.title,
-            });
-            yield* copyThread(context, thread);
-            done += 1;
-          }
-
-          // Hand-offs between two imported threads, now that both exist.
-          if (analysis.toCopy.length > 0) {
-            const columns = yield* sharedColumns(src, TRANSFERS_TABLE);
-            const transfers = yield* src.unsafe<Row>(`SELECT * FROM ${TRANSFERS_TABLE}`);
-            const rows = transfers
-              .filter(
-                (row) =>
-                  analysis.toCopy.some((thread) => thread.id === row.source_thread_id) &&
-                  idMap.has(String(row.target_thread_id)),
-              )
-              .map((row) =>
-                columns.map((column) =>
-                  typeof row[column] === "string"
-                    ? context.rewrite(String(row[column]))
-                    : row[column],
-                ),
-              );
-            yield* sql.withTransaction(
-              Effect.forEach(
-                rows,
-                (values) =>
-                  sql.unsafe(
-                    `INSERT OR IGNORE INTO ${quote(TRANSFERS_TABLE)} (${columns.map(quote).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
-                    values as Array<never>,
-                  ),
-                { discard: true },
-              ),
-            );
-          }
-
-          yield* SubscriptionRef.set(stateRef, {
-            status: "running",
-            phase: "files",
-            doneThreads: done,
-            totalThreads: analysis.toCopy.length,
-            currentTitle: null,
+            selection,
+          );
+          yield* stageSelection({
+            src,
+            stagingPath,
+            sourceVersion,
+            threadIds: analysis.toCopy.map((thread) => thread.id),
+            projectIds: [...analysis.projects.keys()],
           });
-          const lateAttention: Array<T3CodeImportNotice> = [];
-          yield* copyReferencedFiles(context, []);
-          yield* importFiles(analysis, sourceStateDir, lateAttention);
-
-          yield* SubscriptionRef.set(stateRef, {
-            status: "running",
-            phase: "tasks",
-            doneThreads: done,
-            totalThreads: analysis.toCopy.length,
-            currentTitle: null,
-          });
-          const { imported: importedTasks, unreadable: unreadableTasks } =
-            yield* importScheduledTasks(analysis);
-
-          // The final list reports what actually happened.
-          const counters = context.counters;
-          const replaceCount = (
-            notices: ReadonlyArray<T3CodeImportNotice>,
-            code: T3CodeImportNotice["code"],
-            count: number,
-          ) => [
-            ...notices.filter((notice) => notice.code !== code),
-            ...(count > 0 ? [{ code, subject: "", count }] : []),
-          ];
-          let fixed = replaceCount(
-            analysis.report.fixed,
-            "checkpoint-refs-copied",
-            counters.refsCopied,
-          );
-          fixed = replaceCount(
-            fixed,
-            "attachments-copied",
-            counters.attachments + counters.browserArtifacts,
-          );
-          const attention = [
-            ...replaceCount(
-              analysis.report.attention,
-              "checkpoint-refs-unavailable",
-              counters.refsUnavailable,
-            ),
-            ...lateAttention,
-            ...importedTasks.flatMap((task) =>
-              task.webhookPath === null
-                ? []
-                : [
-                    {
-                      code: "task-webhook-url" as const,
-                      subject: task.title,
-                      detail: task.webhookPath,
-                    },
-                  ],
-            ),
-          ];
-          const result: T3CodeImportResult = {
-            importedProjects,
-            importedThreads: analysis.toCopy.length,
-            existingThreads: analysis.alreadyImported,
-            importedTasks,
-            clientSettings: analysis.files.clientSettings,
-            report: { fixed, skipped: [...analysis.report.skipped, ...unreadableTasks], attention },
-          };
-          yield* sql.unsafe(
-            `UPDATE fork_t3code_import_runs SET finished_at = ?, summary_json = ? WHERE run_id = ?`,
-            [yield* nowIso, encodeJson(result.report), runId],
-          );
-          return result;
-        }).pipe(Effect.ensuring(src.unsafe("ROLLBACK").unprepared.pipe(Effect.ignore)));
-      }),
+          return analysis;
+        }),
+      ),
+    );
+    return yield* withSource(stagingPath, (src) =>
+      inReadTransaction(src, copyAll({ src, sourceStateDir, runId, analysis })),
     );
   }, Effect.scoped);
 

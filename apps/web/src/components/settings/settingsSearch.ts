@@ -1,7 +1,11 @@
 import { HOSTED_APP_CHANNEL } from "~/branding";
 import { isElectron, isSecretsFeatureEnabled } from "~/env";
 import { isMacPlatform, isWindowsPlatform, normalizeSearchText } from "~/lib/utils";
-import { STATIC_KEYBINDING_COMMANDS, type KeybindingCommand } from "@t3tools/contracts";
+import {
+  OFFICIAL_APP_NAME, // fork: import from official T3 Code
+  STATIC_KEYBINDING_COMMANDS,
+  type KeybindingCommand,
+} from "@t3tools/contracts";
 import type { EnvironmentId } from "@t3tools/contracts";
 import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
 import {
@@ -236,7 +240,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "import-from-t3-code", // fork: import from official T3 Code
-    title: "Import from T3 Code",
+    title: `Import from ${OFFICIAL_APP_NAME}`,
     to: "/settings/maintenance",
     scope: "environment-defaults",
     searchTerms: ["official migrate switch projects threads history data bring over"],

@@ -3,7 +3,12 @@ import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
-import { ThreadId, type T3CodeImportSelection } from "@t3tools/contracts";
+import {
+  ProviderDriverKind,
+  ThreadId,
+  type ManagedPolicySummary,
+  type T3CodeImportSelection,
+} from "@t3tools/contracts";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
@@ -12,6 +17,7 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Stream from "effect/Stream";
+import * as TestClock from "effect/testing/TestClock";
 import * as SqlClient from "effect/sql/SqlClient";
 
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
@@ -42,6 +48,8 @@ const T_SOLO = id(19);
 const TASK_INTERVAL = "scheduled-task:aaaa";
 const TASK_WEBHOOK = "scheduled-task:bbbb";
 const TASK_ORPHAN = "scheduled-task:cccc";
+const TASK_ONCE_PAST = "scheduled-task:dddd";
+const TASK_ONCE_FUTURE = "scheduled-task:eeee";
 const CURSOR_CREDENTIAL =
   "provider-auth-02a8ae355046b982b21f46e0b092be604758b64fa8ae971800289f628c780a54";
 
@@ -178,7 +186,11 @@ const createSourceHome = Effect.fn("createSourceHome")(function* (
           T_SOLO,
           P_SOLO,
           "completed",
-          { worktreePath: path.join(home, "worktrees", "gone") },
+          {
+            worktreePath: path.join(home, "worktrees", "gone"),
+            // What migration 077 repairs; only an older source still holds it.
+            ...(throughMigration === undefined ? {} : { settledOverride: true }),
+          },
           "2026-08-06",
         ],
       ] as const) {
@@ -233,6 +245,20 @@ const createSourceHome = Effect.fn("createSourceHome")(function* (
         null,
       );
       yield* task(TASK_ORPHAN, P_DELETED, { type: "interval", everyMs: 3_600_000 }, 1, null);
+      yield* task(
+        TASK_ONCE_PAST,
+        P_KEPT,
+        { type: "once", runAt: "2020-01-01T00:00:00.000Z" },
+        1,
+        null,
+      );
+      yield* task(
+        TASK_ONCE_FUTURE,
+        P_KEPT,
+        { type: "once", runAt: "2999-01-01T00:00:00.000Z" },
+        1,
+        null,
+      );
       yield* sql`INSERT INTO orchestration_command_receipts
         (command_id, aggregate_kind, aggregate_id, accepted_at, result_sequence, status)
         VALUES ('command-1', 'thread', ${T_STOPPED}, '2026-08-01', 1, 'accepted')`;
@@ -279,7 +305,10 @@ interface Captured {
 
 /** Runs `use` against a live service on a fresh target database, as the server would hold it. */
 const withService = <A, E, R>(
-  options: { readonly sourceThroughMigration?: number },
+  options: {
+    readonly sourceThroughMigration?: number;
+    readonly managedPolicy?: ManagedPolicySummary;
+  },
   use: (input: {
     readonly service: T3CodeImport.T3CodeImport["Service"];
     readonly sql: SqlClient.SqlClient;
@@ -317,7 +346,7 @@ const withService = <A, E, R>(
     const captured: Captured = { tasks: [], keybindings: [], secrets: new Map() };
     const mocks = Layer.mergeAll(
       OrchestrationEventStore.layer,
-      ServerSettings.ServerSettingsService.layerTest(),
+      ServerSettings.ServerSettingsService.layerTest({}, options.managedPolicy),
       Layer.mock(ScheduledTaskService.ScheduledTaskService)({
         upsert: (input) =>
           Effect.sync(() => {
@@ -425,7 +454,7 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
           );
           assert.deepStrictEqual(
             catalog.scheduledTasks.map((task) => task.enabled),
-            [true, false, true],
+            [true, false, true, true, true],
           );
           assert.deepStrictEqual(
             catalog.files.filter((file) => !file.available).map((file) => file.kind),
@@ -665,6 +694,34 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
       ),
   );
 
+  it.effect("a thread whose subagent did not arrive is offered again and finishes the job", () =>
+    withService({}, ({ service, sql }) =>
+      Effect.gen(function* () {
+        const selection = selectionOf({
+          threadIds: [ThreadId.make(T_PARENT)],
+          scheduledTasks: [],
+          files: [],
+        });
+        yield* runToEnd(service, selection);
+        const stateOf = Effect.gen(function* () {
+          const catalog = yield* service.preview;
+          assert.equal(catalog.status, "available");
+          if (catalog.status !== "available") return undefined;
+          return catalog.projects
+            .flatMap((project) => project.threads)
+            .find((thread) => thread.threadId === T_PARENT)?.state;
+        });
+        assert.equal(yield* stateOf, "imported");
+        yield* sql`UPDATE fork_t3code_import_map SET state = 'copying' WHERE source_id = ${T_SUB}`;
+        assert.equal(yield* stateOf, "importable");
+        const again = yield* runToEnd(service, selection);
+        assert.equal(again.importedThreads, 1);
+        assert.equal(again.existingThreads, 1);
+        assert.equal(yield* stateOf, "imported");
+      }),
+    ),
+  );
+
   it.effect("refuses a source that is missing, newer, or this very database", () =>
     withService({}, ({ service, sourcePath, config }) =>
       Effect.gen(function* () {
@@ -706,8 +763,72 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
               count: number;
             }>`SELECT COUNT(*) AS count FROM orchestration_v2_projection_threads`;
             assert.equal(threads?.count, 1);
+            const [repaired] = yield* sql<{
+              settled: string | null;
+            }>`SELECT json_extract(payload_json, '$.settledOverride') AS settled FROM orchestration_v2_projection_threads`;
+            assert.equal(repaired?.settled, "settled");
             assert.equal(yield* hashFile(sourcePath), before);
           }),
       ),
+  );
+  it.effect("imports a one-time task whose time has passed turned off and says so", () =>
+    withService({}, ({ service, captured }) =>
+      Effect.gen(function* () {
+        yield* TestClock.setTime(Date.parse("2026-11-02T00:00:00Z"));
+        const selection = selectionOf({
+          threadIds: [],
+          files: [],
+          scheduledTasks: [
+            { taskId: TASK_ONCE_PAST, enabled: true },
+            { taskId: TASK_ONCE_FUTURE, enabled: true },
+          ],
+        });
+        const report = yield* service.check(selection);
+        assert.deepStrictEqual(
+          report.attention.filter((notice) => notice.code === "task-once-passed"),
+          [{ code: "task-once-passed", subject: `Task ${TASK_ONCE_PAST}` }],
+        );
+        yield* runToEnd(service, selection);
+        assert.deepStrictEqual(
+          captured.tasks.map((task) => [(task.schedule as { runAt?: string }).runAt, task.enabled]),
+          [
+            ["2020-01-01T00:00:00.000Z", false],
+            ["2999-01-01T00:00:00.000Z", true],
+          ],
+        );
+      }),
+    ),
+  );
+
+  it.effect("leaves settings and provider instances a managed policy locks alone", () =>
+    withService(
+      {
+        managedPolicy: {
+          organization: "Example Corp",
+          lockedSettings: ["worktreesDirectory"],
+          limits: { providers: { allowedDrivers: [ProviderDriverKind.make("codex")] } },
+        },
+      },
+      ({ service }) =>
+        Effect.gen(function* () {
+          const report = yield* service.check(
+            selectionOf({
+              threadIds: [],
+              scheduledTasks: [],
+              files: ["settings", "providerInstances"],
+            }),
+          );
+          assert.deepStrictEqual(
+            report.skipped.filter(
+              (notice) =>
+                notice.code === "setting-managed" || notice.code === "provider-instance-managed",
+            ),
+            [
+              { code: "setting-managed", subject: "worktreesDirectory", detail: "Example Corp" },
+              { code: "provider-instance-managed", subject: "cursor", detail: "Example Corp" },
+            ],
+          );
+        }),
+    ),
   );
 });

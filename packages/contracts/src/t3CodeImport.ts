@@ -2,6 +2,9 @@ import * as Schema from "effect/Schema";
 
 import { NonNegativeInt, ProjectId, ThreadId } from "./baseSchemas.ts";
 
+/** What the app this fork was made from is called; every user-visible mention goes through here. */
+export const OFFICIAL_APP_NAME = "T3 Code";
+
 /** Why the host's official T3 Code data cannot be imported right now. */
 export const T3CodeImportUnavailableReason = Schema.Literals([
   "source-missing",
@@ -119,6 +122,8 @@ export const T3CodeImportNoticeCode = Schema.Literals([
   "task-thread-missing",
   "task-unreadable",
   "setting-rejected",
+  "setting-managed",
+  "provider-instance-managed",
   "client-setting-rejected",
   "keybinding-rejected",
   "worktree-directories-skipped",
@@ -129,6 +134,7 @@ export const T3CodeImportNoticeCode = Schema.Literals([
   "worktree-shared",
   "provider-files-shared",
   "task-runs-in-both",
+  "task-once-passed",
   "task-webhook-url",
   "subagents-omitted",
   "checkpoint-refs-unavailable",
@@ -203,19 +209,19 @@ export class T3CodeImportError extends Schema.TaggedError<T3CodeImportError>()(
   override get message(): string {
     switch (this.reason) {
       case "source-missing":
-        return "No T3 Code data was found on this machine.";
+        return `No ${OFFICIAL_APP_NAME} data was found on this machine.`;
       case "source-is-this-database":
-        return "T3 Code's data is this environment's own database.";
+        return `${OFFICIAL_APP_NAME}'s data is this environment's own database.`;
       case "source-schema-newer":
-        return "T3 Code's data was written by a newer version than this app understands. Update T3 Extend first.";
+        return `${OFFICIAL_APP_NAME}'s data was written by a newer version than this app understands. Update T3 Extend first.`;
       case "source-schema-diverged":
-        return "T3 Code's data has migrations this app does not share. Update T3 Extend first.";
+        return `${OFFICIAL_APP_NAME}'s data has migrations this app does not share. Update T3 Extend first.`;
       case "already-running":
         return "An import is already running.";
       case "project-not-found":
-        return "A selected project or thread is not in T3 Code's data.";
+        return `A selected project or thread is not in ${OFFICIAL_APP_NAME}'s data.`;
       case "failed":
-        return "Importing from T3 Code failed.";
+        return `Importing from ${OFFICIAL_APP_NAME} failed.`;
     }
   }
 }
