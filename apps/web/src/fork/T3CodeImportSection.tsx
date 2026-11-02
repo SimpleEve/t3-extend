@@ -91,9 +91,7 @@ const draftFor = (catalog: Available): Draft => ({
         .map((thread) => thread.threadId),
     ),
   ),
-  emptyProjects: new Set(
-    catalog.projects.filter((project) => project.threads.length === 0).map((p) => p.projectId),
-  ),
+  emptyProjects: new Set(),
   includeArchived: false,
   includeSubagents: true,
   tasks: new Map(
@@ -162,7 +160,7 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
     case "task-imported-active":
       return t("{subject} is imported and runs on its schedule right away.", { subject });
     case "identity-skipped":
-      return t("Not imported, so phones and browsers pair with T3 Extend again: {subject}.", {
+      return t("{subject} are not imported. Phones and browsers pair with T3 Extend again.", {
         subject,
       });
     case "signing-secrets-skipped":
@@ -353,7 +351,14 @@ function ProjectRow(props: {
     (thread) => thread.state === "importable" && (draft.includeArchived || !thread.archived),
   );
   const picked = selectable.filter((thread) => draft.threads.has(thread.threadId)).length;
+  const isEmpty = project.threads.length === 0;
   const toggleAll = () => {
+    if (isEmpty) {
+      const emptyProjects = new Set(draft.emptyProjects);
+      if (!emptyProjects.delete(project.projectId)) emptyProjects.add(project.projectId);
+      props.onChange({ ...draft, emptyProjects });
+      return;
+    }
     const threads = new Set(draft.threads);
     for (const thread of selectable) {
       if (picked === selectable.length) threads.delete(thread.threadId);
@@ -370,9 +375,13 @@ function ProjectRow(props: {
     <Collapsible>
       <div className="flex items-center gap-2 py-2">
         <Checkbox
-          checked={selectable.length > 0 && picked === selectable.length}
-          indeterminate={picked > 0 && picked < selectable.length}
-          disabled={selectable.length === 0}
+          checked={
+            isEmpty
+              ? draft.emptyProjects.has(project.projectId)
+              : selectable.length > 0 && picked === selectable.length
+          }
+          indeterminate={!isEmpty && picked > 0 && picked < selectable.length}
+          disabled={!isEmpty && selectable.length === 0}
           aria-label={project.title}
           onCheckedChange={toggleAll}
         />
@@ -678,7 +687,7 @@ function ImportRow(props: {
               {step.kind === "review"
                 ? t("Review what will happen, then confirm.")
                 : step.kind === "running"
-                  ? t("Copying from T3 Code.")
+                  ? t("T3 Code's own data is only read, never changed.")
                   : t("Pick what to bring over. Threads you already imported are skipped.")}
             </DialogDescription>
           </DialogHeader>

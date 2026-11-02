@@ -742,9 +742,6 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       ...toCopy.map((thread) => thread.projectId),
       ...selection.projectIds,
     ]);
-    for (const task of selection.scheduledTasks) {
-      void task;
-    }
     const projects = new Map<string, ProjectTarget>();
     for (const row of projectRows) {
       const sourceId = String(row.project_id);

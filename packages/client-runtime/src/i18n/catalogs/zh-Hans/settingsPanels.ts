@@ -18,7 +18,7 @@ export default {
   "Choose…": "选择…",
   "Review…": "检查…",
   "Review what will happen, then confirm.": "检查将会发生的事，然后确认。",
-  "Copying from T3 Code.": "正在从 T3 Code 复制。",
+  "T3 Code's own data is only read, never changed.": "T3 Code 自己的数据只会被读取，不会被修改。",
   "Pick what to bring over. Threads you already imported are skipped.":
     "选择要带过来的内容。已经导入过的对话会被跳过。",
   "Projects and threads": "项目和对话",
@@ -75,8 +75,8 @@ export default {
   "{count} attachments and browser captures are copied with their threads.":
     "{count} 个附件和浏览器截图会随对话一起复制。",
   "{subject} is imported and runs on its schedule right away.": "{subject} 导入后立即按计划运行。",
-  "Not imported, so phones and browsers pair with T3 Extend again: {subject}.":
-    "不会导入，手机和浏览器需要重新与 T3 Extend 配对：{subject}。",
+  "{subject} are not imported. Phones and browsers pair with T3 Extend again.":
+    "{subject}不会导入，手机和浏览器需要重新与 T3 Extend 配对。",
   "{count} signing keys and cloud sign-in secrets belong to T3 Code's identity.":
     "{count} 个签名密钥和云端登录机密属于 T3 Code 的身份。",
   "Saved remote environments are encrypted with T3 Code's key. Add them again here.":
