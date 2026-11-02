@@ -125,13 +125,14 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 - web 和桌面：全部设置页与用量页、连接与配对、onboarding、命令面板、侧边栏、对话页（标题栏、Git 操作、状态行、输入框、时间线和工具调用摘要、T3 MCP 工具摘要、后台任务标题、各类卡片和横幅、模型选择器）、右侧面板（diff、文件和各个预览器、终端、浏览器、设备）、PR 面板、导读和 PR 列表页、toast（含 PR 操作）、通用确认框、无项目首页、404 和出错页、提示词链接落地页、访客页、`ServerUpdateAction`、相对时间和稍后处理的星期、桌面菜单和原生对话框。hard-coded 一节里 web 部分为 0。
 - mobile：首页与对话列表、对话页与 Git 面板（分支与 worktree、提交、默认分支确认）、输入框、新任务、连接与配对、设置各页（含页标题）、通知、浏览器页、PR（列表、筛选、详情、文件、讨论、审查、合并、导读）、终端、文件与 ZIP 浏览、代码审查、用量、归档、语音输入、设备预览、T3 Connect 资料页、诊断、命令面板、工具调用摘要和后台任务、各类提示框和无障碍标签。消息时间、自定义稍后处理、崩溃日志、用量重置、重连等时间跟随界面语言（`uiLocaleFormatTag`）。
 
-还是英文（需要时再排期）：web 里客户端自己产生、会写日志的错误信息（`connection/`、`cloud/linkEnvironment.ts`、各处 `EnvironmentAuthorizationError` 的 `message`、预览 worker 的回复）保持英文，显示处只有 `connection/errorMessages.ts` 认识的几条会翻译；文档预览的兜底页名（"Page 1"）、设置搜索里带托管平台名的条目、更新对话框里带渠道名的跳过原因、自定义模型预设的档位值（存进设置，模型选择器原样显示）；mobile 的桌面小组件和实时活动（`widgets/`）、Android 底部导航（原生模块）、连接与持久化层的内部错误（`connection/`、`persistence/`）；稍后处理菜单里 client-runtime 共用的时刻格式（`threadSettled.ts`）仍跟随系统 locale。client-runtime 和 shared 里 web 和 mobile 共用的拼接文案（工具摘要、T3 MCP 工具摘要、后台任务标题、稍后处理、Git 菜单、诊断等）都用可选的翻译参数：不传时英文输出不变。
+还是英文（需要时再排期）：web 里客户端自己产生、会写日志的错误信息（`connection/`、`cloud/linkEnvironment.ts`、各处 `EnvironmentAuthorizationError` 的 `message`、预览 worker 的回复）保持英文，显示处只有 `connection/errorMessages.ts` 认识的几条会翻译；文档预览的兜底页名（"Page 1"）、设置搜索里带托管平台名的条目、更新对话框里带渠道名的跳过原因、自定义模型预设的档位值（存进设置，模型选择器原样显示）；mobile 的桌面小组件和实时活动（`widgets/`）、Android 底部导航（原生模块）、连接与持久化层的内部错误（`connection/`、`persistence/`）；终端的默认名 "Terminal 1"（服务器生成，标签页和输入框引用都按这个名字匹配）；web 用量页 24 小时视图在 12 小时制下的 AM/PM（`formatHourShort` 固定用 en-US）。client-runtime 和 shared 里 web 和 mobile 共用的拼接文案（工具摘要、T3 MCP 工具摘要、后台任务标题、稍后处理、Git 菜单、诊断、用量日期等）都用可选的翻译参数：不传时英文输出不变。
 
 mobile：
 
 - 入口是 Settings → Appearance → Language，字段是 mobile 偏好里的 `uiLanguage`（`apps/mobile/src/persistence/mobile-preferences.ts`），取值和 web 相同。旧数据没有这个字段，按 `system` 读（`uiLanguageSettingOf`）。
 - 系统语言不加原生依赖：Android 读 `I18nManager.getConstants().localeIdentifier`，iOS 读 `Settings.get("AppleLanguages")`，都取不到时用 `Intl.DateTimeFormat().resolvedOptions().locale`。Android 的值是 Java `Locale.toString()` 格式（`zh_CN_#Hans`），`androidLocaleTag` 先转成 BCP 47 再交给 `resolveUiLanguage`。iOS 优先读用户的语言列表，因为 `Intl` 的默认 locale 可能受 app 声明的本地化限制（没有在真机上验证）。这些都是启动时读一次的常量，改系统语言后要重启 app 才生效。
 - 启动：`apps/mobile/src/fork/uiLanguage.ts` 订阅偏好，启动画面要等偏好读出、语言生效后才隐藏。要加载中文 catalog 时最多等 `FIRST_FRAME_LANGUAGE_WAIT_MS`（1000ms），超时先显示英文，加载完再切换。英文不加载 catalog，不增加等待。加载失败保持当前语言，只记一条 warning。
+- Android 上 Hermes 的 `Intl` 不管传什么 locale 都给英文星期名，中文也可能按 12 小时制输出。所以星期名走 catalog（稍后处理菜单的 `formatWeekday`、定时任务的下次运行），中文时间用 `lib/time.ts` 的 `uiFormatOptions` 强制 24 小时制。
 - 译文在 `catalogs/zh-Hans/mobile.ts`（首页、对话列表、对话页、输入框、连接、通知）、`mobileSettings.ts`（设置各页）、`mobilePullRequests.ts`（PR）和 `mobileWorkspace.ts`（文件、终端、审查、用量、Git 子页面等）。Android 底部导航的标签文字写在原生模块里，没有翻译。
 
 ## 侧边栏视图
