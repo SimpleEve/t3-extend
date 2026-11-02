@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 export interface UpdatesLogEntryLike {
   readonly timestamp: number;
   readonly message: string;
@@ -51,7 +52,7 @@ export function formatStartupCrashReport(
   records: ReadonlyArray<StartupCrashRecord>,
   app: { readonly version: string; readonly build: string },
 ): string {
-  const header = `T3 Code ${app.version} (${app.build})`;
+  const header = `${FORK.appBaseName} ${app.version} (${app.build})`;
   if (records.length === 0) return `${header}\nNo startup crashes recorded.`;
   return [
     header,

@@ -463,7 +463,7 @@ export default {
   "Couldn't load work. Tap to retry.": "无法加载工作内容。点按重试。",
   "Context compaction": "上下文压缩",
   "Compacting context": "正在压缩上下文",
-  "Sent by T3 Code": "由 T3 Code 发送",
+  "Sent by T3 Extend": "由 T3 Extend 发送",
   Pending: "待发送",
   "Edit pending message": "编辑待发送的消息",
   "Review {fileCountLabel}, {additions} additions, {deletions} deletions":
@@ -811,7 +811,7 @@ export default {
   "Select a pull request": "选择一个 PR",
   "Choose a pull request from the sidebar to review it.": "从侧边栏选择一个 PR 进行查看。",
   Navigation: "导航",
-  "T3 Code, {tabTitle}": "T3 Code，{tabTitle}",
+  "T3 Extend, {tabTitle}": "T3 Extend，{tabTitle}",
   "Search pull requests": "搜索 PR",
   "Show tabs, {label} selected": "显示标签，已选择{label}",
   "Cancel search": "取消搜索",

@@ -30,6 +30,7 @@ import * as HttpClient from "effect/http/HttpClient";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiClient from "effect/http-api/HttpApiClient";
 import { isLocalLoopbackHost, isTailnetHost } from "@t3tools/shared/hostClassification";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
@@ -433,7 +434,7 @@ const make = Effect.gen(function* () {
         message: `${peer.label} runs a T3 Code version that cannot keep a linked agent's limits. Update it, then link again.`,
       });
     }
-    const issued = yield* signIn(primary, input, `T3 Code · ${self.label}`);
+    const issued = yield* signIn(primary, input, `${FORK.appBaseName} · ${self.label}`);
     const now = yield* DateTime.now;
     const linked: PeerLink = {
       environmentId: peer.environmentId,

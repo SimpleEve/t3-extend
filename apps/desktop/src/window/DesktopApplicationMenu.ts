@@ -78,7 +78,7 @@ const checkForUpdatesFromMenu = Effect.gen(function* () {
     yield* electronDialog.showMessageBox({
       type: "info",
       title: t("You're up to date!"),
-      message: t("T3 Code {version} is currently the newest version available.", {
+      message: t("T3 Extend {version} is currently the newest version available.", {
         version: updateState.currentVersion,
       }),
       buttons: [t("OK")],

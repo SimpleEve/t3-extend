@@ -45,7 +45,7 @@ export function SecretsSettingsPanel() {
       environment.serverConfig.secretProviderSettings !== true ? (
         <SettingsSection {...searchableSetting("secret-providers")}>
           <p className="px-4 py-3 text-sm text-muted-foreground">
-            {t("Update T3 Code on {label} to manage its secret providers.", {
+            {t("Update T3 Extend on {label} to manage its secret providers.", {
               label: environment.label,
             })}
           </p>

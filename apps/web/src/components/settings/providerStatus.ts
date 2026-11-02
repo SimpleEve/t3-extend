@@ -61,7 +61,7 @@ export function getProviderSummary(
       headline: t("Disabled"),
       detail:
         provider.message ??
-        t("This provider is installed but disabled for new sessions in T3 Code."),
+        t("This provider is installed but disabled for new sessions in T3 Extend."),
     };
   }
   if (!provider.installed) {

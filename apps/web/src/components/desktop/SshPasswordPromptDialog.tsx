@@ -163,7 +163,7 @@ function ActiveSshPasswordPrompt({
           <DialogDescription>
             {interpolateNodes(
               t(
-                "Enter the password or verification code required by {code}. T3 Code passes your response to the local SSH process and keeps it in memory to reuse for this host. T3 Code does not write it to disk.",
+                "Enter the password or verification code required by {code}. T3 Extend passes your response to the local SSH process and keeps it in memory to reuse for this host. T3 Extend does not write it to disk.",
               ),
               { code: <code>{target}</code> },
             )}

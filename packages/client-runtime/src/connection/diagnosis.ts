@@ -97,7 +97,7 @@ function headline(
     case "offline":
       return t("This device is offline");
     case "outdated":
-      return t("{host} runs an older T3 Code", { host });
+      return t("{host} runs an older T3 Extend", { host });
     case "clock_skew":
       return t("This device's clock is off");
     case "not_linked":
@@ -112,9 +112,9 @@ function headline(
     case "tunnel_down":
       return t("{host}'s tunnel is offline", { host });
     case "origin_unreachable":
-      return t("Tunnel works, but T3 Code on {host} did not answer", { host });
+      return t("Tunnel works, but T3 Extend on {host} did not answer", { host });
     case "invalid_response":
-      return t("T3 Code on {host} sent an unexpected answer", { host });
+      return t("T3 Extend on {host} sent an unexpected answer", { host });
     case "dns":
       return t("{host}'s tunnel address did not resolve", { host });
     case "tls":
@@ -143,8 +143,8 @@ function headline(
         : t("T3 Connect could not reach {host}'s tunnel", { host });
     case "server":
       return failure?.reason === "authentication" || failure?.reason === "permission"
-        ? t("T3 Code on {host} did not accept this device", { host })
-        : t("T3 Code on {host} did not answer", { host });
+        ? t("T3 Extend on {host} did not accept this device", { host })
+        : t("T3 Extend on {host} did not answer", { host });
   }
 }
 
@@ -159,9 +159,9 @@ function steps(
   });
   switch (located.cause) {
     case "offline":
-      return [t("Connect this device to the internet. T3 Code reconnects on its own.")];
+      return [t("Connect this device to the internet. T3 Extend reconnects on its own.")];
     case "outdated":
-      return [t("Update T3 Code on {host}.", { host })];
+      return [t("Update T3 Extend on {host}.", { host })];
     case "clock_skew":
       return [
         t("Turn on automatic date and time on this device and on {host}, then retry.", { host }),
@@ -172,10 +172,10 @@ function steps(
         t("On {host}, open Settings > Sharing & access and turn T3 Connect on.", { host }),
       ];
     case "tunnel_pending":
-      return [t("Wait a minute. T3 Code retries on its own."), checkHost];
+      return [t("Wait a minute. T3 Extend retries on its own."), checkHost];
     case "relay_error":
       return [
-        t("Wait a few minutes. T3 Code retries on its own."),
+        t("Wait a few minutes. T3 Extend retries on its own."),
         t("If it keeps failing, copy the diagnostics and report it."),
       ];
     case "tunnel_not_enabled":
@@ -183,7 +183,7 @@ function steps(
     case "released":
     case "tunnel_down":
       return [
-        t("Make sure {host} is awake and T3 Code is running on it.", { host }),
+        t("Make sure {host} is awake and T3 Extend is running on it.", { host }),
         checkHost,
         t(
           "A VPN or Tailscale exit node on {host} can block the tunnel (port 7844). Turn it off or allow the tunnel.",
@@ -192,7 +192,7 @@ function steps(
       ];
     case "origin_unreachable":
     case "invalid_response":
-      return [t("Open or restart T3 Code on {host}.", { host }), checkHost];
+      return [t("Open or restart T3 Extend on {host}.", { host }), checkHost];
     // The relay saw these on its way to the host, so the fix is on the host.
     case "dns":
     case "tls":
@@ -206,7 +206,7 @@ function steps(
   switch (located.hop) {
     case "device":
       return [
-        t("Restart T3 Code on this device."),
+        t("Restart T3 Extend on this device."),
         t("If it keeps failing, remove {host} from this device and add it again.", { host }),
       ];
     case "relay":
@@ -227,7 +227,7 @@ function steps(
         : [t("Make sure {host} is awake and online.", { host }), checkHost];
     case "server":
       return [
-        t("Make sure T3 Code is running on {host}.", { host }),
+        t("Make sure T3 Extend is running on {host}.", { host }),
         t("Retry. If it keeps failing, copy the diagnostics."),
       ];
   }
@@ -299,7 +299,7 @@ function hopLabel(t: Translator, hop: ConnectionHop, host: string): string {
     case "tunnel":
       return t("{host} tunnel", { host });
     case "server":
-      return t("T3 Code on {host}", { host });
+      return t("T3 Extend on {host}", { host });
   }
 }
 
@@ -363,7 +363,7 @@ const HOP_MARK = { ok: "ok", failed: "FAILED", unchecked: "not checked" } as con
 /** One plain-text block for bug reports. */
 export function connectionDiagnosisText(hostLabel: string, diagnosis: ConnectionDiagnosis): string {
   return [
-    `T3 Code connection to ${hostLabel}: ${diagnosis.headline}`,
+    `T3 Extend connection to ${hostLabel}: ${diagnosis.headline}`,
     "",
     ...diagnosis.hops.map((hop) => `${hop.label}: ${HOP_MARK[hop.result]}`),
     "",
