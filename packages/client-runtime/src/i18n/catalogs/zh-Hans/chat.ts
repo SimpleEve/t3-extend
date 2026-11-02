@@ -75,7 +75,7 @@ export default {
   "Finding pull request...": "正在查找 PR…",
   "Searching workspace skills...": "正在搜索工作区技能…",
   "Searching workspace files...": "正在搜索工作区文件…",
-  "Update this server to send files with question answers": "请更新这个 server 后再随回答发送文件",
+  "Update this server to send files with question answers": "请更新这个服务器后再随回答发送文件",
   "Attach the interrupted file again or remove it": "请重新附加中断的文件，或将其移除",
   "Attach the interrupted files again or remove them": "请重新附加中断的文件，或将其移除",
   "Compacting is unavailable right now": "现在无法压缩",
@@ -304,7 +304,7 @@ export default {
   "Side chat not started": "侧边对话没有开始",
   "Side chats take text only": "侧边对话只支持文字",
   "Remove the attachments and context, then send it again.": "请移除附件和上下文后再发送。",
-  "Update this server before starting multiple models.": "请先更新这个 server 再启动多个模型。",
+  "Update this server before starting multiple models.": "请先更新这个服务器再启动多个模型。",
   "Choose models and a base branch": "请选择模型和基础分支",
   "Multiple models need a new thread in a Git project. Each gets its own worktree.":
     "多个模型需要在 Git 项目中新建对话，每个模型使用各自的 worktree。",
@@ -1157,7 +1157,7 @@ export default {
   "Replay a recorded turn": "回放录制的轮次",
   "Replay in {title}": "在 {title} 中回放",
   "Needs a project and the Replay (dev) provider, which dev servers start.":
-    "需要一个项目和 Replay (dev) provider，dev server 会启动它。",
+    "需要一个项目和 Replay (dev) provider，开发服务器会启动它。",
   "Publishing repository to {publishProviderLabel}...": "正在把仓库发布到 {publishProviderLabel}…",
   "(detached HEAD)": "（分离的 HEAD）",
   "Enjoying T3 Code?": "喜欢 T3 Code 吗？",

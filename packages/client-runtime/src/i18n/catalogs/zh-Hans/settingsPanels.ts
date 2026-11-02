@@ -393,7 +393,7 @@ export default {
   "Could not send {signal}": "无法发送 {signal}",
   "Process already exited": "进程已经退出",
   "The process is not a child of the T3 Server. It might already have exited.":
-    "该进程不是 T3 Server 的子进程。它可能已经退出。",
+    "该进程不是 T3 Code 服务器的子进程。它可能已经退出。",
   "Connect an environment to see diagnostics.": "连接一个环境以查看诊断信息。",
   "Checking diagnostics access…": "正在检查诊断访问权限…",
   "Refresh process diagnostics": "刷新进程诊断",
@@ -1581,12 +1581,12 @@ export default {
   "Could not switch to {label}": "无法切换到{label}",
   "Switch to {label}?": "切换到{label}？",
   "Read your existing Cursor CLI login from macOS Keychain to show account history and monthly limits. macOS may ask you to allow access.":
-    "从 macOS 钥匙串读取你现有的 Cursor CLI 登录，以显示账号历史和每月限额。macOS 可能会请求你允许访问。",
+    "从 macOS 钥匙串读取你现有的 Cursor CLI 登录，以显示账号历史和每月上限。macOS 可能会请求你允许访问。",
   "Cursor account usage": "Cursor 账号用量",
   "CLI Proxy": "CLI Proxy",
   " · Disabled": " · 已停用",
   "The hub's management key is deleted from this server. Its accounts leave the Limits view; the hub itself is untouched. Add it again with the URL and key to bring them back.":
-    "此服务器上的 hub 管理密钥会被删除。它的账号会从“限额”视图中消失，hub 本身不受影响。用 URL 和密钥重新添加即可恢复。",
+    "此服务器上的 hub 管理密钥会被删除。它的账号会从“上限”视图中消失，hub 本身不受影响。用 URL 和密钥重新添加即可恢复。",
   "Remove hub": "移除 hub",
   "Uses the latest commit of the base branch’s tracked remote branch, even if its name differs. Otherwise uses the same-named branch on origin. Uses your local branch if that remote branch is missing.":
     "使用基础分支所跟踪的远程分支的最新提交，即使名称不同。否则使用 origin 上的同名分支。如果远程分支不存在，则使用你的本地分支。",
@@ -1625,7 +1625,7 @@ export default {
   "Using reset credit…": "正在使用重置额度…",
   Segment: "类别",
   "No provider on the selected environments reports subscription limits.":
-    "所选环境中没有 provider 报告订阅限额。",
+    "所选环境中没有 provider 报告订阅上限。",
   "View usage in ChatGPT with your connected account.": "用已连接的账号在 ChatGPT 中查看用量。",
   Cost: "费用",
   Tokens: "Token",
@@ -1641,7 +1641,7 @@ export default {
   "Usage breadcrumb": "用量导航路径",
   "Usage period": "用量时段",
   "Usage metric": "用量指标",
-  "Refresh limits": "刷新限额",
+  "Refresh limits": "刷新上限",
   "Refresh usage": "刷新用量",
   " · API estimate": " · API 估算",
   "Unpriced usage details": "未定价用量详情",
@@ -2405,8 +2405,8 @@ export default {
   "Child process {name}": "子进程 {name}",
   "Signed in as {signedInAs} with {value}.": "已通过{value}登录为 {signedInAs}。",
   "the access token saved here": "这里保存的访问令牌",
-  "EXPO_TOKEN on the server": "server 上的 EXPO_TOKEN",
-  "the server's eas login": "server 上的 eas login",
+  "EXPO_TOKEN on the server": "服务器上的 EXPO_TOKEN",
+  "the server's eas login": "服务器上的 eas login",
   detected: "已检测到",
   "Rotate to landscape": "旋转为横屏",
   "Rotate to portrait": "旋转为竖屏",
@@ -2427,7 +2427,7 @@ export default {
   "{count} processes": "{count} 个进程",
   "Read/s": "读取/秒",
   "Write/s": "写入/秒",
-  "{label} server": "{label} server",
+  "{label} server": "{label} 服务器",
   "Each request runs the prompt. Use {{body.path}}, {{headers.name}}, {{query.name}}, {{body}} or {{request}} in the prompt; only what it names reaches the agent.":
     "每个请求都会运行提示词。可以在提示词中使用 {{body.path}}、{{headers.name}}、{{query.name}}、{{body}} 或 {{request}}，只有提到的内容才会发给 Agent。",
   on: "在",

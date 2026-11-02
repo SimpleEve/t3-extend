@@ -137,7 +137,7 @@ export default {
   "Terminal surfaces are only available from a project thread.": "终端只能在项目对话中打开。",
   "Files are only available when a project is open.": "打开项目后才能浏览文件。",
   "Diff is only available for server threads in Git repositories.":
-    "只有 Git 仓库中的 server 对话才有差异。",
+    "只有 Git 仓库中的服务器对话才有差异。",
   "This thread's branch has no pull request yet.": "这个对话的分支还没有 PR。",
   "No linked pull requests are available for this thread.": "这个对话没有关联的 PR。",
   "Devices are only available from a thread.": "设备只能在对话中打开。",

@@ -96,6 +96,12 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 | cite / citation          | 引述                   | 引用 Agent 回复里的一段文字；"引用"已给 mention                          |
 | annotation               | 标注                   |                                                                          |
 | Plan / Build（交互模式） | 计划 / 构建            | 用 `interaction mode` context；设置里的 "Plan" 指套餐                    |
+| server                   | 服务器                 | 中文句子里都写"服务器"，如"T3 Code 服务器"；命令和代码标识符不改         |
+| limits                   | 上限                   | 用量、速率这类限额都写"上限"                                             |
+| triage                   | 排查                   |                                                                          |
+| detached HEAD            | 分离的 HEAD            |                                                                          |
+| Open / Closed / Merged   | 开放 / 已关闭 / 已合并 | PR 状态，用 `pull request state` context；小写形式也建 key               |
+| Reopen                   | 重新打开               | 动作                                                                     |
 
 ## host 的两种义项
 
@@ -130,3 +136,5 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 - `Copy code` 拆成三种 context：默认（配对码）、`device code`（设备码）、`code block`（代码块）。Mermaid 的 "Show code" 用 `diagram source` context 译"显示源码"，因为连接页的 "Show code" 是配对码。
 - `Plan` 在设置里指套餐，计划卡片和交互模式分别用 `proposed plan`、`interaction mode` context 译"计划"。
 - `Plain text` 在设置里指明文（和"敏感"相对），代码块语言选择器用 `code language` context 译"纯文本"。
+- 限额类原来混用"上限"和"限额"：统一为"上限"。
+- 句子里原来夹着英文 `server`：统一为"服务器"。
