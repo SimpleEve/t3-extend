@@ -29,6 +29,7 @@ import { Command, Flag, GlobalFlag } from "effect/cli";
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 
 import * as EnvironmentAuth from "../auth/EnvironmentAuth.ts";
+import { forkTailscaleServePort } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as ServerConfig from "../config.ts";
 import * as ManagedLimits from "../policy/managedLimits.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
@@ -569,10 +570,14 @@ export const pairCommand = Command.make("pair", {
             "so Tailscale Serve cannot be turned on",
           );
         }
-        const resolved = yield* resolveTailscalePairingBase({
-          target,
-          servePort: flags.tailscaleServePort,
-        });
+        // fork: 443 is official T3 Code's port on the tailnet name
+        const servePort = forkTailscaleServePort(flags.tailscaleServePort);
+        if (servePort !== flags.tailscaleServePort) {
+          notes.push(
+            `HTTPS port ${String(flags.tailscaleServePort)} belongs to the official app, so this uses ${String(servePort)}.`,
+          );
+        }
+        const resolved = yield* resolveTailscalePairingBase({ target, servePort });
         pairingBaseUrl = resolved.baseUrl;
         notes.push(...resolved.notes);
       } else {

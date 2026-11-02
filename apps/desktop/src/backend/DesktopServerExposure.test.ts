@@ -335,6 +335,14 @@ describe("DesktopServerExposure", () => {
         const persisted = yield* settings.get;
         assert.equal(persisted.tailscaleServeEnabled, true);
         assert.equal(persisted.tailscaleServePort, 9443);
+
+        // fork: 443 is official T3 Code's port; asking for it lands on the fork's own.
+        const requested = yield* serverExposure.setTailscaleServeEnabled({
+          enabled: true,
+          port: 443,
+        });
+        assert.equal(requested.state.tailscaleServePort, FORK.tailscaleServePort);
+        assert.equal((yield* settings.get).tailscaleServePort, FORK.tailscaleServePort);
       }),
     ),
   );

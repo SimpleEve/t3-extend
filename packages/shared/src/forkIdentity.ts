@@ -25,6 +25,13 @@ export const FORK = {
   releaseRepository: "SimpleEve/t3-extend",
 } as const;
 
+/** Official T3 Code's HTTPS port on the tailnet name. The fork never publishes or removes a route on it. */
+const OFFICIAL_TAILSCALE_SERVE_PORT = 443;
+
+/** Any 443 that reaches the fork (old settings, env, flags) becomes the fork's own port. */
+export const forkTailscaleServePort = (port: number): number =>
+  port === OFFICIAL_TAILSCALE_SERVE_PORT ? FORK.tailscaleServePort : port;
+
 /** SSH remote hosts get official T3 Code's server; the fork publishes no server archives. */
 export const OFFICIAL_CLI_RELEASE_DOWNLOAD_URL =
   "https://github.com/pingdotgg/t3code/releases/download";

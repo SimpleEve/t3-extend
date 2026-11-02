@@ -2,6 +2,7 @@ import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
@@ -206,6 +207,32 @@ describe("DesktopSettings", () => {
         assert.isNull(loaded.mainWindowBounds);
         assert.isFalse(loaded.mainWindowMaximized);
         assert.equal(loaded.serverExposureMode, "network-accessible");
+      }),
+    ),
+  );
+
+  // fork: a build that served on 443 left that port in the file; 443 is official T3 Code's.
+  it.effect("moves a persisted Tailscale port 443 to the fork's own and keeps Serve enabled", () =>
+    withSettings(
+      Effect.gen(function* () {
+        const environment = yield* DesktopEnvironment.DesktopEnvironment;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const settings = yield* DesktopAppSettings.DesktopAppSettings;
+        yield* fileSystem.makeDirectory(environment.stateDir, { recursive: true });
+        yield* fileSystem.writeFileString(
+          environment.desktopSettingsPath,
+          JSON.stringify({ tailscaleServeEnabled: true, tailscaleServePort: 443 }),
+        );
+
+        const loaded = yield* settings.load;
+        assert.isTrue(loaded.tailscaleServeEnabled);
+        assert.equal(loaded.tailscaleServePort, FORK.tailscaleServePort);
+
+        const requested = yield* settings.setTailscaleServe({
+          enabled: true,
+          port: Option.some(443),
+        });
+        assert.equal(requested.settings.tailscaleServePort, FORK.tailscaleServePort);
       }),
     ),
   );

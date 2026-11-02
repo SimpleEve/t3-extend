@@ -23,7 +23,7 @@ import {
   type LinuxPasswordStorePreference,
 } from "../linuxSecretStorage.ts";
 import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
-import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { FORK, forkTailscaleServePort } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { isValidDistroName } from "../wsl/wslPathParsing.ts";
 
 export interface DesktopSettings {
@@ -186,8 +186,9 @@ export function resolveDefaultDesktopSettings(appVersion: string): DesktopSettin
 }
 
 function normalizeTailscaleServePort(value: unknown): number {
+  // fork: a persisted or requested 443 belongs to official T3 Code; move it to the fork's own port.
   return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65_535
-    ? value
+    ? forkTailscaleServePort(value)
     : DEFAULT_TAILSCALE_SERVE_PORT;
 }
 

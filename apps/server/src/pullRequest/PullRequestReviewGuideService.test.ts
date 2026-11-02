@@ -1,4 +1,5 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { assert, it } from "@effect/vitest";
 import * as Context from "effect/Context";
 import * as Deferred from "effect/Deferred";
@@ -414,6 +415,12 @@ it.layer(layerBase, { excludeTestServices: true })("PullRequestReviewGuideServic
         assert.notInclude(detail, "refs/merge-requests/");
         assert.deepStrictEqual(run.observed, []);
         assert.isFalse(run.fetchedRefs.some((ref) => ref.startsWith("-")));
+        // fork: run ids restart at 0 in every server, so the base ref must not share official
+        // T3 Code's `refs/t3/review-guide/<n>/base`, which the other app force-fetches into.
+        const baseRefs = run.fetchedRefs.filter((ref) => ref.includes("review-guide"));
+        assert.isAbove(baseRefs.length, 0);
+        for (const ref of baseRefs)
+          assert.match(ref, new RegExp(`:refs/${FORK.gitNamespace}/review-guide/\\d+/base$`, "u"));
         const fs = yield* FileSystem.FileSystem;
         assert.isFalse(yield* fs.exists(`${run.repositories.root}/injected`));
       }),

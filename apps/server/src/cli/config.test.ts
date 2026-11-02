@@ -372,7 +372,8 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
         autoBootstrapProjectFromCwd: false,
         logWebSocketEvents: false,
         tailscaleServeEnabled: false,
-        tailscaleServePort: 443,
+        // fork: the bootstrap above carries 443, official T3 Code's port on the tailnet name
+        tailscaleServePort: FORK.tailscaleServePort,
       });
     }),
   );
@@ -451,7 +452,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
         autoBootstrapProjectFromCwd: true,
         logWebSocketEvents: true,
         tailscaleServeEnabled: false,
-        tailscaleServePort: 443,
+        tailscaleServePort: FORK.tailscaleServePort,
       });
     }),
   );

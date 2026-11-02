@@ -24,7 +24,10 @@ const OFFICIAL_IDENTITY: ReadonlyArray<RegExp> = [
   /refs\/t3code\//u,
   /refs\/t3\/review-guide/u,
   /\bt3code\/pr-/u,
-  /\bWORKTREE_BRANCH_PREFIX = "t3"/u,
+  /BRANCH_PREFIX = "t3"/u,
+  // Branch-name patterns that name official T3 Code's prefixes; a write path must not use them.
+  /t3code\(\?:/u,
+  /\|t3\|t3code\)/u,
   /branchNamePrefix: .*succeed\("t3"\)/u,
 ];
 
@@ -65,6 +68,22 @@ const ALLOWED: ReadonlyArray<Allowed> = [
   {
     path: "scripts/fork-identity-guard.ts",
     reason: "The guard lists the patterns it looks for.",
+  },
+  {
+    path: "packages/shared/src/git.ts",
+    line: 'OFFICIAL_WORKTREE_BRANCH_PREFIX = "t3"',
+    reason:
+      "Recognizes official T3 Code's temporary branches for display only; no write path uses it.",
+  },
+  {
+    path: "packages/shared/src/git.ts",
+    line: "t3code(?:",
+    reason: "Same display-only pattern, which also covers official T3 Code's legacy t3code names.",
+  },
+  {
+    path: "packages/shared/src/paletteSearch.ts",
+    line: "|t3|t3code)",
+    reason: "Strips official T3 Code's branch prefixes from search text; it renames nothing.",
   },
   {
     path: "apps/mobile/src/App.tsx",

@@ -193,6 +193,21 @@ describe("tailscale", () => {
     assert.isUndefined(parseTailscaleServeRoutesTo("not json", { host: "127.0.0.1", port: 3773 }));
   });
 
+  it("reports only the route to the fork's own port when official T3 Code serves on 443", () => {
+    const status = JSON.stringify({
+      Web: {
+        "box.tailnet.ts.net:443": { Handlers: { "/": { Proxy: "http://127.0.0.1:3773" } } },
+        [`box.tailnet.ts.net:${FORK.tailscaleServePort}`]: {
+          Handlers: { "/": { Proxy: "http://127.0.0.1:3873" } },
+        },
+      },
+    });
+    assert.deepEqual(
+      parseTailscaleServeRoutesTo(status, { host: "127.0.0.1", port: FORK.defaultPort }),
+      [{ servePort: FORK.tailscaleServePort, mount: "/", host: "box.tailnet.ts.net" }],
+    );
+  });
+
   it.effect("parses status facts", () =>
     Effect.gen(function* () {
       const status = yield* parseTailscaleStatus(tailscaleStatusJson);

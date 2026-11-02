@@ -455,36 +455,42 @@ describe("RemoteEnvironmentAuthorization", () => {
     }),
   );
 
-  it.effect("sends no token to a direct address that answers as another machine", () =>
-    Effect.gen(function* () {
-      const harness = yield* makeHarness({
-        initialToken: persistedToken({ accessToken: "cached-access-token" }),
-        responses: [
-          Response.json({ ...DESCRIPTOR, environmentId: EnvironmentId.make("someone-else") }),
-        ],
-      });
+  // fork: a route learned on 443 now reaches official T3 Code, whose environment id differs.
+  it.effect.each([
+    { origin: "192.168.1.10:3773", scheme: ["http", "ws"] },
+    { origin: "box.tail1234.ts.net", scheme: ["https", "wss"] },
+  ])(
+    "sends no token to a direct address that answers as another machine: $origin",
+    ({ origin, scheme }) =>
+      Effect.gen(function* () {
+        const harness = yield* makeHarness({
+          initialToken: persistedToken({ accessToken: "cached-access-token" }),
+          responses: [
+            Response.json({ ...DESCRIPTOR, environmentId: EnvironmentId.make("someone-else") }),
+          ],
+        });
 
-      const error = yield* Effect.gen(function* () {
-        const remote = yield* RemoteEnvironmentAuthorization.RemoteEnvironmentAuthorization;
-        return yield* remote
-          .authorizeDpop({
-            expectedEnvironmentId: ENVIRONMENT_ID,
-            directEndpoint: {
-              httpBaseUrl: "http://192.168.1.10:3773/",
-              wsBaseUrl: "ws://192.168.1.10:3773/",
-            },
-          })
-          .pipe(Effect.flip);
-      }).pipe(Effect.provide(harness.layer));
+        const error = yield* Effect.gen(function* () {
+          const remote = yield* RemoteEnvironmentAuthorization.RemoteEnvironmentAuthorization;
+          return yield* remote
+            .authorizeDpop({
+              expectedEnvironmentId: ENVIRONMENT_ID,
+              directEndpoint: {
+                httpBaseUrl: `${scheme[0]}://${origin}/`,
+                wsBaseUrl: `${scheme[1]}://${origin}/`,
+              },
+            })
+            .pipe(Effect.flip);
+        }).pipe(Effect.provide(harness.layer));
 
-      expect(error).toMatchObject({ _tag: "ConnectionBlockedError", reason: "configuration" });
-      expect(harness.fetch.calls.map(([url]) => String(url))).toEqual([
-        "http://192.168.1.10:3773/.well-known/t3/environment",
-      ]);
-      expect((yield* Ref.get(harness.tokens)).get(ENVIRONMENT_ID)?.accessToken).toBe(
-        "cached-access-token",
-      );
-    }),
+        expect(error).toMatchObject({ _tag: "ConnectionBlockedError", reason: "configuration" });
+        expect(harness.fetch.calls.map(([url]) => String(url))).toEqual([
+          `${scheme[0]}://${origin}/.well-known/t3/environment`,
+        ]);
+        expect((yield* Ref.get(harness.tokens)).get(ENVIRONMENT_ID)?.accessToken).toBe(
+          "cached-access-token",
+        );
+      }),
   );
 
   it.effect("refreshes and persists an expired environment token", () =>

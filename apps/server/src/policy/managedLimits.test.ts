@@ -1,4 +1,5 @@
 import type { ManagedPolicyDocument } from "@t3tools/contracts";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -141,6 +142,8 @@ it.effect(
       readonly tcp?: Record<string, string>;
       /** The name `off` acts on: the machine's current one. */
       readonly currentName?: string;
+      /** The local port of the server being started; official T3 Code's is 3773, the fork's 3873. */
+      readonly targetPort?: number;
       readonly status?: {
         readonly stdout: string;
         readonly exitCode: number;
@@ -163,7 +166,7 @@ it.effect(
       const currentName = answers.currentName ?? "box.tailnet.ts.net";
       return ManagedLimits.closeTailscaleServeTo(desktopAndLocal, {
         host: "127.0.0.1",
-        port: 3773,
+        port: answers.targetPort ?? 3773,
       }).pipe(
         Effect.provideService(
           ChildProcessSpawner.ChildProcessSpawner,
@@ -279,6 +282,18 @@ it.effect(
           ["serve", "--https=443", `--set-path=${mount}`, "off"],
         ]);
       }
+      // fork: official T3 Code's route on 443 and the fork's on 8443 share the machine name; the
+      // fork turns off only the route to its own port and never touches 443.
+      const sideBySide: Web = {
+        "box.tailnet.ts.net:443": { "/": "http://127.0.0.1:3773" },
+        [`box.tailnet.ts.net:${FORK.tailscaleServePort}`]: { "/": "http://127.0.0.1:3873" },
+      };
+      const sideBySideOffCalls: Array<ReadonlyArray<string>> = [];
+      yield* close({ web: sideBySide, targetPort: 3873 }, sideBySideOffCalls);
+      assert.deepEqual(sideBySideOffCalls, [
+        ["serve", `--https=${FORK.tailscaleServePort}`, "--set-path=/", "off"],
+      ]);
+      assert.deepEqual(sideBySide["box.tailnet.ts.net:443"], { "/": "http://127.0.0.1:3773" });
       // `off` acts on the current name: a route under a former one is left, with how to clear it,
       // while one under the current name goes even if a former name has routes too.
       const renamed: Web = {

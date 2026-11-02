@@ -1,4 +1,5 @@
 // @effect-diagnostics nodeBuiltinImport:off - CLI integration exercises Node HTTP and filesystem boundaries.
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as NodeHttp from "node:http";
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
@@ -130,6 +131,7 @@ describe("t3 pair", () => {
         Effect.gen(function* () {
           const fetch = yield* FetchHttpClient.Fetch;
           let serving = false;
+          let serveArgs: ReadonlyArray<string> = [];
           const spawner = ChildProcessSpawner.make((command) =>
             Effect.gen(function* () {
               if (!ChildProcess.isStandardCommand(command))
@@ -141,6 +143,7 @@ describe("t3 pair", () => {
                 );
                 expect(descriptor).toEqual(testDescriptor);
                 serving = true;
+                serveArgs = command.args;
               }
               return ChildProcessSpawner.makeHandle({
                 pid: ChildProcessSpawner.ProcessId(1),
@@ -176,7 +179,7 @@ describe("t3 pair", () => {
                 if (String(input).startsWith(origin)) return fetch(input, init);
                 assert.equal(
                   String(input),
-                  "https://pair-test.tail.ts.net/.well-known/t3/environment",
+                  `https://pair-test.tail.ts.net:${FORK.tailscaleServePort}/.well-known/t3/environment`,
                 );
                 return serving
                   ? Response.json(testDescriptor)
@@ -186,7 +189,13 @@ describe("t3 pair", () => {
           );
 
           expect(serving).toBe(true);
-          assert.include(output, "Pairing URL: https://pair-test.tail.ts.net/pair#token=");
+          // The port reaches the pairing link and, with it, the QR payload.
+          assert.include(
+            output,
+            `Pairing URL: https://pair-test.tail.ts.net:${FORK.tailscaleServePort}/pair#token=`,
+          );
+          expect(serveArgs).toContain(`--https=${FORK.tailscaleServePort}`);
+          expect(serveArgs).not.toContain("--https=443");
         }),
       "::1",
     ).pipe(Effect.provide(NodeServices.layer)),

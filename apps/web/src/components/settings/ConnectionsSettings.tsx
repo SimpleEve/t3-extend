@@ -1,5 +1,5 @@
 import { SessionPermissions } from "./SessionPermissions";
-import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { FORK, forkTailscaleServePort } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { ChevronRightIcon, EllipsisIcon } from "lucide-react";
 import { useAtomValue } from "@effect/atom-react";
 import { useState } from "react";
@@ -345,7 +345,7 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
     ? desktopServerExposureState?.mode === "network-accessible"
     : currentAuthPolicy === "remote-reachable";
   const trimmedTailscaleServePortInput = tailscaleServePortInput.trim();
-  const parsedTailscaleServePort = Number(trimmedTailscaleServePortInput);
+  const parsedTailscaleServePort = forkTailscaleServePort(Number(trimmedTailscaleServePortInput)); // fork: 443 is the official app's
   const isTailscaleServePortValid =
     /^\d+$/u.test(trimmedTailscaleServePortInput) &&
     Number.isInteger(parsedTailscaleServePort) &&

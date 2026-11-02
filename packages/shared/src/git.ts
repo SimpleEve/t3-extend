@@ -11,14 +11,19 @@ import * as Result from "effect/Result";
 import { FORK } from "./forkIdentity.ts"; // fork: identity
 
 export const WORKTREE_BRANCH_PREFIX = FORK.gitNamespace; // fork: not official `t3`
-/** Official T3 Code names its temporary branches `t3/<hex>`; the fork still recognizes them. */
+/** Official T3 Code names its temporary branches `t3/<hex>`; the fork only labels them, never renames. */
 const OFFICIAL_WORKTREE_BRANCH_PREFIX = "t3";
 /** Local branch for a cross-repository pull request head, apart from official T3 Code's. */
 export const PULL_REQUEST_BRANCH_PREFIX = `${FORK.gitNamespace}/pr`; // fork: not official `t3code/pr`
 const TEMP_WORKTREE_HEX_TOKEN = "[0-9a-f]{8}";
 const TEMP_WORKTREE_UUID_V4_TOKEN =
   "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
-const TEMP_WORKTREE_BRANCH_PATTERN = new RegExp(
+// fork: the branches this app may rename, flatten or reset. Official T3 Code's `t3/<hex>` is not here.
+const OWN_TEMP_WORKTREE_BRANCH_PATTERN = new RegExp(
+  `^${WORKTREE_BRANCH_PREFIX}[-/]${TEMP_WORKTREE_HEX_TOKEN}$`,
+);
+// fork: display only, so a thread imported from the official app still reads as unnamed.
+const ANY_TEMP_WORKTREE_BRANCH_PATTERN = new RegExp(
   `^(?:(?:${OFFICIAL_WORKTREE_BRANCH_PREFIX}|${WORKTREE_BRANCH_PREFIX})[-/]${TEMP_WORKTREE_HEX_TOKEN}|t3code(?:[-/]${TEMP_WORKTREE_HEX_TOKEN}|\\/${TEMP_WORKTREE_UUID_V4_TOKEN}))$`,
 );
 
@@ -123,8 +128,15 @@ export function flattenTemporaryWorktreeBranchName(refName: string): string {
   return `${WORKTREE_BRANCH_PREFIX}-${token}`;
 }
 
+/** Only this app's `t3x/<hex>` branches. Gate every rename, flatten and reset on this one. */
 export function isTemporaryWorktreeBranch(refName: string): boolean {
-  return TEMP_WORKTREE_BRANCH_PATTERN.test(refName.trim().toLowerCase());
+  // fork: own branches only
+  return OWN_TEMP_WORKTREE_BRANCH_PATTERN.test(refName.trim().toLowerCase());
+}
+
+/** Also official T3 Code's `t3/<hex>` and legacy `t3code/…`. Display and metadata only, never a git write. */
+export function looksLikeTemporaryWorktreeBranch(refName: string): boolean {
+  return ANY_TEMP_WORKTREE_BRANCH_PATTERN.test(refName.trim().toLowerCase());
 }
 
 function lowerCaseRemote(value: string): string {

@@ -125,20 +125,43 @@ service, link scheme and ports:
 
 Some things are shared because they live outside either app:
 
-- Your repositories, and the provider tools with their settings and session files in
-  `~/.claude` and `~/.codex`. Both apps can work in the same repository; avoid
-  giving threads in both the same worktree or branch.
+- Your repositories, and the provider tools. Both apps share your sign-in state and
+  session files in `~/.claude` and `~/.codex`, so a session started in one can be
+  found from the other. Both can work in the same repository; avoid giving threads
+  in both the same worktree or branch.
 - Your Tailscale machine name. Each app uses its own HTTPS port on it.
 - macOS permissions such as screen recording, accessibility, camera and
   microphone. macOS asks again for T3 Extend.
 - Global shortcuts. Turn Snap Shot on in one app at a time, or give them different
   shortcuts.
 
-If you turned on Tailscale HTTPS in an earlier T3 Extend build, it used port 443,
-which official T3 Code also uses. That route stays until you remove it. Run
-`tailscale serve status` and, if 443 still points at T3 Extend, `tailscale serve
---https=443 --set-path=/ off`. Then turn Tailscale HTTPS on again in **Settings →
-Sharing & access**.
+T3 Extend never creates, changes or removes anything on HTTPS port 443. A saved
+Tailscale HTTPS setting of 443 from an earlier build moves to 8443 the next time
+the app starts, and stays on, so remote access keeps working at the new address.
+Phones and other devices that learned the old address will find the other app (or
+nothing) there; they refuse it without sending credentials, and pick up the new
+address the next time they connect or pair.
+
+The 443 route an earlier T3 Extend build created is still in your Tailscale
+configuration. Remove it yourself, and only if it is T3 Extend's:
+
+1. Run `tailscale serve status`.
+2. If 443 points to `http://127.0.0.1:3873` (T3 Extend's server), run
+   `tailscale serve --https=443 --set-path=/ off`.
+3. If 443 points anywhere else, such as port 3773, leave it. It belongs to
+   official T3 Code or another service.
+
+### Branch names
+
+New worktree branches are named `t3x/…`, so they are not mistaken for official
+T3 Code's `t3/…`. T3 Extend renames a new worktree's branch after the first message
+only when it still has its own `t3x/…` temporary name. A thread whose branch is
+named `t3/…` keeps it, whichever app created it, including threads T3 Extend made
+before this change: the two can't be told apart, and renaming another app's
+branch would be worse than leaving a temporary name. Rename such a branch yourself
+if you want. Hidden refs that earlier T3 Extend builds wrote in your repositories
+under official names, such as `refs/t3code/pre-refresh`, stay where they are; they
+are harmless.
 
 ### Windows Subsystem for Linux
 

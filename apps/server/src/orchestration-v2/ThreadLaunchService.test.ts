@@ -1,4 +1,5 @@
 import * as DocumentText from "../provider/DocumentText.ts";
+import { WORKTREE_BRANCH_PREFIX } from "@t3tools/shared/git"; // fork: own branch prefix
 import * as Scheduler from "../scheduling/Scheduler.ts";
 import * as WorktreeSetupTracker from "../project/WorktreeSetupTracker.ts";
 import * as ProjectCloneTracker from "../project/ProjectCloneTracker.ts";
@@ -2259,6 +2260,50 @@ it.effect("stops an in-flight branch rename when tracked setup is cancelled", ()
       );
       assert.equal(harness.renameBranch.mock.calls.length, 0);
       assert.isNull((yield* threads.getThreadProjection(launched.threadId)).thread.worktreePath);
+    }).pipe(Effect.provide(harness.layer));
+  }),
+);
+
+// The fork renames and flattens only the temporary branches it created itself.
+it.effect.each([
+  { branch: "t3/abcdef12", own: false },
+  { branch: "t3-abcdef12", own: false },
+  { branch: "t3code/abcdef12", own: false },
+  { branch: `${WORKTREE_BRANCH_PREFIX}/abcdef12`, own: true },
+])("renames and flattens only its own temporary branches: $branch", ({ branch, own }) =>
+  Effect.gen(function* () {
+    const renamed = yield* Deferred.make<string>();
+    const setupStarted = yield* Deferred.make<void>();
+    const harness = makeHarness({
+      runSetup: () =>
+        Deferred.succeed(setupStarted, undefined).pipe(Effect.as({ status: "no-script" as const })),
+      // A branch named exactly like the prefix blocks the nested form, which triggers the flatten.
+      hasCommit: ({ refName }) =>
+        Effect.succeed(refName === `refs/heads/${WORKTREE_BRANCH_PREFIX}`),
+      renameBranch: (input) =>
+        Deferred.succeed(renamed, input.oldBranch).pipe(Effect.as({ branch: input.newBranch })),
+    });
+    yield* Effect.gen(function* () {
+      const launches = yield* ThreadLaunch.ThreadLaunchService;
+      yield* launches.launch(
+        launchInput({
+          command: `launch:own-branch:${branch}`,
+          thread: `thread:own-branch:${branch}`,
+          message: "Start",
+          workspace: { type: "worktree", baseRef: "main", branch },
+        }),
+      );
+      yield* Deferred.await(setupStarted);
+      assert.equal(
+        harness.createWorktree.mock.calls[0]?.[0]?.newRefName,
+        own ? `${WORKTREE_BRANCH_PREFIX}-abcdef12` : branch,
+      );
+      if (own) {
+        assert.equal(yield* Deferred.await(renamed), `${WORKTREE_BRANCH_PREFIX}-abcdef12`);
+      } else {
+        assert.equal(harness.renameBranch.mock.calls.length, 0);
+        assert.equal(harness.generateBranchName.mock.calls.length, 0);
+      }
     }).pipe(Effect.provide(harness.layer));
   }),
 );
