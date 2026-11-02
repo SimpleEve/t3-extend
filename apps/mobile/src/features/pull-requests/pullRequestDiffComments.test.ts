@@ -111,6 +111,7 @@ describe("PR comments in continuous native diffs", () => {
       ],
       [],
       "abc",
+      t,
     );
     expect(
       annotated.rows
