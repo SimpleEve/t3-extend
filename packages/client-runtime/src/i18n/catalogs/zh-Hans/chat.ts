@@ -87,8 +87,6 @@ export default {
   "Send again once its thumbnail appears.": "缩略图出现后再发送。",
   "Still bringing attached context into this message.": "附加的上下文还在载入这条消息。",
   "Send again once its chip resolves.": "标签加载完成后再发送。",
-  "Folders can only be referenced in the local desktop environment":
-    "只有本地桌面环境可以引用文件夹",
   "Couldn't get the path of {name}": "无法获取 {name} 的路径",
   "Type the folder path with @ instead.": "请改用 @ 输入文件夹路径。",
   "Unable to add folder": "无法添加文件夹",
@@ -599,8 +597,6 @@ export default {
     "它可能内存不足。强制停止会结束它的进程。",
   "Force stopping...": "正在强制停止…",
   "Force stop": "强制停止",
-  "Waiting on {task}": "正在等待 {task}",
-  "Running {task}": "正在运行 {task}",
   "Stopping...": "正在停止…",
   "Branch changed from": "分支已切换，原分支为",
   "This thread last ran on {threadBranch}. Sending will continue on {currentBranch}.":
@@ -1303,4 +1299,18 @@ export default {
   "The clone started, but its project did not appear.": "克隆已开始，但没有出现对应的项目。",
   "Cloning {repository}": "正在克隆 {repository}",
   "Open this link again when the clone finishes.": "克隆完成后请再次打开这个链接。",
+  "Switch to {mode}": "切换到{mode}",
+  "Approval from {title}": "来自 {title} 的批准请求",
+  "Approval needed from {title}": "需要 {title} 的批准",
+  "Provider process is gone. Interrupt or restart the child thread to respond.":
+    "provider 进程已退出。请中断或重启子对话后再响应。",
+  "Failed to submit approval decision.": "无法提交批准决定。",
+  "Subagent work": "子 Agent 的工作",
+  "Read only. These subagents cannot take messages.": "只读。这些子 Agent 不能接收消息。",
+  "The provider has no record of which subagents this call started.":
+    "provider 没有记录这次调用启动了哪些子 Agent。",
+  "Earlier steps are not shown.": "更早的步骤未显示。",
+  "No transcript yet.": "暂时没有对话记录。",
+  "{serverLabel} not updated": "{serverLabel} 未更新",
+  "Repository name incomplete": "仓库名不完整",
 } satisfies Record<string, string>;

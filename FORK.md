@@ -120,7 +120,7 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 
 确认框：调用方把整句模板翻译好再交给 `ConfirmDialogHost`（`t('Archive thread "{title}"?', { title })`），host 按半角或全角问号拆出标题。
 
-已翻译（约 8,300 条）：
+已翻译（约 9,100 条）：
 
 - web 和桌面：全部设置页与用量页、连接与配对、onboarding、命令面板、侧边栏、对话页（标题栏、Git 操作、状态行、输入框、时间线和工具调用摘要、T3 MCP 工具摘要、后台任务标题、各类卡片和横幅、模型选择器）、右侧面板（diff、文件和各个预览器、终端、浏览器、设备）、PR 面板、导读和 PR 列表页、toast（含 PR 操作）、通用确认框、无项目首页、404 和出错页、提示词链接落地页、访客页、`ServerUpdateAction`、相对时间和稍后处理的星期、桌面菜单和原生对话框。hard-coded 一节里 web 部分为 0。
 - mobile：首页与对话列表、对话页与 Git 面板（分支与 worktree、提交、默认分支确认）、输入框、新任务、连接与配对、设置各页（含页标题）、通知、浏览器页、PR（列表、筛选、详情、文件、讨论、审查、合并、导读）、终端、文件与 ZIP 浏览、代码审查、用量、归档、语音输入、设备预览、T3 Connect 资料页、诊断、命令面板、工具调用摘要和后台任务、各类提示框和无障碍标签。消息时间、自定义稍后处理、崩溃日志、用量重置、重连等时间跟随界面语言（`uiLocaleFormatTag`）。
@@ -162,7 +162,7 @@ mobile：
 - 认证限速：`auth/AuthAttemptLimiter.ts` 是一个全局 HttpRouter middleware，作用于会消耗配对码的三个端点：`POST /oauth/token`、`POST /api/auth/browser-session`（只统计 401，400 不算）和 `POST /oauth/mcp/decision`（MCP 批准页把错误配对码也报成 400，所以统计 400）。`/oauth/mcp/approval` 只读取请求详情，不消耗配对码。按客户端分桶：有 `X-Forwarded-For` 时取最右一项（反代追加的那一跳），否则用 socket 地址；来自 loopback 又没有转发头的请求（桌面 bootstrap、本机 CLI）不计数。每个客户端 1 分钟内失败 20 次只锁它自己 60 秒，期间返回 429 和 `retry-after`。最多跟踪 10,000 个客户端，超出时丢掉最久没失败的那个。配对码 60 位、一次性、5 分钟过期，所以限速只挡噪音，不是防暴力破解的手段。
 - client-runtime：`mergeLearnedRoutes` 只接受 https 的 `"public"` 地址，排序沿用 `ROUTE_KIND_RANK`（局域网和 tailnet 优先，然后是 public，最后是 relay），supervisor 的预检和回切逻辑不变。mobile 用的是同一个 registry，不需要改。
 - desktop：`selfHost/DesktopSelfHost.ts` 把地址存在 `<stateDir>/public-urls.json`，主后端通过 `T3CODE_PUBLIC_URLS_FILE` 读同一个文件。隧道命令存在 `self-host-tunnel.json`，由 `selfHost/ManagedTunnel.ts` 托管：用登录 shell 运行，退出后指数退避重启（1 秒起，最长 60 秒），关闭开关或退出应用时停止整个进程组。只有本机渲染进程的 `window.t3xSelfHostBridge` 能访问它，没有任何 RPC 入口。
-- web：`components/settings/SelfHostSettings.tsx` 和 `fork/selfHostStore.ts`。中文译文在 `catalogs/zh-Hans/sharing.ts`。
+- web：`components/settings/SelfHostSettings.tsx` 和 `fork/selfHostStore.ts`。中文译文在 `catalogs/zh-Hans/sharing.ts`。这一块只在桌面端渲染（没有 `t3xSelfHostBridge` 时返回 null），所以纯浏览器里的 Settings → Sharing & access 看不到它，要在 Electron 里验证。
 
 上游文件里的接线（都带 `// fork:`）：
 
@@ -260,6 +260,17 @@ vp run fork:guard        # 上游新增的官方身份字面量会在这里报�
 vp run i18n:report       # 上游改过的英文文案会列为 stale
 vp run check:changed
 ```
+
+最近一次同步到上游 `47f2c8d29e`（合并基点 `955e2bfbb5`，193 个 commit，55 个冲突文件）。这次同步里的取舍，下次遇到同类冲突照做：
+
+- 上游新增的受管策略（managed policy）按 `FORK.appId` 读 macOS 的 managed preferences（`packages/shared/src/managedPolicyFile.ts`），`/Library/Application Support/T3Code/policy.json` 等系统路径仍是上游的，fork 和官方共用同一份策略文件。
+- `DesktopUpdates.hasUpdateFeed` 把受管镜像（`policy.feedUrl`）也算作更新源，否则管理员配了镜像、构建里却没有 `app-update.yml` 时，入口会被隐藏。
+- 上游测试里写死的 `t3code://` 改成 `FORK.scheme`；`threadExecution` 的单项后台任务标题跟随上游改成 `Running · {label}`，中文 key 同步改过。
+- mobile 的 `managedSettingReason` 保持英文输出，新增 `managedSettingOrganization` 供已翻译的屏幕使用。
+
+native fingerprint 这次没有变（android `97cb060cd3…`、ios `95cb50c6af…`，和同步前的 main 逐位相同），不需要重编 dev client 或 release APK。
+
+上游已知问题的状态（同步后复核）：ZIP 预览按文本读取、Android 没有命令面板快捷键、webhook 投递"in under a minute"的措辞、`GuestPage.browser.test.tsx` 的 "follows the end…" 用例，四项都还在。后两项实际跑过或读过代码确认（措辞还在 `ScheduledTasksSettings.tsx`，GuestPage 用例在合并后仍失败，且它在原始上游上就失败）；前两项只核对了代码，上游对 ZIP 预览和 Android 命令面板没有相关改动，没有在设备上复测。另有七个测试在 macOS 上因 `/private/var` 符号链接和大小写不敏感的文件系统失败，在未合并的 `upstream/main` 上同样失败，不是 fork 引起的：`DesktopLinuxUrlHandler`（2）、`ServerEnvironment`、`GitVcsDriverCore`、`UsageService`（2）、`ClaudeSkills`。
 
 要出包时，先看上游有没有改 `build-desktop-artifact.ts` 里的 `renderMacPasskeyEntitlements`（以及 electron-builder 的 mac 配置）。新增的不依赖 team 的 entitlements 要同步到 `packaging/fork-macos/`：hardened runtime 缺了 entitlements，app 往往一启动就崩，而 `codesign --verify` 检查不出来。`fork-dist-mac.ts` 还依赖 `--target dir` 的产物位置（`<output-dir>/mac-arm64/*.app`）。所以同步之后的第一次打包，要真正把 app 启动起来验证一遍。
 

@@ -241,26 +241,14 @@ export default {
     "控制订阅的间隔触发后，后台任务是否可以运行。",
   "Shared background policy": "共享后台策略",
   "Refresh remote branch status in the background.": "在后台刷新远程分支状态。",
-  "Decrease Git fetch interval": "缩短 Git fetch 间隔",
-  "Git fetch interval in seconds": "Git fetch 间隔（秒）",
-  "Increase Git fetch interval": "延长 Git fetch 间隔",
   "Provider health interval": "provider 健康检查间隔",
   "Refresh provider availability, versions, and auth state. Model catalog updates follow Provider update checks.":
     "刷新 provider 的可用性、版本和认证状态。模型目录的更新跟随 provider 更新检查。",
-  "Decrease provider health interval": "缩短 provider 健康检查间隔",
-  "Provider health interval in seconds": "provider 健康检查间隔（秒）",
-  "Increase provider health interval": "延长 provider 健康检查间隔",
   "Host power monitor": "主机电源监控",
   "Poll host power state while clients are active.": "有客户端活跃时轮询主机电源状态。",
-  "Decrease active host power interval": "缩短活跃时的主机电源检查间隔",
-  "Active host power interval in seconds": "活跃时的主机电源检查间隔（秒）",
-  "Increase active host power interval": "延长活跃时的主机电源检查间隔",
   "Idle host monitor": "空闲主机监控",
   "Poll host power state when no foreground client is active.":
     "没有前台客户端时轮询主机电源状态。",
-  "Decrease idle host power interval": "缩短空闲时的主机电源检查间隔",
-  "Idle host power interval in seconds": "空闲时的主机电源检查间隔（秒）",
-  "Increase idle host power interval": "延长空闲时的主机电源检查间隔",
   "Reset all": "全部重置",
   "Uses custom intervals. Shared policy: {profile}.": "使用自定义间隔。共享策略：{profile}。",
   "This shared policy gates background work such as Git refreshes and provider health probes after their individual intervals elapse.":
@@ -972,9 +960,6 @@ export default {
     "这个间隔在这里配置，计时器触发时由共享的后台活动策略决定 provider 探测能否运行。自定义间隔会在维护设置中显示为“高级”。",
   "Refresh provider status, versions, and models in the background. Set to 0 to disable.":
     "在后台刷新 provider 的状态、版本和模型。设为 0 表示关闭。",
-  "Decrease provider health check interval": "缩短 provider 健康检查间隔",
-  "Provider health check interval in seconds": "provider 健康检查间隔（秒）",
-  "Increase provider health check interval": "延长 provider 健康检查间隔",
   "Using CURSOR_API_KEY. Remove it from this provider's environment to use browser sign-in.":
     "正在使用 CURSOR_API_KEY。从此 provider 的环境中移除它，才能使用浏览器登录。",
   "Antigravity setup": "Antigravity 设置",
@@ -2826,4 +2811,32 @@ export default {
   "This app found no build of {version} to install.": "此应用没有找到可安装的 {version}。",
   "e.g. dsh": "例如 dsh",
   "t3x command": "t3x 命令",
+  "This environment is managed by {organization}.": "此环境由 {organization} 管理。",
+  "This environment is managed by {organization}. Some settings and features follow its policy.":
+    "此环境由 {organization} 管理。部分设置和功能遵循其策略。",
+  "Get help": "获取帮助",
+  Organization: "组织",
+  "Managed by {organization}.": "由 {organization} 管理。",
+  "How we handle your data. {message}": "我们如何处理你的数据。{message}",
+  "{message} To read more about how your data is used, see our {link}.":
+    "{message}想了解你的数据如何被使用，请查看我们的{link}。",
+  "provider health interval": "provider 健康检查间隔",
+  "active host power interval": "活跃时的主机电源检查间隔",
+  "idle host power interval": "空闲时的主机电源检查间隔",
+  "{label} in seconds": "{label}（秒）",
+  "Enter a new value to rename a saved one or make it plain text.":
+    "输入新值才能重命名已保存的值，或将其改为明文。",
+  "Once, {time}": "仅一次，{time}",
+  Once: "仅一次",
+  "Run a prompt automatically on an interval, at a fixed time, once at a set date, or when a webhook is called.":
+    "按固定间隔、在固定时间、在指定日期仅运行一次，或在 webhook 被调用时自动运行提示词。",
+  "{denial} Switch this task to a time or an interval, or turn it off, to save it.":
+    "{denial}请把此任务改为定时或间隔运行，或将其关闭后再保存。",
+  "Invalid run time": "运行时间无效",
+  "Pick a date and time.": "请选择日期和时间。",
+  "That time does not exist in your time zone.": "你所在的时区不存在这个时间。",
+  "{count} more change on GitHub": "在 GitHub 上还有 {count} 项更改",
+  "{count} more changes on GitHub": "在 GitHub 上还有 {count} 项更改",
+  "Folders can only be referenced on a server running on this computer":
+    "只能在运行于本机的服务器上引用文件夹",
 } satisfies Record<string, string>;
