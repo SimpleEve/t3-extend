@@ -84,6 +84,23 @@ export const ThreadListV2GroupHeader = memo(function ThreadListV2GroupHeader(pro
       >
         {item.title}
       </Text>
+      {item.badge ? (
+        <View
+          className={cn(
+            "rounded border px-1",
+            sidebarPane ? "border-drawer-border" : "border-border",
+          )}
+        >
+          <Text
+            className={cn(
+              "text-[10px]",
+              sidebarPane ? "text-drawer-foreground-muted" : "text-foreground-muted",
+            )}
+          >
+            {item.badge}
+          </Text>
+        </View>
+      ) : null}
       <View className="flex-1" />
       {item.dot ? <View className={cn("size-1.5 rounded-full", DOT_CLASS_NAME[item.dot])} /> : null}
       <Text

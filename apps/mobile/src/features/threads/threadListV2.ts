@@ -45,6 +45,7 @@ import {
 import type { Translator, UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import type { ThreadListProjectRow } from "../../fork/threadListProjectView"; // fork: thread list views
 import {
+  hasMainCheckoutBadge,
   resolveSidebarFolderDot,
   type SidebarFolderDot,
 } from "@t3tools/client-runtime/state/thread-grouping"; // fork: thread list views
@@ -436,6 +437,8 @@ export interface ThreadListV2GroupHeaderListItem {
   readonly level: "project" | "worktree";
   readonly collapseKey: string;
   readonly title: string;
+  /** "Main" on a main checkout named by its branch, which a worktree on that branch would share. */
+  readonly badge: string | null;
   /** A worktree header whose rows are drawn below it, so its guide line continues down. */
   readonly hasRows: boolean;
   /** Every thread the group stands for, folded or not. */
@@ -496,6 +499,7 @@ export function threadListV2ListItemsAreEqual(
         previous.key === item.key &&
         previous.level === item.level &&
         previous.title === item.title &&
+        previous.badge === item.badge &&
         previous.hasRows === item.hasRows &&
         previous.count === item.count &&
         previous.collapsed === item.collapsed &&
@@ -720,6 +724,10 @@ function projectViewListItems(
         level: worktree ? "worktree" : "project",
         collapseKey: row.collapseKey,
         title: worktree ? (worktree.label ?? t("Main checkout")) : row.group.title,
+        badge:
+          worktree && hasMainCheckoutBadge(worktree)
+            ? t("Main", undefined, "worktree badge")
+            : null,
         hasRows: worktree !== null && worktree.visibleThreads.length > 0,
         count: row.count,
         collapsed: row.collapsed,
