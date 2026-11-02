@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { resolveAppearancePreferences, resolveTextScaleVariables } from "./appearancePreferences";
+import {
+  resolveAppearancePreferences,
+  resolveMarkdownFontSizes,
+  resolveNativeMarkdownTypography,
+  resolveTextScaleVariables,
+} from "./appearancePreferences";
 
 describe("appearancePreferences", () => {
   it("migrates the legacy markdownFontSize key to baseFontSize", () => {
@@ -22,5 +27,19 @@ describe("appearancePreferences", () => {
     expect(zh["--text-3xs"]).toBeGreaterThanOrEqual(11.5);
     expect(zh["--text-sm--line-height"]).toBe(en["--text-sm--line-height"]);
     expect(resolveTextScaleVariables(18, "zh-Hans")["--text-base"]).toBe(17);
+  });
+
+  it("sizes chat Markdown for the language and leaves code blocks on their own size", () => {
+    const en = resolveMarkdownFontSizes(16, "en");
+    expect([en.m, en.h1, en.h2, en.h3, en.h4]).toEqual([16, 21, 19, 17, 15]);
+
+    const zh = resolveMarkdownFontSizes(16, "zh-Hans");
+    expect([zh.m, zh.s, zh.h1, zh.h2, zh.h3, zh.h4]).toEqual([15, 13, 20, 18, 16, 14]);
+    expect(zh.codeBlockFontSize).toBe(en.codeBlockFontSize);
+    expect(zh.bodyLineHeight).toBe(en.bodyLineHeight);
+
+    expect(resolveMarkdownFontSizes(18, "zh-Hans").m).toBe(17);
+    expect(resolveNativeMarkdownTypography(16, "zh-Hans").fontSize).toBe(15);
+    expect(resolveNativeMarkdownTypography(16, "en").fontSize).toBe(16);
   });
 });

@@ -12,6 +12,7 @@ import { Atom, AsyncResult } from "effect/reactivity";
 
 import { ScopedTheme, ScopedVariables, Uniwind } from "uniwind";
 import { getUiLocale, subscribeUiLocale } from "@t3tools/client-runtime/i18n"; // fork: Chinese text sizes
+import { useUiLocale } from "../../../hooks/useT"; // fork: Chinese text sizes
 
 import {
   resolveAppearance,
@@ -226,6 +227,10 @@ export function AppearancePreferencesProvider(props: { readonly children: ReactN
   const themeVariables = themeVariablesByAppearance[themeAppearance];
   const activeThemeName = getMobileUniwindThemeName(themeId, themeAppearance);
   const { baseFontSize, codeFontSize, codeWordBreak, terminalFontSize } = preferences;
+  // fork: Chinese text sizes. Text roles resolve against the language, so a switch has to
+  // re-render the provider and with it every consumer of the context, not only the ones that
+  // already call useT.
+  useUiLocale();
   const appearance = useMemo(
     () => resolveAppearance({ baseFontSize, codeFontSize, codeWordBreak, terminalFontSize }),
     [baseFontSize, codeFontSize, codeWordBreak, terminalFontSize],

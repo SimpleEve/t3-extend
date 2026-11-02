@@ -26,3 +26,16 @@ export function scaledLocalizedFontSize(role: Role, scale: number, locale: UiLoc
   if (locale !== "zh-Hans") return Math.round(MOBILE_TYPOGRAPHY[role].fontSize * scale);
   return Math.round(ZH_FONT_SIZE[role] * scale * 2) / 2;
 }
+
+/** Chat Markdown at the default base size in Chinese; code blocks keep their own size setting. */
+const ZH_MARKDOWN_FONT_SIZE = { s: 13, h1: 20, h2: 18, h3: 16, h4: 14 } as const;
+
+/** A Markdown size after the base font size scales it, or null to keep the upstream table. */
+export function scaledLocalizedMarkdownFontSize(
+  key: keyof typeof ZH_MARKDOWN_FONT_SIZE,
+  scale: number,
+  locale: UiLocale,
+): number | null {
+  if (locale !== "zh-Hans") return null;
+  return Math.round(ZH_MARKDOWN_FONT_SIZE[key] * scale * 2) / 2;
+}

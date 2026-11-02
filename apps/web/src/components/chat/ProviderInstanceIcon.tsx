@@ -128,6 +128,10 @@ export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
             props.size === "compact" &&
               "right-[-0.1875rem] bottom-[-0.1875rem] h-3 min-w-3 px-0.5 text-5xs",
             props.badgeClassName,
+            // fork: Han initials stay legible; Latin and digits keep the tiny size
+            badgeContent === "initials" &&
+              /\p{Script=Han}/u.test(providerInstanceInitials(props.displayName)) &&
+              "text-2xs",
           )}
           style={{ borderColor: indicatorBackground }}
           aria-hidden
