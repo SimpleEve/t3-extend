@@ -20,7 +20,7 @@ import {
   type UpdateEverythingRun,
   type UpdateRunMachine,
 } from "./updateEverything.logic";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
+import { getUiLocale, translate, translatorFor } from "@t3tools/client-runtime/i18n";
 
 const updateEverythingRunAtom = Atom.make<UpdateEverythingRun | null>(null).pipe(
   Atom.keepAlive,
@@ -234,7 +234,7 @@ function takeSavedUpdateEverythingResult(): typeof SavedResult.Type | null {
 }
 
 export function showUpdateEverythingResult(result: UpdateEverythingResult): void {
-  const view = getUpdateEverythingToastView(result, APP_VERSION);
+  const view = getUpdateEverythingToastView(result, APP_VERSION, translatorFor(getUiLocale())); // fork: i18n
   if (!view) return;
   toastManager.add(
     stackedThreadToast({
