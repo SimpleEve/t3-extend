@@ -188,7 +188,23 @@ function hourOptions(hour12: boolean): Intl.DateTimeFormatOptions {
   return hour12 ? { hour: "numeric" } : { hour: "2-digit", hourCycle: "h23" };
 }
 
-function formatHour(formatter: Intl.DateTimeFormat, date: Date, hour12: boolean): string {
+function formatHour(
+  formatter: Intl.DateTimeFormat,
+  date: Date,
+  hour12: boolean,
+  t?: UsageDateTranslator, // fork: names the meridiem in the interface language
+): string {
+  if (hour12 && t !== undefined) {
+    // fork: "{hour} AM" / "{hour} PM" are whole phrases so a translation can lead with the meridiem.
+    const parts = formatter.formatToParts(date);
+    const hour = parts.find((part) => part.type === "hour")?.value;
+    const period = parts.find((part) => part.type === "dayPeriod")?.value.toUpperCase();
+    if (hour !== undefined && (period === "AM" || period === "PM")) {
+      const zone = parts.find((part) => part.type === "timeZoneName")?.value;
+      const label = t(period === "AM" ? "{hour} AM" : "{hour} PM", { hour });
+      return zone === undefined ? label : `${label} ${zone}`;
+    }
+  }
   if (hour12) return formatter.format(date);
   // Rolling buckets can start between whole hours, but their labels always name the hour.
   return formatter
@@ -201,7 +217,12 @@ function formatHour(formatter: Intl.DateTimeFormat, date: Date, hour12: boolean)
  * Repeated wall-clock hours during a fall-back transition include their short zone name so the
  * two distinct buckets remain distinguishable.
  */
-export function formatHourShort(hourStart: string, timeZone?: string, hour12 = true): string {
+export function formatHourShort(
+  hourStart: string,
+  timeZone?: string,
+  hour12 = true,
+  t?: UsageDateTranslator, // fork: interface language
+): string {
   const instant = new Date(hourStart);
   if (Number.isNaN(instant.getTime())) return hourStart;
   const options = timeZone === undefined ? {} : { timeZone };
@@ -222,13 +243,13 @@ export function formatHourShort(hourStart: string, timeZone?: string, hour12 = t
     (offset) => wallHourFormat.format(new Date(instant.getTime() + offset)) === wallHour,
   );
 
-  if (!isRepeatedHour) return formatHour(hourFormat, instant, hour12);
+  if (!isRepeatedHour) return formatHour(hourFormat, instant, hour12, t);
   const zonedHourFormat = dateTimeFormatter("en-US", {
     ...options,
     ...hourOptions(hour12),
     timeZoneName: "short",
   });
-  return formatHour(zonedHourFormat, instant, hour12);
+  return formatHour(zonedHourFormat, instant, hour12, t);
 }
 
 export function formatDateTimeShort(
@@ -253,6 +274,7 @@ export function formatDateTimeShort(
       dateTimeFormatter("en-US", { ...zone, ...hourOptions(hour12) }),
       date,
       hour12,
+      t,
     );
     return t("{date}, {time}", { date: formatDayShort(day, t), time });
   }
@@ -287,7 +309,7 @@ export function formatRelativeHourShort(
   const instantDay = Date.parse(`${dayFormat.format(instant)}T00:00:00Z`);
   const referenceDay = Date.parse(`${dayFormat.format(reference)}T00:00:00Z`);
   const calendarDaysAgo = Math.round((referenceDay - instantDay) / (24 * HOUR_MS));
-  const hour = formatHourShort(hourStart, timeZone, hour12);
+  const hour = formatHourShort(hourStart, timeZone, hour12, t);
 
   if (calendarDaysAgo === 0) return t ? t("{hour} today", { hour }) : `${hour} today`;
   if (calendarDaysAgo === 1) return t ? t("{hour} yesterday", { hour }) : `${hour} yesterday`;

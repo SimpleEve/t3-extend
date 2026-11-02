@@ -1,5 +1,17 @@
 // Words shared across areas. Translate each English source once, here.
 export default {
+  "To pick up a draggable item, press the space bar. While dragging, use the arrow keys to move the item. Press space again to drop the item in its new position, or press escape to cancel.":
+    "要拿起可拖动的项目，请按空格键。拖动时用方向键移动项目。再按一次空格键把项目放到新位置，或按 Esc 键取消。",
+  "Picked up draggable item {id}.": "已拿起可拖动的项目 {id}。",
+  "Draggable item {id} was moved over droppable area {over}.":
+    "可拖动的项目 {id} 已移到可放置区域 {over} 上方。",
+  "Draggable item {id} is no longer over a droppable area.":
+    "可拖动的项目 {id} 已不在任何可放置区域上方。",
+  "Draggable item {id} was dropped over droppable area {over}.":
+    "可拖动的项目 {id} 已放到可放置区域 {over}。",
+  "Draggable item {id} was dropped.": "可拖动的项目 {id} 已放下。",
+  "Dragging was cancelled. Draggable item {id} was dropped.":
+    "已取消拖动。可拖动的项目 {id} 已放下。",
   ", ": "、",
   Cancel: "取消",
   Confirm: "确认",

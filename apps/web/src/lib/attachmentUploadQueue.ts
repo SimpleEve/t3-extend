@@ -4,6 +4,7 @@ import {
   type ChatAttachment,
   type EnvironmentId,
 } from "@t3tools/contracts";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { parseScopedThreadKey } from "@t3tools/client-runtime/environment";
 import { resolveAssetUrl } from "@t3tools/client-runtime/state/assets";
 import {
@@ -152,7 +153,9 @@ function uploadBytes(input: {
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve();
       } else {
-        reject(new Error(`Upload rejected (${xhr.status})`));
+        reject(
+          new Error(translate(getUiLocale(), "Upload rejected ({status})", { status: xhr.status })), // fork: i18n
+        );
       }
     });
     xhr.addEventListener("error", () => reject(new Error("Upload failed")));

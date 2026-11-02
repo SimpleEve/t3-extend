@@ -93,7 +93,8 @@ function knownSource(error: unknown): string | null {
 export function connectionErrorMessage(error: unknown, t: Translator, fallback: string): string {
   const known = knownConnectionErrorMessage(error, t);
   if (known !== null) return known;
-  if (error instanceof Error && error.message.trim().length > 0) return error.message;
-  if (typeof error === "string" && error.trim().length > 0) return error;
+  // Client code throws fixed English text; look it up, and leave anything else as written.
+  if (error instanceof Error && error.message.trim().length > 0) return t(error.message);
+  if (typeof error === "string" && error.trim().length > 0) return t(error);
   return fallback;
 }

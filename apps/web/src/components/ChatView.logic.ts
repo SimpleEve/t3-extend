@@ -688,7 +688,12 @@ export async function prepareRevertedMessageAttachments(input: {
       const url = resolveAssetUrl(input.httpBaseUrl, result.value.relativeUrl);
       if (url === null) throw new Error("The environment returned an invalid attachment URL.");
       const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-      if (!response.ok) throw new Error(`Could not restore attachment: ${attachment.name}`);
+      if (!response.ok)
+        throw new Error(
+          translate(getUiLocale(), "Could not restore attachment: {name}", {
+            name: attachment.name,
+          }), // fork: i18n
+        );
       return new File([await response.blob()], attachment.name, { type: attachment.mimeType });
     }),
   );

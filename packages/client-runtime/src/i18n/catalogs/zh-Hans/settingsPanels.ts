@@ -2157,6 +2157,8 @@ export default {
   Nov: "11月",
   Dec: "12月",
   "{date}, {time}": "{date} {time}",
+  "{hour} AM": "上午 {hour} 点",
+  "{hour} PM": "下午 {hour} 点",
   "{hour} today": "今天 {hour}",
   "{hour} yesterday": "昨天 {hour}",
   "{start} to {end}": "{start} 至 {end}",

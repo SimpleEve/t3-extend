@@ -90,6 +90,7 @@ import {
 import { createTerminalPasteSession } from "./terminalPaste";
 import { cacheTerminalGridSize, getCachedTerminalGridSize } from "./terminalUiState";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { localizeTerminalLabel } from "@t3tools/shared/terminalLabels"; // fork: i18n
 
 function TerminalHeader(props: {
   readonly subtitle: string;
@@ -156,7 +157,7 @@ function TerminalHeader(props: {
                   },
                   ...props.sessions.map((session) => ({
                     id: `terminal-session:${session.terminalId}`,
-                    title: session.displayLabel,
+                    title: localizeTerminalLabel(session.displayLabel, t), // fork: i18n
                     icon: "terminal",
                     subtitle: [
                       getTerminalStatusLabel(

@@ -1,5 +1,4 @@
 import {
-  DndContext,
   type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
@@ -7,6 +6,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { TranslatedDndContext } from "../../fork/TranslatedDndContext"; // fork: i18n
 import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
   SortableContext,
@@ -96,7 +96,7 @@ export function EnvironmentRoutesList({
 
   return (
     <div className="mt-2 border-t border-border/50 py-2">
-      <DndContext
+      <TranslatedDndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         modifiers={[restrictToVerticalAxis, restrictToParentElement]}
@@ -116,7 +116,7 @@ export function EnvironmentRoutesList({
             ))}
           </ol>
         </SortableContext>
-      </DndContext>
+      </TranslatedDndContext>
       <div className="-ml-1.5 pt-1">
         <Button size="xs" variant="ghost-muted" onClick={onAddRoute}>
           <PlusIcon className="size-3" />

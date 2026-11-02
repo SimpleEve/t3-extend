@@ -1,5 +1,6 @@
 import type { Catalog } from "../../translate.ts";
 import appearance from "./appearance.ts";
+import clientErrors from "./clientErrors.ts";
 import chat from "./chat.ts";
 import commandPalette from "./commandPalette.ts";
 import common from "./common.ts";
@@ -24,6 +25,7 @@ import workspace from "./workspace.ts";
 export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   appearance,
   chat,
+  clientErrors,
   commandPalette,
   common,
   connection,
