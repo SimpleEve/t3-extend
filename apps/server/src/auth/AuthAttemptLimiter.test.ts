@@ -24,6 +24,7 @@ import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as ServerConfig from "../config.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
+import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import * as AuthAttemptLimiter from "./AuthAttemptLimiter.ts";
 import * as EnvironmentAuth from "./EnvironmentAuth.ts";
 import * as ServerSecretStore from "./ServerSecretStore.ts";
@@ -153,6 +154,7 @@ const layerRoutes = HttpApiBuilder.layer(AuthTestApi).pipe(
   Layer.provide(layerLimiterMiddleware),
   Layer.provideMerge(
     EnvironmentAuth.layer.pipe(
+      Layer.provide(ManagedPolicy.layerTest()),
       Layer.provide(SqlitePersistence.layerMemory),
       Layer.provide(ServerSecretStore.layer),
       Layer.provide(ServerEnvironment.layerIdentity),
