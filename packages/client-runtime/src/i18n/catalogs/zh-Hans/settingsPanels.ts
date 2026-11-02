@@ -2551,4 +2551,7 @@ export default {
   "This removes only the project entries, not the files on disk.":
     "这只会移除项目条目，不会删除磁盘上的文件。",
   "Other entries in this grouped project are unaffected.": "这个分组项目中的其他条目不受影响。",
+  // Timestamp formats.
+  "12-hour": "12 小时制",
+  "24-hour": "24 小时制",
 } satisfies Record<string, string>;
