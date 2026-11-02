@@ -2526,14 +2526,18 @@ export default function ChatView(props: ChatViewProps) {
   };
   const handleRestoreThreadBranchStable = useStableCallback(handleRestoreThreadBranch);
   const feedbackBannerItems = feedbackSubmissions.flatMap((submission) => {
-    const item = feedbackBannerItem(submission, () => {
-      setFeedbackSubmissionsByThreadKey((current) => ({
-        ...current,
-        [routeThreadKey]: (current[routeThreadKey] ?? []).filter(
-          (entry) => entry.id !== submission.id,
-        ),
-      }));
-    });
+    const item = feedbackBannerItem(
+      submission,
+      () => {
+        setFeedbackSubmissionsByThreadKey((current) => ({
+          ...current,
+          [routeThreadKey]: (current[routeThreadKey] ?? []).filter(
+            (entry) => entry.id !== submission.id,
+          ),
+        }));
+      },
+      t,
+    );
     return item ? [item] : [];
   });
   const limitRecoveryBanner =
@@ -2547,6 +2551,7 @@ export default function ChatView(props: ChatViewProps) {
           recovery: activeThreadShell.limitRecovery ?? null,
           snoozedUntil: activeThreadShell.snoozedUntil,
           timestampFormat,
+          t,
           onChange: async (limitRecovery) => {
             const result = await updateThreadMetadata({
               environmentId,
@@ -2599,6 +2604,7 @@ export default function ChatView(props: ChatViewProps) {
               onUseDefault: () =>
                 onProviderModelSelectStable(defaultSelection.instanceId, defaultSelection.model),
               onDismiss: () => setDismissedFallbackWindow(fallbackWindow),
+              t,
             }),
           ]
         : [];
@@ -2777,21 +2783,21 @@ export default function ChatView(props: ChatViewProps) {
   // Main-thread surfaces show this reason; `/side` sent anyway gets it as a toast.
   const sideChatDisabledReason =
     activeThread?.lineage.sideChat === true
-      ? "Side chats cannot start side chats."
+      ? t("Side chats cannot start side chats.")
       : isSubagentThread
-        ? "Subagent threads cannot start side chats."
+        ? t("Subagent threads cannot start side chats.")
         : serverConfig === null
-          ? "Side chats are not ready yet. Try again in a moment."
+          ? t("Side chats are not ready yet. Try again in a moment.")
           : serverConfig.environment.capabilities.sideChats !== true
-            ? "Update this environment's T3 Code server to use side chats."
+            ? t("Update this environment's T3 Code server to use side chats.")
             : sideChatsOffered && !isServerThread
-              ? "Side chats start after the first message."
+              ? t("Side chats start after the first message.")
               : sideChat.available &&
                   orchestrationV2WorktreePending(
                     activeThread?.worktreePath ?? null,
                     serverProjection?.runs ?? [],
                   )
-                ? "Available once the thread's worktree is set up."
+                ? t("Available once the thread's worktree is set up.")
                 : null;
   const openSideChatStable = useStableCallback(() => void sideChat.open());
   const sendSideChatStable = useStableCallback((prompt: string) => sideChat.open(prompt));
@@ -3608,17 +3614,17 @@ export default function ChatView(props: ChatViewProps) {
                               isRevertingCheckpoint={isRevertingCheckpoint}
                               sendDisabledReason={
                                 !canOperateThread
-                                  ? "This connection cannot change threads."
+                                  ? t("This connection cannot change threads.")
                                   : isEnvironmentChanging
-                                    ? "Preparing machine"
+                                    ? t("Preparing machine")
                                     : isRevertingCheckpoint
-                                      ? "Rewinding conversation"
+                                      ? t("Rewinding conversation")
                                       : feedbackUploading
-                                        ? "Sending feedback"
+                                        ? t("Sending feedback")
                                         : threadDetailLoading
-                                          ? "Messages loading"
+                                          ? t("Messages loading")
                                           : worktreeSetupBlocksSend
-                                            ? "Preparing worktree"
+                                            ? t("Preparing worktree")
                                             : projectCloneSendBlockReason
                               }
                               isPreparingWorktree={isPreparingWorktree && !sendQueuesBehindSetup}

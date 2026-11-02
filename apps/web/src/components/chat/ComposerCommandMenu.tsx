@@ -33,6 +33,7 @@ import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import { PierreEntryIcon } from "./PierreEntryIcon";
 import { ComposerBanner } from "./ComposerBanner";
 import { resolvePullRequestState } from "../pullRequest/pullRequestPresentation";
+import { useT } from "~/hooks/useT";
 
 export type ComposerCommandItem =
   | {
@@ -101,6 +102,7 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
   onHighlightedItemChange: (itemId: string | null) => void;
   onSelect: (item: ComposerCommandItem) => void;
 }) {
+  const t = useT();
   const listRef = useRef<HTMLDivElement>(null);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls the highlighted menu item's DOM node into view
@@ -130,7 +132,9 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
         {props.items.length > 0 ? (
           <CommandList
             id={props.listId}
-            aria-label={props.triggerKind ? LISTBOX_LABEL_BY_TRIGGER[props.triggerKind] : undefined}
+            aria-label={
+              props.triggerKind ? t(LISTBOX_LABEL_BY_TRIGGER[props.triggerKind]) : undefined
+            }
             className="max-h-72 min-h-0 scroll-pb-6"
           >
             <CommandGroup>
@@ -153,16 +157,16 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
             <p className="text-secondary-label text-xs">
               {props.isLoading
                 ? props.triggerKind === "skill" || props.triggerKind === "slash-command"
-                  ? "Searching workspace skills..."
+                  ? t("Searching workspace skills...")
                   : props.triggerKind === "pull-request"
-                    ? "Finding pull request..."
-                    : "Searching workspace files..."
+                    ? t("Finding pull request...")
+                    : t("Searching workspace files...")
                 : (props.emptyStateText ??
                   (props.triggerKind === "skill"
-                    ? "No skills found. Try / to browse provider commands."
+                    ? t("No skills found. Try / to browse provider commands.")
                     : props.triggerKind === "path"
-                      ? "No matching files or folders."
-                      : "No matching command."))}
+                      ? t("No matching files or folders.")
+                      : t("No matching command.")))}
             </p>
           </div>
         )}
@@ -284,12 +288,13 @@ const SKILL_SOURCE_LABEL_BY_KIND: Record<ProviderSkillSourceKind, string> = {
 };
 
 function SkillSourceBadge(props: { kind: ProviderSkillSourceKind; showSkillSuffix: boolean }) {
+  const t = useT();
   const Icon = SKILL_SOURCE_ICON_BY_KIND[props.kind];
+  const source = t(SKILL_SOURCE_LABEL_BY_KIND[props.kind], undefined, "skill source");
   return (
     <Badge className="ms-auto" variant="secondary">
       <Icon aria-hidden="true" className="text-current" />
-      {SKILL_SOURCE_LABEL_BY_KIND[props.kind]}
-      {props.showSkillSuffix ? " Skill" : null}
+      {props.showSkillSuffix ? t("{source} Skill", { source }) : source}
     </Badge>
   );
 }

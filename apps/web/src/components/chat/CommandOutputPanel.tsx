@@ -8,6 +8,7 @@ import { useServerConfigs } from "../../state/entities";
 import { orchestrationEnvironment } from "../../state/orchestration";
 import { useEnvironmentQuery } from "../../state/query";
 import type { TurnItemSource } from "./timelineRowContext";
+import { useT } from "~/hooks/useT";
 
 const FOLLOW_SLACK_PX = 8;
 
@@ -39,6 +40,7 @@ export function CommandOutputPanel(props: {
   const followRef = useRef(true);
   const text = data?.output.text ?? "";
   const { resolvedTheme } = useTheme();
+  const t = useT();
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- pins the output scroller's scrollTop to the bottom after each commit while the user follows
   useLayoutEffect(() => {
@@ -47,16 +49,24 @@ export function CommandOutputPanel(props: {
   });
 
   if (text.length === 0) {
-    if (error) return <div className="text-destructive">Couldn&apos;t load output: {error}</div>;
-    if (data === null) return <div className="text-muted-foreground italic">Loading output…</div>;
-    return data.running ? null : <div className="text-muted-foreground italic">No output.</div>;
+    if (error) {
+      return (
+        <div className="text-destructive">{t("Couldn't load output: {error}", { error })}</div>
+      );
+    }
+    if (data === null) {
+      return <div className="text-muted-foreground italic">{t("Loading output…")}</div>;
+    }
+    return data.running ? null : (
+      <div className="text-muted-foreground italic">{t("No output.")}</div>
+    );
   }
   // Parse after all hooks to preserve the text/theme compiler cache.
   const spans = terminalOutputSpans(text, TERMINAL_PALETTES[resolvedTheme]);
   return (
     <div>
       {data?.output.truncated ? (
-        <div className="text-muted-foreground italic">Earlier output not shown</div>
+        <div className="text-muted-foreground italic">{t("Earlier output not shown")}</div>
       ) : null}
       <div
         ref={scrollRef}

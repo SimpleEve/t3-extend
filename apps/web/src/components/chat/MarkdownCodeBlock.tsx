@@ -102,6 +102,7 @@ function MarkdownCodeBlockTitleContent({
   language: string;
   theme: "light" | "dark";
 }) {
+  const t = useT();
   if (fenceTitle) {
     return (
       <>
@@ -119,7 +120,10 @@ function MarkdownCodeBlockTitleContent({
     <Tooltip>
       <TooltipTrigger
         render={
-          <span className="inline-flex shrink-0 rounded-sm" aria-label={`Language: ${language}`} />
+          <span
+            className="inline-flex shrink-0 rounded-sm"
+            aria-label={t("Language: {language}", { language })}
+          />
         }
       >
         <PierreEntryIcon pathValue={fileName} kind="file" theme={theme} className="size-3.5" />

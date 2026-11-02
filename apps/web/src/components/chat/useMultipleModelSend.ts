@@ -40,6 +40,7 @@ import {
   startFanoutThread,
 } from "./chatViewSend";
 import type { useLocalDispatchState } from "./useLocalDispatchState";
+import { useT } from "~/hooks/useT";
 
 interface MultipleModelSendInput {
   readonly environmentId: EnvironmentId;
@@ -61,6 +62,7 @@ interface MultipleModelSendInput {
  * user has moved on, through a "Restore prompt" toast.
  */
 export function useMultipleModelSend(input: MultipleModelSendInput) {
+  const t = useT();
   const {
     environmentId,
     routeThreadKey,
@@ -250,12 +252,13 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
         const recoveryToastId = toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "A background prompt could not be sent",
-            description:
+            title: t("A background prompt could not be sent"),
+            description: t(
               "Your newer draft is unchanged. Restore the failed prompt when this composer is empty.",
+            ),
             timeout: 0,
             actionProps: {
-              children: "Restore prompt",
+              children: t("Restore prompt"),
               onClick: () => {
                 if (
                   !draftId ||
@@ -266,8 +269,9 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
                   )
                 ) {
                   toastManager.update(recoveryToastId, {
-                    description:
+                    description: t(
                       "Return to the original draft and send or clear its current prompt before restoring.",
+                    ),
                   });
                   return;
                 }

@@ -12,6 +12,7 @@ import {
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toastManager } from "../ui/toast";
+import { useT } from "../../hooks/useT";
 import {
   deriveLogicalProjectKeyFromSettings,
   selectProjectGroupingSettings,
@@ -66,6 +67,7 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
     projectGroupingSettings,
     sendInFlightRef,
   } = input;
+  const t = useT();
   const setDraftThreadContext = useComposerDraftStore((store) => store.setDraftThreadContext);
   const getDraftSession = useComposerDraftStore((store) => store.getDraftSession);
   const setLogicalProjectDraftThreadId = useComposerDraftStore(
@@ -138,9 +140,10 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
       toastManager.add({
         type: "warning",
         id: "load-balancing-attachments",
-        title: "Keep attachments on this machine",
-        description:
+        title: t("Keep attachments on this machine"),
+        description: t(
           "Remove attachments before choosing automatic routing, then attach them on the selected machine.",
+        ),
       });
       return;
     }
@@ -157,12 +160,12 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
   const onAutoEnvironmentStable = useStableCallback(onAutoEnvironment);
   const autoEnvironmentLabel = automaticEnvironment
     ? draftThread?.loadBalancedEnvironmentId
-      ? "Auto balance"
+      ? t("Auto balance")
       : loadBalancing.pending
-        ? "Checking machines…"
+        ? t("Checking machines…")
         : loadBalancing.failed
-          ? "Auto balance unavailable"
-          : "Auto balance"
+          ? t("Auto balance unavailable")
+          : t("Auto balance")
     : undefined;
 
   // A change in flight belongs to the draft and project it started on.
@@ -251,7 +254,7 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
       return;
     }
     setBusyEnvironmentChange(request);
-    void openScratchProject(target.environmentId, "Could not switch machine")
+    void openScratchProject(target.environmentId, t("Could not switch machine"))
       .then((project) => {
         if (project) retarget(project);
       })

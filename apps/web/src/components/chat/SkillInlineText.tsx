@@ -7,6 +7,7 @@ import { useRightPanelStore } from "~/rightPanelStore";
 import { SKILL_CHIP_ICON_SVG } from "../composerInlineChip";
 import { ContextChipPopover } from "../contextChipParts";
 import { Button } from "../ui/button";
+import { useT } from "~/hooks/useT";
 
 function SkillInlineText(props: {
   text: string;
@@ -89,20 +90,21 @@ export function SkillChipPopover(props: {
   copyMarkdown?: string | undefined;
   onViewInstructions: (() => void) | undefined;
 }) {
+  const t = useT();
   return (
     <ContextChipPopover
       kind="skill"
       icon={<SkillChipIcon />}
       label={props.label}
-      accessibleLabel={`Skill ${props.label}`}
+      accessibleLabel={t("Skill {label}", { label: props.label })}
       copyMarkdown={props.copyMarkdown}
     >
       <div className="space-y-3 p-2 text-sm">
         <p className="font-medium">{props.label}</p>
-        <p>{props.description || "No description is available for this skill."}</p>
+        <p>{props.description || t("No description is available for this skill.")}</p>
         {props.onViewInstructions ? (
           <Button variant="outline" size="sm" onClick={props.onViewInstructions}>
-            View instructions
+            {t("View instructions")}
           </Button>
         ) : null}
       </div>

@@ -12,6 +12,8 @@ import { Button } from "../ui/button";
 import { formatUpcomingTimestamp } from "../../timestampFormat";
 import { toastManager } from "../ui/toast";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
+import { useT } from "~/hooks/useT";
+import { interpolate, type Translator } from "@t3tools/client-runtime/i18n";
 
 type RecoveryProps = {
   runId: RunId;
@@ -21,24 +23,28 @@ type RecoveryProps = {
   recovery: OrchestrationV2LimitRecovery | null;
   timestampFormat: TimestampFormat;
   onChange: (recovery: OrchestrationV2LimitRecoveryUpdate) => Promise<void>;
+  /** fork: translates the banner text; English when omitted. */
+  t?: Translator;
 };
 
 export function usageLimitRecoveryBannerItem(props: RecoveryProps): ComposerBannerStackItem {
   const { runId, resetAt, stoppedAt, timestampFormat } = props;
+  const t = props.t ?? ((source, params) => interpolate(source, params));
   const canSchedule = resetAt !== null && Date.parse(resetAt) > Date.parse(stoppedAt);
   return {
     id: `usage-limit-recovery:${runId}`,
     variant: "warning",
     icon: <GaugeIcon />,
-    title: "Usage limit reached",
+    title: t("Usage limit reached"),
     description: resetAt
-      ? `Resets ${formatUpcomingTimestamp(resetAt, timestampFormat)}`
-      : "Reset time unavailable; retry manually",
+      ? t("Resets {time}", { time: formatUpcomingTimestamp(resetAt, timestampFormat) })
+      : t("Reset time unavailable; retry manually"),
     actions: canSchedule ? <RecoveryActions key={`${runId}:${resetAt}`} {...props} /> : null,
   };
 }
 
 function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: RecoveryProps) {
+  const t = useT();
   const [pending, setPending] = useState(false);
 
   const scheduled =
@@ -59,8 +65,8 @@ function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: R
     if (action === "snooze" && !snoozed && Date.parse(resetAt) <= Date.now()) {
       toastManager.add({
         type: "error",
-        title: "Could not snooze thread",
-        description: "The reset time has passed. Retry the thread manually.",
+        title: t("Could not snooze thread"),
+        description: t("The reset time has passed. Retry the thread manually."),
       });
       // The deadline timer can lag after a throttled tab or sleep; disable now.
       deadlineStore(Date.parse(resetAt)).refresh();
@@ -76,8 +82,9 @@ function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: R
     } catch (cause) {
       toastManager.add({
         type: "error",
-        title: action === "resume" ? "Could not change auto-resume" : "Could not snooze thread",
-        description: cause instanceof Error ? cause.message : "An error occurred.",
+        title:
+          action === "resume" ? t("Could not change auto-resume") : t("Could not snooze thread"),
+        description: cause instanceof Error ? cause.message : t("An error occurred."),
       });
     }
     setPending(false);
@@ -86,7 +93,7 @@ function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: R
   return (
     <>
       <Button size="xs" variant="ghost" disabled={pending} onClick={() => void toggle("resume")}>
-        {pending ? "Saving..." : scheduled ? "Cancel auto-resume" : "Resume at reset"}
+        {pending ? t("Saving...") : scheduled ? t("Cancel auto-resume") : t("Resume at reset")}
       </Button>
       <Button
         size="xs"
@@ -94,7 +101,7 @@ function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: R
         disabled={pending || (!snoozed && resetPassed)}
         onClick={() => void toggle("snooze")}
       >
-        {pending ? "Saving..." : snoozed ? "Wake now" : "Snooze until reset"}
+        {pending ? t("Saving...") : snoozed ? t("Wake now") : t("Snooze until reset")}
       </Button>
     </>
   );

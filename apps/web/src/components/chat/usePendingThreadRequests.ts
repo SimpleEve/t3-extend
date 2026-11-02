@@ -53,6 +53,7 @@ import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import { toastManager } from "../ui/toast";
 
 import type { ChatComposerHandle } from "./ChatComposer";
+import { useT } from "~/hooks/useT";
 
 const EMPTY_PENDING_USER_INPUT_ANSWERS: Record<string, PendingUserInputDraftAnswer> = {};
 const usePendingUserInputAnswers = create<
@@ -123,6 +124,7 @@ export function usePendingThreadRequests(input: {
   readonly composerRef: RefObject<ChatComposerHandle | null>;
   readonly setThreadError: (threadId: ThreadId, error: string | null) => void;
 }) {
+  const t = useT();
   const {
     environmentId,
     activeThreadId,
@@ -407,8 +409,8 @@ export function usePendingThreadRequests(input: {
       setComposerDraftPrompt(composerDraftTarget, nextPrompt);
       toastManager.add({
         type: "info",
-        title: "Your typed text was set aside",
-        description: "It will be back in the composer once the question is answered.",
+        title: t("Your typed text was set aside"),
+        description: t("It will be back in the composer once the question is answered."),
         data: { threadRef: activeThreadId ? { environmentId, threadId: activeThreadId } : null },
       });
       if (activeThreadId) {

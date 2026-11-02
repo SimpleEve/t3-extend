@@ -172,7 +172,7 @@ function UserFileCard({
             >
               <DownloadIcon />
             </TooltipTrigger>
-            <TooltipPopup side="top">Download {label}</TooltipPopup>
+            <TooltipPopup side="top">{t("Download {name}", { name: label })}</TooltipPopup>
           </Tooltip>
         </>
       )}
@@ -974,7 +974,9 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                           >
                             <DownloadIcon />
                           </TooltipTrigger>
-                          <TooltipPopup side="top">Download {label}</TooltipPopup>
+                          <TooltipPopup side="top">
+                            {t("Download {name}", { name: label })}
+                          </TooltipPopup>
                         </Tooltip>
                       </div>
                     );

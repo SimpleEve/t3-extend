@@ -215,7 +215,7 @@ function ModelPickerProviderNotices({
           {setupEntries.map((entry) => (
             <div key={entry.instanceId} className="px-1 py-1.5 text-xs leading-snug">
               <p className="line-clamp-3 text-muted-foreground">
-                {getProviderStatusMessage(entry.snapshot)}
+                {getProviderStatusMessage(entry.snapshot, t)}
               </p>
               <InlineButton
                 className="mt-1"

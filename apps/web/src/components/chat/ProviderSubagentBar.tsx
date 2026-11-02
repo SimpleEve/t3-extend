@@ -9,6 +9,7 @@ import { tickTextContent } from "~/lib/tickTextContent";
 import type { ProviderInstanceEntry } from "../../providerInstances";
 import { Button } from "../ui/button";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
+import { useT } from "~/hooks/useT";
 
 export function ProviderSubagentBar(props: {
   readonly provider: ProviderInstanceEntry | null;
@@ -18,6 +19,7 @@ export function ProviderSubagentBar(props: {
   readonly status: ProviderSubagentStatus | null;
   readonly onOpenParent: (() => void) | null;
 }) {
+  const t = useT();
   const { status } = props;
   const live = status !== null && isOrchestrationV2WorkActive(status.status);
   const modelDescription =
@@ -59,15 +61,15 @@ export function ProviderSubagentBar(props: {
         />
       </div>
       <span role="status" className="sr-only">
-        {`${modelDescription} subagent: ${announcement}`}
+        {t("{model} subagent: {status}", { model: modelDescription, status: announcement })}
       </span>
       <span className="shrink-0 text-muted-foreground @max-[640px]/composer-surface:sr-only">
-        Runs on its own
+        {t("Runs on its own")}
       </span>
       {props.onOpenParent ? (
         <Button size="sm" variant="ghost" onClick={props.onOpenParent}>
           <ArrowUpLeftIcon />
-          <span className="@max-[320px]/composer-surface:sr-only">Open parent</span>
+          <span className="@max-[320px]/composer-surface:sr-only">{t("Open parent")}</span>
         </Button>
       ) : null}
     </div>

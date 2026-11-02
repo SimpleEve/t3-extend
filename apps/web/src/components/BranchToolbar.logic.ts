@@ -6,6 +6,7 @@ import type {
   WorktreeSubmodules,
 } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
+import { interpolate, type Translator } from "@t3tools/client-runtime/i18n";
 import { sanitizeNewRefName } from "@t3tools/shared/git";
 import { toSortableTimestamp } from "@t3tools/client-runtime/state/thread-sort";
 export { deriveLocalBranchNameFromRemoteRef, sanitizeNewRefName } from "@t3tools/shared/git";
@@ -148,8 +149,14 @@ export function resolvePreviousWorktreeSeed(input: {
   return latest === null ? null : { branch: latest.branch, worktreePath: latest.worktreePath };
 }
 
-export function resolvePreviousWorktreeLabel(seed: PreviousWorktreeSeed): string {
-  return seed.branch ? `Previous worktree (${seed.branch})` : "Previous worktree";
+// fork: `t` translates the labels; English when omitted.
+export function resolvePreviousWorktreeLabel(
+  seed: PreviousWorktreeSeed,
+  t: Translator = (source, params) => interpolate(source, params),
+): string {
+  return seed.branch
+    ? t("Previous worktree ({branch})", { branch: seed.branch })
+    : t("Previous worktree");
 }
 
 export function resolveEffectiveEnvMode(input: {
@@ -196,13 +203,17 @@ export function resolveBranchToolbarValue(input: {
   return currentGitBranch ?? activeThreadBranch;
 }
 
-export function resolveBranchTriggerLabel(input: {
-  activeWorktreePath: string | null;
-  effectiveEnvMode: EnvMode;
-  resolvedActiveBranch: string | null;
-  resolvedActiveBranchIsRemote: boolean | null;
-  startFromOrigin: boolean;
-}): string {
+// fork: `t` translates the labels; English when omitted.
+export function resolveBranchTriggerLabel(
+  input: {
+    activeWorktreePath: string | null;
+    effectiveEnvMode: EnvMode;
+    resolvedActiveBranch: string | null;
+    resolvedActiveBranchIsRemote: boolean | null;
+    startFromOrigin: boolean;
+  },
+  t: Translator = (source, params) => interpolate(source, params),
+): string {
   const {
     activeWorktreePath,
     effectiveEnvMode,
@@ -211,13 +222,13 @@ export function resolveBranchTriggerLabel(input: {
     startFromOrigin,
   } = input;
   if (!resolvedActiveBranch) {
-    return "Select ref";
+    return t("Select ref");
   }
   if (effectiveEnvMode === "worktree" && !activeWorktreePath) {
     // Only the server can determine a local branch's configured remote.
     return startFromOrigin && resolvedActiveBranchIsRemote === false
-      ? `From ${resolvedActiveBranch} (remote)`
-      : `From ${resolvedActiveBranch}`;
+      ? t("From {branch} (remote)", { branch: resolvedActiveBranch })
+      : t("From {branch}", { branch: resolvedActiveBranch });
   }
   return resolvedActiveBranch;
 }

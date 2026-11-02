@@ -361,8 +361,8 @@ export function SettingsRow({
     source === "environment" && context?.scope.environmentIds.length === 1
       ? (context.environments.find(
           (environment) => environment.environmentId === context.scope.environmentIds[0],
-        )?.label ?? "environment")
-      : "environment";
+        )?.label ?? t("environment"))
+      : t("environment");
   const environmentSettingsById = new Map(
     (context?.connectedEnvironments ?? []).flatMap((environment) =>
       environment.serverConfig
@@ -406,20 +406,20 @@ export function SettingsRow({
     unavailable && control
       ? inertControl(
           !canWriteSettings
-            ? `This connection lacks permission to change settings on ${
-                context
+            ? t("This connection lacks permission to change settings on {label}.", {
+                label: context
                   ? context.connectedEnvironments
                       .filter((target) => !writableIds.has(target.environmentId))
                       .map((target) => target.label)
-                      .join(", ") || "the selected environment"
-                  : (primaryEnvironment?.label ?? "the primary environment")
-              }.`
+                      .join(t(", ")) || t("the selected environment")
+                  : (primaryEnvironment?.label ?? t("the primary environment")),
+              })
             : context
-              ? "Reconnect the selected environment to change this setting."
-              : PRIMARY_SETTINGS_UNAVAILABLE_MESSAGE,
+              ? t("Reconnect the selected environment to change this setting.")
+              : t(PRIMARY_SETTINGS_UNAVAILABLE_MESSAGE),
         )
       : environmentWide && control
-        ? inertControl("Environment-wide setting. Select an environment to change it.")
+        ? inertControl(t("Environment-wide setting. Select an environment to change it."))
         : control;
   const customized =
     context !== null &&

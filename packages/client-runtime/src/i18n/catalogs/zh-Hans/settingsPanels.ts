@@ -2315,4 +2315,19 @@ export default {
   "Try a shortcut such as Ctrl+Shift+2.": "试试 Ctrl+Shift+2 这样的快捷键。",
   "Updating capture settings…": "正在更新截图设置…",
   'T3 Code already uses this for "{command}".': "T3 Code 已把它用于“{command}”。",
+  "1 day": "1 天",
+  "{count} days": "{count} 天",
+  Empty: "空",
+  "1 item": "1 项",
+  "{count} items": "{count} 项",
+  "1 project override": "1 个项目覆盖",
+  "{count} project overrides": "{count} 个项目覆盖",
+  "Reset it": "重置此项",
+  environment: "环境",
+  "the primary environment": "主环境",
+  "Reconnect the selected environment to change this setting.":
+    "重新连接所选环境后才能修改此设置。",
+  "This setting is saved on a server, and the hosted app is not anchored to one. Change it from the desktop app or from the server's own address.":
+    "此设置保存在服务器上，而托管版应用没有固定连接到某台服务器。请在桌面应用或服务器自己的地址中修改。",
+  override: "覆盖设置",
 } satisfies Record<string, string>;

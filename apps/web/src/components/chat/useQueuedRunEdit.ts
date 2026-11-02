@@ -56,6 +56,7 @@ import type { ChatComposerHandle } from "./ChatComposer";
 import { fileAttachmentCapabilityBlockReason } from "./composerAttachmentFiles";
 import { prepareQueuedEditAttachments, recoverQueuedMessageEdit } from "./queuedMessageEdit";
 import type { EditQueuedRunRequest } from "./QueuedRunsControl";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 interface EditingQueuedRun {
   readonly threadId: ThreadId;
@@ -114,7 +115,9 @@ async function submitQueuedRunEdit(input: {
     await awaitAttachmentUploads(files.map((file) => file.id));
     validateFiles();
     const uploaded = getUploadedAttachments({ environmentId, images: files });
-    if (uploaded === null) throw new Error("Retry or remove failed uploads before saving.");
+    if (uploaded === null) {
+      throw new Error(translate(getUiLocale(), "Retry or remove failed uploads before saving."));
+    }
     return uploaded;
   };
   try {
@@ -166,9 +169,13 @@ async function submitQueuedRunEdit(input: {
         },
       },
     });
-    return result._tag === "Failure" ? "Could not save the edited queued message." : null;
+    return result._tag === "Failure"
+      ? translate(getUiLocale(), "Could not save the edited queued message.")
+      : null;
   } catch (error) {
-    return error instanceof Error ? error.message : "Could not save the edited queued message.";
+    return error instanceof Error
+      ? error.message
+      : translate(getUiLocale(), "Could not save the edited queued message.");
   }
 }
 
@@ -270,15 +277,24 @@ export function useQueuedRunEdit(input: {
           const title = appAtomRegistry.get(
             environmentThreadShells.threadShellAtom(threadRef),
           )?.title;
-          const where = title === undefined ? "" : ` in “${title}”`;
           toastManager.add(
             stackedThreadToast({
               type: recovery === "kept" ? "info" : "warning",
-              title: "Queued message is no longer queued",
+              title: translate(getUiLocale(), "Queued message is no longer queued"),
               description:
-                recovery === "kept"
-                  ? `Your unsaved edit${where} was kept in the composer.`
-                  : `Your unsaved edit${where} was discarded.`,
+                title === undefined
+                  ? recovery === "kept"
+                    ? translate(getUiLocale(), "Your unsaved edit was kept in the composer.")
+                    : translate(getUiLocale(), "Your unsaved edit was discarded.")
+                  : recovery === "kept"
+                    ? translate(
+                        getUiLocale(),
+                        "Your unsaved edit in “{title}” was kept in the composer.",
+                        { title },
+                      )
+                    : translate(getUiLocale(), "Your unsaved edit in “{title}” was discarded.", {
+                        title,
+                      }),
             }),
           );
         },
