@@ -1,6 +1,174 @@
 // Settings pages other than Appearance, plus the usage page. Lowercase entries are the
 // labels the reset buttons read ("Reset {label} to default").
 export default {
+  // fork: import from official T3 Code
+  "Import from {app}": "从 {app} 导入",
+  "Import from T3 Code": "从 T3 Code 导入",
+  "Could not import from {app}": "无法从 {app} 导入",
+  "Could not check the import": "无法检查这次导入",
+  "No {app} data was found on the computer that runs this environment.":
+    "运行此环境的电脑上没有找到 {app} 的数据。",
+  "This environment already uses {app}'s data folder, so there is nothing to import.":
+    "此环境已在使用 {app} 的数据文件夹，没有可导入的内容。",
+  "{app}'s data comes from a newer version than this app understands. Update T3 Extend first.":
+    "{app} 的数据来自比本应用更新的版本。请先更新 T3 Extend。",
+  "{app}'s data has migrations this app does not share. Update T3 Extend first.":
+    "{app} 的数据含有本应用没有的迁移。请先更新 T3 Extend。",
+  "Choose projects, threads, scheduled tasks and settings from {app} on the computer that runs this environment to bring into T3 Extend. {app}'s own data is only read, never changed.":
+    "选择运行此环境的电脑上 {app} 里的项目、对话、定时任务和设置，带到 T3 Extend。{app} 自己的数据只读取，不会被改动。",
+  "Looking…": "查找中…",
+  "Choose…": "选择…",
+  "Review…": "检查…",
+  "Review what will happen, then confirm.": "检查将会发生的事，然后确认。",
+  "{app}'s own data is only read, never changed.": "{app} 自己的数据只会被读取，不会被修改。",
+  "Pick what to bring over. Threads you already imported are skipped.":
+    "选择要带过来的内容。已经导入过的对话会被跳过。",
+  "Projects and threads": "项目和对话",
+  "Archived threads": "已归档的对话",
+  "Subagent threads": "子 Agent 对话",
+  "{app} has no projects to import.": "{app} 里没有可导入的项目。",
+  "joins your existing project": "并入你已有的项目",
+  "{picked} of {total}": "{picked} / {total}",
+  "already imported": "已导入",
+  "busy in {app}": "{app} 正在运行",
+  archived: "已归档",
+  "{count} subagent": "{count} 个子 Agent",
+  "{count} subagents": "{count} 个子 Agent",
+  "worktree is gone": "worktree 已不存在",
+  "Scheduled tasks": "定时任务",
+  "Runs on its schedule": "按计划运行",
+  "{app} keeps running its own copy until you pause it there.":
+    "在 {app} 里暂停它之前，{app} 会继续运行它自己的那一份。",
+  Settings: "设置",
+  "Provider instances and their sign-ins": "提供方实例及其登录凭据",
+  "Usage price overrides": "用量价格覆盖",
+  "Interface preferences": "界面偏好",
+  "Keyboard shortcuts": "键盘快捷键",
+  Themes: "主题",
+  "Checking every selected item…": "正在检查每一个所选项目…",
+  Back: "返回",
+  Import: "导入",
+  "Importing threads: {done} of {total}": "正在导入对话：{done} / {total}",
+  "Copying files and settings…": "正在复制文件和设置…",
+  "Importing scheduled tasks…": "正在导入定时任务…",
+  "Preparing…": "准备中…",
+  "You can keep using the app. Closing this window does not stop the import.":
+    "你可以继续使用应用。关闭这个窗口不会中止导入。",
+  "Imported {threads} and {projects}.": "已导入 {threads}和 {projects}。",
+  "{count} thread": "{count} 个对话",
+  "{count} threads": "{count} 个对话",
+  "{count} new project": "{count} 个新项目",
+  "{count} new projects": "{count} 个新项目",
+  "Only on the host machine, with maintenance permission": "只能在主机上操作，且需要维护权限",
+  "import dialog|Done": "完成",
+  "Fixed automatically": "已自动处理",
+  "Not imported": "未导入",
+  "Imported, needs your attention": "已导入，需要你留意",
+  "Nothing here.": "无。",
+  "{subject} joins the project you already have for {detail}.":
+    "{subject} 并入你在 {detail} 上已有的项目。",
+  "{count} thread gets a new id, so {app} and T3 Extend keep separate histories and checkpoints.":
+    "{count} 个对话会换上新的 id，让 {app} 和 T3 Extend 各自保留独立的历史和检查点。",
+  "{count} threads get new ids, so {app} and T3 Extend keep separate histories and checkpoints.":
+    "{count} 个对话会换上新的 id，让 {app} 和 T3 Extend 各自保留独立的历史和检查点。",
+  "{count} parent thread comes along because a thread you picked was forked from it.":
+    "{count} 个父对话会一起带过来，因为你选的对话是从它分叉出来的。",
+  "{count} parent threads come along because the threads you picked were forked from them.":
+    "{count} 个父对话会一起带过来，因为你选的对话是从它们分叉出来的。",
+  "{count} checkpoint ref is copied under a new name in your repositories.":
+    "{count} 个检查点 ref 会以新名字复制到你的仓库里。",
+  "{count} checkpoint refs are copied under new names in your repositories.":
+    "{count} 个检查点 ref 会以新名字复制到你的仓库里。",
+  "{count} thread had automatic usage-limit resume turned off, so it only runs when you continue it.":
+    "{count} 个对话的“用量限制后自动续跑”已被关闭，只有你继续它时才会运行。",
+  "{count} threads had automatic usage-limit resume turned off, so they only run when you continue them.":
+    "{count} 个对话的“用量限制后自动续跑”已被关闭，只有你继续它们时才会运行。",
+  "{count} thread arrives stopped: its live provider session and pending requests stay in {app}.":
+    "{count} 个对话以停止状态到达：运行中的提供方会话和待处理请求留在 {app}。",
+  "{count} threads arrive stopped: live provider sessions and pending requests stay in {app}.":
+    "{count} 个对话以停止状态到达：运行中的提供方会话和待处理请求留在 {app}。",
+  "{count} path into {app}'s folder now points into T3 Extend's.":
+    "{count} 个指向 {app} 文件夹的路径已改为指向 T3 Extend 的文件夹。",
+  "{count} paths into {app}'s folder now point into T3 Extend's.":
+    "{count} 个指向 {app} 文件夹的路径已改为指向 T3 Extend 的文件夹。",
+  "{count} attachment or browser capture is copied with its thread.":
+    "{count} 个附件或浏览器截图会随对话一起复制。",
+  "{count} attachments and browser captures are copied with their threads.":
+    "{count} 个附件和浏览器截图会随对话一起复制。",
+  "{subject} is imported and active. Its first run is at its next scheduled time.":
+    "{subject} 已导入并启用。它会在下一个计划时间首次运行。",
+  "Identity stays with {app}: {subject}. Phones and browsers pair with T3 Extend again.":
+    "身份信息留在 {app}：{subject}。手机和浏览器需要重新与 T3 Extend 配对。",
+  "{count} signing key or cloud sign-in secret belongs to {app}'s identity.":
+    "{count} 个签名密钥或云端登录机密属于 {app} 的身份。",
+  "{count} signing keys and cloud sign-in secrets belong to {app}'s identity.":
+    "{count} 个签名密钥和云端登录机密属于 {app} 的身份。",
+  "Saved remote environments are encrypted with {app}'s key. Add them again here.":
+    "已保存的远程环境用 {app} 的密钥加密。请在这里重新添加。",
+  "Window size and position belong to the {app} window.": "窗口大小和位置属于 {app} 的窗口。",
+  "The built-in browser's logins cannot be read by T3 Extend. Sign in again.":
+    "T3 Extend 读不了内置浏览器的登录状态。请重新登录。",
+  "Unsent drafts, collapsed groups and other per-device state live in {app}'s own window and cannot be reached.":
+    "未发送的草稿、折叠的分组和其他按设备保存的状态存在 {app} 自己的窗口里，无法读取。",
+  "{subject}: {app} is working on it right now. Stop it there and import again.":
+    "{subject}：{app} 正在处理它。请先在那边停止，然后再导入一次。",
+  "{subject}: its parent thread is busy in {app}.": "{subject}：它的父对话在 {app} 中正在运行。",
+  "{subject}: its project is not part of this import.": "{subject}：它所属的项目不在这次导入里。",
+  "{subject}: the thread it belongs to is not part of this import.":
+    "{subject}：它所属的对话不在这次导入里。",
+  "{subject}: its definition could not be read here.": "{subject}：无法在这里读取它的定义。",
+  "{subject} is managed by {detail} and cannot be changed by an import.":
+    "{subject} 由 {detail} 管理，导入无法改动它。",
+  "Provider {subject} is not allowed by {detail}'s policy.":
+    "提供方 {subject} 不被 {detail} 的策略允许。",
+  "{subject} was a one-time task whose time has already passed. It is imported turned off so it does not run right away.":
+    "{subject} 是一次性任务，执行时间已过。导入后保持关闭，避免立刻运行。",
+  "{subject} is not a setting T3 Extend can take.": "{subject} 不是 T3 Extend 能接受的设置。",
+  "{subject} is not an interface preference T3 Extend knows.":
+    "{subject} 不是 T3 Extend 认识的界面偏好。",
+  "The shortcut for {subject} was not valid.": "{subject} 的快捷键无效。",
+  "{subject}: T3 Extend never cleans up folders it did not create.":
+    "{subject}：T3 Extend 不会清理不是它创建的文件夹。",
+  "Webhook delivery history and replay state stay in {app}.":
+    "Webhook 投递记录和重放状态留在 {app}。",
+  "Provider {subject} already exists here and is left as it is.":
+    "提供方 {subject} 在这里已存在，保持原样。",
+  "{count} worktree no longer exists on disk ({detail}). Its thread opens without files.":
+    "{count} 个 worktree 已不在磁盘上（{detail}）。它的对话打开后没有文件。",
+  "{count} worktrees no longer exist on disk ({detail}). Their threads open without files.":
+    "{count} 个 worktree 已不在磁盘上（{detail}）。它们的对话打开后没有文件。",
+  "{count} worktree stays where it is, shared with {app}. T3 Extend never deletes it.":
+    "{count} 个 worktree 留在原处，与 {app} 共用。T3 Extend 永远不会删除它。",
+  "{count} worktrees stay where they are, shared with {app}. T3 Extend never deletes them.":
+    "{count} 个 worktree 留在原处，与 {app} 共用。T3 Extend 永远不会删除它们。",
+  "Continue this thread in only one app: both would write the same provider session files (for example under ~/.claude and ~/.codex).":
+    "这个对话只在一个应用里继续：两边会写入同一份提供方会话文件（例如 ~/.claude 和 ~/.codex 下的）。",
+  "Continue each of these {count} threads in only one app: both would write the same provider session files (for example under ~/.claude and ~/.codex).":
+    "这 {count} 个对话每个只在一个应用里继续：两边会写入同一份提供方会话文件（例如 ~/.claude 和 ~/.codex 下的）。",
+  "{subject} keeps running in {app} too until you pause it there.":
+    "在 {app} 里暂停之前，{subject} 在那边也会继续运行。",
+  "{subject}: its webhook URL changed. It now listens at {detail} on this environment's address. Update the sender.":
+    "{subject}：它的 webhook 地址变了，现在监听在此环境地址的 {detail}。请更新发送方。",
+  "{subject}: its signing secret changed to {detail}. Set it in the sender; it is shown only now.":
+    "{subject}：它的签名密钥已换成 {detail}。请在发送方里设置，这里只显示这一次。",
+  "{count} subagent thread is left out. Its card in the parent thread stays but cannot be opened.":
+    "{count} 个子 Agent 对话没有带过来。父对话里对应的卡片保留，但无法打开。",
+  "{count} subagent threads are left out. Their cards in the parent threads stay but cannot be opened.":
+    "{count} 个子 Agent 对话没有带过来。父对话里对应的卡片保留，但无法打开。",
+  "{count} checkpoint could not be copied because its repository is gone. It shows as missing.":
+    "{count} 个检查点无法复制，因为它的仓库已不存在。它会显示为缺失。",
+  "{count} checkpoints could not be copied because their repository is gone. They show as missing.":
+    "{count} 个检查点无法复制，因为它们的仓库已不存在。它们会显示为缺失。",
+  "{count} checkpoint was left out because the name it would take already points to a different commit. It shows as missing.":
+    "{count} 个检查点没有带过来，因为它要用的名字已指向另一个提交。它会显示为缺失。",
+  "{count} checkpoints were left out because the names they would take already point to different commits. They show as missing.":
+    "{count} 个检查点没有带过来，因为它们要用的名字已指向其他提交。它们会显示为缺失。",
+  "{subject}: its sign-in credential is copied together with the provider.":
+    "{subject}：它的登录凭据随提供方一起复制。",
+  "{subject}: their sign-in credentials are copied together with their providers.":
+    "{subject}：它们的登录凭据随各自的提供方一起复制。",
+  "{app} used the legacy sidebar. It is on here too (Settings → Labs).":
+    "{app} 用的是旧版侧边栏，这里也已开启（设置 → 实验室）。",
   "{title} requires a supporting environment. Choose one to continue.":
     "{title}需要一个支持它的环境。选择一个环境以继续。",
   "{title} requires a supporting environment. Connect or update an environment to continue.":
@@ -37,7 +205,6 @@ export default {
   "List sessions": "列出会话",
   Imported: "已导入",
   Importing: "正在导入",
-  Import: "导入",
   Deleting: "正在删除",
   "Load more": "加载更多",
   "Agent providers": "Agent provider",
@@ -2023,7 +2190,6 @@ export default {
   "Pull request sharing": "PR 共享",
   "Secret providers": "密钥 provider",
   "Add secret provider": "添加密钥 provider",
-  "Archived threads": "已归档的对话",
   "Android list may be incomplete": "Android 列表可能不完整",
   Access: "访问权限",
   "Install the extension": "安装扩展",

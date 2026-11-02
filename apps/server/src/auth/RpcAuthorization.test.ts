@@ -133,6 +133,85 @@ describe("RPC scope middleware", () => {
   );
 });
 
+// fork: import from official T3 Code
+describe("import from T3 Code authorization", () => {
+  const importMethods = [
+    WS_METHODS.serverPreviewT3CodeImport,
+    WS_METHODS.serverCheckT3CodeImport,
+    WS_METHODS.serverRunT3CodeImport,
+    WS_METHODS.serverSubscribeT3CodeImport,
+  ] as const;
+  const group = WsRpcGroup.omit(
+    ...[...WsRpcGroup.requests.keys()].filter(
+      (tag): tag is Exclude<keyof typeof RPC_REQUIRED_SCOPES, (typeof importMethods)[number]> =>
+        !(importMethods as ReadonlyArray<string>).includes(tag),
+    ),
+  );
+
+  it("requires maintain scope for every import RPC, including the progress stream", () => {
+    for (const method of importMethods) {
+      expect(requiredScopeForRpcMethod(method)).toBe(AuthEnvironmentMaintainScope);
+    }
+  });
+
+  it.effect(
+    "rejects the import RPCs before their handlers run when maintain scope is missing",
+    () =>
+      Effect.gen(function* () {
+        const handled: Array<string> = [];
+        const record = (method: string) =>
+          Effect.sync(() => {
+            handled.push(method);
+            return undefined as never;
+          });
+        const client = yield* RpcTest.makeClient(group).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              group.toLayerHandler(WS_METHODS.serverPreviewT3CodeImport, () => record("preview")),
+              group.toLayerHandler(WS_METHODS.serverCheckT3CodeImport, () => record("check")),
+              group.toLayerHandler(WS_METHODS.serverRunT3CodeImport, () => record("run")),
+              group.toLayerHandler(WS_METHODS.serverSubscribeT3CodeImport, () =>
+                Stream.fromEffect(record("subscribe")),
+              ),
+              RpcAuthorization.layer([
+                AuthOrchestrationReadScope,
+                AuthSettingsWriteScope,
+                AuthOrchestrationOperateScope,
+              ]),
+            ),
+          ),
+        );
+        const selection = {
+          threadIds: [],
+          projectIds: [],
+          includeSubagents: false,
+          scheduledTasks: [],
+          files: [],
+        };
+        const denied = {
+          _tag: "EnvironmentAuthorizationError",
+          requiredPermission: AuthEnvironmentMaintainScope,
+        };
+        expect(
+          yield* client[WS_METHODS.serverPreviewT3CodeImport]({}).pipe(Effect.flip),
+        ).toMatchObject(denied);
+        expect(
+          yield* client[WS_METHODS.serverCheckT3CodeImport](selection).pipe(Effect.flip),
+        ).toMatchObject(denied);
+        expect(
+          yield* client[WS_METHODS.serverRunT3CodeImport](selection).pipe(Effect.flip),
+        ).toMatchObject(denied);
+        expect(
+          yield* client[WS_METHODS.serverSubscribeT3CodeImport]({}).pipe(
+            Stream.runCollect,
+            Effect.flip,
+          ),
+        ).toMatchObject(denied);
+        expect(handled).toEqual([]);
+      }).pipe(Effect.scoped),
+  );
+});
+
 describe("settings mutation authorization", () => {
   const group = WsRpcGroup.omit(
     ...[...WsRpcGroup.requests.keys()].filter(

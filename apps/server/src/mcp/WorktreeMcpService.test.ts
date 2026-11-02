@@ -21,6 +21,7 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import * as GitWorkflowService from "../git/GitWorkflowService.ts";
+import { makeGuardedRemoveWorktree } from "../fork/SharedWorktrees.testkit.ts"; // fork
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as ServerConfig from "../config.ts";
 import {
@@ -552,6 +553,25 @@ describe("t3_worktree_handoff", () => {
       expect(harness.dispatch).not.toHaveBeenCalled();
     });
   });
+
+  it.effect(
+    "never removes a worktree an import shares with official T3 Code when it backs out",
+    () =>
+      Effect.gen(function* () {
+        const guarded = yield* makeGuardedRemoveWorktree({
+          home: "/official-home",
+          marked: ["/worktrees/project/feature/shared"],
+        });
+        const harness = makeHarness({
+          threadAttachedOnRecheck: true,
+          git: { removeWorktree: guarded.removeWorktree },
+        });
+        const exit = yield* Effect.exit(runHandoff(harness, { branch: "feature/shared" }));
+        expectTypedFailure(exit, { _tag: "WorktreeMcpFailure", code: "already_in_worktree" });
+        expect(guarded.attempts).toEqual(["/worktrees/project/feature/shared"]);
+        expect(guarded.spawned).toEqual([]);
+      }),
+  );
 
   it.effect("removes the created worktree when the recheck read fails", () => {
     const harness = makeHarness({ threadReadFailsOnRecheck: true });

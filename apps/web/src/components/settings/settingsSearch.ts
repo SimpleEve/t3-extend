@@ -1,7 +1,11 @@
 import { HOSTED_APP_CHANNEL } from "~/branding";
 import { isElectron, isSecretsFeatureEnabled } from "~/env";
 import { isMacPlatform, isWindowsPlatform, normalizeSearchText } from "~/lib/utils";
-import { STATIC_KEYBINDING_COMMANDS, type KeybindingCommand } from "@t3tools/contracts";
+import {
+  OFFICIAL_APP_NAME, // fork: import from the official app
+  STATIC_KEYBINDING_COMMANDS,
+  type KeybindingCommand,
+} from "@t3tools/contracts";
 import type { EnvironmentId } from "@t3tools/contracts";
 import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
 import {
@@ -233,6 +237,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/maintenance",
     scope: "environment-defaults",
     searchTerms: ["storage cleanup run now results report removed kept failed"],
+  },
+  {
+    id: "import-from-t3-code", // fork: import from the official app
+    title: `Import from ${OFFICIAL_APP_NAME}`,
+    to: "/settings/maintenance",
+    scope: "environment-defaults",
+    searchTerms: ["official migrate switch projects threads history data bring over"],
   },
   {
     id: "storage-worktrees",

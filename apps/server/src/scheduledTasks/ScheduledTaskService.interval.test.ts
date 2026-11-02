@@ -1,6 +1,7 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { expect, it } from "@effect/vitest";
 import { ScheduledTaskUpsertInput } from "@t3tools/contracts";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
@@ -309,6 +310,62 @@ it.effect("reports the stored task when the row was replaced during the run", ()
       expect(ran.task.runCount).toBe(0);
       expect(ran.task.lastRunStatus).toBe("never");
     }).pipe(Effect.provide(layer));
+  }).pipe(
+    Effect.provideService(ServerActivation, Effect.never),
+    Effect.provide(SqlitePersistence.layerMemory),
+  ),
+);
+
+// An import saves an enabled task exactly as the editor would; its first run is its next time, not the import.
+it.effect.each([
+  {
+    name: "interval",
+    schedule: { type: "interval", everyMs: 3_600_000 },
+    firstRun: "2026-11-02T01:00:00.000Z",
+  },
+  {
+    name: "fixed time",
+    schedule: { type: "fixed_time", timeOfDay: "09:00" },
+    firstRun: "2026-11-02T09:00:00.000Z",
+  },
+  {
+    name: "one time",
+    schedule: { type: "once", runAt: "2026-11-02T03:00:00.000Z" },
+    firstRun: "2026-11-02T03:00:00.000Z",
+  },
+] as const)("does not run an imported $name task before its next time", ({ schedule, firstRun }) =>
+  Effect.gen(function* () {
+    vi.stubEnv("TZ", "UTC");
+    yield* TestClock.setTime(Date.parse("2026-11-02T00:00:00.000Z"));
+    yield* Effect.gen(function* () {
+      const service = yield* ScheduledTaskService.ScheduledTaskService;
+      const { commandId: _commandId, ...withoutCommand } = input;
+      const decoded = yield* decodeInput({
+        ...withoutCommand,
+        id: "scheduled-task:import-0001",
+        schedule,
+      });
+      const saved = yield* service.upsert(decoded);
+      expect(saved.task.nextRunAt).toBe(firstRun);
+      expect(saved.task.lastRunStatus).toBe("never");
+      expect(saved.task.runCount).toBe(0);
+      const dueAt = (millis: number) =>
+        ScheduledTaskService.listDueTasks(DateTime.makeUnsafe(millis)).pipe(
+          Effect.map((tasks) => tasks.map((task) => task.id)),
+        );
+      const first = Date.parse(firstRun);
+
+      // Neither the import nor the first start finds it due.
+      expect(yield* dueAt(Date.parse("2026-11-02T00:00:00.000Z"))).toEqual([]);
+      expect(yield* dueAt(first - 1)).toEqual([]);
+
+      // A resumed import saves it again; that neither moves its time nor adds a second task.
+      const again = yield* service.upsert(decoded);
+      expect(again.task.nextRunAt).toBe(firstRun);
+      expect((yield* service.list()).tasks).toHaveLength(1);
+
+      expect(yield* dueAt(first)).toEqual([saved.task.id]);
+    }).pipe(Effect.provide(serviceLayer));
   }).pipe(
     Effect.provideService(ServerActivation, Effect.never),
     Effect.provide(SqlitePersistence.layerMemory),

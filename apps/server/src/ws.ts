@@ -188,6 +188,7 @@ import * as SecretResolver from "@t3tools/secret-provider-core/server/SecretReso
 import * as ServerSettings from "./serverSettings.ts";
 import { invalidateSettingsSecrets } from "./sourceControl/sourceControlHostSecrets.ts";
 import * as DatabaseStorage from "./persistence/DatabaseStorage.ts";
+import * as T3CodeImport from "./fork/T3CodeImport.ts"; // fork: import from official T3 Code
 import * as StorageCleanup from "./storageCleanup.ts";
 import * as TerminalManager from "./terminal/Manager.ts";
 import { terminalOutputStream, withTerminalOutputWindow } from "./terminal/OutputProtocol.ts";
@@ -1381,6 +1382,7 @@ export const layerWsRpc = (
       const lifecycleEvents = yield* ServerLifecycleEvents.ServerLifecycleEvents;
       const storageCleanup = yield* StorageCleanup.StorageCleanup;
       const databaseStorage = yield* DatabaseStorage.DatabaseStorage;
+      const t3CodeImport = yield* T3CodeImport.T3CodeImport; // fork: import from official T3 Code
       const serverSettings = yield* ServerSettings.ServerSettingsService;
       const secretResolver = yield* SecretResolver.SecretResolver;
       const peerLinks = yield* PeerLinks.PeerLinks;
@@ -2555,6 +2557,11 @@ export const layerWsRpc = (
         [WS_METHODS.serverRunStorageCleanup]: () => storageCleanup.runNow,
         [WS_METHODS.serverGetStorageCleanupReport]: () => storageCleanup.reports,
         [WS_METHODS.serverGetDatabaseStorage]: () => databaseStorage.status,
+        [WS_METHODS.serverPreviewT3CodeImport]: () => t3CodeImport.preview, // fork: import from official T3 Code
+        [WS_METHODS.serverCheckT3CodeImport]: (input) => t3CodeImport.check(input), // fork: import from official T3 Code
+        [WS_METHODS.serverRunT3CodeImport]: (input) =>
+          t3CodeImport.start(input).pipe(Effect.as({})), // fork: import from official T3 Code
+        [WS_METHODS.serverSubscribeT3CodeImport]: () => t3CodeImport.state, // fork: import from official T3 Code
         [WS_METHODS.peerLinksList]: (_input) =>
           peerLinks.list.pipe(Effect.map((links) => ({ links }))),
         [WS_METHODS.peerLinksLink]: (input) => peerLinks.link(input),

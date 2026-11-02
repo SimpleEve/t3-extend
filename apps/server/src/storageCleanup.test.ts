@@ -14,6 +14,7 @@ import { TestClock } from "effect/testing";
 import * as SqlClient from "effect/sql/SqlClient";
 import {
   DEFAULT_SERVER_SETTINGS,
+  OFFICIAL_APP_NAME,
   type WorktreeKeepWhen,
   type StorageCleanupSettings,
   type TerminalMetadataStreamEvent,
@@ -22,6 +23,8 @@ import {
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as ServerConfig from "./config.ts";
 import * as StorageCleanup from "./storageCleanup.ts";
+import { SharedWorktreePolicy } from "./fork/SharedWorktrees.ts"; // fork
+import { liveSharedWorktreePolicyLayer } from "./fork/SharedWorktrees.testkit.ts"; // fork
 import * as GitVcsDriver from "./vcs/GitVcsDriver.ts";
 import * as GitManager from "./git/GitManager.ts";
 import * as Settings from "./serverSettings.ts";
@@ -579,6 +582,7 @@ const pausedMeasurementFixture = (storageCleanup?: StorageCleanupSettings) =>
     return { ...fixture, measuring, resume };
   });
 const cleanupTestLayer = GitVcsDriver.layer.pipe(
+  Layer.provideMerge(liveSharedWorktreePolicyLayer), // fork
   Layer.provideMerge(ServerConfig.layerTest(process.cwd(), { prefix: "storage-cleanup-" })),
   Layer.provideMerge(NodeServices.layer),
 );
@@ -2462,3 +2466,70 @@ it.live("keeps saved usage data when removing a settled checkout", () =>
     }),
   ),
 );
+
+// fork: worktrees shared with official T3 Code are never cleaned, `git clean` included.
+describe("worktrees shared with official T3 Code", () => {
+  const modes = ["uncommitted-changes", "tracked-changes", "any-local-files"] as const;
+  const sharedCleanupTest = (
+    mode: (typeof modes)[number],
+    shareIt: (input: {
+      readonly home: string;
+      readonly baseDir: string;
+      readonly worktree: string;
+    }) => Effect.Effect<void, never, FileSystem.FileSystem>,
+    expected: "kept" | "removed",
+  ) =>
+    runCleanupTest(
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const home = yield* fs.makeTempDirectoryScoped({ prefix: "cleanup-home-" });
+        return yield* Effect.gen(function* () {
+          const fixture = yield* cleanupFixture();
+          const { service, worktree, config, setPolicy } = fixture;
+          setPolicy(mode);
+          // `tracked-changes` is the mode that runs `git clean` once the worktree looks removable.
+          if (expected === "kept" || mode === "tracked-changes")
+            yield* fs.writeFileString(`${worktree}/scratch.txt`, "keep me\n");
+          yield* shareIt({ home, baseDir: config.baseDir, worktree });
+          const report = yield* service.runNow;
+          const entry = report.entries.find((candidate) => candidate.path === worktree);
+          expect(entry?.outcome).toBe(expected);
+          if (expected === "kept") {
+            expect(entry?.reason).toBe(`Shared with ${OFFICIAL_APP_NAME}`);
+            expect(yield* fs.readFileString(`${worktree}/scratch.txt`)).toBe("keep me\n");
+            expect(yield* fs.exists(`${worktree}/.git`)).toBe(true);
+            expect(
+              (yield* fixture.command(fixture.repo, ["worktree", "list", "--porcelain"])).stdout,
+            ).toContain(worktree);
+          } else {
+            expect(yield* fs.exists(worktree)).toBe(false);
+          }
+        }).pipe(Effect.provideService(HostProcess.HomeDirectory, home));
+      }),
+    );
+
+  it.live.each(modes)("keeps a worktree inside official T3 Code's worktrees folder, %s", (mode) =>
+    sharedCleanupTest(
+      mode,
+      // Official's folder is `<home>/.t3/worktrees`; this environment's own folder is the same place.
+      ({ home, baseDir }) =>
+        Effect.flatMap(FileSystem.FileSystem, (fs) => fs.symlink(baseDir, `${home}/.t3`)).pipe(
+          Effect.orDie,
+        ),
+      "kept",
+    ),
+  );
+
+  it.live.each(modes)("keeps a worktree an import marked as shared, %s", (mode) =>
+    sharedCleanupTest(
+      mode,
+      ({ worktree }) =>
+        Effect.flatMap(SharedWorktreePolicy, (policy) => policy.markShared([worktree])),
+      "kept",
+    ),
+  );
+
+  it.live.each(modes)("still removes a worktree nothing ties to official T3 Code, %s", (mode) =>
+    sharedCleanupTest(mode, () => Effect.void, "removed"),
+  );
+});

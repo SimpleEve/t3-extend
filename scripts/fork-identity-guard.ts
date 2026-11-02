@@ -204,6 +204,10 @@ const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*)/u;
 
 const ALLOWED_BRAND: ReadonlyArray<Allowed> = [
   {
+    path: "packages/contracts/src/t3CodeImport.ts",
+    reason: "OFFICIAL_APP_NAME, the one place the import names the official app it reads from.",
+  },
+  {
     path: "scripts/build-desktop-artifact.ts",
     line: "is an open-source desktop app",
     reason: "Linux package description; Linux identity is out of scope until the fork ships Linux.",
