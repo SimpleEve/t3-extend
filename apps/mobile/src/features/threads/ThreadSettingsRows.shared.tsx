@@ -101,7 +101,17 @@ export function ModelRowContent(
       </Pressable>
       {props.onToggleHidden ? (
         <Pressable
-          accessibilityLabel={`${props.option.isHidden ? t("Show") : t("Hide")} model: ${props.option.providerLabel}, ${props.option.label}`}
+          accessibilityLabel={
+            props.option.isHidden
+              ? t("Show model: {provider}, {model}", {
+                  provider: props.option.providerLabel,
+                  model: props.option.label,
+                })
+              : t("Hide model: {provider}, {model}", {
+                  provider: props.option.providerLabel,
+                  model: props.option.label,
+                })
+          }
           accessibilityRole="button"
           accessibilityState={{ disabled: props.hiddenUpdatePending === true }}
           className="min-h-11 min-w-11 items-center justify-center"

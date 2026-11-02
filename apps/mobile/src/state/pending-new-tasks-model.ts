@@ -5,6 +5,7 @@ import type { QueuedThreadCreation, QueuedThreadMessage } from "./thread-outbox-
 import { isNewTaskDraftKey } from "./new-task-draft-key";
 import type { ComposerDraft } from "./use-composer-drafts";
 import { resolveNewTaskDraftWorkspace } from "../features/threads/new-task-context-presentation";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type PendingNewTask = PendingQueuedTask | PendingDraftTask;
 
@@ -44,7 +45,9 @@ function draftTitle(draft: ComposerDraft): string {
     return deriveThreadTitleFromPrompt(draft.text);
   }
   const count = draft.attachments.length;
-  return count === 1 ? "1 attachment" : `${count} attachments`;
+  return count === 1
+    ? translatorFor(getUiLocale())("1 attachment")
+    : translatorFor(getUiLocale())("{count} attachments", { count });
 }
 
 /** A project's new-task defaults, as useNewTaskProjectDefaults resolves them. */

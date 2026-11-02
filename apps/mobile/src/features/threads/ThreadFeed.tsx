@@ -289,17 +289,14 @@ const WIDE_MARKDOWN_BLOCK_OPTIONS = {
   includeOrderedLists: Platform.OS === "android",
 } as const;
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { messageTimeLabel } from "../../lib/time"; // fork: i18n
 
-const MESSAGE_TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  hour: "numeric",
-  minute: "2-digit",
-});
 function formatMessageTime(input: string): string {
   const timestamp = Date.parse(input);
   if (Number.isNaN(timestamp)) {
     return "";
   }
-  return MESSAGE_TIME_FORMATTER.format(timestamp);
+  return messageTimeLabel(timestamp);
 }
 
 const TURN_FOLD_HEIGHT = 42;
@@ -465,7 +462,7 @@ function AssistantForkButton(props: {
             sourceThreadId: props.projectedItem.sourceThreadId,
             targetThreadId,
             runId,
-            title: `${props.sourceTitle} fork`,
+            title: t("{sourceTitle} fork", { sourceTitle: props.sourceTitle }),
             creationSource: "mobile",
           },
         })
@@ -1582,10 +1579,10 @@ function ThreadAutomationMessageRow(props: {
 }
 
 /** Leads with why T3 Code compacted, when it did so without being asked. */
-function compactionLabel(label: string, title: string | undefined) {
-  return title !== undefined && label.startsWith("Context compacted")
-    ? title + label.slice("Context compacted".length)
-    : label;
+function compactionLabel(label: string, title: string | undefined, t: Translator) {
+  return label.startsWith("Context compacted")
+    ? (title ?? t("Context compacted")) + label.slice("Context compacted".length)
+    : t(label);
 }
 
 function RunFoldButton({
@@ -1876,10 +1873,10 @@ function renderFeedEntry(
       <ThreadContextDivider
         label={
           failure
-            ? `${label} · ${failure}`
+            ? `${t(label)} · ${failure}`
             : active && labels
               ? labels.compacting
-              : compactionLabel(label, labels?.title)
+              : compactionLabel(label, labels?.title, t)
         }
         icon={
           item.status === "failed" ? "exclamationmark.circle" : "arrow.down.right.and.arrow.up.left"
@@ -2363,7 +2360,10 @@ function TurnDiffStat(props: {
   const { files } = props.checkpoint;
   const additions = files.reduce((total, file) => total + file.additions, 0);
   const deletions = files.reduce((total, file) => total + file.deletions, 0);
-  const fileCountLabel = `${files.length} file${files.length === 1 ? "" : "s"} changed`;
+  const fileCountLabel =
+    files.length === 1
+      ? t("{count} file changed", { count: files.length })
+      : t("{count} files changed", { count: files.length });
   return (
     <Pressable
       accessibilityRole="button"

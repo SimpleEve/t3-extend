@@ -1013,7 +1013,9 @@ function TaskForm({
             <>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Time, ${formatTime(draft.schedule.timeOfDay)}`}
+                accessibilityLabel={t("Time, {timeOfDay}", {
+                  timeOfDay: formatTime(draft.schedule.timeOfDay),
+                })}
                 onPress={() => setTimePickerOpen((open) => !open)}
                 className="min-h-14 flex-row items-center gap-3 border-t border-border-subtle px-4 py-3 active:opacity-70"
               >
@@ -1351,7 +1353,14 @@ function EnvironmentTasks({
         : action === "toggle"
           ? await setEnabled({ environmentId, input: { id: task.id, enabled: !task.enabled } })
           : await remove({ environmentId, input: { id: task.id } });
-    failure(`Could not ${action === "toggle" ? "update" : action} task`, result);
+    failure(
+      action === "toggle"
+        ? t("Could not update task")
+        : action === "run"
+          ? t("Could not run task")
+          : t("Could not delete task"),
+      result,
+    );
   };
 
   return (

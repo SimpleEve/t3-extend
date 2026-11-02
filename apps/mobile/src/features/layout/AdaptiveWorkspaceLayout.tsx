@@ -112,6 +112,7 @@ import {
 import type { WorkspaceTab } from "../workspace/workspace-tabs-state";
 import { workspaceRoutesOf } from "./workspace-overlay-routes";
 import { SettingsWorkspaceLayout } from "../settings/SettingsWorkspaceLayout";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export { useAdaptiveWorkspaceLayout };
 
@@ -222,6 +223,7 @@ function AdaptiveWorkspaceLayoutContent(
     readonly savedThreadListFilters?: ThreadListFilters | undefined;
   },
 ) {
+  const t = useT(); // fork: i18n
   const floatingTabsEnabled = useAndroidFloatingTabs();
   const projectGroupingMode = props.projectGroupingMode;
   const nativeWorkspace = use(NativeWorkspaceModeContext);
@@ -923,8 +925,8 @@ function AdaptiveWorkspaceLayoutContent(
               renderFallback={(fallback) => (
                 <RenderFailureView
                   {...fallback}
-                  title="The sidebar couldn't be displayed"
-                  exit={{ label: "Open settings", onPress: handleOpenSettings }}
+                  title={t("The sidebar couldn't be displayed")}
+                  exit={{ label: t("Open settings"), onPress: handleOpenSettings }}
                 />
               )}
             >

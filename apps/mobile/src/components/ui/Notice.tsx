@@ -5,6 +5,7 @@ import { cn } from "../../lib/cn";
 import { AppText } from "./AppText";
 import { SymbolView, type AppSymbolName } from "./AppSymbol";
 import { GlassSurface } from "./GlassSurface";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function Notice(props: {
   readonly message: string;
@@ -15,6 +16,7 @@ export function Notice(props: {
   readonly onDismiss?: () => void;
   readonly dismissLabel?: string;
 }) {
+  const t = useT(); // fork: i18n
   const danger = props.tone === "danger";
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- announces the message to VoiceOver through AccessibilityInfo
   useEffect(() => {
@@ -52,7 +54,7 @@ export function Notice(props: {
       {props.onDismiss ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={props.dismissLabel ?? "Dismiss message"}
+          accessibilityLabel={props.dismissLabel ?? t("Dismiss message")}
           onPress={props.onDismiss}
           hitSlop={10}
           className="min-h-6 min-w-6 items-center justify-center active:opacity-60"

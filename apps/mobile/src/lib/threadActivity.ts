@@ -76,6 +76,7 @@ import {
   IDLE_COMPACTION_TITLES,
   IDLE_COMPACTING_LABELS,
 } from "@t3tools/client-runtime/user-message";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type PendingApproval = ThreadPendingApproval;
 export type PendingUserInput = ThreadPendingUserInput;
@@ -257,7 +258,9 @@ function compactWorkEntryText(value: string): string {
 export function workEntryRowLabel(entry: WorkLogPresentationEntry, expanded = false): string {
   if (entry.itemType === "fork") return entry.label;
   if (expanded && entry.itemType === "reasoning")
-    return entry.toolLifecycleStatus === "inProgress" ? "Thinking" : "Thought";
+    return entry.toolLifecycleStatus === "inProgress"
+      ? translatorFor(getUiLocale())("Thinking")
+      : translatorFor(getUiLocale())("Thought");
   const presentation = resolveWorkEntryToolPresentation(entry);
   if (presentation) return presentation.displayName;
   if (entry.command?.trim()) return compactWorkEntryText(commandDisplayText(entry.command));
@@ -279,7 +282,7 @@ export function workEntryRowLabel(entry: WorkLogPresentationEntry, expanded = fa
     if (firstPath) {
       return formatReadToolLabel(firstPath, Math.max(0, (entry.changedFiles?.length ?? 1) - 1));
     }
-    if (!expanded) return "Read file";
+    if (!expanded) return translatorFor(getUiLocale())("Read file");
   }
   const preview =
     entry.command ??
@@ -354,8 +357,8 @@ export function threadFeedCompactionLabels(feed: ReadonlyArray<ThreadFeedEntry>)
           (age === undefined
             ? undefined
             : {
-                title: `Context compacted after ${age} idle`,
-                compacting: "Compacting…",
+                title: translatorFor(getUiLocale())("Context compacted after {age} idle", { age }),
+                compacting: translatorFor(getUiLocale())("Compacting…"),
               });
         if (labels) labelsByEntryId.set(entry.id, labels);
         pendingResumeAgeByRunId.delete(entry.runId);
@@ -589,41 +592,42 @@ function itemSummary(
       : undefined) ?? item.title?.trim();
   if (item.type === "subagent") return formatSubagentDisplayTitle(title || "Subagent");
   if (title) return toolPresentation?.displayName ?? capitalizePhrase(title);
+  const t = translatorFor(getUiLocale()); // fork: i18n
   switch (item.type) {
     case "reasoning":
-      return "Thinking";
+      return t("Thinking");
     case "command_execution":
-      return "Command";
+      return t("Command");
     case "file_change":
       return item.changes !== undefined && item.changes.length > 1
-        ? `Changed ${item.changes.length} files`
-        : `Changed ${item.fileName}`;
+        ? t("Changed {count} files", { count: item.changes.length })
+        : t("Changed {fileName}", { fileName: item.fileName });
     case "file_search":
-      return item.title?.trim() || formatSearchToolLabel(item) || "Searched files";
+      return item.title?.trim() || formatSearchToolLabel(item) || t("Searched files");
     case "web_search":
-      return "Searched the web";
+      return t("Searched the web");
     case "approval_request":
-      return "Approval requested";
+      return t("Approval requested");
     case "user_input_request":
-      return "Input requested";
+      return t("Input requested");
     case "checkpoint":
-      return "Checkpoint captured";
+      return t("Checkpoint captured");
     case "run_interrupt_request":
-      return "Interrupt requested";
+      return t("Interrupt requested");
     case "run_interrupt_result":
-      return "Run interrupted";
+      return t("Run interrupted");
     case "error":
-      return item.failure.class === "usage_limit" ? "Usage limit reached" : "Provider error";
+      return item.failure.class === "usage_limit" ? t("Usage limit reached") : t("Provider error");
     case "handoff":
-      return "Context handed off";
+      return t("Context handed off");
     case "fork":
-      return "Thread forked";
+      return t("Thread forked");
     case "thread_created":
-      return "Thread created";
+      return t("Thread created");
     case "secret_request":
       return item.label;
     case "link_request":
-      return `Link ${item.label ?? item.url ?? "an environment"}`;
+      return t("Link {target}", { target: item.label ?? item.url ?? t("an environment") });
     case "dynamic_tool": {
       const classified = classifyToolActivity({
         itemType: "dynamic_tool_call",
@@ -634,18 +638,18 @@ function itemSummary(
         return formatReadToolLabel(path ?? "");
       }
       if (classified === "search") {
-        return formatSearchToolLabel({ input: item.input }) ?? item.toolName ?? "Tool call";
+        return formatSearchToolLabel({ input: item.input }) ?? item.toolName ?? t("Tool call");
       }
-      return toolPresentation?.displayName ?? item.toolName ?? "Tool call";
+      return toolPresentation?.displayName ?? item.toolName ?? t("Tool call");
     }
     case "proposed_plan":
-      return "Proposed plan";
+      return t("Proposed plan");
     case "todo_list":
-      return "Plan updated";
+      return t("Plan updated");
     case "user_message":
-      return "User message";
+      return t("User message");
     case "assistant_message":
-      return "Assistant message";
+      return t("Assistant message");
   }
 }
 
@@ -1893,7 +1897,10 @@ function liveToolActivitySummary(activity: ThreadFeedActivity, presentTense: boo
   const status = liveActivityToolStatus(activity.lifecycleStatus, presentTense);
   if (activity.workEntry.itemType === "reasoning") {
     return compactWorkEntryText(
-      activity.workEntry.detail?.trim() || (status === "inProgress" ? "Thinking" : "Thought"),
+      activity.workEntry.detail?.trim() ||
+        (status === "inProgress"
+          ? translatorFor(getUiLocale())("Thinking")
+          : translatorFor(getUiLocale())("Thought")),
     );
   }
   const presentation = resolveWorkEntryToolPresentation({
@@ -1904,17 +1911,17 @@ function liveToolActivitySummary(activity: ThreadFeedActivity, presentTense: boo
   const command = activity.workEntry.command?.trim();
   if (command) {
     const program = commandProgramName(command);
-    const verb =
-      status === "inProgress"
-        ? "Running"
-        : status === "failed"
-          ? "Failed"
-          : status === "declined"
-            ? "Declined"
-            : status === "stopped"
-              ? "Stopped"
-              : "Ran";
-    return `${verb} ${program ?? "command"}`;
+    const t = translatorFor(getUiLocale()); // fork: i18n
+    const name = program ?? t("command");
+    return status === "inProgress"
+      ? t("Running {program}", { program: name })
+      : status === "failed"
+        ? t("Failed {program}", { program: name })
+        : status === "declined"
+          ? t("Declined {program}", { program: name })
+          : status === "stopped"
+            ? t("Stopped {program}", { program: name })
+            : t("Ran {program}", { program: name });
   }
   return compactWorkEntryText(activity.detail ?? activity.summary);
 }

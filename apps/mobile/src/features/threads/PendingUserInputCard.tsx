@@ -171,7 +171,9 @@ export function PendingUserInputCard(props: PendingUserInputCardProps) {
           {t("User input needed")}
         </Text>
         <Text className="font-sans text-xs text-foreground-muted">
-          {questionCount} question{questionCount === 1 ? "" : "s"}
+          {questionCount === 1
+            ? t("{questionCount} question", { questionCount })
+            : t("{questionCount} questions", { questionCount })}
         </Text>
         <View className="flex-1" />
         <SymbolView

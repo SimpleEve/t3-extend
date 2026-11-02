@@ -64,6 +64,7 @@ import {
   WorkspaceSlotOptionsContext,
   slotScreenOptions,
 } from "../../native/v5-workspace-context";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 type ViewProps = ComponentProps<typeof NativeStackView>;
 type Descriptor = ViewProps["descriptors"][string];
@@ -164,6 +165,7 @@ function ColumnScreen(props: {
 function WorkspaceColumns(
   props: ViewProps & { readonly primary: Route; readonly detail: Route[] },
 ) {
+  const t = useT(); // fork: i18n
   const {
     layout,
     panes,
@@ -453,7 +455,7 @@ function WorkspaceColumns(
                       pointerEvents="box-none"
                     >
                       <WorkspacePaneDivider
-                        accessibilityLabel="Resize inspector"
+                        accessibilityLabel={t("Resize inspector")}
                         currentWidth={inspectorWidth}
                         resizeDirection={-1}
                         onResizeStart={() => {

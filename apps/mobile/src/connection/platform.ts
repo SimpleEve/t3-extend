@@ -29,6 +29,7 @@ import { clearComposerDraftsEnvironment } from "../state/use-composer-drafts";
 import { clearThreadComposerErrorsForEnvironment } from "../state/thread-composer-error";
 import { mobileApplicationActiveWakeup } from "./app-state-wakeups";
 import * as ConnectionStorage from "./storage";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function networkStatus(state: Network.NetworkState): "unknown" | "offline" | "online" {
   if (state.isConnected === false) {
@@ -162,7 +163,9 @@ const layerCapabilities = Layer.effectContext(
           if (session === null) {
             return yield* new ConnectionBlockedError({
               reason: "authentication",
-              detail: "Sign in to T3 Connect to connect this environment.",
+              detail: translatorFor(getUiLocale())(
+                "Sign in to T3 Connect to connect this environment.",
+              ),
             });
           }
           const token = yield* session.readClerkToken().pipe(
@@ -177,7 +180,7 @@ const layerCapabilities = Layer.effectContext(
           if (token === null) {
             return yield* new ConnectionBlockedError({
               reason: "authentication",
-              detail: "The T3 Connect session is unavailable.",
+              detail: translatorFor(getUiLocale())("The T3 Connect session is unavailable."),
             });
           }
           return token;
@@ -222,14 +225,18 @@ const layerCapabilities = Layer.effectContext(
             Effect.fail(
               new ConnectionBlockedError({
                 reason: "unsupported",
-                detail: "SSH environments are only available in the desktop app.",
+                detail: translatorFor(getUiLocale())(
+                  "SSH environments are only available in the desktop app.",
+                ),
               }),
             ),
           prepare: () =>
             Effect.fail(
               new ConnectionBlockedError({
                 reason: "unsupported",
-                detail: "SSH environments are only available in the desktop app.",
+                detail: translatorFor(getUiLocale())(
+                  "SSH environments are only available in the desktop app.",
+                ),
               }),
             ),
           disconnect: () => Effect.void,

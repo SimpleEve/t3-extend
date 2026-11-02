@@ -13,6 +13,7 @@ import { requireNativeView } from "expo";
 
 import { EmptyState } from "../../components/ui/EmptyState";
 import { NativeViewResolutionError } from "../../native/nativeViewResolutionError";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const NATIVE_REVIEW_DIFF_MODULE_NAME = "T3ReviewDiffSurface";
 const NATIVE_REVIEW_DIFF_PAYLOAD_RETRY_FRAMES = 60;
@@ -293,10 +294,10 @@ function NativeReviewDiffView(props: NativeReviewDiffViewProps) {
         ],
       },
       createElement(EmptyState, {
-        title: "Could not display diff",
-        detail: "Try loading the diff view again.",
+        title: translatorFor(getUiLocale())("Could not display diff"),
+        detail: translatorFor(getUiLocale())("Try loading the diff view again."),
         variant: "plain",
-        actionLabel: "Retry diff",
+        actionLabel: translatorFor(getUiLocale())("Retry diff"),
         onAction: () => {
           props.onDebug?.({
             nativeEvent: { message: "surface-retry" },

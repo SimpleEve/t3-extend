@@ -553,7 +553,7 @@ export function useThreadListActions(): {
     const commit = (title: string) => {
       const resolution = resolveThreadTitleRename({ title, originalTitle: thread.title });
       if (resolution.action === "reject-empty") {
-        Dialog.alert("Could not rename thread", t("Thread title cannot be empty."));
+        Dialog.alert(t("Could not rename thread"), t("Thread title cannot be empty."));
         return;
       }
       if (resolution.action === "noop") return;
@@ -682,7 +682,7 @@ export function useThreadListActions(): {
             input: { threadId: thread.id, ...(orderKey === undefined ? {} : { orderKey }) },
           });
           if (result._tag === "Failure") {
-            Dialog.alert("Could not pin thread", String(Cause.squash(result.cause)));
+            Dialog.alert(t("Could not pin thread"), String(Cause.squash(result.cause)));
             return false;
           }
         } else {

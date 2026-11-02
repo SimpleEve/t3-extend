@@ -498,7 +498,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
                       title={scope.title}
                       subtitle={
                         hasMultipleProjects
-                          ? `${scope.projects.length} workspaces`
+                          ? t("{count} workspaces", { count: scope.projects.length })
                           : selectionTarget.workspaceRoot
                       }
                       subtitleNumberOfLines={1}
@@ -550,7 +550,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
                           numberOfLines={1}
                         >
                           {hasMultipleProjects
-                            ? `${scope.projects.length} workspaces`
+                            ? t("{count} workspaces", { count: scope.projects.length })
                             : selectionTarget.workspaceRoot}
                         </Text>
                       </View>

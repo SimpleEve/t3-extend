@@ -11,6 +11,7 @@ import { useDeadlinePassed } from "../../lib/clock";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { getUiLocale, uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function UsageLimitRecoveryCard({
   thread,
@@ -75,7 +76,9 @@ export function UsageLimitRecoveryCard({
       <Text className="text-sm text-warning-foreground">
         {resetAt
           ? t("Usage limit resets {time}.", {
-              time: DateTime.toDateUtc(DateTime.makeUnsafe(resetAt)).toLocaleString(),
+              time: DateTime.toDateUtc(DateTime.makeUnsafe(resetAt)).toLocaleString(
+                uiLocaleFormatTag(getUiLocale()),
+              ),
             })
           : t(
               "The provider did not report a reset time. Retry manually when your limit is available.",

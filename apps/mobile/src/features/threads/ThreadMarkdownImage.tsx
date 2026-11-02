@@ -27,6 +27,7 @@ import {
   resolveSvgImageSize,
 } from "./markdownImageSize";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 /** Use known feed width immediately; later image measurement would move already-positioned rows. */
 export const MarkdownImageAvailableWidthContext = createContext(0);
@@ -177,7 +178,10 @@ export function ThreadMarkdownImageView(props: {
                   withGallery({
                     kind: "image",
                     uri: props.uri!,
-                    name: props.actionsSource?.name ?? props.alt ?? "Image",
+                    name:
+                      props.actionsSource?.name ??
+                      props.alt ??
+                      translatorFor(getUiLocale())("Image"),
                     sourceIdentifier,
                     actionsSource: props.actionsSource,
                   }),

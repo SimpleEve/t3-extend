@@ -165,6 +165,7 @@ function ProviderHeader(props: {
   readonly modelCount: number;
   readonly onToggle: () => void;
 }) {
+  const t = useT(); // fork: i18n
   const content = (
     <>
       <ProviderIcon iconUrl={props.iconUrl} provider={props.driver} size={15} />
@@ -191,7 +192,10 @@ function ProviderHeader(props: {
   if (props.collapsible) {
     return (
       <Pressable
-        accessibilityLabel={`${props.label}, ${props.modelCount} models`}
+        accessibilityLabel={t("{label}, {modelCount} models", {
+          label: props.label,
+          modelCount: props.modelCount,
+        })}
         accessibilityRole="button"
         accessibilityState={{ expanded: !props.collapsed }}
         className="mx-4 mt-1 min-h-11 flex-row items-center gap-2 rounded-xl px-1 pt-2 active:opacity-60 android:min-h-12"

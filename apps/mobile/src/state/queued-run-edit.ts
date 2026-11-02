@@ -25,6 +25,7 @@ import {
   setComposerDraftContext,
   setComposerDraftText,
 } from "./use-composer-drafts";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface QueuedRunEdit {
   readonly runId: RunId;
@@ -101,8 +102,8 @@ function exitQueuedRunEdit(threadKey: string, edit: QueuedRunEdit): void {
   setThreadComposerError(
     threadKey,
     recovery === "kept"
-      ? "That message already started. Your edit is back in the composer."
-      : "That message already started, so the edit was discarded.",
+      ? translate(getUiLocale(), "That message already started. Your edit is back in the composer.")
+      : translate(getUiLocale(), "That message already started, so the edit was discarded."),
   );
 }
 

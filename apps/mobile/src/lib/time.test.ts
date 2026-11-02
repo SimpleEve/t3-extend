@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { msUntilRelativeTimeChange, relativeTime } from "./time";
+import { messageTimeLabel, msUntilRelativeTimeChange, relativeTime } from "./time";
 
 const at = "2026-10-19T12:00:00.000Z";
 const timestamp = Date.parse(at);
@@ -37,5 +37,13 @@ describe("relative time", () => {
     expect(relativeTime(at, timestamp - 30_000)).toBe("<1m");
     expect(msUntilRelativeTimeChange(at, timestamp - 30_000)).toBe(90_000);
     expect(msUntilRelativeTimeChange(at, timestamp - 30 * 86_400_000)).toBe(86_400_000);
+  });
+});
+
+describe("messageTimeLabel", () => {
+  it("formats the clock time in the interface language", () => {
+    const afternoon = new Date(2026, 0, 2, 15, 7).getTime();
+    expect(messageTimeLabel(afternoon, "en")).toMatch(/^3:07\s+PM$/u);
+    expect(messageTimeLabel(afternoon, "zh-Hans")).toBe("15:07");
   });
 });

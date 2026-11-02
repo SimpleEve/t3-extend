@@ -45,6 +45,7 @@ import {
   normalizeComposerPathSearchQuery,
   type CheckpointDiffTarget,
 } from "./queryTargets";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const COMPOSER_PATH_SEARCH_DEBOUNCE_MS = 200;
 const COMPOSER_PATH_SEARCH_LIMIT = 20;
@@ -358,7 +359,7 @@ export function usePaginatedBranches(target: VcsRefTarget) {
           const cause = Cause.squash(failed.cause);
           return cause instanceof Error && cause.message.trim().length > 0
             ? cause.message
-            : "Failed to load refs.";
+            : translatorFor(getUiLocale())("Failed to load refs.");
         })()
       : null;
   const refresh = () => {
@@ -434,7 +435,8 @@ export function useComposerPathSearch(target: ComposerPathSearchTarget) {
         ? null
         : canReadFiles
           ? result.error
-          : (fileAccess.error ?? "This connection cannot search host files."),
+          : (fileAccess.error ??
+            translatorFor(getUiLocale())("This connection cannot search host files.")),
     isPending:
       normalizedTarget.query !== debouncedTarget.query ||
       (hasTarget && (fileAccess.isPending || result.isPending)),

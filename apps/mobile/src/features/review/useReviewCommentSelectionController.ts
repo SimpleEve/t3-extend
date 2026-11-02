@@ -21,6 +21,7 @@ import {
 } from "./reviewCommentSelection";
 import type { NativeReviewDiffData } from "./nativeReviewDiffAdapter";
 import type { ReviewSectionItem } from "./reviewModel";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function useReviewCommentSelectionController(input: {
   readonly environmentId?: EnvironmentId;
@@ -28,6 +29,7 @@ export function useReviewCommentSelectionController(input: {
   readonly selectedSection: ReviewSectionItem | null;
   readonly nativeReviewDiffData: NativeReviewDiffData;
 }) {
+  const t = useT(); // fork: i18n
   const { environmentId, nativeReviewDiffData, selectedSection, threadId } = input;
   const navigation = useNavigation();
   const [sheetId] = useState(nextReviewSheetId);
@@ -72,11 +74,13 @@ export function useReviewCommentSelectionController(input: {
 
   const selectionAction = hasRangeTarget
     ? {
-        title: `Comment on ${formatReviewSelectedRangeLabel(activeCommentTarget)}`,
+        title: t("Comment on {activeCommentTarget}", {
+          activeCommentTarget: formatReviewSelectedRangeLabel(activeCommentTarget),
+        }),
         onOpenComment: openReviewCommentSheet,
       }
     : pendingRange
-      ? { title: "Select range end", onOpenComment: null }
+      ? { title: t("Select range end"), onOpenComment: null }
       : null;
 
   const onPressLine = (

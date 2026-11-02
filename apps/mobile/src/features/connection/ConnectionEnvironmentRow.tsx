@@ -251,7 +251,7 @@ export function ConnectionEnvironmentRow(props: {
               />
 
               <ConnectionFormField
-                label="URL"
+                label={t("URL")}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"

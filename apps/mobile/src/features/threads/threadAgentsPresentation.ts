@@ -18,6 +18,7 @@ import type {
 import { resolveSelectableModel } from "@t3tools/shared/model";
 
 import { subagentCardDetail } from "./subagent-card-presentation";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const PROMPT_TITLE_LIMIT = 80;
 
@@ -57,7 +58,7 @@ function rowTitle(subagent: Pick<OrchestrationV2Subagent, "title" | "prompt">): 
   const title = subagent.title?.trim();
   if (title) return formatSubagentDisplayTitle(title);
   const prompt = subagent.prompt.trim();
-  if (prompt.length === 0) return "Subagent";
+  if (prompt.length === 0) return translatorFor(getUiLocale())("Subagent");
   return prompt.length > PROMPT_TITLE_LIMIT
     ? `${prompt.slice(0, PROMPT_TITLE_LIMIT - 3)}...`
     : prompt;
@@ -71,22 +72,23 @@ function rowTone(status: OrchestrationV2Subagent["status"]): SubagentRowTone {
 }
 
 function rowStatusLabel(status: OrchestrationV2Subagent["status"]): string {
+  const t = translatorFor(getUiLocale()); // fork: i18n
   switch (status) {
     case "pending":
     case "running":
-      return "Working";
+      return t("Working");
     case "waiting":
-      return "Waiting";
+      return t("Waiting");
     case "idle":
-      return "Idle";
+      return t("Idle");
     case "completed":
-      return "Completed";
+      return t("Completed");
     case "failed":
-      return "Failed";
+      return t("Failed");
     case "cancelled":
-      return "Cancelled";
+      return t("Cancelled");
     case "interrupted":
-      return "Interrupted";
+      return t("Interrupted");
   }
 }
 
@@ -138,7 +140,10 @@ export function workflowRail(group: SubagentWorkflowGroup): ReadonlyArray<Workfl
   if (group.unphasedMembers.length > 0) {
     items.push({
       key: "unphased",
-      title: items.length === 0 ? "Agents" : "Other",
+      title:
+        items.length === 0
+          ? translatorFor(getUiLocale())("Agents")
+          : translatorFor(getUiLocale())("Other"),
       members: group.unphasedMembers,
     });
   }

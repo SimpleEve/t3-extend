@@ -1,12 +1,14 @@
 import { useSyncExternalStore } from "react";
 import { msUntilRelativeTimeChange, relativeTime } from "../lib/time";
+import { useT } from "../hooks/useT"; // fork: i18n
 
 // The React Compiler caches inline relativeTime calls on the timestamp alone.
-export function RelativeTime(props: { timestamp: string }) {
+export function useRelativeTime(timestamp: string) {
+  const t = useT(); // fork: i18n
   const subscribe = (onChange: () => void) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const schedule = () => {
-      const delayMs = msUntilRelativeTimeChange(props.timestamp);
+      const delayMs = msUntilRelativeTimeChange(timestamp);
       if (delayMs === null) return;
       timer = setTimeout(() => {
         onChange();
@@ -16,6 +18,10 @@ export function RelativeTime(props: { timestamp: string }) {
     schedule();
     return () => clearTimeout(timer);
   };
-  const getSnapshot = () => relativeTime(props.timestamp);
+  const getSnapshot = () => relativeTime(timestamp, undefined, t);
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+export function RelativeTime(props: { timestamp: string }) {
+  return useRelativeTime(props.timestamp);
 }

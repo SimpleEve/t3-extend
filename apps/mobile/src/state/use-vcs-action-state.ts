@@ -7,6 +7,7 @@ import { useSyncExternalStore } from "react";
 
 import { appAtomRegistry } from "./atom-registry";
 import { vcsActionManager } from "./vcs";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function useVcsActionState(target: VcsActionTarget): VcsActionState {
   return useAtomValue(vcsActionManager.stateAtom(target));
@@ -81,7 +82,7 @@ function formatElapsedSeconds(ms: number | null, nowMs: number): string | null {
   if (ms === null) return null;
   const elapsed = Math.max(0, Math.floor((nowMs - ms) / 1000));
   if (elapsed < 2) return null;
-  return `Running for ${elapsed}s`;
+  return translatorFor(getUiLocale())("Running for {elapsed}s", { elapsed });
 }
 
 export function useGitActionProgress(target: VcsActionTarget): GitActionProgress {

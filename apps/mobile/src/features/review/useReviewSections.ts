@@ -22,6 +22,7 @@ import {
   type ReviewSectionItem,
 } from "./reviewModel";
 import { setReviewSelectedSectionId, type ReviewCacheForThread } from "./reviewState";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const NO_GIT_SECTIONS_ATOM = Atom.make<ReadonlyArray<ReviewDiffPreviewSource>>([]).pipe(
   Atom.keepAlive,
@@ -146,7 +147,8 @@ export function useReviewSections(input: {
       diffPreview.error ??
       activeTurnDiff.error ??
       (selectedSection === null && !fileAccess.isPending && !canReadFiles
-        ? (fileAccess.error ?? "This connection cannot read local diffs.")
+        ? (fileAccess.error ??
+          translatorFor(getUiLocale())("This connection cannot read local diffs."))
         : null),
     isSelectedSectionPending:
       selectedSection?.kind === "turn" ? activeTurnDiff.isPending : diffPreview.isPending,

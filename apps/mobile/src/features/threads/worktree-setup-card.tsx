@@ -278,6 +278,7 @@ function StageRow({
   compact?: boolean;
   animate?: boolean;
 }) {
+  const t = useT(); // fork: i18n
   const label =
     stage.id === "setup-script"
       ? (scriptName ?? worktreeSetupStageLabel(stage.id))
@@ -286,7 +287,7 @@ function StageRow({
     stage.status === "pending"
       ? null
       : stage.status === "skipped"
-        ? (stage.detail ?? "skipped")
+        ? (stage.detail ?? t("skipped"))
         : stage.id === "checkout" && stage.status === "running" && stage.percent !== null
           ? `${stage.percent}%`
           : stage.detail;

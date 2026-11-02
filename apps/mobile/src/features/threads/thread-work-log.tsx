@@ -1062,7 +1062,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
   const exitLine =
     failedExitCode === null ? null : (
       <Text className="mt-1.5 font-mono text-2xs leading-normal text-danger-foreground">
-        exit {failedExitCode}
+        {t("exit {failedExitCode}", { failedExitCode })}
       </Text>
     );
   const toolPresentation = resolveWorkEntryToolPresentation(row.workEntry);
@@ -1353,7 +1353,9 @@ export function ThreadWorkGroupToggle(props: {
   readonly onToggle: () => void;
 }) {
   const t = useT();
-  const statusLabel = props.hasFailure ? `${props.summary}, tool call failed` : props.summary;
+  const statusLabel = props.hasFailure
+    ? t("{summary}, tool call failed", { summary: props.summary })
+    : props.summary;
   const accessibilityLabel = props.thought ? `${props.thought} ${statusLabel}` : statusLabel;
   const icon =
     props.summaryToolIcon ??

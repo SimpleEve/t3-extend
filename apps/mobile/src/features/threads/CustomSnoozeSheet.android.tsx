@@ -40,6 +40,7 @@ import {
   snoozeDateToPickerDate,
 } from "./customSnoozeDate";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { getUiLocale, uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 type Props = Parameters<typeof SharedCustomSnoozeSheet>[0];
 
@@ -165,11 +166,14 @@ export function CustomSnoozeSheet(props: Props) {
                       options={[
                         {
                           value: "date",
-                          label: date.toLocaleDateString([], { month: "short", day: "numeric" }),
+                          label: date.toLocaleDateString(uiLocaleFormatTag(getUiLocale()), {
+                            month: "short",
+                            day: "numeric",
+                          }),
                         },
                         {
                           value: "time",
-                          label: date.toLocaleTimeString([], {
+                          label: date.toLocaleTimeString(uiLocaleFormatTag(getUiLocale()), {
                             hour: "numeric",
                             minute: "2-digit",
                             hourCycle: is24Hour ? "h23" : "h12",

@@ -163,7 +163,7 @@ export function AndroidSettingsEnvironmentFilter() {
         },
         ...selectableProjectGroups.map((group) => ({
           id: `project:${group.key}`,
-          title: `Project · ${projectMenuLabel(group)}`,
+          title: t("Project · {group}", { group: projectMenuLabel(group) }),
           state: selectedProjectKey === group.key ? ("on" as const) : ("off" as const),
         })),
       ]}

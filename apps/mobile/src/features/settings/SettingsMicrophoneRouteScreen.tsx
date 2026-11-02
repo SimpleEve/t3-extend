@@ -229,7 +229,7 @@ function MicrophoneRow(props: {
   const t = useT();
   const { lifted, offset, entry, onForget } = props;
   const kind = KINDS[entry.kind];
-  const title = isMicrophoneDevice(entry) ? entry.name : kind.row;
+  const title = isMicrophoneDevice(entry) ? entry.name : t(kind.row);
   const { width: windowWidth } = useWindowDimensions();
   const style = useAnimatedStyle(() => ({
     transform: [
@@ -246,7 +246,12 @@ function MicrophoneRow(props: {
     <View className="flex-row items-center bg-grouped-card">
       <View
         accessible
-        accessibilityLabel={`${title}, ${kind.label}, ${props.position} of ${props.count}`}
+        accessibilityLabel={t("{title}, {label}, {position} of {count}", {
+          title,
+          label: t(kind.label),
+          position: props.position,
+          count: props.count,
+        })}
         accessibilityActions={onForget ? [{ name: "forget", label: t("Forget") }] : undefined}
         onAccessibilityAction={({ nativeEvent }) => {
           if (nativeEvent.actionName === "forget") onForget?.();
@@ -256,7 +261,7 @@ function MicrophoneRow(props: {
         <ListRowLayout
           icon={kind.icon}
           label={title}
-          description={isMicrophoneDevice(entry) ? kind.label : kind.rowDescription}
+          description={isMicrophoneDevice(entry) ? t(kind.label) : t(kind.rowDescription)}
         />
       </View>
       {props.reorderable ? (

@@ -7,6 +7,7 @@ import type {
   IncomingShareDraft,
   selectIncomingShareAttachmentsForServer,
 } from "../sharing/incoming-share-model";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type ShareImportPhase =
   | "idle"
@@ -252,7 +253,19 @@ export function makeIncomingShareImports(deps: ShareImportDeps) {
       const warnings = [...share.warnings, ...selected.warnings];
       if (skippedAttachmentCount > 0) {
         warnings.push(
-          `${skippedAttachmentCount} shared file${skippedAttachmentCount === 1 ? " was" : "s were"} skipped because this draft reached the attachment limit.`,
+          skippedAttachmentCount === 1
+            ? translatorFor(getUiLocale())(
+                "{count} shared file was skipped because this draft reached the attachment limit.",
+                {
+                  count: skippedAttachmentCount,
+                },
+              )
+            : translatorFor(getUiLocale())(
+                "{count} shared files were skipped because this draft reached the attachment limit.",
+                {
+                  count: skippedAttachmentCount,
+                },
+              ),
         );
       }
       if (warnings.length > 0) deps.onWarnings(warnings);

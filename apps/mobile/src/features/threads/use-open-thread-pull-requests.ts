@@ -7,9 +7,11 @@ import {
   resolveThreadPrBadgeAction,
   type ThreadPrPresentation,
 } from "../../state/thread-pr-presentation";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 /** Called once per thread list so virtualized rows share one stable handler. */
 export function useOpenThreadPullRequests() {
+  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const navigateToPullRequest = useNavigateToPullRequest();
   return (thread: EnvironmentThreadShell, pr: ThreadPrPresentation) => {
@@ -26,8 +28,8 @@ export function useOpenThreadPullRequests() {
     }).then((opened) => {
       if (!opened)
         Dialog.alert(
-          `Unable to open ${pr.changeRequest.shortLabel}`,
-          `The ${pr.changeRequest.singular} could not be opened.`,
+          t("Unable to open {shortLabel}", { shortLabel: pr.changeRequest.shortLabel }),
+          t("The {singular} could not be opened.", { singular: pr.changeRequest.singular }),
         );
     });
   };

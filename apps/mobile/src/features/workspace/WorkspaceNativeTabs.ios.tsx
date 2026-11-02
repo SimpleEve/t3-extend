@@ -28,6 +28,7 @@ import { useDeviceType } from "../../native/native-layout-metrics";
 import { WorkspaceSidebarTabs } from "./WorkspaceSidebarTabs";
 import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
 import { useSelectWorkspaceTab } from "./useSelectWorkspaceTab";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 const PULL_REQUEST_ICON = require("../../../assets/icons/pull-request.png");
 
@@ -74,6 +75,7 @@ export function WorkspaceNativeTabs(props: {
   readonly children: ReactNode;
   readonly hidden: boolean;
 }) {
+  const t = useT(); // fork: i18n
   const workspace = useWorkspaceTabs()!;
   const order = useEnabledNavigationTabs();
   const primaryTabs = order.slice(0, 4);
@@ -125,7 +127,7 @@ export function WorkspaceNativeTabs(props: {
               key={slot}
               screenKey={slot}
               title=""
-              tabBarItemAccessibilityLabel={settings ? "Settings" : WORKSPACE_TAB_LABELS[tab]}
+              tabBarItemAccessibilityLabel={settings ? t("Settings") : WORKSPACE_TAB_LABELS[tab]}
               ios={{
                 icon: settings
                   ? { type: "sfSymbol", name: "gearshape" }

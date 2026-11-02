@@ -9,6 +9,7 @@ import {
   settlePromise,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type AppUpdateCheckState =
   | "idle"
@@ -376,11 +377,14 @@ async function defaultConfirmInstallNow(): Promise<boolean> {
   const Dialog = await import("../../components/ui/Dialog");
   return new Promise<boolean>((resolve) => {
     Dialog.alert(
-      "Update ready",
-      "A new version has been downloaded and installs automatically the next time you leave the app. Install it now instead?",
+      translate(getUiLocale(), "Update ready"),
+      translate(
+        getUiLocale(),
+        "A new version has been downloaded and installs automatically the next time you leave the app. Install it now instead?",
+      ),
       [
-        { onPress: () => resolve(false), style: "cancel", text: "Later" },
-        { onPress: () => resolve(true), text: "Install Now" },
+        { onPress: () => resolve(false), style: "cancel", text: translate(getUiLocale(), "Later") },
+        { onPress: () => resolve(true), text: translate(getUiLocale(), "Install Now") },
       ],
       { cancelable: true, onDismiss: () => resolve(false) },
     );
