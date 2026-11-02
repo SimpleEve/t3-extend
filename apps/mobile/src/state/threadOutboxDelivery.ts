@@ -90,6 +90,7 @@ import {
 } from "./use-thread-outbox";
 import { clearThreadComposerError, setThreadComposerError } from "./thread-composer-error";
 import { workspaceConnections } from "./workspace";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const threadOutboxDebug = createDebugLogger("thread-outbox");
 
@@ -416,7 +417,11 @@ export async function restoreRejectedQueuedMessage(
     if (existingAttachmentIds.size + addedAttachmentCount > PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
       setThreadComposerError(
         threadKey,
-        `Remove attachments from the draft before restoring this message. Messages can contain at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments.`,
+        translate(
+          getUiLocale(),
+          "Remove attachments from the draft before restoring this message. Messages can contain at most {PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments.",
+          { PROVIDER_SEND_TURN_MAX_ATTACHMENTS },
+        ),
         queuedMessage.messageId,
       );
       return "blocked";
@@ -507,7 +512,9 @@ export async function restoreRejectedQueuedMessage(
     console.warn("[thread-outbox] failed to restore an undeliverable message", error);
     setThreadComposerError(
       threadKey,
-      error instanceof Error ? error.message : "The unsent message could not be restored.",
+      error instanceof Error
+        ? error.message
+        : translate(getUiLocale(), "The unsent message could not be restored."),
       queuedMessage.messageId,
     );
     return "retry";
@@ -653,7 +660,10 @@ function reportCommandFailure(
   });
   return {
     action,
-    message: error instanceof Error ? error.message : "The message could not be sent.",
+    message:
+      error instanceof Error
+        ? error.message
+        : translate(getUiLocale(), "The message could not be sent."),
   };
 }
 
@@ -839,7 +849,9 @@ export function createThreadOutboxDelivery(): {
       if (!shouldRetryThreadOutboxDelivery(error)) {
         return restoreQueuedMessage(
           queuedMessage,
-          error instanceof Error ? error.message : "An attachment could not upload.",
+          error instanceof Error
+            ? error.message
+            : translate(getUiLocale(), "An attachment could not upload."),
         );
       }
       return false;
@@ -970,7 +982,9 @@ export function createThreadOutboxDelivery(): {
       if (!shouldRetryThreadOutboxDelivery(error)) {
         return restoreQueuedMessage(
           queuedMessage,
-          error instanceof Error ? error.message : "An attachment could not upload.",
+          error instanceof Error
+            ? error.message
+            : translate(getUiLocale(), "An attachment could not upload."),
         );
       }
       return false;
@@ -1016,7 +1030,11 @@ export function createThreadOutboxDelivery(): {
         ).changeRequest;
         return restoreQueuedMessage(
           persistedMessage,
-          `The ${shortLabel} worktree has local changes and could not update to the ${shortLabel} head. Resolve them before trying again.`,
+          translate(
+            getUiLocale(),
+            "The {shortLabel} worktree has local changes and could not update to the {shortLabel} head. Resolve them before trying again.",
+            { shortLabel },
+          ),
         );
       }
       workspace = {
@@ -1375,11 +1393,14 @@ function loadThreadOutbox(isActive: () => boolean): void {
   void threadOutboxManager.load().then((loaded) => {
     if (loaded || !isActive()) return;
     Dialog.alert(
-      "Some queued messages could not be loaded",
-      "Unreadable records and attachment files are still saved. Other messages can still be sent.",
+      translate(getUiLocale(), "Some queued messages could not be loaded"),
+      translate(
+        getUiLocale(),
+        "Unreadable records and attachment files are still saved. Other messages can still be sent.",
+      ),
       [
-        { text: "Dismiss", style: "cancel" },
-        { text: "Retry", onPress: () => loadThreadOutbox(isActive) },
+        { text: translate(getUiLocale(), "Dismiss"), style: "cancel" },
+        { text: translate(getUiLocale(), "Retry"), onPress: () => loadThreadOutbox(isActive) },
       ],
     );
   });

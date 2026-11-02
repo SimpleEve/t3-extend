@@ -8,9 +8,10 @@ import {
   waitForComposerDraftsLoaded,
 } from "../../state/use-composer-drafts";
 import { linkedThreadDraftAction } from "./prompt-link-model";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function showPromptLinkNotice(notice: string): void {
-  Dialog.alert("Prompt from a link", notice);
+  Dialog.alert(translate(getUiLocale(), "Prompt from a link"), notice);
 }
 
 export async function applyLinkedPromptToThreadDraft(
@@ -21,7 +22,10 @@ export async function applyLinkedPromptToThreadDraft(
   try {
     await waitForComposerDraftsLoaded();
   } catch {
-    Dialog.alert("Could not open link", "Drafts could not be loaded, so the prompt was not added.");
+    Dialog.alert(
+      translate(getUiLocale(), "Could not open link"),
+      translate(getUiLocale(), "Drafts could not be loaded, so the prompt was not added."),
+    );
     return;
   }
   const action = linkedThreadDraftAction(getComposerDraftSnapshot(draftKey).text, prompt.text);
@@ -30,14 +34,20 @@ export async function applyLinkedPromptToThreadDraft(
     showPromptLinkNotice(notice);
     return;
   }
-  Dialog.alert("Linked prompt ready. Replace draft?", notice, [
-    { text: "Keep mine", style: "cancel" },
-    { text: "Replace", onPress: () => setComposerDraftText(draftKey, prompt.text) },
+  Dialog.alert(translate(getUiLocale(), "Linked prompt ready. Replace draft?"), notice, [
+    { text: translate(getUiLocale(), "Keep mine"), style: "cancel" },
+    {
+      text: translate(getUiLocale(), "Replace"),
+      onPress: () => setComposerDraftText(draftKey, prompt.text),
+    },
   ]);
 }
 
 export async function copyPromptLink(prompt: string): Promise<void> {
   if (!(await tryCopyTextWithHaptic(buildNewThreadLink({ prompt }), { target: "prompt link" }))) {
-    Dialog.alert("Could not copy", "Try again.");
+    Dialog.alert(
+      translate(getUiLocale(), "Could not copy"),
+      translate(getUiLocale(), "Try again."),
+    );
   }
 }

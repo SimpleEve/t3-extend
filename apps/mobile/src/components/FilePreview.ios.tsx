@@ -3,6 +3,8 @@ import { requireNativeModule } from "expo";
 import { useEffect, useEffectEvent, useId } from "react";
 
 import type { ResolvedFilePreviewSource } from "./FilePreviewModal.types";
+import { useT } from "../hooks/useT"; // fork: i18n
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const NativeControls = requireNativeModule<{
   presentFile(
@@ -26,12 +28,17 @@ function NativeFilePreview(props: {
   readonly onRequestClose: () => void;
   readonly onOpenError?: (error: unknown) => void;
 }) {
+  const t = useT(); // fork: i18n
   const { uri, name, sourceIdentifier, gallery } = props.source;
   const identifier = useId();
   const onRequestClose = useEffectEvent(props.onRequestClose);
   const onOpenError = useEffectEvent((error: unknown) => {
     if (props.onOpenError) props.onOpenError(error);
-    else Dialog.alert("Could not open preview", "The file could not be loaded. Please try again.");
+    else
+      Dialog.alert(
+        t("Could not open preview"),
+        t("The file could not be loaded. Please try again."),
+      );
   });
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- presents the native file preview and dismisses it on cleanup
@@ -41,7 +48,7 @@ function NativeFilePreview(props: {
       gallery && gallery.length > 1
         ? NativeControls.presentFiles(
             gallery.map((item) => item.uri),
-            gallery.map((item) => item.name ?? "Preview"),
+            gallery.map((item) => item.name ?? translatorFor(getUiLocale())("Preview")),
             Math.max(
               0,
               gallery.findIndex((item) => item.uri === uri),
@@ -49,7 +56,12 @@ function NativeFilePreview(props: {
             gallery.map((item) => item.sourceIdentifier ?? ""),
             identifier,
           )
-        : NativeControls.presentFile(uri, name ?? "Preview", sourceIdentifier ?? "", identifier);
+        : NativeControls.presentFile(
+            uri,
+            name ?? translatorFor(getUiLocale())("Preview"),
+            sourceIdentifier ?? "",
+            identifier,
+          );
     void presentation
       .catch((error: unknown) => {
         if (!canceled) onOpenError(error);

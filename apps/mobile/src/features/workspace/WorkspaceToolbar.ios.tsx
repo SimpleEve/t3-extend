@@ -123,7 +123,7 @@ export function WorkspaceToolbar(props: {
   const composeButton = nativeToolbarCompose ? (
     <Toolbar.Button
       identifier="workspace-compose"
-      accessibilityLabel="New chat"
+      accessibilityLabel={t("New chat")}
       icon="square.and.pencil"
       onPress={props.onNewTask}
       separateBackground
@@ -196,7 +196,7 @@ export function WorkspaceToolbar(props: {
           sidebarTabs === "picker" ||
           floatingTabs ? null : (
             <Toolbar.Button
-              accessibilityLabel="New chat"
+              accessibilityLabel={t("New chat")}
               icon="square.and.pencil"
               onPress={props.onNewTask}
             />

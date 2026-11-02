@@ -10,6 +10,8 @@ import { FilePreviewLoading, FilePreviewNotice } from "../features/files/FilePre
 import { pdfInitialPage, pdfLinkUrl, preparePdfPreview } from "../lib/pdfPreview";
 import { tryOpenExternalUrl } from "../lib/openExternalUrl";
 import { ControlPill } from "./ui/ControlPill";
+import { useT } from "../hooks/useT"; // fork: i18n
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const preparedPdfAtom = Atom.family((uri: string) =>
   Atom.make(
@@ -29,7 +31,10 @@ const preparedPdfAtom = Atom.family((uri: string) =>
           });
           return prepared;
         },
-        catch: (cause) => (cause instanceof Error ? cause.message : "The PDF could not be loaded."),
+        catch: (cause) =>
+          cause instanceof Error
+            ? cause.message
+            : translatorFor(getUiLocale())("The PDF could not be loaded."),
       }).pipe(
         Effect.flatMap((file) => (file === null ? Effect.interrupt : Effect.succeed(file))),
         Effect.interruptible,
@@ -40,6 +45,7 @@ const preparedPdfAtom = Atom.family((uri: string) =>
 );
 
 export function PdfPreview(props: { readonly uri: string }) {
+  const t = useT(); // fork: i18n
   const atom = preparedPdfAtom(props.uri);
   const prepared = useAtomValue(atom);
   const refresh = useAtomRefresh(atom);
@@ -48,23 +54,24 @@ export function PdfPreview(props: { readonly uri: string }) {
   const file = prepared._tag === "Success" && !prepared.waiting ? prepared.value : null;
   const error =
     file !== null && unrenderable === file
-      ? "The PDF could not be rendered. It may be damaged or password protected."
+      ? t("The PDF could not be rendered. It may be damaged or password protected.")
       : prepared._tag === "Failure" && !prepared.waiting
-        ? Option.getOrElse(AsyncResult.error(prepared), () => "The PDF could not be loaded.")
+        ? Option.getOrElse(AsyncResult.error(prepared), () => t("The PDF could not be loaded."))
         : null;
   const localUri = file?.uri ?? null;
 
   if (error) {
     return (
       <View className="flex-1 gap-4 bg-card">
-        <FilePreviewNotice title="Could not load PDF">{error}</FilePreviewNotice>
+        <FilePreviewNotice title={t("Could not load PDF")}>{error}</FilePreviewNotice>
         <View className="items-center">
-          <ControlPill label="Try again" variant="pill" onPress={refresh} />
+          <ControlPill label={t("Try again")} variant="pill" onPress={refresh} />
         </View>
       </View>
     );
   }
-  if (localUri === null) return <FilePreviewLoading message="Loading PDF..." background="card" />;
+  if (localUri === null)
+    return <FilePreviewLoading message={t("Loading PDF...")} background="card" />;
 
   return (
     <Pdf

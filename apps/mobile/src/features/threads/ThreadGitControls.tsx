@@ -30,6 +30,7 @@ import {
 import { projectScriptMenuLabel } from "@t3tools/shared/projectScripts";
 import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function truncateMiddle(value: string, maxLength: number): string {
   if (value.length <= maxLength) {
@@ -46,24 +47,25 @@ function compactMenuBranchLabel(branch: string): string {
 }
 
 function compactMenuStatus(gitStatus: VcsStatusResult | null): string {
+  const t = translatorFor(getUiLocale()); // fork: i18n
   if (!gitStatus) {
-    return "Checking status";
+    return t("Checking status");
   }
   if (!gitStatus.isRepo) {
-    return "Not a repo";
+    return t("Not a repo");
   }
 
   const parts: string[] = [];
   if (gitStatus.hasWorkingTreeChanges) {
-    parts.push(`${gitStatus.workingTree.files.length} changed`);
+    parts.push(t("{count} changed", { count: gitStatus.workingTree.files.length }));
   } else if (gitStatus.aheadCount === 0 && gitStatus.behindCount === 0) {
-    parts.push("Clean");
+    parts.push(t("Clean", undefined, "git status"));
   }
   if (gitStatus.aheadCount > 0) {
-    parts.push(`${gitStatus.aheadCount} ahead`);
+    parts.push(t("{count} ahead", { count: gitStatus.aheadCount }));
   }
   if (gitStatus.behindCount > 0) {
-    parts.push(`${gitStatus.behindCount} behind`);
+    parts.push(t("{count} behind", { count: gitStatus.behindCount }));
   }
   if (gitStatus.pr?.state === "open") {
     const { shortLabel } = sourceControlClients.get(

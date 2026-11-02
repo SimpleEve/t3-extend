@@ -16,6 +16,7 @@ import { appAtomRegistry } from "./atom-registry";
 import { environmentPresentations } from "./presentation";
 import { serverEnvironment } from "./server";
 import { environmentSession, readEnvironmentScope } from "./session";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface EnvironmentUsageStatus {
   readonly environmentId: EnvironmentId;
@@ -60,7 +61,10 @@ const usageByWindowAtom = Atom.family((windowKey: string) =>
         isPending: result.waiting,
         isConnected: presentation.connection.phase === "connected",
         canReadDiagnostics: true,
-        error: result._tag === "Failure" ? "This environment could not report usage." : null,
+        error:
+          result._tag === "Failure"
+            ? translatorFor(getUiLocale())("This environment could not report usage.")
+            : null,
         summary,
         needsCursorKeychainAccess: needsCursorKeychainAccess(
           summary,

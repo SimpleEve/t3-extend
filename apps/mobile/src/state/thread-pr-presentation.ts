@@ -9,6 +9,7 @@ import {
   resolveThreadCurrentPullRequestLink,
   resolveThreadPullRequestBadge,
 } from "@t3tools/client-runtime/thread-pull-requests";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type ThreadPr = NonNullable<VcsStatusResult["pr"]>;
 
@@ -61,6 +62,7 @@ export function presentThreadLinkedPullRequests(
   if (link === null || badge === null) return null;
   const { changeRequest } =
     sourceControlClients.findByChangeRequestUrl(link.url) ?? sourceControlClients.get(undefined);
+  const t = translatorFor(getUiLocale()); // fork: i18n
   const snapshot = link.snapshot;
   const linkedCount = badge.kind === "pull-request" && badge.others > 0 ? badge.others + 1 : null;
   const isMultiple = badge.kind === "stack" || linkedCount !== null;
@@ -90,10 +92,22 @@ export function presentThreadLinkedPullRequests(
     label,
     accessibilityLabel:
       badge.kind === "stack"
-        ? `${badge.layers} ${changeRequest.singular}s in stack, ${isDraft ? "draft" : (state ?? "status pending")}`
+        ? t("{count} {singular}s in stack, {state}", {
+            count: badge.layers,
+            singular: changeRequest.singular,
+            state: isDraft ? t("draft") : state ? t(state) : t("status pending"),
+          })
         : linkedCount !== null
-          ? `${linkedCount} linked ${changeRequest.plural}, overall ${badge.state}`
-          : `#${link.number} ${changeRequest.singular} ${state === null ? "status pending" : isDraft ? "draft" : state}`,
+          ? t("{count} linked {plural}, overall {state}", {
+              count: linkedCount,
+              plural: changeRequest.plural,
+              state: t(badge.state),
+            })
+          : t("#{number} {singular} {state}", {
+              number: link.number,
+              singular: changeRequest.singular,
+              state: state === null ? t("status pending") : isDraft ? t("draft") : t(state),
+            }),
     textClassName:
       state === null || isDraft
         ? "text-foreground-muted"
@@ -122,8 +136,18 @@ export function resolveThreadPrSource(
 
 export function resolveThreadPrBadgeAction(pr: ThreadPrPresentation) {
   return pr.kind === "stack" || pr.others > 0
-    ? { kind: "list" as const, accessibilityLabel: `Show ${pr.accessibilityLabel}` }
-    : { kind: "open" as const, accessibilityLabel: `Open ${pr.accessibilityLabel}` };
+    ? {
+        kind: "list" as const,
+        accessibilityLabel: translatorFor(getUiLocale())("Show {label}", {
+          label: pr.accessibilityLabel,
+        }),
+      }
+    : {
+        kind: "open" as const,
+        accessibilityLabel: translatorFor(getUiLocale())("Open {label}", {
+          label: pr.accessibilityLabel,
+        }),
+      };
 }
 
 /** Records `value` as the newest entry, evicting the least recently answered beyond `limit`. */

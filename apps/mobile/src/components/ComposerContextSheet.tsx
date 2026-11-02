@@ -30,12 +30,16 @@ import { AppText as Text } from "./ui/AppText";
 import { Sheet } from "./ui/Sheet";
 import { useAppearancePreferences } from "../features/settings/appearance/AppearancePreferencesProvider";
 import { getMobileTerminalTheme } from "../features/terminal/terminalTheme";
+import { useT } from "../hooks/useT"; // fork: i18n
 
 function ContextField(props: { label: string; value: string | null | undefined; code?: boolean }) {
+  const t = useT(); // fork: i18n
   if (!props.value) return null;
   return (
     <View className="gap-1">
-      <Text className="text-xs text-foreground-muted">{props.label}</Text>
+      <Text className="text-xs text-foreground-muted">
+        {t(props.label, undefined, "context field")}
+      </Text>
       {props.code && (props.label === "HTML" || props.label === "Styles") ? (
         <View
           className="overflow-hidden rounded-xl border border-border"
@@ -90,6 +94,7 @@ export function ComposerContextSheet(props: {
   readonly records?: ReadonlyArray<ComposerContextRecord>;
   readonly attachments?: ReadonlyArray<DraftComposerAttachment>;
 }) {
+  const t = useT(); // fork: i18n
   const openPullRequest = useOpenPullRequest({
     context:
       props.environmentId && props.projectId
@@ -203,18 +208,23 @@ export function ComposerContextSheet(props: {
       >
         {terminal ? (
           <Text className="text-sm text-foreground-muted">
-            Lines {terminal.lineStart}–{terminal.lineEnd}
+            {t("Lines {lineStart}–{lineEnd}", {
+              lineStart: terminal.lineStart,
+              lineEnd: terminal.lineEnd,
+            })}
           </Text>
         ) : null}
         {!record ? (
           <Text className="text-foreground">
-            Context unavailable. The reference was copied without its payload. Copy it again from
-            the original message or remove it.
+            {t(
+              "Context unavailable. The reference was copied without its payload. Copy it again from the original message or remove it.",
+            )}
           </Text>
         ) : "payload" in record ? (
           <Text className="text-foreground">
-            This context type is not supported by this version of the app. Its payload will be
-            preserved when sent.
+            {t(
+              "This context type is not supported by this version of the app. Its payload will be preserved when sent.",
+            )}
           </Text>
         ) : (
           <>
@@ -311,7 +321,7 @@ export function ComposerContextSheet(props: {
                 <ContextField label="Thread" value={record.title} />
                 {props.onOpenThread ? (
                   <Button
-                    label="Open thread"
+                    label={t("Open thread")}
                     tone="secondary"
                     onPress={() =>
                       props.onOpenThread?.({
@@ -336,7 +346,7 @@ export function ComposerContextSheet(props: {
                 />
                 {props.onOpenSkill ? (
                   <Button
-                    label="View instructions"
+                    label={t("View instructions")}
                     tone="secondary"
                     onPress={props.onOpenSkill}
                     fullWidth
@@ -367,17 +377,22 @@ export function ComposerContextSheet(props: {
             onPress={() => {
               props.onClose();
               void openPullRequest(pullRequestUrl).catch(() =>
-                Dialog.alert(`Could not open ${changeRequestTerm}`, "Try again when connected."),
+                Dialog.alert(
+                  t("Could not open {changeRequestTerm}", { changeRequestTerm }),
+                  t("Try again when connected."),
+                ),
               );
             }}
             className="rounded-xl bg-subtle p-4"
           >
-            <Text className="text-foreground">Open {changeRequestTerm}</Text>
+            <Text className="text-foreground">
+              {t("Open {changeRequestTerm}", { changeRequestTerm })}
+            </Text>
           </Pressable>
         ) : null}
         {props.onOpenAttachment ? (
           <Button
-            label="Open attachment"
+            label={t("Open attachment")}
             tone="secondary"
             onPress={props.onOpenAttachment}
             fullWidth
@@ -385,14 +400,19 @@ export function ComposerContextSheet(props: {
         ) : null}
         {props.onOpenPullRequest && !pullRequestUrl ? (
           <Button
-            label={`Open ${changeRequestTerm}`}
+            label={t("Open {changeRequestTerm}", { changeRequestTerm })}
             tone="secondary"
             onPress={props.onOpenPullRequest}
             fullWidth
           />
         ) : null}
         {props.onRemove ? (
-          <Button label="Remove from draft" tone="secondary" onPress={props.onRemove} fullWidth />
+          <Button
+            label={t("Remove from draft")}
+            tone="secondary"
+            onPress={props.onRemove}
+            fullWidth
+          />
         ) : null}
       </ScrollView>
     </Sheet>

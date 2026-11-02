@@ -1,6 +1,7 @@
 import {
   getUiLocale,
   translate,
+  translatorFor,
   uiLocaleFormatTag,
   type UiLocale,
 } from "@t3tools/client-runtime/i18n"; // fork: i18n
@@ -10,24 +11,25 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 export function formatScheduledTaskInterval(everyMs: number): string {
+  const t = translatorFor(getUiLocale()); // fork: i18n
   const units = [
-    [7 * DAY, "week"],
-    [DAY, "day"],
-    [HOUR, "hour"],
-    [MINUTE, "minute"],
-    [1_000, "second"],
-    [1, "millisecond"],
+    [7 * DAY, t("Every week"), t("{count} week"), t("{count} weeks")],
+    [DAY, t("Every day"), t("{count} day"), t("{count} days")],
+    [HOUR, t("Every hour"), t("{count} hour"), t("{count} hours")],
+    [MINUTE, t("Every minute"), t("{count} minute"), t("{count} minutes")],
+    [1_000, t("Every second"), t("{count} second"), t("{count} seconds")],
+    [1, t("Every millisecond"), t("{count} millisecond"), t("{count} milliseconds")],
   ] as const;
   let remaining = everyMs;
   const parts: string[] = [];
-  for (const [size, unit] of units) {
+  for (const [size, every, singular, plural] of units) {
     const count = Math.floor(remaining / size);
     if (count === 0) continue;
-    if (count === 1 && remaining === everyMs && remaining === size) return `Every ${unit}`;
-    parts.push(`${count} ${unit}${count === 1 ? "" : "s"}`);
+    if (count === 1 && remaining === everyMs && remaining === size) return every;
+    parts.push((count === 1 ? singular : plural).replace("{count}", String(count)));
     remaining %= size;
   }
-  return `Every ${parts.join(" ")}`;
+  return t("Every {interval}", { interval: parts.join(" ") });
 }
 
 function localCalendarDay(date: Date): number {

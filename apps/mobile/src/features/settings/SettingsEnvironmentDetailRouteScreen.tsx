@@ -341,7 +341,9 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
                               ? (provider.version ?? t("Version unknown"))
                               : t("Not installed")}
                             {provider.versionAdvisory?.latestVersion
-                              ? ` · Latest ${provider.versionAdvisory.latestVersion}`
+                              ? t(" · Latest {latestVersion}", {
+                                  latestVersion: provider.versionAdvisory.latestVersion,
+                                })
                               : ""}
                           </Text>
                           {provider.updateState && provider.updateState.status !== "idle" ? (

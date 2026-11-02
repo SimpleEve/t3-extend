@@ -11,6 +11,7 @@ import {
   type PullRequestListStatsInput,
 } from "@t3tools/contracts";
 import type { PullRequestListControls } from "../../persistence/mobile-preferences";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export const PR_LIST_PAGE_SIZE = 30;
 export type { PullRequestListControls } from "../../persistence/mobile-preferences";
@@ -465,31 +466,32 @@ export function filterPullRequestList<
 export function pullRequestListReviewStatus(
   entry: Pick<PullRequestListEntry, "reviewDecision" | "viewerReviewRequested">,
 ) {
+  const t = translatorFor(getUiLocale()); // fork: i18n
   if (entry.reviewDecision === "changes-requested")
     return {
-      label: "Changes",
-      accessibleLabel: "Changes requested",
+      label: t("Changes"),
+      accessibleLabel: t("Changes requested"),
       icon: "person.fill.xmark",
       tint: "accent-danger-foreground",
     } as const;
   if (entry.reviewDecision === "approved")
     return {
-      label: "Approved",
-      accessibleLabel: "Reviews approved",
+      label: t("Approved"),
+      accessibleLabel: t("Reviews approved"),
       icon: "person.fill.checkmark",
       tint: "accent-adaptive-emerald-600-400",
     } as const;
   if (entry.viewerReviewRequested)
     return {
-      label: "Your review",
-      accessibleLabel: "Your review requested",
+      label: t("Your review"),
+      accessibleLabel: t("Your review requested"),
       icon: "person.badge.clock",
       tint: "accent-warning-foreground",
     } as const;
   if (entry.reviewDecision === "review-required")
     return {
-      label: "Review",
-      accessibleLabel: "Review required",
+      label: t("Review"),
+      accessibleLabel: t("Review required"),
       icon: "person.badge.clock",
       tint: "accent-icon-muted",
     } as const;

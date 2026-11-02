@@ -11,6 +11,7 @@ import {
   resolveWorkspaceFilePath,
   resolveWorkspaceRelativeFilePath,
 } from "../files/filePath";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface FileChipTarget {
   readonly fullPath?: string;
@@ -68,17 +69,20 @@ export function fileChipShareSource(target: FileChipTarget, threadId: ThreadId) 
 }
 
 export function fileChipMenu(target: FileChipTarget): MarkdownFileContextMenu {
+  const t = translatorFor(getUiLocale()); // fork: i18n
   return {
     title: target.fullPath ?? target.relativePath ?? "",
     actions: [
-      ...(target.fullPath ? [{ id: "copy-full-path", title: "Copy full path" }] : []),
-      ...(target.relativePath ? [{ id: "copy-relative-path", title: "Copy relative path" }] : []),
-      { id: "open-file", title: "Open in file viewer" },
+      ...(target.fullPath ? [{ id: "copy-full-path", title: t("Copy full path") }] : []),
+      ...(target.relativePath
+        ? [{ id: "copy-relative-path", title: t("Copy relative path") }]
+        : []),
+      { id: "open-file", title: t("Open in file viewer") },
       ...(fileChipMetadata(target)
         ? [
             {
               id: "save",
-              title: "Save or share",
+              title: t("Save or share"),
             },
           ]
         : []),

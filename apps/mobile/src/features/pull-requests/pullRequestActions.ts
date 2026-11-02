@@ -10,6 +10,7 @@ import type {
 } from "@t3tools/contracts";
 import type { AppSymbolName } from "../../components/ui/AppSymbol";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 type ActionDetail = Pick<
   PullRequestDetail,
@@ -39,29 +40,31 @@ export function pullRequestActionLabel(
   action: PullRequestAction,
   terminology: ChangeRequestTerminology,
 ): string {
+  const t = translatorFor(getUiLocale()); // fork: i18n
+  const { singular } = terminology;
   switch (action) {
     case "merge":
-      return `Merge ${terminology.singular}`;
+      return t("Merge {singular}", { singular });
     case "ready":
-      return "Mark ready for review";
+      return t("Mark ready for review");
     case "draft":
-      return "Convert to draft";
+      return t("Convert to draft");
     case "close":
-      return `Close ${terminology.singular}`;
+      return t("Close {singular}", { singular });
     case "reopen":
-      return `Reopen ${terminology.singular}`;
+      return t("Reopen {singular}", { singular });
     case "update-branch":
-      return "Update branch";
+      return t("Update branch");
     case "enable-auto-merge":
-      return "Enable auto-merge";
+      return t("Enable auto-merge");
     case "disable-auto-merge":
-      return "Disable auto-merge";
+      return t("Disable auto-merge");
     case "revert":
-      return `Create revert ${terminology.singular}`;
+      return t("Create revert {singular}", { singular });
     case "delete-branch":
-      return "Delete branch";
+      return t("Delete branch");
     case "approve-workflows":
-      return "Approve workflows";
+      return t("Approve workflows");
   }
 }
 
@@ -124,18 +127,22 @@ export function mergeUnavailableReason(
   connectionAllowsWrites: boolean,
   terminology: ChangeRequestTerminology,
 ) {
-  if (pr.state === "merged") return `This ${terminology.singular} has been merged.`;
-  if (pr.state === "closed") return `Reopen this ${terminology.singular} before merging.`;
-  if (!connectionAllowsWrites) return "This environment connection is read-only.";
+  const t = translatorFor(getUiLocale()); // fork: i18n
+  const { singular } = terminology;
+  if (pr.state === "merged") return t("This {singular} has been merged.", { singular });
+  if (pr.state === "closed") return t("Reopen this {singular} before merging.", { singular });
+  if (!connectionAllowsWrites) return t("This environment connection is read-only.");
   if (!pr.capabilities.actions.includes("merge"))
-    return "This provider does not support merging here.";
+    return t("This provider does not support merging here.");
   if (!pr.viewerPermissions.actions.includes("merge"))
-    return `Your account cannot merge this ${terminology.singular}.`;
-  if (pr.isDraft) return "Mark this draft ready for review before merging.";
-  if (pr.mergeability === "conflicting") return MERGE_CONFLICT_REASON;
-  if (!allowedMergeMethods(pr).length) return "This repository has no available merge methods.";
+    return t("Your account cannot merge this {singular}.", { singular });
+  if (pr.isDraft) return t("Mark this draft ready for review before merging.");
+  if (pr.mergeability === "conflicting") return t(MERGE_CONFLICT_REASON);
+  if (!allowedMergeMethods(pr).length) return t("This repository has no available merge methods.");
   return null;
 }
 
 export const openOnProviderLabel = (provider: SourceControlProviderKind) =>
-  `Open on ${sourceControlClients.get(provider).label}`;
+  translatorFor(getUiLocale())("Open on {label}", {
+    label: sourceControlClients.get(provider).label,
+  });

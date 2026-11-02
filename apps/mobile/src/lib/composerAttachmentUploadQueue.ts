@@ -3,7 +3,7 @@ import { clampFileAttachmentUploadBytes } from "@t3tools/client-runtime/state/at
 
 import { parseLegacyNewTaskDraftKey } from "../state/new-task-draft-key";
 import type { DraftComposerAttachment } from "./composerImages";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { getUiLocale, translate, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface ComposerAttachmentUploadRequest {
   readonly environmentId: EnvironmentId;
@@ -159,7 +159,10 @@ export function createComposerAttachmentUploadQueue(options: {
           if (!controller.signal.aborted && desired.has(key)) {
             setState(key, {
               status: "failed",
-              reason: error instanceof Error ? error.message : "Upload failed. Tap to retry.",
+              reason:
+                error instanceof Error
+                  ? error.message
+                  : translatorFor(getUiLocale())("Upload failed. Tap to retry."),
             });
           }
         })

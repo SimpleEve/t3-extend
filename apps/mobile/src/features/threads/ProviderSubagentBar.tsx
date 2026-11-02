@@ -30,7 +30,10 @@ export function ProviderSubagentBar(props: {
       {}
       <View
         accessible
-        accessibilityLabel={`${modelDescription} subagent, ${statusLabel}. It runs on its own and cannot take messages.`}
+        accessibilityLabel={t(
+          "{modelDescription} subagent, {statusLabel}. It runs on its own and cannot take messages.",
+          { modelDescription, statusLabel },
+        )}
         className="min-w-0 flex-1 gap-0.5"
       >
         <View className="min-w-0 flex-row items-center gap-1.5">
@@ -58,7 +61,7 @@ export function ProviderSubagentBar(props: {
           className="font-sans text-xs text-foreground-secondary"
           style={{ fontVariant: ["tabular-nums"] }}
         >
-          {statusLabel} · Runs on its own
+          {t("{statusLabel} · Runs on its own", { statusLabel })}
         </Text>
       </View>
       {props.onOpenParent ? (

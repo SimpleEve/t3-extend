@@ -1,6 +1,7 @@
 import { readHostedPairingRequest } from "@t3tools/shared/remote";
 import { APP_LINK_PROTOCOL } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as Schema from "effect/Schema";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const MOBILE_PAIRING_URL_PARAM = "pairingUrl";
 
@@ -24,7 +25,7 @@ export class PairingQrPayloadEmptyError extends Schema.TaggedError<PairingQrPayl
   {},
 ) {
   override get message(): string {
-    return "Scanned QR code did not contain a pairing URL.";
+    return translatorFor(getUiLocale())("Scanned QR code did not contain a pairing URL.");
   }
 }
 

@@ -327,7 +327,9 @@ function ProjectOverviewContent(props: {
             {displayName}
           </Text>
           <Text className="text-sm text-foreground-muted">
-            {props.members.length === 1 ? "1 checkout" : `${props.members.length} checkouts`}
+            {props.members.length === 1
+              ? t("1 checkout")
+              : t("{count} checkouts", { count: props.members.length })}
           </Text>
         </View>
       </View>

@@ -15,6 +15,7 @@ import { DraftComposerAttachmentSchema } from "../../lib/composer-image-schema";
 import { fitComposerImage } from "../../lib/composerImageFit";
 import type { DraftComposerAttachment } from "../../lib/composerImages";
 import { estimateBase64ByteSize } from "../../lib/base64";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface IncomingShareDraft {
   readonly schemaVersion: 1;
@@ -112,7 +113,14 @@ export function selectIncomingShareAttachments(input: {
       continue;
     }
     if (input.maxFileAttachmentBytes === null) {
-      warnings.push(`'${attachment.name}' was skipped because this server does not support files.`);
+      warnings.push(
+        translatorFor(getUiLocale())(
+          "'{name}' was skipped because this server does not support files.",
+          {
+            name: attachment.name,
+          },
+        ),
+      );
       continue;
     }
     const maxFileAttachmentBytes = clampFileAttachmentUploadBytes(input.maxFileAttachmentBytes);
@@ -258,7 +266,13 @@ export async function buildIncomingShareDraft(input: {
     if (attachments.length >= PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
       if (!warnedAttachmentLimit) {
         warnings.push(
-          `Only the first ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} shared ${payload.shareType === "image" ? "images" : "files"} were attached.`,
+          payload.shareType === "image"
+            ? translatorFor(getUiLocale())("Only the first {count} shared images were attached.", {
+                count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+              })
+            : translatorFor(getUiLocale())("Only the first {count} shared files were attached.", {
+                count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+              }),
         );
         warnedAttachmentLimit = true;
       }
@@ -278,7 +292,7 @@ export async function buildIncomingShareDraft(input: {
           : undefined;
       const name = resolved?.originalName ?? sharedFileName ?? fallbackName(uri, index, mimeType);
       if (!uri) {
-        warnings.push("One shared file could not be read.");
+        warnings.push(translatorFor(getUiLocale())("One shared file could not be read."));
         continue;
       }
       let persistedFileUri: string | undefined;
@@ -293,14 +307,18 @@ export async function buildIncomingShareDraft(input: {
           sizeBytes = (await input.fileReader.readSize?.(persistedFileUri)) ?? null;
         }
         if (sizeBytes === null) {
-          warnings.push(`The size of '${name}' could not be determined.`);
+          warnings.push(
+            translatorFor(getUiLocale())("The size of '{name}' could not be determined.", { name }),
+          );
           if (persistedFileUri) {
             await releaseOwnedFiles(input.fileReader, [persistedFileUri]);
           }
           continue;
         }
         if (sizeBytes <= 0) {
-          warnings.push(`'${name}' is empty or could not be read.`);
+          warnings.push(
+            translatorFor(getUiLocale())("'{name}' is empty or could not be read.", { name }),
+          );
           if (persistedFileUri) {
             await releaseOwnedFiles(input.fileReader, [persistedFileUri]);
           }
@@ -321,7 +339,9 @@ export async function buildIncomingShareDraft(input: {
             sizeBytes = storedSize;
           }
           if (sizeBytes <= 0) {
-            warnings.push(`'${name}' is empty or could not be read.`);
+            warnings.push(
+              translatorFor(getUiLocale())("'{name}' is empty or could not be read.", { name }),
+            );
             await releaseOwnedFiles(input.fileReader, [persistedFileUri]);
             continue;
           }
@@ -341,7 +361,11 @@ export async function buildIncomingShareDraft(input: {
         });
         retainedFileUri = persistedFileUri ?? uri;
       } catch (error) {
-        warnings.push(error instanceof Error ? error.message : `Could not read '${name}'.`);
+        warnings.push(
+          error instanceof Error
+            ? error.message
+            : translatorFor(getUiLocale())("Could not read '{name}'.", { name }),
+        );
         if (persistedFileUri !== undefined) {
           await releaseOwnedFiles(input.fileReader, [persistedFileUri]);
         }
@@ -354,13 +378,15 @@ export async function buildIncomingShareDraft(input: {
       continue;
     }
     if (!uri || !mimeType.startsWith("image/")) {
-      warnings.push("One shared item was not a supported image.");
+      warnings.push(translatorFor(getUiLocale())("One shared item was not a supported image."));
       await releaseOwnedFiles(input.fileReader, [uri, payload.value]);
       continue;
     }
     if (!isProviderSendTurnSupportedImageMimeType(mimeType)) {
       warnings.push(
-        `'${resolved?.originalName ?? fallbackName(uri, index, mimeType)}' is not a supported image type.`,
+        translatorFor(getUiLocale())("'{name}' is not a supported image type.", {
+          name: resolved?.originalName ?? fallbackName(uri, index, mimeType),
+        }),
       );
       await releaseOwnedFiles(input.fileReader, [uri, payload.value]);
       continue;
@@ -371,7 +397,9 @@ export async function buildIncomingShareDraft(input: {
       resolved.contentSize > PROVIDER_SEND_TURN_MAX_IMAGE_BYTES
     ) {
       warnings.push(
-        `'${resolved.originalName ?? fallbackName(uri, index, mimeType)}' exceeds the 10 MB attachment limit.`,
+        translatorFor(getUiLocale())("'{name}' exceeds the 10 MB attachment limit.", {
+          name: resolved.originalName ?? fallbackName(uri, index, mimeType),
+        }),
       );
       await releaseOwnedFiles(input.fileReader, [uri, payload.value]);
       continue;
@@ -391,7 +419,9 @@ export async function buildIncomingShareDraft(input: {
         : (resolved?.contentSize ?? estimateBase64ByteSize(base64));
       if (sizeBytes <= 0 || sizeBytes > PROVIDER_SEND_TURN_MAX_IMAGE_BYTES) {
         warnings.push(
-          `'${resolved?.originalName ?? fallbackName(uri, index, mimeType)}' exceeds the 10 MB attachment limit.`,
+          translatorFor(getUiLocale())("'{name}' exceeds the 10 MB attachment limit.", {
+            name: resolved?.originalName ?? fallbackName(uri, index, mimeType),
+          }),
         );
         continue;
       }
@@ -407,7 +437,11 @@ export async function buildIncomingShareDraft(input: {
         previewUri: dataUrl,
       });
     } catch {
-      warnings.push(`Could not read '${fallbackName(uri, index, mimeType)}'.`);
+      warnings.push(
+        translatorFor(getUiLocale())("Could not read '{name}'.", {
+          name: fallbackName(uri, index, mimeType),
+        }),
+      );
     } finally {
       await releaseOwnedFiles(input.fileReader, [uri, payload.value]);
     }

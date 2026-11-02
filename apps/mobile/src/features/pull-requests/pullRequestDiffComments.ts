@@ -2,6 +2,7 @@ import type { PullRequestReviewPosition, PullRequestReviewThread } from "@t3tool
 import type { NativeReviewDiffRow } from "../diffs/nativeReviewDiffSurface";
 import type { NativeReviewDiffData } from "../review/nativeReviewDiffAdapter";
 import type { PendingReviewComment } from "./pullRequestReviewDrafts";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function reviewPosition(row: NativeReviewDiffRow): PullRequestReviewPosition | null {
   if (row.kind !== "line") return null;
@@ -21,7 +22,9 @@ export function reviewPosition(row: NativeReviewDiffRow): PullRequestReviewPosit
 export function reviewPositionLabel(position: PullRequestReviewPosition) {
   const oldSide =
     position.kind === "deleted" || (position.kind === "context" && position.side === "left");
-  return `${oldSide ? "Old line" : "Line"} ${reviewLine(position)}`;
+  const t = translatorFor(getUiLocale()); // fork: i18n
+  const line = reviewLine(position);
+  return oldSide ? t("Old line {line}", { line }) : t("Line {line}", { line });
 }
 function reviewLine(position: PullRequestReviewPosition) {
   if (position.kind === "deleted" || (position.kind === "context" && position.side === "left"))
@@ -35,6 +38,7 @@ export function annotatePullRequestDiff(
   headSha: string | undefined,
 ): NativeReviewDiffData {
   if (threads.length === 0 && drafts.length === 0) return data;
+  const t = translatorFor(getUiLocale()); // fork: i18n
   const anchors = new Map<string, NativeReviewDiffRow[]>();
   const firstByPath = new Map<string, NativeReviewDiffRow>();
   const lines = new Map<string, NativeReviewDiffRow>();
@@ -79,7 +83,7 @@ export function annotatePullRequestDiff(
     attach(
       anchor,
       `discussion:${thread.id}`,
-      `${first?.author?.login ?? "Discussion"}${thread.isResolved ? " · Resolved" : ""}\n${first?.body ?? ""}\n${thread.commentCount ?? thread.comments.length} comments · Tap to open`,
+      `${first?.author?.login ?? t("Discussion")}${thread.isResolved ? t(" · Resolved") : ""}\n${first?.body ?? ""}\n${t("{count} comments · Tap to open", { count: thread.commentCount ?? thread.comments.length })}`,
       thread.line === null ? "file" : String(thread.line),
     );
   }
@@ -95,7 +99,7 @@ export function annotatePullRequestDiff(
     attach(
       lines.get(JSON.stringify([draft.path, side, line])),
       `draft:${draft.id}`,
-      `Pending review · Tap to edit\n${draft.body}`,
+      `${t("Pending review · Tap to edit")}\n${draft.body}`,
       String(line),
     );
   }

@@ -17,6 +17,7 @@ import { useEnvironmentServerConfig, useProject, useThreadShell } from "../../st
 import { subagentCardDetail } from "./subagent-card-presentation";
 import { SUBAGENT_TONE_TEXT_CLASS, SubagentStatusDot } from "./SubagentStatusDot";
 import { resolveSubagentRowPresentation } from "./threadAgentsPresentation";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 type SubagentRowSubagent = Pick<
   OrchestrationV2Subagent,
@@ -40,6 +41,7 @@ export function SubagentRow(props: {
   /** The task runs in a linked environment this app is connected to. */
   readonly canOpenRemote?: boolean;
 }) {
+  const t = useT(); // fork: i18n
   const presentation = resolveSubagentRowPresentation(props.subagent, props.canOpenRemote);
   const detail = subagentCardDetail(presentation.detail);
   return (
@@ -73,7 +75,7 @@ export function SubagentRow(props: {
             </Text>
             {presentation.runsOn !== null ? (
               <Text numberOfLines={1} className="shrink text-xs text-foreground-muted">
-                on {presentation.runsOn}
+                {t("on {runsOn}", { runsOn: presentation.runsOn })}
               </Text>
             ) : null}
           </View>

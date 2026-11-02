@@ -12,15 +12,18 @@ import { ControlPill } from "../../components/ui/ControlPill";
 import { useHardwareBack } from "../../lib/backHandler";
 import { isPdfPreviewUri } from "../../lib/pdfPreview";
 import { useNativeColumnLayoutMetrics } from "../../native/native-layout-metrics";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function WorkspaceFileWebPreview(props: { readonly uri: string | null }) {
+  const t = useT(); // fork: i18n
   if (props.uri === null) {
-    return <FilePreviewLoading message="Preparing preview..." background="card" />;
+    return <FilePreviewLoading message={t("Preparing preview...")} background="card" />;
   }
   return <DocumentWebPreview key={props.uri} uri={props.uri} />;
 }
 
 function DocumentWebPreview(props: { readonly uri: string }) {
+  const t = useT(); // fork: i18n
   const insets = useSafeAreaInsets();
   const columnMetrics = useNativeColumnLayoutMetrics();
   // iOS headers float over this column, so content starts below them.
@@ -49,7 +52,7 @@ function DocumentWebPreview(props: { readonly uri: string }) {
           <PdfPreview key={linkedPdf} uri={linkedPdf} />
           <SafeAreaView edges={["bottom"]} className="border-t border-border px-4 py-2">
             <ControlPill
-              label="Back to document"
+              label={t("Back to document")}
               variant="pill"
               onPress={() => setLinkedPdf(null)}
             />
@@ -85,7 +88,7 @@ function DocumentWebPreview(props: { readonly uri: string }) {
           }}
           onError={(event) => {
             setLoadProgress(0);
-            setLoadError(event.nativeEvent.description || "The file could not be rendered.");
+            setLoadError(event.nativeEvent.description || t("The file could not be rendered."));
           }}
           renderLoading={() => (
             <View className="absolute inset-0 items-center justify-center bg-card">
@@ -98,7 +101,7 @@ function DocumentWebPreview(props: { readonly uri: string }) {
           {loadProgress > 0 && loadProgress < 1 ? <LoadingStrip progress={loadProgress} /> : null}
           {loadError ? (
             <View className="border-b border-border bg-card px-4 py-2">
-              <Text className="text-xs font-t3-bold text-foreground">Preview failed</Text>
+              <Text className="text-xs font-t3-bold text-foreground">{t("Preview failed")}</Text>
               <Text className="mt-0.5 text-xs leading-snug text-foreground-muted">{loadError}</Text>
             </View>
           ) : null}

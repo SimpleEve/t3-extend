@@ -6,7 +6,12 @@ import {
 } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { usageEnvironmentProgress, usageLoadingState, usageProgress } from "./usageProgress.ts";
+import {
+  updatingProvidersLabel,
+  usageEnvironmentProgress,
+  usageLoadingState,
+  usageProgress,
+} from "./usageProgress.ts";
 
 function summary(refreshing: readonly UsageProviderKind[] = []): UsageSummary {
   return {
@@ -116,5 +121,22 @@ describe("usageLoadingState", () => {
       environment("c", { summary: null, error: "Offline" }),
     ]);
     expect(state).toEqual({ partial: false, everyProvider: false, providers: new Set() });
+  });
+});
+
+describe("updatingProvidersLabel", () => {
+  const label = (provider: string) => provider.toUpperCase();
+
+  it("keeps the English without a translator", () => {
+    expect(updatingProvidersLabel(["codex"], label)).toBe("Updating CODEX…");
+    expect(updatingProvidersLabel(["codex", "claude"], label)).toBe("Updating 2 providers…");
+  });
+
+  it("passes whole phrases to a translator", () => {
+    expect(
+      updatingProvidersLabel(["codex", "claude"], label, (source, params) =>
+        source === "Updating {count} providers…" ? `zh:${params?.count}` : source,
+      ),
+    ).toBe("zh:2");
   });
 });

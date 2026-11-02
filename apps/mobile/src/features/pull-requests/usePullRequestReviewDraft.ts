@@ -13,6 +13,7 @@ import {
   type ReviewDraft,
 } from "./pullRequestReviewDrafts";
 import type { PullRequestParams } from "./usePullRequestDiff";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const state = Atom.make<{
   drafts: Record<string, ReviewDraft>;
@@ -41,7 +42,9 @@ function load() {
     } catch {
       appAtomRegistry.set(state, {
         ...appAtomRegistry.get(state),
-        error: "Could not restore review drafts. Reopen this screen to retry.",
+        error: translatorFor(getUiLocale())(
+          "Could not restore review drafts. Reopen this screen to retry.",
+        ),
       });
       loading = null;
     }
@@ -67,7 +70,9 @@ async function persist() {
     } catch {
       appAtomRegistry.set(state, {
         ...appAtomRegistry.get(state),
-        error: "Drafts are kept in this session, but could not be saved on this device.",
+        error: translatorFor(getUiLocale())(
+          "Drafts are kept in this session, but could not be saved on this device.",
+        ),
       });
     }
   });

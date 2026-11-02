@@ -499,7 +499,7 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
               sidebarPane && "text-drawer-foreground-muted",
             )}
           >
-            Sends on reconnect
+            {t("Sends on reconnect")}
           </Text>
         )}
       </View>
@@ -747,7 +747,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   const showsWoke = status === "ready" && props.wokeAt !== null;
   const statusLabel =
     (status === "working" && workingLabel !== undefined && thread.goal?.status === "active"
-      ? { ...workingLabel, label: "Goal" }
+      ? { ...workingLabel, label: t("Goal") }
       : workingLabel) ?? (isUnread ? DONE_STATUS_LABEL : undefined);
   const recede = shouldRecedeThreadRow({ status, selected });
   const isRegeneratingTitle = thread.titleRegeneration != null;
@@ -833,24 +833,24 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         title: preset.label,
         subtitle: preset.whenLabel,
       })),
-      { id: "snooze:custom", title: "Custom…" },
+      { id: "snooze:custom", title: t("Custom…") },
     ],
-    [snoozePresets],
+    [snoozePresets, t],
   );
   const arrangementMenuItems = useMemo<MenuAction[]>(
     () => [
       ...(props.reorderSupported === true
         ? [
-            { id: "arrange", title: "Arrange threads…", image: "line.3.horizontal" },
+            { id: "arrange", title: t("Arrange threads…"), image: "line.3.horizontal" },
             {
               id: "move-up",
-              title: "Move up",
+              title: t("Move up"),
               image: "arrow.up",
               attributes: { disabled: props.canMoveUp !== true },
             } satisfies MenuAction,
             {
               id: "move-down",
-              title: "Move down",
+              title: t("Move down"),
               image: "arrow.down",
               attributes: { disabled: props.canMoveDown !== true },
             } satisfies MenuAction,
@@ -859,8 +859,8 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       ...(props.pinningSupported
         ? [
             thread.pinnedAt != null
-              ? { id: "unpin", title: "Unpin", image: "pin.slash" }
-              : { id: "pin", title: "Pin", image: "pin" },
+              ? { id: "unpin", title: t("Unpin"), image: "pin.slash" }
+              : { id: "pin", title: t("Pin"), image: "pin" },
           ]
         : []),
     ],
@@ -870,6 +870,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       props.reorderSupported,
       props.pinningSupported,
       thread.pinnedAt,
+      t,
     ],
   );
   const autoSettleMenuItems = useMemo<MenuAction[]>(
@@ -878,29 +879,29 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         ? [
             {
               id: "auto-settle",
-              title: "Auto-settle behavior",
+              title: t("Auto-settle behavior"),
               image: "timer",
               subactions: [
                 {
                   id: "auto-settle:enabled",
-                  title: "Enabled",
+                  title: t("Enabled"),
                   state: thread.autoSettleDisabledAt == null ? "on" : "off",
                 },
                 {
                   id: "auto-settle:disabled",
-                  title: "Disabled",
+                  title: t("Disabled"),
                   state: thread.autoSettleDisabledAt == null ? "off" : "on",
                 },
               ],
             } satisfies MenuAction,
           ]
         : [],
-    [props.autoSettleOptOutSupported, thread.autoSettleDisabledAt],
+    [props.autoSettleOptOutSupported, thread.autoSettleDisabledAt, t],
   );
   const canTurnIntoProject = canTurnThreadIntoProject(thread);
   const titleMenuItems = useMemo<MenuAction[]>(
     () => [
-      { id: "rename", title: "Rename", image: "square.and.pencil" },
+      { id: "rename", title: t("Rename"), image: "square.and.pencil" },
       ...buildThreadTitleRegenerationMenuItems({
         supported: props.titleRegenerationSupported,
         isRegenerating: isRegeneratingTitle,
@@ -909,21 +910,21 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         ? [
             {
               id: "turn-into-project",
-              title: "Turn into project",
+              title: t("Turn into project"),
               image: "folder.badge.plus",
               attributes: { disabled: !threadCanArchive(thread.runtime) },
             } satisfies MenuAction,
           ]
         : []),
     ],
-    [canTurnIntoProject, props.titleRegenerationSupported, thread.runtime, isRegeneratingTitle],
+    [canTurnIntoProject, props.titleRegenerationSupported, thread.runtime, isRegeneratingTitle, t],
   );
   const snoozableCardMenuActions = useMemo<MenuAction[]>(
     () => [
-      { id: "settle", title: "Settle", image: "checkmark" },
+      { id: "settle", title: t("Settle"), image: "checkmark" },
       {
         id: "snooze",
-        title: "Snooze",
+        title: t("Snooze"),
         image: "clock",
         subactions: snoozePresetActions,
       },
@@ -931,9 +932,9 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       ...titleMenuItems,
       ...autoSettleMenuItems,
       LEGACY_MENU_ACTIONS[0]!,
-      { id: "delete", title: "Delete", image: "trash", attributes: { destructive: true } },
+      { id: "delete", title: t("Delete"), image: "trash", attributes: { destructive: true } },
     ],
-    [arrangementMenuItems, autoSettleMenuItems, snoozePresetActions, titleMenuItems],
+    [arrangementMenuItems, autoSettleMenuItems, snoozePresetActions, titleMenuItems, t],
   );
   const cardMenuActions = useMemo<MenuAction[]>(
     () => [
@@ -1512,8 +1513,8 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
                       },
                     ]
                   : []),
-                { id: "copy-thread", title: "Copy thread", image: "text.bubble" },
-                { id: "copy-thread-id", title: "Copy thread ID", image: "doc.on.doc" },
+                { id: "copy-thread", title: t("Copy thread"), image: "text.bubble" },
+                { id: "copy-thread-id", title: t("Copy thread ID"), image: "doc.on.doc" },
                 ...(snoozedRow
                   ? snoozedMenuActions
                   : !props.settlementSupported

@@ -17,6 +17,7 @@ import {
   getProviderOptionDescriptors,
 } from "@t3tools/shared/model";
 import { resolveModelShortName } from "@t3tools/client-runtime/provider-clients";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type ModelOption = {
   readonly key: string;
@@ -172,12 +173,16 @@ export function describeUnavailableModelSelection(
   );
   return isDisabledForProject(config, provider, selection.instanceId, projectId)
     ? {
-        title: "Model turned off for this project",
-        detail: "Turn it back on from web or desktop, or choose another model.",
+        title: translatorFor(getUiLocale())("Model turned off for this project"),
+        detail: translatorFor(getUiLocale())(
+          "Turn it back on from web or desktop, or choose another model.",
+        ),
       }
     : {
-        title: "Antigravity model unavailable",
-        detail: "Set up Antigravity on web or desktop, or choose another model.",
+        title: translatorFor(getUiLocale())("Antigravity model unavailable"),
+        detail: translatorFor(getUiLocale())(
+          "Set up Antigravity on web or desktop, or choose another model.",
+        ),
       };
 }
 

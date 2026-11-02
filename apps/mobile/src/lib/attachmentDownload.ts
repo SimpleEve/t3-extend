@@ -4,6 +4,7 @@ import type { SharingOptions } from "expo-sharing";
 
 import { beginForegroundHandoff } from "./foreground-handoff";
 import { uuidv4 } from "./uuid";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const ATTACHMENT_DOWNLOAD_DIRECTORY = "t3-attachment-downloads";
 const DOWNLOAD_RETENTION_MS = 24 * 60 * 60_000;
@@ -163,8 +164,12 @@ async function createCachedAttachmentFile(attachment: AttachmentFileMetadata) {
 export function nativeViewerErrorMessage(cause: unknown): string {
   const text = cause instanceof Error ? cause.message : String(cause);
   return /ActivityNotFound|cannot be previewed/i.test(text)
-    ? "No app on this device can show this format. Save or share it to open it elsewhere."
-    : "The file could not be opened. Check the connection and try again.";
+    ? translatorFor(getUiLocale())(
+        "No app on this device can show this format. Save or share it to open it elsewhere.",
+      )
+    : translatorFor(getUiLocale())(
+        "The file could not be opened. Check the connection and try again.",
+      );
 }
 
 export async function openAttachmentInViewer(input: {

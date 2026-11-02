@@ -1,3 +1,5 @@
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+
 export interface ZipEntry {
   readonly path: string;
   readonly name: string;
@@ -133,7 +135,10 @@ export function zipDownloadTimeLeft(input: {
   const seconds = Math.ceil(
     ((input.totalBytes - input.receivedBytes) * input.elapsedMs) / input.receivedBytes / 1000,
   );
+  const t = translatorFor(getUiLocale()); // fork: i18n
   return seconds < 60
-    ? `About ${seconds} ${seconds === 1 ? "second" : "seconds"} left`
-    : `About ${Math.ceil(seconds / 60)} minutes left`;
+    ? seconds === 1
+      ? t("About {count} second left", { count: seconds })
+      : t("About {count} seconds left", { count: seconds })
+    : t("About {count} minutes left", { count: Math.ceil(seconds / 60) });
 }

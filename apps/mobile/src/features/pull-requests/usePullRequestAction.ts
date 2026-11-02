@@ -14,8 +14,10 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { canPerformPullRequestAction } from "./pullRequestActions";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 import { usePullRequestPermissions } from "./usePullRequestPermissions";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function usePullRequestAction(params: PullRequestParams, pr: PullRequestDetail | null) {
+  const t = useT(); // fork: i18n
   const target = pullRequestTarget(params);
   const permissions = usePullRequestPermissions(params, pr);
   const run = useAtomCommand(composerPullRequests.runAction, { reportFailure: false });
@@ -38,8 +40,10 @@ export function usePullRequestAction(params: PullRequestParams, pr: PullRequestD
     if (AsyncResult.isFailure(response)) {
       const cause = squashAtomCommandFailure(response);
       Dialog.alert(
-        `Couldn't update this ${sourceControlClients.get(pr?.provider).changeRequest.singular}`,
-        cause instanceof Error ? cause.message : "Try again.",
+        t("Couldn't update this {singular}", {
+          singular: sourceControlClients.get(pr?.provider).changeRequest.singular,
+        }),
+        cause instanceof Error ? cause.message : t("Try again."),
       );
       return;
     }
@@ -48,7 +52,7 @@ export function usePullRequestAction(params: PullRequestParams, pr: PullRequestD
   };
   const confirm = (action: PullRequestAction, title: string, message: string) =>
     Dialog.alert(title, message, [
-      { text: "Cancel", style: "cancel" },
+      { text: t("Cancel"), style: "cancel" },
       {
         text: title,
         style: action === "close" || action === "delete-branch" ? "destructive" : "default",

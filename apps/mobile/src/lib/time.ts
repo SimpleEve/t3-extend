@@ -1,4 +1,26 @@
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import {
+  getUiLocale,
+  translatorFor,
+  uiLocaleFormatTag,
+  type Translator,
+  type UiLocale,
+} from "@t3tools/client-runtime/i18n"; // fork: i18n
+
+// fork: i18n
+const messageTimeFormatters = new Map<UiLocale, Intl.DateTimeFormat>();
+
+/** A chat message's clock time, formatted for the interface language. */
+export function messageTimeLabel(timestamp: number, locale: UiLocale = getUiLocale()): string {
+  let formatter = messageTimeFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(uiLocaleFormatTag(locale), {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    messageTimeFormatters.set(locale, formatter);
+  }
+  return formatter.format(timestamp);
+}
 
 export function relativeTime(
   input: string,

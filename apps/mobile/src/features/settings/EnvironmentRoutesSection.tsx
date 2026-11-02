@@ -319,7 +319,7 @@ function RouteRow(props: {
           </View>
           {address !== null ? (
             <Text numberOfLines={1} className="text-sm text-foreground-muted">
-              {isLearned(route) ? `${address} · found automatically` : address}
+              {isLearned(route) ? t("{address} · found automatically", { address }) : address}
             </Text>
           ) : null}
         </View>

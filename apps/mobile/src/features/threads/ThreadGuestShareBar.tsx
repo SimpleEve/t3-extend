@@ -115,7 +115,7 @@ export function ThreadGuestShareBar(props: {
           ? t("Guest link expired")
           : share.guestName === null
             ? t("Guest link active")
-            : `${share.guestName} is a guest`}
+            : t("{guestName} is a guest", { guestName: share.guestName })}
       </Text>
       <Button label={t("Stop sharing")} tone="text" disabled={disabled} onPress={stopSharing} />
     </View>

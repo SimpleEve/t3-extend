@@ -79,7 +79,7 @@ export function ThreadPullRequestsSheet(
         ListHeaderComponent={
           lines.length > 0 ? (
             <Text className="px-4 pt-2 pb-1 text-xs text-foreground-muted">
-              {openCount} open · {lines.length} linked
+              {t("{openCount} open · {count} linked", { openCount, count: lines.length })}
             </Text>
           ) : null
         }

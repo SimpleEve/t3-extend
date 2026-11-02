@@ -11,9 +11,11 @@ const HEADER_SCROLL_EDGE_EFFECTS = nativeHeaderScrollEdgeEffects(Platform.OS, Pl
 
 export type { SheetProps } from "./Sheet.types";
 import type { SheetProps } from "./Sheet.types";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 /** Native presentation. Scrollable children use automatic insets beneath the iOS header. */
 export function Sheet(props: SheetProps) {
+  const t = useT(); // fork: i18n
   const containerStyle = useResolveClassNames("bg-sheet");
   const screenId = useId();
   const [isOpen, setIsOpen] = useState(true);
@@ -55,7 +57,7 @@ export function Sheet(props: SheetProps) {
                 {
                   type: "button",
                   icon: { name: "xmark", type: "sfSymbol" },
-                  accessibilityLabel: `Close ${props.title}`,
+                  accessibilityLabel: t("Close {title}", { title: props.title }),
                   identifier: `app-sheet-close-${screenId}`,
                   onPress: close,
                 },

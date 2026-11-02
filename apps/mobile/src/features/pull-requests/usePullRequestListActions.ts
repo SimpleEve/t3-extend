@@ -23,6 +23,7 @@ import { scopedPullRequestListKey, type EnvironmentPullRequestListEntry } from "
 import { copyPullRequestLink, sharePullRequestLink } from "./pullRequestLink";
 import { pullRequestTarget } from "./usePullRequestDiff";
 import { useSelectWorkspaceDetail } from "../workspace/useSelectWorkspaceDetail";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function usePullRequestListActions(
   environmentIds: readonly EnvironmentId[],
@@ -31,6 +32,7 @@ export function usePullRequestListActions(
     patch: Partial<EnvironmentPullRequestListEntry>,
   ) => void,
 ) {
+  const t = useT(); // fork: i18n
   const registry = use(RegistryContext);
   const navigation = useNavigation();
   const selectDetail = useSelectWorkspaceDetail();
@@ -108,8 +110,8 @@ export function usePullRequestListActions(
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
       Dialog.alert(
-        `Couldn't update this ${terminology.singular}`,
-        cause instanceof Error ? cause.message : "Try again.",
+        t("Couldn't update this {singular}", { singular: terminology.singular }),
+        cause instanceof Error ? cause.message : t("Try again."),
       );
     }
   };
@@ -143,7 +145,7 @@ export function usePullRequestListActions(
       sourceControlClients.get(entry.provider).changeRequest,
     );
     Dialog.alert(`${label}?`, `#${entry.number} · ${entry.title}`, [
-      { text: "Cancel", style: "cancel" },
+      { text: t("Cancel"), style: "cancel" },
       {
         text: label,
         style: supported === "close" ? "destructive" : "default",
@@ -156,19 +158,19 @@ export function usePullRequestListActions(
     return [
       {
         id: "open",
-        title: `Open ${terminology.singular}`,
+        title: t("Open {singular}", { singular: terminology.singular }),
         image: Platform.OS === "ios" ? "arrow.up.right" : "open_in_new",
       },
       ...(writableEnvironments.has(entry.environmentId) && entry.state === "open"
         ? [
             {
               id: "request-review",
-              title: "Request review",
+              title: t("Request review"),
               image: Platform.OS === "ios" ? "person.badge.plus" : "person_add",
             },
             {
               id: entry.isDraft ? "ready" : "draft",
-              title: entry.isDraft ? "Mark ready for review" : "Convert to draft",
+              title: entry.isDraft ? t("Mark ready for review") : t("Convert to draft"),
               image: Platform.OS === "ios" ? "pencil" : "edit",
             },
             {
@@ -189,10 +191,10 @@ export function usePullRequestListActions(
           : []),
       {
         id: "share",
-        title: "Share…",
+        title: t("Share…"),
         image: Platform.OS === "ios" ? "square.and.arrow.up" : "share",
       },
-      { id: "copy", title: "Copy link", image: Platform.OS === "ios" ? "link" : "link" },
+      { id: "copy", title: t("Copy link"), image: Platform.OS === "ios" ? "link" : "link" },
       {
         id: "provider",
         title: openOnProviderLabel(entry.provider),
