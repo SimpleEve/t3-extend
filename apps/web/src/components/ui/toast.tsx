@@ -21,13 +21,14 @@ import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import {
   buildVisibleToastLayout,
   hasVisibleToastAction,
+  localizeToastText, // fork: i18n
   shouldHideCollapsedToastContent,
   shouldRenderThreadScopedToast,
 } from "./toast.logic";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./tooltip";
 import { useThreadRouteTarget } from "~/hooks/useThreadRouteTarget";
 import { useT } from "~/hooks/useT"; // fork: interface language
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: interface language
+import { getUiLocale } from "@t3tools/client-runtime/i18n"; // fork: interface language
 
 export type ThreadToastData = {
   threadRef?: ScopedThreadRef | null;
@@ -73,21 +74,6 @@ type ToastManagerEvent = Parameters<ToastManagerListener>[0];
  * from before the first render (and while the root error view replaces the providers), so hold
  * those until a provider listens.
  */
-// fork: i18n. Client code raises toasts with fixed English error text (`new Error("Upload failed")`).
-// Look that text up when the toast is shown; text that is already translated, or not in the
-// catalog, passes through unchanged.
-function localizeToastOptions<Options extends Parameters<BaseToastManager["add"]>[0]>(
-  options: Options,
-): Options {
-  const locale = getUiLocale();
-  const localized = { ...options };
-  if (typeof options.title === "string") localized.title = translate(locale, options.title);
-  if (typeof options.description === "string") {
-    localized.description = translate(locale, options.description);
-  }
-  return localized;
-}
-
 function createBufferedToastManager(): BaseToastManager {
   const manager = Toast.createToastManager<ThreadToastData>();
   const listeners = new Set<ToastManagerListener>();
@@ -101,9 +87,15 @@ function createBufferedToastManager(): BaseToastManager {
   });
   return {
     ...manager,
-    add: (options) => manager.add(localizeToastOptions(options)), // fork: i18n
+    // fork: i18n
+    add: (options) => manager.add(localizeToastText(options, getUiLocale())),
     update: (id, options) =>
-      manager.update(id, typeof options === "function" ? options : localizeToastOptions(options)), // fork: i18n
+      manager.update(
+        id,
+        typeof options === "function"
+          ? (previous) => localizeToastText(options(previous), getUiLocale())
+          : localizeToastText(options, getUiLocale()),
+      ),
     " subscribe"(listener) {
       listeners.add(listener);
       for (const event of pending.splice(0)) listener(event);
