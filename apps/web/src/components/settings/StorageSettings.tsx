@@ -11,6 +11,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
+import { localizeCleanupReason } from "../../fork/storageCleanupReasons"; // fork: report reasons are English from the server
 import { formatBytes } from "../../lib/formatBytes";
 import { environmentAtomList, environmentIdsKey } from "../../state/environmentAtomList";
 import { serverEnvironment } from "../../state/server";
@@ -211,10 +212,10 @@ function CleanupResults({
           entry.kind === "worktree"
             ? ((entry.threadId === null
                 ? entry.path
-                : entry.path?.split(/[\\/]/).findLast(Boolean)) ?? "Worktrees")
+                : entry.path?.split(/[\\/]/).findLast(Boolean)) ?? t("Worktrees"))
             : entry.kind === "logs"
-              ? "Rotated logs"
-              : "Browser artifacts";
+              ? t("Rotated logs")
+              : t("Browser artifacts");
         return (
           <SettingsRow
             key={`${entry.path ?? entry.kind}:${entry.threadId ?? index}`}
@@ -222,7 +223,7 @@ function CleanupResults({
             description={
               <span className="block space-y-2 wrap-anywhere select-text">
                 <span className={`block ${entry.outcome === "failed" ? "text-destructive" : ""}`}>
-                  {entry.reason}
+                  {localizeCleanupReason(entry.reason, t)}
                 </span>
                 <span className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-l border-border/60 pl-3">
                   <span>{t("Machine")}</span>
@@ -383,7 +384,7 @@ function CleanupSection() {
               toastManager.add({
                 type: "error",
                 title: t("Cleanup failed on {label}", { label: environment.label }),
-                description: failures[0]!.reason,
+                description: localizeCleanupReason(failures[0]!.reason, t),
               });
           } else if (!isAtomCommandInterrupted(result)) {
             toastManager.add({
