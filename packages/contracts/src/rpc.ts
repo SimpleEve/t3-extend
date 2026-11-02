@@ -352,6 +352,12 @@ import {
 } from "./providerUsageLimits.ts";
 import { UsagePricing, UsageReadError, UsageSummary, UsageSummaryInput } from "./usage.ts";
 import {
+  T3CodeImportError,
+  T3CodeImportInput,
+  T3CodeImportPreview,
+  T3CodeImportResult,
+} from "./t3CodeImport.ts"; // fork: import from official T3 Code
+import {
   StorageCleanupReport,
   DatabaseStorageStatus,
   ServerSettings,
@@ -507,6 +513,8 @@ export const WS_METHODS = {
   serverRunStorageCleanup: "server.runStorageCleanup",
   serverGetStorageCleanupReport: "server.getStorageCleanupReport",
   serverGetDatabaseStorage: "server.getDatabaseStorage",
+  serverPreviewT3CodeImport: "server.previewT3CodeImport", // fork: import from official T3 Code
+  serverRunT3CodeImport: "server.runT3CodeImport", // fork: import from official T3 Code
   peerLinksList: "peerLinks.list",
   peerLinksLink: "peerLinks.link",
   peerLinksUnlink: "peerLinks.unlink",
@@ -793,6 +801,18 @@ const WsServerGetDatabaseStorageRpc = Rpc.make(WS_METHODS.serverGetDatabaseStora
   success: Schema.NullOr(DatabaseStorageStatus),
   stream: true,
   error: EnvironmentAuthorizationError,
+});
+
+// fork: import from official T3 Code
+const WsServerPreviewT3CodeImportRpc = Rpc.make(WS_METHODS.serverPreviewT3CodeImport, {
+  payload: Schema.Struct({}),
+  success: T3CodeImportPreview,
+  error: Schema.Union([T3CodeImportError, EnvironmentAuthorizationError]),
+});
+const WsServerRunT3CodeImportRpc = Rpc.make(WS_METHODS.serverRunT3CodeImport, {
+  payload: T3CodeImportInput,
+  success: T3CodeImportResult,
+  error: Schema.Union([T3CodeImportError, EnvironmentAuthorizationError]),
 });
 
 const WsPeerLinksListRpc = Rpc.make(WS_METHODS.peerLinksList, {
@@ -1998,6 +2018,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerRunStorageCleanupRpc,
   WsServerGetStorageCleanupReportRpc,
   WsServerGetDatabaseStorageRpc,
+  WsServerPreviewT3CodeImportRpc, // fork: import from official T3 Code
+  WsServerRunT3CodeImportRpc, // fork: import from official T3 Code
   WsServerUpdateSettingsRpc,
   WsPeerLinksListRpc,
   WsPeerLinksLinkRpc,

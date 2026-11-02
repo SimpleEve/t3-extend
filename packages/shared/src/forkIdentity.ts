@@ -23,11 +23,17 @@ export const FORK = {
 export const OFFICIAL_CLI_RELEASE_DOWNLOAD_URL =
   "https://github.com/pingdotgg/t3code/releases/download";
 
-/** Official T3 Code's T3 home, read only as a fallback source for dev database seeding. */
+/** Official T3 Code's T3 home, read only: a fallback source for dev database seeding and the source of the data import. */
 const OFFICIAL_HOME_DIR_NAME = ".t3";
 
 /** App links from this fork and from official T3 Code, so either app's pairing QR code works. */
 export const APP_LINK_PROTOCOL = /^(?:t3extend|t3code)(?:-[a-z]+)?:$/;
+
+/** Official T3 Code's T3 home on this machine. Callers only ever read it. */
+export const officialHomeDirectory = (
+  homeDirectory: string,
+  join: (...segments: string[]) => string,
+): string => join(homeDirectory, OFFICIAL_HOME_DIR_NAME);
 
 /** Fork home first, then official, newest-identity first. Callers only ever read these. */
 export const devSeedHomeCandidates = (
@@ -35,5 +41,5 @@ export const devSeedHomeCandidates = (
   join: (...segments: string[]) => string,
 ): ReadonlyArray<string> => [
   join(homeDirectory, FORK.homeDirName),
-  join(homeDirectory, OFFICIAL_HOME_DIR_NAME),
+  officialHomeDirectory(homeDirectory, join),
 ];

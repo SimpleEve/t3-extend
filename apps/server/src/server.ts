@@ -2,6 +2,7 @@ import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEve
 import type { RelayManagedEndpointRuntimeConfig } from "@t3tools/contracts/relay";
 import * as Random from "effect/Random";
 import * as DatabaseStorage from "./persistence/DatabaseStorage.ts";
+import * as T3CodeImport from "./fork/T3CodeImport.ts"; // fork: import from official T3 Code
 import * as StorageCleanup from "./storageCleanup.ts";
 import * as PullRequestSyncReactor from "./orchestration-v2/PullRequestSyncReactor.ts";
 import * as PullRequestWatchReactor from "./orchestration-v2/PullRequestWatchReactor.ts";
@@ -595,6 +596,7 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
       Layer.merge(EventStoreV2.layerFromOrchestrationEventStore, ProjectionStoreV2.layer),
     ),
   ),
+  T3CodeImport.layer, // fork: import from official T3 Code
   layerThreadPullRequestWorker,
   DelegatedTaskAnalytics.layer,
   Layer.effectDiscard(
