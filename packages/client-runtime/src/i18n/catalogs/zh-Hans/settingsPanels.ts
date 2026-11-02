@@ -2708,5 +2708,6 @@ export default {
     "此应用找到的是 {found}，比 {version} 旧。请过几分钟再试。",
   "This app found no build of {version} to install.": "此应用没有找到可安装的 {version}。",
   "e.g. dsh": "例如 dsh",
+  "e.g. --chrome": "例如 --chrome",
   "t3x command": "t3x 命令",
 } satisfies Record<string, string>;

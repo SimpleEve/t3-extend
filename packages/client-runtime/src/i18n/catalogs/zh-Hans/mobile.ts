@@ -9,6 +9,7 @@ export default {
   Pulls: "PR",
   PRs: "PR",
   "Pull Requests": "PR",
+  "{width} points wide": "宽 {width} 点",
   "Expand navigation rail": "展开导航栏",
   "Collapse navigation rail": "收起导航栏",
   "Close navigation rail": "关闭导航栏",

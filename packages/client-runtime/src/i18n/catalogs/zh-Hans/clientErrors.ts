@@ -20,7 +20,6 @@ export default {
   "SSH port must be between 1 and 65535.": "SSH 端口必须在 1 到 65535 之间。",
   "Enter a backend host.": "输入后端主机。",
   "Browser profile data is not available to clear.": "没有可清除的浏览器资料数据。",
-  "Environment disconnected": "环境已断开连接",
   "This connection cannot change device settings.": "此连接无法更改设备设置。",
   "The pull request is not available in this environment.": "此环境中没有该 PR。",
   "This environment does not support linking this pull request.": "此环境不支持关联该 PR。",
@@ -34,7 +33,6 @@ export default {
     "请等到可以读取当前的 T3 Connect 设置。",
   "Sign in to T3 Connect before enabling this.": "启用前请先登录 T3 Connect。",
   // Media
-  "This connection cannot read host files.": "此连接无法读取主机文件。",
   "This media is unavailable. Try reopening the preview.": "此媒体不可用。请尝试重新打开预览。",
   "Reconnect to this environment and try again.": "请重新连接此环境后再试。",
   "The environment returned an invalid media URL.": "环境返回了无效的媒体 URL。",
