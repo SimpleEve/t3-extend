@@ -1769,17 +1769,17 @@ describe("project view list items", () => {
     searchQuery: "",
     now: NOW,
   });
-  const listItems = (collapsedKeys: string[], openThreadKey: string | null) =>
+  const listItems = (collapsedKeys: string[], openThreadKey: string | null, source = layout) =>
     buildThreadListV2ListItems({
-      items: layout.items,
+      items: source.items,
       pendingTasks: [],
-      snoozedCount: layout.snoozedCount,
-      snoozedShelfHeaderIndex: layout.snoozedShelfHeaderIndex,
-      settledCount: layout.settledCount,
-      settledShelfHeaderIndex: layout.settledShelfHeaderIndex,
+      snoozedCount: source.snoozedCount,
+      snoozedShelfHeaderIndex: source.snoozedShelfHeaderIndex,
+      settledCount: source.settledCount,
+      settledShelfHeaderIndex: source.settledShelfHeaderIndex,
       projectView: buildThreadListProjectRows({
-        items: layout.items,
-        firstShelfIndex: layout.snoozedShelfHeaderIndex ?? layout.settledShelfHeaderIndex,
+        items: source.items,
+        firstShelfIndex: source.snoozedShelfHeaderIndex ?? source.settledShelfHeaderIndex,
         groups,
         collapsedKeys: new Set(collapsedKeys),
         openThreadKey,
@@ -1789,7 +1789,7 @@ describe("project view list items", () => {
       item.type === "v2-thread"
         ? item.item.thread.id
         : item.type === "v2-group-header"
-          ? `${item.level}:${item.title}:${item.count}${item.collapsed ? ":folded" : ""}`
+          ? `${item.level}:${item.title}:${item.count}${item.collapsed ? ":folded" : ""}${item.dot ? `:${item.dot}` : ""}`
           : item.type,
     );
 
@@ -1817,6 +1817,35 @@ describe("project view list items", () => {
       "project:Alpha:2:folded",
       "a-wt",
       "project:Beta:1",
+    ]);
+  });
+
+  it("marks a header with the most urgent state among the threads it hides", () => {
+    const waiting = buildThreadListV2Items({
+      threads: [
+        thread("a-main", projectA),
+        thread("a-wt", projectA, {
+          worktreePath: "/w/feat",
+          branch: "feat",
+          hasPendingUserInput: true,
+        }),
+      ],
+      environmentId: null,
+      searchQuery: "",
+      now: NOW,
+    });
+    // A worktree speaks for all of its threads; an open project stays quiet.
+    expect(listItems([], null, waiting)).toEqual([
+      "project:Alpha:2",
+      "worktree:Main checkout:1",
+      "a-main",
+      "worktree:feat:1:attention",
+      "a-wt",
+    ]);
+    // A folded project speaks for the rows it hides.
+    expect(listItems(["project:project:a"], `${environmentId}:a-main`, waiting)).toEqual([
+      "project:Alpha:2:folded:attention",
+      "a-main",
     ]);
   });
 });

@@ -158,7 +158,9 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - 布局：`fork/threadListProjectView.ts` 只重排按状态布局里"置顶之后、第一个货架之前"的活跃行，先按发送时间排序，再复用 `buildProjectViewFolders`。不在项目列表里的项目的对话进末尾的"Other projects"组，不会消失。表头是列表项 `v2-group-header`（`threadListV2.ts`），组件是 `fork/ThreadListGroupHeader.tsx`。
 - 按项目视图下没有 Working 货架，也不能手动上下移动；搜索时仍按相关度平铺，清空搜索后恢复分组。
 - 入口：筛选菜单里的"对话分组"（Android `HomeHeader.android.tsx` 和平板侧栏 `ThreadNavigationSidebar.tsx`，菜单项在 `fork/threadListViewMenu.ts`；iOS 原生头部走 `buildHomeListFilterMenu`，iOS Home 的筛选条多一个胶囊）。
-- 没做：组头上的状态点（web 有 `resolveSidebarFolderDot`，还在 `Sidebar.logic.ts` 里）。iOS 没有实机或模拟器验证。
+- 状态点：`resolveSidebarFolderDot`、`resolveSidebarThreadStatus`、`hasUnseenCompletion` 现在在 `threadGrouping.ts`，web 的 `Sidebar.logic.ts` re-export，测试只在共享层。规则同 web：折叠的项目头说明它藏起来的对话，worktree 头永远说明自己的全部对话；`ThreadListV2GroupHeaderListItem.dot` 带它。
+- 启动：偏好没读出来之前（`useThreadListViewPreferences().loaded` 为 false）Home 和平板侧栏什么都不画，不会先闪一下按状态视图。冷启动时启动画面本来就等偏好（`SplashScreenCoordinator` 等语言就绪，而语言要在偏好读出后才应用），所以默认视图的用户看不到额外延迟。
+- iOS 没有实机或模拟器验证。
 
 ## 自建连接
 

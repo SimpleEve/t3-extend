@@ -238,6 +238,8 @@ export type ProjectViewRow<G, T> =
       readonly group: G;
       readonly collapsed: boolean;
       readonly count: number;
+      /** Threads a folded project does not draw, for its dot. */
+      readonly hiddenThreads: readonly T[];
     }
   | {
       readonly kind: "worktree";
@@ -264,6 +266,7 @@ export function flattenProjectViewFolders<G, T>(
       group: folder.group,
       collapsed: folder.collapsed,
       count: projectViewFolderThreadCount(folder),
+      hiddenThreads: folder.hiddenThreads,
     });
     if (folder.worktrees === null) {
       for (const thread of folder.threads) rows.push({ kind: "thread", thread });
@@ -282,4 +285,96 @@ export function flattenProjectViewFolders<G, T>(
     }
   }
   return rows;
+}
+
+export type SidebarThreadStatus =
+  | "approval"
+  | "input"
+  | "request"
+  | "working"
+  | "waiting"
+  | "failed"
+  | "limited"
+  | "ready";
+
+type SidebarThreadStatusInput = Pick<
+  EnvironmentThreadShell,
+  | "hasPendingApprovals"
+  | "hasPendingUserInput"
+  | "pendingSubagentRequest"
+  | "pendingGuestMessageCount"
+  | "runtime"
+  | "blockedOnThreadWait"
+>;
+
+export function resolveSidebarThreadStatus(thread: SidebarThreadStatusInput): SidebarThreadStatus {
+  if (thread.hasPendingApprovals || thread.pendingSubagentRequest === "approval") {
+    return "approval";
+  }
+  if (thread.hasPendingUserInput || thread.pendingSubagentRequest === "user_input") {
+    return "input";
+  }
+  // A guest is waiting on the owner; the agent's own requests come first.
+  if ((thread.pendingGuestMessageCount ?? 0) > 0) {
+    return "request";
+  }
+  if (thread.runtime?.status === "running" && thread.blockedOnThreadWait === true) {
+    return "waiting";
+  }
+  if (
+    thread.runtime !== null &&
+    ["preparing", "queued", "starting", "running", "waiting"].includes(thread.runtime.status)
+  ) {
+    return "working";
+  }
+  if (thread.runtime?.status === "idle") {
+    return "waiting";
+  }
+  if (thread.runtime?.status === "failed") {
+    return thread.runtime.lastErrorClass === "usage_limit" ? "limited" : "failed";
+  }
+  return "ready";
+}
+
+type UnseenCompletionInput = Pick<EnvironmentThreadShell, "latestRun"> & {
+  readonly lastVisitedAt?: string | null | undefined;
+};
+
+export function hasUnseenCompletion(thread: UnseenCompletionInput): boolean {
+  if (!thread.latestRun?.completedAt) return false;
+  const completedAt = Date.parse(thread.latestRun.completedAt);
+  if (Number.isNaN(completedAt)) return false;
+  if (!thread.lastVisitedAt) return false;
+
+  const lastVisitedAt = Date.parse(thread.lastVisitedAt);
+  if (Number.isNaN(lastVisitedAt)) return true;
+  return completedAt > lastVisitedAt;
+}
+
+export type SidebarFolderDot = "attention" | "failed" | "unread" | "working";
+
+/**
+ * The dot on a closed folder or worktree header: the most urgent state among its
+ * threads. Waiting threads stay quiet, like their rows.
+ */
+export function resolveSidebarFolderDot(
+  threads: ReadonlyArray<UnseenCompletionInput & SidebarThreadStatusInput>,
+): SidebarFolderDot | null {
+  const statuses = new Set(threads.map(resolveSidebarThreadStatus));
+  if (
+    statuses.has("input") ||
+    statuses.has("approval") ||
+    statuses.has("request") ||
+    statuses.has("limited")
+  ) {
+    return "attention";
+  }
+  if (statuses.has("failed")) return "failed";
+  // Rows show Done only for ready threads, so the dot follows the same rule.
+  const hasUnread = threads.some(
+    (thread) => resolveSidebarThreadStatus(thread) === "ready" && hasUnseenCompletion(thread),
+  );
+  if (hasUnread) return "unread";
+  if (statuses.has("working")) return "working";
+  return null;
 }

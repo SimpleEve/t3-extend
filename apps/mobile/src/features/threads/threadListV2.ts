@@ -44,6 +44,10 @@ import {
 } from "./threadOrder";
 import type { Translator, UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import type { ThreadListProjectRow } from "../../fork/threadListProjectView"; // fork: thread list views
+import {
+  resolveSidebarFolderDot,
+  type SidebarFolderDot,
+} from "@t3tools/client-runtime/state/thread-grouping"; // fork: thread list views
 
 export const threadListInboxReturns = createInboxReturnTracker();
 
@@ -414,6 +418,8 @@ export interface ThreadListV2GroupHeaderListItem {
   /** Every thread the group stands for, folded or not. */
   readonly count: number;
   readonly collapsed: boolean;
+  /** The most urgent state among the threads the header hides; null when it hides none. */
+  readonly dot: SidebarFolderDot | null;
 }
 
 export type ThreadListV2ListItem =
@@ -468,7 +474,8 @@ export function threadListV2ListItemsAreEqual(
         previous.title === item.title &&
         previous.badge === item.badge &&
         previous.count === item.count &&
-        previous.collapsed === item.collapsed
+        previous.collapsed === item.collapsed &&
+        previous.dot === item.dot
       );
     case "v2-pending":
       return (
@@ -687,6 +694,12 @@ function projectViewListItems(
         badge: worktree?.kind === "main" ? t("Main", "worktree badge") : null,
         count: row.count,
         collapsed: row.collapsed,
+        // Like the web headers: a folded project says what its hidden rows need; a worktree
+        // always speaks for all of its threads.
+        dot:
+          row.kind === "worktree"
+            ? resolveSidebarFolderDot(row.worktree.threads)
+            : resolveSidebarFolderDot(row.hiddenThreads),
       },
     ];
   });

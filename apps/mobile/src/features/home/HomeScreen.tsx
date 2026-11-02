@@ -438,7 +438,12 @@ export function HomeScreen(props: HomeScreenProps) {
     toggleSnoozedShelf,
     toggleWorkingShelf,
   } = useThreadListV2ShelfPreferences();
-  const { viewMode, collapsedKeys, toggleGroup } = useThreadListViewPreferences(); // fork: thread list views
+  const {
+    loaded: viewPreferencesLoaded,
+    viewMode,
+    collapsedKeys,
+    toggleGroup,
+  } = useThreadListViewPreferences(); // fork: thread list views
   const now = useThreadListNow(props.threads);
   const listEnvironments = useAtomValue(threadListEnvironmentsAtom);
   const {
@@ -690,6 +695,10 @@ export function HomeScreen(props: HomeScreenProps) {
     },
     t,
   );
+
+  // fork: thread list views. The chosen view is unknown until preferences load, so draw nothing
+  // rather than the status view; the splash screen waits for the same preferences.
+  if (!viewPreferencesLoaded) return <View className={containerClassName} />;
 
   if (!hasAnyThreads) {
     return (

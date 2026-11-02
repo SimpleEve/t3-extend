@@ -166,7 +166,8 @@ worktrees that have threads; a worktree with no threads does not appear.
 On mobile, open the filter menu on the thread list and pick **Group threads → By project**. The
 groups, their order, and what stays in the Pinned, Snoozed, and Settled sections match the
 description above. Tap a project or checkout header to fold it; the open thread stays visible, and
-the header shows the thread count. The view and the folds are kept on the phone. The filters work in
+the header shows the thread count, and a dot when a folded project or a checkout holds a
+thread that needs you, failed, or finished. The view and the folds are kept on the phone. The filters work in
 both views. While you search, results are listed by rank without groups, and the groups return when
 you clear the search. Threads of a project the app does not list go in **Other projects**.
 

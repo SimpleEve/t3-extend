@@ -292,7 +292,13 @@ function ThreadNavigationSidebarPane(
     toggleSnoozedShelf,
     toggleWorkingShelf,
   } = useThreadListV2ShelfPreferences();
-  const { viewMode, collapsedKeys, toggleGroup, setViewMode } = useThreadListViewPreferences(); // fork: thread list views
+  const {
+    loaded: viewPreferencesLoaded,
+    viewMode,
+    collapsedKeys,
+    toggleGroup,
+    setViewMode,
+  } = useThreadListViewPreferences(); // fork: thread list views
   const now = useThreadListNow(threads);
   const listEnvironments = useAtomValue(threadListEnvironmentsAtom);
   const {
@@ -342,21 +348,24 @@ function ThreadNavigationSidebarPane(
     selectedThreadKey: props.selectedThreadKey ?? null,
   });
   const listItems: readonly SidebarListItem[] =
-    settledShelfExpanded && threadListV2Layout.hiddenSettledCount > 0
-      ? [
-          ...threadListV2Items,
-          {
-            type: "v2-show-more",
-            key: "v2-show-more",
-            hiddenCount: threadListV2Layout.hiddenSettledCount,
-            ...(olderSettledShelf.loading
-              ? { state: "loading" as const }
-              : olderSettledShelf.failed
-                ? { state: "failed" as const }
-                : {}),
-          },
-        ]
-      : threadListV2Items;
+    // fork: thread list views. Draw nothing until the chosen view is known.
+    !viewPreferencesLoaded
+      ? []
+      : settledShelfExpanded && threadListV2Layout.hiddenSettledCount > 0
+        ? [
+            ...threadListV2Items,
+            {
+              type: "v2-show-more",
+              key: "v2-show-more",
+              hiddenCount: threadListV2Layout.hiddenSettledCount,
+              ...(olderSettledShelf.loading
+                ? { state: "loading" as const }
+                : olderSettledShelf.failed
+                  ? { state: "failed" as const }
+                  : {}),
+            },
+          ]
+        : threadListV2Items;
   const listMenuActions = [
     threadListViewMenuAction(viewMode, t), // fork: thread list views
     {
@@ -715,7 +724,7 @@ function ThreadNavigationSidebarPane(
     onOpenSettings: props.onOpenSettings,
     t, // fork: i18n
   });
-  const listEmpty = (
+  const listEmpty = !viewPreferencesLoaded ? null : (
     <Text
       className={
         Platform.OS === "android"

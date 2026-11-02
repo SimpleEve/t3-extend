@@ -8,6 +8,20 @@ import { cn } from "../lib/cn";
 import { useT } from "../hooks/useT";
 import type { ThreadListV2GroupHeaderListItem } from "../features/threads/threadListV2";
 
+const DOT_LABEL = {
+  attention: ", needs you",
+  failed: ", failed",
+  unread: ", done",
+  working: ", working",
+} as const;
+
+const DOT_CLASS_NAME = {
+  attention: "bg-warning",
+  failed: "bg-danger",
+  unread: "bg-adaptive-emerald-600-400",
+  working: "bg-adaptive-sky-600-400",
+} as const;
+
 export const ThreadListV2GroupHeader = memo(function ThreadListV2GroupHeader(props: {
   readonly item: ThreadListV2GroupHeaderListItem;
   readonly pane?: "screen" | "sidebar";
@@ -21,10 +35,13 @@ export const ThreadListV2GroupHeader = memo(function ThreadListV2GroupHeader(pro
     item.count === 1
       ? t("{name}, 1 thread", { name: item.title })
       : t("{name}, {count} threads", { name: item.title, count: item.count });
+  const spokenLabel = item.dot
+    ? `${accessibilityLabel}${t(DOT_LABEL[item.dot])}`
+    : accessibilityLabel;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={spokenLabel}
       accessibilityHint={item.collapsed ? t("Expands this group.") : t("Collapses this group.")}
       accessibilityState={{ expanded: !item.collapsed }}
       onPress={() => props.onToggle(item.collapseKey)}
@@ -78,6 +95,7 @@ export const ThreadListV2GroupHeader = memo(function ThreadListV2GroupHeader(pro
         </View>
       ) : null}
       <View className="flex-1" />
+      {item.dot ? <View className={cn("size-1.5 rounded-full", DOT_CLASS_NAME[item.dot])} /> : null}
       <Text
         className={cn(
           "text-xs tabular-nums",
