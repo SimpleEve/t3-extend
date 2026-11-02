@@ -6,8 +6,11 @@ import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
 import { ChildProcessSpawner } from "effect/process";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 
 import {
+  buildTailscaleHttpsBaseUrl,
+  disableTailscaleServe,
   ensureTailscaleServe,
   parseTailscaleExitNode,
   parseTailscaleServeRoutesTo,
@@ -254,6 +257,32 @@ describe("tailscale", () => {
       const error = yield* parseTailscaleSshEnabled("{not-json").pipe(Effect.flip);
       assert.instanceOf(error, TailscaleStatusParseError);
     });
+  });
+
+  it.effect("publishes and removes only the fork's own HTTPS port by default", () => {
+    const calls: Array<ReadonlyArray<string>> = [];
+    const layer = layerMockSpawner((_command, args) => {
+      calls.push(args);
+      return {};
+    });
+
+    return Effect.gen(function* () {
+      assert.notEqual(FORK.tailscaleServePort, 443);
+      yield* ensureTailscaleServe({ localPort: 13873 });
+      yield* disableTailscaleServe();
+      assert.deepEqual(calls, [
+        ["serve", "--bg", `--https=${FORK.tailscaleServePort}`, "http://127.0.0.1:13873"],
+        ["serve", `--https=${FORK.tailscaleServePort}`, "--set-path=/", "off"],
+      ]);
+      assert.equal(
+        buildTailscaleHttpsBaseUrl({ magicDnsName: "box.tail.ts.net" }),
+        `https://box.tail.ts.net:${FORK.tailscaleServePort}/`,
+      );
+      assert.equal(
+        buildTailscaleHttpsBaseUrl({ magicDnsName: "box.tail.ts.net", servePort: 443 }),
+        "https://box.tail.ts.net/",
+      );
+    }).pipe(Effect.provide(layer));
   });
 
   it.effect("turns spawn defects into typed spawn failures", () => {

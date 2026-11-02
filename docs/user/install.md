@@ -110,6 +110,36 @@ terminal, open **Settings → About** and choose **Install** next to
 terminal afterwards. **Remove** takes it off again. If you already have `t3`
 from npm, it stays as it is.
 
+### Running next to official T3 Code
+
+T3 Extend and official T3 Code can run on the same computer. They keep their own
+data, settings, `t3x` command (use it wherever this guide says `t3`), background
+service, link scheme and ports:
+
+|                                  | T3 Code       | T3 Extend  |
+| -------------------------------- | ------------- | ---------- |
+| Server port                      | 3773          | 3873       |
+| Tailscale HTTPS port             | 443           | 8443       |
+| Branches for new worktrees       | `t3/…`        | `t3x/…`    |
+| Pull request branches from forks | `t3code/pr-…` | `t3x/pr-…` |
+
+Some things are shared because they live outside either app:
+
+- Your repositories, and the provider tools with their settings and session files in
+  `~/.claude` and `~/.codex`. Both apps can work in the same repository; avoid
+  giving threads in both the same worktree or branch.
+- Your Tailscale machine name. Each app uses its own HTTPS port on it.
+- macOS permissions such as screen recording, accessibility, camera and
+  microphone. macOS asks again for T3 Extend.
+- Global shortcuts. Turn Snap Shot on in one app at a time, or give them different
+  shortcuts.
+
+If you turned on Tailscale HTTPS in an earlier T3 Extend build, it used port 443,
+which official T3 Code also uses. That route stays until you remove it. Run
+`tailscale serve status` and, if 443 still points at T3 Extend, `tailscale serve
+--https=443 --set-path=/ off`. Then turn Tailscale HTTPS on again in **Settings →
+Sharing & access**.
+
 ### Windows Subsystem for Linux
 
 Choose a WSL distro in **Settings → Sharing & access** to run agents and projects

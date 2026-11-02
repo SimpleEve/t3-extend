@@ -1,4 +1,4 @@
-import { SourceControlProviderKind } from "@t3tools/contracts";
+import { DEFAULT_SERVER_SETTINGS, SourceControlProviderKind } from "@t3tools/contracts";
 import type { VcsStatusRemoteResult, VcsStatusResult } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -12,6 +12,7 @@ import {
   parseOriginUrlFromGitConfig,
   resolveAutoFeatureBranchName,
   sanitizeFeatureBranchName,
+  PULL_REQUEST_BRANCH_PREFIX,
   WORKTREE_BRANCH_PREFIX,
 } from "./git.ts";
 
@@ -149,6 +150,17 @@ describe("isTemporaryWorktreeBranch", () => {
   it("normalizes a UUID-shaped random callback to the canonical 8-hex form", () => {
     expect(buildTemporaryWorktreeBranchName(() => "f4ae4e0e-f971-4d48-b4f2-9cf0aa54ab12")).toBe(
       `${WORKTREE_BRANCH_PREFIX}/f4ae4e0e`,
+    );
+  });
+
+  it("names its own branches apart from official T3 Code's but still recognizes the official ones", () => {
+    expect(WORKTREE_BRANCH_PREFIX).not.toBe("t3");
+    expect(DEFAULT_SERVER_SETTINGS.branchNamePrefix).toBe(WORKTREE_BRANCH_PREFIX);
+    expect(PULL_REQUEST_BRANCH_PREFIX.startsWith("t3code")).toBe(false);
+    expect(isTemporaryWorktreeBranch("t3/deadbeef")).toBe(true);
+    expect(isTemporaryWorktreeBranch("t3-deadbeef")).toBe(true);
+    expect(flattenTemporaryWorktreeBranchName("t3/deadbeef")).toBe(
+      `${WORKTREE_BRANCH_PREFIX}-deadbeef`,
     );
   });
 

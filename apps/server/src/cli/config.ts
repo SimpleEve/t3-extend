@@ -27,6 +27,7 @@ import { resolveServiceLauncherMode } from "../cloud/serviceLauncherClient.ts";
 import * as ServerConfig from "../config.ts";
 import { expandHomePath, resolveBaseDir } from "../os-jank.ts";
 import { isProcessAlive, readPersistedServerRuntimeState } from "../serverRuntimeState.ts";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { publicUrlFlags } from "./publicUrlFlags.ts"; // fork: self-hosted public route
 
 const modeFlag = Flag.Literals("mode", ServerConfig.RuntimeMode.literals).pipe(
@@ -414,7 +415,7 @@ export const resolveServerConfig = Effect.fn("config.resolveServerConfig")(funct
       Option.fromUndefinedOr(env.tailscaleServePort),
       Option.fromUndefinedOr(bootstrap?.tailscaleServePort),
     ),
-    () => 443,
+    () => FORK.tailscaleServePort, // fork: own Tailscale Serve port
   );
   const staticDir = devUrl ? undefined : yield* ServerConfig.resolveStaticDir();
   const explicitHost = resolveOptionPrecedence(

@@ -8,13 +8,18 @@ import type {
 } from "@t3tools/contracts";
 import * as Arr from "effect/Array";
 import * as Result from "effect/Result";
+import { FORK } from "./forkIdentity.ts"; // fork: identity
 
-export const WORKTREE_BRANCH_PREFIX = "t3";
+export const WORKTREE_BRANCH_PREFIX = FORK.gitNamespace; // fork: not official `t3`
+/** Official T3 Code names its temporary branches `t3/<hex>`; the fork still recognizes them. */
+const OFFICIAL_WORKTREE_BRANCH_PREFIX = "t3";
+/** Local branch for a cross-repository pull request head, apart from official T3 Code's. */
+export const PULL_REQUEST_BRANCH_PREFIX = `${FORK.gitNamespace}/pr`; // fork: not official `t3code/pr`
 const TEMP_WORKTREE_HEX_TOKEN = "[0-9a-f]{8}";
 const TEMP_WORKTREE_UUID_V4_TOKEN =
   "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const TEMP_WORKTREE_BRANCH_PATTERN = new RegExp(
-  `^(?:${WORKTREE_BRANCH_PREFIX}[-/]${TEMP_WORKTREE_HEX_TOKEN}|t3code(?:[-/]${TEMP_WORKTREE_HEX_TOKEN}|\\/${TEMP_WORKTREE_UUID_V4_TOKEN}))$`,
+  `^(?:(?:${OFFICIAL_WORKTREE_BRANCH_PREFIX}|${WORKTREE_BRANCH_PREFIX})[-/]${TEMP_WORKTREE_HEX_TOKEN}|t3code(?:[-/]${TEMP_WORKTREE_HEX_TOKEN}|\\/${TEMP_WORKTREE_UUID_V4_TOKEN}))$`,
 );
 
 export function sanitizeBranchFragment(raw: string): string {

@@ -23,6 +23,7 @@ import {
   type LinuxPasswordStorePreference,
 } from "../linuxSecretStorage.ts";
 import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { isValidDistroName } from "../wsl/wslPathParsing.ts";
 
 export interface DesktopSettings {
@@ -46,7 +47,7 @@ export interface DesktopSettingsChange {
   readonly changed: boolean;
 }
 
-const DEFAULT_TAILSCALE_SERVE_PORT = 443;
+const DEFAULT_TAILSCALE_SERVE_PORT = FORK.tailscaleServePort; // fork: own Tailscale Serve port
 const MIN_MAIN_WINDOW_SIZE = {
   width: 840,
   height: 620,

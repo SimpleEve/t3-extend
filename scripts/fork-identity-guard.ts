@@ -17,6 +17,15 @@ const OFFICIAL_IDENTITY: ReadonlyArray<RegExp> = [
   /ingest\.t3\.codes/u,
   /pingdotgg\/t3code/u,
   /["'`]\.t3["'`]/u,
+  // Shared external state: one tailnet name, and one set of git refs and branch names per repo.
+  /\bDEFAULT_TAILSCALE_SERVE_PORT = 443\b/u,
+  /\btailscaleServePort: 443\b/u,
+  /\(\) => 443,/u,
+  /refs\/t3code\//u,
+  /refs\/t3\/review-guide/u,
+  /\bt3code\/pr-/u,
+  /\bWORKTREE_BRANCH_PREFIX = "t3"/u,
+  /branchNamePrefix: .*succeed\("t3"\)/u,
 ];
 
 const ROOTS = [

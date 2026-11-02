@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -168,7 +169,7 @@ describe("DesktopSettings", () => {
             // JSONC-style comments and trailing commas match server settings parsing.
             "serverExposureMode": "network-accessible",
             "tailscaleServeEnabled": true,
-            "tailscaleServePort": 8443,
+            "tailscaleServePort": 9443,
             "mainWindowBounds": { "x": 120, "y": 80, "width": 1280, "height": 900 },
           }\n`,
         );
@@ -180,7 +181,7 @@ describe("DesktopSettings", () => {
           mainWindowMaximized: false,
           serverExposureMode: "network-accessible",
           tailscaleServeEnabled: true,
-          tailscaleServePort: 8443,
+          tailscaleServePort: 9443,
           updateChannel: "latest",
           updateChannelConfiguredByUser: false,
           wslBackendEnabled: false,
@@ -275,7 +276,7 @@ describe("DesktopSettings", () => {
           mainWindowMaximized: false,
           serverExposureMode: "local-only",
           tailscaleServeEnabled: false,
-          tailscaleServePort: 443,
+          tailscaleServePort: FORK.tailscaleServePort,
           updateChannel: "nightly",
           updateChannelConfiguredByUser: false,
           wslBackendEnabled: false,
@@ -304,7 +305,7 @@ describe("DesktopSettings", () => {
           mainWindowMaximized: false,
           serverExposureMode: "local-only",
           tailscaleServeEnabled: false,
-          tailscaleServePort: 443,
+          tailscaleServePort: FORK.tailscaleServePort,
           updateChannel: "latest",
           updateChannelConfiguredByUser: true,
           wslBackendEnabled: false,

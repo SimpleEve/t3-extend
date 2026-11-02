@@ -18,7 +18,7 @@ import {
   type SourceControlRepositoryVisibility,
 } from "@t3tools/contracts";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
-import { sanitizeBranchFragment } from "@t3tools/shared/git";
+import { PULL_REQUEST_BRANCH_PREFIX, sanitizeBranchFragment } from "@t3tools/shared/git"; // fork: own branch prefix
 import { isSshRemoteUrl } from "@t3tools/shared/sourceControl";
 import { recognizeRemoteWith } from "@t3tools/source-control-core/shared/definition";
 import { definition } from "../shared/definition.ts";
@@ -528,7 +528,7 @@ function checkoutBranchName(input: {
     return input.headBranch;
   }
 
-  return `t3code/pr-${input.pullRequestId}/${sanitizeBranchFragment(input.headBranch)}`;
+  return `${PULL_REQUEST_BRANCH_PREFIX}-${input.pullRequestId}/${sanitizeBranchFragment(input.headBranch)}`; // fork: own branch prefix
 }
 
 function repositoryNameWithOwner(

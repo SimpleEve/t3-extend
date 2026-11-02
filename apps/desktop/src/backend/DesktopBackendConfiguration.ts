@@ -1,5 +1,6 @@
 import * as NodeOS from "node:os";
 
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { parsePersistedServerObservabilitySettings } from "@t3tools/shared/serverSettings";
 import { currentDesktopBootstrapToken } from "@t3tools/shared/desktopBootstrapToken";
 import * as Clock from "effect/Clock";
@@ -581,7 +582,7 @@ const resolveWslStartConfig = Effect.fn("desktop.backendConfiguration.resolveWsl
     desktopBootstrapSecret: input.bootstrapSecret,
     // PortSchema rejects 0 even when Tailscale Serve is disabled.
     tailscaleServeEnabled: false,
-    tailscaleServePort: 443,
+    tailscaleServePort: FORK.tailscaleServePort, // fork: own Tailscale Serve port
     ...buildObservabilityFragment(input.observabilitySettings),
   };
 

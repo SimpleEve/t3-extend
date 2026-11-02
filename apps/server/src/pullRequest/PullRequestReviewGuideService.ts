@@ -35,6 +35,7 @@ import * as TextGeneration from "../textGeneration/TextGeneration.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import { PATCH_RENDER_PREFIX_ARGS } from "../vcs/GitVcsDriverCore.ts";
 import * as PullRequestService from "./PullRequestService.ts";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { pullRequestSyncKey } from "./pullRequestSyncKey.ts";
 import { reviewGuideInputFromPullRequest } from "./pullRequestReviewGuideInput.ts";
 import { normalizeReviewGuide, parseReviewGuideChange } from "./pullRequestReviewGuideNormalize.ts";
@@ -212,7 +213,7 @@ const make = Effect.gen(function* () {
         ),
       );
     // FETCH_HEAD is workspace-global; isolate this run's base from concurrent fetches.
-    const baseRef = `refs/t3/review-guide/${runId}/base`;
+    const baseRef = `refs/${FORK.gitNamespace}/review-guide/${runId}/base`; // fork: run ids restart at 0 in every server
     yield* fetch([`+refs/heads/${detail.baseBranch}:${baseRef}`]);
     yield* Effect.addFinalizer(() =>
       git

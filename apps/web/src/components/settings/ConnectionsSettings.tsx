@@ -1,4 +1,5 @@
 import { SessionPermissions } from "./SessionPermissions";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { ChevronRightIcon, EllipsisIcon } from "lucide-react";
 import { useAtomValue } from "@effect/atom-react";
 import { useState } from "react";
@@ -140,7 +141,7 @@ import { SelfHostSettings } from "./SelfHostSettings"; // fork: self-hosted conn
 import { isSelfHostEndpoint } from "~/fork/selfHostStore";
 import { useT } from "../../hooks/useT"; // fork: self-hosted connection
 
-const DEFAULT_TAILSCALE_SERVE_PORT = 443;
+const DEFAULT_TAILSCALE_SERVE_PORT = FORK.tailscaleServePort; // fork: own Tailscale Serve port
 const EMPTY_ADVERTISED_ENDPOINTS: ReadonlyArray<AdvertisedEndpoint> = [];
 
 // Colons are invalid in distro names, keeping picker sentinels collision-free.

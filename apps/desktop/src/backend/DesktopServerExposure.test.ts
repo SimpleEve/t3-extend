@@ -1,4 +1,5 @@
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as NodeHttpClient from "@effect/platform-node/NodeHttpClient";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
@@ -249,7 +250,7 @@ describe("DesktopServerExposure", () => {
           endpointUrl: "http://192.168.1.20:4173",
           advertisedHost: "192.168.1.20",
           tailscaleServeEnabled: false,
-          tailscaleServePort: 443,
+          tailscaleServePort: FORK.tailscaleServePort,
         });
 
         const backendConfig = yield* serverExposure.backendConfig;
@@ -319,21 +320,21 @@ describe("DesktopServerExposure", () => {
 
         const changed = yield* serverExposure.setTailscaleServeEnabled({
           enabled: true,
-          port: 8443,
+          port: 9443,
         });
         assert.equal(changed.requiresRelaunch, true);
         assert.equal(changed.state.tailscaleServeEnabled, true);
-        assert.equal(changed.state.tailscaleServePort, 8443);
+        assert.equal(changed.state.tailscaleServePort, 9443);
 
         const unchanged = yield* serverExposure.setTailscaleServeEnabled({
           enabled: true,
-          port: 8443,
+          port: 9443,
         });
         assert.equal(unchanged.requiresRelaunch, false);
 
         const persisted = yield* settings.get;
         assert.equal(persisted.tailscaleServeEnabled, true);
-        assert.equal(persisted.tailscaleServePort, 8443);
+        assert.equal(persisted.tailscaleServePort, 9443);
       }),
     ),
   );
@@ -368,7 +369,7 @@ describe("DesktopServerExposure", () => {
             .pipe(Effect.forkChild({ startImmediately: true }));
           yield* Deferred.await(modeWriteStarted);
           const tailscaleChange = yield* serverExposure
-            .setTailscaleServeEnabled({ enabled: true, port: 8443 })
+            .setTailscaleServeEnabled({ enabled: true, port: 9443 })
             .pipe(Effect.forkChild({ startImmediately: true }));
           yield* Deferred.succeed(releaseModeWrite, undefined);
           yield* Fiber.join(modeChange);
@@ -377,7 +378,7 @@ describe("DesktopServerExposure", () => {
           const state = yield* serverExposure.getState;
           assert.equal(state.mode, "network-accessible");
           assert.equal(state.tailscaleServeEnabled, true);
-          assert.equal(state.tailscaleServePort, 8443);
+          assert.equal(state.tailscaleServePort, 9443);
         }),
         {},
         undefined,
@@ -470,7 +471,7 @@ describe("DesktopServerExposure", () => {
                 "http://127.0.0.1:4173/",
                 "http://192.168.1.20:4173/",
                 `http://${address}:4173/`,
-                `https://${dnsName}/`,
+                `https://${dnsName}:${FORK.tailscaleServePort}/`,
               ],
             );
             assert.equal(statusReads, previousReads + 1);
