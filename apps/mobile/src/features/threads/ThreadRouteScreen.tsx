@@ -121,6 +121,7 @@ import {
 import type { ThreadInspectorTarget } from "./thread-inspector-navigation";
 import { useSelectWorkspaceDetail } from "../workspace/useSelectWorkspaceDetail";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: i18n
 
 function InspectorPaneRoleActivation() {
   useAdaptiveWorkspacePaneRole("inspector");
@@ -1026,7 +1027,7 @@ function ThreadRouteContent(
           header={
             props.inspectorPresentation ? null : (
               <ThreadHeader
-                title={selectedThread.title}
+                title={threadDisplayTitle(selectedThread.title, t)}
                 subtitle={headerSubtitle}
                 headerColor={headerColor}
                 usesNativeHeaderGlass={usesNativeHeaderGlass}

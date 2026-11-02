@@ -12,7 +12,7 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 
 ## 不翻译
 
-- 用户内容：对话标题、项目名、路径、分支、模型名、provider 名、主题名、Agent 输出。
+- 用户内容：对话标题（占位标题 "New thread" 例外，只在显示时经 `threadDisplayTitle` 翻译）、项目名、路径、分支、模型名、provider 名、主题名、Agent 输出。
 - 面向模型的文案：MCP 工具描述、agent instructions、`evals/` 覆盖的文本。
 - server 返回的错误信息（以后在客户端按 tag 映射）。
 - 日志、产品名（T3 Code、T3 Connect）、快捷键名。
@@ -102,6 +102,7 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 | detached HEAD            | 分离的 HEAD            |                                                                          |
 | Open / Closed / Merged   | 开放 / 已关闭 / 已合并 | PR 状态，用 `pull request state` context；小写形式也建 key               |
 | Reopen                   | 重新打开               | 动作                                                                     |
+| Lint                     | Lint                   | 开发术语，脚本图标名保留英文（`script icon` context）                    |
 
 ## host 的两种义项
 

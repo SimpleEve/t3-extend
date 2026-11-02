@@ -31,6 +31,7 @@ import {
 import { filterFilesystemBrowseEntries } from "@t3tools/client-runtime/state/filesystem";
 import { type ReactNode } from "react";
 import type { Translator } from "@t3tools/client-runtime/i18n";
+import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: interface language
 import { formatRelativeTimeLabel } from "../timestampFormat";
 import { type Project, type SidebarThreadSummary, type Thread } from "../types";
 import { isSidebarHiddenThread } from "./Sidebar.logic";
@@ -435,6 +436,8 @@ export function buildThreadActionItems<TThread extends BuildThreadActionItemsThr
   runThread: (thread: TThread) => Promise<void>;
   /** Makes the environment searchable; pass it only with two or more environments. */
   environmentLabelOf?: (thread: TThread) => string | null;
+  // fork: interface language
+  t?: Translator;
 }): CommandPaletteActionItem[] {
   // Callers order these: recents by last use, search results by rank.
   const visibleThreads = input.threads.filter(
@@ -480,7 +483,7 @@ export function buildThreadActionItems<TThread extends BuildThreadActionItemsThr
           projectTitle,
           input.environmentLabelOf?.(thread),
         ),
-        title: thread.title,
+        title: input.t ? threadDisplayTitle(thread.title, input.t) : thread.title,
         description,
         timestamp: formatRelativeTimeLabel(
           thread.latestUserMessageAt ?? thread.updatedAt ?? thread.createdAt,

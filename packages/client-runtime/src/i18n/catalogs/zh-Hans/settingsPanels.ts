@@ -1838,6 +1838,24 @@ export default {
   "Live process tree": "存活进程树",
   "Instrumented application I/O": "插桩的应用 I/O",
   "Unavailable selection": "不可用的选择",
+  "Select a project to choose one of its checkouts.": "先选择项目，再选择它的 checkout。",
+  "This environment is no longer available.": "此环境已不可用。",
+  "This project has no checkout on this environment.": "此项目在这个环境上没有 checkout。",
+  "This checkout's environment is no longer available.": "此 checkout 所在的环境已不可用。",
+  "This setting is environment-wide and cannot be overridden by a project.":
+    "这个设置作用于整个环境，项目不能覆盖。",
+  "Connect the selected checkouts, or update their environments, to save a project override.":
+    "连接所选的 checkout，或更新它们所在的环境，才能保存项目的覆盖设置。",
+  "Connect {label} to save this setting.": "连接 {label} 后才能保存这个设置。",
+  "Connect an environment to save this setting.": "连接一个环境后才能保存这个设置。",
+  "Connect the selected checkouts, or update their environments, to reset this override.":
+    "连接所选的 checkout，或更新它们所在的环境，才能重置这项覆盖设置。",
+  "Connect the environments to reset these overrides.": "连接这些环境后才能重置这些覆盖设置。",
+  "Saved on {labels}.": "已保存到 {labels}。",
+  // Wizard steps for adding a provider and for T3 Connect onboarding.
+  Identity: "标识",
+  Config: "配置",
+  "Connect devices": "连接设备",
   "Task unavailable": "任务不可用",
   "No scheduled tasks": "没有定时任务",
   "Environment disconnected": "环境已断开",

@@ -121,6 +121,7 @@ export function useCommandPaletteThreadItems(input: {
       : {}),
     ...(activeThread ? { activeThread } : {}),
     projectByKey,
+    t, // fork: interface language
     icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
     renderLeadingContent: (thread) => <ThreadRowLeadingStatus thread={thread} />,
     renderTrailingContent: (thread) => (

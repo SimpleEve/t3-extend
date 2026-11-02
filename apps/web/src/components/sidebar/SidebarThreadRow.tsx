@@ -21,6 +21,7 @@ import {
 } from "@t3tools/client-runtime/state/models";
 import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
 import type { Translator } from "@t3tools/client-runtime/i18n";
+import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: interface language
 import {
   AuthOrchestrationOperateScope,
   type EnvironmentId,
@@ -266,7 +267,7 @@ function SidebarThreadTooltip({
   return (
     <ThreadHoverCardPopup side="right" align="start" sideOffset={4}>
       <ThreadHoverCard
-        title={thread.title}
+        title={threadDisplayTitle(thread.title, t)}
         footer={
           supportsMultiplePullRequests && thread.pullRequests.length > 0 ? (
             <div className="border-t border-border/60 pt-2 pl-0.5 text-xs text-muted-foreground">
@@ -999,8 +1000,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       </span>
     ) : null;
 
+  const shownTitle = threadDisplayTitle(thread.title, t); // fork: interface language
   const accessibility = resolveSidebarRowAccessibility({
-    title: thread.title,
+    title: shownTitle,
     statusLabel: topStatus?.label ?? null,
     projectDisplayName: props.projectDisplayName,
     isActive: props.isActive,
@@ -1040,12 +1042,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
             ),
         isRegeneratingTitle && "opacity-55",
       )}
-      dir={textDirection(thread.title)}
+      dir={textDirection(shownTitle)}
     >
-      {thread.title}
+      {shownTitle}
     </span>
   );
-  const accessibleTitle = isRenaming ? null : <span className="sr-only">{thread.title}</span>;
+  const accessibleTitle = isRenaming ? null : <span className="sr-only">{shownTitle}</span>;
 
   const prBadgeShape = supportsMultiplePullRequests
     ? resolveThreadPullRequestBadge(thread.pullRequests)
@@ -1627,8 +1629,10 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
 }) {
   const thread =
     useThreadShell(scopeThreadRef(props.thread.environmentId, props.thread.id)) ?? props.thread;
+  const t = useT(); // fork: interface language
+  const shownTitle = threadDisplayTitle(thread.title, t);
   const accessibility = resolveSidebarRowAccessibility({
-    title: thread.title,
+    title: shownTitle,
     statusLabel: null,
     projectDisplayName: props.projectDisplayName,
     isActive: props.isRouteActive,
@@ -1738,7 +1742,7 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
                   thread.titleRegeneration != null && "opacity-55",
                 )}
               >
-                {thread.title}
+                {shownTitle}
               </span>
               <span id={`${props.resultId}-pr`} className="contents">
                 <ThreadSearchPullRequestNumber

@@ -102,7 +102,7 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
   if (scope.kind === "unavailable")
     return (
       <SettingsPageContainer>
-        <p className="text-sm text-muted-foreground">{scope.message}</p>
+        <p className="text-sm text-muted-foreground">{t(scope.message)}</p>
       </SettingsPageContainer>
     );
   if (scope.kind === "environment" && connectedEnvironments.length === 0) {

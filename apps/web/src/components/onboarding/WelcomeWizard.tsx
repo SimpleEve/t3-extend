@@ -250,7 +250,7 @@ export function WelcomeWizard({
           }
         >
           <WizardSteps
-            steps={ONBOARDING_STAGES}
+            steps={ONBOARDING_STAGES.map((stage) => t(stage))}
             currentStep={stageIndex}
             isStepDisabled={(index) => isImporting || index >= stageIndex}
             onStepChange={(index) => {

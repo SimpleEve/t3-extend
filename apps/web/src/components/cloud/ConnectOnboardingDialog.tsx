@@ -218,7 +218,7 @@ function ConfiguredConnectOnboardingDialog() {
         >
           {steps.length > 1 ? (
             <WizardSteps
-              steps={steps.map((id) => STEP_LABELS[id])}
+              steps={steps.map((id) => t(STEP_LABELS[id]))}
               currentStep={steps.indexOf(step)}
               isStepDisabled={() => isApplying}
               onStepChange={(index) => {

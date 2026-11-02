@@ -29,7 +29,7 @@ import {
   type ProjectOverrideEntry,
   type ScopedSettingsPatch,
 } from "./scopedSettings";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
+import { getUiLocale, translate, translatorFor } from "@t3tools/client-runtime/i18n";
 
 export function useScopedSettings<T = UnifiedSettings>(
   selector?: (settings: UnifiedSettings) => T,
@@ -88,11 +88,20 @@ function useRunScopedPlan() {
             ? translate(getUiLocale(), "Setting saved on some environments")
             : translate(getUiLocale(), "Setting not saved"),
         description: [
-          ...failedEnvironments.map(
-            ({ label, message }) => `Could not save on ${label}: ${message}`,
+          ...failedEnvironments.map(({ label, message }) =>
+            translate(getUiLocale(), "Could not save on {label}: {reason}", {
+              label,
+              reason: message,
+            }),
           ),
           ...(savedEnvironmentCount > 0
-            ? [`Saved on ${savedEnvironments.map(({ label }) => label).join(", ")}.`]
+            ? [
+                translate(getUiLocale(), "Saved on {labels}.", {
+                  labels: savedEnvironments
+                    .map(({ label }) => label)
+                    .join(translate(getUiLocale(), ", ")),
+                }),
+              ]
             : []),
         ].join("\n"),
       });
@@ -105,7 +114,10 @@ export function useUpdateScopedSettings() {
   const run = useRunScopedPlan();
   /** `onFailed` runs when any target rejects or drops the patch, so a draft can fall back. */
   return (patch: ScopedSettingsPatch, options?: { readonly onFailed?: () => void }) =>
-    run(planScopedSettingsPatch(scope, environments, patch), options?.onFailed);
+    run(
+      planScopedSettingsPatch(scope, environments, patch, translatorFor(getUiLocale())),
+      options?.onFailed,
+    );
 }
 
 export function useClearScopedSettings() {
@@ -113,7 +125,14 @@ export function useClearScopedSettings() {
   const run = useRunScopedPlan();
   return (keys: readonly ProjectScopedServerSettingKey[]) => {
     if (context === null) return;
-    run(planScopedSettingsClear(context.scope, context.environments, keys));
+    run(
+      planScopedSettingsClear(
+        context.scope,
+        context.environments,
+        keys,
+        translatorFor(getUiLocale()),
+      ),
+    );
   };
 }
 
@@ -125,7 +144,9 @@ export function useClearProjectOverrides() {
     keys: readonly ProjectScopedServerSettingKey[],
   ) => {
     if (context === null) return;
-    run(planProjectOverridesClear(context.environments, entries, keys));
+    run(
+      planProjectOverridesClear(context.environments, entries, keys, translatorFor(getUiLocale())),
+    );
   };
 }
 
