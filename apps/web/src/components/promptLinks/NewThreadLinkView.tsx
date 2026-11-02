@@ -249,7 +249,7 @@ export function NewThreadLinkView({ link }: { readonly link: NewThreadLink }) {
     if (link.kind === "pull-request") {
       setState({
         status: "failed",
-        title: `Cloning ${repository.owner}/${repository.name}`,
+        title: t("Cloning {repository}", { repository: `${repository.owner}/${repository.name}` }),
         message: "Open this link again when the clone finishes.",
       });
       return;
@@ -355,7 +355,10 @@ export function NewThreadLinkView({ link }: { readonly link: NewThreadLink }) {
       );
     case "failed":
       return (
-        <LinkPage title={state.title ?? t("Could not open the link")} description={state.message} />
+        <LinkPage
+          title={state.title ?? t("Could not open the link")}
+          description={t(state.message)}
+        />
       );
     case "missing-repository": {
       const name = `${state.repository.owner}/${state.repository.name}`;

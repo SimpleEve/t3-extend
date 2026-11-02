@@ -503,7 +503,7 @@ function ProviderSettingsFieldRow({
           onChange={(event) =>
             onChange(nextProviderConfigWithFieldValue(value, field, event.target.value))
           }
-          placeholder={field.placeholder}
+          placeholder={field.placeholder === undefined ? undefined : t(field.placeholder)}
           spellCheck={false}
         />
       ) : field.acceptsSecretReference && environmentId !== undefined ? (
@@ -547,7 +547,7 @@ function ProviderSettingsFieldRow({
           type={field.control === "password" ? "password" : undefined}
           autoComplete={field.control === "password" ? "off" : undefined}
           value={readProviderConfigString(value, field.key)}
-          placeholder={field.placeholder}
+          placeholder={field.placeholder === undefined ? undefined : t(field.placeholder)}
           onCommit={(next) => {
             onChange(nextProviderConfigWithFieldValue(value, field, next));
           }}
@@ -619,7 +619,7 @@ function ProviderSettingsFieldRow({
             onChange={(event) =>
               onChange(nextProviderConfigWithFieldValue(value, field, event.target.value))
             }
-            placeholder={field.placeholder}
+            placeholder={field.placeholder === undefined ? undefined : t(field.placeholder)}
             spellCheck={false}
           />
           {description}
@@ -644,7 +644,7 @@ function ProviderSettingsFieldRow({
             autoComplete={!field.secret && field.control === "password" ? "off" : undefined}
             value={readProviderConfigString(value, field.key)}
             onCommit={(next) => onChange(nextProviderConfigWithFieldValue(value, field, next))}
-            placeholder={field.placeholder}
+            placeholder={field.placeholder === undefined ? undefined : t(field.placeholder)}
             spellCheck={false}
           />
         ) : (
@@ -656,7 +656,7 @@ function ProviderSettingsFieldRow({
             onChange={(event) =>
               onChange(nextProviderConfigWithFieldValue(value, field, event.target.value))
             }
-            placeholder={field.placeholder}
+            placeholder={field.placeholder === undefined ? undefined : t(field.placeholder)}
             spellCheck={false}
           />
         )}

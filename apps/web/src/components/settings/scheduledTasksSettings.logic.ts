@@ -1,4 +1,5 @@
 import { isWebhookDedupeTemplate } from "@t3tools/contracts";
+import { interpolate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import {
   EnvironmentId,
   MAX_WEBHOOK_DELIVERY_AGE_MINUTES,
@@ -96,13 +97,18 @@ export const WEBHOOK_SIGNATURE_DEFAULTS = {
   signaturePrefix: "sha256=",
 } as const;
 
-export function webhookDraftErrors(draft: DraftState) {
+export function webhookDraftErrors(
+  draft: DraftState,
+  t: Translator = (source, params) => interpolate(source, params), // fork: interface language
+) {
   if (draft.scheduleMode !== "webhook") return [];
   if (parseMaxDeliveryAge(draft.maxDeliveryAgeMinutes) === undefined)
     return [
       {
-        title: "Invalid age limit",
-        description: `Enter whole minutes from 1 to ${MAX_WEBHOOK_DELIVERY_AGE_MINUTES}, or leave it blank.`,
+        title: t("Invalid age limit"),
+        description: t("Enter whole minutes from 1 to {max}, or leave it blank.", {
+          max: MAX_WEBHOOK_DELIVERY_AGE_MINUTES,
+        }),
       },
     ];
   const errors: Array<{ title: string; description: string }> = [];
@@ -112,15 +118,15 @@ export function webhookDraftErrors(draft: DraftState) {
   ] as const) {
     if (value.trim() && !isWebhookDedupeTemplate(value.trim()))
       errors.push({
-        title: "Invalid webhook settings",
-        description: `${label} must contain a valid request placeholder.`,
+        title: t("Invalid webhook settings"),
+        description: t("{label} must contain a valid request placeholder.", { label: t(label) }),
       });
   }
   const window = draft.coalesceWindowSeconds.trim();
   if (window && (!Number.isInteger(Number(window)) || Number(window) < 10 || Number(window) > 3600))
     errors.push({
-      title: "Invalid webhook settings",
-      description: "Coalesce window must be whole seconds from 10 to 3600.",
+      title: t("Invalid webhook settings"),
+      description: t("Coalesce window must be whole seconds from 10 to 3600."),
     });
   return errors;
 }

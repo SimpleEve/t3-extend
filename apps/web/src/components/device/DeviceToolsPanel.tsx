@@ -510,7 +510,7 @@ function LocationSection(props: {
           <SelectPopup align="start" alignItemWithTrigger={false}>
             {LOCATION_PRESETS.map((preset) => (
               <SelectItem key={preset.label} value={preset.label}>
-                {preset.label}
+                {t(preset.label)}
               </SelectItem>
             ))}
           </SelectPopup>

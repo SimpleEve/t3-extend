@@ -17,7 +17,8 @@ import { useAtomCommand } from "./state/use-atom-command";
 import { resolvePathLinkTarget } from "@t3tools/shared/fileLinks";
 import { toastManager } from "./components/ui/toast";
 import { useAtomValue } from "@effect/atom-react";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
+import { getUiLocale, translate, type Translator } from "@t3tools/client-runtime/i18n";
+import { useT } from "./hooks/useT"; // fork: interface language
 
 export type FileContextMenuAction =
   | "reveal-in-folder"
@@ -60,11 +61,13 @@ export interface FileContextMenuCapabilities {
 function buildFileContextMenuItems(input: {
   readonly hasAbsolutePath: boolean;
   readonly capabilities: FileContextMenuCapabilities;
+  readonly t: Translator; // fork: interface language
 }): readonly ContextMenuItem<FileContextMenuAction>[] {
+  const { t } = input;
   if (!input.hasAbsolutePath) return [];
   const items: ContextMenuItem<FileContextMenuAction>[] = [];
   if (input.capabilities.canOpenDefault) {
-    items.push({ id: "open", label: "Open", icon: "pencil" });
+    items.push({ id: "open", label: t("Open"), icon: "pencil" });
   }
   if (input.capabilities.revealLabel !== undefined) {
     items.push({
@@ -77,7 +80,7 @@ function buildFileContextMenuItems(input: {
   if (editorIds.length > 0) {
     items.push({
       id: "open-with",
-      label: "Open with",
+      label: t("Open with"),
       children: editorIds.map((editorId) => ({
         id: `editor:${editorId}` as FileContextMenuAction,
         label: EDITOR_LABEL_BY_ID.get(editorId) ?? editorId,
@@ -88,6 +91,7 @@ function buildFileContextMenuItems(input: {
 }
 
 export function useFileContextMenu(environmentId: EnvironmentId | null) {
+  const t = useT(); // fork: interface language
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: false });
   const serverConfig = useAtomValue(serverEnvironment.configValueAtom(environmentId));
 
@@ -147,6 +151,7 @@ export function useFileContextMenu(environmentId: EnvironmentId | null) {
     const items = buildFileContextMenuItems({
       hasAbsolutePath: resolveFileContextMenuAbsolutePath(target) !== null,
       capabilities,
+      t,
     });
     if (items.length === 0 || api === undefined) return;
     const clicked = await api.contextMenu.show(items, position);
@@ -159,6 +164,7 @@ export function useFileContextMenu(environmentId: EnvironmentId | null) {
       buildFileContextMenuItems({
         hasAbsolutePath: resolveFileContextMenuAbsolutePath(target) !== null,
         capabilities,
+        t,
       }),
     capabilities,
     activate,

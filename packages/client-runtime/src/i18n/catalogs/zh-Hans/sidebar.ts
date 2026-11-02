@@ -326,4 +326,34 @@ export default {
   "update skip reason|its server is not connected, so its database cannot be checked":
     "它的服务器未连接，无法检查数据库",
   "Desktop app": "桌面应用",
+  // Provider updates: the sidebar pill and the result toast.
+  "{provider} updated: {version}": "{provider} 已更新到 {version}",
+  "{provider} updated": "{provider} 已更新",
+  "New sessions will use the updated provider.": "新会话会使用更新后的 provider。",
+  "New sessions will use the updated providers.": "新会话会使用更新后的 provider。",
+  "{provider} {version} update failed": "{provider} {version} 更新失败",
+  "{provider} update failed": "{provider} 更新失败",
+  "Provider updated": "provider 已更新",
+  "{count} providers updated": "{count} 个 provider 已更新",
+  "{failed} of {total} provider updates failed": "{total} 个 provider 中有 {failed} 个更新失败",
+  "Provider update failed": "provider 更新失败",
+  "Provider updates failed": "provider 更新失败",
+  "Updating {provider}": "正在更新 {provider}",
+  "Updating {count} providers": "正在更新 {count} 个 provider",
+  "{providers} update in progress.": "{providers} 正在更新。",
+  "{providers} updates are in progress.": "{providers} 正在更新。",
+  "{count} provider updates failed": "{count} 个 provider 更新失败",
+  "{provider} still needs an update": "{provider} 仍需要更新",
+  "{count} providers still need updates": "{count} 个 provider 仍需要更新",
+  "{providers} still appears outdated. Review provider settings for details.":
+    "{providers} 看起来仍是旧版本。详情请查看 provider 设置。",
+  "{providers} still appear outdated. Review provider settings for details.":
+    "{providers} 看起来仍是旧版本。详情请查看 provider 设置。",
+  "{providers} failed to update. Check provider settings for details.":
+    "{providers} 更新失败。详情请查看 provider 设置。",
+  // Undo failures; their callers pass English and the notice translates them.
+  "Failed to undo archive": "无法撤销归档",
+  "Failed to undo unpin": "无法撤销取消置顶",
+  "Failed to undo settle": "无法撤销标为已处理",
+  "Failed to restore draft": "无法恢复草稿",
 } satisfies Record<string, string>;

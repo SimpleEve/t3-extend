@@ -373,7 +373,10 @@ function ConnectionStep({
                   <span className="shrink-0 text-xs text-muted-foreground">
                     {!environment.entry.enabled && environment.connection.phase !== "unsupported"
                       ? t("Off")
-                      : presentSavedCloudEnvironmentConnection(environment.connection).buttonLabel}
+                      : t(
+                          presentSavedCloudEnvironmentConnection(environment.connection)
+                            .buttonLabel,
+                        )}
                   </span>
                 </span>
                 {environment.displayUrl ? (

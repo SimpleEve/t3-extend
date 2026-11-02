@@ -2559,4 +2559,36 @@ export default {
   Speed: "速度",
   "Fast Mode": "快速模式",
   "model option|Thinking": "思考",
+  // Project script icons.
+  "script icon|Play": "运行",
+  "script icon|Test": "测试",
+  "script icon|Lint": "Lint",
+  "script icon|Configure": "配置",
+  "script icon|Build": "构建",
+  "script icon|Debug": "调试",
+  // Provider version notices, webhook checks, scheduled task form errors, and update track switches.
+  "Limited support": "有限支持",
+  "Unsupported version": "不支持的版本",
+  "Known broken version": "已知有问题的版本",
+  "Use {version} for full support.": "使用 {version} 可获得完整支持。",
+  "Update for full support.": "更新后可获得完整支持。",
+  "{label}: install {version}.": "{label}：安装 {version}。",
+  "{label}: install the latest provider version.": "{label}：安装最新的 provider 版本。",
+  "Starting update": "正在开始更新",
+  "Invalid age limit": "时间限制无效",
+  "Enter whole minutes from 1 to {max}, or leave it blank.":
+    "请输入 1 到 {max} 之间的整数分钟，或留空。",
+  "Invalid webhook settings": "webhook 设置无效",
+  "{label} must contain a valid request placeholder.": "{label}必须包含一个有效的请求占位符。",
+  "Coalesce window must be whole seconds from 10 to 3600.":
+    "合并窗口必须是 10 到 3600 之间的整数秒。",
+  "Scheduled task is incomplete": "定时任务信息不完整",
+  "Add a title, prompt, project, and model.": "请填写标题、提示词、项目和模型。",
+  "Invalid filter": "筛选条件无效",
+  "The update track did not change.": "更新通道没有改变。",
+  "This app found {found}, which is older than {version}. Try again in a few minutes.":
+    "此应用找到的是 {found}，比 {version} 旧。请过几分钟再试。",
+  "This app found no build of {version} to install.": "此应用没有找到可安装的 {version}。",
+  "e.g. dsh": "例如 dsh",
+  "t3x command": "t3x 命令",
 } satisfies Record<string, string>;

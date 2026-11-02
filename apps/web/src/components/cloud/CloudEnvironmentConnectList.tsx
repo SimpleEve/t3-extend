@@ -410,7 +410,7 @@ export function CloudEnvironmentConnectRows({
             >
               {connectingEnvironmentIds.has(environment.environmentId)
                 ? t("Connecting…")
-                : (savedConnection?.buttonLabel ??
+                : ((savedConnection ? t(savedConnection.buttonLabel) : undefined) ??
                   (availability === "online"
                     ? t("Available")
                     : availability === "offline"
@@ -484,7 +484,7 @@ export function CloudEnvironmentConnectRows({
             </Tooltip>
           ) : savedConnection ? (
             <Button size="sm" variant="outline" disabled>
-              {savedConnection.buttonLabel}
+              {t(savedConnection.buttonLabel)}
             </Button>
           ) : (
             <Button

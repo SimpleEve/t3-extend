@@ -520,7 +520,7 @@ export function PullRequestDetailPanel({
       ? null
       : (sourceControlClients.parseChangeRequestUrl(detail.url)?.link.repositoryUrl ?? null);
   const hostClient = sourceControlClients.get(detail?.provider);
-  const openOnHostText = openOnHostLabel(hostClient);
+  const openOnHostText = openOnHostLabel(hostClient, t);
   const markdownContext = pullRequestMarkdownContext(detail, threadRef);
   const authorProfileUrl =
     detail?.author && repositoryUrl !== null
@@ -1788,6 +1788,7 @@ export function PullRequestDetailPanel({
                     url: unavailableHostUrl,
                     openLabel: openOnHostLabel(
                       sourceControlClients.get(repositoryIdentity?.provider),
+                      t,
                     ),
                   },
                 }

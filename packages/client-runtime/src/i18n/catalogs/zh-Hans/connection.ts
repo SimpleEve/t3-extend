@@ -765,4 +765,10 @@ export default {
   "Remove {label} route?": "移除 {label} 路由？",
   'Forget {label}? Agents here stop working there. Revoke "T3 Code · …" in {label}\'s Connections to end the session there too.':
     "忘记 {label}？这里的 Agent 将无法再在那里工作。要同时结束那边的会话，请在 {label} 的“连接”中撤销“T3 Code · …”。",
+  // T3 Connect environment button states.
+  "Reconnecting…": "正在重新连接…",
+  "Connection failed": "连接失败",
+  Reconnecting: "重新连接中",
+  "Reconnecting: {error}": "重新连接中：{error}",
+  "Connection failed: {error}": "连接失败：{error}",
 } satisfies Record<string, string>;

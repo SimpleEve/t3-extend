@@ -8,18 +8,28 @@ import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { readLocalApi } from "~/localApi";
 
 import { toastManager } from "../ui/toast";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
+import {
+  getUiLocale,
+  translate,
+  translatorFor,
+  type Translator,
+} from "@t3tools/client-runtime/i18n";
 
 export type PullRequestLinkContextMenuAction = "copy-link" | "open-external";
 
-export const openOnHostLabel = (host: SourceControlDefinition): string =>
-  host === UNKNOWN_SOURCE_CONTROL_CLIENT ? "Open on host" : `Open on ${host.label}`;
+export const openOnHostLabel = (
+  host: SourceControlDefinition,
+  t: Translator = translatorFor("en"), // fork: interface language
+): string =>
+  host === UNKNOWN_SOURCE_CONTROL_CLIENT
+    ? t("Open on host")
+    : t("Open on {provider}", { provider: host.label });
 
 function pullRequestLinkContextMenuItems(
   openLabel: string,
 ): readonly ContextMenuItem<PullRequestLinkContextMenuAction>[] {
   return [
-    { id: "copy-link", label: "Copy link", icon: "copy" },
+    { id: "copy-link", label: translate(getUiLocale(), "Copy link"), icon: "copy" }, // fork: i18n
     { id: "open-external", label: openLabel },
   ];
 }

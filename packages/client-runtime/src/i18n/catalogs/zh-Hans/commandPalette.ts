@@ -114,4 +114,10 @@ export default {
   "{label} (Local)": "{label}（本地）",
   "For {mode} mode": "用于{mode}模式",
   "pending button|Working": "处理中",
+  // Empty states while adding a project.
+  "Enter a Git clone URL and press Enter to continue.": "输入 Git 克隆 URL，然后按 Enter 继续。",
+  "Enter a repository path and press Enter to look it up.": "输入仓库路径，然后按 Enter 查找。",
+  "Choose a destination path and press Enter to clone.": "选择目标路径，然后按 Enter 克隆。",
+  "Press Enter to create this folder and add it as a project.":
+    "按 Enter 创建这个文件夹并添加为项目。",
 } satisfies Record<string, string>;

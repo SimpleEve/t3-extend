@@ -802,4 +802,18 @@ export default {
     "Agent 正在使用这 {count} 个浏览器，仍要关闭？",
   "The agent is actively controlling these browsers. Closing them may interrupt the current browser actions.":
     "Agent 正在控制这些浏览器，关闭它们可能会中断当前的浏览器操作。",
+  // File context menu.
+  "Open with": "打开方式",
+  // Device tools: stands and location presets.
+  "Laptop stand": "笔记本式",
+  "Tent stand": "帐篷式",
+  "San Francisco": "旧金山",
+  "New York": "纽约",
+  London: "伦敦",
+  Stockholm: "斯德哥尔摩",
+  Tokyo: "东京",
+  "Recorded content before": "记录的修改前内容",
+  "Recorded content after": "记录的修改后内容",
+  "Could not copy {count} file to {target}": "无法把 {count} 个文件复制到 {target}",
+  "Could not copy {count} files to {target}": "无法把 {count} 个文件复制到 {target}",
 } satisfies Record<string, string>;

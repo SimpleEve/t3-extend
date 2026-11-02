@@ -708,4 +708,5 @@ export default {
   "Paste a {kind} URL, checkout command, or enter 123 / #123.":
     "粘贴 {kind} URL、检出命令，或输入 123 / #123。",
   "Use a {kind} URL, checkout command, 123, or #123.": "请使用 {kind} URL、检出命令、123 或 #123。",
+  "Open on host": "在托管平台上打开",
 } satisfies Record<string, string>;

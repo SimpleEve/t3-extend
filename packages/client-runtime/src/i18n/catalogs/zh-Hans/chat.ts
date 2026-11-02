@@ -1288,4 +1288,18 @@ export default {
   "It is referenced in your text; removing it also removes every reference.":
     "你的文本引用了它，移除它也会删除所有引用。",
   "Save {names} from {server}?": "保存来自 {server} 的 {names}？",
+  // GitHub alert headings in rendered markdown.
+  "markdown alert|Note": "注意",
+  "markdown alert|Tip": "提示",
+  "markdown alert|Important": "重要",
+  "markdown alert|Warning": "警告",
+  "markdown alert|Caution": "小心",
+  "T3 Code could not open a new thread.": "T3 Code 无法打开新对话。",
+  "None of your machines can start a thread without a project right now.":
+    "你的机器目前都无法在没有项目的情况下开始对话。",
+  "This machine cannot clone from a link. Update T3 Code on it, or clone the repository from the command palette.":
+    "这台机器不能从链接克隆。请更新它上面的 T3 Code，或者从命令面板克隆仓库。",
+  "The clone started, but its project did not appear.": "克隆已开始，但没有出现对应的项目。",
+  "Cloning {repository}": "正在克隆 {repository}",
+  "Open this link again when the clone finishes.": "克隆完成后请再次打开这个链接。",
 } satisfies Record<string, string>;
