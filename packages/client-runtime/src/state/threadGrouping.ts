@@ -38,6 +38,11 @@ export interface ThreadWorktreeGroup<T> {
   readonly threads: readonly T[];
 }
 
+/** A main checkout named by its branch needs a badge; without one it is already called "Main checkout". */
+export function hasMainCheckoutBadge(group: Pick<ThreadWorktreeGroup<unknown>, "kind" | "label">) {
+  return group.kind === "main" && group.label !== null;
+}
+
 function normalizedWorktreePath(path: string | null | undefined): string | null {
   const trimmed = path?.trim();
   return trimmed ? trimmed : null;

@@ -1,7 +1,10 @@
 // fork: the worktree subgroup header in T3 Extend's project view.
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
-import type { ProjectViewWorktree } from "@t3tools/client-runtime/state/thread-grouping";
+import {
+  hasMainCheckoutBadge,
+  type ProjectViewWorktree,
+} from "@t3tools/client-runtime/state/thread-grouping";
 import { ChevronDownIcon, FolderGit2Icon, GitBranchIcon } from "lucide-react";
 
 import { toggleSidebarGroupCollapsed } from "~/fork/sidebarViewStore";
@@ -33,7 +36,8 @@ export function sidebarWorktreeRowId(worktreeKey: string) {
 
 /**
  * One checkout of a project: the main checkout first, then linked worktrees, named by
- * branch, else folder, else "Main checkout". Count and dot cover every thread, folded or not.
+ * branch, else folder, else "Main checkout"; a main checkout named by branch also gets a Main
+ * badge, so it reads apart from a worktree on the same branch. Count and dot cover every thread, folded or not.
  * Its rows are `nested` (SidebarThreadRow); the guide line sits at the icon's centre, ps-7 + 7px.
  */
 export function SidebarWorktreeGroupHeader(props: {
@@ -56,9 +60,6 @@ export function SidebarWorktreeGroupHeader(props: {
   );
   const isMain = worktree.kind === "main";
   const label = worktree.label ?? t("Main checkout");
-  // A branch name does not say it is the original clone; the fallback label already does.
-  const tooltipText =
-    worktree.worktreePath ?? (worktree.label !== null ? t("Main checkout") : null);
   // Only a folder that spans machines needs to say which one a checkout is on.
   const spansEnvironments =
     new Set(group.memberProjects.map((member) => member.environmentId)).size > 1;
@@ -83,6 +84,11 @@ export function SidebarWorktreeGroupHeader(props: {
     <>
       <Icon aria-hidden className="size-3.5 shrink-0" />
       <span className="min-w-0 truncate">{label}</span>
+      {hasMainCheckoutBadge(worktree) ? (
+        <span className="shrink-0 rounded-sm border border-sidebar-border px-1 text-2xs leading-4">
+          {t("Main", undefined, "worktree badge")}
+        </span>
+      ) : null}
       {environmentLabel ? (
         <span className="min-w-0 shrink truncate text-sidebar-muted-foreground/70">
           {environmentLabel}
@@ -118,12 +124,12 @@ export function SidebarWorktreeGroupHeader(props: {
           "after:pointer-events-none after:absolute after:-bottom-px after:left-[35px] after:top-[23px] after:z-10 after:w-px after:bg-sidebar-border",
       )}
     >
-      {tooltipText === null ? (
+      {worktree.worktreePath === null ? (
         <button {...buttonProps}>{content}</button>
       ) : (
         <Tooltip>
           <TooltipTrigger render={<button {...buttonProps} />}>{content}</TooltipTrigger>
-          <TooltipPopup side="right">{tooltipText}</TooltipPopup>
+          <TooltipPopup side="right">{worktree.worktreePath}</TooltipPopup>
         </Tooltip>
       )}
     </li>

@@ -1813,6 +1813,42 @@ describe("project view list items", () => {
     ]);
   });
 
+  it("badges a main checkout named by its branch, so it reads apart from a worktree on that branch", () => {
+    const headerBadges = (source: typeof layout) =>
+      buildItems([], null, source).flatMap((item) =>
+        item.type === "v2-group-header" && item.level === "worktree"
+          ? [[item.title, item.badge]]
+          : [],
+      );
+    const source = buildThreadListV2Items({
+      threads: [
+        thread("a-main", projectA, { branch: "feat/scratch" }),
+        thread("a-wt", projectA, { worktreePath: "/w/scratch", branch: "feat/scratch" }),
+      ],
+      environmentId: null,
+      searchQuery: "",
+      now: NOW,
+    });
+    expect(headerBadges(source)).toEqual([
+      ["feat/scratch", "Main"],
+      ["feat/scratch", null],
+    ]);
+    // Without a branch the label already says "Main checkout".
+    const branchless = buildThreadListV2Items({
+      threads: [
+        thread("a-main", projectA),
+        thread("a-wt", projectA, { worktreePath: "/w/scratch", branch: "feat/scratch" }),
+      ],
+      environmentId: null,
+      searchQuery: "",
+      now: NOW,
+    });
+    expect(headerBadges(branchless)).toEqual([
+      ["Main checkout", null],
+      ["feat/scratch", null],
+    ]);
+  });
+
   it("nests the rows under a worktree header and leaves project rows flat", () => {
     const nesting = (collapsedKeys: string[], openThreadKey: string | null) =>
       buildItems(collapsedKeys, openThreadKey)

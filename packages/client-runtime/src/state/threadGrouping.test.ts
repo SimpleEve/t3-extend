@@ -6,6 +6,7 @@ import {
   flattenProjectViewFolders,
   groupThreadsByProject,
   groupThreadsByWorktree,
+  hasMainCheckoutBadge,
   projectViewFolderThreadCount,
   resolveSidebarFolderDot,
   resolveSidebarThreadStatus,
@@ -76,6 +77,16 @@ describe("groupThreadsByWorktree", () => {
       thread("wt", { sentAt: "2026-10-02T00:00:00.000Z", worktreePath: "C:\\w\\fix" }),
     ]);
     expect(groups?.map((group) => group.label)).toEqual([null, "fix"]);
+    // Only a main checkout named by its branch needs the Main badge.
+    expect(groups?.map(hasMainCheckoutBadge)).toEqual([false, false]);
+    const branched = groupThreadsByWorktree([
+      thread("main", { sentAt: "2026-10-01T00:00:00.000Z", branch: "feat/a" }),
+      thread("wt", { sentAt: "2026-10-02T00:00:00.000Z", worktreePath: "/w/a", branch: "feat/a" }),
+    ]);
+    expect(branched?.map((group) => [group.label, hasMainCheckoutBadge(group)])).toEqual([
+      ["feat/a", true],
+      ["feat/a", false],
+    ]);
   });
 
   it("keeps the same path on two environments in separate groups", () => {
