@@ -151,6 +151,15 @@ mobile：
 - 其他上游文件各一两行：`SidebarThreadHeader.tsx`（切换按钮）、`CommandPalette.tsx`（两条命令，定义在 `CommandPaletteSidebarViewItems.tsx`）、`chatRouteCommands.ts`（`chat.new`）、`lib/sidebarTree.ts`（`aria-level` 按祖先数计算，支持第三层）。
 - 快捷键没有加，因为要改 `packages/contracts/src/keybindings.ts`。
 
+mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
+
+- 共享：`threadGrouping.ts` 还提供 `groupThreadsByProject`（从 web 的 `Sidebar.logic.ts` 搬来，web 里 `groupSidebarThreadsByProject` 现在是它的 re-export）、`flattenProjectViewFolders` 和 `projectViewFolderThreadCount`。测试都在 `threadGrouping.test.ts`，两端不再各写一份。
+- 偏好：`threadListViewMode` 和 `threadListCollapsedGroups` 存在 mobile 偏好里（`mobile-preferences.ts`），折叠 key 和 web 相同（`sidebarGroupCollapseKey`）。hook 是 `apps/mobile/src/fork/threadListView.ts`。
+- 布局：`fork/threadListProjectView.ts` 只重排按状态布局里"置顶之后、第一个货架之前"的活跃行，先按发送时间排序，再复用 `buildProjectViewFolders`。不在项目列表里的项目的对话进末尾的"Other projects"组，不会消失。表头是列表项 `v2-group-header`（`threadListV2.ts`），组件是 `fork/ThreadListGroupHeader.tsx`。
+- 按项目视图下没有 Working 货架，也不能手动上下移动；搜索时仍按相关度平铺，清空搜索后恢复分组。
+- 入口：筛选菜单里的"对话分组"（Android `HomeHeader.android.tsx` 和平板侧栏 `ThreadNavigationSidebar.tsx`，菜单项在 `fork/threadListViewMenu.ts`；iOS 原生头部走 `buildHomeListFilterMenu`，iOS Home 的筛选条多一个胶囊）。
+- 没做：组头上的状态点（web 有 `resolveSidebarFolderDot`，还在 `Sidebar.logic.ts` 里）。iOS 没有实机或模拟器验证。
+
 ## 自建连接
 
 用自己的 VPS（frps + Caddy）代替 T3 Connect。部署包和中文文档在 `infra/self-host/`，用户说明在 `docs/user/remote-access.md` 的 "Your own public address" 一节。设备把自建地址当作一条普通的 `Bearer` 路由，配对沿用 `https://host/pair#token=<一次性码>`。不自托管 `infra/relay`，不复用 `providerKind: "t3_relay"`。
