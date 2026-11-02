@@ -784,6 +784,8 @@ export default {
     "选择你信任的环境，让它们共享 PR 数据并互相使用源代码管理权限。两个环境都需要开启。只对这个客户端生效。",
   "Failed to connect. Reconnecting... Reason: {error}": "连接失败，正在重新连接... 原因：{error}",
   "Connection failed. Reason: {error}": "连接失败。原因：{error}",
+  // Thread feed: folded work of a run, translated where the feed renders it.
+  "Earlier work": "更早的工作",
   "Expand details for {environmentLabel}": "展开 {environmentLabel} 的详情",
   "Collapse details for {environmentLabel}": "收起 {environmentLabel} 的详情",
   // Thread connection banner

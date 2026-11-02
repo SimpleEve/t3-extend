@@ -21,13 +21,14 @@ import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
 import { useT } from "../../hooks/useT"; // fork: i18n
 
 const HOP_MARK = { ok: "✓", failed: "✕", unchecked: "–" } as const;
-const HOP_NOTE = { ok: "", failed: " · Failed", unchecked: " · Not checked" } as const;
+const HOP_NOTE = { ok: "", failed: "Failed", unchecked: "Not checked" } as const; // fork: i18n
 
 /** Same model as the web Settings row; null while connected, off, or not failed. */
 export function useConnectionDiagnosis(
   environmentId: EnvironmentId,
   presentation: EnvironmentPresentation | null,
 ) {
+  const t = useT(); // fork: i18n
   const state = AsyncResult.getOrElse(
     useAtomValue(environmentCatalog.stateAtom(environmentId)),
     () => AVAILABLE_CONNECTION_STATE,
@@ -43,6 +44,7 @@ export function useConnectionDiagnosis(
     via: relayOnly ? "relay" : "direct",
     clientVersion: Constants.expoConfig?.version,
     serverVersion: presentation.serverConfig?.environment.serverVersion,
+    t, // fork: i18n
   });
   return { diagnosis, state };
 }
@@ -65,7 +67,7 @@ export function ConnectionDiagnosisDetails(props: {
               hop.result === "failed" ? "text-danger-foreground" : "text-foreground-muted",
             )}
           >
-            {`${HOP_MARK[hop.result]}  ${hop.label}${HOP_NOTE[hop.result]}`}
+            {`${HOP_MARK[hop.result]}  ${hop.label}${hop.result === "ok" ? "" : ` · ${t(HOP_NOTE[hop.result])}`}`}
           </Text>
         ))}
       </View>

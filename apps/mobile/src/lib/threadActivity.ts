@@ -228,6 +228,8 @@ type ThreadFeedEntryContent =
       readonly createdAt: string;
       readonly runId: RunId;
       readonly label: string;
+      readonly labelTemplate: RunFoldLabelTemplate; // fork: i18n, `label` before interpolation
+      readonly duration: string | null; // fork: i18n
       readonly expanded: boolean;
     }
   | {
@@ -1008,12 +1010,22 @@ function threadFeedActivityIsVisible(
   );
 }
 
+// fork: i18n. The row keeps its English template so the feed translates it when it renders.
+type RunFoldLabelTemplate =
+  | "You stopped after {duration}"
+  | "You stopped this response"
+  | "Worked for {duration}"
+  | "Worked"
+  | "Earlier work";
+
 interface ThreadFeedRunFold {
   readonly deferredWorkItemIds?: ReadonlyArray<string>;
   readonly runId: RunId;
   readonly createdAt: string;
   readonly hiddenEntryIds: ReadonlySet<string>;
   readonly label: string;
+  readonly labelTemplate: RunFoldLabelTemplate; // fork: i18n
+  readonly duration: string | null; // fork: i18n
 }
 
 export function failedFeedRunIds(
@@ -1210,18 +1222,22 @@ function deriveThreadFeedRunFolds(
           )
         : [],
     );
+    // fork: i18n
+    const labelTemplate: RunFoldLabelTemplate = interrupted
+      ? duration
+        ? "You stopped after {duration}"
+        : "You stopped this response"
+      : duration
+        ? "Worked for {duration}"
+        : "Worked";
     foldsByAnchorId.set(firstHiddenEntry.id, {
       ...(deferredWorkItemIds.length > 0 ? { deferredWorkItemIds } : {}),
       runId,
       createdAt: firstHiddenEntry.createdAt,
       hiddenEntryIds,
-      label: interrupted
-        ? duration
-          ? `You stopped after ${duration}`
-          : "You stopped this response"
-        : duration
-          ? `Worked for ${duration}`
-          : "Worked",
+      label: duration ? labelTemplate.replace("{duration}", duration) : labelTemplate,
+      labelTemplate,
+      duration,
     });
   }
   const covered = new Set(
@@ -1238,6 +1254,8 @@ function deriveThreadFeedRunFolds(
       createdAt: entry.createdAt,
       hiddenEntryIds: new Set([entry.id]),
       label: "Earlier work",
+      labelTemplate: "Earlier work", // fork: i18n
+      duration: null, // fork: i18n
       deferredWorkItemIds,
     });
   }
@@ -1466,6 +1484,8 @@ export function deriveThreadFeedPresentation(
           createdAt: fold.createdAt,
           runId: fold.runId,
           label: fold.label,
+          labelTemplate: fold.labelTemplate, // fork: i18n
+          duration: fold.duration, // fork: i18n
           expanded,
         };
         runFoldRowsCache.set(entry, row);
