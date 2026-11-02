@@ -3,6 +3,7 @@ import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as Orchestrator from "./orchestration-v2/Orchestrator.ts";
 import * as PeerLinkRequests from "./peer/PeerLinkRequests.ts";
+import { makePushRpcHandlers } from "./fork/push/pushRpcHandlers.ts"; // fork: UnifiedPush registrations
 import * as PeerLinks from "./peer/PeerLinks.ts";
 
 import * as DateTime from "effect/DateTime";
@@ -1911,7 +1912,9 @@ export const layerWsRpc = (
         return yield* mutateProjectWithClone(projectService, projectCloneTracker, mutation);
       });
 
+      const pushHandlers = yield* makePushRpcHandlers(currentSessionId); // fork: UnifiedPush registrations
       const handlers = ServerWsRpcGroup.of({
+        ...pushHandlers, // fork: UnifiedPush registrations
         [ORCHESTRATION_V2_WS_METHODS.dispatchCommand]: (command) =>
           Effect.annotateCurrentSpan({
             "orchestration_v2.command_id": command.commandId,

@@ -38,6 +38,7 @@ import * as Rpc from "effect/rpc/Rpc";
 import * as RpcGroup from "effect/rpc/RpcGroup";
 import * as RpcMiddleware from "effect/rpc/RpcMiddleware";
 import { NonNegativeInt, TrimmedNonEmptyString } from "./baseSchemas.ts";
+import { FORK_PUSH_RPCS } from "./forkPush.ts"; // fork: UnifiedPush registrations
 import {
   ProviderAuthCancelInput,
   ProviderAuthCompleteInput,
@@ -2189,4 +2190,5 @@ export const WsRpcGroup = RpcGroup.make(
   WsOrchestrationV2SubscribeShellRpc,
   WsOrchestrationV2SubscribeThreadRpc,
   WsOrchestrationV2SubscribeCommandOutputRpc,
+  ...FORK_PUSH_RPCS, // fork: UnifiedPush registrations
 ).middleware(RpcScopeAuthorization);
