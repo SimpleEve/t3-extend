@@ -2725,8 +2725,8 @@ function OpenCommandPaletteDialog(props: {
             : remoteProjectButtonLabel && t(remoteProjectButtonLabel)
         }
         shortcutLabel="Enter"
-        ariaLabel={`${t(remoteProjectButtonLabel ?? "Continue")} (Enter)`}
-        tooltip={`${t(remoteProjectButtonLabel ?? "Continue")} (Enter)`}
+        ariaLabel={t("{value} (Enter)", { value: t(remoteProjectButtonLabel ?? "Continue") })}
+        tooltip={t("{value} (Enter)", { value: t(remoteProjectButtonLabel ?? "Continue") })}
         disabled={!canSubmitRemoteProjectFlow}
         onSubmit={() => {
           void submitAddProjectCloneFlow();

@@ -56,6 +56,7 @@ import { showThreadUndoNotice } from "./showThreadUndoNotice";
 import { useAtomCommand } from "../state/use-atom-command";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
 import { useAtomQueryRunner } from "../state/use-atom-query-runner";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export class ThreadArchiveBlockedError extends Schema.TaggedError<ThreadArchiveBlockedError>()(
   "ThreadArchiveBlockedError",
@@ -189,8 +190,9 @@ export async function navigateAfterThreadDeletion(navigate: () => Promise<void>)
     toastManager.add(
       stackedThreadToast({
         type: "error",
-        title: "Thread deleted, but navigation failed",
-        description: error instanceof Error ? error.message : "An error occurred.",
+        title: translate(getUiLocale(), "Thread deleted, but navigation failed"),
+        description:
+          error instanceof Error ? error.message : translate(getUiLocale(), "An error occurred."),
       }),
     );
   }
@@ -628,10 +630,13 @@ export function useThreadActions() {
         stackedThreadToast({
           type: "error",
           title: removalFailed
-            ? "Failed to delete worktree"
-            : "Worktree deleted, but Git status refresh failed",
+            ? translate(getUiLocale(), "Failed to delete worktree")
+            : translate(getUiLocale(), "Worktree deleted, but Git status refresh failed"),
           description: removalFailed
-            ? `Could not remove ${displayWorktreePath ?? orphanedWorktreePath}. ${message}`
+            ? translate(getUiLocale(), "Could not remove {value}. {message}", {
+                value: displayWorktreePath ?? orphanedWorktreePath,
+                message,
+              })
             : message,
         }),
       );

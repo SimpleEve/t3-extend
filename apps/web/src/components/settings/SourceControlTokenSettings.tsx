@@ -137,7 +137,7 @@ export function SourceControlTokenSettings({
                   tokenEnvVar: credentials.tokenEnvVar,
                   cliName: credentials.cliName,
                 })
-              : `Saved for ${savedHosts.join(", ")}.`}
+              : t("Saved for {value}.", { value: savedHosts.join(", ") })}
           </p>
           <div className="flex shrink-0 gap-2">
             {isSaved ? (

@@ -8,6 +8,7 @@ import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { openOnHostLabel, showPullRequestLinkContextMenu } from "./pullRequestLinkContextMenu";
 import { useT } from "~/hooks/useT"; // fork: interface language
+import { changeRequestTerm } from "./changeRequestTerm";
 
 interface CrumbsPullRequest {
   readonly url: string;
@@ -64,6 +65,7 @@ function NumberLink({
   openOnHostText: string;
   focusable: boolean;
 }) {
+  const t = useT();
   return (
     <Tooltip>
       <TooltipTrigger
@@ -80,7 +82,13 @@ function NumberLink({
               "inline-flex shrink-0 cursor-pointer items-center gap-0.5 font-medium underline-offset-2 hover:underline",
               toneClassName,
             )}
-            aria-label={`Open ${sourceControlClients.get(detail.provider).changeRequest.singular} #${detail.number} on host`}
+            aria-label={t("Open {kind} #{number} on host", {
+              kind: changeRequestTerm(
+                sourceControlClients.get(detail.provider).changeRequest.singular,
+                t,
+              ),
+              number: detail.number,
+            })}
           >
             #{detail.number}
             <ExternalLinkIcon aria-hidden className="size-2.5" />
@@ -111,6 +119,7 @@ export function PullRequestDetailCrumbs({
   openOnHostText: string;
   onBack: (() => void) | undefined;
 }) {
+  const t = useT();
   const ready = detail !== null && toneClassName !== null;
   return (
     <div className="pl-4 grid h-7 min-w-0 items-center overflow-hidden">
@@ -146,7 +155,9 @@ export function PullRequestDetailCrumbs({
                 }
               />
               <TooltipPopup side="top">
-                {repositoryUrl ? `Open ${detail.repository} repository` : detail.repository}
+                {repositoryUrl
+                  ? t("Open {repository} repository", { repository: detail.repository })
+                  : detail.repository}
               </TooltipPopup>
             </Tooltip>
             <NumberLink

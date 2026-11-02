@@ -275,7 +275,7 @@ export function DevicePanel(props: {
             >
               {loadError !== null ? (
                 <Button size="sm" variant="outline" onClick={refreshState}>
-                  Retry
+                  {t("Retry")}
                 </Button>
               ) : null}
             </DeviceLoadingView>
@@ -357,8 +357,9 @@ export function DevicePanel(props: {
                 !state.devices.some((device) => device.platform === "android") &&
                 !unavailablePlatforms.some((platform) => platform.platform === "android") ? (
                   <p className="max-w-sm text-xs">
-                    No Android virtual devices found. Create one in Android Studio's Device Manager,
-                    then refresh.
+                    {t(
+                      "No Android virtual devices found. Create one in Android Studio's Device Manager, then refresh.",
+                    )}
                   </p>
                 ) : null}
                 {loaded && !hostBusy ? (
@@ -418,11 +419,14 @@ function DeviceNotice(props: {
 }
 
 function DeviceDiscoveryWarning(props: { readonly label: string; readonly detail: string }) {
+  const t = useT();
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
   return (
     <DeviceNotice tone="warning" onDismiss={() => setDismissed(true)}>
-      <p className="font-medium">Device discovery warning · {props.label}</p>
+      <p className="font-medium">
+        {t("Device discovery warning · {label}", { label: props.label })}
+      </p>
       {props.detail}
     </DeviceNotice>
   );

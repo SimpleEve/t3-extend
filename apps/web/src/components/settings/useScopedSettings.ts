@@ -29,6 +29,7 @@ import {
   type ProjectOverrideEntry,
   type ScopedSettingsPatch,
 } from "./scopedSettings";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export function useScopedSettings<T = UnifiedSettings>(
   selector?: (settings: UnifiedSettings) => T,
@@ -53,7 +54,7 @@ function useRunScopedPlan() {
     if (plan.unavailableReason) {
       toastManager.add({
         type: "warning",
-        title: "Setting not saved",
+        title: translate(getUiLocale(), "Setting not saved"),
         description: plan.unavailableReason,
       });
       onFailed?.();
@@ -83,7 +84,9 @@ function useRunScopedPlan() {
       toastManager.add({
         type: "error",
         title:
-          savedEnvironmentCount > 0 ? "Setting saved on some environments" : "Setting not saved",
+          savedEnvironmentCount > 0
+            ? translate(getUiLocale(), "Setting saved on some environments")
+            : translate(getUiLocale(), "Setting not saved"),
         description: [
           ...failedEnvironments.map(
             ({ label, message }) => `Could not save on ${label}: ${message}`,

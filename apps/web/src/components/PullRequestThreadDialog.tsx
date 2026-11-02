@@ -35,6 +35,8 @@ import {
 import { Input } from "./ui/input";
 import { Spinner } from "./ui/spinner";
 import { toastManager } from "./ui/toast";
+import { useT } from "~/hooks/useT";
+import { changeRequestTerm } from "./pullRequest/changeRequestTerm";
 
 interface PullRequestThreadDialogProps {
   open: boolean;
@@ -68,6 +70,7 @@ export function PullRequestThreadDialog({
   onOpenChange,
   onPrepared,
 }: PullRequestThreadDialogProps) {
+  const t = useT();
   const referenceInputRef = useRef<HTMLInputElement>(null);
   const [reference, setReference] = useState(initialReference ?? "");
   const [referenceDirty, setReferenceDirty] = useState(false);
@@ -205,11 +208,16 @@ export function PullRequestThreadDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <SourceControlIcon className="me-2 size-4" />
-            Checkout {terminology.singular}
+            {t("Checkout {kind}", { kind: changeRequestTerm(terminology.singular, t) })}
           </DialogTitle>
           <DialogDescription>
-            Resolve a {sourceControlPresentation.providerName} {terminology.singular}, then create
-            the draft thread in the main repo or in a dedicated worktree.
+            {t(
+              "Resolve a {providerName} {kind}, then create the draft thread in the main repo or in a dedicated worktree.",
+              {
+                providerName: sourceControlPresentation.providerName,
+                kind: changeRequestTerm(terminology.singular, t),
+              },
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>
@@ -219,7 +227,9 @@ export function PullRequestThreadDialog({
             </span>
             <Input
               ref={referenceInputRef}
-              placeholder={`${terminology.shortLabel} URL, checkout command, or #42`}
+              placeholder={t("{shortLabel} URL, checkout command, or #42", {
+                shortLabel: terminology.shortLabel,
+              })}
               value={reference}
               onChange={(event) => {
                 setReferenceDirty(true);
@@ -246,8 +256,11 @@ export function PullRequestThreadDialog({
                 <div className="min-w-0">
                   <p className="truncate font-medium text-sm">{resolvedPullRequest.title}</p>
                   <p className="truncate text-muted-foreground text-xs">
-                    #{resolvedPullRequest.number} · {resolvedPullRequest.headBranch} to{" "}
-                    {resolvedPullRequest.baseBranch}
+                    {t("#{number} · {headBranch} to {baseBranch}", {
+                      number: resolvedPullRequest.number,
+                      headBranch: resolvedPullRequest.headBranch,
+                      baseBranch: resolvedPullRequest.baseBranch,
+                    })}
                   </p>
                 </div>
                 <span className={cn("shrink-0 text-xs capitalize", statusTone)}>
@@ -260,7 +273,7 @@ export function PullRequestThreadDialog({
           {isResolving ? (
             <div className="flex items-center gap-2 text-muted-foreground text-xs">
               <Spinner size="sm" />
-              Resolving {terminology.singular}...
+              {t("Resolving {kind}...", { kind: changeRequestTerm(terminology.singular, t) })}
             </div>
           ) : null}
 
@@ -274,7 +287,7 @@ export function PullRequestThreadDialog({
             onClick={() => onOpenChange(false)}
             disabled={preparePullRequestThreadAction.isPending}
           >
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button
             type="button"
@@ -289,7 +302,7 @@ export function PullRequestThreadDialog({
               preparePullRequestThreadAction.isPending
             }
           >
-            {preparingMode === "local" ? "Preparing local..." : "Local"}
+            {preparingMode === "local" ? t("Preparing local...") : t("Local")}
           </Button>
           <Button
             type="button"
@@ -304,7 +317,7 @@ export function PullRequestThreadDialog({
               preparePullRequestThreadAction.isPending
             }
           >
-            {preparingMode === "worktree" ? "Preparing worktree..." : "Worktree"}
+            {preparingMode === "worktree" ? t("Preparing worktree...") : t("Worktree")}
           </Button>
         </DialogFooter>
       </DialogPopup>

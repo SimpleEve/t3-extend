@@ -48,7 +48,7 @@ export function PullRequestDiffUnavailableState({
           render={<a href={url} target="_blank" rel="noopener noreferrer" />}
         >
           <ExternalLinkIcon aria-hidden />
-          Open on {providerName}
+          {t("Open on {provider}", { provider: providerName })}
         </Button>
       </div>
       <details className="w-full max-w-lg text-xs text-muted-foreground">

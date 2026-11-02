@@ -61,6 +61,7 @@ import {
 } from "~/state/session";
 import { environmentIdsKey } from "~/state/environmentAtomList";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 const CLIENT_SETTINGS_PERSISTENCE_ERROR_SCOPE = "[CLIENT_SETTINGS]";
 
@@ -445,8 +446,8 @@ export function useUpdateEnvironmentModelPreferences(environmentId: EnvironmentI
     } catch {
       toastManager.add({
         type: "error",
-        title: "Model preferences not saved",
-        description: "Could not load saved model preferences. Try again.",
+        title: translate(getUiLocale(), "Model preferences not saved"),
+        description: translate(getUiLocale(), "Could not load saved model preferences. Try again."),
       });
       return;
     }
@@ -472,8 +473,11 @@ export function useToggleEnvironmentModelFavorite(environmentId: EnvironmentId |
       } catch {
         toastManager.add({
           type: "error",
-          title: "Favorites not saved",
-          description: "Could not load saved model preferences. Try again.",
+          title: translate(getUiLocale(), "Favorites not saved"),
+          description: translate(
+            getUiLocale(),
+            "Could not load saved model preferences. Try again.",
+          ),
         });
         return;
       }
@@ -597,8 +601,14 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: "Setting not saved",
-        description: `Could not save on ${label}: ${error instanceof Error ? error.message : "The save failed. Try reconnecting and saving again."}`,
+        title: translate(getUiLocale(), "Setting not saved"),
+        description: translate(getUiLocale(), "Could not save on {label}: {reason}", {
+          label,
+          reason:
+            error instanceof Error
+              ? error.message
+              : translate(getUiLocale(), "The save failed. Try reconnecting and saving again."),
+        }),
       });
     }
     return result;
@@ -615,8 +625,16 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
     if (Object.keys(serverPatch).length > 0 && !canWriteServerPatch) {
       toastManager.add({
         type: "warning",
-        title: "Setting not saved",
-        description: `This connection lacks permission to change settings on ${environments.find((target) => target.environmentId === environmentId)?.label ?? "the selected environment"}.`,
+        title: translate(getUiLocale(), "Setting not saved"),
+        description: translate(
+          getUiLocale(),
+          "This connection lacks permission to change settings on {label}.",
+          {
+            label:
+              environments.find((target) => target.environmentId === environmentId)?.label ??
+              translate(getUiLocale(), "the selected environment"),
+          },
+        ),
       });
     }
     if (Object.keys(serverPatch).length > 0 && canWriteServerPatch) {
@@ -625,7 +643,7 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
       const warnUnsaved = (description = PRIMARY_SETTINGS_UNAVAILABLE_MESSAGE) =>
         toastManager.add({
           type: "warning",
-          title: "Setting not saved",
+          title: translate(getUiLocale(), "Setting not saved"),
           description,
         });
       if (Object.keys(localPatch).length > 0) {
@@ -701,7 +719,10 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
               .map(({ label }) => label);
             toastManager.add({
               type: "error",
-              title: saved.length > 0 ? "Setting saved on some environments" : "Setting not saved",
+              title:
+                saved.length > 0
+                  ? translate(getUiLocale(), "Setting saved on some environments")
+                  : translate(getUiLocale(), "Setting not saved"),
               description: [
                 ...failures,
                 ...(saved.length > 0 ? [`Saved on ${saved.join(", ")}.`] : []),

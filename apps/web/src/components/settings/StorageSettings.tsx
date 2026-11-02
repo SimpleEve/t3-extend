@@ -152,7 +152,7 @@ function RetentionControl({
               className="w-auto grow-0 text-right"
             />
             <span aria-hidden="true" className="self-center pr-2 text-xs">
-              days
+              {t("days")}
             </span>
             <NumberFieldIncrement aria-label={t("Increase {label}", { label })} />
           </NumberFieldGroup>

@@ -536,7 +536,7 @@ export default function FileBrowserPanel({
           onClick={handleRefresh}
           className="p-4 text-left text-xs leading-relaxed text-destructive"
         >
-          {error ?? pathSearch.error} Click to retry.
+          {t("{error} Click to retry.", { error: error ?? pathSearch.error ?? "" })}
         </button>
       ) : null}
       {query.trim() && pathSearch.truncated && !pathSearch.isPending ? (
@@ -565,7 +565,7 @@ export default function FileBrowserPanel({
       ) : (
         <FileTree
           model={model}
-          aria-label={`${projectName} files`}
+          aria-label={t("{projectName} files", { projectName })}
           className="min-h-0 flex-1 overflow-hidden"
           style={pierreTreeStyle(resolvedTheme)}
         />

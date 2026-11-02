@@ -501,9 +501,11 @@ function ProviderModelRow({
               variant="ghost-muted"
               disabled={!canWritePreferences}
               onClick={() => onToggleFavorite(model.slug)}
-              aria-label={`${isFavorite ? "Remove" : "Add"} ${model.name} ${
-                isFavorite ? "from" : "to"
-              } favorites`}
+              aria-label={
+                isFavorite
+                  ? t("Remove {name} from favorites", { name: model.name })
+                  : t("Add {name} to favorites", { name: model.name })
+              }
             />
           }
         >
@@ -535,7 +537,7 @@ function ProviderModelRow({
           </TooltipPopup>
         </Tooltip>
         {model.isCustom ? (
-          <span className="shrink-0 text-2xs text-muted-foreground/70">custom</span>
+          <span className="shrink-0 text-2xs text-muted-foreground/70">{t("custom")}</span>
         ) : null}
       </span>
       <span className="text-2xs text-muted-foreground/70">

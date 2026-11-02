@@ -15,6 +15,7 @@ import {
 import { Button } from "./ui/button";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
+import { useT } from "~/hooks/useT";
 
 export function useProviderUpdates() {
   const { environments } = useEnvironments();
@@ -70,6 +71,7 @@ export function useProviderUpdates() {
 }
 
 export function ProviderUpdatesAction() {
+  const t = useT();
   const { machines, updateAll } = useProviderUpdates();
   const pending = useRef(false);
   const [isPending, setIsPending] = useState(false);
@@ -96,7 +98,7 @@ export function ProviderUpdatesAction() {
             disabled={isPending}
             onClick={() => void handleUpdate()}
           >
-            {isPending ? "Updating…" : "Update all"}
+            {isPending ? t("Updating…") : t("Update all")}
           </Button>
         }
       />

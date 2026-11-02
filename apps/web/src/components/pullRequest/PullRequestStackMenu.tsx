@@ -29,6 +29,7 @@ import { PullRequestStackLayerContent } from "./PullRequestStackLayerContent";
 import { PullRequestGlyph } from "./pullRequestIcons";
 import { readableFailure } from "./pullRequestDetail.logic";
 import { useT } from "~/hooks/useT"; // fork: interface language
+import { changeRequestTerm } from "./changeRequestTerm";
 
 export function PullRequestStackMenu({
   hostLabel,
@@ -135,7 +136,7 @@ export function PullRequestStackMenu({
         title: action === "merge" ? t("Stack merge request completed") : t("Stack rebased"),
         description:
           action === "merge"
-            ? `${hostLabel} merged the stack or added it to its merge queue.`
+            ? t("{hostLabel} merged the stack or added it to its merge queue.", { hostLabel })
             : undefined,
       });
     }
@@ -152,7 +153,11 @@ export function PullRequestStackMenu({
                   <Button
                     variant="ghost"
                     size="xs"
-                    aria-label={`Stack ${stack.number}, layer ${position} of ${stack.layers.length}`}
+                    aria-label={t("Stack {number}, layer {position} of {length}", {
+                      number: stack.number,
+                      position,
+                      length: stack.layers.length,
+                    })}
                   />
                 }
               >
@@ -163,7 +168,11 @@ export function PullRequestStackMenu({
             }
           />
           <TooltipPopup>
-            View stack #{stack.number}, layer {position} of {stack.layers.length}
+            {t("View stack #{number}, layer {position} of {length}", {
+              number: stack.number,
+              position,
+              length: stack.layers.length,
+            })}
             {notice ? ` · ${notice}` : null}
           </TooltipPopup>
         </Tooltip>
@@ -191,7 +200,7 @@ export function PullRequestStackMenu({
               {canMerge ? (
                 <MenuItem disabled={mergeDisabled} onClick={() => setConfirmation("merge")}>
                   <PullRequestGlyph.merged aria-hidden />
-                  Merge stack ({mergeLayers.length})
+                  {t("Merge stack ({length})", { length: mergeLayers.length })}
                 </MenuItem>
               ) : null}
               {canRebase ? (
@@ -230,8 +239,15 @@ export function PullRequestStackMenu({
             }
           />
           <TooltipPopup>
-            Merge stack through #{reference.number} into {stack.base} ({mergeLayers.length}{" "}
-            {mergeLayers.length === 1 ? terminology.singular : terminology.plural})
+            {t("Merge stack through #{number} into {base} ({length} {kind})", {
+              number: reference.number,
+              base: stack.base,
+              length: mergeLayers.length,
+              kind: changeRequestTerm(
+                mergeLayers.length === 1 ? terminology.singular : terminology.plural,
+                t,
+              ),
+            })}
           </TooltipPopup>
         </Tooltip>
       ) : null}
@@ -245,13 +261,31 @@ export function PullRequestStackMenu({
           <DialogHeader>
             <DialogTitle>
               {confirmation === "merge"
-                ? `Merge ${mergeLayers.length} ${mergeLayers.length === 1 ? terminology.singular : terminology.plural}?`
-                : `Rebase ${unmerged.length} ${unmerged.length === 1 ? terminology.singular : terminology.plural}?`}
+                ? t("Merge {length} {kind}?", {
+                    length: mergeLayers.length,
+                    kind: changeRequestTerm(
+                      mergeLayers.length === 1 ? terminology.singular : terminology.plural,
+                      t,
+                    ),
+                  })
+                : t("Rebase {length} {kind}?", {
+                    length: unmerged.length,
+                    kind: changeRequestTerm(
+                      unmerged.length === 1 ? terminology.singular : terminology.plural,
+                      t,
+                    ),
+                  })}
             </DialogTitle>
             <DialogDescription>
               {confirmation === "merge"
-                ? `Merge #${reference.number} and its unmerged layers below into ${stack.base} using ${mergeMethod}. ${hostLabel} checks their rules before merging or queueing them and rebases the remaining stack after merging.`
-                : `Rebase the remote branches from bottom to top onto ${stack.base}. This rewrites branch history and may restart checks. If a layer fails, earlier updates remain.`}
+                ? t(
+                    "Merge #{number} and its unmerged layers below into {base} using {mergeMethod}. {hostLabel} checks their rules before merging or queueing them and rebases the remaining stack after merging.",
+                    { number: reference.number, base: stack.base, mergeMethod, hostLabel },
+                  )
+                : t(
+                    "Rebase the remote branches from bottom to top onto {base}. This rewrites branch history and may restart checks. If a layer fails, earlier updates remain.",
+                    { base: stack.base },
+                  )}
             </DialogDescription>
           </DialogHeader>
           <DialogPanel>
@@ -268,7 +302,7 @@ export function PullRequestStackMenu({
           </DialogPanel>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmation(null)}>
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button onClick={() => void run()}>
               {confirmation === "merge" ? t("Merge stack") : t("Rebase stack")}

@@ -19,6 +19,7 @@ import {
   ThemePreviewCircle,
 } from "./settings/ThemePreviewCircles";
 import { stackedThreadToast, toastManager } from "./ui/toast";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export const APPEARANCE_OPTIONS = [
   { mode: "system", label: "System", icon: MonitorIcon },
@@ -30,8 +31,8 @@ export function notifyThemeSaveFailure(): void {
   toastManager.add(
     stackedThreadToast({
       type: "error",
-      title: "Couldn't save theme selection",
-      description: "Try again.",
+      title: translate(getUiLocale(), "Couldn't save theme selection"),
+      description: translate(getUiLocale(), "Try again."),
     }),
   );
 }

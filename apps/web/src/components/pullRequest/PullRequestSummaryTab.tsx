@@ -95,6 +95,7 @@ function CommentIdentity({
   comment: PullRequestComment;
   detail: PullRequestDetailView;
 }) {
+  const t = useT();
   const actor = comment.author;
   const profileUrl = actor
     ? sourceControlClients.get(detail.provider).authorProfileUrl(actor.login, detail.url)
@@ -123,7 +124,7 @@ function CommentIdentity({
         </TooltipTrigger>
         <TooltipPopup>
           {new Date(comment.createdAt).toLocaleString()}
-          {comment.url ? " · Open comment on host" : ""}
+          {comment.url ? t(" · Open comment on host") : ""}
         </TooltipPopup>
       </Tooltip>
     </div>
@@ -236,6 +237,7 @@ function CollapsedComment({
   replies?: ReactNode;
   moreReplies?: ReactNode;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const statusTriggerRef = useRef<HTMLButtonElement>(null);
   return (
@@ -246,7 +248,9 @@ function CollapsedComment({
             <CommentIdentity comment={comment} detail={detail} />
             {replyCount > 0 ? (
               <span className="shrink-0 py-1 text-xs text-muted-foreground">
-                {replyCount} {replyCount === 1 ? "reply" : "replies"}
+                {replyCount === 1
+                  ? t("{count} reply", { count: replyCount })
+                  : t("{count} replies", { count: replyCount })}
               </span>
             ) : null}
             <CollapsibleTrigger
@@ -449,8 +453,15 @@ export function PullRequestSummaryTab({
         className="w-full"
         onClick={() => setShown({ url: detail.url, count: shownConversations + COMMENT_PAGE })}
       >
-        Show {Math.min(hiddenConversationCount, COMMENT_PAGE)} older conversation
-        {hiddenConversationCount === 1 ? "" : "s"} ({hiddenConversationCount} hidden)
+        {hiddenConversationCount === 1
+          ? t("Show {count} older conversation ({hidden} hidden)", {
+              count: Math.min(hiddenConversationCount, COMMENT_PAGE),
+              hidden: hiddenConversationCount,
+            })
+          : t("Show {count} older conversations ({hidden} hidden)", {
+              count: Math.min(hiddenConversationCount, COMMENT_PAGE),
+              hidden: hiddenConversationCount,
+            })}
       </Button>
     ) : null;
   // Verdicts outside the visible comment window still count.
@@ -773,7 +784,9 @@ export function PullRequestSummaryTab({
               cwd={detail.workspaceRoot}
               environmentId={environmentId}
               threadRef={threadRef}
-              label={`${capitalizeTerm(terminology.singular)} description`}
+              label={t("{kind} description", {
+                kind: capitalizeTerm(changeRequestTerm(terminology.singular, t)),
+              })}
               placeholder={t("Describe this {kind}", {
                 kind: changeRequestTerm(terminology.singular, t),
               })}
@@ -785,7 +798,7 @@ export function PullRequestSummaryTab({
             <div className="flex items-start gap-1">
               <PullRequestMarkdown
                 className="min-w-0 flex-1"
-                text={detail.body.trim().length > 0 ? detail.body : "_No description provided._"}
+                text={detail.body.trim().length > 0 ? detail.body : t("_No description provided._")}
                 cwd={detail.workspaceRoot}
                 environmentId={environmentId}
                 threadRef={threadRef}
@@ -806,7 +819,7 @@ export function PullRequestSummaryTab({
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{t("Check details are out of date.")}</span>
             <Button size="xs" variant="ghost" onClick={onRefreshChecks}>
-              Refresh
+              {t("Refresh")}
             </Button>
           </div>
         ) : detail.checks.length === 0 ? (
@@ -870,7 +883,9 @@ export function PullRequestSummaryTab({
                 aria-label={t("Filter comments")}
               >
                 <ListFilterIcon aria-hidden className="size-3" />
-                {filteredOutCount > 0 ? `${filteredOutCount} hidden` : t("Filter")}
+                {filteredOutCount > 0
+                  ? t("{filteredOutCount} hidden", { filteredOutCount })
+                  : t("Filter")}
               </MenuTrigger>
               <MenuPopup align="end">
                 <MenuGroup>
@@ -923,8 +938,15 @@ export function PullRequestSummaryTab({
           <>
             {detail.commentsTruncated ? (
               <p className="mb-2 rounded-md border border-warning/30 bg-warning-surface px-2 py-1.5 text-xs">
-                This conversation is only partially loaded. {commentCount} comment
-                {commentCount === 1 ? " is" : "s are"} loaded; open it on the host to read the rest.
+                {commentCount === 1
+                  ? t(
+                      "This conversation is only partially loaded. {count} comment is loaded; open it on the host to read the rest.",
+                      { count: commentCount },
+                    )
+                  : t(
+                      "This conversation is only partially loaded. {count} comments are loaded; open it on the host to read the rest.",
+                      { count: commentCount },
+                    )}
               </p>
             ) : null}
             {items.length === 0 ? (
@@ -949,7 +971,7 @@ export function PullRequestSummaryTab({
                     className="w-full"
                     onClick={() => setShown({ url: detail.url, count: COMMENT_PAGE })}
                   >
-                    Show only {COMMENT_PAGE} recent conversations
+                    {t("Show only {COMMENT_PAGE} recent conversations", { COMMENT_PAGE })}
                   </Button>
                 ) : null}
               </div>

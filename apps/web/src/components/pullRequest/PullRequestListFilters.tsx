@@ -320,7 +320,7 @@ function PullRequestAuthorChoices({
               <span className="min-w-0 flex-1 truncate">{option.actor.login}</span>
               {option.mergedCount > 0 ? (
                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                  {option.mergedCount} merges loaded
+                  {t("{mergedCount} merges loaded", { mergedCount: option.mergedCount })}
                 </span>
               ) : null}
             </span>

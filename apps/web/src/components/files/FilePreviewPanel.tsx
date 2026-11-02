@@ -127,6 +127,7 @@ import {
   setProjectFileQueryData,
   useProjectFileQuery,
 } from "./projectFilesQueryState";
+import { interpolateNodes } from "~/lib/interpolateNodes";
 import { useT } from "~/hooks/useT"; // fork: interface language
 
 const NO_FILE_REVISION_ATOM = Atom.make(null);
@@ -1347,7 +1348,9 @@ export default function FilePreviewPanel({
       file.data?.truncated &&
       (draft || isMarkdown || isMermaid || isHtml) ? (
         <div className="shrink-0 border-b border-warning/20 bg-warning-surface px-3 py-1.5 text-2xs text-warning-foreground">
-          Preview limited to the first 1 MB of a {file.data.byteLength.toLocaleString()} byte file.
+          {t("Preview limited to the first 1 MB of a {byteLength} byte file.", {
+            byteLength: file.data.byteLength.toLocaleString(),
+          })}
         </div>
       ) : null}
       <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -1469,11 +1472,18 @@ export default function FilePreviewPanel({
                 ) : null}
                 {!isHostFile ? (
                   <p className="text-muted-foreground">
-                    Workspace folder:{" "}
-                    <code className="break-all font-mono select-all">
-                      {file.readError?.cwd ?? cwd}
-                    </code>
-                    . Check the link's path or locate the file in Files.
+                    {interpolateNodes(
+                      t(
+                        "Workspace folder: {path}. Check the link's path or locate the file in Files.",
+                      ),
+                      {
+                        path: (
+                          <code className="break-all font-mono select-all">
+                            {file.readError?.cwd ?? cwd}
+                          </code>
+                        ),
+                      },
+                    )}
                   </p>
                 ) : null}
               </div>

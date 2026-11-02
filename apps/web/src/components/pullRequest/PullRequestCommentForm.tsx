@@ -13,6 +13,7 @@ import { PullRequestGlyph } from "./pullRequestIcons";
 import { pullRequestReviewKey } from "./pullRequestReviewStore";
 import { useInlineActionConfirm } from "./useInlineActionConfirm";
 import { useT } from "~/hooks/useT"; // fork: interface language
+import { changeRequestTerm } from "./changeRequestTerm";
 
 export function PullRequestCommentForm({
   environmentId,
@@ -94,7 +95,12 @@ export function PullRequestCommentForm({
         value={body}
         rows={3}
         placeholder={t("Leave a comment")}
-        aria-label={`Comment on this ${sourceControlClients.get(detail.provider).changeRequest.singular}`}
+        aria-label={t("Comment on this {kind}", {
+          kind: changeRequestTerm(
+            sourceControlClients.get(detail.provider).changeRequest.singular,
+            t,
+          ),
+        })}
         onChange={(event) => setBody(event.target.value)}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing || event.keyCode === 229) return;
@@ -140,9 +146,9 @@ export function PullRequestCommentForm({
                 </span>
               </span>
             ) : submitting === "reopen" ? (
-              "Reopening..."
+              t("Reopening...")
             ) : (
-              "Reopen with comment"
+              t("Reopen with comment")
             )}
           </Button>
         )}

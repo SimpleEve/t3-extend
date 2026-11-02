@@ -56,6 +56,7 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { countPreparingComposerImages } from "./preparingComposerImages";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 const isUnreachable = Schema.is(
   Schema.Union([ConnectionTransientError, ConnectionBlockedError, EnvironmentRpcUnavailableError]),
@@ -161,8 +162,14 @@ export function useComposerContextImport(input: {
     const fail = (reason: string) => {
       toastManager.add({
         type: "error",
-        title: `Couldn't bring ${record.name} into this message`,
-        description: `${reason} Remove the chip or attach the file again.`,
+        title: translate(getUiLocale(), "Couldn't bring {name} into this message", {
+          name: record.name,
+        }),
+        description: translate(
+          getUiLocale(),
+          "{reason} Remove the chip or attach the file again.",
+          { reason },
+        ),
       });
     };
     let file = copiedComposerAttachmentFile(sourceEnvironmentId, record.attachmentId);

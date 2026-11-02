@@ -235,7 +235,10 @@ export function EasDeviceHostEditor(props: {
             <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
               <p role="status" className="min-w-0 text-xs text-muted-foreground">
                 {account.status === "signed-in"
-                  ? `Signed in as ${account.account.signedInAs} with ${CREDENTIAL_SOURCES[account.account.credentialSource]}.`
+                  ? t("Signed in as {signedInAs} with {value}.", {
+                      signedInAs: account.account.signedInAs,
+                      value: t(CREDENTIAL_SOURCES[account.account.credentialSource]),
+                    })
                   : account.status === "failed"
                     ? account.error
                     : account.status === "checking"

@@ -374,7 +374,9 @@ export function ThemeSearchSection({
         {isSearching
           ? t("Searching themes...")
           : results
-            ? `${results.length} supported ${results.length === 1 ? "theme" : "themes"} found.`
+            ? results.length === 1
+              ? t("{count} supported theme found.", { count: results.length })
+              : t("{count} supported themes found.", { count: results.length })
             : ""}
       </div>
 
@@ -415,8 +417,10 @@ export function ThemeSearchSection({
                     <div className="min-w-0 flex-1">
                       <h4 className="truncate text-sm font-medium">{extension.name}</h4>
                       <p className="truncate text-muted-foreground text-xs">
-                        {extension.publisher} · {DOWNLOAD_FORMAT.format(extension.downloadCount)}{" "}
-                        downloads
+                        {extension.publisher} ·{" "}
+                        {t("{count} downloads", {
+                          count: DOWNLOAD_FORMAT.format(extension.downloadCount),
+                        })}
                       </p>
                     </div>
                   </div>

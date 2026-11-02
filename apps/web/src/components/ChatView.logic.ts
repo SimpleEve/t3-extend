@@ -104,6 +104,7 @@ import {
   resolveSelectableProviderInstanceEntry,
   type ProviderInstanceEntry,
 } from "../providerInstances";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 type ThreadProjection = EnvironmentThread["projection"];
 type ThreadStructureRow = ThreadStructure["visibleTurnItems"][number];
@@ -781,18 +782,27 @@ export function buildExpiredTerminalContextToastCopy(
   variant: "omitted" | "empty",
 ): { title: string; description: string } {
   const count = Math.max(1, Math.floor(expiredTerminalContextCount));
-  const noun = count === 1 ? "Expired terminal context" : "Expired terminal contexts";
-  const pronoun = count === 1 ? "it" : "them";
+  const locale = getUiLocale();
   if (variant === "empty") {
-    return {
-      title: `${noun} won't be sent`,
-      description: `Remove ${pronoun} or re-add ${pronoun} to include terminal output.`,
-    };
+    return count === 1
+      ? {
+          title: translate(locale, "Expired terminal context won't be sent"),
+          description: translate(locale, "Remove it or re-add it to include terminal output."),
+        }
+      : {
+          title: translate(locale, "Expired terminal contexts won't be sent"),
+          description: translate(locale, "Remove them or re-add them to include terminal output."),
+        };
   }
-  return {
-    title: `${noun} omitted from message`,
-    description: `Re-add ${pronoun} if you want that terminal output included.`,
-  };
+  return count === 1
+    ? {
+        title: translate(locale, "Expired terminal context omitted from message"),
+        description: translate(locale, "Re-add it if you want that terminal output included."),
+      }
+    : {
+        title: translate(locale, "Expired terminal contexts omitted from message"),
+        description: translate(locale, "Re-add them if you want that terminal output included."),
+      };
 }
 
 export function branchMismatchKey(
@@ -937,8 +947,11 @@ export function getStartedThreadModelChangeBlockReason(input: {
     return null;
   }
   return {
-    title: "Start a new chat to switch providers",
-    description: "This thread does not support switching providers after it has started.",
+    title: translate(getUiLocale(), "Start a new chat to switch providers"),
+    description: translate(
+      getUiLocale(),
+      "This thread does not support switching providers after it has started.",
+    ),
   };
 }
 

@@ -26,6 +26,7 @@ import { useThreadSelectionStore } from "../threadSelectionStore";
 import { resolveThreadRouteTarget } from "../threadRoutes";
 import { useUiStateStore } from "../uiStateStore";
 import { type CommandHandler, registerCommands } from "./dispatcher";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 const CHAT_ROUTE_ID = "/_chat";
 
@@ -154,8 +155,11 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
           toastManager.add(
             stackedThreadToast({
               type: "info",
-              title: "Preview is desktop-only",
-              description: "Open T3 Code in the desktop app to use the in-app preview.",
+              title: translate(getUiLocale(), "Preview is desktop-only"),
+              description: translate(
+                getUiLocale(),
+                "Open T3 Code in the desktop app to use the in-app preview.",
+              ),
             }),
           );
           return;

@@ -949,7 +949,9 @@ export function ProviderInstanceCard({
                   size={mode === "list" ? "icon-micro" : "icon-xs"}
                   variant="ghost-muted"
                   className={mode === "list" ? "pointer-events-auto relative shrink-0" : undefined}
-                  aria-label={`${updateProgress ? "Updating" : versionAdvisory.title}, view details`}
+                  aria-label={t("{status}, view details", {
+                    status: updateProgress ? t("Updating") : versionAdvisory.title,
+                  })}
                 >
                   {updateProgress ? (
                     <Spinner tone="muted" {...(mode === "list" ? { size: "sm" as const } : {})} />
@@ -998,7 +1000,9 @@ export function ProviderInstanceCard({
               {isUpdating
                 ? t("Updating")
                 : versionAdvisory.targetVersion
-                  ? `Install ${getProviderVersionLabel(versionAdvisory.targetVersion)}`
+                  ? t("Install {targetVersion}", {
+                      targetVersion: getProviderVersionLabel(versionAdvisory.targetVersion) ?? "",
+                    })
                   : t("Update now")}
             </Button>
           ) : null}
@@ -1113,7 +1117,7 @@ export function ProviderInstanceCard({
                 deviceEnabled={resolveProviderInstanceEnabled(instance)}
               />
               <SettingResetButton
-                label={`${displayName} enablement`}
+                label={t("{displayName} enablement", { displayName })}
                 tooltip="Reset to the device setting"
                 disabled={readOnly || !canWriteSettings}
                 onClick={projectOverride.onReset}

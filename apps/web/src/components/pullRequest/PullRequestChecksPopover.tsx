@@ -111,7 +111,7 @@ function ChecksBody({
                       });
                     }}
                   >
-                    Details
+                    {t("Details")}
                   </button>
                 )}
               </li>
@@ -190,10 +190,13 @@ export function PullRequestChecksPopover({
           <>
             {checks !== undefined && incompleteCount > 0 ? (
               <span className="tabular-nums">
-                {checks.length - incompleteCount}/{checks.length} checks
+                {t("{value}/{length} checks", {
+                  value: checks.length - incompleteCount,
+                  length: checks.length,
+                })}
               </span>
             ) : failedCount > 0 ? (
-              <span className="tabular-nums">{failedCount} failed</span>
+              <span className="tabular-nums">{t("{count} failed", { count: failedCount })}</span>
             ) : null}
           </>
         ) : null}

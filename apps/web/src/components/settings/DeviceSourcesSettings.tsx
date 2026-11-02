@@ -188,7 +188,9 @@ export function DeviceSourcesSettings(props: {
       toastManager.add({
         type: "error",
         title: failedTitle,
-        description: `This connection cannot change settings on ${unwritable.map((patch) => name(patch.environmentId)).join(", ")}.`,
+        description: t("This connection cannot change settings on {value}.", {
+          value: unwritable.map((patch) => name(patch.environmentId)).join(", "),
+        }),
       });
       return false;
     }
@@ -687,7 +689,7 @@ function PlatformIcon(props: {
       <PopoverPopup side="top" align="end" width="sm">
         <p className="text-sm font-medium">
           {props.label}{" "}
-          {available ? (partial ? t("available on some") : "available") : t("not available")}
+          {available ? (partial ? t("available on some") : t("available")) : t("not available")}
         </p>
         {props.row.shared ? (
           <>

@@ -21,6 +21,7 @@ import {
   toFileViewedStates,
   type FileViewedOverlay,
 } from "./pullRequestFilesViewed.logic";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export interface FilesViewedTarget {
   readonly environmentId: EnvironmentId;
@@ -248,7 +249,11 @@ const filesViewedStore = createFilesViewedStore({
       { reportFailure: false },
     ),
   refresh: (target) => appAtomRegistry.refresh(filesViewedAtom(target)),
-  reportFailure: () => toastManager.add({ type: "error", title: "Could not update viewed files" }),
+  reportFailure: () =>
+    toastManager.add({
+      type: "error",
+      title: translate(getUiLocale(), "Could not update viewed files"),
+    }),
 });
 
 export function filesViewedScope(target: FilesViewedTarget): FilesViewedScopeHandle {
