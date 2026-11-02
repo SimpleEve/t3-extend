@@ -439,10 +439,10 @@ export function UsageProviderChart({
     cn("transition-opacity", loading && "opacity-40 delay-150");
   const format = metric === "tokens" ? formatTokens : formatUsd;
   const formatPeriod = (period: string) =>
-    resolution === "hour" ? formatHourShort(period, timeZone, hour12) : formatDayShort(period);
+    resolution === "hour" ? formatHourShort(period, timeZone, hour12) : formatDayShort(period, t);
   const formatTooltipPeriod = (period: string) =>
     resolution === "hour" && referenceTime !== undefined
-      ? formatRelativeHourShort(period, referenceTime, timeZone, hour12)
+      ? formatRelativeHourShort(period, referenceTime, timeZone, hour12, t)
       : formatPeriod(period);
 
   return (

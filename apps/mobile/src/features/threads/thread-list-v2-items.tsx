@@ -271,6 +271,12 @@ type ThreadListV2ShelfHeaderProps = {
 };
 
 const SHELF_LABEL = { working: "Working", snoozed: "Snoozed", settled: "Settled" } as const;
+// fork: i18n. A collapsed shelf names its count in one phrase.
+const SHELF_LABEL_WITH_COUNT = {
+  working: "Working ({count})",
+  snoozed: "Snoozed ({count})",
+  settled: "Settled ({count})",
+} as const;
 // fork: i18n. Whole phrases per shelf, so word order can change in translation.
 const SHELF_ACCESSIBILITY = {
   working: {
@@ -300,7 +306,7 @@ function ThreadListV2ShelfHeader(
   const label = t(SHELF_LABEL[props.kind], undefined, "sidebar section");
   return (
     <ThreadListV2Section
-      label={props.expanded ? label : `${label} (${props.count})`}
+      label={props.expanded ? label : t(SHELF_LABEL_WITH_COUNT[props.kind], { count: props.count })}
       pane={props.pane}
       tone={props.kind === "snoozed" ? "snoozed" : "default"}
       disclosure={{

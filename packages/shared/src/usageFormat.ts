@@ -105,7 +105,19 @@ export function formatUsageContractMismatch(
       );
 }
 
-export function formatDayShort(day: string): string {
+// fork: usage dates take an optional translator for the interface language; without one the
+// English is unchanged.
+type UsageDateTranslator = (source: string, params?: Readonly<Record<string, string>>) => string;
+
+const englishUsageDate: UsageDateTranslator = (source, params) =>
+  source.replace(/\{(\w+)\}/g, (match, name: string) =>
+    params && Object.hasOwn(params, name) ? params[name]! : match,
+  );
+
+export function formatDayShort(
+  day: string,
+  t: UsageDateTranslator = englishUsageDate, // fork: interface language
+): string {
   const [year, month, dayOfMonth] = day.split("-").map((part) => Number(part));
   if (year === undefined || month === undefined || dayOfMonth === undefined) return day;
   const MONTHS = [
@@ -122,7 +134,11 @@ export function formatDayShort(day: string): string {
     "Nov",
     "Dec",
   ];
-  return `${MONTHS[month - 1] ?? ""} ${dayOfMonth}`;
+  const monthName = MONTHS[month - 1];
+  return t("{month} {day}", {
+    month: monthName === undefined ? "" : t(monthName),
+    day: String(dayOfMonth),
+  });
 }
 
 export function enumerateDays(sinceDay: string, untilDay: string): readonly string[] {
@@ -215,9 +231,31 @@ export function formatHourShort(hourStart: string, timeZone?: string, hour12 = t
   return formatHour(zonedHourFormat, instant, hour12);
 }
 
-export function formatDateTimeShort(instant: string, timeZone?: string, hour12 = true): string {
+export function formatDateTimeShort(
+  instant: string,
+  timeZone?: string,
+  hour12 = true,
+  t?: UsageDateTranslator, // fork: interface language; without it, the formatter's English below
+): string {
   const date = new Date(instant);
   if (Number.isNaN(date.getTime())) return instant;
+  if (t !== undefined) {
+    // fork: the day and the hour apart, so a translation can order them. The English template
+    // reads the same as the combined formatter.
+    const zone = timeZone === undefined ? {} : { timeZone };
+    const day = dateTimeFormatter("en-CA", {
+      ...zone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+    const time = formatHour(
+      dateTimeFormatter("en-US", { ...zone, ...hourOptions(hour12) }),
+      date,
+      hour12,
+    );
+    return t("{date}, {time}", { date: formatDayShort(day, t), time });
+  }
   const dateHourFormat = dateTimeFormatter("en-US", {
     ...(timeZone === undefined ? {} : { timeZone }),
     month: "short",
@@ -232,11 +270,12 @@ export function formatRelativeHourShort(
   relativeTo: string,
   timeZone?: string,
   hour12 = true,
+  t?: UsageDateTranslator, // fork: interface language
 ): string {
   const instant = new Date(hourStart);
   const reference = new Date(relativeTo);
   if (Number.isNaN(instant.getTime()) || Number.isNaN(reference.getTime())) {
-    return formatDateTimeShort(hourStart, timeZone, hour12);
+    return formatDateTimeShort(hourStart, timeZone, hour12, t);
   }
 
   const dayFormat = dateTimeFormatter("en-CA", {
@@ -250,9 +289,9 @@ export function formatRelativeHourShort(
   const calendarDaysAgo = Math.round((referenceDay - instantDay) / (24 * HOUR_MS));
   const hour = formatHourShort(hourStart, timeZone, hour12);
 
-  if (calendarDaysAgo === 0) return `${hour} today`;
-  if (calendarDaysAgo === 1) return `${hour} yesterday`;
-  return formatDateTimeShort(hourStart, timeZone, hour12);
+  if (calendarDaysAgo === 0) return t ? t("{hour} today", { hour }) : `${hour} today`;
+  if (calendarDaysAgo === 1) return t ? t("{hour} yesterday", { hour }) : `${hour} yesterday`;
+  return formatDateTimeShort(hourStart, timeZone, hour12, t);
 }
 
 export function makeWindow(

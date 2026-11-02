@@ -682,6 +682,7 @@ export default {
   reviewed: "审查了",
   commented: "评论了",
   "opened this {kind}": "创建了这个 {kind}",
+  "opened {time}": "{time}创建",
   "Commit {oid}": "提交 {oid}",
   "{kind} opened": "{kind} 已创建",
   "{kind} merged": "{kind} 已合并",

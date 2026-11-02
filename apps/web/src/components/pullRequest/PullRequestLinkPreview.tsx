@@ -13,6 +13,7 @@ import {
 
 import { RelativeTime } from "~/components/RelativeTime";
 import { useT } from "~/hooks/useT"; // fork: i18n
+import { interpolateNodes } from "~/lib/interpolateNodes"; // fork: i18n
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { useEnvironmentQuery } from "~/state/query";
@@ -141,7 +142,9 @@ export function PullRequestLinkPreview({
                   <span className="min-w-0 truncate">{authorLabel}</span>
                   <span aria-hidden>·</span>
                   <span className="shrink-0">
-                    opened <RelativeTime timestamp={preview.createdAt} />
+                    {interpolateNodes(t("opened {time}"), {
+                      time: <RelativeTime timestamp={preview.createdAt} />,
+                    })}
                   </span>
                 </div>
               </div>

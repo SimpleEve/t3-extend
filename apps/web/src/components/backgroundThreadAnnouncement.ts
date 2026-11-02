@@ -2,6 +2,8 @@ import type { OrchestrationV2RunStatus, RunId } from "@t3tools/contracts";
 
 import type { SidebarThreadSummary } from "../types";
 import { runOutcomeText, THREAD_STATUS_TEXT } from "./chat/threadActivityAnnouncement";
+import { interpolate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: i18n
 
 export interface BackgroundThreadSnapshot {
   readonly key: string;
@@ -51,6 +53,7 @@ export function nextBackgroundThreadAnnouncement(
   previous: BackgroundThreadMemory,
   threads: ReadonlyArray<BackgroundThreadSnapshot>,
   openThreadKey: string | null,
+  t: Translator = (source, params) => interpolate(source, params), // fork: interface language
 ): { readonly memory: BackgroundThreadMemory; readonly announcement: string | null } {
   const memory = new Map<string, BackgroundThreadMemoryEntry>();
   const announcements: string[] = [];
@@ -68,18 +71,25 @@ export function nextBackgroundThreadAnnouncement(
       thread.request !== null &&
       (thread.request !== before.request || thread.requestId !== before.requestId)
     ) {
-      announcements.push(`${THREAD_STATUS_TEXT[thread.request]}: ${thread.title}`);
+      announcements.push(
+        t("{status}: {title}", {
+          status: t(THREAD_STATUS_TEXT[thread.request]),
+          title: threadDisplayTitle(thread.title, t),
+        }),
+      );
     }
     // While another run still works, the latest run's ending (a queued message
     // cancelled before it started) isn't the thread finishing. The shell then
     // only reports the latest run, so the working run's own ending stays quiet.
     const anotherRunWorking = thread.activeRunId !== null && thread.activeRunId !== thread.runId;
     if (outcome !== null && thread.runId !== before.settledRunId && !anotherRunWorking) {
-      announcements.push(`${outcome}: ${thread.title}`);
+      announcements.push(
+        t("{status}: {title}", { status: t(outcome), title: threadDisplayTitle(thread.title, t) }),
+      );
     }
   }
   return {
     memory,
-    announcement: announcements.length === 0 ? null : announcements.join(". "),
+    announcement: announcements.length === 0 ? null : announcements.join(t(". ")),
   };
 }
