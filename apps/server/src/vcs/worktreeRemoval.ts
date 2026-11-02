@@ -5,7 +5,11 @@ import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 
-import { type SharedWorktreeSection, whileRemovable } from "../fork/SharedWorktrees.ts"; // fork: shared worktrees are never removed
+import {
+  assertSectionLive,
+  type SharedWorktreeSection,
+  whileRemovable,
+} from "../fork/SharedWorktrees.ts"; // fork: shared worktrees are never removed
 import type * as GitVcsDriver from "./GitVcsDriver.ts";
 
 const INDEX_LIST_MAX_BYTES = 64 * 1024 * 1024;
@@ -38,10 +42,11 @@ export const removeLinkedWorktree = Effect.fn("WorktreeRemoval.removeLinkedWorkt
 });
 
 // fork: for a caller that already holds a shared-worktree section (storage clean-up, which runs
-// `git clean` in the same section); the section argument is the proof.
+// `git clean` in the same section); the section argument is the proof, and it dies with the section.
 export const removeLinkedWorktreeInSection = Effect.fn(
   "WorktreeRemoval.removeLinkedWorktreeInSection",
-)(function* <A, E, R>(_section: SharedWorktreeSection, input: RemovalInput<A, E, R>) {
+)(function* <A, E, R>(section: SharedWorktreeSection, input: RemovalInput<A, E, R>) {
+  yield* assertSectionLive(section, { operation: input.operation, cwd: input.cwd });
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const worktreePath = input.worktreePath;
