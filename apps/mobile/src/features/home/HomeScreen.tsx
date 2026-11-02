@@ -89,7 +89,7 @@ import { useWorkspaceTabs } from "../workspace/WorkspaceTabsContext";
 import { ThreadListFilters } from "./ThreadListFilters";
 import { useT } from "../../hooks/useT"; // fork: i18n
 import { useThreadListViewPreferences } from "../../fork/threadListView"; // fork: thread list views
-import { ThreadListV2GroupHeader } from "../../fork/ThreadListGroupHeader"; // fork: thread list views
+import { ThreadListV2GroupHeader, ThreadListV2NestedRow } from "../../fork/ThreadListGroupHeader"; // fork: thread list views
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 interface HomeScreenProps {
@@ -596,7 +596,7 @@ export function HomeScreen(props: HomeScreenProps) {
       );
     }
     const thread = item.item.thread;
-    return (
+    const row = (
       <ThreadListV2Row
         pane={primaryColumn ? "sidebar" : "screen"}
         selected={scopedThreadKey(thread.environmentId, thread.id) === selectedThreadKey}
@@ -666,6 +666,14 @@ export function HomeScreen(props: HomeScreenProps) {
         simultaneousSwipeGesture={homeScrollGesture}
         activationKey={item.key}
       />
+    );
+    // fork: thread list views. Rows under a worktree header sit one level in.
+    return item.nested ? (
+      <ThreadListV2NestedRow pane={primaryColumn ? "sidebar" : "screen"}>
+        {row}
+      </ThreadListV2NestedRow>
+    ) : (
+      row
     );
   };
   const v2KeyExtractor = (item: ThreadListV2ListItem) => item.key;

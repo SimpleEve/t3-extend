@@ -53,7 +53,7 @@ import { useThreadListSearchMatches } from "./useThreadListSearchMatches";
 import { useHomeListOptions } from "../home/home-list-options";
 import { buildHomeListFilterMenu } from "../home/home-list-filter-menu";
 import { useThreadListViewPreferences } from "../../fork/threadListView"; // fork: thread list views
-import { ThreadListV2GroupHeader } from "../../fork/ThreadListGroupHeader"; // fork: thread list views
+import { ThreadListV2GroupHeader, ThreadListV2NestedRow } from "../../fork/ThreadListGroupHeader"; // fork: thread list views
 import {
   threadListViewFromMenuEvent,
   threadListViewMenuAction,
@@ -581,7 +581,7 @@ function ThreadNavigationSidebarPane(
       case "v2-thread": {
         const thread = item.item.thread;
         const scopeKey = scopedProjectKey(thread.environmentId, thread.projectId);
-        return (
+        const row = (
           <ThreadListV2Row
             onNewThreadOnBranch={props.onNewThreadOnBranch}
             thread={thread}
@@ -655,6 +655,12 @@ function ThreadNavigationSidebarPane(
             onSwipeableWillOpen={handleSwipeableWillOpen}
             simultaneousSwipeGesture={sidebarScrollGesture}
           />
+        );
+        // fork: thread list views. Rows under a worktree header sit one level in.
+        return item.nested ? (
+          <ThreadListV2NestedRow pane="sidebar">{row}</ThreadListV2NestedRow>
+        ) : (
+          row
         );
       }
       case "v2-working-shelf":

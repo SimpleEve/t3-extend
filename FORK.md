@@ -172,6 +172,7 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - 共享：`threadGrouping.ts` 还提供 `groupThreadsByProject`（从 web 的 `Sidebar.logic.ts` 搬来，web 里 `groupSidebarThreadsByProject` 现在是它的 re-export）、`flattenProjectViewFolders` 和 `projectViewFolderThreadCount`。测试都在 `threadGrouping.test.ts`，两端不再各写一份。
 - 偏好：`threadListViewMode` 和 `threadListCollapsedGroups` 存在 mobile 偏好里（`mobile-preferences.ts`），折叠 key 和 web 相同（`sidebarGroupCollapseKey`）。hook 是 `apps/mobile/src/fork/threadListView.ts`。
 - 布局：`fork/threadListProjectView.ts` 只重排按状态布局里"置顶之后、第一个货架之前"的活跃行，先按发送时间排序，再复用 `buildProjectViewFolders`。不在项目列表里的项目的对话进末尾的"Other projects"组，不会消失。表头是列表项 `v2-group-header`（`threadListV2.ts`），组件是 `fork/ThreadListGroupHeader.tsx`。
+- 层级：worktree 头比项目行缩进一级（图标 `ps-7`），它下面的对话再缩进一级（`ps-12`，标题和头的标签对齐）。1px 引导线（`bg-sidebar-border`）从头的图标中心（x=35）一直画到最后一行：头的 `after:` 加上每行 `li` 的 `before:`（`SidebarThreadRow` 的 `nested`），行 `li` 用 `pb-px -mb-px` 盖住行间 1px 的 gap，不改变布局。主 checkout 没有徽标：标签是分支名，没有分支时是"Main checkout"，图标（分支 vs 文件夹）区分主 checkout 和 worktree。手机：`ThreadListV2NestedRow` 给 `nested` 行加缩进和引导线，头在 `hasRows` 时画一小段衔接。只有主 checkout 的项目不分组，对话直接挂在项目下。
 - 按项目视图下没有 Working 货架，也不能手动上下移动；搜索时仍按相关度平铺，清空搜索后恢复分组。
 - 入口：筛选菜单里的"对话分组"（Android `HomeHeader.android.tsx` 和平板侧栏 `ThreadNavigationSidebar.tsx`，菜单项在 `fork/threadListViewMenu.ts`；iOS 原生头部走 `buildHomeListFilterMenu`，iOS Home 的筛选条多一个胶囊）。
 - 状态点：`resolveSidebarFolderDot`、`resolveSidebarThreadStatus`、`hasUnseenCompletion` 现在在 `threadGrouping.ts`，web 的 `Sidebar.logic.ts` re-export，测试只在共享层。规则同 web：折叠的项目头说明它藏起来的对话，worktree 头永远说明自己的全部对话；`ThreadListV2GroupHeaderListItem.dot` 带它。

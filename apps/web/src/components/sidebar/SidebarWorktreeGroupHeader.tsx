@@ -32,9 +32,9 @@ export function sidebarWorktreeRowId(worktreeKey: string) {
 }
 
 /**
- * Names one checkout of a project: the main checkout first, with a Main badge, then
- * linked worktrees. Its count and dot cover every thread in it, folded or not. It reads
- * no VCS status, so it adds no subscriptions.
+ * One checkout of a project: the main checkout first, then linked worktrees, named by
+ * branch, else folder, else "Main checkout". Count and dot cover every thread, folded or not.
+ * Its rows are `nested` (SidebarThreadRow); the guide line sits at the icon's centre, ps-7 + 7px.
  */
 export function SidebarWorktreeGroupHeader(props: {
   readonly worktree: ProjectViewWorktree<EnvironmentThreadShell>;
@@ -56,6 +56,9 @@ export function SidebarWorktreeGroupHeader(props: {
   );
   const isMain = worktree.kind === "main";
   const label = worktree.label ?? t("Main checkout");
+  // A branch name does not say it is the original clone; the fallback label already does.
+  const tooltipText =
+    worktree.worktreePath ?? (worktree.label !== null ? t("Main checkout") : null);
   // Only a folder that spans machines needs to say which one a checkout is on.
   const spansEnvironments =
     new Set(group.memberProjects.map((member) => member.environmentId)).size > 1;
@@ -72,19 +75,14 @@ export function SidebarWorktreeGroupHeader(props: {
     "data-sidebar-parent": props.folderRowId,
     "aria-expanded": !worktree.collapsed,
     onClick: () => toggleSidebarGroupCollapsed(worktree.collapseKey),
-    // ps-9 lines the label up with the folder name, like the folder's thread rows.
+    // One level under the project row: the icon starts at ps-7, the label at 48px like the rows below.
     className:
-      "flex h-7 w-full cursor-pointer items-center gap-2 rounded-(--control-radius) ps-9 pe-(--sidebar-row-content-inset) text-left text-xs text-sidebar-muted-foreground outline-none hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+      "flex h-7 w-full cursor-pointer items-center gap-1.5 rounded-(--control-radius) ps-7 pe-(--sidebar-row-content-inset) text-left text-xs text-sidebar-muted-foreground outline-none hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
   } as const;
   const content = (
     <>
       <Icon aria-hidden className="size-3.5 shrink-0" />
       <span className="min-w-0 truncate">{label}</span>
-      {isMain ? (
-        <span className="shrink-0 rounded-sm border border-sidebar-border px-1 text-2xs leading-4">
-          {t("Main", undefined, "worktree badge")}
-        </span>
-      ) : null}
       {environmentLabel ? (
         <span className="min-w-0 shrink truncate text-sidebar-muted-foreground/70">
           {environmentLabel}
@@ -111,13 +109,21 @@ export function SidebarWorktreeGroupHeader(props: {
     </>
   );
   return (
-    <li data-testid="sidebar-worktree-group" className="list-none">
-      {worktree.worktreePath === null ? (
+    <li
+      data-testid="sidebar-worktree-group"
+      className={cn(
+        "relative list-none",
+        // fork: guide line from under the icon through the rows below (see SidebarThreadRow).
+        worktree.visibleThreads.length > 0 &&
+          "after:pointer-events-none after:absolute after:-bottom-px after:left-[35px] after:top-[23px] after:z-10 after:w-px after:bg-sidebar-border",
+      )}
+    >
+      {tooltipText === null ? (
         <button {...buttonProps}>{content}</button>
       ) : (
         <Tooltip>
           <TooltipTrigger render={<button {...buttonProps} />}>{content}</TooltipTrigger>
-          <TooltipPopup side="right">{worktree.worktreePath}</TooltipPopup>
+          <TooltipPopup side="right">{tooltipText}</TooltipPopup>
         </Tooltip>
       )}
     </li>

@@ -153,9 +153,10 @@ Each device keeps its own choice.
 
 **By status** is the default list described above. **By project** puts active threads in a
 folder for each project, in your project order. When a project has threads in a worktree, its
-folder splits them by checkout: the project's main checkout comes first, marked **Main**, then
-its worktrees, the one you most recently sent a message in first. A checkout is labeled with its branch,
-or the worktree's folder name. Worktrees on different machines stay separate. A project whose
+folder splits them by checkout: the project's main checkout comes first, then
+its worktrees, the one you most recently sent a message in first. Each checkout's threads sit one
+level in, under a thin guide line. A checkout is labeled with its branch, or the worktree's folder
+name; a main checkout with neither is labeled **Main checkout**, and its icon differs from a worktree's. Worktrees on different machines stay separate. A project whose
 threads are all in its main checkout lists them directly. Click a folder or a checkout to close
 it; it shows how many threads it holds, and a dot when one of them needs you. The thread you have
 open stays visible. Pinned threads stay above the folders, and Snoozed and Settled stay below

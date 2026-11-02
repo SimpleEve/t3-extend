@@ -1769,7 +1769,7 @@ describe("project view list items", () => {
     searchQuery: "",
     now: NOW,
   });
-  const listItems = (collapsedKeys: string[], openThreadKey: string | null, source = layout) =>
+  const buildItems = (collapsedKeys: string[], openThreadKey: string | null, source = layout) =>
     buildThreadListV2ListItems({
       items: source.items,
       pendingTasks: [],
@@ -1785,7 +1785,9 @@ describe("project view list items", () => {
         openThreadKey,
         otherTitle: "Other projects",
       }),
-    }).map((item) =>
+    });
+  const listItems = (collapsedKeys: string[], openThreadKey: string | null, source = layout) =>
+    buildItems(collapsedKeys, openThreadKey, source).map((item) =>
       item.type === "v2-thread"
         ? item.item.thread.id
         : item.type === "v2-group-header"
@@ -1809,6 +1811,37 @@ describe("project view list items", () => {
       "v2-settled-shelf",
       "settled",
     ]);
+  });
+
+  it("nests the rows under a worktree header and leaves project rows flat", () => {
+    const nesting = (collapsedKeys: string[], openThreadKey: string | null) =>
+      buildItems(collapsedKeys, openThreadKey)
+        .filter((item) => item.type === "v2-thread" || item.type === "v2-group-header")
+        .map((item) =>
+          item.type === "v2-thread"
+            ? `${item.item.thread.id}:${item.nested === true ? "nested" : "flat"}`
+            : `${item.title}:${item.hasRows ? "rows" : "no-rows"}`,
+        );
+    expect(nesting([], null)).toEqual([
+      "pinned:flat",
+      "Alpha:no-rows",
+      "Main checkout:rows",
+      "a-main:nested",
+      "feat:rows",
+      "a-wt:nested",
+      "Beta:no-rows",
+      "b-main:flat",
+      "Other projects:no-rows",
+      "orphan:flat",
+      "settled:flat",
+    ]);
+    // A folded worktree still draws the open thread, one level in; with none open it draws no rows.
+    expect(
+      nesting([`project:worktree:${environmentId}:${projectA}:/w/feat`], `${environmentId}:a-wt`),
+    ).toContain("a-wt:nested");
+    expect(nesting([`project:worktree:${environmentId}:${projectA}:/w/feat`], null)).toContain(
+      "feat:no-rows",
+    );
   });
 
   it("folds a project to its open thread while counting every thread", () => {

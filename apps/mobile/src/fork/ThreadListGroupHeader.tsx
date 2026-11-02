@@ -1,6 +1,6 @@
 // fork: the project and worktree headers of the thread list's project view.
 import { memo } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, View, type ViewProps } from "react-native";
 
 import { AppText as Text } from "../components/ui/AppText";
 import { SymbolView } from "../components/ui/AppSymbol";
@@ -22,6 +22,11 @@ const DOT_CLASS_NAME = {
   working: "bg-adaptive-sky-600-400",
 } as const;
 
+// The header's icon is 12pt wide, so its center is 6pt in from the header's left padding.
+const guideLineClassName = (sidebarPane: boolean) =>
+  cn("absolute w-px", sidebarPane ? "bg-drawer-border" : "bg-border");
+const guideX = (sidebarPane: boolean) => ({ left: sidebarPane ? 26 : 34 });
+
 export const ThreadListV2GroupHeader = memo(function ThreadListV2GroupHeader(props: {
   readonly item: ThreadListV2GroupHeaderListItem;
   readonly pane?: "screen" | "sidebar";
@@ -38,7 +43,7 @@ export const ThreadListV2GroupHeader = memo(function ThreadListV2GroupHeader(pro
   const spokenLabel = item.dot
     ? `${accessibilityLabel}${t(DOT_LABEL[item.dot])}`
     : accessibilityLabel;
-  return (
+  const header = (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={spokenLabel}
@@ -49,7 +54,9 @@ export const ThreadListV2GroupHeader = memo(function ThreadListV2GroupHeader(pro
         "flex-row items-center gap-2",
         project ? "mb-1 mt-4" : "mb-0.5 mt-1.5",
         sidebarPane ? "px-3" : "px-5",
-        !project && "pl-7",
+        // One level under the project: the icon sits 8px right of the project's, and the
+        // rows below indent so their titles line up with this label.
+        !project && (sidebarPane ? "pl-5" : "pl-7"),
       )}
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
@@ -77,23 +84,6 @@ export const ThreadListV2GroupHeader = memo(function ThreadListV2GroupHeader(pro
       >
         {item.title}
       </Text>
-      {item.badge ? (
-        <View
-          className={cn(
-            "rounded border px-1",
-            sidebarPane ? "border-drawer-border" : "border-border",
-          )}
-        >
-          <Text
-            className={cn(
-              "text-[10px]",
-              sidebarPane ? "text-drawer-foreground-muted" : "text-foreground-muted",
-            )}
-          >
-            {item.badge}
-          </Text>
-        </View>
-      ) : null}
       <View className="flex-1" />
       {item.dot ? <View className={cn("size-1.5 rounded-full", DOT_CLASS_NAME[item.dot])} /> : null}
       <Text
@@ -114,5 +104,33 @@ export const ThreadListV2GroupHeader = memo(function ThreadListV2GroupHeader(pro
         style={{ transform: [{ rotate: item.collapsed ? "-90deg" : "0deg" }] }}
       />
     </Pressable>
+  );
+  if (project) return header;
+  return (
+    <View>
+      {header}
+      {item.hasRows ? (
+        <View
+          className={cn(guideLineClassName(sidebarPane), "bottom-0 h-1")}
+          style={guideX(sidebarPane)}
+        />
+      ) : null}
+    </View>
+  );
+});
+
+/** A thread row one level under a worktree header, with the guide line through its gutter. */
+export const ThreadListV2NestedRow = memo(function ThreadListV2NestedRow(
+  props: ViewProps & { readonly pane?: "screen" | "sidebar" },
+) {
+  const { pane, children, ...rest } = props;
+  return (
+    <View {...rest} className="pl-7">
+      <View
+        className={cn(guideLineClassName(pane === "sidebar"), "inset-y-0")}
+        style={guideX(pane === "sidebar")}
+      />
+      {children}
+    </View>
   );
 });
