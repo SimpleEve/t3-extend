@@ -2,6 +2,9 @@ import { sanitizeNewRefName } from "@t3tools/shared/git";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { resolveSendEnvMode } from "@t3tools/shared/projectSettings";
 import type { ComposerDraftWorkspaceSelection } from "../../state/use-composer-drafts";
+import { interpolate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+
+const untranslated: Translator = (source, params) => interpolate(source, params); // fork: i18n
 
 type WorkspaceMode = "local" | "worktree";
 
@@ -77,13 +80,19 @@ export function resolveNewTaskBranchLabel(input: {
   readonly startFromOrigin: boolean;
   readonly workspaceMode: WorkspaceMode;
   readonly pullRequestReference?: string;
+  readonly t?: Translator; // fork: interface language, English when omitted
 }): string {
+  const t = input.t ?? untranslated; // fork: i18n
   if (input.workspaceMode === "worktree" && input.pullRequestReference) {
     const parsed = sourceControlClients.parseChangeRequestUrl(input.pullRequestReference);
-    if (parsed) return `From ${parsed.definition.changeRequest.shortLabel} #${parsed.link.number}`;
+    if (parsed) {
+      return t("From {label}", {
+        label: `${parsed.definition.changeRequest.shortLabel} #${parsed.link.number}`,
+      });
+    }
   }
   if (!input.branchName) {
-    return "Choose branch";
+    return t("Choose branch");
   }
 
   if (input.workspaceMode === "local") {
@@ -91,7 +100,9 @@ export function resolveNewTaskBranchLabel(input: {
   }
 
   // Only the server can determine a local branch's configured remote.
-  return input.startFromOrigin ? `From ${input.branchName} (remote)` : `From ${input.branchName}`;
+  return input.startFromOrigin
+    ? t("From {label} (remote)", { label: input.branchName })
+    : t("From {label}", { label: input.branchName });
 }
 
 export function shouldCheckoutNewTaskBranch(input: {
@@ -177,5 +188,20 @@ export function resolveNewTaskDraftWorkspace(input: {
     branches: input.branches,
     projectCwd: input.projectCwd,
     worktreeDefaultSettled: selection?.mode !== undefined || input.defaultModeSettled,
+  });
+}
+
+/**
+ * fork: i18n. Splits the draft hero's translated template into lines, cutting the line that
+ * holds `{project}` around it so the project picker sits where the language puts it.
+ */
+export function projectHeroLines(
+  template: string,
+): ReadonlyArray<{ readonly before: string; readonly after?: string }> {
+  return template.split("\n").map((line) => {
+    const at = line.indexOf("{project}");
+    return at < 0
+      ? { before: line }
+      : { before: line.slice(0, at), after: line.slice(at + "{project}".length) };
   });
 }

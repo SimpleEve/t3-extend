@@ -968,6 +968,7 @@ function TaskForm({
                 branchName: draft.baseRef,
                 startFromOrigin: draft.startFromOrigin,
                 workspaceMode: "worktree",
+                t, // fork: i18n
               })}
               borderTop
               disabled={!draft.projectId || saving || dictationPending || environmentUnavailable}

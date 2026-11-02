@@ -109,7 +109,11 @@ function EnvironmentPickerRow(props: {
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${expanded ? t("Hide") : t("Show")} connection details for ${props.title}`}
+          accessibilityLabel={
+            expanded // fork: i18n
+              ? t("Hide connection details for {title}", { title: props.title })
+              : t("Show connection details for {title}", { title: props.title })
+          }
           accessibilityState={{ expanded }}
           onPress={() => setExpanded(!expanded)}
           className="min-h-11 min-w-11 items-center justify-center active:opacity-65"
