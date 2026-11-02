@@ -22,6 +22,7 @@ import {
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as ServerConfig from "./config.ts";
 import * as StorageCleanup from "./storageCleanup.ts";
+import { markSharedWorktrees } from "./fork/SharedWorktrees.testkit.ts"; // fork
 import * as GitVcsDriver from "./vcs/GitVcsDriver.ts";
 import * as GitManager from "./git/GitManager.ts";
 import * as Settings from "./serverSettings.ts";
@@ -2462,3 +2463,62 @@ it.live("keeps saved usage data when removing a settled checkout", () =>
     }),
   ),
 );
+
+// fork: worktrees shared with official T3 Code are never cleaned, `git clean` included.
+describe("worktrees shared with official T3 Code", () => {
+  const sharedCleanupTest = (
+    shareIt: (input: {
+      readonly home: string;
+      readonly baseDir: string;
+      readonly dbPath: string;
+      readonly worktree: string;
+    }) => Effect.Effect<void, never, FileSystem.FileSystem>,
+    expected: "kept" | "removed",
+  ) =>
+    runCleanupTest(
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const home = yield* fs.makeTempDirectoryScoped({ prefix: "cleanup-home-" });
+        return yield* Effect.gen(function* () {
+          const fixture = yield* cleanupFixture();
+          const { service, worktree, config, setPolicy } = fixture;
+          // Untracked files are what `git clean` would delete once the keep rule lets the worktree go.
+          setPolicy("tracked-changes");
+          yield* fs.writeFileString(`${worktree}/scratch.txt`, "keep me\n");
+          yield* shareIt({ home, baseDir: config.baseDir, dbPath: config.dbPath, worktree });
+          const report = yield* service.runNow;
+          const entry = report.entries.find((candidate) => candidate.path === worktree);
+          expect(entry?.outcome).toBe(expected);
+          if (expected === "kept") {
+            expect(entry?.reason).toBe("Shared with T3 Code");
+            expect(yield* fs.readFileString(`${worktree}/scratch.txt`)).toBe("keep me\n");
+            expect(yield* fs.exists(`${worktree}/.git`)).toBe(true);
+            expect(
+              (yield* fixture.command(fixture.repo, ["worktree", "list", "--porcelain"])).stdout,
+            ).toContain(worktree);
+          } else {
+            expect(yield* fs.exists(worktree)).toBe(false);
+          }
+        }).pipe(Effect.provideService(HostProcess.HomeDirectory, home));
+      }),
+    );
+
+  it.live("keeps a worktree inside official T3 Code's worktrees folder", () =>
+    sharedCleanupTest(
+      // Official's folder is `<home>/.t3/worktrees`; this environment's own folder is the same place.
+      ({ home, baseDir }) =>
+        Effect.flatMap(FileSystem.FileSystem, (fs) => fs.symlink(baseDir, `${home}/.t3`)).pipe(
+          Effect.orDie,
+        ),
+      "kept",
+    ),
+  );
+
+  it.live("keeps a worktree an import marked as shared", () =>
+    sharedCleanupTest(({ dbPath, worktree }) => markSharedWorktrees(dbPath, [worktree]), "kept"),
+  );
+
+  it.live("still removes a worktree nothing ties to official T3 Code", () =>
+    sharedCleanupTest(() => Effect.void, "removed"),
+  );
+});

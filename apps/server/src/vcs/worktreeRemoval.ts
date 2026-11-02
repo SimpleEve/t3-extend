@@ -5,6 +5,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 
+import { assertWorktreeRemovable } from "../fork/SharedWorktrees.ts"; // fork: shared worktrees are never removed
 import type * as GitVcsDriver from "./GitVcsDriver.ts";
 
 const INDEX_LIST_MAX_BYTES = 64 * 1024 * 1024;
@@ -26,6 +27,12 @@ export const removeLinkedWorktree = Effect.fn("WorktreeRemoval.removeLinkedWorkt
   readonly execute: GitVcsDriver.GitVcsDriver["Service"]["execute"];
   readonly run: (args: ReadonlyArray<string>) => Effect.Effect<A, E, R>;
 }) {
+  // fork: the one place every removal passes through; refuses worktrees shared with official T3 Code.
+  yield* assertWorktreeRemovable({
+    operation: input.operation,
+    cwd: input.cwd,
+    path: input.worktreePath,
+  });
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const worktreePath = input.worktreePath;

@@ -554,19 +554,24 @@ describe("t3_worktree_handoff", () => {
     });
   });
 
-  it.effect("never removes a worktree under official T3 Code's folder when it backs out", () => {
-    const guarded = makeGuardedRemoveWorktree({ officialWorktreesDir: "/worktrees" });
-    const harness = makeHarness({
-      threadAttachedOnRecheck: true,
-      git: { removeWorktree: guarded.removeWorktree },
-    });
-    return Effect.gen(function* () {
-      const exit = yield* Effect.exit(runHandoff(harness, { branch: "feature/official-folder" }));
-      expectTypedFailure(exit, { _tag: "WorktreeMcpFailure", code: "already_in_worktree" });
-      expect(guarded.attempts).toEqual(["/worktrees/project/feature/official-folder"]);
-      expect(guarded.reachedGit).toEqual([]);
-    });
-  });
+  it.effect(
+    "never removes a worktree an import shares with official T3 Code when it backs out",
+    () =>
+      Effect.gen(function* () {
+        const guarded = yield* makeGuardedRemoveWorktree({
+          home: "/official-home",
+          marked: ["/worktrees/project/feature/shared"],
+        });
+        const harness = makeHarness({
+          threadAttachedOnRecheck: true,
+          git: { removeWorktree: guarded.removeWorktree },
+        });
+        const exit = yield* Effect.exit(runHandoff(harness, { branch: "feature/shared" }));
+        expectTypedFailure(exit, { _tag: "WorktreeMcpFailure", code: "already_in_worktree" });
+        expect(guarded.attempts).toEqual(["/worktrees/project/feature/shared"]);
+        expect(guarded.spawned).toEqual([]);
+      }),
+  );
 
   it.effect("removes the created worktree when the recheck read fails", () => {
     const harness = makeHarness({ threadReadFailsOnRecheck: true });

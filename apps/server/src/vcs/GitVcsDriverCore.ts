@@ -941,7 +941,8 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const commandSpawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-  const { worktreesDir } = yield* ServerConfig.ServerConfig;
+  const serverConfig = yield* ServerConfig.ServerConfig;
+  const { worktreesDir } = serverConfig;
   const isServerInternalPath = yield* makeIsServerInternalPath;
   const crypto = yield* Crypto.Crypto;
   const hostPlatform = yield* HostProcess.Platform;
@@ -4667,6 +4668,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     }).pipe(
       Effect.provideService(FileSystem.FileSystem, fileSystem),
       Effect.provideService(Path.Path, path),
+      Effect.provideService(ServerConfig.ServerConfig, serverConfig), // fork: shared-worktree guard
     );
     if (result.exitCode === 0) {
       // Git for Windows reports success without removing NTFS junctions or their parent directories.

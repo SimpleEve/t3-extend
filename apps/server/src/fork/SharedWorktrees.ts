@@ -1,113 +1,113 @@
 // fork: worktrees that belong to official T3 Code are never removed from here, by any caller.
-import * as NodeOS from "node:os";
-
-import { GitCommandError } from "@t3tools/contracts";
+import { GitCommandError, OFFICIAL_APP_NAME } from "@t3tools/contracts";
 import { officialHomeDirectory } from "@t3tools/shared/forkIdentity";
-import * as Context from "effect/Context";
+import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
-import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as SqlClient from "effect/sql/SqlClient";
 
-/** Import bookkeeping lives in fork-owned tables, never in a numbered migration (see FORK.md). */
-export const ensureImportTables = Effect.fn("SharedWorktrees.ensureImportTables")(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_map (
-    kind TEXT NOT NULL,
-    source_id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    state TEXT NOT NULL,
-    detail TEXT,
-    imported_at TEXT NOT NULL,
-    PRIMARY KEY (kind, source_id)
-  )`;
-  yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_runs (
-    run_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    started_at TEXT NOT NULL,
-    finished_at TEXT,
-    source_path TEXT NOT NULL,
-    summary_json TEXT
-  )`;
+import * as ServerConfig from "../config.ts";
+
+/**
+ * Marks come from the import's own table. The file is opened read-only per check, so the lowest
+ * removal function needs no SQL layer of its own and removals stay rare enough for that to be cheap.
+ */
+const readMarks = Effect.fn("SharedWorktrees.readMarks")(function* (dbPath: string) {
+  const fs = yield* FileSystem.FileSystem;
+  if (!(yield* fs.exists(dbPath))) return [];
+  return yield* Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const tables = yield* sql.unsafe(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'fork_t3code_import_map'`,
+    );
+    if (tables.length === 0) return [];
+    const rows = yield* sql.unsafe<{ readonly source_id: string }>(
+      `SELECT source_id FROM fork_t3code_import_map WHERE kind = 'worktree'`,
+    );
+    return rows.map((row) => row.source_id);
+  }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: dbPath, readonly: true })));
 });
 
-export class SharedWorktrees extends Context.Service<
-  SharedWorktrees,
-  {
-    /** Fails for a worktree an import marked as shared and for anything under official T3 Code's worktrees folder. */
-    readonly assertRemovable: (input: {
-      readonly cwd: string;
-      readonly path: string;
-    }) => Effect.Effect<void, GitCommandError>;
-  }
->()("t3/fork/SharedWorktrees") {}
-
-const make = Effect.fn("SharedWorktrees.make")(function* (
-  officialWorktreesDir: string | undefined,
-) {
-  const sql = yield* SqlClient.SqlClient;
+/** Why this worktree must not be removed, or null when nothing ties it to official T3 Code. */
+export const sharedWorktreeReason = Effect.fn("SharedWorktrees.reason")(function* (input: {
+  readonly cwd: string;
+  readonly path: string;
+}) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  yield* ensureImportTables();
+  const config = yield* ServerConfig.ServerConfig;
+  const platform = yield* HostProcess.Platform;
+  const home = yield* HostProcess.HomeDirectory;
 
-  const official =
-    officialWorktreesDir ??
-    path.join(officialHomeDirectory(NodeOS.homedir(), path.join), "worktrees");
-  const canonical = (target: string) =>
-    fs.realPath(target).pipe(Effect.orElseSucceed(() => path.resolve(target)));
+  // macOS and Windows compare names without regard to case, and a path that does not exist
+  // yet cannot be corrected by realPath, so both sides are folded to the same key.
+  const caseInsensitive = platform === "darwin" || platform === "win32";
+  const key = (target: string) => {
+    const resolved = path.resolve(target);
+    return caseInsensitive ? resolved.normalize("NFC").toLowerCase() : resolved;
+  };
+  // Git follows symlinks through the nearest real ancestor, so the missing tail is kept as written.
+  const realLocation = (target: string): Effect.Effect<string> =>
+    fs.realPath(target).pipe(
+      Effect.catch(() => {
+        const parent = path.dirname(target);
+        return parent === target
+          ? Effect.succeed(target)
+          : Effect.map(realLocation(parent), (real) => path.join(real, path.basename(target)));
+      }),
+    );
+  const spellings = Effect.fn("SharedWorktrees.spellings")(function* (target: string) {
+    const resolved = path.resolve(target);
+    return [...new Set([key(resolved), key(yield* realLocation(resolved))])];
+  });
   const inside = (root: string, target: string) => {
     const relative = path.relative(root, target);
-    return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+    return (
+      relative === "" ||
+      (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+    );
   };
 
-  const refuse = (cwd: string, detail: string) =>
-    new GitCommandError({
-      operation: "SharedWorktrees.assertRemovable",
-      command: "git worktree remove",
-      cwd,
-      detail,
-    });
+  const target = yield* spellings(path.resolve(input.cwd, input.path));
+  const official = yield* spellings(path.join(officialHomeDirectory(home, path.join), "worktrees"));
+  const own = yield* spellings(config.worktreesDir);
+  // A dev server run from inside an official worktree keeps its own worktrees under the official folder.
+  const ownIsOfficial = own.some((root) => official.includes(root));
+  const inOwn =
+    !ownIsOfficial && target.some((spelling) => own.some((root) => inside(root, spelling)));
+  if (!inOwn && target.some((spelling) => official.some((root) => inside(root, spelling)))) {
+    return `This worktree lives in ${OFFICIAL_APP_NAME}'s worktrees folder. T3 Extend never removes it.`;
+  }
 
-  const assertRemovable = Effect.fn("SharedWorktrees.assertRemovable")(function* (input: {
-    readonly cwd: string;
-    readonly path: string;
-  }) {
-    const target = path.resolve(input.cwd, input.path);
-    const spellings = [target, yield* canonical(target)];
-    const roots = [path.resolve(official), yield* canonical(official)];
-    if (spellings.some((spelling) => roots.some((root) => inside(root, spelling)))) {
-      return yield* refuse(
-        input.cwd,
-        "This worktree lives in T3 Code's worktrees folder. T3 Extend never removes it.",
-      );
+  const marks = yield* readMarks(config.dbPath).pipe(
+    Effect.map((sources) => ({ sources })),
+    Effect.orElseSucceed(() => null),
+  );
+  // A mark that cannot be read could still be a shared worktree, so removal waits.
+  if (marks === null) {
+    return `Could not check whether this worktree is shared with ${OFFICIAL_APP_NAME}, so T3 Extend leaves it alone.`;
+  }
+  for (const source of marks.sources) {
+    const marked = yield* spellings(source);
+    if (marked.some((spelling) => target.includes(spelling))) {
+      return `This worktree was created by ${OFFICIAL_APP_NAME} and is shared with it. T3 Extend never removes it.`;
     }
-    const marked = yield* sql
-      .unsafe<{ readonly source_id: string }>(
-        `SELECT source_id FROM fork_t3code_import_map WHERE kind = 'worktree'`,
-      )
-      .pipe(
-        Effect.mapError((cause) =>
-          refuse(input.cwd, `Could not check shared worktrees: ${String(cause)}`),
-        ),
-      );
-    if (marked.some((row) => spellings.includes(row.source_id))) {
-      return yield* refuse(
-        input.cwd,
-        "This worktree was created by T3 Code and is shared with it. T3 Extend never removes it.",
-      );
-    }
-  });
-
-  return SharedWorktrees.of({ assertRemovable });
+  }
+  return null;
 });
 
-export const layer = Layer.effect(SharedWorktrees, make(undefined));
-
-/** Tests point the official worktrees folder at a fixture. */
-export const layerWithOfficialWorktrees = (officialWorktreesDir: string) =>
-  Layer.effect(SharedWorktrees, make(officialWorktreesDir));
-
-/** For layers that have no import bookkeeping to consult. */
-export const layerNone = Layer.succeed(SharedWorktrees, {
-  assertRemovable: Effect.fn("SharedWorktrees.assertRemovableNone")(() => Effect.void),
-});
+export const assertWorktreeRemovable = Effect.fn("SharedWorktrees.assertRemovable")(
+  function* (input: { readonly operation: string; readonly cwd: string; readonly path: string }) {
+    const reason = yield* sharedWorktreeReason(input);
+    if (reason !== null) {
+      return yield* new GitCommandError({
+        operation: input.operation,
+        command: "git worktree remove",
+        cwd: input.cwd,
+        detail: reason,
+      });
+    }
+  },
+);

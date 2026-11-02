@@ -2222,12 +2222,15 @@ it.effect(
     Effect.gen(function* () {
       const entered = yield* Deferred.make<void>();
       const removalAsked = yield* Deferred.make<void>();
-      const guarded = makeGuardedRemoveWorktree({
-        officialWorktreesDir: "/official-t3/worktrees",
-        marked: ["/repo-worktrees/feature"],
-      });
+      // The launch's worktree lands inside official T3 Code's worktrees folder.
+      const guarded = yield* makeGuardedRemoveWorktree({ home: "/official-home" });
+      const worktreePath = "/official-home/.t3/worktrees/repo/feature";
       const harness = makeHarness({
         runSetup: () => Deferred.succeed(entered, undefined).pipe(Effect.andThen(Effect.never)),
+        createWorktree: (input) =>
+          Effect.succeed({
+            worktree: { path: worktreePath, refName: input.newRefName, headSha: "abc" },
+          } as never),
         git: {
           removeWorktree: (input) =>
             guarded
@@ -2249,8 +2252,8 @@ it.effect(
         yield* Deferred.await(entered);
         assert.isTrue(yield* tracker.cancel(launched.threadId));
         yield* Deferred.await(removalAsked);
-        assert.deepStrictEqual(guarded.attempts, ["/repo-worktrees/feature"]);
-        assert.deepStrictEqual(guarded.reachedGit, []);
+        assert.deepStrictEqual(guarded.attempts, [worktreePath]);
+        assert.deepStrictEqual(guarded.spawned, []);
       }).pipe(Effect.provide(harness.layer));
     }),
 );

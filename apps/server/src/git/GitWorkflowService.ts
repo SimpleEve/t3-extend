@@ -33,7 +33,6 @@ import * as GitManager from "./GitManager.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as VcsDriverRegistry from "../vcs/VcsDriverRegistry.ts";
 import { withWorkspaceLease } from "../workspace/workspaceLease.ts";
-import * as SharedWorktrees from "../fork/SharedWorktrees.ts"; // fork: shared worktrees are never removed
 
 export class GitWorkflowService extends Context.Service<
   GitWorkflowService,
@@ -177,7 +176,6 @@ export const make = Effect.gen(function* () {
   const git = yield* GitVcsDriver.GitVcsDriver;
   const gitManager = yield* GitManager.GitManager;
   const fileSystem = yield* FileSystem.FileSystem;
-  const sharedWorktrees = yield* SharedWorktrees.SharedWorktrees; // fork: every removal path goes through here
 
   // Nested projects and path aliases must share the checkout's branch-mutation lease.
   const withCheckoutLease = <A, E, R>(rootPath: string, effect: Effect.Effect<A, E, R>) =>
@@ -459,9 +457,7 @@ export const make = Effect.gen(function* () {
       },
     ),
     removeWorktree: Effect.fn("GitWorkflowService.removeWorktree")(function (input) {
-      return sharedWorktrees.assertRemovable(input).pipe(
-        // fork: shared worktrees are never removed
-        Effect.andThen(ensureGitCommand("GitWorkflowService.removeWorktree", input.cwd)),
+      return ensureGitCommand("GitWorkflowService.removeWorktree", input.cwd).pipe(
         Effect.andThen(git.removeWorktree(input)),
       );
     }),

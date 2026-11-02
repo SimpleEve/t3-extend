@@ -53,7 +53,6 @@ import * as VcsProcess from "../vcs/VcsProcess.ts";
 import * as VcsDriverRegistry from "../vcs/VcsDriverRegistry.ts";
 import * as VcsProjectConfig from "../vcs/VcsProjectConfig.ts";
 import * as GitWorkflowService from "./GitWorkflowService.ts";
-import * as SharedWorktrees from "../fork/SharedWorktrees.ts"; // fork
 import type { SourceControlProvider } from "@t3tools/source-control-core/server/SourceControlProvider";
 import * as SourceControlProviderRegistry from "../sourceControl/SourceControlProviderRegistry.ts";
 import * as ServerConfig from "../config.ts";
@@ -769,7 +768,6 @@ it.layer(layerGitManagerTest)("GitManager", (it) => {
           VcsStatusBroadcaster.layer.pipe(
             Layer.provide(
               GitWorkflowService.layer.pipe(
-                Layer.provide(SharedWorktrees.layerNone), // fork
                 Layer.provide(Layer.succeed(GitManager.GitManager, manager)),
                 Layer.provide(
                   VcsDriverRegistry.layer.pipe(
@@ -4197,7 +4195,6 @@ it.layer(layerGitManagerTest)("GitManager", (it) => {
         const events: string[] = [];
         const workflows = yield* Effect.forEach([0, 1], () =>
           GitWorkflowService.make.pipe(
-            Effect.provide(SharedWorktrees.layerNone), // fork
             // Cache the real filesystem result so startImmediately reaches lease acquisition.
             Effect.provideService(FileSystem.FileSystem, {
               ...fileSystem,

@@ -255,6 +255,11 @@ const createSourceHome = Effect.fn("createSourceHome")(function* (
         (checkpoint_id, thread_id, scope_id, run_id, node_id, parent_checkpoint_id, ordinal_within_scope, app_run_ordinal, status, captured_at, payload_json)
         VALUES (${`checkpoint:${T_STOPPED}:0`}, ${T_STOPPED}, ${oldScopeId}, NULL, 'node', NULL, 0, NULL, 'ready', '2026-08-01',
           ${JSON.stringify({ ref: oldRef, scopeId: oldScopeId, ordinalWithinScope: 0, status: "ready" })})`;
+      // The event the projection above was built from; a rebuild reads this one.
+      yield* sql`INSERT INTO orchestration_events
+        (event_id, aggregate_kind, stream_id, stream_version, event_type, occurred_at, actor_kind, payload_json, metadata_json, application_event_version)
+        VALUES ('checkpoint-captured-stopped', 'thread', ${T_STOPPED}, 2, 'checkpoint.captured', '2026-08-01', 'user',
+          ${JSON.stringify({ ref: oldRef, scopeId: oldScopeId, ordinalWithinScope: 0, status: "ready" })}, '{}', 2)`;
       yield* sql`INSERT INTO ${sql("orchestration_v2_projection_provider_threads")}
         (provider_thread_id, thread_id, owner_node_id, provider, provider_session_id, status, first_run_ordinal, last_run_ordinal, updated_at, payload_json, driver, provider_instance_id)
         VALUES ('provider-thread:1', ${T_STOPPED}, NULL, 'codex', 'live-session', 'idle', 1, 1, '2026-08-01',
@@ -969,12 +974,65 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
           );
           assert.notInclude(codes(result.report.fixed), "checkpoint-refs-copied");
           assert.notInclude(codes(result.report.attention), "checkpoint-refs-unavailable");
+          // The projection and the events a rebuild reads say the same thing: missing, and the
+          // source's ref, since no copy was made under a new name.
           const [checkpoint] = yield* sql<{
             status: string;
-          }>`SELECT status FROM orchestration_v2_projection_checkpoints`;
+            payload_json: string;
+          }>`SELECT status, payload_json FROM orchestration_v2_projection_checkpoints`;
+          const [event] = yield* sql<{
+            payload_json: string;
+          }>`SELECT payload_json FROM orchestration_events WHERE event_type = 'checkpoint.captured'`;
+          const projected = JSON.parse(checkpoint!.payload_json) as { ref: string; status: string };
+          const replayed = JSON.parse(event!.payload_json) as { ref: string; status: string };
           assert.equal(checkpoint?.status, "missing");
+          assert.equal(projected.status, "missing");
+          assert.equal(replayed.status, "missing");
+          assert.equal(projected.ref, replayed.ref);
+          assert.equal(
+            projected.ref,
+            yield* checkpointRefForScopeOrdinal({
+              scopeId: oldScopeId as never,
+              ordinalWithinScope: 0,
+            }),
+          );
         }),
       ),
+  );
+
+  it.effect("shows a ref that would conflict in the review step, without writing anything", () =>
+    withService({}, ({ service, sql, sourcePath, repo }) =>
+      Effect.gen(function* () {
+        const crypto = yield* Crypto.Crypto;
+        const digest = yield* crypto
+          .digest("SHA-256", new TextEncoder().encode(`t3x-import|thread|${T_STOPPED}`))
+          .pipe(Effect.orDie);
+        const targetRef = yield* checkpointRefForScopeOrdinal({
+          scopeId: oldScopeId.replace(T_STOPPED, uuidFromDigest(digest)) as never,
+          ordinalWithinScope: 0,
+        });
+        git(repo, ["commit", "-q", "--allow-empty", "-m", "continued in T3 Extend"]);
+        git(repo, ["update-ref", targetRef, "HEAD"]);
+        const sourceBefore = yield* hashFile(sourcePath);
+        const refsBefore = git(repo, ["for-each-ref"]);
+
+        const report = yield* service.check(
+          selectionOf({ threadIds: [ThreadId.make(T_STOPPED)], scheduledTasks: [], files: [] }),
+        );
+
+        assert.deepStrictEqual(
+          report.attention.filter((notice) => notice.code === "checkpoint-refs-conflict"),
+          [{ code: "checkpoint-refs-conflict", subject: "", count: 1 }],
+        );
+        assert.notInclude(codes(report.fixed), "checkpoint-refs-copied");
+        assert.equal(git(repo, ["for-each-ref"]), refsBefore);
+        assert.equal(yield* hashFile(sourcePath), sourceBefore);
+        const [bookkeeping] = yield* sql<{
+          count: number;
+        }>`SELECT (SELECT COUNT(*) FROM fork_t3code_import_map) + (SELECT COUNT(*) FROM fork_t3code_import_runs) AS count`;
+        assert.equal(bookkeeping?.count, 0);
+      }),
+    ),
   );
 
   it.effect("treats a ref that already holds the same commit as copied", () =>

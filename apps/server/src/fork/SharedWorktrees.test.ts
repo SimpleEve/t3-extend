@@ -1,69 +1,124 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
-import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
-import * as SqlClient from "effect/sql/SqlClient";
 
-import * as SqlitePersistence from "../persistence/Sqlite.ts";
-import * as SharedWorktrees from "./SharedWorktrees.ts";
 import { makeGuardedRemoveWorktree } from "./SharedWorktrees.testkit.ts";
 
+const path_ = (...segments: Array<string>) => segments.join("/");
+
+const setup = Effect.fn("setup")(function* (options?: {
+  readonly marked?: ReadonlyArray<string>;
+  readonly baseDir?: (home: string) => string;
+}) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const root = yield* fs.realPath(yield* fs.makeTempDirectoryScoped({ prefix: "t3-shared-wt-" }));
+  const home = path.join(root, "home");
+  const official = path.join(home, ".t3", "worktrees");
+  yield* fs.makeDirectory(path.join(official, "repo", "feature"), { recursive: true });
+  yield* fs.makeDirectory(path.join(root, "mine", "feature"), { recursive: true });
+  yield* fs.makeDirectory(path.join(root, "elsewhere", "Marked"), { recursive: true });
+  yield* fs.symlink(official, path.join(root, "link"));
+  const guarded = yield* makeGuardedRemoveWorktree({
+    home,
+    marked: (options?.marked ?? []).map((target) => path.join(root, target)),
+    ...(options?.baseDir === undefined ? {} : { baseDir: options.baseDir(home) }),
+  });
+  const refused = (target: string, platform: NodeJS.Platform = "linux") =>
+    guarded
+      .removeWorktree({ cwd: path.join(root, "repo"), path: target, force: true })
+      .pipe(Effect.provideService(HostProcess.Platform, platform), Effect.exit);
+  return { fs, path, root, home, official, guarded, refused };
+});
+
 it.layer(NodeServices.layer)("SharedWorktrees", (it) => {
-  it.effect("refuses what official T3 Code owns and lets the rest through to Git", () =>
+  it.effect("refuses anything under official T3 Code's folder, however the path is spelled", () =>
     Effect.gen(function* () {
-      const fs = yield* FileSystem.FileSystem;
-      const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-shared-worktrees-" });
-      const official = path.join(root, "official", "worktrees");
-      const marked = path.join(root, "elsewhere", "marked");
-      yield* fs.makeDirectory(path.join(official, "repo", "feature"), { recursive: true });
-      yield* fs.symlink(official, path.join(root, "link"));
-      const guarded = makeGuardedRemoveWorktree({
-        officialWorktreesDir: official,
-        marked: [marked],
-      });
-      const cwd = path.join(root, "repo");
-
-      const refused = [
+      const { path, root, official, guarded, refused } = yield* setup();
+      const targets = [
         path.join(official, "repo", "feature"),
-        path.join(official, "never-created"),
+        `${path.join(official, "repo", "feature")}/`,
+        path.join(official, "repo", "does-not-exist-yet"),
         official,
+        // A symlink into the folder, whether or not the end of the path exists.
         path.join(root, "link", "repo", "feature"),
-        marked,
+        path.join(root, "link", "repo", "not-there", "deeper"),
       ];
-      for (const target of refused) {
-        const exit = yield* Effect.exit(guarded.removeWorktree({ cwd, path: target, force: true }));
-        assert.isTrue(Exit.isFailure(exit), `${target} should be refused`);
+      for (const target of targets) {
+        assert.isTrue(Exit.isFailure(yield* refused(target)), `${target} should be refused`);
       }
-      assert.deepStrictEqual(guarded.reachedGit, []);
-
-      const allowed = [
-        path.join(root, "mine", "feature"),
-        path.join(root, "official", "worktrees-extra", "x"),
-      ];
-      for (const target of allowed) {
-        yield* guarded.removeWorktree({ cwd, path: target, force: true });
-      }
-      assert.deepStrictEqual(guarded.reachedGit, allowed);
+      assert.deepStrictEqual(guarded.spawned, []);
     }),
   );
 
-  it.effect("sets its tables up twice without error", () =>
+  it.effect(
+    "compares without regard to case on macOS and Windows, even for paths that do not exist",
+    () =>
+      Effect.gen(function* () {
+        const { path, official, home, guarded, refused } = yield* setup();
+        const variant = path.join(home, ".T3", "WORKTREES", "Repo", "never-created");
+        for (const platform of ["darwin", "win32"] as const) {
+          assert.isTrue(Exit.isFailure(yield* refused(variant, platform)));
+          assert.isTrue(Exit.isFailure(yield* refused(path.join(official, "REPO"), platform)));
+        }
+        assert.deepStrictEqual(guarded.spawned, []);
+      }),
+  );
+
+  it.effect("refuses what an import marked as shared, in any spelling", () =>
     Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* SharedWorktrees.ensureImportTables();
-      yield* SharedWorktrees.ensureImportTables();
-      yield* sql`INSERT INTO fork_t3code_import_map (kind, source_id, target_id, state, imported_at)
-        VALUES ('thread', 'a', 'b', 'done', 'now')`;
-      // A second start of the service must keep what the first one stored.
-      yield* Effect.scoped(Layer.build(SharedWorktrees.layerWithOfficialWorktrees("/official")));
-      const [row] = yield* sql<{
-        count: number;
-      }>`SELECT COUNT(*) AS count FROM fork_t3code_import_map`;
-      assert.equal(row?.count, 1);
-    }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
+      const { path, root, guarded, refused } = yield* setup({
+        marked: [path_("elsewhere", "Marked")],
+      });
+      const marked = path.join(root, "elsewhere", "Marked");
+      assert.isTrue(Exit.isFailure(yield* refused(marked)));
+      assert.isTrue(Exit.isFailure(yield* refused(`${marked}/`)));
+      assert.isTrue(
+        Exit.isFailure(yield* refused(path.join(root, "elsewhere", "MARKED"), "darwin")),
+      );
+      assert.deepStrictEqual(guarded.spawned, []);
+    }),
+  );
+
+  it.effect(
+    "lets other worktrees through to Git, including a sibling folder with a similar name",
+    () =>
+      Effect.gen(function* () {
+        const { path, root, home, guarded, refused } = yield* setup();
+        const allowed = [
+          path.join(root, "mine", "feature"),
+          path.join(home, ".t3", "worktrees-extra", "x"),
+        ];
+        for (const target of allowed) assert.isTrue(Exit.isSuccess(yield* refused(target)));
+        assert.strictEqual(guarded.spawned.length, 2);
+      }),
+  );
+
+  it.effect(
+    "keeps this environment's own worktrees removable when it lives under the official folder",
+    () =>
+      Effect.gen(function* () {
+        const { official, guarded, refused } = yield* setup({
+          baseDir: (home) => path_(home, ".t3", "worktrees", "own"),
+        });
+        assert.isTrue(
+          Exit.isSuccess(yield* refused(path_(official, "own", "worktrees", "r", "b"))),
+        );
+        assert.isTrue(Exit.isFailure(yield* refused(path_(official, "repo", "feature"))));
+        assert.strictEqual(guarded.spawned.length, 1);
+      }),
+  );
+
+  it.effect("refuses when the import records cannot be read", () =>
+    Effect.gen(function* () {
+      const { fs, path, root, guarded, refused } = yield* setup();
+      yield* fs.writeFileString(guarded.config.dbPath, "this is not a database");
+      assert.isTrue(Exit.isFailure(yield* refused(path.join(root, "mine", "feature"))));
+      assert.deepStrictEqual(guarded.spawned, []);
+    }),
   );
 });

@@ -49,13 +49,13 @@ import { BUILD_MIGRATION_HEAD, recordedMigrations } from "../persistence/databas
 import { migrationManifest, runMigrations } from "../persistence/Migrations.ts";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
 import * as ServerSettings from "../serverSettings.ts";
-import { ensureImportTables } from "./SharedWorktrees.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as Keybindings from "../keybindings.ts";
 import {
   clearLimitRecovery,
   detachProviderThread,
   makeRewriter,
+  markCheckpointMissing,
   unlinkSubagentChild,
   uuidFromDigest,
 } from "./T3CodeImportRewrite.ts";
@@ -161,7 +161,6 @@ interface Analysis {
   }>;
   readonly files: FilePlan;
   readonly report: T3CodeImportReport;
-  readonly checkpointCount: number;
 }
 
 type Compatibility = "equal" | "older" | "newer" | "diverged";
@@ -180,6 +179,27 @@ export class T3CodeImport extends Context.Service<
     readonly state: Stream.Stream<T3CodeImportState>;
   }
 >()("t3/fork/T3CodeImport") {}
+
+/** Import bookkeeping lives in fork-owned tables, never in a numbered migration (see FORK.md). */
+const ensureImportTables = Effect.fn("T3CodeImport.ensureTables")(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_map (
+    kind TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    state TEXT NOT NULL,
+    detail TEXT,
+    imported_at TEXT NOT NULL,
+    PRIMARY KEY (kind, source_id)
+  )`;
+  yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_runs (
+    run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    source_path TEXT NOT NULL,
+    summary_json TEXT
+  )`;
+});
 
 const make = Effect.fn("T3CodeImport.make")(function* (options: {
   readonly sourceHome?: string | undefined;
@@ -812,42 +832,42 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     if (toCopy.length > 0)
       attention.push({ code: "provider-files-shared", subject: "", count: toCopy.length });
 
-    // Checkpoints: count refs, and note repos that are gone.
-    let checkpointCount = 0;
-    let unavailableRefs = 0;
+    // Checkpoints: the same read-only plan the copy follows, so conflicts show before anything is written.
     if (toCopy.length > 0) {
-      for (const thread of toCopy) {
-        const rows = yield* src.unsafe<Row>(
-          `SELECT json_extract(s.payload_json, '$.cwd') AS cwd, COUNT(c.checkpoint_id) AS refs
-           FROM ${CHECKPOINTS_TABLE} c JOIN ${SCOPES_TABLE} s ON s.scope_id = c.scope_id
-           WHERE c.thread_id = ? AND json_extract(c.payload_json, '$.ref') IS NOT NULL
-             AND c.status = 'ready'
-           GROUP BY cwd`,
-          [thread.id],
-        );
-        for (const row of rows) {
-          checkpointCount += Number(row.refs);
-          const root = projectRows.find(
-            (p) => String(p.project_id) === thread.projectId,
-          )?.workspace_root;
-          if (
-            !(typeof row.cwd === "string" && (yield* exists(row.cwd))) &&
-            !(typeof root === "string" && (yield* exists(root)))
-          ) {
-            unavailableRefs += Number(row.refs);
-          }
-        }
-      }
-    }
-    if (checkpointCount - unavailableRefs > 0) {
-      fixed.push({
-        code: "checkpoint-refs-copied",
-        subject: "",
-        count: checkpointCount - unavailableRefs,
+      const planIds = new Map<string, string>([...threadTargets, ...omittedTargets]);
+      for (const project of projects.values()) planIds.set(project.sourceId, project.targetId);
+      const rewriter = makeRewriter({
+        ids: planIds,
+        sourceStateDir,
+        targetAttachmentsDir: config.attachmentsDir,
+        targetBrowserArtifactsDir: config.browserArtifactsDir,
       });
-    }
-    if (unavailableRefs > 0) {
-      attention.push({ code: "checkpoint-refs-unavailable", subject: "", count: unavailableRefs });
+      const plan = yield* planCheckpointRefs({
+        src,
+        rewrite: rewriter.rewrite,
+        threads: toCopy.map((thread) => ({
+          thread,
+          projectRoot: projectRows.find((p) => String(p.project_id) === thread.projectId)
+            ?.workspace_root as string | undefined,
+        })),
+      });
+      if (plan.copied > 0) {
+        fixed.push({ code: "checkpoint-refs-copied", subject: "", count: plan.copied });
+      }
+      if (plan.unavailable.size > 0) {
+        attention.push({
+          code: "checkpoint-refs-unavailable",
+          subject: "",
+          count: plan.unavailable.size,
+        });
+      }
+      if (plan.conflicting.size > 0) {
+        attention.push({
+          code: "checkpoint-refs-conflict",
+          subject: "",
+          count: plan.conflicting.size,
+        });
+      }
     }
 
     // Attachments that belong to these threads.
@@ -957,7 +977,6 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       omittedTargets,
       tasks,
       files,
-      checkpointCount,
       report: { fixed, skipped, attention },
     } satisfies Analysis;
   });
@@ -1056,50 +1075,70 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     limitCleared: number;
   }
 
-  /** Copies the thread's checkpoint refs to the names its new scope ids give them. */
-  const copyCheckpointRefs = Effect.fn("T3CodeImport.copyCheckpointRefs")(function* (input: {
+  /**
+   * Decides, without writing, what happens to each ready checkpoint's ref: it is created under the
+   * name its new scope id gives it, already holds the same commit, or is left alone because its
+   * source is gone or the name is taken by another commit. One batched lookup per repository.
+   */
+  const planCheckpointRefs = Effect.fn("T3CodeImport.planCheckpointRefs")(function* (input: {
     readonly src: SqlClient.SqlClient;
-    readonly thread: SourceThread;
+    readonly threads: ReadonlyArray<{
+      readonly thread: SourceThread;
+      readonly projectRoot: string | undefined;
+    }>;
     readonly rewrite: (text: string) => string;
-    readonly projectRoot: string | undefined;
-    readonly counters: Counters;
   }) {
-    const rows = yield* input.src.unsafe<Row>(
-      `SELECT c.payload_json AS payload, json_extract(s.payload_json, '$.cwd') AS cwd
-       FROM ${CHECKPOINTS_TABLE} c JOIN ${SCOPES_TABLE} s ON s.scope_id = c.scope_id
-       WHERE c.thread_id = ?`,
-      [input.thread.id],
-    );
     const refMap = new Map<string, string>();
     const unavailable = new Set<string>();
+    const conflicting = new Set<string>();
+    const create: Array<{ repo: string; newRef: string; sha: string }> = [];
+    let same = 0;
+    const repoExists = new Map<string, boolean>();
+    const exist = Effect.fn("T3CodeImport.repoExists")(function* (candidate: string) {
+      const known = repoExists.get(candidate);
+      if (known !== undefined) return known;
+      const found = yield* exists(candidate);
+      repoExists.set(candidate, found);
+      return found;
+    });
     const byRepo = new Map<string, Array<{ oldRef: string; newRef: string }>>();
-    for (const row of rows) {
-      const payload = decodeJson(String(row.payload)) as {
-        ref?: string | null;
-        scopeId: string;
-        ordinalWithinScope: number;
-      };
-      if (typeof payload.ref !== "string" || payload.ref === "") continue;
-      const newRef = yield* checkpointRefForScopeOrdinal({
-        scopeId: input.rewrite(payload.scopeId) as never,
-        ordinalWithinScope: payload.ordinalWithinScope,
-      }).pipe(Effect.provideService(Crypto.Crypto, crypto));
-      refMap.set(payload.ref, newRef);
-      let repo: string | undefined;
-      for (const candidate of [row.cwd, input.projectRoot]) {
-        if (typeof candidate === "string" && (yield* exists(candidate))) {
-          repo = candidate;
-          break;
+    const seen = new Set<string>();
+    for (const { thread, projectRoot } of input.threads) {
+      const rows = yield* input.src.unsafe<Row>(
+        `SELECT c.payload_json AS payload, json_extract(s.payload_json, '$.cwd') AS cwd
+         FROM ${CHECKPOINTS_TABLE} c JOIN ${SCOPES_TABLE} s ON s.scope_id = c.scope_id
+         WHERE c.thread_id = ? AND c.status = 'ready' AND json_extract(c.payload_json, '$.ref') IS NOT NULL`,
+        [thread.id],
+      );
+      for (const row of rows) {
+        const payload = decodeJson(String(row.payload)) as {
+          ref?: string | null;
+          scopeId: string;
+          ordinalWithinScope: number;
+        };
+        if (typeof payload.ref !== "string" || payload.ref === "" || seen.has(payload.ref))
+          continue;
+        seen.add(payload.ref);
+        const newRef = yield* checkpointRefForScopeOrdinal({
+          scopeId: input.rewrite(payload.scopeId) as never,
+          ordinalWithinScope: payload.ordinalWithinScope,
+        }).pipe(Effect.provideService(Crypto.Crypto, crypto));
+        let repo: string | undefined;
+        for (const candidate of [row.cwd, projectRoot]) {
+          if (typeof candidate === "string" && (yield* exist(candidate))) {
+            repo = candidate;
+            break;
+          }
         }
+        if (repo === undefined) {
+          unavailable.add(payload.ref);
+          continue;
+        }
+        byRepo.set(repo, [...(byRepo.get(repo) ?? []), { oldRef: payload.ref, newRef }]);
       }
-      if (repo === undefined) {
-        unavailable.add(payload.ref);
-        continue;
-      }
-      byRepo.set(repo, [...(byRepo.get(repo) ?? []), { oldRef: payload.ref, newRef }]);
     }
     for (const [repo, pairs] of byRepo) {
-      // One lookup for the source refs and the names they are about to take.
+      // Read-only: one lookup for the source refs and the names they would take.
       const checked = yield* git
         .execute({
           operation: "T3CodeImport.checkRefs",
@@ -1114,7 +1153,6 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         const [sha, type] = (lines[index] ?? "").split(" ");
         return type === "missing" || sha === undefined || sha === "" ? null : sha;
       };
-      const commands: Array<string> = [];
       const queued = new Set<string>();
       pairs.forEach((pair, index) => {
         const sha = shaAt(index);
@@ -1123,32 +1161,56 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
           // A name equal to the source's would share the checkpoint with the other app.
           unavailable.add(pair.oldRef);
         } else if (existing === null) {
+          refMap.set(pair.oldRef, pair.newRef);
           if (!queued.has(pair.newRef)) {
             queued.add(pair.newRef);
-            commands.push(`create ${pair.newRef} ${sha}`);
+            create.push({ repo, newRef: pair.newRef, sha });
           }
         } else if (existing === sha) {
-          input.counters.refsCopied += 1;
+          refMap.set(pair.oldRef, pair.newRef);
+          same += 1;
         } else {
           // Never move a ref that already points somewhere else.
-          unavailable.add(pair.oldRef);
-          input.counters.refsConflicting += 1;
+          conflicting.add(pair.oldRef);
         }
       });
-      if (commands.length > 0) {
-        yield* git
-          .execute({
-            operation: "T3CodeImport.copyRefs",
-            cwd: repo,
-            args: ["update-ref", "--stdin"],
-            stdin: `${commands.join("\n")}\n`,
-          })
-          .pipe(Effect.mapError(failed));
-        input.counters.refsCopied += commands.length;
-      }
     }
-    input.counters.refsUnavailable += unavailable.size;
-    return { refMap, unavailable };
+    // Refs left out of refMap keep their source text and are marked missing, in rows and events alike.
+    const missing = new Set([...unavailable, ...conflicting]);
+    return { refMap, unavailable, conflicting, missing, create, copied: create.length + same };
+  });
+
+  /** Creates the planned refs for one thread. */
+  const copyCheckpointRefs = Effect.fn("T3CodeImport.copyCheckpointRefs")(function* (input: {
+    readonly src: SqlClient.SqlClient;
+    readonly thread: SourceThread;
+    readonly rewrite: (text: string) => string;
+    readonly projectRoot: string | undefined;
+    readonly counters: Counters;
+  }) {
+    const plan = yield* planCheckpointRefs({
+      src: input.src,
+      threads: [{ thread: input.thread, projectRoot: input.projectRoot }],
+      rewrite: input.rewrite,
+    });
+    const byRepo = new Map<string, Array<string>>();
+    for (const { repo, newRef, sha } of plan.create) {
+      byRepo.set(repo, [...(byRepo.get(repo) ?? []), `create ${newRef} ${sha}`]);
+    }
+    for (const [repo, commands] of byRepo) {
+      yield* git
+        .execute({
+          operation: "T3CodeImport.copyRefs",
+          cwd: repo,
+          args: ["update-ref", "--stdin"],
+          stdin: `${commands.join("\n")}\n`,
+        })
+        .pipe(Effect.mapError(failed));
+    }
+    input.counters.refsCopied += plan.copied;
+    input.counters.refsUnavailable += plan.unavailable.size;
+    input.counters.refsConflicting += plan.conflicting.size;
+    return { refMap: plan.refMap, missing: plan.missing };
   });
 
   interface RunContext {
@@ -1203,7 +1265,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     columns: ReadonlyArray<string>,
     row: Row,
     targetProjectId: string,
-    refs: { readonly refMap: Map<string, string>; readonly unavailable: Set<string> },
+    refs: { readonly refMap: Map<string, string>; readonly missing: Set<string> },
   ): ReadonlyArray<unknown> => {
     const mapText = (text: string) => {
       const withRefs = text.includes("refs/t3/orchestration-v2/checkpoints")
@@ -1234,13 +1296,8 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
           ...(detached.status === null ? {} : { status: detached.status }),
         };
       } else if (table === CHECKPOINTS_TABLE) {
-        const parsed = decodeJson(payloadSource) as { ref?: string | null };
-        if (typeof parsed.ref === "string" && refs.unavailable.has(parsed.ref)) {
-          overrides = {
-            payload_json: encodeJson({ ...parsed, status: "missing" }),
-            status: "missing",
-          };
-        }
+        const marked = markCheckpointMissing(payloadSource, refs.missing);
+        if (marked !== null) overrides = { payload_json: marked, status: "missing" };
       }
     }
     return columns.map((column) => {
@@ -1270,6 +1327,14 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
        VALUES ('thread', ?, ?, 'copying', ?, ?)`,
       [thread.id, targetThread, thread.worktree, yield* nowIso],
     );
+    // Marked before any thread row exists, so no clean-up sweep can see the thread without its mark.
+    if (thread.worktree !== null) {
+      yield* sql.unsafe(
+        `INSERT OR IGNORE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at)
+         VALUES ('worktree', ?, ?, 'shared', 'created by T3 Code', ?)`,
+        [path.resolve(thread.worktree), path.resolve(thread.worktree), yield* nowIso],
+      );
+    }
 
     const refs = yield* copyCheckpointRefs({
       src,
@@ -1305,16 +1370,21 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       );
       if (batch.length === 0) break;
       lastSequence = Number(batch[batch.length - 1]!["sequence"]);
-      const values = batch.map((row) =>
-        eventColumns.map((column) => {
-          const value = row[column];
+      const values = batch.map((row) => {
+        // Rebuilding projections from these events must give the same checkpoint state the rows have.
+        const marked =
+          row.event_type === "checkpoint.captured" && typeof row.payload_json === "string"
+            ? markCheckpointMissing(row.payload_json, refs.missing)
+            : null;
+        return eventColumns.map((column) => {
+          const value = column === "payload_json" && marked !== null ? marked : row[column];
           if (typeof value !== "string") return value;
           const withRefs = value.includes("refs/t3/orchestration-v2/checkpoints")
             ? value.replace(REF_PATTERN, (ref) => refs.refMap.get(ref) ?? ref)
             : value;
           return context.rewrite(withRefs);
-        }),
-      );
+        });
+      });
       yield* sql.withTransaction(insertRows("orchestration_events", eventColumns, values));
     }
 
@@ -1332,13 +1402,6 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
           `UPDATE fork_t3code_import_map SET state = 'done' WHERE kind = 'thread' AND source_id = ?`,
           [thread.id],
         );
-        if (thread.worktree !== null) {
-          yield* sql.unsafe(
-            `INSERT OR IGNORE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at)
-             VALUES ('worktree', ?, ?, 'shared', 'created by T3 Code', ?)`,
-            [path.resolve(thread.worktree), path.resolve(thread.worktree), yield* nowIso],
-          );
-        }
         // Rows from before this import were already projected; only move a cursor that was current.
         if (cursor !== undefined && newest !== null && newest !== undefined) {
           const before = (yield* sql.unsafe<{ readonly sequence: number | null }>(
@@ -1825,7 +1888,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         replaceCount(
           analysis.report.attention,
           "checkpoint-refs-unavailable",
-          counters.refsUnavailable - counters.refsConflicting,
+          counters.refsUnavailable,
         ),
         "checkpoint-refs-conflict",
         counters.refsConflicting,

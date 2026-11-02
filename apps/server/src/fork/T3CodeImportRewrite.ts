@@ -147,3 +147,13 @@ export const unlinkSubagentChild = (payloadJson: string): string => {
   if (payload === null) return payloadJson;
   return JSON.stringify({ ...payload, childThreadId: null });
 };
+
+/** A checkpoint whose ref was not carried over says so, whether it sits in a row or in an event. */
+export const markCheckpointMissing = (
+  payloadJson: string,
+  missing: ReadonlySet<string>,
+): string | null => {
+  const payload = parseObject(payloadJson);
+  if (payload === null || typeof payload.ref !== "string" || !missing.has(payload.ref)) return null;
+  return JSON.stringify({ ...payload, status: "missing" });
+};
