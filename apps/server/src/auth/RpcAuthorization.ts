@@ -86,7 +86,9 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.serverGetStorageCleanupReport]: AuthOrchestrationReadScope,
   [WS_METHODS.serverGetDatabaseStorage]: AuthOrchestrationReadScope,
   [WS_METHODS.serverPreviewT3CodeImport]: AuthEnvironmentMaintainScope, // fork: import from official T3 Code
+  [WS_METHODS.serverCheckT3CodeImport]: AuthEnvironmentMaintainScope, // fork: import from official T3 Code
   [WS_METHODS.serverRunT3CodeImport]: AuthEnvironmentMaintainScope, // fork: import from official T3 Code
+  [WS_METHODS.serverSubscribeT3CodeImport]: AuthEnvironmentMaintainScope, // fork: import from official T3 Code
   [WS_METHODS.peerLinksList]: AuthAccessReadScope,
   [WS_METHODS.serverUpdateSettings]: AuthSettingsWriteScope,
   [WS_METHODS.serverSearchAcpRegistry]: AuthOrchestrationReadScope,

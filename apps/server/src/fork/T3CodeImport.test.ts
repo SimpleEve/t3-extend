@@ -1,107 +1,186 @@
-import * as NodeCrypto from "node:crypto";
+// @effect-diagnostics nodeBuiltinImport:off - fixtures build a real git repository to prove ref copies.
+import * as NodeChildProcess from "node:child_process";
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
-import { ProjectId } from "@t3tools/contracts";
+import { ThreadId, type T3CodeImportSelection } from "@t3tools/contracts";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
+import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Path from "effect/Path";
+import * as Stream from "effect/Stream";
 import * as SqlClient from "effect/sql/SqlClient";
 
+import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as ServerConfig from "../config.ts";
+import { checkpointRefForScopeOrdinal } from "../orchestration-v2/CheckpointService.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
 import { BUILD_MIGRATION_HEAD } from "../persistence/databaseMigrationHead.ts";
 import { runMigrations } from "../persistence/Migrations.ts";
+import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
+import * as ServerSettings from "../serverSettings.ts";
+import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
+import * as Keybindings from "../keybindings.ts";
 import * as T3CodeImport from "./T3CodeImport.ts";
+
+const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+const P_KEPT = id(1);
+const P_SOLO = id(2);
+const P_DELETED = id(3);
+const T_STOPPED = id(11);
+const T_FORK = id(12);
+const T_RUNNING = id(13);
+const T_ARCHIVED = id(14);
+const T_LIMIT = id(15);
+const T_PARENT = id(16);
+const T_SUB = id(17);
+const T_DELETED = id(18);
+const T_SOLO = id(19);
+const TASK_INTERVAL = "scheduled-task:aaaa";
+const TASK_WEBHOOK = "scheduled-task:bbbb";
+const TASK_ORPHAN = "scheduled-task:cccc";
+const CURSOR_CREDENTIAL =
+  "provider-auth-02a8ae355046b982b21f46e0b092be604758b64fa8ae971800289f628c780a54";
 
 const withDatabase = <A, E>(
   databasePath: string,
   effect: Effect.Effect<A, E, SqlClient.SqlClient>,
 ) => effect.pipe(Effect.provide(NodeSqliteClient.layer({ filename: databasePath })));
 
-const projectId = ProjectId.make("project-kept");
-const soloProjectId = ProjectId.make("project-solo");
+const git = (cwd: string, args: ReadonlyArray<string>, input?: string) =>
+  NodeChildProcess.execFileSync("git", [...args], {
+    cwd,
+    input,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: "t",
+      GIT_AUTHOR_EMAIL: "t@t",
+      GIT_COMMITTER_NAME: "t",
+      GIT_COMMITTER_EMAIL: "t@t",
+    },
+  });
 
 const insertThread = Effect.fn("insertThread")(function* (input: {
   readonly threadId: string;
   readonly projectId: string;
   readonly runStatus: string;
-  readonly payload: string;
+  readonly payload: object;
   readonly updatedAt: string;
 }) {
   const sql = yield* SqlClient.SqlClient;
   yield* sql`INSERT INTO orchestration_v2_projection_threads
     (thread_id, project_id, title, default_provider, runtime_mode, interaction_mode, created_at, updated_at, payload_json)
-    VALUES (${input.threadId}, ${input.projectId}, ${input.threadId}, 'codex', 'full-access', 'default', '2026-08-01', ${input.updatedAt}, ${input.payload})`;
+    VALUES (${input.threadId}, ${input.projectId}, ${`title ${input.threadId.slice(-2)}`}, 'codex', 'full-access', 'default', '2026-08-01', ${input.updatedAt}, ${JSON.stringify(input.payload)})`;
   yield* sql`INSERT INTO orchestration_v2_projection_runs
     (run_id, thread_id, ordinal, provider, status, requested_at, payload_json)
-    VALUES (${`run-${input.threadId}`}, ${input.threadId}, 1, 'codex', ${input.runStatus}, '2026-08-01', '{}')`;
+    VALUES (${`run:thread:${input.threadId}:ordinal:1`}, ${input.threadId}, 1, 'codex', ${input.runStatus}, '2026-08-01', '{}')`;
   yield* sql`INSERT INTO orchestration_v2_projection_messages
     (message_id, thread_id, run_id, role, streaming, created_at, updated_at, payload_json)
-    VALUES (${`message-${input.threadId}`}, ${input.threadId}, ${`run-${input.threadId}`}, 'user', 0, '2026-08-01', '2026-08-01', '{"text":"hello"}')`;
-  // The project id is embedded as text, the way real thread events carry it.
+    VALUES (${`message:${input.threadId}`}, ${input.threadId}, ${`run:thread:${input.threadId}:ordinal:1`}, 'user', 0, '2026-08-01', '2026-08-01',
+      ${JSON.stringify({ text: "hello", attachment: `${input.threadId}-photo` })})`;
   yield* sql`INSERT INTO orchestration_events
     (event_id, aggregate_kind, stream_id, stream_version, event_type, occurred_at, actor_kind, payload_json, metadata_json, application_event_version)
     VALUES
     (${`created-${input.threadId}`}, 'thread', ${input.threadId}, 0, 'thread.created', '2026-08-01', 'user',
-      ${JSON.stringify({ projectId: input.projectId })}, '{}', 2),
+      ${JSON.stringify({ projectId: input.projectId, threadId: input.threadId })}, '{}', 2),
     (${`settled-${input.threadId}`}, 'thread', ${input.threadId}, 1, 'thread.settled', '2026-08-02', 'user',
       ${JSON.stringify({ projectId: input.projectId })}, '{}', 2)`;
 });
 
-/** A source home shaped like ~/.t3, built on a migrated database with realistic neighbours. */
-const createSourceHome = Effect.fn("createSourceHome")(function* (home: string) {
+const oldScopeId = `checkpoint-scope:thread:${T_STOPPED}:name:root`;
+
+/** A source home shaped like ~/.t3 on a migrated database, with the neighbours a real install has. */
+const createSourceHome = Effect.fn("createSourceHome")(function* (
+  home: string,
+  repo: string,
+  throughMigration: number | undefined,
+) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
+  const crypto = yield* Crypto.Crypto;
   const stateDir = path.join(home, "userdata");
   const databasePath = path.join(stateDir, "statev2.sqlite");
   yield* fs.makeDirectory(path.join(stateDir, "attachments"), { recursive: true });
-  yield* fs.writeFileString(path.join(stateDir, "attachments", "stopped-thread-photo.png"), "png");
-  yield* fs.writeFileString(path.join(stateDir, "attachments", "running-thread-photo.png"), "png");
+  yield* fs.makeDirectory(path.join(stateDir, "secrets"), { recursive: true });
+  yield* fs.makeDirectory(path.join(stateDir, "themes"), { recursive: true });
+  yield* fs.writeFileString(path.join(stateDir, "attachments", `${T_STOPPED}-photo.png`), "png");
+  yield* fs.writeFileString(path.join(stateDir, "attachments", `${T_RUNNING}-photo.png`), "png");
+  yield* fs.writeFileString(path.join(stateDir, "themes", "dusk.json"), "{}");
+  yield* fs.writeFileString(path.join(stateDir, "environment-id"), "official-environment");
+  yield* fs.writeFileString(path.join(stateDir, "connection-catalog.json"), "{}");
+  yield* fs.writeFileString(path.join(stateDir, "secrets", "server-signing-key.bin"), "k");
+  yield* fs.writeFileString(path.join(stateDir, "secrets", CURSOR_CREDENTIAL + ".bin"), "token");
+  yield* fs.writeFileString(
+    path.join(stateDir, "settings.json"),
+    JSON.stringify({
+      favorites: [{ provider: "codex", model: "gpt-x" }],
+      projectSettingsFolded: true,
+      previousWorktreesDirectories: [path.join(home, "worktrees")],
+      worktreesDirectory: path.join(home, "worktrees"),
+      providerInstances: { cursor: { driver: "cursor", displayName: "Cursor", enabled: true } },
+    }),
+  );
+  yield* fs.writeFileString(
+    path.join(stateDir, "client-settings.json"),
+    JSON.stringify({ diffLayout: "split", legacySidebarEnabled: true, notAClientSetting: 1 }),
+  );
+  yield* fs.writeFileString(
+    path.join(stateDir, "keybindings.json"),
+    JSON.stringify([{ key: "mod+k", command: "chat.new" }, { command: 5 }]),
+  );
+  const worktree = path.join(home, "worktrees", "kept", "feature");
+  yield* fs.makeDirectory(worktree, { recursive: true });
+  const oldRef = yield* checkpointRefForScopeOrdinal({
+    scopeId: oldScopeId as never,
+    ordinalWithinScope: 0,
+  });
+  git(repo, ["update-ref", oldRef, "HEAD"]);
+  void crypto;
+
   yield* withDatabase(
     databasePath,
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
-      yield* runMigrations();
+      yield* runMigrations(
+        throughMigration === undefined ? {} : { toMigrationInclusive: throughMigration },
+      );
       yield* sql`INSERT INTO projection_projects
         (project_id, title, workspace_root, scripts_json, created_at, updated_at, deleted_at)
         VALUES
-        ('project-kept', 'Kept', '/tmp/kept', '[]', '2026-08-01', '2026-08-01', NULL),
-        ('project-solo', 'Solo', '/tmp/solo', '[]', '2026-08-01', '2026-08-01', NULL),
-        ('project-deleted', 'Deleted', '/tmp/deleted', '[]', '2026-08-01', '2026-08-02', '2026-08-02')`;
+        (${P_KEPT}, 'Kept', ${repo}, '[]', '2026-08-01', '2026-08-01', NULL),
+        (${P_SOLO}, 'Solo', '/tmp/solo', '[]', '2026-08-01', '2026-08-01', NULL),
+        (${P_DELETED}, 'Deleted', '/tmp/deleted', '[]', '2026-08-01', '2026-08-02', '2026-08-02')`;
       yield* sql`INSERT INTO orchestration_events
         (event_id, aggregate_kind, stream_id, stream_version, event_type, occurred_at, actor_kind, payload_json, metadata_json, application_event_version)
-        VALUES ('project-created-solo', 'project', 'project-solo', 0, 'project.created', '2026-08-01', 'user', '{}', '{}', 2)`;
+        VALUES ('project-created-solo', 'project', ${P_SOLO}, 0, 'project.created', '2026-08-01', 'user', ${JSON.stringify({ projectId: P_SOLO })}, '{}', 2)`;
 
-      const forkPayload =
-        '{"lineage":{"parentThreadId":"stopped-thread","relationshipToParent":"fork","rootThreadId":"stopped-thread"}}';
-      const subagentPayload =
-        '{"lineage":{"parentThreadId":"subagent-parent","relationshipToParent":"subagent","rootThreadId":"subagent-parent"},"forkedFrom":{"type":"node","nodeId":"node-1"}}';
+      const parent = (parentId: string, relationship: string) => ({
+        lineage: {
+          parentThreadId: parentId,
+          relationshipToParent: relationship,
+          rootThreadId: parentId,
+        },
+      });
       for (const thread of [
-        ["stopped-thread", "project-kept", "completed", "{}", "2026-08-01"],
-        ["fork-thread", "project-kept", "completed", forkPayload, "2026-08-02"],
-        ["running-thread", "project-kept", "running", "{}", "2026-08-05"],
-        ["settled-thread", "project-kept", "completed", '{"settledAt":"2026-08-01"}', "2026-08-05"],
+        [T_STOPPED, P_KEPT, "completed", { worktreePath: worktree }, "2026-08-01"],
+        [T_FORK, P_KEPT, "completed", parent(T_STOPPED, "fork"), "2026-08-02"],
+        [T_RUNNING, P_KEPT, "running", {}, "2026-08-05"],
+        [T_ARCHIVED, P_KEPT, "completed", { archivedAt: "2026-08-01" }, "2026-08-05"],
+        [T_LIMIT, P_KEPT, "completed", { limitRecovery: { autoResume: true } }, "2026-08-05"],
+        [T_PARENT, P_KEPT, "completed", {}, "2026-08-05"],
+        [T_SUB, P_KEPT, "completed", parent(T_PARENT, "subagent"), "2026-08-05"],
+        [T_DELETED, P_KEPT, "completed", { deletedAt: "2026-08-03" }, "2026-08-05"],
         [
-          "archived-thread",
-          "project-kept",
+          T_SOLO,
+          P_SOLO,
           "completed",
-          '{"archivedAt":"2026-08-01"}',
-          "2026-08-05",
+          { worktreePath: path.join(home, "worktrees", "gone") },
+          "2026-08-06",
         ],
-        [
-          "limit-thread",
-          "project-kept",
-          "completed",
-          '{"limitRecovery":{"autoResume":true}}',
-          "2026-08-05",
-        ],
-        ["subagent-parent", "project-kept", "completed", "{}", "2026-08-05"],
-        ["subagent-child", "project-kept", "completed", subagentPayload, "2026-08-05"],
-        ["deleted-thread", "project-kept", "completed", '{"deletedAt":"2026-08-03"}', "2026-08-05"],
-        ["solo-thread", "project-solo", "completed", "{}", "2026-08-06"],
-        ["deleted-project-thread", "project-deleted", "completed", "{}", "2026-08-05"],
       ] as const) {
         yield* insertThread({
           threadId: thread[0],
@@ -111,302 +190,524 @@ const createSourceHome = Effect.fn("createSourceHome")(function* (home: string) 
           updatedAt: thread[4],
         });
       }
+      yield* sql`INSERT INTO ${sql("orchestration_v2_projection_checkpoint_scopes")}
+        (scope_id, thread_id, run_id, node_id, parent_scope_id, provider_thread_id, kind, ordinal_within_parent, advances_app_run_count, created_at, payload_json)
+        VALUES (${oldScopeId}, ${T_STOPPED}, ${`run:thread:${T_STOPPED}:ordinal:1`}, 'node', NULL, 'provider-thread', 'root_run', 0, 1, '2026-08-01',
+          ${JSON.stringify({ id: oldScopeId, threadId: T_STOPPED, cwd: repo })})`;
+      yield* sql`INSERT INTO ${sql("orchestration_v2_projection_checkpoints")}
+        (checkpoint_id, thread_id, scope_id, run_id, node_id, parent_checkpoint_id, ordinal_within_scope, app_run_ordinal, status, captured_at, payload_json)
+        VALUES (${`checkpoint:${T_STOPPED}:0`}, ${T_STOPPED}, ${oldScopeId}, NULL, 'node', NULL, 0, NULL, 'ready', '2026-08-01',
+          ${JSON.stringify({ ref: oldRef, scopeId: oldScopeId, ordinalWithinScope: 0, status: "ready" })})`;
+      yield* sql`INSERT INTO ${sql("orchestration_v2_projection_provider_threads")}
+        (provider_thread_id, thread_id, owner_node_id, provider, provider_session_id, status, first_run_ordinal, last_run_ordinal, updated_at, payload_json, driver, provider_instance_id)
+        VALUES ('provider-thread:1', ${T_STOPPED}, NULL, 'codex', 'live-session', 'idle', 1, 1, '2026-08-01',
+          ${JSON.stringify({ providerSessionId: "live-session", status: "idle", nativeThreadRef: { nativeId: "native-1" } })}, 'codex', 'codex')`;
       yield* sql`INSERT INTO orchestration_v2_projection_provider_sessions
         (provider_session_id, thread_id, provider, status, updated_at, payload_json)
-        VALUES ('session-shared', 'running-thread', 'codex', 'stopped', '2026-08-01', '{}')`;
+        VALUES ('live-session', ${T_STOPPED}, 'codex', 'ready', '2026-08-01', '{}')`;
       yield* sql`INSERT INTO orchestration_v2_projection_provider_session_bindings
-        (provider_session_id, thread_id)
-        VALUES ('session-shared', 'running-thread'), ('session-shared', 'stopped-thread')`;
+        (provider_session_id, thread_id) VALUES ('live-session', ${T_STOPPED})`;
       yield* sql`INSERT INTO orchestration_v2_projection_context_transfers
         (context_transfer_id, source_thread_id, target_thread_id, type, status, updated_at, payload_json)
-        VALUES ('transfer-1', 'archived-thread', 'stopped-thread', 'provider_handoff', 'completed', '2026-08-01', '{}')`;
-      yield* sql`INSERT INTO scheduled_tasks
-        (task_id, title, prompt, enabled, schedule_json, project_id, workspace_strategy_json,
-          model_selection_json, runtime_mode, interaction_mode, created_by, creation_source,
-          created_at, updated_at, last_run_status, run_count)
-        VALUES ('task-1', 'Nightly', 'Run it', 1, '{}', 'project-kept', '{}', '{}',
-          'full-access', 'default', 'user', 'user', '2026-08-01', '2026-08-01', 'never', 0)`;
+        VALUES ('transfer-1', ${T_ARCHIVED}, ${T_STOPPED}, 'provider_handoff', 'completed', '2026-08-01', '{}')`;
+      const task = (
+        taskId: string,
+        project: string,
+        schedule: object,
+        enabled: number,
+        threadId: string | null,
+      ) =>
+        sql`INSERT INTO scheduled_tasks
+          (task_id, title, prompt, enabled, schedule_json, project_id, thread_id, workspace_strategy_json,
+            model_selection_json, runtime_mode, interaction_mode, created_by, creation_source,
+            created_at, updated_at, last_run_status, run_count, webhook_token, webhook_secret)
+          VALUES (${taskId}, ${`Task ${taskId}`}, 'Run it', ${enabled}, ${JSON.stringify(schedule)}, ${project}, ${threadId},
+            '{"type":"root"}', '{"instanceId":"codex","model":"gpt-x"}', 'full-access', 'default', 'user', 'user',
+            '2026-08-01', '2026-08-01', 'never', 0, ${schedule === null ? null : "old-token"}, 'secret')`;
+      yield* task(TASK_INTERVAL, P_KEPT, { type: "interval", everyMs: 3_600_000 }, 1, null);
+      yield* task(
+        TASK_WEBHOOK,
+        P_SOLO,
+        { type: "webhook", signature: null, maxDeliveryAgeMinutes: null },
+        0,
+        null,
+      );
+      yield* task(TASK_ORPHAN, P_DELETED, { type: "interval", everyMs: 3_600_000 }, 1, null);
       yield* sql`INSERT INTO orchestration_command_receipts
         (command_id, aggregate_kind, aggregate_id, accepted_at, result_sequence, status)
-        VALUES ('command-1', 'thread', 'stopped-thread', '2026-08-01', 1, 'accepted')`;
-      yield* sql`INSERT INTO orchestration_v2_command_receipts
-        (command_id, thread_id, command_type, accepted_at, result_sequence, status)
-        VALUES ('command-2', 'stopped-thread', 'thread.send', '2026-08-01', 1, 'accepted')`;
+        VALUES ('command-1', 'thread', ${T_STOPPED}, '2026-08-01', 1, 'accepted')`;
       yield* sql`INSERT INTO auth_sessions (session_id, subject, scopes, method, issued_at, expires_at)
         VALUES ('session-1', 'user', '[]', 'pairing', '2026-08-01', '2027-08-01')`;
       yield* sql`INSERT INTO peer_environment_links
         (environment_id, secret_name, label, urls_json, access, linked_at, expires_at)
-        VALUES ('environment-box', 'peer-link-box', 'Box', '["https://box.example"]', 'auto',
-          '2026-08-01', '2027-08-01')`;
+        VALUES ('environment-box', 'peer-link-box', 'Box', '["https://box.example"]', 'auto', '2026-08-01', '2027-08-01')`;
     }),
   );
   return databasePath;
 });
 
-/** This environment's own database: migrated, with a project for /tmp/kept already added. */
-const createTarget = Effect.fn("createTarget")(function* (baseDir: string) {
-  const config = yield* ServerConfig.ServerConfig;
-  yield* withDatabase(
-    config.dbPath,
-    Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* runMigrations();
-      yield* sql`INSERT OR IGNORE INTO projection_projects
-        (project_id, title, workspace_root, scripts_json, created_at, updated_at, deleted_at)
-        VALUES ('project-here', 'Kept here', '/tmp/kept', '[]', '2026-09-01', '2026-09-01', NULL)`;
-      yield* sql`INSERT OR IGNORE INTO orchestration_v2_projection_metadata
-        (projection_name, schema_version, last_sequence, updated_at)
-        VALUES ('thread-projections', 2, 0, '2026-09-01')`;
-    }),
-  );
-  return baseDir;
+const selectionOf = (overrides: Partial<T3CodeImportSelection> = {}): T3CodeImportSelection => ({
+  threadIds: [T_STOPPED, T_FORK, T_RUNNING, T_ARCHIVED, T_LIMIT, T_PARENT, T_SOLO].map((threadId) =>
+    ThreadId.make(threadId),
+  ),
+  projectIds: [],
+  includeSubagents: true,
+  scheduledTasks: [
+    { taskId: TASK_INTERVAL, enabled: true },
+    { taskId: TASK_WEBHOOK, enabled: false },
+    { taskId: TASK_ORPHAN, enabled: true },
+  ],
+  files: [
+    "settings",
+    "clientSettings",
+    "keybindings",
+    "themes",
+    "usagePriceOverrides",
+    "providerInstances",
+  ],
+  ...overrides,
 });
 
-const fixture = Effect.fn("fixture")(function* () {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-code-import-" });
-  const sourceHome = path.join(root, "official");
-  const baseDir = path.join(root, "extend");
-  const sourcePath = yield* createSourceHome(sourceHome);
-  return { sourceHome, sourcePath, baseDir };
-});
+const codes = (notices: ReadonlyArray<{ readonly code: string; readonly subject: string }>) =>
+  notices.map((notice) => notice.code);
+
+interface Captured {
+  readonly tasks: Array<Record<string, unknown>>;
+  readonly keybindings: Array<Record<string, unknown>>;
+  readonly secrets: Map<string, Uint8Array>;
+}
+
+/** Runs `use` against a live service on a fresh target database, as the server would hold it. */
+const withService = <A, E, R>(
+  options: { readonly sourceThroughMigration?: number },
+  use: (input: {
+    readonly service: T3CodeImport.T3CodeImport["Service"];
+    readonly sql: SqlClient.SqlClient;
+    readonly config: ServerConfig.ServerConfig["Service"];
+    readonly home: string;
+    readonly sourcePath: string;
+    readonly repo: string;
+    readonly captured: Captured;
+  }) => Effect.Effect<A, E, R>,
+) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const config = yield* ServerConfig.ServerConfig;
+    const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-code-import-" });
+    const home = path.join(root, "official");
+    const repo = path.join(root, "repo");
+    yield* fs.makeDirectory(repo, { recursive: true });
+    git(repo, ["init", "-q"]);
+    git(repo, ["commit", "-q", "--allow-empty", "-m", "init"]);
+    const sourcePath = yield* createSourceHome(home, repo, options.sourceThroughMigration);
+    yield* withDatabase(
+      config.dbPath,
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        yield* runMigrations();
+        yield* sql`INSERT INTO projection_projects
+          (project_id, title, workspace_root, scripts_json, created_at, updated_at, deleted_at)
+          VALUES ('project-here', 'Kept here', ${repo}, '[]', '2026-09-01', '2026-09-01', NULL)`;
+        yield* sql`INSERT OR REPLACE INTO orchestration_v2_projection_metadata
+          (projection_name, schema_version, last_sequence, updated_at)
+          VALUES ('thread-projections', 2, 0, '2026-09-01')`;
+      }),
+    );
+    const captured: Captured = { tasks: [], keybindings: [], secrets: new Map() };
+    const mocks = Layer.mergeAll(
+      OrchestrationEventStore.layer,
+      ServerSettings.ServerSettingsService.layerTest(),
+      Layer.mock(ScheduledTaskService.ScheduledTaskService)({
+        upsert: (input) =>
+          Effect.sync(() => {
+            captured.tasks.push(input as never);
+            return {
+              task: {
+                webhook:
+                  input.schedule.type === "webhook"
+                    ? { path: `/api/hooks/${input.id}/new-token`, url: null, hasSecret: false }
+                    : undefined,
+              },
+            } as never;
+          }),
+      }),
+      Layer.mock(Keybindings.Keybindings)({
+        upsertKeybindingRule: (input) =>
+          Effect.sync(() => {
+            captured.keybindings.push(input as never);
+            return undefined as never;
+          }),
+      }),
+      Layer.mock(ServerSecretStore.ServerSecretStore)({
+        get: (name) => Effect.succeed(Option.fromNullishOr(captured.secrets.get(name))),
+        set: (name, value) => Effect.sync(() => void captured.secrets.set(name, value)),
+      }),
+      Layer.mock(GitVcsDriver.GitVcsDriver)({
+        execute: (input) =>
+          Effect.sync(() => ({
+            exitCode: 0 as never,
+            stdout: git(input.cwd, input.args, input.stdin),
+            stderr: "",
+            stdoutTruncated: false,
+            stderrTruncated: false,
+          })),
+      }),
+    );
+    const layer = T3CodeImport.layerWithSourceHome(home).pipe(
+      Layer.provideMerge(mocks),
+      Layer.provideMerge(NodeSqliteClient.layer({ filename: config.dbPath })),
+    );
+    return yield* Effect.gen(function* () {
+      const service = yield* T3CodeImport.T3CodeImport;
+      const sql = yield* SqlClient.SqlClient;
+      return yield* use({ service, sql, config, home, sourcePath, repo, captured });
+    }).pipe(Effect.provide(layer));
+  }).pipe(
+    Effect.provide(
+      Layer.merge(
+        ServerConfig.ServerConfig.layerTest(process.cwd(), { prefix: "t3-code-import-target-" }),
+        NodeCrypto.layer,
+      ),
+    ),
+  );
+
+const runToEnd = (
+  service: T3CodeImport.T3CodeImport["Service"],
+  selection: T3CodeImportSelection,
+) =>
+  Effect.gen(function* () {
+    yield* service.start(selection);
+    const last = yield* service.state.pipe(
+      Stream.filter((state) => state.status === "finished" || state.status === "failed"),
+      Stream.runHead,
+    );
+    const state = Option.getOrThrow(last);
+    if (state.status !== "finished") return yield* Effect.die(state);
+    return state.result;
+  });
 
 const hashFile = (file: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
-    return NodeCrypto.createHash("sha256")
-      .update(yield* fs.readFile(file))
-      .digest("hex");
+    const crypto = yield* Crypto.Crypto;
+    const digest = yield* crypto.digest("SHA-256", yield* fs.readFile(file)).pipe(Effect.orDie);
+    return Array.from(digest).join(",");
   });
-
-/** Runs `use` against a live service whose database is `baseDir`'s, as the server would hold it. */
-const withService = <A, E>(
-  input: { readonly sourceHome: string; readonly baseDir: string },
-  use: (
-    service: T3CodeImport.T3CodeImport["Service"],
-  ) => Effect.Effect<A, E, SqlClient.SqlClient | ServerConfig.ServerConfig>,
-) =>
-  Effect.gen(function* () {
-    const config = yield* ServerConfig.ServerConfig;
-    yield* createTarget(input.baseDir);
-    return yield* Effect.flatMap(T3CodeImport.T3CodeImport, use).pipe(
-      Effect.provide(
-        T3CodeImport.layerWithSourceHome(input.sourceHome).pipe(
-          Layer.provide(OrchestrationEventStore.layer),
-          Layer.provideMerge(NodeSqliteClient.layer({ filename: config.dbPath })),
-        ),
-      ),
-    );
-  }).pipe(Effect.provide(ServerConfig.ServerConfig.layerTest(process.cwd(), input.baseDir)));
 
 it.layer(NodeServices.layer)("T3CodeImport", (it) => {
   it.effect(
-    "previews what would come over: archived and settled threads, not busy or deleted ones",
+    "lists what can be picked: busy threads are marked, a known folder joins its project",
     () =>
-      Effect.gen(function* () {
-        const { sourceHome, baseDir } = yield* fixture();
-        const preview = yield* withService({ sourceHome, baseDir }, (service) => service.preview);
-
-        assert.equal(preview.status, "available");
-        if (preview.status !== "available") return;
-        assert.deepStrictEqual(
-          preview.projects
-            .toSorted((a, b) => a.projectId.localeCompare(b.projectId))
-            .map((project) => [
-              project.projectId,
-              project.importableThreads,
-              project.busyThreads,
-              project.joinsProjectId,
-            ]),
-          [
-            // Same folder as project-here: its threads would join that project.
-            [projectId, 4, 4, "project-here"],
-            [soloProjectId, 1, 0, null],
-          ],
-        );
-      }),
+      withService({}, ({ service }) =>
+        Effect.gen(function* () {
+          const catalog = yield* service.preview;
+          assert.equal(catalog.status, "available");
+          if (catalog.status !== "available") return;
+          const kept = catalog.projects.find((project) => project.projectId === P_KEPT)!;
+          assert.equal(kept.joinsProjectId, "project-here");
+          // Subagents travel with their parent instead of being listed.
+          assert.deepStrictEqual(
+            kept.threads
+              .map(
+                (thread) =>
+                  [thread.threadId.slice(-2), thread.state, thread.subagentCount] as const,
+              )
+              .toSorted((a, b) => a[0].localeCompare(b[0])),
+            [
+              ["11", "importable", 0],
+              ["12", "importable", 0],
+              ["13", "busy", 0],
+              ["14", "importable", 0],
+              ["15", "importable", 0],
+              ["16", "importable", 1],
+            ],
+          );
+          assert.deepStrictEqual(
+            catalog.scheduledTasks.map((task) => task.enabled),
+            [true, false, true],
+          );
+          assert.deepStrictEqual(
+            catalog.files.filter((file) => !file.available).map((file) => file.kind),
+            ["usagePriceOverrides"],
+          );
+        }),
+      ),
   );
 
   it.effect(
-    "imports into the live database, skipping what must not cross over, and is idempotent",
+    "sorts every selected item into fixed, skipped and needing attention before anything is written",
     () =>
-      Effect.gen(function* () {
-        const { sourceHome, sourcePath, baseDir } = yield* fixture();
-        const fs = yield* FileSystem.FileSystem;
-        const path = yield* Path.Path;
-        const sourceHashBefore = yield* hashFile(sourcePath);
-
-        const outcome = yield* withService({ sourceHome, baseDir }, (service) =>
-          Effect.gen(function* () {
-            const sql = yield* SqlClient.SqlClient;
-            const config = yield* ServerConfig.ServerConfig;
-            const first = yield* service.run({ projectIds: [projectId, soloProjectId] });
-            const afterFirst = yield* sql<{ count: number }>`
-            SELECT COUNT(*) AS count FROM orchestration_events`;
-            const second = yield* service.run({ projectIds: [projectId, soloProjectId] });
-            const afterSecond = yield* sql<{ count: number }>`
-            SELECT COUNT(*) AS count FROM orchestration_events`;
-
-            const threads = yield* sql<{
-              thread_id: string;
-              project_id: string;
-              payload_json: string;
-            }>`
-            SELECT thread_id, project_id, payload_json FROM orchestration_v2_projection_threads
-            ORDER BY thread_id`;
-            const events = yield* sql<{
-              stream_id: string;
-              stream_version: number;
-              payload_json: string;
-            }>`
-            SELECT stream_id, stream_version, payload_json FROM orchestration_events
-            WHERE aggregate_kind = 'thread' ORDER BY sequence`;
-            const projectEvents = yield* sql<{ stream_id: string }>`
-            SELECT stream_id FROM orchestration_events WHERE aggregate_kind = 'project'`;
-            const projects = yield* sql<{ project_id: string }>`
-            SELECT project_id FROM projection_projects ORDER BY project_id`;
-            const [leftovers] = yield* sql<Record<string, number>>`
-            SELECT
-              (SELECT COUNT(*) FROM auth_sessions) AS auth,
-              (SELECT COUNT(*) FROM scheduled_tasks) AS tasks,
-              (SELECT COUNT(*) FROM orchestration_command_receipts) AS receipts,
-              (SELECT COUNT(*) FROM orchestration_v2_command_receipts) AS receipts_v2,
-              (SELECT COUNT(*) FROM peer_environment_links) AS links`;
-            const [metadata] = yield* sql<{ last_sequence: number }>`
-            SELECT last_sequence FROM orchestration_v2_projection_metadata`;
-            const [newest] = yield* sql<{ sequence: number }>`
-            SELECT MAX(sequence) AS sequence FROM orchestration_events
-            WHERE application_event_version = 2 AND aggregate_kind = 'thread'`;
-            const search = yield* sql<{ rowid: number }>`
-            SELECT rowid FROM orchestration_v2_message_search WHERE orchestration_v2_message_search MATCH 'hello'`;
-            const sessions = yield* sql<{ provider_session_id: string }>`
-            SELECT provider_session_id FROM orchestration_v2_projection_provider_sessions`;
-            const bindings = yield* sql<{ thread_id: string }>`
-            SELECT thread_id FROM orchestration_v2_projection_provider_session_bindings`;
-            const transfers = yield* sql<{ context_transfer_id: string }>`
-            SELECT context_transfer_id FROM orchestration_v2_projection_context_transfers`;
-            const attachments = yield* fs.readDirectory(config.attachmentsDir);
-            return {
-              first,
-              second,
-              afterFirst,
-              afterSecond,
-              threads,
-              events,
-              projectEvents,
-              projects,
-              leftovers,
-              metadata,
-              newest,
-              search,
-              sessions,
-              bindings,
-              transfers,
-              attachments,
-            };
-          }),
-        );
-
-        assert.deepStrictEqual(outcome.first, {
-          importedProjects: 1,
-          importedThreads: 5,
-          existingThreads: 0,
-          busyThreads: 4,
-          copiedAttachments: 1,
-        });
-        // Nothing new on the second run; the busy threads are still busy.
-        assert.deepStrictEqual(outcome.second, {
-          importedProjects: 0,
-          importedThreads: 0,
-          existingThreads: 5,
-          busyThreads: 4,
-          copiedAttachments: 0,
-        });
-        assert.equal(outcome.afterFirst[0]?.count, outcome.afterSecond[0]?.count);
-
-        assert.deepStrictEqual(
-          outcome.threads.map((row) => [row.thread_id, row.project_id]),
-          [
-            ["archived-thread", "project-here"],
-            ["fork-thread", "project-here"],
-            ["settled-thread", "project-here"],
-            ["solo-thread", "project-solo"],
-            ["stopped-thread", "project-here"],
-          ],
-        );
-        // The old project id is rewritten wherever it was embedded, so a rebuild stays consistent.
-        assert.notInclude(JSON.stringify(outcome.events), "project-kept");
-        assert.include(
-          outcome.events.map((row) => row.payload_json),
-          '{"projectId":"project-here"}',
-        );
-        assert.deepStrictEqual(
-          outcome.events
-            .filter((row) => row.stream_id === "stopped-thread")
-            .map((row) => row.stream_version),
-          [0, 1],
-        );
-        assert.deepStrictEqual(outcome.projectEvents, [{ stream_id: "project-solo" }]);
-        assert.deepStrictEqual(
-          outcome.projects.map((row) => row.project_id),
-          ["project-here", "project-solo"],
-        );
-
-        assert.deepStrictEqual(outcome.leftovers, {
-          auth: 0,
-          tasks: 0,
-          receipts: 0,
-          receipts_v2: 0,
-          links: 0,
-        });
-        assert.equal(outcome.metadata?.last_sequence, outcome.newest?.sequence);
-        assert.equal(outcome.search.length, 5);
-        // The shared session came with its one imported thread, not with the busy thread bound to it.
-        assert.deepStrictEqual(outcome.sessions, [{ provider_session_id: "session-shared" }]);
-        assert.deepStrictEqual(outcome.bindings, [{ thread_id: "stopped-thread" }]);
-        assert.deepStrictEqual(outcome.transfers, [{ context_transfer_id: "transfer-1" }]);
-        assert.deepStrictEqual(outcome.attachments, ["stopped-thread-photo.png"]);
-
-        const attachmentSource = yield* fs.exists(
-          path.join(sourceHome, "userdata", "attachments", "running-thread-photo.png"),
-        );
-        assert.isTrue(attachmentSource);
-        assert.equal(yield* hashFile(sourcePath), sourceHashBefore);
-      }),
+      withService({}, ({ service, sql }) =>
+        Effect.gen(function* () {
+          const report = yield* service.check(selectionOf());
+          assert.deepStrictEqual(codes(report.fixed).toSorted(), [
+            "attachments-copied",
+            "checkpoint-refs-copied",
+            "limit-recovery-cleared",
+            "paths-rewritten",
+            "project-merged",
+            "task-imported-active",
+            "thread-ids-renewed",
+          ]);
+          const skipped = codes(report.skipped);
+          for (const code of [
+            "thread-busy",
+            "task-project-missing",
+            "identity-skipped",
+            "signing-secrets-skipped",
+            "connection-catalog-skipped",
+            "browser-storage-skipped",
+            "setting-rejected",
+            "worktree-directories-skipped",
+            "client-setting-rejected",
+            "keybinding-rejected",
+          ]) {
+            assert.include(skipped, code);
+          }
+          const attention = codes(report.attention);
+          for (const code of [
+            "worktree-missing",
+            "worktree-shared",
+            "provider-files-shared",
+            "task-runs-in-both",
+            "provider-credential-imported",
+            "sidebar-settings",
+          ]) {
+            assert.include(attention, code);
+          }
+          // The preflight reads only.
+          const [rows] = yield* sql<{
+            count: number;
+          }>`SELECT COUNT(*) AS count FROM orchestration_v2_projection_threads`;
+          assert.equal(rows?.count, 0);
+        }),
+      ),
   );
 
-  it.effect("refuses a source that is missing, newer, older, or this very database", () =>
-    Effect.gen(function* () {
-      const { sourceHome, sourcePath, baseDir } = yield* fixture();
-      const path = yield* Path.Path;
-      const reasonOf = (home: string) =>
-        withService({ sourceHome: home, baseDir }, (service) => service.preview).pipe(
-          Effect.map((preview) =>
-            preview.status === "unavailable" ? preview.reason : "available",
-          ),
+  it.effect(
+    "imports into the live database under new ids, arrives stopped, and is idempotent",
+    () =>
+      withService({}, ({ service, sql, config, sourcePath, home, repo, captured }) =>
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          const path = yield* Path.Path;
+          const sourceHashBefore = yield* hashFile(sourcePath);
+
+          const first = yield* runToEnd(service, selectionOf());
+          const eventsAfterFirst = (yield* sql<{
+            count: number;
+          }>`SELECT COUNT(*) AS count FROM orchestration_events`)[0]?.count;
+          const second = yield* runToEnd(service, selectionOf());
+          const eventsAfterSecond = (yield* sql<{
+            count: number;
+          }>`SELECT COUNT(*) AS count FROM orchestration_events`)[0]?.count;
+
+          assert.equal(first.importedThreads, 7); // 6 picked and not busy, plus the subagent
+          assert.equal(first.importedProjects, 1); // Solo is new; Kept merged into the project already here
+          assert.equal(second.importedThreads, 0);
+          assert.equal(second.existingThreads, 7);
+          assert.equal(eventsAfterFirst, eventsAfterSecond);
+
+          const threads = yield* sql<{
+            thread_id: string;
+            project_id: string;
+            payload_json: string;
+          }>`
+          SELECT thread_id, project_id, payload_json FROM orchestration_v2_projection_threads`;
+          assert.equal(threads.length, 7);
+          // New ids everywhere, so the two apps never share a thread, run, scope or checkpoint name.
+          assert.isTrue(
+            threads.every((row) => ![T_STOPPED, T_FORK, T_SUB].includes(row.thread_id)),
+          );
+          const every = yield* sql<{ text: string }>`
+          SELECT payload_json AS text FROM orchestration_events UNION ALL
+          SELECT payload_json FROM orchestration_v2_projection_messages UNION ALL
+          SELECT message_id FROM orchestration_v2_projection_messages UNION ALL
+          SELECT run_id FROM orchestration_v2_projection_runs`;
+          assert.isFalse(
+            every.some((row) => row.text.includes(T_STOPPED) || row.text.includes(P_KEPT)),
+          );
+          const projects = yield* sql<{
+            project_id: string;
+          }>`SELECT project_id FROM projection_projects ORDER BY project_id`;
+          assert.equal(projects.length, 2);
+          assert.isTrue(threads.some((row) => row.project_id === "project-here"));
+
+          // Stopped: no live sessions, no pending work, no recovery plans.
+          const [live] = yield* sql<Record<string, number>>`SELECT
+          (SELECT COUNT(*) FROM orchestration_v2_projection_provider_sessions) AS sessions,
+          (SELECT COUNT(*) FROM orchestration_v2_projection_provider_session_bindings) AS bindings,
+          (SELECT COUNT(*) FROM orchestration_v2_projection_runs WHERE status IN ('running','queued','waiting','starting','preparing')) AS active,
+          (SELECT COUNT(*) FROM orchestration_v2_effect_outbox) AS outbox,
+          (SELECT COUNT(*) FROM scheduled_tasks) AS tasks,
+          (SELECT COUNT(*) FROM orchestration_command_receipts) AS receipts,
+          (SELECT COUNT(*) FROM auth_sessions) AS auth,
+          (SELECT COUNT(*) FROM peer_environment_links) AS links,
+          (SELECT COUNT(*) FROM orchestration_v2_projection_threads WHERE json_extract(payload_json, '$.limitRecovery') IS NOT NULL) AS recovery`;
+          assert.deepStrictEqual(live, {
+            sessions: 0,
+            bindings: 0,
+            active: 0,
+            outbox: 0,
+            tasks: 0,
+            receipts: 0,
+            auth: 0,
+            links: 0,
+            recovery: 0,
+          });
+          const providerThread = (yield* sql<{
+            payload_json: string;
+            provider_session_id: string | null;
+          }>`
+          SELECT payload_json, provider_session_id FROM orchestration_v2_projection_provider_threads`)[0]!;
+          assert.isNull(providerThread.provider_session_id);
+          assert.include(providerThread.payload_json, "native-1");
+          assert.include(providerThread.payload_json, '"providerSessionId":null');
+
+          // Checkpoints: the copy lives under the new scope's ref name; the original is untouched.
+          const [checkpoint] = yield* sql<{ payload_json: string }>`
+          SELECT payload_json FROM orchestration_v2_projection_checkpoints`;
+          const newRef = (JSON.parse(checkpoint!.payload_json) as { ref: string }).ref;
+          const oldRef = yield* checkpointRefForScopeOrdinal({
+            scopeId: oldScopeId as never,
+            ordinalWithinScope: 0,
+          });
+          assert.notEqual(newRef, oldRef);
+          assert.equal(git(repo, ["rev-parse", newRef]), git(repo, ["rev-parse", oldRef]));
+          assert.equal(
+            first.report.fixed.find((n) => n.code === "checkpoint-refs-copied")?.count,
+            1,
+          );
+
+          // The projection cursor stays at the newest thread event; search covers imported messages.
+          const [cursor] = yield* sql<{
+            last_sequence: number;
+          }>`SELECT last_sequence FROM orchestration_v2_projection_metadata`;
+          const [newest] = yield* sql<{ sequence: number }>`
+          SELECT MAX(sequence) AS sequence FROM orchestration_events WHERE application_event_version = 2 AND aggregate_kind = 'thread'`;
+          assert.equal(cursor?.last_sequence, newest?.sequence);
+          const search = yield* sql<{
+            rowid: number;
+          }>`SELECT rowid FROM orchestration_v2_message_search WHERE orchestration_v2_message_search MATCH 'hello'`;
+          assert.equal(search.length, 6); // the subagent's messages are not indexed
+
+          // Attachments follow their thread under its new id.
+          const attachments = yield* fs.readDirectory(config.attachmentsDir);
+          assert.equal(attachments.length, 1);
+          assert.isTrue(attachments[0]!.endsWith("-photo.png"));
+          assert.isFalse(attachments[0]!.startsWith(T_STOPPED));
+
+          // Worktrees are shared: they stay where they are and cannot be removed from here.
+          const worktree = path.join(home, "worktrees", "kept", "feature");
+          const guard = yield* Effect.exit(
+            service.assertWorktreeNotShared({ cwd: repo, path: worktree }),
+          );
+          assert.equal(guard._tag, "Failure");
+          assert.isTrue(yield* fs.exists(worktree));
+          yield* service.assertWorktreeNotShared({
+            cwd: repo,
+            path: path.join(home, "worktrees", "other"),
+          });
+
+          // Tasks, settings and the rest.
+          assert.deepStrictEqual(
+            first.importedTasks.map((task) => [task.enabled, task.webhookPath === null]),
+            [
+              [true, true],
+              [false, false],
+            ],
+          );
+          assert.deepStrictEqual(
+            captured.tasks.map((task) => task.enabled),
+            [true, false],
+          );
+          // A repeated run re-applies chosen files; upserting the same rule again changes nothing.
+          assert.deepStrictEqual(
+            [...new Set(captured.keybindings.map((rule) => `${rule.key} ${rule.command}`))],
+            ["mod+k chat.new"],
+          );
+          assert.isTrue(captured.secrets.has(CURSOR_CREDENTIAL));
+          assert.isFalse(captured.secrets.has("server-signing-key"));
+          assert.equal(first.clientSettings?.diffLayout, "split");
+          assert.isUndefined(first.clientSettings?.notAClientSetting);
+          assert.isTrue(yield* fs.exists(path.join(config.environmentThemesDir, "dusk.json")));
+          assert.include(codes(first.report.attention), "task-webhook-url");
+          assert.equal(yield* hashFile(sourcePath), sourceHashBefore);
+        }),
+      ),
+  );
+
+  it.effect(
+    "a run that stopped halfway starts that thread over instead of leaving a partial copy",
+    () =>
+      withService({}, ({ service, sql }) =>
+        Effect.gen(function* () {
+          const selection = selectionOf({
+            threadIds: [ThreadId.make(T_SOLO)],
+            scheduledTasks: [],
+            files: [],
+          });
+          yield* runToEnd(service, selection);
+          yield* sql`UPDATE fork_t3code_import_map SET state = 'copying' WHERE kind = 'thread'`;
+          yield* sql`DELETE FROM orchestration_v2_projection_messages`;
+          const again = yield* runToEnd(service, selection);
+          assert.equal(again.importedThreads, 1);
+          const [messages] = yield* sql<{
+            count: number;
+          }>`SELECT COUNT(*) AS count FROM orchestration_v2_projection_messages`;
+          assert.equal(messages?.count, 1);
+          const [threads] = yield* sql<{
+            count: number;
+          }>`SELECT COUNT(*) AS count FROM orchestration_v2_projection_threads`;
+          assert.equal(threads?.count, 1);
+        }),
+      ),
+  );
+
+  it.effect("refuses a source that is missing, newer, or this very database", () =>
+    withService({}, ({ service, sourcePath, config }) =>
+      Effect.gen(function* () {
+        yield* withDatabase(
+          sourcePath,
+          Effect.gen(function* () {
+            const sql = yield* SqlClient.SqlClient;
+            yield* sql`INSERT INTO effect_sql_migrations (migration_id, name) VALUES (${BUILD_MIGRATION_HEAD + 1}, 'FromTheFuture')`;
+          }),
         );
+        const catalog = yield* service.preview;
+        assert.deepStrictEqual(
+          catalog.status === "unavailable" ? catalog.reason : "available",
+          "source-schema-newer",
+        );
+        const error = yield* Effect.flip(service.check(selectionOf()));
+        assert.equal(error.reason, "source-schema-newer");
+        void config;
+      }),
+    ),
+  );
 
-      assert.equal(yield* reasonOf(path.join(sourceHome, "nowhere")), "source-missing");
-      assert.equal(yield* reasonOf(path.join(baseDir)), "source-is-this-database");
-
-      yield* withDatabase(
-        sourcePath,
-        Effect.gen(function* () {
-          const sql = yield* SqlClient.SqlClient;
-          yield* sql`INSERT INTO effect_sql_migrations (migration_id, name) VALUES (999, 'FromTheFuture')`;
-        }),
-      );
-      assert.equal(yield* reasonOf(sourceHome), "source-schema-newer");
-
-      yield* withDatabase(
-        sourcePath,
-        Effect.gen(function* () {
-          const sql = yield* SqlClient.SqlClient;
-          yield* sql`DELETE FROM effect_sql_migrations WHERE migration_id IN (999, ${BUILD_MIGRATION_HEAD})`;
-        }),
-      );
-      assert.equal(yield* reasonOf(sourceHome), "source-schema-older");
-    }),
+  it.effect(
+    "migrates an older source on a private copy and leaves the official file as it was",
+    () =>
+      withService(
+        { sourceThroughMigration: BUILD_MIGRATION_HEAD - 1 },
+        ({ service, sql, sourcePath }) =>
+          Effect.gen(function* () {
+            const before = yield* hashFile(sourcePath);
+            const selection = selectionOf({
+              threadIds: [ThreadId.make(T_SOLO)],
+              scheduledTasks: [],
+              files: [],
+            });
+            const result = yield* runToEnd(service, selection);
+            assert.equal(result.importedThreads, 1);
+            const [threads] = yield* sql<{
+              count: number;
+            }>`SELECT COUNT(*) AS count FROM orchestration_v2_projection_threads`;
+            assert.equal(threads?.count, 1);
+            assert.equal(yield* hashFile(sourcePath), before);
+          }),
+      ),
   );
 });

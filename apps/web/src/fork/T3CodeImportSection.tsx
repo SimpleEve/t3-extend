@@ -3,18 +3,26 @@ import {
   AuthEnvironmentMaintainScope,
   type EnvironmentId,
   type ProjectId,
-  type T3CodeImportPreview,
+  type T3CodeImportCatalog,
+  type T3CodeImportFileKind,
+  type T3CodeImportNotice,
+  type T3CodeImportReport,
   type T3CodeImportResult,
+  type T3CodeImportSelection,
+  type ThreadId,
 } from "@t3tools/contracts";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
+import { useAtomValue } from "@effect/atom-react";
+import { ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../components/ui/collapsible";
 import {
   Dialog,
   DialogDescription,
@@ -25,33 +33,528 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { Spinner } from "../components/ui/spinner";
+import { Switch } from "../components/ui/switch";
 import { toastManager } from "../components/ui/toast";
 import { SettingsRow, SettingsSection } from "../components/settings/settingsLayout";
 import { settingsScopeEnvironmentLabel } from "../components/settings/settingsScopeAxis";
 import { useSettingsScope } from "../components/settings/SettingsScopeContext";
 import { searchableSetting } from "../components/settings/settingsSearch";
 import { useT } from "../hooks/useT";
+import { updateClientSettings } from "../hooks/useSettings";
 import { serverEnvironment } from "../state/server";
 import { useEnvironmentScope } from "../state/session";
 import { useAtomCommand } from "../state/use-atom-command";
 
-type Available = Extract<T3CodeImportPreview, { readonly status: "available" }>;
-type Unavailable = Extract<T3CodeImportPreview, { readonly status: "unavailable" }>;
+type Available = Extract<T3CodeImportCatalog, { readonly status: "available" }>;
+type Unavailable = Extract<T3CodeImportCatalog, { readonly status: "unavailable" }>;
+
+interface Draft {
+  readonly threads: ReadonlySet<ThreadId>;
+  readonly emptyProjects: ReadonlySet<ProjectId>;
+  readonly includeArchived: boolean;
+  readonly includeSubagents: boolean;
+  /** Task id → whether it is imported, and whether it runs. */
+  readonly tasks: ReadonlyMap<string, { readonly picked: boolean; readonly enabled: boolean }>;
+  readonly files: ReadonlySet<T3CodeImportFileKind>;
+}
 
 type Step =
   | { readonly kind: "closed" }
   | { readonly kind: "loading" }
   | { readonly kind: "failed"; readonly message: string }
   | { readonly kind: "unavailable"; readonly reason: Unavailable["reason"] }
+  | { readonly kind: "choose"; readonly catalog: Available; readonly draft: Draft }
   | {
-      readonly kind: "choose";
-      readonly preview: Available;
-      readonly selected: ReadonlySet<ProjectId>;
+      readonly kind: "review";
+      readonly catalog: Available;
+      readonly draft: Draft;
+      readonly report: T3CodeImportReport | null;
     }
-  | { readonly kind: "importing" }
-  | { readonly kind: "done"; readonly result: T3CodeImportResult };
+  | { readonly kind: "running" };
+
+const FILE_KINDS: ReadonlyArray<T3CodeImportFileKind> = [
+  "settings",
+  "providerInstances",
+  "usagePriceOverrides",
+  "clientSettings",
+  "keybindings",
+  "themes",
+];
 
 const errorMessage = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause));
+
+const draftFor = (catalog: Available): Draft => ({
+  threads: new Set(
+    catalog.projects.flatMap((project) =>
+      project.threads
+        .filter((thread) => thread.state === "importable" && !thread.archived)
+        .map((thread) => thread.threadId),
+    ),
+  ),
+  emptyProjects: new Set(
+    catalog.projects.filter((project) => project.threads.length === 0).map((p) => p.projectId),
+  ),
+  includeArchived: false,
+  includeSubagents: true,
+  tasks: new Map(
+    catalog.scheduledTasks.map((task) => [
+      task.taskId,
+      { picked: !task.alreadyImported, enabled: task.enabled },
+    ]),
+  ),
+  files: new Set(catalog.files.filter((file) => file.available).map((file) => file.kind)),
+});
+
+const selectionFrom = (catalog: Available, draft: Draft): T3CodeImportSelection => ({
+  threadIds: catalog.projects.flatMap((project) =>
+    project.threads
+      .filter(
+        (thread) =>
+          draft.threads.has(thread.threadId) && (draft.includeArchived || !thread.archived),
+      )
+      .map((thread) => thread.threadId),
+  ),
+  projectIds: [...draft.emptyProjects],
+  includeSubagents: draft.includeSubagents,
+  scheduledTasks: catalog.scheduledTasks.flatMap((task) => {
+    const choice = draft.tasks.get(task.taskId);
+    return choice?.picked === true ? [{ taskId: task.taskId, enabled: choice.enabled }] : [];
+  }),
+  files: [...draft.files],
+});
+
+function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
+  const t = useT();
+  const { subject, detail = "", count = 0 } = props.notice;
+  switch (props.notice.code) {
+    case "project-merged":
+      return t("{subject} joins the project you already have for {detail}.", { subject, detail });
+    case "thread-ids-renewed":
+      return t(
+        "{count} threads get new ids, so T3 Code and T3 Extend keep separate histories and checkpoints.",
+        { count },
+      );
+    case "parents-pulled-in":
+      return t(
+        "{count} parent threads come along because the threads you picked were forked from them.",
+        { count },
+      );
+    case "checkpoint-refs-copied":
+      return t("{count} checkpoint refs are copied under new names in your repositories.", {
+        count,
+      });
+    case "limit-recovery-cleared":
+      return t(
+        "{count} threads had automatic usage-limit resume turned off, so they only run when you continue them.",
+        { count },
+      );
+    case "provider-session-detached":
+      return t(
+        "{count} threads arrive stopped: live provider sessions and pending requests stay in T3 Code.",
+        { count },
+      );
+    case "paths-rewritten":
+      return t("{count} paths into T3 Code's folder now point into T3 Extend's.", { count });
+    case "attachments-copied":
+      return t("{count} attachments and browser captures are copied with their threads.", {
+        count,
+      });
+    case "task-imported-active":
+      return t("{subject} is imported and runs on its schedule right away.", { subject });
+    case "identity-skipped":
+      return t("Not imported, so phones and browsers pair with T3 Extend again: {subject}.", {
+        subject,
+      });
+    case "signing-secrets-skipped":
+      return t("{count} signing keys and cloud sign-in secrets belong to T3 Code's identity.", {
+        count,
+      });
+    case "connection-catalog-skipped":
+      return t("Saved remote environments are encrypted with T3 Code's key. Add them again here.");
+    case "desktop-settings-skipped":
+      return t("Window size and position belong to the T3 Code window.");
+    case "browser-profile-skipped":
+      return t("The built-in browser's logins cannot be read by T3 Extend. Sign in again.");
+    case "browser-storage-skipped":
+      return t(
+        "Unsent drafts, collapsed groups and other per-device state live in T3 Code's own window and cannot be reached.",
+      );
+    case "thread-busy":
+      return t("{subject}: T3 Code is working on it right now. Stop it there and import again.", {
+        subject,
+      });
+    case "thread-parent-busy":
+      return t("{subject}: its parent thread is busy in T3 Code.", { subject });
+    case "task-project-missing":
+      return t("{subject}: its project is not part of this import.", { subject });
+    case "task-thread-missing":
+      return t("{subject}: the thread it belongs to is not part of this import.", { subject });
+    case "task-unreadable":
+      return t("{subject}: its definition could not be read here.", { subject });
+    case "setting-rejected":
+      return t("{subject} is not a setting T3 Extend can take.", { subject });
+    case "client-setting-rejected":
+      return t("{subject} is not an interface preference T3 Extend knows.", { subject });
+    case "keybinding-rejected":
+      return t("The shortcut for {subject} was not valid.", { subject });
+    case "worktree-directories-skipped":
+      return t("{subject}: T3 Extend never cleans up folders it did not create.", { subject });
+    case "relay-state-skipped":
+      return t("Webhook delivery history and replay state stay in T3 Code.");
+    case "provider-instance-exists":
+      return t("Provider {subject} already exists here and is left as it is.", { subject });
+    case "worktree-missing":
+      return t(
+        "{count} worktrees no longer exist on disk ({detail}). Their threads open without files.",
+        {
+          count,
+          detail,
+        },
+      );
+    case "worktree-shared":
+      return t(
+        "{count} worktrees stay where they are, shared with T3 Code. T3 Extend never deletes them.",
+        { count },
+      );
+    case "provider-files-shared":
+      return t(
+        "Continue each of these {count} threads in only one app: both would write the same provider session files (for example under ~/.claude and ~/.codex).",
+        { count },
+      );
+    case "task-runs-in-both":
+      return t("{subject} keeps running in T3 Code too until you pause it there.", { subject });
+    case "task-webhook-url":
+      return t(
+        "{subject} listens at {detail} on this environment's address. Update whatever calls it.",
+        { subject, detail },
+      );
+    case "subagents-omitted":
+      return t(
+        "{count} subagent threads are left out. Their cards in the parent threads show as unavailable.",
+        { count },
+      );
+    case "checkpoint-refs-unavailable":
+      return t(
+        "{count} checkpoints could not be copied because their repository is gone. They show as missing.",
+        { count },
+      );
+    case "provider-credential-imported":
+      return t("{subject}: its sign-in credential is copied together with the provider.", {
+        subject,
+      });
+    case "sidebar-settings":
+      return t("T3 Code used the legacy sidebar. It is on here too (Settings → Labs).");
+  }
+}
+
+function Report(props: { readonly report: T3CodeImportReport }) {
+  const t = useT();
+  const groups = [
+    [t("Fixed automatically"), props.report.fixed],
+    [t("Not imported"), props.report.skipped],
+    [t("Imported, needs your attention"), props.report.attention],
+  ] as const;
+  return (
+    <div className="flex flex-col gap-4">
+      {groups.map(([title, notices]) => (
+        <section key={title} className="flex flex-col gap-1.5">
+          <h3 className="text-sm font-medium">
+            {title} <span className="text-muted-foreground tabular-nums">({notices.length})</span>
+          </h3>
+          {notices.length === 0 ? (
+            <p className="text-xs text-muted-foreground">{t("Nothing here.")}</p>
+          ) : (
+            <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+              {notices.map((notice) => (
+                <li key={`${notice.code}:${notice.subject}:${notice.detail ?? ""}`}>
+                  <NoticeText notice={notice} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function Progress(props: {
+  readonly environmentId: EnvironmentId;
+  readonly onFinished: (result: T3CodeImportResult) => void;
+}) {
+  const t = useT();
+  const result = useAtomValue(
+    serverEnvironment.t3CodeImportState({ environmentId: props.environmentId, input: {} }),
+  );
+  const state = result._tag === "Success" ? result.value : null;
+  if (state?.status === "finished") {
+    return <Finished result={state.result} onDone={() => props.onFinished(state.result)} />;
+  }
+  if (state?.status === "failed") {
+    return (
+      <Alert variant="error">
+        <AlertDescription>{state.message}</AlertDescription>
+      </Alert>
+    );
+  }
+  const running = state?.status === "running" ? state : null;
+  return (
+    <div className="flex flex-col gap-2 text-sm">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Spinner size="md" />
+        {running?.phase === "threads"
+          ? t("Importing threads: {done} of {total}", {
+              done: running.doneThreads,
+              total: running.totalThreads,
+            })
+          : running?.phase === "files"
+            ? t("Copying files and settings…")
+            : running?.phase === "tasks"
+              ? t("Importing scheduled tasks…")
+              : t("Preparing…")}
+      </div>
+      {running?.currentTitle ? (
+        <p className="truncate text-xs text-muted-foreground">{running.currentTitle}</p>
+      ) : null}
+      <p className="text-xs text-muted-foreground">
+        {t("You can keep using the app. Closing this window does not stop the import.")}
+      </p>
+    </div>
+  );
+}
+
+function Finished(props: { readonly result: T3CodeImportResult; readonly onDone: () => void }) {
+  const t = useT();
+  const { result } = props;
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm">
+        {t("Imported {threads} threads and {projects} new projects.", {
+          threads: result.importedThreads,
+          projects: result.importedProjects,
+        })}
+      </p>
+      <Report report={result.report} />
+      <Button className="self-start" variant="outline" size="sm" onClick={props.onDone}>
+        {t("Done")}
+      </Button>
+    </div>
+  );
+}
+
+function ProjectRow(props: {
+  readonly project: Available["projects"][number];
+  readonly draft: Draft;
+  readonly onChange: (draft: Draft) => void;
+}) {
+  const t = useT();
+  const { project, draft } = props;
+  const selectable = project.threads.filter(
+    (thread) => thread.state === "importable" && (draft.includeArchived || !thread.archived),
+  );
+  const picked = selectable.filter((thread) => draft.threads.has(thread.threadId)).length;
+  const toggleAll = () => {
+    const threads = new Set(draft.threads);
+    for (const thread of selectable) {
+      if (picked === selectable.length) threads.delete(thread.threadId);
+      else threads.add(thread.threadId);
+    }
+    props.onChange({ ...draft, threads });
+  };
+  const toggleThread = (threadId: ThreadId) => {
+    const threads = new Set(draft.threads);
+    if (!threads.delete(threadId)) threads.add(threadId);
+    props.onChange({ ...draft, threads });
+  };
+  return (
+    <Collapsible>
+      <div className="flex items-center gap-2 py-2">
+        <Checkbox
+          checked={selectable.length > 0 && picked === selectable.length}
+          indeterminate={picked > 0 && picked < selectable.length}
+          disabled={selectable.length === 0}
+          aria-label={project.title}
+          onCheckedChange={toggleAll}
+        />
+        <CollapsibleTrigger
+          className="group flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          disabled={project.threads.length === 0}
+        >
+          <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[panel-open]:rotate-90" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium">{project.title}</span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {project.workspaceRoot}
+              {project.joinsProjectId !== null ? ` · ${t("joins your existing project")}` : ""}
+            </span>
+          </span>
+          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+            {t("{picked} of {total}", { picked, total: selectable.length })}
+          </span>
+        </CollapsibleTrigger>
+      </div>
+      <CollapsiblePanel>
+        <ul className="ml-6 flex flex-col pb-2">
+          {project.threads.map((thread) => {
+            const disabled =
+              thread.state !== "importable" || (thread.archived && !draft.includeArchived);
+            return (
+              <li key={thread.threadId}>
+                <label className="flex items-start gap-2 py-1">
+                  <Checkbox
+                    className="mt-0.5"
+                    checked={draft.threads.has(thread.threadId) && !disabled}
+                    disabled={disabled}
+                    onCheckedChange={() => toggleThread(thread.threadId)}
+                  />
+                  <span className="min-w-0 flex-1 text-xs">
+                    <span className="block truncate">{thread.title || thread.threadId}</span>
+                    <span className="block text-muted-foreground">
+                      {[
+                        thread.state === "imported" ? t("already imported") : null,
+                        thread.state === "busy" ? t("busy in T3 Code") : null,
+                        thread.archived ? t("archived") : null,
+                        thread.subagentCount > 0
+                          ? t("{count} subagents", { count: thread.subagentCount })
+                          : null,
+                        thread.worktree?.status === "missing" ? t("worktree is gone") : null,
+                      ]
+                        .filter((part) => part !== null)
+                        .join(" · ")}
+                    </span>
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      </CollapsiblePanel>
+    </Collapsible>
+  );
+}
+
+function ChooseStep(props: {
+  readonly catalog: Available;
+  readonly draft: Draft;
+  readonly onChange: (draft: Draft) => void;
+}) {
+  const t = useT();
+  const { catalog, draft } = props;
+  const toggleFile = (kind: T3CodeImportFileKind) => {
+    const files = new Set(draft.files);
+    if (!files.delete(kind)) files.add(kind);
+    props.onChange({ ...draft, files });
+  };
+  return (
+    <div className="flex flex-col gap-5">
+      <section className="flex flex-col gap-1">
+        <h3 className="text-sm font-medium">{t("Projects and threads")}</h3>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
+          <label className="flex items-center gap-2">
+            <Checkbox
+              checked={draft.includeArchived}
+              onCheckedChange={(value) =>
+                props.onChange({ ...draft, includeArchived: value === true })
+              }
+            />
+            {t("Archived threads")}
+          </label>
+          <label className="flex items-center gap-2">
+            <Checkbox
+              checked={draft.includeSubagents}
+              onCheckedChange={(value) =>
+                props.onChange({ ...draft, includeSubagents: value === true })
+              }
+            />
+            {t("Subagent threads")}
+          </label>
+        </div>
+        {catalog.projects.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t("T3 Code has no projects to import.")}</p>
+        ) : (
+          <div className="divide-y divide-border/60">
+            {catalog.projects.map((project) => (
+              <ProjectRow
+                key={project.projectId}
+                project={project}
+                draft={draft}
+                onChange={props.onChange}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {catalog.scheduledTasks.length > 0 && (
+        <section className="flex flex-col gap-1">
+          <h3 className="text-sm font-medium">{t("Scheduled tasks")}</h3>
+          <ul className="flex flex-col divide-y divide-border/60">
+            {catalog.scheduledTasks.map((task) => {
+              const choice = draft.tasks.get(task.taskId) ?? { picked: false, enabled: false };
+              const update = (next: Partial<typeof choice>) =>
+                props.onChange({
+                  ...draft,
+                  tasks: new Map(draft.tasks).set(task.taskId, { ...choice, ...next }),
+                });
+              return (
+                <li key={task.taskId} className="flex flex-col gap-1 py-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={choice.picked}
+                      disabled={task.alreadyImported}
+                      aria-label={task.title}
+                      onCheckedChange={(value) => update({ picked: value === true })}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm">{task.title}</span>
+                    <span className="text-xs text-muted-foreground">{task.scheduleKind}</span>
+                    <Switch
+                      aria-label={t("Runs on its schedule")}
+                      checked={choice.enabled}
+                      disabled={!choice.picked}
+                      onCheckedChange={(enabled) => update({ enabled })}
+                    />
+                  </div>
+                  {choice.picked && (
+                    <p className="ml-6 text-xs text-warning-foreground">
+                      {t("T3 Code keeps running its own copy until you pause it there.")}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      <section className="flex flex-col gap-1.5">
+        <h3 className="text-sm font-medium">{t("Settings")}</h3>
+        {FILE_KINDS.map((kind) => {
+          const available = catalog.files.find((file) => file.kind === kind)?.available === true;
+          return (
+            <label key={kind} className="flex items-center gap-2 text-xs">
+              <Checkbox
+                checked={draft.files.has(kind) && available}
+                disabled={!available}
+                onCheckedChange={() => toggleFile(kind)}
+              />
+              {kind === "settings"
+                ? t("Settings")
+                : kind === "providerInstances"
+                  ? t("Provider instances and their sign-ins")
+                  : kind === "usagePriceOverrides"
+                    ? t("Usage price overrides")
+                    : kind === "clientSettings"
+                      ? t("Interface preferences")
+                      : kind === "keybindings"
+                        ? t("Keyboard shortcuts")
+                        : t("Themes")}
+            </label>
+          );
+        })}
+      </section>
+    </div>
+  );
+}
 
 function ImportRow(props: {
   readonly environmentId: EnvironmentId;
@@ -61,52 +564,66 @@ function ImportRow(props: {
   const t = useT();
   const [step, setStep] = useState<Step>({ kind: "closed" });
   const preview = useAtomCommand(serverEnvironment.previewT3CodeImport);
+  const check = useAtomCommand(serverEnvironment.checkT3CodeImport);
   const run = useAtomCommand(serverEnvironment.runT3CodeImport);
   const allowed = useEnvironmentScope(props.environmentId, AuthEnvironmentMaintainScope);
+  const [pendingCheck, setPendingCheck] = useState(false);
 
   const open = async () => {
     setStep({ kind: "loading" });
     const result = await preview({ environmentId: props.environmentId, input: {} });
     if (result._tag !== "Success") {
       if (isAtomCommandInterrupted(result)) return setStep({ kind: "closed" });
-      return setStep({
-        kind: "failed",
-        message: errorMessage(squashAtomCommandFailure(result)),
-      });
+      return setStep({ kind: "failed", message: errorMessage(squashAtomCommandFailure(result)) });
     }
     const value = result.value;
     if (value.status === "unavailable") {
       return setStep({ kind: "unavailable", reason: value.reason });
     }
-    setStep({
-      kind: "choose",
-      preview: value,
-      selected: new Set(
-        value.projects.filter((project) => project.importableThreads > 0).map((p) => p.projectId),
-      ),
-    });
+    setStep({ kind: "choose", catalog: value, draft: draftFor(value) });
   };
 
-  const startImport = async (projectIds: ReadonlyArray<ProjectId>) => {
-    const [first, ...rest] = projectIds;
-    if (first === undefined) return;
-    setStep({ kind: "importing" });
+  const review = async (catalog: Available, draft: Draft) => {
+    setPendingCheck(true);
+    setStep({ kind: "review", catalog, draft, report: null });
+    const result = await check({
+      environmentId: props.environmentId,
+      input: selectionFrom(catalog, draft),
+    });
+    setPendingCheck(false);
+    if (result._tag === "Success") {
+      return setStep({ kind: "review", catalog, draft, report: result.value });
+    }
+    if (isAtomCommandInterrupted(result)) return setStep({ kind: "choose", catalog, draft });
+    toastManager.add({
+      type: "error",
+      title: t("Could not check the import"),
+      description: errorMessage(squashAtomCommandFailure(result)),
+    });
+    setStep({ kind: "choose", catalog, draft });
+  };
+
+  const start = async (catalog: Available, draft: Draft) => {
+    setStep({ kind: "running" });
     const result = await run({
       environmentId: props.environmentId,
-      input: { projectIds: [first, ...rest] },
+      input: selectionFrom(catalog, draft),
     });
-    if (result._tag === "Success") return setStep({ kind: "done", result: result.value });
-    if (isAtomCommandInterrupted(result)) return setStep({ kind: "closed" });
+    if (result._tag === "Success" || isAtomCommandInterrupted(result)) return;
     toastManager.add({
       type: "error",
       title: t("Could not import from T3 Code"),
       description: errorMessage(squashAtomCommandFailure(result)),
     });
-    void open();
+    setStep({ kind: "review", catalog, draft, report: null });
   };
 
-  const close = () => {
-    if (step.kind !== "importing") setStep({ kind: "closed" });
+  const finish = (result: T3CodeImportResult) => {
+    // Client settings live with the client, so the server hands them back instead of writing them.
+    if (result.clientSettings !== null) {
+      void updateClientSettings(result.clientSettings as never);
+    }
+    setStep({ kind: "closed" });
   };
 
   const unavailableText = (reason: Unavailable["reason"]) => {
@@ -119,15 +636,14 @@ function ImportRow(props: {
         );
       case "source-schema-newer":
         return t(
-          "T3 Code's data comes from a newer version than this app understands. Update this app first.",
+          "T3 Code's data comes from a newer version than this app understands. Update T3 Extend first.",
         );
-      case "source-schema-older":
-        return t(
-          "T3 Code's data comes from an older version. Open T3 Code once so it updates its data, then try again.",
-        );
+      case "source-schema-diverged":
+        return t("T3 Code's data has migrations this app does not share. Update T3 Extend first.");
     }
   };
 
+  const dialogOpen = step.kind !== "closed" && step.kind !== "loading";
   return (
     <>
       <SettingsRow
@@ -135,35 +651,35 @@ function ImportRow(props: {
           ? searchableSetting("import-from-t3-code")
           : { title: t("Import from T3 Code") })}
         description={t(
-          "Bring your projects and threads from T3 Code on this computer into T3 Extend. T3 Code's own data is only read, never changed.",
+          "Choose projects, threads, scheduled tasks and settings from T3 Code on this computer to bring into T3 Extend. T3 Code's own data is only read, never changed.",
         )}
         status={props.label === "" ? undefined : props.label}
         control={
           <Button
             variant="outline"
             size="sm"
-            disabled={!allowed || step.kind === "loading" || step.kind === "importing"}
+            disabled={!allowed || step.kind === "loading" || step.kind === "running"}
             onClick={() => void open()}
           >
-            {step.kind === "loading" ? t("Looking…") : t("Review…")}
+            {step.kind === "loading" ? t("Looking…") : t("Choose…")}
           </Button>
         }
       />
       <Dialog
-        open={step.kind !== "closed" && step.kind !== "loading"}
+        open={dialogOpen}
         onOpenChange={(next) => {
-          if (!next) close();
+          if (!next && step.kind !== "running") setStep({ kind: "closed" });
         }}
       >
-        <DialogPopup className="sm:max-w-lg">
+        <DialogPopup className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("Import from T3 Code")}</DialogTitle>
             <DialogDescription>
-              {step.kind === "done"
-                ? t("Finished.")
-                : t(
-                    "Choose which projects to bring over. Threads you already imported are skipped.",
-                  )}
+              {step.kind === "review"
+                ? t("Review what will happen, then confirm.")
+                : step.kind === "running"
+                  ? t("Copying from T3 Code.")
+                  : t("Pick what to bring over. Threads you already imported are skipped.")}
             </DialogDescription>
           </DialogHeader>
           <DialogPanel>
@@ -177,138 +693,66 @@ function ImportRow(props: {
                 <AlertDescription>{unavailableText(step.reason)}</AlertDescription>
               </Alert>
             )}
-            {step.kind === "importing" && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Spinner size="md" />
-                {t("Importing… this can take a few minutes for a large history.")}
-              </div>
-            )}
             {step.kind === "choose" && (
-              <ProjectChoices
-                preview={step.preview}
-                selected={step.selected}
-                onToggle={(projectId) =>
-                  setStep((current) => {
-                    if (current.kind !== "choose") return current;
-                    const selected = new Set(current.selected);
-                    if (!selected.delete(projectId)) selected.add(projectId);
-                    return { ...current, selected };
-                  })
-                }
+              <ChooseStep
+                catalog={step.catalog}
+                draft={step.draft}
+                onChange={(draft) => setStep({ ...step, draft })}
               />
             )}
-            {step.kind === "done" && <Summary result={step.result} />}
-          </DialogPanel>
-          <DialogFooter>
-            <Button variant="outline" disabled={step.kind === "importing"} onClick={close}>
-              {step.kind === "done" ? t("Close") : t("Cancel")}
-            </Button>
-            {step.kind === "choose" && (
-              <Button
-                disabled={threadCount(step.preview, step.selected) === 0}
-                onClick={() => void startImport([...step.selected])}
-              >
-                {t("Import {count} threads", { count: threadCount(step.preview, step.selected) })}
-              </Button>
+            {step.kind === "review" &&
+              (step.report === null ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Spinner size="md" />
+                  {t("Checking every selected item…")}
+                </div>
+              ) : (
+                <Report report={step.report} />
+              ))}
+            {step.kind === "running" && (
+              <Progress environmentId={props.environmentId} onFinished={finish} />
             )}
-          </DialogFooter>
+          </DialogPanel>
+          {step.kind !== "running" && (
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setStep({ kind: "closed" })}>
+                {t("Cancel")}
+              </Button>
+              {step.kind === "choose" && (
+                <Button
+                  disabled={
+                    selectionFrom(step.catalog, step.draft).threadIds.length === 0 &&
+                    step.draft.files.size === 0 &&
+                    !Array.from(step.draft.tasks.values()).some((task) => task.picked)
+                  }
+                  onClick={() => void review(step.catalog, step.draft)}
+                >
+                  {t("Review…")}
+                </Button>
+              )}
+              {step.kind === "review" && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      setStep({ kind: "choose", catalog: step.catalog, draft: step.draft })
+                    }
+                  >
+                    {t("Back")}
+                  </Button>
+                  <Button
+                    disabled={pendingCheck || step.report === null}
+                    onClick={() => void start(step.catalog, step.draft)}
+                  >
+                    {t("Import")}
+                  </Button>
+                </>
+              )}
+            </DialogFooter>
+          )}
         </DialogPopup>
       </Dialog>
     </>
-  );
-}
-
-const threadCount = (preview: Available, selected: ReadonlySet<ProjectId>) =>
-  preview.projects.reduce(
-    (sum, project) => sum + (selected.has(project.projectId) ? project.importableThreads : 0),
-    0,
-  );
-
-function ProjectChoices(props: {
-  readonly preview: Available;
-  readonly selected: ReadonlySet<ProjectId>;
-  readonly onToggle: (projectId: ProjectId) => void;
-}) {
-  const t = useT();
-  if (props.preview.projects.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">{t("T3 Code has no projects to import.")}</p>
-    );
-  }
-  return (
-    <ul className="flex flex-col divide-y divide-border/60">
-      {props.preview.projects.map((project) => {
-        const nothingNew = project.importableThreads === 0;
-        return (
-          <li key={project.projectId}>
-            <label className="flex cursor-pointer items-start gap-3 py-2.5">
-              <Checkbox
-                className="mt-0.5"
-                checked={props.selected.has(project.projectId)}
-                disabled={nothingNew}
-                onCheckedChange={() => props.onToggle(project.projectId)}
-              />
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="flex items-baseline justify-between gap-3">
-                  <span className="truncate text-sm font-medium">{project.title}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                    {nothingNew
-                      ? t("Nothing new")
-                      : t("{count} threads", { count: project.importableThreads })}
-                  </span>
-                </span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {project.workspaceRoot}
-                </span>
-                {project.joinsProjectId !== null && !nothingNew && (
-                  <span className="text-xs text-muted-foreground">
-                    {t("Joins the project you already have for this folder.")}
-                  </span>
-                )}
-                {project.existingThreads > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    {t("{count} threads already imported.", { count: project.existingThreads })}
-                  </span>
-                )}
-                {project.busyThreads > 0 && (
-                  <span className="text-xs text-warning-foreground">
-                    {t("{count} threads are still working in T3 Code and will be skipped.", {
-                      count: project.busyThreads,
-                    })}
-                  </span>
-                )}
-              </span>
-            </label>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function Summary(props: { readonly result: T3CodeImportResult }) {
-  const t = useT();
-  const { result } = props;
-  return (
-    <div className="flex flex-col gap-2 text-sm">
-      <p>
-        {t("Imported {threads} threads and {projects} new projects.", {
-          threads: result.importedThreads,
-          projects: result.importedProjects,
-        })}
-      </p>
-      {result.busyThreads > 0 && (
-        <p className="text-muted-foreground">
-          {t(
-            "{count} threads were skipped because T3 Code is still working on them. Stop them there and import again.",
-            { count: result.busyThreads },
-          )}
-        </p>
-      )}
-      <p className="text-muted-foreground">
-        {t("Threads keep working in the folders they used. Open them from the sidebar.")}
-      </p>
-    </div>
   );
 }
 

@@ -352,10 +352,11 @@ import {
 } from "./providerUsageLimits.ts";
 import { UsagePricing, UsageReadError, UsageSummary, UsageSummaryInput } from "./usage.ts";
 import {
+  T3CodeImportCatalog,
   T3CodeImportError,
-  T3CodeImportInput,
-  T3CodeImportPreview,
-  T3CodeImportResult,
+  T3CodeImportReport,
+  T3CodeImportSelection,
+  T3CodeImportState,
 } from "./t3CodeImport.ts"; // fork: import from official T3 Code
 import {
   StorageCleanupReport,
@@ -514,7 +515,9 @@ export const WS_METHODS = {
   serverGetStorageCleanupReport: "server.getStorageCleanupReport",
   serverGetDatabaseStorage: "server.getDatabaseStorage",
   serverPreviewT3CodeImport: "server.previewT3CodeImport", // fork: import from official T3 Code
+  serverCheckT3CodeImport: "server.checkT3CodeImport", // fork: import from official T3 Code
   serverRunT3CodeImport: "server.runT3CodeImport", // fork: import from official T3 Code
+  serverSubscribeT3CodeImport: "server.subscribeT3CodeImport", // fork: import from official T3 Code
   peerLinksList: "peerLinks.list",
   peerLinksLink: "peerLinks.link",
   peerLinksUnlink: "peerLinks.unlink",
@@ -806,13 +809,24 @@ const WsServerGetDatabaseStorageRpc = Rpc.make(WS_METHODS.serverGetDatabaseStora
 // fork: import from official T3 Code
 const WsServerPreviewT3CodeImportRpc = Rpc.make(WS_METHODS.serverPreviewT3CodeImport, {
   payload: Schema.Struct({}),
-  success: T3CodeImportPreview,
+  success: T3CodeImportCatalog,
+  error: Schema.Union([T3CodeImportError, EnvironmentAuthorizationError]),
+});
+const WsServerCheckT3CodeImportRpc = Rpc.make(WS_METHODS.serverCheckT3CodeImport, {
+  payload: T3CodeImportSelection,
+  success: T3CodeImportReport,
   error: Schema.Union([T3CodeImportError, EnvironmentAuthorizationError]),
 });
 const WsServerRunT3CodeImportRpc = Rpc.make(WS_METHODS.serverRunT3CodeImport, {
-  payload: T3CodeImportInput,
-  success: T3CodeImportResult,
+  payload: T3CodeImportSelection,
+  success: Schema.Struct({}),
   error: Schema.Union([T3CodeImportError, EnvironmentAuthorizationError]),
+});
+const WsServerSubscribeT3CodeImportRpc = Rpc.make(WS_METHODS.serverSubscribeT3CodeImport, {
+  payload: Schema.Struct({}),
+  success: T3CodeImportState,
+  stream: true,
+  error: EnvironmentAuthorizationError,
 });
 
 const WsPeerLinksListRpc = Rpc.make(WS_METHODS.peerLinksList, {
@@ -2019,7 +2033,9 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerGetStorageCleanupReportRpc,
   WsServerGetDatabaseStorageRpc,
   WsServerPreviewT3CodeImportRpc, // fork: import from official T3 Code
+  WsServerCheckT3CodeImportRpc, // fork: import from official T3 Code
   WsServerRunT3CodeImportRpc, // fork: import from official T3 Code
+  WsServerSubscribeT3CodeImportRpc, // fork: import from official T3 Code
   WsServerUpdateSettingsRpc,
   WsPeerLinksListRpc,
   WsPeerLinksLinkRpc,

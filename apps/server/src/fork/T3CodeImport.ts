@@ -1,20 +1,34 @@
-// fork: bring official T3 Code's projects and threads into this environment's live database.
+// fork: bring selected parts of official T3 Code's data into this environment while it is running.
 import * as NodeOS from "node:os";
-import * as NodeURL from "node:url";
 
 import {
-  ProjectId,
+  GitCommandError,
+  type ProjectId,
+  ProviderInstanceId,
+  ScheduledTaskId,
+  ServerSettingsPatch,
+  ClientSettingsPatch,
+  ModelSelection,
+  OrchestrationV2ThreadLaunchWorkspaceStrategy,
+  ScheduledTaskUpsertSchedule,
   T3CodeImportError,
-  type T3CodeImportPreview,
-  type T3CodeImportProjectPreview,
+  type T3CodeImportCatalog,
+  type T3CodeImportFileKind,
+  type T3CodeImportNotice,
+  type T3CodeImportReport,
   type T3CodeImportResult,
-  type T3CodeImportUnavailableReason,
-  ThreadId,
+  type T3CodeImportSelection,
+  type T3CodeImportState,
+  type ThreadId,
+  ThreadId as ThreadIdSchema,
+  ProjectId as ProjectIdSchema,
 } from "@t3tools/contracts";
 import { officialHomeDirectory } from "@t3tools/shared/forkIdentity";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
+import * as Crypto from "effect/Crypto";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -22,19 +36,32 @@ import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
+import * as SubscriptionRef from "effect/SubscriptionRef";
 import * as Stream from "effect/Stream";
 import * as SqlClient from "effect/sql/SqlClient";
 
+import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as ServerConfig from "../config.ts";
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
+import { checkpointRefForScopeOrdinal } from "../orchestration-v2/CheckpointService.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
 import { BUILD_MIGRATION_HEAD, recordedMigrations } from "../persistence/databaseMigrationHead.ts";
-import { migrationManifest } from "../persistence/Migrations.ts";
+import { migrationManifest, runMigrations } from "../persistence/Migrations.ts";
+import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
+import * as ServerSettings from "../serverSettings.ts";
+import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
+import * as Keybindings from "../keybindings.ts";
+import {
+  clearLimitRecovery,
+  detachProviderThread,
+  makeRewriter,
+  uuidFromDigest,
+} from "./T3CodeImportRewrite.ts";
 
 /**
- * Tables whose rows are the other app's pending work, credentials, or links, or whose rows carry
- * event sequences that mean nothing here. The fork never runs official T3 Code's agents or
- * reaches its other environments, so none of these cross over (same reasoning as migrate-dev-db).
+ * Tables whose rows are the other app's pending work, live sessions, credentials, or links, or whose
+ * rows carry event sequences that mean nothing here. The fork never runs official T3 Code's agents or
+ * reaches its other environments, so none of these cross over.
  */
 const EXCLUDED_TABLES: ReadonlySet<string> = new Set([
   "scheduled_tasks",
@@ -43,6 +70,8 @@ const EXCLUDED_TABLES: ReadonlySet<string> = new Set([
   "orchestration_command_receipts",
   "orchestration_v2_command_receipts",
   "provider_session_runtime",
+  "orchestration_v2_projection_provider_sessions",
+  "orchestration_v2_projection_provider_session_bindings",
   "auth_sessions",
   "auth_pairing_links",
   "peer_environment_links",
@@ -51,10 +80,14 @@ const EXCLUDED_TABLES: ReadonlySet<string> = new Set([
 ]);
 
 const THREADS_TABLE = "orchestration_v2_projection_threads";
-const PROVIDER_SESSIONS_TABLE = "orchestration_v2_projection_provider_sessions";
-const PROVIDER_SESSION_BINDINGS_TABLE = "orchestration_v2_projection_provider_session_bindings";
-const CONTEXT_TRANSFERS_TABLE = "orchestration_v2_projection_context_transfers";
-const SOURCE_ALIAS = "t3code_src";
+const PROVIDER_THREADS_TABLE = "orchestration_v2_projection_provider_threads";
+const CHECKPOINTS_TABLE = "orchestration_v2_projection_checkpoints";
+const SCOPES_TABLE = "orchestration_v2_projection_checkpoint_scopes";
+const SUBAGENTS_TABLE = "orchestration_v2_projection_subagents";
+const TRANSFERS_TABLE = "orchestration_v2_projection_context_transfers";
+const REF_PATTERN = /refs\/t3\/orchestration-v2\/checkpoints\/[A-Za-z0-9_-]+\/ordinal\/\d+/g;
+const ACTIVE_RUN_STATUSES = "'preparing','starting','running','waiting','queued'";
+const ROWS_PER_BATCH = 400;
 
 const RECOVERY_KINDS: ReadonlyArray<ProjectionStore.ProjectionRecoveryKind> = [
   "queued-runs",
@@ -63,60 +96,88 @@ const RECOVERY_KINDS: ReadonlyArray<ProjectionStore.ProjectionRecoveryKind> = [
   "delegated-completions",
 ];
 
-interface SourceThread {
-  readonly threadId: string;
-  readonly projectId: string;
-  readonly rootId: string;
-  readonly updatedAt: string;
-}
+/** Files in the official userdata that are identity or credentials of that install. */
+const SIGNING_SECRET =
+  /^(server-signing-key|asset-access-signing-key|mcp-oauth-signing-key|secret-request-salt|cloud-.*|dpop-proof-.*)\.bin$/;
 
-interface SourceProject {
+type Row = Record<string, unknown>;
+const isImportError = Schema.is(T3CodeImportError);
+const failed = (cause: unknown) => new T3CodeImportError({ reason: "failed", cause });
+const quote = (identifier: string) => `"${identifier.replaceAll('"', '""')}"`;
+const decodeJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
+interface SourceThread {
+  readonly id: string;
   readonly projectId: string;
   readonly title: string;
+  readonly updatedAt: string;
+  readonly parent: string | null;
+  readonly relationship: string | null;
+  readonly archived: boolean;
+  readonly worktree: string | null;
+  readonly hasLimitRecovery: boolean;
+}
+
+interface ProjectTarget {
+  readonly sourceId: string;
+  readonly targetId: string;
+  readonly title: string;
   readonly workspaceRoot: string;
+  /** The target project already exists (an earlier import or the same folder). */
+  readonly existing: boolean;
+  readonly merged: boolean;
 }
 
-interface ProjectPlan {
-  readonly project: SourceProject;
-  /** The active project here for the same folder; the threads join it. */
-  readonly joinsProjectId: string | null;
-  readonly importable: ReadonlyArray<SourceThread>;
-  readonly existingThreads: number;
-  readonly busyThreads: number;
+interface FilePlan {
+  readonly settingsPatch: Record<string, unknown>;
+  readonly priceOverrides: unknown;
+  readonly providerInstances: ReadonlyArray<{ readonly id: string; readonly config: unknown }>;
+  readonly clientSettings: Record<string, unknown> | null;
+  readonly keybindings: ReadonlyArray<Record<string, unknown>>;
+  readonly themes: ReadonlyArray<string>;
+  readonly rewrittenPaths: number;
 }
 
-type SourcePlan =
-  | { readonly status: "unavailable"; readonly reason: T3CodeImportUnavailableReason }
-  | {
-      readonly status: "available";
-      readonly sourcePath: string;
-      readonly projects: ReadonlyArray<ProjectPlan>;
-    };
+interface Analysis {
+  readonly sourcePath: string;
+  readonly threads: ReadonlyMap<string, SourceThread>;
+  readonly toCopy: ReadonlyArray<SourceThread>;
+  readonly alreadyImported: number;
+  readonly projects: ReadonlyMap<string, ProjectTarget>;
+  readonly threadTargets: ReadonlyMap<string, string>;
+  readonly tasks: ReadonlyArray<{
+    readonly row: Row;
+    readonly enabled: boolean;
+    readonly targetProjectId: string;
+    readonly targetThreadId: string | null;
+  }>;
+  readonly files: FilePlan;
+  readonly report: T3CodeImportReport;
+  readonly checkpointCount: number;
+}
+
+type Compatibility = "equal" | "older" | "newer" | "diverged";
 
 export class T3CodeImport extends Context.Service<
   T3CodeImport,
   {
-    /** What an import would bring over. Reads the source database read-only. */
-    readonly preview: Effect.Effect<T3CodeImportPreview, T3CodeImportError>;
-    /**
-     * Copy the selected projects' threads. Idempotent: ids already here are skipped, so running it
-     * again only adds what is new (or what was busy last time).
-     */
-    readonly run: (input: {
-      readonly projectIds: ReadonlyArray<ProjectId>;
-    }) => Effect.Effect<T3CodeImportResult, T3CodeImportError>;
+    /** What the source holds and what can be picked. Reads the source database read-only. */
+    readonly preview: Effect.Effect<T3CodeImportCatalog, T3CodeImportError>;
+    /** The three groups for a selection: fixed, skipped, needing attention. */
+    readonly check: (
+      selection: T3CodeImportSelection,
+    ) => Effect.Effect<T3CodeImportReport, T3CodeImportError>;
+    /** Starts the import in the background; progress arrives through `state`. */
+    readonly start: (selection: T3CodeImportSelection) => Effect.Effect<void, T3CodeImportError>;
+    readonly state: Stream.Stream<T3CodeImportState>;
+    /** Imported threads keep using the official app's worktrees, which this app never removes. */
+    readonly assertWorktreeNotShared: (input: {
+      readonly cwd: string;
+      readonly path: string;
+    }) => Effect.Effect<void, GitCommandError>;
   }
 >()("t3/fork/T3CodeImport") {}
-
-const isImportError = Schema.is(T3CodeImportError);
-
-const failed = (cause: unknown) =>
-  new T3CodeImportError({
-    reason: "failed",
-    cause,
-  });
-
-const quote = (identifier: string) => `"${identifier.replaceAll('"', '""')}"`;
 
 const make = Effect.fn("T3CodeImport.make")(function* (options: {
   readonly sourceHome?: string | undefined;
@@ -125,10 +186,45 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   const config = yield* ServerConfig.ServerConfig;
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
+  const crypto = yield* Crypto.Crypto;
   const eventStore = yield* OrchestrationEventStore.OrchestrationEventStore;
+  const git = yield* GitVcsDriver.GitVcsDriver;
+  const settingsService = yield* ServerSettings.ServerSettingsService;
+  const keybindings = yield* Keybindings.Keybindings;
+  const secrets = yield* ServerSecretStore.ServerSecretStore;
+  const scheduledTasks = yield* ScheduledTaskService.ScheduledTaskService;
+  const scope = yield* Effect.scope;
   const importLock = yield* Semaphore.make(1);
+  const stateRef = yield* SubscriptionRef.make<T3CodeImportState>({ status: "idle" });
 
-  // Only a dev server may be pointed at a copy of the source; installed builds always read ~/.t3.
+  // Import bookkeeping lives in fork-owned tables created here, never in a numbered migration:
+  // a fork migration id would collide with upstream's next one (see FORK.md).
+  yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_map (
+    kind TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    state TEXT NOT NULL,
+    detail TEXT,
+    imported_at TEXT NOT NULL,
+    PRIMARY KEY (kind, source_id)
+  )`;
+  yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_runs (
+    run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    source_path TEXT NOT NULL,
+    summary_json TEXT
+  )`;
+
+  const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
+
+  const targetId = Effect.fn("T3CodeImport.targetId")(function* (kind: string, sourceId: string) {
+    const digest = yield* crypto
+      .digest("SHA-256", new TextEncoder().encode(`t3x-import|${kind}|${sourceId}`))
+      .pipe(Effect.orDie);
+    return uuidFromDigest(digest);
+  });
+
   const sourceHome = Effect.gen(function* () {
     if (options.sourceHome !== undefined) return path.resolve(options.sourceHome);
     const override =
@@ -141,185 +237,732 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     });
   }).pipe(Effect.mapError(failed));
 
-  const sourcePathOf = (home: string) => path.join(home, "userdata", "statev2.sqlite");
+  const readJson = (file: string) =>
+    fs.readFileString(file).pipe(
+      Effect.map((text): unknown => decodeJson(text)),
+      Effect.option,
+    );
+  const exists = (target: string) => fs.exists(target).pipe(Effect.orElseSucceed(() => false));
 
-  const sourceUnavailableReason = Effect.fn("T3CodeImport.sourceUnavailableReason")(function* (
-    sourcePath: string,
-  ) {
-    if (!(yield* fs.exists(sourcePath).pipe(Effect.orElseSucceed(() => false)))) {
-      return "source-missing" as const;
-    }
+  const compatibility = (sourcePath: string): Compatibility | "unreadable" => {
+    const recorded = recordedMigrations(sourcePath);
+    if (recorded === null || recorded.length === 0) return "unreadable";
+    const known = new Map<number, string>(migrationManifest);
+    if (recorded.some(({ id, name }) => known.has(id) && known.get(id) !== name)) return "diverged";
+    if (recorded.some(({ id }) => !known.has(id) || id > BUILD_MIGRATION_HEAD)) return "newer";
+    const recordedIds = new Set(recorded.map(({ id }) => id));
+    return migrationManifest.every(([id]) => recordedIds.has(id)) ? "equal" : "older";
+  };
+
+  const locateSource = Effect.fn("T3CodeImport.locateSource")(function* () {
+    const home = yield* sourceHome;
+    const sourcePath = path.join(home, "userdata", "statev2.sqlite");
     const canonical = (target: string) =>
       fs.realPath(target).pipe(Effect.orElseSucceed(() => path.resolve(target)));
+    if (!(yield* exists(sourcePath))) return { sourcePath, problem: "source-missing" as const };
     if ((yield* canonical(sourcePath)) === (yield* canonical(config.dbPath))) {
-      return "source-is-this-database" as const;
+      return { sourcePath, problem: "source-is-this-database" as const };
     }
-    const recorded = recordedMigrations(sourcePath);
-    if (recorded === null) return "source-missing" as const;
-    const known = new Map<number, string>(migrationManifest);
-    // A slot this build does not know, or knows under another name, means a newer or diverged build.
-    if (recorded.some(({ id, name }) => known.get(id) !== name || id > BUILD_MIGRATION_HEAD)) {
-      return "source-schema-newer" as const;
-    }
-    const recordedIds = new Set(recorded.map(({ id }) => id));
-    if (migrationManifest.some(([id]) => !recordedIds.has(id))) {
-      return "source-schema-older" as const;
-    }
-    return undefined;
+    const kind = compatibility(sourcePath);
+    if (kind === "unreadable") return { sourcePath, problem: "source-missing" as const };
+    if (kind === "newer") return { sourcePath, problem: "source-schema-newer" as const };
+    if (kind === "diverged") return { sourcePath, problem: "source-schema-diverged" as const };
+    return { sourcePath, problem: null, needsMigration: kind === "older" };
   });
 
-  const readLiveThreadIds = Effect.fn("T3CodeImport.readLiveThreadIds")(function* () {
-    const sourceSql = yield* SqlClient.SqlClient;
-    const projections = yield* ProjectionStore.ProjectionStoreV2;
+  /** Opens the source read-only. `use` receives its client; the main database stays `sql`. */
+  const withSource = Effect.fn("T3CodeImport.withSource")(
+    function* <A, E, R>(
+      _sourcePath: string,
+      use: (src: SqlClient.SqlClient) => Effect.Effect<A, E, R>,
+    ) {
+      const src = yield* SqlClient.SqlClient;
+      return yield* use(src);
+    },
+    (effect, sourcePath) =>
+      effect.pipe(Effect.provide(NodeSqliteClient.layer({ filename: sourcePath, readonly: true }))),
+  );
+
+  const columnsOf = (client: SqlClient.SqlClient, table: string) =>
+    client
+      .unsafe<{ readonly name: string }>(`SELECT name FROM pragma_table_info(?)`, [table])
+      .pipe(Effect.map((rows) => rows.map((row) => row.name)));
+
+  /** Threads the official app is working on or has queued work for. */
+  const busyThreadIds = Effect.fn("T3CodeImport.busyThreadIds")(function* (
+    sourcePath: string,
+    src: SqlClient.SqlClient,
+  ) {
     const recovery = yield* Effect.forEach(RECOVERY_KINDS, (kind) =>
-      projections.getRecoveryThreadIds(kind),
-    );
-    // Usage-limit recovery reruns a thread's latest failed run, which would be this app running it.
-    const failedOrLimited = yield* sourceSql<{ readonly thread_id: string }>`
-      SELECT r.thread_id FROM orchestration_v2_projection_runs r
-      WHERE r.status = 'failed' AND r.ordinal = (
-        SELECT MAX(latest.ordinal) FROM orchestration_v2_projection_runs latest
-        WHERE latest.thread_id = r.thread_id)
-      UNION
-      SELECT thread_id FROM orchestration_v2_projection_threads
-      WHERE json_extract(payload_json, '$.limitRecovery') IS NOT NULL`;
-    return new Set<string>([...recovery.flat(), ...failedOrLimited.map((row) => row.thread_id)]);
-  });
-
-  const plan = Effect.fn("T3CodeImport.plan")(function* () {
-    const home = yield* sourceHome;
-    const sourcePath = sourcePathOf(home);
-    const reason = yield* sourceUnavailableReason(sourcePath);
-    if (reason !== undefined) return { status: "unavailable", reason, sourcePath } as const;
-
-    const existingThreadRows = yield* sql<{ readonly thread_id: string }>`
-      SELECT thread_id FROM ${sql(THREADS_TABLE)}`;
-    const existingThreadIds = new Set(existingThreadRows.map((row) => row.thread_id));
-    const hereProjects = yield* sql<{
-      readonly project_id: string;
-      readonly workspace_root: string;
-      readonly deleted_at: string | null;
-    }>`SELECT project_id, workspace_root, deleted_at FROM projection_projects`;
-    const deletedHere = new Set(
-      hereProjects.filter((row) => row.deleted_at !== null).map((row) => row.project_id),
-    );
-    const activeByRoot = new Map(
-      hereProjects
-        .filter((row) => row.deleted_at === null)
-        .map((row) => [row.workspace_root, row.project_id]),
-    );
-
-    const { projects, threads, live } = yield* Effect.gen(function* () {
-      const sourceSql = yield* SqlClient.SqlClient;
-      const projects = yield* sourceSql<{
-        readonly project_id: string;
-        readonly title: string;
-        readonly workspace_root: string;
-      }>`SELECT project_id, title, workspace_root FROM projection_projects
-         WHERE deleted_at IS NULL ORDER BY updated_at DESC`;
-      const threads = yield* sourceSql<{
-        readonly thread_id: string;
-        readonly project_id: string;
-        readonly root_id: string;
-        readonly updated_at: string;
-        readonly deleted: number;
-      }>`SELECT t.thread_id, t.project_id, t.updated_at,
-          COALESCE(json_extract(t.payload_json, '$.lineage.rootThreadId'), t.thread_id) AS root_id,
-          (t.deleted_at IS NOT NULL OR json_extract(t.payload_json, '$.deletedAt') IS NOT NULL) AS deleted
-         FROM ${sourceSql(THREADS_TABLE)} t ORDER BY t.updated_at ASC`;
-      return { projects, threads, live: yield* readLiveThreadIds() };
-    }).pipe(
+      Effect.flatMap(ProjectionStore.ProjectionStoreV2, (store) =>
+        store.getRecoveryThreadIds(kind).pipe(Effect.map((ids) => [kind, ids] as const)),
+      ),
+    ).pipe(
       Effect.provide(
         ProjectionStore.layer.pipe(
-          Layer.provideMerge(NodeSqliteClient.layer({ filename: sourcePath, readonly: true })),
+          Layer.provide(NodeSqliteClient.layer({ filename: sourcePath, readonly: true })),
         ),
       ),
     );
-
-    const deletedRoots = new Set(
-      threads.filter((row) => row.deleted === 1).map((row) => row.thread_id),
+    // The official app keeping an idle provider session loaded is not work; this app drops sessions anyway.
+    const loaded = yield* src.unsafe<{ readonly thread_id: string }>(
+      `SELECT thread_id FROM orchestration_v2_projection_provider_sessions WHERE thread_id IS NOT NULL
+       UNION SELECT thread_id FROM orchestration_v2_projection_provider_session_bindings`,
     );
-    const busyFamilies = new Set(
-      threads.filter((row) => live.has(row.thread_id)).map((row) => row.root_id),
+    const loadedIds = new Set(loaded.map((row) => row.thread_id));
+    const direct = yield* src.unsafe<{ readonly thread_id: string }>(
+      `SELECT thread_id FROM orchestration_v2_projection_runs WHERE status IN (${ACTIVE_RUN_STATUSES})
+       UNION SELECT thread_id FROM orchestration_v2_projection_runtime_requests WHERE status = 'pending'
+       UNION SELECT thread_id FROM ${PROVIDER_THREADS_TABLE}
+         WHERE status = 'active'
+           OR CASE WHEN json_valid(payload_json)
+             THEN json_array_length(payload_json, '$.pendingBackgroundTasks') > 0 ELSE 0 END`,
     );
-    const projectPlans = projects.flatMap((row): ReadonlyArray<ProjectPlan> => {
-      // A project deleted here after an earlier import stays deleted.
-      if (deletedHere.has(row.project_id)) return [];
-      const joinsProjectId = activeByRoot.get(row.workspace_root);
-      const own = threads.filter(
-        (thread) => thread.project_id === row.project_id && !deletedRoots.has(thread.root_id),
-      );
-      const importable: Array<SourceThread> = [];
-      let existingThreads = 0;
-      let busyThreads = 0;
-      for (const thread of own) {
-        if (existingThreadIds.has(thread.thread_id)) existingThreads += 1;
-        else if (busyFamilies.has(thread.root_id)) busyThreads += 1;
-        else
-          importable.push({
-            threadId: thread.thread_id,
-            projectId: thread.project_id,
-            rootId: thread.root_id,
-            updatedAt: thread.updated_at,
-          });
-      }
-      return [
-        {
-          project: {
-            projectId: row.project_id,
-            title: row.title,
-            workspaceRoot: row.workspace_root,
-          },
-          joinsProjectId: joinsProjectId === row.project_id ? null : (joinsProjectId ?? null),
-          importable,
-          existingThreads,
-          busyThreads,
-        },
-      ];
-    });
-    return {
-      status: "available",
-      sourcePath,
-      projects: projectPlans,
-    } as const satisfies SourcePlan;
+    const busy = new Set<string>(direct.map((row) => row.thread_id));
+    for (const [kind, ids] of recovery) {
+      for (const threadId of ids)
+        if (kind !== "runtime" || !loadedIds.has(threadId)) busy.add(threadId);
+    }
+    return busy;
   });
 
-  const preview = plan().pipe(
-    Effect.map((result): T3CodeImportPreview => {
-      if (result.status === "unavailable") return result;
+  const readThreads = Effect.fn("T3CodeImport.readThreads")(function* (src: SqlClient.SqlClient) {
+    const rows = yield* src.unsafe<Row>(`SELECT thread_id, project_id, title, updated_at,
+        json_extract(payload_json, '$.lineage.parentThreadId') AS parent,
+        json_extract(payload_json, '$.lineage.relationshipToParent') AS relationship,
+        json_extract(payload_json, '$.archivedAt') AS archived_at,
+        json_extract(payload_json, '$.worktreePath') AS worktree,
+        json_extract(payload_json, '$.limitRecovery') IS NOT NULL AS limit_recovery
+      FROM ${THREADS_TABLE}
+      WHERE deleted_at IS NULL AND json_extract(payload_json, '$.deletedAt') IS NULL`);
+    return new Map(
+      rows.map((row): [string, SourceThread] => [
+        String(row.thread_id),
+        {
+          id: String(row.thread_id),
+          projectId: String(row.project_id),
+          title: String(row.title ?? ""),
+          updatedAt: String(row.updated_at ?? ""),
+          parent: row.parent === null || row.parent === undefined ? null : String(row.parent),
+          relationship:
+            row.relationship === null || row.relationship === undefined
+              ? null
+              : String(row.relationship),
+          archived: row.archived_at !== null && row.archived_at !== undefined,
+          worktree: typeof row.worktree === "string" && row.worktree !== "" ? row.worktree : null,
+          hasLimitRecovery: Number(row.limit_recovery) === 1,
+        },
+      ]),
+    );
+  });
+
+  const mappedTargets = (kind: string) =>
+    sql
+      .unsafe<{ readonly source_id: string; readonly target_id: string; readonly state: string }>(
+        `SELECT source_id, target_id, state FROM fork_t3code_import_map WHERE kind = ?`,
+        [kind],
+      )
+      .pipe(Effect.map((rows) => new Map(rows.map((row) => [row.source_id, row] as const))));
+
+  const hasNoDescendantsBusy = (
+    threads: ReadonlyMap<string, SourceThread>,
+    rawBusy: ReadonlySet<string>,
+  ) => {
+    // A busy subagent makes the thread it belongs to busy.
+    const busy = new Set(rawBusy);
+    for (const id of rawBusy) {
+      let current = threads.get(id);
+      while (current !== undefined && current.relationship === "subagent" && current.parent) {
+        busy.add(current.parent);
+        current = threads.get(current.parent);
+      }
+    }
+    return busy;
+  };
+
+  const childrenOf = (threads: ReadonlyMap<string, SourceThread>) => {
+    const children = new Map<string, Array<SourceThread>>();
+    for (const thread of threads.values()) {
+      if (thread.parent === null) continue;
+      children.set(thread.parent, [...(children.get(thread.parent) ?? []), thread]);
+    }
+    return children;
+  };
+
+  const subagentDescendants = (
+    children: ReadonlyMap<string, ReadonlyArray<SourceThread>>,
+    id: string,
+  ): ReadonlyArray<SourceThread> =>
+    (children.get(id) ?? []).flatMap((child) =>
+      child.relationship === "subagent" ? [child, ...subagentDescendants(children, child.id)] : [],
+    );
+
+  const isTopLevel = (thread: SourceThread) => thread.relationship !== "subagent";
+
+  const catalogOf = Effect.fn("T3CodeImport.catalog")(function* (
+    sourcePath: string,
+    src: SqlClient.SqlClient,
+  ) {
+    const threads = yield* readThreads(src);
+    const busy = hasNoDescendantsBusy(threads, yield* busyThreadIds(sourcePath, src));
+    const done = yield* mappedTargets("thread");
+    const children = childrenOf(threads);
+    const projectRows = yield* src.unsafe<Row>(
+      `SELECT project_id, title, workspace_root FROM projection_projects
+       WHERE deleted_at IS NULL ORDER BY updated_at DESC`,
+    );
+    const hereProjects = yield* sql.unsafe<Row>(
+      `SELECT project_id, workspace_root FROM projection_projects WHERE deleted_at IS NULL`,
+    );
+    const activeByRoot = new Map(
+      hereProjects.map((row) => [String(row.workspace_root), String(row.project_id)]),
+    );
+    const worktreeStatus = new Map<string, "present" | "missing">();
+    for (const thread of threads.values()) {
+      if (thread.worktree !== null && !worktreeStatus.has(thread.worktree)) {
+        worktreeStatus.set(
+          thread.worktree,
+          (yield* exists(thread.worktree)) ? "present" : "missing",
+        );
+      }
+    }
+    const projects = projectRows.map((row) => {
+      const root = String(row.workspace_root);
+      const joins = activeByRoot.get(root);
       return {
-        status: "available",
-        sourcePath: result.sourcePath,
-        projects: result.projects.map((entry): T3CodeImportProjectPreview => ({
-          projectId: ProjectId.make(entry.project.projectId),
-          title: entry.project.title,
-          workspaceRoot: entry.project.workspaceRoot,
-          importableThreads: entry.importable.length,
-          existingThreads: entry.existingThreads,
-          busyThreads: entry.busyThreads,
-          joinsProjectId:
-            entry.joinsProjectId === null ? null : ProjectId.make(entry.joinsProjectId),
-        })),
+        projectId: ProjectIdSchema.make(String(row.project_id)),
+        title: String(row.title),
+        workspaceRoot: root,
+        joinsProjectId: joins === undefined ? null : ProjectIdSchema.make(joins),
+        threads: [...threads.values()]
+          .filter((thread) => thread.projectId === String(row.project_id) && isTopLevel(thread))
+          .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+          .map((thread) => ({
+            threadId: ThreadIdSchema.make(thread.id),
+            title: thread.title,
+            updatedAt: thread.updatedAt,
+            archived: thread.archived,
+            subagentCount: subagentDescendants(children, thread.id).length,
+            state: busy.has(thread.id)
+              ? ("busy" as const)
+              : done.get(thread.id)?.state === "done"
+                ? ("imported" as const)
+                : ("importable" as const),
+            worktree:
+              thread.worktree === null
+                ? null
+                : {
+                    path: thread.worktree,
+                    status: worktreeStatus.get(thread.worktree) ?? "missing",
+                  },
+          })),
       };
-    }),
+    });
+    const taskRows = yield* src.unsafe<Row>(
+      `SELECT task_id, title, enabled, project_id, json_extract(schedule_json, '$.type') AS kind
+       FROM scheduled_tasks ORDER BY created_at ASC`,
+    );
+    const doneTasks = yield* mappedTargets("task");
+    const sourceStateDir = path.dirname(sourcePath);
+    const settings = yield* readJson(path.join(sourceStateDir, "settings.json"));
+    const settingsRecord =
+      Option.isSome(settings) && typeof settings.value === "object" && settings.value !== null
+        ? (settings.value as Record<string, unknown>)
+        : {};
+    const nonEmpty = (value: unknown) =>
+      typeof value === "object" && value !== null && Object.keys(value).length > 0;
+    const themesDir = path.join(sourceStateDir, "themes");
+    const files: Array<{ kind: T3CodeImportFileKind; available: boolean }> = [
+      { kind: "settings", available: Option.isSome(settings) },
+      {
+        kind: "clientSettings",
+        available: yield* exists(path.join(sourceStateDir, "client-settings.json")),
+      },
+      {
+        kind: "keybindings",
+        available: yield* exists(path.join(sourceStateDir, "keybindings.json")),
+      },
+      {
+        kind: "themes",
+        available:
+          (yield* fs.readDirectory(themesDir).pipe(Effect.orElseSucceed(() => []))).length > 0,
+      },
+      { kind: "usagePriceOverrides", available: nonEmpty(settingsRecord.usagePriceOverrides) },
+      { kind: "providerInstances", available: nonEmpty(settingsRecord.providerInstances) },
+    ];
+    return {
+      status: "available" as const,
+      sourcePath,
+      projects,
+      scheduledTasks: taskRows.map((row) => ({
+        taskId: String(row.task_id),
+        title: String(row.title),
+        enabled: Number(row.enabled) === 1,
+        scheduleKind: String(row.kind ?? "unknown"),
+        projectId: ProjectIdSchema.make(String(row.project_id)),
+        alreadyImported: doneTasks.get(String(row.task_id))?.state === "done",
+      })),
+      files,
+    } satisfies T3CodeImportCatalog;
+  });
+
+  const preview: Effect.Effect<T3CodeImportCatalog, T3CodeImportError> = Effect.gen(function* () {
+    const located = yield* locateSource();
+    if (located.problem !== null) {
+      return {
+        status: "unavailable" as const,
+        reason: located.problem,
+        sourcePath: located.sourcePath,
+      };
+    }
+    return yield* withSource(located.sourcePath, (src) => catalogOf(located.sourcePath, src));
+  }).pipe(
     Effect.mapError((cause) => (isImportError(cause) ? cause : failed(cause))),
     Effect.withSpan("T3CodeImport.preview"),
   );
 
-  const columnsOf = Effect.fn("T3CodeImport.columnsOf")(function* (schema: string, table: string) {
-    const rows = yield* sql<{ readonly name: string }>`
-      SELECT name FROM pragma_table_info(${table}, ${schema})`;
-    return rows.map((row) => row.name);
+  const planFiles = Effect.fn("T3CodeImport.planFiles")(function* (
+    sourceStateDir: string,
+    selection: T3CodeImportSelection,
+    skipped: Array<T3CodeImportNotice>,
+    attention: Array<T3CodeImportNotice>,
+  ) {
+    const home = path.dirname(sourceStateDir);
+    const wants = new Set<T3CodeImportFileKind>(selection.files);
+    let rewrittenPaths = 0;
+    const toFork = (value: unknown): unknown => {
+      const text = encodeJson(value);
+      const from = home;
+      const matches = text.split(from).length - 1;
+      if (matches === 0) return value;
+      rewrittenPaths += matches;
+      return decodeJson(text.replaceAll(from, config.baseDir));
+    };
+
+    const settingsPatch: Record<string, unknown> = {};
+    let priceOverrides: unknown = undefined;
+    const providerInstances: Array<{ id: string; config: unknown }> = [];
+    if (
+      wants.has("settings") ||
+      wants.has("providerInstances") ||
+      wants.has("usagePriceOverrides")
+    ) {
+      const raw = yield* readJson(path.join(sourceStateDir, "settings.json"));
+      const record =
+        Option.isSome(raw) && typeof raw.value === "object" && raw.value !== null
+          ? (raw.value as Record<string, unknown>)
+          : {};
+      const patchKeys = new Set(
+        Object.keys((ServerSettingsPatch as unknown as { fields: object }).fields),
+      );
+      const decodePatch = Schema.decodeUnknownOption(ServerSettingsPatch);
+      for (const [key, value] of Object.entries(record)) {
+        if (key === "providerInstances") {
+          if (!wants.has("providerInstances")) continue;
+          const here = yield* settingsService.getSettings.pipe(Effect.orElseSucceed(() => null));
+          for (const [id, instance] of Object.entries((value ?? {}) as Record<string, unknown>)) {
+            if (here !== null && id in here.providerInstances) {
+              skipped.push({ code: "provider-instance-exists", subject: id });
+              continue;
+            }
+            providerInstances.push({ id, config: toFork(instance) });
+          }
+          continue;
+        }
+        if (key === "usagePriceOverrides") {
+          if (wants.has("usagePriceOverrides")) priceOverrides = value;
+          continue;
+        }
+        if (!wants.has("settings")) continue;
+        if (key === "previousWorktreesDirectories") {
+          // Folders listed here are ones T3 Extend would clean up; it must not take over the official app's.
+          skipped.push({ code: "worktree-directories-skipped", subject: key });
+          continue;
+        }
+        if (!patchKeys.has(key) || Option.isNone(decodePatch({ [key]: value }))) {
+          skipped.push({ code: "setting-rejected", subject: key });
+          continue;
+        }
+        settingsPatch[key] = toFork(value);
+      }
+    }
+
+    let clientSettings: Record<string, unknown> | null = null;
+    if (wants.has("clientSettings")) {
+      const raw = yield* readJson(path.join(sourceStateDir, "client-settings.json"));
+      if (Option.isSome(raw) && typeof raw.value === "object" && raw.value !== null) {
+        const fields = new Set(
+          Object.keys((ClientSettingsPatch as unknown as { fields: object }).fields),
+        );
+        const decodePatch = Schema.decodeUnknownOption(ClientSettingsPatch);
+        const accepted: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(raw.value as Record<string, unknown>)) {
+          if (!fields.has(key) || Option.isNone(decodePatch({ [key]: value }))) {
+            skipped.push({ code: "client-setting-rejected", subject: key });
+          } else accepted[key] = toFork(value);
+        }
+        clientSettings = accepted;
+        if (accepted.legacySidebarEnabled === true) {
+          attention.push({ code: "sidebar-settings", subject: "legacySidebarEnabled" });
+        }
+      }
+    }
+
+    const keybindingRules: Array<Record<string, unknown>> = [];
+    if (wants.has("keybindings")) {
+      const read = (file: string) =>
+        readJson(file).pipe(
+          Effect.map((value) =>
+            Option.isSome(value) && Array.isArray(value.value)
+              ? (value.value as Array<Record<string, unknown>>)
+              : [],
+          ),
+        );
+      const mine = yield* read(config.keybindingsConfigPath);
+      const same = (a: Record<string, unknown>, b: Record<string, unknown>) =>
+        a.key === b.key && a.command === b.command && (a.when ?? null) === (b.when ?? null);
+      for (const rule of yield* read(path.join(sourceStateDir, "keybindings.json"))) {
+        if (typeof rule.key !== "string" || typeof rule.command !== "string") {
+          skipped.push({ code: "keybinding-rejected", subject: String(rule.command ?? rule.key) });
+        } else if (!mine.some((existing) => same(existing, rule))) keybindingRules.push(rule);
+      }
+    }
+
+    const themes: Array<string> = [];
+    if (wants.has("themes")) {
+      const names = yield* fs
+        .readDirectory(path.join(sourceStateDir, "themes"))
+        .pipe(Effect.orElseSucceed(() => []));
+      themes.push(...names.filter((name) => name.endsWith(".json")));
+    }
+
+    return {
+      settingsPatch,
+      priceOverrides,
+      providerInstances,
+      clientSettings,
+      keybindings: keybindingRules,
+      themes,
+      rewrittenPaths,
+    } satisfies FilePlan;
   });
 
-  /** Tables holding per-thread rows, minus the ones that must not cross over. */
+  const analyse = Effect.fn("T3CodeImport.analyse")(function* (
+    source: { readonly dbPath: string; readonly stateDir: string },
+    src: SqlClient.SqlClient,
+    selection: T3CodeImportSelection,
+  ) {
+    const fixed: Array<T3CodeImportNotice> = [];
+    const skipped: Array<T3CodeImportNotice> = [];
+    const attention: Array<T3CodeImportNotice> = [];
+    const sourceStateDir = source.stateDir;
+
+    const threads = yield* readThreads(src);
+    const busy = hasNoDescendantsBusy(threads, yield* busyThreadIds(source.dbPath, src));
+    const children = childrenOf(threads);
+    const doneThreads = yield* mappedTargets("thread");
+    const doneProjects = yield* mappedTargets("project");
+
+    // Which threads travel: the picked ones, the parents they depend on, and their subagents.
+    const wanted = new Map<string, SourceThread>();
+    let pulledIn = 0;
+    let busySkipped = 0;
+    for (const id of selection.threadIds) {
+      const picked = threads.get(id);
+      if (picked === undefined)
+        return yield* new T3CodeImportError({ reason: "project-not-found" });
+      if (busy.has(picked.id)) {
+        skipped.push({ code: "thread-busy", subject: picked.title });
+        busySkipped += 1;
+        continue;
+      }
+      const chain: Array<SourceThread> = [picked];
+      let parent = picked.parent === null ? undefined : threads.get(picked.parent);
+      while (parent !== undefined && !chain.includes(parent)) {
+        chain.push(parent);
+        parent = parent.parent === null ? undefined : threads.get(parent.parent);
+      }
+      if (chain.some((thread) => busy.has(thread.id))) {
+        skipped.push({ code: "thread-parent-busy", subject: picked.title });
+        continue;
+      }
+      for (const thread of chain) {
+        if (
+          !wanted.has(thread.id) &&
+          thread.id !== picked.id &&
+          !selection.threadIds.includes(thread.id as ThreadId)
+        ) {
+          pulledIn += 1;
+        }
+        wanted.set(thread.id, thread);
+      }
+    }
+    let omittedSubagents = 0;
+    for (const thread of wanted.values()) {
+      for (const sub of subagentDescendants(children, thread.id)) {
+        if (selection.includeSubagents) wanted.set(sub.id, sub);
+        else omittedSubagents += 1;
+      }
+    }
+    if (pulledIn > 0) fixed.push({ code: "parents-pulled-in", subject: "", count: pulledIn });
+    if (omittedSubagents > 0) {
+      attention.push({ code: "subagents-omitted", subject: "", count: omittedSubagents });
+    }
+    void busySkipped;
+
+    const alreadyImported = [...wanted.keys()].filter(
+      (id) => doneThreads.get(id)?.state === "done",
+    ).length;
+    const toCopy = [...wanted.values()]
+      .filter((thread) => doneThreads.get(thread.id)?.state !== "done")
+      .toSorted((a, b) => {
+        const depth = (thread: SourceThread) => {
+          let count = 0;
+          let current = thread;
+          while (current.parent !== null && threads.has(current.parent) && count < 100) {
+            current = threads.get(current.parent)!;
+            count += 1;
+          }
+          return count;
+        };
+        return depth(a) - depth(b) || a.updatedAt.localeCompare(b.updatedAt);
+      });
+
+    // Projects: the same folder merges into the project already here.
+    const projectRows = yield* src.unsafe<Row>(
+      `SELECT project_id, title, workspace_root FROM projection_projects WHERE deleted_at IS NULL`,
+    );
+    const hereProjects = yield* sql.unsafe<Row>(
+      `SELECT project_id, workspace_root FROM projection_projects WHERE deleted_at IS NULL`,
+    );
+    const activeByRoot = new Map(
+      hereProjects.map((row) => [String(row.workspace_root), String(row.project_id)]),
+    );
+    const neededProjects = new Set<string>([
+      ...toCopy.map((thread) => thread.projectId),
+      ...selection.projectIds,
+    ]);
+    for (const task of selection.scheduledTasks) {
+      void task;
+    }
+    const projects = new Map<string, ProjectTarget>();
+    for (const row of projectRows) {
+      const sourceId = String(row.project_id);
+      if (!neededProjects.has(sourceId)) continue;
+      const root = String(row.workspace_root);
+      const mapped = doneProjects.get(sourceId);
+      const joined = activeByRoot.get(root);
+      const target =
+        mapped !== undefined
+          ? { id: mapped.target_id, existing: true, merged: false }
+          : joined !== undefined
+            ? { id: joined, existing: true, merged: true }
+            : { id: yield* targetId("project", sourceId), existing: false, merged: false };
+      projects.set(sourceId, {
+        sourceId,
+        targetId: target.id,
+        title: String(row.title),
+        workspaceRoot: root,
+        existing: target.existing,
+        merged: target.merged,
+      });
+      if (target.merged) {
+        fixed.push({ code: "project-merged", subject: String(row.title), detail: root });
+      }
+    }
+    const threadTargets = new Map<string, string>();
+    for (const [id, row] of doneThreads) threadTargets.set(id, row.target_id);
+    for (const thread of toCopy) threadTargets.set(thread.id, yield* targetId("thread", thread.id));
+    if (toCopy.length > 0)
+      fixed.push({ code: "thread-ids-renewed", subject: "", count: toCopy.length });
+    const limitCleared = toCopy.filter((thread) => thread.hasLimitRecovery).length;
+    if (limitCleared > 0)
+      fixed.push({ code: "limit-recovery-cleared", subject: "", count: limitCleared });
+
+    // Worktrees stay where they are; T3 Extend must never remove one it did not create.
+    const worktrees = new Map<string, number>();
+    for (const thread of toCopy) {
+      if (thread.worktree !== null)
+        worktrees.set(thread.worktree, (worktrees.get(thread.worktree) ?? 0) + 1);
+    }
+    const missing: Array<string> = [];
+    for (const worktree of worktrees.keys()) if (!(yield* exists(worktree))) missing.push(worktree);
+    if (missing.length > 0) {
+      attention.push({
+        code: "worktree-missing",
+        subject: "",
+        count: missing.length,
+        detail: missing.slice(0, 3).join(", "),
+      });
+    }
+    if (worktrees.size > 0)
+      attention.push({ code: "worktree-shared", subject: "", count: worktrees.size });
+    if (toCopy.length > 0)
+      attention.push({ code: "provider-files-shared", subject: "", count: toCopy.length });
+
+    // Checkpoints: count refs, and note repos that are gone.
+    let checkpointCount = 0;
+    let unavailableRefs = 0;
+    if (toCopy.length > 0) {
+      for (const thread of toCopy) {
+        const rows = yield* src.unsafe<Row>(
+          `SELECT json_extract(s.payload_json, '$.cwd') AS cwd, COUNT(c.checkpoint_id) AS refs
+           FROM ${CHECKPOINTS_TABLE} c JOIN ${SCOPES_TABLE} s ON s.scope_id = c.scope_id
+           WHERE c.thread_id = ? AND json_extract(c.payload_json, '$.ref') IS NOT NULL
+             AND c.status = 'ready'
+           GROUP BY cwd`,
+          [thread.id],
+        );
+        for (const row of rows) {
+          checkpointCount += Number(row.refs);
+          const root = projectRows.find(
+            (p) => String(p.project_id) === thread.projectId,
+          )?.workspace_root;
+          if (
+            !(typeof row.cwd === "string" && (yield* exists(row.cwd))) &&
+            !(typeof root === "string" && (yield* exists(root)))
+          ) {
+            unavailableRefs += Number(row.refs);
+          }
+        }
+      }
+    }
+    if (checkpointCount - unavailableRefs > 0) {
+      fixed.push({
+        code: "checkpoint-refs-copied",
+        subject: "",
+        count: checkpointCount - unavailableRefs,
+      });
+    }
+    if (unavailableRefs > 0) {
+      attention.push({ code: "checkpoint-refs-unavailable", subject: "", count: unavailableRefs });
+    }
+
+    // Attachments that belong to these threads.
+    const attachmentNames = yield* fs
+      .readDirectory(path.join(sourceStateDir, "attachments"))
+      .pipe(Effect.orElseSucceed(() => []));
+    const attachmentCount = attachmentNames.filter((name) =>
+      toCopy.some((thread) => name.startsWith(`${thread.id}-`)),
+    ).length;
+    if (attachmentCount > 0)
+      fixed.push({ code: "attachments-copied", subject: "", count: attachmentCount });
+
+    // Scheduled tasks.
+    const tasks: Array<Analysis["tasks"][number]> = [];
+    const doneTasks = yield* mappedTargets("task");
+    for (const choice of selection.scheduledTasks) {
+      if (doneTasks.get(choice.taskId)?.state === "done") continue;
+      const rows = yield* src.unsafe<Row>(`SELECT * FROM scheduled_tasks WHERE task_id = ?`, [
+        choice.taskId,
+      ]);
+      const row = rows[0];
+      if (row === undefined) {
+        skipped.push({ code: "task-unreadable", subject: choice.taskId });
+        continue;
+      }
+      const title = String(row.title);
+      const sourceProject = String(row.project_id);
+      let targetProject = projects.get(sourceProject)?.targetId;
+      if (targetProject === undefined) {
+        const rootRow = projectRows.find((p) => String(p.project_id) === sourceProject);
+        targetProject =
+          doneProjects.get(sourceProject)?.target_id ??
+          (rootRow === undefined ? undefined : activeByRoot.get(String(rootRow.workspace_root)));
+      }
+      if (targetProject === undefined) {
+        skipped.push({ code: "task-project-missing", subject: title });
+        continue;
+      }
+      const sourceThread =
+        row.thread_id === null || row.thread_id === undefined ? null : String(row.thread_id);
+      const targetThread = sourceThread === null ? null : (threadTargets.get(sourceThread) ?? null);
+      if (sourceThread !== null && targetThread === null) {
+        skipped.push({ code: "task-thread-missing", subject: title });
+        continue;
+      }
+      tasks.push({
+        row,
+        enabled: choice.enabled,
+        targetProjectId: targetProject,
+        targetThreadId: targetThread,
+      });
+      if (choice.enabled) fixed.push({ code: "task-imported-active", subject: title });
+      attention.push({ code: "task-runs-in-both", subject: title });
+    }
+    if (tasks.some((task) => String(task.row.schedule_json).includes('"webhook"'))) {
+      skipped.push({ code: "relay-state-skipped", subject: "" });
+    }
+
+    const files = yield* planFiles(sourceStateDir, selection, skipped, attention);
+    if (files.rewrittenPaths > 0) {
+      fixed.push({ code: "paths-rewritten", subject: "", count: files.rewrittenPaths });
+    }
+    for (const instance of files.providerInstances) {
+      attention.push({ code: "provider-credential-imported", subject: instance.id });
+    }
+
+    // What never crosses over: identity, credentials, and state kept in the other app's browser storage.
+    const present = (name: string) => exists(path.join(sourceStateDir, name));
+    const identity = ["environment-id", "server-owner.sqlite", "anonymous-id", "clerk"];
+    const identityPresent: Array<string> = [];
+    for (const name of identity) if (yield* present(name)) identityPresent.push(name);
+    skipped.push({
+      code: "identity-skipped",
+      subject: [...identityPresent, "sessions, pairing links and linked environments"].join(", "),
+    });
+    const secretNames = yield* fs
+      .readDirectory(path.join(sourceStateDir, "secrets"))
+      .pipe(Effect.orElseSucceed(() => []));
+    const signing = secretNames.filter((name) => SIGNING_SECRET.test(name)).length;
+    if (signing > 0) skipped.push({ code: "signing-secrets-skipped", subject: "", count: signing });
+    if (yield* present("connection-catalog.json"))
+      skipped.push({ code: "connection-catalog-skipped", subject: "" });
+    if (yield* present("desktop-settings.json"))
+      skipped.push({ code: "desktop-settings-skipped", subject: "" });
+    if (yield* present("server-browser"))
+      skipped.push({ code: "browser-profile-skipped", subject: "" });
+    skipped.push({ code: "browser-storage-skipped", subject: "" });
+
+    return {
+      sourcePath: source.dbPath,
+      threads,
+      toCopy,
+      alreadyImported,
+      projects,
+      threadTargets,
+      tasks,
+      files,
+      checkpointCount,
+      report: { fixed, skipped, attention },
+    } satisfies Analysis;
+  });
+
+  const check: T3CodeImport["Service"]["check"] = Effect.fn("T3CodeImport.check")(
+    function* (selection) {
+      const located = yield* locateSource();
+      if (located.problem !== null)
+        return yield* new T3CodeImportError({ reason: located.problem });
+      // An older source is read as it is here; the run migrates a private copy first.
+      const source = { dbPath: located.sourcePath, stateDir: path.dirname(located.sourcePath) };
+      const analysis = yield* withSource(located.sourcePath, (src) =>
+        analyse(source, src, selection),
+      );
+      return analysis.report;
+    },
+    Effect.mapError((cause) => (isImportError(cause) ? cause : failed(cause))),
+  );
+
+  /** Tables that hold per-thread rows and may cross over. */
   const threadTables = Effect.fn("T3CodeImport.threadTables")(function* () {
-    const rows = yield* sql<{ readonly name: string }>`
-      SELECT m.name FROM sqlite_master m, pragma_table_info(m.name) c
-      WHERE m.type = 'table' AND c.name = 'thread_id'`;
-    const references = yield* sql<{ readonly name: string; readonly parent: string }>`
-      SELECT m.name, f."table" AS parent FROM sqlite_master m, pragma_foreign_key_list(m.name) f
-      WHERE m.type = 'table'`;
+    const rows = yield* sql.unsafe<{ readonly name: string }>(
+      `SELECT m.name FROM sqlite_master m, pragma_table_info(m.name) c
+       WHERE m.type = 'table' AND c.name = 'thread_id'`,
+    );
+    const references = yield* sql.unsafe<{ readonly name: string; readonly parent: string }>(
+      `SELECT m.name, f."table" AS parent FROM sqlite_master m, pragma_foreign_key_list(m.name) f
+       WHERE m.type = 'table'`,
+    );
     // A row that points into an excluded table cannot be copied, however far down the chain.
     const excluded = new Set(EXCLUDED_TABLES);
     for (let grew = true; grew;) {
@@ -331,278 +974,819 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         }
       }
     }
-    const names = rows.map((row) => row.name).filter((name) => !excluded.has(name));
-    // Threads first: the message search trigger reads the thread row of each message it indexes.
-    const priority = (name: string) =>
-      name === THREADS_TABLE ? 0 : name === PROVIDER_SESSIONS_TABLE ? 1 : 2;
-    return names.toSorted((a, b) => priority(a) - priority(b) || a.localeCompare(b));
+    return rows
+      .map((row) => row.name)
+      .filter((name) => !excluded.has(name) && !name.startsWith("fork_"))
+      .toSorted(
+        (a, b) => Number(b === THREADS_TABLE) - Number(a === THREADS_TABLE) || a.localeCompare(b),
+      );
   });
 
-  /** Columns both schemas share, so a column only one side has never breaks the copy. */
-  const sharedColumns = Effect.fn("T3CodeImport.sharedColumns")(function* (table: string) {
-    const main = yield* columnsOf("main", table);
-    const source = yield* columnsOf(SOURCE_ALIAS, table);
-    return main.filter((column) => source.includes(column));
+  const sharedColumns = Effect.fn("T3CodeImport.sharedColumns")(function* (
+    src: SqlClient.SqlClient,
+    table: string,
+  ) {
+    const mine = yield* columnsOf(sql, table);
+    const theirs = new Set(yield* columnsOf(src, table));
+    return mine.filter((column) => theirs.has(column));
   });
 
-  const copyProject = Effect.fn("T3CodeImport.copyProject")(function* (projectId: string) {
-    const projectColumns = (yield* sharedColumns("projection_projects")).map(quote).join(", ");
-    const eventColumns = (yield* sharedColumns("orchestration_events"))
-      .filter((column) => column !== "sequence")
-      .map(quote)
-      .join(", ");
+  const purgeThread = Effect.fn("T3CodeImport.purgeThread")(function* (
+    tables: ReadonlyArray<string>,
+    targetThreadId: string,
+  ) {
     yield* sql.withTransaction(
       Effect.gen(function* () {
+        for (const table of tables) {
+          yield* sql.unsafe(`DELETE FROM ${quote(table)} WHERE thread_id = ?`, [targetThreadId]);
+        }
         yield* sql.unsafe(
-          `INSERT OR IGNORE INTO main.projection_projects (${projectColumns})
-           SELECT ${projectColumns} FROM ${SOURCE_ALIAS}.projection_projects WHERE project_id = ?`,
-          [projectId],
-        ).unprepared;
-        yield* sql.unsafe(
-          `INSERT OR IGNORE INTO main.orchestration_events (${eventColumns})
-           SELECT ${eventColumns} FROM ${SOURCE_ALIAS}.orchestration_events
-           WHERE aggregate_kind = 'project' AND stream_id = ? ORDER BY sequence ASC`,
-          [projectId],
-        ).unprepared;
+          `DELETE FROM orchestration_events WHERE aggregate_kind = 'thread' AND stream_id = ?`,
+          [targetThreadId],
+        );
       }),
     );
   });
 
-  const copyThread = Effect.fn("T3CodeImport.copyThread")(function* (input: {
+  const insertRows = (
+    table: string,
+    columns: ReadonlyArray<string>,
+    rows: ReadonlyArray<ReadonlyArray<unknown>>,
+  ) =>
+    Effect.forEach(
+      rows,
+      (values) =>
+        sql.unsafe(
+          `INSERT INTO ${quote(table)} (${columns.map(quote).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
+          values as Array<never>,
+        ),
+      { discard: true },
+    );
+
+  interface Counters {
+    refsCopied: number;
+    refsUnavailable: number;
+    attachments: number;
+    browserArtifacts: number;
+    limitCleared: number;
+  }
+
+  /** Copies the thread's checkpoint refs to the names its new scope ids give them. */
+  const copyCheckpointRefs = Effect.fn("T3CodeImport.copyCheckpointRefs")(function* (input: {
+    readonly src: SqlClient.SqlClient;
     readonly thread: SourceThread;
-    readonly targetProjectId: string;
+    readonly rewrite: (text: string) => string;
+    readonly projectRoot: string | undefined;
+    readonly counters: Counters;
+  }) {
+    const rows = yield* input.src.unsafe<Row>(
+      `SELECT c.payload_json AS payload, json_extract(s.payload_json, '$.cwd') AS cwd
+       FROM ${CHECKPOINTS_TABLE} c JOIN ${SCOPES_TABLE} s ON s.scope_id = c.scope_id
+       WHERE c.thread_id = ?`,
+      [input.thread.id],
+    );
+    const refMap = new Map<string, string>();
+    const unavailable = new Set<string>();
+    const byRepo = new Map<string, Array<{ oldRef: string; newRef: string }>>();
+    for (const row of rows) {
+      const payload = decodeJson(String(row.payload)) as {
+        ref?: string | null;
+        scopeId: string;
+        ordinalWithinScope: number;
+      };
+      if (typeof payload.ref !== "string" || payload.ref === "") continue;
+      const newRef = yield* checkpointRefForScopeOrdinal({
+        scopeId: input.rewrite(payload.scopeId) as never,
+        ordinalWithinScope: payload.ordinalWithinScope,
+      }).pipe(Effect.provideService(Crypto.Crypto, crypto));
+      refMap.set(payload.ref, newRef);
+      let repo: string | undefined;
+      for (const candidate of [row.cwd, input.projectRoot]) {
+        if (typeof candidate === "string" && (yield* exists(candidate))) {
+          repo = candidate;
+          break;
+        }
+      }
+      if (repo === undefined) {
+        unavailable.add(payload.ref);
+        continue;
+      }
+      byRepo.set(repo, [...(byRepo.get(repo) ?? []), { oldRef: payload.ref, newRef }]);
+    }
+    for (const [repo, pairs] of byRepo) {
+      const checked = yield* git
+        .execute({
+          operation: "T3CodeImport.checkRefs",
+          cwd: repo,
+          args: ["cat-file", "--batch-check"],
+          stdin: `${pairs.map((pair) => pair.oldRef).join("\n")}\n`,
+          allowNonZeroExit: true,
+        })
+        .pipe(Effect.mapError(failed));
+      const lines = checked.stdout.split("\n");
+      const commands: Array<string> = [];
+      pairs.forEach((pair, index) => {
+        const [sha, type] = (lines[index] ?? "").split(" ");
+        if (type === "missing" || sha === undefined || sha === "" || sha === pair.oldRef) {
+          unavailable.add(pair.oldRef);
+        } else commands.push(`update ${pair.newRef} ${sha}`);
+      });
+      if (commands.length > 0) {
+        yield* git
+          .execute({
+            operation: "T3CodeImport.copyRefs",
+            cwd: repo,
+            args: ["update-ref", "--stdin"],
+            stdin: `${commands.join("\n")}\n`,
+          })
+          .pipe(Effect.mapError(failed));
+        input.counters.refsCopied += commands.length;
+      }
+    }
+    input.counters.refsUnavailable += unavailable.size;
+    return { refMap, unavailable };
+  });
+
+  interface RunContext {
+    readonly analysis: Analysis;
+    readonly src: SqlClient.SqlClient;
     readonly tables: ReadonlyArray<{
       readonly name: string;
       readonly columns: ReadonlyArray<string>;
     }>;
     readonly eventColumns: ReadonlyArray<string>;
-  }) {
-    const { thread, targetProjectId } = input;
-    const remap = thread.projectId !== targetProjectId;
-    // Only this thread's own rows carry the project id, and event payloads embed it as plain text.
-    const text = (column: string) =>
-      remap
-        ? {
-            expression: `replace(${quote(column)}, ?, ?)`,
-            params: [thread.projectId, targetProjectId],
-          }
-        : { expression: quote(column), params: [] };
+    readonly rewrite: (text: string) => string;
+    readonly referencedFiles: () => ReadonlyArray<{
+      kind: "attachments" | "browser-artifacts";
+      name: string;
+    }>;
+    readonly copiedFiles: Set<string>;
+    readonly counters: Counters;
+    readonly sourceStateDir: string;
+    readonly idMap: ReadonlyMap<string, string>;
+    readonly projectRoots: ReadonlyMap<string, string>;
+  }
 
+  const copyReferencedFiles = Effect.fn("T3CodeImport.copyReferencedFiles")(function* (
+    context: RunContext,
+    extra: ReadonlyArray<{ kind: "attachments" | "browser-artifacts"; name: string }>,
+  ) {
+    for (const file of [...context.referencedFiles(), ...extra]) {
+      const key = `${file.kind}/${file.name}`;
+      if (context.copiedFiles.has(key)) continue;
+      context.copiedFiles.add(key);
+      const targetDir =
+        file.kind === "attachments" ? config.attachmentsDir : config.browserArtifactsDir;
+      const targetName = file.kind === "attachments" ? context.rewrite(file.name) : file.name;
+      const target = path.join(targetDir, targetName);
+      yield* fs.makeDirectory(targetDir, { recursive: true });
+      if (yield* exists(target)) continue;
+      const copied = yield* fs
+        .copyFile(path.join(context.sourceStateDir, file.kind, file.name), target)
+        .pipe(
+          Effect.as(true),
+          Effect.orElseSucceed(() => false),
+        );
+      if (copied) {
+        if (file.kind === "attachments") context.counters.attachments += 1;
+        else context.counters.browserArtifacts += 1;
+      }
+    }
+  });
+
+  const transformRow = (
+    context: RunContext,
+    table: string,
+    columns: ReadonlyArray<string>,
+    row: Row,
+    targetProjectId: string,
+    refs: { readonly refMap: Map<string, string>; readonly unavailable: Set<string> },
+  ): ReadonlyArray<unknown> | null => {
+    const mapText = (text: string) => {
+      const withRefs = text.includes("refs/t3/orchestration-v2/checkpoints")
+        ? text.replace(REF_PATTERN, (ref) => refs.refMap.get(ref) ?? ref)
+        : text;
+      return context.rewrite(withRefs);
+    };
+    if (table === SUBAGENTS_TABLE) {
+      const child = row.child_thread_id;
+      if (typeof child === "string" && !context.idMap.has(child)) return null;
+    }
+    let overrides: Record<string, unknown> = {};
+    const payloadSource = typeof row.payload_json === "string" ? row.payload_json : null;
+    if (payloadSource !== null) {
+      if (table === THREADS_TABLE) {
+        const cleared = clearLimitRecovery(payloadSource);
+        if (cleared.cleared) context.counters.limitCleared += 1;
+        overrides = { payload_json: cleared.json, project_id: targetProjectId };
+      } else if (table === PROVIDER_THREADS_TABLE) {
+        const detached = detachProviderThread(payloadSource);
+        overrides = {
+          payload_json: detached.json,
+          provider_session_id: null,
+          ...(detached.status === null ? {} : { status: detached.status }),
+        };
+      } else if (table === CHECKPOINTS_TABLE) {
+        const parsed = decodeJson(payloadSource) as { ref?: string | null };
+        if (typeof parsed.ref === "string" && refs.unavailable.has(parsed.ref)) {
+          overrides = {
+            payload_json: encodeJson({ ...parsed, status: "missing" }),
+            status: "missing",
+          };
+        }
+      }
+    }
+    return columns.map((column) => {
+      const value = column in overrides ? overrides[column] : row[column];
+      return typeof value === "string" ? mapText(value) : value;
+    });
+  };
+
+  const copyThread = Effect.fn("T3CodeImport.copyThread")(function* (
+    context: RunContext,
+    thread: SourceThread,
+  ) {
+    const { src, analysis } = context;
+    const targetThread = analysis.threadTargets.get(thread.id)!;
+    const project = analysis.projects.get(thread.projectId);
+    const targetProject = project?.targetId ?? thread.projectId;
+    const allTables = context.tables.map((table) => table.name);
+
+    // A run that stopped halfway left a partial copy; start this thread over.
+    const previous = yield* sql.unsafe<{ readonly state: string }>(
+      `SELECT state FROM fork_t3code_import_map WHERE kind = 'thread' AND source_id = ?`,
+      [thread.id],
+    );
+    if (previous[0] !== undefined) yield* purgeThread(allTables, targetThread);
+    yield* sql.unsafe(
+      `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at)
+       VALUES ('thread', ?, ?, 'copying', ?, ?)`,
+      [thread.id, targetThread, thread.worktree, yield* nowIso],
+    );
+
+    const refs = yield* copyCheckpointRefs({
+      src,
+      thread,
+      rewrite: context.rewrite,
+      projectRoot: context.projectRoots.get(thread.projectId),
+      counters: context.counters,
+    });
+
+    for (const table of context.tables) {
+      let last = -1;
+      for (;;) {
+        const batch = yield* src.unsafe<Row>(
+          `SELECT rowid AS "__rowid", * FROM ${quote(table.name)} WHERE thread_id = ? AND rowid > ? ORDER BY rowid LIMIT ?`,
+          [thread.id, last, ROWS_PER_BATCH],
+        );
+        if (batch.length === 0) break;
+        last = Number(batch[batch.length - 1]!["__rowid"]);
+        const values = batch.flatMap((row) => {
+          const next = transformRow(context, table.name, table.columns, row, targetProject, refs);
+          return next === null ? [] : [next];
+        });
+        yield* sql.withTransaction(insertRows(table.name, table.columns, values));
+      }
+    }
+
+    const eventColumns = context.eventColumns;
+    let lastSequence = -1;
+    for (;;) {
+      const batch = yield* src.unsafe<Row>(
+        `SELECT * FROM orchestration_events WHERE aggregate_kind = 'thread' AND stream_id = ? AND sequence > ?
+         ORDER BY sequence LIMIT ?`,
+        [thread.id, lastSequence, ROWS_PER_BATCH],
+      );
+      if (batch.length === 0) break;
+      lastSequence = Number(batch[batch.length - 1]!["sequence"]);
+      const values = batch.map((row) =>
+        eventColumns.map((column) => {
+          const value = row[column];
+          if (typeof value !== "string") return value;
+          const withRefs = value.includes("refs/t3/orchestration-v2/checkpoints")
+            ? value.replace(REF_PATTERN, (ref) => refs.refMap.get(ref) ?? ref)
+            : value;
+          return context.rewrite(withRefs);
+        }),
+      );
+      yield* sql.withTransaction(insertRows("orchestration_events", eventColumns, values));
+    }
+
+    // The copied rows already hold what the new events say, so a caught-up projection cursor moves with them.
     yield* sql.withTransaction(
       Effect.gen(function* () {
-        const [before] = yield* sql<{ readonly sequence: number | null }>`
-          SELECT MAX(sequence) AS sequence FROM orchestration_events
-          WHERE application_event_version = 2 AND aggregate_kind = 'thread'`;
-        const [cursor] = yield* sql<{ readonly last_sequence: number }>`
-          SELECT last_sequence FROM orchestration_v2_projection_metadata
-          WHERE projection_name = 'thread-projections'`;
-
-        for (const table of input.tables) {
-          const columns = table.columns;
-          const select: Array<string> = [];
-          const params: Array<unknown> = [];
-          for (const column of columns) {
-            if (table.name === THREADS_TABLE && column === "project_id") {
-              select.push("?");
-              params.push(targetProjectId);
-            } else if (table.name === THREADS_TABLE && column === "payload_json") {
-              const { expression, params: p } = text(column);
-              select.push(expression);
-              params.push(...p);
-            } else {
-              select.push(quote(column));
-            }
-          }
-          const where =
-            table.name === PROVIDER_SESSIONS_TABLE
-              ? `thread_id = ? OR provider_session_id IN (
-                   SELECT provider_session_id FROM ${SOURCE_ALIAS}.${quote(PROVIDER_SESSION_BINDINGS_TABLE)}
-                   WHERE thread_id = ?)`
-              : "thread_id = ?";
-          const whereParams =
-            table.name === PROVIDER_SESSIONS_TABLE
-              ? [thread.threadId, thread.threadId]
-              : [thread.threadId];
+        const cursor = (yield* sql.unsafe<{ readonly last_sequence: number }>(
+          `SELECT last_sequence FROM orchestration_v2_projection_metadata WHERE projection_name = 'thread-projections'`,
+        ))[0];
+        const newest = (yield* sql.unsafe<{ readonly sequence: number | null }>(
+          `SELECT MAX(sequence) AS sequence FROM orchestration_events
+           WHERE application_event_version = 2 AND aggregate_kind = 'thread'`,
+        ))[0]?.sequence;
+        yield* sql.unsafe(
+          `UPDATE fork_t3code_import_map SET state = 'done' WHERE kind = 'thread' AND source_id = ?`,
+          [thread.id],
+        );
+        if (thread.worktree !== null) {
           yield* sql.unsafe(
-            `INSERT OR IGNORE INTO main.${quote(table.name)} (${columns.map(quote).join(", ")})
-             SELECT ${select.join(", ")} FROM ${SOURCE_ALIAS}.${quote(table.name)} WHERE ${where}`,
-            [...params, ...whereParams],
-          ).unprepared;
+            `INSERT OR IGNORE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at)
+             VALUES ('worktree', ?, ?, 'shared', 'created by T3 Code', ?)`,
+            [path.resolve(thread.worktree), path.resolve(thread.worktree), yield* nowIso],
+          );
         }
-
-        const eventSelect: Array<string> = [];
-        const eventParams: Array<unknown> = [];
-        for (const column of input.eventColumns) {
-          if (column === "payload_json" || column === "metadata_json") {
-            const { expression, params: p } = text(column);
-            eventSelect.push(expression);
-            eventParams.push(...p);
-          } else {
-            eventSelect.push(quote(column));
+        // Rows from before this import were already projected; only move a cursor that was current.
+        if (cursor !== undefined && newest !== null && newest !== undefined) {
+          const before = (yield* sql.unsafe<{ readonly sequence: number | null }>(
+            `SELECT MAX(sequence) AS sequence FROM orchestration_events
+             WHERE application_event_version = 2 AND aggregate_kind = 'thread' AND stream_id <> ?`,
+            [targetThread],
+          ))[0]?.sequence;
+          if (cursor.last_sequence === (before ?? 0)) {
+            yield* sql.unsafe(
+              `UPDATE orchestration_v2_projection_metadata SET last_sequence = ? WHERE projection_name = 'thread-projections'`,
+              [newest],
+            );
           }
-        }
-        // ORDER BY keeps the thread's events in their original order under the new sequences.
-        yield* sql.unsafe(
-          `INSERT OR IGNORE INTO main.orchestration_events (${input.eventColumns.map(quote).join(", ")})
-           SELECT ${eventSelect.join(", ")} FROM ${SOURCE_ALIAS}.orchestration_events
-           WHERE aggregate_kind = 'thread' AND stream_id = ? ORDER BY sequence ASC`,
-          [...eventParams, thread.threadId],
-        ).unprepared;
-
-        // A transfer between two threads is copied by whichever of them lands second.
-        const transferColumns = (yield* columnsOf("main", CONTEXT_TRANSFERS_TABLE)).join(", ");
-        yield* sql.unsafe(
-          `INSERT OR IGNORE INTO main.${quote(CONTEXT_TRANSFERS_TABLE)} (${transferColumns})
-           SELECT ${transferColumns} FROM ${SOURCE_ALIAS}.${quote(CONTEXT_TRANSFERS_TABLE)}
-           WHERE (source_thread_id = ? AND target_thread_id IN (SELECT thread_id FROM main.${quote(THREADS_TABLE)}))
-              OR (target_thread_id = ? AND source_thread_id IN (SELECT thread_id FROM main.${quote(THREADS_TABLE)}))`,
-          [thread.threadId, thread.threadId],
-        ).unprepared;
-
-        // The new events are already projected by the copied rows; only a caught-up cursor moves.
-        if (cursor !== undefined && cursor.last_sequence === (before?.sequence ?? 0)) {
-          yield* sql`
-            UPDATE orchestration_v2_projection_metadata
-            SET last_sequence = (
-              SELECT MAX(sequence) FROM orchestration_events
-              WHERE application_event_version = 2 AND aggregate_kind = 'thread')
-            WHERE projection_name = 'thread-projections'`;
         }
       }),
     );
+
+    // Attachments are named after their thread; browser artifacts are found through the paths rows hold.
+    const attachmentNames = yield* fs
+      .readDirectory(path.join(context.sourceStateDir, "attachments"))
+      .pipe(Effect.orElseSucceed(() => []));
+    yield* copyReferencedFiles(
+      context,
+      attachmentNames
+        .filter((name) => name.startsWith(`${thread.id}-`))
+        .map((name) => ({ kind: "attachments" as const, name })),
+    );
+
+    // Tell open clients the thread exists, without replaying its whole history.
+    yield* eventStore
+      .readAgentEvents({
+        threadId: targetThread as ThreadId,
+        eventType: "thread.created",
+        limit: 1,
+      })
+      .pipe(
+        Stream.runCollect,
+        Effect.flatMap((events) => eventStore.publishCommitted(Array.from(events))),
+        Effect.catch((cause) =>
+          Effect.logWarning("Could not announce an imported thread to live clients", { cause }),
+        ),
+      );
   });
 
-  /** Tell live subscribers (the sidebar) about what arrived, without replaying whole histories. */
-  const announce = Effect.fn("T3CodeImport.announce")(function* (
-    threadIds: ReadonlyArray<string>,
-    projectIds: ReadonlyArray<string>,
+  const copyProject = Effect.fn("T3CodeImport.copyProject")(function* (
+    context: RunContext,
+    project: ProjectTarget,
   ) {
-    for (const projectId of projectIds) {
-      const rows = yield* sql<{ readonly sequence: number }>`
-        SELECT sequence FROM orchestration_events
-        WHERE aggregate_kind = 'project' AND stream_id = ${projectId} AND event_type = 'project.created'
-        ORDER BY sequence ASC LIMIT 1`;
-      const sequence = rows[0]?.sequence;
-      if (sequence === undefined) continue;
-      const events = yield* Stream.runCollect(
-        eventStore.readApplicationEvents({
-          afterSequence: sequence - 1,
-          throughSequence: sequence,
-        }),
-      );
-      yield* eventStore.publishCommitted(Array.from(events));
-    }
-    for (const threadId of threadIds) {
-      const events = yield* Stream.runCollect(
-        eventStore.readAgentEvents({
-          threadId: ThreadId.make(threadId),
-          eventType: "thread.created",
-          limit: 1,
-        }),
-      );
-      yield* eventStore.publishCommitted(Array.from(events));
+    const columns = yield* sharedColumns(context.src, "projection_projects");
+    const eventColumns = context.eventColumns;
+    const rows = yield* context.src.unsafe<Row>(
+      `SELECT * FROM projection_projects WHERE project_id = ?`,
+      [project.sourceId],
+    );
+    const events = yield* context.src.unsafe<Row>(
+      `SELECT * FROM orchestration_events WHERE aggregate_kind = 'project' AND stream_id = ? ORDER BY sequence`,
+      [project.sourceId],
+    );
+    yield* sql.withTransaction(
+      Effect.gen(function* () {
+        yield* insertRows(
+          "projection_projects",
+          columns,
+          rows.map((row) =>
+            columns.map((column) => {
+              const value = row[column];
+              return typeof value === "string" ? context.rewrite(value) : value;
+            }),
+          ),
+        );
+        yield* insertRows(
+          "orchestration_events",
+          eventColumns,
+          events.map((row) =>
+            eventColumns.map((column) => {
+              const value = row[column];
+              return typeof value === "string" ? context.rewrite(value) : value;
+            }),
+          ),
+        );
+        yield* sql.unsafe(
+          `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at)
+           VALUES ('project', ?, ?, 'done', ?, ?)`,
+          [project.sourceId, project.targetId, project.workspaceRoot, yield* nowIso],
+        );
+      }),
+    );
+    // Open clients learn about the project from its creation event.
+    const created = yield* sql.unsafe<{ readonly sequence: number }>(
+      `SELECT sequence FROM orchestration_events
+       WHERE aggregate_kind = 'project' AND stream_id = ? AND event_type = 'project.created'
+       ORDER BY sequence ASC LIMIT 1`,
+      [project.targetId],
+    );
+    const sequence = created[0]?.sequence;
+    if (sequence !== undefined) {
+      yield* eventStore
+        .readApplicationEvents({ afterSequence: sequence - 1, throughSequence: sequence })
+        .pipe(
+          Stream.runCollect,
+          Effect.flatMap((events) => eventStore.publishCommitted(Array.from(events))),
+          Effect.catch((cause) =>
+            Effect.logWarning("Could not announce an imported project to live clients", { cause }),
+          ),
+        );
     }
   });
 
-  const copyAttachments = Effect.fn("T3CodeImport.copyAttachments")(function* (
-    sourcePath: string,
-    threadIds: ReadonlySet<string>,
+  const importScheduledTasks = Effect.fn("T3CodeImport.importScheduledTasks")(function* (
+    analysis: Analysis,
   ) {
-    const sourceDir = path.join(path.dirname(sourcePath), "attachments");
-    const names = yield* fs.readDirectory(sourceDir).pipe(Effect.orElseSucceed(() => []));
-    yield* fs.makeDirectory(config.attachmentsDir, { recursive: true });
-    let copied = 0;
-    for (const name of names) {
-      // Files are named `<threadId>-<attachmentId>...` and thread ids contain dashes themselves.
-      const owner = [...name.matchAll(/-/g)].some((dash) =>
-        threadIds.has(name.slice(0, dash.index)),
+    const imported: Array<T3CodeImportResult["importedTasks"][number]> = [];
+    const unreadable: Array<T3CodeImportNotice> = [];
+    for (const task of analysis.tasks) {
+      const row = task.row;
+      const sourceId = String(row.task_id);
+      const id = ScheduledTaskId.make(`scheduled-task:import-${yield* targetId("task", sourceId)}`);
+      const decode = <A>(schema: Schema.Decoder<A>, json: unknown) =>
+        Schema.decodeUnknownEffect(Schema.fromJsonString(schema))(json);
+      const saved = yield* Effect.gen(function* () {
+        const schedule = yield* decode(ScheduledTaskUpsertSchedule, row.schedule_json);
+        const workspaceStrategy = yield* decode(
+          OrchestrationV2ThreadLaunchWorkspaceStrategy,
+          row.workspace_strategy_json,
+        );
+        const modelSelection = yield* decode(ModelSelection, row.model_selection_json);
+        return yield* scheduledTasks.upsert({
+          id,
+          title: String(row.title) as never,
+          prompt: String(row.prompt) as never,
+          enabled: task.enabled,
+          schedule,
+          projectId: task.targetProjectId as ProjectId,
+          threadId: task.targetThreadId as ThreadId | null,
+          workspaceStrategy,
+          modelSelection,
+          runtimeMode: row.runtime_mode as never,
+          interactionMode: row.interaction_mode as never,
+        });
+      }).pipe(Effect.option);
+      if (Option.isNone(saved)) {
+        unreadable.push({ code: "task-unreadable", subject: String(row.title) });
+        continue;
+      }
+      if (typeof row.webhook_secret === "string") {
+        yield* sql.unsafe(`UPDATE scheduled_tasks SET webhook_secret = ? WHERE task_id = ?`, [
+          row.webhook_secret,
+          id,
+        ]);
+      }
+      yield* sql.unsafe(
+        `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at)
+         VALUES ('task', ?, ?, 'done', NULL, ?)`,
+        [sourceId, id, yield* nowIso],
       );
-      if (!owner) continue;
-      const target = path.join(config.attachmentsDir, name);
-      if (yield* fs.exists(target)) continue;
-      yield* fs.copyFile(path.join(sourceDir, name), target);
-      copied += 1;
+      imported.push({
+        taskId: id,
+        title: String(row.title),
+        enabled: task.enabled,
+        webhookPath: saved.value.task.webhook?.path ?? null,
+      });
     }
-    return copied;
+    return { imported, unreadable };
   });
 
-  const run: T3CodeImport["Service"]["run"] = (input) =>
-    importLock
-      .withPermits(1)(
-        Effect.gen(function* () {
-          const result = yield* plan();
-          if (result.status === "unavailable") {
-            return yield* new T3CodeImportError({ reason: result.reason });
-          }
-          const selected = input.projectIds.map((projectId) =>
-            result.projects.find((entry) => entry.project.projectId === projectId),
+  const importFiles = Effect.fn("T3CodeImport.importFiles")(function* (
+    analysis: Analysis,
+    sourceStateDir: string,
+    attention: Array<T3CodeImportNotice>,
+  ) {
+    const { files } = analysis;
+    const patch: Record<string, unknown> = { ...files.settingsPatch };
+    if (files.priceOverrides !== undefined) patch.usagePriceOverrides = files.priceOverrides;
+    if (Object.keys(patch).length > 0) {
+      yield* settingsService.updateSettings(patch as never);
+    }
+    for (const instance of files.providerInstances) {
+      yield* settingsService.updateProviderInstance({
+        operation: "create",
+        instanceId: ProviderInstanceId.make(instance.id),
+        instance: instance.config as never,
+      });
+      // The credential belongs to its provider instance and travels only with it.
+      const driver = String((instance.config as { driver?: unknown }).driver ?? "");
+      for (const namespace of [driver, "codex-chatgpt", "codex-chatgpt-registration"]) {
+        const digest = yield* crypto
+          .digest(
+            "SHA-256",
+            new TextEncoder().encode(`${namespace.length}:${namespace}${instance.id}`),
+          )
+          .pipe(Effect.orDie);
+        const key = `provider-auth-${Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+        const file = path.join(sourceStateDir, "secrets", `${key}.bin`);
+        if (!(yield* exists(file))) continue;
+        if (Option.isSome(yield* secrets.get(key).pipe(Effect.orElseSucceed(() => Option.none()))))
+          continue;
+        yield* secrets.set(key, yield* fs.readFile(file));
+      }
+    }
+    for (const rule of files.keybindings) {
+      yield* keybindings
+        .upsertKeybindingRule({
+          key: rule.key as string,
+          command: rule.command as never,
+          ...(typeof rule.when === "string" ? { when: rule.when } : {}),
+        } as never)
+        .pipe(
+          Effect.catch(() =>
+            Effect.sync(() => {
+              attention.push({ code: "keybinding-rejected", subject: String(rule.command) });
+            }),
+          ),
+        );
+    }
+    if (files.themes.length > 0) {
+      yield* fs.makeDirectory(config.environmentThemesDir, { recursive: true });
+      for (const name of files.themes) {
+        const target = path.join(config.environmentThemesDir, name);
+        if (!(yield* exists(target))) {
+          yield* fs.copyFile(path.join(sourceStateDir, "themes", name), target);
+        }
+      }
+    }
+  });
+
+  const runImport = Effect.fn("T3CodeImport.runImport")(function* (
+    selection: T3CodeImportSelection,
+  ) {
+    const located = yield* locateSource();
+    if (located.problem !== null) return yield* new T3CodeImportError({ reason: located.problem });
+    const runId = (yield* sql.unsafe<{ readonly run_id: number }>(
+      `INSERT INTO fork_t3code_import_runs (started_at, source_path) VALUES (?, ?) RETURNING run_id`,
+      [yield* nowIso, located.sourcePath],
+    ))[0]!.run_id;
+
+    const sourceStateDir = path.dirname(located.sourcePath);
+    // Older sources are migrated up on a private copy; the official database itself is never touched.
+    let dbPath = located.sourcePath;
+    if (located.needsMigration) {
+      const tempDir = yield* fs.makeTempDirectoryScoped({
+        directory: config.stateDir,
+        prefix: "t3-import-",
+      });
+      const copy = path.join(tempDir, "statev2.sqlite");
+      yield* withSource(located.sourcePath, (src) => src.unsafe(`VACUUM INTO ?`, [copy]));
+      yield* runMigrations().pipe(Effect.provide(NodeSqliteClient.layer({ filename: copy })));
+      dbPath = copy;
+    }
+
+    return yield* withSource(dbPath, (src) =>
+      Effect.gen(function* () {
+        yield* SubscriptionRef.set(stateRef, {
+          status: "running",
+          phase: "preparing",
+          doneThreads: 0,
+          totalThreads: 0,
+          currentTitle: null,
+        });
+        // One read transaction: every row comes from the same moment, however long the copy takes.
+        yield* src.unsafe("BEGIN").unprepared;
+        return yield* Effect.gen(function* () {
+          const analysis = yield* analyse({ dbPath, stateDir: sourceStateDir }, src, selection);
+          const idMap = new Map<string, string>();
+          for (const [id, target] of analysis.threadTargets) idMap.set(id, target);
+          for (const project of analysis.projects.values())
+            idMap.set(project.sourceId, project.targetId);
+          const rewriter = makeRewriter({
+            ids: idMap,
+            sourceStateDir,
+            targetAttachmentsDir: config.attachmentsDir,
+            targetBrowserArtifactsDir: config.browserArtifactsDir,
+          });
+          const tableNames = yield* threadTables();
+          const tables = yield* Effect.forEach(tableNames, (name) =>
+            sharedColumns(src, name).pipe(Effect.map((columns) => ({ name, columns }))),
           );
-          if (selected.some((entry) => entry === undefined)) {
-            return yield* new T3CodeImportError({ reason: "project-not-found" });
+          const eventColumns = (yield* sharedColumns(src, "orchestration_events")).filter(
+            (column) => column !== "sequence",
+          );
+          const projectRootRows = yield* src.unsafe<Row>(
+            `SELECT project_id, workspace_root FROM projection_projects`,
+          );
+          const context: RunContext = {
+            analysis,
+            src,
+            tables,
+            eventColumns,
+            rewrite: rewriter.rewrite,
+            referencedFiles: rewriter.referencedFiles,
+            copiedFiles: new Set(),
+            counters: {
+              refsCopied: 0,
+              refsUnavailable: 0,
+              attachments: 0,
+              browserArtifacts: 0,
+              limitCleared: 0,
+            },
+            sourceStateDir,
+            idMap,
+            projectRoots: new Map(
+              projectRootRows.map((row) => [String(row.project_id), String(row.workspace_root)]),
+            ),
+          };
+
+          let importedProjects = 0;
+          for (const project of analysis.projects.values()) {
+            if (project.existing) continue;
+            yield* copyProject(context, project);
+            importedProjects += 1;
           }
-          const entries = selected.filter((entry) => entry !== undefined);
+          let done = 0;
+          for (const thread of analysis.toCopy) {
+            yield* SubscriptionRef.set(stateRef, {
+              status: "running",
+              phase: "threads",
+              doneThreads: done,
+              totalThreads: analysis.toCopy.length,
+              currentTitle: thread.title,
+            });
+            yield* copyThread(context, thread);
+            done += 1;
+          }
 
-          yield* sql`ATTACH DATABASE ${`${NodeURL.pathToFileURL(result.sourcePath).href}?mode=ro`} AS ${sql(SOURCE_ALIAS)}`;
-          return yield* Effect.gen(function* () {
-            const copyTables = yield* Effect.forEach(yield* threadTables(), (name) =>
-              sharedColumns(name).pipe(Effect.map((columns) => ({ name, columns }))),
-            );
-            const eventColumns = (yield* sharedColumns("orchestration_events")).filter(
-              (column) => column !== "sequence",
-            );
-
-            const importedThreads: Array<string> = [];
-            const createdProjects: Array<string> = [];
-            for (const entry of entries) {
-              if (entry.importable.length === 0) continue;
-              if (entry.joinsProjectId === null) {
-                yield* sql<{ readonly project_id: string }>`
-                  SELECT project_id FROM projection_projects WHERE project_id = ${entry.project.projectId}`.pipe(
-                  Effect.flatMap((rows) =>
-                    rows.length > 0
-                      ? Effect.void
-                      : copyProject(entry.project.projectId).pipe(
-                          Effect.tap(() =>
-                            Effect.sync(() => createdProjects.push(entry.project.projectId)),
-                          ),
-                        ),
+          // Hand-offs between two imported threads, now that both exist.
+          if (analysis.toCopy.length > 0) {
+            const columns = yield* sharedColumns(src, TRANSFERS_TABLE);
+            const transfers = yield* src.unsafe<Row>(`SELECT * FROM ${TRANSFERS_TABLE}`);
+            const rows = transfers
+              .filter(
+                (row) =>
+                  analysis.toCopy.some((thread) => thread.id === row.source_thread_id) &&
+                  idMap.has(String(row.target_thread_id)),
+              )
+              .map((row) =>
+                columns.map((column) =>
+                  typeof row[column] === "string"
+                    ? context.rewrite(String(row[column]))
+                    : row[column],
+                ),
+              );
+            yield* sql.withTransaction(
+              Effect.forEach(
+                rows,
+                (values) =>
+                  sql.unsafe(
+                    `INSERT OR IGNORE INTO ${quote(TRANSFERS_TABLE)} (${columns.map(quote).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
+                    values as Array<never>,
                   ),
-                );
-              }
-              const targetProjectId = entry.joinsProjectId ?? entry.project.projectId;
-              for (const thread of entry.importable) {
-                yield* copyThread({ thread, targetProjectId, tables: copyTables, eventColumns });
-                importedThreads.push(thread.threadId);
-              }
-            }
-
-            const copiedAttachments = yield* copyAttachments(
-              result.sourcePath,
-              new Set(importedThreads),
-            ).pipe(Effect.orElseSucceed(() => 0));
-            yield* announce(importedThreads, createdProjects).pipe(
-              Effect.catch((cause) =>
-                Effect.logWarning("Could not announce imported threads to live clients", {
-                  cause,
-                }),
+                { discard: true },
               ),
             );
-            return {
-              importedProjects: createdProjects.length,
-              importedThreads: importedThreads.length,
-              existingThreads: entries.reduce((sum, entry) => sum + entry.existingThreads, 0),
-              busyThreads: entries.reduce((sum, entry) => sum + entry.busyThreads, 0),
-              copiedAttachments,
-            } satisfies T3CodeImportResult;
-          }).pipe(Effect.ensuring(sql`DETACH DATABASE ${sql(SOURCE_ALIAS)}`.pipe(Effect.ignore)));
-        }),
+          }
+
+          yield* SubscriptionRef.set(stateRef, {
+            status: "running",
+            phase: "files",
+            doneThreads: done,
+            totalThreads: analysis.toCopy.length,
+            currentTitle: null,
+          });
+          const lateAttention: Array<T3CodeImportNotice> = [];
+          yield* copyReferencedFiles(context, []);
+          yield* importFiles(analysis, sourceStateDir, lateAttention);
+
+          yield* SubscriptionRef.set(stateRef, {
+            status: "running",
+            phase: "tasks",
+            doneThreads: done,
+            totalThreads: analysis.toCopy.length,
+            currentTitle: null,
+          });
+          const { imported: importedTasks, unreadable: unreadableTasks } =
+            yield* importScheduledTasks(analysis);
+
+          // The final list reports what actually happened.
+          const counters = context.counters;
+          const replaceCount = (
+            notices: ReadonlyArray<T3CodeImportNotice>,
+            code: T3CodeImportNotice["code"],
+            count: number,
+          ) => [
+            ...notices.filter((notice) => notice.code !== code),
+            ...(count > 0 ? [{ code, subject: "", count }] : []),
+          ];
+          let fixed = replaceCount(
+            analysis.report.fixed,
+            "checkpoint-refs-copied",
+            counters.refsCopied,
+          );
+          fixed = replaceCount(
+            fixed,
+            "attachments-copied",
+            counters.attachments + counters.browserArtifacts,
+          );
+          const attention = [
+            ...replaceCount(
+              analysis.report.attention,
+              "checkpoint-refs-unavailable",
+              counters.refsUnavailable,
+            ),
+            ...lateAttention,
+            ...importedTasks.flatMap((task) =>
+              task.webhookPath === null
+                ? []
+                : [
+                    {
+                      code: "task-webhook-url" as const,
+                      subject: task.title,
+                      detail: task.webhookPath,
+                    },
+                  ],
+            ),
+          ];
+          const result: T3CodeImportResult = {
+            importedProjects,
+            importedThreads: analysis.toCopy.length,
+            existingThreads: analysis.alreadyImported,
+            importedTasks,
+            clientSettings: analysis.files.clientSettings,
+            report: { fixed, skipped: [...analysis.report.skipped, ...unreadableTasks], attention },
+          };
+          yield* sql.unsafe(
+            `UPDATE fork_t3code_import_runs SET finished_at = ?, summary_json = ? WHERE run_id = ?`,
+            [yield* nowIso, encodeJson(result.report), runId],
+          );
+          return result;
+        }).pipe(Effect.ensuring(src.unsafe("ROLLBACK").unprepared.pipe(Effect.ignore)));
+      }),
+    );
+  }, Effect.scoped);
+
+  const start: T3CodeImport["Service"]["start"] = Effect.fn("T3CodeImport.start")(
+    function* (selection) {
+      const current = yield* SubscriptionRef.get(stateRef);
+      if (current.status === "running")
+        return yield* new T3CodeImportError({ reason: "already-running" });
+      yield* SubscriptionRef.set(stateRef, {
+        status: "running",
+        phase: "preparing",
+        doneThreads: 0,
+        totalThreads: 0,
+        currentTitle: null,
+      });
+      yield* importLock
+        .withPermits(1)(
+          runImport(selection).pipe(
+            Effect.matchEffect({
+              onSuccess: (result) => SubscriptionRef.set(stateRef, { status: "finished", result }),
+              onFailure: (cause) =>
+                Effect.logWarning("Import from T3 Code failed", { cause }).pipe(
+                  Effect.andThen(
+                    SubscriptionRef.set(stateRef, {
+                      status: "failed",
+                      message: isImportError(cause) ? cause.message : String(cause),
+                    }),
+                  ),
+                ),
+            }),
+          ),
+        )
+        .pipe(Effect.forkIn(scope));
+    },
+  );
+
+  const assertWorktreeNotShared: T3CodeImport["Service"]["assertWorktreeNotShared"] = (input) =>
+    sql
+      .unsafe<{ readonly source_id: string }>(
+        `SELECT source_id FROM fork_t3code_import_map WHERE kind = 'worktree' AND source_id = ?`,
+        [path.resolve(input.cwd, input.path)],
       )
       .pipe(
-        Effect.mapError((cause) => (isImportError(cause) ? cause : failed(cause))),
-        Effect.withSpan("T3CodeImport.run"),
+        Effect.orElseSucceed(() => []),
+        Effect.flatMap((rows) =>
+          rows.length === 0
+            ? Effect.void
+            : Effect.fail(
+                new GitCommandError({
+                  operation: "T3CodeImport.assertWorktreeNotShared",
+                  command: "git worktree remove",
+                  cwd: input.cwd,
+                  detail:
+                    "This worktree was created by T3 Code and is shared with it. T3 Extend never removes it.",
+                }),
+              ),
+        ),
       );
 
-  return T3CodeImport.of({ preview, run });
+  return T3CodeImport.of({
+    preview,
+    check,
+    start,
+    state: SubscriptionRef.changes(stateRef),
+    assertWorktreeNotShared,
+  });
 });
 
 export const layer = Layer.effect(T3CodeImport, make({}));

@@ -59,7 +59,9 @@ const RPC_AGGREGATES = {
   [WS_METHODS.serverGetStorageCleanupReport]: "server",
   [WS_METHODS.serverGetDatabaseStorage]: "server",
   [WS_METHODS.serverPreviewT3CodeImport]: "server", // fork: import from official T3 Code
+  [WS_METHODS.serverCheckT3CodeImport]: "server", // fork: import from official T3 Code
   [WS_METHODS.serverRunT3CodeImport]: "server", // fork: import from official T3 Code
+  [WS_METHODS.serverSubscribeT3CodeImport]: "server", // fork: import from official T3 Code
   [WS_METHODS.peerLinksList]: "peerLinks",
   [WS_METHODS.peerLinksLink]: "peerLinks",
   [WS_METHODS.peerLinksUnlink]: "peerLinks",

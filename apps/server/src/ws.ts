@@ -2530,7 +2530,10 @@ export const layerWsRpc = (
         [WS_METHODS.serverGetStorageCleanupReport]: () => storageCleanup.reports,
         [WS_METHODS.serverGetDatabaseStorage]: () => databaseStorage.status,
         [WS_METHODS.serverPreviewT3CodeImport]: () => t3CodeImport.preview, // fork: import from official T3 Code
-        [WS_METHODS.serverRunT3CodeImport]: (input) => t3CodeImport.run(input), // fork: import from official T3 Code
+        [WS_METHODS.serverCheckT3CodeImport]: (input) => t3CodeImport.check(input), // fork: import from official T3 Code
+        [WS_METHODS.serverRunT3CodeImport]: (input) =>
+          t3CodeImport.start(input).pipe(Effect.as({})), // fork: import from official T3 Code
+        [WS_METHODS.serverSubscribeT3CodeImport]: () => t3CodeImport.state, // fork: import from official T3 Code
         [WS_METHODS.peerLinksList]: (_input) =>
           peerLinks.list.pipe(Effect.map((links) => ({ links }))),
         [WS_METHODS.peerLinksLink]: (input) => peerLinks.link(input),
@@ -3030,7 +3033,12 @@ export const layerWsRpc = (
         [WS_METHODS.vcsCreateWorktree]: (input) =>
           gitWorkflow.createWorktree(input).pipe(Effect.tap(() => refreshGitStatus(input.cwd))),
         [WS_METHODS.vcsRemoveWorktree]: (input) =>
-          gitWorkflow.removeWorktree(input).pipe(Effect.tap(() => refreshGitStatus(input.cwd))),
+          t3CodeImport // fork: worktrees imported from T3 Code are shared with it and never removed here
+            .assertWorktreeNotShared(input)
+            .pipe(
+              Effect.andThen(gitWorkflow.removeWorktree(input)),
+              Effect.tap(() => refreshGitStatus(input.cwd)),
+            ),
         [WS_METHODS.vcsCreateRef]: (input) =>
           gitWorkflow.createRef(input).pipe(Effect.tap(() => refreshGitStatus(input.cwd))),
         [WS_METHODS.vcsSwitchRef]: (input) =>

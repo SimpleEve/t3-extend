@@ -239,6 +239,16 @@ Android 流水线（`scripts/fork-build-android-release.ts`）：`APP_VARIANT=pr
 - passkey 和 Associated Domains 需要 Apple 签发的 provisioning profile，不可用。
 - 只打 arm64，没有 universal 版本，也没有 Linux 和 Windows 的 fork 打包。
 
+## 从 T3 Code 导入
+
+设置 → 维护 → "Import from T3 Code"。读取本机官方 T3 Code 的 `~/.t3/userdata`（只读，开发时可用 `T3CODE_IMPORT_SOURCE_HOME` 指向副本），把选中的项目、对话、定时任务和设置带进正在运行的 T3 Extend。服务在 `apps/server/src/fork/T3CodeImport.ts`，只有 host 上的 server 能读 `~/.t3`，所以入口放在设置页，靠 `capabilities.t3CodeImport` 判断，手机端不提供。
+
+- **不碰官方数据**：源库只读打开，整个导入在一个读事务里完成，所有行来自同一时刻。版本比 T3 Extend 新就拒绝（"先更新 T3 Extend"）；更旧就在 `userdata/t3-import-*` 里复制一份、跑迁移后再读，用完删除。
+- **对话换新 id**：源 id → 目标 id 由 sha256 派生，同一个源永远得到同一个目标，重跑和续跑都幂等。行里所有出现旧 id 的文本（scope id、run id、检查点 ref 等派生名）一并替换，所以两个应用继续同一个对话时互不覆盖检查点。检查点 ref 用 `git update-ref --stdin` 按新名字复制到同一个仓库，旧 ref 不动。删除 ref 的只有回滚（`CheckpointRollbackService`），没有定期清理。
+- **到达时是停止状态**：正在跑、排队、有待处理请求、有恢复任务的对话整家跳过；其余的不带运行中的会话、绑定、outbox、命令回执，`limitRecovery` 清空，provider thread 只保留原生会话句柄。定时任务、auth、配对链接、peer 链接、环境 id、签名密钥、`connection-catalog.json`（用官方 Electron safeStorage 加密）都不带。
+- **worktree 共用**：对话仍指向 `~/.t3/worktrees` 下原来的目录，不移动文件。这些路径记在导入表里（`kind='worktree'`），`vcs.removeWorktree` 在 `ws.ts` 里先查表，命中就拒绝；存储清理只处理 `managedWorktreesDirectories`，不含官方目录。设置里的 `previousWorktreesDirectories` 不导入，否则会让清理接管官方的目录。
+- **状态记录不进编号迁移**：Effect 的 migrator 遇到重复 id 会失败，并且会跳过不大于已应用最大值的 id，fork 自己加一个 078 会让下一次同步上游出问题。**fork 不新增编号迁移**。导入的 id 映射和运行记录放在服务启动时 `CREATE TABLE IF NOT EXISTS` 建的 `fork_t3code_import_map` / `fork_t3code_import_runs`。做法参照上游 `orchestration_v2_legacy_imports`：每个对话一行进度，`copying` 的下次从头重做该对话，`done` 的跳过。
+
 ## 同步上游
 
 ```bash
