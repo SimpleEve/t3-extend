@@ -31,6 +31,11 @@ export function DraftHeroProjectHeading({
     return observeResize([container, inline], update);
   }, []);
 
+  // fork: one sentence around the name, so languages can put it first ("在 {project} 要做点什么？").
+  const [inlineBefore = "", inlineAfter = ""] = t("What should we build in {project}?").split(
+    "{project}",
+  );
+
   return (
     <div ref={containerRef} className="group/draft-hero relative w-full" data-inline={fitsInline}>
       <span
@@ -41,30 +46,27 @@ export function DraftHeroProjectHeading({
           ref={inlineRef}
           className="flex w-max items-baseline gap-2 whitespace-nowrap font-normal text-3xl tracking-tight"
         >
-          <span>
-            {t("What should we build", undefined, "draft hero")}
-            {t(" in", undefined, "draft hero")}
-          </span>
+          <span>{inlineBefore.trimEnd()}</span>
           <span>
             <span className="font-medium">{projectName}</span>
-            {t("?", undefined, "draft hero inline")}
+            {inlineAfter}
           </span>
         </span>
       </span>
       <h1 className="flex w-full flex-col items-center justify-center gap-2 text-center font-normal text-2xl text-foreground tracking-tight sm:text-3xl lg:group-data-[inline=true]/draft-hero:flex-row">
         <span className="max-w-full lg:group-data-[inline=true]/draft-hero:shrink-0">
-          {t("What should we build", undefined, "draft hero")}
           <span className="lg:group-data-[inline=true]/draft-hero:hidden">
+            {t("What should we build", undefined, "draft hero")}
             {t("?", undefined, "draft hero stacked")}
           </span>
           <span className="hidden lg:group-data-[inline=true]/draft-hero:inline">
-            {t(" in", undefined, "draft hero")}
+            {inlineBefore.trimEnd()}
           </span>
         </span>
         <span className="flex min-w-0 max-w-full items-baseline justify-center text-base tracking-normal lg:group-data-[inline=true]/draft-hero:text-3xl lg:group-data-[inline=true]/draft-hero:tracking-tight">
           <span className="min-w-0">{children}</span>
-          <span className="hidden shrink-0 lg:group-data-[inline=true]/draft-hero:inline">
-            {t("?", undefined, "draft hero inline")}
+          <span className="hidden shrink-0 whitespace-pre lg:group-data-[inline=true]/draft-hero:inline">
+            {inlineAfter}
           </span>
         </span>
       </h1>

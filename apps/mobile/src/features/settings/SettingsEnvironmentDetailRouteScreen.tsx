@@ -224,12 +224,14 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
             ) : !allowed ? (
               <Text className="px-2 text-sm text-foreground-muted">
                 {AsyncResult.isFailure(sessionResult) || session === null || !session.authenticated
-                  ? sessionPermissionsUnavailableMessage({
-                      connected,
-                      failed: AsyncResult.isFailure(sessionResult),
-                      rejected:
-                        !AsyncResult.isFailure(sessionResult) && session?.authenticated === false,
-                    })
+                  ? t(
+                      sessionPermissionsUnavailableMessage({
+                        connected,
+                        failed: AsyncResult.isFailure(sessionResult),
+                        rejected:
+                          !AsyncResult.isFailure(sessionResult) && session?.authenticated === false,
+                      }),
+                    )
                   : t("This connection does not have permission to manage the environment.")}
               </Text>
             ) : null}

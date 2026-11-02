@@ -1,3 +1,4 @@
+import { loadUiCatalog, setUiLocale, translatorFor } from "@t3tools/client-runtime/i18n";
 import { RunId } from "@t3tools/contracts";
 import type { TimestampFormat } from "@t3tools/contracts/settings";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -6,7 +7,11 @@ import { usageLimitRecoveryBannerItem } from "./UsageLimitRecoveryBanner";
 
 const stoppedAt = new Date(2026, 9, 20, 12, 0);
 
-function bannerDescription(resetAt: Date, timestampFormat: TimestampFormat) {
+function bannerDescription(
+  resetAt: Date,
+  timestampFormat: TimestampFormat,
+  t?: ReturnType<typeof translatorFor>,
+) {
   return usageLimitRecoveryBannerItem({
     runId: RunId.make("run-1"),
     resetAt: resetAt.toISOString(),
@@ -15,6 +20,7 @@ function bannerDescription(resetAt: Date, timestampFormat: TimestampFormat) {
     recovery: null,
     timestampFormat,
     onChange: async () => {},
+    ...(t ? { t } : {}),
   }).description;
 }
 
@@ -32,5 +38,22 @@ describe("usageLimitRecoveryBannerItem", () => {
     expect(bannerDescription(new Date(2026, 9, 21, 17, 30), "24-hour")).toBe(
       "Resets tomorrow at 17:30",
     );
+  });
+
+  it("names the day in Chinese for resets tomorrow and yesterday", async () => {
+    using _now = vi.spyOn(Date, "now").mockReturnValue(stoppedAt.getTime());
+    await loadUiCatalog("zh-Hans");
+    await setUiLocale("zh-Hans");
+    try {
+      const t = translatorFor("zh-Hans");
+      expect(bannerDescription(new Date(2026, 9, 21, 17, 30), "24-hour", t)).toBe(
+        "明天 17:30 重置",
+      );
+      expect(bannerDescription(new Date(2026, 9, 19, 23, 35), "24-hour", t)).toBe(
+        "昨天 23:35 重置",
+      );
+    } finally {
+      await setUiLocale("en");
+    }
   });
 });
