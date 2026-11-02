@@ -13,6 +13,14 @@ import {
 } from "./threadListV2";
 import { computeThreadMoveAvailability } from "./threadOrder";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import type { SidebarViewMode } from "@t3tools/client-runtime/state/thread-grouping"; // fork: thread list views
+import { buildThreadListProjectRows } from "../../fork/threadListProjectView"; // fork: thread list views
+import { isGroupedByProject } from "../../fork/threadListView"; // fork: thread list views
+import {
+  sortHomeProjectScopes,
+  type HomeProjectScope,
+  type HomeProjectSortOrder,
+} from "../home/homeThreadList"; // fork: thread list views
 
 /**
  * Screens' select handlers read the content-only key set; a fresh one per list rebuild gave
@@ -66,8 +74,16 @@ export function useThreadListV2(input: {
   readonly snoozedShelfExpanded: boolean;
   readonly settledShelfExpanded: boolean;
   readonly selectedThreadKey: string | null;
+  // fork: thread list views
+  readonly viewMode: SidebarViewMode;
+  readonly collapsedGroupKeys: ReadonlySet<string>;
+  readonly projectScopes: ReadonlyArray<HomeProjectScope>;
+  readonly projectSortOrder: HomeProjectSortOrder;
 }) {
   const t = useT();
+  // fork: thread list views. Grouped rows follow the send order, so there is no Working
+  // shelf and no manual reorder.
+  const groupedByProject = isGroupedByProject(input.viewMode, input.searchQuery);
   const { threads, workingShelfEnabled } = input;
   // A thread can stop working when the threads change, or when its exit grace expires.
   const inboxVersion = useSyncExternalStore(
@@ -100,7 +116,7 @@ export function useThreadListV2(input: {
     });
   const moveAvailability = new Map([
     ...sectionAvailability("pinned"),
-    ...(workingShelfEnabled ? [] : sectionAvailability("active")),
+    ...(workingShelfEnabled || groupedByProject ? [] : sectionAvailability("active")),
   ]);
   // Older settled threads load in pages; the shelf lists them only as far as they are loaded.
   const scopes = olderSettledScopes(input);
@@ -122,7 +138,7 @@ export function useThreadListV2(input: {
     queuedThreadKeys: input.queuedThreadKeys,
     settledLimit: input.settledLimit,
     now: input.now,
-    workingShelfEnabled,
+    workingShelfEnabled: workingShelfEnabled && !groupedByProject, // fork: thread list views
     workingShelfExpanded: input.workingShelfExpanded,
     inboxReturnAt: inbox.returnedAt,
     isWorking: inbox.isWorking,
@@ -158,7 +174,28 @@ export function useThreadListV2(input: {
         )) &&
       (searchQuery.length === 0 || pendingTask.title.toLocaleLowerCase().includes(searchQuery)),
   );
+  // fork: thread list views
+  const projectView = groupedByProject
+    ? buildThreadListProjectRows({
+        items: layout.items,
+        firstShelfIndex: layout.snoozedShelfHeaderIndex ?? layout.settledShelfHeaderIndex,
+        groups: sortHomeProjectScopes({
+          scopes: input.projectScopes,
+          threads,
+          pendingTasks: input.pendingTasks,
+          projectSortOrder: input.projectSortOrder,
+        }).map((scope) => ({
+          projectKey: scope.key,
+          title: scope.title,
+          memberProjectRefs: scope.projectRefs,
+        })),
+        collapsedKeys: input.collapsedGroupKeys,
+        openThreadKey: input.selectedThreadKey,
+        otherTitle: t("Other projects"),
+      })
+    : undefined;
   const items = buildThreadListV2ListItems({
+    ...(projectView ? { projectView } : {}),
     items: layout.items,
     pendingTasks,
     workingCount: layout.workingCount,
@@ -177,7 +214,7 @@ export function useThreadListV2(input: {
     moveAvailability,
     shelfPreferencesLoading: !input.shelfPreferencesLoaded,
   });
-  return { layout, items, contentOnlyThreadKeys, olderSettledShelf };
+  return { layout, items, contentOnlyThreadKeys, olderSettledShelf, groupedByProject };
 }
 
 /** The list's scope per environment: its projects there, or every project. */

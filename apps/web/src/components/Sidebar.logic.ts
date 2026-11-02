@@ -1009,31 +1009,8 @@ export function sidebarFolderExpansionKeys(group: {
  * input order. A project with no threads gets a folder only when `keepEmpty` says so.
  * A thread whose project is in no group has no folder and is left out.
  */
-export function groupSidebarThreadsByProject<
-  TGroup extends {
-    readonly memberProjectRefs: ReadonlyArray<{
-      readonly environmentId: EnvironmentId;
-      readonly projectId: string;
-    }>;
-  },
-  TThread extends Pick<SidebarThreadSummary, "environmentId" | "projectId">,
->(
-  groups: readonly TGroup[],
-  threads: readonly TThread[],
-  keepEmpty: (group: TGroup) => boolean,
-): Array<{ group: TGroup; threads: TThread[] }> {
-  const folders = groups.map((group) => ({ group, threads: [] as TThread[] }));
-  const folderByProject = new Map<string, (typeof folders)[number]>();
-  for (const folder of folders) {
-    for (const ref of folder.group.memberProjectRefs) {
-      folderByProject.set(`${ref.environmentId}:${ref.projectId}`, folder);
-    }
-  }
-  for (const thread of threads) {
-    folderByProject.get(`${thread.environmentId}:${thread.projectId}`)?.threads.push(thread);
-  }
-  return folders.filter((folder) => folder.threads.length > 0 || keepEmpty(folder.group));
-}
+// fork: the grouping moved to client-runtime so mobile shares it.
+export { groupThreadsByProject as groupSidebarThreadsByProject } from "@t3tools/client-runtime/state/thread-grouping";
 
 export type SidebarV2TopStatusKind =
   | "approval"

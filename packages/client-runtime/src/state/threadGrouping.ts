@@ -191,3 +191,95 @@ export function buildProjectViewFolders<
     };
   });
 }
+
+/**
+ * Puts each thread in the folder of the project group that owns it, in group order.
+ * Threads of a project no group knows are dropped; empty folders stay when `keepEmpty` says so.
+ */
+export function groupThreadsByProject<
+  TGroup extends {
+    readonly memberProjectRefs: ReadonlyArray<{
+      readonly environmentId: EnvironmentId;
+      readonly projectId: string;
+    }>;
+  },
+  TThread extends { readonly environmentId: EnvironmentId; readonly projectId: string },
+>(
+  groups: readonly TGroup[],
+  threads: readonly TThread[],
+  keepEmpty: (group: TGroup) => boolean,
+): Array<{ group: TGroup; threads: TThread[] }> {
+  const folders = groups.map((group) => ({ group, threads: [] as TThread[] }));
+  const folderByProject = new Map<string, (typeof folders)[number]>();
+  for (const folder of folders) {
+    for (const ref of folder.group.memberProjectRefs) {
+      folderByProject.set(`${ref.environmentId}:${ref.projectId}`, folder);
+    }
+  }
+  for (const thread of threads) {
+    folderByProject.get(`${thread.environmentId}:${thread.projectId}`)?.threads.push(thread);
+  }
+  return folders.filter((folder) => folder.threads.length > 0 || keepEmpty(folder.group));
+}
+
+/** Every thread a folder stands for, folded or not; a header's count. */
+export function projectViewFolderThreadCount<G, T>(folder: ProjectViewFolder<G, T>): number {
+  if (folder.worktrees !== null) {
+    return folder.worktrees.reduce((total, worktree) => total + worktree.threads.length, 0);
+  }
+  return folder.threads.length + folder.hiddenThreads.length;
+}
+
+/** One line of the project view for a flat, virtualized list. */
+export type ProjectViewRow<G, T> =
+  | {
+      readonly kind: "project";
+      readonly collapseKey: string;
+      readonly group: G;
+      readonly collapsed: boolean;
+      readonly count: number;
+    }
+  | {
+      readonly kind: "worktree";
+      readonly collapseKey: string;
+      readonly group: G;
+      readonly worktree: ProjectViewWorktree<T>;
+      readonly collapsed: boolean;
+      readonly count: number;
+    }
+  | { readonly kind: "thread"; readonly thread: T };
+
+/**
+ * Lays folders out top to bottom: the project header, then each worktree header with its
+ * rows, or the folder's rows when it has no worktree split.
+ */
+export function flattenProjectViewFolders<G, T>(
+  folders: ReadonlyArray<ProjectViewFolder<G, T>>,
+): ProjectViewRow<G, T>[] {
+  const rows: ProjectViewRow<G, T>[] = [];
+  for (const folder of folders) {
+    rows.push({
+      kind: "project",
+      collapseKey: folder.collapseKey,
+      group: folder.group,
+      collapsed: folder.collapsed,
+      count: projectViewFolderThreadCount(folder),
+    });
+    if (folder.worktrees === null) {
+      for (const thread of folder.threads) rows.push({ kind: "thread", thread });
+      continue;
+    }
+    for (const worktree of folder.worktrees) {
+      rows.push({
+        kind: "worktree",
+        collapseKey: worktree.collapseKey,
+        group: folder.group,
+        worktree,
+        collapsed: worktree.collapsed,
+        count: worktree.threads.length,
+      });
+      for (const thread of worktree.visibleThreads) rows.push({ kind: "thread", thread });
+    }
+  }
+  return rows;
+}

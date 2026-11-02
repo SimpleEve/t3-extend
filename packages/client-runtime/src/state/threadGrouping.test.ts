@@ -3,7 +3,11 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   buildProjectViewFolders,
+  flattenProjectViewFolders,
+  groupThreadsByProject,
   groupThreadsByWorktree,
+  projectViewFolderThreadCount,
+  type ProjectViewRow,
   sidebarGroupCollapseKey,
   threadWorktreeGroupKey,
 } from "./threadGrouping.ts";
@@ -153,8 +157,83 @@ describe("buildProjectViewFolders", () => {
     expect(ids(foldedRepo!.hiddenThreads)).toEqual(["wt-a", "wt-a-2"]);
   });
 
+  it("flattens folders into header and thread rows, counting threads a fold hides", () => {
+    const shape = (rows: ReadonlyArray<ProjectViewRow<unknown, typeof main>>) =>
+      rows.map((row) =>
+        row.kind === "thread"
+          ? row.thread.id
+          : `${row.kind}:${row.collapseKey}:${row.count}${row.collapsed ? ":folded" : ""}`,
+      );
+    expect(shape(flattenProjectViewFolders(build([])))).toEqual([
+      "project:project:project:repo:3",
+      `worktree:project:worktree:${threadWorktreeGroupKey(main)}:1`,
+      "main",
+      `worktree:project:worktree:${threadWorktreeGroupKey(wtA)}:2`,
+      "wt-a",
+      "wt-a-2",
+      "project:project:project:docs:1",
+      "doc",
+    ]);
+    // A folded project drops its worktree headers but still counts every thread, and keeps the open one.
+    const folded = build(["project:project:repo"], "wt-a");
+    expect(projectViewFolderThreadCount(folded[0]!)).toBe(3);
+    expect(shape(flattenProjectViewFolders(folded)).slice(0, 2)).toEqual([
+      "project:project:project:repo:3:folded",
+      "wt-a",
+    ]);
+  });
+
   it("ignores another view's folds", () => {
     const [repoFolder] = build(["status:project:repo"]);
     expect(repoFolder?.collapsed).toBe(false);
+  });
+});
+
+describe("groupThreadsByProject", () => {
+  it("puts each thread in its project's folder and drops empty projects unless kept", () => {
+    const remote = EnvironmentId.make("environment-remote");
+    const t3code = ProjectId.make("t3code");
+    const t3codeRemote = ProjectId.make("t3code-remote");
+    const fleet = ProjectId.make("fleet");
+    const entry = (id: string, environmentId: EnvironmentId, project: ProjectId) => ({
+      id,
+      environmentId,
+      projectId: project,
+    });
+    const groups = [
+      {
+        projectKey: "t3code",
+        memberProjectRefs: [
+          { environmentId: laptop, projectId: t3code },
+          { environmentId: remote, projectId: t3codeRemote },
+        ],
+      },
+      { projectKey: "fleet", memberProjectRefs: [{ environmentId: laptop, projectId: fleet }] },
+      {
+        projectKey: "notes",
+        memberProjectRefs: [{ environmentId: laptop, projectId: ProjectId.make("notes") }],
+      },
+    ];
+    const threads = [
+      entry("a", laptop, t3code),
+      entry("orphan", laptop, ProjectId.make("deleted")),
+      entry("b", remote, t3codeRemote),
+    ];
+    const summarize = (keepEmpty: (group: (typeof groups)[number]) => boolean) =>
+      groupThreadsByProject(groups, threads, keepEmpty).map((folder) => [
+        folder.group.projectKey,
+        ids(folder.threads),
+      ]);
+
+    expect(summarize(() => true)).toEqual([
+      ["t3code", ["a", "b"]],
+      ["fleet", []],
+      ["notes", []],
+    ]);
+    expect(summarize(() => false)).toEqual([["t3code", ["a", "b"]]]);
+    expect(summarize((group) => group.projectKey === "fleet")).toEqual([
+      ["t3code", ["a", "b"]],
+      ["fleet", []],
+    ]);
   });
 });

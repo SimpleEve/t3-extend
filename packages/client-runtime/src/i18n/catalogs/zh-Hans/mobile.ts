@@ -853,6 +853,12 @@ export default {
   // Notifications generated on the device
   "Agent alerts": "Agent 提醒",
   "Agent work in progress": "Agent 正在工作",
+  // fork: thread list views (project and worktree headers)
+  "Other projects": "其他项目",
+  "{name}, 1 thread": "{name}，1 个对话",
+  "{name}, {count} threads": "{name}，{count} 个对话",
+  "Expands this group.": "展开这个分组。",
+  "Collapses this group.": "折叠这个分组。",
   // Thread list times; the other units are in time.ts
   "<1m": "不到 1 分钟",
 } satisfies Record<string, string>;

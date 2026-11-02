@@ -68,4 +68,22 @@ describe("mobile preferences store", () => {
       expect(MobilePreferences.uiLanguageSettingOf(null)).toBe("system");
     }),
   );
+
+  it.effect("reads the thread list view and its folds, ignoring bad values", () =>
+    Effect.gen(function* () {
+      const saved = yield* loadStored({
+        threadListViewMode: "project",
+        threadListCollapsedGroups: ["project:project:repo", 3, "project:worktree:a"],
+      });
+      expect(saved.threadListViewMode).toBe("project");
+      expect(saved.threadListCollapsedGroups).toEqual([
+        "project:project:repo",
+        "project:worktree:a",
+      ]);
+
+      const bad = yield* loadStored({ threadListViewMode: "grid", threadListCollapsedGroups: "x" });
+      expect(bad.threadListViewMode).toBeUndefined();
+      expect(bad.threadListCollapsedGroups).toBeUndefined();
+    }),
+  );
 });

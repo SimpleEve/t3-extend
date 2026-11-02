@@ -1,5 +1,6 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { SidebarViewMode } from "@t3tools/client-runtime/state/thread-grouping"; // fork: thread list views
 
 export interface HomeListFilterMenuEnvironment {
   readonly environmentId: EnvironmentId;
@@ -38,10 +39,28 @@ export function buildHomeListFilterMenu(
     readonly selectedProjectKey: string | null;
     readonly onEnvironmentChange: (environmentId: EnvironmentId | null) => void;
     readonly onProjectChange: (projectKey: string | null) => void;
+    // fork: thread list views
+    readonly viewMode?: SidebarViewMode;
+    readonly onViewModeChange?: (viewMode: SidebarViewMode) => void;
   },
   t: Translator,
 ): HomeListFilterMenu {
   const items: Array<HomeListFilterMenuAction | HomeListFilterMenuSubmenu> = [];
+
+  // fork: thread list views
+  const { viewMode, onViewModeChange } = props;
+  if (viewMode !== undefined && onViewModeChange !== undefined) {
+    items.push({
+      type: "submenu",
+      title: t("Group threads"),
+      items: (["status", "project"] as const).map((mode) => ({
+        type: "action" as const,
+        title: mode === "status" ? t("By status") : t("By project"),
+        state: viewMode === mode ? ("on" as const) : ("off" as const),
+        onPress: () => onViewModeChange(mode),
+      })),
+    });
+  }
 
   items.push({
     type: "submenu",

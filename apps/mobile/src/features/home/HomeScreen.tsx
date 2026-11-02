@@ -88,6 +88,8 @@ import { useFabScroll } from "./FabScrollContext";
 import { useWorkspaceTabs } from "../workspace/WorkspaceTabsContext";
 import { ThreadListFilters } from "./ThreadListFilters";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { useThreadListViewPreferences } from "../../fork/threadListView"; // fork: thread list views
+import { ThreadListV2GroupHeader } from "../../fork/ThreadListGroupHeader"; // fork: thread list views
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 interface HomeScreenProps {
@@ -436,6 +438,7 @@ export function HomeScreen(props: HomeScreenProps) {
     toggleSnoozedShelf,
     toggleWorkingShelf,
   } = useThreadListV2ShelfPreferences();
+  const { viewMode, collapsedKeys, toggleGroup } = useThreadListViewPreferences(); // fork: thread list views
   const now = useThreadListNow(props.threads);
   const listEnvironments = useAtomValue(threadListEnvironmentsAtom);
   const {
@@ -457,7 +460,12 @@ export function HomeScreen(props: HomeScreenProps) {
     items: threadListV2Items,
     contentOnlyThreadKeys,
     olderSettledShelf,
+    groupedByProject, // fork: thread list views
   } = useThreadListV2({
+    viewMode, // fork: thread list views
+    collapsedGroupKeys: collapsedKeys, // fork: thread list views
+    projectScopes, // fork: thread list views
+    projectSortOrder: props.projectSortOrder, // fork: thread list views
     threads: props.threads,
     pendingTasks: props.pendingTasks,
     environmentId: props.selectedEnvironmentId,
@@ -501,6 +509,16 @@ export function HomeScreen(props: HomeScreenProps) {
   }, [activateVisibleRows, swipeEnabled, threadListV2Items]);
 
   const renderV2Item = ({ item }: { readonly item: ThreadListV2ListItem }) => {
+    if (item.type === "v2-group-header") {
+      // fork: thread list views
+      return (
+        <ThreadListV2GroupHeader
+          item={item}
+          pane={primaryColumn ? "sidebar" : "screen"}
+          onToggle={toggleGroup}
+        />
+      );
+    }
     if (item.type === "v2-pending") {
       const pendingScopeKey = scopedProjectKey(
         item.pendingTask.environmentId,
@@ -620,7 +638,9 @@ export function HomeScreen(props: HomeScreenProps) {
         reorderSupported={
           item.item.pinned
             ? pinReorderEnvironmentIds.has(thread.environmentId)
-            : !workingShelfEnabled && activeReorderEnvironmentIds.has(thread.environmentId)
+            : !workingShelfEnabled &&
+              !groupedByProject &&
+              activeReorderEnvironmentIds.has(thread.environmentId)
         }
         canMoveUp={item.canMoveUp}
         canMoveDown={item.canMoveDown}
@@ -651,6 +671,7 @@ export function HomeScreen(props: HomeScreenProps) {
     selectedThreadKey,
     threadSearchMatchByKey,
     workingShelfEnabled,
+    groupedByProject, // fork: thread list views
   };
 
   const hasAnyThreads =

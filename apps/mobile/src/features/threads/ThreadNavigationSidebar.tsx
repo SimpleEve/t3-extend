@@ -52,6 +52,12 @@ import { requestThreadMessageJump } from "./threadMessageJump";
 import { useThreadListSearchMatches } from "./useThreadListSearchMatches";
 import { useHomeListOptions } from "../home/home-list-options";
 import { buildHomeListFilterMenu } from "../home/home-list-filter-menu";
+import { useThreadListViewPreferences } from "../../fork/threadListView"; // fork: thread list views
+import { ThreadListV2GroupHeader } from "../../fork/ThreadListGroupHeader"; // fork: thread list views
+import {
+  threadListViewFromMenuEvent,
+  threadListViewMenuAction,
+} from "../../fork/threadListViewMenu"; // fork: thread list views
 import { buildHomeProjectScopes } from "../home/homeThreadList";
 import { SwipeableScrollGateProvider, useSwipeableScrollGate } from "../home/thread-swipe-actions";
 import { usePendingTaskListActions } from "../home/usePendingTaskListActions";
@@ -286,6 +292,7 @@ function ThreadNavigationSidebarPane(
     toggleSnoozedShelf,
     toggleWorkingShelf,
   } = useThreadListV2ShelfPreferences();
+  const { viewMode, collapsedKeys, toggleGroup, setViewMode } = useThreadListViewPreferences(); // fork: thread list views
   const now = useThreadListNow(threads);
   const listEnvironments = useAtomValue(threadListEnvironmentsAtom);
   const {
@@ -307,7 +314,12 @@ function ThreadNavigationSidebarPane(
     items: threadListV2Items,
     contentOnlyThreadKeys,
     olderSettledShelf,
+    groupedByProject, // fork: thread list views
   } = useThreadListV2({
+    viewMode, // fork: thread list views
+    collapsedGroupKeys: collapsedKeys, // fork: thread list views
+    projectScopes, // fork: thread list views
+    projectSortOrder: options.projectSortOrder, // fork: thread list views
     threads,
     pendingTasks,
     environmentId: options.selectedEnvironmentId,
@@ -346,6 +358,7 @@ function ThreadNavigationSidebarPane(
         ]
       : threadListV2Items;
   const listMenuActions = [
+    threadListViewMenuAction(viewMode, t), // fork: thread list views
     {
       id: "environment",
       title: t("Environment"),
@@ -394,6 +407,12 @@ function ThreadNavigationSidebarPane(
     readonly nativeEvent: { readonly event: string };
   }) => {
     const event = nativeEvent.event;
+    // fork: thread list views
+    const view = threadListViewFromMenuEvent(event);
+    if (view !== null) {
+      setViewMode(view);
+      return;
+    }
     if (event === "environment:all") {
       setSelectedEnvironmentId(null);
       return;
@@ -481,6 +500,7 @@ function ThreadNavigationSidebarPane(
     listEnvironments,
     threadSearchMatchByKey,
     workingShelfEnabled,
+    groupedByProject, // fork: thread list views
   };
   useThreadJumpShortcuts(listItems, handleSelectThread);
   const sidebarItemsAreEqual = (previous: SidebarListItem, item: SidebarListItem): boolean => {
@@ -512,6 +532,8 @@ function ThreadNavigationSidebarPane(
   useHardwareKeyboardCommand("focusSearch", focusSearch);
   const renderListItem = ({ item }: { readonly item: SidebarListItem }) => {
     switch (item.type) {
+      case "v2-group-header": // fork: thread list views
+        return <ThreadListV2GroupHeader item={item} pane="sidebar" onToggle={toggleGroup} />;
       case "v2-pending": {
         const pendingScopeKey = scopedProjectKey(
           item.pendingTask.environmentId,
@@ -607,7 +629,9 @@ function ThreadNavigationSidebarPane(
             reorderSupported={
               item.item.pinned
                 ? pinReorderEnvironmentIds.has(thread.environmentId)
-                : !workingShelfEnabled && activeReorderEnvironmentIds.has(thread.environmentId)
+                : !workingShelfEnabled &&
+                  !groupedByProject &&
+                  activeReorderEnvironmentIds.has(thread.environmentId)
             }
             canMoveUp={item.canMoveUp}
             canMoveDown={item.canMoveDown}
@@ -680,6 +704,8 @@ function ThreadNavigationSidebarPane(
       selectedProjectKey,
       onEnvironmentChange: setSelectedEnvironmentId,
       onProjectChange: setSelectedProjectKey,
+      viewMode, // fork: thread list views
+      onViewModeChange: setViewMode, // fork: thread list views
     },
     t,
   );

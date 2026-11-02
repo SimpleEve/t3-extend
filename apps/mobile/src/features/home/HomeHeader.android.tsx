@@ -3,6 +3,11 @@ import { NativeStackScreenOptions } from "../../native/StackHeader";
 import { ThreadListToolbar } from "./ThreadListToolbar";
 import type { HomeHeaderProps } from "./HomeHeader.types";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { useThreadListViewPreferences } from "../../fork/threadListView"; // fork: thread list views
+import {
+  threadListViewFromMenuEvent,
+  threadListViewMenuAction,
+} from "../../fork/threadListViewMenu"; // fork: thread list views
 
 export type { HomeHeaderEnvironment } from "./HomeHeader.types";
 
@@ -12,9 +17,11 @@ function checkedMenuState(checked: boolean) {
 
 export function HomeHeader(props: HomeHeaderProps) {
   const t = useT();
+  const { viewMode, setViewMode } = useThreadListViewPreferences(); // fork: thread list views
   const hasCustomListOptions =
     props.selectedEnvironmentId !== null || props.selectedProjectKey !== null;
   const menuActions: MenuAction[] = [
+    threadListViewMenuAction(viewMode, t), // fork: thread list views
     {
       id: "environment",
       title: t("Environment"),
@@ -54,6 +61,12 @@ export function HomeHeader(props: HomeHeaderProps) {
   ];
   const handleMenuAction = (event: { nativeEvent: { event: string } }) => {
     const id = event.nativeEvent.event;
+    // fork: thread list views
+    const view = threadListViewFromMenuEvent(id);
+    if (view !== null) {
+      setViewMode(view);
+      return;
+    }
     if (id === "environment:all") {
       props.onEnvironmentChange(null);
       return;
