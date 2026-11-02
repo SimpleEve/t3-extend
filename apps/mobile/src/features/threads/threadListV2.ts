@@ -392,6 +392,8 @@ export interface ThreadListV2ThreadListItem {
   readonly hasQueuedMessages: boolean;
   readonly canMoveUp: boolean;
   readonly canMoveDown: boolean;
+  /** fork: a row one level under a worktree header in the project view; "last" ends its guide line. */
+  readonly nested?: "row" | "last";
 }
 
 export interface ThreadListV2PendingListItem {
@@ -434,8 +436,8 @@ export interface ThreadListV2GroupHeaderListItem {
   readonly level: "project" | "worktree";
   readonly collapseKey: string;
   readonly title: string;
-  /** "Main" on a main checkout, which names its branch. */
-  readonly badge: string | null;
+  /** A worktree header whose rows are drawn below it, so its guide line continues down. */
+  readonly hasRows: boolean;
   /** Every thread the group stands for, folded or not. */
   readonly count: number;
   readonly collapsed: boolean;
@@ -485,7 +487,8 @@ export function threadListV2ListItemsAreEqual(
         previous.showTrailingDivider === item.showTrailingDivider &&
         previous.hasQueuedMessages === item.hasQueuedMessages &&
         previous.canMoveUp === item.canMoveUp &&
-        previous.canMoveDown === item.canMoveDown
+        previous.canMoveDown === item.canMoveDown &&
+        previous.nested === item.nested // fork: thread list views
       );
     case "v2-group-header": // fork: thread list views
       return (
@@ -493,7 +496,7 @@ export function threadListV2ListItemsAreEqual(
         previous.key === item.key &&
         previous.level === item.level &&
         previous.title === item.title &&
-        previous.badge === item.badge &&
+        previous.hasRows === item.hasRows &&
         previous.count === item.count &&
         previous.collapsed === item.collapsed &&
         previous.dot === item.dot
@@ -698,11 +701,17 @@ function projectViewListItems(
 ): ThreadListV2ListItem[] {
   const itemByThread = new Map(items.map((item, index) => [item.thread, threadItems[index]!]));
   const t: Translator = translate ?? ((text) => text);
-  return rows.flatMap((row): ThreadListV2ListItem[] => {
+  // Rows after a worktree header sit one level under it; a project header ends that.
+  let underWorktree = false;
+  return rows.flatMap((row, index): ThreadListV2ListItem[] => {
     if (row.kind === "thread") {
       const item = itemByThread.get(row.thread);
-      return item ? [item] : [];
+      if (!item) return [];
+      if (!underWorktree || item.type !== "v2-thread") return [item];
+      const last = rows[index + 1]?.kind !== "thread";
+      return [{ ...item, nested: last ? "last" : "row" }];
     }
+    underWorktree = row.kind === "worktree";
     const worktree = row.kind === "worktree" ? row.worktree : null;
     return [
       {
@@ -711,7 +720,7 @@ function projectViewListItems(
         level: worktree ? "worktree" : "project",
         collapseKey: row.collapseKey,
         title: worktree ? (worktree.label ?? t("Main checkout")) : row.group.title,
-        badge: worktree?.kind === "main" ? t("Main", undefined, "worktree badge") : null,
+        hasRows: worktree !== null && worktree.visibleThreads.length > 0,
         count: row.count,
         collapsed: row.collapsed,
         // Like the web headers: a folded project says what its hidden rows need; a worktree

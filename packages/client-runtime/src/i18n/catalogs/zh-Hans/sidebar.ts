@@ -131,7 +131,6 @@ export default {
   "By status": "按状态",
   "By project": "按项目",
   "Main checkout": "主 checkout",
-  "worktree badge|Main": "主",
   "1 thread": "1 个对话",
   "{count} threads": "{count} 个对话",
 

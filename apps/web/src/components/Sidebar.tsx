@@ -3349,6 +3349,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         section: SidebarSection,
                         // The tree row of the project folder this row sits in.
                         folderRow?: string,
+                        nested?: "row" | "last", // fork: one level under a worktree header
                       ) => {
                         const threadKey = scopedThreadKey(
                           scopeThreadRef(thread.environmentId, thread.id),
@@ -3375,6 +3376,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             }
                             thread={thread}
                             variant={rowVariant}
+                            nested={nested} // fork: project view hierarchy
                             navigationParent={
                               folderRow ??
                               (section === "working" ||
@@ -3510,15 +3512,16 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                     folderRowId={folderRowId}
                                   />,
                                 );
-                                for (const thread of worktree.visibleThreads) {
+                                worktree.visibleThreads.forEach((thread, index, rows) => {
                                   items.push(
                                     renderThreadRow(
                                       thread,
                                       "active",
                                       sidebarWorktreeRowId(worktree.key),
+                                      index === rows.length - 1 ? "last" : "row",
                                     ),
                                   );
-                                }
+                                });
                               }
                               continue;
                             }
