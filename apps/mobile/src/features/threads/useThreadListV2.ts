@@ -15,8 +15,7 @@ import {
 import { computeThreadMoveAvailability } from "./threadOrder";
 import { useT } from "../../hooks/useT"; // fork: i18n
 import type { SidebarViewMode } from "@t3tools/client-runtime/state/thread-grouping"; // fork: thread list views
-import { buildThreadListProjectRows } from "../../fork/threadListProjectView"; // fork: thread list views
-import { isGroupedByProject } from "../../fork/threadListView"; // fork: thread list views
+import { buildThreadListProjectRows, isGroupedByProject } from "../../fork/threadListProjectView"; // fork: thread list views
 import {
   sortHomeProjectScopes,
   type HomeProjectScope,

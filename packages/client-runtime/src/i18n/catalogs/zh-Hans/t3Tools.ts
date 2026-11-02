@@ -368,6 +368,7 @@ export default {
   "t3 tool target|a recurring task": "周期任务",
   "t3 tool target|scheduled tasks": "定时任务",
   "t3 tool target|a scheduled task": "定时任务",
+  "t3 tool target|a task": "定时任务",
   "t3 tool target|a secret": "密钥",
   "t3 tool target|T3 threads": "T3 对话",
   "t3 tool target|a T3 thread": "T3 对话",

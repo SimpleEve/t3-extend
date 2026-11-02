@@ -5,9 +5,15 @@ import {
   flattenProjectViewFolders,
   groupThreadsByProject,
   type ProjectViewRow,
+  type SidebarViewMode,
 } from "@t3tools/client-runtime/state/thread-grouping";
 import { sortWorkingThreadsBySend } from "@t3tools/client-runtime/state/thread-inbox";
 import type { ScopedProjectRef } from "@t3tools/contracts";
+
+/** Search lists matches by rank, so a search leaves the grouped layout until it is cleared. */
+export function isGroupedByProject(viewMode: SidebarViewMode, searchQuery: string): boolean {
+  return viewMode === "project" && searchQuery.trim().length === 0;
+}
 
 export interface ThreadListProjectGroup {
   readonly projectKey: string;
