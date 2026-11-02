@@ -5,6 +5,8 @@ import { cn } from "../../lib/cn";
 import { SymbolView, type AppSymbolName } from "./AppSymbol";
 import { AppText as Text } from "./AppText";
 import { NavigationRow } from "./NavigationRow";
+import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 /** A picker row in a grouped list; the first and last rows round the group's corners. */
 export function SelectionRow(props: {
@@ -21,6 +23,7 @@ export function SelectionRow(props: {
   readonly subtitle?: string;
   readonly title: string;
 }) {
+  const t = useT(); // fork: i18n
   const role = props.role ?? "radio";
   const row =
     Platform.OS === "android" ? (
@@ -47,7 +50,7 @@ export function SelectionRow(props: {
       />
     ) : (
       <Pressable
-        accessibilityLabel={[props.title, props.subtitle].filter(Boolean).join(", ")}
+        accessibilityLabel={joinLabelParts([props.title, props.subtitle], t)}
         accessibilityRole={role}
         accessibilityState={{ checked: props.selected }}
         className={cn(

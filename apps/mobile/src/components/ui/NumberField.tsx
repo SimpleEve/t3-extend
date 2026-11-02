@@ -20,6 +20,7 @@ import { NativeThemeHost } from "./NativeThemeHost";
 import { useControlTheme } from "./useControlTheme";
 import type { NumberFieldProps } from "./NumberField.types";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export function NumberField(props: NumberFieldProps) {
   const t = useT(); // fork: i18n
@@ -43,7 +44,11 @@ export function NumberField(props: NumberFieldProps) {
               buttonStyle("bordered"),
               disabled(props.disabled),
               accessibilityLabel(
-                `${props.label}: ${props.formatValue?.(props.value) ?? props.value}`,
+                labelWithDetail(
+                  props.label,
+                  String(props.formatValue?.(props.value) ?? props.value),
+                  t,
+                ),
               ),
               frame({ minWidth: 64, minHeight: 44 }),
               foregroundStyle(colors["--color-primary-text"]),

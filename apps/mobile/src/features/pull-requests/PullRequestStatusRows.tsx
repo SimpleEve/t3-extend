@@ -36,6 +36,7 @@ import { usePullRequestAction } from "./usePullRequestAction";
 import { usePullRequestAgentActions } from "./usePullRequestAgentActions";
 import { useT } from "../../hooks/useT"; // fork: i18n
 import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
+import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 type RowProps = { readonly pr: PullRequestDetail; readonly params: PullRequestParams };
 const STATUS_ACTIONS: readonly PullRequestAction[] = [
@@ -301,7 +302,17 @@ export function PullRequestReviewersRow(props: RowProps) {
           {summary.reviews.map((review) => (
             <View
               key={review.id}
-              accessibilityLabel={`${review.author?.login ?? t("Unknown reviewer")}, ${review.reviewState === "APPROVED" ? t("Approved") : review.reviewState === "CHANGES_REQUESTED" ? t("Changes requested") : t("Commented")}`}
+              accessibilityLabel={joinLabelParts(
+                [
+                  review.author?.login ?? t("Unknown reviewer"),
+                  review.reviewState === "APPROVED"
+                    ? t("Approved")
+                    : review.reviewState === "CHANGES_REQUESTED"
+                      ? t("Changes requested")
+                      : t("Commented"),
+                ],
+                t,
+              )}
               className="min-h-14 flex-row items-center gap-3 px-4 py-2"
             >
               <SymbolView

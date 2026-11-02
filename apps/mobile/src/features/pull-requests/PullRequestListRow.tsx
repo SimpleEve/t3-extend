@@ -34,6 +34,7 @@ import {
 import { PullRequestGlyph } from "./pullRequestGlyphs";
 import { useT } from "../../hooks/useT"; // fork: i18n
 import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
+import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export const PullRequestListRow = memo(
   function PullRequestListRow(props: {
@@ -77,7 +78,31 @@ export const PullRequestListRow = memo(
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ selected: props.selected, busy: props.busy }}
-            accessibilityLabel={`${capitalizeTerm(changeRequestTerm(sourceControlClients.get(item.provider).changeRequest.singular, t))} ${item.number}, ${item.title}, ${status.label}${conflict ? `, ${conflict.label.toLowerCase()}` : ""}, ${t("by {author}", { author: item.author?.login ?? t("unknown author") })}${review ? `, ${review.accessibleLabel}` : ""}${item.checksState ? `, ${t("checks {checksState}", { checksState: t(item.checksState, undefined, "checks state") })}` : ""}${item.stack ? `, ${t("stack {position} of {size}", { position: item.stack.position, size: item.stack.size })}` : ""}${item.labels.length ? `, ${item.labels.map((label) => label.name).join(", ")}` : ""}, ${t("{additions} additions, {deletions} deletions", { additions: item.additions, deletions: item.deletions })}`}
+            accessibilityLabel={joinLabelParts(
+              [
+                `${capitalizeTerm(changeRequestTerm(sourceControlClients.get(item.provider).changeRequest.singular, t))} ${item.number}`,
+                item.title,
+                status.label,
+                conflict?.label.toLowerCase(),
+                t("by {author}", { author: item.author?.login ?? t("unknown author") }),
+                review?.accessibleLabel,
+                item.checksState &&
+                  t("checks {checksState}", {
+                    checksState: t(item.checksState, undefined, "checks state"),
+                  }),
+                item.stack &&
+                  t("stack {position} of {size}", {
+                    position: item.stack.position,
+                    size: item.stack.size,
+                  }),
+                ...item.labels.map((label) => label.name),
+                t("{additions} additions, {deletions} deletions", {
+                  additions: item.additions,
+                  deletions: item.deletions,
+                }),
+              ],
+              t,
+            )}
             accessibilityHint={t("Double tap to open. Touch and hold for quick actions.")}
             onPress={() => props.onSelect(item)}
             disabled={props.busy}

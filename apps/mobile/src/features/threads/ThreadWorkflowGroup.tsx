@@ -34,6 +34,7 @@ import {
 } from "./threadAgentsPresentation";
 import { useVisibleSecondClock } from "./use-visible-second-clock";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 const RAIL_ICON = {
   working: "circle.inset.filled",
@@ -181,13 +182,16 @@ function WorkflowMemberRow(props: {
   return (
     <RowPressable
       accessibilityRole={canOpen ? "link" : undefined}
-      accessibilityLabel={[
-        presentation.title,
-        presentation.statusLabel,
-        ...labels,
-        ...(metadata.speed === null ? [] : [metadata.speed]),
-        ...(error === null ? [] : [error]),
-      ].join(", ")}
+      accessibilityLabel={joinLabelParts(
+        [
+          presentation.title,
+          presentation.statusLabel,
+          ...labels,
+          ...(metadata.speed === null ? [] : [metadata.speed]),
+          ...(error === null ? [] : [error]),
+        ],
+        t,
+      )}
       accessibilityHint={
         canOpen ? t("Opens this agent's thread") : t("Its thread is not available yet")
       }

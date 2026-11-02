@@ -35,6 +35,7 @@ import { SettingsScreen } from "./components/SettingsScreen";
 import { SettingsSection } from "./components/SettingsSection";
 import { useSettingsEnvironmentFilter, type SettingsTarget } from "./settings-environment-filter";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export function SettingsProviderAccountsRouteScreen() {
   const t = useT();
@@ -484,7 +485,7 @@ function ProviderAccountSummary({
     return (
       <View
         accessible
-        accessibilityLabel={[name, status].filter(Boolean).join(", ")}
+        accessibilityLabel={joinLabelParts([name, status], t)}
         className="min-w-0 shrink grow gap-0.5"
       >
         {content}
@@ -494,7 +495,7 @@ function ProviderAccountSummary({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={[name, status, revealed ? email : null].filter(Boolean).join(", ")}
+      accessibilityLabel={joinLabelParts([name, status, revealed ? email : null], t)}
       accessibilityHint={revealed ? t("Hides the account email") : t("Reveals the account email")}
       onPress={() => setRevealed((value) => !value)}
       className="min-w-0 shrink grow gap-0.5"

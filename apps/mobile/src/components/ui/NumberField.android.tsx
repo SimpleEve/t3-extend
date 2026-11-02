@@ -4,6 +4,7 @@ import { AppText } from "./AppText";
 import { IconButton } from "./IconButton";
 import type { NumberFieldProps } from "./NumberField.types";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export function NumberField(props: NumberFieldProps) {
   const t = useT(); // fork: i18n
@@ -30,7 +31,11 @@ export function NumberField(props: NumberFieldProps) {
         textRole="body"
         className="min-w-8 text-center"
         style={{ fontVariant: ["tabular-nums"] }}
-        accessibilityLabel={`${props.label}: ${props.formatValue?.(props.value) ?? props.value}`}
+        accessibilityLabel={labelWithDetail(
+          props.label,
+          String(props.formatValue?.(props.value) ?? props.value),
+          t,
+        )}
         accessibilityLiveRegion="polite"
       >
         {props.value}

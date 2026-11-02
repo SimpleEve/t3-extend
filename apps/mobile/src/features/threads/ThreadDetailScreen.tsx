@@ -201,6 +201,7 @@ import { resolveThreadFeedSubmissionAnchor } from "./thread-feed-live-follow";
 import { useOpenLinkedThread } from "./useOpenLinkedThread";
 import { useGlobalVoiceInput } from "../voice-input/VoiceInputProvider";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { joinLabelParts, labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export interface ThreadDetailScreenProps {
   readonly header?: React.ReactNode;
@@ -759,9 +760,14 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
       return {
         kind: "background",
         label: pendingBackgroundWork.title,
-        accessibilityLabel: `${pendingBackgroundWork.title}: ${pendingBackgroundWork.items
-          .map((item) => item.label)
-          .join(", ")}`,
+        accessibilityLabel: labelWithDetail(
+          pendingBackgroundWork.title,
+          joinLabelParts(
+            pendingBackgroundWork.items.map((item) => item.label),
+            t,
+          ),
+          t,
+        ),
         waiting: pendingBackgroundWork.waiting,
         onPress: () => {
           Keyboard.dismiss();
@@ -812,7 +818,7 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
       return {
         kind: "goal",
         label: goal.title,
-        accessibilityLabel: `${goal.title}: ${goal.objective}`,
+        accessibilityLabel: labelWithDetail(goal.title, goal.objective, t),
       };
     }
     return null;

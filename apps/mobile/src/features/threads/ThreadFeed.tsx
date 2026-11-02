@@ -290,6 +290,7 @@ const WIDE_MARKDOWN_BLOCK_OPTIONS = {
 } as const;
 import type { Translator, UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { messageTimeLabel } from "../../lib/time"; // fork: i18n
+import { labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
 
 function formatMessageTime(input: string, locale: UiLocale): string {
   const timestamp = Date.parse(input);
@@ -1399,7 +1400,7 @@ function AgentMessageFoldHeader(props: {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${label}: ${props.summary}`}
+      accessibilityLabel={labelWithDetail(label, props.summary, t)}
       accessibilityHint={
         props.expanded ? t("Double tap to hide the message.") : t("Double tap to show the message.")
       }

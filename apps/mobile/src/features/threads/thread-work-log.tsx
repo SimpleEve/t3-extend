@@ -106,6 +106,7 @@ import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
 import { useOpenLinkedThread } from "./useOpenLinkedThread";
 import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
 import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
+import { labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
 
 const SHIMMER_WIDTH = 72;
 const SHIMMER_SWEEP_MS = 1_350;
@@ -961,7 +962,9 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
       : row.summary;
     return (
       <WorkLogPressable
-        accessibilityLabel={warning ? label : `${row.summary}: ${failureItem.failure.message}`}
+        accessibilityLabel={
+          warning ? label : labelWithDetail(row.summary, failureItem.failure.message, t)
+        }
         accessibilityHint={t("Long press to copy.")}
         onLongPress={() => props.onCopyRow(row.id, row.getCopyText())}
       >

@@ -35,6 +35,7 @@ import {
 } from "../pull-requests/pullRequestStatus";
 import { useT } from "../../hooks/useT"; // fork: i18n
 import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
+import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export function useLinkedPullRequestLines(
   thread: EnvironmentThreadShell | null,
@@ -93,7 +94,23 @@ export const LinkedPullRequestRow = memo(function LinkedPullRequestRow(props: {
   const row = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${capitalizeTerm(changeRequestTerm(singular, t))} ${link.number}, ${snapshot?.title ?? t("waiting for host state")}${status ? `, ${status.label}` : ""}${conflict ? `, ${conflict.label.toLowerCase()}` : ""}, ${link.repository}${stack ? `, ${t("stack of {size}", { size: stack.size })}` : ""}${watching ? `, ${t("watching")}` : ""}${checks ? `, ${t("checks {checksState}", { checksState: t(snapshot?.checksState ?? "", undefined, "checks state") })}` : ""}${review ? `, ${review.accessibleLabel}` : ""}`}
+      accessibilityLabel={joinLabelParts(
+        [
+          `${capitalizeTerm(changeRequestTerm(singular, t))} ${link.number}`,
+          snapshot?.title ?? t("waiting for host state"),
+          status?.label,
+          conflict?.label.toLowerCase(),
+          link.repository,
+          stack && t("stack of {size}", { size: stack.size }),
+          watching && t("watching"),
+          checks &&
+            t("checks {checksState}", {
+              checksState: t(snapshot?.checksState ?? "", undefined, "checks state"),
+            }),
+          review?.accessibleLabel,
+        ],
+        t,
+      )}
       accessibilityHint={props.actions ? t("Touch and hold for actions.") : undefined}
       onPress={() => {
         void props.openPullRequest(link.url).then((opened) => {

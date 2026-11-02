@@ -18,6 +18,7 @@ import { subagentCardDetail } from "./subagent-card-presentation";
 import { SUBAGENT_TONE_TEXT_CLASS, SubagentStatusDot } from "./SubagentStatusDot";
 import { resolveSubagentRowPresentation } from "./threadAgentsPresentation";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
 
 type SubagentRowSubagent = Pick<
   OrchestrationV2Subagent,
@@ -105,6 +106,7 @@ function SubagentMetadata(props: {
   readonly environmentId: EnvironmentId;
   readonly subagent: SubagentRowSubagent;
 }) {
+  const t = useT(); // fork: i18n
   const { environmentId, subagent } = props;
   // A task in a linked environment runs a provider instance of that environment.
   const config = useEnvironmentServerConfig(subagent.remoteChild?.environmentId ?? environmentId);
@@ -169,7 +171,7 @@ function SubagentMetadata(props: {
         <View
           key={label}
           collapsable={false}
-          accessibilityLabel={`${label}: ${value}`}
+          accessibilityLabel={labelWithDetail(label, value, t)}
           className="min-w-0 shrink flex-row items-center gap-1.5"
         >
           <Text className="text-xs text-foreground-muted">·</Text>

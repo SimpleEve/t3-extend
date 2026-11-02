@@ -4,13 +4,16 @@ import { useResolveClassNames } from "uniwind";
 import { SymbolView } from "./AppSymbol";
 import { ListRowLayout, type ListRowContentProps } from "./ListRowLayout";
 import { RowPressable } from "./RowPressable";
+import { useT } from "../../hooks/useT"; // fork: i18n
+import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export function ListRow(props: ListRowContentProps & { readonly onPress: () => void }) {
+  const t = useT(); // fork: i18n
   const rippleStyle = useResolveClassNames("bg-subtle-strong");
   return (
     <RowPressable
       accessibilityRole="button"
-      accessibilityLabel={[props.label, props.description, props.detail].filter(Boolean).join(", ")}
+      accessibilityLabel={joinLabelParts([props.label, props.description, props.detail], t)}
       accessibilityState={{ disabled: Boolean(props.disabled) }}
       disabled={props.disabled}
       onPress={props.onPress}
