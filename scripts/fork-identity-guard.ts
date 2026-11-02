@@ -182,6 +182,8 @@ const ALLOWED: ReadonlyArray<Allowed> = [
 // only where it names official T3 Code or its services; each such place is listed with its reason.
 const BRAND_NAME = /T3 Code/u;
 const BRAND_ROOTS = [
+  "apps/server/src/peer/PeerLinks.ts",
+  "apps/server/src/device/EasDeviceHost.ts",
   "apps/web/index.html",
   "apps/web/public/manifest.webmanifest",
   "apps/mobile/app.config.ts",
@@ -253,9 +255,9 @@ const ALLOWED_BRAND: ReadonlyArray<Allowed> = [
     reason: "Links to upstream user documentation.",
   },
   {
-    path: "apps/web/src/components/settings/LinkedEnvironmentsSettings.tsx",
-    line: "Revoke",
-    reason: "Quotes the session label that apps/server/src/peer/PeerLinks.ts writes.",
+    path: "apps/server/src/peer/PeerLinks.ts",
+    line: "T3 Code",
+    reason: "Names the linked peer, which can be official T3 Code, or a comment about it.",
   },
   {
     path: "apps/web/src/components/settings/SnapShotSetupDialog.tsx",

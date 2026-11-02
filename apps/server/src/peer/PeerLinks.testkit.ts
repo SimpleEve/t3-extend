@@ -140,7 +140,9 @@ export const servePeer = <E, R>(
         .listSessions()
         .pipe(
           Effect.map((sessions) =>
-            sessions.filter((session) => session.client.label?.startsWith("T3 Code · ")),
+            sessions.filter((session) =>
+              /^(?:T3 Extend|T3 Code) · /u.test(session.client.label ?? ""),
+            ),
           ),
         ),
     };

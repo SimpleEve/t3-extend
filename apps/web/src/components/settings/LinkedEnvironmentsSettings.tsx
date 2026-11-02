@@ -109,7 +109,7 @@ function LinkedEnvironmentRow({
   const forget = async () => {
     const confirmed = await (requestConfirmDialog(
       t(
-        'Forget {label}? Agents here stop working there. Revoke "T3 Code · …" in {label}\'s Connections to end the session there too.',
+        'Forget {label}? Agents here stop working there. Revoke "T3 Extend · …" in {label}\'s Connections to end the session there too.',
         { label: link.label },
       ),
       { variant: "destructive" },
