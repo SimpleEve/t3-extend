@@ -59,6 +59,7 @@ import {
 import { PullRequestGlyph } from "./pullRequestIcons";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { useT } from "~/hooks/useT"; // fork: interface language
+import { changeRequestTerm } from "./changeRequestTerm"; // fork: i18n
 
 interface ReactionSurface {
   readonly canReact: boolean;
@@ -524,21 +525,22 @@ function CommitEvent({
 }
 
 function LifecycleEvent({ event, term }: { event: PullRequestTimelineEvent; term: string }) {
-  const title = capitalizeTerm(term);
+  const t = useT(); // fork: interface language
+  const kind = capitalizeTerm(changeRequestTerm(term, t)); // fork: interface language
   const presentation =
     event.kind === "opened"
       ? {
           icon: <PullRequestGlyph.pullRequest className="size-3.5" />,
-          label: `${title} opened`,
+          label: t("{kind} opened", { kind }),
         }
       : event.kind === "merged"
         ? {
             icon: <PullRequestGlyph.merged className="size-3.5" />,
-            label: `${title} merged`,
+            label: t("{kind} merged", { kind }),
           }
         : {
             icon: <PullRequestGlyph.closed className="size-3.5" />,
-            label: `${title} closed`,
+            label: t("{kind} closed", { kind }),
           };
 
   return (
@@ -663,7 +665,7 @@ export function PullRequestTimelineTab({
   onRefresh: () => void;
 }) {
   const t = useT();
-  const events = buildPullRequestTimeline(detail);
+  const events = buildPullRequestTimeline(detail, t);
   const term = sourceControlClients.get(detail.provider).changeRequest.singular;
   const newestCommitAt = newestPullRequestCommitAt(detail.commits);
   const reactions: ReactionSurface = {

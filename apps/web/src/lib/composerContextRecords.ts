@@ -44,6 +44,8 @@ import {
   type TerminalContextDraft,
 } from "./terminalContext";
 import type { ReviewCommentContext } from "~/reviewCommentContext";
+import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { changeRequestTerm } from "~/components/pullRequest/changeRequestTerm"; // fork: i18n
 
 const PREVIEW_LABEL_MAX_CHARS = 48;
 
@@ -98,13 +100,23 @@ export function pullRequestContextDisplayState(
   return pullRequest.state === "open" && pullRequest.isDraft ? "draft" : pullRequest.state;
 }
 
-export function pullRequestContextKindLabel(comment: ReviewCommentPresentation): string {
+/** Shown on context chips only; the model reads the context's own markdown. */
+export function pullRequestContextKindLabel(
+  comment: ReviewCommentPresentation,
+  t: Translator = translatorFor("en"), // fork: interface language
+): string {
   const url = comment.pullRequest?.url;
   const host = url === undefined ? null : sourceControlClients.findByChangeRequestUrl(url);
-  const term = (host ?? sourceControlClients.get(undefined)).changeRequest.singular;
+  const term = changeRequestTerm(
+    (host ?? sourceControlClients.get(undefined)).changeRequest.singular,
+    t,
+  ); // fork: i18n
   const state = pullRequestContextDisplayState(comment);
   if (state === null) return capitalizeTerm(term);
-  return `${capitalizeTerm(state)} ${term}`;
+  return t("{state} {kind}", {
+    state: t(capitalizeTerm(state), undefined, "pull request state"),
+    kind: term,
+  });
 }
 
 export function previewAnnotationContextLabel(annotation: PreviewAnnotationPayload): string {

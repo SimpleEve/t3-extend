@@ -678,4 +678,35 @@ export default {
   "Could not start a review guide": "无法开始审查导读",
   "{count} file": "{count} 个文件",
   "Request changes": "请求修改",
+  // PR timeline events; {kind} is the host's term, already translated.
+  reviewed: "审查了",
+  commented: "评论了",
+  "opened this {kind}": "创建了这个 {kind}",
+  "Commit {oid}": "提交 {oid}",
+  "{kind} opened": "{kind} 已创建",
+  "{kind} merged": "{kind} 已合并",
+  // A PR's state before its term, on context chips.
+  "{state} {kind}": "{state}的 {kind}",
+  "pull request state|Open": "开放",
+  "pull request state|Draft": "草稿",
+  "pull request state|Closed": "已关闭",
+  "pull request state|Merged": "已合并",
+  // PR status badges and their tooltips in the sidebar and thread details.
+  "pull request state|open": "开放",
+  "pull request state|draft": "草稿",
+  "pull request state|closed": "已关闭",
+  "pull request state|merged": "已合并",
+  "{kind} #{number} - {state}": "{kind} #{number} - {state}",
+  "{kind} {state}": "{kind} {state}",
+  "{lead}: {title}": "{lead}：{title}",
+  "Stack of {count} {kind}, {state}": "{count} 个 {kind} 的堆叠，{state}",
+  "{kind} #{number}, status pending": "{kind} #{number}，状态待定",
+  "{tooltip}, and {count} more linked; overall {state}":
+    "{tooltip}，另有 {count} 个关联，整体{state}",
+  "{kind} #{number} not found": "找不到 {kind} #{number}",
+  "Failed to prepare {kind} thread.": "无法准备 {kind} 对话。",
+  "Paste a {kind} URL, checkout command, or enter 123 / #123.":
+    "粘贴 {kind} URL、检出命令，或输入 123 / #123。",
+  "Use a {kind} URL, checkout command, 123, or #123.": "请使用 {kind} URL、检出命令、123 或 #123。",
+  "Open on host": "在托管平台上打开",
 } satisfies Record<string, string>;

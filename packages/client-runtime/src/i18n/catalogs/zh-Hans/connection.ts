@@ -758,4 +758,17 @@ export default {
   "Clone to {label}": "克隆到 {label}",
   machine: "机器",
   "Over 1 MB": "超过 1 MB",
+  // Confirmation dialogs for backends, routes, and linked environments.
+  "Add the backend at {origin}?": "添加位于 {origin} 的后端？",
+  "This forgets its pairing, credentials, and cached threads here. Switch it off instead to keep it saved.":
+    "这会清除它在这里的配对、凭据和缓存的对话。想保留它的话，改为关闭即可。",
+  "Remove {label} route?": "移除 {label} 路由？",
+  'Forget {label}? Agents here stop working there. Revoke "T3 Code · …" in {label}\'s Connections to end the session there too.':
+    "忘记 {label}？这里的 Agent 将无法再在那里工作。要同时结束那边的会话，请在 {label} 的“连接”中撤销“T3 Code · …”。",
+  // T3 Connect environment button states.
+  "Reconnecting…": "正在重新连接…",
+  "Connection failed": "连接失败",
+  Reconnecting: "重新连接中",
+  "Reconnecting: {error}": "重新连接中：{error}",
+  "Connection failed: {error}": "连接失败：{error}",
 } satisfies Record<string, string>;

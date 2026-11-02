@@ -393,7 +393,7 @@ export default {
   "Could not send {signal}": "无法发送 {signal}",
   "Process already exited": "进程已经退出",
   "The process is not a child of the T3 Server. It might already have exited.":
-    "该进程不是 T3 Server 的子进程。它可能已经退出。",
+    "该进程不是 T3 Code 服务器的子进程。它可能已经退出。",
   "Connect an environment to see diagnostics.": "连接一个环境以查看诊断信息。",
   "Checking diagnostics access…": "正在检查诊断访问权限…",
   "Refresh process diagnostics": "刷新进程诊断",
@@ -1581,12 +1581,12 @@ export default {
   "Could not switch to {label}": "无法切换到{label}",
   "Switch to {label}?": "切换到{label}？",
   "Read your existing Cursor CLI login from macOS Keychain to show account history and monthly limits. macOS may ask you to allow access.":
-    "从 macOS 钥匙串读取你现有的 Cursor CLI 登录，以显示账号历史和每月限额。macOS 可能会请求你允许访问。",
+    "从 macOS 钥匙串读取你现有的 Cursor CLI 登录，以显示账号历史和每月上限。macOS 可能会请求你允许访问。",
   "Cursor account usage": "Cursor 账号用量",
   "CLI Proxy": "CLI Proxy",
   " · Disabled": " · 已停用",
   "The hub's management key is deleted from this server. Its accounts leave the Limits view; the hub itself is untouched. Add it again with the URL and key to bring them back.":
-    "此服务器上的 hub 管理密钥会被删除。它的账号会从“限额”视图中消失，hub 本身不受影响。用 URL 和密钥重新添加即可恢复。",
+    "此服务器上的 hub 管理密钥会被删除。它的账号会从“上限”视图中消失，hub 本身不受影响。用 URL 和密钥重新添加即可恢复。",
   "Remove hub": "移除 hub",
   "Uses the latest commit of the base branch’s tracked remote branch, even if its name differs. Otherwise uses the same-named branch on origin. Uses your local branch if that remote branch is missing.":
     "使用基础分支所跟踪的远程分支的最新提交，即使名称不同。否则使用 origin 上的同名分支。如果远程分支不存在，则使用你的本地分支。",
@@ -1625,7 +1625,7 @@ export default {
   "Using reset credit…": "正在使用重置额度…",
   Segment: "类别",
   "No provider on the selected environments reports subscription limits.":
-    "所选环境中没有 provider 报告订阅限额。",
+    "所选环境中没有 provider 报告订阅上限。",
   "View usage in ChatGPT with your connected account.": "用已连接的账号在 ChatGPT 中查看用量。",
   Cost: "费用",
   Tokens: "Token",
@@ -1641,7 +1641,7 @@ export default {
   "Usage breadcrumb": "用量导航路径",
   "Usage period": "用量时段",
   "Usage metric": "用量指标",
-  "Refresh limits": "刷新限额",
+  "Refresh limits": "刷新上限",
   "Refresh usage": "刷新用量",
   " · API estimate": " · API 估算",
   "Unpriced usage details": "未定价用量详情",
@@ -2405,8 +2405,8 @@ export default {
   "Child process {name}": "子进程 {name}",
   "Signed in as {signedInAs} with {value}.": "已通过{value}登录为 {signedInAs}。",
   "the access token saved here": "这里保存的访问令牌",
-  "EXPO_TOKEN on the server": "server 上的 EXPO_TOKEN",
-  "the server's eas login": "server 上的 eas login",
+  "EXPO_TOKEN on the server": "服务器上的 EXPO_TOKEN",
+  "the server's eas login": "服务器上的 eas login",
   detected: "已检测到",
   "Rotate to landscape": "旋转为横屏",
   "Rotate to portrait": "旋转为竖屏",
@@ -2427,7 +2427,7 @@ export default {
   "{count} processes": "{count} 个进程",
   "Read/s": "读取/秒",
   "Write/s": "写入/秒",
-  "{label} server": "{label} server",
+  "{label} server": "{label} 服务器",
   "Each request runs the prompt. Use {{body.path}}, {{headers.name}}, {{query.name}}, {{body}} or {{request}} in the prompt; only what it names reaches the agent.":
     "每个请求都会运行提示词。可以在提示词中使用 {{body.path}}、{{headers.name}}、{{query.name}}、{{body}} 或 {{request}}，只有提到的内容才会发给 Agent。",
   on: "在",
@@ -2518,4 +2518,77 @@ export default {
   Seedling: "幼苗",
   "token price|Input": "输入",
   "token price|Output": "输出",
+  // Confirmation dialogs; the dialog splits the title from the rest at the question mark.
+  'Permanently delete native ACP session "{title}"?': "永久删除原生 ACP 会话“{title}”？",
+  'Disable ACP provider "{provider}"?': "停用 ACP provider“{provider}”？",
+  "Send SIGKILL to process {pid}? This cannot be handled by the process.":
+    "向进程 {pid} 发送 SIGKILL？进程无法处理这个信号。",
+  "Sign out of {provider} on {environment}? This stops running threads that share this sign-in. Thread history is kept.":
+    "在 {environment} 上退出 {provider}？共用这个登录的运行中对话会停止。对话记录会保留。",
+  "Remove the downloaded Antigravity runtime from {environment}? Google sign-in and thread history are kept.":
+    "从 {environment} 移除已下载的 Antigravity 运行时？Google 登录和对话记录会保留。",
+  "Rotate this webhook URL?": "轮换这个 webhook URL？",
+  "The current URL stops working.": "当前的 URL 会失效。",
+  "Rotate this webhook URL? The current URL stops working.":
+    "轮换这个 webhook URL？当前的 URL 会失效。",
+  'Remove checkout "{label}"?': "移除 checkout“{label}”？",
+  'Remove project "{label}"?': "移除项目“{label}”？",
+  'Remove checkout "{label}" and delete its {count} thread?':
+    "移除 checkout“{label}”并删除它的 {count} 个对话？",
+  'Remove checkout "{label}" and delete its {count} threads?':
+    "移除 checkout“{label}”并删除它的 {count} 个对话？",
+  'Remove project "{label}" and delete its {count} thread?':
+    "移除项目“{label}”并删除它的 {count} 个对话？",
+  'Remove project "{label}" and delete its {count} threads?':
+    "移除项目“{label}”并删除它的 {count} 个对话？",
+  "Path: {path}": "路径：{path}",
+  "Environment: {environment}": "环境：{environment}",
+  "This removes {count} grouped project entries.": "这会移除分组中的 {count} 个项目条目。",
+  "Those threads and any archived threads are deleted from T3 Code. Provider sessions are kept.":
+    "这些对话和所有已归档的对话都会从 T3 Code 中删除。provider 会话会保留。",
+  "Any archived threads are deleted from T3 Code. Provider sessions are kept.":
+    "所有已归档的对话都会从 T3 Code 中删除。provider 会话会保留。",
+  "This removes only the project entries, not the files on disk.":
+    "这只会移除项目条目，不会删除磁盘上的文件。",
+  "Other entries in this grouped project are unaffected.": "这个分组项目中的其他条目不受影响。",
+  // Timestamp formats.
+  "12-hour": "12 小时制",
+  "24-hour": "24 小时制",
+  // Option presets in the custom model editor; their saved values stay English.
+  Reasoning: "推理",
+  Speed: "速度",
+  "Fast Mode": "快速模式",
+  "model option|Thinking": "思考",
+  // Project script icons.
+  "script icon|Play": "运行",
+  "script icon|Test": "测试",
+  "script icon|Lint": "Lint",
+  "script icon|Configure": "配置",
+  "script icon|Build": "构建",
+  "script icon|Debug": "调试",
+  // Provider version notices, webhook checks, scheduled task form errors, and update track switches.
+  "Limited support": "有限支持",
+  "Unsupported version": "不支持的版本",
+  "Known broken version": "已知有问题的版本",
+  "Use {version} for full support.": "使用 {version} 可获得完整支持。",
+  "Update for full support.": "更新后可获得完整支持。",
+  "{label}: install {version}.": "{label}：安装 {version}。",
+  "{label}: install the latest provider version.": "{label}：安装最新的 provider 版本。",
+  "Starting update": "正在开始更新",
+  "Invalid age limit": "时间限制无效",
+  "Enter whole minutes from 1 to {max}, or leave it blank.":
+    "请输入 1 到 {max} 之间的整数分钟，或留空。",
+  "Invalid webhook settings": "webhook 设置无效",
+  "{label} must contain a valid request placeholder.": "{label}必须包含一个有效的请求占位符。",
+  "Coalesce window must be whole seconds from 10 to 3600.":
+    "合并窗口必须是 10 到 3600 之间的整数秒。",
+  "Scheduled task is incomplete": "定时任务信息不完整",
+  "Add a title, prompt, project, and model.": "请填写标题、提示词、项目和模型。",
+  "Invalid filter": "筛选条件无效",
+  "The update track did not change.": "更新通道没有改变。",
+  "This app found {found}, which is older than {version}. Try again in a few minutes.":
+    "此应用找到的是 {found}，比 {version} 旧。请过几分钟再试。",
+  "This app found no build of {version} to install.": "此应用没有找到可安装的 {version}。",
+  "e.g. dsh": "例如 dsh",
+  "t3x command": "t3x 命令",
 } satisfies Record<string, string>;

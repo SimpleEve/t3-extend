@@ -101,23 +101,31 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 3. 跑 `vp run i18n:report`，按 "missing" 列表在对应 area 的 catalog 里补译文，按术语表翻译。
 4. 跑 `vp test run packages/client-runtime/src/i18n/i18n.test.ts`：检查占位符一致、没有破折号、跨文件同 key 同译文。
 
-`i18n:report`（`scripts/i18n-report.ts`）扫描 `apps/web/src`、`apps/desktop/src`、`apps/mobile/src`、`packages/client-runtime/src`、`packages/shared/src`、`packages/contracts/src`、`packages/provider-*` 和 `packages/source-control-*`（设置字段标注和安装提示），以及 `apps/server/src/sourceControl`，找出 `t("...")`、`t('...')`、不带插值的 ``t(`...`)`` 一类调用，列出 catalog 里缺失的 key，以及 catalog 里有、代码里已经找不到的 key（通常是上游改了英文）。判断 stale 时，代码里的字符串字面量、`t()` 的 key、带 `${}` 的模板（插值部分当通配符），以及由 `packages/contracts/src/keybindings.ts` 的 command id 生成的快捷键名称，都算出现过。只报告，不阻断。同步上游后跑一次，把失效的 key 改成新英文。
+`i18n:report`（`scripts/i18n-report.ts`）扫描 `apps/web/src`、`apps/desktop/src`、`apps/mobile/src`、`packages/client-runtime/src`、`packages/shared/src`、`packages/contracts/src`、`packages/provider-*` 和 `packages/source-control-*`（设置字段标注和安装提示），以及 `apps/server/src/sourceControl`，找出 `t("...")`、`t('...')`、不带插值的 ``t(`...`)`` 一类调用，以及 `translatorFor(locale)("...")` 和 `t(CONST[key])`、`t(CONST.prop)` 这类读模块级常量的调用，列出 catalog 里缺失的 key，以及 catalog 里有、代码里已经找不到的 key（通常是上游改了英文）。判断 stale 时，代码里的字符串字面量、`t()` 的 key、带 `${}` 的模板（插值部分当通配符），以及由 `packages/contracts/src/keybindings.ts` 的 command id 生成的快捷键名称，都算出现过。只报告，不阻断。同步上游后跑一次，把失效的 key 改成新英文。
 
-报告最后一节 "hard-coded" 列出没经过 `t()` 的英文 JSX，格式是 `文件:行 [类型] 文本`，按文件分组，末尾分别给出 web 和 mobile 的数量。它用 `vite-plus` 导出的 `parseAst` 解析 `apps/web/src` 和 `apps/mobile/src` 下的 `.tsx`（不含测试），报告三类：含英文单词的 JSX 文本；JSX 子节点里的字符串和模板（三元、`??`、`||` 的每个分支都算）；文本类属性的字面量或模板，包括 `title`、`label`、`placeholder`、`aria-label`、`alt`、`tooltip`、`description`、`detail`、`message`，以及名字以 `Label`、`Title`、`Text`、`Placeholder`、`Hint`、`Message`、`Description`、`Reason` 结尾的属性。`code`、`kbd`、`pre` 里的内容不报。同步上游后，web 部分应该是 0，新增的条目就是上游新加的硬编码英文。
+故意不翻译、但会经过 `t()` 的来源（搜索引擎名、产品名、语言名）在 `INTENTIONALLY_UNTRANSLATED` 里，不算 missing。
 
-两个白名单都在 `scripts/i18n-report.ts` 顶部：
+"hard-coded" 一节列出没经过 `t()` 的英文 JSX，格式是 `文件:行 [类型] 文本`，按文件分组，末尾分别给出 web 和 mobile 的数量。它用 `vite-plus` 导出的 `parseAst` 解析 `apps/web/src` 和 `apps/mobile/src` 下的 `.tsx`（不含测试），报告三类：含英文单词的 JSX 文本；JSX 子节点里的字符串和模板（三元、`??`、`||` 的每个分支都算）；文本类属性的字面量或模板，包括 `title`、`label`、`placeholder`、`aria-label`、`alt`、`tooltip`、`description`、`detail`、`message`，以及名字以 `Label`、`Title`、`Text`、`Placeholder`、`Hint`、`Message`、`Description`、`Reason` 结尾的属性。`code`、`kbd`、`pre` 里的内容不报，`apps/mobile/src/features/development/` 不扫。同步上游后，web 部分应该是 0，新增的条目就是上游新加的硬编码英文。
+
+"hard-coded (properties)" 一节扫描同样两个目录下的 `.ts` 和 `.tsx`，报告对象字面量里界面类属性（`label`、`title`、`description`、`message`、`detail`、`tooltip`、`text`、`placeholder` 等，以及以 `Label`、`Title`、`Text`、`Message` 结尾的属性）的像句子的字面量。catalog 里已有的纯字面量算作在显示处翻译；带插值的模板查不到 key，总是报告。`runAtomCommand`、`useAtomCommand` 一类调用的 `label` 只进日志，不报。这一节只看 catalog 有没有这句，不检查显示处是否真的调了 `t()`，所以菜单、状态行这类仍要在真实客户端里看一遍。
+
+"compared" 一节报告拿像句子的英文字面量（或全大写常量）去比较（`===`、`switch`、`.includes`、`.startsWith`、`.has` 等），而同一句又在别处经过 `t()` 的代码：比较的那个值一旦被翻译，比较就悄悄失效。比较原始值、显示时才翻译的写法是对的，核实后放进白名单。
+
+白名单都在 `scripts/i18n-report.ts` 里，每一条都写了理由：
 
 - `ALWAYS_ENGLISH_TEXT` / `ALWAYS_ENGLISH_PATTERNS`：在任何语言下都保持英文的文本，比如产品名、格式名和单位、命令行、示例输入（URL、主机名、环境变量名）。
 - `SELF_TRANSLATING_PROPS`：组件内部会调用 `t()` 的 `组件.属性`，比如 `SettingsSection.title`。同名的本地组件写成 `文件名#组件.属性`。只对 web 生效，因为 mobile 有同名的不同组件。传给这些属性的字面量仍会进 missing 检查；带插值的模板查不到 key，照样报告。加一条前先读组件源码。
+- `PROPERTY_ALLOWLIST`：properties 一节的 `文件` 或 `文件#属性`，比如会写日志的错误对象、worker 的回复、存进设置的值、搜索用的文本、没有渲染的字段。
+- `COMPARED_ALLOWLIST`：compared 一节的 `文件#文本`。
 
-扫描器看不到 `.ts` 里的字面量（菜单项的 `label`、`toast` 以外的错误文案），这类仍要在真实客户端里切到中文检查。
+确认框：调用方把整句模板翻译好再交给 `ConfirmDialogHost`（`t('Archive thread "{title}"?', { title })`），host 按半角或全角问号拆出标题。
 
 已翻译（约 8,300 条）：
 
 - web 和桌面：全部设置页与用量页、连接与配对、onboarding、命令面板、侧边栏、对话页（标题栏、Git 操作、状态行、输入框、时间线和工具调用摘要、T3 MCP 工具摘要、后台任务标题、各类卡片和横幅、模型选择器）、右侧面板（diff、文件和各个预览器、终端、浏览器、设备）、PR 面板、导读和 PR 列表页、toast（含 PR 操作）、通用确认框、无项目首页、404 和出错页、提示词链接落地页、访客页、`ServerUpdateAction`、相对时间和稍后处理的星期、桌面菜单和原生对话框。hard-coded 一节里 web 部分为 0。
 - mobile：首页与对话列表、对话页与 Git 面板（分支与 worktree、提交、默认分支确认）、输入框、新任务、连接与配对、设置各页（含页标题）、通知、浏览器页、PR（列表、筛选、详情、文件、讨论、审查、合并、导读）、终端、文件与 ZIP 浏览、代码审查、用量、归档、语音输入、设备预览、T3 Connect 资料页、诊断、命令面板、工具调用摘要和后台任务、各类提示框和无障碍标签。消息时间、自定义稍后处理、崩溃日志、用量重置、重连等时间跟随界面语言（`uiLocaleFormatTag`）。
 
-还是英文（需要时再排期）：web 里 `.ts` 文件中、扫描器看不到的文案，比如部分右键菜单项、客户端自己产生的错误信息（`message:`）、PR 时间线事件标题（`pullRequestDetail.logic.ts`）、侧边栏 PR 徽标的提示、更新进度标签（`updateEverything.logic.ts`），以及带变量的确认框文案（比如归档对话时带上对话标题的那句）；mobile 的桌面小组件和实时活动（`widgets/`）、Android 底部导航（原生模块）、连接与持久化层的内部错误（`connection/`、`persistence/`）；稍后处理菜单里 client-runtime 共用的时刻格式（`threadSettled.ts`）仍跟随系统 locale。client-runtime 和 shared 里 web 和 mobile 共用的拼接文案（工具摘要、T3 MCP 工具摘要、后台任务标题、稍后处理、Git 菜单、诊断等）都用可选的翻译参数：不传时英文输出不变。
+还是英文（需要时再排期）：web 里客户端自己产生、会写日志的错误信息（`connection/`、`cloud/linkEnvironment.ts`、各处 `EnvironmentAuthorizationError` 的 `message`、预览 worker 的回复）保持英文，显示处只有 `connection/errorMessages.ts` 认识的几条会翻译；文档预览的兜底页名（"Page 1"）、设置搜索里带托管平台名的条目、更新对话框里带渠道名的跳过原因、自定义模型预设的档位值（存进设置，模型选择器原样显示）；mobile 的桌面小组件和实时活动（`widgets/`）、Android 底部导航（原生模块）、连接与持久化层的内部错误（`connection/`、`persistence/`）；稍后处理菜单里 client-runtime 共用的时刻格式（`threadSettled.ts`）仍跟随系统 locale。client-runtime 和 shared 里 web 和 mobile 共用的拼接文案（工具摘要、T3 MCP 工具摘要、后台任务标题、稍后处理、Git 菜单、诊断等）都用可选的翻译参数：不传时英文输出不变。
 
 mobile：
 

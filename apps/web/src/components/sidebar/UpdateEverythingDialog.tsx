@@ -174,7 +174,7 @@ function UpdateEverythingDialogContent({
                   <MiddleTruncate value={row.label} />
                 </span>
                 <span>
-                  {row.app !== null ? APP_LABELS[row.app] : null}
+                  {row.app !== null ? t(APP_LABELS[row.app]) : null}
                   {row.app === null && row.skipped !== null ? (
                     <span className="text-muted-foreground">{t("Skipped")}</span>
                   ) : null}
@@ -213,7 +213,11 @@ function UpdateEverythingDialogContent({
                       <span className="max-w-32 min-w-0">
                         <MiddleTruncate value={row.label} />
                       </span>
-                      <span className="wrap-anywhere">{row.skipped}</span>
+                      <span className="wrap-anywhere">
+                        {row.skipped === null
+                          ? null
+                          : t(row.skipped, undefined, "update skip reason")}
+                      </span>
                     </Fragment>
                   ))}
                 </div>

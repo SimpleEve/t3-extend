@@ -40,6 +40,8 @@ import {
 import { inferReviewCommentFenceLanguage, type ReviewCommentContext } from "~/reviewCommentContext";
 import { reviewCommentContextId } from "~/lib/composerContextRecords";
 import { removeInlineContextReference } from "~/lib/composerContextReferences";
+import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { changeRequestTerm } from "./changeRequestTerm"; // fork: i18n
 
 export const PULL_REQUEST_MERGE_METHOD_LABELS: Record<PullRequestMergeMethod, string> = {
   merge: "Merge",
@@ -522,13 +524,16 @@ export function visibleBody(body: string): string | null {
   return body.replace(/<!--[\s\S]*?-->/gu, "").trim().length === 0 ? null : body.trim();
 }
 
-function commentTimelineEvent(comment: PullRequestComment): PullRequestTimelineEvent {
+function commentTimelineEvent(
+  comment: PullRequestComment,
+  t: Translator = translatorFor("en"), // fork: interface language
+): PullRequestTimelineEvent {
   return {
     comment,
     id: comment.id,
     at: comment.createdAt,
     kind: comment.kind === "review" ? "review" : "comment",
-    title: comment.kind === "review" ? "reviewed" : "commented",
+    title: comment.kind === "review" ? t("reviewed") : t("commented"),
     body: visibleBody(comment.body),
     markdown: true,
     url: comment.url,
@@ -669,14 +674,19 @@ export function buildPullRequestTimeline(
     "provider" | "createdAt" | "author" | "commits" | "comments" | "mergedAt" | "closedAt"
   > &
     Partial<Pick<PullRequestDetailView, "reviewThreads">>,
+  t: Translator = translatorFor("en"), // fork: interface language
 ): ReadonlyArray<PullRequestTimelineEvent> {
-  const term = sourceControlClients.get(detail.provider).changeRequest.singular;
+  const term = changeRequestTerm(
+    sourceControlClients.get(detail.provider).changeRequest.singular,
+    t,
+  ); // fork: i18n
+  const comment = (value: PullRequestComment) => commentTimelineEvent(value, t); // fork: i18n
   return [
     {
       id: "created",
       at: detail.createdAt,
       kind: "opened" as const,
-      title: `opened this ${term}`,
+      title: t("opened this {kind}", { kind: term }),
       body: null,
       markdown: false,
       url: null,
@@ -692,7 +702,7 @@ export function buildPullRequestTimeline(
       id: commit.oid,
       at: commit.committedDate,
       kind: "commit" as const,
-      title: `Commit ${commit.oid.slice(0, 7)}`,
+      title: t("Commit {oid}", { oid: commit.oid.slice(0, 7) }),
       body: commit.messageHeadline || null,
       markdown: false,
       url: null,
@@ -705,15 +715,15 @@ export function buildPullRequestTimeline(
       reactions: [],
     })),
     ...pullRequestConversationItems(detail.comments, detail.reviewThreads ?? []).map((item) => {
-      if (item.kind === "comment") return commentTimelineEvent(item.comment);
+      if (item.kind === "comment") return comment(item.comment);
       return {
-        ...commentTimelineEvent(item.root),
+        ...comment(item.root),
         thread: {
           path: item.thread.path,
           line: item.thread.line,
           isResolved: item.thread.isResolved,
           isOutdated: item.thread.isOutdated,
-          replies: item.replies.map(commentTimelineEvent),
+          replies: item.replies.map(comment),
           moreReplies: item.moreReplies,
           hasMoreReplies: item.hasMoreReplies,
           url: item.url,
@@ -726,7 +736,7 @@ export function buildPullRequestTimeline(
             id: "merged",
             at: detail.mergedAt,
             kind: "merged" as const,
-            title: `${capitalizeTerm(term)} merged`,
+            title: t("{kind} merged", { kind: capitalizeTerm(term) }),
             body: null,
             markdown: false,
             url: null,
@@ -746,7 +756,7 @@ export function buildPullRequestTimeline(
             id: "closed",
             at: detail.closedAt,
             kind: "closed" as const,
-            title: `${capitalizeTerm(term)} closed`,
+            title: t("{kind} closed", { kind: capitalizeTerm(term) }),
             body: null,
             markdown: false,
             url: null,

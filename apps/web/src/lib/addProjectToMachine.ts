@@ -1,3 +1,4 @@
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import {
   executeAtomQuery,
   runAtomCommand,
@@ -183,7 +184,13 @@ export async function addProjectToMachine(input: AddProjectToMachineInput): Prom
         ? null
         : {
             phase: "failed",
-            title: `Could not copy ${failed.length} ${failed.length === 1 ? "file" : "files"} to ${input.target.label}`,
+            title: translate(
+              getUiLocale(),
+              failed.length === 1
+                ? "Could not copy {count} file to {target}"
+                : "Could not copy {count} files to {target}",
+              { count: failed.length, target: input.target.label },
+            ),
             failures: failed,
           },
     );

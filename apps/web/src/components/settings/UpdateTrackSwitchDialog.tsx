@@ -117,6 +117,7 @@ function SwitchPlan({
       channel: release.channel,
       version: release.version,
       reinstall: switchesLocal,
+      t, // fork: interface language
     });
     onClose();
     if (!prepared.ok) {

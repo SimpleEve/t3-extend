@@ -125,15 +125,24 @@ export function agentControlledBrowserCloseConfirmation(
       desktopByTabId[surface.resourceId]?.controller === "agent",
   ).length;
   if (activeBrowserCount === 0) return null;
+  const locale = getUiLocale();
   if (activeBrowserCount === 1) {
     return [
-      "Close browser while the agent is using it?",
-      "The agent is actively controlling this browser. Closing it may interrupt the current browser action.",
+      translate(locale, "Close browser while the agent is using it?"),
+      translate(
+        locale,
+        "The agent is actively controlling this browser. Closing it may interrupt the current browser action.",
+      ),
     ].join("\n");
   }
   return [
-    `Close ${activeBrowserCount} browsers while the agent is using them?`,
-    "The agent is actively controlling these browsers. Closing them may interrupt the current browser actions.",
+    translate(locale, "Close {count} browsers while the agent is using them?", {
+      count: activeBrowserCount,
+    }),
+    translate(
+      locale,
+      "The agent is actively controlling these browsers. Closing them may interrupt the current browser actions.",
+    ),
   ].join("\n");
 }
 

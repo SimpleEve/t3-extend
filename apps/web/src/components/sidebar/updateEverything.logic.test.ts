@@ -1,4 +1,5 @@
 import { EnvironmentId, type ServerSelfUpdateCapability } from "@t3tools/contracts";
+import { interpolate } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -8,6 +9,7 @@ import {
   collectServerUpdateTargets,
   describeUpdateCapsule,
   describeUpdateEverything,
+  getUpdateEverythingToastView,
   runUpdateEverything,
   type UpdateEverythingMachine,
 } from "./updateEverything.logic";
@@ -340,5 +342,26 @@ describe("describeUpdateCapsule", () => {
     expect(describeUpdateCapsule({ ...run, trackSwitch: true }, [failed], null, 0).action).toBe(
       "dismiss",
     );
+  });
+});
+
+describe("getUpdateEverythingToastView", () => {
+  it("hands the translator whole phrases for counts and lists", () => {
+    const view = getUpdateEverythingToastView(
+      {
+        localVersion: "1.1.0",
+        updatedServers: 2,
+        updatedProviders: 1,
+        failures: [],
+        restarting: ["bb-1"],
+      },
+      "1.1.0",
+      (source, params) => `[${interpolate(source, params)}]`,
+    );
+    expect(view).toEqual({
+      type: "success",
+      title: "[Updated [[this app][, ][2 servers], and [1 provider]]]",
+      description: "[bb-1 is still restarting.]",
+    });
   });
 });

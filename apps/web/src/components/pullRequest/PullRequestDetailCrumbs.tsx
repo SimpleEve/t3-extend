@@ -9,6 +9,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { openOnHostLabel, showPullRequestLinkContextMenu } from "./pullRequestLinkContextMenu";
 import { useT } from "~/hooks/useT"; // fork: interface language
 import { changeRequestTerm } from "./changeRequestTerm";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 interface CrumbsPullRequest {
   readonly url: string;
@@ -23,7 +24,10 @@ const openNumberContextMenu = (event: ReactMouseEvent, detail: CrumbsPullRequest
   event.stopPropagation();
   void showPullRequestLinkContextMenu({
     url: detail.url,
-    openLabel: openOnHostLabel(sourceControlClients.get(detail.provider)),
+    openLabel: openOnHostLabel(
+      sourceControlClients.get(detail.provider),
+      translatorFor(getUiLocale()), // fork: read when the menu opens
+    ),
     position: { x: event.clientX, y: event.clientY },
   });
 };

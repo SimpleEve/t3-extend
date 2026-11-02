@@ -6,10 +6,13 @@ import {
 import { ArrowRightIcon } from "lucide-react";
 
 import { cn } from "~/lib/utils";
+import { useT } from "~/hooks/useT"; // fork: interface language
+import { changeRequestTerm } from "./pullRequest/changeRequestTerm"; // fork: i18n
 
 import { resolvePullRequestState } from "./pullRequest/pullRequestPresentation";
 
 export function PullRequestContextDetails({ metadata }: { metadata: PullRequestContextMetadata }) {
+  const t = useT(); // fork: interface language
   const state = resolvePullRequestState(metadata);
   // A context chip carries the change request's URL alone, so the URL names its host.
   const { singular } = (
@@ -20,9 +23,11 @@ export function PullRequestContextDetails({ metadata }: { metadata: PullRequestC
       <div className="flex items-center gap-1.5 text-xs font-medium">
         <state.Icon className={cn("size-3.5 shrink-0", state.toneClassName)} />
         <span className="text-foreground">
-          {capitalizeTerm(singular)} #{metadata.number}
+          {capitalizeTerm(changeRequestTerm(singular, t))} #{metadata.number}
         </span>
-        <span className={state.toneClassName}>{state.label}</span>
+        <span className={state.toneClassName}>
+          {t(state.label, undefined, "pull request state")}
+        </span>
       </div>
       <div className="wrap-break-word text-foreground">{metadata.title}</div>
       <div className="flex min-w-0 items-center gap-1 text-secondary-label text-3xs">

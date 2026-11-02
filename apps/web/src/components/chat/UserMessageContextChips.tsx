@@ -126,6 +126,7 @@ function UserMessagePullRequestContextChip(props: {
   copyMarkdown: string;
   kind: ContextChipKind;
 }) {
+  const t = useT(); // fork: interface language
   const { activeThreadEnvironmentId, openPullRequest } = use(TimelineRowCtx);
   const metadata = props.record.pullRequest;
   if (metadata === undefined) return null;
@@ -134,7 +135,7 @@ function UserMessagePullRequestContextChip(props: {
       metadata={metadata}
       environmentId={activeThreadEnvironmentId}
       label={reviewCommentContextLabel(props.record)}
-      kindLabel={pullRequestContextKindLabel(props.record)}
+      kindLabel={pullRequestContextKindLabel(props.record, t)}
       kind={props.kind}
       copyMarkdown={props.copyMarkdown}
       onOpen={openPullRequest}

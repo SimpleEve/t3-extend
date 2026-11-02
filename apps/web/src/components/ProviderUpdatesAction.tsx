@@ -16,6 +16,7 @@ import { Button } from "./ui/button";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { useT } from "~/hooks/useT";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function useProviderUpdates() {
   const { environments } = useEnvironments();
@@ -55,7 +56,7 @@ export function useProviderUpdates() {
         })),
       ),
     );
-    const view = quiet ? null : getProviderUpdateRunToastView(runs);
+    const view = quiet ? null : getProviderUpdateRunToastView(runs, translatorFor(getUiLocale())); // fork: i18n
     if (view) {
       toastManager.add(
         stackedThreadToast({

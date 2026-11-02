@@ -133,7 +133,7 @@ function refreshNotice() {
             toastManager.add(
               stackedThreadToast({
                 type: "error",
-                title: failureTitle,
+                title: translate(getUiLocale(), failureTitle), // fork: translated where shown
                 description:
                   error instanceof Error
                     ? error.message

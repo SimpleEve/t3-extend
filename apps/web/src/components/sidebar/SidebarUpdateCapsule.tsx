@@ -22,6 +22,7 @@ import {
   retryFailedUpdateRunServers,
 } from "./updateEverythingRun";
 import { useT } from "~/hooks/useT";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function useNow(intervalMs: number | null): number {
   const step = intervalMs ?? 60_000;
@@ -45,15 +46,24 @@ function useUpdateRunMachineViews(run: UpdateEverythingRun): ReadonlyArray<Updat
   }));
 }
 
-function localStatusLabel(run: UpdateEverythingRun, local: UpdateRunLocalState, now: number) {
+function localStatusLabel(
+  run: UpdateEverythingRun,
+  local: UpdateRunLocalState,
+  now: number,
+  t: Translator, // fork: interface language
+) {
   if (run.phase === "countdown" && run.restartAt !== null) {
-    return `restarts in ${Math.max(0, Math.ceil((run.restartAt - now) / 1000))}s`;
+    return t("restarts in {seconds}s", {
+      seconds: Math.max(0, Math.ceil((run.restartAt - now) / 1000)),
+    });
   }
-  if (run.phase === "installing") return "restarting";
+  if (run.phase === "installing") return t("restarting", undefined, "update status");
   if (local?.status === "downloading") {
-    return `downloading${local.percent === null ? "" : ` ${Math.floor(local.percent)}%`}`;
+    return local.percent === null
+      ? t("downloading", undefined, "update status")
+      : t("downloading {percent}%", { percent: Math.floor(local.percent) });
   }
-  return "restarts after the servers";
+  return t("restarts after the servers");
 }
 
 export function SidebarUpdateCapsule({
@@ -73,13 +83,13 @@ export function SidebarUpdateCapsule({
     ({ status }) => status !== "done" && status !== "failed" && status !== "waiting",
   );
   const now = useNow(run.phase === "countdown" ? 1_000 : hasActiveMachine ? 30_000 : null);
-  const view = describeUpdateCapsule(run, machines, local, now);
+  const view = describeUpdateCapsule(run, machines, local, now, t);
   const updateServer = useServerUpdate();
   const failed = machines.some(({ status }) => status === "failed");
   const settled = !hasActiveMachine && run.localVersion === null;
 
   const actionLabel =
-    view.action === "later" ? "Later" : view.action === "retry" ? "Retry" : "Dismiss";
+    view.action === "later" ? t("Later") : view.action === "retry" ? t("Retry") : t("Dismiss");
   const runAction = () => {
     if (view.action === "later") postponeUpdateRestart();
     else if (view.action === "retry") retryFailedUpdateRunServers(updateServer);
@@ -132,7 +142,7 @@ export function SidebarUpdateCapsule({
             <div className="flex items-center justify-between gap-3">
               <span>{t("This app")}</span>
               <span className="text-muted-foreground tabular-nums">
-                {localStatusLabel(run, local, now)}
+                {localStatusLabel(run, local, now, t)}
               </span>
             </div>
           ) : onRestart ? (
@@ -153,7 +163,7 @@ export function SidebarUpdateCapsule({
                     status === "failed" ? "text-destructive" : "text-muted-foreground",
                   )}
                 >
-                  {RUN_STATUS_LABELS[status]}
+                  {t(RUN_STATUS_LABELS[status], undefined, "update status")}
                   {status !== "done" && status !== "failed" && status !== "waiting"
                     ? ` ${formatUpdateElapsed(now - machine.startedAt)}`
                     : ""}

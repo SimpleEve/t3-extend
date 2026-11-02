@@ -244,7 +244,7 @@ export function WelcomeWizard({
             <div className="flex items-baseline gap-1.5" role="img" aria-label="T3 Code">
               <T3Wordmark className="h-4 w-auto shrink-0" aria-hidden />
               <span className="text-2xl font-medium tracking-tight text-muted-foreground">
-                {t("Code")}
+                Code
               </span>
             </div>
           }
@@ -373,7 +373,10 @@ function ConnectionStep({
                   <span className="shrink-0 text-xs text-muted-foreground">
                     {!environment.entry.enabled && environment.connection.phase !== "unsupported"
                       ? t("Off")
-                      : presentSavedCloudEnvironmentConnection(environment.connection).buttonLabel}
+                      : t(
+                          presentSavedCloudEnvironmentConnection(environment.connection)
+                            .buttonLabel,
+                        )}
                   </span>
                 </span>
                 {environment.displayUrl ? (

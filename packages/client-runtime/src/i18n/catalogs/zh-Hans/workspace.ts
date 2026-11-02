@@ -137,7 +137,7 @@ export default {
   "Terminal surfaces are only available from a project thread.": "终端只能在项目对话中打开。",
   "Files are only available when a project is open.": "打开项目后才能浏览文件。",
   "Diff is only available for server threads in Git repositories.":
-    "只有 Git 仓库中的 server 对话才有差异。",
+    "只有 Git 仓库中的服务器对话才有差异。",
   "This thread's branch has no pull request yet.": "这个对话的分支还没有 PR。",
   "No linked pull requests are available for this thread.": "这个对话没有关联的 PR。",
   "Devices are only available from a thread.": "设备只能在对话中打开。",
@@ -788,4 +788,32 @@ export default {
   "Search files…": "搜索文件…",
   "Search project contents…": "搜索项目内容…",
   "Search in {projectName}": "在 {projectName} 中搜索",
+  // Confirmation dialogs for closing terminals and agent-controlled browsers.
+  'Close terminal "{label}"?': "关闭终端“{label}”？",
+  "This stops the running process and clears its history.":
+    "这会停止正在运行的进程并清除它的历史记录。",
+  "Close {count} terminals?": "关闭 {count} 个终端？",
+  "This stops their running processes and clears their histories: {labels}.":
+    "这会停止它们正在运行的进程并清除历史记录：{labels}。",
+  "Close browser while the agent is using it?": "Agent 正在使用这个浏览器，仍要关闭？",
+  "The agent is actively controlling this browser. Closing it may interrupt the current browser action.":
+    "Agent 正在控制这个浏览器，关闭它可能会中断当前的浏览器操作。",
+  "Close {count} browsers while the agent is using them?":
+    "Agent 正在使用这 {count} 个浏览器，仍要关闭？",
+  "The agent is actively controlling these browsers. Closing them may interrupt the current browser actions.":
+    "Agent 正在控制这些浏览器，关闭它们可能会中断当前的浏览器操作。",
+  // File context menu.
+  "Open with": "打开方式",
+  // Device tools: stands and location presets.
+  "Laptop stand": "笔记本式",
+  "Tent stand": "帐篷式",
+  "San Francisco": "旧金山",
+  "New York": "纽约",
+  London: "伦敦",
+  Stockholm: "斯德哥尔摩",
+  Tokyo: "东京",
+  "Recorded content before": "记录的修改前内容",
+  "Recorded content after": "记录的修改后内容",
+  "Could not copy {count} file to {target}": "无法把 {count} 个文件复制到 {target}",
+  "Could not copy {count} files to {target}": "无法把 {count} 个文件复制到 {target}",
 } satisfies Record<string, string>;

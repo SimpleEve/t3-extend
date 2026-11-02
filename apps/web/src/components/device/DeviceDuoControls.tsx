@@ -96,7 +96,7 @@ export function DeviceDuoControls(props: {
         {STANDS.map(({ id, label }) =>
           button(
             id,
-            label,
+            t(label),
             screen.hingePose === id,
             () => {
               if (!stand) setStandVertical(settledVertical);

@@ -247,7 +247,8 @@ export function ThreadDetailsPrRow({
   const rowTooltip =
     detail === null || statePresentation === null ? (
       <TooltipPopup side="top">
-        {status?.tooltip ?? `${capitalizeTerm(terminology.singular)} #${number}`}
+        {status?.tooltip ??
+          `${capitalizeTerm(changeRequestTerm(terminology.singular, t))} #${number}`}
       </TooltipPopup>
     ) : (
       <TooltipPopup

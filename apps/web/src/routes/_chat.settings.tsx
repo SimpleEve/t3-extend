@@ -67,11 +67,11 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
       >
         {autoSettlementAvailability.eligibleEnvironmentIds.length > 0
           ? t("{title} requires a supporting environment. Choose one to continue.", {
-              title: searchTarget.title,
+              title: t(searchTarget.title),
             })
           : t(
               "{title} requires a supporting environment. Connect or update an environment to continue.",
-              { title: searchTarget.title },
+              { title: t(searchTarget.title) },
             )}
       </SettingsScopeNotice>
     );
@@ -91,7 +91,7 @@ function SettingsScopeBoundary({ pathname, children }: { pathname: string; child
       <SettingsScopeNotice target={target} targetId={hash}>
         {t(
           "{title} is not available for the selected target. Choose its owning scope to continue.",
-          { title: searchTarget.title },
+          { title: t(searchTarget.title) },
         )}
       </SettingsScopeNotice>
     );

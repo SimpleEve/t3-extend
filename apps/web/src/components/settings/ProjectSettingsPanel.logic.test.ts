@@ -66,4 +66,26 @@ describe("project removal confirmation", () => {
       "This removes only the project entries, not the files on disk.",
     );
   });
+
+  it("hands the translator whole sentences, keeping the values out of the keys", () => {
+    const plan = planProjectRemoval({
+      members: [local],
+      groupMemberCount: 1,
+      hasOtherMembers: false,
+      displayName: "Repo",
+      threads: [
+        { environmentId: local.environmentId, projectId: local.id },
+        { environmentId: local.environmentId, projectId: local.id },
+      ],
+      t: (source) => `<${source}>`,
+    });
+    expect(plan.confirmationMessage.split("\n")).toEqual([
+      '<Remove project "{label}" and delete its {count} threads?>',
+      "<Path: {path}>",
+      "<Environment: {environment}>",
+      "<Those threads and any archived threads are deleted from T3 Code. Provider sessions are kept.>",
+      "<This removes only the project entries, not the files on disk.>",
+      "<This action cannot be undone.>",
+    ]);
+  });
 });

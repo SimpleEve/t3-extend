@@ -75,7 +75,7 @@ export default {
   "Finding pull request...": "正在查找 PR…",
   "Searching workspace skills...": "正在搜索工作区技能…",
   "Searching workspace files...": "正在搜索工作区文件…",
-  "Update this server to send files with question answers": "请更新这个 server 后再随回答发送文件",
+  "Update this server to send files with question answers": "请更新这个服务器后再随回答发送文件",
   "Attach the interrupted file again or remove it": "请重新附加中断的文件，或将其移除",
   "Attach the interrupted files again or remove them": "请重新附加中断的文件，或将其移除",
   "Compacting is unavailable right now": "现在无法压缩",
@@ -304,7 +304,7 @@ export default {
   "Side chat not started": "侧边对话没有开始",
   "Side chats take text only": "侧边对话只支持文字",
   "Remove the attachments and context, then send it again.": "请移除附件和上下文后再发送。",
-  "Update this server before starting multiple models.": "请先更新这个 server 再启动多个模型。",
+  "Update this server before starting multiple models.": "请先更新这个服务器再启动多个模型。",
   "Choose models and a base branch": "请选择模型和基础分支",
   "Multiple models need a new thread in a Git project. Each gets its own worktree.":
     "多个模型需要在 Git 项目中新建对话，每个模型使用各自的 worktree。",
@@ -1157,7 +1157,7 @@ export default {
   "Replay a recorded turn": "回放录制的轮次",
   "Replay in {title}": "在 {title} 中回放",
   "Needs a project and the Replay (dev) provider, which dev servers start.":
-    "需要一个项目和 Replay (dev) provider，dev server 会启动它。",
+    "需要一个项目和 Replay (dev) provider，开发服务器会启动它。",
   "Publishing repository to {publishProviderLabel}...": "正在把仓库发布到 {publishProviderLabel}…",
   "(detached HEAD)": "（分离的 HEAD）",
   "Enjoying T3 Code?": "喜欢 T3 Code 吗？",
@@ -1282,4 +1282,24 @@ export default {
   "Show requests": "显示请求",
   "Some requests are slow": "部分请求较慢",
   "Failed to copy": "无法复制",
+  // Confirmation dialogs from the composer and MCP apps.
+  "Remove {name} from the message?": "从消息中移除 {name}？",
+  "this image": "这张图片",
+  "It is referenced in your text; removing it also removes every reference.":
+    "你的文本引用了它，移除它也会删除所有引用。",
+  "Save {names} from {server}?": "保存来自 {server} 的 {names}？",
+  // GitHub alert headings in rendered markdown.
+  "markdown alert|Note": "注意",
+  "markdown alert|Tip": "提示",
+  "markdown alert|Important": "重要",
+  "markdown alert|Warning": "警告",
+  "markdown alert|Caution": "小心",
+  "T3 Code could not open a new thread.": "T3 Code 无法打开新对话。",
+  "None of your machines can start a thread without a project right now.":
+    "你的机器目前都无法在没有项目的情况下开始对话。",
+  "This machine cannot clone from a link. Update T3 Code on it, or clone the repository from the command palette.":
+    "这台机器不能从链接克隆。请更新它上面的 T3 Code，或者从命令面板克隆仓库。",
+  "The clone started, but its project did not appear.": "克隆已开始，但没有出现对应的项目。",
+  "Cloning {repository}": "正在克隆 {repository}",
+  "Open this link again when the clone finishes.": "克隆完成后请再次打开这个链接。",
 } satisfies Record<string, string>;

@@ -155,7 +155,9 @@ export function PullRequestThreadDialog({
         setPrepareErrorMessage(
           error instanceof Error
             ? error.message
-            : `Failed to prepare ${terminology.singular} thread.`,
+            : t("Failed to prepare {kind} thread.", {
+                kind: changeRequestTerm(terminology.singular, t),
+              }),
         );
       }
       return;
@@ -173,9 +175,13 @@ export function PullRequestThreadDialog({
   const validationMessage = !referenceDirty
     ? null
     : reference.trim().length === 0
-      ? `Paste a ${terminology.singular} URL, checkout command, or enter 123 / #123.`
+      ? t("Paste a {kind} URL, checkout command, or enter 123 / #123.", {
+          kind: changeRequestTerm(terminology.singular, t),
+        })
       : parsedReference === null
-        ? `Use a ${terminology.singular} URL, checkout command, 123, or #123.`
+        ? t("Use a {kind} URL, checkout command, 123, or #123.", {
+            kind: changeRequestTerm(terminology.singular, t),
+          })
         : null;
   const errorMessage =
     validationMessage ??
@@ -185,7 +191,9 @@ export function PullRequestThreadDialog({
       : preparePullRequestThreadAction.error instanceof Error
         ? preparePullRequestThreadAction.error.message
         : preparePullRequestThreadAction.error
-          ? `Failed to prepare ${terminology.singular} thread.`
+          ? t("Failed to prepare {kind} thread.", {
+              kind: changeRequestTerm(terminology.singular, t),
+            })
           : null);
 
   return (
@@ -223,7 +231,7 @@ export function PullRequestThreadDialog({
         <DialogPanel>
           <label className="grid gap-1.5">
             <span className="text-xs font-medium text-foreground capitalize">
-              {terminology.singular}
+              {changeRequestTerm(terminology.singular, t)}
             </span>
             <Input
               ref={referenceInputRef}

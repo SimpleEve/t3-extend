@@ -7,6 +7,8 @@ import {
 import { useSupportsMultiplePullRequests } from "~/hooks/useSupportsMultiplePullRequests";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { useT } from "~/hooks/useT";
+import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { changeRequestTerm } from "./pullRequest/changeRequestTerm"; // fork: i18n
 
 import { pullRequestDetailToVcsStatus } from "@t3tools/client-runtime/state/pull-requests";
 import {
@@ -167,11 +169,13 @@ function resolveThreadPullRequestBadgePresentation({
   number,
   url,
   status,
+  t = translatorFor("en"), // fork: interface language
 }: {
   readonly badge: ThreadPullRequestBadge | null;
   readonly number?: number | undefined;
   readonly url?: string | undefined;
   readonly status: PrStatusIndicator | null;
+  readonly t?: Translator;
 }): ThreadPullRequestBadgePresentation | null {
   const terminology = changeRequestTerminologyForUrl(url);
   if (badge?.kind === "stack") {
@@ -179,19 +183,29 @@ function resolveThreadPullRequestBadgePresentation({
     return {
       Icon: PullRequestGlyph.stack,
       toneClassName: aggregate.toneClassName,
-      label: `Stack of ${badge.layers} ${terminology.plural}, ${aggregate.label.toLowerCase()}`,
+      label: t("Stack of {count} {kind}, {state}", {
+        count: badge.layers,
+        kind: changeRequestTerm(terminology.plural, t),
+        state: lowerStateLabel(aggregate.label, t),
+      }),
       text: badge.layers,
     };
   }
   if (number === undefined || url === undefined) return null;
 
-  const tooltip = status?.tooltip ?? `${terminology.shortLabel} #${number}, status pending`;
+  const tooltip =
+    status?.tooltip ??
+    t("{kind} #{number}, status pending", { kind: terminology.shortLabel, number });
   if (badge?.kind === "pull-request" && badge.others > 0) {
     const aggregate = PULL_REQUEST_STATE_PRESENTATION[badge.state];
     return {
       Icon: aggregate.Icon,
       toneClassName: aggregate.toneClassName,
-      label: `${tooltip}, and ${badge.others} more linked; overall ${aggregate.label.toLowerCase()}`,
+      label: t("{tooltip}, and {count} more linked; overall {state}", {
+        tooltip,
+        count: badge.others,
+        state: lowerStateLabel(aggregate.label, t),
+      }),
       text: `+${badge.others + 1}`,
     };
   }
@@ -222,7 +236,14 @@ export function ThreadPullRequestBadgeControl({
   onOpenList: () => void;
   onOpenPullRequest: (event: MouseEvent<HTMLElement>, url?: string) => void;
 }) {
-  const presentation = resolveThreadPullRequestBadgePresentation({ badge, number, url, status });
+  const t = useT(); // fork: interface language
+  const presentation = resolveThreadPullRequestBadgePresentation({
+    badge,
+    number,
+    url,
+    status,
+    t,
+  });
   if (presentation === null) return null;
   return (
     <PullRequestBadge
@@ -413,20 +434,30 @@ function ThreadPullRequestMiniListItem({
   );
 }
 
+// fork: English lowercases the state mid-sentence; the catalog keys the lowercase form too.
+function lowerStateLabel(label: string, t: Translator): string {
+  return t(label.toLowerCase(), undefined, "pull request state");
+}
+
 export function prStatusIndicator(
   pr: ThreadPr,
   provider: VcsStatusResult["sourceControlProvider"] | null | undefined,
+  t: Translator = translatorFor("en"), // fork: interface language
 ): PrStatusIndicator | null {
   if (!pr) return null;
   const { shortLabel } = sourceControlClients.get(provider?.kind).changeRequest;
   const state = resolvePullRequestState({ state: pr.state, isDraft: pr.isDraft === true });
 
-  const tooltipLead = `${shortLabel} #${pr.number} - ${state.label}`;
+  const tooltipLead = t("{kind} #{number} - {state}", {
+    kind: shortLabel,
+    number: pr.number,
+    state: t(state.label, undefined, "pull request state"),
+  });
   return {
-    label: `${shortLabel} ${state.label.toLowerCase()}`,
+    label: t("{kind} {state}", { kind: shortLabel, state: lowerStateLabel(state.label, t) }),
     colorClass: state.toneClassName,
     Icon: state.Icon,
-    tooltip: `${tooltipLead}: ${pr.title}`,
+    tooltip: t("{lead}: {title}", { lead: tooltipLead, title: pr.title }),
     tooltipLead,
     tooltipTitle: pr.title,
     url: pr.url,
@@ -707,6 +738,7 @@ export function ThreadRowLeadingStatus({ thread }: { thread: SidebarThreadSummar
   const prStatus = prStatusIndicator(
     pr,
     linkedPullRequest?.sourceControlProvider ?? resolveDisplayedThreadPrProvider(displayedPrInput),
+    t, // fork: interface language
   );
   const threadStatus = resolveThreadStatusPill({
     thread: {
@@ -845,6 +877,7 @@ export function ThreadSearchPullRequestNumber({
   enabled?: boolean;
   settled?: boolean;
 }) {
+  const t = useT(); // fork: interface language
   const matched = pullRequestMatchesSearchQuery(thread, query);
   const supportsMultiplePullRequests = useSupportsMultiplePullRequests(thread.environmentId);
   const linked = useLinkedThreadPullRequest(
@@ -873,7 +906,8 @@ export function ThreadSearchPullRequestNumber({
     badge,
     number: pr?.number ?? stored?.number,
     url: pr?.url ?? stored?.url,
-    status: prStatusIndicator(pr, linked?.sourceControlProvider),
+    status: prStatusIndicator(pr, linked?.sourceControlProvider, t),
+    t, // fork: interface language
   });
   if (presentation === null) return null;
   const aggregate = badge !== null && (badge.kind === "stack" || badge.others > 0);
