@@ -34,7 +34,7 @@ import type { SnoozePresetSetting } from "@t3tools/contracts/settings";
 import type { ThreadListProvider } from "../../state/thread-list-environments";
 import type { ThreadMoveAvailability } from "./threadOrder";
 
-import { relativeTime } from "../../lib/time";
+import { relativeTime, uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 import type { PendingNewTask } from "../../state/use-pending-new-tasks";
 
 import {
@@ -42,7 +42,7 @@ import {
   reconcilePendingThreadOrder,
   type PendingThreadOrder,
 } from "./threadOrder";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator, UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export const threadListInboxReturns = createInboxReturnTracker();
 
@@ -83,13 +83,35 @@ export function resolveThreadListV2SnoozePresets(input: {
   readonly now: string;
   readonly presets: ReadonlyArray<SnoozePresetSetting> | undefined;
   readonly translate?: Translator; // fork: i18n
+  readonly locale?: UiLocale; // fork: i18n
 }): ReadonlyArray<SnoozePreset> {
   return input.secondary === "snooze"
     ? resolveSnoozePresets(new Date(input.now), {
         ...presetOptions(input.presets),
-        ...(input.translate ? { translate: input.translate } : {}),
+        ...snoozeLanguageOptions(input),
       })
     : [];
+}
+
+// fork: i18n. English passes nothing, so the menu keeps upstream's device-locale times.
+function snoozeLanguageOptions(input: {
+  readonly translate?: Translator;
+  readonly locale?: UiLocale;
+}) {
+  const { locale } = input;
+  return {
+    ...(input.translate ? { translate: input.translate } : {}),
+    ...(locale && locale !== "en"
+      ? {
+          locale: uiFormatLocale(locale),
+          formatTime: (date: Date) =>
+            date.toLocaleTimeString(
+              uiFormatLocale(locale),
+              uiFormatOptions(locale, { hour: "numeric", minute: "2-digit" }),
+            ),
+        }
+      : {}),
+  };
 }
 
 function presetOptions(presets: ReadonlyArray<SnoozePresetSetting> | undefined) {
@@ -101,6 +123,8 @@ export function resolveThreadListV2SnoozeMenuSelection(input: {
   readonly displayedPresets: ReadonlyArray<SnoozePreset>;
   readonly now: Date;
   readonly presets: ReadonlyArray<SnoozePresetSetting> | undefined;
+  readonly translate?: Translator; // fork: i18n
+  readonly locale?: UiLocale; // fork: i18n
 }):
   | { readonly _tag: "selected"; readonly preset: SnoozePreset }
   | { readonly _tag: "expired" }
@@ -111,6 +135,7 @@ export function resolveThreadListV2SnoozeMenuSelection(input: {
     id: input.event.slice("snooze:".length),
     now: input.now,
     ...presetOptions(input.presets),
+    ...snoozeLanguageOptions(input),
   });
   return preset ? { _tag: "selected", preset } : { _tag: "expired" };
 }

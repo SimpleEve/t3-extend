@@ -292,7 +292,7 @@ describe("resolveSnoozePresets", () => {
       ...(options.chinese
         ? {
             translate: (source, params) => translate("zh-Hans", source, params),
-            weekdayLocale: uiLocaleFormatTag("zh-Hans"),
+            locale: uiLocaleFormatTag("zh-Hans"),
           }
         : {}),
     }).map((preset) => `${preset.label} ${preset.whenLabel}`);
@@ -318,6 +318,25 @@ describe("resolveSnoozePresets", () => {
     expect(
       menu(localDate(2026, 4, 8, 20), [{ kind: "after", minutes: 360 }], { chinese: true }),
     ).toEqual(["6 小时后 周四 2:00"]);
+  });
+
+  it("formats the default time with the given locale and keeps the runtime default otherwise", () => {
+    // Wednesday 20:00; a duration six hours out names Thursday 2:00.
+    const now = localDate(2026, 4, 8, 20);
+    const presets = [{ kind: "after", minutes: 360 }] as const;
+    const wake = localDate(2026, 4, 9, 2);
+    const english = resolveSnoozePresets(now, { presets })[0]!.whenLabel;
+    expect(english).toBe(
+      `${wake.toLocaleDateString(undefined, { weekday: "short" })} ${wake.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`,
+    );
+    const evening = resolveSnoozePresets(localDate(2026, 4, 8, 15), {
+      presets: [{ kind: "after", minutes: 360 }],
+      locale: uiLocaleFormatTag("zh-Hans"),
+    })[0]!;
+    expect(evening.whenLabel).toBe("21:00");
+    expect(
+      resolveSnoozePresets(now, { presets, locale: uiLocaleFormatTag("zh-Hans") })[0]!.whenLabel,
+    ).toBe("周四 2:00");
   });
 
   it("drops a today preset once its time passes and moves a weekday on that day to next week", () => {

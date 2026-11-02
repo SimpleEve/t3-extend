@@ -236,7 +236,7 @@ function SnoozePresetList(props: {
   onSettle: () => void;
 }) {
   const t = useT();
-  const weekdayLocale = uiLocaleFormatTag(useUiLocale()); // fork: preview matches the menus
+  const formatLocale = uiLocaleFormatTag(useUiLocale()); // fork: preview matches the menus
   const nowMinute = useNowMinute();
   const now = new Date(`${nowMinute}Z`);
   const formatTime = (date: Date) =>
@@ -244,7 +244,7 @@ function SnoozePresetList(props: {
   const seenIds = new Set<string>();
   const seenWakes = new Set<string>();
   const previews = props.presets.map((preset) => {
-    const resolved = resolveSnoozePreset(preset, now, formatTime, t, weekdayLocale); // fork
+    const resolved = resolveSnoozePreset(preset, now, formatTime, t, formatLocale); // fork
     if (resolved === null) return { tone: "muted", text: t("Passed for today") } as const;
     if (seenIds.has(resolved.id)) {
       return { tone: "muted", text: t("Duplicate of an option above") } as const;
@@ -261,7 +261,7 @@ function SnoozePresetList(props: {
     presets: props.presets,
     formatTime,
     translate: t, // fork: interface language
-    weekdayLocale,
+    locale: formatLocale,
   });
   const repeatedLabels = new Set(
     menuPresets

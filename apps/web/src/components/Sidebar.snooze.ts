@@ -75,6 +75,6 @@ function snoozeOptions(timestampFormat: TimestampFormat, environmentId: Environm
     // fork: presets resolve when a menu opens, so the label reads the language at that moment.
     translate: (source: string, params?: Readonly<Record<string, string | number>>) =>
       translate(getUiLocale(), source, params),
-    weekdayLocale: uiLocaleFormatTag(getUiLocale()), // fork: "Thu 9:00" follows the interface
+    locale: uiLocaleFormatTag(getUiLocale()), // fork: "Thu 9:00" follows the interface
   };
 }

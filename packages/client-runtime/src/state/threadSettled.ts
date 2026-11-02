@@ -200,8 +200,8 @@ export interface SnoozePresetOptions {
   readonly presets?: ReadonlyArray<SnoozePresetSetting>;
   readonly formatTime?: (date: Date) => string;
   readonly translate?: SnoozeLabelTranslator;
-  /** fork: `Intl` tag for the weekday in `whenLabel`; unset keeps the runtime's default locale. */
-  readonly weekdayLocale?: string;
+  /** fork: `Intl` tag for the default time and the weekday in `whenLabel`; unset keeps the runtime's default locale. */
+  readonly locale?: string;
 }
 
 const englishSnoozeLabel: SnoozeLabelTranslator = (source, params) =>
@@ -219,8 +219,8 @@ const WEEKDAY_LABELS = {
   saturday: "Saturday",
 } as const;
 
-function snoozeTimeOfDayLabel(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+function snoozeTimeOfDayLabel(date: Date, locale?: string): string {
+  return date.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
 }
 
 // Calendar-day advance instead of adding DAY_MS: fixed millisecond offsets
@@ -285,9 +285,9 @@ export function snoozePresetId(setting: SnoozePresetSetting): string {
 export function resolveSnoozePreset(
   setting: SnoozePresetSetting,
   now: Date,
-  formatTime: (date: Date) => string = snoozeTimeOfDayLabel,
+  formatTime?: (date: Date) => string,
   translate: SnoozeLabelTranslator = englishSnoozeLabel,
-  weekdayLocale?: string, // fork: interface language
+  locale?: string, // fork: interface language
 ): SnoozePreset | null {
   let wake: Date;
   let daysAhead = 0;
@@ -303,14 +303,14 @@ export function resolveSnoozePreset(
   const label = snoozePresetLabel(setting, daysAhead, translate);
   // Durations and "Next week" don't name the wake day, so a wake on another day shows it.
   const labelNamesDay = setting.kind === "at" && !namesNextWeek(setting, daysAhead);
-  const time = formatTime(wake);
+  const time = formatTime ? formatTime(wake) : snoozeTimeOfDayLabel(wake, locale);
   return {
     id: snoozePresetId(setting),
     label,
     whenLabel:
       labelNamesDay || wake.toDateString() === now.toDateString()
         ? time
-        : `${wake.toLocaleDateString(weekdayLocale, { weekday: "short" })} ${time}`,
+        : `${wake.toLocaleDateString(locale, { weekday: "short" })} ${time}`,
     snoozedUntil: wake.toISOString(),
   };
 }
@@ -333,7 +333,7 @@ export function resolveSnoozePresets(
             now,
             options.formatTime,
             options.translate,
-            options.weekdayLocale, // fork
+            options.locale, // fork
           ) ?? [],
       )
       // flatMap returned a new array; Hermes has no `toSorted`.
@@ -357,7 +357,7 @@ export function pickSnoozePreset(input: {
   readonly presets?: ReadonlyArray<SnoozePresetSetting>;
   readonly formatTime?: (date: Date) => string;
   readonly translate?: SnoozeLabelTranslator;
-  readonly weekdayLocale?: string; // fork
+  readonly locale?: string; // fork
 }): SnoozePreset | undefined {
   const original = input.shown.find((preset) => preset.id === input.id);
   const ahead =
@@ -372,7 +372,7 @@ export function pickSnoozePreset(input: {
         input.now,
         input.formatTime,
         input.translate,
-        input.weekdayLocale, // fork
+        input.locale, // fork
       )) ??
     ahead
   );
