@@ -6,6 +6,7 @@ import type { AtomRegistry } from "effect/reactivity";
 
 import { useComposerDraftStore } from "../composerDraftStore";
 import { createLiveRegion } from "../hooks/useLiveRegion";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { liveShellEnvironmentIdsAtom } from "../state/shell";
 import { environmentThreadShells } from "../state/threads";
 import { resolveActiveThreadRouteRef, resolveThreadRouteTarget } from "../threadRoutes";
@@ -56,7 +57,12 @@ export function startBackgroundThreadAnnouncements(
         snoozed: effectiveSnoozed(thread, { now }),
       });
     }
-    const next = nextBackgroundThreadAnnouncement(memory, snapshots, openThreadKey);
+    const next = nextBackgroundThreadAnnouncement(
+      memory,
+      snapshots,
+      openThreadKey,
+      translatorFor(getUiLocale()), // fork: interface language
+    );
     memory = next.memory;
     if (next.announcement !== null) backgroundThreadLiveRegion.announce(next.announcement);
   };

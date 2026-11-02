@@ -54,7 +54,7 @@ import { NativeStackScreenOptions } from "../../native/StackHeader";
 import { withNativeGlassHeaderItem } from "../layout/native-glass-header-items";
 import type { UsageChartMetric } from "./usageChartData";
 import { PROVIDER_LABEL, useProviderColors, useUsageMixColors } from "./usageProviders";
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 type UsageView = UsageChartMetric | "limits";
@@ -609,6 +609,7 @@ function ChartCard(props: {
   readonly fill?: boolean;
 }) {
   const t = useT(); // fork: i18n
+  const locale = useUiLocale(); // fork: Chinese shows a 24-hour clock
   const { merged, metric } = props;
   const colors = useProviderColors();
   const hasActivity = props.daily.some((period) => period.totalTokens > 0);
@@ -649,13 +650,17 @@ function ChartCard(props: {
         <View className="flex-row items-center justify-between">
           <Text className="text-xs text-foreground-tertiary">
             {props.isPast24Hours
-              ? formatHourShort(props.days[0] ?? "", props.timeZone)
-              : formatDayShort(props.sinceDay)}
+              ? formatHourShort(props.days[0] ?? "", props.timeZone, locale === "en")
+              : formatDayShort(props.sinceDay, t)}
           </Text>
           <Text className="text-xs text-foreground-tertiary">
             {props.isPast24Hours
-              ? formatHourShort(props.days[props.days.length - 1] ?? "", props.timeZone)
-              : formatDayShort(props.untilDay)}
+              ? formatHourShort(
+                  props.days[props.days.length - 1] ?? "",
+                  props.timeZone,
+                  locale === "en",
+                )
+              : formatDayShort(props.untilDay, t)}
           </Text>
         </View>
         <View className="flex-row flex-wrap items-center gap-x-4 gap-y-1">

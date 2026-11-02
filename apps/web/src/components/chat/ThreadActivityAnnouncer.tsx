@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef } from "react";
 
 import { useLiveRegion } from "../../hooks/useLiveRegion";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 import {
   nextThreadAnnouncement,
@@ -34,12 +35,11 @@ export const ThreadActivityAnnouncer = memo(function ThreadActivityAnnouncer({
     }
     if (detailBehind) return;
     const previous = memoryRef.current?.threadKey === threadKey ? memoryRef.current.memory : null;
-    const { memory, announcement } = nextThreadAnnouncement(previous, {
-      status,
-      requestId,
-      runId,
-      runStatus,
-    });
+    const { memory, announcement } = nextThreadAnnouncement(
+      previous,
+      { status, requestId, runId, runStatus },
+      translatorFor(getUiLocale()), // fork: read when it speaks, so it follows a language switch
+    );
     memoryRef.current = { threadKey, memory };
     if (previous === null) clear();
     else if (announcement !== null) announce(announcement);

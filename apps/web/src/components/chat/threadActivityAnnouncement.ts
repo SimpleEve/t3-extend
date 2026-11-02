@@ -1,5 +1,6 @@
 import type { OrchestrationV2Run, OrchestrationV2RunStatus, RunId } from "@t3tools/contracts";
 import { latestExecutedRun } from "@t3tools/shared/orchestrationV2ThreadError";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type ThreadActivityStatus = "working" | "approval" | "input" | "idle";
 
@@ -99,6 +100,7 @@ export function announcedRun(
 export function nextThreadAnnouncement(
   previous: ThreadAnnouncementMemory | null,
   next: ThreadActivitySnapshot,
+  t: Translator = (source) => source, // fork: interface language
 ): { readonly memory: ThreadAnnouncementMemory; readonly announcement: string | null } {
   const idle = next.status === "idle";
   // A run still starting up while the thread looks idle (a queued message,
@@ -138,13 +140,13 @@ export function nextThreadAnnouncement(
       next.status === "approval"
         ? previous.snapshot.status === "approval" && previous.snapshot.requestId === next.requestId
           ? null
-          : THREAD_STATUS_TEXT.approval
+          : t(THREAD_STATUS_TEXT.approval)
         : next.status === "input"
           ? previous.snapshot.status === "input" && previous.snapshot.requestId === next.requestId
             ? null
-            : THREAD_STATUS_TEXT.input
+            : t(THREAD_STATUS_TEXT.input)
           : turnStarted
-            ? "Working"
+            ? t("Working")
             : null;
     return { memory: { ...memory, turnRunId: nextTurnRunId }, announcement };
   }
@@ -170,6 +172,6 @@ export function nextThreadAnnouncement(
   }
   return {
     memory: { ...memory, turnRunId: null, settledRunId: next.runId },
-    announcement: outcome,
+    announcement: t(outcome),
   };
 }

@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import type { UsageSource } from "@t3tools/contracts";
 
 import {
+  formatDateTimeShort,
+  formatDayShort,
   formatHourShort,
+  formatRelativeHourShort,
   formatUsageContractMismatch,
   makeWindow,
   usageSourceMessages,
@@ -156,6 +159,33 @@ describe("hourly usage formatting", () => {
     expect(formatHourShort("2026-11-01T06:37:00.000Z", "America/New_York", false)).toBe(
       "01:00 EST",
     );
+  });
+
+  it("puts dates in the interface language and keeps the formatter's English", () => {
+    const english = (source: string, params?: Readonly<Record<string, string>>) =>
+      source.replace(/\{(\w+)\}/g, (match, name: string) => params?.[name] ?? match);
+    const zh: Readonly<Record<string, string>> = {
+      "{month} {day}": "{month}{day}日",
+      "{date}, {time}": "{date} {time}",
+      "{hour} today": "今天 {hour}",
+      Nov: "11月",
+    };
+    const chinese = (source: string, params?: Readonly<Record<string, string>>) =>
+      english(zh[source] ?? source, params);
+    const instant = "2026-11-02T15:37:00.000Z";
+    for (const zone of ["UTC", "America/New_York", "Asia/Kathmandu"]) {
+      for (const hour12 of [true, false]) {
+        expect(formatDateTimeShort(instant, zone, hour12, english)).toBe(
+          formatDateTimeShort(instant, zone, hour12),
+        );
+      }
+    }
+    expect(formatDayShort("2026-11-02")).toBe("Nov 2");
+    expect(formatDayShort("2026-11-02", chinese)).toBe("11月2日");
+    expect(formatDateTimeShort(instant, "UTC", false, chinese)).toBe("11月2日 15:00");
+    expect(
+      formatRelativeHourShort(instant, "2026-11-02T20:00:00.000Z", "UTC", false, chinese),
+    ).toBe("今天 15:00");
   });
 
   it("builds an exact minute-aligned 24-hour request", () => {

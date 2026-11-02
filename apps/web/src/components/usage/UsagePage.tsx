@@ -361,8 +361,14 @@ export function UsagePage() {
 
   const windowLabel =
     shownHourly && shownWindow.sinceTime !== undefined && shownWindow.untilTime !== undefined
-      ? `${formatDateTimeShort(shownWindow.sinceTime, shownWindow.timeZone, hour12)} to ${formatDateTimeShort(shownWindow.untilTime, shownWindow.timeZone, hour12)}`
-      : `${formatDayShort(shownWindow.sinceDay)} to ${formatDayShort(shownWindow.untilDay)}`;
+      ? t("{start} to {end}", {
+          start: formatDateTimeShort(shownWindow.sinceTime, shownWindow.timeZone, hour12, t),
+          end: formatDateTimeShort(shownWindow.untilTime, shownWindow.timeZone, hour12, t),
+        })
+      : t("{start} to {end}", {
+          start: formatDayShort(shownWindow.sinceDay, t),
+          end: formatDayShort(shownWindow.untilDay, t),
+        });
   const topbarContent = (
     <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2 @4xl/usage-header:flex">
       <WorkspaceBreadcrumb ariaLabel={t("Usage breadcrumb")} className="min-w-0">
@@ -760,9 +766,10 @@ function UsageOverview({
             const totals = merged.providers.find((entry) => entry.provider === provider);
             const share = metric === "cost" ? (totals?.costShare ?? 0) : (totals?.tokenShare ?? 0);
             const providerSessions = totals?.sessions ?? 0;
-            const sessionLabel = `${formatCount(providerSessions)} ${
-              providerSessions === 1 ? "session" : "sessions"
-            }`;
+            const sessionLabel =
+              providerSessions === 1
+                ? t("{sessions} session", { sessions: formatCount(providerSessions) })
+                : t("{sessions} sessions", { sessions: formatCount(providerSessions) });
             const providerLoading = loadingProviders.has(provider);
             const awaitingData = providerLoading && !providersWithData.has(provider);
             return (
@@ -1048,7 +1055,7 @@ function UsageOverview({
                       <td className="py-2 text-foreground">
                         {"hourStart" in period
                           ? formatHourShort(period.hourStart, shownWindow.timeZone, hour12)
-                          : formatDayShort(period.day)}
+                          : formatDayShort(period.day, t)}
                       </td>
                       {activeProviders.map((provider) => (
                         <td

@@ -28,6 +28,11 @@ export default {
   Waiting: "等待中",
   Approval: "待批准",
   Input: "待输入",
+  // Read out when a thread's status changes, in the same words as the row status.
+  "Needs approval": "待批准",
+  "Needs your input": "待输入",
+  "{status}: {title}": "{status}：{title}",
+  ". ": "。",
   Request: "请求",
   Limited: "已达上限",
   Failed: "失败",
