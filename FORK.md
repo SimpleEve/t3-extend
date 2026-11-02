@@ -159,7 +159,8 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - 按项目视图下没有 Working 货架，也不能手动上下移动；搜索时仍按相关度平铺，清空搜索后恢复分组。
 - 入口：筛选菜单里的"对话分组"（Android `HomeHeader.android.tsx` 和平板侧栏 `ThreadNavigationSidebar.tsx`，菜单项在 `fork/threadListViewMenu.ts`；iOS 原生头部走 `buildHomeListFilterMenu`，iOS Home 的筛选条多一个胶囊）。
 - 状态点：`resolveSidebarFolderDot`、`resolveSidebarThreadStatus`、`hasUnseenCompletion` 现在在 `threadGrouping.ts`，web 的 `Sidebar.logic.ts` re-export，测试只在共享层。规则同 web：折叠的项目头说明它藏起来的对话，worktree 头永远说明自己的全部对话；`ThreadListV2GroupHeaderListItem.dot` 带它。
-- 启动：偏好没读出来之前（`useThreadListViewPreferences().loaded` 为 false）Home 和平板侧栏什么都不画，不会先闪一下按状态视图。冷启动时启动画面本来就等偏好（`SplashScreenCoordinator` 等语言就绪，而语言要在偏好读出后才应用），所以默认视图的用户看不到额外延迟。
+- 启动：偏好没读出来之前，Home 和平板侧栏什么都不画，不会先闪一下按状态视图。冷启动时启动画面本来就等偏好，所以默认视图的用户看不到额外延迟。读取失败时立刻显示按状态视图并 `console.warn`；超过 `VIEW_PREFERENCE_GRACE_MS`（1 秒）还没读出来也先显示按状态视图，读出来后切到保存的视图。偏好读出之前的选择不保存（`writable`），免得盖掉没读到的内容。逻辑在 `fork/threadListViewState.ts`，测试在同目录。
+- 折叠 key 不按项目列表清理：离线的环境没有加载项目，按列表清理会误删它们的折叠。改为只保留最近的 `MAX_COLLAPSED_GROUPS`（200）个，已删除项目的 key 会随新的折叠挤出去。
 - iOS 没有实机或模拟器验证。
 
 ## 自建连接
