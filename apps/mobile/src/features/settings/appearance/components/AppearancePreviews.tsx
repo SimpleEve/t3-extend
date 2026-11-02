@@ -7,7 +7,7 @@ import {
 } from "../../../../lib/appearancePreferences";
 import { getMobileTerminalTheme } from "../../../terminal/terminalTheme";
 import { useAppearancePreferences } from "../AppearancePreferencesProvider";
-import { useT } from "../../../../hooks/useT"; // fork: i18n
+import { useT, useUiLocale } from "../../../../hooks/useT"; // fork: i18n
 
 const CODE_FONT_FAMILY = Platform.select({
   ios: "ui-monospace",
@@ -21,7 +21,7 @@ export function AppearancePreviewSeparator() {
 
 export function TextAppearancePreview(props: { readonly fontSize: number }) {
   const t = useT();
-  const sizes = resolveMarkdownFontSizes(props.fontSize);
+  const sizes = resolveMarkdownFontSizes(props.fontSize, useUiLocale()); // fork: Chinese text sizes
 
   return (
     <View className="gap-1 p-4">

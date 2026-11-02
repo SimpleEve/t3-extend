@@ -4,8 +4,8 @@ import {
   type ManagedTunnelExit,
   type ManagedTunnelStatus,
 } from "@t3tools/shared/selfHost";
-import { PlusIcon, XIcon } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { GlobeIcon, PlusIcon, XIcon } from "lucide-react";
+import { useState, type FormEvent, type ReactNode } from "react";
 
 import { getSelfHostBridge, updateSelfHost, useSelfHostState } from "~/fork/selfHostStore";
 import { useT } from "~/hooks/useT";
@@ -118,35 +118,37 @@ export function SelfHostSettings() {
         id="self-host-public-addresses"
         title={t("Public addresses")}
         description={t(
-          "HTTPS addresses that reach this computer through your own server, such as a reverse tunnel on a VPS. Devices you pair learn them and use them when they are away from your network.",
+          "HTTPS addresses on your own server. Paired devices use them when they are away from your network.",
         )}
         status={error ? <span className="block text-destructive">{error}</span> : null}
       >
-        <div className="space-y-2 pb-2">
-          {state?.environmentPublicUrls.map((url) => (
-            <div key={`env:${url}`} className="flex min-h-7 items-center gap-2 text-xs">
-              <span className="min-w-0 truncate text-foreground">{url}</span>
-              <Badge variant="outline" size="sm">
-                {t("Set by environment")}
-              </Badge>
-            </div>
-          ))}
-          {state?.publicUrls.map((url) => (
-            <div key={url} className="flex min-h-7 items-center gap-2 text-xs">
-              <span className="min-w-0 truncate text-foreground">{url}</span>
-              <Button
-                size="icon-xs"
-                variant="ghost-muted"
-                aria-label={t("Remove {address}", { address: url })}
-                disabled={pending}
-                onClick={() =>
-                  void savePublicUrls(state.publicUrls.filter((saved) => saved !== url))
-                }
-              >
-                <XIcon aria-hidden />
-              </Button>
-            </div>
-          ))}
+        <div className="space-y-2.5 pt-3 pb-2">
+          {state !== null && state.environmentPublicUrls.length + state.publicUrls.length > 0 ? (
+            <ul className="divide-y divide-border/50 overflow-hidden rounded-lg border border-border/60 bg-background/50">
+              {state.environmentPublicUrls.map((url) => (
+                <AddressItem key={`env:${url}`} url={url}>
+                  <Badge variant="outline" size="sm" data-t3x-han-text>
+                    {t("Set by environment")}
+                  </Badge>
+                </AddressItem>
+              ))}
+              {state.publicUrls.map((url) => (
+                <AddressItem key={url} url={url}>
+                  <Button
+                    size="icon-xs"
+                    variant="ghost-muted"
+                    aria-label={t("Remove {address}", { address: url })}
+                    disabled={pending}
+                    onClick={() =>
+                      void savePublicUrls(state.publicUrls.filter((saved) => saved !== url))
+                    }
+                  >
+                    <XIcon aria-hidden />
+                  </Button>
+                </AddressItem>
+              ))}
+            </ul>
+          ) : null}
           <form className="flex items-center gap-2" onSubmit={addAddress}>
             <Input
               size="sm"
@@ -160,7 +162,7 @@ export function SelfHostSettings() {
               }}
             />
             <Button
-              size="xs"
+              size="sm"
               variant="outline"
               type="submit"
               disabled={pending || state === null || addressDraft.trim() === ""}
@@ -176,12 +178,12 @@ export function SelfHostSettings() {
         id="self-host-tunnel"
         title={t("Tunnel command")}
         description={t(
-          "Optional. T3 Extend runs this command while the app is open, restarts it if it exits, and stops it when you quit. It runs on this computer as you, for example frpc -c ~/frpc.toml.",
+          "Optional. T3 Extend runs this command while the app is open and starts it again if it exits.",
         )}
         status={
           tunnel && (tunnel.enabled || tunnelProblem) ? (
             <span className="flex flex-wrap items-center gap-1.5">
-              <Badge variant={STATUS_BADGE[tunnel.status]} size="sm">
+              <Badge variant={STATUS_BADGE[tunnel.status]} size="sm" data-t3x-han-text>
                 {statusLabel(t, tunnel.status)}
               </Badge>
               {tunnel.restarts > 0 ? (
@@ -202,7 +204,7 @@ export function SelfHostSettings() {
           />
         }
       >
-        <div className="space-y-2 pb-2">
+        <div className="space-y-2.5 pt-3 pb-2">
           <form
             className="flex items-center gap-2"
             onSubmit={(event) => {
@@ -212,18 +214,19 @@ export function SelfHostSettings() {
           >
             <Input
               size="sm"
+              font="mono"
               value={command}
               placeholder="frpc -c ~/frpc.toml"
               aria-label={t("Tunnel command")}
               spellCheck={false}
               onChange={(event) => setCommandDraft(event.target.value)}
             />
-            <Button size="xs" variant="outline" type="submit" disabled={pending || !commandChanged}>
+            <Button size="sm" variant="outline" type="submit" disabled={pending || !commandChanged}>
               {t("Save")}
             </Button>
             {tunnel?.enabled ? (
               <Button
-                size="xs"
+                size="sm"
                 variant="outline"
                 type="button"
                 disabled={pending}
@@ -235,6 +238,9 @@ export function SelfHostSettings() {
               </Button>
             ) : null}
           </form>
+          <p className="text-xs leading-normal text-muted-foreground">
+            {t("Runs on this computer as you, and stops when you quit.")}
+          </p>
           {tunnel && tunnel.recentOutput.length > 0 ? (
             <details className="text-xs">
               <summary className="cursor-pointer text-muted-foreground">
@@ -248,5 +254,15 @@ export function SelfHostSettings() {
         </div>
       </SettingsRow>
     </>
+  );
+}
+
+function AddressItem({ url, children }: { readonly url: string; readonly children: ReactNode }) {
+  return (
+    <li className="flex min-h-9 items-center gap-2 py-1 pr-1.5 pl-3">
+      <GlobeIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1 truncate text-sm text-foreground">{url}</span>
+      {children}
+    </li>
   );
 }

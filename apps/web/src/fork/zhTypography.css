@@ -1,0 +1,153 @@
+/*
+ * fork: Simplified Chinese typography, scoped to <html lang="zh-Hans">.
+ *
+ * Han glyphs fill the whole em box while Latin lowercase is about half as tall, so the same
+ * font-size reads larger and denser in Chinese. These overrides re-point Tailwind's own
+ * tokens, so every `text-*`, `font-*`, `leading-*` and `tracking-*` utility follows and
+ * nothing is overridden per component. Sizes stay in rem: the interface size from Settings ->
+ * Appearance sets the root, and these scale with it. English never matches `:lang(zh)`, so
+ * it renders exactly as upstream does.
+ *
+ * The rule: text-sm and larger shift down a step and weights get lighter; sizes of 12px and below
+ * (text-xs, text-2xs, text-3xs, text-[11px], ...) stay exactly as upstream draws them, so fixed
+ * and truncated boxes keep their geometry. The only raises are scoped to one site each and are
+ * listed in FORK.md: the 10px Han text on the diagnostics page (`data-t3x-han-text`, 11px),
+ * the Badges in SourceControlSettings and SelfHostSettings (same attribute, 11px from sm up),
+ * and the provider-initials Han badge (one grapheme at 10px, ProviderInstanceIcon).
+ *
+ * Absolute line boxes match English (20px for text-sm, 16px for text-xs, ...) so rows and
+ * controls keep their height; only multi-line prose gets looser leading below.
+ *
+ * Not covered on purpose: the desktop annotation overlay (apps/desktop/src/preview) and the
+ * pages inside preview iframes. The overlay's fixed copy is English and it carries its own
+ * generated Tailwind theme, so comments users type into it keep the overlay's own sizes; an
+ * iframe is the user's own page. Neither follows the UI language.
+ */
+:root:lang(zh) {
+  /* 16px root. Han at 14px already reads like Latin at about 16px. */
+  --text-base: 0.9375rem;
+  --text-base--line-height: calc(1.5 / 0.9375);
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: calc(1.25 / 0.8125);
+  /* xs and below stay as upstream: 12px, 11px, 10px. */
+  --text-lg: 1.0625rem;
+  --text-lg--line-height: calc(1.75 / 1.0625);
+  --text-xl: 1.1875rem;
+  --text-xl--line-height: calc(1.75 / 1.1875);
+  --text-2xl: 1.375rem;
+  --text-2xl--line-height: calc(2 / 1.375);
+
+  /*
+   * PingFang SC has four instances (300, 400, 450-500, 550-700), measured in this app's stack:
+   * ink coverage 0.50, 1.00, 1.29, 1.41 against Regular. "Medium" is a clear step heavier, so
+   * plain rows, buttons and labels read better at 400; semibold maps to Medium and bold to
+   * Semibold. Emphasis then comes from colour and size.
+   */
+  --font-weight-medium: 400;
+  --font-weight-semibold: 500;
+  --font-weight-bold: 600;
+
+  /* Negative tracking packs Han glyphs into each other. */
+  --tracking-tighter: 0em;
+  --tracking-tight: 0em;
+
+  /* Prose wants more air in Han than the 1.5 that suits Latin. */
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.7;
+}
+
+/*
+ * Thin gap between Han and Latin or digits, for names like Worktree inside a sentence. It is
+ * inherited, so it is switched off again where columns, carets or glyph runs must stay exact:
+ * code, editors and the diff and file viewers. The terminal draws to a canvas and is unaffected.
+ * Chromium has supported it since 140; the initial value is no-autospace.
+ */
+html:lang(zh) body {
+  text-autospace: normal;
+}
+
+html:lang(zh)
+  :is(
+    pre,
+    code,
+    kbd,
+    samp,
+    .font-mono,
+    input,
+    textarea,
+    [contenteditable],
+    .composer-tiptap,
+    diffs-container,
+    .diff-render-surface,
+    .file-preview-virtualizer
+  ) {
+  text-autospace: no-autospace;
+}
+
+/*
+ * text-3xs (10px) is not raised globally: it sets fixed 16-24px counters and circles that show
+ * digits. Only the diagnostics elements that render Han carry `data-t3x-han-text` and get 11px,
+ * the smallest Han that stays legible on macOS. A Latin cell inside one (`data-t3x-latin`) keeps
+ * upstream's 10px.
+ */
+html:lang(zh) [data-t3x-han-text]:not([data-slot="badge"]) {
+  font-size: 0.6875rem;
+  line-height: var(--tw-leading, calc(0.875 / 0.6875));
+}
+
+html:lang(zh) [data-t3x-han-text] [data-t3x-latin] {
+  font-size: 0.625rem;
+  line-height: calc(0.875 / 0.625);
+}
+
+/* The same attribute on a small Badge (10px from sm up, in a 16px-high pill) raises just it. */
+@media (width >= 40rem) {
+  html:lang(zh) [data-slot="badge"][data-t3x-han-text] {
+    font-size: 0.6875rem;
+  }
+}
+
+/*
+ * Chat prose is styled by element rules in index.css with fixed sizes and weights, one step
+ * under the zh body (13px). Same steps as English, shifted down with the rest of the layer.
+ */
+html:lang(zh) :is(.chat-markdown, .composer-tiptap) :is(h1, h2, h3, h4, h5, h6, th) {
+  font-weight: 500;
+}
+
+html:lang(zh) :is(.chat-markdown, .composer-tiptap) h1 {
+  font-size: 1.125rem;
+}
+
+html:lang(zh) :is(.chat-markdown, .composer-tiptap) h2 {
+  font-size: 1rem;
+}
+
+html:lang(zh) :is(.chat-markdown, .composer-tiptap) h3 {
+  font-size: 0.9375rem;
+}
+
+html:lang(zh) :is(.chat-markdown, .composer-tiptap) :is(h4, h5, h6) {
+  font-size: 0.8125rem;
+}
+
+html:lang(zh) .chat-markdown table {
+  font-size: 0.8125rem;
+}
+
+/*
+ * The "T3 Extend" wordmark is a Latin logotype next to the T3 mark, so it keeps its English
+ * sizes, weight and tracking in every language. `data-t3-wordmark` marks the one node that wraps
+ * only the T3 glyph and the suffix (never put anything else inside it, such as a stage pill: the
+ * restored tokens are inherited by everything within).
+ */
+html:lang(zh) [data-t3-wordmark] {
+  --text-sm: 0.875rem;
+  --text-sm--line-height: calc(1.25 / 0.875);
+  --text-lg: 1.125rem;
+  --text-lg--line-height: calc(1.75 / 1.125);
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: calc(2 / 1.5);
+  --font-weight-medium: 500;
+  --tracking-tight: -0.025em;
+}

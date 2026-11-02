@@ -42,6 +42,7 @@ const reactTests = [
   "src/features/workspace/useSearchScrollRestoration.test.tsx",
   "src/features/connection/ConnectionsNewRouteScreen.test.tsx",
   "src/fork/threadListViewState.test.tsx", // fork: thread list views
+  "src/fork/useMarkdownTypography.test.tsx", // fork: Chinese text sizes
 ];
 
 const sourceRoot = `${normalizePath(NodeURL.fileURLToPath(new URL("./src", import.meta.url)))}/`;

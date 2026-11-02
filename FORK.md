@@ -134,10 +134,13 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 - 客户端自己抛出的固定英文错误（上传、附件、媒体、SSH 表单、T3 Connect 设置等）：译文在 `catalogs/zh-Hans/clientErrors.ts`；toast 在 `components/ui/toast.tsx` 的 manager 里按文案查表，`connectionErrorMessage` 对兜底的错误文本同样查表，查不到的原样显示。带参数的几条在抛出处用 `translate`。
 - dnd-kit 的屏幕阅读器说明和拖拽播报：`apps/web/src/fork/TranslatedDndContext.tsx` 包装 `DndContext`，侧边栏对话列表的 `aria-label` 也翻译了。provider 设置表单的字段标题和说明早已翻译，补上了占位示例（`e.g. --chrome`）。
 
+中文排版层（`apps/web/src/fork/zhTypography.css`，移动端对应 `apps/mobile/src/fork/zhTypography.ts`）的规则：`text-sm` 及更大的字号下调一档、字重变轻、取消负字距；12px 及以下的字号（`text-xs`、`text-2xs`、`text-3xs`、`text-[11px]` 等）保持上游原样，固定和截断的盒子因此不变形。例外只有按位置单独抬高的几处：诊断页里实际渲染汉字的元素（`data-t3x-han-text`，10px 抬到 11px；拉丁和数字单元格带 `data-t3x-latin` 或不带属性，保持 10px）、设置里带该属性的小号 Badge（源码管理状态、自建连接状态），以及供应商徽章里的汉字首字母（`fork/hanBadgeInitial.ts`：只显示第一个字素，10px，徽章尺寸不变）。英文不匹配 `:lang(zh)`，渲染与上游逐像素一致。`T3 Extend` 字标用 `data-t3-wordmark` 恢复英文的字号、字重和字距，这个属性只能放在只包着 T3 字形和后缀的节点上。
+
 还是英文（需要时再排期）：
 
 - 服务器或模型给出的文案：server 返回的错误和状态（如 "Codex provider status has not been checked in this session yet."）、ACP Registry 里各 Agent 的介绍、模型的推理强度名（Low / Medium / High 这类选项标签来自模型能力数据，输入框和设置里原样显示）、快捷键 when 条件、主题名。
 - web 里客户端自己产生、会写日志的错误信息（`connection/`、`cloud/linkEnvironment.ts`、各处 `EnvironmentAuthorizationError` 的 `message`、预览 worker 的回复、`files/` 下各预览 worker 的内部错误）保持英文，显示处只有 `connection/errorMessages.ts` 和 `clientErrors.ts` 认识的几条会翻译；文档预览的兜底页名（"Page 1"）、设置搜索里带托管平台名的条目、更新对话框里带渠道名的跳过原因、自定义模型预设的档位值（存进设置，模型选择器原样显示）。
+- 桌面预览的标注浮层（`apps/desktop/src/preview/PickPreload.ts`）：十来条固定文案（按钮、占位符、提示）是英文。它跑在被预览页面的进程里，样式来自单独生成的 Tailwind 主题，生成器会从 `PickPreload.ts` 全文抽取类名；要翻译得把界面语言经 IPC 传进 preload 并改动这个文件，所以没有顺手做。用户在里面输入的评论不受影响。中文排版层也不作用于它，见 `apps/web/src/fork/zhTypography.css` 头部。
 - mobile：实时活动（iOS `AgentActivity`，widget 运行时里的固定文案）和连接与持久化层的内部错误（`connection/`、`persistence/`）。
 - 还没有在真机或模拟器上核对：Android 底部导航译文和小组件。验证时 Agent device access 是关闭的，按 test-t3-mobile 的要求没有改用 adb 驱动，只在 `t3extend-test` 上装好了 dev client；web 已在中文下核对过。
 

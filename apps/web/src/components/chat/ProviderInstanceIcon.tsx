@@ -10,6 +10,7 @@ import { ProviderDriverKind } from "@t3tools/contracts";
 import { AntigravityIcon, ClaudeAI, Icon, OpenAI } from "../Icons";
 
 import { cn } from "~/lib/utils";
+import { resolveBadgeInitials } from "~/fork/hanBadgeInitial"; // fork: Han initial
 import { providerClients } from "../settings/providerDriverMeta";
 import { ProviderPackageIcon } from "./ProviderPackageIcon";
 import {
@@ -82,6 +83,8 @@ export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
       } as CSSProperties)
     : undefined;
   const badgeContent = props.badgeContent ?? "initials";
+  const badgeInitials = resolveBadgeInitials(providerInstanceInitials(props.displayName)); // fork: Han initial
+  const hanBadge = badgeContent === "initials" && badgeInitials.han;
   const iconClassName = cn(props.size === "compact" && "size-3.5", props.iconClassName);
   const isAcpRegistry = props.driverKind === "acpRegistry";
   const acpRegistryIconUrl = resolveProviderInstanceAcpRegistryIconUrl({
@@ -128,11 +131,13 @@ export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
             props.size === "compact" &&
               "right-[-0.1875rem] bottom-[-0.1875rem] h-3 min-w-3 px-0.5 text-5xs",
             props.badgeClassName,
+            // fork: a Han initial takes the largest size the 12px badge holds, geometry unchanged
+            hanBadge && "px-0 text-3xs",
           )}
           style={{ borderColor: indicatorBackground }}
           aria-hidden
         >
-          {badgeContent === "initials" ? providerInstanceInitials(props.displayName) : null}
+          {badgeContent === "initials" ? badgeInitials.text : null}
         </span>
       ) : null}
     </span>

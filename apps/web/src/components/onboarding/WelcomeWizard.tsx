@@ -249,7 +249,12 @@ export function WelcomeWizard({
         <WizardHeader
           title={t("Set up T3 Extend")}
           identity={
-            <div className="flex items-baseline gap-1.5" role="img" aria-label={FORK.appBaseName}>
+            <div
+              className="flex items-baseline gap-1.5"
+              role="img"
+              aria-label={FORK.appBaseName}
+              data-t3-wordmark // fork: keeps its English type in every language
+            >
               <T3Wordmark className="h-4 w-auto shrink-0" aria-hidden />
               <span className="text-2xl font-medium tracking-tight text-primary">
                 {FORK.wordmarkSuffix}

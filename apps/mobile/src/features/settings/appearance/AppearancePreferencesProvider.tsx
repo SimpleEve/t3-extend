@@ -11,6 +11,8 @@ import { useAtomSet, useAtomValue } from "@effect/atom-react";
 import { Atom, AsyncResult } from "effect/reactivity";
 
 import { ScopedTheme, ScopedVariables, Uniwind } from "uniwind";
+import { getUiLocale, subscribeUiLocale } from "@t3tools/client-runtime/i18n"; // fork: Chinese text sizes
+import { useUiLocale } from "../../../hooks/useT"; // fork: Chinese text sizes
 
 import {
   resolveAppearance,
@@ -128,6 +130,7 @@ export function resolveThemeAppearance(stored: Preferences | null): MobileThemeA
 function runtimeStateFor(stored: Preferences | null): MobileThemeRuntimeState {
   return {
     baseFontSize: resolveAppearancePreferences(stored).baseFontSize,
+    uiLocale: getUiLocale(), // fork: Chinese text sizes
     themeMode: normalizeMobileThemeMode(stored?.themeMode),
     themeAppearance: resolveThemeAppearance(stored),
   };
@@ -139,6 +142,7 @@ const themeRuntimeStateAtom = Atom.make((get) =>
   Atom.withEquality(
     (left: MobileThemeRuntimeState, right: MobileThemeRuntimeState) =>
       left.baseFontSize === right.baseFontSize &&
+      left.uiLocale === right.uiLocale && // fork: Chinese text sizes
       left.themeMode === right.themeMode &&
       left.themeAppearance === right.themeAppearance,
   ),
@@ -178,8 +182,13 @@ export function installAppearanceRuntime(): () => void {
   const unsubscribeRuntime = appAtomRegistry.subscribe(themeRuntimeStateAtom, applyThemeRuntime, {
     immediate: true,
   });
+  // fork: Chinese text sizes. The language loads after the preferences, and can switch at any time.
+  const unsubscribeLocale = subscribeUiLocale(() =>
+    applyThemeRuntime({ ...currentRuntimeState(), uiLocale: getUiLocale() }),
+  );
   const releasePalettes = appAtomRegistry.mount(systemColorPalettesAtom);
   return () => {
+    unsubscribeLocale();
     unsubscribeRuntime();
     releasePalettes();
   };
@@ -218,6 +227,10 @@ export function AppearancePreferencesProvider(props: { readonly children: ReactN
   const themeVariables = themeVariablesByAppearance[themeAppearance];
   const activeThemeName = getMobileUniwindThemeName(themeId, themeAppearance);
   const { baseFontSize, codeFontSize, codeWordBreak, terminalFontSize } = preferences;
+  // fork: Chinese text sizes. Text roles resolve against the language, so a switch has to
+  // re-render the provider and with it every consumer of the context, not only the ones that
+  // already call useT.
+  useUiLocale();
   const appearance = useMemo(
     () => resolveAppearance({ baseFontSize, codeFontSize, codeWordBreak, terminalFontSize }),
     [baseFontSize, codeFontSize, codeWordBreak, terminalFontSize],

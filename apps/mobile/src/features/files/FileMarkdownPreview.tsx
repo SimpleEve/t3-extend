@@ -9,7 +9,7 @@ import { RefreshControl, ScrollView, View } from "react-native";
 
 import { tryOpenExternalUrl } from "../../lib/openExternalUrl";
 import { FONT_FAMILIES } from "../../lib/fontFamilies";
-import { resolveNativeMarkdownTypography } from "../../lib/appearancePreferences";
+import { useMarkdownTypography } from "../../fork/useMarkdownTypography"; // fork: Chinese text sizes
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import {
   ThreadMarkdownImage,
@@ -26,7 +26,6 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { VideoPreviewModal, type VideoPreviewSource } from "../../components/VideoPreviewModal";
 import { FilePreviewModal, type FilePreviewSource } from "../../components/FilePreviewModal";
 import { useMarkdownImageSource } from "../../native/useMarkdownImageSource";
-import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import {
   SelectableMarkdownText,
   type MarkdownImageRenderer,
@@ -40,8 +39,7 @@ interface MarkdownPreviewStyles {
 }
 
 export function useMarkdownPreviewStyles(): MarkdownPreviewStyles {
-  const { appearance } = useAppearancePreferences();
-  const nativeMarkdownTypography = resolveNativeMarkdownTypography(appearance.baseFontSize);
+  const nativeMarkdownTypography = useMarkdownTypography(); // fork: Chinese text sizes
   const theme = useUniwindTheme();
   const body = theme["--color-md-body"];
   const strong = theme["--color-md-strong"];

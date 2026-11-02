@@ -1,3 +1,5 @@
+import type { UiLocale } from "@t3tools/client-runtime/i18n"; // fork: Chinese text sizes
+import { scaledLocalizedFontSize, scaledLocalizedMarkdownFontSize } from "../fork/zhTypography"; // fork: Chinese text sizes
 import { MOBILE_CODE_SURFACE, MOBILE_TYPOGRAPHY } from "./typography";
 import {
   DEFAULT_TERMINAL_FONT_SIZE,
@@ -143,20 +145,27 @@ export function resolveMobileCodeSurface(codeFontSize: number): ResolvedMobileCo
   };
 }
 
-export function resolveMarkdownFontSizes(baseFontSize: number): ResolvedMarkdownFontSizes {
-  const m = normalizeBaseFontSize(baseFontSize);
-  const scale = m / DEFAULT_BASE_FONT_SIZE;
+export function resolveMarkdownFontSizes(
+  baseFontSize: number,
+  locale: UiLocale, // fork: Chinese text sizes
+): ResolvedMarkdownFontSizes {
+  const base = normalizeBaseFontSize(baseFontSize);
+  const scale = base / DEFAULT_BASE_FONT_SIZE;
   const codeBlockFontSize = Math.max(10, Math.round(13 * scale));
+  // fork: Chinese text sizes
+  const zh = (key: Parameters<typeof scaledLocalizedMarkdownFontSize>[0]) =>
+    scaledLocalizedMarkdownFontSize(key, scale, locale);
+  const m = locale === "zh-Hans" ? scaledLocalizedFontSize("body", scale, locale) : base;
 
   return {
-    s: Math.max(10, Math.round(14 * scale)),
+    s: Math.max(10, zh("s") ?? Math.round(14 * scale)),
     m,
-    h1: Math.max(16, Math.round(21 * scale)),
-    h2: Math.max(14, Math.round(19 * scale)),
-    h3: Math.max(13, Math.round(17 * scale)),
-    h4: Math.max(12, Math.round(15 * scale)),
-    h5: Math.max(12, Math.round(15 * scale)),
-    h6: Math.max(12, Math.round(15 * scale)),
+    h1: Math.max(16, zh("h1") ?? Math.round(21 * scale)),
+    h2: Math.max(14, zh("h2") ?? Math.round(19 * scale)),
+    h3: Math.max(13, zh("h3") ?? Math.round(17 * scale)),
+    h4: Math.max(12, zh("h4") ?? Math.round(15 * scale)),
+    h5: Math.max(12, zh("h4") ?? Math.round(15 * scale)),
+    h6: Math.max(12, zh("h4") ?? Math.round(15 * scale)),
     bodyLineHeight: Math.max(18, Math.round(MOBILE_TYPOGRAPHY.body.lineHeight * scale)),
     codeBlockFontSize,
     codeBlockLineHeight: codeBlockFontSize + 6,
@@ -165,24 +174,27 @@ export function resolveMarkdownFontSizes(baseFontSize: number): ResolvedMarkdown
 
 /** Keep text-variable roles in sync with global.css and MOBILE_TYPOGRAPHY. */
 const TEXT_SCALE_VARIABLE_ROLES = {
-  "--text-3xs": MOBILE_TYPOGRAPHY.micro,
-  "--text-2xs": MOBILE_TYPOGRAPHY.caption,
-  "--text-xs": MOBILE_TYPOGRAPHY.label,
-  "--text-sm": MOBILE_TYPOGRAPHY.footnote,
-  "--text-base": MOBILE_TYPOGRAPHY.body,
-  "--text-lg": MOBILE_TYPOGRAPHY.headline,
-  "--text-xl": MOBILE_TYPOGRAPHY.title,
-  "--text-2xl": MOBILE_TYPOGRAPHY.largeTitle,
-  "--text-3xl": MOBILE_TYPOGRAPHY.display,
-} as const;
+  "--text-3xs": "micro",
+  "--text-2xs": "caption",
+  "--text-xs": "label",
+  "--text-sm": "footnote",
+  "--text-base": "body",
+  "--text-lg": "headline",
+  "--text-xl": "title",
+  "--text-2xl": "largeTitle",
+  "--text-3xl": "display",
+} as const satisfies Record<string, keyof typeof MOBILE_TYPOGRAPHY>;
 
-export function resolveTextScaleVariables(baseFontSize: number): Record<string, number> {
-  const scale = normalizeBaseFontSize(baseFontSize) / DEFAULT_BASE_FONT_SIZE;
+export function resolveTextScaleVariables(
+  baseFontSize: number,
+  locale: UiLocale, // fork: Chinese text sizes
+): Record<string, number> {
   const variables: Record<string, number> = {};
 
-  for (const [name, role] of Object.entries(TEXT_SCALE_VARIABLE_ROLES)) {
-    variables[name] = Math.max(8, Math.round(role.fontSize * scale));
-    variables[`${name}--line-height`] = scaledTypographyLineHeight(role, baseFontSize);
+  for (const [name, roleName] of Object.entries(TEXT_SCALE_VARIABLE_ROLES)) {
+    const role = resolveScaledTextRole(roleName, baseFontSize, locale);
+    variables[name] = role.fontSize;
+    variables[`${name}--line-height`] = role.lineHeight;
   }
 
   return variables;
@@ -196,17 +208,24 @@ export function scaledTypographyLineHeight(
   return Math.max(10, Math.round(role.lineHeight * scale));
 }
 
-export function resolveScaledTextRole(role: keyof typeof MOBILE_TYPOGRAPHY, baseFontSize: number) {
+export function resolveScaledTextRole(
+  role: keyof typeof MOBILE_TYPOGRAPHY,
+  baseFontSize: number,
+  locale: UiLocale, // fork: Chinese text sizes
+) {
   const typography = MOBILE_TYPOGRAPHY[role];
   const scale = normalizeBaseFontSize(baseFontSize) / DEFAULT_BASE_FONT_SIZE;
   return {
-    fontSize: Math.max(8, Math.round(typography.fontSize * scale)),
+    fontSize: Math.max(8, scaledLocalizedFontSize(role, scale, locale)), // fork: Chinese text sizes
     lineHeight: scaledTypographyLineHeight(typography, baseFontSize),
   };
 }
 
-export function resolveNativeMarkdownTypography(baseFontSize: number): NativeMarkdownTypography {
-  const fontSizes = resolveMarkdownFontSizes(baseFontSize);
+export function resolveNativeMarkdownTypography(
+  baseFontSize: number,
+  locale: UiLocale, // fork: Chinese text sizes
+): NativeMarkdownTypography {
+  const fontSizes = resolveMarkdownFontSizes(baseFontSize, locale);
   return {
     fontSize: fontSizes.m,
     lineHeight: fontSizes.bodyLineHeight,

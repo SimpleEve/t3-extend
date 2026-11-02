@@ -15,6 +15,7 @@ import { resolveScaledTextRole } from "../../lib/appearancePreferences";
 import { useAndroidControlSizing } from "./useAndroidControlSizing";
 import { useAppearancePreferences } from "../../features/settings/appearance/AppearancePreferencesProvider";
 import type { MenuPopupProps } from "./MenuPopup";
+import { useUiLocale } from "../../hooks/useT"; // fork: Chinese text sizes
 import { isAppSymbolName, SymbolView, type AppSymbolName } from "./AppSymbol";
 
 // The Compose glyph host consumes touches; run the action here and keep accessibility on the row.
@@ -60,8 +61,9 @@ export function MenuPopupItems(
 ) {
   const { appearance, themeVariables: colors } = useAppearancePreferences();
   const { scale, menuItemHeight } = useAndroidControlSizing();
-  const body = resolveScaledTextRole("body", appearance.baseFontSize);
-  const caption = resolveScaledTextRole("caption", appearance.baseFontSize);
+  const locale = useUiLocale(); // fork: Chinese text sizes
+  const body = resolveScaledTextRole("body", appearance.baseFontSize, locale);
+  const caption = resolveScaledTextRole("caption", appearance.baseFontSize, locale);
   const foreground = colors["--color-foreground"];
   const muted = colors["--color-foreground-muted"];
   // A fixed native item height clips wrapped labels; a minimum lets each row grow.
