@@ -1,0 +1,57 @@
+/*
+ * fork: Simplified Chinese typography, scoped to <html lang="zh-Hans">.
+ *
+ * Han glyphs fill the whole em box while Latin lowercase is about half as tall, so the same
+ * font-size reads larger and denser in Chinese. These overrides re-point Tailwind's own
+ * tokens, so every `text-*`, `font-*`, `leading-*` and `tracking-*` utility follows and
+ * nothing is overridden per component. Sizes stay in rem: the interface size from Settings ->
+ * Appearance sets the root, and these scale with it. English never matches `:lang(zh)`, so
+ * it renders exactly as upstream does.
+ *
+ * Absolute line boxes match English (20px for text-sm, 16px for text-xs, ...) so rows and
+ * controls keep their height; only multi-line prose gets looser leading below.
+ */
+:root:lang(zh) {
+  /* 16px root. Han at 14px already reads like Latin at about 16px. */
+  --text-base: 0.9375rem;
+  --text-base--line-height: calc(1.5 / 0.9375);
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: calc(1.25 / 0.8125);
+  /* xs stays 12px; below that Han strokes start to fill in. */
+  --text-lg: 1.0625rem;
+  --text-lg--line-height: calc(1.75 / 1.0625);
+  --text-xl: 1.1875rem;
+  --text-xl--line-height: calc(1.75 / 1.1875);
+  --text-2xl: 1.375rem;
+  --text-2xl--line-height: calc(2 / 1.375);
+
+  /*
+   * macOS renders Han at 500 and 600 almost alike, so "medium" is the heavy look and plain
+   * rows, buttons and labels read better at regular weight. Emphasis comes from colour.
+   */
+  --font-weight-medium: 400;
+  --font-weight-semibold: 500;
+  --font-weight-bold: 600;
+
+  /* Negative tracking packs Han glyphs into each other. */
+  --tracking-tighter: 0em;
+  --tracking-tight: 0em;
+
+  /* Prose wants more air in Han than the 1.5 that suits Latin. */
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.7;
+
+  /* Thin space between Han and Latin or digits, for names like Worktree inside a sentence. */
+  text-autospace: normal;
+}
+
+/* The two smallest steps are literal values in `@theme inline`, so they have no variable to move. */
+:lang(zh) .text-2xs {
+  font-size: 0.71875rem;
+  line-height: var(--tw-leading, calc(1 / 0.71875));
+}
+
+:lang(zh) .text-3xs {
+  font-size: 0.71875rem;
+  line-height: var(--tw-leading, calc(0.875 / 0.71875));
+}

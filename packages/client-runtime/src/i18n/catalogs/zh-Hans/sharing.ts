@@ -1,8 +1,8 @@
 // Settings → Sharing & access: the fork's self-hosted connection rows.
 export default {
   "Public addresses": "自定义公网地址",
-  "HTTPS addresses that reach this computer through your own server, such as a reverse tunnel on a VPS. Devices you pair learn them and use them when they are away from your network.":
-    "经过你自己的服务器访问这台电脑的 HTTPS 地址，例如 VPS 上的反向隧道。配对过的设备会自动学到这些地址，离开家里的网络后改走它们。",
+  "HTTPS addresses on your own server. Paired devices use them when they are away from your network.":
+    "你自己服务器上的 HTTPS 地址。已配对的设备离开你的网络后会改用它们。",
   "Set by environment": "由环境变量设置",
   "Remove {address}": "删除 {address}",
   "New public address": "新的公网地址",
@@ -12,8 +12,10 @@ export default {
   Add: "添加",
 
   "Tunnel command": "隧道命令",
-  "Optional. T3 Extend runs this command while the app is open, restarts it if it exits, and stops it when you quit. It runs on this computer as you, for example frpc -c ~/frpc.toml.":
-    "可选。应用打开期间 T3 Extend 会运行这条命令，退出后自动重启，退出应用时停止。它以你的身份在这台电脑上运行，例如 frpc -c ~/frpc.toml。",
+  "Optional. T3 Extend runs this command while the app is open and starts it again if it exits.":
+    "可选。应用打开期间，T3 Extend 会运行这条命令，命令退出后自动重新启动。",
+  "Runs on this computer as you, and stops when you quit.":
+    "以你的身份在这台电脑上运行，退出应用时停止。",
   "Run tunnel command": "运行隧道命令",
   Save: "保存",
   Restart: "重启",
