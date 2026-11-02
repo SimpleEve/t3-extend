@@ -247,8 +247,8 @@ export default {
     "{threads}会被中断。{continuing}可以在重启后继续。",
   "{count} running": "{count} 个运行中",
   "Update did not apply": "更新没有生效",
-  "T3 Code is still on {APP_VERSION}. Install {notAppliedVersion} again from the update button.":
-    "T3 Code 仍是 {APP_VERSION}。请通过更新按钮重新安装 {notAppliedVersion}。",
+  "T3 Extend is still on {APP_VERSION}. Install {notAppliedVersion} again from the update button.":
+    "T3 Extend 仍是 {APP_VERSION}。请通过更新按钮重新安装 {notAppliedVersion}。",
   "Dismiss provider update notice": "关闭 provider 更新提示",
   "Dismiss until provider status changes": "在 provider 状态变化前不再提示",
   "Read more": "了解更多",
@@ -284,14 +284,14 @@ export default {
   "this thread": "这个对话",
   "This thread is the only one linked to this worktree:": "只有这个对话关联了这个 worktree：",
   "Delete the worktree too?": "同时删除这个 worktree？",
-  "Install update {version} and restart T3 Code?": "安装更新 {version} 并重启 T3 Code？",
-  "Install update and restart T3 Code?": "安装更新并重启 T3 Code？",
+  "Install update {version} and restart T3 Extend?": "安装更新 {version} 并重启 T3 Extend？",
+  "Install update and restart T3 Extend?": "安装更新并重启 T3 Extend？",
   "Any running tasks will be interrupted. Make sure you're ready before continuing.":
     "正在运行的任务都会中断。请确认准备好后再继续。",
-  "Update the T3 Code desktop apps on {servers}? They will close and relaunch on those machines.":
-    "更新 {servers} 上的 T3 Code 桌面应用？它们会在这些机器上关闭并重新启动。",
-  "Update the T3 Code desktop app that runs the {server}? It will close and relaunch on that machine.":
-    "更新运行 {server} 的 T3 Code 桌面应用？它会在那台机器上关闭并重新启动。",
+  "Update the T3 Extend desktop apps on {servers}? They will close and relaunch on those machines.":
+    "更新 {servers} 上的 T3 Extend 桌面应用？它们会在这些机器上关闭并重新启动。",
+  "Update the T3 Extend desktop app that runs the {server}? It will close and relaunch on that machine.":
+    "更新运行 {server} 的 T3 Extend 桌面应用？它会在那台机器上关闭并重新启动。",
   // Update everything: the sidebar capsule, its popover, the dialog summary, and the result toast.
   "Restart in {seconds}s": "{seconds} 秒后重启",
   "{done} of {total} updated": "已更新 {done}/{total}",

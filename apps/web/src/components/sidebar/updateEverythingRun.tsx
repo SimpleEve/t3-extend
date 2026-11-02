@@ -345,7 +345,7 @@ export function startDesktopUpdateLaunchNotice(): () => void {
           title: translate(getUiLocale(), "Update did not apply"),
           description: translate(
             getUiLocale(),
-            "T3 Code is still on {APP_VERSION}. Install {notAppliedVersion} again from the update button.",
+            "T3 Extend is still on {APP_VERSION}. Install {notAppliedVersion} again from the update button.",
             { APP_VERSION, notAppliedVersion },
           ),
         }),

@@ -240,7 +240,7 @@ export function WelcomeWizard({
         initialFocus={() => document.getElementById("onboarding-pairing-url") ?? true}
       >
         <WizardHeader
-          title={t("Set up T3 Code")}
+          title={t("Set up T3 Extend")}
           identity={
             <div className="flex items-baseline gap-1.5" role="img" aria-label={FORK.appBaseName}>
               <T3Wordmark className="h-4 w-auto shrink-0" aria-hidden />
@@ -454,7 +454,7 @@ function ConnectionStep({
         <p className="min-w-0 text-xs leading-relaxed text-muted-foreground">
           {interpolateNodes(
             t(
-              "T3 Code collects anonymous usage data to help us improve it. To read more about how your data is used and how to opt out, see our {link}.",
+              "T3 Extend collects anonymous usage data to help us improve it. To read more about how your data is used and how to opt out, see our {link}.",
             ),
             {
               link: (
@@ -559,7 +559,7 @@ function ConnectAccountOption({
             </p>
             <CommandBlock command="npx t3 connect" className="mt-3" />
             <p className="mt-3 text-xs text-muted-foreground">
-              {t("Keep T3 Code running. Select the computers you want to set up above.")}
+              {t("Keep T3 Extend running. Select the computers you want to set up above.")}
             </p>
           </div>
         </CollapsiblePanel>
@@ -667,7 +667,7 @@ function PairingForm({
           <CollapsiblePanel>
             <p className="pt-3 text-sm text-muted-foreground">
               {interpolateNodes(
-                t("On the computer with your code, start T3 Code or run {command}, then run:"),
+                t("On the computer with your code, start T3 Extend or run {command}, then run:"),
                 { command: <code className="font-mono">npx t3 serve</code> },
               )}
             </p>

@@ -163,7 +163,7 @@ export function SettingsMicrophoneRouteScreen() {
                     "Voice input needs microphone access before it can record or list your microphones.",
                   )
                 : t(
-                    "Microphone access is off for T3 Code. Turn it on in Settings to use voice input.",
+                    "Microphone access is off for T3 Extend. Turn it on in Settings to use voice input.",
                   )}
             </Text>
           </>

@@ -178,6 +178,127 @@ const ALLOWED: ReadonlyArray<Allowed> = [
   },
 ];
 
+// Brand guard: the app calls itself FORK.appBaseName in anything a user can read. "T3 Code" stays
+// only where it names official T3 Code or its services; each such place is listed with its reason.
+const BRAND_NAME = /T3 Code/u;
+const BRAND_ROOTS = [
+  "apps/web/index.html",
+  "apps/web/public/manifest.webmanifest",
+  "apps/mobile/app.config.ts",
+  "apps/desktop/scripts/electron-launcher.mjs",
+  "scripts/build-desktop-artifact.ts",
+  "apps/web/src",
+  "apps/desktop/src",
+  "apps/mobile/src",
+  "packages/shared/src",
+  "packages/client-runtime/src",
+  "packages/contracts/src",
+];
+/** Catalogs follow the English keys in code; `i18n:report` keeps them in step. */
+const BRAND_SOURCE_FILE = /\.(?:[cm]?[jt]sx?|json|html|webmanifest)$/u;
+const BRAND_SKIPPED_FILE = /(?:^|\/)i18n\/catalogs\//u;
+const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*)/u;
+
+const ALLOWED_BRAND: ReadonlyArray<Allowed> = [
+  {
+    path: "scripts/build-desktop-artifact.ts",
+    line: "is an open-source desktop app",
+    reason: "Linux package description; Linux identity is out of scope until the fork ships Linux.",
+  },
+  {
+    path: "scripts/build-desktop-artifact.ts",
+    line: "Build a desktop artifact for T3 Code",
+    reason: "Maintainer-facing CLI help text.",
+  },
+  {
+    path: "apps/web/src/components/GitHubStarPrompt.tsx",
+    reason: "Asks for a star on the upstream project.",
+  },
+  {
+    path: "apps/web/src/components/promptLinks/HostedPromptLinkLanding.tsx",
+    line: "Get T3 Code",
+    reason: "Links to the official download.",
+  },
+  {
+    path: "apps/web/src/lib/bootError.ts",
+    line: "Download and reinstall T3 Code",
+    reason: "Links to the official download.",
+  },
+  {
+    path: "apps/web/src/components/clerk/",
+    reason: "T3 Connect account pages; the account service belongs to official T3 Code.",
+  },
+  {
+    path: "apps/web/src/components/settings/ChatGptWelcomeCoordinator.tsx",
+    reason: "OpenAI's ChatGPT plan terms name official T3 Code.",
+  },
+  {
+    path: "packages/shared/src/usageLimits.ts",
+    reason: "Message for a ChatGPT workspace admin, who knows the official product.",
+  },
+  {
+    path: "apps/web/src/components/settings/ThemeImportDialog.tsx",
+    reason: "Accepts theme files exported by official T3 Code.",
+  },
+  {
+    path: "apps/web/src/components/settings/ThemePreviewCircles.tsx",
+    reason: "Name of the built-in theme preset.",
+  },
+  {
+    path: "apps/mobile/src/lib/mobileTheme.ts",
+    reason: "Name of the built-in theme preset.",
+  },
+  {
+    path: "apps/web/src/components/settings/MultipleAccountsNote.tsx",
+    reason: "Links to upstream user documentation.",
+  },
+  {
+    path: "apps/web/src/components/settings/LinkedEnvironmentsSettings.tsx",
+    line: "Revoke",
+    reason: "Quotes the session label that apps/server/src/peer/PeerLinks.ts writes.",
+  },
+  {
+    path: "apps/web/src/components/settings/SnapShotSetupDialog.tsx",
+    line: "T3 Code ",
+    reason: "Quotes the GNOME extension's name from apps/desktop/gnome-extension/metadata.json.",
+  },
+  {
+    path: "apps/desktop/src/snapShot/GnomeCaptureSetup.ts",
+    line: "T3 Code extension",
+    reason: "Quotes the GNOME extension's name from apps/desktop/gnome-extension/metadata.json.",
+  },
+  {
+    path: "apps/desktop/src/snapShot/KdeSnapShot.ts",
+    line: "Name=T3 Code SnapShots",
+    reason: "Desktop entry name that the KDE helper registers; Linux identity is out of scope.",
+  },
+  {
+    path: "apps/desktop/src/snapShot/SnapShotTransition.ts",
+    reason: "Window title that no one reads, and a Linux-only compositor rule may match it.",
+  },
+  {
+    path: "apps/desktop/src/app/DesktopCliShim.ts",
+    line: "MARKER",
+    reason: "Marker that identifies shims this app wrote; changing it orphans existing shims.",
+  },
+  {
+    path: "apps/desktop/src/app/DesktopLegacyLocalStorage.ts",
+    reason: "Official T3 Code's v1 profile directory names, read only for matching.",
+  },
+  {
+    path: "apps/mobile/src/features/diagnostics/SettingsDiagnosticsRouteScreen.tsx",
+    reason: "Says who receives the crash report: the official T3 Code team.",
+  },
+  {
+    path: "packages/contracts/src/t3ProjectFile.ts",
+    reason: "Public JSON schema of t3.json, shared with official T3 Code.",
+  },
+  {
+    path: "packages/contracts/src/relay.ts",
+    reason: "OpenAPI title of the official relay service.",
+  },
+];
+
 const repoRoot = NodePath.dirname(import.meta.dirname);
 
 function* walk(relative: string): Generator<string> {
@@ -213,14 +334,43 @@ for (const root of ROOTS) {
   }
 }
 
+const brandUsed = new Set<Allowed>();
+const brandViolations: Array<string> = [];
+for (const root of BRAND_ROOTS) {
+  for (const file of walk(root)) {
+    if (!BRAND_SOURCE_FILE.test(file) || SKIPPED_FILE.test(file) || BRAND_SKIPPED_FILE.test(file))
+      continue;
+    const lines = NodeFS.readFileSync(NodePath.join(repoRoot, file), "utf8").split("\n");
+    lines.forEach((line, index) => {
+      if (!BRAND_NAME.test(line) || COMMENT_LINE.test(line)) return;
+      const allowed = ALLOWED_BRAND.find(
+        (entry) =>
+          (file === entry.path || file.startsWith(`${entry.path.replace(/\/$/u, "")}/`)) &&
+          (entry.line === undefined || line.includes(entry.line)),
+      );
+      if (allowed) brandUsed.add(allowed);
+      else brandViolations.push(`${file}:${index + 1}: ${line.trim()}`);
+    });
+  }
+}
+const brandStale = ALLOWED_BRAND.filter((entry) => !brandUsed.has(entry));
 const stale = ALLOWED.filter((entry) => !used.has(entry));
-if (violations.length > 0 || stale.length > 0) {
+if (
+  violations.length > 0 ||
+  stale.length > 0 ||
+  brandViolations.length > 0 ||
+  brandStale.length > 0
+) {
   for (const violation of violations) process.stderr.write(`${violation}\n`);
   for (const entry of stale)
     process.stderr.write(`stale allowlist entry: ${entry.path} ${entry.line ?? ""}\n`);
+  for (const violation of brandViolations) process.stderr.write(`${violation}\n`);
+  for (const entry of brandStale)
+    process.stderr.write(`stale brand allowlist entry: ${entry.path} ${entry.line ?? ""}\n`);
   process.stderr.write(
-    `\nfork-identity-guard: ${violations.length} official identity literal(s), ${stale.length} stale allowlist entr(ies).` +
-      "\nUse packages/shared/src/forkIdentity.ts, or add an ALLOWED entry with a reason.\n",
+    `\nfork-identity-guard: ${violations.length} official identity literal(s), ${stale.length} stale allowlist entr(ies), ` +
+      `${brandViolations.length} user-visible "T3 Code" literal(s), ${brandStale.length} stale brand allowlist entr(ies).` +
+      "\nUse packages/shared/src/forkIdentity.ts (FORK.appBaseName for the app's name), or add an ALLOWED or ALLOWED_BRAND entry with a reason.\n",
   );
   process.exit(1);
 }

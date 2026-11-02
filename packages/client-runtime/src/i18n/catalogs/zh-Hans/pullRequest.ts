@@ -428,7 +428,7 @@ export default {
   "Select a pull request first": "请先选择一个 PR",
   "Loading pull requests…": "正在加载 PR…",
   "Pull requests unavailable": "PR 不可用",
-  "Update your T3 Code servers to browse pull requests.": "请更新 T3 Code 服务器后再浏览 PR。",
+  "Update your T3 Extend servers to browse pull requests.": "请更新 T3 Extend 服务器后再浏览 PR。",
   "Showing the last pull requests loaded.": "显示的是上次加载的 PR。",
   "Updating pull requests": "正在更新 PR",
   "Loading more": "正在加载更多",

@@ -137,8 +137,8 @@ export default {
   "Linked pull requests": "关联的 PR",
   Device: "设备",
   "Side chat": "侧边对话",
-  "Browser previews are only available in the T3 Code desktop app.":
-    "浏览器预览只在 T3 Code 桌面应用中可用。",
+  "Browser previews are only available in the T3 Extend desktop app.":
+    "浏览器预览只在 T3 Extend 桌面应用中可用。",
   "Terminal surfaces are only available from a project thread.": "终端只能在项目对话中打开。",
   "Files are only available when a project is open.": "打开项目后才能浏览文件。",
   "Diff is only available for server threads in Git repositories.":
@@ -369,7 +369,7 @@ export default {
   "The annotation was kept without the screenshot.": "标注已保留，但没有截图。",
   "Page didn't load. Pick is unavailable until the page renders":
     "页面没有加载，渲染完成前无法选取",
-  "This tab is open in the T3 Code desktop app.": "这个标签页在 T3 Code 桌面应用中打开。",
+  "This tab is open in the T3 Extend desktop app.": "这个标签页在 T3 Extend 桌面应用中打开。",
   "Unable to pop out preview": "无法弹出预览",
   "Floating browser preview": "浮动浏览器预览",
   "Close popped-out preview": "关闭弹出的预览",
@@ -763,7 +763,8 @@ export default {
   "Open original": "打开原文件",
   "Download video": "下载视频",
   "Profile: {profileName}": "配置文件：{profileName}",
-  "Preview is only available in the T3 Code desktop app.": "只有 T3 Code 桌面应用才能使用预览。",
+  "Preview is only available in the T3 Extend desktop app.":
+    "只有 T3 Extend 桌面应用才能使用预览。",
   "Pair this client again with preview access to control browser previews.":
     "请重新配对这个客户端并授予预览权限，才能控制浏览器预览。",
   "Remove {label} from history": "从历史记录中移除 {label}",

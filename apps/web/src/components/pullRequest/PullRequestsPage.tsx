@@ -1150,7 +1150,7 @@ export function PullRequestsPage() {
       ) : !pullRequestsSupported ? (
         <PullRequestsUnavailableState
           title={t("Pull requests unavailable")}
-          error={t("Update your T3 Code servers to browse pull requests.")}
+          error={t("Update your T3 Extend servers to browse pull requests.")}
         />
       ) : firstLoad ? (
         <PullRequestListGhost rows={7} caption={t("Loading pull requests…")} />

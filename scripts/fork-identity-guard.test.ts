@@ -44,6 +44,26 @@ it.layer(NodeServices.layer)("fork-identity-guard", (it) => {
     }),
   );
 
+  it.effect("rejects a user-visible T3 Code literal outside the brand allowlist", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "fork-guard-brand-" });
+      installGuard(root);
+      yield* fs.makeDirectory(path.join(root, "apps", "web", "src"), { recursive: true });
+      yield* fs.writeFileString(
+        path.join(root, "apps", "web", "src", "title.ts"),
+        'export const title = "T3 Code could not start";\n// T3 Code in a comment is fine.\n',
+      );
+
+      const result = runGuard(root);
+      assert.notEqual(result.status, 0);
+      assert.include(result.stderr, "apps/web/src/title.ts:1");
+      assert.notInclude(result.stderr, "apps/web/src/title.ts:2");
+      assert.include(result.stderr, '1 user-visible "T3 Code" literal(s)');
+    }),
+  );
+
   it.effect("rejects a stale allowlist entry", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
@@ -54,6 +74,7 @@ it.layer(NodeServices.layer)("fork-identity-guard", (it) => {
       assert.notEqual(result.status, 0);
       assert.include(result.stderr, "stale allowlist entry:");
       assert.include(result.stderr, "stale allowlist entr(ies)");
+      assert.include(result.stderr, "stale brand allowlist entry:");
     }),
   );
 });

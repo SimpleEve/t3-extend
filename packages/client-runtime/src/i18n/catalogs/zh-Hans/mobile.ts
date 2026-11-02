@@ -458,7 +458,7 @@ export default {
   "Couldn't load work. Tap to retry.": "无法加载工作内容。点按重试。",
   "Context compaction": "上下文压缩",
   "Compacting context": "正在压缩上下文",
-  "Sent by T3 Code": "由 T3 Code 发送",
+  "Sent by T3 Extend": "由 T3 Extend 发送",
   Pending: "待发送",
   "Edit pending message": "编辑待发送的消息",
   "Review {fileCountLabel}, {additions} additions, {deletions} deletions":

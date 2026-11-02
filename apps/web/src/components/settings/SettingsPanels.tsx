@@ -2083,7 +2083,7 @@ export function AboutSettingsPanel() {
         <SettingsRow
           {...searchableSetting("privacy-policy")}
           description={t(
-            "How we handle your data, including the anonymous usage data T3 Code collects.",
+            "How we handle your data, including the anonymous usage data T3 Extend collects.",
           )}
           control={
             <Button
@@ -2097,7 +2097,7 @@ export function AboutSettingsPanel() {
         />
         <SettingsRow
           {...searchableSetting("open-source-licenses")}
-          description={t("Notices for dependencies, assets, and optional tools used by T3 Code.")}
+          description={t("Notices for dependencies, assets, and optional tools used by T3 Extend.")}
           control={
             <Button
               render={<Link to="/settings/open-source-licenses" />}

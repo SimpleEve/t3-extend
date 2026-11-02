@@ -2791,7 +2791,7 @@ export default function ChatView(props: ChatViewProps) {
         : serverConfig === null
           ? t("Side chats are not ready yet. Try again in a moment.")
           : serverConfig.environment.capabilities.sideChats !== true
-            ? t("Update this environment's T3 Code server to use side chats.")
+            ? t("Update this environment's T3 Extend server to use side chats.")
             : sideChatsOffered && !isServerThread
               ? t("Side chats start after the first message.")
               : sideChat.available &&

@@ -120,6 +120,7 @@ import {
   type NavigationWithFinishTransitioning,
 } from "./use-thread-settings-sheet-presentation";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 export const COMPOSER_COLLAPSED_CHROME = 60;
 
@@ -706,7 +707,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
     armAgentAwarenessLiveActivityForLocalWork({
       environmentId: props.environmentId,
       threadTitle: props.selectedThread.title,
-      projectTitle: props.environmentLabel ?? "T3 Code",
+      projectTitle: props.environmentLabel ?? FORK.appBaseName,
     });
   };
 

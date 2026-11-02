@@ -186,7 +186,7 @@ export function ServerUpdatesAction({
         const confirmed =
           (await requestConfirmDialog(
             t(
-              "Update the T3 Code desktop apps on {servers}? They will close and relaunch on those machines.",
+              "Update the T3 Extend desktop apps on {servers}? They will close and relaunch on those machines.",
               { servers: desktopTargets.map((target) => target.serverLabel).join(t(", ")) },
             ),
           )) ?? true;
@@ -303,7 +303,7 @@ export function ServerUpdateAction({
       const confirmed =
         (await requestConfirmDialog(
           t(
-            "Update the T3 Code desktop app that runs the {server}? It will close and relaunch on that machine.",
+            "Update the T3 Extend desktop app that runs the {server}? It will close and relaunch on that machine.",
             { server: serverLabel },
           ),
         )) ?? true;

@@ -31,8 +31,8 @@ export default {
   "What should we build in {project}?": "在 {project} 要做点什么？",
   "What went wrong?": "出了什么问题？",
   "This machine": "本机",
-  "The agent reads T3 Code's logs and source here, and asks before it applies a fix or posts anything.":
-    "Agent 会在这里读取 T3 Code 的日志和源码，应用修复或发布任何内容前都会先问你。",
+  "The agent reads T3 Extend's logs and source here, and asks before it applies a fix or posts anything.":
+    "Agent 会在这里读取 T3 Extend 的日志和源码，应用修复或发布任何内容前都会先问你。",
   "or run": "或者运行",
   "Copy command, for a terminal": "复制命令，在终端中运行",
 
@@ -546,7 +546,7 @@ export default {
   "Remove from queue": "移出队列",
   "Show fewer": "收起",
   "Show all {count} queued": "显示全部 {count} 条排队的消息",
-  "Sent by T3 Code": "由 T3 Code 发送",
+  "Sent by T3 Extend": "由 T3 Extend 发送",
   Editing: "正在编辑",
   "Available when the main thread is idle.": "主对话空闲时可用。",
   "Available after a finished reply.": "有一条完成的回复后可用。",
@@ -794,13 +794,13 @@ export default {
   'Create new ref "{name}"': "新建分支“{name}”",
   "Open {kind}": "打开 {kind}",
   "Machine, {label}": "机器，{label}",
-  "T3 Code environment": "T3 Code 环境",
+  "T3 Extend environment": "T3 Extend 环境",
   "Machine not in this app": "这台机器不在此应用中",
   "Side chats cannot start side chats.": "侧边对话里不能再开侧边对话。",
   "Subagent threads cannot start side chats.": "子 Agent 对话不能开侧边对话。",
   "Side chats are not ready yet. Try again in a moment.": "侧边对话还没准备好，请稍后再试。",
-  "Update this environment's T3 Code server to use side chats.":
-    "更新这个环境的 T3 Code 服务器后才能使用侧边对话。",
+  "Update this environment's T3 Extend server to use side chats.":
+    "更新这个环境的 T3 Extend 服务器后才能使用侧边对话。",
   "Available once the thread's worktree is set up.": "对话的 worktree 设置好后可用。",
   "Preparing machine": "正在准备机器",
   "Rewinding conversation": "正在回退对话",
@@ -951,8 +951,8 @@ export default {
   "{model} subagent: {status}": "{model} 子 Agent：{status}",
   "Runs on its own": "独立运行",
   "{count} queued": "{count} 条排队中",
-  "Update this environment's T3 Code server to browse pull requests.":
-    "更新这个环境的 T3 Code 服务器后才能浏览 PR。",
+  "Update this environment's T3 Extend server to browse pull requests.":
+    "更新这个环境的 T3 Extend 服务器后才能浏览 PR。",
   "Skill {label}": "技能 {label}",
   "No description is available for this skill.": "这个技能没有描述。",
   "Paste the secret": "粘贴密钥",
@@ -1204,10 +1204,10 @@ export default {
   "It opens as a draft. Nothing runs until you press Send.":
     "它会以草稿打开，在你点击发送前不会运行。",
   "This prompt had hidden characters, it may be malicious": "这个提示词含有隐藏字符，可能是恶意的",
-  "T3 Code removed {count} hidden character. Read the prompt before you send it.":
-    "T3 Code 移除了 {count} 个隐藏字符。请先阅读提示词再发送。",
-  "T3 Code removed {count} hidden characters. Read the prompt before you send it.":
-    "T3 Code 移除了 {count} 个隐藏字符。请先阅读提示词再发送。",
+  "T3 Extend removed {count} hidden character. Read the prompt before you send it.":
+    "T3 Extend 移除了 {count} 个隐藏字符。请先阅读提示词再发送。",
+  "T3 Extend removed {count} hidden characters. Read the prompt before you send it.":
+    "T3 Extend 移除了 {count} 个隐藏字符。请先阅读提示词再发送。",
   "Open in app": "在应用中打开",
   "Open in desktop app": "在桌面应用中打开",
   "Continue here": "在这里继续",
@@ -1241,8 +1241,8 @@ export default {
   "Go home": "回到首页",
   "Error report": "错误报告",
   "Preview is desktop-only": "预览仅限桌面应用",
-  "Open T3 Code in the desktop app to use the in-app preview.":
-    "请在 T3 Code 桌面应用中使用内置预览。",
+  "Open T3 Extend in the desktop app to use the in-app preview.":
+    "请在 T3 Extend 桌面应用中使用内置预览。",
   "Appearance: {label}": "外观：{label}",
   "workspace area|Home": "首页",
   "This commit is not in the thread's workspace": "这个提交不在对话的工作区中",
@@ -1295,11 +1295,11 @@ export default {
   "markdown alert|Important": "重要",
   "markdown alert|Warning": "警告",
   "markdown alert|Caution": "小心",
-  "T3 Code could not open a new thread.": "T3 Code 无法打开新对话。",
+  "T3 Extend could not open a new thread.": "T3 Extend 无法打开新对话。",
   "None of your machines can start a thread without a project right now.":
     "你的机器目前都无法在没有项目的情况下开始对话。",
-  "This machine cannot clone from a link. Update T3 Code on it, or clone the repository from the command palette.":
-    "这台机器不能从链接克隆。请更新它上面的 T3 Code，或者从命令面板克隆仓库。",
+  "This machine cannot clone from a link. Update T3 Extend on it, or clone the repository from the command palette.":
+    "这台机器不能从链接克隆。请更新它上面的 T3 Extend，或者从命令面板克隆仓库。",
   "The clone started, but its project did not appear.": "克隆已开始，但没有出现对应的项目。",
   "Cloning {repository}": "正在克隆 {repository}",
   "Open this link again when the clone finishes.": "克隆完成后请再次打开这个链接。",
