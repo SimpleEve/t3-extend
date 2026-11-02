@@ -50,6 +50,8 @@ import { SettingsSwitchRow } from "./components/SettingsSwitchRow";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { resolveAgentAwarenessPlatformPresentation } from "./SettingsRouteScreen.logic";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { UnifiedPushSettingsSection } from "../../fork/push/UnifiedPushSettingsSection"; // fork: UnifiedPush
+import { useUnifiedPushState } from "../../fork/push/pushStore"; // fork: UnifiedPush
 
 /**
  * A policy that turns Connect off refuses relay links and preferences, which would fail the
@@ -111,16 +113,22 @@ function useDeviceRegistered(): boolean {
 
 export function SettingsNotificationsRouteScreen() {
   const t = useT();
+  const unifiedPush = useUnifiedPushState(); // fork: UnifiedPush
   if (!hasCloudPublicConfig()) {
     return (
       <SettingsScreen title={t("Notifications")}>
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerClassName="px-5 pt-4"
+          contentContainerClassName="gap-6 px-5 pt-4"
         >
-          <Text className="text-base text-foreground-muted">
-            {t("Notifications require T3 Connect in this app build.")}
-          </Text>
+          {unifiedPush.supported ? (
+            // fork: without T3 Connect, Android pushes through the user's own UnifiedPush server
+            <UnifiedPushSettingsSection />
+          ) : (
+            <Text className="text-base text-foreground-muted">
+              {t("Notifications require T3 Connect in this app build.")}
+            </Text>
+          )}
         </ScrollView>
       </SettingsScreen>
     );

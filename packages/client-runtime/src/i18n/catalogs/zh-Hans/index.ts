@@ -9,6 +9,7 @@ import desktop from "./desktop.ts";
 import mobile from "./mobile.ts";
 import mobileBrowser from "./mobileBrowser.ts";
 import mobilePullRequests from "./mobilePullRequests.ts";
+import mobilePush from "./mobilePush.ts";
 import mobileSettings from "./mobileSettings.ts";
 import mobileWorkspace from "./mobileWorkspace.ts";
 import pullRequest from "./pullRequest.ts";
@@ -33,6 +34,7 @@ export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   mobile,
   mobileBrowser,
   mobilePullRequests,
+  mobilePush,
   mobileSettings,
   mobileWorkspace,
   pullRequest,
