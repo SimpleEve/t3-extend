@@ -6,14 +6,15 @@ import { SymbolView } from "../../../components/ui/AppSymbol";
 import { PR_ROW_EXIT, PR_ROW_LAYOUT } from "../pullRequestAnimations";
 import { guideNoticeState } from "./reviewGuideState";
 import type { useReviewGuide } from "./useReviewGuide";
-import { useT } from "../../../hooks/useT"; // fork: i18n
-import { getUiLocale, uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { useT, useUiLocale } from "../../../hooks/useT"; // fork: i18n
+import { uiFormatLocale, uiFormatOptions } from "../../../lib/time"; // fork: i18n
 
 const NOTICE_ENTER = FadeIn.delay(180).duration(120).reduceMotion(ReduceMotion.System);
 
 export function GuideNotice({ state }: { readonly state: ReturnType<typeof useReviewGuide> }) {
   const t = useT(); // fork: i18n
-  const notice = guideNoticeState(state);
+  const locale = useUiLocale(); // fork: i18n
+  const notice = guideNoticeState(state, t);
   if (notice.kind === "ready") return null;
   const compact = state.data?.guide != null;
   const failed = notice.kind === "failed" || notice.kind === "unavailable";
@@ -62,8 +63,8 @@ export function GuideNotice({ state }: { readonly state: ReturnType<typeof useRe
           <Text className="shrink text-xs text-foreground-muted">
             {t("Started {time}", {
               time: new Date(state.data.run.startedAt).toLocaleTimeString(
-                uiLocaleFormatTag(getUiLocale()),
-                { hour: "2-digit", minute: "2-digit" },
+                uiFormatLocale(locale),
+                uiFormatOptions(locale, { hour: "2-digit", minute: "2-digit" }),
               ),
             })}
           </Text>

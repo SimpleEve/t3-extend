@@ -35,9 +35,10 @@ const MORPH_TIMING = {
 const ENTERING = FadeIn.duration(180).reduceMotion(ReduceMotion.System);
 
 export function GlobalVoiceInputControl(props: { readonly children: ReactNode }) {
+  const t = useT(); // fork: i18n
   const voice = useGlobalVoiceInput();
   const [expanded, setExpanded] = useState(false);
-  const presentation = resolveVoiceComposerPresentation(voice.state, voice.elapsedSeconds);
+  const presentation = resolveVoiceComposerPresentation(voice.state, voice.elapsedSeconds, t);
   const visible =
     presentation.statusLabel !== null &&
     !(voice.ownerKey && voice.focusedOwners.has(voice.ownerKey));
@@ -90,7 +91,7 @@ function EdgeDictationPill(props: {
       ? Math.max(insets.bottom, 16) + 16 + fabSize + 12
       : Math.max(insets.bottom, 12) + IOS_BOTTOM_CHROME_CLEARANCE;
 
-  const presentation = resolveVoiceComposerPresentation(voice.state, voice.elapsedSeconds);
+  const presentation = resolveVoiceComposerPresentation(voice.state, voice.elapsedSeconds, t);
   const phase = voice.state.phase;
   const isError = phase === "error";
   const openSettings = isError && voice.state.errorAction === "settings";

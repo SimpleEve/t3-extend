@@ -9,7 +9,7 @@ import {
   resolveThreadCurrentPullRequestLink,
   resolveThreadPullRequestBadge,
 } from "@t3tools/client-runtime/thread-pull-requests";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type ThreadPr = NonNullable<VcsStatusResult["pr"]>;
 
@@ -36,6 +36,7 @@ const PR_STATE_TEXT_CLASS: Record<ThreadPr["state"], string> = {
 export function presentThreadPr(
   pr: ThreadPr,
   provider: VcsStatusResult["sourceControlProvider"] | null | undefined,
+  t: Translator, // fork: i18n
 ): ThreadPrPresentation {
   const { changeRequest } = sourceControlClients.get(provider?.kind);
   const isDraft = pr.state === "open" && pr.isDraft === true;
@@ -49,20 +50,25 @@ export function presentThreadPr(
     url: pr.url,
     changeRequest,
     label: String(pr.number),
-    accessibilityLabel: `#${pr.number} ${changeRequest.singular} ${isDraft ? "draft" : pr.state}`,
+    // fork: i18n
+    accessibilityLabel: t("#{number} {singular} {state}", {
+      number: pr.number,
+      singular: changeRequest.singular,
+      state: t(isDraft ? "draft" : pr.state),
+    }),
     textClassName: isDraft ? "text-foreground-muted" : PR_STATE_TEXT_CLASS[pr.state],
   };
 }
 
 export function presentThreadLinkedPullRequests(
   links: ReadonlyArray<ThreadPullRequestLink>,
+  t: Translator, // fork: i18n
 ): ThreadPrPresentation | null {
   const link = resolveThreadCurrentPullRequestLink(links);
   const badge = resolveThreadPullRequestBadge(links);
   if (link === null || badge === null) return null;
   const { changeRequest } =
     sourceControlClients.findByChangeRequestUrl(link.url) ?? sourceControlClients.get(undefined);
-  const t = translatorFor(getUiLocale()); // fork: i18n
   const snapshot = link.snapshot;
   const linkedCount = badge.kind === "pull-request" && badge.others > 0 ? badge.others + 1 : null;
   const isMultiple = badge.kind === "stack" || linkedCount !== null;
@@ -121,9 +127,10 @@ export function resolveThreadPrSource(
   thread: Pick<EnvironmentThreadShell, "pullRequests" | "linkedPullRequest" | "branchPullRequest">,
   /** False until the server config loads; the stored references serve until then. */
   supportsSnapshots: boolean,
+  t: Translator, // fork: i18n
 ) {
   const linkedPresentation = supportsSnapshots
-    ? presentThreadLinkedPullRequests(thread.pullRequests)
+    ? presentThreadLinkedPullRequests(thread.pullRequests, t)
     : null;
   const pullRequestRef =
     linkedPresentation !== null
@@ -134,17 +141,17 @@ export function resolveThreadPrSource(
   return { linkedPresentation, pullRequestRef };
 }
 
-export function resolveThreadPrBadgeAction(pr: ThreadPrPresentation) {
+export function resolveThreadPrBadgeAction(pr: ThreadPrPresentation, t: Translator) {
   return pr.kind === "stack" || pr.others > 0
     ? {
         kind: "list" as const,
-        accessibilityLabel: translatorFor(getUiLocale())("Show {label}", {
+        accessibilityLabel: t("Show {label}", {
           label: pr.accessibilityLabel,
         }),
       }
     : {
         kind: "open" as const,
-        accessibilityLabel: translatorFor(getUiLocale())("Open {label}", {
+        accessibilityLabel: t("Open {label}", {
           label: pr.accessibilityLabel,
         }),
       };

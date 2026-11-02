@@ -61,9 +61,9 @@ export const PullRequestListRow = memo(
       : props.sidebar
         ? "text-drawer-foreground-muted"
         : "text-foreground-tertiary";
-    const status = pullRequestStatus(item);
-    const conflict = pullRequestConflict(item);
-    const review = pullRequestListReviewStatus(item);
+    const status = pullRequestStatus(item, t);
+    const conflict = pullRequestConflict(item, t);
+    const review = pullRequestListReviewStatus(item, t);
     const checks = item.checksState ? pullRequestChecksStatus(item.checksState) : null;
     return (
       <View style={props.sidebar ? THREAD_LIST_V2_SIDEBAR_ROW_CONTAINER_STYLE : undefined}>

@@ -2,7 +2,7 @@ import type { PullRequestReviewPosition, PullRequestReviewThread } from "@t3tool
 import type { NativeReviewDiffRow } from "../diffs/nativeReviewDiffSurface";
 import type { NativeReviewDiffData } from "../review/nativeReviewDiffAdapter";
 import type { PendingReviewComment } from "./pullRequestReviewDrafts";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function reviewPosition(row: NativeReviewDiffRow): PullRequestReviewPosition | null {
   if (row.kind !== "line") return null;
@@ -19,10 +19,12 @@ export function reviewPosition(row: NativeReviewDiffRow): PullRequestReviewPosit
     };
   return null;
 }
-export function reviewPositionLabel(position: PullRequestReviewPosition) {
+export function reviewPositionLabel(
+  position: PullRequestReviewPosition,
+  t: Translator /* fork: i18n */,
+) {
   const oldSide =
     position.kind === "deleted" || (position.kind === "context" && position.side === "left");
-  const t = translatorFor(getUiLocale()); // fork: i18n
   const line = reviewLine(position);
   return oldSide ? t("Old line {line}", { line }) : t("Line {line}", { line });
 }
@@ -36,9 +38,9 @@ export function annotatePullRequestDiff(
   threads: readonly PullRequestReviewThread[],
   drafts: readonly PendingReviewComment[],
   headSha: string | undefined,
+  t: Translator, // fork: i18n
 ): NativeReviewDiffData {
   if (threads.length === 0 && drafts.length === 0) return data;
-  const t = translatorFor(getUiLocale()); // fork: i18n
   const anchors = new Map<string, NativeReviewDiffRow[]>();
   const firstByPath = new Map<string, NativeReviewDiffRow>();
   const lines = new Map<string, NativeReviewDiffRow>();

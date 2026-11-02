@@ -19,7 +19,7 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { ENVIRONMENT_MACHINE_SYMBOLS } from "../../components/EnvironmentMachineSymbol";
 import { GlassSurface } from "../../components/ui/GlassSurface";
 import { PierreEntryIcon } from "../../components/PierreEntryIcon";
-import { pullRequestStatus } from "../pull-requests/pullRequestStatus";
+import { pullRequestStatusStyle } from "../pull-requests/pullRequestStatus"; // fork: i18n
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { useT } from "../../hooks/useT"; // fork: i18n
 export type ComposerCommandItem =
@@ -113,7 +113,7 @@ const SKILL_SOURCE_SYMBOL_BY_KIND: Record<ProviderSkillSourceKind, AppSymbolName
 function itemIcon(item: ComposerCommandItem): AppSymbolName | null {
   switch (item.type) {
     case "pull-request":
-      return pullRequestStatus(item.pullRequest).icon;
+      return pullRequestStatusStyle(item.pullRequest).icon;
     case "slash-command":
     case "provider-slash-command":
       return "terminal";
@@ -188,7 +188,7 @@ const CommandRow = memo(function CommandRow(props: {
           size={14}
           tintColorClassName={
             props.item.type === "pull-request"
-              ? pullRequestStatus(props.item.pullRequest).tint
+              ? pullRequestStatusStyle(props.item.pullRequest).tint
               : "accent-icon-subtle"
           }
           type="monochrome"

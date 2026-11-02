@@ -127,7 +127,7 @@ function BrowserPreviewScreen({
   };
   const live = (focused && foreground) || pictureInPicture.active;
   // fork: new tab mode's title, back, and "+" action.
-  const title = composing ? t("New tab") : tab ? browserTabTitle(tab) : t("Browser");
+  const title = composing ? t("New tab") : tab ? browserTabTitle(tab, t) : t("Browser");
   const onBack = composing ? browser.leave : onClose;
   const newTabAction = {
     accessibilityLabel: t("New tab"),
@@ -173,7 +173,7 @@ function BrowserPreviewScreen({
                   icon: "square.on.square",
                   items: tabs.map((entry) => ({
                     id: entry.tabId,
-                    title: browserTabTitle(entry),
+                    title: browserTabTitle(entry, t),
                     subtitle: browserTabUrl(entry),
                     selected: entry.tabId === tabId,
                     onPress: () => selectTab(entry.tabId),

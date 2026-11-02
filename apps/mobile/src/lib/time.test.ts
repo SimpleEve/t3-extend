@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
-import { messageTimeLabel, msUntilRelativeTimeChange, relativeTime } from "./time";
+import {
+  messageTimeLabel,
+  msUntilRelativeTimeChange,
+  relativeTime,
+  uiFormatLocale,
+  uiFormatOptions,
+} from "./time";
 
 const at = "2026-10-19T12:00:00.000Z";
 const timestamp = Date.parse(at);
@@ -43,7 +49,23 @@ describe("relative time", () => {
 describe("messageTimeLabel", () => {
   it("formats the clock time in the interface language", () => {
     const afternoon = new Date(2026, 0, 2, 15, 7).getTime();
-    expect(messageTimeLabel(afternoon, "en")).toMatch(/^3:07\s+PM$/u);
+    expect(messageTimeLabel(afternoon, "en")).toBe(
+      new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(afternoon),
+    );
     expect(messageTimeLabel(afternoon, "zh-Hans")).toBe("15:07");
+  });
+});
+
+describe("uiFormatLocale", () => {
+  it("keeps the device locale for English and forces a 24-hour clock for Chinese", () => {
+    const options = { hour: "numeric", minute: "2-digit" } as const;
+    expect(uiFormatLocale("en")).toBeUndefined();
+    expect(uiFormatOptions("en", options)).toEqual(options);
+    expect(uiFormatLocale("zh-Hans")).toBe("zh-CN");
+    expect(uiFormatOptions("zh-Hans", options)).toEqual({ ...options, hour12: false });
+    const evening = new Date(2026, 0, 2, 21, 5);
+    expect(
+      evening.toLocaleTimeString(uiFormatLocale("zh-Hans"), uiFormatOptions("zh-Hans", options)),
+    ).toBe("21:05");
   });
 });

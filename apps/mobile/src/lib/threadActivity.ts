@@ -76,7 +76,7 @@ import {
   IDLE_COMPACTION_TITLES,
   IDLE_COMPACTING_LABELS,
 } from "@t3tools/client-runtime/user-message";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type PendingApproval = ThreadPendingApproval;
 export type PendingUserInput = ThreadPendingUserInput;
@@ -255,17 +255,15 @@ function compactWorkEntryText(value: string): string {
   return truncate(value.replace(/\s+/gu, " "), WORK_LOG_LABEL_MAX_LENGTH);
 }
 
-export function workEntryRowLabel(entry: WorkLogPresentationEntry, expanded = false): string {
+export function workEntryRowLabel(
+  entry: WorkLogPresentationEntry,
+  expanded: boolean,
+  t: Translator, // fork: i18n
+): string {
   if (entry.itemType === "fork") return entry.label;
   if (expanded && entry.itemType === "reasoning")
-    return entry.toolLifecycleStatus === "inProgress"
-      ? translatorFor(getUiLocale())("Thinking")
-      : translatorFor(getUiLocale())("Thought");
-  const presentation = resolveWorkEntryToolPresentation(
-    entry,
-    undefined,
-    translatorFor(getUiLocale()),
-  );
+    return entry.toolLifecycleStatus === "inProgress" ? t("Thinking") : t("Thought");
+  const presentation = resolveWorkEntryToolPresentation(entry, undefined, t);
   if (presentation) return presentation.displayName;
   if (entry.command?.trim()) return compactWorkEntryText(commandDisplayText(entry.command));
   const action = toolGroupAction(entry);
@@ -286,7 +284,7 @@ export function workEntryRowLabel(entry: WorkLogPresentationEntry, expanded = fa
     if (firstPath) {
       return formatReadToolLabel(firstPath, Math.max(0, (entry.changedFiles?.length ?? 1) - 1));
     }
-    if (!expanded) return translatorFor(getUiLocale())("Read file");
+    if (!expanded) return t("Read file");
   }
   const preview =
     entry.command ??
@@ -310,6 +308,7 @@ const projectedEntriesCache = new WeakMap<
   {
     readonly attemptId: RunAttemptId | null;
     readonly entry: RawThreadFeedEntry;
+    readonly t: Translator; // fork: i18n, activity labels are translated
   }
 >();
 const localMessageEntriesCache = new WeakMap<
@@ -328,6 +327,7 @@ const presentedActivityGroupsCache = new WeakMap<
     readonly isWorking: boolean;
     readonly activeTail: boolean;
     readonly rows: ReadonlyArray<ThreadFeedEntry>;
+    readonly t: Translator; // fork: i18n
   }
 >();
 const runFoldRowsCache = new WeakMap<
@@ -342,7 +342,10 @@ export function isContextCompactionActivityGroup(entry: ThreadFeedActivityGroup)
   );
 }
 
-export function threadFeedCompactionLabels(feed: ReadonlyArray<ThreadFeedEntry>) {
+export function threadFeedCompactionLabels(
+  feed: ReadonlyArray<ThreadFeedEntry>,
+  t: Translator, // fork: i18n
+) {
   const labelsByRunId = new Map<RunId, { title: string; compacting: string }>();
   const labelsByEntryId = new Map<string, { title: string; compacting: string }>();
   const pendingResumeAgeByRunId = new Map<RunId, string>();
@@ -361,8 +364,8 @@ export function threadFeedCompactionLabels(feed: ReadonlyArray<ThreadFeedEntry>)
           (age === undefined
             ? undefined
             : {
-                title: translatorFor(getUiLocale())("Context compacted after {age} idle", { age }),
-                compacting: translatorFor(getUiLocale())("Compacting…"),
+                title: t("Context compacted after {age} idle", { age }),
+                compacting: t("Compacting…"),
               });
         if (labels) labelsByEntryId.set(entry.id, labels);
         pendingResumeAgeByRunId.delete(entry.runId);
@@ -585,7 +588,8 @@ function itemToolPresentation(item: OrchestrationV2TurnItem): T3McpToolPresentat
 
 function itemSummary(
   item: OrchestrationV2TurnItem,
-  toolPresentation: T3McpToolPresentation | null = null,
+  toolPresentation: T3McpToolPresentation | null,
+  t: Translator, // fork: i18n
 ): string {
   if (item.type === "notification") return item.summary;
   if (item.type === "system_notice") return item.message;
@@ -596,7 +600,6 @@ function itemSummary(
       : undefined) ?? item.title?.trim();
   if (item.type === "subagent") return formatSubagentDisplayTitle(title || "Subagent");
   if (title) return toolPresentation?.displayName ?? capitalizePhrase(title);
-  const t = translatorFor(getUiLocale()); // fork: i18n
   switch (item.type) {
     case "reasoning":
       return t("Thinking");
@@ -800,10 +803,11 @@ export function formatItemFullDetail(
 function toFeedActivity(
   row: OrchestrationV2ProjectedTurnItem,
   attemptId: RunAttemptId | null,
+  t: Translator, // fork: i18n
 ): ThreadFeedActivity {
   const item = row.item;
   const toolPresentation = itemToolPresentation(item);
-  const summary = itemSummary(item, toolPresentation);
+  const summary = itemSummary(item, toolPresentation, t);
   const detail = item.type === "notification" ? null : itemPreview(item);
   const createdAt = DateTime.formatIso(item.startedAt ?? item.updatedAt);
   const workEntry = toWorkLogEntry(item, createdAt, summary, detail);
@@ -861,17 +865,16 @@ function toFeedActivity(
   };
 }
 
-function singleToolCallLabel(activity: ThreadFeedActivity, expanded: boolean): string {
+function singleToolCallLabel(
+  activity: ThreadFeedActivity,
+  expanded: boolean,
+  t: Translator,
+): string {
   if (activity.workEntry.itemType === "reasoning")
     return expanded
-      ? translatorFor(getUiLocale())("Thought")
-      : compactWorkEntryText(activity.workEntry.detail ?? "") ||
-          translatorFor(getUiLocale())("Thought");
-  const presentation = resolveWorkEntryToolPresentation(
-    activity.workEntry,
-    "completed",
-    translatorFor(getUiLocale()),
-  );
+      ? t("Thought")
+      : compactWorkEntryText(activity.workEntry.detail ?? "") || t("Thought");
+  const presentation = resolveWorkEntryToolPresentation(activity.workEntry, "completed", t);
   if (presentation) return presentation.displayName;
   const command = activity.workEntry.command?.trim();
   return command ? truncate(command, WORK_LOG_LABEL_MAX_LENGTH) : activity.summary;
@@ -1312,6 +1315,7 @@ interface ThreadFeedPresentationBuild {
   readonly expandedWorkGroupIds: ReadonlySet<string>;
   readonly activeWorkStartedAt: string | null;
   readonly runlessWorkActive: boolean;
+  readonly t: Translator; // fork: i18n
   readonly rows: ReadonlyArray<ThreadFeedEntry>;
   /** Feed entry `entry` is a user message whose rows start at `rowsLength`. */
   readonly restarts: ReadonlyArray<{ readonly entry: number; readonly rowsLength: number }>;
@@ -1354,9 +1358,11 @@ function presentationRestart(
   expandedWorkGroupIds: ReadonlySet<string>,
   activeWorkStartedAt: string | null,
   runlessWorkActive: boolean,
+  t: Translator, // fork: i18n
 ): { readonly entry: number; readonly rowsLength: number; readonly index: number } | null {
   if (
     previous === null ||
+    previous.t !== t ||
     !latestRunsEqual(previous.latestRun, latestRun) ||
     previous.activeWorkStartedAt !== activeWorkStartedAt ||
     previous.runlessWorkActive !== runlessWorkActive ||
@@ -1386,6 +1392,7 @@ export function deriveThreadFeedPresentation(
   activeWorkStartedAt: string | null = null,
   runlessWorkActive = false,
   cache?: ThreadFeedCache,
+  t: Translator = translatorFor("en"), // fork: i18n
 ): ThreadFeedEntry[] {
   const previous = cache?.presentation ?? null;
   const restart = presentationRestart(
@@ -1396,6 +1403,7 @@ export function deriveThreadFeedPresentation(
     expandedWorkGroupIds,
     activeWorkStartedAt,
     runlessWorkActive,
+    t,
   );
   const start = restart?.entry ?? 0;
   const result: ThreadFeedEntry[] =
@@ -1547,6 +1555,7 @@ export function deriveThreadFeedPresentation(
         activeRunId,
         isWorking,
         isActiveTailGroup,
+        t,
       );
     }
   }
@@ -1638,6 +1647,7 @@ export function deriveThreadFeedPresentation(
       expandedWorkGroupIds,
       activeWorkStartedAt,
       runlessWorkActive,
+      t,
       rows: result,
       restarts: cleanRestarts,
       firstEntryByRun,
@@ -1681,6 +1691,7 @@ function appendPresentedFeedEntry(
   activeRunId: RunId | null,
   isWorking: boolean,
   activeTail: boolean,
+  t: Translator, // fork: i18n
 ): void {
   if (entry.type !== "activity-group") {
     result.push(entry);
@@ -1702,13 +1713,22 @@ function appendPresentedFeedEntry(
     cached.activeRunId !== activeRunId ||
     cached.isWorking !== isWorking ||
     cached.activeTail !== activeTail ||
+    cached.t !== t ||
     cached.rows.some(
       (row) => row.type === "work-toggle" && expandedWorkGroupIds.has(row.groupId) !== row.expanded,
     )
   ) {
     const rows: ThreadFeedEntry[] = [];
-    appendActivityGroupRows(rows, entry, expandedWorkGroupIds, activeRunId, isWorking, activeTail);
-    cached = { activeRunId, isWorking, activeTail, rows };
+    appendActivityGroupRows(
+      rows,
+      entry,
+      expandedWorkGroupIds,
+      activeRunId,
+      isWorking,
+      activeTail,
+      t,
+    );
+    cached = { activeRunId, isWorking, activeTail, rows, t };
     presentedActivityGroupsCache.set(entry, cached);
   }
   for (const row of cached.rows) {
@@ -1723,6 +1743,7 @@ function appendActivityGroupRows(
   activeRunId: RunId | null,
   isWorking: boolean,
   activeTail: boolean,
+  t: Translator, // fork: i18n
 ): void {
   const groupAnchorIdByActivityId = new Map<string, string>();
   let groupAnchorId: string | null = null;
@@ -1756,6 +1777,7 @@ function appendActivityGroupRows(
       activeRunId,
       isWorking,
       activeTail && isTrailingRun,
+      t,
     );
     groupableRun = [];
   };
@@ -1787,6 +1809,7 @@ function appendToolGroupRows(
   activeRunId: RunId | null,
   isWorking: boolean,
   activeTail: boolean,
+  t: Translator, // fork: i18n
 ): void {
   const expanded = expandedWorkGroupIds.has(groupId);
   const latestActiveActivity = activities.findLast(
@@ -1800,7 +1823,7 @@ function appendToolGroupRows(
   const singleActivity = activities.length === 1 ? latestActivity : null;
   const groupSummary = summarizeToolGroup(
     activities.map((activity) => activity.workEntry),
-    translatorFor(getUiLocale()),
+    t,
   );
   const latestThought =
     live && !expanded
@@ -1816,11 +1839,11 @@ function appendToolGroupRows(
       ? latestActivity.lifecycleStatus === "inProgress"
         ? "Thinking"
         : "Thought"
-      : liveToolActivitySummary(latestActivity, live)
+      : liveToolActivitySummary(latestActivity, live, t)
     : singleActivity !== null &&
         singleActivity.toolLike &&
         toolGroupAction(singleActivity.workEntry) !== "edit"
-      ? singleToolCallLabel(singleActivity, expanded)
+      ? singleToolCallLabel(singleActivity, expanded, t)
       : singleActivity !== null && !singleActivity.toolLike
         ? singleActivity.workEntry.label
         : groupSummary.summary;
@@ -1905,26 +1928,26 @@ function appendToolGroupRows(
   });
 }
 
-function liveToolActivitySummary(activity: ThreadFeedActivity, presentTense: boolean): string {
+function liveToolActivitySummary(
+  activity: ThreadFeedActivity,
+  presentTense: boolean,
+  t: Translator,
+): string {
   const status = liveActivityToolStatus(activity.lifecycleStatus, presentTense);
   if (activity.workEntry.itemType === "reasoning") {
     return compactWorkEntryText(
-      activity.workEntry.detail?.trim() ||
-        (status === "inProgress"
-          ? translatorFor(getUiLocale())("Thinking")
-          : translatorFor(getUiLocale())("Thought")),
+      activity.workEntry.detail?.trim() || (status === "inProgress" ? t("Thinking") : t("Thought")),
     );
   }
   const presentation = resolveWorkEntryToolPresentation(
     { ...activity.workEntry, toolLifecycleStatus: status },
     undefined,
-    translatorFor(getUiLocale()),
+    t,
   );
   if (presentation) return presentation.displayName;
   const command = activity.workEntry.command?.trim();
   if (command) {
     const program = commandProgramName(command);
-    const t = translatorFor(getUiLocale()); // fork: i18n
     const name = program ?? t("command");
     return status === "inProgress"
       ? t("Running {program}", { program: name })
@@ -1946,6 +1969,7 @@ interface ThreadFeedBuild {
   readonly checkpointSummaries: ReadonlyArray<ThreadCheckpointSummary> | undefined;
   readonly foldedAnswerMessageIds: ReadonlySet<string>;
   readonly delegatedChildrenByRun: ReadonlyMap<RunId, ReadonlySet<string>>;
+  readonly t: Translator; // fork: i18n
   readonly feed: ReadonlyArray<ThreadFeedEntry>;
   /** Grouping is empty before `row`: the rows before it produced `feed.slice(0, feedLength)`. */
   readonly restarts: ReadonlyArray<{ readonly row: number; readonly feedLength: number }>;
@@ -2022,8 +2046,10 @@ export function buildThreadFeed(
     readonly nodes?: ReadonlyArray<OrchestrationV2ExecutionNode>;
     readonly checkpointSummaries?: ReadonlyArray<ThreadCheckpointSummary>;
     readonly cache?: ThreadFeedCache;
+    readonly t?: Translator; // fork: i18n
   },
 ): ThreadFeedEntry[] {
+  const t = options?.t ?? translatorFor("en"); // fork: i18n
   const anchoredMessages = options?.anchoredMessages ?? [];
   const attemptByRootNodeId = new Map(
     (options?.attempts ?? []).map((attempt) => [attempt.rootNodeId, attempt] as const),
@@ -2064,6 +2090,7 @@ export function buildThreadFeed(
   let restartIndex = -1;
   if (
     previous !== null &&
+    previous.t === t &&
     anchoredMessages.length === 0 &&
     previous.attempts === options?.attempts &&
     previous.nodes === options?.nodes &&
@@ -2118,7 +2145,7 @@ export function buildThreadFeed(
     }
     const attemptId = resolveAttemptId(item);
     const cached = projectedEntriesCache.get(row);
-    if (cached?.attemptId === attemptId) {
+    if (cached?.attemptId === attemptId && cached.t === t) {
       entries.push(cached.entry);
       entryRows.push(index);
       continue;
@@ -2136,7 +2163,7 @@ export function buildThreadFeed(
         runId: item.runId,
         render,
       };
-      projectedEntriesCache.set(row, { attemptId, entry });
+      projectedEntriesCache.set(row, { attemptId, entry, t });
       entries.push(entry);
       entryRows.push(index);
       continue;
@@ -2153,7 +2180,7 @@ export function buildThreadFeed(
         revision: turnItemDetailRevision(item),
         app,
       };
-      projectedEntriesCache.set(row, { attemptId, entry });
+      projectedEntriesCache.set(row, { attemptId, entry, t });
       entries.push(entry);
       entryRows.push(index);
       continue;
@@ -2189,12 +2216,12 @@ export function buildThreadFeed(
           projectedItem: row,
         },
       };
-      projectedEntriesCache.set(row, { attemptId, entry });
+      projectedEntriesCache.set(row, { attemptId, entry, t });
       entries.push(entry);
       entryRows.push(index);
       continue;
     }
-    const activity = toFeedActivity(row, attemptId);
+    const activity = toFeedActivity(row, attemptId, t);
     const entry: RawThreadFeedEntry = {
       type: "activity",
       id: activity.id,
@@ -2202,7 +2229,7 @@ export function buildThreadFeed(
       runId: item.runId,
       activity,
     };
-    projectedEntriesCache.set(row, { attemptId, entry });
+    projectedEntriesCache.set(row, { attemptId, entry, t });
     entries.push(entry);
     entryRows.push(index);
   }
@@ -2278,6 +2305,7 @@ export function buildThreadFeed(
             checkpointSummaries: options?.checkpointSummaries,
             foldedAnswerMessageIds,
             delegatedChildrenByRun,
+            t,
             feed,
             restarts,
           };

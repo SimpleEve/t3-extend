@@ -143,6 +143,7 @@ export function usePullRequestListActions(
     const label = pullRequestActionLabel(
       supported,
       sourceControlClients.get(entry.provider).changeRequest,
+      t,
     );
     Dialog.alert(`${label}?`, `#${entry.number} · ${entry.title}`, [
       { text: t("Cancel"), style: "cancel" },
@@ -175,7 +176,7 @@ export function usePullRequestListActions(
             },
             {
               id: "close",
-              title: pullRequestActionLabel("close", terminology),
+              title: pullRequestActionLabel("close", terminology, t),
               image: Platform.OS === "ios" ? "xmark" : "close",
               attributes: { destructive: true },
             },
@@ -184,7 +185,7 @@ export function usePullRequestListActions(
           ? [
               {
                 id: "reopen",
-                title: pullRequestActionLabel("reopen", terminology),
+                title: pullRequestActionLabel("reopen", terminology, t),
                 image: Platform.OS === "ios" ? "arrow.clockwise" : "refresh",
               },
             ]
@@ -197,7 +198,7 @@ export function usePullRequestListActions(
       { id: "copy", title: t("Copy link"), image: Platform.OS === "ios" ? "link" : "link" },
       {
         id: "provider",
-        title: openOnProviderLabel(entry.provider),
+        title: openOnProviderLabel(entry.provider, t),
         image: Platform.OS === "ios" ? "safari" : "open_in_browser",
       },
     ];

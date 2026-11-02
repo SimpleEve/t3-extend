@@ -122,7 +122,7 @@ function TerminalHeader(props: {
               {
                 title: t("Terminal options"),
                 icon: "terminal",
-                status: getTerminalStatusLabel(props.status),
+                status: getTerminalStatusLabel(props.status, t),
                 items: [
                   {
                     id: "text-size",
@@ -159,10 +159,13 @@ function TerminalHeader(props: {
                     title: session.displayLabel,
                     icon: "terminal",
                     subtitle: [
-                      getTerminalStatusLabel({
-                        status: session.status,
-                        hasRunningSubprocess: session.hasRunningSubprocess,
-                      }),
+                      getTerminalStatusLabel(
+                        {
+                          status: session.status,
+                          hasRunningSubprocess: session.hasRunningSubprocess,
+                        },
+                        t,
+                      ),
                       basename(session.cwd),
                     ]
                       .filter(Boolean)

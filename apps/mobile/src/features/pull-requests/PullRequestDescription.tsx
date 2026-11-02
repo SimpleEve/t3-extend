@@ -36,12 +36,16 @@ export function PullRequestDescription(props: {
   const fadeColor = colors[Platform.OS === "android" ? "--color-sheet-solid" : "--color-screen"];
   const content = useMemo(() => {
     const document = parseMarkdownDocument(props.markdown);
-    const content = pullRequestDescriptionContent(document, splitPullRequestBody(props.markdown));
+    const content = pullRequestDescriptionContent(
+      document,
+      t,
+      splitPullRequestBody(props.markdown),
+    );
     return {
       ...content,
       attachments: content.attachments.filter((attachment) => !isBotBadgeImage(attachment.uri)),
     };
-  }, [props.markdown]);
+  }, [props.markdown, t]);
   const gallery: FilePreviewItem[] = content.attachments
     .filter((attachment) => attachment.kind === "image")
     .map((attachment) => {

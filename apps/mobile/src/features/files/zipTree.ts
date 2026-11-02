@@ -1,4 +1,4 @@
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface ZipEntry {
   readonly path: string;
@@ -125,17 +125,19 @@ export function zipFolderLabel(label: string) {
   return { prefix: parts.length > 1 ? `${parts.slice(0, -1).join("/")}/` : "", name };
 }
 
-export function zipDownloadTimeLeft(input: {
-  readonly receivedBytes: number;
-  readonly totalBytes: number;
-  readonly elapsedMs: number;
-}) {
+export function zipDownloadTimeLeft(
+  input: {
+    readonly receivedBytes: number;
+    readonly totalBytes: number;
+    readonly elapsedMs: number;
+  },
+  t: Translator, // fork: i18n
+) {
   if (input.receivedBytes <= 0 || input.totalBytes <= input.receivedBytes || input.elapsedMs < 1000)
     return null;
   const seconds = Math.ceil(
     ((input.totalBytes - input.receivedBytes) * input.elapsedMs) / input.receivedBytes / 1000,
   );
-  const t = translatorFor(getUiLocale()); // fork: i18n
   return seconds < 60
     ? seconds === 1
       ? t("About {count} second left", { count: seconds })

@@ -4,7 +4,7 @@ import {
   type EnvironmentConnectionPhase,
 } from "@t3tools/client-runtime/connection";
 import { relayOfflineReasonMessage } from "@t3tools/client-runtime/relay";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface AvailableCloudEnvironmentPresentation {
   readonly connectionError: string | null;
@@ -18,7 +18,9 @@ export function availableCloudEnvironmentPresentation(input: {
   readonly status: RelayEnvironmentStatusResponse | null;
   readonly statusError: string | null;
   readonly statusErrorTraceId: string | null;
+  readonly t: Translator; // fork: i18n
 }): AvailableCloudEnvironmentPresentation {
+  const { t } = input;
   const compatibilityError =
     input.status?.descriptor === undefined
       ? null
@@ -36,15 +38,13 @@ export function availableCloudEnvironmentPresentation(input: {
       connectionError: null,
       connectionErrorTraceId: null,
       connectionState: "available",
-      statusText: translatorFor(getUiLocale())("Available · Relay online"),
+      statusText: t("Available · Relay online"),
     };
   }
 
   if (input.status?.status === "offline") {
     const connectionError =
-      relayOfflineReasonMessage(input.status) ??
-      input.status.error ??
-      translatorFor(getUiLocale())("Relay is offline.");
+      relayOfflineReasonMessage(input.status) ?? input.status.error ?? t("Relay is offline.");
     return {
       connectionError,
       connectionErrorTraceId: input.status.traceId ?? null,
@@ -67,7 +67,7 @@ export function availableCloudEnvironmentPresentation(input: {
     connectionErrorTraceId: null,
     connectionState: "available",
     statusText: input.isStatusPending
-      ? translatorFor(getUiLocale())("Available · Checking relay status...")
-      : translatorFor(getUiLocale())("Available · Relay status unknown"),
+      ? t("Available · Checking relay status...")
+      : t("Available · Relay status unknown"),
   };
 }

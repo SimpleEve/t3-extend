@@ -281,22 +281,22 @@ import {
 } from "./ThreadMarkdownImage";
 import { openSettings } from "../settings/settings-navigation";
 import { useSelectWorkspaceDetail } from "../workspace/useSelectWorkspaceDetail";
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
 
 const WIDE_MARKDOWN_BLOCK_OPTIONS = {
   // iOS blockquotes and selectable text measure separately; definite bubble width matches UIKit's drawing width.
   includeBlockquotes: Platform.OS === "ios",
   includeOrderedLists: Platform.OS === "android",
 } as const;
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator, UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { messageTimeLabel } from "../../lib/time"; // fork: i18n
 
-function formatMessageTime(input: string): string {
+function formatMessageTime(input: string, locale: UiLocale): string {
   const timestamp = Date.parse(input);
   if (Number.isNaN(timestamp)) {
     return "";
   }
-  return messageTimeLabel(timestamp);
+  return messageTimeLabel(timestamp, locale);
 }
 
 const TURN_FOLD_HEIGHT = 42;
@@ -1694,6 +1694,7 @@ function renderFeedEntry(
     readonly unsettledTurnId: RunId | null;
     readonly compactionLabelsByEntryId: ReadonlyMap<string, { title: string; compacting: string }>;
     readonly t: Translator; // fork: i18n
+    readonly locale: UiLocale; // fork: i18n
     readonly failedRunIds: ReadonlySet<RunId>;
     readonly onCopyWorkRow: (rowId: string, value: string) => void;
     readonly onToggleWorkGroup: (groupId: string, anchorKey?: string) => void;
@@ -1894,7 +1895,10 @@ function renderFeedEntry(
     const presentation = resolveUserMessagePresentation(message);
     const renderedText = renderAssistantCitationsAsText(presentation.text);
     const styles = isUser ? markdownStyles.user : markdownStyles.assistant;
-    const timestampLabel = formatMessageTime(isUser ? message.createdAt : message.updatedAt);
+    const timestampLabel = formatMessageTime(
+      isUser ? message.createdAt : message.updatedAt,
+      props.locale,
+    );
     const attachments = message.attachments ?? [];
     const hasReviewCommentContext = presentation.text.includes("<review_comment");
     // Android does not reposition children after maxWidth clamps bubbles; definite width prevents wide-block overlap.
@@ -2606,6 +2610,7 @@ function useThreadFeedPresentation(
   expandedTurnIds: ReadonlySet<RunId>,
   expandedWorkGroups: Record<string, boolean>,
 ) {
+  const t = useT(); // fork: i18n
   const [feedCache] = useState(createThreadFeedCache);
   return appendPendingThreadMessages(
     deriveThreadFeedPresentation(
@@ -2620,6 +2625,7 @@ function useThreadFeedPresentation(
       props.activeWorkStartedAt,
       props.runlessWorkActive ?? false,
       feedCache,
+      t, // fork: i18n
     ),
     props.feed,
     props.queuedMessages,
@@ -2631,6 +2637,7 @@ export const ThreadFeed = memo(function ThreadFeed({
   ...props
 }: ThreadFeedProps & { readonly ref?: Ref<ThreadFeedHandle> }) {
   const t = useT();
+  const locale = useUiLocale(); // fork: i18n
   const { listRef, onEndFollowEnabledChange, onHeaderMaterialVisibilityChange } = props;
   const workflowOpening = useWorkflowOpening(props.detailRef);
   const guestShare = useThreadGuestShare(props.detailRef);
@@ -3011,7 +3018,7 @@ export const ThreadFeed = memo(function ThreadFeed({
         };
       }
       const target = resolveFileChipTarget(href, props.workspaceRoot);
-      return target ? fileChipMenu(target) : undefined;
+      return target ? fileChipMenu(target, t) : undefined;
     },
     onFileContextMenuAction: (href, actionId) => {
       const skill = enrichedSkillReference(href, props.skills);
@@ -3172,8 +3179,8 @@ export const ThreadFeed = memo(function ThreadFeed({
   const reviewCommentColors = useReviewCommentColors();
   const unsettledTurnId = threadFeedRunIsUnsettled(props.latestRun) ? props.latestRun.runId : null;
   const compactionLabelsByEntryId = useMemo(
-    () => threadFeedCompactionLabels(props.feed),
-    [props.feed],
+    () => threadFeedCompactionLabels(props.feed, t),
+    [props.feed, t],
   );
   // LegendList does not invalidate visible rows when only the renderItem closure changes.
   // Include turn completion so unchanged message rows reveal their footer and spacing
@@ -3196,6 +3203,7 @@ export const ThreadFeed = memo(function ThreadFeed({
     contentWidth,
     skills: props.skills,
     workflowOpening,
+    locale, // fork: i18n, visible rows re-render when the language changes
   };
   const reportHeaderMaterialVisibility = (visible: boolean) => {
     if (headerMaterialVisibleRef.current === visible) {
@@ -3631,6 +3639,7 @@ export const ThreadFeed = memo(function ThreadFeed({
         <ThreadMediaVisibility>
           {renderFeedEntry(info, {
             t,
+            locale, // fork: i18n
             userMessageGrouping: info.item.userMessageGrouping,
             environmentId: props.environmentId,
             dispatchingMessageId: props.dispatchingMessageId,

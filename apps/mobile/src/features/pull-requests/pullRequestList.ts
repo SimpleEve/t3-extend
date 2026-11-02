@@ -11,7 +11,7 @@ import {
   type PullRequestListStatsInput,
 } from "@t3tools/contracts";
 import type { PullRequestListControls } from "../../persistence/mobile-preferences";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export const PR_LIST_PAGE_SIZE = 30;
 export type { PullRequestListControls } from "../../persistence/mobile-preferences";
@@ -465,8 +465,8 @@ export function filterPullRequestList<
 
 export function pullRequestListReviewStatus(
   entry: Pick<PullRequestListEntry, "reviewDecision" | "viewerReviewRequested">,
+  t: Translator, // fork: i18n
 ) {
-  const t = translatorFor(getUiLocale()); // fork: i18n
   if (entry.reviewDecision === "changes-requested")
     return {
       label: t("Changes"),

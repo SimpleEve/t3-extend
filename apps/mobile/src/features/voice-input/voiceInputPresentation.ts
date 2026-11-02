@@ -1,5 +1,5 @@
 import type { VoiceInputState } from "@t3tools/client-runtime/voice-input";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type VoiceComposerPresentation = {
   readonly leadingAction: "cancel" | null;
@@ -13,6 +13,7 @@ export type VoiceComposerPresentation = {
 export function resolveVoiceComposerPresentation(
   state: VoiceInputState,
   elapsedSeconds: number,
+  t: Translator, // fork: i18n
 ): VoiceComposerPresentation {
   switch (state.phase) {
     case "idle":
@@ -39,7 +40,7 @@ export function resolveVoiceComposerPresentation(
         trailingAction: "confirm",
         showsSend: false,
         statusKind: "active",
-        statusLabel: translatorFor(getUiLocale())("Preparing"),
+        statusLabel: t("Preparing"),
         confirmationEnabled: false,
       };
     case "recording": {
@@ -49,7 +50,7 @@ export function resolveVoiceComposerPresentation(
         trailingAction: "confirm",
         showsSend: false,
         statusKind: "active",
-        statusLabel: translatorFor(getUiLocale())("Recording {time}", {
+        statusLabel: t("Recording {time}", {
           time: `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`,
         }),
         confirmationEnabled: true,
@@ -61,7 +62,7 @@ export function resolveVoiceComposerPresentation(
         trailingAction: "confirm",
         showsSend: false,
         statusKind: "active",
-        statusLabel: translatorFor(getUiLocale())("Transcribing"),
+        statusLabel: t("Transcribing"),
         confirmationEnabled: false,
       };
   }

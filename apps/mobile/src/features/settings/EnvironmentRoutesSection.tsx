@@ -314,7 +314,7 @@ function RouteRow(props: {
               {label}
             </Text>
             {props.inUse ? (
-              <StatusPill {...connectionTone("connected")} label={t("In use")} size="compact" />
+              <StatusPill {...connectionTone("connected", t)} label={t("In use")} size="compact" />
             ) : null}
           </View>
           {address !== null ? (

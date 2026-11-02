@@ -20,7 +20,7 @@ export function PullRequestOverviewLoading({
   readonly stack: PullRequestStackState;
 }) {
   const t = useT(); // fork: i18n
-  const review = pullRequestListReviewStatus(summary);
+  const review = pullRequestListReviewStatus(summary, t);
   const conflicting = summary.mergeability === "conflicting";
   const clean = summary.mergeability === "mergeable";
   return (

@@ -42,7 +42,7 @@ export function SubagentRow(props: {
   readonly canOpenRemote?: boolean;
 }) {
   const t = useT(); // fork: i18n
-  const presentation = resolveSubagentRowPresentation(props.subagent, props.canOpenRemote);
+  const presentation = resolveSubagentRowPresentation(props.subagent, t, props.canOpenRemote);
   const detail = subagentCardDetail(presentation.detail);
   return (
     <View className="flex-row gap-3">

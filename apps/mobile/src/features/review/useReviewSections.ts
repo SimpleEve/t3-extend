@@ -22,7 +22,7 @@ import {
   type ReviewSectionItem,
 } from "./reviewModel";
 import { setReviewSelectedSectionId, type ReviewCacheForThread } from "./reviewState";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 const NO_GIT_SECTIONS_ATOM = Atom.make<ReadonlyArray<ReviewDiffPreviewSource>>([]).pipe(
   Atom.keepAlive,
@@ -39,6 +39,7 @@ export function useReviewSections(input: {
   readonly threadId?: ThreadId;
   readonly reviewCache: ReviewCacheForThread;
 }) {
+  const t = useT(); // fork: i18n
   const { environmentId, reviewCache, threadId } = input;
   const enabled = input.enabled ?? true;
   const fileAccessSession = useEnvironmentQuery(
@@ -82,13 +83,16 @@ export function useReviewSections(input: {
   );
   // Turns show their last answered diff; the active turn's live query below overrides it.
   // Section ids and the selection do not depend on the live query, so they are resolved first.
-  const cachedSections = buildReviewSectionItems({
-    checkpoints: readyCheckpoints,
-    gitSections:
-      canReadFiles || fileAccess.isPending ? (diffPreview.data?.sources ?? lastGitSections) : [],
-    turnDiffById: reviewTurnDiffsBySectionId(readyCheckpoints, lastTurnDiffs),
-    loadingGitSections: fileAccess.isPending || diffPreview.isPending,
-  });
+  const cachedSections = buildReviewSectionItems(
+    {
+      checkpoints: readyCheckpoints,
+      gitSections:
+        canReadFiles || fileAccess.isPending ? (diffPreview.data?.sources ?? lastGitSections) : [],
+      turnDiffById: reviewTurnDiffsBySectionId(readyCheckpoints, lastTurnDiffs),
+      loadingGitSections: fileAccess.isPending || diffPreview.isPending,
+    },
+    t,
+  );
   const selectedSectionId = resolveReviewSelectedSectionId(
     cachedSections,
     reviewCache.selectedSectionId,
@@ -147,8 +151,7 @@ export function useReviewSections(input: {
       diffPreview.error ??
       activeTurnDiff.error ??
       (selectedSection === null && !fileAccess.isPending && !canReadFiles
-        ? (fileAccess.error ??
-          translatorFor(getUiLocale())("This connection cannot read local diffs."))
+        ? (fileAccess.error ?? t("This connection cannot read local diffs."))
         : null),
     isSelectedSectionPending:
       selectedSection?.kind === "turn" ? activeTurnDiff.isPending : diffPreview.isPending,

@@ -1,18 +1,18 @@
 import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 import type { PullRequestRef, PullRequestStack, ThreadPullRequestLink } from "@t3tools/contracts";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function pullRequestStackMerge(
   stack: PullRequestStack,
   number: number,
   terminology: ChangeRequestTerminology,
+  t: Translator, // fork: i18n
 ) {
   const position = stack.layers.findIndex((layer) => layer.number === number);
   const layers = stack.layers.slice(0, position + 1).filter((layer) => layer.state !== "merged");
   const heads = layers.flatMap((layer) =>
     layer.headSha ? [{ number: layer.number, headSha: layer.headSha }] : [],
   );
-  const t = translatorFor(getUiLocale()); // fork: i18n
   const { singular } = terminology;
   const reason =
     position < 0

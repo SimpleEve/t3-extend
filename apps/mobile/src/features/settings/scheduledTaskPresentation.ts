@@ -1,17 +1,14 @@
-import {
-  getUiLocale,
-  translate,
-  translatorFor,
-  uiLocaleFormatTag,
-  type UiLocale,
-} from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { translate, type Translator, type UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-export function formatScheduledTaskInterval(everyMs: number): string {
-  const t = translatorFor(getUiLocale()); // fork: i18n
+export function formatScheduledTaskInterval(
+  everyMs: number,
+  t: Translator /* fork: i18n */,
+): string {
   const units = [
     [7 * DAY, t("Every week"), t("{count} week"), t("{count} weeks")],
     [DAY, t("Every day"), t("{count} day"), t("{count} days")],
@@ -38,18 +35,21 @@ function localCalendarDay(date: Date): number {
 }
 
 /** A time of day in the interface language, like the web's timestamps. */
-export function formatScheduledTaskTime(date: Date, locale: UiLocale = getUiLocale()): string {
-  return date.toLocaleTimeString(uiLocaleFormatTag(locale), { hour: "numeric", minute: "2-digit" });
+export function formatScheduledTaskTime(date: Date, locale: UiLocale): string {
+  return date.toLocaleTimeString(
+    uiFormatLocale(locale),
+    uiFormatOptions(locale, { hour: "numeric", minute: "2-digit" }),
+  );
 }
 
 export function formatNextScheduledTaskRun(
   nextRunAt: string,
   now: number,
-  locale: UiLocale = getUiLocale(), // fork: interface language
+  locale: UiLocale, // fork: interface language
 ): string {
   const t = (source: string, params?: Record<string, string | number>) =>
     translate(locale, source, params);
-  const formatTag = uiLocaleFormatTag(locale);
+  const formatTag = uiFormatLocale(locale);
   const next = new Date(nextRunAt);
   const current = new Date(now);
   const remaining = next.getTime() - now;

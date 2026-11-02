@@ -55,7 +55,7 @@ import { withNativeGlassHeaderItem } from "../layout/native-glass-header-items";
 import type { UsageChartMetric } from "./usageChartData";
 import { PROVIDER_LABEL, useProviderColors, useUsageMixColors } from "./usageProviders";
 import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 type UsageView = UsageChartMetric | "limits";
 const VIEW_OPTIONS = [
@@ -218,7 +218,7 @@ function UsageScreen(props: {
     ...environments.map((environment) => ({
       id: environment.environmentId,
       title: environment.label,
-      subtitle: usageEnvironmentStatus(environment, refreshingUsage),
+      subtitle: usageEnvironmentStatus(environment, refreshingUsage, t),
       state:
         selectedEnvironmentIds === null || selectedEnvironmentIds.has(environment.environmentId)
           ? ("on" as const)
@@ -385,7 +385,7 @@ function UsageScreen(props: {
                         className="text-center text-base text-foreground-muted"
                       >
                         {selectedEnvironments.length > 1 ? `${environment.label}: ` : null}
-                        {environment.error}
+                        {environment.error ? t(environment.error) : null /* fork: i18n */}
                       </Text>
                     ))}
                   </View>
@@ -1051,8 +1051,11 @@ function ModelsSection(props: {
   );
 }
 
-function usageEnvironmentStatus(environment: EnvironmentUsageStatus, refreshing: boolean): string {
-  const t = translatorFor(getUiLocale()); // fork: i18n
+function usageEnvironmentStatus(
+  environment: EnvironmentUsageStatus,
+  refreshing: boolean,
+  t: Translator, // fork: i18n
+): string {
   if (
     environment.summary &&
     !isCompatibleUsageContractVersion(environment.summary.contractVersion, USAGE_CONTRACT_VERSION)
@@ -1070,8 +1073,8 @@ function usageEnvironmentStatus(environment: EnvironmentUsageStatus, refreshing:
   }
   if (environment.error)
     return environment.summary
-      ? t("{error} Showing saved totals.", { error: environment.error })
-      : environment.error;
+      ? t("{error} Showing saved totals.", { error: t(environment.error) })
+      : t(environment.error); // fork: i18n
   if (!environment.isConnected)
     return environment.summary
       ? t("Disconnected · showing saved usage")

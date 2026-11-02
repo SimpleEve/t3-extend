@@ -55,10 +55,10 @@ export function ThreadWorkflowGroup(props: {
     (candidate) => candidate.instanceId === props.subagent.providerInstanceId,
   );
   const [selected, setSelected] = useState<string | null>(null);
-  const rail = workflowRail(group);
+  const rail = workflowRail(group, t);
   const open = rail.find((item) => item.key === selected);
   const label = group.workflow.workflowName ?? group.workflow.title;
-  const statusLabel = resolveSubagentRowPresentation(props.subagent).statusLabel;
+  const statusLabel = resolveSubagentRowPresentation(props.subagent, t).statusLabel;
 
   return (
     <View className="my-2">
@@ -165,13 +165,16 @@ function WorkflowMemberRow(props: {
     threadId === null ? null : scopeThreadRef(props.environmentId, threadId),
   );
   const canOpen = threadId !== null && shell !== null;
-  const presentation = resolveSubagentRowPresentation({
-    title: member.title,
-    prompt: "",
-    status: member.status,
-    result: null,
-    childThreadId: threadId,
-  });
+  const presentation = resolveSubagentRowPresentation(
+    {
+      title: member.title,
+      prompt: "",
+      status: member.status,
+      result: null,
+      childThreadId: threadId,
+    },
+    t,
+  );
   const { detail, error } = workflowMemberDetail(member);
   const metadata = workflowMemberMetadata(member, props.provider);
   const labels = [metadata.model, metadata.effort].filter((value) => value !== null);

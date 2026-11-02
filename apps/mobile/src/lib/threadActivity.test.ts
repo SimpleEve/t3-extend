@@ -21,6 +21,7 @@ import { deriveThreadCheckpointSummaries } from "@t3tools/client-runtime/state/t
 import { getReviewSectionIdForCheckpoint } from "../features/review/reviewModel";
 import * as DateTime from "effect/DateTime";
 import { describe, expect, it } from "vite-plus/test";
+import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
 
 import {
   buildThreadFeed,
@@ -286,7 +287,7 @@ it("binds a persisted resume answer only to the next compaction in its run", () 
       compaction("resume-compact", 2, "completed"),
       compaction("auto-compact", 3, status),
     ]);
-    const labels = threadFeedCompactionLabels(feed);
+    const labels = threadFeedCompactionLabels(feed, translatorFor("en"));
     const compactRows = feed.filter(
       (entry) =>
         entry.type === "activity-group" &&
@@ -777,8 +778,12 @@ describe("buildThreadFeed", () => {
         ),
       ]).flatMap((entry) => (entry.type === "activity-group" ? entry.activities : []))[0]!;
 
-      expect(workEntryRowLabel(activity.workEntry)).toBe(title ?? "Thread forked");
-      expect(workEntryRowLabel(activity.workEntry, true)).toBe(title ?? "Thread forked");
+      expect(workEntryRowLabel(activity.workEntry, false, translatorFor("en"))).toBe(
+        title ?? "Thread forked",
+      );
+      expect(workEntryRowLabel(activity.workEntry, true, translatorFor("en"))).toBe(
+        title ?? "Thread forked",
+      );
       expect(activity.canExpand).toBe(true);
       expect(activity.getFullDetail()).toContain(threadId);
     },
@@ -1829,6 +1834,18 @@ describe("streamed feed updates", () => {
     for (const [index, rows] of streamed.entries()) {
       expect(values(rows), `step ${index}`).toEqual(values(fresh[index]!));
     }
+  });
+
+  it("rebuilds cached activity labels when the translator changes", async () => {
+    await loadUiCatalog("zh-Hans");
+    const rows = [projected(userMessage(), 0), projected(command(), 1)];
+    const cache = createThreadFeedCache();
+    const label = (t: ReturnType<typeof translatorFor>) =>
+      buildThreadFeed(rows, { cache, t }).flatMap((entry) =>
+        entry.type === "activity-group" ? entry.activities.map((a) => a.workEntry.label) : [],
+      );
+    expect(label(translatorFor("en"))).toEqual(["Command"]);
+    expect(label(translatorFor("zh-Hans"))).toEqual(["命令"]);
   });
 
   it("hides a delegation once its child reaches back into the earlier run", () => {

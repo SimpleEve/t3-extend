@@ -20,6 +20,9 @@ import {
   workflowMemberMetadata,
   workflowRail,
 } from "./threadAgentsPresentation";
+import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
+
+const t = translatorFor("en");
 
 const base = {
   title: null,
@@ -31,11 +34,14 @@ const base = {
 
 describe("resolveSubagentRowPresentation", () => {
   it("leads with progress while the agent is working", () => {
-    const row = resolveSubagentRowPresentation({
-      ...base,
-      progress: "Reading files",
-      result: "stale result",
-    });
+    const row = resolveSubagentRowPresentation(
+      {
+        ...base,
+        progress: "Reading files",
+        result: "stale result",
+      },
+      t,
+    );
 
     expect(row.detail).toBe("Reading files");
     expect(row.tone).toBe("working");
@@ -43,12 +49,15 @@ describe("resolveSubagentRowPresentation", () => {
   });
 
   it("leads with the result once the agent has settled", () => {
-    const row = resolveSubagentRowPresentation({
-      ...base,
-      status: "completed",
-      progress: "Reading files",
-      result: "Found two\n  problems",
-    });
+    const row = resolveSubagentRowPresentation(
+      {
+        ...base,
+        status: "completed",
+        progress: "Reading files",
+        result: "Found two\n  problems",
+      },
+      t,
+    );
 
     expect(row.detail).toBe("Found two problems");
     expect(row.tone).toBe("completed");
@@ -56,15 +65,21 @@ describe("resolveSubagentRowPresentation", () => {
   });
 
   it("shows a failure's text, since that is where the error lands", () => {
-    const row = resolveSubagentRowPresentation({ ...base, status: "failed", result: "Timed out" });
+    const row = resolveSubagentRowPresentation(
+      { ...base, status: "failed", result: "Timed out" },
+      t,
+    );
 
     expect(row.detail).toBe("Timed out");
     expect(row.tone).toBe("failed");
   });
 
   it("falls back to a trimmed prompt when the agent has no title", () => {
-    const long = resolveSubagentRowPresentation({ ...base, prompt: "x".repeat(200) });
-    const titled = resolveSubagentRowPresentation({ ...base, title: "Subagent: /root/my_worker" });
+    const long = resolveSubagentRowPresentation({ ...base, prompt: "x".repeat(200) }, t);
+    const titled = resolveSubagentRowPresentation(
+      { ...base, title: "Subagent: /root/my_worker" },
+      t,
+    );
 
     expect(long.title).toHaveLength(80);
     expect(long.title.endsWith("...")).toBe(true);
@@ -72,25 +87,39 @@ describe("resolveSubagentRowPresentation", () => {
   });
 
   it("only offers a thread to open when the agent has one", () => {
-    expect(resolveSubagentRowPresentation(base).canOpenThread).toBe(true);
-    expect(resolveSubagentRowPresentation({ ...base, childThreadId: null }).canOpenThread).toBe(
+    expect(resolveSubagentRowPresentation(base, t).canOpenThread).toBe(true);
+    expect(resolveSubagentRowPresentation({ ...base, childThreadId: null }, t).canOpenThread).toBe(
       false,
     );
   });
 
   it("uses the status label when there is nothing to report yet", () => {
-    const row = resolveSubagentRowPresentation({ ...base, status: "pending" });
+    const row = resolveSubagentRowPresentation({ ...base, status: "pending" }, t);
 
     expect(row.detail).toBeNull();
     expect(row.statusLabel).toBe("Working");
   });
 
+  it("follows the translator it is given", async () => {
+    await loadUiCatalog("zh-Hans");
+    const zh = translatorFor("zh-Hans");
+    const row = resolveSubagentRowPresentation(
+      { ...base, title: null, prompt: "", status: "failed" },
+      zh,
+    );
+    expect(row.statusLabel).toBe("失败");
+    expect(row.title).toBe("子 Agent");
+  });
+
   it("bounds long result previews without dropping the agent's status", () => {
-    const row = resolveSubagentRowPresentation({
-      ...base,
-      status: "failed",
-      result: "x".repeat(400),
-    });
+    const row = resolveSubagentRowPresentation(
+      {
+        ...base,
+        status: "failed",
+        result: "x".repeat(400),
+      },
+      t,
+    );
     expect(row.detail).toBe(`${"x".repeat(280)}…`);
     expect(row.statusLabel).toBe("Failed");
   });
@@ -126,6 +155,7 @@ const workflowRailOf = (
         },
       ]),
     )[0]!,
+    t,
   );
 
 const agent = (

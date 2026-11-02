@@ -21,14 +21,15 @@ import {
   useManagedRelayEnvironments,
 } from "./managedRelayState";
 import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, translate, uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { uiFormatLocale } from "../../lib/time"; // fork: i18n
 
 function linkedAtLabel(value: string): string {
   const linkedAt = new Date(value);
   return Number.isNaN(linkedAt.getTime())
     ? translate(getUiLocale(), "Link date unavailable")
     : translate(getUiLocale(), "Linked {date}", {
-        date: linkedAt.toLocaleDateString(uiLocaleFormatTag(getUiLocale()), {
+        date: linkedAt.toLocaleDateString(uiFormatLocale(getUiLocale()), {
           dateStyle: "medium",
         }),
       });

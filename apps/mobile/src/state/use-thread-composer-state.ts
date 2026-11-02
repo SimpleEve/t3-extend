@@ -275,6 +275,7 @@ export function useThreadComposerState() {
       nodes: selectedThreadNodes,
       checkpointSummaries,
       cache: feedCache,
+      t, // fork: i18n
     });
     const pendingAcknowledgments = selectPendingAcknowledgedMessages(acknowledgedMessages, {
       threadKey: selectedThreadKey,

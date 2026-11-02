@@ -230,11 +230,13 @@ function CloudEnvironmentRow(props: {
   readonly onConnect: () => void;
   readonly onToggleError: () => void;
 }) {
+  const t = useT(); // fork: i18n
   const presentation = availableCloudEnvironmentPresentation({
     isStatusPending: props.environment.availability === "checking",
     status: props.environment.status,
     statusError: props.environment.error,
     statusErrorTraceId: props.environment.traceId,
+    t, // fork: i18n
   });
 
   return (

@@ -6,7 +6,7 @@ import {
 } from "@t3tools/client-runtime/state/thread-sort";
 import { effectiveSnoozed } from "@t3tools/client-runtime/state/thread-settled";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type ThreadMoveDestination =
   | "up"
@@ -288,8 +288,11 @@ export function threadDropLifecycle(
 
 export type ThreadDragSection = "pinned" | "active" | "snoozed" | "settled";
 
-export function threadDragAction(source: ThreadDragSection, destination: ThreadDragSection) {
-  const t = translatorFor(getUiLocale()); // fork: i18n
+export function threadDragAction(
+  source: ThreadDragSection,
+  destination: ThreadDragSection,
+  t: Translator, // fork: i18n
+) {
   if (destination === "snoozed") return null;
   if (destination === "settled") return source === "settled" ? null : t("Settle");
   if (source === destination) return t("Reorder");

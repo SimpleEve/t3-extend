@@ -19,7 +19,8 @@ import {
 import { AppText } from "../../components/ui/AppText";
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { getUiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 
 export function CustomSnoozeSheet(props: {
   readonly onClose: () => void;
@@ -78,11 +79,11 @@ export function CustomSnoozeSheet(props: {
                   <AppText>{value === "date" ? t("Date") : t("Time")}</AppText>
                   <AppText>
                     {value === "date"
-                      ? date.toLocaleDateString(uiLocaleFormatTag(getUiLocale()))
-                      : date.toLocaleTimeString(uiLocaleFormatTag(getUiLocale()), {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
+                      ? date.toLocaleDateString(uiFormatLocale(getUiLocale()))
+                      : date.toLocaleTimeString(
+                          uiFormatLocale(getUiLocale()),
+                          uiFormatOptions(getUiLocale(), { hour: "numeric", minute: "2-digit" }),
+                        )}
                   </AppText>
                 </Pressable>
               ))}

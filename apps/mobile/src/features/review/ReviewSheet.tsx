@@ -165,7 +165,9 @@ const ReviewNotice = function ReviewNotice(props: { readonly notice: string }) {
       <Text className="text-xs font-t3-bold uppercase text-warning-foreground">
         {t("Partial diff")}
       </Text>
-      <Text className="text-xs leading-normal text-warning-foreground">{props.notice}</Text>
+      <Text className="text-xs leading-normal text-warning-foreground">
+        {t(props.notice) /* fork: i18n, diff models keep English notices */}
+      </Text>
     </View>
   );
 };
@@ -852,7 +854,7 @@ export function ReviewSheet(props: ReviewSheetProps) {
                   )}
                 >
                   <Text className="text-xs leading-normal text-foreground-muted">
-                    {parsedDiff.reason}
+                    {t(parsedDiff.reason) /* fork: i18n */}
                   </Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false}>
                     <Text selectable className="font-mono text-xs leading-relaxed text-foreground">

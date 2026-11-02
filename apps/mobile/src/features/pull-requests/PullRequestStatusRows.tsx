@@ -58,7 +58,7 @@ export function PullRequestStatusMenu(props: RowProps) {
   const t = useT(); // fork: i18n
   const action = usePullRequestAction(props.params, props.pr);
   const actions = STATUS_ACTIONS.filter(action.available);
-  const status = pullRequestStatus(props.pr);
+  const status = pullRequestStatus(props.pr, t);
   const terminology = sourceControlClients.get(props.pr.provider).changeRequest;
   const term = capitalizeTerm(terminology.singular);
   const trigger = (
@@ -81,7 +81,7 @@ export function PullRequestStatusMenu(props: RowProps) {
       title={t("{term} status", { term })}
       actions={actions.map((id) => ({
         id,
-        title: pullRequestActionLabel(id, terminology),
+        title: pullRequestActionLabel(id, terminology, t),
         image: PR_ACTION_ICONS[id],
         attributes: { destructive: id === "close" },
       }))}
@@ -91,7 +91,7 @@ export function PullRequestStatusMenu(props: RowProps) {
         if (selected === "close")
           action.confirm(
             selected,
-            pullRequestActionLabel("close", terminology),
+            pullRequestActionLabel("close", terminology, t),
             t("Close this {singular} without merging its changes?", {
               singular: terminology.singular,
             }),
@@ -99,7 +99,7 @@ export function PullRequestStatusMenu(props: RowProps) {
         else if (selected === "revert")
           action.confirm(
             selected,
-            pullRequestActionLabel("revert", terminology),
+            pullRequestActionLabel("revert", terminology, t),
             t("Open a new {singular} that reverses these changes?", {
               singular: terminology.singular,
             }),
@@ -115,7 +115,7 @@ export function PullRequestStatusMenu(props: RowProps) {
 export function PullRequestChecksRow(props: RowProps) {
   const t = useT(); // fork: i18n
   const [expanded, setExpanded] = useState(false);
-  const checks = pullRequestChecksSummary(props.pr);
+  const checks = pullRequestChecksSummary(props.pr, t);
   const action = usePullRequestAction(props.params, props.pr);
   const definition = sourceControlClients.get(props.pr.provider);
   return (
@@ -163,7 +163,7 @@ export function PullRequestChecksRow(props: RowProps) {
           {[...props.pr.checks]
             .sort((a, b) => CHECK_PRIORITY[a.status] - CHECK_PRIORITY[b.status])
             .map((check) => {
-              const status = checkStatus(check);
+              const status = checkStatus(check, t);
               const url = check.url;
               return (
                 <PullRequestCardRow
@@ -204,7 +204,7 @@ export function PullRequestBranchRow(props: RowProps) {
   const methods = action.available("update-branch") ? allowedUpdateMethods(props.pr) : [];
   const canResolve =
     agent.canAsk && props.pr.state === "open" && props.pr.mergeability === "conflicting";
-  const summary = action.busy ? t("Updating…") : pullRequestBranchSummary(props.pr);
+  const summary = action.busy ? t("Updating…") : pullRequestBranchSummary(props.pr, t);
   const clean = props.pr.mergeability === "mergeable";
   const conflicting = props.pr.mergeability === "conflicting";
   const row = (
@@ -266,7 +266,7 @@ export function PullRequestReviewersRow(props: RowProps) {
   const activity = useEnvironmentQuery(
     composerPullRequests.activity(pullRequestTarget(props.params)),
   );
-  const summary = pullRequestReviewSummary(props.pr, activity.data);
+  const summary = pullRequestReviewSummary(props.pr, activity.data, t);
   const canWrite = useAtomValue(
     composerPullRequests.requestReviewers.permissionAtom(
       pullRequestTarget(props.params).environmentId,

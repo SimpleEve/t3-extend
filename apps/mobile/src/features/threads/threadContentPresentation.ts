@@ -1,5 +1,5 @@
 import { type EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type ThreadContentPresentation =
   | { readonly kind: "ready" }
@@ -15,21 +15,23 @@ export function projectThreadContentPresentation(input: {
   readonly detailError: string | null;
   readonly detailDeleted: boolean;
   readonly connectionState: EnvironmentConnectionPhase;
+  readonly t: Translator; // fork: i18n
 }): ThreadContentPresentation {
+  const { t } = input;
   if (input.hasDetail) {
     return { kind: "ready" };
   }
   if (input.detailDeleted) {
     return {
       kind: "unavailable",
-      title: translatorFor(getUiLocale())("Thread unavailable"),
-      detail: translatorFor(getUiLocale())("This thread was deleted or is no longer available."),
+      title: t("Thread unavailable"),
+      detail: t("This thread was deleted or is no longer available."),
     };
   }
   if (input.detailError !== null) {
     return {
       kind: "unavailable",
-      title: translatorFor(getUiLocale())("Could not load conversation"),
+      title: t("Could not load conversation"),
       detail: input.detailError,
     };
   }
@@ -42,7 +44,7 @@ export function projectThreadContentPresentation(input: {
   }
   return {
     kind: "unavailable",
-    title: translatorFor(getUiLocale())("Messages not cached"),
-    detail: translatorFor(getUiLocale())("Reconnect this environment to load the conversation."),
+    title: t("Messages not cached"),
+    detail: t("Reconnect this environment to load the conversation."),
   };
 }

@@ -1,3 +1,4 @@
+import { translatorFor } from "@t3tools/client-runtime/i18n";
 import { ThreadId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -69,7 +70,7 @@ describe("file chip downloads", () => {
     ["/tmp/data.db", "/tmp/data.db", "application/vnd.sqlite3"],
   ])("offers a host download for %s", (href, path, mimeType) => {
     const target = resolveFileChipTarget(href, "/repo")!;
-    expect(fileChipMenu(target).actions).toContainEqual({
+    expect(fileChipMenu(target, translatorFor("en")).actions).toContainEqual({
       id: "save",
       title: "Save or share",
     });
@@ -84,7 +85,9 @@ describe("file chip downloads", () => {
     for (const href of ["src/app.ts", "/tmp/archive.7z", "/tmp/clip.mp4.txt"]) {
       const target = resolveFileChipTarget(href, "/repo")!;
       expect(fileChipShareSource(target, threadId)).toBeNull();
-      expect(fileChipMenu(target).actions.some(({ id }) => id === "save")).toBe(false);
+      expect(
+        fileChipMenu(target, translatorFor("en")).actions.some(({ id }) => id === "save"),
+      ).toBe(false);
     }
   });
 });

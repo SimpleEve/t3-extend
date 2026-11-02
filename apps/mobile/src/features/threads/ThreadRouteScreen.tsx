@@ -1010,6 +1010,7 @@ function ThreadRouteContent(
           detailError: Option.getOrNull(selectedThreadDetailState.error),
           detailDeleted: selectedThreadDetailState.status === "deleted",
           connectionState: routeConnectionState,
+          t, // fork: i18n
         });
   const serverConfig = routeEnvironmentRuntime?.serverConfig ?? null;
   const renderThreadRouteBody = () => (
@@ -1051,7 +1052,7 @@ function ThreadRouteContent(
           selectedThread={selectedThreadWithDraftSettings ?? selectedThread}
           selectedThreadDetailRef={selectedThreadDetailRef}
           contentPresentation={contentPresentation}
-          screenTone={connectionTone(routeConnectionState)}
+          screenTone={connectionTone(routeConnectionState, t)}
           connectionError={routeConnectionError}
           environmentLabel={selectedEnvironmentConnection?.environmentLabel ?? null}
           feedbackSubmissions={composer.feedbackSubmissions}

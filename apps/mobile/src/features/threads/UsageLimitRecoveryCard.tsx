@@ -11,7 +11,8 @@ import { useDeadlinePassed } from "../../lib/clock";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { getUiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 
 export function UsageLimitRecoveryCard({
   thread,
@@ -77,7 +78,8 @@ export function UsageLimitRecoveryCard({
         {resetAt
           ? t("Usage limit resets {time}.", {
               time: DateTime.toDateUtc(DateTime.makeUnsafe(resetAt)).toLocaleString(
-                uiLocaleFormatTag(getUiLocale()),
+                uiFormatLocale(getUiLocale()),
+                uiFormatOptions(getUiLocale()),
               ),
             })
           : t(

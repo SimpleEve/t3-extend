@@ -32,7 +32,7 @@ export function SubagentStopButton(props: {
 
   const workflow = target.kind === "workflow";
   const label =
-    props.subagent.workflow?.name ?? resolveSubagentRowPresentation(props.subagent).title;
+    props.subagent.workflow?.name ?? resolveSubagentRowPresentation(props.subagent, t).title;
   const stop = async () => {
     setStopping(true);
     const result = await (

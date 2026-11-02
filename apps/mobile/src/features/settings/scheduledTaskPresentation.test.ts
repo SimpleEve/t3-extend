@@ -1,4 +1,4 @@
-import { loadUiCatalog, setUiLocale } from "@t3tools/client-runtime/i18n";
+import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -10,13 +10,18 @@ describe("formatNextScheduledTaskRun", () => {
   const now = new Date(2026, 0, 1, 12, 0).getTime();
   const tomorrowNine = new Date(2026, 0, 2, 9, 0).toISOString();
 
-  it("formats the time in the interface language, not the device locale", async () => {
+  it("formats Chinese as a 24-hour time and keeps the device locale for English", async () => {
     await loadUiCatalog("zh-Hans");
-    // ICU puts a plain or a no-break space before "AM" depending on its version.
-    expect(formatNextScheduledTaskRun(tomorrowNine, now, "en")).toMatch(
-      /^Next run tomorrow at 9:00\s+AM$/u,
+    const deviceTime = new Date(tomorrowNine).toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    expect(formatNextScheduledTaskRun(tomorrowNine, now, "en")).toBe(
+      `Next run tomorrow at ${deviceTime}`,
     );
     expect(formatNextScheduledTaskRun(tomorrowNine, now, "zh-Hans")).toBe("明天 9:00 运行");
+    const tomorrowNinePm = new Date(2026, 0, 2, 21, 0).toISOString();
+    expect(formatNextScheduledTaskRun(tomorrowNinePm, now, "zh-Hans")).toBe("明天 21:00 运行");
     expect(formatNextScheduledTaskRun(new Date(now + 2 * 60_000).toISOString(), now, "en")).toBe(
       "Next run in 2 minutes",
     );
@@ -32,16 +37,13 @@ describe("formatScheduledTaskInterval", () => {
     [HOUR + 30 * 60_000, "Every 1 hour 30 minutes"],
     [24 * HOUR, "Every day"],
   ])("keeps the English for %i ms", (everyMs, expected) => {
-    expect(formatScheduledTaskInterval(everyMs)).toBe(expected);
+    expect(formatScheduledTaskInterval(everyMs, translatorFor("en"))).toBe(expected);
   });
 
   it("translates the whole phrase", async () => {
-    await setUiLocale("zh-Hans");
-    try {
-      expect(formatScheduledTaskInterval(HOUR)).toBe("每小时");
-      expect(formatScheduledTaskInterval(HOUR + 30 * 60_000)).toBe("每 1 小时 30 分钟");
-    } finally {
-      await setUiLocale("en");
-    }
+    await loadUiCatalog("zh-Hans");
+    const zh = translatorFor("zh-Hans");
+    expect(formatScheduledTaskInterval(HOUR, zh)).toBe("每小时");
+    expect(formatScheduledTaskInterval(HOUR + 30 * 60_000, zh)).toBe("每 1 小时 30 分钟");
   });
 });

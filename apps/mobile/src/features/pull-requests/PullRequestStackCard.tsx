@@ -60,10 +60,13 @@ export function PullRequestStackCard(props: {
         <View>
           {stack.layers.map((layer, index) => {
             const selected = layer.number === props.params.number;
-            const status = pullRequestStatus({
-              state: layer.state,
-              isDraft: layer.isDraft === true,
-            });
+            const status = pullRequestStatus(
+              {
+                state: layer.state,
+                isDraft: layer.isDraft === true,
+              },
+              t,
+            );
             return (
               <View key={layer.number} className={selected ? "bg-thread-selected" : undefined}>
                 <PullRequestCardRow

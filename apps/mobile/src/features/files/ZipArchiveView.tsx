@@ -54,7 +54,7 @@ import {
   type ZipTreeRow,
 } from "./zipTree";
 import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { getUiLocale, translate, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function isZipFile(file: { readonly name: string; readonly mimeType: string }) {
   const mime = file.mimeType.split(";", 1)[0]?.trim().toLowerCase();
@@ -203,11 +203,14 @@ function useZipArchive(input: {
         setState({
           status: "loading",
           receivedBytes,
-          timeLeft: zipDownloadTimeLeft({
-            receivedBytes,
-            totalBytes: sizeBytes,
-            elapsedMs: Date.now() - startedAt,
-          }),
+          timeLeft: zipDownloadTimeLeft(
+            {
+              receivedBytes,
+              totalBytes: sizeBytes,
+              elapsedMs: Date.now() - startedAt,
+            },
+            translatorFor(getUiLocale()), // fork: i18n, recomputed on every chunk
+          ),
         }),
       );
       abort.signal.throwIfAborted();

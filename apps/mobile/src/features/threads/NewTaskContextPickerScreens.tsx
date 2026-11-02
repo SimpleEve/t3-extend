@@ -56,7 +56,8 @@ import {
 } from "../connection/ConnectionDiagnosisDetails";
 import { environmentStatusText } from "../connection/environmentStatusText";
 import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { getUiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 
 const BRANCH_SEARCH_DEBOUNCE_MS = 150;
 
@@ -136,7 +137,10 @@ function EnvironmentPickerRow(props: {
           {state.retryAt ? (
             <Text className="text-sm text-foreground-muted">
               {t("Next reconnect at {time}", {
-                time: new Date(state.retryAt).toLocaleTimeString(uiLocaleFormatTag(getUiLocale())),
+                time: new Date(state.retryAt).toLocaleTimeString(
+                  uiFormatLocale(getUiLocale()),
+                  uiFormatOptions(getUiLocale()),
+                ),
               })}
             </Text>
           ) : null}

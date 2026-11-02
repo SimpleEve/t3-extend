@@ -90,8 +90,8 @@ import {
   formatScheduledTaskInterval,
   formatScheduledTaskTime,
 } from "./scheduledTaskPresentation";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
+import type { Translator, UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 type ScheduledTaskRoutes = {
   SettingsScheduledTaskNew: undefined;
@@ -110,21 +110,22 @@ const DAYS = [
   { index: 0, label: "Sun" },
 ] as const;
 
-function describeSchedule(task: ScheduledTask, t: Translator): string {
+function describeSchedule(task: ScheduledTask, t: Translator, locale: UiLocale): string {
   if (task.schedule.type === "webhook") return t("On webhook");
-  if (task.schedule.type === "interval") return formatScheduledTaskInterval(task.schedule.everyMs);
+  if (task.schedule.type === "interval")
+    return formatScheduledTaskInterval(task.schedule.everyMs, t);
   const days = task.schedule.weekdays?.length
     ? repeatLabel(task.schedule.weekdays, t)
     : t("Every day");
-  return t("{days} at {time}", { days, time: formatTime(task.schedule.timeOfDay) });
+  return t("{days} at {time}", { days, time: formatTime(task.schedule.timeOfDay, locale) });
 }
 
-function formatTime(value: string): string {
+function formatTime(value: string, locale: UiLocale): string {
   const [hours, minutes] = value.split(":").map(Number);
   if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return value;
   const time = new Date();
   time.setHours(hours ?? 9, minutes ?? 0, 0, 0);
-  return formatScheduledTaskTime(time); // fork: interface language
+  return formatScheduledTaskTime(time, locale); // fork: interface language
 }
 
 function timePickerValue(value: string): Date {
@@ -683,6 +684,7 @@ function TaskForm({
   readonly onChangeEnvironment: (target: SettingsTarget) => void;
 }) {
   const t = useT();
+  const locale = useUiLocale(); // fork: i18n
   const navigation = useNavigation<NativeStackNavigationProp<ScheduledTaskRoutes>>();
   const tasks = useEnvironmentQuery(
     serverEnvironment.scheduledTasksLive({ environmentId, input: {} }),
@@ -1014,7 +1016,7 @@ function TaskForm({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("Time, {timeOfDay}", {
-                  timeOfDay: formatTime(draft.schedule.timeOfDay),
+                  timeOfDay: formatTime(draft.schedule.timeOfDay, locale),
                 })}
                 onPress={() => setTimePickerOpen((open) => !open)}
                 className="min-h-14 flex-row items-center gap-3 border-t border-border-subtle px-4 py-3 active:opacity-70"
@@ -1026,7 +1028,7 @@ function TaskForm({
                   textRole="footnote"
                   className="min-w-0 flex-1 text-right text-foreground-muted"
                 >
-                  {formatTime(draft.schedule.timeOfDay)}
+                  {formatTime(draft.schedule.timeOfDay, locale)}
                 </Text>
                 <SymbolView
                   name="chevron.right"
@@ -1317,6 +1319,7 @@ function EnvironmentTasks({
   readonly onEdit: (task: ScheduledTask) => void;
 }) {
   const t = useT();
+  const locale = useUiLocale(); // fork: i18n
   const environmentId = environment.environmentId;
   const tasks = useEnvironmentQuery(
     serverEnvironment.scheduledTasksLive({ environmentId, input: {} }),
@@ -1406,11 +1409,11 @@ function EnvironmentTasks({
                 {task.title}
               </Text>
               <Text className="text-sm text-foreground-muted" numberOfLines={2}>
-                {describeSchedule(task, t)}
+                {describeSchedule(task, t, locale)}
                 {!task.enabled
                   ? ` · ${t("Paused")}`
                   : task.nextRunAt
-                    ? ` · ${formatNextScheduledTaskRun(task.nextRunAt, now)}`
+                    ? ` · ${formatNextScheduledTaskRun(task.nextRunAt, now, locale)}`
                     : ""}
               </Text>
               {task.lastRunError ? (

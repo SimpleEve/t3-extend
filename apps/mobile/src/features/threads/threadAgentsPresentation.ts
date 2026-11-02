@@ -18,7 +18,7 @@ import type {
 import { resolveSelectableModel } from "@t3tools/shared/model";
 
 import { subagentCardDetail } from "./subagent-card-presentation";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const PROMPT_TITLE_LIMIT = 80;
 
@@ -54,11 +54,14 @@ export function subagentThreadTarget(
     : null;
 }
 
-function rowTitle(subagent: Pick<OrchestrationV2Subagent, "title" | "prompt">): string {
+function rowTitle(
+  subagent: Pick<OrchestrationV2Subagent, "title" | "prompt">,
+  t: Translator,
+): string {
   const title = subagent.title?.trim();
   if (title) return formatSubagentDisplayTitle(title);
   const prompt = subagent.prompt.trim();
-  if (prompt.length === 0) return translatorFor(getUiLocale())("Subagent");
+  if (prompt.length === 0) return t("Subagent");
   return prompt.length > PROMPT_TITLE_LIMIT
     ? `${prompt.slice(0, PROMPT_TITLE_LIMIT - 3)}...`
     : prompt;
@@ -71,8 +74,7 @@ function rowTone(status: OrchestrationV2Subagent["status"]): SubagentRowTone {
   return "stopped";
 }
 
-function rowStatusLabel(status: OrchestrationV2Subagent["status"]): string {
-  const t = translatorFor(getUiLocale()); // fork: i18n
+function rowStatusLabel(status: OrchestrationV2Subagent["status"], t: Translator): string {
   switch (status) {
     case "pending":
     case "running":
@@ -97,13 +99,14 @@ export function resolveSubagentRowPresentation(
     OrchestrationV2Subagent,
     "title" | "prompt" | "status" | "progress" | "result" | "childThreadId" | "remoteChild"
   >,
+  t: Translator, // fork: i18n
   canOpenRemote = false,
 ): SubagentRowPresentation {
   const live = isActiveSubagentStatus(subagent.status);
   return {
-    title: rowTitle(subagent),
+    title: rowTitle(subagent, t),
     detail: subagentDetailPreview(subagent),
-    statusLabel: rowStatusLabel(subagent.status),
+    statusLabel: rowStatusLabel(subagent.status, t),
     tone: rowTone(subagent.status),
     live,
     canOpenThread:
@@ -131,7 +134,10 @@ function railTone(members: ReadonlyArray<RuntimeSubagent>): WorkflowRailTone {
   return members.every((member) => member.status === "completed") ? "completed" : "stopped";
 }
 
-export function workflowRail(group: SubagentWorkflowGroup): ReadonlyArray<WorkflowRailItem> {
+export function workflowRail(
+  group: SubagentWorkflowGroup,
+  t: Translator, // fork: i18n
+): ReadonlyArray<WorkflowRailItem> {
   const items = group.phases.map((phase) => ({
     key: String(phase.index),
     title: phase.title,
@@ -140,10 +146,7 @@ export function workflowRail(group: SubagentWorkflowGroup): ReadonlyArray<Workfl
   if (group.unphasedMembers.length > 0) {
     items.push({
       key: "unphased",
-      title:
-        items.length === 0
-          ? translatorFor(getUiLocale())("Agents")
-          : translatorFor(getUiLocale())("Other"),
+      title: items.length === 0 ? t("Agents") : t("Other"),
       members: group.unphasedMembers,
     });
   }

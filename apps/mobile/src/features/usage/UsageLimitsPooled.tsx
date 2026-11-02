@@ -28,8 +28,9 @@ import { SettingsScreen } from "../settings/components/SettingsScreen";
 import { environmentPresentations } from "../../state/presentation";
 import { ResetCredits } from "./UsageLimitsSection";
 import { usageProviderKind, useProviderColors } from "./usageProviders";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, translate, uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 
 const DRIVER_LABEL: Partial<Record<string, string>> = {
   codex: "Codex",
@@ -566,6 +567,7 @@ type AccountScreenProps = StaticScreenProps<{
 
 export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
   const t = useT(); // fork: i18n
+  const locale = useUiLocale(); // fork: i18n
   const insets = useSafeAreaInsets();
   const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
   const { accountKey, windowId, windowKind, environmentIds, now } = route.params;
@@ -633,11 +635,11 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
                 <Text selectable className="text-sm text-foreground-muted">
                   {t("Resets {time}", {
                     time: new Date(window.resetsAt).toLocaleString(
-                      uiLocaleFormatTag(getUiLocale()),
-                      {
+                      uiFormatLocale(locale),
+                      uiFormatOptions(locale, {
                         dateStyle: "medium",
                         timeStyle: "short",
-                      },
+                      }),
                     ),
                   })}
                 </Text>

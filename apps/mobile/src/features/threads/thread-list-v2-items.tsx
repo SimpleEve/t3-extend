@@ -80,8 +80,8 @@ import { shouldRecedeThreadRow } from "./thread-row-emphasis";
 import { ThreadSearchMatchExcerpt } from "./thread-search-match";
 import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
-import { pullRequestStatus } from "../pull-requests/pullRequestStatus";
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { pullRequestStatusStyle } from "../pull-requests/pullRequestStatus"; // fork: i18n
+import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 interface StatusLabel {
@@ -682,6 +682,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   readonly simultaneousSwipeGesture?: ComponentProps<typeof ThreadSwipeable>["simultaneousWith"];
 }) {
   const t = useT();
+  const locale = useUiLocale(); // fork: i18n
   const { width: windowWidth, fontScale } = useWindowDimensions();
   const titleTypography = useScaledTextRole("body");
   const metadataTypography = useScaledTextRole("label");
@@ -731,7 +732,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
 
   const providerInstance = props.providerInstance;
   const pr = useThreadPr(thread);
-  const prBadgeLabel = pr ? resolveThreadPrBadgeAction(pr).accessibilityLabel : null;
+  const prBadgeLabel = pr ? resolveThreadPrBadgeAction(pr, t).accessibilityLabel : null;
   const handleOpenPullRequests = useCallback(() => {
     if (pr) onOpenThreadPullRequests(thread, pr);
   }, [onOpenThreadPullRequests, pr, thread]);
@@ -825,6 +826,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
     now: props.snoozePresetMinute || snoozeGateNow,
     presets: props.snoozePresets,
     translate: t,
+    locale, // fork: i18n
   });
   const snoozePresetActions = useMemo<MenuAction[]>(
     () => [
@@ -1018,6 +1020,8 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         displayedPresets: snoozePresets,
         now: new Date(),
         presets: props.snoozePresets,
+        translate: t, // fork: i18n
+        locale, // fork: i18n
       });
       if (snoozeSelection._tag === "selected") {
         handleSnooze(snoozeSelection.preset.snoozedUntil);
@@ -1048,6 +1052,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       snoozePresets,
       props.snoozePresets,
       t,
+      locale,
     ],
   );
   const primaryAction = useMemo(() => {
@@ -1309,7 +1314,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
                   ? PullRequestGlyph.stack
                   : pr.state === null
                     ? PullRequestGlyph.pullRequest
-                    : pullRequestStatus({ state: pr.state, isDraft: pr.isDraft }).icon
+                    : pullRequestStatusStyle({ state: pr.state, isDraft: pr.isDraft }).icon
               }
               size={12}
               tintColorClassName={

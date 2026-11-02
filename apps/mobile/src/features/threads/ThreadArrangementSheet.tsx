@@ -441,7 +441,7 @@ function ThreadArrangementSheet(props: { onClose: () => void }) {
                           label: string;
                         }>((section) => {
                           if (section === item.section) return [];
-                          const label = threadDragAction(item.section, section);
+                          const label = threadDragAction(item.section, section, t);
                           if (!label) return [];
                           if (section === "settled")
                             return configLoaded ? [{ name: section, label }] : [];
@@ -582,6 +582,7 @@ function ThreadArrangementSheet(props: { onClose: () => void }) {
                         {threadDragAction(
                           visiblePreview.sourceSection,
                           visiblePreview.destination.section,
+                          t,
                         )}
                       </Text>
                     ) : null}

@@ -105,7 +105,7 @@ import { useAssetUrl } from "../../state/assets";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
 import { useOpenLinkedThread } from "./useOpenLinkedThread";
 import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
-import { uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 
 const SHIMMER_WIDTH = 72;
 const SHIMMER_SWEEP_MS = 1_350;
@@ -926,7 +926,8 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
   },
 ) {
   const t = useT();
-  const formatTag = uiLocaleFormatTag(useUiLocale()); // fork: times follow the interface language
+  const locale = useUiLocale(); // fork: times follow the interface language
+  const formatTag = uiFormatLocale(locale);
   const { row, expanded } = props;
   const openLinkedThread = useOpenLinkedThread();
   const streamsOutput =
@@ -943,12 +944,15 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
     const timestamp = new Date(row.createdAt);
     const resetAt = failureItem.failure.resetAt;
     const resetTime = resetAt
-      ? new Date(resetAt).toLocaleString(formatTag, {
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        })
+      ? new Date(resetAt).toLocaleString(
+          formatTag,
+          uiFormatOptions(locale, {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          }),
+        )
       : null;
     const label = warning
       ? resetTime
@@ -985,15 +989,18 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
               </Text>
             ) : null}
             <Text
-              accessibilityLabel={timestamp.toLocaleString(formatTag)}
+              accessibilityLabel={timestamp.toLocaleString(formatTag, uiFormatOptions(locale))}
               className="shrink-0 text-xs text-foreground-subtle"
             >
-              {timestamp.toLocaleString(formatTag, {
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-              })}
+              {timestamp.toLocaleString(
+                formatTag,
+                uiFormatOptions(locale, {
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                }),
+              )}
             </Text>
           </View>
           {!warning ? (
@@ -1066,12 +1073,12 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
       </Text>
     );
   const toolPresentation = resolveWorkEntryToolPresentation(row.workEntry);
-  const previewText = row.groupStandIn?.label ?? workEntryRowLabel(row.workEntry);
+  const previewText = row.groupStandIn?.label ?? workEntryRowLabel(row.workEntry, false, t);
   const answerPreview = row.workEntry.questionAnswer
     ? getQuestionAnswerPreview(row.workEntry.questionAnswer)
     : null;
   const accessiblePreview = [previewText, answerPreview].filter(Boolean).join(": ");
-  const displayText = row.groupStandIn?.label ?? workEntryRowLabel(row.workEntry, expanded);
+  const displayText = row.groupStandIn?.label ?? workEntryRowLabel(row.workEntry, expanded, t);
   const isSystemNotice = row.projectedItem.item.type === "system_notice";
   const isUsageLimit =
     row.projectedItem.item.type === "error" &&

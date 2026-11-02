@@ -11,7 +11,7 @@ import {
   resolveWorkspaceFilePath,
   resolveWorkspaceRelativeFilePath,
 } from "../files/filePath";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface FileChipTarget {
   readonly fullPath?: string;
@@ -68,8 +68,10 @@ export function fileChipShareSource(target: FileChipTarget, threadId: ThreadId) 
     : null;
 }
 
-export function fileChipMenu(target: FileChipTarget): MarkdownFileContextMenu {
-  const t = translatorFor(getUiLocale()); // fork: i18n
+export function fileChipMenu(
+  target: FileChipTarget,
+  t: Translator, // fork: i18n
+): MarkdownFileContextMenu {
   return {
     title: target.fullPath ?? target.relativePath ?? "",
     actions: [

@@ -114,7 +114,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
   const preferencesResult = useAtomValue(mobilePreferencesAtom);
   const savePreferences = useAtomSet(updateMobilePreferencesAtom);
   const agentAwarenessPushAvailable = supportsAgentAwarenessPush();
-  const agentAwarenessPlatform = resolveAgentAwarenessPlatformPresentation(Platform.OS);
+  const agentAwarenessPlatform = resolveAgentAwarenessPlatformPresentation(Platform.OS, t);
   const agentAwarenessSubtitle =
     Platform.OS === "android" && !agentAwarenessPushAvailable
       ? t("Install a newer app build to enable notifications")

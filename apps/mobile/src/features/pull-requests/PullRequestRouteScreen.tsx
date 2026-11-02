@@ -151,10 +151,16 @@ function usePullRequestActivityRows(params: PullRequestParams, filter: ActivityF
   const filtered = result.data ? filterPullRequestActivity(result.data, filter) : null;
   const rows = (() => {
     if (!filtered) return [];
-    const rows = pullRequestTimelineRows(filtered.activity, params, navigation, {
-      permissions,
-      onChanged: result.refresh,
-    });
+    const rows = pullRequestTimelineRows(
+      filtered.activity,
+      params,
+      navigation,
+      {
+        permissions,
+        onChanged: result.refresh,
+      },
+      t,
+    );
     if (filter.newestFirst) {
       const notice = rows.at(-1)?.key === "truncated" ? rows.pop() : undefined;
       rows.reverse();
@@ -191,7 +197,7 @@ function PullRequestIdentity(props: {
 }) {
   const t = useT(); // fork: i18n
   const { pr } = props;
-  const status = pullRequestStatus(pr);
+  const status = pullRequestStatus(pr, t);
   return (
     <View className="gap-3">
       <View className="flex-row flex-wrap items-center gap-2">
@@ -439,7 +445,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
     pr &&
     action.confirm(
       "delete-branch",
-      pullRequestActionLabel("delete-branch", terminology),
+      pullRequestActionLabel("delete-branch", terminology, t),
       t("Delete {headBranch} from {repository}? Local branches and worktrees are not changed.", {
         headBranch: pr.headBranch,
         repository: pr.headRepositoryNameWithOwner ?? pr.repository,
@@ -556,7 +562,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
               ...(identity
                 ? [
                     {
-                      accessibilityLabel: openOnProviderLabel(identity.provider),
+                      accessibilityLabel: openOnProviderLabel(identity.provider, t),
                       icon: "arrow.up.right" as const,
                       onPress: () => void Linking.openURL(identity.url),
                     },
@@ -577,7 +583,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
               ...(showsDeleteBranch
                 ? [
                     {
-                      accessibilityLabel: pullRequestActionLabel("delete-branch", terminology),
+                      accessibilityLabel: pullRequestActionLabel("delete-branch", terminology, t),
                       icon: PR_ACTION_ICONS["delete-branch"],
                       disabled: !action.available("delete-branch"),
                       destructive: true,
@@ -651,7 +657,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
                 icon="arrow.up.right"
                 onPress={() => void Linking.openURL(identity.url)}
               >
-                <Toolbar.Label>{openOnProviderLabel(identity.provider)}</Toolbar.Label>
+                <Toolbar.Label>{openOnProviderLabel(identity.provider, t)}</Toolbar.Label>
               </Toolbar.MenuAction>
             ) : null}
             {identity ? (
@@ -682,7 +688,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
                 onPress={confirmDeleteBranch}
               >
                 <Toolbar.Label>
-                  {pullRequestActionLabel("delete-branch", terminology)}
+                  {pullRequestActionLabel("delete-branch", terminology, t)}
                 </Toolbar.Label>
               </Toolbar.MenuAction>
             ) : null}
@@ -1007,6 +1013,7 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
         staleDiff || commit ? [] : (activity.data?.reviewThreads ?? []),
         commit ? [] : reviewDraft.draft.comments,
         diffHead.sha ?? undefined,
+        t,
       ),
     [
       baseData,
@@ -1016,6 +1023,7 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
       activity.data?.reviewThreads,
       reviewDraft.draft.comments,
       diffHead.sha,
+      t,
     ],
   );
   const viewedIds = data.files
@@ -1433,7 +1441,9 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
           </View>
         ) : null}
         {parsed.kind === "files" && parsed.notice ? (
-          <Text className="px-4 py-2 text-2xs text-foreground-muted">{parsed.notice}</Text>
+          <Text className="px-4 py-2 text-2xs text-foreground-muted">
+            {t(parsed.notice, { singular: terminology.singular }) /* fork: i18n */}
+          </Text>
         ) : null}
       </View>
       <PullRequestActionToolbar

@@ -581,6 +581,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
   const voicePresentation = resolveVoiceComposerPresentation(
     voiceInput.state,
     voiceInput.elapsedSeconds,
+    t, // fork: i18n
   );
   const isVoiceInputPresented = voicePresentation.statusLabel !== null;
   const isExpanded = isFocused || settingsSheetPresentation.keepsComposerExpanded;

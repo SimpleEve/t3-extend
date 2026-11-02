@@ -67,17 +67,20 @@ export const LinkedPullRequestRow = memo(function LinkedPullRequestRow(props: {
   const t = useT();
   const { link, depth, stack } = props.line;
   const snapshot = link.snapshot;
-  const status = snapshot === null ? null : pullRequestStatus(snapshot);
-  const conflict = snapshot === null ? null : pullRequestConflict(snapshot);
+  const status = snapshot === null ? null : pullRequestStatus(snapshot, t);
+  const conflict = snapshot === null ? null : pullRequestConflict(snapshot, t);
   const open = snapshot === null || snapshot.state === "open";
   const checks =
     open && snapshot?.checksState ? pullRequestChecksStatus(snapshot.checksState) : null;
   const review =
     open && snapshot?.reviewDecision
-      ? pullRequestListReviewStatus({
-          reviewDecision: snapshot.reviewDecision,
-          viewerReviewRequested: false,
-        })
+      ? pullRequestListReviewStatus(
+          {
+            reviewDecision: snapshot.reviewDecision,
+            viewerReviewRequested: false,
+          },
+          t,
+        )
       : null;
   const watching = open && link.watch !== undefined;
   const additions = snapshot?.additions ?? 0;

@@ -8,7 +8,7 @@ import type {
 } from "@t3tools/contracts";
 import type { AppSymbolName } from "../../components/ui/AppSymbol";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const STATES = {
   open: {
@@ -44,20 +44,29 @@ const STATES = {
   { label: string; icon: AppSymbolName; tint: string; text: string; background: string }
 >;
 
-export function pullRequestStatus(pr: Pick<PullRequestListEntry, "state" | "isDraft">) {
-  const status = STATES[pr.isDraft && pr.state === "open" ? "draft" : pr.state];
-  const t = translatorFor(getUiLocale()); // fork: i18n
+// fork: i18n, for callers that only draw the icon; `pullRequestStatus` adds the translated label.
+export function pullRequestStatusStyle(pr: Pick<PullRequestListEntry, "state" | "isDraft">) {
+  return STATES[pr.isDraft && pr.state === "open" ? "draft" : pr.state];
+}
+
+export function pullRequestStatus(
+  pr: Pick<PullRequestListEntry, "state" | "isDraft">,
+  t: Translator, // fork: i18n
+) {
+  const status = pullRequestStatusStyle(pr);
   return { ...status, label: t(status.label, undefined, "pull request state") };
 }
 
-export function pullRequestConflict(pr: {
-  readonly state: PullRequestListEntry["state"];
-  readonly isDraft: boolean;
-  readonly mergeability?: PullRequestMergeability | undefined;
-  readonly baseBranch?: string | undefined;
-}) {
+export function pullRequestConflict(
+  pr: {
+    readonly state: PullRequestListEntry["state"];
+    readonly isDraft: boolean;
+    readonly mergeability?: PullRequestMergeability | undefined;
+    readonly baseBranch?: string | undefined;
+  },
+  t: Translator, // fork: i18n
+) {
   if (pr.state !== "open" || pr.isDraft || pr.mergeability !== "conflicting") return null;
-  const t = translatorFor(getUiLocale()); // fork: i18n
   return {
     label: pr.baseBranch
       ? t("Conflicts with {baseBranch}", { baseBranch: pr.baseBranch })
@@ -65,8 +74,7 @@ export function pullRequestConflict(pr: {
   };
 }
 
-export function checkStatus(check: PullRequestCheck) {
-  const t = translatorFor(getUiLocale()); // fork: i18n
+export function checkStatus(check: PullRequestCheck, t: Translator /* fork: i18n */) {
   switch (check.status) {
     case "success":
       return {
@@ -101,12 +109,14 @@ export function checkStatus(check: PullRequestCheck) {
   }
 }
 
-export function pullRequestChecksSummary(pr: Pick<PullRequestDetail, "checks">) {
+export function pullRequestChecksSummary(
+  pr: Pick<PullRequestDetail, "checks">,
+  t: Translator, // fork: i18n
+) {
   const failed = pr.checks.filter((check) => check.status === "failure").length;
   const required = pr.checks.filter((check) => check.status === "action-required").length;
   const pending = pr.checks.filter((check) => check.status === "pending").length;
   const passed = pr.checks.filter((check) => check.status === "success").length;
-  const t = translatorFor(getUiLocale()); // fork: i18n
   const count = pr.checks.length
     ? t("{passed} of {total}", { passed, total: pr.checks.length })
     : undefined;
@@ -166,6 +176,7 @@ export function normalizedReviewState(reviewState: string | null) {
 export function pullRequestReviewSummary(
   pr: Pick<PullRequestDetail, "reviewers">,
   activity: Pick<PullRequestActivity, "comments" | "commits"> | null,
+  t: Translator, // fork: i18n
 ) {
   const latest = new Map<string, PullRequestActivity["comments"][number]>();
   const comments = new Map<string, PullRequestActivity["comments"][number]>();
@@ -184,7 +195,6 @@ export function pullRequestReviewSummary(
     if (!previous || Date.parse(review.createdAt) >= Date.parse(previous.createdAt))
       latest.set(key, { ...review, reviewState: state });
   }
-  const t = translatorFor(getUiLocale()); // fork: i18n
   const reviews = [
     ...[...latest.values()].filter((review) => review.reviewState !== "DISMISSED"),
     ...[...comments.entries()].filter(([key]) => !latest.has(key)).map(([, review]) => review),
@@ -241,8 +251,8 @@ export function pullRequestReviewSummary(
 
 export function pullRequestBranchSummary(
   pr: Pick<PullRequestDetail, "mergeability" | "baseComparison" | "behindBy" | "baseBranch">,
+  t: Translator, // fork: i18n
 ) {
-  const t = translatorFor(getUiLocale()); // fork: i18n
   if (pr.mergeability === "conflicting") return t("Has conflicts");
   if (pr.baseComparison === "behind")
     return pr.behindBy === undefined

@@ -55,7 +55,7 @@ export function PullRequestMergeControls(props: {
     : methods.includes("squash")
       ? "squash"
       : methods[0];
-  const scope = stack.stack ? pullRequestStackMerge(stack.stack, pr.number, terminology) : null;
+  const scope = stack.stack ? pullRequestStackMerge(stack.stack, pr.number, terminology, t) : null;
   const canMergeSingle = singlePullRequestMergeAllowed({
     supportsStackActions: stack.supportsStackActions,
     hasStack: stack.stack !== null,
@@ -66,7 +66,7 @@ export function PullRequestMergeControls(props: {
   const reason =
     (!permissions.connected
       ? t("Reconnect to merge.")
-      : mergeUnavailableReason(pr, permissions.canWrite, terminology)) ??
+      : mergeUnavailableReason(pr, permissions.canWrite, terminology, t)) ??
     (stack.stack
       ? !stack.supportsStackActions
         ? t("This environment can display stacks but cannot merge them.")
@@ -149,7 +149,7 @@ export function PullRequestMergeControls(props: {
       action === "merge"
         ? scope && scope.layers.length > 1
           ? t("Merge {count} stack layers?", { count: scope.layers.length })
-          : `${pullRequestActionLabel("merge", terminology)}?`
+          : `${pullRequestActionLabel("merge", terminology, t)}?`
         : action === "enable-auto-merge"
           ? t("Enable auto-merge?")
           : t("Disable auto-merge?");

@@ -322,10 +322,13 @@ function useThreadGitHeaderActionItems(props: ThreadGitControlsProps): ThreadGit
             : []),
           ...props.terminalSessions.map((session) => ({
             description: [
-              getTerminalStatusLabel({
-                status: session.status,
-                hasRunningSubprocess: session.hasRunningSubprocess,
-              }),
+              getTerminalStatusLabel(
+                {
+                  status: session.status,
+                  hasRunningSubprocess: session.hasRunningSubprocess,
+                },
+                t,
+              ),
               basename(session.cwd),
             ]
               .filter(Boolean)
@@ -494,10 +497,13 @@ export function ThreadGitControls(props: ThreadGitControlsProps) {
               icon="terminal"
               onPress={() => props.onOpenTerminal(session.terminalId)}
               subtitle={[
-                getTerminalStatusLabel({
-                  status: session.status,
-                  hasRunningSubprocess: session.hasRunningSubprocess,
-                }),
+                getTerminalStatusLabel(
+                  {
+                    status: session.status,
+                    hasRunningSubprocess: session.hasRunningSubprocess,
+                  },
+                  t,
+                ),
                 basename(session.cwd),
               ]
                 .filter(Boolean)

@@ -3,7 +3,7 @@ import {
   type ChangeRequestTerminology,
 } from "@t3tools/client-runtime/source-control-clients";
 import type { PullRequestDetail, PullRequestLinkedThreadsResult } from "@t3tools/contracts";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type PullRequestAgentTask = "ask" | "explain" | "feedback" | "conflicts" | "watch";
 
@@ -34,9 +34,12 @@ export function pullRequestAgentPrompt(
   }
 }
 
-export function pullRequestAgentActions(pr: PullRequestDetail, canWatch: boolean) {
+export function pullRequestAgentActions(
+  pr: PullRequestDetail,
+  canWatch: boolean,
+  t: Translator, // fork: i18n
+) {
   const { shortLabel } = sourceControlClients.get(pr.provider).changeRequest;
-  const t = translatorFor(getUiLocale()); // fork: i18n
   return [
     {
       task: "ask",

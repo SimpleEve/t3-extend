@@ -1,5 +1,5 @@
 import type { PullRequestReviewGuideResult } from "@t3tools/contracts";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function reviewGuideState(data: PullRequestReviewGuideResult | null) {
   const guide = data?.guide ?? null;
@@ -14,14 +14,16 @@ export function reviewGuideState(data: PullRequestReviewGuideResult | null) {
   };
 }
 
-export function guideNoticeState(state: {
-  readonly data: PullRequestReviewGuideResult | null;
-  readonly isPending: boolean;
-  readonly running: boolean;
-  readonly startError: string | null;
-  readonly error: string | null;
-}) {
-  const t = translatorFor(getUiLocale()); // fork: i18n
+export function guideNoticeState(
+  state: {
+    readonly data: PullRequestReviewGuideResult | null;
+    readonly isPending: boolean;
+    readonly running: boolean;
+    readonly startError: string | null;
+    readonly error: string | null;
+  },
+  t: Translator, // fork: i18n
+) {
   const { guide, stale, failure } = reviewGuideState(state.data);
   if (state.running) {
     return {

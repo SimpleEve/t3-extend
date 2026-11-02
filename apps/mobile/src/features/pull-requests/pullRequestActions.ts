@@ -10,7 +10,7 @@ import type {
 } from "@t3tools/contracts";
 import type { AppSymbolName } from "../../components/ui/AppSymbol";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 type ActionDetail = Pick<
   PullRequestDetail,
@@ -39,8 +39,8 @@ export const MERGE_METHODS = {
 export function pullRequestActionLabel(
   action: PullRequestAction,
   terminology: ChangeRequestTerminology,
+  t: Translator, // fork: i18n
 ): string {
-  const t = translatorFor(getUiLocale()); // fork: i18n
   const { singular } = terminology;
   switch (action) {
     case "merge":
@@ -126,8 +126,8 @@ export function mergeUnavailableReason(
   pr: ActionDetail,
   connectionAllowsWrites: boolean,
   terminology: ChangeRequestTerminology,
+  t: Translator, // fork: i18n
 ) {
-  const t = translatorFor(getUiLocale()); // fork: i18n
   const { singular } = terminology;
   if (pr.state === "merged") return t("This {singular} has been merged.", { singular });
   if (pr.state === "closed") return t("Reopen this {singular} before merging.", { singular });
@@ -142,7 +142,7 @@ export function mergeUnavailableReason(
   return null;
 }
 
-export const openOnProviderLabel = (provider: SourceControlProviderKind) =>
-  translatorFor(getUiLocale())("Open on {label}", {
+export const openOnProviderLabel = (provider: SourceControlProviderKind, t: Translator) =>
+  t("Open on {label}", {
     label: sourceControlClients.get(provider).label,
   });

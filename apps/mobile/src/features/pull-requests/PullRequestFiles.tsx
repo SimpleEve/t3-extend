@@ -33,7 +33,7 @@ import { usePullRequestFileFilter } from "./usePullRequestFileFilter";
 import { usePullRequestFilesViewed } from "./usePullRequestFilesViewed";
 import { pullRequestFileJumpScope, requestPullRequestFileJump } from "./pullRequestFileJump";
 import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const BREAKDOWN_LABELS = {
   code: "Code",
@@ -79,8 +79,8 @@ function loadingRowCount(files: ChangedFiles) {
 function describeFiles(
   parsed: Extract<ReviewParsedDiff, { readonly kind: "files" }>,
   { filter, viewed }: ChangedFiles,
+  t: Translator, // fork: i18n
 ) {
-  const t = translatorFor(getUiLocale()); // fork: i18n
   const count = parsed.fileCount;
   const hidden = filter.hiddenCount;
   return [
@@ -250,7 +250,7 @@ function FilesFooter({ files }: { readonly files: ChangedFiles }) {
       ) : null}
       {parsed.kind === "files" && parsed.notice ? (
         <Text textRole="label" className="py-4 text-foreground-muted">
-          {parsed.notice}
+          {t(parsed.notice, { singular: files.terminology.singular }) /* fork: i18n */}
         </Text>
       ) : null}
     </>
@@ -334,7 +334,7 @@ export function usePullRequestFilesSection(params: PullRequestParams) {
             <View className="min-w-0 flex-1 gap-1">
               <PullRequestSectionHeading>{t("Changed files")}</PullRequestSectionHeading>
               <Text textRole="caption" className="text-foreground-muted">
-                {describeFiles(parsed, files)}
+                {describeFiles(parsed, files, t)}
               </Text>
               {breakdown ? <ChangeBreakdownLine breakdown={breakdown} /> : null}
             </View>
@@ -522,7 +522,7 @@ export function PullRequestFilesSheet({ route }: StaticScreenProps<PullRequestDi
               {parsed.kind === "files" ? (
                 <View className="flex-row items-center gap-2 py-2">
                   <Text textRole="caption" className="min-w-0 flex-1 text-foreground-muted">
-                    {describeFiles(parsed, files)}
+                    {describeFiles(parsed, files, t)}
                   </Text>
                   <PullRequestDiffStats
                     additions={parsed.additions}
