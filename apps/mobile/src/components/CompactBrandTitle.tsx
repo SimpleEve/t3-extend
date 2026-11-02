@@ -61,7 +61,7 @@ export function CompactBrandTitle(
         className="font-t3-medium text-foreground-muted"
         style={{ fontSize: 21 * scale, letterSpacing: -0.5 * scale }}
       >
-        {t("Code")}
+        Code
       </Text>
       {showStage ? (
         <View
