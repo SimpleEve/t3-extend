@@ -163,6 +163,14 @@ them. **New thread** starts in the current project. In this view you cannot drag
 the Working section is off. The view lists
 worktrees that have threads; a worktree with no threads does not appear.
 
+On mobile, open the filter menu on the thread list and pick **Group threads → By project**. The
+groups, their order, and what stays in the Pinned, Snoozed, and Settled sections match the
+description above. Tap a project or checkout header to fold it; the open thread stays visible, and
+the header shows the thread count, and a dot when a folded project or a checkout holds a
+thread that needs you, failed, or finished. The view and the folds are kept on the phone. The filters work in
+both views. While you search, results are listed by rank without groups, and the groups return when
+you clear the search. Threads of a project the app does not list go in **Other projects**.
+
 ### Group threads by project (beta)
 
 Turn on **Settings → Labs → Boring sidebar (group by project)** on web and desktop to put active

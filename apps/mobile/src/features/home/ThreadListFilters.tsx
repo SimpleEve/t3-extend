@@ -3,6 +3,8 @@ import { SymbolView } from "../../components/ui/AppSymbol";
 import { ListFilterMenu } from "../workspace/ListFilterMenu";
 import type { HomeHeaderProps } from "./HomeHeader.types";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { useThreadListViewPreferences } from "../../fork/threadListView"; // fork: thread list views
+import { isSidebarViewMode } from "@t3tools/client-runtime/state/thread-grouping"; // fork: thread list views
 
 export function ThreadListFilters(
   props: Pick<
@@ -19,6 +21,7 @@ export function ThreadListFilters(
   },
 ) {
   const t = useT();
+  const { viewMode, setViewMode } = useThreadListViewPreferences(); // fork: thread list views
   const selectedEnvironment = props.environments.find(
     (environment) => environment.environmentId === props.selectedEnvironmentId,
   );
@@ -85,6 +88,18 @@ export function ThreadListFilters(
             );
             if (project) props.onProjectChange(project.key);
           }
+        }}
+      />
+      <ListFilterMenu
+        label={viewMode === "project" ? t("By project") : t("By status")}
+        accessibilityLabel={t("Group threads")}
+        active={viewMode === "project"}
+        actions={[
+          { id: "status", title: t("By status"), state: viewMode === "status" ? "on" : "off" },
+          { id: "project", title: t("By project"), state: viewMode === "project" ? "on" : "off" },
+        ]}
+        onSelect={(id) => {
+          if (isSidebarViewMode(id)) setViewMode(id);
         }}
       />
       {props.selectedEnvironmentId !== null || props.selectedProjectKey !== null ? (

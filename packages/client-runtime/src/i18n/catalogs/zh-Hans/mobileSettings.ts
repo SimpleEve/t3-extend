@@ -25,8 +25,8 @@ export default {
   "In use": "使用中",
   "Route {position} of {count}": "第 {position} 条路由，共 {count} 条",
   "Update {label}?": "更新 {label}？",
-  "Install T3 Code {targetVersion}. T3 Code restarts on that machine and reconnects. Running threads may be interrupted.":
-    "安装 T3 Code {targetVersion}。T3 Code 会在那台机器上重启并重新连接。正在运行的对话可能会被中断。",
+  "Install T3 Extend {targetVersion}. T3 Extend restarts on that machine and reconnects. Running threads may be interrupted.":
+    "安装 T3 Extend {targetVersion}。T3 Extend 会在那台机器上重启并重新连接。正在运行的对话可能会被中断。",
   Update: "更新",
   "Version {fromVersion}": "版本 {fromVersion}",
   "Update required": "需要更新",
@@ -35,8 +35,8 @@ export default {
   "Downloading update…": "正在下载更新…",
   "Version {targetVersion} is available.": "版本 {targetVersion} 可用。",
   "No newer version is available yet.": "暂时没有更新的版本。",
-  "This app needs a newer version of T3 Code on this machine.":
-    "这个应用需要这台机器上运行更新版本的 T3 Code。",
+  "This app needs a newer version of T3 Extend on this machine.":
+    "这个应用需要这台机器上运行更新版本的 T3 Extend。",
   "Check for updates": "检查更新",
   "Retry update": "重试更新",
   "Update to {targetVersion}": "更新到 {targetVersion}",
@@ -79,10 +79,10 @@ export default {
   "Clear {size} of cached data": "清除 {size} 缓存数据",
   "The action could not be completed. Try again.": "无法完成这个操作。请重试。",
   "Update environment?": "更新环境？",
-  "Install T3 Code {targetVersion}. The desktop app will close and relaunch. Running threads may be interrupted.":
-    "安装 T3 Code {targetVersion}。桌面应用会关闭并重新启动。正在运行的对话可能会被中断。",
-  "Install T3 Code {targetVersion}. The server will restart and reconnect. Running threads may be interrupted.":
-    "安装 T3 Code {targetVersion}。服务器会重启并重新连接。正在运行的对话可能会被中断。",
+  "Install T3 Extend {targetVersion}. The desktop app will close and relaunch. Running threads may be interrupted.":
+    "安装 T3 Extend {targetVersion}。桌面应用会关闭并重新启动。正在运行的对话可能会被中断。",
+  "Install T3 Extend {targetVersion}. The server will restart and reconnect. Running threads may be interrupted.":
+    "安装 T3 Extend {targetVersion}。服务器会重启并重新连接。正在运行的对话可能会被中断。",
   "Updated to {targetVersion}.": "已更新到 {targetVersion}。",
   "This environment is no longer saved on this device.": "这台设备上已不再保存这个环境。",
   Connection: "连接",
@@ -92,7 +92,7 @@ export default {
   "Version {version}": "版本 {version}",
   "You are up to date.": "已是最新版本。",
   "Update the desktop app on this machine.": "请在这台机器上更新桌面应用。",
-  "Update and restart T3 Code on this machine.": "在这台机器上更新并重启 T3 Code。",
+  "Update and restart T3 Extend on this machine.": "在这台机器上更新并重启 T3 Extend。",
   "Refresh providers": "刷新 provider",
   "Provider status refreshed.": "provider 状态已刷新。",
   "Version unknown": "版本未知",
@@ -112,8 +112,8 @@ export default {
   "Allow microphone access": "允许访问麦克风",
   "Voice input needs microphone access before it can record or list your microphones.":
     "语音输入需要麦克风权限才能录音或列出你的麦克风。",
-  "Microphone access is off for T3 Code. Turn it on in Settings to use voice input.":
-    "T3 Code 的麦克风权限已关闭。请在系统设置中开启以使用语音输入。",
+  "Microphone access is off for T3 Extend. Turn it on in Settings to use voice input.":
+    "T3 Extend 的麦克风权限已关闭。请在系统设置中开启以使用语音输入。",
   "Preferred order": "优先顺序",
   "Voice input records from the first connected microphone in this list. Wired and Bluetooth devices are added by name after you use voice input with them connected; until then, the Other row ranks them. Swipe a device left to forget it.":
     "语音输入会使用列表中第一个已连接的麦克风。有线和蓝牙设备在连接状态下使用过语音输入后，会按名称加入列表；在此之前，按“其他”这一行排序。向左滑动设备可忘记它。",
@@ -167,8 +167,8 @@ export default {
   "This device could not be registered with T3 Connect, so activity updates won't appear yet. They'll start once registration succeeds.":
     "这台设备无法在 T3 Connect 注册，所以暂时不会显示活动更新。注册成功后才会开始显示。",
   "Disable notifications": "关闭通知",
-  "Open system Settings to disable notifications for T3 Code.":
-    "请打开系统设置关闭 T3 Code 的通知。",
+  "Open system Settings to disable notifications for T3 Extend.":
+    "请打开系统设置关闭 T3 Extend 的通知。",
   "Agent activity": "Agent 活动",
   "Device Notifications": "设备通知",
   "Agent Live Updates": "Agent 实时更新",
@@ -177,8 +177,8 @@ export default {
   "Turn off Live Activity preference": "关闭实时活动偏好设置",
   "Live Update Settings": "实时更新设置",
   "Couldn't open Settings": "无法打开设置",
-  "Open Android Settings, select T3 Code, then enable Live Updates in Notifications.":
-    "打开 Android 设置，选择 T3 Code，然后在通知中开启实时更新。",
+  "Open Android Settings, select T3 Extend, then enable Live Updates in Notifications.":
+    "打开 Android 设置，选择 T3 Extend，然后在通知中开启实时更新。",
   "License notices are unavailable in this build.": "这个版本没有包含许可声明。",
   "Search packages": "搜索软件包",
   "No licenses match that search.": "没有与搜索匹配的许可。",
@@ -555,8 +555,8 @@ export default {
   "Get help from {organization}": "向 {organization} 获取帮助",
   "Voice input": "语音输入",
   "Not available on this device": "此设备不可用",
-  "T3 Code's voice input uses Apple's on-device speech transcription, which needs iOS 26 or later on a device that supports it. Without it, the composer has no microphone button, and allowing microphone access won't add one. Apple keyboard dictation is separate and isn't affected.":
-    "T3 Code 的语音输入使用 Apple 的设备端语音转写，需要 iOS 26 或更高版本，并且设备要支持该功能。没有它时，输入框不会出现麦克风按钮，授予麦克风权限也不会增加。Apple 键盘听写是另一回事，不受影响。",
+  "T3 Extend's voice input uses Apple's on-device speech transcription, which needs iOS 26 or later on a device that supports it. Without it, the composer has no microphone button, and allowing microphone access won't add one. Apple keyboard dictation is separate and isn't affected.":
+    "T3 Extend 的语音输入使用 Apple 的设备端语音转写，需要 iOS 26 或更高版本，并且设备要支持该功能。没有它时，输入框不会出现麦克风按钮，授予麦克风权限也不会增加。Apple 键盘听写是另一回事，不受影响。",
   "Connect to load models": "连接后加载模型",
   "Connect to {name}": "连接到 {name}",
   "Once, {date} at {time}": "仅一次，{date} {time}",

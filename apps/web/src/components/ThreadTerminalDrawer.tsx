@@ -29,7 +29,7 @@ import {
   type ScopedThreadRef,
   type ThreadId,
 } from "@t3tools/contracts";
-import { getTerminalLabel } from "@t3tools/shared/terminalLabels";
+import { getTerminalLabel, localizeTerminalLabel } from "@t3tools/shared/terminalLabels"; // fork: i18n
 import * as Schema from "effect/Schema";
 import {
   type PointerEvent as ReactPointerEvent,
@@ -1415,7 +1415,10 @@ function TerminalSidebarGroup({
       <div className="flex flex-col gap-0.5">
         {terminalGroup.terminalIds.map((terminalId) => {
           const isActive = terminalId === activeTerminalId;
-          const terminalLabel = terminalLabelById.get(terminalId) ?? t("Terminal");
+          const terminalLabel = localizeTerminalLabel(
+            terminalLabelById.get(terminalId) ?? t("Terminal"),
+            t,
+          ); // fork: i18n
           const closeTerminalLabel =
             isActive && closeShortcutLabel
               ? t("Close {title} ({shortcut})", {

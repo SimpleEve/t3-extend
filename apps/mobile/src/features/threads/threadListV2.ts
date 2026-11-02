@@ -43,6 +43,11 @@ import {
   type PendingThreadOrder,
 } from "./threadOrder";
 import type { Translator, UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import type { ThreadListProjectRow } from "../../fork/threadListProjectView"; // fork: thread list views
+import {
+  resolveSidebarFolderDot,
+  type SidebarFolderDot,
+} from "@t3tools/client-runtime/state/thread-grouping"; // fork: thread list views
 
 export const threadListInboxReturns = createInboxReturnTracker();
 
@@ -422,9 +427,26 @@ export interface ThreadListV2SettledShelfListItem {
   readonly disabled: boolean;
 }
 
+// fork: thread list views. A project or worktree header in the project view.
+export interface ThreadListV2GroupHeaderListItem {
+  readonly type: "v2-group-header";
+  readonly key: string;
+  readonly level: "project" | "worktree";
+  readonly collapseKey: string;
+  readonly title: string;
+  /** "Main" on a main checkout, which names its branch. */
+  readonly badge: string | null;
+  /** Every thread the group stands for, folded or not. */
+  readonly count: number;
+  readonly collapsed: boolean;
+  /** The most urgent state among the threads the header hides; null when it hides none. */
+  readonly dot: SidebarFolderDot | null;
+}
+
 export type ThreadListV2ListItem =
   | ThreadListV2ThreadListItem
   | ThreadListV2PendingListItem
+  | ThreadListV2GroupHeaderListItem // fork: thread list views
   | ThreadListV2WorkingShelfListItem
   | ThreadListV2SnoozedShelfListItem
   | ThreadListV2SettledShelfListItem;
@@ -435,6 +457,7 @@ export function isThreadListV2ListItem(value: {
   return (
     value.type === "v2-thread" ||
     value.type === "v2-pending" ||
+    value.type === "v2-group-header" || // fork: thread list views
     value.type === "v2-working-shelf" ||
     value.type === "v2-snoozed-shelf" ||
     value.type === "v2-settled-shelf"
@@ -463,6 +486,17 @@ export function threadListV2ListItemsAreEqual(
         previous.hasQueuedMessages === item.hasQueuedMessages &&
         previous.canMoveUp === item.canMoveUp &&
         previous.canMoveDown === item.canMoveDown
+      );
+    case "v2-group-header": // fork: thread list views
+      return (
+        previous.type === "v2-group-header" &&
+        previous.key === item.key &&
+        previous.level === item.level &&
+        previous.title === item.title &&
+        previous.badge === item.badge &&
+        previous.count === item.count &&
+        previous.collapsed === item.collapsed &&
+        previous.dot === item.dot
       );
     case "v2-pending":
       return (
@@ -537,6 +571,11 @@ export function buildThreadListV2ListItems(input: {
   readonly queuedThreadKeys?: ReadonlySet<string>;
   readonly moveAvailability?: ReadonlyMap<string, ThreadMoveAvailability>;
   readonly shelfPreferencesLoading?: boolean;
+  /** fork: thread list views. Replaces the active rows with these grouped rows. */
+  readonly projectView?: {
+    readonly activeStart: number;
+    readonly rows: ReadonlyArray<ThreadListProjectRow>;
+  };
 }): ThreadListV2ListItem[] {
   const queuedThreadKeys = input.queuedThreadKeys?.size ? input.queuedThreadKeys : undefined;
   const threadItems = input.items.map((item): ThreadListV2ListItem => {
@@ -593,7 +632,21 @@ export function buildThreadListV2ListItems(input: {
   const snoozedEnd = settledShelfHeaderIndex ?? threadItems.length;
   const workingEnd = snoozedShelfHeaderIndex ?? snoozedEnd;
   const activeEnd = workingShelfHeaderIndex ?? workingEnd;
-  const result: ThreadListV2ListItem[] = [...pendingItems, ...threadItems.slice(0, activeEnd)];
+  const result: ThreadListV2ListItem[] = [
+    ...pendingItems,
+    // fork: thread list views
+    ...(input.projectView
+      ? [
+          ...threadItems.slice(0, input.projectView.activeStart),
+          ...projectViewListItems(
+            input.projectView.rows,
+            input.items,
+            threadItems,
+            input.translate,
+          ),
+        ]
+      : threadItems.slice(0, activeEnd)),
+  ];
   const shelfDisabled = input.shelfPreferencesLoading === true;
   if (workingShelfHeaderIndex !== null && workingCount > 0) {
     result.push({
@@ -633,6 +686,42 @@ export function buildThreadListV2ListItems(input: {
     return showTrailingDivider === entry.showTrailingDivider
       ? entry
       : { ...entry, showTrailingDivider };
+  });
+}
+
+// fork: thread list views
+function projectViewListItems(
+  rows: ReadonlyArray<ThreadListProjectRow>,
+  items: ReadonlyArray<ThreadListV2Item>,
+  threadItems: ReadonlyArray<ThreadListV2ListItem>,
+  translate: Translator | undefined,
+): ThreadListV2ListItem[] {
+  const itemByThread = new Map(items.map((item, index) => [item.thread, threadItems[index]!]));
+  const t: Translator = translate ?? ((text) => text);
+  return rows.flatMap((row): ThreadListV2ListItem[] => {
+    if (row.kind === "thread") {
+      const item = itemByThread.get(row.thread);
+      return item ? [item] : [];
+    }
+    const worktree = row.kind === "worktree" ? row.worktree : null;
+    return [
+      {
+        type: "v2-group-header",
+        key: `v2-group:${row.collapseKey}`,
+        level: worktree ? "worktree" : "project",
+        collapseKey: row.collapseKey,
+        title: worktree ? (worktree.label ?? t("Main checkout")) : row.group.title,
+        badge: worktree?.kind === "main" ? t("Main", undefined, "worktree badge") : null,
+        count: row.count,
+        collapsed: row.collapsed,
+        // Like the web headers: a folded project says what its hidden rows need; a worktree
+        // always speaks for all of its threads.
+        dot:
+          row.kind === "worktree"
+            ? resolveSidebarFolderDot(row.worktree.threads)
+            : resolveSidebarFolderDot(row.hiddenThreads),
+      },
+    ];
   });
 }
 

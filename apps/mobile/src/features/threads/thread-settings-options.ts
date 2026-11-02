@@ -1,5 +1,6 @@
 import {
   managedRuntimeModeDenial,
+  type ManagedMessageTranslator, // fork: interface language
   type ManagedPolicySummary,
   type RuntimeMode,
 } from "@t3tools/contracts";
@@ -51,10 +52,11 @@ export type RuntimeModeChoice = (typeof RUNTIME_MODE_CHOICES)[number] & {
 export function withManagedRuntimeModeLimits(
   choices: ReadonlyArray<RuntimeModeChoice>,
   policies: ReadonlyArray<ManagedPolicySummary | undefined>,
+  t?: ManagedMessageTranslator, // fork: interface language
 ): ReadonlyArray<RuntimeModeChoice> {
   return choices.map((choice) => {
     const reason = policies
-      .map((policy) => managedRuntimeModeDenial(policy, choice.mode))
+      .map((policy) => managedRuntimeModeDenial(policy, choice.mode, t))
       .find((denial) => denial !== undefined);
     return reason === undefined ? choice : { ...choice, disabledReason: reason };
   });

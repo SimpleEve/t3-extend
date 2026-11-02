@@ -280,6 +280,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
   const runtimeModeChoices = withManagedRuntimeModeLimits(
     RUNTIME_MODE_CHOICES,
     targets.map((target) => target.environment.serverConfig.managedPolicy),
+    t, // fork: interface language
   );
   const disabledFor = (key: string) =>
     disabled ||

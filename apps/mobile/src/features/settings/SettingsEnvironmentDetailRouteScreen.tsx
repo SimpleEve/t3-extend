@@ -39,6 +39,7 @@ import {
 } from "./environment-maintenance";
 import { environmentReleaseCheckAtom, releaseCheckValue } from "./environmentUpdateCheck";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 export function SettingsEnvironmentDetailRouteScreen({
   route,
@@ -100,7 +101,7 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
   const managedPolicy = config?.managedPolicy;
   const supportUrl = managedPolicy?.supportUrl;
   // The server refuses checks and installs; say so instead of offering them.
-  const updatesDenial = managedUpdatesDenial(managedPolicy);
+  const updatesDenial = managedUpdatesDenial(managedPolicy, t); // fork: interface language
 
   async function run(label: string, action: () => Promise<void>) {
     if (pendingRef.current) return;
@@ -129,11 +130,11 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
         : t("Update environment?"),
       capabilities.serverSelfUpdate === "desktop-managed"
         ? t(
-            "Install T3 Code {targetVersion}. The desktop app will close and relaunch. Running threads may be interrupted.",
+            "Install T3 Extend {targetVersion}. The desktop app will close and relaunch. Running threads may be interrupted.",
             { targetVersion },
           )
         : t(
-            "Install T3 Code {targetVersion}. The server will restart and reconnect. Running threads may be interrupted.",
+            "Install T3 Extend {targetVersion}. The server will restart and reconnect. Running threads may be interrupted.",
             { targetVersion },
           ),
       [
@@ -248,7 +249,7 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
             {notice ? <Text className="px-2 text-sm text-foreground-muted">{notice}</Text> : null}
             {config && !outdated ? (
               <>
-                <SettingsSection title="T3 Code">
+                <SettingsSection title={FORK.appBaseName}>
                   <View className="gap-1 p-4">
                     <Text className="text-base text-foreground">
                       {t("Version {version}", { version: version ?? "" })}
@@ -289,7 +290,7 @@ function EnvironmentDetail({ environmentId }: { readonly environmentId: Environm
                       <Text className="text-sm text-foreground-muted">
                         {capabilities?.serverSelfUpdate === "desktop-managed"
                           ? t("Update the desktop app on this machine.")
-                          : t("Update and restart T3 Code on this machine.")}
+                          : t("Update and restart T3 Extend on this machine.")}
                       </Text>
                     ) : null}
                   </View>

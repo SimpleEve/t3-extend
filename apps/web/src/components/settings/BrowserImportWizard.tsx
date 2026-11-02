@@ -271,10 +271,10 @@ function FullDiskAccessStep({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{t("Let T3 Code read {name}’s cookies", { name: source.name })}</DialogTitle>
+        <DialogTitle>{t("Let T3 Extend read {name}’s cookies", { name: source.name })}</DialogTitle>
         <DialogDescription>
           {t(
-            "To import cookies from {name}, T3 Code needs Full Disk Access. Turn it on in System Settings, then come back to finish the import. You can revoke it again once the import is done.",
+            "To import cookies from {name}, T3 Extend needs Full Disk Access. Turn it on in System Settings, then come back to finish the import. You can revoke it again once the import is done.",
             { name: source.name },
           )}
         </DialogDescription>
@@ -307,10 +307,10 @@ function FullDiskAccessStep({
           <p className="mt-3 text-xs text-muted-foreground">
             {stillRequired
               ? t(
-                  "Access is still required. Quit and reopen T3 Code if you just allowed it, then retry the import.",
+                  "Access is still required. Quit and reopen T3 Extend if you just allowed it, then retry the import.",
                 )
               : t(
-                  "If access doesn't update after you allow it, quit and reopen T3 Code, then retry the import.",
+                  "If access doesn't update after you allow it, quit and reopen T3 Extend, then retry the import.",
                 )}
           </p>
         ) : null}

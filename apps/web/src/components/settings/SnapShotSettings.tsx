@@ -265,7 +265,7 @@ export function SnapShotSettings() {
   const shortcutStatus = recording
     ? t("Press your shortcut. Esc cancels.")
     : candidateConflict
-      ? t('T3 Code already uses this for "{command}".', {
+      ? t('T3 Extend already uses this for "{command}".', {
           command: translatedCommandLabel(candidateConflict, t),
         })
       : shortcutCheck.status === "checking"

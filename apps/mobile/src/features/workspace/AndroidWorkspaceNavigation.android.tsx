@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useKeyboardState } from "react-native-keyboard-controller";
 
+import { useT } from "../../hooks/useT"; // fork: i18n
 import { useAndroidControlSizing } from "../../components/ui/useAndroidControlSizing";
 import { useToolbarLayout } from "../../components/ui/useToolbarLayout";
 import { rootNavigationRef } from "../../lib/rootNavigation";
@@ -34,6 +35,8 @@ interface NativeNavigationProps extends ViewProps {
   readonly rail: boolean;
   readonly floating: boolean;
   readonly tabs: readonly string[];
+  // fork: i18n. The native bar owns the text, so JS sends the translated strings.
+  readonly labels: Readonly<Record<string, string>>;
   readonly selectedTab: AndroidWorkspaceNavigationTab;
   readonly dark: boolean;
   readonly textScale: number;
@@ -71,6 +74,7 @@ export function AndroidWorkspaceNavigation(props: {
   /** The rail needs the whole workspace while it widens over the list. */
   readonly onOverlayChange?: (overlay: boolean) => void;
 }) {
+  const t = useT(); // fork: i18n
   const workspace = useWorkspaceTabs()!;
   const order = useNavigationTabOrder();
   const hidden = useHiddenNavigationTabs();
@@ -118,6 +122,18 @@ export function AndroidWorkspaceNavigation(props: {
         rail={rail}
         floating={floating}
         tabs={tabs}
+        labels={{
+          // fork: i18n
+          threads: t("Chats"),
+          pullRequests: t("Pulls"),
+          pullRequestsExpanded: t("Pull Requests"),
+          usage: t("Usage"),
+          settings: t("Settings"),
+          newThread: t("New thread"),
+          expandRail: t("Expand navigation rail"),
+          collapseRail: t("Collapse navigation rail"),
+          closeRail: t("Close navigation rail"),
+        }}
         selectedTab={selectedTab}
         dark={themeAppearance === "dark"}
         textScale={scale}

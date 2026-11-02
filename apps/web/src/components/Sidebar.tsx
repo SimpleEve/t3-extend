@@ -1,4 +1,5 @@
 import { liveShellEnvironmentIdsAtom } from "../state/shell";
+import { TranslatedDndContext } from "../fork/TranslatedDndContext"; // fork: i18n
 import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../lib/sidebarTree";
 import { type EnvironmentId, type ScopedProjectRef } from "@t3tools/contracts";
 import type { EnvironmentServerConfig } from "@t3tools/client-runtime/connection";
@@ -15,7 +16,6 @@ import * as Option from "effect/Option";
 import { Atom } from "effect/reactivity";
 import * as Schema from "effect/Schema";
 import {
-  DndContext,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -3323,7 +3323,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               closeDelay={0}
               timeout={400}
             >
-              <DndContext
+              <TranslatedDndContext
                 sensors={dndSensors}
                 autoScroll={!isContextDrag}
                 collisionDetection={dndCollisionDetection}
@@ -3335,6 +3335,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                 <SortableContext items={sortableIds} strategy={sidebarSortingStrategy}>
                   <ul
                     {...SIDEBAR_TREE_PROPS}
+                    aria-label={t("Threads")} // fork: i18n
                     ref={attachTreeRef}
                     className={cn(
                       "relative flex flex-col gap-px",
@@ -3674,7 +3675,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                     ) : null}
                   </ul>
                 </SortableContext>
-              </DndContext>
+              </TranslatedDndContext>
             </TooltipProvider>
           ) : null}
           {!isSearchingThreads &&

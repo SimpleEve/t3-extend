@@ -20,8 +20,8 @@ export default {
   "New thread in...": "在指定项目中新建对话…",
   "New thread without a project": "新建不属于项目的对话",
   "Triage an issue": "排查问题",
-  "An agent investigates a T3 Code problem and helps file an issue":
-    "由 Agent 排查 T3 Code 的问题并协助提交 issue",
+  "An agent investigates a T3 Extend problem and helps file an issue":
+    "由 Agent 排查 T3 Extend 的问题并协助提交 issue",
   "Find in current thread": "在当前对话中查找",
   "Copy prompt link": "复制提示词链接",
   "Copy prompt link with repo and model": "复制带仓库和模型的提示词链接",

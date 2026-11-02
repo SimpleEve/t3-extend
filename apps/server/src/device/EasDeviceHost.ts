@@ -36,6 +36,7 @@ import { releaseAgentDeviceSession } from "./AgentDeviceTarget.ts";
 import * as DeviceHost from "./DeviceHost.ts";
 import { findEasProjectId } from "./easProjectId.ts";
 import { type ExpoApi, makeExpoApi, resolveExpoCredential } from "./ExpoApi.ts";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 const POLL_INTERVAL = Duration.seconds(5);
 // How stale a running session's status may get before listing rechecks it.
@@ -463,7 +464,7 @@ export const make = Effect.fn("EasDeviceHost.make")(function* (config: EasDevice
     context: DeviceHost.DeviceOpenContext | undefined,
     startedIn: number,
   ) {
-    const name = `T3 Code · ${config.label} · ${(yield* Random.nextIntBetween(0, 0xffffff)).toString(16).padStart(6, "0")}`;
+    const name = `${FORK.appBaseName} · ${config.label} · ${(yield* Random.nextIntBetween(0, 0xffffff)).toString(16).padStart(6, "0")}`;
     // The credential comes first: without one, the answer is how to sign in,
     // not that the limit is reached.
     const expo = yield* api;

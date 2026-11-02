@@ -30,6 +30,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import type { PendingNewTask } from "../../state/use-pending-new-tasks";
 import { makeRawThreadShell, makeThreadShellFixture } from "../../test-fixtures";
 import { threadJumpTarget } from "../keyboard/threadKeyboardShortcuts";
+import { buildThreadListProjectRows } from "../../fork/threadListProjectView";
 import {
   buildThreadListV2Items,
   buildThreadListV2ListItems,
@@ -1734,6 +1735,117 @@ describe("Working section beta", () => {
       "snoozed",
       "v2-settled-shelf",
       "settled",
+    ]);
+  });
+});
+
+describe("project view list items", () => {
+  const projectA = ProjectId.make("project-a");
+  const projectB = ProjectId.make("project-b");
+  const groups = [
+    {
+      projectKey: "a",
+      title: "Alpha",
+      memberProjectRefs: [{ environmentId, projectId: projectA }],
+    },
+    { projectKey: "b", title: "Beta", memberProjectRefs: [{ environmentId, projectId: projectB }] },
+  ];
+  const thread = (id: string, projectId: ProjectId, extra: Partial<EnvironmentThreadShell> = {}) =>
+    makeThread({ id: ThreadId.make(id), title: id, projectId, ...extra });
+  const layout = buildThreadListV2Items({
+    threads: [
+      thread("pinned", projectA, { pinnedAt: "2026-06-01T12:00:00.000Z" }),
+      thread("a-main", projectA),
+      thread("a-wt", projectA, { worktreePath: "/w/feat", branch: "feat" }),
+      thread("b-main", projectB),
+      thread("orphan", ProjectId.make("gone")),
+      thread("snoozed", projectB, {
+        snoozedUntil: "2026-06-03T09:00:00.000Z",
+        snoozedAt: "2026-06-01T12:00:00.000Z",
+      }),
+      thread("settled", projectA, { settledOverride: "settled", settledAt: NOW }),
+    ],
+    environmentId: null,
+    searchQuery: "",
+    now: NOW,
+  });
+  const listItems = (collapsedKeys: string[], openThreadKey: string | null, source = layout) =>
+    buildThreadListV2ListItems({
+      items: source.items,
+      pendingTasks: [],
+      snoozedCount: source.snoozedCount,
+      snoozedShelfHeaderIndex: source.snoozedShelfHeaderIndex,
+      settledCount: source.settledCount,
+      settledShelfHeaderIndex: source.settledShelfHeaderIndex,
+      projectView: buildThreadListProjectRows({
+        items: source.items,
+        firstShelfIndex: source.snoozedShelfHeaderIndex ?? source.settledShelfHeaderIndex,
+        groups,
+        collapsedKeys: new Set(collapsedKeys),
+        openThreadKey,
+        otherTitle: "Other projects",
+      }),
+    }).map((item) =>
+      item.type === "v2-thread"
+        ? item.item.thread.id
+        : item.type === "v2-group-header"
+          ? `${item.level}:${item.title}:${item.count}${item.collapsed ? ":folded" : ""}${item.dot ? `:${item.dot}` : ""}`
+          : item.type,
+    );
+
+  it("groups only the active threads, adds unlisted projects last, and leaves shelves in place", () => {
+    expect(listItems([], null)).toEqual([
+      "pinned",
+      "project:Alpha:2",
+      "worktree:Main checkout:1",
+      "a-main",
+      "worktree:feat:1",
+      "a-wt",
+      "project:Beta:1",
+      "b-main",
+      "project:Other projects:1",
+      "orphan",
+      "v2-snoozed-shelf",
+      "v2-settled-shelf",
+      "settled",
+    ]);
+  });
+
+  it("folds a project to its open thread while counting every thread", () => {
+    expect(listItems(["project:project:a"], `${environmentId}:a-wt`).slice(0, 4)).toEqual([
+      "pinned",
+      "project:Alpha:2:folded",
+      "a-wt",
+      "project:Beta:1",
+    ]);
+  });
+
+  it("marks a header with the most urgent state among the threads it hides", () => {
+    const waiting = buildThreadListV2Items({
+      threads: [
+        thread("a-main", projectA),
+        thread("a-wt", projectA, {
+          worktreePath: "/w/feat",
+          branch: "feat",
+          hasPendingUserInput: true,
+        }),
+      ],
+      environmentId: null,
+      searchQuery: "",
+      now: NOW,
+    });
+    // A worktree speaks for all of its threads; an open project stays quiet.
+    expect(listItems([], null, waiting)).toEqual([
+      "project:Alpha:2",
+      "worktree:Main checkout:1",
+      "a-main",
+      "worktree:feat:1:attention",
+      "a-wt",
+    ]);
+    // A folded project speaks for the rows it hides.
+    expect(listItems(["project:project:a"], `${environmentId}:a-main`, waiting)).toEqual([
+      "project:Alpha:2:folded:attention",
+      "a-main",
     ]);
   });
 });

@@ -39,8 +39,8 @@ export default {
 
   // Update dialogs
   "You're up to date!": "已是最新版本",
-  "T3 Code {version} is currently the newest version available.":
-    "T3 Code {version} 是目前可用的最新版本。",
+  "T3 Extend {version} is currently the newest version available.":
+    "T3 Extend {version} 是目前可用的最新版本。",
   "Update check failed": "检查更新失败",
   "Could not check for updates.": "无法检查更新。",
   "An unknown error occurred. Please try again later.": "发生未知错误，请稍后重试。",
@@ -59,13 +59,13 @@ export default {
   "Unnamed passkey": "未命名的通行密钥",
 
   // Startup errors
-  "T3 Code failed to start": "T3 Code 启动失败",
+  "T3 Extend failed to start": "T3 Extend 启动失败",
   "Stage: {stage}": "阶段：{stage}",
   "WSL backend is still unavailable": "WSL 后端仍不可用",
-  "{reason}\n\nT3 Code will use the Windows backend for this launch and retry WSL the next time the app starts.":
-    "{reason}\n\nT3 Code 本次启动将使用 Windows 后端，下次启动应用时会重试 WSL。",
+  "{reason}\n\nT3 Extend will use the Windows backend for this launch and retry WSL the next time the app starts.":
+    "{reason}\n\nT3 Extend 本次启动将使用 Windows 后端，下次启动应用时会重试 WSL。",
   "WSL backend couldn't start": "WSL 后端无法启动",
-  "{reason}\n\nFalling back to the Windows backend so T3 Code can open. Re-enable the WSL backend from Settings > Sharing & access once the WSL distro is fixed.":
-    "{reason}\n\n已改用 Windows 后端，以便 T3 Code 能够打开。修复 WSL 发行版后，可在“设置 > 共享与访问”中重新启用 WSL 后端。",
+  "{reason}\n\nFalling back to the Windows backend so T3 Extend can open. Re-enable the WSL backend from Settings > Sharing & access once the WSL distro is fixed.":
+    "{reason}\n\n已改用 Windows 后端，以便 T3 Extend 能够打开。修复 WSL 发行版后，可在“设置 > 共享与访问”中重新启用 WSL 后端。",
   "This T3 home is unavailable": "这个 T3 数据目录不可用",
 } satisfies Record<string, string>;

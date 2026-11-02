@@ -113,7 +113,7 @@ function GuestLinksRow() {
     scope
       ? scope.connectedEnvironments.map((environment) => environment.serverConfig?.managedPolicy)
       : [primaryPolicy],
-    (policy) => managedCapabilityDenial(policy, "connect"),
+    (policy) => managedCapabilityDenial(policy, "connect", t), // fork: interface language
   );
   return (
     <SettingsRow
@@ -202,7 +202,7 @@ function SimlockHostsRow() {
         <>
           {interpolateNodes(
             t(
-              "Let the Device panel lease simulators and emulators from your own {link} pool, added in {link2}. An alpha that may change or break. T3 Code never installs Simlock.",
+              "Let the Device panel lease simulators and emulators from your own {link} pool, added in {link2}. An alpha that may change or break. T3 Extend never installs Simlock.",
             ),
             {
               link: (

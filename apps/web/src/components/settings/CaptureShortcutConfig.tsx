@@ -223,7 +223,7 @@ export function CaptureShortcutConfig({
         <>
           <p className="text-muted-foreground">
             {t(
-              "Allow T3 Code to read your desktop settings. You'll review any changes here before saving.",
+              "Allow T3 Extend to read your desktop settings. You'll review any changes here before saving.",
             )}
           </p>
           <Button
@@ -244,7 +244,7 @@ export function CaptureShortcutConfig({
         <p role="status" className="text-muted-foreground">
           {state.shortcutPending
             ? t("Connecting to your desktop…")
-            : t("Restart T3 Code to finish connecting your shortcut.")}
+            : t("Restart T3 Extend to finish connecting your shortcut.")}
         </p>
       ) : null}
       <details className="text-xs text-muted-foreground">
@@ -263,7 +263,7 @@ export function CaptureShortcutConfig({
                 state.shortcutConfigPath ??
                 (niri ? "~/.config/niri/config.kdl" : "~/.config/hypr/hyprland.conf")}
             </p>
-            {niri ? <p>{t("T3 Code also reads any files included by this file.")}</p> : null}
+            {niri ? <p>{t("T3 Extend also reads any files included by this file.")}</p> : null}
             {preview && preview.resolvedPath !== preview.path ? (
               <p className="break-all">
                 {t("Linked to {resolvedPath}. The link will be kept.", {
@@ -333,7 +333,7 @@ export function CaptureShortcutConfig({
           </Button>
           <p>
             {t(
-              "Turn capture off in T3 Code to stop it. Remove the shortcut from {desktop} to free up the keys.",
+              "Turn capture off in T3 Extend to stop it. Remove the shortcut from {desktop} to free up the keys.",
               { desktop },
             )}
           </p>

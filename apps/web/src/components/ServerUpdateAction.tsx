@@ -37,7 +37,7 @@ import { Button } from "./ui/button";
 import { toastManager } from "./ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { useT } from "~/hooks/useT";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
+import { getUiLocale, translate, translatorFor } from "@t3tools/client-runtime/i18n";
 
 const UPDATE_STAGE_LABELS: Record<ServerUpdateStage, string> = {
   downloading: "Downloading…",
@@ -55,6 +55,7 @@ function readUpdatesDenial(environmentId: EnvironmentId): string | undefined {
   return managedUpdatesDenial(
     appAtomRegistry.get(environmentPresentations.serverConfigsAtom).get(environmentId)
       ?.managedPolicy,
+    translatorFor(getUiLocale()), // fork: interface language
   );
 }
 
@@ -211,7 +212,7 @@ export function ServerUpdatesAction({
         const confirmed =
           (await requestConfirmDialog(
             t(
-              "Update the T3 Code desktop apps on {servers}? They will close and relaunch on those machines.",
+              "Update the T3 Extend desktop apps on {servers}? They will close and relaunch on those machines.",
               { servers: desktopTargets.map((target) => target.serverLabel).join(t(", ")) },
             ),
           )) ?? true;
@@ -286,7 +287,7 @@ export function ServerUpdateAction({
   const serverVersion = useServerConfigs().get(environmentId)?.environment.serverVersion;
   const sessionStateAtom = environmentSession.sessionStateAtom(environmentId);
   const canUpdate = useAtomValue(sessionStateAtom, canUpdateServer);
-  const updatesDenial = managedUpdatesDenial(useManagedPolicy(environmentId));
+  const updatesDenial = managedUpdatesDenial(useManagedPolicy(environmentId), t); // fork: interface language
   const update = useServerUpdate();
   const { copyToClipboard } = useCopyToClipboard<{ command: string }>({
     target: installation?.kind === "npm-global" ? "update command" : "relaunch command",
@@ -329,7 +330,7 @@ export function ServerUpdateAction({
       const confirmed =
         (await requestConfirmDialog(
           t(
-            "Update the T3 Code desktop app that runs the {server}? It will close and relaunch on that machine.",
+            "Update the T3 Extend desktop app that runs the {server}? It will close and relaunch on that machine.",
             { server: serverLabel },
           ),
         )) ?? true;

@@ -1,5 +1,5 @@
 import * as DateTime from "effect/DateTime";
-import { interpolate, type Translator } from "@t3tools/client-runtime/i18n";
+import { interpolate, translatorFor, type Translator } from "@t3tools/client-runtime/i18n";
 
 import { resolveDesktopPairingUrl, resolveHostedPairingUrl } from "./pairingUrls";
 import { getPairingTokenFromUrl, setPairingTokenOnUrl } from "@t3tools/shared/remote";
@@ -62,10 +62,11 @@ export function isQrShareableEndpoint(endpoint: AdvertisedEndpoint): boolean {
  * means unchecked. */
 export function missingTailscaleEndpointDescription(
   state: Pick<DesktopServerExposureState, "mode" | "tailscaleServeEnabled"> | null,
+  t: Translator = translatorFor("en"), // fork: interface language
 ): string {
   return state && state.mode !== "network-accessible" && !state.tailscaleServeEnabled
-    ? "Turn on Network access to detect Tailscale."
-    : "Start Tailscale to set up HTTPS access through MagicDNS.";
+    ? t("Turn on Network access to detect Tailscale.")
+    : t("Start Tailscale to set up HTTPS access through MagicDNS.");
 }
 
 export function resolveTailscaleServeBaseUrl(

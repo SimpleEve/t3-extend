@@ -71,9 +71,9 @@ export function RelayClientInstallDialog() {
           </DialogTitle>
           <DialogDescription>
             {isInstalling
-              ? t("T3 Code is preparing this environment for secure access through T3 Connect.")
+              ? t("T3 Extend is preparing this environment for secure access through T3 Connect.")
               : t(
-                  "T3 Code needs the relay client to make this environment available through T3 Connect.",
+                  "T3 Extend needs the relay client to make this environment available through T3 Connect.",
                 )}
           </DialogDescription>
         </DialogHeader>
@@ -98,14 +98,14 @@ export function RelayClientInstallDialog() {
                 value={activeStepIndex + 1}
               />
               <p className="text-xs leading-relaxed text-muted-foreground">
-                {t("Keep T3 Code open while the relay client is installed.")}
+                {t("Keep T3 Extend open while the relay client is installed.")}
               </p>
             </div>
           ) : (
             <div className="rounded-xl border border-border/70 bg-muted/35 p-3">
               <p className="text-sm font-medium text-foreground">{t("Managed relay client")}</p>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                {t("T3 Code will download and install version {version} locally.", {
+                {t("T3 Extend will download and install version {version} locally.", {
                   version: view.status === "confirming" ? view.version : "",
                 })}
               </p>

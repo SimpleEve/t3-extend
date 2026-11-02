@@ -16,6 +16,7 @@ import { primaryServerKeybindingsAtom } from "../../state/server";
 import { cn } from "../../lib/utils";
 import { usePullRequestsSupported } from "../../state/environments";
 import { T3Wordmark } from "../T3Wordmark";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 import {
   resolveEnvironmentIdentificationPillLabel,
   resolveSidebarStageBackdropVariant,
@@ -169,7 +170,7 @@ function SidebarBrand({ onBackdrop }: { onBackdrop: boolean }) {
   const t = useT();
   return (
     <Link
-      aria-label={t("T3 Code home")}
+      aria-label={t("T3 Extend home")} // fork: brand
       className={cn(
         "relative z-10 ml-[var(--workspace-titlebar-content-left)] hidden h-7 w-fit min-w-0 shrink-0 items-center overflow-hidden rounded-md outline-hidden ring-ring focus-visible:ring-2 focus-visible:ring-inset md:flex",
         onBackdrop ? "text-white" : "text-foreground",
@@ -188,10 +189,10 @@ function SidebarBrandMark({ onBackdrop }: { onBackdrop: boolean }) {
       <span
         className={cn(
           "truncate [text-box:trim-both_cap_alphabetic] supports-[text-box:trim-both_cap_alphabetic]:py-1",
-          onBackdrop ? "text-white/70" : "text-muted-foreground",
+          onBackdrop ? "text-white/70" : "text-primary", // fork: brand
         )}
       >
-        Code
+        {FORK.wordmarkSuffix}
       </span>
     </span>
   );

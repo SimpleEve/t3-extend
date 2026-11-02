@@ -91,7 +91,7 @@ import {
 } from "./use-thread-outbox";
 import { clearThreadComposerError, setThreadComposerError } from "./thread-composer-error";
 import { workspaceConnections } from "./workspace";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { getUiLocale, translate, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const threadOutboxDebug = createDebugLogger("thread-outbox");
 
@@ -797,6 +797,7 @@ export function createThreadOutboxDelivery(): {
     const runtimeModeDenial = managedRuntimeModeDenial(
       serverConfig.managedPolicy,
       settings.runtimeMode,
+      translatorFor(getUiLocale()), // fork: interface language
     );
     if (runtimeModeDenial !== undefined) {
       return restoreQueuedMessage(queuedMessage, runtimeModeDenial);
@@ -973,6 +974,7 @@ export function createThreadOutboxDelivery(): {
     const runtimeModeDenial = managedRuntimeModeDenial(
       serverConfig.managedPolicy,
       settings.runtimeMode,
+      translatorFor(getUiLocale()), // fork: interface language
     );
     if (runtimeModeDenial !== undefined) {
       return restoreQueuedMessage(queuedMessage, runtimeModeDenial);

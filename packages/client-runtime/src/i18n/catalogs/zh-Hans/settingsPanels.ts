@@ -323,15 +323,15 @@ export default {
   "{name} is open, so its cookies can’t be read yet. Quit it, then continue.":
     "{name} 正在运行，暂时无法读取它的 cookie。请先退出它，然后继续。",
   "I’ve quit it": "我已经退出了",
-  "Let T3 Code read {name}’s cookies": "允许 T3 Code 读取 {name} 的 cookie",
-  "To import cookies from {name}, T3 Code needs Full Disk Access. Turn it on in System Settings, then come back to finish the import. You can revoke it again once the import is done.":
-    "要从 {name} 导入 cookie，T3 Code 需要“完全磁盘访问权限”。请在系统设置中开启，然后回来完成导入。导入完成后可以再撤销。",
+  "Let T3 Extend read {name}’s cookies": "允许 T3 Extend 读取 {name} 的 cookie",
+  "To import cookies from {name}, T3 Extend needs Full Disk Access. Turn it on in System Settings, then come back to finish the import. You can revoke it again once the import is done.":
+    "要从 {name} 导入 cookie，T3 Extend 需要“完全磁盘访问权限”。请在系统设置中开启，然后回来完成导入。导入完成后可以再撤销。",
   "Full Disk Access": "完全磁盘访问权限",
   "Read {name}'s cookies for this import.": "为本次导入读取 {name} 的 cookie。",
-  "Access is still required. Quit and reopen T3 Code if you just allowed it, then retry the import.":
-    "仍然需要访问权限。如果你刚刚允许了，请退出并重新打开 T3 Code，然后重试导入。",
-  "If access doesn't update after you allow it, quit and reopen T3 Code, then retry the import.":
-    "如果允许后访问权限没有更新，请退出并重新打开 T3 Code，然后重试导入。",
+  "Access is still required. Quit and reopen T3 Extend if you just allowed it, then retry the import.":
+    "仍然需要访问权限。如果你刚刚允许了，请退出并重新打开 T3 Extend，然后重试导入。",
+  "If access doesn't update after you allow it, quit and reopen T3 Extend, then retry the import.":
+    "如果允许后访问权限没有更新，请退出并重新打开 T3 Extend，然后重试导入。",
   "Import from {name}": "从 {name} 导入",
   "Choose which cookies to import for {destinationEnvironmentName}.":
     "选择要为 {destinationEnvironmentName} 导入哪些 cookie。",
@@ -374,15 +374,16 @@ export default {
   "Saving…": "正在保存…",
   "Save shortcut": "保存快捷键",
   "Remove shortcut": "移除快捷键",
-  "Allow T3 Code to read your desktop settings. You'll review any changes here before saving.":
-    "允许 T3 Code 读取你的桌面设置。保存前你可以在这里检查所有更改。",
+  "Allow T3 Extend to read your desktop settings. You'll review any changes here before saving.":
+    "允许 T3 Extend 读取你的桌面设置。保存前你可以在这里检查所有更改。",
   "Preparing changes…": "正在准备更改…",
   "Review changes": "检查更改",
   "Connecting to your desktop…": "正在连接你的桌面…",
-  "Restart T3 Code to finish connecting your shortcut.": "重启 T3 Code 以完成快捷键的连接。",
+  "Restart T3 Extend to finish connecting your shortcut.": "重启 T3 Extend 以完成快捷键的连接。",
   Troubleshooting: "故障排除",
   "Settings file": "设置文件",
-  "T3 Code also reads any files included by this file.": "T3 Code 也会读取此文件引入的其他文件。",
+  "T3 Extend also reads any files included by this file.":
+    "T3 Extend 也会读取此文件引入的其他文件。",
   "Linked to {resolvedPath}. The link will be kept.": "已链接到 {resolvedPath}。链接会保留。",
   "Choose a different file…": "选择其他文件…",
   "Remove shortcut…": "移除快捷键…",
@@ -398,8 +399,8 @@ export default {
   "Change the keys if needed.": "如有需要可以修改按键。",
   Copied: "已复制",
   "Copy shortcut": "复制快捷键",
-  "Turn capture off in T3 Code to stop it. Remove the shortcut from {desktop} to free up the keys.":
-    "在 T3 Code 中关闭截图即可停止。从 {desktop} 中移除这个快捷键即可释放按键。",
+  "Turn capture off in T3 Extend to stop it. Remove the shortcut from {desktop} to free up the keys.":
+    "在 T3 Extend 中关闭截图即可停止。从 {desktop} 中移除这个快捷键即可释放按键。",
   "I've added the shortcut": "我已经添加了快捷键",
   "Reconnect ChatGPT": "重新连接 ChatGPT",
   "On OpenAI, sign in with the account you choose here.":
@@ -429,8 +430,8 @@ export default {
   "Retry connection": "重试连接",
   "Open ChatGPT sign-in": "打开 ChatGPT 登录",
   "Signing in...": "正在登录…",
-  "If sign-in doesn't return to T3 Code, paste the URL from the final localhost page.":
-    "如果登录后没有回到 T3 Code，请粘贴最后那个 localhost 页面的 URL。",
+  "If sign-in doesn't return to T3 Extend, paste the URL from the final localhost page.":
+    "如果登录后没有回到 T3 Extend，请粘贴最后那个 localhost 页面的 URL。",
   "ChatGPT sign-in redirect URL": "ChatGPT 登录跳转 URL",
   "Paste the URL from the sign-in tab": "粘贴登录标签页中的 URL",
   Connect: "连接",
@@ -446,7 +447,7 @@ export default {
   Disconnect: "断开连接",
   "Could not read Codex setup status. Reconnect and try again.":
     "无法读取 Codex 设置状态。请重新连接后重试。",
-  "Selected by T3 Code.": "由 T3 Code 选择。",
+  "Selected by T3 Extend.": "由 T3 Extend 选择。",
   "Codex binary path": "Codex 可执行文件路径",
   "Could not read runtime path": "无法读取运行时路径",
   "Not installed": "未安装",
@@ -548,7 +549,7 @@ export default {
   "Could not send {signal}": "无法发送 {signal}",
   "Process already exited": "进程已经退出",
   "The process is not a child of the T3 Server. It might already have exited.":
-    "该进程不是 T3 Code 服务器的子进程。它可能已经退出。",
+    "该进程不是 T3 Extend 服务器的子进程。它可能已经退出。",
   "Connect an environment to see diagnostics.": "连接一个环境以查看诊断信息。",
   "Checking diagnostics access…": "正在检查诊断访问权限…",
   "Refresh process diagnostics": "刷新进程诊断",
@@ -646,9 +647,9 @@ export default {
   "Search engine": "搜索引擎",
   "Use %s where the search terms go.": "用 %s 表示搜索词的位置。",
   "Custom search URL": "自定义搜索 URL",
-  "Clicking a pull request link opens it in T3 Code. Turn off to open pull request links like any other link, on your git host.":
-    "点击 PR 链接会在 T3 Code 中打开。关闭后，PR 链接会像其他链接一样在你的 git 托管平台上打开。",
-  "Open pull requests in T3 Code": "在 T3 Code 中打开 PR",
+  "Clicking a pull request link opens it in T3 Extend. Turn off to open pull request links like any other link, on your git host.":
+    "点击 PR 链接会在 T3 Extend 中打开。关闭后，PR 链接会像其他链接一样在你的 git 托管平台上打开。",
+  "Open pull requests in T3 Extend": "在 T3 Extend 中打开 PR",
   "Device settings not saved on all environments": "设备设置没有在所有环境上保存",
   "Updating…": "正在更新…",
   "Update to v{requiredVersion}": "更新到 v{requiredVersion}",
@@ -700,8 +701,8 @@ export default {
   "Open Privacy & Security → Full Disk Access manually.":
     "请手动打开“隐私与安全性 → 完全磁盘访问权限”。",
   "Search keybindings": "搜索快捷键",
-  "T3 Code does not recognize this condition yet. It can still be saved, but it may not match unless the runtime provides it.":
-    "T3 Code 还不认识这个条件。它仍然可以保存，但除非运行时提供它，否则可能不会匹配。",
+  "T3 Extend does not recognize this condition yet. It can still be saved, but it may not match unless the runtime provides it.":
+    "T3 Extend 还不认识这个条件。它仍然可以保存，但除非运行时提供它，否则可能不会匹配。",
   "{description} The most recent matching binding wins when both conditions can apply.":
     "{description} 两个条件都满足时，最近添加的匹配绑定生效。",
   Condition: "条件",
@@ -758,8 +759,8 @@ export default {
   "Let agents here work on your other machines, and theirs here. Turn it on for each machine, then link them in {link}. While it is off, nothing new starts over a link; tasks already running finish.":
     "让这里的 Agent 在你的其他机器上工作，反之亦然。在每台机器上打开此选项，然后在{link}中关联它们。关闭时，不会再通过链接启动新任务；已经在运行的任务会完成。",
   "Linked environments": "已关联的环境",
-  "Let the Device panel lease simulators and emulators from your own {link} pool, added in {link2}. An alpha that may change or break. T3 Code never installs Simlock.":
-    "让设备面板从你自己的 {link} 池中租用模拟器，池在{link2}中添加。这是 alpha 功能，可能会变动或出错。T3 Code 不会安装 Simlock。",
+  "Let the Device panel lease simulators and emulators from your own {link} pool, added in {link2}. An alpha that may change or break. T3 Extend never installs Simlock.":
+    "让设备面板从你自己的 {link} 池中租用模拟器，池在{link2}中添加。这是 alpha 功能，可能会变动或出错。T3 Extend 不会安装 Simlock。",
   "Simlock device hosts": "Simlock 设备主机",
   "Automatically balance load": "自动负载均衡",
   "New threads in shared projects start on the machine with the most free CPU and memory, weighted by each machine's preference.":
@@ -771,8 +772,8 @@ export default {
   "Open {store}": "打开 {store}",
   "We do not recommend managing multiple {providerName} accounts in T3 Code.":
     "我们不建议在 T3 Code 中管理多个 {providerName} 账号。",
-  "System alerts when a thread finishes, fails, or needs input or approval. Applies to this device while T3 Code is open.":
-    "对话完成、失败或需要输入或批准时发出系统提醒。在 T3 Code 打开期间对此设备生效。",
+  "System alerts when a thread finishes, fails, or needs input or approval. Applies to this device while T3 Extend is open.":
+    "对话完成、失败或需要输入或批准时发出系统提醒。在 T3 Extend 打开期间对此设备生效。",
   "Thread notifications": "对话通知",
   "Notifications need a supported browser over HTTPS, or the desktop app. Sound only is still available.":
     "通知需要通过 HTTPS 访问的受支持浏览器，或使用桌面应用。仍可选择“仅声音”。",
@@ -1154,6 +1155,47 @@ export default {
   "Every {minutes} min": "每 {minutes} 分钟",
   "Every {seconds} sec": "每 {seconds} 秒",
   "schedule summary|Daily": "每天",
+  // fork: managed-policy sentences. Contracts build the English; clients translate at render.
+  "{organization} manages {app} updates.": "{organization} 管理着 {app} 的更新。",
+  "{message} Only stable releases can be installed.": "{message}只能安装稳定版。",
+  "{organization}'s policy does not allow {capability}.":
+    "{organization} 的策略不允许{capability}。",
+  "{organization} limits threads to {mode}.": "{organization} 将对话限制为{mode}。",
+  "{organization} turned off anonymous usage data.": "{organization} 已关闭匿名使用数据。",
+  "connecting from other devices": "从其他设备连接",
+  "T3 Connect": "T3 Connect",
+  "webhook tasks": "webhook 任务",
+  "importing browser cookies": "导入浏览器 Cookie",
+  // fork: Settings → Sharing & access, Tailscale rows
+  "Turn on Network access to detect Tailscale.": "请开启网络访问以检测 Tailscale。",
+  "Start Tailscale to set up HTTPS access through MagicDNS.":
+    "请启动 Tailscale，以通过 MagicDNS 设置 HTTPS 访问。",
+  // fork: Settings → About, update button and tooltip
+  "Check for Updates": "检查更新",
+  // fork: the joined sentence has no space; Chinese runs on after the full stop
+  "{message} Nightly builds are not available.": "{message}夜间版不可用。",
+  "{message} Nightly builds are not available; switch to Stable to keep getting updates.":
+    "{message}夜间版不可用；请切换到稳定版以继续获得更新。",
+  // fork: bare sources; the contextual entries above serve only calls that pass their context
+  days: "天",
+  minutes: "分钟",
+  default: "默认",
+  Archived: "已归档",
+  "Show full error": "显示完整错误",
+  "Checking for updates…": "正在检查更新…",
+  "Up to Date": "已是最新",
+  "Update available.": "有可用更新。",
+  "Update {version} did not apply. Click to retry.": "更新 {version} 未能应用。点击重试。",
+  "Update {version} ready to download": "更新 {version} 可以下载",
+  "Update available ready to download": "有可用更新，可以下载",
+  "Downloading update ({percent}%)": "正在下载更新（{percent}%）",
+  "Update {version} downloaded. Click to restart and install.":
+    "更新 {version} 已下载。点击重启并安装。",
+  "Update ready downloaded. Click to restart and install.": "更新已下载。点击重启并安装。",
+  "Download failed for {version}. Click to retry.": "{version} 下载失败。点击重试。",
+  "Install failed for {version}. Click to retry.": "{version} 安装失败。点击重试。",
+  // fork: the once-schedule date field; BranchToolbar's "Run on" is a place
+  "schedule date|Run on": "运行时间",
   "in under a minute": "不到 1 分钟后",
   "in {count}m": "{count} 分钟后",
   "in {count}h": "{count} 小时后",
@@ -1224,8 +1266,6 @@ export default {
   "Each run continues this conversation, in its workspace and with its current model.":
     "每次运行都会在此对话的工作区中、用它当前的模型继续这个对话。",
   "Edit task": "编辑任务",
-  "Run a prompt automatically on an interval, at a fixed time, or when a webhook is called.":
-    "按间隔、在固定时间或在 webhook 被调用时自动运行一段提示词。",
   "Reconnect this environment before saving.": "保存前请重新连接此环境。",
   "Runs on": "运行于",
   "Unavailable environment": "不可用的环境",
@@ -1288,8 +1328,8 @@ export default {
   Value: "值",
   "{label} reference": "{label} 引用",
   "Enter a valid secret reference.": "请输入有效的密钥引用。",
-  "Update T3 Code on {label} to manage its secret providers.":
-    "在 {label} 上更新 T3 Code 后才能管理它的密钥 provider。",
+  "Update T3 Extend on {label} to manage its secret providers.":
+    "在 {label} 上更新 T3 Extend 后才能管理它的密钥 provider。",
   "Connect an environment to manage the secret providers its provider variables read from.":
     "连接一个环境，以管理它的 provider 变量所读取的密钥 provider。",
   "Environment-wide setting. Select an environment to change it.":
@@ -1436,11 +1476,11 @@ export default {
     "逐个环境查看进程、资源占用和日志。",
   "View diagnostics": "查看诊断",
   "Current version of the application.": "应用的当前版本。",
-  "How we handle your data, including the anonymous usage data T3 Code collects.":
-    "我们如何处理你的数据，包括 T3 Code 收集的匿名使用数据。",
+  "How we handle your data, including the anonymous usage data T3 Extend collects.":
+    "我们如何处理你的数据，包括 T3 Extend 收集的匿名使用数据。",
   "View policy": "查看政策",
-  "Notices for dependencies, assets, and optional tools used by T3 Code.":
-    "T3 Code 使用的依赖、资源和可选工具的声明。",
+  "Notices for dependencies, assets, and optional tools used by T3 Extend.":
+    "T3 Extend 使用的依赖、资源和可选工具的声明。",
   "View licenses": "查看许可",
   "Open all environments": "打开所有环境",
   "Applying settings for {projects} on {environments}":
@@ -1499,8 +1539,8 @@ export default {
     "尝试重新安装截图助手，然后再检查一次。",
   "Update the capture helper": "更新截图助手",
   "Allow snapshots": "允许截图",
-  "T3 Code's capture helper lets you capture other apps and return to your draft. It's included with T3 Code.":
-    "T3 Code 的截图助手可以截取其他应用并回到你的草稿。它随 T3 Code 一起提供。",
+  "T3 Extend's capture helper lets you capture other apps and return to your draft. It's included with T3 Extend.":
+    "T3 Extend 的截图助手可以截取其他应用并回到你的草稿。它随 T3 Extend 一起提供。",
   "Choose a window each time": "每次都选择窗口",
   "Your desktop doesn't support automatic capture. You'll choose the window to capture instead.":
     "你的桌面不支持自动截图。你需要选择要截取的窗口。",
@@ -1529,7 +1569,7 @@ export default {
   "Capture needs attention. Go back to check access.": "截图需要处理。返回检查权限。",
   "Couldn't finish this step. Try again or check Advanced for help.":
     "无法完成这一步。请重试，或在“高级”中查看帮助。",
-  "Included with T3 Code. No download needed.": "随 T3 Code 一起提供，无需下载。",
+  "Included with T3 Extend. No download needed.": "随 T3 Extend 一起提供，无需下载。",
   "Disable extension": "停用扩展",
   "Remove capture helper": "移除截图助手",
   "Installing…": "正在安装…",
@@ -1945,7 +1985,7 @@ export default {
   "browser recording frame rate": "浏览器录屏帧率",
   "link target": "链接打开位置",
   "search engine": "搜索引擎",
-  "open pull requests in T3 Code": "在 T3 Code 中打开 PR",
+  "open pull requests in T3 Extend": "在 T3 Extend 中打开 PR",
   "default browser access": "默认浏览器访问权限",
   "auto-show floating preview": "自动显示浮动预览",
   "Agent access": "Agent 访问",
@@ -2308,6 +2348,8 @@ export default {
   Nov: "11月",
   Dec: "12月",
   "{date}, {time}": "{date} {time}",
+  "{hour} AM": "上午 {hour} 点",
+  "{hour} PM": "下午 {hour} 点",
   "{hour} today": "今天 {hour}",
   "{hour} yesterday": "昨天 {hour}",
   "{start} to {end}": "{start} 至 {end}",
@@ -2342,8 +2384,8 @@ export default {
   "Checking provider status": "正在检查 provider 状态",
   "Waiting for the server to report installation and authentication details.":
     "正在等待服务器报告安装和认证信息。",
-  "This provider is installed but disabled for new sessions in T3 Code.":
-    "这个 provider 已安装，但在 T3 Code 中对新会话停用。",
+  "This provider is installed but disabled for new sessions in T3 Extend.":
+    "这个 provider 已安装，但在 T3 Extend 中对新会话停用。",
   "Not found": "未找到",
   "CLI not detected on PATH.": "PATH 中没有检测到 CLI。",
   "Not authenticated · {authLabel}": "未认证 · {authLabel}",
@@ -2598,7 +2640,7 @@ export default {
   "Ready to save.": "可以保存。",
   "Try a shortcut such as Ctrl+Shift+2.": "试试 Ctrl+Shift+2 这样的快捷键。",
   "Updating capture settings…": "正在更新截图设置…",
-  'T3 Code already uses this for "{command}".': "T3 Code 已把它用于“{command}”。",
+  'T3 Extend already uses this for "{command}".': "T3 Extend 已把它用于“{command}”。",
   "1 day": "1 天",
   "{count} days": "{count} 天",
   Empty: "空",
@@ -2811,10 +2853,10 @@ export default {
   "Path: {path}": "路径：{path}",
   "Environment: {environment}": "环境：{environment}",
   "This removes {count} grouped project entries.": "这会移除分组中的 {count} 个项目条目。",
-  "Those threads and any archived threads are deleted from T3 Code. Provider sessions are kept.":
-    "这些对话和所有已归档的对话都会从 T3 Code 中删除。provider 会话会保留。",
-  "Any archived threads are deleted from T3 Code. Provider sessions are kept.":
-    "所有已归档的对话都会从 T3 Code 中删除。provider 会话会保留。",
+  "Those threads and any archived threads are deleted from T3 Extend. Provider sessions are kept.":
+    "这些对话和所有已归档的对话都会从 T3 Extend 中删除。provider 会话会保留。",
+  "Any archived threads are deleted from T3 Extend. Provider sessions are kept.":
+    "所有已归档的对话都会从 T3 Extend 中删除。provider 会话会保留。",
   "This removes only the project entries, not the files on disk.":
     "这只会移除项目条目，不会删除磁盘上的文件。",
   "Other entries in this grouped project are unaffected.": "这个分组项目中的其他条目不受影响。",
@@ -2857,6 +2899,7 @@ export default {
     "此应用找到的是 {found}，比 {version} 旧。请过几分钟再试。",
   "This app found no build of {version} to install.": "此应用没有找到可安装的 {version}。",
   "e.g. dsh": "例如 dsh",
+  "e.g. --chrome": "例如 --chrome",
   "t3x command": "t3x 命令",
   "This environment is managed by {organization}.": "此环境由 {organization} 管理。",
   "This environment is managed by {organization}. Some settings and features follow its policy.":

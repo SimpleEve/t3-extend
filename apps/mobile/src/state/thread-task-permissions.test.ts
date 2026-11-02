@@ -64,6 +64,8 @@ vi.mock("react", () => ({
   useLayoutEffect: () => {},
   useRef: <A>(current: A) => ({ current }),
   useMemo: <A>(factory: () => A) => factory(),
+  // fork: the interface-language hook reads its store through this
+  useSyncExternalStore: <A>(_subscribe: unknown, getSnapshot: () => A) => getSnapshot(),
   useState: <A>(initial: A | (() => A)) => [
     typeof initial === "function" ? (initial as () => A)() : initial,
     vi.fn(),

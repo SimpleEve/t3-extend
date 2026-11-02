@@ -29,6 +29,7 @@ import {
 } from "../terminal/terminalMenu";
 import { projectScriptMenuLabel } from "@t3tools/shared/projectScripts";
 import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
+import { localizeTerminalLabel } from "@t3tools/shared/terminalLabels"; // fork: i18n
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
@@ -337,7 +338,7 @@ function useThreadGitHeaderActionItems(props: ThreadGitControlsProps): ThreadGit
               .filter(Boolean)
               .join(" · "),
             icon: { name: "terminal", type: "sfSymbol" as const },
-            label: session.displayLabel,
+            label: localizeTerminalLabel(session.displayLabel, t), // fork: i18n
             onPress: () => props.onOpenTerminal(session.terminalId),
             type: "action" as const,
           })),
@@ -512,7 +513,7 @@ export function ThreadGitControls(props: ThreadGitControlsProps) {
                 .filter(Boolean)
                 .join(" · ")}
             >
-              <Toolbar.Label>{session.displayLabel}</Toolbar.Label>
+              <Toolbar.Label>{localizeTerminalLabel(session.displayLabel, t)}</Toolbar.Label>
             </Toolbar.MenuAction>
           ))}
           <Toolbar.MenuAction

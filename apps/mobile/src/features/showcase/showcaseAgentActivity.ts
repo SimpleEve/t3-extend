@@ -8,6 +8,7 @@ import type {
   AgentActivityProps,
   AgentActivityRowProps,
 } from "../../widgets/AgentActivity";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 const SHOWCASE_AGENT_ACTIVITY_ROWS = [
   { threadId: "pocket-command-center", phase: "waiting_for_approval", minutesAgo: 1 },
@@ -67,7 +68,7 @@ export function buildShowcaseAgentActivity(
     });
   }
   return {
-    title: "T3 Code",
+    title: FORK.appBaseName,
     subtitle: "Agent work in progress",
     activeCount: rows.filter((row) => ACTIVE_PHASES.has(row.phase)).length,
     updatedAt: new Date(now).toISOString(),

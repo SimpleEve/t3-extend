@@ -9,7 +9,7 @@ export function ExpandableText({
   collapsedText = text,
   className,
   collapsedClassName = "line-clamp-3",
-  expandLabel = "Show full error",
+  expandLabel,
 }: {
   text: string;
   collapsedText?: string;
@@ -41,7 +41,7 @@ export function ExpandableText({
           className="mt-1"
           onClick={() => setExpanded((value) => !value)}
         >
-          {expanded ? t("Show less") : expandLabel}
+          {expanded ? t("Show less") : (expandLabel ?? t("Show full error"))}
         </InlineButton>
       ) : null}
     </div>
