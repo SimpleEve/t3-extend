@@ -1,4 +1,9 @@
-import { ORCHESTRATION_V2_WS_METHODS, WS_METHODS, type WsRpcGroup } from "@t3tools/contracts";
+import {
+  FORK_PUSH_WS_METHODS, // fork: UnifiedPush registrations
+  ORCHESTRATION_V2_WS_METHODS,
+  WS_METHODS,
+  type WsRpcGroup,
+} from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as References from "effect/References";
@@ -63,6 +68,11 @@ const RPC_AGGREGATES = {
   [WS_METHODS.peerLinksLink]: "peerLinks",
   [WS_METHODS.peerLinksUnlink]: "peerLinks",
   [WS_METHODS.peerLinksAnswerRequest]: "peerLinks",
+  // fork: UnifiedPush registrations
+  [FORK_PUSH_WS_METHODS.register]: "push",
+  [FORK_PUSH_WS_METHODS.unregister]: "push",
+  [FORK_PUSH_WS_METHODS.status]: "push",
+  [FORK_PUSH_WS_METHODS.sendTest]: "push",
   [WS_METHODS.serverUpdateSettings]: "server",
   [WS_METHODS.serverSearchAcpRegistry]: "server",
   [WS_METHODS.serverPrepareAcpRegistryAgent]: "server",

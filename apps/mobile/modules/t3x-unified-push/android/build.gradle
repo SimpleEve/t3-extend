@@ -1,0 +1,23 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.simpleeve.t3xunifiedpush'
+version = '0.0.0'
+
+android {
+  namespace 'expo.modules.t3xunifiedpush'
+  defaultConfig {
+    versionCode 1
+    versionName '0.0.0'
+  }
+}
+
+dependencies {
+  // UnifiedPush connector: registers with the user's distributor (ntfy, etc.) and decrypts
+  // Web Push messages (RFC 8291) on the device. No Firebase and no Google Play services.
+  implementation 'org.unifiedpush.android:connector:3.3.5'
+  implementation 'androidx.core:core:1.17.0'
+  implementation 'androidx.lifecycle:lifecycle-process:2.9.3'
+}

@@ -16,7 +16,9 @@ import {
   AuthSourceControlWriteScope,
   ThreadId,
   EnvironmentId,
+  FORK_PUSH_WS_METHODS, // fork: UnifiedPush registrations
   ORCHESTRATION_V2_WS_METHODS,
+  clientRpcRequiredScopes,
   ScheduledTaskId,
   WS_METHODS,
   type AuthSessionState,
@@ -527,3 +529,49 @@ it.effect("rejects protected unary and streamed RPCs outside a guarded command",
     expect(writes).toBe(0);
   }),
 );
+
+// fork: UnifiedPush registrations
+describe("push command permissions", () => {
+  const readGrant = (): AuthSessionState => ({
+    ...grant(false),
+    scopes: [AuthOrchestrationReadScope],
+    permissions: [AuthOrchestrationReadScope],
+  });
+
+  it("guards the writes and leaves the status read to the server alone", () => {
+    for (const method of [
+      FORK_PUSH_WS_METHODS.register,
+      FORK_PUSH_WS_METHODS.unregister,
+      FORK_PUSH_WS_METHODS.sendTest,
+    ]) {
+      expect(clientRpcRequiredScopes(method, { deviceId: "d" })).toEqual([
+        AuthOrchestrationReadScope,
+      ]);
+    }
+    expect(clientRpcRequiredScopes(FORK_PUSH_WS_METHODS.status, { deviceId: "d" })).toEqual([]);
+  });
+
+  it.effect.each([
+    FORK_PUSH_WS_METHODS.register,
+    FORK_PUSH_WS_METHODS.unregister,
+    FORK_PUSH_WS_METHODS.sendTest,
+  ])("%s needs the read grant on the environment it is sent to", (method) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const registry = yield* setup;
+        const command = createCommandPermissions(runtime, method);
+        registry.set(sessions(env), AsyncResult.success(grant(false)));
+        expect(registry.get(command.permissionAtom(env))).toBe(false);
+        expect((yield* command.authorize(registry, env).pipe(Effect.flip))._tag).toBe(
+          "EnvironmentAuthorizationError",
+        );
+        registry.set(sessions(env), AsyncResult.success(readGrant()));
+        expect(registry.get(command.permissionAtom(env))).toBe(true);
+        yield* command.authorize(registry, env);
+        // Another environment's grant says nothing about this one.
+        registry.set(sessions(other), AsyncResult.success(grant(false)));
+        expect(registry.get(command.permissionAtom(other))).toBe(false);
+      }),
+    ),
+  );
+});

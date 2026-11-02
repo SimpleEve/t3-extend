@@ -20,6 +20,7 @@ import { useWorkspaceEnvironments } from "../../state/workspace";
 import { relayEnvironmentDiscovery } from "../../state/relay";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { relayManagedEnvironmentIds } from "./environmentSections";
+import { forgetPushRegistration } from "../../fork/push/unifiedPushRegistration"; // fork: UnifiedPush
 
 export interface RelayEnvironmentView {
   readonly environment: RelayClientEnvironmentRecord;
@@ -82,12 +83,17 @@ export function useConnectionController() {
         }),
       }),
     );
-  const removeEnvironment = (environmentId: EnvironmentId) =>
-    removeEnvironmentMutation(environmentId);
+  // fork: UnifiedPush; the registration can only be withdrawn while the environment is reachable.
+  const removeEnvironment = async (environmentId: EnvironmentId) => {
+    await forgetPushRegistration(environmentId);
+    return removeEnvironmentMutation(environmentId);
+  };
   const retryEnvironment = (environmentId: EnvironmentId) =>
     retryEnvironmentMutation(environmentId);
-  const setEnvironmentEnabled = (environmentId: EnvironmentId, enabled: boolean) =>
-    setEnvironmentEnabledMutation({ environmentId, enabled });
+  const setEnvironmentEnabled = async (environmentId: EnvironmentId, enabled: boolean) => {
+    if (!enabled) await forgetPushRegistration(environmentId); // fork: UnifiedPush
+    return setEnvironmentEnabledMutation({ environmentId, enabled });
+  };
   const updateEnvironment = (
     environmentId: EnvironmentId,
     updates: { readonly label: string; readonly displayUrl: string },

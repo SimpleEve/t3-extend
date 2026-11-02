@@ -1,6 +1,7 @@
 import Constants from "expo-constants";
 import { requireOptionalNativeModule } from "expo";
 import { Linking, Platform } from "react-native";
+import { setUnifiedPushThreadOnScreen } from "../../fork/push/unifiedPushNative"; // fork: UnifiedPush
 
 interface AndroidAgentNotifications {
   configure(deviceId: string, userId: string, scheme: string, ongoingEnabled: boolean): void;
@@ -44,6 +45,7 @@ export function clearAndroidAgentNotifications(): void {
 
 export function setAndroidThreadOnScreen(path: string | null): void {
   native?.setThreadOnScreen?.(path);
+  setUnifiedPushThreadOnScreen(path); // fork: UnifiedPush
 }
 
 export function supportsAndroidLiveUpdateSettings(): boolean {

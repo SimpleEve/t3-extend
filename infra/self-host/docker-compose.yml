@@ -4,7 +4,9 @@
 # 对外只开放：
 #   80/tcp、443/tcp  Caddy（证书签发和 HTTPS）
 #   7000/tcp         frps 控制端口（家里的 frpc 连这里）
-# frps 的数据端口 7001 只在 compose 内部网络里，Caddy 经内部网络访问它，不映射到宿主机。
+# frps 的数据端口 7001 和 ntfy 的 80 端口只在 compose 内部网络里，Caddy 经内部网络访问它们，不映射到宿主机。
+# ntfy 是可选的 UnifiedPush 推送服务器，用独立域名（NTFY_DOMAIN）。不需要推送时，把 ntfy 服务整段删掉，
+# 并删除 Caddyfile 里 NTFY_DOMAIN 那一段。
 
 services:
   frps:
@@ -21,13 +23,28 @@ services:
     expose:
       - "7001"
 
+  ntfy:
+    image: binwiederhier/ntfy:v2.36.0
+    restart: unless-stopped
+    command: ["serve"]
+    environment:
+      NTFY_BASE_URL: https://${NTFY_DOMAIN:?在 .env 里设置 NTFY_DOMAIN}
+    volumes:
+      - ./ntfy/server.yml:/etc/ntfy/server.yml:ro
+      - ntfy_cache:/var/cache/ntfy
+      - ntfy_data:/var/lib/ntfy
+    expose:
+      - "80"
+
   caddy:
     image: caddy:2
     restart: unless-stopped
     depends_on:
       - frps
+      - ntfy
     environment:
       T3_DOMAIN: ${T3_DOMAIN:?在 .env 里设置 T3_DOMAIN}
+      NTFY_DOMAIN: ${NTFY_DOMAIN:?在 .env 里设置 NTFY_DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL:?在 .env 里设置 ACME_EMAIL}
     ports:
       - "80:80"
@@ -38,5 +55,7 @@ services:
       - caddy_config:/config
 
 volumes:
+  ntfy_cache:
+  ntfy_data:
   caddy_data:
   caddy_config:
