@@ -1159,7 +1159,7 @@ export default {
   "Needs a project and the Replay (dev) provider, which dev servers start.":
     "需要一个项目和 Replay (dev) provider，dev server 会启动它。",
   "Publishing repository to {publishProviderLabel}...": "正在把仓库发布到 {publishProviderLabel}…",
-  "(detached HEAD)": "（detached HEAD）",
+  "(detached HEAD)": "（分离的 HEAD）",
   "Enjoying T3 Code?": "喜欢 T3 Code 吗？",
   "Give us a star on GitHub to let us know!": "在 GitHub 上给我们点个星吧！",
   "Restoring your threads…": "正在恢复你的对话…",
@@ -1219,7 +1219,7 @@ export default {
   "Clone it to work on it here, or start without a project.":
     "克隆后可以在这里使用，也可以不用项目直接开始。",
   "Clone {name}": "克隆 {name}",
-  "Use without project": "不用项目直接使用",
+  "Use without project": "不选项目直接使用",
   "Check out {owner}/{name}#{number}?": "检出 {owner}/{name}#{number}？",
   "This puts the pull request's code in a new worktree and runs your project's setup script on it.":
     "这会把 PR 的代码放进新的 worktree，并在上面运行项目的设置脚本。",
@@ -1248,10 +1248,10 @@ export default {
   "Unable to open pull request link": "无法打开 PR 链接",
   "Could not copy. Type {TRIAGE_CLI_COMMAND} instead.":
     "无法复制。请直接输入 {TRIAGE_CLI_COMMAND}。",
-  "Could not start triage": "无法开始分诊",
+  "Could not start triage": "无法开始排查",
   "{description} Run {TRIAGE_CLI_COMMAND} in a terminal on that machine instead.":
     "{description} 请改为在那台机器的终端里运行 {TRIAGE_CLI_COMMAND}。",
-  "Starting triage…": "正在开始分诊…",
+  "Starting triage…": "正在开始排查…",
   "Thread deleted, but navigation failed": "对话已删除，但页面跳转失败",
   "Failed to delete worktree": "无法删除 worktree",
   "Worktree deleted, but Git status refresh failed": "worktree 已删除，但刷新 Git 状态失败",

@@ -261,7 +261,11 @@ export function workEntryRowLabel(entry: WorkLogPresentationEntry, expanded = fa
     return entry.toolLifecycleStatus === "inProgress"
       ? translatorFor(getUiLocale())("Thinking")
       : translatorFor(getUiLocale())("Thought");
-  const presentation = resolveWorkEntryToolPresentation(entry);
+  const presentation = resolveWorkEntryToolPresentation(
+    entry,
+    undefined,
+    translatorFor(getUiLocale()),
+  );
   if (presentation) return presentation.displayName;
   if (entry.command?.trim()) return compactWorkEntryText(commandDisplayText(entry.command));
   const action = toolGroupAction(entry);
@@ -860,9 +864,14 @@ function toFeedActivity(
 function singleToolCallLabel(activity: ThreadFeedActivity, expanded: boolean): string {
   if (activity.workEntry.itemType === "reasoning")
     return expanded
-      ? "Thought"
-      : compactWorkEntryText(activity.workEntry.detail ?? "") || "Thought";
-  const presentation = resolveWorkEntryToolPresentation(activity.workEntry, "completed");
+      ? translatorFor(getUiLocale())("Thought")
+      : compactWorkEntryText(activity.workEntry.detail ?? "") ||
+          translatorFor(getUiLocale())("Thought");
+  const presentation = resolveWorkEntryToolPresentation(
+    activity.workEntry,
+    "completed",
+    translatorFor(getUiLocale()),
+  );
   if (presentation) return presentation.displayName;
   const command = activity.workEntry.command?.trim();
   return command ? truncate(command, WORK_LOG_LABEL_MAX_LENGTH) : activity.summary;
@@ -1789,7 +1798,10 @@ function appendToolGroupRows(
   const latestActivity = latestActiveActivity ?? activities.at(-1)!;
   const shimmer = activeTail && (active || latestActivity.status === "success");
   const singleActivity = activities.length === 1 ? latestActivity : null;
-  const groupSummary = summarizeToolGroup(activities.map((activity) => activity.workEntry));
+  const groupSummary = summarizeToolGroup(
+    activities.map((activity) => activity.workEntry),
+    translatorFor(getUiLocale()),
+  );
   const latestThought =
     live && !expanded
       ? activities.findLast(
@@ -1903,10 +1915,11 @@ function liveToolActivitySummary(activity: ThreadFeedActivity, presentTense: boo
           : translatorFor(getUiLocale())("Thought")),
     );
   }
-  const presentation = resolveWorkEntryToolPresentation({
-    ...activity.workEntry,
-    toolLifecycleStatus: status,
-  });
+  const presentation = resolveWorkEntryToolPresentation(
+    { ...activity.workEntry, toolLifecycleStatus: status },
+    undefined,
+    translatorFor(getUiLocale()),
+  );
   if (presentation) return presentation.displayName;
   const command = activity.workEntry.command?.trim();
   if (command) {
