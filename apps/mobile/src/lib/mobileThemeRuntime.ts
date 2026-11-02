@@ -1,3 +1,4 @@
+import type { UiLocale } from "@t3tools/client-runtime/i18n"; // fork: Chinese text sizes
 import { resolveTextScaleVariables } from "./appearancePreferences";
 import { BUILT_IN_THEME_IDS, type BuiltInThemeId } from "@t3tools/shared/themePalettes";
 import {
@@ -13,6 +14,8 @@ export type MobileUniwindThemeName =
 
 export interface MobileThemeRuntimeState {
   readonly baseFontSize: number;
+  /** fork: Chinese text sizes. Text variables follow the loaded language. */
+  readonly uiLocale?: UiLocale;
   readonly themeAppearance: MobileThemeAppearance;
   readonly themeMode: MobileThemeMode;
 }
@@ -53,8 +56,12 @@ export function createMobileThemeRuntimeOperations(
 ): ReadonlyArray<MobileThemeRuntimeOperation> {
   const operations: MobileThemeRuntimeOperation[] = [];
 
-  if (previous === null || previous.baseFontSize !== next.baseFontSize) {
-    const variables = resolveTextScaleVariables(next.baseFontSize);
+  if (
+    previous === null ||
+    previous.baseFontSize !== next.baseFontSize ||
+    previous.uiLocale !== next.uiLocale // fork: Chinese text sizes
+  ) {
+    const variables = resolveTextScaleVariables(next.baseFontSize, next.uiLocale);
     for (const themeName of UNIWIND_THEME_NAMES) {
       operations.push({ kind: "update-text-variables", themeName, variables });
     }

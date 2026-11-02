@@ -1,3 +1,5 @@
+import { getUiLocale, type UiLocale } from "@t3tools/client-runtime/i18n"; // fork: Chinese text sizes
+import { scaledLocalizedFontSize } from "../fork/zhTypography"; // fork: Chinese text sizes
 import { MOBILE_CODE_SURFACE, MOBILE_TYPOGRAPHY } from "./typography";
 import {
   DEFAULT_TERMINAL_FONT_SIZE,
@@ -165,24 +167,27 @@ export function resolveMarkdownFontSizes(baseFontSize: number): ResolvedMarkdown
 
 /** Keep text-variable roles in sync with global.css and MOBILE_TYPOGRAPHY. */
 const TEXT_SCALE_VARIABLE_ROLES = {
-  "--text-3xs": MOBILE_TYPOGRAPHY.micro,
-  "--text-2xs": MOBILE_TYPOGRAPHY.caption,
-  "--text-xs": MOBILE_TYPOGRAPHY.label,
-  "--text-sm": MOBILE_TYPOGRAPHY.footnote,
-  "--text-base": MOBILE_TYPOGRAPHY.body,
-  "--text-lg": MOBILE_TYPOGRAPHY.headline,
-  "--text-xl": MOBILE_TYPOGRAPHY.title,
-  "--text-2xl": MOBILE_TYPOGRAPHY.largeTitle,
-  "--text-3xl": MOBILE_TYPOGRAPHY.display,
-} as const;
+  "--text-3xs": "micro",
+  "--text-2xs": "caption",
+  "--text-xs": "label",
+  "--text-sm": "footnote",
+  "--text-base": "body",
+  "--text-lg": "headline",
+  "--text-xl": "title",
+  "--text-2xl": "largeTitle",
+  "--text-3xl": "display",
+} as const satisfies Record<string, keyof typeof MOBILE_TYPOGRAPHY>;
 
-export function resolveTextScaleVariables(baseFontSize: number): Record<string, number> {
-  const scale = normalizeBaseFontSize(baseFontSize) / DEFAULT_BASE_FONT_SIZE;
+export function resolveTextScaleVariables(
+  baseFontSize: number,
+  locale: UiLocale = getUiLocale(), // fork: Chinese text sizes
+): Record<string, number> {
   const variables: Record<string, number> = {};
 
-  for (const [name, role] of Object.entries(TEXT_SCALE_VARIABLE_ROLES)) {
-    variables[name] = Math.max(8, Math.round(role.fontSize * scale));
-    variables[`${name}--line-height`] = scaledTypographyLineHeight(role, baseFontSize);
+  for (const [name, roleName] of Object.entries(TEXT_SCALE_VARIABLE_ROLES)) {
+    const role = resolveScaledTextRole(roleName, baseFontSize, locale);
+    variables[name] = role.fontSize;
+    variables[`${name}--line-height`] = role.lineHeight;
   }
 
   return variables;
@@ -196,11 +201,15 @@ export function scaledTypographyLineHeight(
   return Math.max(10, Math.round(role.lineHeight * scale));
 }
 
-export function resolveScaledTextRole(role: keyof typeof MOBILE_TYPOGRAPHY, baseFontSize: number) {
+export function resolveScaledTextRole(
+  role: keyof typeof MOBILE_TYPOGRAPHY,
+  baseFontSize: number,
+  locale: UiLocale = getUiLocale(), // fork: Chinese text sizes
+) {
   const typography = MOBILE_TYPOGRAPHY[role];
   const scale = normalizeBaseFontSize(baseFontSize) / DEFAULT_BASE_FONT_SIZE;
   return {
-    fontSize: Math.max(8, Math.round(typography.fontSize * scale)),
+    fontSize: Math.max(8, scaledLocalizedFontSize(role, scale, locale)), // fork: Chinese text sizes
     lineHeight: scaledTypographyLineHeight(typography, baseFontSize),
   };
 }
