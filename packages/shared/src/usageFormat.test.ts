@@ -2,7 +2,12 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { UsageSource } from "@t3tools/contracts";
 
-import { formatHourShort, makeWindow, usageSourceMessages } from "./usageFormat.ts";
+import {
+  formatHourShort,
+  formatUsageContractMismatch,
+  makeWindow,
+  usageSourceMessages,
+} from "./usageFormat.ts";
 
 function malformedSource(count: number, overrides: Partial<UsageSource> = {}): UsageSource {
   return {
@@ -175,5 +180,26 @@ describe("hourly usage formatting", () => {
     } finally {
       resolvedOptions.mockRestore();
     }
+  });
+});
+
+describe("formatUsageContractMismatch", () => {
+  it("keeps the English without a translator", () => {
+    expect(formatUsageContractMismatch("Laptop", { direction: "serverBehind" })).toBe(
+      "Laptop runs an older server version and is excluded from totals.",
+    );
+    expect(formatUsageContractMismatch("Laptop", { direction: "clientBehind" })).toBe(
+      "This client is older than the server on Laptop; its usage is excluded from totals.",
+    );
+  });
+
+  it("hands the template to a translator", () => {
+    expect(
+      formatUsageContractMismatch(
+        "Laptop",
+        { direction: "serverBehind" },
+        (source, params) => `${source}|${params?.environment}`,
+      ),
+    ).toBe("{environment} runs an older server version and is excluded from totals.|Laptop");
   });
 });

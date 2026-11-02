@@ -89,10 +89,20 @@ export function formatPercent(share: number, digits = 1): string {
 export function formatUsageContractMismatch(
   environmentLabel: string,
   mismatch: Pick<UsageContractMismatch, "direction">,
+  // fork: interface language; without a translator the English is unchanged.
+  t: (source: string, params?: Readonly<Record<string, string>>) => string = (source, params) =>
+    source.replace("{environment}", params?.environment ?? ""),
 ): string {
   return mismatch.direction === "serverBehind"
-    ? `${environmentLabel} runs an older server version and is excluded from totals.`
-    : `This client is older than the server on ${environmentLabel}; its usage is excluded from totals.`;
+    ? t("{environment} runs an older server version and is excluded from totals.", {
+        environment: environmentLabel,
+      })
+    : t(
+        "This client is older than the server on {environment}; its usage is excluded from totals.",
+        {
+          environment: environmentLabel,
+        },
+      );
 }
 
 export function formatDayShort(day: string): string {

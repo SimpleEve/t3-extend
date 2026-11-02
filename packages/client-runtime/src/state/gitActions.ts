@@ -379,36 +379,51 @@ export function resolveDefaultBranchActionDialogCopy(input: {
   branchName: string;
   includesCommit: boolean;
   terminology: ChangeRequestTerminology;
+  locale?: UiLocale; // fork: interface language
 }): DefaultBranchActionDialogCopy {
-  const branchLabel = input.branchName;
-  const { shortLabel, shortLabelWithArticle } = input.terminology;
-  const suffix = ` on "${branchLabel}". You can continue on this branch or create a feature branch and run the same action there.`;
+  const locale = input.locale ?? "en";
+  const t = translatorFor(locale);
+  const branch = input.branchName;
+  const { shortLabel } = input.terminology;
+  const article = kindWithArticle(locale, input.terminology);
 
   if (input.action === "push" || input.action === "commit_push") {
     if (input.includesCommit) {
       return {
-        title: "Commit & push to default branch?",
-        description: `This action will commit and push changes${suffix}`,
-        continueLabel: `Commit & push to ${branchLabel}`,
+        title: t("Commit & push to default branch?"),
+        description: t(
+          'This action will commit and push changes on "{branch}". You can continue on this branch or create a feature branch and run the same action there.',
+          { branch },
+        ),
+        continueLabel: t("Commit & push to {branch}", { branch }),
       };
     }
     return {
-      title: "Push to default branch?",
-      description: `This action will push local commits${suffix}`,
-      continueLabel: `Push to ${branchLabel}`,
+      title: t("Push to default branch?"),
+      description: t(
+        'This action will push local commits on "{branch}". You can continue on this branch or create a feature branch and run the same action there.',
+        { branch },
+      ),
+      continueLabel: t("Push to {branch}", { branch }),
     };
   }
 
   if (input.includesCommit) {
     return {
-      title: `Commit, push & create ${shortLabel} from default branch?`,
-      description: `This action will commit, push, and create ${shortLabelWithArticle}${suffix}`,
-      continueLabel: `Commit, push & create ${shortLabel}`,
+      title: t("Commit, push & create {shortLabel} from default branch?", { shortLabel }),
+      description: t(
+        'This action will commit, push, and create {article} on "{branch}". You can continue on this branch or create a feature branch and run the same action there.',
+        { article, branch },
+      ),
+      continueLabel: t("Commit, push & create {shortLabel}", { shortLabel }),
     };
   }
   return {
-    title: `Push & create ${shortLabel} from default branch?`,
-    description: `This action will push local commits and create ${shortLabelWithArticle}${suffix}`,
-    continueLabel: `Push & create ${shortLabel}`,
+    title: t("Push & create {shortLabel} from default branch?", { shortLabel }),
+    description: t(
+      'This action will push local commits and create {article} on "{branch}". You can continue on this branch or create a feature branch and run the same action there.',
+      { article, branch },
+    ),
+    continueLabel: t("Push & create {shortLabel}", { shortLabel }),
   };
 }

@@ -111,5 +111,20 @@ describe("git action copy", () => {
         terminology: sourceControlClients.get("gitlab").changeRequest,
       }).continueLabel,
     ).toBe("Commit, push & create MR");
+    expect(
+      resolveDefaultBranchActionDialogCopy({
+        ...input,
+        terminology: sourceControlClients.get("github").changeRequest,
+      }).description,
+    ).toBe(
+      'This action will commit, push, and create a PR on "main". You can continue on this branch or create a feature branch and run the same action there.',
+    );
+    expect(
+      resolveDefaultBranchActionDialogCopy({
+        ...input,
+        terminology: sourceControlClients.get("github").changeRequest,
+        locale: "zh-Hans",
+      }).description,
+    ).not.toContain("a PR");
   });
 });
