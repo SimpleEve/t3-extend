@@ -42,9 +42,24 @@ import { useThreadListNow } from "./use-thread-list-now";
 import { useThreadListV2ShelfPreferences } from "./use-thread-list-v2-shelf-preferences";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const keyOf = (thread: EnvironmentThreadShell) => scopedThreadKey(thread.environmentId, thread.id);
 type Section = "pinned" | "active" | "snoozed" | "settled";
+
+// fork: whole phrases, so a translation places the count itself.
+function sectionHeading(section: Section, count: number, t: Translator): string {
+  switch (section) {
+    case "pinned":
+      return t("Pinned ({count})", { count });
+    case "active":
+      return t("Active ({count})", { count });
+    case "snoozed":
+      return t("Snoozed ({count})", { count });
+    case "settled":
+      return t("Settled ({count})", { count });
+  }
+}
 type Destination = Exclude<ThreadMoveDestination, string>;
 type Row = {
   key: string;
@@ -553,11 +568,13 @@ function ThreadArrangementSheet(props: { onClose: () => void }) {
                             }}
                           >
                             <Text className="text-sm font-t3-semibold text-foreground-muted">
-                              {item.section[0]!.toUpperCase() + item.section.slice(1)} (
-                              {item.section === "settled"
-                                ? settledCount
-                                : sections[item.section].length}
-                              )
+                              {sectionHeading(
+                                item.section,
+                                item.section === "settled"
+                                  ? settledCount
+                                  : sections[item.section].length,
+                                t,
+                              )}
                             </Text>
                           </Pressable>
                         )}

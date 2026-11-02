@@ -15,6 +15,7 @@ import {
   type ServerSettingsPatch,
 } from "@t3tools/contracts";
 import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
+import { interpolate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import {
   clearProjectSettingsOverrides,
   resolveProjectSettings,
@@ -221,6 +222,7 @@ export function planScopedSettingsPatch(
   scope: ResolvedSettingsScope,
   environments: readonly ScopedSettingsEnvironment[],
   patch: ScopedSettingsPatch,
+  t: Translator = (source, params) => interpolate(source, params), // fork: interface language
 ) {
   const clientPatch = Object.fromEntries(
     Object.entries(patch).filter(([key]) => CLIENT_KEYS.has(key) && !SERVER_KEYS.has(key)),
@@ -325,12 +327,16 @@ export function planScopedSettingsPatch(
     hasWrite || Object.keys(patch).length === 0
       ? null
       : scope.kind === "unavailable"
-        ? scope.message
+        ? t(scope.message)
         : unscopableKeys.length > 0
-          ? "This setting is environment-wide and cannot be overridden by a project."
+          ? t("This setting is environment-wide and cannot be overridden by a project.")
           : isProjectScope
-            ? "Connect the selected checkouts, or update their environments, to save a project override."
-            : `Connect ${scope.kind === "environment" ? scope.label : "an environment"} to save this setting.`;
+            ? t(
+                "Connect the selected checkouts, or update their environments, to save a project override.",
+              )
+            : scope.kind === "environment"
+              ? t("Connect {label} to save this setting.", { label: scope.label })
+              : t("Connect an environment to save this setting.");
   return { clientPatch, hasClientWrite, serverWrites, unavailableReason };
 }
 
@@ -338,6 +344,7 @@ export function planScopedSettingsClear(
   scope: ResolvedSettingsScope,
   environments: readonly ScopedSettingsEnvironment[],
   keys: readonly ProjectScopedServerSettingKey[],
+  t: Translator = (source, params) => interpolate(source, params), // fork: interface language
 ) {
   const serverWrites =
     scope.kind === "project" || scope.kind === "checkout"
@@ -352,7 +359,9 @@ export function planScopedSettingsClear(
     unavailableReason:
       serverWrites.length > 0
         ? null
-        : "Connect the selected checkouts, or update their environments, to reset this override.",
+        : t(
+            "Connect the selected checkouts, or update their environments, to reset this override.",
+          ),
   };
 }
 
@@ -382,6 +391,7 @@ export function planProjectOverridesClear(
   environments: readonly ScopedSettingsEnvironment[],
   entries: readonly ProjectOverrideEntry[],
   keys: readonly ProjectScopedServerSettingKey[],
+  t: Translator = (source, params) => interpolate(source, params), // fork: interface language
 ) {
   const byId = new Map(environments.map((environment) => [environment.environmentId, environment]));
   const writes = new Map<EnvironmentId, ScopedServerWrite>();
@@ -408,7 +418,7 @@ export function planProjectOverridesClear(
     hasClientWrite: false,
     serverWrites,
     unavailableReason:
-      serverWrites.length > 0 ? null : "Connect the environments to reset these overrides.",
+      serverWrites.length > 0 ? null : t("Connect the environments to reset these overrides."),
   };
 }
 

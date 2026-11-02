@@ -62,7 +62,7 @@ import {
 import { TimelineRowCtx } from "./timelineRowContext";
 import { userMessageFileLabel } from "./TimelineUserMessageRow.logic";
 import { useT } from "~/hooks/useT";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function UserMessageMentionChip(props: {
   record: Extract<KnownComposerContextRecord, { kind: "mention" }>;
@@ -279,6 +279,8 @@ interface UserMessageContextRenderContext {
   onExpandImage: (image: ChatImageAttachment) => void;
   onExpandVideo: (file: ChatFileAttachment) => void;
   onOpenFile: (file: ChatFileAttachment) => void;
+  // fork: passed in so chip labels recompute when the interface language changes.
+  t: Translator;
 }
 
 function UnavailableUserMessageContextChip(props: UserMessageContextRenderContext) {
@@ -398,11 +400,11 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
             disabled={disabled}
             accessibleLabel={
               isVideo
-                ? translate(getUiLocale(), "Video attachment, {name}, {size}", {
+                ? context.t("Video attachment, {name}, {size}", {
                     name: label,
                     size,
                   })
-                : translate(getUiLocale(), "File attachment, {name}, {size}", { name: label, size })
+                : context.t("File attachment, {name}, {size}", { name: label, size })
             }
             copyMarkdown={context.copyMarkdown}
             onOpen={() =>
@@ -439,7 +441,7 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
         record.kind === "element" ? (
           <UserMessageContextPopover
             copyMarkdown={context.copyMarkdown}
-            accessibleLabel={translate(getUiLocale(), "Browser element, {label}", {
+            accessibleLabel={context.t("Browser element, {label}", {
               label: record.label,
             })}
             kind="element"
@@ -461,7 +463,9 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
         }
         const isPullRequest = isPullRequestSummaryContext(record);
         const label = reviewCommentContextLabel(record);
-        const kindLabel = isPullRequest ? pullRequestContextKindLabel(record) : "Review comment";
+        const kindLabel = isPullRequest
+          ? pullRequestContextKindLabel(record, context.t)
+          : context.t("Review comment");
         const pullRequestState = pullRequestContextDisplayState(record) ?? "unknown";
         if (isPullRequest && record.pullRequest !== undefined) {
           return (
@@ -475,7 +479,15 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
         return (
           <UserMessageContextPopover
             copyMarkdown={context.copyMarkdown}
-            accessibleLabel={`${kindLabel}, ${label}${record.pullRequest ? `, ${record.pullRequest.title}` : ""}`}
+            accessibleLabel={
+              record.pullRequest
+                ? context.t("{kindLabel}, {label}, {title}", {
+                    kindLabel,
+                    label,
+                    title: record.pullRequest.title,
+                  })
+                : context.t("{kindLabel}, {label}", { kindLabel, label })
+            }
             kind={isPullRequest ? PULL_REQUEST_CHIP_KINDS[pullRequestState] : "review-comment"}
             icon={isPullRequest ? <PullRequestGlyph.pullRequest /> : <MessageCircleIcon />}
             label={label}
@@ -508,7 +520,7 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
         record.kind === "preview-annotation" ? (
           <UserMessageContextPopover
             copyMarkdown={context.copyMarkdown}
-            accessibleLabel={translate(getUiLocale(), "Preview annotation, {label}", {
+            accessibleLabel={context.t("Preview annotation, {label}", {
               label: record.label,
             })}
             kind="preview-annotation"
@@ -535,6 +547,7 @@ export function UserMessageContextReferenceChip(props: {
   onOpenFile: (file: ChatFileAttachment) => void;
 }) {
   const { resolvedTheme, activeThreadEnvironmentId } = use(TimelineRowCtx);
+  const t = useT(); // fork: interface language
   const copyMarkdown = formatComposerContextReference({
     kind: props.reference.kind,
     contextId: props.reference.contextId as ComposerContextId,
@@ -550,6 +563,7 @@ export function UserMessageContextReferenceChip(props: {
     onExpandImage: props.onExpandImage,
     onExpandVideo: props.onExpandVideo,
     onOpenFile: props.onOpenFile,
+    t,
   });
 }
 

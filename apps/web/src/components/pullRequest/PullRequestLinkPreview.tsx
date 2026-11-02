@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { RelativeTime } from "~/components/RelativeTime";
+import { useT } from "~/hooks/useT"; // fork: i18n
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { useEnvironmentQuery } from "~/state/query";
@@ -46,6 +47,7 @@ export function PullRequestLinkPreview({
   onOpenFallback?: (url: string) => Promise<void>;
   fallback?: ReactNode;
 }) {
+  const t = useT(); // fork: i18n
   const [open, setOpen] = useState(false);
   const previewActionsRef = useRef<PreviewCardPrimitive.Root.Actions | null>(null);
   const [resolvingClick, setResolvingClick] = useState(false);
@@ -127,7 +129,7 @@ export function PullRequestLinkPreview({
                   {state === null ? null : (
                     <span className="inline-flex shrink-0 items-center gap-1">
                       <state.Icon aria-hidden className={`size-3 ${state.toneClassName}`} />
-                      {state.label}
+                      {t(state.label, undefined, "pull request state")}
                     </span>
                   )}
                 </div>

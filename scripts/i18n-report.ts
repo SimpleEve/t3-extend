@@ -713,6 +713,8 @@ const COMPARED_ALLOWLIST = new Set([
   "apps/web/src/components/settings/ProjectSettingsPanel.tsx#No project",
   // The raw label the source control action state was started with.
   "apps/web/src/components/GitActionsControl.logic.ts#Running source control action",
+  // The stored placeholder thread title, matched so it can show translated.
+  "packages/client-runtime/src/operations/threadTitle.ts#New thread",
 ]);
 
 const sentenceLike = (text: string) =>

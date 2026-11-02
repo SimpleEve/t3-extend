@@ -44,7 +44,12 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 
-import { formatRelativeTime } from "../../timestampFormat";
+import {
+  formatRelativeElapsedLabel,
+  type Translator,
+  type UiLocale,
+} from "@t3tools/client-runtime/i18n";
+import { relativeTimeElapsedMs } from "../../timestampFormat";
 import { useEnvironmentSettings } from "../../hooks/useSettings";
 import { getCustomModelOptionsByInstance } from "../../modelSelection";
 import { providerInstanceEntriesFor } from "../../providerInstances";
@@ -117,7 +122,7 @@ import {
   SettingsSection,
   SETTINGS_PICKER_TRIGGER_CLASSNAME,
 } from "./settingsLayout";
-import { useT } from "../../hooks/useT";
+import { useT, useUiLocale } from "../../hooks/useT";
 
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -290,45 +295,69 @@ function splitModelKey(value: string): ModelSelection | null {
   };
 }
 
-export function scheduleLabel(schedule: ScheduledTaskSchedule): string {
-  if (schedule.type === "webhook") return "On webhook";
+export function scheduleLabel(
+  schedule: ScheduledTaskSchedule,
+  t: Translator, // fork: interface language
+): string {
+  if (schedule.type === "webhook") return t("On webhook");
   if (schedule.type === "interval") {
     const minutes = schedule.everyMs / 60_000;
     return Number.isInteger(minutes)
-      ? `Every ${minutes} min`
-      : `Every ${Math.round(schedule.everyMs / 1000)} sec`;
+      ? t("Every {minutes} min", { minutes })
+      : t("Every {seconds} sec", { seconds: Math.round(schedule.everyMs / 1000) });
   }
   const weekdays = schedule.weekdays ?? [];
   const days =
     weekdays.length === 0
-      ? "Daily"
+      ? t("Daily", undefined, "schedule summary")
       : weekdays.length === 5 && weekdays.every((day) => day >= 1 && day <= 5)
-        ? "Weekdays"
-        : weekdays.map((day) => WEEKDAY_LABELS[day]).join(", ");
-  return `${days} at ${schedule.timeOfDay}`;
+        ? t("Weekdays")
+        : weekdays.map((day) => t(WEEKDAY_LABELS[day] ?? "")).join(t(", "));
+  return t("{days} at {time}", { days, time: schedule.timeOfDay });
 }
 
-/** formatRelativeTime handles only the past; upcoming runs need future labels. */
-function relativeLabel(value: string | null, nowMs: number): string {
-  if (!value) return "Not scheduled";
+/** Past times reuse the shared "5m ago" phrases; upcoming runs need future labels. */
+function relativeLabel(
+  value: string | null,
+  nowMs: number,
+  locale: UiLocale,
+  t: Translator,
+): string {
+  if (!value) return t("Not scheduled");
   const diffMs = new Date(value).getTime() - nowMs;
   if (diffMs <= 0) {
-    const relative = formatRelativeTime(value, nowMs);
-    if (!relative) return "Not scheduled";
-    return relative.suffix ? `${relative.value} ${relative.suffix}` : relative.value;
+    const elapsedMs = relativeTimeElapsedMs(value, nowMs);
+    if (elapsedMs === null) return t("Not scheduled");
+    return formatRelativeElapsedLabel(locale, elapsedMs);
   }
   const minutes = Math.ceil(diffMs / 60_000);
-  if (minutes < 2) return "in under a minute";
-  if (minutes < 60) return `in ${minutes}m`;
+  if (minutes < 2) return t("in under a minute");
+  if (minutes < 60) return t("in {count}m", { count: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `in ${hours}h`;
-  return `in ${Math.round(hours / 24)}d`;
+  if (hours < 24) return t("in {count}h", { count: hours });
+  return t("in {count}d", { count: Math.round(hours / 24) });
 }
 
 // Use the label's minute tick because the compiler caches render-time Date.now() on the timestamp.
 export function ScheduledRelativeLabel(props: { value: string | null }) {
   const nowMinute = useNowMinute();
-  return relativeLabel(props.value, Date.parse(`${nowMinute}:00.000Z`));
+  const locale = useUiLocale();
+  const t = useT();
+  return relativeLabel(props.value, Date.parse(`${nowMinute}:00.000Z`), locale, t);
+}
+
+// fork: the badge shows the raw status, which is also its English text.
+function runStatusLabel(status: ScheduledTask["lastRunStatus"], t: Translator): string {
+  switch (status) {
+    case "never":
+      return t("never");
+    case "running":
+      return t("running");
+    case "succeeded":
+      return t("succeeded");
+    case "failed":
+      return t("failed");
+  }
 }
 
 function deliveryOutcomeVariant(outcome: string) {
@@ -769,7 +798,7 @@ function ScheduledTaskRow({
       status={
         <div className="flex flex-wrap items-center gap-2">
           <span>
-            {scheduleLabel(task.schedule)} ·{" "}
+            {scheduleLabel(task.schedule, t)} ·{" "}
             {!task.enabled ? (
               t("Paused")
             ) : isWebhook ? (
@@ -783,7 +812,9 @@ function ScheduledTaskRow({
             )}
           </span>
           {task.lastRunStatus !== "never" ? (
-            <Badge variant={statusVariant(task.lastRunStatus)}>{task.lastRunStatus}</Badge>
+            <Badge variant={statusVariant(task.lastRunStatus)}>
+              {runStatusLabel(task.lastRunStatus, t)}
+            </Badge>
           ) : null}
           {task.lastRunError ? <span className="text-destructive">{task.lastRunError}</span> : null}
         </div>
@@ -902,7 +933,7 @@ function WebhookDeliveriesDialog({
                     selected.pendingWindow ? "coalesced" : selected.outcome,
                   )}
                 >
-                  {webhookDeliveryLabel(selected)}
+                  {webhookDeliveryLabel(selected, t)}
                 </Badge>
                 <span>
                   {selected.method} · <ScheduledRelativeLabel value={selected.receivedAt} />
@@ -967,7 +998,7 @@ function WebhookDeliveriesDialog({
                         delivery.pendingWindow ? "coalesced" : delivery.outcome,
                       )}
                     >
-                      {webhookDeliveryLabel(delivery)}
+                      {webhookDeliveryLabel(delivery, t)}
                     </Badge>
                     <span>{delivery.method}</span>
                     <span className="text-muted-foreground">
@@ -978,8 +1009,11 @@ function WebhookDeliveriesDialog({
                     ) : null}
                     {delivery.missingFields.length > 0 ? (
                       <span className="text-muted-foreground">
-                        {t("{length} empty placeholder", { length: delivery.missingFields.length })}
-                        {delivery.missingFields.length === 1 ? "" : "s"}
+                        {delivery.missingFields.length === 1
+                          ? t("{length} empty placeholder", { length: 1 })
+                          : t("{length} empty placeholders", {
+                              length: delivery.missingFields.length,
+                            })}
                       </span>
                     ) : null}
                   </button>
@@ -1042,7 +1076,7 @@ function WebhookEndpointField({
   if (!task || !endpoint) {
     return <p className="text-sm text-muted-foreground">{t("The URL appears after you save.")}</p>;
   }
-  const { address: url, copyable, note } = webhookAddress(endpoint, httpBaseUrl);
+  const { address: url, copyable, note } = webhookAddress(endpoint, httpBaseUrl, t);
   const rotateUrl = async () => {
     const confirmed =
       (await requestConfirmDialog(
@@ -1842,8 +1876,8 @@ function ScheduledTaskEditorForm({
                   }}
                 >
                   {WEEKDAY_ORDER.map((day) => (
-                    <Toggle key={day} value={String(day)} aria-label={WEEKDAY_LABELS[day]}>
-                      {WEEKDAY_SHORT[day]}
+                    <Toggle key={day} value={String(day)} aria-label={t(WEEKDAY_LABELS[day])}>
+                      {t(WEEKDAY_SHORT[day])}
                     </Toggle>
                   ))}
                 </ToggleGroup>

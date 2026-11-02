@@ -17,6 +17,7 @@ import {
   paceOf,
   paceRemainingPercent,
   remainingPercent,
+  usageWindowLabel, // fork: i18n
 } from "@t3tools/shared/usageLimits";
 import { type ReactNode, useContext, useRef, useState } from "react";
 import { Atom } from "effect/reactivity";
@@ -88,7 +89,7 @@ function WindowRow(props: {
   return (
     <View className="gap-1">
       <View className="flex-row items-baseline justify-between gap-3">
-        <Text className="text-sm text-foreground">{window.label}</Text>
+        <Text className="text-sm text-foreground">{usageWindowLabel(window.label, t)}</Text>
         <Text className="text-sm font-t3-medium tabular-nums text-foreground">
           {t("{percent}% left", { percent: remaining })}
         </Text>
@@ -251,7 +252,7 @@ export function ResetCredits(props: {
   if (dense && credits.availableCount === 0 && status === null) return null;
 
   const expiresIn = credits.nextExpiresAt
-    ? formatDuration(Date.parse(credits.nextExpiresAt) - now)
+    ? formatDuration(Date.parse(credits.nextExpiresAt) - now, t)
     : null;
   const summary =
     credits.availableCount === 0

@@ -202,6 +202,8 @@ export interface SnoozePresetOptions {
   readonly translate?: SnoozeLabelTranslator;
   /** fork: `Intl` tag for the default time and the weekday in `whenLabel`; unset keeps the runtime's default locale. */
   readonly locale?: string;
+  /** fork: names the wake day in `whenLabel` in place of `Intl`, which Hermes on Android leaves in English. */
+  readonly formatWeekday?: (date: Date) => string;
 }
 
 const englishSnoozeLabel: SnoozeLabelTranslator = (source, params) =>
@@ -288,6 +290,7 @@ export function resolveSnoozePreset(
   formatTime?: (date: Date) => string,
   translate: SnoozeLabelTranslator = englishSnoozeLabel,
   locale?: string, // fork: interface language
+  formatWeekday?: (date: Date) => string, // fork: see SnoozePresetOptions
 ): SnoozePreset | null {
   let wake: Date;
   let daysAhead = 0;
@@ -310,7 +313,11 @@ export function resolveSnoozePreset(
     whenLabel:
       labelNamesDay || wake.toDateString() === now.toDateString()
         ? time
-        : `${wake.toLocaleDateString(locale, { weekday: "short" })} ${time}`,
+        : `${
+            formatWeekday
+              ? formatWeekday(wake)
+              : wake.toLocaleDateString(locale, { weekday: "short" })
+          } ${time}`,
     snoozedUntil: wake.toISOString(),
   };
 }
@@ -334,6 +341,7 @@ export function resolveSnoozePresets(
             options.formatTime,
             options.translate,
             options.locale, // fork
+            options.formatWeekday, // fork
           ) ?? [],
       )
       // flatMap returned a new array; Hermes has no `toSorted`.
@@ -358,6 +366,7 @@ export function pickSnoozePreset(input: {
   readonly formatTime?: (date: Date) => string;
   readonly translate?: SnoozeLabelTranslator;
   readonly locale?: string; // fork
+  readonly formatWeekday?: (date: Date) => string; // fork
 }): SnoozePreset | undefined {
   const original = input.shown.find((preset) => preset.id === input.id);
   const ahead =
@@ -373,6 +382,7 @@ export function pickSnoozePreset(input: {
         input.formatTime,
         input.translate,
         input.locale, // fork
+        input.formatWeekday, // fork
       )) ??
     ahead
   );

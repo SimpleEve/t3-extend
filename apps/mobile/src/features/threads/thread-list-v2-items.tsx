@@ -83,6 +83,7 @@ import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
 import { pullRequestStatusStyle } from "../pull-requests/pullRequestStatus"; // fork: i18n
 import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: i18n
 
 interface StatusLabel {
   readonly label: string;
@@ -752,7 +753,8 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       : workingLabel) ?? (isUnread ? DONE_STATUS_LABEL : undefined);
   const recede = shouldRecedeThreadRow({ status, selected });
   const isRegeneratingTitle = thread.titleRegeneration != null;
-  const rowAccessibilityLabel = `${thread.title}${props.hasQueuedMessages ? t(", messages queued to send") : ""}${isRegeneratingTitle ? t(", regenerating title") : ""}`;
+  const shownTitle = threadDisplayTitle(thread.title, t); // fork: i18n
+  const rowAccessibilityLabel = `${shownTitle}${props.hasQueuedMessages ? t(", messages queued to send") : ""}${isRegeneratingTitle ? t(", regenerating title") : ""}`;
   const timeLabel = props.timeLabel;
 
   const visitThread = useAtomCommand(threadEnvironment.visit, { reportFailure: false });
@@ -1160,7 +1162,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
               : undefined
           }
         >
-          {thread.title}
+          {shownTitle}
         </Text>
         <View className="flex-row items-center gap-1.5" style={{ minHeight: titleLineHeight }}>
           {props.hasQueuedMessages ? <QueuedMessageIcon selected={selected} /> : null}
@@ -1448,7 +1450,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
               )}
               numberOfLines={1}
             >
-              {thread.title}
+              {shownTitle}
             </Text>
             {props.searchMatch ? (
               <ThreadSearchMatchExcerpt
@@ -1503,7 +1505,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         secondaryAction={secondaryAction}
         resetKey={`${thread.environmentId}:${thread.id}:${variant}:${snoozedRow}:${thread.settledAt}:${thread.unsettledAt}:${thread.snoozedUntil}:${thread.pinnedAt}`}
         simultaneousWith={props.simultaneousSwipeGesture}
-        threadTitle={thread.title}
+        threadTitle={shownTitle}
       >
         {(close) => (
           <Menu

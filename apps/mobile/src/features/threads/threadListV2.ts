@@ -93,14 +93,17 @@ export function resolveThreadListV2SnoozePresets(input: {
     : [];
 }
 
+// fork: Hermes on Android names weekdays in English whatever the locale.
+const WAKE_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
 // fork: i18n. English passes nothing, so the menu keeps upstream's device-locale times.
 function snoozeLanguageOptions(input: {
   readonly translate?: Translator;
   readonly locale?: UiLocale;
 }) {
-  const { locale } = input;
+  const { locale, translate } = input;
   return {
-    ...(input.translate ? { translate: input.translate } : {}),
+    ...(translate ? { translate } : {}),
     ...(locale && locale !== "en"
       ? {
           locale: uiFormatLocale(locale),
@@ -109,6 +112,9 @@ function snoozeLanguageOptions(input: {
               uiFormatLocale(locale),
               uiFormatOptions(locale, { hour: "numeric", minute: "2-digit" }),
             ),
+          ...(translate
+            ? { formatWeekday: (date: Date) => translate(WAKE_WEEKDAYS[date.getDay()]!) }
+            : {}),
         }
       : {}),
   };

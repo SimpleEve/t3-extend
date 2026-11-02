@@ -163,7 +163,8 @@ export function buildAddProjectRemoteSourceReadiness(
       return {
         ready: false,
         hint:
-          Option.getOrNull(provider.auth.detail) ??
+          // fork: a fixed server sentence has a translation; other details show as reported.
+          Option.getOrNull(Option.map(provider.auth.detail, (detail) => t(detail))) ??
           t("{label} is not authenticated. Open Source Control settings for setup guidance.", {
             label: provider.label,
           }),

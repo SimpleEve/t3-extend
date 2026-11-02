@@ -13,6 +13,7 @@ import {
   type LimitPoolWindow,
   paceRemainingPercent,
   remainingPercent,
+  usageWindowLabel, // fork: i18n
 } from "@t3tools/shared/usageLimits";
 import type { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { normalizeProviderAccentColor } from "@t3tools/client-runtime/state/provider-instance-display";
@@ -359,6 +360,10 @@ function SegmentTriggers({
   const timeLeft = paceRemainingPercent(window, now);
   const [segmentRef, paceMark] = usePaceMark(timeLeft);
   const resetsIn = formatResetsIn(window, now, t);
+  // fork: the bar swaps "resets in" for ↻; a separate key does that once translated.
+  const resetsBadge = formatResetsIn(window, now, (source, params) =>
+    t(source, params, "reset badge"),
+  );
   const credits = account.limits.resetCredits?.availableCount ?? 0;
   return (
     <>
@@ -430,7 +435,7 @@ function SegmentTriggers({
           ) : null}
           {resetsIn || credits ? (
             <span className="ms-auto flex min-w-0 items-center gap-1.5 overflow-hidden rounded-sm bg-background/85 px-1.5 py-0.5 text-2xs whitespace-nowrap text-foreground tabular-nums">
-              {resetsIn?.replace("resets in ", "↻ ") ?? ""}
+              {resetsBadge?.replace("resets in ", "↻ ") ?? ""}
               {credits ? (
                 <>
                   {resetsIn ? (
@@ -469,6 +474,10 @@ function LegendRow({
   const { account, window } = payload;
   const remaining = remainingPercent(window);
   const resetsIn = formatResetsIn(window, now, t);
+  // fork: the bar swaps "resets in" for ↻; a separate key does that once translated.
+  const resetsBadge = formatResetsIn(window, now, (source, params) =>
+    t(source, params, "reset badge"),
+  );
   const credits = account.limits.resetCredits?.availableCount ?? 0;
   return (
     <PopoverTrigger
@@ -490,7 +499,7 @@ function LegendRow({
       <AccountName account={account} className="min-w-0 truncate font-medium text-foreground" />
       <span className="shrink-0 font-semibold text-foreground tabular-nums">{remaining}%</span>
       <span className="ms-auto flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground tabular-nums">
-        {resetsIn?.replace("resets in ", "↻ ") ?? ""}
+        {resetsBadge?.replace("resets in ", "↻ ") ?? ""}
         {credits ? (
           <>
             {resetsIn ? <span aria-hidden>·</span> : null}
@@ -567,7 +576,9 @@ function PoolWindowCard({
   return (
     <div className="grid items-center gap-x-6 gap-y-3 rounded-lg border border-border/60 p-4 md:grid-cols-[11rem_minmax(0,1fr)]">
       <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-foreground">{label ?? pool.label}</span>
+        <span className="text-sm font-medium text-foreground">
+          {usageWindowLabel(label ?? pool.label, t)}
+        </span>
         <span className="flex items-baseline gap-2">
           <span className="text-3xl font-semibold text-foreground tabular-nums">
             {pool.remainingPercent}%
@@ -585,7 +596,7 @@ function PoolWindowCard({
       </div>
       <PoolBar pool={pool} color={color} now={now} />
       {description ? (
-        <p className="text-xs text-muted-foreground md:col-span-2">{description}</p>
+        <p className="text-xs text-muted-foreground md:col-span-2">{t(description)}</p>
       ) : null}
     </div>
   );

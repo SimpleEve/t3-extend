@@ -106,6 +106,11 @@ export default {
     "无法获取 provider 状态。请打开设置 → 源代码管理并重新扫描。",
   "{provider} is not authenticated. Open Settings -> Source control for setup guidance.":
     "{provider} 未登录。请打开设置 → 源代码管理查看设置指引。",
+  // Fixed auth details the Bitbucket source control reports.
+  "Add a Bitbucket token in Settings → Source Control, or set the T3CODE_BITBUCKET_* environment variables on the server.":
+    "在设置 → 源代码管理中添加 Bitbucket 令牌，或在服务器上设置 T3CODE_BITBUCKET_* 环境变量。",
+  "An access token is configured.": "已配置访问令牌。",
+  "An API token is configured.": "已配置 API 令牌。",
   Visibility: "可见性",
   Private: "私有",
   "Only invited people": "仅受邀的人",

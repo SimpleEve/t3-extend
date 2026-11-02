@@ -190,7 +190,9 @@ export function PullRequestsColumn({
               <PullRequestCompactFilterMenu
                 label={t("Filter by state")}
                 value={state}
-                options={translateFilterOptions(STATE_TABS, t)}
+                options={translateFilterOptions(STATE_TABS, (source) =>
+                  t(source, undefined, "pull request state"),
+                )}
                 onChange={onState}
                 className="shrink-0"
               />

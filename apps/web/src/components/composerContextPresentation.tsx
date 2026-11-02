@@ -55,6 +55,7 @@ import {
   UnresolvedChip,
 } from "./contextChipParts";
 import { useT } from "~/hooks/useT";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type ComposerDraftContextRecord =
   | { kind: "terminal"; record: TerminalContextDraft }
@@ -385,6 +386,8 @@ function UnresolvedContextChip(props: { label: string }) {
 
 interface ComposerContextRenderContext {
   label: string;
+  // fork: passed in so chip labels recompute when the interface language changes.
+  t: Translator;
 }
 
 const composerContextPresentationRegistry = createContextPresentationRegistry<
@@ -456,7 +459,11 @@ const composerContextPresentationRegistry = createContextPresentationRegistry<
           <ContextChip
             icon={isPullRequest ? <PullRequestGlyph.pullRequest /> : <MessageCircleIcon />}
             label={reviewCommentContextLabel(entry.record)}
-            kindLabel={isPullRequest ? pullRequestContextKindLabel(entry.record) : "Review comment"}
+            kindLabel={
+              isPullRequest
+                ? pullRequestContextKindLabel(entry.record, context.t)
+                : "Review comment"
+            }
             details={<ComposerReviewCommentDetails comment={entry.record} />}
             detailsMode={definition.capabilities.details}
             kind={isPullRequest ? PULL_REQUEST_CHIP_KINDS[pullRequestState] : "review-comment"}
@@ -516,7 +523,9 @@ export function ComposerContextReferenceChip(props: {
   label: string;
 }): ReactElement {
   const records = use(ComposerContextRecordsContext);
+  const t = useT(); // fork: interface language
   return composerContextPresentationRegistry.render(props.kind, records.get(props.contextId), {
     label: props.label,
+    t,
   });
 }

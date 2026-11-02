@@ -3,6 +3,8 @@ import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitation
 import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences";
 import { truncate } from "@t3tools/shared/String";
 
+const PLACEHOLDER_THREAD_TITLE = "New thread";
+
 export interface ThreadTitleSeedInput {
   readonly text: string;
   readonly attachments: ReadonlyArray<Pick<ChatAttachment, "type" | "name">>;
@@ -51,5 +53,11 @@ export function deriveThreadTitleSeed(input: ThreadTitleSeedInput): string {
     }
   }
 
-  return "New thread";
+  return PLACEHOLDER_THREAD_TITLE;
+}
+
+// fork: the placeholder is UI copy and shows in the interface language; other titles are the
+// user's. Display only: never send or store the result as a title.
+export function threadDisplayTitle(title: string, t: (source: string) => string): string {
+  return title === PLACEHOLDER_THREAD_TITLE ? t("New thread") : title;
 }

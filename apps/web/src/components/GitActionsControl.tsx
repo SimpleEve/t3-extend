@@ -209,7 +209,8 @@ function getPublishProviderReadiness(input: {
     return {
       ready: false,
       hint:
-        Option.getOrNull(discovered.auth.detail) ??
+        // fork: a fixed server sentence has a translation; other details show as reported.
+        Option.getOrNull(Option.map(discovered.auth.detail, (detail) => t(detail))) ??
         t("{provider} is not authenticated. Open Settings -> Source control for setup guidance.", {
           provider: discovered.label,
         }),

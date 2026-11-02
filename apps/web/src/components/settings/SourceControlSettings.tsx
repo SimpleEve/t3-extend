@@ -65,6 +65,11 @@ function optionLabel(value: Option.Option<string>): string | null {
   return Option.getOrNull(value);
 }
 
+// fork: a fixed server sentence has a translation; other details show as reported.
+function authDetailLabel(detail: Option.Option<string>, t: Translator): string | null {
+  return Option.getOrNull(Option.map(detail, (text) => t(text)));
+}
+
 function isProviderDiscoveryItem(
   item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem,
 ): item is SourceControlProviderDiscoveryItem {
@@ -173,7 +178,7 @@ function itemSummary({
 
   if (auth) {
     if (auth.status === "authenticated") {
-      const authDetail = optionLabel(auth.detail);
+      const authDetail = authDetailLabel(auth.detail, t);
       return (
         <>
           <span>{t("Authenticated")}</span>
@@ -195,7 +200,7 @@ function itemSummary({
     if (auth.status === "unauthenticated" && auth.accounts?.some((entry) => entry.authenticated)) {
       return (
         <span>
-          {optionLabel(auth.detail) ??
+          {authDetailLabel(auth.detail, t) ??
             t("Every {label} host is turned off.", { label: item.label })}
         </span>
       );
@@ -218,7 +223,7 @@ function itemSummary({
         </span>
       );
     }
-    const authDetail = optionLabel(auth.detail);
+    const authDetail = authDetailLabel(auth.detail, t);
     return (
       <span>
         {t("Could not verify {label}.", { label: item.label })} {authDetail ?? t(item.installHint)}

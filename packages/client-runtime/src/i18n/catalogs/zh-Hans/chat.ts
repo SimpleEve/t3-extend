@@ -624,7 +624,7 @@ export default {
   "Context: {percent}% used": "上下文：已用 {percent}%",
   "Context: {tokens} tokens used": "上下文：已用 {tokens} token",
   "{used} of {max} tokens": "{used} / {max} token",
-  "Resets in {duration} · {time}": "{duration} 后重置 · {time}",
+  "Resets in {duration} · {time}": "{duration}后重置 · {time}",
   "Ahead of pace": "超速",
   "On pace": "匀速",
   "Under pace": "低于匀速",
@@ -1181,6 +1181,7 @@ export default {
     "它在另一台机器上，这台机器的 Agent 读不到。请移除它，或切回去再发送。",
   "Thread no longer available": "对话已不可用",
   "{kindLabel}, {label}": "{kindLabel}，{label}",
+  "{kindLabel}, {label}, {title}": "{kindLabel}，{label}，{title}",
   "Preview video attachment, {name}, {size}": "预览视频附件，{name}，{size}",
   "{name} was not saved with this draft. Attach it again to send it.":
     "{name} 没有随草稿保存。请重新附加后再发送。",
