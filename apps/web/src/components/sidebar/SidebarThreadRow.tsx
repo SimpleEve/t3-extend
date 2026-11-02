@@ -539,8 +539,8 @@ type SidebarThreadRowProps = {
   // "folder-multiline" adds the card's branch and PR line under it.
   variant: "card" | "slim" | "folder" | "folder-multiline";
   navigationParent?: string | undefined;
-  // fork: a row one level under a worktree header in the project view.
-  nested?: boolean | undefined;
+  // fork: a row one level under a worktree header in the project view; "last" ends its guide line.
+  nested?: "row" | "last" | undefined;
   variantAction: SidebarSweepAction;
   settlementSupported: boolean;
   snoozeSupported: boolean;
@@ -1210,8 +1210,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           // fork: the worktree's guide line runs through this row. pb-px/-mb-px cover the
           // gap between rows without moving them; the line sits under the header icon
           // (ps-7 + half of size-3.5), and ps-12 lines titles up with the header label.
+          // The group's last row ends the line at its middle, leaving a gap before the next header.
           props.nested &&
-            "relative -mb-px pb-px before:pointer-events-none before:absolute before:inset-y-0 before:left-[35px] before:z-10 before:w-px before:bg-sidebar-border",
+            cn(
+              "relative -mb-px pb-px before:pointer-events-none before:absolute before:top-0 before:left-[35px] before:z-10 before:w-px before:bg-sidebar-border",
+              props.nested === "last" ? "before:bottom-1/2" : "before:bottom-0",
+            ),
         )}
       >
         <Tooltip disabled={sortable?.isDragging}>

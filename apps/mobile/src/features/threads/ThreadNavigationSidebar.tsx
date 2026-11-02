@@ -53,7 +53,11 @@ import { useThreadListSearchMatches } from "./useThreadListSearchMatches";
 import { useHomeListOptions } from "../home/home-list-options";
 import { buildHomeListFilterMenu } from "../home/home-list-filter-menu";
 import { useThreadListViewPreferences } from "../../fork/threadListView"; // fork: thread list views
-import { ThreadListV2GroupHeader, ThreadListV2NestedRow } from "../../fork/ThreadListGroupHeader"; // fork: thread list views
+import {
+  NESTED_ROW_INDENT,
+  ThreadListV2GroupHeader,
+  ThreadListV2NestedRow,
+} from "../../fork/ThreadListGroupHeader"; // fork: thread list views
 import {
   threadListViewFromMenuEvent,
   threadListViewMenuAction,
@@ -621,7 +625,7 @@ function ThreadNavigationSidebarPane(
               !activeNewTask &&
               scopedThreadKey(thread.environmentId, thread.id) === props.selectedThreadKey
             }
-            fullSwipeWidth={props.width - 20}
+            fullSwipeWidth={props.width - 20 - (item.nested ? NESTED_ROW_INDENT : 0)}
             onSelectThread={handleSelectThread}
             onOpenThreadPullRequests={handleOpenThreadPullRequests}
             onDeleteThread={confirmDeleteThread}
@@ -658,7 +662,9 @@ function ThreadNavigationSidebarPane(
         );
         // fork: thread list views. Rows under a worktree header sit one level in.
         return item.nested ? (
-          <ThreadListV2NestedRow pane="sidebar">{row}</ThreadListV2NestedRow>
+          <ThreadListV2NestedRow pane="sidebar" last={item.nested === "last"}>
+            {row}
+          </ThreadListV2NestedRow>
         ) : (
           row
         );

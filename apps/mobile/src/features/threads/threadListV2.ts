@@ -392,8 +392,8 @@ export interface ThreadListV2ThreadListItem {
   readonly hasQueuedMessages: boolean;
   readonly canMoveUp: boolean;
   readonly canMoveDown: boolean;
-  /** fork: a row drawn one level under a worktree header in the project view. */
-  readonly nested?: boolean;
+  /** fork: a row one level under a worktree header in the project view; "last" ends its guide line. */
+  readonly nested?: "row" | "last";
 }
 
 export interface ThreadListV2PendingListItem {
@@ -704,11 +704,13 @@ function projectViewListItems(
     translate ? translate(text, undefined, context) : text;
   // Rows after a worktree header sit one level under it; a project header ends that.
   let underWorktree = false;
-  return rows.flatMap((row): ThreadListV2ListItem[] => {
+  return rows.flatMap((row, index): ThreadListV2ListItem[] => {
     if (row.kind === "thread") {
       const item = itemByThread.get(row.thread);
       if (!item) return [];
-      return [underWorktree && item.type === "v2-thread" ? { ...item, nested: true } : item];
+      if (!underWorktree || item.type !== "v2-thread") return [item];
+      const last = rows[index + 1]?.kind !== "thread";
+      return [{ ...item, nested: last ? "last" : "row" }];
     }
     underWorktree = row.kind === "worktree";
     const worktree = row.kind === "worktree" ? row.worktree : null;

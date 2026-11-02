@@ -89,7 +89,11 @@ import { useWorkspaceTabs } from "../workspace/WorkspaceTabsContext";
 import { ThreadListFilters } from "./ThreadListFilters";
 import { useT } from "../../hooks/useT"; // fork: i18n
 import { useThreadListViewPreferences } from "../../fork/threadListView"; // fork: thread list views
-import { ThreadListV2GroupHeader, ThreadListV2NestedRow } from "../../fork/ThreadListGroupHeader"; // fork: thread list views
+import {
+  NESTED_ROW_INDENT,
+  ThreadListV2GroupHeader,
+  ThreadListV2NestedRow,
+} from "../../fork/ThreadListGroupHeader"; // fork: thread list views
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 interface HomeScreenProps {
@@ -600,7 +604,11 @@ export function HomeScreen(props: HomeScreenProps) {
       <ThreadListV2Row
         pane={primaryColumn ? "sidebar" : "screen"}
         selected={scopedThreadKey(thread.environmentId, thread.id) === selectedThreadKey}
-        fullSwipeWidth={fullSwipeWidth}
+        fullSwipeWidth={
+          item.nested && fullSwipeWidth !== undefined
+            ? fullSwipeWidth - NESTED_ROW_INDENT
+            : fullSwipeWidth
+        }
         onNewThreadOnBranch={props.onNewThreadOnBranch}
         thread={thread}
         variant={item.item.variant}
@@ -669,7 +677,10 @@ export function HomeScreen(props: HomeScreenProps) {
     );
     // fork: thread list views. Rows under a worktree header sit one level in.
     return item.nested ? (
-      <ThreadListV2NestedRow pane={primaryColumn ? "sidebar" : "screen"}>
+      <ThreadListV2NestedRow
+        pane={primaryColumn ? "sidebar" : "screen"}
+        last={item.nested === "last"}
+      >
         {row}
       </ThreadListV2NestedRow>
     ) : (

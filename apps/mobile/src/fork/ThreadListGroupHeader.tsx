@@ -119,16 +119,23 @@ export const ThreadListV2GroupHeader = memo(function ThreadListV2GroupHeader(pro
   );
 });
 
+/** How far a nested row is pushed in; callers narrow its full-swipe width by the same amount. */
+export const NESTED_ROW_INDENT = 28;
+
 /** A thread row one level under a worktree header, with the guide line through its gutter. */
 export const ThreadListV2NestedRow = memo(function ThreadListV2NestedRow(
-  props: ViewProps & { readonly pane?: "screen" | "sidebar" },
+  props: ViewProps & {
+    readonly pane?: "screen" | "sidebar";
+    /** The group's last row ends the line at its middle, leaving a gap before the next header. */
+    readonly last?: boolean;
+  },
 ) {
-  const { pane, children, ...rest } = props;
+  const { pane, last, children, ...rest } = props;
   return (
-    <View {...rest} className="pl-7">
+    <View {...rest} style={{ paddingLeft: NESTED_ROW_INDENT }}>
       <View
-        className={cn(guideLineClassName(pane === "sidebar"), "inset-y-0")}
-        style={guideX(pane === "sidebar")}
+        className={cn(guideLineClassName(pane === "sidebar"), "top-0")}
+        style={{ ...guideX(pane === "sidebar"), bottom: last ? "50%" : 0 }}
       />
       {children}
     </View>

@@ -1819,16 +1819,16 @@ describe("project view list items", () => {
         .filter((item) => item.type === "v2-thread" || item.type === "v2-group-header")
         .map((item) =>
           item.type === "v2-thread"
-            ? `${item.item.thread.id}:${item.nested === true ? "nested" : "flat"}`
+            ? `${item.item.thread.id}:${item.nested ?? "flat"}`
             : `${item.title}:${item.hasRows ? "rows" : "no-rows"}`,
         );
     expect(nesting([], null)).toEqual([
       "pinned:flat",
       "Alpha:no-rows",
       "Main checkout:rows",
-      "a-main:nested",
+      "a-main:last",
       "feat:rows",
-      "a-wt:nested",
+      "a-wt:last",
       "Beta:no-rows",
       "b-main:flat",
       "Other projects:no-rows",
@@ -1838,7 +1838,7 @@ describe("project view list items", () => {
     // A folded worktree still draws the open thread, one level in; with none open it draws no rows.
     expect(
       nesting([`project:worktree:${environmentId}:${projectA}:/w/feat`], `${environmentId}:a-wt`),
-    ).toContain("a-wt:nested");
+    ).toContain("a-wt:last");
     expect(nesting([`project:worktree:${environmentId}:${projectA}:/w/feat`], null)).toContain(
       "feat:no-rows",
     );
