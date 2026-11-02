@@ -725,7 +725,7 @@ export default {
   "Install on {owner}": "安装到 {owner}",
   "Give {appName} access to {owner}": "授予 {appName} 访问 {owner} 的权限",
   "It isn't installed there, so GitHub requests for {repository} use your own login and its lower rate limit.":
-    "它没有安装在那里，所以 {repository} 的 GitHub 请求使用你自己的登录，速率限制较低。",
+    "它没有安装在那里，所以 {repository} 的 GitHub 请求会使用你自己的登录，速率限制更低。",
   "Reconnect {label} to set up its providers.": "重新连接 {label} 后才能设置它的 provider。",
   "Connect an environment to set up its providers.": "连接一个环境后才能设置它的 provider。",
   Computer: "电脑",

@@ -79,7 +79,7 @@ export function LinkRequestCard(props: {
   const t = useT();
   const { item, visibility } = props.projectedItem;
   if (item.type !== "link_request") return null;
-  const display = linkRequestDisplay(item, visibility, (access) => accessLabel(access, t));
+  const display = linkRequestDisplay(item, visibility, (access) => accessLabel(access, t), t);
   if (display.kind === "pending") {
     return <PendingLinkRequest environmentId={props.environmentId} item={item} />;
   }
@@ -285,7 +285,7 @@ function LinkRequestSheet(props: {
       const minted = await mintPairingCodeOn(targetId, access);
       if (Result.isFailure(minted)) {
         setMintFailed((failed) => new Set(failed).add(targetId));
-        setError(linkRequestFailureMessage(minted.failure));
+        setError(linkRequestFailureMessage(minted.failure, t));
         return null;
       }
       code = minted.success;

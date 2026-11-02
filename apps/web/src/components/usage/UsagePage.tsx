@@ -1376,22 +1376,22 @@ function UsageEnvironmentFilter({
           const progress = usageEnvironmentProgress(environment, refreshing);
           const status =
             environment.error !== null
-              ? "Unavailable"
+              ? t("Unavailable")
               : environment.summary !== null &&
                   !isCompatibleUsageContractVersion(
                     environment.summary.contractVersion,
                     USAGE_CONTRACT_VERSION,
                   )
-                ? "Update required"
+                ? t("Update required")
                 : !environment.isConnected
-                  ? "Connecting…"
+                  ? t("Connecting…")
                   : progress.phase === "loading"
-                    ? "Scanning…"
+                    ? t("Scanning…")
                     : progress.phase === "stale"
-                      ? "Refreshing…"
+                      ? t("Refreshing…")
                       : progress.phase === "partway"
-                        ? updatingProvidersLabel(progress.providers, providerLabel)
-                        : "Ready";
+                        ? updatingProvidersLabel(progress.providers, providerLabel, t)
+                        : t("Ready");
           return (
             <MenuCheckboxItem
               key={environment.environmentId}

@@ -678,6 +678,7 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
   };
   const pendingBackgroundWork = presentPendingBackgroundWork(
     props.selectedThread.pendingBackgroundTasks,
+    t,
   );
   const floatingStatus = ((): FloatingWorkingStatus | null => {
     const connectionStatus = connectionFloatingStatus({
@@ -738,7 +739,7 @@ function ThreadDetailBody(props: ThreadDetailScreenProps) {
     if (childInput && contentPresentationKind === "ready") {
       return {
         kind: "child-input",
-        label: childThreadInputsTitle(childThreadInputs),
+        label: childThreadInputsTitle(childThreadInputs, t),
         accessibilityLabel: childInput.hasPendingApprovals
           ? t("Open approval from {title}", { title: childInput.title })
           : t("Open question from {title}", { title: childInput.title }),

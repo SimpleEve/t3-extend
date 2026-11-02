@@ -711,7 +711,7 @@ function PlatformIcon(props: {
                 ).map(([heading, environments]) =>
                   environments.length > 0 ? (
                     <div key={heading}>
-                      <dt className="text-muted-foreground">{heading}</dt>
+                      <dt className="text-muted-foreground">{t(heading)}</dt>
                       {environments.map((environment) => {
                         const reason =
                           heading === "Not available"

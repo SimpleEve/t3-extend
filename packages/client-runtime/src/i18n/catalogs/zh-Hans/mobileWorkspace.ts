@@ -182,13 +182,13 @@ export default {
     "这个会话无法打开浏览器画面，请重新连接后再试。",
   "This tab was closed.": "这个标签页已关闭。",
   "Browser stream failed.": "浏览器画面传输失败。",
-  "The page asks for files.": "页面要求选择文件。",
-  "The page asks for a file.": "页面要求选择一个文件。",
+  "The page asks for files.": "页面请求选择文件。",
+  "The page asks for a file.": "页面请求选择一个文件。",
   "Choose files": "选择文件",
   "Choose file": "选择文件",
   "Dialog response": "对话框回复",
   Accept: "接受",
-  "Take control to respond.": "请接管后再回复。",
+  "Take control to respond.": "接管后才能回复。",
   "Copy {command}": "复制 {command}",
   "Downloaded {fileName}": "已下载 {fileName}",
   "Could not save the download": "无法保存下载内容",
@@ -226,7 +226,7 @@ export default {
   URL: "URL",
   "Permissions have changed for {label}": "{label} 的权限已变更",
   "This connection still uses the old permissions, so some actions may no longer be available. Pair again using a new link with the permissions you need.":
-    "这个连接仍在使用旧权限，部分操作可能不可用。请使用包含所需权限的新链接重新配对。",
+    "这个连接仍在使用旧权限，部分操作可能不可用。请用带所需权限的新链接重新配对。",
   "Got it": "知道了",
 
   "Could not shut down device": "无法关闭设备",
@@ -282,7 +282,7 @@ export default {
   "The file could not be opened. Check the connection and try again.":
     "无法打开文件。请检查连接后重试。",
   Table: "表格",
-  "Copy preview": "复制预览",
+  "Copy preview": "复制预览内容",
   "Opening share sheet…": "正在打开分享面板…",
   "Open in file viewer": "在文件查看器中打开",
   "Draft attachment": "草稿附件",
@@ -430,7 +430,7 @@ export default {
   "Open the link again after the clone to get the prompt.":
     "克隆完成后再次打开链接即可获取提示词。",
   "You don't have {repository}": "你没有 {repository}",
-  "Use without project": "不使用项目",
+  "Use without project": "不选项目直接使用",
   "Prompt from a link": "来自链接的提示词",
   "Linked prompt ready. Replace draft?": "链接中的提示词已准备好，要替换草稿吗？",
   "Keep mine": "保留我的",
@@ -633,7 +633,7 @@ export default {
   "This thread was deleted or is no longer available.": "这个对话已删除或不再可用。",
   "Messages not cached": "消息没有缓存",
   "Reconnect this environment to load the conversation.": "请重新连接这个环境以加载对话。",
-  "Could not turn thread into a project": "无法把对话转为项目",
+  "Could not turn thread into a project": "无法把对话转成项目",
   "Pull requests are unavailable for this project.": "这个项目无法使用 PR。",
   "Couldn't link this {singular}": "无法关联这个 {singular}",
   "Couldn't unlink this {singular}": "无法取消关联这个 {singular}",
@@ -642,7 +642,7 @@ export default {
   "{singular} URL or #42": "{singular} URL 或 #42",
   "Use a {singular} URL, 123, or #123.": "请使用 {singular} URL、123 或 #123。",
   "Couldn't change watching": "无法更改关注状态",
-  "Could not start triage": "无法开始 triage",
+  "Could not start triage": "无法开始排查",
   "{message} Run {CLI_COMMAND} in a terminal on that machine instead.":
     "{message} 请改为在那台机器的终端运行 {CLI_COMMAND}。",
   "Type {CLI_COMMAND} instead.": "请改为输入 {CLI_COMMAND}。",
@@ -663,7 +663,7 @@ export default {
     "第 {index} 段，{name}，剩余 {percent}%，窗口时间还剩 {timeLeft}%",
   "Show account details": "显示账号详情",
   "{credits} reset credits banked": "存有 {credits} 次重置额度",
-  "Select an environment to see limits.": "选择环境以查看上限。",
+  "Select an environment to see limits.": "选择一个环境才能查看上限。",
   "{failedLabels} could not refresh limits. Showing the last known values.":
     "{failedLabels} 无法刷新上限，显示上次已知的数值。",
   "This account is no longer reporting limits on the selected environments.":
@@ -692,8 +692,8 @@ export default {
   "Counted once across environments sharing a transcript directory: {duplicateSources}":
     "共用记录目录的环境只统计一次：{duplicateSources}",
   "Scanning provider transcripts…": "正在扫描 provider 记录…",
-  "Connect an environment to see usage.": "连接环境以查看用量。",
-  "Select an environment to see usage.": "选择环境以查看用量。",
+  "Connect an environment to see usage.": "连接一个环境才能查看用量。",
+  "Select an environment to see usage.": "选择一个环境才能查看用量。",
   "Hourly cost": "每小时费用",
   "Hourly processed tokens": "每小时处理的 token",
   "Daily cost": "每日费用",
@@ -764,7 +764,7 @@ export default {
   "Checked out in this thread": "已在这个对话中检出",
   "Checked out in another worktree": "已在另一个 worktree 中检出",
   "Local branch": "本地分支",
-  "(detached HEAD)": "（游离 HEAD）",
+  "(detached HEAD)": "（分离的 HEAD）",
   "Cancel commit": "取消提交",
   "You’re on the default branch. You can create a new branch when committing.":
     "你在默认分支上。提交时可以新建分支。",
