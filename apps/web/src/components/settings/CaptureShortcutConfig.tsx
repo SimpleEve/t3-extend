@@ -314,7 +314,7 @@ export function CaptureShortcutConfig({
           <p className="font-medium text-foreground">{t("Manual setup")}</p>
           <p>
             {niri
-              ? "Paste this inside binds { … } in your Niri config, then save."
+              ? t("Paste this inside binds { … } in your Niri config, then save.")
               : t("Add this binding to your Hyprland config, then save.")}{" "}
             {t("Change the keys if needed.")}
           </p>

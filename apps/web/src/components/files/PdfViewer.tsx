@@ -27,6 +27,7 @@ import {
   visiblePdfPages,
 } from "./pdfLayout";
 import "./pdfViewer.css";
+import { useT } from "~/hooks/useT";
 
 const MAX_PAGES = 2000;
 const MAX_FIND_TEXT = 4 * 1024 * 1024;
@@ -46,6 +47,7 @@ function PdfPage(props: {
   onSize: (index: number, ratio: number) => void;
   onError: (error: string) => void;
 }) {
+  const t = useT();
   const canvas = useRef<HTMLCanvasElement>(null);
   const text = useRef<HTMLDivElement>(null);
   const { document: pdf, index, width, onSize, onError } = props;
@@ -117,7 +119,11 @@ function PdfPage(props: {
   }, [props.query]);
   return (
     <>
-      <canvas ref={canvas} aria-label={`Page ${index + 1}`} className="block h-full w-full" />
+      <canvas
+        ref={canvas}
+        aria-label={t("Page {value}", { value: index + 1 })}
+        className="block h-full w-full"
+      />
       <div ref={text} data-pdf-text-layer />
     </>
   );
@@ -129,6 +135,7 @@ export default function PdfViewer(props: {
   initialView?: PdfViewState;
   onViewChange?: (view: PdfViewState) => void;
 }) {
+  const t = useT();
   const [initialView] = useState<PdfViewState>(
     () => props.initialView ?? { page: 0, offset: 0, zoom: null, left: 0 },
   );
@@ -326,41 +333,43 @@ export default function PdfViewer(props: {
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-1 border-b border-border/60 px-2 py-1 text-xs">
         <span className="mr-auto px-1 tabular-nums" aria-live="polite">
-          {pdf ? `${current + 1} / ${pdf.numPages} pages` : "PDF"}
+          {pdf
+            ? t("{value} / {numPages} pages", { value: current + 1, numPages: pdf.numPages })
+            : "PDF"}
         </span>
         <FileSurfaceAction
-          label="Previous page"
+          label={t("Previous page")}
           disabled={!pdf || current === 0}
           onPress={() => showPage(current - 1)}
         >
           <ChevronUpIcon className="size-3.5" />
         </FileSurfaceAction>
         <FileSurfaceAction
-          label="Next page"
+          label={t("Next page")}
           disabled={!pdf || current + 1 >= pdf.numPages}
           onPress={() => showPage(current + 1)}
         >
           <ChevronDownIcon className="size-3.5" />
         </FileSurfaceAction>
         <FileSurfaceAction
-          label="Zoom out"
+          label={t("Zoom out")}
           disabled={scale <= PDF_MIN_ZOOM}
           onPress={() => changeZoom(stepPdfZoom(scale, -1))}
         >
           <MinusIcon className="size-3.5" />
         </FileSurfaceAction>
         <span className="min-w-14 text-center tabular-nums">
-          {zoom === null ? "Fit width" : `${Math.round(scale * 100)}%`}
+          {zoom === null ? t("Fit width") : `${Math.round(scale * 100)}%`}
         </span>
         <FileSurfaceAction
-          label="Zoom in"
+          label={t("Zoom in")}
           disabled={scale >= PDF_MAX_ZOOM}
           onPress={() => changeZoom(stepPdfZoom(scale, 1))}
         >
           <PlusIcon className="size-3.5" />
         </FileSurfaceAction>
         <FileSurfaceAction
-          label="Fit width"
+          label={t("Fit width")}
           onPress={() => {
             changeZoom(null);
             scroll.current?.scrollTo({ left: 0 });
@@ -373,8 +382,8 @@ export default function PdfViewer(props: {
             ref={find}
             size="compact"
             type="search"
-            aria-label="Find in PDF"
-            placeholder="Find in PDF"
+            aria-label={t("Find in PDF")}
+            placeholder={t("Find in PDF")}
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -387,11 +396,11 @@ export default function PdfViewer(props: {
           <>
             <span role="status">
               {finding
-                ? "Searching…"
+                ? t("Searching…")
                 : (findError ?? `${matches.length ? match + 1 : 0}/${matches.length}`)}
             </span>
             <FileSurfaceAction
-              label="Next matching page"
+              label={t("Next matching page")}
               disabled={!matches.length}
               onPress={() => {
                 const next = (match + 1) % matches.length;

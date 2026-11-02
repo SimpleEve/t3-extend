@@ -30,6 +30,7 @@ import {
 } from "./linkEnvironmentAtoms";
 import { readCachedPrimaryCloudLinkState, usePrimaryCloudLinkState } from "./primaryCloudLinkState";
 import { resolveRelayClerkTokenOptions } from "./publicConfig";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export interface CloudLinkDesiredState {
   readonly managedTunnel: boolean;
@@ -93,7 +94,7 @@ export function useCloudLinkController() {
     setOperationError(traceId ? `${message} Trace ID: ${traceId}` : message);
     toastManager.add({
       type: "error",
-      title: "Could not update T3 Connect",
+      title: translate(getUiLocale(), "Could not update T3 Connect"),
       description: message,
       data: traceId
         ? {

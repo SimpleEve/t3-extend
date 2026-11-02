@@ -194,7 +194,10 @@ export function WelcomeWizard({
         } else if (importedThreadCount > 0) {
           toastManager.add({
             type: "success",
-            title: `Imported ${importedThreadCount} ${importedThreadCount === 1 ? "thread" : "threads"}`,
+            title:
+              importedThreadCount === 1
+                ? t("Imported {count} thread", { count: importedThreadCount })
+                : t("Imported {count} threads", { count: importedThreadCount }),
           });
         }
         return true;
@@ -711,7 +714,7 @@ function AgentsStep({
               environmentId={environmentId}
               machineLabel={
                 environments.find((environment) => environment.environmentId === environmentId)
-                  ?.label ?? "Computer"
+                  ?.label ?? t("Computer")
               }
             />
           ))}
@@ -1186,7 +1189,7 @@ function AgentInstallTerminal({
             threadRef={threadRef}
             threadId={AGENT_ONBOARDING_THREAD_ID}
             terminalId={terminalId}
-            terminalLabel={`Install ${driver}`}
+            terminalLabel={t("Install {driver}", { driver })}
             cwd={cwd}
             providerInstanceId={providerInstanceId}
             advancedTypography={advancedTypography}
@@ -1459,7 +1462,10 @@ function ImportStep({
       {candidates.length > 0 ? (
         <div className="mt-5 flex items-center justify-between gap-3 text-xs text-muted-foreground">
           <span role="status">
-            {selected.length} of {candidates.length} selected
+            {t("{length} of {length2} selected", {
+              length: selected.length,
+              length2: candidates.length,
+            })}
           </span>
           <div className="flex items-center gap-1">
             <Button
@@ -1548,7 +1554,9 @@ function ImportStep({
         >
           {isImporting
             ? t("Importing…")
-            : `Import ${selected.length} ${selected.length === 1 ? "project" : "projects"}`}
+            : selected.length === 1
+              ? t("Import {count} project", { count: selected.length })
+              : t("Import {count} projects", { count: selected.length })}
         </Button>
       </div>
     </StepShell>
@@ -1608,7 +1616,9 @@ function ImportCandidateList({
               <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-90" />
               <span className="truncate text-sm text-muted-foreground">{t("Other folders")}</span>
               <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">
-                {other.length} {other.length === 1 ? "folder" : "folders"}
+                {other.length === 1
+                  ? t("{count} folder", { count: other.length })
+                  : t("{count} folders", { count: other.length })}
               </span>
             </CollapsibleTrigger>
           </div>

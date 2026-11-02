@@ -161,6 +161,7 @@ import { useReviewGuideWriter } from "./guide/useReviewGuideWriter";
 import { useT } from "~/hooks/useT"; // fork: interface language
 import { changeRequestTerm } from "./changeRequestTerm";
 import type { Translator } from "@t3tools/client-runtime/i18n";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 // fork: the toast reads these when it shows, so `t` translates whole sentences then.
 const actionFailureLabels = (term: string, t: Translator): Record<PullRequestAction, string> => ({
@@ -224,7 +225,7 @@ const composerTargetKey = (target: ScopedThreadRef | DraftId): string =>
 function reportCheckoutCommandError(error: Error) {
   toastManager.add({
     type: "error",
-    title: "Could not copy checkout command",
+    title: translate(getUiLocale(), "Could not copy checkout command"),
     description: error.message,
   });
 }
@@ -484,11 +485,11 @@ export function PullRequestDetailPanel({
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const { copyToClipboard: copyReference } = useCopyToClipboard<string>({
     target: `${terminology.singular} reference`,
-    onCopy: (label) => toastManager.add({ type: "success", title: `${label} copied` }),
+    onCopy: (label) => toastManager.add({ type: "success", title: t("{label} copied", { label }) }),
     onError: (error, label) =>
       toastManager.add({
         type: "error",
-        title: `Failed to copy ${label}`,
+        title: t("Failed to copy {label}", { label }),
         description: error.message,
       }),
   });
@@ -1485,7 +1486,7 @@ export function PullRequestDetailPanel({
                       iconClassName="size-3"
                     />
                     <ArrowLeftIcon
-                      aria-label="receives changes from"
+                      aria-label={t("receives changes from")}
                       className="size-3 shrink-0 opacity-60"
                     />
                     <Tooltip>
@@ -1502,9 +1503,15 @@ export function PullRequestDetailPanel({
                   <span className="ml-auto inline-flex shrink-0 items-baseline justify-end gap-2 text-2xs">
                     <span
                       className="inline-flex items-baseline gap-1 tabular-nums"
-                      aria-label={`${detail.changedFiles.toLocaleString()} changed ${
-                        detail.changedFiles === 1 ? "file" : "files"
-                      }`}
+                      aria-label={
+                        detail.changedFiles === 1
+                          ? t("{count} changed file", {
+                              count: detail.changedFiles.toLocaleString(),
+                            })
+                          : t("{count} changed files", {
+                              count: detail.changedFiles.toLocaleString(),
+                            })
+                      }
                     >
                       <FileDiffIcon aria-hidden className="size-3 self-center" />
                       {detail.changedFiles.toLocaleString()}
@@ -1559,7 +1566,7 @@ export function PullRequestDetailPanel({
                 }
                 updated={
                   <span>
-                    updated <RelativeTime timestamp={detail.updatedAt} />
+                    {t("updated")} <RelativeTime timestamp={detail.updatedAt} />
                   </span>
                 }
                 checkout={
@@ -1568,8 +1575,8 @@ export function PullRequestDetailPanel({
                       key={checkoutCommand}
                       value={checkoutCommand}
                       target={`${terminology.singular} checkout command`}
-                      copyLabel="Copy checkout command"
-                      copiedLabel="Checkout command copied"
+                      copyLabel={t("Copy checkout command")}
+                      copiedLabel={t("Checkout command copied")}
                       className="ml-auto font-mono"
                       tooltipSide="bottom"
                       onError={reportCheckoutCommandError}
@@ -1635,7 +1642,9 @@ export function PullRequestDetailPanel({
               ) : (
                 <PullRequestChecksStatusLine
                   className="text-muted-foreground"
-                  aria-label={checksSummary ? `Checks: ${checksSummary}` : t("Checks")}
+                  aria-label={
+                    checksSummary ? t("Checks: {summary}", { summary: checksSummary }) : t("Checks")
+                  }
                   icon={
                     checksState !== null ? (
                       <PullRequestChecksPopover
@@ -1703,7 +1712,7 @@ export function PullRequestDetailPanel({
                       <PullRequestReviewOutcomeIcon outcome="approved" className="size-3" />
                       {approvalCount.toLocaleString()}
                       <span className="sr-only">
-                        {approvalCount === 1 ? "approval" : "approvals"}
+                        {approvalCount === 1 ? t("approval") : t("approvals")}
                       </span>
                     </span>
                   ) : null}

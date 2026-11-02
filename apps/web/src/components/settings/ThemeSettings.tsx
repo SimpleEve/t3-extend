@@ -918,14 +918,17 @@ export function ThemeLibrary({
       <ThemeImportDialog
         onImportedMany={(importedThemes, { updated }) => {
           if (updated) refreshTheme();
-          const verb = updated ? "updated" : "added";
           toastManager.add(
             stackedThreadToast({
               type: "success",
               title:
                 importedThemes.length === 1
-                  ? `${importedThemes[0]!.label} ${verb}`
-                  : `${importedThemes.length} themes ${verb}`,
+                  ? updated
+                    ? t("{label} updated", { label: importedThemes[0]!.label })
+                    : t("{label} added", { label: importedThemes[0]!.label })
+                  : updated
+                    ? t("{count} themes updated", { count: importedThemes.length })
+                    : t("{count} themes added", { count: importedThemes.length }),
               description: importedThemes.map((imported) => imported.label).join(", "),
             }),
           );
@@ -938,7 +941,10 @@ export function ThemeLibrary({
               stackedThreadToast({
                 type: "success",
                 title: t("{label} added", { label: importedTheme.label }),
-                description: `It’s now your ${modes[0]!} theme.`,
+                description:
+                  modes[0] === "light"
+                    ? t("It’s now your light theme.")
+                    : t("It’s now your dark theme."),
               }),
             );
             return true;

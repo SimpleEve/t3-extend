@@ -8,6 +8,7 @@ import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { readLocalApi } from "~/localApi";
 
 import { toastManager } from "../ui/toast";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export type PullRequestLinkContextMenuAction = "copy-link" | "open-external";
 
@@ -46,7 +47,10 @@ export async function showPullRequestLinkContextMenu({
   } catch {
     toastManager.add({
       type: "error",
-      title: action === "copy-link" ? "Could not copy the link" : "Could not open the link",
+      title:
+        action === "copy-link"
+          ? translate(getUiLocale(), "Could not copy the link")
+          : translate(getUiLocale(), "Could not open the link"),
     });
   }
 }

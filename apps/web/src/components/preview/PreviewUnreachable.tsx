@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "~/components/ui/button";
 
 import { describePreviewError } from "./errorCodeMessages";
+import { interpolateNodes } from "~/lib/interpolateNodes";
 import { useT } from "~/hooks/useT"; // fork: interface language
 
 interface Props {
@@ -34,8 +35,10 @@ export function PreviewFileNotShown({
           {t("This file can’t be shown here")}
         </h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          <span className="font-semibold text-foreground">{fileName}</span> from {host} was
-          downloaded instead.
+          {interpolateNodes(t("{value} from {host} was downloaded instead."), {
+            value: <span className="font-semibold text-foreground">{fileName}</span>,
+            host,
+          })}
         </p>
         <div className="mt-auto flex items-center gap-2 pt-8">
           <div className="flex-1" />
@@ -44,7 +47,7 @@ export function PreviewFileNotShown({
           </Button>
           {downloadUrl ? (
             <Button type="button" size="sm" render={<a href={downloadUrl} download={fileName} />}>
-              Download
+              {t("Download")}
             </Button>
           ) : null}
         </div>
@@ -105,7 +108,7 @@ export function PreviewUnreachable({ url, code, description, onReload, move }: P
             </Button>
           ) : null}
           <Button type="button" size="sm" onClick={onReload}>
-            Reload
+            {t("Reload")}
           </Button>
         </div>
       </div>

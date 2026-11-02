@@ -206,7 +206,9 @@ export function AcpRegistrySearchStep({
           : isRefreshing
             ? t("Refreshing ACP Registry results.")
             : results
-              ? `${resultCount} compatible ${resultCount === 1 ? "agent" : "agents"} found.`
+              ? resultCount === 1
+                ? t("{count} compatible agent found.", { count: resultCount })
+                : t("{count} compatible agents found.", { count: resultCount })
               : ""}
       </div>
 

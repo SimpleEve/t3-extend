@@ -177,7 +177,7 @@ export function backgroundWorkNowItem(input: {
 }): ThreadNowItem | null {
   const { t } = input;
   const { onOpenThread } = input;
-  const presentation = presentPendingBackgroundWork(input.tasks);
+  const presentation = presentPendingBackgroundWork(input.tasks, t);
   if (presentation === null) return null;
   const rows = presentation.items.map((task) => {
     // Same key derivePendingBackgroundWork gives turn-item tasks; subagent items carry progress.

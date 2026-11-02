@@ -431,9 +431,11 @@ function BrowserViewportSetting({ disabled }: { readonly disabled: boolean }) {
                       size="icon-sm"
                       variant="ghost-muted"
                       disabled={disabled}
-                      aria-label={`Rotate to ${
-                        presentedSize.height >= presentedSize.width ? "landscape" : "portrait"
-                      }`}
+                      aria-label={
+                        presentedSize.height >= presentedSize.width
+                          ? t("Rotate to landscape")
+                          : t("Rotate to portrait")
+                      }
                       onClick={() =>
                         updateSettings({ browserDefaultViewport: rotateViewport(sized) })
                       }
@@ -886,7 +888,9 @@ function DeviceIntegrationControls({
       toastManager.add({
         type: "error",
         title: t("Device settings not saved on all environments"),
-        description: `Could not update ${failed.map((environment) => environment.label).join(", ")}.`,
+        description: t("Could not update {value}.", {
+          value: failed.map((environment) => environment.label).join(", "),
+        }),
       });
     }
   };

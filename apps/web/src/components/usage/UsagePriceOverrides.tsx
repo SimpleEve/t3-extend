@@ -449,7 +449,9 @@ export function UsagePriceOverrides({
                                 <Input
                                   size="compact"
                                   value={row.alias ?? aliasCell.value}
-                                  aria-label={`Map ${row.model || "new model"} to model`}
+                                  aria-label={t("Map {model} to model", {
+                                    model: row.model || t("new model"),
+                                  })}
                                   list="usage-alias-models"
                                   placeholder={row.isNew ? t("Optional") : aliasCell.placeholder}
                                   autoComplete="off"
@@ -475,7 +477,10 @@ export function UsagePriceOverrides({
                                     <Input
                                       size="compact"
                                       inputMode="decimal"
-                                      aria-label={`${field.label} price for ${row.model || "new model"}`}
+                                      aria-label={t("{label} price for {model}", {
+                                        label: t(field.label, undefined, "token price"),
+                                        model: row.model || t("new model"),
+                                      })}
                                       value={value}
                                       placeholder={
                                         row.isNew

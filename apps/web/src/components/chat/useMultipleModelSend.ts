@@ -41,6 +41,7 @@ import {
 } from "./chatViewSend";
 import type { useLocalDispatchState } from "./useLocalDispatchState";
 import { useT } from "~/hooks/useT";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 interface MultipleModelSendInput {
   readonly environmentId: EnvironmentId;
@@ -218,7 +219,14 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
         toastManager.add(
           stackedThreadToast({
             type: "success",
-            title: `Started ${startedCount} ${startedCount === 1 ? "thread" : "threads"} in background`,
+            title:
+              startedCount === 1
+                ? translate(getUiLocale(), "Started {count} thread in background", {
+                    count: startedCount,
+                  })
+                : translate(getUiLocale(), "Started {count} threads in background", {
+                    count: startedCount,
+                  }),
           }),
         );
       }

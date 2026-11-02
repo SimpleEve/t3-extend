@@ -8,6 +8,7 @@ import { appAtomRegistry } from "../rpc/atomRegistry";
 import { environmentSummaries } from "../state/presentation";
 import { environmentSession } from "../state/session";
 import { toastManager } from "./ui/toast";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 interface LegacyPermissionEnvironment {
   readonly environmentId: EnvironmentId;
@@ -42,9 +43,11 @@ function showPermissionNotice(
     toastManager.close(id);
   };
   const id = toastManager.add({
-    title: `Permissions have changed for ${label}`,
-    description:
+    title: translate(getUiLocale(), "Permissions have changed for {label}", { label }),
+    description: translate(
+      getUiLocale(),
       "This connection still uses the old permissions, so some actions may no longer be available. Pair again using a new link with the permissions you need.",
+    ),
     timeout: 0,
     onClose: persistDismissal,
     actionProps: {

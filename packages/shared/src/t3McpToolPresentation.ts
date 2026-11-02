@@ -464,10 +464,42 @@ export function resolveT3McpSummaryAction(
   return (fields && summarize?.(fields)) ?? definition.summaryAction;
 }
 
+// fork: labels are interface text. The contexts keep "Read" (read) apart from "Read" (has read).
+/** Translates an English source; `{name}` placeholders take `params`. Omit it to get English. */
+export type T3McpToolTranslator = (
+  source: string,
+  params?: Readonly<Record<string, string | number>>,
+  context?: string,
+) => string;
+
+export const T3_TOOL_CONTEXT = "t3 tool";
+export const T3_TOOL_ACTION_CONTEXT = "t3 tool action";
+export const T3_TOOL_RUNNING_CONTEXT = "t3 tool running";
+export const T3_TOOL_DONE_CONTEXT = "t3 tool done";
+export const T3_TOOL_TARGET_CONTEXT = "t3 tool target";
+
 export function resolveT3McpToolPresentation(
   toolName: string | null | undefined,
   input?: unknown,
+  t?: T3McpToolTranslator,
 ): T3McpToolPresentation | null {
   const definition = resolveT3McpToolDefinition(toolName, input);
-  return definition === null ? null : { displayName: definition.displayName, logo: "t3-code" };
+  if (definition === null) return null;
+  const [action, , , detail] = definition.labels;
+  return {
+    displayName:
+      t === undefined
+        ? definition.displayName
+        : definition.displayName === `${action} ${detail}`
+          ? t(
+              "{verb} {target}",
+              {
+                verb: t(action, undefined, T3_TOOL_ACTION_CONTEXT),
+                target: t(detail, undefined, T3_TOOL_TARGET_CONTEXT),
+              },
+              T3_TOOL_CONTEXT,
+            )
+          : t(definition.displayName),
+    logo: "t3-code",
+  };
 }

@@ -157,7 +157,7 @@ export function PullRequestReviewForm({
             >
               <span className="flex items-center gap-1.5">
                 {selectedVerdict?.icon}
-                {selectedVerdict?.label}
+                {selectedVerdict ? t(selectedVerdict.label) : null}
               </span>
             </SelectTrigger>
             <SelectPopup side="top" alignItemWithTrigger={false}>
@@ -165,7 +165,7 @@ export function PullRequestReviewForm({
                 <SelectItem key={verdict.value} value={verdict.value}>
                   <span className="flex items-center gap-1.5">
                     {verdict.icon}
-                    {verdict.label}
+                    {t(verdict.label)}
                   </span>
                 </SelectItem>
               ))}

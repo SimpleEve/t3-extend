@@ -7,6 +7,7 @@ import {
 } from "../desktopUpdate.logic";
 import { formatRelativeTimeLabel } from "../../timestampFormat";
 import { openDesktopUpdateReleaseNotes } from "../desktopUpdate.toast";
+import { useT } from "../../hooks/useT";
 
 type DesktopUpdateShell = Pick<DesktopBridge, "openExternal">;
 
@@ -64,6 +65,7 @@ export function SidebarUpdateReleaseNotes({
   readonly state: DesktopUpdateState;
   readonly tooltip: string;
 }) {
+  const t = useT();
   if (state.releaseNotes.length === 0) {
     return <>{tooltip}</>;
   }
@@ -77,7 +79,7 @@ export function SidebarUpdateReleaseNotes({
         {state.status === "available" ? (
           <div>
             <div className="whitespace-nowrap text-sm leading-5 font-medium">
-              Update ready to download
+              {t("Update ready to download")}
             </div>
             {state.availableVersion ? (
               <div className="mt-0.5 text-xs leading-4 text-muted-foreground">
@@ -116,7 +118,7 @@ export function SidebarUpdateReleaseNotes({
                 </p>
                 {releaseUrl ? (
                   <ReleaseLink releaseUrl={releaseUrl} shell={shell}>
-                    {releaseNote.stats ?? "View release on GitHub"}
+                    {releaseNote.stats ?? t("View release on GitHub")}
                   </ReleaseLink>
                 ) : null}
               </section>
@@ -127,7 +129,9 @@ export function SidebarUpdateReleaseNotes({
             <div className={index > 0 ? "mt-4" : undefined} key={releaseNote.version}>
               <section>
                 <h3 className="text-foreground text-xs leading-4 font-semibold">
-                  {index === 0 ? "What's changed" : `Changes in ${releaseNote.version}`}
+                  {index === 0
+                    ? t("What's changed")
+                    : t("Changes in {version}", { version: releaseNote.version })}
                 </h3>
                 <ul className="mt-2 space-y-1.5 pl-4 text-xs leading-5 text-popover-foreground/90">
                   {keyReleaseNoteItems(releaseNote.items).map(({ item, key }) => (
@@ -148,7 +152,9 @@ export function SidebarUpdateReleaseNotes({
         {state.omittedReleaseCount > 0 ? (
           <div className="mt-3">
             <ReleaseLink releaseUrl={getDesktopUpdateReleaseHistoryUrl()} shell={shell}>
-              {`${state.omittedReleaseCount} older ${state.omittedReleaseCount === 1 ? "release" : "releases"} on GitHub`}
+              {state.omittedReleaseCount === 1
+                ? t("{count} older release on GitHub", { count: state.omittedReleaseCount })
+                : t("{count} older releases on GitHub", { count: state.omittedReleaseCount })}
             </ReleaseLink>
           </div>
         ) : null}

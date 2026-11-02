@@ -855,7 +855,7 @@ export default function DiffPanel({
                         closeOnClick
                       >
                         <span className="flex items-center gap-2">
-                          <span>Turn {turnCount}</span>
+                          <span>{t("Turn {count}", { count: turnCount })}</span>
                           <span className="ml-auto text-xs tabular-nums text-muted-foreground">
                             {formatShortTimestamp(summary.completedAt, settings.timestampFormat)}
                           </span>
@@ -1301,8 +1301,10 @@ export default function DiffPanel({
             )}
             {omittedToolCallFiles > 0 && (
               <p className="shrink-0 border-b border-border/70 bg-muted/40 px-3 py-1.5 text-2xs text-muted-foreground">
-                This tool call changed {recordedToolCallFileCount} files. The recorded patch omits{" "}
-                {omittedToolCallFiles} of them.
+                {t(
+                  "This tool call changed {recordedToolCallFileCount} files. The recorded patch omits {omittedToolCallFiles} of them.",
+                  { recordedToolCallFileCount, omittedToolCallFiles },
+                )}
               </p>
             )}
             {selectedPatchError && !renderablePatch && (
@@ -1479,7 +1481,7 @@ export default function DiffPanel({
                     resizeLabel={t("Resize Changes files")}
                   >
                     <DiffFileTree
-                      ariaLabel={`${reviewSectionTitle} files`}
+                      ariaLabel={t("{reviewSectionTitle} files", { reviewSectionTitle })}
                       entries={fileTreeEntries}
                       selectedPath={selectedFilePath}
                       revealRequestId={selectedFileRevealRequestId}

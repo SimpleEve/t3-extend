@@ -54,6 +54,7 @@ import {
   PullRequestChip,
   UnresolvedChip,
 } from "./contextChipParts";
+import { useT } from "~/hooks/useT";
 
 export type ComposerDraftContextRecord =
   | { kind: "terminal"; record: TerminalContextDraft }
@@ -156,13 +157,15 @@ function ContextChip(props: {
   detailsMode: ContextPresentationCapability["details"];
   kind: ContextChipKind;
 }) {
+  const t = useT();
+  const kindLabel = t(props.kindLabel);
   if (props.detailsMode === "popover") {
     return (
       <ContextChipPopover
         kind={props.kind}
         icon={props.icon}
         label={props.label}
-        accessibleLabel={props.kindLabel + ", " + props.label}
+        accessibleLabel={t("{kindLabel}, {label}", { kindLabel, label: props.label })}
       >
         {props.details}
       </ContextChipPopover>
@@ -174,7 +177,9 @@ function ContextChip(props: {
       icon={props.icon}
       label={props.label}
       aria-label={
-        props.detailsMode === "tooltip" ? `${props.kindLabel}, ${props.label}` : undefined
+        props.detailsMode === "tooltip"
+          ? t("{kindLabel}, {label}", { kindLabel, label: props.label })
+          : undefined
       }
       tooltip={props.detailsMode === "tooltip" ? props.details : undefined}
     />
@@ -225,6 +230,7 @@ function FileContextChip(props: {
   record: ComposerFileAttachment;
   upload: AttachmentUploadState | undefined;
 }) {
+  const t = useT();
   const actions = use(ComposerContextActionsContext);
   const { resolvedTheme } = useTheme();
   const needsReattach = composerFileNeedsReattach(props.record);
@@ -249,7 +255,11 @@ function FileContextChip(props: {
       error={props.upload?.status === "failed"}
       unresolved={needsReattach}
       suffix={suffix}
-      accessibleLabel={`${isVideo && !needsReattach ? "Preview video" : "File"} attachment, ${props.record.name}, ${size}`}
+      accessibleLabel={
+        isVideo && !needsReattach
+          ? t("Preview video attachment, {name}, {size}", { name: props.record.name, size })
+          : t("File attachment, {name}, {size}", { name: props.record.name, size })
+      }
       onOpen={
         !needsReattach
           ? () =>
@@ -258,7 +268,9 @@ function FileContextChip(props: {
       }
       tooltip={
         needsReattach
-          ? `${props.record.name} was not saved with this draft. Attach it again to send it.`
+          ? t("{name} was not saved with this draft. Attach it again to send it.", {
+              name: props.record.name,
+            })
           : attachmentTooltip(props.record, props.upload)
       }
     />
@@ -322,6 +334,7 @@ function ComposerPreviewAnnotationDetails({
   annotation: PreviewAnnotationPayload;
   screenshot: ComposerImageAttachment | undefined;
 }) {
+  const t = useT();
   const summary = previewAnnotationTooltip(annotation);
   const screenshotUrl = annotation.screenshot?.dataUrl || screenshot?.previewUrl;
   return (
@@ -329,12 +342,12 @@ function ComposerPreviewAnnotationDetails({
       {screenshotUrl ? (
         <img
           src={screenshotUrl}
-          alt="Annotated preview crop"
+          alt={t("Annotated preview crop")}
           className="max-h-64 w-full border-border/70 border-b bg-muted object-contain"
         />
       ) : (
         <div className="border-border/70 border-b bg-muted/40 px-3 py-2 text-secondary-label text-xs">
-          Screenshot unavailable
+          {t("Screenshot unavailable")}
         </div>
       )}
       <div className="whitespace-pre-wrap wrap-break-word px-3 py-2.5 text-sm text-foreground">
@@ -360,10 +373,11 @@ function ComposerThreadContextChip(props: { record: ThreadContextRecord }) {
 }
 
 function UnresolvedContextChip(props: { label: string }) {
+  const t = useT();
   return (
     <UnresolvedChip
       label={props.label}
-      tooltip="This context is no longer available. Remove it or attach it again."
+      tooltip={t("This context is no longer available. Remove it or attach it again.")}
     />
   );
 }

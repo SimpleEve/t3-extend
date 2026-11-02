@@ -6,6 +6,7 @@ import {
 
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
 import { writeTextToClipboard } from "../hooks/useCopyToClipboard";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export async function copyThreadReference(target: ThreadReferenceCopyTarget): Promise<void> {
   const fragment = target.fragment ? encodeComposerContextFragment(target.fragment) : null;
@@ -27,7 +28,8 @@ export async function copyThreadReference(target: ThreadReferenceCopyTarget): Pr
       stackedThreadToast({
         type: "error",
         title: target.failureTitle,
-        description: error instanceof Error ? error.message : "An error occurred.",
+        description:
+          error instanceof Error ? error.message : translate(getUiLocale(), "An error occurred."),
       }),
     );
   }

@@ -13,6 +13,7 @@ import { useScopedSettings } from "./useScopedSettings";
 import { SettingsSection } from "./settingsLayout";
 import { SettingsScopeNotice } from "./SettingsScopeNotice";
 import { useT } from "../../hooks/useT";
+import { interpolateNodes } from "../../lib/interpolateNodes";
 
 const SIGNALS = [
   {
@@ -255,7 +256,9 @@ function TelemetryExportForm() {
                   {override?.variable && (
                     <>
                       {" "}
-                      from <code className="font-mono">{override.variable}</code>
+                      {interpolateNodes(t("from {code}"), {
+                        code: <code className="font-mono">{override.variable}</code>,
+                      })}
                     </>
                   )}
                 </p>

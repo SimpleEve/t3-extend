@@ -36,6 +36,7 @@ vi.mock("react", async (importOriginal) => ({
   },
   useRef: (current: unknown) => ({ current }),
   useEffect: () => {},
+  useSyncExternalStore: (_subscribe: unknown, getSnapshot: () => unknown) => getSnapshot(),
 }));
 vi.mock("@tanstack/react-pacer", () => ({
   useDebouncedValue: (value: unknown) => [value, { state: { isPending: false } }],

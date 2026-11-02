@@ -458,14 +458,16 @@ export function DeviceStreamView(props: {
               aria-pressed={!showPhone}
               onClick={() => setPresentation("flat")}
             >
-              Flat
+              {t("Flat")}
             </Button>
           </div>
         ) : null}
         {status === "streaming" && !inputState.connected ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2">
             <span className="rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
-              Input disconnected{inputState.detail ? ` (${inputState.detail})` : ""}, reconnecting…
+              {inputState.detail
+                ? t("Input disconnected ({detail}), reconnecting…", { detail: inputState.detail })
+                : t("Input disconnected, reconnecting…")}
             </span>
           </div>
         ) : null}
@@ -498,7 +500,7 @@ export function DeviceStreamView(props: {
                     session?.reconnect();
                   }}
                 >
-                  Reconnect
+                  {t("Reconnect")}
                 </Button>
               ) : null}
             </DeviceLoadingView>

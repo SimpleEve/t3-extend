@@ -17,6 +17,7 @@ import { useAtomCommand } from "./state/use-atom-command";
 import { resolvePathLinkTarget } from "@t3tools/shared/fileLinks";
 import { toastManager } from "./components/ui/toast";
 import { useAtomValue } from "@effect/atom-react";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export type FileContextMenuAction =
   | "reveal-in-folder"
@@ -128,10 +129,12 @@ export function useFileContextMenu(environmentId: EnvironmentId | null) {
       type: "error",
       title:
         action === "open"
-          ? "Could not open file"
+          ? translate(getUiLocale(), "Could not open file")
           : reveal
-            ? "Unable to reveal file"
-            : `Could not open in ${EDITOR_LABEL_BY_ID.get(editor) ?? editor}`,
+            ? translate(getUiLocale(), "Unable to reveal file")
+            : translate(getUiLocale(), "Could not open in {value}", {
+                value: EDITOR_LABEL_BY_ID.get(editor) ?? editor,
+              }),
       description: absolutePath,
     });
   };

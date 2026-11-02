@@ -134,7 +134,10 @@ function refreshNotice() {
               stackedThreadToast({
                 type: "error",
                 title: failureTitle,
-                description: error instanceof Error ? error.message : "An error occurred.",
+                description:
+                  error instanceof Error
+                    ? error.message
+                    : translate(getUiLocale(), "An error occurred."),
               }),
             );
           };

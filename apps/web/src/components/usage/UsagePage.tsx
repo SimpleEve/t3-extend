@@ -519,8 +519,12 @@ export function UsagePage() {
             {selectedEnvironments.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 {environments.length === 0
-                  ? `Connect an environment to see ${showingLimits ? "limits" : "usage"}.`
-                  : `Select an environment to see ${showingLimits ? "limits" : "usage"}.`}
+                  ? showingLimits
+                    ? t("Connect an environment to see limits.")
+                    : t("Connect an environment to see usage.")
+                  : showingLimits
+                    ? t("Select an environment to see limits.")
+                    : t("Select an environment to see usage.")}
               </p>
             ) : showingLimits ? (
               <UsageLimitsSection
@@ -709,7 +713,7 @@ function UsageOverview({
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               <span>
                 <span className={figureClass(loadingPartial)}>
-                  {formatCount(merged.sessions)} sessions
+                  {t("{sessions} sessions", { sessions: formatCount(merged.sessions) })}
                 </span>
                 {metric === "cost" && t(" · API estimate")}
               </span>
@@ -823,7 +827,7 @@ function UsageOverview({
         <div className="flex min-w-0 flex-col gap-3">
           <h2 className="text-sm font-medium text-foreground">
             {shownHourly ? t("Hourly") : t("Daily")}{" "}
-            {metric === "tokens" ? t("processed tokens") : "cost"}
+            {metric === "tokens" ? t("processed tokens") : t("cost")}
           </h2>
           <UsageProviderChart
             providers={activeProviders}
@@ -1203,7 +1207,11 @@ function CursorEnableLimits({
               key={environment.environmentId}
               environmentId={environment.environmentId}
               label={environment.label}
-              buttonText={environments.length > 1 ? `Enable on ${environment.label}` : "Enable"}
+              buttonText={
+                environments.length > 1
+                  ? t("Enable on {label}", { label: environment.label })
+                  : t("Enable")
+              }
               onEnabled={onEnabled}
               tooltip={false}
             />

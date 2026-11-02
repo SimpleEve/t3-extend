@@ -85,7 +85,10 @@ export function RelayClientInstallDialog() {
                   {activeStep ? t(activeStep.label) : null}
                 </p>
                 <p className="shrink-0 tabular-nums text-muted-foreground">
-                  {activeStepIndex + 1} of {installSteps.length}
+                  {t("{value} of {length}", {
+                    value: activeStepIndex + 1,
+                    length: installSteps.length,
+                  })}
                 </p>
               </div>
               <progress

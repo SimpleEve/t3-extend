@@ -67,8 +67,8 @@ export function PullRequestReviewerPicker({
       toastManager.add({
         type: "error",
         title: candidate.isRequested
-          ? `Could not take back the review request to ${candidate.login}`
-          : `Could not ask ${candidate.login} for a review`,
+          ? t("Could not take back the review request to {login}", { login: candidate.login })
+          : t("Could not ask {login} for a review", { login: candidate.login }),
         description: readableFailure(
           squashAtomCommandFailure(result),
           "The host refused it. Check that you have write access on this repository, and that they still have access to it.",
@@ -79,8 +79,8 @@ export function PullRequestReviewerPicker({
     toastManager.add({
       type: "success",
       title: candidate.isRequested
-        ? `Review request to ${candidate.login} taken back`
-        : `Review requested from ${candidate.login}`,
+        ? t("Review request to {login} taken back", { login: candidate.login })
+        : t("Review requested from {login}", { login: candidate.login }),
     });
   };
 
@@ -89,20 +89,22 @@ export function PullRequestReviewerPicker({
       icon={<UserPlusIcon className="size-3.5" />}
       label={t("Request a review")}
       allowed={allowed}
-      disabledReason="Asking someone to review needs write access on this repository"
+      disabledReason={t("Asking someone to review needs write access on this repository")}
       open={open}
       onOpenChange={setOpen}
       query={query}
       onQueryChange={setQuery}
-      searchLabel="Search people with access"
+      searchLabel={t("Search people with access")}
       isPending={candidatesQuery.isPending && candidatesQuery.data === null}
       error={candidatesQuery.data === null ? candidatesQuery.error : null}
       candidates={candidates}
-      emptyLabel="Nobody else has access to this repository."
-      noMatchLabel="Nobody with access matches that."
-      errorLabel="The people with access could not be read."
+      emptyLabel={t("Nobody else has access to this repository.")}
+      noMatchLabel={t("Nobody with access matches that.")}
+      errorLabel={t("The people with access could not be read.")}
       truncated={candidatesQuery.data?.truncated === true}
-      truncatedLabel="This repository has more people with access than are listed here. Ask for the rest on the host."
+      truncatedLabel={t(
+        "This repository has more people with access than are listed here. Ask for the rest on the host.",
+      )}
       candidateKey={(candidate) => `${candidate.kind}:${candidate.id}`}
       disabled={pending !== null}
       onSelect={(candidate) => void toggle(candidate)}
@@ -111,7 +113,7 @@ export function PullRequestReviewerPicker({
         <>
           <PullRequestActorLabel actor={candidate} className="flex-1" />
           {candidate.kind === "team" ? (
-            <span className="shrink-0 text-muted-foreground">team</span>
+            <span className="shrink-0 text-muted-foreground">{t("team")}</span>
           ) : null}
           {candidate.isRequested ? (
             <CheckIcon aria-label={t("Already asked")} className="size-3.5 shrink-0" />

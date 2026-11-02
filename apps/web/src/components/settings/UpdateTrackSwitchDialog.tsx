@@ -182,7 +182,9 @@ function SwitchPlan({
       confirmLabel={checking ? t("Checking…") : t("Switch to {label}", { label })}
       busy={checking}
       disabledReason={
-        !switchesLocal || localBlocked === null ? null : `This app cannot switch: ${localBlocked}.`
+        !switchesLocal || localBlocked === null
+          ? null
+          : t("This app cannot switch: {localBlocked}.", { localBlocked })
       }
       onConfirm={() => void run()}
     />

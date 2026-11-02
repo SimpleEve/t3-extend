@@ -1,5 +1,7 @@
 import type { T3McpToolSummaryAction } from "@t3tools/shared/t3McpToolPresentation";
 
+import { englishWorkLogPhrase, type WorkLogPhraseTranslator } from "./work-log/phrase.ts"; // fork
+
 export interface T3ToolSummaryCall {
   readonly input: unknown;
   readonly output: unknown;
@@ -75,8 +77,9 @@ function countEntities(ids: ReadonlyArray<string | undefined>): number {
   );
 }
 
-function quantity(count: number, noun: string, plural = `${noun}s`): string {
-  return `${count} ${count === 1 ? noun : plural}`;
+// fork: `one` and `many` are whole phrases so the translator sees each one with its count.
+function quantity(count: number, one: string, many: string, t: WorkLogPhraseTranslator): string {
+  return count === 1 ? t(one, { count }) : t(many, { count });
 }
 
 /** One PR per single call; a batch counts what its result reports. */
@@ -86,6 +89,7 @@ function pullRequestQuantity(
     readonly output: Record<string, unknown> | undefined;
   }>,
   countKey: "linkedCount" | "unlinkedCount",
+  t: WorkLogPhraseTranslator,
 ): string {
   let count = 0;
   for (const call of calls) {
@@ -93,14 +97,15 @@ function pullRequestQuantity(
     if (typeof reported === "number") count += reported;
     else if (call.input?.url !== undefined || call.input?.number !== undefined) count += 1;
     // A batch result too large to compact loses its count, so the label drops the number.
-    else return "pull requests";
+    else return t("pull requests");
   }
-  return quantity(count, "pull request");
+  return quantity(count, "{count} pull request", "{count} pull requests", t);
 }
 
 export function summarizeT3ToolCalls(
   action: T3McpToolSummaryAction,
   calls: ReadonlyArray<T3ToolSummaryCall>,
+  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ): { label: string; failedCount: number } {
   const results = calls.map((call) => {
     const result = readResult(call.output);
@@ -113,9 +118,9 @@ export function summarizeT3ToolCalls(
   const completed = results.filter((call) => call.outcome === "completed");
   let failedCount = results.filter((call) => call.outcome === "failed").length;
   const selected = completed.length > 0 ? completed : results;
-  const times = quantity(selected.length, "time");
-  const phrase = (past: string, infinitive: string, object: string) =>
-    `${completed.length > 0 ? past : `Tried to ${infinitive}`} ${object}`;
+  const times = quantity(selected.length, "{count} time", "{count} times", t);
+  const phrase = (past: string, tried: string, object: string) =>
+    t(completed.length > 0 ? past : tried, { object });
   const entityIds = (key: string) =>
     selected.map((call) => id(call.output?.[key]) ?? id(call.input?.[key]));
   const projectIds = selected.map(
@@ -135,10 +140,15 @@ export function summarizeT3ToolCalls(
       const threads = new Set(threadIds).size;
       const object = targetsKnown
         ? messages === threads && messages > 1
-          ? `messages to ${quantity(threads, "thread")}`
-          : `${quantity(messages, "message")} to ${quantity(threads, "thread")}`
-        : quantity(messages, "message");
-      label = phrase("Sent", "send", object);
+          ? t("messages to {threads}", {
+              threads: quantity(threads, "{count} thread", "{count} threads", t),
+            })
+          : t("{messages} to {threads}", {
+              messages: quantity(messages, "{count} message", "{count} messages", t),
+              threads: quantity(threads, "{count} thread", "{count} threads", t),
+            })
+        : quantity(messages, "{count} message", "{count} messages", t);
+      label = phrase("Sent {object}", "Tried to send {object}", object);
       break;
     }
     case "thread-create": {
@@ -157,229 +167,401 @@ export function summarizeT3ToolCalls(
           });
         });
       label = resultsKnown
-        ? `Created ${quantity(new Set(createdIds).size, "thread")}`
-        : `Requested thread creation ${times}`;
+        ? t("Created {object}", {
+            object: quantity(new Set(createdIds).size, "{count} thread", "{count} threads", t),
+          })
+        : t("Requested thread creation {times}", { times });
       break;
     }
     case "delegate":
-      label = phrase("Delegated", "delegate", quantity(countEntities(entityIds("taskId")), "task"));
+      label = phrase(
+        "Delegated {object}",
+        "Tried to delegate {object}",
+        quantity(countEntities(entityIds("taskId")), "{count} task", "{count} tasks", t),
+      );
       break;
     case "thread-read":
     case "thread-wait": {
       const targets = threadIds.every((value) => value !== undefined)
-        ? quantity(new Set(threadIds).size, "thread")
-        : `threads ${times}`;
+        ? quantity(new Set(threadIds).size, "{count} thread", "{count} threads", t)
+        : t("threads {times}", { times });
       label =
         action === "thread-read"
-          ? phrase("Read", "read", targets)
-          : phrase("Waited on", "wait on", targets);
+          ? phrase("Read {object}", "Tried to read {object}", targets)
+          : phrase("Waited on {object}", "Tried to wait on {object}", targets);
       break;
     }
     case "thread-list":
-      label = phrase("Listed", "list", `threads ${times}`);
+      label = phrase("Listed {object}", "Tried to list {object}", t("threads {times}", { times }));
       break;
     case "thread-interrupt":
       label = phrase(
-        "Requested interrupts for",
-        "interrupt",
-        quantity(countEntities(threadIds), "thread"),
+        "Requested interrupts for {object}",
+        "Tried to interrupt {object}",
+        quantity(countEntities(threadIds), "{count} thread", "{count} threads", t),
       );
       break;
     case "workflow-stop":
       label = phrase(
-        "Requested stops for",
-        "stop",
-        quantity(countEntities(entityIds("subagentId")), "workflow"),
+        "Requested stops for {object}",
+        "Tried to stop {object}",
+        quantity(
+          countEntities(entityIds("subagentId")),
+          "{count} workflow",
+          "{count} workflows",
+          t,
+        ),
       );
       break;
     case "task-status":
-      label = phrase("Checked", "check", `task status ${times}`);
+      label = phrase(
+        "Checked {object}",
+        "Tried to check {object}",
+        t("task status {times}", { times }),
+      );
       break;
     case "background-wait":
-      label = phrase("Updated", "update", `background waits ${times}`);
+      label = phrase(
+        "Updated {object}",
+        "Tried to update {object}",
+        t("background waits {times}", { times }),
+      );
       break;
     case "task-cancel":
       label = phrase(
-        "Requested cancellation of",
-        "cancel",
-        quantity(countEntities(entityIds("taskId")), "task"),
+        "Requested cancellation of {object}",
+        "Tried to cancel {object}",
+        quantity(countEntities(entityIds("taskId")), "{count} task", "{count} tasks", t),
       );
       break;
     case "schedule-create":
       label = phrase(
-        "Scheduled",
-        "schedule",
-        quantity(countEntities(entityIds("scheduledTaskId")), "task"),
+        "Scheduled {object}",
+        "Tried to schedule {object}",
+        quantity(countEntities(entityIds("scheduledTaskId")), "{count} task", "{count} tasks", t),
       );
       break;
     case "schedule-list":
-      label = phrase("Listed", "list", `scheduled tasks ${times}`);
+      label = phrase(
+        "Listed {object}",
+        "Tried to list {object}",
+        t("scheduled tasks {times}", { times }),
+      );
       break;
     case "schedule-update":
       label = phrase(
-        "Updated",
-        "update",
-        quantity(countEntities(entityIds("scheduledTaskId")), "scheduled task"),
+        "Updated {object}",
+        "Tried to update {object}",
+        quantity(
+          countEntities(entityIds("scheduledTaskId")),
+          "{count} scheduled task",
+          "{count} scheduled tasks",
+          t,
+        ),
       );
       break;
     case "schedule-delete":
       label = phrase(
-        "Requested deletion of",
-        "delete",
-        quantity(countEntities(entityIds("scheduledTaskId")), "scheduled task"),
+        "Requested deletion of {object}",
+        "Tried to delete {object}",
+        quantity(
+          countEntities(entityIds("scheduledTaskId")),
+          "{count} scheduled task",
+          "{count} scheduled tasks",
+          t,
+        ),
       );
       break;
     case "schedule-run":
-      label = phrase("Requested", "request", quantity(selected.length, "scheduled task run"));
+      label = phrase(
+        "Requested {object}",
+        "Tried to request {object}",
+        quantity(selected.length, "{count} scheduled task run", "{count} scheduled task runs", t),
+      );
       break;
     case "thread-configuration":
-      label = phrase("Checked", "check", `thread configuration ${times}`);
+      label = phrase(
+        "Checked {object}",
+        "Tried to check {object}",
+        t("thread configuration {times}", { times }),
+      );
       break;
     case "thread-configure":
-      label = phrase("Set", "set", `thread model ${times}`);
+      label = phrase("Set {object}", "Tried to set {object}", t("thread model {times}", { times }));
       break;
     case "thread-fork":
-      label = phrase("Requested", "request", quantity(selected.length, "thread fork"));
+      label = phrase(
+        "Requested {object}",
+        "Tried to request {object}",
+        quantity(selected.length, "{count} thread fork", "{count} thread forks", t),
+      );
       break;
     case "thread-merge":
-      label = phrase("Requested", "request", quantity(selected.length, "context merge"));
+      label = phrase(
+        "Requested {object}",
+        "Tried to request {object}",
+        quantity(selected.length, "{count} context merge", "{count} context merges", t),
+      );
       break;
     case "thread-search":
-      label = phrase("Searched", "search", `threads ${times}`);
+      label = phrase(
+        "Searched {object}",
+        "Tried to search {object}",
+        t("threads {times}", { times }),
+      );
       break;
     case "thread-transfers":
-      label = phrase("Checked", "check", `thread transfers ${times}`);
+      label = phrase(
+        "Checked {object}",
+        "Tried to check {object}",
+        t("thread transfers {times}", { times }),
+      );
       break;
     case "thread-organize":
-      label = phrase("Organized", "organize", `threads ${times}`);
+      label = phrase(
+        "Organized {object}",
+        "Tried to organize {object}",
+        t("threads {times}", { times }),
+      );
       break;
     case "thread-update":
-      label = phrase("Updated", "update", quantity(countEntities(threadIds), "thread"));
+      label = phrase(
+        "Updated {object}",
+        "Tried to update {object}",
+        quantity(countEntities(threadIds), "{count} thread", "{count} threads", t),
+      );
       break;
     case "queue-list":
-      label = phrase("Listed", "list", `queued messages ${times}`);
+      label = phrase(
+        "Listed {object}",
+        "Tried to list {object}",
+        t("queued messages {times}", { times }),
+      );
       break;
     case "queue-read":
       label = phrase(
-        "Read",
-        "read",
-        quantity(countEntities(entityIds("queuedRunId")), "queued message"),
+        "Read {object}",
+        "Tried to read {object}",
+        quantity(
+          countEntities(entityIds("queuedRunId")),
+          "{count} queued message",
+          "{count} queued messages",
+          t,
+        ),
       );
       break;
     case "queue-edit":
       label = phrase(
-        "Edited",
-        "edit",
-        quantity(countEntities(entityIds("queuedRunId")), "queued message"),
+        "Edited {object}",
+        "Tried to edit {object}",
+        quantity(
+          countEntities(entityIds("queuedRunId")),
+          "{count} queued message",
+          "{count} queued messages",
+          t,
+        ),
       );
       break;
     case "queue-cancel":
       label = phrase(
-        "Requested cancellation of",
-        "cancel",
-        quantity(countEntities(entityIds("queuedRunId")), "queued run"),
+        "Requested cancellation of {object}",
+        "Tried to cancel {object}",
+        quantity(
+          countEntities(entityIds("queuedRunId")),
+          "{count} queued run",
+          "{count} queued runs",
+          t,
+        ),
       );
       break;
     case "queue-reorder":
       label = phrase(
-        "Reordered",
-        "reorder",
-        quantity(countEntities(entityIds("queuedRunId")), "queued run"),
+        "Reordered {object}",
+        "Tried to reorder {object}",
+        quantity(
+          countEntities(entityIds("queuedRunId")),
+          "{count} queued run",
+          "{count} queued runs",
+          t,
+        ),
       );
       break;
     case "queue-steer":
       label = phrase(
-        "Requested steering with",
-        "steer with",
-        quantity(countEntities(entityIds("queuedRunId")), "queued message"),
+        "Requested steering with {object}",
+        "Tried to steer with {object}",
+        quantity(
+          countEntities(entityIds("queuedRunId")),
+          "{count} queued message",
+          "{count} queued messages",
+          t,
+        ),
       );
       break;
     case "question-list":
-      label = phrase("Listed", "list", `pending questions ${times}`);
+      label = phrase(
+        "Listed {object}",
+        "Tried to list {object}",
+        t("pending questions {times}", { times }),
+      );
       break;
     case "question-read":
       label = phrase(
-        "Read",
-        "read",
-        quantity(countEntities(entityIds("requestId")), "pending question request"),
+        "Read {object}",
+        "Tried to read {object}",
+        quantity(
+          countEntities(entityIds("requestId")),
+          "{count} pending question request",
+          "{count} pending question requests",
+          t,
+        ),
       );
       break;
     case "question-respond":
       label = phrase(
-        "Answered",
-        "answer",
-        quantity(countEntities(entityIds("requestId")), "pending question request"),
+        "Answered {object}",
+        "Tried to answer {object}",
+        quantity(
+          countEntities(entityIds("requestId")),
+          "{count} pending question request",
+          "{count} pending question requests",
+          t,
+        ),
       );
       break;
     case "secret-request":
-      label = phrase("Asked for", "ask for", quantity(selected.length, "secret"));
+      label = phrase(
+        "Asked for {object}",
+        "Tried to ask for {object}",
+        quantity(selected.length, "{count} secret", "{count} secrets", t),
+      );
       break;
     case "worktree-handoff":
       label = phrase(
-        "Handed off to",
-        "hand off to",
-        quantity(countEntities(entityIds("worktreePath")), "worktree"),
+        "Handed off to {object}",
+        "Tried to hand off to {object}",
+        quantity(
+          countEntities(entityIds("worktreePath")),
+          "{count} worktree",
+          "{count} worktrees",
+          t,
+        ),
       );
       break;
     case "worktree-list":
-      label = phrase("Listed", "list", `workspace branches ${times}`);
+      label = phrase(
+        "Listed {object}",
+        "Tried to list {object}",
+        t("workspace branches {times}", { times }),
+      );
       break;
     case "worktree-status":
-      label = phrase("Checked", "check", `worktree status ${times}`);
+      label = phrase(
+        "Checked {object}",
+        "Tried to check {object}",
+        t("worktree status {times}", { times }),
+      );
       break;
     case "project-list":
-      label = phrase("Listed", "list", `projects ${times}`);
+      label = phrase("Listed {object}", "Tried to list {object}", t("projects {times}", { times }));
       break;
     case "project-read":
-      label = phrase("Read", "read", quantity(countEntities(projectIds), "project"));
+      label = phrase(
+        "Read {object}",
+        "Tried to read {object}",
+        quantity(countEntities(projectIds), "{count} project", "{count} projects", t),
+      );
       break;
     case "project-create":
-      label = phrase("Registered", "register", quantity(countEntities(projectIds), "project"));
+      label = phrase(
+        "Registered {object}",
+        "Tried to register {object}",
+        quantity(countEntities(projectIds), "{count} project", "{count} projects", t),
+      );
       break;
     case "project-update":
-      label = phrase("Updated", "update", quantity(countEntities(projectIds), "project"));
+      label = phrase(
+        "Updated {object}",
+        "Tried to update {object}",
+        quantity(countEntities(projectIds), "{count} project", "{count} projects", t),
+      );
       break;
     case "project-delete":
-      label = phrase("Deleted", "delete", quantity(countEntities(projectIds), "project"));
+      label = phrase(
+        "Deleted {object}",
+        "Tried to delete {object}",
+        quantity(countEntities(projectIds), "{count} project", "{count} projects", t),
+      );
       break;
     case "project-clone":
       label = phrase(
-        "Cloned",
-        "clone",
-        quantity(countEntities(entityIds("cwd")), "repository", "repositories"),
+        "Cloned {object}",
+        "Tried to clone {object}",
+        quantity(countEntities(entityIds("cwd")), "{count} repository", "{count} repositories", t),
       );
       break;
     case "environment-read":
-      label = phrase("Checked", "check", `environment preferences ${times}`);
+      label = phrase(
+        "Checked {object}",
+        "Tried to check {object}",
+        t("environment preferences {times}", { times }),
+      );
       break;
     case "environment-update":
-      label = phrase("Updated", "update", `environment preferences ${times}`);
+      label = phrase(
+        "Updated {object}",
+        "Tried to update {object}",
+        t("environment preferences {times}", { times }),
+      );
       break;
     case "environment-links":
-      label = phrase("Listed", "list", `linked environments ${times}`);
+      label = phrase(
+        "Listed {object}",
+        "Tried to list {object}",
+        t("linked environments {times}", { times }),
+      );
       break;
     case "environment-link":
-      label = phrase("Asked to link", "ask to link", quantity(selected.length, "environment"));
+      label = phrase(
+        "Asked to link {object}",
+        "Tried to ask to link {object}",
+        quantity(selected.length, "{count} environment", "{count} environments", t),
+      );
       break;
     case "environment-unlink":
       label = phrase(
-        "Forgot",
-        "forget",
-        quantity(countEntities(entityIds("environmentId")), "linked environment"),
+        "Forgot {object}",
+        "Tried to forget {object}",
+        quantity(
+          countEntities(entityIds("environmentId")),
+          "{count} linked environment",
+          "{count} linked environments",
+          t,
+        ),
       );
       break;
     case "attachment-prepare":
       label = phrase(
-        "Prepared",
-        "prepare",
-        quantity(countEntities(entityIds("attachmentId")), "attachment upload"),
+        "Prepared {object}",
+        "Tried to prepare {object}",
+        quantity(
+          countEntities(entityIds("attachmentId")),
+          "{count} attachment upload",
+          "{count} attachment uploads",
+          t,
+        ),
       );
       break;
     case "attachment-discard":
       label = phrase(
-        "Discarded",
-        "discard",
-        quantity(countEntities(entityIds("attachmentId")), "pending attachment"),
+        "Discarded {object}",
+        "Tried to discard {object}",
+        quantity(
+          countEntities(entityIds("attachmentId")),
+          "{count} pending attachment",
+          "{count} pending attachments",
+          t,
+        ),
       );
       break;
     case "attachment-send": {
@@ -396,38 +578,64 @@ export function summarizeT3ToolCalls(
         (call) => Array.isArray(call.input?.attachments) && call.input.attachments.length > 0,
       );
       const targets = threadIds.every((value) => value !== undefined)
-        ? ` to ${quantity(new Set(threadIds).size, "thread")}`
-        : "";
+        ? quantity(new Set(threadIds).size, "{count} thread", "{count} threads", t)
+        : null;
       label = phrase(
-        "Sent",
-        "send",
+        "Sent {object}",
+        "Tried to send {object}",
         countsKnown
-          ? `${quantity(attachmentCount, "attachment")}${targets}`
-          : `attachments${targets} ${times}`,
+          ? targets === null
+            ? quantity(attachmentCount, "{count} attachment", "{count} attachments", t)
+            : t("{attachments} to {threads}", {
+                attachments: quantity(
+                  attachmentCount,
+                  "{count} attachment",
+                  "{count} attachments",
+                  t,
+                ),
+                threads: targets,
+              })
+          : targets === null
+            ? t("attachments {times}", { times })
+            : t("attachments to {threads} {times}", { threads: targets, times }),
       );
       break;
     }
     case "link-pr":
-      label = phrase("Linked", "link", pullRequestQuantity(selected, "linkedCount"));
+      label = phrase(
+        "Linked {object}",
+        "Tried to link {object}",
+        pullRequestQuantity(selected, "linkedCount", t),
+      );
       break;
     case "unlink-pr":
-      label = phrase("Unlinked", "unlink", pullRequestQuantity(selected, "unlinkedCount"));
+      label = phrase(
+        "Unlinked {object}",
+        "Tried to unlink {object}",
+        pullRequestQuantity(selected, "unlinkedCount", t),
+      );
       break;
     case "watch-pr":
-      label = phrase("Watching", "watch", quantity(selected.length, "pull request"));
+      label = phrase(
+        "Watching {object}",
+        "Tried to watch {object}",
+        quantity(selected.length, "{count} pull request", "{count} pull requests", t),
+      );
       break;
     case "unwatch-pr":
       label = phrase(
-        "Stopped watching",
-        "stop watching",
-        quantity(selected.length, "pull request"),
+        "Stopped watching {object}",
+        "Tried to stop watching {object}",
+        quantity(selected.length, "{count} pull request", "{count} pull requests", t),
       );
       break;
     case "list-prs":
       label = phrase(
-        "Checked",
-        "check",
-        `linked pull requests${selected.length === 1 ? "" : ` ${times}`}`,
+        "Checked {object}",
+        "Tried to check {object}",
+        selected.length === 1
+          ? t("linked pull requests")
+          : t("linked pull requests {times}", { times }),
       );
       break;
     case "write-pr-guides": {
@@ -442,38 +650,65 @@ export function summarizeT3ToolCalls(
       failedCount += failed;
       if (outcomes.length === 0) {
         label = phrase(
-          "Started writing",
-          "start writing",
-          `review guides${selected.length === 1 ? "" : ` ${times}`}`,
+          "Started writing {object}",
+          "Tried to start writing {object}",
+          selected.length === 1 ? t("review guides") : t("review guides {times}", { times }),
         );
       } else if (started === 0) {
-        label = `Could not start ${quantity(failed, "review guide")}`;
+        label = t("Could not start {object}", {
+          object: quantity(failed, "{count} review guide", "{count} review guides", t),
+        });
       } else {
         label = phrase(
-          "Started",
-          "start",
-          `${quantity(started, "review guide")}${failed > 0 ? `, ${failed} failed` : ""}`,
+          "Started {object}",
+          "Tried to start {object}",
+          failed > 0
+            ? t("{started}, {failed} failed", {
+                started: quantity(started, "{count} review guide", "{count} review guides", t),
+                failed,
+              })
+            : quantity(started, "{count} review guide", "{count} review guides", t),
         );
       }
       break;
     }
     case "read-pr-guide":
-      label = phrase("Read", "read", quantity(selected.length, "review guide"));
+      label = phrase(
+        "Read {object}",
+        "Tried to read {object}",
+        quantity(selected.length, "{count} review guide", "{count} review guides", t),
+      );
       break;
     case "browser":
-      label = phrase("Used", "use", `browser ${times}`);
+      label = phrase("Used {object}", "Tried to use {object}", t("browser {times}", { times }));
       break;
     case "device":
-      label = phrase("Used", "use", `device controls ${times}`);
+      label = phrase(
+        "Used {object}",
+        "Tried to use {object}",
+        t("device controls {times}", { times }),
+      );
       break;
     case "html-preview":
-      label = phrase("Previewed", "preview", quantity(selected.length, "HTML page"));
+      label = phrase(
+        "Previewed {object}",
+        "Tried to preview {object}",
+        quantity(selected.length, "{count} HTML page", "{count} HTML pages", t),
+      );
       break;
     case "html-render":
-      label = phrase("Rendered", "render", quantity(selected.length, "HTML page"));
+      label = phrase(
+        "Rendered {object}",
+        "Tried to render {object}",
+        quantity(selected.length, "{count} HTML page", "{count} HTML pages", t),
+      );
       break;
     case "capabilities":
-      label = phrase("Checked", "check", `orchestration capabilities ${times}`);
+      label = phrase(
+        "Checked {object}",
+        "Tried to check {object}",
+        t("orchestration capabilities {times}", { times }),
+      );
       break;
   }
   return { label, failedCount };

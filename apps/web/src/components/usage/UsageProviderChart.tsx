@@ -420,6 +420,7 @@ export function UsageProviderChart({
   timeZone,
   hour12,
 }: UsageProviderChartProps) {
+  const t = useT();
   const periods = resolution === "hour" ? hours : days;
   const totals: readonly (DailyTotals | HourlyTotals)[] = resolution === "hour" ? hourly : daily;
   const byPeriod = new Map(
@@ -469,7 +470,10 @@ export function UsageProviderChart({
           loadingProviders={loadingProviders}
           format={format}
           formatTooltipPeriod={formatTooltipPeriod}
-          ariaLabel={`${resolution === "hour" ? "Hourly" : "Daily"} ${metric === "tokens" ? "processed tokens" : "cost"} by provider`}
+          ariaLabel={t("{resolution} {metric} by provider", {
+            resolution: resolution === "hour" ? t("Hourly") : t("Daily"),
+            metric: metric === "tokens" ? t("processed tokens") : t("cost"),
+          })}
         >
           {scale.ticks.map((tick) => {
             const y = toY(tick);

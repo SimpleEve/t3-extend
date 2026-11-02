@@ -247,7 +247,7 @@ export function PullRequestActionsMenu({
         />
         <MenuItem disabled={refreshing} onClick={() => void refreshFromHost()}>
           <RefreshIcon size="sm" refreshing={refreshing} />
-          Refresh
+          {t("Refresh")}
         </MenuItem>
         <MenuItem disabled={handoff !== null} onClick={askAboutPullRequest}>
           <MessageCircleQuestionIcon className="mt-1 size-3.5 shrink-0 self-start" />
@@ -426,7 +426,7 @@ export function PullRequestActionsMenu({
           onClick={() => copyReference(`#${reference.number}`, `${terminology.shortLabel} number`)}
         >
           <CopyIcon className="size-3.5" />
-          Copy {terminology.shortLabel} number
+          {t("Copy {shortLabel} number", { shortLabel: terminology.shortLabel })}
           <MenuShortcut>
             {shortcutLabelForCommand(keybindings, "pullRequest.copyNumber")}
           </MenuShortcut>
@@ -456,7 +456,7 @@ export function PullRequestActionsMenu({
             <MenuSeparator />
             <MenuItem disabled={actionPending} onClick={() => void perform("reopen")}>
               <PullRequestGlyph.reopen className="size-3.5" />
-              Reopen {terminology.singular}
+              {t("Reopen {kind}", { kind: changeRequestTerm(terminology.singular, t) })}
             </MenuItem>
           </>
         ) : detail.state === "merged" && can("revert") ? (

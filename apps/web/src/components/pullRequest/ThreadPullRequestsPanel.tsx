@@ -58,6 +58,7 @@ import { pullRequestQuickActions } from "./pullRequestList.logic";
 import { PullRequestSpeedActions, PullRequestSpeedModeContext } from "./PullRequestSpeedActions";
 import { useT } from "~/hooks/useT"; // fork: interface language
 import { changeRequestTerm } from "./changeRequestTerm";
+import { interpolateNodes } from "~/lib/interpolateNodes";
 
 const SOURCE_LABELS: Record<ThreadPullRequestLink["source"], string> = {
   manual: "Linked by you",
@@ -339,7 +340,7 @@ function LinkRowImpl({
             </MenuItem>
             <MenuItem onClick={(event) => openPrLink(event, link.url, threadRef)}>
               <ArrowUpRightIcon className="size-3.5" />
-              Open
+              {t("Open")}
             </MenuItem>
             {onSetWatching !== null && open ? (
               <MenuItem onClick={() => onSetWatching(link, !watching)}>
@@ -487,17 +488,16 @@ function EnabledThreadPullRequestsPanel({ threadRef }: { threadRef: ScopedThread
         />
         <footer className="flex items-center justify-between border-t border-border/60 px-2 py-1.5 text-2xs text-muted-foreground">
           <span>
-            {openCount} open · {linkCount} linked
-            {lastSynced ? (
-              <>
-                {" · synced "}
-                <RelativeTime timestamp={lastSynced} />
-              </>
-            ) : null}
+            {t("{openCount} open · {linkCount} linked", { openCount, linkCount })}
+            {lastSynced
+              ? interpolateNodes(t(" · synced {time}"), {
+                  time: <RelativeTime timestamp={lastSynced} />,
+                })
+              : null}
           </span>
           <Button size="xs" variant="ghost" onClick={openLinkDialog}>
             <PlusIcon className="size-3.5" />
-            Link
+            {t("Link")}
           </Button>
         </footer>
       </div>

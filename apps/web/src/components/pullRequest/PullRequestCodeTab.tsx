@@ -224,7 +224,7 @@ function FileViewedToggle({
         {stale ? (
           <Tooltip>
             <TooltipTrigger render={<span className="text-warning-foreground" />}>
-              Changed
+              {t("Changed")}
             </TooltipTrigger>
             <TooltipPopup side="bottom">
               {t("This file has been pushed to since you marked it viewed.")}
@@ -828,11 +828,11 @@ function PullRequestCodeTab({
           <>
             <span>{t("The rest of this diff could not be loaded.")}</span>
             <Button size="xs" variant="outline" onClick={() => diffQuery.refresh()}>
-              Retry
+              {t("Retry")}
             </Button>
           </>
         ) : diffQuery.isPending ? (
-          "Loading more files..."
+          t("Loading more files...")
         ) : null}
       </div>
     );
@@ -1081,7 +1081,9 @@ function PullRequestCodeTab({
                   onClick={() => setVisibleCommitCount((count) => count + COMMIT_PAGE_SIZE)}
                 >
                   <span className="text-muted-foreground">
-                    Show more ({orderedCommits.length - visibleCommitCount} left)
+                    {t("Show more ({value} left)", {
+                      value: orderedCommits.length - visibleCommitCount,
+                    })}
                   </span>
                 </DropdownMenuItem>
               ) : null}
@@ -1090,12 +1092,16 @@ function PullRequestCodeTab({
         ) : null}
         <PullRequestMetaLine>
           <span className="shrink-0 tabular-nums">
-            {files.length} {files.length === 1 ? "file" : "files"}
+            {files.length === 1
+              ? t("{count} file", { count: files.length })
+              : t("{count} files", { count: files.length })}
             {nextCursor === null ? "" : "+"}
           </span>
           {hiddenTestFileCount > 0 ? (
             <Button type="button" size="xs" variant="link" onClick={() => setHideTestFiles(false)}>
-              {hiddenTestFileCount} test {hiddenTestFileCount === 1 ? "file" : "files"} hidden
+              {hiddenTestFileCount === 1
+                ? t("{count} test file hidden", { count: hiddenTestFileCount })
+                : t("{count} test files hidden", { count: hiddenTestFileCount })}
             </Button>
           ) : null}
           {filesViewed.enabled && files.length > 0 ? (
@@ -1104,7 +1110,9 @@ function PullRequestCodeTab({
                 {filePaths.filter(isFileViewed).length} / {files.length}
               </span>
               <span className="truncate">
-                {viewedFilesStore === "environment" ? `viewed in ${APP_BASE_NAME}` : "viewed"}
+                {viewedFilesStore === "environment"
+                  ? t("viewed in {APP_BASE_NAME}", { APP_BASE_NAME })
+                  : t("viewed")}
               </span>
               {viewedFilesStore === "environment" ? (
                 <Tooltip>
@@ -1131,9 +1139,9 @@ function PullRequestCodeTab({
                   </TooltipTrigger>
                   <TooltipPopup side="bottom">
                     {t(
-                      "The boxes below are whatever was last read, and empty if nothing has been read",
+                      "The boxes below are whatever was last read, and empty if nothing has been read yet. {error}",
+                      { error: filesViewed.error },
                     )}
-                    yet. {filesViewed.error}
                   </TooltipPopup>
                 </Tooltip>
               ) : null}
@@ -1225,10 +1233,10 @@ function PullRequestCodeTab({
               }}
             >
               <DropdownMenuRadioItem value="stacked" closeOnClick>
-                Stacked
+                {t("Stacked")}
               </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="split" closeOnClick>
-                Split
+                {t("Split")}
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
@@ -1474,7 +1482,9 @@ function PullRequestCodeTab({
                       {threads.map((thread) => (
                         <div key={thread.id}>
                           {thread.line === null ? null : (
-                            <p className="px-3 text-xs text-muted-foreground">Line {thread.line}</p>
+                            <p className="px-3 text-xs text-muted-foreground">
+                              {t("Line {line}", { line: thread.line })}
+                            </p>
                           )}
                           {renderThreadCard(thread)}
                         </div>
@@ -1545,7 +1555,10 @@ function PullRequestCodeTab({
             resizeLabel={t("Resize PR Code files")}
           >
             <DiffFileTree
-              ariaLabel={`${capitalizeTerm(term)} #${detail.number} files`}
+              ariaLabel={t("{kind} #{number} files", {
+                kind: capitalizeTerm(changeRequestTerm(term, t)),
+                number: detail.number,
+              })}
               entries={fileTreeEntries}
               onSelectFile={revealFile}
               footer={

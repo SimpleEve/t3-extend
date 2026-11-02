@@ -40,4 +40,7 @@ export default {
   "Show details": "显示详情",
   "Dismiss notification": "关闭通知",
   "Hide details": "隐藏详情",
+  stack: "堆叠",
+  chain: "链",
+  "Started {value}": "开始于 {value}",
 } satisfies Record<string, string>;

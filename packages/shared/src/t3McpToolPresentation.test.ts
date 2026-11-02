@@ -38,6 +38,24 @@ describe("resolveT3McpToolPresentation", () => {
   });
 });
 
+describe("resolveT3McpToolPresentation with a translator", () => {
+  const tag = (source: string, params?: Readonly<Record<string, string | number>>) =>
+    params ? `${source}:${params.verb}/${params.target}` : `<${source}>`;
+
+  it("translates the verb and target, and leaves English alone without one", () => {
+    expect(resolveT3McpToolPresentation("t3_project_read")?.displayName).toBe("Read a project");
+    expect(resolveT3McpToolPresentation("t3_project_read", undefined, tag)?.displayName).toBe(
+      "{verb} {target}:<Read>/<a project>",
+    );
+  });
+
+  it("translates a display name that isn't verb plus target whole", () => {
+    expect(resolveT3McpToolPresentation("preview_snapshot", undefined, tag)?.displayName).toBe(
+      "<Snapshot the preview page>",
+    );
+  });
+});
+
 describe("resolveT3McpToolDefinition", () => {
   it("labels an action tool call as the action it ran", () => {
     expect(

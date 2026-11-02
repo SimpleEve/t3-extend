@@ -445,12 +445,12 @@ export function CloudEnvironmentConnectRows({
                       : savedConnection
                         ? savedConnection.statusText
                         : availability === "online"
-                          ? "Relay online"
+                          ? t("Relay online")
                           : availability === "offline"
-                            ? "Relay offline"
+                            ? t("Relay offline")
                             : availability === "checking"
-                              ? "Checking relay status"
-                              : (Option.getOrNull(error)?.message ?? "Relay status unavailable")
+                              ? t("Checking relay status")
+                              : (Option.getOrNull(error)?.message ?? t("Relay status unavailable"))
                 }
               />
               <EnvironmentMachineIcon

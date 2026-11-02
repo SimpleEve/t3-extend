@@ -271,7 +271,9 @@ function AggregateCard({
           {label}
         </div>
         <div className="rounded-md bg-muted/55 px-1.5 py-0.5 font-mono text-3xs tabular-nums text-muted-foreground/70">
-          {aggregate.processCount} {aggregate.processCount === 1 ? "process" : "processes"}
+          {aggregate.processCount === 1
+            ? t("{count} process", { count: aggregate.processCount })
+            : t("{count} processes", { count: aggregate.processCount })}
         </div>
       </div>
       <div className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
@@ -597,8 +599,8 @@ function ProcessTable({
               <th className="px-3 py-2 text-right font-semibold">CPU</th>
               <th className="px-3 py-2 text-right font-semibold">{t("CPU Time")}</th>
               <th className="px-3 py-2 text-right font-semibold">{t("Memory")}</th>
-              <th className="px-3 py-2 text-right font-semibold">Read/s</th>
-              <th className="px-3 py-2 text-right font-semibold">Write/s</th>
+              <th className="px-3 py-2 text-right font-semibold">{t("Read/s")}</th>
+              <th className="px-3 py-2 text-right font-semibold">{t("Write/s")}</th>
               <th className="px-3 py-2 text-right font-semibold">{t("Read Total")}</th>
               <th className="px-3 py-2 text-right font-semibold">{t("Write Total")}</th>
               <th className="px-3 py-2 text-right font-semibold">PID</th>

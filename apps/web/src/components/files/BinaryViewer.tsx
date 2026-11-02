@@ -29,6 +29,7 @@ import {
 } from "./binaryPreviewProtocol";
 import { PreviewImage } from "./PreviewImage";
 import { readBinaryPreview } from "./readBinaryPreview";
+import { useT } from "~/hooks/useT";
 
 const SourcePreview = lazy(() => import("./ReadOnlySourcePreview"));
 type Archive = Extract<BinaryWorkerResult, { type: "archive" }>;
@@ -36,6 +37,7 @@ type Database = Extract<BinaryWorkerResult, { type: "sqlite" }>;
 type Rows = Extract<BinaryWorkerResult, { type: "rows" }>;
 
 function ArchiveFile(props: { readonly path: string; readonly bytes: Uint8Array<ArrayBuffer> }) {
+  const t = useT();
   const [url, setUrl] = useState<string | null>(null);
   const kind = filePreviewKind({ name: props.path });
   const text = (() => {
@@ -63,12 +65,14 @@ function ArchiveFile(props: { readonly path: string; readonly bytes: Uint8Array<
     return url ? <PreviewImage key={url} src={url} name={props.path} /> : <FileSurfaceLoading />;
   if (!text)
     return (
-      <FileSurfaceFailure message="Only UTF-8 text and images can be opened inside an archive." />
+      <FileSurfaceFailure
+        message={t("Only UTF-8 text and images can be opened inside an archive.")}
+      />
     );
   return (
     <>
       {text.truncated ? (
-        <FileSurfaceNotice>Preview limited to the first 1 MB.</FileSurfaceNotice>
+        <FileSurfaceNotice>{t("Preview limited to the first 1 MB.")}</FileSurfaceNotice>
       ) : null}
       <Suspense fallback={<FileSurfaceLoading />}>
         <SourcePreview name={props.path} text={text.text} />
@@ -83,6 +87,7 @@ export default function BinaryViewer(props: {
   readonly kind: "archive" | "sqlite";
   readonly onRetry?: () => void;
 }) {
+  const t = useT();
   const [sizeBytes, setSizeBytes] = useState<number | null>(null);
   const [archive, setArchive] = useState<Archive | null>(null);
   const [database, setDatabase] = useState<Database | null>(null);
@@ -195,7 +200,7 @@ export default function BinaryViewer(props: {
       {archive ? (
         <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border/60 px-3 text-xs">
           <FileSurfaceAction
-            label={selectedPath ? "Back to archive" : "Parent folder"}
+            label={selectedPath ? t("Back to archive") : t("Parent folder")}
             disabled={!selectedPath && !folder}
             onPress={() => {
               setError(null);
@@ -207,10 +212,10 @@ export default function BinaryViewer(props: {
             <ChevronLeftIcon className="size-3.5" />
           </FileSurfaceAction>
           <span className="min-w-0 flex-1 truncate">
-            {selectedPath ?? (folder || "Archive contents")}
+            {selectedPath ?? (folder || t("Archive contents"))}
           </span>
           <span className="shrink-0 text-muted-foreground">
-            {archive.entries.length.toLocaleString()} entries
+            {t("{length} entries", { length: archive.entries.length.toLocaleString() })}
             {sizeBytes !== null ? ` · ${formatAttachmentSize(sizeBytes)}` : ""}
           </span>
         </div>
@@ -225,22 +230,33 @@ export default function BinaryViewer(props: {
                   if (!busy && value !== null) selectPage(0, value);
                 }}
               >
-                <SelectTrigger aria-label="Table" aria-disabled={busy} aria-busy={busy} size="xs">
+                <SelectTrigger
+                  aria-label={t("Table")}
+                  aria-disabled={busy}
+                  aria-busy={busy}
+                  size="xs"
+                >
                   <SelectValue>
-                    {table.name} ({table.count.toLocaleString()} rows)
+                    {t("{name} ({count} rows)", {
+                      name: table.name,
+                      count: table.count.toLocaleString(),
+                    })}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup>
                   {database.tables.map((item) => (
                     <SelectItem key={item.name} value={item.name}>
-                      {item.name} ({item.count.toLocaleString()} rows)
+                      {t("{name} ({count} rows)", {
+                        name: item.name,
+                        count: item.count.toLocaleString(),
+                      })}
                     </SelectItem>
                   ))}
                 </SelectPopup>
               </Select>
             </div>
             <FileSurfaceAction
-              label="Previous rows"
+              label={t("Previous rows")}
               disabled={busy || page === 0}
               onPress={() => selectPage(page - 1)}
             >
@@ -248,11 +264,15 @@ export default function BinaryViewer(props: {
             </FileSurfaceAction>
             <span className="shrink-0 tabular-nums" aria-live="polite">
               {table.count === 0
-                ? "0 rows"
-                : `${page * SQLITE_PAGE_SIZE + 1}–${Math.min(table.count, (page + 1) * SQLITE_PAGE_SIZE)} of ${table.count.toLocaleString()}`}
+                ? t("0 rows")
+                : t("{value}–{count} of {count2}", {
+                    value: page * SQLITE_PAGE_SIZE + 1,
+                    count: Math.min(table.count, (page + 1) * SQLITE_PAGE_SIZE),
+                    count2: table.count.toLocaleString(),
+                  })}
             </span>
             <FileSurfaceAction
-              label="Next rows"
+              label={t("Next rows")}
               disabled={busy || (page + 1) * SQLITE_PAGE_SIZE >= table.count}
               onPress={() => selectPage(page + 1)}
             >
@@ -263,11 +283,16 @@ export default function BinaryViewer(props: {
             className="border-b border-border/60 px-3 py-2 text-xs text-muted-foreground tabular-nums"
             role="status"
           >
-            {table.count.toLocaleString()} rows · {rows?.columns.length ?? "…"} columns
+            {t("{count} rows · {value} columns", {
+              count: table.count.toLocaleString(),
+              value: rows?.columns.length ?? "…",
+            })}
             {sizeBytes !== null ? ` · ${formatAttachmentSize(sizeBytes)}` : ""}
           </div>
           <FileSurfaceNotice>
-            Read-only. Up to 50 columns and 1,024 characters per cell. Blob contents are omitted.
+            {t(
+              "Read-only. Up to 50 columns and 1,024 characters per cell. Blob contents are omitted.",
+            )}
           </FileSurfaceNotice>
         </>
       ) : null}
@@ -285,19 +310,19 @@ export default function BinaryViewer(props: {
       ) : archive ? (
         <div className="scrollbar-gutter-both min-h-0 flex-1 overflow-auto">
           <table
-            aria-label="Archive entries"
+            aria-label={t("Archive entries")}
             className="w-full border-separate border-spacing-0 text-xs"
           >
             <thead className="sticky top-0 bg-background text-muted-foreground">
               <tr>
                 <th scope="col" className="px-3 py-2 text-left font-normal">
-                  Name
+                  {t("Name")}
                 </th>
                 <th scope="col" className="px-3 py-2 text-right font-normal">
-                  Size
+                  {t("Size")}
                 </th>
                 <th scope="col" className="px-3 py-2 text-right font-normal">
-                  Modified
+                  {t("Modified")}
                 </th>
               </tr>
             </thead>
@@ -344,7 +369,7 @@ export default function BinaryViewer(props: {
             </tbody>
           </table>
           {children.size === 0 ? (
-            <p className="p-6 text-xs text-muted-foreground">This folder is empty.</p>
+            <p className="p-6 text-xs text-muted-foreground">{t("This folder is empty.")}</p>
           ) : null}
         </div>
       ) : rows ? (
@@ -382,11 +407,13 @@ export default function BinaryViewer(props: {
             </tbody>
           </table>
           {rows.rows.length === 0 ? (
-            <p className="p-6 text-xs text-muted-foreground">This table is empty.</p>
+            <p className="p-6 text-xs text-muted-foreground">{t("This table is empty.")}</p>
           ) : null}
         </div>
       ) : (
-        <p className="p-6 text-xs text-muted-foreground">This database has no readable tables.</p>
+        <p className="p-6 text-xs text-muted-foreground">
+          {t("This database has no readable tables.")}
+        </p>
       )}
     </div>
   );

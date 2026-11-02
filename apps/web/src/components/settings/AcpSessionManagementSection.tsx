@@ -28,6 +28,7 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../
 import { toastManager } from "../ui/toast";
 import { SettingsRow } from "./settingsLayout";
 import { useT } from "../../hooks/useT";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 interface AcpSessionProject {
   readonly id: ProjectId;
@@ -41,7 +42,10 @@ function reportFailure(title: string, result: AtomCommandResult<unknown, unknown
   toastManager.add({
     type: "error",
     title,
-    description: error instanceof Error ? error.message : "The ACP operation failed.",
+    description:
+      error instanceof Error
+        ? error.message
+        : translate(getUiLocale(), "The ACP operation failed."),
   });
 }
 
@@ -621,7 +625,7 @@ export function AcpSessionManagementSection(props: {
                       aria-label={t("{providerId} write-only headers JSON", {
                         providerId: provider.providerId,
                       })}
-                      placeholder='Write-only headers JSON, e.g. {"Authorization":"Bearer …"}'
+                      placeholder={t('Write-only headers JSON, e.g. {"Authorization":"Bearer …"}')}
                       value={draft.headers}
                       disabled={props.readOnly || savingProviderId !== null}
                       onValueChange={(value) => updateDraft({ headers: value })}

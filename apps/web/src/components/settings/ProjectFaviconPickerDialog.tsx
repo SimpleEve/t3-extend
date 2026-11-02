@@ -86,7 +86,7 @@ export function ProjectFaviconPickerDialog(props: {
           <CommandPaletteContent
             aria-label={t("Choose project icon")}
             autoHighlight="always"
-            escapeLabel="Close"
+            escapeLabel={t("Close")}
             footerActionLabel={t("Select icon")}
             footerTrailing={
               pickExternal ? (

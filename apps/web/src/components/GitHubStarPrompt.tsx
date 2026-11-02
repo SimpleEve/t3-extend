@@ -8,6 +8,7 @@ import { readLocalApi } from "../localApi";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { sourceControlEnvironment } from "../state/sourceControl";
 import { toastManager } from "./ui/toast";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 // Separate keys so a count written by another tab can never undo a dismissal.
 const SENT_KEY = "t3code:github-star-prompt:sent";
@@ -27,8 +28,8 @@ function dismiss() {
 function showStarPrompt() {
   const close = () => toastManager.close(id);
   const id = toastManager.add({
-    title: "Enjoying T3 Code?",
-    description: "Give us a star on GitHub to let us know!",
+    title: translate(getUiLocale(), "Enjoying T3 Code?"),
+    description: translate(getUiLocale(), "Give us a star on GitHub to let us know!"),
     timeout: 0,
     onClose: dismiss,
     actionProps: {

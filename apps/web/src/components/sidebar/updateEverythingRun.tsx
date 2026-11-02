@@ -20,6 +20,7 @@ import {
   type UpdateEverythingRun,
   type UpdateRunMachine,
 } from "./updateEverything.logic";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 const updateEverythingRunAtom = Atom.make<UpdateEverythingRun | null>(null).pipe(
   Atom.keepAlive,
@@ -341,8 +342,12 @@ export function startDesktopUpdateLaunchNotice(): () => void {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Update did not apply",
-          description: `T3 Code is still on ${APP_VERSION}. Install ${notAppliedVersion} again from the update button.`,
+          title: translate(getUiLocale(), "Update did not apply"),
+          description: translate(
+            getUiLocale(),
+            "T3 Code is still on {APP_VERSION}. Install {notAppliedVersion} again from the update button.",
+            { APP_VERSION, notAppliedVersion },
+          ),
         }),
       );
     },

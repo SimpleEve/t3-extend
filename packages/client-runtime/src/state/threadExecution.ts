@@ -36,6 +36,7 @@ import {
   type ThreadStructureRuntime,
 } from "./models.ts";
 import { commandDisplayText } from "../work-log/commandLabel.ts";
+import { englishWorkLogPhrase, type WorkLogPhraseTranslator } from "../work-log/phrase.ts"; // fork
 import { formatSubagentDisplayTitle } from "./subagentDisplay.ts";
 
 const ACTIVITY_RUN_STATUSES = new Set(["preparing", "starting", "running", "waiting"]);
@@ -373,13 +374,17 @@ export interface PendingBackgroundWorkPresentation {
   readonly waiting: boolean;
 }
 
-function joinWithAnd(parts: ReadonlyArray<string>): string {
+function joinWithAnd(parts: ReadonlyArray<string>, t: WorkLogPhraseTranslator): string {
   if (parts.length <= 1) return parts.join("");
-  return `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+  return t("{rest} and {last}", {
+    rest: parts.slice(0, -1).join(t(", ", undefined, "tool summary")),
+    last: parts.at(-1)!,
+  });
 }
 
 export function presentPendingBackgroundWork(
   tasks: ReadonlyArray<OrchestrationV2PendingBackgroundTask>,
+  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ): PendingBackgroundWorkPresentation | null {
   if (tasks.length === 0) return null;
   const waiting = backgroundWorkHoldsCompletion(tasks);
@@ -399,7 +404,7 @@ export function presentPendingBackgroundWork(
         kind: task.kind,
         label:
           label === undefined || label.length === 0
-            ? BACKGROUND_WORK_KINDS[task.kind].singular
+            ? t(BACKGROUND_WORK_KINDS[task.kind].singular)
             : label,
         childThreadId: task.kind === "subagent" ? task.childThreadId : undefined,
       };
@@ -411,24 +416,33 @@ export function presentPendingBackgroundWork(
     );
   const [only] = items;
   if (items.length === 1 && only !== undefined) {
-    const noun = BACKGROUND_WORK_KINDS[only.kind].singular;
+    const noun = t(BACKGROUND_WORK_KINDS[only.kind].singular);
     const named = only.label !== noun;
     const title = waiting
       ? named
-        ? `${only.kind === "monitor" ? "" : `Waiting on ${noun} `}${only.label}`
-        : `Waiting on a ${noun}`
+        ? only.kind === "monitor"
+          ? only.label
+          : t("Waiting on {noun} {label}", { noun, label: only.label })
+        : t("Waiting on a {noun}", { noun })
       : named
-        ? `Running: ${only.label}`
-        : `Running a ${noun}`;
+        ? t("Running: {label}", { label: only.label })
+        : t("Running a {noun}", { noun });
     return { title, items, waiting };
   }
   const counts = new Map<BackgroundWorkKind, number>();
   for (const item of items) counts.set(item.kind, (counts.get(item.kind) ?? 0) + 1);
   const groups = Array.from(counts, ([kind, count]) => {
     const { singular, plural } = BACKGROUND_WORK_KINDS[kind];
-    return `${count} ${count === 1 ? singular : plural}`;
+    return t("{count} {noun}", { count, noun: t(count === 1 ? singular : plural) });
   });
-  return { title: `${waiting ? "Waiting on" : "Running"} ${joinWithAnd(groups)}`, items, waiting };
+  const joined = joinWithAnd(groups, t);
+  return {
+    title: waiting
+      ? t("Waiting on {work}", { work: joined })
+      : t("Running {work}", { work: joined }),
+    items,
+    waiting,
+  };
 }
 
 export interface ProviderGoalPresentation {

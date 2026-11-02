@@ -107,14 +107,14 @@ export function DeviceControlsRail(props: {
                   <MenuItem
                     onClick={() => void controls.act({ type: "setOrientation", value: "portrait" })}
                   >
-                    Portrait
+                    {t("Portrait")}
                   </MenuItem>
                   <MenuItem
                     onClick={() =>
                       void controls.act({ type: "setOrientation", value: "landscape_left" })
                     }
                   >
-                    Landscape
+                    {t("Landscape")}
                   </MenuItem>
                 </MenuPopup>
               </Menu>
@@ -135,7 +135,7 @@ export function DeviceControlsRail(props: {
             <RailDivider />
             <RailButton
               tooltipSide={popupSide}
-              label={`Switch device to ${nextAppearance} mode`}
+              label={t("Switch device to {nextAppearance} mode", { nextAppearance })}
               disabled={controls.disabled || !settings?.appearance}
               onClick={() => void controls.act({ type: "setAppearance", value: nextAppearance })}
             >
@@ -240,7 +240,7 @@ export function DeviceControlsRail(props: {
         <RailDivider />
         <RailButton
           tooltipSide={popupSide}
-          label="3D view"
+          label={t("3D view")}
           pressed={view.phone}
           disabled={!view.streaming || !!view.phoneUnavailableReason}
           description={view.phoneUnavailableReason ?? undefined}

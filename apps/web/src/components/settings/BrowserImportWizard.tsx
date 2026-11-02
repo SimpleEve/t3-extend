@@ -37,6 +37,7 @@ import {
   type WizardStep,
 } from "./browserImportWizard.logic";
 import { useT } from "../../hooks/useT";
+import type { Translator } from "@t3tools/client-runtime/i18n";
 
 export type { WizardTarget } from "./browserImportWizard.logic";
 
@@ -214,8 +215,10 @@ function cookieCountLabel(count: number | undefined): string | undefined {
   return `${count.toLocaleString()} ${count === 1 ? "cookie" : "cookies"}`;
 }
 
-function cookieResultCount(count: number): string {
-  return `${count.toLocaleString()} ${count === 1 ? "cookie" : "cookies"}`;
+function cookieResultCount(count: number, t: Translator): string {
+  return count === 1
+    ? t("{count} cookie", { count: count.toLocaleString() })
+    : t("{count} cookies", { count: count.toLocaleString() });
 }
 
 type ConfigureStepProps = {
@@ -535,14 +538,23 @@ function DoneStep({
       <DialogHeader>
         <DialogTitle>
           {imported > 0
-            ? `Imported ${cookieResultCount(imported)}`
+            ? t("Imported {imported}", { imported: cookieResultCount(imported, t) })
             : skipped > 0
-              ? `Skipped ${cookieResultCount(skipped)}`
+              ? t("Skipped {skipped}", { skipped: cookieResultCount(skipped, t) })
               : t("No cookies found")}
         </DialogTitle>
         <DialogDescription>
           {imported > 0
-            ? `Added to ${targetName} for ${destinationEnvironmentName}.${skipped > 0 ? ` ${cookieResultCount(skipped)} skipped.` : ""}`
+            ? skipped > 0
+              ? t("Added to {targetName} for {destinationEnvironmentName}. {skipped} skipped.", {
+                  targetName,
+                  destinationEnvironmentName,
+                  skipped: cookieResultCount(skipped, t),
+                })
+              : t("Added to {targetName} for {destinationEnvironmentName}.", {
+                  targetName,
+                  destinationEnvironmentName,
+                })
             : skipped > 0
               ? t("No cookies were imported for {destinationEnvironmentName}.", {
                   destinationEnvironmentName,

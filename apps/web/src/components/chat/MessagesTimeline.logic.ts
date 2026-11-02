@@ -103,7 +103,7 @@ function singleToolCallLabel(
   if (entry.itemType === "reasoning") {
     return entry.detail?.trim().replace(/\s+/g, " ") || t("Thought");
   }
-  const toolPresentation = resolveWorkEntryToolPresentation(entry, "completed");
+  const toolPresentation = resolveWorkEntryToolPresentation(entry, "completed", t);
   if (toolPresentation) return toolPresentation.displayName;
   const item = entry.structuredPayload;
   const title =
@@ -148,7 +148,7 @@ export function workEntryDisplayLabel(
     const thought = entry.detail?.trim().replace(/\s+/g, " ");
     return thought || entry.label;
   }
-  const toolPresentation = resolveWorkEntryToolPresentation(entry);
+  const toolPresentation = resolveWorkEntryToolPresentation(entry, undefined, t);
   if (toolPresentation) return toolPresentation.displayName;
   if (entry.command?.trim()) return commandDisplayText(entry.command);
   const action = toolGroupAction(entry);
@@ -264,10 +264,14 @@ export function liveWorkEntryLabel(
       (status === "inProgress" ? t("Thinking") : t("Thought"))
     );
   }
-  const toolPresentation = resolveWorkEntryToolPresentation({
-    ...entry,
-    toolLifecycleStatus: status,
-  });
+  const toolPresentation = resolveWorkEntryToolPresentation(
+    {
+      ...entry,
+      toolLifecycleStatus: status,
+    },
+    undefined,
+    t,
+  );
   if (toolPresentation) return toolPresentation.displayName;
   const command = entry.command?.trim();
   if (command) {

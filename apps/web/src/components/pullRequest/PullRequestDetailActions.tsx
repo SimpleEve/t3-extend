@@ -28,6 +28,7 @@ import type { resolvePullRequestState } from "./pullRequestPresentation";
 import type { PickableEnvironment } from "./pullRequestProjectAssignment.logic";
 import { useInlineActionConfirm } from "./useInlineActionConfirm";
 import { useT } from "~/hooks/useT"; // fork: interface language
+import { changeRequestTerm } from "./changeRequestTerm";
 
 export type PerformPullRequestAction = (
   action: PullRequestAction,
@@ -121,7 +122,9 @@ export function PullRequestCheckoutMenu({
             />
           }
         />
-        <TooltipPopup>Check out this {term}</TooltipPopup>
+        <TooltipPopup>
+          {t("Check out this {kind}", { kind: changeRequestTerm(term, t) })}
+        </TooltipPopup>
       </Tooltip>
       <MenuPopup align="end" side="bottom">
         <MenuItem disabled={!canPrepareWorktree} onClick={() => onCheckout("worktree")}>
