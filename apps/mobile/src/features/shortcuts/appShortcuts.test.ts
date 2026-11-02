@@ -1,3 +1,4 @@
+import { translatorFor } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 import type { NavigationState } from "@react-navigation/native";
 
@@ -32,9 +33,10 @@ describe("withRecentThreadShortcut", () => {
 
 describe("buildShortcutActions", () => {
   it("deep-links threads with encoded route params", () => {
-    const actions = buildShortcutActions([
-      { environmentId: "env 1", threadId: "thread/2", title: "Spaced out" },
-    ]);
+    const actions = buildShortcutActions(
+      [{ environmentId: "env 1", threadId: "thread/2", title: "Spaced out" }],
+      translatorFor("en"),
+    );
     expect(actions[1]?.params?.href).toBe("/threads/env%201/thread%2F2");
     expect(actions[1]?.title).toBe("Spaced out");
   });
@@ -91,8 +93,14 @@ describe("activeThreadRef", () => {
 
 describe("launcher shortcut ids", () => {
   it("cannot collide across different env/thread pairs", () => {
-    const a = buildShortcutActions([{ environmentId: "a-b", threadId: "c", title: "x" }]);
-    const b = buildShortcutActions([{ environmentId: "a", threadId: "b-c", title: "x" }]);
+    const a = buildShortcutActions(
+      [{ environmentId: "a-b", threadId: "c", title: "x" }],
+      translatorFor("en"),
+    );
+    const b = buildShortcutActions(
+      [{ environmentId: "a", threadId: "b-c", title: "x" }],
+      translatorFor("en"),
+    );
     expect(a[1]?.id).not.toBe(b[1]?.id);
   });
 });

@@ -69,7 +69,7 @@ function AppSettingsSection() {
     await settlePromise(() =>
       runAppUpdateCheck({
         applyMode: "immediate",
-        onFailure: (message) => Dialog.alert(t("Update failed"), message),
+        onFailure: (message) => Dialog.alert(t("Update failed"), t(message)), // fork: i18n
         onStateChange: (state) =>
           setCheckState({
             state,

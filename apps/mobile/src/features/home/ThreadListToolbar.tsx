@@ -19,6 +19,7 @@ import { WorkspaceListToolbarRow } from "../workspace/WorkspaceListToolbarRow";
 import { useWorkspaceConnectionState } from "../../state/workspace";
 import { useToolbarLayout } from "../../components/ui/useToolbarLayout";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export function ThreadListToolbar(props: {
   readonly searchQuery: string;
@@ -114,7 +115,7 @@ export function ThreadListToolbar(props: {
         onCloseSearch={closeSearch}
         onOpenSearch={openSearch}
         searchAccessibilityLabel={t("Search threads")}
-        titleAccessibilityLabel={`T3 Code, ${t("Threads")}`}
+        titleAccessibilityLabel={joinLabelParts(["T3 Code", t("Threads")], t)}
         onOpenEnvironments={props.onOpenEnvironments}
         filter={filterButton}
       />

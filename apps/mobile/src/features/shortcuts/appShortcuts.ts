@@ -3,6 +3,7 @@ import type { NavigationState } from "@react-navigation/native";
 import { EnvironmentId, ThreadId, type ScopedThreadRef } from "@t3tools/contracts";
 
 import type { RecentThreadShortcut } from "../../persistence/imperative";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const MAX_RECENT_THREAD_SHORTCUTS = 3;
 
@@ -88,11 +89,14 @@ export function withRecentThreadShortcut(
   ].slice(0, MAX_RECENT_THREAD_SHORTCUTS);
 }
 
-export function buildShortcutActions(recents: ReadonlyArray<RecentThreadShortcut>): Action[] {
+export function buildShortcutActions(
+  recents: ReadonlyArray<RecentThreadShortcut>,
+  t: Translator, // fork: i18n
+): Action[] {
   return [
     {
       id: NEW_TASK_SHORTCUT_ID,
-      title: "New task",
+      title: t("New task"),
       icon: SHORTCUT_ICON,
       params: { href: NEW_TASK_SHORTCUT_HREF },
     },

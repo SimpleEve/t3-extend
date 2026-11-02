@@ -183,7 +183,8 @@ function DeviceStreamDocumentView({
           else if (message?.type === "retry") onRetry();
           else if (message?.type === "status") {
             clearBootstrapTimer();
-            if (message.status === "error") fail(message.detail ?? t("Device stream failed."));
+            if (message.status === "error")
+              fail(message.detail ? t(message.detail) : t("Device stream failed.")); // fork: i18n
             else {
               setStatus(message.status);
               if (message.status === "streaming") onStreaming();

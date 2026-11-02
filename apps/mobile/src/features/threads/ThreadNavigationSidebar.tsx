@@ -687,6 +687,7 @@ function ThreadNavigationSidebarPane(
     filterIcon,
     filterMenu,
     onOpenSettings: props.onOpenSettings,
+    t, // fork: i18n
   });
   const listEmpty = (
     <Text

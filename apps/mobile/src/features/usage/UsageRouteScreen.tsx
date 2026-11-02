@@ -831,7 +831,9 @@ function TotalsSection(props: {
           columns={props.columns}
           label={t("Processed tokens")}
           value={formatTokens(merged.totalTokens)}
-          detail={`${formatTokens(periodAverage)} per active ${props.isPast24Hours ? "hour" : "day"}`}
+          detail={t(props.isPast24Hours ? "{amount} per active hour" : "{amount} per active day", {
+            amount: formatTokens(periodAverage),
+          })}
         />
         <MetricCell
           columns={props.columns}
@@ -919,7 +921,7 @@ function CostSection(props: { readonly merged: MergedUsage; readonly wide: boole
             <ShareBar
               label={t("By speed")}
               segments={bySpeed}
-              aside={`${formatUsd(speedCost.premium)} premium`}
+              aside={t("{amount} premium", { amount: formatUsd(speedCost.premium) })}
             />
           </View>
         ) : null}

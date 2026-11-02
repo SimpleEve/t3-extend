@@ -17,6 +17,7 @@ import {
   shortcutHref,
   withRecentThreadShortcut,
 } from "./appShortcuts";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface RecentThreadShortcutsDependencies {
   readonly load: () => Promise<ReadonlyArray<RecentThreadShortcut>>;
@@ -135,7 +136,9 @@ export function installAppShortcuts(navigate: (href: string) => void): () => voi
   const recents = createRecentThreadShortcuts({
     load: loadRecentThreadShortcuts,
     save: saveRecentThreadShortcuts,
-    publish: (list) => QuickActions.setItems(buildShortcutActions(list)),
+    // fork: i18n, the label is read in the language at publish time
+    publish: (list) =>
+      QuickActions.setItems(buildShortcutActions(list, translatorFor(getUiLocale()))),
   });
   const unsubscribe = appAtomRegistry.subscribe(
     activeThreadShortcutAtom,

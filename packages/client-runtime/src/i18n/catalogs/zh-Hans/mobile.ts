@@ -472,6 +472,7 @@ export default {
   "Copy skill": "复制技能",
   "Copy link": "复制链接",
   "Open link": "打开链接",
+  "Send Message": "发送消息",
   "{label}: {detail}": "{label}：{detail}",
   "Share link": "分享链接",
   "Open file": "打开文件",

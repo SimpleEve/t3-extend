@@ -31,7 +31,7 @@ export function resolveVoiceComposerPresentation(
         trailingAction: "mic",
         showsSend: true,
         statusKind: "error",
-        statusLabel: state.error,
+        statusLabel: state.error === null ? null : t(state.error), // fork: i18n, English from the controller
         confirmationEnabled: false,
       };
     case "preparing":

@@ -160,6 +160,7 @@ export function ComposerEditor({
     setConfirmedTokens({ value: props.value, tokens });
   }
   const bodyText = useScaledTextRole("body");
+  const t = useT(); // fork: i18n
   const theme = useUniwindTheme();
   const fontFamily = FONT_FAMILIES.regular;
 
@@ -308,8 +309,8 @@ export function ComposerEditor({
       editable={props.editable ?? true}
       readOnly={props.readOnly ?? false}
       enterBehavior={props.enterBehavior ?? DEFAULT_COMPOSER_ENTER_BEHAVIOR}
-      submitTitle={props.submitTitle ?? "Send Message"}
-      alternateSubmitTitle={props.alternateSubmitTitle ?? props.submitTitle ?? "Send Message"}
+      submitTitle={props.submitTitle ?? t("Send Message")}
+      alternateSubmitTitle={props.alternateSubmitTitle ?? props.submitTitle ?? t("Send Message")}
       scrollEnabled={props.scrollEnabled ?? true}
       autoFocus={props.autoFocus ?? false}
       autoCorrect={props.autoCorrect ?? true}
@@ -397,3 +398,4 @@ export type {
   ComposerEditorSelection,
   ComposerTextPaste,
 } from "./T3ComposerEditor.types";
+import { useT } from "../hooks/useT"; // fork: i18n

@@ -5,6 +5,7 @@ import type {
 
 import type { HomeListFilterMenu } from "../home/home-list-filter-menu";
 import { withNativeGlassHeaderItem } from "../layout/native-glass-header-items";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 type NativeHeaderMenuItems = NativeStackHeaderItemMenu["menu"]["items"];
 type NativeHeaderIcon = NonNullable<Extract<NativeStackHeaderItem, { type: "button" }>["icon"]>;
@@ -35,13 +36,15 @@ export function createSidebarHeaderItems(input: {
   readonly filterIcon: string;
   readonly filterMenu: HomeListFilterMenu;
   readonly onOpenSettings: () => void;
+  readonly t: Translator; // fork: i18n
 }): NativeStackHeaderItem[] {
+  const { t } = input;
   return [
     withNativeGlassHeaderItem({
       type: "menu",
       axisBehavior: "horizontalOnly",
       label: "",
-      accessibilityLabel: "Filter threads",
+      accessibilityLabel: t("Filter threads"),
       icon: sfSymbolIcon(input.filterIcon),
       menu: {
         title: input.filterMenu.title,
@@ -51,8 +54,8 @@ export function createSidebarHeaderItems(input: {
     withNativeGlassHeaderItem({
       type: "button",
       axisBehavior: "horizontalOnly",
-      label: "Settings",
-      accessibilityLabel: "Open settings",
+      label: t("Settings"),
+      accessibilityLabel: t("Open settings"),
       icon: sfSymbolIcon("gearshape"),
       onPress: input.onOpenSettings,
     }),

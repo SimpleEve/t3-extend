@@ -420,7 +420,7 @@ function PreviewStreamDocumentView({
               case "status":
                 clearBootstrapTimer();
                 if (message.status === "error") {
-                  fail(message.detail ?? t("Browser stream failed."));
+                  fail(message.detail ? t(message.detail) : t("Browser stream failed.")); // fork: i18n
                   return;
                 }
                 setStatus(message.status);
