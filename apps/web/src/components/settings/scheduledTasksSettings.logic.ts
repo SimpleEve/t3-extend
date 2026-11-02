@@ -131,21 +131,26 @@ export function webhookDraftErrors(
   return errors;
 }
 
-export function webhookDeliveryLabel(delivery: {
-  readonly outcome: string;
-  readonly pendingWindow?: boolean | undefined;
-}) {
-  if (delivery.outcome === "accepted") return delivery.pendingWindow ? "Opened window" : "Ran";
+export function webhookDeliveryLabel(
+  delivery: {
+    readonly outcome: string;
+    readonly pendingWindow?: boolean | undefined;
+  },
+  t: Translator = (source, params) => interpolate(source, params), // fork: interface language
+) {
+  if (delivery.outcome === "accepted")
+    return delivery.pendingWindow ? t("Opened window") : t("Ran");
   const labels: Record<string, string> = {
-    dispatch_failed: "Run failed",
-    duplicate: "Duplicate",
-    coalesced: "Coalesced",
-    filtered: "Filtered",
-    rejected_signature: "Bad signature",
-    disabled: "Task paused",
-    rate_limited: "Rate limited",
-    expired: "Too old",
+    dispatch_failed: t("Run failed"),
+    duplicate: t("Duplicate"),
+    coalesced: t("Coalesced"),
+    filtered: t("Filtered"),
+    rejected_signature: t("Bad signature"),
+    disabled: t("Task paused"),
+    rate_limited: t("Rate limited"),
+    expired: t("Too old"),
   };
+  // An outcome newer than this table shows as its raw words.
   return labels[delivery.outcome] ?? delivery.outcome.replaceAll("_", " ");
 }
 

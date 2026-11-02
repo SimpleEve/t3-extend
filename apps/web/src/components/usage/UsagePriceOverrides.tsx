@@ -177,8 +177,10 @@ export function UsagePriceOverrides({
   const locked = pending || failedDestinations.length > 0;
   const hasChanges = stagedDrafts.length > 0;
   const destinationLabel =
-    selected.length === 1 ? selected[0]!.label : `${selected.length} environments`;
-  const selectionLabel = selectedIds === null ? "All environments" : destinationLabel;
+    selected.length === 1
+      ? selected[0]!.label
+      : t("{count} environments", { count: selected.length });
+  const selectionLabel = selectedIds === null ? t("All environments") : destinationLabel;
   const discard = () => {
     setDrafts([]);
     setAttempt(null);

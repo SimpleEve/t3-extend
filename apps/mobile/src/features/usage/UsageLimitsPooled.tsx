@@ -16,6 +16,7 @@ import {
   remainingPercent,
   type LimitAccount,
   type LimitPoolWindow,
+  usageWindowLabel, // fork: i18n
 } from "@t3tools/shared/usageLimits";
 import { Fragment, type ReactNode, useId, useState } from "react";
 import { Linking, Pressable, View } from "react-native";
@@ -206,7 +207,9 @@ function PoolWindowCard({
     <>
       <View className={wide ? "gap-1" : "flex-row items-start justify-between gap-3"}>
         <View className="gap-1">
-          <Text className="text-sm font-t3-medium text-foreground">{label ?? pool.label}</Text>
+          <Text className="text-sm font-t3-medium text-foreground">
+            {usageWindowLabel(label ?? pool.label, t)}
+          </Text>
           <View className="flex-row items-baseline gap-1.5">
             <Text className="text-3xl font-t3-bold tabular-nums text-foreground">
               {pool.remainingPercent}%
@@ -218,7 +221,7 @@ function PoolWindowCard({
           <Text className="text-xs text-foreground-tertiary">{t(PACE_LABEL[pool.pace])}</Text>
         ) : null}
       </View>
-      {description ? <Text className="text-xs text-foreground-muted">{description}</Text> : null}
+      {description ? <Text className="text-xs text-foreground-muted">{t(description)}</Text> : null}
       {nextRefill ? (
         <Text className="text-xs tabular-nums text-foreground-muted">
           ↻ +{nextRefill.restoresPercent}%{" "}
@@ -630,7 +633,9 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
               ) : null}
             </View>
             <View className="gap-3 rounded-[24px] border-continuous bg-grouped-card p-4">
-              <Text className="text-sm font-t3-medium text-foreground">{window.label}</Text>
+              <Text className="text-sm font-t3-medium text-foreground">
+                {usageWindowLabel(window.label, t)}
+              </Text>
               <Text className="text-3xl font-t3-bold tabular-nums text-foreground">
                 {t("{percent}% left", { percent: remainingPercent(window) })}
               </Text>

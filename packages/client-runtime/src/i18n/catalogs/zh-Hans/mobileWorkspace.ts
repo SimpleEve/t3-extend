@@ -683,7 +683,7 @@ export default {
   "on pace": "符合匀速",
   "under pace": "慢于匀速",
   "{count} reset credit banked": "存有 {count} 次重置额度",
-  " · next expires in {expiresIn}": " · 下次 {expiresIn} 后过期",
+  " · next expires in {expiresIn}": " · 下次 {expiresIn}后过期",
   "Reset applied. Your windows have cleared.": "已重置，你的用量窗口已清空。",
   "Nothing to reset right now.": "现在没有需要重置的内容。",
   "No reset credit left.": "没有剩余的重置额度。",

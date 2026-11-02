@@ -17,6 +17,7 @@ import {
   paceOf,
   paceRemainingPercent,
   remainingPercent,
+  usageWindowLabel, // fork: i18n
 } from "@t3tools/shared/usageLimits";
 import { GaugeIcon, TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 import { Fragment, type ReactNode, useLayoutEffect, useState } from "react";
@@ -134,7 +135,7 @@ function WindowBar({
   const resetsAt = window.resetsAt
     ? formatUpcomingTimestamp(window.resetsAt, timestampFormat, now)
     : null;
-  const summary = `${window.label}: ${t("{remaining}% left", { remaining })}${
+  const summary = `${usageWindowLabel(window.label, t)}: ${t("{remaining}% left", { remaining })}${
     timeLeft === null ? "" : t(", {timeLeft}% of the window left", { timeLeft })
   }${resetsIn ? `${t(", ")}${resetsIn}` : ""}`;
 
@@ -221,7 +222,9 @@ export function LimitWindows({
         return (
           <Fragment key={window.id}>
             <span className="flex min-w-0 items-center gap-2 text-xs">
-              <span className="truncate text-muted-foreground">{window.label}</span>
+              <span className="truncate text-muted-foreground">
+                {usageWindowLabel(window.label, t)}
+              </span>
               <span className="ms-auto shrink-0 font-medium text-foreground tabular-nums">
                 {t("{remainingPercent}% left", { remainingPercent: remainingPercent(window) })}
               </span>
@@ -319,7 +322,7 @@ export function resetCreditsSummary(
   t: Translator, // fork: interface language
 ): string {
   const expiresIn = credits.nextExpiresAt
-    ? formatDuration(Date.parse(credits.nextExpiresAt) - now)
+    ? formatDuration(Date.parse(credits.nextExpiresAt) - now, t)
     : null;
   if (credits.availableCount === 0) return t("No reset credits banked");
   const count = credits.availableCount;

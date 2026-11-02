@@ -1269,7 +1269,9 @@ export function PullRequestsPage() {
     <PullRequestFiltersMenuInSidebarOrder
       onOpenChange={setFiltersOpen}
       state={search.state}
-      stateOptions={translateFilterOptions(STATE_TABS, t)}
+      stateOptions={translateFilterOptions(STATE_TABS, (source) =>
+        t(source, undefined, "pull request state"),
+      )}
       onState={(state) => updateListScope({ state })}
       involvement={search.involvement}
       involvementOptions={translateFilterOptions(INVOLVEMENT_TABS, t)}

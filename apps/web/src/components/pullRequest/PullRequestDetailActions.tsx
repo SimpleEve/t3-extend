@@ -390,7 +390,7 @@ export function PullRequestPrimaryAction({
         <Badge size="control" variant="outline">
           <span className={cn("flex items-center gap-1", statePresentation.toneClassName)}>
             <statePresentation.Icon className="size-3.5" />
-            {statePresentation.label}
+            {t(statePresentation.label, undefined, "pull request state")}
           </span>
         </Badge>
       ) : null}

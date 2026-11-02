@@ -713,6 +713,29 @@ export function formatResetsInShort(
   return t("in {duration}", { duration: formatDuration(resetsAt - now, t) });
 }
 
+// fork: window names the provider adapters and Cursor report. Other parts of a label, such as
+// model names, stay as reported.
+const USAGE_WINDOW_NAMES: ReadonlySet<string> = new Set([
+  "Session",
+  "Weekly",
+  "Monthly",
+  "5-hour",
+  "Quota",
+  "Reported quota",
+  "Monthly spend",
+  "Monthly credit limit",
+  "Claude & GPT (shared)",
+  ...CURSOR_USAGE_WINDOWS.map((window) => window.label),
+]);
+
+/** fork: a reported window label such as "Weekly · Opus", in the interface language. */
+export function usageWindowLabel(label: string, t: ResetLabelTranslator): string {
+  return label
+    .split(" · ")
+    .map((part) => (USAGE_WINDOW_NAMES.has(part) ? t(part) : part))
+    .join(" · ");
+}
+
 export const USAGE_LIMITS_COMMAND = {
   name: "usage-limits",
   description: "Show this provider's usage limits",

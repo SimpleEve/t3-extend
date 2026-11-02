@@ -11,6 +11,7 @@ import {
   limitsNotice,
   paceOf,
   remainingPercent,
+  usageWindowLabel, // fork: i18n
 } from "@t3tools/shared/usageLimits";
 import type { ReactNode } from "react";
 
@@ -163,7 +164,7 @@ function LimitRow({
   const resetsAt = window.resetsAt ? Date.parse(window.resetsAt) : Number.NaN;
   return (
     <UsageRow
-      label={window.label}
+      label={usageWindowLabel(window.label, t)}
       fill={left}
       tone={left <= 10 ? "error" : left <= 20 ? "warning" : null}
       value={`${left}%`}
@@ -171,12 +172,12 @@ function LimitRow({
       tooltip={
         <>
           <span className="text-foreground">
-            {window.label}: {t("{remaining}% left", { remaining: left })}
+            {usageWindowLabel(window.label, t)}: {t("{remaining}% left", { remaining: left })}
           </span>
           {window.resetsAt && resetsAt > now ? (
             <span className="text-muted-foreground">
               {t("Resets in {duration} · {time}", {
-                duration: formatDuration(resetsAt - now),
+                duration: formatDuration(resetsAt - now, t),
                 time: formatUpcomingTimestamp(window.resetsAt, timestampFormat, now),
               })}
             </span>

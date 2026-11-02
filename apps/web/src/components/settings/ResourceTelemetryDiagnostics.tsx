@@ -15,6 +15,7 @@ import { ChevronDown, ChevronRight } from "lucide";
 import type {
   BackgroundBooleanState,
   EnvironmentId,
+  HostPowerThermalState,
   ResourceAttributionEntry,
   ResourceTelemetryAggregate,
   ResourceTelemetryHistoryBucket,
@@ -60,6 +61,7 @@ import {
   visibleResourceTelemetryProcesses,
 } from "./ResourceTelemetryDiagnostics.logic";
 import { SettingsSection } from "./settingsLayout";
+import type { Translator } from "@t3tools/client-runtime/i18n";
 import { useT } from "../../hooks/useT";
 import { interpolateNodes } from "../../lib/interpolateNodes";
 
@@ -151,10 +153,42 @@ function ioSemanticsLabel(semantics: ResourceTelemetryIoSemantics): string {
 function booleanStateLabel(
   value: BackgroundBooleanState,
   labels: { readonly true: string; readonly false: string },
+  t: Translator, // fork: interface language
 ): string {
   if (value === "true") return labels.true;
   if (value === "false") return labels.false;
-  return "Unknown";
+  return t("Unknown");
+}
+
+// fork: the raw values stay the English text; each one gets its own key.
+function thermalStateLabel(state: HostPowerThermalState, t: Translator): string {
+  switch (state) {
+    case "unknown":
+      return t("unknown");
+    case "nominal":
+      return t("nominal");
+    case "fair":
+      return t("fair");
+    case "serious":
+      return t("serious");
+    case "critical":
+      return t("critical");
+  }
+}
+
+function sourceStatusLabel(status: ResourceTelemetrySourceStatus, t: Translator): string {
+  switch (status) {
+    case "starting":
+      return t("starting");
+    case "healthy":
+      return t("healthy");
+    case "degraded":
+      return t("degraded");
+    case "unavailable":
+      return t("unavailable");
+    case "stopped":
+      return t("stopped");
+  }
 }
 
 function sourceStatusTone(status: ResourceTelemetrySourceStatus): "default" | "warning" | "danger" {
@@ -177,6 +211,7 @@ function SourceStatusBadge({
       }
     | undefined;
 }) {
+  const t = useT();
   const tone = presentation?.tone ?? sourceStatusTone(status);
   return (
     <span
@@ -197,7 +232,7 @@ function SourceStatusBadge({
           tone === "danger" && "bg-destructive",
         )}
       />
-      {label} {presentation?.label ?? status}
+      {label} {presentation?.label ?? sourceStatusLabel(status, t)}
     </span>
   );
 }
@@ -208,10 +243,12 @@ function LastSampleLabel({ sampledAt }: { sampledAt: DateTime.Utc | null }) {
   if (relative.status !== "relative") {
     return <span className="text-2xs text-muted-foreground/55">{t("Waiting for sample")}</span>;
   }
+  // fork: one sentence, so Chinese can put the time before the verb.
   return (
     <span className="text-2xs text-muted-foreground/60">
-      {t("Updated")} <span className="font-mono tabular-nums">{relative.value}</span>
-      {relative.suffix ? ` ${relative.suffix}` : ""}
+      {interpolateNodes(t("Updated {time}"), {
+        time: <span className="font-mono tabular-nums">{relative.label}</span>,
+      })}
     </span>
   );
 }
@@ -315,7 +352,7 @@ function HealthSource({ label, health }: { label: string; health: ResourceTeleme
           {expectedInBrowser
             ? t("Available when this page runs inside the desktop app.")
             : Option.match(health.lastError, {
-                onNone: () => "No reported errors",
+                onNone: () => t("No reported errors"),
                 onSome: (error) => error,
               })}
         </div>
@@ -1104,11 +1141,17 @@ function ResourceTelemetryDiagnosticsBody({
               icon={<GaugeIcon className="size-3.5" />}
               label={t("CPU speed limit")}
               value={
-                snapshot ? (speedLimit === null ? "Unknown" : `${speedLimit.toFixed(0)}%`) : "..."
+                snapshot
+                  ? speedLimit === null
+                    ? t("Unknown")
+                    : `${speedLimit.toFixed(0)}%`
+                  : "..."
               }
               detail={
                 snapshot
-                  ? t("{thermalState} thermal state", { thermalState: snapshot.power.thermalState })
+                  ? t("{thermalState} thermal state", {
+                      thermalState: thermalStateLabel(snapshot.power.thermalState, t),
+                    })
                   : undefined
               }
               tone={speedLimit !== null && speedLimit < 80 ? "warning" : "default"}
@@ -1166,43 +1209,47 @@ function ResourceTelemetryDiagnosticsBody({
               <>
                 <DetailRow
                   label={t("Power source")}
-                  value={booleanStateLabel(snapshot.power.onBattery, {
-                    true: "Battery",
-                    false: "External power",
-                  })}
+                  value={booleanStateLabel(
+                    snapshot.power.onBattery,
+                    { true: t("Battery"), false: t("External power") },
+                    t,
+                  )}
                 />
                 <DetailRow
                   label={t("Low power mode")}
-                  value={booleanStateLabel(snapshot.power.lowPowerMode, {
-                    true: "Enabled",
-                    false: "Disabled",
-                  })}
+                  value={booleanStateLabel(
+                    snapshot.power.lowPowerMode,
+                    { true: t("Enabled"), false: t("Disabled") },
+                    t,
+                  )}
                 />
                 <DetailRow
                   label={t("Idle")}
-                  value={`${booleanStateLabel(snapshot.power.idle, {
-                    true: "Idle",
-                    false: "Active",
-                  })}${
+                  value={`${booleanStateLabel(
+                    snapshot.power.idle,
+                    { true: t("Idle"), false: t("Active", undefined, "host state") },
+                    t,
+                  )}${
                     snapshot.power.idleSeconds === null
                       ? ""
-                      : ` · ${Math.round(snapshot.power.idleSeconds)}s`
+                      : ` · ${t("{count}s", { count: Math.round(snapshot.power.idleSeconds) })}`
                   }`}
                 />
                 <DetailRow
                   label={t("Session")}
                   value={
                     snapshot.power.suspended
-                      ? "Suspended"
-                      : booleanStateLabel(snapshot.power.locked, {
-                          true: "Locked",
-                          false: "Unlocked",
-                        })
+                      ? t("Suspended")
+                      : booleanStateLabel(
+                          snapshot.power.locked,
+                          { true: t("Locked"), false: t("Unlocked") },
+                          t,
+                        )
                   }
                 />
                 <DetailRow
                   label={t("Thermal")}
-                  value={snapshot.power.thermalState}
+                  value={thermalStateLabel(snapshot.power.thermalState, t)}
                   valueClassName={
                     snapshot.power.thermalState === "serious" ||
                     snapshot.power.thermalState === "critical"
@@ -1241,7 +1288,10 @@ function ResourceTelemetryDiagnosticsBody({
                 />
                 <DetailRow
                   label={t("Process scan")}
-                  value={`${snapshot.health.retainedProcessCount}/${snapshot.health.scannedProcessCount} retained`}
+                  value={t("{retained}/{scanned} retained", {
+                    retained: snapshot.health.retainedProcessCount,
+                    scanned: snapshot.health.scannedProcessCount,
+                  })}
                 />
                 <DetailRow
                   label={t("Inaccessible")}
@@ -1255,7 +1305,7 @@ function ResourceTelemetryDiagnosticsBody({
                 <DetailRow
                   label={t("Sidecar")}
                   value={Option.match(snapshot.health.sidecarVersion, {
-                    onNone: () => "Unavailable",
+                    onNone: () => t("Unavailable"),
                     onSome: (version) =>
                       `${version}${Option.match(snapshot.health.sidecarPid, {
                         onNone: () => "",

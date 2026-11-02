@@ -42,7 +42,7 @@ function TaskScheduleLine({ task }: { task: ScheduledTask }) {
   const t = useT();
   return (
     <>
-      {scheduleLabel(task.schedule)}
+      {scheduleLabel(task.schedule, t)}
       {task.enabled && task.nextRunAt !== null ? (
         <>
           {t(" · next ")}

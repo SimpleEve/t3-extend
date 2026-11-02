@@ -624,7 +624,7 @@ export default {
   "Context: {percent}% used": "上下文：已用 {percent}%",
   "Context: {tokens} tokens used": "上下文：已用 {tokens} token",
   "{used} of {max} tokens": "{used} / {max} token",
-  "Resets in {duration} · {time}": "{duration} 后重置 · {time}",
+  "Resets in {duration} · {time}": "{duration}后重置 · {time}",
   "Ahead of pace": "超速",
   "On pace": "匀速",
   "Under pace": "低于匀速",
