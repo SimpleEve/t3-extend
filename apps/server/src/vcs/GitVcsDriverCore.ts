@@ -44,6 +44,7 @@ import { gitCommandDuration, gitCommandsTotal, withMetrics } from "../observabil
 import * as GitVcsDriver from "./GitVcsDriver.ts";
 import { removeEmptyDirectory } from "./removeEmptyDirectory.ts";
 import { explicitBareRepositoryEnv, gitConfigEnv } from "./VcsProcess.ts";
+import * as SharedWorktrees from "../fork/SharedWorktrees.ts"; // fork: shared-worktree guard
 import { removeLinkedWorktree } from "./worktreeRemoval.ts";
 import { resolveWorktreesDirectory } from "../worktreesDirectory.ts";
 import {
@@ -943,6 +944,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
   const commandSpawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   const serverConfig = yield* ServerConfig.ServerConfig;
   const { worktreesDir } = serverConfig;
+  const sharedWorktrees = yield* SharedWorktrees.SharedWorktreePolicy; // fork: shared-worktree guard
   const isServerInternalPath = yield* makeIsServerInternalPath;
   const crypto = yield* Crypto.Crypto;
   const hostPlatform = yield* HostProcess.Platform;
@@ -4669,6 +4671,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
       Effect.provideService(FileSystem.FileSystem, fileSystem),
       Effect.provideService(Path.Path, path),
       Effect.provideService(ServerConfig.ServerConfig, serverConfig), // fork: shared-worktree guard
+      Effect.provideService(SharedWorktrees.SharedWorktreePolicy, sharedWorktrees), // fork: shared-worktree guard
     );
     if (result.exitCode === 0) {
       // Git for Windows reports success without removing NTFS junctions or their parent directories.

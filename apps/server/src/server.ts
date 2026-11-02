@@ -3,6 +3,7 @@ import type { RelayManagedEndpointRuntimeConfig } from "@t3tools/contracts/relay
 import * as Random from "effect/Random";
 import * as DatabaseStorage from "./persistence/DatabaseStorage.ts";
 import * as T3CodeImport from "./fork/T3CodeImport.ts"; // fork: import from official T3 Code
+import * as SharedWorktrees from "./fork/SharedWorktrees.ts"; // fork: shared worktrees are never removed
 import * as StorageCleanup from "./storageCleanup.ts";
 import * as PullRequestSyncReactor from "./orchestration-v2/PullRequestSyncReactor.ts";
 import * as PullRequestWatchReactor from "./orchestration-v2/PullRequestWatchReactor.ts";
@@ -1196,6 +1197,8 @@ const layerMakeServer = Layer.unwrap(
       Layer.provideMerge(FetchHttpClient.layer),
       Layer.provide(VcsProcess.layer),
       Layer.provideMerge(AgentScopeLive.layer),
+      // fork: below every layer that builds a Git driver or removes worktrees, so all of them see it.
+      Layer.provideMerge(SharedWorktrees.layer.pipe(Layer.provide(SqlitePersistence.layerConfig))),
       Layer.provideMerge(layerPlatformServices),
     );
   }),

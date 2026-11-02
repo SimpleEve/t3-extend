@@ -358,7 +358,7 @@ import {
   T3CodeImportReport,
   T3CodeImportSelection,
   T3CodeImportState,
-} from "./t3CodeImport.ts"; // fork: import from official T3 Code
+} from "./t3CodeImport.ts"; // fork: import from the official app
 import {
   StorageCleanupReport,
   DatabaseStorageStatus,
@@ -515,10 +515,10 @@ export const WS_METHODS = {
   serverRunStorageCleanup: "server.runStorageCleanup",
   serverGetStorageCleanupReport: "server.getStorageCleanupReport",
   serverGetDatabaseStorage: "server.getDatabaseStorage",
-  serverPreviewT3CodeImport: "server.previewT3CodeImport", // fork: import from official T3 Code
-  serverCheckT3CodeImport: "server.checkT3CodeImport", // fork: import from official T3 Code
-  serverRunT3CodeImport: "server.runT3CodeImport", // fork: import from official T3 Code
-  serverSubscribeT3CodeImport: "server.subscribeT3CodeImport", // fork: import from official T3 Code
+  serverPreviewT3CodeImport: "server.previewT3CodeImport", // fork: import from the official app
+  serverCheckT3CodeImport: "server.checkT3CodeImport", // fork: import from the official app
+  serverRunT3CodeImport: "server.runT3CodeImport", // fork: import from the official app
+  serverSubscribeT3CodeImport: "server.subscribeT3CodeImport", // fork: import from the official app
   peerLinksList: "peerLinks.list",
   peerLinksLink: "peerLinks.link",
   peerLinksUnlink: "peerLinks.unlink",
@@ -807,7 +807,7 @@ const WsServerGetDatabaseStorageRpc = Rpc.make(WS_METHODS.serverGetDatabaseStora
   error: EnvironmentAuthorizationError,
 });
 
-// fork: import from official T3 Code
+// fork: import from the official app
 const WsServerPreviewT3CodeImportRpc = Rpc.make(WS_METHODS.serverPreviewT3CodeImport, {
   payload: Schema.Struct({}),
   success: T3CodeImportCatalog,
@@ -2042,10 +2042,10 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerRunStorageCleanupRpc,
   WsServerGetStorageCleanupReportRpc,
   WsServerGetDatabaseStorageRpc,
-  WsServerPreviewT3CodeImportRpc, // fork: import from official T3 Code
-  WsServerCheckT3CodeImportRpc, // fork: import from official T3 Code
-  WsServerRunT3CodeImportRpc, // fork: import from official T3 Code
-  WsServerSubscribeT3CodeImportRpc, // fork: import from official T3 Code
+  WsServerPreviewT3CodeImportRpc, // fork: import from the official app
+  WsServerCheckT3CodeImportRpc, // fork: import from the official app
+  WsServerRunT3CodeImportRpc, // fork: import from the official app
+  WsServerSubscribeT3CodeImportRpc, // fork: import from the official app
   WsServerUpdateSettingsRpc,
   WsPeerLinksListRpc,
   WsPeerLinksLinkRpc,

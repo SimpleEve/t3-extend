@@ -11,6 +11,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 import { ChildProcessSpawner } from "effect/process";
 
 import * as ServerConfig from "../config.ts";
+import * as SharedWorktrees from "./SharedWorktrees.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 
 const exitedHandle = ChildProcessSpawner.makeHandle({
@@ -27,22 +28,42 @@ const exitedHandle = ChildProcessSpawner.makeHandle({
   getOutputFd: () => Stream.empty,
 });
 
-/** Writes the rows an import leaves behind for worktrees it shares with official T3 Code. */
-export const markSharedWorktrees = Effect.fn("SharedWorktrees.testkit.mark")(function* (
-  dbPath: string,
-  paths: ReadonlyArray<string>,
-) {
-  yield* Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_map (
-      kind TEXT NOT NULL, source_id TEXT NOT NULL, target_id TEXT NOT NULL,
-      state TEXT NOT NULL, detail TEXT, imported_at TEXT NOT NULL, PRIMARY KEY (kind, source_id))`;
-    for (const path of paths) {
-      yield* sql`INSERT OR IGNORE INTO fork_t3code_import_map
+/** The live policy over an in-memory database, as the server provides it. */
+export const liveSharedWorktreePolicyLayer = SharedWorktrees.layer.pipe(
+  Layer.provide(NodeSqliteClient.layer({ filename: ":memory:" })),
+);
+
+/**
+ * A live policy built over a database that already holds the given markers, or whose marker table
+ * cannot be read when `unreadable` is set.
+ */
+const makeLivePolicy = Effect.fn("SharedWorktrees.testkit.makePolicy")(function* (options: {
+  readonly marked?: ReadonlyArray<string>;
+  readonly unreadable?: boolean;
+}) {
+  const sqlContext = yield* NodeSqliteClient.layer({ filename: ":memory:" }).pipe(
+    Layer.build,
+    Effect.orDie,
+  );
+  const sql = Context.get(sqlContext, SqlClient.SqlClient);
+  if (options.unreadable === true) {
+    yield* sql`CREATE TABLE fork_t3code_import_map (kind TEXT)`.pipe(Effect.orDie);
+  } else {
+    yield* SharedWorktrees.ensureImportTables().pipe(
+      Effect.provideService(SqlClient.SqlClient, sql),
+      Effect.orDie,
+    );
+    for (const target of options.marked ?? []) {
+      yield* sql`INSERT INTO fork_t3code_import_map
         (kind, source_id, target_id, state, imported_at)
-        VALUES ('worktree', ${path}, ${path}, 'shared', 'now')`;
+        VALUES ('worktree', ${target}, ${target}, 'shared', 'now')`.pipe(Effect.orDie);
     }
-  }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: dbPath })), Effect.orDie);
+  }
+  const context = yield* SharedWorktrees.layer.pipe(
+    Layer.provide(Layer.succeed(SqlClient.SqlClient, sql)),
+    Layer.build,
+  );
+  return Context.get(context, SharedWorktrees.SharedWorktreePolicy);
 });
 
 /**
@@ -53,6 +74,7 @@ export const makeGuardedRemoveWorktree = Effect.fn("SharedWorktrees.testkit.make
   function* (options: {
     readonly home: string;
     readonly marked?: ReadonlyArray<string>;
+    readonly unreadable?: boolean;
     /** Where this environment keeps its own state; its worktrees folder is `<baseDir>/worktrees`. */
     readonly baseDir?: string;
   }) {
@@ -66,7 +88,10 @@ export const makeGuardedRemoveWorktree = Effect.fn("SharedWorktrees.testkit.make
       Effect.provide(NodeServices.layer),
       Effect.map((context) => Context.get(context, ServerConfig.ServerConfig)),
     );
-    yield* markSharedWorktrees(config.dbPath, options.marked ?? []);
+    const policy = yield* makeLivePolicy({
+      ...(options.marked === undefined ? {} : { marked: options.marked }),
+      ...(options.unreadable === undefined ? {} : { unreadable: options.unreadable }),
+    });
     const spawner = ChildProcessSpawner.make((command) =>
       Effect.sync(() => {
         const { command: executable, args } = command as unknown as {
@@ -81,6 +106,7 @@ export const makeGuardedRemoveWorktree = Effect.fn("SharedWorktrees.testkit.make
     const context = yield* GitVcsDriver.layer.pipe(
       Layer.provide(Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, spawner)),
       Layer.provide(Layer.succeed(ServerConfig.ServerConfig, config)),
+      Layer.provide(Layer.succeed(SharedWorktrees.SharedWorktreePolicy, policy)),
       Layer.provide(NodeServices.layer),
       Layer.build,
     );
@@ -93,6 +119,6 @@ export const makeGuardedRemoveWorktree = Effect.fn("SharedWorktrees.testkit.make
         .removeWorktree(input)
         .pipe(Effect.provideService(HostProcess.HomeDirectory, options.home));
     };
-    return { removeWorktree, attempts, spawned, config };
+    return { removeWorktree, attempts, spawned, config, policy };
   },
 );

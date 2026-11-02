@@ -46,7 +46,7 @@ import * as Settings from "./serverSettings.ts";
 import * as TerminalManager from "./terminal/Manager.ts";
 import { isFilesystemRoot, managedWorktreesDirectories } from "./worktreesDirectory.ts";
 import * as GitVcsDriver from "./vcs/GitVcsDriver.ts";
-import { sharedWorktreeReason } from "./fork/SharedWorktrees.ts"; // fork: shared worktrees are never cleaned
+import * as SharedWorktrees from "./fork/SharedWorktrees.ts"; // fork: shared worktrees are never cleaned
 import { removeLinkedWorktree } from "./vcs/worktreeRemoval.ts";
 import { withWorkspaceLease } from "./workspace/workspaceLease.ts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
@@ -259,6 +259,7 @@ const make = Effect.gen(function* () {
   const terminals = yield* TerminalManager.TerminalManager;
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
+  const sharedWorktrees = yield* SharedWorktrees.SharedWorktreePolicy; // fork: shared worktrees are never cleaned
   const liveTerminals = new Map<string, Map<string, TerminalSummary>>();
   const orphanSizes = new Map<string, number | null>();
   const noteTerminal = (terminal: TerminalSummary) => {
@@ -855,14 +856,13 @@ const make = Effect.gen(function* () {
         if (!roots.some((root) => inside(root, realPath)))
           return keep("outside the managed worktree folder");
         // fork: before any step that deletes files, `git clean` included.
-        const sharedReason = yield* sharedWorktreeReason({
-          cwd: project.workspaceRoot,
-          path: worktreePath,
-        }).pipe(
-          Effect.provideService(ServerConfig.ServerConfig, config),
-          Effect.provideService(FileSystem.FileSystem, fs),
-          Effect.provideService(Path.Path, path),
-        );
+        const sharedReason = yield* sharedWorktrees
+          .refusal({ cwd: project.workspaceRoot, path: worktreePath })
+          .pipe(
+            Effect.provideService(ServerConfig.ServerConfig, config),
+            Effect.provideService(FileSystem.FileSystem, fs),
+            Effect.provideService(Path.Path, path),
+          );
         if (sharedReason !== null) return keep("shared with T3 Code");
         if (yield* containsProjectRoot(worktreePath, [project, ...snapshot.projects]))
           return keep("contains a project checkout");
@@ -1117,7 +1117,10 @@ const make = Effect.gen(function* () {
           force: submodules.force,
           execute: git.execute,
           run: (args) => cleanupGit(project.workspaceRoot, [...args], "git worktree remove"),
-        }).pipe(Effect.provideService(ServerConfig.ServerConfig, config)); // fork: shared-worktree guard
+        }).pipe(
+          Effect.provideService(ServerConfig.ServerConfig, config), // fork: shared-worktree guard
+          Effect.provideService(SharedWorktrees.SharedWorktreePolicy, sharedWorktrees),
+        );
         entries.push({ ...entry, outcome: "removed", reason: sentence(removalReason), bytes });
         yield* gitManager.invalidateStatus(project.workspaceRoot);
         // Preserve branch/path so ProviderTurnStartService can recreate the checkout on resume.

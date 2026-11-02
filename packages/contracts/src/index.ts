@@ -28,7 +28,7 @@ export * from "./model.ts";
 export * from "./keybindings.ts";
 export * from "./server.ts";
 export * from "./settings.ts";
-export * from "./t3CodeImport.ts"; // fork: import from official T3 Code
+export * from "./t3CodeImport.ts"; // fork: import from the official app
 export * from "./managedPolicy.ts";
 export * from "./git.ts";
 export * from "./vcs.ts";

@@ -2,7 +2,7 @@ import { HOSTED_APP_CHANNEL } from "~/branding";
 import { isElectron, isSecretsFeatureEnabled } from "~/env";
 import { isMacPlatform, isWindowsPlatform, normalizeSearchText } from "~/lib/utils";
 import {
-  OFFICIAL_APP_NAME, // fork: import from official T3 Code
+  OFFICIAL_APP_NAME, // fork: import from the official app
   STATIC_KEYBINDING_COMMANDS,
   type KeybindingCommand,
 } from "@t3tools/contracts";
@@ -239,7 +239,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["storage cleanup run now results report removed kept failed"],
   },
   {
-    id: "import-from-t3-code", // fork: import from official T3 Code
+    id: "import-from-t3-code", // fork: import from the official app
     title: `Import from ${OFFICIAL_APP_NAME}`,
     to: "/settings/maintenance",
     scope: "environment-defaults",

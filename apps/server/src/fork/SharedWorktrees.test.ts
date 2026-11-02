@@ -6,12 +6,14 @@ import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 
+import { requireLivePolicy, SharedWorktreePolicy } from "./SharedWorktrees.ts";
 import { makeGuardedRemoveWorktree } from "./SharedWorktrees.testkit.ts";
 
 const path_ = (...segments: Array<string>) => segments.join("/");
 
 const setup = Effect.fn("setup")(function* (options?: {
   readonly marked?: ReadonlyArray<string>;
+  readonly unreadable?: boolean;
   readonly baseDir?: (home: string) => string;
 }) {
   const fs = yield* FileSystem.FileSystem;
@@ -26,6 +28,7 @@ const setup = Effect.fn("setup")(function* (options?: {
   const guarded = yield* makeGuardedRemoveWorktree({
     home,
     marked: (options?.marked ?? []).map((target) => path.join(root, target)),
+    ...(options?.unreadable === undefined ? {} : { unreadable: options.unreadable }),
     ...(options?.baseDir === undefined ? {} : { baseDir: options.baseDir(home) }),
   });
   const refused = (target: string, platform: NodeJS.Platform = "linux") =>
@@ -113,12 +116,50 @@ it.layer(NodeServices.layer)("SharedWorktrees", (it) => {
       }),
   );
 
-  it.effect("refuses when the import records cannot be read", () =>
+  it.effect(
+    "when the markers cannot be loaded, refuses outside this environment's own folder and keeps clean-up working inside it",
+    () =>
+      Effect.gen(function* () {
+        const { path, root, guarded, refused } = yield* setup({ unreadable: true });
+        assert.isTrue(Exit.isFailure(yield* refused(path.join(root, "mine", "feature"))));
+        assert.deepStrictEqual(guarded.spawned, []);
+        assert.isTrue(
+          Exit.isSuccess(yield* refused(path.join(guarded.config.worktreesDir, "repo", "branch"))),
+        );
+        assert.strictEqual(guarded.spawned.length, 1);
+      }),
+  );
+
+  it.effect("on a database no import ever touched, refuses nothing T3 Extend owns", () =>
     Effect.gen(function* () {
-      const { fs, path, root, guarded, refused } = yield* setup();
-      yield* fs.writeFileString(guarded.config.dbPath, "this is not a database");
-      assert.isTrue(Exit.isFailure(yield* refused(path.join(root, "mine", "feature"))));
-      assert.deepStrictEqual(guarded.spawned, []);
+      const { path, root, guarded, refused } = yield* setup();
+      assert.isTrue(
+        Exit.isSuccess(yield* refused(path.join(guarded.config.worktreesDir, "repo", "branch"))),
+      );
+      assert.isTrue(Exit.isSuccess(yield* refused(path.join(root, "mine", "feature"))));
+      assert.strictEqual(guarded.spawned.length, 2);
+    }),
+  );
+
+  it.effect("takes effect for markers written by an import without a restart", () =>
+    Effect.gen(function* () {
+      const { path, root, guarded, refused } = yield* setup();
+      const target = path.join(root, "mine", "feature");
+      assert.isTrue(Exit.isSuccess(yield* refused(target)));
+      yield* guarded.policy.markShared([target]);
+      assert.isTrue(Exit.isFailure(yield* refused(target)));
+      assert.strictEqual(guarded.spawned.length, 1);
+    }),
+  );
+
+  it.effect("start-up fails unless the live policy is provided", () =>
+    Effect.gen(function* () {
+      const { guarded } = yield* setup();
+      assert.isTrue(Exit.isFailure(yield* Effect.exit(requireLivePolicy())));
+      const live = yield* requireLivePolicy().pipe(
+        Effect.provideService(SharedWorktreePolicy, guarded.policy),
+      );
+      assert.isTrue(live.live);
     }),
   );
 });

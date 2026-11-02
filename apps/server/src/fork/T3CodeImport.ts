@@ -51,6 +51,7 @@ import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts
 import * as ServerSettings from "../serverSettings.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as Keybindings from "../keybindings.ts";
+import { ensureImportTables, requireLivePolicy } from "./SharedWorktrees.ts";
 import {
   clearLimitRecovery,
   detachProviderThread,
@@ -181,26 +182,6 @@ export class T3CodeImport extends Context.Service<
 >()("t3/fork/T3CodeImport") {}
 
 /** Import bookkeeping lives in fork-owned tables, never in a numbered migration (see FORK.md). */
-const ensureImportTables = Effect.fn("T3CodeImport.ensureTables")(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_map (
-    kind TEXT NOT NULL,
-    source_id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    state TEXT NOT NULL,
-    detail TEXT,
-    imported_at TEXT NOT NULL,
-    PRIMARY KEY (kind, source_id)
-  )`;
-  yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_runs (
-    run_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    started_at TEXT NOT NULL,
-    finished_at TEXT,
-    source_path TEXT NOT NULL,
-    summary_json TEXT
-  )`;
-});
-
 const make = Effect.fn("T3CodeImport.make")(function* (options: {
   readonly sourceHome?: string | undefined;
 }) {
@@ -215,6 +196,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   const keybindings = yield* Keybindings.Keybindings;
   const secrets = yield* ServerSecretStore.ServerSecretStore;
   const scheduledTasks = yield* ScheduledTaskService.ScheduledTaskService;
+  const sharedWorktrees = yield* requireLivePolicy();
   const scope = yield* Effect.scope;
   const importLock = yield* Semaphore.make(1);
   const stateRef = yield* SubscriptionRef.make<T3CodeImportState>({ status: "idle" });
@@ -1334,6 +1316,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
          VALUES ('worktree', ?, ?, 'shared', 'created by T3 Code', ?)`,
         [path.resolve(thread.worktree), path.resolve(thread.worktree), yield* nowIso],
       );
+      yield* sharedWorktrees.markShared([path.resolve(thread.worktree)]);
     }
 
     const refs = yield* copyCheckpointRefs({

@@ -2,7 +2,7 @@ import * as Schema from "effect/Schema";
 import { GitPreparePullRequestThreadInput, GitRunStackedActionInput } from "./git.ts";
 import {
   AuthAccessWriteScope,
-  AuthEnvironmentMaintainScope, // fork: import from official T3 Code
+  AuthEnvironmentMaintainScope, // fork: import from the official app
   AuthOrchestrationOperateScope,
   AuthOrchestrationReadScope,
   AuthPreviewOperateScope,
@@ -22,7 +22,7 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.serverRunStorageCleanup]: AuthSettingsWriteScope,
   [WS_METHODS.serverCheckOtlpEndpoint]: AuthSettingsWriteScope,
   // Reads the host's official T3 Code data and writes it into this environment's database.
-  [WS_METHODS.serverRunT3CodeImport]: AuthEnvironmentMaintainScope, // fork: import from official T3 Code
+  [WS_METHODS.serverRunT3CodeImport]: AuthEnvironmentMaintainScope, // fork: import from the official app
   [WS_METHODS.pullRequestsRunAction]: AuthSourceControlWriteScope,
   [WS_METHODS.pullRequestsUpdate]: AuthSourceControlWriteScope,
   [WS_METHODS.pullRequestsComment]: AuthSourceControlWriteScope,

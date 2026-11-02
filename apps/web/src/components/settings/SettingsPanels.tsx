@@ -103,7 +103,7 @@ import { BackgroundActivitySettingsRow } from "./BackgroundActivitySettings";
 import { AdvancedSettings } from "./AdvancedSettings";
 import { PullRequestLinksOpenInAppSetting } from "./IntegrationsSettings";
 import { StorageCleanupSections } from "./StorageSettings";
-import { T3CodeImportSection } from "../../fork/T3CodeImportSection"; // fork: import from official T3 Code
+import { T3CodeImportSection } from "../../fork/T3CodeImportSection"; // fork: import from the official app
 import { UpdateTrackSwitchDialog } from "./UpdateTrackSwitchDialog";
 import { environmentIdsKey } from "~/state/environmentAtomList";
 import { environmentSessionStatesAtom } from "~/state/session";
@@ -2062,7 +2062,7 @@ export function MaintenanceSettingsPanel() {
         <BackgroundActivitySettingsRow />
       </SettingsSection>
       <StorageCleanupSections />
-      <T3CodeImportSection /> {/* fork: import from official T3 Code */}
+      <T3CodeImportSection /> {/* fork: import from the official app */}
       <SettingsSection id="diagnostics-section" title="Diagnostics">
         <SettingsRow
           {...searchableSetting("diagnostics")}

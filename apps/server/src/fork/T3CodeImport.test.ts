@@ -12,6 +12,7 @@ import {
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -30,6 +31,7 @@ import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts
 import * as ServerSettings from "../serverSettings.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
 import * as Keybindings from "../keybindings.ts";
+import * as SharedWorktrees from "./SharedWorktrees.ts";
 import * as T3CodeImport from "./T3CodeImport.ts";
 import { uuidFromDigest } from "./T3CodeImportRewrite.ts";
 
@@ -369,6 +371,7 @@ const withService = <A, E, R>(
   options: {
     readonly sourceThroughMigration?: number;
     readonly managedPolicy?: ManagedPolicySummary;
+    readonly withoutSharedWorktreePolicy?: boolean;
   },
   use: (input: {
     readonly service: T3CodeImport.T3CodeImport["Service"];
@@ -444,9 +447,19 @@ const withService = <A, E, R>(
           })),
       }),
     );
+    const sqlite = NodeSqliteClient.layer({ filename: config.dbPath });
+    const policyLayer: Layer.Layer<never, never, SqlClient.SqlClient> =
+      options.withoutSharedWorktreePolicy === true
+        ? Layer.succeed(
+            SharedWorktrees.SharedWorktreePolicy,
+            SharedWorktrees.SharedWorktreePolicy.defaultValue(),
+          )
+        : SharedWorktrees.layer;
     const layer = T3CodeImport.layerWithSourceHome(home).pipe(
       Layer.provideMerge(mocks),
-      Layer.provideMerge(NodeSqliteClient.layer({ filename: config.dbPath })),
+      // The policy the server provides once at its base, over the same database.
+      Layer.provideMerge(policyLayer),
+      Layer.provideMerge(sqlite),
     );
     return yield* Effect.gen(function* () {
       const service = yield* T3CodeImport.T3CodeImport;
@@ -1033,6 +1046,36 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
         assert.equal(bookkeeping?.count, 0);
       }),
     ),
+  );
+
+  it.effect(
+    "shares a thread's worktree with the running server the moment the import marks it",
+    () =>
+      withService({}, ({ service, config, home, repo }) =>
+        Effect.gen(function* () {
+          const policy = yield* SharedWorktrees.SharedWorktreePolicy;
+          const worktree = `${home}/worktrees/kept/feature`;
+          const refusal = () =>
+            policy
+              .refusal({ cwd: repo, path: worktree })
+              .pipe(Effect.provideService(ServerConfig.ServerConfig, config));
+          assert.isNull(yield* refusal());
+          yield* runToEnd(
+            service,
+            selectionOf({ threadIds: [ThreadId.make(T_STOPPED)], scheduledTasks: [], files: [] }),
+          );
+          assert.isString(yield* refusal());
+        }),
+      ),
+  );
+
+  it.effect("refuses to start without the server's shared-worktree policy", () =>
+    Effect.gen(function* () {
+      const exit = yield* Effect.exit(
+        withService({ withoutSharedWorktreePolicy: true }, () => Effect.void),
+      );
+      assert.isTrue(Exit.isFailure(exit));
+    }),
   );
 
   it.effect("treats a ref that already holds the same commit as copied", () =>
