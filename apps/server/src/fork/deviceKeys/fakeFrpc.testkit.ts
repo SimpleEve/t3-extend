@@ -13,6 +13,8 @@ export type FakeFrpcStep =
   /** Raw bytes, hex-encoded: for output that is not valid UTF-8. */
   | { readonly hex: string }
   | { readonly exit: number }
+  /** A line in which `{ticket}` becomes the ticket frpc was configured with. */
+  | { readonly ticketLine: string }
   /** Held back until the test sends this process SIGUSR1, then run in order. */
   | { readonly onSignal: ReadonlyArray<FakeFrpcStep> };
 
@@ -47,6 +49,7 @@ let run = 0;
 try { run = Number(fs.readFileSync(countFile, "utf8")); } catch {}
 fs.writeFileSync(countFile, String(run + 1));
 const configPath = args[args.indexOf("-c") + 1];
+const ticket = (/metadatas\\.t3x_ticket = "([^"]+)"/.exec(fs.readFileSync(configPath, "utf8")) ?? [])[1] ?? "";
 fs.appendFileSync(path.join(dir, "record.jsonl"), JSON.stringify({
   run,
   pid: process.pid,
@@ -63,6 +66,7 @@ const play = (steps) => {
   for (const step of steps) {
     if ("line" in step) fs.writeSync(1, step.line + "\\n");
     else if ("hex" in step) fs.writeSync(1, Buffer.from(step.hex, "hex"));
+    else if ("ticketLine" in step) fs.writeSync(1, step.ticketLine.replace("{ticket}", ticket) + "\\n");
     else if ("exit" in step) process.exit(step.exit);
   }
 };

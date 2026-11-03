@@ -19,7 +19,7 @@ export const parseTicketLifetimeOverride = (raw: string | undefined): number | u
 export const TICKET_ROTATION_SECONDS = 12 * 60 * 60;
 
 /** Name of the one proxy this computer registers; the registry's `NewProxy` expects `<user>.t3x`. */
-const PROXY_NAME = "t3x";
+export const PROXY_NAME = "t3x";
 
 export const frpcUser = (deviceId: string): string => deviceId.slice(0, 16);
 

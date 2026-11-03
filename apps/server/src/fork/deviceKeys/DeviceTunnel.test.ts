@@ -40,6 +40,8 @@ const PONG =
   "2026-11-03 16:37:53.883 [E] [client/control.go:194] [acecc0aae91dfd0e] pong message contains error: ";
 const LOGIN =
   "2026-11-03 16:37:53.901 [W] [client/service.go:346] [acecc0aae91dfd0e] connect to server error: ";
+const PROXY_REJECTION =
+  "2026-11-03 16:37:53.950 [W] [proxy/proxy_manager.go:183] [acecc0aae91dfd0e] [t3x] start error: ";
 const WORK =
   "2026-11-03 16:37:54.001 [W] [client/control.go:231] [acecc0aae91dfd0e] StartWorkConn contains error: ";
 
@@ -61,7 +63,11 @@ const arrange = Effect.fn("arrange")(function* (input: {
 }) {
   yield* TestClock.setTime(NOW_MS);
   const fake = yield* makeFakeFrpc(input.control);
-  const stack = DeviceTunnel.layer({ trustedCaFile: input.trustedCaFile }).pipe(
+  const heartbeats = yield* Queue.unbounded<void>();
+  const stack = DeviceTunnel.layer({
+    trustedCaFile: input.trustedCaFile,
+    onHeartbeat: Queue.offer(heartbeats, undefined),
+  }).pipe(
     Layer.provideMerge(layerMemoryWith(layerFakeRegistry)),
     Layer.provideMerge(
       Layer.succeed(TunnelListener.TunnelListener, {
@@ -107,6 +113,7 @@ const arrange = Effect.fn("arrange")(function* (input: {
     /metadatas\.t3x_ticket = "([^"]+)"/.exec(record.config)?.[1] ?? "";
   return {
     context,
+    heartbeats,
     fake,
     directory,
     config,
@@ -298,7 +305,103 @@ describe("the frpc process", () => {
   );
 });
 
+describe("status.json", () => {
+  it.effect(
+    "is rewritten every minute, changed or not, so a reader can tell the server is alive",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const t = yield* arrange({ control: { version: FRP_VERSION, scripts: [[CONNECTED]] } });
+          const statusFile = `${t.config.stateDir}/fork-tunnel/status.json`;
+          const read = () =>
+            JSON.parse(NodeFS.readFileSync(statusFile, "utf8")) as {
+              readonly updatedAt: number;
+              readonly status: string;
+              readonly serverPid: number;
+            };
+          yield* Queue.take(t.heartbeats);
+          const first = read();
+          assert.equal(first.updatedAt, NOW_MS);
+          yield* t.join;
+          yield* t.until("connected", connected);
+          const connectedAt = read();
+          assert.equal(connectedAt.status, "connected");
+          assert.equal(connectedAt.serverPid, process.pid);
+
+          yield* TestClock.adjust(Duration.seconds(59));
+          assert.equal(yield* Queue.size(t.heartbeats), 0, "no heartbeat before the minute is up");
+          yield* TestClock.adjust(Duration.seconds(1));
+          yield* Queue.take(t.heartbeats);
+          const second = read();
+          assert.equal(second.status, "connected", "the status did not change");
+          assert.equal(second.updatedAt, NOW_MS + 60_000);
+          yield* TestClock.adjust(Duration.seconds(60));
+          yield* Queue.take(t.heartbeats);
+          assert.equal(read().updatedAt, NOW_MS + 120_000);
+          assert.deepEqual(
+            NodeFS.readdirSync(`${t.config.stateDir}/fork-tunnel`).filter((name) =>
+              name.endsWith(".tmp"),
+            ),
+            [],
+          );
+        }),
+      ),
+  );
+
+  it.effect(
+    "never carries a ticket that frpc happened to print, in the file or in the status",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const t = yield* arrange({
+            control: {
+              version: FRP_VERSION,
+              scripts: [[CONNECTED, { ticketLine: `${PONG}t3x:odd, ticket {ticket} tail` }]],
+            },
+          });
+          yield* t.join;
+          const shown = yield* t.until("an unknown rejection", (status) =>
+            (status.lastError ?? "").startsWith("frpc:"),
+          );
+          const ticket = t.ticketOf(t.fake.records()[0] ?? { config: "" });
+          assert.notEqual(ticket, "");
+          assert.notInclude(shown.lastError ?? "", ticket);
+          assert.include(shown.lastError ?? "", "<redacted>");
+          const file = NodeFS.readFileSync(`${t.config.stateDir}/fork-tunnel/status.json`, "utf8");
+          assert.notInclude(file, ticket);
+          assert.notInclude(file, ticket.split(".")[1] ?? "x");
+          assert.notInclude(JSON.stringify(yield* t.directory.status), ticket);
+        }),
+      ),
+  );
+});
+
 describe("what a rejection makes it do", () => {
+  it.effect("a refused NewProxy (`[t3x] start error: …`) is handled like the other sentences", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const t = yield* arrange({
+          control: {
+            version: FRP_VERSION,
+            scripts: [
+              [
+                CONNECTED,
+                { line: `${PROXY_REJECTION}t3x:busy` },
+                { line: `${PROXY_REJECTION}t3x:bad-ticket` },
+              ],
+              [CONNECTED],
+            ],
+          },
+        });
+        yield* t.join;
+        yield* t.until("connected", connected);
+        yield* afterBackoff(t, 1);
+        yield* t.until("connected", connected);
+        assert.equal(t.fake.records().length, 2, "bad-ticket restarted it once; busy did nothing");
+      }),
+    ),
+  );
+
   it.effect(
     "t3x:revoked asks the registry and does not restart; a refresh that says we are gone stops frpc and cleans up",
     () =>

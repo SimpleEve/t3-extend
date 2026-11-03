@@ -1,10 +1,11 @@
-// fork: reading frpc's console output (design 3.7 and 3.12 D). frpc has no "login failed" line, so
-// only the three sentences that carry the registry's `reject_reason` are matched, and only an exact
-// reason is acted on. A truncated line, bytes that are not UTF-8, or an unknown value are `other`:
-// they are logged and shown, never acted on.
+// fork: reading frpc's console output (design 3.7 and 3.12 D). Only the four sentences that carry the
+// registry's `reject_reason` count, each as a whole sentence, and only an exact reason is acted on:
+// truncated, non-UTF-8 or unknown text is `other` (shown, never acted on). Token-shaped text is blanked.
 import * as Stream from "effect/Stream";
 
-export type FrpcRejectSource = "pong" | "login" | "workConn";
+import { PROXY_NAME } from "./frpcConfig.ts";
+
+export type FrpcRejectSource = "pong" | "login" | "workConn" | "proxy";
 
 export type FrpcRejection =
   | "revoked"
@@ -48,6 +49,8 @@ const SENTENCES = [
   ["pong message contains error: ", "pong"],
   ["connect to server error: ", "login"],
   ["StartWorkConn contains error: ", "workConn"],
+  // NewProxy refused: frps accepted the login but the registry rejected the proxy.
+  [`[${PROXY_NAME}] start error: `, "proxy"],
 ] as const satisfies ReadonlyArray<readonly [string, FrpcRejectSource]>;
 
 const EXACT_REASONS = new Map<string, FrpcRejection>([
@@ -58,7 +61,7 @@ const EXACT_REASONS = new Map<string, FrpcRejection>([
 ]);
 
 const PLUGIN_ERROR = /^send (Login|NewProxy|Ping|NewWorkConn) request to plugin error$/;
-const CONNECTED = "start proxy success";
+const CONNECTED = `] [${PROXY_NAME}] start proxy success`;
 
 /** A longer line is dropped whole: its tail, where the reason is, cannot be trusted. */
 export const MAX_FRPC_LINE_BYTES = 16 * 1024;
@@ -66,17 +69,34 @@ export const MAX_FRPC_LINE_BYTES = 16 * 1024;
 const strict = new TextDecoder("utf-8", { fatal: true });
 const lossy = new TextDecoder("utf-8");
 
-const printable = (value: string): string => value.replace(/[^\x20-\x7e]/g, "?").slice(0, 120);
+/** Tickets are JWTs; any other long unbroken token-like run goes too. */
+const TOKEN_SHAPES = [
+  /[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}/g,
+  /[A-Za-z0-9_-]{40,}/g,
+] as const;
 
-const JWT_SHAPE = /[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}/g;
+const redactTokens = (value: string): string =>
+  TOKEN_SHAPES.reduce((text, shape) => text.replace(shape, "<redacted>"), value);
+
+// Redacted before it is cut, so a token cannot be sliced into something the patterns no longer see.
+const printable = (value: string): string =>
+  redactTokens(value)
+    .replace(/[^\x20-\x7e]/g, "?")
+    .slice(0, 120);
 
 /** A line for the debug log: printable, short, and with anything shaped like a token blanked. */
 export const describeFrpcLine = (line: Uint8Array): string =>
-  lossy
-    .decode(line)
-    .replace(JWT_SHAPE, "<redacted>")
+  redactTokens(lossy.decode(line))
     .replace(/[^\x20-\x7e]/g, "?")
     .slice(0, 300);
+
+/** `sentence` as a whole sentence: at the start of the line or right after a `] `. */
+const sentenceAt = (text: string, sentence: string): number => {
+  for (let at = text.indexOf(sentence); at !== -1; at = text.indexOf(sentence, at + 1)) {
+    if (at === 0 || text.slice(at - 2, at) === "] ") return at;
+  }
+  return -1;
+};
 
 export const classifyFrpcLine = (line: Uint8Array): FrpcLogEvent | undefined => {
   let text: string;
@@ -87,13 +107,13 @@ export const classifyFrpcLine = (line: Uint8Array): FrpcLogEvent | undefined => 
     text = lossy.decode(line);
     clean = false;
   }
-  if (text.includes(CONNECTED)) return { _tag: "Connected" };
+  if (clean && text.replace(/\r$/, "").endsWith(CONNECTED)) return { _tag: "Connected" };
 
   let first:
     | { readonly at: number; readonly end: number; readonly source: FrpcRejectSource }
     | undefined;
   for (const [sentence, source] of SENTENCES) {
-    const at = text.indexOf(sentence);
+    const at = sentenceAt(text, sentence);
     if (at !== -1 && (first === undefined || at < first.at)) {
       first = { at, end: at + sentence.length, source };
     }

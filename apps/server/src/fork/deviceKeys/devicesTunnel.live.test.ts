@@ -8,6 +8,7 @@ import * as NodePath from "node:path";
 
 import { assert, describe, it } from "@effect/vitest";
 import { FRP_VERSION } from "@t3tools/shared/forkFrp";
+import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
@@ -50,6 +51,7 @@ interface Report {
   readonly joined: boolean;
   readonly server: {
     readonly running: boolean;
+    readonly lastUpdatedAt?: number | null;
     readonly tunnel?: string;
     readonly lastError?: string | null;
   };
@@ -93,34 +95,46 @@ describe("t3x devices tunnel", () => {
       }).pipe(Effect.scoped),
   );
 
-  it.live("reports the tunnel of a running server, and says when that server is gone", () =>
-    Effect.gen(function* () {
-      const baseDir = yield* homeDir;
-      const good = yield* makeFakeFrpc({ version: FRP_VERSION, scripts: [] });
-      yield* seedHome(baseDir);
-      const stateDir = NodePath.join(baseDir, "userdata", TUNNEL_DIR);
-      NodeFS.mkdirSync(stateDir, { recursive: true });
-      const write = (serverPid: number) =>
-        NodeFS.writeFileSync(
-          NodePath.join(stateDir, TUNNEL_STATUS_FILE),
-          JSON.stringify({
-            serverPid,
-            frpcPid: null,
-            status: "connected",
-            lastError: null,
-            updatedAt: 1_800_000_000_000,
-          }),
-        );
+  it.live(
+    "reports the tunnel of a running server, and says when the file is stale or the pid is gone",
+    () =>
+      Effect.gen(function* () {
+        const baseDir = yield* homeDir;
+        const good = yield* makeFakeFrpc({ version: FRP_VERSION, scripts: [] });
+        yield* seedHome(baseDir);
+        const stateDir = NodePath.join(baseDir, "userdata", TUNNEL_DIR);
+        NodeFS.mkdirSync(stateDir, { recursive: true });
+        const write = (serverPid: number, updatedAt: number) =>
+          NodeFS.writeFileSync(
+            NodePath.join(stateDir, TUNNEL_STATUS_FILE),
+            JSON.stringify({
+              serverPid,
+              frpcPid: null,
+              status: "connected",
+              lastError: null,
+              updatedAt,
+            }),
+          );
+        const env = { T3X_FRPC_PATH: good.path };
+        const now = yield* Clock.currentTimeMillis;
 
-      write(process.pid);
-      const running = yield* status(baseDir, { T3X_FRPC_PATH: good.path });
-      assert.equal(running.joined, true);
-      assert.deepEqual(running.server.running ? running.server.tunnel : null, "connected");
+        write(process.pid, now);
+        const running = yield* status(baseDir, env);
+        assert.equal(running.joined, true);
+        assert.deepEqual(running.server.running ? running.server.tunnel : null, "connected");
 
-      // A pid that is certainly not a live process.
-      write(2 ** 22 + 1);
-      assert.equal((yield* status(baseDir, { T3X_FRPC_PATH: good.path })).server.running, false);
-    }).pipe(Effect.scoped),
+        // The pid is alive (it is this process) but the server stopped writing: a reused pid.
+        write(process.pid, now - 10 * 60_000);
+        const stale = yield* status(baseDir, env);
+        assert.equal(stale.server.running, false);
+        assert.equal(stale.server.lastUpdatedAt, now - 10 * 60_000);
+        const text = yield* run(baseDir, env, "status");
+        assert.include(text.out, "the server is not running (it last reported at ");
+
+        // Fresh file, but a pid that is certainly not a live process.
+        write(2 ** 22 + 1, now);
+        assert.equal((yield* status(baseDir, env)).server.running, false);
+      }).pipe(Effect.scoped),
   );
 
   it.live(

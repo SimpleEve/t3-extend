@@ -15,6 +15,8 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Ref from "effect/Ref";
+import * as Schedule from "effect/Schedule";
+import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
@@ -23,6 +25,7 @@ import * as ServerConfig from "../../config.ts";
 import { forkParked } from "../../serverActivation.ts";
 import * as DeviceDirectory from "./DeviceDirectory.ts";
 import * as DeviceIdentity from "./DeviceIdentity.ts";
+import { writeFileAtomic } from "./atomicWrite.ts";
 import { writeDevicePublicUrl } from "./devicePublicUrlSync.ts";
 import * as FrpBinary from "./frpBinary.ts";
 import {
@@ -39,7 +42,12 @@ import {
   type FrpcLogEvent,
 } from "./frpcLog.ts";
 import * as TunnelListener from "./TunnelListener.ts";
-import { encodeTunnelStatusFile, TUNNEL_DIR, TUNNEL_STATUS_FILE } from "./tunnelStatusFile.ts";
+import {
+  encodeTunnelStatusFile,
+  TUNNEL_DIR,
+  TUNNEL_HEARTBEAT_SECONDS,
+  TUNNEL_STATUS_FILE,
+} from "./tunnelStatusFile.ts";
 
 const BACKOFF_SECONDS = [1, 2, 4, 8, 16, 32, 60] as const;
 const STABLE_AFTER = Duration.seconds(30);
@@ -96,6 +104,8 @@ const MESSAGES = {
 const make = Effect.fn("DeviceTunnel.make")(function* (options: {
   readonly trustedCaFile?: string | undefined;
   readonly ticketLifetimeSeconds?: number | undefined;
+  /** Tests only: runs after every heartbeat write, so a test can wait on it instead of on time. */
+  readonly onHeartbeat?: Effect.Effect<void> | undefined;
 }) {
   const directory = yield* DeviceDirectory.DeviceDirectory;
   const identity = yield* DeviceIdentity.DeviceIdentity;
@@ -134,26 +144,42 @@ const make = Effect.fn("DeviceTunnel.make")(function* (options: {
 
   const current = yield* Ref.make<DeviceTunnelStatus>({ status: "disabled", lastError: null });
   const frpcPid = yield* Ref.make<number | null>(null);
+  // One writer at a time, so two status files never race to be the last rename.
+  const statusFileLock = yield* Semaphore.make(1);
+  const persistStatus = Effect.fn("DeviceTunnel.persistStatus")(function* (
+    status: DeviceTunnelStatus,
+  ) {
+    yield* statusFileLock.withPermits(1)(
+      Effect.gen(function* () {
+        yield* fs.makeDirectory(tunnelDir, { recursive: true, mode: 0o700 });
+        yield* writeFileAtomic(
+          path.join(tunnelDir, TUNNEL_STATUS_FILE),
+          encodeTunnelStatusFile({
+            serverPid: process.pid,
+            frpcPid: yield* Ref.get(frpcPid),
+            status: status.status,
+            lastError: status.lastError,
+            updatedAt: yield* Clock.currentTimeMillis,
+          }),
+          0o600,
+        );
+      }),
+    );
+  });
   const setStatus = Effect.fn("DeviceTunnel.setStatus")(function* (next: DeviceTunnelStatus) {
     const previous = yield* Ref.getAndSet(current, next);
     if (previous.status === next.status && previous.lastError === next.lastError) return;
-    yield* Effect.gen(function* () {
-      yield* fs.makeDirectory(tunnelDir, { recursive: true, mode: 0o700 });
-      yield* fs.writeFileString(
-        path.join(tunnelDir, TUNNEL_STATUS_FILE),
-        encodeTunnelStatusFile({
-          serverPid: process.pid,
-          frpcPid: yield* Ref.get(frpcPid),
-          status: next.status,
-          lastError: next.lastError,
-          updatedAt: yield* Clock.currentTimeMillis,
-        }),
-        { mode: 0o600 },
-      );
-    }).pipe(Effect.ignore);
+    yield* persistStatus(next).pipe(Effect.ignore);
     // Last, so that whoever sees the new status can rely on nothing async coming before the next step.
     yield* directory.setTunnelStatus(next);
   });
+  // Refreshed while the server runs, changed or not: `tunnel status` believes only a recent file.
+  const heartbeat = Ref.get(current).pipe(
+    Effect.flatMap(persistStatus),
+    Effect.ignore,
+    Effect.andThen(options.onHeartbeat ?? Effect.void),
+    Effect.repeat(Schedule.spaced(Duration.seconds(TUNNEL_HEARTBEAT_SECONDS))),
+  );
   const setLastError = (lastError: string) =>
     Ref.get(current).pipe(Effect.flatMap((status) => setStatus({ ...status, lastError })));
 
@@ -395,13 +421,14 @@ const make = Effect.fn("DeviceTunnel.make")(function* (options: {
     );
   });
 
-  return follow();
+  return Effect.all([follow(), heartbeat], { concurrency: "unbounded", discard: true });
 });
 
 export const layer = (
   options: {
     readonly trustedCaFile?: string | undefined;
     readonly ticketLifetimeSeconds?: number | undefined;
+    readonly onHeartbeat?: Effect.Effect<void> | undefined;
   } = {},
 ) =>
   Layer.effectDiscard(make(options).pipe(Effect.flatMap(forkParked))).pipe(

@@ -2,6 +2,7 @@
 // it and the tunnel are in order. Like the rest of `t3x devices` it opens the state directory
 // in-process.
 import { FRP_VERSION } from "@t3tools/shared/forkFrp";
+import * as Clock from "effect/Clock";
 import * as Console from "effect/Console";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -21,6 +22,7 @@ import * as FrpBinary from "../fork/deviceKeys/frpBinary.ts";
 import { layerServices } from "../fork/deviceKeys/layer.ts";
 import {
   decodeTunnelStatusFile,
+  isServerRunning,
   TUNNEL_DIR,
   TUNNEL_STATUS_FILE,
 } from "../fork/deviceKeys/tunnelStatusFile.ts";
@@ -49,6 +51,7 @@ const tunnelReport = Effect.gen(function* () {
     .readFileString(path.join(config.stateDir, TUNNEL_DIR, TUNNEL_STATUS_FILE))
     .pipe(Effect.option);
   const file = Option.flatMap(raw, decodeTunnelStatusFile);
+  const nowMillis = yield* Clock.currentTimeMillis;
   return {
     frpc:
       located._tag === "Success"
@@ -67,16 +70,16 @@ const tunnelReport = Effect.gen(function* () {
     url: Option.getOrNull(Option.map(membership, (m) => m.url)),
     deviceName: Option.getOrNull(Option.map(membership, (m) => m.name)),
     server: Option.match(file, {
-      onNone: () => ({ running: false as const }),
+      onNone: () => ({ running: false as const, lastUpdatedAt: null }),
       onSome: (value) =>
-        isRunning(value.serverPid)
+        isServerRunning(value, nowMillis, isRunning)
           ? {
               running: true as const,
               tunnel: value.status,
               lastError: value.lastError,
               updatedAt: value.updatedAt,
             }
-          : { running: false as const },
+          : { running: false as const, lastUpdatedAt: value.updatedAt },
     }),
   };
 });
@@ -153,7 +156,7 @@ const statusCommand = Command.make("status", {
         yield* Console.log(
           server.running
             ? `Tunnel: ${server.tunnel}${server.lastError === null ? "" : ` (${server.lastError})`}, as of ${DateTime.formatIso(DateTime.makeUnsafe(server.updatedAt))}.`
-            : "The tunnel runs inside the T3 server; the server is not running.",
+            : `The tunnel runs inside the T3 server; the server is not running${server.lastUpdatedAt === null ? "" : ` (it last reported at ${DateTime.formatIso(DateTime.makeUnsafe(server.lastUpdatedAt))})`}.`,
         );
       }),
       { quietLogs: flags.json },

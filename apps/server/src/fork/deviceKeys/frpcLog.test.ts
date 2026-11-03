@@ -1,4 +1,4 @@
-// What DeviceTunnel makes of frpc's output: three sentences, exact reasons, everything else inert.
+// What DeviceTunnel makes of frpc's output: four sentences, exact reasons, everything else inert.
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
@@ -20,11 +20,12 @@ const reasonOf = (line: Uint8Array | string): string | undefined => {
 };
 
 describe("classifyFrpcLine", () => {
-  it("reads each of the three sentences with each exact reason", () => {
+  it("reads each of the four sentences with each exact reason", () => {
     const sentences = [
       ["pong message contains error: ", "pong"],
       ["connect to server error: ", "login"],
       ["StartWorkConn contains error: ", "workConn"],
+      ["[t3x] start error: ", "proxy"],
     ] as const;
     const reasons = [
       ["t3x:revoked", "revoked"],
@@ -55,6 +56,9 @@ describe("classifyFrpcLine", () => {
       `${PREFIX}pong message contains error: `,
       `${PREFIX}connect to server error: send Login request to plugin`,
       `${PREFIX}connect to server error: send Bogus request to plugin error`,
+      `${PREFIX}[t3x] start error: t3x:revok`,
+      `${PREFIX}[t3x] start error: send NewProxy request to plugin`,
+      `${PREFIX}[t3x] start error: t3x:revoked and more`,
       bytes(PREFIX, "pong message contains error: t3x:revoked", Uint8Array.of(0xff)),
       bytes(PREFIX, "pong message contains error: t3x:rev", Uint8Array.of(0xc3), "oked"),
     ]) {
@@ -72,14 +76,51 @@ describe("classifyFrpcLine", () => {
     assert.equal(reasonOf(""), undefined);
   });
 
+  it("matches whole sentences only: no header boundary, another proxy, or a longer tail is not acted on", () => {
+    // A sentence quoted in the middle of something else is not frpc speaking.
+    assert.equal(reasonOf(`${PREFIX}note: pong message contains error: t3x:revoked`), undefined);
+    assert.equal(reasonOf(`${PREFIX}xconnect to server error: t3x:revoked`), undefined);
+    // Another proxy's name is not ours.
+    assert.equal(reasonOf(`${PREFIX}[other] start error: t3x:revoked`), undefined);
+    assert.equal(reasonOf(`${PREFIX}[other] start proxy success`), undefined);
+    // "start proxy success" has to end the line and name our proxy.
+    assert.equal(reasonOf(`${PREFIX}[t3x] start proxy success`), "Connected");
+    assert.equal(reasonOf(`${PREFIX}[t3x] start proxy success\r`), "Connected");
+    assert.equal(reasonOf(`${PREFIX}[t3x] start proxy success, then more`), undefined);
+    assert.equal(reasonOf(`${PREFIX}retry: start proxy success`), undefined);
+    assert.equal(reasonOf("[t3x] start proxy success"), undefined);
+  });
+
   it("shows only short printable text for the status line", () => {
     const event: FrpcLogEvent | undefined = classifyFrpcLine(
-      encode(`${PREFIX}connect to server error: \u001b[31m${"x".repeat(500)}`),
+      encode(`${PREFIX}connect to server error: \u001b[31m${"ab ".repeat(200)}`),
     );
     assert.equal(event?._tag, "Rejected");
     if (event?._tag === "Rejected") {
       assert.equal(event.text.length, 120);
       assert.notInclude(event.text, "\u001b");
+    }
+  });
+});
+
+describe("redaction", () => {
+  const ticket = `${"a".repeat(30)}.${"b".repeat(40)}.${"c".repeat(50)}`;
+
+  it("blanks a ticket in the text that goes to the status line, wherever it sits", () => {
+    for (const reasonText of [
+      `t3x:unknown ${ticket}`,
+      `${ticket} tail`,
+      `x${"y".repeat(100)}${ticket}`,
+      "z".repeat(60),
+    ]) {
+      const event = classifyFrpcLine(encode(`${PREFIX}pong message contains error: ${reasonText}`));
+      assert.equal(event?._tag, "Rejected");
+      if (event?._tag === "Rejected") {
+        assert.equal(event.reason, "other");
+        assert.notInclude(event.text, ticket);
+        assert.notInclude(event.text, "bbbbbbbbbb");
+        assert.include(event.text, "<redacted>");
+      }
     }
   });
 });
