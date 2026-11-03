@@ -332,6 +332,63 @@ describe("ResourceTelemetry", () => {
     ),
   );
 
+  it.effect("a background subscription reads the slow stream and leaves desktop demand alone", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const demands: boolean[] = [];
+        const liveOpened = yield* Deferred.make<void>();
+        const backgroundOpened = yield* Deferred.make<void>();
+        const opened = (signal: Deferred.Deferred<void>) =>
+          Stream.unwrap(Deferred.succeed(signal, undefined).pipe(Effect.as(Stream.never)));
+        const layerNative = NativeTelemetryClient.layerTest({
+          snapshots: opened(liveOpened),
+          backgroundSnapshots: opened(backgroundOpened),
+          sampleNow: Effect.never,
+          health: Effect.succeed({
+            status: "healthy",
+            hello: Option.none(),
+            lastSampleAt: Option.none(),
+            lastError: Option.none(),
+            restartCount: 0,
+            sampleIntervalMs: 15_000,
+          }),
+        });
+        const layerDesktop = DesktopTelemetryReceiver.layerTest({
+          setDiagnosticsDemand: (enabled) => Effect.sync(() => void demands.push(enabled)),
+        });
+        const layerAttribution = Layer.succeed(
+          ResourceAttribution.ResourceAttribution,
+          ResourceAttribution.ResourceAttribution.of({
+            record: () => Effect.void,
+            snapshot: DateTime.now.pipe(Effect.map((readAt) => ({ readAt, entries: [] }))),
+          }),
+        );
+        const layerTelemetry = ResourceTelemetry.layer.pipe(
+          Layer.provide(Layer.mergeAll(layerNative, layerDesktop, layerAttribution)),
+        );
+
+        yield* Effect.gen(function* () {
+          const telemetry = yield* ResourceTelemetry.ResourceTelemetry;
+          yield* Effect.scoped(
+            Effect.gen(function* () {
+              yield* telemetry.subscribeBackground;
+              yield* Deferred.await(backgroundOpened);
+              expect(demands).toEqual([]);
+            }),
+          );
+          yield* Effect.scoped(
+            Effect.gen(function* () {
+              yield* telemetry.subscribe;
+              yield* Deferred.await(liveOpened);
+              expect(demands).toEqual([true]);
+            }),
+          );
+          expect(demands).toEqual([true, false]);
+        }).pipe(Effect.provide(layerTelemetry));
+      }),
+    ),
+  );
+
   it.effect("atomically subscribes while a desktop update is being rebuilt", () =>
     Effect.scoped(
       Effect.gen(function* () {

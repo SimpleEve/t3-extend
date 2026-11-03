@@ -62,6 +62,18 @@ export class ResourceTelemetry extends Context.Service<
       never,
       Scope.Scope
     >;
+    /**
+     * fork: like `subscribe`, but asks the sidecar only for the slow background rate and never
+     * raises desktop diagnostics demand. Live subscribers still get their own rate.
+     */
+    readonly subscribeBackground: Effect.Effect<
+      {
+        readonly latest: ResourceTelemetrySnapshot;
+        readonly changes: Stream.Stream<ResourceTelemetrySnapshot>;
+      },
+      never,
+      Scope.Scope
+    >;
     readonly readHistory: (
       input: ResourceTelemetryHistoryInput,
     ) => Effect.Effect<ResourceTelemetryHistoryWithLegacyBuckets>;
@@ -208,6 +220,12 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
     scope: Option.none(),
   });
   const liveMutex = yield* Semaphore.make(1);
+  // fork: background subscribers share one ingest scope, like live ones, but no diagnostics demand.
+  const backgroundState = yield* Ref.make<LiveTelemetryState>({
+    retainCount: 0,
+    scope: Option.none(),
+  });
+  const backgroundMutex = yield* Semaphore.make(1);
   const refreshHealth = mutex.withPermits(1)(
     Effect.gen(function* () {
       const current = yield* Ref.get(state);
@@ -227,7 +245,10 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
         ...current,
         latest: snapshot,
       });
-      if ((yield* Ref.get(liveState)).retainCount > 0) {
+      if (
+        (yield* Ref.get(liveState)).retainCount > 0 ||
+        (yield* Ref.get(backgroundState)).retainCount > 0 // fork: background cadence
+      ) {
         yield* PubSub.publish(changes, snapshot);
       }
     }),
@@ -401,7 +422,56 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
     }),
   );
 
+  // fork: a repeated ingest of the same native sample is dropped by its sequence in `rebuild`, so a
+  // live and a background scope can both run without double counting.
+  const acquireBackground = backgroundMutex.withPermits(1)(
+    Effect.uninterruptible(
+      Effect.gen(function* () {
+        const current = yield* Ref.get(backgroundState);
+        if (current.retainCount > 0) {
+          yield* Ref.set(backgroundState, { ...current, retainCount: current.retainCount + 1 });
+          return;
+        }
+        const scope = yield* Scope.make();
+        yield* nativeClient.backgroundSnapshots.pipe(
+          Stream.runForEach(ingestNative),
+          Effect.catch((error) =>
+            Effect.logWarning("Native resource telemetry stream stopped", {
+              cause: error.message,
+            }),
+          ),
+          Effect.forkIn(scope),
+        );
+        yield* nativeClient.sampleNow.pipe(
+          Effect.flatMap(ingestNative),
+          Effect.ignore,
+          Effect.forkIn(scope),
+        );
+        yield* Ref.set(backgroundState, { retainCount: 1, scope: Option.some(scope) });
+      }),
+    ),
+  );
+
+  const releaseBackground = backgroundMutex.withPermits(1)(
+    Effect.gen(function* () {
+      const current = yield* Ref.get(backgroundState);
+      if (current.retainCount <= 1) {
+        yield* Ref.set(backgroundState, { retainCount: 0, scope: Option.none() });
+        if (Option.isSome(current.scope)) {
+          yield* Scope.close(current.scope.value, Exit.void).pipe(Effect.ignore);
+        }
+        return;
+      }
+      yield* Ref.set(backgroundState, { ...current, retainCount: current.retainCount - 1 });
+    }),
+  );
+
   const latest = Ref.get(state).pipe(Effect.map((current) => current.latest));
+  const subscribeBackground = subscribeBeforeSnapshot(
+    changes,
+    Effect.acquireRelease(acquireBackground, () => releaseBackground).pipe(Effect.andThen(latest)),
+    mutex,
+  );
   const subscribe = subscribeBeforeSnapshot(
     changes,
     Effect.acquireRelease(acquireLive, () => releaseLive).pipe(Effect.andThen(latest)),
@@ -465,6 +535,7 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
     latest,
     changes: liveChanges,
     subscribe,
+    subscribeBackground,
     readHistory,
     refresh,
     retry: nativeClient.retry.pipe(

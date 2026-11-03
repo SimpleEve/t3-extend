@@ -40,6 +40,11 @@ export class PortDiscovery extends Context.Service<
       listener: (servers: ReadonlyArray<DiscoveredLocalServer>) => Effect.Effect<void>,
     ) => Effect.Effect<void, never, Scope.Scope>;
     readonly retain: Effect.Effect<void, never, Scope.Scope>;
+    /**
+     * fork: keeps the scanner polling at the slow background rate for a status chip. A live
+     * `retain` anywhere restores the normal rate; with neither, nothing is scanned.
+     */
+    readonly retainBackground: Effect.Effect<void, never, Scope.Scope>;
     readonly registerTerminalProcesses: (input: {
       readonly threadId: string;
       readonly terminalId: string;
@@ -72,6 +77,8 @@ export const AGENT_THREAD_ENV = "T3CODE_THREAD_ID";
 const PORT_DISCOVERY_ENV = "T3CODE_PORT_DISCOVERY";
 
 const POLL_INTERVAL = Duration.seconds(3);
+// fork: the least time between scans while only background subscribers hold the scanner.
+const BACKGROUND_POLL_INTERVAL_MS = 15_000;
 const LSOF_TIMEOUT_MS = 5_000;
 const PROC_FD_WALK_LIMIT = 50_000;
 const SOCKET_OWNER_ATTEMPTS = 3;
@@ -107,6 +114,7 @@ interface ScannerState {
     }
   >;
   readonly retainCount: number;
+  readonly backgroundRetainCount: number; // fork: background cadence
 }
 
 interface TerminalProcessOwner {
@@ -512,6 +520,7 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
     listeners: new Map(),
     terminalProcesses: new Map(),
     retainCount: 0,
+    backgroundRetainCount: 0,
   });
   const webProbeCacheRef = yield* Ref.make<ReadonlyMap<string, WebProbeCacheEntry>>(new Map());
   const scanSemaphore = yield* Semaphore.make(1);
@@ -962,25 +971,49 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
     ),
   );
 
+  // fork: the time of the last scan that a retention started, so background-only polling can wait.
+  const lastRetainedPollAtRef = yield* Ref.make(0);
+  const timedPoll = pollTick().pipe(
+    Effect.andThen(Clock.currentTimeMillis),
+    Effect.flatMap((now) => Ref.set(lastRetainedPollAtRef, now)),
+  );
+
   const pollIfRetained = Ref.get(stateRef).pipe(
-    Effect.flatMap((state) => (state.retainCount > 0 ? pollTick() : Effect.void)),
+    Effect.flatMap((state) => {
+      if (state.retainCount > 0) return timedPoll;
+      if (state.backgroundRetainCount === 0) return Effect.void;
+      return Effect.all([Clock.currentTimeMillis, Ref.get(lastRetainedPollAtRef)]).pipe(
+        Effect.flatMap(([now, last]) =>
+          now - last >= BACKGROUND_POLL_INTERVAL_MS ? timedPoll : Effect.void,
+        ),
+      );
+    }),
   );
   yield* Effect.forkScoped(pollIfRetained.pipe(Effect.repeat(Schedule.spaced(POLL_INTERVAL))));
 
-  const acquireRetention = Effect.fn("PortDiscovery.retain")(function* () {
+  const acquireRetention = Effect.fn("PortDiscovery.retain")(function* (
+    kind: "live" | "background",
+  ) {
     const wasIdle = yield* Ref.modify(stateRef, (state) => [
-      state.retainCount === 0,
-      { ...state, retainCount: state.retainCount + 1 },
+      state.retainCount === 0 && state.backgroundRetainCount === 0,
+      kind === "live"
+        ? { ...state, retainCount: state.retainCount + 1 }
+        : { ...state, backgroundRetainCount: state.backgroundRetainCount + 1 },
     ]);
     if (wasIdle) {
-      yield* pollTick();
+      yield* timedPoll;
     }
   });
 
-  const releaseRetention = Effect.gen(function* () {
+  const releaseRetention = Effect.fn("PortDiscovery.release")(function* (
+    kind: "live" | "background",
+  ) {
     const idle = yield* Ref.modify(stateRef, (state) => {
-      const retainCount = Math.max(0, state.retainCount - 1);
-      return [retainCount === 0, { ...state, retainCount }];
+      const next =
+        kind === "live"
+          ? { ...state, retainCount: Math.max(0, state.retainCount - 1) }
+          : { ...state, backgroundRetainCount: Math.max(0, state.backgroundRetainCount - 1) };
+      return [next.retainCount === 0 && next.backgroundRetainCount === 0, next];
     });
     if (!idle) return;
     const threads = yield* Ref.getAndSet(agentThreadsRef, new Map());
@@ -988,8 +1021,12 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
   });
 
   const retain: PortDiscovery["Service"]["retain"] = Effect.acquireRelease(
-    acquireRetention(),
-    () => releaseRetention,
+    acquireRetention("live"),
+    () => releaseRetention("live"),
+  );
+  const retainBackground: PortDiscovery["Service"]["retainBackground"] = Effect.acquireRelease(
+    acquireRetention("background"),
+    () => releaseRetention("background"),
   );
 
   const subscribe: PortDiscovery["Service"]["subscribe"] = Effect.fn("PortDiscovery.subscribe")(
@@ -1138,6 +1175,7 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
     scan: scanOnce,
     subscribe,
     retain,
+    retainBackground,
     registerTerminalProcesses,
     unregisterTerminal,
     trackAgent,

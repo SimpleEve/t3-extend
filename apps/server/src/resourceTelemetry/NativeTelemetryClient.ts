@@ -44,6 +44,10 @@ const SAMPLE_INTERVAL_MS = 1_000;
 const IDLE_SAMPLE_INTERVAL_MS = 0;
 const BATTERY_SAMPLE_INTERVAL_MS = 5_000;
 const CONSTRAINED_SAMPLE_INTERVAL_MS = 15_000;
+// fork: a client that only keeps a status chip current needs a figure, not a trace.
+const BACKGROUND_SAMPLE_INTERVAL_MS = 15_000;
+const BACKGROUND_BATTERY_SAMPLE_INTERVAL_MS = 30_000;
+const BACKGROUND_CONSTRAINED_SAMPLE_INTERVAL_MS = 60_000;
 const HANDSHAKE_TIMEOUT = Duration.seconds(5);
 const SAMPLE_REQUEST_TIMEOUT = Duration.seconds(5);
 const PROCESS_TABLE_REQUEST_TIMEOUT = Duration.seconds(5);
@@ -185,6 +189,11 @@ export class NativeTelemetryClient extends Context.Service<
   {
     readonly capabilities: Effect.Effect<ResourceMonitorCapabilities, NativeTelemetryClientError>;
     readonly snapshots: Stream.Stream<NativeTelemetrySnapshot, NativeTelemetryClientError>;
+    /** fork: same snapshots, but holding this open asks only for the slow background rate. */
+    readonly backgroundSnapshots: Stream.Stream<
+      NativeTelemetrySnapshot,
+      NativeTelemetryClientError
+    >;
     readonly readHistory: (
       windowMs: number,
     ) => Effect.Effect<ReadonlyArray<ResourceMonitorSnapshotEvent>, NativeTelemetryClientError>;
@@ -224,6 +233,8 @@ interface ClientState {
 export interface CollectionControl {
   readonly hostPower: HostPowerSnapshot;
   readonly liveSubscriberCount: number;
+  /** fork: subscribers that only need a slow figure; they never raise the live rate. */
+  readonly backgroundSubscriberCount: number;
   readonly sampleIntervalMs: number;
 }
 
@@ -261,20 +272,25 @@ function isThermallyConstrained(snapshot: HostPowerSnapshot): boolean {
 
 // Without a live subscriber the sidecar does not sample on a timer, so an idle server
 // never walks the process table. History then covers only time with a subscriber.
-function resolveNativeSampleIntervalMs(
+// fork: background-only subscribers get a slow timer; any live subscriber restores the live rate.
+export function resolveNativeSampleIntervalMs(
   snapshot: HostPowerSnapshot,
   liveSubscriberCount: number,
+  backgroundSubscriberCount = 0,
 ): number {
-  if (liveSubscriberCount === 0) return IDLE_SAMPLE_INTERVAL_MS;
-  if (snapshot.stale || snapshot.source === "unknown") return SAMPLE_INTERVAL_MS;
-  if (
+  const constrained =
     snapshot.suspended ||
     snapshot.locked === "true" ||
     snapshot.lowPowerMode === "true" ||
-    isThermallyConstrained(snapshot)
-  ) {
-    return CONSTRAINED_SAMPLE_INTERVAL_MS;
+    isThermallyConstrained(snapshot);
+  if (liveSubscriberCount === 0) {
+    if (backgroundSubscriberCount === 0) return IDLE_SAMPLE_INTERVAL_MS;
+    if (constrained) return BACKGROUND_CONSTRAINED_SAMPLE_INTERVAL_MS;
+    if (snapshot.onBattery === "true") return BACKGROUND_BATTERY_SAMPLE_INTERVAL_MS;
+    return BACKGROUND_SAMPLE_INTERVAL_MS;
   }
+  if (snapshot.stale || snapshot.source === "unknown") return SAMPLE_INTERVAL_MS;
+  if (constrained) return CONSTRAINED_SAMPLE_INTERVAL_MS;
   if (snapshot.onBattery === "true") return BATTERY_SAMPLE_INTERVAL_MS;
   return SAMPLE_INTERVAL_MS;
 }
@@ -383,6 +399,7 @@ export const make = Effect.fn("resourceTelemetry.nativeTelemetryClient.make")(fu
       updatedAt: initializedAt,
     },
     liveSubscriberCount: 0,
+    backgroundSubscriberCount: 0,
     sampleIntervalMs: IDLE_SAMPLE_INTERVAL_MS,
   });
   const appliedCollectionControl = yield* Ref.make(yield* Ref.get(collectionControl));
@@ -659,7 +676,7 @@ export const make = Effect.fn("resourceTelemetry.nativeTelemetryClient.make")(fu
               sampleIntervalMs: control.sampleIntervalMs,
               externalProcesses: [...(yield* Ref.get(externalProcesses))],
             });
-            if (control.liveSubscriberCount > 0) {
+            if (control.liveSubscriberCount + control.backgroundSubscriberCount > 0) {
               yield* writeCommand(handle, {
                 version: RESOURCE_MONITOR_PROTOCOL_VERSION,
                 type: "setStreaming",
@@ -790,8 +807,8 @@ export const make = Effect.fn("resourceTelemetry.nativeTelemetryClient.make")(fu
           sampleIntervalMs: next.sampleIntervalMs,
         });
       }
-      const wasStreaming = previous.liveSubscriberCount > 0;
-      const isStreaming = next.liveSubscriberCount > 0;
+      const wasStreaming = previous.liveSubscriberCount + previous.backgroundSubscriberCount > 0;
+      const isStreaming = next.liveSubscriberCount + next.backgroundSubscriberCount > 0;
       if (wasStreaming !== isStreaming) {
         yield* writeCommand(handle, {
           version: RESOURCE_MONITOR_PROTOCOL_VERSION,
@@ -816,31 +833,50 @@ export const make = Effect.fn("resourceTelemetry.nativeTelemetryClient.make")(fu
     updateCollectionControl((current) => ({
       ...current,
       hostPower,
-      sampleIntervalMs: resolveNativeSampleIntervalMs(hostPower, current.liveSubscriberCount),
+      sampleIntervalMs: resolveNativeSampleIntervalMs(
+        hostPower,
+        current.liveSubscriberCount,
+        current.backgroundSubscriberCount,
+      ),
     }));
 
-  const changeLiveSubscriberCount = Effect.fn(
-    "resourceTelemetry.nativeTelemetryClient.changeLiveSubscriberCount",
-  )(function* (delta: 1 | -1) {
+  const changeSubscriberCount = Effect.fn(
+    "resourceTelemetry.nativeTelemetryClient.changeSubscriberCount",
+  )(function* (kind: "live" | "background", delta: 1 | -1) {
     yield* updateCollectionControl((current) => {
-      const liveSubscriberCount = Math.max(0, current.liveSubscriberCount + delta);
+      const liveSubscriberCount =
+        kind === "live"
+          ? Math.max(0, current.liveSubscriberCount + delta)
+          : current.liveSubscriberCount;
+      const backgroundSubscriberCount =
+        kind === "background"
+          ? Math.max(0, current.backgroundSubscriberCount + delta)
+          : current.backgroundSubscriberCount;
       return {
         ...current,
         liveSubscriberCount,
-        sampleIntervalMs: resolveNativeSampleIntervalMs(current.hostPower, liveSubscriberCount),
+        backgroundSubscriberCount,
+        sampleIntervalMs: resolveNativeSampleIntervalMs(
+          current.hostPower,
+          liveSubscriberCount,
+          backgroundSubscriberCount,
+        ),
       };
     });
   });
 
-  const liveSnapshots = Stream.unwrap(
-    Effect.gen(function* () {
-      const subscription = yield* PubSub.subscribe(snapshots);
-      yield* Effect.acquireRelease(changeLiveSubscriberCount(1), () =>
-        changeLiveSubscriberCount(-1).pipe(Effect.ignore),
-      );
-      return Stream.fromSubscription(subscription);
-    }),
-  );
+  const subscribeSnapshots = (kind: "live" | "background") =>
+    Stream.unwrap(
+      Effect.gen(function* () {
+        const subscription = yield* PubSub.subscribe(snapshots);
+        yield* Effect.acquireRelease(changeSubscriberCount(kind, 1), () =>
+          changeSubscriberCount(kind, -1).pipe(Effect.ignore),
+        );
+        return Stream.fromSubscription(subscription);
+      }),
+    );
+  const liveSnapshots = subscribeSnapshots("live");
+  const backgroundSnapshots = subscribeSnapshots("background");
 
   // Desktop telemetry refreshes this process set on every sample.
   const setExternalProcesses: NativeTelemetryClient["Service"]["setExternalProcesses"] =
@@ -1043,6 +1079,7 @@ export const make = Effect.fn("resourceTelemetry.nativeTelemetryClient.make")(fu
       ),
     ),
     snapshots: liveSnapshots,
+    backgroundSnapshots,
     readHistory,
     setExternalProcesses,
     setHostPowerState,
@@ -1088,6 +1125,7 @@ export const layerTest = (
         processTree: true,
       }),
       snapshots: Stream.empty,
+      backgroundSnapshots: Stream.empty,
       readHistory: Effect.fn("NativeTelemetryClient.readHistory")(function () {
         return Effect.fail(
           new NativeTelemetryUnavailable({
