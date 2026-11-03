@@ -97,8 +97,10 @@ export default {
     "{count} 个附件和浏览器截图会随对话一起复制。",
   "{subject} is imported and active. Its first run is at its next scheduled time.":
     "{subject} 已导入并启用。它会在下一个计划时间首次运行。",
-  "Identity stays with {app}: {subject}. Phones and browsers pair with T3 Extend again.":
-    "身份信息留在 {app}：{subject}。手机和浏览器需要重新与 T3 Extend 配对。",
+  "Identity stays with {app}: {subject}, plus sessions, pairing links and linked environments. Phones and browsers pair with T3 Extend again.":
+    "身份信息留在 {app}：{subject}，以及会话、配对链接和已关联的环境。手机和浏览器需要重新与 T3 Extend 配对。",
+  "Identity stays with {app}: sessions, pairing links and linked environments. Phones and browsers pair with T3 Extend again.":
+    "身份信息留在 {app}：会话、配对链接和已关联的环境。手机和浏览器需要重新与 T3 Extend 配对。",
   "{count} signing key or cloud sign-in secret belongs to {app}'s identity.":
     "{count} 个签名密钥或云端登录机密属于 {app} 的身份。",
   "{count} signing keys and cloud sign-in secrets belong to {app}'s identity.":

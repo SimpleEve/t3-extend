@@ -186,10 +186,15 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
         subject,
       });
     case "identity-skipped":
-      return t(
-        "Identity stays with {app}: {subject}. Phones and browsers pair with T3 Extend again.",
-        { app, subject },
-      );
+      return subject
+        ? t(
+            "Identity stays with {app}: {subject}, plus sessions, pairing links and linked environments. Phones and browsers pair with T3 Extend again.",
+            { app, subject },
+          )
+        : t(
+            "Identity stays with {app}: sessions, pairing links and linked environments. Phones and browsers pair with T3 Extend again.",
+            { app },
+          );
     case "signing-secrets-skipped":
       return one
         ? t("{count} signing key or cloud sign-in secret belongs to {app}'s identity.", {
@@ -546,6 +551,17 @@ function ChooseStep(props: {
 }) {
   const t = useT();
   const { catalog, draft } = props;
+  // Same wording as the scheduled-task editor's schedule toggle.
+  const scheduleKindLabel = (kind: string) =>
+    kind === "fixed_time"
+      ? t("At a time")
+      : kind === "once"
+        ? t("Once")
+        : kind === "interval"
+          ? t("Every interval")
+          : kind === "webhook"
+            ? t("On webhook")
+            : kind;
   const toggleFile = (kind: T3CodeImportFileKind) => {
     const files = new Set(draft.files);
     if (!files.delete(kind)) files.add(kind);
@@ -614,7 +630,9 @@ function ChooseStep(props: {
                       onCheckedChange={(value) => update({ picked: value === true })}
                     />
                     <span className="min-w-0 flex-1 truncate text-sm">{task.title}</span>
-                    <span className="text-xs text-muted-foreground">{task.scheduleKind}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {scheduleKindLabel(task.scheduleKind)}
+                    </span>
                     <Switch
                       aria-label={t("Runs on its schedule")}
                       checked={choice.enabled}

@@ -934,7 +934,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     for (const name of identity) if (yield* present(name)) identityPresent.push(name);
     skipped.push({
       code: "identity-skipped",
-      subject: [...identityPresent, "sessions, pairing links and linked environments"].join(", "),
+      subject: identityPresent.join(", "),
     });
     const secretNames = yield* fs
       .readDirectory(path.join(sourceStateDir, "secrets"))

@@ -2,9 +2,11 @@
 // @effect-diagnostics *:off -- A throwaway check that prints what it sees.
 // fork: end-to-end check of the push path against a real ntfy server.
 //
+//   # server.yml needs /var/cache/ntfy and /var/lib/ntfy, which the image lacks; compose mounts volumes there too.
 //   docker run -d --name t3x-push-ntfy -p 127.0.0.1:18085:80 \
 //     -e NTFY_BASE_URL=http://127.0.0.1:18085 -e NTFY_PASSWORD=... \
 //     -v "$PWD/infra/self-host/ntfy/server.yml:/etc/ntfy/server.yml:ro" \
+//     -v t3x-push-ntfy-cache:/var/cache/ntfy -v t3x-push-ntfy-data:/var/lib/ntfy \
 //     binwiederhier/ntfy:v2.36.0 serve
 //   docker exec -e NTFY_PASSWORD=... t3x-push-ntfy ntfy user add phone
 //   docker exec t3x-push-ntfy ntfy access phone 'up*' read-only
