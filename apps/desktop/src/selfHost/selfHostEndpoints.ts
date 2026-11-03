@@ -1,6 +1,8 @@
 import type { AdvertisedEndpoint, AdvertisedEndpointProvider } from "@t3tools/contracts";
 import { createAdvertisedEndpoint } from "@t3tools/shared/advertisedEndpoint";
 
+import type { DeviceAddress } from "./DesktopSelfHost.ts";
+
 const SELF_HOST_ENDPOINT_PROVIDER: AdvertisedEndpointProvider = {
   id: "self-host",
   label: "Public address",
@@ -48,15 +50,15 @@ const DEVICE_ENDPOINT_PROVIDER: AdvertisedEndpointProvider = {
 /**
  * This computer's own address on the server it joined, so a pairing link can reach it through
  * the tunnel. The address is the one the server wrote from its membership (the subdomain the
- * registry assigned), never a typed one. It is listed whether or not the tunnel is up, like the
- * other self-hosted addresses, with the status left unknown.
+ * registry assigned), never a typed one. It is listed whether or not the tunnel is up; it counts as
+ * available only while the server says its tunnel is connected, and is otherwise left unknown.
  */
 export function deviceAdvertisedEndpoints(input: {
-  readonly deviceUrl: string | null;
+  readonly deviceUrl: DeviceAddress | null;
   readonly existing: ReadonlyArray<AdvertisedEndpoint>;
 }): ReadonlyArray<AdvertisedEndpoint> {
-  const { deviceUrl } = input;
-  if (deviceUrl === null) return [];
+  if (input.deviceUrl === null) return [];
+  const { url: deviceUrl, tunnelConnected } = input.deviceUrl;
   if (input.existing.some((endpoint) => endpoint.httpBaseUrl === deviceUrl)) return [];
   return [
     createAdvertisedEndpoint({
@@ -67,7 +69,7 @@ export function deviceAdvertisedEndpoints(input: {
       httpBaseUrl: deviceUrl,
       reachability: "public",
       source: "user",
-      status: "unknown",
+      status: tunnelConnected ? "available" : "unknown",
       description: "This computer's address on your own server.",
     }),
   ];

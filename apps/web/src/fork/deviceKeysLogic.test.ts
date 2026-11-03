@@ -51,10 +51,14 @@ describe("when the desktop app's pairing addresses are read again", () => {
     ["disabled", "connected", true],
     ["connected", "disabled", true],
     ["error", "disabled", true],
-    // Moving between the live states changes no address.
-    ["connecting", "connected", false],
-    ["connected", "error", false],
+    // Reaching or leaving "connected" flips whether the address is vouched for.
+    ["connecting", "connected", true],
+    ["connected", "error", true],
+    ["connected", "connecting", true],
+    // Moving between the other live states changes nothing.
     ["stopped", "connecting", false],
+    ["connecting", "error", false],
+    ["connected", "connected", false],
     ["disabled", "disabled", false],
   ] as const)("%s then %s reads again: %s", (previous, next, expected) => {
     expect(networkAccessNeedsRefresh(previous, next)).toBe(expected);

@@ -41,16 +41,19 @@ export function serverNotice(
 type TunnelState = DevicesStatus["tunnel"]["status"];
 
 /**
- * Whether the desktop app's pairing addresses are out of date after the tunnel moved from
- * `previous` to `next`. The server writes the file those addresses come from before its tunnel
- * enters or leaves "disabled", so a status on the other side of that line already has the new file.
- * The membership URL in a snapshot can arrive earlier than the file, so it is not the signal.
+ * Whether the desktop app's pairing addresses changed when the tunnel moved from `previous` to
+ * `next`: they exist while joined (not "disabled") and count as available while "connected". The
+ * server writes their files before it reports the status, so the status is the signal, not the snapshot's URL.
  */
 export function networkAccessNeedsRefresh(
   previous: TunnelState | null,
   next: TunnelState,
 ): boolean {
-  return previous !== null && (previous === "disabled") !== (next === "disabled");
+  return (
+    previous !== null &&
+    ((previous === "disabled") !== (next === "disabled") ||
+      (previous === "connected") !== (next === "connected"))
+  );
 }
 
 const MINUTE_MS = 60_000;

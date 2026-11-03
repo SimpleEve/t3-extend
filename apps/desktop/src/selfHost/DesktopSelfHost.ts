@@ -1,5 +1,11 @@
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import {
+  decodeTunnelStatusFile,
+  isTunnelStatusFresh,
+  TUNNEL_DIR,
+  TUNNEL_STATUS_FILE,
+} from "@t3tools/shared/forkDeviceKeys/tunnelStatusFile";
+import {
   encodePublicUrlsDocument,
   normalizePublicUrls,
   parsePublicUrlList,
@@ -9,6 +15,7 @@ import {
   PUBLIC_URLS_FILE_NAME,
   type SelfHostState,
 } from "@t3tools/shared/selfHost";
+import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -36,6 +43,11 @@ const TunnelSettingsJson = Schema.fromJsonString(TunnelSettingsDocument);
 const decodeTunnelSettings = Schema.decodeUnknownOption(TunnelSettingsJson);
 const encodeTunnelSettings = Schema.encodeSync(TunnelSettingsJson);
 
+export interface DeviceAddress {
+  readonly url: string;
+  readonly tunnelConnected: boolean;
+}
+
 export class DesktopSelfHostWriteError extends Schema.TaggedError<DesktopSelfHostWriteError>()(
   "DesktopSelfHostWriteError",
   {
@@ -60,8 +72,11 @@ export class DesktopSelfHost extends Context.Service<
     readonly getState: Effect.Effect<SelfHostState>;
     /** Saved addresses plus the environment's, as pairing endpoints. */
     readonly publicUrls: Effect.Effect<ReadonlyArray<string>>;
-    /** This computer's own address on the server it joined, or null while it has not joined one. */
-    readonly deviceUrl: Effect.Effect<string | null>;
+    /**
+     * This computer's own address on the server it joined, or null while it has not joined one.
+     * `tunnelConnected` is what the server last wrote about its tunnel, believed only while recent.
+     */
+    readonly deviceUrl: Effect.Effect<DeviceAddress | null>;
     readonly setPublicUrls: (
       urls: ReadonlyArray<string>,
     ) => Effect.Effect<SelfHostState, DesktopSelfHostWriteError>;
@@ -150,9 +165,26 @@ const make = Effect.gen(function* () {
       );
   });
 
+  const tunnelConnected = Effect.gen(function* () {
+    const raw = yield* fs.readFileString(
+      environment.path.join(environment.baseDir, "userdata", TUNNEL_DIR, TUNNEL_STATUS_FILE),
+    );
+    const file = decodeTunnelStatusFile(raw);
+    return (
+      Option.isSome(file) &&
+      file.value.status === "connected" &&
+      isTunnelStatusFresh(file.value, yield* Clock.currentTimeMillis)
+    );
+  }).pipe(Effect.orElseSucceed(() => false));
+
   const deviceUrl = fs.readFileString(devicePublicUrlFilePath(environment)).pipe(
     Effect.map(parseDevicePublicUrl),
     Effect.orElseSucceed((): string | null => null),
+    Effect.flatMap((url): Effect.Effect<DeviceAddress | null> =>
+      url === null
+        ? Effect.succeed(null)
+        : Effect.map(tunnelConnected, (connected) => ({ url, tunnelConnected: connected })),
+    ),
   );
 
   const getState = Effect.gen(function* () {

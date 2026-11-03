@@ -8,6 +8,7 @@ import * as Ref from "effect/Ref";
 import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
+import * as TestClock from "effect/testing/TestClock";
 
 import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
@@ -123,7 +124,7 @@ describe("DesktopSelfHost", () => {
       assert.strictEqual(yield* read, null);
 
       yield* fs.writeFileString(file, JSON.stringify({ url: "https://mac.t3.example.com" }));
-      assert.strictEqual(yield* read, "https://mac.t3.example.com/");
+      assert.deepEqual(yield* read, { url: "https://mac.t3.example.com/", tunnelConnected: false });
 
       // Anything that is not a bare https address is not an address.
       for (const url of ["http://mac.t3.example.com", "https://mac.t3.example.com/path", "x"]) {
@@ -137,6 +138,51 @@ describe("DesktopSelfHost", () => {
       Effect.provideService(HostProcess.Environment, {}),
       Effect.scoped,
     ),
+  );
+
+  it.effect(
+    "calls the address connected only while the server's tunnel file says so, recently",
+    () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3x-self-host-" });
+        const spawned = yield* Ref.make(0);
+        yield* fs.makeDirectory(`${baseDir}/userdata/fork-tunnel`, { recursive: true });
+        yield* fs.writeFileString(
+          `${baseDir}/userdata/device-public-url.json`,
+          JSON.stringify({ url: "https://mac.t3.example.com" }),
+        );
+        const now = 10 * 60 * 1000;
+        yield* TestClock.setTime(now);
+        const statusFile = `${baseDir}/userdata/fork-tunnel/status.json`;
+        const status = (status: string, updatedAt: number) =>
+          fs.writeFileString(
+            statusFile,
+            JSON.stringify({ serverPid: 1, frpcPid: null, status, lastError: null, updatedAt }),
+          );
+        const connected = Effect.gen(function* () {
+          const address = yield* (yield* DesktopSelfHost.DesktopSelfHost).deviceUrl;
+          return address?.tunnelConnected;
+        }).pipe(Effect.provide(layerFor(baseDir, spawned)), Effect.scoped);
+
+        assert.strictEqual(yield* connected, false, "no status file yet");
+        yield* status("connected", now - 60_000);
+        assert.strictEqual(yield* connected, true);
+        yield* status("connected", now - 180_000);
+        assert.strictEqual(yield* connected, true, "three minutes old is still a heartbeat");
+        yield* status("connected", now - 180_001);
+        assert.strictEqual(yield* connected, false, "a server that stopped writing");
+        for (const other of ["connecting", "error", "stopped", "disabled"]) {
+          yield* status(other, now);
+          assert.strictEqual(yield* connected, false, other);
+        }
+        yield* fs.writeFileString(statusFile, "not json");
+        assert.strictEqual(yield* connected, false);
+      }).pipe(
+        Effect.provide(NodeServices.layer),
+        Effect.provideService(HostProcess.Environment, {}),
+        Effect.scoped,
+      ),
   );
 
   it("points the backend at the saved file and passes environment addresses through", () => {

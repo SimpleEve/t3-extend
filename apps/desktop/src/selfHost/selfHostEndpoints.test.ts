@@ -46,7 +46,10 @@ describe("deviceAdvertisedEndpoints", () => {
 
   it("offers this computer's address on the joined server as a pairing endpoint", () => {
     expect(
-      deviceAdvertisedEndpoints({ deviceUrl: "https://mac.t3.example.com/", existing: [] }),
+      deviceAdvertisedEndpoints({
+        deviceUrl: { url: "https://mac.t3.example.com/", tunnelConnected: false },
+        existing: [],
+      }),
     ).toMatchObject([
       {
         // The settings page lists only `self-host:` ids while network access is off.
@@ -62,7 +65,23 @@ describe("deviceAdvertisedEndpoints", () => {
   it("offers nothing while this computer has not joined a server, or when it is already listed", () => {
     expect(deviceAdvertisedEndpoints({ deviceUrl: null, existing: [] })).toEqual([]);
     expect(
-      deviceAdvertisedEndpoints({ deviceUrl: "https://mac.t3.example.com/", existing: [listed] }),
+      deviceAdvertisedEndpoints({
+        deviceUrl: { url: "https://mac.t3.example.com/", tunnelConnected: true },
+        existing: [listed],
+      }),
     ).toEqual([]);
+  });
+
+  it.each([
+    [true, "available"],
+    // Still listed, only not vouched for.
+    [false, "unknown"],
+  ] as const)("with the tunnel connected: %s, the address is %s", (tunnelConnected, status) => {
+    expect(
+      deviceAdvertisedEndpoints({
+        deviceUrl: { url: "https://mac.t3.example.com/", tunnelConnected },
+        existing: [],
+      }),
+    ).toMatchObject([{ httpBaseUrl: "https://mac.t3.example.com/", status }]);
   });
 });
