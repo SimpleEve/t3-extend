@@ -8,6 +8,7 @@ import {
   TICKET_LIFETIME_SECONDS,
   TICKET_ROTATION_SECONDS,
   frpcUser,
+  parseTicketLifetimeOverride,
 } from "./frpcConfig.ts";
 
 const KEY = generateDeviceKey();
@@ -187,6 +188,38 @@ describe("issueTicket", () => {
         decide(storeWith(row), request, NOW + TICKET_LIFETIME_SECONDS + 1).reject_reason,
         "t3x:ticket-expired",
       );
+    }
+  });
+});
+
+describe("parseTicketLifetimeOverride", () => {
+  it("accepts whole seconds from 1 to 86400 and ignores everything else", () => {
+    for (const [raw, expected] of [
+      ["1", 1],
+      ["20", 20],
+      ["86400", 86_400],
+      ["086400", 86_400],
+    ] as const) {
+      assert.equal(parseTicketLifetimeOverride(raw), expected, raw);
+    }
+    for (const raw of [
+      undefined,
+      "",
+      "0",
+      "-1",
+      "86401",
+      "999999",
+      "1000000",
+      "1.5",
+      "1e3",
+      " 20",
+      "20 ",
+      "0x10",
+      "twenty",
+      "Infinity",
+      "NaN",
+    ]) {
+      assert.equal(parseTicketLifetimeOverride(raw), undefined, String(raw));
     }
   });
 });

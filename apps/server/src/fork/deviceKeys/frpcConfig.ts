@@ -5,6 +5,16 @@ import type { DeviceKeyPair } from "@t3tools/shared/forkDeviceKeys/jws";
 
 /** The registry's `Login` also rejects past this; frpc has no way to refresh it, so the server replaces it. */
 export const TICKET_LIFETIME_SECONDS = 24 * 60 * 60;
+/**
+ * The test-only override for a ticket's lifetime: whole seconds from 1 to 86400. Anything else
+ * (0, negative, fractional, too long, not a number) is `undefined`, which means "use the default".
+ */
+export const parseTicketLifetimeOverride = (raw: string | undefined): number | undefined => {
+  if (raw === undefined || !/^[0-9]{1,6}$/.test(raw)) return undefined;
+  const seconds = Number(raw);
+  return seconds >= 1 && seconds <= TICKET_LIFETIME_SECONDS ? seconds : undefined;
+};
+
 /** Half the lifetime, so a rotation that is late by hours still lands before the ticket expires. */
 export const TICKET_ROTATION_SECONDS = 12 * 60 * 60;
 

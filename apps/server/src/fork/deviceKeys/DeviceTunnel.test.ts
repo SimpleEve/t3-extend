@@ -57,6 +57,7 @@ const arrange = Effect.fn("arrange")(function* (input: {
   /** `false`: the fake is not offered through T3X_FRPC_PATH. */
   readonly offerFake?: boolean;
   readonly trustedCaFile?: string;
+  readonly env?: Record<string, string>;
 }) {
   yield* TestClock.setTime(NOW_MS);
   const fake = yield* makeFakeFrpc(input.control);
@@ -74,7 +75,10 @@ const arrange = Effect.fn("arrange")(function* (input: {
     Layer.provideMerge(
       ConfigProvider.layer(
         ConfigProvider.fromEnv({
-          env: input.offerFake === false ? {} : { T3X_FRPC_PATH: fake.path },
+          env: {
+            ...(input.offerFake === false ? {} : { T3X_FRPC_PATH: fake.path }),
+            ...input.env,
+          },
         }),
       ),
     ),
@@ -188,6 +192,27 @@ describe("the frpc process", () => {
 
         const status = yield* t.directory.status;
         assert.deepEqual(status.tunnel, { status: "connected", lastError: null });
+      }),
+    ),
+  );
+
+  it.effect("takes the test-only ticket lifetime from the environment only inside 1..86400", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const lifetimeFor = Effect.fn("lifetimeFor")(function* (value: string) {
+          const t = yield* arrange({
+            control: { version: FRP_VERSION, scripts: [[CONNECTED]] },
+            env: { T3X_TEST_TICKET_LIFETIME_SECONDS: value },
+          });
+          yield* t.join;
+          yield* t.until("connected", connected);
+          const payload = decodeJws(t.ticketOf(t.fake.records()[0] ?? { config: "" })).payload;
+          return Number(payload.exp) - Number(payload.iat);
+        });
+        assert.equal(yield* lifetimeFor("20"), 20);
+        assert.equal(yield* lifetimeFor("86401"), 86_400);
+        assert.equal(yield* lifetimeFor("0"), 86_400);
+        assert.equal(yield* lifetimeFor("soon"), 86_400);
       }),
     ),
   );

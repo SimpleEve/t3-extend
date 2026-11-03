@@ -18,6 +18,9 @@ export const PLUGIN_TIMEOUT_MS = 1500;
 export const PLUGIN_MAX_IN_FLIGHT = 64;
 export const PLUGIN_BODY_LIMIT_BYTES = 64 * 1024;
 const TICKET_MAX_LENGTH = 2048;
+/** The longest a ticket may live (`exp - iat`), and how far ahead of this clock its `iat` may be. */
+export const TICKET_MAX_LIFETIME_SECONDS = 86_400;
+export const TICKET_CLOCK_SKEW_SECONDS = 300;
 const PROXY_NAME_SUFFIX = ".t3x";
 
 /** Test seam: the end-to-end suite preloads a module that sets `beforeOp` to make an op slow. Never set in production. */
@@ -67,6 +70,16 @@ function checkTicket(store, ticket, user, now) {
     user !== device.id.slice(0, 16)
   ) {
     return { verdict: reject(REASONS.badTicket) };
+  }
+  // A ticket's lifetime is bounded by what the registry accepts, not by what the signer claims:
+  // a device key must not be able to mint a ticket that outlives the 24 hours the design allows.
+  if (!Number.isSafeInteger(payload.iat) || payload.iat > now + TICKET_CLOCK_SKEW_SECONDS) {
+    return { verdict: reject(REASONS.badTicket) };
+  }
+  if (Number.isSafeInteger(payload.exp)) {
+    if (payload.exp <= payload.iat || payload.exp - payload.iat > TICKET_MAX_LIFETIME_SECONDS) {
+      return { verdict: reject(REASONS.badTicket) };
+    }
   }
   if (!(Number.isSafeInteger(payload.exp) && payload.exp > now)) {
     return { verdict: reject(REASONS.expired) };

@@ -25,7 +25,12 @@ import * as DeviceDirectory from "./DeviceDirectory.ts";
 import * as DeviceIdentity from "./DeviceIdentity.ts";
 import { writeDevicePublicUrl } from "./devicePublicUrlSync.ts";
 import * as FrpBinary from "./frpBinary.ts";
-import { issueTicket, renderFrpcConfig, TICKET_ROTATION_SECONDS } from "./frpcConfig.ts";
+import {
+  issueTicket,
+  parseTicketLifetimeOverride,
+  renderFrpcConfig,
+  TICKET_ROTATION_SECONDS,
+} from "./frpcConfig.ts";
 import {
   actionFor,
   classifyFrpcLine,
@@ -111,14 +116,18 @@ const make = Effect.fn("DeviceTunnel.make")(function* (options: {
       ),
     );
 
+  const lifetimeText = yield* Config.String(TICKET_LIFETIME_ENV).pipe(
+    Config.option,
+    Effect.orElseSucceed(() => Option.none<string>()),
+  );
   const ticketLifetimeSeconds =
     options.ticketLifetimeSeconds ??
-    Option.getOrUndefined(
-      yield* Config.Int(TICKET_LIFETIME_ENV).pipe(
-        Config.option,
-        Effect.orElseSucceed(() => Option.none<number>()),
-      ),
+    parseTicketLifetimeOverride(Option.getOrUndefined(lifetimeText));
+  if (Option.isSome(lifetimeText) && ticketLifetimeSeconds === undefined) {
+    yield* Effect.logWarning(
+      `${TICKET_LIFETIME_ENV} must be a whole number of seconds from 1 to 86400; using 24 hours.`,
     );
+  }
 
   const tunnelDir = path.join(config.stateDir, TUNNEL_DIR);
   const nowSeconds = Effect.map(Clock.currentTimeMillis, (millis) => Math.floor(millis / 1000));
