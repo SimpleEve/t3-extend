@@ -38,11 +38,8 @@ const isEmpty = (value) =>
   value === "" ||
   (Array.isArray(value) && value.length === 0);
 
-/**
- * Steps 1-5 of the Login order, shared by all four ops. Returns `{device}` or `{verdict}` (a rejection).
- * `checkExpiry` is true for Login only: a connected frpc keeps its ticket until the next rotation.
- */
-function checkTicket(store, ticket, user, { checkExpiry, now }) {
+/** Steps 1-6 of the Login order, shared by all four ops. Returns `{device}` or `{verdict}` (a rejection). */
+function checkTicket(store, ticket, user, now) {
   if (typeof ticket !== "string" || ticket.length > TICKET_MAX_LENGTH)
     return { verdict: reject(REASONS.badTicket) };
   let decoded;
@@ -71,7 +68,7 @@ function checkTicket(store, ticket, user, { checkExpiry, now }) {
   ) {
     return { verdict: reject(REASONS.badTicket) };
   }
-  if (checkExpiry && !(Number.isSafeInteger(payload.exp) && payload.exp > now)) {
+  if (!(Number.isSafeInteger(payload.exp) && payload.exp > now)) {
     return { verdict: reject(REASONS.expired) };
   }
   return { device };
@@ -84,10 +81,7 @@ export function decide(store, request, now) {
   const op = request.op;
 
   if (op === "Login") {
-    const result = checkTicket(store, content.metas?.t3x_ticket, content.user, {
-      checkExpiry: true,
-      now,
-    });
+    const result = checkTicket(store, content.metas?.t3x_ticket, content.user, now);
     if (result.verdict !== undefined) return result.verdict;
     store.touch(result.device.id, "tunnel", now);
     return allow;
@@ -96,10 +90,7 @@ export function decide(store, request, now) {
 
   // frps does not send a run_id with Login, so these ops re-verify the ticket frpc repeats in user.metas.
   const user = content.user;
-  const result = checkTicket(store, user?.metas?.t3x_ticket, user?.user, {
-    checkExpiry: false,
-    now,
-  });
+  const result = checkTicket(store, user?.metas?.t3x_ticket, user?.user, now);
   if (result.verdict !== undefined) return result.verdict;
   const { device } = result;
 

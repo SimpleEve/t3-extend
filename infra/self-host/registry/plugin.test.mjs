@@ -308,12 +308,18 @@ describe("the other ops read the live database every time", () => {
     }
   });
 
-  it("does not check expiry after login: a connected frpc keeps its ticket until the next rotation", () => {
+  it("rejects an expired ticket on every op, so a stolen ticket cannot hold a tunnel past its expiry", () => {
     const mac = enrollComputer();
     const ticket = ticketFor(mac, { exp: clock.now() + 10 });
-    clock.advance(11);
     assert.deepEqual(run(withUser("Ping", mac, {}, ticket)), ALLOW);
+    clock.advance(11);
     assert.deepEqual(run(login(mac, ticket)), rejected("ticket-expired"));
+    assert.deepEqual(run(withUser("Ping", mac, {}, ticket)), rejected("ticket-expired"));
+    assert.deepEqual(run(withUser("NewWorkConn", mac, {}, ticket)), rejected("ticket-expired"));
+    assert.deepEqual(run(proxy(mac, {}, ticket)), rejected("ticket-expired"));
+    // A freshly signed ticket (the 12-hour rotation) is accepted by all of them again.
+    const fresh = ticketFor(mac);
+    assert.deepEqual(run(withUser("Ping", mac, {}, fresh)), ALLOW);
   });
 
   it("rejects a user that is not this device's id prefix, a missing ticket and unknown ops", () => {
