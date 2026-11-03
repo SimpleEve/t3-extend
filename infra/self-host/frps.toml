@@ -1,14 +1,15 @@
-# frps：运行在 VPS 的 compose 里，配置不需要改。token 从 .env 的 FRP_AUTH_TOKEN 读取。
+# frps behind Caddy. Nothing here is published to the host.
+# Who may log in, open a proxy or keep a connection is decided by the registry plugin on every call.
 bindPort = 7000
-
-auth.method = "token"
-auth.token = "{{ .Envs.FRP_AUTH_TOKEN }}"
-
-# 只允许家里的 frpc 占用 7001 这一个端口，别的 remotePort 一律拒绝。
-allowPorts = [{ single = 7001 }]
-
-# frpc 与 frps 之间强制 TLS：VPS 和家之间的这一段也不走明文。
-transport.tls.force = true
+vhostHTTPPort = 8080
+subDomainHost = "{{ .Envs.T3X_DOMAIN }}"
+transport.heartbeatTimeout = 90
 
 log.to = "console"
 log.level = "info"
+
+[[httpPlugins]]
+name = "t3x-registry"
+addr = "registry:8081"
+path = "/frps"
+ops = ["Login", "NewProxy", "Ping", "NewWorkConn"]

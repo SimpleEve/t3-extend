@@ -272,6 +272,14 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 14. `apps/desktop/src/backend/DesktopBackendConfiguration.ts`：主后端的 env 加上 `T3CODE_PUBLIC_URLS_FILE` 和 `T3CODE_PUBLIC_URLS`（合并 `T3CODE_DESKTOP_HTTPS_ENDPOINTS`）。WSL 后端不加。
 15. `apps/web/src/components/settings/ConnectionsSettings.tsx`：Network access 关闭时也显示自建地址；在 Tailscale 行之后渲染 `<SelfHostSettings />`。
 
+### VPS 端：每设备密钥方案（阶段 8.1）
+
+设计见 `research/self-host-device-keys.md`。`infra/self-host/` 现在是新方案的服务器一半：`registry/`（Node 24，只用内置模块，没有 npm 依赖）保存设备公钥、邀请和子域名，同时是 frps 的插件（`:8081`）和 Caddy 的 `ask`（`:8082`）；`setup.sh` 一条命令装好 registry、frps、Caddy 和默认安装的 ntfy（`--no-ntfy` 关闭）；`./t3x` 是运维 CLI（邀请、设备、移除、ntfy 账号）。上游文件没有接线，客户端一半在 8.2 以后。旧的共享 token 方案和它的文档挪进了 `infra/self-host/advanced/`。
+
+- 测试：`vp run fork:selfhost:test`（`node --test "infra/self-host/registry/*.test.mjs"`，必须用通配符，传目录在 Node 24 和 26 上都会失败）。Node 24 镜像里同样通过。`docker-compose.test.yml` 把 Caddy 换成自己的 CA，只发布在 `127.0.0.1:18443` 和 `[::1]:18443`；`e2e/` 里的脚本对着它跑完整的隧道、撤销、故障场景（需要 `NODE_EXTRA_CA_CERTS` 指向 Caddy 根证书，见 `e2e/lib.mjs`）。
+- 镜像全部钉了版本和摘要（frps v0.71.1、Caddy 2.11.7、ntfy v2.36.0、`node:24.18.1-alpine3.24`），`registry/deploy.test.mjs` 检查这一点和"只有 Caddy 发布端口"。升级时一起改。
+- 实测得到的坑：frps 对 Login 插件调用不带 `run_id`，所以 NewProxy、Ping、NewWorkConn 都靠 frpc 在 `user.metas` 里重复带的 ticket 重新验证；`restart: unless-stopped` 不会重启 `unhealthy` 的容器，`healthcheck.mjs` 连续失败后给 PID 1 发 SIGTERM，所以 registry 必须 `init: true`（node 当 PID 1 会忽略 SIGTERM）；Caddy 的 `header_up X-T3x-Client-IP {remote_host}` 会覆盖客户端伪造的同名头，注册表只按它限速；撤销在下一次心跳（Ping）生效，约 20–30 秒。
+
 ## 手机新建浏览器标签页
 
 手机上可以自己新建 Browser 标签页，打开宿主机上的页面。页面在宿主机的 headless Chrome 里渲染，手机只收 JPEG 帧（server 已有的 `/api/preview-stream`），所以 `localhost` 指宿主机，也没有 Android cleartext 和 mixed content 的问题。不改 server 和 contracts；原生 WebView 直连 dev server 涉及同源安全，没有做。用户说明在 `docs/user/remote-access.md` 的 "Browser on a remote environment"。

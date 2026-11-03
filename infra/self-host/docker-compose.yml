@@ -1,34 +1,85 @@
-# 在你自己的 VPS 上运行：Caddy 终止 TLS 并自动申请证书，frps 接受家里 frpc 的连接。
-# 先复制 .env.example 为 .env，填好域名、邮箱和 token。
+# Runs on your VPS. setup.sh writes .env (domain, public origin, e-mail) and starts everything:
 #
-# 对外只开放：
-#   80/tcp、443/tcp  Caddy（证书签发和 HTTPS）
-#   7000/tcp         frps 控制端口（家里的 frpc 连这里）
-# frps 的数据端口 7001 和 ntfy 的 80 端口只在 compose 内部网络里，Caddy 经内部网络访问它们，不映射到宿主机。
-# ntfy 是可选的 UnifiedPush 推送服务器，用独立域名（NTFY_DOMAIN）。不需要推送时，把 ntfy 服务整段删掉，
-# 并删除 Caddyfile 里 NTFY_DOMAIN 那一段。
+#   registry  the device list and the frps plugin that decides who may open a tunnel (Node, no dependencies)
+#   frps      accepts the tunnels from your computers; reachable only through Caddy
+#   caddy     terminates TLS on 80/443 and gets certificates for your domain and each computer's subdomain
+#   ntfy      optional push server for the phone (profile "ntfy"; setup.sh leaves it out with --no-ntfy)
+#
+# Only Caddy publishes ports. The registry, frps and ntfy listen inside the compose network.
+# Every image is pinned to a version and a digest; upgrade them together and re-run the tests.
 
 services:
+  registry:
+    build: ./registry
+    image: t3x-registry:local
+    restart: unless-stopped
+    # Docker's init process (tini) is PID 1, so healthcheck.mjs can end the container by signalling it.
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      T3X_PUBLIC_ORIGIN: ${T3X_PUBLIC_ORIGIN:?run setup.sh first}
+    volumes:
+      - registry_data:/data
+    expose:
+      - "8080" # public API, reached through Caddy
+      - "8081" # frps plugin
+      - "8082" # Caddy's certificate question
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.mjs"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   frps:
-    image: fatedier/frps:v0.61.1
+    image: fatedier/frps:v0.71.1@sha256:48720c81f048e842f7f0b8053753c1a8514053d59d2dee8a953f67995de73a18
     restart: unless-stopped
     command: ["-c", "/etc/frp/frps.toml"]
     environment:
-      FRP_AUTH_TOKEN: ${FRP_AUTH_TOKEN:?在 .env 里设置 FRP_AUTH_TOKEN}
+      T3X_DOMAIN: ${T3X_DOMAIN:?run setup.sh first}
     volumes:
       - ./frps.toml:/etc/frp/frps.toml:ro
-    ports:
-      - "7000:7000"
-    # 7001 故意不写在 ports 里。
+    depends_on:
+      registry:
+        condition: service_healthy
     expose:
-      - "7001"
+      - "7000" # control connection (websocket through Caddy)
+      - "8080" # http virtual hosts, one subdomain per computer
+
+  caddy:
+    image: caddy:2.11.7@sha256:36c24ad91a7ff7bc4c87fe22bfa8df3c4b18da0773d73fc12ee2c52b98c0bb7e
+    restart: unless-stopped
+    depends_on:
+      registry:
+        condition: service_healthy
+      frps:
+        condition: service_started
+    environment:
+      T3X_DOMAIN: ${T3X_DOMAIN:?run setup.sh first}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # setup.sh points this at caddy/ntfy.caddy, or at caddy/ntfy-off.caddy for --no-ntfy.
+      - ${T3X_NTFY_SITE:-./caddy/ntfy.caddy}:/etc/caddy/ntfy.caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
   ntfy:
-    image: binwiederhier/ntfy:v2.36.0
+    profiles: ["ntfy"]
+    image: binwiederhier/ntfy:v2.36.0@sha256:fb48c413eb11d50339962b5d62cddce0f800e7f77c626d638a7c20cb7e9c4465
     restart: unless-stopped
     command: ["serve"]
     environment:
-      NTFY_BASE_URL: https://${NTFY_DOMAIN:?在 .env 里设置 NTFY_DOMAIN}
+      NTFY_BASE_URL: ${T3X_NTFY_URL:-https://ntfy.invalid}
     volumes:
       - ./ntfy/server.yml:/etc/ntfy/server.yml:ro
       - ntfy_cache:/var/cache/ntfy
@@ -36,26 +87,9 @@ services:
     expose:
       - "80"
 
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    depends_on:
-      - frps
-      - ntfy
-    environment:
-      T3_DOMAIN: ${T3_DOMAIN:?在 .env 里设置 T3_DOMAIN}
-      NTFY_DOMAIN: ${NTFY_DOMAIN:?在 .env 里设置 NTFY_DOMAIN}
-      ACME_EMAIL: ${ACME_EMAIL:?在 .env 里设置 ACME_EMAIL}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-
 volumes:
-  ntfy_cache:
-  ntfy_data:
+  registry_data:
   caddy_data:
   caddy_config:
+  ntfy_cache:
+  ntfy_data:

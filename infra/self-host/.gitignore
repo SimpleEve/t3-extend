@@ -1,0 +1,3 @@
+# Written by setup.sh on the VPS: the domain, and the ntfy account password.
+.env
+secrets/

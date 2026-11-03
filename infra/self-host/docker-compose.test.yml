@@ -1,0 +1,18 @@
+# Local trial and end-to-end tests, layered over docker-compose.yml:
+#
+#   docker compose -p t3x-e2e -f docker-compose.yml -f docker-compose.test.yml up -d --build
+#
+# Caddy publishes only on the loopback addresses (IPv4 and IPv6, so a client that resolves *.localhost to ::1 first
+# still connects), uses its own internal CA, and serves t3.localhost. Nothing is reachable from the network.
+services:
+  caddy:
+    ports: !override
+      - "127.0.0.1:18443:443"
+      - "[::1]:18443:443"
+    volumes:
+      - ./Caddyfile.test:/etc/caddy/Caddyfile:ro
+  registry:
+    environment:
+      NODE_OPTIONS: --import=/test/preload.mjs
+    volumes:
+      - ./e2e/preload.mjs:/test/preload.mjs:ro
