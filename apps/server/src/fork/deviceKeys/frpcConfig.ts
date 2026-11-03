@@ -20,6 +20,8 @@ export interface TicketBinding {
   /** The device row's `created_at`: a computer that leaves and joins again gets a new one. */
   readonly generation: number;
   readonly nowSeconds: number;
+  /** Tests only: a ticket that expires sooner than a day, to watch the renewal. */
+  readonly lifetimeSeconds?: number | undefined;
 }
 
 export const issueTicket = (binding: TicketBinding): string =>
@@ -30,7 +32,7 @@ export const issueTicket = (binding: TicketBinding): string =>
     sub: binding.subdomain,
     gen: binding.generation,
     iat: binding.nowSeconds,
-    exp: binding.nowSeconds + TICKET_LIFETIME_SECONDS,
+    exp: binding.nowSeconds + (binding.lifetimeSeconds ?? TICKET_LIFETIME_SECONDS),
   });
 
 export interface FrpcConfigInput {

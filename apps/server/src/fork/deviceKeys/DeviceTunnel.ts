@@ -26,7 +26,13 @@ import * as DeviceIdentity from "./DeviceIdentity.ts";
 import { writeDevicePublicUrl } from "./devicePublicUrlSync.ts";
 import * as FrpBinary from "./frpBinary.ts";
 import { issueTicket, renderFrpcConfig, TICKET_ROTATION_SECONDS } from "./frpcConfig.ts";
-import { actionFor, classifyFrpcLine, frpcLines, type FrpcLogEvent } from "./frpcLog.ts";
+import {
+  actionFor,
+  classifyFrpcLine,
+  describeFrpcLine,
+  frpcLines,
+  type FrpcLogEvent,
+} from "./frpcLog.ts";
 import * as TunnelListener from "./TunnelListener.ts";
 import { encodeTunnelStatusFile, TUNNEL_DIR, TUNNEL_STATUS_FILE } from "./tunnelStatusFile.ts";
 
@@ -42,6 +48,8 @@ export const failuresAfterRun = (failures: number, ranForMillis: number): number
   ranForMillis >= Duration.toMillis(STABLE_AFTER) ? 0 : failures;
 const KILL_GRACE = Duration.seconds(3);
 const CA_FILE_ENV = "T3X_TUNNEL_CA_FILE";
+/** Test-only: make tickets live this many seconds, so an expiry can be watched. Unset in production. */
+const TICKET_LIFETIME_ENV = "T3X_TEST_TICKET_LIFETIME_SECONDS";
 /** frpc needs none of the server's environment; these let it find its way around the OS. */
 const FRPC_ENV_NAMES = [
   "PATH",
@@ -82,6 +90,7 @@ const MESSAGES = {
 
 const make = Effect.fn("DeviceTunnel.make")(function* (options: {
   readonly trustedCaFile?: string | undefined;
+  readonly ticketLifetimeSeconds?: number | undefined;
 }) {
   const directory = yield* DeviceDirectory.DeviceDirectory;
   const identity = yield* DeviceIdentity.DeviceIdentity;
@@ -99,6 +108,15 @@ const make = Effect.fn("DeviceTunnel.make")(function* (options: {
       yield* Config.String(CA_FILE_ENV).pipe(
         Config.option,
         Effect.orElseSucceed(() => Option.none<string>()),
+      ),
+    );
+
+  const ticketLifetimeSeconds =
+    options.ticketLifetimeSeconds ??
+    Option.getOrUndefined(
+      yield* Config.Int(TICKET_LIFETIME_ENV).pipe(
+        Config.option,
+        Effect.orElseSucceed(() => Option.none<number>()),
       ),
     );
 
@@ -209,6 +227,7 @@ const make = Effect.fn("DeviceTunnel.make")(function* (options: {
             subdomain: desired.subdomain,
             generation: desired.generation,
             nowSeconds: issuedAt,
+            lifetimeSeconds: ticketLifetimeSeconds,
           }),
           localPort,
           trustedCaFile,
@@ -268,7 +287,9 @@ const make = Effect.fn("DeviceTunnel.make")(function* (options: {
           frpcLines,
           Stream.runForEach((line) => {
             const event = classifyFrpcLine(line);
-            return event === undefined ? Effect.void : reactTo(event, restart);
+            return event === undefined
+              ? Effect.suspend(() => Effect.logDebug("frpc:", { line: describeFrpcLine(line) }))
+              : reactTo(event, restart);
           }),
           Effect.catch((cause) => Effect.logWarning("frpc's output could not be read.", { cause })),
           Effect.forkScoped,
@@ -368,7 +389,12 @@ const make = Effect.fn("DeviceTunnel.make")(function* (options: {
   return follow();
 });
 
-export const layer = (options: { readonly trustedCaFile?: string | undefined } = {}) =>
+export const layer = (
+  options: {
+    readonly trustedCaFile?: string | undefined;
+    readonly ticketLifetimeSeconds?: number | undefined;
+  } = {},
+) =>
   Layer.effectDiscard(make(options).pipe(Effect.flatMap(forkParked))).pipe(
     Layer.provide(FrpBinary.layer()),
   );

@@ -138,6 +138,10 @@ describe("issueTicket", () => {
       iat: NOW,
       exp: NOW + 86_400,
     });
+    assert.equal(
+      Number(decodeJws(issueTicket({ ...binding, lifetimeSeconds: 20 })).payload.exp),
+      NOW + 20,
+    );
     assert.equal(TICKET_LIFETIME_SECONDS, 86_400);
     assert.equal(TICKET_ROTATION_SECONDS, 43_200);
     assert.equal(frpcUser(KEY.id), KEY.id.slice(0, 16));

@@ -3,7 +3,13 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 
-import { classifyFrpcLine, frpcLines, MAX_FRPC_LINE_BYTES, type FrpcLogEvent } from "./frpcLog.ts";
+import {
+  classifyFrpcLine,
+  describeFrpcLine,
+  frpcLines,
+  MAX_FRPC_LINE_BYTES,
+  type FrpcLogEvent,
+} from "./frpcLog.ts";
 
 const encode = (text: string) => new TextEncoder().encode(text);
 const PREFIX = "2026-11-03 16:37:23.883 [E] [client/control.go:194] [acecc0aae91dfd0e] ";
@@ -75,6 +81,15 @@ describe("classifyFrpcLine", () => {
       assert.equal(event.text.length, 120);
       assert.notInclude(event.text, "\u001b");
     }
+  });
+});
+
+describe("describeFrpcLine", () => {
+  it("blanks anything shaped like a token before the line is logged", () => {
+    const ticket = `${"a".repeat(30)}.${"b".repeat(40)}.${"c".repeat(50)}`;
+    const described = describeFrpcLine(encode(`${PREFIX}login with ${ticket} ok`));
+    assert.include(described, "login with <redacted> ok");
+    assert.notInclude(described, ticket);
   });
 });
 

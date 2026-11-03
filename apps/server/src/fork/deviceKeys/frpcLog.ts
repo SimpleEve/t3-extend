@@ -68,6 +68,16 @@ const lossy = new TextDecoder("utf-8");
 
 const printable = (value: string): string => value.replace(/[^\x20-\x7e]/g, "?").slice(0, 120);
 
+const JWT_SHAPE = /[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}/g;
+
+/** A line for the debug log: printable, short, and with anything shaped like a token blanked. */
+export const describeFrpcLine = (line: Uint8Array): string =>
+  lossy
+    .decode(line)
+    .replace(JWT_SHAPE, "<redacted>")
+    .replace(/[^\x20-\x7e]/g, "?")
+    .slice(0, 300);
+
 export const classifyFrpcLine = (line: Uint8Array): FrpcLogEvent | undefined => {
   let text: string;
   let clean = true;

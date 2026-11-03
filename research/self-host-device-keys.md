@@ -402,7 +402,7 @@ https:// {
 - **0.61 系列到 v0.71.1 之间和本方案有关的变更**（8.0 汇总）：0.61.2 起 frpc 代理命令行也支持 `metadatas`（toml 里的 `metadatas.*` 本来就有）；0.68.1 修了 `httpUser` + `routeByHTTPUser` 的鉴权绕过（本方案要求 `http_user` 为空，不踩）；0.69.0 加了 `transport.wireProtocol`，默认仍是 v1，不设置就是旧线协议；0.70.0 把 WebSocket / WSS 隧道载荷改成二进制帧（实测经 Caddy 的 `/~!frp` 仍然登录成功）；0.70.1 起 HTTP vhost 不再接受 `Upgrade: h2c`（普通 HTTP/1.1 和 WebSocket upgrade 实测仍通）；0.71.0 堵住了 `subDomainHost` 下 `customDomains` 的大小写绕过。
 - `scripts/fork-dist-mac.ts`（fork 自己的脚本）在 `build-desktop-artifact.ts --target dir` 之后、`@electron/osx-sign` 之前，下载归档、核对 SHA-256、把 `frpc` 放进 `.app/Contents/Resources/bin/`。FORK.md 描述的流水线本来就由内向外签名所有嵌套二进制，并逐个用 `file` 找出 Mach-O 校验（FORK.md 「打包与签名」第 2、3 条），frpc 自动被覆盖。[实测] v0.71.1 官方 darwin_arm64 用 `codesign --options runtime` 签名（`T3 Extend Code Signing`）后 `--verify --strict` 通过，`frpc -v` 打印 0.71.1，`flags=0x10000(runtime)`，**没有钥匙串弹窗**，不需要额外 entitlement。
 - 桌面后端配置通过环境变量 `T3X_FRPC_PATH` 告诉 server 去哪找（`apps/desktop/src/backend/DesktopBackendConfiguration.ts`，上游文件，一行 `// fork:`）。
-- 无头：按顺序找 `T3X_FRPC_PATH` → `<T3 home>/bin/frpc` → PATH；`t3x devices tunnel install` 从同一张表下载并校验后放进 `<T3 home>/bin/`。
+- 无头：只找两处，先 `T3X_FRPC_PATH`（指向的文件不存在就看下一处），再 `<T3 home>/bin/frpc`；**不查 PATH**（用户机器的 PATH 上可能有自己装的 frpc，版本不一定一样）。找到的文件每次启动前先跑一遍 `frpc -v`，输出必须正好是 `0.71.1`，否则不启动，`devices.status.tunnel.lastError` 写明原因（找不到、版本不对、运行不了）。`t3x devices tunnel install` 从同一张表下载（默认 GitHub release，环境变量 `T3X_FRP_BASE_URL` 可换镜像，换了照样核对 SHA-256）、校验后放进 `<T3 home>/bin/`；`t3x devices tunnel status` 报告 frpc 在哪、版本对不对、成员身份和服务器写出的隧道状态。
 
 ### Q8 电脑上的设备清单同步
 
@@ -645,6 +645,11 @@ user = "<设备 id 前 16 位>"
 loginFailExit = false
 metadatas.t3x_ticket = "<ticket>"
 
+log.to = "console"          # 日志由 DeviceTunnel 读取（下面的日志表）；不上色，免得 ANSI 码夹进原文
+log.level = "info"
+log.disablePrintColor = true
+# 不写 webServer.*：frpc 自己不监听任何端口
+
 transport.protocol = "wss"
 transport.heartbeatInterval = 30      # 必须显式写：TCPMux 默认开着时不写就没有 Ping [实测]
 transport.heartbeatTimeout = 90
@@ -658,7 +663,7 @@ localPort = <隧道监听口的实际端口（3.11）；不是 server 的主监�
 subdomain = "<子域名>"
 ```
 
-测试时再加 `transport.tls.trustedCaFile`（Caddy 本地根 CA），生产环境不写（生产用系统 CA）。`transport.protocol = "wss"` 时外层 TLS 一直开启并校验 [实测]。
+测试时再加 `transport.tls.trustedCaFile`（Caddy 本地根 CA；用环境变量 `T3X_TUNNEL_CA_FILE` 或 `DeviceTunnel.layer` 的选项显式给出），默认配置里不会出现（生产用系统 CA）。frpc 只拿到 PATH、HOME、临时目录等几个必要的环境变量（`extendEnv: false`），ticket 不在命令行也不在环境里。`transport.protocol = "wss"` 时外层 TLS 一直开启并校验 [实测]。
 
 **ticket**：JWS `{alg:"ES256", typ:"t3x-ticket+jwt", kid:<设备 id>}` + 载荷 `{v:1, iss:<设备 id>, rid, sub:<子域名>, gen:<登记代次 = 设备行的 created_at>, iat, exp: iat+86400}`。
 
@@ -751,14 +756,15 @@ ops = ["Login", "NewProxy", "Ping", "NewWorkConn"]
 
 ### 3.10 server 状态存放
 
-| 位置（`ServerSecretStore` 名）      | 内容                                                                           |
-| ----------------------------------- | ------------------------------------------------------------------------------ |
-| `fork-device-key`                   | 私钥 JWK（0600，原子写入）                                                     |
-| `fork-device-membership`            | `{registryOrigin, registryId, deviceId, name, kind, subdomain, url, joinedAt}` |
-| `fork-device-list`                  | `{rev, fetchedAt, devices[]}`                                                  |
-| `t3x-assertion-<hash>`              | 重放标记（空内容，由 `replayMarkers` 清理）                                    |
-| `<stateDir>/device-public-url.json` | 只含 `{url}`，供 `PublicUrls` 读取（不含秘密）                                 |
-| `<stateDir>/fork-tunnel/frpc.toml`  | 每次启动重新生成（含 ticket，不含私钥），0600                                  |
+| 位置（`ServerSecretStore` 名）       | 内容                                                                                                              |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `fork-device-key`                    | 私钥 JWK（0600，原子写入）                                                                                        |
+| `fork-device-membership`             | `{registryOrigin, registryId, deviceId, name, kind, subdomain, url, joinedAt}`                                    |
+| `fork-device-list`                   | `{rev, fetchedAt, devices[]}`                                                                                     |
+| `t3x-assertion-<hash>`               | 重放标记（空内容，由 `replayMarkers` 清理）                                                                       |
+| `<stateDir>/device-public-url.json`  | 只含 `{url}`，供 `PublicUrls` 读取（不含秘密）                                                                    |
+| `<stateDir>/fork-tunnel/frpc.toml`   | 每次启动重新生成（含 ticket，不含私钥），0600                                                                     |
+| `<stateDir>/fork-tunnel/status.json` | `{serverPid, frpcPid, status, lastError, updatedAt}`，供另一个进程里的 `t3x devices tunnel status` 读取；不含秘密 |
 
 ### 3.11 隧道进来的请求：协议、规范 URL 和客户端 IP
 
@@ -1072,7 +1078,7 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 - **交付**：server 托管 frpc（生成配置、签 ticket、退避、按 frpc 的三句日志和固定 `reject_reason` 分流、12 小时轮换）；`membership` 写出 `device-public-url.json`；`t3x devices tunnel install|status`；frp 版本表（v0.71.1，SHA-256 见 8a）和下载校验。
 - **新文件**：`apps/server/src/fork/deviceKeys/DeviceTunnel.ts`、`frpcConfig.ts`、`frpBinary.ts`、对应测试；`packages/shared/src/forkFrp.ts`；`scripts/fork-fetch-frp.ts`。
 - **上游接线**：`apps/desktop/src/backend/DesktopBackendConfiguration.ts`（`T3X_FRPC_PATH`）；`server.ts` 约 2 行（把隧道监听口的端口交给 `DeviceTunnel`，3.11）。
-- **验收**：配置生成的快照测试（含 `heartbeatInterval = 30`、`wss`、子域名、`localPort` 等于隧道监听口的端口、不含私钥；`poolCount` 默认不出现，仅当 8.1 实测允许才出现 `transport.poolCount = 0`，两种配置各一份快照）；ticket 的签名 / 过期 / 绑定单测；用假 frpc 可执行文件逐句喂 3.7 的三句日志，验证 `t3x:revoked` → 触发 `devices.refresh` 且不重启、`t3x:ticket-expired` / `t3x:bad-ticket` → 换 ticket 重启（三句日志里都要覆盖，含 `pong message contains error: t3x:ticket-expired`：连上之后才过期的 ticket 由 `Ping` 拒绝）、`t3x:busy` / `send <Op> request to plugin error` → 什么也不做、退避序列；真实 frpc 对 8.1 的 compose 连通并自动重连一次（重启 frps 容器）；`forkFrp` 版本与 compose 一致的测试；ticket 不出现在进程参数里；**日志畸形输入**：`reason` 被截断、非 UTF-8、未知值各一例 → 不重启 frpc、不触发 `devices.refresh`、不自清理（3.12 D）。
+- **验收**：配置生成的快照测试（含 `heartbeatInterval = 30`、`wss`、子域名、`localPort` 等于隧道监听口的端口、不含私钥；`poolCount` 不出现——8.1 实测 `poolCount = 0` 没有让撤销更早生效，决定保持默认 1，所以只有一份快照）；ticket 的签名 / 过期 / 绑定单测；用假 frpc 可执行文件逐句喂 3.7 的三句日志，验证 `t3x:revoked` → 触发 `devices.refresh` 且不重启、`t3x:ticket-expired` / `t3x:bad-ticket` → 换 ticket 重启（三句日志里都要覆盖，含 `pong message contains error: t3x:ticket-expired`：连上之后才过期的 ticket 由 `Ping` 拒绝）、`t3x:busy` / `send <Op> request to plugin error` → 什么也不做、退避序列；真实 frpc 对 8.1 的 compose 连通并自动重连一次（重启 frps 容器）；`forkFrp` 版本与 compose 一致的测试；ticket 不出现在进程参数里；**日志畸形输入**：`reason` 被截断、非 UTF-8、未知值各一例 → 不重启 frpc、不触发 `devices.refresh`、不自清理（3.12 D）。
 - 规模：≈ 700 行 + 测试 ≈ 700 行。
 
 ### 阶段 8.4 客户端（L+）
@@ -1315,7 +1321,7 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 | 8.1  | `libqrencode-tools` 在 `node:24-alpine` 对应的 Alpine 版本里是否存在、可执行文件是否叫 `qrencode`                                                                                                                                                                                          |
 | 8.1  | 公网 API 打满时插件的 p99；若超过 100 ms，把插件挪进 `worker_threads`                                                                                                                                                                                                                      |
 | 8.1  | `restart: unless-stopped` 不会重启 `unhealthy` 的容器（推断）；`healthcheck.mjs` 对 PID 1 发 `SIGTERM` 的做法能让容器被拉起                                                                                                                                                                |
-| 8.2  | Linux 的 frpc（无头）：SHA-256 从 `frp_sha256_checksums.txt` 取，运行一次 `frpc -v`                                                                                                                                                                                                        |
+| 8.2  | Linux 的 frpc（无头）：SHA-256 从 `frp_sha256_checksums.txt` 取，运行一次 `frpc -v` **（已在 8.3 做完，结果见下面的「8c 阶段 8.3 的实测结果」）**                                                                                                                                          |
 | 8.2  | 隧道监听口的三项检查（3.11，现在只是读源码的结论）：DPoP 经 `https` 隧道真的验证通过（第一个 `/oauth/t3x-device`）、WebSocket 升级能走这个口、`Origin` 检查通过；第二个 `HttpServer` 不外泄，首个请求时调用 `router.asHttpEffect()` 带得上全部全局中间件。任何一项跑不通就退回 3.11 的备选 |
 | 8.2  | 续期时用 `replaceActiveForSubjectAndMethod` 压成每设备一行，是否会让已连接的 socket 掉线（`SessionStore.ts:1043-1100`）                                                                                                                                                                    |
 
@@ -1345,6 +1351,23 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 | Let's Encrypt 实网首次签发耗时           | **待真实 VPS 部署时确认**。本地 CA 无法代表                                                                                                                                                                                                                                                                                                                                                                  |
 
 另外：撤销的 `Ping` 拒绝发生在移除后约 21 秒；被移除电脑的子域名在 `ask` 上 403（握手 `tlsv1 alert internal error`），已登记的子域名握手成功。
+
+### 8c 阶段 8.3 的实测结果（2026-11-03）
+
+测试方式：本机 macOS，8.1 的本地试用栈（项目 `t3x-p83`，`docker-compose.test.yml`，Caddy 本地 CA，只发布在 `127.0.0.1:18443` 和 `[::1]:18443`），本 worktree 的 `bin.ts` 起一台电脑（临时 home、空闲端口、`NODE_EXTRA_CA_CERTS`），一个 Node 脚本模拟手机（真实的 RegistryClient 和 shared 协议库，只经隧道 URL 访问电脑）。原始输出和命令在 8.3 实现者的证据目录 `/tmp/t3x-p83/findings.md`（不入库）。frpc 是 v0.71.1 的 macOS arm64 官方归档，经 `t3x devices tunnel install`（本地 HTTP 镜像 + 真实 SHA-256 核对）装进 T3 home。
+
+| 项                                                                             | 结果                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Linux frpc（8c，8.2 行）**                                                   | `frp_0.71.1_linux_arm64.tar.gz` 从 GitHub release 下载（12,539,075 字节），`shasum -a 256 -c frp_sha256_checksums.txt --ignore-missing`（校验文件同样现取）为 OK，并且等于 `forkFrp.ts` 表里的 `8edf590b…2019`；解到全新的空目录，`file` 为静态链接的 aarch64 ELF；`docker run --rm --network none --platform linux/arm64 -v …:/frp:ro node:24.18.1-alpine3.24 sh -c 'uname -m; /frp/frpc -v'` 输出 `aarch64`、`0.71.1`。2026-11-03                                                                                                 |
+| server 托管的 frpc 登录                                                        | 电脑 join 后启动 server，约 0.2 秒内 `frpc started.`，`start proxy success` 后状态为 `connected`；frpc 是 server 的子进程，命令行只有 `-c <配置路径>`，进程环境只有 `HOME PATH TMPDIR`，`lsof` 看不到任何监听口；`fork-tunnel/` 为 0700、`frpc.toml` 为 0600；`localPort` 是隧道监听口的端口（63007），不是 server 主端口（62981）                                                                                                                                                                                                  |
+| 子域名到达电脑                                                                 | `https://studio.t3.localhost:18443/.well-known/t3/environment` 返回 200，`environmentId` 等于注册表记录；未登记的子域名握手失败（`ask` 403）                                                                                                                                                                                                                                                                                                                                                                                        |
+| **隧道监听口的 https DPoP `htu`（8c，8.2 行，第一次在真实 https 隧道上验证）** | 通行证换会话 200（`token_type: DPoP`，scope 没有 `access:write` / `relay:write`），htu 是 `https://studio.t3.localhost:18443/<通行证路径>`；htu 写成 `http://…` 或漏掉 `:18443` 的两个探针都在 DPoP 层被拒（`invalid_credential`，没有 "Device pass rejected" 日志）；重放同一张通行证得 401（`reason: replay`）；WebSocket ticket 200，`wss://…/ws` 上的 `server.probe` 成功，`devices.status` 被拒（`not_local_owner`）。手机第一次尝试在加入后立刻换通行证得 401（`device_unknown`）：电脑的清单要等下一次 60 秒同步，同步后通过 |
+| 重启 frps 容器                                                                 | frps 容器在 22:41:06 重启；frpc 日志 `try to connect to server...`（06.515、08.586），08.600 `login to server success`，`proxy added: [t3x]`；公网 URL 502 → 2 秒后 200；frpc 进程没变（同一个 pid），也没有被 server 重启，同一张 ticket 再次被接受；重连后再跑一次手机流程成功                                                                                                                                                                                                                                                    |
+| 短有效期 ticket                                                                | 测试专用环境变量 `T3X_TEST_TICKET_LIFETIME_SECONDS=20`：frpc 启动 30 秒后第一次 `Ping` 得到 `pong message contains error: t3x:ticket-expired`，1 秒后 DeviceTunnel 换了 ticket（`iat` 向前、寿命 20 秒、`gen` 等于设备行 `createdAt`）并重启 frpc（新 pid），连续循环两次，每次都因为运行满 30 秒而从 1 秒退避重来                                                                                                                                                                                                                  |
+| 移除这台电脑                                                                   | `./t3x revoke Studio` 后 6.98 秒 `pong message contains error: t3x:revoked`，6 毫秒后 `connect to server error: t3x:revoked`（约 30 秒的上界之内）；第一条触发 `devices.refresh`，随后电脑自清理（成员身份和密钥被清掉，`devices tunnel status` 回到 “has not joined”）：同一秒内 `device-public-url.json` 被删、frpc 停止（`fork-tunnel/` 里只剩 `status.json`）、状态 `disabled`，server 本身继续运行；子域名之后得到 frps 的 404                                                                                                 |
+| server 重启                                                                    | `kill <server pid>`（启动时记下的）后 frpc 子进程随之退出、`frpc.toml` 被删；再启动一个新 server，起新的 frpc                                                                                                                                                                                                                                                                                                                                                                                                                       |
+
+自动化覆盖（不用网络和 Docker）：假 frpc 可执行文件逐句喂日志（`frpcLog.test.ts` 对三句 × 每个 `reason` 的分类逐一断言；跑进程的用例里 `ticket-expired` / `bad-ticket` 在三句日志里各出现两次），`t3x:revoked`（`pong…` 和 `connect to server error…` 两句）→ `devices.refresh` 且不重启（注册表忘了这台电脑时自清理），`t3x:ticket-expired` / `t3x:bad-ticket` 在三句里各自换 ticket 重启，`t3x:busy` / `send <Op> request to plugin error` 什么也不做，截断 / 非 UTF-8 / 未知值各一例不触发任何动作；退避 1、2、4、8、16、32、60、60 秒和 12 小时轮换用 `TestClock`；`forkFrp` 与 compose 里 frps 镜像标签一致；`frpc.toml` 一份快照；ticket 用注册表自己的 `decide()` 验证过四个 op。
 
 ## 9. 以后再做的安全加固（2026-11-03 用户同意先记下，暂不做）
 
