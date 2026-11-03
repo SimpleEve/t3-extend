@@ -356,7 +356,20 @@ function trialSign(hash: string, timeoutMs: number): void {
   }
 }
 
+/** The `security -i` command line is split on quotes and whitespace, so only plain paths go in. */
+function requirePlainPath(label: string, path: string): void {
+  if (!/^[A-Za-z0-9/._-]+$/u.test(path)) {
+    throw new Error(
+      `${label} "${path}" has characters other than letters, digits and "/._-", which the ` +
+        "`security -i` command cannot take safely. Retry with TMPDIR=/tmp.",
+    );
+  }
+}
+
 function createIdentity(): void {
+  // Before anything touches the keychain: the p12 path is TMPDIR plus a fixed-alphabet suffix.
+  requirePlainPath("The temporary directory", NodeOS.tmpdir());
+  requirePlainPath("The login keychain path", loginKeychain);
   if (!NodeFS.existsSync(loginKeychain)) throw new Error(`${loginKeychain} does not exist.`);
   const existing =
     listIdentities(identity).length > 0 ||
