@@ -12,6 +12,7 @@ import * as Dpop from "../cloud/dpop";
 import * as ManagedRelayLayer from "../cloud/managedRelayLayer";
 import { resolveCloudPublicConfig, resolveRelayTracingConfig } from "../cloud/publicConfig";
 import * as ClientTracer from "../observability/clientTracer";
+import * as DeviceKeys from "../fork/deviceKeysRuntime"; // fork: self-hosted devices
 
 function configuredRelayUrl(): string {
   return resolveCloudPublicConfig().relayUrl ?? "http://relay.invalid";
@@ -32,7 +33,8 @@ type RuntimeLayerSource =
   | typeof Socket.layerWebSocketConstructorGlobal
   | typeof layerRelayTracing
   | typeof ClientTracer.layer
-  | ReturnType<typeof ManagedRelayLayer.layer>;
+  | ReturnType<typeof ManagedRelayLayer.layer>
+  | typeof DeviceKeys.layer; // fork: self-hosted devices
 
 const primaryHttpRuntime = ManagedRuntime.make(
   PrimaryEnvironmentHttpClient.layer.pipe(Layer.provide(PrimaryEnvironmentHttpLayer.layer)),
@@ -61,8 +63,14 @@ const layerRuntime = Layer.mergeAll(
   Socket.layerWebSocketConstructorGlobal,
   ClientTracer.layer,
   layerRelayTracing,
-  ManagedRelayLayer.layer(configuredRelayUrl()).pipe(
-    Layer.provide(Layer.mergeAll(layerHttpClient, Dpop.layer)),
+  // fork: self-hosted devices sign in with this client's session key, so the relay layer's signer feeds them.
+  DeviceKeys.layer.pipe(
+    Layer.provide(layerHttpClient),
+    Layer.provideMerge(
+      ManagedRelayLayer.layer(configuredRelayUrl()).pipe(
+        Layer.provide(Layer.mergeAll(layerHttpClient, Dpop.layer)),
+      ),
+    ),
   ),
 );
 

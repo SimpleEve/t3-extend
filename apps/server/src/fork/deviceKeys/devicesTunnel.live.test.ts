@@ -14,7 +14,7 @@ import * as Schema from "effect/Schema";
 
 import { makeFakeFrpc } from "./fakeFrpc.testkit.ts";
 import { homeDir, seedHome } from "./homeSeed.testkit.ts";
-import { TUNNEL_DIR, TUNNEL_STATUS_FILE } from "./tunnelStatusFile.ts";
+import { TUNNEL_DIR, TUNNEL_STATUS_FILE } from "@t3tools/shared/forkDeviceKeys/tunnelStatusFile";
 
 const ENTRY = NodePath.resolve(import.meta.dirname, "../../bin.ts");
 const decodeJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));

@@ -24,12 +24,18 @@ import type { HttpClient } from "effect/http";
 
 import * as RemoteEnvironmentAuthorization from "../authorization/service.ts";
 import {
+  BearerConnectionTarget,
   ConnectionTransientError,
   RelayConnectionTarget,
   type PreparedConnection,
   type PreparedHttpAuthorization,
 } from "../connection/model.ts";
 import * as ManagedRelay from "../relay/managedRelay.ts";
+import {
+  DeviceKeyAuthorization,
+  blockedDeviceKeyAuthorization,
+} from "../fork/deviceKeys/DeviceKeyAuthorization.ts"; // fork: self-hosted devices
+import { resolveDeviceHubAccess } from "./deviceHubAccess.ts";
 import { type RemoteEnvironmentRequestError } from "../rpc/http.ts";
 import * as RpcHttp from "../rpc/http.ts";
 import * as PullRequestDiffLoader from "./pullRequestDiffHttp.ts";
@@ -658,6 +664,117 @@ describe("authenticated environment HTTP requests", () => {
         message: "No relay authorization service is available for the environment request.",
       });
       expect(harness.calls).toEqual([]);
+    }),
+  );
+});
+
+// fork: a stamped device connection is authorized by the device authorization, never the relay's.
+describe("authenticated environment HTTP requests: t3x-device", () => {
+  const DEVICE_ORIGIN = "https://mac.t3.example.test";
+  const DEVICE_PREPARED: PreparedConnection = {
+    ...PREPARED,
+    httpBaseUrl: DEVICE_ORIGIN,
+    socketUrl: "wss://mac.t3.example.test/ws",
+    target: new BearerConnectionTarget({
+      environmentId: TARGET.environmentId,
+      label: TARGET.label,
+      connectionId: "t3x-device:device-1",
+    }),
+    authorizer: "t3x-device",
+  };
+  const makeDeviceHarness = (reply: () => Response) => {
+    const harness = makeHarness(reply);
+    const authorized: Array<{ expectedEnvironmentId: string; httpBaseUrl: string }> = [];
+    const deviceAuthorization = {
+      ...blockedDeviceKeyAuthorization,
+      authorizeHttp: (input: { expectedEnvironmentId: string; httpBaseUrl: string }) =>
+        Effect.sync(() => {
+          authorized.push(input);
+          return {
+            environmentId: TARGET.environmentId,
+            label: "",
+            httpBaseUrl: input.httpBaseUrl,
+            httpAuthorization: {
+              _tag: "Dpop" as const,
+              accessToken: "device-token",
+              expiresAtEpochMs: 3_600_000,
+            },
+          };
+        }),
+    };
+    return {
+      ...harness,
+      authorized,
+      deviceAuthorization,
+      input: { ...harness.input, prepared: DEVICE_PREPARED },
+    };
+  };
+
+  it.effect.each(LOADERS)(
+    "authorizes $name with the device session and not the relay's",
+    (loader) =>
+      Effect.gen(function* () {
+        const harness = makeDeviceHarness(() => Response.json(loader.response));
+        const result = yield* loader
+          .load(harness.input)
+          .pipe(
+            Effect.provideService(DeviceKeyAuthorization, harness.deviceAuthorization),
+            Effect.provide(harness.httpLayer),
+          );
+        expect(result).toEqual(loader.expected);
+        expect(harness.calls).toHaveLength(1);
+        const call = harness.calls[0]!;
+        expect(new URL(call.url).origin).toBe(DEVICE_ORIGIN);
+        const headers = new Headers(call.init.headers);
+        expect(headers.get("authorization")).toBe("DPoP device-token");
+        expect(headers.get("dpop")).toBe("proof-1");
+        expect(harness.authorized).toEqual([
+          { expectedEnvironmentId: TARGET.environmentId, httpBaseUrl: DEVICE_ORIGIN },
+        ]);
+        expect(harness.authorizations).toEqual([]);
+        expect(harness.proofs).toEqual([
+          { method: loader.method, url: call.url, accessToken: "device-token" },
+        ]);
+      }),
+  );
+
+  it.effect.each(LOADERS)("sends nothing for $name when no device authorization exists", (loader) =>
+    Effect.gen(function* () {
+      const harness = makeDeviceHarness(() => Response.json(loader.response));
+      const error = yield* loader
+        .load(harness.input)
+        .pipe(Effect.provide(harness.httpLayer), Effect.asVoid, Effect.flip);
+      expect(error).toMatchObject({ _tag: "RemoteEnvironmentAuthFetchError" });
+      expect(harness.calls).toEqual([]);
+      expect(harness.authorizations).toEqual([]);
+    }),
+  );
+
+  it.effect("authorizes the device hub ticket with the device session", () =>
+    Effect.gen(function* () {
+      const harness = makeDeviceHarness(() =>
+        Response.json({ ticket: "hub-ticket", expiresAt: "2026-06-06T01:00:00.000Z" }),
+      );
+      yield* resolveDeviceHubAccess({ prepared: DEVICE_PREPARED, hubBasePath: "/api/hub" }).pipe(
+        Effect.provideService(DeviceKeyAuthorization, harness.deviceAuthorization),
+        Effect.provideService(
+          RemoteEnvironmentAuthorization.RemoteEnvironmentAuthorization,
+          harness.remoteAuthorization,
+        ),
+        Effect.provideService(
+          ManagedRelay.ManagedRelayDpopSigner,
+          ManagedRelay.ManagedRelayDpopSigner.of({
+            thumbprint: Effect.succeed("test-thumbprint"),
+            createProof: () => Effect.succeed("proof-1"),
+          }),
+        ),
+        Effect.provide(harness.httpLayer),
+      );
+      expect(new URL(harness.calls[0]!.url).origin).toBe(DEVICE_ORIGIN);
+      expect(new Headers(harness.calls[0]!.init.headers).get("authorization")).toBe(
+        "DPoP device-token",
+      );
+      expect(harness.authorizations).toEqual([]);
     }),
   );
 });

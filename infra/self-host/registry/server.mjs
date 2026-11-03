@@ -341,15 +341,12 @@ export function createApi({ store, config, now = nowSeconds, log = () => {} }) {
     devices({ req, path, body }) {
       const { deviceId } = authenticate(req, path, body, { forJoin: false });
       store.touch(deviceId, "sync", now());
-      const etag = `"${store.rev}"`;
-      const candidates = String(req.headers["if-none-match"] ?? "")
-        .split(",")
-        .map((value) => value.trim().replace(/^W\//, ""));
-      if (candidates.includes(etag)) return { status: 304, headers: { etag } };
+      // Always the current body: `online` and the sync times change with the clock, not with `rev`,
+      // so a validator keyed on `rev` would freeze them. Clients send no `If-None-Match`; one that
+      // does is answered as if it had not.
       const at = now();
       return {
         status: 200,
-        headers: { etag },
         body: {
           registryId: store.registryId,
           rev: store.rev,

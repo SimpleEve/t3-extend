@@ -223,11 +223,15 @@ export function mergeLearnedRoutes(input: {
   }
   const activeProfile = Option.getOrNull(input.activeRoute.profile);
   const authorization =
-    active._tag === "RelayConnectionTarget" ||
-    (activeProfile?._tag === "BearerConnectionProfile" &&
-      activeProfile.authorization === "t3-connect")
-      ? ("t3-connect" as const)
-      : undefined;
+    // fork: routes learned over a self-hosted device keep signing in as that device.
+    activeProfile?._tag === "BearerConnectionProfile" &&
+    activeProfile.authorization === "t3x-device"
+      ? ("t3x-device" as const)
+      : active._tag === "RelayConnectionTarget" ||
+          (activeProfile?._tag === "BearerConnectionProfile" &&
+            activeProfile.authorization === "t3-connect")
+        ? ("t3-connect" as const)
+        : undefined;
   const sharedCredential =
     authorization === undefined && active._tag === "BearerConnectionTarget"
       ? credentialConnectionId(active.connectionId)
@@ -345,7 +349,12 @@ export function sendsTokenInClear(
   tailscale?: boolean,
 ): boolean {
   const profile = Option.getOrNull(route.profile);
-  if (profile?._tag !== "BearerConnectionProfile" || profile.authorization === "t3-connect") {
+  // fork: a device session is DPoP-bound and its pass is one-shot, so plain HTTP leaks nothing usable.
+  if (
+    profile?._tag !== "BearerConnectionProfile" ||
+    profile.authorization === "t3-connect" ||
+    profile.authorization === "t3x-device"
+  ) {
     return false;
   }
   if ((tailscale ?? profile.network === "tailscale") || !profile.httpBaseUrl.startsWith("http:")) {
@@ -429,6 +438,15 @@ export function routesAfterRemoving(
     const profile = Option.getOrNull(route.profile);
     if (profile?._tag === "BearerConnectionProfile" && profile.authorization === "t3-connect") {
       return removed.target._tag !== "RelayConnectionTarget";
+    }
+    // fork: learned device routes go only with the saved device route, never with relay or a bearer route.
+    if (profile?._tag === "BearerConnectionProfile" && profile.authorization === "t3x-device") {
+      const removedProfile = Option.getOrNull(removed.profile);
+      return !(
+        removedProfile?._tag === "BearerConnectionProfile" &&
+        removedProfile.authorization === "t3x-device" &&
+        removedProfile.learned !== true
+      );
     }
     return credentialConnectionId(connectionRouteId(route.target)) !== removedId;
   });

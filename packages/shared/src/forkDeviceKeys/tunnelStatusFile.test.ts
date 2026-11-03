@@ -1,7 +1,7 @@
-// When `t3x devices tunnel status` may believe the server file: a live pid and a recent heartbeat.
+// When the server file may be believed: a recent heartbeat, and for `tunnel status` a live pid.
 import { assert, describe, it } from "@effect/vitest";
 
-import { isServerRunning, type TunnelStatusFile } from "./tunnelStatusFile.ts";
+import { isServerRunning, isTunnelStatusFresh, type TunnelStatusFile } from "./tunnelStatusFile.ts";
 
 const NOW = 1_800_000_000_000;
 const file = (updatedAt: number, serverPid = 4242): TunnelStatusFile => ({
@@ -37,5 +37,14 @@ describe("isServerRunning", () => {
     const asked: Array<number> = [];
     isServerRunning(file(NOW, 777), NOW, (pid) => (asked.push(pid), true));
     assert.deepEqual(asked, [777]);
+  });
+});
+
+describe("isTunnelStatusFresh", () => {
+  it("is the heartbeat half of isServerRunning, without a pid", () => {
+    assert.isTrue(isTunnelStatusFresh(file(NOW - 180_000), NOW));
+    assert.isFalse(isTunnelStatusFresh(file(NOW - 180_001), NOW));
+    assert.isTrue(isTunnelStatusFresh(file(NOW + 60_000), NOW));
+    assert.isFalse(isTunnelStatusFresh(file(NOW + 60_001), NOW));
   });
 });

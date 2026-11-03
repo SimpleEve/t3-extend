@@ -25,7 +25,7 @@ import {
   isServerRunning,
   TUNNEL_DIR,
   TUNNEL_STATUS_FILE,
-} from "../fork/deviceKeys/tunnelStatusFile.ts";
+} from "@t3tools/shared/forkDeviceKeys/tunnelStatusFile";
 import { authLocationFlags, resolveCliAuthConfig, type CliAuthLocationFlags } from "./config.ts";
 import { reportDeviceErrors } from "./devicesReport.ts";
 

@@ -25,6 +25,7 @@ import {
 import * as RemoteEnvironmentAuthorization from "../authorization/service.ts";
 import * as RpcSession from "../rpc/session.ts";
 import { fetchRemoteEnvironmentDescriptor } from "../environment/descriptor.ts";
+import { DeviceKeyAuthorization } from "../fork/deviceKeys/DeviceKeyAuthorization.ts"; // fork: self-hosted devices
 
 export type ConnectionDriverProgress =
   | {
@@ -144,6 +145,7 @@ export const make = Effect.gen(function* () {
   const sessions = yield* RpcSession.RpcSessionFactory;
   const remote = yield* RemoteEnvironmentAuthorization.RemoteEnvironmentAuthorization;
   const httpClient = yield* HttpClient.HttpClient;
+  const deviceAuthorization = yield* DeviceKeyAuthorization; // fork: self-hosted devices
 
   // The descriptor is public, so this sends no credential to whatever
   // answers at a saved LAN address on a different network.
@@ -200,17 +202,20 @@ export const make = Effect.gen(function* () {
         yield* session.ready;
         // The server closes a socket when its session expires, unless the same key renewed it.
         if (prepared.httpAuthorization?._tag === "Dpop") {
-          yield* remote
-            .renewDpopBeforeExpiry({
-              expectedEnvironmentId: prepared.environmentId,
-              expiresAtEpochMs: prepared.httpAuthorization.expiresAtEpochMs,
-            })
-            .pipe(
-              Effect.catch((error) =>
-                Effect.logWarning("Could not renew the connection's credential.", { error }),
-              ),
-              Effect.forkScoped,
-            );
+          // fork: a device session renews through its own authorization, never the relay's.
+          const renew =
+            prepared.authorizer === "t3x-device"
+              ? deviceAuthorization.renew
+              : remote.renewDpopBeforeExpiry;
+          yield* renew({
+            expectedEnvironmentId: prepared.environmentId,
+            expiresAtEpochMs: prepared.httpAuthorization.expiresAtEpochMs,
+          }).pipe(
+            Effect.catch((error) =>
+              Effect.logWarning("Could not renew the connection's credential.", { error }),
+            ),
+            Effect.forkScoped,
+          );
         }
         return { prepared, session } satisfies EnvironmentConnectionLease;
       }),

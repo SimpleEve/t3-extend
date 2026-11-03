@@ -1,8 +1,7 @@
 // fork: the tunnel's last status, written by the server (DeviceTunnel) beside the frpc config and read
-// by `t3x devices tunnel status`, which runs in another process. It holds no secret.
-//
-// A pid alone says nothing (pids are reused), so the server also refreshes `updatedAt` every
-// minute while it runs; the reader believes the file only while that is recent.
+// by `t3x devices tunnel status` and the desktop app, in other processes. It holds no secret.
+// A pid alone says nothing (pids are reused), so the server refreshes `updatedAt` every minute
+// while it runs; readers believe the file only while that is recent.
 import * as Schema from "effect/Schema";
 
 export const TUNNEL_DIR = "fork-tunnel";
@@ -23,15 +22,15 @@ export type TunnelStatusFile = typeof StatusFile.Type;
 export const encodeTunnelStatusFile = Schema.encodeSync(Schema.fromJsonString(StatusFile));
 export const decodeTunnelStatusFile = Schema.decodeUnknownOption(Schema.fromJsonString(StatusFile));
 
-/**
- * The server is running when its pid is alive and it has written in the last three minutes. An
- * `updatedAt` more than a minute ahead of this clock is not a heartbeat either.
- */
+/** Written in the last three minutes; an `updatedAt` more than a minute ahead of this clock is not a heartbeat either. */
+export const isTunnelStatusFresh = (file: TunnelStatusFile, nowMillis: number): boolean => {
+  const age = nowMillis - file.updatedAt;
+  return age <= TUNNEL_STATUS_FRESH_MILLIS && age >= -60_000;
+};
+
+/** The server is running when its pid is alive and its status file is fresh. */
 export const isServerRunning = (
   file: TunnelStatusFile,
   nowMillis: number,
   isPidAlive: (pid: number) => boolean,
-): boolean => {
-  const age = nowMillis - file.updatedAt;
-  return age <= TUNNEL_STATUS_FRESH_MILLIS && age >= -60_000 && isPidAlive(file.serverPid);
-};
+): boolean => isTunnelStatusFresh(file, nowMillis) && isPidAlive(file.serverPid);

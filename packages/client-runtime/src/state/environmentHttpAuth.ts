@@ -9,6 +9,7 @@ import { withRelayClientTracing } from "@t3tools/shared/relayTracing";
 import { FetchHttpClient, type HttpMethod } from "effect/http";
 
 import type { RemoteEnvironmentAuthorization } from "../authorization/service.ts";
+import { DeviceKeyAuthorization } from "../fork/deviceKeys/DeviceKeyAuthorization.ts"; // fork: self-hosted devices
 import type { PreparedConnection, PreparedHttpAuthorization } from "../connection/model.ts";
 import type { ManagedRelayDpopSigner } from "../relay/managedRelay.ts";
 import {
@@ -95,7 +96,8 @@ export const executeAuthenticatedEnvironmentHttpRequest = <
 >(
   input: Parameters<typeof executeEnvironmentRequest<Group, A, E, R>>[0],
 ) =>
-  input.prepared.httpAuthorization?._tag === "Dpop"
+  // fork: a device session is not T3 Connect work, so it exports no relay trace.
+  input.prepared.httpAuthorization?._tag === "Dpop" && input.prepared.authorizer === undefined
     ? executeEnvironmentRequest(input).pipe(
         Effect.withSpan(ENVIRONMENT_REQUEST_SPAN, { root: true }),
         withRelayClientTracing,
@@ -140,7 +142,25 @@ const executeEnvironmentRequest = Effect.fnUntraced(function* <
     let rejectedAccessToken: string | undefined;
     for (;;) {
       let authorization = input.prepared.httpAuthorization;
-      if (authorization?._tag === "Dpop") {
+      if (authorization?._tag === "Dpop" && input.prepared.authorizer === "t3x-device") {
+        // fork: the device authorization, never the relay's, renews this session.
+        const current = yield* (yield* DeviceKeyAuthorization)
+          .authorizeHttp({
+            expectedEnvironmentId: input.prepared.environmentId,
+            httpBaseUrl: input.prepared.httpBaseUrl,
+            ...(rejectedAccessToken === undefined ? {} : { rejectedAccessToken }),
+          })
+          .pipe(
+            Effect.mapError(
+              (cause) =>
+                new RemoteEnvironmentAuthFetchError({
+                  message: "Could not authorize the environment request.",
+                  cause,
+                }),
+            ),
+          );
+        authorization = current.httpAuthorization;
+      } else if (authorization?._tag === "Dpop") {
         const remote = input.remoteAuthorization;
         if (remote === undefined || Option.isNone(remote)) {
           return yield* new RemoteEnvironmentAuthFetchError({

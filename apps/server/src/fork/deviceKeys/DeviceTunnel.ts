@@ -47,7 +47,7 @@ import {
   TUNNEL_DIR,
   TUNNEL_HEARTBEAT_SECONDS,
   TUNNEL_STATUS_FILE,
-} from "./tunnelStatusFile.ts";
+} from "@t3tools/shared/forkDeviceKeys/tunnelStatusFile";
 
 const BACKOFF_SECONDS = [1, 2, 4, 8, 16, 32, 60] as const;
 const STABLE_AFTER = Duration.seconds(30);

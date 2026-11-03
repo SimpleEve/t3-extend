@@ -176,9 +176,15 @@ describe("against the real registry", () => {
         );
         assert.isTrue(verifyAssertionSignature(pass, listed!.jwk));
 
-        // Nothing changed: the registry answers 304 and the list stays as it was.
+        // Nothing changed: the registry still answers with the whole list, and the client never asks for a 304.
         yield* service.refresh;
-        assert.equal(Option.getOrThrow((yield* directory.state).list).rev, rev);
+        const again = Option.getOrThrow((yield* directory.state).list);
+        assert.equal(again.rev, rev);
+        assert.sameMembers(
+          again.devices.map((device) => device.name),
+          ["Studio", "Laptop", "Pixel"],
+        );
+        assert.isFalse(registry.sent.some((request) => request.conditional));
 
         assert.deepEqual(yield* service.rename(phone.key.id, "Pixel 9"), {
           id: phone.key.id,
@@ -239,14 +245,11 @@ describe("against the real registry", () => {
         environmentId: "env-laptop",
       });
       assert.equal((yield* service.leave).state, "not_joined");
-      const remaining = yield* client.listDevices(second.target, undefined);
-      assert.equal(remaining._tag, "Updated");
-      if (remaining._tag === "Updated") {
-        assert.deepEqual(
-          remaining.body.devices.map((device) => device.name),
-          ["Laptop"],
-        );
-      }
+      const remaining = yield* client.listDevices(second.target);
+      assert.deepEqual(
+        remaining.devices.map((device) => device.name),
+        ["Laptop"],
+      );
     }).pipe(Effect.provide(layerLive)),
   );
 
@@ -269,7 +272,7 @@ describe("against the real registry", () => {
         environmentId: "env-laptop",
       });
       const wrongPin = yield* client
-        .listDevices({ ...joined.target, registryId: `${info.registryId}x` }, undefined)
+        .listDevices({ ...joined.target, registryId: `${info.registryId}x` })
         .pipe(Effect.flip);
       assert.deepEqual([wrongPin.kind, wrongPin.code], ["protocol", "registry_mismatch"]);
     }).pipe(Effect.provide(layerLive)),
@@ -356,10 +359,10 @@ describe("against the real registry", () => {
       });
       redirect.port = portOf(registryStandIn);
 
-      for (status of [301, 307]) {
+      for (status of [301, 304, 307]) {
         const calls = {
           info: yield* client.info(REGISTRY_ORIGIN).pipe(Effect.flip),
-          list: yield* client.listDevices(target, undefined).pipe(Effect.flip),
+          list: yield* client.listDevices(target).pipe(Effect.flip),
           invite: yield* client.createInvite(target, "phone").pipe(Effect.flip),
         };
         for (const error of Object.values(calls)) {

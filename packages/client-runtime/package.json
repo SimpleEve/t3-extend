@@ -526,6 +526,10 @@
     "./provider-clients": {
       "types": "./src/providerClients.ts",
       "default": "./src/providerClients.ts"
+    },
+    "./fork/deviceKeys/*": {
+      "types": "./src/fork/deviceKeys/*.ts",
+      "default": "./src/fork/deviceKeys/*.ts"
     }
   },
   "scripts": {
