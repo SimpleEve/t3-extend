@@ -4,7 +4,6 @@ export default {
   "Subscription limits": "订阅额度",
   "Show how much of each provider's subscription window is left.":
     "显示各 provider 订阅窗口还剩多少。",
-  "Updated {time}": "更新于 {time}",
   "Usage details": "用量详情",
   "Resource usage": "资源占用",
   Power: "电源",
