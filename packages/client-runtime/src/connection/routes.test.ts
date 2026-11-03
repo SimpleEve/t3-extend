@@ -14,6 +14,7 @@ import {
   connectionRouteKind,
   connectionRouteLabel,
   credentialConnectionId,
+  hasRelayRoute,
   insertRoute,
   entryWithRoutes,
   mergeLearnedRoutes,
@@ -392,6 +393,84 @@ describe("learned routes", () => {
     })!;
     expect(ids(routesAfterRemoving(overLan, "lan"))).toEqual(["relay"]);
     expect(ids(routesAfterRemoving(overLan, "relay"))).toHaveLength(2);
+  });
+
+  // fork: a computer on the user's own server keeps signing in as that device on every route.
+  describe("t3x-device", () => {
+    const device = (
+      id: string,
+      httpBaseUrl: string,
+      extra: { learned?: true } = {},
+    ): ConnectionRoute => {
+      const route = direct(id, httpBaseUrl);
+      const profile = Option.getOrThrow(route.profile) as BearerConnectionProfile;
+      return {
+        target: route.target,
+        profile: Option.some(
+          new BearerConnectionProfile({ ...profile, authorization: "t3x-device", ...extra }),
+        ),
+      };
+    };
+    const DEVICE = device("t3x-device:d1", "https://mac.t3.example.test/");
+    const deviceOnly: ConnectionCatalogEntry = {
+      target: DEVICE.target,
+      profile: DEVICE.profile,
+      enabled: true,
+    };
+
+    it("lets a route learned over a device route inherit the marker and no credential", () => {
+      const routes = mergeLearnedRoutes({
+        entry: deviceOnly,
+        activeRoute: DEVICE,
+        reported: [{ httpBaseUrl: "http://192.168.1.10:3773/" }],
+        allowInsecure: true,
+      })!;
+      expect(routes.some((route) => route.target._tag === "RelayConnectionTarget")).toBe(false);
+      const learnedRoute = routes.find((route) => connectionRouteKind(route) === "lan")!;
+      expect(profileOf(learnedRoute)).toMatchObject({
+        learned: true,
+        authorization: "t3x-device",
+      });
+      // No `@<credential>` suffix: there is nothing to borrow.
+      expect(connectionRouteId(learnedRoute.target)).toBe(
+        `learned:${ENVIRONMENT_ID}:http://192.168.1.10:3773`,
+      );
+      expect(credentialConnectionId(connectionRouteId(learnedRoute.target))).toBe(
+        connectionRouteId(learnedRoute.target),
+      );
+    });
+
+    it("never sends a device pass as clear text, and keeps plain HTTP routes usable", () => {
+      const lan = device("lan-device", "http://192.168.1.10:3773/", { learned: true });
+      expect(sendsTokenInClear([DEVICE, lan], lan)).toBe(false);
+      expect(usableRoutes({ ...deviceOnly, alternateRoutes: [lan] })).toHaveLength(2);
+      // Even a route that names the saved device route as its credential, as a bearer route would.
+      const borrowing = device(
+        "learned:environment-1:http://192.168.1.10:3773@t3x-device:d1",
+        "http://192.168.1.10:3773/",
+        { learned: true },
+      );
+      expect(sendsTokenInClear([DEVICE, borrowing], borrowing)).toBe(false);
+    });
+
+    it("removes learned device routes with the saved device route and nothing else", () => {
+      const lan = device("learned:lan", "http://192.168.1.10:3773/", { learned: true });
+      expect(routesAfterRemoving([lan, DEVICE], "t3x-device:d1")).toEqual([]);
+      // Removing T3 Connect or a bearer route leaves a device's learned routes alone.
+      expect(ids(routesAfterRemoving([lan, DEVICE, RELAY], "relay"))).toEqual([
+        "learned:lan",
+        "t3x-device:d1",
+      ]);
+      expect(ids(routesAfterRemoving([lan, DEVICE, LAN], "lan"))).toEqual([
+        "learned:lan",
+        "t3x-device:d1",
+      ]);
+    });
+
+    it("never makes a relay route for a device environment", () => {
+      expect(hasRelayRoute(deviceOnly)).toBe(false);
+      expect(removedWithRelay(deviceOnly)).toBe(false);
+    });
   });
 
   it("counts an environment reached only through T3 Connect as removed with it", () => {

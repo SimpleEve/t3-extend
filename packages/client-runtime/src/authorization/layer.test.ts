@@ -24,6 +24,7 @@ import * as ConnectionCredentialStore from "../connection/credentialStore.ts";
 import { BearerConnectionTarget } from "../connection/model.ts";
 import * as ConnectionProfileStore from "../connection/profileStore.ts";
 import * as ConnectionResolver from "../connection/resolver.ts";
+import { DeviceEnvironmentIndex } from "../fork/deviceKeys/DeviceKeyAuthorization.ts"; // fork: self-hosted devices
 
 const ENVIRONMENT_ID = EnvironmentId.make("environment-1");
 const ENDPOINT = {
@@ -1108,6 +1109,49 @@ describe("RemoteEnvironmentAuthorization", () => {
         expect(cached).toEqual(authorized);
       }).pipe(Effect.provide(harness.layer));
       expect(yield* Ref.get(harness.bootstrapCalls)).toBe(1);
+    }),
+  );
+});
+
+// fork: a device-managed environment never gets a relay token, whatever stamp its connection carries.
+describe("RemoteEnvironmentAuthorization: device-managed environments", () => {
+  it.effect("refuses relay authorization before any request or relay call", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeHarness({ responses: [] });
+      const index = new Map([[ENVIRONMENT_ID, "device-1"]]);
+      yield* Effect.gen(function* () {
+        const remote = yield* RemoteEnvironmentAuthorization.RemoteEnvironmentAuthorization;
+        const failures = [
+          yield* Effect.flip(remote.authorizeDpopHttp({ expectedEnvironmentId: ENVIRONMENT_ID })),
+          yield* Effect.flip(remote.authorizeDpop({ expectedEnvironmentId: ENVIRONMENT_ID })),
+          yield* Effect.flip(
+            remote.authorizeDpop({
+              expectedEnvironmentId: ENVIRONMENT_ID,
+              directEndpoint: ENDPOINT,
+            }),
+          ),
+        ];
+        // Renewal asks for a token only once its wait is over.
+        const renewal = yield* remote
+          .renewDpopBeforeExpiry({
+            expectedEnvironmentId: ENVIRONMENT_ID,
+            expiresAtEpochMs: 60_000,
+          })
+          .pipe(Effect.flip, Effect.forkChild);
+        yield* TestClock.adjust(5_000);
+        failures.push(yield* Fiber.join(renewal));
+        for (const failure of failures) {
+          expect(failure).toMatchObject({ _tag: "ConnectionBlockedError", hop: "device" });
+        }
+      }).pipe(
+        Effect.provide(harness.layer),
+        Effect.provideService(DeviceEnvironmentIndex, {
+          get: (id) => index.get(id as EnvironmentId),
+          replace: () => undefined,
+        }),
+      );
+      expect(harness.fetch.calls).toEqual([]);
+      expect(yield* Ref.get(harness.bootstrapCalls)).toBe(0);
     }),
   );
 });

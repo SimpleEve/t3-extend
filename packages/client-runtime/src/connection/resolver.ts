@@ -50,6 +50,7 @@ import {
 } from "./compatibility.ts";
 import { credentialConnectionId } from "./routes.ts";
 import { fetchRemoteEnvironmentDescriptor } from "../environment/descriptor.ts";
+import { DeviceKeyAuthorization } from "../fork/deviceKeys/DeviceKeyAuthorization.ts"; // fork: self-hosted devices
 
 export class ConnectionResolver extends Context.Service<
   ConnectionResolver,
@@ -144,6 +145,15 @@ const makeBearerBroker = Effect.fn("clientRuntime.connection.broker.makeBearer")
         expected: target.environmentId,
         actual: profile.environmentId,
       });
+    }
+    // fork: self-hosted device. It fails closed: no retry as relay or bearer.
+    if (profile.authorization === "t3x-device") {
+      const authorized = yield* (yield* DeviceKeyAuthorization).prepare({
+        expectedEnvironmentId: target.environmentId,
+        httpBaseUrl: profile.httpBaseUrl,
+        wsBaseUrl: profile.wsBaseUrl,
+      });
+      return { ...authorized, target, authorizer: "t3x-device" } satisfies PreparedConnection;
     }
     if (profile.authorization === "t3-connect") {
       const authorized = yield* remote.authorizeDpop({

@@ -154,6 +154,8 @@ export interface PreparedConnection {
   readonly socketUrl: string;
   readonly httpAuthorization: PreparedHttpAuthorization | null;
   readonly target: ConnectionTarget;
+  /** fork: stamped by the resolver alone; "t3x-device" sessions never go through the relay. */
+  readonly authorizer?: "t3x-device";
 }
 
 export type SupervisorConnectionPhase =

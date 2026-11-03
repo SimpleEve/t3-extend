@@ -23,7 +23,8 @@ export class BearerConnectionProfile extends Schema.TaggedClass<BearerConnection
     httpBaseUrl: Schema.String,
     wsBaseUrl: Schema.String,
     learned: Schema.optionalKey(Schema.Literal(true)),
-    authorization: Schema.optionalKey(Schema.Literal("t3-connect")),
+    // fork: "t3x-device" is a computer on the user's own server; its authorization never reaches the relay.
+    authorization: Schema.optionalKey(Schema.Literals(["t3-connect", "t3x-device"])),
     /**
      * "tailscale" on a learned route the server found on its Tailscale
      * interface. A bare 100.64.0.0/10 address could belong to any VPN.
