@@ -42,6 +42,16 @@ describe("classifyFrpcLine", () => {
     }
   });
 
+  it("reads the line frpc 0.71.1 really printed when the registry refused the proxy", () => {
+    // Captured against the 8.1 compose: a login the registry accepted, a proxy for another subdomain.
+    assert.equal(
+      reasonOf(
+        "2026-11-04 00:52:55.249 [W] [client/control.go:172] [d485d879a05a9a97] [t3x] start error: t3x:bad-ticket",
+      ),
+      "proxy:bad-ticket",
+    );
+  });
+
   it("treats a truncated, unknown, padded or non-UTF-8 reason as `other`", () => {
     const bytes = (...parts: Array<Uint8Array | string>) =>
       Uint8Array.from(
