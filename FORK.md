@@ -268,7 +268,7 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 10. `apps/desktop/src/main.ts`：`layerDesktopFoundation` 加入 `DesktopSelfHost.layer`。
 11. `apps/desktop/src/preload.ts`：暴露 `t3xSelfHostBridge`。沙箱 preload 的 `require` 解析不了 workspace 包，所以运行时值只能从相对模块导入，bridge 名在 `selfHost/selfHostChannels.ts` 里另存一份，`selfHost/preloadSandbox.test.ts` 检查导入并比对两边的值。
 12. `apps/desktop/src/ipc/DesktopIpcHandlers.ts`：调用 `installSelfHostIpc()`。
-13. `apps/desktop/src/ipc/methods/serverExposure.ts`：`getAdvertisedEndpoints` 追加自建地址，生成配对二维码时可以选到它们。
+13. `apps/desktop/src/ipc/methods/serverExposure.ts`：`getAdvertisedEndpoints` 追加自建地址，生成配对二维码时可以选到它们；加入了自建服务器时还追加这台电脑自己的设备地址（见"客户端：每设备密钥方案"）。
 14. `apps/desktop/src/backend/DesktopBackendConfiguration.ts`：主后端的 env 加上 `T3CODE_PUBLIC_URLS_FILE` 和 `T3CODE_PUBLIC_URLS`（合并 `T3CODE_DESKTOP_HTTPS_ENDPOINTS`）。WSL 后端不加。
 15. `apps/web/src/components/settings/ConnectionsSettings.tsx`：Network access 关闭时也显示自建地址；在 Tailscale 行之后渲染 `<SelfHostSettings />`。
 
@@ -286,9 +286,9 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 
 - `packages/client-runtime/src/fork/deviceKeys/`：`DeviceKeyAuthorization`（`Context.Reference`，缺省实现永远阻断）、`discovery.ts`（先注册表、再 URL 检查、再 well-known 比对，最后才换通行证）、`liveAuthorization.ts`（通行证换会话；`device_unknown` 说明对方还没同步，按 1、2、4、8、16、30 秒退避重试约 75 秒，界面显示"等待那台电脑确认…"，其他错误不重试）、`deviceEnvironmentSync.ts`（把注册表的电脑列表同步成已保存环境，只动 `t3x-device:` 前缀的环境）、`inviteReading.ts`（粘贴或扫描的邀请，加入前只读不发请求，桌面和手机共用）。
 - 盖章是唯一来源：只有 resolver 给 `PreparedConnection` 盖 `authorizer: "t3x-device"`；`staticGuard.test.ts` 规定哪些文件可以调用 `.authorizeDpop(`、`.authorizeDpopHttp(`、`.renewDpopBeforeExpiry(`，新增调用点会让它失败。`DeviceEnvironmentIndex` 是第二道防线：已登记的设备环境即使被漏盖章，也拿不到 relay 令牌。
-- 桌面：渲染进程没有设备密钥，通行证由本机 server 的 `devices.signAssertion` 签。`apps/web/src/fork/deviceKeysStore.ts` 开一条列表订阅，`DeviceKeysSync` 随应用挂载，没加入过服务器时什么都不跑。设置里在 Sharing & access（路由 `/settings/access`，不是 `/settings/connections`）的 "Your server"；旧的公网地址和隧道命令收在 Advanced 里。命令面板的 "Invite a device" 只在桌面端出现。
-- 手机：`apps/mobile/src/fork/deviceKeys/`。密钥在 SecureStore（静态加密，不是不可导出），`deviceSync.ts` 是不依赖 Expo 的规则层，所有存储、网络、时钟都注入，所以能用 Node 单测；`installDeviceKeysSync.ts` 只在启动和回到前台时刷新（两次之间至少 30 秒），没有后台轮询。页面是只读的：手机不邀请也不移除。
-- 界面规则：邀请的有效期显示绝对时间（"有效至 0:59"），不倒数；"连不上服务器"提示在渲染时按 `fetchedAt` 推算（超过 3 分钟），所以**停在页面上不会自己冒出来**，重新进入页面才会显示。注册表回 304 时服务器只刷新 `fetchedAt`、不推新快照，所以界面取状态流和状态查询里较新的那个（`freshestStatus`）。
+- 配对链接里的设备地址：桌面主进程从 `<T3 home>/userdata/device-public-url.json` 读（服务器按 membership 写，离开时删），不是自己的 `stateDir`，因为桌面开发模式下没有 `T3CODE_HOME` 时自己的 `stateDir` 是 `dev/`，而服务器总是拿到显式的 home，用 `userdata/`。桌面：渲染进程没有设备密钥，通行证由本机 server 的 `devices.signAssertion` 签。`apps/web/src/fork/deviceKeysStore.ts` 开一条列表订阅，`DeviceKeysSync` 随应用挂载，没加入过服务器时什么都不跑。设置里在 Sharing & access（路由 `/settings/access`，不是 `/settings/connections`）的 "Your server"，组件在 `apps/web/src/fork/YourServerSettings.tsx`，设置搜索里有对应条目（`your-server`）；旧的公网地址和隧道命令收在 Advanced 里。命令面板的 "Invite a device" 只在桌面端出现。
+- 手机：`apps/mobile/src/fork/deviceKeys/`。密钥在 SecureStore（静态加密，不是不可导出；iOS 用 `WHEN_UNLOCKED_THIS_DEVICE_ONLY`，不进备份也不换机；Android 靠 expo-secure-store 插件把 `SecureStore` 排除出备份，已在 APK 的 manifest 里核对过）。注册表请求用 `expo/fetch`，因为 React Native 的全局 `fetch` 不管 `redirect: "manual"` 都会跟随重定向，`deviceSync.ts` 是不依赖 Expo 的规则层，所有存储、网络、时钟都注入，所以能用 Node 单测；`installDeviceKeysSync.ts` 只在启动和回到前台时刷新（两次之间至少 30 秒），没有后台轮询。页面是只读的：手机不邀请也不移除。
+- 界面规则：邀请的有效期显示补零的 24 小时制绝对时间（"有效至 01:14"），不倒数。"连不上服务器"提示和"上次出现 X 前"用一个只触发一次的 `setTimeout` 走到下一个变化时刻（`fork/useClockWindow.ts`、上游的 `useRelativeTimeState`），没有 interval，页面一直开着也会自己出现；不要在渲染里直接写 `Date.now()` 或 `formatRelativeTimeLabel(...)`，编译器会按入参把结果缓存住。服务器每次同步成功都推一次快照（304 也推，`DeviceDirectory.ts`），所以界面直接用快照里的状态。
 - 本机端到端的坑：Electron 在隔离的 `HOME` 下首次用到系统钥匙串会卡在 `SecItemAdd` 的授权弹窗里，主线程被阻塞，Chromium 的调试端口随后也不再响应。必须加 `--use-mock-keychain`，不要去点那个弹窗。`agent-browser` 附加到这个调试端口会让它卡住，改用 `--remote-debugging-pipe` 自己说 CDP。桌面 dev 的内置 server 不注册 `Replay (dev)`，所以不能把默认模型换成它，端到端里不建对话就不会花钱。8.3 的隧道（frpc）不在这个分支里，其他电脑在注册表里显示为离线，也不会生成已保存环境。
 
 ## 手机新建浏览器标签页

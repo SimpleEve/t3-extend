@@ -496,9 +496,9 @@ https:// {
 
 ### Q11 UI（概述；细节和验收见 8.4）
 
-- **桌面**：Settings → Sharing & access 里新增 "Devices" 区，位置在原来 `SelfHostSettings` 的位置（`ConnectionsSettings.tsx` 里把那一处渲染换成 `DevicesSettings`，由它在 "Advanced" 折叠区里渲染 `SelfHostSettings`，只改一行）。**只在桌面渲染进程里渲染**（有 `desktopBridge`，且当前环境是本机主环境）；服务端同样只对 `desktop-bootstrap` 会话开放这些 RPC，所以普通浏览器和远程环境页看不到它。
+- **桌面**：Settings → Sharing & access 里新增 "Devices" 区，位置在原来 `SelfHostSettings` 的位置（`ConnectionsSettings.tsx` 里把那一处渲染换成 `YourServerSettings`，由它在 "Advanced" 折叠区里渲染 `SelfHostSettings`，只改一行）。**只在桌面渲染进程里渲染**（有 `desktopBridge`，且当前环境是本机主环境）；服务端同样只对 `desktop-bootstrap` 会话开放这些 RPC，所以普通浏览器和远程环境页看不到它。
   - 未加入：说明一句 + "Join my server" 按钮 → 对话框：电脑名、邀请粘贴框。粘贴后**先显示邀请指向的注册表域名，要求用户确认**："你要加入 `t3.example.com`。这是你自己的服务器吗？"含非 ASCII 的域名同时显示 punycode。确认后才向它发请求。
-  - 已加入：顶部一行"已连接 t3.example.com · 这台电脑：`https://mac.t3.example.com`（在线 / 离线）"；设备清单（名称、种类、最近出现的相对时间、移除按钮）；"Invite a device" 按钮 → 对话框显示二维码 + 字符串 + 复制 + "有效至 14:32"（**绝对时间，不做每秒走字的倒计时**）；待用邀请列表里有"取消"。
+  - 已加入：顶部一行"已连接 t3.example.com · 这台电脑：`https://mac.t3.example.com`（在线 / 离线）"；设备清单（名称、种类、最近出现的相对时间、移除按钮）；"Invite a device" 按钮 → 对话框显示二维码 + 字符串 + 复制 + "有效至 14:32"（**补零的 24 小时制绝对时间，如 01:14；绝对时间，不做每秒走字的倒计时**）；待用邀请列表里有"取消"。
   - 清单 24 小时未同步：区块顶部显示警告"这台电脑已 N 小时没连上你的服务器；超过 7 天将不再接受新设备登录"。
   - 移除设备：确认后，对话框列出**还没同步过这次移除的电脑**（Q8），写明"它们重新连上服务器后才会撤销"。
   - Advanced（折叠）：原来的"自定义公网地址 + 隧道命令"。
@@ -1102,7 +1102,7 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 - **交付**：`"t3x-device"` profile 与阻断式授权；client-runtime 同步器与"设备管理的环境"索引；web / 桌面 Devices 设置区（加入、邀请、移除、Advanced）；手机加入页、设备页、前台刷新；zh-Hans；中英文对照截图。
 - **新文件**：
   - `packages/client-runtime/src/fork/deviceKeys/`：`DeviceKeyAuthorization.ts`（`Context.Reference`，缺省阻断）、`discovery.ts`（钉住、URL 检查、well-known 比对）、`deviceEnvironmentSync.ts`、`managedIndex.ts`。
-  - `apps/web/src/components/settings/DevicesSettings.tsx`、`apps/web/src/fork/deviceKeysStore.ts`、`deviceKeysCommands.ts`；web zh-Hans 的 `devices.ts`。
+  - `apps/web/src/fork/YourServerSettings.tsx`、`apps/web/src/fork/deviceKeysStore.ts`、`deviceKeysCommands.ts`；web zh-Hans 的 `devices.ts`。
   - `apps/mobile/src/fork/deviceKeys/`：`deviceKey.ts`（SecureStore）、`registryClient.ts`、`useDeviceSync.ts`、`JoinServerScreen.tsx`、`ServerDevicesScreen.tsx`、`deviceCommands.ts`；mobile 的 zh-Hans 文件。
 - **上游接线**：见 6.2 和 3.13（分派表已经 grep 过，不再留到开工）。
 - **验收**：
@@ -1133,19 +1133,19 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 
 ### 6.1 新文件（按位置）
 
-| 位置                                                                                       | 内容                                 |
-| ------------------------------------------------------------------------------------------ | ------------------------------------ |
-| `infra/self-host/registry/*.mjs`、`Dockerfile`                                             | 注册表（8.1）                        |
-| `infra/self-host/{setup.sh,t3x,docker-compose.test.yml,Caddyfile.test}`、`advanced/`       | 部署脚本、测试覆盖、旧文档（8.1）    |
-| `packages/contracts/src/forkDeviceKeys.ts`                                                 | RPC 与数据类型（8.2）                |
-| `packages/shared/src/forkDeviceKeys/`、`forkFrp.ts`                                        | 纯函数协议库、frp 版本表（8.2、8.3） |
-| `apps/server/src/fork/deviceKeys/`                                                         | server 服务（8.2、8.3）              |
-| `apps/server/src/cli/devices.ts`                                                           | 无头 CLI（8.2、8.3）                 |
-| `packages/client-runtime/src/fork/deviceKeys/`                                             | 阻断式授权、发现与同步器（8.4）      |
-| `apps/web/src/components/settings/DevicesSettings.tsx`、`apps/web/src/fork/deviceKeys*.ts` | 桌面 / web 界面（8.4）               |
-| `apps/mobile/src/fork/deviceKeys/`                                                         | 手机（8.4）                          |
-| `scripts/fork-fetch-frp.ts`、`scripts/fork-selfhost-e2e.ts`、`scripts/fork-selfhost-e2e/`  | 下载校验、端到端（8.3、8.5）         |
-| `docs/internals/self-hosted-devices.md`                                                    | 一页决策说明（8.5）                  |
+| 位置                                                                                      | 内容                                 |
+| ----------------------------------------------------------------------------------------- | ------------------------------------ |
+| `infra/self-host/registry/*.mjs`、`Dockerfile`                                            | 注册表（8.1）                        |
+| `infra/self-host/{setup.sh,t3x,docker-compose.test.yml,Caddyfile.test}`、`advanced/`      | 部署脚本、测试覆盖、旧文档（8.1）    |
+| `packages/contracts/src/forkDeviceKeys.ts`                                                | RPC 与数据类型（8.2）                |
+| `packages/shared/src/forkDeviceKeys/`、`forkFrp.ts`                                       | 纯函数协议库、frp 版本表（8.2、8.3） |
+| `apps/server/src/fork/deviceKeys/`                                                        | server 服务（8.2、8.3）              |
+| `apps/server/src/cli/devices.ts`                                                          | 无头 CLI（8.2、8.3）                 |
+| `packages/client-runtime/src/fork/deviceKeys/`                                            | 阻断式授权、发现与同步器（8.4）      |
+| `apps/web/src/fork/YourServerSettings.tsx`、`apps/web/src/fork/deviceKeys*.ts`            | 桌面 / web 界面（8.4）               |
+| `apps/mobile/src/fork/deviceKeys/`                                                        | 手机（8.4）                          |
+| `scripts/fork-fetch-frp.ts`、`scripts/fork-selfhost-e2e.ts`、`scripts/fork-selfhost-e2e/` | 下载校验、端到端（8.3、8.5）         |
+| `docs/internals/self-hosted-devices.md`                                                   | 一页决策说明（8.5）                  |
 
 ### 6.2 要改的上游文件（全部带 `// fork:`）
 
@@ -1164,7 +1164,7 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 | `apps/server/src/environment/PublicUrls.ts`                                                                                                                                                                            | 额外读 `device-public-url.json`                                                                                                            | 8                                                       | 8.2      |
 | `apps/server/src/cli/*`                                                                                                                                                                                                | 注册 `devices` 子命令                                                                                                                      | 6                                                       | 8.2      |
 | `apps/desktop/src/backend/DesktopBackendConfiguration.ts`                                                                                                                                                              | `T3X_FRPC_PATH`                                                                                                                            | 3                                                       | 8.3      |
-| `apps/desktop/src/ipc/methods/serverExposure.ts`                                                                                                                                                                       | 配对二维码可选到设备地址（需核实路径一致）                                                                                                 | 0（没动）                                               | 8.4      |
+| `apps/desktop/src/ipc/methods/serverExposure.ts`                                                                                                                                                                       | 配对二维码可选到设备地址（需核实路径一致）                                                                                                 | 15（+12 −3，修复轮加上）                                | 8.4      |
 | `packages/client-runtime/src/connection/catalog.ts:26`                                                                                                                                                                 | profile `authorization` 加 `"t3x-device"`                                                                                                  | 3                                                       | 8.4      |
 | `packages/client-runtime/src/connection/model.ts`                                                                                                                                                                      | `PreparedConnection.authorizer?`                                                                                                           | 2                                                       | 8.4      |
 | `packages/client-runtime/src/connection/resolver.ts:148`                                                                                                                                                               | 在 `t3-connect` 之前的 `t3x-device` 分支，失败即失败                                                                                       | 10                                                      | 8.4      |
@@ -1174,7 +1174,7 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 | 其他 `state/*.ts`（`session`、`peerPairingCode`、`boundedThreadSnapshotHttp`、`pullRequestDiffHttp`、`deviceHubAccess`、`shellSnapshotHttp`、`threadHistoryHttp`、`threadTranscriptHttp`、`threads`、`orchestration`） | 不改：全部经 `environmentHttpAuth` 的咽喉，grep 已核实（3.13 第 12–21 项）                                                                 | 0                                                       | 8.4      |
 | `packages/client-runtime/src/authorization/service.ts:343, 471`                                                                                                                                                        | 纵深防御：`getDpopToken` 和 `authorizeDpop` 开头的设备环境 guard（3.13 第 29–30 项）                                                       | 3                                                       | 8.4      |
 | `packages/client-runtime/src/connection/layer.ts`                                                                                                                                                                      | 不改（`DeviceKeyAuthorization` 是 `Context.Reference`，缺省阻断）                                                                          | 0                                                       | –        |
-| `apps/web/src/components/settings/ConnectionsSettings.tsx`                                                                                                                                                             | 渲染 `DevicesSettings`                                                                                                                     | 6                                                       | 8.4      |
+| `apps/web/src/components/settings/ConnectionsSettings.tsx`                                                                                                                                                             | 渲染 `YourServerSettings`                                                                                                                  | 6                                                       | 8.4      |
 | `apps/web/src/lib/runtime.ts:64`、`apps/mobile/src/lib/runtime.ts:33`                                                                                                                                                  | 提供真实的 `DeviceKeyAuthorization`（3.13 第 32–33 项）                                                                                    | 19                                                      | 8.4      |
 | `apps/web` 设置搜索 / 命令面板入口                                                                                                                                                                                     | 搜索条目、"Invite a device" 命令                                                                                                           | 5（命令面板 3 + 挂载同步 2；设置搜索条目没做）          | 8.4      |
 | `apps/mobile/src/Stack.tsx`、`App.tsx`                                                                                                                                                                                 | 两个路由、前台同步                                                                                                                         | 9（Stack 2、App 2、设置列表 3、页面目标 1、测试清单 1） | 8.4      |
@@ -1184,7 +1184,7 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 
 **合计约 153 行（留余量按 190 算），约 31 个上游文件**（server 与契约约 60，client-runtime 约 56（含 web / mobile runtime 的 10 行），web / mobile / desktop 约 39；按 3.13 的分派表和 3.11 的监听口方案重数，比上一版少了 `dpop.ts`、`McpOAuth.ts`、`McpHttpServer.ts` 三个文件和 `clientKey` 的约 8 行，多了 `authorization/service.ts` 的纵深防御）。**停止线仍是 230 行**：8.4 收尾用 `git diff --stat` 重数，超过就停下来汇报，不静默扩大。`apps/desktop/src/ipc/methods/serverExposure.ts`（5 行）不在核心路径上，可以延后。改动里**每一处都只是一个调用、一个分支或一行 export**，逻辑在 `fork/` 里；这个数字比第一版的 40 行大三四倍，是为了换"设备环境永远走不到官方 relay"和"隧道进来的 DPoP 能验证通过"。
 
-**8.4 实际（`git diff --numstat b1cb00ea68 HEAD`，不含测试、`fork/` 目录和 fork 自己的新文件）：20 个上游文件，+119 −29，合计 148 行**，在 150 行的上限以内。表里 8.4 各行的数字已经改成实际值；表外还多了两行：`packages/client-runtime/package.json`（导出 `./fork/deviceKeys/*`，4 行）和 `packages/client-runtime/src/rpc/client.ts`（订阅 RPC 标签加 `devices.subscribe`，4 行）。`serverExposure.ts` 没动（配对二维码选到设备地址留给后续），设置搜索里没有加 "Your server" 条目。
+**8.4 实际（修复轮之后，`git diff --numstat b1cb00ea68 <合并 main 之前的 HEAD>`，不含测试、`fork/` 目录和 fork 自己的新文件）：22 个上游文件，+138 −32，合计 170 行**，在修复轮放宽的 175 行上限以内（第一轮是 148 行、上限 150）。表里 8.4 各行的数字已经改成实际值；表外多了几行：`packages/client-runtime/package.json`（导出 `./fork/deviceKeys/*`，4 行）、`packages/client-runtime/src/rpc/client.ts`（订阅 RPC 标签加 `devices.subscribe`，4 行）、`apps/web/src/components/settings/settingsSearch.ts`（"Your server" 搜索条目，7 行）、`apps/desktop/src/ipc/methods/serverExposure.ts`（配对二维码带上这台电脑的设备地址，+12 −3，格式化后展开成多行）和 `apps/mobile/vite.config.ts`（jest 渲染测试清单，1 行）。
 
 **不会动**：`packages/contracts/src/auth.ts` 和 `environmentHttp.ts`（不改 `/oauth/token` 的契约）、`auth/EnvironmentAuth.ts`、`auth/SessionStore.ts`、`registry.ts`、`supervisor.ts`、`presentation.ts`、`diagnosis.ts`、`connection/errors.ts`（设备环境的 target 是 Bearer，不会命中 relay 分支；`connectionMethod` 由 fork 模块显式传 `"direct"`）、任何数据库迁移、`apps/mobile/app.config.ts` 与 native 模块。
 
@@ -1239,7 +1239,7 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 | server：RPC 权限            | 新增受保护方法的 `CLIENT_GUARDED_RPC_SCOPES` 行为测试（AGENTS.md 明确要求）                                                                                                                                                                                                                              | 现有的权限测试文件里加行                                      |
 | 限速与监听口                | `/oauth/t3x-device` 的 401 计入、429 返回；隧道监听口的中间件：合法 / 非法 / 缺失 `X-T3x-Client-IP` 的桶键；**主监听口忽略该头**（P0 #3 的反向测试）；`TunnelListener` 的 `Host` / `x-forwarded-proto` / XFF 改写、没有 membership 时 503                                                                | `AuthAttemptLimiter.test.ts` 加行；`TunnelListener.test.ts`   |
 | client-runtime              | 缺省 `DeviceKeyAuthorization` 阻断；resolver 的 `t3x-device` 分支不回退；发现顺序与 URL 检查；钉住；同步器：增 / 删 / 改 URL，用户手动添加的环境不被动；设备环境没有凭据条目；3.13 的反向测试清单和静态守卫；`routes.ts` 三处规则；诊断不出现 relay                                                      | `packages/client-runtime/src/fork/deviceKeys/*.test.ts`       |
-| web                         | `DevicesSettings` 各状态（未加入、已加入、清单过期、被移出、加入失败的几种错误）；邀请对话框显示绝对过期时间且没有定时器；Advanced 折叠里的旧功能仍在                                                                                                                                                    | `*.browser.test.tsx`（`render` from `apps/web/test/render`）  |
+| web                         | `YourServerSettings` 各状态（未加入、已加入、清单过期、被移出、加入失败的几种错误）；邀请对话框显示绝对过期时间且没有定时器；Advanced 折叠里的旧功能仍在                                                                                                                                                 | `*.browser.test.tsx`（`render` from `apps/web/test/render`）  |
 | mobile                      | 密钥生成 / 读回 / 损坏恢复（mock SecureStore）；加入页的错误态；前台刷新的节流（≥30 秒）；移除后环境消失                                                                                                                                                                                                 | `apps/mobile/src/fork/deviceKeys/*.test.ts`                   |
 | 打包                        | `forkFrp` 版本与 compose 一致；归档 SHA-256 校验失败时拒绝；`fork-dist-mac` 的 Mach-O 校验清单里包含 `frpc`                                                                                                                                                                                              | `packages/shared`、`scripts/`                                 |
 
@@ -1415,7 +1415,7 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 - 第 8c 节列的事：8.0 在本机用本地 CA、docker-proxy 跑的，覆盖不到 Let's Encrypt 实网签发耗时、生产 443 端口下的 `Host`、Linux 的 frpc、`poolCount = 0`、Caddy 对伪造头的覆盖、`frps.toml` 环境变量模板。
 - **隧道监听口的三项检查只是读源码**：第二个 `HttpServer` 不外泄、首个请求时 `router.asHttpEffect()` 带得上全部全局中间件、WebSocket 升级和 `Origin` 检查，都没有运行过（3.11、8c）。
 - 3.13 的 34 项里，`registry.ts:1032`、`supervisor.ts:581-605`、`rpc/session.ts:182`、`diagnosis.ts:242-280` 只读了分派条件所在的几行，没有读它们的全部调用者；`apps/mobile/.../remoteRegistration.ts` 只读了入口条件和 `unregisterDeviceWithRelay`，没有读全文，8.4 复核请求体里没有设备环境的 `environmentId`。
-- `serverExposure.getAdvertisedEndpoints` 与 server state 目录是否一致、手机 `Stack.tsx` 路由写法：没有逐行读，8.4 开始前要先读。
+- `serverExposure.getAdvertisedEndpoints` 与 server state 目录是否一致：**已核对（8.4 修复轮）**：不总是一致。server 由桌面带着显式 home 启动，state 目录恒为 `<home>/userdata`；桌面自己的 `stateDir` 在开发模式且没设 `T3CODE_HOME` 时是 `<home>/dev`。所以桌面读 `<home>/userdata/device-public-url.json`。手机 `Stack.tsx` 路由写法已读。
 - `ws.ts` 的 RPC handler 装配处是否能方便地拿到已验证的 `VerifiedSession`（`ws.ts:3460` 附近的 `session` 变量说明有，但没有读工厂调用处）。
 - e2e 用 `--bootstrap-fd` 传 `desktopBootstrapToken` 的具体做法（fd 的传法、`DesktopBackendBootstrap` 的信封格式）：读了读取点，没有跑过。
 - `restart: unless-stopped` 不会重启 `unhealthy` 的容器：凭对 Docker restart policy 的理解，没有运行验证（8.1 验收里有）。
