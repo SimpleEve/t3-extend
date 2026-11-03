@@ -10,7 +10,7 @@ import {
   type EnvironmentId,
   type ScopedProjectRef,
 } from "@t3tools/contracts";
-import { PlugIcon } from "lucide-react";
+import { AppWindowIcon, PlugIcon } from "lucide-react";
 import type { MouseEvent } from "react";
 
 import { resolveDiscoveredServerUrl } from "../browser/browserTargetResolver";
@@ -118,6 +118,7 @@ function PortsPanel(props: {
                   variant="ghost"
                   className="w-full justify-start"
                   disabled={!canOpen}
+                  aria-label={t("Open in preview")}
                   onClick={(event) => void open(row, event)}
                 />
               }
@@ -135,6 +136,7 @@ function PortsPanel(props: {
                   {row.worktree ?? t("Main checkout")}
                 </span>
               </span>
+              <AppWindowIcon aria-hidden className="shrink-0 text-muted-foreground" />
             </PopoverClose>
           </li>
         ))}
