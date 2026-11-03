@@ -22,7 +22,6 @@ import {
   describeDevicesError,
   describeInviteProblem,
   describeServerNotice,
-  freshestStatus,
   inviteDeadlineLabel,
   serverNotice,
   serverNoticeWindow,
@@ -193,8 +192,8 @@ function JoinedRows({
   const t = useT();
   const snapshotResult = useAtomValue(devicesSnapshot({ environmentId, input: {} }));
   const snapshot = Option.getOrNull(AsyncResult.value(snapshotResult));
-  // The list pushes status along with the devices, so the latest of the two is what is shown.
-  const current = freshestStatus(snapshot?.status, status);
+  // The list pushes status along with the devices, so the pushed one is the one shown.
+  const current = snapshot?.status ?? status;
   // Re-evaluated at the moments the notice changes, so an open page shows it without a re-render.
   const noticeAt = useClockWindowStart((nowMs) => serverNoticeWindow(current, nowMs));
   const notice = serverNotice(current, noticeAt);

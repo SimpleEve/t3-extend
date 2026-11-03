@@ -82,7 +82,6 @@ const DEVICES: ReadonlyArray<DeviceListEntry> = [
 function setup(
   input: {
     status?: DevicesStatus;
-    streamedStatus?: DevicesStatus;
     devices?: ReadonlyArray<DeviceListEntry>;
     desktop?: boolean;
   } = {},
@@ -91,7 +90,7 @@ function setup(
   mocks.status = Atom.make(AsyncResult.success(current));
   mocks.snapshot = Atom.make(
     AsyncResult.success({
-      status: input.streamedStatus ?? current,
+      status: current,
       rev: 1,
       devices: input.devices ?? DEVICES,
     } satisfies DevicesSnapshot),
@@ -315,16 +314,6 @@ describe("Your server settings, joined", () => {
       .element(page.getByText("Can't reach your server right now. Last synced 4 minutes ago."))
       .toBeVisible();
     void timers;
-  });
-
-  it("stays quiet once the registry answered again, though the list stream has not pushed since", async () => {
-    using _bridge = setup({
-      status: status({ fetchedAt: Math.floor(NOW / 1000) - 10, staleness: "fresh" }),
-      streamedStatus: status({ fetchedAt: Math.floor(NOW / 1000) - 20 * 60, staleness: "fresh" }),
-    });
-    await using _screen = await render(ui(), { router: false });
-    await expect.element(page.getByText("Connected to t3.example.com.")).toBeVisible();
-    expect(page.getByText(/Can't reach your server/).elements()).toHaveLength(0);
   });
 
   it("stays quiet while the last sync is recent", async () => {

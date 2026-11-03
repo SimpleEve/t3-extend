@@ -322,7 +322,6 @@ const make = Effect.gen(function* () {
         const now = yield* nowSeconds;
         const before = yield* Ref.get(state);
         if (Option.isNone(before.membership)) return;
-        const previousStaleness = stalenessOf(before.list, now);
         const result = fetched.success;
         const next: Option.Option<StoredList> =
           result._tag === "Updated"
@@ -343,8 +342,8 @@ const make = Effect.gen(function* () {
         yield* persistList(next.value);
         yield* Ref.update(state, (current) => ({ ...current, list: next }));
         yield* reconcile(new Set(next.value.devices.map((device) => device.id)));
-        if (result._tag === "Updated" || previousStaleness !== stalenessOf(next, now))
-          yield* publish;
+        // Every successful answer, a 304 included, moves `fetchedAt`, which clients show as the last sync.
+        yield* publish;
       }),
     );
     return yield* status;

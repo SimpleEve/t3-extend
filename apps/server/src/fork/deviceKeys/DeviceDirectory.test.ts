@@ -259,22 +259,31 @@ describe("this computer leaves the server", () => {
 });
 
 describe("changes", () => {
-  it.effect("streams the current snapshot, then only real changes", () =>
+  it.effect("streams the current snapshot, then every successful sync, a 304 included", () =>
     Effect.gen(function* () {
       const { fake, directory } = yield* arrange;
       const seen = yield* directory.changes.pipe(
-        Stream.take(3),
-        Stream.map((snapshot) => snapshot.devices.length),
+        Stream.take(4),
+        Stream.map((snapshot) => ({
+          devices: snapshot.devices.length,
+          fetchedAt: snapshot.status.fetchedAt,
+        })),
         Stream.runCollect,
         Effect.forkChild,
       );
       fake.addDevice({ kind: "phone", name: "Tablet" });
       yield* directory.sync;
-      // A 304 changes nothing, so it publishes nothing.
+      // A 304 changes the list not at all, but the sync time moves and clients show it.
+      yield* TestClock.adjust(Duration.seconds(100));
       yield* directory.sync;
       fake.addDevice({ kind: "phone", name: "Watch" });
       yield* directory.sync;
-      assert.deepEqual(Array.from(yield* Fiber.join(seen)), [3, 4, 5]);
+      assert.deepEqual(Array.from(yield* Fiber.join(seen)), [
+        { devices: 3, fetchedAt: NOW_S },
+        { devices: 4, fetchedAt: NOW_S },
+        { devices: 4, fetchedAt: NOW_S + 100 },
+        { devices: 5, fetchedAt: NOW_S + 100 },
+      ]);
     }).pipe(Effect.provide(layerHarness)),
   );
 
