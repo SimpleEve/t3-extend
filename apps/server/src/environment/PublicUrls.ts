@@ -16,6 +16,7 @@ import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 
 import * as ServerConfig from "../config.ts";
+import { readDevicePublicUrl } from "../fork/deviceKeys/devicePublicUrl.ts"; // fork: self-hosted pairing
 
 export class PublicUrlsWriteError extends Schema.TaggedError<PublicUrlsWriteError>()(
   "PublicUrlsWriteError",
@@ -74,12 +75,17 @@ const make = Effect.gen(function* () {
   const config = yield* ServerConfig.ServerConfig;
   const fs = yield* FileSystem.FileSystem;
   const filePath = yield* resolvePublicUrlsFilePath(config.stateDir);
+  const readDevice = yield* readDevicePublicUrl(config.stateDir); // fork: this computer's own address
   const fromEnvironment = parsePublicUrlList((yield* HostProcess.Environment)[PUBLIC_URLS_ENV]);
 
   const list = fs.readFileString(filePath).pipe(
     Effect.map(parsePublicUrlsDocument),
     Effect.orElseSucceed((): ReadonlyArray<string> => []),
-    Effect.map((saved) => normalizePublicUrls([...fromEnvironment, ...saved])),
+    Effect.flatMap((saved) =>
+      Effect.map(readDevice, (device) =>
+        normalizePublicUrls([...fromEnvironment, ...saved, ...device]),
+      ),
+    ),
     Effect.withSpan("PublicUrls.list"),
   );
 

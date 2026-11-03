@@ -102,6 +102,7 @@ export const rejectedCodeStatus = (method: string, url: string): number | undefi
   if (method !== "POST") return undefined;
   switch (url.split("?", 1)[0]) {
     case "/oauth/token":
+    case "/oauth/t3x-device": // fork: device pass exchange
     case "/api/auth/browser-session":
       return 401;
     case "/oauth/mcp/decision":

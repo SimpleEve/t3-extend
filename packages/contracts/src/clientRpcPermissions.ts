@@ -12,6 +12,7 @@ import {
   type AuthEnvironmentScope,
 } from "./auth.ts";
 import { FORK_PUSH_GUARDED_RPC_SCOPES } from "./forkPush.ts"; // fork: UnifiedPush registrations
+import { FORK_DEVICE_KEYS_GUARDED_RPC_SCOPES } from "./forkDeviceKeys.ts"; // fork: self-hosted pairing
 import { ORCHESTRATION_V2_WS_METHODS } from "./orchestrationV2.ts";
 import { WS_METHODS } from "./rpc.ts";
 
@@ -73,6 +74,7 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   // A link lets every agent here reach the other environment: Settings' bar.
   [WS_METHODS.peerLinksAnswerRequest]: AuthAccessWriteScope,
   ...FORK_PUSH_GUARDED_RPC_SCOPES, // fork: UnifiedPush registrations
+  ...FORK_DEVICE_KEYS_GUARDED_RPC_SCOPES, // fork: self-hosted pairing
 } as const;
 export type ClientGuardedRpcTag = keyof typeof CLIENT_GUARDED_RPC_SCOPES;
 

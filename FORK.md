@@ -435,3 +435,6 @@ native fingerprint 这次没有变（android `97cb060cd3…`、ios `95cb50c6af�
 要出包时，先看上游有没有改 `build-desktop-artifact.ts` 里的 `renderMacPasskeyEntitlements`（以及 electron-builder 的 mac 配置）。新增的不依赖 team 的 entitlements 要同步到 `packaging/fork-macos/`：hardened runtime 缺了 entitlements，app 往往一启动就崩，而 `codesign --verify` 检查不出来。`fork-dist-mac.ts` 还依赖 `--target dir` 的产物位置（`<output-dir>/mac-arm64/*.app`）。所以同步之后的第一次打包，要真正把 app 启动起来验证一遍。
 
 `fork:guard`（`scripts/fork-identity-guard.ts`）除了身份字面量，还会拦住 Tailscale 默认端口写回 443、`refs/t3code/`、`refs/t3/review-guide`、`t3code/pr-`、`WORKTREE_BRANCH_PREFIX = "t3"` 和 `branchNamePrefix` 默认值写回 `t3`。它扫描 `apps/*/src`、`packages`、`scripts` 等代码路径，查找 `com.t3tools.t3code`、`t3code-v2`、`t3code-dev`、`t3code://`、`"\.t3"`、`pingdotgg/t3code`、官方 EAS 和 PostHog 地址。新出现的命中要么改成引用 `forkIdentity.ts`，要么在脚本的 `ALLOWED` 里加一条并写明理由。白名单条目不再命中时，守卫也会报错，提醒删掉它。
+
+自建配对的 server 核心在 `apps/server/src/fork/deviceKeys/`（设备密钥、注册表客户端、清单同步与撤销、`POST /oauth/t3x-device`、`devices.*` RPC、frpc 用的专用回环监听口），协议库在 `packages/shared/src/forkDeviceKeys/`，本机管理入口是 `t3x devices`；设计与取舍见 `research/self-host-device-keys.md`。
+上游改动都带 `// fork:` 标记，守住 `devices.*` 只给 `desktop-bootstrap` 主体的边界，不要为了方便放宽到有 `access:write` 的会话。

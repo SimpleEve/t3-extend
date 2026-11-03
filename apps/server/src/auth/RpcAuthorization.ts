@@ -1,6 +1,7 @@
 import {
   CLIENT_GUARDED_RPC_SCOPES,
   FORK_PUSH_READ_RPC_SCOPES, // fork: UnifiedPush registrations
+  FORK_DEVICE_KEYS_READ_RPC_SCOPES, // fork: self-hosted pairing
   type DeviceListInput,
   clientRpcRequiredScopes,
   authScopeRequiredResponse,
@@ -41,6 +42,7 @@ type WsRpcMethod = RpcGroup.Rpcs<typeof WsRpcGroup>["_tag"];
 export const RPC_REQUIRED_SCOPES = {
   ...CLIENT_GUARDED_RPC_SCOPES,
   ...FORK_PUSH_READ_RPC_SCOPES, // fork: UnifiedPush registrations
+  ...FORK_DEVICE_KEYS_READ_RPC_SCOPES, // fork: self-hosted pairing
   [ORCHESTRATION_V2_WS_METHODS.dispatchCommand]: AuthOrchestrationOperateScope,
   [ORCHESTRATION_V2_WS_METHODS.getWorkflowScript]: AuthOrchestrationReadScope,
   [ORCHESTRATION_V2_WS_METHODS.getNativeChildWork]: AuthOrchestrationReadScope,

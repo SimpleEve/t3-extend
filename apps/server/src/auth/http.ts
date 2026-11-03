@@ -37,16 +37,18 @@ import { traceAuthenticatedRelayRequest, traceRelayRequest } from "../cloud/trac
 import { deriveAuthClientMetadata } from "./utils.ts";
 import { verifyRequestDpopProof } from "./dpop.ts";
 
+// fork: the two append* helpers below are exported for /oauth/t3x-device.
 const CREDENTIAL_RESPONSE_HEADERS = {
   "cache-control": "no-store",
   pragma: "no-cache",
 } as const;
 
-const appendCredentialResponseHeaders = HttpEffect.appendPreResponseHandler((_request, response) =>
-  Effect.succeed(HttpServerResponse.setHeaders(response, CREDENTIAL_RESPONSE_HEADERS)),
+export const appendCredentialResponseHeaders = HttpEffect.appendPreResponseHandler(
+  (_request, response) =>
+    Effect.succeed(HttpServerResponse.setHeaders(response, CREDENTIAL_RESPONSE_HEADERS)),
 );
 
-const appendDpopChallengeHeader = HttpEffect.appendPreResponseHandler((_request, response) =>
+export const appendDpopChallengeHeader = HttpEffect.appendPreResponseHandler((_request, response) =>
   Effect.succeed(HttpServerResponse.setHeader(response, "www-authenticate", "DPoP")),
 );
 
