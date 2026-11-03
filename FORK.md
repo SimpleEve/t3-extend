@@ -224,6 +224,20 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - 折叠 key 不按项目列表清理：离线的环境没有加载项目，按列表清理会误删它们的折叠。改为只保留最近的 `MAX_COLLAPSED_GROUPS`（200）个，已删除项目的 key 会随新的折叠挤出去。
 - iOS 没有实机或模拟器验证。
 
+## 侧边栏底部状态芯片与桌面保持唤醒
+
+侧边栏最下面一行（设置、PR、用量图标之后）有三个状态芯片：订阅额度、资源占用、本项目的本地服务端口；桌面版另有"保持唤醒"开关。芯片开关在 设置 > 外观 > 侧边栏状态，保持唤醒开关在 设置 > 通用 > 电源（仅桌面版）。开关存在 `fork/footerStatusStore.ts`（localStorage，按设备），不进 `ClientSettings`。
+
+- 新文件都在 `apps/web/src/fork/`：`SidebarFooterStatus.tsx`（容器，按剩余宽度选 full/compact/icon 三档，永远不挤掉前面的图标）、`FooterUsageLimits.tsx`、`FooterResources.tsx`、`FooterPorts.tsx`，各自的 `*.logic.ts` 放纯逻辑与测试，`FooterChip.tsx` 是共用外壳，`FooterStatusSettings.tsx` 含芯片开关和 `KeepAwakeSettings`，`KeepAwakeReporter.tsx` 把"有任务在跑"上报给桌面主进程。桌面端在 `apps/desktop/src/keepAwake/`（`powerSaveBlocker`，只在有任务运行且开关开着时持有），共享常量在 `packages/shared/src/keepAwake.ts`。
+- 上游文件里的接线点（都带 `// fork:`）：`Sidebar.tsx`（把 `scopedProjectRefs` 传给 `SidebarChromeFooter`）、`sidebar/SidebarChrome.tsx`（渲染 `SidebarFooterStatus`，memo 比较 `scopedProjectRefs`）、`AppSidebarLayout.tsx`（Electron 下挂 `KeepAwakeReporter`）、`settings/AppearanceSettingsPanel.tsx`（`FooterStatusSettings`）、`settings/SettingsPanels.tsx`（`KeepAwakeSettings`）、桌面的 `preload.ts` 与 `ipc/DesktopIpcHandlers.ts`，译文在 `catalogs/zh-Hans/footer.ts`。
+- 资源面板按进程树分组（每个 agent 一行、终端、T3 Extend、其他，每个进程只算一次）。服务端从不给进程打 `provider-root` / `terminal-root` 分类，所以前端沿 ppid 链找到服务端的直接子进程再按名字归类，规则与 `ProcessGroupMetrics.ts` 一致（`footerResources.logic.ts`）。要按线程精确归属得改 contracts，目前没做。
+- 端口芯片复用 `subscribeDiscoveredLocalServers`，不新增 RPC；只列所属线程在当前项目内的服务，"在预览中打开"，不提供结束进程。
+- 后台/实时两档采样：`subscribeResourceTelemetry` 和 `subscribeDiscoveredLocalServers` 的 payload 多一个可选 `cadence: "live" | "background"`（`packages/contracts/src/rpc.ts`，`// fork:`）。芯片在窗口可见且开关开着时用 `background`，展开面板期间另加一路 `live`，窗口隐藏就退订（`documentActivity`）。服务端规则：
+  - 资源采样：只有 `live` 订阅者 → 原速（1s）；只有 `background` → 插电 15s、用电池 30s、锁屏/挂起/低电量/过热 60s；两者都有取快的；都没有则停止采样。`background` 不打开进程诊断需求。
+  - 端口扫描：`live` 3s 一次；只有 `background` 订阅者时至少间隔 15s；没人订阅就不扫。`retain` 保持原样，后台用新的 `retainBackground`。
+  - 旧服务端：Schema 解码会丢掉多余字段，不会报错，只是 `cadence` 被忽略，退回 1s / 3s，行为正确但没有省电。
+- 手机端不改：`UsageLimitsSection.tsx` / `ComposerUsageLimits.tsx` 已经显示每个窗口的剩余百分比和重置时间。
+
 ## 自建连接
 
 用自己的 VPS（frps + Caddy）代替 T3 Connect。部署包和中文文档在 `infra/self-host/`，用户说明在 `docs/user/remote-access.md` 的 "Your own public address" 一节。设备把自建地址当作一条普通的 `Bearer` 路由，配对沿用 `https://host/pair#token=<一次性码>`。不自托管 `infra/relay`，不复用 `providerKind: "t3_relay"`。
