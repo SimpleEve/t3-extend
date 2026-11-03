@@ -1672,9 +1672,15 @@ const WsPreviewStopLocalServerRpc = Rpc.make(WS_METHODS.previewStopLocalServer, 
   error: Schema.Union([PreviewStopLocalServerError, EnvironmentAuthorizationError]),
 });
 
+// fork: how often the server samples for this subscriber. Absent means live, which is what every
+// older client gets; an older server ignores the field and also samples live.
+export const SubscriptionCadence = Schema.Literals(["live", "background"]);
+export type SubscriptionCadence = typeof SubscriptionCadence.Type;
+
 const WsSubscribeDiscoveredLocalServersRpc = Rpc.make(WS_METHODS.subscribeDiscoveredLocalServers, {
   payload: Schema.Struct({
     configuredUrls: Schema.optional(ConfiguredLocalServerUrls),
+    cadence: Schema.optional(SubscriptionCadence), // fork: background cadence
   }),
   success: DiscoveredLocalServerList,
   error: EnvironmentAuthorizationError,
@@ -2003,7 +2009,9 @@ const WsSubscribeAuthAccessRpc = Rpc.make(WS_METHODS.subscribeAuthAccess, {
 });
 
 const WsSubscribeResourceTelemetryRpc = Rpc.make(WS_METHODS.subscribeResourceTelemetry, {
-  payload: Schema.Struct({}),
+  payload: Schema.Struct({
+    cadence: Schema.optional(SubscriptionCadence), // fork: background cadence
+  }),
   success: ResourceTelemetrySnapshot,
   error: EnvironmentAuthorizationError,
   stream: true,

@@ -39,7 +39,20 @@ export class PortDiscovery extends Context.Service<
       },
       listener: (servers: ReadonlyArray<DiscoveredLocalServer>) => Effect.Effect<void>,
     ) => Effect.Effect<void, never, Scope.Scope>;
+    /**
+     * fork: like `scan`, but answers from the last scan while it is younger than the background
+     * interval, whoever ran it and even after the scanner went idle, so a background subscriber
+     * that comes back never scans faster than that interval.
+     */
+    readonly scanBackground: (
+      configuredUrls?: ReadonlyArray<string>,
+    ) => Effect.Effect<ReadonlyArray<DiscoveredLocalServer>>;
     readonly retain: Effect.Effect<void, never, Scope.Scope>;
+    /**
+     * fork: keeps the scanner polling at the slow background rate for a status chip. A live
+     * `retain` anywhere restores the normal rate; with neither, nothing is scanned.
+     */
+    readonly retainBackground: Effect.Effect<void, never, Scope.Scope>;
     readonly registerTerminalProcesses: (input: {
       readonly threadId: string;
       readonly terminalId: string;
@@ -72,6 +85,8 @@ export const AGENT_THREAD_ENV = "T3CODE_THREAD_ID";
 const PORT_DISCOVERY_ENV = "T3CODE_PORT_DISCOVERY";
 
 const POLL_INTERVAL = Duration.seconds(3);
+// fork: the least time between scans while only background subscribers hold the scanner.
+const BACKGROUND_POLL_INTERVAL_MS = 15_000;
 const LSOF_TIMEOUT_MS = 5_000;
 const PROC_FD_WALK_LIMIT = 50_000;
 const SOCKET_OWNER_ATTEMPTS = 3;
@@ -107,6 +122,7 @@ interface ScannerState {
     }
   >;
   readonly retainCount: number;
+  readonly backgroundRetainCount: number; // fork: background cadence
 }
 
 interface TerminalProcessOwner {
@@ -512,6 +528,7 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
     listeners: new Map(),
     terminalProcesses: new Map(),
     retainCount: 0,
+    backgroundRetainCount: 0,
   });
   const webProbeCacheRef = yield* Ref.make<ReadonlyMap<string, WebProbeCacheEntry>>(new Map());
   const scanSemaphore = yield* Semaphore.make(1);
@@ -920,15 +937,55 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
     return yield* probeWebServers(fromProc ?? [], configuredUrls);
   });
 
+  // fork: the last scan, kept while the scanner is idle, so the background interval can be a floor.
+  const lastScanRef = yield* Ref.make<{
+    readonly at: number;
+    readonly urls: ReadonlySet<string>;
+    readonly snapshot: WebProbeSnapshot;
+  } | null>(null);
+
   const scanSnapshot = Effect.fn("PortDiscovery.scanSnapshot")(
     (configuredUrls: ReadonlyArray<string>) =>
-      scanSemaphore.withPermits(1)(scanUnlocked(configuredUrls)),
+      scanSemaphore
+        .withPermits(1)(scanUnlocked(configuredUrls))
+        .pipe(
+          Effect.tap((snapshot) =>
+            Clock.currentTimeMillis.pipe(
+              Effect.flatMap((at) =>
+                Ref.set(lastScanRef, { at, urls: new Set(configuredUrls), snapshot }),
+              ),
+            ),
+          ),
+        ),
   );
+
+  /** The last scan if it is younger than the background interval and probed all `urls`. */
+  const recentSnapshot = (urls: ReadonlyArray<string>) =>
+    Effect.all([Clock.currentTimeMillis, Ref.get(lastScanRef)]).pipe(
+      Effect.map(([now, last]) =>
+        last !== null &&
+        now - last.at < BACKGROUND_POLL_INTERVAL_MS &&
+        urls.every((url) => last.urls.has(url))
+          ? last.snapshot
+          : null,
+      ),
+    );
 
   const scanOnce: PortDiscovery["Service"]["scan"] = (configuredUrls = []) => {
     const normalized = normalizeConfiguredUrls(configuredUrls);
     return scanSnapshot(normalized).pipe(
       Effect.map((snapshot) => projectWebProbeSnapshot(snapshot, normalized)),
+    );
+  };
+
+  const scanBackground: PortDiscovery["Service"]["scanBackground"] = (configuredUrls = []) => {
+    const normalized = normalizeConfiguredUrls(configuredUrls);
+    return recentSnapshot(normalized).pipe(
+      Effect.flatMap((recent) =>
+        recent === null
+          ? scanOnce(normalized)
+          : Effect.succeed(projectWebProbeSnapshot(recent, normalized)),
+      ),
     );
   };
 
@@ -963,24 +1020,41 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
   );
 
   const pollIfRetained = Ref.get(stateRef).pipe(
-    Effect.flatMap((state) => (state.retainCount > 0 ? pollTick() : Effect.void)),
+    Effect.flatMap((state) => {
+      if (state.retainCount > 0) return pollTick();
+      if (state.backgroundRetainCount === 0) return Effect.void;
+      return recentSnapshot([]).pipe(
+        Effect.flatMap((recent) => (recent === null ? pollTick() : Effect.void)),
+      );
+    }),
   );
   yield* Effect.forkScoped(pollIfRetained.pipe(Effect.repeat(Schedule.spaced(POLL_INTERVAL))));
 
-  const acquireRetention = Effect.fn("PortDiscovery.retain")(function* () {
+  const acquireRetention = Effect.fn("PortDiscovery.retain")(function* (
+    kind: "live" | "background",
+  ) {
     const wasIdle = yield* Ref.modify(stateRef, (state) => [
-      state.retainCount === 0,
-      { ...state, retainCount: state.retainCount + 1 },
+      state.retainCount === 0 && state.backgroundRetainCount === 0,
+      kind === "live"
+        ? { ...state, retainCount: state.retainCount + 1 }
+        : { ...state, backgroundRetainCount: state.backgroundRetainCount + 1 },
     ]);
     if (wasIdle) {
-      yield* pollTick();
+      // A background subscriber coming back within the interval takes the last scan as it is.
+      const recent = kind === "background" ? yield* recentSnapshot([]) : null;
+      if (recent === null) yield* pollTick();
     }
   });
 
-  const releaseRetention = Effect.gen(function* () {
+  const releaseRetention = Effect.fn("PortDiscovery.release")(function* (
+    kind: "live" | "background",
+  ) {
     const idle = yield* Ref.modify(stateRef, (state) => {
-      const retainCount = Math.max(0, state.retainCount - 1);
-      return [retainCount === 0, { ...state, retainCount }];
+      const next =
+        kind === "live"
+          ? { ...state, retainCount: Math.max(0, state.retainCount - 1) }
+          : { ...state, backgroundRetainCount: Math.max(0, state.backgroundRetainCount - 1) };
+      return [next.retainCount === 0 && next.backgroundRetainCount === 0, next];
     });
     if (!idle) return;
     const threads = yield* Ref.getAndSet(agentThreadsRef, new Map());
@@ -988,8 +1062,12 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
   });
 
   const retain: PortDiscovery["Service"]["retain"] = Effect.acquireRelease(
-    acquireRetention(),
-    () => releaseRetention,
+    acquireRetention("live"),
+    () => releaseRetention("live"),
+  );
+  const retainBackground: PortDiscovery["Service"]["retainBackground"] = Effect.acquireRelease(
+    acquireRetention("background"),
+    () => releaseRetention("background"),
   );
 
   const subscribe: PortDiscovery["Service"]["subscribe"] = Effect.fn("PortDiscovery.subscribe")(
@@ -1136,8 +1214,10 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
 
   return PortDiscovery.of({
     scan: scanOnce,
+    scanBackground,
     subscribe,
     retain,
+    retainBackground,
     registerTerminalProcesses,
     unregisterTerminal,
     trackAgent,

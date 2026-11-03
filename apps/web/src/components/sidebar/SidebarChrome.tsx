@@ -17,6 +17,9 @@ import { cn } from "../../lib/utils";
 import { usePullRequestsSupported } from "../../state/environments";
 import { T3Wordmark } from "../T3Wordmark";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
+import type { ScopedProjectRef } from "@t3tools/contracts"; // fork: footer status chips
+import { SidebarFooterStatus } from "../../fork/SidebarFooterStatus"; // fork: footer status chips
+import { sameScopedProjectRefs } from "../../fork/footerScope.logic"; // fork: footer status chips
 import {
   resolveEnvironmentIdentificationPillLabel,
   resolveSidebarStageBackdropVariant,
@@ -300,12 +303,21 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   );
 });
 
-export const SidebarChromeFooter = memo(function SidebarChromeFooter() {
-  return (
-    <SidebarFooter>
-      <SidebarProviderUpdatePill />
-      <SidebarUpdateArchitectureWarning />
-      <SidebarUtilityMenu />
-    </SidebarFooter>
-  );
-});
+export const SidebarChromeFooter = memo(
+  function SidebarChromeFooter({
+    scopedProjectRefs,
+  }: {
+    scopedProjectRefs: readonly ScopedProjectRef[]; // fork: footer status chips
+  }) {
+    return (
+      <SidebarFooter>
+        <SidebarProviderUpdatePill />
+        <SidebarUpdateArchitectureWarning />
+        {/* fork: footer status chips */}
+        <SidebarFooterStatus scopedProjectRefs={scopedProjectRefs} />
+        <SidebarUtilityMenu />
+      </SidebarFooter>
+    );
+  },
+  (previous, next) => sameScopedProjectRefs(previous.scopedProjectRefs, next.scopedProjectRefs), // fork: footer status chips
+);

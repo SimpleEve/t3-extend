@@ -224,6 +224,23 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - 折叠 key 不按项目列表清理：离线的环境没有加载项目，按列表清理会误删它们的折叠。改为只保留最近的 `MAX_COLLAPSED_GROUPS`（200）个，已删除项目的 key 会随新的折叠挤出去。
 - iOS 没有实机或模拟器验证。
 
+## 侧边栏底部状态芯片与桌面保持唤醒
+
+侧边栏底部的图标行上面有一行三个状态芯片：订阅额度、资源占用、本项目的本地服务端口；桌面版另有"保持唤醒"开关。芯片开关在 设置 > 外观 > 侧边栏状态，保持唤醒开关在 设置 > 维护 > 电源（仅桌面版，紧挨着"后台活动"）。开关存在 `fork/footerStatusStore.ts`（localStorage，按设备），不进 `ClientSettings`。
+
+- 新文件都在 `apps/web/src/fork/`：`SidebarFooterStatus.tsx`（容器，按行宽给每个芯片选 full/compact/icon 三档）、`FooterUsageLimits.tsx`、`FooterResources.tsx`、`FooterPorts.tsx`，各自的 `*.logic.ts` 放纯逻辑与测试，`FooterChip.tsx` 是共用外壳，`FooterStatusSettings.tsx` 含芯片开关和 `KeepAwakeSettings`，`KeepAwakeReporter.tsx` 把"有任务在跑"上报给桌面主进程。桌面端在 `apps/desktop/src/keepAwake/`（`powerSaveBlocker`，只在有任务运行且开关开着时持有），共享常量在 `packages/shared/src/keepAwake.ts`。
+- 上游文件里的接线点（都带 `// fork:`）：`Sidebar.tsx`（把 `scopedProjectRefs` 传给 `SidebarChromeFooter`）、`sidebar/SidebarChrome.tsx`（在 `SidebarChromeFooter` 里渲染 `SidebarFooterStatus`，memo 比较 `scopedProjectRefs`）、`AppSidebarLayout.tsx`（Electron 下挂 `KeepAwakeReporter`）、`settings/AppearanceSettingsPanel.tsx`（`FooterStatusSettings`）、`settings/SettingsPanels.tsx`（`KeepAwakeSettings`）、桌面的 `preload.ts` 与 `ipc/DesktopIpcHandlers.ts`，译文在 `catalogs/zh-Hans/footer.ts`。
+- 资源面板按进程树分组（每个 agent 一行、终端、T3 Extend、其他，每个进程只算一次）。服务端从不给进程打 `provider-root` / `terminal-root` 分类，所以前端沿 ppid 链找到服务端的直接子进程再按名字归类，规则与 `ProcessGroupMetrics.ts` 一致（`footerResources.logic.ts`）。要按线程精确归属得改 contracts，目前没做。
+- 布局：三个芯片在图标行（设置、PR、用量、更新）上面单独占一行，图标行保持上游原样。`SidebarChrome.tsx` 只多一行接线，把 `SidebarFooterStatus` 放在 `SidebarUtilityMenu` 之前。没有任何芯片可显示时这一行不渲染。优先级是 限额 > 资源 > 端口，宽度按优先级分配（`footerDensity.logic.ts` 的 `resolveFooterLayout`）：升级按一条固定顺序走，布局就是这条顺序里放得下的最长前缀：先按优先级给每个芯片图标（某个芯片的图标放不下，它和它后面的整个不画），再按优先级给每个芯片数字，最后按优先级升级成完整文字。遇到第一个放不下的升级就停，不会跳过它去升级后面的芯片，所以侧边栏变宽时任何芯片都不会变少。宽度是估算值（数字 7.2px、其他拉丁字符 6.4px、中日韩字符 12px，每个芯片另加 26px），不是实测。限额芯片的短形式写出最紧的 provider 名，例如 "Claude 47%"。默认宽度（256px）下三个芯片都有数字，最窄（208px）时端口只剩图标。
+- 限额芯片：已过 `resetsAt` 的窗口不参与最紧窗口的选择，也不决定颜色，面板里显示"现在重置"；读数的 `checkedAt` 超过服务端状态刷新间隔（设置 > 维护 > 后台活动，默认 5 分钟）的两倍就不再变色，只保留数字。两者都靠分钟时钟重新计算，没有新增轮询（`footerLimits.logic.ts`）。
+- 端口芯片复用 `subscribeDiscoveredLocalServers`，不新增 RPC；只列所属线程在当前项目内的服务，"在预览中打开"，不提供结束进程。
+- 后台/实时两档采样：`subscribeResourceTelemetry` 和 `subscribeDiscoveredLocalServers` 的 payload 多一个可选 `cadence: "live" | "background"`（`packages/contracts/src/rpc.ts`，`// fork:`）。芯片在窗口可见且开关开着时用 `background`，展开面板期间另加一路 `live`，窗口隐藏就退订（`documentActivity`）。服务端规则：
+  - 资源采样：只有 `live` 订阅者 → 原速（1s）；只有 `background` → 插电 15s、用电池 30s、锁屏/挂起/低电量/过热 60s；两者都有取快的；都没有则停止采样。`background` 不打开进程诊断需求。
+  - 端口扫描：`live` 3s 一次；只有 `background` 订阅者时至少间隔 15s；没人订阅就不扫。`retain` 保持原样，后台用新的 `retainBackground`。
+  - 下限由服务端保证，与客户端怎么订阅无关：后台订阅开始时，上一次扫描（扫描器空闲后也保留）或缓存的资源快照还在间隔内，就直接用它，不再扫描/采样（`PortDiscovery.scanBackground`、`acquireBackground`）；实时订阅照旧立即扫描、立即采样。sidecar 的 `SetSampleInterval` 本来就不会立刻采样，只有启动/重启时的 `Configure` 会。有对话打开时对话视图自带一路实时端口订阅，端口仍是 3s。
+  - 旧服务端：Schema 解码会丢掉多余字段，不会报错，只是 `cadence` 被忽略，退回 1s / 3s，行为正确但没有省电。
+- 手机端不改：`UsageLimitsSection.tsx` / `ComposerUsageLimits.tsx` 已经显示每个窗口的剩余百分比和重置时间。
+
 ## 自建连接
 
 用自己的 VPS（frps + Caddy）代替 T3 Connect。部署包和中文文档在 `infra/self-host/`，用户说明在 `docs/user/remote-access.md` 的 "Your own public address" 一节。设备把自建地址当作一条普通的 `Bearer` 路由，配对沿用 `https://host/pair#token=<一次性码>`。不自托管 `infra/relay`，不复用 `providerKind: "t3_relay"`。

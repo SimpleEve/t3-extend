@@ -179,6 +179,10 @@
       "types": "./src/remote.ts",
       "import": "./src/remote.ts"
     },
+    "./keepAwake": {
+      "types": "./src/keepAwake.ts",
+      "import": "./src/keepAwake.ts"
+    },
     "./selfHost": {
       "types": "./src/selfHost.ts",
       "import": "./src/selfHost.ts"

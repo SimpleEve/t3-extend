@@ -23,6 +23,7 @@ import { useEnvironmentIdentificationMode } from "../../hooks/useSettings";
 import { useTheme } from "../../hooks/useTheme";
 import { useT } from "../../hooks/useT";
 import { UiLanguageRow } from "./UiLanguageRow";
+import { FooterStatusSettings } from "../../fork/FooterStatusSettings"; // fork: footer status chips
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
@@ -494,6 +495,8 @@ export function AppearanceSettingsPanel() {
         </AdvancedSettings>
       </SettingsSection>
 
+      {/* fork: footer status chips */}
+      <FooterStatusSettings />
       <TypographySection />
     </SettingsPageContainer>
   );

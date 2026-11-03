@@ -4,6 +4,8 @@ import * as NodeFS from "node:fs";
 import { SELF_HOST_BRIDGE_GLOBAL as SHARED_SELF_HOST_BRIDGE_GLOBAL } from "@t3tools/shared/selfHost";
 import { describe, expect, it } from "vite-plus/test";
 
+import { KEEP_AWAKE_BRIDGE_GLOBAL as SHARED_KEEP_AWAKE_BRIDGE_GLOBAL } from "@t3tools/shared/keepAwake"; // fork: keep awake
+import { KEEP_AWAKE_BRIDGE_GLOBAL } from "../keepAwake/keepAwakeChannels.ts"; // fork: keep awake
 import { SELF_HOST_BRIDGE_GLOBAL } from "./selfHostChannels.ts";
 
 // The sandboxed preload's `require` resolves only these; workspace packages fail at load time.
@@ -27,5 +29,6 @@ describe("desktop preload sandbox", () => {
 
   it("exposes the bridge under the name the web client reads", () => {
     expect(SELF_HOST_BRIDGE_GLOBAL).toBe(SHARED_SELF_HOST_BRIDGE_GLOBAL);
+    expect(KEEP_AWAKE_BRIDGE_GLOBAL).toBe(SHARED_KEEP_AWAKE_BRIDGE_GLOBAL); // fork: keep awake
   });
 });

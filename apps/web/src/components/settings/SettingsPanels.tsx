@@ -100,6 +100,7 @@ import {
 } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
 import { BackgroundActivitySettingsRow } from "./BackgroundActivitySettings";
+import { KeepAwakeSettings } from "../../fork/FooterStatusSettings"; // fork: desktop keep-awake switch
 import { AdvancedSettings } from "./AdvancedSettings";
 import { PullRequestLinksOpenInAppSetting } from "./IntegrationsSettings";
 import { StorageCleanupSections } from "./StorageSettings";
@@ -2061,6 +2062,7 @@ export function MaintenanceSettingsPanel() {
       <SettingsSection id="background" title="Background activity">
         <BackgroundActivitySettingsRow />
       </SettingsSection>
+      <KeepAwakeSettings /> {/* fork: desktop keep-awake switch */}
       <StorageCleanupSections />
       <T3CodeImportSection /> {/* fork: import from the official app */}
       <SettingsSection id="diagnostics-section" title="Diagnostics">

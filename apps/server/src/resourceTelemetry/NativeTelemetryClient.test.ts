@@ -9,6 +9,7 @@ import * as Semaphore from "effect/Semaphore";
 
 import {
   commitCollectionControlUpdate,
+  resolveNativeSampleIntervalMs,
   synchronizeCollectionControlOnStart,
 } from "./NativeTelemetryClient.ts";
 
@@ -25,12 +26,38 @@ const basePower: HostPowerSnapshot = {
   updatedAt: DateTime.makeUnsafe("2026-06-17T12:00:00.000Z"),
 };
 
+describe("resolveNativeSampleIntervalMs", () => {
+  const onBattery = { ...basePower, onBattery: "true" as const };
+  const locked = { ...basePower, locked: "true" as const };
+
+  // [power, live, background, expected ms]
+  const cases: ReadonlyArray<readonly [HostPowerSnapshot, number, number, number]> = [
+    [basePower, 0, 0, 0],
+    [basePower, 1, 0, 1_000],
+    [onBattery, 1, 0, 5_000],
+    [locked, 1, 0, 15_000],
+    // Only background subscribers: a slow timer, slower on battery and when the machine is idle.
+    [basePower, 0, 1, 15_000],
+    [onBattery, 0, 1, 30_000],
+    [locked, 0, 1, 60_000],
+    [{ ...basePower, lowPowerMode: "true" }, 0, 2, 60_000],
+    // A live subscriber alongside a background one keeps the live rate.
+    [basePower, 1, 1, 1_000],
+    [onBattery, 2, 1, 5_000],
+  ];
+
+  it.each(cases)("power %#: live %j, background %j", (power, live, background, expected) => {
+    expect(resolveNativeSampleIntervalMs(power, live, background)).toBe(expected);
+  });
+});
+
 describe("commitCollectionControlUpdate", () => {
   it.effect("retains desired demand and retries unapplied sidecar state", () =>
     Effect.gen(function* () {
       const initial = {
         hostPower: basePower,
         liveSubscriberCount: 0,
+        backgroundSubscriberCount: 0,
         sampleIntervalMs: 5_000,
       };
       const desired = yield* Ref.make(initial);
@@ -44,6 +71,7 @@ describe("commitCollectionControlUpdate", () => {
         (current) => ({
           ...current,
           liveSubscriberCount: 1,
+          backgroundSubscriberCount: 0,
           sampleIntervalMs: 1_000,
         }),
         (previous, next) => {
@@ -56,6 +84,7 @@ describe("commitCollectionControlUpdate", () => {
       expect(yield* Ref.get(desired)).toEqual({
         ...initial,
         liveSubscriberCount: 1,
+        backgroundSubscriberCount: 0,
         sampleIntervalMs: 1_000,
       });
       expect(yield* Ref.get(applied)).toEqual(initial);
@@ -82,6 +111,7 @@ describe("commitCollectionControlUpdate", () => {
       const initial = {
         hostPower: basePower,
         liveSubscriberCount: 0,
+        backgroundSubscriberCount: 0,
         sampleIntervalMs: 5_000,
       };
       const desired = yield* Ref.make(initial);
@@ -116,6 +146,7 @@ describe("commitCollectionControlUpdate", () => {
             (current) => ({
               ...current,
               liveSubscriberCount: 1,
+              backgroundSubscriberCount: 0,
               sampleIntervalMs: 1_000,
             }),
             (_previous, next) =>

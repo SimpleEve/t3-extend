@@ -3714,7 +3714,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           ) : null}
         </SidebarGroup>
       </SidebarContent>
-      <SidebarChromeFooter />
+      {/* fork: footer status chips */}
+      <SidebarChromeFooter scopedProjectRefs={scopedProjectRefs} />
     </>
   );
 }

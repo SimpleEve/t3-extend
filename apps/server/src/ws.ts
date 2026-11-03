@@ -3131,8 +3131,13 @@ export const layerWsRpc = (
           Stream.callback<DiscoveredLocalServerList>((queue) =>
             Effect.gen(function* () {
               const configuredUrls = input.configuredUrls ?? [];
-              yield* portDiscovery.retain;
-              const initial = yield* portDiscovery.scan(configuredUrls);
+              // fork: a background subscriber is scanned at the slow rate.
+              yield* input.cadence === "background"
+                ? portDiscovery.retainBackground
+                : portDiscovery.retain;
+              const initial = yield* input.cadence === "background"
+                ? portDiscovery.scanBackground(configuredUrls)
+                : portDiscovery.scan(configuredUrls);
               const initialScannedAt = DateTime.formatIso(yield* DateTime.now);
               yield* Queue.offer(queue, {
                 servers: initial,
@@ -3321,10 +3326,14 @@ export const layerWsRpc = (
               );
             }),
           ),
-        [WS_METHODS.subscribeResourceTelemetry]: (_input) =>
+        [WS_METHODS.subscribeResourceTelemetry]: (input) =>
           Stream.unwrap(
-            Effect.map(resourceTelemetry.subscribe, ({ latest, changes }) =>
-              Stream.concat(Stream.make(latest), changes),
+            // fork: a background subscriber asks for the slow rate; absent means live.
+            Effect.map(
+              input.cadence === "background"
+                ? resourceTelemetry.subscribeBackground
+                : resourceTelemetry.subscribe,
+              ({ latest, changes }) => Stream.concat(Stream.make(latest), changes),
             ),
           ),
       });
