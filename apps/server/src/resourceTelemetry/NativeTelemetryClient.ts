@@ -204,6 +204,8 @@ export class NativeTelemetryClient extends Context.Service<
       snapshot: HostPowerSnapshot,
     ) => Effect.Effect<void, NativeTelemetryClientError>;
     readonly sampleNow: Effect.Effect<NativeTelemetrySnapshot, NativeTelemetryClientError>;
+    /** fork: the interval a background-only subscriber is sampled at right now. */
+    readonly backgroundSampleIntervalMs: Effect.Effect<number>;
     readonly processTable: Effect.Effect<
       ReadonlyArray<ResourceMonitorProcessTableEntry>,
       NativeTelemetryClientError
@@ -1084,6 +1086,9 @@ export const make = Effect.fn("resourceTelemetry.nativeTelemetryClient.make")(fu
     setExternalProcesses,
     setHostPowerState,
     sampleNow,
+    backgroundSampleIntervalMs: Ref.get(collectionControl).pipe(
+      Effect.map((control) => resolveNativeSampleIntervalMs(control.hostPower, 0, 1)),
+    ),
     processTable,
     retry: Ref.get(state).pipe(
       Effect.flatMap((current) =>
@@ -1144,6 +1149,7 @@ export const layerTest = (
           reason: "No resource monitor sample was configured for this test.",
         }),
       ),
+      backgroundSampleIntervalMs: Effect.succeed(BACKGROUND_SAMPLE_INTERVAL_MS),
       processTable: Effect.fail(
         new NativeTelemetryUnavailable({
           reason: "No resource monitor process table was configured for this test.",

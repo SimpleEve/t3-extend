@@ -257,6 +257,50 @@ effectIt.effect(
 );
 
 effectIt.effect(
+  "a background subscriber that comes back within the interval gets the last scan without scanning",
+  () => {
+    const commands: string[] = [];
+    const fetchFn = (() =>
+      Promise.resolve(
+        new Response("ok", { headers: { "content-type": "text/html" } }),
+      )) as typeof globalThis.fetch;
+    const layer = layerLsofScanner({
+      pid: () => 1234,
+      fetch: fetchFn,
+      onRun: (command) => commands.push(command),
+    });
+    const scans = () => commands.filter((command) => command === "lsof").length;
+
+    return Effect.gen(function* () {
+      const scanner = yield* ownedScanner();
+      // What the ws handler does for a background subscription: hold the scanner, then scan once.
+      const subscribeInBackground = Effect.scoped(
+        Effect.gen(function* () {
+          yield* scanner.retainBackground;
+          return yield* scanner.scanBackground([]);
+        }),
+      );
+
+      const first = yield* subscribeInBackground;
+      expect(scans()).toBe(1);
+
+      // The scanner is idle in between, and the last scan is still kept.
+      yield* TestClock.adjust(Duration.seconds(5));
+      expect(yield* subscribeInBackground).toEqual(first);
+      expect(scans()).toBe(1);
+
+      yield* TestClock.adjust(Duration.seconds(10));
+      yield* subscribeInBackground;
+      expect(scans()).toBe(2);
+
+      // A live subscriber is not held back by the floor.
+      yield* scanner.scan([]);
+      expect(scans()).toBe(3);
+    }).pipe(Effect.provide(layer));
+  },
+);
+
+effectIt.effect(
   "keeps each subscriber's candidates when their combined union exceeds the per-client cap",
   () => {
     const firstSubscriberUrls = Array.from(

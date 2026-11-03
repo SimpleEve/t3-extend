@@ -13,6 +13,8 @@ import * as Option from "effect/Option";
 import * as PubSub from "effect/PubSub";
 import * as Ref from "effect/Ref";
 import * as Stream from "effect/Stream";
+import * as TestClock from "effect/testing/TestClock";
+import * as Duration from "effect/Duration";
 
 import * as DesktopTelemetryReceiver from "./DesktopTelemetryReceiver.ts";
 import * as NativeTelemetryClient from "./NativeTelemetryClient.ts";
@@ -387,6 +389,66 @@ describe("ResourceTelemetry", () => {
         }).pipe(Effect.provide(layerTelemetry));
       }),
     ),
+  );
+
+  it.effect(
+    "a background subscriber that comes back within the interval does not sample again",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const startedAt = DateTime.toEpochMillis(yield* DateTime.now);
+          const sampleCalls = yield* Ref.make(0);
+          const sample = nativeSnapshot({
+            sequence: 1,
+            sampledAtUnixMs: startedAt,
+            childCpuTimeMs: 100,
+            childWriteBytes: 1_000,
+          });
+          const layerNative = NativeTelemetryClient.layerTest({
+            backgroundSnapshots: Stream.never,
+            sampleNow: Ref.update(sampleCalls, (count) => count + 1).pipe(
+              Effect.as(nativeGeneration(sample, 0)),
+            ),
+            backgroundSampleIntervalMs: Effect.succeed(15_000),
+            health: Effect.succeed({
+              status: "healthy",
+              hello: Option.none(),
+              lastSampleAt: Option.none(),
+              lastError: Option.none(),
+              restartCount: 0,
+              sampleIntervalMs: 15_000,
+            }),
+          });
+          const layerTelemetry = ResourceTelemetry.layer.pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                layerNative,
+                DesktopTelemetryReceiver.layerTest(),
+                ResourceAttribution.layer,
+              ),
+            ),
+          );
+
+          yield* Effect.gen(function* () {
+            const telemetry = yield* ResourceTelemetry.ResourceTelemetry;
+            // The forked sample runs on the first yield after the subscription is acquired.
+            const subscribeInBackground = Effect.scoped(
+              telemetry.subscribeBackground.pipe(Effect.andThen(Effect.yieldNow)),
+            );
+
+            yield* subscribeInBackground;
+            expect(yield* Ref.get(sampleCalls)).toBe(1);
+
+            yield* TestClock.adjust(Duration.seconds(5));
+            yield* subscribeInBackground;
+            expect(yield* Ref.get(sampleCalls)).toBe(1);
+
+            yield* TestClock.adjust(Duration.seconds(10));
+            yield* subscribeInBackground;
+            expect(yield* Ref.get(sampleCalls)).toBe(2);
+          }).pipe(Effect.provide(layerTelemetry));
+        }),
+      ),
   );
 
   it.effect("atomically subscribes while a desktop update is being rebuilt", () =>

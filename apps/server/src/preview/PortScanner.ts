@@ -39,6 +39,14 @@ export class PortDiscovery extends Context.Service<
       },
       listener: (servers: ReadonlyArray<DiscoveredLocalServer>) => Effect.Effect<void>,
     ) => Effect.Effect<void, never, Scope.Scope>;
+    /**
+     * fork: like `scan`, but answers from the last scan while it is younger than the background
+     * interval, whoever ran it and even after the scanner went idle, so a background subscriber
+     * that comes back never scans faster than that interval.
+     */
+    readonly scanBackground: (
+      configuredUrls?: ReadonlyArray<string>,
+    ) => Effect.Effect<ReadonlyArray<DiscoveredLocalServer>>;
     readonly retain: Effect.Effect<void, never, Scope.Scope>;
     /**
      * fork: keeps the scanner polling at the slow background rate for a status chip. A live
@@ -929,15 +937,55 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
     return yield* probeWebServers(fromProc ?? [], configuredUrls);
   });
 
+  // fork: the last scan, kept while the scanner is idle, so the background interval can be a floor.
+  const lastScanRef = yield* Ref.make<{
+    readonly at: number;
+    readonly urls: ReadonlySet<string>;
+    readonly snapshot: WebProbeSnapshot;
+  } | null>(null);
+
   const scanSnapshot = Effect.fn("PortDiscovery.scanSnapshot")(
     (configuredUrls: ReadonlyArray<string>) =>
-      scanSemaphore.withPermits(1)(scanUnlocked(configuredUrls)),
+      scanSemaphore
+        .withPermits(1)(scanUnlocked(configuredUrls))
+        .pipe(
+          Effect.tap((snapshot) =>
+            Clock.currentTimeMillis.pipe(
+              Effect.flatMap((at) =>
+                Ref.set(lastScanRef, { at, urls: new Set(configuredUrls), snapshot }),
+              ),
+            ),
+          ),
+        ),
   );
+
+  /** The last scan if it is younger than the background interval and probed all `urls`. */
+  const recentSnapshot = (urls: ReadonlyArray<string>) =>
+    Effect.all([Clock.currentTimeMillis, Ref.get(lastScanRef)]).pipe(
+      Effect.map(([now, last]) =>
+        last !== null &&
+        now - last.at < BACKGROUND_POLL_INTERVAL_MS &&
+        urls.every((url) => last.urls.has(url))
+          ? last.snapshot
+          : null,
+      ),
+    );
 
   const scanOnce: PortDiscovery["Service"]["scan"] = (configuredUrls = []) => {
     const normalized = normalizeConfiguredUrls(configuredUrls);
     return scanSnapshot(normalized).pipe(
       Effect.map((snapshot) => projectWebProbeSnapshot(snapshot, normalized)),
+    );
+  };
+
+  const scanBackground: PortDiscovery["Service"]["scanBackground"] = (configuredUrls = []) => {
+    const normalized = normalizeConfiguredUrls(configuredUrls);
+    return recentSnapshot(normalized).pipe(
+      Effect.flatMap((recent) =>
+        recent === null
+          ? scanOnce(normalized)
+          : Effect.succeed(projectWebProbeSnapshot(recent, normalized)),
+      ),
     );
   };
 
@@ -971,21 +1019,12 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
     ),
   );
 
-  // fork: the time of the last scan that a retention started, so background-only polling can wait.
-  const lastRetainedPollAtRef = yield* Ref.make(0);
-  const timedPoll = pollTick().pipe(
-    Effect.andThen(Clock.currentTimeMillis),
-    Effect.flatMap((now) => Ref.set(lastRetainedPollAtRef, now)),
-  );
-
   const pollIfRetained = Ref.get(stateRef).pipe(
     Effect.flatMap((state) => {
-      if (state.retainCount > 0) return timedPoll;
+      if (state.retainCount > 0) return pollTick();
       if (state.backgroundRetainCount === 0) return Effect.void;
-      return Effect.all([Clock.currentTimeMillis, Ref.get(lastRetainedPollAtRef)]).pipe(
-        Effect.flatMap(([now, last]) =>
-          now - last >= BACKGROUND_POLL_INTERVAL_MS ? timedPoll : Effect.void,
-        ),
+      return recentSnapshot([]).pipe(
+        Effect.flatMap((recent) => (recent === null ? pollTick() : Effect.void)),
       );
     }),
   );
@@ -1001,7 +1040,9 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
         : { ...state, backgroundRetainCount: state.backgroundRetainCount + 1 },
     ]);
     if (wasIdle) {
-      yield* timedPoll;
+      // A background subscriber coming back within the interval takes the last scan as it is.
+      const recent = kind === "background" ? yield* recentSnapshot([]) : null;
+      if (recent === null) yield* pollTick();
     }
   });
 
@@ -1173,6 +1214,7 @@ export const make = Effect.gen(function* PortDiscoveryMake() {
 
   return PortDiscovery.of({
     scan: scanOnce,
+    scanBackground,
     subscribe,
     retain,
     retainBackground,

@@ -236,6 +236,7 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - 后台/实时两档采样：`subscribeResourceTelemetry` 和 `subscribeDiscoveredLocalServers` 的 payload 多一个可选 `cadence: "live" | "background"`（`packages/contracts/src/rpc.ts`，`// fork:`）。芯片在窗口可见且开关开着时用 `background`，展开面板期间另加一路 `live`，窗口隐藏就退订（`documentActivity`）。服务端规则：
   - 资源采样：只有 `live` 订阅者 → 原速（1s）；只有 `background` → 插电 15s、用电池 30s、锁屏/挂起/低电量/过热 60s；两者都有取快的；都没有则停止采样。`background` 不打开进程诊断需求。
   - 端口扫描：`live` 3s 一次；只有 `background` 订阅者时至少间隔 15s；没人订阅就不扫。`retain` 保持原样，后台用新的 `retainBackground`。
+  - 下限由服务端保证，与客户端怎么订阅无关：后台订阅开始时，上一次扫描（扫描器空闲后也保留）或缓存的资源快照还在间隔内，就直接用它，不再扫描/采样（`PortDiscovery.scanBackground`、`acquireBackground`）；实时订阅照旧立即扫描、立即采样。sidecar 的 `SetSampleInterval` 本来就不会立刻采样，只有启动/重启时的 `Configure` 会。有对话打开时对话视图自带一路实时端口订阅，端口仍是 3s。
   - 旧服务端：Schema 解码会丢掉多余字段，不会报错，只是 `cadence` 被忽略，退回 1s / 3s，行为正确但没有省电。
 - 手机端不改：`UsageLimitsSection.tsx` / `ComposerUsageLimits.tsx` 已经显示每个窗口的剩余百分比和重置时间。
 

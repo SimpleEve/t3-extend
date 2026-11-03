@@ -7,6 +7,7 @@ import type {
   ResourceTelemetryRetryResult,
   ResourceTelemetrySnapshot,
 } from "@t3tools/contracts";
+import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -442,11 +443,23 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
           ),
           Effect.forkIn(scope),
         );
-        yield* nativeClient.sampleNow.pipe(
-          Effect.flatMap(ingestNative),
-          Effect.ignore,
-          Effect.forkIn(scope),
-        );
+        // The cached snapshot answers a subscriber that comes back within the background interval,
+        // so hiding and showing a window never samples faster than that interval.
+        const cached = (yield* Ref.get(state)).latest;
+        const [now, interval] = yield* Effect.all([
+          Clock.currentTimeMillis,
+          nativeClient.backgroundSampleIntervalMs,
+        ]);
+        if (
+          cached.processes.length === 0 ||
+          now - DateTime.toEpochMillis(cached.readAt) >= interval
+        ) {
+          yield* nativeClient.sampleNow.pipe(
+            Effect.flatMap(ingestNative),
+            Effect.ignore,
+            Effect.forkIn(scope),
+          );
+        }
         yield* Ref.set(backgroundState, { retainCount: 1, scope: Option.some(scope) });
       }),
     ),

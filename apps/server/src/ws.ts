@@ -3135,7 +3135,9 @@ export const layerWsRpc = (
               yield* input.cadence === "background"
                 ? portDiscovery.retainBackground
                 : portDiscovery.retain;
-              const initial = yield* portDiscovery.scan(configuredUrls);
+              const initial = yield* input.cadence === "background"
+                ? portDiscovery.scanBackground(configuredUrls)
+                : portDiscovery.scan(configuredUrls);
               const initialScannedAt = DateTime.formatIso(yield* DateTime.now);
               yield* Queue.offer(queue, {
                 servers: initial,
