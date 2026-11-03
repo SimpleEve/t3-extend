@@ -183,7 +183,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
         preferenceKey: endpointDefaultPreferenceKey(endpoint),
         label: endpoint.label,
         url,
-        detail: endpointShareHint(endpoint, url),
+        detail: endpointShareHint(endpoint, url, t), // fork: interface language
         qrShareable: isQrShareableEndpoint(endpoint),
       });
     }

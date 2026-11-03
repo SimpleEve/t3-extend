@@ -68,7 +68,7 @@ export function LoadBalancingSettings({
   return (
     <FoldedSettingsSection
       id={id}
-      title={title}
+      title={t(title)} // fork: interface language
       summary={
         settings.loadBalancingEnabled
           ? summarizeLoadPreferences(environments, settings.loadBalancingWeights, t)
@@ -96,7 +96,8 @@ export function LoadBalancingSettings({
           subtitle={<EnvironmentTransportLabel environment={environment} />}
         >
           <Select
-            items={preferences}
+            // fork: interface language. The trigger reads labels from `items`.
+            items={preferences.map(({ value, label }) => ({ value, label: t(label) }))}
             value={loadPreferenceForWeight(
               settings.loadBalancingWeights[environment.environmentId],
             )}

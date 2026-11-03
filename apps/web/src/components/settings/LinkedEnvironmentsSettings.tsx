@@ -66,7 +66,7 @@ export function LinkedEnvironmentsSettings({
   return (
     <SettingsSection
       {...(isSearchTarget ? { id: search.id } : {})}
-      title={environmentLabel === null ? search.title : `${search.title} · ${environmentLabel}`}
+      title={environmentLabel === null ? search.title : `${t(search.title)} · ${environmentLabel}`}
       headerAction={canLink ? <LinkEnvironmentAction environmentId={environmentId} /> : null}
     >
       {links.error ? (
