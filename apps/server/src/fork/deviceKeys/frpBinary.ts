@@ -1,6 +1,7 @@
 // fork: which frpc this computer runs (design Q7). Only `T3X_FRPC_PATH` then `<T3 home>/bin/frpc` are
 // looked at, never PATH. The file and its directory must belong to this user or root and not be
 // writable by others (off Windows), and it must print exactly the pinned version before it runs.
+// The first of the two that passes is used; one that exists but fails does not hide the other.
 import { FRP_MIRROR_ENV, FRP_VERSION, type FrpArchive } from "@t3tools/shared/forkFrp";
 import { checkFrpcVersion, fetchFrpc, FrpFetchError } from "@t3tools/shared/forkFrpFetch";
 import * as HostProcess from "@t3tools/shared/HostProcess";
@@ -45,7 +46,7 @@ export class FrpBinary extends Context.Service<
   {
     /** Where `install` puts it. */
     readonly homePath: Effect.Effect<string>;
-    /** The first of the two places that holds a file, version-checked. */
+    /** The first of the two places whose file passes the owner, permission and version checks. */
     readonly locate: Effect.Effect<LocatedFrpc, FrpBinaryError>;
     /** Downloads the pinned release into `<T3 home>/bin`, SHA-256 checked, then version-checks it. */
     readonly install: Effect.Effect<
@@ -100,7 +101,14 @@ const make = Effect.fn("FrpBinary.make")(function* (seams: FrpBinaryTestSeams) {
     return Option.none<string>();
   });
 
-  const verified = (candidate: string, source: LocatedFrpc["source"]) =>
+  // What the person can do that actually works. A bad T3X_FRPC_PATH never blocks <T3 home>/bin/frpc,
+  // so an install puts a usable copy where `locate` looks next.
+  const remedy = (source: LocatedFrpc["source"], home: string) =>
+    source === "T3X_FRPC_PATH"
+      ? `Run \`t3x devices tunnel install\` to use a copy in ${home} instead, or fix that file.`
+      : "Run `t3x devices tunnel install`.";
+
+  const verified = (candidate: string, source: LocatedFrpc["source"], home: string) =>
     Effect.promise(() => checkFrpcVersion(candidate)).pipe(
       Effect.flatMap((check) =>
         check.ok
@@ -110,12 +118,33 @@ const make = Effect.fn("FrpBinary.make")(function* (seams: FrpBinaryTestSeams) {
                 problem: check.reason,
                 detail:
                   check.reason === "wrong-version"
-                    ? `${candidate} reports frpc ${check.found || "an unknown version"}, but ${FRP_VERSION} is required. Run \`t3x devices tunnel install\`.`
-                    : `${candidate} could not be run.`,
+                    ? `${candidate} reports frpc ${check.found || "an unknown version"}, but ${FRP_VERSION} is required. ${remedy(source, home)}`
+                    : `${candidate} could not be run. ${remedy(source, home)}`,
               }),
             ),
       ),
     );
+
+  // Checks one existing file: ownership and permissions first, then the version it prints.
+  const attempt = Effect.fn("FrpBinary.attempt")(function* (
+    candidate: string,
+    source: LocatedFrpc["source"],
+    home: string,
+  ) {
+    const reason = yield* untrusted(candidate).pipe(
+      Effect.orElseSucceed(() => Option.some(`${candidate} could not be inspected`)),
+    );
+    if (Option.isSome(reason)) {
+      return yield* new FrpBinaryError({
+        problem: "unsafe-location",
+        detail:
+          source === "T3X_FRPC_PATH"
+            ? `${candidate} was not run: ${reason.value}. Run \`t3x devices tunnel install\` to use a copy in ${home} instead, or fix its owner and permissions.`
+            : `${candidate} was not run: ${reason.value}. Fix its owner and permissions, or remove it and run \`t3x devices tunnel install\`.`,
+      });
+    }
+    return yield* verified(candidate, source, home);
+  });
 
   const locate = Effect.gen(function* () {
     const home = yield* homePath;
@@ -126,20 +155,22 @@ const make = Effect.fn("FrpBinary.make")(function* (seams: FrpBinaryTestSeams) {
       }),
       [home, "t3-home"],
     ];
-    for (const [candidate, source] of candidates) {
-      if (yield* fs.exists(candidate).pipe(Effect.orElseSucceed(() => false))) {
-        const reason = yield* untrusted(candidate).pipe(
-          Effect.orElseSucceed(() => Option.some(`${candidate} could not be inspected`)),
-        );
-        if (Option.isSome(reason)) {
-          return yield* new FrpBinaryError({
-            problem: "unsafe-location",
-            detail: `${candidate} was not run: ${reason.value}. Fix its owner and permissions, or run \`t3x devices tunnel install\`.`,
-          });
-        }
-        return yield* verified(candidate, source);
+    // A file that fails its checks does not stop the next candidate: the app bundle can belong to
+    // another account on a shared Mac while the user's own <T3 home>/bin/frpc is fine.
+    const failures: Array<FrpBinaryError> = [];
+    for (const [index, [candidate, source]] of candidates.entries()) {
+      if (!(yield* fs.exists(candidate).pipe(Effect.orElseSucceed(() => false)))) continue;
+      const outcome = yield* Effect.result(attempt(candidate, source, home));
+      if (outcome._tag === "Success") return outcome.success;
+      failures.push(outcome.failure);
+      if (index < candidates.length - 1) {
+        yield* Effect.logWarning(`Skipping frpc: ${outcome.failure.detail}`);
       }
     }
+    // The first candidate's problem is the one the person can act on; later ones are what the
+    // fall-through already tried.
+    const [first] = failures;
+    if (first !== undefined) return yield* first;
     return yield* new FrpBinaryError({
       problem: "not-found",
       detail: `frpc was not found (looked at ${FRPC_PATH_ENV} and ${home}). Run \`t3x devices tunnel install\`.`,
@@ -162,7 +193,7 @@ const make = Effect.fn("FrpBinary.make")(function* (seams: FrpBinaryTestSeams) {
           ? new FrpBinaryError({ problem: cause.problem, detail: cause.message })
           : new FrpBinaryError({ problem: "download-failed", detail: "The download failed." }),
     });
-    yield* verified(fetched.path, "t3-home");
+    yield* verified(fetched.path, "t3-home", home);
     return fetched;
   }).pipe(Effect.withSpan("FrpBinary.install"));
 
