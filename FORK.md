@@ -280,6 +280,17 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - 镜像全部钉了版本和摘要（frps v0.71.1、Caddy 2.11.7、ntfy v2.36.0、`node:24.18.1-alpine3.24`），`registry/deploy.test.mjs` 检查这一点和"只有 Caddy 发布端口"。升级时一起改。
 - 实测得到的坑：frps 对 Login 插件调用不带 `run_id`，所以 NewProxy、Ping、NewWorkConn 都靠 frpc 在 `user.metas` 里重复带的 ticket 重新验证；`restart: unless-stopped` 不会重启 `unhealthy` 的容器，`healthcheck.mjs` 连续失败后给 PID 1 发 SIGTERM，所以 registry 必须 `init: true`（node 当 PID 1 会忽略 SIGTERM）；Caddy 的 `header_up X-T3x-Client-IP {remote_host}` 会覆盖客户端伪造的同名头，注册表只按它限速；撤销在下一次心跳（Ping）生效，约 20–30 秒。
 
+### 客户端：每设备密钥方案（阶段 8.4）
+
+设计见 `research/self-host-device-keys.md` 的 3.13 和阶段 8.4。设备管理的环境用单独的 `"t3x-device"` 授权 profile，**失败即阻断**：授权不会回落到官方 relay 或 Bearer。
+
+- `packages/client-runtime/src/fork/deviceKeys/`：`DeviceKeyAuthorization`（`Context.Reference`，缺省实现永远阻断）、`discovery.ts`（先注册表、再 URL 检查、再 well-known 比对，最后才换通行证）、`liveAuthorization.ts`（通行证换会话；`device_unknown` 说明对方还没同步，按 1、2、4、8、16、30 秒退避重试约 75 秒，界面显示"等待那台电脑确认…"，其他错误不重试）、`deviceEnvironmentSync.ts`（把注册表的电脑列表同步成已保存环境，只动 `t3x-device:` 前缀的环境）、`inviteReading.ts`（粘贴或扫描的邀请，加入前只读不发请求，桌面和手机共用）。
+- 盖章是唯一来源：只有 resolver 给 `PreparedConnection` 盖 `authorizer: "t3x-device"`；`staticGuard.test.ts` 规定哪些文件可以调用 `.authorizeDpop(`、`.authorizeDpopHttp(`、`.renewDpopBeforeExpiry(`，新增调用点会让它失败。`DeviceEnvironmentIndex` 是第二道防线：已登记的设备环境即使被漏盖章，也拿不到 relay 令牌。
+- 桌面：渲染进程没有设备密钥，通行证由本机 server 的 `devices.signAssertion` 签。`apps/web/src/fork/deviceKeysStore.ts` 开一条列表订阅，`DeviceKeysSync` 随应用挂载，没加入过服务器时什么都不跑。设置里在 Sharing & access（路由 `/settings/access`，不是 `/settings/connections`）的 "Your server"；旧的公网地址和隧道命令收在 Advanced 里。命令面板的 "Invite a device" 只在桌面端出现。
+- 手机：`apps/mobile/src/fork/deviceKeys/`。密钥在 SecureStore（静态加密，不是不可导出），`deviceSync.ts` 是不依赖 Expo 的规则层，所有存储、网络、时钟都注入，所以能用 Node 单测；`installDeviceKeysSync.ts` 只在启动和回到前台时刷新（两次之间至少 30 秒），没有后台轮询。页面是只读的：手机不邀请也不移除。
+- 界面规则：邀请的有效期显示绝对时间（"有效至 0:59"），不倒数；"连不上服务器"提示在渲染时按 `fetchedAt` 推算（超过 3 分钟），所以**停在页面上不会自己冒出来**，重新进入页面才会显示。注册表回 304 时服务器只刷新 `fetchedAt`、不推新快照，所以界面取状态流和状态查询里较新的那个（`freshestStatus`）。
+- 本机端到端的坑：Electron 在隔离的 `HOME` 下首次用到系统钥匙串会卡在 `SecItemAdd` 的授权弹窗里，主线程被阻塞，Chromium 的调试端口随后也不再响应。必须加 `--use-mock-keychain`，不要去点那个弹窗。`agent-browser` 附加到这个调试端口会让它卡住，改用 `--remote-debugging-pipe` 自己说 CDP。桌面 dev 的内置 server 不注册 `Replay (dev)`，所以不能把默认模型换成它，端到端里不建对话就不会花钱。8.3 的隧道（frpc）不在这个分支里，其他电脑在注册表里显示为离线，也不会生成已保存环境。
+
 ## 手机新建浏览器标签页
 
 手机上可以自己新建 Browser 标签页，打开宿主机上的页面。页面在宿主机的 headless Chrome 里渲染，手机只收 JPEG 帧（server 已有的 `/api/preview-stream`），所以 `localhost` 指宿主机，也没有 Android cleartext 和 mixed content 的问题。不改 server 和 contracts；原生 WebView 直连 dev server 涉及同源安全，没有做。用户说明在 `docs/user/remote-access.md` 的 "Browser on a remote environment"。
