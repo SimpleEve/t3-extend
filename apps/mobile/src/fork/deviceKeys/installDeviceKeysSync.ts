@@ -9,7 +9,11 @@ import { deviceSync } from "./deviceKeysStore";
 export function installDeviceKeysSync(): () => void {
   void deviceSync.load().then(() => deviceSync.refresh({ force: true }));
   const subscription = AppState.addEventListener("change", (status) => {
-    if (status === "active") void deviceSync.refresh();
+    if (status !== "active") return;
+    // A launch while the phone was locked could not read the keychain; the next foreground does.
+    const retry =
+      deviceSync.state()._tag === "storage-error" ? deviceSync.load() : Promise.resolve();
+    void retry.then(() => deviceSync.refresh());
   });
   return () => subscription.remove();
 }

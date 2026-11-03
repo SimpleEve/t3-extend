@@ -12,6 +12,7 @@ import {
   createDeviceSync,
   type DeviceSyncState,
 } from "./deviceSync";
+import type { RegistryFetch } from "./registryClient";
 
 const ORIGIN = "https://t3.example.com";
 const REGISTRY_ID = "abcdefgh";
@@ -62,7 +63,7 @@ function fakeRegistry(options: { registryId?: string } = {}) {
   const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
     new Response(JSON.stringify(body), { status, headers });
 
-  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+  const fetchImpl = (async (input: string, init: Parameters<RegistryFetch>[1]) => {
     const url = String(input);
     const method = init?.method ?? "GET";
     const body =
@@ -140,7 +141,7 @@ function fakeRegistry(options: { registryId?: string } = {}) {
       });
     }
     return json(404, { error: "not_found" });
-  }) as typeof fetch;
+  }) satisfies RegistryFetch;
 
   return {
     requests,
@@ -517,13 +518,16 @@ describe("starting up", () => {
     expect(registry.requests).toEqual([]);
   });
 
-  it("does not change anything when the keychain will not answer", async () => {
-    const storage = memoryStore();
+  it("changes nothing while the keychain will not answer, and picks up the saved membership once it does", async () => {
+    const items = await stored();
+    const storage = memoryStore(items);
+    let locked = true;
     const sync = createDeviceSync({
       store: {
         ...storage.store,
-        getItemAsync: async () => {
-          throw new Error("locked");
+        getItemAsync: async (key) => {
+          if (locked) throw new Error("locked");
+          return storage.store.getItemAsync(key);
         },
       },
       registry: {
@@ -536,6 +540,11 @@ describe("starting up", () => {
     await sync.load();
     expect(sync.state()).toEqual({ _tag: "storage-error" });
     expect(storage.deleted).toEqual([]);
+
+    // The phone was unlocked and the app came to the foreground: load runs again.
+    locked = false;
+    await sync.load();
+    expect(sync.state()._tag).toBe("joined");
   });
 });
 

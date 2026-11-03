@@ -21,8 +21,20 @@ export class RegistryError extends Error {
   }
 }
 
+/** What the registry calls need from a fetch; both the global one and `expo/fetch` satisfy it. */
+export type RegistryFetch = (
+  url: string,
+  init: {
+    readonly method: string;
+    readonly headers: Record<string, string>;
+    readonly redirect: "manual";
+    readonly signal: AbortSignal;
+    readonly body?: Uint8Array;
+  },
+) => Promise<Pick<Response, "status" | "redirected" | "url" | "text">>;
+
 export interface RegistryEnvironment {
-  readonly fetch: typeof fetch;
+  readonly fetch: RegistryFetch;
   readonly randomBytes: (count: number) => Uint8Array;
   readonly nowSeconds: () => number;
 }
@@ -41,6 +53,16 @@ const REQUEST_TIMEOUT_MS = 15_000;
 const decodeInfo = Schema.decodeUnknownSync(RegistryInfo);
 const decodeJoin = Schema.decodeUnknownSync(RegistryJoinResponse);
 const decodeDevices = Schema.decodeUnknownSync(RegistryDevicesResponse);
+
+/** A response that came from another origin than the one asked is never the registry's answer. */
+const isOtherOrigin = (responseUrl: string, origin: string): boolean => {
+  if (typeof responseUrl !== "string" || responseUrl === "") return false;
+  try {
+    return new URL(responseUrl).origin !== origin;
+  } catch {
+    return true;
+  }
+};
 
 const protocol = (status?: number, code?: string) => new RegistryError("protocol", status, code);
 
@@ -80,7 +102,7 @@ async function send(
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
   const requested = `${origin}${input.path}`;
-  let response: Response;
+  let response: Awaited<ReturnType<RegistryFetch>>;
   let text: string;
   try {
     response = await env.fetch(requested, {
@@ -97,12 +119,13 @@ async function send(
     clearTimeout(timer);
   }
   // A redirect (or an opaque redirect, status 0) is never data: it points at another host. Some
-  // runtimes follow redirects whatever `manual` says, so the final address is checked as well.
+  // runtimes follow redirects whatever `manual` says, so the final address is checked as well. The
+  // phone's fetch is `expo/fetch`, which really does not follow them; this is the second line.
   if (
     response.status < 200 ||
     (response.status >= 300 && response.status < 400 && response.status !== 304) ||
     response.redirected ||
-    (typeof response.url === "string" && response.url !== "" && response.url !== requested)
+    isOtherOrigin(response.url, origin)
   ) {
     throw protocol(response.status, "redirect");
   }

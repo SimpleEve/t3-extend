@@ -7,9 +7,6 @@ import type { InviteReading } from "@t3tools/client-runtime/fork/deviceKeys/invi
 import { relativeTime } from "../../lib/time";
 import type { DeviceSyncState, JoinFailure } from "./deviceSync";
 
-/** The clock behind the notices, read at render time so the page needs no ticking timer. */
-export const currentTimeMs = () => Date.now();
-
 export function describeJoinFailure(t: Translator, failure: JoinFailure): string {
   switch (failure) {
     case "invalid":

@@ -15,11 +15,11 @@ import { Notice } from "../../components/ui/Notice";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { SettingsScreen } from "../../features/settings/components/SettingsScreen";
 import { SettingsSection } from "../../features/settings/components/SettingsSection";
+import { useNowMinuteMs } from "../../lib/clock";
 import { useT } from "../../hooks/useT";
 import { deviceEnvironmentIndex, peerWait } from "./deviceKeysRuntime";
 import { deviceSync, useDeviceSyncState } from "./deviceKeysStore";
 import {
-  currentTimeMs,
   describeDevice,
   describeInviteProblem,
   describeJoinFailure,
@@ -187,8 +187,8 @@ function JoinedServer({
 }) {
   const t = useT();
   const waiting = useWaitingDeviceIds();
-  // Read at render, like the sync time it is compared with: the page needs no ticking clock.
-  const nowMs = currentTimeMs();
+  // Upstream's minute clock: the labels below change at most once a minute.
+  const nowMs = useNowMinuteMs();
   const notice = serverNotice(t, state, nowMs);
   return (
     <>

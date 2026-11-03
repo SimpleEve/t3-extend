@@ -64,6 +64,10 @@ vi.mock("../../features/settings/components/SettingsSection", () => ({
     </section>
   ),
 }));
+// The clock is the upstream minute tick; pinning it keeps the labels exact.
+vi.mock("../../lib/clock", () => ({
+  useNowMinuteMs: () => Date.parse("2026-11-03T12:00:00.000Z"),
+}));
 vi.mock("./deviceKeysStore", () => ({
   deviceSync: { join: mocks.join, leave: mocks.leave, refresh: mocks.refresh },
   useDeviceSyncState: () => mocks.state,
