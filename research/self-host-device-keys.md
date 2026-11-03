@@ -243,6 +243,7 @@
 **两条并发测试**（`it.effect`，`Deferred` 驱动，不 sleep、不轮询）。接缝：测试里用一层包装替换 `SessionStore.revoke`，进入时完成 `insideReconcile`，然后等待 `releaseReconcile`；生产代码不为测试开洞。
 
 - **R1 对账与签发**：设备 D 在旧清单里，通行证已通过第 1–5 步。(1) 启动对账，等 `insideReconcile`（对账已持有 `gate`，新清单已换上，D 的旧会话正在被吊销）；(2) 再 fork 签发请求，它在第 6 步排队；(3) 完成 `releaseReconcile`；(4) join 签发请求。断言：签发得到 401 `device_revoked`，`listActive()` 里没有 `t3x-device:*:D`，通行证的 `jti` 没有被消耗（标记不存在）。
+  - **R1 的另一种时序**：签发请求如果在清单替换**之后**才开始，它在第 2 步就找不到设备，返回 `device_unknown`，不是 `device_revoked`；只有请求已经读过旧清单、再排队等到 `gate` 时，才是 `device_revoked`。两者状态码和响应体相同，只有 `t3x-reason` 头不同，两种时序各有测试。
 - **R2 对账与续期**：D 有活会话 S1，一个 socket 正在 `awaitInvalidation(S1)`。两个顺序都要跑：
   - 顺序一（对账先）：同 R1，续期请求排队，放行后被拒；断言 S1 被吊销、socket 的 `awaitInvalidation` 完成、没有 S2。
   - 顺序二（续期先）：续期请求先拿到 `gate` 并签出 S2，对账随后拿到 `gate`；断言 `listActive()` 同时返回 S1 和 S2 并**都被吊销**，两个 socket 都关闭，用 S2 的令牌再请求得 401。
@@ -278,6 +279,8 @@
 | 桌面渲染进程  | **没有设备密钥**；只有现有的 DPoP 会话密钥                                                                                                                                 | 不影响设备身份                                                                                                                                                                   |
 | 电脑的 server | `ServerSecretStore`，名字 `fork-device-key`，0600 文件、0700 目录、原子写入（和推送注册同一个模式，`apps/server/src/fork/push/PushRegistrations.ts:22-27`）                | 删了 state 目录 = 新设备；membership 文档一起没了，界面回到"未加入"；旧条目到别的电脑上移除。**state 目录整份拷到另一台机器 = 两台机器共用一把钥匙**，不支持，隧道登录会互相顶掉 |
 | 备份 / 导出   | **不提供**                                                                                                                                                                 | 与 `authorized_keys` 的心智一致：丢了就换一把                                                                                                                                    |
+
+**自清理会删掉私钥。** 电脑被移除（收到 `401 device_unknown`，或清单里不再有自己）或 `devices.leave` 之后，membership、清单和 `fork-device-key` 一起删除，不可恢复。再加入得到的是新的设备 id 和新的子域名；被移除的电脑本来就要用新邀请重新加入，换一把新钥匙更干净。连不上、5xx、协议错误（含重定向、registry id 对不上）都不触发自清理，私钥原样保留。
 
 macOS 上把私钥放进 Keychain 的"更强"方案被否决：fork 刚刚因为 Keychain 授权弹窗卡住主线程吃过亏（FORK.md 「打包与签名」），而且无头 server 没有 Keychain。
 
@@ -1068,7 +1071,9 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
   - **撤销链**（函数与行号见 Q2「撤销链」）：移除设备后调用 `devices.refresh`，该设备的会话行 `revokedAt` 被写入；吊销后同一个 DPoP 令牌的 HTTP 请求得 401（`SessionStore.verify`）；用旧的 WebSocket ticket 升级连接被拒（`WebSocketSessionRevokedError`）；已连接的 socket 被关闭；已被撤销的会话不能续期；推送注册随之删除。**两条并发测试 R1（对账与签发）、R2（对账与续期，两个顺序）**，`Deferred` 驱动、不 sleep：对账之后不会再签出该设备的会话，对账前后签出的会话都被吊销。
   - **`signAssertion` 边界**：非 `desktop-bootstrap` 主体被拒（配对浏览器含 `access:write`、其他电脑的 `t3x-device:computer:…` 会话、手机会话各一例）；带或不带 `x-forwarded-*` 头都不改变结果；目标不在服务端清单、目标是自己、清单过期各被拒；限速。
   - **手机 scope**：手机会话缺 `access:write` 与 `relay:write`；请求更宽的 scope 时被取交集；手机会话调用 `devices.*` 被拒。
-  - **管理边界**：`devices.invite/remove/rename/status/subscribe` 对配对浏览器（有 `access:write`）和设备会话一律 `NotLocalOwner`；本机 `t3x devices` CLI 不经 HTTP 就能做同样的事。
+  - **管理边界**：`devices.invite/remove/rename/status/subscribe` 对配对浏览器（有 `access:write`）和设备会话一律 `NotLocalOwner`；本机 `t3x devices` CLI 不经 HTTP 就能做同样的事。 手机会话没有 `access:write`，调受保护的 `devices.*`（例如 `invite`、`signAssertion`）时先被 scope 检查拦下（`EnvironmentAuthorizationError`），到不了 `NotLocalOwner`；只读的 `devices.status` 才返回 `NotLocalOwner`。两层都算拒绝。
+  - **自清理与私钥**：被移除或 `leave` 之后，私钥、membership、清单、设备会话全部清除，再加入得到新的设备 id；连不上、5xx、registry id 对不上、重定向都不自清理，私钥还在。
+  - **注册表不跟随重定向**：注册表客户端对任何 3xx（304 除外）按协议错误处理，不会向别的 origin 发出请求，也不会清理或改动 membership 与清单。
   - **7 天上限与时钟**：用 `TestClock` 推进到 24 小时 → `staleness: "warn"`；推进到 7 天 → `/oauth/t3x-device` 返回 503 `list_expired`，同步成功后恢复；本机使用与配对链接在过期状态下不受影响。**已签发的会话最长再活 1 小时**：清单过期之前签发的会话 1 小时到期后不能续期（续期是新的 `/oauth/t3x-device`，得 503），设置页的告警文案写明这一点。**时钟回拨**：`now < fetchedAt`（回到上次同步之前）按陈旧处理并告警，有测试；回拨到 `fetchedAt` 之后不检测（已接受：做到这一步的人已经在这台电脑上，第 10 节 #3）。
   - 其他：`replay`、`audience_mismatch`、`time_window`、`key_mismatch`、`device_revoked` 各有反向用例；`vp run fork:guard`、`vp run check:changed` 通过。
 - 规模：契约 ≈ 250 行；shared ≈ 450 行；server ≈ 1,800 行（含 `TunnelListener.ts`）；测试 ≈ 2,400 行。

@@ -24,6 +24,8 @@ export interface FakeRegistryState {
   forgetCaller: boolean;
   /** Answer every signed call with this registry error code. */
   rejectWith: string | undefined;
+  /** Answer every call with this client error, as the real client would raise it. */
+  failWith: RegistryClient.RegistryClientError | undefined;
   readonly calls: Array<{ readonly op: string; readonly detail?: unknown }>;
   /** The invite string `join` accepts. */
   invite: string | undefined;
@@ -56,6 +58,7 @@ export const layerFakeRegistry = Layer.unwrap(
       reachable: true,
       forgetCaller: false,
       rejectWith: undefined,
+      failWith: undefined,
       calls: [],
       invite: undefined,
     };
@@ -65,6 +68,7 @@ export const layerFakeRegistry = Layer.unwrap(
       Effect.fail(new RegistryClient.RegistryClientError({ kind: "unreachable" }));
     const gate = (target?: { readonly deviceId: string }) => {
       if (!state.reachable) return unreachable();
+      if (state.failWith !== undefined) return Effect.fail(state.failWith);
       if (state.rejectWith !== undefined) return rejected(state.rejectWith);
       if (target !== undefined && state.forgetCaller) return rejected("device_unknown", 401);
       return Effect.void;

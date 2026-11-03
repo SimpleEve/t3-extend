@@ -13,6 +13,7 @@ import { generateDeviceKey } from "@t3tools/shared/forkDeviceKeys/jws";
 import { signRequestProof } from "@t3tools/shared/forkDeviceKeys/proof";
 import { assert, describe, it } from "@effect/vitest";
 import * as Clock from "effect/Clock";
+import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -35,6 +36,57 @@ const layerLive = layerMemoryWith(
     Layer.provideMerge(layerRegistryProcess),
   ),
 );
+
+/** The same registry process, until a test points the client at a server of its own. */
+class Redirect extends Context.Service<Redirect, { port: number | undefined }>()(
+  "t3/fork/deviceKeys/RegistryClient.live.test/Redirect",
+) {}
+
+const layerRedirectable = Layer.unwrap(
+  Effect.sync(() => {
+    const redirect: { port: number | undefined } = { port: undefined };
+    const process = Layer.effect(
+      RegistryProcess,
+      Effect.gen(function* () {
+        const real = yield* RegistryProcess;
+        return {
+          sent: real.sent,
+          invite: real.invite,
+          get port() {
+            return redirect.port ?? real.port;
+          },
+        };
+      }),
+    ).pipe(Layer.provide(layerRegistryProcess));
+    return Layer.merge(
+      layerMemoryWith(
+        RegistryClient.layer.pipe(Layer.provide(layerRegistryHttp), Layer.provideMerge(process)),
+      ),
+      Layer.succeed(Redirect, redirect),
+    );
+  }),
+);
+
+const listen = (handler: NodeHttp.RequestListener) =>
+  Effect.acquireRelease(
+    Effect.promise(
+      () =>
+        new Promise<NodeHttp.Server>((resolve) => {
+          const server = NodeHttp.createServer(handler);
+          server.listen(0, "127.0.0.1", () => resolve(server));
+        }),
+    ),
+    (server) =>
+      Effect.sync(() => {
+        server.closeAllConnections();
+        server.close();
+      }),
+  );
+
+const portOf = (server: NodeHttp.Server) => {
+  const address = server.address();
+  return typeof address === "object" && address !== null ? address.port : 0;
+};
 
 const start = Effect.gen(function* () {
   return {
@@ -272,5 +324,63 @@ describe("against the real registry", () => {
         assert.equal(yield* post(true), 400);
         assert.equal(yield* post(false), 201);
       }).pipe(Effect.provide(layerLive)),
+  );
+
+  it.live("never follows a redirect from the registry, whatever it answers", () =>
+    Effect.gen(function* () {
+      const { registry, client, service, directory, identity } = yield* start;
+      const redirect = yield* Redirect;
+      yield* service.join({ invite: registry.invite("computer"), name: "Studio" });
+      const key = Option.getOrThrow(yield* identity.peek);
+      const before = yield* directory.state;
+      const target = {
+        origin: REGISTRY_ORIGIN,
+        registryId: Option.getOrThrow(before.membership).registryId,
+        deviceId: key.id,
+        privateKey: key.privateKey,
+      };
+
+      const elsewhere: Array<string> = [];
+      const other = yield* listen((req, res) => {
+        elsewhere.push(`${req.method} ${req.url} proof=${req.headers["t3x-proof"] !== undefined}`);
+        res.statusCode = 404;
+        res.end();
+      });
+      let status = 301;
+      // The body says "unknown device", which would wipe this computer if a redirect counted as an answer.
+      const registryStandIn = yield* listen((_req, res) => {
+        res.statusCode = status;
+        res.setHeader("location", `http://127.0.0.1:${portOf(other)}/elsewhere`);
+        res.setHeader("content-type", "application/json");
+        res.end('{"error":"device_unknown"}');
+      });
+      redirect.port = portOf(registryStandIn);
+
+      for (status of [301, 307]) {
+        const calls = {
+          info: yield* client.info(REGISTRY_ORIGIN).pipe(Effect.flip),
+          list: yield* client.listDevices(target, undefined).pipe(Effect.flip),
+          invite: yield* client.createInvite(target, "phone").pipe(Effect.flip),
+        };
+        for (const error of Object.values(calls)) {
+          assert.deepEqual(
+            [error.kind, error.status, error.code],
+            ["protocol", status, "redirect"],
+          );
+        }
+        assert.equal(
+          (yield* service.invite("phone").pipe(Effect.flip)).reason,
+          "registry_rejected",
+        );
+        const synced = yield* directory.sync;
+        assert.equal(synced.state, "joined");
+      }
+
+      assert.deepEqual(elsewhere, []);
+      const after = yield* directory.state;
+      assert.deepEqual(after.membership, before.membership);
+      assert.deepEqual(after.list, before.list);
+      assert.equal(Option.getOrThrow(yield* identity.peek).id, key.id);
+    }).pipe(Effect.provide(layerRedirectable), Effect.scoped),
   );
 });
