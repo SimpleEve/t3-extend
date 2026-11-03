@@ -49,7 +49,8 @@ describe("deviceAdvertisedEndpoints", () => {
       deviceAdvertisedEndpoints({ deviceUrl: "https://mac.t3.example.com/", existing: [] }),
     ).toMatchObject([
       {
-        id: "self-host-device:https://mac.t3.example.com/",
+        // The settings page lists only `self-host:` ids while network access is off.
+        id: "self-host:device:https://mac.t3.example.com/",
         label: "mac.t3.example.com",
         httpBaseUrl: "https://mac.t3.example.com/",
         reachability: "public",

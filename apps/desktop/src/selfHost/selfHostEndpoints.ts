@@ -60,7 +60,8 @@ export function deviceAdvertisedEndpoints(input: {
   if (input.existing.some((endpoint) => endpoint.httpBaseUrl === deviceUrl)) return [];
   return [
     createAdvertisedEndpoint({
-      id: `self-host-device:${deviceUrl}`,
+      // The `self-host:` prefix is what the settings page keeps listing while network access is off.
+      id: `${SELF_HOST_ENDPOINT_ID_PREFIX}device:${deviceUrl}`,
       label: new URL(deviceUrl).host,
       provider: DEVICE_ENDPOINT_PROVIDER,
       httpBaseUrl: deviceUrl,
