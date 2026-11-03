@@ -91,11 +91,6 @@ export const devicesCommands = {
     tag: FORK_DEVICE_KEYS_WS_METHODS.rename,
     concurrency: serial,
   }),
-  refresh: createEnvironmentRpcCommand(connectionAtomRuntime, {
-    label: "environment-data:devices:refresh",
-    tag: FORK_DEVICE_KEYS_WS_METHODS.refresh,
-    concurrency: serial,
-  }),
 };
 
 const signAssertion = createEnvironmentRpcCommand(connectionAtomRuntime, {

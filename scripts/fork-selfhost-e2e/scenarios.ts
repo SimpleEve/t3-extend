@@ -191,12 +191,16 @@ export const scenarios: ReadonlyArray<Scenario> = [
       const a = await joinedComputer(world, "A");
       world.a = a;
       const watcher = await a.watch();
-      // A's own list can show itself offline for a while (it synced before the tunnel was up and the
-      // registry answered 304 since); the tunnel status and the address are what this scenario checks.
       const snapshot = await watcher.waitFor(
         "A's tunnel connected",
         90_000,
         (s) => s.status.state === "joined" && s.status.tunnel.status === "connected",
+      );
+      // The registry marks a computer online once its tunnel has logged in; every sync returns the
+      // full list, so one more sync (asked for now, not at the next 60 s tick) must show A online.
+      await a.refresh();
+      await watcher.waitFor("A's own list to show itself online", 30_000, (s) =>
+        s.devices.some((device) => device.self && device.online === true),
       );
       const url = need(snapshot.status.url ?? undefined, "A's address");
       checkEqual(url, tunnelUrl(world, "a"), "A's public address");

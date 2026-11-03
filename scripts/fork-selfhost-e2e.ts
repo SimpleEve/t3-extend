@@ -72,7 +72,10 @@ const cleanup = (): Promise<void> => {
   cleaning ??= (async () => {
     await processes.stopAll();
     if (stack !== undefined && !(flags.keep && !failed)) await stack.down();
-    if (!failed && !flags.keep) NodeFS.rmSync(workDir, { recursive: true, force: true });
+    // A run that failed before the stack was up (a bad flag, no Docker) has no logs worth keeping.
+    if ((!failed && !flags.keep) || stack === undefined) {
+      NodeFS.rmSync(workDir, { recursive: true, force: true });
+    }
   })();
   return cleaning;
 };
@@ -178,7 +181,11 @@ process.stdout.write(`  total ${total.toFixed(1)} s\n`);
 
 await cleanup();
 if (failed) {
-  process.stdout.write(`\nFAILED. Logs and homes are in ${workDir}\n`);
+  process.stdout.write(
+    stack === undefined
+      ? "\nFAILED before the stack was up.\n"
+      : `\nFAILED. Logs and homes are in ${workDir}\n`,
+  );
 } else if (flags.keep) {
   process.stdout.write(
     `\nPASSED. Kept ${workDir} and the compose project ${flags.project}; remove the project with \`docker compose -p ${flags.project} down -v\`.\n`,

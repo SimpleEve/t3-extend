@@ -243,53 +243,88 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 
 ## 自建连接
 
-用自己的 VPS（frps + Caddy）代替 T3 Connect。部署包和中文文档在 `infra/self-host/`，用户说明在 `docs/user/remote-access.md` 的 "Your own public address" 一节。设备把自建地址当作一条普通的 `Bearer` 路由，配对沿用 `https://host/pair#token=<一次性码>`。不自托管 `infra/relay`，不复用 `providerKind: "t3_relay"`。
+用自己的 VPS（registry + frps + Caddy）代替 T3 Connect，电脑和手机互相连接，不经过官方 relay 和 Cloudflare。设计和每个决定的理由在 `research/self-host-device-keys.md`，不变的约束在 `docs/internals/self-hosted-devices.md`。
 
-- contracts：`ServerDirectEndpointKind` 加了 `"public"`，这是唯一的 contracts 改动。旧客户端通过 `ForwardCompatibleArray` 跳过这一项（`packages/contracts/src/server.test.ts` 有用例）。
-- 公网地址的规范化、环境变量名、文件格式和桌面 bridge 类型放在 `packages/shared/src/selfHost.ts`。只接受不带路径的 `https://` origin。
-- server：`environment/PublicUrls.ts` 合并 `T3CODE_PUBLIC_URLS` 和保存的文件（默认 `<stateDir>/public-urls.json`，可以用 `T3CODE_PUBLIC_URLS_FILE` 指定）。每次读取 server config 时重新读文件，所以增删地址不用重启。`DirectEndpoints` 把这些地址上报为 `"public"`。
-- CLI：`cli/publicUrlFlags.ts` 定义 `--public-url`（可重复，替换保存的列表）和 `--clear-public-urls`，`serve`、`start`、默认命令和 `up` 都能用。`t3 pair --base-url` 复用 `cli/auth.ts` 的 flag，先用 descriptor 确认地址指向的是这台 server，再打印二维码。
-- 认证限速：`auth/AuthAttemptLimiter.ts` 是一个全局 HttpRouter middleware，作用于会消耗配对码的三个端点：`POST /oauth/token`、`POST /api/auth/browser-session`（只统计 401，400 不算）和 `POST /oauth/mcp/decision`（MCP 批准页把错误配对码也报成 400，所以统计 400）。`/oauth/mcp/approval` 只读取请求详情，不消耗配对码。按客户端分桶：有 `X-Forwarded-For` 时取最右一项（反代追加的那一跳），否则用 socket 地址；来自 loopback 又没有转发头的请求（桌面 bootstrap、本机 CLI）不计数。每个客户端 1 分钟内失败 20 次只锁它自己 60 秒，期间返回 429 和 `retry-after`。最多跟踪 10,000 个客户端，超出时丢掉最久没失败的那个。配对码 60 位、一次性、5 分钟过期，所以限速只挡噪音，不是防暴力破解的手段。
-- client-runtime：`mergeLearnedRoutes` 只接受 https 的 `"public"` 地址，排序沿用 `ROUTE_KIND_RANK`（局域网和 tailnet 优先，然后是 public，最后是 relay），supervisor 的预检和回切逻辑不变。mobile 用的是同一个 registry，不需要改。
-- desktop：`selfHost/DesktopSelfHost.ts` 把地址存在 `<stateDir>/public-urls.json`，主后端通过 `T3CODE_PUBLIC_URLS_FILE` 读同一个文件。隧道命令存在 `self-host-tunnel.json`，由 `selfHost/ManagedTunnel.ts` 托管：用登录 shell 运行，退出后指数退避重启（1 秒起，最长 60 秒），关闭开关或退出应用时停止整个进程组。只有本机渲染进程的 `window.t3xSelfHostBridge` 能访问它，没有任何 RPC 入口。
-- web：`components/settings/SelfHostSettings.tsx` 和 `fork/selfHostStore.ts`。中文译文在 `catalogs/zh-Hans/sharing.ts`。这一块只在桌面端渲染（没有 `t3xSelfHostBridge` 时返回 null），所以纯浏览器里的 Settings → Sharing & access 看不到它，要在 Electron 里验证。
+两种方式，可以同时存在：
 
-上游文件里的接线（都带 `// fork:`）：
+- **你的服务器**（默认，每台设备一把密钥）：电脑和手机各有一把 P-256 密钥，VPS 的 registry 只保存公钥、邀请和子域名。电脑用自签的 ticket 登录 frps，把自己挂在 `<名字>.<域名>` 上；手机和别的电脑用短期的设备通行证换一个绑定自己 DPoP 密钥的会话。客户端用 `"t3x-device"` 授权 profile，**失败即阻断**，永远不会回落到官方 relay 或 Bearer。
+- **公网地址**（Advanced，旧方案）：自己配 frps/frpc 和反代，把一个 https 地址当作普通 `Bearer` 路由，配对沿用 `https://host/pair#token=<一次性码>`。服务器那一半在 `infra/self-host/advanced/`，设置里收在 Advanced 下。
 
-1. `packages/contracts/src/server.ts`：`ServerDirectEndpointKind`。
-2. `packages/client-runtime/src/connection/routes.ts`：`mergeLearnedRoutes` 里的 https 检查。
-3. `apps/server/src/environment/DirectEndpoints.ts`：取 `PublicUrls`，在返回前追加 `"public"` 地址。
-4. `apps/server/src/server.ts`：两处 import；`DirectEndpoints.layer` 提供 `PublicUrls.layer`；`layerMakeRoutes` 提供限速 middleware。
-5. `apps/server/src/cli/config.ts`：`sharedServerCommandFlags` 展开 `publicUrlFlags`。
-6. `apps/server/src/cli/server.ts`：handler 的参数类型，以及 `resolveServerConfig` 之后调用 `applyPublicUrlFlags`。
-7. `apps/server/src/cli/up.ts`：flag 和 handler。
-8. `apps/server/src/cli/auth.ts`：`baseUrlFlag` 改为导出。
-9. `apps/server/src/cli/pair.ts`：import、两个错误类和 `resolveBaseUrlPairingBase`、flag、handler 里的分支。
-10. `apps/desktop/src/main.ts`：`layerDesktopFoundation` 加入 `DesktopSelfHost.layer`。
-11. `apps/desktop/src/preload.ts`：暴露 `t3xSelfHostBridge`。沙箱 preload 的 `require` 解析不了 workspace 包，所以运行时值只能从相对模块导入，bridge 名在 `selfHost/selfHostChannels.ts` 里另存一份，`selfHost/preloadSandbox.test.ts` 检查导入并比对两边的值。
-12. `apps/desktop/src/ipc/DesktopIpcHandlers.ts`：调用 `installSelfHostIpc()`。
-13. `apps/desktop/src/ipc/methods/serverExposure.ts`：`getAdvertisedEndpoints` 追加自建地址，生成配对二维码时可以选到它们；加入了自建服务器时还追加这台电脑自己的设备地址（见"客户端：每设备密钥方案"）。
-14. `apps/desktop/src/backend/DesktopBackendConfiguration.ts`：主后端的 env 加上 `T3CODE_PUBLIC_URLS_FILE` 和 `T3CODE_PUBLIC_URLS`（合并 `T3CODE_DESKTOP_HTTPS_ENDPOINTS`）。WSL 后端不加。
-15. `apps/web/src/components/settings/ConnectionsSettings.tsx`：Network access 关闭时也显示自建地址；在 Tailscale 行之后渲染 `<SelfHostSettings />`。
+不自托管 `infra/relay`，不复用 `providerKind: "t3_relay"`。
 
-### VPS 端：每设备密钥方案（阶段 8.1）
+### 代码在哪里
 
-设计见 `research/self-host-device-keys.md`。`infra/self-host/` 现在是新方案的服务器一半：`registry/`（Node 24，只用内置模块，没有 npm 依赖）保存设备公钥、邀请和子域名，同时是 frps 的插件（`:8081`）和 Caddy 的 `ask`（`:8082`）；`setup.sh` 一条命令装好 registry、frps、Caddy 和默认安装的 ntfy（`--no-ntfy` 关闭）；`./t3x` 是运维 CLI（邀请、设备、移除、ntfy 账号）。上游文件没有接线，客户端一半在 8.2 以后。旧的共享 token 方案和它的文档挪进了 `infra/self-host/advanced/`。
+| 位置                                                                                                                                              | 内容                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `infra/self-host/registry/`                                                                                                                       | registry（Node 24，只用内置模块）：邀请、加入、清单、签名请求、frps 插件（`:8081`）、Caddy `ask`（`:8082`）、`cli.mjs` |
+| `infra/self-host/{setup.sh,t3x,docker-compose.yml,Caddyfile,frps.toml}`                                                                           | 部署：一条命令装好 registry、frps、Caddy 和默认安装的 ntfy；`./t3x` 是运维 CLI                                         |
+| `infra/self-host/{docker-compose.test.yml,Caddyfile.test,e2e/}`                                                                                   | 本机试用的覆盖文件（Caddy 自己的 CA，只发布在回环地址）和 8.1 的故障场景脚本                                           |
+| `infra/self-host/advanced/`                                                                                                                       | 旧的共享 token 方案和它的文档                                                                                          |
+| `packages/contracts/src/forkDeviceKeys.ts`                                                                                                        | `devices.*` RPC 和注册表的 JSON 形状                                                                                   |
+| `packages/shared/src/forkDeviceKeys/`、`forkFrp.ts`、`forkFrpFetch.ts`、`selfHost.ts`                                                             | 协议库（JWS、请求签名、通行证、ticket、邀请、子域名、隧道状态文件）；frp 版本表和带 SHA-256 校验的下载；公网地址规范化 |
+| `apps/server/src/fork/deviceKeys/`、`apps/server/src/cli/devices*.ts`                                                                             | 设备身份、清单同步与对账、通行证换会话、隧道监听口、frpc 托管；`t3x devices` CLI                                       |
+| `packages/client-runtime/src/fork/deviceKeys/`                                                                                                    | 阻断式授权、发现、环境同步器、邀请解析                                                                                 |
+| `apps/web/src/fork/`（`YourServerSettings.tsx`、`deviceKeys*.ts`、`DeviceKeysSync.tsx`）、`apps/web/src/components/settings/SelfHostSettings.tsx` | 桌面里的 "Your server" 设置；旧的公网地址和隧道命令                                                                    |
+| `apps/mobile/src/fork/deviceKeys/`                                                                                                                | 手机：密钥、加入、设备页、前台刷新                                                                                     |
+| `apps/desktop/src/selfHost/`                                                                                                                      | 保存公网地址、托管旧方案的隧道命令、把自建地址列为配对端点                                                             |
+| `scripts/fork-fetch-frp.ts`、`scripts/lib/fork-frpc.ts`、`scripts/fork-selfhost-e2e.ts`、`scripts/fork-selfhost-e2e/`                             | 下载 frpc；打包和端到端共用的缓存；本机端到端                                                                          |
 
-- 测试：`vp run fork:selfhost:test`（`node --test "infra/self-host/registry/*.test.mjs"`，必须用通配符，传目录在 Node 24 和 26 上都会失败）。Node 24 镜像里同样通过。`docker-compose.test.yml` 把 Caddy 换成自己的 CA，只发布在 `127.0.0.1:18443` 和 `[::1]:18443`；`e2e/` 里的脚本对着它跑完整的隧道、撤销、故障场景（需要 `NODE_EXTRA_CA_CERTS` 指向 Caddy 根证书，见 `e2e/lib.mjs`）。
-- 镜像全部钉了版本和摘要（frps v0.71.1、Caddy 2.11.7、ntfy v2.36.0、`node:24.18.1-alpine3.24`），`registry/deploy.test.mjs` 检查这一点和"只有 Caddy 发布端口"。升级时一起改。
-- 实测得到的坑：frps 对 Login 插件调用不带 `run_id`，所以 NewProxy、Ping、NewWorkConn 都靠 frpc 在 `user.metas` 里重复带的 ticket 重新验证；`restart: unless-stopped` 不会重启 `unhealthy` 的容器，`healthcheck.mjs` 连续失败后给 PID 1 发 SIGTERM，所以 registry 必须 `init: true`（node 当 PID 1 会忽略 SIGTERM）；Caddy 的 `header_up X-T3x-Client-IP {remote_host}` 会覆盖客户端伪造的同名头，注册表只按它限速；撤销在下一次心跳（Ping）生效，约 20–30 秒。
+### 上游文件里的接线（都带 `// fork:`）
 
-### 客户端：每设备密钥方案（阶段 8.4）
+以 `git grep -n "// fork:"` 为准，同步上游时用它查全；下面是按功能分的清单。
 
-设计见 `research/self-host-device-keys.md` 的 3.13 和阶段 8.4。设备管理的环境用单独的 `"t3x-device"` 授权 profile，**失败即阻断**：授权不会回落到官方 relay 或 Bearer。
+- 公网地址（Advanced）：`packages/contracts/src/server.ts`（`ServerDirectEndpointKind` 加 `"public"`，旧客户端通过 `ForwardCompatibleArray` 跳过）、`packages/client-runtime/src/connection/routes.ts`（`mergeLearnedRoutes` 只接受 https 的 `"public"`）、`apps/server/src/environment/DirectEndpoints.ts`、`apps/server/src/environment/PublicUrls.ts`、`apps/server/src/cli/{config,server,up,auth,pair}.ts` 和 `publicUrlFlags.ts`（`--public-url`、`--clear-public-urls`、`t3 pair --base-url`）、`apps/desktop/src/{main.ts,preload.ts,ipc/DesktopIpcHandlers.ts}`（`DesktopSelfHost`、`t3xSelfHostBridge`；沙箱 preload 解析不了 workspace 包，bridge 名在 `selfHost/selfHostChannels.ts` 里另存一份，`preloadSandbox.test.ts` 比对两边）、`apps/web/src/components/settings/ConnectionsSettings.tsx`。
+- 你的服务器，server：`packages/contracts/src/{index,rpc,clientRpcPermissions}.ts`（并入 `devices.*`）、`apps/server/src/auth/{RpcAuthorization,replayMarkers,AuthAttemptLimiter,http}.ts` 和 `observability/RpcInstrumentation.ts`（权限表、重放标记前缀、通行证端点计入限速、两个响应头助手加 `export`）、`apps/server/src/ws.ts`（RPC handler）、`apps/server/src/server.ts`（层、通行证路由、隧道监听口）、`apps/server/src/binCli.ts`（`devices` 子命令）、`apps/server/src/environment/PublicUrls.ts`（读 `device-public-url.json`）。
+- 你的服务器，桌面：`apps/desktop/src/backend/DesktopBackendConfiguration.ts`（`T3X_FRPC_PATH`）、`apps/desktop/src/ipc/methods/serverExposure.ts`（把这台电脑自己的设备地址列为端点 `self-host:device:<url>`，隧道 connected 且状态文件够新时标 available）。
+- 你的服务器，client-runtime：`connection/{catalog,model,resolver,driver,registry,routes}.ts`、`state/environmentHttpAuth.ts`、`authorization/service.ts`、`rpc/client.ts`；`apps/web/src/lib/runtime.ts` 和 `apps/mobile/src/lib/runtime.ts` 提供真实的 `DeviceKeyAuthorization`；`packages/{shared,client-runtime}/package.json` 加 exports。
+- 你的服务器，界面：`apps/web/src/components/{AppSidebarLayout,CommandPalette}.tsx`、`apps/web/src/components/settings/{ConnectionsSettings,settingsSearch}.ts(x)`；`apps/mobile/src/{App,Stack}.tsx`、`features/settings/{SettingsRouteScreen,components/settings-page-targets}.ts(x)`、`apps/mobile/vite.config.ts`。
 
-- `packages/client-runtime/src/fork/deviceKeys/`：`DeviceKeyAuthorization`（`Context.Reference`，缺省实现永远阻断）、`discovery.ts`（先注册表、再 URL 检查、再 well-known 比对，最后才换通行证）、`liveAuthorization.ts`（通行证换会话；`device_unknown` 说明对方还没同步，按 1、2、4、8、16、30 秒退避重试约 75 秒，界面显示"等待那台电脑确认…"，其他错误不重试）、`deviceEnvironmentSync.ts`（把注册表的电脑列表同步成已保存环境，只动 `t3x-device:` 前缀的环境）、`inviteReading.ts`（粘贴或扫描的邀请，加入前只读不发请求，桌面和手机共用）。
-- 盖章是唯一来源：只有 resolver 给 `PreparedConnection` 盖 `authorizer: "t3x-device"`；`staticGuard.test.ts` 规定哪些文件可以调用 `.authorizeDpop(`、`.authorizeDpopHttp(`、`.renewDpopBeforeExpiry(`，新增调用点会让它失败。`DeviceEnvironmentIndex` 是第二道防线：已登记的设备环境即使被漏盖章，也拿不到 relay 令牌。它不存状态，每次都读已保存连接的目录（`registry.entries`，按 `t3x-device` 档案和 `t3x-device:` 连接 id 判断），所以重启后恢复的、或刚注册的设备环境不需要等任何一轮同步就能被识别；目录由 `connection/registry.ts` 的 `make` 在造出服务之前绑给它（`bindDeviceEnvironmentIndex`，registry 的 scope 关闭时解绑；同一进程里有多个 registry 时各自的目录都会查），之后才可能有连接启动。web 和 mobile 创建索引时打开 `failClosedUntilBound`：还没有任何目录绑定时，relay 授权对所有环境都拒绝（可重试的 `ConnectionTransientError`，不会退到 relay）；默认的索引（没接入设备功能的运行时、测试）不变。
-- 配对链接里的设备地址（端点 id 必须以 `self-host:` 开头，网络访问关闭时设置页只列出这类端点）：桌面主进程从 `<T3 home>/userdata/device-public-url.json` 读（服务器按 membership 写，离开时删），不是自己的 `stateDir`，因为桌面开发模式下没有 `T3CODE_HOME` 时自己的 `stateDir` 是 `dev/`，而服务器总是拿到显式的 home，用 `userdata/`。桌面：渲染进程没有设备密钥，通行证由本机 server 的 `devices.signAssertion` 签。`apps/web/src/fork/deviceKeysStore.ts` 开一条列表订阅，`DeviceKeysSync` 随应用挂载，没加入过服务器时什么都不跑。设置里在 Sharing & access（路由 `/settings/access`，不是 `/settings/connections`）的 "Your server"，组件在 `apps/web/src/fork/YourServerSettings.tsx`，设置搜索里有对应条目（`your-server`）；旧的公网地址和隧道命令收在 Advanced 里。命令面板的 "Invite a device" 只在桌面端出现。
-- 手机：`apps/mobile/src/fork/deviceKeys/`。密钥在 SecureStore（静态加密，不是不可导出；iOS 用 `WHEN_UNLOCKED_THIS_DEVICE_ONLY`，不进备份也不换机；Android 靠 expo-secure-store 插件把 `SecureStore` 排除出备份，已在 APK 的 manifest 里核对过）。注册表请求用 `expo/fetch`，因为 React Native 的全局 `fetch` 不管 `redirect: "manual"` 都会跟随重定向，`deviceSync.ts` 是不依赖 Expo 的规则层，所有存储、网络、时钟都注入，所以能用 Node 单测；`installDeviceKeysSync.ts` 只在启动和回到前台时刷新（两次之间至少 30 秒），没有后台轮询。页面是只读的：手机不邀请也不移除。
-- 界面规则：邀请的有效期显示补零的 24 小时制绝对时间（"有效至 01:14"），不倒数。"连不上服务器"提示和"上次出现 X 前"用一个只触发一次的 `setTimeout` 走到下一个变化时刻（`fork/useClockWindow.ts`、上游的 `useRelativeTimeState`），没有 interval，页面一直开着也会自己出现；不要在渲染里直接写 `Date.now()` 或 `formatRelativeTimeLabel(...)`，编译器会按入参把结果缓存住。服务器每次同步成功都推一次快照（清单没变也推，`DeviceDirectory.ts`），所以界面直接用快照里的状态。
-- 本机端到端的坑：Electron 在隔离的 `HOME` 下首次用到系统钥匙串会卡在 `SecItemAdd` 的授权弹窗里，主线程被阻塞，Chromium 的调试端口随后也不再响应。必须加 `--use-mock-keychain`，不要去点那个弹窗。`agent-browser` 附加到这个调试端口会让它卡住，改用 `--remote-debugging-pipe` 自己说 CDP。桌面 dev 的内置 server 不注册 `Replay (dev)`，所以不能把默认模型换成它，端到端里不建对话就不会花钱。8.3 的隧道（frpc）不在这个分支里，其他电脑在注册表里显示为离线，也不会生成已保存环境。
+### 你的服务器怎么工作
+
+- **服务器端**：`setup.sh` 装好整套，只有 Caddy 发布 80 和 443，frps 的控制连接走 Caddy 的 `/~!frp`（wss），7000 不对外。registry 同时是 frps 的插件和 Caddy 的 `ask`，只放行登记过的子域名。镜像全部钉了版本和摘要（frps v0.71.1、Caddy 2.11.7、ntfy v2.36.0、`node:24.18.1-alpine3.24`），`registry/deploy.test.mjs` 检查这一点和"只有 Caddy 发布端口"，升级时一起改。frp 版本和各平台归档的 SHA-256 在 `forkFrp.ts`，测试检查它和 compose 里的 frps 标签一致。
+- **电脑端**：server 托管 frpc（`DeviceTunnel.ts`），frpc 的 `localPort` 指向只绑 `127.0.0.1` 的隧道监听口（系统分配端口），不是主端口。ticket 由电脑自己签，绑定设备 id、子域名和登记代次，24 小时有效、12 小时轮换。每 60 秒向 registry 同步一次设备清单，`GET /v1/devices` 每次都返回完整清单（`online` 和上次出现时间随时间变，`rev` 不变，所以没有条件请求），每次同步成功都推一次快照，界面直接用快照里的状态。同步失败只记 warn 并保留旧清单。
+- **撤销**：`./t3x revoke` 或在桌面里移除后，registry 在 frpc 的下一次心跳（30 秒）拒绝它；电脑自己的 60 秒同步发现被移除时，会自清理（状态变成 `removed`，成员身份、密钥、地址清掉，隧道 `disabled`）。其他电脑和手机的会话在各自下一次同步时撤销，已经建立的连接约 20–30 秒内断开。电脑离线时错过的移除，要等它重新连上服务器才撤销。
+- **清单的新鲜度**：3 分钟没同步，设置页提示"连不上服务器"；24 小时后警告；7 天后不再接受新的设备通行证，同步上以后恢复。已签发的会话最长再有效 1 小时。
+- **子域名**：从名字派生，已移除电脑的子域名留墓碑，不再分配给别人，重新加入的同一台电脑拿到 `mac-2` 这样的新名字；`./t3x release <子域名>` 才能收回。
+- **客户端**：设备管理的环境用 `"t3x-device"` profile。`packages/client-runtime/src/fork/deviceKeys/`：`DeviceKeyAuthorization`（`Context.Reference`，缺省实现永远阻断）、`discovery.ts`（先注册表、再 URL 检查、再 well-known 比对，最后才换通行证）、`liveAuthorization.ts`（`device_unknown` 说明对方还没同步，按 1、2、4、8、16、30 秒退避重试约 75 秒，界面显示"等待那台电脑确认…"，其他错误不重试）、`deviceEnvironmentSync.ts`（只动 `t3x-device:` 前缀的环境）、`inviteReading.ts`（粘贴或扫描的邀请，加入前只读不发请求，桌面和手机共用）。盖章只来自 resolver，`staticGuard.test.ts` 规定哪些文件可以调用 `.authorizeDpop(`、`.authorizeDpopHttp(`、`.renewDpopBeforeExpiry(`；`DeviceEnvironmentIndex` 是第二道防线，见 `docs/internals/self-hosted-devices.md`。
+- **桌面界面**：设置 → Sharing & access（路由 `/settings/access`）里的 "Your server"（`apps/web/src/fork/YourServerSettings.tsx`，设置搜索条目 `your-server`），旧的公网地址和隧道命令收在 Advanced 里；命令面板的 "Invite a device" 只在桌面端出现。纯浏览器里没有这一块（没有 `t3xSelfHostBridge`，且 `devices.*` 只对桌面 app 自己的会话开放），要在 Electron 里验证。渲染进程没有设备密钥，通行证由本机 server 的 `devices.signAssertion` 签。主进程从 `<T3 home>/userdata/device-public-url.json` 读这台电脑的地址（服务器按 membership 写，离开时删）。
+- **手机**：`apps/mobile/src/fork/deviceKeys/`。密钥在 SecureStore（静态加密，不是不可导出；iOS 用 `WHEN_UNLOCKED_THIS_DEVICE_ONLY`，不进备份也不换机；Android 靠 expo-secure-store 插件把 `SecureStore` 排除出备份）。注册表请求用 `expo/fetch`，因为 React Native 的全局 `fetch` 不管 `redirect: "manual"` 都会跟随重定向。`deviceSync.ts` 是不依赖 Expo 的规则层，所以能用 Node 单测；`installDeviceKeysSync.ts` 只在启动和回到前台时刷新（两次之间至少 30 秒），没有后台轮询。页面只读：手机不邀请也不移除。
+- **界面规则**：邀请的有效期显示补零的 24 小时制绝对时间（"有效至 01:14"），不倒数。"连不上服务器"提示和"上次出现 X 前"用一个只触发一次的 `setTimeout` 走到下一个变化时刻（`fork/useClockWindow.ts`、上游的 `useRelativeTimeState`），没有 interval；不要在渲染里直接写 `Date.now()` 或 `formatRelativeTimeLabel(...)`，编译器会按入参把结果缓存住。
+- **无头机器**：没有渲染进程，用 `t3x devices join / list / invite / remove / leave / tunnel`。`list` 只读本地保存的清单，不联网（同步由 server 做；CLI 另起一次同步会和 server 自己的同步并行，还可能删掉设备密钥）；`tunnel install` 下载钉住版本的 frpc 到 `<T3 home>/bin`，`tunnel status [--json]` 看 frpc 和隧道。数据目录参数是 `--base-dir`（等价 `T3CODE_HOME`）。
+
+### 环境变量
+
+| 变量                                               | 作用                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `T3X_FRPC_PATH`                                    | 用哪个 frpc。桌面后端设成 `<resourcesPath>/bin/frpc`（DMG 内置的那个）。文件和目录必须属于当前用户或 root、别人不可写，并且 `-v` 恰好输出钉住的版本。没通过检查的候选会被跳过，回落到 `<T3 home>/bin/frpc`（`t3x devices tunnel install` 写的就是这里）。从不查 PATH。 |
+| `T3X_FRP_BASE_URL`                                 | 下载 frpc 的镜像前缀（放同样的文件名）。只改字节从哪里来，SHA-256 照样校验。`tunnel install`、`fork-fetch-frp.ts`、打包脚本都认。                                                                                                                                      |
+| `T3X_TUNNEL_CA_FILE`                               | 让 frpc 额外信任一个 CA 文件（`transport.tls.trustedCaFile`）。只给本机试用和端到端用，对着 Caddy 自己的 CA。                                                                                                                                                          |
+| `T3X_TEST_TICKET_LIFETIME_SECONDS`                 | 仅测试：ticket 的寿命，1–86400 秒的整数，其他值一律用默认的 24 小时。注册表也拒绝 `exp - iat > 86400` 和 `iat` 超前当前时间 300 秒以上的 ticket。                                                                                                                      |
+| `T3X_DATA_DIR`、`T3X_COMPOSE_FILES`、`T3X_PROJECT` | `setup.sh` 和 `./t3x` 的本地试用开关，见 `infra/self-host/README.md`。                                                                                                                                                                                                 |
+| `T3CODE_PUBLIC_URLS`、`T3CODE_PUBLIC_URLS_FILE`    | 旧的公网地址方式。                                                                                                                                                                                                                                                     |
+
+### 测试
+
+- `vp run fork:selfhost:test`：`node --test "infra/self-host/registry/*.test.mjs"`，必须用通配符，传目录在 Node 24 和 26 上都会失败。Node 24 镜像里同样通过。
+- `vp run fork:selfhost:e2e`：本机端到端，14 个场景，约 2.5–3 分钟。需要 Docker Desktop；frpc 来自 `release/fork-cache/`（没有就下载，离线时 `--frpc-path <文件>`）。用法：`vp run fork:selfhost:e2e [--port 18443] [--project t3x-e2e] [--frpc-path <文件>] [--keep]`（参数直接跟在后面，不要加 `--`）。
+  - 它起 `infra/self-host` 的测试栈（compose 项目 `t3x-e2e`，只发布在 `127.0.0.1:<port>` 和 `[::1]:<port>`），用这个 checkout 的 `apps/server/src/bin.ts` 起 A、B、C 三台"电脑"（各自一个临时 home、空闲端口、`NODE_EXTRA_CA_CERTS` 和 `T3X_TUNNEL_CA_FILE` 指向从 Caddy 容器取出的根证书），"本机 owner"会话用 `--bootstrap-fd` 传随机 token 再走真实的 `POST /oauth/token`，手机是一个 Node 脚本（shared 协议库，私钥只在内存里）。不写钥匙串、不碰 `~/.t3` 和 fork 的真实 home。
+  - 端口默认 18443，被占就换一个空闲的；`--port` 指定且被占则报错。`docker-compose.test.yml` 自己写死了 18443，换端口靠脚本写在临时目录里的覆盖文件，不要改仓库里的那个。
+  - 只停自己启动的 PID，结束（含失败和 Ctrl-C）时 `compose down -v` 并删临时目录。失败时保留日志目录并打印路径，`--keep` 通过时也保留。
+  - 等待只靠事件（进程日志行、`devices.subscribe` 的快照），没有事件可等的才用有总时限的重试。场景执行顺序是 1,2,3,4,5,9,6,8,12,11,13,7,10,14：7（移除 B）必须在 10（重启 Caddy）之前，否则断言的 404 会变成握手失败，原因见设计文档 7.2。
+- 桌面界面的端到端要在 Electron 里做（`test-t3-app`），本机的坑：
+  - 隔离的 `HOME` 下首次用到系统钥匙串会卡在 `SecItemAdd` 的授权弹窗里，主线程被阻塞，Chromium 的调试端口随后也不再响应。必须加 `--use-mock-keychain`，不要去点那个弹窗。
+  - 渲染层要信任 Caddy 的 CA：用 `--ignore-certificate-errors-spki-list=<该证书的 SPKI 哈希>` 定向信任，不要写系统钥匙串，也不要整体 `--ignore-certificate-errors`。
+  - `agent-browser` 附加到 Electron 的调试端口会让它卡住，改用 `--remote-debugging-pipe` 自己说 CDP。
+  - 开发模式下切换"网络访问"会让 app 以退出码 75 退出（`DesktopLifecycle.ts` 的 relaunch），等外层的 dev 进程把它重新拉起，不是崩溃。
+  - 桌面 dev 的内置 server 不注册 `Replay (dev)`，所以不能把默认模型换成它；端到端里不建对话就不会花钱。
+  - Docker 里的栈用 `*.t3.localhost`，渲染层需要 `--host-resolver-rules="MAP *.t3.localhost 127.0.0.1"`。
+
+### 公网地址（Advanced）的实现要点
+
+- 公网地址的规范化、环境变量名、文件格式和桌面 bridge 类型放在 `packages/shared/src/selfHost.ts`，只接受不带路径的 `https://` origin。`environment/PublicUrls.ts` 合并 `T3CODE_PUBLIC_URLS` 和保存的文件（默认 `<stateDir>/public-urls.json`，可以用 `T3CODE_PUBLIC_URLS_FILE` 指定），每次读取 server config 时重新读文件，增删地址不用重启。`DirectEndpoints` 把这些地址上报为 `"public"`，排序沿用 `ROUTE_KIND_RANK`（局域网和 tailnet 优先，然后是 public，最后是 relay）。
+- CLI：`--public-url`（可重复，替换保存的列表）和 `--clear-public-urls`，`serve`、`start`、默认命令和 `up` 都能用。`t3 pair --base-url` 先用 descriptor 确认地址指向的是这台 server，再打印二维码。
+- 认证限速：`auth/AuthAttemptLimiter.ts` 是一个全局 HttpRouter middleware，作用于会消耗配对码的三个端点（`POST /oauth/token`、`POST /api/auth/browser-session`（只统计 401）、`POST /oauth/mcp/decision`（统计 400，因为 MCP 批准页把错误配对码也报成 400）），再加设备通行证端点。按客户端分桶：主监听口有 `X-Forwarded-For` 时取最右一项，否则用 socket 地址，loopback 又没有转发头的请求（桌面 bootstrap、本机 CLI）不计数；隧道监听口的桶是 Caddy 写入的 `X-T3x-Client-IP`，主监听口永远忽略这个头。每个客户端 1 分钟内失败 20 次只锁它自己 60 秒，期间返回 429 和 `retry-after`；最多跟踪 10,000 个客户端。配对码 60 位、一次性、5 分钟过期，所以限速只挡噪音，不是防暴力破解的手段。
+- 桌面：隧道命令存在 `self-host-tunnel.json`，由 `selfHost/ManagedTunnel.ts` 托管：用登录 shell 运行，退出后指数退避重启（1 秒起，最长 60 秒），关闭开关或退出应用时停止整个进程组。只有本机渲染进程的 `window.t3xSelfHostBridge` 能访问它，没有任何 RPC 入口。
 
 ## 手机新建浏览器标签页
 
@@ -356,8 +391,9 @@ vp run fork:dist:android   # → release/fork-android/T3-Extend-<版本>-arm64-v
 macOS 流水线（`scripts/fork-dist-mac.ts`）：
 
 1. `build-desktop-artifact.ts --target dir` 打出未签名（ad-hoc）的 `.app`。
-2. `@electron/osx-sign` 由内向外签名：嵌套的二进制和原生模块、frameworks、helpers、主程序。开启 hardened runtime，不打时间戳（Apple 的时间戳服务只给 Apple 签发的证书加签）。osx-sign 自己查找身份时不带 `-p codesigning`，所以看不到自签名证书。脚本先自己解析出 SHA-1 再传给它，并关掉它的身份校验。
-3. 用 `hdiutil` 打出带 `/Applications` 链接的 UDZO DMG，再对 DMG 签名，然后挂载 DMG，校验里面的 app。签名后和挂载后各校验一次：用 `file` 找出 `.app` 里所有 Mach-O，逐个跑 `codesign --verify --strict`，并检查 Authority 是签名身份、带 runtime flag，有任何一个不满足就失败并列出文件。每次开始前会删掉上一次的 `mac-arm64/`、DMG 和 `.sha256`（`--skip-build` 时保留 `mac-arm64/`）。没有上游 DMG 的背景图和窗口布局。
+2. 把固定版本的 frpc 放进 `.app/Contents/Resources/bin/frpc`（桌面后端的 `T3X_FRPC_PATH` 指向这里；没有这个文件时 server 回落到 `<T3 home>/bin/frpc`）。frpc 由 `scripts/lib/fork-frpc.ts` 提供：默认走 shared 的 `fetchFrpc` 下载并校验固定的 SHA-256，缓存在 `release/fork-cache/frp/v<版本>/<平台>-<架构>/`（已 gitignore，和官方 T3 Code 无关），下次先核对缓存里的摘要和 `frpc -v` 再复用。离线时用 `--frpc-path <文件>` 指定一个本地 frpc，它只检查 `frpc -v` 恰好是固定版本，**不做固定摘要校验**，文件的来源由你负责。镜像沿用 `T3X_FRP_BASE_URL`。`bin` 目录和 frpc 显式设成 0755，`--skip-build` 时同样放入。签名时 frpc 只开 hardened runtime，不带 entitlements（8.0 实测不需要）。
+3. `@electron/osx-sign` 由内向外签名：嵌套的二进制和原生模块、frameworks、helpers、主程序。开启 hardened runtime，不打时间戳（Apple 的时间戳服务只给 Apple 签发的证书加签）。osx-sign 自己查找身份时不带 `-p codesigning`，所以看不到自签名证书。脚本先自己解析出 SHA-1 再传给它，并关掉它的身份校验。
+4. 用 `hdiutil` 打出带 `/Applications` 链接的 UDZO DMG，再对 DMG 签名，然后挂载 DMG，校验里面的 app。签名后和挂载后各校验一次：用 `file` 找出 `.app` 里所有 Mach-O，逐个跑 `codesign --verify --strict`，并检查 Authority 是签名身份、带 runtime flag，有任何一个不满足就失败并列出文件；另外断言 `Contents/Resources/bin/frpc` 存在、在 Mach-O 清单里、文件和 `bin` 目录都是 755，并且 `frpc -v` 输出固定版本。每次开始前会删掉上一次的 `mac-arm64/`、DMG 和 `.sha256`（`--skip-build` 时保留 `mac-arm64/`）。没有上游 DMG 的背景图和窗口布局。
 
 entitlements 在 `packaging/fork-macos/`。主程序用 `entitlements.plist`，内容是 `renderMacPasskeyEntitlements` 去掉 team id、associated-domains、keychain-access-groups 和 passkey 后剩下的项：JIT、unsigned executable memory、disable-library-validation、camera、audio-input。helper 和其他嵌套程序用 `entitlements.inherit.plist`，内容就是 electron-builder 默认的前三项，和上游签名构建一致。
 
