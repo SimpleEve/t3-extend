@@ -451,6 +451,43 @@ describe("ResourceTelemetry", () => {
       ),
   );
 
+  it.effect("a fresh desktop snapshot does not stand in for the first native sample", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const startedAt = DateTime.toEpochMillis(yield* DateTime.now);
+        const sampleCalls = yield* Ref.make(0);
+        const layerNative = NativeTelemetryClient.layerTest({
+          backgroundSnapshots: Stream.never,
+          sampleNow: Ref.update(sampleCalls, (count) => count + 1).pipe(
+            Effect.andThen(Effect.never),
+          ),
+          health: Effect.succeed({
+            status: "healthy",
+            hello: Option.none(),
+            lastSampleAt: Option.none(),
+            lastError: Option.none(),
+            restartCount: 0,
+            sampleIntervalMs: 15_000,
+          }),
+        });
+        // Electron's own processes are already in, as they are while the desktop app is open.
+        const layerDesktop = DesktopTelemetryReceiver.layerTest({
+          latest: Effect.succeedSome(desktopSnapshot(startedAt)),
+        });
+        const layerTelemetry = ResourceTelemetry.layer.pipe(
+          Layer.provide(Layer.mergeAll(layerNative, layerDesktop, ResourceAttribution.layer)),
+        );
+
+        yield* Effect.gen(function* () {
+          const telemetry = yield* ResourceTelemetry.ResourceTelemetry;
+          expect((yield* telemetry.latest).processes.length).toBeGreaterThan(0);
+          yield* Effect.scoped(telemetry.subscribeBackground.pipe(Effect.andThen(Effect.yieldNow)));
+          expect(yield* Ref.get(sampleCalls)).toBe(1);
+        }).pipe(Effect.provide(layerTelemetry));
+      }),
+    ),
+  );
+
   it.effect("atomically subscribes while a desktop update is being rebuilt", () =>
     Effect.scoped(
       Effect.gen(function* () {

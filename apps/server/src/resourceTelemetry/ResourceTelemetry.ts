@@ -443,17 +443,15 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
           ),
           Effect.forkIn(scope),
         );
-        // The cached snapshot answers a subscriber that comes back within the background interval,
-        // so hiding and showing a window never samples faster than that interval.
-        const cached = (yield* Ref.get(state)).latest;
+        // The last native sample answers a subscriber that comes back within the background
+        // interval, so hiding and showing a window never samples faster than that interval. Only
+        // a native sample counts: desktop snapshots keep rebuilding `latest` without one.
+        const lastNative = (yield* Ref.get(state)).nativeSnapshot;
         const [now, interval] = yield* Effect.all([
           Clock.currentTimeMillis,
           nativeClient.backgroundSampleIntervalMs,
         ]);
-        if (
-          cached.processes.length === 0 ||
-          now - DateTime.toEpochMillis(cached.readAt) >= interval
-        ) {
+        if (Option.isNone(lastNative) || now - lastNative.value.sampledAtUnixMs >= interval) {
           yield* nativeClient.sampleNow.pipe(
             Effect.flatMap(ingestNative),
             Effect.ignore,
