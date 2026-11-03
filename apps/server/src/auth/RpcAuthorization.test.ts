@@ -1,5 +1,8 @@
 import {
+  AuthAccessReadScope,
+  AuthAccessWriteScope,
   AuthEnvironmentMaintainScope,
+  FORK_DEVICE_KEYS_WS_METHODS,
   AuthDiagnosticsReadScope,
   AuthFilesystemReadScope,
   AuthProvidersManageScope,
@@ -49,6 +52,25 @@ describe("RPC authorization scopes", () => {
     expect(requiredScopeForRpcMethod(WS_METHODS.serverPrepareTriage)).toBe(
       AuthOrchestrationOperateScope,
     );
+  });
+
+  it("keeps device management behind access scopes, which phone sessions never get", () => {
+    const M = FORK_DEVICE_KEYS_WS_METHODS;
+    for (const method of [M.status, M.subscribe]) {
+      expect(requiredScopeForRpcMethod(method)).toBe(AuthAccessReadScope);
+    }
+    for (const method of [
+      M.join,
+      M.leave,
+      M.invite,
+      M.cancelInvite,
+      M.remove,
+      M.rename,
+      M.refresh,
+      M.signAssertion,
+    ]) {
+      expect(requiredScopeForRpcMethod(method)).toBe(AuthAccessWriteScope);
+    }
   });
 
   it("separates passive terminal observation from operations that can change a shell", () => {

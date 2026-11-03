@@ -62,6 +62,7 @@ import * as PeerLinkRequests from "./peer/PeerLinkRequests.ts";
 import * as PeerLinks from "./peer/PeerLinks.ts";
 import * as PushNotifier from "./fork/push/PushNotifier.ts"; // fork: UnifiedPush notifications
 import * as PushRegistrations from "./fork/push/PushRegistrations.ts"; // fork: UnifiedPush notifications
+import * as DeviceKeysService from "./fork/deviceKeys/DeviceKeysService.ts"; // fork: self-hosted pairing
 import * as PortScanner from "./preview/PortScanner.ts";
 import * as PreviewManager from "./preview/Manager.ts";
 import * as ProcessDiagnostics from "./diagnostics/ProcessDiagnostics.ts";
@@ -562,6 +563,7 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Layer.mock(PeerLinkRequests.PeerLinkRequests)({}),
   Layer.mock(PushNotifier.PushNotifier)({}), // fork: UnifiedPush notifications
   Layer.mock(PushRegistrations.PushRegistrations)({}), // fork: UnifiedPush notifications
+  Layer.mock(DeviceKeysService.DeviceKeysService)({}), // fork: self-hosted pairing
   Layer.mock(PortScanner.PortDiscovery)({ trackAgent: () => () => undefined }),
   Layer.mock(PreviewManager.PreviewManager)({}),
   Layer.mock(ProcessDiagnostics.ProcessDiagnostics)({}),
