@@ -218,6 +218,11 @@ export default {
   "Tailscale IP": "Tailscale IP 地址",
   "Custom HTTPS": "自定义 HTTPS",
   "Custom endpoint": "自定义端点",
+  "Opens the hosted app, no install needed": "打开托管版应用，无需安装",
+  "Devices on the same network": "同一网络里的设备",
+  "Devices on your private network": "你的专用网络里的设备",
+  "Reachable from anywhere": "任何地方都能访问",
+  "Clients on this machine": "这台电脑上的客户端",
   "Need a pairing link?": "需要配对链接？",
   Pair: "配对",
   "On the computer with your code, start T3 Extend or run {command}, then run:":

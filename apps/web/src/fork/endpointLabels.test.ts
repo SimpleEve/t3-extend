@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { endpointLabel } from "./endpointLabels";
+import { endpointHint, endpointLabel } from "./endpointLabels";
 
 describe("endpoint names in the interface language", () => {
   const t = (source: string) => `<${source}>`;
@@ -16,5 +16,20 @@ describe("endpoint names in the interface language", () => {
     ["mac-mini.t3.example.com", "mac-mini.t3.example.com"],
   ])("%s shows as %s", (label, expected) => {
     expect(endpointLabel(t, label)).toBe(expected);
+  });
+});
+
+describe("share hints in the interface language", () => {
+  const t = (source: string) => `<${source}>`;
+
+  it.each([
+    ["Opens the hosted app, no install needed", "<Opens the hosted app, no install needed>"],
+    ["Devices on the same network", "<Devices on the same network>"],
+    ["Devices on your private network", "<Devices on your private network>"],
+    ["Reachable from anywhere", "<Reachable from anywhere>"],
+    ["Clients on this machine", "<Clients on this machine>"],
+    ["Something else", "Something else"],
+  ])("%s shows as %s", (hint, expected) => {
+    expect(endpointHint(t, hint)).toBe(expected);
   });
 });

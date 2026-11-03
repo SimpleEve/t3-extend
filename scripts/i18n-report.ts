@@ -791,6 +791,12 @@ const COMPARED_ALLOWLIST = new Set([
   "apps/web/src/fork/endpointLabels.ts#Tailscale IP",
   "apps/web/src/fork/endpointLabels.ts#Custom HTTPS",
   "apps/web/src/fork/endpointLabels.ts#Custom endpoint",
+  // `endpointShareHint` returns these sentences untranslated; they are translated when drawn.
+  "apps/web/src/fork/endpointLabels.ts#Opens the hosted app, no install needed",
+  "apps/web/src/fork/endpointLabels.ts#Devices on the same network",
+  "apps/web/src/fork/endpointLabels.ts#Devices on your private network",
+  "apps/web/src/fork/endpointLabels.ts#Reachable from anywhere",
+  "apps/web/src/fork/endpointLabels.ts#Clients on this machine",
   // The activity's raw summary, translated only when the row renders.
   "apps/mobile/src/features/threads/ThreadFeed.tsx#Context compacted",
   "apps/web/src/components/chat/MessagesTimeline.tsx#Context compacted",
