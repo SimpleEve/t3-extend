@@ -199,7 +199,8 @@ export function BrowserDeviceToolbar({
         modal={false}
         value={selectedValue}
         onValueChange={selectViewport}
-        items={SELECT_ITEMS}
+        // fork: interface language. The trigger reads labels from `items`.
+        items={SELECT_ITEMS.map((item) => ({ ...item, label: t(item.label) }))}
         disabled={pending}
       >
         <SelectTrigger
