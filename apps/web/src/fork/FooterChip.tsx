@@ -42,10 +42,14 @@ export function FooterChip(props: {
       >
         <span className={FOOTER_TONE_CLASS[tone]}>{icon}</span>
         {density === "icon" ? null : (
+          // Muted by itself, so hovering the button does not darken it; only an item below its
+          // threshold takes a tone.
           <span
-            className={
-              density === "full" ? "tabular-nums" : `tabular-nums ${FOOTER_TONE_CLASS[tone]}`
-            }
+            className={`tabular-nums ${
+              density === "full" || tone === "ok"
+                ? "text-muted-foreground"
+                : FOOTER_TONE_CLASS[tone]
+            }`}
           >
             {density === "full" ? fullLabel : compactLabel}
           </span>

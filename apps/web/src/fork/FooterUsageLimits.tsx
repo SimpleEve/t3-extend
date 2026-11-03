@@ -1,6 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId, ServerProvider } from "@t3tools/contracts";
-import { formatResetsIn, usageWindowLabel } from "@t3tools/shared/usageLimits";
+import { formatDuration, usageWindowLabel } from "@t3tools/shared/usageLimits";
 import { useNavigate } from "@tanstack/react-router";
 import { Atom } from "effect/reactivity";
 import { GaugeIcon } from "lucide-react";
@@ -69,10 +69,7 @@ function LimitsPanel(props: {
             </div>
             {entry.windows.map((window) => {
               const remaining = Math.round(100 - window.usedPercent);
-              const resetsAt = window.resetsAt
-                ? formatUpcomingTimestamp(window.resetsAt, timestampFormat, now)
-                : null;
-              const resetsIn = formatResetsIn(window, now, t);
+              const resetsAt = window.resetsAt ? Date.parse(window.resetsAt) : Number.NaN;
               return (
                 <div key={window.id} className="flex flex-col text-2xs text-muted-foreground">
                   <div className="flex items-baseline justify-between gap-2">
@@ -85,11 +82,14 @@ function LimitsPanel(props: {
                       {t("{remaining}% left", { remaining })}
                     </span>
                   </div>
-                  {resetsAt || resetsIn ? (
+                  {window.resetsAt ? (
                     <span className="truncate tabular-nums">
-                      {[resetsAt ? t("Resets {resetsAt}", { resetsAt }) : null, resetsIn]
-                        .filter(Boolean)
-                        .join(" · ")}
+                      {resetsAt > now
+                        ? t("Resets in {duration} · {time}", {
+                            duration: formatDuration(resetsAt - now, t),
+                            time: formatUpcomingTimestamp(window.resetsAt, timestampFormat, now),
+                          })
+                        : t("resets now")}
                     </span>
                   ) : null}
                 </div>
