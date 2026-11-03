@@ -19,7 +19,7 @@ export function useCommandPaletteDeviceItems(): CommandPaletteActionItem[] {
       searchTerms: ["invite", "device", "phone", "computer", "server", "pair", "join"],
       icon: <UserPlusIcon className={ITEM_ICON_CLASS} />,
       run: async () => {
-        await navigate({ to: "/settings/connections" });
+        await navigate({ to: "/settings/access" });
         requestDeviceInvite();
       },
     },

@@ -11,6 +11,18 @@ export const currentTimeMs = () => Date.now();
 /** The registry list is fetched every minute; three missed rounds is a server that is not answering. */
 const UNREACHABLE_AFTER_SECONDS = 180;
 
+/**
+ * The status stream pushes when the list changes, and the registry answering "no change" refreshes
+ * `fetchedAt` without a push, so the stream's copy can lag behind the status the query last read.
+ */
+export function freshestStatus(
+  streamed: DevicesStatus | undefined,
+  queried: DevicesStatus,
+): DevicesStatus {
+  if (streamed === undefined) return queried;
+  return (queried.fetchedAt ?? 0) > (streamed.fetchedAt ?? 0) ? queried : streamed;
+}
+
 export type ServerNotice =
   | { readonly kind: "unreachable"; readonly minutes: number }
   | { readonly kind: "stale"; readonly hours: number }

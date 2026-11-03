@@ -22,6 +22,7 @@ import {
   describeDevicesError,
   describeInviteProblem,
   describeServerNotice,
+  freshestStatus,
   inviteDeadlineLabel,
   serverNotice,
 } from "~/fork/deviceKeysLogic";
@@ -190,7 +191,7 @@ function JoinedRows({
   const snapshotResult = useAtomValue(devicesSnapshot({ environmentId, input: {} }));
   const snapshot = Option.getOrNull(AsyncResult.value(snapshotResult));
   // The list pushes status along with the devices, so the latest of the two is what is shown.
-  const current = snapshot?.status ?? status;
+  const current = freshestStatus(snapshot?.status, status);
   const notice = serverNotice(current, currentTimeMs());
   const [removing, setRemoving] = useState<DeviceListEntry | null>(null);
   const [leaving, setLeaving] = useState(false);

@@ -2,7 +2,12 @@ import { describe, expect, it } from "vite-plus/test";
 
 import type { DevicesSnapshot } from "@t3tools/contracts";
 
-import { inviteDeadlineLabel, serverNotice, snapshotToView } from "./deviceKeysLogic";
+import {
+  freshestStatus,
+  inviteDeadlineLabel,
+  serverNotice,
+  snapshotToView,
+} from "./deviceKeysLogic";
 
 const NOW = Date.parse("2026-11-03T12:00:00.000Z");
 const seconds = (ms: number) => Math.floor(ms / 1000);
@@ -32,6 +37,22 @@ describe("what the Devices section says about the link to the server", () => {
     [{ fetchedAt: seconds(NOW) + 600, staleness: "fresh" as const }, null],
   ])("%j shows %j", (status, expected) => {
     expect(serverNotice(status, NOW)).toEqual(expected);
+  });
+});
+
+describe("which status the section trusts", () => {
+  const status = (fetchedAt: number | null) =>
+    ({ fetchedAt, staleness: "fresh" }) as Parameters<typeof freshestStatus>[1];
+
+  it.each([
+    // The registry answered "no change" after the stream last pushed: the query's copy is newer.
+    [status(100), status(500), 500],
+    [status(500), status(100), 500],
+    [undefined, status(100), 100],
+    [status(null), status(100), 100],
+    [status(100), status(null), 100],
+  ])("takes the later sync of %j and %j", (streamed, queried, expected) => {
+    expect(freshestStatus(streamed, queried).fetchedAt).toBe(expected);
   });
 });
 

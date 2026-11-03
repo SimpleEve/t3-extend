@@ -35,9 +35,7 @@ describe("the Invite a device palette action", () => {
     await using _screen = await render(<Probe />, { router: false });
     await expect.element(page.getByText("requests: 0")).toBeVisible();
     await userEvent.click(page.getByRole("button", { name: "Invite a device" }));
-    await vi.waitFor(() =>
-      expect(mocks.navigate).toHaveBeenCalledWith({ to: "/settings/connections" }),
-    );
+    await vi.waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith({ to: "/settings/access" }));
     await expect.element(page.getByText("requests: 1")).toBeVisible();
   });
 
