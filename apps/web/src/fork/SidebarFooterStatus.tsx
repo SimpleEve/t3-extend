@@ -15,6 +15,9 @@ import { FooterResources, footerResourcesSize, useFooterResources } from "./Foot
 import { FooterUsageLimits, footerLimitsSize, useFooterLimits } from "./FooterUsageLimits";
 import { useFooterScope } from "./useFooterScope";
 
+// The sidebar footer row's `gap-1`.
+const ROW_GAP_PX = 4;
+
 interface FooterChipSpec {
   readonly key: string;
   readonly size: FooterChipSize;
@@ -101,11 +104,18 @@ export function SidebarFooterStatus(props: {
       ref={(item) => {
         const row = item?.parentElement;
         if (!item || !row) return;
-        const measure = () =>
-          setAvailable(row.getBoundingClientRect().right - item.getBoundingClientRect().left);
+        // The update pill after the chips is pinned to the right edge and never shrinks.
+        const after = item.nextElementSibling;
+        const measure = () => {
+          const next = item.nextElementSibling;
+          const limit = next
+            ? next.getBoundingClientRect().left - ROW_GAP_PX
+            : row.getBoundingClientRect().right;
+          setAvailable(limit - item.getBoundingClientRect().left);
+        };
         measure();
         return observeResize(
-          item.previousElementSibling ? [row, item.previousElementSibling] : [row],
+          [row, item.previousElementSibling, after].filter((element) => element !== null),
           measure,
         );
       }}
