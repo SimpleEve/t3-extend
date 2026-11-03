@@ -8,6 +8,7 @@ import type * as NodeStream from "node:stream";
 import * as NodeCrypto from "node:crypto";
 
 import type { DevicesSnapshot, DevicesStatus } from "@t3tools/contracts";
+import { FORK } from "@t3tools/shared/forkIdentity";
 
 import { openRpc, rpcUrl, SnapshotWatcher, type RpcConnection } from "./rpc.ts";
 import {
@@ -219,7 +220,7 @@ export async function startComputer(
       host: "127.0.0.1",
       desktopBootstrapToken,
       tailscaleServeEnabled: false,
-      tailscaleServePort: 443,
+      tailscaleServePort: FORK.tailscaleServePort,
     })}\n`,
   );
 
