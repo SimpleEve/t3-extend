@@ -6,7 +6,7 @@
 # It needs Docker with the compose plugin, and nothing else: it installs no packages, starts no system
 # service and does not touch the firewall. Open 80/tcp and 443/tcp yourself.
 #
-# For trying it somewhere that must stay untouched (see README "Try it locally"):
+# For trying it on a machine that must stay untouched (see README "本地试用"):
 #   T3X_DATA_DIR   where .env and secrets/ go (default: next to this script)
 #   T3X_COMPOSE_FILES  compose files to use, colon separated, relative to this script (default: docker-compose.yml)
 #   T3X_PROJECT    compose project name (default: t3x)
@@ -46,17 +46,27 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+local_trial=0
+case ":$COMPOSE_FILES:" in
+  *:docker-compose.test.yml:*) local_trial=1 ;;
+esac
+
+# The production compose file publishes 80 and 443 on every interface and asks Let's Encrypt for certificates.
+if [ "$(uname -s)" = Darwin ] && [ "$local_trial" = 0 ] && [ "$dry_run" = 0 ]; then
+  fail "setup.sh is for a Linux VPS. Run on this Mac it would open ports 80 and 443 to your local network and request real certificates. To try it on this machine, see \"本地试用\" in README.md (it needs T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.test.yml)."
+fi
+
+# [[ =~ ]] matches the whole value, newlines included; grep would match any single line of it.
+domain_pattern='^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
+email_pattern='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+
 [ -n "$domain" ] || fail "--domain is required, for example --domain t3.example.com"
 domain=$(printf '%s' "$domain" | tr 'A-Z' 'a-z')
-if ! printf '%s' "$domain" | grep -Eq '^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'; then
+if [[ ! $domain =~ $domain_pattern ]]; then
   fail "'$domain' does not look like a domain name (no scheme, no port, no path)"
 fi
 case "$public_port" in
   '' | *[!0-9]*) fail "--public-port must be a number" ;;
-esac
-local_trial=0
-case ":$COMPOSE_FILES:" in
-  *:docker-compose.test.yml:*) local_trial=1 ;;
 esac
 if [ "$public_port" != 443 ] && [ "$local_trial" = 0 ]; then
   fail "--public-port is only for local trials (T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.test.yml)"
@@ -64,6 +74,10 @@ fi
 # Let's Encrypt wants an address for expiry notices; a local trial uses Caddy's own CA and needs none.
 if [ "$local_trial" = 0 ] && [ -z "$email" ]; then
   fail "--email is required, for example --email you@example.com"
+fi
+# The value goes into .env and into the Caddyfile, so only a plain address is accepted.
+if [ -n "$email" ] && { [ "${#email}" -gt 254 ] || [[ ! $email =~ $email_pattern ]]; }; then
+  fail "--email must be a plain address such as you@example.com"
 fi
 
 origin="https://$domain"

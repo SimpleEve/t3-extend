@@ -385,6 +385,30 @@ Android 流水线（`scripts/fork-build-android-release.ts`）：`APP_VARIANT=pr
 - **worktree 共用**：对话仍指向 `~/.t3/worktrees` 下原来的目录，不移动文件。这些路径记在导入表里（`kind='worktree'`），并且在对话行写入之前先记，所以清理任务不会看到没有标记的导入对话。拒绝删除的规则只在最底层一处：`removeLinkedWorktree`（`apps/server/src/vcs/worktreeRemoval.ts`）整个包在 `whileRemovable` 里，向 `SharedWorktreePolicy`（`apps/server/src/fork/SharedWorktrees.ts`）的 `exclusive` 段里执行。`SharedWorktreePolicy` 是带默认值的 `Context.Reference`，所以约 20 处 `GitVcsDriver.layer` 的调用方和它们的测试都不用改：默认实现只做路径规则（官方 home 的 `worktrees` 目录之下一律拒绝）；服务器在 `server.ts` 里于所有会建 Git 驱动或删 worktree 的层之下提供一次 `SharedWorktrees.layer`，它在构造时建表、把标记一次性读进内存，删除时不再访问数据库，导入在复制阶段开始、任何对话行提交之前，对所选对话引用的全部 worktree 先调 `markShared` 更新内存，再在一个事务里写库（多标记无害：这些 worktree 本来就归 T3 Code，T3 Extend 绝不该删；重复运行幂等），不用重启。读不到标记时失败即关闭：拒绝 T3 Extend 自己 worktree 目录（`config.worktreesDir`）之外的所有删除，并记错误日志；导入的 worktree 不会在自己的目录里，所以自己的清理照常工作。标记未知的状态在下一次导入开始时（`markShared` 内）重试加载，成功后切回已知集合并并入这次的标记。驱动和存储清理在构造时取这个 Reference，调用时用 `provideService` 带进去，不依赖调用方的 fiber 上下文。`T3CodeImport` 构造时 `requireLivePolicy()`，漏掉 `SharedWorktrees.layer` 服务器就起不来（`T3CodeImport.test.ts` 覆盖）。所有删除都经过它：`GitWorkflowService.removeWorktree`（`ws.ts` RPC、`ThreadLaunchService` 取消清理、`WorktreeMcpService` 回退清理）、`PullRequestReviewGuideService`（只删自己在 `config.worktreesDir` 里建的检出）、存储清理。策略有一个单许可的 Semaphore：`exclusive(路径, 破坏性操作)` 持有许可时重新检查内存里的拒绝规则，仍允许才执行；`markShared` 更新内存时拿同一个许可，所以导入不可能在“检查”和“删除”之间抢占路径。许可只包住检查和破坏性操作（`git clean`、`git worktree remove`、Windows 上的 fs 删除），数据库读写（含标记的重试加载）在外面；`removeLinkedWorktree` 整体走它，所以每个调用方都有，存储清理把 `git clean` 和移除放进同一个段（段内为此包含对子模块的有界 Git 只读检查）；Semaphore 不可重入，所以段内不能再开段：段把一个只能在段内拿到的 `SharedWorktreeSection` 凭证交给回调，存储清理用它调不带守卫的 `removeLinkedWorktreeInSection(凭证, …)`，没有环境标记，也不会被泄漏到别的 fiber。默认策略只有路径规则，没有可变状态，不需要锁。存储清理对每个 worktree 的第一步就查一次策略，早于任何对它的 Git 命令或文件操作（`git clean -ffdx` 在 `removeLinkedWorktree` 之前执行，所以只靠最底层不够）；被拒绝的整个跳过。`removeLinkedWorktree` 里那一次留给其他调用方。路径规则：含符号链接解析后在官方目录之下就拒绝（不管有没有标记）；本环境自己的 worktree 目录恰好在官方目录里时（从官方 worktree 里跑 dev server）自己建的仍可删；macOS 和 Windows 上按 NFC 加小写折叠后的路径比较，目标不存在时用最近的存在祖先做 realPath 再接上尾部。`git worktree prune` 不加守卫：它只清掉目录已不存在的 Git 记录，不删任何文件。设置里的 `previousWorktreesDirectories` 不导入，否则会让清理接管官方的目录。
 - **状态记录不进编号迁移**：Effect 的 migrator 遇到重复 id 会失败，并且会跳过不大于已应用最大值的 id，fork 自己加一个 078 会让下一次同步上游出问题。**fork 不新增编号迁移**。导入的 id 映射和运行记录放在服务启动时（`SharedWorktrees.layer` 和导入服务启动时都会跑，可重复执行）`CREATE TABLE IF NOT EXISTS` 建的 `fork_t3code_import_map` / `fork_t3code_import_runs`。做法参照上游 `orchestration_v2_legacy_imports`：每个对话一行进度，`copying` 的下次从头重做该对话，`done` 的跳过。
 
+## 品牌与图标
+
+fork 的标记是自己的：一条竖干加三条向右递增的短划，读作 "E"，不是上游的 T3 字标。唯一来源是 `assets/fork/mark.svg`（128 单位画布，描边 16、圆头，墨迹框 26..102）；应用图标、网页 favicon、Android 图标、DMG 背景、小组件和界面里的字标都从它派生。
+
+```bash
+vp run fork:icons   # scripts/fork-brand-icons.ts && scripts/export-android-icons.ts
+```
+
+- `scripts/fork-brand-icons.ts` 把每个变体自己的 `assets/{dev,nightly,prod}/app-icon.icon` 图层按 `icon.json`（顺序、scale、translation）合成，把 `text.svg` 换成 `mark.svg`，再套 `assets/fork/masks/` 里的圆角形状（`mask-macos-1024` 是内缩的那个，其余是全出血的方形；这些 mask 是从上游最后一次导出的图标里取的 alpha），最后写出三套 PNG/ICO、`apps/web/public/` 的四个文件、Android 的单色与通知图标、`apps/mobile/assets/widget/T3Mark.svg`。它同时把 `mark.svg` 复制成三个 `Assets/text.svg`，所以 Icon Composer 项目里的来源不会漂移。
+- `scripts/export-android-icons.ts` 还是上游脚本，只改了 `TEXT` 一行（指向 fork 标记的墨迹框）；它读 `assets/prod/app-icon.icon/Assets/text.svg`，所以必须在 `fork-brand-icons.ts` 之后跑。
+- 上游的 `vp run icons:export` / `icons:check` 要 macOS 的 Icon Composer，而且命令行导不出 "macOS pre-Tahoe" 预设，fork 不用它们。改标记后的检查方式就是重跑 `vp run fork:icons`，再看一眼 16 px 的 favicon。`icons:check` 拿 Icon Composer 源去比 fork 的产物，必然报错，忽略即可。
+- 界面字标：web `apps/web/src/components/T3Wordmark.tsx` 和 mobile `apps/mobile/src/components/T3Wordmark.tsx` 内联同一段路径，后面仍接 `FORK.wordmarkSuffix`（"Extend"），可访问名还是 "T3 Extend"。
+- 还没换的：`apps/marketing`（上游官网，fork 不构建）、`scripts/mobile-showcase-environment.ts` 里当 mock 项目 favicon 用的 T3 标记（那是一个叫 t3code 的假项目，故意留着），以及 `release/` 里的旧 APK（构建产物，重新打包即可）。
+
+## 授权与署名
+
+上游是 MIT（见 `LICENSE`，Copyright (c) 2026 T3 Tools Inc.）。fork 可以随意修改和分发，代价只有两条：副本里保留版权和许可声明；MIT 不给商标，所以不能用上游的字标和标识让人以为这是官方产品。名字继续叫 T3 Extend、提到上游时只做陈述（"a fork of T3 Code"）都行，视觉标记必须换成 fork 自己的。
+
+- `NOTICE` 写明 fork 来自哪里、上游是 MIT，以及随包第三方里需要额外注意的两项：`heic-to`（LGPL-3.0-or-later，web 客户端解码 HEIC 用，未修改地打进 web 和桌面包）、KaTeX 字体与 Carlito（OFL-1.1）。
+- 二进制里也必须带上声明：`DESKTOP_EXTRA_RESOURCES`（`scripts/build-desktop-artifact.ts`）把 `LICENSE` 和 `NOTICE` 放进 mac / win 应用的 Resources；Linux deb 另外把 `LICENSE` 装到 `/usr/share/doc/t3code/copyright`。
+- 应用内的 "Open source licenses" 页（web / desktop / mobile 都有）读构建期生成的 `third-party-licenses.json`。`third-party-licenses.config.json` 的第一条 customNotice 就是 `NOTICE`，所以 fork 和上游的 MIT 声明在界面上也看得到。
+- 打包出的应用元数据（同一个脚本里的 stage package）写的是 fork 的 author / homepage / description；提到上游名字时只走 `OFFICIAL_APP_NAME`，`fork:guard` 会拦住新的硬编码。Linux 打包身份（`executableName`、metainfo、maintainer）仍然写的是上游，见"例外和限制"。
+- 上游代码里的云服务（Clerk / T3 Connect / EAS / PostHog）用的是 T3 Tools 自己的账号，服务本身不在 MIT 授权范围；fork 默认全部关闭。
+
 ## 同步上游
 
 ```bash

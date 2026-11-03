@@ -321,7 +321,7 @@ macOS 上把私钥放进 Keychain 的"更强"方案被否决：fork 刚刚因为
 
 1. server 在每次启动 frpc 时生成配置，`metadatas.t3x_ticket` = 电脑自己用设备密钥签的 ticket：`{v:1, kid: 设备 id, sub: 子域名, gen: 登记代次, iat, exp: iat+24h}`，`user = <设备 id 前 16 位>`。
 2. 注册表的 `Login` 插件**每次**查实时库（不缓存）：签名合法（用库里的公钥）、`exp` 未过、`kid` 对应的设备行存在且是电脑、`sub` 等于该行的子域名、`gen` 等于该行的 `created_at`、`rid` 匹配、`user` = 设备 id 前 16 位；通过后记下 `run_id → 设备 id`。**设备行被删了，不管 ticket 还剩多久都登不上**；移除后同一把密钥带新邀请重新加入会得到新的 `created_at` 和新的子域名，旧 ticket 作废。
-3. frpc 自动重连时用的是同一份配置，所以 ticket 的有效期必须覆盖重连：24 小时。server 每 12 小时重新生成配置并重启 frpc，重启代价是隧道断约一秒，T3 客户端自带重连。**为什么 24 小时可以接受**：有效期只决定"被偷的 ticket 能用多久"，而移除靠的是实时查库，不靠 ticket 过期；偷到 ticket 还需要设备仍然登记着，且后果限于在真电脑离线时占用它的子域名（4.2 情形 18）。8.0 没有发现需要缩短它的理由。
+3. frpc 自动重连时用的是同一份配置，所以 ticket 的有效期必须覆盖重连：24 小时。server 每 12 小时重新生成配置并重启 frpc，重启代价是隧道断约一秒，T3 客户端自带重连。**为什么 24 小时可以接受**：有效期只决定"被偷的 ticket 能用多久"，而移除靠的是实时查库，不靠 ticket 过期；偷到 ticket 还需要设备仍然登记着，且后果限于在真电脑离线时占用它的子域名（4.2 情形 18）。8.0 没有发现需要缩短它的理由。**已连接的隧道最多活到 ticket 过期**：四个 op 每次都检查 `exp`（3.12 D），过期后的第一次 `Ping` 被拒，frpc 断开；server 没能按时轮换时，重连的 `Login` 同样被拒，由 `DeviceTunnel` 换 ticket 重启。
 4. 登录被拒后 frpc 不退出：`loginFailExit = false` 时一直重试，间隔逐步涨到约 20 秒 [实测：约 2、4、9、19、20 秒]。`DeviceTunnel` 怎么识别各种拒绝，见 3.7 的日志表。
 
 备用方案：若以后发现 `metadatas` + 插件走不通，再评估 frp 的 OIDC 登录。8.0 已证明现在这条路走得通，不设计。
@@ -682,8 +682,8 @@ ops = ["Login", "NewProxy", "Ping", "NewWorkConn"]
 | op            | 检查                                                                                                                                                                                                                                                             | 失败                                   |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
 | `Login`       | **实时查库，无缓存**：ticket 签名合法、`exp` 未过、`rid` 匹配、`kid` 的设备行存在且是电脑、`sub` 等于该行子域名、`gen` 等于该行 `created_at`、`user` = 设备 id 前 16 位；通过则更新 `last_tunnel_at`（内存 Map，批量落盘；Login 请求里没有 `run_id`，见 3.12 D） | `reject: true, reject_reason: "t3x:…"` |
-| `NewProxy`    | 实时查库；`proxy_type == "http"`、`subdomain` 等于该设备的子域名、`custom_domains/locations/http_user` 为空、该设备只有这一个代理                                                                                                                                | 拒绝                                   |
-| `Ping`        | 实时查库：用 `user.metas.t3x_ticket` 重验 ticket 并找到设备，设备行仍存在且 `gen` 相同；更新 `last_tunnel_at`                                                                                                                                                    | 拒绝（frpc 收到错误的 Pong 后断开）    |
+| `NewProxy`    | 实时查库，同样重验整张 ticket（含 `exp`）；`proxy_type == "http"`、`subdomain` 等于该设备的子域名、`custom_domains/locations/http_user` 为空、该设备只有这一个代理                                                                                               | 拒绝                                   |
+| `Ping`        | 实时查库：用 `user.metas.t3x_ticket` 重验整张 ticket（含 `exp`）并找到设备，设备行仍存在且 `gen` 相同；更新 `last_tunnel_at`                                                                                                                                     | 拒绝（frpc 收到错误的 Pong 后断开）    |
 | `NewWorkConn` | 实时查库，同 `Ping`。只在新建 work conn 时被问到（Q6），不能当作立即切断                                                                                                                                                                                         | 拒绝                                   |
 
 放行返回 `{"reject": false, "unchange": true}` [实测]。`reject_reason` 取值固定为：`t3x:revoked`（设备行不存在）、`t3x:ticket-expired`、`t3x:bad-ticket`（签名、`sub`、`gen`、`rid`、`user` 任一不符）、`t3x:busy`（超时或在途过多）。
@@ -696,12 +696,12 @@ ops = ["Login", "NewProxy", "Ping", "NewWorkConn"]
 | `connect to server error: <reason>`      | 重新登录被拒   |
 | `StartWorkConn contains error: <reason>` | work conn 被拒 |
 
-| `<reason>`                                       | `DeviceTunnel` 做什么                                                       |
-| ------------------------------------------------ | --------------------------------------------------------------------------- |
-| `t3x:revoked`                                    | 立即触发 `devices.refresh`（会发现自己已被移除并自清理），**不再重启 frpc** |
-| `t3x:ticket-expired` / `t3x:bad-ticket`          | 重新生成配置（新 ticket）并重启 frpc                                        |
-| `t3x:busy` / `send <Op> request to plugin error` | 什么也不做：注册表忙或宕机，frpc 自己按退避重试（≤ 约 20 秒一次）           |
-| 其他                                             | 记 warning，只显示在 `devices.status.tunnel.lastError`                      |
+| `<reason>`                                       | `DeviceTunnel` 做什么                                                                                                |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `t3x:revoked`                                    | 立即触发 `devices.refresh`（会发现自己已被移除并自清理），**不再重启 frpc**                                          |
+| `t3x:ticket-expired` / `t3x:bad-ticket`          | 重新生成配置（新 ticket）并重启 frpc；出现在哪句日志里（`pong…`、`connect to server error`、`StartWorkConn…`）都一样 |
+| `t3x:busy` / `send <Op> request to plugin error` | 什么也不做：注册表忙或宕机，frpc 自己按退避重试（≤ 约 20 秒一次）                                                    |
+| 其他                                             | 记 warning，只显示在 `devices.status.tunnel.lastError`                                                               |
 
 ### 3.8 清单同步与撤销（server）
 
@@ -890,13 +890,15 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 | op            | 顺序                                                                                                                                                                                                                                                                                                                                                          |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Login`       | ① ticket 长度 ≤ 2 KB、能解码、`typ`/`alg` 对（否则 `bad-ticket`）→ ② 按 `kid` 取设备行，**没有 → `revoked`** → ③ 设备种类必须是电脑 → ④ 用库里的公钥验签（失败 `bad-ticket`）→ ⑤ `rid`、`sub` = 子域名、`gen` = `created_at`、`user` = 设备 id 前 16 位（任一不符 `bad-ticket`）→ ⑥ `exp > now`（否则 `ticket-expired`）→ ⑦ 更新 `last_tunnel_at`（内存 Map） |
-| `NewProxy`    | ① 取 `user.metas.t3x_ticket`，做 Login 的 ①–⑤（**不检查 `exp`**），任一步失败的 reason 同 Login → ② `proxy_type == "http"`、`proxy_name == <user>.t3x`、`subdomain` = 该设备的子域名、`custom_domains` / `locations` / `http_user` 为空（否则 `bad-ticket`）。`proxy_name` 固定即"每台设备只有一个代理"                                                       |
-| `Ping`        | 取 `user.metas.t3x_ticket`，做 Login 的 ①–⑤（不检查 `exp`；设备行不在 → `revoked`，代次 `gen` 不等于 `created_at` → `revoked`），更新 `last_tunnel_at`                                                                                                                                                                                                        |
+| `NewProxy`    | ① 取 `user.metas.t3x_ticket`，做 Login 的 ①–⑥（**含 `exp`**），任一步失败的 reason 同 Login → ② `proxy_type == "http"`、`proxy_name == <user>.t3x`、`subdomain` = 该设备的子域名、`custom_domains` / `locations` / `http_user` 为空（否则 `bad-ticket`）。`proxy_name` 固定即"每台设备只有一个代理"                                                           |
+| `Ping`        | 取 `user.metas.t3x_ticket`，做 Login 的 ①–⑥（含 `exp`，过期 → `ticket-expired`；设备行不在 → `revoked`，代次 `gen` 不等于 `created_at` → `revoked`），更新 `last_tunnel_at`                                                                                                                                                                                   |
 | `NewWorkConn` | 同 `Ping`                                                                                                                                                                                                                                                                                                                                                     |
 
 **8.1 实测后改的一处**（2026-11-03）：frps 发给插件的 `Login` 请求里**没有 `run_id`**（`run_id` 在 Login 被放行之后才由 frps 生成，8.0 的插件日志原文：Login 的 `content` 只有 `version / hostname / os / arch / user / privilege_key / timestamp / metas / client_spec / pool_count / client_address`），所以"Login 记录 `run_id → 设备`、其余三个 op 查这张表"做不到。改为：`Ping` / `NewProxy` / `NewWorkConn` 的 `content.user.metas` 里每次都带着同一张 ticket（8.0 实测），**三个 op 各自重验 ticket 并按 `gen` 对照实时库**。好处：不依赖注册表内存状态，注册表重启后不会因为"找不到登录记录"误拒；代价是每次 `Ping` / `NewWorkConn` 多一次 ECDSA 验签（O(1)，Q6 本来就写的是"一次 ECDSA 验签"）。撤销语义不变：设备行被删 → `revoked`。
 
 先验签再看 `exp`：不用未验证的字段做判断。`exp` 过期的 ticket 仍会让设备行被查一次，这是接受的。
+
+**8.1 复审后改的第二处**（2026-11-03）：原先只有 `Login` 检查 `exp`，其余三个 op 不检查，理由是"已连上的 frpc 到下一次轮换前一直带着旧 ticket"。这让 Q6 和情形 18 的"被偷的 ticket 最多能用 24 小时"不成立：赶在过期前用偷来的 ticket 连上，就能一直占着子域名，直到设备被移除。改为**四个 op 都重验整张 ticket，包括 `exp`**，规则只有一条。代价：正常电脑每 12 小时由 server 换 ticket 并重启 frpc（24 小时有效期留了 12 小时余量），碰不到这条检查；server 若没能按时轮换，过期后的第一次 `Ping` 得到 `t3x:ticket-expired`，frpc 断开，重连时 `Login` 同样被拒，`DeviceTunnel` 按 3.7 的表换 ticket 重启。8.1 实测：`exp` 设在连上之后 15 秒，下一次 `Ping`（约 30 秒时）日志为 `pong message contains error: t3x:ticket-expired`，随后 `connect to server error: t3x:ticket-expired`，该子域名返回 frps 的 404。
 
 - **`reason` 失败关闭**：`DeviceTunnel` 对 `<reason>` 的处理只有精确匹配才行动。**截断**（日志行被截）、**非 UTF-8**、**未知值**一律落进"其他"：记 warning，**不重启 frpc、不触发 `devices.refresh`、不自清理**，保持退避。`t3x:revoked` 也只触发 `devices.refresh`（向注册表求证，注册表回 `device_unknown` 才自清理），所以一行被伪造的日志不会让电脑离开。测试：这三种畸形输入各一例，断言没有任何动作。
 
@@ -1002,7 +1004,7 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 | 15  | 滥用 Caddy 按需证书（用大量 SNI 耗尽证书额度）     | `ask` 只放行已登记的子域名，且只在 compose 内网监听；不使用 Caddy 的 interval/burst（文档不建议）。**`ask` 撤不回已签发的证书**（实测）：移除设备后旧证书继续服务到过期，但没有隧道时 frps 返回 404，访问控制靠插件和电脑自己的鉴权，不靠证书；证书和私钥都在 VPS 上，不在设备手里，所以 `release` 后复用子域名连证书一起复用也不是问题                      |
 | 16  | 猜邀请 / 撞 `/v1/join` / 在鉴权前耗注册表的 CPU    | 128 位密钥；所有未认证端点（`/info`、`/join`、验签之前的每个请求）按客户端 IP 限速；邀请 id 与密钥分开，id 不是秘密                                                                                                                                                                                                                                          |
 | 17  | frps 插件和 `ask` 端口暴露                         | 只绑 compose 内网地址，Caddy 里没有任何指向它们的路由，宿主机不发布                                                                                                                                                                                                                                                                                          |
-| 18  | 偷到 frpc 的 ticket                                | 在设备仍登记的前提下，可在 ticket 有效期内（≤ 24 小时）在真电脑离线时登录隧道、占用其子域名。后果是拒绝服务或伪装站点；手机会因 environmentId 对不上而不发通行证。ticket 不放命令行，配置文件 0600                                                                                                                                                           |
+| 18  | 偷到 frpc 的 ticket                                | 在设备仍登记的前提下，可在 ticket 有效期内（≤ 24 小时；**连接也只活到 ticket 过期**，过期前就已经连上的连接同样在过期后被 `Ping` 拒绝）在真电脑离线时登录隧道、占用其子域名。后果是拒绝服务或伪装站点；手机会因 environmentId 对不上而不发通行证。ticket 不放命令行，配置文件 0600                                                                           |
 | 19  | **注册表宕机或变慢**                               | 宕机：所有隧道在下一次 `Ping` / `Login` 失败后断开，frpc 约 20 秒内自己重连；变慢：frps 调插件没有超时，请求会一直挂着（实测 `Login` 睡 8 秒就卡 8 秒）。缓解：插件请求 1.5 秒时限、在途上限 64、独立监听器、不在插件路径上写库、healthcheck + `restart: unless-stopped`。残余：注册表重启会让隧道断几十秒；已经建立的 LAN 连接和 7 天内的通行证登录不受影响 |
 
 ## 5. 阶段计划
@@ -1070,7 +1072,7 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 - **交付**：server 托管 frpc（生成配置、签 ticket、退避、按 frpc 的三句日志和固定 `reject_reason` 分流、12 小时轮换）；`membership` 写出 `device-public-url.json`；`t3x devices tunnel install|status`；frp 版本表（v0.71.1，SHA-256 见 8a）和下载校验。
 - **新文件**：`apps/server/src/fork/deviceKeys/DeviceTunnel.ts`、`frpcConfig.ts`、`frpBinary.ts`、对应测试；`packages/shared/src/forkFrp.ts`；`scripts/fork-fetch-frp.ts`。
 - **上游接线**：`apps/desktop/src/backend/DesktopBackendConfiguration.ts`（`T3X_FRPC_PATH`）；`server.ts` 约 2 行（把隧道监听口的端口交给 `DeviceTunnel`，3.11）。
-- **验收**：配置生成的快照测试（含 `heartbeatInterval = 30`、`wss`、子域名、`localPort` 等于隧道监听口的端口、不含私钥；`poolCount` 默认不出现，仅当 8.1 实测允许才出现 `transport.poolCount = 0`，两种配置各一份快照）；ticket 的签名 / 过期 / 绑定单测；用假 frpc 可执行文件逐句喂 3.7 的三句日志，验证 `t3x:revoked` → 触发 `devices.refresh` 且不重启、`t3x:ticket-expired` / `t3x:bad-ticket` → 换 ticket 重启、`t3x:busy` / `send <Op> request to plugin error` → 什么也不做、退避序列；真实 frpc 对 8.1 的 compose 连通并自动重连一次（重启 frps 容器）；`forkFrp` 版本与 compose 一致的测试；ticket 不出现在进程参数里；**日志畸形输入**：`reason` 被截断、非 UTF-8、未知值各一例 → 不重启 frpc、不触发 `devices.refresh`、不自清理（3.12 D）。
+- **验收**：配置生成的快照测试（含 `heartbeatInterval = 30`、`wss`、子域名、`localPort` 等于隧道监听口的端口、不含私钥；`poolCount` 默认不出现，仅当 8.1 实测允许才出现 `transport.poolCount = 0`，两种配置各一份快照）；ticket 的签名 / 过期 / 绑定单测；用假 frpc 可执行文件逐句喂 3.7 的三句日志，验证 `t3x:revoked` → 触发 `devices.refresh` 且不重启、`t3x:ticket-expired` / `t3x:bad-ticket` → 换 ticket 重启（三句日志里都要覆盖，含 `pong message contains error: t3x:ticket-expired`：连上之后才过期的 ticket 由 `Ping` 拒绝）、`t3x:busy` / `send <Op> request to plugin error` → 什么也不做、退避序列；真实 frpc 对 8.1 的 compose 连通并自动重连一次（重启 frps 容器）；`forkFrp` 版本与 compose 一致的测试；ticket 不出现在进程参数里；**日志畸形输入**：`reason` 被截断、非 UTF-8、未知值各一例 → 不重启 frpc、不触发 `devices.refresh`、不自清理（3.12 D）。
 - 规模：≈ 700 行 + 测试 ≈ 700 行。
 
 ### 阶段 8.4 客户端（L+）

@@ -5,6 +5,7 @@ import * as NodeTest from "node:test";
 
 import { MAX_OPEN_INVITES } from "./db.mjs";
 import { decodeInvite } from "./invites.mjs";
+import { signRequestProof } from "./proof.mjs";
 import { MAX_IN_FLIGHT, deviceUrl, loadConfig, normalizeHostForLog } from "./server.mjs";
 import {
   FakeDevice,
@@ -272,6 +273,94 @@ describe("signed requests: canonicalisation", () => {
       401,
       "invalid_proof",
     );
+  });
+
+  describe("Content-Length against the body that arrives", () => {
+    const wire = (lines, body = "") => Buffer.from(`${lines.join("\r\n")}\r\n\r\n${body}`);
+    const postHead = (extra) => [
+      "POST /v1/join HTTP/1.1",
+      "host: registry.test",
+      "x-t3x-client-ip: 198.51.100.9",
+      "content-type: application/json",
+      ...extra,
+    ];
+    /** Sends the bytes, optionally half-closes, and resolves with everything the server says before it closes. */
+    const exchange = (chunks, { halfClose = false } = {}) =>
+      new Promise((resolve) => {
+        const socket = connect(reg.port, "127.0.0.1");
+        const received = [];
+        socket.on("data", (chunk) => received.push(chunk));
+        socket.on("error", () => {});
+        socket.on("close", () => resolve(Buffer.concat(received).toString("utf8")));
+        for (const chunk of chunks) socket.write(chunk);
+        if (halfClose) socket.end();
+      });
+    const signedJoin = async () => {
+      const stranger = new FakeDevice(reg, { name: "Stranger" });
+      const invite = decodeInvite(await cliInvite(reg));
+      const body = Buffer.from(
+        JSON.stringify({
+          invite: `${invite.id}.${invite.secret}`,
+          device: { name: "Stranger", kind: "computer", jwk: stranger.jwk },
+        }),
+      );
+      const proof = signRequestProof({
+        privateKey: stranger.privateKey,
+        jwk: stranger.jwk,
+        method: "POST",
+        htu: `${reg.config.publicOrigin}/v1/join`,
+        body,
+        iat: reg.clock.now(),
+      });
+      return { body, proof };
+    };
+    const stillWorks = async () => assert.equal((await get(reg.port, "/v1/info")).status, 200);
+
+    it("refuses a body that ends before the declared length and leaves the invite alone", async () => {
+      const { proof } = await signedJoin();
+      const reply = await exchange(
+        [wire(postHead(["content-length: 50", `t3x-proof: ${proof}`]), "0123456789")],
+        { halfClose: true },
+      );
+      // The client has already half-closed, so the 400 may not be deliverable; what matters is that nothing ran.
+      if (reply !== "") assert.match(reply, /^HTTP\/1\.1 400 /);
+      assert.equal(reg.store.listOpenInvites(reg.clock.now()).length, 1);
+      assert.equal(reg.store.listDevices().length, 0);
+      await stillWorks();
+    });
+
+    it("answers a declared length over the limit with 400 and Connection: close, without reading the body", async () => {
+      const reply = await exchange([wire(postHead(["content-length: 100000"]), "x".repeat(8000))]);
+      assert.match(reply, /^HTTP\/1\.1 400 /);
+      assert.match(reply, /connection: close/i);
+      assert.match(reply, /"error":"invalid_request"/);
+      await stillWorks();
+    });
+
+    it("treats a missing Content-Length as no body, so a chunked body is refused", async () => {
+      const { body, proof } = await signedJoin();
+      const reply = await exchange([
+        wire(
+          postHead(["transfer-encoding: chunked", `t3x-proof: ${proof}`]),
+          `${body.length.toString(16)}\r\n${body.toString()}\r\n0\r\n\r\n`,
+        ),
+      ]);
+      assert.match(reply, /^HTTP\/1\.1 400 /);
+      assert.match(reply, /"error":"invalid_request"/);
+      assert.equal(reg.store.listOpenInvites(reg.clock.now()).length, 1);
+      assert.equal(reg.store.listDevices().length, 0);
+    });
+
+    it("still accepts the same request with its Content-Length", async () => {
+      const { body, proof } = await signedJoin();
+      const reply = await exchange([
+        wire(
+          postHead([`content-length: ${body.length}`, `t3x-proof: ${proof}`, "connection: close"]),
+          body.toString(),
+        ),
+      ]);
+      assert.match(reply, /^HTTP\/1\.1 201 /);
+    });
   });
 
   it("refuses any query string before looking at the signature", async () => {

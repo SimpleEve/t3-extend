@@ -242,11 +242,6 @@ const ALLOWED_BRAND: ReadonlyArray<Allowed> = [
   },
   {
     path: "scripts/build-desktop-artifact.ts",
-    line: "is an open-source desktop app",
-    reason: "Linux package description; Linux identity is out of scope until the fork ships Linux.",
-  },
-  {
-    path: "scripts/build-desktop-artifact.ts",
     line: "Build a desktop artifact for T3 Code",
     reason: "Maintainer-facing CLI help text.",
   },

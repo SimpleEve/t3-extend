@@ -5,7 +5,7 @@
  */
 export const FORK = {
   appBaseName: "T3 Extend",
-  /** The word that follows the T3 glyph in the in-app wordmark. */
+  /** The word that follows the fork mark in the in-app wordmark, which reads "T3 Extend". */
   wordmarkSuffix: "Extend",
   appId: "com.simpleeve.t3extend",
   userDataDir: "t3extend",
