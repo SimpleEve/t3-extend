@@ -20,6 +20,7 @@ import * as DeviceDirectory from "../fork/deviceKeys/DeviceDirectory.ts";
 import * as DeviceKeysService from "../fork/deviceKeys/DeviceKeysService.ts";
 import { layerServices } from "../fork/deviceKeys/layer.ts";
 import { renderTerminalQrCode } from "../startupAccess.ts";
+import { tunnelCommand } from "./devicesTunnel.ts"; // fork: 8.3
 import { authLocationFlags, resolveCliAuthConfig, type CliAuthLocationFlags } from "./config.ts";
 
 const runWithDevices = Effect.fn("devices.run")(function* <A, E>(
@@ -214,5 +215,12 @@ const leaveCommand = Command.make("leave", { ...authLocationFlags }).pipe(
 
 export const devicesCommand = Command.make("devices").pipe(
   Command.withDescription("Join computers and phones to your own server."),
-  Command.withSubcommands([joinCommand, listCommand, inviteCommand, removeCommand, leaveCommand]),
+  Command.withSubcommands([
+    joinCommand,
+    listCommand,
+    inviteCommand,
+    removeCommand,
+    leaveCommand,
+    tunnelCommand,
+  ]),
 );

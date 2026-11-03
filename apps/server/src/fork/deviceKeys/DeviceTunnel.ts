@@ -15,7 +15,6 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Ref from "effect/Ref";
-import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
@@ -29,6 +28,7 @@ import * as FrpBinary from "./frpBinary.ts";
 import { issueTicket, renderFrpcConfig, TICKET_ROTATION_SECONDS } from "./frpcConfig.ts";
 import { actionFor, classifyFrpcLine, frpcLines, type FrpcLogEvent } from "./frpcLog.ts";
 import * as TunnelListener from "./TunnelListener.ts";
+import { encodeTunnelStatusFile, TUNNEL_DIR, TUNNEL_STATUS_FILE } from "./tunnelStatusFile.ts";
 
 const BACKOFF_SECONDS = [1, 2, 4, 8, 16, 32, 60] as const;
 const STABLE_AFTER = Duration.seconds(30);
@@ -41,7 +41,6 @@ export const backoffSeconds = (failures: number): number =>
 export const failuresAfterRun = (failures: number, ranForMillis: number): number =>
   ranForMillis >= Duration.toMillis(STABLE_AFTER) ? 0 : failures;
 const KILL_GRACE = Duration.seconds(3);
-const TUNNEL_DIR = "fork-tunnel";
 const CA_FILE_ENV = "T3X_TUNNEL_CA_FILE";
 /** frpc needs none of the server's environment; these let it find its way around the OS. */
 const FRPC_ENV_NAMES = [
@@ -73,17 +72,6 @@ type RunOutcome =
   | "renew"
   | "exited"
   | "unavailable";
-
-const StatusDocument = Schema.fromJsonString(
-  Schema.Struct({
-    serverPid: Schema.Number,
-    frpcPid: Schema.NullOr(Schema.Number),
-    status: Schema.String,
-    lastError: Schema.NullOr(Schema.String),
-    updatedAt: Schema.Number,
-  }),
-);
-const encodeStatus = Schema.encodeSync(StatusDocument);
 
 const MESSAGES = {
   revoked: "The server says this computer was removed; checking.",
@@ -125,8 +113,8 @@ const make = Effect.fn("DeviceTunnel.make")(function* (options: {
     yield* Effect.gen(function* () {
       yield* fs.makeDirectory(tunnelDir, { recursive: true, mode: 0o700 });
       yield* fs.writeFileString(
-        path.join(tunnelDir, "status.json"),
-        encodeStatus({
+        path.join(tunnelDir, TUNNEL_STATUS_FILE),
+        encodeTunnelStatusFile({
           serverPid: process.pid,
           frpcPid: yield* Ref.get(frpcPid),
           status: next.status,
