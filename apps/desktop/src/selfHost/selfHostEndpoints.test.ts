@@ -1,7 +1,7 @@
 import { createAdvertisedEndpoint } from "@t3tools/shared/advertisedEndpoint";
 import { describe, expect, it } from "vite-plus/test";
 
-import { selfHostAdvertisedEndpoints } from "./selfHostEndpoints.ts";
+import { deviceAdvertisedEndpoints, selfHostAdvertisedEndpoints } from "./selfHostEndpoints.ts";
 
 describe("selfHostAdvertisedEndpoints", () => {
   it("adds saved public addresses as pairing endpoints without duplicating existing ones", () => {
@@ -31,5 +31,37 @@ describe("selfHostAdvertisedEndpoints", () => {
         description: "Public address you set up for this desktop.",
       }),
     ]);
+  });
+});
+
+describe("deviceAdvertisedEndpoints", () => {
+  const listed = createAdvertisedEndpoint({
+    id: "manual:https://mac.t3.example.com/",
+    label: "mac.t3.example.com",
+    provider: { id: "manual", label: "Manual", kind: "manual", isAddon: false },
+    httpBaseUrl: "https://mac.t3.example.com",
+    reachability: "public",
+    source: "user",
+  });
+
+  it("offers this computer's address on the joined server as a pairing endpoint", () => {
+    expect(
+      deviceAdvertisedEndpoints({ deviceUrl: "https://mac.t3.example.com/", existing: [] }),
+    ).toMatchObject([
+      {
+        id: "self-host-device:https://mac.t3.example.com/",
+        label: "mac.t3.example.com",
+        httpBaseUrl: "https://mac.t3.example.com/",
+        reachability: "public",
+        status: "unknown",
+      },
+    ]);
+  });
+
+  it("offers nothing while this computer has not joined a server, or when it is already listed", () => {
+    expect(deviceAdvertisedEndpoints({ deviceUrl: null, existing: [] })).toEqual([]);
+    expect(
+      deviceAdvertisedEndpoints({ deviceUrl: "https://mac.t3.example.com/", existing: [listed] }),
+    ).toEqual([]);
   });
 });

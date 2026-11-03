@@ -108,6 +108,37 @@ describe("DesktopSelfHost", () => {
     ),
   );
 
+  it.effect("reads this computer's address from the file the server writes, and nothing else", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3x-self-host-" });
+      const spawned = yield* Ref.make(0);
+      yield* fs.makeDirectory(`${baseDir}/userdata`, { recursive: true });
+      const file = `${baseDir}/userdata/device-public-url.json`;
+      const read = Effect.gen(function* () {
+        return yield* (yield* DesktopSelfHost.DesktopSelfHost).deviceUrl;
+      }).pipe(Effect.provide(layerFor(baseDir, spawned)), Effect.scoped);
+
+      // Not joined: the server removes the file, or never wrote it.
+      assert.strictEqual(yield* read, null);
+
+      yield* fs.writeFileString(file, JSON.stringify({ url: "https://mac.t3.example.com" }));
+      assert.strictEqual(yield* read, "https://mac.t3.example.com/");
+
+      // Anything that is not a bare https address is not an address.
+      for (const url of ["http://mac.t3.example.com", "https://mac.t3.example.com/path", "x"]) {
+        yield* fs.writeFileString(file, JSON.stringify({ url }));
+        assert.strictEqual(yield* read, null, url);
+      }
+      yield* fs.writeFileString(file, "not json");
+      assert.strictEqual(yield* read, null);
+    }).pipe(
+      Effect.provide(NodeServices.layer),
+      Effect.provideService(HostProcess.Environment, {}),
+      Effect.scoped,
+    ),
+  );
+
   it("points the backend at the saved file and passes environment addresses through", () => {
     assert.deepEqual(
       DesktopSelfHost.backendEnvironment({

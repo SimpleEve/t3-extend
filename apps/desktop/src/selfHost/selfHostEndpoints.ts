@@ -37,3 +37,37 @@ export function selfHostAdvertisedEndpoints(input: {
       }),
     );
 }
+
+const DEVICE_ENDPOINT_PROVIDER: AdvertisedEndpointProvider = {
+  id: "self-host-device",
+  label: "Your server",
+  kind: "manual",
+  isAddon: false,
+};
+
+/**
+ * This computer's own address on the server it joined, so a pairing link can reach it through
+ * the tunnel. The address is the one the server wrote from its membership (the subdomain the
+ * registry assigned), never a typed one. It is listed whether or not the tunnel is up, like the
+ * other self-hosted addresses, with the status left unknown.
+ */
+export function deviceAdvertisedEndpoints(input: {
+  readonly deviceUrl: string | null;
+  readonly existing: ReadonlyArray<AdvertisedEndpoint>;
+}): ReadonlyArray<AdvertisedEndpoint> {
+  const { deviceUrl } = input;
+  if (deviceUrl === null) return [];
+  if (input.existing.some((endpoint) => endpoint.httpBaseUrl === deviceUrl)) return [];
+  return [
+    createAdvertisedEndpoint({
+      id: `self-host-device:${deviceUrl}`,
+      label: new URL(deviceUrl).host,
+      provider: DEVICE_ENDPOINT_PROVIDER,
+      httpBaseUrl: deviceUrl,
+      reachability: "public",
+      source: "user",
+      status: "unknown",
+      description: "This computer's address on your own server.",
+    }),
+  ];
+}

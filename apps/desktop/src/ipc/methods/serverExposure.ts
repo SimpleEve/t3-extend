@@ -10,7 +10,10 @@ import * as DesktopLifecycle from "../../app/DesktopLifecycle.ts";
 import { OFFICIAL_APP_NAME, OFFICIAL_TAILSCALE_SERVE_PORT } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as DesktopServerExposure from "../../backend/DesktopServerExposure.ts";
 import * as DesktopSelfHost from "../../selfHost/DesktopSelfHost.ts"; // fork: self-hosted connection
-import { selfHostAdvertisedEndpoints } from "../../selfHost/selfHostEndpoints.ts"; // fork: self-hosted connection
+import {
+  deviceAdvertisedEndpoints,
+  selfHostAdvertisedEndpoints,
+} from "../../selfHost/selfHostEndpoints.ts"; // fork: self-hosted connection
 import * as IpcChannels from "../channels.ts";
 import * as DesktopIpc from "../DesktopIpc.ts";
 
@@ -77,7 +80,13 @@ export const getAdvertisedEndpoints = DesktopIpc.makeIpcMethod({
     const serverExposure = yield* DesktopServerExposure.DesktopServerExposure;
     // fork: self-hosted connection
     const endpoints = yield* serverExposure.getAdvertisedEndpoints;
-    const publicUrls = yield* (yield* DesktopSelfHost.DesktopSelfHost).publicUrls;
-    return [...endpoints, ...selfHostAdvertisedEndpoints({ publicUrls, existing: endpoints })];
+    const selfHost = yield* DesktopSelfHost.DesktopSelfHost;
+    const publicUrls = yield* selfHost.publicUrls;
+    const deviceUrl = yield* selfHost.deviceUrl;
+    return [
+      ...endpoints,
+      ...selfHostAdvertisedEndpoints({ publicUrls, existing: endpoints }),
+      ...deviceAdvertisedEndpoints({ deviceUrl, existing: endpoints }), // fork: own address on the joined server
+    ];
   }),
 });
