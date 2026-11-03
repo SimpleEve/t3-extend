@@ -1,7 +1,6 @@
 // The device list: persistence, staleness, reconcile, self-removal and the change stream.
 import { generateDeviceKey } from "@t3tools/shared/forkDeviceKeys/jws";
 import { assert, describe, it } from "@effect/vitest";
-import { EnvironmentId } from "@t3tools/contracts";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -11,12 +10,17 @@ import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
 
 import * as ServerSecretStore from "../../auth/ServerSecretStore.ts";
-import * as ServerEnvironment from "../../environment/ServerEnvironment.ts";
 import * as SessionStore from "../../auth/SessionStore.ts";
 import * as DeviceDirectory from "./DeviceDirectory.ts";
 import * as DeviceIdentity from "./DeviceIdentity.ts";
 import * as DeviceKeysService from "./DeviceKeysService.ts";
-import { NOW_MS, NOW_S, joinThisComputer, layerHarness } from "./deviceHarness.testkit.ts";
+import {
+  NOW_MS,
+  NOW_S,
+  joinThisComputer,
+  layerHarness,
+  layerMemoryWith,
+} from "./deviceHarness.testkit.ts";
 import { FakeRegistry, layerFakeRegistry } from "./registryFake.testkit.ts";
 
 const arrange = Effect.gen(function* () {
@@ -269,40 +273,7 @@ describe("changes", () => {
 });
 
 // The loop test needs every await to be the TestClock's, so it runs on in-memory storage.
-const memorySecrets = Layer.unwrap(
-  Effect.sync(() => {
-    const files = new Map<string, Uint8Array>();
-    return Layer.succeed(
-      ServerSecretStore.ServerSecretStore,
-      ServerSecretStore.ServerSecretStore.of({
-        get: (name) => Effect.sync(() => Option.fromNullishOr(files.get(name))),
-        set: (name, value) => Effect.sync(() => void files.set(name, value)),
-        create: (name, value) => Effect.sync(() => void files.set(name, value)),
-        getOrCreateRandom: () => Effect.die("unused"),
-        remove: (name) => Effect.sync(() => void files.delete(name)),
-      }),
-    );
-  }),
-);
-
-const layerMemory = DeviceKeysService.layer.pipe(
-  Layer.provideMerge(DeviceDirectory.layer),
-  Layer.provideMerge(DeviceIdentity.layer),
-  Layer.provideMerge(layerFakeRegistry),
-  Layer.provideMerge(memorySecrets),
-  Layer.provideMerge(
-    // Only the two calls the directory makes on it.
-    Layer.succeed(SessionStore.SessionStore, {
-      listActive: () => Effect.succeed([]),
-      revoke: () => Effect.succeed(false),
-    } as unknown as SessionStore.SessionStore["Service"]),
-  ),
-  Layer.provideMerge(
-    Layer.succeed(ServerEnvironment.ServerEnvironmentIdentity, {
-      getEnvironmentId: Effect.succeed(EnvironmentId.make("env-memory")),
-    }),
-  ),
-);
+const layerMemory = layerMemoryWith(layerFakeRegistry);
 
 describe("the sync loop", () => {
   it.effect("syncs at once and then every 60 seconds", () =>

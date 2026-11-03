@@ -342,6 +342,13 @@ describe("POST /oauth/t3x-device", () => {
       assert.equal(stale.status, 503);
       assert.equal(reason(stale), "list_expired");
       assert.deepEqual(stale.json(), { error: "service_unavailable" });
+      // An old list only stops device passes; the app's own sign-in is untouched.
+      const local = yield* exchangeBootstrap({
+        port: harness.port,
+        origin: harness.origin,
+        dpop: makeDpopSigner(),
+      });
+      assert.equal(local.status, 200);
     }).pipe(Effect.provide(layerHarness)),
   );
 
@@ -747,6 +754,33 @@ describe("revoking a removed device", () => {
           })).status,
           401,
         );
+      }).pipe(Effect.provide(layerHarness)),
+  );
+
+  it.effect(
+    "renewing with the same key leaves the first socket open, then follows it to the renewal",
+    () =>
+      Effect.gen(function* () {
+        const { fake, service, laptop, exchange } = yield* arrange;
+        const sessions = yield* SessionStore.SessionStore;
+        const first = yield* exchange(laptop);
+        const s1 = yield* sessions.verify(String(first.response.json().access_token));
+        const socket = yield* sessions
+          .awaitInvalidation(s1.sessionId, first.dpop.thumbprint)
+          .pipe(Effect.forkChild);
+        // A new pass for the same device and the same DPoP key replaces nothing: no replaceActiveForSubjectAndMethod.
+        yield* TestClock.adjust(Duration.minutes(30));
+        const renewal = yield* exchange(laptop, { dpop: first.dpop });
+        assert.equal(renewal.response.status, 200);
+        assert.lengthOf(yield* sessionIdsOf(laptop.id), 2);
+        assert.isUndefined(socket.pollUnsafe());
+        // The first session expires; the socket moves on to the renewal and stays open.
+        yield* TestClock.adjust(Duration.minutes(31));
+        assert.isUndefined(socket.pollUnsafe());
+        // Removing the device closes it all the same.
+        fake.removeDevice(laptop.id);
+        yield* service.refresh;
+        yield* Fiber.join(socket);
       }).pipe(Effect.provide(layerHarness)),
   );
 

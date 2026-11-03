@@ -7,7 +7,7 @@ import * as NodeHttp from "node:http";
 
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { EnvironmentHttpApi, T3X_DEVICE_GRANT_TYPE } from "@t3tools/contracts";
+import { EnvironmentHttpApi, EnvironmentId, T3X_DEVICE_GRANT_TYPE } from "@t3tools/contracts";
 import { computeDpopAccessTokenHash, computeDpopJwkThumbprint } from "@t3tools/shared/dpop";
 import type { DpopPublicJwk } from "@t3tools/shared/dpop";
 import { signAssertion } from "@t3tools/shared/forkDeviceKeys/assertion";
@@ -17,6 +17,7 @@ import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 import * as Etag from "effect/http/Etag";
@@ -318,14 +319,17 @@ export const layerHarness = Layer.unwrap(
 );
 
 /** The invite the fake registry accepts, shaped like the real one. */
-export const fakeInvite = (kind: "computer" | "phone" | "any" = "computer") => {
+export const fakeInvite = (
+  kind: "computer" | "phone" | "any" = "computer",
+  expiresAt: number = NOW_S + 900,
+) => {
   const invite = {
     origin: FAKE_ORIGIN,
     registryId: FAKE_REGISTRY_ID,
     id: "AAAAAAAAAAA",
     secret: "BBBBBBBBBBBBBBBBBBBBBB",
     kind,
-    expiresAt: NOW_S + 900,
+    expiresAt,
   } as const;
   return { invite, text: encodeInvite(invite), redemption: redemptionOf(invite) };
 };
@@ -480,3 +484,43 @@ export const exchangeBootstrap = Effect.fn("exchangeBootstrap")(function* (input
     body,
   });
 });
+
+const memorySecrets = Layer.unwrap(
+  Effect.sync(() => {
+    const files = new Map<string, Uint8Array>();
+    return Layer.succeed(
+      ServerSecretStore.ServerSecretStore,
+      ServerSecretStore.ServerSecretStore.of({
+        get: (name) => Effect.sync(() => Option.fromNullishOr(files.get(name))),
+        set: (name, value) => Effect.sync(() => void files.set(name, value)),
+        create: (name, value) => Effect.sync(() => void files.set(name, value)),
+        getOrCreateRandom: () => Effect.die("unused"),
+        remove: (name) => Effect.sync(() => void files.delete(name)),
+      }),
+    );
+  }),
+);
+
+/**
+ * The device services over in-memory storage and the given registry layer, without HTTP or sessions.
+ * For tests whose every await has to belong to the clock (the sync loop) or that talk to a real registry.
+ */
+export const layerMemoryWith = <ROut, E, R>(registry: Layer.Layer<ROut, E, R>) =>
+  DeviceKeysService.layer.pipe(
+    Layer.provideMerge(DeviceDirectory.layer),
+    Layer.provideMerge(DeviceIdentity.layer),
+    Layer.provideMerge(registry),
+    Layer.provideMerge(memorySecrets),
+    Layer.provideMerge(
+      // Only the two calls the directory makes on it.
+      Layer.succeed(SessionStore.SessionStore, {
+        listActive: () => Effect.succeed([]),
+        revoke: () => Effect.succeed(false),
+      } as unknown as SessionStore.SessionStore["Service"]),
+    ),
+    Layer.provideMerge(
+      Layer.succeed(ServerEnvironment.ServerEnvironmentIdentity, {
+        getEnvironmentId: Effect.succeed(EnvironmentId.make("env-memory")),
+      }),
+    ),
+  );

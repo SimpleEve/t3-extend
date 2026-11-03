@@ -9,7 +9,7 @@ import * as RegistryClient from "./RegistryClient.ts";
 import * as TunnelListener from "./TunnelListener.ts";
 
 /** The services the CLI needs: no sync loop and no listener. */
-const layerServices = DeviceKeysService.layer.pipe(
+export const layerServices = DeviceKeysService.layer.pipe(
   Layer.provideMerge(DeviceDirectory.layer),
   Layer.provideMerge(Layer.mergeAll(DeviceIdentity.layer, RegistryClient.layer)),
 );

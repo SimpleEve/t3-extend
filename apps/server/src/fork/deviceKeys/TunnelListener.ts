@@ -101,6 +101,7 @@ export const withTunnel = <A, E, R>(served: Layer.Layer<A, E, R>) =>
         return yield* Effect.die("The tunnel listener must bind a TCP port.");
       }
       yield* Deferred.succeed(port, address.port);
+      yield* Effect.logInfo(`Tunnel listener on 127.0.0.1:${address.port}`);
       // @effect-diagnostics-next-line anyUnknownInErrorContext:off -- see above.
       const app = Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
