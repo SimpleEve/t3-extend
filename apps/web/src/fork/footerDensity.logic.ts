@@ -33,3 +33,9 @@ export function resolveFooterDensity(
   }
   return "icon";
 }
+
+/** How many icon-only chips fit, so a chip is never left half clipped at the narrowest sidebar. */
+export function maxIconChips(available: number): number {
+  const iconWidth = CHIP_CHROME_PX - 4;
+  return Math.max(0, Math.floor((available + CHIP_GAP_PX) / (iconWidth + CHIP_GAP_PX)));
+}

@@ -6,6 +6,7 @@ import { observeResize } from "../lib/observeResize";
 import {
   type FooterChipSize,
   type FooterDensity,
+  maxIconChips,
   resolveFooterDensity,
 } from "./footerDensity.logic";
 import { useFooterStatusToggle } from "./footerStatusStore";
@@ -91,6 +92,8 @@ export function SidebarFooterStatus(props: {
     available,
     chips.map((chip) => chip.size),
   );
+  // Where even the icons do not all fit, the last chips drop out whole instead of being clipped.
+  const shown = density === "icon" ? chips.slice(0, maxIconChips(available)) : chips;
   return (
     <SidebarMenuItem
       className="min-w-0 shrink overflow-hidden"
@@ -108,7 +111,7 @@ export function SidebarFooterStatus(props: {
       }}
     >
       <div className="flex items-center gap-0.5">
-        {chips.map((chip) => (
+        {shown.map((chip) => (
           <div key={chip.key} className="flex shrink-0">
             {chip.render(density)}
           </div>
