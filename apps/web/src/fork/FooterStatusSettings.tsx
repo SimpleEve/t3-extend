@@ -1,6 +1,7 @@
 // fork: switches for the sidebar footer chips and the desktop keep-awake guard (Settings → Appearance).
 import { SettingsRow, SettingsSection } from "../components/settings/settingsLayout";
 import { Switch } from "../components/ui/switch";
+import { isElectron } from "../env";
 import { useT } from "../hooks/useT";
 import {
   type FooterStatusKey,
@@ -38,6 +39,15 @@ export function FooterStatusSettings() {
         title={t("Subscription limits")}
         description={t("Show how much of each provider's subscription window is left.")}
       />
+      {isElectron ? (
+        <ToggleRow
+          toggle="keepAwake"
+          title={t("Keep computer awake while agents work")}
+          description={t(
+            "Keeps this computer from sleeping on idle while a thread on it is running. The screen can still turn off. Whether closing the lid puts it to sleep is up to macOS, and this switch cannot change that.",
+          )}
+        />
+      ) : null}
     </SettingsSection>
   );
 }

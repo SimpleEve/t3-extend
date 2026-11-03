@@ -12,6 +12,8 @@ import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 import * as IpcChannels from "./ipc/channels.ts";
 import type { SelfHostBridge, SelfHostState } from "@t3tools/shared/selfHost"; // fork: self-hosted connection
 import * as SelfHostIpcChannels from "./selfHost/selfHostChannels.ts"; // fork: self-hosted connection
+import type { KeepAwakeBridge } from "@t3tools/shared/keepAwake"; // fork: keep awake
+import * as KeepAwakeChannels from "./keepAwake/keepAwakeChannels.ts"; // fork: keep awake
 import { mergeLegacyLocalStorage } from "./legacyLocalStorageMerge.ts";
 
 const SNAP_SHOT_EVENT_TYPES = new Set([
@@ -89,6 +91,11 @@ contextBridge.exposeInMainWorld(SelfHostIpcChannels.SELF_HOST_BRIDGE_GLOBAL, {
     };
   },
 } satisfies SelfHostBridge);
+
+// fork: keep awake
+contextBridge.exposeInMainWorld(KeepAwakeChannels.KEEP_AWAKE_BRIDGE_GLOBAL, {
+  setActive: (active) => ipcRenderer.invoke(KeepAwakeChannels.SET_KEEP_AWAKE_CHANNEL, active),
+} satisfies KeepAwakeBridge);
 
 contextBridge.exposeInMainWorld("desktopBridge", {
   getAppBranding: () => {

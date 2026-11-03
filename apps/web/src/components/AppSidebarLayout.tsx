@@ -65,6 +65,7 @@ import { appAtomRegistry } from "../rpc/atomRegistry";
 import { registerCommands, registerMenuAction } from "../shortcuts/dispatcher";
 import { resolveThreadRouteRef } from "../threadRoutes";
 import { useT } from "~/hooks/useT";
+import { KeepAwakeReporter } from "../fork/KeepAwakeReporter"; // fork: keep awake
 
 const MACOS_TRAFFIC_LIGHTS_LEFT_INSET = "var(--desktop-window-controls-inset, 90px)";
 
@@ -456,6 +457,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         style={sidebarProviderStyle}
       >
         <SidebarBrandWidthProbe isElectron={isElectron} onWidthChange={setBrandWidth} />
+        {isElectron ? <KeepAwakeReporter /> : null /* fork: keep awake */}
         <Sidebar
           side="left"
           collapsible="offcanvas"
