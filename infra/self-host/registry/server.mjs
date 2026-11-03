@@ -97,25 +97,37 @@ function clientIp(req) {
   return typeof value === "string" && isIP(value) !== 0 ? value.toLowerCase() : "unknown";
 }
 
+/**
+ * 3.12 B: no Content-Length means no body; a declared length must be plain digits, within the limit, and match
+ * what arrives. Past the limit we stop reading; the error reply carries `Connection: close`, which ends the socket.
+ */
 function readBody(req, limit) {
   return new Promise((resolve, reject) => {
-    const declared = Number(req.headers["content-length"] ?? 0);
-    if (!Number.isFinite(declared) || declared > limit) {
+    const header = req.headers["content-length"];
+    const declared = header === undefined ? 0 : /^\d{1,9}$/.test(header) ? Number(header) : -1;
+    const refuse = () => {
+      req.pause();
       reject(new HttpError("invalid_request"));
+    };
+    if (declared < 0 || declared > limit) {
+      refuse();
       return;
     }
     const chunks = [];
     let size = 0;
     req.on("data", (chunk) => {
       size += chunk.length;
-      if (size > limit) {
-        reject(new HttpError("invalid_request"));
+      if (size > declared) {
+        refuse();
         return;
       }
       chunks.push(chunk);
     });
-    req.on("end", () => resolve(Buffer.concat(chunks)));
-    req.on("error", () => reject(new HttpError("invalid_request")));
+    req.on("end", () => (size === declared ? resolve(Buffer.concat(chunks)) : refuse()));
+    req.on("error", refuse);
+    req.on("close", () => {
+      if (!req.complete) refuse();
+    });
   });
 }
 
