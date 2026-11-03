@@ -6,6 +6,13 @@ export default {
     "显示各 provider 订阅窗口还剩多少。",
   "Updated {time}": "更新于 {time}",
   "Usage details": "用量详情",
+  "Resource usage": "资源占用",
+  "Show the CPU and memory T3 uses on the shown computer.":
+    "显示 T3 在当前所示电脑上占用的 CPU 和内存。",
+  Backend: "后端",
+  "Resource monitor": "资源监视器",
+  "Top processes": "内存占用最高的进程",
+  Diagnostics: "诊断",
   "Keep computer awake while agents work": "Agent 工作时保持电脑唤醒",
   "Keeps this computer from sleeping on idle while a thread on it is running. The screen can still turn off. Whether closing the lid puts it to sleep is up to macOS, and this switch cannot change that.":
     "本机有对话在运行时，不让电脑因闲置而睡眠，屏幕仍可以熄灭。合上盖子后睡不睡仍由 macOS 决定，这个开关管不到。",

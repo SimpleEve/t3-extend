@@ -9,6 +9,7 @@ import {
   resolveFooterDensity,
 } from "./footerDensity.logic";
 import { useFooterStatusToggle } from "./footerStatusStore";
+import { FooterResources, footerResourcesSize, useFooterResources } from "./FooterResources";
 import { FooterUsageLimits, footerLimitsSize, useFooterLimits } from "./FooterUsageLimits";
 import { useFooterScope } from "./useFooterScope";
 
@@ -27,8 +28,10 @@ export function SidebarFooterStatus(props: {
   readonly scopedProjectRefs: readonly ScopedProjectRef[];
 }) {
   const limitsOn = useFooterStatusToggle("limits");
+  const resourcesOn = useFooterStatusToggle("resources");
   const scope = useFooterScope(props.scopedProjectRefs);
   const limits = useFooterLimits(limitsOn ? scope.environmentId : null);
+  const resources = useFooterResources(resourcesOn ? scope.environmentId : null);
   const [available, setAvailable] = useState(Number.POSITIVE_INFINITY);
 
   const chips: FooterChipSpec[] = [];
@@ -38,6 +41,15 @@ export function SidebarFooterStatus(props: {
       size: footerLimitsSize(limits),
       render: (density) => (
         <FooterUsageLimits entries={limits} density={density} machineLabel={scope.machineLabel} />
+      ),
+    });
+  }
+  if (resources !== null) {
+    chips.push({
+      key: "resources",
+      size: footerResourcesSize(resources),
+      render: (density) => (
+        <FooterResources summary={resources} density={density} machineLabel={scope.machineLabel} />
       ),
     });
   }

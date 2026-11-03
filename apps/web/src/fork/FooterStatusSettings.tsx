@@ -39,6 +39,11 @@ export function FooterStatusSettings() {
         title={t("Subscription limits")}
         description={t("Show how much of each provider's subscription window is left.")}
       />
+      <ToggleRow
+        toggle="resources"
+        title={t("Resource usage")}
+        description={t("Show the CPU and memory T3 uses on the shown computer.")}
+      />
       {isElectron ? (
         <ToggleRow
           toggle="keepAwake"
