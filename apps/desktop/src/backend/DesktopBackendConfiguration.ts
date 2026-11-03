@@ -536,6 +536,12 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
         ELECTRON_RUN_AS_NODE: "1",
         T3CODE_DESKTOP_SHELL_DISCOVERY_PENDING: "1",
         T3CODE_CLI_PATH: Option.getOrUndefined(input.cliPath),
+        // fork: the bundled frpc; the server falls back to <T3 home>/bin when it is not there
+        T3X_FRPC_PATH: environment.path.join(
+          environment.resourcesPath,
+          "bin",
+          environment.platform === "win32" ? "frpc.exe" : "frpc",
+        ),
         // fork: self-hosted connection
         ...DesktopSelfHost.backendEnvironment({
           publicUrlsFile: DesktopSelfHost.publicUrlsFilePath(environment),

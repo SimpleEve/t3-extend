@@ -228,12 +228,13 @@ describe("Login: the seven steps in order", () => {
 
   it("6. rejects an expired ticket only after everything else checked out", () => {
     const mac = enrollComputer();
+    // `iat` is set before `exp` so the ticket's own shape is sound and only its age is wrong.
     assert.deepEqual(
-      run(login(mac, ticketFor(mac, { exp: clock.now() }))),
+      run(login(mac, ticketFor(mac, { iat: clock.now() - 60, exp: clock.now() }))),
       rejected("ticket-expired"),
     );
     assert.deepEqual(
-      run(login(mac, ticketFor(mac, { exp: clock.now() - 3600 }))),
+      run(login(mac, ticketFor(mac, { iat: clock.now() - 7200, exp: clock.now() - 3600 }))),
       rejected("ticket-expired"),
     );
     assert.deepEqual(run(login(mac, ticketFor(mac, { exp: clock.now() + 1 }))), ALLOW);
@@ -243,6 +244,35 @@ describe("Login: the seven steps in order", () => {
       run(login(mac, ticketFor(mac, { exp: clock.now() - 1, sub: "elsewhere" }))),
       rejected("bad-ticket"),
     );
+  });
+
+  it("6b. rejects a ticket whose own lifetime is out of bounds, on all four ops", () => {
+    const mac = enrollComputer();
+    const now = clock.now();
+    const cases = {
+      "exp equals iat": { iat: now, exp: now },
+      "exp before iat": { iat: now, exp: now - 10 },
+      "exactly one second past 24 hours": { iat: now, exp: now + 86_401 },
+      "a century": { iat: now, exp: now + 100 * 365 * 86_400 },
+      "iat more than 5 minutes ahead": { iat: now + 301, exp: now + 601 },
+      "iat missing": { iat: undefined, exp: now + 60 },
+      "iat fractional": { iat: now + 0.5, exp: now + 60 },
+      "iat a string": { iat: "now", exp: now + 60 },
+    };
+    for (const [label, fields] of Object.entries(cases)) {
+      const ticket = ticketFor(mac, fields);
+      for (const request of [
+        login(mac, ticket),
+        withUser("Ping", mac, {}, ticket),
+        withUser("NewWorkConn", mac, {}, ticket),
+        proxy(mac, {}, ticket),
+      ]) {
+        assert.deepEqual(run(request), rejected("bad-ticket"), `${label} / ${request.op}`);
+      }
+    }
+    // The boundaries themselves are fine: exactly 24 hours, and exactly 5 minutes of skew.
+    assert.deepEqual(run(login(mac, ticketFor(mac, { iat: now, exp: now + 86_400 }))), ALLOW);
+    assert.deepEqual(run(login(mac, ticketFor(mac, { iat: now + 300, exp: now + 400 }))), ALLOW);
   });
 
   it("7. a database error rejects (here: the table is gone)", () => {

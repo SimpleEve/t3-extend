@@ -538,6 +538,14 @@
     "./forkDeviceKeys/*": {
       "types": "./src/forkDeviceKeys/*.ts",
       "import": "./src/forkDeviceKeys/*.ts"
+    },
+    "./forkFrp": {
+      "types": "./src/forkFrp.ts",
+      "import": "./src/forkFrp.ts"
+    },
+    "./forkFrpFetch": {
+      "types": "./src/forkFrpFetch.ts",
+      "import": "./src/forkFrpFetch.ts"
     }
   },
   "scripts": {

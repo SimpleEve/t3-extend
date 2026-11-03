@@ -20,7 +20,9 @@ import * as DeviceDirectory from "../fork/deviceKeys/DeviceDirectory.ts";
 import * as DeviceKeysService from "../fork/deviceKeys/DeviceKeysService.ts";
 import { layerServices } from "../fork/deviceKeys/layer.ts";
 import { renderTerminalQrCode } from "../startupAccess.ts";
+import { tunnelCommand } from "./devicesTunnel.ts"; // fork: 8.3
 import { authLocationFlags, resolveCliAuthConfig, type CliAuthLocationFlags } from "./config.ts";
+import { reportDeviceErrors } from "./devicesReport.ts"; // fork: 8.3
 
 const runWithDevices = Effect.fn("devices.run")(function* <A, E>(
   flags: CliAuthLocationFlags,
@@ -30,6 +32,11 @@ const runWithDevices = Effect.fn("devices.run")(function* <A, E>(
   const logLevel = yield* GlobalFlag.LogLevel;
   const config = yield* resolveCliAuthConfig(flags, logLevel, options);
   return yield* run.pipe(
+    reportDeviceErrors,
+    // The layer's level covers building it; the command's own logs (a failed sync) need it too.
+    options?.quietLogs
+      ? Effect.provideService(References.MinimumLogLevel, "Error")
+      : (self) => self,
     Effect.provide(
       layerServices.pipe(
         Layer.provide(FetchHttpClient.layer),
@@ -79,13 +86,25 @@ const joinCommand = Command.make("join", {
   ),
 );
 
+/**
+ * A list older than this missed three 60-second syncs, the same threshold the settings page uses
+ * for "can't reach the server right now".
+ */
+const LIST_STALE_SECONDS = 180;
+
+// Read-only: it never asks the registry or touches state. A sync from this process would run beside
+// the server's own, with its own gate, and could delete the device key (design 3.8).
 const listCommand = Command.make("list", { ...authLocationFlags, json: jsonFlag }).pipe(
-  Command.withDescription("List the devices on your server."),
+  Command.withDescription("List the devices on your server, as of the last sync."),
   Command.withHandler((flags) =>
     runWithDevices(
       flags,
       Effect.gen(function* () {
         const state = yield* (yield* DeviceDirectory.DeviceDirectory).state;
+        const fetchedAt = Option.match(state.list, {
+          onNone: () => null,
+          onSome: (list) => list.fetchedAt,
+        });
         const devices = Option.match(state.list, {
           onNone: () => [],
           onSome: (list) => list.devices,
@@ -95,16 +114,21 @@ const listCommand = Command.make("list", { ...authLocationFlags, json: jsonFlag 
           onSome: (membership) => membership.deviceId,
         });
         if (flags.json) {
-          yield* Console.log(toJson({ staleness: state.staleness, self, devices }));
+          yield* Console.log(toJson({ staleness: state.staleness, fetchedAt, self, devices }));
           return;
         }
-        if (devices.length === 0) {
+        if (devices.length === 0 || fetchedAt === null) {
           yield* Console.log(
             "This computer has not joined a server. Run `t3x devices join <invite>`.",
           );
           return;
         }
-        yield* Console.log(`List is ${state.staleness}.`);
+        const age = state.nowSeconds - fetchedAt;
+        yield* Console.log(
+          age > LIST_STALE_SECONDS
+            ? `Last synced with your server ${when(fetchedAt)}, ${Math.floor(age / 60)} minutes ago. T3 may not be running on this computer, or your server may be unreachable; \`t3x devices tunnel status\` shows whether T3 is running.`
+            : `Last synced with your server ${when(fetchedAt)}.`,
+        );
         for (const device of devices) {
           yield* Console.log(
             [
@@ -214,5 +238,12 @@ const leaveCommand = Command.make("leave", { ...authLocationFlags }).pipe(
 
 export const devicesCommand = Command.make("devices").pipe(
   Command.withDescription("Join computers and phones to your own server."),
-  Command.withSubcommands([joinCommand, listCommand, inviteCommand, removeCommand, leaveCommand]),
+  Command.withSubcommands([
+    joinCommand,
+    listCommand,
+    inviteCommand,
+    removeCommand,
+    leaveCommand,
+    tunnelCommand,
+  ]),
 );
