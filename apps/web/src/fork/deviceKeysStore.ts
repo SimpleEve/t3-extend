@@ -25,6 +25,7 @@ import {
   FORK_DEVICE_KEYS_WS_METHODS,
   type DevicesSignAssertionInput,
   type DevicesSnapshot,
+  type DevicesStatus,
   type EnvironmentId,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
@@ -34,8 +35,9 @@ import { AsyncResult } from "effect/reactivity";
 import { useSyncExternalStore } from "react";
 
 import { connectionAtomRuntime } from "../connection/runtime";
-import { snapshotToView } from "./deviceKeysLogic";
+import { networkAccessNeedsRefresh, snapshotToView } from "./deviceKeysLogic";
 import { appAtomRegistry } from "../rpc/atomRegistry";
+import { refreshDesktopNetworkAccessState } from "../state/desktopNetworkAccess";
 import { readPrimaryEnvironmentId } from "../state/environments";
 
 export const devicesStatus = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
@@ -165,9 +167,9 @@ const view = (result: AsyncResult.AsyncResult<DevicesSnapshot, unknown>) =>
   AsyncResult.value(result).pipe(Option.getOrNull);
 
 /**
- * Keeps this app's saved environments in step with the server's device list for as long as it
- * runs. It reads the status once, follows the list only while this computer has joined a server, and
- * stops, removing what it saved, when it has not. Nothing runs for someone who never joined.
+ * Keeps this app's saved environments in step with the server's device list, once this computer
+ * has joined a server. The stream stays open after a leave: the tunnel going down is what tells
+ * the Settings page its pairing addresses changed (`networkAccessNeedsRefresh`).
  */
 export function startDeviceKeysSync(environmentId: EnvironmentId): () => void {
   const apply = (snapshot: DevicesSnapshot | null) => {
@@ -180,23 +182,29 @@ export function startDeviceKeysSync(environmentId: EnvironmentId): () => void {
     );
   };
   let stopSnapshots: (() => void) | null = null;
+  let tunnel: DevicesStatus["tunnel"]["status"] | null = null;
+  const noteTunnel = (status: DevicesStatus) => {
+    if (networkAccessNeedsRefresh(tunnel, status.tunnel.status)) refreshDesktopNetworkAccessState();
+    tunnel = status.tunnel.status;
+  };
   const stopStatus = appAtomRegistry.subscribe(
     devicesStatus({ environmentId, input: {} }),
     (result) => {
       const status = AsyncResult.value(result).pipe(Option.getOrNull);
       if (status === null) return;
+      noteTunnel(status);
       if (status.state === "joined") {
         stopSnapshots ??= appAtomRegistry.subscribe(
           devicesSnapshot({ environmentId, input: {} }),
           (snapshots) => {
             const snapshot = view(snapshots);
-            if (snapshot !== null) apply(snapshot);
+            if (snapshot === null) return;
+            noteTunnel(snapshot.status);
+            apply(snapshot);
           },
           { immediate: true },
         );
       } else {
-        stopSnapshots?.();
-        stopSnapshots = null;
         apply(null);
       }
     },

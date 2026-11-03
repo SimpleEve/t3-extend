@@ -4,6 +4,7 @@ import type { DevicesSnapshot } from "@t3tools/contracts";
 
 import {
   inviteDeadlineLabel,
+  networkAccessNeedsRefresh,
   serverNotice,
   serverNoticeWindow,
   snapshotToView,
@@ -37,6 +38,26 @@ describe("what the Devices section says about the link to the server", () => {
     [{ fetchedAt: seconds(NOW) + 600, staleness: "fresh" as const }, null],
   ])("%j shows %j", (status, expected) => {
     expect(serverNotice(status, NOW)).toEqual(expected);
+  });
+});
+
+describe("when the desktop app's pairing addresses are read again", () => {
+  it.each([
+    // Nothing seen yet: the settings page loads them itself.
+    [null, "disabled", false],
+    [null, "connected", false],
+    // Joining and leaving move the tunnel across "disabled".
+    ["disabled", "connecting", true],
+    ["disabled", "connected", true],
+    ["connected", "disabled", true],
+    ["error", "disabled", true],
+    // Moving between the live states changes no address.
+    ["connecting", "connected", false],
+    ["connected", "error", false],
+    ["stopped", "connecting", false],
+    ["disabled", "disabled", false],
+  ] as const)("%s then %s reads again: %s", (previous, next, expected) => {
+    expect(networkAccessNeedsRefresh(previous, next)).toBe(expected);
   });
 });
 

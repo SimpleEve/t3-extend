@@ -38,6 +38,21 @@ export function serverNotice(
   return null;
 }
 
+type TunnelState = DevicesStatus["tunnel"]["status"];
+
+/**
+ * Whether the desktop app's pairing addresses are out of date after the tunnel moved from
+ * `previous` to `next`. The server writes the file those addresses come from before its tunnel
+ * enters or leaves "disabled", so a status on the other side of that line already has the new file.
+ * The membership URL in a snapshot can arrive earlier than the file, so it is not the signal.
+ */
+export function networkAccessNeedsRefresh(
+  previous: TunnelState | null,
+  next: TunnelState,
+): boolean {
+  return previous !== null && (previous === "disabled") !== (next === "disabled");
+}
+
 const MINUTE_MS = 60_000;
 const HOUR_MS = 3_600_000;
 

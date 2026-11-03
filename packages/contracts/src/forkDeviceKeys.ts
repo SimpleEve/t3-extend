@@ -125,7 +125,7 @@ export const DevicesStatus = Schema.Struct({
   name: Schema.NullOr(Schema.String),
   url: Schema.NullOr(Schema.String),
   tunnel: DeviceTunnelStatus,
-  /** Epoch seconds of the last successful sync (200 or 304). */
+  /** Epoch seconds of the last successful sync. */
   fetchedAt: Schema.NullOr(Schema.Number),
   staleness: DeviceListStaleness,
 });
