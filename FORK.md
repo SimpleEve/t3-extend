@@ -226,7 +226,7 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 
 ## 侧边栏底部状态芯片与桌面保持唤醒
 
-侧边栏最下面一行（设置、PR、用量图标之后）有三个状态芯片：订阅额度、资源占用、本项目的本地服务端口；桌面版另有"保持唤醒"开关。芯片开关在 设置 > 外观 > 侧边栏状态，保持唤醒开关在 设置 > 维护 > 电源（仅桌面版，紧挨着"后台活动"）。开关存在 `fork/footerStatusStore.ts`（localStorage，按设备），不进 `ClientSettings`。
+侧边栏底部的图标行上面有一行三个状态芯片：订阅额度、资源占用、本项目的本地服务端口；桌面版另有"保持唤醒"开关。芯片开关在 设置 > 外观 > 侧边栏状态，保持唤醒开关在 设置 > 维护 > 电源（仅桌面版，紧挨着"后台活动"）。开关存在 `fork/footerStatusStore.ts`（localStorage，按设备），不进 `ClientSettings`。
 
 - 新文件都在 `apps/web/src/fork/`：`SidebarFooterStatus.tsx`（容器，按行宽给每个芯片选 full/compact/icon 三档）、`FooterUsageLimits.tsx`、`FooterResources.tsx`、`FooterPorts.tsx`，各自的 `*.logic.ts` 放纯逻辑与测试，`FooterChip.tsx` 是共用外壳，`FooterStatusSettings.tsx` 含芯片开关和 `KeepAwakeSettings`，`KeepAwakeReporter.tsx` 把"有任务在跑"上报给桌面主进程。桌面端在 `apps/desktop/src/keepAwake/`（`powerSaveBlocker`，只在有任务运行且开关开着时持有），共享常量在 `packages/shared/src/keepAwake.ts`。
 - 上游文件里的接线点（都带 `// fork:`）：`Sidebar.tsx`（把 `scopedProjectRefs` 传给 `SidebarChromeFooter`）、`sidebar/SidebarChrome.tsx`（在 `SidebarChromeFooter` 里渲染 `SidebarFooterStatus`，memo 比较 `scopedProjectRefs`）、`AppSidebarLayout.tsx`（Electron 下挂 `KeepAwakeReporter`）、`settings/AppearanceSettingsPanel.tsx`（`FooterStatusSettings`）、`settings/SettingsPanels.tsx`（`KeepAwakeSettings`）、桌面的 `preload.ts` 与 `ipc/DesktopIpcHandlers.ts`，译文在 `catalogs/zh-Hans/footer.ts`。
