@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Manage devices on this server. Run it on the VPS, next to docker-compose.yml.
+#
+#   ./t3x invite [--kind computer|phone|any]   one-time invite, valid 15 minutes
+#   ./t3x devices                              list devices
+#   ./t3x revoke <name|id>                     remove a device
+#   ./t3x invites                              list unused invites
+#   ./t3x rename <name> <new name>             change a display name
+#   ./t3x release <subdomain>                  hand a removed computer's subdomain back
+#   ./t3x ntfy                                 address and account for the phone's push app
+#   ./t3x info                                 registry id and counts
+#
+# T3X_DATA_DIR, T3X_COMPOSE_FILES and T3X_PROJECT behave as in setup.sh.
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+DATA_DIR=${T3X_DATA_DIR:-$SCRIPT_DIR}
+PROJECT=${T3X_PROJECT:-t3x}
+COMPOSE_FILES=${T3X_COMPOSE_FILES:-docker-compose.yml}
+
+[ -f "$DATA_DIR/.env" ] || {
+  echo "error: $DATA_DIR/.env not found. Run ./setup.sh first." >&2
+  exit 1
+}
+
+if [ "${1:-}" = ntfy ]; then
+  url=$(sed -n 's/^T3X_NTFY_URL=//p' "$DATA_DIR/.env")
+  profiles=$(sed -n 's/^COMPOSE_PROFILES=//p' "$DATA_DIR/.env")
+  case "$profiles" in
+    *ntfy*) ;;
+    *)
+      echo "ntfy is not installed on this server (setup.sh was run with --no-ntfy)." >&2
+      exit 1
+      ;;
+  esac
+  echo "Server:   $url"
+  echo "Account:  phone  (read-only on up*)"
+  echo "Password: $(tr -d '\n' <"$DATA_DIR/secrets/ntfy-phone.txt")"
+  exit 0
+fi
+
+compose_args=(-p "$PROJECT" --env-file "$DATA_DIR/.env")
+IFS=: read -r -a files <<<"$COMPOSE_FILES"
+for file in "${files[@]}"; do
+  compose_args+=(-f "$SCRIPT_DIR/$file")
+done
+
+tty_args=()
+[ -t 0 ] && [ -t 1 ] || tty_args=(-T)
+exec docker compose "${compose_args[@]}" exec "${tty_args[@]}" registry node /app/cli.mjs "$@"

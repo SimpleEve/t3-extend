@@ -1,157 +1,90 @@
-# 自建连接：用自己的 VPS 代替 T3 Connect
+# 自建连接：用自己的服务器连回家里的 T3 Extend
 
-T3 Connect 建立连接后，所有流量都经过 Cloudflare 边缘，在中国大陆通常很慢。这个目录是一套自建方案：在你自己的 VPS 上运行 Caddy 和 frps，在家里的电脑上运行 frpc，手机和别的电脑就能通过 `https://t3.example.com` 这样的地址连回家里的 T3 Extend。
+在你自己的 VPS 上跑一个小服务，家里的电脑登记进去以后，手机和别的电脑就能通过 `https://你的域名` 连回来。流量不经过 Cloudflare，在中国大陆通常快得多。
 
-```
-手机 / 浏览器 ──HTTPS──▶ VPS: Caddy :443 ──▶ frps :7001 ══frp 隧道 (TLS)══▶ 家里: frpc ──▶ 127.0.0.1:3873 (T3 Extend)
-```
+每台设备（电脑或手机）有自己的密钥，服务器只保存公钥。丢了一台设备，只需要移除它，其他设备不受影响，不用换任何共享密码。
 
-- Caddy 自动申请 Let's Encrypt 证书，终止 TLS，原样转发 `Host`，并加上 `X-Forwarded-Proto`。WebSocket 和 SSE 不做额外处理就能通过。
-- frps 的数据端口 7001 只在 docker 内部网络里，公网访问不到。家里的 frpc 通过控制端口 7000 连上来，连接用 TLS 加密，并用 token 认证。
-- 配对方式不变：二维码或者 `https://t3.example.com/pair#token=<一次性码>`。
-
-## 先读：信任模型
-
-**TLS 在 VPS 上终止，VPS 能看到明文**，包括你和 Agent 的对话内容、文件，以及会话 token。所以这台 VPS 必须是你自己的，root 权限只有你有。不要用别人共享的机器，也不要用来路不明的"免费 frp 服务"。
-
-T3 自己的认证不受影响：
-
-- 配对码是一次性的，5 分钟过期，换到的是可以单独撤销的会话。
-- 直连配对得到 Bearer 会话，30 天有效。设备丢了，到 Settings → Sharing & access 的 Authorized clients 里撤销它，或者在家里电脑上运行 `t3x auth session list` 和 `t3x auth session revoke <id>`。
-- 用配对码兑换会话的请求（`/oauth/token`、浏览器登录 `/api/auth/browser-session`、Agent 连接批准页）有失败限速，按客户端地址分别计数：同一个地址 1 分钟内失败 20 次，只锁这个地址 60 秒，期间返回 429。经隧道来的请求由 Caddy 在 `X-Forwarded-For` 里带上真实地址，server 按它区分客户端，所以别人恶意试错锁不住你自己的设备；家里电脑本机发起的请求（桌面版启动、`t3x` 命令）不计数。配对码本身有 60 位随机性，5 分钟过期，用一次就失效，限速只是挡掉噪音。
+> **服务器能看到明文。** HTTPS 在你的 VPS 上终止，所以 VPS 能看到你和 Agent 的对话、文件内容。请只用你自己独占 root 的机器。
 
 ## 你需要准备
 
-1. 一台 VPS。离你和手机越近越好：国内云服务器延迟最低（国内服务器的 80/443 端口通常需要域名备案），香港或日本的服务器不需要备案，延迟次之。1 核 1 GB 内存就够了。
-2. 一个域名，加一条 A 记录：`t3.example.com → VPS 公网 IP`。
-3. VPS 防火墙（包括云厂商控制台里的安全组）只放行：
-   - `80/tcp`、`443/tcp`：Caddy，用于签发证书和 HTTPS 访问
-   - `7000/tcp`：frps 控制端口，供家里的 frpc 连接
-   - 不要放行 7001。compose 没有把它映射到宿主机，安全组里也不要开它。
-4. VPS 上装好 Docker 和 Docker Compose 插件。
+1. **一台 VPS**，1 核 1 GB 内存就够。离你和手机越近越好。用国内云服务器，80/443 通常需要域名备案；香港、日本的服务器不需要，延迟次之。
+2. **一个域名**，加两条 DNS 记录，都指向 VPS 的公网 IP：
+   - `t3.example.com`
+   - `*.t3.example.com`（通配，每台电脑会得到自己的子域名；推送服务器也用它）
+3. **VPS 上装好 Docker 和 compose 插件**（[安装说明](https://docs.docker.com/engine/install/)）。脚本不会替你安装任何东西，也不会改防火墙。
+4. **放行 80/tcp 和 443/tcp**，包括云厂商控制台里的安全组。其他端口都不需要开。
 
-## 部署 VPS
+## 安装
 
-```bash
-# 在 VPS 上
-git clone <你的 t3-extend 仓库> && cd t3-extend/infra/self-host   # 或者只拷贝这个目录
-cp .env.example .env
-openssl rand -hex 32          # 生成 FRP_AUTH_TOKEN
-vi .env                       # 填 T3_DOMAIN、ACME_EMAIL、FRP_AUTH_TOKEN
-docker compose up -d
-docker compose logs -f caddy  # 看到 "certificate obtained successfully" 就是证书拿到了
-```
-
-`frps.toml` 和 `Caddyfile` 不需要改，域名和 token 都从 `.env` 读取。
-
-Docker 发布的端口会绕过 ufw 规则，所以端口要在云厂商的安全组里控制，不要只依赖 ufw。
-
-## 家里的电脑
-
-### 1. 安装 frpc
-
-- macOS：`brew install frpc`
-- Linux / Windows：到 <https://github.com/fatedier/frp/releases> 下载，把其中的 `frpc` 放进 PATH。
-
-部署包固定的是 frps 0.61.1（`docker-compose.yml`）。已经实测能连通的组合是 frpc 0.70.0 + frps 0.61.1。`brew install` 装的是 Homebrew 当前的最新版，可能比 0.70.0 新，没有验证过。装好后先确认两端版本：
-
-```bash
-frpc -v                            # 家里的电脑
-docker compose images frps         # VPS 上，TAG 一列是 frps 的版本
-docker compose logs frps | grep "client login info"   # frpc 连上后，这一行里的 version [...] 是客户端版本
-```
-
-frpc 连不上、日志里有 `login to the server failed` 之类的错误时，先把两端换成上面这组已验证的版本。
-
-### 2. 配置 frpc
-
-```bash
-cp infra/self-host/frpc.toml.example ~/frpc.toml
-vi ~/frpc.toml    # 填 serverAddr（VPS IP 或域名）和 auth.token（和 VPS 的 FRP_AUTH_TOKEN 相同）
-frpc verify -c ~/frpc.toml
-```
-
-`localPort` 默认是 3873，也就是 T3 Extend 桌面版后端的端口。headless 用 `t3x serve --port 3873` 固定端口。
-
-### 3. 让 frpc 一直运行，两种方式选一种
-
-- **交给 T3 Extend 管（推荐）**：Settings → Sharing & access → Tunnel command，填 `frpc -c ~/frpc.toml`，保存后打开开关。应用打开期间它一直运行，退出后会退避重启，退出应用时停止。这一行会显示运行状态、重启次数、最近一条错误和最近的输出。这条命令保存在本机，只能在这台电脑的桌面应用里修改，远程设备改不了。
-- **自己管**：手动运行 `frpc -c ~/frpc.toml`，或者把它配置成 launchd / systemd 服务。
-
-## 在 T3 Extend 里配对
-
-### 桌面版
-
-1. Settings → Sharing & access → Public addresses，添加 `https://t3.example.com`。只接受 `https://` 开头、不带路径的地址。
-2. 在 Authorized clients 里创建配对链接，点 Share，在地址下拉框里选 `t3.example.com`。手机扫二维码，或者把链接粘贴到手机上的 Add environment。
-3. 已经在家里用局域网配对过的手机不用重新配对。下次连上时，它会从 server 学到这个公网地址；离开家里的网络后，会自动改走公网地址。回家后能连上局域网，就切回局域网。
-
-Network access（局域网访问）不需要打开。frpc 通过 127.0.0.1 连接后端。
-
-删除公网地址后，server 不再上报它。设备下次连接时会丢掉学到的这条路由，但已配对的会话还在。如果要彻底断开某台设备，到 Authorized clients 里撤销它。
-
-### headless（`t3x serve` / `t3x up`）
-
-```bash
-t3x up --public-url https://t3.example.com            # 保存到 server 的状态目录，装成服务后仍然有效
-t3x pair --base-url https://t3.example.com            # 打印二维码、Pairing URL 和 App link
-t3x up --clear-public-urls                            # 删除保存的公网地址
-```
-
-`--public-url` 可以重复写多次，每次传入的列表会替换之前保存的列表。也可以用环境变量 `T3CODE_PUBLIC_URLS=https://a.example.com,https://b.example.com`，它和保存的列表合并，但不会写入保存的列表。
-
-## 推送通知：ntfy（可选，Android）
-
-不想依赖 Firebase、Google Play 服务，也不用 T3 Connect，也能在手机上收到 Agent 完成、失败、需要批准、需要回答的提醒：同一台 VPS 上多跑一个 [ntfy](https://ntfy.sh)，它是 UnifiedPush 推送服务器。家里的 T3 Extend 把每条通知用手机的公钥加密后 POST 给 ntfy，手机上的 ntfy 应用收到后交给 T3 Extend 解密并显示。ntfy 只经手密文。
+`setup.sh` 只用在 Linux VPS 上；想在 Mac 上试，看下面的「本地试用」。在 VPS 上，进到这个目录：
 
 ```
-家里: T3 Extend ──HTTPS POST 密文──▶ VPS: Caddy ──▶ ntfy ◀──长连接── 手机: ntfy 应用 ──▶ T3 Extend 解密、显示
+./setup.sh --domain t3.example.com --email you@example.com
 ```
 
-### 部署
+邮箱用来接收证书到期提醒。第一次会构建镜像，大约一分钟。结束时它会打印注册表信息和第一份**邀请**：一串以 `t3x1.` 开头的字符串，加一个二维码。
 
-1. 给推送服务器再加一条 A 记录，例如 `ntfy.example.com → VPS 公网 IP`，在 `.env` 里填 `NTFY_DOMAIN=ntfy.example.com`。不需要放行新的端口，ntfy 的 80 端口只在 compose 内部网络里，由 Caddy 在 443 上代理。
-2. `docker compose up -d`。`ntfy/server.yml` 已经配好：
-   - `auth-default-access: deny-all`：匿名用户不能读任何主题。
-   - `auth-access: "*:up*:write-only"`：匿名用户只能**写**以 `up` 开头的主题，也就是 UnifiedPush 的主题。家里的 T3 Extend 不带账号，靠这一条推送。
-   - 关闭注册和网页登录，账号只在服务器上创建。
-3. 创建手机用的账号，只给读 `up*` 的权限：
+不想装手机推送服务器，加上 `--no-ntfy`。
 
-   ```bash
-   docker compose exec ntfy ntfy user add phone          # 按提示输入密码
-   docker compose exec ntfy ntfy access phone 'up*' read-only
-   docker compose exec ntfy ntfy access                  # 应该看到 phone 只读 up*，匿名只写 up*
-   ```
+脚本可以重复运行，不会重置已有的数据。换域名等于重新开始：先删掉 `.env` 和注册表的数据卷。
 
-### 手机
+## 本地试用
 
-1. 在 F-Droid 安装 **ntfy**，打开 Settings，把 Default server 设为 `https://ntfy.example.com`，在 Manage users 里添加 `phone` 账号和密码。
-2. 打开 T3 Extend → Settings → Notifications → Push notifications，允许通知。屏幕上会显示推送应用和服务器地址，每个环境一行"已注册"。点环境下的 Send test notification，几秒内应该收到测试通知。
+想在自己的电脑上先试一遍，不租 VPS、不买域名，也不碰系统：Docker 里跑一套完整的服务，只监听本机回环地址（`127.0.0.1` 和 `::1` 的 18443 端口），局域网和外网都访问不到。证书用 Caddy 自己的根证书，浏览器会提示不受信任。
 
-### 家里的电脑
+**不要在 Mac 上直接运行生产命令。** 生产配置会把 80 和 443 开到局域网，还会去 Let's Encrypt 申请真证书，所以 `setup.sh` 在 Mac 上遇到生产配置会直接拒绝（`--dry-run` 不受限）。试用必须带上测试覆盖文件 `docker-compose.test.yml`，下面的命令已经带上了：
 
-推送服务器必须能从公网访问（例如这台 VPS 上的 `https://ntfy.example.com`）。T3 Extend 只向公网地址推送：指向本机、局域网、链路本地（含云厂商的元数据地址）、Tailscale 的 100.64.0.0/10 等非公网地址的 endpoint，或者域名解析到这些地址的 endpoint，都会被拒绝。所以不要把 ntfy 只放在内网里。
+```
+export T3X_DATA_DIR=/tmp/t3x-trial
+export T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.test.yml
+export T3X_PROJECT=t3x-trial
+./setup.sh --domain t3.localhost --public-port 18443
+```
 
-不需要额外配置。T3 Extend 把推送地址和密钥保存在状态目录的 `secrets/` 里（文件权限 0600）。家里的电脑必须能访问 `https://ntfy.example.com`。
+| 设置                | 作用                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------- |
+| `T3X_DATA_DIR`      | `.env` 和 `secrets/` 放在哪里，默认是脚本所在目录。试用时指向一个临时目录，不弄脏仓库。 |
+| `T3X_COMPOSE_FILES` | 用哪些 compose 文件，冒号分隔。带上 `docker-compose.test.yml` 就是本地试用模式。        |
+| `T3X_PROJECT`       | compose 项目名，默认 `t3x`。换一个名字，试用和正式部署的容器、数据卷互不干扰。          |
+| `--public-port`     | 对外的 HTTPS 端口，只在试用模式下可以改，默认 443。                                     |
+| `--dry-run`         | 只打印会做什么，不写文件、不启动服务。                                                  |
 
-### 安全说明
+之后用 `./t3x` 时同样带上这三个环境变量。试用模式下邮箱可以不填。用完后清理：
 
-- 推送地址（含 `up…` 主题名）本身就是凭据：知道它的人可以往里写。T3 Extend 不会把完整地址写进日志或显示在界面上，只显示主机名。
-- 任何人往主题里写的数据，如果不是用手机的密钥加密的，手机上的连接库会直接丢弃，不会显示。
+```
+docker compose -p t3x-trial -f docker-compose.yml -f docker-compose.test.yml --env-file /tmp/t3x-trial/.env --profile ntfy down -v
+```
 
-## 排查
+## 邀请电脑和手机
 
-| 现象                                 | 检查                                                                                                                                                           |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 浏览器打不开地址，证书错误           | A 记录是否生效（`dig t3.example.com`），80/443 是否放行，`docker compose logs caddy`                                                                           |
-| 502 Bad Gateway                      | frpc 没连上：看 Tunnel command 的状态和错误，或者 `docker compose logs frps`；token 是否一致；家里 T3 是否在运行                                               |
-| 能打开页面但配对失败                 | 先在家里电脑上访问 `curl https://t3.example.com/.well-known/t3/environment`，看返回的 environmentId 是否就是这台机器                                           |
-| 配对时提示 429                       | 这个地址最近失败次数太多，等一分钟再试                                                                                                                         |
-| 手机出门后连不上                     | 在家里先连一次，让它学到公网地址；或者用公网地址重新配对一次                                                                                                   |
-| 注册或测试通知失败，提示地址不是公网 | endpoint 的域名解析到了内网、本机或 Tailscale 地址：把 ntfy 放在公网地址上；家里电脑如果开着 fake-ip 模式的代理，域名会解析成 198.18.x.x，要让 ntfy 的域名直连 |
-| 测试通知提示服务器拒绝               | 推送服务器返回了 401 / 403：`docker compose exec ntfy ntfy access` 里匿名用户必须是 `write-only` 且主题是 `up*`                                                |
-| 测试通知发送成功但手机没收到         | 手机上的 ntfy 应用要保持后台运行（关掉电池优化），并用 `phone` 账号登录同一个服务器；看 ntfy 应用里是否有 `up…` 主题                                           |
+邀请只能用一次，15 分钟内有效，请当作密码传递。
 
-## 零代码的备选方案：Headscale + 自建国内 DERP
+- **第一台电脑**：安装完成时打印的邀请。在那台电脑的 T3 Extend 里选择加入自己的服务器，粘贴即可。
+- **更多电脑**：在 VPS 上运行 `./t3x invite --kind computer`。
+- **手机**：运行 `./t3x invite --kind phone`，用手机扫屏幕上的二维码；没有二维码工具时，复制字符串。
 
-如果你不想让 VPS 看到明文，可以用 Headscale 自建 Tailscale 控制面，在国内 VPS 上部署 DERP 中继，手机和电脑都安装官方 Tailscale 客户端并指向你的 Headscale。流量由 WireGuard 端到端加密，DERP 只转发密文。T3 把它当作普通的 tailnet 路由，不需要额外配置，还可以用 `t3x pair --tailscale` 生成配对链接。代价是每台设备都要安装 Tailscale 并保持 VPN 开启，不能像扫码那样直接用。
+手机想收到推送通知（Android），运行 `./t3x ntfy`，它会显示推送服务器地址和手机用的账号密码。用 `--no-ntfy` 安装的服务器没有推送服务器，`./t3x ntfy` 会提示未安装。
+
+## 管理设备
+
+| 想做的事                             | 命令                           |
+| ------------------------------------ | ------------------------------ |
+| 看有哪些设备                         | `./t3x devices`                |
+| 移除一台设备（丢了手机、不用的电脑） | `./t3x revoke <名字>`          |
+| 看还没用掉的邀请                     | `./t3x invites`                |
+| 改显示名                             | `./t3x rename <名字> <新名字>` |
+| 释放已移除电脑的子域名               | `./t3x release <子域名>`       |
+
+移除后，这台设备拿不到新的访问权限。它和服务器之间的连接最多约 30 秒内断开；这段时间里刚发出的请求，仍可能成功。
+
+被移除电脑的子域名默认不再分配给别人。`./t3x release <子域名>` 只对已移除电脑留下的子域名有效，作用是让这个名字可以重新分配；对还在使用的子域名，或者从没用过的名字，它会报错并且什么也不做。
+
+## 出问题时
+
+- `./t3x info` 显示注册表地址和设备数。
+- 查看日志：`docker compose logs registry caddy`。
+- 证书申请失败，先确认两条 DNS 记录已经生效、80/443 从外网能访问。
+- 容器异常退出或卡死时会自动重启；Docker 开机自启的话，整套服务也会跟着起来。
+
+之前那套共享 token 的方案（Caddy + frps + frpc）仍然保留在 [advanced/](advanced/README.md)。

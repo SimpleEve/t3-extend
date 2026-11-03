@@ -1,0 +1,45 @@
+# Same routes as Caddyfile, with Caddy's own CA instead of Let's Encrypt (and no e-mail).
+{
+	local_certs
+	on_demand_tls {
+		ask http://registry:8082/ask
+	}
+}
+
+{$T3X_DOMAIN} {
+	tls internal
+
+	# The tunnel control connection: frpc speaks websocket over TLS to this path.
+	@frp path /~!frp
+	handle @frp {
+		reverse_proxy frps:7000
+	}
+
+	handle /v1/* {
+		reverse_proxy registry:8080 {
+			# Overwrites whatever the client sent: this is the only address the registry rate-limits on.
+			header_up X-T3x-Client-IP {remote_host}
+		}
+	}
+
+	handle {
+		respond 404
+	}
+}
+
+# The push server (or nothing, with --no-ntfy).
+import /etc/caddy/ntfy.caddy
+
+# Every computer's own subdomain: <name>.<domain> goes to frps, which routes by Host.
+https:// {
+	tls {
+		on_demand
+	}
+	reverse_proxy frps:8080 {
+		# Streaming responses (SSE) go out immediately.
+		flush_interval -1
+		# Keep open WebSockets alive across a Caddy reload.
+		stream_close_delay 5m
+		header_up X-T3x-Client-IP {remote_host}
+	}
+}
