@@ -86,21 +86,25 @@ const joinCommand = Command.make("join", {
   ),
 );
 
+/**
+ * A list older than this missed three 60-second syncs, the same threshold the settings page uses
+ * for "can't reach the server right now".
+ */
+const LIST_STALE_SECONDS = 180;
+
+// Read-only: it never asks the registry or touches state. A sync from this process would run beside
+// the server's own, with its own gate, and could delete the device key (design 3.8).
 const listCommand = Command.make("list", { ...authLocationFlags, json: jsonFlag }).pipe(
-  Command.withDescription("List the devices on your server."),
+  Command.withDescription("List the devices on your server, as of the last sync."),
   Command.withHandler((flags) =>
     runWithDevices(
       flags,
       Effect.gen(function* () {
-        const directory = yield* DeviceDirectory.DeviceDirectory;
-        // A list is only as good as its last sync, so try one; a failed try keeps the old list.
-        const attempt = yield* Effect.result(directory.sync);
-        const state = yield* directory.state;
+        const state = yield* (yield* DeviceDirectory.DeviceDirectory).state;
         const fetchedAt = Option.match(state.list, {
           onNone: () => null,
           onSome: (list) => list.fetchedAt,
         });
-        const synced = attempt._tag === "Success" && !(yield* directory.lastSyncFailed);
         const devices = Option.match(state.list, {
           onNone: () => [],
           onSome: (list) => list.devices,
@@ -110,21 +114,20 @@ const listCommand = Command.make("list", { ...authLocationFlags, json: jsonFlag 
           onSome: (membership) => membership.deviceId,
         });
         if (flags.json) {
-          yield* Console.log(
-            toJson({ staleness: state.staleness, fetchedAt, synced, self, devices }),
-          );
+          yield* Console.log(toJson({ staleness: state.staleness, fetchedAt, self, devices }));
           return;
         }
-        if (devices.length === 0) {
+        if (devices.length === 0 || fetchedAt === null) {
           yield* Console.log(
             "This computer has not joined a server. Run `t3x devices join <invite>`.",
           );
           return;
         }
+        const age = state.nowSeconds - fetchedAt;
         yield* Console.log(
-          synced
-            ? `Synced with your server just now (${when(fetchedAt ?? undefined)}).`
-            : `Your server could not be reached. This list is from the last successful sync, ${when(fetchedAt ?? undefined)}${state.staleness === "fresh" ? "" : ` (${state.staleness})`}.`,
+          age > LIST_STALE_SECONDS
+            ? `Last synced with your server ${when(fetchedAt)}, ${Math.floor(age / 60)} minutes ago. T3 may not be running on this computer, or your server may be unreachable; \`t3x devices tunnel status\` shows whether T3 is running.`
+            : `Last synced with your server ${when(fetchedAt)}.`,
         );
         for (const device of devices) {
           yield* Console.log(
@@ -138,7 +141,7 @@ const listCommand = Command.make("list", { ...authLocationFlags, json: jsonFlag 
           );
         }
       }),
-      { quietLogs: true },
+      { quietLogs: flags.json },
     ),
   ),
 );

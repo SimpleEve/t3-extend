@@ -131,11 +131,7 @@ describe("sync and persistence", () => {
         assert.equal(status.fetchedAt, NOW_S);
         assert.equal(Option.getOrThrow((yield* directory.state).list).devices.length, 3);
         assert.equal(Option.getOrThrow(yield* identity.peek).id, key.id);
-        assert.isTrue(yield* directory.lastSyncFailed);
       }
-      fake.state.failWith = undefined;
-      yield* directory.sync;
-      assert.isFalse(yield* directory.lastSyncFailed);
     }).pipe(Effect.provide(layerHarness)),
   );
 

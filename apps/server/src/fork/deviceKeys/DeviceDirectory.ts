@@ -105,8 +105,6 @@ export class DeviceDirectory extends Context.Service<
      * next try may find it. One at a time, and at most one per 10 seconds; nothing when not joined.
      */
     readonly refreshSoon: Effect.Effect<void>;
-    /** Whether the latest `sync` in this process could not get the registry's list. False before any. */
-    readonly lastSyncFailed: Effect.Effect<boolean>;
     /** Syncs immediately, then every 60 seconds, forever. The layer forks it once the server is active. */
     readonly syncLoop: Effect.Effect<unknown>;
     /** The only way in or out of membership besides a sync that finds this computer removed. */
@@ -141,7 +139,6 @@ const make = Effect.gen(function* () {
   const sessions = yield* SessionStore.SessionStore;
   const gate = yield* Semaphore.make(1);
   const layerScope = yield* Effect.scope;
-  const syncFailed = yield* Ref.make(false);
   const changes = yield* PubSub.unbounded<DevicesSnapshot>();
   const tunnel = yield* Ref.make<DeviceTunnelStatus>({ status: "disabled", lastError: null });
 
@@ -294,10 +291,7 @@ const make = Effect.gen(function* () {
     const membership = Option.getOrUndefined(local.membership);
     if (membership === undefined) return yield* status;
     const key = yield* identity.peek.pipe(storageFailure);
-    if (Option.isNone(key)) {
-      yield* Ref.set(syncFailed, true);
-      return yield* status;
-    }
+    if (Option.isNone(key)) return yield* status;
     const target = {
       origin: membership.registryOrigin,
       registryId: membership.registryId,
@@ -310,7 +304,6 @@ const make = Effect.gen(function* () {
         Option.match(local.list, { onNone: () => undefined, onSome: (list) => list.rev }),
       )
       .pipe(Effect.result);
-    yield* Ref.set(syncFailed, fetched._tag === "Failure");
     if (fetched._tag === "Failure") {
       const error = fetched.failure;
       if (error.kind === "rejected" && error.code === "device_unknown") {
@@ -414,7 +407,6 @@ const make = Effect.gen(function* () {
     ),
     sync: sync(),
     refreshSoon,
-    lastSyncFailed: Ref.get(syncFailed),
     syncLoop,
     adopt: Effect.fn("DeviceDirectory.adopt")(function* (membership) {
       yield* gate.withPermits(1)(
