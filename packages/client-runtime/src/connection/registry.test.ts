@@ -548,38 +548,56 @@ function awaitConnectionState(
 
 describe("EnvironmentRegistry", () => {
   // fork: self-hosted devices. A restored device environment must be known before anything connects.
-  it.effect("tells the device index about a restored device environment before start", () =>
+  it.effect("tells the device index about restored device environments of every registry", () =>
     Effect.gen(function* () {
-      const connectionId = deviceConnectionId("mac");
-      const target = new BearerConnectionTarget({
-        environmentId: EnvironmentId.make("environment-device"),
-        label: "Mac",
-        connectionId,
-      });
-      const harness = yield* makeHarness(
-        [target, BEARER_TARGET],
-        [
-          new BearerConnectionProfile({
-            connectionId,
-            environmentId: target.environmentId,
-            label: "Mac",
-            httpBaseUrl: "https://mac.example.test",
-            wsBaseUrl: "wss://mac.example.test",
-            authorization: "t3x-device",
-          }),
-          BEARER_PROFILE,
-        ],
-      );
-      const index = makeDeviceEnvironmentIndex();
+      const harnessFor = (deviceId: string, environmentId: string) => {
+        const connectionId = deviceConnectionId(deviceId);
+        const target = new BearerConnectionTarget({
+          environmentId: EnvironmentId.make(environmentId),
+          label: "Computer",
+          connectionId,
+        });
+        return makeHarness(
+          [target, BEARER_TARGET],
+          [
+            new BearerConnectionProfile({
+              connectionId,
+              environmentId: target.environmentId,
+              label: "Computer",
+              httpBaseUrl: `https://${deviceId}.example.test`,
+              wsBaseUrl: `wss://${deviceId}.example.test`,
+              authorization: "t3x-device",
+            }),
+            BEARER_PROFILE,
+          ],
+        );
+      };
+      const harness = yield* harnessFor("mac", "environment-device");
+      const second = yield* harnessFor("pc", "environment-device-2");
+      const index = makeDeviceEnvironmentIndex({ failClosedUntilBound: true });
+      expect(index.notReady()).toBe(true);
       yield* Effect.gen(function* () {
+        // Built, not started: the saved device environment is already known.
         yield* EnvironmentRegistry.EnvironmentRegistry;
+        expect(index.notReady()).toBe(false);
         expect(index.get("environment-device")).toBe("mac");
         expect(index.get("environment-bearer")).toBeUndefined();
+
+        // A second registry in the same runtime adds to the first instead of replacing it.
+        const secondScope = yield* Scope.make();
+        yield* Layer.buildWithScope(Layer.fresh(second.layer), secondScope);
+        expect(index.get("environment-device-2")).toBe("pc");
+        expect(index.get("environment-device")).toBe("mac");
+        yield* Scope.close(secondScope, Exit.void);
+        expect(index.get("environment-device-2")).toBeUndefined();
+        expect(index.get("environment-device")).toBe("mac");
       }).pipe(
         Effect.provide(harness.layer),
         Effect.provideService(DeviceEnvironmentIndex, index),
         Effect.scoped,
       );
+      // The registry's scope closed: nothing is bound, so the index is closed again.
+      expect(index.notReady()).toBe(true);
     }),
   );
 

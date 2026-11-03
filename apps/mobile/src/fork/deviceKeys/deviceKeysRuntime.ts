@@ -21,7 +21,7 @@ import * as HttpClient from "effect/http/HttpClient";
 
 /** Environments waiting for another computer to learn about this phone; the devices page shows them. */
 export const peerWait = makePeerWaitStore();
-export const deviceEnvironmentIndex = makeDeviceEnvironmentIndex();
+export const deviceEnvironmentIndex = makeDeviceEnvironmentIndex({ failClosedUntilBound: true });
 
 // The store imports the connection runtime, which imports this layer, so it is loaded on first use.
 const loadStore = Effect.promise(() => import("./deviceKeysStore"));

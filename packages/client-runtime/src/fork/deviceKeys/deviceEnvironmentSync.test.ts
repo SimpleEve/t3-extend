@@ -311,6 +311,64 @@ describe("device environment sync", () => {
     }),
   );
 
+  it.effect(
+    "recognises the devices of every registry bound to it, and drops one once unbound",
+    () =>
+      Effect.gen(function* () {
+        const directoryOf = (deviceId: string, environmentId: string) =>
+          SubscriptionRef.make<ReadonlyMap<EnvironmentId, ConnectionCatalogEntry>>(
+            new Map([[env(environmentId), deviceEntry(deviceId, environmentId)]]),
+          );
+        const index = makeDeviceEnvironmentIndex();
+        const unbindFirst = index.bind(yield* directoryOf("a", "environment-a"));
+        index.bind(yield* directoryOf("b", "environment-b"));
+        expect(index.get("environment-a")).toBe("a");
+        expect(index.get("environment-b")).toBe("b");
+        unbindFirst();
+        expect(index.get("environment-a")).toBeUndefined();
+        expect(index.get("environment-b")).toBe("b");
+      }),
+  );
+
+  it.effect("fails closed until a directory is bound, when asked to", () =>
+    Effect.gen(function* () {
+      const index = makeDeviceEnvironmentIndex({ failClosedUntilBound: true });
+      const refuse = (environmentId: string) =>
+        refuseRelayForDeviceEnvironment(environmentId).pipe(
+          Effect.provideService(DeviceEnvironmentIndex, index),
+        );
+      // Before any directory is bound nothing can be told apart, so every environment is refused.
+      for (const id of ["environment-mac", "environment-by-hand"]) {
+        expect(yield* refuse(id).pipe(Effect.flip)).toMatchObject({
+          _tag: "ConnectionTransientError",
+          hop: "device",
+        });
+      }
+      const unbind = index.bind(
+        yield* SubscriptionRef.make<ReadonlyMap<EnvironmentId, ConnectionCatalogEntry>>(
+          new Map([
+            [env("environment-by-hand"), userEnvironment()],
+            [env("environment-mac"), deviceEntry("mac", "environment-mac")],
+          ]),
+        ),
+      );
+      yield* refuse("environment-by-hand");
+      expect(yield* refuse("environment-mac").pipe(Effect.flip)).toMatchObject({
+        _tag: "ConnectionBlockedError",
+        hop: "device",
+      });
+      // Nothing bound any more: closed again, not open.
+      unbind();
+      expect((yield* refuse("environment-by-hand").pipe(Effect.flip))._tag).toBe(
+        "ConnectionTransientError",
+      );
+      // The default index stays as it was for runtimes without the device feature.
+      yield* refuseRelayForDeviceEnvironment("environment-mac").pipe(
+        Effect.provideService(DeviceEnvironmentIndex, makeDeviceEnvironmentIndex()),
+      );
+    }),
+  );
+
   it.effect("leaves an unchanged list alone: nothing registered, removed or reconnected", () =>
     Effect.gen(function* () {
       const rig = yield* makeRig();

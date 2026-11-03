@@ -26,7 +26,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock(import("~/fork/deviceKeysRuntime"), async (original) => ({
   ...(await original()),
-  deviceEnvironmentIndex: { get: (id: string) => mocks.deviceIds.get(id), bind: () => undefined },
+  deviceEnvironmentIndex: {
+    get: (id: string) => mocks.deviceIds.get(id),
+    bind: () => () => undefined,
+    notReady: () => false,
+  },
 }));
 vi.mock(import("~/fork/deviceKeysStore"), async (original) => ({
   ...(await original()),

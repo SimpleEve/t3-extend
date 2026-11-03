@@ -113,32 +113,44 @@ type ConnectionDirectory = SubscriptionRef.SubscriptionRef<
 
 /**
  * Which environments belong to the device sync, environment id to the device id it came from.
- * It reads the saved-connection directory on every call, so a restored or just registered
+ * It reads the saved-connection directories on every call, so a restored or just registered
  * environment is found without any sync having run. The relay authorization refuses these ids as
  * a second line of defence even if a resolver stamp went missing.
  */
 export interface DeviceEnvironmentIndexShape {
   readonly get: (environmentId: string) => string | undefined;
-  /**
-   * Points the index at the directory. The registry does this while it is built, before it hands
-   * out the service that can start any connection, so no lookup precedes it.
-   */
-  readonly bind: (directory: ConnectionDirectory) => void;
+  /** Adds a directory to look in, and returns the function that takes it out again. */
+  readonly bind: (directory: ConnectionDirectory) => () => void;
+  /** True while the index was made fail-closed and no directory is bound. */
+  readonly notReady: () => boolean;
 }
 
-export const makeDeviceEnvironmentIndex = (): DeviceEnvironmentIndexShape => {
-  let directory: ConnectionDirectory | null = null;
+/**
+ * `failClosedUntilBound`: a runtime that has the device feature turns this on, so that until a
+ * registry has bound its directory the relay authorization refuses every environment instead of
+ * letting a device environment through for want of a directory to recognise it in.
+ */
+export const makeDeviceEnvironmentIndex = (options?: {
+  readonly failClosedUntilBound?: boolean;
+}): DeviceEnvironmentIndexShape => {
+  const directories: Array<ConnectionDirectory> = [];
   return {
     get: (environmentId) => {
-      const entry =
-        directory === null
-          ? undefined
-          : SubscriptionRef.getUnsafe(directory).get(environmentId as EnvironmentId);
-      return entry === undefined ? undefined : managedDeviceEnvironment(entry)?.deviceId;
+      for (const directory of directories) {
+        const entry = SubscriptionRef.getUnsafe(directory).get(environmentId as EnvironmentId);
+        const managed = entry === undefined ? null : managedDeviceEnvironment(entry);
+        if (managed !== null) return managed.deviceId;
+      }
+      return undefined;
     },
-    bind: (next) => {
-      directory = next;
+    bind: (directory) => {
+      directories.push(directory);
+      return () => {
+        const at = directories.indexOf(directory);
+        if (at >= 0) directories.splice(at, 1);
+      };
     },
+    notReady: () => options?.failClosedUntilBound === true && directories.length === 0,
   };
 };
 
@@ -147,9 +159,27 @@ export const DeviceEnvironmentIndex = Context.Reference<DeviceEnvironmentIndexSh
   { defaultValue: makeDeviceEnvironmentIndex },
 );
 
+/**
+ * A registry binds its directory for as long as it lives; the registry's scope takes it out again,
+ * so a second registry in the same runtime adds to the first rather than replacing it.
+ */
+export const bindDeviceEnvironmentIndex = Effect.fnUntraced(function* (
+  directory: ConnectionDirectory,
+) {
+  const index = yield* DeviceEnvironmentIndex;
+  yield* Effect.acquireRelease(
+    Effect.sync(() => index.bind(directory)),
+    (unbind) => Effect.sync(unbind),
+  );
+});
+
 /** The relay authorization calls this first: a device-managed environment never gets a relay token. */
 export const refuseRelayForDeviceEnvironment = Effect.fnUntraced(function* (environmentId: string) {
   const index = yield* DeviceEnvironmentIndex;
+  if (index.notReady()) {
+    // Transient: the registry binds as it is built, so this ends by itself, and nothing falls back to a relay.
+    return yield* deviceConnectionTransient("The saved connections are not ready yet.");
+  }
   if (index.get(environmentId) !== undefined) {
     return yield* deviceConnectionBlocked(
       "This environment is managed by your own server, not T3 Connect.",

@@ -37,7 +37,7 @@ const source: DeviceAuthorizationSource = {
     ),
 };
 
-export const deviceEnvironmentIndex = makeDeviceEnvironmentIndex();
+export const deviceEnvironmentIndex = makeDeviceEnvironmentIndex({ failClosedUntilBound: true });
 
 export const layer = Layer.merge(
   Layer.succeed(DeviceEnvironmentIndex, deviceEnvironmentIndex),
