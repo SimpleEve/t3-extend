@@ -213,6 +213,11 @@ export default {
     "保持 T3 Extend 运行。在上方选择要设置的电脑。",
   "Pairing failed.": "配对失败。",
   "Pairing link": "配对链接",
+  // The desktop app's own endpoint names, translated where the address list draws them.
+  "Local network": "局域网",
+  "Tailscale IP": "Tailscale IP 地址",
+  "Custom HTTPS": "自定义 HTTPS",
+  "Custom endpoint": "自定义端点",
   "Need a pairing link?": "需要配对链接？",
   Pair: "配对",
   "On the computer with your code, start T3 Extend or run {command}, then run:":

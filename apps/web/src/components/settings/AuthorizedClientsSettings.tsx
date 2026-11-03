@@ -69,6 +69,7 @@ import {
   endpointShareHint,
 } from "./ConnectionsSettings.logic";
 import { useT } from "../../hooks/useT";
+import { endpointLabel } from "../../fork/endpointLabels"; // fork: interface language
 
 function AccessScopeSummary({
   scopes,
@@ -181,7 +182,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
       options.push({
         id: endpoint.id,
         preferenceKey: endpointDefaultPreferenceKey(endpoint),
-        label: endpoint.label,
+        label: endpointLabel(t, endpoint.label), // fork: interface language
         url,
         detail: endpointShareHint(endpoint, url),
         qrShareable: isQrShareableEndpoint(endpoint),
@@ -262,7 +263,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
 
   const expiresAbsolute = formatAccessTimestamp(pairingLink.expiresAt);
 
-  const primaryLabel = pairingLink.label ?? "Pairing link";
+  const primaryLabel = pairingLink.label ?? t("Pairing link"); // fork: interface language
   const selectedQrOption = selectQrEndpointOption(
     endpointCopyOptions,
     qrEndpointId,
@@ -905,7 +906,7 @@ export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow
       <div className="flex min-h-6 min-w-0 flex-col gap-2 sm:-my-0.5 sm:flex-row sm:items-center">
         <div className="flex min-w-0 items-baseline gap-3">
           <h3 className="shrink-0 text-sm leading-5 font-medium text-foreground">
-            {endpoint.label}
+            {endpointLabel(t, endpoint.label)}
           </h3>
           {shouldShowEndpointUrl ? (
             <Tooltip>
