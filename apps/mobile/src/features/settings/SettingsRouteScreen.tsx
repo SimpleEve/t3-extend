@@ -37,6 +37,7 @@ import {
 import { useSettingsEnvironmentFilter } from "./settings-environment-filter";
 import { filterSettingsSections } from "./settings-search";
 import { NativePrimaryColumnContext } from "../../native/v5-workspace-context";
+import { serverDevicesRow } from "../../fork/deviceKeys/serverDevicesRow"; // fork: self-hosted devices
 import { useT } from "../../hooks/useT"; // fork: i18n
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
@@ -178,7 +179,7 @@ function SettingsList(props: { readonly connections: readonly SettingsListRow[] 
   const sections = filterSettingsSections(
     [
       { rows: overflowRows },
-      { title: t("Connections"), rows: props.connections },
+      { title: t("Connections"), rows: [...props.connections, serverDevicesRow(t)] }, // fork: self-hosted devices
       ...indexSections,
     ],
     query,

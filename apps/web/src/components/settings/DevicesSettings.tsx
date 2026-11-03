@@ -14,6 +14,7 @@ import { MonitorIcon, SmartphoneIcon, ChevronRightIcon } from "lucide-react";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { AsyncResult } from "effect/reactivity";
+import { readInvite } from "@t3tools/client-runtime/fork/deviceKeys/inviteReading";
 import { useState, useSyncExternalStore } from "react";
 
 import {
@@ -22,7 +23,6 @@ import {
   describeInviteProblem,
   describeServerNotice,
   inviteDeadlineLabel,
-  readInvite,
   serverNotice,
 } from "~/fork/deviceKeysLogic";
 import { deviceEnvironmentIndex, peerWait } from "~/fork/deviceKeysRuntime";

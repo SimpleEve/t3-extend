@@ -3,7 +3,7 @@
 import type { DeviceDirectoryView } from "@t3tools/client-runtime/fork/deviceKeys/discovery";
 import type { DeviceKeysError, DevicesSnapshot, DevicesStatus } from "@t3tools/contracts";
 import type { Translator } from "@t3tools/client-runtime/i18n";
-import { decodeInvite, type Invite } from "@t3tools/shared/forkDeviceKeys/invite";
+import type { InviteReading } from "@t3tools/client-runtime/fork/deviceKeys/inviteReading";
 
 /** The clock behind the notices, read at render time so the section needs no ticking timer. */
 export const currentTimeMs = () => Date.now();
@@ -54,55 +54,6 @@ export function describeServerNotice(t: Translator, notice: ServerNotice): strin
     case "no-list":
       return t("This computer has not received the device list from your server yet.");
   }
-}
-
-export type InviteReading =
-  | { readonly _tag: "empty" }
-  | { readonly _tag: "invalid" }
-  | { readonly _tag: "expired" }
-  | { readonly _tag: "wrong-kind" }
-  | {
-      readonly _tag: "ready";
-      readonly invite: Invite;
-      /** The address as the invite spells it, shown to the user for confirmation. */
-      readonly host: string;
-      /** The ASCII form of the same name, shown beside it when the two differ. */
-      readonly punycode: string | null;
-    };
-
-const hostOfOrigin = (origin: string): { host: string; punycode: string | null } | null => {
-  let ascii: string;
-  try {
-    const url = new URL(origin);
-    // The server insists on a bare https origin, so anything else is not worth confirming.
-    if (
-      url.protocol !== "https:" ||
-      url.pathname !== "/" ||
-      url.search !== "" ||
-      url.username !== ""
-    ) {
-      return null;
-    }
-    ascii = url.hostname;
-  } catch {
-    return null;
-  }
-  const spelled = /^https:\/\/([^/:?#@]+)/i.exec(origin.normalize("NFC"))?.[1]?.toLowerCase();
-  const host = spelled ?? ascii;
-  return { host, punycode: host === ascii ? null : ascii };
-};
-
-/** Reads a pasted invite without sending anything anywhere; the dialog asks before it does. */
-export function readInvite(text: string, nowMs: number): InviteReading {
-  const trimmed = text.trim();
-  if (trimmed === "") return { _tag: "empty" };
-  const invite = decodeInvite(trimmed);
-  if (invite === null) return { _tag: "invalid" };
-  if (invite.kind === "phone") return { _tag: "wrong-kind" };
-  if (invite.expiresAt * 1000 <= nowMs) return { _tag: "expired" };
-  const named = hostOfOrigin(invite.origin);
-  if (named === null) return { _tag: "invalid" };
-  return { _tag: "ready", invite, ...named };
 }
 
 /** "Valid until 14:32": an absolute time, so the dialog needs no ticking clock. */

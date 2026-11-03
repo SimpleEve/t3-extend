@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vite-plus/test";
-import { encodeInvite } from "@t3tools/shared/forkDeviceKeys/invite";
 
 import type { DevicesSnapshot } from "@t3tools/contracts";
 
-import { inviteDeadlineLabel, readInvite, serverNotice, snapshotToView } from "./deviceKeysLogic";
+import { inviteDeadlineLabel, serverNotice, snapshotToView } from "./deviceKeysLogic";
 
 const NOW = Date.parse("2026-11-03T12:00:00.000Z");
 const seconds = (ms: number) => Math.floor(ms / 1000);
@@ -33,46 +32,6 @@ describe("what the Devices section says about the link to the server", () => {
     [{ fetchedAt: seconds(NOW) + 600, staleness: "fresh" as const }, null],
   ])("%j shows %j", (status, expected) => {
     expect(serverNotice(status, NOW)).toEqual(expected);
-  });
-});
-
-describe("reading a pasted invite", () => {
-  const invite = (origin: string, kind: "computer" | "phone" | "any" = "computer", ttl = 900) =>
-    encodeInvite({
-      origin,
-      registryId: "abcdefgh",
-      id: "AAAAAAAAAAA",
-      secret: "B".repeat(22),
-      kind,
-      expiresAt: seconds(NOW) + ttl,
-    });
-
-  it("names the server it points at and nothing else before the user confirms", () => {
-    expect(readInvite(`  ${invite("https://T3.Example.com")}\n`, NOW)).toMatchObject({
-      _tag: "ready",
-      host: "t3.example.com",
-      punycode: null,
-    });
-  });
-
-  it("shows a name written with other letters beside its ASCII form", () => {
-    expect(readInvite(invite("https://tе.example.com"), NOW)).toMatchObject({
-      _tag: "ready",
-      host: "tе.example.com",
-      punycode: expect.stringMatching(/^xn--t-/),
-    });
-  });
-
-  it.each([
-    ["", "empty"],
-    ["hello", "invalid"],
-    ["t3x1.not-base64!", "invalid"],
-    [invite("https://t3.example.com", "phone"), "wrong-kind"],
-    [invite("https://t3.example.com", "computer", -1), "expired"],
-    [invite("http://t3.example.com"), "invalid"],
-    [invite("https://t3.example.com/path"), "invalid"],
-  ])("reads %s as %s", (text, tag) => {
-    expect(readInvite(text, NOW)._tag).toBe(tag);
   });
 });
 

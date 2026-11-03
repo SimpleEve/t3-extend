@@ -118,4 +118,27 @@ export default {
   "This computer's own server is not connected.": "这台电脑自己的服务器未连接。",
   "This computer's server could not sign in to that computer.":
     "这台电脑的服务器无法登录那台电脑。",
+  // The phone's page for the server it joined.
+  "Join your server": "加入你的服务器",
+  "Can't join": "无法加入",
+  "Paste invite": "粘贴邀请",
+  "This invite is for a computer. Create one for a phone to join here.":
+    "这个邀请是给电脑用的。请为手机另外创建一个。",
+  "This phone has already joined a server.": "这部手机已经加入了一个服务器。",
+  "The server at that address is not the one this invite was made for.":
+    "该地址上的服务器不是这个邀请所属的服务器。",
+  "This phone could not save its device key.": "这部手机无法保存设备密钥。",
+  "This phone was removed from your server.": "这部手机已被移出你的服务器。",
+  "This phone forgets its key and the computers saved from your server. You can join again with a new invite.":
+    "这部手机会忘掉它的密钥，以及从你的服务器保存的电脑。之后可以用新邀请重新加入。",
+  "The device key on this phone cannot be read. Leave this server and join again with a new invite.":
+    "无法读取这部手机上的设备密钥。请退出此服务器，再用新邀请重新加入。",
+  "This phone's secure storage did not answer. Try again in a moment.":
+    "这部手机的安全存储没有响应，请稍后再试。",
+  "{name} (this phone)": "{name}（这部手机）",
+  "Computer · online": "电脑 · 在线",
+  "Can't reach your server right now.": "暂时连不上你的服务器。",
+  "Camera access is needed to scan the code.": "扫描二维码需要使用相机。",
+  "Allow camera": "允许使用相机",
+  "Scan the code shown by a computer that has already joined.": "扫描已加入的电脑上显示的二维码。",
 };
