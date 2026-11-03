@@ -213,6 +213,11 @@ export default {
     "保持 T3 Extend 运行。在上方选择要设置的电脑。",
   "Pairing failed.": "配对失败。",
   "Pairing link": "配对链接",
+  // The desktop app's own endpoint names, translated where the address list draws them.
+  "Local network": "局域网",
+  "Tailscale IP": "Tailscale IP 地址",
+  "Custom HTTPS": "自定义 HTTPS",
+  "Custom endpoint": "自定义端点",
   "Need a pairing link?": "需要配对链接？",
   Pair: "配对",
   "On the computer with your code, start T3 Extend or run {command}, then run:":
@@ -292,7 +297,7 @@ export default {
   "Devices on the same network": "同一网络内的设备",
   "Devices on your private network": "你的专用网络内的设备",
   "Reachable from anywhere": "任何地方都能访问",
-  "Clients on this machine": "这台机器上的客户端",
+  "Clients on this machine": "本机上的客户端",
   "Could not copy pairing URL": "无法复制配对 URL",
   "Could not copy pairing code": "无法复制配对码",
   "Clipboard copy unavailable": "无法复制到剪贴板",

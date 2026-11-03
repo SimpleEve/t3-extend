@@ -27,6 +27,7 @@ import { environmentEndpointUrl } from "../environment/endpoint.ts";
 import * as ClientCapabilities from "../platform/capabilities.ts";
 import * as ManagedRelay from "../relay/managedRelay.ts";
 import * as TokenStore from "./tokenStore.ts";
+import { refuseRelayForDeviceEnvironment } from "../fork/deviceKeys/DeviceKeyAuthorization.ts"; // fork: self-hosted devices
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -344,6 +345,7 @@ export const make = Effect.gen(function* () {
   const getDpopToken = Effect.fn("clientRuntime.connection.remote.getDpopToken")(function* (
     input: Parameters<RemoteEnvironmentAuthorization["Service"]["authorizeDpopHttp"]>[0],
   ) {
+    yield* refuseRelayForDeviceEnvironment(input.expectedEnvironmentId); // fork: self-hosted devices
     const session = yield* cloudSession.identity;
     if (Option.isNone(session)) {
       return yield* sessionPending();
@@ -471,6 +473,7 @@ export const make = Effect.gen(function* () {
   const authorizeDpop = Effect.fn("clientRuntime.connection.remote.authorizeDpop")(function* (
     input: Parameters<RemoteEnvironmentAuthorization["Service"]["authorizeDpop"]>[0],
   ) {
+    yield* refuseRelayForDeviceEnvironment(input.expectedEnvironmentId); // fork: self-hosted devices
     const endpoint = input.directEndpoint;
     const descriptor =
       endpoint === undefined

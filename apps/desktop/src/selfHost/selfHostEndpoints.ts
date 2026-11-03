@@ -1,6 +1,8 @@
 import type { AdvertisedEndpoint, AdvertisedEndpointProvider } from "@t3tools/contracts";
 import { createAdvertisedEndpoint } from "@t3tools/shared/advertisedEndpoint";
 
+import type { DeviceAddress } from "./DesktopSelfHost.ts";
+
 const SELF_HOST_ENDPOINT_PROVIDER: AdvertisedEndpointProvider = {
   id: "self-host",
   label: "Public address",
@@ -36,4 +38,39 @@ export function selfHostAdvertisedEndpoints(input: {
         description: "Public address you set up for this desktop.",
       }),
     );
+}
+
+const DEVICE_ENDPOINT_PROVIDER: AdvertisedEndpointProvider = {
+  id: "self-host-device",
+  label: "Your server",
+  kind: "manual",
+  isAddon: false,
+};
+
+/**
+ * This computer's own address on the server it joined, so a pairing link can reach it through
+ * the tunnel. The address is the one the server wrote from its membership (the subdomain the
+ * registry assigned), never a typed one. It is listed whether or not the tunnel is up; it counts as
+ * available only while the server says its tunnel is connected, and is otherwise left unknown.
+ */
+export function deviceAdvertisedEndpoints(input: {
+  readonly deviceUrl: DeviceAddress | null;
+  readonly existing: ReadonlyArray<AdvertisedEndpoint>;
+}): ReadonlyArray<AdvertisedEndpoint> {
+  if (input.deviceUrl === null) return [];
+  const { url: deviceUrl, tunnelConnected } = input.deviceUrl;
+  if (input.existing.some((endpoint) => endpoint.httpBaseUrl === deviceUrl)) return [];
+  return [
+    createAdvertisedEndpoint({
+      // The `self-host:` prefix is what the settings page keeps listing while network access is off.
+      id: `${SELF_HOST_ENDPOINT_ID_PREFIX}device:${deviceUrl}`,
+      label: new URL(deviceUrl).host,
+      provider: DEVICE_ENDPOINT_PROVIDER,
+      httpBaseUrl: deviceUrl,
+      reachability: "public",
+      source: "user",
+      status: tunnelConnected ? "available" : "unknown",
+      description: "This computer's address on your own server.",
+    }),
+  ];
 }

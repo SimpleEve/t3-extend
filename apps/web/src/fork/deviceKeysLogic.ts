@@ -1,0 +1,180 @@
+// fork: pure decisions behind the Devices section of Settings (design Q11), kept apart from React
+// so the rules that matter, which warning shows and what the invite dialog asks, are tested alone.
+import type { DeviceDirectoryView } from "@t3tools/client-runtime/fork/deviceKeys/discovery";
+import type { DeviceKeysError, DevicesSnapshot, DevicesStatus } from "@t3tools/contracts";
+import type { Translator } from "@t3tools/client-runtime/i18n";
+
+import type { ClockWindow } from "./useClockWindow";
+import type { InviteReading } from "@t3tools/client-runtime/fork/deviceKeys/inviteReading";
+
+/** The clock for checks that only need the moment of a click or a keystroke, not a live label. */
+export const currentTimeMs = () => Date.now();
+
+/** The registry list is fetched every minute; three missed rounds is a server that is not answering. */
+const UNREACHABLE_AFTER_SECONDS = 180;
+
+export type ServerNotice =
+  | { readonly kind: "unreachable"; readonly minutes: number }
+  | { readonly kind: "stale"; readonly hours: number }
+  | { readonly kind: "expired" }
+  | { readonly kind: "no-list" };
+
+/**
+ * What the top of the section says about the link to the user's server. `staleness` only turns
+ * from fresh after a day, so the last sync time carries the first three minutes to a day: a list
+ * that is fresh by that measure can still be minutes old.
+ */
+export function serverNotice(
+  status: Pick<DevicesStatus, "fetchedAt" | "staleness">,
+  nowMs: number,
+): ServerNotice | null {
+  if (status.staleness === "expired") return { kind: "expired" };
+  if (status.staleness === "unavailable" || status.fetchedAt === null) return { kind: "no-list" };
+  const ageSeconds = Math.max(0, Math.floor(nowMs / 1000 - status.fetchedAt));
+  if (status.staleness === "warn") return { kind: "stale", hours: Math.floor(ageSeconds / 3600) };
+  if (ageSeconds >= UNREACHABLE_AFTER_SECONDS) {
+    return { kind: "unreachable", minutes: Math.floor(ageSeconds / 60) };
+  }
+  return null;
+}
+
+type TunnelState = DevicesStatus["tunnel"]["status"];
+
+/**
+ * Whether the desktop app's pairing addresses changed when the tunnel moved from `previous` to
+ * `next`: they exist while joined (not "disabled") and count as available while "connected". The
+ * server writes their files before it reports the status, so the status is the signal, not the snapshot's URL.
+ */
+export function networkAccessNeedsRefresh(
+  previous: TunnelState | null,
+  next: TunnelState,
+): boolean {
+  return (
+    previous !== null &&
+    ((previous === "disabled") !== (next === "disabled") ||
+      (previous === "connected") !== (next === "connected"))
+  );
+}
+
+const MINUTE_MS = 60_000;
+const HOUR_MS = 3_600_000;
+
+/**
+ * Where `nowMs` sits among the moments `serverNotice` changes: three minutes after the last sync,
+ * then every minute (every hour once the list is a day old). `serverNotice(status, window.startMs)`
+ * reads the same as at `nowMs`.
+ */
+export function serverNoticeWindow(
+  status: Pick<DevicesStatus, "fetchedAt" | "staleness">,
+  nowMs: number,
+): ClockWindow {
+  if (
+    status.staleness === "expired" ||
+    status.staleness === "unavailable" ||
+    status.fetchedAt === null
+  ) {
+    return { startMs: 0, endMs: null };
+  }
+  const syncedMs = status.fetchedAt * 1000;
+  const elapsedMs = Math.max(0, nowMs - syncedMs);
+  if (status.staleness !== "warn" && elapsedMs < UNREACHABLE_AFTER_SECONDS * 1000) {
+    return { startMs: syncedMs, endMs: syncedMs + UNREACHABLE_AFTER_SECONDS * 1000 };
+  }
+  const unitMs = status.staleness === "warn" ? HOUR_MS : MINUTE_MS;
+  const startMs = syncedMs + Math.floor(elapsedMs / unitMs) * unitMs;
+  return { startMs, endMs: startMs + unitMs };
+}
+
+export function describeServerNotice(t: Translator, notice: ServerNotice): string {
+  switch (notice.kind) {
+    case "unreachable":
+      return t("Can't reach your server right now. Last synced {minutes} minutes ago.", {
+        minutes: notice.minutes,
+      });
+    case "stale":
+      return t(
+        "This computer has not reached your server for {hours} hours. After 7 days it stops accepting new devices.",
+        { hours: notice.hours },
+      );
+    case "expired":
+      return t(
+        "This computer has not reached your server for over 7 days, so it no longer accepts new devices.",
+      );
+    case "no-list":
+      return t("This computer has not received the device list from your server yet.");
+  }
+}
+
+/** "Valid until 01:14": an absolute, zero-padded 24-hour time, so the dialog needs no ticking clock. */
+export function inviteDeadlineLabel(expiresAtSeconds: number, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(expiresAtSeconds * 1000));
+}
+
+export function describeInviteProblem(
+  t: Translator,
+  reading: Exclude<InviteReading, { readonly _tag: "ready" | "empty" }>,
+): string {
+  switch (reading._tag) {
+    case "invalid":
+      return t("That is not an invite from your server.");
+    case "expired":
+      return t("This invite has expired. Create a new one on a computer that is already joined.");
+    case "wrong-kind":
+      return t("This invite is for a phone. Create one for a computer to join here.");
+  }
+}
+
+export function describeDevicesError(t: Translator, error: DeviceKeysError): string {
+  switch (error.reason) {
+    case "not_local_owner":
+      return t("Only this computer's own app can manage devices.");
+    case "not_joined":
+      return t("This computer has not joined a server.");
+    case "already_joined":
+      return t("This computer has already joined a server.");
+    case "list_expired":
+      return t("This computer has not reached your server for over 7 days.");
+    case "unknown_audience":
+      return t("That computer is not in your server's list.");
+    case "rate_limited":
+      return t("Your server asked to slow down. Try again in a moment.");
+    case "invite_invalid":
+      return error.registryCode === "invite_used"
+        ? t("This invite has already been used.")
+        : error.registryCode === "invite_expired"
+          ? t("This invite has expired. Create a new one on a computer that is already joined.")
+          : t("Your server did not accept this invite.");
+    case "invalid_input":
+      return t("That name is not allowed. Use 1 to 40 characters.");
+    case "registry_unreachable":
+      return t("Can't reach your server.");
+    case "registry_rejected":
+      return t("Your server did not accept the request.");
+    case "storage":
+      return t("This computer could not save the device key.");
+  }
+}
+
+export function snapshotToView(snapshot: DevicesSnapshot): DeviceDirectoryView | null {
+  const { status } = snapshot;
+  if (status.state !== "joined" || status.registryOrigin === null) return null;
+  return {
+    pin: { origin: status.registryOrigin, registryId: null },
+    // The server checks the registry's record when it signs; the list it pushes does not carry it.
+    recordsEnvironmentIds: false,
+    computers: snapshot.devices
+      .filter((device) => device.kind === "computer")
+      .map((device) => ({
+        deviceId: device.id,
+        name: device.name,
+        url: device.url ?? null,
+        environmentId: null,
+        self: device.self,
+        ...(device.online === undefined ? {} : { online: device.online }),
+      })),
+  };
+}

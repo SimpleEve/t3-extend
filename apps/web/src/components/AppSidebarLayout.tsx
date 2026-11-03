@@ -66,6 +66,7 @@ import { registerCommands, registerMenuAction } from "../shortcuts/dispatcher";
 import { resolveThreadRouteRef } from "../threadRoutes";
 import { useT } from "~/hooks/useT";
 import { KeepAwakeReporter } from "../fork/KeepAwakeReporter"; // fork: keep awake
+import { DeviceKeysSync } from "../fork/DeviceKeysSync"; // fork: self-hosted devices
 
 const MACOS_TRAFFIC_LIGHTS_LEFT_INSET = "var(--desktop-window-controls-inset, 90px)";
 
@@ -458,6 +459,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
       >
         <SidebarBrandWidthProbe isElectron={isElectron} onWidthChange={setBrandWidth} />
         {isElectron ? <KeepAwakeReporter /> : null /* fork: keep awake */}
+        {isElectron ? <DeviceKeysSync /> : null /* fork: self-hosted devices */}
         <Sidebar
           side="left"
           collapsible="offcanvas"

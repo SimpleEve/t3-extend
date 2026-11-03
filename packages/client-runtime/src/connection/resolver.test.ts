@@ -8,12 +8,14 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
+import * as Schema from "effect/Schema";
 
 import * as ConnectionResolver from "./resolver.ts";
 import * as ClientCapabilities from "../platform/capabilities.ts";
 import * as RemoteEnvironmentAuthorization from "../authorization/service.ts";
 import {
   BearerConnectionCredential,
+  BearerConnectionProfile,
   type ConnectionCatalogEntry,
   SshConnectionProfile,
   type ConnectionCredential,
@@ -21,6 +23,7 @@ import {
 } from "./catalog.ts";
 import * as ConnectionCredentialStore from "./credentialStore.ts";
 import {
+  BearerConnectionTarget,
   ConnectionTransientError,
   PrimaryConnectionTarget,
   SshConnectionTarget,
@@ -28,6 +31,11 @@ import {
 } from "./model.ts";
 import * as ConnectionProfileStore from "./profileStore.ts";
 import * as RpcHttp from "../rpc/http.ts";
+import {
+  DeviceKeyAuthorization,
+  type DeviceKeyAuthorizationShape,
+  blockedDeviceKeyAuthorization,
+} from "../fork/deviceKeys/DeviceKeyAuthorization.ts"; // fork: self-hosted devices
 import {
   PullRequestRoutingPermissions,
   pullRequestRoutingConnectionKey,
@@ -346,4 +354,131 @@ describe("ConnectionResolver", () => {
         expect(yield* permissions.get(entry)).toBe(scenario === "changed" ? "off" : "read-write");
       }),
   );
+});
+
+// fork: a computer on the user's own server is signed in to by its device authorization or not at all.
+describe("ConnectionResolver: t3x-device", () => {
+  const deviceTarget = new BearerConnectionTarget({
+    environmentId: ENVIRONMENT_ID,
+    label: "Mac",
+    connectionId: "t3x-device:device-1",
+  });
+  const deviceProfile = (authorization?: "t3x-device") =>
+    new BearerConnectionProfile({
+      connectionId: deviceTarget.connectionId,
+      environmentId: ENVIRONMENT_ID,
+      label: "Mac",
+      httpBaseUrl: "https://mac.t3.example.test/",
+      wsBaseUrl: "wss://mac.t3.example.test/",
+      ...(authorization === undefined ? {} : { authorization }),
+    });
+  const prepareWith = Effect.fn("prepareDevice")(function* (
+    entry: ConnectionCatalogEntry,
+    authorization?: Partial<DeviceKeyAuthorizationShape>,
+  ) {
+    // Either path to the relay or a bearer would be a defect here.
+    const layerBroker = yield* makeDependencies({
+      authorizeBearer: () => Effect.die("bearer authorization must not run"),
+      authorizeDpop: () => Effect.die("relay authorization must not run"),
+    });
+    const broker = yield* ConnectionResolver.ConnectionResolver.pipe(Effect.provide(layerBroker));
+    return yield* broker.prepare(entry).pipe(
+      Effect.provideService(DeviceKeyAuthorization, {
+        ...blockedDeviceKeyAuthorization,
+        ...authorization,
+      }),
+    );
+  });
+
+  it.effect("blocks when no device authorization was provided", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        prepareWith(catalogEntry(deviceTarget, Option.some(deviceProfile("t3x-device")))),
+      );
+      expect(error).toMatchObject({ _tag: "ConnectionBlockedError", reason: "configuration" });
+    }),
+  );
+
+  it.effect("stamps what the device authorization returns and nothing else", () =>
+    Effect.gen(function* () {
+      const prepared = yield* prepareWith(
+        catalogEntry(deviceTarget, Option.some(deviceProfile("t3x-device"))),
+        {
+          prepare: (input) =>
+            Effect.succeed({
+              environmentId: ENVIRONMENT_ID,
+              label: "Mac",
+              httpBaseUrl: input.httpBaseUrl,
+              socketUrl: "wss://mac.t3.example.test/ws?wsTicket=device",
+              httpAuthorization: {
+                _tag: "Dpop" as const,
+                accessToken: "device-session",
+                expiresAtEpochMs: 1,
+              },
+              descriptor: {
+                environmentId: ENVIRONMENT_ID,
+                label: "Mac",
+                platform: { os: "darwin", arch: "arm64" },
+                serverVersion: "0.0.0-test",
+                orchestrationProtocolVersion: ORCHESTRATION_PROTOCOL_VERSION,
+                capabilities: { repositoryIdentity: true },
+              },
+            } as never),
+        },
+      );
+      expect(prepared.authorizer).toBe("t3x-device");
+      expect(prepared.target).toBe(deviceTarget);
+      expect(prepared.httpAuthorization).toMatchObject({ _tag: "Dpop" });
+    }),
+  );
+
+  it.effect("passes the device authorization's failure through without a fallback", () =>
+    Effect.gen(function* () {
+      const failure = new ConnectionTransientError({ reason: "network", detail: "unreachable" });
+      const error = yield* Effect.flip(
+        prepareWith(catalogEntry(deviceTarget, Option.some(deviceProfile("t3x-device"))), {
+          prepare: () => Effect.fail(failure),
+        }),
+      );
+      expect(error).toBe(failure);
+    }),
+  );
+
+  it.effect("blocks an environment whose profile is missing or names another environment", () =>
+    Effect.gen(function* () {
+      expect(yield* Effect.flip(prepareWith(catalogEntry(deviceTarget)))).toMatchObject({
+        _tag: "ConnectionBlockedError",
+      });
+      const other = new BearerConnectionProfile({
+        ...deviceProfile("t3x-device"),
+        environmentId: EnvironmentId.make("another"),
+      });
+      expect(
+        yield* Effect.flip(prepareWith(catalogEntry(deviceTarget, Option.some(other)))),
+      ).toMatchObject({ _tag: "ConnectionBlockedError", reason: "configuration" });
+    }),
+  );
+
+  it.effect("keeps no credential, so a profile that lost its marker cannot sign in", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        prepareWith(catalogEntry(deviceTarget, Option.some(deviceProfile()))),
+      );
+      expect(error).toMatchObject({ _tag: "ConnectionBlockedError", reason: "authentication" });
+    }),
+  );
+
+  it("does not decode a marker this build does not know", () => {
+    const decode = Schema.decodeUnknownSync(BearerConnectionProfile);
+    const encoded = {
+      _tag: "BearerConnectionProfile",
+      connectionId: "c",
+      environmentId: "e",
+      label: "l",
+      httpBaseUrl: "https://a/",
+      wsBaseUrl: "wss://a/",
+    };
+    expect(decode({ ...encoded, authorization: "t3x-device" }).authorization).toBe("t3x-device");
+    expect(() => decode({ ...encoded, authorization: "t3x-future" })).toThrow();
+  });
 });

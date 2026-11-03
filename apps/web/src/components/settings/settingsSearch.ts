@@ -1086,6 +1086,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     desktopOnly: true,
   },
   {
+    id: "your-server", // fork: self-hosted devices
+    title: "Your server",
+    to: "/settings/access",
+    searchTerms: ["own vps registry invite join leave device phone computer pair self hosted"],
+    desktopOnly: true,
+  },
+  {
     id: "network-access",
     title: "Network access",
     to: "/settings/access",

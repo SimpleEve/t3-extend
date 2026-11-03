@@ -43,10 +43,6 @@ export interface RegistryTarget {
   readonly privateKey: Uint8Array;
 }
 
-export type DevicesFetch =
-  | { readonly _tag: "NotModified" }
-  | { readonly _tag: "Updated"; readonly body: RegistryDevicesResponse };
-
 const REQUEST_TIMEOUT = "15 seconds";
 
 /**
@@ -55,7 +51,7 @@ const REQUEST_TIMEOUT = "15 seconds";
  */
 const withoutRedirects = Effect.provideService(FetchHttpClient.RequestInit, { redirect: "manual" });
 
-/** No registry answer is a redirect (or a status below 200); treating one as data would trust another host. */
+/** No registry answer is a redirect (or a status below 200), a 304 included: treating one as data would trust another host. */
 const isRedirect = (status: number) => status < 200 || (status >= 300 && status < 400);
 const redirected = (status: number) =>
   new RegistryClientError({ kind: "protocol", status, code: "redirect" });
@@ -76,10 +72,10 @@ export class RegistryClient extends Context.Service<
       readonly kind: DeviceKind;
       readonly environmentId: string;
     }) => Effect.Effect<RegistryJoinResponse, RegistryClientError>;
+    /** Always the registry's current list: `online` and the sync times change without `rev` moving. */
     readonly listDevices: (
       target: RegistryTarget,
-      ifNoneMatchRev: number | undefined,
-    ) => Effect.Effect<DevicesFetch, RegistryClientError>;
+    ) => Effect.Effect<RegistryDevicesResponse, RegistryClientError>;
     readonly createInvite: (
       target: RegistryTarget,
       kind: DeviceKind,
@@ -116,7 +112,6 @@ const make = Effect.gen(function* () {
     readonly path: string;
     readonly body?: unknown;
     readonly proof: Omit<Parameters<typeof signRequestProof>[0], "method" | "htu" | "body" | "iat">;
-    readonly headers?: Record<string, string>;
   }) {
     const origin = yield* Effect.try({
       try: () => canonicalOrigin(input.origin),
@@ -133,7 +128,7 @@ const make = Effect.gen(function* () {
       ...(bodyBytes === undefined ? {} : { body: bodyBytes }),
     });
     const base = HttpClientRequest.make(input.method)(`${origin}${input.path}`).pipe(
-      HttpClientRequest.setHeaders({ "t3x-proof": proof, ...input.headers }),
+      HttpClientRequest.setHeaders({ "t3x-proof": proof }),
     );
     // A string/bytes body goes out with a Content-Length; the registry refuses chunked uploads.
     const request =
@@ -149,7 +144,6 @@ const make = Effect.gen(function* () {
       Effect.timeout(REQUEST_TIMEOUT),
       Effect.mapError((cause) => new RegistryClientError({ kind: "unreachable", cause })),
     );
-    if (response.status === 304) return { status: 304 as const, text, json: undefined };
     if (isRedirect(response.status)) return yield* redirected(response.status);
     const json = decodeJsonUnknown(text);
     if (response.status >= 200 && response.status < 300) {
@@ -217,18 +211,16 @@ const make = Effect.gen(function* () {
       });
       return yield* decode(RegistryJoinResponse, result.json);
     }),
-    listDevices: Effect.fn("RegistryClient.listDevices")(function* (target, rev) {
+    listDevices: Effect.fn("RegistryClient.listDevices")(function* (target) {
       const result = yield* send({
         origin: target.origin,
         method: "GET",
         path: "/v1/devices",
         proof: proofOf(target),
-        ...(rev === undefined ? {} : { headers: { "if-none-match": `"${rev}"` } }),
       });
-      if (result.status === 304) return { _tag: "NotModified" } as const;
       const body = yield* decode(RegistryDevicesResponse, result.json);
       yield* requireRegistry(target, body.registryId);
-      return { _tag: "Updated", body } as const;
+      return body;
     }),
     createInvite: Effect.fn("RegistryClient.createInvite")(function* (target, kind) {
       const result = yield* send({

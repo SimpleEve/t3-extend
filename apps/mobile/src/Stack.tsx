@@ -130,6 +130,7 @@ import { UsageLimitAccountScreen } from "./features/usage/UsageLimitsPooled";
 import { UsageRouteScreen } from "./features/usage/UsageRouteScreen";
 import { SettingsAboutRouteScreen } from "./features/settings/SettingsAboutRouteScreen";
 import { SettingsNotificationsRouteScreen } from "./features/settings/SettingsNotificationsRouteScreen";
+import { serverDevicesScreen } from "./fork/deviceKeys/serverDevicesRoute"; // fork: self-hosted devices
 import { SettingsRouteScreen } from "./features/settings/SettingsRouteScreen";
 import { SettingsLabsRouteScreen } from "./features/settings/ThreadSettingsSections";
 import { SettingsEnvironmentFilterProvider } from "./features/settings/settings-environment-filter";
@@ -340,6 +341,7 @@ const SETTINGS_SCREENS = {
       },
     },
   }),
+  SettingsServerDevices: serverDevicesScreen(SETTINGS_PAGE_OPTIONS), // fork: self-hosted devices
   SettingsNotifications: createNativeStackScreen({
     screen: SettingsNotificationsRouteScreen,
     linking: "settings/notifications",

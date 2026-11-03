@@ -852,6 +852,12 @@ const CONSTANT_NAME = /^[A-Z][A-Z0-9_]+$/u;
 
 // `path#text` pairs checked to compare an untranslated value. Each needs a reason.
 const COMPARED_ALLOWLIST = new Set([
+  // The desktop app's raw endpoint names, translated when the address list renders.
+  "apps/web/src/fork/endpointLabels.ts#This machine",
+  "apps/web/src/fork/endpointLabels.ts#Local network",
+  "apps/web/src/fork/endpointLabels.ts#Tailscale IP",
+  "apps/web/src/fork/endpointLabels.ts#Custom HTTPS",
+  "apps/web/src/fork/endpointLabels.ts#Custom endpoint",
   // The activity's raw summary, translated only when the row renders.
   "apps/mobile/src/features/threads/ThreadFeed.tsx#Context compacted",
   "apps/web/src/components/chat/MessagesTimeline.tsx#Context compacted",

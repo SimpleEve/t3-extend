@@ -101,6 +101,7 @@ import { installAppUpdateChecks } from "./features/updates/app-updates";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { installUiLanguageRuntime, useUiLanguageReady } from "./fork/uiLanguage"; // fork: i18n
 import { installUnifiedPushRegistration } from "./fork/push/unifiedPushRegistration"; // fork: UnifiedPush
+import { installDeviceKeysSync } from "./fork/deviceKeys/installDeviceKeysSync"; // fork: self-hosted devices
 import { deferInitialLinkSheet, splashScreenHidden } from "./fork/initialLinkSheet"; // fork
 
 import "../global.css";
@@ -206,6 +207,7 @@ const appServiceDisposers = [
   startIncomingShareInbox(),
   installAgentNotificationNavigation(linkToAppPath),
   installUnifiedPushRegistration(), // fork: UnifiedPush
+  installDeviceKeysSync(), // fork: self-hosted devices
   installAppShortcuts(linkToAppPath),
   installAppUpdateChecks(),
   installShowcaseCapture(rootPathnameFromState),

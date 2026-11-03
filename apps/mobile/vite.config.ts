@@ -43,6 +43,7 @@ const reactTests = [
   "src/features/connection/ConnectionsNewRouteScreen.test.tsx",
   "src/fork/threadListViewState.test.tsx", // fork: thread list views
   "src/fork/useMarkdownTypography.test.tsx", // fork: Chinese text sizes
+  "src/fork/deviceKeys/ServerDevicesScreen.test.tsx", // fork: self-hosted devices
 ];
 
 const sourceRoot = `${normalizePath(NodeURL.fileURLToPath(new URL("./src", import.meta.url)))}/`;

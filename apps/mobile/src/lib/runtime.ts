@@ -10,6 +10,7 @@ import * as ManagedRelayLayer from "../features/cloud/managedRelayLayer";
 import { resolveCloudPublicConfig } from "../features/cloud/publicConfig";
 import * as Tracing from "../features/observability/tracing";
 import * as Persistence from "../persistence/layer";
+import * as DeviceKeys from "../fork/deviceKeys/deviceKeysRuntime"; // fork: self-hosted devices
 import { disposeOnFoundationReplace, type FoundationHotModule } from "./foundation-fast-refresh";
 import { whenProtectedDataAvailable } from "./protectedData";
 
@@ -25,12 +26,14 @@ type RuntimeLayerSource =
   | ReturnType<typeof ManagedRelayLayer.layer>
   | typeof Socket.layerWebSocketConstructorGlobal
   | typeof Dpop.layer
+  | typeof DeviceKeys.layer // fork: self-hosted devices
   | typeof layerHttpClient
   | typeof Persistence.layer
   | typeof Tracing.layer;
 
 const layerRuntime = Layer.merge(
-  ManagedRelayLayer.layer(configuredRelayUrl()),
+  // fork: self-hosted devices sign in with the relay layer's DPoP signer.
+  DeviceKeys.layer.pipe(Layer.provideMerge(ManagedRelayLayer.layer(configuredRelayUrl()))),
   Socket.layerWebSocketConstructorGlobal,
 ).pipe(
   Layer.provideMerge(Dpop.layer),
