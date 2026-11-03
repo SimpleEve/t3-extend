@@ -308,7 +308,11 @@ vp run fork:dist:android   # → release/fork-android/T3-Extend-<版本>-arm64-v
 
 前置条件：
 
-- macOS 签名身份：登录钥匙串里的自签名证书 `T3 Extend Code Signing`（`security find-identity -v -p codesigning` 能看到）。换身份用 `--identity` 或 `T3EXTEND_MAC_SIGN_IDENTITY`。
+- macOS 签名身份：登录钥匙串里 T3 Extend 自己的自签名身份 `T3 Extend Code Signing`（RSA 2048，keyUsage 只有 digitalSignature，EKU 只有 codeSigning，CA:FALSE，有效期 10 年）。它不借用本机其他项目的证书。换身份用 `--identity` 或 `T3EXTEND_MAC_SIGN_IDENTITY`。
+  - 新机器上创建一次：`node scripts/fork-dist-mac.ts --create-identity`。已有同名证书或身份时它会拒绝执行。它在 0700 的临时目录里用系统 `/usr/bin/openssl` 生成密钥和证书，打成 p12，经 `security -i` 的 stdin 导入登录钥匙串（临时口令不进 argv 和日志），只用 `-T /usr/bin/codesign` 给 codesign 访问权，不用 `-A`；用完删除临时目录。中途任何一步失败，都会按 SHA-1 删掉这次创建的证书和私钥，可以直接重跑。
+  - **创建时会弹一次钥匙串授权框**：脚本末尾要用新私钥试签一个临时二进制，macOS 会问 codesign 能否使用这把密钥，输入登录密码并点"始终允许"（最多等 10 分钟，之后再试签一次确认不再弹窗，30 秒限制）。原因是 macOS 10.12 之后，光有 ACL（`-T`）不够，私钥的 partition list 还要覆盖 codesign，而改 partition list 需要登录密码，所以让用户在系统弹窗里确认一次。点了"允许"而不是"始终允许"，第二次试签会超时，脚本回滚并报错。第一次试签超时（没人点）同样回滚。所以要在电脑前、交互地跑。
+  - **不改信任设置**（改了要系统密码）。没有信任设置时证书只出现在 `security find-identity -p codesigning`（不带 `-v`）里，带 `CSSMERR_TP_NOT_TRUSTED`，codesign 照样能签，`codesign --verify --strict` 也能过。打包脚本的预检按名称精确查找，要求恰好一个、没过期（看证书有效期，也拒绝状态含 EXPIRED/REVOKED 的）。
+  - 备份是可选的：身份丢了，只是新包再问一次钥匙串、再授一次权，不会丢数据。要备份就在钥匙串访问里导出这条身份。
 - Rust：`native/resource-monitor` 依赖的 `sysinfo` 要求 rustc 1.95，默认 stable 是 1.89。只加装、不改默认工具链：`RUSTUP_DIST_SERVER=https://rsproxy.cn RUSTUP_UPDATE_ROOT=https://rsproxy.cn/rustup rustup toolchain install 1.95.0 --profile minimal`。脚本用 `RUSTUP_TOOLCHAIN=1.95.0` 从源码编译 resource-monitor（`--rust-toolchain` 可改），并清掉 `T3CODE_DESKTOP_REUSE_RESOURCE_MONITOR`。
 - Node：系统的 26.5.1 能打出来。如果打包报 Node 版本不对，改用 `vp env exec --node 26.12.1 node scripts/fork-dist-mac.ts`。
 - Android keystore：`~/.config/t3extend/android-release.jks`（目录 0700、文件 0600），PKCS12，alias `t3extend`，RSA 4096，有效期 10000 天，store 和 key 是同一个密码。密码只存在 macOS Keychain 的 generic password 条目里，account 和 service 都是 `t3extend-android-release`。新机器上用 `node scripts/fork-build-android-release.ts --create-keystore` 生成一次。已有 keystore 或 Keychain 条目时它会拒绝执行。它先把 keystore 生成到同目录的临时文件，Keychain 写入成功并且读回的密码一致后，才链接到正式路径；中途任何一步失败，都会删掉临时文件和这次写入的 Keychain 条目，可以直接重试。这一步只需要 `JAVA_HOME`（keytool 在 JDK 里），不需要 Android SDK。测试时用 `--keystore` 和 `--keychain-service` 指向临时路径和临时条目，不要碰正式的。
@@ -326,7 +330,7 @@ Android 流水线（`scripts/fork-build-android-release.ts`）：`APP_VARIANT=pr
 安装：
 
 - macOS：打开 DMG，把 `T3 Extend (Beta).app` 拖进 `/Applications`。第一次打开如果被 Gatekeeper 拦下，在 Finder 里右键选"打开"，或者执行 `xattr -d com.apple.quarantine "/Applications/T3 Extend (Beta).app"`。
-- 第一次启动时，macOS 会询问是否允许 `T3 Extend (Beta)` 访问钥匙串项 `t3extend Safe Storage`。把弹窗切到前台，选"始终允许"。签名身份不变，所以重新打包以后 designated requirement（`identifier "com.simpleeve.t3extend" and certificate leaf = H"4c50…5d"`）也不变，按理不会再问。这一点没有实测。
+- 第一次启动时，macOS 会询问是否允许 `T3 Extend (Beta)` 访问钥匙串项 `t3extend Safe Storage`。把弹窗切到前台，选"始终允许"。签名身份不变时，重新打包以后 designated requirement（`identifier "com.simpleeve.t3extend" and certificate root = H"491ecedb…8978"`，即证书的 SHA-1；新证书未设信任，codesign 把这张自签名证书算作 root，T3 Extend Code Signing 时是 leaf）也不变，按理不会再问。这一点没有实测。**从 T3 Extend Code Signing 换到 `T3 Extend Code Signing` 是一次例外**：designated requirement 里的证书 hash 变成新证书的 SHA-1，所以换证书后的新包第一次启动时，会再问一次能否访问 `t3extend Safe Storage`，选"始终允许"即可；以前给 T3 Extend 授过的 macOS 隐私权限（屏幕录制、辅助功能等）也要重新授一次。之后再更新就不会再问。
 - 如果点了拒绝，或者想让签名版重新创建这一项，执行 `security delete-generic-password -s "t3extend Safe Storage"`，然后重启 app。旧项里加密保存的本地凭据会随之失效，需要重新登录或重新配对。
 - 弹窗没处理时，主线程会一直阻塞在读取 Keychain 上，app 不响应退出，第一次 SIGTERM 也不生效。这时用"强制退出"或 `kill -9 <PID>`。
 - Android：`adb install -r <apk>`，或者把 APK 传到手机上安装。它和 dev client（`.dev`）是两个应用，可以并存。
