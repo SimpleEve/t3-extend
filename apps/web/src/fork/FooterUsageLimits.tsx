@@ -1,7 +1,14 @@
 import { useAtomValue } from "@effect/atom-react";
-import type { EnvironmentId, ServerProvider } from "@t3tools/contracts";
+import {
+  DEFAULT_SERVER_SETTINGS,
+  type EnvironmentId,
+  type ServerProvider,
+  type ServerSettings,
+} from "@t3tools/contracts";
+import { resolveServerBackgroundActivitySettings } from "@t3tools/shared/backgroundActivitySettings";
 import { formatDuration, usageWindowLabel } from "@t3tools/shared/usageLimits";
 import { useNavigate } from "@tanstack/react-router";
+import * as Duration from "effect/Duration";
 import { Atom } from "effect/reactivity";
 import { GaugeIcon } from "lucide-react";
 
@@ -15,7 +22,13 @@ import { formatRelativeTimeLabel, formatUpcomingTimestamp } from "../timestampFo
 import { usePrimarySettings } from "../hooks/useSettings";
 import { FOOTER_TONE_CLASS, FooterChip, FooterPanelHeader } from "./FooterChip";
 import { type FooterChipSize, type FooterDensity, footerChipSize } from "./footerDensity.logic";
-import { collectFooterLimits, type FooterLimitEntry, mostUrgentLimit } from "./footerLimits.logic";
+import {
+  collectFooterLimits,
+  type FooterLimitEntry,
+  footerLimitsStaleAfterMs,
+  mostUrgentLimit,
+  windowHasReset,
+} from "./footerLimits.logic";
 
 function providerLabel(provider: ServerProvider): string {
   if (provider.displayName) return provider.displayName;
@@ -27,15 +40,30 @@ function providerLabel(provider: ServerProvider): string {
 
 const EMPTY_PROVIDERS: ReadonlyArray<ServerProvider> = [];
 const NO_PROVIDERS_ATOM = Atom.make<ReadonlyArray<ServerProvider> | null>(null);
+const NO_SETTINGS_ATOM = Atom.make<ServerSettings | null>(null);
 
-/** Usable subscription windows of the shown environment, one entry per provider. */
+/**
+ * Usable subscription windows of the shown environment, one entry per provider. Windows that have
+ * reset and readings older than twice the server's refresh interval no longer set the color; the
+ * minute clock re-evaluates both without any extra refresh.
+ */
 export function useFooterLimits(environmentId: EnvironmentId | null): readonly FooterLimitEntry[] {
   const providers = useAtomValue(
     environmentId === null
       ? NO_PROVIDERS_ATOM
       : serverEnvironment.providersValueAtom(environmentId),
   );
-  return collectFooterLimits(providers ?? EMPTY_PROVIDERS, providerLabel);
+  const settings = useAtomValue(
+    environmentId === null ? NO_SETTINGS_ATOM : serverEnvironment.settingsValueAtom(environmentId),
+  );
+  const now = Date.parse(useNowMinute());
+  const refreshInterval = resolveServerBackgroundActivitySettings(
+    settings ?? DEFAULT_SERVER_SETTINGS,
+  ).providerHealthRefreshInterval;
+  return collectFooterLimits(providers ?? EMPTY_PROVIDERS, providerLabel, {
+    now,
+    staleAfterMs: footerLimitsStaleAfterMs(Duration.toMillis(refreshInterval)),
+  });
 }
 
 function limitsLabels(entries: readonly FooterLimitEntry[]) {
@@ -76,6 +104,7 @@ function LimitsPanel(props: {
             {entry.windows.map((window) => {
               const remaining = Math.round(100 - window.usedPercent);
               const resetsAt = window.resetsAt ? Date.parse(window.resetsAt) : Number.NaN;
+              const reset = windowHasReset(window, now);
               return (
                 <div key={window.id} className="flex flex-col text-2xs text-muted-foreground">
                   <div className="flex items-baseline justify-between gap-2">
@@ -85,17 +114,15 @@ function LimitsPanel(props: {
                         window === entry.tightest ? FOOTER_TONE_CLASS[entry.severity] : ""
                       }`}
                     >
-                      {t("{remaining}% left", { remaining })}
+                      {reset ? t("resets now") : t("{remaining}% left", { remaining })}
                     </span>
                   </div>
-                  {window.resetsAt ? (
+                  {window.resetsAt && !reset && Number.isFinite(resetsAt) ? (
                     <span className="truncate tabular-nums">
-                      {resetsAt > now
-                        ? t("Resets in {duration} · {time}", {
-                            duration: formatDuration(resetsAt - now, t),
-                            time: formatUpcomingTimestamp(window.resetsAt, timestampFormat, now),
-                          })
-                        : t("resets now")}
+                      {t("Resets in {duration} · {time}", {
+                        duration: formatDuration(resetsAt - now, t),
+                        time: formatUpcomingTimestamp(window.resetsAt, timestampFormat, now),
+                      })}
                     </span>
                   ) : null}
                 </div>
