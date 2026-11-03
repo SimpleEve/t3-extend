@@ -161,8 +161,10 @@ describe("the frpc process", () => {
         assert.equal(record.configDirMode, 0o700);
         assert.isFalse(record.argv.some((argument) => argument.includes(ticket)));
         assert.isFalse(Object.values(record.env).some((value) => value.includes(ticket)));
-        // macOS adds `__CF_USER_TEXT_ENCODING` to every process it starts.
+        // macOS adds `__CF_USER_TEXT_ENCODING` to every process it starts, and /bin/sh exports PWD and SHLVL.
         const allowed = [
+          "PWD",
+          "SHLVL",
           "PATH",
           "HOME",
           "TMPDIR",

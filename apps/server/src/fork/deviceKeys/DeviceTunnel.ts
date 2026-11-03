@@ -1,7 +1,7 @@
 // fork: the server runs frpc for this computer (design Q7 / 3.7). While the computer belongs to a
 // server it writes frpc's config and a fresh ticket, starts frpc, reads its three rejection
 // sentences, and restarts it with back-off. frpc only ever runs as a child that this module
-// spawned and holds the handle of; a `Scope` closing kills it.
+// spawned and holds the handle of; a `Scope` closing kills it (its whole process group, see frpcProcess).
 import type { DeviceTunnelStatus } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Clock from "effect/Clock";
@@ -18,7 +18,6 @@ import * as Ref from "effect/Ref";
 import * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
-import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
 import * as ServerConfig from "../../config.ts";
@@ -28,6 +27,7 @@ import * as DeviceIdentity from "./DeviceIdentity.ts";
 import { writeFileAtomic } from "./atomicWrite.ts";
 import { writeDevicePublicUrl } from "./devicePublicUrlSync.ts";
 import * as FrpBinary from "./frpBinary.ts";
+import { frpcCommand } from "./frpcProcess.ts";
 import {
   issueTicket,
   parseTicketLifetimeOverride,
@@ -116,6 +116,7 @@ const make = Effect.fn("DeviceTunnel.make")(function* (options: {
   const path = yield* Path.Path;
   const config = yield* ServerConfig.ServerConfig;
   const hostEnv = yield* HostProcess.Environment;
+  const platform = yield* HostProcess.Platform;
   const serviceScope = yield* Effect.scope;
   const trustedCaFile =
     options.trustedCaFile ??
@@ -297,15 +298,12 @@ const make = Effect.fn("DeviceTunnel.make")(function* (options: {
           if (value !== undefined) env[name] = value;
         }
         const child = yield* spawner.spawn(
-          ChildProcess.make(located.success.path, ["-c", configFile], {
+          frpcCommand({
+            platform,
+            executable: located.success.path,
+            configFile,
             env,
-            extendEnv: false,
-            shell: false,
-            detached: false,
-            stdin: "ignore",
-            stdout: "pipe",
-            stderr: "pipe",
-            forceKillAfter: KILL_GRACE,
+            killGrace: KILL_GRACE,
           }),
         );
         yield* Ref.set(frpcPid, Number(child.pid));
