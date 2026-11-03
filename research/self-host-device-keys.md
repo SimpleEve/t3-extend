@@ -856,7 +856,7 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 - **没有查询串。** 任何带 `?` 的请求直接 `400 invalid_request`，所以不存在"查询参数排序"问题。路径按请求行里的原始字节精确匹配路由表；含 `%`、`//`、`..`、非 ASCII 的路径一律 `404 not_found`，不做解码和归一化，尾斜杠也不归一。
 - **`htu` = 规范公网源 + 路径。** 规范公网源（`T3X_PUBLIC_ORIGIN`）在注册表启动时规范化一次：协议和主机小写、主机经 `url.domainToASCII`、默认端口省略、无路径、无尾斜杠；规范化失败则**注册表拒绝启动**。客户端对钉住的邀请源做同一个规范化（同一个函数在 shared，加交叉向量），再拼路径。`Host`、`X-Forwarded-*`、`Forwarded` 不参与，只写日志。
 - **`htm`** 是请求行里的方法，大写，逐字比较。
-- **`bh`**：对**收到的原始字节**算 `b64u(SHA-256)`，先验哈希再 `JSON.parse`，不重新序列化。有请求体就必须有 `bh` 且 `Content-Type: application/json`；没有请求体就不得带 `bh` 且 `Content-Length` 为 0 或缺失。体上限 4 KB，读取时超过就中止（不先缓冲再判断）。带 `Content-Encoding` 的请求体直接 `400`。
+- **`bh`**：对**收到的原始字节**算 `b64u(SHA-256)`，先验哈希再 `JSON.parse`，不重新序列化。有请求体就必须有 `bh` 且 `Content-Type: application/json`；没有请求体就不得带 `bh` 且 `Content-Length` 为 0 或缺失。体上限 4 KB，读取时超过就中止（不先缓冲再判断）。带 `Content-Encoding` 的请求体直接 `400`。有请求体必须带 `Content-Length`，不接受 chunked。
 - **可信代理边界**：注册表的 `:8080` 只在 compose 内网，Caddy 是唯一入口，**不发布到宿主机**（8.1 加一条测试：`docker compose config` 解析结果里 `registry` 没有 `ports`）。注册表只读代理给的**一个**头 `X-T3x-Client-IP`，用于限速：不是 `net.isIP` 的值记入 `unknown` 桶；`X-Forwarded-For`、`Forwarded` 一概不读。
 - 时间窗 ±120 秒；`jti` 是 22 字符 base64url（128 位）；`seen_jti` 保留到 `iat + 240`。
 
