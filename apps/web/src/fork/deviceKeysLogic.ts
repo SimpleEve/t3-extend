@@ -3,9 +3,11 @@
 import type { DeviceDirectoryView } from "@t3tools/client-runtime/fork/deviceKeys/discovery";
 import type { DeviceKeysError, DevicesSnapshot, DevicesStatus } from "@t3tools/contracts";
 import type { Translator } from "@t3tools/client-runtime/i18n";
+
+import type { ClockWindow } from "./useClockWindow";
 import type { InviteReading } from "@t3tools/client-runtime/fork/deviceKeys/inviteReading";
 
-/** The clock behind the notices, read at render time so the section needs no ticking timer. */
+/** The clock for checks that only need the moment of a click or a keystroke, not a live label. */
 export const currentTimeMs = () => Date.now();
 
 /** The registry list is fetched every minute; three missed rounds is a server that is not answering. */
@@ -48,6 +50,35 @@ export function serverNotice(
   return null;
 }
 
+const MINUTE_MS = 60_000;
+const HOUR_MS = 3_600_000;
+
+/**
+ * Where `nowMs` sits among the moments `serverNotice` changes: three minutes after the last sync,
+ * then every minute (every hour once the list is a day old). `serverNotice(status, window.startMs)`
+ * reads the same as at `nowMs`.
+ */
+export function serverNoticeWindow(
+  status: Pick<DevicesStatus, "fetchedAt" | "staleness">,
+  nowMs: number,
+): ClockWindow {
+  if (
+    status.staleness === "expired" ||
+    status.staleness === "unavailable" ||
+    status.fetchedAt === null
+  ) {
+    return { startMs: 0, endMs: null };
+  }
+  const syncedMs = status.fetchedAt * 1000;
+  const elapsedMs = Math.max(0, nowMs - syncedMs);
+  if (status.staleness !== "warn" && elapsedMs < UNREACHABLE_AFTER_SECONDS * 1000) {
+    return { startMs: syncedMs, endMs: syncedMs + UNREACHABLE_AFTER_SECONDS * 1000 };
+  }
+  const unitMs = status.staleness === "warn" ? HOUR_MS : MINUTE_MS;
+  const startMs = syncedMs + Math.floor(elapsedMs / unitMs) * unitMs;
+  return { startMs, endMs: startMs + unitMs };
+}
+
 export function describeServerNotice(t: Translator, notice: ServerNotice): string {
   switch (notice.kind) {
     case "unreachable":
@@ -68,11 +99,13 @@ export function describeServerNotice(t: Translator, notice: ServerNotice): strin
   }
 }
 
-/** "Valid until 14:32": an absolute time, so the dialog needs no ticking clock. */
+/** "Valid until 01:14": an absolute, zero-padded 24-hour time, so the dialog needs no ticking clock. */
 export function inviteDeadlineLabel(expiresAtSeconds: number, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" }).format(
-    new Date(expiresAtSeconds * 1000),
-  );
+  return new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(expiresAtSeconds * 1000));
 }
 
 export function describeInviteProblem(

@@ -6,6 +6,7 @@ import {
   freshestStatus,
   inviteDeadlineLabel,
   serverNotice,
+  serverNoticeWindow,
   snapshotToView,
 } from "./deviceKeysLogic";
 
@@ -57,10 +58,52 @@ describe("which status the section trusts", () => {
 });
 
 describe("the invite deadline", () => {
-  it("is a time of day for a given moment, not a countdown", () => {
-    const expiresAt = seconds(NOW) + 900;
-    expect(inviteDeadlineLabel(expiresAt, "en")).toBe(inviteDeadlineLabel(expiresAt, "en"));
-    expect(inviteDeadlineLabel(expiresAt, "en")).toMatch(/\d{1,2}:\d{2}/);
+  it("is a zero-padded 24-hour time of day, not a countdown", () => {
+    // Local time: 01:14 must not read as 1:14, which could be either half of the day.
+    const local = new Date(2026, 10, 3, 1, 14, 0);
+    expect(inviteDeadlineLabel(Math.floor(local.getTime() / 1000), "en")).toBe("01:14");
+    expect(inviteDeadlineLabel(Math.floor(local.getTime() / 1000), "zh-CN")).toBe("01:14");
+    const evening = new Date(2026, 10, 3, 13, 5, 0);
+    expect(inviteDeadlineLabel(Math.floor(evening.getTime() / 1000), "en")).toBe("13:05");
+  });
+});
+
+describe("when the server notice changes", () => {
+  const status = (
+    fetchedAt: number | null,
+    staleness: "fresh" | "warn" | "expired" | "unavailable",
+  ) => ({ fetchedAt, staleness }) as const;
+  const synced = seconds(NOW);
+
+  it.each([
+    [status(synced, "fresh"), "fresh"],
+    [status(synced, "warn"), "warn"],
+    [status(synced, "expired"), "expired"],
+    [status(null, "unavailable"), "none"],
+  ])("%j: the window start reads like the moment itself, and its end is the next change", (st) => {
+    for (let offsetSeconds = 0; offsetSeconds < 3 * 3600; offsetSeconds += 7) {
+      const nowMs = NOW + offsetSeconds * 1000;
+      const window = serverNoticeWindow(st, nowMs);
+      expect(serverNotice(st, window.startMs)).toEqual(serverNotice(st, nowMs));
+      if (window.endMs !== null) {
+        expect(window.endMs).toBeGreaterThan(nowMs);
+        expect(serverNotice(st, window.endMs)).not.toEqual(serverNotice(st, nowMs));
+      }
+    }
+  });
+
+  it("is quiet until three minutes after the sync, then moves every minute", () => {
+    const st = status(synced, "fresh");
+    expect(serverNoticeWindow(st, NOW).endMs).toBe(NOW + 180_000);
+    expect(serverNoticeWindow(st, NOW + 181_000)).toEqual({
+      startMs: NOW + 180_000,
+      endMs: NOW + 240_000,
+    });
+  });
+
+  it("never changes once the list has no sync to measure from", () => {
+    expect(serverNoticeWindow(status(null, "unavailable"), NOW).endMs).toBeNull();
+    expect(serverNoticeWindow(status(synced, "expired"), NOW).endMs).toBeNull();
   });
 });
 

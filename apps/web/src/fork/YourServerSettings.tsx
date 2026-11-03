@@ -25,6 +25,7 @@ import {
   freshestStatus,
   inviteDeadlineLabel,
   serverNotice,
+  serverNoticeWindow,
 } from "~/fork/deviceKeysLogic";
 import { deviceEnvironmentIndex, peerWait } from "~/fork/deviceKeysRuntime";
 import {
@@ -35,9 +36,10 @@ import {
   useDeviceInviteRequests,
 } from "~/fork/deviceKeysStore";
 import { useT, useUiLocale } from "~/hooks/useT";
+import { useClockWindowStart } from "./useClockWindow";
 import { usePrimaryEnvironmentId } from "~/state/environments";
 import { useAtomCommand } from "~/state/use-atom-command";
-import { formatRelativeTimeLabel } from "~/timestampFormat";
+import { useRelativeTimeState } from "~/hooks/useRelativeTimeState";
 import {
   AlertDialog,
   AlertDialogClose,
@@ -46,9 +48,9 @@ import {
   AlertDialogHeader,
   AlertDialogPopup,
   AlertDialogTitle,
-} from "../ui/alert-dialog";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
+} from "../components/ui/alert-dialog";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 import {
   Dialog,
   DialogDescription,
@@ -57,14 +59,15 @@ import {
   DialogPanel,
   DialogPopup,
   DialogTitle,
-} from "../ui/dialog";
-import { Input } from "../ui/input";
-import { QRCodeSvg } from "../ui/qr-code";
-import { Spinner } from "../ui/spinner";
-import { Textarea } from "../ui/textarea";
-import { Toggle, ToggleGroup } from "../ui/toggle-group";
-import { SelfHostSettings } from "./SelfHostSettings";
-import { SettingsRow } from "./settingsLayout";
+} from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
+import { QRCodeSvg } from "../components/ui/qr-code";
+import { Spinner } from "../components/ui/spinner";
+import { Textarea } from "../components/ui/textarea";
+import { Toggle, ToggleGroup } from "../components/ui/toggle-group";
+import { SelfHostSettings } from "../components/settings/SelfHostSettings";
+import { searchableSetting } from "../components/settings/settingsSearch";
+import { SettingsRow } from "../components/settings/settingsLayout";
 
 const isDeviceKeysError = Schema.is(DeviceKeysError);
 
@@ -81,7 +84,7 @@ const failureMessage = (t: Translator, cause: unknown): string => {
   return error !== null ? describeDevicesError(t, error) : t("Something went wrong. Try again.");
 };
 
-export function DevicesSettings() {
+export function YourServerSettings() {
   // The devices RPCs answer the desktop app's own session only, so a browser shows the old rows.
   if (typeof window === "undefined" || window.desktopBridge === undefined) {
     return <SelfHostSettings />;
@@ -127,7 +130,7 @@ function DevicesRows({ environmentId }: { readonly environmentId: EnvironmentId 
   if (status === null) {
     return AsyncResult.isFailure(statusResult) ? (
       <SettingsRow
-        id="devices"
+        {...searchableSetting("your-server")}
         title={t("Your server")}
         description={t("Devices on your own server could not be loaded.")}
       />
@@ -138,7 +141,7 @@ function DevicesRows({ environmentId }: { readonly environmentId: EnvironmentId 
     return (
       <>
         <SettingsRow
-          id="devices"
+          {...searchableSetting("your-server")}
           title={t("Your server")}
           description={t(
             "Connect your computers and phones through a server you run yourself. You need an invite from a computer that has already joined.",
@@ -192,7 +195,9 @@ function JoinedRows({
   const snapshot = Option.getOrNull(AsyncResult.value(snapshotResult));
   // The list pushes status along with the devices, so the latest of the two is what is shown.
   const current = freshestStatus(snapshot?.status, status);
-  const notice = serverNotice(current, currentTimeMs());
+  // Re-evaluated at the moments the notice changes, so an open page shows it without a re-render.
+  const noticeAt = useClockWindowStart((nowMs) => serverNoticeWindow(current, nowMs));
+  const notice = serverNotice(current, noticeAt);
   const [removing, setRemoving] = useState<DeviceListEntry | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [pendingComputers, setPendingComputers] = useState<{
@@ -211,7 +216,7 @@ function JoinedRows({
   return (
     <>
       <SettingsRow
-        id="devices"
+        {...searchableSetting("your-server")}
         title={t("Your server")}
         description={t("Connected to {host}.", { host: current.registryHost ?? "" })}
         status={
@@ -366,7 +371,8 @@ function DeviceItem({
 }) {
   const t = useT();
   const Icon = device.kind === "phone" ? SmartphoneIcon : MonitorIcon;
-  const lastSeen = formatRelativeTimeLabel(new Date(device.lastSeenAt * 1000).toISOString());
+  const seen = useRelativeTimeState(new Date(device.lastSeenAt * 1000).toISOString());
+  const lastSeen = seen.status === "relative" ? seen.label : "";
   return (
     <li className="flex min-h-11 items-center gap-2.5 py-1.5 pr-2 pl-3">
       <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />

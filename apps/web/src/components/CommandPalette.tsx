@@ -234,7 +234,7 @@ import {
 import { useCommandPaletteThreadItems } from "./CommandPaletteThreadItems";
 import { useCommandPaletteThemeItems } from "./CommandPaletteThemeItems";
 import { useCommandPaletteSidebarViewItems } from "./CommandPaletteSidebarViewItems"; // fork: sidebar views
-import { useCommandPaletteDeviceItems } from "./CommandPaletteDeviceItems"; // fork: self-hosted devices
+import { useYourServerPaletteItems } from "../fork/YourServerPaletteItems"; // fork: self-hosted devices
 import {
   CommandPaletteVirtualizedResults,
   scrollCommandPaletteRowIntoView,
@@ -503,7 +503,7 @@ function OpenCommandPaletteDialog(props: {
   const providersByEnvironment = useEnvironmentProviders();
   const { changeThemeItem, changeAppearanceItem, themeEditorItem } = useCommandPaletteThemeItems();
   const sidebarViewItems = useCommandPaletteSidebarViewItems(); // fork: sidebar views
-  const deviceItems = useCommandPaletteDeviceItems(); // fork: self-hosted devices
+  const deviceItems = useYourServerPaletteItems(); // fork: self-hosted devices
   const currentView = viewStack.at(-1)?.view ?? null;
   const threadSearchQuery = currentView === null && !isActionsOnly ? deferredQuery : "";
   const [browseGeneration, setBrowseGeneration] = useState(0);

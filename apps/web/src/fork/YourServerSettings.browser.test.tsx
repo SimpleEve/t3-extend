@@ -6,8 +6,8 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import "~/index.css";
-import { render, stubGlobal } from "../../../test/render";
-import { AppAtomRegistryProvider } from "../../rpc/atomRegistry";
+import { fakeTimers, render, stubGlobal } from "../../test/render";
+import { AppAtomRegistryProvider } from "../rpc/atomRegistry";
 
 const NOW = Date.parse("2026-11-03T12:00:00.000Z");
 
@@ -46,7 +46,7 @@ vi.mock(import("~/state/use-atom-command"), async (original) => ({
 }));
 
 import { deviceEnvironmentIndex, peerWait } from "~/fork/deviceKeysRuntime";
-import { DevicesSettings } from "./DevicesSettings";
+import { YourServerSettings } from "./YourServerSettings";
 
 const success = <A,>(value: A) => AsyncResult.success(value) as AtomCommandResult<A, never>;
 
@@ -138,11 +138,11 @@ const inviteFor = (origin: string, kind: "computer" | "phone" = "computer", expi
 
 const ui = () => (
   <AppAtomRegistryProvider>
-    <DevicesSettings />
+    <YourServerSettings />
   </AppAtomRegistryProvider>
 );
 
-describe("Devices settings, not joined", () => {
+describe("Your server settings, not joined", () => {
   it("asks which server before it sends anything, and then joins", async () => {
     using _bridge = setup({ status: status({ state: "not_joined" }) });
     const fetchSpy = vi.spyOn(globalThis, "fetch");
@@ -214,7 +214,7 @@ describe("Devices settings, not joined", () => {
   });
 });
 
-describe("Devices settings, joined", () => {
+describe("Your server settings, joined", () => {
   it("lists the devices and removes one after a confirmation", async () => {
     using _bridge = setup();
     mocks.remove.mockResolvedValue(
@@ -224,8 +224,10 @@ describe("Devices settings, joined", () => {
         pendingComputers: [{ id: "mac-mini", name: "Mac mini" }],
       }),
     );
-    await using _screen = await render(ui(), { router: false });
+    await using screen = await render(ui(), { router: false });
     await expect.element(page.getByText("Connected to t3.example.com.")).toBeVisible();
+    // The anchor settings search jumps to.
+    expect(screen.container.querySelector("#your-server")).not.toBeNull();
     await expect.element(page.getByText("Pixel")).toBeVisible();
     await expect.element(page.getByText("This computer", { exact: true })).toBeVisible();
 
@@ -262,8 +264,9 @@ describe("Devices settings, joined", () => {
       }),
     );
     const deadline = new Intl.DateTimeFormat(undefined, {
-      hour: "numeric",
+      hour: "2-digit",
       minute: "2-digit",
+      hourCycle: "h23",
     }).format(new Date(NOW + 900_000));
     await expect
       .element(
@@ -291,6 +294,27 @@ describe("Devices settings, joined", () => {
     await expect
       .element(page.getByText("Can't reach your server right now. Last synced 10 minutes ago."))
       .toBeVisible();
+  });
+
+  it("shows the unreachable notice by itself once the page has sat idle past three minutes", async () => {
+    using _bridge = setup({
+      status: status({ fetchedAt: Math.floor(NOW / 1000) - 100, staleness: "fresh" }),
+    });
+    using timers = fakeTimers({ now: NOW });
+    await using _screen = await render(ui(), { router: false });
+    await expect.element(page.getByText("Connected to t3.example.com.")).toBeVisible();
+    expect(page.getByText(/Can't reach your server/).elements()).toHaveLength(0);
+
+    // Nothing else re-renders the page: the notice arrives on its own timer, 80 seconds later.
+    vi.advanceTimersByTime(80_000);
+    await expect
+      .element(page.getByText("Can't reach your server right now. Last synced 3 minutes ago."))
+      .toBeVisible();
+    vi.advanceTimersByTime(60_000);
+    await expect
+      .element(page.getByText("Can't reach your server right now. Last synced 4 minutes ago."))
+      .toBeVisible();
+    void timers;
   });
 
   it("stays quiet once the registry answered again, though the list stream has not pushed since", async () => {
@@ -324,7 +348,7 @@ describe("Devices settings, joined", () => {
   });
 });
 
-describe("Devices settings, elsewhere", () => {
+describe("Your server settings, elsewhere", () => {
   it("shows nothing of the new section where there is no desktop app", async () => {
     using _bridge = setup({ desktop: false });
     await using screen = await render(ui(), { router: false });

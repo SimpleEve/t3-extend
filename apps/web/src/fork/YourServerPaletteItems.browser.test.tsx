@@ -10,11 +10,11 @@ vi.mock(import("@tanstack/react-router"), async (original) => ({
   useNavigate: (() => mocks.navigate) as never,
 }));
 
-import { useDeviceInviteRequests } from "../fork/deviceKeysStore";
-import { useCommandPaletteDeviceItems } from "./CommandPaletteDeviceItems";
+import { useDeviceInviteRequests } from "./deviceKeysStore";
+import { useYourServerPaletteItems } from "./YourServerPaletteItems";
 
 function Probe() {
-  const items = useCommandPaletteDeviceItems();
+  const items = useYourServerPaletteItems();
   const requests = useDeviceInviteRequests();
   return (
     <div>

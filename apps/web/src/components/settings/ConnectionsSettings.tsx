@@ -142,7 +142,7 @@ import {
   SavedBackendListRow,
 } from "./SavedEnvironmentRows";
 import { AddEnvironmentDialog } from "./AddEnvironmentDialog";
-import { DevicesSettings } from "./DevicesSettings"; // fork: self-hosted connection and devices
+import { YourServerSettings } from "../../fork/YourServerSettings"; // fork: self-hosted connection and devices
 import { isSelfHostEndpoint } from "~/fork/selfHostStore";
 import { useT } from "../../hooks/useT"; // fork: self-hosted connection
 
@@ -1153,7 +1153,7 @@ export function ConnectionsSettings({ view }: { readonly view: "environments" | 
                 {renderNetworkAccessRow()}
                 {renderEndpointRows()}
                 {renderTailscaleRow()}
-                <DevicesSettings />
+                <YourServerSettings />
                 {/* fork: self-hosted connection and devices */}
                 {renderWslRow()}
                 {canReadRelay || canManageRelay ? (

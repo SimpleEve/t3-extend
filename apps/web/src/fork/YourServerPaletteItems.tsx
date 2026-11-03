@@ -3,11 +3,11 @@
 import { useNavigate } from "@tanstack/react-router";
 import { UserPlusIcon } from "lucide-react";
 
-import { requestDeviceInvite } from "../fork/deviceKeysStore";
+import { requestDeviceInvite } from "./deviceKeysStore";
 import { useT } from "../hooks/useT";
-import { ITEM_ICON_CLASS, type CommandPaletteActionItem } from "./CommandPalette.logic";
+import { ITEM_ICON_CLASS, type CommandPaletteActionItem } from "../components/CommandPalette.logic";
 
-export function useCommandPaletteDeviceItems(): CommandPaletteActionItem[] {
+export function useYourServerPaletteItems(): CommandPaletteActionItem[] {
   const t = useT();
   const navigate = useNavigate();
   if (typeof window === "undefined" || window.desktopBridge === undefined) return [];
