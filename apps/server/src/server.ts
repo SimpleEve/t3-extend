@@ -97,6 +97,8 @@ import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
 import * as ServerOwnership from "./serverOwnership.ts";
 import * as AgentAwarenessRelay from "./relay/AgentAwarenessRelay.ts";
 import * as ForkPush from "./fork/push/layer.ts"; // fork: UnifiedPush notifications
+import * as ForkDeviceKeys from "./fork/deviceKeys/layer.ts"; // fork: self-hosted pairing
+import * as DeviceAssertionAuth from "./fork/deviceKeys/DeviceAssertionAuth.ts"; // fork: self-hosted pairing
 import { hasCloudPublicConfig } from "./cloud/publicConfig.ts";
 import * as ServerSettings from "./serverSettings.ts";
 import * as ManagedLimits from "./policy/managedLimits.ts";
@@ -633,6 +635,7 @@ const layerProviderInstallationRefresh = Layer.effectDiscard(
 const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
   AgentAwarenessRelay.layer,
   ForkPush.layer, // fork: UnifiedPush notifications
+  ForkDeviceKeys.layer, // fork: self-hosted pairing
   HeldHooksWaker.layer,
   layerThreadSettlementWorker,
   layerIdleCompactionWorker,
@@ -789,6 +792,7 @@ const layerMakeRoutes = Layer.mergeAll(
     DeviceHubProxy.layer,
     ServerBrowserStream.routeLayer,
     ServerHttp.layerStaticAndDevRoute,
+    DeviceAssertionAuth.layerRoute, // fork: POST /oauth/t3x-device
     Ws.layer,
   ),
   McpHttpServer.layer.pipe(

@@ -23,11 +23,10 @@ import {
 } from "../../httpResponseErrorGuard.ts";
 
 /** The tunnel's public origin, `https://<subdomain>.<domain>[:port]`; none until this machine has joined. */
-export class TunnelOrigin extends Context.Reference<{
-  readonly current: Effect.Effect<Option.Option<string>>;
-}>("t3/fork/deviceKeys/TunnelOrigin", {
-  defaultValue: () => ({ current: Effect.succeed(Option.none<string>()) }),
-}) {}
+export class TunnelOrigin extends Context.Service<
+  TunnelOrigin,
+  { readonly current: Effect.Effect<Option.Option<string>> }
+>()("t3/fork/deviceKeys/TunnelListener/TunnelOrigin") {}
 
 /** Where the listener ended up; frpc's `localPort` points here. */
 export class TunnelListener extends Context.Service<
