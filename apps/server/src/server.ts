@@ -99,6 +99,7 @@ import * as AgentAwarenessRelay from "./relay/AgentAwarenessRelay.ts";
 import * as ForkPush from "./fork/push/layer.ts"; // fork: UnifiedPush notifications
 import * as ForkDeviceKeys from "./fork/deviceKeys/layer.ts"; // fork: self-hosted pairing
 import * as DeviceAssertionAuth from "./fork/deviceKeys/DeviceAssertionAuth.ts"; // fork: self-hosted pairing
+import * as DeviceTunnel from "./fork/deviceKeys/DeviceTunnel.ts"; // fork: self-hosted pairing
 import { hasCloudPublicConfig } from "./cloud/publicConfig.ts";
 import * as ServerSettings from "./serverSettings.ts";
 import * as ManagedLimits from "./policy/managedLimits.ts";
@@ -1180,6 +1181,7 @@ const layerMakeServer = Layer.unwrap(
       routerConfig: HTTP_ROUTER_CONFIG,
     }).pipe(
       TunnelListener.withTunnel, // fork: frpc's loopback-only listener over the same router
+      DeviceTunnel.withDeviceTunnel, // fork: frpc itself, pointed at that listener
       withUntracedRequests,
       Layer.tap(() => Deferred.succeed(routesReady, undefined).pipe(Effect.orDie)),
     );

@@ -177,7 +177,11 @@ const make = Effect.gen(function* () {
     // Step 2: who signed it, with which key.
     const claims = parsed.claims;
     const signer = local.list.value.devices.find((device) => device.id === parsed.kid);
-    if (signer === undefined) return yield* rejected("device_unknown");
+    if (signer === undefined) {
+      // A device joined a moment ago may be on the registry's list already; the retry finds it.
+      yield* directory.refreshSoon;
+      return yield* rejected("device_unknown");
+    }
     if (claims.iss !== parsed.kid || claims.sub !== parsed.kid) {
       return yield* rejected("bad_assertion");
     }
