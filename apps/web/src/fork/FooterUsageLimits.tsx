@@ -14,7 +14,7 @@ import { serverEnvironment } from "../state/server";
 import { formatRelativeTimeLabel, formatUpcomingTimestamp } from "../timestampFormat";
 import { usePrimarySettings } from "../hooks/useSettings";
 import { FOOTER_TONE_CLASS, FooterChip, FooterPanelHeader } from "./FooterChip";
-import type { FooterChipSize, FooterDensity } from "./footerDensity.logic";
+import { type FooterChipSize, type FooterDensity, footerChipSize } from "./footerDensity.logic";
 import { collectFooterLimits, type FooterLimitEntry, mostUrgentLimit } from "./footerLimits.logic";
 
 function providerLabel(provider: ServerProvider): string {
@@ -38,11 +38,17 @@ export function useFooterLimits(environmentId: EnvironmentId | null): readonly F
   return collectFooterLimits(providers ?? EMPTY_PROVIDERS, providerLabel);
 }
 
-export function footerLimitsSize(entries: readonly FooterLimitEntry[]): FooterChipSize {
+function limitsLabels(entries: readonly FooterLimitEntry[]) {
+  const urgent = mostUrgentLimit(entries);
   return {
-    fullChars: entries.reduce((sum, entry) => sum + entry.label.length + 5, 0) + entries.length - 1,
-    compactChars: 3,
+    full: entries.map((entry) => `${entry.label} ${entry.remaining}%`).join(" · "),
+    // The tightest provider by name, so a bare percentage never has to be guessed at.
+    compact: urgent === null ? "" : `${urgent.label} ${urgent.remaining}%`,
   };
+}
+
+export function footerLimitsSize(entries: readonly FooterLimitEntry[]): FooterChipSize {
+  return footerChipSize(limitsLabels(entries));
 }
 
 function LimitsPanel(props: {
@@ -138,7 +144,7 @@ export function FooterUsageLimits(props: {
           </span>
         </span>
       ))}
-      compactLabel={`${urgent.remaining}%`}
+      compactLabel={limitsLabels(entries).compact}
     >
       <LimitsPanel entries={entries} machineLabel={machineLabel} />
     </FooterChip>

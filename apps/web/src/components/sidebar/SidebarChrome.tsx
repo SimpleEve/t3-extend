@@ -229,11 +229,7 @@ function SidebarUtilityItem({
   );
 }
 
-const SidebarUtilityMenu = memo(function SidebarUtilityMenu({
-  scopedProjectRefs,
-}: {
-  scopedProjectRefs: readonly ScopedProjectRef[]; // fork: footer status chips
-}) {
+const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   const navigate = useNavigate();
   const navigateToMainApp = useNavigateToMainApp();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -299,8 +295,6 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu({
             label={t("Usage")}
             onClick={handleUsageClick}
           />
-          <SidebarFooterStatus scopedProjectRefs={scopedProjectRefs} />
-          {/* fork: footer status chips */}
         </>
       )}
       <SidebarThreadUndoNotice />
@@ -319,7 +313,9 @@ export const SidebarChromeFooter = memo(
       <SidebarFooter>
         <SidebarProviderUpdatePill />
         <SidebarUpdateArchitectureWarning />
-        <SidebarUtilityMenu scopedProjectRefs={scopedProjectRefs} />
+        <SidebarFooterStatus scopedProjectRefs={scopedProjectRefs} />{" "}
+        {/* fork: footer status chips */}
+        <SidebarUtilityMenu />
       </SidebarFooter>
     );
   },

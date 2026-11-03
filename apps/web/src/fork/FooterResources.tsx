@@ -11,7 +11,7 @@ import { useEnvironmentQuery } from "../state/query";
 import { serverEnvironment } from "../state/server";
 import { useEnvironmentScope } from "../state/session";
 import { FooterChip, FooterPanelHeader } from "./FooterChip";
-import type { FooterChipSize, FooterDensity } from "./footerDensity.logic";
+import { type FooterChipSize, type FooterDensity, footerChipSize } from "./footerDensity.logic";
 import {
   type FooterResourceRow,
   type FooterResourceSummary,
@@ -55,8 +55,7 @@ export function useFooterResources(environmentId: EnvironmentId | null, panelOpe
 }
 
 export function footerResourcesSize(summary: FooterResourceSummary): FooterChipSize {
-  const labels = footerResourcesLabels(summary);
-  return { fullChars: labels.full.length, compactChars: labels.compact.length };
+  return footerChipSize(footerResourcesLabels(summary));
 }
 
 function ResourceRowView(props: { readonly row: FooterResourceRow }) {

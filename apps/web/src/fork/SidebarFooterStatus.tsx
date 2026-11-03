@@ -1,13 +1,11 @@
 import type { ScopedProjectRef } from "@t3tools/contracts";
 import { type ReactNode, useState } from "react";
 
-import { SidebarMenuItem } from "../components/ui/sidebar";
 import { observeResize } from "../lib/observeResize";
 import {
   type FooterChipSize,
   type FooterDensity,
-  maxIconChips,
-  resolveFooterDensity,
+  resolveFooterLayout,
 } from "./footerDensity.logic";
 import { useFooterStatusToggle } from "./footerStatusStore";
 import { FooterPorts, footerPortsSize, useFooterPorts } from "./FooterPorts";
@@ -15,8 +13,8 @@ import { FooterResources, footerResourcesSize, useFooterResources } from "./Foot
 import { FooterUsageLimits, footerLimitsSize, useFooterLimits } from "./FooterUsageLimits";
 import { useFooterScope } from "./useFooterScope";
 
-// The sidebar footer row's `gap-1`.
-const ROW_GAP_PX = 4;
+// Lines the first chip's icon up with the Settings icon below it (the `ps-1` on the row).
+const ROW_INSET_PX = 4;
 
 interface FooterChipSpec {
   readonly key: string;
@@ -25,9 +23,9 @@ interface FooterChipSpec {
 }
 
 /**
- * The status chips on the sidebar's bottom row, after the Settings, PR and Usage icons. The
- * wrapper takes its natural width and may shrink, so it can never push those icons or the update
- * pill out; the density follows the room left to its right.
+ * The status chips, on a row of their own right above the sidebar's icon row. Chips are listed in
+ * priority order (limits, resources, ports); `resolveFooterLayout` shares the row's width by that
+ * order. The row is not rendered at all while no chip is shown.
  */
 export function SidebarFooterStatus(props: {
   readonly scopedProjectRefs: readonly ScopedProjectRef[];
@@ -91,42 +89,40 @@ export function SidebarFooterStatus(props: {
   }
   if (chips.length === 0) return null;
 
-  const density = resolveFooterDensity(
+  const layout = resolveFooterLayout(
     available,
     chips.map((chip) => chip.size),
   );
-  // Where even the icons do not all fit, the last chips drop out whole instead of being clipped.
-  const shown = density === "icon" ? chips.slice(0, maxIconChips(available)) : chips;
   return (
-    <SidebarMenuItem
-      className="min-w-0 shrink overflow-hidden"
+    <div
+      // Hidden, not removed, when nothing fits: the footer's gap must not reserve an empty row,
+      // and the width still has to be measured to bring the chips back when the sidebar widens.
+      className={layout.length === 0 ? "hidden" : "flex min-w-0 items-center gap-0.5 ps-1"}
       data-footer-status
-      ref={(item) => {
-        const row = item?.parentElement;
-        if (!item || !row) return;
-        // The update pill after the chips is pinned to the right edge and never shrinks.
-        const after = item.nextElementSibling;
+      ref={(row) => {
+        const footer = row?.parentElement;
+        if (!row || !footer) return;
         const measure = () => {
-          const next = item.nextElementSibling;
-          const limit = next
-            ? next.getBoundingClientRect().left - ROW_GAP_PX
-            : row.getBoundingClientRect().right;
-          setAvailable(limit - item.getBoundingClientRect().left);
+          const style = getComputedStyle(footer);
+          setAvailable(
+            footer.clientWidth -
+              Number.parseFloat(style.paddingLeft) -
+              Number.parseFloat(style.paddingRight) -
+              ROW_INSET_PX,
+          );
         };
         measure();
-        return observeResize(
-          [row, item.previousElementSibling, after].filter((element) => element !== null),
-          measure,
-        );
+        return observeResize(footer, measure);
       }}
     >
-      <div className="flex items-center gap-0.5">
-        {shown.map((chip) => (
+      {layout.map((density, index) => {
+        const chip = chips[index]!;
+        return (
           <div key={chip.key} className="flex shrink-0">
             {chip.render(density)}
           </div>
-        ))}
-      </div>
-    </SidebarMenuItem>
+        );
+      })}
+    </div>
   );
 }

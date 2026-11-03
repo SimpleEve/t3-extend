@@ -26,7 +26,7 @@ import { useQuietThreadShells } from "../state/entities";
 import { useEnvironmentScope } from "../state/session";
 import { useAtomCommand } from "../state/use-atom-command";
 import { FooterChip, FooterPanelHeader } from "./FooterChip";
-import type { FooterChipSize, FooterDensity } from "./footerDensity.logic";
+import { type FooterChipSize, type FooterDensity, footerChipSize } from "./footerDensity.logic";
 import { type FooterPortRow, footerPortsLabels, selectProjectServers } from "./footerPorts.logic";
 import { useHeldValue } from "./useHeldValue";
 import { useWindowVisible } from "./useWindowVisible";
@@ -69,8 +69,7 @@ export function useFooterPorts(input: {
 }
 
 export function footerPortsSize(rows: readonly FooterPortRow[]): FooterChipSize {
-  const labels = footerPortsLabels(rows);
-  return { fullChars: labels.full.length, compactChars: labels.compact.length };
+  return footerChipSize(footerPortsLabels(rows));
 }
 
 function PortsPanel(props: {
