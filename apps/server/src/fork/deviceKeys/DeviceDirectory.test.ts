@@ -14,6 +14,7 @@ import * as SessionStore from "../../auth/SessionStore.ts";
 import * as DeviceDirectory from "./DeviceDirectory.ts";
 import * as DeviceIdentity from "./DeviceIdentity.ts";
 import * as DeviceKeysService from "./DeviceKeysService.ts";
+import * as RegistryClient from "./RegistryClient.ts";
 import {
   NOW_MS,
   NOW_S,
@@ -96,12 +97,41 @@ describe("sync and persistence", () => {
   it.effect("keeps the last list, and its age, when the registry cannot be reached", () =>
     Effect.gen(function* () {
       const { fake, directory } = yield* arrange;
-      fake.state.reachable = false;
+      const identity = yield* DeviceIdentity.DeviceIdentity;
+      const key = Option.getOrThrow(yield* identity.peek);
       yield* TestClock.adjust(Duration.hours(1));
-      const status = yield* directory.sync;
-      assert.equal(status.state, "joined");
-      assert.equal(status.fetchedAt, NOW_S);
-      assert.equal(Option.getOrThrow((yield* directory.state).list).devices.length, 3);
+      // Unreachable, a server error, and an answer from the wrong registry or a redirect: none is "removed".
+      const failures = [
+        () => {
+          fake.state.reachable = false;
+        },
+        () => {
+          fake.state.reachable = true;
+          fake.state.rejectWith = "internal";
+        },
+        () => {
+          fake.state.rejectWith = undefined;
+          fake.state.failWith = new RegistryClient.RegistryClientError({
+            kind: "protocol",
+            code: "registry_mismatch",
+          });
+        },
+        () => {
+          fake.state.failWith = new RegistryClient.RegistryClientError({
+            kind: "protocol",
+            status: 307,
+            code: "redirect",
+          });
+        },
+      ];
+      for (const fail of failures) {
+        fail();
+        const status = yield* directory.sync;
+        assert.equal(status.state, "joined");
+        assert.equal(status.fetchedAt, NOW_S);
+        assert.equal(Option.getOrThrow((yield* directory.state).list).devices.length, 3);
+        assert.equal(Option.getOrThrow(yield* identity.peek).id, key.id);
+      }
     }).pipe(Effect.provide(layerHarness)),
   );
 
@@ -216,9 +246,13 @@ describe("this computer leaves the server", () => {
       fake.state.forgetCaller = true;
       yield* directory.sync;
       fake.state.forgetCaller = false;
+      // The old private key went with the membership; the new join signs with a different one.
+      const identity = yield* DeviceIdentity.DeviceIdentity;
+      assert.isTrue(Option.isNone(yield* identity.peek));
       const status = yield* joinThisComputer("Studio");
       assert.equal(status.state, "joined");
       assert.notEqual(status.deviceId, first);
+      assert.equal(Option.getOrThrow(yield* identity.peek).id, status.deviceId);
       assert.equal((yield* service.status).state, "joined");
     }).pipe(Effect.provide(layerHarness)),
   );

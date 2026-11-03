@@ -139,6 +139,7 @@ describe("leave", () => {
       const sessions = yield* SessionStore.SessionStore;
       const secrets = yield* ServerSecretStore.ServerSecretStore;
       yield* joinThisComputer();
+      const key = Option.getOrThrow(yield* identity.peek);
       const peer = fake.addDevice({ kind: "phone", name: "Pixel" });
       yield* service.refresh;
       yield* sessions.issue({
@@ -159,6 +160,11 @@ describe("leave", () => {
         (yield* sessions.listActive()).some((row) => row.subject.startsWith("t3x-device:")),
       );
       assert.equal((yield* failureOf(service.leave)).reason, "not_joined");
+      // Leaving deletes the private key; joining again makes a new one, so a new device id.
+      const left = key.id;
+      const again = yield* joinThisComputer("Studio");
+      assert.notEqual(again.deviceId, left);
+      assert.equal(Option.getOrThrow(yield* identity.peek).id, again.deviceId);
     }).pipe(Effect.provide(layerHarness)),
   );
 

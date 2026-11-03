@@ -13,6 +13,7 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
+import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientRequest from "effect/http/HttpClientRequest";
 
@@ -47,6 +48,17 @@ export type DevicesFetch =
   | { readonly _tag: "Updated"; readonly body: RegistryDevicesResponse };
 
 const REQUEST_TIMEOUT = "15 seconds";
+
+/**
+ * The registry is pinned by origin: a redirect would hand the signed request to another host.
+ * fetch follows redirects by default, so every call asks for the 3xx itself and refuses it.
+ */
+const withoutRedirects = Effect.provideService(FetchHttpClient.RequestInit, { redirect: "manual" });
+
+/** No registry answer is a redirect (or a status below 200); treating one as data would trust another host. */
+const isRedirect = (status: number) => status < 200 || (status >= 300 && status < 400);
+const redirected = (status: number) =>
+  new RegistryClientError({ kind: "protocol", status, code: "redirect" });
 const decodeJsonUnknown = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown));
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 const decodeErrorBody = Schema.decodeUnknownOption(Schema.Struct({ error: Schema.String }));
@@ -129,6 +141,7 @@ const make = Effect.gen(function* () {
         ? base
         : HttpClientRequest.bodyUint8Array(base, bodyBytes, "application/json");
     const response = yield* http.execute(request).pipe(
+      withoutRedirects,
       Effect.timeout(REQUEST_TIMEOUT),
       Effect.mapError((cause) => new RegistryClientError({ kind: "unreachable", cause })),
     );
@@ -137,6 +150,7 @@ const make = Effect.gen(function* () {
       Effect.mapError((cause) => new RegistryClientError({ kind: "unreachable", cause })),
     );
     if (response.status === 304) return { status: 304 as const, text, json: undefined };
+    if (isRedirect(response.status)) return yield* redirected(response.status);
     const json = decodeJsonUnknown(text);
     if (response.status >= 200 && response.status < 300) {
       return { status: response.status, text, json: json._tag === "Some" ? json.value : undefined };
@@ -171,12 +185,14 @@ const make = Effect.gen(function* () {
         catch: (cause) => new RegistryClientError({ kind: "protocol", cause }),
       });
       const response = yield* http.get(`${canonical}/v1/info`).pipe(
+        withoutRedirects,
         Effect.timeout(REQUEST_TIMEOUT),
         Effect.mapError((cause) => new RegistryClientError({ kind: "unreachable", cause })),
       );
       const text = yield* response.text.pipe(
         Effect.mapError((cause) => new RegistryClientError({ kind: "unreachable", cause })),
       );
+      if (isRedirect(response.status)) return yield* redirected(response.status);
       if (response.status !== 200) {
         return yield* new RegistryClientError({ kind: "rejected", status: response.status });
       }
