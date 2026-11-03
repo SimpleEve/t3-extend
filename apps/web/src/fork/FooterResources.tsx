@@ -32,8 +32,9 @@ export function useFooterResources(environmentId: EnvironmentId | null, panelOpe
   const canRead = useEnvironmentScope(environmentId, AuthDiagnosticsReadScope);
   const activeEnvironmentId = environmentId !== null && canRead ? environmentId : null;
   const subscribed = activeEnvironmentId !== null && visible;
+  // One stream at a time: while the panel is open the live one covers the chip as well.
   const background = useEnvironmentQuery(
-    subscribed
+    subscribed && !panelOpen
       ? serverEnvironment.resourceTelemetry({
           environmentId: activeEnvironmentId,
           input: { cadence: "background" },

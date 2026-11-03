@@ -48,7 +48,7 @@ export function useFooterPorts(input: {
   const environmentId = input.environmentId !== null && canRead ? input.environmentId : null;
   const subscribed = environmentId !== null && visible;
   const background = useEnvironmentQuery(
-    subscribed
+    subscribed && !input.panelOpen
       ? previewEnvironment.discoveredServers({ environmentId, input: { cadence: "background" } })
       : null,
   );
