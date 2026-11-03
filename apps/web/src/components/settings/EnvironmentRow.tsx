@@ -27,7 +27,7 @@ export function environmentTransportLabel(
   t: Translator = translatorFor("en"), // fork: interface language
 ): string {
   const { entry } = environment;
-  if (entry.target._tag === "PrimaryConnectionTarget") return "This machine";
+  if (entry.target._tag === "PrimaryConnectionTarget") return t("This machine"); // fork: interface language
   const routes = connectionRoutes(entry);
   if (routes.length > 1) {
     const active =
