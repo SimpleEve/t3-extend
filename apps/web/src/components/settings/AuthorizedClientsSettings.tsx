@@ -69,7 +69,7 @@ import {
   endpointShareHint,
 } from "./ConnectionsSettings.logic";
 import { useT } from "../../hooks/useT";
-import { endpointHint, endpointLabel } from "../../fork/endpointLabels"; // fork: interface language
+import { endpointLabel } from "../../fork/endpointLabels"; // fork: interface language
 
 function AccessScopeSummary({
   scopes,
@@ -184,7 +184,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
         preferenceKey: endpointDefaultPreferenceKey(endpoint),
         label: endpointLabel(t, endpoint.label), // fork: interface language
         url,
-        detail: endpointHint(t, endpointShareHint(endpoint, url)), // fork: interface language
+        detail: endpointShareHint(endpoint, url, t), // fork: interface language
         qrShareable: isQrShareableEndpoint(endpoint),
       });
     }

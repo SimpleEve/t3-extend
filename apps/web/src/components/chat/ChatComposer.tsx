@@ -45,6 +45,7 @@ import {
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
 } from "@t3tools/contracts";
 import type { EnvironmentConnectionPresentation } from "@t3tools/client-runtime/connection";
+import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: interface language
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import * as Schema from "effect/Schema";
 import { isPasteAsTextShortcut } from "@t3tools/client-runtime/text-paste";
@@ -3401,7 +3402,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     // Switching threads lands focus here, so the label names the thread.
                     ariaLabel={
                       activeThread
-                        ? t("Message {title}", { title: activeThread.title })
+                        ? t("Message {title}", { title: threadDisplayTitle(activeThread.title, t) })
                         : t("Message")
                     }
                     suggestionListId={composerSuggestionListId}

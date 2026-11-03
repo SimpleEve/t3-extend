@@ -71,7 +71,7 @@ export function EnvironmentRoutesList({
   const confirmRemove = async (route: ConnectionRoute) => {
     const address = connectionRouteAddress(route);
     const confirmed = await requestConfirmDialog(
-      `${t("Remove {label} route?", { label: connectionRouteLabel(route) })}${address === null ? "" : `\n${address}`}`,
+      `${t("Remove {label} route?", { label: connectionRouteLabel(route, t) })}${address === null ? "" : `\n${address}`}`,
       { variant: "destructive" },
     );
     if (confirmed !== true) return;
@@ -142,7 +142,7 @@ function SortableRouteRow({
 }) {
   const t = useT();
   const id = connectionRouteId(route.target);
-  const label = connectionRouteLabel(route);
+  const label = connectionRouteLabel(route, t); // fork: interface language
   const address = connectionRouteAddress(route);
   const {
     attributes,

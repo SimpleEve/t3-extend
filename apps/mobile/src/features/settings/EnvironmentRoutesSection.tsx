@@ -114,7 +114,7 @@ export function EnvironmentRoutesSection({
   };
   const confirmRemove = (route: ConnectionRoute) =>
     Dialog.alert(
-      t("Remove {label}?", { label: connectionRouteLabel(route) }),
+      t("Remove {label}?", { label: connectionRouteLabel(route, t) }),
       connectionRouteAddress(route) ?? undefined,
       [
         { text: t("Cancel"), style: "cancel" },
@@ -248,7 +248,7 @@ function RouteRow(props: {
 }) {
   const t = useT();
   const { route, lifted, offset } = props;
-  const label = connectionRouteLabel(route);
+  const label = connectionRouteLabel(route, t); // fork: interface language
   const address = connectionRouteAddress(route);
   const style = useAnimatedStyle(() => ({
     transform: [

@@ -114,6 +114,7 @@ export default {
   "Could not attach photo or video": "无法添加照片或视频",
   "Could not paste images": "无法粘贴图片",
   "Could not attach pasted text": "无法添加粘贴的文本",
+  "T3 Account": "T3 账号",
   "Open T3 Account": "打开 T3 账号",
   "Remove from this device?": "从这台设备移除？",
   "Forget {environmentLabel} and its cached threads on this device.\n\n{note}":
@@ -871,6 +872,7 @@ export default {
   Unsnooze: "唤醒",
   "Other wired": "其他有线设备",
   "Headsets and USB microphones not listed": "未列出的耳机和 USB 麦克风",
+  Bluetooth: "蓝牙",
   "Other Bluetooth": "其他蓝牙设备",
   "AirPods, headsets, and cars not listed": "未列出的 AirPods、耳机和车载设备",
   "Built-in microphone": "内置麦克风",

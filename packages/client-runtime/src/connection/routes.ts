@@ -13,6 +13,8 @@ import {
   type ConnectionRoute,
 } from "./catalog.ts";
 import { BearerConnectionTarget, type ConnectionTarget } from "./model.ts";
+import type { Translator } from "../i18n/store.ts"; // fork: interface language
+import { interpolate } from "../i18n/translate.ts"; // fork: interface language
 
 export type ConnectionRouteKind =
   | "relay"
@@ -160,14 +162,17 @@ function routeAddressKey(route: ConnectionRoute): string | null {
   }
 }
 
-export function connectionRouteLabel(route: ConnectionRoute): string {
+export function connectionRouteLabel(
+  route: ConnectionRoute,
+  t: Translator = (source, params) => interpolate(source, params), // fork: interface language
+): string {
   switch (connectionRouteKind(route)) {
     case "relay":
       return "T3 Connect";
     case "loopback":
-      return "This device";
+      return t("This device");
     case "lan":
-      return "LAN";
+      return t("LAN");
     case "tailnet":
       return "Tailscale";
     case "vpn":
@@ -179,7 +184,7 @@ export function connectionRouteLabel(route: ConnectionRoute): string {
         : "SSH";
     }
     case "public":
-      return routeHostname(route) ?? "Remote link";
+      return routeHostname(route) ?? t("Remote link");
   }
 }
 

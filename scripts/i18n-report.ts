@@ -381,15 +381,21 @@ const ALWAYS_ENGLISH_TEXT = new Set([
   "T3 Connect",
   "T3 Extend",
   "Tailscale HTTPS",
+  "One UI", // Samsung's skin: the name of a navigation style, not a sentence.
+  "Material", // Google's design system, named the same way.
+  "Material You",
+  "CarPlay",
   // Formats, units, and key names.
   "Aa",
   "Alt",
   "Backspace",
   "CPU",
   "Ctrl",
+  "Ctrl-C", // The terminal key's name on the mobile key bar.
   "Enter",
   "Esc",
   "HEX",
+  "HTML",
   "HTTPS",
   "INT",
   "KILL",
@@ -435,10 +441,9 @@ const ALWAYS_ENGLISH_PATTERNS: ReadonlyArray<RegExp> = [
   /^[~/][\w./-]+$/u, // File paths.
 ];
 
-// (b) `Component.prop` pairs whose component passes the prop through t() itself. Add a pair only
-// after reading the component.
-// A name that several files define locally is scoped as `File.tsx#Component.prop`. Web only:
-// mobile has its own components with some of the same names.
+// (b) `Component.prop` pairs whose component passes the prop through t() itself. Read the component
+// first. A name several files define is scoped as `File.tsx#Component.prop`; the bare form is web
+// only, because mobile has same-named components, so mobile entries need the file-scoped form.
 const SELF_TRANSLATING_PROPS = new Set([
   "DeviceToolsPanel.tsx#ChoiceSelect.ariaLabel",
   "DeviceToolsPanel.tsx#ChoiceSelect.placeholder",
@@ -456,6 +461,8 @@ const SELF_TRANSLATING_PROPS = new Set([
   "MessageCopyButton.label",
   "SpeedSegment.label",
   "composerContextPresentation.tsx#ContextChip.kindLabel",
+  // Mobile: the field translates its own label (`t(props.label, undefined, "context field")`).
+  "ComposerContextSheet.tsx#ContextField.label",
 ]);
 
 interface AstNode {
@@ -463,6 +470,40 @@ interface AstNode {
   readonly start: number;
   readonly [key: string]: unknown;
 }
+
+// `path#text` pairs in the hard-coded scan: sample content that previews a setting, not copy. Each
+// needs a reason.
+const JSX_TEXT_ALLOWLIST = new Set([
+  // The font preview's pangram and the terminal and code previews show how typefaces and the
+  // terminal palette look; real tools print English, so the sample stays English.
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#The quick brown fox jumps over the lazy dog.",
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#t3code",
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#git:(",
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#main",
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#vpr dev",
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#VITE v7.1.1",
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#ready in",
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#Local:",
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#✓ 85 passed",
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#△ 2 warnings",
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#✗ 0 failed",
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#READY",
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#watching for changes",
+  // The size unit beside a number: points are written pt in every language.
+  "apps/mobile/src/features/settings/appearance/sections/CodeAppearanceSection.tsx#${…} pt",
+  "apps/mobile/src/features/settings/appearance/sections/TerminalAppearanceSection.tsx#${…} pt",
+  "apps/mobile/src/features/settings/appearance/sections/TextAppearanceSection.tsx#${…} pt",
+  // The typed syntax of a slash command: `/skill:name`, as in the composer's popover.
+  "apps/mobile/src/features/threads/ComposerCommandPopover.tsx#skill:",
+  // Sample branch names in the input's placeholder, like the web's sample hostnames and paths.
+  "apps/mobile/src/features/threads/git/GitBranchesSheet.tsx#feature/mobile-polish",
+  "apps/mobile/src/features/threads/git/GitBranchesSheet.tsx#main",
+  "apps/mobile/src/features/threads/git/GitBranchesSheet.tsx#feature/mobile-thread",
+  // The fallback when the app sends no translated "as of" text; SubscriptionUsageCoordinator
+  // sends `checkedAtLabel` in the interface language, so the fallback only shows for old snapshots.
+  "apps/mobile/src/widgets/SubscriptionUsage.android.tsx#As of ${…}",
+  "apps/mobile/src/widgets/SubscriptionUsage.tsx#As of ${…}",
+]);
 
 export interface HardCodedHit {
   readonly line: number;
@@ -544,6 +585,7 @@ export function scanHardCodedText(
   const report = (start: number, kind: string, raw: string) => {
     // JSXText keeps entities such as &middot; raw; they are not words.
     const text = raw.replace(/&\w+;/gu, " ").replace(/\s+/gu, " ").trim();
+    if (JSX_TEXT_ALLOWLIST.has(`${fileName}#${text}`)) return;
     if (needsTranslation(text)) hits.push({ line: lineOf(start), kind, text });
   };
 
@@ -576,9 +618,8 @@ export function scanHardCodedText(
         value.type === "JSXExpressionContainer" ? (value.expression as AstNode) : value;
       const prop = `${element}.${name}`;
       const translatesItself =
-        fileName.startsWith("apps/web/") &&
-        (SELF_TRANSLATING_PROPS.has(prop) ||
-          SELF_TRANSLATING_PROPS.has(`${NodePath.basename(fileName)}#${prop}`));
+        (fileName.startsWith("apps/web/") && SELF_TRANSLATING_PROPS.has(prop)) ||
+        SELF_TRANSLATING_PROPS.has(`${NodePath.basename(fileName)}#${prop}`);
       for (const { start, text, interpolated } of displayStrings(expression)) {
         // An interpolated value can never match a catalog key, so t() inside the component misses it.
         if (translatesItself && !interpolated) {
@@ -687,6 +728,32 @@ const PROPERTY_ALLOWLIST = new Set([
   "apps/web/src/session-logic.ts",
   // Action state labels; GitActionsControl.logic.ts compares the English one.
   "apps/web/src/state/sourceControlActions.ts#label",
+  // Mobile counterparts of the entries above.
+  // Sent to the server as the client's name in auth sessions.
+  "apps/mobile/src/lib/authClientMetadata.ts#label",
+  // The device name registered with the server, shown by other clients as written.
+  "apps/mobile/src/features/agent-awareness/remoteRegistration.ts#label",
+  // Prompt and title text written into the thread: model-facing text and user content.
+  "apps/mobile/src/features/threads/resume-thread.ts#text",
+  "apps/mobile/src/features/prompt-links/newTaskPromptLink.ts#title",
+  "apps/mobile/src/lib/composerContext.ts#sectionTitle",
+  "apps/mobile/src/features/terminal/TerminalContextSheet.tsx#label",
+  "apps/mobile/src/features/terminal/TerminalContextSheet.tsx#terminalLabel",
+  // Error objects that are logged or cross a boundary keep English where they are made.
+  "apps/mobile/src/connection/catalog-store.ts#detail",
+  "apps/mobile/src/connection/environment-cache-store.ts#message",
+  "apps/mobile/src/connection/migration.ts#message",
+  "apps/mobile/src/connection/platform.ts#detail",
+  "apps/mobile/src/features/cloud/dpop.ts#message",
+  // Sample source lines in the code preview.
+  "apps/mobile/src/features/settings/appearance/components/AppearancePreviews.tsx#text",
+  // Development screens that ship only in __DEV__ builds, and their sample data.
+  "apps/mobile/src/Stack.tsx#title",
+  "apps/mobile/src/features/showcase/showcaseEnvironmentRows.ts",
+  "apps/mobile/src/features/showcase/showcasePendingTasks.ts",
+  // Classification input: the tool's own title when the provider sends none; rows show the
+  // translated label that the work-log presentation derives from it.
+  "apps/mobile/src/lib/threadActivity.ts#toolTitle",
 ]);
 
 /** A string literal that reads as copy: words with a space, a capital, or closing punctuation. */
@@ -791,12 +858,6 @@ const COMPARED_ALLOWLIST = new Set([
   "apps/web/src/fork/endpointLabels.ts#Tailscale IP",
   "apps/web/src/fork/endpointLabels.ts#Custom HTTPS",
   "apps/web/src/fork/endpointLabels.ts#Custom endpoint",
-  // `endpointShareHint` returns these sentences untranslated; they are translated when drawn.
-  "apps/web/src/fork/endpointLabels.ts#Opens the hosted app, no install needed",
-  "apps/web/src/fork/endpointLabels.ts#Devices on the same network",
-  "apps/web/src/fork/endpointLabels.ts#Devices on your private network",
-  "apps/web/src/fork/endpointLabels.ts#Reachable from anywhere",
-  "apps/web/src/fork/endpointLabels.ts#Clients on this machine",
   // The activity's raw summary, translated only when the row renders.
   "apps/mobile/src/features/threads/ThreadFeed.tsx#Context compacted",
   "apps/web/src/components/chat/MessagesTimeline.tsx#Context compacted",

@@ -67,7 +67,7 @@ export function PullRequestRoutingSettings({
   return (
     <FoldedSettingsSection
       id={id}
-      title={title}
+      title={t(title)} // fork: interface language
       summary={
         summarizePullRequestRouting(
           environments.map((environment) => ({
@@ -91,7 +91,8 @@ export function PullRequestRoutingSettings({
           subtitle={<EnvironmentTransportLabel environment={environment} />}
         >
           <Select
-            items={options}
+            // fork: interface language. The trigger reads labels from `items`.
+            items={options.map(({ value, label }) => ({ value, label: t(label) }))}
             value={pullRequestRoutingPermissionFor(environment.entry, permissions)}
             disabled={
               !catalog.isReady ||

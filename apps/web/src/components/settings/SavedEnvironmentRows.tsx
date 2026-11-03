@@ -226,7 +226,7 @@ export function SavedBackendListRow({
   );
   const routeCount = connectionRoutes(environment.entry).length;
   const subtitleText = [
-    environmentTransportLabel(environment, connectedTarget),
+    environmentTransportLabel(environment, connectedTarget, t), // fork: interface language
     // The headline below names the failure in full.
     diagnosis ? null : resumingServerUpdate ? t("Restarting") : status.text,
     enabled && versionMismatch ? serverVersion : null,
