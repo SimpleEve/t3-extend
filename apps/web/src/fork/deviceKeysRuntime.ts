@@ -4,7 +4,7 @@
 import {
   DeviceEnvironmentIndex,
   DeviceKeyAuthorization,
-  deviceConnectionBlocked,
+  deviceListNotReady,
   makeDeviceEnvironmentIndex,
 } from "@t3tools/client-runtime/fork/deviceKeys/DeviceKeyAuthorization";
 import type { DeviceDirectoryView } from "@t3tools/client-runtime/fork/deviceKeys/discovery";
@@ -21,16 +21,13 @@ import * as HttpClient from "effect/http/HttpClient";
 /** Environments waiting for another computer to learn about this device; the Devices section shows them. */
 export const peerWait = makePeerWaitStore();
 
-const unavailable = () =>
-  deviceConnectionBlocked("Your server's device list is not available yet.");
-
 // The store imports the connection runtime, which imports this layer, so it is loaded on first use.
 const source: DeviceAuthorizationSource = {
   directory: Effect.flatMap(
     Effect.promise(() => import("./deviceKeysStore")),
-    (store): Effect.Effect<DeviceDirectoryView, ReturnType<typeof unavailable>> => {
+    (store): Effect.Effect<DeviceDirectoryView, ReturnType<typeof deviceListNotReady>> => {
       const view = store.readDirectoryView();
-      return view === null ? Effect.fail(unavailable()) : Effect.succeed(view);
+      return view === null ? Effect.fail(deviceListNotReady()) : Effect.succeed(view);
     },
   ),
   signAssertion: (input) =>

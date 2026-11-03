@@ -5,6 +5,7 @@ import {
   DeviceEnvironmentIndex,
   DeviceKeyAuthorization,
   deviceConnectionBlocked,
+  deviceListNotReady,
   makeDeviceEnvironmentIndex,
 } from "@t3tools/client-runtime/fork/deviceKeys/DeviceKeyAuthorization";
 import type { DeviceDirectoryView } from "@t3tools/client-runtime/fork/deviceKeys/discovery";
@@ -28,11 +29,9 @@ const loadStore = Effect.promise(() => import("./deviceKeysStore"));
 const source: DeviceAuthorizationSource = {
   directory: Effect.flatMap(
     loadStore,
-    (store): Effect.Effect<DeviceDirectoryView, ReturnType<typeof deviceConnectionBlocked>> => {
+    (store): Effect.Effect<DeviceDirectoryView, ReturnType<typeof deviceListNotReady>> => {
       const view = store.deviceSync.currentView();
-      return view === null
-        ? Effect.fail(deviceConnectionBlocked("Your server's device list is not available yet."))
-        : Effect.succeed(view);
+      return view === null ? Effect.fail(deviceListNotReady()) : Effect.succeed(view);
     },
   ),
   signAssertion: (input) =>

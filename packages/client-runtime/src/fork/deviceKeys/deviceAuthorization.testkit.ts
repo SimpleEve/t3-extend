@@ -12,7 +12,11 @@ import { BearerConnectionProfile, type ConnectionCatalogEntry } from "../../conn
 import { BearerConnectionTarget } from "../../connection/model.ts";
 import * as ManagedRelay from "../../relay/managedRelay.ts";
 import * as RpcHttp from "../../rpc/http.ts";
-import { deviceConnectionId, makeDeviceEnvironmentIndex } from "./DeviceKeyAuthorization.ts";
+import {
+  deviceConnectionId,
+  deviceListNotReady,
+  makeDeviceEnvironmentIndex,
+} from "./DeviceKeyAuthorization.ts";
 import type { DeviceComputer, DeviceDirectoryView } from "./discovery.ts";
 import {
   makeDeviceKeyAuthorization,
@@ -105,6 +109,8 @@ export type PassReply = Response | (() => Response);
 
 export const makeRig = Effect.fn("DeviceAuthorizationRig.make")(function* (input?: {
   readonly view?: DeviceDirectoryView;
+  /** The server's list has not arrived yet. */
+  readonly listNotReady?: boolean;
   readonly passReplies?: ReadonlyArray<PassReply>;
   readonly descriptorEnvironmentId?: string;
   readonly retryDelaysMs?: ReadonlyArray<number>;
@@ -138,9 +144,12 @@ export const makeRig = Effect.fn("DeviceAuthorizationRig.make")(function* (input
     Effect.provide(RpcHttp.layerRemoteHttpClient(fetchFn)),
   );
   const current = yield* Ref.make(input?.view ?? view());
+  const listReady = yield* Ref.make(input?.listNotReady !== true);
   const signed = yield* Ref.make<ReadonlyArray<{ audience: string; jkt: string }>>([]);
   const source: DeviceAuthorizationSource = {
-    directory: Ref.get(current),
+    directory: Ref.get(listReady).pipe(
+      Effect.flatMap((ready) => (ready ? Ref.get(current) : Effect.fail(deviceListNotReady()))),
+    ),
     signAssertion: ({ audienceEnvironmentId, dpopThumbprint }) =>
       Ref.updateAndGet(signed, (all) => [
         ...all,
@@ -181,6 +190,7 @@ export const makeRig = Effect.fn("DeviceAuthorizationRig.make")(function* (input
     passAttempts,
     signed,
     current,
+    listReady,
     directory,
     index,
     wait,

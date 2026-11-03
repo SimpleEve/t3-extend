@@ -114,6 +114,19 @@ describe("device authorization: what is checked before a pass is sent", () => {
     }),
   );
 
+  it.effect("retries, rather than blocks, until the server's list arrives, then connects", () =>
+    Effect.gen(function* () {
+      // A saved computer starts connecting after a restart before its own server pushed the list.
+      const rig = yield* makeRig({ listNotReady: true });
+      const early = yield* rig.authorization.prepare(route()).pipe(Effect.flip);
+      expect(early._tag).toBe("ConnectionTransientError");
+      expect(rig.requests).toEqual([]);
+      yield* Ref.set(rig.listReady, true);
+      const prepared = yield* rig.authorization.prepare(route());
+      expect(prepared.httpBaseUrl).toBe(COMPUTER_URL);
+    }),
+  );
+
   it.effect("blocks an environment the sync does not manage", () =>
     Effect.gen(function* () {
       const notDevices = [

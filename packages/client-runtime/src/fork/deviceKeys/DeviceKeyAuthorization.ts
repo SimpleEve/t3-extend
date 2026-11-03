@@ -32,6 +32,10 @@ export const deviceConnectionTransient = (detail: string) =>
     via: "direct",
   });
 
+/** The server's computer list has not arrived yet, as after a restart; it will, so the connection retries. */
+export const deviceListNotReady = () =>
+  deviceConnectionTransient("Your server's device list is not available yet.");
+
 export interface DeviceRoute {
   readonly expectedEnvironmentId: string;
   readonly httpBaseUrl: string;
