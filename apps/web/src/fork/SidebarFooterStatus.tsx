@@ -9,6 +9,7 @@ import {
   resolveFooterDensity,
 } from "./footerDensity.logic";
 import { useFooterStatusToggle } from "./footerStatusStore";
+import { FooterPorts, footerPortsSize, useFooterPorts } from "./FooterPorts";
 import { FooterResources, footerResourcesSize, useFooterResources } from "./FooterResources";
 import { FooterUsageLimits, footerLimitsSize, useFooterLimits } from "./FooterUsageLimits";
 import { useFooterScope } from "./useFooterScope";
@@ -29,10 +30,17 @@ export function SidebarFooterStatus(props: {
 }) {
   const limitsOn = useFooterStatusToggle("limits");
   const resourcesOn = useFooterStatusToggle("resources");
+  const portsOn = useFooterStatusToggle("ports");
   const scope = useFooterScope(props.scopedProjectRefs);
   const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [portsOpen, setPortsOpen] = useState(false);
   const limits = useFooterLimits(limitsOn ? scope.environmentId : null);
   const resources = useFooterResources(resourcesOn ? scope.environmentId : null, resourcesOpen);
+  const ports = useFooterPorts({
+    environmentId: portsOn ? scope.environmentId : null,
+    projectRefs: scope.projectRefs,
+    panelOpen: portsOpen,
+  });
   const [available, setAvailable] = useState(Number.POSITIVE_INFINITY);
 
   const chips: FooterChipSpec[] = [];
@@ -56,6 +64,23 @@ export function SidebarFooterStatus(props: {
           machineLabel={scope.machineLabel}
           open={resourcesOpen}
           onOpenChange={setResourcesOpen}
+        />
+      ),
+    });
+  }
+  if (ports.length > 0 && scope.environmentId !== null) {
+    const environmentId = scope.environmentId;
+    chips.push({
+      key: "ports",
+      size: footerPortsSize(ports),
+      render: (density) => (
+        <FooterPorts
+          environmentId={environmentId}
+          rows={ports}
+          density={density}
+          machineLabel={scope.machineLabel}
+          open={portsOpen}
+          onOpenChange={setPortsOpen}
         />
       ),
     });

@@ -44,6 +44,11 @@ export function FooterStatusSettings() {
         title={t("Resource usage")}
         description={t("Show the CPU and memory T3 uses on the shown computer.")}
       />
+      <ToggleRow
+        toggle="ports"
+        title={t("Servers")}
+        description={t("Show the local servers that threads of the shown projects started.")}
+      />
       {isElectron ? (
         <ToggleRow
           toggle="keepAwake"
