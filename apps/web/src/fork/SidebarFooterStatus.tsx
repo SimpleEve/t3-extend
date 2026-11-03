@@ -30,8 +30,9 @@ export function SidebarFooterStatus(props: {
   const limitsOn = useFooterStatusToggle("limits");
   const resourcesOn = useFooterStatusToggle("resources");
   const scope = useFooterScope(props.scopedProjectRefs);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
   const limits = useFooterLimits(limitsOn ? scope.environmentId : null);
-  const resources = useFooterResources(resourcesOn ? scope.environmentId : null);
+  const resources = useFooterResources(resourcesOn ? scope.environmentId : null, resourcesOpen);
   const [available, setAvailable] = useState(Number.POSITIVE_INFINITY);
 
   const chips: FooterChipSpec[] = [];
@@ -49,7 +50,13 @@ export function SidebarFooterStatus(props: {
       key: "resources",
       size: footerResourcesSize(resources),
       render: (density) => (
-        <FooterResources summary={resources} density={density} machineLabel={scope.machineLabel} />
+        <FooterResources
+          summary={resources}
+          density={density}
+          machineLabel={scope.machineLabel}
+          open={resourcesOpen}
+          onOpenChange={setResourcesOpen}
+        />
       ),
     });
   }
