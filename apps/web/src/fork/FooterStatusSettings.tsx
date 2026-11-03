@@ -1,4 +1,5 @@
-// fork: switches for the sidebar footer chips and the desktop keep-awake guard (Settings → Appearance).
+// fork: switches for the sidebar footer chips (Settings → Appearance) and the desktop keep-awake
+// guard (Settings → General).
 import { SettingsRow, SettingsSection } from "../components/settings/settingsLayout";
 import { Switch } from "../components/ui/switch";
 import { isElectron } from "../env";
@@ -49,15 +50,23 @@ export function FooterStatusSettings() {
         title={t("Servers")}
         description={t("Show the local servers that threads of the shown projects started.")}
       />
-      {isElectron ? (
-        <ToggleRow
-          toggle="keepAwake"
-          title={t("Keep computer awake while agents work")}
-          description={t(
-            "Keeps this computer from sleeping on idle while a thread on it is running. The screen can still turn off. Whether closing the lid puts it to sleep is up to macOS, and this switch cannot change that.",
-          )}
-        />
-      ) : null}
+    </SettingsSection>
+  );
+}
+
+/** Desktop only: the guard lives in the Electron main process. */
+export function KeepAwakeSettings() {
+  const t = useT();
+  if (!isElectron) return null;
+  return (
+    <SettingsSection id="keep-awake" title="Power">
+      <ToggleRow
+        toggle="keepAwake"
+        title={t("Keep computer awake while agents work")}
+        description={t(
+          "Keeps this computer from sleeping on idle while a thread on it is running. The screen can still turn off. Whether closing the lid puts it to sleep is up to macOS, and this switch cannot change that.",
+        )}
+      />
     </SettingsSection>
   );
 }

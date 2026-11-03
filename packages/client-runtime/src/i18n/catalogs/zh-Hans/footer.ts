@@ -7,6 +7,7 @@ export default {
   "Updated {time}": "更新于 {time}",
   "Usage details": "用量详情",
   "Resource usage": "资源占用",
+  Power: "电源",
   "Show the CPU and memory T3 uses on the shown computer.":
     "显示 T3 在当前所示电脑上占用的 CPU 和内存。",
   "Show the local servers that threads of the shown projects started.":
