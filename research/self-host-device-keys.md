@@ -1017,7 +1017,7 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 ### 阶段 8.1 VPS 端（L）
 
 - **交付**：注册表服务（API、插件、`ask`、CLI）；重写后的 compose / Caddyfile / frps.toml；`setup.sh`、`./t3x`；ntfy 并入；旧的 README 和 `frpc.toml.example` 挪到 `infra/self-host/advanced/`；测试用 compose 覆盖文件。
-- **新文件**（全在 `infra/self-host/`）：`registry/Dockerfile`（`FROM node:24-alpine`，`apk add --no-cache libqrencode-tools`，无 `npm install`）、`registry/server.mjs`、`db.mjs`、`proof.mjs`（JWS / 指纹 / 请求签名）、`invites.mjs`、`subdomain.mjs`、`plugin.mjs`、`ask.mjs`、`healthcheck.mjs`、`cli.mjs`、`registry/*.test.mjs`、`setup.sh`、`t3x`、`docker-compose.test.yml`、`Caddyfile.test`、`README.md`（重写）、`advanced/README.md`、`advanced/frpc.toml.example`。
+- **新文件**（全在 `infra/self-host/`）：`registry/Dockerfile`（`FROM node:24.18.1-alpine3.24@sha256:…`，`apk add --no-cache libqrencode-tools`，无 `npm install`）、`registry/server.mjs`、`db.mjs`、`proof.mjs`（JWS / 指纹 / 请求签名）、`invites.mjs`、`subdomain.mjs`、`plugin.mjs`、`ask.mjs`、`healthcheck.mjs`、`cli.mjs`、`registry/*.test.mjs`、`setup.sh`、`t3x`、`docker-compose.test.yml`、`Caddyfile.test`、`README.md`（重写）、`advanced/README.md`、`advanced/frpc.toml.example`。
 - **上游接线**：无。
 - **验收**：
   - 功能：
@@ -1316,6 +1316,33 @@ Caddy 覆盖 `X-T3x-Client-IP`（Q6 的 Caddyfile）仍然要做，但它只是"
 | 8.2  | Linux 的 frpc（无头）：SHA-256 从 `frp_sha256_checksums.txt` 取，运行一次 `frpc -v`                                                                                                                                                                                                        |
 | 8.2  | 隧道监听口的三项检查（3.11，现在只是读源码的结论）：DPoP 经 `https` 隧道真的验证通过（第一个 `/oauth/t3x-device`）、WebSocket 升级能走这个口、`Origin` 检查通过；第二个 `HttpServer` 不外泄，首个请求时调用 `router.asHttpEffect()` 带得上全部全局中间件。任何一项跑不通就退回 3.11 的备选 |
 | 8.2  | 续期时用 `replaceActiveForSubjectAndMethod` 压成每设备一行，是否会让已连接的 socket 掉线（`SessionStore.ts:1043-1100`）                                                                                                                                                                    |
+
+### 8c 阶段 8.1 的实测结果（2026-11-03）
+
+测试方式同 8.0：macOS + Docker Desktop，`docker-compose.test.yml`（Caddy 本地 CA，只发布在 `127.0.0.1:18443` 和 `[::1]:18443`），frps / frpc v0.71.1，registry 跑在 `node:24.18.1-alpine3.24`。原始输出和命令在 8.1 实现者的证据目录 `/tmp/t3x-p81/findings.md`（不入库）；脚本在 `infra/self-host/e2e/`。
+
+钉死的镜像（compose 和 Dockerfile 里都写版本加摘要，`registry/deploy.test.mjs` 检查）：
+
+| 组件              | 版本                         | 摘要                                                                      |
+| ----------------- | ---------------------------- | ------------------------------------------------------------------------- |
+| frps              | `fatedier/frps:v0.71.1`      | `sha256:48720c81f048e842f7f0b8053753c1a8514053d59d2dee8a953f67995de73a18` |
+| Caddy             | `caddy:2.11.7`               | `sha256:36c24ad91a7ff7bc4c87fe22bfa8df3c4b18da0773d73fc12ee2c52b98c0bb7e` |
+| ntfy              | `binwiederhier/ntfy:v2.36.0` | `sha256:fb48c413eb11d50339962b5d62cddce0f800e7f77c626d638a7c20cb7e9c4465` |
+| registry 基础镜像 | `node:24.18.1-alpine3.24`    | `sha256:f70403e87646dc51b45295f4b8b70cdad0b63d2297c4c9899119b03f7af7a6b3` |
+
+| 项                                       | 结果                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `poolCount = 0` 的撤销效果与延迟         | 新连接首字节：默认 中位 6.2 ms（p90 10.7）、`poolCount = 0` 中位 6.1 ms（p90 8.2），增量约 0，满足 ≤ 50 ms。撤销：两种配置都在下一次 `Ping` 被拒（`pong message contains error: t3x:revoked`）后才 404，约 21 秒（默认 21.4 s，pool0 21.6 s；另一轮 10.1 s 对 20.1 s），**0 没有带来更早的切断**。**决定：配置里不写 `poolCount`（保持默认 1）**，承诺仍是"最多一个心跳"；若以后要改，一行加快照测试即可     |
+| Caddy 覆盖伪造的 `X-T3x-Client-IP`       | 通过。子域名路径：伪造 `1.2.3.4`，源站看到 `192.168.80.1`（同时伪造 XFF 也一样）。`/v1` 路径：70 次请求各带不同的伪造 `X-T3x-Client-IP` / `X-Forwarded-For`，第 60 次起返回 429（同一个桶）。伪造 `Host`（SNI 为本域名）得到 frps 的 404，到不了注册表                                                                                                                                                       |
+| 插件宕机时 `NewProxy` 单独被打到         | 失败关闭。只让 `NewProxy` 指向不可达的插件：登录成功，`[t3x] start error: send NewProxy request to plugin error`，该 vhost 返回 404                                                                                                                                                                                                                                                                          |
+| `frps.toml` 环境变量模板                 | 通过。`subDomainHost = "{{ .Envs.T3X_DOMAIN }}"` 在 v0.71.1 下照常展开                                                                                                                                                                                                                                                                                                                                       |
+| `libqrencode-tools`                      | 存在：`4.1.1-r3`（alpine3.24），可执行文件 `/usr/bin/qrencode`，`-t ansiutf8` 可用；缺工具时 `./t3x invite` 回退为纯文本并提示"二维码工具不可用，请直接复制上面的字符串"                                                                                                                                                                                                                                     |
+| 公网 API 打满时的插件 p99                | 通过，**不需要 `worker_threads`**。registry 容器内 2 × 64 个并发签名的 `POST /v1/join`（每个请求各用一个客户端地址，避开限速，走完整的验签和查库，返回 400）：插件 Login p50 1.7 ms、p95 3.1 ms、p99 6.4 ms、最大 165 ms；空闲时 p99 0.8 ms。公网 API 约 530 次/秒，p99 约 295 ms。（另一轮 p99 7.1 ms，最大 217 ms）                                                                                        |
+| `restart: unless-stopped` 与 `unhealthy` | 推断被证实：`unhealthy` 的容器不会被重启（`restarts=0`）。`kill -TERM 1` 在 node 当 PID 1 时无效（`restarts=0`），compose 里加 `init: true` 后有效（`restarts=1`）。端到端：阻塞事件循环后容器在 28.9–29.3 秒自己重启，约 6 秒后恢复 healthy；frpc 没掉线（停机短于 30 秒心跳），隧道仍通。更长的停机见 8.1 的 s4/s4b：`Ping` 在 30.0 秒失败，registry 起来后 frpc 1.1 秒重新登录 / 3.0 秒重新注册，无需人工 |
+| 生产 443 下 `Host` 不带端口              | 通过。从 compose 网络里的一次性容器直连 `caddy:443`（宿主机不绑定 443）：子域名返回 200，源站看到 `host: keeper-2.t3.localhost`（无端口），XFF 两跳，`X-T3x-Client-IP` 为客户端地址                                                                                                                                                                                                                          |
+| Let's Encrypt 实网首次签发耗时           | **待真实 VPS 部署时确认**。本地 CA 无法代表                                                                                                                                                                                                                                                                                                                                                                  |
+
+另外：撤销的 `Ping` 拒绝发生在移除后约 21 秒；被移除电脑的子域名在 `ask` 上 403（握手 `tlsv1 alert internal error`），已登记的子域名握手成功。
 
 ## 9. 以后再做的安全加固（2026-11-03 用户同意先记下，暂不做）
 
