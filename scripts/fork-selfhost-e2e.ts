@@ -18,7 +18,7 @@ import * as NodeUtil from "node:util";
 import { resolveFrpc } from "./lib/fork-frpc.ts";
 import type { E2eContext } from "./fork-selfhost-e2e/computer.ts";
 import { scenarios, type World } from "./fork-selfhost-e2e/scenarios.ts";
-import { startStack, type Stack } from "./fork-selfhost-e2e/stack.ts";
+import { prepareStack, type Stack } from "./fork-selfhost-e2e/stack.ts";
 import {
   E2eFailure,
   freePort,
@@ -66,13 +66,20 @@ const workDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3x-e2e-"));
 const processes = new ProcessRegistry();
 let stack: Stack | undefined;
 let failed = false;
+let cleanupProblem: string | undefined;
 let cleaning: Promise<void> | undefined;
 
+// Registered as soon as the stack exists on paper, before anything is started, so a signal, an
+// exception or a timeout at any later point still removes the project.
 const cleanup = (): Promise<void> => {
   cleaning ??= (async () => {
     await processes.stopAll();
-    if (stack !== undefined && !(flags.keep && !failed)) await stack.down();
-    // A run that failed before the stack was up (a bad flag, no Docker) has no logs worth keeping.
+    if (stack !== undefined && !(flags.keep && !failed)) {
+      cleanupProblem = await stack.down();
+      if (cleanupProblem !== undefined) failed = true;
+    }
+    // A run that failed before the stack was prepared (a bad flag, no Docker) has no logs worth
+    // keeping; a failed `down` keeps everything.
     if ((!failed && !flags.keep) || stack === undefined) {
       NodeFS.rmSync(workDir, { recursive: true, force: true });
     }
@@ -104,7 +111,8 @@ const startedAt = Date.now();
 try {
   const frpcPath = await resolveFrpc({ explicitPath: flags["frpc-path"], log: say });
   const port = await choosePort();
-  stack = await startStack({ project: flags.project, port, workDir, say });
+  stack = await prepareStack({ project: flags.project, port, workDir, say });
+  await stack.up();
   // Trust Caddy's internal CA inside this process; child processes get it through NODE_EXTRA_CA_CERTS.
   NodeTls.setDefaultCACertificates([
     ...NodeTls.getCACertificates("default"),
@@ -180,7 +188,11 @@ for (const outcome of [...outcomes].toSorted((a, b) => a.id - b.id)) {
 process.stdout.write(`  total ${total.toFixed(1)} s\n`);
 
 await cleanup();
-if (failed) {
+if (cleanupProblem !== undefined) {
+  process.stdout.write(
+    `\nCLEANUP FAILED, so this run is reported as failed.\n${cleanupProblem}\nLogs and homes are in ${workDir}\n`,
+  );
+} else if (failed) {
   process.stdout.write(
     stack === undefined
       ? "\nFAILED before the stack was up.\n"

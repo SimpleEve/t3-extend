@@ -92,6 +92,50 @@ describe("fetchFrpc", () => {
     expect(await NodeFSP.readdir(destination)).toEqual(["frpc"]);
   });
 
+  it("keeps the verified archive, reuses it without the network, and never trusts a cached file by its name", async () => {
+    const { bytes, entry } = await makeArchive(FRP_VERSION);
+    const mirror = await serve(() => ({ status: 200, body: bytes }));
+    const archiveCacheDir = NodePath.join(root, "cache");
+    const destination = NodePath.join(root, "out");
+    const options = {
+      platform: "linux",
+      arch: "x64",
+      destination,
+      entry,
+      archiveCacheDir,
+    } as const;
+
+    // First use downloads, and stores the archive that matched the pinned digest.
+    const first = await fetchFrpc({ ...options, baseUrl: mirror.baseUrl });
+    expect(first.fromCache).toBe(false);
+    expect(mirror.requests).toHaveLength(1);
+    expect(await NodeFSP.readFile(NodePath.join(archiveCacheDir, entry.file))).toEqual(bytes);
+
+    // An intact cache needs no request, and a frpc left in the destination is replaced by one unpacked
+    // from the archive, whatever it was.
+    await NodeFSP.writeFile(
+      NodePath.join(destination, "frpc"),
+      `#!${process.execPath}\nconsole.log("9.9.9");\n`,
+      {
+        mode: 0o755,
+      },
+    );
+    const second = await fetchFrpc({ ...options, baseUrl: mirror.baseUrl });
+    expect(second.fromCache).toBe(true);
+    expect(mirror.requests).toHaveLength(1);
+    expect(await checkFrpcVersion(second.path)).toEqual({ ok: true });
+
+    // A cached file whose bytes differ (here, another valid archive) is not used: the pinned digest
+    // is what counts, so it is downloaded again and the cache is repaired.
+    const other = await makeArchive("0.70.0");
+    await NodeFSP.writeFile(NodePath.join(archiveCacheDir, entry.file), other.bytes);
+    const third = await fetchFrpc({ ...options, baseUrl: mirror.baseUrl });
+    expect(third.fromCache).toBe(false);
+    expect(mirror.requests).toHaveLength(2);
+    expect(await checkFrpcVersion(third.path)).toEqual({ ok: true });
+    expect(await NodeFSP.readFile(NodePath.join(archiveCacheDir, entry.file))).toEqual(bytes);
+  });
+
   it("refuses a mirror's bytes that do not match the pinned SHA-256 and leaves nothing behind", async () => {
     const { entry } = await makeArchive(FRP_VERSION);
     const { baseUrl } = await serve(() => ({ status: 200, body: "not the archive" }));

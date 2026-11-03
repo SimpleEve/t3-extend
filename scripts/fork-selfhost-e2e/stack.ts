@@ -18,16 +18,49 @@ export interface Stack {
   /** `./t3x invite`: the invite string, and whether a QR code came with it. */
   readonly invite: (kind: "computer" | "phone") => Promise<{ text: string; hasQr: boolean }>;
   readonly revoke: (name: string) => Promise<void>;
-  readonly down: () => Promise<void>;
+  /** Starts the project and fetches Caddy's root certificate. A failure here still needs `down`. */
+  readonly up: () => Promise<void>;
+  /**
+   * Stops an `up` that is still running, then removes the project's containers, volumes and network.
+   * Safe to call at any point and any number of times. Resolves to a description of what is left
+   * behind if docker refused, or undefined when the project is gone.
+   */
+  readonly down: () => Promise<string | undefined>;
 }
 
-export async function startStack(options: {
+export type RunDocker = (
+  args: ReadonlyArray<string>,
+  options?: { readonly signal?: AbortSignal },
+) => Promise<RunResult>;
+
+const runDocker: RunDocker = (args, options) =>
+  run("docker", args, { cwd: SELF_HOST, ...(options?.signal ? { signal: options.signal } : {}) });
+
+/** What a failed `compose down -v` leaves for a person to deal with; undefined when it succeeded. */
+export function describeDownProblem(project: string, result: RunResult): string | undefined {
+  if (result.status === 0) return undefined;
+  return (
+    `\`docker compose down -v\` for project "${project}" failed (exit ${result.status ?? "none"}), ` +
+    `so its containers, volumes or network may still exist.\n${result.stderr.trim()}\n` +
+    `Remove them by hand with: docker compose -p ${project} down -v --remove-orphans`
+  );
+}
+
+/**
+ * Writes the compose override and env into the work directory and checks that the project name is
+ * free; nothing is started. The check comes first so that a name already in use by someone else's
+ * containers is refused and never handed to `down`.
+ */
+export async function prepareStack(options: {
   readonly project: string;
   readonly port: number;
   readonly workDir: string;
   readonly say: (message: string) => void;
+  /** Tests only: stand-in for the docker CLI. */
+  readonly docker?: RunDocker;
 }): Promise<Stack> {
   const { project, port, workDir } = options;
+  const docker = options.docker ?? runDocker;
   const origin = `https://${DOMAIN}:${port}`;
   const envFile = NodePath.join(workDir, "stack.env");
   const overrideFile = NodePath.join(workDir, "compose.override.yml");
@@ -57,27 +90,23 @@ export async function startStack(options: {
     ].join("\n"),
   );
 
-  const compose = (...args: ReadonlyArray<string>) =>
-    run(
-      "docker",
-      [
-        "compose",
-        "-p",
-        project,
-        "--project-directory",
-        SELF_HOST,
-        "--env-file",
-        envFile,
-        "-f",
-        NodePath.join(SELF_HOST, "docker-compose.yml"),
-        "-f",
-        NodePath.join(SELF_HOST, "docker-compose.test.yml"),
-        "-f",
-        overrideFile,
-        ...args,
-      ],
-      { cwd: SELF_HOST },
-    );
+  const composeArgs = (args: ReadonlyArray<string>) => [
+    "compose",
+    "-p",
+    project,
+    "--project-directory",
+    SELF_HOST,
+    "--env-file",
+    envFile,
+    "-f",
+    NodePath.join(SELF_HOST, "docker-compose.yml"),
+    "-f",
+    NodePath.join(SELF_HOST, "docker-compose.test.yml"),
+    "-f",
+    overrideFile,
+    ...args,
+  ];
+  const compose = (...args: ReadonlyArray<string>) => docker(composeArgs(args));
 
   const existing = await compose("ps", "-aq");
   if (existing.stdout.trim() !== "") {
@@ -87,11 +116,52 @@ export async function startStack(options: {
     );
   }
 
-  const stack: Stack = {
+  const caFile = NodePath.join(workDir, "caddy-root.crt");
+  const upAbort = new AbortController();
+  let upRun: Promise<unknown> | undefined;
+
+  const up = async () => {
+    options.say(`docker compose project ${project} on port ${port}: building and starting...`);
+    upRun = docker(composeArgs(["up", "-d", "--build", "--wait"]), { signal: upAbort.signal });
+    const started = await upRun;
+    if ((started as RunResult).status !== 0) {
+      throw new E2eFailure(`docker compose up failed:\n${(started as RunResult).stderr}`);
+    }
+    // Caddy writes its internal CA while it starts; the file raises no event to wait on.
+    const root = await until(
+      {
+        label: "Caddy's root certificate",
+        timeoutMs: 60_000,
+        reason: "Caddy creates the file during its own startup and tells nobody",
+      },
+      async () => {
+        const read = await compose(
+          "exec",
+          "-T",
+          "caddy",
+          "cat",
+          "/data/caddy/pki/authorities/local/root.crt",
+        );
+        return read.status === 0 && read.stdout.includes("BEGIN CERTIFICATE")
+          ? read.stdout
+          : undefined;
+      },
+    );
+    NodeFS.writeFileSync(caFile, root);
+  };
+
+  const down = async () => {
+    // An interrupted `up` must be over before `down`, or it can create what `down` just removed.
+    upAbort.abort();
+    await upRun?.catch(() => undefined);
+    return describeDownProblem(project, await compose("down", "-v", "--remove-orphans"));
+  };
+
+  return {
     project,
     port,
     origin,
-    caFile: NodePath.join(workDir, "caddy-root.crt"),
+    caFile,
     compose,
     invite: async (kind) => {
       const result = await compose(
@@ -127,38 +197,7 @@ export async function startStack(options: {
       if (result.status !== 0)
         throw new E2eFailure(`./t3x revoke ${name} failed: ${result.stderr}`);
     },
-    down: async () => {
-      await compose("down", "-v", "--remove-orphans");
-    },
+    up,
+    down,
   };
-
-  options.say(`docker compose project ${project} on port ${port}: building and starting...`);
-  const started = await compose("up", "-d", "--build", "--wait");
-  if (started.status !== 0) {
-    await stack.down();
-    throw new E2eFailure(`docker compose up failed:\n${started.stderr}`);
-  }
-
-  // Caddy writes its internal CA while it starts; the file raises no event to wait on.
-  const root = await until(
-    {
-      label: "Caddy's root certificate",
-      timeoutMs: 60_000,
-      reason: "Caddy creates the file during its own startup and tells nobody",
-    },
-    async () => {
-      const read = await compose(
-        "exec",
-        "-T",
-        "caddy",
-        "cat",
-        "/data/caddy/pki/authorities/local/root.crt",
-      );
-      return read.status === 0 && read.stdout.includes("BEGIN CERTIFICATE")
-        ? read.stdout
-        : undefined;
-    },
-  );
-  NodeFS.writeFileSync(stack.caFile, root);
-  return stack;
 }

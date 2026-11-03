@@ -43,6 +43,24 @@ export class FrpFetchError extends Error {
 const sha256Hex = (bytes: Uint8Array) =>
   NodeCrypto.createHash("sha256").update(bytes).digest("hex");
 
+/** The cached archive's bytes if, read now, they hash to the pinned value; anything else is no cache. */
+const readPinnedArchive = async (cachePath: string, pinned: string) => {
+  const cached = await NodeFSP.readFile(cachePath).catch(() => undefined);
+  return cached !== undefined && sha256Hex(cached) === pinned ? cached : undefined;
+};
+
+/** Best effort: a cache that cannot be written only costs the next run a download. */
+const storeArchive = async (cachePath: string, bytes: Parameters<typeof sha256Hex>[0]) => {
+  const partial = `${cachePath}.${process.pid}.${NodeCrypto.randomBytes(8).toString("hex")}.partial`;
+  try {
+    await NodeFSP.mkdir(NodePath.dirname(cachePath), { recursive: true });
+    await NodeFSP.writeFile(partial, bytes, { mode: 0o644 });
+    await NodeFSP.rename(partial, cachePath);
+  } catch {
+    await NodeFSP.rm(partial, { force: true }).catch(() => undefined);
+  }
+};
+
 /**
  * Downloads the archive for `platform`/`arch`, checks it, unpacks it in a private temporary
  * directory and moves the executable to `<destination>/<frpc|frpc.exe>`. Nothing is written to
@@ -56,7 +74,18 @@ export const fetchFrpc = async (input: {
   readonly fetch?: typeof globalThis.fetch;
   /** Tests only: expect this archive instead of the pinned one for the platform. */
   readonly entry?: FrpArchive;
-}): Promise<{ readonly path: string; readonly url: string; readonly sha256: string }> => {
+  /**
+   * Where the verified archive is kept between runs. A file there is used only if its bytes match the
+   * pinned SHA-256 now; it is never trusted for having been put there, and frpc is unpacked from it
+   * afresh every time. Without this option every call downloads.
+   */
+  readonly archiveCacheDir?: string;
+}): Promise<{
+  readonly path: string;
+  readonly url: string;
+  readonly sha256: string;
+  readonly fromCache: boolean;
+}> => {
   const entry = input.entry ?? frpArchiveFor(input.platform, input.arch);
   if (entry === undefined) {
     throw new FrpFetchError(
@@ -67,35 +96,47 @@ export const fetchFrpc = async (input: {
   const url = frpArchiveUrl(entry, input.baseUrl);
   const doFetch = input.fetch ?? globalThis.fetch;
 
-  let bytes: Uint8Array;
-  try {
-    const response = await doFetch(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
-    if (!response.ok) {
-      throw new FrpFetchError("download-failed", `The download answered ${response.status}.`);
+  const download = async () => {
+    let bytes: Uint8Array;
+    try {
+      const response = await doFetch(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
+      if (!response.ok) {
+        throw new FrpFetchError("download-failed", `The download answered ${response.status}.`);
+      }
+      const declared = Number(response.headers.get("content-length") ?? "0");
+      if (declared > ARCHIVE_SIZE_LIMIT) {
+        throw new FrpFetchError("download-failed", "The download is larger than expected.");
+      }
+      bytes = new Uint8Array(await response.arrayBuffer());
+      if (bytes.length > ARCHIVE_SIZE_LIMIT) {
+        throw new FrpFetchError("download-failed", "The download is larger than expected.");
+      }
+    } catch (cause) {
+      if (cause instanceof FrpFetchError) throw cause;
+      throw new FrpFetchError(
+        "download-failed",
+        `The download from ${new URL(url).host} failed: ${cause instanceof Error ? cause.message : "unknown error"}.`,
+      );
     }
-    const declared = Number(response.headers.get("content-length") ?? "0");
-    if (declared > ARCHIVE_SIZE_LIMIT) {
-      throw new FrpFetchError("download-failed", "The download is larger than expected.");
-    }
-    bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.length > ARCHIVE_SIZE_LIMIT) {
-      throw new FrpFetchError("download-failed", "The download is larger than expected.");
-    }
-  } catch (cause) {
-    if (cause instanceof FrpFetchError) throw cause;
-    throw new FrpFetchError(
-      "download-failed",
-      `The download from ${new URL(url).host} failed: ${cause instanceof Error ? cause.message : "unknown error"}.`,
-    );
-  }
 
-  const actual = sha256Hex(bytes);
-  if (actual !== entry.sha256) {
-    throw new FrpFetchError(
-      "checksum-mismatch",
-      `The downloaded ${entry.file} does not match the pinned SHA-256 (got ${actual}); it was discarded.`,
-    );
-  }
+    const actual = sha256Hex(bytes);
+    if (actual !== entry.sha256) {
+      throw new FrpFetchError(
+        "checksum-mismatch",
+        `The downloaded ${entry.file} does not match the pinned SHA-256 (got ${actual}); it was discarded.`,
+      );
+    }
+    return bytes;
+  };
+
+  const cachePath =
+    input.archiveCacheDir === undefined
+      ? undefined
+      : NodePath.join(input.archiveCacheDir, entry.file);
+  const cachedBytes =
+    cachePath === undefined ? undefined : await readPinnedArchive(cachePath, entry.sha256);
+  const bytes = cachedBytes ?? (await download());
+  if (cachePath !== undefined && cachedBytes === undefined) await storeArchive(cachePath, bytes);
 
   const workDir = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "t3x-frp-"));
   try {
@@ -136,7 +177,7 @@ export const fetchFrpc = async (input: {
       await NodeFSP.rm(partial, { force: true });
       throw cause;
     }
-    return { path: finalPath, url, sha256: actual };
+    return { path: finalPath, url, sha256: entry.sha256, fromCache: cachedBytes !== undefined };
   } finally {
     await NodeFSP.rm(workDir, { recursive: true, force: true });
   }

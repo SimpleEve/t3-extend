@@ -306,10 +306,10 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 ### 测试
 
 - `vp run fork:selfhost:test`：`node --test "infra/self-host/registry/*.test.mjs"`，必须用通配符，传目录在 Node 24 和 26 上都会失败。Node 24 镜像里同样通过。
-- `vp run fork:selfhost:e2e`：本机端到端，14 个场景，约 2.5–3 分钟。需要 Docker Desktop；frpc 来自 `release/fork-cache/`（没有就下载，离线时 `--frpc-path <文件>`）。用法：`vp run fork:selfhost:e2e [--port 18443] [--project t3x-e2e] [--frpc-path <文件>] [--keep]`（参数直接跟在后面，不要加 `--`）。
+- `vp run fork:selfhost:e2e`：本机端到端，14 个场景，约 2.5–3 分钟。需要 Docker Desktop；frpc 来自 `release/fork-cache/`（归档按固定摘要校验，没有就下载；离线时 `--frpc-path <文件>`，它不做摘要校验）。用法：`vp run fork:selfhost:e2e [--port 18443] [--project t3x-e2e] [--frpc-path <文件>] [--keep]`（参数直接跟在后面，不要加 `--`）。
   - 它起 `infra/self-host` 的测试栈（compose 项目 `t3x-e2e`，只发布在 `127.0.0.1:<port>` 和 `[::1]:<port>`），用这个 checkout 的 `apps/server/src/bin.ts` 起 A、B、C 三台"电脑"（各自一个临时 home、空闲端口、`NODE_EXTRA_CA_CERTS` 和 `T3X_TUNNEL_CA_FILE` 指向从 Caddy 容器取出的根证书），"本机 owner"会话用 `--bootstrap-fd` 传随机 token 再走真实的 `POST /oauth/token`，手机是一个 Node 脚本（shared 协议库，私钥只在内存里）。不写钥匙串、不碰 `~/.t3` 和 fork 的真实 home。
   - 端口默认 18443，被占就换一个空闲的；`--port` 指定且被占则报错。`docker-compose.test.yml` 自己写死了 18443，换端口靠脚本写在临时目录里的覆盖文件，不要改仓库里的那个。
-  - 只停自己启动的 PID，结束（含失败和 Ctrl-C）时 `compose down -v` 并删临时目录。失败时保留日志目录并打印路径，`--keep` 通过时也保留。
+  - 只停自己启动的 PID，结束（含失败、Ctrl-C，和 `compose up` 进行中被中断）时 `compose down -v` 并删临时目录；清理在 `up` 之前就登记好，项目名被别人占着时则拒绝启动、不会去 `down` 它。`down -v` 失败时打印 stderr、项目名和手动清理的命令，保留工作目录，整个脚本以非零退出，即使场景全部通过。失败时保留日志目录并打印路径，`--keep` 通过时也保留。
   - 等待只靠事件（进程日志行、`devices.subscribe` 的快照），没有事件可等的才用有总时限的重试。场景执行顺序是 1,2,3,4,5,9,6,8,12,11,13,7,10,14：7（移除 B）必须在 10（重启 Caddy）之前，否则断言的 404 会变成握手失败，原因见设计文档 7.2。
 - 桌面界面的端到端要在 Electron 里做（`test-t3-app`），本机的坑：
   - 隔离的 `HOME` 下首次用到系统钥匙串会卡在 `SecItemAdd` 的授权弹窗里，主线程被阻塞，Chromium 的调试端口随后也不再响应。必须加 `--use-mock-keychain`，不要去点那个弹窗。
@@ -391,7 +391,7 @@ vp run fork:dist:android   # → release/fork-android/T3-Extend-<版本>-arm64-v
 macOS 流水线（`scripts/fork-dist-mac.ts`）：
 
 1. `build-desktop-artifact.ts --target dir` 打出未签名（ad-hoc）的 `.app`。
-2. 把固定版本的 frpc 放进 `.app/Contents/Resources/bin/frpc`（桌面后端的 `T3X_FRPC_PATH` 指向这里；没有这个文件时 server 回落到 `<T3 home>/bin/frpc`）。frpc 由 `scripts/lib/fork-frpc.ts` 提供：默认走 shared 的 `fetchFrpc` 下载并校验固定的 SHA-256，缓存在 `release/fork-cache/frp/v<版本>/<平台>-<架构>/`（已 gitignore，和官方 T3 Code 无关），下次先核对缓存里的摘要和 `frpc -v` 再复用。离线时用 `--frpc-path <文件>` 指定一个本地 frpc，它只检查 `frpc -v` 恰好是固定版本，**不做固定摘要校验**，文件的来源由你负责。镜像沿用 `T3X_FRP_BASE_URL`。`bin` 目录和 frpc 显式设成 0755，`--skip-build` 时同样放入。签名时 frpc 只开 hardened runtime，不带 entitlements（8.0 实测不需要）。
+2. 把固定版本的 frpc 放进 `.app/Contents/Resources/bin/frpc`（桌面后端的 `T3X_FRPC_PATH` 指向这里；没有这个文件时 server 回落到 `<T3 home>/bin/frpc`）。frpc 由 `scripts/lib/fork-frpc.ts` 提供：默认走 shared 的 `fetchFrpc`（给它 `archiveCacheDir`，`t3x devices tunnel install` 用同一份代码、不给这个参数）。缓存的是下载下来的**归档**（`.tar.gz`），放在 `release/fork-cache/frp/v<版本>/<平台>-<架构>/`（已 gitignore，和官方 T3 Code 无关）。每次使用前都用 `forkFrp.ts` 里固定的归档 SHA-256 重新校验这个文件的字节，对得上才用，对不上就重新下载并校验；校验过的字节每次都重新解出 frpc（放在同目录的 `unpacked/`，上一次解出来的文件会被覆盖，不复用）。缓存目录里不存、也不信任任何自己记下的摘要，所以改写缓存目录里的文件换不进别的程序。离线时用 `--frpc-path <文件>` 指定一个本地 frpc：它只检查 `frpc -v` 恰好是固定版本，**由你提供，没有经过固定摘要校验**（日志里也这样写），文件的来源由你负责。镜像沿用 `T3X_FRP_BASE_URL`。`bin` 目录和 frpc 显式设成 0755，`--skip-build` 时同样放入。签名时 frpc 只开 hardened runtime，不带 entitlements（8.0 实测不需要）。
 3. `@electron/osx-sign` 由内向外签名：嵌套的二进制和原生模块、frameworks、helpers、主程序。开启 hardened runtime，不打时间戳（Apple 的时间戳服务只给 Apple 签发的证书加签）。osx-sign 自己查找身份时不带 `-p codesigning`，所以看不到自签名证书。脚本先自己解析出 SHA-1 再传给它，并关掉它的身份校验。
 4. 用 `hdiutil` 打出带 `/Applications` 链接的 UDZO DMG，再对 DMG 签名，然后挂载 DMG，校验里面的 app。签名后和挂载后各校验一次：用 `file` 找出 `.app` 里所有 Mach-O，逐个跑 `codesign --verify --strict`，并检查 Authority 是签名身份、带 runtime flag，有任何一个不满足就失败并列出文件；另外断言 `Contents/Resources/bin/frpc` 存在、在 Mach-O 清单里、文件和 `bin` 目录都是 755，并且 `frpc -v` 输出固定版本。每次开始前会删掉上一次的 `mac-arm64/`、DMG 和 `.sha256`（`--skip-build` 时保留 `mac-arm64/`）。没有上游 DMG 的背景图和窗口布局。
 
