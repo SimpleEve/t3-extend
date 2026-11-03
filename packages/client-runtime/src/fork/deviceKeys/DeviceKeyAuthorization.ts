@@ -8,13 +8,25 @@ import type {
   AuthorizedRemoteEnvironment,
   AuthorizedRemoteHttpEnvironment,
 } from "../../authorization/service.ts";
-import { ConnectionBlockedError, type ConnectionAttemptError } from "../../connection/model.ts";
+import {
+  ConnectionBlockedError,
+  ConnectionTransientError,
+  type ConnectionAttemptError,
+} from "../../connection/model.ts";
 
 /** Failures here are always the device's own configuration, never the relay's. */
 export const deviceConnectionBlocked = (
   detail: string,
   reason: ConnectionBlockedError["reason"] = "configuration",
 ) => new ConnectionBlockedError({ reason, detail, hop: "device", via: "direct" });
+
+export const deviceConnectionTransient = (detail: string) =>
+  new ConnectionTransientError({
+    reason: "remote-unavailable",
+    detail,
+    hop: "device",
+    via: "direct",
+  });
 
 export interface DeviceRoute {
   readonly expectedEnvironmentId: string;

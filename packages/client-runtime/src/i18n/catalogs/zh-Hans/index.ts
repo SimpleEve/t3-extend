@@ -6,6 +6,7 @@ import commandPalette from "./commandPalette.ts";
 import common from "./common.ts";
 import connection from "./connection.ts";
 import desktop from "./desktop.ts";
+import devices from "./devices.ts"; // fork: self-hosted devices
 import footer from "./footer.ts";
 import mobile from "./mobile.ts";
 import mobileBrowser from "./mobileBrowser.ts";
@@ -33,6 +34,7 @@ export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   common,
   connection,
   desktop,
+  devices, // fork: self-hosted devices
   footer,
   mobile,
   mobileBrowser,

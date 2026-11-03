@@ -1,8 +1,8 @@
 // fork: what a client may believe about a computer before it sends anything to it (design Q10).
 // Order: the registry's list, then the URL check, then the computer's own well-known answer, and
 // only then a pass. Everything here is pure; the effects live in liveAuthorization.ts.
-import { ConnectionTransientError, type ConnectionAttemptError } from "../../connection/model.ts";
-import { deviceConnectionBlocked } from "./DeviceKeyAuthorization.ts";
+import type { ConnectionAttemptError } from "../../connection/model.ts";
+import { deviceConnectionBlocked, deviceConnectionTransient } from "./DeviceKeyAuthorization.ts";
 
 /** The registry this client joined. `registryId` is null where a trusted server did the pinning. */
 export interface PinnedRegistry {
@@ -89,12 +89,15 @@ export const judgeRoute = (input: {
   const { view, computer, routeUrl, expectedEnvironmentId } = input;
   if (view.recordsEnvironmentIds) {
     if (computer.environmentId === null) {
-      return { _tag: "pending", detail: `${computer.name} has not reported itself yet.` };
+      return {
+        _tag: "pending",
+        detail: "That computer has not reported itself to your server yet.",
+      };
     }
     if (computer.environmentId !== expectedEnvironmentId) {
       return {
         _tag: "blocked",
-        detail: `${computer.name} is not the environment this connection was saved for.`,
+        detail: "That computer is not the environment this connection was saved for.",
       };
     }
   }
@@ -106,7 +109,7 @@ export const judgeRoute = (input: {
     if (approved === null || approved !== originOf(routeUrl)) {
       return {
         _tag: "blocked",
-        detail: `The address for ${computer.name} does not match your server.`,
+        detail: "The address for that computer does not match your server.",
       };
     }
   }
@@ -117,10 +120,5 @@ export const verdictError = (
   verdict: Exclude<RouteVerdict, { readonly _tag: "ok" }>,
 ): ConnectionAttemptError =>
   verdict._tag === "pending"
-    ? new ConnectionTransientError({
-        reason: "remote-unavailable",
-        detail: verdict.detail,
-        hop: "device",
-        via: "direct",
-      })
+    ? deviceConnectionTransient(verdict.detail)
     : deviceConnectionBlocked(verdict.detail);

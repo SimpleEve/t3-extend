@@ -21,7 +21,6 @@ import type { AuthorizedRemoteEnvironment } from "../../authorization/service.ts
 import { environmentMismatchError, mapRemoteEnvironmentError } from "../../connection/errors.ts";
 import {
   ConnectionBlockedError,
-  ConnectionTransientError,
   DPOP_ACCESS_TOKEN_REFRESH_SKEW_MS,
   type ConnectionAttemptError,
 } from "../../connection/model.ts";
@@ -34,6 +33,7 @@ import {
 import type { ManagedRelayDpopSigner } from "../../relay/managedRelay.ts";
 import {
   deviceConnectionBlocked,
+  deviceConnectionTransient,
   type DeviceEnvironmentIndexShape,
   type DeviceKeyAuthorizationShape,
   type DeviceRoute,
@@ -110,13 +110,7 @@ class PeerHasNotSynced {
 const isPeerHasNotSynced = (value: unknown): value is PeerHasNotSynced =>
   value instanceof PeerHasNotSynced;
 
-const transient = (detail: string) =>
-  new ConnectionTransientError({
-    reason: "remote-unavailable",
-    detail,
-    hop: "server",
-    via: "direct",
-  });
+const transient = (detail: string) => deviceConnectionTransient(detail);
 
 const rejectedPass = (reason: string | undefined): ConnectionAttemptError | PeerHasNotSynced => {
   switch (reason) {
@@ -243,7 +237,7 @@ export const makeDeviceKeyAuthorization = (
           ? mapFetch(cause)
           : mapFetch(
               new RemoteEnvironmentAuthFetchError({
-                message: `Could not reach ${new URL(url).host}.`,
+                message: "Could not reach that computer.",
                 cause,
               }),
             ),
@@ -256,7 +250,7 @@ export const makeDeviceKeyAuthorization = (
       return yield* transient("That computer cannot check devices until it reaches your server.");
     }
     if (response.status !== 200) {
-      return yield* transient(`That computer answered with status ${response.status}.`);
+      return yield* transient("That computer did not answer the sign-in request.");
     }
     const body = yield* response.json.pipe(
       Effect.flatMap(decodeAccessToken),
