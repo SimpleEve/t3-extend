@@ -20,8 +20,14 @@ const mocks = vi.hoisted(() => ({
   cancelInvite: vi.fn(),
   remove: vi.fn(),
   refreshStatus: vi.fn(),
+  // Environments the registry's directory knows as devices, environment id to device id.
+  deviceIds: new Map<string, string>(),
 }));
 
+vi.mock(import("~/fork/deviceKeysRuntime"), async (original) => ({
+  ...(await original()),
+  deviceEnvironmentIndex: { get: (id: string) => mocks.deviceIds.get(id), bind: () => undefined },
+}));
 vi.mock(import("~/fork/deviceKeysStore"), async (original) => ({
   ...(await original()),
   devicesStatus: (() => mocks.status) as never,
@@ -45,7 +51,7 @@ vi.mock(import("~/state/use-atom-command"), async (original) => ({
     mocks[command]) as never,
 }));
 
-import { deviceEnvironmentIndex, peerWait } from "~/fork/deviceKeysRuntime";
+import { peerWait } from "~/fork/deviceKeysRuntime";
 import { YourServerSettings } from "./YourServerSettings";
 
 const success = <A,>(value: A) => AsyncResult.success(value) as AtomCommandResult<A, never>;
@@ -113,7 +119,7 @@ function setup(
   mocks.cancelInvite.mockResolvedValue(success({}));
   mocks.remove.mockResolvedValue(success({ removedAt: 1, rev: 2, pendingComputers: [] }));
   peerWait.end("env-mini");
-  deviceEnvironmentIndex.replace(new Map());
+  mocks.deviceIds.clear();
   const clock = vi.spyOn(Date, "now").mockReturnValue(NOW);
   const bridge = input.desktop === false ? null : stubGlobal("desktopBridge", {});
   return {
@@ -245,7 +251,7 @@ describe("Your server settings, joined", () => {
 
   it("shows a computer waiting for another one as waiting, not as a failure", async () => {
     using _bridge = setup();
-    deviceEnvironmentIndex.replace(new Map([["env-mini", "mac-mini"]]));
+    mocks.deviceIds.set("env-mini", "mac-mini");
     await using _screen = await render(ui(), { router: false });
     peerWait.begin("env-mini");
     await expect.element(page.getByText("Waiting for that computer to confirm…")).toBeVisible();

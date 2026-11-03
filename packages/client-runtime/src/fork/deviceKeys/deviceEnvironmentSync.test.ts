@@ -23,15 +23,16 @@ import {
   DeviceEnvironmentIndex,
   DeviceKeyAuthorization,
   blockedDeviceKeyAuthorization,
+  deviceConnectionId,
   makeDeviceEnvironmentIndex,
+  refuseRelayForDeviceEnvironment,
 } from "./DeviceKeyAuthorization.ts";
 import {
-  deviceConnectionId,
   layerDeviceEnvironmentSync,
   managedDeviceEnvironments,
   reconcileDeviceEnvironments,
 } from "./deviceEnvironmentSync.ts";
-import { computer, descriptorJson, view } from "./deviceAuthorization.testkit.ts";
+import { computer, descriptorJson, deviceEntry, view } from "./deviceAuthorization.testkit.ts";
 
 const env = (id: string) => EnvironmentId.make(id);
 
@@ -67,6 +68,10 @@ const makeRig = Effect.fn("DeviceSyncRig.make")(function* (options?: {
   const forgotten = yield* Ref.make<ReadonlyArray<string>>([]);
   const registrations = yield* Ref.make<ReadonlyArray<ConnectionRegistration>>([]);
   const probes: Array<string> = [];
+  const index = makeDeviceEnvironmentIndex();
+  index.bind(entries);
+  // What the index answers at the moment the registry would start connecting a new environment.
+  const seenWhenStarting: Array<string | undefined> = [];
   const registry = EnvironmentRegistry.EnvironmentRegistry.of({
     entries,
     register: (registration: ConnectionRegistration) =>
@@ -79,6 +84,7 @@ const makeRig = Effect.fn("DeviceSyncRig.make")(function* (options?: {
         yield* SubscriptionRef.update(entries, (current) =>
           new Map(current).set(entry.target.environmentId, entry),
         );
+        seenWhenStarting.push(index.get(entry.target.environmentId));
         return true;
       }),
     remove: (environmentId: EnvironmentId) =>
@@ -97,7 +103,6 @@ const makeRig = Effect.fn("DeviceSyncRig.make")(function* (options?: {
     put: (id, credential) => Effect.sync(() => void credentials.set(id, credential)),
     remove: (id) => Effect.sync(() => void credentials.delete(id)),
   });
-  const index = makeDeviceEnvironmentIndex();
   const services = Layer.mergeAll(
     Layer.succeed(EnvironmentRegistry.EnvironmentRegistry, registry),
     Layer.succeed(ConnectionCredentialStore.ConnectionCredentialStore, credentialStore),
@@ -122,6 +127,7 @@ const makeRig = Effect.fn("DeviceSyncRig.make")(function* (options?: {
     forgotten,
     registrations,
     index,
+    seenWhenStarting,
     probes,
     managed: Effect.map(SubscriptionRef.get(entries), (all) => managedDeviceEnvironments(all)),
   };
@@ -266,14 +272,55 @@ describe("device environment sync", () => {
     }),
   );
 
-  it.effect("re-arms the relay refusal from the saved catalog after a restart", () =>
+  it.effect("a new computer is already found when the registry starts connecting it", () =>
     Effect.gen(function* () {
       const rig = yield* makeRig();
-      const mac = computer({ deviceId: "mac", environmentId: env("environment-mac") });
-      yield* rig.run(view([mac]));
-      rig.index.replace(new Map());
-      yield* rig.run(view([mac]));
+      yield* rig.run(view([computer({ deviceId: "mac", environmentId: env("environment-mac") })]));
+      expect(rig.seenWhenStarting).toEqual(["mac"]);
+    }),
+  );
+
+  it.effect("finds a restored device environment before any sync ran, and refuses it a relay", () =>
+    Effect.gen(function* () {
+      const rig = yield* makeRig();
+      yield* SubscriptionRef.update(rig.entries, (current) =>
+        new Map(current).set(env("environment-mac"), deviceEntry("mac", "environment-mac")),
+      );
       expect(rig.index.get("environment-mac")).toBe("mac");
+      const refused = yield* refuseRelayForDeviceEnvironment("environment-mac").pipe(
+        Effect.provideService(DeviceEnvironmentIndex, rig.index),
+        Effect.flip,
+      );
+      expect(refused).toMatchObject({ _tag: "ConnectionBlockedError", hop: "device" });
+    }),
+  );
+
+  it.effect("only environments with the device profile are managed", () =>
+    Effect.gen(function* () {
+      const rig = yield* makeRig();
+      // A saved environment of the user's own, and one that merely borrows the id scheme.
+      expect(rig.index.get("environment-by-hand")).toBeUndefined();
+      const lookalike = deviceEntry("mac", "environment-mac", { learned: true });
+      yield* SubscriptionRef.update(rig.entries, (current) =>
+        new Map(current).set(env("environment-mac"), lookalike),
+      );
+      expect(rig.index.get("environment-mac")).toBeUndefined();
+      yield* refuseRelayForDeviceEnvironment("environment-by-hand").pipe(
+        Effect.provideService(DeviceEnvironmentIndex, rig.index),
+      );
+    }),
+  );
+
+  it.effect("leaves an unchanged list alone: nothing registered, removed or reconnected", () =>
+    Effect.gen(function* () {
+      const rig = yield* makeRig();
+      const list = view([computer({ deviceId: "mac", environmentId: env("environment-mac") })]);
+      yield* rig.run(list);
+      yield* rig.run(list);
+      yield* rig.run(list);
+      expect(yield* Ref.get(rig.registrations)).toHaveLength(1);
+      expect(yield* Ref.get(rig.removed)).toEqual([]);
+      expect(yield* Ref.get(rig.forgotten)).toEqual([]);
     }),
   );
 

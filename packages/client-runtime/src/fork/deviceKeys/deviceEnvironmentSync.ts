@@ -4,7 +4,6 @@
 import { EnvironmentId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Option from "effect/Option";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 import * as SubscriptionRef from "effect/SubscriptionRef";
@@ -20,43 +19,21 @@ import * as ConnectionCredentialStore from "../../connection/credentialStore.ts"
 import { BearerConnectionTarget } from "../../connection/model.ts";
 import * as EnvironmentRegistry from "../../connection/registry.ts";
 import { fetchRemoteEnvironmentDescriptor } from "../../environment/descriptor.ts";
-import { DeviceEnvironmentIndex, DeviceKeyAuthorization } from "./DeviceKeyAuthorization.ts";
+import {
+  DeviceKeyAuthorization,
+  deviceConnectionId,
+  managedDeviceEnvironment,
+  type ManagedDeviceEnvironment,
+} from "./DeviceKeyAuthorization.ts";
 import { checkComputerUrl, type DeviceDirectoryView } from "./discovery.ts";
 
-const DEVICE_CONNECTION_PREFIX = "t3x-device:";
 const T3X_DEVICE = "t3x-device" as const;
 
-export const deviceConnectionId = (deviceId: string) => `${DEVICE_CONNECTION_PREFIX}${deviceId}`;
-
-interface ManagedEnvironment {
-  readonly environmentId: EnvironmentId;
-  readonly deviceId: string;
-  readonly url: string;
-}
-
-/** Saved environments this sync owns, found from the catalog so nothing else has to persist an index. */
+/** Saved environments this sync owns. */
 export const managedDeviceEnvironments = (
   entries: ReadonlyMap<EnvironmentId, ConnectionCatalogEntry>,
-): ReadonlyArray<ManagedEnvironment> =>
-  [...entries.values()].flatMap((entry) => {
-    const profile = Option.getOrNull(entry.profile);
-    if (
-      entry.target._tag !== "BearerConnectionTarget" ||
-      profile?._tag !== "BearerConnectionProfile" ||
-      profile.authorization !== T3X_DEVICE ||
-      profile.learned === true ||
-      !profile.connectionId.startsWith(DEVICE_CONNECTION_PREFIX)
-    ) {
-      return [];
-    }
-    return [
-      {
-        environmentId: entry.target.environmentId,
-        deviceId: profile.connectionId.slice(DEVICE_CONNECTION_PREFIX.length),
-        url: profile.httpBaseUrl,
-      },
-    ];
-  });
+): ReadonlyArray<ManagedDeviceEnvironment> =>
+  [...entries.values()].flatMap((entry) => managedDeviceEnvironment(entry) ?? []);
 
 const toWebSocketBase = (httpBaseUrl: string): string => {
   const url = new URL(httpBaseUrl);
@@ -70,12 +47,9 @@ export const reconcileDeviceEnvironments = Effect.fn("deviceKeys.reconcileEnviro
   const registry = yield* EnvironmentRegistry.EnvironmentRegistry;
   const credentials = yield* ConnectionCredentialStore.ConnectionCredentialStore;
   const authorization = yield* DeviceKeyAuthorization;
-  const index = yield* DeviceEnvironmentIndex;
   const httpClient = yield* HttpClient.HttpClient;
 
   const managed = managedDeviceEnvironments(yield* SubscriptionRef.get(registry.entries));
-  // Armed before anything else, so the relay authorization refuses these ids from now on.
-  index.replace(new Map(managed.map((entry) => [entry.environmentId, entry.deviceId])));
   const byDevice = new Map(managed.map((entry) => [entry.deviceId, entry]));
 
   const wanted = new Map<string, { environmentId: EnvironmentId; url: string; name: string }>();
@@ -105,7 +79,7 @@ export const reconcileDeviceEnvironments = Effect.fn("deviceKeys.reconcileEnviro
   }
 
   const stillListed = new Set((view?.computers ?? []).map((computer) => computer.deviceId));
-  const forget = (entry: ManagedEnvironment) =>
+  const forget = (entry: ManagedDeviceEnvironment) =>
     authorization.forget(entry.environmentId).pipe(
       Effect.andThen(registry.remove(entry.environmentId)),
       Effect.catch((error) =>
@@ -128,7 +102,7 @@ export const reconcileDeviceEnvironments = Effect.fn("deviceKeys.reconcileEnviro
     const connectionId = deviceConnectionId(deviceId);
     const existing = byDevice.get(deviceId);
     if (existing?.environmentId === next.environmentId && existing.url === next.url) continue;
-    const registered = yield* registry
+    yield* registry
       .register(
         new BearerConnectionRegistration({
           target: new BearerConnectionTarget({
@@ -150,19 +124,11 @@ export const reconcileDeviceEnvironments = Effect.fn("deviceKeys.reconcileEnviro
       )
       .pipe(
         Effect.andThen(credentials.remove(connectionId)),
-        Effect.as(true),
         Effect.catch((error) =>
-          Effect.logWarning("Could not save an environment from your server.", { error }).pipe(
-            Effect.as(false),
-          ),
+          Effect.logWarning("Could not save an environment from your server.", { error }),
         ),
       );
-    if (!registered) wanted.delete(deviceId);
   }
-
-  index.replace(
-    new Map([...wanted].map(([deviceId, next]) => [next.environmentId as string, deviceId])),
-  );
 });
 
 /**

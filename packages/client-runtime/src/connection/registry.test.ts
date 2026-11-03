@@ -55,6 +55,11 @@ import {
   type SupervisorConnectionState,
 } from "./model.ts";
 import * as Persistence from "../platform/persistence.ts";
+import {
+  DeviceEnvironmentIndex,
+  deviceConnectionId,
+  makeDeviceEnvironmentIndex,
+} from "../fork/deviceKeys/DeviceKeyAuthorization.ts"; // fork: self-hosted devices
 import * as ConnectionProfileStore from "./profileStore.ts";
 import * as EnvironmentRegistry from "./registry.ts";
 import {
@@ -542,6 +547,42 @@ function awaitConnectionState(
 }
 
 describe("EnvironmentRegistry", () => {
+  // fork: self-hosted devices. A restored device environment must be known before anything connects.
+  it.effect("tells the device index about a restored device environment before start", () =>
+    Effect.gen(function* () {
+      const connectionId = deviceConnectionId("mac");
+      const target = new BearerConnectionTarget({
+        environmentId: EnvironmentId.make("environment-device"),
+        label: "Mac",
+        connectionId,
+      });
+      const harness = yield* makeHarness(
+        [target, BEARER_TARGET],
+        [
+          new BearerConnectionProfile({
+            connectionId,
+            environmentId: target.environmentId,
+            label: "Mac",
+            httpBaseUrl: "https://mac.example.test",
+            wsBaseUrl: "wss://mac.example.test",
+            authorization: "t3x-device",
+          }),
+          BEARER_PROFILE,
+        ],
+      );
+      const index = makeDeviceEnvironmentIndex();
+      yield* Effect.gen(function* () {
+        yield* EnvironmentRegistry.EnvironmentRegistry;
+        expect(index.get("environment-device")).toBe("mac");
+        expect(index.get("environment-bearer")).toBeUndefined();
+      }).pipe(
+        Effect.provide(harness.layer),
+        Effect.provideService(DeviceEnvironmentIndex, index),
+        Effect.scoped,
+      );
+    }),
+  );
+
   it.effect("replays connected state when arming a desktop commit observer", () =>
     Effect.gen(function* () {
       const harness = yield* makeHarness([TARGET]);

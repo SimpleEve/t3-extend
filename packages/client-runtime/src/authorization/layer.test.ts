@@ -1147,7 +1147,7 @@ describe("RemoteEnvironmentAuthorization: device-managed environments", () => {
         Effect.provide(harness.layer),
         Effect.provideService(DeviceEnvironmentIndex, {
           get: (id) => index.get(id as EnvironmentId),
-          replace: () => undefined,
+          bind: () => undefined,
         }),
       );
       expect(harness.fetch.calls).toEqual([]);

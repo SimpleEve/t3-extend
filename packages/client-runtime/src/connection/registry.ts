@@ -55,6 +55,7 @@ import {
   upsertRoute,
   type ReportedEndpoint,
 } from "./routes.ts";
+import { DeviceEnvironmentIndex } from "../fork/deviceKeys/DeviceKeyAuthorization.ts"; // fork: self-hosted devices
 
 const isSshConnectionProfile = Schema.is(SshConnectionProfile);
 
@@ -268,6 +269,7 @@ export const make = Effect.gen(function* () {
   );
   const entries =
     yield* SubscriptionRef.make<ReadonlyMap<EnvironmentId, ConnectionCatalogEntry>>(initialEntries);
+  (yield* DeviceEnvironmentIndex).bind(entries); // fork: self-hosted devices; before any connection can start
   const networkStatus = yield* SubscriptionRef.make(yield* connectivity.status);
   const serviceScopes = yield* SubscriptionRef.make<
     ReadonlyMap<EnvironmentId, EnvironmentServiceScope>

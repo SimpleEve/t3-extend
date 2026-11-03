@@ -3,12 +3,16 @@
 import { EnvironmentId, T3X_DEVICE_TOKEN_PATH } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Queue from "effect/Queue";
+import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
+import * as SubscriptionRef from "effect/SubscriptionRef";
 import * as HttpClient from "effect/http/HttpClient";
 
+import { BearerConnectionProfile, type ConnectionCatalogEntry } from "../../connection/catalog.ts";
+import { BearerConnectionTarget } from "../../connection/model.ts";
 import * as ManagedRelay from "../../relay/managedRelay.ts";
 import * as RpcHttp from "../../rpc/http.ts";
-import { makeDeviceEnvironmentIndex } from "./DeviceKeyAuthorization.ts";
+import { deviceConnectionId, makeDeviceEnvironmentIndex } from "./DeviceKeyAuthorization.ts";
 import type { DeviceComputer, DeviceDirectoryView } from "./discovery.ts";
 import {
   makeDeviceKeyAuthorization,
@@ -19,9 +23,37 @@ import {
 const REGISTRY_ORIGIN = "https://t3.example.test";
 export const COMPUTER_URL = "https://mac.t3.example.test";
 export const ENVIRONMENT_ID = EnvironmentId.make("environment-mac");
-const DEVICE_ID = "device-mac";
+export const DEVICE_ID = "device-mac";
 export const OTHER_ENVIRONMENT_ID = EnvironmentId.make("environment-other");
 export const THUMBPRINT = "dpop-key-thumbprint";
+
+/** A saved environment as the connection directory holds it after the device sync registered it. */
+export const deviceEntry = (
+  deviceId: string,
+  environmentId: string,
+  options?: { readonly learned?: boolean },
+): ConnectionCatalogEntry => {
+  const connectionId = deviceConnectionId(deviceId);
+  return {
+    target: new BearerConnectionTarget({
+      environmentId: EnvironmentId.make(environmentId),
+      label: "Mac",
+      connectionId,
+    }),
+    enabled: true,
+    profile: Option.some(
+      new BearerConnectionProfile({
+        connectionId,
+        environmentId: EnvironmentId.make(environmentId),
+        label: "Mac",
+        httpBaseUrl: COMPUTER_URL,
+        wsBaseUrl: COMPUTER_URL.replace(/^http/, "ws"),
+        authorization: "t3x-device",
+        ...(options?.learned === true ? { learned: true } : {}),
+      }),
+    ),
+  };
+};
 
 export const computer = (overrides: Partial<DeviceComputer> = {}): DeviceComputer => ({
   deviceId: DEVICE_ID,
@@ -124,8 +156,12 @@ export const makeRig = Effect.fn("DeviceAuthorizationRig.make")(function* (input
         return `proof:${proof.method}:${proof.url}`;
       }),
   });
+  // The directory the registry restored: the computer's environment is saved, no sync has run.
+  const directory = yield* SubscriptionRef.make<ReadonlyMap<EnvironmentId, ConnectionCatalogEntry>>(
+    new Map([[ENVIRONMENT_ID, deviceEntry(DEVICE_ID, ENVIRONMENT_ID)]]),
+  );
   const index = makeDeviceEnvironmentIndex();
-  index.replace(new Map([[ENVIRONMENT_ID, DEVICE_ID]]));
+  index.bind(directory);
   const wait = makePeerWaitStore();
   const waits: Array<ReadonlySet<string>> = [];
   wait.subscribe(() => waits.push(wait.snapshot()));
@@ -145,6 +181,7 @@ export const makeRig = Effect.fn("DeviceAuthorizationRig.make")(function* (input
     passAttempts,
     signed,
     current,
+    directory,
     index,
     wait,
     waits,

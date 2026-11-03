@@ -4,15 +4,18 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Queue from "effect/Queue";
 import * as Ref from "effect/Ref";
+import * as SubscriptionRef from "effect/SubscriptionRef";
 import * as TestClock from "effect/testing/TestClock";
 
 import {
   COMPUTER_URL,
+  DEVICE_ID,
   ENVIRONMENT_ID,
   OTHER_ENVIRONMENT_ID,
   THUMBPRINT,
   accessTokenJson,
   computer,
+  deviceEntry,
   makeRig,
   rejectedPass,
   route,
@@ -113,11 +116,21 @@ describe("device authorization: what is checked before a pass is sent", () => {
 
   it.effect("blocks an environment the sync does not manage", () =>
     Effect.gen(function* () {
-      const rig = yield* makeRig();
-      rig.index.replace(new Map());
-      const error = yield* rig.authorization.prepare(route()).pipe(Effect.flip);
-      expect(error._tag).toBe("ConnectionBlockedError");
-      expect(rig.requests).toEqual([]);
+      const notDevices = [
+        new Map(),
+        // Saved as a learned route, not by the sync.
+        new Map([[ENVIRONMENT_ID, deviceEntry(DEVICE_ID, ENVIRONMENT_ID, { learned: true })]]),
+      ];
+      for (const directory of notDevices) {
+        const rig = yield* makeRig();
+        yield* SubscriptionRef.set(rig.directory, directory);
+        const error = yield* rig.authorization.prepare(route()).pipe(Effect.flip);
+        expect(error).toMatchObject({
+          _tag: "ConnectionBlockedError",
+          detail: "This environment is not managed by your server.",
+        });
+        expect(rig.requests).toEqual([]);
+      }
     }),
   );
 
