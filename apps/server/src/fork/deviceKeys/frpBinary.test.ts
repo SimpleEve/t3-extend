@@ -1,0 +1,197 @@
+// Where frpc is looked for, which version is accepted, and the headless install from a mirror.
+// @effect-diagnostics nodeBuiltinImport:off -- A local HTTP server and `tar` stand in for the release host.
+import * as NodeChildProcess from "node:child_process";
+import * as NodeCrypto from "node:crypto";
+import * as NodeFS from "node:fs";
+import * as NodeHttp from "node:http";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
+
+import * as NodeServices from "@effect/platform-node/NodeServices";
+import { assert, describe, it } from "@effect/vitest";
+import { FRP_VERSION, type FrpArchive } from "@t3tools/shared/forkFrp";
+import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as ConfigProvider from "effect/ConfigProvider";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+
+import * as ServerConfig from "../../config.ts";
+import { makeFakeFrpc } from "./fakeFrpc.testkit.ts";
+import * as FrpBinary from "./frpBinary.ts";
+
+const tempDir = Effect.acquireRelease(
+  Effect.sync(() =>
+    NodeFS.realpathSync(NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3x-frpbinary-"))),
+  ),
+  (dir) => Effect.sync(() => NodeFS.rmSync(dir, { recursive: true, force: true })),
+);
+
+const homeBinary = (home: string) =>
+  NodePath.join(home, "bin", HostProcess.Platform.defaultValue() === "win32" ? "frpc.exe" : "frpc");
+
+const arrange = Effect.fn("arrange")(function* (
+  env: Record<string, string>,
+  seams: FrpBinary.FrpBinaryTestSeams = {},
+) {
+  const home = yield* tempDir;
+  const layer = FrpBinary.layer(seams).pipe(
+    Layer.provide(ServerConfig.ServerConfig.layerTest(home, home)),
+    Layer.provide(NodeServices.layer),
+    Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env }))),
+  );
+  const binary = yield* Effect.provide(FrpBinary.FrpBinary, layer);
+  return { home, binary };
+});
+
+const copyFake = (from: string, to: string) => {
+  NodeFS.mkdirSync(NodePath.dirname(to), { recursive: true });
+  // The fake finds its control file next to its own real path, so it is linked, not copied.
+  NodeFS.symlinkSync(from, to);
+};
+
+describe("FrpBinary.locate", () => {
+  it.effect("prefers T3X_FRPC_PATH over the file in the T3 home", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const bundled = yield* makeFakeFrpc({ version: FRP_VERSION, scripts: [] });
+        const installed = yield* makeFakeFrpc({ version: FRP_VERSION, scripts: [] });
+        const { home, binary } = yield* arrange({ T3X_FRPC_PATH: bundled.path });
+        copyFake(installed.path, homeBinary(home));
+        assert.deepEqual(yield* binary.locate, { path: bundled.path, source: "T3X_FRPC_PATH" });
+      }),
+    ),
+  );
+
+  it.effect("falls back to the T3 home when the environment path is empty or missing", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const installed = yield* makeFakeFrpc({ version: FRP_VERSION, scripts: [] });
+        const missing = yield* arrange({ T3X_FRPC_PATH: "/nonexistent/frpc" });
+        copyFake(installed.path, homeBinary(missing.home));
+        assert.equal((yield* missing.binary.locate).source, "t3-home");
+        const empty = yield* arrange({ T3X_FRPC_PATH: "  " });
+        copyFake(installed.path, homeBinary(empty.home));
+        assert.equal((yield* empty.binary.locate).source, "t3-home");
+      }),
+    ),
+  );
+
+  it.effect("never looks on PATH: a good frpc there is not found", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const onPath = yield* makeFakeFrpc({ version: FRP_VERSION, scripts: [] });
+        const { binary } = yield* arrange({ PATH: onPath.dir });
+        const error = yield* Effect.flip(binary.locate);
+        assert.equal(error.problem, "not-found");
+        assert.include(error.message, "t3x devices tunnel install");
+      }),
+    ),
+  );
+
+  it.effect("refuses any version but the pinned one, naming what it found", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const old = yield* makeFakeFrpc({ version: "0.70.0", scripts: [] });
+        const { binary } = yield* arrange({ T3X_FRPC_PATH: old.path });
+        const error = yield* Effect.flip(binary.locate);
+        assert.equal(error.problem, "wrong-version");
+        assert.include(error.message, "0.70.0");
+        assert.include(error.message, FRP_VERSION);
+      }),
+    ),
+  );
+
+  it.effect("reports a file that cannot be run", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const home = yield* tempDir;
+        const broken = NodePath.join(home, "broken");
+        NodeFS.writeFileSync(broken, "not a program", { mode: 0o755 });
+        const { binary } = yield* arrange({ T3X_FRPC_PATH: broken });
+        assert.equal((yield* Effect.flip(binary.locate)).problem, "not-runnable");
+      }),
+    ),
+  );
+});
+
+describe("FrpBinary.install", () => {
+  const platform = HostProcess.Platform.defaultValue();
+
+  it.live(
+    "downloads from the mirror variable, checks the SHA-256, and puts frpc in the T3 home",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const work = yield* tempDir;
+          const staging = NodePath.join(work, "staging", `frp_${FRP_VERSION}_fake`);
+          NodeFS.mkdirSync(staging, { recursive: true });
+          NodeFS.writeFileSync(
+            NodePath.join(staging, "frpc"),
+            `#!${process.execPath}\nconsole.log("${FRP_VERSION}");\n`,
+            { mode: 0o755 },
+          );
+          const archivePath = NodePath.join(work, "fake.tar.gz");
+          NodeChildProcess.execFileSync("tar", [
+            "-czf",
+            archivePath,
+            "-C",
+            NodePath.join(work, "staging"),
+            ".",
+          ]);
+          const bytes = NodeFS.readFileSync(archivePath);
+          const entry: FrpArchive = {
+            file: `frp_${FRP_VERSION}_fake.tar.gz`,
+            sha256: NodeCrypto.createHash("sha256").update(bytes).digest("hex"),
+            executable: "frpc",
+          };
+          const requests: Array<string> = [];
+          const server = NodeHttp.createServer((request, response) => {
+            requests.push(request.url ?? "");
+            response.writeHead(200).end(bytes);
+          });
+          yield* Effect.addFinalizer(() => Effect.sync(() => void server.close()));
+          yield* Effect.promise(
+            () => new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve)),
+          );
+          const address = server.address();
+          const port = typeof address === "object" && address !== null ? address.port : 0;
+
+          const { home, binary } = yield* arrange(
+            { T3X_FRP_BASE_URL: `http://127.0.0.1:${port}/frp` },
+            { entry },
+          );
+          const installed = yield* binary.install;
+
+          assert.deepEqual(requests, [`/frp/${entry.file}`]);
+          assert.equal(installed.path, homeBinary(home));
+          assert.equal(installed.sha256, entry.sha256);
+          assert.deepEqual(yield* binary.locate, { path: homeBinary(home), source: "t3-home" });
+          assert.equal(
+            platform === "win32" || (NodeFS.statSync(installed.path).mode & 0o111) !== 0,
+            true,
+          );
+        }),
+      ),
+  );
+
+  it.live("keeps the T3 home untouched when the mirror serves something else", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const server = NodeHttp.createServer(
+          (_request, response) => void response.writeHead(200).end("nope"),
+        );
+        yield* Effect.addFinalizer(() => Effect.sync(() => void server.close()));
+        yield* Effect.promise(
+          () => new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve)),
+        );
+        const address = server.address();
+        const port = typeof address === "object" && address !== null ? address.port : 0;
+        const { home, binary } = yield* arrange({ T3X_FRP_BASE_URL: `http://127.0.0.1:${port}` });
+
+        const error = yield* Effect.flip(binary.install);
+        assert.equal(error.problem, "checksum-mismatch");
+        assert.equal(NodeFS.existsSync(NodePath.join(home, "bin")), false);
+      }),
+    ),
+  );
+});
