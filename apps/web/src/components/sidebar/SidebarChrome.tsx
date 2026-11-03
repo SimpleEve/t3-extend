@@ -313,8 +313,8 @@ export const SidebarChromeFooter = memo(
       <SidebarFooter>
         <SidebarProviderUpdatePill />
         <SidebarUpdateArchitectureWarning />
-        <SidebarFooterStatus scopedProjectRefs={scopedProjectRefs} />{" "}
         {/* fork: footer status chips */}
+        <SidebarFooterStatus scopedProjectRefs={scopedProjectRefs} />
         <SidebarUtilityMenu />
       </SidebarFooter>
     );
