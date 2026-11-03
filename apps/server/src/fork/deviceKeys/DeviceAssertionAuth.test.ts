@@ -849,4 +849,64 @@ describe("revoking a removed device", () => {
       assert.equal(FAKE_REGISTRY_ID.length, 8);
     }).pipe(Effect.provide(layerHarness)),
   );
+
+  describe("a pass from a device the list does not have yet", () => {
+    // Subscribes first, so the refresh cannot publish before the test is listening.
+    const nextListing = Effect.fn("nextListing")(function* (id: string) {
+      const directory = yield* DeviceDirectory.DeviceDirectory;
+      const subscribed = yield* Deferred.make<void>();
+      const listed = yield* directory.changes.pipe(
+        Stream.tap(() => Deferred.succeed(subscribed, undefined)),
+        Stream.filter((snapshot) => snapshot.devices.some((device) => device.id === id)),
+        Stream.runHead,
+        Effect.forkChild,
+      );
+      yield* Deferred.await(subscribed);
+      return listed;
+    });
+
+    it.effect("is refused now, starts one background refresh, and is accepted on the retry", () =>
+      Effect.gen(function* () {
+        const { fake, phone, exchange } = yield* arrange;
+        const before = fake.callsTo("listDevices");
+        const newcomer = fake.addDevice({ kind: "phone", name: "Newcomer" });
+        const listed = yield* nextListing(newcomer.id);
+
+        const first = (yield* exchange(newcomer)).response;
+        assert.equal(first.status, 401);
+        assert.equal(reason(first), "device_unknown");
+        yield* Fiber.join(listed);
+        assert.equal(fake.callsTo("listDevices"), before + 1);
+        assert.equal((yield* exchange(newcomer)).response.status, 200);
+        // A device the list already had asks for nothing.
+        assert.equal((yield* exchange(phone)).response.status, 200);
+        assert.equal(fake.callsTo("listDevices"), before + 1);
+      }).pipe(Effect.provide(layerHarness)),
+    );
+
+    it.effect("starts one refresh per ten seconds, whichever devices ask", () =>
+      Effect.gen(function* () {
+        const { fake, exchange } = yield* arrange;
+        const before = fake.callsTo("listDevices");
+        const first = fake.addDevice({ kind: "phone", name: "First" });
+        const second = fake.addDevice({ kind: "phone", name: "Second" });
+        const listedFirst = yield* nextListing(first.id);
+
+        assert.equal(reason((yield* exchange(first)).response), "device_unknown");
+        yield* Fiber.join(listedFirst);
+        // The refresh brought both, so ask again with a device the registry only learns of later.
+        const late = fake.addDevice({ kind: "phone", name: "Late" });
+        assert.equal(reason((yield* exchange(late)).response), "device_unknown");
+        assert.equal(reason((yield* exchange(second, { pass: {} })).response), undefined);
+        assert.equal(fake.callsTo("listDevices"), before + 1);
+
+        yield* TestClock.adjust(Duration.seconds(10));
+        const listedLate = yield* nextListing(late.id);
+        assert.equal(reason((yield* exchange(late)).response), "device_unknown");
+        yield* Fiber.join(listedLate);
+        assert.equal(fake.callsTo("listDevices"), before + 2);
+        assert.equal((yield* exchange(late)).response.status, 200);
+      }).pipe(Effect.provide(layerHarness)),
+    );
+  });
 });

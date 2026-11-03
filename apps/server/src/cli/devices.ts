@@ -22,6 +22,7 @@ import { layerServices } from "../fork/deviceKeys/layer.ts";
 import { renderTerminalQrCode } from "../startupAccess.ts";
 import { tunnelCommand } from "./devicesTunnel.ts"; // fork: 8.3
 import { authLocationFlags, resolveCliAuthConfig, type CliAuthLocationFlags } from "./config.ts";
+import { reportDeviceErrors } from "./devicesReport.ts"; // fork: 8.3
 
 const runWithDevices = Effect.fn("devices.run")(function* <A, E>(
   flags: CliAuthLocationFlags,
@@ -31,6 +32,11 @@ const runWithDevices = Effect.fn("devices.run")(function* <A, E>(
   const logLevel = yield* GlobalFlag.LogLevel;
   const config = yield* resolveCliAuthConfig(flags, logLevel, options);
   return yield* run.pipe(
+    reportDeviceErrors,
+    // The layer's level covers building it; the command's own logs (a failed sync) need it too.
+    options?.quietLogs
+      ? Effect.provideService(References.MinimumLogLevel, "Error")
+      : (self) => self,
     Effect.provide(
       layerServices.pipe(
         Layer.provide(FetchHttpClient.layer),
@@ -86,7 +92,15 @@ const listCommand = Command.make("list", { ...authLocationFlags, json: jsonFlag 
     runWithDevices(
       flags,
       Effect.gen(function* () {
-        const state = yield* (yield* DeviceDirectory.DeviceDirectory).state;
+        const directory = yield* DeviceDirectory.DeviceDirectory;
+        // A list is only as good as its last sync, so try one; a failed try keeps the old list.
+        const attempt = yield* Effect.result(directory.sync);
+        const state = yield* directory.state;
+        const fetchedAt = Option.match(state.list, {
+          onNone: () => null,
+          onSome: (list) => list.fetchedAt,
+        });
+        const synced = attempt._tag === "Success" && !(yield* directory.lastSyncFailed);
         const devices = Option.match(state.list, {
           onNone: () => [],
           onSome: (list) => list.devices,
@@ -96,7 +110,9 @@ const listCommand = Command.make("list", { ...authLocationFlags, json: jsonFlag 
           onSome: (membership) => membership.deviceId,
         });
         if (flags.json) {
-          yield* Console.log(toJson({ staleness: state.staleness, self, devices }));
+          yield* Console.log(
+            toJson({ staleness: state.staleness, fetchedAt, synced, self, devices }),
+          );
           return;
         }
         if (devices.length === 0) {
@@ -105,7 +121,11 @@ const listCommand = Command.make("list", { ...authLocationFlags, json: jsonFlag 
           );
           return;
         }
-        yield* Console.log(`List is ${state.staleness}.`);
+        yield* Console.log(
+          synced
+            ? `Synced with your server just now (${when(fetchedAt ?? undefined)}).`
+            : `Your server could not be reached. This list is from the last successful sync, ${when(fetchedAt ?? undefined)}${state.staleness === "fresh" ? "" : ` (${state.staleness})`}.`,
+        );
         for (const device of devices) {
           yield* Console.log(
             [
@@ -118,7 +138,7 @@ const listCommand = Command.make("list", { ...authLocationFlags, json: jsonFlag 
           );
         }
       }),
-      { quietLogs: flags.json },
+      { quietLogs: true },
     ),
   ),
 );

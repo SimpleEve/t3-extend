@@ -32,6 +32,8 @@ import * as RegistryClient from "./RegistryClient.ts";
 export const MEMBERSHIP_SECRET = "fork-device-membership";
 export const LIST_SECRET = "fork-device-list";
 const SYNC_INTERVAL = Duration.seconds(60);
+/** Unknown device ids ask for a refresh; at most one is started per this long, whichever ids they are. */
+const UNKNOWN_DEVICE_REFRESH_GAP_MILLIS = 10_000;
 /** Past this the settings page warns. */
 const WARN_AFTER_SECONDS = 24 * 60 * 60;
 /** Past this no new device passes are accepted (a sync success restores them). */
@@ -98,6 +100,13 @@ export class DeviceDirectory extends Context.Service<
     readonly changes: Stream.Stream<DevicesSnapshot>;
     /** One pull from the registry, then the reconcile. The 60-second tick and `devices.refresh` run it. */
     readonly sync: Effect.Effect<DevicesStatus, DeviceKeysError>;
+    /**
+     * A pass named a device this list does not have: sync in the background, without waiting, so the
+     * next try may find it. One at a time, and at most one per 10 seconds; nothing when not joined.
+     */
+    readonly refreshSoon: Effect.Effect<void>;
+    /** Whether the latest `sync` in this process could not get the registry's list. False before any. */
+    readonly lastSyncFailed: Effect.Effect<boolean>;
     /** Syncs immediately, then every 60 seconds, forever. The layer forks it once the server is active. */
     readonly syncLoop: Effect.Effect<unknown>;
     /** The only way in or out of membership besides a sync that finds this computer removed. */
@@ -131,6 +140,8 @@ const make = Effect.gen(function* () {
   const registry = yield* RegistryClient.RegistryClient;
   const sessions = yield* SessionStore.SessionStore;
   const gate = yield* Semaphore.make(1);
+  const layerScope = yield* Effect.scope;
+  const syncFailed = yield* Ref.make(false);
   const changes = yield* PubSub.unbounded<DevicesSnapshot>();
   const tunnel = yield* Ref.make<DeviceTunnelStatus>({ status: "disabled", lastError: null });
 
@@ -283,7 +294,10 @@ const make = Effect.gen(function* () {
     const membership = Option.getOrUndefined(local.membership);
     if (membership === undefined) return yield* status;
     const key = yield* identity.peek.pipe(storageFailure);
-    if (Option.isNone(key)) return yield* status;
+    if (Option.isNone(key)) {
+      yield* Ref.set(syncFailed, true);
+      return yield* status;
+    }
     const target = {
       origin: membership.registryOrigin,
       registryId: membership.registryId,
@@ -296,6 +310,7 @@ const make = Effect.gen(function* () {
         Option.match(local.list, { onNone: () => undefined, onSome: (list) => list.rev }),
       )
       .pipe(Effect.result);
+    yield* Ref.set(syncFailed, fetched._tag === "Failure");
     if (fetched._tag === "Failure") {
       const error = fetched.failure;
       if (error.kind === "rejected" && error.code === "device_unknown") {
@@ -342,6 +357,35 @@ const make = Effect.gen(function* () {
     return yield* status;
   });
 
+  const unknownDeviceRefresh = yield* Ref.make<{
+    readonly running: boolean;
+    readonly startedAt: number | undefined;
+  }>({ running: false, startedAt: undefined });
+  const refreshSoon = Effect.gen(function* () {
+    if (Option.isNone((yield* Ref.get(state)).membership)) return;
+    const now = yield* Clock.currentTimeMillis;
+    const start = yield* Ref.modify(unknownDeviceRefresh, (current) =>
+      current.running ||
+      (current.startedAt !== undefined &&
+        now - current.startedAt < UNKNOWN_DEVICE_REFRESH_GAP_MILLIS)
+        ? ([false, current] as const)
+        : ([true, { running: true, startedAt: now }] as const),
+    );
+    if (!start) return;
+    // Not in the request's fiber: it ends with the response, and the refresh must not.
+    yield* sync().pipe(
+      Effect.catch((error) =>
+        Effect.logWarning("Device list refresh after an unknown device failed.", {
+          error: error.message,
+        }),
+      ),
+      Effect.ensuring(
+        Ref.update(unknownDeviceRefresh, (current) => ({ ...current, running: false })),
+      ),
+      Effect.forkIn(layerScope),
+    );
+  });
+
   const syncLoop = sync().pipe(
     Effect.catch((error) =>
       Effect.logWarning("Device list sync failed.", { error: error.message }),
@@ -369,6 +413,8 @@ const make = Effect.gen(function* () {
       }),
     ),
     sync: sync(),
+    refreshSoon,
+    lastSyncFailed: Ref.get(syncFailed),
     syncLoop,
     adopt: Effect.fn("DeviceDirectory.adopt")(function* (membership) {
       yield* gate.withPermits(1)(

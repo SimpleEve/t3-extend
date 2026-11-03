@@ -27,6 +27,7 @@ import {
   TUNNEL_STATUS_FILE,
 } from "../fork/deviceKeys/tunnelStatusFile.ts";
 import { authLocationFlags, resolveCliAuthConfig, type CliAuthLocationFlags } from "./config.ts";
+import { reportDeviceErrors } from "./devicesReport.ts";
 
 const isRunning = (pid: number): boolean => {
   try {
@@ -92,6 +93,7 @@ const withTunnelServices = Effect.fn("devices.tunnel.run")(function* <A, E, R>(
   const logLevel = yield* GlobalFlag.LogLevel;
   const config = yield* resolveCliAuthConfig(flags, logLevel, options);
   return yield* run.pipe(
+    reportDeviceErrors,
     Effect.provide(
       Layer.mergeAll(FrpBinary.layer(), layerServices).pipe(
         Layer.provide(FetchHttpClient.layer),

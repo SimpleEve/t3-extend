@@ -55,12 +55,19 @@ describe("t3x devices", () => {
       assert.equal(listed.code, 0, listed.err);
       assert.include(listed.out, "Studio (this computer)");
       assert.include(listed.out, "Laptop");
+      // The seeded server does not exist: the list says so and from when it dates.
+      assert.include(listed.out, "could not be reached");
+      assert.include(listed.out, "last successful sync");
       const json = decodeJson((yield* run(baseDir, "list", "--json")).out) as {
         readonly self: string;
+        readonly fetchedAt: number | null;
+        readonly synced: boolean;
         readonly devices: ReadonlyArray<{ readonly name: string }>;
       };
       assert.equal(json.devices.length, 2);
       assert.isString(json.self);
+      assert.isNumber(json.fetchedAt);
+      assert.isFalse(json.synced);
       assert.include(seeded.tunnelOrigin, "studio");
 
       const missing = yield* run(baseDir, "remove", "Nobody");
@@ -75,6 +82,8 @@ describe("t3x devices", () => {
       const joined = yield* run(baseDir, "join", "t3x1.not-an-invite");
       assert.notEqual(joined.code, 0);
       assert.include(joined.err + joined.out, "not valid for a computer");
+      // One line on stderr, not a logged stack trace.
+      assert.equal(joined.err.trim().split("\n").length, 1, joined.err);
     }).pipe(Effect.scoped),
   );
 });
