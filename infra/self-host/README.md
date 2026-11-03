@@ -17,7 +17,7 @@
 
 ## 安装
 
-在 VPS 上，进到这个目录：
+`setup.sh` 只用在 Linux VPS 上；想在 Mac 上试，看下面的「本地试用」。在 VPS 上，进到这个目录：
 
 ```
 ./setup.sh --domain t3.example.com --email you@example.com
@@ -29,6 +29,33 @@
 
 脚本可以重复运行，不会重置已有的数据。换域名等于重新开始：先删掉 `.env` 和注册表的数据卷。
 
+## 本地试用
+
+想在自己的电脑上先试一遍，不租 VPS、不买域名，也不碰系统：Docker 里跑一套完整的服务，只监听本机回环地址（`127.0.0.1` 和 `::1` 的 18443 端口），局域网和外网都访问不到。证书用 Caddy 自己的根证书，浏览器会提示不受信任。
+
+**不要在 Mac 上直接运行生产命令。** 生产配置会把 80 和 443 开到局域网，还会去 Let's Encrypt 申请真证书，所以 `setup.sh` 在 Mac 上遇到生产配置会直接拒绝（`--dry-run` 不受限）。试用必须带上测试覆盖文件 `docker-compose.test.yml`，下面的命令已经带上了：
+
+```
+export T3X_DATA_DIR=/tmp/t3x-trial
+export T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.test.yml
+export T3X_PROJECT=t3x-trial
+./setup.sh --domain t3.localhost --public-port 18443
+```
+
+| 设置                | 作用                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------- |
+| `T3X_DATA_DIR`      | `.env` 和 `secrets/` 放在哪里，默认是脚本所在目录。试用时指向一个临时目录，不弄脏仓库。 |
+| `T3X_COMPOSE_FILES` | 用哪些 compose 文件，冒号分隔。带上 `docker-compose.test.yml` 就是本地试用模式。        |
+| `T3X_PROJECT`       | compose 项目名，默认 `t3x`。换一个名字，试用和正式部署的容器、数据卷互不干扰。          |
+| `--public-port`     | 对外的 HTTPS 端口，只在试用模式下可以改，默认 443。                                     |
+| `--dry-run`         | 只打印会做什么，不写文件、不启动服务。                                                  |
+
+之后用 `./t3x` 时同样带上这三个环境变量。试用模式下邮箱可以不填。用完后清理：
+
+```
+docker compose -p t3x-trial -f docker-compose.yml -f docker-compose.test.yml --env-file /tmp/t3x-trial/.env --profile ntfy down -v
+```
+
 ## 邀请电脑和手机
 
 邀请只能用一次，15 分钟内有效，请当作密码传递。
@@ -37,7 +64,7 @@
 - **更多电脑**：在 VPS 上运行 `./t3x invite --kind computer`。
 - **手机**：运行 `./t3x invite --kind phone`，用手机扫屏幕上的二维码；没有二维码工具时，复制字符串。
 
-手机想收到推送通知（Android），运行 `./t3x ntfy`，它会显示推送服务器地址和手机用的账号密码。
+手机想收到推送通知（Android），运行 `./t3x ntfy`，它会显示推送服务器地址和手机用的账号密码。用 `--no-ntfy` 安装的服务器没有推送服务器，`./t3x ntfy` 会提示未安装。
 
 ## 管理设备
 
@@ -49,7 +76,9 @@
 | 改显示名                             | `./t3x rename <名字> <新名字>` |
 | 释放已移除电脑的子域名               | `./t3x release <子域名>`       |
 
-移除后，这台设备拿不到新的访问权限；已经建立的隧道最迟 30 秒内被断开。被移除电脑的子域名默认不再分配给别人，要重新用它，先 `release`。
+移除后，这台设备拿不到新的访问权限。它和服务器之间的连接最多约 30 秒内断开；这段时间里刚发出的请求，仍可能成功。
+
+被移除电脑的子域名默认不再分配给别人。`./t3x release <子域名>` 只对已移除电脑留下的子域名有效，作用是让这个名字可以重新分配；对还在使用的子域名，或者从没用过的名字，它会报错并且什么也不做。
 
 ## 出问题时
 
