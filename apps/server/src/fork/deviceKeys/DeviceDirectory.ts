@@ -298,12 +298,7 @@ const make = Effect.gen(function* () {
       deviceId: membership.deviceId,
       privateKey: key.value.privateKey,
     };
-    const fetched = yield* registry
-      .listDevices(
-        target,
-        Option.match(local.list, { onNone: () => undefined, onSome: (list) => list.rev }),
-      )
-      .pipe(Effect.result);
+    const fetched = yield* registry.listDevices(target).pipe(Effect.result);
     if (fetched._tag === "Failure") {
       const error = fetched.failure;
       if (error.kind === "rejected" && error.code === "device_unknown") {
@@ -322,27 +317,23 @@ const make = Effect.gen(function* () {
         const now = yield* nowSeconds;
         const before = yield* Ref.get(state);
         if (Option.isNone(before.membership)) return;
-        const result = fetched.success;
-        const next: Option.Option<StoredList> =
-          result._tag === "Updated"
-            ? Option.some({
-                v: 1,
-                rev: result.body.rev,
-                fetchedAt: now,
-                registryId: result.body.registryId,
-                devices: result.body.devices,
-              })
-            : Option.map(before.list, (list) => ({ ...list, fetchedAt: now }));
-        if (Option.isNone(next)) return;
-        if (!next.value.devices.some((device) => device.id === membership.deviceId)) {
+        const body = fetched.success;
+        const next: StoredList = {
+          v: 1,
+          rev: body.rev,
+          fetchedAt: now,
+          registryId: body.registryId,
+          devices: body.devices,
+        };
+        if (!next.devices.some((device) => device.id === membership.deviceId)) {
           // The registry answered with a list that does not contain this computer.
           yield* clearLocked("removed");
           return;
         }
-        yield* persistList(next.value);
-        yield* Ref.update(state, (current) => ({ ...current, list: next }));
-        yield* reconcile(new Set(next.value.devices.map((device) => device.id)));
-        // Every successful answer, a 304 included, moves `fetchedAt`, which clients show as the last sync.
+        yield* persistList(next);
+        yield* Ref.update(state, (current) => ({ ...current, list: Option.some(next) }));
+        yield* reconcile(new Set(next.devices.map((device) => device.id)));
+        // Every successful answer moves `fetchedAt`, which clients show as the last sync.
         yield* publish;
       }),
     );

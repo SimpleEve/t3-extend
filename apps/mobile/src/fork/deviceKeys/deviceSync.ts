@@ -203,19 +203,14 @@ export function createDeviceSync(deps: DeviceSyncDeps) {
     lastAttemptMs = nowMs();
     const { membership } = current;
     try {
-      const result = await listRegistryDevices(
-        deps.registry,
-        { origin: membership.origin, registryId: membership.registryId, key },
-        current.rev ?? undefined,
-      );
+      const body = await listRegistryDevices(deps.registry, {
+        origin: membership.origin,
+        registryId: membership.registryId,
+        key,
+      });
       const now = deps.registry.nowSeconds();
       // The answer is for the membership that asked: a leave or a new join in between wins.
       if (state._tag !== "joined" || state.membership !== membership) return;
-      if (result._tag === "NotModified") {
-        set({ ...state, fetchedAt: now, unreachable: false });
-        return;
-      }
-      const { body } = result;
       if (!body.devices.some((device) => device.id === membership.deviceId)) {
         // Listed by a registry that does not know this device: treat it as removed.
         await forget(true);

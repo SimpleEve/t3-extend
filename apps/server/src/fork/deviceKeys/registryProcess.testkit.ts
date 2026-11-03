@@ -27,6 +27,8 @@ export interface SentRequest {
   readonly bodyTag: string;
   readonly contentLength: number | undefined;
   readonly bodyBytes: number;
+  /** Whether the request asked for a 304 with `If-None-Match`. */
+  readonly conditional: boolean;
 }
 
 export class RegistryProcess extends Context.Service<
@@ -125,6 +127,7 @@ export const layerRegistryHttp = Layer.effect(
           contentLength:
             "contentLength" in request.body ? (request.body.contentLength ?? undefined) : undefined,
           bodyBytes: request.body._tag === "Uint8Array" ? request.body.body.length : 0,
+          conditional: request.headers["if-none-match"] !== undefined,
         });
         return HttpClientRequest.setUrl(
           request,

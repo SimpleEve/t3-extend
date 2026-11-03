@@ -133,7 +133,7 @@ function fakeRegistry(options: { registryId?: string } = {}) {
       const caller = devices.get(kid);
       if (caller === undefined) return json(401, { error: "device_unknown" });
       check(caller.jwk);
-      if (headers.get("if-none-match") === `"${rev}"`) return new Response(null, { status: 304 });
+      // Like the registry: `online` and the sync times move without `rev`, so there is no 304.
       return json(200, {
         registryId: options.registryId ?? REGISTRY_ID,
         rev,
@@ -365,29 +365,40 @@ describe("keeping the list current", () => {
     expect(registry.requests).toHaveLength(2);
   });
 
-  it("asks only if the list changed, and hands the connection code new lists only", async () => {
+  it("asks for the whole list every time, and takes a change that did not move rev", async () => {
     const { sync, registry, views } = await joined();
     registry.state.now += 45;
     await sync.refresh({ force: true });
-    expect(registry.requests[0]!.headers.get("if-none-match")).toMatch(/^"\d+"$/);
-    expect(views).toEqual([]);
-    // A 304 is an answer, not a redirect: the list is current as of now.
+    expect(registry.requests[0]!.headers.get("if-none-match")).toBeNull();
     expect(joinedState(sync.state())).toMatchObject({
       fetchedAt: registry.state.now,
       unreachable: false,
     });
+    // The connection code gets the list each time; it does nothing for one it already has.
+    expect(views).toHaveLength(1);
 
-    registry.devices.set("mini", {
-      ...mac,
-      id: "mini",
-      name: "Mini",
-      url: "https://mini.t3.example.com",
-    });
-    registry.bumpRev();
+    const rev = joinedState(sync.state()).rev;
+    registry.devices.set("mac-id", { ...mac, online: true, lastSeenAt: registry.state.now });
     registry.state.now += 60;
     await sync.refresh({ force: true });
-    expect(views).toHaveLength(1);
-    expect(joinedState(sync.state()).devices.map((d) => d.id)).toContain("mini");
+    const after = joinedState(sync.state());
+    expect(after.rev).toBe(rev);
+    expect(after.devices.find((d) => d.id === "mac-id")?.online).toBe(true);
+    expect(views).toHaveLength(2);
+  });
+
+  it("treats a 304 as a protocol error, never as an answer", async () => {
+    const { sync, registry, views } = await joined();
+    const before = joinedState(sync.state());
+    registry.state.reply.set("/v1/devices", () => new Response(null, { status: 304 }));
+    registry.state.now += 45;
+    await sync.refresh({ force: true });
+    const after = joinedState(sync.state());
+    expect(after.unreachable).toBe(true);
+    expect(after.fetchedAt).toBe(before.fetchedAt);
+    expect(after.devices).toBe(before.devices);
+    expect(views).toEqual([]);
+    expect(sync.state()._tag).toBe("joined");
   });
 
   it("keeps what it had and says so when the registry cannot be reached", async () => {

@@ -45,10 +45,6 @@ export interface RegistryTarget {
   readonly key: DeviceKeyPair;
 }
 
-export type DevicesFetch =
-  | { readonly _tag: "NotModified" }
-  | { readonly _tag: "Updated"; readonly body: RegistryDevicesResponse };
-
 const REQUEST_TIMEOUT_MS = 15_000;
 const decodeInfo = Schema.decodeUnknownSync(RegistryInfo);
 const decodeJoin = Schema.decodeUnknownSync(RegistryJoinResponse);
@@ -76,7 +72,6 @@ async function send(
     readonly proof?:
       | { readonly kid: string; readonly privateKey: Uint8Array }
       | { readonly jwk: DeviceJwk; readonly privateKey: Uint8Array };
-    readonly headers?: Record<string, string>;
   },
 ): Promise<{ readonly status: number; readonly json: unknown }> {
   let origin: string;
@@ -87,7 +82,7 @@ async function send(
   }
   const bodyBytes =
     input.body === undefined ? undefined : new TextEncoder().encode(JSON.stringify(input.body));
-  const headers: Record<string, string> = { ...input.headers };
+  const headers: Record<string, string> = {};
   if (input.proof !== undefined) {
     headers["t3x-proof"] = signRequestProof({
       ...input.proof,
@@ -123,7 +118,7 @@ async function send(
   // phone's fetch is `expo/fetch`, which really does not follow them; this is the second line.
   if (
     response.status < 200 ||
-    (response.status >= 300 && response.status < 400 && response.status !== 304) ||
+    (response.status >= 300 && response.status < 400) ||
     response.redirected ||
     isOtherOrigin(response.url, origin)
   ) {
@@ -135,7 +130,7 @@ async function send(
   } catch {
     json = undefined;
   }
-  if (response.status >= 300 && response.status !== 304) {
+  if (response.status >= 300) {
     const code =
       typeof json === "object" &&
       json !== null &&
@@ -183,23 +178,19 @@ export async function joinRegistry(
   return decoded(decodeJoin, json);
 }
 
+/** Always the registry's current list: `online` and the sync times change without `rev` moving. */
 export async function listRegistryDevices(
   env: RegistryEnvironment,
   target: RegistryTarget,
-  ifNoneMatchRev: number | undefined,
-): Promise<DevicesFetch> {
+): Promise<RegistryDevicesResponse> {
   const result = await send(env, {
     origin: target.origin,
     method: "GET",
     path: "/v1/devices",
     proof: { kid: target.key.id, privateKey: target.key.privateKey },
-    ...(ifNoneMatchRev === undefined
-      ? {}
-      : { headers: { "if-none-match": `"${ifNoneMatchRev}"` } }),
   });
-  if (result.status === 304) return { _tag: "NotModified" };
   const body = decoded(decodeDevices, result.json);
   // Another registry answering at this address is discarded, not believed (design Q11, pinning).
   if (body.registryId !== target.registryId) throw protocol(undefined, "registry_mismatch");
-  return { _tag: "Updated", body };
+  return body;
 }

@@ -31,10 +31,10 @@ const listing = await phone.request("GET", "/v1/devices");
 say(
   `phone lists devices -> ${listing.status}: ${listing.json.devices.map((d) => `${d.name}/${d.kind}/${d.subdomain ?? "-"}`).join(", ")} rev=${listing.json.rev}`,
 );
-const cached = await phone.request("GET", "/v1/devices", {
-  headers: { "if-none-match": listing.headers.get("etag") },
-});
-say(`phone lists again with If-None-Match -> ${cached.status}`);
+const relisted = await phone.request("GET", "/v1/devices");
+say(
+  `phone lists again -> ${relisted.status}, always a full body (${relisted.json.devices.length} devices)`,
+);
 
 const removed = await mac.request("DELETE", `/v1/devices/${phone.id}`);
 say(`computer removes the phone -> ${removed.status} ${removed.text}`);

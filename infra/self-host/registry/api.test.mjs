@@ -494,7 +494,7 @@ describe("signed requests: canonicalisation", () => {
 });
 
 describe("GET /v1/devices", () => {
-  it("lists every device with the contract's fields, supports If-None-Match, and tracks sync times", async () => {
+  it("lists every device with the contract's fields and tracks sync times", async () => {
     const mac = await enroll(reg, { name: "Mac" });
     const phone = await enroll(reg, { name: "Pixel", kind: "phone" });
     await mac.send("PATCH", "/v1/devices/self", { json: { environmentId: "env_mac" } });
@@ -502,7 +502,7 @@ describe("GET /v1/devices", () => {
 
     const listing = await phone.send("GET", "/v1/devices");
     assert.equal(listing.status, 200);
-    assert.equal(listing.headers.etag, `"${reg.store.rev}"`);
+    assert.equal(listing.headers.etag, undefined);
     assert.equal(listing.json.registryId, reg.store.registryId);
     assert.equal(listing.json.rev, reg.store.rev);
     const [first, second] = listing.json.devices;
@@ -523,19 +523,26 @@ describe("GET /v1/devices", () => {
     assert.equal(second.online, undefined);
     assert.equal(second.lastSyncAt, reg.clock.now());
 
-    const unchanged = await phone.send("GET", "/v1/devices", {
-      headers: { "if-none-match": listing.headers.etag },
-    });
-    assert.equal(unchanged.status, 304);
-    assert.equal(unchanged.text, "");
-    assert.equal(unchanged.headers.etag, listing.headers.etag);
-    assert.equal(unchanged.headers["cache-control"], "no-store");
+    assert.equal(listing.headers["cache-control"], "no-store");
+  });
 
-    await mac.send("PATCH", "/v1/devices/self", { json: { environmentId: "env_mac2" } });
-    const changed = await phone.send("GET", "/v1/devices", {
-      headers: { "if-none-match": listing.headers.etag },
+  it("answers a conditional request with the current body, because online and sync times move without rev", async () => {
+    const mac = await enroll(reg, { name: "Mac" });
+    const phone = await enroll(reg, { name: "Pixel", kind: "phone" });
+    const before = await phone.send("GET", "/v1/devices");
+    assert.equal(before.json.devices.find((d) => d.id === mac.id).online, false);
+    const rev = reg.store.rev;
+    // What the frps plugin does on every Ping: the tunnel clock moves, rev does not.
+    reg.clock.advance(5);
+    reg.store.touch(mac.id, "tunnel", reg.clock.now());
+    assert.equal(reg.store.rev, rev);
+
+    const after = await phone.send("GET", "/v1/devices", {
+      headers: { "if-none-match": `"${rev}"` },
     });
-    assert.equal(changed.status, 200);
+    assert.equal(after.status, 200);
+    assert.equal(after.json.rev, rev);
+    assert.equal(after.json.devices.find((d) => d.id === mac.id).online, true);
   });
 
   it("reports a computer online while its tunnel has been seen in the last 90 seconds", async () => {

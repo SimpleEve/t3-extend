@@ -54,9 +54,9 @@ const arrange = Effect.gen(function* () {
 });
 
 describe("sync and persistence", () => {
-  it.effect("stores the list, answers 304 without changing it, and survives a restart", () =>
+  it.effect("stores the list, re-reads an unchanged one, and survives a restart", () =>
     Effect.gen(function* () {
-      const { fake, directory, phone } = yield* arrange;
+      const { directory, phone } = yield* arrange;
       const first = yield* directory.state;
       assert.equal(first.staleness, "fresh");
       assert.deepEqual(
@@ -69,13 +69,10 @@ describe("sync and persistence", () => {
 
       yield* TestClock.adjust(Duration.seconds(100));
       yield* directory.sync;
-      const after304 = Option.getOrThrow((yield* directory.state).list);
-      assert.equal(after304.fetchedAt, NOW_S + 100);
-      assert.equal(after304.rev, Option.getOrThrow(first.list).rev);
-      assert.equal(
-        fake.state.calls.filter((c) => c.op === "listDevices").at(-1)?.detail !== undefined,
-        true,
-      );
+      const unchanged = Option.getOrThrow((yield* directory.state).list);
+      assert.equal(unchanged.fetchedAt, NOW_S + 100);
+      assert.equal(unchanged.rev, Option.getOrThrow(first.list).rev);
+      assert.deepEqual(unchanged.devices, Option.getOrThrow(first.list).devices);
 
       // A restarted server reads the same membership and list from disk.
       const restarted = yield* Layer.build(DeviceDirectory.layer);
@@ -83,7 +80,7 @@ describe("sync and persistence", () => {
         DeviceDirectory.DeviceDirectory.pipe(Effect.flatMap((d) => d.state)),
         restarted,
       );
-      assert.equal(Option.getOrThrow(reloaded.list).rev, after304.rev);
+      assert.equal(Option.getOrThrow(reloaded.list).rev, unchanged.rev);
       assert.equal(
         Option.getOrThrow(reloaded.membership).deviceId,
         Option.getOrThrow((yield* directory.state).membership).deviceId,
@@ -92,6 +89,30 @@ describe("sync and persistence", () => {
         Option.getOrThrow(reloaded.list).devices.some((device) => device.id === phone.id),
       );
     }).pipe(Effect.provide(layerHarness), Effect.scoped),
+  );
+
+  it.effect("takes the current body even when rev did not change", () =>
+    Effect.gen(function* () {
+      const { fake, directory, laptop } = yield* arrange;
+      const onlineOf = Effect.map(
+        directory.state,
+        (state) =>
+          Option.getOrThrow(state.list).devices.find((device) => device.id === laptop.id)?.online,
+      );
+      assert.isUndefined(yield* onlineOf);
+      // Online and the sync times move with the clock, not with rev.
+      const rev = fake.state.rev;
+      fake.state.devices = fake.state.devices.map((device) =>
+        device.id === laptop.id ? { ...device, online: true, lastSeenAt: NOW_S + 50 } : device,
+      );
+      yield* directory.sync;
+      assert.equal(fake.state.rev, rev);
+      assert.isTrue(yield* onlineOf);
+      const seen = Option.getOrThrow((yield* directory.state).list).devices.find(
+        (device) => device.id === laptop.id,
+      );
+      assert.equal(seen?.lastSeenAt, NOW_S + 50);
+    }).pipe(Effect.provide(layerHarness)),
   );
 
   it.effect("keeps the last list, and its age, when the registry cannot be reached", () =>
@@ -188,7 +209,7 @@ describe("reconcile", () => {
     }).pipe(Effect.provide(layerHarness)),
   );
 
-  it.effect("also reconciles on a 304, so a revoke that failed once is retried", () =>
+  it.effect("reconciles on every sync, so a revoke that failed once is retried", () =>
     Effect.gen(function* () {
       const { fake, directory, phone, sessionFor, live } = yield* arrange;
       fake.removeDevice(phone.id);
@@ -259,7 +280,7 @@ describe("this computer leaves the server", () => {
 });
 
 describe("changes", () => {
-  it.effect("streams the current snapshot, then every successful sync, a 304 included", () =>
+  it.effect("streams the current snapshot, then every successful sync", () =>
     Effect.gen(function* () {
       const { fake, directory } = yield* arrange;
       const seen = yield* directory.changes.pipe(
@@ -273,7 +294,7 @@ describe("changes", () => {
       );
       fake.addDevice({ kind: "phone", name: "Tablet" });
       yield* directory.sync;
-      // A 304 changes the list not at all, but the sync time moves and clients show it.
+      // An unchanged list still moves the sync time, which clients show.
       yield* TestClock.adjust(Duration.seconds(100));
       yield* directory.sync;
       fake.addDevice({ kind: "phone", name: "Watch" });

@@ -139,21 +139,16 @@ export const layerFakeRegistry = Layer.unwrap(
             }),
           ),
         ),
-      listDevices: (target, rev) =>
+      listDevices: (target) =>
         gate(target).pipe(
           Effect.andThen(
             Effect.sync(() => {
-              record("listDevices", { rev });
-              return rev === state.rev
-                ? ({ _tag: "NotModified" } as const)
-                : ({
-                    _tag: "Updated",
-                    body: {
-                      registryId: FAKE_REGISTRY_ID,
-                      rev: state.rev,
-                      devices: [...state.devices],
-                    },
-                  } as const);
+              record("listDevices");
+              return {
+                registryId: FAKE_REGISTRY_ID,
+                rev: state.rev,
+                devices: [...state.devices],
+              };
             }),
           ),
         ),
