@@ -15,7 +15,9 @@ type IconVariant = "dev" | "nightly" | "prod";
 
 const ADAPTIVE_CANVAS = 432;
 const SPLASH_CANVAS = 1152;
-const TEXT = { x: 15.53, y: 37, width: 94.5, height: 57 };
+// fork: the ink box of assets/fork/mark.svg, which replaces the T3 glyph in text.svg. The
+// fraction keeps the mark at the same 48% of the adaptive canvas the glyph had.
+const TEXT = { x: 26, y: 26, width: 76, height: 76 };
 const WORDMARK_FRACTION = 0.48;
 const COMPOSER_CANVAS_PT = 1024;
 const SVG_DENSITY = 300;

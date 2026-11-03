@@ -60,7 +60,7 @@ import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { Command, Flag } from "effect/cli";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
-import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { FORK, OFFICIAL_APP_NAME } from "@t3tools/shared/forkIdentity"; // fork: identity
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 const DESKTOP_APP_ID = FORK.appId; // fork: own bundle id
@@ -1083,6 +1083,15 @@ export const WSL_RUNTIME_EXTRA_RESOURCES = [
   WSL_RUNTIME_ARCHIVE_HASH_EXTRA_RESOURCE,
 ] as const;
 export const DESKTOP_EXTRA_RESOURCES = [
+  // fork: MIT's notice requirement travels with the binary, not just the source tree.
+  {
+    from: "LICENSE",
+    to: "LICENSE",
+  },
+  {
+    from: "NOTICE",
+    to: "NOTICE",
+  },
   {
     from: "apps/desktop/prod-resources/cursor-sdk",
     to: "node_modules/@cursor",
@@ -3855,11 +3864,11 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
     ...(macWebAuthn ? { t3codeWebAuthn: macWebAuthn } : {}),
     private: true,
     packageManager: rootPackageJson.packageManager,
-    description:
-      "T3 Code is an open-source desktop app for coding agents. Work with your existing agent subscriptions, review code changes, and run commands in your projects. Connect from desktop, web, or mobile to continue working remotely.",
+    // fork: these three name the fork, not upstream; the MIT notice stays in LICENSE and NOTICE.
+    description: `${FORK.appBaseName} is a fork of ${OFFICIAL_APP_NAME}, an open-source desktop app for coding agents.`,
     license: "MIT",
-    homepage: "https://t3.codes",
-    author: "T3 Tools",
+    homepage: `https://github.com/${FORK.releaseRepository}`,
+    author: "SimpleEve",
     main: "apps/desktop/dist-electron/boot.cjs",
     build: yield* createBuildConfig(
       options.platform,

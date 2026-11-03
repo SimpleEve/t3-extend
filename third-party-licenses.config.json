@@ -1,6 +1,13 @@
 {
   "customNotices": [
     {
+      "name": "T3 Extend (fork of T3 Code)",
+      "bundles": ["android", "desktop", "ios", "mobile", "web"],
+      "license": "MIT",
+      "sourceUrl": "https://github.com/SimpleEve/t3-extend",
+      "noticeFile": "NOTICE"
+    },
+    {
       "name": "opencode Office viewers",
       "bundles": ["web"],
       "license": "MIT",
