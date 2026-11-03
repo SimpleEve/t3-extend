@@ -37,8 +37,14 @@ export function footerChipSize(labels: {
   };
 }
 
+// Each step only adds width: a label shorter than the one before it is counted as that long.
 function widthAt(size: FooterChipSize, density: FooterDensity): number {
-  return density === "full" ? size.fullPx : density === "compact" ? size.compactPx : ICON_CHIP_PX;
+  const compact = Math.max(size.compactPx, ICON_CHIP_PX);
+  return density === "full"
+    ? Math.max(size.fullPx, compact)
+    : density === "compact"
+      ? compact
+      : ICON_CHIP_PX;
 }
 
 function rowWidth(sizes: readonly FooterChipSize[], densities: readonly FooterDensity[]): number {
@@ -49,26 +55,31 @@ function rowWidth(sizes: readonly FooterChipSize[], densities: readonly FooterDe
 }
 
 /**
- * How each chip is drawn in `available` pixels; `chips` is in priority order, highest first.
- * Chips that cannot even show their icon are dropped from the end. Of those that stay, each gets
- * its icon and number in priority order, then each is upgraded to its full text in the same order,
- * so a narrow row keeps the numbers of the chips that matter most.
+ * How each chip is drawn in `available` pixels; `chips` is in priority order. The layout is the
+ * longest prefix that fits of one fixed sequence: every icon, then every number, then every full
+ * text. It stops at the first upgrade that does not fit, so a wider row never shows a chip poorer.
  */
 export function resolveFooterLayout(
   available: number,
   chips: readonly FooterChipSize[],
 ): readonly FooterDensity[] {
-  let visible = chips.length;
-  while (visible > 0 && rowWidth(chips, Array<FooterDensity>(visible).fill("icon")) > available) {
-    visible -= 1;
+  const densities: FooterDensity[] = [];
+  const fits = () => rowWidth(chips, densities) <= available;
+  for (let index = 0; index < chips.length; index++) {
+    densities.push("icon");
+    if (!fits()) {
+      densities.pop();
+      return densities;
+    }
   }
-  const shown = chips.slice(0, visible);
-  const densities = Array<FooterDensity>(visible).fill("icon");
   for (const target of ["compact", "full"] as const) {
-    for (let index = 0; index < visible; index++) {
+    for (let index = 0; index < densities.length; index++) {
       const before = densities[index]!;
       densities[index] = target;
-      if (rowWidth(shown, densities) > available) densities[index] = before;
+      if (!fits()) {
+        densities[index] = before;
+        return densities;
+      }
     }
   }
   return densities;
