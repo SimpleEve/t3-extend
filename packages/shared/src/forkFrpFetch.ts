@@ -5,6 +5,7 @@
 // @effect-diagnostics nodeBuiltinImport:off globalFetch:off - a one-shot download and an unpack with `tar`.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "node:crypto";
+import * as NodeFS from "node:fs";
 import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
@@ -102,15 +103,18 @@ export const fetchFrpc = async (input: {
     await NodeFSP.writeFile(archivePath, bytes, { mode: 0o600 });
     const unpacked = NodePath.join(workDir, "unpacked");
     await NodeFSP.mkdir(unpacked);
+    // Only the one member we want is unpacked: nothing else in the archive is ever written to disk.
+    // Archive member names use "/" on every platform. On Windows `tar` is bsdtar, which reads zip too.
+    const member = `${frpArchiveDirectory(entry)}/${entry.executable}`;
     try {
-      await execFile("tar", ["-xf", archivePath, "-C", unpacked], { windowsHide: true });
+      await execFile("tar", ["-xf", archivePath, "-C", unpacked, member], { windowsHide: true });
     } catch (cause) {
       throw new FrpFetchError(
         "extract-failed",
         `The archive could not be unpacked with tar: ${cause instanceof Error ? cause.message : "unknown error"}.`,
       );
     }
-    const extracted = NodePath.join(unpacked, frpArchiveDirectory(entry), entry.executable);
+    const extracted = NodePath.join(unpacked, ...member.split("/"));
     const stat = await NodeFSP.lstat(extracted).catch(() => undefined);
     if (stat === undefined || !stat.isFile()) {
       throw new FrpFetchError(
@@ -118,12 +122,20 @@ export const fetchFrpc = async (input: {
         `The archive does not contain ${entry.executable}.`,
       );
     }
-    await NodeFSP.mkdir(input.destination, { recursive: true });
+    // A directory made here is closed to everyone else's writes whatever the umask says; one that
+    // was already there is not ours to change.
+    const created = await NodeFSP.mkdir(input.destination, { recursive: true, mode: 0o755 });
+    if (created !== undefined) await NodeFSP.chmod(input.destination, 0o755);
     const finalPath = NodePath.join(input.destination, entry.executable);
-    const partial = `${finalPath}.partial-${process.pid}`;
-    await NodeFSP.copyFile(extracted, partial);
-    await NodeFSP.chmod(partial, 0o755);
-    await NodeFSP.rename(partial, finalPath);
+    const partial = `${finalPath}.${process.pid}.${NodeCrypto.randomBytes(8).toString("hex")}.partial`;
+    try {
+      await NodeFSP.copyFile(extracted, partial, NodeFS.constants.COPYFILE_EXCL);
+      await NodeFSP.chmod(partial, 0o755);
+      await NodeFSP.rename(partial, finalPath);
+    } catch (cause) {
+      await NodeFSP.rm(partial, { force: true });
+      throw cause;
+    }
     return { path: finalPath, url, sha256: actual };
   } finally {
     await NodeFSP.rm(workDir, { recursive: true, force: true });

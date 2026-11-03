@@ -1,7 +1,6 @@
-// fork: which frpc this computer runs, and the headless install of it (design Q7). Only two places
-// are looked at, `T3X_FRPC_PATH` then `<T3 home>/bin/frpc`: a `frpc` found on PATH could be any
-// version (Homebrew's, say). Whatever is found must print exactly the pinned version before it is
-// run for real.
+// fork: which frpc this computer runs (design Q7). Only `T3X_FRPC_PATH` then `<T3 home>/bin/frpc` are
+// looked at, never PATH. The file and its directory must belong to this user or root and not be
+// writable by others (off Windows), and it must print exactly the pinned version before it runs.
 import { FRP_MIRROR_ENV, FRP_VERSION, type FrpArchive } from "@t3tools/shared/forkFrp";
 import { checkFrpcVersion, fetchFrpc, FrpFetchError } from "@t3tools/shared/forkFrpFetch";
 import * as HostProcess from "@t3tools/shared/HostProcess";
@@ -23,6 +22,7 @@ export class FrpBinaryError extends Schema.TaggedError<FrpBinaryError>()("FrpBin
     "not-found",
     "not-runnable",
     "wrong-version",
+    "unsafe-location",
     "unsupported-platform",
     "download-failed",
     "checksum-mismatch",
@@ -65,6 +65,7 @@ const make = Effect.fn("FrpBinary.make")(function* (seams: FrpBinaryTestSeams) {
   const path = yield* Path.Path;
   const config = yield* ServerConfig.ServerConfig;
   const platform = yield* HostProcess.Platform;
+  const userId = yield* HostProcess.UserId;
   const arch = yield* HostProcess.Architecture;
 
   // Read once, with the config provider the layer was built under.
@@ -79,6 +80,25 @@ const make = Effect.fn("FrpBinary.make")(function* (seams: FrpBinaryTestSeams) {
   const homePath = Effect.succeed(
     path.join(config.baseDir, "bin", platform === "win32" ? "frpc.exe" : "frpc"),
   );
+
+  // POSIX ownership and mode bits mean nothing on Windows, where the check is skipped.
+  const untrusted = Effect.fn("FrpBinary.untrusted")(function* (candidate: string) {
+    if (platform === "win32") return Option.none<string>();
+    const real = yield* fs.realPath(candidate);
+    for (const target of [real, path.dirname(real)]) {
+      const info = yield* fs.stat(target);
+      const owner = Option.getOrUndefined(info.uid);
+      if (owner !== undefined && owner !== userId && owner !== 0) {
+        return Option.some(`${target} belongs to another user (uid ${owner})`);
+      }
+      if ((info.mode & 0o022) !== 0) {
+        return Option.some(
+          `${target} can be changed by other users (mode ${(info.mode & 0o777).toString(8)})`,
+        );
+      }
+    }
+    return Option.none<string>();
+  });
 
   const verified = (candidate: string, source: LocatedFrpc["source"]) =>
     Effect.promise(() => checkFrpcVersion(candidate)).pipe(
@@ -108,6 +128,15 @@ const make = Effect.fn("FrpBinary.make")(function* (seams: FrpBinaryTestSeams) {
     ];
     for (const [candidate, source] of candidates) {
       if (yield* fs.exists(candidate).pipe(Effect.orElseSucceed(() => false))) {
+        const reason = yield* untrusted(candidate).pipe(
+          Effect.orElseSucceed(() => Option.some(`${candidate} could not be inspected`)),
+        );
+        if (Option.isSome(reason)) {
+          return yield* new FrpBinaryError({
+            problem: "unsafe-location",
+            detail: `${candidate} was not run: ${reason.value}. Fix its owner and permissions, or run \`t3x devices tunnel install\`.`,
+          });
+        }
         return yield* verified(candidate, source);
       }
     }

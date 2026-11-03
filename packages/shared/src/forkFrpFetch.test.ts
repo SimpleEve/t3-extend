@@ -23,27 +23,40 @@ afterEach(async () => {
   await NodeFSP.rm(root, { recursive: true, force: true });
 });
 
-/** A tar.gz shaped like the release's: one top-level directory holding `frpc`. */
-const makeArchive = async (printed: string) => {
-  const staging = NodePath.join(root, "staging", `frp_${FRP_VERSION}_linux_amd64`);
+const DIRECTORY = `frp_${FRP_VERSION}_linux_amd64`;
+
+/** A tar.gz shaped like the release's: one top-level directory holding `frpc`, no "./" prefix. */
+const archiveOf = async (stage: (directory: string) => Promise<void>) => {
+  const staging = NodePath.join(root, "staging", DIRECTORY);
   await NodeFSP.mkdir(staging, { recursive: true });
-  await NodeFSP.writeFile(
-    NodePath.join(staging, "frpc"),
-    `#!${process.execPath}\nconsole.log(${JSON.stringify(printed)});\n`,
-    { mode: 0o755 },
-  );
+  await stage(staging);
   const file = NodePath.join(root, "fake.tar.gz");
-  NodeChildProcess.execFileSync("tar", ["-czf", file, "-C", NodePath.join(root, "staging"), "."]);
+  NodeChildProcess.execFileSync("tar", [
+    "-czf",
+    file,
+    "-C",
+    NodePath.join(root, "staging"),
+    DIRECTORY,
+  ]);
   const bytes = await NodeFSP.readFile(file);
   return {
     bytes,
     entry: {
-      file: `frp_${FRP_VERSION}_linux_amd64.tar.gz`,
+      file: `${DIRECTORY}.tar.gz`,
       sha256: NodeCrypto.createHash("sha256").update(bytes).digest("hex"),
       executable: "frpc",
     } satisfies FrpArchive,
   };
 };
+
+const makeArchive = (printed: string) =>
+  archiveOf((directory) =>
+    NodeFSP.writeFile(
+      NodePath.join(directory, "frpc"),
+      `#!${process.execPath}\nconsole.log(${JSON.stringify(printed)});\n`,
+      { mode: 0o755 },
+    ),
+  );
 
 const serve = async (respond: (url: string) => { status: number; body: Uint8Array | string }) => {
   const requests: Array<string> = [];
@@ -88,6 +101,63 @@ describe("fetchFrpc", () => {
       await problemOf(fetchFrpc({ platform: "linux", arch: "x64", destination, baseUrl, entry })),
     ).toBe("checksum-mismatch");
     expect(await NodeFSP.stat(destination).catch(() => undefined)).toBeUndefined();
+  });
+
+  it("unpacks only frpc, and refuses an archive where frpc is a link or is missing", async () => {
+    const withExtras = await archiveOf(async (directory) => {
+      await NodeFSP.writeFile(
+        NodePath.join(directory, "frpc"),
+        `#!${process.execPath}\nconsole.log(${JSON.stringify(FRP_VERSION)});\n`,
+        { mode: 0o755 },
+      );
+      await NodeFSP.writeFile(NodePath.join(directory, "frpc.toml"), "other");
+      await NodeFSP.symlink("/etc/passwd", NodePath.join(directory, "link"));
+    });
+    const mirror = await serve(() => ({ status: 200, body: withExtras.bytes }));
+    const destination = NodePath.join(root, "home", "bin");
+    await fetchFrpc({
+      platform: "linux",
+      arch: "x64",
+      destination,
+      baseUrl: mirror.baseUrl,
+      entry: withExtras.entry,
+    });
+    expect(await NodeFSP.readdir(destination)).toEqual(["frpc"]);
+    await new Promise<void>((resolve) => (server ? server.close(() => resolve()) : resolve()));
+
+    for (const stage of [
+      (directory: string) => NodeFSP.symlink(process.execPath, NodePath.join(directory, "frpc")),
+      (directory: string) => NodeFSP.writeFile(NodePath.join(directory, "frps"), "not frpc"),
+    ]) {
+      await NodeFSP.rm(NodePath.join(root, "staging"), { recursive: true, force: true });
+      const bad = await archiveOf(stage);
+      const badMirror = await serve(() => ({ status: 200, body: bad.bytes }));
+      const badDestination = NodePath.join(root, "bad", "bin");
+      expect(
+        await problemOf(
+          fetchFrpc({
+            platform: "linux",
+            arch: "x64",
+            destination: badDestination,
+            baseUrl: badMirror.baseUrl,
+            entry: bad.entry,
+          }),
+        ),
+      ).toBe("extract-failed");
+      expect(await NodeFSP.stat(badDestination).catch(() => undefined)).toBeUndefined();
+      await new Promise<void>((resolve) => (server ? server.close(() => resolve()) : resolve()));
+    }
+  });
+
+  it("two installs at once leave one frpc and no half-written file", async () => {
+    const { bytes, entry } = await makeArchive(FRP_VERSION);
+    const { baseUrl } = await serve(() => ({ status: 200, body: bytes }));
+    const destination = NodePath.join(root, "home", "bin");
+    const options = { platform: "linux", arch: "x64", destination, baseUrl, entry } as const;
+    await Promise.all([fetchFrpc(options), fetchFrpc(options)]);
+    expect(await NodeFSP.readdir(destination)).toEqual(["frpc"]);
+    expect(await checkFrpcVersion(NodePath.join(destination, "frpc"))).toEqual({ ok: true });
+    expect((await NodeFSP.stat(destination)).mode & 0o022).toBe(0);
   });
 
   it("reports a failed download and an unknown platform", async () => {

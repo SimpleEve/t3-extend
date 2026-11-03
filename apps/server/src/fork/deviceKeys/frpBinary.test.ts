@@ -32,6 +32,7 @@ const homeBinary = (home: string) =>
 const arrange = Effect.fn("arrange")(function* (
   env: Record<string, string>,
   seams: FrpBinary.FrpBinaryTestSeams = {},
+  userId: number | undefined = HostProcess.UserId.defaultValue(),
 ) {
   const home = yield* tempDir;
   const layer = FrpBinary.layer(seams).pipe(
@@ -39,7 +40,9 @@ const arrange = Effect.fn("arrange")(function* (
     Layer.provide(NodeServices.layer),
     Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env }))),
   );
-  const binary = yield* Effect.provide(FrpBinary.FrpBinary, layer);
+  const binary = yield* Effect.provide(FrpBinary.FrpBinary, layer).pipe(
+    Effect.provideService(HostProcess.UserId, userId),
+  );
   return { home, binary };
 });
 
@@ -114,6 +117,39 @@ describe("FrpBinary.locate", () => {
   );
 });
 
+describe.skipIf(HostProcess.Platform.defaultValue() === "win32")(
+  "FrpBinary.locate refuses a file others could replace",
+  () => {
+    it.effect("a file or directory that others can write, or that another user owns", () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const fake = yield* makeFakeFrpc({ version: FRP_VERSION, scripts: [] });
+          const { binary } = yield* arrange({ T3X_FRPC_PATH: fake.path });
+          assert.equal((yield* binary.locate).source, "T3X_FRPC_PATH");
+
+          NodeFS.chmodSync(fake.path, 0o775);
+          const writableFile = yield* Effect.flip(binary.locate);
+          assert.equal(writableFile.problem, "unsafe-location");
+          assert.include(writableFile.message, fake.path);
+          assert.include(writableFile.message, "can be changed by other users");
+          NodeFS.chmodSync(fake.path, 0o755);
+
+          NodeFS.chmodSync(fake.dir, 0o707);
+          const writableDirectory = yield* Effect.flip(binary.locate);
+          assert.equal(writableDirectory.problem, "unsafe-location");
+          assert.include(writableDirectory.message, fake.dir);
+          NodeFS.chmodSync(fake.dir, 0o700);
+
+          const stranger = yield* arrange({ T3X_FRPC_PATH: fake.path }, {}, 4_000_000);
+          const foreign = yield* Effect.flip(stranger.binary.locate);
+          assert.equal(foreign.problem, "unsafe-location");
+          assert.include(foreign.message, "belongs to another user");
+        }),
+      ),
+    );
+  },
+);
+
 describe("FrpBinary.install", () => {
   const platform = HostProcess.Platform.defaultValue();
 
@@ -136,7 +172,7 @@ describe("FrpBinary.install", () => {
             archivePath,
             "-C",
             NodePath.join(work, "staging"),
-            ".",
+            `frp_${FRP_VERSION}_fake`,
           ]);
           const bytes = NodeFS.readFileSync(archivePath);
           const entry: FrpArchive = {
