@@ -12,7 +12,9 @@ export type FakeFrpcStep =
   | { readonly line: string }
   /** Raw bytes, hex-encoded: for output that is not valid UTF-8. */
   | { readonly hex: string }
-  | { readonly exit: number };
+  | { readonly exit: number }
+  /** Held back until the test sends this process SIGUSR1, then run in order. */
+  | { readonly onSignal: ReadonlyArray<FakeFrpcStep> };
 
 export interface FakeFrpcControl {
   readonly version: string;
@@ -55,12 +57,16 @@ fs.appendFileSync(path.join(dir, "record.jsonl"), JSON.stringify({
   configDirMode: fs.statSync(path.dirname(configPath)).mode & 0o777,
 }) + "\\n");
 if (control.pidLog) fs.appendFileSync(control.pidLog, "fake-frpc " + process.pid + "\\n");
-const script = control.scripts[Math.min(run, control.scripts.length - 1)] ?? [];
-for (const step of script) {
-  if ("line" in step) fs.writeSync(1, step.line + "\\n");
-  else if ("hex" in step) fs.writeSync(1, Buffer.from(step.hex, "hex"));
-  else if ("exit" in step) process.exit(step.exit);
-}
+const play = (steps) => {
+  // Handlers first: the test signals as soon as it sees the first line.
+  for (const step of steps) if ("onSignal" in step) process.once("SIGUSR1", () => play(step.onSignal));
+  for (const step of steps) {
+    if ("line" in step) fs.writeSync(1, step.line + "\\n");
+    else if ("hex" in step) fs.writeSync(1, Buffer.from(step.hex, "hex"));
+    else if ("exit" in step) process.exit(step.exit);
+  }
+};
+play(control.scripts[Math.min(run, control.scripts.length - 1)] ?? []);
 process.on("SIGTERM", () => process.exit(0));
 setInterval(() => {}, 1 << 30);
 `;

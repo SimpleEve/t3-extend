@@ -25,6 +25,25 @@ export type FrpcLogEvent =
       readonly text: string;
     };
 
+/** What DeviceTunnel does about a rejection; only an exact reason ever asks for more than `none`. */
+export type FrpcAction = "refresh" | "renew" | "none";
+
+export const actionFor = (event: FrpcLogEvent): FrpcAction => {
+  if (event._tag !== "Rejected") return "none";
+  switch (event.reason) {
+    case "revoked":
+      // Only a question to the registry; it alone decides whether this computer leaves.
+      return "refresh";
+    case "ticket-expired":
+    case "bad-ticket":
+      return "renew";
+    case "busy":
+    case "plugin-error":
+    case "other":
+      return "none";
+  }
+};
+
 const SENTENCES = [
   ["pong message contains error: ", "pong"],
   ["connect to server error: ", "login"],
