@@ -12,11 +12,12 @@ import {
 const TAB = "tab-1";
 const ENV = "env-1";
 
-const denialFor = (port: number | null = 5173) =>
+const denialFor = (port: number | null = 5173, loadFailed = true) =>
   selectGatewayDenial(useGatewayStore.getState(), {
     runtimeTabId: TAB,
     environmentId: ENV,
     port,
+    loadFailed,
   });
 
 describe("forwarded localhost URLs", () => {
@@ -100,6 +101,7 @@ describe("gateway denials", () => {
         runtimeTabId: "tab-2",
         environmentId: ENV,
         port: null,
+        loadFailed: true,
       })?.code,
     ).toBe("reserved");
   });
@@ -129,8 +131,39 @@ describe("gateway denials", () => {
         runtimeTabId: TAB,
         environmentId: "env-2",
         port: 5173,
+        loadFailed: true,
       }),
     ).toBeNull();
+  });
+
+  it("uses a refused connection only to explain a load that failed, never to cover a page", () => {
+    // Two tabs of one environment load the same port; the page of one fails, the other loads.
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: true });
+    noteGatewayTabState({ runtimeTabId: "tab-2", webContentsId: 8, loading: true });
+    noteGatewayDenied({
+      environmentId: ENV,
+      code: "tls-untrusted",
+      port: 5173,
+      webContentsId: undefined,
+    });
+    const forTab = (runtimeTabId: string, loadFailed: boolean) =>
+      selectGatewayDenial(useGatewayStore.getState(), {
+        runtimeTabId,
+        environmentId: ENV,
+        port: 5173,
+        loadFailed,
+      });
+    expect(forTab(TAB, true)?.code).toBe("tls-untrusted");
+    expect(forTab("tab-2", false)).toBeNull();
+    // A page that loaded and then had its socket refused stays uncovered.
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: false });
+    expect(denialFor(5173, false)).toBeNull();
+  });
+
+  it("still shows a page the proxy answered, whether or not the load counts as failed", () => {
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: true });
+    noteGatewayDenied({ environmentId: ENV, code: "not-owned", port: 5173, webContentsId: 7 });
+    expect(denialFor(5173, false)?.code).toBe("not-owned");
   });
 
   it("knows nothing of a tab it has not seen", () => {

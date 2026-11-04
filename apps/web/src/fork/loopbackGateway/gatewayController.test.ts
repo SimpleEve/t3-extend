@@ -18,10 +18,16 @@ const TARGET: GatewayTarget = {
 };
 
 function harness(
-  options: { tickets?: Array<{ ticket: string; lifetimeMs: number } | null>; hold?: boolean } = {},
+  options: {
+    tickets?: Array<{ ticket: string; lifetimeMs: number } | null>;
+    hold?: boolean;
+    /** How far the environment's clock is ahead of this computer's. */
+    skewMs?: number;
+  } = {},
 ) {
   let clock = 1_000_000;
   const calls: string[] = [];
+  const handedExpiries: number[] = [];
   const registrations: Array<GatewayRegistration | null> = [];
   const delivered: string[] = [];
   const timers: Array<{ run: () => void; delayMs: number; cancelled: boolean }> = [];
@@ -44,6 +50,7 @@ function harness(
     },
     updateTicket: async (input) => {
       calls.push(`updateTicket ${input.credential.ticket}`);
+      handedExpiries.push(Date.parse(input.credential.expiresAt));
       return { state: "active" };
     },
     unregister: async () => {
@@ -68,7 +75,10 @@ function harness(
         scripted === undefined ? { ticket: `ticket-${issued}`, lifetimeMs: 5 * MINUTE } : scripted;
       return next === null
         ? null
-        : { ticket: next.ticket, expiresAt: new Date(clock + next.lifetimeMs) };
+        : {
+            ticket: next.ticket,
+            expiresAt: new Date(clock + (options.skewMs ?? 0) + next.lifetimeMs),
+          };
     },
     now: () => clock,
     schedule: (run, delayMs) => {
@@ -83,6 +93,8 @@ function harness(
   });
   return {
     held,
+    handedExpiries,
+    now: () => clock,
     controller,
     calls,
     registrations,
@@ -124,6 +136,99 @@ describe("gateway controller", () => {
     expect(h.liveTimers().map((timer) => timer.delayMs)).toEqual([3 * MINUTE]);
   });
 
+  // The environment's clock is not this computer's. A ticket is good for five minutes from the
+  // moment it arrives, whatever the two clocks say, so the renewal comes three minutes later.
+  describe.each([
+    ["this computer's clock 10 minutes ahead", -10 * MINUTE],
+    ["this computer's clock 10 minutes behind", 10 * MINUTE],
+  ])("with %s", (_name, skewMs) => {
+    it("plans one renewal at three minutes and hands over an expiry on this computer's clock", async () => {
+      const h = harness({ skewMs });
+      const start = h.now();
+      h.controller.sync(ENV, TARGET);
+      await h.controller.idle();
+      expect(h.calls.filter((call) => call === "issue")).toHaveLength(1);
+      expect(h.liveTimers().map((timer) => timer.delayMs)).toEqual([3 * MINUTE]);
+      expect(h.handedExpiries).toEqual([start + 5 * MINUTE]);
+    });
+
+    it("keeps renewing about every three minutes, not every few seconds", async () => {
+      const h = harness({ skewMs });
+      h.controller.sync(ENV, TARGET);
+      await h.controller.idle();
+      const end = h.now() + 30 * MINUTE;
+      while (h.liveTimers().length > 0 && h.now() < end) {
+        const [timer] = h.liveTimers();
+        h.advance(timer!.delayMs);
+        h.fire(timer!);
+        await h.controller.idle();
+      }
+      const fetches = h.calls.filter((call) => call === "issue").length;
+      expect(fetches).toBeGreaterThanOrEqual(9);
+      expect(fetches).toBeLessThanOrEqual(11);
+      expect(h.liveTimers()).toHaveLength(1);
+    });
+  });
+
+  it("re-arms a renewal that failed, for when the failure cool-down ends, and then renews", async () => {
+    const h = harness({ tickets: [{ ticket: "first", lifetimeMs: 5 * MINUTE }, null] });
+    h.controller.sync(ENV, TARGET);
+    await h.controller.idle();
+    h.advance(3 * MINUTE);
+    h.fire(h.liveTimers()[0]!);
+    await h.controller.idle();
+    expect(h.calls.filter((call) => call === "issue")).toHaveLength(2);
+    // The failed renewal is not dropped: one timer waits out the cool-down.
+    expect(h.liveTimers().map((timer) => timer.delayMs)).toEqual([TICKET_FAILURE_COOLDOWN_MS]);
+
+    h.advance(TICKET_FAILURE_COOLDOWN_MS);
+    h.fire(h.liveTimers()[0]!);
+    await h.controller.idle();
+    expect(h.calls.filter((call) => call === "issue")).toHaveLength(3);
+    expect(h.calls.filter((call) => call.startsWith("updateTicket"))).toEqual([
+      "updateTicket first",
+      "updateTicket ticket-3",
+    ]);
+    expect(h.liveTimers().map((timer) => timer.delayMs)).toEqual([3 * MINUTE]);
+  });
+
+  it("stops retrying a renewal once the ticket it was renewing has expired", async () => {
+    const h = harness({
+      tickets: [
+        { ticket: "first", lifetimeMs: 5 * MINUTE },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ],
+    });
+    h.controller.sync(ENV, TARGET);
+    await h.controller.idle();
+    const expiry = h.now() + 5 * MINUTE;
+    let guard = 0;
+    while (h.liveTimers().length > 0 && guard++ < 100) {
+      const [timer] = h.liveTimers();
+      h.advance(timer!.delayMs);
+      h.fire(timer!);
+      await h.controller.idle();
+    }
+    expect(guard).toBeLessThan(100);
+    expect(h.now()).toBeGreaterThanOrEqual(expiry - TICKET_FAILURE_COOLDOWN_MS);
+    // Nothing keeps asking; a request that finds no ticket asks through `ticketNeeded`.
+    expect(h.liveTimers()).toEqual([]);
+  });
+
   it("answers ticket-needed with one fetch, however many ask", async () => {
     const h = harness();
     h.controller.sync(ENV, TARGET);
@@ -136,14 +241,22 @@ describe("gateway controller", () => {
     expect(h.calls.filter((call) => call === "issue")).toHaveLength(2);
   });
 
-  it("does not fetch again within the minimum interval", async () => {
+  it("holds a fetch back inside the minimum interval and makes it when the window ends", async () => {
     const h = harness();
     h.controller.sync(ENV, TARGET);
     await h.controller.idle();
-    h.advance(MIN_TICKET_INTERVAL_MS - 1);
+    h.advance(MIN_TICKET_INTERVAL_MS - 1_000);
     h.controller.ticketNeeded(ENV);
     await h.controller.idle();
     expect(h.calls.filter((call) => call === "issue")).toHaveLength(1);
+    // One timer, set for the end of the window, stands in for the renewal timer.
+    expect(h.liveTimers().map((timer) => timer.delayMs)).toEqual([1_000]);
+
+    h.advance(1_000);
+    h.fire(h.liveTimers()[0]!);
+    await h.controller.idle();
+    expect(h.calls.filter((call) => call === "issue")).toHaveLength(2);
+    expect(h.liveTimers().map((timer) => timer.delayMs)).toEqual([3 * MINUTE]);
   });
 
   it("leaves a failed fetch alone until the cool-down passes", async () => {

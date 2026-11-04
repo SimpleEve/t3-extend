@@ -181,6 +181,40 @@ describe("loopback gateway card", () => {
     expect(screen.container.querySelector("h1")).toBeNull();
   });
 
+  it("explains a failed load with a refused connection, and leaves a page that loaded alone", async () => {
+    setup();
+    noteGatewayTabState({ runtimeTabId: "tab-2", webContentsId: 8, loading: true });
+    // A refused https or websocket connection names a port, not a tab.
+    noteGatewayDenied({
+      environmentId: ENV,
+      code: "tls-untrusted",
+      port: 5173,
+      webContentsId: undefined,
+    });
+    await using failed = await render(card({ loadFailed: true }), { router: false });
+    await expect
+      .element(failed.getByRole("heading", { name: "Studio's certificate isn't trusted" }))
+      .toBeVisible();
+
+    // The same environment and port in another tab, whose page loaded.
+    await using loaded = await render(card({ runtimeTabId: "tab-2", loadFailed: false }), {
+      router: false,
+    });
+    expect(loaded.container.querySelector("h1")).toBeNull();
+  });
+
+  it("does not cover a page that loaded when its websocket is refused", async () => {
+    setup();
+    noteGatewayDenied({
+      environmentId: ENV,
+      code: "forbidden",
+      port: 5173,
+      webContentsId: undefined,
+    });
+    await using screen = await render(card({ loadFailed: false }), { router: false });
+    expect(screen.container.querySelector("h1")).toBeNull();
+  });
+
   it("shows a refusal only for a page on localhost", async () => {
     setup();
     denied("not-owned");

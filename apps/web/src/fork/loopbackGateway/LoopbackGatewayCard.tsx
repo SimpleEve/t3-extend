@@ -46,7 +46,7 @@ export function LoopbackGatewayCard(props: LoopbackGatewayTabProps) {
   const port = gatewayCardPort(url);
   const loopback = isLoopbackUrl(url);
   const denial = useGatewayStore((store) =>
-    loopback ? selectGatewayDenial(store, { runtimeTabId, environmentId, port }) : null,
+    loopback ? selectGatewayDenial(store, { runtimeTabId, environmentId, port, loadFailed }) : null,
   );
   const key: GatewayCardKey | null =
     denial !== null

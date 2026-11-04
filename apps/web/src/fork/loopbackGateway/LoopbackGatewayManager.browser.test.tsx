@@ -184,11 +184,12 @@ describe("loopback gateway manager", () => {
       url: "http://localhost:5173/",
     });
     mocks.stateListener?.("tab-1", tabState(false));
-    const denial = () =>
+    const denial = (loadFailed = true) =>
       selectGatewayDenial(useGatewayStore.getState(), {
         runtimeTabId: "tab-1",
         environmentId: ENV,
         port: 5173,
+        loadFailed,
       });
     expect(denial()?.code).toBe("not-owned");
 
@@ -202,5 +203,6 @@ describe("loopback gateway manager", () => {
       mainFrame: false,
     });
     expect(denial()?.code).toBe("tls-untrusted");
+    expect(denial(false)).toBeNull();
   });
 });

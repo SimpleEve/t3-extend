@@ -153,7 +153,9 @@ export function noteGatewayDenied(input: {
 
 /**
  * The refusal behind what this tab shows now, if any: the page the proxy answered for this tab's
- * latest load, or a refused `CONNECT` (https, ws) for that port since the load began.
+ * latest load, or, when that load failed, a refused `CONNECT` (https, ws) for that port since it
+ * began. A `CONNECT` has no tab to name, so it only explains a failure and never covers a page that
+ * loaded: another tab's refusal, or a hot-reload socket of this one, must not hide a working page.
  */
 export function selectGatewayDenial(
   store: GatewayStoreState,
@@ -161,13 +163,14 @@ export function selectGatewayDenial(
     readonly runtimeTabId: string;
     readonly environmentId: string;
     readonly port: number | null;
+    readonly loadFailed: boolean;
   },
 ): GatewayDenial | null {
   const tab = store.tabs[input.runtimeTabId];
   if (tab === undefined) return null;
   const page = tab.webContentsId === null ? undefined : store.pageDenials[tab.webContentsId];
   if (page !== undefined && page.seq > tab.loadStartedSeq) return page;
-  if (input.port === null) return null;
+  if (input.port === null || !input.loadFailed) return null;
   const connect = store.connectDenials[`${input.environmentId}:${input.port}`];
   return connect !== undefined && connect.seq > tab.loadStartedSeq ? connect : null;
 }

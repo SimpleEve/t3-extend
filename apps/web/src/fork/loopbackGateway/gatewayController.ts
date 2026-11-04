@@ -5,7 +5,7 @@
 import type { LoopbackGatewayBridge } from "@t3tools/shared/forkLoopbackGateway/bridge";
 
 import type { GatewayRegistration } from "./gatewayStore";
-import { planTicketRenewal } from "./ticketRenewal";
+import { MAX_TIMER_MS, localTicketExpiry, planTicketRenewal } from "./ticketRenewal";
 
 /** A ticket is fetched at most this often, whoever asks: the main process's ask is every 2 seconds. */
 export const MIN_TICKET_INTERVAL_MS = 3_000;
@@ -46,7 +46,8 @@ interface Entry {
   ticketQueued: boolean;
   lastAttemptAt: number;
   lastFailureAt: number;
-  issuedAt: number;
+  /** When this computer received the current ticket, and when it stops being good, both on its clock. */
+  receivedAt: number;
   expiresAt: number | null;
   cancelRenewal: (() => void) | null;
   /** Bridge calls for one environment run one after another, in the order they were made. */
@@ -78,8 +79,15 @@ export const makeGatewayController = (deps: GatewayControllerDeps): GatewayContr
     const { target } = entry;
     if (entry.removed || !target.enabled || !target.reachable || entry.ticketQueued) return;
     const time = deps.now();
-    if (time - entry.lastFailureAt < TICKET_FAILURE_COOLDOWN_MS) return;
-    if (!force && time - entry.lastAttemptAt < MIN_TICKET_INTERVAL_MS) return;
+    const wait = Math.max(
+      entry.lastFailureAt + TICKET_FAILURE_COOLDOWN_MS - time,
+      force ? 0 : entry.lastAttemptAt + MIN_TICKET_INTERVAL_MS - time,
+    );
+    if (wait > 0) {
+      // A fetch the throttle holds back is not dropped: it is asked for again when the window ends.
+      armFetch(environmentId, entry, wait);
+      return;
+    }
     entry.ticketQueued = true;
     enqueue(entry, async () => {
       entry.ticketQueued = false;
@@ -90,25 +98,50 @@ export const makeGatewayController = (deps: GatewayControllerDeps): GatewayContr
       entry.lastAttemptAt = deps.now();
       try {
         const issued = await deps.issueTicket(environmentId);
-        if (issued === null) {
-          entry.lastFailureAt = deps.now();
-          return;
-        }
+        if (issued === null) return failed(environmentId, entry);
         if (entry.removed || entry.routeGeneration !== generation) return;
+        const receivedAt = deps.now();
+        // The main process gets the expiry on this computer's clock, not the environment's: it only
+        // uses it to time its own reminder, and the environment decides whether a ticket is good.
+        const expiresAt = localTicketExpiry({
+          receivedAt,
+          serverExpiresAt: issued.expiresAt.getTime(),
+        });
         const status = await deps.bridge.updateTicket({
           environmentId,
-          credential: { ticket: issued.ticket, expiresAt: issued.expiresAt.toISOString() },
+          credential: { ticket: issued.ticket, expiresAt: new Date(expiresAt).toISOString() },
         });
         if (status === null || entry.removed) return;
-        entry.issuedAt = deps.now();
-        entry.expiresAt = issued.expiresAt.getTime();
+        entry.receivedAt = receivedAt;
+        entry.expiresAt = expiresAt;
       } catch {
-        entry.lastFailureAt = deps.now();
-        return;
+        return failed(environmentId, entry);
       }
       deps.onTicketDelivered(environmentId);
       scheduleRenewal(environmentId, entry);
     });
+  };
+
+  /** One timer per environment: the next renewal, or the fetch the throttle is holding back. */
+  const armFetch = (environmentId: string, entry: Entry, delayMs: number): void => {
+    entry.cancelRenewal?.();
+    entry.cancelRenewal = deps.schedule(
+      () => {
+        entry.cancelRenewal = null;
+        fetchTicket(environmentId, entry, false);
+      },
+      Math.min(Math.ceil(delayMs), MAX_TIMER_MS),
+    );
+  };
+
+  const failed = (environmentId: string, entry: Entry): void => {
+    const time = deps.now();
+    entry.lastFailureAt = time;
+    // A ticket still in hand keeps being renewed until it runs out; with none, or an expired one,
+    // the main process asks when a request needs it.
+    if (entry.expiresAt !== null && time + TICKET_FAILURE_COOLDOWN_MS < entry.expiresAt) {
+      armFetch(environmentId, entry, TICKET_FAILURE_COOLDOWN_MS);
+    }
   };
 
   const scheduleRenewal = (environmentId: string, entry: Entry): void => {
@@ -117,7 +150,7 @@ export const makeGatewayController = (deps: GatewayControllerDeps): GatewayContr
     if (entry.removed || entry.expiresAt === null) return;
     const plan = planTicketRenewal({
       now: deps.now(),
-      issuedAt: entry.issuedAt,
+      receivedAt: entry.receivedAt,
       expiresAt: entry.expiresAt,
     });
     if (plan.action === "renew-now") {
@@ -180,7 +213,7 @@ export const makeGatewayController = (deps: GatewayControllerDeps): GatewayContr
           ticketQueued: false,
           lastAttemptAt: Number.NEGATIVE_INFINITY,
           lastFailureAt: Number.NEGATIVE_INFINITY,
-          issuedAt: 0,
+          receivedAt: 0,
           expiresAt: null,
           cancelRenewal: null,
           chain: Promise.resolve(),
