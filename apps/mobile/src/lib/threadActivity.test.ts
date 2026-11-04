@@ -612,8 +612,12 @@ describe("buildThreadFeed", () => {
     const activity = buildThreadFeed([projected(item, 0)]).flatMap((entry) =>
       entry.type === "activity-group" ? entry.activities : [],
     )[0]!;
-    expect(workEntryRowLabel(activity.workEntry)).toBe("src/a.ts +2 more");
-    expect(summarizeToolGroup([activity.workEntry]).summary).toBe("Changed 3 files");
+    expect(workEntryRowLabel(activity.workEntry, false, translatorFor("en"))).toBe(
+      "src/a.ts +2 more",
+    );
+    expect(summarizeToolGroup([activity.workEntry], translatorFor("en")).summary).toBe(
+      "Changed 3 files",
+    );
   });
 
   it("anchors feedback before later committed turns", () => {

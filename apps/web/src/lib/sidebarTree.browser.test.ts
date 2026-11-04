@@ -79,20 +79,17 @@ describe("sidebar keyboard navigation", () => {
     expect(group.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("levels rows by their ancestors, so worktree threads sit under their folder", () => {
+  it("walks out of a worktree thread through its worktree to the folder", () => {
     using tree = setup();
     const folder = tree.row("folder");
     const worktree = tree.row("worktree", "folder");
     const thread = tree.row("thread", "worktree");
     tree.install();
-    expect([folder, worktree, thread].map((row) => row.getAttribute("aria-level"))).toEqual([
-      "1",
-      "2",
-      "3",
-    ]);
     thread.focus();
     press(thread, "ArrowLeft");
     expect(document.activeElement).toBe(worktree);
+    press(worktree, "ArrowLeft");
+    expect(document.activeElement).toBe(folder);
   });
 
   it("opens the row menu on Shift+F10 release without moving focus", () => {

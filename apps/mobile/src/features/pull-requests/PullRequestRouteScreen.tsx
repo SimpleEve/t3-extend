@@ -591,7 +591,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
               ...(stateAction
                 ? [
                     {
-                      accessibilityLabel: pullRequestActionLabel(stateAction, terminology),
+                      accessibilityLabel: pullRequestActionLabel(stateAction, terminology, t),
                       icon: PR_ACTION_ICONS[stateAction],
                       destructive: stateAction === "close",
                       overflowOnly: true,
@@ -698,7 +698,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
                 destructive={stateAction === "close"}
                 onPress={runStateAction}
               >
-                <Toolbar.Label>{pullRequestActionLabel(stateAction, terminology)}</Toolbar.Label>
+                <Toolbar.Label>{pullRequestActionLabel(stateAction, terminology, t)}</Toolbar.Label>
               </Toolbar.MenuAction>
             ) : null}
             {showsDeleteBranch ? (

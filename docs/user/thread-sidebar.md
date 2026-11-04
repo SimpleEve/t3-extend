@@ -163,7 +163,8 @@ name; a main checkout with neither is labeled **Main checkout**, and its icon di
 threads are all in its main checkout lists them directly. Click a folder or a checkout to close
 it; it shows how many threads it holds, and a dot when one of them needs you. The thread you have
 open stays visible. Pinned threads stay above the folders, and Snoozed and Settled stay below
-them. **New thread** starts in the current project. In this view you cannot drag threads, and
+them. **New thread** behaves as above: with several projects it opens the project picker, and
+Shift-click starts in the current project. In this view you cannot drag threads, and
 the Working section is off. The view lists
 worktrees that have threads; a worktree with no threads does not appear.
 

@@ -201,14 +201,14 @@ mobile：
 
 - 视图和折叠状态存在 fork 自己的 store（`apps/web/src/fork/sidebarViewStore.ts`，localStorage key `t3extend:sidebar-view:v1`），按设备保存，不进 `ClientSettings`，不改 contracts。折叠 key 带视图前缀（`sidebarGroupCollapseKey`），切换视图不会串组。
 - 分组是纯函数，放在 `packages/client-runtime/src/state/threadGrouping.ts`（`@t3tools/client-runtime/state/thread-grouping`），web 和以后的 Android 共用。
-- 按项目视图复用 boring 的所有分支：没有 Working shelf、不能拖拽、`chat.new` 在当前项目新建。Labs 里的 boring sidebar 只影响按状态视图。
+- 按项目视图复用 boring 的所有分支：没有 Working shelf、不能拖拽，New thread 和 `chat.new` 的行为与 boring 相同（多个项目时弹项目选择器，只有 legacy 侧边栏直接在当前项目新建）。Labs 里的 boring sidebar 只影响按状态视图。
 - `Sidebar.tsx` 的接线（都带 `// fork:`）：
   1. 文件头的 import（`useSidebarViewMode`、`useProjectViewFolders`、`SidebarWorktreeGroupHeader`）。
   2. `useSidebarThreads` 里 `projectFolders` 先取 `useProjectViewFolders` 的结果，`orderedThreadKeys` 因此跟着屏幕顺序走。
   3. `useSidebarThreads` 返回的 `toggleProjectFolder`：按项目视图下写 fork store。
   4. `Sidebar` 组件里 `boringSidebarEnabled` 加上 `|| sidebarViewMode === "project"`。
   5. 列表渲染的文件夹循环：有 `folder.worktrees` 时先画 worktree 子组标题，再画行。
-- 其他上游文件各一两行：`SidebarThreadHeader.tsx`（切换按钮）、`CommandPalette.tsx`（两条命令，定义在 `CommandPaletteSidebarViewItems.tsx`）、`chatRouteCommands.ts`（`chat.new`）、`lib/sidebarTree.ts`（`aria-level` 按祖先数计算，支持第三层）。
+- 其他上游文件各一两行：`SidebarThreadHeader.tsx`（切换按钮）、`CommandPalette.tsx`（两条命令，定义在 `CommandPaletteSidebarViewItems.tsx`）、`lib/sidebarTree.ts` 和 `chatRouteCommands.ts` 现在没有 fork 改动：上游去掉了 `aria-level` 与 `role="tree"`，原来给第三层补的层级计算无处可挂，`chat.new` 也不再特判按项目视图。
 - 快捷键没有加，因为要改 `packages/contracts/src/keybindings.ts`。
 
 mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：

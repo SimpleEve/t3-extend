@@ -88,8 +88,8 @@ describe("project removal confirmation", () => {
       hasOtherMembers: false,
       displayName: "Repo",
       threads: [
-        { environmentId: local.environmentId, projectId: local.id },
-        { environmentId: local.environmentId, projectId: local.id },
+        { environmentId: local.environmentId, projectId: local.id, lineage: listed },
+        { environmentId: local.environmentId, projectId: local.id, lineage: listed },
       ],
       t: (source) => `<${source}>`,
     });

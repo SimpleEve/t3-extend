@@ -8,6 +8,7 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as PlatformError from "effect/PlatformError";
 import * as Queue from "effect/Queue";
+import * as Redacted from "effect/Redacted";
 import * as Ref from "effect/Ref";
 import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
@@ -44,7 +45,13 @@ const harness = Effect.fn(function* (options?: {
       const killed = yield* Deferred.make<void>();
       yield* Effect.addFinalizer(() => Deferred.succeed(killed, undefined));
       if (command._tag === "StandardCommand") {
-        yield* Ref.update(commands, (all) => [...all, [command.command, ...command.args]]);
+        yield* Ref.update(commands, (all) => [
+          ...all,
+          [
+            command.command,
+            ...command.args.map((arg) => (typeof arg === "string" ? arg : Redacted.value(arg))),
+          ],
+        ]);
       }
       yield* Queue.offer(children, { exit, killed });
       return ChildProcessSpawner.makeHandle({
