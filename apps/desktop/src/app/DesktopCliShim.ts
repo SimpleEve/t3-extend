@@ -6,6 +6,7 @@ import * as Option from "effect/Option";
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import { makeComponentLogger } from "./DesktopObservability.ts";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { bundledFrpcPath } from "../selfHost/bundledFrpc.ts"; // fork: t3x frpc
 
 // AppImage mounts change each run; the launcher must mount the image itself.
 const { logInfo, logWarning } = makeComponentLogger("desktop-cli-shim");
@@ -23,8 +24,18 @@ const MOVED = "T3 Extend has moved or been removed. Open the app once to update 
 
 export type CliShimTarget =
   | { readonly kind: "appimage"; readonly appImage: string; readonly executableName: string }
-  | { readonly kind: "direct"; readonly executable: string; readonly entry: string }
-  | { readonly kind: "windows"; readonly executable: string; readonly entry: string };
+  | {
+      readonly kind: "direct";
+      readonly executable: string;
+      readonly entry: string;
+      readonly frpc: string; // fork: the frpc the backend runs
+    }
+  | {
+      readonly kind: "windows";
+      readonly executable: string;
+      readonly entry: string;
+      readonly frpc: string; // fork: the frpc the backend runs
+    };
 
 /** Embed this install's home and executable path so `sudo`, which clears the environment, uses the same install. */
 export const renderCliShim = (input: {
@@ -34,9 +45,13 @@ export const renderCliShim = (input: {
 }) => {
   const { target } = input;
   if (target.kind === "windows") {
-    const utf8 = [target.executable, target.entry, input.shimPath, input.t3Home].some((value) =>
-      [...value].some((character) => character.codePointAt(0)! > 0x7f),
-    );
+    const utf8 = [
+      target.executable,
+      target.entry,
+      target.frpc, // fork: frpc
+      input.shimPath,
+      input.t3Home,
+    ].some((value) => [...value].some((character) => character.codePointAt(0)! > 0x7f));
     const restore = utf8 ? ["chcp %t3_codepage% >nul"] : [];
     return [
       "@echo off",
@@ -52,6 +67,7 @@ export const renderCliShim = (input: {
         : []),
       `set "T3CODE_CLI_PATH=${cmdText(input.shimPath)}"`,
       `if not defined T3CODE_HOME set "T3CODE_HOME=${cmdText(input.t3Home)}"`,
+      `set "T3X_FRPC_PATH=${cmdText(target.frpc)}"`, // fork: same frpc as the backend, so the CLI reports it
       'set "ELECTRON_RUN_AS_NODE=1"',
       // Electron's Windows executable starts without stdin; this tells the CLI to reopen the console.
       'set "T3CODE_DESKTOP_CLI_LAUNCHER=1"',
@@ -82,7 +98,12 @@ export const renderCliShim = (input: {
     "fi",
   ];
   if (target.kind === "direct") {
-    return [...header, `exec "$app" ${shellWord(target.entry)} "$@"`, ""].join("\n");
+    return [
+      ...header,
+      `export T3X_FRPC_PATH=${shellWord(target.frpc)}`, // fork: same frpc as the backend
+      `exec "$app" ${shellWord(target.entry)} "$@"`,
+      "",
+    ].join("\n");
   }
   const run = (root: string) =>
     `"${root}/${target.executableName}" "${root}/resources/app.asar/${SERVER_ENTRY}" "$@"`;
@@ -108,6 +129,8 @@ export const renderCliShim = (input: {
     '  (cd "$work" && "$app" --appimage-extract >/dev/null) || { echo "Could not open $app." >&2; exit 1; }',
     '  mount="$work/squashfs-root"',
     "fi",
+    // fork: same frpc as the backend, relative to this run's mount
+    `export T3X_FRPC_PATH="${bundledFrpcPath({ join: (...parts) => parts.join("/") }, "$mount/resources", "linux")}"`,
     run("$mount"),
     "",
   ].join("\n");
@@ -128,15 +151,16 @@ export const install = Effect.gen(function* () {
   const windows = environment.platform === "win32";
   const shimPath = launcherPath(environment);
   const entry = path.join(environment.serverRoot, SERVER_ENTRY);
+  const frpc = bundledFrpcPath(path, environment.resourcesPath, environment.platform); // fork: t3x frpc
   const target: CliShimTarget = windows
-    ? { kind: "windows", executable: process.execPath, entry }
+    ? { kind: "windows", executable: process.execPath, entry, frpc }
     : Option.match(environment.appImagePath, {
         onSome: (appImage) => ({
           kind: "appimage" as const,
           appImage,
           executableName: path.basename(process.execPath),
         }),
-        onNone: () => ({ kind: "direct" as const, executable: process.execPath, entry }),
+        onNone: () => ({ kind: "direct" as const, executable: process.execPath, entry, frpc }),
       });
   const content = renderCliShim({ target, shimPath, t3Home: environment.baseDir });
 
