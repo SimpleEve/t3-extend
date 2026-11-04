@@ -47,6 +47,21 @@ describe("prepareStack", () => {
     expect(verbs).toEqual(["ps"]);
   });
 
+  it("does not take an empty answer for an empty project when docker itself failed", async () => {
+    for (const status of [1, null]) {
+      const verbs: Array<string | undefined> = [];
+      const docker: RunDocker = async (args) => {
+        verbs.push(verbOf(args));
+        return { status, stdout: "", stderr: "Cannot connect to the Docker daemon" };
+      };
+      await expect(
+        prepareStack({ project: "p", port: 18_999, workDir, say: () => {}, docker }),
+      ).rejects.toThrow(/Cannot connect to the Docker daemon/u);
+      // Nothing was confirmed, so no stack comes back to be cleaned up and down never runs.
+      expect(verbs).toEqual(["ps"]);
+    }
+  });
+
   it("stops an up that is still running before it removes the project, and can be called again", async () => {
     const events: Array<string> = [];
     const docker: RunDocker = (args, options) => {

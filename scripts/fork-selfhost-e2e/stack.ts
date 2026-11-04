@@ -109,6 +109,16 @@ export async function prepareStack(options: {
   const compose = (...args: ReadonlyArray<string>) => docker(composeArgs(args));
 
   const existing = await compose("ps", "-aq");
+  // Only a successful `ps` with nothing in it says the project is empty. A docker that failed (no
+  // daemon, no permission) or was interrupted prints nothing too, and the project is then unknown.
+  if (existing.status !== 0) {
+    throw new E2eFailure(
+      `Could not tell whether the compose project "${project}" is free: \`docker compose ps\` ` +
+        `${existing.status === null ? "was interrupted" : `exited with ${existing.status}`}.\n` +
+        `${existing.stderr.trim()}\nCheck that Docker is running and usable, then run this again. ` +
+        `Nothing was started or removed.`,
+    );
+  }
   if (existing.stdout.trim() !== "") {
     throw new E2eFailure(
       `The compose project "${project}" already has containers. If they are a leftover of an earlier run, remove them with ` +
