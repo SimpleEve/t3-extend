@@ -38,6 +38,7 @@ import * as DesktopClientSettings from "../../settings/DesktopClientSettings.ts"
 import { PREVIEW_WEBVIEW_PREFERENCES } from "../../preview/WebviewPreferences.ts";
 import * as IpcChannels from "../channels.ts";
 import * as DesktopIpc from "../DesktopIpc.ts";
+import { installLoopbackGatewaySession } from "../../fork/loopbackGateway/loopbackGatewayIpc.ts"; // fork: loopback gateway
 
 export const installPreviewEventForwarding = Effect.fn(
   "desktop.ipc.preview.installEventForwarding",
@@ -300,7 +301,8 @@ const getPreviewConfig = DesktopIpc.makeIpcMethod({
     const manager = yield* PreviewManager.PreviewManager;
     const { scope, persistent, namespace } = resolvePartitionScope(environmentId, profileId);
     // Session creation installs UA and permission handlers before a guest can attach.
-    yield* manager.getBrowserSession(scope, persistent, namespace);
+    const session = yield* manager.getBrowserSession(scope, persistent, namespace);
+    yield* installLoopbackGatewaySession(environmentId, session); // fork: loopback gateway
     return {
       partition: yield* manager.getBrowserPartition(scope, persistent, namespace),
       webPreferences: PREVIEW_WEBVIEW_PREFERENCES,

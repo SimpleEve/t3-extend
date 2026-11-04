@@ -14,6 +14,7 @@ import type { SelfHostBridge, SelfHostState } from "@t3tools/shared/selfHost"; /
 import * as SelfHostIpcChannels from "./selfHost/selfHostChannels.ts"; // fork: self-hosted connection
 import type { KeepAwakeBridge } from "@t3tools/shared/keepAwake"; // fork: keep awake
 import * as KeepAwakeChannels from "./keepAwake/keepAwakeChannels.ts"; // fork: keep awake
+import { exposeLoopbackGatewayBridge } from "./fork/loopbackGateway/preloadBridge.ts"; // fork: loopback gateway
 import { mergeLegacyLocalStorage } from "./legacyLocalStorageMerge.ts";
 
 const SNAP_SHOT_EVENT_TYPES = new Set([
@@ -96,6 +97,8 @@ contextBridge.exposeInMainWorld(SelfHostIpcChannels.SELF_HOST_BRIDGE_GLOBAL, {
 contextBridge.exposeInMainWorld(KeepAwakeChannels.KEEP_AWAKE_BRIDGE_GLOBAL, {
   setActive: (active) => ipcRenderer.invoke(KeepAwakeChannels.SET_KEEP_AWAKE_CHANNEL, active),
 } satisfies KeepAwakeBridge);
+
+exposeLoopbackGatewayBridge(contextBridge, ipcRenderer); // fork: loopback gateway
 
 contextBridge.exposeInMainWorld("desktopBridge", {
   getAppBranding: () => {
