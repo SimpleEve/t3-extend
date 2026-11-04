@@ -207,7 +207,7 @@ mobile：
   2. `useSidebarThreads` 里 `projectFolders` 先取 `useProjectViewFolders` 的结果，`orderedThreadKeys` 因此跟着屏幕顺序走。
   3. `useSidebarThreads` 返回的 `toggleProjectFolder`：按项目视图下写 fork store。
   4. 列表渲染的文件夹循环：有 `folder.worktrees` 时先画 worktree 子组标题，再画行。
-- 其他上游文件各一两行：`SidebarThreadHeader.tsx`（切换按钮）、`CommandPalette.tsx`（两条命令，定义在 `CommandPaletteSidebarViewItems.tsx`）、`lib/sidebarTree.ts` 和 `chatRouteCommands.ts` 现在没有 fork 改动：上游去掉了 `aria-level` 与 `role="tree"`，原来给第三层补的层级计算无处可挂，`chat.new` 也不再特判按项目视图。
+- 其他上游文件各一两行：`SidebarThreadHeader.tsx`（切换按钮）、`CommandPalette.tsx`（两条命令，定义在 `CommandPaletteSidebarViewItems.tsx`）、`lib/sidebarTree.ts` 没有 fork 改动：上游去掉了 `aria-level` 与 `role="tree"`，改用 `data-sidebar-row` / `data-sidebar-parent` 的父子链走方向键，worktree 子分组标题和它下面的对话都带这两个属性，所以第三层不用单独补（`SidebarWorktreeGroupHeader` 也不再带 `role="treeitem"` 和 `tabIndex={-1}`，和上游的文件夹标题一样留在 Tab 序里）。`chatRouteCommands.ts` 里关于侧栏视图的分支已删，只剩一处与侧栏无关的 i18n 翻译（预览仅桌面版的提示）。
 - 快捷键没有加，因为要改 `packages/contracts/src/keybindings.ts`。
 
 mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
@@ -472,7 +472,7 @@ vp run check:changed
 
 - 受管策略（managed policy）：macOS 的 managed preferences 和描述文件模板按 `FORK.appId` / `FORK.appBaseName` 生成（`packages/shared/src/managedPolicyFile.ts`、`apps/server/src/policy/policyTemplates.ts`，后者有测试守着）。`/Library/Application Support/T3Code/policy.json` 和 Windows 的 `SOFTWARE\Policies\T3Tools\T3Code` 注册表路径仍是上游的，fork 和官方共用同一份策略；Windows 的 ADMX 模板同理。
 - `DesktopUpdates.hasUpdateFeed` 把受管镜像（`policy.feedUrl`）也算作更新源，否则管理员配了镜像、构建里却没有 `app-update.yml` 时，入口会被隐藏。
-- 侧栏"按项目"就是上游的 Boring 侧栏（视图由 `useBoringSidebarEnabled()` 推出，`Sidebar.tsx` 里那一行是上游原样）。上游把 `sidebarTree.ts` 的 `role=tree` / `aria-level` 去掉了，fork 在这两处（`lib/sidebarTree.ts`、`shortcuts/chatRouteCommands.ts`）已经没有改动，`chat.new` 在项目视图里和 boring 一样走项目选择器，不再有 fork 分支。
+- 侧栏"按项目"就是上游的 Boring 侧栏（视图由 `useBoringSidebarEnabled()` 推出，`Sidebar.tsx` 里那一行是上游原样）。上游把 `sidebarTree.ts` 的 `role=tree` / `aria-level` 去掉了，fork 在 `lib/sidebarTree.ts` 已经没有改动，`shortcuts/chatRouteCommands.ts` 里 `chat.new` 的项目视图分支也删了（`chat.new` 在项目视图里和 boring 一样走项目选择器）。
 - 上游把 Android 的 `app.t3.codes` 链接 intentFilter 加进了 `app.config.ts`；fork 不采用（App Link 校验属于官方域名，装上只会抢官方 app 的链接）。iOS 的 `applinks:app.t3.codes` 保留上游的写法。
 - Effect 升到 4.1.2 后 `effect/Crypto` 拆成 `effect/crypto/Digest` 和 `effect/crypto/SecureRandom`；fork 的 `T3CodeImport`、`DeviceAssertionAuth` 和测试夹具都改用新服务，测试要用 `NodeCrypto.layer`（`@effect/platform-node/NodeCrypto`）。同一版本不再读 `X-Forwarded-Proto`，上游加了 `apps/server/src/requestUrl.ts`；server 里取请求 URL 一律走它，不要直接调 `HttpServerRequest.toURL`（隧道监听口的夹具也一样）。
 - 上游新增的测试经常写死官方标识（`t3code://`、`t3code.service`、默认端口 3773、Tailscale Serve 的默认端口）；换成 `FORK.scheme`、`FORK.bootServiceName`、`FORK.defaultPort`、`FORK.tailscaleServePort`。服务端新增清理原因要同步 `apps/web/src/fork/storageCleanupReasons.ts` 的模板表和 zh-Hans 目录，否则 `storageCleanupReasons.test.ts` 会报。`T3CodeImport.test.ts` 把源库固定在迁移 76（077 之前），不要写成"当前 head 减一"，上游每加迁移就会失效。
