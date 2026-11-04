@@ -6,6 +6,7 @@ import {
   WINDOWS_POLICY_VALUES,
 } from "@t3tools/shared/managedPolicyFile";
 
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: the profile follows this app's bundle id
 import { knownDriverLabels } from "./managedProviders.ts";
 
 type ValueName = keyof typeof WINDOWS_POLICY_VALUES;
@@ -337,7 +338,7 @@ const nullPath = (
   return undefined;
 };
 
-/** A device configuration profile that installs `document` for `com.t3tools.t3code`. */
+/** A device configuration profile that installs `document` for this app's bundle id. */
 export function macosProfile(
   document: ManagedPolicyDocument,
   uuids: { readonly profile: string; readonly payload: string },
@@ -357,17 +358,17 @@ export function macosProfile(
   const profile = {
     PayloadContent: [
       {
-        PayloadDisplayName: "T3 Code policy",
-        PayloadIdentifier: `com.t3tools.t3code.policy.${uuids.payload}`,
-        PayloadType: "com.t3tools.t3code",
+        PayloadDisplayName: `${FORK.appBaseName} policy`, // fork: identity
+        PayloadIdentifier: `${FORK.appId}.policy.${uuids.payload}`, // fork: identity
+        PayloadType: FORK.appId, // fork: managed preferences are keyed by the bundle id
         PayloadUUID: uuids.payload,
         PayloadVersion: 1,
         ...document,
       },
     ],
-    PayloadDescription: "Configures T3 Code for every user on this Mac.",
-    PayloadDisplayName: `T3 Code policy for ${document.organization}`,
-    PayloadIdentifier: `com.t3tools.t3code.policy`,
+    PayloadDescription: `Configures ${FORK.appBaseName} for every user on this Mac.`, // fork: identity
+    PayloadDisplayName: `${FORK.appBaseName} policy for ${document.organization}`, // fork: identity
+    PayloadIdentifier: `${FORK.appId}.policy`, // fork: identity
     PayloadOrganization: document.organization,
     PayloadScope: "System",
     PayloadType: "Configuration",

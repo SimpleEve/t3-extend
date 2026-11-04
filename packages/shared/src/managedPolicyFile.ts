@@ -425,7 +425,7 @@ function windowsPolicyDocument(
     }
     if (Object.hasOwn(WINDOWS_POLICY_GROUPS, value.name)) continue;
     if (!Object.hasOwn(WINDOWS_POLICY_VALUES, value.name)) {
-      return { error: `${value.name} is not a T3 Code policy value` };
+      return { error: `${value.name} is not a ${FORK.appBaseName} policy value` };
     }
     const field = WINDOWS_POLICY_VALUES[value.name as keyof typeof WINDOWS_POLICY_VALUES];
     if (field.type === "boolean") {
@@ -452,7 +452,9 @@ function windowsPolicyDocument(
   if (Object.keys(document).length === 1) return { document: undefined };
   // The schema would name `["organization"]`, which an admin cannot map to a Group Policy setting.
   if (document.organization === undefined) {
-    return { error: "set the Organization policy whenever another T3 Code policy is set" };
+    return {
+      error: `set the Organization policy whenever another ${FORK.appBaseName} policy is set`,
+    };
   }
   return { document };
 }
@@ -559,11 +561,14 @@ const readPlatformPolicy = Effect.fnUntraced(function* (
       const list = Object.keys(WINDOWS_POLICY_LISTS).find(
         (name) => name.toLowerCase() === subkey.toLowerCase(),
       );
-      if (list === undefined) return yield* refuse(`${subkey} is not a T3 Code policy key`);
+      if (list === undefined)
+        return yield* refuse(`${subkey} is not a ${FORK.appBaseName} policy key`);
       const checkboxes = yield* readKey(`${WINDOWS_POLICY_SUBKEY}\\${subkey}`);
       if (checkboxes === undefined) continue;
       if (checkboxes.subkeys.length > 0) {
-        return yield* refuse(`${subkey}\\${checkboxes.subkeys[0]} is not a T3 Code policy key`);
+        return yield* refuse(
+          `${subkey}\\${checkboxes.subkeys[0]} is not a ${FORK.appBaseName} policy key`,
+        );
       }
       values.push(...checkboxes.values.map((value) => ({ ...value, key: list })));
     }
