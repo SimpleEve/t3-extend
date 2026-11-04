@@ -61,7 +61,6 @@ const resolveEnvironmentPortTarget = (
 
 // Desktop renders primary and WSL tabs locally; loopback servers require localhost even for LAN backends.
 export const reachesEnvironmentLoopback = (target: ConnectionTarget): boolean =>
-  // fork: loopback gateway
   isElectron &&
   (target._tag === "PrimaryConnectionTarget" || isDesktopLocalConnectionTarget(target));
 
