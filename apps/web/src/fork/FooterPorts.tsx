@@ -92,7 +92,9 @@ function PortsPanel(props: {
     // Like links: a modified click goes to the system browser.
     if (event.metaKey || event.ctrlKey) {
       await readLocalApi()
-        ?.shell.openExternal(resolveDiscoveredServerUrl(props.environmentId, row.server.url))
+        ?.shell.openExternal(
+          resolveDiscoveredServerUrl(props.environmentId, row.server.url, { systemBrowser: true }),
+        )
         .catch((error: unknown) => reportFailure(t("Unable to open in browser"), error));
       return;
     }
