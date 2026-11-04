@@ -43,6 +43,8 @@ interface FakeSession {
   gate: Promise<void> | undefined;
   /** Make the named call throw until cleared. */
   failing: Set<"setProxy" | "closeAllConnections">;
+  /** Make the next this-many calls to `setProxy` throw. */
+  failSetProxyTimes: number;
 }
 
 const fakeSession = (): FakeSession => {
@@ -53,11 +55,15 @@ const fakeSession = (): FakeSession => {
     headerListener: undefined,
     gate: undefined,
     failing: new Set(),
+    failSetProxyTimes: 0,
   };
   const session = {
     setProxy: async (config: Electron.ProxyConfig) => {
       await fake.gate;
-      if (fake.failing.has("setProxy")) throw new Error("setProxy failed");
+      if (fake.failing.has("setProxy") || fake.failSetProxyTimes > 0) {
+        fake.failSetProxyTimes = Math.max(0, fake.failSetProxyTimes - 1);
+        throw new Error("setProxy failed");
+      }
       fake.calls.push(`setProxy:${config.mode}`);
       fake.proxyConfigs.push(config);
     },
@@ -391,6 +397,192 @@ describe("sessions that fail to switch", () => {
     session.failing.clear();
     await host.installSession("env-b", session.session);
     expect(session.calls.at(-1)).toBe("closeAllConnections");
+  });
+});
+
+describe("unregistering an environment whose sessions cannot be restored", () => {
+  const registered = async () => {
+    const { host } = makeHost();
+    const a = fakeSession();
+    const b = fakeSession();
+    await host.register({ environmentId: "env-b", httpBaseUrl: LAN, enabled: true });
+    await host.installSession("env-b", a.session);
+    await host.installSession("env-b", b.session);
+    return { host, a, b, port: portOf(a.proxyConfigs[0]) };
+  };
+  const stillAimedAt = (fake: FakeSession) => fake.proxyConfigs.at(-1)?.mode === "fixed_servers";
+  const refused = (port: number) =>
+    new Promise<string | undefined>((resolve) => {
+      const socket = NodeNet.connect(port, "127.0.0.1", () => {
+        socket.destroy();
+        resolve(undefined);
+      });
+      socket.once("error", (error) => resolve((error as NodeJS.ErrnoException).code));
+    });
+
+  it.each(["setProxy", "closeAllConnections"] as const)(
+    "recovers through installSession after %s failed",
+    async (step) => {
+      const { host, a, b, port } = await registered();
+      b.failing.add(step);
+
+      await expect(host.unregister("env-b")).rejects.toThrow();
+      expect(host.getStatus("env-b")).toBeNull();
+      // Nothing is listening any more, so a session left behind fails its requests.
+      expect(await refused(port)).toBe("ECONNREFUSED");
+
+      // The environment is gone, yet the session still has to come back before a webview attaches.
+      await expect(host.installSession("env-b", b.session)).rejects.toThrow();
+      b.failing.clear();
+      await host.installSession("env-b", b.session);
+
+      expect(a.proxyConfigs.at(-1)).toEqual({ mode: "system" });
+      expect(b.proxyConfigs.at(-1)).toEqual({ mode: "system" });
+      expect(b.calls.at(-1)).toBe("closeAllConnections");
+    },
+  );
+
+  it.each(["setProxy", "closeAllConnections"] as const)(
+    "recovers through a second unregister after %s failed",
+    async (step) => {
+      const { host, b } = await registered();
+      b.failing.add(step);
+      await expect(host.unregister("env-b")).rejects.toThrow();
+      await expect(host.unregister("env-b")).rejects.toThrow();
+
+      b.failing.clear();
+      await host.unregister("env-b");
+
+      expect(b.proxyConfigs.at(-1)).toEqual({ mode: "system" });
+      expect(b.calls.slice(-3)).toEqual(["setProxy:system", "headers:off", "closeAllConnections"]);
+      // Nothing is left to do the next time.
+      const calls = b.calls.length;
+      await host.unregister("env-b");
+      expect(b.calls).toHaveLength(calls);
+    },
+  );
+
+  it("leaves no session on the closed proxy once a retry has succeeded", async () => {
+    const { host, a, b } = await registered();
+    a.failing.add("setProxy");
+    await expect(host.unregister("env-b")).rejects.toThrow();
+    expect([stillAimedAt(a), stillAimedAt(b)]).toEqual([true, false]);
+    a.failing.clear();
+    await host.unregister("env-b");
+    expect([stillAimedAt(a), stillAimedAt(b)]).toEqual([false, false]);
+  });
+
+  it("does not touch a session of an environment that was never registered", async () => {
+    const { host } = makeHost();
+    const session = fakeSession();
+    await host.unregister("env-never");
+    await host.installSession("env-never", session.session);
+    expect(session.calls).toEqual([]);
+  });
+});
+
+describe("operations on one environment id", () => {
+  it("run one after another: a register that arrives during an unregister waits for it", async () => {
+    const { host } = makeHost();
+    const session = fakeSession();
+    await host.register({ environmentId: "env-b", httpBaseUrl: LAN, enabled: true });
+    await host.installSession("env-b", session.session);
+    const oldPort = portOf(session.proxyConfigs[0]);
+
+    // The restore of the old environment stops half way, at setProxy.
+    const release = Promise.withResolvers<void>();
+    session.gate = release.promise;
+    const unregistering = host.unregister("env-b");
+    const registering = host.register({
+      environmentId: "env-b",
+      httpBaseUrl: "https://c.example.com",
+      enabled: true,
+    });
+    await Promise.resolve();
+    release.resolve();
+    await Promise.all([unregistering, registering]);
+
+    // The session ends on the new environment's proxy, and the host agrees.
+    const config = session.proxyConfigs.at(-1)!;
+    expect(config.mode).toBe("fixed_servers");
+    expect(portOf(config)).not.toBe(oldPort);
+    expect(host.getStatus("env-b")?.state).toBe("pending");
+    expect(
+      host.answerProxyLogin({
+        isProxy: true,
+        host: "127.0.0.1",
+        port: portOf(config),
+        session: session.session,
+      }),
+    ).not.toBeNull();
+    expect(
+      host.answerProxyLogin({
+        isProxy: true,
+        host: "127.0.0.1",
+        port: oldPort,
+        session: undefined,
+      }),
+    ).toBeNull();
+  });
+
+  it("run in the order they were called, whichever of them was started first", async () => {
+    const { host } = makeHost();
+    const session = fakeSession();
+    await host.installSession("env-b", session.session);
+    const release = Promise.withResolvers<void>();
+    session.gate = release.promise;
+
+    const order: Array<string> = [];
+    const register = host
+      .register({ environmentId: "env-b", httpBaseUrl: LAN, enabled: true })
+      .then(() => order.push("register"));
+    const disable = host.setEnabled("env-b", false).then(() => order.push("disable"));
+    const enable = host.setEnabled("env-b", true).then(() => order.push("enable"));
+    await Promise.resolve();
+    release.resolve();
+    await Promise.all([register, disable, enable]);
+
+    expect(order).toEqual(["register", "disable", "enable"]);
+    expect(host.getStatus("env-b")?.state).toBe("pending");
+    expect(session.proxyConfigs.at(-1)?.mode).toBe("fixed_servers");
+  });
+
+  it("go on after one of them failed", async () => {
+    const { host } = makeHost();
+    const session = fakeSession();
+    await host.register({ environmentId: "env-b", httpBaseUrl: LAN, enabled: true });
+    await host.installSession("env-b", session.session);
+    // The environment's own restore and the host's retry of it both fail; the register after them must not.
+    session.failSetProxyTimes = 2;
+    const failing = host.unregister("env-b");
+    const later = host.register({ environmentId: "env-b", httpBaseUrl: LAN, enabled: true });
+    await expect(failing).rejects.toThrow();
+    expect((await later).state).toBe("pending");
+    expect(session.proxyConfigs.at(-1)?.mode).toBe("fixed_servers");
+  });
+
+  it("do not wait for operations on another environment id", async () => {
+    const { host } = makeHost();
+    const slow = fakeSession();
+    await host.installSession("env-slow", slow.session);
+    const release = Promise.withResolvers<void>();
+    slow.gate = release.promise;
+
+    const blocked = host.register({ environmentId: "env-slow", httpBaseUrl: LAN, enabled: true });
+    const other = fakeSession();
+    await host.installSession("env-other", other.session);
+    const status = await host.register({
+      environmentId: "env-other",
+      httpBaseUrl: "https://c.example.com",
+      enabled: true,
+    });
+    expect(status.state).toBe("pending");
+    expect(other.proxyConfigs.at(-1)?.mode).toBe("fixed_servers");
+    expect(slow.proxyConfigs).toEqual([]);
+
+    release.resolve();
+    await blocked;
+    expect(slow.proxyConfigs.at(-1)?.mode).toBe("fixed_servers");
   });
 });
 

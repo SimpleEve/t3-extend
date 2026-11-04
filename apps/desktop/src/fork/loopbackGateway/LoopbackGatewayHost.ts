@@ -178,60 +178,96 @@ export const makeLoopbackGatewayHost = (
   const environmentFor = (environmentId: string): GatewayEnvironment | undefined =>
     environments.get(environmentId);
 
+  /**
+   * Operations on one environment id run one after another, in the order they were called, so an
+   * unregister that is still restoring sessions cannot interleave with a register of the same id.
+   * A failed operation does not hold up the next. Other ids do not wait for each other.
+   */
+  const tails = new Map<string, Promise<unknown>>();
+  const exclusive = <T>(environmentId: string, work: () => Promise<T>): Promise<T> => {
+    const result = (tails.get(environmentId) ?? Promise.resolve()).then(work, work);
+    const tail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    tails.set(environmentId, tail);
+    void tail.then(() => {
+      if (tails.get(environmentId) === tail) tails.delete(environmentId);
+    });
+    return result;
+  };
+
+  /** Back to normal networking for every session of the id; rejects if any could not be moved. */
+  const restoreSessions = (environmentId: string): Promise<void> =>
+    applyToEnvironment(environmentId, null);
+
+  const unregisterNow = async (environmentId: string): Promise<void> => {
+    const environment = environments.get(environmentId);
+    environments.delete(environmentId);
+    await environment?.close();
+    // Also when the environment is already gone: a failed restore is retried by calling again.
+    await restoreSessions(environmentId);
+  };
+
   return {
-    register: async (input) => {
-      let environment = environments.get(input.environmentId);
-      if (environment === undefined) {
-        environment = makeEnvironment({
-          environmentId: input.environmentId,
-          emit: options.emit,
-          onProxyChange: (proxy) => applyToEnvironment(input.environmentId, proxy?.port ?? null),
-          ...(options.renderErrorPage === undefined
-            ? {}
-            : { renderErrorPage: options.renderErrorPage }),
+    register: (input) =>
+      exclusive(input.environmentId, async () => {
+        let environment = environments.get(input.environmentId);
+        if (environment === undefined) {
+          environment = makeEnvironment({
+            environmentId: input.environmentId,
+            emit: options.emit,
+            onProxyChange: (proxy) => applyToEnvironment(input.environmentId, proxy?.port ?? null),
+            ...(options.renderErrorPage === undefined
+              ? {}
+              : { renderErrorPage: options.renderErrorPage }),
+          });
+          environments.set(input.environmentId, environment);
+        }
+        return environment.register({
+          httpBaseUrl: input.httpBaseUrl,
+          enabled: input.enabled,
+          ...(input.credential === undefined ? {} : { credential: input.credential }),
         });
-        environments.set(input.environmentId, environment);
-      }
-      return environment.register({
-        httpBaseUrl: input.httpBaseUrl,
-        enabled: input.enabled,
-        ...(input.credential === undefined ? {} : { credential: input.credential }),
-      });
-    },
-    updateTicket: async (environmentId, credential) => {
-      const environment = environmentFor(environmentId);
-      return environment?.updateTicket(credential) ?? null;
-    },
-    unregister: async (environmentId) => {
-      const environment = environments.get(environmentId);
-      environments.delete(environmentId);
-      await environment?.close();
-      // Nothing will converge this environment's sessions later, so finish the job here.
-      if (environment !== undefined) await applyToEnvironment(environmentId, null);
-    },
-    setEnabled: async (environmentId, enabled) => {
-      const environment = environmentFor(environmentId);
-      return environment?.setEnabled(enabled) ?? null;
-    },
-    setReachable: async (environmentId, reachable) => {
-      const environment = environmentFor(environmentId);
-      return environment?.setReachable(reachable) ?? null;
-    },
+      }),
+    updateTicket: (environmentId, credential) =>
+      exclusive(
+        environmentId,
+        async () => environmentFor(environmentId)?.updateTicket(credential) ?? null,
+      ),
+    unregister: (environmentId) => exclusive(environmentId, () => unregisterNow(environmentId)),
+    setEnabled: (environmentId, enabled) =>
+      exclusive(
+        environmentId,
+        async () => environmentFor(environmentId)?.setEnabled(enabled) ?? null,
+      ),
+    setReachable: (environmentId, reachable) =>
+      exclusive(
+        environmentId,
+        async () => environmentFor(environmentId)?.setReachable(reachable) ?? null,
+      ),
     getStatus: (environmentId) => environmentFor(environmentId)?.status() ?? null,
-    installSession: async (environmentId, session) => {
-      let sessions = sessionsByEnvironment.get(environmentId);
-      if (sessions === undefined) {
-        sessions = new Set();
-        sessionsByEnvironment.set(environmentId, sessions);
-      }
-      sessions.add(session);
-      environmentBySession.set(session, environmentId);
-      const environment = environmentFor(environmentId);
-      if (environment === undefined) return;
-      await environment.syncSessions();
-      // Fail closed: a webview must not attach to a session that is not where it should be.
-      if (!isSettledAt(session, environment.proxyPort())) throw new LoopbackGatewaySessionError();
-    },
+    installSession: (environmentId, session) =>
+      exclusive(environmentId, async () => {
+        let sessions = sessionsByEnvironment.get(environmentId);
+        if (sessions === undefined) {
+          sessions = new Set();
+          sessionsByEnvironment.set(environmentId, sessions);
+        }
+        sessions.add(session);
+        environmentBySession.set(session, environmentId);
+        const environment = environmentFor(environmentId);
+        if (environment === undefined) {
+          // Not registered (or unregistered and the restore failed): the session must be on normal
+          // networking before a webview attaches. Untouched sessions need no call.
+          await restoreSessions(environmentId).catch(() => undefined);
+          if (!isSettledAt(session, null)) throw new LoopbackGatewaySessionError();
+          return;
+        }
+        await environment.syncSessions();
+        // Fail closed: a webview must not attach to a session that is not where it should be.
+        if (!isSettledAt(session, environment.proxyPort())) throw new LoopbackGatewaySessionError();
+      }),
     answerProxyLogin: ({ isProxy, host, port, session }) => {
       if (!isProxy || host !== "127.0.0.1") return null;
       const answer = (credentials: { username: string; password: string; port: number } | null) =>
@@ -253,9 +289,9 @@ export const makeLoopbackGatewayHost = (
       return null;
     },
     dispose: async () => {
-      const all = [...environments.values()];
-      environments.clear();
-      await Promise.all(all.map((environment) => environment.close()));
+      await Promise.allSettled(
+        [...environments.keys()].map((id) => exclusive(id, () => unregisterNow(id))),
+      );
     },
   };
 };

@@ -32,16 +32,38 @@ const electronBinary = require("electron");
 const outputDir = NodePath.join("/tmp/t3x-p92", `smoke-${Date.now()}`);
 NodeFS.mkdirSync(outputDir, { recursive: true });
 
-// The service worker's origin includes its port, so both phases use the same two.
-const freePort = () =>
-  new Promise((resolve) => {
-    const probe = NodeNet.createServer();
-    probe.listen(0, "127.0.0.1", () => {
-      const { port } = probe.address();
-      probe.close(() => resolve(port));
-    });
+// The service worker's origin includes its port, so both phases use the same two. Both probes
+// listen at once, so the two ports cannot be the same one.
+const freePorts = () =>
+  new Promise((resolve, reject) => {
+    const probes = [NodeNet.createServer(), NodeNet.createServer()];
+    let listening = 0;
+    const closeAll = (done) => {
+      let open = probes.length;
+      for (const probe of probes) {
+        probe.close(() => {
+          open -= 1;
+          if (open === 0) done();
+        });
+      }
+    };
+    for (const probe of probes) {
+      probe.once("error", (error) => {
+        console.error(`Could not reserve a loopback port for the smoke: ${error.message}`);
+        reject(error);
+      });
+      probe.listen(0, "127.0.0.1", () => {
+        listening += 1;
+        if (listening < probes.length) return;
+        const ports = probes.map((one) => one.address().port);
+        closeAll(() => resolve(ports));
+      });
+    }
   });
-const swPorts = `${await freePort()},${await freePort()}`;
+const swPorts = await freePorts().then(
+  (ports) => ports.join(","),
+  () => process.exit(1),
+);
 
 // The host app injects these; either one would turn Electron into a Node REPL or point at the
 // official CLI.

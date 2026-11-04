@@ -1075,6 +1075,12 @@ M2 的设计变更见 §5.6.0.1：判断全部来自每条隧道现读的祖先�
 13. **`not-owned` 错误页文案**加上"或者它已经脱离了启动它的终端或 Agent（例如用 nohup 放到后台）"，建议在 T3 的终端里启动（9.1 的规则：不在 server 子树里的监听一律算不是 T3 起的）。
 14. **每个 session 只有一个 `onHeadersReceived`**：FORK.md 记了一笔，`singleWebRequestListener.test.ts` 在 `apps/desktop/src/fork/` 以外的产品代码里出现 `webRequest.on…(` 就失败。
 
+**9.2 第二轮审查后的修复（GPT 定向复核，2 条 P1）：**
+
+15. **注销失败后能恢复。** `unregister` 删掉环境对象之后无论如何都再恢复一次这个 id 的所有 session，失败就抛错；环境对象已经不在时再调一次 `unregister` 照样重试。对没登记的环境调 `installSession`，会先把该 id 的 session 收敛回 `system`，这个 session 没到位就抛错（`getPreviewConfig` 随之失败，不放行）。没碰过的 session 不产生任何调用。
+16. **宿主层按 environmentId 串行。** `register`、`updateTicket`、`unregister`、`setEnabled`、`setReachable`、`installSession`（和 `dispose` 里的注销）对同一个 id 按调用顺序一个接一个执行，一个失败不卡住后面的；不同 id 互不等待。用一个 `Map<id, Promise>` 串起来，没有锁和回滚事务。`getStatus` 和 `answerProxyLogin` 是同步读，不排队。
+17. 冒烟的两个空闲端口改为同时监听再读取，监听失败时打印原因并以非零退出。FORK.md 里补了一句：`webRequest` 的静态扫描只是守护，抓不到别名和间接注册。9.1 的 `exclusions.json` 登记了 `LoopbackProxy.ts`（E1：B 本身是桌面版时，桌面主进程是 server 的祖先；另有 `Proxy-Authorization`）。
+
 ### 9.3 web 接线、界面与中文（M）
 
 范围：`apps/web/src/fork/loopbackGateway/`（能力读取、状态机、取票据与续期的挂载组件、store、标识、错误卡片）、`resolveDiscoveredServerUrl` 的改动、`HostedBrowserWebview` 的等待门、`PreviewUnreachable` 的 reason、zh-Hans catalog。
