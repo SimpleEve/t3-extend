@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Manage devices on this server. Run it on the VPS, next to docker-compose.yml.
+# 管理这台服务器上的设备。在 VPS 上、docker-compose.yml 所在的目录里运行。
 #
-#   ./t3x invite [--kind computer|phone|any]   one-time invite, valid 15 minutes
-#   ./t3x devices                              list devices
-#   ./t3x revoke <name|id>                     remove a device
-#   ./t3x invites                              list unused invites
-#   ./t3x rename <name> <new name>             change a display name
-#   ./t3x release <subdomain>                  hand a removed computer's subdomain back
-#   ./t3x ntfy                                 address and account for the phone's push app
-#   ./t3x info                                 registry id and counts
+#   ./t3x invite [--kind computer|phone|any]   一次性邀请，15 分钟内有效
+#   ./t3x devices                              列出设备
+#   ./t3x revoke <名字|id>                     移除一台设备
+#   ./t3x invites                              列出还没用掉的邀请
+#   ./t3x rename <名字> <新名字>               改显示名
+#   ./t3x release <子域名>                     收回已移除电脑的子域名
+#   ./t3x ntfy                                 手机推送应用要用的地址和账号
+#   ./t3x info                                 注册表 id 和设备数
 #
-# T3X_DATA_DIR, T3X_COMPOSE_FILES and T3X_PROJECT behave as in setup.sh.
+# T3X_DATA_DIR、T3X_COMPOSE_FILES 和 T3X_PROJECT 的含义和 setup.sh 一样。
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -19,7 +19,7 @@ PROJECT=${T3X_PROJECT:-t3x}
 COMPOSE_FILES=${T3X_COMPOSE_FILES:-docker-compose.yml}
 
 [ -f "$DATA_DIR/.env" ] || {
-  echo "error: $DATA_DIR/.env not found. Run ./setup.sh first." >&2
+  echo "错误：没找到 $DATA_DIR/.env。先运行 ./setup.sh。" >&2
   exit 1
 }
 
@@ -29,13 +29,13 @@ if [ "${1:-}" = ntfy ]; then
   case "$profiles" in
     *ntfy*) ;;
     *)
-      echo "ntfy is not installed on this server (setup.sh was run with --no-ntfy)." >&2
+      echo "这台服务器没有装推送服务器（setup.sh 是带 --no-ntfy 运行的）。" >&2
       exit 1
       ;;
   esac
-  echo "Server:   $url"
-  echo "Account:  phone  (read-only on up*)"
-  echo "Password: $(tr -d '\n' <"$DATA_DIR/secrets/ntfy-phone.txt")"
+  echo "服务器：$url"
+  echo "账号：  phone（对 up* 只读）"
+  echo "密码：  $(tr -d '\n' <"$DATA_DIR/secrets/ntfy-phone.txt")"
   exit 0
 fi
 

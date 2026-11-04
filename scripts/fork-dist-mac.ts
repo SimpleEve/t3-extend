@@ -11,7 +11,11 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeUtil from "node:util";
 
+import { FRP_VERSION } from "@t3tools/shared/forkFrp";
+import { checkFrpcVersion } from "@t3tools/shared/forkFrpFetch";
 import { FORK } from "@t3tools/shared/forkIdentity";
+
+import { resolveFrpc } from "./lib/fork-frpc.ts";
 
 const log = (message: string): void => {
   process.stdout.write(`${message}\n`);
@@ -19,6 +23,8 @@ const log = (message: string): void => {
 
 const repoRoot = NodePath.resolve(import.meta.dirname, "..");
 const entitlementsDir = NodePath.join(repoRoot, "packaging/fork-macos");
+/** Where the desktop app expects frpc: `T3X_FRPC_PATH` is `<resourcesPath>/bin/frpc` (DesktopBackendConfiguration). */
+const bundledFrpcRelativePath = "Contents/Resources/bin/frpc";
 
 const { values: flags } = NodeUtil.parseArgs({
   options: {
@@ -30,6 +36,8 @@ const { values: flags } = NodeUtil.parseArgs({
     "output-dir": { type: "string", default: "release/fork-mac" },
     "skip-build": { type: "boolean", default: false },
     "create-identity": { type: "boolean", default: false },
+    // Offline: a local frpc instead of the cached download. It must still print the pinned version.
+    "frpc-path": { type: "string" },
   },
 });
 const identity = flags.identity;
@@ -143,9 +151,22 @@ function findApp(): string {
   return NodePath.join(appDir, apps[0]!);
 }
 
+/** The one `bin/frpc` the desktop backend runs; bin and frpc get 0755 whatever the umask is. */
+function bundleFrpc(appPath: string, frpcSource: string): void {
+  const target = NodePath.join(appPath, bundledFrpcRelativePath);
+  NodeFS.mkdirSync(NodePath.dirname(target), { recursive: true });
+  NodeFS.chmodSync(NodePath.dirname(target), 0o755);
+  // A rerun with --skip-build finds the previous, already signed copy.
+  NodeFS.rmSync(target, { force: true });
+  NodeFS.copyFileSync(frpcSource, target);
+  NodeFS.chmodSync(target, 0o755);
+  log(`Bundled frpc ${FRP_VERSION} at ${bundledFrpcRelativePath}`);
+}
+
 async function signApp(appPath: string, identityHash: string): Promise<void> {
   const mainEntitlements = NodePath.join(entitlementsDir, "entitlements.plist");
   const inheritEntitlements = NodePath.join(entitlementsDir, "entitlements.inherit.plist");
+  const bundledFrpc = NodePath.join(appPath, bundledFrpcRelativePath);
   log(`Signing ${appPath} as "${identity}"...`);
   // osx-sign walks the bundle and signs inside out: nested binaries, frameworks, helpers, app.
   await sign({
@@ -158,7 +179,11 @@ async function signApp(appPath: string, identityHash: string): Promise<void> {
     preEmbedProvisioningProfile: false,
     batchCodesignCalls: true,
     optionsForFile: (filePath) => ({
-      entitlements: filePath === appPath ? mainEntitlements : inheritEntitlements,
+      // frpc is a plain Go program: hardened runtime with no exceptions (checked in 8.0), so it gets
+      // none of the JIT and library-validation exceptions the Electron helpers need.
+      ...(filePath === bundledFrpc
+        ? {}
+        : { entitlements: filePath === appPath ? mainEntitlements : inheritEntitlements }),
       hardenedRuntime: true,
       // Apple's timestamp service only countersigns Apple-issued certificates.
       timestamp: "none",
@@ -200,7 +225,35 @@ function signatureProblem(filePath: string): string | undefined {
   return undefined;
 }
 
-function verifyApp(appPath: string): void {
+/** The bundled frpc is signed like everything else, is in the checked list, and runs. */
+async function verifyBundledFrpc(appPath: string, machO: ReadonlyArray<string>): Promise<void> {
+  const frpc = NodePath.join(appPath, bundledFrpcRelativePath);
+  const info = NodeFS.statSync(frpc, { throwIfNoEntry: false });
+  if (info === undefined || !info.isFile()) {
+    throw new Error(`${bundledFrpcRelativePath} is missing from ${appPath}.`);
+  }
+  if (!machO.includes(frpc)) {
+    throw new Error(`${bundledFrpcRelativePath} is not in the Mach-O list that was checked.`);
+  }
+  const modes = [frpc, NodePath.dirname(frpc)].flatMap((target) => {
+    const mode = NodeFS.statSync(target).mode & 0o777;
+    return mode === 0o755
+      ? []
+      : [`${NodePath.relative(appPath, target)} has mode ${mode.toString(8)}`];
+  });
+  if (modes.length > 0) throw new Error(`Expected mode 755: ${modes.join("; ")}.`);
+  const problem = signatureProblem(frpc);
+  if (problem !== undefined) throw new Error(`${bundledFrpcRelativePath}: ${problem}`);
+  const check = await checkFrpcVersion(frpc);
+  if (!check.ok) {
+    throw new Error(
+      `${bundledFrpcRelativePath} -v did not report ${FRP_VERSION}: ${check.reason} ${check.found}`,
+    );
+  }
+  log(`frpc ${FRP_VERSION}: signed by ${identity}, hardened runtime, runs.`);
+}
+
+async function verifyApp(appPath: string): Promise<void> {
   // Per-file checks come first so a failure names the offending files.
   const machO = listMachO(appPath);
   if (machO.length === 0) throw new Error(`No Mach-O files found in ${appPath}.`);
@@ -216,6 +269,7 @@ function verifyApp(appPath: string): void {
   if (!/^TeamIdentifier=not set$/mu.test(details)) {
     throw new Error(`The app unexpectedly carries a Team ID:\n${details}`);
   }
+  await verifyBundledFrpc(appPath, machO);
   log(`Verified ${machO.length} Mach-O files in ${NodePath.basename(appPath)}.`);
 }
 
@@ -265,7 +319,7 @@ function tryRun(command: string, args: ReadonlyArray<string>): boolean {
   return NodeChildProcess.spawnSync(command, args, { stdio: "inherit" }).status === 0;
 }
 
-function verifyDmg(dmgPath: string, appName: string): void {
+async function verifyDmg(dmgPath: string, appName: string): Promise<void> {
   const mountPoint = NodeFS.mkdtempSync(NodePath.join(outputDir, ".mnt-"));
   let attached = false;
   let failure: unknown;
@@ -276,7 +330,7 @@ function verifyDmg(dmgPath: string, appName: string): void {
     if (!NodeFS.existsSync(mountedApp)) {
       throw new Error(`${appName} is missing from the mounted DMG.`);
     }
-    verifyApp(mountedApp);
+    await verifyApp(mountedApp);
   } catch (error) {
     failure = error;
   }
@@ -492,13 +546,16 @@ if (flags["create-identity"]) {
 }
 
 const identityHash = preflight();
+// Before the long build, so an offline machine learns it needs --frpc-path straight away.
+const frpcSource = await resolveFrpc({ explicitPath: flags["frpc-path"], log });
 cleanOutputs();
 if (!flags["skip-build"]) buildApp();
 const appPath = findApp();
+bundleFrpc(appPath, frpcSource);
 await signApp(appPath, identityHash);
-verifyApp(appPath);
+await verifyApp(appPath);
 const dmgPath = buildDmg(appPath, identityHash);
-verifyDmg(dmgPath, NodePath.basename(appPath));
+await verifyDmg(dmgPath, NodePath.basename(appPath));
 const digest = sha256(dmgPath);
 NodeFS.writeFileSync(`${dmgPath}.sha256`, `${digest}  ${NodePath.basename(dmgPath)}\n`);
 log(`\nApp: ${appPath}\nDMG: ${dmgPath}\nsha256: ${digest}`);

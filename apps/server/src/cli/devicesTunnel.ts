@@ -94,6 +94,10 @@ const withTunnelServices = Effect.fn("devices.tunnel.run")(function* <A, E, R>(
   const config = yield* resolveCliAuthConfig(flags, logLevel, options);
   return yield* run.pipe(
     reportDeviceErrors,
+    // `locate` warns about a candidate it skips; --json output must stay one JSON document.
+    options?.quietLogs
+      ? Effect.provideService(References.MinimumLogLevel, "Error")
+      : (self) => self,
     Effect.provide(
       Layer.mergeAll(FrpBinary.layer(), layerServices).pipe(
         Layer.provide(FetchHttpClient.layer),
