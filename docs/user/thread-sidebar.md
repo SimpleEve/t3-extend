@@ -152,7 +152,8 @@ cannot drag or move threads within it. Your saved order returns when you turn it
 
 On web and desktop, use the view button beside the project filter at the top of the sidebar,
 or **Sidebar: Group by status** and **Sidebar: Group by project** in the command palette.
-Each device keeps its own choice.
+Each device keeps its own choice. **By project** is the same setting as **Settings → Labs →
+Boring sidebar (group by project)**, so changing either one changes the other.
 
 **By status** is the default list described above. **By project** puts active threads in a
 folder for each project, in your project order. When a project has threads in a worktree, its
@@ -185,7 +186,9 @@ project's folder comes last and shows only while it has active threads. Click a 
 close it. A closed folder shows how many threads it holds, and a dot when one of them
 needs you. Use the pen button on a folder, or right-click it, to start a thread in that project.
 Pinned threads stay above the folders, and Snoozed and Settled stay below them. In this mode you
-cannot drag threads, and the Working section is off. Each device keeps its own choice.
+cannot drag threads, and the Working section is off. Each device keeps its own choice. The view
+button at the top of the sidebar switches it too, and in that view a project's folder also splits
+its threads by checkout, as described above.
 
 ## Settle finished work
 

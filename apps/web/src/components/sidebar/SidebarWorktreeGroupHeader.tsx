@@ -70,8 +70,6 @@ export function SidebarWorktreeGroupHeader(props: {
   const Icon = isMain ? GitBranchIcon : FolderGit2Icon;
   const buttonProps = {
     type: "button",
-    role: "treeitem",
-    tabIndex: -1,
     "data-sidebar-row": rowId,
     "data-sidebar-parent": props.folderRowId,
     "aria-expanded": !worktree.collapsed,

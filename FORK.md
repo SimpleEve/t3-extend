@@ -199,15 +199,14 @@ mobile：
 
 侧边栏有"按状态"（上游的 Inbox，默认）和"按项目"两种视图，后者在项目文件夹下再按 worktree 分子组。用户说明见 `docs/user/thread-sidebar.md` 的 "Choose a sidebar view"。
 
-- 视图和折叠状态存在 fork 自己的 store（`apps/web/src/fork/sidebarViewStore.ts`，localStorage key `t3extend:sidebar-view:v1`），按设备保存，不进 `ClientSettings`，不改 contracts。折叠 key 带视图前缀（`sidebarGroupCollapseKey`），切换视图不会串组。
+- 视图就是上游 Labs 里的 Boring sidebar 设置（`ClientSettings.boringSidebarEnabled`，经 `ensureLocalApi().persistence` 按设备保存，不跨设备同步）：开是"按项目"，关是"按状态"。顶部切换、命令面板两项和 Labs 开关读写同一个设置：`useSidebarViewMode()` 由 `useBoringSidebarEnabled()` 推出（旧的 `legacySidebarEnabled` 也算开），`setSidebarViewMode()` 和 Labs 一样写 `{ boringSidebarEnabled, legacySidebarEnabled: false }`。fork 自己的 store（`apps/web/src/fork/sidebarViewStore.ts`，localStorage key `t3extend:sidebar-view:v1`）只存折叠状态；旧数据里的 `mode` 字段直接忽略，不迁移（升级后最坏显示一次"按状态"，点一下就回来）。折叠 key 带视图前缀（`sidebarGroupCollapseKey`），不进 `ClientSettings`，不改 contracts。
 - 分组是纯函数，放在 `packages/client-runtime/src/state/threadGrouping.ts`（`@t3tools/client-runtime/state/thread-grouping`），web 和以后的 Android 共用。
-- 按项目视图复用 boring 的所有分支：没有 Working shelf、不能拖拽，New thread 和 `chat.new` 的行为与 boring 相同（多个项目时弹项目选择器，只有 legacy 侧边栏直接在当前项目新建）。Labs 里的 boring sidebar 只影响按状态视图。
+- 按项目视图复用 boring 的所有分支：没有 Working shelf、不能拖拽，New thread 和 `chat.new` 的行为与 boring 相同（多个项目时弹项目选择器，只有 legacy 侧边栏直接在当前项目新建）。按项目视图就是开着 boring sidebar 的侧栏，只多了 worktree 子分组，所以没有单独的"boring 开、按状态"这种状态。
 - `Sidebar.tsx` 的接线（都带 `// fork:`）：
-  1. 文件头的 import（`useSidebarViewMode`、`useProjectViewFolders`、`SidebarWorktreeGroupHeader`）。
+  1. 文件头的 import（`useProjectViewFolders`、`SidebarWorktreeGroupHeader`）。
   2. `useSidebarThreads` 里 `projectFolders` 先取 `useProjectViewFolders` 的结果，`orderedThreadKeys` 因此跟着屏幕顺序走。
   3. `useSidebarThreads` 返回的 `toggleProjectFolder`：按项目视图下写 fork store。
-  4. `Sidebar` 组件里 `boringSidebarEnabled` 加上 `|| sidebarViewMode === "project"`。
-  5. 列表渲染的文件夹循环：有 `folder.worktrees` 时先画 worktree 子组标题，再画行。
+  4. 列表渲染的文件夹循环：有 `folder.worktrees` 时先画 worktree 子组标题，再画行。
 - 其他上游文件各一两行：`SidebarThreadHeader.tsx`（切换按钮）、`CommandPalette.tsx`（两条命令，定义在 `CommandPaletteSidebarViewItems.tsx`）、`lib/sidebarTree.ts` 和 `chatRouteCommands.ts` 现在没有 fork 改动：上游去掉了 `aria-level` 与 `role="tree"`，原来给第三层补的层级计算无处可挂，`chat.new` 也不再特判按项目视图。
 - 快捷键没有加，因为要改 `packages/contracts/src/keybindings.ts`。
 
@@ -473,7 +472,7 @@ vp run check:changed
 
 - 受管策略（managed policy）：macOS 的 managed preferences 和描述文件模板按 `FORK.appId` / `FORK.appBaseName` 生成（`packages/shared/src/managedPolicyFile.ts`、`apps/server/src/policy/policyTemplates.ts`，后者有测试守着）。`/Library/Application Support/T3Code/policy.json` 和 Windows 的 `SOFTWARE\Policies\T3Tools\T3Code` 注册表路径仍是上游的，fork 和官方共用同一份策略；Windows 的 ADMX 模板同理。
 - `DesktopUpdates.hasUpdateFeed` 把受管镜像（`policy.feedUrl`）也算作更新源，否则管理员配了镜像、构建里却没有 `app-update.yml` 时，入口会被隐藏。
-- 侧栏"按项目"仍建在上游的 Boring 侧栏上（`boringSidebarEnabled = useBoringSidebarEnabled() || sidebarViewMode === "project"`）。上游把 `sidebarTree.ts` 的 `role=tree` / `aria-level` 去掉了，fork 在这两处（`lib/sidebarTree.ts`、`shortcuts/chatRouteCommands.ts`）已经没有改动，`chat.new` 在项目视图里和 boring 一样走项目选择器，不再有 fork 分支。
+- 侧栏"按项目"就是上游的 Boring 侧栏（视图由 `useBoringSidebarEnabled()` 推出，`Sidebar.tsx` 里那一行是上游原样）。上游把 `sidebarTree.ts` 的 `role=tree` / `aria-level` 去掉了，fork 在这两处（`lib/sidebarTree.ts`、`shortcuts/chatRouteCommands.ts`）已经没有改动，`chat.new` 在项目视图里和 boring 一样走项目选择器，不再有 fork 分支。
 - 上游把 Android 的 `app.t3.codes` 链接 intentFilter 加进了 `app.config.ts`；fork 不采用（App Link 校验属于官方域名，装上只会抢官方 app 的链接）。iOS 的 `applinks:app.t3.codes` 保留上游的写法。
 - Effect 升到 4.1.2 后 `effect/Crypto` 拆成 `effect/crypto/Digest` 和 `effect/crypto/SecureRandom`；fork 的 `T3CodeImport`、`DeviceAssertionAuth` 和测试夹具都改用新服务，测试要用 `NodeCrypto.layer`（`@effect/platform-node/NodeCrypto`）。同一版本不再读 `X-Forwarded-Proto`，上游加了 `apps/server/src/requestUrl.ts`；server 里取请求 URL 一律走它，不要直接调 `HttpServerRequest.toURL`（隧道监听口的夹具也一样）。
 - 上游新增的测试经常写死官方标识（`t3code://`、`t3code.service`、默认端口 3773、Tailscale Serve 的默认端口）；换成 `FORK.scheme`、`FORK.bootServiceName`、`FORK.defaultPort`、`FORK.tailscaleServePort`。服务端新增清理原因要同步 `apps/web/src/fork/storageCleanupReasons.ts` 的模板表和 zh-Hans 目录，否则 `storageCleanupReasons.test.ts` 会报。`T3CodeImport.test.ts` 把源库固定在迁移 76（077 之前），不要写成"当前 head 减一"，上游每加迁移就会失效。
