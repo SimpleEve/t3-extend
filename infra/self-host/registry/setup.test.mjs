@@ -91,7 +91,7 @@ if (hasBash) {
             os: "Linux",
           });
           assert.equal(result.status, 1, result.stderr);
-          assert.match(result.stderr, /--email must be a plain address/);
+          assert.match(result.stderr, /--email 必须是一个普通的邮箱地址/);
           assert.deepEqual(result.written, []);
           assert.equal(result.dockerCalled, false);
         }
@@ -109,7 +109,7 @@ if (hasBash) {
       assert.equal(trial.status, 0, trial.stderr);
       const missing = setup(["--domain", "t3.example.com"], { os: "Linux" });
       assert.equal(missing.status, 1);
-      assert.match(missing.stderr, /--email is required/);
+      assert.match(missing.stderr, /必须提供 --email/);
     });
 
     it("refuses a domain with a second line", () => {
@@ -118,7 +118,7 @@ if (hasBash) {
         { os: "Linux" },
       );
       assert.equal(result.status, 1);
-      assert.match(result.stderr, /does not look like a domain name/);
+      assert.match(result.stderr, /不像一个域名/);
       assert.deepEqual(result.written, []);
     });
   });
@@ -152,8 +152,8 @@ if (hasBash) {
     it("refuses production mode before doing anything", () => {
       const result = setup(args, { os: "Darwin" });
       assert.equal(result.status, 1);
-      assert.match(result.stderr, /for a Linux VPS/);
-      assert.match(result.stderr, /80 and 443/);
+      assert.match(result.stderr, /只用在 Linux VPS 上/);
+      assert.match(result.stderr, /80 和 443/);
       assert.deepEqual(result.written, []);
       assert.equal(result.dockerCalled, false);
     });

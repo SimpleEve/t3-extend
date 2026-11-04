@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Sets up T3 Extend's registry, tunnel server, HTTPS and (by default) push server on this VPS.
+# 在这台 VPS 上装好 T3 Extend 的注册表、隧道服务器、HTTPS 和（默认的）推送服务器。
 #
 #   ./setup.sh --domain t3.example.com --email you@example.com [--no-ntfy]
 #
-# It needs Docker with the compose plugin, and nothing else: it installs no packages, starts no system
-# service and does not touch the firewall. Open 80/tcp and 443/tcp yourself.
+# 只需要 Docker 和 compose 插件：脚本不装任何软件包，不起系统服务，也不改防火墙。
+# 80/tcp 和 443/tcp 要你自己放行。
 #
-# For trying it on a machine that must stay untouched (see README "本地试用"):
-#   T3X_DATA_DIR   where .env and secrets/ go (default: next to this script)
-#   T3X_COMPOSE_FILES  compose files to use, colon separated, relative to this script (default: docker-compose.yml)
-#   T3X_PROJECT    compose project name (default: t3x)
-#   --public-port  the port the HTTPS site is reachable on (default 443)
-#   --dry-run      print what would happen and change nothing
+# 想在不能被弄脏的机器上试用（见 README 的“本地试用”）：
+#   T3X_DATA_DIR       .env 和 secrets/ 放在哪里（默认是脚本所在目录）
+#   T3X_COMPOSE_FILES  用哪些 compose 文件，冒号分隔，相对脚本所在目录（默认 docker-compose.yml）
+#   T3X_PROJECT        compose 项目名（默认 t3x）
+#   --public-port      HTTPS 站点对外的端口（默认 443）
+#   --dry-run          只打印会做什么，不改任何东西
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -30,7 +30,7 @@ usage() {
 }
 
 fail() {
-  echo "error: $*" >&2
+  echo "错误：$*" >&2
   exit 1
 }
 
@@ -42,7 +42,7 @@ while [ $# -gt 0 ]; do
     --no-ntfy) ntfy=0; shift ;;
     --dry-run) dry_run=1; shift ;;
     -h | --help) usage; exit 0 ;;
-    *) fail "unknown option: $1 (try --help)" ;;
+    *) fail "未知参数：$1（用 --help 查看用法）" ;;
   esac
 done
 
@@ -53,31 +53,31 @@ esac
 
 # The production compose file publishes 80 and 443 on every interface and asks Let's Encrypt for certificates.
 if [ "$(uname -s)" = Darwin ] && [ "$local_trial" = 0 ] && [ "$dry_run" = 0 ]; then
-  fail "setup.sh is for a Linux VPS. Run on this Mac it would open ports 80 and 443 to your local network and request real certificates. To try it on this machine, see \"本地试用\" in README.md (it needs T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.test.yml)."
+  fail "setup.sh 只用在 Linux VPS 上。在这台 Mac 上运行会把 80 和 443 端口开放给局域网，还会去申请真实的证书。想在这台机器上试用，看 README.md 的“本地试用”（需要 T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.test.yml）。"
 fi
 
 # [[ =~ ]] matches the whole value, newlines included; grep would match any single line of it.
 domain_pattern='^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
 email_pattern='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
 
-[ -n "$domain" ] || fail "--domain is required, for example --domain t3.example.com"
+[ -n "$domain" ] || fail "必须提供 --domain，例如 --domain t3.example.com"
 domain=$(printf '%s' "$domain" | tr 'A-Z' 'a-z')
 if [[ ! $domain =~ $domain_pattern ]]; then
-  fail "'$domain' does not look like a domain name (no scheme, no port, no path)"
+  fail "'$domain' 不像一个域名（不要带协议、端口和路径）"
 fi
 case "$public_port" in
-  '' | *[!0-9]*) fail "--public-port must be a number" ;;
+  '' | *[!0-9]*) fail "--public-port 必须是数字" ;;
 esac
 if [ "$public_port" != 443 ] && [ "$local_trial" = 0 ]; then
-  fail "--public-port is only for local trials (T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.test.yml)"
+  fail "--public-port 只用于本地试用（需要 T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.test.yml）"
 fi
 # Let's Encrypt wants an address for expiry notices; a local trial uses Caddy's own CA and needs none.
 if [ "$local_trial" = 0 ] && [ -z "$email" ]; then
-  fail "--email is required, for example --email you@example.com"
+  fail "必须提供 --email，例如 --email you@example.com"
 fi
 # The value goes into .env and into the Caddyfile, so only a plain address is accepted.
 if [ -n "$email" ] && { [ "${#email}" -gt 254 ] || [[ ! $email =~ $email_pattern ]]; }; then
-  fail "--email must be a plain address such as you@example.com"
+  fail "--email 必须是一个普通的邮箱地址，例如 you@example.com"
 fi
 
 origin="https://$domain"
@@ -104,7 +104,7 @@ else
   ntfy_site=./caddy/ntfy-off.caddy
 fi
 
-env_text="# Written by setup.sh. Delete this file and run setup.sh again to change the domain.
+env_text="# 由 setup.sh 写入。换域名：删掉这个文件，再运行 setup.sh。
 T3X_DOMAIN=$domain
 T3X_PUBLIC_ORIGIN=$origin
 ACME_EMAIL=$email
@@ -115,26 +115,26 @@ T3X_NTFY_SITE=$ntfy_site
 T3X_NTFY_URL=$ntfy_url"
 
 if [ "$dry_run" = 1 ]; then
-  echo "Dry run: nothing will be written or started."
+  echo "试运行：不会写任何文件，也不会启动服务。"
   echo
-  echo "Would write $DATA_DIR/.env:"
+  echo "将写入 $DATA_DIR/.env："
   printf '%s\n' "$env_text" | sed 's/^/  /'
-  [ "$ntfy" = 1 ] && echo "Would create $DATA_DIR/secrets/ntfy-phone.txt with a random password (mode 0600)."
-  echo "Would run: docker compose ${compose_args[*]} up -d --build --wait"
-  [ "$ntfy" = 1 ] && echo "Would create the ntfy account 'phone' (read-only on up*)."
-  echo "Would run: $SCRIPT_DIR/t3x invite --kind computer"
+  [ "$ntfy" = 1 ] && echo "将创建 $DATA_DIR/secrets/ntfy-phone.txt，内容是随机密码（权限 0600）。"
+  echo "将运行：docker compose ${compose_args[*]} up -d --build --wait"
+  [ "$ntfy" = 1 ] && echo "将创建推送服务器的账号 'phone'（对 up* 只读）。"
+  echo "将运行：$SCRIPT_DIR/t3x invite --kind computer"
   exit 0
 fi
 
-command -v docker >/dev/null 2>&1 || fail "Docker is not installed. Install Docker and the compose plugin first: https://docs.docker.com/engine/install/"
-docker compose version >/dev/null 2>&1 || fail "The Docker compose plugin is missing: https://docs.docker.com/compose/install/"
+command -v docker >/dev/null 2>&1 || fail "没有安装 Docker。先安装 Docker 和 compose 插件：https://docs.docker.com/engine/install/"
+docker compose version >/dev/null 2>&1 || fail "缺少 Docker compose 插件：https://docs.docker.com/compose/install/"
 
 umask 077
 mkdir -p "$DATA_DIR/secrets"
 if [ -f "$DATA_DIR/.env" ]; then
   existing=$(sed -n 's/^T3X_DOMAIN=//p' "$DATA_DIR/.env")
   if [ "$existing" != "$domain" ]; then
-    fail "$DATA_DIR/.env already sets up '$existing'. Changing the domain means starting over: remove .env and the registry volume first."
+    fail "$DATA_DIR/.env 已经是为 '$existing' 装好的。换域名等于重新开始：先删掉 .env 和注册表的数据卷。"
   fi
 fi
 printf '%s\n' "$env_text" >"$DATA_DIR/.env"
@@ -144,7 +144,7 @@ if [ "$ntfy" = 1 ] && [ ! -s "$DATA_DIR/secrets/ntfy-phone.txt" ]; then
   echo >>"$DATA_DIR/secrets/ntfy-phone.txt"
 fi
 
-echo "Starting the services (the first build takes a minute)..."
+echo "正在启动服务（第一次构建大约要一分钟）..."
 compose up -d --build --wait
 
 if [ "$ntfy" = 1 ]; then
@@ -158,16 +158,16 @@ fi
 T3X_DATA_DIR="$DATA_DIR" T3X_COMPOSE_FILES="$COMPOSE_FILES" T3X_PROJECT="$PROJECT" "$SCRIPT_DIR/t3x" info
 
 echo
-echo "Before the first computer can join, check:"
-echo "  * a DNS record: $domain and *.$domain both point at this server"
-echo "  * the firewall (and your cloud provider's security group) allows 80/tcp and 443/tcp, and nothing else is needed"
+echo "第一台电脑加入之前，先确认："
+echo "  * DNS：$domain 和 *.$domain 都指向这台服务器"
+echo "  * 防火墙（包括云厂商控制台里的安全组）放行了 80/tcp 和 443/tcp，其他端口都不需要开"
 echo
-echo "Invite your first computer: in T3 Extend on that computer, choose to join your own server and paste this:"
+echo "邀请第一台电脑：在那台电脑的 T3 Extend 里打开「设置 → 共享与访问 → 你的服务器」，选「加入我的服务器」，粘贴下面这份邀请："
 echo
 T3X_DATA_DIR="$DATA_DIR" T3X_COMPOSE_FILES="$COMPOSE_FILES" T3X_PROJECT="$PROJECT" "$SCRIPT_DIR/t3x" invite --kind computer
 if [ "$ntfy" = 1 ]; then
   echo
-  echo "Push notifications for an Android phone: run ./t3x ntfy to see the server address and password."
+  echo "Android 手机的推送通知：运行 ./t3x ntfy 查看推送服务器的地址和密码。"
 fi
 echo
-echo "More invites any time: ./t3x invite --kind computer   or   ./t3x invite --kind phone"
+echo "随时可以再生成邀请：./t3x invite --kind computer   或   ./t3x invite --kind phone"
