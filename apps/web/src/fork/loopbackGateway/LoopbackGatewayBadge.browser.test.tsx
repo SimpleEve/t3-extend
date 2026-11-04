@@ -18,7 +18,7 @@ vi.mock(import("./useLoopbackGatewayState"), () => ({
         ? { state: stopped ? "disabled-by-user" : "active" }
         : { state: mocks.otherwise }
     ) as LoopbackGatewayState;
-    return { inputs: {} as never, state, connected: true, connecting: true };
+    return { inputs: {} as never, state, wasActive: false, connected: true, connecting: true };
   },
 }));
 
