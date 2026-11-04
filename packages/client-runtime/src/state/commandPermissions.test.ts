@@ -14,9 +14,11 @@ import {
   AuthPreviewOperateScope,
   AuthSettingsWriteScope,
   AuthSourceControlWriteScope,
+  AuthTerminalOperateScope, // fork: loopback gateway
   ThreadId,
   EnvironmentId,
   FORK_PUSH_WS_METHODS, // fork: UnifiedPush registrations
+  FORK_LOOPBACK_GATEWAY_WS_METHODS, // fork: loopback gateway
   ORCHESTRATION_V2_WS_METHODS,
   clientRpcRequiredScopes,
   ScheduledTaskId,
@@ -604,6 +606,48 @@ describe("push command permissions", () => {
         yield* command.authorize(registry, env);
         // Another environment's grant says nothing about this one.
         registry.set(sessions(other), AsyncResult.success(grant(false)));
+        expect(registry.get(command.permissionAtom(other))).toBe(false);
+      }),
+    ),
+  );
+});
+
+// fork: loopback gateway
+describe("loopback gateway ticket permissions", () => {
+  const method = FORK_LOOPBACK_GATEWAY_WS_METHODS.issueTicket;
+  const granting = (scopes: NonNullable<AuthSessionState["scopes"]>): AuthSessionState => ({
+    ...grant(false),
+    scopes,
+    permissions: scopes,
+  });
+
+  it("asks for the preview and the terminal grant together", () => {
+    expect(clientRpcRequiredScopes(method, {})).toEqual([
+      AuthPreviewOperateScope,
+      AuthTerminalOperateScope,
+    ]);
+  });
+
+  it.effect("is refused unless the destination grants both", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const registry = yield* setup;
+        const command = createCommandPermissions(runtime, method);
+        for (const scopes of [[], [AuthPreviewOperateScope], [AuthTerminalOperateScope]] as const) {
+          registry.set(sessions(env), AsyncResult.success(granting(scopes)));
+          expect(registry.get(command.permissionAtom(env))).toBe(false);
+          expect((yield* command.authorize(registry, env).pipe(Effect.flip))._tag).toBe(
+            "EnvironmentAuthorizationError",
+          );
+        }
+        registry.set(
+          sessions(env),
+          AsyncResult.success(granting([AuthPreviewOperateScope, AuthTerminalOperateScope])),
+        );
+        expect(registry.get(command.permissionAtom(env))).toBe(true);
+        yield* command.authorize(registry, env);
+        // Another environment's grant says nothing about this one.
+        registry.set(sessions(other), AsyncResult.success(granting([])));
         expect(registry.get(command.permissionAtom(other))).toBe(false);
       }),
     ),
