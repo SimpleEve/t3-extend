@@ -14,6 +14,7 @@ import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
 
 import * as ServerConfig from "../../config.ts";
 import { makeFakeFrpc } from "./fakeFrpc.testkit.ts";
@@ -117,6 +118,71 @@ describe("FrpBinary.locate", () => {
   );
 });
 
+describe("FrpBinary.locate when T3X_FRPC_PATH exists but fails", () => {
+  it.effect("uses <T3 home>/bin/frpc instead, whatever is wrong with the first", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const installed = yield* makeFakeFrpc({ version: FRP_VERSION, scripts: [] });
+        const home = yield* tempDir;
+        const broken = NodePath.join(home, "broken");
+        NodeFS.writeFileSync(broken, "not a program", { mode: 0o755 });
+        const old = yield* makeFakeFrpc({ version: "0.70.0", scripts: [] });
+        for (const bad of [old.path, broken]) {
+          const { home: bundledHome, binary } = yield* arrange({ T3X_FRPC_PATH: bad });
+          copyFake(installed.path, homeBinary(bundledHome));
+          assert.deepEqual(yield* binary.locate, {
+            path: homeBinary(bundledHome),
+            source: "t3-home",
+          });
+        }
+      }),
+    ),
+  );
+
+  it.effect("reports the first candidate's problem, and installing really does fix it", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const old = yield* makeFakeFrpc({ version: "0.70.0", scripts: [] });
+        const { home, binary } = yield* arrange({ T3X_FRPC_PATH: old.path });
+        const staleHome = yield* makeFakeFrpc({ version: "0.69.0", scripts: [] });
+        copyFake(staleHome.path, homeBinary(home));
+
+        // Both fail: the person is told about the file they pointed at, not the fall-through's.
+        const error = yield* Effect.flip(binary.locate);
+        assert.equal(error.problem, "wrong-version");
+        assert.include(error.message, old.path);
+        assert.include(error.message, "0.70.0");
+        assert.notInclude(error.message, "0.69.0");
+        assert.include(error.message, `${homeBinary(home)} instead`);
+
+        // What the message asks for: a good file in <T3 home>/bin/frpc. It replaces the stale one.
+        NodeFS.rmSync(homeBinary(home));
+        const fresh = yield* makeFakeFrpc({ version: FRP_VERSION, scripts: [] });
+        copyFake(fresh.path, homeBinary(home));
+        assert.deepEqual(yield* binary.locate, { path: homeBinary(home), source: "t3-home" });
+      }),
+    ),
+  );
+
+  it.effect("warns about the file it skipped, once", () => {
+    const messages: Array<string> = [];
+    const logger = Logger.make(({ message }) => {
+      messages.push(String(message));
+    });
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const old = yield* makeFakeFrpc({ version: "0.70.0", scripts: [] });
+        const installed = yield* makeFakeFrpc({ version: FRP_VERSION, scripts: [] });
+        const { home, binary } = yield* arrange({ T3X_FRPC_PATH: old.path });
+        copyFake(installed.path, homeBinary(home));
+        assert.equal((yield* binary.locate).source, "t3-home");
+        assert.equal(messages.filter((m) => m.includes("Skipping frpc")).length, 1);
+        assert.include(messages.join("\n"), old.path);
+      }),
+    ).pipe(Effect.provide(Logger.layer([logger], { mergeWithExisting: false })));
+  });
+});
+
 describe.skipIf(HostProcess.Platform.defaultValue() === "win32")(
   "FrpBinary.locate refuses a file others could replace",
   () => {
@@ -144,6 +210,27 @@ describe.skipIf(HostProcess.Platform.defaultValue() === "win32")(
           const foreign = yield* Effect.flip(stranger.binary.locate);
           assert.equal(foreign.problem, "unsafe-location");
           assert.include(foreign.message, "belongs to another user");
+        }),
+      ),
+    );
+
+    it.effect("an unsafe T3X_FRPC_PATH is skipped for a safe file in the T3 home", () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const bundled = yield* makeFakeFrpc({ version: FRP_VERSION, scripts: [] });
+          const installed = yield* makeFakeFrpc({ version: FRP_VERSION, scripts: [] });
+          const { home, binary } = yield* arrange({ T3X_FRPC_PATH: bundled.path });
+          copyFake(installed.path, homeBinary(home));
+          NodeFS.chmodSync(bundled.path, 0o775);
+
+          assert.deepEqual(yield* binary.locate, { path: homeBinary(home), source: "t3-home" });
+
+          // With nothing to fall back to, the message names the file and a way out that works.
+          NodeFS.rmSync(homeBinary(home));
+          const error = yield* Effect.flip(binary.locate);
+          assert.equal(error.problem, "unsafe-location");
+          assert.include(error.message, bundled.path);
+          assert.include(error.message, `${homeBinary(home)} instead`);
         }),
       ),
     );

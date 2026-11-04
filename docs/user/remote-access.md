@@ -207,11 +207,62 @@ For a plain HTTP LAN endpoint, use the direct pairing URL in a browser that can
 open it, or pair from the desktop app. On mobile, an IP address entered without a
 scheme uses HTTP, so include `https://` when your server uses HTTPS.
 
-### Your own public address
+### Your own server
+
+<!-- fork: T3 Extend only. Not part of upstream T3 Code. -->
+
+Connect your computers and phones through a server you run yourself, without
+T3 Connect or Cloudflare. Each computer and phone has its own key and the
+server stores only the public halves, so removing one device never affects the
+others and there is no shared password to rotate. Whoever runs the server can
+read your traffic, because HTTPS ends there. Use a machine only you control.
+
+To start:
+
+1. Set up the server on a Linux VPS with a domain you own. Follow
+   [Self-hosted connection](../../infra/self-host/README.md). It ends by printing
+   a one-time invite for your first computer. On a server in mainland China the
+   domain must be registered with your cloud provider.
+2. On the first computer, open **Settings → Sharing & access → Your server**,
+   choose **Join my server**, and paste the invite. Check that the address shown
+   is your own server before you confirm.
+3. From that computer, choose **Invite a device**. For another computer, paste
+   the invite in the same place on that computer. For a phone, scan the code or
+   paste the invite in the phone's **Settings → Your server**. Invites work once
+   and expire after 15 minutes.
+
+Every computer that has joined then shows up as an environment on your other
+computers and phones, including ones that join later.
+
+Things that may surprise you:
+
+- A newly joined device can take a few seconds to a minute to be recognized by
+  the other computers. Until then you see "Waiting for that computer to
+  confirm…".
+- A computer that cannot reach the server keeps working from its last device
+  list. After 3 minutes the settings page says it can't reach the server. After
+  24 hours it warns you. After 7 days it stops accepting new device logins until
+  it syncs again.
+- Removing a device takes effect within about a minute. A computer that was
+  offline at the time is cut off once it reaches the server again.
+- If a computer leaves your server and joins again, its address on the server
+  changes, for example from `mac` to `mac-2`.
+- A phone's key exists only on that phone. For a new phone, join again and
+  remove the old one.
+- Phones can see the device list but cannot invite or remove devices.
+
+On a computer without the desktop app, use `t3x devices join <invite>`,
+`list`, `invite`, `remove`, `leave` and `tunnel`. `list` only reads what was
+last synced and does not contact the server; `tunnel status` shows whether the
+tunnel client is installed and connected.
+
+### Your own public address (Advanced)
 
 If you run a reverse tunnel or proxy on a server you control, such as frp behind
 Caddy on a VPS, T3 Extend can use that HTTPS address instead of T3 Connect.
-[Self-hosted connection](../../infra/self-host/README.md) has a ready setup.
+This is the manual alternative to [Your own server](#your-own-server), which
+sets up per-device keys for you. The older shared-token setup is in
+[infra/self-host/advanced](../../infra/self-host/advanced/README.md).
 
 1. In the desktop app, open **Settings → Sharing & access → Public addresses**
    and add the address, for example `https://t3.example.com`. It must be
