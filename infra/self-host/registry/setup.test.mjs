@@ -34,8 +34,15 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 /** Runs setup.sh against an empty data directory. `os` fakes `uname -s`. */
-function setup(args, { files, os } = {}) {
+function setup(args, { files, os, project, composeWorks } = {}) {
   const bin = NodePath.join(dir, "bin");
+  if (composeWorks) {
+    // `docker compose version` passes, so setup.sh gets as far as writing .env; `up` then fails and stops it.
+    writeFileSync(
+      NodePath.join(bin, "docker"),
+      `#!/bin/sh\necho "$@" >> '${dir}/docker-calls'\n[ "$*" = "compose version" ] && exit 0\nexit 1\n`,
+    );
+  }
   if (os !== undefined) {
     writeFileSync(NodePath.join(bin, "uname"), `#!/bin/sh\necho ${os}\n`);
     chmodSync(NodePath.join(bin, "uname"), 0o755);
@@ -48,6 +55,7 @@ function setup(args, { files, os } = {}) {
       PATH: `${bin}:${process.env.PATH}`,
       T3X_DATA_DIR: data,
       ...(files === undefined ? {} : { T3X_COMPOSE_FILES: files }),
+      ...(project === undefined ? {} : { T3X_PROJECT: project }),
     },
   });
   return {
@@ -55,6 +63,9 @@ function setup(args, { files, os } = {}) {
     stdout: result.stdout,
     stderr: result.stderr,
     written: readdirSync(data),
+    env: existsSync(NodePath.join(data, ".env"))
+      ? NodeFS.readFileSync(NodePath.join(data, ".env"), "utf8")
+      : undefined,
     dockerCalled: existsSync(NodePath.join(dir, "docker-calls")),
   };
 }
@@ -109,6 +120,29 @@ if (hasBash) {
       assert.equal(result.status, 1);
       assert.match(result.stderr, /does not look like a domain name/);
       assert.deepEqual(result.written, []);
+    });
+  });
+
+  describe("setup.sh's .env", () => {
+    // `docker compose` run by hand in infra/self-host reads this file, so it must name the project
+    // and the files setup.sh itself passes with -p and -f, or it would act on a different project.
+    it("names the compose project and files, so plain docker compose finds the deployment", () => {
+      const args = ["--domain", "t3.example.com", "--email", "you@example.com"];
+      const production = setup(args, { os: "Linux", composeWorks: true });
+      assert.match(production.env, /^COMPOSE_PROJECT_NAME=t3x$/m);
+      assert.match(production.env, /^COMPOSE_FILE=docker-compose\.yml$/m);
+      assert.match(production.env, /^COMPOSE_PROFILES=ntfy$/m);
+    });
+
+    it("carries a trial's own project name and compose files", () => {
+      const trial = setup(["--domain", "t3.localhost", "--public-port", "18443"], {
+        files: TRIAL,
+        project: "t3x-trial",
+        os: "Darwin",
+        composeWorks: true,
+      });
+      assert.match(trial.env, /^COMPOSE_PROJECT_NAME=t3x-trial$/m);
+      assert.match(trial.env, new RegExp(`^COMPOSE_FILE=${TRIAL.replaceAll(".", "\\.")}$`, "m"));
     });
   });
 
