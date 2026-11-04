@@ -10,7 +10,7 @@ const reason = (code: LoopbackGatewayErrorCode): string => {
     case "not-owned":
       return translate(
         locale,
-        "This port was not started by a terminal or agent in T3 on the remote environment.",
+        "This port was not started by a terminal or agent in T3 on the remote environment, or the service has detached from the terminal or agent that started it (for example, moved to the background with nohup). Start it from a T3 terminal.",
       );
     case "reserved":
       return translate(locale, "This port can't be forwarded.");

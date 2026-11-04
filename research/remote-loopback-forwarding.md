@@ -165,6 +165,7 @@ default 配置          → scope = environmentId,                 persistent = 
 - 语义变化：环境 B 的分区里，`localhost`、`127.x`、`[::1]` 永远指 B。想在 B 的对话里打开 A 自己的 `localhost:3000`，只能用系统浏览器，或者用本机环境对话里的标签页。要写进用户文档和徽标的提示里。
 - OAuth 回调到 `http://localhost:<随机口>/callback` 的登录流程：回调的接收方如果是 A 上的 CLI，在 B 的分区里会连到 B。这是已知限制，写进文档。
 - WSL 等 `isDesktopLocalConnectionTarget` 的环境，回环地址与 A 共享，**不装代理**（沿用 `reachesEnvironmentLoopback`）。
+- **转发开着时，该环境所有分区里的非回环流量绕过系统代理**（9.2 审查 P2-2）。`fixed_servers` 加 `*;<-loopback>` 是让非回环地址直连的唯一写法，Chromium 没有"回环走我们、其余走系统代理"的按目标分流。用 Clash、公司代理的用户在这些标签页里访问外部网站会直连；停止转发后恢复 `system`。写进用户文档和转发标识的说明（9.3、9.4），FORK.md 也记了。
 
 ## 3. A 到 B 的传输
 
@@ -465,9 +466,11 @@ fork 自己的函数，不调用 `authenticateWebSocketUpgrade`（P0-1 的根因
 1. `authInfo.isProxy === true`；
 2. `authInfo.host` **精确等于** `127.0.0.1`；
 3. `authInfo.port` **精确等于**该环境代理的端口；
-4. `webContents.session` 属于该环境已登记的 session（`partition → environmentId` 登记表）。
+4. 有 `webContents` 时，它的 session 属于该环境已登记的 session（`partition → environmentId` 登记表）；**没有 `webContents` 时（Service Worker、`session.fetch`、下载发出的请求）这一条不查**，由第 3 条的端口认出是哪个环境。
 
 满足才调用 `event.preventDefault()` 和 `callback("t3x", 口令)`，并且只对自己的请求这样做。不满足的一律不动：不 `preventDefault`、不调用 `callback`，让 Electron 的默认行为和其他处理器照常运行。这样口令不会交给用户的系统代理、其他本机代理、页面自己的 HTTP 认证框（`isProxy === false`）、或另一个环境的代理（端口、session 都不对）。
+
+没有 `webContents` 也回应的理由：`login` 事件只会由本 app 的 Chromium 为本 app 自己的请求发出，本机别的进程触发不了；host 和 port 又保证质询来自我们自己的代理（每个环境的端口独有），口令也只会送回那个代理，所以不需要靠 session 再确认一遍。要求 session 反而会让这类请求在认证缓存为空时（刚重启、全新分区）拿到 407。
 
 **与现有处理的共存：** `apps/desktop/src` 里目前没有任何 `app.on("login")`、`session.on("login")`、`select-client-certificate` 或 `certificate-error` 处理（我 grep 过）；没有处理器时 Electron 对代理认证的默认行为是取消。所以我们的处理器是增量，不改变任何现有行为。将来上游若加自己的处理器，我们的条件保证互不干扰，测试里放一个假的上游处理器（只处理 `isProxy === false` 的页面认证）与我们的并存，两边各自生效。
 
@@ -1031,6 +1034,17 @@ authorize(port)                // 每条新隧道都完整走一遍；结果不�
 7. **Fork 桥的类型和 schema 放在 `packages/shared/src/forkLoopbackGateway/bridge.ts`**（同 `keepAwake`、`selfHost` 的先例，IPC 通道名在 `apps/desktop/src/fork/loopbackGateway/channels.ts`，preload 只有两行）。票据在 IPC 上是字符串，主进程的 schema 一解码就是 `Redacted`；格式检查放在解码之后（schema 的长度检查失败会把原值放进错误信息）。`expiresAt` 在线上是 ISO 字符串（`DateTimeUtcFromString`）。
 8. **错误页文案**（`translate(getUiLocale(), …)`）的 13 条中文放进了现有的 `catalogs/zh-Hans/desktop.ts`，没有新开 catalog 文件，避免和 9.3 的 `loopbackGateway.ts` 注册行冲突。
 9. 并发中的"开隧道"上限是 32，超过得到 `limit-reached`（429）；每环境 Chromium 连接 256（`server.maxConnections`）。
+
+**9.2 审查后的修复（GPT 审查，3 条 P1）：**
+
+10. **每次切进代理都关连接。** `applyToSession` 在 `setProxy` 之后无条件 `closeAllConnections()`，包括从 `system` 第一次切到代理。冒烟里 Chromium 的连接池按代理分组，登记前打开的直连 keep-alive 连接在切换后本来就没有被复用（旧代码也过），所以这一条在真实 Electron 里没有可见的差别；但没有这一步时，"新 profile 首次导航前 `resolveProxy` 已是代理"的冒烟在旧代码上失败过一次（`setProxy` 返回时规则还没生效，`closeAllConnections` 起了同步点的作用）。单元测试用 mock `Session` 断言顺序。
+11. **多个 session 的状态靠"期望状态加幂等重试"收敛。** 每个 session 只在 `setProxy`、监听器、`closeAllConnections` 全部成功后才记入"已切到哪个端口"；动手之前先标脏，中途失败的 session 下次一定重做。`onProxyChange` 用 `Promise.allSettled`，任何一个失败就让环境报 `rejected`/`internal`（没有新协议字段），环境之后的每个操作（`register`、`updateTicket`、`setEnabled`、`setReachable`、`installSession`）先把所有 session 重新收敛。停止转发时某个 session 没能恢复，它会指着一个已经关闭的代理，回环请求失败（不会走到别处），下一次操作再恢复。`installSession` 对自己这个 session 没到位就抛错，`getPreviewConfig` 随之失败，不返回 webview 配置；`unregister` 在环境关闭后再收敛一次，失败也抛错。
+12. **没有 `webContents` 的请求也能通过代理认证**，理由写在 §4.7。真实 Electron 里的结论（冒烟）：
+    - 下载（`session.downloadURL`，全新分区的第一个请求）：`login` 事件来了，`webContents` 为空，应答成功，下载完成。
+    - Service Worker 在 app 重启之后的第一个请求：持久分区，第一次运行注册并缓存页面后退出；第二次运行是新进程，不开任何页面，只用 `session.serviceWorkers.startWorkerForScope` 启动那个 worker，它在脚本顶层 `fetch` 上游。`login` 事件来了，`webContents` 为空，应答成功，请求经隧道到达。旧代码（要求 session）在这里超时。
+    - **`session.fetch` 是例外：Electron 根本不为它发 `login`。** 全新分区上的第一个 `session.fetch` 得到代理的 407，没有任何质询事件，请求没有泄露到 A 本机；该分区里只要有过一次会发 `login` 的请求（导航、下载），认证被缓存，之后的 `session.fetch` 正常。实际影响很小：favicon 抓取（`FaviconCapture.ts`）用的是已经导航过的标签页所在的 session。若以后要覆盖，最小的备选是：`installSession` 成功后，对该 session 做一次发往代理自身端口的 `session.downloadURL`（会触发 `login` 并缓存凭据）预热；没有做，因为它是为一个没有真实触发路径的窗口多加一个机制。冒烟把这一缺口当作已知现象固定下来（407、无 `login`、无泄露、导航之后恢复），Electron 行为变了冒烟会提醒。
+13. **`not-owned` 错误页文案**加上"或者它已经脱离了启动它的终端或 Agent（例如用 nohup 放到后台）"，建议在 T3 的终端里启动（9.1 的规则：不在 server 子树里的监听一律算不是 T3 起的）。
+14. **每个 session 只有一个 `onHeadersReceived`**：FORK.md 记了一笔，`singleWebRequestListener.test.ts` 在 `apps/desktop/src/fork/` 以外的产品代码里出现 `webRequest.on…(` 就失败。
 
 ### 9.3 web 接线、界面与中文（M）
 

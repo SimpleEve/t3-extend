@@ -21,6 +21,12 @@ import {
 import { makeTlsFixtures } from "../../src/fork/loopbackGateway/tlsFixtures.testkit.ts";
 
 const outputDir = process.env.T3X_SMOKE_OUTPUT ?? "/tmp/t3x-p92/smoke-unset";
+// Phase 1 runs every path and leaves a service worker behind in a persistent partition; phase 2 is
+// a new app process on the same user data that checks the worker's first request.
+const phase = process.env.T3X_SMOKE_PHASE ?? "1";
+const [swPagePort, swUpstreamPort] = (process.env.T3X_SMOKE_SW_PORTS ?? "0,0")
+  .split(",")
+  .map(Number);
 const TICKET = "smoke.ticket-Zq8vXk2LmN4pR7sT.signature-Wd5hYb3Fc9Gj1Ea";
 
 interface Result {
@@ -69,7 +75,11 @@ const listening: Array<NodeHttp.Server | NodeHttps.Server> = [];
 
 const startFixture = async (
   handler: (request: NodeHttp.IncomingMessage, response: NodeHttp.ServerResponse) => void,
-  options: { readonly tls?: { key: string; cert: string }; readonly websocket?: boolean } = {},
+  options: {
+    readonly tls?: { key: string; cert: string };
+    readonly websocket?: boolean;
+    readonly port?: number;
+  } = {},
 ): Promise<Fixture> => {
   const served: Fixture["served"] = [];
   let connections = 0;
@@ -94,7 +104,7 @@ const startFixture = async (
       });
     });
   }
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) => server.listen(options.port ?? 0, "127.0.0.1", resolve));
   listening.push(server);
   return {
     port: (server.address() as NodeNet.AddressInfo).port,
@@ -173,7 +183,11 @@ const main = async (): Promise<void> => {
   const answerLogin = makeProxyLoginListener(host);
   let loginAnswered = 0;
   let loginIgnored = 0;
-  app.on("login", (event, webContents, _details, authInfo, callback) => {
+  let loginWithoutWebContents = 0;
+  const loginLog: Array<{ readonly url: string; readonly hasWebContents: boolean }> = [];
+  app.on("login", (event, webContents, details, authInfo, callback) => {
+    loginLog.push({ url: details.url, hasWebContents: webContents != null });
+    if (webContents == null && authInfo.isProxy) loginWithoutWebContents += 1;
     answerLogin(event, webContents ?? undefined, authInfo, (username, password) => {
       loginAnswered += 1;
       callback(username, password);
@@ -208,6 +222,72 @@ const main = async (): Promise<void> => {
   const defaultSession = electronSession.fromPartition("persist:smoke-default");
   const incognitoSession = electronSession.fromPartition("smoke-incognito");
   const controlSession = electronSession.fromPartition("persist:smoke-control");
+  const restartSession = electronSession.fromPartition("persist:smoke-sw-restart");
+
+  const finish = async (): Promise<void> => {
+    await host.dispose();
+    for (const win of windows) if (!win.isDestroyed()) win.destroy();
+    await gateway.close();
+    await Promise.all(
+      listening.map(
+        (server) =>
+          new Promise<void>((resolve) => {
+            server.closeAllConnections();
+            server.close(() => resolve());
+          }),
+      ),
+    );
+    fixtures.dispose();
+    NodeFS.writeFileSync(
+      NodePath.join(outputDir, `results-${phase}.json`),
+      JSON.stringify(results, null, 2),
+    );
+    NodeFS.writeFileSync(
+      NodePath.join(outputDir, `events-${phase}.json`),
+      JSON.stringify(events, null, 2),
+    );
+    app.exit(results.every((result) => result.ok) ? 0 : 1);
+  };
+
+  // A page the service worker can serve from its cache, and the upstream it fetches from.
+  const startRestartFixtures = async () => {
+    const bootFetched = Promise.withResolvers<void>();
+    const upstream = await startFixture(
+      (request, response) => {
+        if (request.url === "/boot-fetch") bootFetched.resolve();
+        response.end(`upstream:${request.url}`);
+      },
+      { port: swUpstreamPort },
+    );
+    const cachedPage = html('<p id="m">served from the service worker cache</p>');
+    // The top-level fetch runs whenever the worker starts, with no page involved.
+    const worker = `
+      fetch('http://localhost:${swUpstreamPort}/boot-fetch').catch(() => {});
+      self.addEventListener('install', (event) => event.waitUntil(
+        caches.open('v1').then((cache) => cache.put('/', new Response(${JSON.stringify(cachedPage)},
+          { headers: { 'Content-Type': 'text/html; charset=utf-8' } }))).then(() => self.skipWaiting())));
+      self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+      self.addEventListener('fetch', (event) => {
+        const url = new URL(event.request.url);
+        if (event.request.mode === 'navigate' && url.pathname === '/') event.respondWith(caches.match('/'));
+        else if (url.pathname === '/via-sw') event.respondWith(fetch('http://localhost:${swUpstreamPort}/from-sw'));
+      });`;
+    const pageFixture = await startFixture(
+      (request, response) => {
+        if (request.url === "/sw.js") {
+          response.writeHead(200, {
+            "Content-Type": "text/javascript",
+            "Cache-Control": "no-cache",
+          });
+          response.end(worker);
+          return;
+        }
+        page("<p>network page</p>")(request, response);
+      },
+      { port: swPagePort },
+    );
+    return { pageFixture, upstream, bootFetched: bootFetched.promise };
+  };
 
   // The environment registers first, then each session is handed over before any page exists.
   const registered = await host.register({
@@ -218,7 +298,24 @@ const main = async (): Promise<void> => {
   });
   await host.installSession(ENV, defaultSession);
   await host.installSession(ENV, incognitoSession);
-  console.log(`registered: ${JSON.stringify(registered)}`);
+  await host.installSession(ENV, restartSession);
+  console.log(`phase ${phase} registered: ${JSON.stringify(registered)}`);
+
+  if (phase === "2") {
+    await scenario("a service worker's first request after an app restart", async () => {
+      const { upstream, bootFetched } = await startRestartFixtures();
+      check(loginLog.length === 0, "a challenge arrived before anything was requested");
+      // Start the worker from the previous run on its own: no page, so no webContents.
+      await restartSession.serviceWorkers.startWorkerForScope(`http://localhost:${swPagePort}/`);
+      await withTimeout(bootFetched, 20_000);
+      check(attempts(upstream.port) > 0, "the worker's first fetch went direct");
+      check(loginWithoutWebContents > 0, "no challenge arrived without a webContents");
+      check(loginIgnored === 0, `${loginIgnored} challenge(s) were not answered`);
+      return `the worker's boot fetch of :${swUpstreamPort} reached the fixture through ${attempts(upstream.port)} tunnel(s); log: ${JSON.stringify(loginLog)}`;
+    });
+    await finish();
+    return;
+  }
 
   await scenario("proxy rule per session", async () => {
     const proxied = [
@@ -623,6 +720,105 @@ const main = async (): Promise<void> => {
     return `off: DIRECT, no new tunnel; on: "${rule2}" (was "${proxiedBefore}"), tunnel used again`;
   });
 
+  await scenario("a connection opened before the session was switched is not reused", async () => {
+    const fixture = await startFixture((request, response) => {
+      if (request.url?.startsWith("/data")) response.end("data");
+      else page("<p>late</p>")(request, response);
+    });
+    const late = electronSession.fromPartition("persist:smoke-late");
+    const win = openWindow(late);
+    await load(win, `http://localhost:${fixture.port}/`);
+    await evaluate<string>(win, "fetch('/data?before').then((r) => r.text())");
+    check(attempts(fixture.port) === 0, "the page reached the fixture through a tunnel too early");
+    const directConnections = fixture.connections();
+    check(directConnections > 0, "the page made no direct connection to keep alive");
+
+    await host.installSession(ENV, late);
+    const reply = await evaluate<string>(win, "fetch('/data?after').then((r) => r.text())");
+    check(reply === "data", `fetch returned ${reply}`);
+    check(attempts(fixture.port) > 0, "the request after switching reused the direct connection");
+    return `${directConnections} direct connection(s) before; the next request went through ${attempts(fixture.port)} tunnel(s)`;
+  });
+
+  await scenario(
+    "first request on a new session without a webContents: session.fetch",
+    async () => {
+      const fixture = await startFixture((_request, response) => response.end("first-fetch"));
+      const fresh = electronSession.fromPartition("persist:smoke-fresh-fetch");
+      await host.installSession(ENV, fresh);
+      const url = `http://localhost:${fixture.port}/`;
+      const asked = loginLog.length;
+      const first = await fresh.fetch(url);
+      const challenged = loginLog
+        .slice(asked)
+        .filter((entry) => entry.url.includes(`:${fixture.port}`));
+      if (first.status === 200) {
+        expectTunnelled("session.fetch", fixture);
+        return `200 through ${attempts(fixture.port)} tunnel(s); ${challenged.length} challenge(s) for it`;
+      }
+      // Electron emits no `login` for the net stack behind session.fetch, so the first request of a
+      // session that has not authenticated yet gets the proxy's 407. Pin that down: any request
+      // that does emit `login` (a navigation, a download) makes the same fetch work afterwards.
+      check(first.status === 407, `status was ${first.status}`);
+      check(challenged.length === 0, "a challenge was emitted, yet the fetch was not answered");
+      check(
+        fixture.served.length === 0 && attempts(fixture.port) === 0,
+        "the 407 request leaked to the fixture",
+      );
+      const win = openWindow(fresh);
+      await load(win, url);
+      const second = await fresh.fetch(url);
+      check(second.status === 200, `after a navigation the fetch returned ${second.status}`);
+      expectTunnelled("session.fetch after a navigation", fixture);
+      return "KNOWN GAP: the first session.fetch got 407 and no login event; it works once a navigation has authenticated the session";
+    },
+  );
+
+  await scenario("first request on a new session without a webContents: download", async () => {
+    const payload = Buffer.alloc(256 * 1024, 9);
+    const fixture = await startFixture((_request, response) => {
+      response.writeHead(200, {
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": 'attachment; filename="first.bin"',
+        "Content-Length": payload.length,
+      });
+      response.end(payload);
+    });
+    const fresh = electronSession.fromPartition("persist:smoke-fresh-download");
+    await host.installSession(ENV, fresh);
+    const target = NodePath.join(outputDir, "first-download.bin");
+    const done = new Promise<string>((resolve) => {
+      fresh.once("will-download", (_event, item) => {
+        item.setSavePath(target);
+        item.once("done", (_doneEvent, state) => resolve(state));
+      });
+    });
+    const before = loginWithoutWebContents;
+    fresh.downloadURL(`http://localhost:${fixture.port}/first.bin`);
+    const state = await done;
+    check(state === "completed", `download ended ${state}`);
+    check(NodeFS.readFileSync(target).equals(payload), "the downloaded bytes differ");
+    expectTunnelled("first download", fixture);
+    return `completed through ${attempts(fixture.port)} tunnel(s); ${loginWithoutWebContents - before} challenge(s) arrived without a webContents`;
+  });
+
+  await scenario("a service worker is left behind for the restart check", async () => {
+    const { pageFixture, upstream } = await startRestartFixtures();
+    const win = openWindow(restartSession);
+    await load(win, `http://localhost:${pageFixture.port}/`);
+    const reply = await evaluate<string>(
+      win,
+      `navigator.serviceWorker.register('/sw.js').then(() => navigator.serviceWorker.ready)
+        .then(() => new Promise((r) => setTimeout(r, 300)))
+        .then(() => fetch('/via-sw')).then((r) => r.text())`,
+    );
+    check(reply === "upstream:/from-sw", `the worker's fetch returned "${reply}"`);
+    expectTunnelled("service worker (phase 1)", upstream);
+    await restartSession.flushStorageData();
+    await sleep(500);
+    return "registered, cached its page, and fetched upstream through the tunnel";
+  });
+
   await scenario("the proxy password is only ever answered to our proxy", async () => {
     check(loginAnswered > 0, "the proxy was never challenged");
     check(loginIgnored === 0, `${loginIgnored} challenge(s) were not answered by the gateway`);
@@ -639,22 +835,7 @@ const main = async (): Promise<void> => {
     return "events and results do not contain it";
   });
 
-  await host.dispose();
-  for (const win of windows) if (!win.isDestroyed()) win.destroy();
-  await gateway.close();
-  await Promise.all(
-    listening.map(
-      (server) =>
-        new Promise<void>((resolve) => {
-          server.closeAllConnections();
-          server.close(() => resolve());
-        }),
-    ),
-  );
-  fixtures.dispose();
-  NodeFS.writeFileSync(NodePath.join(outputDir, "results.json"), JSON.stringify(results, null, 2));
-  NodeFS.writeFileSync(NodePath.join(outputDir, "events.json"), JSON.stringify(events, null, 2));
-  app.exit(results.every((result) => result.ok) ? 0 : 1);
+  await finish();
 };
 
 main().catch((error: unknown) => {
@@ -662,6 +843,9 @@ main().catch((error: unknown) => {
     `harness crashed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
   );
   NodeFS.mkdirSync(outputDir, { recursive: true });
-  NodeFS.writeFileSync(NodePath.join(outputDir, "results.json"), JSON.stringify(results, null, 2));
+  NodeFS.writeFileSync(
+    NodePath.join(outputDir, `results-${phase}.json`),
+    JSON.stringify(results, null, 2),
+  );
   app.exit(1);
 });

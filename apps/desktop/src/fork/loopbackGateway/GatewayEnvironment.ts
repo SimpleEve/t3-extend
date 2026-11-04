@@ -54,8 +54,10 @@ export interface GatewayEnvironmentOptions {
   readonly environmentId: string;
   readonly emit: (event: LoopbackGatewayEvent) => void;
   /**
-   * Called after the proxy starts or stops, and before the call that caused it returns, so that
-   * sessions point at a proxy that is already listening and never at one that has gone.
+   * Moves every browser session of the environment to `proxy` (`null`: back to normal
+   * networking), before the call that caused it returns. It is idempotent, and rejects when any
+   * session could not be moved; the environment then reports `internal` and calls it again before
+   * its next operation, until it succeeds.
    */
   readonly onProxyChange: (proxy: { readonly port: number } | null) => Promise<void>;
   readonly openTunnel?: (input: OpenLoopbackTunnelInput) => Promise<NodeStream.Duplex>;
@@ -77,6 +79,8 @@ export interface GatewayEnvironment {
   readonly updateTicket: (credential: LoopbackGatewayCredential) => Promise<LoopbackGatewayStatus>;
   readonly setEnabled: (enabled: boolean) => Promise<LoopbackGatewayStatus>;
   readonly setReachable: (reachable: boolean) => Promise<LoopbackGatewayStatus>;
+  /** Moves all sessions to the state the environment wants now (a new session was added). */
+  readonly syncSessions: () => Promise<LoopbackGatewayStatus>;
   readonly status: () => LoopbackGatewayStatus;
   readonly proxyPort: () => number | null;
   /** The answer to Chromium's proxy challenge; only for `app.on("login")`. */
@@ -115,6 +119,8 @@ export const makeGatewayEnvironment = (options: GatewayEnvironmentOptions): Gate
   let lastTicketRequest = Number.NEGATIVE_INFINITY;
   let lastStatus = "";
   let closed = false;
+  /** False after `onProxyChange` failed, until a later call succeeds. */
+  let sessionsInSync = true;
   // Changes are applied one at a time, so a proxy is never started twice or stopped while starting.
   let queue: Promise<unknown> = Promise.resolve();
   const serialized = <T>(work: () => Promise<T>): Promise<T> => {
@@ -129,6 +135,7 @@ export const makeGatewayEnvironment = (options: GatewayEnvironmentOptions): Gate
       : checkLoopbackGatewayTransport(baseUrl);
 
   const computeStatus = (): LoopbackGatewayStatus => {
+    if (!sessionsInSync) return { state: "rejected", code: "internal" };
     if (!enabled) return { state: "disabled-by-user" };
     const route = transport();
     if (!route.ok) {
@@ -178,6 +185,19 @@ export const makeGatewayEnvironment = (options: GatewayEnvironmentOptions): Gate
 
   const wantsProxy = (): boolean => enabled && transport().ok;
 
+  const applySessions = async (): Promise<void> => {
+    try {
+      await options.onProxyChange(proxy === undefined ? null : { port: proxy.port });
+      sessionsInSync = true;
+    } catch {
+      sessionsInSync = false;
+    }
+  };
+
+  const converge = async (): Promise<void> => {
+    if (!sessionsInSync) await applySessions();
+  };
+
   const startProxy = async (): Promise<void> => {
     const secret = NodeCrypto.randomBytes(32).toString("hex");
     const started = await startLoopbackProxy({
@@ -201,7 +221,7 @@ export const makeGatewayEnvironment = (options: GatewayEnvironmentOptions): Gate
     });
     proxy = started;
     password = secret;
-    await options.onProxyChange({ port: started.port });
+    await applySessions();
   };
 
   const stopProxy = async (): Promise<void> => {
@@ -209,7 +229,9 @@ export const makeGatewayEnvironment = (options: GatewayEnvironmentOptions): Gate
     proxy = undefined;
     password = undefined;
     // Sessions go back to normal networking before the proxy goes, so nothing is left aimed at it.
-    await options.onProxyChange(null);
+    // One that cannot be moved keeps pointing at a proxy that no longer listens: its loopback
+    // requests fail, and the next operation tries again.
+    await applySessions();
     await stopping?.close();
   };
 
@@ -266,6 +288,7 @@ export const makeGatewayEnvironment = (options: GatewayEnvironmentOptions): Gate
     environmentId,
     register: (input) =>
       serialized(async () => {
+        await converge();
         const routeChanged = baseUrl !== undefined && baseUrl !== input.httpBaseUrl;
         const enabledChanged = enabled !== input.enabled;
         // A ticket belongs to the route it was fetched over (design 3.6): a new route needs a new one.
@@ -284,11 +307,13 @@ export const makeGatewayEnvironment = (options: GatewayEnvironmentOptions): Gate
       }),
     updateTicket: (next) =>
       serialized(async () => {
+        await converge();
         setCredential(next);
         return publishStatus();
       }),
     setEnabled: (value) =>
       serialized(async () => {
+        await converge();
         enabled = value;
         if (!value) dropTunnels();
         const status = await reconcile();
@@ -297,8 +322,14 @@ export const makeGatewayEnvironment = (options: GatewayEnvironmentOptions): Gate
       }),
     setReachable: (value) =>
       serialized(async () => {
+        await converge();
         reachable = value;
         if (value) failure = failure?.code === "offline" ? undefined : failure;
+        return publishStatus();
+      }),
+    syncSessions: () =>
+      serialized(async () => {
+        if (!closed) await applySessions();
         return publishStatus();
       }),
     status: computeStatus,

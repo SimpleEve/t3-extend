@@ -71,8 +71,8 @@ export default {
 
   // Page shown when a remote environment's localhost cannot be forwarded
   "Can't forward localhost:{port}": "无法转发 localhost:{port}",
-  "This port was not started by a terminal or agent in T3 on the remote environment.":
-    "此端口不是远程环境里 T3 的终端或 Agent 启动的。",
+  "This port was not started by a terminal or agent in T3 on the remote environment, or the service has detached from the terminal or agent that started it (for example, moved to the background with nohup). Start it from a T3 terminal.":
+    "这个端口上的服务不是由远程环境里 T3 的终端或 Agent 启动的，或者它已经脱离了启动它的终端或 Agent（例如用 nohup 放到了后台）。请改在 T3 的终端里启动它。",
   "This port can't be forwarded.": "此端口无法转发。",
   "This service is running with debugging turned on, so it can't be forwarded.":
     "此服务带着调试参数运行，无法转发。",

@@ -3,6 +3,7 @@
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
 import * as NodeModule from "node:module";
+import * as NodeNet from "node:net";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeURL from "node:url";
@@ -31,51 +32,79 @@ const electronBinary = require("electron");
 const outputDir = NodePath.join("/tmp/t3x-p92", `smoke-${Date.now()}`);
 NodeFS.mkdirSync(outputDir, { recursive: true });
 
+// The service worker's origin includes its port, so both phases use the same two.
+const freePort = () =>
+  new Promise((resolve) => {
+    const probe = NodeNet.createServer();
+    probe.listen(0, "127.0.0.1", () => {
+      const { port } = probe.address();
+      probe.close(() => resolve(port));
+    });
+  });
+const swPorts = `${await freePort()},${await freePort()}`;
+
 // The host app injects these; either one would turn Electron into a Node REPL or point at the
 // official CLI.
-const env = { ...process.env, T3X_SMOKE_OUTPUT: outputDir };
-delete env.ELECTRON_RUN_AS_NODE;
-delete env.T3CODE_CLI_PATH;
+const baseEnv = { ...process.env, T3X_SMOKE_OUTPUT: outputDir, T3X_SMOKE_SW_PORTS: swPorts };
+delete baseEnv.ELECTRON_RUN_AS_NODE;
+delete baseEnv.T3CODE_CLI_PATH;
 
-const child = NodeChildProcess.spawn(
-  electronBinary,
-  [
-    NodePath.join(here, "main.mjs"),
-    `--user-data-dir=${NodePath.join(outputDir, "user-data")}`,
-    "--use-mock-keychain",
-    "--host-resolver-rules=MAP direct.test 127.0.0.1",
-    "--disable-features=CalculateNativeWinOcclusion",
-  ],
-  { cwd: desktopDir, env, stdio: ["ignore", "pipe", "pipe"] },
+/** Runs one Electron process to the end; only the PID it started is ever signalled. */
+const runPhase = (phase) =>
+  new Promise((resolve) => {
+    const child = NodeChildProcess.spawn(
+      electronBinary,
+      [
+        NodePath.join(here, "main.mjs"),
+        `--user-data-dir=${NodePath.join(outputDir, "user-data")}`,
+        "--use-mock-keychain",
+        "--host-resolver-rules=MAP direct.test 127.0.0.1",
+        "--disable-features=CalculateNativeWinOcclusion",
+      ],
+      {
+        cwd: desktopDir,
+        env: { ...baseEnv, T3X_SMOKE_PHASE: phase },
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    const electronPid = child.pid;
+    console.log(`phase ${phase}: electron pid ${electronPid}, output in ${outputDir}`);
+    child.stdout.on("data", (chunk) => process.stdout.write(chunk));
+    child.stderr.on("data", (chunk) =>
+      NodeFS.appendFileSync(NodePath.join(outputDir, `stderr-${phase}.log`), chunk),
+    );
+    const deadline = setTimeout(() => {
+      console.error(
+        `Timed out after ${TIMEOUT_MS / 1000} s; stopping electron pid ${electronPid}.`,
+      );
+      child.kill("SIGTERM");
+    }, TIMEOUT_MS);
+    child.once("exit", (code, signal) => {
+      clearTimeout(deadline);
+      let leftover = false;
+      try {
+        process.kill(electronPid, 0);
+        leftover = true;
+      } catch {
+        leftover = false;
+      }
+      console.log(
+        `phase ${phase}: electron exited (code ${code}, signal ${signal}); still running: ${leftover}`,
+      );
+      const resultsFile = NodePath.join(outputDir, `results-${phase}.json`);
+      const results = NodeFS.existsSync(resultsFile)
+        ? JSON.parse(NodeFS.readFileSync(resultsFile, "utf8"))
+        : [];
+      resolve({ results, clean: code === 0 && !leftover });
+    });
+  });
+
+const first = await runPhase("1");
+const second = await runPhase("2");
+const results = [...first.results, ...second.results];
+const failed = results.filter((result) => !result.ok);
+console.log(`\n${results.length - failed.length}/${results.length} paths passed`);
+for (const result of failed) console.log(`FAILED ${result.name}: ${result.detail}`);
+process.exit(
+  second.results.length > 0 && failed.length === 0 && first.clean && second.clean ? 0 : 1,
 );
-const electronPid = child.pid;
-console.log(`electron pid ${electronPid}, output in ${outputDir}`);
-child.stdout.on("data", (chunk) => process.stdout.write(chunk));
-child.stderr.on("data", (chunk) =>
-  NodeFS.appendFileSync(NodePath.join(outputDir, "stderr.log"), chunk),
-);
-
-const deadline = setTimeout(() => {
-  console.error(`Timed out after ${TIMEOUT_MS / 1000} s; stopping electron pid ${electronPid}.`);
-  child.kill("SIGTERM");
-}, TIMEOUT_MS);
-
-child.once("exit", (code, signal) => {
-  clearTimeout(deadline);
-  const resultsFile = NodePath.join(outputDir, "results.json");
-  const results = NodeFS.existsSync(resultsFile)
-    ? JSON.parse(NodeFS.readFileSync(resultsFile, "utf8"))
-    : [];
-  const failed = results.filter((result) => !result.ok);
-  console.log(`\n${results.length - failed.length}/${results.length} paths passed`);
-  for (const result of failed) console.log(`FAILED ${result.name}: ${result.detail}`);
-  let leftover = false;
-  try {
-    process.kill(electronPid, 0);
-    leftover = true;
-  } catch {
-    leftover = false;
-  }
-  console.log(`electron exited (code ${code}, signal ${signal}); still running: ${leftover}`);
-  process.exit(results.length > 0 && failed.length === 0 && code === 0 && !leftover ? 0 : 1);
-});

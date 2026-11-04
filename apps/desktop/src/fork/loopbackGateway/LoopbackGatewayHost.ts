@@ -34,6 +34,15 @@ const RESTORED_PROXY_CONFIG: Electron.ProxyConfig = { mode: "system" };
 
 const isGatewayErrorCode = Schema.is(LoopbackGatewayErrorCode);
 
+/** A fixed message: what Electron said about the failure is of no use to the caller. */
+class LoopbackGatewaySessionError extends Error {
+  override readonly name = "LoopbackGatewaySessionError";
+
+  constructor() {
+    super("A browser session could not be switched to or from the loopback gateway proxy.");
+  }
+}
+
 export interface LoopbackGatewayHostOptions {
   readonly emit: (event: LoopbackGatewayEvent) => void;
   readonly renderErrorPage?: GatewayEnvironmentOptions["renderErrorPage"];
@@ -88,8 +97,6 @@ export const makeLoopbackGatewayHost = (
   const environments = new Map<string, GatewayEnvironment>();
   const sessionsByEnvironment = new Map<string, Set<Electron.Session>>();
   const environmentBySession = new WeakMap<Electron.Session, string>();
-  /** The proxy port each session is pointed at right now. */
-  const proxiedPort = new WeakMap<Electron.Session, number>();
 
   /** A refused top-level navigation: the proxy's error page carries the code in a header. */
   const headerListener =
@@ -127,34 +134,46 @@ export const makeLoopbackGatewayHost = (
       });
     };
 
+  /**
+   * What each session has been moved to. A session is recorded only after every step succeeded;
+   * `dirty` marks one that a step was started on, so a failure half way is finished by the next
+   * call instead of being taken for done. Untouched sessions count as `null` (normal networking).
+   */
+  const settledPort = new WeakMap<Electron.Session, number | null>();
+  const dirty = new WeakSet<Electron.Session>();
+  const isSettledAt = (session: Electron.Session, port: number | null): boolean =>
+    !dirty.has(session) && (settledPort.get(session) ?? null) === port;
+
   const applyToSession = async (
     environmentId: string,
     session: Electron.Session,
     port: number | null,
   ): Promise<void> => {
-    const current = proxiedPort.get(session);
+    if (isSettledAt(session, port)) return;
+    dirty.add(session);
     if (port !== null) {
-      if (current === port) return;
       await session.setProxy(proxyConfig(port));
       session.webRequest.onHeadersReceived(headerListener(environmentId));
-      proxiedPort.set(session, port);
-      // A connection made before the proxy was set must not be reused for a loopback request.
-      if (current !== undefined) await session.closeAllConnections();
-      return;
+    } else {
+      await session.setProxy(RESTORED_PROXY_CONFIG);
+      session.webRequest.onHeadersReceived(null);
     }
-    if (current === undefined) return;
-    proxiedPort.delete(session);
-    await session.setProxy(RESTORED_PROXY_CONFIG);
-    session.webRequest.onHeadersReceived(null);
+    // Connections made under the old setting must not carry a loopback request to the wrong place.
     await session.closeAllConnections();
+    settledPort.set(session, port);
+    dirty.delete(session);
   };
 
-  const applyToEnvironment = (environmentId: string, port: number | null): Promise<void> =>
-    Promise.all(
+  const applyToEnvironment = async (environmentId: string, port: number | null): Promise<void> => {
+    const results = await Promise.allSettled(
       [...(sessionsByEnvironment.get(environmentId) ?? [])].map((session) =>
         applyToSession(environmentId, session, port),
       ),
-    ).then(() => undefined);
+    );
+    if (results.some((result) => result.status === "rejected")) {
+      throw new LoopbackGatewaySessionError();
+    }
+  };
 
   const environmentFor = (environmentId: string): GatewayEnvironment | undefined =>
     environments.get(environmentId);
@@ -187,6 +206,8 @@ export const makeLoopbackGatewayHost = (
       const environment = environments.get(environmentId);
       environments.delete(environmentId);
       await environment?.close();
+      // Nothing will converge this environment's sessions later, so finish the job here.
+      if (environment !== undefined) await applyToEnvironment(environmentId, null);
     },
     setEnabled: async (environmentId, enabled) => {
       const environment = environmentFor(environmentId);
@@ -205,21 +226,31 @@ export const makeLoopbackGatewayHost = (
       }
       sessions.add(session);
       environmentBySession.set(session, environmentId);
-      await applyToSession(
-        environmentId,
-        session,
-        environmentFor(environmentId)?.proxyPort() ?? null,
-      );
+      const environment = environmentFor(environmentId);
+      if (environment === undefined) return;
+      await environment.syncSessions();
+      // Fail closed: a webview must not attach to a session that is not where it should be.
+      if (!isSettledAt(session, environment.proxyPort())) throw new LoopbackGatewaySessionError();
     },
     answerProxyLogin: ({ isProxy, host, port, session }) => {
-      if (!isProxy || host !== "127.0.0.1" || session === undefined) return null;
-      const environmentId = environmentBySession.get(session);
-      const credentials =
-        environmentId === undefined ? null : environmentFor(environmentId)?.proxyCredentials();
-      if (credentials === null || credentials === undefined || credentials.port !== port) {
-        return null;
+      if (!isProxy || host !== "127.0.0.1") return null;
+      const answer = (credentials: { username: string; password: string; port: number } | null) =>
+        credentials === null || credentials.port !== port
+          ? null
+          : { username: credentials.username, password: credentials.password };
+      if (session !== undefined) {
+        const environmentId = environmentBySession.get(session);
+        return environmentId === undefined
+          ? null
+          : answer(environmentFor(environmentId)?.proxyCredentials() ?? null);
       }
-      return { username: credentials.username, password: credentials.password };
+      // A request with no webContents (a service worker, `session.fetch`, a download) has no
+      // session to look up. Each environment's proxy has a port of its own, which names it.
+      for (const environment of environments.values()) {
+        const credentials = answer(environment.proxyCredentials());
+        if (credentials !== null) return credentials;
+      }
+      return null;
     },
     dispose: async () => {
       const all = [...environments.values()];
