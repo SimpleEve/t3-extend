@@ -469,12 +469,14 @@ vp run check:changed
 vp run fork:selfhost:e2e # 需要 Docker；隧道监听口靠改写 Host、X-Forwarded-Proto、X-Forwarded-For 工作，上游改请求 URL 的读法时靠它兜底
 ```
 
+GitHub Actions 在这个仓库里是关着的：2026-11-04 起，`SimpleEve/t3-extend` 在 Settings → Actions → General 里整体关闭了 Actions。从上游同步过来的 workflow 在这个私有 fork 里都用不上：`ci.yml` 指定的是上游的 `blacksmith-*` 付费 runner，每次推送都会排队、24 小时后才被自动取消；部署和发布类的 workflow 都带 `github.repository == 'pingdotgg/t3code'` 守卫，在这里只会被跳过；其余几个是管理上游公开仓库 issue 和 PR 的。fork 的安装包都在本机打（`fork:dist:mac`、`fork:dist:android`）。workflow 文件保持和上游一致，不删也不改，否则每次同步都会冲突；上游以后新增的 workflow 也会被这个开关一起挡住。私有仓库在免费套餐下用不了分支保护，所以关掉 CI 不影响合并。要重新打开：`gh api -X PUT repos/SimpleEve/t3-extend/actions/permissions -F enabled=true -f allowed_actions=all`，或者在网页设置里打开；打开后上游那批 workflow 会立刻恢复触发。要给 fork 加自己的 CI，先用 `gh workflow disable` 逐个关掉用不上的。
+
 最近一次同步到上游 `322f6544df`（合并基点 `47f2c8d29e`，302 个 commit，41 个冲突文件）。这次同步里的取舍，下次遇到同类冲突照做：
 
 - 受管策略（managed policy）：macOS 的 managed preferences 和描述文件模板按 `FORK.appId` / `FORK.appBaseName` 生成（`packages/shared/src/managedPolicyFile.ts`、`apps/server/src/policy/policyTemplates.ts`，后者有测试守着）。`/Library/Application Support/T3Code/policy.json` 和 Windows 的 `SOFTWARE\Policies\T3Tools\T3Code` 注册表路径仍是上游的，fork 和官方共用同一份策略；Windows 的 ADMX 模板同理。
 - `DesktopUpdates.hasUpdateFeed` 把受管镜像（`policy.feedUrl`）也算作更新源，否则管理员配了镜像、构建里却没有 `app-update.yml` 时，入口会被隐藏。
 - 侧栏"按项目"就是上游的 Boring 侧栏（视图由 `useBoringSidebarEnabled()` 推出，`Sidebar.tsx` 里那一行是上游原样）。上游把 `sidebarTree.ts` 的 `role=tree` / `aria-level` 去掉了，fork 在 `lib/sidebarTree.ts` 已经没有改动，`shortcuts/chatRouteCommands.ts` 里 `chat.new` 的项目视图分支也删了（`chat.new` 在项目视图里和 boring 一样走项目选择器）。
-- 上游把 Android 的 `app.t3.codes` 链接 intentFilter 加进了 `app.config.ts`；fork 不采用（App Link 校验属于官方域名，装上只会抢官方 app 的链接）。iOS 的 `applinks:app.t3.codes` 保留上游的写法。
+- 上游把 `app.t3.codes` 的链接声明加进了 `app.config.ts`。Android 的 intentFilter fork 不采用：没验证过的 http 链接过滤器会让 fork 出现在"用哪个应用打开"的选择框里，用户看得到。iOS 的 `applinks:app.t3.codes` 保留上游原样，不加 fork 改动：官方站点的 apple-app-site-association 不会列出 fork 的 bundle id，这条声明在 fork 里不起作用；fork 目前不发 iOS；iOS 的 native fingerprint 本来就会因为麦克风文案变化而变。原则是只在用户看得到影响时才偏离上游。
 - Effect 升到 4.1.2 后 `effect/Crypto` 拆成 `effect/crypto/Digest` 和 `effect/crypto/SecureRandom`；fork 的 `T3CodeImport`、`DeviceAssertionAuth` 和测试夹具都改用新服务，测试要用 `NodeCrypto.layer`（`@effect/platform-node/NodeCrypto`）。同一版本不再读 `X-Forwarded-Proto`，上游加了 `apps/server/src/requestUrl.ts`；server 里取请求 URL 一律走它，不要直接调 `HttpServerRequest.toURL`（隧道监听口的夹具也一样）；端到端的场景 3、4、14（经隧道的 DPoP、限速桶、伪造的 `X-T3x-Client-IP`）验证的就是这一点。
 - 上游新增的测试经常写死官方标识（`t3code://`、`t3code.service`、默认端口 3773、Tailscale Serve 的默认端口）；换成 `FORK.scheme`、`FORK.bootServiceName`、`FORK.defaultPort`、`FORK.tailscaleServePort`。服务端新增清理原因要同步 `apps/web/src/fork/storageCleanupReasons.ts` 的模板表和 zh-Hans 目录，否则 `storageCleanupReasons.test.ts` 会报。`T3CodeImport.test.ts` 把源库固定在迁移 76（077 之前），不要写成"当前 head 减一"，上游每加迁移就会失效。
 - `vp i` 在 npmmirror 缺新包版本时会 404：用 `vp i -- --registry=https://registry.npmjs.org/`，只对这一条命令生效。`check:changed` 的默认基准是 `origin/main`，会把 `.repos` 上万个文件算进来、子进程报 `E2BIG`；同步后用上游那个 commit 当基准（`vp run check:changed 322f6544df`）。它的 "unused patches" 一步也要联网解析依赖，同样受镜像影响。

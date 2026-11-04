@@ -1028,8 +1028,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       );
     },
   });
-  // fork: the project view folds by project, so it takes every boring-mode branch:
-  // folders, no Working shelf, no drag, and New thread in the current project.
   const boringSidebarEnabled = useBoringSidebarEnabled();
   const legacySidebarEnabled = useClientSettings((settings) => settings.legacySidebarEnabled);
   const folderRowsMultiline = useClientSettings((settings) => settings.boringSidebarMultilineRows);
