@@ -6,46 +6,51 @@
 
 ## 0. 结论与推荐方案
 
-第二轮修订（2026-11-04）：按 GPT 的安全审查（`/tmp/t3x-gateway-design-review/findings.md`，结论「改完再实现」）和主控的决定修改。每条发现改在哪一节见附录 D。
+第三轮修订（2026-11-04，最后一轮）：按 GPT 对第二版（`be58a0f5ba`）的定向复核（`/tmp/t3x-gateway-design-review/recheck.md`，结论「改完再实现」）和主控的决定修改。第二轮的发现对应表在附录 D.1–D.3，复核对应表在附录 D.4。
 
-**一句话：** 在 A 的桌面主进程里为每个远程环境起一个只绑 `127.0.0.1` 的 HTTP 代理，用 `session.setProxy` 把该环境所有分区的回环流量导给它；代理为每条 TCP 连接开一个到 B 的 WebSocket 隧道；B 的网关只在目标端口属于"T3 终端或 agent 起的服务"、拨号前经过按 PID 的定点复核、且不在排除清单里时，才拨 B 的回环地址。**只在加密或本机的连接上启用**；明文局域网不启用。
+**一句话：** 在 A 的桌面主进程里为每个远程环境起一个只绑 `127.0.0.1` 的 HTTP 代理，用 `session.setProxy` 把该环境所有分区的回环流量导给它；代理为每条 TCP 连接开一个到 B 的 WebSocket 隧道；B 的网关只在目标端口属于"T3 终端或 agent 起的服务"、**每条新隧道都经过一次现场核对（进程身份 = pid + 启动时间，不缓存）**、且不在排除清单里时，才拨 B 的回环地址。**只在加密或本机的连接上启用**；明文局域网和明文 `100.x` 地址不启用。
 
 ```
 A 渲染进程                         A 主进程                            B (server)
  <webview partition=env B>  ──►  127.0.0.1:随机口 (代理, Proxy-Authorization)
    localhost:5173                  │ HTTP: 每个请求按目标端口选隧道 (keep-alive 池)
    ws://localhost:5173 (CONNECT)   │ CONNECT: 一条隧道 = 一条 Chromium 连接
-   https://localhost:5173 (CONNECT)│ 先过传输检查：https / 回环 / Tailscale 才继续
+   https://localhost:5173 (CONNECT)│ 先过传输检查：https / 回环 / *.ts.net 与 fd7a:115c:a1e0::/48 才继续
                                    └─ wss://<B 的地址>/api/loopback-gateway/tunnel?port=5173
                                         Authorization: T3X-Gateway <票据>  ──►  同一 router，
                                                                           主监听口和隧道监听口都有
                                                                           ① 严格 audience 的票据 → 会话 → 两个 scope
-                                                                          ② 端口许可（端口发现快照）
-                                                                          ③ 按 PID 定点复核 + 排除清单
-                                                                          ④ 拨复核得到的那个回环地址
+                                                                          ② 端口许可（端口发现快照只做提名）
+                                                                          ③ 现场核对：身份 + 监听 + 归属，无缓存
+                                                                          ④ 排除清单（登记的运行时、端口、调试进程）
+                                                                          ⑤ 拨核对得到的那个回环地址
 ```
 
 关键决定（每条的理由在对应章节）：
 
-| 问题             | 决定                                                                                                                                                                                                                | 依据                     |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| A 端怎样改走转发 | `setProxy({ mode: "fixed_servers", proxyRules: "http://127.0.0.1:<端口>", proxyBypassRules: "*;<-loopback>" })`                                                                                                     | spike 实测（§1、附录 A） |
-| 分区             | **上游已经按环境分区**；代理装在 `getPreviewConfig` 的处理里，保证任何分区（含新建的 profile、无痕）在首次导航前就有代理                                                                                            | §2                       |
-| 传输             | 每条 TCP 连接一个 WebSocket，不多路复用；B 端是纯 TCP 通道，不解析 HTTP                                                                                                                                             | §3                       |
-| 启用条件         | 只在 `https:`、回环（含 SSH 转发端口和本机）、Tailscale 地址上启用；明文局域网为 `unsupported-route`（`insecure-transport`），走旧行为                                                                              | §4.6                     |
-| 认证             | RPC 取会话级 WS 票据（新 audience，5 分钟，可复用），经 IPC 交给主进程；主进程用 `ws` 自己带 `Authorization: T3X-Gateway <票据>` 头；网关路由用 fork 自己的认证函数，**严格**要求 `audience === "loopback-gateway"` | §4.2–§4.4                |
-| 票据不进 URL     | query 里出现 `wsTicket` 直接 400；日志、span、错误诊断里找不到票据由测试保证                                                                                                                                        | §4.3                     |
-| 权限             | 要求 `preview:operate` **和** `terminal:operate`                                                                                                                                                                    | §4.5                     |
-| 端口许可         | 快照里"有主" + **拨号前按 PID 的定点复核**（PID 还活着、仍在这个端口和地址上 LISTEN）；Preview URL 配置项不算                                                                                                       | §5                       |
-| 排除             | T3 server 进程自己、它的祖先、它的直接子进程里的 agent 归属项、设备 hub 子树、T3 自己的端口、调试端口表、带调试参数的进程；实现前逐项列出所有监听点和长期子进程                                                     | §5.6、§5.7               |
-| 退路             | B 不支持、端口不允许、明文链路、中继、用户关闭：保持现有行为，错误卡片给「在 B 的浏览器中打开」                                                                                                                     | §8                       |
-| 支持矩阵         | 没验证过的连接方式一律标"待验证"，9.4 逐种测 WS、长连接、重连、证书                                                                                                                                                 | §3.5                     |
-| 阶段             | 没有独立的 9.0：B 端的两个技术前提是 9.1 第一步，A 端的是 9.2 第一步，失败就停下回报                                                                                                                                | §12                      |
-| 网页版           | 这次不做                                                                                                                                                                                                            | 附录 C                   |
+| 问题             | 决定                                                                                                                                                                                                                           | 依据        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| A 端怎样改走转发 | `setProxy({ mode: "fixed_servers", proxyRules: "http://127.0.0.1:<端口>", proxyBypassRules: "*;<-loopback>" })`                                                                                                                | §1、附录 A  |
+| 分区             | **上游已经按环境分区**；代理装在 `getPreviewConfig` 的处理里，保证任何分区（含新建的 profile、无痕）在首次导航前就有代理                                                                                                       | §2          |
+| 传输             | 每条 TCP 连接一个 WebSocket，不多路复用；B 端是纯 TCP 通道，不解析 HTTP                                                                                                                                                        | §3          |
+| 启用条件         | 只在 `https:`、回环（含 SSH 转发口和本机）、Tailscale 上启用。Tailscale 只认上游 `isTailnetHost`：`*.ts.net` 和 `fd7a:115c:a1e0::/48`；**明文 `100.64.0.0/10` 不认**，是 `insecure-transport`，提示改用 MagicDNS 名字或 HTTPS  | §3.5、§4.6  |
+| TLS              | 第一版主进程**不并入系统根证书**；TLS 校验失败就是失败，不因为 scheme 是 `https:` 放行；私有 CA 是已知限制                                                                                                                     | §3.6        |
+| 认证             | RPC 取会话级 WS 票据（新 audience，5 分钟，可复用），经 IPC 交给主进程；主进程用 `ws`（不跟随重定向）带 `Authorization: T3X-Gateway <票据>` 头；网关路由用 fork 自己的认证函数，**严格**要求 `audience === "loopback-gateway"` | §4.2–§4.4   |
+| 票据不进日志     | 不再依赖"默认遮蔽"：入口读到票据立刻包成 `Redacted`，错误、诊断、span 属性不带请求头；每个 sink 都有测试，加守卫测试；Caddy 与 frps 在 9.4 实测                                                                                | §4.3        |
+| 权限             | 要求 `preview:operate` **和** `terminal:operate`                                                                                                                                                                               | §4.5        |
+| 续期链           | 票据带会话的 `jkt` 仅作续期链的键。**明确接受**：偷来的票据开出的隧道最多活到这台设备的会话链结束或被撤销                                                                                                                      | §4.2、§4.8  |
+| 端口许可         | 快照只提名；**每条新隧道**现场核对 pid + 启动时间、监听、归属（终端 shell 祖先或 agent 环境标记），任何不一致都拒绝；**没有缓存**                                                                                              | §5.3        |
+| 排除             | 登记运行时（pid + 启动时间）、server 直接子进程默认拒绝、运行时特征（防孤儿）、调试进程整进程排除、屏蔽表 8 个端口（含 5005、5678）                                                                                            | §5.6、§5.7  |
+| 开工关口         | 9.1 的第一道关：监听点清单和 provider 运行时进程树逐项落实，拿不准的一律排除；网关路由要等它过了才开始写                                                                                                                       | §5.6.0、§12 |
+| 平台             | macOS 的 B 广告能力；**Windows 的 B 不广告**；Linux 的 B 在真实进程测试通过前不广告                                                                                                                                            | §5.3、§8    |
+| 退路             | B 不支持、端口不允许、明文链路、中继、证书不受信任、用户关闭：保持现有行为，错误卡片给「在 B 的浏览器中打开」                                                                                                                  | §7、§8      |
+| 支持矩阵         | 没验证过的连接方式一律标"待验证"，9.4 逐种测 WS、长连接、重连、证书；用户文档只列已验证的                                                                                                                                      | §3.5        |
+| 阶段             | 没有独立的 9.0；9.1 先过监听点与运行时的关口，再做 B 端技术前提；A 端的前提是 9.2 第一步；失败就停下回报                                                                                                                       | §12         |
+| 网页版           | 这次不做                                                                                                                                                                                                                       | 附录 C      |
 
-规模：新代码在 `apps/*/src/fork/`、`packages/*/src/fork*` 约 2,800 行（含测试约 4,800），上游文件约 +70 行、23 个文件（§13），低于 130 行停止线；审查要求的安全基础设施（严格认证、日志脱敏、`login` 条件、定点复核、排除登记）全部在 fork 文件里。
+规模：新代码在 `apps/*/src/fork/`、`packages/*/src/fork*` 约 3,100 行（含测试约 5,300），上游文件约 +91 行、30 个文件（§13），低于 130 行停止线。比第二版多出来的主要是各 adapter 启动点的运行时登记（约 +22 行，是上游冲突风险最高的部分，§13 给了削减方案）。审查要求的安全基础设施（严格认证、显式脱敏、`login` 条件、现场核对、排除登记）本身全部在 fork 文件里。
 
-和主控指令不同或需要主控确认的几点集中在 §14 的 N1–N7，最重要的两条：N1，票据为了活过 DPoP 会话的每小时续期，需要把会话的密钥指纹作为"续期链的键"写进票据（路由不要求出示 DPoP 证明，仍是 bearer）；N2，票据头用 `Authorization` 的自定义方案 `T3X-Gateway`，而不是自造请求头名（理由：Effect 和 Caddy 的默认日志都会遮蔽 `Authorization`，我查过 server 里没有任何东西会把这个方案当会话凭据解析）。
+N1–N7 已全部由主控定下，见 §14.1；§14.2 只留实现阶段才能回答的问题。
 
 ## 1. A 端怎样改走转发
 
@@ -185,7 +190,7 @@ default 配置          → scope = environmentId,                 persistent = 
 - 开隧道之前，主进程自己再做一次传输检查（§4.6）：渲染进程说"启用"也不够，`httpBaseUrl` 不是加密或本机的，主进程直接拒绝，不发出任何连接。
 - 错误响应是自带样式、已翻译的 HTML，带 `X-T3x-Gateway-Error: <code>` 响应头；主进程用该 session 的 `webRequest.onHeadersReceived` 看到主框架上的这个头，就给渲染进程发事件，由 `PreviewUnreachable` 画卡片（§7）。CONNECT 被拒时回 `403`，同时发同样的事件。
 
-**A 端的第一步（9.2 开头）要验证的实现细节：** `http.Agent` 的 `createConnection` 返回自定义 `Duplex` 时缺少 `setKeepAlive/setNoDelay/setTimeout/ref/unref`，要补空实现；SSE、分块、`100-continue`、大上传、keep-alive 复用都要有测试；`ws` 的 `createWebSocketStream` 到 B 的通路；是否并入系统根证书（§3.6）。任何一项做不成就停下回报。
+**A 端的第一步（9.2 开头）要验证的实现细节：** `http.Agent` 的 `createConnection` 返回自定义 `Duplex` 时缺少 `setKeepAlive/setNoDelay/setTimeout/ref/unref`，要补空实现；SSE、分块、`100-continue`、大上传、keep-alive 复用都要有测试；`ws` 的 `createWebSocketStream` 到 B 的通路；TLS 校验失败的错误码映射和 `ws` 不跟随重定向（§3.6，第一版不并入系统根证书）。任何一项做不成就停下回报。
 
 ### 3.3 B 端网关路由
 
@@ -195,7 +200,7 @@ default 配置          → scope = environmentId,                 persistent = 
 
 1. fork 自己的认证函数 `authenticateGatewayTicket`（§4.4）：query 里有 `wsTicket` → 400；带 `Origin` → 403；`Authorization` 方案不是 `T3X-Gateway` → 401；票据验证；**严格** audience；两个 scope。
 2. 并发与速率上限（§3.7）。
-3. 端口许可、定点复核、排除（§5.3）。
+3. 端口许可、现场核对、排除（§5.3）。
 4. 在**开始等待会话失效之后**才拨号：先启动 `sessions.awaitInvalidation`，再拨 §5.3 复核得到的那个地址，超时 3 秒；拨号期间会话被撤销就放弃拨号。失败 → `502 { code: "upstream-refused" }`。
 5. 接受升级，建立双向管道：二进制帧 = TCP 字节，不用文本帧；B 每 30 秒发 WS ping，90 秒收不到 pong 就关；有任一端关闭就关另一端（TCP 和 WS 两端都要销毁，§4.8 逐条测）。
 6. 与会话的失效竞速：和 `ws.ts` 里 `/ws` 路由一样用 `raceFirst`。**不调用** `markConnected`（隧道不是"一个已连接的客户端"，不应出现在连接列表里；`revoke` 总会发布 `clientRemoved`，不依赖 `markConnected`，已核对 `SessionStore.ts:988-1006`）。
@@ -212,29 +217,43 @@ default 配置          → scope = environmentId,                 persistent = 
 - frpc 到 frps 的控制连接心跳 30 秒、超时 90 秒（`frpcConfig.ts`）；frps 的 vhost HTTP 代理按 Host 路由，WebSocket 升级是 HTTP 反向代理的标准能力。我没有测过 frp 对"几十条并发升级连接"和"长时间空闲连接"的行为，列在 §14 的未验证项里，9.4 在本地试用栈上测。
 - B 每 30 秒的 WS ping 同时防住中间设备（NAT、移动网络）因空闲回收映射。
 - Caddy 重载或 frps 重启时隧道会断。Chromium 对 HTTP 会重试新连接；Vite HMR 会自己恢复；其他 WebSocket 由页面自己负责，与直连时 dev server 重启一样。
-- 票据在 `Authorization` 头里：当前 `Caddyfile` 没有 `log` 指令，所以没有访问日志；就算运维者以后打开，Caddy 的默认日志编码器会遮蔽 `Authorization`（凭记忆，没在本机 Caddy 上验证，9.4 用本地试用栈开 `log` 实测）。不能只靠"默认不开"：9.4 加一条基础设施测试，断言 `Caddyfile` 里没有未加过滤的 `log`，并在 `infra/self-host/README` 里写明。
+- 票据在 `Authorization` 头里。**不把"Caddy 默认遮蔽"当安全前提**：当前 `Caddyfile` 没有 `log` 指令（没有访问日志），9.4 的基础设施测试断言没有未加过滤的 `log`，并在 `infra/self-host/README` 里写明；9.4 还要在本地试用栈里临时打开 Caddy 的访问日志，实测 `Authorization` 被遮蔽（Caddy 的日志编码器遮蔽 `Authorization`、`Cookie`、`Set-Cookie`、`Proxy-Authorization` 出自其文档，凭记忆，以实测为准）；frps 的日志是否打印请求头也在同一个栈上实测——用哨兵票据发一条隧道升级，grep frps 和 Caddy 的全部日志输出，打印就关掉或配置过滤。frp 与 Caddy 是否**原样保留** `Authorization` 头同样在 9.4 实测（§3.5）。这些都实测通过之前，复核的 P0-2 不能标为解决（§4.3）。
 
 ### 3.5 连接方式与支持矩阵
 
 启用条件由 §4.6 的纯函数决定。"状态"列诚实标注：没有验证过的一律是**待验证**，不写"支持"。
 
-| 连接方式                                                                       | 启用条件                                                                                    | 状态                                                                                                                                                                           |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 局域网 `http://`（明文）                                                       | **不启用**，`unsupported-route` / `insecure-transport`，走旧行为                            | 决定（主控 Q1）                                                                                                                                                                |
-| 局域网 `https://`                                                              | 启用                                                                                        | 待验证（证书信任，§3.6）                                                                                                                                                       |
-| Tailscale 直连 `http://`（`100.64.0.0/10`、`fd7a:115c:a1e0::/48`、`*.ts.net`） | 启用（WireGuard 加密）                                                                      | 待验证（WS 升级、并发、长连接）。注意 N3：上游的 `isTailnetHost` 刻意不把 `100.64.0.0/10` 单独认作 Tailscale                                                                   |
-| Tailscale Serve（`https://*.ts.net`）                                          | 启用                                                                                        | 待验证（Serve 对 WS 升级和自定义 `Authorization` 头的转发）                                                                                                                    |
-| SSH 环境                                                                       | 启用（`httpBaseUrl` 是 A 上的转发端口 `http://127.0.0.1:<本地口>`，回环；SSH 本身是加密的） | 待验证（经 `packages/ssh/src/tunnel.ts` 的转发口升级 WS、长连接）。这是对 #26890 的修复：现在 `resolveEnvironmentPortTarget` 把 `localhost:5173` 原样指到 A 自己的 `localhost` |
-| 自建隧道（`t3x-device`，`https://<名字>.<域名>`）                              | 启用                                                                                        | 待验证（frp 并发升级、长连接、Caddy 重载、重连，§3.4）                                                                                                                         |
-| 私有 CA 的 `https://`                                                          | 取决于 §3.6                                                                                 | 待验证                                                                                                                                                                         |
-| T3 Connect 中继                                                                | 不启用，`unsupported-route` / `relay`                                                       | 决定：fork 默认没有官方 `.env`，T3 Connect 默认不可用；中继链路对 WebSocket 升级和并发数的限制我们既不拥有也不测试。检测依据是连接目标 `RelayConnectionTarget`                 |
-| WSL / 桌面本地目标                                                             | 不需要                                                                                      | 回环共享，保持现状                                                                                                                                                             |
+**怎样避免这张表被当作"已支持"（复核 P1-7）：** 「待验证」的方式在 9.1–9.3 阶段对开发版开放，是为了让 9.4 能测它们；这不等于支持。用户文档（`docs/user/remote-access.md`）和 FORK.md 只列状态为「已验证」的方式，其余写成"尚未验证"。9.4 验证完才改状态。
 
-9.4 对每一种"待验证"的方式都要测：打开 WS 隧道、长连接（至少 30 分钟空闲后 HMR 仍能用）、重连（重启 B、断网再通）、证书（公共 CA、私有 CA、过期证书的报错）。验证完才能把这张表里的"待验证"改成"已验证"。
+| 连接方式                                                                             | 启用条件                                                                                                                                                                       | 状态                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 局域网 `http://`（明文）                                                             | **不启用**，`unsupported-route` / `insecure-transport`，走旧行为                                                                                                               | 决定（主控 Q1）                                                                                                                                                                |
+| 局域网 `https://`（公共 CA 的证书）                                                  | 启用                                                                                                                                                                           | 待验证                                                                                                                                                                         |
+| Tailscale 直连 `http://`，**只认 MagicDNS 名字 `*.ts.net` 和 `fd7a:115c:a1e0::/48`** | 启用（WireGuard 加密）。判定是上游的 `isTailnetHost`（`packages/shared/src/hostClassification.ts:83`），不另写                                                                 | 待验证（WS 升级、并发、长连接）                                                                                                                                                |
+| Tailscale 的 **IPv4 地址**（`100.64.0.0/10`）明文 `http://`                          | **不启用**，`unsupported-route` / `insecure-transport`。上游刻意不单独把这个段当 Tailscale（运营商级 NAT 也用它），我们跟随（主控 N3）。错误卡片提示改用 MagicDNS 名字或 HTTPS | 决定                                                                                                                                                                           |
+| Tailscale Serve（`https://*.ts.net`）                                                | 启用（`https:`）                                                                                                                                                               | 待验证（Serve 对 WS 升级和自定义 `Authorization` 头的转发）                                                                                                                    |
+| SSH 环境                                                                             | 启用（`httpBaseUrl` 是 A 上的转发端口 `http://127.0.0.1:<本地口>`，回环；SSH 本身是加密的）                                                                                    | 待验证（经 `packages/ssh/src/tunnel.ts` 的转发口升级 WS、长连接）。这是对 #26890 的修复：现在 `resolveEnvironmentPortTarget` 把 `localhost:5173` 原样指到 A 自己的 `localhost` |
+| 自建隧道（`t3x-device`，`https://<名字>.<域名>`，Let's Encrypt 证书）                | 启用                                                                                                                                                                           | 待验证（frp 并发升级、长连接、Caddy 重载、重连、请求头原样保留，§3.4）                                                                                                         |
+| 私有 CA 的 `https://`                                                                | 传输检查通过，但**主进程不信任这张证书**（§3.6），TLS 校验失败，错误卡片说明"证书不受信任"                                                                                     | **第一版不支持**（已知限制）                                                                                                                                                   |
+| T3 Connect 中继                                                                      | 不启用，`unsupported-route` / `relay`                                                                                                                                          | 决定：fork 默认没有官方 `.env`，T3 Connect 默认不可用；中继链路对 WebSocket 升级和并发数的限制我们既不拥有也不测试。检测依据是连接目标 `RelayConnectionTarget`                 |
+| WSL / 桌面本地目标                                                                   | 不需要                                                                                                                                                                         | 回环共享，保持现状                                                                                                                                                             |
 
-### 3.6 TLS 信任与代理
+9.4 对每一种"待验证"的方式都要测：打开 WS 隧道、长连接（至少 30 分钟空闲后 HMR 仍能用）、重连（重启 B、断网再通）、证书（公共 CA 的有效证书通过；过期、自签名、主机名不符都失败并给出"证书不受信任"）、`Authorization` 头原样到达 B。验证完才能把这张表里的"待验证"改成"已验证"。
 
-A 主进程用 Node 的 TLS 连 B。渲染进程（Chromium）信任系统根证书和用户装的私有 CA；Node 默认只信任自带的 Mozilla 根。自建隧道用 Let's Encrypt，Tailscale 的证书也是公共 CA，这两种没问题；若 B 的地址用的是用户系统里信任的私有 CA，主进程也得信任它：Node 24 有 `tls.setDefaultCACertificates()` 和 `tls.getCACertificates("system")`（只确认了函数存在，没有调用，读系统信任库会碰钥匙串相关接口）。**9.2 的第一步**决定是否在主进程启动时把系统根并入默认集合，并在一台装了私有 CA 的机器上验证；在此之前"私有 CA 的 B 地址"是待验证项。另外，主进程的 `ws` **不走系统代理**；A 必须经代理才能到达 B 的情形不支持，网关会报 `offline`。
+### 3.6 TLS：校验失败就是失败，第一版不并入系统根证书
+
+A 主进程用 Node 的 TLS 连 B。渲染进程（Chromium）信任系统根证书和用户装的私有 CA；Node 默认只信任自带的 Mozilla 根。
+
+**决定（主控 N7）：第一版不把系统根证书并入主进程。** 不调用 `tls.setDefaultCACertificates` 或 `tls.getCACertificates("system")`（那会读系统信任库，碰钥匙串相关接口）。后果是已知限制：B 的 `https://` 地址如果用的是用户自己装的私有 CA（公司内网 CA、mkcert），渲染进程能连、主进程连不上，转发失败。自建隧道用 Let's Encrypt，Tailscale 的证书是公共 CA 签的，这两种没问题。限制写进用户文档，错误卡片提示改用公共 CA 的证书、Tailscale，或「在 {environment} 的浏览器中打开」。
+
+规则：
+
+- **传输检查只决定"要不要尝试"，不是安全结论。** `https:` 通过检查不等于连接安全；证书有没有通过校验才是。主进程的 `ws` 永远不设 `rejectUnauthorized: false`、不设自定义 `checkServerIdentity`，也没有任何开关绕过校验。
+- TLS 校验失败（过期、自签名、链不完整、主机名不符）→ 隧道失败，事件 `tls-untrusted`，错误卡片「证书不受信任」。Node 的这类错误码（`UNABLE_TO_VERIFY_LEAF_SIGNATURE`、`SELF_SIGNED_CERT_IN_CHAIN`、`DEPTH_ZERO_SELF_SIGNED_CERT`、`CERT_HAS_EXPIRED`、`ERR_TLS_CERT_ALTNAME_INVALID`、`UNABLE_TO_GET_ISSUER_CERT_LOCALLY` 等）一律映射到这个事件，其他网络错误映射到 `offline`。具体错误码集合在 9.2 用真实 TLS 服务端（自签名、过期、错主机名）逐个测出，不凭记忆。
+- 回环和 `ws:`（SSH 转发口、本机）没有证书问题。
+- 主进程的 `ws` **不走系统代理**；A 必须经代理才能到达 B 的情形不支持，网关会报 `offline`。
+- **`ws` 不跟随重定向**：显式设 `followRedirects: false`，对隧道升级请求的 3xx 当作失败（`unexpected-redirect`）。重定向会改变连接目标，使"按哪个地址做过传输检查"失去意义。
+- **连接目标在安装票据时固定。** 渲染进程把 `{ baseUrl, ticket }` 作为一对交给主进程；主进程对这个 `baseUrl` 做传输检查，之后该环境所有隧道都只连这个 `baseUrl`，连接建立后不会切到另一个地址。路由变了（局域网 → 隧道，或相反）：渲染进程推新的一对，主进程重新判定加密与否，**并换用新票据**；新地址不通过检查就拆代理、关隧道（§10）。
 
 ### 3.7 背压与上限
 
@@ -292,9 +311,9 @@ DPoP 会话约每小时换成一个新的会话 id（设备会话 TTL 是 1 小�
 - 上游 `/ws` 和媒体路由对这张票据先在 audience 上被拒（`EnvironmentAuth.ts:1256` 在 `:1261` 的 DPoP 逻辑之前），所以带 `jkt` 的网关票据不可能在别处被当成要出示证明的票据，也不可能被当成 RPC 票据。测试覆盖：用这张票据去打 `/ws` 和一个媒体路由，必须得到 audience 拒绝。
 - 签发方式相应是直接调用 `sessions.issueWebSocketToken(sessionId, { audience, proofKeyThumbprint })`，不经过 `issueWebSocketTicket` 包装。
 
-如果主控坚持票据里完全没有 `jkt`：退路是隧道在会话到期时关闭，由 A 端代理对 HTTP 无感重连，WebSocket（HMR）每小时断一次。我不推荐。
+这个取舍主控已接受（第三轮第 7 条），后果和测试见 §4.8「接受的取舍：续期链上的 bearer 延长」。备选（票据里完全没有 `jkt`，会话到期时隧道关闭，HMR WebSocket 每小时断一次）不采用。
 
-### 4.3 票据放在哪里：`Authorization: T3X-Gateway <票据>`（N2）
+### 4.3 票据放在哪里：`Authorization: T3X-Gateway <票据>`（N2），以及它怎样不进日志
 
 #### 查证结果：现有认证有没有人会去解析 `Authorization`
 
@@ -312,27 +331,33 @@ DPoP 会话约每小时换成一个新的会话 id（设备会话 TTL 是 1 小�
 
 所以**功能上没有冲突**：只要网关路由不调用 `authenticateRequest` / `authenticateWebSocketUpgrade`，`Authorization` 头就不会被会话认证碰到。用自定义方案名 `T3X-Gateway`（而不是 `Bearer`）进一步保证：即使将来有人让这条路由误落进 `authenticateRequest`，票据也不会被当作会话凭据。
 
-#### 为什么选 `Authorization` 而不是自造请求头名
+**这是源码结论，不是实测。** 复核 P2-1 要求把它变成测试：9.1 的验收里，带 `Authorization: T3X-Gateway <有效票据>` 的请求依次打：一个受保护的普通路由、`/mcp`、OAuth 路由（`/oauth/token`）、`TunnelListener` 的监听口上的同样几条，逐条断言：不被当作会话凭据（得到的是各自"没有凭据"的响应，不是"凭据无效"以外的新行为）、**`AuthAttemptLimiter` 的计数不变**（网关路径不在它统计的路由里，`rejectedCodeStatus` 只对认证端点返回状态，`AuthAttemptLimiter.ts:151-175`；测试用连续多次错误票据打网关路由，断言限流器状态不变，网关不会因此把某个客户端锁在 `/oauth/token` 之外）。
 
-主控的默认是"专用请求头，不要用 `Authorization`，先查清再说"。查清之后我建议用 `Authorization` 的自定义方案，理由是**默认遮蔽**：
+#### 为什么用 `Authorization` 而不是自造请求头名
 
-- Effect 的 `Headers.CurrentRedactedNames` 默认包含 `authorization`（`cookie`、`set-cookie`、`x-api-key`），日志和 span 里被遮蔽。自造的头名要靠我们登记，漏登记就泄露。
-- Caddy 的默认日志编码器会遮蔽 `Authorization`、`Cookie`、`Set-Cookie`、`Proxy-Authorization`（凭记忆，9.4 实测）。自造的头名在运维者打开访问日志时会明文进日志。GPT 的 P0-2 明确说"不能以 Caddy 默认不开 access log 作为保证"。
+主控的默认是"专用请求头，不要用 `Authorization`，先查清再说"。查清之后用 `Authorization` 的自定义方案，理由只有一条：**没有任何解析器会把 `T3X-Gateway` 当会话凭据**（上表）。**不再把"默认遮蔽"当作理由或安全前提**（复核 P0-2）：Effect 和 Caddy 默认遮蔽 `Authorization` 是一层兜底，下面的显式脱敏才是机制。
 
-代价和退路：中间设备如果对 `Authorization` 做特殊处理（企业代理剥掉、frp 的 `httpUser` 基本认证），请求会失败。我们的 frpc 配置没有 `httpUser`/`httpPassword`（`frpcConfig.ts`）；其余留给 9.4 的各连接方式实测。若发现问题，退路是自造头 `X-T3x-Gateway-Ticket`，并在下一条的登记里加上这个名字——实现里头名是一个常量，改动一处。
+代价和退路：中间设备如果对 `Authorization` 做特殊处理（企业代理剥掉、frp 的 `httpUser` 基本认证），请求会失败。我们的 frpc 配置没有 `httpUser`/`httpPassword`（`frpcConfig.ts`）；frp 与 Caddy 是否原样保留，9.4 实测（§3.5）。若发现问题，退路是自造头 `X-T3x-Gateway-Ticket`，并把这个名字追加进下面第 3 条的遮蔽名单和 Caddyfile——实现里头名是一个常量，改动一处。
 
-#### 不进日志的做法和验收
+#### 显式脱敏：票据永远不以明文离开入口函数
 
-票据泄露的渠道有：console 日志、OTLP 日志、trace 落盘（`LocalFileSpan`）、span 属性、错误诊断（`ServerAuthInvalidCredentialError.diagnostic`）、`--log-ws-events` 打开时 HTTP 错误里的请求 URL（`serverLogger.ts:14` 的注释）、Caddy 和 frps、A 端主进程日志。
+泄露渠道：console 日志、OTLP 日志、trace 落盘（`LocalFileSpan`）、OTLP trace、span 属性和事件、错误诊断（`ServerAuthInvalidCredentialError.diagnostic`）、`--log-ws-events` 打开时 HTTP 错误里携带的请求 URL（`serverLogger.ts:14` 的注释）、Caddy 和 frps、A 端主进程日志。机制：
 
-- 票据**不在 URL 里**，所以 `serverLogger.ts` 里"请求 URL 带连接票据"的问题（P0-2 的根因）对这条路由不存在。上游已经遮蔽了 query 里的 `wsTicket`（`httpObservability.ts` 的 `UrlParams.CurrentRedactedNames`，以及 `observability.ts:408` 对 cause 文本的正则），这是兜底。
-- query 里出现 `wsTicket` 直接 `400 { code: "ticket-in-url" }`，**不读它**，也不把它当票据。
-- Effect 的服务端 span 默认不记录任何请求头（`HttpMiddleware.TracerHeaderFilter` 默认 `constFalse`，server 没有打开）。即使将来打开，`authorization` 默认在遮蔽名单里。
-- fork 的层把 `authorization` 保留在 `Headers.CurrentRedactedNames` 里：**追加，不替换**（Effect 文档写明自定义名单替换默认值；`packages/shared/src/httpObservability.ts` 已经是追加写法）。如果换用自造头名，同一层追加该名字。
-- 认证函数和路由内部不把请求头对象、票据字符串放进任何错误、日志、span、诊断。错误诊断只写固定短语（"gateway ticket rejected: audience"）。
-- A 端主进程：隧道客户端的日志和错误不含请求头；`ws` 的错误只带状态码和 URL（URL 不含票据）。
+1. **入口立刻包成 `Redacted`。** 路由处理函数第一步读 `Authorization`，解析出票据，**马上** `Redacted.make(ticket)`，并且不再保留原始头字符串；之后传递的只有 `Redacted<string>`（打印为 `<redacted>`）。只在调用 `sessions.verifyWebSocketToken` 的一处解开。
+2. **任何错误对象、诊断、span 属性都不带请求头、请求对象或原始票据。** 路由的错误类型只有固定字段（`code`、`reason`），诊断只写固定短语（"gateway ticket rejected: audience"）；不把 `HttpServerRequest` 或 `request.headers` 放进错误、日志注解或 span 注解；路由里用 `Effect.annotateCurrentSpan` 只写白名单键（`gateway.port`、`gateway.outcome`），不写会话 id 之外的任何凭据相关值。处理函数里的缺陷（`die`）也不会带出请求：`catchCause` 把缺陷映射成固定的 `500 { code: "internal" }`，原因只记录在日志里，且日志内容经过 §3 的同一条规则。
+3. **票据不在 URL 里**，所以 `serverLogger.ts` 里"请求 URL 带连接票据"的问题（P0-2 的根因）对这条路由不存在。query 里出现 `wsTicket` 直接 `400 { code: "ticket-in-url" }`，**不读它**，也不把它当票据。上游已经遮蔽了 query 里的 `wsTicket`（`httpObservability.ts` 的 `UrlParams.CurrentRedactedNames`，以及 `observability.ts:408` 对 cause 文本的正则），这是兜底。
+4. **兜底层（不是前提）的依据，可引用：**
+   - Effect 4.1.2 `.repos/effect/packages/effect/src/http/Headers.ts:445-453`：`Headers.CurrentRedactedNames` 的默认值含 `authorization`、`cookie`、`set-cookie`、`x-api-key`；同文件 `:438` 写明"自定义名单替换默认值"。
+   - `.repos/effect/packages/effect/src/http/HttpMiddleware.ts:204-209`：`TracerHeaderFilter` 默认 `constFalse`，请求头不进 span（文档 `:197` "Header capture is opt-in"）；`:321-350` 的 span 收尾处（`:345`、`:350`）只在 filter 通过时才写头，并按 `CurrentRedactedNames` 遮蔽。
+   - **server 自己有没有覆盖：** `apps/server/src/observability/Observability.ts:37` 装的是 `HttpObservability.layer`（`packages/shared/src/httpObservability.ts:8-12`），它是**追加**（`[...names, "dpop", "expo-session"]`），没有替换；grep `apps/server/src` 和 `packages/shared/src`，没有任何地方设置 `HttpMiddleware.TracerHeaderFilter`，`HttpMiddleware.TracerDisabledWhen` 只在 `apps/server/src/http.ts:392` 用于若干带令牌的路径。fork 的层（如果要给自造头名加遮蔽）同样只能追加。
+5. **A 端主进程：** 隧道客户端的日志和错误不含请求头；`ws` 的错误只带状态码和 URL（URL 不含票据）；票据只放 `Redacted`。
 
-**验收（9.1、9.2）：** 用测试 logger 和测试 tracer 收集所有输出，走完整个请求周期，覆盖成功和每一种失败（错误方案、过期、已撤销、权限不足、端口被拒、拨号失败、处理器内部抛出缺陷），断言所有输出里找不到哨兵票据字符串，也找不到它的任何长度 ≥ 12 的子串。再加一条：`Headers.redact` 对 `authorization` 返回被遮蔽的值。基础设施测试：`Caddyfile` 不含未加过滤的 `log`。
+**验收（9.1、9.2）：**
+
+- **sink 全覆盖测试：** 收集 logger（console、文件、OTLP 的 `Logger` 实例）和 tracer（本地文件 tracer 加一个捕获全部 span 属性、事件、错误 cause 的测试 tracer）的**全部输出**，走完整个请求周期，断言找不到哨兵票据，也找不到它的任何长度 ≥ 12 的子串。路径至少包括：成功；坏票据（篡改）；过期；已撤销；错 audience（无 audience、`rpc`、`media`）；错方案（`Bearer`）；缺 scope；端口被拒（`not-owned`、`reserved`、`debug-process`）；核对失败（`owner-changed`）；拨号失败（`upstream-refused`）；隧道中途断开；撤销导致断开；处理器内部抛出缺陷。`--log-ws-events` 打开和关闭各跑一遍。
+- **守卫测试（真实 server 层）：** 在真实 server 层的上下文里读 `Headers.CurrentRedactedNames`，断言含 `authorization`；断言 `HttpMiddleware.TracerHeaderFilter` 对 `authorization`（请求和响应两个阶段）返回 `false`；再加一个静态扫描测试，断言 `apps/server/src`、`packages/shared/src` 里对 `Headers.CurrentRedactedNames` 和 `TracerHeaderFilter` 的赋值点只有已知的几处（现在：`httpObservability.ts` 的追加）——新增覆盖点会让测试失败，直到有人确认它没有丢掉 `authorization`。
+- `Headers.redact` 对 `authorization` 返回被遮蔽的值。
+- **Caddy 与 frps（9.4，逐项实测后才能把 P0-2 标为解决）：** `Caddyfile` 没有未加过滤的 `log`（基础设施测试）；在本地试用栈里临时打开 Caddy 的访问日志，实测 `Authorization` 被遮蔽；frps 的日志不打印请求头（同一个栈上，用哨兵票据发一条隧道升级，grep frps 和 Caddy 的全部日志输出）。
 
 ### 4.4 网关路由的认证函数 `authenticateGatewayTicket`
 
@@ -365,31 +390,33 @@ fork 自己的函数，不调用 `authenticateWebSocketUpgrade`（P0-1 的根因
 - 隧道路由自己检查两个 scope（§4.4 第 7 步），因为它不走 RPC 授权层。
 - 按 AGENTS.md 的要求，在权限行为测试里加这个方法。
 
-### 4.6 只在加密或本机的连接上启用（主控 Q1，已定）
+### 4.6 只在加密或本机的连接上启用（主控 Q1，已定；N3，已定）
 
 票据是 bearer、不绑 DPoP，所以只在票据不会被同网段嗅探的链路上使用。判定是**一个纯函数**，放在 `packages/shared/src/forkLoopbackGateway/transport.ts`，web 的状态机和桌面主进程共用；主进程在开隧道前自己再调用一次（渲染进程说"启用"也不够）。
 
-输入：环境的 `httpBaseUrl`（`readPreparedConnection(envId).httpBaseUrl`，即**实际会用的那条路由**；路由切换后重新判定）。输出：`{ ok: true, via: "tls" | "loopback" | "tailnet" }` 或 `{ ok: false, reason: "insecure-transport" | "invalid-url" }`。隧道的 scheme 由此推出：`https:` → `wss:`，`http:` → `ws:`。
+**Tailscale 的判定直接调用上游的 `isTailnetHost`**（`packages/shared/src/hostClassification.ts:83`，上游注释："MagicDNS or fd7a:115c:a1e0::/48 identifies Tailscale; shared 100.64.0.0/10 addresses alone do not."）：只认 `*.ts.net`（后缀匹配，经 `normalizeHostname` 去掉方括号和尾点）和 `fd7a:115c:a1e0::/48`。**不单独认 `100.64.0.0/10`**，我们不另写一份范围判定。回环的判定在 fork 的同一个文件里（`localhost` 含尾点、`*.localhost`、`127.0.0.0/8`、`::1`、`::ffff:127.x`，比上游的 `isLocalLoopbackHost` 宽，因为要和 Chromium 的回环集合一致）。
 
-| `httpBaseUrl`                                                                                                                                                                                 | 结果                                                |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `https://x.t3.example.com`、`https://192.168.1.5:3873`、`https://[2001:db8::1]`                                                                                                               | `tls`（任何 https，证书由 TLS 栈校验）              |
-| `http://127.0.0.1:3999`、`http://localhost:3999`、`http://LOCALHOST.:3999`、`http://app.localhost:3999`、`http://127.255.255.254:3999`、`http://[::1]:3999`、`http://[::ffff:127.0.0.1]:3999` | `loopback`（含 SSH 转发端口和本机）                 |
-| `http://100.64.0.1`、`http://100.101.102.103:3873`、`http://100.127.255.255`                                                                                                                  | `tailnet`（`100.64.0.0/10`，见 N3）                 |
-| `http://100.63.255.255`、`http://100.128.0.1`                                                                                                                                                 | `insecure-transport`（刚好在范围外）                |
-| `http://[fd7a:115c:a1e0::1234]:3873`                                                                                                                                                          | `tailnet`                                           |
-| `http://[fd7a:115c:a1e1::1]`、`http://[fd7a:115c:a1df::1]`                                                                                                                                    | `insecure-transport`（`/48` 之外）                  |
-| `http://mac.tail1234.ts.net:3873`                                                                                                                                                             | `tailnet`                                           |
-| `http://evil.ts.net.example.com`、`http://ts.net`、`http://notts.net`                                                                                                                         | `insecure-transport`（必须是 `.ts.net` 后缀的子域） |
-| `http://192.168.1.10:3873`、`http://10.0.0.5`、`http://172.16.0.1`、`http://169.254.1.1`                                                                                                      | `insecure-transport`                                |
-| `http://mac-mini:3873`、`http://mac-mini.local:3873`、`http://home.arpa`                                                                                                                      | `insecure-transport`（局域网名字）                  |
-| `http://example.com`、`http://127.0.0.1.evil.com`、`http://localhost@evil.com`                                                                                                                | `insecure-transport`（按真正的 host 判定）          |
-| `http://0.0.0.0:3999`、`http://[::]:3999`                                                                                                                                                     | `insecure-transport`（不是回环）                    |
-| `ftp://x`、`not a url`、空字符串                                                                                                                                                              | `invalid-url`                                       |
+输入：环境的 `httpBaseUrl`（`readPreparedConnection(envId).httpBaseUrl`，即**实际会用的那条路由**）。输出：`{ ok: true, via: "tls" | "loopback" | "tailnet" }` 或 `{ ok: false, reason: "insecure-transport" | "invalid-url", hint?: "tailscale-address" }`。隧道的 scheme 由此推出：`https:` → `wss:`，`http:` → `ws:`。`hint: "tailscale-address"` 在 host 是 IPv4 的 `100.64.0.0/10`（上游的 `isSharedAddressSpaceHost`）时给出，只用来让错误卡片提示"改用 MagicDNS 名字或 HTTPS"，不影响判定。
 
-规则写在一处：测试是这张表的逐行表格测试，再加一组随机化性质测试（任何 `https:` 一定 `tls`；任何 `http:` 且 host 不在三类里一定不通过）。
+| `httpBaseUrl`                                                                                                                                                                                 | 结果                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `https://x.t3.example.com`、`https://192.168.1.5:3873`、`https://[2001:db8::1]`                                                                                                               | `tls`（任何 https；证书是否可信由 TLS 栈校验，§3.6，通过检查不等于连接安全）                           |
+| `http://127.0.0.1:3999`、`http://localhost:3999`、`http://LOCALHOST.:3999`、`http://app.localhost:3999`、`http://127.255.255.254:3999`、`http://[::1]:3999`、`http://[::ffff:127.0.0.1]:3999` | `loopback`（含 SSH 转发端口和本机）                                                                    |
+| `http://mac.tail1234.ts.net:3873`、`http://MAC.TAIL1234.TS.NET.:3873`                                                                                                                         | `tailnet`                                                                                              |
+| `http://[fd7a:115c:a1e0::1234]:3873`、`http://[fd7a:115c:a1e0:ffff::1]`                                                                                                                       | `tailnet`                                                                                              |
+| `http://[fd7a:115c:a1e1::1]`、`http://[fd7a:115c:a1df::1]`                                                                                                                                    | `insecure-transport`（`/48` 之外）                                                                     |
+| `http://100.64.0.1`、`http://100.101.102.103:3873`、`http://100.127.255.255`                                                                                                                  | **`insecure-transport`，`hint: "tailscale-address"`**（`100.64.0.0/10` 不单独认作 Tailscale，主控 N3） |
+| `http://100.63.255.255`、`http://100.128.0.1`                                                                                                                                                 | `insecure-transport`（范围外，没有 hint）                                                              |
+| `http://evil.ts.net.example.com`、`http://ts.net`、`http://notts.net`、`http://ts.net.evil.com`                                                                                               | `insecure-transport`（必须是 `.ts.net` 后缀的子域）                                                    |
+| `http://192.168.1.10:3873`、`http://10.0.0.5`、`http://172.16.0.1`、`http://169.254.1.1`                                                                                                      | `insecure-transport`                                                                                   |
+| `http://mac-mini:3873`、`http://mac-mini.local:3873`、`http://home.arpa`                                                                                                                      | `insecure-transport`（局域网名字）                                                                     |
+| `http://example.com`、`http://127.0.0.1.evil.com`、`http://localhost@evil.com`                                                                                                                | `insecure-transport`（按真正的 host 判定）                                                             |
+| `http://0.0.0.0:3999`、`http://[::]:3999`                                                                                                                                                     | `insecure-transport`（不是回环）                                                                       |
+| `ftp://x`、`not a url`、空字符串                                                                                                                                                              | `invalid-url`                                                                                          |
 
-明文局域网的状态是 `unsupported-route`，原因 `insecure-transport`：走现有行为（私网改写成环境 IP，公网回退），错误卡片说明原因并提供「在 {environment} 的浏览器中打开」（§7.2）。
+规则写在一处，其余各处（状态机 §8、错误卡片 §7.2、主进程 §3.2、表格测试、文案）都从这张表和这一个函数推出，不各写一份：测试是这张表的逐行表格测试，再加一组随机化性质测试（任何 `https:` 一定 `tls`；任何 `http:` 且 host 不在三类里一定不通过；**任何 `http:` 且 host 是 IPv4 `100.64.0.0/10` 的一定不通过**；`tailnet` 的结果一定满足 `isTailnetHost`）。
+
+明文局域网和明文 `100.x` 的状态是 `unsupported-route`，原因 `insecure-transport`：走现有行为（私网改写成环境 IP，公网回退），错误卡片说明原因并提供「在 {environment} 的浏览器中打开」（§7.2）；`hint` 存在时卡片多一句"这看起来是 Tailscale 的 IP 地址，请改用它的 MagicDNS 名字（`*.ts.net`）或 HTTPS"。
 
 ### 4.7 A 端代理的认证与 `login` 处理
 
@@ -436,10 +463,26 @@ fork 自己的函数，不调用 `authenticateWebSocketUpgrade`（P0-1 的根因
 3. 撤销发生在 WS 升级响应写出之后、第一个数据帧之前：隧道在转发任何字节前关闭。
 4. 撤销发生在数据正在流动时：关闭之后不再转发字节（计数断言）。
 
+#### 接受的取舍：续期链上的 bearer 延长（N1，已定）
+
+N1 的做法有一个必须写明的后果（GPT 复核 P1-5）：
+
+- `SessionStore.awaitInvalidation`（`SessionStore.ts:1043-1105`）按票据 claims 里的 `jkt`（会话的 `proofKeyThumbprint`）沿 `latestSessionByProofKey` 追到继任会话；这个索引只由**服务端签发**的 DPoP 会话建立，票据的 claims 由服务端签名、不可篡改，所以伪造 `jkt` 挂不到别人的会话链上。但票据持有者**不需要再证明**自己持有这个 `jkt` 对应的私钥（这条路由是 bearer）。
+- 所以：偷来的网关票据只有在 5 分钟有效期内才能开隧道；开出的隧道会随续期链一直活下去。**最多活到这台设备的会话链结束（设备不再续期、最后一个会话到期）或被撤销为止。** 这是明确接受的 bearer 延长。它的范围受限于：只能开隧道（不能调 RPC、不能读文件、不能用终端），端口许可、现场核对、排除清单、并发和速率上限照常约束，只在加密或本机的连接上使用（§4.6）。
+- 撤销链上**任一**会话行都会让正在等待的隧道结束。设备移除要做到的是：8.2 的对账 `reconcile` 对移除设备的**所有活动会话行**调用 `sessions.revoke`（`DeviceDirectory.ts:230-242` 用 `sessions.listActive()` 过滤出这些行，逐行撤销，且每次同步都跑，幂等），不是只撤销最新一行。
+
+三个新增测试（真实 server 层 + 真实 `ws` 客户端，两端都验证，沿用上面的 harness）：
+
+1. **续期期间被盗的票据开出的隧道，撤销后关闭。** 设备会话 S1（DPoP，带 `jkt`）签发网关票据 T；用 T 从"攻击者"的客户端开一条隧道；S1 到期并由 S2 续期；隧道仍然活着；撤销 S2：隧道的 TCP 和 WS 两端都关闭，用 T 的新升级被拒。再来一遍撤销的是 S1（旧行）而不是 S2：等待中的隧道同样结束。
+2. **撤销和升级同时发生，在续期链上。** S1 已到期、S2 是活动行：撤销 S2 与一次用 T 的升级同时发生，结果只能是"升级被拒"或"隧道建立后立即关闭"，不能留下一条没人管的隧道（先启动 `awaitInvalidation` 再拨号，§3.3 第 4 步）。
+3. **移除设备后，整条会话链上的每一行都被撤销，对应的隧道都关闭。** 设备有三行会话（已到期的一行、活动的两行），每个活动行各开隧道；从清单移除该设备并触发对账；断言**每个活动行**的 `revokedAt` 非空（读库），所有隧道两端关闭；再同步一次不出错（幂等）。
+
+**顺序测试要保留：** `EnvironmentAuth.ts:1256`（audience 检查）先于 `:1261`（DPoP 分支）。带 `jkt` 的网关票据去打 `/ws` 和媒体路由，必须得到 audience 拒绝，而不是被要求出示 DPoP 证明；上游改动这个顺序时这条测试会失败。
+
 ### 4.9 重放与限速
 
 - 票据是 bearer，窃取者在剩余有效期内可以开隧道，但仍受端口许可、复核、排除清单、并发上限、速率上限、撤销约束，**不能**调用 RPC（RPC 需要 DPoP）、不能读文件、不能用终端。只在加密或本机的连接上使用（§4.6），所以同网段嗅探不构成风险。
-- 隧道升级失败（401/403/404/429）不进 `AuthAttemptLimiter`：票据是 256 位 HMAC，暴力猜测没有意义，不为它改上游文件。
+- 隧道升级失败（401/403/404/429 等）不进 `AuthAttemptLimiter`：它只统计认证端点（`rejectedCodeStatus`，`AuthAttemptLimiter.ts:151-175`），网关路径不在其中，票据是 256 位 HMAC，暴力猜测没有意义，不为它改上游文件。**这一条由测试保证，不靠推断**（§4.3 末尾的中间件测试：连续多次错误票据打网关路由，断言限流器状态不变）。
 - 浏览器不能直接用这个端点：必须带 `Authorization` 自定义方案（浏览器的 `WebSocket` API 设置不了任意请求头），且带 `Origin` 就拒绝。
 
 ## 5. 端口许可
@@ -449,7 +492,7 @@ fork 自己的函数，不调用 `authenticateWebSocketUpgrade`（P0-1 的根因
 照 `apps/server/src/preview/PortScanner.ts` 的实现。一个端口"有主"（`isOwned`），当且仅当扫描结果里它的 `terminal !== null` 或 `agent != null`：
 
 - **终端有主**：监听该端口的进程 PID 属于某个 T3 终端的进程集合。集合由 `terminal/Manager.ts` 的 `subprocessInspector` 产生（终端 shell 的 PID 加它的全部后代，`Manager.ts:755-770`），经 `registerTerminalProcesses` 登记。
-- **agent 有主**：监听进程的启动环境里有 `T3CODE_THREAD_ID=<线程>`（`AGENT_THREAD_ENV`）。macOS 用 `ps -E`，Linux 读 `/proc/<pid>/environ`；agent 起的任何作业都继承这个变量，所以 agent 退出后留下的服务仍算。Windows 没有这一档（`hostPlatform !== "win32"`），只有终端有主。
+- **agent 有主**：监听进程的启动环境里有 `T3CODE_THREAD_ID=<线程>`（`AGENT_THREAD_ENV`）。macOS 用 `ps -E`，Linux 读 `/proc/<pid>/environ`；agent 起的任何作业都继承这个变量，所以 agent 退出后留下的服务仍算。Windows 没有这一档（`hostPlatform !== "win32"`），本来就只有终端有主；网关不支持 Windows 的 B（§5.6.5）。**只有 Claude 和 Codex 会设置这个变量**（§5.6.2），所以"agent 起的服务"这一档只对这两家出现；其他 provider 的 agent 起的服务，只有在 T3 终端里起的才有主。
 - 同一端口上有 IPv4 和 IPv6 两个监听，其中一个无主 → 整个端口当无主（`parseLsofOutput` 的合并规则）。
 
 不属于"有主"的（网关一律拒绝）：用户自己的终端之外起的数据库、Docker 发布的端口、其他应用、IDE 的服务。
@@ -468,49 +511,67 @@ fork 自己的函数，不调用 `authenticateWebSocketUpgrade`（P0-1 的根因
 
 这是 Q2。如果主控要求算，改法很小（许可检查多读一个集合），但需要把"谁能改项目脚本"这条权限路径核实一遍。
 
-### 5.3 连接时怎样核对：快照 + 拨号前的定点复核
+### 5.3 连接时怎样核对：快照提名 + 每条隧道的现场核对（无缓存）
 
-端口发现有两档节奏：面板打开时 3 秒（live），只有后台订阅时至少间隔 15 秒（`BACKGROUND_POLL_INTERVAL_MS`）。**只用快照会有 TOCTOU（GPT P1-1）**：T3 的服务退出后，别的无主进程可以在快照窗口里抢占同一端口，网关还会拨给它，直接违反"其他程序打不开"。所以拨号前必须再做一次针对那个监听的定点复核。
+端口发现有两档节奏：面板打开时 3 秒（live），只有后台订阅时至少间隔 15 秒（`BACKGROUND_POLL_INTERVAL_MS`）。**只用快照会有 TOCTOU（GPT P1-1）**：T3 的服务退出后，别的无主进程可以在快照窗口里抢占同一端口，网关还会拨给它，直接违反"其他程序打不开"。第二版加了拨号前的按 PID 复核，但允许同一 (端口, pid) 的结果缓存 2 秒；复核指出这只是把窗口从 15 秒缩到 2 秒，不是堵住（owner 交换仍可发生在缓存期内）。**主控第三轮第 3 条：去掉缓存，每条新隧道都现场核对一次。**
 
 ```
-authorize(port):
-  A 快照   servers = PortDiscovery.scanBackground()     // 上次扫描不到 15 秒就直接用，不起新扫描
-           找 port 对应的项，取 (pid, 有主类别 terminal | agent)
-           找不到或无主：距上次"未命中重扫"不到 2 秒 → 拒绝 not-owned
-                         否则 scan() 一次（复用 scanSemaphore，同时到达的合并），再找；仍没有 → 拒绝 not-owned
-  B 快照级排除（不查进程）
-           pid === 本 server 进程 → reserved；端口 ∈ 登记端口（主口、隧道口）∪ 屏蔽表 → reserved
-  C 定点复核 verify(pid, port)，结果按 (port, pid) 缓存 ≤ 2 秒
-     C1 监听核对   pid 还活着，并且仍在这个端口上 LISTEN；得到它在这个端口上的绑定地址
-                   （127.0.0.1 / ::1 / 通配）。不一致 → 拒绝 owner-changed，并触发（同样受 2 秒限流的）重扫
-     C2 进程信息   一次读取：祖先链、argv、环境（macOS 的 ps -E，Linux 的 /proc/<pid>/environ）
-                   - 重新验证归属：agent 有主的项，环境里仍有 T3CODE_THREAD_ID
-                   - 排除 E1–E5（§5.6）、调试参数（§5.7）
-  D 拨号   拨 C1 得到的那个地址（通配 → 127.0.0.1）；不解析任何名字
+authorize(port)                // 每条新隧道都完整走一遍；结果不缓存，不跨隧道复用
+  A 提名     servers = PortDiscovery.scanBackground()      // 上次扫描不到 15 秒就直接用，不起新扫描
+             找 port 对应的项 → 候选 (pid, 类别 terminal | agent)；快照只用来提名
+             找不到或无主：距上次"未命中重扫"不到 2 秒 → 拒绝 not-owned
+                           否则 scan() 一次（复用 scanSemaphore，同时到达的合并），再找；仍没有 → 拒绝 not-owned
+  B 静态排除 登记端口（主口、隧道口、…）∪ 屏蔽表 → reserved；pid 是本 server → reserved（祖先在 C2 用现读的进程表判）
+  C 现场核对 verify(pid, port)
+     C0 身份₁   读 (pid, 启动时间)。读不到（进程已不在）→ owner-changed
+     C1 监听    pid 在这个端口上 LISTEN；读出绑定地址（127.0.0.1 / ::1 / 通配）；
+                同一端口上不止一个 pid → owner-changed（SO_REUSEPORT）
+     C2 归属    不信快照里的类别，对当前这个进程实例重新证明"有主"：
+                  终端：祖先链（现读）到达一个正在运行的终端 shell（或它自己就是这个 shell）
+                  agent：现读这个 pid 的启动环境，仍有 T3CODE_THREAD_ID
+                再套排除规则 E1–E7（§5.6）和调试参数（§5.7）
+     C3 身份₂   再读 (pid, 启动时间)，必须等于身份₁，并确认仍在 LISTEN（同一个套接字：Linux 比较 inode）
+     任何一步读不出来、不一致、或工具失败 → 拒绝（owner-changed 或 verify-failed），并触发限流重扫
+  D 拨号     只拨 C1 得到的那个地址（通配 → 127.0.0.1）；不解析任何名字
 ```
 
-- 命中路径的成本：读上次扫描的 `Ref`，加缓存未过期时零进程调用；缓存过期时 C1 和 C2 各一次进程调用。Vite 一次开五六条隧道，缓存 ≤ 2 秒把它们合成一次复核。
-- 未命中路径最多每 2 秒触发一次扫描，不是每个请求一次；恶意页面扫端口，每 2 秒最多推动一次 `lsof`。
-- 没有任何地方新增轮询。`scan()` 在"没有终端登记进程、没有 agent、没有配置 URL"时本来就直接返回空（`scanUnlocked` 的短路），不会白跑 `lsof`。
-- 因为 C1 本来就要读出绑定地址，**不再需要改 `PortScanner.ts` 去记录绑定类别**（这是对主控 Q4 的实现方式的修改，目的不变：精确连到端口发现看到的那个地址；见 N4）。
+#### 与主控第 3 条的关系（一处细节上的调整，需要说明）
 
-#### 各平台的复核办法
+第 3 条的原话是"确认当前监听这个端口和地址的，就是快照判为有主的那一个进程实例，也就是 PID 和进程启动时间都一致"。照字面做要在**快照里**有启动时间。`PortScanner` 的快照没有（`DiscoveredLocalServer` 只有 pid、进程名、归属），而且上游的 agent 归属缓存按 pid 存（`PortScanner.ts:492-545` 的 `agentThreadsRef`："A process keeps its launch environment, so a pid is read once while it listens"），pid 被复用时快照里的归属可能是旧进程的。要在快照里记启动时间就得改 `PortScanner`（约 +15 行上游），与 N4（不改 `PortScanner` 的记录）冲突。
 
-| 平台    | C1 监听核对                                                                                                                                                                                                              | C2 进程信息                                                                                                                          | 状态                                                                                                       |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| macOS   | `lsof -a -p <pid> -iTCP:<port> -sTCP:LISTEN -P -n -F pn`。输出里 `n127.0.0.1:<port>`、`n[::1]:<port>` 或 `n*:<port>` 就是绑定地址；pid 不对时输出为空、退出码 1                                                          | 一次 `ps -A -o pid=,ppid=`（沿用 `PortScanner` 的 `readProcessTable` 写法）取祖先链；`ps -E -ww -o command= -p <pid>` 取 argv 和环境 | **已实测**（本机，一次约 50 毫秒，附录 A）                                                                 |
-| Linux   | 读 `/proc/<pid>/fd/*` 的符号链接，取 `socket:[inode]`；在 `/proc/net/tcp`、`/proc/net/tcp6` 里找状态 `0A`（LISTEN）、inode 匹配、端口匹配的行，本地地址就是绑定地址。只读这一个 pid 的 fd 目录（设上限），不遍历 `/proc` | `/proc/<pid>/stat`（ppid，沿链走到本 server 或 init）、`/proc/<pid>/cmdline`、`/proc/<pid>/environ`                                  | 未验证（本机是 macOS）。`PortScanner` 的 `/proc` 回退用同样的文件，解析函数可复用其思路                    |
-| Windows | `netstat -ano -p TCP`，按 pid 和端口过滤（输出整个表，只过滤）                                                                                                                                                           | 没有 agent 档（`PortScanner` 在 win32 上只有终端有主）；进程树需要 PowerShell `Get-CimInstance Win32_Process`，较慢                  | 未验证。没有 Windows 环境可测，9.1 如果也没有，就把 Windows 的复核降级为"只做 C1，不做 C2"，并在文档里明说 |
+所以我这样实现，**结论比字面要求更强，不依赖快照里的归属**：快照只负责提名候选 `(port, pid)`；C2 对**当前**这个进程实例重新证明有主；C0 和 C3 两次读 (pid, 启动时间) 保证 C1、C2 读到的是同一个实例。pid 被复用时，新进程得自己证明有主，不能沿用旧进程的快照归属。有一处行为上的差别：终端有主从"上次轮询时在终端进程集合里"变成"现在祖先链能到终端 shell"，所以脱离终端后被 init 收养的进程（`setsid` 加守护化）不再被转发——`PortScanner` 自己下一次轮询也会把它们从集合里去掉，只是现在更早。**如果主控仍要和快照比启动时间：** 在 `PortScanner` 内部记录（约 +15 行，不进 contracts），启用条件是 9.1 的关口发现某个平台上现场证明做不到；预算 §13 有余量。
 
-#### 剩下的窗口有多大
+#### 各平台怎么取进程身份、监听和归属
 
-- 复核到 `connect()` 之间只有几毫秒。缓存期内（≤ 2 秒）是剩下的主要窗口：同一个 (端口, pid) 的复核结果被复用，如果 T3 的服务在这 2 秒内退出，同时另一个进程在同一个端口、同一个地址上绑定并且一条新隧道恰好在这个窗口里用了缓存，网关会拨给它。要同时满足这几件，而且攻击者得已经能在 B 上跑进程，所以这是残余风险，不是可远程利用的洞。比快照方案的 15 秒窗口小一个数量级。
-- 要关掉缓存窗口只需把缓存 TTL 设为 0（每条隧道复核一次，每次约 2 次进程调用）。常量放在一处，测试断言它等于 2000 毫秒，不会悄悄变大。
-- **PID 复用**：快照里的 pid 在复核时已经退出，且该 pid 号被另一个进程复用并监听同一端口。macOS 和 Linux 的 pid 顺序分配，一个快照间隔（最多 15 秒，面板打开时 3 秒）内转完一圈需要大量进程创建；C2 对 agent 归属项重读环境，复用的进程带不上 `T3CODE_THREAD_ID`。终端归属项没有等价的重新验证（`PortDiscovery` 没有公开终端登记表的查询接口），属于残余风险。
-- **`SO_REUSEPORT`**：两个同用户进程可以在同一地址、同一端口上同时监听，内核负载均衡。C1 能看到同一端口上的多个 pid，发现不止一个 pid 就拒绝（`owner-changed`）。
-- 另一种地址族：T3 的服务在 `127.0.0.1:5173`，别的进程在 `[::1]:5173`。网关拨 C1 为那个 pid 得到的具体地址，不会拨到另一个地址族。
+| 平台    | 身份（pid + 启动时间）                                                                                                                                                                                                                  | C1 监听核对                                                                                                                                                                                                     | C2 归属                                                                                                                                                                                                | 状态                                                                                             |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| macOS   | `LC_ALL=C TZ=UTC /bin/ps -ww -o pid=,ppid=,pgid=,stat=,lstart=,args= -p <pid>`，启动时间取 `lstart` 文本（精度 1 秒）。这是上游 `OpenCodeServerLedger.ts` 已有的做法（`psDarwin`、`DARWIN_PS_LINE`），fork 里照抄约 30 行，不依赖它导出 | `lsof -a -p <pid> -iTCP:<port> -sTCP:LISTEN -P -n -F pn`。`n127.0.0.1:<port>`、`n[::1]:<port>`、`n*:<port>`；pid 不对时输出为空、退出码 1                                                                       | 祖先链：一次 `ps -A -o pid=,ppid=,pgid=,lstart=`（进程表带启动时间，同一时刻的快照）；agent 环境：`ps -E -ww -o command= -p <pid>`，在整行里找 `T3CODE_THREAD_ID=`（沿用 `parsePsEnvironmentThreads`） | `lsof -a -p` 和 `ps -E` 已在本机实测（附录 A），`lstart` 同上游用法；**组合调用在 9.1 关口核实** |
+| Linux   | 读 `/proc/<pid>/stat`，在最后一个 `)` 之后按空白切，下标 19 是 `starttime`（开机后的时钟节拍数）；这也是 `OpenCodeServerLedger.ts` 的 `observeLinux` 的做法                                                                             | 读 `/proc/<pid>/fd/*` 的符号链接，取 `socket:[inode]`；在 `/proc/net/tcp`、`/proc/net/tcp6` 里找状态 `0A`（LISTEN）、inode 和端口都匹配的行，本地地址即绑定地址。只读这一个 pid 的 fd（设上限），不遍历 `/proc` | 祖先链：沿 `/proc/<pid>/stat` 的 ppid 一路走（每一级同时读 `starttime`）；agent 环境：`/proc/<pid>/environ`；argv：`/proc/<pid>/cmdline`                                                               | 未实测（本机是 macOS）。**在 Linux 容器里的真实进程测试通过之前，Linux 的 B 不广告能力**         |
+| Windows | —                                                                                                                                                                                                                                       | —                                                                                                                                                                                                               | —                                                                                                                                                                                                      | **不支持，B 不广告 `loopbackGateway`**（主控 N6，§8）                                            |
 
-**测试（真实进程）：** 有主进程退出，另一个进程绑定同一端口：缓存失效后必须被拒（`owner-changed`）；缓存 TTL 设 0 时立即被拒；同一 pid 在 `[::1]` 上而另一个进程在 `127.0.0.1` 上，拨号目标是前者；同一端口上有两个 pid：被拒；agent 归属项的环境被清掉标记：被拒；缓存期内的行为固定为"放行"并有注释说明。
+**终端归属的"正在运行的终端 shell"从哪来：** `TerminalManager` 的 `subscribeMetadata`（`terminal/Manager.ts`，摘要里有 `pid` 和 `status`；`session.pid` 在进程退出时置空）。fork 里一个小的 `TerminalShellRegistry` 订阅它，事件驱动、不轮询，维护"当前正在运行的终端 shell 的 pid 集合"。9.1 关口核实 `subscribeMetadata` 覆盖了 shell 退出、终端重启和关闭这几种事件（不覆盖的话回退到快照里的终端进程集合，并把这个回退当作未决项，见 §5.6.0）。
+
+#### 成本，以及怎么量
+
+每条新隧道在 macOS 上是 3 到 4 次进程调用（进程表、`lsof`、agent 归属项再加一次 `ps -E`、C3 的身份₂）。本机实测一次 `lsof -a -p` 约 50 毫秒（附录 A），所以估计在几十到一百多毫秒；**这是估计，不是测量。** 9.1 必须实测并把数字写进 §11：macOS 上单条隧道核对的耗时（中位数和 p95），并发 1、6、32 条隧道各一组，Linux 容器里同样一组。
+
+页面冷启动会一次开五六条隧道，所以并发的情形要特别看。**允许的优化（只在实测显示需要时才做）**：同一个端口上、核对正在进行时到达的请求，合并成**一次紧接着开始的核对**（核对开始时间晚于这些请求的到达时间），这些请求共用这一次核对的结果。这不是缓存：没有任何结果会被一个在它开始之后才到达的请求之前的核对所满足。默认不做，判据：单条核对的 p95 超过 300 毫秒，或六条并发冷启动明显拖慢首屏（§11.1 的测量）。
+
+#### 剩下的窗口，和 PID 复用
+
+- 去掉缓存后，剩下的窗口只有 C3 到 `connect()` 之间的几毫秒：原监听者在这段时间退出、同时别的进程恰好在同一个端口同一个地址上绑定。攻击者得已经能在 B 上跑进程，并且要赢一次几毫秒的竞速，所以是残余风险，不是可远程利用的洞。拨号后不再复核（`connect` 成功不能证明连到了哪个进程）。
+- **PID 复用：** C2 让复用的新进程得自己证明有主（agent 要带标记，终端要有 shell 祖先）；C0/C3 的启动时间在同一个 pid 上区分新旧实例。macOS 的 `lstart` 精度是 1 秒：同一秒内同一个 pid 被复用并绑定同一端口，在 pid 顺序分配的系统上不现实，且仍要过 C2。
+- **`SO_REUSEPORT`：** 两个同用户进程可以在同一地址、同一端口上同时监听，内核负载均衡。C1 发现同一端口上不止一个 pid 就拒绝。
+- **另一种地址族：** T3 的服务在 `127.0.0.1:5173`，别的进程在 `[::1]:5173`。网关拨 C1 为那个 pid 得到的具体地址，不会拨到另一个地址族。
+
+#### 测试（socket harness，真实进程）
+
+- 有主进程退出，另一个进程绑定同一端口：**立即**被拒，没有任何 TTL 参与（`owner-changed`）。
+- 身份注入测试：身份读取函数是可注入的；让它在 C0 和 C3 之间对同一个 pid 返回不同的启动时间 → 被拒；读取失败（工具退出码非零、超时、输出无法解析）→ 被拒（fail-closed）。
+- 归属：agent 归属项的环境被清掉标记 → 被拒；终端归属项的祖先链被打断（用 `setsid` 加双 fork 的辅助进程让它被 init 收养）→ 被拒；终端 shell `exec` 成监听者 → 放行。
+- `SO_REUSEPORT` 两个监听者 → 被拒；IPv4/IPv6 双栈：只绑 `127.0.0.1`、只绑 `::1`、通配绑定各自的拨号目标正确（通配 → `127.0.0.1`）。
+- 平台命令的解析函数用记录下来的真实输出做夹具测试（macOS 的 `lsof -F`、`ps` 的 `lstart`，Linux 的 `/proc/<pid>/stat`（含 comm 里带空格和括号的情形）、`/proc/net/tcp{,6}`），在所有平台上都跑；真实进程测试在各自平台上跑：macOS 本机，Linux 在容器里（`fork:selfhost:e2e` 已经依赖 Docker）。
+- 每条隧道都会触发完整核对：同一个端口连开 6 条，进程调用计数 ≥ 6 组（防止悄悄加缓存）。
 
 ### 5.4 `T3CODE_PORT_DISCOVERY=0`
 
@@ -522,79 +583,132 @@ authorize(port):
 
 ### 5.5 绑定地址
 
-见 §5.3 的 C1：复核时从那个 pid 在这个端口上的监听读出绑定地址，网关只拨这一个地址。通配绑定（`*`、`0.0.0.0`、`::`）拨 `127.0.0.1`。Windows 的 `netstat -ano` 同样给出本地地址。
+见 §5.3 的 C1：复核时从那个 pid 在这个端口上的监听读出绑定地址，网关只拨这一个地址。通配绑定（`*`、`0.0.0.0`、`::`）拨 `127.0.0.1`。
 
-### 5.6 排除清单（即使端口发现里出现也不行）
+### 5.6 排除清单与运行时归属（即使端口发现里出现也不行）
 
 **规则：** T3 server 进程自己的监听，以及 T3 自己启动的运行时进程（不是 agent 工具调用或终端命令起的作业）的监听，一律排除。排除优先于许可，在 §5.3 的 B 和 C2 两处检查。
 
+第二版的这一节被复核否定了三处（GPT 复核 P1-2、P1-3、P1-4）：监听点清单里还有"未核实"项，防漂移测试只保证新增的地方会被登记、不能证明已有条目的归属判断正确；E2 假设 provider 运行时是 server 的直接子进程且带环境标记，这对经过 shell 或包装层的启动不稳定，server 重启后遗留的孤儿运行时还会落进"agent 作业"的许可；Windows 只做 C1 与"所有平台的安全边界"不匹配。这一版的处理：**清单的逐项落实变成 9.1 开工的第一道关**（§5.6.0），provider 运行时改为**显式登记 pid + 启动时间**加**运行时特征**加**不可靠时只放行已登记运行时的后代**，Windows 不广告能力。
+
+#### 5.6.0 9.1 开工的第一道关：监听点和运行时进程的逐项落实
+
+**网关路由的代码要等这一关过了才开始写**（`tasks/todo.md` 里是排在路由之前的两个勾选项）。关口的产出是一份提交进仓库的清单（`apps/server/src/fork/loopbackGateway/exclusions.json`）加这一节的核实版本（写回 9.1 分支里的 §5.6，替换下面的"本轮读码所得"为"已核实"）。
+
+关口的做法：
+
+1. **每个监听点、每个长期运行的子进程各一条记录**，字段：位置（`文件:行`）、是不是 TCP（代码依据）、属于哪个进程（server / 子进程 / CLI）、处理（规则编号、登记端口、登记运行时、或"非 TCP"的依据）、验证（读码，或运行时测试的名字）。
+2. **能做运行时测试的就做**：起真实的 server 层，provider 一律用测试用的假可执行文件（会在回环上监听的小脚本）或现有的回放 harness；**不跑真实的 agent 回合，不碰用户真实的 provider 凭据**，不用真实的 provider 登录流程。
+3. **拿不准的一律排除，不放行。** 条目照样留在清单里，标"未核实，已排除"，并在 §5.6 的残余风险里列出，不会被默默放行。
+4. 防漂移的源码扫描测试（§5.6.4）在关口之后接上；它保证新增监听点会让测试失败，不能替代这一步的逐项核实。
+
+**关口必须逐项落实的条目**（第二版标"未核实"或依赖"现状没有"的，加上这一轮读码新发现的）：
+
+| 条目                                                                                                                                                                                       | 要回答什么                                           | 本轮读码已经得到的                                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 设备 hub 和 agent-device 守护进程（`LocalDeviceHost.spawnHub`、`AgentDeviceShim.ts`、`DeviceService.ts`）                                                                                  | 监听哪些端口，进程树是什么，server 退出时会不会遗留  | hub 是回环 TCP 口（`reserveLoopbackPort("127.0.0.1")`、`--host 127.0.0.1`、`detached: false`）；守护进程是 hub 的子进程（`--daemon-base-url`），也是回环 TCP                                                             |
+| provider 的 OAuth 和回调（`CodexChatGptAuth.ts:486,500`、`codexAuthCallback.ts:39,86`、`antigravityAuthSupport`、`packages/provider-acp-registry/src/server/auth.ts`、`providerAuthFlow`） | 谁监听、在哪个进程里、持续多久                       | Codex 的两处是 server 或桌面主进程内的临时回环监听（E1）；`antigravityCallback.ts` 是**客户端**（`node:http` 的 `request`，把回调转发到 `127.0.0.1`），不是监听；ACP 注册表的登录命令和 `providerAuthFlow` 未读完 → 排除 |
+| Muse（`packages/provider-muse`，`@muse-code/sdk`）                                                                                                                                         | `muse serve` 本身会不会开端口；T3 能不能拿到它的 pid | SDK 里写明 stdio 绑定（`connection/spawn.js`："Node stdio binding"），`detached` 由 SDK 的 `ownsProcessGroup` 决定；`muse` 可执行文件自己会不会监听、pid 能否取得 **未核实**                                             |
+| 资源监视器（`resourceTelemetry/NativeTelemetryClient.ts`）                                                                                                                                 | 原生监视进程会不会监听                               | 命令走 stdin（`stdin: "pipe"`），是 server 的直接子进程；原生二进制是否监听 **未核实**                                                                                                                                   |
+| `CodexManagedTokenBroker.ts:129,201`                                                                                                                                                       | 是不是 TCP                                           | **已核实不是 TCP**：端点是 `NodePath.join(directory, "s")` 的 Unix 套接字，创建后 `chmod 0o600`（`:78`、`:207`），Windows 是命名管道（`:53`）。关口加一条运行时测试，断言它不在 server 的 TCP 监听里                     |
+| 受管端点连接器 `cloud/ManagedEndpointRuntime.ts:705-717`                                                                                                                                   | 监听什么                                             | **第二版漏了这一项**：`tunnel … --metrics 127.0.0.1:0 run`，连接器在回环上开了一个随机端口的指标监听（`detached: false`，server 的直接子进程）→ 登记为运行时                                                             |
+| 其余所有 `ChildProcess.make`/`spawn(` 的调用点（本轮 grep 出约 50 个文件，大多数是 git、gh、ps 之类的瞬时命令）                                                                            | 哪些是长期运行的                                     | 长期运行的已归入 §5.6.2 的表；瞬时命令在表末尾一行说明                                                                                                                                                                   |
+
 #### 5.6.1 所有监听点（源码扫描，排除测试、脚本、fixture）
 
-我 grep 了 `apps/server`、`apps/desktop`、`packages/*`、`scripts` 里的 `.listen(`、`createServer(`、`NodeHttpServer.make`、`NodeSocketServer.make`、`HttpServer.serve`、`WebSocketServer(`：
+我 grep 了 `apps/server`、`apps/desktop`、`packages/*`、`scripts` 里的 `.listen(`、`createServer(`、`NodeHttpServer.make`、`NodeSocketServer.make`、`HttpServer.serve`、`WebSocketServer(`，以及 `--port`、`--metrics`、`--listen` 参数：
 
-| 位置                                                                                                                    | 是什么                                                               | 谁的进程                                                                                        | 处理                                                                                            |
-| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `apps/server/src/server.ts:363`                                                                                         | 主 HTTP/WS 监听口                                                    | server                                                                                          | E1，另登记端口                                                                                  |
-| `apps/server/src/fork/deviceKeys/TunnelListener.ts:90-94`                                                               | frpc 的隧道监听口，`127.0.0.1` 随机口                                | server                                                                                          | E1，另登记端口                                                                                  |
-| `apps/server/src/preview/DesktopBrowserChannel.ts:140`                                                                  | 桌面 CDP 中继的 WS，回环随机口                                       | server                                                                                          | E1                                                                                              |
-| `apps/server/src/provider/CodexChatGptAuth.ts:486,500`                                                                  | Codex 登录的 OAuth 回调，`127.0.0.1` 随机口，登录期间存在            | server                                                                                          | E1                                                                                              |
-| `packages/shared/src/codexAuthCallback.ts:39,86`                                                                        | OAuth 回调，端口取自 redirectUri，`127.0.0.1`                        | 调用者：server（`CodexChatGptAuth`）和桌面主进程（`apps/desktop/src/app/CodexAuthCallback.ts`） | E1 / E1 祖先                                                                                    |
-| `apps/server/src/htmlRender/publicProxy.ts:129,191`                                                                     | HTML 渲染的公网代理，`127.0.0.1` 随机口                              | server                                                                                          | E1                                                                                              |
-| `apps/server/src/provider/CodexManagedTokenBroker.ts:129,201`                                                           | 令牌代理，`server.listen(owned.endpoint)`，路径型端点                | server                                                                                          | 非 TCP（Unix socket 或命名管道）；具体类型我没有核实，9.1 核实并让测试断言它不出现在 TCP 监听里 |
-| `apps/server/src/cli/sshHelper.ts:13,16`                                                                                | `pick-port` 命令：试绑一个端口，成功就立即关闭（SSH 主机上选端口用） | CLI 进程（不是 server）                                                                         | 瞬时，不是长期监听                                                                              |
-| `packages/ssh/src/tunnel.ts:240,243`                                                                                    | SSH 本地转发监听 `127.0.0.1`                                         | 托管 SSH 环境的进程：桌面主进程或 server                                                        | E1 / E1 祖先                                                                                    |
-| `packages/shared/src/Net.ts:49,78,135,148`                                                                              | 找空闲端口的探测（立即关闭）和通用监听工具                           | 调用者                                                                                          | 瞬时                                                                                            |
-| `apps/desktop/src/app/DesktopAppActivation.ts:178,189`                                                                  | 桌面单实例/激活控制 socket                                           | 桌面主进程                                                                                      | 路径型（FORK.md 记为 `/tmp/t3code-<uid>/<哈希>.sock`），非 TCP                                  |
-| 桌面 `T3CODE_DESKTOP_REMOTE_DEBUGGING_PORT`                                                                             | Chromium 调试端口，用户显式设置才开                                  | 桌面主进程（B 是桌面内置 server 时是 server 的父进程）                                          | E1 祖先 + 屏蔽表 + 调试参数                                                                     |
-| `mcp/McpHttpServer.ts`                                                                                                  | T3 自己的 `/mcp`，挂在主路由上                                       | server                                                                                          | 没有独立监听，随主口                                                                            |
-| 测试、脚本、fixture（`*.test.ts`、`testkit`、`testUtils`、`scripts/`、`apps/server/scripts`、`apps/web/test/fixtures`） | 不进产品                                                             | —                                                                                               | 不适用                                                                                          |
+| 位置                                                          | 是什么                                                    | 谁的进程                                                                   | 处理                                                           | 状态                         |
+| ------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------- |
+| `apps/server/src/server.ts:363`                               | 主 HTTP/WS 监听口                                         | server                                                                     | E1，登记端口                                                   | 读码                         |
+| `apps/server/src/fork/deviceKeys/TunnelListener.ts:90-94`     | frpc 的隧道监听口，`127.0.0.1` 随机口                     | server                                                                     | E1，登记端口                                                   | 读码                         |
+| `apps/server/src/preview/DesktopBrowserChannel.ts:140`        | 桌面 CDP 中继的 WS，回环随机口                            | server                                                                     | E1，登记端口                                                   | 读码                         |
+| `apps/server/src/provider/CodexChatGptAuth.ts:486,500`        | Codex 登录的 OAuth 回调，`127.0.0.1` 随机口，登录期间存在 | server                                                                     | E1                                                             | 读码；关口核实持续时间       |
+| `packages/shared/src/codexAuthCallback.ts:39,86`              | OAuth 回调，端口取自 redirectUri，`127.0.0.1`             | 调用者：server 和桌面主进程（`apps/desktop/src/app/CodexAuthCallback.ts`） | E1（含祖先）                                                   | 读码                         |
+| `apps/server/src/htmlRender/publicProxy.ts:129,191`           | HTML 渲染的公网代理，`127.0.0.1` 随机口                   | server                                                                     | E1                                                             | 读码                         |
+| `apps/server/src/provider/CodexManagedTokenBroker.ts:129,201` | 令牌代理                                                  | server                                                                     | **非 TCP**（Unix 套接字 / 命名管道）                           | 读码已核实；关口加运行时测试 |
+| `apps/server/src/provider/antigravityCallback.ts`             | 一次性把回调转发到 `127.0.0.1`                            | server                                                                     | **客户端，不是监听**                                           | 读码已核实                   |
+| `apps/server/src/cloud/ManagedEndpointRuntime.ts:705-717`     | 受管端点连接器的指标监听 `127.0.0.1:0`                    | 连接器子进程                                                               | E2（登记运行时）+ E3                                           | 读码；**第二版漏了**         |
+| `apps/server/src/device/LocalDeviceHost.ts`（`spawnHub`）     | 设备 hub 的回环 TCP 口；守护进程也是回环 TCP              | hub 子进程及其后代                                                         | E2（登记**子树**）+ E3                                         | 读码；关口做运行时测试       |
+| `apps/server/src/cli/sshHelper.ts:13,16`                      | `pick-port`：试绑一个端口，成功就立即关闭                 | CLI 进程（不是 server）                                                    | 瞬时                                                           | 读码                         |
+| `packages/ssh/src/tunnel.ts:240,243`                          | SSH 本地转发监听 `127.0.0.1`                              | 托管 SSH 环境的进程：桌面主进程或 server                                   | E1（含祖先）                                                   | 读码                         |
+| `packages/shared/src/Net.ts:49,78,135,148`                    | 找空闲端口的探测（立即关闭）和通用监听工具                | 调用者                                                                     | 瞬时                                                           | 读码                         |
+| `apps/desktop/src/app/DesktopAppActivation.ts:178,189`        | 桌面单实例/激活控制 socket                                | 桌面主进程                                                                 | 路径型（FORK.md 记为 `/tmp/t3code-<uid>/<哈希>.sock`），非 TCP | 读码                         |
+| 桌面 `T3CODE_DESKTOP_REMOTE_DEBUGGING_PORT`                   | Chromium 调试端口，用户显式设置才开                       | 桌面主进程（B 是桌面内置 server 时是 server 的父进程）                     | E1（祖先）+ 屏蔽表 + 调试参数                                  | 读码                         |
+| `mcp/McpHttpServer.ts`                                        | T3 自己的 `/mcp`，挂在主路由上                            | server                                                                     | 没有独立监听，随主口                                           | 读码                         |
+| 测试、脚本、fixture                                           | 不进产品                                                  | —                                                                          | 不适用                                                         | —                            |
 
-#### 5.6.2 server 启动的长期子进程
+#### 5.6.2 server 启动的长期子进程：每个 provider 的实际进程树
 
-| 进程                                         | 启动处                                                                                             | 会不会监听                                                                         | 环境里有没有 `T3CODE_THREAD_ID`                                                                                         | 处理        |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------- |
-| Claude Code CLI                              | `ClaudeAdapterV2.ts:1000-1004`（SDK 的 `query` 选项里 `env`）                                      | 可能有 IDE 桥或登录回调口（未核实）                                                | **有**：显式设置（`[PortScanner.AGENT_THREAD_ENV]: input.threadId`），进程本身就带，端口发现会把它的监听列为 agent 有主 | E2          |
-| Codex app-server                             | `CodexAdapterV2.ts`（`effect-codex-app-server`）                                                   | 未见监听（走标准输入输出）                                                         | 进程本身**没有**；只有它的 shell 带（`shell_environment_policy.set.T3CODE_THREAD_ID`，`CodexAdapterV2.ts:1410`）        | E2          |
-| OpenCode `serve`                             | `packages/provider-opencode/src/server/OpenCodeRuntime.ts:510`（`--hostname=… --port=…`）          | **回环 TCP 口**                                                                    | 不显式设置；继承 server 的环境                                                                                          | E2          |
-| Muse `serve`                                 | `packages/provider-muse/src/server/sdk.ts:133`（SDK 的 `spawnMspConnection`）                      | 传输方式未核实                                                                     | 不显式设置                                                                                                              | E2          |
-| ACP 运行时（Cursor、Grok、Kiro、Pi 等）      | `provider-acp`、`provider-fx/src/server/acpSupport.ts:230`                                         | 未见监听（标准输入输出）                                                           | 不显式设置                                                                                                              | E2          |
-| ACP 的 MCP 桥                                | `mcp/AcpMcpStdioBridge.ts`、`cli/acpMcpBridge.ts`                                                  | 标准输入输出                                                                       | —                                                                                                                       | E2          |
-| 设备 hub                                     | `device/LocalDeviceHost.ts` `spawnHub`（`--port`、`--host 127.0.0.1`，端口 `reserveLoopbackPort`） | **回环 TCP 口**；hub 再起的 agent-device 守护进程也监听回环（`--daemon-base-url`） | 继承                                                                                                                    | E2 + **E3** |
-| 无头 Chrome                                  | `htmlRender/headlessChrome.ts:188`、`preview/PreviewBrowserHost.ts`                                | `--remote-debugging-pipe`，没有 TCP                                                | 继承                                                                                                                    | E2          |
-| frpc                                         | `fork/deviceKeys/frpcProcess.ts`                                                                   | `frpcConfig.ts` 写明"opens no admin web server"                                    | 继承                                                                                                                    | E2          |
-| 资源监视器                                   | `resourceTelemetry/NativeTelemetryClient.ts`                                                       | 命令走标准输入输出（未核实 TCP）                                                   | 继承                                                                                                                    | E2          |
-| 短命令（git、gh、ps、lsof、文本生成 CLI 等） | `vcs/`、`textGeneration/`、`processRunner.ts` 等                                                   | 无                                                                                 | —                                                                                                                       | 瞬时        |
-| provider 侧的 MCP 进程                       | 由各家 CLI 自己启动                                                                                | 取决于 MCP 服务                                                                    | 继承 CLI 的环境（Claude 的带标记）                                                                                      | 见残余风险  |
+下表来自这一轮读各 adapter 的启动代码（不是跑出来的）。"未核实"项由关口落实，**落实之前一律按"不可靠"处理**（按 §5.6.3 的 E5 只放行已登记运行时的后代）。
 
-**回答"provider 运行时进程环境里带不带 `T3CODE_THREAD_ID`"：** Claude Code CLI **带**（显式设置在进程环境里）；Codex app-server 本身不带，它启动的 shell 带；其余 provider T3 不设置，但它们继承 server 自己的环境，而在这个仓库的日常工作流里 server 是 agent 终端里启动的：我自己这个会话的 shell 环境里就有这个变量（附录 A 的 `ps -E` 输出里能看到）。所以不能指望"没标记就不会被列出"。
+| 运行时                                                                  | 启动处和进程形态                                                                                                                                                                                                                                                                                                                                                                          | server 退出时                                                                                                                                                                                                                                                                                           | T3 是否设置 `T3CODE_THREAD_ID`                                                      | 会监听                                     |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------ |
+| **Claude Code CLI**                                                     | `ClaudeAdapterV2.ts:354-381` `spawnClaudeProcessGroup`：`NodeChildProcess.spawn("/bin/sh", ["-c", 看守脚本, "t3-claude", command, …], { detached: true })`。`sh` 用 `exec "$@"` 变成 CLI（pid 不变，pid = pgid = `child.pid`）；另有一个后台子 shell 看守者（argv 同样带 `t3-claude`）在同一进程组。command 可能先经 `agentScope.wrap`（同样 `exec`，pid 保持）。运行时 = exec 之后的 CLI | **有界。** 正常退出：`child.once("exit")` 里对整个进程组 `SIGKILL`（`:373-378`）。server 崩溃：看守者在只有 server 持有的 fd 3 上读到 EOF，`kill -TERM 0`，5 秒后 `kill -KILL 0`（`:344-347`），整组被杀。`setsid` 脱组的后代不在组里，Linux 上由 systemd scope 的 `agentScope.stop` 兜底，macOS 上没有 | **设置**（`:998-1004`，进程环境里就有）                                             | 可能有登录回调或 IDE 桥（未核实）          |
+| **Codex app-server**                                                    | `CodexAdapterV2.ts:1450-1479` `makeCodexAppServerSpawnCommand`：`agentScope.wrap`（`/bin/sh -c … exec`，pid 保持）→ `ChildProcess.make`；`:1586` `spawner.spawn` 得到 `handle.pid`。Effect 的 spawner 默认 `detached`（独立进程组）                                                                                                                                                       | 正常：scope 关闭时对进程组 `SIGTERM`（`NodeChildProcessSpawner.ts` 的 `terminateProcessGroup`）。**server 崩溃：没有看守者**；app-server 读标准输入，stdin 的 EOF 会不会让它退出 **未核实** → 按无界处理                                                                                                | app-server 本身**不设置**；它的 shell 带（`shell_environment_policy.set`，`:1410`） | 未见（stdio）                              |
+| **OpenCode `serve`**                                                    | `packages/provider-opencode/src/server/OpenCodeRuntime.ts:507-545`：`agentScope.wrap` → `ChildProcess.make(…, { detached })`，参数 `serve --hostname=… --port=…`，端口已知。`OpenCodeServerLedger.track({ pid, port, args })` 把 `{pid, startTime, command, port, owner}` 记在 state 目录                                                                                                 | 正常：scope 关闭时对进程组 `SIGTERM` 再 `SIGKILL`。崩溃：**下次 server 启动时**由账本按 pid + 启动时间 + pgid + 完整命令行精确回收孤儿（`stopOrphan`）→ 有界，但回收发生在下次启动，不是立刻                                                                                                            | 不设置                                                                              | **回环 TCP 口**（端口已知）                |
+| **ACP 系**（Cursor、Grok、Kiro、Antigravity、Fx、ACP 注册表里的 agent） | `packages/provider-acp/src/server/AcpSessionRuntime.ts:1374-1445`：`resolveSpawnCommand` → Linux cgroup 包装（`sh -c … exec`）或 `agentScope.wrap` → `spawner.spawn(ChildProcess.make(…, { detached: options.ownDetachedProcessGroup }))`，pid = `child.pid`。自带 pid + 启动时间的后代所有权账本（`AcpOwnedPosixProcess`）                                                               | 正常：runtime scope 的终结器终止进程（Linux 加 cgroup）。崩溃：没有看守者，stdio EOF 是否让 agent 退出取决于各家 agent → 按无界处理                                                                                                                                                                     | 不设置                                                                              | 未见（stdio）；各家 agent 自己的行为未核实 |
+| **Pi**                                                                  | `packages/provider-pi/src/server/rpc.ts:194-206`：`spawner.spawn(… { detached: platform !== "win32" })`                                                                                                                                                                                                                                                                                   | 同 ACP：正常终止，崩溃无看守者                                                                                                                                                                                                                                                                          | 不设置                                                                              | 未见（RPC over stdio）                     |
+| **Muse**                                                                | `@muse-code/sdk` 的 `MuseServeChild.spawn`（`detached` 由 SDK 决定），`provider-muse/src/server/sdk.ts` 里 `spawnMspConnection`；stdio 绑定                                                                                                                                                                                                                                               | SDK 自己管；崩溃无看守者（未核实）                                                                                                                                                                                                                                                                      | 不设置                                                                              | 未核实（SDK 是 stdio）                     |
+| 设备 hub（及 agent-device 守护进程）                                    | `LocalDeviceHost.ts` `spawnHub`：`detached: false`，`--port` 取自 `reserveLoopbackPort("127.0.0.1")`，`--host 127.0.0.1`                                                                                                                                                                                                                                                                  | 关口核实                                                                                                                                                                                                                                                                                                | 继承 server 环境                                                                    | **回环 TCP 口**；守护进程也监听回环        |
+| 受管端点连接器（cloudflared）                                           | `ManagedEndpointRuntime.ts:705-717`，`detached: false`，`--metrics 127.0.0.1:0`                                                                                                                                                                                                                                                                                                           | 关口核实                                                                                                                                                                                                                                                                                                | 继承                                                                                | **回环 TCP 口**（指标，随机端口）          |
+| frpc                                                                    | `fork/deviceKeys/frpcProcess.ts`（fork 文件）；`frpcConfig.ts` 写明不开管理页                                                                                                                                                                                                                                                                                                             | fork 自己管                                                                                                                                                                                                                                                                                             | 继承                                                                                | 否                                         |
+| 无头 Chrome                                                             | `htmlRender/headlessChrome.ts:188`、`preview/PreviewBrowserHost.ts`：`--remote-debugging-pipe`                                                                                                                                                                                                                                                                                            | 关口核实                                                                                                                                                                                                                                                                                                | 继承                                                                                | 否（管道）                                 |
+| 资源监视器                                                              | `resourceTelemetry/NativeTelemetryClient.ts`：`spawner.spawn`，stdin/stdout 管道                                                                                                                                                                                                                                                                                                          | 关口核实                                                                                                                                                                                                                                                                                                | 继承                                                                                | 未核实                                     |
+| 终端 shell                                                              | `terminal/Manager.ts`、`NodePtyAdapter.ts`：node-pty，server 的直接子进程                                                                                                                                                                                                                                                                                                                 | 终端自己的生命周期                                                                                                                                                                                                                                                                                      | 不设置                                                                              | shell 或其后代：**这是终端归属的来源**     |
+| 短命令（git、gh、ps、lsof、文本生成 CLI、`status` 探测等）              | `vcs/`、`textGeneration/`、`processRunner.ts`、各 provider 的 `status.ts` 等                                                                                                                                                                                                                                                                                                              | 瞬时                                                                                                                                                                                                                                                                                                    | —                                                                                   | 无                                         |
+| provider 侧由 CLI 自己启动的 MCP 进程                                   | 由各家 CLI 启动，是 CLI 的后代                                                                                                                                                                                                                                                                                                                                                            | 随 CLI                                                                                                                                                                                                                                                                                                  | 继承 CLI 的环境（Claude 的带标记）                                                  | 取决于 MCP 服务                            |
+
+**两条要明说的事实：**
+
+1. **只有 Claude 和 Codex 设置 `T3CODE_THREAD_ID`**（grep `AGENT_THREAD_ENV`/`T3CODE_THREAD_ID`：`ClaudeAdapterV2.ts`、`CodexAdapterV2.ts`、`PortScanner.ts`、codex 回放）。所以"agent 起的服务"这一档（§5.1）只会对 Claude 和 Codex 出现；OpenCode、ACP 系、Pi、Muse 的 agent 起的服务**只有在 T3 终端里起的才有主**。除非 server 本身是在一个带这个变量的终端里启动的（这个仓库的日常开发就是这样），这时 server 的所有子进程都继承了标记，所以绝不能靠"没有标记就不会被列出"。
+2. **server 崩溃后遗留的运行时**：Claude 的看守者保证整组被杀；OpenCode 靠下次启动的账本回收；Codex、ACP 系、Pi、Muse 没有看守者，是否遗留取决于它们读 stdin 的行为（未核实）。所以孤儿运行时必须被特征（E4）识别排除，而不是靠"我们登记过它"。
 
 #### 5.6.3 规则
 
-| 编号 | 排除                                                                            | 适用于                     |
-| ---- | ------------------------------------------------------------------------------- | -------------------------- |
-| E1   | 监听者的 pid 等于本 server 进程，或是它的**祖先**（桌面主进程等）               | 所有归属                   |
-| E2   | 监听者的 pid 是本 server 的**直接子进程**，且是**agent 归属**（环境标记）       | agent 归属。终端归属不适用 |
-| E3   | 监听者在一个已登记的"非作业运行时子树"里（设备 hub 及其守护进程）               | 所有归属                   |
-| E4   | 端口 ∈ 已登记端口（`ServerConfig.port`、`TunnelListener.port`）∪ 屏蔽表（§5.7） | 所有归属                   |
-| E5   | argv 或 `NODE_OPTIONS` 带调试参数（§5.7）                                       | 所有归属                   |
+编号和第二版不同（第二版的 E2、E3 被拆开重写）：
 
-为什么 E2 只对 agent 归属生效：agent 的作业（Claude 的 Bash 工具、Codex 的 shell）是 CLI 的**孙进程或更深**，直接子进程一定是 T3 自己启动的运行时；而终端归属的进程是 shell 的后代，shell 在 `exec` 之后可能就是那个 dev server 本身（pid 相同，是 server 的直接子进程），所以终端归属不能套用 E2。T3 的运行时进程不会出现在终端的进程树里。
+| 编号 | 排除                                                                                                                                                                                                                                                                                              | 适用于     |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| E1   | 监听者的 pid 是本 server 进程，或是它的**祖先**（桌面主进程等；祖先链在 C2 用现读的进程表判）                                                                                                                                                                                                     | 所有归属   |
+| E2   | **登记的运行时（pid + 启动时间）：它自己的所有监听一律排除。** 每个 adapter 的启动点登记（见下）。有包装层的登记**实际跑运行时的那个进程**（`exec` 之后的 pid）。设备 hub 登记**整棵子树**（守护进程是孙进程），其余运行时只登记自己（它们的作业是 agent 作业，应当被许可）                       | 所有归属   |
+| E3   | **默认拒绝：** server 的**直接子进程**，除非它是 `TerminalShellRegistry` 里一个正在运行的终端 shell，它自己的监听一律排除。这是兜底：登记漏了、包装层没 `exec`、新加的 T3 子进程，都先落在这里被拒                                                                                                | 所有归属   |
+| E4   | **运行时特征（防孤儿）：** 每个 adapter 在启动代码旁**声明**自己的运行时特征——精确的可执行文件路径，或 argv 特征；进程的可执行文件或 argv 匹配任何一个已声明特征，就排除它自己的监听，**不管它的祖先是谁**，所以 server 重启后被 init 收养的遗留运行时也被排除                                    | 所有归属   |
+| E5   | **只放行已登记运行时的后代（"归属不可靠"的 provider）：** 对某个 provider，如果它的运行时认不出特征、寿命又不受 server 约束（见下面的分类），这个 provider 下"agent 有主"的监听只有在祖先链（现读）上有一个**活着的、已登记的**该 provider 运行时才放行；其他一律排除。**终端有主的端口不受影响** | agent 归属 |
+| E6   | 端口 ∈ 已登记端口（`ServerConfig.port`、`TunnelListener.port`、`DesktopBrowserChannel` 的端口、OpenCode 的已知端口）∪ 屏蔽表（§5.7）                                                                                                                                                              | 所有归属   |
+| E7   | argv 或 `NODE_OPTIONS` 带调试参数（§5.7）：这个 pid 的所有监听一律排除                                                                                                                                                                                                                            | 所有归属   |
 
-为什么要 E3：设备 hub 是 server 的直接子进程（E2 覆盖），但它再启动的 agent-device 守护进程是孙进程（E2 不覆盖）。hub 是唯一这样的长期运行时，所以在 `LocalDeviceHost.spawnHub` 登记子树（上游 +2 行）。其余运行时的作业子进程（OpenCode 的工具、Codex 的 shell）是 agent 的作业，**应当**被许可，所以不登记它们的子树。
+**登记怎么做（主控第 5 条 a）：** `packages/shared/src/forkRuntimeRegistry.ts` 里一个进程级的小登记表（普通函数，不是 Effect 服务——provider 包不能依赖 `apps/server`，也不想改它们的 `R` 类型）：`trackRuntimeProcess(pid, kind, options?) => release`。调用时立即异步读该 pid 的启动时间（§5.3 的身份读取），记成 `{ pid, startTime, kind, subtree }`；进程退出或 scope 关闭时调用 `release`。读不到启动时间时，条目只按 pid 登记（fail-closed：这个 pid 的所有监听都排除）。核对时用 (pid, 启动时间) 与现读的值比较，pid 被复用的新进程不会命中旧条目。
 
-**登记服务 `GatewayExclusions`**（fork 文件）：`registerRuntimeTree(pid)`、`registerPort(port)`，加上静态屏蔽表和调试参数匹配。
+**登记点（每个 adapter 的启动点，各 +2 到 +3 行上游）：** `ClaudeAdapterV2.spawnClaudeProcessGroup`（`child.pid`，`exit` 时 release）、`CodexAdapterV2.open`（`handle.pid`）、`OpenCodeRuntime.startServerAttempt`（`child.pid`，紧挨着 `serverLedger.track`，同时登记已知端口）、`AcpSessionRuntime`（`spawner.spawn` 之后的 `child.pid`，Antigravity、Cursor、Grok、Kiro、Fx 和注册表 agent 共用）、`provider-pi/src/server/rpc.ts`、`provider-muse`（SDK 能给出 pid 才登记，否则落到 E3 和 E5）、`LocalDeviceHost.spawnHub`（子树）、`ManagedEndpointRuntime`（连接器）。frpc 在 fork 文件里自己登记（0 行上游）。终端 shell 不登记为运行时。
+
+**特征怎么声明（主控第 5 条 b）：** 同一个模块里 `declareRuntimeSignature({ kind, executables?, argv? })`，每种 `kind` 一条，声明放在该 adapter 启动代码旁。**测试保证每个 adapter 都声明了特征**：遍历 `BUILT_IN_DRIVERS`（`apps/server/src/provider/builtInDrivers.ts:33`）里每个驱动的 id，断言每个驱动要么对应一个有特征的 `kind`，要么在一张显式的"无特征，归 E5"清单里并写明理由；新加驱动而没声明，测试失败。
+
+**哪些 provider 归 E5（初始分类，关口落实后更新）：** 初始一律按"拿不准就排除"，只有两类例外：
+
+- **Claude：** 寿命有界（看守脚本，崩溃也会杀整组），有可声明的特征（解析出的可执行文件路径）。不归 E5。它的作业即使脱离 CLI 的进程组也能转发，只要它不匹配 E4。
+- **OpenCode：** 寿命有界（账本在下次启动时回收），特征精确（`serve --hostname=… --port=…`，账本本来就比较完整命令行）。不归 E5；它不设标记，所以不存在"agent 有主"的作业，E5 对它没有实际作用。
+- **Codex、ACP 系、Pi、Muse：归 E5。** Codex 是仅有的另一个会设标记的 provider，所以 E5 实际管的就是它：**Codex 的 shell 命令是 app-server 的后代，只要 app-server 还是 server 登记的活进程就放行；脱离 app-server 的后台作业（`setsid`、守护化后被 init 收养）转发不了。** 其余 provider 不设标记，E5 在 production 里不起作用，只在 server 是从带标记的终端启动时才会碰到。
+
+**哪些 provider 因此转发不了脱离父进程的后台作业（要写进用户文档和错误卡片）：** Codex（E5）；Claude 例外（可以）；OpenCode、ACP 系、Pi、Muse 本来就没有"agent 有主"一档，它们 agent 起的服务只有在 T3 终端里起才能转发。
+
+**`TerminalShellRegistry`：** fork 里订阅 `TerminalManager.subscribeMetadata`，事件驱动，维护"正在运行的终端 shell 的 (pid, 启动时间)"；E3 和 §5.3 的 C2 都用它。
 
 #### 5.6.4 验收
 
-- **完整 server 的自检：** 起一台完整的 server（带隧道监听口、`DesktopBrowserChannel`、设备 hub、`T3CODE_THREAD_ID` 在自己的环境里，覆盖最坏情形），用 `lsof -p` 列出 server 进程和它的直接子进程的全部 TCP 监听，断言每一个都被网关拒绝。
-- **假运行时：** 一个直接子进程，带标记、在回环上监听：被拒（E2）。它的孙进程带标记、监听：放行。终端 shell `exec` 成监听者：放行（终端归属不受 E2 约束）。设备 hub 的孙进程（守护进程）：被拒（E3）。
-- **防漂移测试：** 一个源码扫描测试，列出产品代码（排除测试、脚本、fixture）里所有 `.listen(`、`createServer(`、`NodeHttpServer.make`、`NodeSocketServer.make`、`HttpServer.serve`、`WebSocketServer(` 以及 `--port`/`--listen` 参数的位置，与 fork 目录里提交的清单（`listenSites.json`）逐项比较。新增监听点会让测试失败，直到有人在清单里给它写上处理方式。这样"新增一个回环管理口会自动落入有主许可"不会静默发生。
+- **完整 server 的自检：** 起一台完整的 server（带隧道监听口、`DesktopBrowserChannel`、设备 hub 的假可执行文件、受管端点连接器的假可执行文件，`T3CODE_THREAD_ID` 在自己的环境里，覆盖最坏情形），用 `lsof -p`（macOS）或 `/proc`（Linux）列出 server 进程和它全部后代的 TCP 监听，断言每一个都被网关拒绝，除非它是终端 shell 的后代或 agent 作业。
+- **假运行时（每种 provider 一个假可执行文件，会在回环上监听）：** 登记过的运行时自己监听 → 被拒（E2）；它的孙进程（作业）监听 → 放行（带标记且不归 E5 的 provider），或按 E5 放行/拒绝；终端 shell `exec` 成监听者 → 放行；未登记但是 server 的直接子进程 → 被拒（E3）；设备 hub 的孙进程 → 被拒（E2 子树）。
+- **孤儿：** 模拟 server 重启：登记表清空，遗留的假运行时（被 init 收养）匹配特征 → 被拒（E4）；遗留的假运行时匹配不到特征且属于 E5 的 provider，它下面带标记的作业 → 被拒；终端有主的端口不受影响。
+- **特征声明测试**（上面）、**防漂移测试**：一个源码扫描测试，列出产品代码（排除测试、脚本、fixture）里所有 `.listen(`、`createServer(`、`NodeHttpServer.make`、`NodeSocketServer.make`、`HttpServer.serve`、`WebSocketServer(` 以及 `--port`、`--metrics`、`--listen` 参数的位置，与 `exclusions.json` 逐项比较。新增监听点会让测试失败，直到有人给它写上处理方式。
+- 关口产出的清单里每个条目都有验证（读码或运行时测试），"未核实，已排除"的条目单独列出。
 
 #### 5.6.5 残余风险
 
-- server 重启后留下的**孤儿运行时进程**：被重新挂到 init 下，不再是 server 的直接子进程，E2 排除不到它们；如果它们带标记并监听，会被当作 agent 作业。缓解：E4（屏蔽表）、E5（调试参数）仍然适用；`AgentScope` 的孤儿回收（`survivesRestart` 以外的 agent 进程"remain eligible for orphan cleanup"）本来就在清理它们。不另做处理，记在文档里。
+- server 崩溃后遗留的运行时，如果匹配不到任何已声明特征（用户用了自己的可执行文件路径、或 ACP 注册表里的新 agent）：它的监听可能被当作 agent 作业。缓解：E5（对 Codex 等）、E6、E7、`AgentScope` 的孤儿回收本来就在清理它们。写进文档。
+- ACP 的客户端终端命令（`packages/provider-acp/src/server/clientTerminals.ts`）是 server 的直接子进程，被 E3 默认拒绝；它们不带标记，本来也不属于"agent 有主"，只有 server 自己是在带标记的终端里启动时才会碰到（开发这个仓库的日常工作流）。
 - provider 侧由 CLI 启动的 MCP HTTP 服务：它们是 agent 的作业，按"有主服务"对待，暴露面与 dev server 同类（§6.7）。
 - 用户自己在 B 上以终端归属启动的、本意不想暴露的服务：这是功能的前提；用户要避免就不要在 T3 终端里起它。
+- **Windows：** 没有 argv 和环境的读取路径、没有 agent 归属档、没有未验证的 `netstat` 复核——所以 Windows 的 B **不广告能力**，不存在"只做一部分检查"的状态（复核 P1-4）。Linux 同样：真实进程测试通过前不广告。
 
 ### 5.7 调试进程：整进程排除（评估结论）
 
@@ -611,10 +725,10 @@ authorize(port):
 - 理由：检查器和 JDWP 是远程代码执行级别的接口，可能开在随机端口上（`--inspect=0`），同一个进程的 web 服务和调试口无法按端口分开。
 - 代价：用 `--inspect` 启动的 dev server 本身也预览不了。可恢复：错误卡片说明原因（§7.2），用户可去掉参数重启，或用「在 {environment} 的浏览器中打开」。
 - 匹配是对 `ps -E` 整行文本的正则，可能把环境变量值里的字样也算上：宁可误拒（fail-closed）。
-- Windows 没有 argv 和环境的读取路径（见 §5.3 的表）：只靠端口屏蔽表，文档写明。
-- 名单可扩展，但不做通用的"调试器检测"。其他语言的调试器（`debugpy --listen`、`dlv --listen`）这次不列；用户反馈再加（N5 里建议把 `5005`、`5678` 加进屏蔽表）。
+- Windows 没有 argv 和环境的读取路径，所以 Windows 的 B 不广告这个能力（§5.6.5），不存在"没有 argv、只靠屏蔽表"的状态。
+- 名单可扩展，但不做通用的"调试器检测"。其他语言的调试器（`debugpy --listen`、`dlv --listen`）这次不列进参数名单；它们的默认端口 5005（JDWP）和 5678（debugpy）在端口屏蔽表里（N5，已定）。
 
-端口屏蔽表（Q3，已定）：`9222`、`9229`、`5858`、`5859`、`2375`、`2376`。
+端口屏蔽表（Q3 和 N5，已定，最终 8 个）：`9222`、`9229`、`5858`、`5859`、`2375`、`2376`、`5005`、`5678`。
 
 ## 6. 威胁模型
 
@@ -662,13 +776,14 @@ authorize(port):
 - 暴露程度**等同于本机 dev server 对本机浏览器里的页面**：同样的 Host、同样的 Origin、同样的服务自己的 CORS 和 `allowedHosts` 策略。网关不放宽也不收紧这些策略；具体能不能读到，取决于该 dev server 版本的默认值（早期 Vite 默认对所有来源开放 CORS，较新的版本限制 `Host` 和跨源读取）。这是 dev server 本身的属性，不是网关引入的。
 - 网关引入的变化是**页面所在的位置**：本来在 A 上的页面现在能碰到 B 上的服务。所以"这个标签页里加载了什么"变成了安全问题：用户在 B 的对话标签页里导航到外部网站，那个网站的脚本能对 B 上有主的 dev server 发请求。缓解见 6.1：许可范围、调试端口、整进程排除；文档要明说"别在转发的标签页里打开不信任的网站"。
 
-**验收用例（9.2 的真实 Electron 冒烟 + 9.1 的路由层）：**
+**验收用例（9.4 的端到端，在真实 Electron 里做；不依赖 Electron 的部分在 9.1 的路由层先测）：**
 
 1. **外部来源的页面读不到 `/@fs/`：** 一个夹具服务模拟 Vite 的 `/@fs/…` 路由，按 Host 和 Origin 决定是否返回 CORS 头（拒绝外部 Origin、`Host` 不是 `localhost`）。断言：从 `localhost` 同源页面请求成功；从外部 Origin 的页面（`direct.test`）的跨源 `fetch` 读不到内容（无 `Access-Control-Allow-Origin`）；并断言网关**没有改写** Host 和 Origin（夹具记录请求头，与直连时逐字节一致）。这测的是"网关不改变 dev server 能看到的头"，不是 Vite 本身。
 2. **默认端口上的 Node inspect 被拒：** 一个监听在 9229 的进程，在有主的前提下仍被拒（屏蔽表）；一个 `--inspect=0` 的进程，它的 web 端口和随机检查器端口都被拒（整进程排除）。
 3. **`*.localhost`：** `http://app.localhost:P` 过代理、到达同一个有主端口；代理的主机判定接受；`http://localhost.localdomain:P` 不过代理（直连 A，页面自己的问题）。
 4. **IPv4-mapped IPv6：** `http://[::ffff:127.0.0.1]:P` 过代理（实测写法变成 `[::ffff:7f00:1]`），代理判定接受，B 端拨的是复核得到的地址，不是页面写的地址。
 5. **DNS rebinding：** 解析到 127.0.0.1 的非回环名（测试里用 `--host-resolver-rules` 映射）的请求**不过代理**，直连 A；代理收到的任何非回环主机请求得到 403，B 端收到 0 次开隧道请求。
+6. **source map：** 夹具服务提供带 `sourcesContent` 的 `.map` 文件，行为同 1：同源页面能取，外部 Origin 的页面跨源读不到；网关不改写头。
 
 ### 6.8 Local Network Access（Chromium 152 / Electron 44.10.1）
 
@@ -704,20 +819,22 @@ authorize(port):
 
 加载失败时上游画 `PreviewUnreachable`（带「在 X 的浏览器中打开」，来自 #17316）。我们给它加一个 `reason`，根据主进程发来的 `gatewayDenied` 事件（以及 B 离线、旧版、明文链路等状态）换文案，不新做页面：
 
-| 情形                                                         | 标题 / 说明                                                                                                       | 操作                            |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| 端口不是 T3 起的（`not-owned`）                              | 「这个端口不是 T3 起的服务」「{environment} 只转发它的终端和 agent 启动的服务。」                                 | 在 {environment} 的浏览器中打开 |
-| 端口被保留（`reserved`，T3 自己的或屏蔽的调试端口）          | 「这个端口不能转发」                                                                                              | 同上                            |
-| 进程带调试参数（`debug-process`）                            | 「这个服务带着调试参数运行，不能转发」「去掉 `--inspect` 一类参数后重启，或者在 {environment} 的浏览器中打开。」  | 同上                            |
-| 监听者变了（`owner-changed`）                                | 「这个端口的服务刚刚变了」「重试。」                                                                              | 重试                            |
-| 没有程序在监听（`upstream-refused`）                         | 「{environment} 上没有程序监听 {port}」「服务启动后重试。」                                                       | 重试                            |
-| B 离线 / 不可达（`offline`）                                 | 「连不上 {environment}」                                                                                          | 重试                            |
-| 权限不够（`forbidden`）                                      | 「这个连接没有转发权限」「需要预览和终端权限。」                                                                  | —                               |
-| B 是不支持网关的旧版或上游版（`unsupported-server`）         | 「{environment} 的 T3 版本不支持转发 localhost」「更新它，或者在它的浏览器中打开。」                              | 在 {environment} 的浏览器中打开 |
-| 明文局域网链路（`unsupported-route` / `insecure-transport`） | 「这个连接没有加密，不转发 localhost」「用 https、Tailscale 或 SSH 连接 {environment}，或者在它的浏览器中打开。」 | 在 {environment} 的浏览器中打开 |
-| 经 T3 Connect 中继（`unsupported-route` / `relay`）          | 「通过 T3 Connect 的连接不支持转发 localhost」                                                                    | 同上                            |
-| 端口发现关闭（`discovery-disabled`）                         | 「{environment} 关闭了端口发现」                                                                                  | 同上                            |
-| 达到上限（`limit-reached` / `rate-limited`）                 | 「转发的连接太多」                                                                                                | 重试                            |
+| 情形                                                                          | 标题 / 说明                                                                                                                                         | 操作                            |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| 端口不是 T3 起的（`not-owned`）                                               | 「这个端口不是 T3 起的服务」「{environment} 只转发它的终端和 agent 启动的服务。」                                                                   | 在 {environment} 的浏览器中打开 |
+| 端口被保留（`reserved`，T3 自己的或屏蔽的调试端口）                           | 「这个端口不能转发」                                                                                                                                | 同上                            |
+| 进程带调试参数（`debug-process`）                                             | 「这个服务带着调试参数运行，不能转发」「去掉 `--inspect` 一类参数后重启，或者在 {environment} 的浏览器中打开。」                                    | 同上                            |
+| 监听者变了（`owner-changed`）                                                 | 「这个端口的服务刚刚变了」「重试。」                                                                                                                | 重试                            |
+| 没有程序在监听（`upstream-refused`）                                          | 「{environment} 上没有程序监听 {port}」「服务启动后重试。」                                                                                         | 重试                            |
+| B 离线 / 不可达（`offline`）                                                  | 「连不上 {environment}」                                                                                                                            | 重试                            |
+| 权限不够（`forbidden`）                                                       | 「这个连接没有转发权限」「需要预览和终端权限。」                                                                                                    | —                               |
+| B 是不支持网关的旧版或上游版（`unsupported-server`）                          | 「{environment} 的 T3 版本不支持转发 localhost」「更新它，或者在它的浏览器中打开。」                                                                | 在 {environment} 的浏览器中打开 |
+| 明文局域网链路（`unsupported-route` / `insecure-transport`）                  | 「这个连接没有加密，不转发 localhost」「用 https、Tailscale（MagicDNS 名字）或 SSH 连接 {environment}，或者在它的浏览器中打开。」                   | 在 {environment} 的浏览器中打开 |
+| 明文 Tailscale IPv4 地址（`insecure-transport`，`hint: "tailscale-address"`） | 「这个连接没有加密，不转发 localhost」「这看起来是 Tailscale 的 IP 地址。请改用它的 MagicDNS 名字（`*.ts.net`）或 HTTPS，或者在它的浏览器中打开。」 | 在 {environment} 的浏览器中打开 |
+| 证书不受信任（`tls-untrusted`：过期、自签名、主机名不符、私有 CA）            | 「{environment} 的证书不受信任」「这台电脑没有信任它的证书（私有 CA 暂不支持）。请使用公共 CA 的证书或 Tailscale，或者在它的浏览器中打开。」        | 在 {environment} 的浏览器中打开 |
+| 经 T3 Connect 中继（`unsupported-route` / `relay`）                           | 「通过 T3 Connect 的连接不支持转发 localhost」                                                                                                      | 同上                            |
+| 端口发现关闭（`discovery-disabled`）                                          | 「{environment} 关闭了端口发现」                                                                                                                    | 同上                            |
+| 达到上限（`limit-reached` / `rate-limited`）                                  | 「转发的连接太多」                                                                                                                                  | 重试                            |
 
 "不支持"和"明文"这几行没有主进程事件（没装代理，Chromium 直接连 A 的 `localhost` 被拒）。这时 `PreviewUnreachable` 的 fork 钩子看"远程环境 + 回环主机 + 网关状态不是 active"，按状态换成对应的说明。
 
@@ -735,8 +852,8 @@ authorize(port):
 
 1. **运行时**：`window.desktopBridge?.preview` 存在（桌面版）。网页和手机不进入。
 2. **环境**：非主环境，且不满足 `reachesEnvironmentLoopback`（WSL 等不需要）。
-3. **能力**：`environment.capabilities.loopbackGateway === true`。读取方式照 `readEnvironmentSupportsServerBrowser`（`apps/web/src/state/entities.ts:349`），在 `apps/web/src/fork/loopbackGateway/capability.ts` 里写一个同样的读取函数，不改上游。服务端在 `ServerEnvironment.ts:279` 旁加一行（`T3CODE_PORT_DISCOVERY=0` 时不加）；契约在 `environment.ts:156` 旁加一行 `optionalKey`，老服务端不发这个字段，客户端读到 `false`。
-4. **连接**：连接目标不是中继；`httpBaseUrl` 通过 §4.6 的传输检查（`https:`、回环、Tailscale）。
+3. **能力**：`environment.capabilities.loopbackGateway === true`。读取方式照 `readEnvironmentSupportsServerBrowser`（`apps/web/src/state/entities.ts:349`），在 `apps/web/src/fork/loopbackGateway/capability.ts` 里写一个同样的读取函数，不改上游。服务端在 `ServerEnvironment.ts:279` 旁加一行（`T3CODE_PORT_DISCOVERY=0` 时不加）；契约在 `environment.ts:156` 旁加一行 `optionalKey`，老服务端不发这个字段，客户端读到 `false`。 服务端只在 macOS 的 B 上广告；Windows 的 B 不广告，Linux 在容器里的真实进程测试通过前不广告（§5.3、§5.6.5）。
+4. **连接**：连接目标不是中继；`httpBaseUrl` 通过 §4.6 的传输检查（`https:`、回环、Tailscale 的 `*.ts.net` 与 `fd7a:115c:a1e0::/48`；明文 `100.x` 不通过）。
 5. **权限与用户意愿**：会话有两个 scope（`permissionAtom`）；用户没有在这个环境上关闭转发（§10）。
 
 这些组合成状态：`active | unsupported-server | unsupported-route(relay | insecure-transport) | no-permission | disabled-by-user | not-applicable`。`resolveDiscoveredServerUrl` 只在 `active` 时对回环 URL 原样放行；其他状态走原逻辑（私网改写成环境 IP、公网回退）。这样上游版本的 B、明文局域网和关闭转发的用户完全不受影响，「在 B 的浏览器中打开」始终存在。
@@ -775,7 +892,7 @@ authorize(port):
 | 环境断开                          | 渲染进程把状态置 `offline` 推给主进程；之后的新请求得到 `offline` 错误页。**已建立的隧道不受 RPC 连接影响**（它们是独立的 WebSocket），只在 B 或网络真断、或会话失效（§4.8）时才断                                                                                                                                                                                                                            |
 | 环境重连                          | 渲染进程重新取票据、推给主进程、状态回 `active`。页面可能需要手动刷新；Vite HMR 会自己恢复                                                                                                                                                                                                                                                                                                                    |
 | 票据过期                          | 票据只在**升级那一刻**检查。已建立的隧道不受影响；新隧道在续期失败时得到 401，错误卡片显示"正在重新连接…"（§7.3）。会话被撤销时才会断已建立的隧道（§4.8）                                                                                                                                                                                                                                                     |
-| 路由切换（局域网 → 隧道）         | 渲染进程订阅连接的 `httpBaseUrl`，变化时推新地址；每次都**重跑传输检查**（§4.6）。新地址通过：旧隧道自然结束，新连接走新地址。新地址不通过（例如切到明文局域网）：状态变 `unsupported-route`，主进程拆代理、改回直连，并关闭该环境所有已建立的隧道，不让旧加密链路上的隧道继续用                                                                                                                              |
+| 路由切换（局域网 → 隧道）         | 渲染进程订阅连接的 `httpBaseUrl`，变化时把新的 `{ baseUrl, ticket }` 一对推给主进程（连接目标在安装票据时固定，连接建立后不会切到另一个地址，§3.6）；每次都**重跑传输检查**（§4.6）并**换用新票据**。新地址通过：旧隧道自然结束，新连接走新地址。新地址不通过（例如切到明文局域网）：状态变 `unsupported-route`，主进程拆代理、改回直连，并关闭该环境所有已建立的隧道，不让旧加密链路上的隧道继续用           |
 | 设备被移除 / 会话被撤销           | 服务端关闭隧道（§4.8）；A 端看到隧道断开，之后的升级得到 401，状态变 `no-permission`；用户重新配对后恢复                                                                                                                                                                                                                                                                                                      |
 | 应用重启                          | 代理、口令、票据都不持久化。启动后恢复标签页，webview 等"网关已登记"（本地 IPC，不等网络）；主进程以 `pending` 状态先装好代理，没有票据时回 503，非回环流量不受影响；渲染进程连上 B 后取票据变 `active`。持久化的只有"用户对哪些环境关闭了转发"                                                                                                                                                               |
 | B 升级成支持的版本 / 降级成不支持 | 能力来自服务器配置，随连接更新；`active` 与否变化时安装器装上或拆掉代理                                                                                                                                                                                                                                                                                                                                       |
@@ -783,7 +900,7 @@ authorize(port):
 ## 11. 性能
 
 - **不轮询。** 票据续期是一次性定时器；端口许可靠现有快照，未命中至多每 2 秒触发一次扫描；没有新增订阅。
-- **不按请求扫描整机。** 每条新隧道做一次按 PID 的定点复核（一个 `lsof -p` 或读 `/proc/<pid>/fd`，§5.3），同一 (端口, PID) 通过后 2 秒内缓存，所以一个页面冷启动并发的 5–6 条隧道只复核一次。这次复核的耗时没测，9.1 度量，9.4 的首屏测量把它算进去。
+- **不按请求扫描整机。** 每条新隧道做一次现场核对（§5.3，macOS 上 3 到 4 次进程调用，**没有缓存**），页面冷启动并发的 5–6 条隧道各核对一次。耗时现在只是估计（本机一次 `lsof -a -p` 约 50 毫秒），9.1 实测并把数字写在这里：单条核对的中位数和 p95，并发 1、6、32 各一组，macOS 与 Linux 容器各一份。**（待 9.1 填）**
 - **连接复用。** A→B 每个端口有 keep-alive 池；实测 Chromium→代理本身复用良好。
 - **B 端零 HTTP 解析。** 隧道是字节管道，没有逐请求的 Effect `HttpClient` 开销（#8841 的路径是逐请求）。
 - 没有持续重绘的动画；标识是静态图标。
@@ -797,45 +914,56 @@ authorize(port):
 3. 基线 2：B 与 A 同机，经局域网/回环地址直连环境（无隧道，有网关）。
 4. 经隧道：环境经 `https://<名字>.t3.localhost`（有网关，经 Caddy 和 frp）。
 5. 本地栈延迟几乎为零，会掩盖往返开销。给 A 到 Caddy 之间插一个只监听回环的 Node TCP 中继，每个方向加 25 毫秒（共 50 毫秒往返），再测一组；100 毫秒往返再测一组。
-6. 度量：用 `wc.executeJavaScript` 读 `performance.getEntriesByType("navigation")[0]` 的 `domContentLoadedEventEnd`/`loadEventEnd`，加一个 `PerformanceObserver` 取 LCP；统计隧道建立次数（B 端日志）和每条隧道从发起到升级完成的时间；再测一次保存文件到 HMR 更新（`vite:afterUpdate`）的延迟。每组 5 次取中位数。
+6. 度量：用 `wc.executeJavaScript` 读 `performance.getEntriesByType("navigation")[0]` 的 `domContentLoadedEventEnd`/`loadEventEnd`，加一个 `PerformanceObserver` 取 LCP；统计隧道建立次数（B 端日志）、每条隧道从发起到升级完成的时间、以及其中现场核对占的时间；再测一次保存文件到 HMR 更新（`vite:afterUpdate`）的延迟。每组 5 次取中位数。
 7. 判据：50 毫秒往返时首屏比基线 2 慢超过 1.5 秒，或每条新隧道建立超过 3 个往返，才进入"预开空闲隧道"，再不行才考虑多路复用。结果写进 FORK.md。
 
 ## 12. 分阶段计划
 
 流程同前几阶段：独立 worktree 实现 → 测试与 review 并行 → 修复 → `--no-ff` 合入。每阶段的验收都包含它自己的安全验收。测试放在"在 main 上会失败的最低一层"，遵守 AGENTS.md：不用 sleep/超时/轮询，用 `Deferred`、`Queue`、`drain`、`TestClock`。
 
-**没有独立的 9.0（主控第 13 条）：** B 端的两个技术前提是 9.1 的第一步，A 端的是 9.2 的第一步，失败就停下回报，不继续往下做。严格 audience、票据不进日志、`login` 条件、撤销竞速、TOCTOU 是 9.1 和 9.2 的**验收项**，不是 spike。
+**没有独立的 9.0（主控第 13 条）：** 9.1 的第一道关是监听点与运行时进程的逐项落实（§5.6.0），关口之后的第一步是 B 端的技术前提；A 端的技术前提是 9.2 的第一步；失败就停下回报，不继续往下做。严格 audience、票据不进日志、`login` 条件、撤销竞速、TOCTOU 是 9.1 和 9.2 的**验收项**，不是 spike。
 
 ### 9.1 server 网关（M+）
 
-**第一步（前提，失败就停下回报）：** 在共享 `HttpRouter` 上加一条 `GET /api/loopback-gateway/tunnel` 升级路由，把 `request.upgrade` 的 Socket 对接到 `net.connect`。确认：主监听口和 `TunnelListener` 口都能用；背压（写慢的一端不会无限缓冲）；`awaitInvalidation` 竞速能关闭它，且 TCP 和 WS 两端都销毁。不行就改用 `ws` 的流接口，再不行回到本文重新设计传输层。第一步的原始输出放 `/tmp`，结论回写 §3.3。
+**第 0 关（开工关口：两项都过了，才开始写网关路由的代码）。** 拿不准的条目一律排除，不放行；关口的产出和代码一起提交，结果写回本文 §5.6。
 
-范围（`apps/server/src/fork/loopbackGateway/`、`packages/contracts/src/forkLoopbackGateway.ts`、`packages/shared/src/forkLoopbackGateway/`）：
+- **关口 A：监听点清单逐项落实**（§5.6.0、§5.6.1）：`LocalDeviceHost` 的 hub 与守护进程、provider 的 OAuth 和回调、Muse、资源监视器、`CodexManagedTokenBroker`（已读码确认非 TCP，补运行时测试）、受管端点连接器（第二版漏了的 cloudflared 指标监听），以及其余所有 `ChildProcess.make`/`spawn(` 调用点中长期运行的。每条一个记录：代码依据、是不是 TCP、属于哪个进程、处理方式、验证（读码或运行时测试）。能做运行时测试的就做（起真实的 server 层，provider 用测试用的假可执行文件，**不跑真实的 agent 回合，不碰真实 provider 凭据**）；产出 `exclusions.json`。
+- **关口 B：provider 运行时的进程树与排除规则**（§5.6.2、§5.6.3）：对 Claude、Codex、OpenCode 和各 ACP 系（Cursor、Grok、Kiro、Antigravity、Fx、注册表 agent）、Pi、Muse，逐个读启动代码画出实际进程树（server 怎么启动它、中间有没有 shell 或包装层、server 退出或崩溃时它会不会跟着退出），回写 §5.6.2 的"未核实"项；落实三件事：(a) 每个 adapter 的启动点登记运行时 pid + 启动时间（含有包装层时登记实际跑运行时的那个进程）；(b) 每个 adapter 声明运行时特征，**测试保证每个驱动都声明了**；(c) 认不出特征且寿命不受 server 约束的 provider 归 E5（只放行已登记运行时的后代）。
+- 两项关口的产出要列出：哪些 provider 因此转发不了脱离父进程的后台作业，写进用户文档。
+- 关口过不去的条目不阻塞其余部分，但这些条目对应的监听一律排除，并在 §5.6.5 列为残余风险。
 
-- 契约：RPC `loopbackGateway.issueTicket`、错误类型、能力位 `loopbackGateway`（`T3CODE_PORT_DISCOVERY=0` 时不广告）；`AuthWebSocketTicketUse` 加 `"loopback-gateway"`。
+**第一步（技术前提，关口之后，失败就停下回报）：** 在共享 `HttpRouter` 上加一条 `GET /api/loopback-gateway/tunnel` 升级路由，把 `request.upgrade` 的 Socket 对接到 `net.connect`。确认：主监听口和 `TunnelListener` 口都能用；背压（写慢的一端不会无限缓冲）；`awaitInvalidation` 竞速能关闭它，且 TCP 和 WS 两端都销毁。不行就改用 `ws` 的流接口，再不行回到本文重新设计传输层。第一步的原始输出放 `/tmp`，结论回写 §3.3。
+
+范围（`apps/server/src/fork/loopbackGateway/`、`packages/contracts/src/forkLoopbackGateway.ts`、`packages/shared/src/forkLoopbackGateway/`、`packages/shared/src/forkRuntimeRegistry.ts`）：
+
+- 契约：RPC `loopbackGateway.issueTicket`、错误类型、能力位 `loopbackGateway`；`AuthWebSocketTicketUse` 加 `"loopback-gateway"`。
+- **能力广告的条件：** `T3CODE_PORT_DISCOVERY` 不是 `0`，**且平台是 macOS**；Linux 在容器里的真实进程测试通过前不广告；Windows 不广告（§5.6.5）。
 - 权限：`CLIENT_GUARDED_RPC_SCOPES` 展开 + `clientRpcRequiredScopes` 返回两个 scope；扩展权限行为测试。
-- 隧道路由与认证函数 `authenticateGatewayTicket`（§4.4）、日志脱敏层（§4.3）。
-- 端口许可、定点复核、`GatewayExclusions`、监听点清单与防漂移测试（§5）。
+- 隧道路由与认证函数 `authenticateGatewayTicket`（§4.4）、显式脱敏（入口立刻 `Redacted`，§4.3）。
+- 端口许可、**每条隧道的现场核对（无缓存）**、`GatewayExclusions`、运行时登记表与特征声明、`TerminalShellRegistry`、监听点清单与防漂移测试（§5）。
+- 各 adapter 启动点的运行时登记（上游各 +2 到 +3 行，§13）。
 - 上限（§3.7 的 B 端项）。
 
 验收：
 
-- **严格 audience：** 没有 audience、`rpc`、`media`、其他值、篡改、过期、已撤销、MCP 客户端会话、缺 scope、错误方案（`Bearer`/`DPoP`）、query 里的 `wsTicket`、带 `Origin`：全部被拒；反向：网关票据打 `/ws` 和媒体路由被 audience 拒绝，没有 audience 的票据仍能打 `/ws`。
-- **票据不进日志：** 测试 logger 和测试 tracer 收集全部输出，覆盖成功和每种失败，找不到哨兵票据及其长度 ≥ 12 的子串。
+- **严格 audience：** 没有 audience、`rpc`、`media`、其他值、篡改、过期、已撤销、MCP 客户端会话、缺 scope、错误方案（`Bearer`/`DPoP`）、query 里的 `wsTicket`、带 `Origin`：全部被拒；反向：网关票据（带 `jkt`）打 `/ws` 和媒体路由被 audience 拒绝，而不是被要求出示 DPoP 证明（`EnvironmentAuth.ts:1256` 先于 `:1261`）；没有 audience 的票据仍能打 `/ws`。
+- **票据不进日志（§4.3，复核 P0-2）：** 收集 logger 和 tracer 的全部输出，覆盖成功和每一条失败路径（坏票据、错 audience、端口被拒、核对失败、拨号失败、隧道中途断开、撤销断开、处理器缺陷），`--log-ws-events` 开关各一遍，断言找不到哨兵票据及其长度 ≥ 12 的子串；守卫测试（真实 server 层里 `Headers.CurrentRedactedNames` 含 `authorization`，`TracerHeaderFilter` 对它返回 `false`，赋值点的静态扫描）。
+- **自定义 `Authorization` 方案不被误用（复核 P2-1）：** 带 `Authorization: T3X-Gateway <票据>` 的请求打普通受保护路由、`/mcp`、`/oauth/token`、以及 `TunnelListener` 监听口上的同样几条，都不被当作会话凭据；连续多次错误票据打网关路由，`AuthAttemptLimiter` 的状态不变。
 - 两个 scope 缺一不可；只读会话被拒。
-- **定点复核（TOCTOU）：** 有主进程退出后另一个进程绑到同一端口，被拒；绑定地址正确（只绑 `::1` 和只绑 `127.0.0.1` 的服务各自连得上，拨号目标是复核得到的地址）；同端口两个 pid 被拒；agent 项标记被清被拒；缓存 TTL 常量等于 2000 毫秒；未命中重扫的 2 秒限流。
-- **排除：** §5.6.4 的完整 server 自检、假运行时（E2、E3 的正反例）、防漂移测试；带 `--inspect=0` 的进程的两个端口都被拒；屏蔽表端口被拒。
-- `T3CODE_PORT_DISCOVERY=0` 不广告能力、RPC 报 `discovery-disabled`。
-- **撤销（§4.8）：** 会话被撤销、会话自然过期、设备移除后经 8.2 对账撤销，三条路径都验证已建立隧道的 TCP 和 WS 两端关闭；续期链（N1）；升级与撤销同时发生的四个竞速场景。
+- **现场核对（TOCTOU，§5.3）：** 有主进程退出后另一个进程绑到同一端口，**立即**被拒，没有 TTL 参与；身份读取可注入，C0 与 C3 之间启动时间变化被拒，读取失败被拒；agent 项标记被清被拒；终端项祖先链被打断被拒；同端口两个 pid 被拒；只绑 `::1` 和只绑 `127.0.0.1` 的服务各自连得上，通配绑定拨 `127.0.0.1`；同一端口连开 6 条隧道产生 6 组核对（防止悄悄加缓存）；未命中重扫的 2 秒限流。
+- **核对耗时实测：** macOS 上单条核对的中位数和 p95，并发 1、6、32 各一组，Linux 容器里同样一组；写进 §11。p95 超过 300 毫秒才考虑"核对进行时到达的请求合并成一次紧接着的核对"（§5.3，不是缓存）。
+- **排除（§5.6.4）：** 完整 server 自检；每种 provider 的假运行时（E2、E3 的正反例）；孤儿（登记表清空后，遗留的假运行时匹配特征被拒；归 E5 的 provider 下的带标记作业被拒，终端有主不受影响）；特征声明测试（`BUILT_IN_DRIVERS` 每个驱动都声明）；防漂移测试；带 `--inspect=0` 的进程的两个端口都被拒；屏蔽表 8 个端口（9222、9229、5858、5859、2375、2376、5005、5678）被拒。
+- 能力广告：`T3CODE_PORT_DISCOVERY=0`、Windows、未验证的 Linux 都不广告，RPC 报 `discovery-disabled` 或 `unsupported-platform`。
+- **撤销（§4.8）：** 会话被撤销、会话自然过期、设备移除后经 8.2 对账撤销，三条路径都验证已建立隧道的 TCP 和 WS 两端关闭；续期链；升级与撤销同时发生的竞速场景；**N1 的三个新增测试**（续期期间被盗的票据开出的隧道在撤销后关闭、续期链上撤销与升级同时发生、设备移除后整条会话链的每个活动行都被撤销且对应隧道都关闭）。
 - 上限、速率、超大帧、背压、关闭传播：在 socket 层测。
 - 主监听口和隧道监听口行为一致。
 - 阶段结束时按实际 diff 重估上游改动行数（§13）；超过 130 行停下回报。
 
-测试层：许可、排除、拨号选择、传输检查是纯函数 → 单元测试；路由、撤销、上限 → 起真实 server 层加真实 `ws` 客户端和真实回环服务（沿用 `TunnelListener.test.ts` 的 harness）；设备移除 → 8.2 的 `registryFake.testkit.ts` / `deviceHarness.testkit.ts`；权限表 → 契约行为测试。
+测试层：许可、排除、拨号选择、传输检查、命令输出解析是纯函数 → 单元测试（解析函数用记录的真实输出做夹具，所有平台都跑）；路由、撤销、上限、核对 → 起真实 server 层加真实 `ws` 客户端和真实回环服务（沿用 `TunnelListener.test.ts` 的 harness）和真实子进程；Linux 的真实进程测试在容器里跑；设备移除 → 8.2 的 `registryFake.testkit.ts` / `deviceHarness.testkit.ts`；权限表 → 契约行为测试。
 
 ### 9.2 桌面代理与分区（M+）
 
-**第一步（前提，失败就停下回报）：** `http.Agent` 的 `createConnection` 返回自定义 `Duplex`，对着本地 SSE、分块、大上传、`100-continue`、keep-alive 复用的服务跑通；`ws` 的 `createWebSocketStream` 到 B 的通路；决定主进程是否并入系统根证书（`tls.setDefaultCACertificates`），在装了私有 CA 的机器上验证。结论回写 §3.2、§3.6。
+**第一步（前提，失败就停下回报）：** `http.Agent` 的 `createConnection` 返回自定义 `Duplex`，对着本地 SSE、分块、大上传、`100-continue`、keep-alive 复用的服务跑通；`ws` 的 `createWebSocketStream` 到 B 的通路；确认 `ws` 不跟随重定向（`followRedirects: false`，3xx 当失败）；用真实 TLS 服务端（自签名、过期、主机名不符、链不完整）逐个测出校验失败的错误码并映射到 `tls-untrusted`（第一版不并入系统根证书，N7）。结论回写 §3.2、§3.6。
 
 范围（`apps/desktop/src/fork/loopbackGateway/`）：每环境代理、隧道客户端、环境注册表、会话安装器与 `getPreviewConfig` 钩子、`app.on("login")`、错误页和 `webRequest` 事件、IPC 与 preload 桥（`preloadSandbox.test.ts` 比对）、票据续期请求、传输检查（调用 `packages/shared` 的同一个函数）。
 
@@ -849,6 +977,9 @@ authorize(port):
 - HTTP：流式/SSE、分块、`Connection: close`、大请求体、中途取消；同一条 Chromium 连接上不同端口的请求各自选对隧道；keep-alive 复用。
 - CONNECT（https、ws）：数据双向、一端关闭另一端关闭。
 - 主进程自己的传输检查：`httpBaseUrl` 不通过时不发出任何连接。
+- **连接目标固定、不跟随重定向（§3.6）：** 隧道升级请求得到 3xx 当失败（`unexpected-redirect`）；安装票据时的 `baseUrl` 之后不会被其他地址替换；路由切换时重新判定加密与否并换新票据，新地址不通过则拆代理、关隧道。
+- **TLS 失败保持失败（§3.6）：** 自签名、过期、主机名不符、链不完整的服务端都失败并映射到 `tls-untrusted`；没有任何路径设置 `rejectUnauthorized: false`（静态扫描测试）。
+- **票据不进主进程日志（§4.3）：** 收集主进程的日志与错误输出，走完成功与每条失败路径，找不到哨兵票据。
 - 票据过期的行为；`pending` 状态回 503。
 - 会话安装器：`setProxy` 的参数就是 §1.1 的规则串；改回直连时 `closeAllConnections`；**新 profile 的第一次导航之前代理已装好**（钩子在 `getPreviewConfig` 里，测试用 mock `Session` 断言 `setProxy` 先于返回）。
 - **真实 Electron 冒烟**（附录 A 的 spike 整理成 `vp run fork:loopback-gateway:electron-smoke`，不进 CI，9.4 人工验收时跑）：普通 HTTP、SSE、WebSocket、`https://localhost`，加上 §2.3 末尾列的路径：Service Worker、prefetch、`sendBeacon`、无痕分区、新 profile 首次导航、favicon 的 `session.fetch`、下载。
@@ -863,11 +994,11 @@ authorize(port):
 
 验收：
 
-- 传输检查的表格测试（§4.6 的整张表）加性质测试。
+- 传输检查的表格测试（§4.6 的整张表，含明文 `100.x` 的 `insecure-transport` 与 `tailscale-address` 提示）加性质测试（任何 `100.64.0.0/10` 的 `http:` 一定不通过）。
 - 状态机的表格测试：每道门单独失败、多道同时失败的优先级，含 `insecure-transport` 与 `relay`。
 - `resolveDiscoveredServerUrl` 表测试：`active` 时放行；各非 active 状态走原逻辑；`systemBrowser` 选项行为不变。
 - 续期调度是纯函数（输入现在时间和过期时间，输出下一次动作），不用定时器测。
-- **`disabled-by-user` 的标识和「恢复转发」入口**（浏览器测试，`render` from `apps/web/test/render.tsx`），再加错误卡片按 reason 换文案的浏览器测试。
+- **`disabled-by-user` 的标识和「恢复转发」入口**（浏览器测试，`render` from `apps/web/test/render.tsx`），再加错误卡片按 reason 换文案的浏览器测试（含明文 `100.x` 的 MagicDNS 提示和「证书不受信任」）。
 - `vp run i18n:report` 0 missing / 0 stale；`i18n.test.ts` 通过。
 - 中英文对照截图（标识的两种状态和各种卡片）。
 - `vp run fork:guard`、`vp run check:changed`。
@@ -879,10 +1010,12 @@ authorize(port):
 
 1. **无界面部分**加进 `vp run fork:selfhost:e2e` 作为新场景：A、B 是现有 harness 起的两台真实 server；B 的终端经 RPC 打开并写入命令起一个带 SSE 和 WebSocket 的小服务；A 端用桌面代理模块（纯 Node，不 import electron）经自建隧道取页面、收 SSE、说 WebSocket；一个**不是**终端起的服务（harness 直接 spawn 的）被拒；移除 B 上 A 的设备后隧道两端关闭。
 2. **界面部分**在 Electron 里做一次（`test-t3-app`，用 `--use-mock-keychain`、`--host-resolver-rules="MAP *.t3.localhost 127.0.0.1"`、定向信任 Caddy CA）：Vite 示例，输入 `localhost:5173`，地址栏不变、标识出现、改文件热更新生效、`https://localhost` 自签名、端口列表点击、终端链接点击、重启应用后恢复标签页；非 T3 起的端口出卡片；停止转发后回到旧行为，标识仍在、可恢复。
-3. **连接方式矩阵（GPT P1-7，主控第 9 条）：** 对 §3.5 里每一种"待验证"的方式，各测：打开 WS 隧道；长连接（至少 30 分钟空闲后 HMR 仍可用）；重连（重启 B、断网再通）；证书（公共 CA、私有 CA、过期证书的报错）；并发（几十条隧道同时升级）。测完把表里的"待验证"改成"已验证"，或写明限制。
-4. **基础设施测试：** `Caddyfile` 没有未加过滤的 `log`；在本地试用栈里临时打开 `log`，实测 `Authorization` 被遮蔽；README 说明。
+3. **连接方式矩阵（GPT P1-7，主控第 9 条）：** 对 §3.5 里每一种"待验证"的方式，各测：打开 WS 隧道；长连接（至少 30 分钟空闲后 HMR 仍可用）；重连（重启 B、断网再通）；证书（公共 CA 的有效证书通过；过期、自签名、主机名不符都失败并给出"证书不受信任"；私有 CA 是已知限制，只确认报错正确）；`Authorization` 头原样到达 B；并发（几十条隧道同时升级）。测完把表里的"待验证"改成"已验证"，或写明限制。
+4. **基础设施测试（复核 P0-2，实测通过才能把它标为解决）：** `Caddyfile` 没有未加过滤的 `log`；在本地试用栈里临时打开 Caddy 的访问日志，用哨兵票据发一条隧道升级，实测 `Authorization` 被遮蔽；grep frps 与 Caddy 的全部日志输出，frps 不打印请求头；README 说明。
+   4a. **威胁模型用例（§6.7，在真实 Electron 里）：** Vite 夹具的 `/@fs/`、source map，外部来源页面读不到；`--inspect=0` 和 9229 被拒；`*.localhost`；映射 IPv6；DNS rebinding。
+   4b. **Linux：** 在容器里跑 9.1 的真实进程核对测试和排除测试（`fork:selfhost:e2e` 已依赖 Docker），通过后才能让 Linux 的 B 广告能力。
 5. 按 §11.1 测首屏（含 50 毫秒和 100 毫秒往返的延迟注入）。
-6. 文档：`docs/user/remote-access.md` 的 "Browser on a remote environment" 旁加一节（写明语义变化：B 的标签页里 `localhost` 永远指 B；按环境生效；只在加密或本机连接上启用；别在转发的标签页里打开不信任的网站）；FORK.md 加一节；本文档写入结果。
+6. 文档：`docs/user/remote-access.md` 的 "Browser on a remote environment" 旁加一节（写明语义变化：B 的标签页里 `localhost` 永远指 B；按环境生效；只在加密或本机连接上启用；别在转发的标签页里打开不信任的网站；私有 CA 不支持；只列已验证的连接方式；哪些 provider 因此转发不了脱离父进程的后台作业）；FORK.md 加一节；本文档写入结果。
 
 验收：以上全部通过；`fork:selfhost:e2e` 连续两遍全绿；官方基线不变（不碰 `~/.t3`、fork 真实 home）。
 
@@ -895,115 +1028,140 @@ authorize(port):
 
 ## 13. 上游改动预算
 
-新代码全部放 `apps/*/src/fork/` 和 `packages/*/src/fork*`。GPT 的 P1-8 指出上一版（约 +85）只算了显式接线点。这一版把审查要求的每一项都过一遍：
+新代码全部放 `apps/*/src/fork/` 和 `packages/*/src/fork*`。第二版约 +70 行、23 个文件。第三版把主控这一轮的决定都算进去，**约 +91 行、30 个文件**，停止线仍是 130 行。
 
-| 审查要求的能力                   | 放在哪里                                                                        | 上游行数            |
-| -------------------------------- | ------------------------------------------------------------------------------- | ------------------- |
-| 严格 audience                    | fork 认证函数 + `auth.ts` 加一个字面量                                          | 1                   |
-| 日志脱敏                         | fork 层（追加 `Headers.CurrentRedactedNames`），随路由层一起挂载                | 含在 `server.ts` 里 |
-| `login` 处理与共存               | fork 文件，随桌面层安装                                                         | 0                   |
-| 定点复核                         | fork 文件（`lsof`、`/proc`、`netstat` 封装）；只需要 `PortScanner` 导出一个常量 | 1                   |
-| 分区生命周期钩子（含新 profile） | `getPreviewConfig` 处理里调用 fork 钩子                                         | 3                   |
-| 排除登记                         | fork 服务；设备 hub 子树登记                                                    | 2                   |
-| 权限与安全测试                   | 新测试文件                                                                      | 0                   |
+| 这一轮的决定                                      | 放在哪里                                                                                              | 上游行数变化 |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------ |
+| N3：用上游 `isTailnetHost`                        | fork 的传输检查直接 import，不改上游                                                                  | 0            |
+| 显式脱敏、守卫测试                                | fork 路由里（`Redacted`）、测试文件                                                                   | 0            |
+| 每条隧道现场核对、无缓存、`TerminalShellRegistry` | fork 文件；订阅 `TerminalManager.subscribeMetadata`（公开接口）；不改 `PortScanner` 的记录（N4 维持） | 0            |
+| 各 adapter 启动点登记运行时 pid + 启动时间（5a）  | 7 个上游文件各 +2 到 +3 行：`trackRuntimeProcess(pid, kind)` 加一个释放调用                           | **+19**      |
+| 设备 hub 登记子树                                 | `LocalDeviceHost.ts`（第二版 +2，现在 +3）                                                            | +1           |
+| 登记表和特征声明的共享模块                        | `packages/shared/package.json` 的 exports 多一个入口                                                  | +1           |
+| Windows 不广告、Linux 条件广告                    | fork 的广告函数，`ServerEnvironment.ts` 那 2 行不变                                                   | 0            |
+| N7：不并入系统根证书                              | 不做就不改                                                                                            | 0            |
+| 主进程 `ws` 不跟随重定向、连接目标固定            | fork 文件                                                                                             | 0            |
 
 逐文件：
 
-| 上游文件                                                     | 预计行数                                                                     | 内容                                                                                         |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `packages/contracts/src/environment.ts`                      | +2                                                                           | 能力位 `loopbackGateway`                                                                     |
-| `packages/contracts/src/rpc.ts`                              | +2                                                                           | 展开 fork RPC（同 `FORK_DEVICE_KEYS_RPCS`）                                                  |
-| `packages/contracts/src/index.ts`                            | +1                                                                           | 导出 fork 契约                                                                               |
-| `packages/contracts/src/clientRpcPermissions.ts`             | +4                                                                           | 展开受保护 scope、`clientRpcRequiredScopes` 里为该方法返回两个 scope                         |
-| `packages/contracts/src/auth.ts`                             | +1                                                                           | `AuthWebSocketTicketUse` 加 `"loopback-gateway"`                                             |
-| `packages/shared/package.json`                               | +3                                                                           | exports：`forkLoopbackGateway` 下的几个文件                                                  |
-| `apps/server/src/ws.ts`                                      | +3                                                                           | 注册 RPC 处理器（同 `makePushRpcHandlers`）                                                  |
-| `apps/server/src/server.ts`                                  | +5                                                                           | 路由层、服务层、日志脱敏层、排除登记层                                                       |
-| `apps/server/src/environment/ServerEnvironment.ts`           | +2                                                                           | 广告能力（受 `PORT_DISCOVERY` 影响）                                                         |
-| `apps/server/src/preview/PortScanner.ts`                     | +1                                                                           | 导出 `PORT_DISCOVERY_ENV`                                                                    |
-| `apps/server/src/device/LocalDeviceHost.ts`                  | +2                                                                           | 登记 hub 子树（E3）                                                                          |
-| `apps/desktop/src/preload.ts`                                | +8                                                                           | 桥                                                                                           |
-| `apps/desktop/src/ipc/DesktopIpcHandlers.ts`                 | +2                                                                           | 安装 IPC                                                                                     |
-| `apps/desktop/src/main.ts`                                   | +2                                                                           | 层                                                                                           |
-| `apps/desktop/src/ipc/methods/preview.ts`                    | +3                                                                           | `getPreviewConfig` 里调用安装钩子                                                            |
-| `apps/desktop/package.json`                                  | +1                                                                           | `ws` 依赖（当前没有任何工作区包直接依赖它，它只作为 `@effect/platform-node` 的传递依赖存在） |
-| `apps/web/src/browser/browserTargetResolver.ts`              | +8                                                                           | `active` 时放行、`systemBrowser` 选项                                                        |
-| `apps/web/src/browser/HostedBrowserWebview.tsx`              | +3                                                                           | 等"网关已登记"                                                                               |
-| `apps/web/src/components/preview/PreviewUnreachable.tsx`     | +8                                                                           | reason 卡片钩子                                                                              |
-| `apps/web/src/components/preview/PreviewChromeRow.tsx`       | +4                                                                           | 标识（含 `disabled-by-user`）                                                                |
-| `apps/web/src/components/AppSidebarLayout.tsx`               | +2                                                                           | 挂载取票据与续期（同 `KeepAwakeReporter`）                                                   |
-| `apps/web/src/components/chat/ThreadServersPanel.tsx`        | +1                                                                           | `{ systemBrowser: true }`（`FooterPorts.tsx` 是 fork 自己的文件，另有一行）                  |
-| `packages/client-runtime/src/i18n/catalogs/zh-Hans/index.ts` | +2                                                                           | 注册 catalog                                                                                 |
-| **合计（不含文档）**                                         | **约 +70**，23 个上游文件                                                    | 停止线 130 行                                                                                |
-| 文档                                                         | `docs/user/remote-access.md` +25、`FORK.md` +40、`infra/self-host/README` +8 |                                                                                              |
+| 上游文件                                                       | 预计行数                                                                      | 内容                                                                                         |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `packages/contracts/src/environment.ts`                        | +2                                                                            | 能力位 `loopbackGateway`                                                                     |
+| `packages/contracts/src/rpc.ts`                                | +2                                                                            | 展开 fork RPC（同 `FORK_DEVICE_KEYS_RPCS`）                                                  |
+| `packages/contracts/src/index.ts`                              | +1                                                                            | 导出 fork 契约                                                                               |
+| `packages/contracts/src/clientRpcPermissions.ts`               | +4                                                                            | 展开受保护 scope、`clientRpcRequiredScopes` 里为该方法返回两个 scope                         |
+| `packages/contracts/src/auth.ts`                               | +1                                                                            | `AuthWebSocketTicketUse` 加 `"loopback-gateway"`                                             |
+| `packages/shared/package.json`                                 | +4                                                                            | exports：`forkLoopbackGateway` 下的几个文件，加 `forkRuntimeRegistry`                        |
+| `apps/server/src/ws.ts`                                        | +3                                                                            | 注册 RPC 处理器（同 `makePushRpcHandlers`）                                                  |
+| `apps/server/src/server.ts`                                    | +5                                                                            | 路由层、服务层、脱敏层、排除登记层                                                           |
+| `apps/server/src/environment/ServerEnvironment.ts`             | +2                                                                            | 广告能力                                                                                     |
+| `apps/server/src/preview/PortScanner.ts`                       | +1                                                                            | 导出 `PORT_DISCOVERY_ENV`                                                                    |
+| `apps/server/src/device/LocalDeviceHost.ts`                    | +3                                                                            | 登记 hub 子树                                                                                |
+| `apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.ts` | +2                                                                            | `spawnClaudeProcessGroup` 登记 `child.pid`，`exit` 时释放                                    |
+| `apps/server/src/orchestration-v2/Adapters/CodexAdapterV2.ts`  | +3                                                                            | `open` 里 `spawner.spawn` 之后登记 `handle.pid`，scope 关闭时释放                            |
+| `packages/provider-opencode/src/server/OpenCodeRuntime.ts`     | +2                                                                            | 紧挨着 `serverLedger.track` 登记 pid 和已知端口                                              |
+| `packages/provider-acp/src/server/AcpSessionRuntime.ts`        | +3                                                                            | `spawner.spawn` 之后登记 `child.pid`（ACP 系共用）                                           |
+| `packages/provider-pi/src/server/rpc.ts`                       | +3                                                                            | 登记 `child.pid`                                                                             |
+| `packages/provider-muse/src/server/sdk.ts`                     | +3                                                                            | SDK 能给出 pid 才登记，否则落到 E3 和 E5                                                     |
+| `apps/server/src/cloud/ManagedEndpointRuntime.ts`              | +3                                                                            | 连接器子进程登记                                                                             |
+| `apps/desktop/src/preload.ts`                                  | +8                                                                            | 桥                                                                                           |
+| `apps/desktop/src/ipc/DesktopIpcHandlers.ts`                   | +2                                                                            | 安装 IPC                                                                                     |
+| `apps/desktop/src/main.ts`                                     | +2                                                                            | 层                                                                                           |
+| `apps/desktop/src/ipc/methods/preview.ts`                      | +3                                                                            | `getPreviewConfig` 里调用安装钩子                                                            |
+| `apps/desktop/package.json`                                    | +1                                                                            | `ws` 依赖（当前没有任何工作区包直接依赖它，它只作为 `@effect/platform-node` 的传递依赖存在） |
+| `apps/web/src/browser/browserTargetResolver.ts`                | +8                                                                            | `active` 时放行、`systemBrowser` 选项                                                        |
+| `apps/web/src/browser/HostedBrowserWebview.tsx`                | +3                                                                            | 等"网关已登记"                                                                               |
+| `apps/web/src/components/preview/PreviewUnreachable.tsx`       | +8                                                                            | reason 卡片钩子（含 `insecure-transport` 的 Tailscale 地址提示、`tls-untrusted`）            |
+| `apps/web/src/components/preview/PreviewChromeRow.tsx`         | +4                                                                            | 标识（含 `disabled-by-user`）                                                                |
+| `apps/web/src/components/AppSidebarLayout.tsx`                 | +2                                                                            | 挂载取票据与续期（同 `KeepAwakeReporter`）                                                   |
+| `apps/web/src/components/chat/ThreadServersPanel.tsx`          | +1                                                                            | `{ systemBrowser: true }`（`FooterPorts.tsx` 是 fork 自己的文件，另有一行）                  |
+| `packages/client-runtime/src/i18n/catalogs/zh-Hans/index.ts`   | +2                                                                            | 注册 catalog                                                                                 |
+| **合计（不含文档）**                                           | **约 +91**，30 个上游文件                                                     | 停止线 130 行                                                                                |
+| 文档                                                           | `docs/user/remote-access.md` +30、`FORK.md` +50、`infra/self-host/README` +10 |                                                                                              |
 
-和上一版的差：去掉 `PortScanner.ts` 的 +25（定点复核取得绑定地址，不再需要在扫描器里记录绑定类别），新增 hub 登记 +2、`getPreviewConfig` 钩子 +3、`shared/package.json` exports +3、日志脱敏层并入 `server.ts`、标识的禁用状态 +1。
-
-**不再算低估的地方：** 审查指出的"严格 audience、日志脱敏、`login` 冲突处理、PortScanner 即时复核、所有分区首次导航前的钩子、权限和安全测试"都已经在上表里，其中 `login` 冲突处理、复核、日志脱敏、排除登记、严格认证是 **0 行**上游改动（全在 fork 文件里）。这个估算仍是设计时的估算：9.1 和 9.2 结束时各按实际 diff 重估一次。
+**风险比行数更大的地方：** 新增的 7 个 adapter 启动点都是上游改动最频繁的文件。上游这 26 个提交（`322f6544df..8b44f42b14`）里，`ClaudeAdapterV2.ts` 和 `CodexAdapterV2.ts` 就各被改过（增加 8 行；增加 2 行、删除 3 行），其余（`OpenCodeRuntime`、`AcpSessionRuntime`、`provider-pi`、`provider-muse`、`ManagedEndpointRuntime`、`hostClassification.ts`、`observability`、`terminal`、`builtInDrivers.ts`）零改动。每次同步上游，这几处最可能冲突。冲突时的原则：登记点是单行调用，保持原位，不重构上游代码。
 
 **超过 130 行时的削减方案**（按顺序，每步省的行数）：
 
-1. `PreviewUnreachable` 的细分 reason 改成一条通用说明加按钮（−6）。
-2. `PreviewChromeRow` 的标识菜单改成只有图标（−3），菜单挪进 fork 组件。
-3. `LocalDeviceHost` 的 hub 子树登记改成按 argv 匹配 agent-device 守护进程（−2，换来更脆）。
-4. `ThreadServersPanel` 的 `systemBrowser` 选项：Cmd-click 也保持转发行为（−1，行为变化，需要主控同意）。
-5. 再不行：把安全基础设施（严格认证、日志脱敏、排除登记）拆成独立的阶段先合入，网关路由本身后合。
+1. 去掉直接子进程运行时的显式登记（Claude、Codex、OpenCode、ACP、Pi、连接器，共 −16），改由 E3（默认拒绝直接子进程）加 E4（特征）加 E5 兜底。代价：有包装层且不 `exec` 的启动方式失去 pid + 启动时间的精确绑定；**这与主控第 5 条 a 不同，需要主控同意。**
+2. Muse 的登记（−3，本来就取决于 SDK 能不能给出 pid）。
+3. `PreviewUnreachable` 的细分 reason 改成一条通用说明加按钮（−6）。
+4. `PreviewChromeRow` 的标识菜单改成只有图标（−3），菜单挪进 fork 组件。
+5. `ThreadServersPanel` 的 `systemBrowser` 选项：Cmd-click 也保持转发行为（−1，行为变化，需要主控同意）。
+6. 再不行：把安全基础设施（严格认证、显式脱敏、排除登记、运行时登记）拆成独立的阶段先合入，网关路由本身后合。
 
-上游 26 个新提交（`322f6544df..8b44f42b14`）预判：
+上游 26 个新提交（`322f6544df..8b44f42b14`）预判（用 `git diff --stat 322f6544df 8b44f42b14` 逐个核对过）：
 
-- 这四个目录**零改动**：`apps/web/src/browser`、`apps/web/src/components/preview`、`apps/desktop/src/preview`、`apps/server/src/preview`（`git diff --stat` 为空）。
-- 上表里每个文件在这 26 个提交里都**零改动**；整个区间对 `apps/desktop`、`apps/server/src/ws.ts`、`packages/contracts` 只改了 3 个文件（两个 `package.json` 的版本号、`contracts/src/review.ts` +5 行）。第二轮新加的 `LocalDeviceHost.ts`、`ipc/methods/preview.ts`、`packages/shared/package.json`、`ServerEnvironment.ts`、`PortScanner.ts` 也用 `git diff --stat 322f6544df 8b44f42b14` 逐个核对过：零改动。
+- 这四个目录**零改动**：`apps/web/src/browser`、`apps/web/src/components/preview`、`apps/desktop/src/preview`、`apps/server/src/preview`。
+- 第二版表里的文件在这个区间都零改动；本版新增的文件里只有 `ClaudeAdapterV2.ts`（+8）和 `CodexAdapterV2.ts`（+2/−3）被改过，见上面的风险。
 - 上游 main 仍然没有网关（`Gateway.ts` 不存在）。
 
-预估新代码规模：server 约 900、desktop 约 1,100、web 约 600、契约与共享约 250，共约 2,850；测试另约 2,000。
+预估新代码规模：server 约 1,150（含运行时登记表、特征声明、身份读取、`TerminalShellRegistry`、现场核对）、desktop 约 1,100、web 约 600、契约与共享约 250，共约 3,100；测试另约 2,200（含各 provider 的假运行时、socket harness、Linux 容器里的真实进程测试）。
 
-## 14. 决定与待主控确认的问题
+## 14. 决定与实现阶段才能回答的问题
 
-### 14.1 已定（主控 + GPT 评审，写进本文）
+### 14.1 已定
+
+主控拍板的问题（第一轮）：
 
 | #   | 问题                            | 决定                                                                                                                                                                                                           | 写在哪里         |
 | --- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
 | Q1  | 明文局域网是否启用              | **不启用。** 只在 `https:`/`wss:`、回环（含 SSH 转发口和本机）、Tailscale 上启用；明文局域网为 `unsupported-route` / `insecure-transport`，走旧行为，错误卡片给「在 B 的浏览器中打开」。判定是纯函数加表格测试 | §4.6、§8、§7.2   |
 | Q2  | Preview URL 是否算许可          | 不算                                                                                                                                                                                                           | §5.2             |
-| Q3  | 是否屏蔽调试端口                | 屏蔽 9222、9229、5858、5859、2375、2376（N5 建议再加两个）                                                                                                                                                     | §5.7             |
-| Q4  | 是否改 `PortScanner` 记绑定地址 | 目的达成，**做法变了**：改为拨号前按 PID 定点复核，从复核结果读绑定地址，不改 `PortScanner` 的记录（N4）                                                                                                       | §5.3、§5.5       |
+| Q3  | 是否屏蔽调试端口                | 屏蔽，最终 8 个：9222、9229、5858、5859、2375、2376、5005、5678（N5）                                                                                                                                          | §5.7             |
+| Q4  | 是否改 `PortScanner` 记绑定地址 | 目的达成，做法是现场核对读出绑定地址，不改 `PortScanner` 的记录（N4 维持）                                                                                                                                     | §5.3、§5.5       |
 | Q5  | 权限是否两个 scope              | 两个：`preview:operate` + `terminal:operate`                                                                                                                                                                   | §4.5             |
 | Q6  | 命令面板是否加开关              | 不加。`disabled-by-user` 时标识保留，菜单项「恢复转发」                                                                                                                                                        | §7.1、§10        |
 | Q7  | 是否按环境生效                  | 按环境生效；UI 和文档明说                                                                                                                                                                                      | §7.1、§10        |
-| Q8  | `0.0.0.0` / `[::]`              | 不转发；规范化只用于显示和已知 Preview URL，**不参与任何安全判断**；判定和规范化放 `packages/shared`，UI 和主进程共用                                                                                          | §1.2、§12（9.2） |
-| Q9  | 是否有独立的 9.0                | 没有。B 端技术前提是 9.1 的第一步，A 端的是 9.2 的第一步，失败就停下回报；严格 audience、票据不进日志、`login` 条件、撤销竞速、TOCTOU 是 9.1/9.2 的验收项                                                      | §12              |
+| Q8  | `0.0.0.0` / `[::]`              | 不转发；规范化只用于显示和已知 Preview URL，不参与安全判断；判定和规范化放 `packages/shared`，UI 和主进程共用                                                                                                  | §1.2、§12（9.2） |
+| Q9  | 是否有独立的 9.0                | 没有。9.1 先过监听点与运行时的关口，再做 B 端技术前提；A 端的前提是 9.2 第一步；失败就停下回报；严格 audience、票据不进日志、`login` 条件、撤销竞速、TOCTOU 是验收项                                           | §12              |
 
-### 14.2 需要主控确认的几点（N1–N7）
+第二轮提出、第三轮由主控定下的 N1–N7：
 
-这些是我在落实主控的决定时遇到的、需要你点头或改的地方。每条我都给了默认做法，不回复就按默认做。
+| #   | 问题                                | 决定                                                                                                                                                                                 | 写在哪里         |
+| --- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
+| N1  | 票据的 `jkt` 作续期链的键           | **接受，并写明这是可接受的 bearer 延长**：偷来的票据开出的隧道最多活到这台设备的会话链结束或被撤销。补三个测试（续期期间被盗的票据、撤销与升级同时发生、设备移除后整条会话链被撤销） | §4.2、§4.8       |
+| N2  | 票据头 `Authorization: T3X-Gateway` | **维持。** 但"默认遮蔽"不再当作安全前提：入口立刻 `Redacted`，每个 sink 有测试，守卫测试，Caddy 与 frps 在 9.4 实测                                                                  | §4.3             |
+| N3  | Tailscale 的判定范围                | **用上游 `isTailnetHost`**：只认 `*.ts.net` 和 `fd7a:115c:a1e0::/48`，不单独认 `100.64.0.0/10`。明文 `100.x` 是 `insecure-transport`，卡片提示改用 MagicDNS 名字或 HTTPS             | §3.5、§4.6、§7.2 |
+| N4  | 不改 `PortScanner` 的记录           | **维持。** 现场核对读出绑定地址；"和快照里的实例比启动时间"的字面要求用"现场重新证明有主 + 同一实例的两次身份读取"达成（§5.3 里说明了差别和回退方案）                                | §5.3             |
+| N5  | 屏蔽表再加 5005、5678               | 维持，最终 8 个端口                                                                                                                                                                  | §5.7             |
+| N6  | Windows 的 B                        | **第一版不广告这个能力。** 删掉"只做 C1"的写法。Linux 在容器里的真实进程测试通过前同样不广告（这一条是我加的，理由是同一个"未验证不放行"的原则）                                     | §5.3、§5.6.5、§8 |
+| N7  | 是否并入系统根证书                  | **第一版不并入。** 写进已知限制：私有 CA 不支持。TLS 校验失败就是失败，不因为 scheme 是 `https:` 放行；错误卡片说"证书不受信任"                                                      | §3.6、§7.2       |
 
-**N1. 票据写会话的 `jkt`，仅作续期链的键。** 主控第 2 条要求"不绑 `jkt`"。问题：DPoP 会话每小时续期、换新的会话 id；`SessionStore.awaitInvalidation(sessionId, proofKeyThumbprint)` 靠指纹沿 `latestSessionByProofKey` 追到继任会话，不给指纹时隧道每小时被断一次。做法：RPC 签发时把会话的指纹写进票据的 `jkt`，**网关路由读它只用来追续期链，不要求出示 DPoP 证明**，票据仍是 bearer；`/ws` 和媒体路由在 audience 检查处就拒绝网关票据，碰不到它们的 DPoP 逻辑（`EnvironmentAuth.ts:1256` 先于 `:1261`）。字面上不同于"不绑"，意图相同（仍是 bearer、不要求证明）。**默认：这样做。** 备选：不写指纹，接受隧道每小时重建（HMR WebSocket 每小时断一次）。见 §4.2。
+第三轮主控的其他决定：
 
-**N2. 票据头用 `Authorization: T3X-Gateway <票据>`。** 主控说"专用请求头，不用 `Authorization`，除非查证没有 HTTP 认证中间件会解析它"。我查了：server 里所有读 `Authorization` 的地方（`parseBearerToken`、`parseDpopToken`、Cookie 回退）只认 `Bearer`/`DPoP` 方案，不认 `T3X-Gateway`（§4.3 有逐处表）；选它的原因是 Effect 的 `Headers.CurrentRedactedNames` 默认列表和 Caddy 默认日志编码器都会遮蔽 `Authorization`，自造的头名则会被原样写进日志。**默认：用 `Authorization` 加自定义方案，并加测试保证没有认证代码把它当会话凭据。** 备选：自造头名（例如 `X-T3X-Gateway-Ticket`），就必须在 server 和 Caddyfile 两处都把它加进遮蔽名单，Caddy 一侧漏配就会泄露。
+- 日志：显式脱敏，不依赖默认遮蔽（§4.3）；Caddy 和 frps 的日志在 9.4 实测。
+- TOCTOU：去掉 2 秒缓存，每条新隧道现场核对一次，身份 = pid + 启动时间（§5.3）；9.1 实测耗时写进 §11。
+- 监听点清单和 provider 运行时进程树是 9.1 的第一道关，网关路由要等它过了才开始写，拿不准的一律排除（§5.6.0、§12）。
+- provider 运行时：显式登记 pid + 启动时间，声明运行时特征（测试保证每个驱动都声明），认不出特征且寿命不受 server 约束的归"只放行已登记运行时的后代"（§5.6.3）。
+- 复核 P2 各项写进验收：自定义 `Authorization` 方案的中间件测试、frp/Caddy 保留请求头（9.4）、Linux 和 Windows 的命令/`SO_REUSEPORT`/双栈/启动时间核对进 socket harness、主进程 `ws` 不跟随重定向且连接目标在安装票据时固定、Vite `/@fs/`、source map、`*.localhost`、映射 IPv6、DNS rebinding 放进 9.4。
 
-**N3. Tailscale 的判定范围。** 主控写的是 `100.64.0.0/10`、`fd7a:115c:a1e0::/48`、`*.ts.net`。上游的 `isTailnetHost` 刻意**不**把 `100.64.0.0/10` 单独认作 Tailscale（运营商级 NAT 也用这个段），所以我们的传输检查要自己写一份范围判定，和上游的不同。结果：用运营商 CGNAT 地址直接明文连 B 的人，会被我们当作 Tailscale 放行；这种链路不一定加密。**默认：按主控的范围放行**（`*.ts.net` 必须是后缀匹配，`evil.ts.net.example.com` 不通过，表格测试覆盖）。备选：只认 `*.ts.net` 和 `fd7a:115c:a1e0::/48`，纯 IPv4 `100.64/10` 地址不认。
+### 14.2 只有实现阶段才能回答的问题
 
-**N4. Q4 的目的用另一种方式达成。** 主控同意改 `PortScanner` 记录绑定类别；GPT 说还不够，要拨号前即时复核。按 PID 复核本身就能读出绑定地址（macOS `lsof -a -p <pid> -iTCP:<port> -sTCP:LISTEN` 实测给出 `127.0.0.1:55005`），所以不再需要改 `PortScanner` 的记录，省 24 行上游改动（预算 §13），只留 1 行导出常量。**默认：不改记录。** 如果主控仍想要上游扫描器记录绑定类别，说一声，预算加回约 25 行，仍在停止线内。
+这些不需要现在拍板，每一条都有默认做法和回答它的阶段：
 
-**N5. 屏蔽表再加 `5005` 和 `5678`。** `5005` 是 Java 调试（JDWP）常用端口，`5678` 是 Python `debugpy`、n8n 等的常用端口。它们和 9229 同类：协议能力远超网页预览。**默认：加。** 误伤的是恰好在这两个端口跑普通 web 服务的人，他们能用「在 B 的浏览器中打开」。
-
-**N6. B 是 Windows 时怎么办。** Windows 没有 agent 归属档（`PortScanner` 在 win32 上只有终端有主），也没有读 argv 和环境的路径，所以 E2（agent 归属项排除）、E5（调试参数）都做不了，只剩端口屏蔽表。我没有 Windows 机器，复核命令 `netstat -ano` 的行为没有实测。**默认（推荐）：第一版 Windows 的 B 不广告 `loopbackGateway` 能力**，在 Windows 机器上验证后再开。**备选：** 照 §5.3 的表启用，只靠终端归属加屏蔽表，文档写明限制（§5.6.5 目前按这种写）。你选默认的话，我在 §5.6.5 把这句改成"不广告"。
-
-**N7. 主进程是否并入系统根证书。** 渲染进程信任系统里装的私有 CA，Node 主进程默认不信。想让私有 CA 的 B 地址也能用，主进程要调 `tls.setDefaultCACertificates(tls.getCACertificates("system"))` 之类，这会读系统信任库（macOS 上碰钥匙串相关接口）。我这一轮没有调用它（你的规则禁止碰钥匙串）。**默认：9.2 第一步在一台装了私有 CA 的机器上评估后决定**，在此之前私有 CA 是"待验证"（§3.5、§3.6）。需要你确认可以在 9.2 里碰系统信任库的只读接口。
+1. **macOS 上 `ps -E` 能不能和 `lstart` 合成一次调用**（`ps -E -ww -o pid=,ppid=,pgid=,stat=,lstart=,command= -p <pid>`）。9.1 关口 B 核实；不行就拆成两次，耗时多一次进程调用。
+2. **单条核对的耗时（macOS 和 Linux 容器），要不要做"核对进行时到达的请求合并成一次紧接着的核对"。** 默认不做；判据是 p95 > 300 毫秒或六条并发冷启动明显拖慢首屏。9.1 实测，写进 §11。
+3. **`TerminalManager.subscribeMetadata` 是否覆盖 shell 退出、终端重启和关闭。** 9.1 关口 B 核实；不覆盖则回退到快照里的终端进程集合，并把这个回退登记为未决项。
+4. **Codex app-server 在 server 被 `SIGKILL` 后会不会因 stdin 的 EOF 退出；ACP 系各家 agent 同理；Muse 的 SDK 能不能给出 pid。** 9.1 关口 B 用假可执行文件和读码核实。默认都按"寿命不受 server 约束"处理（归 E5）。
+5. **frp 与 Caddy 是否原样保留 `Authorization` 头；frps 的日志是否打印请求头；Caddy 开启访问日志后 `Authorization` 是否被遮蔽。** 9.4 在本地试用栈上实测，不通过不能把 P0-2 标为解决。
+6. **Node 对 TLS 校验失败的错误码集合**（过期、自签名、主机名不符、链不完整）。9.2 用真实 TLS 服务端逐个测出。
+7. **是否要把 `PortScanner` 内部记启动时间**（约 +15 行上游）。默认不要；只有 9.1 的关口发现某个平台上现场证明做不到才启用。
 
 ### 14.3 我没有核实的前提（汇总）
 
-- frp 在几十条并发升级连接、长时间空闲连接下的行为；Tailscale Serve 对 WS 升级和 `Authorization` 头的转发；SSH 转发口上的长连接；私有 CA。这些全部在 §3.5 标"待验证"，9.4 逐种测。
+- frp 在几十条并发升级连接、长时间空闲连接下的行为；Tailscale Serve 对 WS 升级和 `Authorization` 头的转发；SSH 转发口上的长连接。这些全部在 §3.5 标"待验证"，9.4 逐种测。
 - B 端 Effect `Socket.writer` 的背压是否足够（9.1 第一步）。
 - A 端 `http.Agent` 的 `createConnection` 对自定义 `Duplex` 的兼容（9.2 第一步）。
-- 主进程并入系统根证书是否可行（N7，9.2 第一步）。
-- Caddy 的 `log` 开启后 `Authorization` 是否被遮蔽：依据 Caddy 文档，没有在本机栈上实测（9.4 基础设施测试）。
+- Caddy 的 `log` 开启后 `Authorization` 是否被遮蔽，frps 的日志内容：没有实测（9.4）。
 - 经 T3 Connect 中继的行为（明确不支持，没测）。
 - `protocol.handle`、`webRequest` 的否决只依据文档，没有实测。
-- Windows 上的端口归属、`netstat -ano` 的行为（N6），以及 `ps -E`、`lsof -p` 在其他 macOS 版本和 Linux `/proc` 的表现：macOS 26 上实测过（附录 A），Linux 和 Windows 只依据文档。
+- Linux 上的核对命令（`/proc` 的 fd、`/proc/net/tcp{,6}`、`stat` 的 `starttime`）只依据文档和上游 `OpenCodeServerLedger` 的写法，没在 Linux 上跑过；macOS 的 `lsof -a -p`、`ps -E` 在 macOS 26 上实测过（附录 A），`ps` 的 `lstart` 用法照上游，组合调用没测。
+- Windows 不支持，所以不存在 Windows 的核对命令。
 - Local Network Access 在 Chromium 152 的实际拦截行为：设计不依赖它（§6.8）。
 - "B 的 agent 不会驱动 A 的桌面标签页"是读代码得出的，没有启动应用验证（9.3 手动检查）。
-- 上游代码里除 §5.6.1 列出的监听点之外是否还有动态创建的：防漂移的源码扫描测试负责（§5.6.4）。
+- §5.6.2 的 provider 进程树是读启动代码得到的，没跑过；崩溃后是否遗留的几项是关口 B 的任务。
+- 上游代码里除 §5.6.1 列出的监听点之外是否还有动态创建的：关口 A 逐项落实，防漂移的源码扫描测试负责以后（§5.6.4）。
 
 ## 附录 A：Electron spike 的方法与结果
 
@@ -1109,7 +1267,7 @@ authorize(port):
 
 ## 附录 D：GPT 评审发现与主控决定的对应表
 
-评审文件：`/tmp/t3x-gateway-design-review/findings.md`，结论"改完下列项再实现"。下表每一项列出改在哪一节，以及有没有没完全采纳的地方（及理由）。
+D.1–D.3 是第二轮：评审文件 `/tmp/t3x-gateway-design-review/findings.md`，结论"改完下列项再实现"，下表每一项列出改在哪一节，以及有没有没完全采纳的地方（及理由）。D.4 是第三轮：GPT 对第二版的复核。D.1–D.3 记录第二轮当时的处理，其中后来被第三轮修订的部分（2 秒缓存、`100.x` 的 Tailscale 判定、E2 的写法、Windows 只做 C1、N1–N7 的待确认）以 D.4 和 §14.1 为准。
 
 ### D.1 GPT 发现
 
@@ -1152,3 +1310,42 @@ authorize(port):
 4. **Q4（N4）：** 目的达成，做法不同。
 5. **P1-4 的 E2：** 只排除 server 直接子进程里 agent 归属的项，避免误杀 agent 作业。
 6. **Windows（N6）：** 评审没有提；我们发现 Windows 没有 E2/E5 的读取路径，建议第一版不广告能力。
+
+### D.4 第三轮：GPT 对第二版的复核（`/tmp/t3x-gateway-design-review/recheck.md`）与主控决定
+
+复核结论仍是「改完下列项再实现」。主控的处理：复核里的其余内容，有的转成 9.1 开工的关口，有的写进验收项；这一轮改完后主控审一遍 diff 就合入，不再送复审，实现阶段每一步都过 GPT review。
+
+| 复核项 | 内容                                                                   | 改在哪里                                                                                                                                                | 处理结果                                                                                                                                                                                                                                                             |
+| ------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0-1   | N3 传输矩阵自相矛盾，明文 `100.x` 可能被启用                           | §3.5 的表、§4.6 的表和判定说明、§8 的状态与门、§7.2 的卡片、§12 9.3 的表格测试和性质测试、§0                                                            | **采纳。** 删掉三行 `100.x` 的 `tailnet` 结果；判定直接调用上游 `isTailnetHost`；明文 `100.x` 是 `insecure-transport`，带 `hint: "tailscale-address"` 让卡片提示改用 MagicDNS 名字或 HTTPS；性质测试加"任何 `100.64.0.0/10` 的 `http:` 一定不通过"                   |
+| P0-2   | 日志安全没有形成可验证机制，"默认遮蔽"不是依据                         | §4.3（显式脱敏、引用依据、守卫测试、sink 全覆盖）、§3.4（Caddy 与 frps）、§12 9.1/9.4、§14.2                                                            | **采纳。** 入口立刻 `Redacted`，错误、诊断、span 属性不带请求头；每个失败路径和 `--log-ws-events` 开关都有 sink 测试；守卫测试（`CurrentRedactedNames`、`TracerHeaderFilter`、赋值点扫描）；Caddy、frps 在 9.4 逐项实测之后才能把 P0-2 标为解决                      |
+| P1-1   | 2 秒复核缓存仍允许真实的 owner 交换                                    | §5.3（无缓存、身份 = pid + 启动时间、各平台读法、成本和实测、剩余窗口）、§11、§12 9.1                                                                   | **采纳，字面要求处有一处调整。** 缓存去掉，每条隧道现场核对。"和快照比启动时间"做不到（快照没有启动时间，改 `PortScanner` 与 N4 冲突），改为现场重新证明有主 + C0/C3 同一实例的两次身份读取，结论更强；差别和回退方案写在 §5.3                                       |
+| P1-2   | 监听点清单仍有"未核实"项                                               | §5.6.0（9.1 第一道关）、§5.6.1（补第二版漏掉的 cloudflared 指标监听、`CodexManagedTokenBroker` 的非 TCP 依据、`antigravityCallback` 是客户端）、§12 9.1 | **采纳。** 变成 9.1 关口 A，网关路由要等它过了才开始写；拿不准的一律排除；`tasks/todo.md` 里是排在路由之前的勾选项。本轮已先读码得到能得到的部分                                                                                                                     |
+| P1-3   | E2 对 provider 运行时的假设不成立，孤儿运行时可获许可                  | §5.6.2（每个 provider 的实际进程树）、§5.6.3（E2 登记、E3 默认拒绝、E4 特征、E5 后代限定）、§12 9.1 关口 B                                              | **采纳（主控第 5 条 a/b/c）。** 逐个读代码画了进程树（Claude 的看守脚本、Codex 的 Effect spawner、OpenCode 的账本、ACP 的 `AcpSessionRuntime`、Pi、Muse）；孤儿靠特征排除；认不出特征且寿命不受 server 约束的归 E5；写明了哪些 provider 转发不了脱离父进程的后台作业 |
+| P1-4   | Windows 只做 C1 与所有平台的安全边界不匹配                             | §5.3 的平台表、§5.6.5、§8、§12 9.1                                                                                                                      | **采纳（N6）。** Windows 的 B 不广告能力，删掉"只做 C1"的写法。另加：Linux 在容器里的真实进程测试通过前同样不广告                                                                                                                                                    |
+| P1-5   | N1 的续期链语义要写成可接受的 bearer 延长                              | §4.8（接受的取舍、三个新增测试、顺序测试）、§4.2、§12 9.1 验收                                                                                          | **采纳。** 写明"最多活到设备会话链结束或被撤销"；补三个测试；保留 `EnvironmentAuth.ts:1256` 先于 `:1261` 的顺序测试                                                                                                                                                  |
+| P2-1   | 自定义 `Authorization` 方案的中间件测试、frp/Caddy 保留头              | §4.3（中间件测试）、§4.9（限流器）、§12 9.1 验收、9.4                                                                                                   | **采纳为验收项**                                                                                                                                                                                                                                                     |
+| P2-2   | Linux/Windows 命令、`SO_REUSEPORT`、双栈、启动时间进 harness           | §5.3 末尾的测试清单、§12 9.1                                                                                                                            | **采纳。** 解析函数用记录的真实输出做夹具（所有平台）；真实进程测试 macOS 本机、Linux 在容器里；Windows 不支持                                                                                                                                                       |
+| P2-3   | 固定禁止重定向、连接建立后不换 base URL；TLS 失败保持失败              | §3.6、§10（路由切换）、§12 9.2                                                                                                                          | **采纳。** `followRedirects: false`；`{ baseUrl, ticket }` 一对在安装时固定；路由换了重新判加密与否并换新票据；N7 不并入系统根证书                                                                                                                                   |
+| P2-4   | Vite `/@fs/`、source map、`*.localhost`、映射 IPv6、DNS rebinding 用例 | §6.7（改为 9.4 的端到端验收，加 source map 用例）、§12 9.4                                                                                              | **采纳。** 放进 9.4                                                                                                                                                                                                                                                  |
+
+复核对 N1–N7 的意见：
+
+| 项  | 复核意见                                          | 结果               |
+| --- | ------------------------------------------------- | ------------------ |
+| N1  | 同意，但必须以链撤销/设备移除的真实关闭测试为前提 | 三个新测试（§4.8） |
+| N2  | 有条件同意，必须显式脱敏并实测 Caddy/frp          | §4.3、§12 9.4      |
+| N3  | 同意主控决定，当前表格错误                        | 已改（P0-1）       |
+| N4  | 同意，2 秒缓存需主控接受或去掉                    | 去掉               |
+| N5  | 同意                                              | 8 个端口           |
+| N6  | 同意；若仍支持 Windows 必须 fail-closed           | 不广告             |
+| N7  | 同意；TLS scheme 不能当作已建立的安全连接         | §3.6               |
+
+复核里"上一轮发现的处理情况"一节标为**部分解决**的几项，这一轮后的状态：
+
+- P0-2、P1-1、P1-4（排除清单）、P1-7（支持矩阵）：上面已处理，实现与实测后才能关闭。
+- P1-3（本机其他用户）：持有口令的本机进程仍可使用代理，peer credentials/Unix socket 因 Chromium 代理不支持而做不到（D.3 第 1 条），这是明确保留的限制，不是遗漏。
+- P1-5（撤销关闭传播）：实际代码是否会在 loopback 路由里调用 `awaitInvalidation` 并关闭两端，要实现之后用 §4.8 的测试证明。
+- P1-6（dev server 特殊路由）：Vite `/@fs/`、source map 等具体用例已写入 9.4 的验收（§6.7）。
+
+D.3 里两条"是否改见 N1/N2"的待确认项已由主控定下（保持），见 §14.1。
