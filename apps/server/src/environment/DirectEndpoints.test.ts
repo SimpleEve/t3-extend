@@ -348,7 +348,10 @@ describe("DirectEndpoints Tailscale Serve", () => {
         const validated = yield* Fiber.join(resolving);
         expect(validated).toEqual([
           bound,
-          { kind: "tailnet", httpBaseUrl: "https://bb-1.tail1234.ts.net/" },
+          {
+            kind: "tailnet",
+            httpBaseUrl: `https://bb-1.tail1234.ts.net:${FORK.tailscaleServePort}/`,
+          },
         ]);
         expect(yield* service.resolveAvailable()).toEqual(validated);
         yield* Ref.set(status, 502);

@@ -25,6 +25,7 @@ const REASON_TEMPLATES = [
   "Settings changed since check",
   "Thread or cleanup settings changed since check",
   "Thread activity or shared worktree changed since check",
+  "Parent settlement changed since check",
   "Thread deletion is still pending",
   "Provider session is still open",
   "Settled moments ago",

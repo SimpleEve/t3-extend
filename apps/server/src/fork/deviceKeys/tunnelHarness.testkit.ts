@@ -27,6 +27,7 @@ import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as Socket from "effect/socket/Socket";
 
 import * as AuthAttemptLimiter from "../../auth/AuthAttemptLimiter.ts";
+import { requestUrl } from "../../requestUrl.ts";
 import * as AuthHttp from "../../auth/http.ts";
 import * as EnvironmentAuth from "../../auth/EnvironmentAuth.ts";
 import * as McpOAuth from "../../auth/McpOAuth.ts";
@@ -207,7 +208,7 @@ export const layerHarness = Layer.unwrap(
         Effect.gen(function* () {
           const request = yield* HttpServerRequest.HttpServerRequest;
           return HttpServerResponse.jsonUnsafe({
-            url: Option.getOrUndefined(Option.map(HttpServerRequest.toURL(request), String)),
+            url: Option.getOrUndefined(Option.map(requestUrl(request), String)),
             headers: request.headers,
           });
         }),

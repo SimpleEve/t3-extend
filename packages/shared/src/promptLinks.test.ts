@@ -1,6 +1,8 @@
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
+import { FORK } from "./forkIdentity.ts"; // fork: identity
+
 import {
   buildNewThreadLink,
   parseNewThreadLink,
@@ -116,7 +118,7 @@ describe("link round trips", () => {
     const path = promptLinkAppPath(link);
     expect(path).toBe("/env-1/mcp%3A1");
     const deepLink = promptLinkDeepLink(path!);
-    expect(deepLink).toBe("t3code://threads/env-1/mcp%3A1");
+    expect(deepLink).toBe(`${FORK.scheme}://threads/env-1/mcp%3A1`); // fork: own scheme
     expect(promptLinkAppPath(deepLink)).toBe(path);
   });
 

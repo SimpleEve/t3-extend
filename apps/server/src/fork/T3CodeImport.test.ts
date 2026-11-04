@@ -884,7 +884,7 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
     "migrates an older source through a staging database, leaves the official file as it was and clears staging leftovers",
     () =>
       withService(
-        { sourceThroughMigration: BUILD_MIGRATION_HEAD - 1 },
+        { sourceThroughMigration: 76 }, // just before 077_RepairBooleanSettledOverride, whatever the head is
         ({ service, sql, sourcePath, config }) =>
           Effect.gen(function* () {
             const fs = yield* FileSystem.FileSystem;
