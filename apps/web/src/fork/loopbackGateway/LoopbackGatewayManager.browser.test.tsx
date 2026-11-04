@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock(import("~/state/environments"), () => ({
-  useEnvironments: () => ({ environments: [{ environmentId: "env-studio" }] }),
+  useEnvironments: () => ({ environments: [{ environmentId: "env-studio" }] }) as never,
 }));
 
 vi.mock(import("~/components/preview/previewBridge"), () => ({
@@ -69,12 +69,12 @@ function setup(input: {
   });
   let emit: (event: LoopbackGatewayEvent) => void = () => {};
   const bridge = {
-    register: vi.fn(async () => ({ state: "pending" as const })),
-    updateTicket: vi.fn(async () => ({ state: "active" as const })),
-    unregister: vi.fn(async () => undefined),
-    setEnabled: vi.fn(async () => null),
-    setReachable: vi.fn(async () => null),
-    getStatus: vi.fn(async () => null),
+    register: vi.fn(async (_input: unknown) => ({ state: "pending" as const })),
+    updateTicket: vi.fn(async (_input: unknown) => ({ state: "active" as const })),
+    unregister: vi.fn(async (_input: unknown) => undefined),
+    setEnabled: vi.fn(async (_input: unknown) => null),
+    setReachable: vi.fn(async (_input: unknown) => null),
+    getStatus: vi.fn(async (_input: unknown) => null),
     onEvent: (listener: (event: LoopbackGatewayEvent) => void) => {
       emit = listener;
       return () => {
