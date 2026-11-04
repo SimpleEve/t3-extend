@@ -7,6 +7,7 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
 import * as Context from "effect/Context";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
@@ -108,6 +109,24 @@ export class TestProcesses extends Context.Service<
       const directory = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3x-gw-test-"));
       const pids = new Set<number>();
       const children = new Map<number, NodeChildProcess.ChildProcess>();
+      // pid -> start time when captured, so a pid is only ever signalled while it is still ours.
+      const identity = new Map<number, string | null>();
+      const startOf = (pid: number) => {
+        try {
+          const out = NodeChildProcess.execFileSync(
+            "/bin/ps",
+            ["-ww", "-o", "lstart=", "-p", String(pid)],
+            { encoding: "utf8", env: { ...process.env, LC_ALL: "C", TZ: "UTC" }, stdio: "pipe" },
+          ).trim();
+          return out.length > 0 ? out : null;
+        } catch {
+          return null;
+        }
+      };
+      const remember = (pid: number) => {
+        pids.add(pid);
+        if (!identity.has(pid)) identity.set(pid, startOf(pid));
+      };
       const write = (name: string, body: string) => {
         const file = NodePath.join(directory, name);
         NodeFS.mkdirSync(NodePath.dirname(file), { recursive: true });
@@ -123,7 +142,7 @@ export class TestProcesses extends Context.Service<
       };
       const rememberDescendants = (info: Record<string, unknown>) => {
         for (const key of ["pid", "jobPid", "job"]) {
-          if (typeof info[key] === "number") pids.add(info[key]);
+          if (typeof info[key] === "number") remember(info[key]);
         }
         return info;
       };
@@ -139,15 +158,31 @@ export class TestProcesses extends Context.Service<
           child.once("exit", () => reject(new Error("exited before it was ready")));
         });
       const track = (child: NodeChildProcess.ChildProcess) => {
-        pids.add(child.pid!);
+        remember(child.pid!);
         children.set(child.pid!, child);
         return child.pid!;
       };
       const stopPid = (pid: number) => {
+        // Only the process captured at spawn: a recycled pid is somebody else's.
+        const started = identity.get(pid);
+        if (started === undefined || started === null || startOf(pid) !== started) return;
         try {
           process.kill(pid, "SIGKILL");
         } catch {}
       };
+      const exited = (child: NodeChildProcess.ChildProcess) =>
+        new Promise<void>((resolve) => {
+          if (child.exitCode !== null || child.signalCode !== null) return resolve();
+          child.once("exit", () => resolve());
+        });
+      /** Completes once the captured process is gone (or was never ours any more). */
+      const gone = Effect.fn("TestProcesses.gone")(function* (pid: number) {
+        const started = identity.get(pid);
+        for (let left = 400; left > 0; left--) {
+          if (started === null || started === undefined || startOf(pid) !== started) return;
+          yield* Effect.sleep(Duration.millis(5));
+        }
+      });
       const spawnListener: TestProcesses["Service"]["listen"] = (host, options) =>
         Effect.promise(async () => {
           const reuse = options?.reusePort === true;
@@ -171,8 +206,16 @@ export class TestProcesses extends Context.Service<
           return { pid, port: Number(info.port), child, info };
         });
       yield* Effect.addFinalizer(() =>
-        Effect.sync(() => {
-          for (const pid of pids) stopPid(pid);
+        Effect.gen(function* () {
+          // Parents first, and wait for them: a shell that outlives its job reports it "Killed".
+          const parents = [...children.values()];
+          const parentExits = parents.map(exited);
+          for (const child of parents) stopPid(child.pid!);
+          yield* Effect.promise(() => Promise.all(parentExits));
+          // Then what they started, confirmed gone by the pid captured when it appeared.
+          const rest = [...pids].filter((pid) => !children.has(pid));
+          for (const pid of rest) stopPid(pid);
+          yield* Effect.forEach(rest, gone, { discard: true });
           NodeFS.rmSync(directory, { recursive: true, force: true });
         }),
       );
@@ -198,7 +241,7 @@ export class TestProcesses extends Context.Service<
             const pid = track(child);
             const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
             const info = await firstJson(child);
-            pids.add(Number(info.job));
+            remember(Number(info.job));
             // An orphan is only one once its parent has gone and the job belongs to init.
             if (options.mode === "orphan") await exited;
             return {
@@ -211,11 +254,12 @@ export class TestProcesses extends Context.Service<
           Effect.promise(async () => {
             const child = NodeChildProcess.spawn("/bin/sh", ["-c", command], {
               env: cleanEnv(undefined),
-              stdio: ["ignore", "pipe", "inherit"],
+              // The shell reports a job it did not end ("Killed: 9") on stderr; nobody reads that.
+              stdio: ["ignore", "pipe", "ignore"],
             });
             const pid = track(child);
             const info = await firstJson(child);
-            if (typeof info.pid === "number") pids.add(info.pid);
+            if (typeof info.pid === "number") remember(info.pid);
             return { pid, child, info };
           }),
         stop: (target) =>

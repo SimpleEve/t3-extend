@@ -38,15 +38,17 @@ export interface ProcessInspectorShape {
   readonly table: Effect.Effect<ProcessTable, ProcessInspectError>;
   /** The start time of one process, `null` once it is gone. */
   readonly startTime: (pid: number) => Effect.Effect<string | null, ProcessInspectError>;
-  /** Every process with a TCP listener on `port`. */
+  /**
+   * Every process with a TCP listener on each of `ports`, one answer per port in the same order.
+   * One observation however many ports: a batch asks once.
+   */
   readonly listeners: (
-    port: number,
-  ) => Effect.Effect<ReadonlyArray<ListenerEntry>, ProcessInspectError>;
-  /** The listeners `pid` alone holds on `port`. */
+    ports: ReadonlyArray<number>,
+  ) => Effect.Effect<ReadonlyArray<ReadonlyArray<ListenerEntry>>, ProcessInspectError>;
+  /** The listeners each `pid` alone holds on its `port`, one answer per pair in the same order. */
   readonly listenersOf: (
-    pid: number,
-    port: number,
-  ) => Effect.Effect<ReadonlyArray<ListenerEntry>, ProcessInspectError>;
+    pairs: ReadonlyArray<{ readonly pid: number; readonly port: number }>,
+  ) => Effect.Effect<ReadonlyArray<ReadonlyArray<ListenerEntry>>, ProcessInspectError>;
   /** The argv and launch environment of `pid` as one text, `null` once it is gone. */
   readonly launchText: (pid: number) => Effect.Effect<string | null, ProcessInspectError>;
 }
@@ -221,19 +223,20 @@ const makeDarwin = Effect.gen(function* () {
       ],
       [0, 1],
     ).pipe(Effect.map((stdout) => rowsOf(stdout).get(pid) ?? null));
-  const lsof = (port: number, pid: number | null) =>
+  /** One `lsof` call: all TCP listeners, or only those of `pids`. */
+  const lsof = (pids: ReadonlyArray<number> | null) =>
     run(
       "/usr/sbin/lsof",
       [
         "-nP",
-        ...(pid === null ? [] : ["-a", "-p", String(pid)]),
-        `-iTCP:${port}`,
+        ...(pids === null ? [] : ["-a", "-p", pids.join(",")]),
+        "-iTCP",
         "-sTCP:LISTEN",
         "-F",
         "pfnt",
       ],
       [0, 1],
-    ).pipe(Effect.map((stdout) => parseLsofListeners(stdout, port)));
+    );
   return ProcessInspector.of({
     table: run("/bin/ps", ["-A", "-ww", "-o", "pid=,ppid=,lstart=,args="], [0]).pipe(
       Effect.map(rowsOf),
@@ -242,11 +245,19 @@ const makeDarwin = Effect.gen(function* () {
     startTime: Effect.fn("ProcessInspector.startTime")(function* (pid: number) {
       return (yield* psOne(pid, "args", false))?.startTime ?? null;
     }),
-    listeners: Effect.fn("ProcessInspector.listeners")(function* (port: number) {
-      return yield* lsof(port, null);
+    listeners: Effect.fn("ProcessInspector.listeners")(function* (ports: ReadonlyArray<number>) {
+      if (ports.length === 0) return [];
+      const stdout = yield* lsof(null);
+      return ports.map((port) => parseLsofListeners(stdout, port));
     }),
-    listenersOf: Effect.fn("ProcessInspector.listenersOf")(function* (pid: number, port: number) {
-      return yield* lsof(port, pid);
+    listenersOf: Effect.fn("ProcessInspector.listenersOf")(function* (
+      pairs: ReadonlyArray<{ readonly pid: number; readonly port: number }>,
+    ) {
+      if (pairs.length === 0) return [];
+      const stdout = yield* lsof([...new Set(pairs.map((pair) => pair.pid))]);
+      return pairs.map(({ pid, port }) =>
+        parseLsofListeners(stdout, port).filter((entry) => entry.pid === pid),
+      );
     }),
     // `ps -E` appends the launch environment to the argv.
     launchText: Effect.fn("ProcessInspector.launchText")(function* (pid: number) {
@@ -306,6 +317,38 @@ const makeLinux = Effect.gen(function* () {
     address: normalizeListenAddress(socket.address),
     family: socket.family,
   });
+  const listenersOnPort = Effect.fn("ProcessInspector.listenersOnPort")(function* (port: number) {
+    const sockets = yield* socketsOnPort(port);
+    if (sockets.length === 0) return [];
+    const unowned = new Set(sockets.map((socket) => socket.inode));
+    const entries: Array<ListenerEntry> = [];
+    for (const name of yield* procNames) {
+      if (!/^\d+$/u.test(name) || unowned.size === 0) continue;
+      const inodes = yield* inodesOf(Number(name)).pipe(Effect.orElseSucceed(() => null));
+      if (inodes === null) continue;
+      for (const socket of sockets) {
+        if (!inodes.has(socket.inode)) continue;
+        unowned.delete(socket.inode);
+        entries.push(entry(Number(name), socket));
+      }
+    }
+    // A listening socket whose owner could not be read must not pass as "nobody else".
+    if (unowned.size > 0) {
+      return yield* new ProcessInspectError({
+        reason: "a listener on the port has an unreadable owner",
+      });
+    }
+    return entries;
+  });
+  const listenersHeldBy = Effect.fn("ProcessInspector.listenersHeldBy")(function* (
+    pid: number,
+    port: number,
+  ) {
+    const sockets = yield* socketsOnPort(port);
+    const inodes = yield* inodesOf(pid);
+    if (inodes === null) return [];
+    return sockets.filter((socket) => inodes.has(socket.inode)).map((socket) => entry(pid, socket));
+  });
   return ProcessInspector.of({
     table: Effect.gen(function* () {
       const rows = new Map<number, ProcessRow>();
@@ -327,36 +370,14 @@ const makeLinux = Effect.gen(function* () {
       return (yield* readStat(pid))?.startTime ?? null;
     }),
     // The sockets on the port come from `/proc/net/tcp`; their owners from each process's fds.
-    listeners: Effect.fn("ProcessInspector.listeners")(function* (port: number) {
-      const sockets = yield* socketsOnPort(port);
-      if (sockets.length === 0) return [];
-      const unowned = new Set(sockets.map((socket) => socket.inode));
-      const entries: Array<ListenerEntry> = [];
-      for (const name of yield* procNames) {
-        if (!/^\d+$/u.test(name) || unowned.size === 0) continue;
-        const inodes = yield* inodesOf(Number(name)).pipe(Effect.orElseSucceed(() => null));
-        if (inodes === null) continue;
-        for (const socket of sockets) {
-          if (!inodes.has(socket.inode)) continue;
-          unowned.delete(socket.inode);
-          entries.push(entry(Number(name), socket));
-        }
-      }
-      // A listening socket whose owner could not be read must not pass as "nobody else".
-      if (unowned.size > 0) {
-        return yield* new ProcessInspectError({
-          reason: "a listener on the port has an unreadable owner",
-        });
-      }
-      return entries;
+    // The sockets on a port come from `/proc/net/tcp`; their owners from each process's fds.
+    listeners: Effect.fn("ProcessInspector.listeners")(function* (ports: ReadonlyArray<number>) {
+      return yield* Effect.forEach(ports, listenersOnPort);
     }),
-    listenersOf: Effect.fn("ProcessInspector.listenersOf")(function* (pid: number, port: number) {
-      const sockets = yield* socketsOnPort(port);
-      const inodes = yield* inodesOf(pid);
-      if (inodes === null) return [];
-      return sockets
-        .filter((socket) => inodes.has(socket.inode))
-        .map((socket) => entry(pid, socket));
+    listenersOf: Effect.fn("ProcessInspector.listenersOf")(function* (
+      pairs: ReadonlyArray<{ readonly pid: number; readonly port: number }>,
+    ) {
+      return yield* Effect.forEach(pairs, ({ pid, port }) => listenersHeldBy(pid, port));
     }),
     launchText: Effect.fn("ProcessInspector.launchText")(function* (pid: number) {
       const args = yield* cmdline(pid);
@@ -377,10 +398,12 @@ const unsupported = (platform: string) => {
     startTime: Effect.fn("ProcessInspector.startTime")(function* (_pid: number) {
       return yield* refuse();
     }),
-    listeners: Effect.fn("ProcessInspector.listeners")(function* (_port: number) {
+    listeners: Effect.fn("ProcessInspector.listeners")(function* (_ports: ReadonlyArray<number>) {
       return yield* refuse();
     }),
-    listenersOf: Effect.fn("ProcessInspector.listenersOf")(function* (_pid: number, _port: number) {
+    listenersOf: Effect.fn("ProcessInspector.listenersOf")(function* (
+      _pairs: ReadonlyArray<{ readonly pid: number; readonly port: number }>,
+    ) {
       return yield* refuse();
     }),
     launchText: Effect.fn("ProcessInspector.launchText")(function* (_pid: number) {

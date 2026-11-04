@@ -179,10 +179,8 @@ export const layer = Layer.unwrap(
       if (port === null) return yield* refuse("bad-request", "the port is missing or invalid");
       yield* Effect.annotateCurrentSpan({ "gateway.port": port });
       yield* limits.acquireTunnel(session.sessionId);
-      const target = yield* authorizer.authorize(port);
-      // A session that ended while the port was checked gets no connection at all.
-      yield* session.recheck;
-      // The watch starts before the dial: a revocation from here on ends the attempt.
+      // The watch starts before anything waits (the port check can sit in a collection window):
+      // a revocation from here on ends the attempt at once.
       const invalidated = yield* Deferred.make<void>();
       yield* sessions.awaitInvalidation(session.sessionId, session.proofKeyThumbprint).pipe(
         // A failed read of the session counts as gone.
@@ -193,6 +191,9 @@ export const layer = Layer.unwrap(
       const revoked = Deferred.await(invalidated).pipe(
         Effect.andThen(Effect.fail(refuse("unauthorized", "the session ended"))),
       );
+      const target = yield* Effect.raceFirst(authorizer.authorize(port), revoked);
+      // A session that ended while the port was checked gets no connection at all.
+      yield* session.recheck;
       const tcp = yield* Effect.raceFirst(dialTarget(target), revoked);
       yield* Effect.addFinalizer(() => Effect.sync(() => tcp.destroy()));
       yield* session.recheck;

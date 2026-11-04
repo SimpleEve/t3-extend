@@ -60,13 +60,13 @@ const makeRig = Effect.gen(function* () {
       const read = real.startTime(pid);
       return override.startTime === undefined ? read : override.startTime(pid, read);
     },
-    listeners: (port) => {
+    listeners: (ports) => {
       reads.listeners += 1;
-      return real.listeners(port);
+      return real.listeners(ports);
     },
-    listenersOf: (pid, port) => {
+    listenersOf: (pairs) => {
       reads.listenersOf += 1;
-      return real.listenersOf(pid, port);
+      return real.listenersOf(pairs);
     },
     launchText: (pid) => {
       reads.launchText += 1;
@@ -252,25 +252,53 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
       }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
-    it.live("does a full set of reads for every tunnel: six on one port are six checks", () =>
-      Effect.gen(function* () {
-        const x = yield* makeRig;
-        const processes = yield* TestProcesses;
-        const shell = yield* processes.shell(
-          `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
-        );
-        yield* x.registerShell(shell.pid);
-        const port = Number(shell.info.port);
-        x.nominate(Number(shell.info.pid), port);
-        for (let i = 0; i < 6; i++) yield* x.authorizer.authorize(port);
-        assert.deepEqual(x.reads, {
-          table: 6,
-          startTime: 6,
-          listeners: 6,
-          listenersOf: 6,
-          launchText: 6,
-        });
-      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+    it.live(
+      "keeps nothing between batches: six tunnels one after another are six full sets of reads",
+      () =>
+        Effect.gen(function* () {
+          const x = yield* makeRig;
+          const processes = yield* TestProcesses;
+          const shell = yield* processes.shell(
+            `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+          );
+          yield* x.registerShell(shell.pid);
+          const port = Number(shell.info.port);
+          x.nominate(Number(shell.info.pid), port);
+          for (let i = 0; i < 6; i++) yield* x.authorizer.authorize(port);
+          assert.deepEqual(x.reads, {
+            table: 6,
+            startTime: 6,
+            listeners: 6,
+            listenersOf: 6,
+            launchText: 6,
+          });
+        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+    );
+
+    it.live(
+      "six tunnels at once to one port are checked from one set of reads, each on its own",
+      () =>
+        Effect.gen(function* () {
+          const x = yield* makeRig;
+          const processes = yield* TestProcesses;
+          const shell = yield* processes.shell(
+            `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+          );
+          yield* x.registerShell(shell.pid);
+          const port = Number(shell.info.port);
+          x.nominate(Number(shell.info.pid), port);
+          const results = yield* Effect.all(
+            Array.from({ length: 6 }, () => code(x.authorizer.authorize(port))),
+            { concurrency: "unbounded" },
+          );
+          assert.deepEqual(
+            results,
+            Array.from({ length: 6 }, () => "allowed"),
+          );
+          // Against six sets when they come one at a time. Which batch each joined is up to the
+          // scheduler; the exact count is pinned in PortAuthorizerBatch.test.ts.
+          assert.isBelow(x.reads.table, 6);
+        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
   },
 );

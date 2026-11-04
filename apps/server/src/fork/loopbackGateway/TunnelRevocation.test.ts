@@ -190,29 +190,35 @@ describe("tunnel lifetime", () => {
 });
 
 describe("revocation racing the upgrade", () => {
-  it.live("a session revoked while the port is being checked gets no connection", () =>
-    Effect.gen(function* () {
-      const gateway = yield* Gateway;
-      const service = yield* countingService;
-      const { session, ticket } = yield* issueSessionTicket();
-      const entered = yield* Deferred.make<void>();
-      const release = yield* Deferred.make<void>();
-      gateway.setAuthorize((port) =>
-        Deferred.succeed(entered, undefined).pipe(
-          Effect.andThen(Deferred.await(release)),
-          Effect.as({ host: "127.0.0.1" as const, port, pid: 1 }),
-        ),
-      );
-      const attempt = yield* Effect.forkChild(
-        openTunnel(gateway.mainPort, { ticket, query: `port=${service.port}` }),
-      );
-      yield* Deferred.await(entered);
-      yield* gateway.sessions.revoke(session.sessionId);
-      yield* Deferred.succeed(release, undefined);
-      const result = yield* Fiber.join(attempt);
-      assert.equal(result._tag, "refused");
-      assert.equal(service.state.connections, 0);
-    }).pipe(Effect.scoped, Effect.provide(layerGateway)),
+  it.live(
+    "a session revoked while the port check is waiting is refused at once, not after it",
+    () =>
+      Effect.gen(function* () {
+        const gateway = yield* Gateway;
+        const service = yield* countingService;
+        const { session, ticket } = yield* issueSessionTicket();
+        const entered = yield* Deferred.make<void>();
+        const left = yield* Deferred.make<void>();
+        // A check that never finishes by itself, like one still in its collection window.
+        gateway.setAuthorize((port) =>
+          Deferred.succeed(entered, undefined).pipe(
+            Effect.andThen(Effect.never),
+            Effect.onInterrupt(() => Deferred.succeed(left, undefined)),
+            Effect.as({ host: "127.0.0.1" as const, port, pid: 1 }),
+          ),
+        );
+        const attempt = yield* Effect.forkChild(
+          openTunnel(gateway.mainPort, { ticket, query: `port=${service.port}` }),
+        );
+        yield* Deferred.await(entered);
+        yield* gateway.sessions.revoke(session.sessionId);
+        const result = yield* Fiber.join(attempt);
+        assert.equal(result._tag, "refused");
+        if (result._tag === "refused") assert.equal(result.status, 401);
+        // The check was abandoned, not waited for.
+        yield* Deferred.await(left);
+        assert.equal(service.state.connections, 0);
+      }).pipe(Effect.scoped, Effect.provide(layerGateway)),
   );
 
   it.live("whenever the revocation lands, the outcome is a refusal or a tunnel that closes", () =>

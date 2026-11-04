@@ -1,4 +1,9 @@
-import { assert, describe, it } from "@effect/vitest";
+// @effect-diagnostics nodeBuiltinImport:off -- Real files and symlinks.
+import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
+
+import { afterAll, assert, describe, it } from "@effect/vitest";
 
 import { BUILT_IN_DRIVERS } from "../../provider/builtInDrivers.ts";
 import {
@@ -54,11 +59,66 @@ describe("runtime signatures", () => {
     assert.isFalse(matchesRuntime(args));
   });
 
-  it("recognizes a configured binary by its basename in the first two words", () => {
-    const extra = [{ driver: "codex", binaryPath: "/opt/custom/my-codex" }];
-    assert.equal(matchRoot("/opt/custom/my-codex app-server", extra)?.driver, "codex");
-    assert.equal(matchRoot("node /opt/custom/my-codex app-server", extra)?.driver, "codex");
-    assert.isNull(matchRoot("node server.mjs my-codex", extra));
+  describe("a configured binaryPath names a root by its real path, not its name", () => {
+    const directory = NodeFS.realpathSync(
+      NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3x-sig-")),
+    );
+    const real = NodePath.join(directory, "opt", "my-codex");
+    const other = NodePath.join(directory, "tmp", "my-codex");
+    const link = NodePath.join(directory, "bin", "codex-link");
+    const shim = NodePath.join(directory, "shim", "run.js");
+    for (const file of [real, other, shim]) {
+      NodeFS.mkdirSync(NodePath.dirname(file), { recursive: true });
+      NodeFS.writeFileSync(file, "");
+    }
+    NodeFS.mkdirSync(NodePath.dirname(link), { recursive: true });
+    NodeFS.symlinkSync(real, link);
+    NodeFS.symlinkSync(real, `${shim}.link`);
+    const resolve = (path: string) => {
+      try {
+        return NodeFS.realpathSync(path);
+      } catch {
+        return null;
+      }
+    };
+    const extra = [{ driver: "codex", binaryPath: real }];
+    afterAll(() => NodeFS.rmSync(directory, { recursive: true, force: true }));
+    const driverOf = (args: string) => matchRoot(args, extra, resolve)?.driver ?? null;
+
+    it("the configured file itself matches, on its own and behind an interpreter", () => {
+      assert.equal(driverOf(`${real} app-server`), "codex");
+      assert.equal(driverOf(`node ${real} app-server`), "codex");
+      assert.equal(driverOf(`/usr/bin/env node ${real}`), null);
+      assert.isTrue(matchesRuntime(`${real} app-server`, extra, resolve));
+    });
+
+    it("a symlink to the configured file matches, and so does the configured symlink", () => {
+      assert.equal(driverOf(`${link} app-server`), "codex");
+      assert.equal(driverOf(`node ${shim}.link run`), "codex");
+      const viaLink = [{ driver: "codex", binaryPath: link }];
+      assert.equal(matchRoot(`${real} x`, viaLink, resolve)?.driver, "codex");
+    });
+
+    it("the same name in another directory does not match", () => {
+      assert.isNull(driverOf(`${other} app-server`));
+      assert.isNull(driverOf(`node ${other} app-server`));
+      assert.isFalse(matchesRuntime(`${other} app-server`, extra, resolve));
+    });
+
+    it("a word that is not an absolute path does not match, and neither does a third word", () => {
+      assert.isNull(driverOf("my-codex app-server"));
+      assert.isNull(driverOf("./my-codex app-server"));
+      assert.isNull(driverOf(`node server.mjs ${real}`));
+      assert.isNull(driverOf(`sleep 1 ${real}`));
+      assert.isNull(driverOf(`cat ${real}`));
+    });
+
+    it("a configured path that does not resolve matches nothing", () => {
+      const missing = [{ driver: "codex", binaryPath: NodePath.join(directory, "gone") }];
+      assert.isNull(matchRoot(`${NodePath.join(directory, "gone")} x`, missing, resolve));
+      const relative = [{ driver: "codex", binaryPath: "my-codex" }];
+      assert.isNull(matchRoot("my-codex x", relative, resolve));
+    });
   });
 
   it("only Claude and Codex have agent jobs, the two drivers that set the thread marker", () => {

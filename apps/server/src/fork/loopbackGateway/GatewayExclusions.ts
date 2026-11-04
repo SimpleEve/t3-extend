@@ -7,6 +7,7 @@ import {
   matchRoot,
   matchesRuntime,
   type ExtraExecutable,
+  type ResolvePath,
 } from "./RuntimeSignatures.ts";
 
 export interface ShellEntry {
@@ -56,11 +57,14 @@ export interface ClassifyInput {
   /** The terminal shells that are running now. */
   readonly shells: ReadonlyMap<number, ShellEntry>;
   readonly extraExecutables?: ReadonlyArray<ExtraExecutable>;
+  /** Real paths for configured binaries; the identity when absent. */
+  readonly resolvePath?: ResolvePath;
 }
 
 export const classifyListener = (input: ClassifyInput): ClassifyVerdict => {
   const { table, serverPid, listenerPid } = input;
   const extra = input.extraExecutables ?? [];
+  const resolve = input.resolvePath ?? ((path: string) => path);
   const chain = ancestry(table, listenerPid);
   const listener = chain[0];
   if (listener === undefined || listener.pid !== listenerPid) {
@@ -76,7 +80,7 @@ export const classifyListener = (input: ClassifyInput): ClassifyVerdict => {
     return deny("debug-process", "E7", "the process was started with debug flags");
   }
 
-  if (matchesRuntime(listener.args, extra)) {
+  if (matchesRuntime(listener.args, extra, resolve)) {
     return deny("reserved", "E4", "the process looks like a provider runtime");
   }
 
@@ -84,7 +88,7 @@ export const classifyListener = (input: ClassifyInput): ClassifyVerdict => {
   if (serverIndex < 0) {
     // No longer anyone's child of this server (or never): a leftover runtime's tree is excluded
     // outright, and anything else cannot show that this server's agent or terminal started it.
-    return chain.some((row) => matchesRuntime(row.args, extra))
+    return chain.some((row) => matchesRuntime(row.args, extra, resolve))
       ? deny("reserved", "E4", "the process runs under a leftover provider runtime")
       : deny("not-owned", "E5", "the process is not a descendant of this server");
   }
@@ -95,7 +99,7 @@ export const classifyListener = (input: ClassifyInput): ClassifyVerdict => {
     return { allow: true, owner: "terminal" };
   }
 
-  const driver = matchRoot(root.args, extra);
+  const driver = matchRoot(root.args, extra, resolve);
   if (driver === null) {
     return deny(
       "reserved",

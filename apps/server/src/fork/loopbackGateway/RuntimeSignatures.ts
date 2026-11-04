@@ -130,35 +130,62 @@ export interface ExtraExecutable {
   readonly binaryPath: string;
 }
 
+/** The real path of `path` (symlinks followed), or `null` if it cannot be resolved. */
+export type ResolvePath = (path: string) => string | null;
+
 const basename = (path: string): string => path.split(/[\\/]/u).at(-1) ?? path;
 
-/** A configured `binaryPath` names a root when it is the first or second argv word (node shims). */
-const matchesConfiguredBinary = (extra: ReadonlyArray<ExtraExecutable>, args: string) => {
-  const words = args.split(/\s+/u).slice(0, 2);
-  return extra.filter((entry) =>
-    words.some(
-      (word) => word === entry.binaryPath || basename(word) === basename(entry.binaryPath),
-    ),
-  );
+/** Interpreters whose second word names the script, so a shimmed binary shows up there. */
+const INTERPRETERS = /^(?:node|nodejs|bun|deno|python3?|bash|sh|zsh)(?:\.exe)?$/u;
+
+/**
+ * A configured `binaryPath` names a root when the process's argv[0] (or argv[1] behind an
+ * interpreter) is an absolute path with the same real path. A bare or relative word, an
+ * unresolvable path, or a same-named file elsewhere never matches; the root then falls to E2.
+ */
+const matchesConfiguredBinary = (
+  extra: ReadonlyArray<ExtraExecutable>,
+  args: string,
+  resolve: ResolvePath,
+) => {
+  const words = args.split(/\s+/u).filter((word) => word.length > 0);
+  const [first, second] = words;
+  if (first === undefined) return [];
+  const candidates = [first];
+  if (second !== undefined && INTERPRETERS.test(basename(first))) candidates.push(second);
+  const real = candidates.flatMap((word) => {
+    const resolved = word.startsWith("/") ? resolve(word) : null;
+    return resolved === null ? [] : [resolved];
+  });
+  return extra.filter((entry) => {
+    if (!entry.binaryPath.startsWith("/")) return false;
+    const target = resolve(entry.binaryPath);
+    return target !== null && real.includes(target);
+  });
 };
 
 /** The driver whose root `args` looks like, or `null`. */
 export const matchRoot = (
   args: string,
   extra: ReadonlyArray<ExtraExecutable> = [],
+  resolve: ResolvePath = (path) => path,
 ): DriverSignature | null => {
   const built = DRIVER_SIGNATURES.find((signature) => matchesAny(signature.root, args));
   if (built !== undefined) return built;
-  const configured = matchesConfiguredBinary(extra, args)[0];
+  const configured = matchesConfiguredBinary(extra, args, resolve)[0];
   return configured === undefined
     ? null
     : (DRIVER_SIGNATURES.find((signature) => signature.driver === configured.driver) ?? null);
 };
 
 /** True when `args` looks like any driver's runtime process. */
-export const matchesRuntime = (args: string, extra: ReadonlyArray<ExtraExecutable> = []): boolean =>
+export const matchesRuntime = (
+  args: string,
+  extra: ReadonlyArray<ExtraExecutable> = [],
+  resolve: ResolvePath = (path) => path,
+): boolean =>
   DRIVER_SIGNATURES.some((signature) => matchesAny(signature.runtime, args)) ||
-  matchesConfiguredBinary(extra, args).length > 0;
+  matchesConfiguredBinary(extra, args, resolve).length > 0;
 
 /** `--inspect`, `--remote-debugging-port`, JDWP: a debugger may hold a random port (5.7). */
 const DEBUG_FLAGS =

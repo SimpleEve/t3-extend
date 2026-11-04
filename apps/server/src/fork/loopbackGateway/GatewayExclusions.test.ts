@@ -122,6 +122,26 @@ describe("classifyListener", () => {
     assert.equal(denied(run(hub, 410)), "reserved/E2");
   });
 
+  it("takes a configured binary for a root by its real path only, and a look-alike for an unknown child (E2)", () => {
+    const configured = [{ driver: "codex", binaryPath: "/opt/acme/my-codex" }];
+    const real = new Map([["/opt/acme/my-codex", "/opt/acme/my-codex"]]);
+    const resolvePath = (path: string) => real.get(path) ?? null;
+    const run2 = (root: string) =>
+      classifyListener({
+        serverPid: SERVER,
+        table: table(...base, [400, SERVER, `${root} app-server`], [460, 400, "node vite.js"]),
+        listenerPid: 460,
+        launchText: `node vite.js ${MARKER}`,
+        shells: new Map(),
+        extraExecutables: configured,
+        resolvePath,
+      });
+    // The configured file is a Codex root, so an agent's job under it is allowed.
+    assert.deepEqual(run2("/opt/acme/my-codex"), { allow: true, owner: "agent" });
+    // The same name from elsewhere is nobody's provider: the whole subtree is excluded.
+    assert.equal(denied(run2("/tmp/my-codex")), "reserved/E2");
+  });
+
   it("allows an agent's job under a live Claude root when it carries the marker", () => {
     const rows = [
       [400, SERVER, "/Users/x/.local/bin/claude --output-format stream-json"],

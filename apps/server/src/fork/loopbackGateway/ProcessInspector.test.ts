@@ -127,24 +127,24 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
           assert.equal(row?.ppid, process.pid);
           assert.equal(yield* inspector.startTime(child.pid), row?.startTime);
         }
+        // One call answers for several ports, in the order asked.
+        const [onA, onB, onC, onNone] = yield* inspector.listeners([a.port, b.port, c.port, 1]);
+        const brief = (entries: ReadonlyArray<{ pid: number; address: string }>) =>
+          entries.map((e) => [e.pid, e.address]);
+        assert.deepEqual(brief(onA!), [[a.pid, "127.0.0.1"]]);
+        assert.deepEqual(brief(onB!), [[b.pid, "::1"]]);
+        assert.deepEqual(brief(onC!), [[c.pid, "*"]]);
+        assert.deepEqual(onNone, []);
         assert.deepEqual(
-          (yield* inspector.listeners(a.port)).map((e) => [e.pid, e.address]),
-          [[a.pid, "127.0.0.1"]],
+          yield* inspector.listenersOf([
+            { pid: a.pid, port: a.port },
+            { pid: b.pid, port: b.port },
+            { pid: b.pid, port: a.port },
+          ]),
+          [onA!, onB!, []],
         );
-        assert.deepEqual(
-          (yield* inspector.listeners(b.port)).map((e) => [e.pid, e.address]),
-          [[b.pid, "::1"]],
-        );
-        assert.deepEqual(
-          (yield* inspector.listeners(c.port)).map((e) => [e.pid, e.address]),
-          [[c.pid, "*"]],
-        );
-        assert.deepEqual(
-          yield* inspector.listenersOf(a.pid, a.port),
-          yield* inspector.listeners(a.port),
-        );
-        assert.deepEqual(yield* inspector.listenersOf(b.pid, a.port), []);
-        assert.deepEqual(yield* inspector.listeners(1), []);
+        assert.deepEqual(yield* inspector.listeners([]), []);
+        assert.deepEqual(yield* inspector.listenersOf([]), []);
         const text = yield* inspector.launchText(a.pid);
         assert.include(text ?? "", "listen.cjs");
         assert.isFalse((text ?? "").includes("T3CODE_THREAD_ID"));
@@ -164,7 +164,7 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
         yield* processes.stop(child);
         assert.isNull(yield* inspector.startTime(child.pid));
         assert.isNull(yield* inspector.launchText(child.pid));
-        assert.deepEqual(yield* inspector.listeners(child.port), []);
+        assert.deepEqual(yield* inspector.listeners([child.port]), [[]]);
         assert.isFalse((yield* inspector.table).has(child.pid));
       }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(layerLive, TestProcesses.layer))),
     );
@@ -175,7 +175,9 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
         const processes = yield* TestProcesses;
         const first = yield* processes.listen("127.0.0.1", { reusePort: true });
         const second = yield* processes.listen("127.0.0.1", { reusePort: true, port: first.port });
-        const pids = (yield* inspector.listeners(first.port)).map((entry) => entry.pid).toSorted();
+        const pids = (yield* inspector.listeners([first.port]))[0]!
+          .map((entry) => entry.pid)
+          .toSorted();
         assert.deepEqual(pids, [first.pid, second.pid].toSorted());
       }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(layerLive, TestProcesses.layer))),
     );
