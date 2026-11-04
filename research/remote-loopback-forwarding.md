@@ -192,6 +192,22 @@ default 配置          → scope = environmentId,                 persistent = 
 
 **A 端的第一步（9.2 开头）要验证的实现细节：** `http.Agent` 的 `createConnection` 返回自定义 `Duplex` 时缺少 `setKeepAlive/setNoDelay/setTimeout/ref/unref`，要补空实现；SSE、分块、`100-continue`、大上传、keep-alive 复用都要有测试；`ws` 的 `createWebSocketStream` 到 B 的通路；TLS 校验失败的错误码映射和 `ws` 不跟随重定向（§3.6，第一版不并入系统根证书）。任何一项做不成就停下回报。
 
+**第一步结论（9.2 实测，`apps/desktop/src/fork/loopbackGateway/`，2026-11-04）：前提成立，没有停下。**
+
+| 项                                                | 结果                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `http.Agent.createConnection` 返回自定义 `Duplex` | 可行，用回调形式（`createConnection(options, callback)`，隧道打开后才 `callback(null, socket)`，失败直接 `callback(error)`，请求得到同一个错误对象）。socket 上要有 `setKeepAlive`、`setNoDelay`、`setTimeout`（带"最近一次读写后"重置的空闲计时，`timeout` 属性与之一致）、`ref`、`unref`。SSE、分块响应、分块请求体、6 MiB 带 `Content-Length` 的上传、`Expect: 100-continue`、`Connection: close`（两个方向）、keep-alive 复用、同一条 Chromium 连接上交替请求两个端口（各用各的隧道）都在真实隧道上通过。 |
+| 一个 Node 的坑                                    | 请求体在隧道接上之前就写进 `ClientRequest` 时，Node 把它存在请求自己的缓冲里，等 socket 到了刷出去，但**不再发 `drain`**（socket 的 `write` 一直返回 `true`），管道停在第一块。表现：超过 64 KiB 的上传永远不结束；普通 `net.Socket` 不会这样，因为它的 `write` 在连接期间会返回 `false`。对策：代理在 `upstream` 的 `socket` 事件之后才开始 `pipeline(req, upstream)`；`Expect: 100-continue` 的请求在 `continue` 事件里同样检查 `upstream.socket`。                                                         |
+| `ws` 的 `createWebSocketStream`                   | **没有采用，改用 `ws` 之上的自有 `Duplex`（`TunnelSocket`）。** `createWebSocketStream` 没有上面的 socket 方法和空闲计时，也不拆分超过消息上限的单次写；自有版本的背压仍来自节点流（`push` 返回 `false` 时 `ws.pause()`，`_read` 时 `ws.resume()`，`_write` 等 `ws.send` 的回调；`highWaterMark` = 1 MiB），单次写超过 1 MiB 时按 1 MiB 拆帧，一端关闭另一端关闭，没有半关闭。                                                                                                                                |
+| 过期的 keep-alive 隧道                            | B 把空闲隧道关了而代理还停着它：对**无请求体的 `GET`/`HEAD`/`OPTIONS`**自动用新隧道重试一次；其他方法不重试，页面得到 502。                                                                                                                                                                                                                                                                                                                                                                                   |
+| 超大帧                                            | 对端发超过 1 MiB 的消息：`ws` 的 `maxPayload` 关闭连接，隧道关闭，不交付任何字节。                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 未经认证的连接                                    | 定义为"收到过一次 407 且尚未关闭"的连接（407 带 `Connection: close`，所以实际同时存在的很少）；每秒超过 20 次直接销毁、不回应是实际起作用的那一条。**没有**把"建立了但还没发请求"的连接算作未认证：Chromium 会预连接空闲的代理连接，算进去会拒绝正常流量。                                                                                                                                                                                                                                                    |
+| 空闲                                              | 代理本身 `keepAliveTimeout` 30 秒，每端口 HTTP 连接 16、空闲 30 秒回收（`Agent` 的 `timeout` 配合 `TunnelSocket.setTimeout`）。                                                                                                                                                                                                                                                                                                                                                                               |
+
+错误页和 `CONNECT` 失败：HTTP 请求得到带 `X-T3x-Gateway-Error: <code>` 的 HTML 页，状态码：`unauthorized` 和"还没有票据"是 **503**（不用 401 或 407，页面可能把它当成认证质询），`forbidden`/`not-owned`/`reserved`/`debug-process`/`discovery-disabled` 是 403，`owner-changed` 409，`rate-limited`/`limit-reached` 429，其余 502；`CONNECT` 失败用同一个状态和头，不带页面。代理会去掉服务端响应里自带的 `X-T3x-Gateway-*` 头。
+
+**真实 Electron 冒烟（`vp run fork:loopback-gateway:electron-smoke`，Electron 44.10.1，20/20）：** 普通 HTTP（`location.origin` 不变，另一个没装代理的分区直连、没有隧道）、SSE、WebSocket（额外一条隧道）、`https://localhost`（自签名服务，TLS 端到端经隧道）、Service Worker 发起的请求、`<link rel=prefetch>`（走隧道）与 `preconnect`（只连代理，不直连）、`sendBeacon`、无痕分区、新 profile 首次导航之前 `resolveProxy` 已是代理、`session.fetch` 的 favicon、1 MiB 下载、`direct.test`（非回环名）直连、被拒端口的 403 页加主框架事件（带 `webContentsId` 和 URL）、被拒 https 端口的 `ERR_TUNNEL_CONNECTION_FAILED` 加无页面事件、无票据 503 加 `ticket-needed`、`<webview>` 来宾、停止转发再恢复、5 次代理质询全部被我们的监听器应答且没有遗漏。冒烟的脚本和第一轮输出在 `apps/desktop/scripts/loopback-gateway-smoke/` 和 `/tmp/t3x-p92/`。
+
 ### 3.3 B 端网关路由
 
 `GET /api/loopback-gateway/tunnel?port=<n>`，WebSocket 升级，**票据在 `Authorization` 头里，不在 URL 里**。挂在 **共享的 `HttpRouter`** 上，所以 `TunnelListener.withTunnel` 的第二个监听口（frpc 的 `localPort`）自动也有这条路由：`TunnelListener.ts` 的注释写明它"serves the application a second time"，复用同一个 router。主监听口（局域网、Tailscale、SSH 转发）和自建隧道因此用同一份代码，不需要为隧道口写任何特别逻辑。
@@ -260,6 +276,22 @@ A 主进程用 Node 的 TLS 连 B。渲染进程（Chromium）信任系统根证
 - 主进程的 `ws` **不走系统代理**；A 必须经代理才能到达 B 的情形不支持，网关会报 `offline`。
 - **`ws` 不跟随重定向**：显式设 `followRedirects: false`，对隧道升级请求的 3xx 当作失败（`unexpected-redirect`）。重定向会改变连接目标，使"按哪个地址做过传输检查"失去意义。
 - **连接目标在安装票据时固定。** 渲染进程把 `{ baseUrl, ticket }` 作为一对交给主进程；主进程对这个 `baseUrl` 做传输检查，之后该环境所有隧道都只连这个 `baseUrl`，连接建立后不会切到另一个地址。路由变了（局域网 → 隧道，或相反）：渲染进程推新的一对，主进程重新判定加密与否，**并换用新票据**；新地址不通过检查就拆代理、关隧道（§10）。
+
+**实测的错误码（9.2，真实 TLS 服务端，`TunnelClient.test.ts`；证书由测试里的 `openssl` 生成，测试 CA 通过 `tls.setDefaultCACertificates` 只在测试进程里受信任）：**
+
+| 服务端证书                    | Node 的错误码                     | 事件            |
+| ----------------------------- | --------------------------------- | --------------- |
+| 自签名（没人签发）            | `DEPTH_ZERO_SELF_SIGNED_CERT`     | `tls-untrusted` |
+| 过期（CA 签发，2020 年到期）  | `CERT_HAS_EXPIRED`                | `tls-untrusted` |
+| 签发给另一个主机名（CA 签发） | `ERR_TLS_CERT_ALTNAME_INVALID`    | `tls-untrusted` |
+| 链不完整（中间证书没有发送）  | `UNABLE_TO_VERIFY_LEAF_SIGNATURE` | `tls-untrusted` |
+| 链完整、CA 受信任             | 通过                              | 隧道建立        |
+
+映射用一个集合（上面四个加 `SELF_SIGNED_CERT_IN_CHAIN`、`UNABLE_TO_GET_ISSUER_CERT(_LOCALLY)`、`CERT_NOT_YET_VALID`、`CERT_UNTRUSTED`、`CERT_REVOKED`、`CERT_SIGNATURE_FAILURE`、`CERT_CHAIN_TOO_LONG`、`INVALID_CA`、`HOSTNAME_MISMATCH`），其余网络错误是 `offline`。四种失败时服务端都没有收到任何升级请求。
+
+升级响应是 3xx：`ws` 在 `followRedirects: false` 时把它交给 `unexpected-response`，映射为 `unexpected-redirect`，**重定向目标没有被连接**（测试里目标服务器计数为 0）。升级失败而响应体不是网关的错误 JSON 时按状态映射：401 `unauthorized`，403 `forbidden`，429 `rate-limited`，200/404/405（旧版或上游服务端没有这条路由，或被兜底路由接住）`unsupported-server`，其余 `offline`。
+
+静态扫描测试（`noInsecureTls.test.ts`）：`apps/*/src` 和 `packages/*/src` 里没有 `rejectUnauthorized: false`、`NODE_TLS_REJECT_UNAUTHORIZED`、`checkServerIdentity`；`apps/desktop/src` 的非测试代码里没有 `setDefaultCACertificates`、`getCACertificates`（N7：不读系统信任库）。
 
 ### 3.7 背压与上限
 
@@ -1016,6 +1048,18 @@ M2 的设计变更见 §5.6.0.1：判断全部来自每条隧道现读的祖先�
 - 阶段结束时按实际 diff 重估上游改动行数；超过 130 行停下回报。
 
 测试层：代理逻辑用假隧道（一对 `Duplex`）做单元测试，不碰 Electron；安装器用 mock 的 `Session`；Chromium 实际行为只能在真 Electron 里证明，所以放在脚本里。
+
+**9.2 完成情况（2026-11-04，分支 `t3/7dc5f1ea`）：** 范围内全部做完；第一步结论在 §3.2、§3.6。实现与设计不同、或设计没写清而自己定的地方：
+
+1. **恢复用 `{ mode: "system" }`，不是 `{ mode: "direct" }`。** 分区从来没设过代理，默认就是 `system`；改成 `direct` 会让用户配了系统代理的人在"停止转发"之后丢掉自己的代理。冒烟里 `resolveProxy` 在恢复后是 `DIRECT`（这台机器没有系统代理），其余步骤（`closeAllConnections`、关闭隧道）照设计。
+2. **票据的"过期"不在 A 端判断。** 过期的票据照常发给 B，B 回 401，状态变 `rejected(unauthorized)` 并发 `ticket-needed`；A 端只在剩余不足 60 秒时提醒一次（一次性定时器，上限 2^31-1 毫秒，到点再算一次），没有票据时请求得到 503（头里的码是 `unauthorized`）。这样"没有票据"和"票据被拒"在 9.3 看来是同一种"正在重新连接"。
+3. **环境状态集合：** `pending`（有代理没有票据）、`active`、`offline`、`disabled-by-user`、`unsupported-route`（`code`: `insecure-transport` 或 `unsupported-route`，可带 `hint: "tailscale-address"`）、`rejected`（`code` 是 `unauthorized`/`forbidden`/`tls-untrusted`/`unexpected-redirect`/`unsupported-server`/`discovery-disabled`）。端口级的拒绝（`not-owned`、`reserved`、`debug-process`、`upstream-refused`、`owner-changed`、`limit-reached`、`rate-limited`）不改环境状态，只发 `denied` 事件；打开隧道成功会把 `rejected`/`offline` 清回 `active`（仅当用的还是当前这张票据）。
+4. **代理只在"该环境登记过、传输检查通过、用户没关"时存在。** 关闭或路由不再通过传输检查时代理停掉，口令也随之换新，恢复时是新的端口和新的口令；会话先改回 `system` 再停代理。
+5. **`denied` 事件的两条来源：** HTTP 主框架导航由该分区的 `webRequest.onHeadersReceived` 看到 `X-T3x-Gateway-Error`（只信回环主机上的响应，页面自己发这个头没用），带 `webContentsId` 和 URL；`CONNECT` 被拒由代理直接发，没有页面信息（`mainFrame: false`）。子资源的 HTTP 拒绝不发事件。
+6. **`getPreviewConfig` 钩子失败即失败：** 该环境该有代理而 `setProxy` 抛错时，整个 `getPreviewConfig` 失败，不返回 webview 配置，否则页面会连到 A 自己的 `localhost`。没登记的环境完全不碰。
+7. **Fork 桥的类型和 schema 放在 `packages/shared/src/forkLoopbackGateway/bridge.ts`**（同 `keepAwake`、`selfHost` 的先例，IPC 通道名在 `apps/desktop/src/fork/loopbackGateway/channels.ts`，preload 只有两行）。票据在 IPC 上是字符串，主进程的 schema 一解码就是 `Redacted`；格式检查放在解码之后（schema 的长度检查失败会把原值放进错误信息）。`expiresAt` 在线上是 ISO 字符串（`DateTimeUtcFromString`）。
+8. **错误页文案**（`translate(getUiLocale(), …)`）的 13 条中文放进了现有的 `catalogs/zh-Hans/desktop.ts`，没有新开 catalog 文件，避免和 9.3 的 `loopbackGateway.ts` 注册行冲突。
+9. 并发中的"开隧道"上限是 32，超过得到 `limit-reached`（429）；每环境 Chromium 连接 256（`server.maxConnections`）。
 
 ### 9.3 web 接线、界面与中文（M）
 
