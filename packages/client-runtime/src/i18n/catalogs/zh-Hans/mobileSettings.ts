@@ -115,8 +115,8 @@ export default {
   "Microphone access is off for T3 Extend. Turn it on in Settings to use voice input.":
     "T3 Extend 的麦克风权限已关闭。请在系统设置中开启以使用语音输入。",
   "Preferred order": "优先顺序",
-  "Voice input records from the first connected microphone in this list. Wired and Bluetooth devices are added by name after you use voice input with them connected; until then, the Other row ranks them. Swipe a device left to forget it.":
-    "语音输入会使用列表中第一个已连接的麦克风。有线和蓝牙设备在连接状态下使用过语音输入后，会按名称加入列表；在此之前，按“其他”这一行排序。向左滑动设备可忘记它。",
+  "Voice input prefers the first connected microphone in this list. Wired and Bluetooth devices are added by name after you use voice input with them connected; until then, the Other row ranks them. Swipe a device left to forget it.":
+    "语音输入会优先使用列表中第一个已连接的麦克风。有线和蓝牙设备在连接状态下使用过语音输入后，会按名称加入列表；在此之前，按“其他”这一行排序。向左滑动设备可忘记它。",
   Forget: "忘记",
   "Forget {title}": "忘记 {title}",
   "Phones show the first four enabled sections; Android tablet rails show all enabled sections. Remaining sections appear at the top of Settings. Hidden sections appear only here. Settings always stays last. Saved on this device.":
@@ -565,4 +565,8 @@ export default {
   "{field}, {label}": "{field}，{label}",
   "Some settings are managed by {organizations} and cannot be changed here.":
     "部分设置由 {organizations} 管理，无法在这里更改。",
+  "T3 Extend's voice input uses Google's on-device speech recognition, which needs Android 12 or later with compatible Google speech services for the device language. Without it, the composer has no microphone button, and allowing microphone access won't add one. Keyboard voice typing is separate and isn't affected.":
+    "T3 Extend 的语音输入使用 Google 的设备端语音识别，需要 Android 12 或更高版本，并且设备语言要有兼容的 Google 语音服务。没有它时，输入框不会出现麦克风按钮，授予麦克风权限也不会增加。键盘语音输入是另一回事，不受影响。",
+  "Android may use another input when the preferred microphone cannot be routed.":
+    "当首选麦克风无法接入时，Android 可能改用其他输入设备。",
 } satisfies Record<string, string>;

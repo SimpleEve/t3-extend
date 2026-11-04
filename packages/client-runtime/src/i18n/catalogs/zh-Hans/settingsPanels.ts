@@ -2931,4 +2931,12 @@ export default {
   "{count} more changes on GitHub": "在 GitHub 上还有 {count} 项更改",
   "Folders can only be referenced on a server running on this computer":
     "只能在运行于本机的服务器上引用文件夹",
+  "Could not save grouping rule": "无法保存分组规则",
+  "Grouping rule for {workspaceRoot} on {environment}":
+    "{environment} 上 {workspaceRoot} 的分组规则",
+  "Default ({mode})": "默认（{mode}）",
+  "Use global default": "使用全局默认",
+  "Grouping rule decides how each checkout joins project groups in the sidebar. Changing it can move a checkout to a different project.":
+    "分组规则决定每个 checkout 如何并入侧边栏里的项目分组。更改后，某个 checkout 可能会移到另一个项目下。",
+  "{label} token": "{label} 令牌",
 } satisfies Record<string, string>;

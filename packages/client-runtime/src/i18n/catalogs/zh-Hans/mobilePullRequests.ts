@@ -157,7 +157,6 @@ export default {
   "Reconnect to merge": "重新连接后才能合并",
   "{label}, {count} stack layers through #{number}": "{label}，到 #{number} 共 {count} 个堆叠层",
   "Merge options": "合并选项",
-  "Auto-merge is enabled": "已启用自动合并",
   "Combine the commits into one commit.": "把这些提交压缩成一个提交。",
   "Create a merge commit": "创建合并提交",
   "Keep the commits and add a merge commit.": "保留这些提交，并添加一个合并提交。",
@@ -411,4 +410,8 @@ export default {
   "A product call": "需要产品决定",
   "A risk to judge": "需要判断的风险",
   "An accessibility call": "需要考虑无障碍",
+  "Resolve conflicts to merge": "解决冲突后再合并",
+  "Auto-merge pending ({method})": "自动合并待执行（{method}）",
+  "Auto-merge pending": "自动合并待执行",
+  "Checking stack…": "正在检查堆叠…",
 };

@@ -786,4 +786,8 @@ export default {
   Reconnecting: "重新连接中",
   "Reconnecting: {error}": "重新连接中：{error}",
   "Connection failed: {error}": "连接失败：{error}",
+  "This device is still loading its T3 Connect sign-in": "此设备仍在加载 T3 Connect 登录",
+  "Wait a moment. T3 Extend retries on its own.": "稍等片刻。T3 Extend 会自动重试。",
+  "If it keeps waiting, reload or restart T3 Extend on this device.":
+    "如果一直在等待，请在此设备上重新加载或重启 T3 Extend。",
 } satisfies Record<string, string>;

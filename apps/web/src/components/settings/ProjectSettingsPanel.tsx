@@ -443,10 +443,11 @@ function ProjectDetail({
     </div>
   );
   const checkoutChoices = (
-    <SettingsSection title="Checkouts">
+    <SettingsSection title={t("Checkouts")}>
       <p className="px-3 py-2.5 text-xs text-muted-foreground sm:px-4">
-        Grouping rule decides how each checkout joins project groups in the sidebar. Changing it can
-        move a checkout to a different project.
+        {t(
+          "Grouping rule decides how each checkout joins project groups in the sidebar. Changing it can move a checkout to a different project.",
+        )}
       </p>
       {Array.from(checkoutsByEnvironment, ([environmentId, members]) => {
         if (checkoutsByEnvironment.size === 1) {
