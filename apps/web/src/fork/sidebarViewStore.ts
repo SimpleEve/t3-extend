@@ -1,19 +1,21 @@
-import {
-  isSidebarViewMode,
-  type SidebarViewMode,
-} from "@t3tools/client-runtime/state/thread-grouping";
+import type { SidebarViewMode } from "@t3tools/client-runtime/state/thread-grouping";
 import { create } from "zustand";
 
-// fork: per-device sidebar view, kept out of ClientSettings so contracts stay upstream's.
+import {
+  getClientSettings,
+  updateClientSettings,
+  useBoringSidebarEnabled,
+} from "../hooks/useSettings";
+
+// fork: the view is upstream's Boring sidebar setting; only the fold state is fork storage.
 const STORAGE_KEY = "t3extend:sidebar-view:v1";
 
 interface PersistedSidebarView {
-  readonly mode: SidebarViewMode;
   /** Fold keys from `sidebarGroupCollapseKey`; groups are open unless listed. */
   readonly collapsed: readonly string[];
 }
 
-const DEFAULT_VIEW: PersistedSidebarView = { mode: "status", collapsed: [] };
+const DEFAULT_VIEW: PersistedSidebarView = { collapsed: [] };
 
 function readPersisted(): PersistedSidebarView {
   try {
@@ -21,9 +23,9 @@ function readPersisted(): PersistedSidebarView {
     if (raw === null) return DEFAULT_VIEW;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) return DEFAULT_VIEW;
-    const { mode, collapsed } = parsed as Record<string, unknown>;
+    // Older data also holds a `mode`; the Boring sidebar setting decides the view now.
+    const { collapsed } = parsed as Record<string, unknown>;
     return {
-      mode: isSidebarViewMode(mode) ? mode : DEFAULT_VIEW.mode,
       collapsed: Array.isArray(collapsed)
         ? collapsed.filter((key): key is string => typeof key === "string")
         : [],
@@ -35,10 +37,7 @@ function readPersisted(): PersistedSidebarView {
 
 function persist(state: PersistedSidebarView) {
   try {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ mode: state.mode, collapsed: state.collapsed }),
-    );
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ collapsed: state.collapsed }));
   } catch {}
 }
 
@@ -47,18 +46,21 @@ export const useSidebarViewStore = create<PersistedSidebarView>(() =>
 );
 
 export function useSidebarViewMode(): SidebarViewMode {
-  return useSidebarViewStore((state) => state.mode);
+  return useBoringSidebarEnabled() ? "project" : "status";
 }
 
 /** For handlers outside React, such as keybinding commands. */
 export function getSidebarViewMode(): SidebarViewMode {
-  return useSidebarViewStore.getState().mode;
+  const { boringSidebarEnabled, legacySidebarEnabled } = getClientSettings();
+  return boringSidebarEnabled || legacySidebarEnabled ? "project" : "status";
 }
 
-export function setSidebarViewMode(mode: SidebarViewMode) {
-  if (useSidebarViewStore.getState().mode === mode) return;
-  useSidebarViewStore.setState({ mode });
-  persist(useSidebarViewStore.getState());
+/** Same write as the Labs switch, so the toggle, the palette and Labs always agree. */
+export function setSidebarViewMode(mode: SidebarViewMode): Promise<void> {
+  return updateClientSettings({
+    boringSidebarEnabled: mode === "project",
+    legacySidebarEnabled: false,
+  });
 }
 
 export function toggleSidebarGroupCollapsed(collapseKey: string) {

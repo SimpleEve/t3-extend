@@ -5,6 +5,7 @@ import * as NodeCrypto from "node:crypto";
 import * as NodeHttp from "node:http";
 
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
+import * as NodePlatformCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { EnvironmentHttpApi } from "@t3tools/contracts";
 import { computeDpopAccessTokenHash, computeDpopJwkThumbprint } from "@t3tools/shared/dpop";
@@ -26,6 +27,7 @@ import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as Socket from "effect/socket/Socket";
 
 import * as AuthAttemptLimiter from "../../auth/AuthAttemptLimiter.ts";
+import { requestUrl } from "../../requestUrl.ts";
 import * as AuthHttp from "../../auth/http.ts";
 import * as EnvironmentAuth from "../../auth/EnvironmentAuth.ts";
 import * as McpOAuth from "../../auth/McpOAuth.ts";
@@ -206,7 +208,7 @@ export const layerHarness = Layer.unwrap(
         Effect.gen(function* () {
           const request = yield* HttpServerRequest.HttpServerRequest;
           return HttpServerResponse.jsonUnsafe({
-            url: Option.getOrUndefined(Option.map(HttpServerRequest.toURL(request), String)),
+            url: Option.getOrUndefined(Option.map(requestUrl(request), String)),
             headers: request.headers,
           });
         }),
@@ -249,7 +251,7 @@ export const layerHarness = Layer.unwrap(
     );
 
     const layerPlatform = HttpPlatform.layer.pipe(
-      Layer.provideMerge(NodeServices.layer),
+      Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer)),
       Layer.provideMerge(Etag.layerWeak),
     );
     const layerMainServer = NodeHttpServer.layer(() => NodeHttp.createServer(), {

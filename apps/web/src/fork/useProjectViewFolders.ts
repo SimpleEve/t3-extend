@@ -8,7 +8,11 @@ import {
 
 import type { SidebarProjectSnapshot } from "../sidebarProjectGrouping";
 import { groupSidebarThreadsByProject } from "../components/Sidebar.logic";
-import { toggleSidebarGroupCollapsed, useSidebarViewStore } from "./sidebarViewStore";
+import {
+  toggleSidebarGroupCollapsed,
+  useSidebarViewMode,
+  useSidebarViewStore,
+} from "./sidebarViewStore";
 
 /**
  * A folder as the sidebar list draws it. Boring folders omit `worktrees`; the project
@@ -44,7 +48,7 @@ export function useProjectViewFolders(input: {
   readonly folders: SidebarFolderView[];
   readonly toggleFolder: (group: SidebarProjectSnapshot) => void;
 } | null {
-  const mode = useSidebarViewStore((state) => state.mode);
+  const mode = useSidebarViewMode();
   const collapsed = useSidebarViewStore((state) => state.collapsed);
   if (mode !== "project" || input.folderGroups === null) return null;
   const collapsedKeys = new Set(collapsed);

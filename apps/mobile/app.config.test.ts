@@ -38,5 +38,7 @@ it.each([
     // expo-observe needs some project id to start; the fork's placeholder names no EAS project.
     expect(config.extra?.eas?.projectId).toBe("00000000-0000-4000-8000-000000000000");
     expect(config).not.toHaveProperty("owner");
+    // The hosted app's assetlinks.json lists only official packages, so a filter here could never verify.
+    expect(config.android?.intentFilters).toBeUndefined();
   },
 );

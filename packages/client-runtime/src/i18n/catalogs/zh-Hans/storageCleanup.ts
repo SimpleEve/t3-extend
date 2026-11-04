@@ -25,6 +25,7 @@ export default {
   "Thread or cleanup settings changed since check": "检查之后对话或清理设置又变化了",
   "Thread activity or shared worktree changed since check":
     "检查之后对话活动或共用的 worktree 又变化了",
+  "Parent settlement changed since check": "检查之后上级对话的已处理状态又变化了",
   "Thread deletion is still pending": "对话的删除还没有完成",
   "Provider session is still open": "provider 会话仍然打开",
   "Settled moments ago": "刚刚标为已处理",

@@ -199,16 +199,15 @@ mobile：
 
 侧边栏有"按状态"（上游的 Inbox，默认）和"按项目"两种视图，后者在项目文件夹下再按 worktree 分子组。用户说明见 `docs/user/thread-sidebar.md` 的 "Choose a sidebar view"。
 
-- 视图和折叠状态存在 fork 自己的 store（`apps/web/src/fork/sidebarViewStore.ts`，localStorage key `t3extend:sidebar-view:v1`），按设备保存，不进 `ClientSettings`，不改 contracts。折叠 key 带视图前缀（`sidebarGroupCollapseKey`），切换视图不会串组。
+- 视图就是上游 Labs 里的 Boring sidebar 设置（`ClientSettings.boringSidebarEnabled`，经 `ensureLocalApi().persistence` 按设备保存，不跨设备同步）：开是"按项目"，关是"按状态"。顶部切换、命令面板两项和 Labs 开关读写同一个设置：`useSidebarViewMode()` 由 `useBoringSidebarEnabled()` 推出（旧的 `legacySidebarEnabled` 也算开），`setSidebarViewMode()` 和 Labs 一样写 `{ boringSidebarEnabled, legacySidebarEnabled: false }`。fork 自己的 store（`apps/web/src/fork/sidebarViewStore.ts`，localStorage key `t3extend:sidebar-view:v1`）只存折叠状态；旧数据里的 `mode` 字段直接忽略，不迁移（升级后最坏显示一次"按状态"，点一下就回来）。折叠 key 带视图前缀（`sidebarGroupCollapseKey`），不进 `ClientSettings`，不改 contracts。
 - 分组是纯函数，放在 `packages/client-runtime/src/state/threadGrouping.ts`（`@t3tools/client-runtime/state/thread-grouping`），web 和以后的 Android 共用。
-- 按项目视图复用 boring 的所有分支：没有 Working shelf、不能拖拽、`chat.new` 在当前项目新建。Labs 里的 boring sidebar 只影响按状态视图。
+- 按项目视图复用 boring 的所有分支：没有 Working shelf、不能拖拽，New thread 和 `chat.new` 的行为与 boring 相同（多个项目时弹项目选择器，只有 legacy 侧边栏直接在当前项目新建）。按项目视图就是开着 boring sidebar 的侧栏，只多了 worktree 子分组，所以没有单独的"boring 开、按状态"这种状态。
 - `Sidebar.tsx` 的接线（都带 `// fork:`）：
-  1. 文件头的 import（`useSidebarViewMode`、`useProjectViewFolders`、`SidebarWorktreeGroupHeader`）。
+  1. 文件头的 import（`useProjectViewFolders`、`SidebarWorktreeGroupHeader`）。
   2. `useSidebarThreads` 里 `projectFolders` 先取 `useProjectViewFolders` 的结果，`orderedThreadKeys` 因此跟着屏幕顺序走。
   3. `useSidebarThreads` 返回的 `toggleProjectFolder`：按项目视图下写 fork store。
-  4. `Sidebar` 组件里 `boringSidebarEnabled` 加上 `|| sidebarViewMode === "project"`。
-  5. 列表渲染的文件夹循环：有 `folder.worktrees` 时先画 worktree 子组标题，再画行。
-- 其他上游文件各一两行：`SidebarThreadHeader.tsx`（切换按钮）、`CommandPalette.tsx`（两条命令，定义在 `CommandPaletteSidebarViewItems.tsx`）、`chatRouteCommands.ts`（`chat.new`）、`lib/sidebarTree.ts`（`aria-level` 按祖先数计算，支持第三层）。
+  4. 列表渲染的文件夹循环：有 `folder.worktrees` 时先画 worktree 子组标题，再画行。
+- 其他上游文件各一两行：`SidebarThreadHeader.tsx`（切换按钮）、`CommandPalette.tsx`（两条命令，定义在 `CommandPaletteSidebarViewItems.tsx`）、`lib/sidebarTree.ts` 没有 fork 改动：上游去掉了 `aria-level` 与 `role="tree"`，改用 `data-sidebar-row` / `data-sidebar-parent` 的父子链走方向键，worktree 子分组标题和它下面的对话都带这两个属性，所以第三层不用单独补（`SidebarWorktreeGroupHeader` 也不再带 `role="treeitem"` 和 `tabIndex={-1}`，和上游的文件夹标题一样留在 Tab 序里）。`chatRouteCommands.ts` 里关于侧栏视图的分支已删，只剩一处与侧栏无关的 i18n 翻译（预览仅桌面版的提示）。
 - 快捷键没有加，因为要改 `packages/contracts/src/keybindings.ts`。
 
 mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
@@ -467,18 +466,25 @@ vp i
 vp run fork:guard        # 上游新增的官方身份字面量会在这里报出来
 vp run i18n:report       # 上游改过的英文文案会列为 stale
 vp run check:changed
+vp run fork:selfhost:e2e # 需要 Docker；隧道监听口靠改写 Host、X-Forwarded-Proto、X-Forwarded-For 工作，上游改请求 URL 的读法时靠它兜底
 ```
 
-最近一次同步到上游 `47f2c8d29e`（合并基点 `955e2bfbb5`，193 个 commit，55 个冲突文件）。这次同步里的取舍，下次遇到同类冲突照做：
+GitHub Actions 在这个仓库里是关着的：2026-11-04 起，`SimpleEve/t3-extend` 在 Settings → Actions → General 里整体关闭了 Actions。从上游同步过来的 workflow 在这个私有 fork 里都用不上：`ci.yml` 指定的是上游的 `blacksmith-*` 付费 runner，每次推送都会排队、24 小时后才被自动取消；部署和发布类的 workflow 都带 `github.repository == 'pingdotgg/t3code'` 守卫，在这里只会被跳过；其余几个是管理上游公开仓库 issue 和 PR 的。fork 的安装包都在本机打（`fork:dist:mac`、`fork:dist:android`）。workflow 文件保持和上游一致，不删也不改，否则每次同步都会冲突；上游以后新增的 workflow 也会被这个开关一起挡住。私有仓库在免费套餐下用不了分支保护，所以关掉 CI 不影响合并。要重新打开：`gh api -X PUT repos/SimpleEve/t3-extend/actions/permissions -F enabled=true -f allowed_actions=all`，或者在网页设置里打开；打开后上游那批 workflow 会立刻恢复触发。要给 fork 加自己的 CI，先用 `gh workflow disable` 逐个关掉用不上的。
 
-- 上游新增的受管策略（managed policy）按 `FORK.appId` 读 macOS 的 managed preferences（`packages/shared/src/managedPolicyFile.ts`），`/Library/Application Support/T3Code/policy.json` 等系统路径仍是上游的，fork 和官方共用同一份策略文件。
+最近一次同步到上游 `322f6544df`（合并基点 `47f2c8d29e`，302 个 commit，41 个冲突文件）。这次同步里的取舍，下次遇到同类冲突照做：
+
+- 受管策略（managed policy）：macOS 的 managed preferences 和描述文件模板按 `FORK.appId` / `FORK.appBaseName` 生成（`packages/shared/src/managedPolicyFile.ts`、`apps/server/src/policy/policyTemplates.ts`，后者有测试守着）。`/Library/Application Support/T3Code/policy.json` 和 Windows 的 `SOFTWARE\Policies\T3Tools\T3Code` 注册表路径仍是上游的，fork 和官方共用同一份策略；Windows 的 ADMX 模板同理。
 - `DesktopUpdates.hasUpdateFeed` 把受管镜像（`policy.feedUrl`）也算作更新源，否则管理员配了镜像、构建里却没有 `app-update.yml` 时，入口会被隐藏。
-- 上游测试里写死的 `t3code://` 改成 `FORK.scheme`；`threadExecution` 的单项后台任务标题跟随上游改成 `Running · {label}`，中文 key 同步改过。
-- mobile 的 `managedSettingReason` 保持英文输出，新增 `managedSettingOrganization` 供已翻译的屏幕使用。
+- 侧栏"按项目"就是上游的 Boring 侧栏（视图由 `useBoringSidebarEnabled()` 推出，`Sidebar.tsx` 里那一行是上游原样）。上游把 `sidebarTree.ts` 的 `role=tree` / `aria-level` 去掉了，fork 在 `lib/sidebarTree.ts` 已经没有改动，`shortcuts/chatRouteCommands.ts` 里 `chat.new` 的项目视图分支也删了（`chat.new` 在项目视图里和 boring 一样走项目选择器）。
+- 上游把 `app.t3.codes` 的链接声明加进了 `app.config.ts`。Android 的 intentFilter fork 不采用：没验证过的 http 链接过滤器会让 fork 出现在"用哪个应用打开"的选择框里，用户看得到。iOS 的 `applinks:app.t3.codes` 保留上游原样，不加 fork 改动：官方站点的 apple-app-site-association 不会列出 fork 的 bundle id，这条声明在 fork 里不起作用；fork 目前不发 iOS；iOS 的 native fingerprint 本来就会因为麦克风文案变化而变。原则是只在用户看得到影响时才偏离上游。
+- Effect 升到 4.1.2 后 `effect/Crypto` 拆成 `effect/crypto/Digest` 和 `effect/crypto/SecureRandom`；fork 的 `T3CodeImport`、`DeviceAssertionAuth` 和测试夹具都改用新服务，测试要用 `NodeCrypto.layer`（`@effect/platform-node/NodeCrypto`）。同一版本不再读 `X-Forwarded-Proto`，上游加了 `apps/server/src/requestUrl.ts`；server 里取请求 URL 一律走它，不要直接调 `HttpServerRequest.toURL`（隧道监听口的夹具也一样）；端到端的场景 3、4、14（经隧道的 DPoP、限速桶、伪造的 `X-T3x-Client-IP`）验证的就是这一点。
+- 上游新增的测试经常写死官方标识（`t3code://`、`t3code.service`、默认端口 3773、Tailscale Serve 的默认端口）；换成 `FORK.scheme`、`FORK.bootServiceName`、`FORK.defaultPort`、`FORK.tailscaleServePort`。服务端新增清理原因要同步 `apps/web/src/fork/storageCleanupReasons.ts` 的模板表和 zh-Hans 目录，否则 `storageCleanupReasons.test.ts` 会报。`T3CodeImport.test.ts` 把源库固定在迁移 76（077 之前），不要写成"当前 head 减一"，上游每加迁移就会失效。
+- `vp i` 在 npmmirror 缺新包版本时会 404：用 `vp i -- --registry=https://registry.npmjs.org/`，只对这一条命令生效。`check:changed` 的默认基准是 `origin/main`，会把 `.repos` 上万个文件算进来、子进程报 `E2BIG`；同步后用上游那个 commit 当基准（`vp run check:changed 322f6544df`）。它的 "unused patches" 一步也要联网解析依赖，同样受镜像影响。
+- mobile 的 `managedSettingReason` 保持英文输出，新增 `managedSettingOrganization` 供已翻译的屏幕使用。上游重写的 PR 状态按钮和麦克风设置页，在新逻辑上重新套了 `t()`；上游删掉的文案（"Auto-merge is enabled"）同步从 catalog 删掉。
 
-native fingerprint 这次没有变（android `97cb060cd3…`、ios `95cb50c6af…`，和同步前的 main 逐位相同），不需要重编 dev client 或 release APK。
+native fingerprint 这次变了，dev client 和 release APK 都要重编：android `be22d2e60e70dedfaefe026e2e286ebd3fe638d3`（之前 `0ec7d60fc8b0b0c683dbe55e439f3561026cd873`，新增了上游的 `t3-voice-transcription` 原生模块、`expo-audio` 的 `recordAudioAndroid` 和麦克风权限文案），ios `86a2097b879654d5c7217577884627a2ff37f161`（之前 `85eaa1057713de7068e301ada56f906331a49f0a`，来自 `applinks:app.t3.codes` 和麦克风文案）。上一次文档里记的 `97cb…` / `95cb…` 已经过时，fork 之后又加过原生模块。
 
-上游已知问题的状态（同步后复核）：ZIP 预览按文本读取、Android 没有命令面板快捷键、webhook 投递"in under a minute"的措辞、`GuestPage.browser.test.tsx` 的 "follows the end…" 用例，四项都还在。后两项实际跑过或读过代码确认（措辞还在 `ScheduledTasksSettings.tsx`，GuestPage 用例在合并后仍失败，且它在原始上游上就失败）；前两项只核对了代码，上游对 ZIP 预览和 Android 命令面板没有相关改动，没有在设备上复测。另有七个测试在 macOS 上因 `/private/var` 符号链接和大小写不敏感的文件系统失败，在未合并的 `upstream/main` 上同样失败，不是 fork 引起的：`DesktopLinuxUrlHandler`（2）、`ServerEnvironment`、`GitVcsDriverCore`、`UsageService`（2）、`ClaudeSkills`。
+上游已知问题的状态：这次只确认了 `GuestPage.browser.test.tsx` 的 "follows the end…" 用例仍然失败（在原始上游上同样失败）；ZIP 预览按文本读取、Android 没有命令面板快捷键、webhook 投递"in under a minute"的措辞没有重新核对。macOS 上因 `/private/var` 符号链接和大小写不敏感文件系统失败的测试（`DesktopLinuxUrlHandler`（2）、`ServerEnvironment`、`GitVcsDriverCore` 的短目录用例、`UsageService`（2）、`ClaudeSkills`、`AgentSessionScanner` 的符号链接用例、`cli/invocation`（2）、`cli/app`（4）、`AcpAdapterV2` 的 native session forks 用例）在合并之前就已知失败，不是这次同步引起的；这次 `check:changed` 只跑了受改动影响的测试，其中见到失败的是前五项。
 
 要出包时，先看上游有没有改 `build-desktop-artifact.ts` 里的 `renderMacPasskeyEntitlements`（以及 electron-builder 的 mac 配置）。新增的不依赖 team 的 entitlements 要同步到 `packaging/fork-macos/`：hardened runtime 缺了 entitlements，app 往往一启动就崩，而 `codesign --verify` 检查不出来。`fork-dist-mac.ts` 还依赖 `--target dir` 的产物位置（`<output-dir>/mac-arm64/*.app`）。所以同步之后的第一次打包，要真正把 app 启动起来验证一遍。
 

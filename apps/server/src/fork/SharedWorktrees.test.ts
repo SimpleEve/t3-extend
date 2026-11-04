@@ -1,4 +1,6 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import * as Layer from "effect/Layer";
 import { assert, it } from "@effect/vitest";
 import * as Deferred from "effect/Deferred";
 import * as Fiber from "effect/Fiber";
@@ -51,7 +53,7 @@ const setup = Effect.fn("setup")(function* (options?: {
   return { fs, path, root, home, official, guarded, refused };
 });
 
-it.layer(NodeServices.layer)("SharedWorktrees", (it) => {
+it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("SharedWorktrees", (it) => {
   it.effect("refuses anything under official T3 Code's folder, however the path is spelled", () =>
     Effect.gen(function* () {
       const { path, root, official, guarded, refused } = yield* setup();

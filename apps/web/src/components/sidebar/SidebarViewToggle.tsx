@@ -34,7 +34,7 @@ export function SidebarViewToggle() {
           <MenuRadioGroup
             value={mode}
             onValueChange={(value) => {
-              if (isSidebarViewMode(value)) setSidebarViewMode(value);
+              if (isSidebarViewMode(value)) void setSidebarViewMode(value);
             }}
           >
             <MenuRadioItem value="status" closeOnClick>

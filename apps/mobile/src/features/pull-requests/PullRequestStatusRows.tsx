@@ -90,14 +90,7 @@ export function PullRequestStatusMenu(props: RowProps) {
       onPressAction={({ nativeEvent }) => {
         const selected = actions.find((id) => id === nativeEvent.event);
         if (!selected) return;
-        if (selected === "close")
-          action.confirm(
-            selected,
-            pullRequestActionLabel("close", terminology, t),
-            t("Close this {singular} without merging its changes?", {
-              singular: changeRequestTerm(terminology.singular, t),
-            }),
-          );
+        if (selected === "close") action.confirmClose();
         else if (selected === "revert")
           action.confirm(
             selected,

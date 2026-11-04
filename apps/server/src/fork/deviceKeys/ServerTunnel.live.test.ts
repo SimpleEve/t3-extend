@@ -173,7 +173,7 @@ const openMainClient = Effect.fn("openMainClient")(function* (input: {
       Layer.provide(
         Socket.layerWebSocket(url, { openTimeout: "30 seconds", headers: input.headers }),
       ),
-      Layer.provide(NodeSocket.layerWebSocketConstructorWS),
+      Layer.provide(NodeSocket.layerWebSocketConstructor),
       Layer.provide(RpcSerialization.layerJson),
     ),
     scope,

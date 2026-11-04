@@ -4,6 +4,7 @@ import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { redemptionOf } from "@t3tools/shared/forkDeviceKeys/invite";
 import * as Clock from "effect/Clock";
@@ -22,7 +23,7 @@ import { FakeRegistry, layerFakeRegistry } from "./registryFake.testkit.ts";
 
 /** What a join leaves behind in a T3 home: the device key, membership, list and environment id. */
 const layerSeed = (baseDir: string) => {
-  const platform = NodeServices.layer;
+  const platform = Layer.mergeAll(NodeServices.layer, NodeCrypto.layer);
   const config = ServerConfig.ServerConfig.layerTest(process.cwd(), baseDir).pipe(
     Layer.provide(platform),
   );

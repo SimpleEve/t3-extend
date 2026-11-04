@@ -1313,4 +1313,13 @@ export default {
   "No transcript yet.": "暂时没有对话记录。",
   "{serverLabel} not updated": "{serverLabel} 未更新",
   "Repository name incomplete": "仓库名不完整",
+  "Starring…": "正在加星…",
+  "Thanks for the star!": "感谢你的 Star！",
+  "It really helps T3 Code grow.": "这对 T3 Code 的成长帮助很大。",
+  "Star on GitHub": "在 GitHub 上加星",
+  "Refresh {provider} provider status": "刷新 {provider} provider 状态",
+  "Refreshing...": "正在刷新…",
+  "Open this thread": "打开这个对话",
+  "It opens in T3 Extend if you're connected to the machine it runs on.":
+    "如果你已连接到它所在的机器，会在 T3 Extend 中打开。",
 } satisfies Record<string, string>;

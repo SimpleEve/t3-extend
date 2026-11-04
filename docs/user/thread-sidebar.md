@@ -5,8 +5,11 @@ need a separate branch and working directory.
 
 ## Start a thread
 
-On web and desktop, a new thread keeps the current project and carries your model
-and mode selections, unless the destination project has its own model default.
+On web and desktop, **New thread** opens the project picker when you have multiple
+projects in the default or project-grouped sidebar. The legacy sidebar always
+starts in the current project. **Shift-click** to start in
+the current project, or use a project's own new-thread action. A new thread carries
+your model and mode selections, unless the destination project has its own model default.
 Its branch and workspace mode come from your configured defaults. To continue in
 an existing worktree, use **New thread in this worktree** from the branch toolbar.
 
@@ -149,7 +152,8 @@ cannot drag or move threads within it. Your saved order returns when you turn it
 
 On web and desktop, use the view button beside the project filter at the top of the sidebar,
 or **Sidebar: Group by status** and **Sidebar: Group by project** in the command palette.
-Each device keeps its own choice.
+Each device keeps its own choice. **By project** is the same setting as **Settings → Labs →
+Boring sidebar (group by project)**, so changing either one changes the other.
 
 **By status** is the default list described above. **By project** puts active threads in a
 folder for each project, in your project order. When a project has threads in a worktree, its
@@ -160,7 +164,8 @@ name; a main checkout with neither is labeled **Main checkout**, and its icon di
 threads are all in its main checkout lists them directly. Click a folder or a checkout to close
 it; it shows how many threads it holds, and a dot when one of them needs you. The thread you have
 open stays visible. Pinned threads stay above the folders, and Snoozed and Settled stay below
-them. **New thread** starts in the current project. In this view you cannot drag threads, and
+them. **New thread** behaves as above: with several projects it opens the project picker, and
+Shift-click starts in the current project. In this view you cannot drag threads, and
 the Working section is off. The view lists
 worktrees that have threads; a worktree with no threads does not appear.
 
@@ -181,7 +186,9 @@ project's folder comes last and shows only while it has active threads. Click a 
 close it. A closed folder shows how many threads it holds, and a dot when one of them
 needs you. Use the pen button on a folder, or right-click it, to start a thread in that project.
 Pinned threads stay above the folders, and Snoozed and Settled stay below them. In this mode you
-cannot drag threads, and the Working section is off. Each device keeps its own choice.
+cannot drag threads, and the Working section is off. Each device keeps its own choice. The view
+button at the top of the sidebar switches it too, and in that view a project's folder also splits
+its threads by checkout, as described above.
 
 ## Settle finished work
 
@@ -254,9 +261,11 @@ palette.
 
 Use **Settings → Keybindings** to find or customize shortcuts for searching files
 and copying a thread reference. A copied reference uses the thread's pull request
-link when available, otherwise the thread itself, which pastes into a composer as
-a thread chip. To copy the thread even when it has a PR, choose **Copy → Thread**
-from its context menu, or **Copy thread** from its long-press menu on mobile.
+link when available, otherwise a link to the thread, which opens it from anywhere
+you paste it and pastes into a composer as a thread chip (see
+[sharing a thread](./prompt-links.md#share-a-thread)). To copy the thread even
+when it has a PR, choose **Copy → Thread** from its context menu, or **Copy
+thread** from its long-press menu on mobile.
 **Thread ID** copies the bare ID for scripts and the `t3` CLI. See
 [keybindings](./keybindings.md) for custom configuration.
 
