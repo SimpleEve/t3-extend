@@ -432,16 +432,20 @@ vp run i18n:report       # 上游改过的英文文案会列为 stale
 vp run check:changed
 ```
 
-最近一次同步到上游 `47f2c8d29e`（合并基点 `955e2bfbb5`，193 个 commit，55 个冲突文件）。这次同步里的取舍，下次遇到同类冲突照做：
+最近一次同步到上游 `322f6544df`（合并基点 `47f2c8d29e`，302 个 commit，41 个冲突文件）。这次同步里的取舍，下次遇到同类冲突照做：
 
-- 上游新增的受管策略（managed policy）按 `FORK.appId` 读 macOS 的 managed preferences（`packages/shared/src/managedPolicyFile.ts`），`/Library/Application Support/T3Code/policy.json` 等系统路径仍是上游的，fork 和官方共用同一份策略文件。
+- 受管策略（managed policy）：macOS 的 managed preferences 和描述文件模板按 `FORK.appId` / `FORK.appBaseName` 生成（`packages/shared/src/managedPolicyFile.ts`、`apps/server/src/policy/policyTemplates.ts`，后者有测试守着）。`/Library/Application Support/T3Code/policy.json` 和 Windows 的 `SOFTWARE\Policies\T3Tools\T3Code` 注册表路径仍是上游的，fork 和官方共用同一份策略；Windows 的 ADMX 模板同理。
 - `DesktopUpdates.hasUpdateFeed` 把受管镜像（`policy.feedUrl`）也算作更新源，否则管理员配了镜像、构建里却没有 `app-update.yml` 时，入口会被隐藏。
-- 上游测试里写死的 `t3code://` 改成 `FORK.scheme`；`threadExecution` 的单项后台任务标题跟随上游改成 `Running · {label}`，中文 key 同步改过。
-- mobile 的 `managedSettingReason` 保持英文输出，新增 `managedSettingOrganization` 供已翻译的屏幕使用。
+- 侧栏"按项目"仍建在上游的 Boring 侧栏上（`boringSidebarEnabled = useBoringSidebarEnabled() || sidebarViewMode === "project"`）。上游把 `sidebarTree.ts` 的 `role=tree` / `aria-level` 去掉了，fork 在这两处（`lib/sidebarTree.ts`、`shortcuts/chatRouteCommands.ts`）已经没有改动，`chat.new` 在项目视图里和 boring 一样走项目选择器，不再有 fork 分支。
+- 上游把 Android 的 `app.t3.codes` 链接 intentFilter 加进了 `app.config.ts`；fork 不采用（App Link 校验属于官方域名，装上只会抢官方 app 的链接）。iOS 的 `applinks:app.t3.codes` 保留上游的写法。
+- Effect 升到 4.1.2 后 `effect/Crypto` 拆成 `effect/crypto/Digest` 和 `effect/crypto/SecureRandom`；fork 的 `T3CodeImport`、`DeviceAssertionAuth` 和测试夹具都改用新服务，测试要用 `NodeCrypto.layer`（`@effect/platform-node/NodeCrypto`）。同一版本不再读 `X-Forwarded-Proto`，上游加了 `apps/server/src/requestUrl.ts`；server 里取请求 URL 一律走它，不要直接调 `HttpServerRequest.toURL`（隧道监听口的夹具也一样）。
+- 上游新增的测试经常写死官方标识（`t3code://`、`t3code.service`、默认端口 3773、Tailscale Serve 的默认端口）；换成 `FORK.scheme`、`FORK.bootServiceName`、`FORK.defaultPort`、`FORK.tailscaleServePort`。服务端新增清理原因要同步 `apps/web/src/fork/storageCleanupReasons.ts` 的模板表和 zh-Hans 目录，否则 `storageCleanupReasons.test.ts` 会报。`T3CodeImport.test.ts` 把源库固定在迁移 76（077 之前），不要写成"当前 head 减一"，上游每加迁移就会失效。
+- `vp i` 在 npmmirror 缺新包版本时会 404：用 `vp i -- --registry=https://registry.npmjs.org/`，只对这一条命令生效。`check:changed` 的默认基准是 `origin/main`，会把 `.repos` 上万个文件算进来、子进程报 `E2BIG`；同步后用上游那个 commit 当基准（`vp run check:changed 322f6544df`）。它的 "unused patches" 一步也要联网解析依赖，同样受镜像影响。
+- mobile 的 `managedSettingReason` 保持英文输出，新增 `managedSettingOrganization` 供已翻译的屏幕使用。上游重写的 PR 状态按钮和麦克风设置页，在新逻辑上重新套了 `t()`；上游删掉的文案（"Auto-merge is enabled"）同步从 catalog 删掉。
 
-native fingerprint 这次没有变（android `97cb060cd3…`、ios `95cb50c6af…`，和同步前的 main 逐位相同），不需要重编 dev client 或 release APK。
+native fingerprint 这次变了，dev client 和 release APK 都要重编：android `be22d2e60e70dedfaefe026e2e286ebd3fe638d3`（之前 `0ec7d60fc8b0b0c683dbe55e439f3561026cd873`，新增了上游的 `t3-voice-transcription` 原生模块、`expo-audio` 的 `recordAudioAndroid` 和麦克风权限文案），ios `86a2097b879654d5c7217577884627a2ff37f161`（之前 `85eaa1057713de7068e301ada56f906331a49f0a`，来自 `applinks:app.t3.codes` 和麦克风文案）。上一次文档里记的 `97cb…` / `95cb…` 已经过时，fork 之后又加过原生模块。
 
-上游已知问题的状态（同步后复核）：ZIP 预览按文本读取、Android 没有命令面板快捷键、webhook 投递"in under a minute"的措辞、`GuestPage.browser.test.tsx` 的 "follows the end…" 用例，四项都还在。后两项实际跑过或读过代码确认（措辞还在 `ScheduledTasksSettings.tsx`，GuestPage 用例在合并后仍失败，且它在原始上游上就失败）；前两项只核对了代码，上游对 ZIP 预览和 Android 命令面板没有相关改动，没有在设备上复测。另有七个测试在 macOS 上因 `/private/var` 符号链接和大小写不敏感的文件系统失败，在未合并的 `upstream/main` 上同样失败，不是 fork 引起的：`DesktopLinuxUrlHandler`（2）、`ServerEnvironment`、`GitVcsDriverCore`、`UsageService`（2）、`ClaudeSkills`。
+上游已知问题的状态：这次只确认了 `GuestPage.browser.test.tsx` 的 "follows the end…" 用例仍然失败（在原始上游上同样失败）；ZIP 预览按文本读取、Android 没有命令面板快捷键、webhook 投递"in under a minute"的措辞没有重新核对。macOS 上因 `/private/var` 符号链接和大小写不敏感文件系统失败的测试（`DesktopLinuxUrlHandler`（2）、`ServerEnvironment`、`GitVcsDriverCore` 的短目录用例、`UsageService`（2）、`ClaudeSkills`、`AgentSessionScanner` 的符号链接用例、`cli/invocation`（2）、`cli/app`（4）、`AcpAdapterV2` 的 native session forks 用例）在合并之前就已知失败，不是这次同步引起的；这次 `check:changed` 只跑了受改动影响的测试，其中见到失败的是前五项。
 
 要出包时，先看上游有没有改 `build-desktop-artifact.ts` 里的 `renderMacPasskeyEntitlements`（以及 electron-builder 的 mac 配置）。新增的不依赖 team 的 entitlements 要同步到 `packaging/fork-macos/`：hardened runtime 缺了 entitlements，app 往往一启动就崩，而 `codesign --verify` 检查不出来。`fork-dist-mac.ts` 还依赖 `--target dir` 的产物位置（`<output-dir>/mac-arm64/*.app`）。所以同步之后的第一次打包，要真正把 app 启动起来验证一遍。
 
