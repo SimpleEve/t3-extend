@@ -33,6 +33,7 @@
     "fork:fetch-frp": "node scripts/fork-fetch-frp.ts",
     "fork:guard": "node scripts/fork-identity-guard.ts",
     "fork:icons": "node scripts/fork-brand-icons.ts && node scripts/export-android-icons.ts",
+    "fork:loopback-gateway:electron-smoke": "node apps/desktop/scripts/loopback-gateway-smoke/run.mjs",
     "fork:selfhost:e2e": "node scripts/fork-selfhost-e2e.ts",
     "fork:selfhost:test": "node --test \"infra/self-host/registry/*.test.mjs\"",
     "i18n:report": "node scripts/i18n-report.ts",
