@@ -38,7 +38,7 @@
 
 脚本可以重复运行，不会重置已有的数据。换域名等于重新开始：先删掉 `.env` 和注册表的数据卷。
 
-**确认证书已经签好**：DNS 生效后，在任何一台电脑上运行 `curl -sS https://t3.example.com/v1/info`，返回一段包含 `registryId` 的 JSON 就说明 HTTPS 通了。如果报证书错误或连接超时，先确认两条 DNS 记录已经生效、80/443 从外网能访问，再看 `docker compose logs caddy`。每台电脑的子域名证书在第一次访问时才申请，只为已登记的名字申请。
+**确认证书已经签好**：DNS 生效后，在任何一台电脑上运行 `curl -sS https://t3.example.com/v1/info`，返回一段包含 `registryId` 的 JSON 就说明 HTTPS 通了。如果报证书错误或连接超时，先确认两条 DNS 记录已经生效、80/443 从外网能访问，再看 `docker compose logs caddy`（在这个目录里运行，原因见「日常运维」）。每台电脑的子域名证书在第一次访问时才申请，只为已登记的名字申请。
 
 ## 第一台电脑
 
@@ -67,13 +67,15 @@
 
 被移除电脑的子域名默认不再分配给别人。`./t3x release <子域名>` 只对已移除电脑留下的子域名有效，作用是让这个名字可以重新分配；对还在使用的子域名，或者从没用过的名字，它会报错并且什么也不做。
 
-**查看日志**：`docker compose logs registry caddy frps`。容器异常退出或卡死时会自动重启；Docker 开机自启的话，整套服务也会跟着起来。
+**直接敲 `docker compose` 时**：下面的 `docker compose …` 命令都要在这个目录（`infra/self-host`）里运行。`setup.sh` 把项目名和用到的 compose 文件写进了同目录的 `.env`（`COMPOSE_PROJECT_NAME`、`COMPOSE_FILE`），所以不用再带 `-p` 和 `-f`，操作的就是装好的那一套。如果安装时设过 `T3X_DATA_DIR`，每条命令还要加 `--env-file "$T3X_DATA_DIR/.env"`。换到别的目录运行，会报 `open …/docker-compose.yml: no such file or directory`，或者操作到另一个项目。
+
+**查看日志**：`docker compose logs registry caddy frps`（在这个目录里运行）。容器异常退出或卡死时会自动重启；Docker 开机自启的话，整套服务也会跟着起来。
 
 **升级**：更新这个目录的文件后重新运行 `./setup.sh`（参数同安装时），它会重新构建镜像并重启有变化的服务，数据保留。所有镜像都钉了版本和摘要，升级时 frps、Caddy、ntfy 和 registry 的基础镜像一起改。frps 的版本必须和电脑上 frpc 的版本一致（`packages/shared/src/forkFrp.ts` 里的 `FRP_VERSION`）。
 
 **备份**：要备份的是 `registry_data` 数据卷（设备公钥、邀请、子域名；默认项目名下叫 `t3x_registry_data`，用 `docker volume ls` 确认）和 `secrets/ntfy-phone.txt`。`caddy_data` 里是证书，丢了可以重新申请，但 Let's Encrypt 有申请频率限制。丢了 `registry_data` 等于所有设备都要重新加入。
 
-**卸载**：`docker compose --profile ntfy down -v` 会停掉服务并删除所有数据卷。想保留数据就不要加 `-v`。
+**卸载**：在这个目录里运行 `docker compose --profile ntfy down -v`，会停掉服务并删除所有数据卷。想保留数据就不要加 `-v`。
 
 ## 本地试用
 
@@ -96,7 +98,7 @@ export T3X_PROJECT=t3x-trial
 | `--public-port`     | 对外的 HTTPS 端口，只在试用模式下可以改，默认 443。                                     |
 | `--dry-run`         | 只打印会做什么，不写文件、不启动服务。                                                  |
 
-之后用 `./t3x` 时同样带上这三个环境变量。试用模式下邮箱可以不填。用完后清理：
+之后用 `./t3x` 时同样带上这三个环境变量。试用模式下邮箱可以不填。用完后清理，**在这个目录（`infra/self-host`）里运行**，因为 `-f` 的路径相对当前目录：
 
 ```
 docker compose -p t3x-trial -f docker-compose.yml -f docker-compose.test.yml --env-file /tmp/t3x-trial/.env --profile ntfy down -v

@@ -294,14 +294,14 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 
 ### 环境变量
 
-| 变量                                               | 作用                                                                                                                                                                                                                                                                   |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `T3X_FRPC_PATH`                                    | 用哪个 frpc。桌面后端设成 `<resourcesPath>/bin/frpc`（DMG 内置的那个）。文件和目录必须属于当前用户或 root、别人不可写，并且 `-v` 恰好输出钉住的版本。没通过检查的候选会被跳过，回落到 `<T3 home>/bin/frpc`（`t3x devices tunnel install` 写的就是这里）。从不查 PATH。 |
-| `T3X_FRP_BASE_URL`                                 | 下载 frpc 的镜像前缀（放同样的文件名）。只改字节从哪里来，SHA-256 照样校验。`tunnel install`、`fork-fetch-frp.ts`、打包脚本都认。                                                                                                                                      |
-| `T3X_TUNNEL_CA_FILE`                               | 让 frpc 额外信任一个 CA 文件（`transport.tls.trustedCaFile`）。只给本机试用和端到端用，对着 Caddy 自己的 CA。                                                                                                                                                          |
-| `T3X_TEST_TICKET_LIFETIME_SECONDS`                 | 仅测试：ticket 的寿命，1–86400 秒的整数，其他值一律用默认的 24 小时。注册表也拒绝 `exp - iat > 86400` 和 `iat` 超前当前时间 300 秒以上的 ticket。                                                                                                                      |
-| `T3X_DATA_DIR`、`T3X_COMPOSE_FILES`、`T3X_PROJECT` | `setup.sh` 和 `./t3x` 的本地试用开关，见 `infra/self-host/README.md`。                                                                                                                                                                                                 |
-| `T3CODE_PUBLIC_URLS`、`T3CODE_PUBLIC_URLS_FILE`    | 旧的公网地址方式。                                                                                                                                                                                                                                                     |
+| 变量                                               | 作用                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `T3X_FRPC_PATH`                                    | 用哪个 frpc。桌面后端设成 `<resourcesPath>/bin/frpc`（DMG 内置的那个）。文件和目录必须属于当前用户或 root、别人不可写，并且 `-v` 恰好输出钉住的版本。没通过检查的候选会被跳过，回落到 `<T3 home>/bin/frpc`（`t3x devices tunnel install` 写的就是这里）。从不查 PATH。                                    |
+| `T3X_FRP_BASE_URL`                                 | 下载 frpc 的镜像前缀（放同样的文件名）。只改字节从哪里来，SHA-256 照样校验。`tunnel install`、`fork-fetch-frp.ts`、打包脚本都认。                                                                                                                                                                         |
+| `T3X_TUNNEL_CA_FILE`                               | 让 frpc 额外信任一个 CA 文件（`transport.tls.trustedCaFile`）。只给本机试用和端到端用，对着 Caddy 自己的 CA。                                                                                                                                                                                             |
+| `T3X_TEST_TICKET_LIFETIME_SECONDS`                 | 仅测试：ticket 的寿命，1–86400 秒的整数，其他值一律用默认的 24 小时。注册表也拒绝 `exp - iat > 86400` 和 `iat` 超前当前时间 300 秒以上的 ticket。                                                                                                                                                         |
+| `T3X_DATA_DIR`、`T3X_COMPOSE_FILES`、`T3X_PROJECT` | `setup.sh` 和 `./t3x` 的本地试用开关，见 `infra/self-host/README.md`。`setup.sh` 把项目名和 compose 文件写进数据目录的 `.env`（`COMPOSE_PROJECT_NAME`、`COMPOSE_FILE`，文件路径相对 `infra/self-host`），所以在那个目录里直接运行 `docker compose …` 操作的就是装好的那一套；显式的 `-p`、`-f` 仍然优先。 |
+| `T3CODE_PUBLIC_URLS`、`T3CODE_PUBLIC_URLS_FILE`    | 旧的公网地址方式。                                                                                                                                                                                                                                                                                        |
 
 ### 测试
 
@@ -317,6 +317,7 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
   - `agent-browser` 附加到 Electron 的调试端口会让它卡住，改用 `--remote-debugging-pipe` 自己说 CDP。
   - 开发模式下切换"网络访问"会让 app 以退出码 75 退出（`DesktopLifecycle.ts` 的 relaunch），等外层的 dev 进程把它重新拉起，不是崩溃。
   - 桌面 dev 的内置 server 不注册 `Replay (dev)`，所以不能把默认模型换成它；端到端里不建对话就不会花钱。
+  - 开发版的桌面端没有 DMG 里内置的 frpc（只有打出来的包才有 `Contents/Resources/bin/frpc`）。照上面的步骤加入服务器后，这台电脑会显示"外网不可达"，server 日志报 `frpc was not found`。先给这台电脑的 T3 home 装一份：在 worktree 根目录运行 `node apps/server/src/bin.ts devices tunnel install --base-dir <这台电脑的 T3 home>`（下载有 SHA-256 校验；要走镜像就先设 `T3X_FRP_BASE_URL`），装好后隧道在下一次重试时自己连上。桌面后端会自己把 `T3X_FRPC_PATH` 设成 `<resourcesPath>/bin/frpc`，所以在启动 Electron 的环境里设这个变量没有用；没有 UI 的 server 才可以直接设 `T3X_FRPC_PATH`。
   - Docker 里的栈用 `*.t3.localhost`，渲染层需要 `--host-resolver-rules="MAP *.t3.localhost 127.0.0.1"`。
 
 ### 公网地址（Advanced）的实现要点
