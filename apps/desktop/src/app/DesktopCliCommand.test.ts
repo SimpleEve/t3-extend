@@ -25,6 +25,7 @@ const environmentFor = (
     baseDir: input.baseDir,
     stateDir: path.join(input.baseDir, "userdata"),
     serverRoot: "/opt/T3 Code/resources/app.asar",
+    resourcesPath: "/opt/T3 Code/resources", // fork: the shim reports the bundled frpc under it
     appImagePath: Option.none(),
   } as unknown as DesktopEnvironment.DesktopEnvironment["Service"]);
 
