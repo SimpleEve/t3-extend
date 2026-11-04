@@ -61,21 +61,32 @@ export const resolveLoopbackGatewayState = (input: LoopbackGatewayInputs): Loopb
   return input.disabledByUser ? { state: "disabled-by-user" } : ACTIVE;
 };
 
-/**
- * Whether a tab of the environment may create its webview now. One that will be forwarded waits for
- * the main process to know the environment, so a restored tab never loads this computer's own
- * `localhost` first. What is still unknown only holds a tab back while a connection is on its way.
- */
-export const isLoopbackGatewayReady = (input: {
+export interface LoopbackGatewayGateInput {
   readonly state: LoopbackGatewayState["state"];
   /** The environment is connecting or connected, so what is unknown may soon be known. */
   readonly connecting: boolean;
   readonly registration: "pending" | "registered" | "failed" | undefined;
-}): boolean => {
-  if (input.state === "unknown") return !input.connecting;
+  /** Forwarding was `active` for this environment the last time it was known (stored on this device). */
+  readonly wasActive: boolean;
+  readonly disabledByUser: boolean;
+}
+
+/**
+ * Whether a tab may create its webview now: a forwarded one waits for the main process to know the
+ * environment, so a restored tab never loads this computer's own `localhost` first. A formerly
+ * forwarding environment stays closed while unknown, reachable or not; others wait only while connecting.
+ */
+export const isLoopbackGatewayReady = (input: LoopbackGatewayGateInput): boolean => {
+  if (input.disabledByUser) return true;
+  if (input.state === "unknown") return input.wasActive ? false : !input.connecting;
   return (
     input.state !== "active" ||
     input.registration === "registered" ||
     input.registration === "failed"
   );
 };
+
+/** The tabs of a forwarded environment are held back until it can be reached, and the user has not said otherwise. */
+export const isLoopbackGatewayHeld = (
+  input: Pick<LoopbackGatewayGateInput, "state" | "wasActive" | "disabledByUser">,
+): boolean => input.state === "unknown" && input.wasActive && !input.disabledByUser;

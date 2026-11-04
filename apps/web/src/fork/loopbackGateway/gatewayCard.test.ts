@@ -86,6 +86,7 @@ describe("gateway card", () => {
       "forbidden",
       "limit",
       "reconnecting",
+      "waiting",
       "failed",
     ];
     expect(offered.filter((key) => !gatewayCardOffersMove(key))).toEqual([]);
@@ -139,6 +140,7 @@ describe("gateway card", () => {
             "discovery-disabled",
             "limit",
             "reconnecting",
+            "waiting",
             "failed",
           ] satisfies GatewayCardKey[]
         ).map((key) => [key, key]),

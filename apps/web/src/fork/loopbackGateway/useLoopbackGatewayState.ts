@@ -3,20 +3,14 @@
 // this and cannot disagree.
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { useState } from "react";
 
 import { reachesEnvironmentLoopback } from "~/browser/browserTargetResolver";
 import { useEnvironment } from "~/state/environments";
 import { environmentSession, usePreparedConnection } from "~/state/session";
 
 import { getLoopbackGatewayBridge } from "./bridge";
-import {
-  type LoopbackGatewayInputs,
-  isLoopbackGatewayReady,
-  resolveLoopbackGatewayState,
-} from "./gatewayState";
-import { useGatewayStore } from "./gatewayStore";
-import { useLoopbackForwardingDisabled } from "./disabledStore";
+import { type LoopbackGatewayInputs, resolveLoopbackGatewayState } from "./gatewayState";
+import { useLoopbackForwardingDisabled, useLoopbackWasActive } from "./disabledStore";
 import { issueLoopbackGatewayTicket } from "./ticketCommand";
 
 export function useLoopbackGatewayState(environmentId: EnvironmentId) {
@@ -29,6 +23,7 @@ export function useLoopbackGatewayState(environmentId: EnvironmentId) {
     (result) => result._tag !== "Initial",
   );
   const disabledByUser = useLoopbackForwardingDisabled(environmentId);
+  const wasActive = useLoopbackWasActive(environmentId);
 
   const capabilities =
     bridge === undefined ? undefined : environment?.serverConfig?.environment.capabilities;
@@ -54,25 +49,9 @@ export function useLoopbackGatewayState(environmentId: EnvironmentId) {
   return {
     inputs,
     state: resolveLoopbackGatewayState(inputs),
+    wasActive,
     connected: phase === "connected",
     /** The environment is on its way to a connection, so what is unknown may soon be known. */
     connecting: phase === "connecting" || phase === "reconnecting" || phase === "connected",
   };
-}
-
-/** True from the first render that sees `value` true, whatever `value` does after that. */
-export function useLatched(value: boolean): boolean {
-  const [latched, setLatched] = useState(false);
-  if (value && !latched) setLatched(true);
-  return latched || value;
-}
-
-/**
- * Whether a tab of this environment may create its webview (`isLoopbackGatewayReady`). Once open it
- * stays open: a dropped connection must not tear a page down.
- */
-export function useLoopbackGatewayReady(environmentId: EnvironmentId): boolean {
-  const { state, connecting } = useLoopbackGatewayState(environmentId);
-  const registration = useGatewayStore((store) => store.registration[environmentId]);
-  return useLatched(isLoopbackGatewayReady({ state: state.state, connecting, registration }));
 }

@@ -8,6 +8,7 @@ import { previewBridge } from "~/components/preview/previewBridge";
 import { useEnvironments } from "~/state/environments";
 
 import { getLoopbackGatewayBridge } from "./bridge";
+import { pruneLoopbackWasActive, setLoopbackWasActive } from "./disabledStore";
 import { type GatewayController, makeGatewayController } from "./gatewayController";
 import {
   forgetGatewayEnvironment,
@@ -39,7 +40,14 @@ export function LoopbackGatewayManager() {
           onTicketDelivered: noteGatewayTicketDelivered,
         }),
   );
-  const { environments } = useEnvironments();
+  const { environments, isReady } = useEnvironments();
+  const environmentIds = environments.map(({ environmentId }) => environmentId).join("\n");
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- forgets the stored forwarding state of environments that were removed, once the saved list is known
+  useEffect(() => {
+    if (isReady)
+      pruneLoopbackWasActive(new Set(environmentIds === "" ? [] : environmentIds.split("\n")));
+  }, [isReady, environmentIds]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- listens to the Electron main process's gateway events for as long as the app runs
   useEffect(() => {
@@ -97,6 +105,12 @@ function EnvironmentGateway(props: {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- publishes the derived state for code outside React, such as the URL resolver
   useEffect(() => {
     publishGatewayState(environmentId, state.state);
+    // What is stored is what the next start has to go on, so only a settled answer changes it: the
+    // user's own switch keeps it, and an environment that cannot forward is forgotten.
+    if (state.state === "active") setLoopbackWasActive(environmentId, true);
+    else if (state.state !== "unknown" && state.state !== "disabled-by-user") {
+      setLoopbackWasActive(environmentId, false);
+    }
   }, [environmentId, state.state]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- registers the environment with the Electron main process, which owns the proxy

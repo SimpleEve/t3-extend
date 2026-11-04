@@ -30,6 +30,8 @@ export default {
     "{environment} 上没有程序在监听 {port} 端口",
   "Start the service, then reload.": "启动服务后重新加载。",
   "Can't reach {environment}": "连不上 {environment}",
+  "This tab opens by itself once {environment} is connected.":
+    "{environment} 连上后，这个标签页会自动打开。",
   "Check its connection, then reload.": "检查连接后重新加载。",
   "This connection isn't allowed to forward localhost": "这个连接没有转发 localhost 的权限",
   "It needs the preview and terminal permissions.": "需要预览和终端两项权限。",

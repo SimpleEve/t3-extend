@@ -15,6 +15,8 @@ import {
   gatewayCardPort,
   type GatewayCardKey,
 } from "./gatewayCard";
+import { setLoopbackForwardingDisabled, useLoopbackForwardingDisabled } from "./disabledStore";
+import { isLoopbackGatewayHeld } from "./gatewayState";
 import { selectGatewayDenial, useGatewayStore } from "./gatewayStore";
 import { useLoopbackGatewayState } from "./useLoopbackGatewayState";
 
@@ -42,14 +44,20 @@ export interface LoopbackGatewayTabProps {
 export function LoopbackGatewayCard(props: LoopbackGatewayTabProps) {
   const { environmentId, environmentLabel, runtimeTabId, url, loadFailed, onReload, move } = props;
   const t = useT();
-  const { state } = useLoopbackGatewayState(environmentId);
+  const { state, wasActive, connecting } = useLoopbackGatewayState(environmentId);
+  const disabledByUser = useLoopbackForwardingDisabled(environmentId);
+  // The webview is not there yet, so this tab shows nothing of its own: say why, and offer the way out.
+  const held = isLoopbackGatewayHeld({ state: state.state, wasActive, disabledByUser });
   const port = gatewayCardPort(url);
   const loopback = isLoopbackUrl(url);
   const denial = useGatewayStore((store) =>
     loopback ? selectGatewayDenial(store, { runtimeTabId, environmentId, port, loadFailed }) : null,
   );
-  const key: GatewayCardKey | null =
-    denial !== null
+  const key: GatewayCardKey | null = held
+    ? connecting
+      ? null
+      : "waiting"
+    : denial !== null
       ? gatewayCardKeyForCode(denial.code)
       : loadFailed && loopback
         ? gatewayCardKeyForState(state)
@@ -76,10 +84,19 @@ export function LoopbackGatewayCard(props: LoopbackGatewayTabProps) {
       <PreviewUnreachable
         url={url}
         code={0}
-        description={denial?.code ?? key}
+        description={held ? key : (denial?.code ?? key)}
         onReload={onReload}
         gateway={copy}
-        {...(move !== undefined && gatewayCardOffersMove(key) ? { move } : {})}
+        {...(key === "waiting"
+          ? {
+              move: {
+                label: t("Stop forwarding and use this computer's localhost"),
+                onMove: () => setLoopbackForwardingDisabled(environmentId, true),
+              },
+            }
+          : move !== undefined && gatewayCardOffersMove(key)
+            ? { move }
+            : {})}
       />
     </div>
   );

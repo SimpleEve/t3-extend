@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  isLoopbackGatewayHeld,
   isLoopbackGatewayReady,
   type LoopbackGatewayInputs,
   type LoopbackGatewayState,
@@ -140,54 +141,93 @@ describe("loopback gateway state", () => {
 
 describe("loopback gateway ready", () => {
   type Input = Parameters<typeof isLoopbackGatewayReady>[0];
-  const rows: ReadonlyArray<readonly [string, Input, boolean]> = [
-    [
-      "forwarded, not registered yet",
-      { state: "active", connecting: true, registration: "pending" },
-      false,
-    ],
-    [
-      "forwarded, manager has not seen it yet",
-      { state: "active", connecting: true, registration: undefined },
-      false,
-    ],
-    [
-      "forwarded and registered",
-      { state: "active", connecting: true, registration: "registered" },
-      true,
-    ],
-    [
-      "forwarded, registration failed",
-      { state: "active", connecting: true, registration: "failed" },
-      true,
-    ],
-    [
-      "unknown while connecting",
-      { state: "unknown", connecting: true, registration: undefined },
-      false,
-    ],
+  const base: Input = {
+    state: "active",
+    connecting: true,
+    registration: "registered",
+    wasActive: false,
+    disabledByUser: false,
+  };
+  const rows: ReadonlyArray<readonly [string, Partial<Input>, boolean]> = [
+    ["forwarded, not registered yet", { registration: "pending" }, false],
+    ["forwarded, manager has not seen it yet", { registration: undefined }, false],
+    ["forwarded and registered", {}, true],
+    ["forwarded, registration failed", { registration: "failed" }, true],
+    ["unknown while connecting", { state: "unknown", registration: undefined }, false],
     [
       "unknown, nothing connecting",
       { state: "unknown", connecting: false, registration: undefined },
       true,
     ],
-    [
-      "stopped by the user",
-      { state: "disabled-by-user", connecting: true, registration: undefined },
-      true,
-    ],
-    [
-      "plain route",
-      { state: "unsupported-route", connecting: true, registration: undefined },
-      true,
-    ],
+    ["stopped by the user", { state: "disabled-by-user", registration: undefined }, true],
+    ["plain route", { state: "unsupported-route", registration: undefined }, true],
     [
       "this computer's own server",
       { state: "not-applicable", connecting: false, registration: undefined },
       true,
     ],
+    // An environment that was forwarding does not open its tabs on this computer's localhost.
+    [
+      "was forwarding, unknown while connecting",
+      { state: "unknown", wasActive: true, registration: undefined },
+      false,
+    ],
+    [
+      "was forwarding, unknown and unreachable",
+      { state: "unknown", wasActive: true, connecting: false, registration: undefined },
+      false,
+    ],
+    ["was forwarding, now known to forward", { wasActive: true, registration: "pending" }, false],
+    ["was forwarding, now registered", { wasActive: true }, true],
+    [
+      "was forwarding, now known not to",
+      { state: "unsupported-server", wasActive: true, registration: undefined },
+      true,
+    ],
+    [
+      "was forwarding, now no permission",
+      { state: "no-permission", wasActive: true, registration: undefined },
+      true,
+    ],
+    [
+      "was forwarding, stopped by the user",
+      { state: "disabled-by-user", wasActive: true, registration: undefined },
+      true,
+    ],
+    // The user's own switch opens the tab even while the state is still unknown.
+    [
+      "was forwarding, unreachable, user switched off",
+      {
+        state: "unknown",
+        wasActive: true,
+        connecting: false,
+        disabledByUser: true,
+        registration: undefined,
+      },
+      true,
+    ],
   ];
-  it.each(rows)("%s", (_name, input, expected) => {
-    expect(isLoopbackGatewayReady(input)).toBe(expected);
+  it.each(rows)("%s", (_name, overrides, expected) => {
+    expect(isLoopbackGatewayReady({ ...base, ...overrides })).toBe(expected);
+  });
+
+  const held: ReadonlyArray<
+    readonly [string, Parameters<typeof isLoopbackGatewayHeld>[0], boolean]
+  > = [
+    ["unknown, was forwarding", { state: "unknown", wasActive: true, disabledByUser: false }, true],
+    [
+      "unknown, never forwarded",
+      { state: "unknown", wasActive: false, disabledByUser: false },
+      false,
+    ],
+    [
+      "unknown, user switched off",
+      { state: "unknown", wasActive: true, disabledByUser: true },
+      false,
+    ],
+    ["known", { state: "active", wasActive: true, disabledByUser: false }, false],
+  ];
+  it.each(held)("held: %s", (_name, input, expected) => {
+    expect(isLoopbackGatewayHeld(input)).toBe(expected);
   });
 });

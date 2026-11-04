@@ -6,6 +6,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { PreviewUnreachable } from "~/components/preview/PreviewUnreachable";
 
 import { render } from "../../../test/render";
+import { useGatewayStorage } from "./disabledStore";
 import type { LoopbackGatewayState } from "./gatewayState";
 import {
   noteGatewayDenied,
@@ -14,16 +15,20 @@ import {
   useGatewayStore,
 } from "./gatewayStore";
 
-const mocks = vi.hoisted(() => ({ state: { state: "active" } as { state: string } }));
+const mocks = vi.hoisted(() => ({
+  state: { state: "active" } as { state: string },
+  wasActive: false,
+  connecting: true,
+}));
 
 vi.mock(import("./useLoopbackGatewayState"), () => ({
   useLoopbackGatewayState: () => ({
     inputs: {} as never,
     state: mocks.state as LoopbackGatewayState,
     connected: true,
-    connecting: true,
+    connecting: mocks.connecting,
+    wasActive: mocks.wasActive,
   }),
-  useLoopbackGatewayReady: () => true,
 }));
 
 import { LoopbackGatewayCard } from "./LoopbackGatewayCard";
@@ -33,6 +38,9 @@ const TAB = "tab-1";
 
 function setup(state: Record<string, unknown> = { state: "active" }) {
   mocks.state = state as { state: string };
+  mocks.wasActive = false;
+  mocks.connecting = true;
+  useGatewayStorage.setState({ disabled: [], wasActive: [] });
   useGatewayStore.setState({
     seq: 0,
     tabs: {},

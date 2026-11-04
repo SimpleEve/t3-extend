@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { render } from "../../../test/render";
-import { useLatched } from "./useLoopbackGatewayState";
+import { useLatched } from "./useLoopbackGatewayReady";
 
 function Probe(props: { readonly value: boolean }) {
   return <p>{useLatched(props.value) ? "open" : "closed"}</p>;

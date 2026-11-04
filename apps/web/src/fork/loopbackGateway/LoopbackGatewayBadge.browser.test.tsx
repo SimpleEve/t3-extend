@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 
 import { render } from "../../../test/render";
-import { useDisabledGatewayStore, useLoopbackForwardingDisabled } from "./disabledStore";
+import { useGatewayStorage, useLoopbackForwardingDisabled } from "./disabledStore";
 import type { LoopbackGatewayState } from "./gatewayState";
 
 const mocks = vi.hoisted(() => ({ otherwise: "active" as string }));
@@ -20,7 +20,6 @@ vi.mock(import("./useLoopbackGatewayState"), () => ({
     ) as LoopbackGatewayState;
     return { inputs: {} as never, state, connected: true, connecting: true };
   },
-  useLoopbackGatewayReady: () => true,
 }));
 
 import { LoopbackGatewayBadge } from "./LoopbackGatewayBadge";
@@ -29,7 +28,7 @@ const ENV = "env-studio" as EnvironmentId;
 
 function setup(otherwise = "active") {
   mocks.otherwise = otherwise;
-  useDisabledGatewayStore.setState({ disabled: [] });
+  useGatewayStorage.setState({ disabled: [], wasActive: [] });
   window.localStorage.clear();
 }
 
@@ -67,10 +66,10 @@ describe("loopback gateway badge", () => {
       page.getByRole("menuitem", { name: "Stop forwarding and use this computer's localhost" }),
     );
 
-    expect(useDisabledGatewayStore.getState().disabled).toEqual([ENV]);
+    expect(useGatewayStorage.getState().disabled).toEqual([ENV]);
     expect(
       JSON.parse(window.localStorage.getItem("t3extend:loopback-gateway:v1") ?? "null"),
-    ).toEqual({ disabled: [ENV] });
+    ).toEqual({ disabled: [ENV], wasActive: [] });
 
     // The mark does not disappear: it is the only way back.
     const stopped = screen.getByRole("button", {
@@ -87,7 +86,7 @@ describe("loopback gateway badge", () => {
     expect(page.getByRole("menuitem", { name: "Open in Studio's browser" }).elements()).toEqual([]);
     await userEvent.click(page.getByRole("menuitem", { name: "Resume forwarding" }));
 
-    expect(useDisabledGatewayStore.getState().disabled).toEqual([]);
+    expect(useGatewayStorage.getState().disabled).toEqual([]);
     await expect
       .element(screen.getByRole("button", { name: "localhost is forwarded to Studio" }))
       .toBeVisible();

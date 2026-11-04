@@ -22,6 +22,8 @@ export type GatewayCardKey =
   | "discovery-disabled"
   | "limit"
   | "reconnecting"
+  /** A restored tab of an environment that was forwarding, held back until it can be reached. */
+  | "waiting"
   | "failed";
 
 /** The card for a refusal the main process reported. */
@@ -187,6 +189,13 @@ export const describeGatewayCard = (
       return {
         title: t("Too many forwarded connections"),
         description: t("Reload in a moment to try again."),
+      };
+    case "waiting":
+      return {
+        title: t("Can't reach {environment}", { environment }),
+        description: t("This tab opens by itself once {environment} is connected.", {
+          environment,
+        }),
       };
     case "reconnecting":
       return {

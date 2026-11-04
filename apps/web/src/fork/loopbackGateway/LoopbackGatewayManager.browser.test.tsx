@@ -30,7 +30,6 @@ vi.mock(import("~/components/preview/previewBridge"), () => ({
 
 vi.mock(import("./useLoopbackGatewayState"), () => ({
   useLoopbackGatewayState: () => mocks.snapshot as never,
-  useLoopbackGatewayReady: () => true,
 }));
 
 vi.mock(import("./ticketCommand"), () => ({
@@ -50,6 +49,7 @@ function setup(input: {
   readonly httpBaseUrl?: string;
   readonly connected?: boolean;
 }) {
+  mocks.stateListener = null;
   mocks.snapshot = {
     state: input.state,
     inputs: {
@@ -94,9 +94,9 @@ function setup(input: {
 
 describe("loopback gateway manager", () => {
   it("registers a forwarded environment, hands over its ticket, and lets go when it is removed", async () => {
+    using gateway = setup({ state: { state: "active" } });
     let clock = 1_000_000;
     using _now = vi.spyOn(Date, "now").mockImplementation(() => clock);
-    using gateway = setup({ state: { state: "active" } });
     await using screen = await render(<LoopbackGatewayManager />, { router: false });
 
     await vi.waitFor(() => expect(gateway.bridge.updateTicket).toHaveBeenCalledOnce());

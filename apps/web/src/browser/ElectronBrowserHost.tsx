@@ -28,7 +28,7 @@ import { readPreviewAnnotationTheme } from "./annotationTheme";
 import { useBrowserDefaults } from "./browserDefaults";
 import { useBrowserPointerStore } from "./browserPointerStore";
 import { HostedBrowserWebview } from "./HostedBrowserWebview";
-import { useLoopbackGatewayReady } from "~/fork/loopbackGateway/useLoopbackGatewayState"; // fork: loopback gateway
+import { useLoopbackGatewayReady } from "~/fork/loopbackGateway/useLoopbackGatewayReady"; // fork: loopback gateway
 import { openUrlInPreview } from "./openFileInPreview";
 import { rendersServerTabNatively } from "./previewRuntime";
 import { previewRuntimeTabId } from "./previewRuntimeTabId";

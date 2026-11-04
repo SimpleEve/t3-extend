@@ -97,15 +97,16 @@ export function PreviewUnreachable({ url, code, description, onReload, move, gat
         </div>
 
         <div className="mt-auto flex items-center gap-2 pt-8">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            hidden={gateway !== undefined}
-            onClick={() => setShowDetails((value) => !value)}
-          >
-            {showDetails ? t("Hide details") : t("Details")}
-          </Button>
+          {gateway ? null : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDetails((value) => !value)}
+            >
+              {showDetails ? t("Hide details") : t("Details")}
+            </Button>
+          )}
           <div className="flex-1" />
           {move ? (
             <Button type="button" variant="outline" size="sm" onClick={move.onMove}>
