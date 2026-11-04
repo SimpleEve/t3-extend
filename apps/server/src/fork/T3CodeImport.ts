@@ -27,7 +27,8 @@ import { officialHomeDirectory } from "@t3tools/shared/forkIdentity";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
-import * as Crypto from "effect/Crypto";
+import * as Digest from "effect/crypto/Digest";
+import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -189,7 +190,8 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   const config = yield* ServerConfig.ServerConfig;
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const crypto = yield* Crypto.Crypto;
+  const digestService = yield* Digest.Digest;
+  const random = yield* SecureRandom.SecureRandom;
   const eventStore = yield* OrchestrationEventStore.OrchestrationEventStore;
   const git = yield* GitVcsDriver.GitVcsDriver;
   const settingsService = yield* ServerSettings.ServerSettingsService;
@@ -206,8 +208,8 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
 
   const targetId = Effect.fn("T3CodeImport.targetId")(function* (kind: string, sourceId: string) {
-    const digest = yield* crypto
-      .digest("SHA-256", new TextEncoder().encode(`t3x-import|${kind}|${sourceId}`))
+    const digest = yield* digestService
+      .digest(Digest.sha256, new TextEncoder().encode(`t3x-import|${kind}|${sourceId}`))
       .pipe(Effect.orDie);
     return uuidFromDigest(digest);
   });
@@ -1104,7 +1106,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         const newRef = yield* checkpointRefForScopeOrdinal({
           scopeId: input.rewrite(payload.scopeId) as never,
           ordinalWithinScope: payload.ordinalWithinScope,
-        }).pipe(Effect.provideService(Crypto.Crypto, crypto));
+        }).pipe(Effect.provideService(Digest.Digest, digestService));
         let repo: string | undefined;
         for (const candidate of [row.cwd, projectRoot]) {
           if (typeof candidate === "string" && (yield* exist(candidate))) {
@@ -1537,7 +1539,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         const modelSelection = yield* decode(ModelSelection, row.model_selection_json);
         // The official secret is not carried over: the URL changes anyway, so the sender is updated either way.
         if (schedule.type === "webhook" && schedule.signature != null) {
-          signingSecret = Buffer.from(yield* crypto.randomBytes(32)).toString("base64url");
+          signingSecret = Buffer.from(yield* random.randomBytes(32)).toString("base64url");
         }
         return yield* scheduledTasks.upsert({
           id,
@@ -1602,9 +1604,9 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       // The credential belongs to its provider instance and travels only with it.
       const driver = String((instance.config as { driver?: unknown }).driver ?? "");
       for (const namespace of [driver, "codex-chatgpt", "codex-chatgpt-registration"]) {
-        const digest = yield* crypto
+        const digest = yield* digestService
           .digest(
-            "SHA-256",
+            Digest.sha256,
             new TextEncoder().encode(`${namespace.length}:${namespace}${instance.id}`),
           )
           .pipe(Effect.orDie);

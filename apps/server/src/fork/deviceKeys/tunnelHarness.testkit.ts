@@ -5,6 +5,7 @@ import * as NodeCrypto from "node:crypto";
 import * as NodeHttp from "node:http";
 
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
+import * as NodePlatformCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { EnvironmentHttpApi } from "@t3tools/contracts";
 import { computeDpopAccessTokenHash, computeDpopJwkThumbprint } from "@t3tools/shared/dpop";
@@ -249,7 +250,7 @@ export const layerHarness = Layer.unwrap(
     );
 
     const layerPlatform = HttpPlatform.layer.pipe(
-      Layer.provideMerge(NodeServices.layer),
+      Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer)),
       Layer.provideMerge(Etag.layerWeak),
     );
     const layerMainServer = NodeHttpServer.layer(() => NodeHttp.createServer(), {

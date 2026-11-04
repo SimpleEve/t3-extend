@@ -317,6 +317,7 @@ describe("DirectEndpoints Tailscale Serve", () => {
             Layer.mergeAll(
               layerServeConfig("192.168.1.10"),
               layerTailscaleUp,
+              PublicUrls.layerStatic([]), // fork: self-hosted public route
               Layer.succeed(
                 HttpClient.HttpClient,
                 HttpClient.make((request) =>

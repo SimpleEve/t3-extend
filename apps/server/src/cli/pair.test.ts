@@ -144,7 +144,7 @@ describe("t3 pair", () => {
                 );
                 expect(descriptor).toEqual(testDescriptor);
                 serving = true;
-                serveArgs = command.args;
+                serveArgs = command.args.map(String);
               }
               return ChildProcessSpawner.makeHandle({
                 pid: ChildProcessSpawner.ProcessId(1),

@@ -1,4 +1,5 @@
 // fork: the real Git driver, and so the real removal guard, over a spawner that only records what Git is asked to do.
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
@@ -85,7 +86,7 @@ export const makeGuardedRemoveWorktree = Effect.fn("SharedWorktrees.testkit.make
       options.baseDir ?? { prefix: "t3-guarded-remove-" },
     ).pipe(
       Layer.build,
-      Effect.provide(NodeServices.layer),
+      Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
       Effect.map((context) => Context.get(context, ServerConfig.ServerConfig)),
     );
     const { policy, sql } = yield* makeLivePolicy({
@@ -107,7 +108,7 @@ export const makeGuardedRemoveWorktree = Effect.fn("SharedWorktrees.testkit.make
       Layer.provide(Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, spawner)),
       Layer.provide(Layer.succeed(ServerConfig.ServerConfig, config)),
       Layer.provide(Layer.succeed(SharedWorktrees.SharedWorktreePolicy, policy)),
-      Layer.provide(NodeServices.layer),
+      Layer.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
       Layer.build,
     );
     const driver = Context.get(context, GitVcsDriver.GitVcsDriver);

@@ -21,7 +21,7 @@ import {
 } from "@t3tools/shared/forkDeviceKeys/assertion";
 import { ProofError } from "@t3tools/shared/forkDeviceKeys/jws";
 import { encodeOAuthScope, parseOAuthScope } from "@t3tools/shared/oauthScope";
-import * as Crypto from "effect/Crypto";
+import * as Digest from "effect/crypto/Digest";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Base64Url from "effect/encoding/Base64Url";
@@ -130,12 +130,12 @@ const make = Effect.gen(function* () {
   const directory = yield* DeviceDirectory.DeviceDirectory;
   const sessions = yield* SessionStore.SessionStore;
   const secrets = yield* ServerSecretStore.ServerSecretStore;
-  const crypto = yield* Crypto.Crypto;
+  const digestService = yield* Digest.Digest;
   const environment = yield* ServerEnvironment.ServerEnvironmentIdentity;
   const environmentId = yield* environment.getEnvironmentId;
 
   const markerName = (kid: string, jti: string) =>
-    crypto.digest("SHA-256", new TextEncoder().encode(`${kid}:${jti}`)).pipe(
+    digestService.digest(Digest.sha256, new TextEncoder().encode(`${kid}:${jti}`)).pipe(
       Effect.map((digest) => `${T3X_ASSERTION_MARKER_PREFIX}${Base64Url.encode(digest)}`),
       Effect.orDie,
     );
@@ -204,7 +204,7 @@ const make = Effect.gen(function* () {
     // Step 5: the DPoP proof for the key the pass names; `/oauth/token`'s own function.
     yield* verifyRequestDpopProof({ request, expectedThumbprint: claims.jkt }).pipe(
       Effect.provideService(ServerSecretStore.ServerSecretStore, secrets),
-      Effect.provideService(Crypto.Crypto, crypto),
+      Effect.provideService(Digest.Digest, digestService),
       Effect.catchIf(EnvironmentAuth.isServerAuthCredentialError, (error) => {
         const dpopReason = EnvironmentAuth.serverAuthDpopFailureReason(error);
         return appendDpopChallengeHeader.pipe(

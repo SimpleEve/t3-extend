@@ -1,6 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off -- The test generates a receiver key pair.
 import * as NodeCrypto from "node:crypto";
 
+import * as NodePlatformCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import { AuthSessionId } from "@t3tools/contracts";
@@ -17,7 +18,7 @@ const layer = ServerSecretStore.layer.pipe(
   Layer.provideMerge(
     ServerConfigModule.layerTest(process.cwd(), { prefix: "t3-push-store-test-" }),
   ),
-  Layer.provideMerge(NodeServices.layer),
+  Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer)),
 );
 
 it.effect("keeps registrations in a private file that survives a restart", () =>

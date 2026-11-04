@@ -11,7 +11,7 @@ import {
 } from "@t3tools/contracts";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import * as Context from "effect/Context";
-import * as Crypto from "effect/Crypto";
+import * as Digest from "effect/crypto/Digest";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
@@ -121,7 +121,6 @@ const createSourceHome = Effect.fn("createSourceHome")(function* (
 ) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const crypto = yield* Crypto.Crypto;
   const stateDir = path.join(home, "userdata");
   const databasePath = path.join(stateDir, "statev2.sqlite");
   yield* fs.makeDirectory(path.join(stateDir, "attachments"), { recursive: true });
@@ -164,7 +163,6 @@ const createSourceHome = Effect.fn("createSourceHome")(function* (
     ordinalWithinScope: 0,
   });
   git(repo, ["update-ref", colonRef, "HEAD"]);
-  void crypto;
 
   yield* withDatabase(
     databasePath,
@@ -545,8 +543,8 @@ const runToEnd = (
 const hashFile = (file: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
-    const crypto = yield* Crypto.Crypto;
-    const digest = yield* crypto.digest("SHA-256", yield* fs.readFile(file)).pipe(Effect.orDie);
+    const crypto = yield* Digest.Digest;
+    const digest = yield* crypto.digest(Digest.sha256, yield* fs.readFile(file)).pipe(Effect.orDie);
     return Array.from(digest).join(",");
   });
 
@@ -983,9 +981,9 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
     () =>
       withService({}, ({ service, sql, repo }) =>
         Effect.gen(function* () {
-          const crypto = yield* Crypto.Crypto;
+          const crypto = yield* Digest.Digest;
           const digest = yield* crypto
-            .digest("SHA-256", new TextEncoder().encode(`t3x-import|thread|${T_STOPPED}`))
+            .digest(Digest.sha256, new TextEncoder().encode(`t3x-import|thread|${T_STOPPED}`))
             .pipe(Effect.orDie);
           const targetThread = uuidFromDigest(digest);
           const targetRef = yield* checkpointRefForScopeOrdinal({
@@ -1041,9 +1039,9 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
   it.effect("shows a ref that would conflict in the review step, without writing anything", () =>
     withService({}, ({ service, sql, sourcePath, repo }) =>
       Effect.gen(function* () {
-        const crypto = yield* Crypto.Crypto;
+        const crypto = yield* Digest.Digest;
         const digest = yield* crypto
-          .digest("SHA-256", new TextEncoder().encode(`t3x-import|thread|${T_STOPPED}`))
+          .digest(Digest.sha256, new TextEncoder().encode(`t3x-import|thread|${T_STOPPED}`))
           .pipe(Effect.orDie);
         const targetRef = yield* checkpointRefForScopeOrdinal({
           scopeId: oldScopeId.replace(T_STOPPED, uuidFromDigest(digest)) as never,
@@ -1197,9 +1195,9 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
   it.effect("treats a ref that already holds the same commit as copied", () =>
     withService({}, ({ service, repo }) =>
       Effect.gen(function* () {
-        const crypto = yield* Crypto.Crypto;
+        const crypto = yield* Digest.Digest;
         const digest = yield* crypto
-          .digest("SHA-256", new TextEncoder().encode(`t3x-import|thread|${T_STOPPED}`))
+          .digest(Digest.sha256, new TextEncoder().encode(`t3x-import|thread|${T_STOPPED}`))
           .pipe(Effect.orDie);
         const targetRef = yield* checkpointRefForScopeOrdinal({
           scopeId: oldScopeId.replace(T_STOPPED, uuidFromDigest(digest)) as never,

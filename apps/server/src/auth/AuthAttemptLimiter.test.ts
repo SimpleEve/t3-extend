@@ -1,3 +1,4 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
   AuthAccessTokenType,
@@ -7,7 +8,7 @@ import {
 } from "@t3tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Context from "effect/Context";
-import * as Crypto from "effect/Crypto";
+import * as Digest from "effect/crypto/Digest";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -164,11 +165,11 @@ const layerRoutes = HttpApiBuilder.layer(AuthTestApi).pipe(
   Layer.provide(layerConfig),
   Layer.provideMerge(
     HttpPlatform.layer.pipe(
-      Layer.provideMerge(NodeServices.layer),
+      Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
       Layer.provideMerge(Etag.layerWeak),
     ),
   ),
-  Layer.provide(NodeServices.layer),
+  Layer.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
 );
 
 const tokenExchange = (subjectToken: string, client: string | undefined, scope?: string) =>
@@ -232,8 +233,8 @@ describe("AuthAttemptLimiter middleware", () => {
 
   it.effect("answers 429 after rejected codes without touching other auth routes", () =>
     Effect.gen(function* () {
-      const crypto = yield* Crypto.Crypto;
-      const context = Context.make(Crypto.Crypto, crypto).pipe(
+      const digest = yield* Digest.Digest;
+      const context = Context.make(Digest.Digest, digest).pipe(
         Context.add(
           ServerSecretStore.ServerSecretStore,
           ServerSecretStore.ServerSecretStore.of({
@@ -298,6 +299,6 @@ describe("AuthAttemptLimiter middleware", () => {
           }),
         (web) => Effect.promise(() => web.dispose()),
       );
-    }).pipe(Effect.provide(NodeServices.layer)),
+    }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
 });
