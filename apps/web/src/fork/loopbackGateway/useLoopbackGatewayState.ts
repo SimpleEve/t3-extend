@@ -60,6 +60,13 @@ export function useLoopbackGatewayState(environmentId: EnvironmentId) {
   };
 }
 
+/** True from the first render that sees `value` true, whatever `value` does after that. */
+export function useLatched(value: boolean): boolean {
+  const [latched, setLatched] = useState(false);
+  if (value && !latched) setLatched(true);
+  return latched || value;
+}
+
 /**
  * Whether a tab of this environment may create its webview (`isLoopbackGatewayReady`). Once open it
  * stays open: a dropped connection must not tear a page down.
@@ -67,8 +74,5 @@ export function useLoopbackGatewayState(environmentId: EnvironmentId) {
 export function useLoopbackGatewayReady(environmentId: EnvironmentId): boolean {
   const { state, connecting } = useLoopbackGatewayState(environmentId);
   const registration = useGatewayStore((store) => store.registration[environmentId]);
-  const [opened, setOpened] = useState(false);
-  const ready = isLoopbackGatewayReady({ state: state.state, connecting, registration });
-  if (ready && !opened) setOpened(true);
-  return opened || ready;
+  return useLatched(isLoopbackGatewayReady({ state: state.state, connecting, registration }));
 }

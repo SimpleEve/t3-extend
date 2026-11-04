@@ -94,6 +94,8 @@ function setup(input: {
 
 describe("loopback gateway manager", () => {
   it("registers a forwarded environment, hands over its ticket, and lets go when it is removed", async () => {
+    let clock = 1_000_000;
+    using _now = vi.spyOn(Date, "now").mockImplementation(() => clock);
     using gateway = setup({ state: { state: "active" } });
     await using screen = await render(<LoopbackGatewayManager />, { router: false });
 
@@ -111,10 +113,12 @@ describe("loopback gateway manager", () => {
     expect(useGatewayStore.getState().states[ENV]).toBe("active");
     expect(useGatewayStore.getState().ticketGeneration[ENV]).toBe(1);
 
-    // The main process asking right after a delivery is answered by that delivery, not by another.
+    // The main process asks again once the minimum interval has passed: that is a new fetch.
+    clock += 3_001;
     gateway.emit({ type: "ticket-needed", environmentId: ENV });
+    await vi.waitFor(() => expect(gateway.bridge.updateTicket).toHaveBeenCalledTimes(2));
+    expect(useGatewayStore.getState().ticketGeneration[ENV]).toBe(2);
     await screen.unmount();
-    expect(gateway.bridge.updateTicket).toHaveBeenCalledOnce();
     await vi.waitFor(() =>
       expect(gateway.bridge.unregister).toHaveBeenCalledWith({ environmentId: ENV }),
     );

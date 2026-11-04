@@ -181,6 +181,13 @@ describe("loopback gateway card", () => {
     expect(screen.container.querySelector("h1")).toBeNull();
   });
 
+  it("shows a refusal only for a page on localhost", async () => {
+    setup();
+    denied("not-owned");
+    await using screen = await render(card({ url: "https://example.com/" }), { router: false });
+    expect(screen.container.querySelector("h1")).toBeNull();
+  });
+
   it("forgets a refusal when the page is loaded again", async () => {
     setup();
     denied("not-owned");
