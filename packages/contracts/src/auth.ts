@@ -250,7 +250,7 @@ export type AuthWebSocketTicketResult = typeof AuthWebSocketTicketResult.Type;
  * which could be stripped to change the ticket's use.
  * Older clients mint at the bare path and receive tickets valid for either use.
  */
-export const AuthWebSocketTicketUse = Schema.Literals(["rpc", "media"]);
+export const AuthWebSocketTicketUse = Schema.Literals(["rpc", "media", "loopback-gateway"]); // fork: loopback gateway tunnel ticket
 export type AuthWebSocketTicketUse = typeof AuthWebSocketTicketUse.Type;
 
 export const AuthWebSocketTicketParams = Schema.Struct({ use: AuthWebSocketTicketUse });

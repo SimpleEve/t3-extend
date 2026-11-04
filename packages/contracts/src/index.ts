@@ -46,6 +46,7 @@ export * from "./orchestratorMcp.ts";
 export * from "./peerLink.ts";
 export * from "./forkPush.ts"; // fork: UnifiedPush registrations
 export * from "./forkDeviceKeys.ts"; // fork: self-hosted pairing
+export * from "./forkLoopbackGateway.ts"; // fork: loopback gateway
 export * from "./threadMetadataMcp.ts";
 export * from "./threadPullRequest.ts";
 export * from "./threadSearch.ts";
