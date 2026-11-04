@@ -253,7 +253,10 @@ export type AuthWebSocketTicketResult = typeof AuthWebSocketTicketResult.Type;
 export const AuthWebSocketTicketUse = Schema.Literals(["rpc", "media", "loopback-gateway"]); // fork: loopback gateway tunnel ticket
 export type AuthWebSocketTicketUse = typeof AuthWebSocketTicketUse.Type;
 
-export const AuthWebSocketTicketParams = Schema.Struct({ use: AuthWebSocketTicketUse });
+// fork: the generic ticket endpoint never mints gateway tickets (only the RPC does); the filter keeps the type.
+export const AuthWebSocketTicketParams = Schema.Struct({
+  use: AuthWebSocketTicketUse.check(Schema.makeFilter((use) => use !== "loopback-gateway")),
+});
 
 export const AuthPairingCredentialResult = Schema.Struct({
   id: TrimmedNonEmptyString,
