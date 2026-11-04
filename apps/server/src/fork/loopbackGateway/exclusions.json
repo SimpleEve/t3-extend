@@ -2,6 +2,7 @@
   "$comment": "Gate A of 9.1 (research/remote-loopback-forwarding.md 5.6.0). `scan` is compared with a source scan by ExclusionsInventory.test.ts: a new listening point fails the test until someone adds it here with a handling. status `unverified-excluded` means nothing was run to confirm the claim; the port is refused by rule, never allowed by default.",
   "scan": {
     "apps/desktop/src/app/DesktopAppActivation.ts": 2,
+    "apps/desktop/src/fork/loopbackGateway/LoopbackProxy.ts": 2,
     "apps/server/src/cli/sshHelper.ts": 2,
     "apps/server/src/cloud/ManagedEndpointRuntime.ts": 1,
     "apps/server/src/device/AgentDeviceShim.ts": 2,
@@ -227,6 +228,17 @@
       "process": "server",
       "handling": "a client: forwards a callback with `request` to 127.0.0.1; it does not listen",
       "verification": "code",
+      "status": "verified"
+    },
+    {
+      "id": "desktop-loopback-gateway-proxy",
+      "file": "apps/desktop/src/fork/loopbackGateway/LoopbackProxy.ts",
+      "lines": "356,375",
+      "kind": "listener",
+      "tcp": true,
+      "process": "desktop main process: one HTTP proxy per registered remote environment, bound to 127.0.0.1 on a random port, on the machine that renders the page",
+      "handling": "E1 when the server is the desktop's child (the desktop main process is its ancestor, so a service it hosts is never forwarded); it also demands Proxy-Authorization with a random 256-bit password, so other local clients get a 407",
+      "verification": "code; apps/desktop LoopbackProxy.test.ts, the describe block on who may use the proxy (407 without the password, IPv4 loopback only)",
       "status": "verified"
     },
     {
