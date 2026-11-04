@@ -19,24 +19,45 @@ import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { StandalonePage, StandalonePageHeader } from "../ui/standalone-page";
 import { useT } from "~/hooks/useT";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: interface language
 
 const OPENER_STORAGE_KEY = "t3code:prompt-link-opener";
 const Opener = Schema.NullOr(Schema.Literals(["app", "browser"]));
 
 interface LinkSummary {
+  readonly title: string;
+  readonly description: string;
   readonly prompt: LinkedPrompt | null;
   readonly details: ReadonlyArray<string>;
 }
 
+const promptHeader = (t: Translator) => ({
+  title: t("Open this prompt"),
+  description: t("It opens as a draft. Nothing runs until you press Send."),
+});
+
 function summarize(
   appPath: string,
+  t: Translator, // fork: interface language
 ): { ok: true; value: LinkSummary } | { ok: false; error: string } {
   const url = new URL(appPath, window.location.origin);
   if (url.pathname !== "/new") {
     const prompt = parseThreadLinkPrompt(url.search);
-    return prompt.ok
-      ? { ok: true, value: { prompt: prompt.value, details: ["Opens one of your threads."] } }
-      : prompt;
+    if (!prompt.ok) return prompt;
+    return {
+      ok: true,
+      value:
+        prompt.value === null
+          ? {
+              title: t("Open this thread"),
+              description: t(
+                "It opens in T3 Extend if you're connected to the machine it runs on.",
+              ),
+              prompt: null,
+              details: [],
+            }
+          : { ...promptHeader(t), prompt: prompt.value, details: ["Opens one of your threads."] },
+    };
   }
   const link = parseNewThreadLink(url.search);
   if (!link.ok) return link;
@@ -44,13 +65,18 @@ function summarize(
     const { owner, name, number } = link.value.pullRequest;
     return {
       ok: true,
-      value: { prompt: link.value.prompt, details: [`Pull request ${owner}/${name}#${number}`] },
+      value: {
+        ...promptHeader(t),
+        prompt: link.value.prompt,
+        details: [`Pull request ${owner}/${name}#${number}`],
+      },
     };
   }
   const { repository, provider, model } = link.value;
   return {
     ok: true,
     value: {
+      ...promptHeader(t),
       prompt: link.value.prompt,
       details: [
         repository ? `Repository ${repository.owner}/${repository.name}` : "No project",
@@ -100,7 +126,7 @@ function HostedPromptLinkLanding({
   readonly onChoose: (choice: "app" | "browser", remember: boolean) => void;
 }) {
   const t = useT();
-  const summary = summarize(appPath);
+  const summary = summarize(appPath, t);
   const [remember, setRemember] = useState(false);
   const deepLink = promptLinkDeepLink(appPath);
   const onPhone = /android|iphone|ipad/i.test(navigator.userAgent);
@@ -121,13 +147,10 @@ function HostedPromptLinkLanding({
     );
   }
 
-  const { prompt, details } = summary.value;
+  const { title, description, prompt, details } = summary.value;
   return (
     <StandalonePage>
-      <StandalonePageHeader
-        title={t("Open this prompt")}
-        description={t("It opens as a draft. Nothing runs until you press Send.")}
-      />
+      <StandalonePageHeader title={title} description={description} />
       {prompt !== null && prompt.hiddenCharacters > 0 ? (
         <Alert className="mt-5" variant="error">
           <AlertTitle>{t("This prompt had hidden characters, it may be malicious")}</AlertTitle>
@@ -151,7 +174,9 @@ function HostedPromptLinkLanding({
           {prompt.text}
         </pre>
       ) : null}
-      <p className="mt-3 text-xs text-muted-foreground">{details.join(" · ")}</p>
+      {details.length > 0 ? (
+        <p className="mt-3 text-xs text-muted-foreground">{details.join(" · ")}</p>
+      ) : null}
       <div className="mt-6 flex flex-wrap gap-2">
         <Button render={<a href={deepLink} />} onClick={() => onChoose("app", remember)}>
           {onPhone ? t("Open in app") : t("Open in desktop app")}

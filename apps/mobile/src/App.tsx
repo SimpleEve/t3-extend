@@ -18,6 +18,7 @@ import {
   type NavigationState,
 } from "@react-navigation/native";
 import { pipe } from "effect/Function";
+import { DEFAULT_HOSTED_APP_URL } from "@t3tools/shared/connectAuth";
 
 import { RegistryContext } from "@effect/atom-react";
 import { ProjectChipIconRasterizer } from "./native/ProjectChipIconImages";
@@ -133,13 +134,14 @@ function getAppStateFromPath(path: string, options: Parameters<typeof getStateFr
 }
 
 const appLinking = {
-  // fork: own schemes first; official ones still open, so official QR codes and links work.
   prefixes: [
     Linking.createURL("/"),
+    // fork: own schemes first; official ones still open, so official QR codes and links work.
     ...[FORK.scheme, FORK.schemeDev, FORK.schemePreview].map((scheme) => `${scheme}://`),
     "t3code://",
     "t3code-dev://",
     "t3code-preview://",
+    DEFAULT_HOSTED_APP_URL,
   ],
   config: { initialRouteName: "Home" },
   filter: (url: string) => shouldHandleAppLink(url, hasCloudPublicConfig()),

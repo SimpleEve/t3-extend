@@ -3,7 +3,7 @@ import { useAtomSet, useAtomValue } from "@effect/atom-react";
 import { AsyncResult } from "effect/reactivity";
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { useState } from "react";
-import { Linking, useWindowDimensions, View } from "react-native";
+import { Linking, Platform, useWindowDimensions, View } from "react-native";
 import Reanimated, { ReduceMotion, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -16,9 +16,7 @@ import {
   type MicrophoneEntry,
   type MicrophoneKind,
   microphoneEntryKey,
-  microphoneOrder,
 } from "../../lib/microphonePriority";
-import { getLocalVoiceTranscriber } from "../../native/voiceTranscription";
 import { mobilePreferencesAtom, updateMobilePreferencesAtom } from "../../state/preferences";
 import { ListRowLayout } from "../../components/ui/ListRowLayout";
 import { ThreadSwipeable } from "../home/thread-swipe-actions";
@@ -26,6 +24,10 @@ import { ListActionRow as SettingsActionRow } from "../../components/ui/ListActi
 import { SettingsDragHandle } from "./components/SettingsDragHandle";
 import { SettingsSection } from "./components/SettingsSection";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import {
+  deviceMicrophoneOrder,
+  localVoiceTranscriberAtom,
+} from "../voice-input/VoiceInputProvider";
 
 type MicrophonePermission = "checking" | "granted" | "ask" | "denied";
 
@@ -73,7 +75,10 @@ const KINDS: Record<
   bluetooth: {
     label: "Bluetooth",
     row: "Other Bluetooth",
-    rowDescription: "AirPods, headsets, and cars not listed",
+    rowDescription:
+      Platform.OS === "android"
+        ? "Earbuds, headsets, and cars, including Android Auto, not listed"
+        : "AirPods, headsets, and cars not listed",
     icon: "headphones",
   },
   builtIn: {
@@ -90,8 +95,20 @@ const KINDS: Record<
   },
 };
 
+const unavailableExplanation = (t: ReturnType<typeof useT>) =>
+  Platform.OS === "android"
+    ? t(
+        "T3 Extend's voice input uses Google's on-device speech recognition, which needs Android 12 or later with compatible Google speech services for the device language. Without it, the composer has no microphone button, and allowing microphone access won't add one. Keyboard voice typing is separate and isn't affected.",
+      )
+    : t(
+        "T3 Extend's voice input uses Apple's on-device speech transcription, which needs iOS 26 or later on a device that supports it. Without it, the composer has no microphone button, and allowing microphone access won't add one. Apple keyboard dictation is separate and isn't affected.",
+      );
+
 export function SettingsMicrophoneRouteScreen() {
-  return getLocalVoiceTranscriber() === null ? <VoiceInputUnavailable /> : <MicrophoneSettings />;
+  const transcriber = useAtomValue(localVoiceTranscriberAtom);
+  // Android's probe is asynchronous; an empty sheet avoids flashing "unavailable" first.
+  if (transcriber === "checking") return <View collapsable={false} className="flex-1 bg-sheet" />;
+  return transcriber === null ? <VoiceInputUnavailable /> : <MicrophoneSettings />;
 }
 
 function VoiceInputUnavailable() {
@@ -109,11 +126,7 @@ function VoiceInputUnavailable() {
         <SettingsSection title={t("Voice input")}>
           <ListRowLayout icon="mic" label={t("Not available on this device")} />
         </SettingsSection>
-        <Text className="px-2 text-sm text-foreground-muted">
-          {t(
-            "T3 Extend's voice input uses Apple's on-device speech transcription, which needs iOS 26 or later on a device that supports it. Without it, the composer has no microphone button, and allowing microphone access won't add one. Apple keyboard dictation is separate and isn't affected.",
-          )}
-        </Text>
+        <Text className="px-2 text-sm text-foreground-muted">{unavailableExplanation(t)}</Text>
       </ScrollView>
     </View>
   );
@@ -125,7 +138,7 @@ function MicrophoneSettings() {
   const preferencesResult = useAtomValue(mobilePreferencesAtom);
   const savePreferences = useAtomSet(updateMobilePreferencesAtom);
   const ready = AsyncResult.isSuccess(preferencesResult) && !preferencesResult.waiting;
-  const entries = microphoneOrder(
+  const entries = deviceMicrophoneOrder(
     AsyncResult.isSuccess(preferencesResult) ? preferencesResult.value.microphones : undefined,
   );
   const { permission, request: requestPermission } = useMicrophonePermission();
@@ -140,7 +153,7 @@ function MicrophoneSettings() {
   const move = (key: string, steps: number) =>
     savePreferences({
       transform: (current) => {
-        const next = [...microphoneOrder(current.microphones)];
+        const next = [...deviceMicrophoneOrder(current.microphones)];
         const from = next.findIndex((entry) => microphoneEntryKey(entry) === key);
         const to = Math.min(next.length - 1, Math.max(0, from + steps));
         if (from === -1 || from === to) return {};
@@ -152,7 +165,7 @@ function MicrophoneSettings() {
   const forget = (key: string) =>
     savePreferences({
       transform: (current) => ({
-        microphones: microphoneOrder(current.microphones).filter(
+        microphones: deviceMicrophoneOrder(current.microphones).filter(
           (entry) => microphoneEntryKey(entry) !== key,
         ),
       }),
@@ -234,8 +247,11 @@ function MicrophoneSettings() {
         </SettingsSection>
         <Text className="px-2 text-sm text-foreground-muted">
           {t(
-            "Voice input records from the first connected microphone in this list. Wired and Bluetooth devices are added by name after you use voice input with them connected; until then, the Other row ranks them. Swipe a device left to forget it.",
+            "Voice input prefers the first connected microphone in this list. Wired and Bluetooth devices are added by name after you use voice input with them connected; until then, the Other row ranks them. Swipe a device left to forget it.",
           )}
+          {Platform.OS === "android"
+            ? ` ${t("Android may use another input when the preferred microphone cannot be routed.")}`
+            : null}
         </Text>
       </ScrollView>
     </View>

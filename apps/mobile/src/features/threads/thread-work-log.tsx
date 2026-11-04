@@ -944,8 +944,9 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
     const warning = failureItem.failure.class === "usage_limit";
     const timestamp = new Date(row.createdAt);
     const resetAt = failureItem.failure.resetAt;
+    // The reset time is the viewer's local time; naming the zone keeps it unambiguous.
     const resetTime = resetAt
-      ? new Date(resetAt).toLocaleString(
+      ? `${new Date(resetAt).toLocaleString(
           formatTag,
           uiFormatOptions(locale, {
             month: "short",
@@ -953,7 +954,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
             hour: "numeric",
             minute: "2-digit",
           }),
-        )
+        )} (${new Intl.DateTimeFormat().resolvedOptions().timeZone})`
       : null;
     const label = warning
       ? resetTime
