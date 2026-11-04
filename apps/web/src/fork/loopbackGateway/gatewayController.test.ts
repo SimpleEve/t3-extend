@@ -17,7 +17,9 @@ const TARGET: GatewayTarget = {
   reachable: true,
 };
 
-function harness(options: { tickets?: Array<{ ticket: string; lifetimeMs: number } | null> } = {}) {
+function harness(
+  options: { tickets?: Array<{ ticket: string; lifetimeMs: number } | null>; hold?: boolean } = {},
+) {
   let clock = 1_000_000;
   const calls: string[] = [];
   const registrations: Array<GatewayRegistration | null> = [];
@@ -25,6 +27,13 @@ function harness(options: { tickets?: Array<{ ticket: string; lifetimeMs: number
   const timers: Array<{ run: () => void; delayMs: number; cancelled: boolean }> = [];
   const tickets = options.tickets ?? [];
   let issued = 0;
+  // The first fetch can be held open: `started` says it began, `release` lets it finish.
+  let release = () => {};
+  let started = () => {};
+  const held = {
+    started: new Promise<void>((resolve) => (started = resolve)),
+    release: () => release(),
+  };
   const bridge: Pick<
     LoopbackGatewayBridge,
     "register" | "updateTicket" | "unregister" | "setReachable"
@@ -49,6 +58,10 @@ function harness(options: { tickets?: Array<{ ticket: string; lifetimeMs: number
     bridge,
     issueTicket: async () => {
       calls.push("issue");
+      if (options.hold === true && issued === 0) {
+        started();
+        await new Promise<void>((resolve) => (release = resolve));
+      }
       const scripted = tickets[issued];
       issued += 1;
       const next =
@@ -69,6 +82,7 @@ function harness(options: { tickets?: Array<{ ticket: string; lifetimeMs: number
     onTicketDelivered: (id) => delivered.push(id),
   });
   return {
+    held,
     controller,
     calls,
     registrations,
@@ -196,6 +210,22 @@ describe("gateway controller", () => {
     ]);
     // The renewal planned for the old ticket was cancelled with it.
     expect(h.liveTimers()).toHaveLength(1);
+  });
+
+  it("drops a ticket fetched over a route that was replaced while it was on its way", async () => {
+    const h = harness({ hold: true });
+    h.controller.sync(ENV, TARGET);
+    await h.held.started;
+    h.controller.sync(ENV, { ...TARGET, httpBaseUrl: "https://other.example.com" });
+    h.held.release();
+    await h.controller.idle();
+    expect(h.calls.filter((call) => call.startsWith("updateTicket"))).toEqual([
+      "updateTicket ticket-2",
+    ]);
+    expect(h.calls.filter((call) => call.startsWith("register"))).toEqual([
+      "register https://box.example.com enabled=true",
+      "register https://other.example.com enabled=true",
+    ]);
   });
 
   it("registers disabled and fetches nothing, then resumes with a ticket", async () => {
