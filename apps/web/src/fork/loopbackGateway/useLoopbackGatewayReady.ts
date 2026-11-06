@@ -3,32 +3,31 @@ import type { EnvironmentId } from "@t3tools/contracts";
 import { useState } from "react";
 
 import { useLoopbackForwardingDisabled } from "./disabledStore";
-import { isLoopbackGatewayReady } from "./gatewayState";
+import { type GateLatch, nextGateLatch } from "./gatewayState";
 import { useGatewayStore } from "./gatewayStore";
 import { useLoopbackGatewayState } from "./useLoopbackGatewayState";
 
-/** True from the first render that sees `value` true, whatever `value` does after that. */
-export function useLatched(value: boolean): boolean {
-  const [latched, setLatched] = useState(false);
-  if (value && !latched) setLatched(true);
-  return latched || value;
-}
-
 /**
- * Whether a tab of this environment may create its webview (`isLoopbackGatewayReady`). Once open it
- * stays open: a dropped connection must not tear a page down.
+ * Whether a tab of this environment may have its webview (`isLoopbackGatewayReady`). A page opened
+ * behind the proxy stays open through a dropped connection; one opened without it goes when
+ * forwarding starts (`nextGateLatch`). `canOperate` is whether the webview is built at all.
  */
-export function useLoopbackGatewayReady(environmentId: EnvironmentId): boolean {
+export function useLoopbackGatewayReady(
+  environmentId: EnvironmentId,
+  canOperate: boolean,
+): boolean {
   const { state, connecting, wasActive } = useLoopbackGatewayState(environmentId);
   const disabledByUser = useLoopbackForwardingDisabled(environmentId);
   const registration = useGatewayStore((store) => store.registration[environmentId]);
-  return useLatched(
-    isLoopbackGatewayReady({
-      state: state.state,
-      connecting,
-      registration,
-      wasActive,
-      disabledByUser,
-    }),
-  );
+  const [latch, setLatch] = useState<GateLatch>("closed");
+  const next = nextGateLatch(latch, {
+    state: state.state,
+    connecting,
+    registration,
+    wasActive,
+    disabledByUser,
+    canOperate,
+  });
+  if (next !== latch) setLatch(next);
+  return next !== "closed";
 }

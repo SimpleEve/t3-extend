@@ -58,7 +58,7 @@ function setup(input: { state: string; connecting: boolean; wasActive: boolean }
 
 // What a restored tab is: the webview behind the gate, and the card for the wait.
 function RestoredTab() {
-  const ready = useLoopbackGatewayReady(ENV);
+  const ready = useLoopbackGatewayReady(ENV, true);
   return (
     <div>
       {ready ? <div data-testid="webview" /> : null}
@@ -167,5 +167,27 @@ describe("a tab of an environment whose forwarding could not be set up", () => {
     expect(useGatewayStorage.getState().disabled).toEqual([ENV]);
     await vi.waitFor(() => expect(webview(screen)).not.toBeNull());
     expect(screen.container.querySelector("h1")).toBeNull();
+  });
+});
+
+describe("a tab opened while nothing was forwarded", () => {
+  it("is unmounted when forwarding starts, and opens again, forwarded, once the environment is registered", async () => {
+    setup({ state: "disabled-by-user", connecting: true, wasActive: false });
+    setGatewayRegistration(ENV, "stopped");
+    await using screen = await render(<RestoredTab />, { router: false });
+    expect(webview(screen)).not.toBeNull();
+
+    // The user resumes forwarding; the main process has no proxy for the environment yet.
+    mocks.set({ state: "active", connecting: true, wasActive: false });
+    await vi.waitFor(() => expect(webview(screen)).toBeNull());
+    setGatewayRegistration(ENV, "pending");
+    expect(webview(screen)).toBeNull();
+    setGatewayRegistration(ENV, "registered");
+    await vi.waitFor(() => expect(webview(screen)).not.toBeNull());
+
+    // Opened behind the proxy, it stays through a dropped connection.
+    mocks.set({ state: "unknown", connecting: false, wasActive: true });
+    setGatewayRegistration(ENV, "failed");
+    expect(webview(screen)).not.toBeNull();
   });
 });

@@ -7,7 +7,8 @@ import { create } from "zustand";
 
 import type { LoopbackGatewayState } from "./gatewayState";
 
-export type GatewayRegistration = "pending" | "registered" | "failed";
+/** `stopped`: registered with forwarding off (the user's switch), so no proxy is installed. */
+export type GatewayRegistration = "pending" | "registered" | "stopped" | "failed";
 
 export interface GatewayDenial {
   readonly code: LoopbackGatewayErrorCode;

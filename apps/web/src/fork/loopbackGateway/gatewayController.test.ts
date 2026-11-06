@@ -364,6 +364,8 @@ describe("gateway controller", () => {
       "issue",
       "updateTicket ticket-1",
     ]);
+    // Registered with forwarding off is not registered for forwarding: a gate must not take it for that.
+    expect(h.registrations).toEqual(["pending", "stopped", "registered"]);
   });
 
   it("unregisters when the environment should no longer be forwarded, and cancels the renewal", async () => {

@@ -163,7 +163,7 @@ default 配置          → scope = environmentId,                 persistent = 
 - 状态还没确定，环境本机**从没 `active` 过**：只在环境正在连接时等，离线或出错就放行（保持第一版的行为）。
 - 状态确定后：`active` 先等 `register` 再开门，**只有 `registered` 才开**：`register` 失败（`failed`）时门保持关闭，因为主进程没有登记这个环境，`installSession` 会把 session 恢复成直连，放行就会加载 A 本机同端口的服务（第三轮 P0）。这时标签页显示「无法启动 localhost 转发」卡片（`start-failed`），按钮「重试」（让控制器对该环境重新 `register`，成功后照常取票、开门）和「停止转发，使用这台电脑的 localhost」（`disabled-by-user`，门打开）；不转发的状态（不支持、明文、没有权限、不适用）开门，并把该环境从记录里删掉；`disabled-by-user` 开门（记录保留，恢复转发后下次重启仍受保护）。
 - 环境从应用里移除（保存的环境列表加载完之后不在其中）时，从记录里删掉。
-- 门一旦打开就保持打开：断线不会把已经显示的页面拆掉。
+- **锁存（第四轮改）：** 只有 webview 真的建出来才锁存（没有预览权限、`canOperatePreview` 为 false 时不挂 webview，也就不锁存）。锁存时记下这次是不是**在转发中**打开的（`active` 且 `registered`）。在转发中打开的页面，断线（`unknown`、重连、`failed`）时保持打开，由卡片盖住，不拆掉已经显示的页面。在非转发状态下打开的页面（`disabled-by-user`、不支持转发的环境、重启时离线又从没转发过的环境）不能留着：一旦状态变成 `active` 而登记还没完成，门关上、webview 卸载，登记完成后重新挂上，新的 webview 从第一个请求起就走代理。为此 `register` 以 `enabled: false` 成功时发布 `stopped` 而不是 `registered`（「恢复转发」时，主进程还没有代理，旧的 `registered` 不能当作放行依据）。规则是纯函数 `nextGateLatch`，表格测试覆盖各种转换。
 
 **主进程忘了环境时：** 取票时 `updateTicket` 返回 `null` 表示主进程不认识这个环境（登记竞态、主进程重启），再试一次 `updateTicket` 没用。控制器把它当作未登记：发布 `pending`（新标签页的门关上，已打开的页面不拆），清掉票据和续期定时器，重新 `register`，成功后照常取票。刚重新登记完又得到 `null` 就不再自己转圈，发布 `failed`，由用户重试或停止转发。
 

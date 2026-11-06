@@ -212,7 +212,7 @@ export const makeGatewayController = (deps: GatewayControllerDeps): GatewayContr
       if (entry.removed) return;
       entry.registered = true;
       entry.registrationFailed = false;
-      deps.onRegistration(environmentId, "registered");
+      deps.onRegistration(environmentId, target.enabled ? "registered" : "stopped");
       fetchTicket(environmentId, entry, true);
     });
   };

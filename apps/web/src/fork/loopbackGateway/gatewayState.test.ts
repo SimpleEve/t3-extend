@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  type GateLatch,
   isLoopbackGatewayHeld,
   isLoopbackGatewayReady,
   type LoopbackGatewayInputs,
   type LoopbackGatewayState,
+  nextGateLatch,
   resolveLoopbackGatewayState,
 } from "./gatewayState";
 
@@ -234,5 +236,96 @@ describe("loopback gateway ready", () => {
   ];
   it.each(held)("held: %s", (_name, input, expected) => {
     expect(isLoopbackGatewayHeld(input)).toBe(expected);
+  });
+});
+
+describe("loopback gateway latch", () => {
+  type Input = Parameters<typeof nextGateLatch>[1];
+  const base: Input = {
+    state: "active",
+    connecting: true,
+    registration: "registered",
+    wasActive: false,
+    disabledByUser: false,
+    canOperate: true,
+  };
+  const rows: ReadonlyArray<readonly [string, GateLatch, Partial<Input>, GateLatch]> = [
+    [
+      "nothing forwarded, opens plain",
+      "closed",
+      { state: "unsupported-server", registration: undefined },
+      "plain",
+    ],
+    [
+      "the user's switch opens plain",
+      "closed",
+      { state: "disabled-by-user", registration: "stopped" },
+      "plain",
+    ],
+    ["forwarded and registered opens forwarding", "closed", {}, "forwarding"],
+    [
+      "forwarded, not registered yet, stays closed",
+      "closed",
+      { registration: "pending" },
+      "closed",
+    ],
+    // Only a webview that exists latches.
+    [
+      "cannot operate: no latch",
+      "closed",
+      { state: "unsupported-server", registration: undefined, canOperate: false },
+      "closed",
+    ],
+    [
+      "cannot operate, then forwarded and not registered",
+      "closed",
+      { registration: "pending" },
+      "closed",
+    ],
+    ["cannot operate: a latch is let go", "forwarding", { canOperate: false }, "closed"],
+    // A plain page cannot stay once forwarding starts.
+    [
+      "plain, then forwarded and not registered: closes",
+      "plain",
+      { registration: "pending" },
+      "closed",
+    ],
+    [
+      "plain, then forwarded, registration unknown: closes",
+      "plain",
+      { registration: undefined },
+      "closed",
+    ],
+    [
+      "plain, user resumes forwarding, proxy not installed: closes",
+      "plain",
+      { registration: "stopped" },
+      "closed",
+    ],
+    ["plain, then forwarded and registered: reopens forwarded", "plain", {}, "forwarding"],
+    [
+      "plain stays through other states",
+      "plain",
+      { state: "unknown", registration: undefined, connecting: false },
+      "plain",
+    ],
+    [
+      "closed, then registered: opens forwarding",
+      "closed",
+      { registration: "registered" },
+      "forwarding",
+    ],
+    // A forwarding page stays through a dropped connection and a failed registration.
+    [
+      "forwarding, connection drops",
+      "forwarding",
+      { state: "unknown", wasActive: true, connecting: false, registration: undefined },
+      "forwarding",
+    ],
+    ["forwarding, registration fails", "forwarding", { registration: "failed" }, "forwarding"],
+    ["forwarding, re-registering", "forwarding", { registration: "pending" }, "forwarding"],
+  ];
+  it.each(rows)("%s", (_name, latch, overrides, expected) => {
+    expect(nextGateLatch(latch, { ...base, ...overrides })).toBe(expected);
   });
 });

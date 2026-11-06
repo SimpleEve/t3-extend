@@ -170,7 +170,7 @@ function AuthorizedBrowserWebview(props: ComponentProps<typeof HostedBrowserWebv
     AuthPreviewOperateScope,
   );
   const profileId = useTabProfileId(props.profileId);
-  if (!useLoopbackGatewayReady(props.threadRef.environmentId)) return null; // fork: loopback gateway
+  if (!useLoopbackGatewayReady(props.threadRef.environmentId, canOperatePreview)) return null; // fork: loopback gateway
   return canOperatePreview ? <HostedBrowserWebview {...props} profileId={profileId} /> : null;
 }
 

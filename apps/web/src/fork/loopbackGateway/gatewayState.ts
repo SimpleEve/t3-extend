@@ -65,7 +65,7 @@ export interface LoopbackGatewayGateInput {
   readonly state: LoopbackGatewayState["state"];
   /** The environment is connecting or connected, so what is unknown may soon be known. */
   readonly connecting: boolean;
-  readonly registration: "pending" | "registered" | "failed" | undefined;
+  readonly registration: "pending" | "registered" | "stopped" | "failed" | undefined;
   /** Forwarding was `active` for this environment the last time it was known (stored on this device). */
   readonly wasActive: boolean;
   readonly disabledByUser: boolean;
@@ -80,6 +80,34 @@ export const isLoopbackGatewayReady = (input: LoopbackGatewayGateInput): boolean
   if (input.disabledByUser) return true;
   if (input.state === "unknown") return input.wasActive ? false : !input.connecting;
   return input.state !== "active" || input.registration === "registered";
+};
+
+/**
+ * What a tab's gate has let through: `plain` is a webview opened while nothing was forwarded (the
+ * user's switch, an environment that cannot forward), `forwarding` one opened behind a registered
+ * proxy. Only a webview that exists latches, so `canOperate` is part of the input.
+ */
+export type GateLatch = "closed" | "plain" | "forwarding";
+
+/**
+ * The gate's next latch. A forwarding page stays open when the connection drops, because the card
+ * covers it and tearing it down helps nobody. A plain page cannot stay once forwarding turns on: it
+ * would keep running outside the proxy, so it is unmounted and opened again, forwarded, once the
+ * environment is registered.
+ */
+export const nextGateLatch = (
+  latch: GateLatch,
+  input: LoopbackGatewayGateInput & { readonly canOperate: boolean },
+): GateLatch => {
+  if (!input.canOperate) return "closed";
+  const registered = input.state === "active" && input.registration === "registered";
+  if (latch === "forwarding") return "forwarding";
+  if (latch === "plain") {
+    if (input.state !== "active" || input.disabledByUser) return "plain";
+    return registered ? "forwarding" : "closed";
+  }
+  if (!isLoopbackGatewayReady(input)) return "closed";
+  return registered ? "forwarding" : "plain";
 };
 
 /** The tabs of a forwarded environment are held back until it can be reached, and the user has not said otherwise. */
