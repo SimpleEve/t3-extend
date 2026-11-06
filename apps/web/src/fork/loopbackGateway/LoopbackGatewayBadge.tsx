@@ -19,6 +19,7 @@ import { useT } from "~/hooks/useT";
 import { cn } from "~/lib/utils";
 
 import { setLoopbackForwardingDisabled } from "./disabledStore";
+import type { LoopbackGatewayState } from "./gatewayState";
 import type { LoopbackGatewayTabProps } from "./LoopbackGatewayCard";
 import { useLoopbackGatewayState } from "./useLoopbackGatewayState";
 
@@ -30,16 +31,26 @@ const hostOf = (url: string): string | null => {
   }
 };
 
+/** What the mark shows for a tab at `url`: forwarding, stopped by the user, or nothing. */
+export const badgeModeFor = (
+  state: LoopbackGatewayState["state"],
+  url: string,
+): "forwarding" | "stopped" | null => {
+  const host = hostOf(url);
+  if (host === null || !isLoopbackGatewayHost(host)) return null;
+  if (state === "active") return "forwarding";
+  return state === "disabled-by-user" ? "stopped" : null;
+};
+
 export function LoopbackGatewayBadge(
   props: Pick<LoopbackGatewayTabProps, "environmentId" | "environmentLabel" | "url" | "move">,
 ) {
   const { environmentId, environmentLabel: environment, url, move } = props;
   const t = useT();
   const { state } = useLoopbackGatewayState(environmentId);
-  const host = hostOf(url);
-  if (host === null || !isLoopbackGatewayHost(host)) return null;
-  if (state.state !== "active" && state.state !== "disabled-by-user") return null;
-  const forwarding = state.state === "active";
+  const mode = badgeModeFor(state.state, url);
+  if (mode === null) return null;
+  const forwarding = mode === "forwarding";
   const label = forwarding
     ? t("localhost is forwarded to {environment}", { environment })
     : t("localhost forwarding is off. Here, localhost is this computer");
