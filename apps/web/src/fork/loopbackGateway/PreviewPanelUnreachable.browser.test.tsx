@@ -12,10 +12,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock(import("~/state/session"), () => ({
   useEnvironmentScope: () => mocks.canOperate,
-  environmentSession: { sessionStateAtom: () => mocks.sessionAtom },
+  environmentSession: { sessionStateAtom: () => mocks.sessionAtom } as never,
 }));
 vi.mock(import("~/state/environments"), () => ({
-  useEnvironment: () => ({ label: "Studio", connection: { phase: mocks.phase } }),
+  useEnvironment: (() => ({ label: "Studio", connection: { phase: mocks.phase } })) as never,
 }));
 vi.mock(import("~/browser/previewRuntime"), () => ({ usePreviewAvailable: () => true }));
 vi.mock(import("~/components/preview/PreviewView"), () => ({
