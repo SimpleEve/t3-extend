@@ -28,6 +28,7 @@ import { readPreviewAnnotationTheme } from "./annotationTheme";
 import { useBrowserDefaults } from "./browserDefaults";
 import { useBrowserPointerStore } from "./browserPointerStore";
 import { HostedBrowserWebview } from "./HostedBrowserWebview";
+import { useLoopbackGatewayReady } from "~/fork/loopbackGateway/useLoopbackGatewayReady"; // fork: loopback gateway
 import { openUrlInPreview } from "./openFileInPreview";
 import { rendersServerTabNatively } from "./previewRuntime";
 import { previewRuntimeTabId } from "./previewRuntimeTabId";
@@ -169,6 +170,7 @@ function AuthorizedBrowserWebview(props: ComponentProps<typeof HostedBrowserWebv
     AuthPreviewOperateScope,
   );
   const profileId = useTabProfileId(props.profileId);
+  if (!useLoopbackGatewayReady(props.threadRef.environmentId, canOperatePreview)) return null; // fork: loopback gateway
   return canOperatePreview ? <HostedBrowserWebview {...props} profileId={profileId} /> : null;
 }
 

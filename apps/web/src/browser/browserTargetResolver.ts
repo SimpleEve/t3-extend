@@ -11,6 +11,7 @@ import type { ConnectionTarget } from "@t3tools/client-runtime/connection";
 import { isDesktopLocalConnectionTarget } from "~/connection/desktopLocal";
 import { isElectron } from "~/env";
 import { readPreparedConnection } from "~/state/session";
+import { forwardedLoopbackUrl } from "~/fork/loopbackGateway/gatewayStore"; // fork: loopback gateway
 
 export { normalizeHostname, isLocalLoopbackHost } from "@t3tools/shared/hostClassification";
 
@@ -59,17 +60,24 @@ const resolveEnvironmentPortTarget = (
 };
 
 // Desktop renders primary and WSL tabs locally; loopback servers require localhost even for LAN backends.
-const reachesEnvironmentLoopback = (target: ConnectionTarget): boolean =>
+// fork: exported for the loopback gateway
+export const reachesEnvironmentLoopback = (target: ConnectionTarget): boolean =>
   isElectron &&
   (target._tag === "PrimaryConnectionTarget" || isDesktopLocalConnectionTarget(target));
 
-export function resolveDiscoveredServerUrl(environmentId: EnvironmentId, rawUrl: string): string {
+export function resolveDiscoveredServerUrl(
+  environmentId: EnvironmentId,
+  rawUrl: string,
+  options?: { readonly systemBrowser?: boolean }, // fork: loopback gateway
+): string {
   try {
     const normalizedUrl = normalizePreviewUrl(rawUrl);
     const parsed = new URL(normalizedUrl);
     if (!isLoopbackHost(parsed.hostname)) return normalizedUrl;
     const target = readPreparedConnection(environmentId)?.target;
     if (target && reachesEnvironmentLoopback(target)) return normalizedUrl;
+    const forwarded = forwardedLoopbackUrl(environmentId, normalizedUrl, options?.systemBrowser); // fork
+    if (forwarded !== null) return forwarded;
     return resolveEnvironmentPortTarget(
       environmentId,
       {

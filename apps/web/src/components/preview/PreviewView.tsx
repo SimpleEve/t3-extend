@@ -63,6 +63,7 @@ import { closePreviewSession } from "./closePreviewSession";
 import { openPreviewSession } from "./openPreviewSession";
 import { showPreviewPopup } from "./showPreviewPopup";
 import { PreviewChromeRow } from "./PreviewChromeRow";
+import { useLoopbackGatewayTab } from "~/fork/loopbackGateway/useLoopbackGatewayTab"; // fork: loopback gateway
 import { PreviewEmptyState } from "./PreviewEmptyState";
 import { PreviewMoreMenu, type PreviewMoreMenuActions } from "./PreviewMoreMenu";
 import { commitBrowserViewportChange } from "~/browser/browserViewportActions";
@@ -424,6 +425,15 @@ export function PreviewView({
     await closePreviewSession({ closePreview, snapshot, tabId, threadRef });
   };
 
+  const gateway = useLoopbackGatewayTab({
+    threadRef,
+    runtimeTabId,
+    url,
+    loadFailed: isUnreachable,
+    serverOwnsRendering,
+    onReload: handleRefresh,
+    onOpenInEnvironment: moveTarget === "server" ? () => void handleMoveTab() : undefined,
+  }); // fork: loopback gateway
   const handlePictureInPicture = () => {
     if (!tabId) return;
     if (miniPlayerTabId === tabId) {
@@ -910,6 +920,7 @@ export function PreviewView({
             ? t("Page didn't load. Pick is unavailable until the page renders")
             : undefined
         }
+        gatewayBadge={gateway.badge}
         leadingActions={
           activeProfileId !== browserDefaults.profileId ? (
             <Tooltip>
@@ -1058,6 +1069,7 @@ export function PreviewView({
             />
           </div>
         ) : null}
+        {gateway.card}
       </div>
     </div>
   );

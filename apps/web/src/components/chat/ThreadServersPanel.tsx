@@ -82,7 +82,9 @@ function ThreadServersList(props: ThreadServersPanelProps) {
     // Like links: modified and middle clicks go to the system browser.
     if (event.metaKey || event.ctrlKey || event.button === 1) {
       event.preventDefault();
-      const url = resolveDiscoveredServerUrl(props.environmentId, server.url);
+      const url = resolveDiscoveredServerUrl(props.environmentId, server.url, {
+        systemBrowser: true,
+      }); // fork
       await readLocalApi()
         ?.shell.openExternal(url)
         .catch((error: unknown) => reportFailure(t("Unable to open in browser"), error));
