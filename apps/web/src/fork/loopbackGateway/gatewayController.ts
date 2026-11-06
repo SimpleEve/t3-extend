@@ -264,6 +264,9 @@ export const makeGatewayController = (deps: GatewayControllerDeps): GatewayContr
         entry.expiresAt = null;
         entry.cancelRenewal?.();
         entry.cancelRenewal = null;
+        // The new route is not registered until `register` says so; a new tab waits for that.
+        entry.registered = false;
+        deps.onRegistration(environmentId, "pending");
         register(environmentId, entry);
       } else if (previous.enabled !== target.enabled) {
         register(environmentId, entry);

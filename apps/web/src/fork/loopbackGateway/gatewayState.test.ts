@@ -315,6 +315,37 @@ describe("loopback gateway latch", () => {
       { registration: "registered" },
       "forwarding",
     ],
+    // Forwarding known to be off makes a forwarding page plain, so resuming cannot reuse it.
+    [
+      "forwarding, user stops forwarding",
+      "forwarding",
+      { state: "disabled-by-user", registration: "stopped" },
+      "plain",
+    ],
+    [
+      "forwarding, switch on while state still active",
+      "forwarding",
+      { disabledByUser: true },
+      "plain",
+    ],
+    [
+      "forwarding, route becomes insecure",
+      "forwarding",
+      { state: "unsupported-route", registration: undefined },
+      "plain",
+    ],
+    [
+      "forwarding, permission lost",
+      "forwarding",
+      { state: "no-permission", registration: undefined },
+      "plain",
+    ],
+    [
+      "forwarding, then plain, resumes unregistered: closes",
+      "plain",
+      { registration: "stopped" },
+      "closed",
+    ],
     // A forwarding page stays through a dropped connection and a failed registration.
     [
       "forwarding, connection drops",

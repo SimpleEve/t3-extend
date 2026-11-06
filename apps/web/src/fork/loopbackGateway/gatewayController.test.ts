@@ -323,9 +323,13 @@ describe("gateway controller", () => {
     h.controller.sync(ENV, TARGET);
     await h.controller.idle();
     h.calls.length = 0;
+    expect(h.registrations).toEqual(["pending", "registered"]);
 
     h.controller.sync(ENV, { ...TARGET, httpBaseUrl: "https://other.example.com" });
+    // The new route is not registered yet, and a gate must see that straight away.
+    expect(h.registrations).toEqual(["pending", "registered", "pending"]);
     await h.controller.idle();
+    expect(h.registrations).toEqual(["pending", "registered", "pending", "registered"]);
     expect(h.calls).toEqual([
       "register https://other.example.com enabled=true",
       "issue",

@@ -90,10 +90,9 @@ export const isLoopbackGatewayReady = (input: LoopbackGatewayGateInput): boolean
 export type GateLatch = "closed" | "plain" | "forwarding";
 
 /**
- * The gate's next latch. A forwarding page stays open when the connection drops, because the card
- * covers it and tearing it down helps nobody. A plain page cannot stay once forwarding turns on: it
- * would keep running outside the proxy, so it is unmounted and opened again, forwarded, once the
- * environment is registered.
+ * The gate's next latch. A forwarding page survives a dropped connection (the card covers it), but
+ * counts as plain once forwarding is known to be off, so a resume cannot reuse it. A plain page is
+ * unmounted when forwarding turns on and opened again, forwarded, once the environment is registered.
  */
 export const nextGateLatch = (
   latch: GateLatch,
@@ -101,7 +100,11 @@ export const nextGateLatch = (
 ): GateLatch => {
   if (!input.canOperate) return "closed";
   const registered = input.state === "active" && input.registration === "registered";
-  if (latch === "forwarding") return "forwarding";
+  if (latch === "forwarding") {
+    // A known "not forwarding" state ends the proxy for this page; `unknown` is only a dropped connection.
+    const stopped = input.disabledByUser || (input.state !== "active" && input.state !== "unknown");
+    return stopped ? "plain" : "forwarding";
+  }
   if (latch === "plain") {
     if (input.state !== "active" || input.disabledByUser) return "plain";
     return registered ? "forwarding" : "closed";

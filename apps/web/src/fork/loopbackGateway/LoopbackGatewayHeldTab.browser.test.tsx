@@ -190,4 +190,25 @@ describe("a tab opened while nothing was forwarded", () => {
     setGatewayRegistration(ENV, "failed");
     expect(webview(screen)).not.toBeNull();
   });
+
+  it("does not reuse a forwarded page after the user stops forwarding and resumes", async () => {
+    setup({ state: "active", connecting: true, wasActive: false });
+    setGatewayRegistration(ENV, "registered");
+    await using screen = await render(<RestoredTab />, { router: false });
+    expect(webview(screen)).not.toBeNull();
+
+    // Stopping does not tear the page down; the proxy is gone, so it now runs on this computer.
+    mocks.set({ state: "disabled-by-user", connecting: true, wasActive: false });
+    setGatewayRegistration(ENV, "stopped");
+    // Let the gate see the stopped state on its own, as it does when the user clicks.
+    await screen.rerender(<RestoredTab />);
+    expect(webview(screen)).not.toBeNull();
+
+    mocks.set({ state: "active", connecting: true, wasActive: false });
+    await vi.waitFor(() => expect(webview(screen)).toBeNull());
+    setGatewayRegistration(ENV, "pending");
+    expect(webview(screen)).toBeNull();
+    setGatewayRegistration(ENV, "registered");
+    await vi.waitFor(() => expect(webview(screen)).not.toBeNull());
+  });
 });
