@@ -303,27 +303,34 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
   };
   type EmptyReadPlan = readonly ["read" | "share" | "skip", Deferred.Deferred<boolean> | null];
   const emptyReads = yield* Ref.make<EmptyReads | null>(null);
-  const portIsEmpty = Effect.fn("LoopbackGateway.portIsEmpty")(function* (port: number) {
-    const now = yield* Clock.currentTimeMillis;
-    const mine = yield* Deferred.make<boolean>();
-    const [role, shared] = yield* Ref.modify(
-      emptyReads,
-      (state): readonly [EmptyReadPlan, EmptyReads | null] => {
-        if (state === null || now - state.at >= RESCAN_MIN_INTERVAL_MS) {
-          return [["read", mine], { at: now, byPort: new Map([[port, mine]]) }];
-        }
-        const existing = state.byPort.get(port);
-        return existing === undefined ? [["skip", null], state] : [["share", existing], state];
-      },
-    );
-    if (role === "skip") return false;
-    if (role === "share") return yield* Deferred.await(shared!);
-    return yield* inspector.listeners([port]).pipe(
-      Effect.map(([entries]) => entries?.length === 0),
-      Effect.orElseSucceed(() => false),
-      Effect.onExit((exit) => Deferred.succeed(mine, exit._tag === "Success" && exit.value)),
-    );
-  });
+  // Uninterruptible from claiming the read to installing its completion, so a request that was
+  // given `read` always completes `mine` and the ones sharing it cannot hang. Only the listeners
+  // read itself, and the wait on someone else's read, can be interrupted.
+  const portIsEmpty = Effect.fn("LoopbackGateway.portIsEmpty")((port: number) =>
+    Effect.uninterruptibleMask((restore) =>
+      Effect.gen(function* () {
+        const now = yield* Clock.currentTimeMillis;
+        const mine = yield* Deferred.make<boolean>();
+        const [role, shared] = yield* Ref.modify(
+          emptyReads,
+          (state): readonly [EmptyReadPlan, EmptyReads | null] => {
+            if (state === null || now - state.at >= RESCAN_MIN_INTERVAL_MS) {
+              return [["read", mine], { at: now, byPort: new Map([[port, mine]]) }];
+            }
+            const existing = state.byPort.get(port);
+            return existing === undefined ? [["skip", null], state] : [["share", existing], state];
+          },
+        );
+        if (role === "skip") return false;
+        if (role === "share") return yield* restore(Deferred.await(shared!));
+        return yield* restore(inspector.listeners([port])).pipe(
+          Effect.map(([entries]) => entries?.length === 0),
+          Effect.orElseSucceed(() => false),
+          Effect.onExit((exit) => Deferred.succeed(mine, exit._tag === "Success" && exit.value)),
+        );
+      }),
+    ),
+  );
 
   const authorize = Effect.fn("LoopbackGateway.authorize")(function* (port: number) {
     if (LOOPBACK_GATEWAY_BLOCKED_PORTS.has(port) || (yield* options.reservedPorts).has(port)) {

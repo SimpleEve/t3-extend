@@ -10,8 +10,10 @@ import { assert, describe, it } from "@effect/vitest";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { LOOPBACK_GATEWAY_BLOCKED_PORTS } from "@t3tools/shared/forkLoopbackGateway/protocol";
+import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as TestClock from "effect/testing/TestClock";
@@ -701,6 +703,45 @@ describe("the read that tells an empty port from an owned one", () => {
       yield* TestClock.adjust(Duration.millis(1));
       yield* expectCode(authorizer.authorize(45010), "not-owned");
       assert.equal(yield* Ref.get(reads), 2);
+    }),
+  );
+});
+
+describe("a read of an empty port that is interrupted", () => {
+  it.effect("does not hang the refusals that share it", () =>
+    Effect.gen(function* () {
+      const started = yield* Deferred.make<void>();
+      const never = yield* Deferred.make<void>();
+      const authorizer = yield* makeAuthorizer({
+        serverPid: process.pid,
+        reservedPorts: Effect.succeed(new Set()),
+      }).pipe(
+        Effect.provideService(PortScanner.PortDiscovery, {
+          scan: () => Effect.succeed([]),
+          scanBackground: () => Effect.succeed([]),
+        } as never),
+        Effect.provideService(ProcessInspector.ProcessInspector, {
+          // The read never finishes by itself: it starts, then waits to be interrupted.
+          listeners: () =>
+            Deferred.succeed(started, undefined).pipe(
+              Effect.andThen(Deferred.await(never)),
+              Effect.as([[]]),
+            ),
+        } as never),
+        Effect.provideService(TerminalShellRegistry.TerminalShellRegistry, {
+          shells: Effect.succeed(new Map()),
+        }),
+        Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
+      );
+      const reader = yield* Effect.forkChild(authorizer.authorize(45020));
+      yield* Deferred.await(started);
+      const sharer = yield* Effect.forkChild(code(authorizer.authorize(45020)));
+      yield* Fiber.interrupt(reader);
+      // A read that did not finish says nothing about the port: the sharer gets the plain reason.
+      assert.equal(
+        yield* Fiber.join(sharer),
+        "not-owned (no terminal or agent of this environment owns this port)",
+      );
     }),
   );
 });
