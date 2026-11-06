@@ -7,11 +7,20 @@ import { useT } from "~/hooks/useT";
 import { useEnvironment } from "~/state/environments";
 import { environmentSession } from "~/state/session";
 
-/** The grants are unknown (never read, or the read failed) and the environment is not connected. */
+// `error` and `unsupported` are a blocked connection (authentication, configuration, permission):
+// it does not come back by itself, and pairing again is the way out.
+const WAITING_PHASES: ReadonlySet<string | undefined> = new Set([
+  "offline",
+  "available",
+  "connecting",
+  "reconnecting",
+]);
+
+/** The grants are unknown (never read, or the read failed) and the connection may still come up. */
 const isPreviewSessionUnreadable = (input: {
   readonly sessionResult: "Initial" | "Success" | "Failure";
-  readonly connected: boolean;
-}): boolean => input.sessionResult !== "Success" && !input.connected;
+  readonly phase: string | undefined;
+}): boolean => input.sessionResult !== "Success" && WAITING_PHASES.has(input.phase);
 
 /** The words for an unreachable environment's panel, or `null` when pairing is the real problem. */
 export function useUnreachablePreviewNotice(environmentId: EnvironmentId): string | null {
@@ -24,7 +33,7 @@ export function useUnreachablePreviewNotice(environmentId: EnvironmentId): strin
   if (
     !isPreviewSessionUnreadable({
       sessionResult,
-      connected: environment?.connection.phase === "connected",
+      phase: environment?.connection.phase,
     })
   ) {
     return null;

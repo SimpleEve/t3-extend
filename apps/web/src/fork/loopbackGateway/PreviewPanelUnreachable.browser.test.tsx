@@ -54,6 +54,31 @@ describe("the preview panel of an environment that cannot be reached", () => {
     expect(screen.container.textContent).not.toContain("Pair this client again");
   });
 
+  it.each(["error", "unsupported"])(
+    "asks to pair again when the connection is blocked (%s), since it will not come back by itself",
+    async (phase) => {
+      setup({ result: AsyncResult.fail(new Error("revoked")), phase, canOperate: false });
+      await using screen = await renderPanel();
+      await expect
+        .element(
+          screen.getByText(
+            "Pair this client again with preview access to control browser previews.",
+          ),
+        )
+        .toBeVisible();
+      expect(screen.container.textContent).not.toContain("Can't reach");
+    },
+  );
+
+  it.each(["available", "connecting", "reconnecting"])(
+    "says the environment is unreachable while it is %s",
+    async (phase) => {
+      setup({ result: AsyncResult.fail(new Error("no connection")), phase, canOperate: false });
+      await using screen = await renderPanel();
+      await expect.element(screen.getByText("Can't reach Studio", { exact: false })).toBeVisible();
+    },
+  );
+
   it("still asks to pair again when the session was read and grants no preview access", async () => {
     setup({
       result: AsyncResult.success({ authenticated: true, scopes: [] } as never),
