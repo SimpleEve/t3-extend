@@ -88,6 +88,8 @@
         "src/preview-pip-preload.ts!",
         "src/mac-permission-preload.ts!",
         "src/preview/Annotation.css!",
+        // fork: Electron runs the loopback gateway smoke by path (run.mjs starts it).
+        "scripts/loopback-gateway-smoke/main.mjs",
       ],
       // The injected runtime resolves Playwright by string; release tooling runs
       // electron-builder from this workspace, outside its package scripts.

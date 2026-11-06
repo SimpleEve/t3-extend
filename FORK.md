@@ -366,6 +366,14 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 
 新增原生模块和 Maven 依赖会改变 Android 的 native fingerprint（iOS 不变），之后要重新 `mobile:install` / 重新打 APK。
 
+## 远程环境的 localhost 转发（桌面版，开发中）
+
+设计在 `research/remote-loopback-forwarding.md`。桌面主进程里的部分在 `apps/desktop/src/fork/loopbackGateway/`：每个登记过的远程环境一个只绑 `127.0.0.1` 的代理，该环境的预览分区用 `session.setProxy` 指过去，回环请求经 WebSocket 隧道到那台环境的回环地址。B 端网关和界面还没合入，用户文档到 9.4 再写。下面是对维护者的约束：
+
+- **fork 占用了预览 session 的 `webRequest.onHeadersReceived`。** Electron 对每个 session 的每种 `webRequest` 事件只保留一个监听器，后注册的覆盖先注册的。网关用它把代理的错误页变成渲染进程的事件，停止转发时又把它清成 `null`。上游以后要在这些 session 上用 `webRequest`，必须和网关的处理合并，不能直接再注册一个。`apps/desktop/src/fork/loopbackGateway/singleWebRequestListener.test.ts` 在 `apps/desktop/src/fork/` 以外的产品代码里看到 `webRequest.on…(` 就失败。这个扫描只是守护：抓不到别名（`const w = session.webRequest; w.onX(…)`）和经封装函数的间接注册，上游开始共用这个 API 时必须人工审查，不能把它当作完备证明。
+- **转发开着时，该环境所有分区里的非回环流量绕过系统代理。** 规则是 `fixed_servers` 加 `proxyBypassRules: "*;<-loopback>"`，这是让非回环地址直连的唯一写法（`<-loopback>` 单独用会把所有地址拖进代理，PAC 抓不到回环地址，见设计 §1.1）。用 Clash、公司代理的用户，在转发开着的环境的标签页里，外部网站会直连。停止转发（`disabled-by-user`）后，分区恢复为 `system`，系统代理重新生效。界面和用户文档里的提示在 9.3、9.4 做。
+- 恢复网络用 `{ mode: "system" }`，因为 app 从没给这些分区设过别的代理模式；上游以后开始管理 session 代理时，要改成保存并恢复真实配置。
+
 ## 打包与签名
 
 两条命令，都可以直接重跑：
