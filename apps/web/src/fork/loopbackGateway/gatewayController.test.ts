@@ -23,6 +23,10 @@ function harness(
     hold?: boolean;
     /** How far the environment's clock is ahead of this computer's. */
     skewMs?: number;
+    /** The first this many `register` calls throw. */
+    registerFailures?: number;
+    /** The first this many `updateTicket` calls answer `null`: the main process does not know the environment. */
+    unknownTicketAnswers?: number;
   } = {},
 ) {
   let clock = 1_000_000;
@@ -33,6 +37,8 @@ function harness(
   const timers: Array<{ run: () => void; delayMs: number; cancelled: boolean }> = [];
   const tickets = options.tickets ?? [];
   let issued = 0;
+  let registerCalls = 0;
+  let ticketCalls = 0;
   // The first fetch can be held open: `started` says it began, `release` lets it finish.
   let release = () => {};
   let started = () => {};
@@ -46,11 +52,15 @@ function harness(
   > = {
     register: async (input) => {
       calls.push(`register ${input.httpBaseUrl} enabled=${input.enabled}`);
+      registerCalls += 1;
+      if (registerCalls <= (options.registerFailures ?? 0)) throw new Error("ipc closed");
       return { state: "pending" };
     },
     updateTicket: async (input) => {
       calls.push(`updateTicket ${input.credential.ticket}`);
       handedExpiries.push(Date.parse(input.credential.expiresAt));
+      ticketCalls += 1;
+      if (ticketCalls <= (options.unknownTicketAnswers ?? 0)) return null;
       return { state: "active" };
     },
     unregister: async () => {
@@ -397,6 +407,48 @@ describe("gateway controller", () => {
     failing.sync(ENV, TARGET);
     await failing.idle();
     expect(h.registrations).toEqual(["pending", "failed"]);
+  });
+
+  it("registers again when the main process does not know the environment a ticket was meant for", async () => {
+    const h = harness({ unknownTicketAnswers: 1 });
+    h.controller.sync(ENV, TARGET);
+    await h.controller.idle();
+    expect(h.calls).toEqual([
+      "register https://box.example.com enabled=true",
+      "issue",
+      "updateTicket ticket-1",
+      "register https://box.example.com enabled=true",
+      "issue",
+      "updateTicket ticket-2",
+    ]);
+    // The gate closes for new tabs while the environment is unregistered, and opens again after.
+    expect(h.registrations).toEqual(["pending", "registered", "pending", "registered"]);
+    expect(h.delivered).toEqual([ENV]);
+    expect(h.liveTimers().map((timer) => timer.delayMs)).toEqual([3 * MINUTE]);
+  });
+
+  it("gives up quietly, with the gate closed, when a fresh registration is not known either", async () => {
+    const h = harness({ unknownTicketAnswers: 2 });
+    h.controller.sync(ENV, TARGET);
+    await h.controller.idle();
+    expect(h.calls.filter((call) => call.startsWith("register"))).toHaveLength(2);
+    expect(h.registrations.at(-1)).toBe("failed");
+    expect(h.delivered).toEqual([]);
+  });
+
+  it("registers again on retry after a failed registration, then fetches the ticket", async () => {
+    const h = harness({ registerFailures: 1 });
+    h.controller.sync(ENV, TARGET);
+    await h.controller.idle();
+    expect(h.registrations).toEqual(["pending", "failed"]);
+    h.controller.retry(ENV);
+    await h.controller.idle();
+    expect(h.registrations).toEqual(["pending", "failed", "pending", "registered"]);
+    expect(h.calls.at(-1)).toBe("updateTicket ticket-1");
+    // Nothing to retry once it is registered.
+    h.controller.retry(ENV);
+    await h.controller.idle();
+    expect(h.calls.filter((call) => call.startsWith("register"))).toHaveLength(2);
   });
 
   it("unregisters every environment on dispose", async () => {

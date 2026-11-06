@@ -79,11 +79,7 @@ export interface LoopbackGatewayGateInput {
 export const isLoopbackGatewayReady = (input: LoopbackGatewayGateInput): boolean => {
   if (input.disabledByUser) return true;
   if (input.state === "unknown") return input.wasActive ? false : !input.connecting;
-  return (
-    input.state !== "active" ||
-    input.registration === "registered" ||
-    input.registration === "failed"
-  );
+  return input.state !== "active" || input.registration === "registered";
 };
 
 /** The tabs of a forwarded environment are held back until it can be reached, and the user has not said otherwise. */

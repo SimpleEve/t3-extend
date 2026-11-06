@@ -12,7 +12,8 @@ interface Props {
   description: string;
   onReload: () => void;
   move?: { readonly label: string; readonly onMove: () => void };
-  gateway?: { readonly title: string; readonly description: string }; // fork: forwarded localhost
+  // fork: forwarded localhost
+  gateway?: { readonly title: string; readonly description: string; readonly reloadLabel?: string };
 }
 
 export function PreviewFileNotShown({
@@ -114,7 +115,8 @@ export function PreviewUnreachable({ url, code, description, onReload, move, gat
             </Button>
           ) : null}
           <Button type="button" size="sm" onClick={onReload}>
-            {t("Reload")}
+            {/* fork: forwarded localhost */}
+            {gateway?.reloadLabel ?? t("Reload")}
           </Button>
         </div>
       </div>

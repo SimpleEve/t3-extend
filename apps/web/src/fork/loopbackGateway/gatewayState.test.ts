@@ -152,7 +152,12 @@ describe("loopback gateway ready", () => {
     ["forwarded, not registered yet", { registration: "pending" }, false],
     ["forwarded, manager has not seen it yet", { registration: undefined }, false],
     ["forwarded and registered", {}, true],
-    ["forwarded, registration failed", { registration: "failed" }, true],
+    ["forwarded, registration failed", { registration: "failed" }, false],
+    [
+      "forwarded, registration failed, user switched off",
+      { registration: "failed", disabledByUser: true },
+      true,
+    ],
     ["unknown while connecting", { state: "unknown", registration: undefined }, false],
     [
       "unknown, nothing connecting",

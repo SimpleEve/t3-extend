@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import { render } from "../../../test/render";
 import type { LoopbackGatewayState } from "./gatewayState";
-import { selectGatewayDenial, useGatewayStore } from "./gatewayStore";
+import { requestGatewayRetry, selectGatewayDenial, useGatewayStore } from "./gatewayStore";
 
 const mocks = vi.hoisted(() => ({
   snapshot: {} as Record<string, unknown>,
@@ -61,6 +61,7 @@ function setup(input: {
   useGatewayStore.setState({
     states: {},
     registration: {},
+    retryRequests: {},
     ticketGeneration: {},
     seq: 0,
     tabs: {},
@@ -124,6 +125,19 @@ describe("loopback gateway manager", () => {
     );
     expect(useGatewayStore.getState().registration[ENV]).toBeUndefined();
     expect(useGatewayStore.getState().states[ENV]).toBeUndefined();
+  });
+
+  it("registers again when the user retries a registration that failed", async () => {
+    using gateway = setup({ state: { state: "active" } });
+    gateway.bridge.register.mockRejectedValueOnce(new Error("ipc closed"));
+    await using _screen = await render(<LoopbackGatewayManager />, { router: false });
+    await vi.waitFor(() => expect(useGatewayStore.getState().registration[ENV]).toBe("failed"));
+    expect(gateway.bridge.updateTicket).not.toHaveBeenCalled();
+
+    requestGatewayRetry(ENV);
+    await vi.waitFor(() => expect(useGatewayStore.getState().registration[ENV]).toBe("registered"));
+    expect(gateway.bridge.register).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(gateway.bridge.updateTicket).toHaveBeenCalledOnce());
   });
 
   it("registers an environment the user stopped, without asking it for a ticket", async () => {

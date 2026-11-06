@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  pruneLoopbackWasActive,
+  pruneLoopbackForwardingRecords,
   setLoopbackForwardingDisabled,
   setLoopbackWasActive,
   useGatewayStorage,
@@ -27,9 +27,18 @@ describe("gateway storage writes", () => {
     const stored = setup();
     setLoopbackWasActive("env-a", true);
     setLoopbackWasActive("env-b", true);
-    pruneLoopbackWasActive(new Set(["env-b"]));
+    pruneLoopbackForwardingRecords(new Set(["env-b"]));
     expect(stored().wasActive).toEqual(["env-b"]);
     setLoopbackWasActive("env-b", false);
     expect(stored().wasActive).toEqual([]);
+  });
+
+  it("forgets a stopped environment's switch as well when it is removed", () => {
+    const stored = setup();
+    setLoopbackForwardingDisabled("env-a" as never, true);
+    setLoopbackForwardingDisabled("env-b" as never, true);
+    setLoopbackWasActive("env-a", true);
+    pruneLoopbackForwardingRecords(new Set(["env-b"]));
+    expect(stored()).toEqual({ disabled: ["env-b"], wasActive: [] });
   });
 });

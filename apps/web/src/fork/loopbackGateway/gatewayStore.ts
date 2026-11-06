@@ -26,6 +26,8 @@ interface TabLoad {
 interface GatewayStoreState {
   readonly states: Readonly<Record<string, LoopbackGatewayState["state"]>>;
   readonly registration: Readonly<Record<string, GatewayRegistration>>;
+  /** Counts the user's asks to register an environment again after it failed. */
+  readonly retryRequests: Readonly<Record<string, number>>;
   /** Counts tickets handed to the main process, so a card waiting on one can try again. */
   readonly ticketGeneration: Readonly<Record<string, number>>;
   readonly seq: number;
@@ -37,6 +39,7 @@ interface GatewayStoreState {
 export const useGatewayStore = create<GatewayStoreState>(() => ({
   states: {},
   registration: {},
+  retryRequests: {},
   ticketGeneration: {},
   seq: 0,
   tabs: {},
@@ -62,6 +65,7 @@ export function forgetGatewayEnvironment(environmentId: string) {
   patch((store) => ({
     states: without(store.states, environmentId),
     registration: without(store.registration, environmentId),
+    retryRequests: without(store.retryRequests, environmentId),
     ticketGeneration: without(store.ticketGeneration, environmentId),
   }));
 }
@@ -72,6 +76,15 @@ export function setGatewayRegistration(environmentId: string, value: GatewayRegi
       value === null
         ? without(store.registration, environmentId)
         : { ...store.registration, [environmentId]: value },
+  }));
+}
+
+export function requestGatewayRetry(environmentId: string) {
+  patch((store) => ({
+    retryRequests: {
+      ...store.retryRequests,
+      [environmentId]: (store.retryRequests[environmentId] ?? 0) + 1,
+    },
   }));
 }
 

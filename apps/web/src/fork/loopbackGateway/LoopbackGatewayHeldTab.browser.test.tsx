@@ -53,7 +53,7 @@ const ENV = "env-studio" as EnvironmentId;
 function setup(input: { state: string; connecting: boolean; wasActive: boolean }) {
   mocks.set(input);
   useGatewayStorage.setState({ disabled: [], wasActive: [] });
-  useGatewayStore.setState({ registration: {} });
+  useGatewayStore.setState({ registration: {}, retryRequests: {} });
 }
 
 // What a restored tab is: the webview behind the gate, and the card for the wait.
@@ -134,5 +134,38 @@ describe("a restored tab of an environment that was forwarding", () => {
     expect(webview(screen)).toBeNull();
     mocks.set({ state: "unsupported-server", connecting: false, wasActive: true });
     await vi.waitFor(() => expect(webview(screen)).not.toBeNull());
+  });
+});
+
+describe("a tab of an environment whose forwarding could not be set up", () => {
+  it("shows the card and no webview, and opens once a retry registers it", async () => {
+    setup({ state: "active", connecting: true, wasActive: false });
+    setGatewayRegistration(ENV, "failed");
+    await using screen = await render(<RestoredTab />, { router: false });
+    await expect
+      .element(screen.getByRole("heading", { name: "Couldn't start localhost forwarding" }))
+      .toBeVisible();
+    expect(webview(screen)).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(useGatewayStore.getState().retryRequests[ENV]).toBe(1);
+    expect(webview(screen)).toBeNull();
+    // The manager registers again: pending first, then done.
+    setGatewayRegistration(ENV, "pending");
+    setGatewayRegistration(ENV, "registered");
+    await vi.waitFor(() => expect(webview(screen)).not.toBeNull());
+    expect(screen.container.querySelector("h1")).toBeNull();
+  });
+
+  it("opens on this computer's localhost when the user stops forwarding instead", async () => {
+    setup({ state: "active", connecting: true, wasActive: false });
+    setGatewayRegistration(ENV, "failed");
+    await using screen = await render(<RestoredTab />, { router: false });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Stop forwarding and use this computer's localhost" }),
+    );
+    expect(useGatewayStorage.getState().disabled).toEqual([ENV]);
+    await vi.waitFor(() => expect(webview(screen)).not.toBeNull());
+    expect(screen.container.querySelector("h1")).toBeNull();
   });
 });

@@ -70,11 +70,18 @@ export function setLoopbackWasActive(environmentId: string, wasActive: boolean) 
   if (list.length !== current.wasActive.length) commit({ ...current, wasActive: list });
 }
 
-/** Forgets the environments that are no longer saved in the app. */
-export function pruneLoopbackWasActive(knownEnvironmentIds: ReadonlySet<string>) {
+/** Forgets both records of the environments that are no longer saved in the app. */
+export function pruneLoopbackForwardingRecords(knownEnvironmentIds: ReadonlySet<string>) {
   const current = useGatewayStorage.getState();
-  const kept = current.wasActive.filter((id) => knownEnvironmentIds.has(id));
-  if (kept.length !== current.wasActive.length) commit({ ...current, wasActive: kept });
+  const known = (id: string) => knownEnvironmentIds.has(id);
+  const disabled = current.disabled.filter(known);
+  const wasActive = current.wasActive.filter(known);
+  if (
+    disabled.length !== current.disabled.length ||
+    wasActive.length !== current.wasActive.length
+  ) {
+    commit({ disabled, wasActive });
+  }
 }
 
 export function useLoopbackForwardingDisabled(environmentId: EnvironmentId | null): boolean {

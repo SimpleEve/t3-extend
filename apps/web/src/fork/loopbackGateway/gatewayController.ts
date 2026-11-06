@@ -41,6 +41,10 @@ interface Entry {
   target: GatewayTarget;
   removed: boolean;
   registered: boolean;
+  /** The last registration did not go through, and nothing has tried again. */
+  registrationFailed: boolean;
+  /** Registered again because the main process had lost it, and no ticket has been accepted since. */
+  reregistered: boolean;
   /** Bumped when the route changes; a ticket fetched before that is not delivered. */
   routeGeneration: number;
   ticketQueued: boolean;
@@ -59,6 +63,8 @@ export interface GatewayController {
   readonly sync: (environmentId: string, target: GatewayTarget | null) => void;
   /** The main process asked for a ticket. */
   readonly ticketNeeded: (environmentId: string) => void;
+  /** Tries again to register an environment whose registration failed. */
+  readonly retry: (environmentId: string) => void;
   readonly dispose: () => void;
   /** Resolves when every bridge call made so far has finished. */
   readonly idle: () => Promise<void>;
@@ -111,7 +117,9 @@ export const makeGatewayController = (deps: GatewayControllerDeps): GatewayContr
           environmentId,
           credential: { ticket: issued.ticket, expiresAt: new Date(expiresAt).toISOString() },
         });
-        if (status === null || entry.removed) return;
+        if (entry.removed) return;
+        if (status === null) return notRegistered(environmentId, entry);
+        entry.reregistered = false;
         entry.receivedAt = receivedAt;
         entry.expiresAt = expiresAt;
       } catch {
@@ -142,6 +150,26 @@ export const makeGatewayController = (deps: GatewayControllerDeps): GatewayContr
     if (entry.expiresAt !== null && time + TICKET_FAILURE_COOLDOWN_MS < entry.expiresAt) {
       armFetch(environmentId, entry, TICKET_FAILURE_COOLDOWN_MS);
     }
+  };
+
+  /**
+   * The main process does not know this environment (`updateTicket` answered `null`), so another
+   * ticket would not help: register it again. If a registration that just went through is not known
+   * either, stop and let the user retry, rather than going round again.
+   */
+  const notRegistered = (environmentId: string, entry: Entry): void => {
+    entry.registered = false;
+    entry.expiresAt = null;
+    entry.cancelRenewal?.();
+    entry.cancelRenewal = null;
+    if (entry.reregistered) {
+      entry.registrationFailed = true;
+      deps.onRegistration(environmentId, "failed");
+      return;
+    }
+    entry.reregistered = true;
+    deps.onRegistration(environmentId, "pending");
+    register(environmentId, entry);
   };
 
   const scheduleRenewal = (environmentId: string, entry: Entry): void => {
@@ -176,11 +204,14 @@ export const makeGatewayController = (deps: GatewayControllerDeps): GatewayContr
         });
         if (!target.reachable) await deps.bridge.setReachable({ environmentId, reachable: false });
       } catch {
-        if (!entry.removed) deps.onRegistration(environmentId, "failed");
+        if (entry.removed) return;
+        entry.registrationFailed = true;
+        deps.onRegistration(environmentId, "failed");
         return;
       }
       if (entry.removed) return;
       entry.registered = true;
+      entry.registrationFailed = false;
       deps.onRegistration(environmentId, "registered");
       fetchTicket(environmentId, entry, true);
     });
@@ -209,6 +240,8 @@ export const makeGatewayController = (deps: GatewayControllerDeps): GatewayContr
           target,
           removed: false,
           registered: false,
+          registrationFailed: false,
+          reregistered: false,
           routeGeneration: 0,
           ticketQueued: false,
           lastAttemptAt: Number.NEGATIVE_INFINITY,
@@ -245,6 +278,14 @@ export const makeGatewayController = (deps: GatewayControllerDeps): GatewayContr
     ticketNeeded: (environmentId) => {
       const entry = entries.get(environmentId);
       if (entry !== undefined) fetchTicket(environmentId, entry, false);
+    },
+    retry: (environmentId) => {
+      const entry = entries.get(environmentId);
+      if (entry === undefined || !entry.registrationFailed) return;
+      entry.registrationFailed = false;
+      entry.reregistered = false;
+      deps.onRegistration(environmentId, "pending");
+      register(environmentId, entry);
     },
     dispose: () => {
       for (const [environmentId, entry] of entries) remove(environmentId, entry);

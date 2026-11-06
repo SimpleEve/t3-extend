@@ -8,7 +8,7 @@ import { previewBridge } from "~/components/preview/previewBridge";
 import { useEnvironments } from "~/state/environments";
 
 import { getLoopbackGatewayBridge } from "./bridge";
-import { pruneLoopbackWasActive, setLoopbackWasActive } from "./disabledStore";
+import { pruneLoopbackForwardingRecords, setLoopbackWasActive } from "./disabledStore";
 import { type GatewayController, makeGatewayController } from "./gatewayController";
 import {
   forgetGatewayEnvironment,
@@ -17,6 +17,7 @@ import {
   noteGatewayTicketDelivered,
   publishGatewayState,
   setGatewayRegistration,
+  useGatewayStore,
 } from "./gatewayStore";
 import { fetchLoopbackGatewayTicket } from "./ticketCommand";
 import { useLoopbackGatewayState } from "./useLoopbackGatewayState";
@@ -46,7 +47,9 @@ export function LoopbackGatewayManager() {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- forgets the stored forwarding state of environments that were removed, once the saved list is known
   useEffect(() => {
     if (isReady)
-      pruneLoopbackWasActive(new Set(environmentIds === "" ? [] : environmentIds.split("\n")));
+      pruneLoopbackForwardingRecords(
+        new Set(environmentIds === "" ? [] : environmentIds.split("\n")),
+      );
   }, [isReady, environmentIds]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- listens to the Electron main process's gateway events for as long as the app runs
@@ -120,6 +123,12 @@ function EnvironmentGateway(props: {
       httpBaseUrl === null ? null : { httpBaseUrl, enabled, reachable: connected },
     );
   }, [controller, environmentId, httpBaseUrl, enabled, connected]);
+
+  const retryRequests = useGatewayStore((store) => store.retryRequests[environmentId] ?? 0);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- the user's retry of a failed registration is carried out by the controller, which lives outside React
+  useEffect(() => {
+    if (retryRequests > 0) controller.retry(environmentId);
+  }, [controller, environmentId, retryRequests]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- releases the environment's proxy when it leaves the app
   useEffect(

@@ -54,6 +54,9 @@ export default {
   "Forwarding needs port discovery to be on there.": "转发依赖那边的端口发现，请先把它打开。",
   "Too many forwarded connections": "转发的连接太多",
   "Reload in a moment to try again.": "稍后重新加载再试。",
+  "Couldn't start localhost forwarding": "无法启动 localhost 转发",
+  "Forwarding to {environment} didn't start, so this tab stays closed. Retry, or use this computer's localhost instead.":
+    "到 {environment} 的转发没能启动，所以这个标签页保持关闭。请重试，或改用这台电脑的 localhost。",
   "Reconnecting to {environment}…": "正在重新连接 {environment}…",
   "This page reloads when the connection is back.": "连接恢复后页面会自动重新加载。",
   "Couldn't forward localhost:{port}": "无法转发 localhost:{port}",

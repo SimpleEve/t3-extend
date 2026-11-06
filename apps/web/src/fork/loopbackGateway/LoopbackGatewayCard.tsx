@@ -17,7 +17,7 @@ import {
 } from "./gatewayCard";
 import { setLoopbackForwardingDisabled, useLoopbackForwardingDisabled } from "./disabledStore";
 import { isLoopbackGatewayHeld } from "./gatewayState";
-import { selectGatewayDenial, useGatewayStore } from "./gatewayStore";
+import { requestGatewayRetry, selectGatewayDenial, useGatewayStore } from "./gatewayStore";
 import { useLoopbackGatewayState } from "./useLoopbackGatewayState";
 
 const isLoopbackUrl = (url: string): boolean => {
@@ -53,15 +53,20 @@ export function LoopbackGatewayCard(props: LoopbackGatewayTabProps) {
   const denial = useGatewayStore((store) =>
     loopback ? selectGatewayDenial(store, { runtimeTabId, environmentId, port, loadFailed }) : null,
   );
-  const key: GatewayCardKey | null = held
-    ? connecting
-      ? null
-      : "waiting"
-    : denial !== null
-      ? gatewayCardKeyForCode(denial.code)
-      : loadFailed && loopback
-        ? gatewayCardKeyForState(state)
-        : null;
+  const registration = useGatewayStore((store) => store.registration[environmentId]);
+  // The gate keeps the webview away until forwarding is set up; when it could not be, say so.
+  const startFailed = state.state === "active" && registration === "failed" && !disabledByUser;
+  const key: GatewayCardKey | null = startFailed
+    ? "start-failed"
+    : held
+      ? connecting
+        ? null
+        : "waiting"
+      : denial !== null
+        ? gatewayCardKeyForCode(denial.code)
+        : loadFailed && loopback
+          ? gatewayCardKeyForState(state)
+          : null;
 
   const ticketsDelivered = useGatewayStore((store) => store.ticketGeneration[environmentId] ?? 0);
   const waitingSince = useRef<number | null>(null);
@@ -84,10 +89,10 @@ export function LoopbackGatewayCard(props: LoopbackGatewayTabProps) {
       <PreviewUnreachable
         url={url}
         code={0}
-        description={held ? key : (denial?.code ?? key)}
-        onReload={onReload}
-        gateway={copy}
-        {...(key === "waiting"
+        description={held || startFailed ? key : (denial?.code ?? key)}
+        onReload={startFailed ? () => requestGatewayRetry(environmentId) : onReload}
+        gateway={startFailed ? { ...copy, reloadLabel: t("Retry") } : copy}
+        {...(key === "waiting" || key === "start-failed"
           ? {
               move: {
                 label: t("Stop forwarding and use this computer's localhost"),

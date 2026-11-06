@@ -24,6 +24,8 @@ export type GatewayCardKey =
   | "reconnecting"
   /** A restored tab of an environment that was forwarding, held back until it can be reached. */
   | "waiting"
+  /** The environment is forwarding but the main process could not be set up for it. */
+  | "start-failed"
   | "failed";
 
 /** The card for a refusal the main process reported. */
@@ -196,6 +198,14 @@ export const describeGatewayCard = (
         description: t("This tab opens by itself once {environment} is connected.", {
           environment,
         }),
+      };
+    case "start-failed":
+      return {
+        title: t("Couldn't start localhost forwarding"),
+        description: t(
+          "Forwarding to {environment} didn't start, so this tab stays closed. Retry, or use this computer's localhost instead.",
+          { environment },
+        ),
       };
     case "reconnecting":
       return {
