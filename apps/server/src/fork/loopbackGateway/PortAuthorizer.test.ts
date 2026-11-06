@@ -650,6 +650,61 @@ describe("the rescan on a miss", () => {
   );
 });
 
+describe("the read that tells an empty port from an owned one", () => {
+  it.effect("reads at most once per interval, however many tunnels are refused", () =>
+    Effect.gen(function* () {
+      const reads = yield* Ref.make(0);
+      const listening = yield* Ref.make(false);
+      const authorizer = yield* makeAuthorizer({
+        serverPid: process.pid,
+        reservedPorts: Effect.succeed(new Set()),
+      }).pipe(
+        Effect.provideService(PortScanner.PortDiscovery, {
+          scan: () => Effect.succeed([]),
+          scanBackground: () => Effect.succeed([]),
+        } as never),
+        Effect.provideService(ProcessInspector.ProcessInspector, {
+          listeners: () =>
+            Ref.update(reads, (n) => n + 1).pipe(
+              Effect.andThen(Ref.get(listening)),
+              Effect.map((held) => [held ? [{ pid: 1, address: "*", family: "IPv4" }] : []]),
+            ),
+        } as never),
+        Effect.provideService(TerminalShellRegistry.TerminalShellRegistry, {
+          shells: Effect.succeed(new Map()),
+        }),
+        Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
+      );
+      const burst = (port: number, count: number) =>
+        Effect.all(
+          Array.from({ length: count }, () => code(authorizer.authorize(port))),
+          { concurrency: "unbounded" },
+        );
+
+      // A burst on one empty port shares the one read.
+      const first = yield* burst(45010, 60);
+      assert.equal(yield* Ref.get(reads), 1);
+      assert.deepEqual(
+        new Set(first),
+        new Set(["upstream-refused (nothing is listening on this port)"]),
+      );
+      // The same port later in the interval reuses the answer; another port has none to reuse.
+      yield* expectCode(authorizer.authorize(45010), "upstream-refused");
+      yield* expectCode(authorizer.authorize(45011), "not-owned");
+      assert.equal(yield* Ref.get(reads), 1);
+
+      // One interval on, the next refusal reads again, and a listener that has appeared shows.
+      yield* Ref.set(listening, true);
+      yield* TestClock.adjust(Duration.millis(RESCAN_MIN_INTERVAL_MS - 1));
+      yield* expectCode(authorizer.authorize(45010), "upstream-refused");
+      assert.equal(yield* Ref.get(reads), 1);
+      yield* TestClock.adjust(Duration.millis(1));
+      yield* expectCode(authorizer.authorize(45010), "not-owned");
+      assert.equal(yield* Ref.get(reads), 2);
+    }),
+  );
+});
+
 describe("which address to dial", () => {
   it("prefers 127.0.0.1, then ::1, and dials 127.0.0.1 for a wildcard; other addresses are not loopback", () => {
     const entry = (address: string, family: "IPv4" | "IPv6" = "IPv4") => ({

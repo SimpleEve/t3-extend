@@ -294,6 +294,37 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
     );
   });
 
+  // Only the reason of a refusal depends on this read, never whether the port is allowed. It is
+  // made at most once per interval for the whole server: the refusals that arrive meanwhile share
+  // it (same port) or get `not-owned`, which is what a failed read gives too.
+  type EmptyReads = {
+    readonly at: number;
+    readonly byPort: ReadonlyMap<number, Deferred.Deferred<boolean>>;
+  };
+  type EmptyReadPlan = readonly ["read" | "share" | "skip", Deferred.Deferred<boolean> | null];
+  const emptyReads = yield* Ref.make<EmptyReads | null>(null);
+  const portIsEmpty = Effect.fn("LoopbackGateway.portIsEmpty")(function* (port: number) {
+    const now = yield* Clock.currentTimeMillis;
+    const mine = yield* Deferred.make<boolean>();
+    const [role, shared] = yield* Ref.modify(
+      emptyReads,
+      (state): readonly [EmptyReadPlan, EmptyReads | null] => {
+        if (state === null || now - state.at >= RESCAN_MIN_INTERVAL_MS) {
+          return [["read", mine], { at: now, byPort: new Map([[port, mine]]) }];
+        }
+        const existing = state.byPort.get(port);
+        return existing === undefined ? [["skip", null], state] : [["share", existing], state];
+      },
+    );
+    if (role === "skip") return false;
+    if (role === "share") return yield* Deferred.await(shared!);
+    return yield* inspector.listeners([port]).pipe(
+      Effect.map(([entries]) => entries?.length === 0),
+      Effect.orElseSucceed(() => false),
+      Effect.onExit((exit) => Deferred.succeed(mine, exit._tag === "Success" && exit.value)),
+    );
+  });
+
   const authorize = Effect.fn("LoopbackGateway.authorize")(function* (port: number) {
     if (LOOPBACK_GATEWAY_BLOCKED_PORTS.has(port) || (yield* options.reservedPorts).has(port)) {
       return yield* refuse("reserved", "this port is reserved");
@@ -304,13 +335,7 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
       pid = rescanned === null ? null : nominate(rescanned, port);
     }
     if (pid === null) {
-      // Only the reason differs: an empty port is not "someone else's service". A failed read
-      // stays `not-owned`, the answer that was true before the read.
-      const empty = yield* inspector.listeners([port]).pipe(
-        Effect.map(([entries]) => entries?.length === 0),
-        Effect.orElseSucceed(() => false),
-      );
-      return yield* empty
+      return yield* (yield* portIsEmpty(port))
         ? refuse("upstream-refused", "nothing is listening on this port")
         : refuse("not-owned", "no terminal or agent of this environment owns this port");
     }

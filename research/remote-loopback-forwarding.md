@@ -873,6 +873,7 @@ M2 的设计变更见 §5.6.0.1：判断全部来自每条隧道现读的祖先�
 - A 端代理被本机其他进程利用：需要口令，只能得到 407（§4.7）。
 - B 端被未认证请求打：路由要求严格 audience 的票据、拒绝带 `Origin` 的请求、拒绝 query 里的 `wsTicket`；票据校验失败不进数据库以外的任何地方。
 - 日志泄露：§4.3 的测试保证。
+- 端口是否有程序在监听（已接受的侧信道）：端口没人认领时，拒绝原因区分"没有程序在监听"（`upstream-refused`）和"别人的程序占着"（`not-owned`），页面能借此探测 B 上哪些回环端口有服务。接受的理由：能用网关的会话必须同时有 `preview:operate` 和 `terminal:operate`，有 `terminal:operate` 本来就能在 B 上开终端自己跑 `lsof`，这个区分没有比这个权限多泄露什么。这次读取（`PortAuthorizer` 的 `portIsEmpty`）只影响拒绝原因，不影响放不放行；每台 server 每 `RESCAN_MIN_INTERVAL_MS` 最多读一次，同一时间到达、同一端口的拒绝共用这一次，间隔内别的端口和读取失败都回到 `not-owned`。
 
 ### 6.7 页面对 dev server "完整网络接口"的访问（GPT P1-6）
 
