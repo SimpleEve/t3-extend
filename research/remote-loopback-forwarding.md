@@ -207,7 +207,13 @@ default 配置          → scope = environmentId,                 persistent = 
 
 不设空闲超时。理由：Vite 的 HMR 客户端在 WebSocket 非正常关闭后会轮询并 `location.reload()`，空闲超时会让页面莫名重载；靠存活探测和两端关闭传播就够。
 
-**B 端的第一步（9.1 开头）要验证的技术前提：** 共享 `HttpRouter` 上的升级路由，把 `request.upgrade` 的 Socket 对接到 `net.connect`，确认主监听口和 `TunnelListener` 口都能用；背压（写慢的一端会不会无限缓冲）；`awaitInvalidation` 竞速能关闭它。做不成就改用 `ws` 的流接口，再不行停下回报。
+**B 端的技术前提：已验证（9.1 M2，测试都在 `apps/server/src/fork/loopbackGateway/TunnelRoute.test.ts`、`TunnelRevocation.test.ts`，原始输出在 `/tmp/t3x-p91/`）。** 做法没有退回到别的传输层：路由用自己的 `WebSocketServer({ noServer: true, maxPayload: 1 MiB, perMessageDeflate: false })` 处理 `request.upgrade` 的 Socket，用 `ws.createWebSocketStream` 与 `net.Socket` 互相 `pipe`，背压由 Node 流承担。
+
+- **两个监听口：** 同一份用例在主监听口和 `TunnelListener` 口各跑一遍（同一个 router，真实的 `ws` 客户端和真实回环服务），字节双向一致。
+- **背压：** 两个方向各灌 192 MiB，对端不读时，发送端的缓冲都停在 32 MiB 以下。变异检查：把 `tcp.pipe(stream)` 换成 `tcp.on("data", c => ws.send(c))`，测试失败（缓冲到 178,963,056 字节，门槛 33,554,432），所以测试能发现背压丢失；检查后文件已还原。
+- **关闭传播：** 任一端关闭，另一端随之销毁；超过 1 MiB 的帧关闭两端。
+- **`awaitInvalidation` 竞速：** 会话被撤销、自然过期（`TestClock`）、续期链上的续期行被撤销、续期链的原始行被撤销，四种情形都关闭 WS 和 TCP 两端，且之后不再转发字节；授权进行时被撤销，服务端收到 0 个连接；升级与撤销在 24 个不同延迟点上竞速，结果只有"被拒"或"随后关闭"两种，没有第三种。
+- **没有验证的：** frp、Caddy、Tailscale 的行为（9.4）；Linux（§5.6.5）。
 
 ### 3.4 与 Caddy、frp 的关系
 
@@ -551,11 +557,33 @@ authorize(port)                // 每条新隧道都完整走一遍；结果不�
 
 **终端归属的"正在运行的终端 shell"从哪来：** `TerminalManager` 的 `subscribeMetadata`（`terminal/Manager.ts`，摘要里有 `pid` 和 `status`；`session.pid` 在进程退出时置空）。fork 里一个小的 `TerminalShellRegistry` 订阅它，事件驱动、不轮询，维护"当前正在运行的终端 shell 的 pid 集合"。9.1 关口核实 `subscribeMetadata` 覆盖了 shell 退出、终端重启和关闭这几种事件（不覆盖的话回退到快照里的终端进程集合，并把这个回退当作未决项，见 §5.6.0）。
 
-#### 成本，以及怎么量
+#### 成本，以及批量核对（9.1 修复轮）
 
-每条新隧道在 macOS 上是 3 到 4 次进程调用（进程表、`lsof`、agent 归属项再加一次 `ps -E`、C3 的身份₂）。本机实测一次 `lsof -a -p` 约 50 毫秒（附录 A），所以估计在几十到一百多毫秒；**这是估计，不是测量。** 9.1 必须实测并把数字写进 §11：macOS 上单条隧道核对的耗时（中位数和 p95），并发 1、6、32 条隧道各一组，Linux 容器里同样一组。
+**单次核对的耗时分解（macOS，本机空闲时单次调用的中位数，`/tmp/t3x-p91/breakdown.txt`）：**
 
-页面冷启动会一次开五六条隧道，所以并发的情形要特别看。**允许的优化（只在实测显示需要时才做）**：同一个端口上、核对正在进行时到达的请求，合并成**一次紧接着开始的核对**（核对开始时间晚于这些请求的到达时间），这些请求共用这一次核对的结果。这不是缓存：没有任何结果会被一个在它开始之后才到达的请求之前的核对所满足。默认不做，判据：单条核对的 p95 超过 300 毫秒，或六条并发冷启动明显拖慢首屏（§11.1 的测量）。
+| 读取                                | 调用                                      | 耗时                         |
+| ----------------------------------- | ----------------------------------------- | ---------------------------- |
+| C0 进程表                           | `ps -A -ww -o pid=,ppid=,lstart=,args=`   | 47 毫秒                      |
+| C1 监听者                           | `lsof -nP -iTCP:<端口> -sTCP:LISTEN`      | 119 毫秒                     |
+| 同上，不带端口过滤（全部 TCP 监听） | `lsof -nP -iTCP -sTCP:LISTEN`             | 120 毫秒                     |
+| 启动文本（agent 标记、调试参数）    | `ps -E -ww … -p <pid>`                    | 2 毫秒                       |
+| C3 启动时间                         | `ps -ww … -p <pid>`                       | 2 毫秒                       |
+| C3 同一个套接字                     | `lsof -nP -a -p <pid> -iTCP -sTCP:LISTEN` | 51 毫秒                      |
+| 多个 pid 的 `ps -p`（对比）         | `ps -ww … -p <pid1>,<pid2>`               | 75 毫秒（比单 pid 慢 35 倍） |
+
+改前每条隧道是 `ps -A`（47）→ `lsof`（119，与 2 毫秒的启动文本并行）→ `lsof -a -p`（51），串行合计约 217 毫秒，与实测的并发 1 中位数 228 毫秒吻合。代价都在三次整机扫描上（进程表、两次 `lsof`）；逐 pid 的 `ps` 几乎免费，而 `ps -p` 带多个 pid 反而很慢，所以逐 pid 并行读。
+
+**批量核对（不是缓存）。** 没有核对在跑时，第一个到达的请求先等一个收集窗口（硬上限 10 毫秒），窗口内到达的请求合成一批；批开始后到达的请求进下一批，下一批在上一批结束后立即开始（它们已经等过了，不再等窗口）。一批做一套读取：进程表和一次不带端口过滤的 `lsof` 和各个不同 pid 的启动文本并行（C0、C1），逐个请求判定（C2），然后所有幸存者一起做一次 `lsof -a -p <全部 pid>` 和逐 pid 的启动时间（C3）。保证：
+
+- **一次观察只给在它开始之前就已经到达的请求共用。** 批在读取开始之前就把队列拿走，之后到达的请求进下一批，用的是在它到达之后才开始的读取。
+- **绝不复用开始得更早的观察，批与批之间不留任何结果。** 没有缓存，没有“上一批的进程表”这种东西。
+- 每个请求自己的检查各做各的：端口参数、会话、并发与速率上限（都在进入核对之前），C2 的归属与排除规则对每个请求单独判定，C3 对每个 (pid, 端口) 单独比较。一个请求被拒不影响同批的其他请求；读取本身失败则整批失败（fail-closed），下一批重新开始。
+- **等待不拖慢撤销。** 隧道路由在进入核对之前就开始 `awaitInvalidation`，并让核对与“会话已失效”竞速：会话在收集窗口里被撤销，请求立即被拒（401），并从批里退出，不影响同批的其他请求。
+- C0 和 C1 可以并行读（改前是串行）：它们之间不需要顺序，因为 C3 的启动时间比较仍然能发现两次读取之间 pid 被换成了别的进程。
+
+**实测（改后，同一方法：同一端口、真实进程、本机约 1,050 个进程）：** 并发 1：中位数 175 毫秒，p95 223；并发 6：中位数 185，p95 230；并发 32：中位数 175，p95 197。每个并发档的所有请求都落在同一批里（88 轮就是 88 批），并发 6 的 p95 已经低于 300 毫秒的目标。前后对照见 §11。
+
+没有换成 `netstat -anv`（约 14 毫秒，带进程号）：它给的是套接字最后一次被使用的进程，不是全部持有者，和 `lsof` 不等价；如果以后要把 119 毫秒的 `lsof` 再压下去，这是要主控同意的另一个观察原语。
 
 #### 剩下的窗口，和 PID 复用
 
@@ -571,7 +599,7 @@ authorize(port)                // 每条新隧道都完整走一遍；结果不�
 - 归属：agent 归属项的环境被清掉标记 → 被拒；终端归属项的祖先链被打断（用 `setsid` 加双 fork 的辅助进程让它被 init 收养）→ 被拒；终端 shell `exec` 成监听者 → 放行。
 - `SO_REUSEPORT` 两个监听者 → 被拒；IPv4/IPv6 双栈：只绑 `127.0.0.1`、只绑 `::1`、通配绑定各自的拨号目标正确（通配 → `127.0.0.1`）。
 - 平台命令的解析函数用记录下来的真实输出做夹具测试（macOS 的 `lsof -F`、`ps` 的 `lstart`，Linux 的 `/proc/<pid>/stat`（含 comm 里带空格和括号的情形）、`/proc/net/tcp{,6}`），在所有平台上都跑；真实进程测试在各自平台上跑：macOS 本机，Linux 在容器里（`fork:selfhost:e2e` 已经依赖 Docker）。
-- 每条隧道都会触发完整核对：同一个端口连开 6 条，进程调用计数 ≥ 6 组（防止悄悄加缓存）。
+- 每条隧道都经过核对，没有缓存：同一个端口上一条接一条的 6 条隧道是 6 批、6 套完整读取（`PortAuthorizerBatch.test.ts`、`PortAuthorizer.test.ts`）；同时到达的 6 条是 1 批，每条仍各自得出结论；在某次读取开始之后才到达的请求绝不用那次读取的结果；收集窗口里或读取进行中被撤销的会话立即被拒。
 
 ### 5.4 `T3CODE_PORT_DISCOVERY=0`
 
@@ -613,6 +641,37 @@ authorize(port)                // 每条新隧道都完整走一遍；结果不�
 | `CodexManagedTokenBroker.ts:129,201`                                                                                                                                                       | 是不是 TCP                                           | **已核实不是 TCP**：端点是 `NodePath.join(directory, "s")` 的 Unix 套接字，创建后 `chmod 0o600`（`:78`、`:207`），Windows 是命名管道（`:53`）。关口加一条运行时测试，断言它不在 server 的 TCP 监听里                     |
 | 受管端点连接器 `cloud/ManagedEndpointRuntime.ts:705-717`                                                                                                                                   | 监听什么                                             | **第二版漏了这一项**：`tunnel … --metrics 127.0.0.1:0 run`，连接器在回环上开了一个随机端口的指标监听（`detached: false`，server 的直接子进程）→ 登记为运行时                                                             |
 | 其余所有 `ChildProcess.make`/`spawn(` 的调用点（本轮 grep 出约 50 个文件，大多数是 git、gh、ps 之类的瞬时命令）                                                                            | 哪些是长期运行的                                     | 长期运行的已归入 §5.6.2 的表；瞬时命令在表末尾一行说明                                                                                                                                                                   |
+
+#### 5.6.0.1 两道关的结果（9.1 M2 核实版）
+
+**设计变更（主控，M2）：不在 adapter 文件里登记运行时。** 原因：登记要改 7 个上游文件里最常变的启动代码（约 +19 行），而"这个进程是不是某个 provider 的运行时"本来就能从现读的进程祖先链和命令行判断。改为：每条隧道现读祖先链；一张 fork 里的特征表（`RuntimeSignatures.ts`）给出每个驱动的"根特征"和"运行时特征"；二进制路径取自 server 设置的 `binaryPath`，不取自 adapter。规则见 §5.6.3。`forkRuntimeRegistry.ts` 不再创建，adapter 里一行都不加。
+
+**关口 A（监听点清单）：** `apps/server/src/fork/loopbackGateway/exclusions.json`，21 条监听点记录、12 条长期子进程记录；防漂移测试 `ExclusionsInventory.test.ts` 把 18 个文件、34 处匹配的源码扫描与清单逐项比较，并要求每个文件至少有一条记录、每条记录写明处理方式和验证、验证里引用的测试名真实存在。
+
+- 运行时核实的：server 自己的监听（主口、隧道口、桌面标签页通道）、hub 与守护进程的形态、cloudflared 的指标口、frpc 的形态都由 `PortAuthorizer.test.ts` 里的真实子进程用例覆盖（E1、E2）；`CodexManagedTokenBroker` 的端点用真实的层起一次，断言是模式 0600 的 Unix 套接字文件，不是 TCP；完整自检（下）。
+- **"未核实，已排除"的 4 条：** 桌面单实例激活套接字（`DesktopAppActivation.ts`，读码认为是路径型套接字，没有在运行的桌面应用上看过，也不在 B 的 server 进程树里）、无头 Chrome（`--remote-debugging-pipe`，没起真实 Chrome；E7 还会拒绝带 `--remote-debugging-port` 的参数）、资源监视器（原生二进制是否监听没验证）、Muse（SDK 内部如何起 `muse` 没读到底）。它们都是 server 的直接子进程或不在 server 的树里，被 E2 或"不在 server 的树里"一律拒绝，不会被默默放行。
+- **完整自检：** `PortAuthorizer.test.ts` 的 self-check 用例：测试进程当作 server，起三个进程内监听、一个 hub（孙进程在监听）、cloudflared 形、frpc 形、OpenCode 形、Claude 形的直接子进程（**全部带 agent 标记，覆盖最坏情形**），再加一个终端 shell 的作业和一个 Claude agent 的作业；用 `lsof` 列出该进程树里全部 TCP 监听（至少 10 个），逐个过网关：只有终端的作业和 Claude agent 的作业被放行，其余全部被拒。
+
+**关口 B（provider 运行时的进程树）：** 没有起任何真实 provider CLI。依据是读启动代码、读本机已安装的启动器（文件类型和开头），再加假包装层的真实进程测试。
+
+| 驱动               | 根（server 的直接子进程）                                                                                           | 真正的运行时                                         | 前提成立？                                                             | agent 作业                    |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------- |
+| Claude             | `/bin/sh` 看守脚本 `exec` 成 CLI，pid 不变（`ClaudeAdapterV2.ts:354-381`）；本机 `claude` 是 Mach-O（`versions/…`） | 与根相同                                             | 成立                                                                   | 有（设置 `T3CODE_THREAD_ID`） |
+| Codex              | `agentScope.wrap`（`exec`）→ 本机的 `codex` 是 npm 的 node 启动器                                                   | **根的子进程**：启动器 `spawn` 原生二进制，不 `exec` | 成立，但根与运行时是两个进程（根特征是启动器，运行时特征是原生二进制） | 有                            |
+| OpenCode           | `opencode serve --hostname --port`（Mach-O）                                                                        | 与根相同，自己监听回环口                             | 成立                                                                   | 无标记，只有终端有主          |
+| Grok               | `grok agent stdio`（Mach-O）                                                                                        | 与根相同                                             | 成立                                                                   | 无标记                        |
+| Kiro               | `kiro-cli acp …`                                                                                                    | 与根相同                                             | 成立（读码；本机没装）                                                 | 无标记                        |
+| Fx                 | `fx acp`                                                                                                            | 与根相同                                             | 成立（读码；本机没装）                                                 | 无标记                        |
+| Pi                 | `node …/pi-coding-agent/…/cli.js --mode rpc`（本机 `pi` 是 node 脚本）                                              | 与根相同（node 进程）                                | 成立                                                                   | 无标记                        |
+| Muse               | SDK 起 `muse`（stdio）                                                                                              | 与根相同（读码）                                     | **未核实**：SDK 内部没读到底                                           | 无标记                        |
+| Cursor             | Cursor SDK 内部起自己的本地运行时                                                                                   | —                                                    | **前提不成立**：形态没验证                                             | —                             |
+| Antigravity        | ACP 运行时加用户安装的二进制                                                                                        | —                                                    | **前提不成立**：名字和参数没验证                                       | —                             |
+| ACP 注册表的 agent | 注册表条目或用户配置的命令（`npx`、`uvx`、二进制）                                                                  | —                                                    | **前提不成立**：没有固定形态                                           | —                             |
+
+- **前提成立的 8 个驱动，不成立的 3 个（Cursor、Antigravity、ACP 注册表）。不是"大多数不成立"，不需要停下。** 这三个在 `NO_SIGNATURE` 里写明理由（测试保证 `BUILT_IN_DRIVERS` 里每个驱动要么在特征表里，要么在这张清单里），它们的根认不出特征，按 E2 整棵子树排除，也就是"拿不准就排除"。
+- **转发不了脱离父进程的后台作业的有哪些：** 因为归属只看现读的祖先链，**所有驱动**都一样：作业所在的祖先链一旦断了（父进程退出，作业被 launchd 收养），它就不在 server 的子树里，被拒为 `not-owned`。具体后果取决于各家 CLI 的 shell 工具是不是一次性的 shell：每条命令一个 shell、命令结束 shell 退出，则 `nohup cmd &` 起的服务会被收养而转发不了。这一点**没有用真实 CLI 验证**（不能起真实 provider），要写进用户文档和错误卡片。Cursor、Antigravity 和 ACP 注册表的 agent 即使作业祖先链完好也转发不了（根认不出，E2 整棵排除）；只有 Claude 和 Codex 有"agent 有主"一档，其余驱动的作业只有在 T3 终端里起才能转发。
+- **server 崩溃后遗留的运行时：** 新做法不依赖"它会不会退出"。遗留的运行时被 launchd 收养，不在 server 的子树里，它和它的所有作业（带标记的也一样）都被拒为 `not-owned`；用假包装层的测试验证了这一点（"refuses a marked job whose launcher is gone"和不 `exec` 的包装层用例里启动器退出后的断言）。Codex 在 stdin EOF 后是否退出没有验证，也不再影响安全结论（§14.2 第 4 条）。
+- `TerminalManager.subscribeMetadata` 先给快照，之后每次启动、重启、退出、关闭、出错都带 `pid` 与 `status`；`TerminalShellRegistry` 的折叠函数和注册表有单元测试覆盖快照替换、重启换 pid、退出、移除、订阅解除（§14.2 第 3 条）。
 
 #### 5.6.1 所有监听点（源码扫描，排除测试、脚本、fixture）
 
@@ -666,47 +725,49 @@ authorize(port)                // 每条新隧道都完整走一遍；结果不�
 
 #### 5.6.3 规则
 
-编号和第二版不同（第二版的 E2、E3 被拆开重写）：
+M2 的设计变更见 §5.6.0.1：判断全部来自每条隧道现读的祖先链，不再有登记表。
 
-| 编号 | 排除                                                                                                                                                                                                                                                                                              | 适用于     |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| E1   | 监听者的 pid 是本 server 进程，或是它的**祖先**（桌面主进程等；祖先链在 C2 用现读的进程表判）                                                                                                                                                                                                     | 所有归属   |
-| E2   | **登记的运行时（pid + 启动时间）：它自己的所有监听一律排除。** 每个 adapter 的启动点登记（见下）。有包装层的登记**实际跑运行时的那个进程**（`exec` 之后的 pid）。设备 hub 登记**整棵子树**（守护进程是孙进程），其余运行时只登记自己（它们的作业是 agent 作业，应当被许可）                       | 所有归属   |
-| E3   | **默认拒绝：** server 的**直接子进程**，除非它是 `TerminalShellRegistry` 里一个正在运行的终端 shell，它自己的监听一律排除。这是兜底：登记漏了、包装层没 `exec`、新加的 T3 子进程，都先落在这里被拒                                                                                                | 所有归属   |
-| E4   | **运行时特征（防孤儿）：** 每个 adapter 在启动代码旁**声明**自己的运行时特征——精确的可执行文件路径，或 argv 特征；进程的可执行文件或 argv 匹配任何一个已声明特征，就排除它自己的监听，**不管它的祖先是谁**，所以 server 重启后被 init 收养的遗留运行时也被排除                                    | 所有归属   |
-| E5   | **只放行已登记运行时的后代（"归属不可靠"的 provider）：** 对某个 provider，如果它的运行时认不出特征、寿命又不受 server 约束（见下面的分类），这个 provider 下"agent 有主"的监听只有在祖先链（现读）上有一个**活着的、已登记的**该 provider 运行时才放行；其他一律排除。**终端有主的端口不受影响** | agent 归属 |
-| E6   | 端口 ∈ 已登记端口（`ServerConfig.port`、`TunnelListener.port`、`DesktopBrowserChannel` 的端口、OpenCode 的已知端口）∪ 屏蔽表（§5.7）                                                                                                                                                              | 所有归属   |
-| E7   | argv 或 `NODE_OPTIONS` 带调试参数（§5.7）：这个 pid 的所有监听一律排除                                                                                                                                                                                                                            | 所有归属   |
+**基本量。** 对监听者 L，C2 读 L 到根的祖先链。**运行时根（root）** = 链上本 server 的直接子进程（不计正在运行的终端 shell，那是终端归属的来源）。每个驱动有"根特征"和"运行时特征"（`RuntimeSignatures.ts`），两者相同（`exec` 过的启动）或不同（不 `exec` 的包装层：根是包装层，真正的运行时是它的子进程）。特征匹配整行 `ps` 参数文本；server 设置里的 `binaryPath` 也算（取第一或第二个词的文件名，node 垫片）。
 
-**登记怎么做（主控第 5 条 a）：** `packages/shared/src/forkRuntimeRegistry.ts` 里一个进程级的小登记表（普通函数，不是 Effect 服务——provider 包不能依赖 `apps/server`，也不想改它们的 `R` 类型）：`trackRuntimeProcess(pid, kind, options?) => release`。调用时立即异步读该 pid 的启动时间（§5.3 的身份读取），记成 `{ pid, startTime, kind, subtree }`；进程退出或 scope 关闭时调用 `release`。读不到启动时间时，条目只按 pid 登记（fail-closed：这个 pid 的所有监听都排除）。核对时用 (pid, 启动时间) 与现读的值比较，pid 被复用的新进程不会命中旧条目。
+| 编号 | 排除                                                                                                                                                                                                                                                                                       | 适用于     |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| E1   | 监听者的 pid 是本 server 进程，或是它的**祖先**（桌面主进程等）                                                                                                                                                                                                                            | 所有归属   |
+| E2   | **server 的直接子进程**，既不是正在运行的终端 shell、又不匹配任何驱动的根特征：**整棵子树**一律排除（hub 与守护进程、cloudflared、frpc、资源监视器、无头 Chrome、git、没有特征的 provider、任何认不出的东西）。不在 server 子树里的监听者（含被 launchd 收养的遗留运行时）一律 `not-owned` | 所有归属   |
+| E3   | 匹配某驱动根特征的直接子进程：**它自己**的监听排除；它的后代是"作业"，继续按 E4 到 E7 判断                                                                                                                                                                                                 | 所有归属   |
+| E4   | 匹配任何驱动**运行时特征**的进程：它自己的监听排除，不管它在根的哪一层（不 `exec` 的包装层下的真实运行时就靠它）                                                                                                                                                                           | 所有归属   |
+| E5   | **agent 有主**的监听（祖先环境带 `T3CODE_THREAD_ID`）：只有当它的根是 "本 server 现在活着的、匹配该驱动根特征的直接子进程"，且该驱动会设置标记（`agentJobs`，目前只有 Claude 和 Codex），才放行；其他一律排除。**终端有主的端口不受影响**                                                  | agent 归属 |
+| E6   | 端口 ∈ 已登记端口（`ServerConfig.port`、隧道监听口）∪ 屏蔽表（§5.7，8 个）                                                                                                                                                                                                                 | 所有归属   |
+| E7   | argv 或 `NODE_OPTIONS` 带调试参数（§5.7）：这个 pid 的所有监听一律排除                                                                                                                                                                                                                     | 所有归属   |
 
-**登记点（每个 adapter 的启动点，各 +2 到 +3 行上游）：** `ClaudeAdapterV2.spawnClaudeProcessGroup`（`child.pid`，`exit` 时 release）、`CodexAdapterV2.open`（`handle.pid`）、`OpenCodeRuntime.startServerAttempt`（`child.pid`，紧挨着 `serverLedger.track`，同时登记已知端口）、`AcpSessionRuntime`（`spawner.spawn` 之后的 `child.pid`，Antigravity、Cursor、Grok、Kiro、Fx 和注册表 agent 共用）、`provider-pi/src/server/rpc.ts`、`provider-muse`（SDK 能给出 pid 才登记，否则落到 E3 和 E5）、`LocalDeviceHost.spawnHub`（子树）、`ManagedEndpointRuntime`（连接器）。frpc 在 fork 文件里自己登记（0 行上游）。终端 shell 不登记为运行时。
+**测试保证每个驱动都有声明：** `RuntimeSignatures.test.ts` 遍历 `BUILT_IN_DRIVERS`，每个驱动要么有特征，要么在 `NO_SIGNATURE` 里写明理由；新加驱动而没声明，测试失败。
 
-**特征怎么声明（主控第 5 条 b）：** 同一个模块里 `declareRuntimeSignature({ kind, executables?, argv? })`，每种 `kind` 一条，声明放在该 adapter 启动代码旁。**测试保证每个 adapter 都声明了特征**：遍历 `BUILT_IN_DRIVERS`（`apps/server/src/provider/builtInDrivers.ts:33`）里每个驱动的 id，断言每个驱动要么对应一个有特征的 `kind`，要么在一张显式的"无特征，归 E5"清单里并写明理由；新加驱动而没声明，测试失败。
+**哪些驱动归哪一类**见 §5.6.0.1 的表。Claude 与 Codex 有 agent 作业；其余驱动没有"agent 有主"一档，作业只有在 T3 终端里起才能转发。Codex 的原生运行时是启动器的子进程，由 E4 排除它自己的监听，它的后代是作业（E5 适用）。
 
-**哪些 provider 归 E5（初始分类，关口落实后更新）：** 初始一律按"拿不准就排除"，只有两类例外：
+**「根」是按位置认的，不是按名字认的。** `classifyListener` 里的根固定是 `chain[serverIndex - 1]`：监听者祖先链上、本 server 的直接子进程，别的位置都不算。特征（名字、路径）只回答“这个根是哪个驱动的”，不决定谁是根。所以文件名撞车要成立，只能是 **server 自己**起了一个同名程序；agent 或终端里的命令起的同名程序不是 server 的直接子进程，当不了根（它只会是某个根的后代，按作业判断）。
 
-- **Claude：** 寿命有界（看守脚本，崩溃也会杀整组），有可声明的特征（解析出的可执行文件路径）。不归 E5。它的作业即使脱离 CLI 的进程组也能转发，只要它不匹配 E4。
-- **OpenCode：** 寿命有界（账本在下次启动时回收），特征精确（`serve --hostname=… --port=…`，账本本来就比较完整命令行）。不归 E5；它不设标记，所以不存在"agent 有主"的作业，E5 对它没有实际作用。
-- **Codex、ACP 系、Pi、Muse：归 E5。** Codex 是仅有的另一个会设标记的 provider，所以 E5 实际管的就是它：**Codex 的 shell 命令是 app-server 的后代，只要 app-server 还是 server 登记的活进程就放行；脱离 app-server 的后台作业（`setsid`、守护化后被 init 收养）转发不了。** 其余 provider 不设标记，E5 在 production 里不起作用，只在 server 是从带标记的终端启动时才会碰到。
+**没配 `binaryPath` 时，默认特征怎么匹配：** `DRIVER_SIGNATURES` 里每个驱动按命令名匹配整行 `ps` 参数的开头部分（例如 `claude` 或 `…/claude/versions/…`，Codex 是 `codex … app-server`，OpenCode 是 `opencode … serve`），**不看目录**，因为默认情况下 provider 是按 `PATH` 解析的，路径本来就因机器而异。这是有意的，上面那条位置规则限制了它的影响面。
 
-**哪些 provider 因此转发不了脱离父进程的后台作业（要写进用户文档和错误卡片）：** Codex（E5）；Claude 例外（可以）；OpenCode、ACP 系、Pi、Muse 本来就没有"agent 有主"一档，它们 agent 起的服务只有在 T3 终端里起才能转发。
+**配了 `binaryPath` 时（9.1 修复轮收紧）：** 只在以下情形才把一个根认作该驱动：进程的 argv[0]（或 argv[0] 是解释器 `node`/`bun`/`deno`/`python`/`bash`/`sh`/`zsh` 时的 argv[1]，即 node 垫片）是**绝对路径**，且它的 `realpath` 等于 `realpath(binaryPath)`。同名不同目录的文件不匹配；不是绝对路径的词（`my-codex`、`./my-codex`）不匹配；第三个词不匹配；`binaryPath` 自己不是绝对路径或解析不出来，什么都不匹配。**拿不准就排除：** 匹配不上时这个根没有特征，落到 E2，整棵子树都拒。路径比较在每条隧道现读（`realpathSync`），符号链接换了指向也跟得上。
 
-**`TerminalShellRegistry`：** fork 里订阅 `TerminalManager.subscribeMetadata`，事件驱动，维护"正在运行的终端 shell 的 (pid, 启动时间)"；E3 和 §5.3 的 C2 都用它。
+**脱离父进程的 agent 后台作业：这一版对所有驱动都拒绝（决定）。** 作业的归属只看现读的祖先链：从作业一路能走到一个活着的、匹配该驱动根特征的直接子进程，才算 agent 作业。父进程退出、作业被 launchd 收养之后，它不在 server 的子树里，被拒为 `not-owned`（`nohup cmd &` 在一次性 shell 里起的服务就是这样）。**没有按 `T3CODE_THREAD_ID` 反查 provider 来放行**，原因：那会把线程归属、provider 类型、E4、E6、E7 几个条件耦合在一起，撤销（线程或设备被撤销）的时序也更难证明，而没有真实 provider 生命周期的证据支撑。端口列表不改：这类服务仍可用“在 B 的浏览器中打开”查看，9.3 的错误卡片说明被拒原因。
+
+**`TerminalShellRegistry`：** fork 里订阅 `TerminalManager.subscribeMetadata`，事件驱动，维护"正在运行的终端 shell 的 (pid, 启动时间)"；E2 和 §5.3 的 C2 都用它。读启动时间的读取还在进行时，`shells` 会等它完成，所以刚启动的终端不会因为"还不认识"被误拒。
 
 #### 5.6.4 验收
 
 - **完整 server 的自检：** 起一台完整的 server（带隧道监听口、`DesktopBrowserChannel`、设备 hub 的假可执行文件、受管端点连接器的假可执行文件，`T3CODE_THREAD_ID` 在自己的环境里，覆盖最坏情形），用 `lsof -p`（macOS）或 `/proc`（Linux）列出 server 进程和它全部后代的 TCP 监听，断言每一个都被网关拒绝，除非它是终端 shell 的后代或 agent 作业。
-- **假运行时（每种 provider 一个假可执行文件，会在回环上监听）：** 登记过的运行时自己监听 → 被拒（E2）；它的孙进程（作业）监听 → 放行（带标记且不归 E5 的 provider），或按 E5 放行/拒绝；终端 shell `exec` 成监听者 → 放行；未登记但是 server 的直接子进程 → 被拒（E3）；设备 hub 的孙进程 → 被拒（E2 子树）。
-- **孤儿：** 模拟 server 重启：登记表清空，遗留的假运行时（被 init 收养）匹配特征 → 被拒（E4）；遗留的假运行时匹配不到特征且属于 E5 的 provider，它下面带标记的作业 → 被拒；终端有主的端口不受影响。
-- **特征声明测试**（上面）、**防漂移测试**：一个源码扫描测试，列出产品代码（排除测试、脚本、fixture）里所有 `.listen(`、`createServer(`、`NodeHttpServer.make`、`NodeSocketServer.make`、`HttpServer.serve`、`WebSocketServer(` 以及 `--port`、`--metrics`、`--listen` 参数的位置，与 `exclusions.json` 逐项比较。新增监听点会让测试失败，直到有人给它写上处理方式。
+- **假运行时（每种形态一个假可执行文件，会在回环上监听）：** 直接子进程自己监听 → 被拒（E2）；匹配根特征的根自己监听 → 被拒（E3）；它的后代（作业）按 E5 放行或拒绝；不 `exec` 的假包装层下，真实运行时的监听被拒（E4）、它的作业按 E5 判断，包装层退出后一律被拒；终端 shell 的作业 → 放行；hub 的孙进程 → 被拒（E2 整棵子树）。
+- **孤儿：** 模拟 server 重启：启动器退出，遗留的运行时与它的作业被 launchd 收养，不在 server 的子树里 → 一律 `not-owned`（带标记的作业也一样）；终端有主的端口不受影响。
+- **特征声明测试**（上面）、**防漂移测试**：`ExclusionsInventory.test.ts` 的源码扫描列出产品代码里所有 `.listen(`、`createServer(`、`NodeHttpServer.make`、`NodeSocketServer.make`、`HttpServer.serve`、`WebSocketServer(` 以及 `--port`、`--metrics`、`--listen`、`-L` 参数的位置，与 `exclusions.json` 逐项比较。新增监听点会让测试失败，直到有人给它写上处理方式。
 - 关口产出的清单里每个条目都有验证（读码或运行时测试），"未核实，已排除"的条目单独列出。
+- **防漂移扫描的已知盲区（P2-2）：** 它只数固定的字面量，所以看不到：动态拼出来的参数（`["--po" + "rt"]`、模板拼接的 `-L` 参数）；别名导入（`import { createServer as cs }` 之后的 `cs(`）；其他监听 API（`dgram`、`http2`、Unix 套接字的 `listen`、第三方库自己开的端口、Bun/Deno 的 `serve`）。它是回归护栏，不能替代关口 A 的一次性人工与运行时审计；以后新增监听抽象（新的服务器工厂、新的传输库）时，要给实际用到的 API 补一个扫描模式，或补一条运行时断言。
 
 #### 5.6.5 残余风险
 
-- server 崩溃后遗留的运行时，如果匹配不到任何已声明特征（用户用了自己的可执行文件路径、或 ACP 注册表里的新 agent）：它的监听可能被当作 agent 作业。缓解：E5（对 Codex 等）、E6、E7、`AgentScope` 的孤儿回收本来就在清理它们。写进文档。
+- server 崩溃后遗留的运行时：不再依赖特征。它被 launchd 收养，不在 server 的子树里，整棵被拒（`not-owned`）。代价是它们的合法作业也转发不了。
 - ACP 的客户端终端命令（`packages/provider-acp/src/server/clientTerminals.ts`）是 server 的直接子进程，被 E3 默认拒绝；它们不带标记，本来也不属于"agent 有主"，只有 server 自己是在带标记的终端里启动时才会碰到（开发这个仓库的日常工作流）。
-- provider 侧由 CLI 启动的 MCP HTTP 服务：它们是 agent 的作业，按"有主服务"对待，暴露面与 dev server 同类（§6.7）。
+- **接受的残余风险：CLI 自己起的、带 agent 标记的 MCP 进程，如果在回环上监听，会按 agent 作业放行。** MCP 进程是 CLI 的后代，继承 CLI 的环境（Claude 的带 `T3CODE_THREAD_ID`），所以满足 E5。会发生的写法有：stdio MCP 同时开 HTTP/SSE 回环口（如 `npx @playwright/mcp --port 8931`）、`mcp-remote` 一类做 OAuth 的代理在随机回环口监听回调、带本地管理页的 MCP、`npx`/`uvx` 起的 MCP 再起的子服务。**这一版不改代码**，理由：(1) “从运行时到监听者之间必须隔一层 shell”不可靠：`bash -c` 和 `zsh -c` 对最后一条命令常常直接 `exec`，shell 就不在链上了，结果会把真正的 dev server 也误拒，而 MCP 进程由 CLI 直接 spawn 的情形也不一定没有 shell；(2) 首次转发某个端口时让用户确认命令行，违背易用性（页面冷启动一次开五六条连接），也没人会逐条读；(3) 按名字（`mcp`、`@modelcontextprotocol`）排除会误伤名字里带这些字样的正常服务，漏掉没有这些字样的 MCP。**仍然生效的约束：** E7（带调试参数的整进程排除，例如 `chrome-devtools-mcp` 起的 Chrome）、保留端口（8 个屏蔽端口和 server 自己的端口）、速率与并发上限（每会话 64、每 server 256、令牌桶、每会话每分钟 30 张票据）、`preview:operate` 加 `terminal:operate` 两个 scope、所有隧道只在加密或本机的连接上。暴露面是“用户的 agent 起了一个服务，而用户的另一台机器的浏览器能看到它”，与 dev server 同类；论据不是“上游浏览器本来就能访问全部回环端口”（那是另一个主体、另一条路径），而是这一类服务本来就属于 agent 的作业，没有可靠的、不误伤正常服务的判据把它们分开。
+- **脱离父进程的 agent 后台作业对所有驱动都转发不了**（决定见 §5.6.3）：被 launchd 收养的作业不在 server 的子树里。用户文档要写明，改用“在 B 的浏览器中打开”。
 - 用户自己在 B 上以终端归属启动的、本意不想暴露的服务：这是功能的前提；用户要避免就不要在 T3 终端里起它。
 - **Windows：** 没有 argv 和环境的读取路径、没有 agent 归属档、没有未验证的 `netstat` 复核——所以 Windows 的 B **不广告能力**，不存在"只做一部分检查"的状态（复核 P1-4）。Linux 同样：真实进程测试通过前不广告。
 
@@ -900,7 +961,16 @@ authorize(port)                // 每条新隧道都完整走一遍；结果不�
 ## 11. 性能
 
 - **不轮询。** 票据续期是一次性定时器；端口许可靠现有快照，未命中至多每 2 秒触发一次扫描；没有新增订阅。
-- **不按请求扫描整机。** 每条新隧道做一次现场核对（§5.3，macOS 上 3 到 4 次进程调用，**没有缓存**），页面冷启动并发的 5–6 条隧道各核对一次。耗时现在只是估计（本机一次 `lsof -a -p` 约 50 毫秒），9.1 实测并把数字写在这里：单条核对的中位数和 p95，并发 1、6、32 各一组，macOS 与 Linux 容器各一份。**（待 9.1 填）**
+- **不按请求扫描整机，也没有缓存。** 每条新隧道都经过一次现场核对（§5.3），同时到达的隧道合成一批、共用一套读取（批量核对，不是缓存）。核对耗时（macOS，真实进程，本机约 1,050 到 1,070 个进程，同一方法，同一端口，毫秒）：
+
+  | 并发 | 改前中位数 | 改前 p95 | 改后中位数 | 改后 p95 |
+  | ---- | ---------- | -------- | ---------- | -------- |
+  | 1    | 228        | 272      | 175        | 223      |
+  | 6    | 355        | 415      | 185        | 230      |
+  | 32   | 1,394      | 1,572    | 175        | 197      |
+
+  样本数：改前 60/120/256，改后相同。并发 6（页面冷启动）的 p95 从 415 降到 230，低于 300 毫秒的目标。改后的并发 1 比改前快，是因为进程表和 `lsof` 现在并行读（改前串行），加上收集窗口多等的 10 毫秒仍然更快。单次核对的耗时分解见 §5.3。Linux 容器的一份没有做：Linux 保持不广告。
+
 - **连接复用。** A→B 每个端口有 keep-alive 池；实测 Chromium→代理本身复用良好。
 - **B 端零 HTTP 解析。** 隧道是字节管道，没有逐请求的 Effect `HttpClient` 开销（#8841 的路径是逐请求）。
 - 没有持续重绘的动画；标识是静态图标。
@@ -928,20 +998,20 @@ authorize(port)                // 每条新隧道都完整走一遍；结果不�
 **第 0 关（开工关口：两项都过了，才开始写网关路由的代码）。** 拿不准的条目一律排除，不放行；关口的产出和代码一起提交，结果写回本文 §5.6。
 
 - **关口 A：监听点清单逐项落实**（§5.6.0、§5.6.1）：`LocalDeviceHost` 的 hub 与守护进程、provider 的 OAuth 和回调、Muse、资源监视器、`CodexManagedTokenBroker`（已读码确认非 TCP，补运行时测试）、受管端点连接器（第二版漏了的 cloudflared 指标监听），以及其余所有 `ChildProcess.make`/`spawn(` 调用点中长期运行的。每条一个记录：代码依据、是不是 TCP、属于哪个进程、处理方式、验证（读码或运行时测试）。能做运行时测试的就做（起真实的 server 层，provider 用测试用的假可执行文件，**不跑真实的 agent 回合，不碰真实 provider 凭据**）；产出 `exclusions.json`。
-- **关口 B：provider 运行时的进程树与排除规则**（§5.6.2、§5.6.3）：对 Claude、Codex、OpenCode 和各 ACP 系（Cursor、Grok、Kiro、Antigravity、Fx、注册表 agent）、Pi、Muse，逐个读启动代码画出实际进程树（server 怎么启动它、中间有没有 shell 或包装层、server 退出或崩溃时它会不会跟着退出），回写 §5.6.2 的"未核实"项；落实三件事：(a) 每个 adapter 的启动点登记运行时 pid + 启动时间（含有包装层时登记实际跑运行时的那个进程）；(b) 每个 adapter 声明运行时特征，**测试保证每个驱动都声明了**；(c) 认不出特征且寿命不受 server 约束的 provider 归 E5（只放行已登记运行时的后代）。
+- **关口 B：provider 运行时的进程树与排除规则**（§5.6.2、§5.6.3，M2 按主控的设计变更做完）：逐个读启动代码和本机已安装的启动器，画出根与真正运行时；**不在 adapter 里登记**，改为每条隧道现读祖先链加 fork 里的特征表；测试保证每个驱动都在特征表或 `NO_SIGNATURE` 里。结果在 §5.6.0.1。
 - 两项关口的产出要列出：哪些 provider 因此转发不了脱离父进程的后台作业，写进用户文档。
 - 关口过不去的条目不阻塞其余部分，但这些条目对应的监听一律排除，并在 §5.6.5 列为残余风险。
 
 **第一步（技术前提，关口之后，失败就停下回报）：** 在共享 `HttpRouter` 上加一条 `GET /api/loopback-gateway/tunnel` 升级路由，把 `request.upgrade` 的 Socket 对接到 `net.connect`。确认：主监听口和 `TunnelListener` 口都能用；背压（写慢的一端不会无限缓冲）；`awaitInvalidation` 竞速能关闭它，且 TCP 和 WS 两端都销毁。不行就改用 `ws` 的流接口，再不行回到本文重新设计传输层。第一步的原始输出放 `/tmp`，结论回写 §3.3。
 
-范围（`apps/server/src/fork/loopbackGateway/`、`packages/contracts/src/forkLoopbackGateway.ts`、`packages/shared/src/forkLoopbackGateway/`、`packages/shared/src/forkRuntimeRegistry.ts`）：
+范围（`apps/server/src/fork/loopbackGateway/`、`packages/contracts/src/forkLoopbackGateway.ts`、`packages/shared/src/forkLoopbackGateway/`）：
 
 - 契约：RPC `loopbackGateway.issueTicket`、错误类型、能力位 `loopbackGateway`；`AuthWebSocketTicketUse` 加 `"loopback-gateway"`。
 - **能力广告的条件：** `T3CODE_PORT_DISCOVERY` 不是 `0`，**且平台是 macOS**；Linux 在容器里的真实进程测试通过前不广告；Windows 不广告（§5.6.5）。
 - 权限：`CLIENT_GUARDED_RPC_SCOPES` 展开 + `clientRpcRequiredScopes` 返回两个 scope；扩展权限行为测试。
 - 隧道路由与认证函数 `authenticateGatewayTicket`（§4.4）、显式脱敏（入口立刻 `Redacted`，§4.3）。
-- 端口许可、**每条隧道的现场核对（无缓存）**、`GatewayExclusions`、运行时登记表与特征声明、`TerminalShellRegistry`、监听点清单与防漂移测试（§5）。
-- 各 adapter 启动点的运行时登记（上游各 +2 到 +3 行，§13）。
+- 端口许可、**每条隧道的现场核对（无缓存）**、`GatewayExclusions`、特征表（`RuntimeSignatures.ts`）、`TerminalShellRegistry`、监听点清单与防漂移测试（§5）。
+- ~~各 adapter 启动点的运行时登记~~ 取消（M2，主控的设计变更）：不改任何 adapter 文件。
 - 上限（§3.7 的 B 端项）。
 
 验收：
@@ -950,9 +1020,9 @@ authorize(port)                // 每条新隧道都完整走一遍；结果不�
 - **票据不进日志（§4.3，复核 P0-2）：** 收集 logger 和 tracer 的全部输出，覆盖成功和每一条失败路径（坏票据、错 audience、端口被拒、核对失败、拨号失败、隧道中途断开、撤销断开、处理器缺陷），`--log-ws-events` 开关各一遍，断言找不到哨兵票据及其长度 ≥ 12 的子串；守卫测试（真实 server 层里 `Headers.CurrentRedactedNames` 含 `authorization`，`TracerHeaderFilter` 对它返回 `false`，赋值点的静态扫描）。
 - **自定义 `Authorization` 方案不被误用（复核 P2-1）：** 带 `Authorization: T3X-Gateway <票据>` 的请求打普通受保护路由、`/mcp`、`/oauth/token`、以及 `TunnelListener` 监听口上的同样几条，都不被当作会话凭据；连续多次错误票据打网关路由，`AuthAttemptLimiter` 的状态不变。
 - 两个 scope 缺一不可；只读会话被拒。
-- **现场核对（TOCTOU，§5.3）：** 有主进程退出后另一个进程绑到同一端口，**立即**被拒，没有 TTL 参与；身份读取可注入，C0 与 C3 之间启动时间变化被拒，读取失败被拒；agent 项标记被清被拒；终端项祖先链被打断被拒；同端口两个 pid 被拒；只绑 `::1` 和只绑 `127.0.0.1` 的服务各自连得上，通配绑定拨 `127.0.0.1`；同一端口连开 6 条隧道产生 6 组核对（防止悄悄加缓存）；未命中重扫的 2 秒限流。
-- **核对耗时实测：** macOS 上单条核对的中位数和 p95，并发 1、6、32 各一组，Linux 容器里同样一组；写进 §11。p95 超过 300 毫秒才考虑"核对进行时到达的请求合并成一次紧接着的核对"（§5.3，不是缓存）。
-- **排除（§5.6.4）：** 完整 server 自检；每种 provider 的假运行时（E2、E3 的正反例）；孤儿（登记表清空后，遗留的假运行时匹配特征被拒；归 E5 的 provider 下的带标记作业被拒，终端有主不受影响）；特征声明测试（`BUILT_IN_DRIVERS` 每个驱动都声明）；防漂移测试；带 `--inspect=0` 的进程的两个端口都被拒；屏蔽表 8 个端口（9222、9229、5858、5859、2375、2376、5005、5678）被拒。
+- **现场核对（TOCTOU，§5.3）：** 有主进程退出后另一个进程绑到同一端口，**立即**被拒，没有 TTL 参与；身份读取可注入，C0 与 C3 之间启动时间变化被拒，读取失败被拒；agent 项标记被清被拒；终端项祖先链被打断被拒；同端口两个 pid 被拒；只绑 `::1` 和只绑 `127.0.0.1` 的服务各自连得上，通配绑定拨 `127.0.0.1`；同一端口一条接一条的 6 条隧道是 6 批读取、同时到达的 6 条是 1 批且各自判定（防止悄悄加缓存）；未命中重扫的 2 秒限流。
+- **核对耗时实测（M2 已做）：** macOS 并发 1、6、32 的中位数与 p95 见 §11；Linux 容器一组未做，Linux 保持不广告。
+- **排除（§5.6.4）：** 完整 server 自检；每种 provider 的假运行时（E2、E3 的正反例）；孤儿（启动器退出后遗留的运行时与带标记的作业被收养，不在 server 的树里，被拒；终端有主不受影响）；特征声明测试（`BUILT_IN_DRIVERS` 每个驱动都在特征表或 `NO_SIGNATURE` 里）；防漂移测试；带 `--inspect=0` 的进程的两个端口都被拒；屏蔽表 8 个端口（9222、9229、5858、5859、2375、2376、5005、5678）被拒。
 - 能力广告：`T3CODE_PORT_DISCOVERY=0`、Windows、未验证的 Linux 都不广告，RPC 报 `discovery-disabled` 或 `unsupported-platform`。
 - **撤销（§4.8）：** 会话被撤销、会话自然过期、设备移除后经 8.2 对账撤销，三条路径都验证已建立隧道的 TCP 和 WS 两端关闭；续期链；升级与撤销同时发生的竞速场景；**N1 的三个新增测试**（续期期间被盗的票据开出的隧道在撤销后关闭、续期链上撤销与升级同时发生、设备移除后整条会话链的每个活动行都被撤销且对应隧道都关闭）。
 - 上限、速率、超大帧、背压、关闭传播：在 socket 层测。
@@ -1027,6 +1097,8 @@ authorize(port)                // 每条新隧道都完整走一遍；结果不�
 - 网页版（附录 C）。
 
 ## 13. 上游改动预算
+
+**M2 更新（主控的设计变更：运行时不在 adapter 文件里登记）：** 下面的表里"各 adapter 启动点登记"（+19）、设备 hub 登记子树（+1）、`forkRuntimeRegistry` 共享模块的 exports 入口（+1）、`ManagedEndpointRuntime`/`provider-*` 各文件的行都**不再有**。9.1 完成时的实际上游非测试改动是 **10 个文件、+31 行 −2 行**（`environment.ts` +1、`index.ts` +1、`auth.ts` +5 −2、`clientRpcPermissions.ts` +8、`rpc.ts` +2、`shared/package.json` +4、`ServerEnvironment.ts` +2、`RpcInstrumentation.ts` +2、`server.ts` +3、`ws.ts` +3），比第三版预算的 9.1 部分少约 35 行。删减方案第 1 条已经被这次变更实现。
 
 新代码全部放 `apps/*/src/fork/` 和 `packages/*/src/fork*`。第二版约 +70 行、23 个文件。第三版把主控这一轮的决定都算进去，**约 +91 行、30 个文件**，停止线仍是 130 行。
 
@@ -1140,18 +1212,18 @@ authorize(port)                // 每条新隧道都完整走一遍；结果不�
 
 这些不需要现在拍板，每一条都有默认做法和回答它的阶段：
 
-1. **macOS 上 `ps -E` 能不能和 `lstart` 合成一次调用**（`ps -E -ww -o pid=,ppid=,pgid=,stat=,lstart=,command= -p <pid>`）。9.1 关口 B 核实；不行就拆成两次，耗时多一次进程调用。
-2. **单条核对的耗时（macOS 和 Linux 容器），要不要做"核对进行时到达的请求合并成一次紧接着的核对"。** 默认不做；判据是 p95 > 300 毫秒或六条并发冷启动明显拖慢首屏。9.1 实测，写进 §11。
-3. **`TerminalManager.subscribeMetadata` 是否覆盖 shell 退出、终端重启和关闭。** 9.1 关口 B 核实；不覆盖则回退到快照里的终端进程集合，并把这个回退登记为未决项。
-4. **Codex app-server 在 server 被 `SIGKILL` 后会不会因 stdin 的 EOF 退出；ACP 系各家 agent 同理；Muse 的 SDK 能不能给出 pid。** 9.1 关口 B 用假可执行文件和读码核实。默认都按"寿命不受 server 约束"处理（归 E5）。
+1. **macOS 上 `ps -E` 能不能和 `lstart` 合成一次调用。** （M2 结论）进程表用 `ps -A -ww -o pid=,ppid=,lstart=,args=`（`LC_ALL=C TZ=UTC`）一次读全，`lstart` 与 `args` 同一次调用；需要环境变量标记和调试参数的那一个 pid 另用一次 `ps -E -ww -o command=`。没有拆成更多次调用以外的开销。
+2. **单条核对的耗时。** （M2 结论，修复轮更新）改前并发 6 的 p95 是 415 毫秒，超过 300 毫秒的判据，所以做了批量核对（§5.3）：改后并发 1、6、32 的 p95 分别是 223、230、197 毫秒（§11）。Linux 容器没有测。
+3. **`TerminalManager.subscribeMetadata` 是否覆盖 shell 退出、终端重启和关闭。** （M2 结论）覆盖：先给快照，之后每次启动、重启、退出、关闭、出错都带 `pid` 和 `status`，`TerminalShellRegistry` 的折叠函数用单元测试验证；不需要回退。
+4. **Codex app-server 在 server 被 `SIGKILL` 后会不会因 stdin 的 EOF 退出；ACP 系各家 agent 同理；Muse 的 SDK 能不能给出 pid。** （M2 结论）没有验证（不能起真实 provider），也不再影响安全结论：遗留运行时被收养后不在 server 的子树里，整棵被拒；不再需要 pid（§5.6.0.1）。
 5. **frp 与 Caddy 是否原样保留 `Authorization` 头；frps 的日志是否打印请求头；Caddy 开启访问日志后 `Authorization` 是否被遮蔽。** 9.4 在本地试用栈上实测，不通过不能把 P0-2 标为解决。
 6. **Node 对 TLS 校验失败的错误码集合**（过期、自签名、主机名不符、链不完整）。9.2 用真实 TLS 服务端逐个测出。
-7. **是否要把 `PortScanner` 内部记启动时间**（约 +15 行上游）。默认不要；只有 9.1 的关口发现某个平台上现场证明做不到才启用。
+7. **是否要把 `PortScanner` 内部记启动时间。** （M2 结论）不需要：启动时间由 fork 的 `ProcessInspector` 现读，`PortScanner` 没改。
 
 ### 14.3 我没有核实的前提（汇总）
 
 - frp 在几十条并发升级连接、长时间空闲连接下的行为；Tailscale Serve 对 WS 升级和 `Authorization` 头的转发；SSH 转发口上的长连接。这些全部在 §3.5 标"待验证"，9.4 逐种测。
-- B 端 Effect `Socket.writer` 的背压是否足够（9.1 第一步）。
+- B 端的背压：已验证，用的是 `ws` 的流接口加 Node 流，不是 `Socket.writer`（§3.3）。
 - A 端 `http.Agent` 的 `createConnection` 对自定义 `Duplex` 的兼容（9.2 第一步）。
 - Caddy 的 `log` 开启后 `Authorization` 是否被遮蔽，frps 的日志内容：没有实测（9.4）。
 - 经 T3 Connect 中继的行为（明确不支持，没测）。
@@ -1160,7 +1232,7 @@ authorize(port)                // 每条新隧道都完整走一遍；结果不�
 - Windows 不支持，所以不存在 Windows 的核对命令。
 - Local Network Access 在 Chromium 152 的实际拦截行为：设计不依赖它（§6.8）。
 - "B 的 agent 不会驱动 A 的桌面标签页"是读代码得出的，没有启动应用验证（9.3 手动检查）。
-- §5.6.2 的 provider 进程树是读启动代码得到的，没跑过；崩溃后是否遗留的几项是关口 B 的任务。
+- §5.6.2 的 provider 进程树是读启动代码和本机已安装的启动器得到的，没有起真实的 provider CLI；Muse 的 SDK 内部、Cursor、Antigravity 和 ACP 注册表的形态没有核实（均按 E2 排除，§5.6.0.1）。各家 CLI 的 shell 工具是不是一次性的 shell，因而后台作业会不会被 launchd 收养，也没有验证。
 - 上游代码里除 §5.6.1 列出的监听点之外是否还有动态创建的：关口 A 逐项落实，防漂移的源码扫描测试负责以后（§5.6.4）。
 
 ## 附录 A：Electron spike 的方法与结果

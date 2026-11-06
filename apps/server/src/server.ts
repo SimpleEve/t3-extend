@@ -31,6 +31,7 @@ import * as HostPowerMonitor from "./background/HostPowerMonitor.ts";
 import * as ServerConfig from "./config.ts";
 import { withUntracedRequests } from "./http.ts";
 import * as TunnelListener from "./fork/deviceKeys/TunnelListener.ts"; // fork: self-hosted pairing
+import * as LoopbackGateway from "./fork/loopbackGateway/layer.ts"; // fork: loopback gateway
 import * as ServerHttp from "./http.ts";
 import {
   guardHttpResponseWriteErrors,
@@ -791,6 +792,7 @@ const layerMakeRoutes = Layer.mergeAll(
     ServerBrowserStream.routeLayer,
     ServerHttp.layerStaticAndDevRoute,
     DeviceAssertionAuth.layerRoute, // fork: POST /oauth/t3x-device
+    LoopbackGateway.layerRoute, // fork: the tunnel route
     Ws.layer,
   ),
   McpHttpServer.layer.pipe(
@@ -828,6 +830,7 @@ const layerMakeRoutes = Layer.mergeAll(
   Layer.provide(PreviewAutomationBroker.layer),
   Layer.provide(ServerSelfUpdate.layer.pipe(Layer.provide(layerDesktopAppUpdate))),
   Layer.provide(layerCommandReadiness),
+  Layer.provide(LoopbackGateway.layerServices), // fork: shared by the tunnel route and the ticket RPC
   Layer.provide(AuthAttemptLimiter.middleware.pipe(Layer.provide(AuthAttemptLimiter.layer))), // fork: auth rate limit
   Layer.provide(ServerHttp.layerBrowserApiCors),
   Layer.provide(ServerHttp.layerHttpCompression),

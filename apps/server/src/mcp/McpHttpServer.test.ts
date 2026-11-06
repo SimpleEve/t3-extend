@@ -1023,6 +1023,7 @@ it.effect("accepts case-insensitive MCP bearer schemes and diagnoses rejected cr
       for (const [authorization, reason] of [
         [undefined, "missing_authorization_header"],
         [`Basic ${providerToken}`, "unsupported_scheme"],
+        [`T3X-Gateway ${providerToken}`, "unsupported_scheme"], // fork: the gateway scheme is no MCP credential
         ["Bearer", "missing_bearer_token"],
         ["bEaReR ", "missing_bearer_token"],
         [`bearer ${providerToken.toUpperCase()}`, "unknown_or_expired_token"],

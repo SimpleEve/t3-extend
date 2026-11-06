@@ -13,6 +13,11 @@ import {
 } from "./auth.ts";
 import { FORK_PUSH_GUARDED_RPC_SCOPES } from "./forkPush.ts"; // fork: UnifiedPush registrations
 import { FORK_DEVICE_KEYS_GUARDED_RPC_SCOPES } from "./forkDeviceKeys.ts"; // fork: self-hosted pairing
+import {
+  FORK_LOOPBACK_GATEWAY_GUARDED_RPC_SCOPES,
+  FORK_LOOPBACK_GATEWAY_WS_METHODS,
+  LOOPBACK_GATEWAY_REQUIRED_SCOPES,
+} from "./forkLoopbackGateway.ts"; // fork: loopback gateway
 import { ORCHESTRATION_V2_WS_METHODS } from "./orchestrationV2.ts";
 import { WS_METHODS } from "./rpc.ts";
 
@@ -77,6 +82,7 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.peerLinksAnswerRequest]: AuthAccessWriteScope,
   ...FORK_PUSH_GUARDED_RPC_SCOPES, // fork: UnifiedPush registrations
   ...FORK_DEVICE_KEYS_GUARDED_RPC_SCOPES, // fork: self-hosted pairing
+  ...FORK_LOOPBACK_GATEWAY_GUARDED_RPC_SCOPES, // fork: loopback gateway
 } as const;
 export type ClientGuardedRpcTag = keyof typeof CLIENT_GUARDED_RPC_SCOPES;
 
@@ -100,6 +106,8 @@ export function clientRpcRequiredScopes(
     )
       return [AuthSourceControlWriteScope, AuthOrchestrationReadScope];
   }
+  if (method === FORK_LOOPBACK_GATEWAY_WS_METHODS.issueTicket)
+    return LOOPBACK_GATEWAY_REQUIRED_SCOPES; // fork: loopback gateway
   return Object.hasOwn(CLIENT_GUARDED_RPC_SCOPES, method)
     ? [CLIENT_GUARDED_RPC_SCOPES[method as ClientGuardedRpcTag]]
     : [];
