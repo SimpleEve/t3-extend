@@ -303,8 +303,17 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
       const rescanned = yield* rescanIfAllowed;
       pid = rescanned === null ? null : nominate(rescanned, port);
     }
-    if (pid === null)
-      return yield* refuse("not-owned", "no terminal or agent of this environment owns this port");
+    if (pid === null) {
+      // Only the reason differs: an empty port is not "someone else's service". A failed read
+      // stays `not-owned`, the answer that was true before the read.
+      const empty = yield* inspector.listeners([port]).pipe(
+        Effect.map(([entries]) => entries?.length === 0),
+        Effect.orElseSucceed(() => false),
+      );
+      return yield* empty
+        ? refuse("upstream-refused", "nothing is listening on this port")
+        : refuse("not-owned", "no terminal or agent of this environment owns this port");
+    }
     return yield* check(pid, port).pipe(
       Effect.tapError((error) =>
         error._tag === "GatewayRefusal" && error.code === "owner-changed" ? changed : Effect.void,

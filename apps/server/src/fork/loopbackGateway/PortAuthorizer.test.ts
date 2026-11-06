@@ -37,6 +37,7 @@ interface Overrides {
   startTime?: (pid: number, real: InspectEffect<string | null>) => InspectEffect<string | null>;
   table?: InspectEffect<ProcessInspector.ProcessTable>;
   launchText?: InspectEffect<string | null>;
+  listeners?: InspectEffect<ReadonlyArray<ReadonlyArray<ProcessInspector.ListenerEntry>>>;
 }
 
 const rigLayer = Layer.mergeAll(ProcessInspector.layerDarwin, TestProcesses.layer).pipe(
@@ -62,7 +63,7 @@ const makeRig = Effect.gen(function* () {
     },
     listeners: (ports) => {
       reads.listeners += 1;
-      return real.listeners(ports);
+      return override.listeners ?? real.listeners(ports);
     },
     listenersOf: (pairs) => {
       reads.listenersOf += 1;
@@ -169,25 +170,55 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
         }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
+    it.live("refuses a reserved port and the eight blocked ones without reading any process", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        assert.equal(yield* code(x.authorizer.authorize(1234)), "reserved");
+        for (const port of LOOPBACK_GATEWAY_BLOCKED_PORTS) {
+          x.nominate(process.pid, port);
+          assert.equal(yield* code(x.authorizer.authorize(port)), "reserved", String(port));
+        }
+        assert.deepEqual(x.reads, {
+          table: 0,
+          startTime: 0,
+          listeners: 0,
+          listenersOf: 0,
+          launchText: 0,
+        });
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+    );
+
     it.live(
-      "refuses a port nobody owns, a reserved port and the eight blocked ones, without reading any process",
+      "tells a port nothing listens on from one a process outside T3 holds, and refuses both",
       () =>
         Effect.gen(function* () {
           const x = yield* makeRig;
-          assert.equal(yield* code(x.authorizer.authorize(45000)), "not-owned");
-          assert.equal(yield* code(x.authorizer.authorize(1234)), "reserved");
-          for (const port of LOOPBACK_GATEWAY_BLOCKED_PORTS) {
-            x.nominate(process.pid, port);
-            assert.equal(yield* code(x.authorizer.authorize(port)), "reserved", String(port));
-          }
-          assert.deepEqual(x.reads, {
-            table: 0,
-            startTime: 0,
-            listeners: 0,
-            listenersOf: 0,
-            launchText: 0,
-          });
+          const processes = yield* TestProcesses;
+          const freePort = yield* Effect.promise(
+            () =>
+              new Promise<number>((resolve) => {
+                const server = NodeNet.createServer();
+                server.listen(0, "127.0.0.1", () => {
+                  const { port } = server.address() as NodeNet.AddressInfo;
+                  server.close(() => resolve(port));
+                });
+              }),
+          );
+          assert.equal(yield* code(x.authorizer.authorize(freePort)), "upstream-refused");
+          // Nothing nominates the port: a process that no terminal or agent started holds it.
+          const outsider = yield* processes.listen("127.0.0.1");
+          assert.equal(yield* code(x.authorizer.authorize(outsider.port)), "not-owned");
         }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+    );
+
+    it.live("keeps not-owned for an unowned port when the listeners cannot be read", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        x.override.listeners = Effect.fail(
+          new ProcessInspector.ProcessInspectError({ reason: "lsof failed" }),
+        );
+        assert.equal(yield* code(x.authorizer.authorize(45000)), "not-owned");
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
     it.live("refuses at once when the owner exited and another process took the port", () =>
@@ -575,7 +606,10 @@ describe("the rescan on a miss", () => {
         reservedPorts: Effect.succeed(new Set()),
       }).pipe(
         Effect.provideService(PortScanner.PortDiscovery, discovery),
-        Effect.provideService(ProcessInspector.ProcessInspector, {} as never),
+        Effect.provideService(ProcessInspector.ProcessInspector, {
+          // Something answers on the port, so every miss is a refusal for the same reason.
+          listeners: () => Effect.succeed([[{ pid: 1, address: "*", family: "IPv4" }]]),
+        } as never),
         Effect.provideService(TerminalShellRegistry.TerminalShellRegistry, {
           shells: Effect.succeed(new Map()),
         }),
