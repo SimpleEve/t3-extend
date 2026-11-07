@@ -6,10 +6,27 @@ import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+
+import * as ProcessInspector from "./ProcessInspector.ts";
+
+/** The platforms with a real inspector (`ps` and `lsof` on macOS, `/proc` on Linux). */
+export const runsOnRealProcesses = ["darwin", "linux"].includes(
+  HostProcess.Platform.defaultValue(),
+);
+
+/**
+ * The platform's real inspector. On macOS the tool limit is far above the test timeout: on a loaded
+ * machine the product's 5 s must not decide these reads. Linux reads files and has no limit.
+ */
+export const realInspectorLayer =
+  HostProcess.Platform.defaultValue() === "darwin"
+    ? ProcessInspector.layerDarwinWithTimeout(Duration.minutes(10))
+    : ProcessInspector.layer;
 
 export interface TestProcess {
   readonly pid: number;

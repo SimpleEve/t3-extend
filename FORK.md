@@ -312,6 +312,9 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
   - 端口默认 18443，被占就换一个空闲的；`--port` 指定且被占则报错。`docker-compose.test.yml` 自己写死了 18443，换端口靠脚本写在临时目录里的覆盖文件，不要改仓库里的那个。
   - 只停自己启动的 PID，结束（含失败、Ctrl-C，和 `compose up` 进行中被中断）时 `compose down -v` 并删临时目录；清理在 `up` 之前就登记好，项目名被别人占着时则拒绝启动、不会去 `down` 它。`down -v` 失败时打印 stderr、项目名和手动清理的命令，保留工作目录，整个脚本以非零退出，即使场景全部通过。失败时保留日志目录并打印路径，`--keep` 通过时也保留。
   - 等待只靠事件（进程日志行、`devices.subscribe` 的快照），没有事件可等的才用有总时限的重试。场景执行顺序是 1,2,3,4,5,9,6,8,12,11,13,15,16,7,10,14：7（移除 B）必须在 10（重启 Caddy）之前，否则断言的 404 会变成握手失败，原因见设计文档 7.2；15、16 要用 B，所以在 7 之前。
+- `vp run fork:loopback-gateway:linux-check [--image node:24-bookworm] [--registry <url>] [--drop-store]`：在 Docker 的 Linux 容器里跑网关的真实进程测试和排除测试（`ProcessInspector`、`PortAuthorizer`、`PortAuthorizerBatch`、`GatewayExclusions`、`ExclusionsInventory`、`RuntimeSignatures`、`TerminalShellRegistry`，91 条），以容器里的普通用户。这些真实进程测试在 macOS 和 Linux 上都跑（`processFixtures.testkit.ts` 的 `runsOnRealProcesses` 和 `realInspectorLayer`）。约 1.5–3 分钟，需要联网（容器里 `apt-get` 装 `lsof`、`npm` 装 pnpm、`pnpm install` 装依赖）。
+  - 把 `git ls-files` 的文件（工作区内容，所以没提交的改动也算；不含 `.repos` 和 `apps/mobile`）用管道送进容器自己的 `/work`，不挂载也不碰这个 checkout 的 `node_modules`。依赖装进容器里，只装 `t3`（server）包及其依赖，`--ignore-scripts`。pnpm 的下载缓存在命名卷 `t3x-linux-check-store`，`--drop-store` 在结束时删掉它；容器不发布端口、不建 compose 项目，结束（含失败、Ctrl-C）时 `docker rm -f`。
+  - Apple Silicon 上 `node:24-bookworm` 是 x86_64 镜像，模拟运行，所以不测耗时。结果只是 Linux 的真实进程核对在容器里通过；**Linux 的 B 是否广告能力由 `GatewayAvailability.ts` 决定，这个脚本没有改它**。
 - 桌面界面的端到端要在 Electron 里做（`test-t3-app`），本机的坑：
   - 隔离的 `HOME` 下首次用到系统钥匙串会卡在 `SecItemAdd` 的授权弹窗里，主线程被阻塞，Chromium 的调试端口随后也不再响应。必须加 `--use-mock-keychain`，不要去点那个弹窗。
   - 渲染层要信任 Caddy 的 CA：用 `--ignore-certificate-errors-spki-list=<该证书的 SPKI 哈希>` 定向信任，不要写系统钥匙串，也不要整体 `--ignore-certificate-errors`。

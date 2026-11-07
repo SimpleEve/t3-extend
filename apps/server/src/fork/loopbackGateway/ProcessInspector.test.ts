@@ -2,23 +2,24 @@
 // macOS the live reads against real processes.
 // @effect-diagnostics nodeBuiltinImport:off -- Real subprocesses and loopback sockets.
 import { assert, describe, it } from "@effect/vitest";
-import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
 import * as ProcessRunner from "../../processRunner.ts";
 import {
   ProcessInspector,
-  layerDarwinWithTimeout,
   normalizeListenAddress,
   parseDarwinPsRows,
   parseLsofListeners,
   parseProcNetTcp,
   parseProcStat,
 } from "./ProcessInspector.ts";
-import { TestProcesses } from "./processFixtures.testkit.ts";
+import {
+  TestProcesses,
+  realInspectorLayer,
+  runsOnRealProcesses,
+} from "./processFixtures.testkit.ts";
 
 describe("macOS parsers (recorded from `ps` and `lsof`)", () => {
   // `LC_ALL=C TZ=UTC /bin/ps -ww -o pid=,ppid=,lstart=,args=`
@@ -107,81 +108,77 @@ describe("Linux parsers (the kernel's documented formats)", () => {
   });
 });
 
-// Far above the test timeout: on a loaded machine the product's 5 s must not decide these reads.
-const layerLive = layerDarwinWithTimeout(Duration.minutes(10)).pipe(
+const layerLive = realInspectorLayer.pipe(
   Layer.provide(ProcessRunner.layer),
   Layer.provideMerge(NodeServices.layer),
 );
 
-describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
-  "macOS reads of real processes",
-  () => {
-    it.live("table, start time, launch text and listeners of real children", () =>
-      Effect.gen(function* () {
-        const inspector = yield* ProcessInspector;
-        const processes = yield* TestProcesses;
-        const a = yield* processes.listen("127.0.0.1");
-        const b = yield* processes.listen("::1");
-        const c = yield* processes.listen("*");
-        const table = yield* inspector.table;
-        for (const child of [a, b, c]) {
-          const row = table.get(child.pid);
-          assert.equal(row?.ppid, process.pid);
-          assert.equal(yield* inspector.startTime(child.pid), row?.startTime);
-        }
-        // One call answers for several ports, in the order asked.
-        const [onA, onB, onC, onNone] = yield* inspector.listeners([a.port, b.port, c.port, 1]);
-        const brief = (entries: ReadonlyArray<{ pid: number; address: string }>) =>
-          entries.map((e) => [e.pid, e.address]);
-        assert.deepEqual(brief(onA!), [[a.pid, "127.0.0.1"]]);
-        assert.deepEqual(brief(onB!), [[b.pid, "::1"]]);
-        assert.deepEqual(brief(onC!), [[c.pid, "*"]]);
-        assert.deepEqual(onNone, []);
-        assert.deepEqual(
-          yield* inspector.listenersOf([
-            { pid: a.pid, port: a.port },
-            { pid: b.pid, port: b.port },
-            { pid: b.pid, port: a.port },
-          ]),
-          [onA!, onB!, []],
-        );
-        assert.deepEqual(yield* inspector.listeners([]), []);
-        assert.deepEqual(yield* inspector.listenersOf([]), []);
-        const text = yield* inspector.launchText(a.pid);
-        assert.include(text ?? "", "listen.cjs");
-        assert.isFalse((text ?? "").includes("T3CODE_THREAD_ID"));
-        const marked = yield* processes.listen("127.0.0.1", { marker: "thread-marker-1" });
-        assert.include(
-          (yield* inspector.launchText(marked.pid)) ?? "",
-          "T3CODE_THREAD_ID=thread-marker-1",
-        );
-      }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(layerLive, TestProcesses.layer))),
-    );
+describe.runIf(runsOnRealProcesses)("reads of real processes", () => {
+  it.live("table, start time, launch text and listeners of real children", () =>
+    Effect.gen(function* () {
+      const inspector = yield* ProcessInspector;
+      const processes = yield* TestProcesses;
+      const a = yield* processes.listen("127.0.0.1");
+      const b = yield* processes.listen("::1");
+      const c = yield* processes.listen("*");
+      const table = yield* inspector.table;
+      for (const child of [a, b, c]) {
+        const row = table.get(child.pid);
+        assert.equal(row?.ppid, process.pid);
+        assert.equal(yield* inspector.startTime(child.pid), row?.startTime);
+      }
+      // One call answers for several ports, in the order asked.
+      const [onA, onB, onC, onNone] = yield* inspector.listeners([a.port, b.port, c.port, 1]);
+      const brief = (entries: ReadonlyArray<{ pid: number; address: string }>) =>
+        entries.map((e) => [e.pid, e.address]);
+      assert.deepEqual(brief(onA!), [[a.pid, "127.0.0.1"]]);
+      assert.deepEqual(brief(onB!), [[b.pid, "::1"]]);
+      assert.deepEqual(brief(onC!), [[c.pid, "*"]]);
+      assert.deepEqual(onNone, []);
+      assert.deepEqual(
+        yield* inspector.listenersOf([
+          { pid: a.pid, port: a.port },
+          { pid: b.pid, port: b.port },
+          { pid: b.pid, port: a.port },
+        ]),
+        [onA!, onB!, []],
+      );
+      assert.deepEqual(yield* inspector.listeners([]), []);
+      assert.deepEqual(yield* inspector.listenersOf([]), []);
+      const text = yield* inspector.launchText(a.pid);
+      assert.include(text ?? "", "listen.cjs");
+      assert.isFalse((text ?? "").includes("T3CODE_THREAD_ID"));
+      const marked = yield* processes.listen("127.0.0.1", { marker: "thread-marker-1" });
+      assert.include(
+        (yield* inspector.launchText(marked.pid)) ?? "",
+        "T3CODE_THREAD_ID=thread-marker-1",
+      );
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(layerLive, TestProcesses.layer))),
+  );
 
-    it.live("a process that has exited has no start time, launch text or listeners", () =>
-      Effect.gen(function* () {
-        const inspector = yield* ProcessInspector;
-        const processes = yield* TestProcesses;
-        const child = yield* processes.listen("127.0.0.1");
-        yield* processes.stop(child);
-        assert.isNull(yield* inspector.startTime(child.pid));
-        assert.isNull(yield* inspector.launchText(child.pid));
-        assert.deepEqual(yield* inspector.listeners([child.port]), [[]]);
-        assert.isFalse((yield* inspector.table).has(child.pid));
-      }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(layerLive, TestProcesses.layer))),
-    );
+  it.live("a process that has exited has no start time, launch text or listeners", () =>
+    Effect.gen(function* () {
+      const inspector = yield* ProcessInspector;
+      const processes = yield* TestProcesses;
+      const child = yield* processes.listen("127.0.0.1");
+      yield* processes.stop(child);
+      assert.isNull(yield* inspector.startTime(child.pid));
+      assert.isNull(yield* inspector.launchText(child.pid));
+      assert.deepEqual(yield* inspector.listeners([child.port]), [[]]);
+      assert.isFalse((yield* inspector.table).has(child.pid));
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(layerLive, TestProcesses.layer))),
+  );
 
-    it.live("two processes sharing a port with SO_REUSEPORT both show up", () =>
-      Effect.gen(function* () {
-        const inspector = yield* ProcessInspector;
-        const processes = yield* TestProcesses;
-        const first = yield* processes.listen("127.0.0.1", { reusePort: true });
-        const second = yield* processes.listen("127.0.0.1", { reusePort: true, port: first.port });
-        const pids = (yield* inspector.listeners([first.port]))[0]!
-          .map((entry) => entry.pid)
-          .toSorted();
-        assert.deepEqual(pids, [first.pid, second.pid].toSorted());
-      }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(layerLive, TestProcesses.layer))),
-    );
-  },
-);
+  it.live("two processes sharing a port with SO_REUSEPORT both show up", () =>
+    Effect.gen(function* () {
+      const inspector = yield* ProcessInspector;
+      const processes = yield* TestProcesses;
+      const first = yield* processes.listen("127.0.0.1", { reusePort: true });
+      const second = yield* processes.listen("127.0.0.1", { reusePort: true, port: first.port });
+      const pids = (yield* inspector.listeners([first.port]))[0]!
+        .map((entry) => entry.pid)
+        .toSorted();
+      assert.deepEqual(pids, [first.pid, second.pid].toSorted());
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(layerLive, TestProcesses.layer))),
+  );
+});

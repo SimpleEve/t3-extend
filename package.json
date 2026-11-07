@@ -34,6 +34,7 @@
     "fork:guard": "node scripts/fork-identity-guard.ts",
     "fork:icons": "node scripts/fork-brand-icons.ts && node scripts/export-android-icons.ts",
     "fork:loopback-gateway:electron-smoke": "node apps/desktop/scripts/loopback-gateway-smoke/run.mjs",
+    "fork:loopback-gateway:linux-check": "node scripts/fork-loopback-gateway-linux-check.ts",
     "fork:selfhost:e2e": "node scripts/fork-selfhost-e2e.ts",
     "fork:selfhost:first-paint": "node scripts/fork-selfhost-e2e.ts --only 1,2,4,17",
     "fork:selfhost:test": "node --test \"infra/self-host/registry/*.test.mjs\"",

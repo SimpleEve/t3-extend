@@ -1,4 +1,4 @@
-// The per-tunnel check against real processes (macOS): the test process is "the server", its
+// The per-tunnel check against real processes (macOS and Linux): the test process is "the server", its
 // children are terminals, providers and jobs. The inspector is the real one, wrapped so a test can
 // count its reads or change what it returns between steps.
 // @effect-diagnostics nodeBuiltinImport:off -- Real subprocesses and loopback sockets.
@@ -7,7 +7,6 @@ import * as NodeNet from "node:net";
 import * as NodePath from "node:path";
 
 import { assert, describe, it } from "@effect/vitest";
-import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { LOOPBACK_GATEWAY_BLOCKED_PORTS } from "@t3tools/shared/forkLoopbackGateway/protocol";
 import * as Deferred from "effect/Deferred";
@@ -29,7 +28,11 @@ import {
   type GatewayRefusal,
 } from "./PortAuthorizer.ts";
 import * as ProcessInspector from "./ProcessInspector.ts";
-import { TestProcesses } from "./processFixtures.testkit.ts";
+import {
+  TestProcesses,
+  realInspectorLayer,
+  runsOnRealProcesses,
+} from "./processFixtures.testkit.ts";
 import * as TerminalShellRegistry from "./TerminalShellRegistry.ts";
 
 type Snapshot = ReadonlyArray<{ readonly port: number; readonly pid: number | null }>;
@@ -43,12 +46,11 @@ interface Overrides {
   listeners?: InspectEffect<ReadonlyArray<ReadonlyArray<ProcessInspector.ListenerEntry>>>;
 }
 
-// The tool limit is the product's, 5 s; on a loaded machine it would decide these tests, so they
-// get one far above the test timeout. The read-failure cases inject their failure instead.
-const rigLayer = Layer.mergeAll(
-  ProcessInspector.layerDarwinWithTimeout(Duration.minutes(10)),
-  TestProcesses.layer,
-).pipe(Layer.provide(ProcessRunner.layer), Layer.provideMerge(NodeServices.layer));
+// The read-failure cases inject their failure; the real inspector's tool limit is in the testkit.
+const rigLayer = Layer.mergeAll(realInspectorLayer, TestProcesses.layer).pipe(
+  Layer.provide(ProcessRunner.layer),
+  Layer.provideMerge(NodeServices.layer),
+);
 
 const makeRig = Effect.gen(function* () {
   const real = yield* ProcessInspector.ProcessInspector;
@@ -136,34 +138,189 @@ const expectCode = (
     ),
   );
 
-describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
-  "authorizing a port against real processes",
-  () => {
-    it.live("allows what runs under a terminal shell, at the address it listens on", () =>
+describe.runIf(runsOnRealProcesses)("authorizing a port against real processes", () => {
+  it.live("allows what runs under a terminal shell, at the address it listens on", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      const processes = yield* TestProcesses;
+      for (const [host, expected] of [
+        ["127.0.0.1", "127.0.0.1"],
+        ["::1", "::1"],
+        ["*", "127.0.0.1"],
+      ] as const) {
+        const shell = yield* processes.shell(
+          `${process.execPath} ${processes.listenScript} '${host}' 0 0 & wait`,
+        );
+        yield* x.registerShell(shell.pid);
+        const port = Number(shell.info.port);
+        x.nominate(Number(shell.info.pid), port);
+        const target = yield* x.authorizer.authorize(port);
+        assert.deepEqual(target, { host: expected, port, pid: Number(shell.info.pid) });
+      }
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  // The terminal's process list is registered with the scanner a second after its shell starts, so
+  // a service started just now is not in the snapshot yet. The one listeners read per interval
+  // nominates the process; the checks still decide, so each case below uses a fresh interval.
+  it.live("allows a terminal's listener the snapshot does not list yet", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      const processes = yield* TestProcesses;
+      const shell = yield* processes.shell(
+        `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+      );
+      yield* x.registerShell(shell.pid);
+      const port = Number(shell.info.port);
+      assert.deepEqual(yield* x.authorizer.authorize(port), {
+        host: "127.0.0.1",
+        port,
+        pid: Number(shell.info.pid),
+      });
+      // That was the interval's one read: a second service a moment later waits for the next.
+      const readsBefore = x.reads.listeners;
+      const second = yield* processes.shell(
+        `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+      );
+      yield* x.registerShell(second.pid);
+      yield* expectCode(x.authorizer.authorize(Number(second.info.port)), "not-owned");
+      assert.equal(x.reads.listeners, readsBefore);
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  it.live("still refuses what no terminal or agent started when the snapshot lacks it", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      const processes = yield* TestProcesses;
+      const orphan = yield* processes.spawnWithJob({ mode: "orphan" });
+      yield* expectCode(x.authorizer.authorize(orphan.jobPort), "not-owned");
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  it.live("still refuses a listener under a shell that is not a registered terminal", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      const processes = yield* TestProcesses;
+      const stranger = yield* processes.shell(
+        `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+      );
+      yield* expectCode(x.authorizer.authorize(Number(stranger.info.port)), "not-owned");
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  it.live("allows a shell that exec'd into the listener", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      const processes = yield* TestProcesses;
+      const shell = yield* processes.shell(
+        `exec ${process.execPath} ${processes.listenScript} 127.0.0.1 0 0`,
+      );
+      yield* x.registerShell(shell.pid);
+      x.nominate(shell.pid, Number(shell.info.port));
+      assert.equal((yield* x.authorizer.authorize(Number(shell.info.port))).pid, shell.pid);
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  it.live(
+    "refuses direct children of the server that are not terminal shells, and what they start (E2)",
+    () =>
       Effect.gen(function* () {
         const x = yield* makeRig;
         const processes = yield* TestProcesses;
-        for (const [host, expected] of [
-          ["127.0.0.1", "127.0.0.1"],
-          ["::1", "::1"],
-          ["*", "127.0.0.1"],
-        ] as const) {
-          const shell = yield* processes.shell(
-            `${process.execPath} ${processes.listenScript} '${host}' 0 0 & wait`,
-          );
-          yield* x.registerShell(shell.pid);
-          const port = Number(shell.info.port);
-          x.nominate(Number(shell.info.pid), port);
-          const target = yield* x.authorizer.authorize(port);
-          assert.deepEqual(target, { host: expected, port, pid: Number(shell.info.pid) });
-        }
+        const direct = yield* processes.listen("127.0.0.1");
+        x.nominate(direct.pid, direct.port);
+        yield* expectCode(x.authorizer.authorize(direct.port), "reserved");
+        // The same shape under an unregistered shell: only a registered shell makes a terminal.
+        const shell = yield* processes.shell(
+          `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+        );
+        x.nominate(Number(shell.info.pid), Number(shell.info.port));
+        yield* expectCode(x.authorizer.authorize(Number(shell.info.port)), "reserved");
+        // And a registered pid whose start time is not the one it was registered with.
+        x.rig.shells.set(shell.pid, { startTime: "some other process" });
+        yield* expectCode(x.authorizer.authorize(Number(shell.info.port)), "reserved");
       }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
+  );
 
-    // The terminal's process list is registered with the scanner a second after its shell starts, so
-    // a service started just now is not in the snapshot yet. The one listeners read per interval
-    // nominates the process; the checks still decide, so each case below uses a fresh interval.
-    it.live("allows a terminal's listener the snapshot does not list yet", () =>
+  it.live("refuses a reserved port and the eight blocked ones without reading any process", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      yield* expectCode(x.authorizer.authorize(1234), "reserved");
+      for (const port of LOOPBACK_GATEWAY_BLOCKED_PORTS) {
+        x.nominate(process.pid, port);
+        yield* expectCode(x.authorizer.authorize(port), "reserved", String(port));
+      }
+      assert.deepEqual(x.reads, {
+        table: 0,
+        startTime: 0,
+        listeners: 0,
+        listenersOf: 0,
+        launchText: 0,
+      });
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  it.live("tells a port nothing listens on from one a process holds", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      const freePort = yield* Effect.promise(
+        () =>
+          new Promise<number>((resolve) => {
+            const server = NodeNet.createServer();
+            server.listen(0, "127.0.0.1", () => {
+              const { port } = server.address() as NodeNet.AddressInfo;
+              server.close(() => resolve(port));
+            });
+          }),
+      );
+      yield* expectCode(x.authorizer.authorize(freePort), "upstream-refused");
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  it.live("refuses a port a process outside T3 holds as not owned, whatever rule it fails", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      const processes = yield* TestProcesses;
+      // A direct child of the server is `reserved` when the snapshot names it (E2); nominated
+      // by the read, it is only a process that is not ours.
+      const outsider = yield* processes.listen("127.0.0.1");
+      yield* expectCode(x.authorizer.authorize(outsider.port), "not-owned");
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  it.live("keeps not-owned for an unowned port when the listeners cannot be read", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      x.override.listeners = Effect.fail(
+        new ProcessInspector.ProcessInspectError({ reason: "lsof failed" }),
+      );
+      yield* expectCode(x.authorizer.authorize(45000), "not-owned");
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  it.live("refuses at once when the owner exited and another process took the port", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      const processes = yield* TestProcesses;
+      const shell = yield* processes.shell(
+        `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+      );
+      yield* x.registerShell(shell.pid);
+      const port = Number(shell.info.port);
+      const owner = Number(shell.info.pid);
+      x.nominate(owner, port);
+      yield* expectCode(x.authorizer.authorize(port), "allowed");
+      // The owner dies; an unrelated process binds the same port; the snapshot still says "owner".
+      yield* processes.stop({ pid: owner });
+      const thief = yield* processes.listen("127.0.0.1", { port });
+      assert.equal(thief.port, port);
+      yield* expectCode(x.authorizer.authorize(port), "owner-changed");
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  it.live(
+    "refuses when the start time differs between the first and the last read, and when a read fails",
+    () =>
       Effect.gen(function* () {
         const x = yield* makeRig;
         const processes = yield* TestProcesses;
@@ -172,285 +329,125 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
         );
         yield* x.registerShell(shell.pid);
         const port = Number(shell.info.port);
-        assert.deepEqual(yield* x.authorizer.authorize(port), {
-          host: "127.0.0.1",
-          port,
-          pid: Number(shell.info.pid),
-        });
-        // That was the interval's one read: a second service a moment later waits for the next.
-        const readsBefore = x.reads.listeners;
-        const second = yield* processes.shell(
-          `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
-        );
-        yield* x.registerShell(second.pid);
-        yield* expectCode(x.authorizer.authorize(Number(second.info.port)), "not-owned");
-        assert.equal(x.reads.listeners, readsBefore);
-      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
-
-    it.live("still refuses what no terminal or agent started when the snapshot lacks it", () =>
-      Effect.gen(function* () {
-        const x = yield* makeRig;
-        const processes = yield* TestProcesses;
-        const orphan = yield* processes.spawnWithJob({ mode: "orphan" });
-        yield* expectCode(x.authorizer.authorize(orphan.jobPort), "not-owned");
-      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
-
-    it.live("still refuses a listener under a shell that is not a registered terminal", () =>
-      Effect.gen(function* () {
-        const x = yield* makeRig;
-        const processes = yield* TestProcesses;
-        const stranger = yield* processes.shell(
-          `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
-        );
-        yield* expectCode(x.authorizer.authorize(Number(stranger.info.port)), "not-owned");
-      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
-
-    it.live("allows a shell that exec'd into the listener", () =>
-      Effect.gen(function* () {
-        const x = yield* makeRig;
-        const processes = yield* TestProcesses;
-        const shell = yield* processes.shell(
-          `exec ${process.execPath} ${processes.listenScript} 127.0.0.1 0 0`,
-        );
-        yield* x.registerShell(shell.pid);
-        x.nominate(shell.pid, Number(shell.info.port));
-        assert.equal((yield* x.authorizer.authorize(Number(shell.info.port))).pid, shell.pid);
-      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
-
-    it.live(
-      "refuses direct children of the server that are not terminal shells, and what they start (E2)",
-      () =>
-        Effect.gen(function* () {
-          const x = yield* makeRig;
-          const processes = yield* TestProcesses;
-          const direct = yield* processes.listen("127.0.0.1");
-          x.nominate(direct.pid, direct.port);
-          yield* expectCode(x.authorizer.authorize(direct.port), "reserved");
-          // The same shape under an unregistered shell: only a registered shell makes a terminal.
-          const shell = yield* processes.shell(
-            `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
-          );
-          x.nominate(Number(shell.info.pid), Number(shell.info.port));
-          yield* expectCode(x.authorizer.authorize(Number(shell.info.port)), "reserved");
-          // And a registered pid whose start time is not the one it was registered with.
-          x.rig.shells.set(shell.pid, { startTime: "some other process" });
-          yield* expectCode(x.authorizer.authorize(Number(shell.info.port)), "reserved");
-        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
-
-    it.live("refuses a reserved port and the eight blocked ones without reading any process", () =>
-      Effect.gen(function* () {
-        const x = yield* makeRig;
-        yield* expectCode(x.authorizer.authorize(1234), "reserved");
-        for (const port of LOOPBACK_GATEWAY_BLOCKED_PORTS) {
-          x.nominate(process.pid, port);
-          yield* expectCode(x.authorizer.authorize(port), "reserved", String(port));
-        }
-        assert.deepEqual(x.reads, {
-          table: 0,
-          startTime: 0,
-          listeners: 0,
-          listenersOf: 0,
-          launchText: 0,
-        });
-      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
-
-    it.live("tells a port nothing listens on from one a process holds", () =>
-      Effect.gen(function* () {
-        const x = yield* makeRig;
-        const freePort = yield* Effect.promise(
-          () =>
-            new Promise<number>((resolve) => {
-              const server = NodeNet.createServer();
-              server.listen(0, "127.0.0.1", () => {
-                const { port } = server.address() as NodeNet.AddressInfo;
-                server.close(() => resolve(port));
-              });
-            }),
-        );
-        yield* expectCode(x.authorizer.authorize(freePort), "upstream-refused");
-      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
-
-    it.live("refuses a port a process outside T3 holds as not owned, whatever rule it fails", () =>
-      Effect.gen(function* () {
-        const x = yield* makeRig;
-        const processes = yield* TestProcesses;
-        // A direct child of the server is `reserved` when the snapshot names it (E2); nominated
-        // by the read, it is only a process that is not ours.
-        const outsider = yield* processes.listen("127.0.0.1");
-        yield* expectCode(x.authorizer.authorize(outsider.port), "not-owned");
-      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
-
-    it.live("keeps not-owned for an unowned port when the listeners cannot be read", () =>
-      Effect.gen(function* () {
-        const x = yield* makeRig;
-        x.override.listeners = Effect.fail(
-          new ProcessInspector.ProcessInspectError({ reason: "lsof failed" }),
-        );
-        yield* expectCode(x.authorizer.authorize(45000), "not-owned");
-      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
-
-    it.live("refuses at once when the owner exited and another process took the port", () =>
-      Effect.gen(function* () {
-        const x = yield* makeRig;
-        const processes = yield* TestProcesses;
-        const shell = yield* processes.shell(
-          `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
-        );
-        yield* x.registerShell(shell.pid);
-        const port = Number(shell.info.port);
-        const owner = Number(shell.info.pid);
-        x.nominate(owner, port);
+        x.nominate(Number(shell.info.pid), port);
         yield* expectCode(x.authorizer.authorize(port), "allowed");
-        // The owner dies; an unrelated process binds the same port; the snapshot still says "owner".
-        yield* processes.stop({ pid: owner });
-        const thief = yield* processes.listen("127.0.0.1", { port });
-        assert.equal(thief.port, port);
+        x.override.startTime = () => Effect.succeed("a different instance");
         yield* expectCode(x.authorizer.authorize(port), "owner-changed");
+        x.override.startTime = (_pid, _real) =>
+          Effect.fail(new ProcessInspector.ProcessInspectError({ reason: "ps failed" }));
+        yield* expectCode(x.authorizer.authorize(port), "owner-changed");
+        delete x.override.startTime;
+        x.override.table = Effect.fail(
+          new ProcessInspector.ProcessInspectError({ reason: "ps failed" }),
+        );
+        yield* expectCode(x.authorizer.authorize(port), "owner-changed");
+        delete x.override.table;
+        x.override.launchText = Effect.succeed(null);
+        yield* expectCode(x.authorizer.authorize(port), "owner-changed");
+        delete x.override.launchText;
+        yield* expectCode(x.authorizer.authorize(port), "allowed");
       }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
+  );
 
-    it.live(
-      "refuses when the start time differs between the first and the last read, and when a read fails",
-      () =>
-        Effect.gen(function* () {
-          const x = yield* makeRig;
-          const processes = yield* TestProcesses;
-          const shell = yield* processes.shell(
-            `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
-          );
-          yield* x.registerShell(shell.pid);
-          const port = Number(shell.info.port);
-          x.nominate(Number(shell.info.pid), port);
-          yield* expectCode(x.authorizer.authorize(port), "allowed");
-          x.override.startTime = () => Effect.succeed("a different instance");
-          yield* expectCode(x.authorizer.authorize(port), "owner-changed");
-          x.override.startTime = (_pid, _real) =>
-            Effect.fail(new ProcessInspector.ProcessInspectError({ reason: "ps failed" }));
-          yield* expectCode(x.authorizer.authorize(port), "owner-changed");
-          delete x.override.startTime;
-          x.override.table = Effect.fail(
-            new ProcessInspector.ProcessInspectError({ reason: "ps failed" }),
-          );
-          yield* expectCode(x.authorizer.authorize(port), "owner-changed");
-          delete x.override.table;
-          x.override.launchText = Effect.succeed(null);
-          yield* expectCode(x.authorizer.authorize(port), "owner-changed");
-          delete x.override.launchText;
-          yield* expectCode(x.authorizer.authorize(port), "allowed");
-        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
+  it.live("refuses when two processes listen on the port (SO_REUSEPORT)", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      const processes = yield* TestProcesses;
+      const first = yield* processes.listen("127.0.0.1", { reusePort: true });
+      yield* processes.listen("127.0.0.1", { reusePort: true, port: first.port });
+      x.nominate(first.pid, first.port);
+      yield* expectCode(x.authorizer.authorize(first.port), "owner-changed");
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
 
-    it.live("refuses when two processes listen on the port (SO_REUSEPORT)", () =>
+  it.live(
+    "keeps nothing between batches: six tunnels one after another are six full sets of reads",
+    () =>
       Effect.gen(function* () {
         const x = yield* makeRig;
         const processes = yield* TestProcesses;
-        const first = yield* processes.listen("127.0.0.1", { reusePort: true });
-        yield* processes.listen("127.0.0.1", { reusePort: true, port: first.port });
-        x.nominate(first.pid, first.port);
-        yield* expectCode(x.authorizer.authorize(first.port), "owner-changed");
+        const shell = yield* processes.shell(
+          `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+        );
+        yield* x.registerShell(shell.pid);
+        const port = Number(shell.info.port);
+        x.nominate(Number(shell.info.pid), port);
+        for (let i = 0; i < 6; i++) yield* x.authorizer.authorize(port);
+        assert.deepEqual(x.reads, {
+          table: 6,
+          startTime: 6,
+          listeners: 6,
+          listenersOf: 6,
+          launchText: 6,
+        });
       }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
+  );
 
-    it.live(
-      "keeps nothing between batches: six tunnels one after another are six full sets of reads",
-      () =>
-        Effect.gen(function* () {
-          const x = yield* makeRig;
-          const processes = yield* TestProcesses;
-          const shell = yield* processes.shell(
-            `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
-          );
-          yield* x.registerShell(shell.pid);
-          const port = Number(shell.info.port);
-          x.nominate(Number(shell.info.pid), port);
-          for (let i = 0; i < 6; i++) yield* x.authorizer.authorize(port);
-          assert.deepEqual(x.reads, {
-            table: 6,
-            startTime: 6,
-            listeners: 6,
-            listenersOf: 6,
-            launchText: 6,
-          });
-        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
+  it.live(
+    "six tunnels at once to one port are checked from one set of reads, each on its own",
+    () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const processes = yield* TestProcesses;
+        const shell = yield* processes.shell(
+          `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+        );
+        yield* x.registerShell(shell.pid);
+        const port = Number(shell.info.port);
+        x.nominate(Number(shell.info.pid), port);
+        const results = yield* Effect.all(
+          Array.from({ length: 6 }, () => code(x.authorizer.authorize(port))),
+          { concurrency: "unbounded" },
+        );
+        assert.deepEqual(
+          results,
+          Array.from({ length: 6 }, () => "allowed"),
+        );
+        // Against six sets when they come one at a time. Which batch each joined is up to the
+        // scheduler; the exact count is pinned in PortAuthorizerBatch.test.ts.
+        assert.isBelow(x.reads.table, 6);
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+});
 
-    it.live(
-      "six tunnels at once to one port are checked from one set of reads, each on its own",
-      () =>
-        Effect.gen(function* () {
-          const x = yield* makeRig;
-          const processes = yield* TestProcesses;
-          const shell = yield* processes.shell(
-            `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
-          );
-          yield* x.registerShell(shell.pid);
-          const port = Number(shell.info.port);
-          x.nominate(Number(shell.info.pid), port);
-          const results = yield* Effect.all(
-            Array.from({ length: 6 }, () => code(x.authorizer.authorize(port))),
-            { concurrency: "unbounded" },
-          );
-          assert.deepEqual(
-            results,
-            Array.from({ length: 6 }, () => "allowed"),
-          );
-          // Against six sets when they come one at a time. Which batch each joined is up to the
-          // scheduler; the exact count is pinned in PortAuthorizerBatch.test.ts.
-          assert.isBelow(x.reads.table, 6);
-        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
-  },
-);
+describe.runIf(runsOnRealProcesses)("agents and provider runtimes", () => {
+  const claudeAs = (directory: string) => NodePath.join(directory, "bin", "claude");
 
-describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
-  "agents and provider runtimes",
-  () => {
-    const claudeAs = (directory: string) => NodePath.join(directory, "bin", "claude");
+  it.live(
+    "allows a job under a Claude launcher when it carries the marker, and refuses the launcher's own listener",
+    () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const processes = yield* TestProcesses;
+        const marked = yield* processes.spawnWithJob({
+          argv0: claudeAs(processes.directory),
+          marker: "thread-a",
+        });
+        x.nominate(marked.jobPid, marked.jobPort);
+        assert.equal((yield* x.authorizer.authorize(marked.jobPort)).pid, marked.jobPid);
+        // The marker is cleared: the same job is not an agent's.
+        const unmarked = yield* processes.spawnWithJob({ argv0: claudeAs(processes.directory) });
+        x.nominate(unmarked.jobPid, unmarked.jobPort);
+        yield* expectCode(x.authorizer.authorize(unmarked.jobPort), "not-owned");
+        // The launcher itself, listening (its runtime), is never forwarded.
+        const runtime = yield* processes.listen("127.0.0.1", {
+          argv0: claudeAs(processes.directory),
+          marker: "thread-a",
+        });
+        x.nominate(runtime.pid, runtime.port);
+        yield* expectCode(x.authorizer.authorize(runtime.port), "reserved");
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
 
-    it.live(
-      "allows a job under a Claude launcher when it carries the marker, and refuses the launcher's own listener",
-      () =>
-        Effect.gen(function* () {
-          const x = yield* makeRig;
-          const processes = yield* TestProcesses;
-          const marked = yield* processes.spawnWithJob({
-            argv0: claudeAs(processes.directory),
-            marker: "thread-a",
-          });
-          x.nominate(marked.jobPid, marked.jobPort);
-          assert.equal((yield* x.authorizer.authorize(marked.jobPort)).pid, marked.jobPid);
-          // The marker is cleared: the same job is not an agent's.
-          const unmarked = yield* processes.spawnWithJob({ argv0: claudeAs(processes.directory) });
-          x.nominate(unmarked.jobPid, unmarked.jobPort);
-          yield* expectCode(x.authorizer.authorize(unmarked.jobPort), "not-owned");
-          // The launcher itself, listening (its runtime), is never forwarded.
-          const runtime = yield* processes.listen("127.0.0.1", {
-            argv0: claudeAs(processes.directory),
-            marker: "thread-a",
-          });
-          x.nominate(runtime.pid, runtime.port);
-          yield* expectCode(x.authorizer.authorize(runtime.port), "reserved");
-        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
-
-    it.live(
-      "behind a launcher that does not exec: the runtime's listener is refused, its jobs are not, until the launcher dies",
-      () =>
-        Effect.gen(function* () {
-          const x = yield* makeRig;
-          const processes = yield* TestProcesses;
-          const runtimeScript = processes.scriptPath(
-            "codex-darwin-arm64/vendor/codex/codex",
-            `
+  it.live(
+    "behind a launcher that does not exec: the runtime's listener is refused, its jobs are not, until the launcher dies",
+    () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const processes = yield* TestProcesses;
+        const runtimeScript = processes.scriptPath(
+          "codex-darwin-arm64/vendor/codex/codex",
+          `
 const { spawn } = require("node:child_process");
 const net = require("node:net");
 const server = net.createServer(() => {}).listen(0, "127.0.0.1", () => {
@@ -462,213 +459,210 @@ const server = net.createServer(() => {}).listen(0, "127.0.0.1", () => {
 });
 setInterval(() => {}, 1 << 30);
 `,
-          );
-          const launcherScript = processes.scriptPath(
-            "node_modules/@openai/codex/bin/codex.js",
-            `
+        );
+        const launcherScript = processes.scriptPath(
+          "node_modules/@openai/codex/bin/codex.js",
+          `
 const { spawn } = require("node:child_process");
 const runtime = spawn(process.execPath, [${JSON.stringify(runtimeScript)}, "app-server"], { stdio: ["ignore", "pipe", "inherit"] });
 runtime.stdout.on("data", (chunk) => process.stdout.write(chunk));
 setInterval(() => {}, 1 << 30);
 `,
-          );
-          const launcher = yield* processes.listen("127.0.0.1", {
-            script: launcherScript,
-            args: ["app-server"],
-            marker: "thread-codex",
-          });
-          const runtimePort = Number(launcher.info.port);
-          const runtimePid = Number(launcher.info.pid);
-          const jobPid = Number(launcher.info.jobPid);
-          const jobPort = Number(launcher.info.jobPort);
-          x.nominate(runtimePid, runtimePort);
-          yield* expectCode(x.authorizer.authorize(runtimePort), "reserved");
-          x.nominate(jobPid, jobPort);
-          assert.equal((yield* x.authorizer.authorize(jobPort)).pid, jobPid);
-          // The server restarts (the launcher goes): the runtime is adopted by init, and its jobs with it.
-          yield* processes.stop(launcher);
-          yield* expectCode(x.authorizer.authorize(jobPort), "reserved");
-          x.nominate(runtimePid, runtimePort);
-          yield* expectCode(x.authorizer.authorize(runtimePort), "reserved");
-        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
+        );
+        const launcher = yield* processes.listen("127.0.0.1", {
+          script: launcherScript,
+          args: ["app-server"],
+          marker: "thread-codex",
+        });
+        const runtimePort = Number(launcher.info.port);
+        const runtimePid = Number(launcher.info.pid);
+        const jobPid = Number(launcher.info.jobPid);
+        const jobPort = Number(launcher.info.jobPort);
+        x.nominate(runtimePid, runtimePort);
+        yield* expectCode(x.authorizer.authorize(runtimePort), "reserved");
+        x.nominate(jobPid, jobPort);
+        assert.equal((yield* x.authorizer.authorize(jobPort)).pid, jobPid);
+        // The server restarts (the launcher goes): the runtime is adopted by init, and its jobs with it.
+        yield* processes.stop(launcher);
+        yield* expectCode(x.authorizer.authorize(jobPort), "reserved");
+        x.nominate(runtimePid, runtimePort);
+        yield* expectCode(x.authorizer.authorize(runtimePort), "reserved");
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
 
-    it.live(
-      "refuses a marked job whose launcher is gone: nothing ties an adopted process to this server",
-      () =>
-        Effect.gen(function* () {
-          const x = yield* makeRig;
-          const processes = yield* TestProcesses;
-          const orphan = yield* processes.spawnWithJob({
-            argv0: claudeAs(processes.directory),
-            marker: "thread-a",
-            mode: "orphan",
-          });
-          x.nominate(orphan.jobPid, orphan.jobPort);
-          yield* expectCode(x.authorizer.authorize(orphan.jobPort), "not-owned");
-        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
+  it.live(
+    "refuses a marked job whose launcher is gone: nothing ties an adopted process to this server",
+    () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const processes = yield* TestProcesses;
+        const orphan = yield* processes.spawnWithJob({
+          argv0: claudeAs(processes.directory),
+          marker: "thread-a",
+          mode: "orphan",
+        });
+        x.nominate(orphan.jobPid, orphan.jobPort);
+        yield* expectCode(x.authorizer.authorize(orphan.jobPort), "not-owned");
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
 
-    it.live(
-      "refuses every listening port of a process started with --inspect, the random one included",
-      () =>
-        Effect.gen(function* () {
-          const x = yield* makeRig;
-          const processes = yield* TestProcesses;
-          const child = NodeChildProcess.spawn(
-            "/bin/sh",
-            ["-c", `exec ${process.execPath} --inspect=0 ${processes.listenScript} 127.0.0.1 0 0`],
-            { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, T3CODE_THREAD_ID: "" } },
-          );
-          const ports = yield* Effect.promise(
-            () =>
-              new Promise<{ service: number; inspector: number }>((resolve) => {
-                let service: number | undefined;
-                let inspector: number | undefined;
-                const done = () =>
-                  service !== undefined &&
-                  inspector !== undefined &&
-                  resolve({ service, inspector });
-                child.stdout?.on("data", (chunk: Buffer) => {
-                  const line = String(chunk)
-                    .split("\n")
-                    .find((l) => l.startsWith("{"));
-                  if (line !== undefined) service = JSON.parse(line).port;
-                  done();
-                });
-                child.stderr?.on("data", (chunk: Buffer) => {
-                  const match = /ws:\/\/127\.0\.0\.1:(\d+)\//u.exec(String(chunk));
-                  if (match !== null) inspector = Number(match[1]);
-                  done();
-                });
-              }),
-          );
-          yield* Effect.addFinalizer(() => Effect.sync(() => void child.kill("SIGKILL")));
-          yield* x.registerShell(child.pid!);
-          for (const port of [ports.service, ports.inspector]) {
-            x.nominate(child.pid!, port);
-            yield* expectCode(x.authorizer.authorize(port), "debug-process", String(port));
-          }
-        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
+  it.live(
+    "refuses every listening port of a process started with --inspect, the random one included",
+    () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const processes = yield* TestProcesses;
+        const child = NodeChildProcess.spawn(
+          "/bin/sh",
+          ["-c", `exec ${process.execPath} --inspect=0 ${processes.listenScript} 127.0.0.1 0 0`],
+          { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, T3CODE_THREAD_ID: "" } },
+        );
+        const ports = yield* Effect.promise(
+          () =>
+            new Promise<{ service: number; inspector: number }>((resolve) => {
+              let service: number | undefined;
+              let inspector: number | undefined;
+              const done = () =>
+                service !== undefined && inspector !== undefined && resolve({ service, inspector });
+              child.stdout?.on("data", (chunk: Buffer) => {
+                const line = String(chunk)
+                  .split("\n")
+                  .find((l) => l.startsWith("{"));
+                if (line !== undefined) service = JSON.parse(line).port;
+                done();
+              });
+              child.stderr?.on("data", (chunk: Buffer) => {
+                const match = /ws:\/\/127\.0\.0\.1:(\d+)\//u.exec(String(chunk));
+                if (match !== null) inspector = Number(match[1]);
+                done();
+              });
+            }),
+        );
+        yield* Effect.addFinalizer(() => Effect.sync(() => void child.kill("SIGKILL")));
+        yield* x.registerShell(child.pid!);
+        for (const port of [ports.service, ports.inspector]) {
+          x.nominate(child.pid!, port);
+          yield* expectCode(x.authorizer.authorize(port), "debug-process", String(port));
+        }
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
 
-    it.live(
-      "refuses the server's own listener and a grandchild of a direct child that is no terminal (hub-shaped)",
-      () =>
-        Effect.gen(function* () {
-          const x = yield* makeRig;
-          const processes = yield* TestProcesses;
-          const own = yield* Effect.promise(
+  it.live(
+    "refuses the server's own listener and a grandchild of a direct child that is no terminal (hub-shaped)",
+    () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const processes = yield* TestProcesses;
+        const own = yield* Effect.promise(
+          () =>
+            new Promise<NodeNet.Server>((resolve) => {
+              const server = NodeNet.createServer();
+              server.listen(0, "127.0.0.1", () => resolve(server));
+            }),
+        );
+        yield* Effect.addFinalizer(() => Effect.sync(() => void own.close()));
+        const ownPort = (own.address() as NodeNet.AddressInfo).port;
+        x.nominate(process.pid, ownPort);
+        yield* expectCode(x.authorizer.authorize(ownPort), "reserved");
+        // A hub starts a daemon that listens: the daemon is the hub's child, not the server's.
+        const hub = yield* processes.spawnWithJob({ argv0: "t3-device-hub", mode: "stay" });
+        x.nominate(hub.jobPid, hub.jobPort);
+        yield* expectCode(x.authorizer.authorize(hub.jobPort), "reserved");
+        // The same job under the hub with the agent marker is still refused: E2 comes first.
+        const marked = yield* processes.spawnWithJob({
+          argv0: "t3-device-hub",
+          marker: "thread-1",
+          mode: "stay",
+        });
+        x.nominate(marked.jobPid, marked.jobPort);
+        yield* expectCode(x.authorizer.authorize(marked.jobPort), "reserved");
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  it.live(
+    "self-check: every listening port of the server and its descendants is refused, but a terminal's and an agent's jobs",
+    () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const processes = yield* TestProcesses;
+        const marker = "thread-worst-case";
+        // In-process listeners: the main port, the tunnel listener, a desktop-tab channel.
+        const own = yield* Effect.forEach([0, 1, 2], () =>
+          Effect.promise(
             () =>
               new Promise<NodeNet.Server>((resolve) => {
                 const server = NodeNet.createServer();
                 server.listen(0, "127.0.0.1", () => resolve(server));
               }),
-          );
-          yield* Effect.addFinalizer(() => Effect.sync(() => void own.close()));
-          const ownPort = (own.address() as NodeNet.AddressInfo).port;
-          x.nominate(process.pid, ownPort);
-          yield* expectCode(x.authorizer.authorize(ownPort), "reserved");
-          // A hub starts a daemon that listens: the daemon is the hub's child, not the server's.
-          const hub = yield* processes.spawnWithJob({ argv0: "t3-device-hub", mode: "stay" });
-          x.nominate(hub.jobPid, hub.jobPort);
-          yield* expectCode(x.authorizer.authorize(hub.jobPort), "reserved");
-          // The same job under the hub with the agent marker is still refused: E2 comes first.
-          const marked = yield* processes.spawnWithJob({
-            argv0: "t3-device-hub",
-            marker: "thread-1",
-            mode: "stay",
-          });
-          x.nominate(marked.jobPid, marked.jobPort);
-          yield* expectCode(x.authorizer.authorize(marked.jobPort), "reserved");
-        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
+          ),
+        );
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => own.forEach((server) => server.close())),
+        );
+        // Direct children that are not terminals, every one carrying the agent marker.
+        yield* processes.spawnWithJob({ argv0: "t3-device-hub", marker, mode: "stay" });
+        yield* processes.listen("127.0.0.1", { argv0: "cloudflared", marker });
+        yield* processes.listen("127.0.0.1", { argv0: "frpc", marker });
+        yield* processes.listen("127.0.0.1", {
+          argv0: NodePath.join(processes.directory, "bin", "opencode"),
+          args: ["serve"],
+          marker,
+        });
+        yield* processes.listen("127.0.0.1", {
+          argv0: NodePath.join(processes.directory, "bin", "claude"),
+          marker,
+        });
+        // The two things that may be forwarded: a terminal's service and a Claude agent's job.
+        const shell = yield* processes.shell(
+          `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+        );
+        yield* x.registerShell(shell.pid);
+        const agent = yield* processes.spawnWithJob({
+          argv0: NodePath.join(processes.directory, "bin", "claude"),
+          marker,
+        });
+        const allowedPorts = new Set([Number(shell.info.port), agent.jobPort]);
 
-    it.live(
-      "self-check: every listening port of the server and its descendants is refused, but a terminal's and an agent's jobs",
-      () =>
-        Effect.gen(function* () {
-          const x = yield* makeRig;
-          const processes = yield* TestProcesses;
-          const marker = "thread-worst-case";
-          // In-process listeners: the main port, the tunnel listener, a desktop-tab channel.
-          const own = yield* Effect.forEach([0, 1, 2], () =>
-            Effect.promise(
-              () =>
-                new Promise<NodeNet.Server>((resolve) => {
-                  const server = NodeNet.createServer();
-                  server.listen(0, "127.0.0.1", () => resolve(server));
-                }),
-            ),
-          );
-          yield* Effect.addFinalizer(() =>
-            Effect.sync(() => own.forEach((server) => server.close())),
-          );
-          // Direct children that are not terminals, every one carrying the agent marker.
-          yield* processes.spawnWithJob({ argv0: "t3-device-hub", marker, mode: "stay" });
-          yield* processes.listen("127.0.0.1", { argv0: "cloudflared", marker });
-          yield* processes.listen("127.0.0.1", { argv0: "frpc", marker });
-          yield* processes.listen("127.0.0.1", {
-            argv0: NodePath.join(processes.directory, "bin", "opencode"),
-            args: ["serve"],
-            marker,
-          });
-          yield* processes.listen("127.0.0.1", {
-            argv0: NodePath.join(processes.directory, "bin", "claude"),
-            marker,
-          });
-          // The two things that may be forwarded: a terminal's service and a Claude agent's job.
-          const shell = yield* processes.shell(
-            `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
-          );
-          yield* x.registerShell(shell.pid);
-          const agent = yield* processes.spawnWithJob({
-            argv0: NodePath.join(processes.directory, "bin", "claude"),
-            marker,
-          });
-          const allowedPorts = new Set([Number(shell.info.port), agent.jobPort]);
-
-          const table = yield* x.real.table;
-          const tree = new Set<number>([process.pid]);
-          for (let grew = true; grew;) {
-            grew = false;
-            for (const row of table.values()) {
-              if (tree.has(row.ppid) && !tree.has(row.pid)) {
-                tree.add(row.pid);
-                grew = true;
-              }
+        const table = yield* x.real.table;
+        const tree = new Set<number>([process.pid]);
+        for (let grew = true; grew;) {
+          grew = false;
+          for (const row of table.values()) {
+            if (tree.has(row.ppid) && !tree.has(row.pid)) {
+              tree.add(row.pid);
+              grew = true;
             }
           }
-          const lsof = NodeChildProcess.execFileSync(
-            "lsof",
-            ["-nP", "-iTCP", "-sTCP:LISTEN", "-F", "pn"],
-            { encoding: "utf8", env: { ...process.env, LC_ALL: "C" }, maxBuffer: 1 << 26 },
-          );
-          const listening: Array<{ pid: number; port: number }> = [];
-          let current = 0;
-          for (const line of lsof.split("\n")) {
-            if (line.startsWith("p")) current = Number(line.slice(1));
-            else if (line.startsWith("n") && tree.has(current)) {
-              const port = Number(line.slice(line.lastIndexOf(":") + 1));
-              if (Number.isInteger(port)) listening.push({ pid: current, port });
-            }
+        }
+        const lsof = NodeChildProcess.execFileSync(
+          "lsof",
+          ["-nP", "-iTCP", "-sTCP:LISTEN", "-F", "pn"],
+          { encoding: "utf8", env: { ...process.env, LC_ALL: "C" }, maxBuffer: 1 << 26 },
+        );
+        const listening: Array<{ pid: number; port: number }> = [];
+        let current = 0;
+        for (const line of lsof.split("\n")) {
+          if (line.startsWith("p")) current = Number(line.slice(1));
+          else if (line.startsWith("n") && tree.has(current)) {
+            const port = Number(line.slice(line.lastIndexOf(":") + 1));
+            if (Number.isInteger(port)) listening.push({ pid: current, port });
           }
-          // The in-process ones, three children, the hub's daemon, the shell's job, the agent's job...
-          assert.isAtLeast(listening.length, 10);
-          for (const { pid, port } of listening) {
-            x.nominate(pid, port);
-            const outcome = yield* code(x.authorizer.authorize(port));
-            if (allowedPorts.has(port)) assert.equal(outcome, "allowed", `port ${port}`);
-            else assert.notEqual(outcome, "allowed", `port ${port} of pid ${pid}`);
-          }
-          assert.deepEqual(
-            listening.filter((entry) => allowedPorts.has(entry.port)).length,
-            allowedPorts.size,
-          );
-        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
-    );
-  },
-);
+        }
+        // The in-process ones, three children, the hub's daemon, the shell's job, the agent's job...
+        assert.isAtLeast(listening.length, 10);
+        for (const { pid, port } of listening) {
+          x.nominate(pid, port);
+          const outcome = yield* code(x.authorizer.authorize(port));
+          if (allowedPorts.has(port)) assert.equal(outcome, "allowed", `port ${port}`);
+          else assert.notEqual(outcome, "allowed", `port ${port} of pid ${pid}`);
+        }
+        assert.deepEqual(
+          listening.filter((entry) => allowedPorts.has(entry.port)).length,
+          allowedPorts.size,
+        );
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+});
 
 describe("the rescan on a miss", () => {
   it.effect("scans at most once per interval however many tunnels miss", () =>

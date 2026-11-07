@@ -654,7 +654,7 @@ authorize(port)                // 每条新隧道都完整走一遍；结果不�
 - 身份注入测试：身份读取函数是可注入的；让它在 C0 和 C3 之间对同一个 pid 返回不同的启动时间 → 被拒；读取失败（工具退出码非零、超时、输出无法解析）→ 被拒（fail-closed）。
 - 归属：agent 归属项的环境被清掉标记 → 被拒；终端归属项的祖先链被打断（用 `setsid` 加双 fork 的辅助进程让它被 init 收养）→ 被拒；终端 shell `exec` 成监听者 → 放行。
 - `SO_REUSEPORT` 两个监听者 → 被拒；IPv4/IPv6 双栈：只绑 `127.0.0.1`、只绑 `::1`、通配绑定各自的拨号目标正确（通配 → `127.0.0.1`）。
-- 平台命令的解析函数用记录下来的真实输出做夹具测试（macOS 的 `lsof -F`、`ps` 的 `lstart`，Linux 的 `/proc/<pid>/stat`（含 comm 里带空格和括号的情形）、`/proc/net/tcp{,6}`），在所有平台上都跑；真实进程测试在各自平台上跑：macOS 本机，Linux 在容器里（`fork:selfhost:e2e` 已经依赖 Docker）。
+- 平台命令的解析函数用记录下来的真实输出做夹具测试（macOS 的 `lsof -F`、`ps` 的 `lstart`，Linux 的 `/proc/<pid>/stat`（含 comm 里带空格和括号的情形）、`/proc/net/tcp{,6}`），在所有平台上都跑；真实进程测试在各自平台上跑：macOS 本机，Linux 在容器里（`vp run fork:loopback-gateway:linux-check`，见 §12 9.4；两处测试用 `runsOnRealProcesses` 和 `realInspectorLayer` 选平台，macOS 路径不变）。
 - 每条隧道都经过核对，没有缓存：同一个端口上一条接一条的 6 条隧道是 6 批、6 套完整读取（`PortAuthorizerBatch.test.ts`、`PortAuthorizer.test.ts`）；同时到达的 6 条是 1 批，每条仍各自得出结论；在某次读取开始之后才到达的请求绝不用那次读取的结果；收集窗口里或读取进行中被撤销的会话立即被拒。
 
 ### 5.4 `T3CODE_PORT_DISCOVERY=0`
@@ -825,7 +825,7 @@ M2 的设计变更见 §5.6.0.1：判断全部来自每条隧道现读的祖先�
 - **接受的残余风险：CLI 自己起的、带 agent 标记的 MCP 进程，如果在回环上监听，会按 agent 作业放行。** MCP 进程是 CLI 的后代，继承 CLI 的环境（Claude 的带 `T3CODE_THREAD_ID`），所以满足 E5。会发生的写法有：stdio MCP 同时开 HTTP/SSE 回环口（如 `npx @playwright/mcp --port 8931`）、`mcp-remote` 一类做 OAuth 的代理在随机回环口监听回调、带本地管理页的 MCP、`npx`/`uvx` 起的 MCP 再起的子服务。**这一版不改代码**，理由：(1) “从运行时到监听者之间必须隔一层 shell”不可靠：`bash -c` 和 `zsh -c` 对最后一条命令常常直接 `exec`，shell 就不在链上了，结果会把真正的 dev server 也误拒，而 MCP 进程由 CLI 直接 spawn 的情形也不一定没有 shell；(2) 首次转发某个端口时让用户确认命令行，违背易用性（页面冷启动一次开五六条连接），也没人会逐条读；(3) 按名字（`mcp`、`@modelcontextprotocol`）排除会误伤名字里带这些字样的正常服务，漏掉没有这些字样的 MCP。**仍然生效的约束：** E7（带调试参数的整进程排除，例如 `chrome-devtools-mcp` 起的 Chrome）、保留端口（8 个屏蔽端口和 server 自己的端口）、速率与并发上限（每会话 64、每 server 256、令牌桶、每会话每分钟 30 张票据）、`preview:operate` 加 `terminal:operate` 两个 scope、所有隧道只在加密或本机的连接上。暴露面是“用户的 agent 起了一个服务，而用户的另一台机器的浏览器能看到它”，与 dev server 同类；论据不是“上游浏览器本来就能访问全部回环端口”（那是另一个主体、另一条路径），而是这一类服务本来就属于 agent 的作业，没有可靠的、不误伤正常服务的判据把它们分开。
 - **脱离父进程的 agent 后台作业对所有驱动都转发不了**（决定见 §5.6.3）：被 launchd 收养的作业不在 server 的子树里。用户文档要写明，改用“在 B 的浏览器中打开”。
 - 用户自己在 B 上以终端归属启动的、本意不想暴露的服务：这是功能的前提；用户要避免就不要在 T3 终端里起它。
-- **Windows：** 没有 argv 和环境的读取路径、没有 agent 归属档、没有未验证的 `netstat` 复核——所以 Windows 的 B **不广告能力**，不存在"只做一部分检查"的状态（复核 P1-4）。Linux 同样：真实进程测试通过前不广告。
+- **Windows：** 没有 argv 和环境的读取路径、没有 agent 归属档、没有未验证的 `netstat` 复核——所以 Windows 的 B **不广告能力**，不存在"只做一部分检查"的状态（复核 P1-4）。Linux 同样：真实进程测试通过前不广告。9.4 的容器测试已经通过（§12 9.4），广告函数没有改，是否放开由主控定。
 
 ### 5.7 调试进程：整进程排除（评估结论）
 
@@ -1034,7 +1034,7 @@ M2 的设计变更见 §5.6.0.1：判断全部来自每条隧道现读的祖先�
   | 6    | 355        | 415      | 185        | 230      |
   | 32   | 1,394      | 1,572    | 175        | 197      |
 
-  样本数：改前 60/120/256，改后相同。并发 6（页面冷启动）的 p95 从 415 降到 230，低于 300 毫秒的目标。改后的并发 1 比改前快，是因为进程表和 `lsof` 现在并行读（改前串行），加上收集窗口多等的 10 毫秒仍然更快。单次核对的耗时分解见 §5.3。Linux 容器的一份没有做：Linux 保持不广告。
+  样本数：改前 60/120/256，改后相同。并发 6（页面冷启动）的 p95 从 415 降到 230，低于 300 毫秒的目标。改后的并发 1 比改前快，是因为进程表和 `lsof` 现在并行读（改前串行），加上收集窗口多等的 10 毫秒仍然更快。单次核对的耗时分解见 §5.3。Linux 容器的核对耗时没测：Apple Silicon 上的 x86 容器是模拟运行，数字没有意义；Linux 的广告函数没有改。
 
 - **连接复用。** A→B 每个端口有 keep-alive 池；实测 Chromium→代理本身复用良好。
 - **B 端零 HTTP 解析。** 隧道是字节管道，没有逐请求的 Effect `HttpClient` 开销（#8841 的路径是逐请求）。
@@ -1101,7 +1101,7 @@ B 的现场核对（`LoopbackGateway.authorize` 的 span，B 的本地 trace 文
 - **自定义 `Authorization` 方案不被误用（复核 P2-1）：** 带 `Authorization: T3X-Gateway <票据>` 的请求打普通受保护路由、`/mcp`、`/oauth/token`、以及 `TunnelListener` 监听口上的同样几条，都不被当作会话凭据；连续多次错误票据打网关路由，`AuthAttemptLimiter` 的状态不变。
 - 两个 scope 缺一不可；只读会话被拒。
 - **现场核对（TOCTOU，§5.3）：** 有主进程退出后另一个进程绑到同一端口，**立即**被拒，没有 TTL 参与；身份读取可注入，C0 与 C3 之间启动时间变化被拒，读取失败被拒；agent 项标记被清被拒；终端项祖先链被打断被拒；同端口两个 pid 被拒；只绑 `::1` 和只绑 `127.0.0.1` 的服务各自连得上，通配绑定拨 `127.0.0.1`；同一端口一条接一条的 6 条隧道是 6 批读取、同时到达的 6 条是 1 批且各自判定（防止悄悄加缓存）；未命中重扫的 2 秒限流。
-- **核对耗时实测（M2 已做）：** macOS 并发 1、6、32 的中位数与 p95 见 §11；Linux 容器一组未做，Linux 保持不广告。
+- **核对耗时实测（M2 已做）：** macOS 并发 1、6、32 的中位数与 p95 见 §11；Linux 容器一组没测（x86 容器在 Apple Silicon 上是模拟运行）；9.4 只跑了正确性（§12 9.4），Linux 的广告函数没有改。
 - **排除（§5.6.4）：** 完整 server 自检；每种 provider 的假运行时（E2、E3 的正反例）；孤儿（启动器退出后遗留的运行时与带标记的作业被收养，不在 server 的树里，被拒；终端有主不受影响）；特征声明测试（`BUILT_IN_DRIVERS` 每个驱动都在特征表或 `NO_SIGNATURE` 里）；防漂移测试；带 `--inspect=0` 的进程的两个端口都被拒；屏蔽表 8 个端口（9222、9229、5858、5859、2375、2376、5005、5678）被拒。
 - 能力广告：`T3CODE_PORT_DISCOVERY=0`、Windows、未验证的 Linux 都不广告，RPC 报 `discovery-disabled` 或 `unsupported-platform`。
 - **撤销（§4.8）：** 会话被撤销、会话自然过期、设备移除后经 8.2 对账撤销，三条路径都验证已建立隧道的 TCP 和 WS 两端关闭；续期链；升级与撤销同时发生的竞速场景；**N1 的三个新增测试**（续期期间被盗的票据开出的隧道在撤销后关闭、续期链上撤销与升级同时发生、设备移除后整条会话链的每个活动行都被撤销且对应隧道都关闭）。
@@ -1200,11 +1200,19 @@ B 的现场核对（`LoopbackGateway.authorize` 的 span，B 的本地 trace 文
 3. **连接方式矩阵（GPT P1-7，主控第 9 条）：** 对 §3.5 里每一种"待验证"的方式，各测：打开 WS 隧道；长连接（至少 30 分钟空闲后 HMR 仍可用）；重连（重启 B、断网再通）；证书（公共 CA 的有效证书通过；过期、自签名、主机名不符都失败并给出"证书不受信任"；私有 CA 是已知限制，只确认报错正确）；`Authorization` 头原样到达 B；并发（几十条隧道同时升级）。测完把表里的"待验证"改成"已验证"，或写明限制。
 4. **基础设施测试（复核 P0-2，实测通过才能把它标为解决）：** `Caddyfile` 没有未加过滤的 `log`；在本地试用栈里临时打开 Caddy 的访问日志，用哨兵票据发一条隧道升级，实测 `Authorization` 被遮蔽；grep frps 与 Caddy 的全部日志输出，frps 不打印请求头；README 说明。
    4a. **威胁模型用例（§6.7，在真实 Electron 里）：** Vite 夹具的 `/@fs/`、source map，外部来源页面读不到；`--inspect=0` 和 9229 被拒；`*.localhost`；映射 IPv6；DNS rebinding。
-   4b. **Linux：** 在容器里跑 9.1 的真实进程核对测试和排除测试（`fork:selfhost:e2e` 已依赖 Docker），通过后才能让 Linux 的 B 广告能力。
+   4b. **Linux：** 在容器里跑 9.1 的真实进程核对测试和排除测试，通过后才能让 Linux 的 B 广告能力。**结果见本节末尾的"9.4 无头部分的结果"：全过，广告函数没有改。**
 5. 按 §11.1 测首屏（含 50 毫秒和 100 毫秒往返的延迟注入）。
 6. 文档：`docs/user/remote-access.md` 的 "Browser on a remote environment" 旁加一节（写明语义变化：B 的标签页里 `localhost` 永远指 B；按环境生效；只在加密或本机连接上启用；别在转发的标签页里打开不信任的网站；私有 CA 不支持；只列已验证的连接方式；哪些 provider 因此转发不了脱离父进程的后台作业）；FORK.md 加一节；本文档写入结果。
 
 验收：以上全部通过；`fork:selfhost:e2e` 连续两遍全绿；官方基线不变（不碰 `~/.t3`、fork 真实 home）。
+
+**9.4 无头部分的结果（`t3/loopback-gateway-e2e`，2026-11-07，这台 Mac，不起 Electron）：**
+
+1. **场景 15（转发）和场景 16（日志脱敏）进了 `fork:selfhost:e2e`**（现在 16 个场景；场景 17 是 §11.1 的测量，只在 `--only` 点名时跑）。15：第三台电脑 D 扮演桌面，用桌面自己的代理、隧道客户端和环境状态（纯 Node），经 Caddy 和 frps 读到 B 的终端起的服务的页面、SSE、WebSocket，请求头里没有票据和代理口令；一个脱离父进程的监听被拒，原因 `not-owned`（HTTP 和 `CONNECT` 都是）；在 B 上移除 D 之后，打开的隧道两端都关闭，D 再请求得到 `unauthorized`。16：见 §4.3 的实测——开着访问日志时 `Authorization` 是 `REDACTED`，Caddy、frps、registry 的全部输出里都没有票据；加 `log_credentials` 时场景会失败。
+2. **测的过程中发现并修了一个产品缺陷（9.1 遗留）：** 隧道路由在 WebSocket 升级之后、接上字节管道之前隔着几个 `await`（会话复查加纤程切换），客户端在这段时间里发来的第一帧被丢掉，请求挂到服务那头超时。桌面代理在隧道一打开就写请求，六条冷隧道同时开时，对真实 server 几乎每轮丢一条；场景 15 一次开一两条，侥幸没碰上。修法：升级完成时 `ws.pause()`，`createWebSocketStream` 在管道接上时恢复；`TunnelRoute.test.ts` 里加了"客户端在 `open` 回调里立刻发帧"的用例（在 main 上挂住，修后通过）。这是单独的一个提交，可以单独撤回。
+3. **`TunnelRevocation.test.ts` 高负载下超时：** 根因不是读进程表（这个文件用假的端口核对）。两条用例把测试时钟拨进一小时，而隧道心跳每 30 秒（测试时钟）发一次 ping，三次没回 pong 就终止隧道；拨钟时 120 个心跳在一个紧循环里跑完，pong 要真实的 I/O，负载高时一个都等不到，隧道被心跳终止，DPoP 续期那条用例等的回显永远不来。会话寿命改成 20 秒（小于 30 秒），心跳不再触发；在 32 个 `yes` 压着的机器上（负载 30 到 46），原用例 40 次里挂 1 次，修后 150 次全过。
+4. **§11.1 首屏耗时：** 见 §11.1。两条字面判据在 50 ms 往返下都超了，只记录，没有做预开隧道。
+5. **Linux（`vp run fork:loopback-gateway:linux-check`）：** 在 `node:24-bookworm` 容器里（Docker Desktop 的 LinuxKit 内核 6.12，镜像是 x86_64，在 Apple Silicon 上模拟运行），以容器里的普通用户（uid 1000）跑 7 个测试文件共 91 条：`ProcessInspector`（`/proc` 的真实读取，含 `SO_REUSEPORT`）、`PortAuthorizer`（真实进程：终端、agent 作业、孤儿、`--inspect`、完整 server 自检）、`PortAuthorizerBatch`、`GatewayExclusions`、`ExclusionsInventory`、`RuntimeSignatures`、`TerminalShellRegistry`，**全部通过，连跑两遍**。这些真实进程测试以前只在 macOS 上跑（`describe.runIf(darwin)`）；现在 macOS 和 Linux 都跑，选平台的两个小函数在 `processFixtures.testkit.ts`。容器里要装 `lsof`（自检用例用它列监听），依赖只装 `t3` 包及其依赖（`--ignore-scripts`）。**Linux 的广告函数没有改。** 没测：Linux 上核对耗时（模拟运行，数字没有意义）；原生的 aarch64 容器；`rpcHandlers.test.ts` 里依赖"平台是 macOS"的两条用例在 Linux 上本来就失败（广告函数的预期行为，不在范围内）。
 
 ### 以后再做（不在 9）
 
@@ -1330,7 +1338,7 @@ B 的现场核对（`LoopbackGateway.authorize` 的 span，B 的本地 trace 文
 这些不需要现在拍板，每一条都有默认做法和回答它的阶段：
 
 1. **macOS 上 `ps -E` 能不能和 `lstart` 合成一次调用。** （M2 结论）进程表用 `ps -A -ww -o pid=,ppid=,lstart=,args=`（`LC_ALL=C TZ=UTC`）一次读全，`lstart` 与 `args` 同一次调用；需要环境变量标记和调试参数的那一个 pid 另用一次 `ps -E -ww -o command=`。没有拆成更多次调用以外的开销。
-2. **单条核对的耗时。** （M2 结论，修复轮更新）改前并发 6 的 p95 是 415 毫秒，超过 300 毫秒的判据，所以做了批量核对（§5.3）：改后并发 1、6、32 的 p95 分别是 223、230、197 毫秒（§11）。Linux 容器没有测。
+2. **单条核对的耗时。** （M2 结论，修复轮更新）改前并发 6 的 p95 是 415 毫秒，超过 300 毫秒的判据，所以做了批量核对（§5.3）：改后并发 1、6、32 的 p95 分别是 223、230、197 毫秒（§11）。Linux 容器的耗时没有测（模拟运行，数字没有意义）。
 3. **`TerminalManager.subscribeMetadata` 是否覆盖 shell 退出、终端重启和关闭。** （M2 结论）覆盖：先给快照，之后每次启动、重启、退出、关闭、出错都带 `pid` 和 `status`，`TerminalShellRegistry` 的折叠函数用单元测试验证；不需要回退。
 4. **Codex app-server 在 server 被 `SIGKILL` 后会不会因 stdin 的 EOF 退出；ACP 系各家 agent 同理；Muse 的 SDK 能不能给出 pid。** （M2 结论）没有验证（不能起真实 provider），也不再影响安全结论：遗留运行时被收养后不在 server 的子树里，整棵被拒；不再需要 pid（§5.6.0.1）。
 5. **frp 与 Caddy 是否原样保留 `Authorization` 头；frps 的日志是否打印请求头；Caddy 开启访问日志后 `Authorization` 是否被遮蔽。** 9.4 在本地试用栈上实测，不通过不能把 P0-2 标为解决。
@@ -1345,7 +1353,7 @@ B 的现场核对（`LoopbackGateway.authorize` 的 span，B 的本地 trace 文
 - Caddy 的 `log` 开启后 `Authorization` 是否被遮蔽，frps 的日志内容：没有实测（9.4）。
 - 经 T3 Connect 中继的行为（明确不支持，没测）。
 - `protocol.handle`、`webRequest` 的否决只依据文档，没有实测。
-- Linux 上的核对命令（`/proc` 的 fd、`/proc/net/tcp{,6}`、`stat` 的 `starttime`）只依据文档和上游 `OpenCodeServerLedger` 的写法，没在 Linux 上跑过；macOS 的 `lsof -a -p`、`ps -E` 在 macOS 26 上实测过（附录 A），`ps` 的 `lstart` 用法照上游，组合调用没测。
+- Linux 上的核对命令（`/proc` 的 fd、`/proc/net/tcp{,6}`、`stat` 的 `starttime`）只依据文档和上游 `OpenCodeServerLedger` 的写法，9.4 在 Linux 容器里跑过了（§12 9.4，全过）；macOS 的 `lsof -a -p`、`ps -E` 在 macOS 26 上实测过（附录 A），`ps` 的 `lstart` 用法照上游，组合调用没测。
 - Windows 不支持，所以不存在 Windows 的核对命令。
 - Local Network Access 在 Chromium 152 的实际拦截行为：设计不依赖它（§6.8）。
 - "B 的 agent 不会驱动 A 的桌面标签页"是读代码得出的，没有启动应用验证（9.3 手动检查）。
