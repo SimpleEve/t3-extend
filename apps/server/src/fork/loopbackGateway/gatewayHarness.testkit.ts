@@ -362,7 +362,12 @@ export const issueSessionTicket = Effect.fn("issueSessionTicket")(function* (
 });
 
 export type TunnelAttempt =
-  | { readonly _tag: "open"; readonly ws: NodeWS.WebSocket }
+  | {
+      readonly _tag: "open";
+      readonly ws: NodeWS.WebSocket;
+      /** The first message back, when `sendOnOpen` was given; listened for before it was sent. */
+      readonly firstMessage?: Promise<Buffer>;
+    }
   | {
       readonly _tag: "refused";
       readonly status: number;
@@ -380,6 +385,8 @@ export const openTunnel = (
     readonly headers?: Readonly<Record<string, string>>;
     readonly path?: string;
     readonly maxPayload?: number;
+    /** Sent in the `open` handler itself, the way a client with a request waiting does. */
+    readonly sendOnOpen?: Buffer;
   },
 ) =>
   Effect.promise(
@@ -401,7 +408,15 @@ export const openTunnel = (
             maxPayload: input.maxPayload ?? 64 * 1024 * 1024,
           },
         );
-        ws.once("open", () => resolve({ _tag: "open", ws }));
+        ws.once("open", () => {
+          if (input.sendOnOpen === undefined) {
+            resolve({ _tag: "open", ws });
+            return;
+          }
+          const firstMessage = new Promise<Buffer>((done) => ws.once("message", done));
+          ws.send(input.sendOnOpen);
+          resolve({ _tag: "open", ws, firstMessage });
+        });
         ws.once("unexpected-response", (_request, response) => {
           const chunks: Array<Buffer> = [];
           response.on("data", (chunk: Buffer) => chunks.push(chunk));

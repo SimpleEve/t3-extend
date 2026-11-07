@@ -71,6 +71,33 @@ describe("tunnel route: the upgrade and the byte pipe", () => {
     }).pipe(Effect.scoped, Effect.provide(layerGateway)),
   );
 
+  it.live("delivers a frame the client sends the instant the tunnel opens", () =>
+    Effect.gen(function* () {
+      const gateway = yield* Gateway;
+      const dev = yield* listenLoopback((socket) => socket.pipe(socket));
+      const { ticket } = yield* issueSessionTicket();
+      // Six at once, as a page does: every one must hear its own bytes back.
+      const attempts = yield* Effect.forEach(
+        [0, 1, 2, 3, 4, 5],
+        (index) =>
+          openTunnel(gateway.mainPort, {
+            ticket,
+            query: `port=${dev.port}`,
+            sendOnOpen: Buffer.from(`first-${index}`),
+          }),
+        { concurrency: "unbounded" },
+      );
+      for (const [index, attempt] of attempts.entries()) {
+        assert.equal(attempt._tag, "open");
+        if (attempt._tag !== "open") return;
+        assert.equal(
+          (yield* Effect.promise(() => attempt.firstMessage!)).toString(),
+          `first-${index}`,
+        );
+      }
+    }).pipe(Effect.scoped, Effect.provide(layerGateway)),
+  );
+
   it.live("stops reading the service while the client is not reading (service to client)", () =>
     Effect.gen(function* () {
       const gateway = yield* Gateway;
