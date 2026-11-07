@@ -118,6 +118,22 @@ describe("TunnelSocket backpressure", () => {
   });
 });
 
+describe("TunnelSocket timeouts", () => {
+  it("takes a listener back when the timeout is cleared with it, as net.Socket does", () => {
+    const { tunnel } = open();
+    // What `http.Agent` does each time it reuses a connection: set a timeout with its listener,
+    // and clear it with the same listener when the request is done.
+    const listener = () => {};
+    for (let reuse = 0; reuse < 25; reuse += 1) {
+      tunnel.setTimeout(30_000, listener);
+      expect(tunnel.listenerCount("timeout")).toBe(1);
+      tunnel.setTimeout(0, listener);
+      expect(tunnel.listenerCount("timeout")).toBe(0);
+    }
+    tunnel.destroy();
+  });
+});
+
 describe("a frame beyond the message limit", () => {
   const cleanups: Array<() => Promise<void>> = [];
   afterEach(async () => {

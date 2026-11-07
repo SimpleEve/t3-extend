@@ -71,6 +71,49 @@ describe("tunnel route: the upgrade and the byte pipe", () => {
     }).pipe(Effect.scoped, Effect.provide(layerGateway)),
   );
 
+  it.live("delivers a frame that reaches the server before the byte pipe is attached", () =>
+    Effect.gen(function* () {
+      const gateway = yield* Gateway;
+      // The banner reaches the client only once the route has attached the pipe, so it marks the
+      // moment after which a frame cannot be lost; the echo is in order, so a lost first frame
+      // shows as a missing one.
+      const dev = yield* listenLoopback((socket) => {
+        socket.write("banner");
+        socket.on("data", (data) => socket.write(data));
+      });
+      const { ticket } = yield* issueSessionTicket();
+      const hold = gateway.holdAfterUpgrade();
+      const attempt = yield* openTunnel(gateway.mainPort, { ticket, query: `port=${dev.port}` });
+      assert.equal(attempt._tag, "open");
+      if (attempt._tag !== "open") return;
+      const { ws } = attempt;
+      yield* Effect.addFinalizer(() => Effect.sync(() => ws.terminate()));
+      let received = "";
+      let markBanner = () => {};
+      const bannerSeen = new Promise<void>((resolve) => {
+        markBanner = resolve;
+      });
+      const echoed = new Promise<string>((resolve) => {
+        ws.on("message", (data: Buffer) => {
+          received += data.toString();
+          if (received.includes("banner")) markBanner();
+          if (received.endsWith("second")) resolve(received);
+        });
+      });
+      const server = yield* Deferred.await(hold.reached);
+      // Sent while the route is stalled between the upgrade and the pipe. Released once the frame is
+      // in the server's hands (a socket that is paused keeps it unread, which is the fix).
+      yield* Effect.sync(() => {
+        ws.send(Buffer.from("first"));
+        if (server.isPaused()) hold.release();
+        else server.once("data", () => hold.release());
+      });
+      yield* Effect.promise(() => bannerSeen);
+      ws.send(Buffer.from("second"));
+      assert.equal(yield* Effect.promise(() => echoed), "bannerfirstsecond");
+    }).pipe(Effect.scoped, Effect.provide(layerGateway)),
+  );
+
   it.live("stops reading the service while the client is not reading (service to client)", () =>
     Effect.gen(function* () {
       const gateway = yield* Gateway;

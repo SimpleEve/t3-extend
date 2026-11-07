@@ -1,14 +1,45 @@
 // @effect-diagnostics nodeBuiltinImport:off globalTimers:off globalDate:off - scenarios against a real stack and real servers.
 // The 14 scenarios of research/self-host-device-keys.md 7.2, in an order that lets each one use what
-// the earlier ones set up (the numbers are the design's). Every wait is on an event: a process log
+// the earlier ones set up (the numbers are the design's), and 15, the loopback gateway
+// (research/remote-loopback-forwarding.md 12, 9.4). Every wait is on an event: a process log
 // line, a devices.subscribe snapshot, a socket closing; `until` appears only where nothing raises one.
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import * as NodeTls from "node:tls";
 
 import type { DevicesSnapshot } from "@t3tools/contracts";
+import type { LoopbackGatewayEvent } from "@t3tools/shared/forkLoopbackGateway/bridge";
+import { formatLoopbackGatewayAuthorization } from "@t3tools/shared/forkLoopbackGateway/protocol";
+import * as NodeCrypto from "node:crypto";
+import * as Redacted from "effect/Redacted";
 
+import { makeGatewayEnvironment } from "../../apps/desktop/src/fork/loopbackGateway/GatewayEnvironment.ts";
+import { openLoopbackTunnel } from "../../apps/desktop/src/fork/loopbackGateway/TunnelClient.ts";
 import { cliJoin, type Computer, type E2eContext, newHome, startComputer } from "./computer.ts";
+import {
+  keepAliveFetcher,
+  loadModuleGraph,
+  readServerSpans,
+  startLatencyRelay,
+  stats,
+  type LatencyRelay,
+} from "./firstPaint.ts";
+import {
+  connectViaProxy,
+  getViaProxy,
+  proxyEndpoint,
+  startServiceInTerminal,
+  startServiceOutsideTerminal,
+  streamViaProxy,
+  type TerminalService,
+  webSocketViaProxy,
+} from "./gateway.ts";
+import {
+  checkNoAccessLogConfigured,
+  enableCaddyAccessLog,
+  findSecret,
+  stackLogs,
+} from "./infraLogs.ts";
 import { DpopKey, exchangePass, Phone, sessionOf, sessionSocketUrl } from "./phone.ts";
 import { openRpc, RpcFailure, type RpcConnection } from "./rpc.ts";
 import { DOMAIN, type Stack } from "./stack.ts";
@@ -33,6 +64,8 @@ export interface Scenario {
   readonly id: number;
   readonly title: string;
   readonly timeoutMs: number;
+  /** Runs only when asked for with `--only`: a measurement, not a check. */
+  readonly optional?: boolean;
   readonly run: (world: World) => Promise<void>;
 }
 
@@ -98,13 +131,13 @@ const failWithin = <T>(promise: Promise<T>, label: string, timeoutMs: number): P
 const hasDevice = (snapshot: DevicesSnapshot, name: string): boolean =>
   snapshot.devices.some((device) => device.name === name);
 
-/** A computer's own signed pass for another computer, exchanged and used for one RPC. */
-async function computerLogsIntoComputer(
+/** A computer's own signed pass for another computer, exchanged for a session with an open RPC connection. */
+async function computerSignsIntoComputer(
   from: Computer,
   to: Computer,
   toEnvironmentId: string,
   toUrl: string,
-) {
+): Promise<RpcConnection> {
   const key = new DpopKey();
   // The registry learns a computer's environment id when its server first reports it; a refresh pulls it.
   const signed = await until(
@@ -130,7 +163,17 @@ async function computerLogsIntoComputer(
     },
   );
   const { accessToken } = sessionOf(await exchangePass(toUrl, signed.assertion, key), toUrl);
-  const connection = await openRpc(await sessionSocketUrl(toUrl, accessToken, key));
+  return openRpc(await sessionSocketUrl(toUrl, accessToken, key));
+}
+
+/** A computer's own signed pass for another computer, exchanged and used for one RPC. */
+async function computerLogsIntoComputer(
+  from: Computer,
+  to: Computer,
+  toEnvironmentId: string,
+  toUrl: string,
+) {
+  const connection = await computerSignsIntoComputer(from, to, toEnvironmentId, toUrl);
   try {
     await connection.call("server.probe");
   } finally {
@@ -557,6 +600,251 @@ export const scenarios: ReadonlyArray<Scenario> = [
     },
   },
   {
+    id: 15,
+    title:
+      "a service B's terminal started is reached through the tunnel as localhost (page, SSE, WebSocket); one no terminal started is refused; removing the device closes both ends",
+    timeoutMs: 420_000,
+    run: async (world) => {
+      const b = need(world.b, "B");
+      const bEnv = need(world.bEnv, "B's environment");
+      const bUrl = tunnelUrl(world, "b");
+      // Earlier scenarios took the registry down: B's route through Caddy and frps comes back on its own.
+      await reachable(bUrl, bEnv, 90_000);
+      const descriptor = (await httpRequest(`${bUrl}/.well-known/t3/environment`)).json() as {
+        platform: { os: string };
+        capabilities: { loopbackGateway?: boolean };
+      };
+      // B advertises the capability on macOS only (Linux waits for its own checks, Windows has none).
+      if (descriptor.platform.os !== "darwin") {
+        check(
+          descriptor.capabilities.loopbackGateway !== true,
+          "B must not advertise the gateway off macOS",
+        );
+        say("  not macOS: the gateway is not advertised, nothing more to check here");
+        return;
+      }
+      checkEqual(descriptor.capabilities.loopbackGateway, true, "B's gateway capability");
+
+      // D plays the desktop app of another computer: its own session on B, and the desktop's own
+      // proxy, tunnel client and environment state (no Electron) in this process.
+      const d = await joinedComputer(world, "D");
+      // B learns of D on its next sync (60 s); a refresh is the same sync, asked for now.
+      await b.refresh();
+      const dId = need((await d.status()).deviceId, "D's device id");
+      const events: Array<LoopbackGatewayEvent> = [];
+      const environment = makeGatewayEnvironment({
+        environmentId: bEnv,
+        emit: (event) => events.push(event),
+        onProxyChange: async () => {},
+      });
+      const open: Array<{ destroy: () => void }> = [];
+      let service: TerminalService | undefined;
+      let outside: { port: number; stop: () => Promise<void> } | undefined;
+      let sessionOnB: RpcConnection | undefined;
+      try {
+        service = await startServiceInTerminal(world.ctx, b, "gateway");
+        outside = await startServiceOutsideTerminal(world.ctx, "outside-service");
+        sessionOnB = await computerSignsIntoComputer(d, b, bEnv, bUrl);
+        const issued = (await sessionOnB.call("loopbackGateway.issueTicket", {})) as {
+          ticket: Redacted.Redacted<string>;
+          expiresAt: never;
+        };
+        const status = await environment.register({
+          httpBaseUrl: bUrl,
+          enabled: true,
+          credential: issued,
+        });
+        checkEqual(status.state, "active", "D's forwarding state for B");
+        const credentials = need(
+          environment.proxyCredentials() ?? undefined,
+          "the proxy's credentials",
+        );
+        const proxy = proxyEndpoint(credentials);
+
+        // 1. The page, as `localhost` on B: the service sees a plain loopback request and nothing
+        // of the proxy or the ticket.
+        const page = await getViaProxy(proxy, service.port, "/");
+        checkEqual(page.status, 200, "the page through the tunnel");
+        check(
+          page.body.includes("hello from the remote computer"),
+          `unexpected page: ${page.body}`,
+        );
+        const headers = JSON.parse(
+          (await getViaProxy(proxy, service.port, "/headers")).body,
+        ) as Record<string, string>;
+        checkEqual(headers.host, `localhost:${service.port}`, "the Host header the service saw");
+        check(
+          headers["authorization"] === undefined && headers["proxy-authorization"] === undefined,
+          "neither the ticket nor the proxy password may reach the service",
+        );
+
+        // 2. A stream that stays open, and a WebSocket.
+        const sse = await streamViaProxy(proxy, service.port, "/events");
+        open.push(sse);
+        checkEqual(sse.status, 200, "the event stream");
+        await sse.waitFor(/data: one\n\ndata: two\n\ndata: three\n\n/u, "its three events");
+        const socket = await webSocketViaProxy(proxy, service.port, "/ws");
+        open.push(socket);
+        socket.send("ping");
+        checkEqual(await socket.next(), "echo:ping", "the WebSocket's echo");
+        await service.events.waitFor(/sse-open[\s\S]*ws-open|ws-open[\s\S]*sse-open/u, {
+          label: "the service to see both connections",
+          timeoutMs: 30_000,
+        });
+
+        // 3. A listener no terminal started is refused, however it is asked.
+        const refused = await getViaProxy(proxy, outside.port, "/");
+        checkEqual(refused.status, 403, "the outside service's HTTP status");
+        checkEqual(refused.headers["x-t3x-gateway-error"], "not-owned", "its error header");
+        check(!refused.body.includes("secret"), "the outside service's data must not come through");
+        const refusedConnect = await connectViaProxy(proxy, outside.port);
+        refusedConnect.socket.destroy();
+        checkEqual(refusedConnect.status, 403, "the outside service's CONNECT status");
+        checkEqual(refusedConnect.gatewayError, "not-owned", "its CONNECT error header");
+        check(
+          events.some((event) => event.type === "denied" && event.code === "not-owned"),
+          "the refused CONNECT is reported as a denial",
+        );
+        checkEqual(
+          environment.status().state,
+          "active",
+          "a refused port leaves the environment active",
+        );
+
+        // 4. Removing D on B ends its session: the open tunnels close at both ends, and D gets no more.
+        socket.send("again");
+        checkEqual(await socket.next(), "echo:again", "the WebSocket just before the removal");
+        const mark = service.events.mark();
+        await b.refresh();
+        await b.call("devices.remove", { deviceId: dId });
+        await b.refresh();
+        await Promise.all([
+          failWithin(sse.closed, "the event stream to close", 60_000),
+          failWithin(socket.closed, "the WebSocket to close", 60_000),
+          service.events.waitFor(/sse-closed[\s\S]*ws-closed|ws-closed[\s\S]*sse-closed/u, {
+            label: "the service to see both connections close",
+            timeoutMs: 60_000,
+            from: mark,
+          }),
+        ]);
+        const after = await getViaProxy(proxy, service.port, "/");
+        checkEqual(after.status, 503, "a request after the device was removed");
+        checkEqual(after.headers["x-t3x-gateway-error"], "unauthorized", "its error header");
+        checkEqual(environment.status().state, "rejected", "D's forwarding state after removal");
+      } finally {
+        for (const item of open) item.destroy();
+        await Promise.allSettled([
+          sessionOnB?.close(),
+          environment.close(),
+          service?.stop(),
+          outside?.stop(),
+          d.stop(),
+        ]);
+      }
+    },
+  },
+  {
+    id: 16,
+    title:
+      "with Caddy's access log switched on, the gateway ticket is masked there and absent from every log of the stack",
+    timeoutMs: 180_000,
+    run: async (world) => {
+      const a = need(world.a, "A");
+      const b = need(world.b, "B");
+      const bEnv = need(world.bEnv, "B's environment");
+      const bUrl = tunnelUrl(world, "b");
+      checkNoAccessLogConfigured();
+      await reachable(bUrl, bEnv, 90_000);
+
+      // A real ticket (A's own session on B) and a made-up one, each sent in a tunnel upgrade through
+      // Caddy and frps; nothing listens on the port, so B answers after it has accepted the ticket.
+      const sessionOnB = await computerSignsIntoComputer(a, b, bEnv, bUrl);
+      let accessLog: Awaited<ReturnType<typeof enableCaddyAccessLog>> | undefined;
+      const reconnected = async (reload: () => Promise<unknown>) => {
+        const marks = [a.log.mark(), b.log.mark()] as const;
+        await reload();
+        await Promise.all(
+          [a, b].map((computer, index) =>
+            computer.log.waitFor(LOGGED_IN, {
+              label: `${computer.name}'s tunnel to come back after Caddy reloaded`,
+              timeoutMs: 60_000,
+              from: marks[index]!,
+            }),
+          ),
+        );
+        await reachable(bUrl, bEnv, 60_000);
+      };
+      try {
+        const issued = (await sessionOnB.call("loopbackGateway.issueTicket", {})) as {
+          ticket: Redacted.Redacted<string>;
+        };
+        const real = Redacted.value(issued.ticket);
+        // A second ticket of the same session, never sent anywhere: what tickets share (§4.3).
+        const reference = Redacted.value(
+          ((await sessionOnB.call("loopbackGateway.issueTicket", {})) as typeof issued).ticket,
+        );
+        // Both segments random and independent, so every 12-character piece of it is unique.
+        const sentinel = `${NodeCrypto.randomBytes(48).toString("base64url")}.${NodeCrypto.randomBytes(32).toString("base64url")}`;
+        // A reload of Caddy drops the tunnels' control connections (they run through it): wait until
+        // both computers' frpc are logged in again before sending anything through them.
+        await reconnected(async () => {
+          accessLog = await enableCaddyAccessLog(world.stack, world.ctx.workDir);
+        });
+        const upgrade = (ticket: string, port: number) =>
+          httpRequest(`${bUrl}/api/loopback-gateway/tunnel?port=${port}`, {
+            headers: {
+              authorization: formatLoopbackGatewayAuthorization(ticket),
+              connection: "Upgrade",
+              upgrade: "websocket",
+              "sec-websocket-version": "13",
+              "sec-websocket-key": NodeCrypto.randomBytes(16).toString("base64"),
+            },
+          });
+        const refused = await upgrade(sentinel, 9);
+        checkEqual(refused.status, 401, "an upgrade with a made-up ticket");
+        const accepted = await upgrade(real, 9);
+        checkEqual(accepted.status, 502, "an upgrade with a real ticket to a closed port");
+
+        const logs = await stackLogs(world.stack);
+        // The access log is on, and it names the request but not what authorised it.
+        check(
+          /"uri":"\/api\/loopback-gateway\/tunnel\?port=9"/u.test(logs.caddy),
+          `Caddy logged no access line for the upgrade:\n${logs.caddy.slice(-1500)}`,
+        );
+        check(
+          /"Authorization":\["REDACTED"\]/u.test(logs.caddy),
+          "Caddy's access log must show Authorization as REDACTED",
+        );
+        for (const [name, text] of Object.entries(logs)) {
+          for (const [what, secret] of [
+            ["the made-up ticket", sentinel],
+            ["the real ticket", real],
+          ] as const) {
+            const found = findSecret(text, secret, {
+              references: secret === real ? [reference] : [],
+            });
+            check(
+              found === undefined,
+              `${what} (or a piece of 12 or more characters of it) is in ${name}'s log: ${text
+                .split("\n")
+                .find((line) => line.includes(found!))
+                ?.replaceAll(found!, "<HERE>")}`,
+            );
+          }
+        }
+        check(!/authorization/iu.test(logs.frps.replaceAll(/\s+/gu, " ")), "frps printed a header");
+        say(
+          `  access line seen, Authorization masked; ticket absent from ${Object.keys(logs).join(", ")} (${Object.values(logs).reduce((n, text) => n + text.length, 0)} bytes)`,
+        );
+      } finally {
+        await Promise.allSettled([
+          accessLog === undefined ? undefined : reconnected(accessLog.restore),
+          sessionOnB.close(),
+        ]);
+      }
+    },
+  },
+  {
     id: 7,
     title: "removing B while it runs: t3x:revoked, B leaves, its address answers 404",
     timeoutMs: 300_000,
@@ -712,6 +1000,210 @@ export const scenarios: ReadonlyArray<Scenario> = [
       say(
         `  main port: 25 forged failures, all 401; tunnel: ${tunnel.join(",")} (retry-after ${retryAfter})`,
       );
+    },
+  },
+  {
+    id: 17,
+    optional: true,
+    title:
+      "module-graph fetch time of 300 modules through the tunnel, without a browser (research/remote-loopback-forwarding.md 11.1)",
+    timeoutMs: 900_000,
+    run: async (world) => {
+      const a = need(world.a, "A");
+      const b = need(world.b, "B");
+      const bEnv = need(world.bEnv, "B's environment");
+      const bUrl = tunnelUrl(world, "b");
+      await reachable(bUrl, bEnv, 90_000);
+      const RUNS = 20;
+      // Each delayed run takes seconds, so the delayed paths get fewer; their p95 is then nearly the worst run.
+      const DELAYED_RUNS = 10;
+      const service = await startServiceInTerminal(world.ctx, b, "first-paint");
+      const sessionOnB = await computerSignsIntoComputer(a, b, bEnv, bUrl);
+      const relays: Array<LatencyRelay> = [];
+      try {
+        interface Group {
+          readonly label: string;
+          readonly route: "direct" | "straight" | "local" | "tunnel";
+          readonly rttMs: number;
+        }
+        const groups: ReadonlyArray<Group> = [
+          { label: "direct loopback (no proxy, no gateway)", route: "direct", rttMs: 0 },
+          { label: "gateway to B's own port (same machine)", route: "local", rttMs: 0 },
+          { label: "self-hosted tunnel (Caddy + frps, local)", route: "tunnel", rttMs: 0 },
+          {
+            label: "no gateway, straight to the service, 50 ms round trip",
+            route: "straight",
+            rttMs: 50,
+          },
+          { label: "self-hosted tunnel, 50 ms round trip", route: "tunnel", rttMs: 50 },
+          {
+            label: "no gateway, straight to the service, 100 ms round trip",
+            route: "straight",
+            rttMs: 100,
+          },
+          { label: "self-hosted tunnel, 100 ms round trip", route: "tunnel", rttMs: 100 },
+        ];
+        interface Row {
+          readonly group: Group;
+          readonly runs: number;
+          readonly firstResponse: ReturnType<typeof stats>;
+          readonly graph: ReturnType<typeof stats>;
+          readonly tunnelsPerLoad: number;
+          readonly setup: ReturnType<typeof stats> | undefined;
+          readonly socketRtt: ReturnType<typeof stats> | undefined;
+          readonly tunnelsOpened: number;
+        }
+        const rows: Array<Row> = [];
+        for (const group of groups) {
+          const firstResponses: Array<number> = [];
+          const graphs: Array<number> = [];
+          const tunnelCounts: Array<number> = [];
+          const setups: Array<number> = [];
+          const socketRtts: Array<number> = [];
+          const runs = group.rttMs > 0 ? DELAYED_RUNS : RUNS;
+          if (group.route === "direct" || group.route === "straight") {
+            const relay =
+              group.route === "straight"
+                ? await startLatencyRelay(service.port, group.rttMs)
+                : undefined;
+            if (relay !== undefined) relays.push(relay);
+            for (let run = 0; run < runs; run += 1) {
+              const fetcher = keepAliveFetcher({
+                host: "127.0.0.1",
+                port: relay?.port ?? service.port,
+              });
+              const load = await loadModuleGraph(fetcher.fetchPath);
+              fetcher.close();
+              firstResponses.push(load.firstResponseMs);
+              graphs.push(load.graphMs);
+            }
+          } else {
+            const relay =
+              group.rttMs > 0 ? await startLatencyRelay(world.stack.port, group.rttMs) : undefined;
+            if (relay !== undefined) relays.push(relay);
+            const baseUrl =
+              group.route === "local"
+                ? `http://127.0.0.1:${b.mainPort}`
+                : relay === undefined
+                  ? bUrl
+                  : `https://b.${DOMAIN}:${relay.port}`;
+            const issued = (await sessionOnB.call("loopbackGateway.issueTicket", {})) as {
+              ticket: Redacted.Redacted<string>;
+              expiresAt: never;
+            };
+            for (let run = 0; run < runs; run += 1) {
+              const opened: Array<number> = [];
+              const environment = makeGatewayEnvironment({
+                environmentId: bEnv,
+                emit: () => {},
+                onProxyChange: async () => {},
+                openTunnel: async (input) => {
+                  const began = performance.now();
+                  const tunnel = await openLoopbackTunnel(input);
+                  opened.push(performance.now() - began);
+                  return tunnel;
+                },
+              });
+              try {
+                await environment.register({
+                  httpBaseUrl: baseUrl,
+                  enabled: true,
+                  credential: issued,
+                });
+                const proxy = proxyEndpoint(
+                  need(environment.proxyCredentials() ?? undefined, "the proxy's credentials"),
+                );
+                const fetcher = keepAliveFetcher({
+                  host: "127.0.0.1",
+                  port: proxy.port,
+                  viaProxy: {
+                    authorization: proxy.authorization,
+                    target: `http://localhost:${service.port}`,
+                  },
+                });
+                const load = await loadModuleGraph(fetcher.fetchPath);
+                fetcher.close();
+                firstResponses.push(load.firstResponseMs);
+                graphs.push(load.graphMs);
+                tunnelCounts.push(opened.length);
+                setups.push(...opened);
+                // A WebSocket's round trip on a fresh tunnel is what a hot-update message waits for.
+                const socket = await webSocketViaProxy(proxy, service.port, "/ws");
+                const sent = performance.now();
+                socket.send("hmr");
+                await socket.next();
+                socketRtts.push(performance.now() - sent);
+                socket.destroy();
+              } finally {
+                await environment.close();
+              }
+            }
+          }
+          rows.push({
+            group,
+            runs,
+            firstResponse: stats(firstResponses),
+            graph: stats(graphs),
+            tunnelsPerLoad: tunnelCounts.length === 0 ? 0 : stats(tunnelCounts).median,
+            setup: setups.length === 0 ? undefined : stats(setups),
+            socketRtt: socketRtts.length === 0 ? undefined : stats(socketRtts),
+            tunnelsOpened: setups.length,
+          });
+          say(
+            `  ${group.label}: graph median ${rows.at(-1)!.graph.median.toFixed(0)} ms, p95 ${rows.at(-1)!.graph.p95.toFixed(0)} ms`,
+          );
+        }
+
+        // How much of a tunnel's set-up was B's own check of who owns the port (its trace file).
+        const authorize = readServerSpans(b.home, ["LoopbackGateway.authorize"]).map(
+          (span) => span.durationMs,
+        );
+        const lines = [
+          "| path | runs | first response median / p95 (ms) | whole graph median / p95 (ms) | tunnels per load | tunnel set-up median / p95 (ms) | WebSocket echo median (ms) |",
+          "| ---- | ---- | ---- | ---- | ---- | ---- | ---- |",
+          ...rows.map(
+            (row) =>
+              `| ${row.group.label} | ${row.runs} | ${row.firstResponse.median.toFixed(0)} / ${row.firstResponse.p95.toFixed(0)} | ${row.graph.median.toFixed(0)} / ${row.graph.p95.toFixed(0)} | ${row.tunnelsPerLoad || "-"} | ${row.setup === undefined ? "-" : `${row.setup.median.toFixed(0)} / ${row.setup.p95.toFixed(0)}`} | ${row.socketRtt === undefined ? "-" : row.socketRtt.median.toFixed(0)} |`,
+          ),
+        ];
+        const authorizeStats = authorize.length === 0 ? undefined : stats(authorize);
+        const row = (route: Group["route"], rttMs: number) =>
+          need(
+            rows.find(
+              (candidate) => candidate.group.route === route && candidate.group.rttMs === rttMs,
+            ),
+            `${route} at ${rttMs} ms`,
+          );
+        lines.push(
+          "",
+          `The page is /m/0.js and the 299 modules it leads to (about 4 KB each), fetched breadth first over at most six connections, no browser. The tunnel paths open a fresh gateway (cold: no tunnel yet) for every run.`,
+          authorizeStats === undefined
+            ? "B's own port check: no spans found in B's trace file."
+            : `B's port check (LoopbackGateway.authorize, ${authorizeStats.n} spans, all paths): median ${authorizeStats.median.toFixed(1)} ms, p95 ${authorizeStats.p95.toFixed(1)} ms.`,
+        );
+        for (const rtt of [50, 100]) {
+          const tunnel = row("tunnel", rtt);
+          const straight = row("straight", rtt);
+          const extra = tunnel.graph.median - straight.graph.median;
+          const setup = tunnel.setup?.median ?? 0;
+          const withoutCheck = Math.max(0, setup - (authorizeStats?.median ?? 0));
+          lines.push(
+            `${rtt} ms round trip: fetching the module graph through the tunnel takes ${extra.toFixed(0)} ms more than reaching the service directly over the same round trip (the gateway's own share; no threshold is applied). A tunnel takes ${(setup / rtt).toFixed(1)} round trips to set up, ${(withoutCheck / rtt).toFixed(1)} without B's port check.`,
+          );
+        }
+        NodeFS.writeFileSync(
+          NodePath.join(world.ctx.workDir, "first-paint.md"),
+          `${lines.join("\n")}\n`,
+        );
+        for (const line of lines) say(line);
+        say(`  written to ${NodePath.join(world.ctx.workDir, "first-paint.md")}`);
+      } finally {
+        await Promise.allSettled([
+          sessionOnB.close(),
+          service.stop(),
+          ...relays.map((relay) => relay.close()),
+        ]);
+      }
     },
   },
 ];

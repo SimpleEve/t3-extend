@@ -4,6 +4,7 @@
 import type * as NodeNet from "node:net";
 
 import { assert, describe, it } from "@effect/vitest";
+import { LOOPBACK_GATEWAY_PING_INTERVAL_MS } from "@t3tools/shared/forkLoopbackGateway/protocol";
 import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -19,6 +20,13 @@ import {
   makeLayerGateway,
   openTunnel,
 } from "./gatewayHarness.testkit.ts";
+
+// Shorter than the tunnel's ping interval (10 s of margin). Past it the test clock fires the
+// heartbeat in a tight loop, a pong needs real I/O that does not get a turn under load, and
+// three missed pongs terminate the tunnel for a reason other than the one under test.
+const LIFETIME = Duration.millis(LOOPBACK_GATEWAY_PING_INTERVAL_MS).pipe(
+  Duration.subtract(Duration.seconds(10)),
+);
 
 /** Listens now, so a close that happens before the returned effect runs is not missed. */
 const closed = (target: { once: (event: "close", listener: () => void) => unknown }) => {
@@ -79,12 +87,12 @@ describe("tunnel lifetime", () => {
     Effect.gen(function* () {
       const gateway = yield* Gateway;
       const service = yield* countingService;
-      const { ticket } = yield* issueSessionTicket({ sessionTtl: Duration.hours(1) });
+      const { ticket } = yield* issueSessionTicket({ sessionTtl: LIFETIME });
       const ws = yield* openAndCheck(gateway.mainPort, ticket, service.port);
       const socket = yield* Deferred.await(service.connected);
       const wsClosed = closed(ws);
       const serviceClosed = closed(socket);
-      yield* TestClock.adjust(Duration.hours(1));
+      yield* TestClock.adjust(LIFETIME);
       yield* wsClosed;
       yield* serviceClosed;
     }).pipe(Effect.scoped, Effect.provide(layerGateway)),
@@ -99,7 +107,7 @@ describe("tunnel lifetime", () => {
         const first = yield* issueSessionTicket({
           proofKeyThumbprint: "dpop-key-renewal",
           subject: "device",
-          sessionTtl: Duration.hours(1),
+          sessionTtl: LIFETIME,
         });
         const ws = yield* openAndCheck(gateway.mainPort, first.ticket, echo.port);
         const renewal = yield* gateway.sessions.issue({
@@ -111,7 +119,7 @@ describe("tunnel lifetime", () => {
           client: { label: "renewal", deviceType: "desktop" },
         });
         // The first row has expired and the tunnel follows the renewal: it still carries bytes.
-        yield* TestClock.adjust(Duration.hours(1).pipe(Duration.sum(Duration.seconds(1))));
+        yield* TestClock.adjust(LIFETIME.pipe(Duration.sum(Duration.seconds(1))));
         const reply = Effect.promise(
           () =>
             new Promise<string>((resolve) =>

@@ -162,6 +162,9 @@ export const layer = Layer.unwrap(
         socket.once("close", onClose);
         wss.handleUpgrade(incoming as never, socket, Buffer.alloc(0), (ws) => {
           socket.off("close", onClose);
+          // The pipe is attached a few awaits from here; a frame that comes first waits in the
+          // socket (`createWebSocketStream` resumes it) instead of being emitted to no listener.
+          ws.pause();
           resume(Effect.succeed(ws));
         });
       });

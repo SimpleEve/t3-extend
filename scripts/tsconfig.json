@@ -5,5 +5,12 @@
     "types": ["node"],
     "lib": ["ESNext", "esnext.disposable"]
   },
-  "include": ["**/*.ts"]
+  "include": [
+    "**/*.ts",
+    "../apps/desktop/src/fork/loopbackGateway/GatewayEnvironment.ts",
+    "../apps/desktop/src/fork/loopbackGateway/LoopbackProxy.ts",
+    "../apps/desktop/src/fork/loopbackGateway/TunnelClient.ts",
+    "../apps/desktop/src/fork/loopbackGateway/proxyTarget.ts",
+    "../apps/desktop/src/fork/loopbackGateway/tunnelErrors.ts"
+  ]
 }

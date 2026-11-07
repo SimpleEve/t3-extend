@@ -4,6 +4,8 @@
 // "computers" on temporary homes, simulates a phone in Node, and runs research/self-host-device-keys.md 7.2.
 //
 //   node scripts/fork-selfhost-e2e.ts [--port 18443] [--project t3x-e2e] [--frpc-path <file>] [--keep]
+//                                     [--only 1,2,4,15]   (--only also runs the optional
+//                                     measurement scenario 17, which a plain run skips)
 //
 // The port defaults to 18443 and moves to a free one when that is taken; an explicit --port that is
 // taken is an error. Only processes this script started are stopped, and the compose project, its
@@ -35,6 +37,7 @@ const { values: flags } = NodeUtil.parseArgs({
     project: { type: "string", default: "t3x-e2e" },
     "frpc-path": { type: "string" },
     keep: { type: "boolean", default: false },
+    only: { type: "string" },
   },
 });
 
@@ -122,7 +125,10 @@ try {
   const world: World = { ctx, stack, computers: [] };
   say(`Stack is up on https://t3.localhost:${port}; work directory ${workDir}`);
 
-  for (const scenario of scenarios) {
+  const only = flags.only?.split(",").map(Number);
+  for (const scenario of scenarios.filter((s) =>
+    only === undefined ? s.optional !== true : only.includes(s.id),
+  )) {
     const began = Date.now();
     say(`--- ${scenario.id}. ${scenario.title}`);
     let timer: NodeJS.Timeout | undefined;
@@ -159,7 +165,7 @@ try {
         "logs",
         "--no-color",
         "--tail",
-        "40",
+        "400",
         "registry",
         "frps",
         "caddy",

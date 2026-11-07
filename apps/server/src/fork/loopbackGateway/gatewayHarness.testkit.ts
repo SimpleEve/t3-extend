@@ -24,6 +24,7 @@ import {
 } from "@t3tools/shared/forkLoopbackGateway/protocol";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
+import * as Deferred from "effect/Deferred";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import * as Tracer from "effect/Tracer";
@@ -77,6 +78,12 @@ const layerConfig = Layer.effect(
   }),
 ).pipe(Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-gateway-harness-" })));
 
+export interface UpgradeHold {
+  /** Done once the route is stalled, with the server's side of the upgraded connection. */
+  readonly reached: Deferred.Deferred<NodeNet.Socket>;
+  readonly release: () => void;
+}
+
 export type AuthorizeImpl = (
   port: number,
 ) => Effect.Effect<PortAuthorizer.DialTarget, PortAuthorizer.GatewayRefusal>;
@@ -92,6 +99,11 @@ export class Gateway extends Context.Service<
     readonly limiterClients: Array<string>;
     readonly setAuthorize: (impl: AuthorizeImpl) => void;
     readonly setAvailable: (value: boolean) => void;
+    /**
+     * Stalls the route's first session check after a tunnel's upgrade response was written, the
+     * gap before its byte pipe is attached. Arm it before opening the tunnel.
+     */
+    readonly holdAfterUpgrade: () => UpgradeHold;
     /** Every request path the global stand-in middleware saw. */
     readonly seen: Array<string>;
   }
@@ -145,6 +157,11 @@ export const makeLayerGateway = (
       let authorizeImpl: AuthorizeImpl = (port) =>
         Effect.succeed({ host: "127.0.0.1", port, pid: process.pid });
       let available = true;
+      // The server's side of every connection, and the stall `holdAfterUpgrade` arms.
+      const serverSockets = new Set<NodeNet.Socket>();
+      let hold:
+        | { readonly gate: Deferred.Deferred<void>; readonly reached: UpgradeHold["reached"] }
+        | undefined;
 
       const layerLimiter = Layer.effect(
         AuthAttemptLimiter.AuthAttemptLimiter,
@@ -181,6 +198,31 @@ export const makeLayerGateway = (
         Layer.provide(ServerSecretStore.layer),
         Layer.provide(ServerEnvironment.layerIdentity),
         Layer.provide(layerConfig),
+      );
+
+      // What the route and its handlers read as the session store: the real one, except that the
+      // first token check after an upgrade response has gone out waits while a hold is armed.
+      const layerGatedSessions = Layer.effect(
+        SessionStore.SessionStore,
+        Effect.gen(function* () {
+          const real = yield* SessionStore.SessionStore;
+          return SessionStore.SessionStore.of({
+            ...real,
+            verifyWebSocketToken: (token) =>
+              Effect.gen(function* () {
+                const armed = hold;
+                const upgraded = [...serverSockets].find(
+                  (socket) => !socket.destroyed && socket.bytesWritten > 0,
+                );
+                if (armed !== undefined && upgraded !== undefined) {
+                  hold = undefined;
+                  yield* Deferred.succeed(armed.reached, upgraded);
+                  yield* Deferred.await(armed.gate);
+                }
+                return yield* real.verifyWebSocketToken(token);
+              }),
+          });
+        }),
       );
 
       const layerPortAuthorizer = Layer.succeed(
@@ -264,10 +306,17 @@ export const makeLayerGateway = (
         Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer)),
         Layer.provideMerge(Etag.layerWeak),
       );
-      const layerMainServer = NodeHttpServer.layer(() => NodeHttp.createServer(), {
-        host: "127.0.0.1",
-        port: 0,
-      });
+      const layerMainServer = NodeHttpServer.layer(
+        () => {
+          const server = NodeHttp.createServer();
+          server.on("connection", (socket) => {
+            serverSockets.add(socket);
+            socket.once("close", () => serverSockets.delete(socket));
+          });
+          return server;
+        },
+        { host: "127.0.0.1", port: 0 },
+      );
       const layerTunnelOrigin = Layer.succeed(TunnelListener.TunnelOrigin, {
         current: Effect.succeedSome(TUNNEL_ORIGIN),
       });
@@ -293,6 +342,12 @@ export const makeLayerGateway = (
             setAvailable: (value) => {
               available = value;
             },
+            holdAfterUpgrade: () => {
+              const gate = Deferred.makeUnsafe<void>();
+              const reached = Deferred.makeUnsafe<NodeNet.Socket>();
+              hold = { gate, reached };
+              return { reached, release: () => Deferred.doneUnsafe(gate, Effect.void) };
+            },
           });
         }),
       ).pipe(
@@ -306,6 +361,7 @@ export const makeLayerGateway = (
               Layer.provide(
                 options.capture === undefined ? Layer.empty : captureLayers(options.capture),
               ),
+              Layer.provide(layerGatedSessions),
             ),
           ),
         ),
