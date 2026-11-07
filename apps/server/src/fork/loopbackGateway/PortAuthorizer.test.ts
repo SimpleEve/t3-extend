@@ -160,6 +160,54 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
       }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
+    // The terminal's process list is registered with the scanner a second after its shell starts, so
+    // a service started just now is not in the snapshot yet. The one listeners read per interval
+    // nominates the process; the checks still decide, so each case below uses a fresh interval.
+    it.live("allows a terminal's listener the snapshot does not list yet", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const processes = yield* TestProcesses;
+        const shell = yield* processes.shell(
+          `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+        );
+        yield* x.registerShell(shell.pid);
+        const port = Number(shell.info.port);
+        assert.deepEqual(yield* x.authorizer.authorize(port), {
+          host: "127.0.0.1",
+          port,
+          pid: Number(shell.info.pid),
+        });
+        // That was the interval's one read: a second service a moment later waits for the next.
+        const readsBefore = x.reads.listeners;
+        const second = yield* processes.shell(
+          `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+        );
+        yield* x.registerShell(second.pid);
+        yield* expectCode(x.authorizer.authorize(Number(second.info.port)), "not-owned");
+        assert.equal(x.reads.listeners, readsBefore);
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+    );
+
+    it.live("still refuses what no terminal or agent started when the snapshot lacks it", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const processes = yield* TestProcesses;
+        const orphan = yield* processes.spawnWithJob({ mode: "orphan" });
+        yield* expectCode(x.authorizer.authorize(orphan.jobPort), "not-owned");
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+    );
+
+    it.live("still refuses a listener under a shell that is not a registered terminal", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const processes = yield* TestProcesses;
+        const stranger = yield* processes.shell(
+          `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+        );
+        yield* expectCode(x.authorizer.authorize(Number(stranger.info.port)), "not-owned");
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+    );
+
     it.live("allows a shell that exec'd into the listener", () =>
       Effect.gen(function* () {
         const x = yield* makeRig;
@@ -212,27 +260,32 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
       }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
-    it.live(
-      "tells a port nothing listens on from one a process outside T3 holds, and refuses both",
-      () =>
-        Effect.gen(function* () {
-          const x = yield* makeRig;
-          const processes = yield* TestProcesses;
-          const freePort = yield* Effect.promise(
-            () =>
-              new Promise<number>((resolve) => {
-                const server = NodeNet.createServer();
-                server.listen(0, "127.0.0.1", () => {
-                  const { port } = server.address() as NodeNet.AddressInfo;
-                  server.close(() => resolve(port));
-                });
-              }),
-          );
-          yield* expectCode(x.authorizer.authorize(freePort), "upstream-refused");
-          // Nothing nominates the port: a process that no terminal or agent started holds it.
-          const outsider = yield* processes.listen("127.0.0.1");
-          yield* expectCode(x.authorizer.authorize(outsider.port), "not-owned");
-        }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+    it.live("tells a port nothing listens on from one a process holds", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const freePort = yield* Effect.promise(
+          () =>
+            new Promise<number>((resolve) => {
+              const server = NodeNet.createServer();
+              server.listen(0, "127.0.0.1", () => {
+                const { port } = server.address() as NodeNet.AddressInfo;
+                server.close(() => resolve(port));
+              });
+            }),
+        );
+        yield* expectCode(x.authorizer.authorize(freePort), "upstream-refused");
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+    );
+
+    it.live("refuses a port a process outside T3 holds as not owned, whatever rule it fails", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const processes = yield* TestProcesses;
+        // A direct child of the server is `reserved` when the snapshot names it (E2); nominated
+        // by the read, it is only a process that is not ours.
+        const outsider = yield* processes.listen("127.0.0.1");
+        yield* expectCode(x.authorizer.authorize(outsider.port), "not-owned");
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
     it.live("keeps not-owned for an unowned port when the listeners cannot be read", () =>
@@ -631,8 +684,14 @@ describe("the rescan on a miss", () => {
       }).pipe(
         Effect.provideService(PortScanner.PortDiscovery, discovery),
         Effect.provideService(ProcessInspector.ProcessInspector, {
-          // Something answers on the port, so every miss is a refusal for the same reason.
-          listeners: () => Effect.succeed([[{ pid: 1, address: "*", family: "IPv4" }]]),
+          // Two processes answer on the port, so every miss is a refusal for the same reason.
+          listeners: () =>
+            Effect.succeed([
+              [
+                { pid: 1, address: "*", family: "IPv4" },
+                { pid: 2, address: "*", family: "IPv4" },
+              ],
+            ]),
         } as never),
         Effect.provideService(TerminalShellRegistry.TerminalShellRegistry, {
           shells: Effect.succeed(new Map()),
@@ -670,7 +729,15 @@ describe("the read that tells an empty port from an owned one", () => {
           listeners: () =>
             Ref.update(reads, (n) => n + 1).pipe(
               Effect.andThen(Ref.get(listening)),
-              Effect.map((held) => [held ? [{ pid: 1, address: "*", family: "IPv4" }] : []]),
+              // Two processes hold it once it is held: no one process to nominate.
+              Effect.map((held) => [
+                held
+                  ? [
+                      { pid: 1, address: "*", family: "IPv4" },
+                      { pid: 2, address: "*", family: "IPv4" },
+                    ]
+                  : [],
+              ]),
             ),
         } as never),
         Effect.provideService(TerminalShellRegistry.TerminalShellRegistry, {
@@ -696,7 +763,8 @@ describe("the read that tells an empty port from an owned one", () => {
       yield* expectCode(authorizer.authorize(45011), "not-owned");
       assert.equal(yield* Ref.get(reads), 1);
 
-      // One interval on, the next refusal reads again, and a listener that has appeared shows.
+      // One interval on, the next refusal reads again, and a listener that has appeared shows. Two
+      // of them leave nothing to nominate.
       yield* Ref.set(listening, true);
       yield* TestClock.adjust(Duration.millis(RESCAN_MIN_INTERVAL_MS - 1));
       yield* expectCode(authorizer.authorize(45010), "upstream-refused");

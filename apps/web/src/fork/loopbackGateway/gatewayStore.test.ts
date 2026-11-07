@@ -91,6 +91,19 @@ describe("gateway denials", () => {
     expect(denialFor()?.code).toBe("upstream-refused");
   });
 
+  it("keeps a refusal that came before the tab learned of its webview, when that load is then reported as running", () => {
+    // A new tab's webview starts loading as soon as it attaches; the tab is bound to it afterwards.
+    noteGatewayDenied({ environmentId: ENV, code: "not-owned", port: 5173, webContentsId: 7 });
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: null, loading: false });
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: true });
+    expect(denialFor()?.code).toBe("not-owned");
+
+    // Only the first load is counted this way: the next one retires it as usual.
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: false });
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: true });
+    expect(denialFor()).toBeNull();
+  });
+
   it("keeps a page's refusal to the tab that loaded it", () => {
     noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: true });
     noteGatewayTabState({ runtimeTabId: "tab-2", webContentsId: 8, loading: true });

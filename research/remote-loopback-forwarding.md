@@ -570,8 +570,19 @@ N1 的做法有一个必须写明的后果（GPT 复核 P1-5）：
 authorize(port)                // 每条新隧道都完整走一遍；结果不缓存，不跨隧道复用
   A 提名     servers = PortDiscovery.scanBackground()      // 上次扫描不到 15 秒就直接用，不起新扫描
              找 port 对应的项 → 候选 (pid, 类别 terminal | agent)；快照只用来提名
-             找不到或无主：距上次"未命中重扫"不到 2 秒 → 拒绝 not-owned
-                           否则 scan() 一次（复用 scanSemaphore，同时到达的合并），再找；仍没有 → 拒绝 not-owned
+             找不到或无主：距上次"未命中重扫"不到 2 秒 → 跳到下一步
+                           否则 scan() 一次（复用 scanSemaphore，同时到达的合并），再找
+             仍没有：读这个端口的监听者（`inspector.listeners`，每台 server 每 2 秒一次，同端口共用；
+                     间隔内别的端口不再读，读取失败同样处理）
+                       一个都没有 → 拒绝 upstream-refused
+                       恰好一个 pid → 作为候选进入 C（读取只提名，不放行）
+                       多个 pid，或没读到 → 拒绝 not-owned
+                     原因：扫描器的快照只收有主的服务，而终端子进程要等 Manager 每秒一次的检查登记后才算
+                     有主，刚在终端里起的服务在这段时间（机器忙时可达好几秒）不在快照里，不读就会被拒
+                     一次，约 10 秒后重载才通。C2 本来就沿祖先链现读，不依赖扫描器的登记，所以提名不到
+                     时让读取来提名是安全的
+             读取提名的候选在 C 里被拒时，对外一律是 not-owned（不暴露 reserved / debug-process：
+             这个进程没有被快照认作有主，它的排除规则和调试参数不该借此被探测）
   B 静态排除 登记端口（主口、隧道口、…）∪ 屏蔽表 → reserved；pid 是本 server → reserved（祖先在 C2 用现读的进程表判）
   C 现场核对 verify(pid, port)
      C0 身份₁   读 (pid, 启动时间)。读不到（进程已不在）→ owner-changed
@@ -873,7 +884,7 @@ M2 的设计变更见 §5.6.0.1：判断全部来自每条隧道现读的祖先�
 - A 端代理被本机其他进程利用：需要口令，只能得到 407（§4.7）。
 - B 端被未认证请求打：路由要求严格 audience 的票据、拒绝带 `Origin` 的请求、拒绝 query 里的 `wsTicket`；票据校验失败不进数据库以外的任何地方。
 - 日志泄露：§4.3 的测试保证。
-- 端口是否有程序在监听（已接受的侧信道）：端口没人认领时，拒绝原因区分"没有程序在监听"（`upstream-refused`）和"别人的程序占着"（`not-owned`），页面能借此探测 B 上哪些回环端口有服务。接受的理由：能用网关的会话必须同时有 `preview:operate` 和 `terminal:operate`，有 `terminal:operate` 本来就能在 B 上开终端自己跑 `lsof`，这个区分没有比这个权限多泄露什么。这次读取（`PortAuthorizer` 的 `portIsEmpty`）只影响拒绝原因，不影响放不放行；每台 server 每 `RESCAN_MIN_INTERVAL_MS` 最多读一次，同一时间到达、同一端口的拒绝共用这一次，间隔内别的端口和读取失败都回到 `not-owned`。
+- 端口是否有程序在监听（已接受的侧信道）：端口没人认领时，拒绝原因区分"没有程序在监听"（`upstream-refused`）和"别人的程序占着"（`not-owned`），页面能借此探测 B 上哪些回环端口有服务。接受的理由：能用网关的会话必须同时有 `preview:operate` 和 `terminal:operate`，有 `terminal:operate` 本来就能在 B 上开终端自己跑 `lsof`，这个区分没有比这个权限多泄露什么。这次读取（`PortAuthorizer` 的 `readListeners`）只提名，放不放行仍全部来自 C0–C3 的现场核对；每台 server 每 `RESCAN_MIN_INTERVAL_MS` 最多读一次，同一时间到达、同一端口的请求共用这一次，间隔内别的端口和读取失败都回到 `not-owned`。
 
 ### 6.7 页面对 dev server "完整网络接口"的访问（GPT P1-6）
 
@@ -947,7 +958,7 @@ M2 的设计变更见 §5.6.0.1：判断全部来自每条隧道现读的祖先�
 | 端口发现关闭（`discovery-disabled`）                                                                                                                                | 「{environment} 关闭了端口发现」                                                                                                                    | 同上                                           |
 | 达到上限（`limit-reached` / `rate-limited`）                                                                                                                        | 「转发的连接太多」                                                                                                                                  | 重试                                           |
 
-**实现（9.3）：** 卡片仍是 `PreviewUnreachable`，加了一个 `gateway: { title, description }` 可选 prop（有它时标题和说明换成这里的文字，隐藏通用的"Details"排查列表，错误标签显示原因码，「重新加载」保留；「在 {environment} 的浏览器中打开」只在上表标了它的情形出现，并且要上游的 `moveTarget === "server"`）。文案和选择逻辑在 fork 的 `gatewayCard.ts`（纯函数，表格测试）。两条来源：主进程的 `denied` 事件，和"页面加载失败 + 回环主机 + 状态不是 `active`"。`mainFrame` 的 `denied` 带 `webContentsId`，渲染进程在内存里按 `webContentsId` 对到标签页（manager 订阅一次 `previewBridge.onStateChange`），一次拒绝只属于那个标签页**最近一次加载**：标签页开始新一次加载时旧拒绝即作废，用递增序号比较，没有时钟。`CONNECT` 被拒（https、ws，没有页面）按 `(环境, 端口)` 匹配同一规则。`not-owned` 的说明写明：端口不是 T3 终端或 agent 起的，或者服务已经脱离了启动它的终端或 agent（例如用 nohup 放到后台），建议改在 T3 的终端里启动。`unauthorized` 显示"正在重新连接…"，拿到票据后自动重载一次（§7.3）。
+**实现（9.3）：** 卡片仍是 `PreviewUnreachable`，加了一个 `gateway: { title, description }` 可选 prop（有它时标题和说明换成这里的文字，隐藏通用的"Details"排查列表，错误标签显示原因码，「重新加载」保留；「在 {environment} 的浏览器中打开」只在上表标了它的情形出现，并且要上游的 `moveTarget === "server"`）。文案和选择逻辑在 fork 的 `gatewayCard.ts`（纯函数，表格测试）。两条来源：主进程的 `denied` 事件，和"页面加载失败 + 回环主机 + 状态不是 `active`"。`mainFrame` 的 `denied` 带 `webContentsId`，渲染进程在内存里按 `webContentsId` 对到标签页（manager 订阅一次 `previewBridge.onStateChange`），一次拒绝只属于那个标签页**最近一次加载**：标签页开始新一次加载时旧拒绝即作废，用递增序号比较，没有时钟。新标签页的来宾一挂上就开始加载，标签页要等主进程登记它之后才知道它，所以登记前到达的拒绝（来宾没有对应的标签页）记为"未绑定"，标签页第一次绑到这个来宾时按"这次加载引起的"算，只算一次，不会因为随后才上报的"开始加载"而被当成更早的加载。`CONNECT` 被拒（https、ws，没有页面）按 `(环境, 端口)` 匹配同一规则。`not-owned` 的说明写明：端口不是 T3 终端或 agent 起的，或者服务已经脱离了启动它的终端或 agent（例如用 nohup 放到后台），建议改在 T3 的终端里启动。`unauthorized` 显示"正在重新连接…"，拿到票据后自动重载一次（§7.3）。
 
 "不支持"和"明文"这几行没有主进程事件（没装代理，Chromium 直接连 A 的 `localhost` 被拒）。这时 `PreviewUnreachable` 的 fork 钩子看"远程环境 + 回环主机 + 网关状态不是 active"，按状态换成对应的说明。
 

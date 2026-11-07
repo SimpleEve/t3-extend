@@ -1,9 +1,9 @@
 // fork: decides, for every new tunnel, whether the port may be dialed and at which address
-// (research/remote-loopback-forwarding.md 5.3). The port-discovery snapshot only nominates a
-// process; each tunnel then re-proves, from fresh reads, that the process listening now is that
-// same instance and that it is a terminal's or an agent's. Tunnels that arrive together share one
-// set of reads (a batch); a read started before a tunnel arrived is never used for it, and
-// nothing is kept from one batch to the next.
+// (research/remote-loopback-forwarding.md 5.3). The port-discovery snapshot, or failing that the
+// one throttled listeners read, only nominates a process; each tunnel then re-proves, from fresh
+// reads, that the process listening now is that same instance and that it is a terminal's or an
+// agent's. Tunnels that arrive together share one set of reads (a batch); a read started before a
+// tunnel arrived is never used for it, and nothing is kept from one batch to the next.
 // @effect-diagnostics nodeBuiltinImport:off -- `realpath` of configured binaries.
 import { LOOPBACK_GATEWAY_BLOCKED_PORTS } from "@t3tools/shared/forkLoopbackGateway/protocol";
 import type { LoopbackGatewayServerErrorCode } from "@t3tools/shared/forkLoopbackGateway/protocol";
@@ -294,26 +294,39 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
     );
   });
 
-  // Only the reason of a refusal depends on this read, never whether the port is allowed. It is
-  // made at most once per interval for the whole server: the refusals that arrive meanwhile share
-  // it (same port) or get `not-owned`, which is what a failed read gives too.
-  type EmptyReads = {
+  // Nominates for a port the snapshot lacks (a terminal's new service is not in it until the next
+  // poll); `check` still decides. At most once per interval for the whole server: same-port requests
+  // share the read, others and failed reads get `unknown`.
+  type ListenerRead =
+    | { readonly kind: "empty" }
+    | { readonly kind: "sole"; readonly pid: number }
+    | { readonly kind: "unknown" };
+  const UNKNOWN: ListenerRead = { kind: "unknown" };
+  type Reads = {
     readonly at: number;
-    readonly byPort: ReadonlyMap<number, Deferred.Deferred<boolean>>;
+    readonly byPort: ReadonlyMap<number, Deferred.Deferred<ListenerRead>>;
   };
-  type EmptyReadPlan = readonly ["read" | "share" | "skip", Deferred.Deferred<boolean> | null];
-  const emptyReads = yield* Ref.make<EmptyReads | null>(null);
+  type ReadPlan = readonly ["read" | "share" | "skip", Deferred.Deferred<ListenerRead> | null];
+  const reads = yield* Ref.make<Reads | null>(null);
+  const describeListeners = (entries: ReadonlyArray<ListenerEntry> | undefined): ListenerRead => {
+    if (entries === undefined) return UNKNOWN;
+    const first = entries[0];
+    if (first === undefined) return { kind: "empty" };
+    return entries.every((entry) => entry.pid === first.pid)
+      ? { kind: "sole", pid: first.pid }
+      : UNKNOWN;
+  };
   // Uninterruptible from claiming the read to installing its completion, so a request that was
   // given `read` always completes `mine` and the ones sharing it cannot hang. Only the listeners
   // read itself, and the wait on someone else's read, can be interrupted.
-  const portIsEmpty = Effect.fn("LoopbackGateway.portIsEmpty")((port: number) =>
+  const readListeners = Effect.fn("LoopbackGateway.readListeners")((port: number) =>
     Effect.uninterruptibleMask((restore) =>
       Effect.gen(function* () {
         const now = yield* Clock.currentTimeMillis;
-        const mine = yield* Deferred.make<boolean>();
+        const mine = yield* Deferred.make<ListenerRead>();
         const [role, shared] = yield* Ref.modify(
-          emptyReads,
-          (state): readonly [EmptyReadPlan, EmptyReads | null] => {
+          reads,
+          (state): readonly [ReadPlan, Reads | null] => {
             if (state === null || now - state.at >= RESCAN_MIN_INTERVAL_MS) {
               return [["read", mine], { at: now, byPort: new Map([[port, mine]]) }];
             }
@@ -321,12 +334,14 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
             return existing === undefined ? [["skip", null], state] : [["share", existing], state];
           },
         );
-        if (role === "skip") return false;
+        if (role === "skip") return UNKNOWN;
         if (role === "share") return yield* restore(Deferred.await(shared!));
         return yield* restore(inspector.listeners([port])).pipe(
-          Effect.map(([entries]) => entries?.length === 0),
-          Effect.orElseSucceed(() => false),
-          Effect.onExit((exit) => Deferred.succeed(mine, exit._tag === "Success" && exit.value)),
+          Effect.map(([entries]) => describeListeners(entries)),
+          Effect.orElseSucceed(() => UNKNOWN),
+          Effect.onExit((exit) =>
+            Deferred.succeed(mine, exit._tag === "Success" ? exit.value : UNKNOWN),
+          ),
         );
       }),
     ),
@@ -341,12 +356,27 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
       const rescanned = yield* rescanIfAllowed;
       pid = rescanned === null ? null : nominate(rescanned, port);
     }
+    // Nominated by the read, a process is no more trusted than one from the snapshot; whatever
+    // refuses it says nothing about processes that are not ours, so the refusal is the plain one.
+    const notOwned = refuse("not-owned", "no terminal or agent of this environment owns this port");
+    let fromRead = false;
     if (pid === null) {
-      return yield* (yield* portIsEmpty(port))
-        ? refuse("upstream-refused", "nothing is listening on this port")
-        : refuse("not-owned", "no terminal or agent of this environment owns this port");
+      const read = yield* readListeners(port);
+      if (read.kind === "empty") {
+        return yield* refuse("upstream-refused", "nothing is listening on this port");
+      }
+      if (read.kind === "unknown") return yield* notOwned;
+      pid = read.pid;
+      fromRead = true;
     }
     return yield* check(pid, port).pipe(
+      Effect.mapError((error) =>
+        fromRead &&
+        error._tag === "GatewayRefusal" &&
+        (error.code === "reserved" || error.code === "debug-process" || error.code === "not-owned")
+          ? notOwned
+          : error,
+      ),
       Effect.tapError((error) =>
         error._tag === "GatewayRefusal" && error.code === "owner-changed" ? changed : Effect.void,
       ),
