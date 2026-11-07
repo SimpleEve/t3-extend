@@ -356,27 +356,20 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
       const rescanned = yield* rescanIfAllowed;
       pid = rescanned === null ? null : nominate(rescanned, port);
     }
-    // Nominated by the read, a process is no more trusted than one from the snapshot; whatever
-    // refuses it says nothing about processes that are not ours, so the refusal is the plain one.
-    const notOwned = refuse("not-owned", "no terminal or agent of this environment owns this port");
-    let fromRead = false;
     if (pid === null) {
       const read = yield* readListeners(port);
       if (read.kind === "empty") {
         return yield* refuse("upstream-refused", "nothing is listening on this port");
       }
-      if (read.kind === "unknown") return yield* notOwned;
+      if (read.kind === "unknown") {
+        return yield* refuse(
+          "not-owned",
+          "no terminal or agent of this environment owns this port",
+        );
+      }
       pid = read.pid;
-      fromRead = true;
     }
     return yield* check(pid, port).pipe(
-      Effect.mapError((error) =>
-        fromRead &&
-        error._tag === "GatewayRefusal" &&
-        (error.code === "reserved" || error.code === "debug-process" || error.code === "not-owned")
-          ? notOwned
-          : error,
-      ),
       Effect.tapError((error) =>
         error._tag === "GatewayRefusal" && error.code === "owner-changed" ? changed : Effect.void,
       ),

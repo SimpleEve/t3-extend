@@ -188,6 +188,20 @@ describe.runIf(runsOnRealProcesses)("authorizing a port against real processes",
     }).pipe(Effect.scoped, Effect.provide(rigLayer)),
   );
 
+  // The first open of a service a terminal has just started with a debugger: the snapshot does not
+  // list it yet, and the reason is the one a reload would show once it does.
+  it.live("names the debug flags of a terminal's listener the snapshot does not list yet", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      const processes = yield* TestProcesses;
+      const shell = yield* processes.shell(
+        `${process.execPath} --inspect=0 ${processes.listenScript} 127.0.0.1 0 0 & wait`,
+      );
+      yield* x.registerShell(shell.pid);
+      yield* expectCode(x.authorizer.authorize(Number(shell.info.port)), "debug-process");
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
   it.live("still refuses what no terminal or agent started when the snapshot lacks it", () =>
     Effect.gen(function* () {
       const x = yield* makeRig;
@@ -197,14 +211,14 @@ describe.runIf(runsOnRealProcesses)("authorizing a port against real processes",
     }).pipe(Effect.scoped, Effect.provide(rigLayer)),
   );
 
-  it.live("still refuses a listener under a shell that is not a registered terminal", () =>
+  it.live("still refuses a listener under a shell that is not a registered terminal (E2)", () =>
     Effect.gen(function* () {
       const x = yield* makeRig;
       const processes = yield* TestProcesses;
       const stranger = yield* processes.shell(
         `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
       );
-      yield* expectCode(x.authorizer.authorize(Number(stranger.info.port)), "not-owned");
+      yield* expectCode(x.authorizer.authorize(Number(stranger.info.port)), "reserved");
     }).pipe(Effect.scoped, Effect.provide(rigLayer)),
   );
 
@@ -277,15 +291,21 @@ describe.runIf(runsOnRealProcesses)("authorizing a port against real processes",
     }).pipe(Effect.scoped, Effect.provide(rigLayer)),
   );
 
-  it.live("refuses a port a process outside T3 holds as not owned, whatever rule it fails", () =>
-    Effect.gen(function* () {
-      const x = yield* makeRig;
-      const processes = yield* TestProcesses;
-      // A direct child of the server is `reserved` when the snapshot names it (E2); nominated
-      // by the read, it is only a process that is not ours.
-      const outsider = yield* processes.listen("127.0.0.1");
-      yield* expectCode(x.authorizer.authorize(outsider.port), "not-owned");
-    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  it.live(
+    "gives a process outside T3 the reason the snapshot would: reserved (E2), debug-process (E7 is checked before E2 and E5)",
+    () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        const processes = yield* TestProcesses;
+        const outsider = yield* processes.listen("127.0.0.1");
+        yield* expectCode(x.authorizer.authorize(outsider.port), "reserved");
+        // The read is once per interval for the authorizer, so this one has a fresh authorizer.
+        const fresh = yield* makeRig;
+        const debugged = yield* processes.shell(
+          `exec ${process.execPath} --inspect=0 ${processes.listenScript} 127.0.0.1 0 0`,
+        );
+        yield* expectCode(fresh.authorizer.authorize(Number(debugged.info.port)), "debug-process");
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
   );
 
   it.live("keeps not-owned for an unowned port when the listeners cannot be read", () =>
