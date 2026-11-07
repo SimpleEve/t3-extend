@@ -371,14 +371,70 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 
 新增原生模块和 Maven 依赖会改变 Android 的 native fingerprint（iOS 不变），之后要重新 `mobile:install` / 重新打 APK。
 
-## 远程环境的 localhost 转发（桌面版，开发中）
+## 远程环境的 localhost 转发（桌面版）
 
-设计在 `research/remote-loopback-forwarding.md`。桌面主进程里的部分在 `apps/desktop/src/fork/loopbackGateway/`：每个登记过的远程环境一个只绑 `127.0.0.1` 的代理，该环境的预览分区用 `session.setProxy` 指过去，回环请求经 WebSocket 隧道到那台环境的回环地址。B 端网关和界面还没合入，用户文档到 9.4 再写。下面是对维护者的约束：
+A 的桌面版打开远程环境 B 的对话时，B 的 T3 终端或 agent 起的、只监听回环地址的服务，可以在内置浏览器里用 `http://localhost:<端口>` 打开：页面在 A 上渲染，请求在后台转到 B 的回环地址。设计在 `research/remote-loopback-forwarding.md`；用户文档是 `docs/user/remote-access.md` 的 “Localhost on a remote environment”。
+
+**怎么工作。** A 的桌面主进程为每个登记过的远程环境起一个只绑 `127.0.0.1` 的 HTTP 代理，该环境所有预览分区用 `session.setProxy` 把回环流量指过去。代理为每条 TCP 连接开一条 WebSocket 隧道（`/api/loopback-gateway/tunnel?port=`，票据放在 `Authorization: T3X-Gateway <票据>`），B 的网关对**每条新隧道**现场核对（进程身份 = pid + 启动时间、监听、归属、排除清单，没有缓存），通过才拨 B 的回环地址。只在加密或本机的连接上启用；B 只有 macOS 广告 `loopbackGateway` 能力（`apps/server/src/fork/loopbackGateway/GatewayAvailability.ts`）。
+
+位置：桌面主进程 `apps/desktop/src/fork/loopbackGateway/`，server `apps/server/src/fork/loopbackGateway/`（监听点清单 `exclusions.json`、驱动特征表 `RuntimeSignatures.ts`），web `apps/web/src/fork/loopbackGateway/`，契约 `packages/contracts/src/forkLoopbackGateway.ts`，共享的回环判定、传输检查和桥的类型 `packages/shared/src/forkLoopbackGateway/`，中文 `catalogs/zh-Hans/loopbackGateway.ts` 加 `desktop.ts` 里的错误页文案。新增文件 97 个：产品代码约 6,100 行（含 `exclusions.json` 361 行和中文目录 67 行），测试和夹具约 10,800 行，Electron 冒烟、Linux 检查和端到端场景脚本约 2,300 行。
+
+### 上游改动清单
+
+相对阶段 9 开始前的 `12ece4aefa`，上游已有的产品文件改了 26 个，新增 132 行、删除 24 行。代码行带 `// fork:`（JSON 和翻译目录除外，多行的块在块尾标一次）。同步上游时最容易冲突的是 web 的 `PreviewView.tsx`、`PreviewUnreachable.tsx`、`browserTargetResolver.ts` 和契约的 `auth.ts`。
+
+| 文件                                                                       | 行         | 改了什么                                                                                               |
+| -------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------ |
+| `packages/contracts/src/auth.ts`                                           | +5 −2      | 票据用途加 `"loopback-gateway"`；通用票据端点的 schema 加过滤，不签发网关票据（只有网关的 RPC 签）     |
+| `packages/contracts/src/clientRpcPermissions.ts`                           | +8         | 受保护 RPC 的 scope 表和 `clientRpcRequiredScopes`（`preview:operate` 和 `terminal:operate` 两个都要） |
+| `packages/contracts/src/environment.ts`、`index.ts`、`rpc.ts`              | +1、+1、+2 | 能力位 `loopbackGateway`，导出 fork 契约，并入 RPC 组                                                  |
+| `packages/shared/package.json`                                             | +4         | exports                                                                                                |
+| `apps/server/src/server.ts`、`ws.ts`                                       | +3、+3     | 网关的 layer 和 RPC handler                                                                            |
+| `apps/server/src/environment/ServerEnvironment.ts`                         | +2         | 广告能力位                                                                                             |
+| `apps/server/src/observability/RpcInstrumentation.ts`                      | +2         | RPC 指标表                                                                                             |
+| `apps/desktop/src/preload.ts`、`ipc/DesktopIpcHandlers.ts`                 | +3、+2     | 桥和 IPC 安装                                                                                          |
+| `apps/desktop/src/ipc/methods/preview.ts`                                  | +3 −1      | `getPreviewConfig` 里先装代理再返回 webview 配置                                                       |
+| `apps/desktop/package.json`                                                | +3 −1      | `ws` 和 `@types/ws`                                                                                    |
+| `apps/web/src/browser/browserTargetResolver.ts`                            | +10 −2     | 转发 `active` 时回环 URL 原样放行；`systemBrowser` 选项                                                |
+| `apps/web/src/browser/ElectronBrowserHost.tsx`                             | +2         | webview 等“网关已登记”的门                                                                             |
+| `apps/web/src/components/preview/PreviewView.tsx`                          | +13 −1     | 取 fork 的标签页钩子，摆放标识和卡片；转发中的标签页不显示“在系统浏览器中打开”                         |
+| `apps/web/src/components/preview/PreviewUnreachable.tsx`                   | +23 −15    | 可选的 `gateway` 卡片文案和按钮                                                                        |
+| `apps/web/src/components/preview/PreviewChromeRow.tsx`                     | +3         | 转发标识的插槽                                                                                         |
+| `apps/web/src/components/preview/PreviewPanel.tsx`                         | +4 −1      | 离线的远程环境显示“连不上”，不是“请重新配对”                                                           |
+| `apps/web/src/components/AppSidebarLayout.tsx`                             | +2         | 挂载取票据和续期的管理组件                                                                             |
+| `apps/web/src/components/chat/ThreadServersPanel.tsx`                      | +3 −1      | 系统浏览器打开时不走转发（`{ systemBrowser: true }`）                                                  |
+| `packages/client-runtime/src/i18n/catalogs/zh-Hans/index.ts`、`desktop.ts` | +2、+21    | 注册 catalog；桌面主进程错误页的 13 条中文                                                             |
+| `package.json`、`knip.jsonc`                                               | +3、+4     | 三个脚本（Electron 冒烟、Linux 检查、模块图抓取时间）；knip 的入口                                     |
+
+另有：fork 自己的 `apps/web/src/fork/FooterPorts.tsx` +3 −1；上游的 5 个测试文件加了用例（`preloadSandbox.test.ts`、`McpHttpServer.test.ts`、`browserTargetResolver.test.ts`、`PreviewView.browser.test.tsx`、`commandPermissions.test.ts`，共 +121 −1）；`pnpm-lock.yaml` +12（`ws`）。合计 132 行里，中文翻译占 23，依赖和脚本清单占 14（`apps/desktop` 和 `packages/shared` 的 `package.json`、根 `package.json`、`knip.jsonc`），其余代码行 95。
+
+### 维护者约束
 
 - **fork 占用了预览 session 的 `webRequest.onHeadersReceived`。** Electron 对每个 session 的每种 `webRequest` 事件只保留一个监听器，后注册的覆盖先注册的。网关用它把代理的错误页变成渲染进程的事件，停止转发时又把它清成 `null`。上游以后要在这些 session 上用 `webRequest`，必须和网关的处理合并，不能直接再注册一个。`apps/desktop/src/fork/loopbackGateway/singleWebRequestListener.test.ts` 在 `apps/desktop/src/fork/` 以外的产品代码里看到 `webRequest.on…(` 就失败。这个扫描只是守护：抓不到别名（`const w = session.webRequest; w.onX(…)`）和经封装函数的间接注册，上游开始共用这个 API 时必须人工审查，不能把它当作完备证明。
-- **转发开着时，该环境所有分区里的非回环流量绕过系统代理。** 规则是 `fixed_servers` 加 `proxyBypassRules: "*;<-loopback>"`，这是让非回环地址直连的唯一写法（`<-loopback>` 单独用会把所有地址拖进代理，PAC 抓不到回环地址，见设计 §1.1）。用 Clash、公司代理的用户，在转发开着的环境的标签页里，外部网站会直连。停止转发（`disabled-by-user`）后，分区恢复为 `system`，系统代理重新生效。界面和用户文档里的提示在 9.3、9.4 做。
-- **模块图抓取时间**（设计 §11.1，`vp run fork:selfhost:first-paint`，无浏览器，**不是浏览器首屏**）：抓取 300 个模块的模块图，同机网关约 0.41 秒，经本机的自建隧道约 0.45 秒；注入 50 ms 往返时 3.5 秒（没有网关、直连同样往返的服务 2.7 秒），100 ms 往返时 6.2 秒（5.3 秒）。判据是"同样往返下比直连服务多出多少"：50 ms 往返多出约 0.77 秒，100 ms 约 0.90 秒。隧道建立约 200 毫秒，几乎全是 B 的现场核对。阶段 9 不做预开隧道，Electron 真实网络走查时用户觉得慢再看。详细数字和读法在设计文档 §11.1。
-- 恢复网络用 `{ mode: "system" }`，因为 app 从没给这些分区设过别的代理模式；上游以后开始管理 session 代理时，要改成保存并恢复真实配置。
+- **转发开着时，该环境所有分区里的非回环流量绕过系统代理。** 规则是 `fixed_servers` 加 `proxyBypassRules: "*;<-loopback>"`，这是让非回环地址直连的唯一写法（`<-loopback>` 单独用会把所有地址拖进代理，PAC 抓不到回环地址，设计 §1.1）。用 Clash、公司代理的用户，在转发开着的环境的标签页里，外部网站会直连；标识菜单里有一行说明。停止转发（`disabled-by-user`）后分区恢复为 `{ mode: "system" }`，系统代理重新生效。用 `system` 是因为 app 从没给这些分区设过别的代理模式；上游以后开始管理 session 代理时，要改成保存并恢复真实配置。
+- **上游新增 provider 驱动时 `RuntimeSignatures.test.ts` 会失败。** 它要求 `BUILT_IN_DRIVERS` 里每个驱动要么在 `DRIVER_SIGNATURES` 里，要么在 `NO_SIGNATURE` 里写明理由；归属判断只看现读的进程祖先链，认不出的驱动整棵子树都不转发。新增监听点同理：`ExclusionsInventory.test.ts` 把源码里的监听点与 `exclusions.json` 逐项比较，新增的会让它失败，直到有人写上处理方式。这个扫描有盲区（动态拼出的参数、别名导入、`dgram` 和 `http2` 等其他监听 API），是回归护栏，不是证明。
+- **安全相关的守卫测试不要绕开：** 票据永远包成 `Redacted`，每个日志和 trace 的出口有测试（`TunnelRedaction.test.ts`），`Caddyfile` 里不能加 `log_credentials`（`fork:selfhost:e2e` 场景 16 会失败）；主进程的 `ws` 不设 `rejectUnauthorized: false`、不跟随重定向、不读系统信任库（`noInsecureTls.test.ts`）；能力位只在 macOS 广告，改 `VERIFIED_PLATFORMS` 之前要先有那个平台的真实进程测试。
+- **模块图抓取时间**（设计 §11.1，`vp run fork:selfhost:first-paint`，无浏览器，**不是浏览器首屏**）：抓取 300 个模块的模块图，同机网关约 0.41 秒，经本机的自建隧道约 0.45 秒；注入 50 ms 往返时 3.5 秒（没有网关、直连同样往返的服务 2.7 秒），100 ms 往返时 6.2 秒（5.3 秒）。判据是“同样往返下比直连服务多出多少”：50 ms 往返多出约 0.77 秒，100 ms 约 0.90 秒。隧道建立约 200 毫秒，几乎全是 B 的现场核对。阶段 9 不做预开隧道，用户觉得慢再看。
+
+验证入口：`vp run fork:loopback-gateway:electron-smoke`（真实 Electron，29 个场景，不进 CI）、`vp run fork:loopback-gateway:linux-check`（需要 Docker，在 `node:24-bookworm` 容器里跑 server 的真实进程测试）、`vp run fork:selfhost:e2e`（需要 Docker，场景 15 是转发，16 是日志脱敏，17 的测量只在 `fork:selfhost:first-paint` 里跑）。
+
+### 已知限制
+
+- **连接方式只验证了两种：** 同一台电脑上的连接（真实 Electron 走查和冒烟），以及本地试用栈里的自建隧道（Caddy 加 frps，`Authorization` 原样到达 B，票据不进日志，6 条并发冷隧道）。局域网 https、Tailscale（直连和 Serve）、SSH、VPS 上的自建隧道没有在真实网络上测过；自建隧道在试用栈上也还差公共 CA 的证书、几十条并发、空闲 30 分钟以上、Caddy 重载和重启 B 之后的重连。逐行状态在设计 §3.5，用户文档只写已验证的。
+- **平台：** 只支持桌面版（网页版见设计附录 C）；B 只有 macOS 广告能力。Linux 的真实进程测试已在容器里全过（91 条，连跑两遍），但广告函数没有改，要不要放开由主控定；Windows 没有读 argv 和环境的路径，不广告。
+- **私有 CA 的 `https://` 不支持：** 主进程不并入系统根证书（设计 §3.6，N7），TLS 校验失败就是失败，错误卡片说“证书不受信任”。
+- **provider：** 只有 Claude 和 Codex 设置 `T3CODE_THREAD_ID`，所以只有它们的 agent 起的服务算“agent 有主”；其余 provider 的 agent 起的服务只有在 T3 终端里起才转发，Cursor、Antigravity 和 ACP 注册表的 agent 认不出特征，整棵子树都不转发。脱离父进程的后台作业（被 launchd 收养，如 `nohup`）对所有 provider 都转发不了。这些结论来自读启动代码和假运行时的真实进程测试，**没有起真实的 provider CLI 验证**；各家 CLI 的 shell 工具是不是一次性的 shell，因而后台作业会不会被收养，也没有验证。
+- **已接受的残余风险**（设计 §5.6.5、§6、§4.2）：CLI 自己起的、带 agent 标记的 MCP 进程如果在回环上监听，会按 agent 作业放行；页面对有主服务有完整的网络接口（Vite 的 `/@fs/`、source map 等），暴露程度等同本机 dev server 对本机浏览器，用户文档要求不在转发的标签页里打开不信任的网站；偷来的票据最多能开隧道到这台设备的会话链结束或被撤销；端口有没有程序在监听能被页面探测到。真实 dev server（当前 Vite 的默认 `server.fs`、`allowedHosts`、CORS）对外部来源页面的实际行为，冒烟里只有模拟的夹具，没有人工走查。
+- **小的已知现象：** 同一环境同一端口两个标签页同时加载失败时，没有 `webContentsId` 的 `CONNECT` 拒绝原因可能被两个标签页一起拿来解释（设计 §7.2）；全新分区上的第一个 `session.fetch` 得到代理的 407 且不泄露（Electron 不为它发 `login` 事件，导航之后恢复，实际影响只有 favicon 抓取，设计 §12 的 9.2 第 12 条）；B 重启后右侧面板变成“线程详情”、标签页不回来，是上游预览会话表在内存里的行为。
+
+### 以后再做
+
+- 多路复用或预开空闲隧道：Electron 真实网络走查时用户觉得慢再看（设计 §11.1）。
+- 为每次升级签一个 DPoP 证明，让明文局域网也能用（设计 §12 以后再做）。
+- 按线程精确归属（要改 contracts）；网页版。
+- 在真实网络上验证剩下的连接方式，再把设计 §3.5 的“待验证”改成“已验证”，用户文档同步。
+- 并入系统根证书以支持私有 CA（要读系统信任库，需要主控同意）；放开 Linux 的广告。
+- 做不到也不做：只对某一个标签页关闭转发。代理是 session 级的，一个环境的所有标签页共用。
 
 ## 打包与签名
 
