@@ -4,6 +4,7 @@
 import type * as NodeNet from "node:net";
 
 import { assert, describe, it } from "@effect/vitest";
+import { LOOPBACK_GATEWAY_PING_INTERVAL_MS } from "@t3tools/shared/forkLoopbackGateway/protocol";
 import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -20,10 +21,12 @@ import {
   openTunnel,
 } from "./gatewayHarness.testkit.ts";
 
-// Shorter than the tunnel's 30 s ping interval. Past it the test clock fires the heartbeat in a
-// tight loop, a pong needs real I/O that does not get a turn under load, and three missed pongs
-// terminate the tunnel for a reason other than the one under test.
-const LIFETIME = Duration.seconds(20);
+// Shorter than the tunnel's ping interval (10 s of margin). Past it the test clock fires the
+// heartbeat in a tight loop, a pong needs real I/O that does not get a turn under load, and
+// three missed pongs terminate the tunnel for a reason other than the one under test.
+const LIFETIME = Duration.millis(LOOPBACK_GATEWAY_PING_INTERVAL_MS).pipe(
+  Duration.subtract(Duration.seconds(10)),
+);
 
 /** Listens now, so a close that happens before the returned effect runs is not missed. */
 const closed = (target: { once: (event: "close", listener: () => void) => unknown }) => {
