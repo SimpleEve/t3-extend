@@ -9,6 +9,8 @@ import * as NodeTls from "node:tls";
 
 import type { DevicesSnapshot } from "@t3tools/contracts";
 import type { LoopbackGatewayEvent } from "@t3tools/shared/forkLoopbackGateway/bridge";
+import { formatLoopbackGatewayAuthorization } from "@t3tools/shared/forkLoopbackGateway/protocol";
+import * as NodeCrypto from "node:crypto";
 import * as Redacted from "effect/Redacted";
 
 import { makeGatewayEnvironment } from "../../apps/desktop/src/fork/loopbackGateway/GatewayEnvironment.ts";
@@ -23,6 +25,12 @@ import {
   type TerminalService,
   webSocketViaProxy,
 } from "./gateway.ts";
+import {
+  checkNoAccessLogConfigured,
+  enableCaddyAccessLog,
+  findSecret,
+  stackLogs,
+} from "./infraLogs.ts";
 import { DpopKey, exchangePass, Phone, sessionOf, sessionSocketUrl } from "./phone.ts";
 import { openRpc, RpcFailure, type RpcConnection } from "./rpc.ts";
 import { DOMAIN, type Stack } from "./stack.ts";
@@ -721,6 +729,79 @@ export const scenarios: ReadonlyArray<Scenario> = [
           outside?.stop(),
           d.stop(),
         ]);
+      }
+    },
+  },
+  {
+    id: 16,
+    title:
+      "with Caddy's access log switched on, the gateway ticket is masked there and absent from every log of the stack",
+    timeoutMs: 180_000,
+    run: async (world) => {
+      const a = need(world.a, "A");
+      const b = need(world.b, "B");
+      const bEnv = need(world.bEnv, "B's environment");
+      const bUrl = tunnelUrl(world, "b");
+      checkNoAccessLogConfigured();
+      await reachable(bUrl, bEnv, 90_000);
+
+      // A real ticket (A's own session on B) and a made-up one, each sent in a tunnel upgrade through
+      // Caddy and frps; nothing listens on the port, so B answers after it has accepted the ticket.
+      const sessionOnB = await computerSignsIntoComputer(a, b, bEnv, bUrl);
+      let accessLog: Awaited<ReturnType<typeof enableCaddyAccessLog>> | undefined;
+      try {
+        const issued = (await sessionOnB.call("loopbackGateway.issueTicket", {})) as {
+          ticket: Redacted.Redacted<string>;
+        };
+        const real = Redacted.value(issued.ticket);
+        const sentinel = `SENTINEL${NodeCrypto.randomBytes(24).toString("hex")}`;
+        accessLog = await enableCaddyAccessLog(world.stack, world.ctx.workDir);
+        const upgrade = (ticket: string, port: number) =>
+          httpRequest(`${bUrl}/api/loopback-gateway/tunnel?port=${port}`, {
+            headers: {
+              authorization: formatLoopbackGatewayAuthorization(ticket),
+              connection: "Upgrade",
+              upgrade: "websocket",
+              "sec-websocket-version": "13",
+              "sec-websocket-key": NodeCrypto.randomBytes(16).toString("base64"),
+            },
+          });
+        const refused = await upgrade(sentinel, 9);
+        checkEqual(refused.status, 401, "an upgrade with a made-up ticket");
+        const accepted = await upgrade(real, 9);
+        checkEqual(accepted.status, 502, "an upgrade with a real ticket to a closed port");
+
+        const logs = await stackLogs(world.stack);
+        // The access log is on, and it names the request but not what authorised it.
+        check(
+          /"uri":"\/api\/loopback-gateway\/tunnel\?port=9"/u.test(logs.caddy),
+          `Caddy logged no access line for the upgrade:\n${logs.caddy.slice(-1500)}`,
+        );
+        check(
+          /"Authorization":\["REDACTED"\]/u.test(logs.caddy),
+          "Caddy's access log must show Authorization as REDACTED",
+        );
+        for (const [name, text] of Object.entries(logs)) {
+          for (const [what, secret] of [
+            ["the made-up ticket", sentinel],
+            ["the real ticket", real],
+          ] as const) {
+            const found = findSecret(text, secret);
+            check(
+              found === undefined,
+              `${what} (or part of it) is in ${name}'s log: ${text
+                .split("\n")
+                .find((line) => line.includes(found!))
+                ?.replaceAll(found!, "<HERE>")}`,
+            );
+          }
+        }
+        check(!/authorization/iu.test(logs.frps.replaceAll(/\s+/gu, " ")), "frps printed a header");
+        say(
+          `  access line seen, Authorization masked; ticket absent from ${Object.keys(logs).join(", ")} (${Object.values(logs).reduce((n, text) => n + text.length, 0)} bytes)`,
+        );
+      } finally {
+        await Promise.allSettled([accessLog?.restore(), sessionOnB.close()]);
       }
     },
   },

@@ -71,6 +71,8 @@
 
 **查看日志**：`docker compose logs registry caddy frps`（在这个目录里运行）。容器异常退出或卡死时会自动重启；Docker 开机自启的话，整套服务也会跟着起来。
 
+Caddy 默认不记访问日志，`Caddyfile` 里也没有 `log`；frps 以 info 级别运行，不打印请求头。想自己打开 Caddy 的访问日志，只加 `log` 就够了：它默认把 `Authorization` 记成 `REDACTED`，所以隧道票据（放在这个请求头里）不会出现在日志里。不要加 `log_credentials`，它会把请求头原样写出来。这几条每次跑 `vp run fork:selfhost:e2e` 都会实测一遍（场景 16：临时打开访问日志，发一次带哨兵票据的隧道升级，检查 Caddy、frps 和 registry 的全部输出）。另外，`/ws?wsTicket=…` 这类升级请求的票据放在地址里，打开访问日志会被记下来；它只能用一次（设备会话的票据还绑定 DPoP 密钥），但长期开着访问日志的话，留意谁能读这些日志。
+
 **升级**：更新这个目录的文件后重新运行 `./setup.sh`（参数同安装时），它会重新构建镜像并重启有变化的服务，数据保留。所有镜像都钉了版本和摘要，升级时 frps、Caddy、ntfy 和 registry 的基础镜像一起改。frps 的版本必须和电脑上 frpc 的版本一致（`packages/shared/src/forkFrp.ts` 里的 `FRP_VERSION`）。
 
 **备份**：要备份的是 `registry_data` 数据卷（设备公钥、邀请、子域名；默认项目名下叫 `t3x_registry_data`，用 `docker volume ls` 确认）和 `secrets/ntfy-phone.txt`。`caddy_data` 里是证书，丢了可以重新申请，但 Let's Encrypt 有申请频率限制。丢了 `registry_data` 等于所有设备都要重新加入。
