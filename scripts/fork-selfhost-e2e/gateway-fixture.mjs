@@ -1,6 +1,6 @@
-// The service the loopback-gateway scenario starts in a computer's terminal: a page, an SSE stream
-// and a WebSocket on 127.0.0.1, in plain Node. Each state change is one line on a socket the
-// harness listens on (listening, sse-open, sse-closed, ws-open, ws-closed), so it waits on events.
+// The service the gateway scenarios start in a computer's terminal: a page, SSE, a WebSocket and
+// a 300-module graph (/m/<n>.js, entry 0, 4 KB each) on 127.0.0.1. Each state change is one line
+// on a socket the harness listens on: listening, sse-open, sse-closed, ws-open, ws-closed.
 //   node gateway-fixture.mjs <port> <notify-port>
 import * as NodeCrypto from "node:crypto";
 import * as NodeHttp from "node:http";
@@ -33,7 +33,27 @@ const readFrame = (buffer) => {
   return { opcode: buffer[0] & 0x0f, payload, rest: buffer.subarray(end) };
 };
 
+const MODULES = 300;
+const FIRST_LEVEL = 20;
+const moduleSource = (n) => {
+  const children =
+    n === 0
+      ? Array.from({ length: FIRST_LEVEL }, (_, i) => i + 1)
+      : n <= FIRST_LEVEL
+        ? Array.from({ length: MODULES }, (_, i) => i).filter(
+            (m) => m > FIRST_LEVEL && 1 + ((m - FIRST_LEVEL - 1) % FIRST_LEVEL) === n,
+          )
+        : [];
+  return `${children.map((m) => `import "/m/${m}.js";`).join("\n")}\n// ${"x".repeat(4000)}\n`;
+};
+
 const server = NodeHttp.createServer((request, response) => {
+  const module = /^\/m\/(\d+)\.js$/u.exec(request.url ?? "");
+  if (module !== null && Number(module[1]) < MODULES) {
+    response.writeHead(200, { "content-type": "text/javascript", "cache-control": "no-store" });
+    response.end(moduleSource(Number(module[1])));
+    return;
+  }
   if (request.url === "/events") {
     response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store" });
     // Separate writes, so the receiver sees them as separate events.

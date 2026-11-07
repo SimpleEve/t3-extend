@@ -14,7 +14,16 @@ import * as NodeCrypto from "node:crypto";
 import * as Redacted from "effect/Redacted";
 
 import { makeGatewayEnvironment } from "../../apps/desktop/src/fork/loopbackGateway/GatewayEnvironment.ts";
+import { openLoopbackTunnel } from "../../apps/desktop/src/fork/loopbackGateway/TunnelClient.ts";
 import { cliJoin, type Computer, type E2eContext, newHome, startComputer } from "./computer.ts";
+import {
+  keepAliveFetcher,
+  loadModuleGraph,
+  readServerSpans,
+  startLatencyRelay,
+  stats,
+  type LatencyRelay,
+} from "./firstPaint.ts";
 import {
   connectViaProxy,
   getViaProxy,
@@ -55,6 +64,8 @@ export interface Scenario {
   readonly id: number;
   readonly title: string;
   readonly timeoutMs: number;
+  /** Runs only when asked for with `--only`: a measurement, not a check. */
+  readonly optional?: boolean;
   readonly run: (world: World) => Promise<void>;
 }
 
@@ -961,6 +972,212 @@ export const scenarios: ReadonlyArray<Scenario> = [
       say(
         `  main port: 25 forged failures, all 401; tunnel: ${tunnel.join(",")} (retry-after ${retryAfter})`,
       );
+    },
+  },
+  {
+    id: 17,
+    optional: true,
+    title:
+      "first-screen timing of a 300-module page through the tunnel (research/remote-loopback-forwarding.md 11.1)",
+    timeoutMs: 900_000,
+    run: async (world) => {
+      const a = need(world.a, "A");
+      const b = need(world.b, "B");
+      const bEnv = need(world.bEnv, "B's environment");
+      const bUrl = tunnelUrl(world, "b");
+      await reachable(bUrl, bEnv, 90_000);
+      const RUNS = 20;
+      // Each delayed run takes seconds, so the delayed paths get fewer; their p95 is then nearly the worst run.
+      const DELAYED_RUNS = 10;
+      const service = await startServiceInTerminal(world.ctx, b, "first-paint");
+      const sessionOnB = await computerSignsIntoComputer(a, b, bEnv, bUrl);
+      const relays: Array<LatencyRelay> = [];
+      try {
+        interface Group {
+          readonly label: string;
+          readonly route: "direct" | "straight" | "local" | "tunnel";
+          readonly rttMs: number;
+        }
+        const groups: ReadonlyArray<Group> = [
+          { label: "direct loopback (no proxy, no gateway)", route: "direct", rttMs: 0 },
+          { label: "gateway to B's own port (same machine)", route: "local", rttMs: 0 },
+          { label: "self-hosted tunnel (Caddy + frps, local)", route: "tunnel", rttMs: 0 },
+          {
+            label: "no gateway, straight to the service, 50 ms round trip",
+            route: "straight",
+            rttMs: 50,
+          },
+          { label: "self-hosted tunnel, 50 ms round trip", route: "tunnel", rttMs: 50 },
+          {
+            label: "no gateway, straight to the service, 100 ms round trip",
+            route: "straight",
+            rttMs: 100,
+          },
+          { label: "self-hosted tunnel, 100 ms round trip", route: "tunnel", rttMs: 100 },
+        ];
+        interface Row {
+          readonly group: Group;
+          readonly runs: number;
+          readonly firstResponse: ReturnType<typeof stats>;
+          readonly graph: ReturnType<typeof stats>;
+          readonly tunnelsPerLoad: number;
+          readonly setup: ReturnType<typeof stats> | undefined;
+          readonly socketRtt: ReturnType<typeof stats> | undefined;
+          readonly tunnelsOpened: number;
+        }
+        const rows: Array<Row> = [];
+        for (const group of groups) {
+          const firstResponses: Array<number> = [];
+          const graphs: Array<number> = [];
+          const tunnelCounts: Array<number> = [];
+          const setups: Array<number> = [];
+          const socketRtts: Array<number> = [];
+          const runs = group.rttMs > 0 ? DELAYED_RUNS : RUNS;
+          if (group.route === "direct" || group.route === "straight") {
+            const relay =
+              group.route === "straight"
+                ? await startLatencyRelay(service.port, group.rttMs)
+                : undefined;
+            if (relay !== undefined) relays.push(relay);
+            for (let run = 0; run < runs; run += 1) {
+              const fetcher = keepAliveFetcher({
+                host: "127.0.0.1",
+                port: relay?.port ?? service.port,
+              });
+              const load = await loadModuleGraph(fetcher.fetchPath);
+              fetcher.close();
+              firstResponses.push(load.firstResponseMs);
+              graphs.push(load.graphMs);
+            }
+          } else {
+            const relay =
+              group.rttMs > 0 ? await startLatencyRelay(world.stack.port, group.rttMs) : undefined;
+            if (relay !== undefined) relays.push(relay);
+            const baseUrl =
+              group.route === "local"
+                ? `http://127.0.0.1:${b.mainPort}`
+                : relay === undefined
+                  ? bUrl
+                  : `https://b.${DOMAIN}:${relay.port}`;
+            const issued = (await sessionOnB.call("loopbackGateway.issueTicket", {})) as {
+              ticket: Redacted.Redacted<string>;
+              expiresAt: never;
+            };
+            for (let run = 0; run < runs; run += 1) {
+              const opened: Array<number> = [];
+              const environment = makeGatewayEnvironment({
+                environmentId: bEnv,
+                emit: () => {},
+                onProxyChange: async () => {},
+                openTunnel: async (input) => {
+                  const began = performance.now();
+                  const tunnel = await openLoopbackTunnel(input);
+                  opened.push(performance.now() - began);
+                  return tunnel;
+                },
+              });
+              try {
+                await environment.register({
+                  httpBaseUrl: baseUrl,
+                  enabled: true,
+                  credential: issued,
+                });
+                const proxy = proxyEndpoint(
+                  need(environment.proxyCredentials() ?? undefined, "the proxy's credentials"),
+                );
+                const fetcher = keepAliveFetcher({
+                  host: "127.0.0.1",
+                  port: proxy.port,
+                  viaProxy: {
+                    authorization: proxy.authorization,
+                    target: `http://localhost:${service.port}`,
+                  },
+                });
+                const load = await loadModuleGraph(fetcher.fetchPath);
+                fetcher.close();
+                firstResponses.push(load.firstResponseMs);
+                graphs.push(load.graphMs);
+                tunnelCounts.push(opened.length);
+                setups.push(...opened);
+                // A WebSocket's round trip on a fresh tunnel is what a hot-update message waits for.
+                const socket = await webSocketViaProxy(proxy, service.port, "/ws");
+                const sent = performance.now();
+                socket.send("hmr");
+                await socket.next();
+                socketRtts.push(performance.now() - sent);
+                socket.destroy();
+              } finally {
+                await environment.close();
+              }
+            }
+          }
+          rows.push({
+            group,
+            runs,
+            firstResponse: stats(firstResponses),
+            graph: stats(graphs),
+            tunnelsPerLoad: tunnelCounts.length === 0 ? 0 : stats(tunnelCounts).median,
+            setup: setups.length === 0 ? undefined : stats(setups),
+            socketRtt: socketRtts.length === 0 ? undefined : stats(socketRtts),
+            tunnelsOpened: setups.length,
+          });
+          say(
+            `  ${group.label}: graph median ${rows.at(-1)!.graph.median.toFixed(0)} ms, p95 ${rows.at(-1)!.graph.p95.toFixed(0)} ms`,
+          );
+        }
+
+        // How much of a tunnel's set-up was B's own check of who owns the port (its trace file).
+        const authorize = readServerSpans(b.home, ["LoopbackGateway.authorize"]).map(
+          (span) => span.durationMs,
+        );
+        const lines = [
+          "| path | runs | first response median / p95 (ms) | whole graph median / p95 (ms) | tunnels per load | tunnel set-up median / p95 (ms) | WebSocket echo median (ms) |",
+          "| ---- | ---- | ---- | ---- | ---- | ---- | ---- |",
+          ...rows.map(
+            (row) =>
+              `| ${row.group.label} | ${row.runs} | ${row.firstResponse.median.toFixed(0)} / ${row.firstResponse.p95.toFixed(0)} | ${row.graph.median.toFixed(0)} / ${row.graph.p95.toFixed(0)} | ${row.tunnelsPerLoad || "-"} | ${row.setup === undefined ? "-" : `${row.setup.median.toFixed(0)} / ${row.setup.p95.toFixed(0)}`} | ${row.socketRtt === undefined ? "-" : row.socketRtt.median.toFixed(0)} |`,
+          ),
+        ];
+        const authorizeStats = authorize.length === 0 ? undefined : stats(authorize);
+        const row = (route: Group["route"], rttMs: number) =>
+          need(
+            rows.find(
+              (candidate) => candidate.group.route === route && candidate.group.rttMs === rttMs,
+            ),
+            `${route} at ${rttMs} ms`,
+          );
+        const local = row("local", 0);
+        lines.push(
+          "",
+          `The page is /m/0.js and the 299 modules it leads to (about 4 KB each), fetched breadth first over at most six connections, no browser. The tunnel paths open a fresh gateway (cold: no tunnel yet) for every run.`,
+          authorizeStats === undefined
+            ? "B's own port check: no spans found in B's trace file."
+            : `B's port check (LoopbackGateway.authorize, ${authorizeStats.n} spans, all paths): median ${authorizeStats.median.toFixed(1)} ms, p95 ${authorizeStats.p95.toFixed(1)} ms.`,
+        );
+        for (const rtt of [50, 100]) {
+          const tunnel = row("tunnel", rtt);
+          const straight = row("straight", rtt);
+          const slower = tunnel.graph.median - local.graph.median;
+          const overhead = tunnel.graph.median - straight.graph.median;
+          const setup = tunnel.setup?.median ?? 0;
+          const withoutCheck = Math.max(0, setup - (authorizeStats?.median ?? 0));
+          lines.push(
+            `${rtt} ms round trip: the tunnel load is ${slower.toFixed(0)} ms slower than through the gateway to B's own port${rtt === 50 ? ` (11.1's limit is 1500 ms: ${slower > 1500 ? "EXCEEDED" : "within"})` : ""}, and ${overhead.toFixed(0)} ms slower than reaching the service directly over the same round trip, which is the gateway's own share. A tunnel takes ${(setup / rtt).toFixed(1)} round trips to set up${rtt === 50 ? ` (limit 3: ${setup / rtt > 3 ? "EXCEEDED" : "within"})` : ""}; ${(withoutCheck / rtt).toFixed(1)} without B's port check.`,
+          );
+        }
+        NodeFS.writeFileSync(
+          NodePath.join(world.ctx.workDir, "first-paint.md"),
+          `${lines.join("\n")}\n`,
+        );
+        for (const line of lines) say(line);
+        say(`  written to ${NodePath.join(world.ctx.workDir, "first-paint.md")}`);
+      } finally {
+        await Promise.allSettled([
+          sessionOnB.close(),
+          service.stop(),
+          ...relays.map((relay) => relay.close()),
+        ]);
+      }
     },
   },
 ];
