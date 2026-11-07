@@ -181,7 +181,9 @@ const PS_ENV = { LC_ALL: "C", TZ: "UTC" } as const;
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const PROC_FD_LIMIT = 4096;
 
-const makeDarwin = Effect.gen(function* () {
+const makeDarwin = Effect.fn("ProcessInspector.makeDarwin")(function* (
+  toolTimeout: Duration.Duration,
+) {
   const runner = yield* ProcessRunner.ProcessRunner;
   const run = Effect.fn("ProcessInspector.run")(function* (
     command: string,
@@ -193,7 +195,7 @@ const makeDarwin = Effect.gen(function* () {
         command,
         args,
         env: { ...process.env, ...PS_ENV },
-        timeout: TOOL_TIMEOUT,
+        timeout: toolTimeout,
         maxOutputBytes: MAX_OUTPUT_BYTES,
       })
       .pipe(
@@ -412,14 +414,16 @@ const unsupported = (platform: string) => {
   });
 };
 
-export const layerDarwin = Layer.effect(ProcessInspector, makeDarwin);
+/** The macOS inspector with its own limit on each `ps` and `lsof` call, so a test on a loaded machine is not decided by the product's 5 s. */
+export const layerDarwinWithTimeout = (toolTimeout: Duration.Duration) =>
+  Layer.effect(ProcessInspector, makeDarwin(toolTimeout));
 
 /** The platform's inspector; Windows has none, and the gateway is not advertised there. */
 export const layer = Layer.effect(
   ProcessInspector,
   Effect.gen(function* () {
     const platform = yield* HostProcess.Platform;
-    if (platform === "darwin") return yield* makeDarwin;
+    if (platform === "darwin") return yield* makeDarwin(TOOL_TIMEOUT);
     if (platform === "linux") return yield* makeLinux;
     return unsupported(platform);
   }),

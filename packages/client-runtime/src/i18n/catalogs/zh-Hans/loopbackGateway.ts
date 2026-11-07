@@ -60,4 +60,8 @@ export default {
   "Reconnecting to {environment}…": "正在重新连接 {environment}…",
   "This page reloads when the connection is back.": "连接恢复后页面会自动重新加载。",
   "Couldn't forward localhost:{port}": "无法转发 localhost:{port}",
+
+  // The preview panel of an environment that is not connected
+  "Can't reach {environment}. Browser previews come back once it is connected.":
+    "连不上 {environment}，连上后浏览器预览会恢复。",
 } satisfies Record<string, string>;

@@ -10,9 +10,12 @@ import { assert, describe, it } from "@effect/vitest";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { LOOPBACK_GATEWAY_BLOCKED_PORTS } from "@t3tools/shared/forkLoopbackGateway/protocol";
+import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as TestClock from "effect/testing/TestClock";
 
@@ -37,12 +40,15 @@ interface Overrides {
   startTime?: (pid: number, real: InspectEffect<string | null>) => InspectEffect<string | null>;
   table?: InspectEffect<ProcessInspector.ProcessTable>;
   launchText?: InspectEffect<string | null>;
+  listeners?: InspectEffect<ReadonlyArray<ReadonlyArray<ProcessInspector.ListenerEntry>>>;
 }
 
-const rigLayer = Layer.mergeAll(ProcessInspector.layerDarwin, TestProcesses.layer).pipe(
-  Layer.provide(ProcessRunner.layer),
-  Layer.provideMerge(NodeServices.layer),
-);
+// The tool limit is the product's, 5 s; on a loaded machine it would decide these tests, so they
+// get one far above the test timeout. The read-failure cases inject their failure instead.
+const rigLayer = Layer.mergeAll(
+  ProcessInspector.layerDarwinWithTimeout(Duration.minutes(10)),
+  TestProcesses.layer,
+).pipe(Layer.provide(ProcessRunner.layer), Layer.provideMerge(NodeServices.layer));
 
 const makeRig = Effect.gen(function* () {
   const real = yield* ProcessInspector.ProcessInspector;
@@ -62,7 +68,7 @@ const makeRig = Effect.gen(function* () {
     },
     listeners: (ports) => {
       reads.listeners += 1;
-      return real.listeners(ports);
+      return override.listeners ?? real.listeners(ports);
     },
     listenersOf: (pairs) => {
       reads.listenersOf += 1;
@@ -105,10 +111,29 @@ const makeRig = Effect.gen(function* () {
   return { rig, scans, reads, override, authorizer, registerShell, nominate, real };
 });
 
+/** "allowed", or the refusal code with its reason, so a mismatch in a list shows why. */
 const code = (effect: Effect.Effect<unknown, GatewayRefusal>) =>
   effect.pipe(
     Effect.map(() => "allowed"),
-    Effect.catch((error) => Effect.succeed(error.code)),
+    Effect.catch((error) => Effect.succeed(`${error.code} (${error.reason})`)),
+  );
+
+/** Asserts the refusal code (or "allowed"); a mismatch names the reason the authorizer gave. */
+const expectCode = (
+  effect: Effect.Effect<unknown, GatewayRefusal>,
+  expected: string,
+  message?: string,
+) =>
+  effect.pipe(
+    Effect.map(() => ({ code: "allowed", reason: "" })),
+    Effect.catch((error) => Effect.succeed({ code: error.code, reason: error.reason })),
+    Effect.map((actual) =>
+      assert.equal(
+        actual.code,
+        expected,
+        `${message === undefined ? "" : `${message}: `}refused with reason "${actual.reason}"`,
+      ),
+    ),
   );
 
 describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
@@ -156,38 +181,68 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
           const processes = yield* TestProcesses;
           const direct = yield* processes.listen("127.0.0.1");
           x.nominate(direct.pid, direct.port);
-          assert.equal(yield* code(x.authorizer.authorize(direct.port)), "reserved");
+          yield* expectCode(x.authorizer.authorize(direct.port), "reserved");
           // The same shape under an unregistered shell: only a registered shell makes a terminal.
           const shell = yield* processes.shell(
             `${process.execPath} ${processes.listenScript} 127.0.0.1 0 0 & wait`,
           );
           x.nominate(Number(shell.info.pid), Number(shell.info.port));
-          assert.equal(yield* code(x.authorizer.authorize(Number(shell.info.port))), "reserved");
+          yield* expectCode(x.authorizer.authorize(Number(shell.info.port)), "reserved");
           // And a registered pid whose start time is not the one it was registered with.
           x.rig.shells.set(shell.pid, { startTime: "some other process" });
-          assert.equal(yield* code(x.authorizer.authorize(Number(shell.info.port))), "reserved");
+          yield* expectCode(x.authorizer.authorize(Number(shell.info.port)), "reserved");
         }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
+    it.live("refuses a reserved port and the eight blocked ones without reading any process", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        yield* expectCode(x.authorizer.authorize(1234), "reserved");
+        for (const port of LOOPBACK_GATEWAY_BLOCKED_PORTS) {
+          x.nominate(process.pid, port);
+          yield* expectCode(x.authorizer.authorize(port), "reserved", String(port));
+        }
+        assert.deepEqual(x.reads, {
+          table: 0,
+          startTime: 0,
+          listeners: 0,
+          listenersOf: 0,
+          launchText: 0,
+        });
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+    );
+
     it.live(
-      "refuses a port nobody owns, a reserved port and the eight blocked ones, without reading any process",
+      "tells a port nothing listens on from one a process outside T3 holds, and refuses both",
       () =>
         Effect.gen(function* () {
           const x = yield* makeRig;
-          assert.equal(yield* code(x.authorizer.authorize(45000)), "not-owned");
-          assert.equal(yield* code(x.authorizer.authorize(1234)), "reserved");
-          for (const port of LOOPBACK_GATEWAY_BLOCKED_PORTS) {
-            x.nominate(process.pid, port);
-            assert.equal(yield* code(x.authorizer.authorize(port)), "reserved", String(port));
-          }
-          assert.deepEqual(x.reads, {
-            table: 0,
-            startTime: 0,
-            listeners: 0,
-            listenersOf: 0,
-            launchText: 0,
-          });
+          const processes = yield* TestProcesses;
+          const freePort = yield* Effect.promise(
+            () =>
+              new Promise<number>((resolve) => {
+                const server = NodeNet.createServer();
+                server.listen(0, "127.0.0.1", () => {
+                  const { port } = server.address() as NodeNet.AddressInfo;
+                  server.close(() => resolve(port));
+                });
+              }),
+          );
+          yield* expectCode(x.authorizer.authorize(freePort), "upstream-refused");
+          // Nothing nominates the port: a process that no terminal or agent started holds it.
+          const outsider = yield* processes.listen("127.0.0.1");
+          yield* expectCode(x.authorizer.authorize(outsider.port), "not-owned");
         }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+    );
+
+    it.live("keeps not-owned for an unowned port when the listeners cannot be read", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        x.override.listeners = Effect.fail(
+          new ProcessInspector.ProcessInspectError({ reason: "lsof failed" }),
+        );
+        yield* expectCode(x.authorizer.authorize(45000), "not-owned");
+      }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
     it.live("refuses at once when the owner exited and another process took the port", () =>
@@ -201,12 +256,12 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
         const port = Number(shell.info.port);
         const owner = Number(shell.info.pid);
         x.nominate(owner, port);
-        assert.equal(yield* code(x.authorizer.authorize(port)), "allowed");
+        yield* expectCode(x.authorizer.authorize(port), "allowed");
         // The owner dies; an unrelated process binds the same port; the snapshot still says "owner".
         yield* processes.stop({ pid: owner });
         const thief = yield* processes.listen("127.0.0.1", { port });
         assert.equal(thief.port, port);
-        assert.equal(yield* code(x.authorizer.authorize(port)), "owner-changed");
+        yield* expectCode(x.authorizer.authorize(port), "owner-changed");
       }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
@@ -222,22 +277,22 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
           yield* x.registerShell(shell.pid);
           const port = Number(shell.info.port);
           x.nominate(Number(shell.info.pid), port);
-          assert.equal(yield* code(x.authorizer.authorize(port)), "allowed");
+          yield* expectCode(x.authorizer.authorize(port), "allowed");
           x.override.startTime = () => Effect.succeed("a different instance");
-          assert.equal(yield* code(x.authorizer.authorize(port)), "owner-changed");
+          yield* expectCode(x.authorizer.authorize(port), "owner-changed");
           x.override.startTime = (_pid, _real) =>
             Effect.fail(new ProcessInspector.ProcessInspectError({ reason: "ps failed" }));
-          assert.equal(yield* code(x.authorizer.authorize(port)), "owner-changed");
+          yield* expectCode(x.authorizer.authorize(port), "owner-changed");
           delete x.override.startTime;
           x.override.table = Effect.fail(
             new ProcessInspector.ProcessInspectError({ reason: "ps failed" }),
           );
-          assert.equal(yield* code(x.authorizer.authorize(port)), "owner-changed");
+          yield* expectCode(x.authorizer.authorize(port), "owner-changed");
           delete x.override.table;
           x.override.launchText = Effect.succeed(null);
-          assert.equal(yield* code(x.authorizer.authorize(port)), "owner-changed");
+          yield* expectCode(x.authorizer.authorize(port), "owner-changed");
           delete x.override.launchText;
-          assert.equal(yield* code(x.authorizer.authorize(port)), "allowed");
+          yield* expectCode(x.authorizer.authorize(port), "allowed");
         }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
@@ -248,7 +303,7 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
         const first = yield* processes.listen("127.0.0.1", { reusePort: true });
         yield* processes.listen("127.0.0.1", { reusePort: true, port: first.port });
         x.nominate(first.pid, first.port);
-        assert.equal(yield* code(x.authorizer.authorize(first.port)), "owner-changed");
+        yield* expectCode(x.authorizer.authorize(first.port), "owner-changed");
       }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
@@ -323,14 +378,14 @@ describe.runIf(HostProcess.Platform.defaultValue() === "darwin")(
           // The marker is cleared: the same job is not an agent's.
           const unmarked = yield* processes.spawnWithJob({ argv0: claudeAs(processes.directory) });
           x.nominate(unmarked.jobPid, unmarked.jobPort);
-          assert.equal(yield* code(x.authorizer.authorize(unmarked.jobPort)), "not-owned");
+          yield* expectCode(x.authorizer.authorize(unmarked.jobPort), "not-owned");
           // The launcher itself, listening (its runtime), is never forwarded.
           const runtime = yield* processes.listen("127.0.0.1", {
             argv0: claudeAs(processes.directory),
             marker: "thread-a",
           });
           x.nominate(runtime.pid, runtime.port);
-          assert.equal(yield* code(x.authorizer.authorize(runtime.port)), "reserved");
+          yield* expectCode(x.authorizer.authorize(runtime.port), "reserved");
         }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
@@ -374,14 +429,14 @@ setInterval(() => {}, 1 << 30);
           const jobPid = Number(launcher.info.jobPid);
           const jobPort = Number(launcher.info.jobPort);
           x.nominate(runtimePid, runtimePort);
-          assert.equal(yield* code(x.authorizer.authorize(runtimePort)), "reserved");
+          yield* expectCode(x.authorizer.authorize(runtimePort), "reserved");
           x.nominate(jobPid, jobPort);
           assert.equal((yield* x.authorizer.authorize(jobPort)).pid, jobPid);
           // The server restarts (the launcher goes): the runtime is adopted by init, and its jobs with it.
           yield* processes.stop(launcher);
-          assert.equal(yield* code(x.authorizer.authorize(jobPort)), "reserved");
+          yield* expectCode(x.authorizer.authorize(jobPort), "reserved");
           x.nominate(runtimePid, runtimePort);
-          assert.equal(yield* code(x.authorizer.authorize(runtimePort)), "reserved");
+          yield* expectCode(x.authorizer.authorize(runtimePort), "reserved");
         }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
@@ -397,7 +452,7 @@ setInterval(() => {}, 1 << 30);
             mode: "orphan",
           });
           x.nominate(orphan.jobPid, orphan.jobPort);
-          assert.equal(yield* code(x.authorizer.authorize(orphan.jobPort)), "not-owned");
+          yield* expectCode(x.authorizer.authorize(orphan.jobPort), "not-owned");
         }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
@@ -439,7 +494,7 @@ setInterval(() => {}, 1 << 30);
           yield* x.registerShell(child.pid!);
           for (const port of [ports.service, ports.inspector]) {
             x.nominate(child.pid!, port);
-            assert.equal(yield* code(x.authorizer.authorize(port)), "debug-process", String(port));
+            yield* expectCode(x.authorizer.authorize(port), "debug-process", String(port));
           }
         }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
@@ -460,11 +515,11 @@ setInterval(() => {}, 1 << 30);
           yield* Effect.addFinalizer(() => Effect.sync(() => void own.close()));
           const ownPort = (own.address() as NodeNet.AddressInfo).port;
           x.nominate(process.pid, ownPort);
-          assert.equal(yield* code(x.authorizer.authorize(ownPort)), "reserved");
+          yield* expectCode(x.authorizer.authorize(ownPort), "reserved");
           // A hub starts a daemon that listens: the daemon is the hub's child, not the server's.
           const hub = yield* processes.spawnWithJob({ argv0: "t3-device-hub", mode: "stay" });
           x.nominate(hub.jobPid, hub.jobPort);
-          assert.equal(yield* code(x.authorizer.authorize(hub.jobPort)), "reserved");
+          yield* expectCode(x.authorizer.authorize(hub.jobPort), "reserved");
           // The same job under the hub with the agent marker is still refused: E2 comes first.
           const marked = yield* processes.spawnWithJob({
             argv0: "t3-device-hub",
@@ -472,7 +527,7 @@ setInterval(() => {}, 1 << 30);
             mode: "stay",
           });
           x.nominate(marked.jobPid, marked.jobPort);
-          assert.equal(yield* code(x.authorizer.authorize(marked.jobPort)), "reserved");
+          yield* expectCode(x.authorizer.authorize(marked.jobPort), "reserved");
         }).pipe(Effect.scoped, Effect.provide(rigLayer)),
     );
 
@@ -575,15 +630,18 @@ describe("the rescan on a miss", () => {
         reservedPorts: Effect.succeed(new Set()),
       }).pipe(
         Effect.provideService(PortScanner.PortDiscovery, discovery),
-        Effect.provideService(ProcessInspector.ProcessInspector, {} as never),
+        Effect.provideService(ProcessInspector.ProcessInspector, {
+          // Something answers on the port, so every miss is a refusal for the same reason.
+          listeners: () => Effect.succeed([[{ pid: 1, address: "*", family: "IPv4" }]]),
+        } as never),
         Effect.provideService(TerminalShellRegistry.TerminalShellRegistry, {
           shells: Effect.succeed(new Map()),
         }),
         Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
       );
-      const miss = () => code(authorizer.authorize(45001));
-      assert.equal(yield* miss(), "not-owned");
-      assert.equal(yield* miss(), "not-owned");
+      const miss = () => expectCode(authorizer.authorize(45001), "not-owned");
+      yield* miss();
+      yield* miss();
       assert.equal(yield* Ref.get(scans), 1);
       yield* TestClock.adjust(Duration.millis(RESCAN_MIN_INTERVAL_MS - 1));
       yield* miss();
@@ -592,6 +650,139 @@ describe("the rescan on a miss", () => {
       yield* miss();
       assert.equal(yield* Ref.get(scans), 2);
     }),
+  );
+});
+
+describe("the read that tells an empty port from an owned one", () => {
+  it.effect("reads at most once per interval, however many tunnels are refused", () =>
+    Effect.gen(function* () {
+      const reads = yield* Ref.make(0);
+      const listening = yield* Ref.make(false);
+      const authorizer = yield* makeAuthorizer({
+        serverPid: process.pid,
+        reservedPorts: Effect.succeed(new Set()),
+      }).pipe(
+        Effect.provideService(PortScanner.PortDiscovery, {
+          scan: () => Effect.succeed([]),
+          scanBackground: () => Effect.succeed([]),
+        } as never),
+        Effect.provideService(ProcessInspector.ProcessInspector, {
+          listeners: () =>
+            Ref.update(reads, (n) => n + 1).pipe(
+              Effect.andThen(Ref.get(listening)),
+              Effect.map((held) => [held ? [{ pid: 1, address: "*", family: "IPv4" }] : []]),
+            ),
+        } as never),
+        Effect.provideService(TerminalShellRegistry.TerminalShellRegistry, {
+          shells: Effect.succeed(new Map()),
+        }),
+        Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
+      );
+      const burst = (port: number, count: number) =>
+        Effect.all(
+          Array.from({ length: count }, () => code(authorizer.authorize(port))),
+          { concurrency: "unbounded" },
+        );
+
+      // A burst on one empty port shares the one read.
+      const first = yield* burst(45010, 60);
+      assert.equal(yield* Ref.get(reads), 1);
+      assert.deepEqual(
+        new Set(first),
+        new Set(["upstream-refused (nothing is listening on this port)"]),
+      );
+      // The same port later in the interval reuses the answer; another port has none to reuse.
+      yield* expectCode(authorizer.authorize(45010), "upstream-refused");
+      yield* expectCode(authorizer.authorize(45011), "not-owned");
+      assert.equal(yield* Ref.get(reads), 1);
+
+      // One interval on, the next refusal reads again, and a listener that has appeared shows.
+      yield* Ref.set(listening, true);
+      yield* TestClock.adjust(Duration.millis(RESCAN_MIN_INTERVAL_MS - 1));
+      yield* expectCode(authorizer.authorize(45010), "upstream-refused");
+      assert.equal(yield* Ref.get(reads), 1);
+      yield* TestClock.adjust(Duration.millis(1));
+      yield* expectCode(authorizer.authorize(45010), "not-owned");
+      assert.equal(yield* Ref.get(reads), 2);
+    }),
+  );
+});
+
+describe("a read of an empty port that is interrupted", () => {
+  it.effect("does not hang the refusals that share it", () =>
+    Effect.gen(function* () {
+      const started = yield* Deferred.make<void>();
+      const never = yield* Deferred.make<void>();
+      const authorizer = yield* makeAuthorizer({
+        serverPid: process.pid,
+        reservedPorts: Effect.succeed(new Set()),
+      }).pipe(
+        Effect.provideService(PortScanner.PortDiscovery, {
+          scan: () => Effect.succeed([]),
+          scanBackground: () => Effect.succeed([]),
+        } as never),
+        Effect.provideService(ProcessInspector.ProcessInspector, {
+          // The read never finishes by itself: it starts, then waits to be interrupted.
+          listeners: () =>
+            Deferred.succeed(started, undefined).pipe(
+              Effect.andThen(Deferred.await(never)),
+              Effect.as([[]]),
+            ),
+        } as never),
+        Effect.provideService(TerminalShellRegistry.TerminalShellRegistry, {
+          shells: Effect.succeed(new Map()),
+        }),
+        Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
+      );
+      const reader = yield* Effect.forkChild(authorizer.authorize(45020));
+      yield* Deferred.await(started);
+      const sharer = yield* Effect.forkChild(code(authorizer.authorize(45020)));
+      yield* Fiber.interrupt(reader);
+      // A read that did not finish says nothing about the port: the sharer gets the plain reason.
+      assert.equal(
+        yield* Fiber.join(sharer),
+        "not-owned (no terminal or agent of this environment owns this port)",
+      );
+    }),
+  );
+
+  it.effect(
+    "does not hang the refusals that share it when the interrupt lands before the read starts",
+    () =>
+      Effect.gen(function* () {
+        const authorizer = yield* makeAuthorizer({
+          serverPid: process.pid,
+          reservedPorts: Effect.succeed(new Set()),
+        }).pipe(
+          Effect.provideService(PortScanner.PortDiscovery, {
+            scan: () => Effect.succeed([]),
+            scanBackground: () => Effect.succeed([]),
+          } as never),
+          Effect.provideService(ProcessInspector.ProcessInspector, {
+            // Calling the function is what happens right after the read is claimed and before its
+            // completion is installed. Interrupting the calling fiber here lands in that stretch.
+            listeners: () => {
+              Fiber.getCurrent()!.interruptUnsafe();
+              return Effect.succeed([[]]);
+            },
+          } as never),
+          Effect.provideService(TerminalShellRegistry.TerminalShellRegistry, {
+            shells: Effect.succeed(new Map()),
+          }),
+          Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
+        );
+        yield* Fiber.await(yield* Effect.forkChild(authorizer.authorize(45021)));
+        // Same interval, same port: this one shares the read the interrupted request claimed.
+        const sharer = yield* Effect.forkChild(
+          code(authorizer.authorize(45021)).pipe(Effect.timeoutOption(Duration.millis(1_000))),
+        );
+        yield* TestClock.adjust(Duration.millis(1_000));
+        const answer = yield* Fiber.join(sharer);
+        assert.deepEqual(
+          answer,
+          Option.some("not-owned (no terminal or agent of this environment owns this port)"),
+        );
+      }),
   );
 });
 

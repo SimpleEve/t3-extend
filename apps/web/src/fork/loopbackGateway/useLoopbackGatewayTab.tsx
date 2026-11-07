@@ -8,8 +8,9 @@ import { useT } from "~/hooks/useT";
 import { useEnvironment } from "~/state/environments";
 
 import { getLoopbackGatewayBridge } from "./bridge";
-import { LoopbackGatewayBadge } from "./LoopbackGatewayBadge";
+import { badgeModeFor, LoopbackGatewayBadge } from "./LoopbackGatewayBadge";
 import { LoopbackGatewayCard } from "./LoopbackGatewayCard";
+import { useLoopbackGatewayState } from "./useLoopbackGatewayState";
 
 export function useLoopbackGatewayTab(input: {
   readonly threadRef: ScopedThreadRef;
@@ -21,14 +22,20 @@ export function useLoopbackGatewayTab(input: {
   readonly onReload: () => void;
   /** Opens the tab in the environment's own browser; absent when that is not possible. */
   readonly onOpenInEnvironment: (() => void) | undefined;
-}): { readonly badge: ReactNode; readonly card: ReactNode } {
+}): {
+  readonly badge: ReactNode;
+  readonly card: ReactNode;
+  /** The tab shows a page of the environment's localhost: the system browser would show this computer's. */
+  readonly forwarding: boolean;
+} {
   const t = useT();
   const { environmentId } = input.threadRef;
   const environmentLabel = useEnvironment(environmentId)?.label ?? t("the environment");
   const { runtimeTabId, url, loadFailed, onReload, onOpenInEnvironment } = input;
+  const { state } = useLoopbackGatewayState(environmentId);
   const hasGateway = previewBridge !== null && getLoopbackGatewayBridge() !== undefined;
   if (!hasGateway || runtimeTabId === null || input.serverOwnsRendering) {
-    return { badge: null, card: null };
+    return { badge: null, card: null, forwarding: false };
   }
   const move =
     onOpenInEnvironment === undefined
@@ -38,5 +45,9 @@ export function useLoopbackGatewayTab(input: {
           onMove: onOpenInEnvironment,
         };
   const props = { environmentId, environmentLabel, runtimeTabId, url, loadFailed, onReload, move };
-  return { badge: <LoopbackGatewayBadge {...props} />, card: <LoopbackGatewayCard {...props} /> };
+  return {
+    badge: <LoopbackGatewayBadge {...props} />,
+    card: <LoopbackGatewayCard {...props} />,
+    forwarding: badgeModeFor(state.state, url) === "forwarding",
+  };
 }

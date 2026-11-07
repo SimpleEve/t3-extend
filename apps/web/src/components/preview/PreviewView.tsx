@@ -901,7 +901,7 @@ export function PreviewView({
         onForward={handleForward}
         onRefresh={handleRefresh}
         onSubmit={(next) => void handleSubmitUrl(next)}
-        onOpenInBrowser={tabId ? handleOpenInBrowser : undefined}
+        onOpenInBrowser={tabId && !gateway.forwarding ? handleOpenInBrowser : undefined} // fork: loopback gateway
         onCapture={previewBridge && tabId && !isServerTab ? handleCapture : undefined}
         captureDisabled={!desktopOverlay || isUnreachable}
         recording={recordingRuntimeTabId !== null}

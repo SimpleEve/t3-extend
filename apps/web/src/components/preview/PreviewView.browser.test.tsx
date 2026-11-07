@@ -37,6 +37,8 @@ const mocks = vi.hoisted(() => ({
   recordingTabIds: new Set<string>(),
   recordingRuntimeTabId: null as string | null,
   recordVisitForThread: vi.fn(),
+  tabUrl: "http://example.com/",
+  gatewayState: "not-applicable",
 }));
 
 const STUB_BROWSER_DEFAULTS = {
@@ -116,7 +118,7 @@ vi.mock(import("~/previewStateStore"), async (original) => ({
             threadId: "thread-1",
             tabId: "tab-1",
             runtime: mocks.nativeServerTab ? "server" : "desktop",
-            navStatus: { _tag: "Success", url: "http://example.com/", title: "Example" },
+            navStatus: { _tag: "Success", url: mocks.tabUrl, title: "Example" },
             canGoBack: false,
             canGoForward: false,
             updatedAt: "2026-07-13T00:00:00.000Z",
@@ -150,6 +152,19 @@ vi.mock(import("~/browser/previewRuntime"), async (original) => ({
 }));
 
 vi.mock(import("~/browser/browserViewportActions"), { spy: true });
+// The gateway exists only in the desktop app; the tab, badge and card are the real ones.
+vi.mock(import("~/fork/loopbackGateway/bridge"), () => ({
+  getLoopbackGatewayBridge: () => ({}) as never,
+}));
+vi.mock(import("~/fork/loopbackGateway/useLoopbackGatewayState"), () => ({
+  useLoopbackGatewayState: () => ({
+    inputs: {} as never,
+    state: { state: mocks.gatewayState } as never,
+    wasActive: false,
+    connected: true,
+    connecting: false,
+  }),
+}));
 
 import { useComposerDraftStore } from "~/composerDraftStore";
 import { useBrowserPointerStore } from "~/browser/browserPointerStore";
@@ -206,6 +221,8 @@ function setup() {
   mocks.servers = [];
   mocks.recordingTabIds = new Set();
   mocks.recordingRuntimeTabId = null;
+  mocks.tabUrl = "http://example.com/";
+  mocks.gatewayState = "not-applicable";
   useComposerDraftStore.setState({
     addPreviewAnnotation: mocks.addPreviewAnnotation,
     addImage: mocks.addImage,
@@ -341,5 +358,19 @@ describe("PreviewView", () => {
     await expect.element(address).not.toHaveFocus();
     act(() => dispatchPreviewAction("focus-url"));
     await expect.element(address).toHaveFocus();
+  });
+
+  it("offers the system browser for a localhost tab only while that localhost is not forwarded", async () => {
+    setup();
+    mocks.tabUrl = "http://localhost:5173/";
+    mocks.gatewayState = "active";
+    await using screen = await render(view());
+    const systemBrowser = page.getByRole("button", { name: "Open in system browser" });
+    await expect.element(page.getByLabelText("localhost is forwarded to WSL")).toBeVisible();
+    expect(systemBrowser.elements()).toEqual([]);
+
+    mocks.gatewayState = "disabled-by-user";
+    await screen.rerender(view());
+    await expect.element(systemBrowser).toBeInTheDocument();
   });
 });
