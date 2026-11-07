@@ -760,13 +760,31 @@ export const scenarios: ReadonlyArray<Scenario> = [
       // Caddy and frps; nothing listens on the port, so B answers after it has accepted the ticket.
       const sessionOnB = await computerSignsIntoComputer(a, b, bEnv, bUrl);
       let accessLog: Awaited<ReturnType<typeof enableCaddyAccessLog>> | undefined;
+      const reconnected = async (reload: () => Promise<unknown>) => {
+        const marks = [a.log.mark(), b.log.mark()] as const;
+        await reload();
+        await Promise.all(
+          [a, b].map((computer, index) =>
+            computer.log.waitFor(LOGGED_IN, {
+              label: `${computer.name}'s tunnel to come back after Caddy reloaded`,
+              timeoutMs: 60_000,
+              from: marks[index]!,
+            }),
+          ),
+        );
+        await reachable(bUrl, bEnv, 60_000);
+      };
       try {
         const issued = (await sessionOnB.call("loopbackGateway.issueTicket", {})) as {
           ticket: Redacted.Redacted<string>;
         };
         const real = Redacted.value(issued.ticket);
         const sentinel = `SENTINEL${NodeCrypto.randomBytes(24).toString("hex")}`;
-        accessLog = await enableCaddyAccessLog(world.stack, world.ctx.workDir);
+        // A reload of Caddy drops the tunnels' control connections (they run through it): wait until
+        // both computers' frpc are logged in again before sending anything through them.
+        await reconnected(async () => {
+          accessLog = await enableCaddyAccessLog(world.stack, world.ctx.workDir);
+        });
         const upgrade = (ticket: string, port: number) =>
           httpRequest(`${bUrl}/api/loopback-gateway/tunnel?port=${port}`, {
             headers: {
@@ -812,7 +830,10 @@ export const scenarios: ReadonlyArray<Scenario> = [
           `  access line seen, Authorization masked; ticket absent from ${Object.keys(logs).join(", ")} (${Object.values(logs).reduce((n, text) => n + text.length, 0)} bytes)`,
         );
       } finally {
-        await Promise.allSettled([accessLog?.restore(), sessionOnB.close()]);
+        await Promise.allSettled([
+          accessLog === undefined ? undefined : reconnected(accessLog.restore),
+          sessionOnB.close(),
+        ]);
       }
     },
   },

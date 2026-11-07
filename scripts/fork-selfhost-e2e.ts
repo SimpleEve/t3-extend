@@ -165,7 +165,7 @@ try {
         "logs",
         "--no-color",
         "--tail",
-        "40",
+        "400",
         "registry",
         "frps",
         "caddy",
