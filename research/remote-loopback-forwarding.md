@@ -386,7 +386,7 @@ DPoP 会话约每小时换成一个新的会话 id（设备会话 TTL 是 1 小�
 
 主控的默认是"专用请求头，不要用 `Authorization`，先查清再说"。查清之后用 `Authorization` 的自定义方案，理由只有一条：**没有任何解析器会把 `T3X-Gateway` 当会话凭据**（上表）。**不再把"默认遮蔽"当作理由或安全前提**（复核 P0-2）：Effect 和 Caddy 默认遮蔽 `Authorization` 是一层兜底，下面的显式脱敏才是机制。
 
-代价和退路：中间设备如果对 `Authorization` 做特殊处理（企业代理剥掉、frp 的 `httpUser` 基本认证），请求会失败。我们的 frpc 配置没有 `httpUser`/`httpPassword`（`frpcConfig.ts`）；frp 与 Caddy 是否原样保留，9.4 实测（§3.5）。若发现问题，退路是自造头 `X-T3x-Gateway-Ticket`，并把这个名字追加进下面第 3 条的遮蔽名单和 Caddyfile——实现里头名是一个常量，改动一处。
+代价和退路：中间设备如果对 `Authorization` 做特殊处理（企业代理剥掉、frp 的 `httpUser` 基本认证），请求会失败。我们的 frpc 配置没有 `httpUser`/`httpPassword`（`frpcConfig.ts`）；frp 与 Caddy 是否原样保留，9.4 实测（§3.5）：自建隧道这条路径已经证明会原样保留，场景 15 的隧道和场景 16 的升级都靠 `Authorization: T3X-Gateway` 经 Caddy 和 frps 到达 B 并通过认证（其余连接方式仍待测）。若发现问题，退路是自造头 `X-T3x-Gateway-Ticket`，并把这个名字追加进下面第 3 条的遮蔽名单和 Caddyfile——实现里头名是一个常量，改动一处。
 
 #### 显式脱敏：票据永远不以明文离开入口函数
 
@@ -406,7 +406,7 @@ DPoP 会话约每小时换成一个新的会话 id（设备会话 TTL 是 1 小�
 - **sink 全覆盖测试：** 收集 logger（console、文件、OTLP 的 `Logger` 实例）和 tracer（本地文件 tracer 加一个捕获全部 span 属性、事件、错误 cause 的测试 tracer）的**全部输出**，走完整个请求周期，断言找不到哨兵票据，也找不到它的任何长度 ≥ 12 的子串。路径至少包括：成功；坏票据（篡改）；过期；已撤销；错 audience（无 audience、`rpc`、`media`）；错方案（`Bearer`）；缺 scope；端口被拒（`not-owned`、`reserved`、`debug-process`）；核对失败（`owner-changed`）；拨号失败（`upstream-refused`）；隧道中途断开；撤销导致断开；处理器内部抛出缺陷。`--log-ws-events` 打开和关闭各跑一遍。
 - **守卫测试（真实 server 层）：** 在真实 server 层的上下文里读 `Headers.CurrentRedactedNames`，断言含 `authorization`；断言 `HttpMiddleware.TracerHeaderFilter` 对 `authorization`（请求和响应两个阶段）返回 `false`；再加一个静态扫描测试，断言 `apps/server/src`、`packages/shared/src` 里对 `Headers.CurrentRedactedNames` 和 `TracerHeaderFilter` 的赋值点只有已知的几处（现在：`httpObservability.ts` 的追加）——新增覆盖点会让测试失败，直到有人确认它没有丢掉 `authorization`。
 - `Headers.redact` 对 `authorization` 返回被遮蔽的值。
-- **Caddy 与 frps（9.4，逐项实测后才能把 P0-2 标为解决）：** `Caddyfile` 没有未加过滤的 `log`（基础设施测试）；在本地试用栈里临时打开 Caddy 的访问日志，实测 `Authorization` 被遮蔽；frps 的日志不打印请求头（同一个栈上，用哨兵票据发一条隧道升级，grep frps 和 Caddy 的全部日志输出）。
+- **Caddy 与 frps（9.4，逐项实测后才能把 P0-2 标为解决）。已实测通过（`fork:selfhost:e2e` 场景 16，2026-11-07）：** `Caddyfile`、`Caddyfile.test` 和 ntfy 片段里没有 `log`、`log_credentials`；在运行中的 Caddy 里临时加载带访问日志的配置，真票据和哨兵票据各发一次经 Caddy 和 frps 的隧道升级，访问日志里 `Authorization` 是 `REDACTED`，Caddy、frps、registry 的全部输出里找不到两个票据（随机部分任取 12 个字符也找不到）；加上 `log_credentials` 场景会失败。frps 以 info 级别运行，没有打印任何请求头。
 
 ### 4.4 网关路由的认证函数 `authenticateGatewayTicket`
 
