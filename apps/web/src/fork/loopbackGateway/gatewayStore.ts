@@ -15,6 +15,8 @@ export interface GatewayDenial {
   readonly port: number;
   /** Position in the order events and tab loads were seen; later means newer. */
   readonly seq: number;
+  /** Came from a webview no tab was bound to yet: its load began before the tab could report it. */
+  readonly unbound?: boolean;
 }
 
 interface TabLoad {
@@ -130,16 +132,21 @@ export function noteGatewayTabState(input: {
   patch((store) => {
     const startsLoading = loading && previous?.loading !== true;
     const seq = startsLoading ? store.seq + 1 : store.seq;
+    // A refusal that came before this tab was bound to the webview belongs to the load that is
+    // being reported now; it must not read as an earlier one. It counts this way once.
+    const early = webContentsId === null ? undefined : store.pageDenials[webContentsId];
+    const adopt = early?.unbound === true;
+    const loadStartedSeq = !startsLoading
+      ? (previous?.loadStartedSeq ?? 0)
+      : adopt
+        ? early.seq - 1
+        : seq;
     return {
       seq,
-      tabs: {
-        ...store.tabs,
-        [runtimeTabId]: {
-          webContentsId,
-          loading,
-          loadStartedSeq: startsLoading ? seq : (previous?.loadStartedSeq ?? 0),
-        },
-      },
+      tabs: { ...store.tabs, [runtimeTabId]: { webContentsId, loading, loadStartedSeq } },
+      ...(adopt
+        ? { pageDenials: { ...store.pageDenials, [webContentsId!]: { ...early, unbound: false } } }
+        : {}),
     };
   });
 }
@@ -152,7 +159,10 @@ export function noteGatewayDenied(input: {
 }) {
   patch((store) => {
     const seq = store.seq + 1;
-    const denial: GatewayDenial = { code: input.code, port: input.port, seq };
+    const unbound =
+      input.webContentsId !== undefined &&
+      !Object.values(store.tabs).some((tab) => tab.webContentsId === input.webContentsId);
+    const denial: GatewayDenial = { code: input.code, port: input.port, seq, unbound };
     return input.webContentsId === undefined
       ? {
           seq,
