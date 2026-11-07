@@ -779,7 +779,12 @@ export const scenarios: ReadonlyArray<Scenario> = [
           ticket: Redacted.Redacted<string>;
         };
         const real = Redacted.value(issued.ticket);
-        const sentinel = `SENTINEL${NodeCrypto.randomBytes(24).toString("hex")}`;
+        // A second ticket of the same session, never sent anywhere: what tickets share (§4.3).
+        const reference = Redacted.value(
+          ((await sessionOnB.call("loopbackGateway.issueTicket", {})) as typeof issued).ticket,
+        );
+        // Both segments random and independent, so every 12-character piece of it is unique.
+        const sentinel = `${NodeCrypto.randomBytes(48).toString("base64url")}.${NodeCrypto.randomBytes(32).toString("base64url")}`;
         // A reload of Caddy drops the tunnels' control connections (they run through it): wait until
         // both computers' frpc are logged in again before sending anything through them.
         await reconnected(async () => {
@@ -815,10 +820,12 @@ export const scenarios: ReadonlyArray<Scenario> = [
             ["the made-up ticket", sentinel],
             ["the real ticket", real],
           ] as const) {
-            const found = findSecret(text, secret);
+            const found = findSecret(text, secret, {
+              references: secret === real ? [reference] : [],
+            });
             check(
               found === undefined,
-              `${what} (or part of it) is in ${name}'s log: ${text
+              `${what} (or a piece of 12 or more characters of it) is in ${name}'s log: ${text
                 .split("\n")
                 .find((line) => line.includes(found!))
                 ?.replaceAll(found!, "<HERE>")}`,

@@ -87,15 +87,22 @@ export async function stackLogs(stack: Stack): Promise<{
 }
 
 /**
- * The secret, or any run of `window` characters of its last dot-separated part (a signed ticket's
- * signature, which is random; its header and the start of its payload are shared by every ticket
- * the server signs, and would match other tickets' lines).
+ * The secret, or any 12-character window of it (a leaked piece of 12 or more characters holds
+ * one), except windows that also occur in a `reference`: a ticket of the same session issued a
+ * moment apart. Those are what all its tickets share (claims prefix and key names, session id, key
+ * thumbprint, leading timestamp digits); a unique digit or any of the signature is always checked.
  */
-export function findSecret(text: string, secret: string, window = 12): string | undefined {
+export function findSecret(
+  text: string,
+  secret: string,
+  options: { readonly window?: number; readonly references?: ReadonlyArray<string> } = {},
+): string | undefined {
+  const window = options.window ?? 12;
+  const references = options.references ?? [];
   if (text.includes(secret)) return secret;
-  const random = secret.slice(secret.lastIndexOf(".") + 1);
-  for (let at = 0; at + window <= random.length; at += 1) {
-    const piece = random.slice(at, at + window);
+  for (let at = 0; at + window <= secret.length; at += 1) {
+    const piece = secret.slice(at, at + window);
+    if (references.some((reference) => reference.includes(piece))) continue;
     if (text.includes(piece)) return piece;
   }
   return undefined;
