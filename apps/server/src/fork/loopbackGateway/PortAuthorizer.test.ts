@@ -15,6 +15,7 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as TestClock from "effect/testing/TestClock";
 
@@ -743,6 +744,45 @@ describe("a read of an empty port that is interrupted", () => {
         "not-owned (no terminal or agent of this environment owns this port)",
       );
     }),
+  );
+
+  it.effect(
+    "does not hang the refusals that share it when the interrupt lands before the read starts",
+    () =>
+      Effect.gen(function* () {
+        const authorizer = yield* makeAuthorizer({
+          serverPid: process.pid,
+          reservedPorts: Effect.succeed(new Set()),
+        }).pipe(
+          Effect.provideService(PortScanner.PortDiscovery, {
+            scan: () => Effect.succeed([]),
+            scanBackground: () => Effect.succeed([]),
+          } as never),
+          Effect.provideService(ProcessInspector.ProcessInspector, {
+            // Calling the function is what happens right after the read is claimed and before its
+            // completion is installed. Interrupting the calling fiber here lands in that stretch.
+            listeners: () => {
+              Fiber.getCurrent()!.interruptUnsafe();
+              return Effect.succeed([[]]);
+            },
+          } as never),
+          Effect.provideService(TerminalShellRegistry.TerminalShellRegistry, {
+            shells: Effect.succeed(new Map()),
+          }),
+          Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
+        );
+        yield* Fiber.await(yield* Effect.forkChild(authorizer.authorize(45021)));
+        // Same interval, same port: this one shares the read the interrupted request claimed.
+        const sharer = yield* Effect.forkChild(
+          code(authorizer.authorize(45021)).pipe(Effect.timeoutOption(Duration.millis(1_000))),
+        );
+        yield* TestClock.adjust(Duration.millis(1_000));
+        const answer = yield* Fiber.join(sharer);
+        assert.deepEqual(
+          answer,
+          Option.some("not-owned (no terminal or agent of this environment owns this port)"),
+        );
+      }),
   );
 });
 
