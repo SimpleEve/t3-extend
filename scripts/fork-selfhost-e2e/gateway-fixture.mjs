@@ -8,7 +8,9 @@ import * as NodeNet from "node:net";
 
 const [port, notifyPort] = process.argv.slice(2).map(Number);
 const notify = NodeNet.connect(notifyPort, "127.0.0.1");
+// The harness is this process's lease: gone (a failed run kills B, not the terminal's children), so is it.
 notify.on("error", () => process.exit(1));
+notify.on("close", () => process.exit(0));
 const report = (line) => notify.write(`${line}\n`);
 
 const WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
