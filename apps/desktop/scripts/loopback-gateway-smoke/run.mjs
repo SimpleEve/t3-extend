@@ -80,7 +80,7 @@ const runPhase = (phase) =>
         NodePath.join(here, "main.mjs"),
         `--user-data-dir=${NodePath.join(outputDir, "user-data")}`,
         "--use-mock-keychain",
-        "--host-resolver-rules=MAP direct.test 127.0.0.1",
+        "--host-resolver-rules=MAP direct.test 127.0.0.1, MAP rebind.test 127.0.0.1, MAP localhost.localdomain 127.0.0.1",
         "--disable-features=CalculateNativeWinOcclusion",
       ],
       {

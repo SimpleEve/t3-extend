@@ -894,14 +894,18 @@ M2 的设计变更见 §5.6.0.1：判断全部来自每条隧道现读的祖先�
 - 暴露程度**等同于本机 dev server 对本机浏览器里的页面**：同样的 Host、同样的 Origin、同样的服务自己的 CORS 和 `allowedHosts` 策略。网关不放宽也不收紧这些策略；具体能不能读到，取决于该 dev server 版本的默认值（早期 Vite 默认对所有来源开放 CORS，较新的版本限制 `Host` 和跨源读取）。这是 dev server 本身的属性，不是网关引入的。
 - 网关引入的变化是**页面所在的位置**：本来在 A 上的页面现在能碰到 B 上的服务。所以"这个标签页里加载了什么"变成了安全问题：用户在 B 的对话标签页里导航到外部网站，那个网站的脚本能对 B 上有主的 dev server 发请求。缓解见 6.1：许可范围、调试端口、整进程排除；文档要明说"别在转发的标签页里打开不信任的网站"。
 
-**验收用例（9.4 的端到端，在真实 Electron 里做；不依赖 Electron 的部分在 9.1 的路由层先测）：**
+**验收用例（2026-11-07 做完，`vp run fork:loopback-gateway:electron-smoke` 的 29 个场景里有 5 个是它们，连跑两遍全过；用例 2 由 server 测试覆盖）：**
 
-1. **外部来源的页面读不到 `/@fs/`：** 一个夹具服务模拟 Vite 的 `/@fs/…` 路由，按 Host 和 Origin 决定是否返回 CORS 头（拒绝外部 Origin、`Host` 不是 `localhost`）。断言：从 `localhost` 同源页面请求成功；从外部 Origin 的页面（`direct.test`）的跨源 `fetch` 读不到内容（无 `Access-Control-Allow-Origin`）；并断言网关**没有改写** Host 和 Origin（夹具记录请求头，与直连时逐字节一致）。这测的是"网关不改变 dev server 能看到的头"，不是 Vite 本身。
-2. **默认端口上的 Node inspect 被拒：** 一个监听在 9229 的进程，在有主的前提下仍被拒（屏蔽表）；一个 `--inspect=0` 的进程，它的 web 端口和随机检查器端口都被拒（整进程排除）。
-3. **`*.localhost`：** `http://app.localhost:P` 过代理、到达同一个有主端口；代理的主机判定接受；`http://localhost.localdomain:P` 不过代理（直连 A，页面自己的问题）。
-4. **IPv4-mapped IPv6：** `http://[::ffff:127.0.0.1]:P` 过代理（实测写法变成 `[::ffff:7f00:1]`），代理判定接受，B 端拨的是复核得到的地址，不是页面写的地址。
-5. **DNS rebinding：** 解析到 127.0.0.1 的非回环名（测试里用 `--host-resolver-rules` 映射）的请求**不过代理**，直连 A；代理收到的任何非回环主机请求得到 403，B 端收到 0 次开隧道请求。
-6. **source map：** 夹具服务提供带 `sourcesContent` 的 `.map` 文件，行为同 1：同源页面能取，外部 Origin 的页面跨源读不到；网关不改写头。
+用的是同一个假网关（`fakeGateway.testkit.ts`）、真实 Electron 和真实回环夹具，`--host-resolver-rules` 把 `direct.test`、`rebind.test`、`localhost.localdomain` 映射到 127.0.0.1。"直连"一组用一个没装代理的 session 对照。
+
+1. **外部来源的页面读不到 `/@fs/`（冒烟，通过）：** 夹具模拟 Vite 的 `/@fs/…`：`Host` 必须是 `localhost:<端口>`，只对同源 `Origin` 返回 CORS 头。同源页面读到内容；`direct.test` 上的页面跨源 `fetch` 被拒（`TypeError`，请求到了夹具，但没有 `Access-Control-Allow-Origin`）；`http://127.0.0.1:<端口>/` 页面的请求得 403（`Host` 没被改成 `localhost`）。网关和直连两组，夹具收到的 `Host`、`Origin` 值**逐字节相同**（同源 GET 没有 `Origin`，跨源是 `http://direct.test:<端口>`）；网关没有加 `X-Forwarded-*`、`Forwarded`、`Via`、`X-Real-IP`。头名的大小写会变（网关的代理按 Node 的小写头名转发），值不变。这测的是"网关不改变 dev server 能看到的头"，不是 Vite 本身。
+2. **默认端口上的 Node inspect 被拒（server 测试，冒烟不做）：** `PortAuthorizer.test.ts`（9229 在有主的前提下仍被拒）和 `GatewayExclusions.test.ts`（`--inspect=0` 的 web 端口和随机检查器端口都被拒）用真实进程覆盖，macOS 和 Linux 都跑。
+3. **`*.localhost`（冒烟，通过）：** `app.localhost` 和 `deep.app.localhost` 的 `resolveProxy` 是代理，页面加载、`location.origin` 不变，夹具看到各自的 `Host`，假网关看到隧道；`localhost.localdomain` 是 `DIRECT`，页面直连夹具，假网关没有新隧道。代理用的共享判定函数对两者的答案和 Chromium 一致。
+4. **IPv4-mapped IPv6（冒烟，通过）：** `http://[::ffff:127.0.0.1]:P` 过代理。**Chromium 实际写出来的主机形式是 `[::ffff:7f00:1]`**（`location.host`，也是夹具收到的 `Host`）；代理判定接受这个形式。映射的公网地址（`[::ffff:8.8.8.8]`）是 `DIRECT`。限定：假网关只能看到隧道请求里的端口（协议只带端口），它拨的是硬编码的 `127.0.0.1`，所以这里能证明的是"页面的原始字符串没有进入隧道请求"，"B 端拨复核得到的地址"本身由 server 端的拨号测试保证。
+5. **DNS rebinding（冒烟，通过）：** `rebind.test` 映射到 127.0.0.1。页面导航、同源 `fetch`、从被隧道的回环页面发出的跨源 `fetch` 都直连（夹具收到请求、`Host` 原样，假网关对这个端口开隧道 0 次）。直接对代理口发带正确 `Proxy-Authorization` 的请求：`rebind.test`、`localhost.localdomain`、`0.0.0.0`、`[::ffff:808:808]`、`127.0.0.1.rebind.test` 的绝对 URI 请求和 `CONNECT` 全部 403，隧道 0 次；对照：回环地址 200，没有口令 407。原来的"非回环主机直连"场景并入了这一条。
+6. **source map（冒烟，通过）：** 夹具提供带 `sourcesContent` 的 `.map`，规则同 1：同源读到，`direct.test` 页面跨源读不到，`Host`、`Origin` 与直连逐字节相同。
+
+**测试本身有效的证据（反例）：** 三处临时改坏产品代码，各跑一遍完整冒烟，改回后 `git diff` 为空。Chromium 的代理规则改成 `<-loopback>`（非回环主机也进代理）：4 个场景失败；代理的主机判定改成对任何主机都接受：DNS rebinding 场景失败（`rebind.test` 经 HTTP 得 200）；代理改写 `Host` 并删掉 `Origin`：`/@fs/`、source map、`*.localhost` 三个场景失败。**还要人工走查的：** 真实 dev server（Vite 当前版本的默认 `server.fs`、`allowedHosts`、CORS）对外部来源的实际行为，这取决于它的版本和配置，冒烟里只有模拟的夹具。
 
 ### 6.8 Local Network Access（Chromium 152 / Electron 44.10.1）
 
