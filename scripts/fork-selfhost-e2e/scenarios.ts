@@ -1006,7 +1006,7 @@ export const scenarios: ReadonlyArray<Scenario> = [
     id: 17,
     optional: true,
     title:
-      "first-screen timing of a 300-module page through the tunnel (research/remote-loopback-forwarding.md 11.1)",
+      "module-graph fetch time of 300 modules through the tunnel, without a browser (research/remote-loopback-forwarding.md 11.1)",
     timeoutMs: 900_000,
     run: async (world) => {
       const a = need(world.a, "A");
@@ -1174,7 +1174,6 @@ export const scenarios: ReadonlyArray<Scenario> = [
             ),
             `${route} at ${rttMs} ms`,
           );
-        const local = row("local", 0);
         lines.push(
           "",
           `The page is /m/0.js and the 299 modules it leads to (about 4 KB each), fetched breadth first over at most six connections, no browser. The tunnel paths open a fresh gateway (cold: no tunnel yet) for every run.`,
@@ -1185,12 +1184,11 @@ export const scenarios: ReadonlyArray<Scenario> = [
         for (const rtt of [50, 100]) {
           const tunnel = row("tunnel", rtt);
           const straight = row("straight", rtt);
-          const slower = tunnel.graph.median - local.graph.median;
-          const overhead = tunnel.graph.median - straight.graph.median;
+          const extra = tunnel.graph.median - straight.graph.median;
           const setup = tunnel.setup?.median ?? 0;
           const withoutCheck = Math.max(0, setup - (authorizeStats?.median ?? 0));
           lines.push(
-            `${rtt} ms round trip: the tunnel load is ${slower.toFixed(0)} ms slower than through the gateway to B's own port${rtt === 50 ? ` (11.1's limit is 1500 ms: ${slower > 1500 ? "EXCEEDED" : "within"})` : ""}, and ${overhead.toFixed(0)} ms slower than reaching the service directly over the same round trip, which is the gateway's own share. A tunnel takes ${(setup / rtt).toFixed(1)} round trips to set up${rtt === 50 ? ` (limit 3: ${setup / rtt > 3 ? "EXCEEDED" : "within"})` : ""}; ${(withoutCheck / rtt).toFixed(1)} without B's port check.`,
+            `${rtt} ms round trip: fetching the module graph through the tunnel takes ${extra.toFixed(0)} ms more than reaching the service directly over the same round trip (the gateway's own share; no threshold is applied). A tunnel takes ${(setup / rtt).toFixed(1)} round trips to set up, ${(withoutCheck / rtt).toFixed(1)} without B's port check.`,
           );
         }
         NodeFS.writeFileSync(

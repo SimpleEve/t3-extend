@@ -1,6 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off globalTimers:off globalDate:off - sockets and a stopwatch, outside any Effect fiber.
-// The measuring half of research/remote-loopback-forwarding.md 11.1: a page load against the
-// fixture's 300-module graph, with no browser (Electron is not started here), through whichever
+// The measuring half of research/remote-loopback-forwarding.md 11.1: fetching the fixture's
+// 300-module graph, as a proxy for a page load, with no browser (Electron is not started here), through whichever
 // path the caller gives, and a TCP relay that adds latency without touching the system's network.
 import * as NodeFS from "node:fs";
 import * as NodeHttp from "node:http";
@@ -16,9 +16,9 @@ export interface Fetched {
 export type FetchPath = (path: string) => Promise<Fetched>;
 
 export interface PageLoad {
-  /** Until the HTML (here: the entry module's URL page) is complete. */
+  /** Until the entry module is complete. */
   readonly firstResponseMs: number;
-  /** Until the last module of the graph is complete: what `DOMContentLoaded` waits for in a module page. */
+  /** Until the last module of the graph is complete. Not `DOMContentLoaded`: nothing is parsed or run. */
   readonly graphMs: number;
   readonly requests: number;
 }
