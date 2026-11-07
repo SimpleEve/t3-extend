@@ -10,6 +10,7 @@ import * as DateTime from "effect/DateTime";
 import * as Redacted from "effect/Redacted";
 import { app, BrowserWindow, session as electronSession } from "electron";
 import type { Session } from "electron";
+import { isLoopbackGatewayHost } from "@t3tools/shared/forkLoopbackGateway/hosts";
 import { WebSocketServer } from "ws";
 
 import { renderGatewayErrorPage } from "../../src/fork/loopbackGateway/errorPage.ts";
@@ -18,6 +19,10 @@ import {
   makeLoopbackGatewayHost,
   makeProxyLoginListener,
 } from "../../src/fork/loopbackGateway/LoopbackGatewayHost.ts";
+import {
+  proxyAuthorization,
+  requestViaProxy,
+} from "../../src/fork/loopbackGateway/proxyClient.testkit.ts";
 import { makeTlsFixtures } from "../../src/fork/loopbackGateway/tlsFixtures.testkit.ts";
 
 const outputDir = process.env.T3X_SMOKE_OUTPUT ?? "/tmp/t3x-p92/smoke-unset";
@@ -64,14 +69,30 @@ const scenario = async (name: string, run: () => Promise<string>): Promise<void>
   }
 };
 
+interface Served {
+  readonly method: string;
+  readonly url: string;
+  readonly host: string | undefined;
+  readonly origin: string | undefined;
+  readonly rawHeaders: ReadonlyArray<string>;
+}
+
 interface Fixture {
   readonly port: number;
-  readonly served: Array<{ readonly method: string; readonly url: string }>;
+  readonly served: Array<Served>;
   readonly connections: () => number;
   readonly close: () => Promise<void>;
 }
 
 const listening: Array<NodeHttp.Server | NodeHttps.Server> = [];
+
+const servedEntry = (method: string, request: NodeHttp.IncomingMessage): Served => ({
+  method,
+  url: request.url ?? "",
+  host: request.headers.host,
+  origin: request.headers.origin,
+  rawHeaders: request.rawHeaders,
+});
 
 const startFixture = async (
   handler: (request: NodeHttp.IncomingMessage, response: NodeHttp.ServerResponse) => void,
@@ -84,7 +105,7 @@ const startFixture = async (
   const served: Fixture["served"] = [];
   let connections = 0;
   const onRequest = (request: NodeHttp.IncomingMessage, response: NodeHttp.ServerResponse) => {
-    served.push({ method: request.method ?? "", url: request.url ?? "" });
+    served.push(servedEntry(request.method ?? "", request));
     response.setHeader("Access-Control-Allow-Origin", "*");
     handler(request, response);
   };
@@ -98,7 +119,7 @@ const startFixture = async (
   if (options.websocket === true) {
     const sockets = new WebSocketServer({ noServer: true });
     server.on("upgrade", (request, socket, head) => {
-      served.push({ method: "UPGRADE", url: request.url ?? "" });
+      served.push(servedEntry("UPGRADE", request));
       sockets.handleUpgrade(request, socket, head, (ws) => {
         ws.on("message", (data) => ws.send(data.toString()));
       });
@@ -126,6 +147,86 @@ const page =
     response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     response.end(html(body, head));
   };
+
+// A stand-in for a dev server's `/@fs/` and source map routes: it answers only when `Host` is
+// `localhost:<its port>`, and allows a cross-origin read only to its own origin.
+const FS_SECRET = "smoke-fs-secret";
+const SOURCE_MAP = JSON.stringify({
+  version: 3,
+  file: "app.js",
+  sources: ["src/app.ts"],
+  sourcesContent: ["export const smokeSourceSecret = 'smoke-source-secret';\n"],
+  names: [],
+  mappings: "AAAA",
+});
+const startDevServerFixture = async (): Promise<Fixture> => {
+  let ownPort = 0;
+  const fixture = await startFixture((request, response) => {
+    response.removeHeader("Access-Control-Allow-Origin");
+    const url = request.url ?? "";
+    if (url === "/") return page("<p>dev server</p>")(request, response);
+    const body = url.startsWith("/@fs/")
+      ? FS_SECRET
+      : url.endsWith(".map")
+        ? SOURCE_MAP
+        : undefined;
+    if (body === undefined) return void response.writeHead(404).end();
+    if (request.headers.host !== `localhost:${ownPort}`) {
+      return void response.writeHead(403, { "Content-Type": "text/plain" }).end("host not allowed");
+    }
+    const origin = request.headers.origin;
+    response.writeHead(200, {
+      "Content-Type": "text/plain",
+      "Cache-Control": "no-store",
+      ...(origin === `http://localhost:${ownPort}`
+        ? { "Access-Control-Allow-Origin": origin }
+        : {}),
+    });
+    response.end(body);
+  });
+  ownPort = fixture.port;
+  return fixture;
+};
+
+const headerValues = (entry: Served, name: string): Array<string> => {
+  const values: Array<string> = [];
+  for (let at = 0; at < entry.rawHeaders.length; at += 2) {
+    if (entry.rawHeaders[at]!.toLowerCase() === name) values.push(entry.rawHeaders[at + 1]!);
+  }
+  return values;
+};
+const headerNames = (entry: Served): Set<string> =>
+  new Set(entry.rawHeaders.filter((_, at) => at % 2 === 0).map((name) => name.toLowerCase()));
+const sameBytes = (left: ReadonlyArray<string>, right: ReadonlyArray<string>): boolean =>
+  left.length === right.length &&
+  left.every((value, at) => Buffer.from(value, "latin1").equals(Buffer.from(right[at]!, "latin1")));
+// What a forwarding hop would add; the gateway must add none of it.
+const FORWARDING_HEADER = /^(?:x-forwarded-|forwarded$|via$|x-real-ip$|x-t3x)/u;
+
+const connectViaProxy = (
+  proxyPort: number,
+  authorization: string,
+  target: string,
+): Promise<number> =>
+  new Promise((resolve, reject) => {
+    const request = NodeHttp.request({
+      host: "127.0.0.1",
+      port: proxyPort,
+      method: "CONNECT",
+      path: target,
+      headers: { Host: target, "Proxy-Authorization": authorization },
+    });
+    request.once("connect", (response, socket) => {
+      socket.destroy();
+      resolve(response.statusCode ?? 0);
+    });
+    request.once("response", (response) => {
+      response.resume();
+      resolve(response.statusCode ?? 0);
+    });
+    request.once("error", reject);
+    request.end();
+  });
 
 const windows: Array<BrowserWindow> = [];
 const openWindow = (session: Session, webviewTag = false): BrowserWindow => {
@@ -584,15 +685,245 @@ const main = async (): Promise<void> => {
     return "1 MiB downloaded intact through the tunnel";
   });
 
-  await scenario("a non-loopback host stays direct", async () => {
-    const fixture = await startFixture(page('<p id="d">direct</p>'));
+  // Design 6.2 and 6.7 case 5: a name that is not loopback but resolves to 127.0.0.1 (DNS
+  // rebinding, `--host-resolver-rules` here) never reaches the gateway, and neither does anything
+  // sent to the proxy port by hand.
+  await scenario(
+    "a non-loopback host stays direct, and the proxy refuses it (DNS rebinding)",
+    async () => {
+      const rebound = await startFixture(page('<p id="d">direct</p>'));
+      const loopbackPage = await startFixture(page("<p>loopback page</p>"));
+      const win = openWindow(defaultSession);
+      await load(win, `http://rebind.test:${rebound.port}/`);
+      const text = await evaluate<string>(win, "document.getElementById('d').textContent");
+      check(text === "direct", `page said ${text}`);
+      const sameOrigin = await evaluate<string>(
+        win,
+        "fetch('/same-origin', { cache: 'no-store' }).then((r) => r.status + ':' + r.url)",
+      );
+      check(sameOrigin.startsWith("200:"), `same-origin fetch returned ${sameOrigin}`);
+      // A page that is itself tunnelled asks for the rebinding name as well.
+      const fromLoopback = openWindow(defaultSession);
+      await load(fromLoopback, `http://localhost:${loopbackPage.port}/`);
+      const cross = await evaluate<string>(
+        fromLoopback,
+        `fetch('http://rebind.test:${rebound.port}/cross-origin', { cache: 'no-store' }).then((r) => r.status + '')`,
+      );
+      check(cross === "200", `cross-origin fetch returned ${cross}`);
+      check(rebound.served.length >= 3, `the fixture saw ${rebound.served.length} request(s)`);
+      check(
+        rebound.served.every((entry) => entry.host === `rebind.test:${rebound.port}`),
+        "a request reached the fixture with another Host",
+      );
+      check(attempts(rebound.port) === 0, "a non-loopback host was tunnelled");
+      check(attempts(loopbackPage.port) > 0, "the loopback page itself did not use the tunnel");
+
+      // The proxy port, spoken to directly with the right password: refused, nothing tunnelled.
+      const rule = await defaultSession.resolveProxy(`http://localhost:${loopbackPage.port}/`);
+      const proxyPort = Number(/^PROXY 127\.0\.0\.1:(\d+)/u.exec(rule)?.[1]);
+      check(Number.isInteger(proxyPort), `no proxy port in "${rule}"`);
+      const login = host.answerProxyLogin({
+        isProxy: true,
+        host: "127.0.0.1",
+        port: proxyPort,
+        session: defaultSession,
+      });
+      check(login !== null, "the host gave no proxy credentials");
+      const authorization = proxyAuthorization(login!.username, login!.password);
+      const positive = await requestViaProxy(
+        proxyPort,
+        authorization,
+        `http://localhost:${loopbackPage.port}/`,
+      );
+      check(positive.status === 200, `the loopback control request got ${positive.status}`);
+      const anonymous = await requestViaProxy(
+        proxyPort,
+        undefined,
+        `http://localhost:${loopbackPage.port}/`,
+      );
+      check(anonymous.status === 407, `the request without a password got ${anonymous.status}`);
+      const refusedHosts = [
+        "rebind.test",
+        "localhost.localdomain",
+        "0.0.0.0",
+        "[::ffff:808:808]",
+        "127.0.0.1.rebind.test",
+      ];
+      const statuses: Array<string> = [];
+      for (const refusedHost of refusedHosts) {
+        const target = `${refusedHost}:${rebound.port}`;
+        const viaHttp = await requestViaProxy(proxyPort, authorization, `http://${target}/`);
+        const viaConnect = await connectViaProxy(proxyPort, authorization, target);
+        check(viaHttp.status === 403, `${target} over HTTP got ${viaHttp.status}`);
+        check(viaConnect === 403, `${target} over CONNECT got ${viaConnect}`);
+        statuses.push(`${refusedHost} 403/403`);
+      }
+      check(attempts(rebound.port) === 0, "a refused request opened a tunnel");
+      return `navigation, same-origin fetch and cross-origin fetch to rebind.test went direct (0 tunnels, ${rebound.served.length} fixture requests, Host kept); the proxy answered 403 over HTTP and CONNECT for ${statuses.join(", ")}; control: loopback 200, no password 407`;
+    },
+  );
+
+  // Design 6.7 cases 1 and 6: a page from another origin cannot read what a dev server keeps from
+  // other origins, and the gateway leaves Host and Origin as the page's own request had them.
+  const runThreatProbe = async (label: string, path: string, secret: string): Promise<string> => {
+    const dev = await startDevServerFixture();
+    const external = await startFixture(page("<p>external</p>"));
+    const devOrigin = `http://localhost:${dev.port}`;
+    const externalOrigin = `http://direct.test:${external.port}`;
+    const fetchPath = `fetch(${JSON.stringify(path)}, { cache: 'no-store' })`;
+
+    const probe = async (session: Session) => {
+      const lastRequest = (mark: number, what: string): Served => {
+        const entry = dev.served.slice(mark).findLast((one) => one.url === path);
+        check(entry !== undefined, `${what}: the fixture saw no request for ${path}`);
+        return entry!;
+      };
+      let mark = dev.served.length;
+      const sameWin = openWindow(session);
+      await load(sameWin, `${devOrigin}/`);
+      const sameText = await evaluate<string>(sameWin, `${fetchPath}.then((r) => r.text())`);
+      const same = lastRequest(mark, "same origin");
+
+      mark = dev.served.length;
+      const foreignWin = openWindow(session);
+      await load(foreignWin, `${externalOrigin}/`);
+      const crossOutcome = await evaluate<string>(
+        foreignWin,
+        `fetch(${JSON.stringify(`${devOrigin}${path}`)}, { cache: 'no-store' }).then(
+          (r) => r.text().then((body) => 'read:' + body), (error) => 'blocked:' + error.name)`,
+      );
+      const cross = lastRequest(mark, "cross origin");
+
+      // A page opened by another name of the same server: the Host must stay that name too.
+      mark = dev.served.length;
+      const numericWin = openWindow(session);
+      await load(numericWin, `http://127.0.0.1:${dev.port}/`);
+      const numericStatus = await evaluate<number>(
+        numericWin,
+        `${fetchPath}.then((r) => r.status)`,
+      );
+      const numeric = lastRequest(mark, "127.0.0.1 page");
+      return { sameText, same, crossOutcome, cross, numericStatus, numeric };
+    };
+
+    const direct = await probe(controlSession);
+    check(attempts(dev.port) === 0, "the session without the proxy opened a tunnel");
+    const tunnelled = await probe(defaultSession);
+    check(attempts(dev.port) > 0, "the proxied session reached the fixture without a tunnel");
+    check(attempts(external.port) === 0, "the external page was tunnelled");
+
+    const compared: Array<string> = [];
+    for (const [via, outcome] of [
+      ["direct", direct],
+      ["gateway", tunnelled],
+    ] as const) {
+      check(outcome.sameText === secret, `${via}: the same-origin page read "${outcome.sameText}"`);
+      check(
+        outcome.crossOutcome === "blocked:TypeError",
+        `${via}: the page at ${externalOrigin} got "${outcome.crossOutcome}"`,
+      );
+      check(outcome.numericStatus === 403, `${via}: 127.0.0.1 page got ${outcome.numericStatus}`);
+      check(outcome.same.origin === undefined, `${via}: a same-origin GET carried an Origin`);
+      check(outcome.cross.origin === externalOrigin, `${via}: Origin was ${outcome.cross.origin}`);
+    }
+    const dump: Record<string, unknown> = {};
+    for (const key of ["same", "cross", "numeric"] as const) {
+      for (const name of ["host", "origin"]) {
+        check(
+          sameBytes(headerValues(direct[key], name), headerValues(tunnelled[key], name)),
+          `${key}: ${name} differs: direct ${JSON.stringify(headerValues(direct[key], name))}, gateway ${JSON.stringify(headerValues(tunnelled[key], name))}`,
+        );
+      }
+      const added = [...headerNames(tunnelled[key])].filter(
+        (name) => !headerNames(direct[key]).has(name),
+      );
+      const forwarding = added.filter((name) => FORWARDING_HEADER.test(name));
+      check(forwarding.length === 0, `${key}: the gateway added ${forwarding.join(", ")}`);
+      const missing = [...headerNames(direct[key])].filter(
+        (name) => !headerNames(tunnelled[key]).has(name),
+      );
+      compared.push(
+        `${key}: Host ${JSON.stringify(headerValues(direct[key], "host"))} Origin ${JSON.stringify(headerValues(direct[key], "origin"))} identical${added.length + missing.length === 0 ? "" : ` (other headers: +${added.join(",") || "-"} -${missing.join(",") || "-"})`}`,
+      );
+      dump[key] = { direct: direct[key].rawHeaders, gateway: tunnelled[key].rawHeaders };
+    }
+    NodeFS.writeFileSync(
+      NodePath.join(outputDir, `threat-headers-${label}.json`),
+      JSON.stringify(dump, null, 2),
+    );
+    return `same origin read it, ${externalOrigin} was blocked (TypeError), through the gateway and direct alike; ${compared.join("; ")}`;
+  };
+
+  await scenario("an external origin cannot read /@fs/, and the gateway rewrites no header", () =>
+    runThreatProbe("fs", "/@fs/smoke/secret.txt", FS_SECRET),
+  );
+
+  await scenario(
+    "an external origin cannot read a source map, and the gateway rewrites no header",
+    () => runThreatProbe("map", "/assets/app.js.map", SOURCE_MAP),
+  );
+
+  // Design 6.7 case 3.
+  await scenario("*.localhost goes through the proxy, localhost.localdomain does not", async () => {
+    const fixture = await startFixture(page('<p id="m">app</p>'));
+    check(
+      isLoopbackGatewayHost("app.localhost") && !isLoopbackGatewayHost("localhost.localdomain"),
+      "the shared host test disagrees",
+    );
+    const names = ["app.localhost", "deep.app.localhost"];
+    for (const name of names) {
+      const rule = await defaultSession.resolveProxy(`http://${name}:${fixture.port}/`);
+      check(/^PROXY 127\.0\.0\.1:\d+/u.test(rule), `${name} resolved to "${rule}"`);
+      const win = openWindow(defaultSession);
+      await load(win, `http://${name}:${fixture.port}/`);
+      const text = await evaluate<string>(win, "document.getElementById('m').textContent");
+      const origin = await evaluate<string>(win, "location.origin");
+      check(text === "app", `${name}: page said ${text}`);
+      check(origin === `http://${name}:${fixture.port}`, `${name}: origin was ${origin}`);
+    }
+    expectTunnelled("*.localhost", fixture);
+    const hosts = new Set(fixture.served.map((entry) => entry.host));
+    for (const name of names) {
+      check(hosts.has(`${name}:${fixture.port}`), `the fixture never saw Host ${name}`);
+    }
+    const tunnels = attempts(fixture.port);
+    const servedBefore = fixture.served.length;
+    const domainRule = await defaultSession.resolveProxy(
+      `http://localhost.localdomain:${fixture.port}/`,
+    );
+    check(domainRule === "DIRECT", `localhost.localdomain resolved to "${domainRule}"`);
+    const direct = openWindow(defaultSession);
+    await load(direct, `http://localhost.localdomain:${fixture.port}/`);
+    check(fixture.served.length > servedBefore, "localhost.localdomain did not reach the fixture");
+    check(attempts(fixture.port) === tunnels, "localhost.localdomain was tunnelled");
+    return `${names.join(" and ")} went through ${tunnels} tunnel(s) with their own Host; localhost.localdomain reached the fixture directly (DIRECT, no new tunnel)`;
+  });
+
+  // Design 6.7 case 4.
+  await scenario("an IPv4-mapped IPv6 address goes through the proxy", async () => {
+    const fixture = await startFixture(page('<p id="m">mapped</p>'));
+    const typed = `http://[::ffff:127.0.0.1]:${fixture.port}/`;
+    const rule = await defaultSession.resolveProxy(typed);
+    check(/^PROXY 127\.0\.0\.1:\d+/u.test(rule), `${typed} resolved to "${rule}"`);
+    const publicRule = await defaultSession.resolveProxy("http://[::ffff:8.8.8.8]:1/");
+    check(publicRule === "DIRECT", `a mapped public address resolved to "${publicRule}"`);
     const win = openWindow(defaultSession);
-    await load(win, `http://direct.test:${fixture.port}/`);
-    const text = await evaluate<string>(win, "document.getElementById('d').textContent");
-    check(text === "direct", `page said ${text}`);
-    check(fixture.served.length > 0, "the fixture saw no request");
-    check(attempts(fixture.port) === 0, "a non-loopback host was tunnelled");
-    return "direct.test reached the fixture without a tunnel";
+    await load(win, typed);
+    const text = await evaluate<string>(win, "document.getElementById('m').textContent");
+    const pageHost = await evaluate<string>(win, "location.host");
+    check(text === "mapped", `page said ${text}`);
+    expectTunnelled("::ffff:127.0.0.1", fixture);
+    const sent = fixture.served[0]?.host;
+    check(sent !== undefined, "the fixture saw no Host");
+    const sentName = sent!.replace(/:\d+$/u, "");
+    check(isLoopbackGatewayHost(sentName), `the proxy's host test rejects the form ${sentName}`);
+    check(isLoopbackGatewayHost("[::ffff:127.0.0.1]"), "the host test rejects the typed form");
+    const tunnelRequests = gateway.attempts.filter((attempt) => attempt.port === fixture.port);
+    check(
+      tunnelRequests.every((attempt) => attempt.origin === undefined),
+      "a tunnel request carried an Origin",
+    );
+    return `Chromium wrote ${pageHost} (Host header ${sent}) for the typed [::ffff:127.0.0.1]; the proxy accepted it; ${tunnelRequests.length} tunnel request(s) named only port ${fixture.port} (the fake gateway dials the 127.0.0.1 literal, never the page's string)`;
   });
 
   await scenario("a refused port shows the page and tells the renderer", async () => {
