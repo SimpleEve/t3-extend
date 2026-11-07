@@ -367,6 +367,60 @@ starts the T3 Code server, such as
 [`service.env`](./background-service.md#configure-the-service-environment) for
 the background service, and restart it. Script preview URLs still appear.
 
+### Localhost on a remote environment
+
+<!-- fork: T3 Extend only. Not part of upstream T3 Code. -->
+
+In the desktop app, a browser tab you open in a remote environment's thread
+renders on this computer, so `localhost` in it would normally mean this
+computer, not the environment. With forwarding, a service that a T3 terminal or
+an agent started on the environment, listening only on that environment's
+`localhost`, opens at `http://localhost:<port>` in the built-in browser. The page
+renders here and its requests go to the environment.
+
+To use it, start the service in a T3 terminal of that environment, or let an
+agent start it. Then enter `localhost:<port>` in the browser, pick it from
+[Local servers](#local-servers), or click its link in the terminal. A small icon
+beside the address bar shows that `localhost` is forwarded, and the address bar
+keeps showing `localhost`.
+
+Things that may surprise you:
+
+- In a remote environment's tab, `localhost` always means that environment. For
+  this computer's own `localhost`, use a tab in a local thread or your system
+  browser. Opening a link in your system browser is not forwarded.
+- Forwarding applies to the whole environment, not to one tab. Open the icon's
+  menu to **Stop forwarding and use this computer's localhost**, and use
+  **Resume forwarding** from the same place to turn it back on. This computer
+  remembers the choice. While forwarding is on, other websites in that
+  environment's tabs connect directly and skip your system proxy.
+- Only services that T3 terminals and agents started are forwarded. A service
+  started another way, a service whose parent process has exited, such as one
+  started with `nohup`, a service running with debugging flags such as
+  `--inspect`, and ports that debuggers use are not forwarded. The tab shows a
+  card that says why; **Open in {environment}'s browser** still works for them.
+- Services started by Claude and Codex agents are forwarded. For agents of other
+  providers, only services you start in a T3 terminal are.
+- Forwarding turns on only for encrypted connections and connections on the
+  same computer. It stays off, and tabs behave as before, for plain `http://`
+  addresses on a local network, for a Tailscale IPv4 address (`100.x`) over plain
+  `http://`, and for T3 Connect relay connections.
+- An `https://` address whose certificate comes from a private certificate
+  authority, such as a company CA or `mkcert`, is not supported yet.
+- A page in a forwarded tab can reach the environment's forwarded services, and
+  the services see its requests as coming from the environment itself. Don't
+  open websites you don't trust in these tabs.
+- It needs the desktop app and a remote environment that runs T3 Extend on
+  macOS. Environments on Linux or Windows don't offer it yet. Your connection
+  also needs preview and terminal access, and `T3CODE_PORT_DISCOVERY=0` on the
+  environment turns it off.
+
+**Connections checked so far.** Forwarding has been checked on a connection to
+an environment on the same computer, and on a self-hosted tunnel ([Your own
+server](#your-own-server)) set up on a single test machine. It has not been
+checked over HTTPS on a local network, over Tailscale, over SSH, or through a
+self-hosted tunnel on a VPS, even where the rules above would turn it on.
+
 ### Browser host setup
 
 macOS, Windows, and Linux desktops run the browser as is. Some Linux hosts need
