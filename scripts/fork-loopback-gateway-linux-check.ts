@@ -10,7 +10,8 @@
 // never mounted or touched. Linux dependencies go into `/work` through a named volume that caches the
 // pnpm store between runs (`t3x-linux-check-store`; `--drop-store` removes it at the end). No port is
 // published and no compose project is created. The container is removed at the end, on failure and on
-// Ctrl-C too.
+// Ctrl-C too, and the removal is checked: if the container is still there, the run fails and says
+// how to remove it. The volume's name is fixed, so two runs at the same time share its pnpm store.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "node:crypto";
 import * as NodePath from "node:path";
@@ -64,13 +65,32 @@ const capture = (command: string, args: ReadonlyArray<string>): Promise<string> 
   });
 
 const container = `t3x-linux-check-${NodeCrypto.randomBytes(4).toString("hex")}`;
-let started = false;
-let cleaning: Promise<void> | undefined;
+let attempted = false;
+let cleaning: Promise<string | undefined> | undefined;
 
-const cleanup = (): Promise<void> => {
+const exists = (kind: "container" | "volume", name: string): Promise<boolean> =>
+  capture("docker", [kind, "inspect", name]).then(
+    () => true,
+    () => false,
+  );
+
+/** Removes what this run created and checks it is gone; resolves to what is left, if anything. */
+const cleanup = (): Promise<string | undefined> => {
   cleaning ??= (async () => {
-    if (started) await run(["rm", "-f", container]);
-    if (flags["drop-store"]) await run(["volume", "rm", "-f", STORE_VOLUME]);
+    const left: Array<string> = [];
+    if (attempted) {
+      const removed = await run(["rm", "-f", container]);
+      if (removed !== 0 || (await exists("container", container))) {
+        left.push(`container ${container}: remove it with \`docker rm -f ${container}\``);
+      }
+    }
+    if (flags["drop-store"]) {
+      const removed = await run(["volume", "rm", "-f", STORE_VOLUME]);
+      if (removed !== 0 || (await exists("volume", STORE_VOLUME))) {
+        left.push(`volume ${STORE_VOLUME}: remove it with \`docker volume rm -f ${STORE_VOLUME}\``);
+      }
+    }
+    return left.length === 0 ? undefined : left.join("\n");
   })();
   return cleaning;
 };
@@ -93,7 +113,7 @@ try {
   say(`Starting ${container} from ${flags.image} (registry ${registry})`);
   if ((await run(["volume", "create", STORE_VOLUME])) !== 0)
     throw new Error("docker volume create failed");
-  started = true;
+  attempted = true;
   if (
     (await run([
       "run",
@@ -108,7 +128,6 @@ try {
       "infinity",
     ])) !== 0
   ) {
-    started = false;
     throw new Error("docker run failed");
   }
 
@@ -157,7 +176,12 @@ try {
 } catch (error) {
   process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   code = 1;
-} finally {
-  await cleanup();
+}
+const left = await cleanup();
+if (left !== undefined) {
+  process.stderr.write(
+    `CLEANUP FAILED, so this run is reported as failed. Left behind:\n${left}\n`,
+  );
+  code = 1;
 }
 process.exit(code);
