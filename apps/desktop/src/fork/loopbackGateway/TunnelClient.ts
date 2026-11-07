@@ -132,9 +132,15 @@ export class TunnelSocket extends NodeStream.Duplex {
   setTimeout(milliseconds: number, listener?: () => void): this {
     this.idleMs = milliseconds;
     this.timeout = milliseconds;
-    if (listener !== undefined) this.once("timeout", listener);
-    if (milliseconds > 0) this.touch();
-    else this.clearIdleTimer();
+    // Like `net.Socket`: a zero timeout also takes the listener back. `http.Agent` sets and
+    // clears one around every request, so adding it on both calls piles up a listener per reuse.
+    if (milliseconds > 0) {
+      if (listener !== undefined) this.once("timeout", listener);
+      this.touch();
+    } else {
+      if (listener !== undefined) this.removeListener("timeout", listener);
+      this.clearIdleTimer();
+    }
     return this;
   }
 
