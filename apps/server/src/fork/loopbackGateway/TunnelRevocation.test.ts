@@ -20,6 +20,11 @@ import {
   openTunnel,
 } from "./gatewayHarness.testkit.ts";
 
+// Shorter than the tunnel's 30 s ping interval. Past it the test clock fires the heartbeat in a
+// tight loop, a pong needs real I/O that does not get a turn under load, and three missed pongs
+// terminate the tunnel for a reason other than the one under test.
+const LIFETIME = Duration.seconds(20);
+
 /** Listens now, so a close that happens before the returned effect runs is not missed. */
 const closed = (target: { once: (event: "close", listener: () => void) => unknown }) => {
   const done = new Promise<void>((resolve) => target.once("close", () => resolve()));
@@ -79,12 +84,12 @@ describe("tunnel lifetime", () => {
     Effect.gen(function* () {
       const gateway = yield* Gateway;
       const service = yield* countingService;
-      const { ticket } = yield* issueSessionTicket({ sessionTtl: Duration.hours(1) });
+      const { ticket } = yield* issueSessionTicket({ sessionTtl: LIFETIME });
       const ws = yield* openAndCheck(gateway.mainPort, ticket, service.port);
       const socket = yield* Deferred.await(service.connected);
       const wsClosed = closed(ws);
       const serviceClosed = closed(socket);
-      yield* TestClock.adjust(Duration.hours(1));
+      yield* TestClock.adjust(LIFETIME);
       yield* wsClosed;
       yield* serviceClosed;
     }).pipe(Effect.scoped, Effect.provide(layerGateway)),
@@ -99,7 +104,7 @@ describe("tunnel lifetime", () => {
         const first = yield* issueSessionTicket({
           proofKeyThumbprint: "dpop-key-renewal",
           subject: "device",
-          sessionTtl: Duration.hours(1),
+          sessionTtl: LIFETIME,
         });
         const ws = yield* openAndCheck(gateway.mainPort, first.ticket, echo.port);
         const renewal = yield* gateway.sessions.issue({
@@ -111,7 +116,7 @@ describe("tunnel lifetime", () => {
           client: { label: "renewal", deviceType: "desktop" },
         });
         // The first row has expired and the tunnel follows the renewal: it still carries bytes.
-        yield* TestClock.adjust(Duration.hours(1).pipe(Duration.sum(Duration.seconds(1))));
+        yield* TestClock.adjust(LIFETIME.pipe(Duration.sum(Duration.seconds(1))));
         const reply = Effect.promise(
           () =>
             new Promise<string>((resolve) =>
