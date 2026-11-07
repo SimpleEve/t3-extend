@@ -27,6 +27,8 @@
       "entry": [
         // These fixture scripts are injected into a browser page by path.
         "fixtures/*/*.js",
+        // fork: a computer's terminal runs the e2e gateway fixture by path.
+        "fork-selfhost-e2e/gateway-fixture.mjs",
         "knip-schemas.ts",
         "linux-after-pack.ts",
         "mobile-behavior/run.ts",

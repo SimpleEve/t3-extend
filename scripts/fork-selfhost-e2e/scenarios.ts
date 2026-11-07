@@ -1,14 +1,28 @@
 // @effect-diagnostics nodeBuiltinImport:off globalTimers:off globalDate:off - scenarios against a real stack and real servers.
 // The 14 scenarios of research/self-host-device-keys.md 7.2, in an order that lets each one use what
-// the earlier ones set up (the numbers are the design's). Every wait is on an event: a process log
+// the earlier ones set up (the numbers are the design's), and 15, the loopback gateway
+// (research/remote-loopback-forwarding.md 12, 9.4). Every wait is on an event: a process log
 // line, a devices.subscribe snapshot, a socket closing; `until` appears only where nothing raises one.
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 import * as NodeTls from "node:tls";
 
 import type { DevicesSnapshot } from "@t3tools/contracts";
+import type { LoopbackGatewayEvent } from "@t3tools/shared/forkLoopbackGateway/bridge";
+import * as Redacted from "effect/Redacted";
 
+import { makeGatewayEnvironment } from "../../apps/desktop/src/fork/loopbackGateway/GatewayEnvironment.ts";
 import { cliJoin, type Computer, type E2eContext, newHome, startComputer } from "./computer.ts";
+import {
+  connectViaProxy,
+  getViaProxy,
+  proxyEndpoint,
+  startServiceInTerminal,
+  startServiceOutsideTerminal,
+  streamViaProxy,
+  type TerminalService,
+  webSocketViaProxy,
+} from "./gateway.ts";
 import { DpopKey, exchangePass, Phone, sessionOf, sessionSocketUrl } from "./phone.ts";
 import { openRpc, RpcFailure, type RpcConnection } from "./rpc.ts";
 import { DOMAIN, type Stack } from "./stack.ts";
@@ -98,13 +112,13 @@ const failWithin = <T>(promise: Promise<T>, label: string, timeoutMs: number): P
 const hasDevice = (snapshot: DevicesSnapshot, name: string): boolean =>
   snapshot.devices.some((device) => device.name === name);
 
-/** A computer's own signed pass for another computer, exchanged and used for one RPC. */
-async function computerLogsIntoComputer(
+/** A computer's own signed pass for another computer, exchanged for a session with an open RPC connection. */
+async function computerSignsIntoComputer(
   from: Computer,
   to: Computer,
   toEnvironmentId: string,
   toUrl: string,
-) {
+): Promise<RpcConnection> {
   const key = new DpopKey();
   // The registry learns a computer's environment id when its server first reports it; a refresh pulls it.
   const signed = await until(
@@ -130,7 +144,17 @@ async function computerLogsIntoComputer(
     },
   );
   const { accessToken } = sessionOf(await exchangePass(toUrl, signed.assertion, key), toUrl);
-  const connection = await openRpc(await sessionSocketUrl(toUrl, accessToken, key));
+  return openRpc(await sessionSocketUrl(toUrl, accessToken, key));
+}
+
+/** A computer's own signed pass for another computer, exchanged and used for one RPC. */
+async function computerLogsIntoComputer(
+  from: Computer,
+  to: Computer,
+  toEnvironmentId: string,
+  toUrl: string,
+) {
+  const connection = await computerSignsIntoComputer(from, to, toEnvironmentId, toUrl);
   try {
     await connection.call("server.probe");
   } finally {
@@ -554,6 +578,150 @@ export const scenarios: ReadonlyArray<Scenario> = [
         from: restarted,
       });
       await reachable(aUrl, aEnv, 90_000);
+    },
+  },
+  {
+    id: 15,
+    title:
+      "a service B's terminal started is reached through the tunnel as localhost (page, SSE, WebSocket); one no terminal started is refused; removing the device closes both ends",
+    timeoutMs: 420_000,
+    run: async (world) => {
+      const b = need(world.b, "B");
+      const bEnv = need(world.bEnv, "B's environment");
+      const bUrl = tunnelUrl(world, "b");
+      // Earlier scenarios took the registry down: B's route through Caddy and frps comes back on its own.
+      await reachable(bUrl, bEnv, 90_000);
+      const descriptor = (await httpRequest(`${bUrl}/.well-known/t3/environment`)).json() as {
+        platform: { os: string };
+        capabilities: { loopbackGateway?: boolean };
+      };
+      // B advertises the capability on macOS only (Linux waits for its own checks, Windows has none).
+      if (descriptor.platform.os !== "darwin") {
+        check(
+          descriptor.capabilities.loopbackGateway !== true,
+          "B must not advertise the gateway off macOS",
+        );
+        say("  not macOS: the gateway is not advertised, nothing more to check here");
+        return;
+      }
+      checkEqual(descriptor.capabilities.loopbackGateway, true, "B's gateway capability");
+
+      // D plays the desktop app of another computer: its own session on B, and the desktop's own
+      // proxy, tunnel client and environment state (no Electron) in this process.
+      const d = await joinedComputer(world, "D");
+      // B learns of D on its next sync (60 s); a refresh is the same sync, asked for now.
+      await b.refresh();
+      const dId = need((await d.status()).deviceId, "D's device id");
+      const events: Array<LoopbackGatewayEvent> = [];
+      const environment = makeGatewayEnvironment({
+        environmentId: bEnv,
+        emit: (event) => events.push(event),
+        onProxyChange: async () => {},
+      });
+      const open: Array<{ destroy: () => void }> = [];
+      let service: TerminalService | undefined;
+      let outside: { port: number; stop: () => Promise<void> } | undefined;
+      let sessionOnB: RpcConnection | undefined;
+      try {
+        service = await startServiceInTerminal(world.ctx, b, "gateway");
+        outside = await startServiceOutsideTerminal(world.ctx, "outside-service");
+        sessionOnB = await computerSignsIntoComputer(d, b, bEnv, bUrl);
+        const issued = (await sessionOnB.call("loopbackGateway.issueTicket", {})) as {
+          ticket: Redacted.Redacted<string>;
+          expiresAt: never;
+        };
+        const status = await environment.register({
+          httpBaseUrl: bUrl,
+          enabled: true,
+          credential: issued,
+        });
+        checkEqual(status.state, "active", "D's forwarding state for B");
+        const credentials = need(
+          environment.proxyCredentials() ?? undefined,
+          "the proxy's credentials",
+        );
+        const proxy = proxyEndpoint(credentials);
+
+        // 1. The page, as `localhost` on B: the service sees a plain loopback request and nothing
+        // of the proxy or the ticket.
+        const page = await getViaProxy(proxy, service.port, "/");
+        checkEqual(page.status, 200, "the page through the tunnel");
+        check(
+          page.body.includes("hello from the remote computer"),
+          `unexpected page: ${page.body}`,
+        );
+        const headers = JSON.parse(
+          (await getViaProxy(proxy, service.port, "/headers")).body,
+        ) as Record<string, string>;
+        checkEqual(headers.host, `localhost:${service.port}`, "the Host header the service saw");
+        check(
+          headers["authorization"] === undefined && headers["proxy-authorization"] === undefined,
+          "neither the ticket nor the proxy password may reach the service",
+        );
+
+        // 2. A stream that stays open, and a WebSocket.
+        const sse = await streamViaProxy(proxy, service.port, "/events");
+        open.push(sse);
+        checkEqual(sse.status, 200, "the event stream");
+        await sse.waitFor(/data: one\n\ndata: two\n\ndata: three\n\n/u, "its three events");
+        const socket = await webSocketViaProxy(proxy, service.port, "/ws");
+        open.push(socket);
+        socket.send("ping");
+        checkEqual(await socket.next(), "echo:ping", "the WebSocket's echo");
+        await service.events.waitFor(/sse-open[\s\S]*ws-open|ws-open[\s\S]*sse-open/u, {
+          label: "the service to see both connections",
+          timeoutMs: 30_000,
+        });
+
+        // 3. A listener no terminal started is refused, however it is asked.
+        const refused = await getViaProxy(proxy, outside.port, "/");
+        checkEqual(refused.status, 403, "the outside service's HTTP status");
+        checkEqual(refused.headers["x-t3x-gateway-error"], "not-owned", "its error header");
+        check(!refused.body.includes("secret"), "the outside service's data must not come through");
+        const refusedConnect = await connectViaProxy(proxy, outside.port);
+        refusedConnect.socket.destroy();
+        checkEqual(refusedConnect.status, 403, "the outside service's CONNECT status");
+        checkEqual(refusedConnect.gatewayError, "not-owned", "its CONNECT error header");
+        check(
+          events.some((event) => event.type === "denied" && event.code === "not-owned"),
+          "the refused CONNECT is reported as a denial",
+        );
+        checkEqual(
+          environment.status().state,
+          "active",
+          "a refused port leaves the environment active",
+        );
+
+        // 4. Removing D on B ends its session: the open tunnels close at both ends, and D gets no more.
+        socket.send("again");
+        checkEqual(await socket.next(), "echo:again", "the WebSocket just before the removal");
+        const mark = service.events.mark();
+        await b.refresh();
+        await b.call("devices.remove", { deviceId: dId });
+        await b.refresh();
+        await Promise.all([
+          failWithin(sse.closed, "the event stream to close", 60_000),
+          failWithin(socket.closed, "the WebSocket to close", 60_000),
+          service.events.waitFor(/sse-closed[\s\S]*ws-closed|ws-closed[\s\S]*sse-closed/u, {
+            label: "the service to see both connections close",
+            timeoutMs: 60_000,
+            from: mark,
+          }),
+        ]);
+        const after = await getViaProxy(proxy, service.port, "/");
+        checkEqual(after.status, 503, "a request after the device was removed");
+        checkEqual(after.headers["x-t3x-gateway-error"], "unauthorized", "its error header");
+        checkEqual(environment.status().state, "rejected", "D's forwarding state after removal");
+      } finally {
+        for (const item of open) item.destroy();
+        await Promise.allSettled([
+          sessionOnB?.close(),
+          environment.close(),
+          service?.stop(),
+          outside?.stop(),
+          d.stop(),
+        ]);
+      }
     },
   },
   {
