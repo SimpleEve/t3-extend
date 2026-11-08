@@ -9,19 +9,21 @@ import {
   type InspectorContent,
   type InspectorPane,
 } from "./inspector-panes";
+import { useT } from "../../hooks/useT";
 
 // AppBar draws the bar inline on Android; the slot keeps a pane's options off the thread's route.
 function PaneContent(props: {
   readonly pane: InspectorPane;
   readonly resetKeys: ReadonlyArray<unknown> | undefined;
 }) {
+  const t = useT();
   const { slot } = useInspectorBarSlot();
   return (
     <WorkspaceSlotOptionsContext value={slot}>
       <RenderErrorBoundary
         resetKeys={props.resetKeys}
         renderFallback={(fallback) => (
-          <RenderFailureView {...fallback} title="The inspector couldn't be displayed" />
+          <RenderFailureView {...fallback} title={t("The inspector couldn't be displayed")} />
         )}
       >
         {props.pane.render()}

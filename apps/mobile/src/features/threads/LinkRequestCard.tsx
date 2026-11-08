@@ -323,7 +323,7 @@ function LinkRequestSheet(props: {
 
   return (
     <Sheet
-      title={pickMachine ? "Link a machine" : `Link ${targetName}`}
+      title={pickMachine ? t("Link a machine") : t("Link {targetName}", { targetName })}
       onClose={props.onClose}
       // An answer that lands after a close would still link, and would close a reopened sheet.
       dismissDisabled={busy}

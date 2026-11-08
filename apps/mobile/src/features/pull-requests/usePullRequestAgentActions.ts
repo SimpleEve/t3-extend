@@ -46,7 +46,7 @@ export function usePullRequestAgentActions(
             (item) =>
               item.subactions?.map((child) => ({
                 ...child,
-                title: `Settled: ${child.title}`,
+                title: t("Settled: {title}", { title: child.title }),
               })) ?? [item],
           )
         : items;

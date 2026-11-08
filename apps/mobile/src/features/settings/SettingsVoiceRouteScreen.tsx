@@ -136,6 +136,7 @@ function EnvironmentChoice({
   environment: EnvironmentPresentation;
   selected: boolean;
 }) {
+  const t = useT();
   const usable = useAtomValue(voiceConnectionAtom(environment.environmentId)) !== null;
   const status = AsyncResult.getOrElse(
     useAtomValue(voiceSpeechStatusAtom(environment.environmentId)),
@@ -149,21 +150,24 @@ function EnvironmentChoice({
       description={
         !usable
           ? environment.connection.phase !== "connected"
-            ? "Not connected"
-            : "Transcription unavailable"
+            ? t("Not connected")
+            : t("Transcription unavailable")
           : status?.supported === false
             ? status.reason
             : status?.state === "missing-model"
-              ? "No transcription model installed"
-              : (environment.displayUrl ?? "Send finished recordings to this environment.")
+              ? t("No transcription model installed")
+              : (environment.displayUrl ?? t("Send finished recordings to this environment."))
       }
       separated
       onPress={() => {
         if (!selected)
           Dialog.confirm({
-            title: `Send microphone audio to ${environment.label}?`,
-            message: `Finished recordings will be sent to ${environment.displayUrl ?? environment.label} for transcription. You can switch back to This device at any time.`,
-            confirmText: "Use environment",
+            title: t("Send microphone audio to {label}?", { label: environment.label }),
+            message: t(
+              "Finished recordings will be sent to {value} for transcription. You can switch back to This device at any time.",
+              { value: environment.displayUrl ?? environment.label },
+            ),
+            confirmText: t("Use environment"),
             onConfirm: () => saveDestination(environment.environmentId),
           });
       }}
@@ -228,7 +232,7 @@ export function SettingsVoiceRouteScreen() {
   const dragTo = drag === null ? -1 : dragFrom + dropSteps(dragFrom, drag.translation);
 
   return (
-    <SettingsScreen title="Voice">
+    <SettingsScreen title={t("Voice")}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
@@ -236,10 +240,10 @@ export function SettingsVoiceRouteScreen() {
         contentContainerClassName="gap-3 px-5 pt-4"
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 18) + 18 }}
       >
-        <SettingsSection title="Transcribe on">
+        <SettingsSection title={t("Transcribe on")}>
           <ListChoiceRow
-            label="This device"
-            description="Audio stays on this device and is transcribed here."
+            label={t("This device")}
+            description={t("Audio stays on this device and is transcribed here.")}
             selected={!grant}
             onPress={() => saveDestination(null)}
           />
@@ -256,8 +260,8 @@ export function SettingsVoiceRouteScreen() {
             ))}
           {isReady && grant && !grantEnvironment ? (
             <ListChoiceRow
-              label="Previously selected environment"
-              description="No longer paired"
+              label={t("Previously selected environment")}
+              description={t("No longer paired")}
               separated
               selected
               disabled
@@ -307,8 +311,8 @@ export function SettingsVoiceRouteScreen() {
             </SettingsSection>
             <Text className="px-2 text-sm text-foreground-muted">
               {permission === "ask"
-                ? "Allow microphone access to record and to see your microphones."
-                : "Turn on microphone access for T3 Extend in Settings to use voice input."}
+                ? t("Allow microphone access to record and to see your microphones.")
+                : t("Turn on microphone access for T3 Extend in Settings to use voice input.")}
             </Text>
           </>
         ) : null}
@@ -347,11 +351,11 @@ export function SettingsVoiceRouteScreen() {
           })}
         </SettingsSection>
         <Text className="px-2 text-sm text-foreground-muted">
-          Voice input uses the first connected microphone in this list. A wired or Bluetooth
-          microphone is added by name the first time you dictate with it connected; until then it
-          falls under Other. Swipe left on a named microphone to forget it.
+          {t(
+            "Voice input uses the first connected microphone in this list. A wired or Bluetooth microphone is added by name the first time you dictate with it connected; until then it falls under Other. Swipe left on a named microphone to forget it.",
+          )}
           {Platform.OS === "android"
-            ? " Android may still use a different microphone if the preferred one can’t be routed."
+            ? ` ${t("Android may still use a different microphone if the preferred one can’t be routed.")}`
             : null}
         </Text>
       </ScrollView>

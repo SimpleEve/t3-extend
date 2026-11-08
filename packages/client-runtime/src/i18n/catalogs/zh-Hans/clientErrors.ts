@@ -26,7 +26,6 @@ export default {
   "Link update interrupted.": "关联更新已中断。",
   "Unable to open link.": "无法打开链接。",
   "Unable to open System Settings.": "无法打开系统设置。",
-  "Local environment is not ready yet.": "本地环境还没有就绪。",
   "This connection needs permission to view and manage T3 Connect settings.":
     "此连接需要查看和管理 T3 Connect 设置的权限。",
   "Wait until the current T3 Connect settings can be read.":

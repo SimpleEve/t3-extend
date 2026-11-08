@@ -362,9 +362,9 @@ export function DevicePreviewScreen({
           }}
         >
           <GlassSurface className="flex-row items-center gap-1 p-1">
-            <SheetCloseButton accessibilityLabel="Close device preview" onClose={onClose} />
+            <SheetCloseButton accessibilityLabel={t("Close device preview")} onClose={onClose} />
             <ControlPill
-              accessibilityLabel="Show device controls"
+              accessibilityLabel={t("Show device controls")}
               icon="chevron.down"
               onPress={() => setControlsVisible(true)}
             />

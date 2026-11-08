@@ -23,6 +23,7 @@ import sidebar from "./sidebar.ts";
 import storageCleanup from "./storageCleanup.ts";
 import t3Tools from "./t3Tools.ts";
 import time from "./time.ts";
+import voice from "./voice.ts"; // fork: voice input
 import workspace from "./workspace.ts";
 
 // One file per area so parallel translation work rarely touches the same file.
@@ -52,6 +53,7 @@ export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   storageCleanup,
   t3Tools,
   time,
+  voice, // fork: voice input
   workspace,
 };
 

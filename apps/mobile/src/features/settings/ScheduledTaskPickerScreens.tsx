@@ -194,6 +194,7 @@ export function ScheduledTaskBranchPickerRouteScreen() {
 const THREAD_SEARCH_PLACEHOLDER = "Search threads, including older ones";
 
 export function ScheduledTaskThreadPickerRouteScreen() {
+  const t = useT();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const usesNativeMailSearchToolbar = useNativeMailSearchToolbar();
@@ -240,7 +241,7 @@ export function ScheduledTaskThreadPickerRouteScreen() {
   const selectedKey = threadId ?? (editor.draft.threadMode === "new_thread" ? "new-thread" : null);
 
   return (
-    <SettingsScreen title="Destination">
+    <SettingsScreen title={t("Destination")}>
       {Platform.OS === "ios" ? (
         <NativeStackScreenOptions
           options={{
@@ -296,8 +297,8 @@ export function ScheduledTaskThreadPickerRouteScreen() {
               <SearchField
                 inputRef={searchRef}
                 autoFocus={false}
-                accessibilityLabel="Search threads"
-                clearAccessibilityLabel="Clear thread search"
+                accessibilityLabel={t("Search threads")}
+                clearAccessibilityLabel={t("Clear thread search")}
                 onChangeText={setQuery}
                 placeholder={THREAD_SEARCH_PLACEHOLDER}
                 value={query}
@@ -306,7 +307,9 @@ export function ScheduledTaskThreadPickerRouteScreen() {
           )
         }
         ListEmptyComponent={
-          <Text className="p-5 text-center text-sm text-foreground-muted">No matching threads</Text>
+          <Text className="p-5 text-center text-sm text-foreground-muted">
+            {t("No matching threads")}
+          </Text>
         }
         renderItem={({ item, index }) => (
           <SelectionRow

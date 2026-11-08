@@ -30,7 +30,7 @@ export function ScheduledTaskPromptField(props: {
 
   return (
     <View className="gap-2 border-t border-border-subtle px-4 py-3">
-      <Text className="text-sm text-foreground-muted">Prompt</Text>
+      <Text className="text-sm text-foreground-muted">{t("Prompt")}</Text>
       <View className="flex-row items-end">
         <TextInput
           accessibilityLabel={t("Prompt")}

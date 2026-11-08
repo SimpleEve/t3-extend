@@ -7,6 +7,7 @@ import {
   type ServerSettings,
   UsageLimitSourceConfig,
 } from "@t3tools/contracts";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { getProviderClient } from "@t3tools/client-runtime/provider-clients";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 
@@ -95,7 +96,14 @@ export function secretProviderUses(
     ...CloudSpeechProvider.literals.flatMap((provider) => {
       const credential = settings.cloudSpeechCredentials[provider];
       return isSecretReference(credential) && credential.provider === providerId
-        ? [{ id: `voice:${provider}`, label: `Voice · ${CLOUD_SPEECH_LABELS[provider]}` }]
+        ? [
+            {
+              id: `voice:${provider}`,
+              label: translate(getUiLocale(), "Voice · {provider}", {
+                provider: CLOUD_SPEECH_LABELS[provider],
+              }),
+            },
+          ]
         : [];
     }),
   ];

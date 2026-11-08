@@ -1197,7 +1197,7 @@ function ThreadSettingsModelsScreen() {
       <AppBar
         title={t("Thread settings")}
         onClose={presentation.onClose}
-        closeAccessibilityLabel="Cancel thread settings"
+        closeAccessibilityLabel={t("Cancel thread settings")}
         search={search}
         menus={[
           {

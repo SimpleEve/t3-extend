@@ -26,6 +26,7 @@ import {
   type ClaudeAccountDraft,
 } from "./claude-accounts";
 import type { SettingsTarget } from "./settings-environment-filter";
+import { useT } from "../../hooks/useT";
 
 function useProviderInstanceMutation(environment: SettingsTarget) {
   const mutate = useAtomCommand(serverEnvironment.mutateProviderInstance, {
@@ -63,6 +64,7 @@ export function ClaudeAccount({
   readonly environment: SettingsTarget;
   readonly provider: ServerProvider;
 }) {
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const { run, pending, error } = useProviderInstanceMutation(environment);
   const instance = environment.serverConfig.settings.providerInstances[provider.instanceId];
@@ -127,7 +129,7 @@ export function ClaudeAccount({
           <Menu
             accessible
             accessibilityRole="button"
-            accessibilityLabel={`${name} options`}
+            accessibilityLabel={t("{name} options", { name })}
             title={name}
             actions={actions}
             onPressAction={({ nativeEvent }) => {
@@ -138,7 +140,7 @@ export function ClaudeAccount({
           >
             <ControlPill
               icon="ellipsis"
-              accessibilityLabel={`${name} options`}
+              accessibilityLabel={t("{name} options", { name })}
               disabled={pending}
             />
           </Menu>
@@ -161,6 +163,7 @@ export function ClaudeAccount({
 }
 
 export function AddClaudeAccount({ environment }: { readonly environment: SettingsTarget }) {
+  const t = useT();
   const [adding, setAdding] = useState(false);
   return (
     <View className="border-t border-border-subtle">
@@ -174,8 +177,8 @@ export function AddClaudeAccount({ environment }: { readonly environment: Settin
       ) : (
         <ListActionRow
           icon="plus"
-          label="Add Claude account"
-          description="Use a Claude config folder that is already signed in on this server."
+          label={t("Add Claude account")}
+          description={t("Use a Claude config folder that is already signed in on this server.")}
           onPress={() => setAdding(true)}
         />
       )}
@@ -194,6 +197,7 @@ function ClaudeAccountForm({
   readonly initial: ClaudeAccountDraft;
   readonly onDone: () => void;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState(initial);
   const { run, pending, error, setError } = useProviderInstanceMutation(environment);
   function save() {
@@ -229,7 +233,10 @@ function ClaudeAccountForm({
   return (
     <View className="gap-2 px-4 py-3">
       <Text textRole="footnote" className="text-foreground-muted">
-        {`Point at a CLAUDE_CONFIG_DIR folder on ${environment.label} where Claude Code is already signed in. Sign in there with the Claude CLI first.`}
+        {t(
+          "Point at a CLAUDE_CONFIG_DIR folder on {label} where Claude Code is already signed in. Sign in there with the Claude CLI first.",
+          { label: environment.label },
+        )}
       </Text>
       {field("name", "Account name", "Name, e.g. Work")}
       {field("configDir", "Claude config folder", "Config folder, e.g. ~/.claude-work")}
@@ -239,10 +246,10 @@ function ClaudeAccountForm({
         </Text>
       ) : null}
       <View className="flex-row justify-end gap-2">
-        <ControlPill variant="pill" label="Cancel" disabled={pending} onPress={onDone} />
+        <ControlPill variant="pill" label={t("Cancel")} disabled={pending} onPress={onDone} />
         <ControlPill
           variant="primary"
-          label={instanceId === null ? "Add" : "Save"}
+          label={instanceId === null ? t("Add") : t("Save")}
           disabled={pending}
           onPress={save}
         />

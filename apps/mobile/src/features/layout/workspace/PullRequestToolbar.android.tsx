@@ -9,12 +9,14 @@ import { WorkspaceBrandTitle } from "./WorkspaceBrandTitle";
 import { useWorkspaceTabs } from "./WorkspaceTabsContext";
 import type { PullRequestFilterMenu } from "../../pull-requests/PullRequestListFilters";
 import { openSettings } from "../../settings/settings-navigation";
+import { useT } from "../../../hooks/useT";
 
 /** PR search shares the thread list's Android header. */
 export function PullRequestToolbar(props: {
   readonly filters: PullRequestFilterMenu | null;
   readonly onRequestVisibility?: () => void;
 }) {
+  const t = useT();
   const navigation = useNavigation();
   const { filters } = props;
   const workspace = useWorkspaceTabs()!;
@@ -58,7 +60,7 @@ export function PullRequestToolbar(props: {
       title={FORK.appBaseName} // fork: brand
       titleContent={
         <WorkspaceBrandTitle
-          accessibilityLabel={`${FORK.appBaseName}, Pull requests`} // fork: brand
+          accessibilityLabel={t("{appBaseName}, Pull requests", { appBaseName: FORK.appBaseName })} // fork: brand
           onOpenEnvironments={() => openSettings(navigation, "SettingsEnvironments")}
         />
       }

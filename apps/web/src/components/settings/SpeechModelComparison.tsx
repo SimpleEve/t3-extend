@@ -3,6 +3,7 @@ import { CheckIcon } from "lucide-react";
 
 import { cn } from "../../lib/utils";
 import { languageLabel } from "./SpeechLanguageSelect";
+import { useT } from "~/hooks/useT";
 
 const commonLanguages = [
   "en",
@@ -80,6 +81,7 @@ export function ModelBenchmarks({
   /** Plain facts, such as language count and size, shown after the scores. */
   facts: readonly string[];
 }) {
+  const t = useT();
   const data = model.benchmark;
   const visible = !data
     ? []
@@ -97,20 +99,20 @@ export function ModelBenchmarks({
             {languageLabel(code)}:{" "}
             {score ? (
               <>
-                <strong className="font-medium text-foreground">{score.grade}</strong> (
-                {score.errorPercent}% error)
+                <strong className="font-medium text-foreground">{score.grade}</strong>{" "}
+                {t("({percent}% error)", { percent: score.errorPercent })}
               </>
             ) : (
-              "not benchmarked"
+              t("not benchmarked")
             )}
           </span>
         );
       })}
       {data ? (
         <span>
-          Speed:{" "}
+          {t("Speed:")}{" "}
           {data.secondsPer30s === null ? (
-            "not benchmarked"
+            t("not benchmarked")
           ) : (
             <>
               <strong className="font-medium text-foreground">{data.secondsPer30s} s</strong> / 30 s

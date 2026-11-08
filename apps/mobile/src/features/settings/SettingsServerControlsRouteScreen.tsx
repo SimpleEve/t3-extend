@@ -346,7 +346,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   ))}
                 </SettingsSection>
                 <SettingsSection
-                  title="Default permissions"
+                  title={t("Default permissions")}
                   footer={managed("defaultRuntimeMode")}
                   trailing={
                     pendingWrites === 0 && uniform("defaultRuntimeMode") === null ? (
@@ -369,7 +369,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   ))}
                 </SettingsSection>
                 <SettingsSection
-                  title="Response streaming"
+                  title={t("Response streaming")}
                   footer={managed("responseStreamingMode")}
                   trailing={
                     pendingWrites === 0 && uniform("responseStreamingMode") === null ? (
@@ -389,10 +389,10 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                     />
                   ))}
                 </SettingsSection>
-                <SettingsSection title="Preview browser">
+                <SettingsSection title={t("Preview browser")}>
                   <SettingsSwitchRow
                     icon="globe"
-                    label="Agent browser access"
+                    label={t("Agent browser access")}
                     subtitle={managedSubtitle(
                       "enableAgentBrowserAccess",
                       "Allow agents to use the in-app preview browser.",
@@ -414,10 +414,10 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                     canWrite={(environmentId) => writableEnvironments.has(environmentId)}
                   />
                 )}
-                <SettingsSection title="Pull requests">
+                <SettingsSection title={t("Pull requests")}>
                   <SettingsSwitchRow
                     icon={PullRequestGlyph.merged}
-                    label="Remove agent credits when merging"
+                    label={t("Remove agent credits when merging")}
                     subtitle={managedSubtitle(
                       "removeAgentCreditsOnMerge",
                       "Remove recognized agent credits from merge and squash messages on hosts that support it, keeping human co-authors. Includes auto-merge. Excludes merge queues, stack merges, and existing commits.",
@@ -427,10 +427,10 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                     onValueChange={(value) => write({ removeAgentCreditsOnMerge: value })}
                   />
                 </SettingsSection>
-                <SettingsSection title="Default branch">
+                <SettingsSection title={t("Default branch")}>
                   <SettingsSwitchRow
                     icon="arrow.down.circle"
-                    label="Automatically pull"
+                    label={t("Automatically pull")}
                     subtitle={managedSubtitle(
                       "defaultAutoPull",
                       "Keep the default branch current when there are no local changes.",
@@ -440,11 +440,13 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                     onValueChange={(value) => write({ defaultAutoPull: value })}
                   />
                 </SettingsSection>
-                <SettingsSection title="Clones">
+                <SettingsSection title={t("Clones")}>
                   <SettingsSwitchRow
                     icon="folder"
-                    label="Clone into host folders"
-                    subtitle="Clones go to github.com/owner/repo under the Add project folder, like ghq."
+                    label={t("Clone into host folders")}
+                    subtitle={t(
+                      "Clones go to github.com/owner/repo under the Add project folder, like ghq.",
+                    )}
                     value={uniform("ghqCloneLayout")}
                     disabled={disabledFor("ghqCloneLayout")}
                     onValueChange={(value) => write({ ghqCloneLayout: value })}
@@ -471,7 +473,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   />
                 </SettingsSection>
                 <SettingsSection
-                  title="Worktree submodules"
+                  title={t("Worktree submodules")}
                   footer={managed("worktreeSubmodules")}
                   trailing={
                     pendingWrites === 0 && isMixed("worktreeSubmodules") ? (
@@ -522,7 +524,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   />
                 ) : null}
                 {!projectSelected ? (
-                  <SettingsSection title="Manage environments">
+                  <SettingsSection title={t("Manage environments")}>
                     {selectedTargets.map((target) => (
                       <SettingsRow
                         key={target.environmentId}
@@ -538,10 +540,10 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                     ))}
                   </SettingsSection>
                 ) : null}
-                <SettingsSection title="Updates">
+                <SettingsSection title={t("Updates")}>
                   <SettingsSwitchRow
                     icon="arrow.clockwise"
-                    label="Check provider updates"
+                    label={t("Check provider updates")}
                     subtitle={managedSubtitle(
                       "enableProviderUpdateChecks",
                       projectSelected
@@ -555,7 +557,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   <View className="border-t border-border-subtle">
                     <SettingsSwitchRow
                       icon="arrow.uturn.forward"
-                      label="Continue after restart"
+                      label={t("Continue after restart")}
                       subtitle={managedSubtitle(
                         "continueThreadsAfterServerUpdate",
                         "Resume interrupted threads after an update or restart.",

@@ -749,7 +749,9 @@ function ThreadDetailBody(
   );
   const extensionStatus = props.extensionStatuses?.length
     ? {
-        label: `Pi · ${props.extensionStatuses.map((status) => status.text).join(" · ")}`,
+        label: t("Pi · {value}", {
+          value: props.extensionStatuses.map((status) => status.text).join(" · "),
+        }),
         onPress: () =>
           Dialog.alert("Pi", props.extensionStatuses?.map((status) => status.text).join("\n\n")),
       }

@@ -5,6 +5,7 @@ import { Toolbar } from "../../../components/ui/Toolbar";
 import { NativeStackScreenOptions } from "../../../native/StackHeader";
 import { useAdaptiveWorkspaceLayout } from "../adaptive-workspace-context";
 import { WorkspaceEmptyDetail } from "../WorkspaceEmptyDetail";
+import { useT } from "../../../hooks/useT";
 
 /**
  * The thread list's route in split view, where the list is the sidebar beside it: an empty
@@ -15,6 +16,7 @@ export function WorkspaceListEmptyDetail(props: {
   readonly onAddConnection: () => void;
   readonly onStartNewTask: () => void;
 }) {
+  const t = useT();
   const { panes } = useAdaptiveWorkspaceLayout();
   return (
     <>
@@ -30,12 +32,12 @@ export function WorkspaceListEmptyDetail(props: {
       />
       <Toolbar placement="left">
         <Toolbar.Button
-          accessibilityLabel="New task"
+          accessibilityLabel={t("New task")}
           icon="square.and.pencil"
           onPress={props.onStartNewTask}
         />
       </Toolbar>
-      <AppBar embedded title="Threads" />
+      <AppBar embedded title={t("Threads")} />
       <WorkspaceEmptyDetail
         onAddConnection={
           Platform.OS === "android" && !props.hasConnections ? props.onAddConnection : undefined

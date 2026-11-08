@@ -27,6 +27,7 @@ import { Popover, PopoverPopup } from "../ui/popover";
 import { Textarea, type TextareaProps } from "../ui/textarea";
 import { PULL_REQUEST_STATE_PRESENTATION } from "./pullRequestIcons";
 import { PullRequestActorAvatar, resolvePullRequestState } from "./pullRequestPresentation";
+import { useT } from "~/hooks/useT";
 
 /** The repository whose users `@` completes and whose issues and change requests `#` does. */
 export interface PullRequestCompletionScope {
@@ -95,17 +96,18 @@ function useCompletions(
 }
 
 function ReferenceStateIcon({ candidate }: { candidate: PullRequestReferenceCandidate }) {
+  const t = useT();
   const presentation =
     candidate.kind === "change-request"
       ? resolvePullRequestState({ state: candidate.state, isDraft: false })
       : candidate.state === "open"
         ? {
-            label: "Open issue",
+            label: t("Open issue"),
             Icon: CircleDotIcon,
             toneClassName: PULL_REQUEST_STATE_PRESENTATION.open.toneClassName,
           }
         : {
-            label: "Closed issue",
+            label: t("Closed issue"),
             Icon: CircleCheckIcon,
             toneClassName: PULL_REQUEST_STATE_PRESENTATION.merged.toneClassName,
           };

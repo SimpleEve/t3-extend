@@ -5,6 +5,7 @@ import { RotateCcwIcon, SettingsIcon, XIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { VoiceInputPill } from "./VoiceInputPill";
+import { useT } from "~/hooks/useT";
 
 const VOICE_ERROR_LABELS: Record<string, string> = {
   [MICROPHONE_PERMISSION_ERROR]: "Microphone access needed",
@@ -38,6 +39,7 @@ export function VoiceInputErrorPill(props: {
   onRetry(): void;
   onDismiss(): void;
 }) {
+  const t = useT();
   const navigate = useNavigate();
   const openSettings = props.errorAction === "settings";
   const actionLabel = openSettings
@@ -55,7 +57,7 @@ export function VoiceInputErrorPill(props: {
               type="button"
               size="icon-sm-pill"
               variant="ghost"
-              aria-label="Dismiss voice input error"
+              aria-label={t("Dismiss voice input error")}
               onPointerDown={(event) => event.preventDefault()}
               onClick={props.onDismiss}
             >
@@ -64,7 +66,7 @@ export function VoiceInputErrorPill(props: {
           }
         />
         <TooltipPopup side="top">
-          Dismiss voice input error
+          {t("Dismiss voice input error")}
           {props.cancelShortcutLabel ? ` (${props.cancelShortcutLabel})` : ""}
         </TooltipPopup>
       </Tooltip>
@@ -74,14 +76,14 @@ export function VoiceInputErrorPill(props: {
             <span
               tabIndex={0}
               role="status"
-              aria-label={props.error ?? "Voice input failed"}
+              aria-label={props.error ?? t("Voice input failed")}
               className="min-w-0 flex-1 truncate text-sm text-destructive"
             />
           }
         >
           {voiceErrorLabel(props.error)}
         </TooltipTrigger>
-        <TooltipPopup side="top">{props.error ?? "Voice input failed"}</TooltipPopup>
+        <TooltipPopup side="top">{props.error ?? t("Voice input failed")}</TooltipPopup>
       </Tooltip>
       {props.errorAction ? (
         <Tooltip>

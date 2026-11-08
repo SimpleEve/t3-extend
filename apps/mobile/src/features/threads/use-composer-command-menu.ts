@@ -171,7 +171,7 @@ export function buildComposerSlashCommandItems(input: {
       type: "slash-command",
       command: "clear",
       label: "/clear",
-      description: "Start a fresh session",
+      description: t("Start a fresh session"),
     });
   }
   for (const command of input.selectedProviderStatus?.slashCommands ?? []) {

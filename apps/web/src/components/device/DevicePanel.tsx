@@ -426,6 +426,7 @@ function DeviceDiscoveryWarning(props: {
   readonly incompletePlatforms: readonly DevicePlatform[];
   readonly onRetry: () => Promise<unknown>;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [dismissedCause, setDismissedCause] = useState<string | null>(null);
@@ -445,8 +446,13 @@ function DeviceDiscoveryWarning(props: {
         <CircleAlert className="mt-px size-3.5 shrink-0 text-warning-foreground" />
         <span className="min-w-0">
           {platforms.length > 0
-            ? `${platforms.join(" and ")} ${platforms.length > 1 ? "lists" : "list"} on ${props.label} may be incomplete.`
-            : `Device discovery on ${props.label} reported a warning.`}
+            ? t(
+                platforms.length > 1
+                  ? "{platforms} lists on {label} may be incomplete."
+                  : "{platforms} list on {label} may be incomplete.",
+                { platforms: platforms.join(" · "), label: props.label },
+              )
+            : t("Device discovery on {label} reported a warning.", { label: props.label })}
         </span>
       </span>
       <span className="ml-auto flex shrink-0 items-center gap-0.5">
@@ -455,21 +461,21 @@ function DeviceDiscoveryWarning(props: {
             size="micro"
             variant="ghost"
             disabled={retrying}
-            aria-label={`Retry device discovery on ${props.label}`}
+            aria-label={t("Retry device discovery on {label}", { label: props.label })}
             onClick={() => {
               setRetrying(true);
               void props.onRetry().finally(() => setRetrying(false));
             }}
           >
-            {retrying ? "Retrying…" : "Retry"}
+            {retrying ? t("Retrying…") : t("Retry")}
           </Button>
         ) : null}
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger
-            aria-label={`Details for ${props.label}`}
+            aria-label={t("Details for {label}", { label: props.label })}
             render={<Button size="micro" variant="ghost" />}
           >
-            Details
+            {t("Details")}
           </PopoverTrigger>
           <PopoverPopup side="bottom" align="end" width="lg" padding="compact">
             <p className="whitespace-pre-wrap break-words font-mono text-xs text-muted-foreground">
@@ -480,7 +486,7 @@ function DeviceDiscoveryWarning(props: {
         <Button
           size="icon-micro"
           variant="ghost"
-          aria-label={`Dismiss device warning for ${props.label}`}
+          aria-label={t("Dismiss device warning for {label}", { label: props.label })}
           onClick={() => {
             setOpen(false);
             setDismissedCause(cause);

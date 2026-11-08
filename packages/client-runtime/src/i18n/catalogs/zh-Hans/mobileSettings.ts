@@ -100,7 +100,6 @@ export default {
   "Update {status}": "更新 {status}",
   "Update this provider on the environment's machine.": "请在该环境所在的机器上更新这个 provider。",
   "Update {name}": "更新 {name}",
-  "Environment options": "环境选项",
   "Refresh cloud environments": "刷新云端环境",
   "While the agent is running": "Agent 运行时",
   "Long-press the send button to use the other option for a single message. With a hardware keyboard, hold Command while sending.":
@@ -110,10 +109,6 @@ export default {
     "连接实体键盘时，作用于输入框。",
   "Microphone access": "麦克风权限",
   "Allow microphone access": "允许访问麦克风",
-  "Voice input needs microphone access before it can record or list your microphones.":
-    "语音输入需要麦克风权限才能录音或列出你的麦克风。",
-  "Microphone access is off for T3 Extend. Turn it on in Settings to use voice input.":
-    "T3 Extend 的麦克风权限已关闭。请在系统设置中开启以使用语音输入。",
   "Preferred order": "优先顺序",
   "Voice input prefers the first connected microphone in this list. Wired and Bluetooth devices are added by name after you use voice input with them connected; until then, the Other row ranks them. Swipe a device left to forget it.":
     "语音输入会优先使用列表中第一个已连接的麦克风。有线和蓝牙设备在连接状态下使用过语音输入后，会按名称加入列表；在此之前，按“其他”这一行排序。向左滑动设备可忘记它。",
@@ -457,7 +452,6 @@ export default {
   "Filter settings environments and projects": "筛选设置作用的环境和项目",
   "Settings scope": "设置范围",
   "All connected environments": "所有已连接的环境",
-  "Environment · {label}": "环境 · {label}",
   "Close legal document": "关闭法律文件",
   "Open legal documents in external browser": "在外部浏览器中打开法律文件",
   "Try Again": "重试",
@@ -548,13 +542,11 @@ export default {
   Sun: "周日",
   // Settings pages: text around values
   "Last run failed: {error}": "上次运行失败：{error}",
-  "Couldn't load the {document}": "无法加载{document}",
   "Provider not allowed": "不允许使用该 provider",
   "{message} Choose another model.": "{message}请选择其他模型。",
   "Managed by {organization}": "由 {organization} 管理",
   "Get help from {organization}": "向 {organization} 获取帮助",
   "Voice input": "语音输入",
-  "Not available on this device": "此设备不可用",
   "T3 Extend's voice input uses Apple's on-device speech transcription, which needs iOS 26 or later on a device that supports it. Without it, the composer has no microphone button, and allowing microphone access won't add one. Apple keyboard dictation is separate and isn't affected.":
     "T3 Extend 的语音输入使用 Apple 的设备端语音转写，需要 iOS 26 或更高版本，并且设备要支持该功能。没有它时，输入框不会出现麦克风按钮，授予麦克风权限也不会增加。Apple 键盘听写是另一回事，不受影响。",
   "Connect to load models": "连接后加载模型",
@@ -567,6 +559,4 @@ export default {
     "部分设置由 {organizations} 管理，无法在这里更改。",
   "T3 Extend's voice input uses Google's on-device speech recognition, which needs Android 12 or later with compatible Google speech services for the device language. Without it, the composer has no microphone button, and allowing microphone access won't add one. Keyboard voice typing is separate and isn't affected.":
     "T3 Extend 的语音输入使用 Google 的设备端语音识别，需要 Android 12 或更高版本，并且设备语言要有兼容的 Google 语音服务。没有它时，输入框不会出现麦克风按钮，授予麦克风权限也不会增加。键盘语音输入是另一回事，不受影响。",
-  "Android may use another input when the preferred microphone cannot be routed.":
-    "当首选麦克风无法接入时，Android 可能改用其他输入设备。",
 } satisfies Record<string, string>;

@@ -946,7 +946,7 @@ function TaskForm({
         </SettingsSection>
 
         <SettingsSection
-          title="Destination"
+          title={t("Destination")}
           footer={
             draft.threadMode === "new_thread"
               ? "Each run starts a new thread."
@@ -961,7 +961,7 @@ function TaskForm({
         >
           {offersThreadModes ? (
             <SelectRow
-              label="Runs go to"
+              label={t("Runs go to")}
               value={THREAD_MODE_LABELS[draft.threadMode]}
               actions={(Object.keys(THREAD_MODE_LABELS) as ScheduledTaskThreadMode[]).map(
                 (mode) => ({
@@ -980,7 +980,7 @@ function TaskForm({
           ) : null}
           {!offersThreadModes || draft.threadMode !== "new_thread" ? (
             <PickerRow
-              label="Thread"
+              label={t("Thread")}
               borderTop={offersThreadModes}
               value={
                 draft.threadId === null && draft.threadMode !== "new_thread"

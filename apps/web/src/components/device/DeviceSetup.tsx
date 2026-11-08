@@ -130,7 +130,12 @@ export function platformSetupStatus(
     ) {
       return {
         ready: false,
-        message: `No ${platformName(platform)} devices were listed because device discovery reported a problem.`,
+        message: t(
+          "No {platform} devices were listed because device discovery reported a problem.",
+          {
+            platform: platformName(platform),
+          },
+        ),
       };
     }
     return {

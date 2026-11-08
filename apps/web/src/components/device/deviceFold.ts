@@ -1,4 +1,5 @@
 import type { DeviceHubAccess } from "@t3tools/client-runtime/state/deviceHubAccess";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { withDeviceHubQuery } from "@t3tools/client-runtime/state/deviceHubAccess";
 import * as Schema from "effect/Schema";
 
@@ -61,7 +62,12 @@ const foldRequest = async (
     const payload: unknown = await response.json().catch(() => null);
     const error = isRecord(payload) ? payload.error : null;
     throw new AndroidFoldError({
-      message: typeof error === "string" ? error : `Fold command failed (${response.status}).`,
+      message:
+        typeof error === "string"
+          ? error
+          : translate(getUiLocale(), "Fold command failed ({status}).", {
+              status: response.status,
+            }),
       status: response.status,
     });
   }

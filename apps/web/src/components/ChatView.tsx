@@ -3667,17 +3667,17 @@ export default function ChatView(props: ChatViewProps) {
                                 isRevertingCheckpoint={isRevertingCheckpoint}
                                 sendDisabledReason={
                                   !canOperateThread
-                                    ? "This connection cannot change threads."
+                                    ? t("This connection cannot change threads.")
                                     : isEnvironmentChanging
-                                      ? "Preparing machine"
+                                      ? t("Preparing machine")
                                       : isRevertingCheckpoint
-                                        ? "Rewinding conversation"
+                                        ? t("Rewinding conversation")
                                         : feedbackUploading
-                                          ? "Sending feedback"
+                                          ? t("Sending feedback")
                                           : threadDetailLoading
-                                            ? "Messages loading"
+                                            ? t("Messages loading")
                                             : worktreeSetupBlocksSend
-                                              ? "Preparing worktree"
+                                              ? t("Preparing worktree")
                                               : projectCloneSendBlockReason
                                 }
                                 isPreparingWorktree={isPreparingWorktree && !sendQueuesBehindSetup}

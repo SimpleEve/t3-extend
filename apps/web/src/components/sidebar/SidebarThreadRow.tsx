@@ -730,7 +730,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       ? {
           label:
             status === "preparing"
-              ? "Setting up"
+              ? t("Setting up")
               : thread.goal?.status === "active"
                 ? t("Goal")
                 : t("Working"),

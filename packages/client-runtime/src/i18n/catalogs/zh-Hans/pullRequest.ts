@@ -544,7 +544,6 @@ export default {
     "这个仓库的标签比这里列出的多，其余的请到托管平台上添加。",
   "{mergedCount} merges loaded": "已加载 {mergedCount} 次合并",
   "Pull request video": "PR 视频",
-  "Open attachment on {value}": "在 {value} 上打开附件",
   "{count} more reply": "还有 {count} 条回复",
   "{count} more replies": "还有 {count} 条回复",
   "The reaction could not be saved": "无法保存表情回应",

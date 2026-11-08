@@ -1,4 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { Fragment, useState, type ReactNode } from "react";
 import * as Cause from "effect/Cause";
 import * as Option from "effect/Option";
@@ -121,7 +122,13 @@ function hostStatus(
       const incomplete = incompleteListings(status);
       if (incomplete.length === 0) return undefined;
       const list = incomplete.length > 1 ? "Device" : incomplete[0] === "ios" ? "iOS" : "Android";
-      return { tone: "warning", label: `${list} list may be incomplete`, detail: status.detail };
+      return {
+        tone: "warning",
+        label: translate(getUiLocale(), "{list} list may be incomplete", {
+          list: translate(getUiLocale(), list),
+        }),
+        detail: status.detail,
+      };
     }
     case "installing":
     case "starting":
@@ -798,7 +805,7 @@ function DeviceSourceRow(props: { row: SourceRow }) {
             </span>
             {environment.status.tone === "warning" && environment.status.detail ? (
               <Popover>
-                <PopoverTrigger render={<InlineButton />}>Details</PopoverTrigger>
+                <PopoverTrigger render={<InlineButton />}>{t("Details")}</PopoverTrigger>
                 <PopoverPopup side="bottom" align="start" width="lg" padding="compact">
                   <p className="whitespace-pre-wrap break-words font-mono text-xs text-muted-foreground">
                     {environment.status.detail}

@@ -329,7 +329,7 @@ export function ThreadMcpApp(props: {
         const info = await latest.current.toolInfo({ environmentId, input: { ...input, name } });
         if (info._tag !== "Success") throw commandFailure(info);
         if (!info.value.callable)
-          throw new McpAppHostRefusal({ message: "This app cannot call that tool." });
+          throw new McpAppHostRefusal({ message: t("This app cannot call that tool.") });
         if (
           !info.value.readOnly &&
           !(await confirm(
@@ -341,7 +341,7 @@ export function ThreadMcpApp(props: {
             t("Allow"),
           ))
         ) {
-          throw new McpAppHostRefusal({ message: "Declined by the user." });
+          throw new McpAppHostRefusal({ message: t("Declined by the user.") });
         }
         const result = await latest.current.callTool({
           environmentId,
@@ -364,10 +364,10 @@ export function ThreadMcpApp(props: {
         if (
           !(await confirm(t("Open a link from {server}?", { server: app.server }), url, t("Open")))
         ) {
-          throw new McpAppHostRefusal({ message: "Declined by the user." });
+          throw new McpAppHostRefusal({ message: t("Declined by the user.") });
         }
         if (!(await tryOpenExternalUrl(url, "mcp-app"))) {
-          throw new McpAppHostRefusal({ message: "The link could not be opened." });
+          throw new McpAppHostRefusal({ message: t("The link could not be opened.") });
         }
       },
       sendMessage: async (text) => {
@@ -378,7 +378,7 @@ export function ThreadMcpApp(props: {
             t("Send"),
           ))
         ) {
-          throw new McpAppHostRefusal({ message: "Declined by the user." });
+          throw new McpAppHostRefusal({ message: t("Declined by the user.") });
         }
         await enqueueThreadOutboxMessage({
           environmentId: latest.current.props.environmentId,
@@ -448,7 +448,7 @@ export function ThreadMcpApp(props: {
             t("Save"),
           ))
         ) {
-          throw new McpAppHostRefusal({ message: "Declined by the user." });
+          throw new McpAppHostRefusal({ message: t("Declined by the user.") });
         }
         for (const file of files) {
           let bytes: Uint8Array | undefined;
@@ -468,9 +468,13 @@ export function ThreadMcpApp(props: {
             if (typeof declared === "string") mimeType = declared;
           }
           if (bytes === undefined)
-            throw new McpAppHostRefusal({ message: `${file.name} has no contents.` });
+            throw new McpAppHostRefusal({
+              message: t("{name} has no contents.", { name: file.name }),
+            });
           if (bytes.byteLength > MAX_DOWNLOAD_BYTES) {
-            throw new McpAppHostRefusal({ message: `${file.name} is too large to save.` });
+            throw new McpAppHostRefusal({
+              message: t("{name} is too large to save.", { name: file.name }),
+            });
           }
           const shared = await shareGeneratedAttachment({
             bytes,
@@ -478,7 +482,7 @@ export function ThreadMcpApp(props: {
             signal: new AbortController().signal,
           });
           if (!shared)
-            throw new McpAppHostRefusal({ message: "Sharing is not available on this device." });
+            throw new McpAppHostRefusal({ message: t("Sharing is not available on this device.") });
         }
       },
       onRequestTeardown: () => {

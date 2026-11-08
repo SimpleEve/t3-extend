@@ -422,7 +422,6 @@ export default {
   "Start {name}": "启动 {name}",
   Start: "启动",
   "Refresh devices": "刷新设备",
-  "Dismiss device warning": "关闭设备警告",
   "Dismiss device error": "关闭设备错误",
   "Interactive 3D device. Drag the screen to interact. Drag outside it or swipe with two fingers to turn.":
     "可交互的 3D 设备。拖动屏幕进行操作，拖动屏幕外部或双指滑动来旋转。",
@@ -635,7 +634,6 @@ export default {
   "Step 2 of 2: connect video": "第 2 步，共 2 步：连接视频",
   "No Android virtual devices found. Create one in Android Studio's Device Manager, then refresh.":
     "没有找到 Android 虚拟设备。请在 Android Studio 的 Device Manager 里创建一个，然后刷新。",
-  "Device discovery warning · {label}": "设备发现警告 · {label}",
   Flat: "平面",
   "Input disconnected ({detail}), reconnecting…": "输入已断开（{detail}），正在重新连接…",
   "Input disconnected, reconnecting…": "输入已断开，正在重新连接…",

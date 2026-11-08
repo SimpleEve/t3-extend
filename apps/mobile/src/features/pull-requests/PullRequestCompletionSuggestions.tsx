@@ -5,6 +5,7 @@ import { GlassSurface } from "../../components/ui/GlassSurface";
 import { PullRequestAvatar } from "./PullRequestPresentation";
 import type { PullRequestCompletion } from "@t3tools/shared/pullRequestComposerTrigger";
 import type { usePullRequestCompletions } from "./usePullRequestCompletions";
+import { useT } from "../../hooks/useT";
 
 const COPY = {
   mention: {
@@ -62,6 +63,7 @@ export function PullRequestCompletionSuggestions({
 }: {
   readonly completions: ReturnType<typeof usePullRequestCompletions>;
 }) {
+  const t = useT();
   if (completions.kind === null) return null;
   const copy = COPY[completions.kind];
   return (
@@ -81,7 +83,7 @@ export function PullRequestCompletionSuggestions({
             <Pressable
               key={completion.token}
               accessibilityRole="button"
-              accessibilityLabel={`Insert ${completion.token}`}
+              accessibilityLabel={t("Insert {token}", { token: completion.token })}
               onPress={() => completions.select(completion)}
               className="flex-row items-center gap-2.5 border-border px-3.5 py-2.5 active:opacity-60"
               style={{

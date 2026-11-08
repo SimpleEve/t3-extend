@@ -1834,7 +1834,6 @@ export default {
   "Switch to {label}?": "切换到{label}？",
   "Read your existing Cursor CLI login from macOS Keychain to show account history and monthly limits. macOS may ask you to allow access.":
     "从 macOS 钥匙串读取你现有的 Cursor CLI 登录，以显示账号历史和每月上限。macOS 可能会请求你允许访问。",
-  "Cursor account usage": "Cursor 账号用量",
   "CLI Proxy": "CLI Proxy",
   " · Disabled": " · 已停用",
   "The hub's management key is deleted from this server. Its accounts leave the Limits view; the hub itself is untouched. Add it again with the URL and key to bring them back.":
@@ -2147,8 +2146,6 @@ export default {
   "Best rated": "评分最高",
   Newest: "最新",
   "Most relevant": "最相关",
-  "Requires access to your Cursor login in macOS Keychain.":
-    "需要访问 macOS 钥匙串中的 Cursor 登录信息。",
   "Worktree cleanup": "worktree 清理",
   "Project defaults and overrides": "项目默认值和覆盖",
   "Project overview": "项目概览",
@@ -2192,7 +2189,6 @@ export default {
   "Pull request sharing": "PR 共享",
   "Secret providers": "密钥 provider",
   "Add secret provider": "添加密钥 provider",
-  "Android list may be incomplete": "Android 列表可能不完整",
   Access: "访问权限",
   "Install the extension": "安装扩展",
   "The T3 Code GNOME extension lets you capture other windows and bring them into your draft. Sign out once after installing.":
@@ -2774,7 +2770,6 @@ export default {
   "Select an environment to see usage.": "选择一个环境才能查看用量。",
   "{sessions} sessions": "{sessions} 个会话",
   cost: "费用",
-  "Enable on {label}": "在 {label} 上启用",
   "Map {model} to model": "把 {model} 映射到模型",
   "new model": "新模型",
   "{label} price for {model}": "{model} 的{label}价格",
@@ -2939,4 +2934,40 @@ export default {
   "Grouping rule decides how each checkout joins project groups in the sidebar. Changing it can move a checkout to a different project.":
     "分组规则决定每个 checkout 如何并入侧边栏里的项目分组。更改后，某个 checkout 可能会移到另一个项目下。",
   "{label} token": "{label} 令牌",
+  "These databases still hold space freed by history cleanup. Run the command on each machine to reclaim it. It restarts the background service. Quit the desktop app first if it hosts the environment.":
+    "这些数据库仍占着历史清理释放的空间。在每台机器上运行该命令即可回收，命令会重启后台服务。如果桌面应用承载着这个环境，请先退出桌面应用。",
+  "Hide the commands, edits, and searches agents run. Hide successful keeps failures. Zen shows only final answers. Approvals, questions, and errors always show.":
+    "隐藏 Agent 运行的命令、编辑和搜索。“隐藏成功项”会保留失败的项，“专注”只显示最终回答。批准请求、提问和错误始终显示。",
+  "Tool calls in chat": "对话中的工具调用",
+  "Hide successful": "隐藏成功项",
+  "Hide all": "全部隐藏",
+  Zen: "专注",
+  "Beta: Tool calls in chat": "Beta：对话中的工具调用",
+  "Share a thread with a guest who watches it live in a browser and sends messages you approve. Sign in to T3 Connect to use guest links.":
+    "把对话分享给访客，访客可在浏览器里实时观看，并发送经你批准的消息。登录 T3 Connect 后才能使用访客链接。",
+  "Share a thread with a guest who watches it live in a browser and sends messages you approve. Needs T3 Connect: sign in and link this machine in {link}. Turning it off stops every guest link.":
+    "把对话分享给访客，访客可在浏览器里实时观看，并发送经你批准的消息。需要 T3 Connect：请登录，并在{link}中关联这台机器。关闭后所有访客链接都会失效。",
+  "Let agents here work on your other machines, and theirs here. Turn it on for each machine, then link them in {link}. While off, nothing new starts over a link; running tasks finish.":
+    "让这里的 Agent 能在你的其他机器上工作，其他机器的 Agent 也能在这里工作。请在每台机器上开启，再在{link}中关联它们。关闭期间不会通过链接启动新任务，正在运行的任务会跑完。",
+  "Let agents on a machine work on your other machines, and theirs on it. Turn it on for each machine. While off, nothing new starts over a link; running tasks finish.":
+    "让一台机器上的 Agent 能在你的其他机器上工作，其他机器的 Agent 也能在它上面工作。请在每台机器上开启。关闭期间不会通过链接启动新任务，正在运行的任务会跑完。",
+  "Destination thread": "目标对话",
+  "Search all threads...": "搜索所有对话…",
+  "No threads found.": "没有找到对话。",
+  "New thread each run": "每次运行新建对话",
+  "Deleting the thread also deletes this task.": "删除这个对话也会删除这个任务。",
+  "Runs go to": "运行结果发到",
+  "Clones go to github.com/owner/repo under the folder above, like ghq.":
+    "克隆的仓库放在上方文件夹下的 github.com/owner/repo 里，和 ghq 一样。",
+  "Clones go to github.com/owner/repo under the Add project folder, like ghq.":
+    "克隆的仓库放在“添加项目”文件夹下的 github.com/owner/repo 里，和 ghq 一样。",
+  "Clone into host folders": "克隆到主机的文件夹",
+  "clone into host folders": "克隆到主机的文件夹",
+  Clones: "克隆",
+  "This folder does not exist yet. Cloning creates it.": "这个文件夹还不存在，克隆时会创建它。",
+  "Add Claude account": "添加 Claude 账号",
+  "Use a Claude config folder that is already signed in on this server.":
+    "使用这台服务器上已登录的 Claude 配置文件夹。",
+  "Point at a CLAUDE_CONFIG_DIR folder on {label} where Claude Code is already signed in. Sign in there with the Claude CLI first.":
+    "指向 {label} 上 Claude Code 已登录的 CLAUDE_CONFIG_DIR 文件夹。请先在那里用 Claude CLI 登录。",
 } satisfies Record<string, string>;

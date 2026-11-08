@@ -17,6 +17,7 @@ import {
   type InspectorContent,
   type InspectorPane,
 } from "./inspector-panes";
+import { useT } from "../../hooks/useT";
 
 // A pane without an AppBar has no bar; one with it gets the glass the workspace's screens get.
 const PANE_HEADER_OPTIONS = { ...GLASS_HEADER_OPTIONS, headerShown: false };
@@ -31,13 +32,14 @@ function PaneScreenContent(props: {
   readonly resetKeys: ReadonlyArray<unknown> | undefined;
   readonly onClose: () => void;
 }) {
+  const t = useT();
   const { store, slot } = useInspectorBarSlot();
   const content = (
     <WorkspaceSlotOptionsContext value={slot}>
       <RenderErrorBoundary
         resetKeys={props.resetKeys}
         renderFallback={(fallback) => (
-          <RenderFailureView {...fallback} title="The inspector couldn't be displayed" />
+          <RenderFailureView {...fallback} title={t("The inspector couldn't be displayed")} />
         )}
       >
         {props.pane.render()}

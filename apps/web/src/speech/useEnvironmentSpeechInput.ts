@@ -41,6 +41,8 @@ import { createBrowserVoiceInputPlatform } from "./browserVoiceInput";
 import { preferredSpeechLanguages } from "./preferredSpeechLanguages";
 import { runEnvironmentSpeech } from "./runEnvironmentSpeech";
 import { bindAudioGrant, readCleanupGrant, useAudioChoice } from "./voiceConsent";
+import { useT } from "~/hooks/useT";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const INITIAL_STATE: VoiceInputState = { phase: "idle", error: null, errorAction: null };
 const WAITING_STATE: VoiceInputState = { phase: "preparing", error: null, errorAction: null };
@@ -113,6 +115,7 @@ type HookInput = {
  * the recording is abandoned the moment that choice changes or its connection drops.
  */
 export function useVoiceTranscriptionDestination() {
+  const t = useT();
   const hydrated = useClientSettingsHydrated();
   const choice = useAudioChoice();
   const grant = choice === "off" ? null : choice;
@@ -135,13 +138,17 @@ export function useVoiceTranscriptionDestination() {
     grantId: grant?.id ?? null,
     label:
       provider && environment
-        ? `${CLOUD_SPEECH_LABELS[provider]} via ${environment.label}`
+        ? t("{provider} via {label}", {
+            provider: CLOUD_SPEECH_LABELS[provider],
+            label: environment.label,
+          })
         : (environment?.label ?? null),
     prepared: supported && canDictate ? connection : null,
   };
 }
 
 export function useEnvironmentSpeechInput(input: HookInput) {
+  const t = useT();
   const navigate = useNavigate();
   const destination = useVoiceTranscriptionDestination();
   const prepared = destination.prepared;
@@ -348,8 +355,8 @@ export function useEnvironmentSpeechInput(input: HookInput) {
       onPostProcessingError: () =>
         toastManager.add({
           type: "warning",
-          title: "Transcript cleanup failed",
-          description: "The original transcript was added.",
+          title: translate(getUiLocale(), "Transcript cleanup failed"),
+          description: translate(getUiLocale(), "The original transcript was added."),
         }),
       readDraft,
       commitDraft: (text, selection) => {
@@ -506,7 +513,7 @@ export function useEnvironmentSpeechInput(input: HookInput) {
       setQueuedStart(null);
       toastManager.add({
         type: "error",
-        title: "Could not start voice input",
+        title: t("Could not start voice input"),
         description: error instanceof Error ? error.message : String(error),
       });
       return;
@@ -520,7 +527,7 @@ export function useEnvironmentSpeechInput(input: HookInput) {
     if (!latestStatus.supported) {
       toastManager.add({
         type: "error",
-        title: "Voice input is not available",
+        title: t("Voice input is not available"),
         description: latestStatus.reason,
       });
       return;

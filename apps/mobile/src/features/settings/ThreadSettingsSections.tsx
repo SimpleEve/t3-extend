@@ -285,8 +285,9 @@ function BetaSettingsSection() {
         })}
       </SettingsSection>
       <Text className="px-2 text-sm text-foreground-muted">
-        Let agents on a machine work on your other machines, and theirs on it. Turn it on for each
-        machine. While off, nothing new starts over a link; running tasks finish.
+        {t(
+          "Let agents on a machine work on your other machines, and theirs on it. Turn it on for each machine. While off, nothing new starts over a link; running tasks finish.",
+        )}
       </Text>
     </View>
   );
@@ -303,6 +304,7 @@ const TOOL_CALL_VISIBILITY_OPTIONS: ReadonlyArray<{
 ];
 
 function ToolCallVisibilitySection() {
+  const t = useT();
   const savePreferences = useAtomSet(updateMobilePreferencesAtom);
   const preferences = useAtomValue(mobilePreferencesAtom);
   const selected = AsyncResult.isSuccess(preferences)
@@ -311,7 +313,7 @@ function ToolCallVisibilitySection() {
 
   return (
     <View className="gap-3">
-      <SettingsSection title="Beta: Tool calls in chat">
+      <SettingsSection title={t("Beta: Tool calls in chat")}>
         {TOOL_CALL_VISIBILITY_OPTIONS.map((option, index) => (
           <ListChoiceRow
             key={option.value}
@@ -324,8 +326,9 @@ function ToolCallVisibilitySection() {
         ))}
       </SettingsSection>
       <Text className="px-2 text-sm text-foreground-muted">
-        Hide the commands, edits, and searches agents run. Hide successful keeps failures. Zen shows
-        only final answers. Approvals, questions, and errors always show.
+        {t(
+          "Hide the commands, edits, and searches agents run. Hide successful keeps failures. Zen shows only final answers. Approvals, questions, and errors always show.",
+        )}
       </Text>
     </View>
   );

@@ -485,11 +485,15 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
       <View className="flex-1 android:bg-header ios:bg-screen">
         <AppBar
           title={`#${params.number}`}
-          subtitle={connected ? params.repository : `${params.repository} · Offline`}
+          subtitle={
+            connected
+              ? params.repository
+              : t("{repository} · Offline", { repository: params.repository })
+          }
           onBack={layout.usesSplitView ? undefined : returnToList}
           menus={[
             {
-              title: `${capitalizeTerm(terminology.singular)} actions`,
+              title: t("{singular} actions", { singular: capitalizeTerm(terminology.singular) }),
               icon: "ellipsis",
               items: [
                 ...(permissions.verdicts.length
@@ -1236,23 +1240,27 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
             !seekingFile ? (
             <View style={{ paddingTop: contentTopInset }}>
               <EmptyState
-                title="Only test files changed"
-                detail="Test files are hidden from this review."
-                action={<Button label="Show test files" tone="contrast" onPress={filter.showAll} />}
+                title={t("Only test files changed")}
+                detail={t("Test files are hidden from this review.")}
+                action={
+                  <Button label={t("Show test files")} tone="contrast" onPress={filter.showAll} />
+                }
                 variant="plain"
               />
             </View>
           ) : !result.isPending && !result.error && !seekingFile ? (
             <EmptyState
-              title="Diff unavailable"
-              detail={`Open this ${terminology.singular} on its provider to view the changes.`}
+              title={t("Diff unavailable")}
+              detail={t("Open this {singular} on its provider to view the changes.", {
+                singular: terminology.singular,
+              })}
               variant="plain"
             />
           ) : null}
           {result.nextCursor && result.isPending && data.rows.length && !seekingFile ? (
             <View className="flex-row items-center justify-center gap-2 py-2">
               <AppActivityIndicator size="small" />
-              <Text className="text-xs text-foreground-muted">Loading more files…</Text>
+              <Text className="text-xs text-foreground-muted">{t("Loading more files…")}</Text>
             </View>
           ) : null}
           {result.error && result.nextCursor ? (

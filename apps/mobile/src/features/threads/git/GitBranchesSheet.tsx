@@ -217,7 +217,7 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
           </View>
         </ScrollView>
       </ScreenContent>
-      <SheetHeader title="Branches & worktrees" onClose={() => navigation.goBack()} />
+      <SheetHeader title={t("Branches & worktrees")} onClose={() => navigation.goBack()} />
     </View>
   );
 }

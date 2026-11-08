@@ -33,6 +33,7 @@ import type { ComposerBannerStackItem } from "./ComposerBannerStack";
 import type { ThreadNowItem } from "./ThreadNow";
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork
 import { interpolateNodes } from "~/lib/interpolateNodes"; // fork
+import { useT } from "~/hooks/useT"; // fork
 
 export function extensionStatusBannerItem(
   statuses: NonNullable<OrchestrationV2ProviderSession["extensionStatuses"]>,
@@ -42,8 +43,20 @@ export function extensionStatusBannerItem(
     id: "pi-extension-status",
     variant: "default",
     icon: <span>▸</span>,
-    title: <output>{`Pi · ${statuses.map((status) => status.text).join(" · ")}`}</output>,
+    title: <PiStatusTitle statuses={statuses} />,
   };
+}
+
+// fork: the banner item is built outside React, so its title reads the language itself.
+function PiStatusTitle(props: {
+  readonly statuses: NonNullable<OrchestrationV2ProviderSession["extensionStatuses"]>;
+}) {
+  const t = useT();
+  return (
+    <output>
+      {t("Pi · {statuses}", { statuses: props.statuses.map((status) => status.text).join(" · ") })}
+    </output>
+  );
 }
 
 /** Subagents and side chats waiting on the user, unless the parent is itself waiting on them. */
