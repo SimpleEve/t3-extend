@@ -1,4 +1,8 @@
 ntfy.{$T3X_DOMAIN} {
+	# Under the on-demand *.{$T3X_DOMAIN} site, Caddy does not obtain this name at startup; the registry's ask says yes to it.
+	tls {
+		on_demand
+	}
 	reverse_proxy {$T3X_NTFY_UPSTREAM:ntfy:80} {
 		# The phone holds a long-lived connection; do not buffer it.
 		flush_interval -1
