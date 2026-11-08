@@ -2,8 +2,9 @@
 {
 	local_certs
 	on_demand_tls {
-		ask http://registry:8082/ask
+		ask http://{$T3X_REGISTRY_ASK:registry:8082}/ask
 	}
+	import /etc/caddy/sites/*.options
 }
 
 {$T3X_DOMAIN} {
@@ -12,11 +13,11 @@
 	# The tunnel control connection: frpc speaks websocket over TLS to this path.
 	@frp path /~!frp
 	handle @frp {
-		reverse_proxy frps:7000
+		reverse_proxy {$T3X_FRPS_CONTROL:frps:7000}
 	}
 
 	handle /v1/* {
-		reverse_proxy registry:8080 {
+		reverse_proxy {$T3X_REGISTRY_API:registry:8080} {
 			# Overwrites whatever the client sent: this is the only address the registry rate-limits on.
 			header_up X-T3x-Client-IP {remote_host}
 		}
@@ -30,14 +31,18 @@
 # The push server (or nothing, with --no-ntfy).
 import /etc/caddy/ntfy.caddy
 
-# Every computer's own subdomain: <name>.<domain> goes to frps, which routes by Host.
-https:// {
+# Every computer's own subdomain: <name>.<domain> goes to frps, which routes by Host. The address is the wildcard and
+# not a bare `https://`: an on-demand site that matches every name also takes the certificate lookup of a client that
+# sends no SNI, and then `default_sni` (a *.options file) cannot find the certificate it points at.
+*.{$T3X_DOMAIN} {
 	tls {
 		on_demand
 	}
-	reverse_proxy frps:8080 {
+	reverse_proxy {$T3X_FRPS_VHOST:frps:8080} {
 		# Streaming responses (SSE) go out immediately.
 		flush_interval -1
 		header_up X-T3x-Client-IP {remote_host}
 	}
 }
+
+import /etc/caddy/sites/*.caddy

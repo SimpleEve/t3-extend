@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # 在这台 VPS 上装好 T3 Extend 的注册表、隧道服务器、HTTPS 和（默认的）推送服务器。
 #
-#   ./setup.sh --domain t3.example.com --email you@example.com [--no-ntfy]
+#   ./setup.sh --domain t3.example.com [--email you@example.com] [--no-ntfy]
 #
 # 只需要 Docker 和 compose 插件：脚本不装任何软件包，不起系统服务，也不改防火墙。
-# 80/tcp 和 443/tcp 要你自己放行。
+# 80/tcp 和 443/tcp 要你自己放行。--email 可以不填：Let's Encrypt 现在不再发到期提醒。
+#
+# 这台 VPS 上已经有别的网站时（见 README 的“这台 VPS 上已经有别的网站”）：
+#   T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.host-network.yml ./setup.sh --domain ...
+#   T3X_SITES_DIR      别的网站的 Caddy 站点文件放在哪里（默认是脚本所在目录里的 sites/）
 #
 # 想在不能被弄脏的机器上试用（见 README 的“本地试用”）：
 #   T3X_DATA_DIR       .env 和 secrets/ 放在哪里（默认是脚本所在目录）
@@ -18,6 +22,8 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 DATA_DIR=${T3X_DATA_DIR:-$SCRIPT_DIR}
 PROJECT=${T3X_PROJECT:-t3x}
 COMPOSE_FILES=${T3X_COMPOSE_FILES:-docker-compose.yml}
+# Written to .env as given: a relative path is relative to this directory, like the compose files.
+SITES_DIR=${T3X_SITES_DIR:-./sites}
 
 domain=""
 email=""
@@ -71,10 +77,9 @@ esac
 if [ "$public_port" != 443 ] && [ "$local_trial" = 0 ]; then
   fail "--public-port 只用于本地试用（需要 T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.test.yml）"
 fi
-# Let's Encrypt wants an address for expiry notices; a local trial uses Caddy's own CA and needs none.
-if [ "$local_trial" = 0 ] && [ -z "$email" ]; then
-  fail "必须提供 --email，例如 --email you@example.com"
-fi
+case "$SITES_DIR" in
+  *$'\n'*) fail "T3X_SITES_DIR 不能包含换行" ;;
+esac
 # The value goes into .env and into the Caddyfile, so only a plain address is accepted.
 if [ -n "$email" ] && { [ "${#email}" -gt 254 ] || [[ ! $email =~ $email_pattern ]]; }; then
   fail "--email 必须是一个普通的邮箱地址，例如 you@example.com"
@@ -96,6 +101,13 @@ compose() {
   docker compose "${compose_args[@]}" "$@"
 }
 
+# Caddy's `email` line is a file of its own, so that a missing address leaves no empty `email` behind.
+if [ -n "$email" ]; then
+  acme_email_conf=./caddy/acme-email.caddy
+else
+  acme_email_conf=./caddy/acme-email-off.caddy
+fi
+
 if [ "$ntfy" = 1 ]; then
   profiles=ntfy
   ntfy_site=./caddy/ntfy.caddy
@@ -112,7 +124,9 @@ COMPOSE_PROFILES=$profiles
 COMPOSE_PROJECT_NAME=$PROJECT
 COMPOSE_FILE=$COMPOSE_FILES
 T3X_NTFY_SITE=$ntfy_site
-T3X_NTFY_URL=$ntfy_url"
+T3X_NTFY_URL=$ntfy_url
+T3X_ACME_EMAIL_CONF=$acme_email_conf
+T3X_SITES_DIR=$SITES_DIR"
 
 if [ "$dry_run" = 1 ]; then
   echo "试运行：不会写任何文件，也不会启动服务。"
@@ -131,6 +145,11 @@ docker compose version >/dev/null 2>&1 || fail "缺少 Docker compose 插件：h
 
 umask 077
 mkdir -p "$DATA_DIR/secrets"
+# Docker would create a missing bind-mount source as root.
+case "$SITES_DIR" in
+  /*) mkdir -p "$SITES_DIR" ;;
+  *) mkdir -p "$SCRIPT_DIR/$SITES_DIR" ;;
+esac
 if [ -f "$DATA_DIR/.env" ]; then
   existing=$(sed -n 's/^T3X_DOMAIN=//p' "$DATA_DIR/.env")
   if [ "$existing" != "$domain" ]; then

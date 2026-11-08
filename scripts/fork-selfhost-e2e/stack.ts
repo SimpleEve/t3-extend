@@ -7,6 +7,9 @@ import * as NodePath from "node:path";
 import { E2eFailure, run, type RunResult, until } from "./util.ts";
 
 export const DOMAIN = "t3.localhost";
+/** The other website in the fixture sites directory (see `writeSitesFixture`). */
+export const SITE_FIXTURE_HOST = "other-site.localhost";
+export const SITE_FIXTURE_BODY = "sites-fixture-ok";
 const SELF_HOST = NodePath.resolve(import.meta.dirname, "../../infra/self-host");
 
 export interface Stack {
@@ -36,6 +39,20 @@ export type RunDocker = (
 const runDocker: RunDocker = (args, options) =>
   run("docker", args, { cwd: SELF_HOST, ...(options?.signal ? { signal: options.signal } : {}) });
 
+/**
+ * What a person puts in `T3X_SITES_DIR` for another website on the same server: a site file, a global-options
+ * file, and a README that must not be read as configuration.
+ */
+function writeSitesFixture(dir: string): void {
+  NodeFS.mkdirSync(dir, { recursive: true });
+  NodeFS.writeFileSync(
+    NodePath.join(dir, "fixture.caddy"),
+    `${SITE_FIXTURE_HOST} {\n\trespond ${SITE_FIXTURE_BODY}\n}\n`,
+  );
+  NodeFS.writeFileSync(NodePath.join(dir, "fixture.options"), `default_sni ${SITE_FIXTURE_HOST}\n`);
+  NodeFS.writeFileSync(NodePath.join(dir, "README.md"), "Not a Caddyfile: this {\n");
+}
+
 /** What a failed `compose down -v` leaves for a person to deal with; undefined when it succeeded. */
 export function describeDownProblem(project: string, result: RunResult): string | undefined {
   if (result.status === 0) return undefined;
@@ -64,7 +81,9 @@ export async function prepareStack(options: {
   const origin = `https://${DOMAIN}:${port}`;
   const envFile = NodePath.join(workDir, "stack.env");
   const overrideFile = NodePath.join(workDir, "compose.override.yml");
-  // What setup.sh writes, minus ntfy (the push server is not part of these scenarios).
+  const sitesDir = NodePath.join(workDir, "sites");
+  writeSitesFixture(sitesDir);
+  // What setup.sh writes, minus ntfy (the push server is not part of these scenarios), with the fixture sites directory.
   NodeFS.writeFileSync(
     envFile,
     [
@@ -73,6 +92,7 @@ export async function prepareStack(options: {
       "ACME_EMAIL=",
       "COMPOSE_PROFILES=",
       "T3X_NTFY_SITE=./caddy/ntfy-off.caddy",
+      `T3X_SITES_DIR=${sitesDir}`,
       `T3X_NTFY_URL=https://ntfy.${DOMAIN}:${port}`,
       "",
     ].join("\n"),

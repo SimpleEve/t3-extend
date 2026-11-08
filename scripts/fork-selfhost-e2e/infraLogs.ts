@@ -15,7 +15,14 @@ const read = (file: string): string => NodeFS.readFileSync(NodePath.join(SELF_HO
 
 /** What no checked-in configuration may contain: an access log, or the switch that unmasks credentials. */
 export function checkNoAccessLogConfigured(): void {
-  for (const file of ["Caddyfile", "Caddyfile.test", "caddy/ntfy.caddy", "caddy/ntfy-off.caddy"]) {
+  for (const file of [
+    "Caddyfile",
+    "Caddyfile.test",
+    "caddy/ntfy.caddy",
+    "caddy/ntfy-off.caddy",
+    "caddy/acme-email.caddy",
+    "caddy/acme-email-off.caddy",
+  ]) {
     const offending = read(file)
       .split("\n")
       .map((line) => line.replace(/#.*$/u, "").trim())
@@ -36,10 +43,10 @@ export function checkNoAccessLogConfigured(): void {
 /** `Caddyfile.test` with an access log (Caddy's defaults: JSON, no credentials) in each site block. */
 export function accessLogCaddyfile(): string {
   const source = read("Caddyfile.test");
-  const sites = source.match(/^(\{\$T3X_DOMAIN\}|https:\/\/) \{$/gmu) ?? [];
+  const sites = source.match(/^(\{\$T3X_DOMAIN\}|\*\.\{\$T3X_DOMAIN\}) \{$/gmu) ?? [];
   check(sites.length === 2, `expected two site blocks in Caddyfile.test, found ${sites.length}`);
   return source.replace(
-    /^(\{\$T3X_DOMAIN\}|https:\/\/) \{$/gmu,
+    /^(\{\$T3X_DOMAIN\}|\*\.\{\$T3X_DOMAIN\}) \{$/gmu,
     (opening) => `${opening}\n\tlog {\n\t\toutput stdout\n\t}`,
   );
 }

@@ -1,0 +1,1 @@
+# No ACME e-mail (setup.sh without --email): Let's Encrypt only uses it to reach you, and sends no expiry notices.

@@ -1,3 +1,5 @@
 # Written by setup.sh on the VPS: the domain, and the ntfy account password.
 .env
 secrets/
+# Your own compose overrides (extra bind mounts for the sites in sites/); see README.md.
+docker-compose.local.yml

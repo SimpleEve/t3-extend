@@ -1,5 +1,5 @@
 ntfy.{$T3X_DOMAIN} {
-	reverse_proxy ntfy:80 {
+	reverse_proxy {$T3X_NTFY_UPSTREAM:ntfy:80} {
 		# The phone holds a long-lived connection; do not buffer it.
 		flush_interval -1
 	}

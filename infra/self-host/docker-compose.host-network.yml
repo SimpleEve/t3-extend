@@ -1,0 +1,37 @@
+# For a VPS that already hosts other websites: Caddy takes over 80 and 443 and forwards those sites too, and their
+# backends listen only on the host's 127.0.0.1, which a container on the compose network cannot reach. So Caddy runs on
+# the host's network (no `ports`), and reaches registry, frps and ntfy on 127.0.0.1 ports they publish for it.
+#
+#   T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.host-network.yml ./setup.sh --domain t3.example.com
+#
+# The published ports are on the loopback only. frps's plugin port (registry 8081) is not published: only frps uses it.
+# Pick other host ports with these variables (in .env) if the defaults are taken:
+#   T3X_HOST_REGISTRY_PORT (17080)  registry's public API
+#   T3X_HOST_ASK_PORT      (17082)  registry's certificate question
+#   T3X_HOST_FRPS_PORT     (17000)  frps's control connection
+#   T3X_HOST_VHOST_PORT    (17088)  frps's http virtual hosts
+#   T3X_HOST_NTFY_PORT     (17090)  ntfy
+services:
+  caddy:
+    network_mode: host
+    ports: !reset []
+    environment:
+      T3X_REGISTRY_API: 127.0.0.1:${T3X_HOST_REGISTRY_PORT:-17080}
+      T3X_REGISTRY_ASK: 127.0.0.1:${T3X_HOST_ASK_PORT:-17082}
+      T3X_FRPS_CONTROL: 127.0.0.1:${T3X_HOST_FRPS_PORT:-17000}
+      T3X_FRPS_VHOST: 127.0.0.1:${T3X_HOST_VHOST_PORT:-17088}
+      T3X_NTFY_UPSTREAM: 127.0.0.1:${T3X_HOST_NTFY_PORT:-17090}
+
+  registry:
+    ports:
+      - "127.0.0.1:${T3X_HOST_REGISTRY_PORT:-17080}:8080"
+      - "127.0.0.1:${T3X_HOST_ASK_PORT:-17082}:8082"
+
+  frps:
+    ports:
+      - "127.0.0.1:${T3X_HOST_FRPS_PORT:-17000}:7000"
+      - "127.0.0.1:${T3X_HOST_VHOST_PORT:-17088}:8080"
+
+  ntfy:
+    ports:
+      - "127.0.0.1:${T3X_HOST_NTFY_PORT:-17090}:80"

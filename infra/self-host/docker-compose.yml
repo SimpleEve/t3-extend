@@ -70,6 +70,10 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       # setup.sh points this at caddy/ntfy.caddy, or at caddy/ntfy-off.caddy for --no-ntfy.
       - ${T3X_NTFY_SITE:-./caddy/ntfy.caddy}:/etc/caddy/ntfy.caddy:ro
+      # setup.sh points this at caddy/acme-email.caddy when it was given --email.
+      - ${T3X_ACME_EMAIL_CONF:-./caddy/acme-email-off.caddy}:/etc/caddy/acme-email.caddy:ro
+      # Other websites on this server: *.caddy files are sites, *.options files are global options.
+      - ${T3X_SITES_DIR:-./sites}:/etc/caddy/sites:ro
       - caddy_data:/data
       - caddy_config:/config
 

@@ -42,7 +42,7 @@ import {
 } from "./infraLogs.ts";
 import { DpopKey, exchangePass, Phone, sessionOf, sessionSocketUrl } from "./phone.ts";
 import { openRpc, RpcFailure, type RpcConnection } from "./rpc.ts";
-import { DOMAIN, type Stack } from "./stack.ts";
+import { DOMAIN, SITE_FIXTURE_BODY, SITE_FIXTURE_HOST, type Stack } from "./stack.ts";
 import { check, checkEqual, E2eFailure, httpRequest, say, until } from "./util.ts";
 
 export interface World {
@@ -110,6 +110,17 @@ const handshake = (host: string, port: number) =>
       resolve({ ok: true });
     });
     socket.once("error", (error) => resolve({ ok: false, message: error.message }));
+  });
+
+/** The subject alternative names of the certificate a client without SNI gets (an IP address sends none). */
+const certificateWithoutSni = (port: number) =>
+  new Promise<string>((resolve, reject) => {
+    const socket = NodeTls.connect({ host: "127.0.0.1", port, rejectUnauthorized: false }, () => {
+      const names = socket.getPeerCertificate().subjectaltname ?? "";
+      socket.end();
+      resolve(names);
+    });
+    socket.once("error", reject);
   });
 
 const failWithin = <T>(promise: Promise<T>, label: string, timeoutMs: number): Promise<T> =>
@@ -476,7 +487,8 @@ export const scenarios: ReadonlyArray<Scenario> = [
   },
   {
     id: 12,
-    title: "no certificate for a subdomain nobody registered",
+    title:
+      "no certificate for a subdomain nobody registered; another website from the sites directory is served",
     timeoutMs: 60_000,
     run: async (world) => {
       const evil = await handshake(`evil.${DOMAIN}`, world.stack.port);
@@ -487,6 +499,17 @@ export const scenarios: ReadonlyArray<Scenario> = [
       );
       const known = await handshake(`a.${DOMAIN}`, world.stack.port);
       check(known.ok, "the handshake for a registered name works");
+
+      // The sites directory (infra/self-host/sites/README.md): a site file is served next to ours, a global
+      // options file reaches Caddy (default_sni answers a client that sends no SNI), a README is not read.
+      const site = await httpRequest(`https://${SITE_FIXTURE_HOST}:${world.stack.port}/`);
+      checkEqual(site.status, 200, "the site from the sites directory");
+      checkEqual(site.text, SITE_FIXTURE_BODY, "the site from the sites directory");
+      const noSni = await certificateWithoutSni(world.stack.port);
+      check(
+        noSni.includes(`DNS:${SITE_FIXTURE_HOST}`),
+        `a client without SNI should get default_sni's certificate, got: ${noSni}`,
+      );
     },
   },
   {

@@ -222,7 +222,9 @@ To start:
 1. Set up the server on a Linux VPS with a domain you own. Follow
    [Self-hosted connection](../../infra/self-host/README.md). It ends by printing
    a one-time invite for your first computer. On a server in mainland China the
-   domain must be registered with your cloud provider.
+   domain must be registered with your cloud provider. If the VPS already hosts
+   other websites, the guide has a section for letting this setup take over
+   ports 80 and 443 and forward those sites too.
 2. On the first computer, open **Settings → Sharing & access → Your server**,
    choose **Join my server**, and paste the invite. Check that the address shown
    is your own server before you confirm.

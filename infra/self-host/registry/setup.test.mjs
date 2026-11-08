@@ -10,6 +10,7 @@ import * as NodeURL from "node:url";
 const assert = NodeAssert;
 const { spawnSync } = NodeChildProcess;
 const { chmodSync, existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } = NodeFS;
+const { join } = NodePath;
 const { describe, it, afterEach, beforeEach } = NodeTest;
 
 const SETUP = NodePath.join(
@@ -34,7 +35,7 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 /** Runs setup.sh against an empty data directory. `os` fakes `uname -s`. */
-function setup(args, { files, os, project, composeWorks } = {}) {
+function setup(args, { files, os, project, composeWorks, sitesDir } = {}) {
   const bin = NodePath.join(dir, "bin");
   if (composeWorks) {
     // `docker compose version` passes, so setup.sh gets as far as writing .env; `up` then fails and stops it.
@@ -56,6 +57,7 @@ function setup(args, { files, os, project, composeWorks } = {}) {
       T3X_DATA_DIR: data,
       ...(files === undefined ? {} : { T3X_COMPOSE_FILES: files }),
       ...(project === undefined ? {} : { T3X_PROJECT: project }),
+      ...(sitesDir === undefined ? {} : { T3X_SITES_DIR: sitesDir }),
     },
   });
   return {
@@ -98,7 +100,7 @@ if (hasBash) {
       });
     }
 
-    it("accepts a plain address, and a local trial may leave it out", () => {
+    it("accepts a plain address, and the address is optional", () => {
       const plain = setup(
         ["--domain", "t3.example.com", "--email", "you.me+t3@mail.example.com", "--dry-run"],
         { os: "Linux" },
@@ -107,9 +109,9 @@ if (hasBash) {
       assert.match(plain.stdout, /^ {2}ACME_EMAIL=you\.me\+t3@mail\.example\.com$/m);
       const trial = setup(["--domain", "t3.localhost", "--dry-run"], { files: TRIAL, os: "Linux" });
       assert.equal(trial.status, 0, trial.stderr);
-      const missing = setup(["--domain", "t3.example.com"], { os: "Linux" });
-      assert.equal(missing.status, 1);
-      assert.match(missing.stderr, /必须提供 --email/);
+      const missing = setup(["--domain", "t3.example.com", "--dry-run"], { os: "Linux" });
+      assert.equal(missing.status, 0, missing.stderr);
+      assert.match(missing.stdout, /^ {2}ACME_EMAIL=$/m);
     });
 
     it("refuses a domain with a second line", () => {
@@ -143,6 +145,64 @@ if (hasBash) {
       });
       assert.match(trial.env, /^COMPOSE_PROJECT_NAME=t3x-trial$/m);
       assert.match(trial.env, new RegExp(`^COMPOSE_FILE=${TRIAL.replaceAll(".", "\\.")}$`, "m"));
+    });
+  });
+
+  describe("setup.sh and the Caddyfile's optional parts", () => {
+    const args = ["--domain", "t3.example.com"];
+
+    it("mounts the e-mail file only when there is an address", () => {
+      const without = setup(args, { os: "Linux", composeWorks: true });
+      assert.match(without.env, /^ACME_EMAIL=$/m);
+      assert.match(without.env, /^T3X_ACME_EMAIL_CONF=\.\/caddy\/acme-email-off\.caddy$/m);
+      const withEmail = setup([...args, "--email", "you@example.com"], {
+        os: "Linux",
+        composeWorks: true,
+      });
+      assert.match(withEmail.env, /^T3X_ACME_EMAIL_CONF=\.\/caddy\/acme-email\.caddy$/m);
+    });
+
+    it("writes the sites directory into .env, so plain docker compose mounts the same one", () => {
+      const standard = setup(args, { os: "Linux", composeWorks: true });
+      assert.match(standard.env, /^T3X_SITES_DIR=\.\/sites$/m);
+      const custom = setup(args, { os: "Linux", composeWorks: true, sitesDir: join(dir, "sites") });
+      assert.match(custom.env, new RegExp(`^T3X_SITES_DIR=${join(dir, "sites")}$`, "m"));
+      assert.ok(existsSync(join(dir, "sites")), "an absolute sites directory is created");
+    });
+
+    it("refuses a sites directory with a second line", () => {
+      const bad = setup(args, { os: "Linux", sitesDir: "/srv/a\nT3X_DOMAIN=evil.example" });
+      assert.equal(bad.status, 1);
+      assert.match(bad.stderr, /T3X_SITES_DIR/);
+      assert.deepEqual(bad.written, []);
+    });
+
+    it("takes the host-network override from T3X_COMPOSE_FILES, in .env and in --dry-run", () => {
+      const files = "docker-compose.yml:docker-compose.host-network.yml";
+      const dry = setup([...args, "--dry-run"], { files, os: "Linux" });
+      assert.equal(dry.status, 0, dry.stderr);
+      assert.match(
+        dry.stdout,
+        /^ {2}COMPOSE_FILE=docker-compose\.yml:docker-compose\.host-network\.yml$/m,
+      );
+      assert.match(
+        dry.stdout,
+        /-f \S*docker-compose\.yml -f \S*docker-compose\.host-network\.yml up/,
+      );
+      const real = setup(args, { files, os: "Linux", composeWorks: true });
+      assert.match(
+        real.env,
+        /^COMPOSE_FILE=docker-compose\.yml:docker-compose\.host-network\.yml$/m,
+      );
+    });
+
+    it("still refuses the host-network override on a Mac", () => {
+      const result = setup(args, {
+        files: "docker-compose.yml:docker-compose.host-network.yml",
+        os: "Darwin",
+      });
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /只用在 Linux VPS 上/);
     });
   });
 
