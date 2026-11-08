@@ -1,5 +1,5 @@
-// Caddy's on-demand TLS `ask` endpoint (:8082): 200 only for <registered subdomain>.<domain>, 403 for
-// everything else, 503 when the database errors or too many questions are in flight (Caddy treats both as no).
+// Caddy's on-demand TLS `ask` endpoint (:8082): 200 only for <registered subdomain>.<domain> and, when the push
+// server is installed, ntfy.<domain>; 403 for everything else, 503 when the database errors or too many questions are in flight (Caddy treats both as no).
 // `ask` cannot recall a certificate that was already issued; access control lives in the frps plugin.
 // Spec: research/self-host-device-keys.md Q6 and 3.12 D.
 import * as NodeHttp from "node:http";
@@ -48,7 +48,12 @@ export function createAskServer({
         return;
       }
       const label = subdomainOf(url.searchParams.get("domain") ?? "", config.domain);
-      if (label !== null && store.hasRegisteredSubdomain(label)) {
+      // Every name under the domain is in the on-demand policy, ntfy's too, and "ntfy" is reserved: no computer has it.
+      if (
+        label === "ntfy"
+          ? config.ntfyInstalled
+          : label !== null && store.hasRegisteredSubdomain(label)
+      ) {
         reply(200, "ok");
       } else {
         reply(403, "no");

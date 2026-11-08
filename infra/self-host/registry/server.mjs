@@ -70,6 +70,7 @@ export function loadConfig(env = process.env) {
     publicOrigin,
     domain: host,
     publicPort: port,
+    ntfyInstalled: env.T3X_NTFY_ENABLED === "1",
     dbPath: env.T3X_DB_PATH ?? "/data/registry.db",
     bindHost: env.T3X_BIND_HOST ?? "0.0.0.0",
     apiPort: number("T3X_API_PORT", 8080),

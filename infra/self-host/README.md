@@ -38,7 +38,7 @@
 
 脚本可以重复运行，不会重置已有的数据。换域名等于重新开始：先删掉 `.env` 和注册表的数据卷。
 
-**确认证书已经签好**：DNS 生效后，在任何一台电脑上运行 `curl -sS https://t3.example.com/v1/info`，返回一段包含 `registryId` 的 JSON 就说明 HTTPS 通了。如果报证书错误或连接超时，先确认两条 DNS 记录已经生效、80/443 从外网能访问，再看 `docker compose logs caddy`（在这个目录里运行，原因见「日常运维」）。每台电脑的子域名证书在第一次访问时才申请，只为已登记的名字申请。
+**确认证书已经签好**：DNS 生效后，在任何一台电脑上运行 `curl -sS https://t3.example.com/v1/info`，返回一段包含 `registryId` 的 JSON 就说明 HTTPS 通了。如果报证书错误或连接超时，先确认两条 DNS 记录已经生效、80/443 从外网能访问，再看 `docker compose logs caddy`（在这个目录里运行，原因见「日常运维」）。每台电脑的子域名证书在第一次访问时才申请，只为已登记的名字申请；推送服务器 `ntfy.t3.example.com` 的证书也是第一次访问时才申请，所以刚装好后它的第一次连接会慢一点。
 
 ## 第一台电脑
 
@@ -132,7 +132,7 @@ export T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.host-network.yml
 ./setup.sh --domain t3.example.com
 ```
 
-有自己的覆盖文件时写成 `docker-compose.yml:docker-compose.host-network.yml:docker-compose.local.yml`。`setup.sh` 把 compose 文件和 `T3X_SITES_DIR` 写进 `.env`，之后直接敲 `docker compose` 操作的就是这一套；升级时重新运行 `./setup.sh`，要带同样的环境变量。`docker-compose.host-network.yml` 做了两件事：Caddy 直接占宿主机的 80 和 443（没有 `ports`）；registry、frps、ntfy 仍然在 compose 网络里，Caddy 要访问的端口只发布到 `127.0.0.1`，默认用不常用的端口：
+有自己的覆盖文件时写成 `docker-compose.yml:docker-compose.host-network.yml:docker-compose.local.yml`。`setup.sh` 把 compose 文件、站点目录（`T3X_SITES_DIR`，相对路径会按这个目录转成绝对路径）和用到的端口写进 `.env`，之后直接敲 `docker compose` 操作的就是这一套。**升级时直接重新运行 `./setup.sh --domain t3.example.com` 就行**：没有再次给出的 `T3X_COMPOSE_FILES`、`T3X_SITES_DIR` 和 `T3X_HOST_*` 沿用 `.env` 里的值，不用重新带上；这次给出的值和 `.env` 不同，就按新值来，并打印一行提示。`docker-compose.host-network.yml` 做了两件事：Caddy 直接占宿主机的 80 和 443（没有 `ports`）；registry、frps、ntfy 仍然在 compose 网络里，Caddy 要访问的端口只发布到 `127.0.0.1`，默认用不常用的端口：
 
 | 服务和用途                     | 宿主机上的地址    | 改端口的变量             |
 | ------------------------------ | ----------------- | ------------------------ |
@@ -142,7 +142,7 @@ export T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.host-network.yml
 | frps 的 HTTP 虚拟主机          | `127.0.0.1:17088` | `T3X_HOST_VHOST_PORT`    |
 | ntfy                           | `127.0.0.1:17090` | `T3X_HOST_NTFY_PORT`     |
 
-端口被占时，把变量写进 `.env`，再运行 `docker compose up -d`。frps 给 registry 插件用的端口（registry 的 8081）只有 frps 自己访问，不发布。
+端口被占时，换个端口重新运行 `setup.sh`，例如 `T3X_HOST_REGISTRY_PORT=27080 ./setup.sh --domain t3.example.com`（其余设置沿用），它会把新端口写进 `.env` 并重建受影响的服务。frps 给 registry 插件用的端口（registry 的 8081）只有 frps 自己访问，不发布。
 
 这种装法下 Caddy 直接收到客户端的连接，`X-T3x-Client-IP` 拿到的就是真实客户端地址，registry 的限流照常按它算。另外，registry 的端口在宿主机回环上，Caddy 的管理接口也在 `127.0.0.1:2019`，这台 VPS 上的本机进程能直接访问它们，所以**这台 VPS 必须是你自己的**，不能有别人或不可信的程序在上面跑。这和上面「服务器能看到明文」的前提是同一个。
 

@@ -140,6 +140,12 @@ if (hasDocker) {
       assert.equal(env.T3X_NTFY_UPSTREAM, at("ntfy", 80));
     });
 
+    it("tells the registry whether the push server is installed", () => {
+      const registry = (env) => composeConfig(["docker-compose.yml"], env).services.registry;
+      assert.equal(registry("").environment.T3X_NTFY_ENABLED, "0");
+      assert.equal(registry("T3X_NTFY_ENABLED=1\n").environment.T3X_NTFY_ENABLED, "1");
+    });
+
     it("the host ports can be changed in .env", () => {
       const { services } = composeConfig(
         ["docker-compose.yml", "docker-compose.host-network.yml"],
@@ -206,6 +212,10 @@ if (hasDocker) {
         assert.match(json, /"t3\.example\.com"/);
       }
     });
+  });
+} else if (process.env.CI) {
+  it("needs docker for the deployment configuration checks", () => {
+    assert.fail("CI is set but docker compose is not usable, so these checks cannot run");
   });
 } else {
   it(

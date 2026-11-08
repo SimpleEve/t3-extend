@@ -19,6 +19,7 @@ const SETUP = NodePath.join(
   "setup.sh",
 );
 const TRIAL = "docker-compose.yml:docker-compose.test.yml";
+const SELF_HOST = NodePath.dirname(SETUP);
 const hasBash = spawnSync("bash", ["-c", "true"]).status === 0;
 
 let dir;
@@ -35,7 +36,7 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 /** Runs setup.sh against an empty data directory. `os` fakes `uname -s`. */
-function setup(args, { files, os, project, composeWorks, sitesDir } = {}) {
+function setup(args, { files, os, project, composeWorks, sitesDir, env = {} } = {}) {
   const bin = NodePath.join(dir, "bin");
   if (composeWorks) {
     // `docker compose version` passes, so setup.sh gets as far as writing .env; `up` then fails and stops it.
@@ -58,6 +59,7 @@ function setup(args, { files, os, project, composeWorks, sitesDir } = {}) {
       ...(files === undefined ? {} : { T3X_COMPOSE_FILES: files }),
       ...(project === undefined ? {} : { T3X_PROJECT: project }),
       ...(sitesDir === undefined ? {} : { T3X_SITES_DIR: sitesDir }),
+      ...env,
     },
   });
   return {
@@ -164,18 +166,38 @@ if (hasBash) {
 
     it("writes the sites directory into .env, so plain docker compose mounts the same one", () => {
       const standard = setup(args, { os: "Linux", composeWorks: true });
-      assert.match(standard.env, /^T3X_SITES_DIR=\.\/sites$/m);
+      assert.match(standard.env, new RegExp(`^T3X_SITES_DIR=${SELF_HOST}/sites$`, "m"));
       const custom = setup(args, { os: "Linux", composeWorks: true, sitesDir: join(dir, "sites") });
       assert.match(custom.env, new RegExp(`^T3X_SITES_DIR=${join(dir, "sites")}$`, "m"));
       assert.ok(existsSync(join(dir, "sites")), "an absolute sites directory is created");
     });
 
-    it("refuses a sites directory with a second line", () => {
-      const bad = setup(args, { os: "Linux", sitesDir: "/srv/a\nT3X_DOMAIN=evil.example" });
-      assert.equal(bad.status, 1);
-      assert.match(bad.stderr, /T3X_SITES_DIR/);
-      assert.deepEqual(bad.written, []);
+    it("turns a relative sites directory into an absolute one, so compose never takes it for a volume name", () => {
+      const named = setup(args, { os: "Linux", composeWorks: true, sitesDir: "custom-sites" });
+      assert.match(named.env, new RegExp(`^T3X_SITES_DIR=${SELF_HOST}/custom-sites$`, "m"));
+      assert.ok(existsSync(join(SELF_HOST, "custom-sites")), "it is created next to setup.sh");
+      rmSync(join(SELF_HOST, "custom-sites"), { recursive: true });
+      const dotted = setup(args, { os: "Linux", composeWorks: true, sitesDir: "./more/sites" });
+      assert.match(dotted.env, new RegExp(`^T3X_SITES_DIR=${SELF_HOST}/more/sites$`, "m"));
+      rmSync(join(SELF_HOST, "more"), { recursive: true });
     });
+
+    for (const [what, value] of [
+      ["a second line", "/srv/a\nT3X_DOMAIN=evil.example"],
+      ["a dollar sign", "/srv/${HOME}/sites"],
+      ["a hash", "/srv/a #b"],
+      ["a colon", "/srv/a:/etc"],
+      ["a space", "/srv/my sites"],
+      ["a quote", '/srv/"x"'],
+    ]) {
+      it(`refuses a sites directory with ${what} and writes nothing`, () => {
+        const bad = setup(args, { os: "Linux", sitesDir: value });
+        assert.equal(bad.status, 1);
+        assert.match(bad.stderr, /T3X_SITES_DIR/);
+        assert.deepEqual(bad.written, []);
+        assert.equal(bad.dockerCalled, false);
+      });
+    }
 
     it("takes the host-network override from T3X_COMPOSE_FILES, in .env and in --dry-run", () => {
       const files = "docker-compose.yml:docker-compose.host-network.yml";
@@ -194,6 +216,100 @@ if (hasBash) {
         real.env,
         /^COMPOSE_FILE=docker-compose\.yml:docker-compose\.host-network\.yml$/m,
       );
+    });
+
+    describe("a rerun", () => {
+      const HOST = "docker-compose.yml:docker-compose.host-network.yml";
+      const install = () =>
+        setup(args, {
+          files: HOST,
+          os: "Linux",
+          composeWorks: true,
+          sitesDir: join(dir, "srv-sites"),
+          env: { T3X_HOST_REGISTRY_PORT: "28080", T3X_HOST_NTFY_PORT: "28090" },
+        });
+
+      it("writes the host ports it uses into .env, and only with the host-network override", () => {
+        const first = install();
+        assert.match(first.env, /^T3X_HOST_REGISTRY_PORT=28080$/m);
+        assert.match(first.env, /^T3X_HOST_ASK_PORT=17082$/m);
+        assert.match(first.env, /^T3X_HOST_NTFY_PORT=28090$/m);
+        const standard = setup(args, {
+          files: "docker-compose.yml",
+          os: "Linux",
+          composeWorks: true,
+        });
+        assert.doesNotMatch(standard.env, /T3X_HOST_/);
+      });
+
+      it("keeps the compose files, the sites directory and the host ports when they are not given again", () => {
+        const first = install();
+        const again = setup(args, { os: "Linux", composeWorks: true });
+        assert.equal(again.env, first.env);
+        assert.equal(again.stderr.includes("提示"), false, again.stderr);
+        const dry = setup([...args, "--dry-run"], { os: "Linux" });
+        assert.match(
+          dry.stdout,
+          /^ {2}COMPOSE_FILE=docker-compose\.yml:docker-compose\.host-network\.yml$/m,
+        );
+        assert.match(dry.stdout, /host-network\.yml up/);
+      });
+
+      it("upgrades a .env that an earlier setup.sh wrote with a relative sites directory", () => {
+        NodeFS.mkdirSync(join(dir, "data"), { recursive: true });
+        NodeFS.writeFileSync(
+          join(dir, "data", ".env"),
+          [
+            "T3X_DOMAIN=t3.example.com",
+            "T3X_PUBLIC_ORIGIN=https://t3.example.com",
+            "ACME_EMAIL=",
+            "COMPOSE_PROFILES=ntfy",
+            "COMPOSE_PROJECT_NAME=t3x",
+            `COMPOSE_FILE=${HOST}`,
+            "T3X_NTFY_SITE=./caddy/ntfy.caddy",
+            "T3X_SITES_DIR=./sites",
+            "",
+          ].join("\n"),
+        );
+        const again = setup(args, { os: "Linux", composeWorks: true });
+        assert.match(again.env, new RegExp(`^COMPOSE_FILE=${HOST.replaceAll(".", "\\.")}$`, "m"));
+        assert.match(again.env, new RegExp(`^T3X_SITES_DIR=${SELF_HOST}/sites$`, "m"));
+        assert.match(again.env, /^T3X_HOST_REGISTRY_PORT=17080$/m);
+        assert.equal(again.stderr.includes("提示"), false, again.stderr);
+      });
+
+      it("takes a value that is given again, and says that it differs from .env", () => {
+        const first = install();
+        const again = setup(args, {
+          os: "Linux",
+          composeWorks: true,
+          env: { T3X_HOST_REGISTRY_PORT: "29080" },
+        });
+        assert.match(again.env, /^T3X_HOST_REGISTRY_PORT=29080$/m);
+        assert.match(again.env, /^T3X_HOST_NTFY_PORT=28090$/m);
+        assert.match(again.stderr, /T3X_HOST_REGISTRY_PORT.*29080.*28080/);
+        const standard = setup(args, {
+          files: "docker-compose.yml",
+          os: "Linux",
+          composeWorks: true,
+        });
+        assert.match(standard.env, /^COMPOSE_FILE=docker-compose\.yml$/m);
+        assert.doesNotMatch(standard.env, /T3X_HOST_/);
+        assert.match(standard.stderr, /COMPOSE_FILE/);
+        assert.match(first.env, /srv-sites/);
+      });
+
+      it("refuses a host port that is not a port", () => {
+        for (const bad of ["abc", "0", "70000", "80 80"]) {
+          const result = setup(args, {
+            files: HOST,
+            os: "Linux",
+            env: { T3X_HOST_ASK_PORT: bad },
+          });
+          assert.equal(result.status, 1, bad);
+          assert.match(result.stderr, /T3X_HOST_ASK_PORT/);
+        }
+      });
     });
 
     it("still refuses the host-network override on a Mac", () => {

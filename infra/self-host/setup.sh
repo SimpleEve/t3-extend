@@ -8,7 +8,10 @@
 #
 # 这台 VPS 上已经有别的网站时（见 README 的“这台 VPS 上已经有别的网站”）：
 #   T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.host-network.yml ./setup.sh --domain ...
-#   T3X_SITES_DIR      别的网站的 Caddy 站点文件放在哪里（默认是脚本所在目录里的 sites/）
+#   T3X_SITES_DIR      别的网站的 Caddy 站点文件放在哪里（默认是脚本所在目录里的 sites/，相对路径也相对脚本所在目录）
+#   T3X_HOST_REGISTRY_PORT、T3X_HOST_ASK_PORT、T3X_HOST_FRPS_PORT、T3X_HOST_VHOST_PORT、T3X_HOST_NTFY_PORT
+#                      宿主机网络下 Caddy 访问其他服务用的回环端口（默认见 docker-compose.host-network.yml）
+# 重新运行时，没有再次给出的 T3X_COMPOSE_FILES、T3X_SITES_DIR 和 T3X_HOST_*，沿用已有 .env 里的值。
 #
 # 想在不能被弄脏的机器上试用（见 README 的“本地试用”）：
 #   T3X_DATA_DIR       .env 和 secrets/ 放在哪里（默认是脚本所在目录）
@@ -21,9 +24,9 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 DATA_DIR=${T3X_DATA_DIR:-$SCRIPT_DIR}
 PROJECT=${T3X_PROJECT:-t3x}
-COMPOSE_FILES=${T3X_COMPOSE_FILES:-docker-compose.yml}
-# Written to .env as given: a relative path is relative to this directory, like the compose files.
-SITES_DIR=${T3X_SITES_DIR:-./sites}
+# Not defaulted here: a rerun that is not given them again keeps what the existing .env has (see `settle`).
+GIVEN_COMPOSE_FILES=${T3X_COMPOSE_FILES:-}
+GIVEN_SITES_DIR=${T3X_SITES_DIR:-}
 
 domain=""
 email=""
@@ -52,6 +55,46 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# A rerun (an upgrade) keeps the choices the install made: what is not given again is read from the existing .env,
+# so that, say, running ./setup.sh --domain ... alone does not move Caddy off the host network and drop the sites.
+env_file="$DATA_DIR/.env"
+env_value() {
+  [ -f "$env_file" ] || return 0
+  sed -n "s/^$1=//p" "$env_file" | head -n 1
+}
+# settle <variable> <.env key> <value given now> <default> [normalizer]: given, else what .env has, else the default.
+# The normalizer is applied to the .env value too: a .env written by an earlier setup.sh may hold ./sites.
+settle() {
+  local var=$1 key=$2 given=$3 default=$4 normalize=${5:-} kept
+  kept=$(env_value "$key")
+  if [ -n "$kept" ] && [ -n "$normalize" ]; then kept=$("$normalize" "$kept"); fi
+  if [ -n "$given" ]; then
+    if [ -n "$kept" ] && [ "$kept" != "$given" ]; then
+      echo "提示：$key 和已有的 $env_file 里不同，这次按新值 $given 来（原来是 $kept）。" >&2
+    fi
+    printf -v "$var" '%s' "$given"
+  elif [ -n "$kept" ]; then
+    printf -v "$var" '%s' "$kept"
+  else
+    printf -v "$var" '%s' "$default"
+  fi
+}
+
+settle COMPOSE_FILES COMPOSE_FILE "$GIVEN_COMPOSE_FILES" docker-compose.yml
+
+# An absolute path: compose takes a bare name for a volume, and reads $, # and : in .env and in volumes itself.
+absolute() {
+  case "$1" in
+    /*) printf '%s' "$1" ;;
+    *) printf '%s' "$SCRIPT_DIR/${1#./}" ;;
+  esac
+}
+[ -z "$GIVEN_SITES_DIR" ] || GIVEN_SITES_DIR=$(absolute "$GIVEN_SITES_DIR")
+settle SITES_DIR T3X_SITES_DIR "$GIVEN_SITES_DIR" "$SCRIPT_DIR/sites" absolute
+if [[ ! $SITES_DIR =~ ^/[A-Za-z0-9_./+@,-]+$ ]]; then
+  fail "T3X_SITES_DIR（$SITES_DIR）只能由字母、数字和 _ . / + @ , - 组成：compose 会解释其他字符。"
+fi
+
 local_trial=0
 case ":$COMPOSE_FILES:" in
   *:docker-compose.test.yml:*) local_trial=1 ;;
@@ -77,8 +120,21 @@ esac
 if [ "$public_port" != 443 ] && [ "$local_trial" = 0 ]; then
   fail "--public-port 只用于本地试用（需要 T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.test.yml）"
 fi
-case "$SITES_DIR" in
-  *$'\n'*) fail "T3X_SITES_DIR 不能包含换行" ;;
+# The ports Caddy uses on the host's loopback with docker-compose.host-network.yml; they go into .env so that
+# `docker compose` by hand and a rerun use the same ones.
+host_ports_text=""
+case ":$COMPOSE_FILES:" in
+  *:docker-compose.host-network.yml:*)
+    for entry in T3X_HOST_REGISTRY_PORT:17080 T3X_HOST_ASK_PORT:17082 T3X_HOST_FRPS_PORT:17000 T3X_HOST_VHOST_PORT:17088 T3X_HOST_NTFY_PORT:17090; do
+      key=${entry%%:*}
+      settle port "$key" "${!key:-}" "${entry##*:}"
+      if [[ ! $port =~ ^[0-9]{1,5}$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        fail "$key 必须是 1 到 65535 之间的端口号"
+      fi
+      host_ports_text="$host_ports_text
+$key=$port"
+    done
+    ;;
 esac
 # The value goes into .env and into the Caddyfile, so only a plain address is accepted.
 if [ -n "$email" ] && { [ "${#email}" -gt 254 ] || [[ ! $email =~ $email_pattern ]]; }; then
@@ -126,7 +182,8 @@ COMPOSE_FILE=$COMPOSE_FILES
 T3X_NTFY_SITE=$ntfy_site
 T3X_NTFY_URL=$ntfy_url
 T3X_ACME_EMAIL_CONF=$acme_email_conf
-T3X_SITES_DIR=$SITES_DIR"
+T3X_NTFY_ENABLED=$ntfy
+T3X_SITES_DIR=$SITES_DIR$host_ports_text"
 
 if [ "$dry_run" = 1 ]; then
   echo "试运行：不会写任何文件，也不会启动服务。"
@@ -146,10 +203,7 @@ docker compose version >/dev/null 2>&1 || fail "缺少 Docker compose 插件：h
 umask 077
 mkdir -p "$DATA_DIR/secrets"
 # Docker would create a missing bind-mount source as root.
-case "$SITES_DIR" in
-  /*) mkdir -p "$SITES_DIR" ;;
-  *) mkdir -p "$SCRIPT_DIR/$SITES_DIR" ;;
-esac
+mkdir -p "$SITES_DIR"
 if [ -f "$DATA_DIR/.env" ]; then
   existing=$(sed -n 's/^T3X_DOMAIN=//p' "$DATA_DIR/.env")
   if [ "$existing" != "$domain" ]; then

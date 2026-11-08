@@ -551,6 +551,19 @@ describe("ask", () => {
   });
   const ask = (domain) => rawRequest({ port, path: `/ask?domain=${encodeURIComponent(domain)}` });
 
+  it("also allows ntfy.<domain> when the push server is installed, and no other reserved name", async () => {
+    config.ntfyInstalled = true;
+    try {
+      await start();
+      assert.equal((await ask("ntfy.t3.example.com")).status, 200);
+      assert.equal((await ask("NTFY.T3.EXAMPLE.COM")).status, 200);
+      for (const domain of ["www.t3.example.com", "a.ntfy.t3.example.com", "ntfy.example.com"])
+        assert.equal((await ask(domain)).status, 403, domain);
+    } finally {
+      config.ntfyInstalled = false;
+    }
+  });
+
   it("allows exactly <registered subdomain>.<domain>", async () => {
     await start();
     enrollComputer("Mac");

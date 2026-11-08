@@ -891,6 +891,12 @@ describe("configuration", () => {
     assert.equal(config.domain, "t3.localhost");
     assert.equal(config.publicPort, 18443);
     assert.equal(loadConfig({ T3X_PUBLIC_ORIGIN: "https://t3.example.com" }).publicPort, 443);
+    assert.equal(loadConfig({ T3X_PUBLIC_ORIGIN: "https://t3.example.com" }).ntfyInstalled, false);
+    assert.equal(
+      loadConfig({ T3X_PUBLIC_ORIGIN: "https://t3.example.com", T3X_NTFY_ENABLED: "1" })
+        .ntfyInstalled,
+      true,
+    );
     for (const bad of [
       undefined,
       "",

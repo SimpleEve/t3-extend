@@ -24,6 +24,8 @@ services:
       - no-new-privileges:true
     environment:
       T3X_PUBLIC_ORIGIN: ${T3X_PUBLIC_ORIGIN:?run setup.sh first}
+      # 1 when the push server is installed: only then does the certificate question say yes to ntfy.<domain>.
+      T3X_NTFY_ENABLED: ${T3X_NTFY_ENABLED:-0}
     volumes:
       - registry_data:/data
     expose:
