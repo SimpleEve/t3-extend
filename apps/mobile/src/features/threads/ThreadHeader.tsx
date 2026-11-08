@@ -30,7 +30,7 @@ export function ThreadHeader(props: {
   const { panes, toggleAuxiliaryPane, composerKeyboardActive, startNewTask } =
     useAdaptiveWorkspaceLayout();
   const gitMenu = useThreadGitMenuDefinition(props.gitControls);
-  const terminalMenu = threadTerminalMenu(props.gitControls);
+  const terminalMenu = threadTerminalMenu(props.gitControls, t);
   const filesVisible = props.inspectorMode === "files" && panes.auxiliaryPaneVisible;
   const inspectorVisible = props.inspectorMode !== null && panes.auxiliaryPaneVisible;
   const actions: AppBarAction[] = props.hasThreadCwd

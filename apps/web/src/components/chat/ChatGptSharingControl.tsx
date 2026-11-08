@@ -10,6 +10,7 @@ const speedNotice =
 import { useT } from "~/hooks/useT";
 
 export function ChatGptSharingControl({ provider }: { provider: ServerProvider | null }) {
+  const t = useT();
   const speedNoticeId = useId();
   if (!usesChatGptSharing(provider)) return null;
   return (

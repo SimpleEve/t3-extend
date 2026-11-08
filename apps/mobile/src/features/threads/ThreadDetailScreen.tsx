@@ -867,7 +867,11 @@ function ThreadDetailBody(
           : settled
             ? "Settled"
             : "Woke from snooze";
-      const actionLabel = lifecycleSnoozed ? t("Wake now") : settled ? t("Un-settle") : t("Dismiss");
+      const actionLabel = lifecycleSnoozed
+        ? t("Wake now")
+        : settled
+          ? t("Un-settle")
+          : t("Dismiss");
       return {
         kind: "lifecycle",
         state,

@@ -1,4 +1,5 @@
 import { uuidv4 } from "../../lib/uuid";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 import { ThreadUndoNotice } from "./ThreadUndoNotice";
 import { use } from "react";
 import { NativePrimaryColumnContext } from "../../native/v5-workspace-context";
@@ -30,6 +31,7 @@ import { useThreadListActions } from "./useThreadListActions";
 import { useWorkspaceTabs } from "../layout/workspace/WorkspaceTabsContext";
 import { openSettings } from "../settings/settings-navigation";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { useThreadListViewPreferences } from "../../fork/threadListView"; // fork: thread list views
 import { useSelectWorkspaceTab } from "../layout/workspace/useSelectWorkspaceTab";
 import { useSelectWorkspaceDetail } from "../layout/workspace/useSelectWorkspaceDetail";
 import { WorkspaceListEmptyDetail } from "../layout/workspace/WorkspaceListEmptyDetail";
@@ -37,6 +39,8 @@ import { WorkspaceListHeader } from "../layout/workspace/WorkspaceListHeader";
 import { buildHomeListFilterMenuItems } from "./home-list-filter-menu";
 
 export function HomeRouteScreen() {
+  const t = useT();
+  const { viewMode, setViewMode } = useThreadListViewPreferences(); // fork: thread list views
   const nativePrimaryColumn = use(NativePrimaryColumnContext);
   const { layout, primarySidebarSearchQuery, setPrimarySidebarSearchQuery, startNewTask } =
     useAdaptiveWorkspaceLayout();
@@ -166,24 +170,29 @@ export function HomeRouteScreen() {
     <AndroidHomeFabLayout onStartNewTask={startNewTask}>
       <>
         <WorkspaceListHeader
-          accessibilityLabel="T3 Code, Threads"
+          accessibilityLabel={`${FORK.appBaseName}, ${t("Threads")}`} // fork: brand
           onOpenEnvironments={() => openSettings(navigation, "SettingsEnvironments")}
           search={{
             value: searchQuery,
             onChangeText: setSearchQuery,
-            placeholder: "Search",
-            accessibilityLabel: "Search threads",
+            placeholder: t("Search"),
+            accessibilityLabel: t("Search threads"),
           }}
           filter={{
             customized: selectedEnvironmentId !== null || selectedProjectKey !== null,
-            items: buildHomeListFilterMenuItems({
-              environments,
-              projects: projectFilterOptions,
-              selectedEnvironmentId,
-              selectedProjectKey,
-              onEnvironmentChange: setSelectedEnvironmentId,
-              onProjectChange: setSelectedProjectKey,
-            }),
+            items: buildHomeListFilterMenuItems(
+              {
+                environments,
+                projects: projectFilterOptions,
+                selectedEnvironmentId,
+                selectedProjectKey,
+                onEnvironmentChange: setSelectedEnvironmentId,
+                onProjectChange: setSelectedProjectKey,
+                viewMode, // fork: thread list views
+                onViewModeChange: setViewMode, // fork: thread list views
+              },
+              t,
+            ),
           }}
         />
 

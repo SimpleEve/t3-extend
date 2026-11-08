@@ -74,6 +74,7 @@ describe("t3x devices tunnel", () => {
         const old = yield* makeFakeFrpc({ version: "0.70.0", scripts: [] });
 
         const onPathOnly = yield* status(baseDir, {
+          // @effect-diagnostics-next-line processEnvInEffect:off - fork: the real CLI under test inherits the host PATH; a test fixture.
           PATH: `${good.dir}${NodePath.delimiter}${process.env.PATH ?? ""}`,
         });
         assert.equal(onPathOnly.frpc.ok, false);

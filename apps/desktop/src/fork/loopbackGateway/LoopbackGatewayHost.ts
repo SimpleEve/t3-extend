@@ -35,6 +35,7 @@ const RESTORED_PROXY_CONFIG: Electron.ProxyConfig = { mode: "system" };
 const isGatewayErrorCode = Schema.is(LoopbackGatewayErrorCode);
 
 /** A fixed message: what Electron said about the failure is of no use to the caller. */
+// @effect-diagnostics-next-line extendsNativeError:off - fork: a fixed-message throw across the Electron session callbacks.
 class LoopbackGatewaySessionError extends Error {
   override readonly name = "LoopbackGatewaySessionError";
 

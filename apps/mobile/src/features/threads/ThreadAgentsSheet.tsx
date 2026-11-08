@@ -48,6 +48,7 @@ export function useThreadTurnSubagents(target: AgentsTarget | null): ThreadTurnS
 }
 
 export function ThreadAgentsSheet({ route }: StaticScreenProps<AgentsTarget>) {
+  const t = useT();
   const target = route.params;
   const navigation = useNavigation();
   const openInspector = useOpenThreadInspector();

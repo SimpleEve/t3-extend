@@ -28,7 +28,7 @@ import { useDeviceType } from "../../../native/native-layout-metrics";
 import { WorkspaceSidebarTabs } from "./WorkspaceSidebarTabs";
 import { useAdaptiveWorkspaceLayout } from "../AdaptiveWorkspaceLayout";
 import { useSelectWorkspaceTab } from "./useSelectWorkspaceTab";
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { useT } from "../../../hooks/useT"; // fork: i18n
 
 const PULL_REQUEST_ICON = require("../../../../assets/icons/pull-request.png");
 

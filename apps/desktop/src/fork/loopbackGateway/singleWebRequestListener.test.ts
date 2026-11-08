@@ -9,7 +9,9 @@ import { describe, expect, it } from "vite-plus/test";
 // replaces the first. The gateway owns `onHeadersReceived` on the preview sessions; see FORK.md.
 const DESKTOP_SRC = NodeURL.fileURLToPath(new URL("../../", import.meta.url));
 const FORK_DIR = NodePath.join(DESKTOP_SRC, "fork") + NodePath.sep;
-const WEB_REQUEST_LISTENER = /\bwebRequest\s*\??\.\s*on[A-Z]\w*\s*\(/u;
+// Only the events the gateway registers can collide with it; upstream's preview session also
+// registers `onBeforeSendHeaders` (Teams user agent), a different event with its own listener.
+const WEB_REQUEST_LISTENER = /\bwebRequest\s*\??\.\s*onHeadersReceived\s*\(/u;
 const TEST_FILE = /\.(?:test|testkit)\.[cm]?[jt]sx?$/u;
 
 const sourceFiles = (directory: string): Array<string> =>
@@ -27,19 +29,22 @@ describe("webRequest listeners in the desktop app", () => {
       .map((file) => NodePath.relative(DESKTOP_SRC, file));
     expect(
       offenders,
-      "webRequest.on…() replaces the loopback gateway's listener on the same session. Merge the two handlers instead; see the loopback gateway section of FORK.md.",
+      "webRequest.onHeadersReceived() replaces the loopback gateway's listener on the same session. Merge the two handlers instead; see the loopback gateway section of FORK.md.",
     ).toEqual([]);
   });
 
   it("recognizes the calls it is looking for", () => {
     for (const sample of [
       "session.webRequest.onHeadersReceived(listener)",
-      "browserSession.webRequest.onBeforeSendHeaders(null)",
-      "session.webRequest\n  .onCompleted(fn)",
-      "session.webRequest?.onBeforeRequest(fn)",
+      "browserSession.webRequest.onHeadersReceived(null)",
+      "session.webRequest\n  .onHeadersReceived(fn)",
+      "session.webRequest?.onHeadersReceived(fn)",
     ]) {
       expect(WEB_REQUEST_LISTENER.test(sample)).toBe(true);
     }
+    expect(WEB_REQUEST_LISTENER.test("session.webRequest.onBeforeSendHeaders(filter, fn)")).toBe(
+      false,
+    );
     expect(WEB_REQUEST_LISTENER.test("const webRequestCount = on(x)")).toBe(false);
   });
 });

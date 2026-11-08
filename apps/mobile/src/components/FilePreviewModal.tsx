@@ -174,7 +174,9 @@ function ResolvedFilePreview(props: {
                 const sharing = /^(file|content):/.test(uri)
                   ? shareLocalAttachment({ ...input, uri })
                   : downloadAndShareAttachment({ ...input, url: uri });
-                void sharing.catch(() => Dialog.alert(t("Could not share file"), t("Please try again.")));
+                void sharing.catch(() =>
+                  Dialog.alert(t("Could not share file"), t("Please try again.")),
+                );
               },
             },
           ]

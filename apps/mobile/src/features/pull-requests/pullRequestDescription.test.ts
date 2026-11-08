@@ -1,4 +1,3 @@
-import { translatorFor } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 import { parseMarkdownDocument } from "../../lib/markdownDocument";
 import { pullRequestDescriptionContent } from "./pullRequestDescriptionContent";
@@ -16,7 +15,6 @@ describe("pull request description content", () => {
           "![Screenshot](http://example.com/screenshot.png)",
         ].join("\n\n"),
       ),
-      translatorFor("en"),
     );
 
     expect(result.attachments).toEqual([
@@ -37,7 +35,6 @@ describe("pull request description content", () => {
           "![Local](screenshots/local.png)",
         ].join("\n\n"),
       ),
-      translatorFor("en"),
     );
     expect(result.attachments).toEqual([
       { uri: "https://example.com/before.png", caption: "Before", kind: "image" },

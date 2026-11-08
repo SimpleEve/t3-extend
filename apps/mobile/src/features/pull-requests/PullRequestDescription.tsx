@@ -39,8 +39,8 @@ export function PullRequestDescription(props: {
     const document = parseMarkdownDocument(props.markdown);
     const content = pullRequestDescriptionContent(
       document,
-      t,
       splitPullRequestBody(props.markdown),
+      t,
     );
     return {
       ...content,

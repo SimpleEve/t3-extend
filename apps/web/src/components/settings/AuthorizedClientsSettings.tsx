@@ -609,7 +609,11 @@ export const AuthorizedClientsHeaderAction = memo(function AuthorizedClientsHead
   delegatableScopes,
 }: AuthorizedClientsHeaderActionProps) {
   const t = useT();
-  const pairingDenial = managedCapabilityDenial(useManagedPolicy(environmentId), "remoteClients", t); // fork: interface language
+  const pairingDenial = managedCapabilityDenial(
+    useManagedPolicy(environmentId),
+    "remoteClients",
+    t,
+  ); // fork: interface language
   const createPairingCredential = useAtomCommand(authEnvironment.createPairingCredential, {
     reportFailure: false,
   });

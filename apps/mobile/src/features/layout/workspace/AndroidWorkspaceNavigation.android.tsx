@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { useT } from "../../../hooks/useT"; // fork: i18n
 import { useAndroidControlSizing } from "../../../components/ui/useAndroidControlSizing";
 import { useToolbarLayout } from "../../../components/ui/useToolbarLayout";
 import { rootNavigationRef } from "../../../lib/rootNavigation";

@@ -22,6 +22,7 @@ import type { AppBarMenuItem, AppBarProps } from "./AppBar.types";
 import type { AppSymbolName } from "./AppSymbol";
 import { useNativeMailSearchToolbar } from "../../native/use-native-mail-search-toolbar";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { localizeAppBarProps } from "../../fork/appBarI18n"; // fork: i18n
 import { useControlTheme } from "./useControlTheme";
 
 function iosIcon(icon: AppSymbolName) {
@@ -43,8 +44,9 @@ function mailMenuItems(items: ReadonlyArray<AppBarMenuItem>): MailMenu["items"] 
   );
 }
 
-export function AppBar(props: AppBarProps) {
+export function AppBar(rawProps: AppBarProps) {
   const t = useT(); // fork: i18n
+  const props = localizeAppBarProps(rawProps, t); // fork: i18n
   const usesNativeWorkspaceColumns = useNativeWorkspaceColumnsSupported();
   const deviceType = useDeviceType();
   const headerId = useId();
@@ -159,7 +161,7 @@ export function AppBar(props: AppBarProps) {
         <Toolbar placement="left">
           <Toolbar.Button
             icon="xmark"
-            accessibilityLabel={props.closeAccessibilityLabel ?? "Close"}
+            accessibilityLabel={props.closeAccessibilityLabel ?? t("Close")}
             onPress={props.onClose}
           />
         </Toolbar>
@@ -167,7 +169,7 @@ export function AppBar(props: AppBarProps) {
         <Toolbar placement="left">
           {rootBack ? (
             <ScreenHeaderButton
-              accessibilityLabel="Back"
+              accessibilityLabel={t("Back")}
               icon="chevron.left"
               onPress={rootBack}
               separateBackground
@@ -185,8 +187,8 @@ export function AppBar(props: AppBarProps) {
           ) : null}
           {compose ? (
             <ScreenHeaderButton
-              accessibilityLabel="New task"
-              label="New task"
+              accessibilityLabel={t("New task")}
+              label={t("New task")}
               icon="square.and.pencil"
               onPress={compose}
               separateBackground
@@ -245,7 +247,7 @@ export function AppBar(props: AppBarProps) {
           ) : null}
           {closeInspector ? (
             <ScreenHeaderButton
-              accessibilityLabel="Close inspector"
+              accessibilityLabel={t("Close inspector")}
               icon="xmark"
               onPress={closeInspector}
               separateBackground

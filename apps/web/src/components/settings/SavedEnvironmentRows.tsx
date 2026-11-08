@@ -542,6 +542,7 @@ function ConfiguredCloudLinkRow({
   readonly environmentId: EnvironmentId;
   readonly canManageRelay: boolean;
 }) {
+  const t = useT();
   const {
     isSignedIn,
     linkState: cloudLinkState,

@@ -143,6 +143,7 @@ interface ToolOutputState {
 }
 
 function ToolOutputImages(props: ToolOutputState) {
+  const t = useT();
   return props.images.map((resource) => (
     <ChatMarkdownAssetImage
       key={resource.index}
@@ -156,6 +157,7 @@ function ToolOutputImages(props: ToolOutputState) {
 }
 
 function ToolOutput(props: ToolOutputState) {
+  const t = useT();
   return props.output ? (
     <StructuredValue value={props.output} highlightJson />
   ) : props.pending ? (

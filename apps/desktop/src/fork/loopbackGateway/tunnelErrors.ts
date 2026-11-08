@@ -6,6 +6,7 @@ import {
 } from "@t3tools/shared/forkLoopbackGateway/protocol";
 
 /** Carries a code and a fixed message only: never a header, a URL or a ticket. */
+// @effect-diagnostics-next-line extendsNativeError:off - fork: crosses the node:net/undici callback boundary, where callers match on `code`.
 export class GatewayTunnelError extends Error {
   override readonly name = "GatewayTunnelError";
   readonly code: LoopbackGatewayErrorCode;

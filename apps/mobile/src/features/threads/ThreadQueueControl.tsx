@@ -118,6 +118,7 @@ function QueuedRunSender(props: {
 }
 
 export function ThreadQueueSheet({ route }: StaticScreenProps<QueueTarget>) {
+  const t = useT();
   const theme = useUniwindTheme();
   const target = route.params;
   const navigation = useNavigation();

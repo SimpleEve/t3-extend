@@ -21,7 +21,6 @@ function PdfDocumentPreview(props: {
   readonly source: ResolvedFilePreviewDocument;
   readonly onRequestClose: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const insets = useSafeAreaInsets();
   const media = useMediaActions(props.source.actionsSource);
   const save = media.actions.find((action) => action.id === "save");

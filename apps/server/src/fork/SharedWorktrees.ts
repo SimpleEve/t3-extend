@@ -3,12 +3,12 @@ import { GitCommandError, OFFICIAL_APP_NAME } from "@t3tools/contracts";
 import { officialHomeDirectory } from "@t3tools/shared/forkIdentity";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Context from "effect/Context";
-import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as Ref from "effect/Ref";
+import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 import * as SqlClient from "effect/sql/SqlClient";
 
@@ -17,9 +17,12 @@ import * as ServerConfig from "../config.ts";
 type Environment = FileSystem.FileSystem | Path.Path | ServerConfig.ServerConfig;
 
 /** A destructive section did not run because the worktree is shared with official T3 Code. */
-export class SharedWorktreeRefused extends Data.TaggedError("SharedWorktreeRefused")<{
-  readonly reason: string;
-}> {}
+export class SharedWorktreeRefused extends Schema.TaggedError<SharedWorktreeRefused>()(
+  "SharedWorktreeRefused",
+  { reason: Schema.String },
+) {}
+
+const isSharedWorktreeRefused = Schema.is(SharedWorktreeRefused);
 
 declare const sectionBrand: unique symbol;
 
@@ -265,7 +268,7 @@ export const whileRemovable = Effect.fn("SharedWorktrees.whileRemovable")(functi
   const policy = yield* SharedWorktreePolicy;
   return yield* policy.exclusive(input, effect).pipe(
     Effect.catchIf(
-      (error): error is SharedWorktreeRefused => error instanceof SharedWorktreeRefused,
+      (error): error is SharedWorktreeRefused => isSharedWorktreeRefused(error),
       (refused) =>
         Effect.fail(
           new GitCommandError({

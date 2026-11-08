@@ -551,7 +551,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
                   ? [
                       {
                         id: "open-on-provider",
-                        title: openOnProviderLabel(identity.provider),
+                        title: openOnProviderLabel(identity.provider, t),
                         icon: "arrow.up.right",
                         onPress: () => void Linking.openURL(identity.url),
                       },
@@ -573,7 +573,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
                   ? [
                       {
                         id: "state",
-                        title: pullRequestActionLabel(stateAction, terminology),
+                        title: pullRequestActionLabel(stateAction, terminology, t),
                         icon: PR_ACTION_ICONS[stateAction],
                         destructive: stateAction === "close",
                         onPress: runStateAction,
@@ -584,7 +584,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
                   ? [
                       {
                         id: "delete-branch",
-                        title: pullRequestActionLabel("delete-branch", terminology),
+                        title: pullRequestActionLabel("delete-branch", terminology, t),
                         icon: PR_ACTION_ICONS["delete-branch"],
                         destructive: true,
                         disabled: !action.available("delete-branch"),
@@ -1257,7 +1257,11 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
           ) : null}
           {result.error && result.nextCursor ? (
             <View className="self-center">
-              <Button label={t("Retry loading remaining files")} tone="text" onPress={result.refresh} />
+              <Button
+                label={t("Retry loading remaining files")}
+                tone="text"
+                onPress={result.refresh}
+              />
             </View>
           ) : null}
           {parsed.kind === "files" && parsed.notice ? (

@@ -18,7 +18,7 @@ import { WorkspaceDock } from "./WorkspaceDock";
 import { WorkspaceSearchField } from "./WorkspaceSearchField";
 import { useWorkspaceTabs } from "./WorkspaceTabsContext";
 import { WORKSPACE_TOOLBAR, type WorkspaceTab } from "./workspace-tabs-state";
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { useT } from "../../../hooks/useT"; // fork: i18n
 import { PullRequestGlyph } from "../../pull-requests/pullRequestGlyphs";
 
 const TABS: ReadonlyArray<{ id: WorkspaceTab; label: string; icon: AppSymbolName }> = [

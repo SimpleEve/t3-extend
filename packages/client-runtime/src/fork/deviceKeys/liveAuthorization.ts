@@ -43,6 +43,7 @@ import { judgeRoute, verdictError, type DeviceDirectoryView } from "./discovery.
 /** About 75 seconds in all: the other computer may not have synced this device yet. */
 export const DEVICE_UNKNOWN_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 14_000];
 const PASS_REQUEST_TIMEOUT_MS = 10_000;
+const isRemoteEnvironmentAuthTimeoutError = Schema.is(RemoteEnvironmentAuthTimeoutError);
 
 /** The platform half of device authorization. */
 export interface DeviceAuthorizationSource {
@@ -228,12 +229,17 @@ export const makeDeviceKeyAuthorization = (
       Effect.flatMap(
         Option.match({
           onNone: () =>
-            Effect.fail(new RemoteEnvironmentAuthTimeoutError(url, PASS_REQUEST_TIMEOUT_MS)),
+            Effect.fail(
+              new RemoteEnvironmentAuthTimeoutError({
+                requestUrl: url,
+                timeoutMs: PASS_REQUEST_TIMEOUT_MS,
+              }),
+            ),
           onSome: Effect.succeed,
         }),
       ),
       Effect.mapError((cause) =>
-        cause instanceof RemoteEnvironmentAuthTimeoutError
+        isRemoteEnvironmentAuthTimeoutError(cause)
           ? mapFetch(cause)
           : mapFetch(
               new RemoteEnvironmentAuthFetchError({

@@ -247,7 +247,7 @@ const make = Effect.gen(function* () {
         );
         if (device === undefined) return yield* rejected("device_revoked");
         const created = yield* secrets.create(marker, new Uint8Array()).pipe(
-          Effect.map(() => true),
+          Effect.as(true),
           Effect.catch((error) =>
             ServerSecretStore.isSecretAlreadyExistsError(error)
               ? Effect.succeed(false)

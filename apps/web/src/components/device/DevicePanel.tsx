@@ -395,6 +395,7 @@ export function DevicePanel(props: {
 }
 
 function DeviceNotice(props: { readonly onDismiss: () => void; readonly children: ReactNode }) {
+  const t = useT();
   return (
     <div
       role="alert"

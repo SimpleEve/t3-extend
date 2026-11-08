@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import { View } from "react-native";
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { useT } from "../../../hooks/useT"; // fork: i18n
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { openSettings } from "../../settings/settings-navigation";
 

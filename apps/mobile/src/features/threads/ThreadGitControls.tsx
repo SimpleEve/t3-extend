@@ -264,7 +264,10 @@ function useThreadGitControlModel(props: ThreadGitMenuProps) {
   };
 }
 
-export function threadTerminalMenu(props: ThreadGitControlsProps): AppBarMenu | null {
+export function threadTerminalMenu(
+  props: ThreadGitControlsProps,
+  t: Translator, // fork: i18n
+): AppBarMenu | null {
   if (!props.canOpenTerminal) return null;
   return {
     title: t("Terminal"),
@@ -292,13 +295,16 @@ export function threadTerminalMenu(props: ThreadGitControlsProps): AppBarMenu | 
           ]),
       ...props.terminalSessions.map((session) => ({
         id: `terminal-${session.terminalId}`,
-        title: session.displayLabel,
+        title: localizeTerminalLabel(session.displayLabel, t), // fork: i18n
         icon: "terminal",
         subtitle: [
-          getTerminalStatusLabel({
-            status: session.status,
-            hasRunningSubprocess: session.hasRunningSubprocess,
-          }),
+          getTerminalStatusLabel(
+            {
+              status: session.status,
+              hasRunningSubprocess: session.hasRunningSubprocess,
+            },
+            t,
+          ),
           basename(session.cwd),
         ]
           .filter(Boolean)
@@ -307,9 +313,9 @@ export function threadTerminalMenu(props: ThreadGitControlsProps): AppBarMenu | 
       })),
       {
         id: "terminal-new",
-        title: "Open new terminal",
+        title: t("Open new terminal"),
         icon: "plus",
-        subtitle: "Start another shell for this thread",
+        subtitle: t("Start another shell for this thread"),
         disabled: !props.canOperateTerminal,
         onPress: props.onOpenNewTerminal,
       },
@@ -319,6 +325,7 @@ export function threadTerminalMenu(props: ThreadGitControlsProps): AppBarMenu | 
 
 /** The thread's git menu, shared by the thread bar and Review. */
 export function useThreadGitMenuDefinition(props: ThreadGitMenuProps): AppBarMenu | null {
+  const t = useT();
   const model = useThreadGitControlModel(props);
   return {
     title: t("Git controls"),

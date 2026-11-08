@@ -1,7 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Option from "effect/Option";
 import { vi } from "vite-plus/test";
 
 vi.mock("expo-secure-store", () => ({
@@ -29,9 +28,7 @@ function loadStored(payload: object) {
     clearEnvironmentCache: () => unused,
     clearAllCaches: unused,
     inspectCaches: unused,
-    loadPreferencesJson: Effect.succeed(
-      Option.some({ payload: JSON.stringify(payload), updatedAt: 1 }),
-    ),
+    loadPreferencesJson: Effect.succeedSome({ payload: JSON.stringify(payload), updatedAt: 1 }),
     savePreferencesJson: () => Effect.void,
   });
   const secureStorage = MobileSecureStorage.MobileSecureStorage.of({

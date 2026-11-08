@@ -81,7 +81,7 @@ function TimelineComment({
   const { themeVariables: colors } = useAppearancePreferences();
   const long = comment.body.length > 450 || comment.body.split("\n").length > 8;
   const content = useMemo(
-    () => pullRequestDescriptionContent(parseMarkdownDocument(comment.body), t),
+    () => pullRequestDescriptionContent(parseMarkdownDocument(comment.body), [], t),
     [comment.body, t],
   );
   const preview = content.preview;

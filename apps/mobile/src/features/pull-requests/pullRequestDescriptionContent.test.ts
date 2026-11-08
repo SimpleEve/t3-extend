@@ -1,4 +1,3 @@
-import { translatorFor } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 import type { MarkdownNode } from "../../lib/markdownDocument";
 import { splitPullRequestBody } from "@t3tools/client-runtime/pull-request-markdown";
@@ -17,17 +16,15 @@ describe("PR attachments", () => {
     const media = splitPullRequestBody(
       `${uri}\n\nhttps://drop.example.com/demo.mp4\n\nhttps://github.com/user-attachments/assets/123-abc`,
     );
-    expect(pullRequestDescriptionContent(document, translatorFor("en"), media).attachments).toEqual(
-      [
-        { uri, caption: "Screenshot", kind: "image" },
-        { uri: "https://drop.example.com/demo.mp4", caption: "Video", kind: "video" },
-        {
-          uri: "https://github.com/user-attachments/assets/123-abc",
-          caption: "Video",
-          kind: "video",
-        },
-      ],
-    );
+    expect(pullRequestDescriptionContent(document, media).attachments).toEqual([
+      { uri, caption: "Screenshot", kind: "image" },
+      { uri: "https://drop.example.com/demo.mp4", caption: "Video", kind: "video" },
+      {
+        uri: "https://github.com/user-attachments/assets/123-abc",
+        caption: "Video",
+        kind: "video",
+      },
+    ]);
   });
 
   it("collects videos from a before/after table", () => {

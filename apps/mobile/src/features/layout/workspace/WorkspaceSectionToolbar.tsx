@@ -11,7 +11,7 @@ import {
 import { useWorkspaceTabs } from "./WorkspaceTabsContext";
 import { useSelectWorkspaceTab } from "./useSelectWorkspaceTab";
 import { useCompactWorkspaceTabs, useSidebarWorkspaceTabs } from "./useSystemWorkspaceTabBar";
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { useT } from "../../../hooks/useT"; // fork: i18n
 
 const PULL_REQUEST_ICON = require("../../../../assets/icons/pull-request.png");
 

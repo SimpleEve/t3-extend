@@ -1277,6 +1277,7 @@ function ThreadSettingsChoiceScreen() {
 }
 
 function ThreadSettingsPickerNavigator(props: ThreadSettingsPickerPresentation) {
+  const t = useT();
   const screenOptions = useSheetStackOptions();
   const presentation = {
     onClose: props.onClose,

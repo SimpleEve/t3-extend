@@ -5,7 +5,7 @@ import { useResolveClassNames } from "uniwind";
 import { SymbolView } from "../../../components/ui/AppSymbol";
 import { GlassSurface } from "../../../components/ui/GlassSurface";
 import { WORKSPACE_TOOLBAR, type WorkspaceTab } from "./workspace-tabs-state";
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { useT } from "../../../hooks/useT"; // fork: i18n
 
 export function WorkspaceSearchField({
   ref,

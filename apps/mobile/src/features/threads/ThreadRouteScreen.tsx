@@ -1,4 +1,5 @@
 import * as Dialog from "../../components/ui/Dialog";
+import { Keyboard } from "react-native"; // fork: new browser tab
 import { useRememberThreadProject } from "./useRememberThreadProject";
 import { useOpenPullRequest } from "../../native/useOpenPullRequest";
 import { makeTurnCommandMetadata } from "../../lib/commandMetadata";
@@ -348,6 +349,7 @@ function ThreadRouteContent(
     readonly selectedThreadDetailState: ReturnType<typeof useSelectedThreadDetailState>;
   },
 ) {
+  const t = useT();
   const { fileInspector, layout, panes, showInspector, toggleAuxiliaryPane } =
     useAdaptiveWorkspaceLayout();
   const { connectionState } = useRemoteConnectionStatus();

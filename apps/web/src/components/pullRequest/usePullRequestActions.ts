@@ -209,6 +209,7 @@ export function usePullRequestActionRunner({
 export function usePullRequestCloseBatch(
   onClosed: (entry: EnvironmentPullRequestEntry, reply: PullRequestSummary | undefined) => void,
 ) {
+  const t = useT();
   const runAction = useAtomCommand(pullRequestEnvironment.runAction, { reportFailure: false });
   const pending = useRef(new Set<string>());
   const [closingKeys, setClosingKeys] = useState<ReadonlySet<string>>(() => new Set());

@@ -200,14 +200,14 @@ function UsageScreen(props: {
     items: [
       {
         id: "all",
-        title: "All environments",
+        title: t("All environments"),
         selected: selectedEnvironmentIds === null,
         onPress: () => selectEnvironment("all"),
       },
       ...environments.map((environment) => ({
         id: environment.environmentId,
         title: environment.label,
-        subtitle: usageEnvironmentStatus(environment, refreshingUsage),
+        subtitle: usageEnvironmentStatus(environment, refreshingUsage, t),
         selected:
           selectedEnvironmentIds === null || selectedEnvironmentIds.has(environment.environmentId),
         onPress: () => selectEnvironment(environment.environmentId),

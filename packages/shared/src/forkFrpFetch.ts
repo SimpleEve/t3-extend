@@ -31,6 +31,7 @@ export type FrpFetchProblem =
   | "checksum-mismatch"
   | "extract-failed";
 
+// @effect-diagnostics-next-line extendsNativeError:off - fork: thrown from the plain-promise frpc downloader that the `t3x` launcher also runs outside Effect.
 export class FrpFetchError extends Error {
   readonly problem: FrpFetchProblem;
   constructor(problem: FrpFetchProblem, message: string) {

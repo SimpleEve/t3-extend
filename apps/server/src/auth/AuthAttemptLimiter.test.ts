@@ -209,7 +209,7 @@ describe("AuthAttemptLimiter middleware", () => {
         }),
       ),
       (web) =>
-        Effect.tryPromise(async () => {
+        Effect.promise(async () => {
           const post = async (client: string | undefined) => {
             const request = new Request(`http://127.0.0.1${path}`, {
               method: "POST",
@@ -255,7 +255,7 @@ describe("AuthAttemptLimiter middleware", () => {
           }),
         ),
         (web) =>
-          Effect.tryPromise(async () => {
+          Effect.promise(async () => {
             // A malformed request is not a guess and spends no budget.
             for (let attempt = 0; attempt < 5; attempt += 1) {
               const response = await web.handler(

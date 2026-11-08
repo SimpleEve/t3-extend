@@ -116,7 +116,7 @@ const makeRig = Effect.gen(function* () {
 /** "allowed", or the refusal code with its reason, so a mismatch in a list shows why. */
 const code = (effect: Effect.Effect<unknown, GatewayRefusal>) =>
   effect.pipe(
-    Effect.map(() => "allowed"),
+    Effect.as("allowed"),
     Effect.catch((error) => Effect.succeed(`${error.code} (${error.reason})`)),
   );
 

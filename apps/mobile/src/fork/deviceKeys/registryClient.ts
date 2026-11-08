@@ -6,6 +6,7 @@ import { b64u, type DeviceJwk, type DeviceKeyPair } from "@t3tools/shared/forkDe
 import { canonicalOrigin, signRequestProof } from "@t3tools/shared/forkDeviceKeys/proof";
 import * as Schema from "effect/Schema";
 
+// @effect-diagnostics-next-line extendsNativeError:off - fork: thrown through plain promises in the phone's registry client, outside Effect.
 export class RegistryError extends Error {
   /** `unreachable`: no answer. `rejected`: the registry said no. `protocol`: it answered nonsense or the wrong registry. */
   readonly kind: "unreachable" | "rejected" | "protocol";

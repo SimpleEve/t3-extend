@@ -14,6 +14,7 @@ export const say = (message: string): void => {
   process.stdout.write(`${new Date().toISOString().slice(11, 23)} ${message}\n`);
 };
 
+// @effect-diagnostics-next-line extendsNativeError:off - fork: e2e script, runs without an Effect runtime.
 export class E2eFailure extends Error {
   constructor(message: string) {
     super(message);

@@ -75,7 +75,13 @@ describe("tunnel lifetime", () => {
       yield* wsClosed;
       yield* serviceClosed;
       const bytes = service.state.bytes;
-      yield* Effect.try(() => ws.send(Buffer.from("after"))).pipe(Effect.ignore);
+      yield* Effect.sync(() => {
+        try {
+          ws.send(Buffer.from("after"));
+        } catch {
+          // The revoked socket is closed; sending into it fails, which is the point.
+        }
+      });
       assert.equal(service.state.bytes, bytes);
       const again = yield* openTunnel(gateway.mainPort, { ticket, query: `port=${service.port}` });
       assert.equal(again._tag, "refused");

@@ -11,10 +11,10 @@ export function useWorkspaceSidebarHeaderItem() {
   if (!toggle) return null;
   return withNativeGlassHeaderItem({
     axisBehavior: usesNativeWorkspaceColumns ? "horizontalOnly" : undefined,
-    accessibilityLabel: toggle.accessibilityLabel,
+    accessibilityLabel: t(toggle.accessibilityLabel), // fork: i18n
     icon: { name: toggle.icon, type: "sfSymbol" as const },
     identifier: "thread-left-sidebar",
-    label: toggle.accessibilityLabel,
+    label: t(toggle.accessibilityLabel), // fork: i18n
     onPress: toggle.onPress,
     type: "button" as const,
   });

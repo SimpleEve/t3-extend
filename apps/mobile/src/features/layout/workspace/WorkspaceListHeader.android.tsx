@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 import { useNavigation, useNavigationState } from "@react-navigation/native";
 import { BackHandler, Keyboard } from "react-native";
 
@@ -58,7 +59,7 @@ export function WorkspaceListHeader(props: WorkspaceListHeaderProps) {
 
   return (
     <AppBar
-      title="T3 Code"
+      title={FORK.appBaseName} // fork: brand
       titleContent={
         <WorkspaceBrandTitle
           accessibilityLabel={props.accessibilityLabel}

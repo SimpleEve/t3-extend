@@ -366,6 +366,7 @@ export function BranchPickerScreen(props: {
     readonly onChangeStartFromOrigin: (value: boolean) => void;
   };
 }) {
+  const t = useT();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const search: AppBarSearch = {

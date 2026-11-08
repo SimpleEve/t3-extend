@@ -42,6 +42,7 @@ const ENVIRONMENT_REJECTIONS: ReadonlySet<LoopbackGatewayErrorCode> = new Set([
   "discovery-disabled",
 ]);
 
+// @effect-diagnostics-next-line extendsNativeError:off - fork: a plain throw in the desktop proxy; callers match on `name`, no Effect runtime in the tunnel path.
 export class GatewayInvalidTicketError extends Error {
   override readonly name = "GatewayInvalidTicketError";
 

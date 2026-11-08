@@ -69,6 +69,7 @@ describe.skipIf(PLATFORM === "win32")("frpcCommand", () => {
                 platform: PLATFORM,
                 executable: fake,
                 configFile: fifo,
+                // @effect-diagnostics-next-line processEnvInEffect:off - fork: the fake frpc needs the host PATH to find `sh`; a test fixture.
                 env: { PATH: process.env.PATH ?? "" },
                 killGrace: "30 seconds",
               }),

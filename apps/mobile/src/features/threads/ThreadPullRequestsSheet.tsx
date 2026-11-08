@@ -21,6 +21,7 @@ import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 export function ThreadPullRequestsSheet(
   _props: StaticScreenProps<{ readonly environmentId: string; readonly threadId: string }>,
 ) {
+  const t = useT();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { selectedThread, selectedThreadProject, selectedEnvironmentRuntime } =

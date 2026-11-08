@@ -48,10 +48,6 @@ import {
   ThreadListV2GroupHeader,
   ThreadListV2NestedRow,
 } from "../../fork/ThreadListGroupHeader"; // fork: thread list views
-import {
-  threadListViewFromMenuEvent,
-  threadListViewMenuAction,
-} from "../../fork/threadListViewMenu"; // fork: thread list views
 import { buildHomeProjectScopes } from "../home/homeThreadList";
 import { SwipeableScrollGateProvider, useSwipeableScrollGate } from "../home/thread-swipe-actions";
 import { usePendingTaskListActions } from "../home/usePendingTaskListActions";
@@ -80,7 +76,9 @@ import {
 } from "./threadListV2";
 import { useSelectWorkspaceDetail } from "../layout/workspace/useSelectWorkspaceDetail";
 import { NativeScrollView } from "../../native/NativeScrollViewMarker";
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { useT } from "../../hooks/useT";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
+import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 type SidebarListItem =
   | ThreadListV2ListItem
@@ -121,6 +119,7 @@ export function ThreadNavigationSidebar(props: ThreadNavigationSidebarProps) {
 }
 
 function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
+  const t = useT();
   const floatingTabsEnabled = useAndroidFloatingTabs();
   const { themeVariables: materialTheme } = useAppearancePreferences();
   const drawerColor = materialTheme["--color-drawer"];

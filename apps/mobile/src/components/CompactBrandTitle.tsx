@@ -10,7 +10,6 @@ import { resolveMobileStageLabel } from "../lib/mobileBranding";
 import { useAndroidControlSizing } from "./ui/useAndroidControlSizing";
 import { useT } from "../hooks/useT"; // fork: i18n
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const BRAND_MAX_FONT_SCALE = 1.4;
 

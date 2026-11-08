@@ -21,6 +21,7 @@ type CallMethod = (payload: unknown) => Effect.Effect<unknown, unknown>;
 type StreamMethod = (payload: unknown) => Stream.Stream<unknown, unknown>;
 
 /** A failed RPC, with the typed error's `reason` (`not_local_owner`, `registry_unreachable`, ...) when it has one. */
+// @effect-diagnostics-next-line extendsNativeError:off - fork: e2e script, runs without an Effect runtime.
 export class RpcFailure extends Error {
   readonly reason: string | undefined;
   readonly tag: string;

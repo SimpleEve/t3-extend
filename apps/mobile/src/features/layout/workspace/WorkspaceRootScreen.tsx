@@ -1,4 +1,5 @@
 import { WorkspaceNoTabs } from "./WorkspaceNoTabs";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 import { WORKSPACE_TAB_LABELS, useEnabledNavigationTabs } from "./navigation-tabs";
 import { WorkspaceExtraTab } from "./WorkspaceExtraTab";
 import { WorkspaceSettingsList } from "../../settings/SettingsRouteScreen";
@@ -56,7 +57,7 @@ function WorkspaceRootTitle(props: {
   return (
     <View style={{ width: maxWidth, minHeight: 32, justifyContent: "center" }}>
       <WorkspaceConnectionTitle
-        brand={<CompactBrandTitle accessibilityLabel={`T3 Code, ${tabTitle}`} fit />}
+        brand={<CompactBrandTitle accessibilityLabel={`${FORK.appBaseName}, ${tabTitle}`} fit />}
         maxWidth={maxWidth}
         onPress={props.onOpenEnvironments}
       />

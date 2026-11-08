@@ -64,10 +64,15 @@ export function UsageLimitRecoveryCard({
   )
     return null;
   const resetText = displayAt
-    ? `${canSchedule && scheduled ? "Resumes" : "Resets"} ${new Date(displayAt).toLocaleString(
-        undefined,
-        { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" },
-      )}.`
+    ? t(canSchedule && scheduled ? "Resumes {time}." : "Resets {time}.", {
+        time: new Date(displayAt).toLocaleString(uiFormatLocale(getUiLocale()), {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          ...uiFormatOptions(getUiLocale()),
+        }),
+      })
     : null;
   const snoozed =
     limitRecoveryOwnsSnooze({

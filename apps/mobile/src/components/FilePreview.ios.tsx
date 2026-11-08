@@ -2,7 +2,6 @@ import * as Dialog from "./ui/Dialog";
 import { requireNativeModule } from "expo";
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { useT } from "../hooks/useT"; // fork: i18n
 import type { FilePreviewImage, ResolvedFilePreviewSource } from "./FilePreviewModal.types";
 

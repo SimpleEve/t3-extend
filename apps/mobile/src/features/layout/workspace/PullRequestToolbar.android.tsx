@@ -1,4 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 import { useEffect } from "react";
 import { BackHandler, Keyboard } from "react-native";
 import { AppBar } from "../../../components/ui/AppBar";
@@ -54,10 +55,10 @@ export function PullRequestToolbar(props: {
   }, [searching, closeSearch, navigation, isTabActive]);
   return (
     <AppBar
-      title="T3 Code"
+      title={FORK.appBaseName} // fork: brand
       titleContent={
         <WorkspaceBrandTitle
-          accessibilityLabel="T3 Code, Pull requests"
+          accessibilityLabel={`${FORK.appBaseName}, Pull requests`} // fork: brand
           onOpenEnvironments={() => openSettings(navigation, "SettingsEnvironments")}
         />
       }

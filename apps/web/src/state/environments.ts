@@ -114,3 +114,8 @@ export function useEnvironmentMachines() {
 export function useConnectedEnvironmentIds() {
   return useAtomValue(environmentSummaries.connectedEnvironmentIdsAtom);
 }
+
+// fork: the footer chip names the machine from these summaries; upstream dropped the hook.
+export function useEnvironmentConnectionSummaries() {
+  return useAtomValue(environmentSummaries.environmentsAtom);
+}

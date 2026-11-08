@@ -107,6 +107,7 @@ function InstanceSessionManagement(
     readonly onProjectChange: (projectId: ProjectId) => void;
   },
 ) {
+  const t = useT();
   const canOperate = useEnvironmentScope(props.environmentId, AuthOrchestrationOperateScope);
   const canRead = useEnvironmentScope(props.environmentId, AuthOrchestrationReadScope);
   const { projectId } = props;

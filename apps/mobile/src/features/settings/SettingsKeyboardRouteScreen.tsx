@@ -32,6 +32,7 @@ const ENTER_BEHAVIOR_OPTIONS: ReadonlyArray<{
 ];
 
 export function SettingsKeyboardRouteScreen() {
+  const t = useT();
   const insets = useSafeAreaInsets();
   const preferencesResult = useAtomValue(mobilePreferencesAtom);
   const savePreferences = useAtomSet(updateMobilePreferencesAtom);

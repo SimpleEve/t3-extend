@@ -47,6 +47,7 @@ import { readUnloadedThreadCount } from "../../state/olderSettledShelf";
 import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function SettingsProjectOverviewRouteScreen() {
+  const t = useT();
   const environmentMenu = useSettingsEnvironmentMenu();
   const insets = useSafeAreaInsets();
   const [isRemoving, setIsRemoving] = useState(false);

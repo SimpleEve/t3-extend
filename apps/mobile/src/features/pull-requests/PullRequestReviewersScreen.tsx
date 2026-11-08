@@ -242,9 +242,8 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
                         : t("No reviewers available")
                   }
                   detail={
-                    result.error ?? t("Search people and teams with access to this repository.")
+                    queryError ?? t("Search people and teams with access to this repository.")
                   }
-                  detail={queryError ?? "Search people and teams with access to this repository."}
                   variant="plain"
                 />
                 {queryError ? (

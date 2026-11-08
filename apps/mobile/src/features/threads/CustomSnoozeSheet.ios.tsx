@@ -222,6 +222,7 @@ function SnoozePopoverNavigation(props: {
   readonly onSubmit: () => void;
   readonly children: ReactNode;
 }) {
+  const t = useT();
   return (
     <VStack modifiers={[frame({ width: props.width, height: props.height })]}>
       <RNHostView>

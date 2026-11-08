@@ -111,8 +111,12 @@ const KINDS: Record<
 
 const unavailableExplanation = (t: ReturnType<typeof useT>) =>
   Platform.OS === "android"
-    ? "Dictation on this device needs Android 12 or later and Google speech services that support your language. Your keyboard’s voice typing is separate."
-    : "Dictation on this device needs iOS 26 or later, a supported device, and a supported language. Your keyboard’s dictation is separate.";
+    ? t(
+        "Dictation on this device needs Android 12 or later and Google speech services that support your language. Your keyboard’s voice typing is separate.",
+      )
+    : t(
+        "Dictation on this device needs iOS 26 or later, a supported device, and a supported language. Your keyboard’s dictation is separate.",
+      );
 
 function saveDestination(id: EnvironmentId | null) {
   try {
@@ -168,6 +172,7 @@ function EnvironmentChoice({
 }
 
 export function SettingsVoiceRouteScreen() {
+  const t = useT();
   const transcriber = useAtomValue(localVoiceTranscriberAtom);
   const grant = useAtomValue(voiceGrantAtom);
   const { environments, isReady } = useEnvironments();
@@ -287,7 +292,7 @@ export function SettingsVoiceRouteScreen() {
           />
         ) : null}
         {!grant && transcriber === null ? (
-          <Text className="px-2 text-sm text-foreground-muted">{UNAVAILABLE_EXPLANATION}</Text>
+          <Text className="px-2 text-sm text-foreground-muted">{unavailableExplanation(t)}</Text>
         ) : null}
         {permission === "ask" || permission === "denied" ? (
           <>
@@ -303,7 +308,7 @@ export function SettingsVoiceRouteScreen() {
             <Text className="px-2 text-sm text-foreground-muted">
               {permission === "ask"
                 ? "Allow microphone access to record and to see your microphones."
-                : "Turn on microphone access for T3 Code in Settings to use voice input."}
+                : "Turn on microphone access for T3 Extend in Settings to use voice input."}
             </Text>
           </>
         ) : null}

@@ -10,6 +10,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { EnvironmentId } from "@t3tools/contracts";
 import * as Digest from "effect/crypto/Digest";
 import * as SecureRandom from "effect/crypto/SecureRandom";
+import * as Signature from "effect/crypto/Signature";
 import * as Effect from "effect/Effect";
 import { HttpClient } from "effect/http";
 import * as Layer from "effect/Layer";
@@ -127,6 +128,7 @@ describe("the managed token broker", () => {
               } as never),
               Layer.succeed(Digest.Digest, {} as never),
               Layer.succeed(SecureRandom.SecureRandom, {} as never),
+              Layer.succeed(Signature.Signature, {} as never),
               Layer.succeed(HttpClient.HttpClient, {} as never),
               Layer.succeed(ServerSecretStore.ServerSecretStore, {} as never),
             ),

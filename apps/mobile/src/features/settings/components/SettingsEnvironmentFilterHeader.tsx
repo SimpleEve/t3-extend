@@ -7,6 +7,7 @@ import { useT } from "../../../hooks/useT"; // fork: i18n
 
 /** The settings scope filter, as an `AppBar` menu. */
 export function useSettingsEnvironmentMenu(): AppBarMenu {
+  const t = useT();
   const {
     availableTargets,
     selectedTargets,

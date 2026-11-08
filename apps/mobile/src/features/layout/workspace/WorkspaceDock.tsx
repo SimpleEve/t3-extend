@@ -4,7 +4,7 @@ import { SymbolView } from "../../../components/ui/AppSymbol";
 import { GlassSurface } from "../../../components/ui/GlassSurface";
 import { useWorkspaceTabs } from "./WorkspaceTabsContext";
 import { WORKSPACE_DOCK } from "./workspace-tabs-state";
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { useT } from "../../../hooks/useT"; // fork: i18n
 import { PullRequestGlyph } from "../../pull-requests/pullRequestGlyphs";
 
 export function WorkspaceDock(props: { readonly onNewTask: () => void }) {

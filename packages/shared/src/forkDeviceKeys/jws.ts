@@ -6,6 +6,7 @@ import * as Base64Url from "effect/encoding/Base64Url";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 
+// @effect-diagnostics-next-line extendsNativeError:off - fork: a plain throw shared by sync verifiers on the server, the phone and the registry client; no Effect runtime here.
 export class ProofError extends Error {
   readonly reason: string;
   constructor(reason: string) {

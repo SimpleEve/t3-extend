@@ -1,6 +1,6 @@
 import type { PullRequestBodySegment } from "@t3tools/client-runtime/pull-request-markdown";
 import type { MarkdownNode } from "../../lib/markdownDocument";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function isWebUrl(url: string): boolean {
   try {
@@ -13,8 +13,8 @@ function isWebUrl(url: string): boolean {
 
 export function pullRequestDescriptionContent(
   document: MarkdownNode,
-  t: Translator, // fork: i18n
   media: readonly PullRequestBodySegment[] = [],
+  t: Translator = translatorFor("en"), // fork: i18n
 ) {
   const attachments = new Map<
     string,

@@ -41,6 +41,7 @@ function PullRequestHostVideo({
   fetchUrl: string;
   repository: string | undefined;
 }) {
+  const t = useT();
   const resource: AssetResource = {
     _tag: SOURCE_CONTROL_MEDIA_ASSET,
     cwd,
@@ -198,7 +199,6 @@ export function PullRequestMarkdown({
   /** `markerOffset` is into `text`. Checkboxes stay read-only without it. */
   onTaskListChange?: ((input: { markerOffset: number; checked: boolean }) => void) | undefined;
 }) {
-  const t = useT();
   const segments = splitPullRequestBody(text);
   const context = useContext(PullRequestMarkdownContext);
   const resolvedThreadRef = threadRef ?? context?.threadRef ?? undefined;

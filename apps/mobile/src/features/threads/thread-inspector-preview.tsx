@@ -25,6 +25,7 @@ export type ThreadInspectorPresentation =
 export function ThreadInspectorHeader(
   props: ThreadInspectorPresentation & { readonly title: string },
 ) {
+  const t = useT();
   if ("onMaximize" in props) {
     return (
       <AppBar

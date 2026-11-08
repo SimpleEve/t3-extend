@@ -27,6 +27,7 @@ const KIND_LABELS = {
 type BackgroundWorkTarget = { readonly environmentId: EnvironmentId; readonly threadId: ThreadId };
 
 export function ThreadBackgroundWorkSheet({ route }: StaticScreenProps<BackgroundWorkTarget>) {
+  const t = useT();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const target = route.params;
