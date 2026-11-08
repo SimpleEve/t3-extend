@@ -171,7 +171,6 @@ if (hasDocker) {
       assert.deepEqual(dials(json), ["frps:7000", "frps:8080", "ntfy:80", "registry:8080"]);
       assert.match(json, /"endpoint":"http:\/\/registry:8082\/ask"/);
       // On-demand certificates only for names under the domain: a policy for every name would break default_sni.
-      assert.match(json, /"subjects":\["\*\.t3\.example\.com"\][^}]*"on_demand":true/);
       assert.doesNotMatch(json, /\{"on_demand":true\}/);
     });
 
@@ -186,6 +185,38 @@ if (hasDocker) {
       assert.match(json, /"endpoint":"http:\/\/127\.0\.0\.1:17082\/ask"/);
       // The registry's rate limit and frps's visitor address both come from the peer address of Caddy's connection.
       assert.equal(json.split('"X-T3x-Client-Ip":["{http.request.remote.host}"]').length - 1, 2);
+    });
+
+    it("ntfy's and the computers' names fall under an on-demand policy, the apex under a managed one", () => {
+      // The first policy whose subjects match a name is the one Caddy uses for it (no subjects: every name).
+      const policyFor = (json, name) =>
+        JSON.parse(json).apps.tls.automation.policies.find(
+          (policy) =>
+            policy.subjects === undefined ||
+            policy.subjects.some(
+              (subject) =>
+                subject === name ||
+                (subject.startsWith("*.") &&
+                  name.endsWith(subject.slice(1)) &&
+                  !name.slice(0, -subject.length + 1).includes(".")),
+            ),
+        );
+      const layouts = {
+        "an empty sites directory": {},
+        "a site with its own certificate files and an IP site": {
+          "manual.caddy":
+            "manual.example.net {\n\ttls /certs/cert.pem /certs/key.pem\n\trespond manual\n}\n",
+          "ip.caddy": "203.0.113.7 {\n\ttls internal\n\trespond ip\n}\n",
+          "ip.options": "default_sni 203.0.113.7\n",
+        },
+      };
+      for (const [layout, sites] of Object.entries(layouts)) {
+        const json = adapt({ sites });
+        for (const name of ["ntfy.t3.example.com", "a.t3.example.com"]) {
+          assert.equal(policyFor(json, name).on_demand, true, `${name}, ${layout}`);
+        }
+        assert.notEqual(policyFor(json, "t3.example.com").on_demand, true, `the apex, ${layout}`);
+      }
     });
 
     it("an e-mail is passed to ACME, and none is fine", () => {

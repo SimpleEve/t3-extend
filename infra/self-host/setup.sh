@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 # 在这台 VPS 上装好 T3 Extend 的注册表、隧道服务器、HTTPS 和（默认的）推送服务器。
 #
-#   ./setup.sh --domain t3.example.com [--email you@example.com] [--no-ntfy]
+#   ./setup.sh --domain t3.example.com [--email you@example.com | --no-email] [--no-ntfy | --ntfy]
 #
 # 只需要 Docker 和 compose 插件：脚本不装任何软件包，不起系统服务，也不改防火墙。
-# 80/tcp 和 443/tcp 要你自己放行。--email 可以不填：Let's Encrypt 现在不再发到期提醒。
+# 80/tcp 和 443/tcp 要你自己放行。邮箱可以不填：Let's Encrypt 现在不再发到期提醒。
 #
 # 这台 VPS 上已经有别的网站时（见 README 的“这台 VPS 上已经有别的网站”）：
 #   T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.host-network.yml ./setup.sh --domain ...
 #   T3X_SITES_DIR      别的网站的 Caddy 站点文件放在哪里（默认是脚本所在目录里的 sites/，相对路径也相对脚本所在目录）
 #   T3X_HOST_REGISTRY_PORT、T3X_HOST_ASK_PORT、T3X_HOST_FRPS_PORT、T3X_HOST_VHOST_PORT、T3X_HOST_NTFY_PORT
 #                      宿主机网络下 Caddy 访问其他服务用的回环端口（默认见 docker-compose.host-network.yml）
-# 重新运行时，没有再次给出的 T3X_COMPOSE_FILES、T3X_SITES_DIR 和 T3X_HOST_*，沿用已有 .env 里的值。
+#   --recreate-caddy   Caddy 的定义变了时才需要：重建 Caddy（别的网站会断几秒）；不加的话 setup.sh 不动正在跑的 Caddy
+#
+# 重新运行（升级）时，没有再次给出的选择沿用已有 .env 里的：T3X_COMPOSE_FILES、T3X_SITES_DIR、T3X_PROJECT、
+# T3X_HOST_*、邮箱、推送服务器。再次给出就按新值，并打印一行提示；给空值（--no-email、T3X_SITES_DIR= 等）是改回默认。
 #
 # 想在不能被弄脏的机器上试用（见 README 的“本地试用”）：
 #   T3X_DATA_DIR       .env 和 secrets/ 放在哪里（默认是脚本所在目录）
@@ -23,15 +26,14 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 DATA_DIR=${T3X_DATA_DIR:-$SCRIPT_DIR}
-PROJECT=${T3X_PROJECT:-t3x}
-# Not defaulted here: a rerun that is not given them again keeps what the existing .env has (see `settle`).
-GIVEN_COMPOSE_FILES=${T3X_COMPOSE_FILES:-}
-GIVEN_SITES_DIR=${T3X_SITES_DIR:-}
 
 domain=""
 email=""
+email_given=0
 public_port=443
 ntfy=1
+ntfy_given=0
+recreate_caddy=0
 dry_run=0
 
 usage() {
@@ -45,32 +47,54 @@ fail() {
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --domain) domain=${2:-}; shift 2 ;;
-    --email) email=${2:-}; shift 2 ;;
-    --public-port) public_port=${2:-}; shift 2 ;;
-    --no-ntfy) ntfy=0; shift ;;
+    --domain) [ $# -ge 2 ] || fail "--domain 需要一个值"; domain=$2; shift 2 ;;
+    --email) [ $# -ge 2 ] || fail "--email 需要一个值（不要邮箱用 --no-email）"; email=$2; email_given=1; shift 2 ;;
+    --no-email) email=""; email_given=1; shift ;;
+    --public-port) [ $# -ge 2 ] || fail "--public-port 需要一个值"; public_port=$2; shift 2 ;;
+    --no-ntfy) ntfy=0; ntfy_given=1; shift ;;
+    --ntfy) ntfy=1; ntfy_given=1; shift ;;
+    --recreate-caddy) recreate_caddy=1; shift ;;
     --dry-run) dry_run=1; shift ;;
     -h | --help) usage; exit 0 ;;
     *) fail "未知参数：$1（用 --help 查看用法）" ;;
   esac
 done
 
-# A rerun (an upgrade) keeps the choices the install made: what is not given again is read from the existing .env,
-# so that, say, running ./setup.sh --domain ... alone does not move Caddy off the host network and drop the sites.
+# A rerun (an upgrade) keeps the choices the install made: what is not given again is read from the existing .env, so
+# that running ./setup.sh --domain ... alone does not move Caddy off the host network, drop the sites, bring back a push
+# server that was left out, or forget the e-mail. A variable that is set but empty counts as given: back to the default.
 env_file="$DATA_DIR/.env"
-env_value() {
+# Only the format setup.sh writes is read: KEY=value, comments, blank lines. `export`, quotes, trailing comments and the
+# like would be read differently by compose than by this script, so they are refused rather than guessed at.
+env_line_pattern='^([A-Z][A-Z0-9_]*)=([^[:space:]"#$`\'"'"']*)$'
+load_env() {
   [ -f "$env_file" ] || return 0
-  sed -n "s/^$1=//p" "$env_file" | head -n 1
+  local n=0 line var
+  while IFS= read -r line || [ -n "$line" ]; do
+    n=$((n + 1))
+    case "$line" in '' | '#'*) continue ;; esac
+    if [[ ! $line =~ $env_line_pattern ]]; then
+      fail "$env_file 第 $n 行看不懂：「${line}」。setup.sh 只读它自己写的格式（KEY=值，值里不能有空格、引号、# 或 \$，也不能写 export）。改成这个格式，或者删掉这个文件再运行 setup.sh（数据卷不受影响）。"
+    fi
+    var=kept_${BASH_REMATCH[1]}
+    [ -z "${!var+x}" ] || fail "$env_file 里 ${BASH_REMATCH[1]} 出现了两次（第 $n 行）。删掉多余的一行再运行 setup.sh。"
+    printf -v "$var" '%s' "${BASH_REMATCH[2]}"
+  done <"$env_file"
 }
-# settle <variable> <.env key> <value given now> <default> [normalizer]: given, else what .env has, else the default.
-# The normalizer is applied to the .env value too: a .env written by an earlier setup.sh may hold ./sites.
+env_value() {
+  local var=kept_$1
+  printf '%s' "${!var:-}"
+}
+# settle <variable> <.env key> <given now: 1|0> <value given> <default> [normalizer]
 settle() {
-  local var=$1 key=$2 given=$3 default=$4 normalize=${5:-} kept
+  local var=$1 key=$2 is_given=$3 given=$4 default=$5 normalize=${6:-} kept
   kept=$(env_value "$key")
   if [ -n "$kept" ] && [ -n "$normalize" ]; then kept=$("$normalize" "$kept"); fi
-  if [ -n "$given" ]; then
+  if [ "$is_given" = 1 ]; then
+    [ -n "$given" ] || given=$default
+    if [ -n "$normalize" ]; then given=$("$normalize" "$given"); fi
     if [ -n "$kept" ] && [ "$kept" != "$given" ]; then
-      echo "提示：$key 和已有的 $env_file 里不同，这次按新值 $given 来（原来是 $kept）。" >&2
+      echo "提示：$key 和已有的 $env_file 里不同，这次按新值 $given 来（原来是 ${kept}）。" >&2
     fi
     printf -v "$var" '%s' "$given"
   elif [ -n "$kept" ]; then
@@ -79,8 +103,25 @@ settle() {
     printf -v "$var" '%s' "$default"
   fi
 }
+# 1 if the environment variable is set, even to an empty value.
+is_set() {
+  [ -n "${!1+x}" ] && echo 1 || echo 0
+}
 
-settle COMPOSE_FILES COMPOSE_FILE "$GIVEN_COMPOSE_FILES" docker-compose.yml
+load_env
+
+settle PROJECT COMPOSE_PROJECT_NAME "$(is_set T3X_PROJECT)" "${T3X_PROJECT:-}" t3x
+[[ $PROJECT =~ ^[a-z0-9][a-z0-9_-]*$ ]] || fail "T3X_PROJECT（${PROJECT}）只能由小写字母、数字、- 和 _ 组成，并以字母或数字开头。"
+
+settle COMPOSE_FILES COMPOSE_FILE "$(is_set T3X_COMPOSE_FILES)" "${T3X_COMPOSE_FILES:-}" docker-compose.yml
+# Checked before anything is created or written: names without a path, files that exist next to this script.
+[[ $COMPOSE_FILES =~ (^:|::|:$) ]] && fail "T3X_COMPOSE_FILES（${COMPOSE_FILES}）里有空的文件名：用冒号分隔，开头、结尾和中间都不能多一个冒号。"
+IFS=: read -r -a files <<<"$COMPOSE_FILES"
+for file in "${files[@]}"; do
+  [[ $file =~ ^[A-Za-z0-9][A-Za-z0-9._-]*\.ya?ml$ ]] ||
+    fail "T3X_COMPOSE_FILES（${COMPOSE_FILES}）里的「${file}」不是一个 compose 文件名：用冒号分隔，只写文件名（相对这个目录），不带路径。"
+  [ -f "$SCRIPT_DIR/$file" ] || fail "T3X_COMPOSE_FILES 里的 $SCRIPT_DIR/$file 不存在。"
+done
 
 # An absolute path: compose takes a bare name for a volume, and reads $, # and : in .env and in volumes itself.
 absolute() {
@@ -89,10 +130,9 @@ absolute() {
     *) printf '%s' "$SCRIPT_DIR/${1#./}" ;;
   esac
 }
-[ -z "$GIVEN_SITES_DIR" ] || GIVEN_SITES_DIR=$(absolute "$GIVEN_SITES_DIR")
-settle SITES_DIR T3X_SITES_DIR "$GIVEN_SITES_DIR" "$SCRIPT_DIR/sites" absolute
+settle SITES_DIR T3X_SITES_DIR "$(is_set T3X_SITES_DIR)" "${T3X_SITES_DIR:-}" "$SCRIPT_DIR/sites" absolute
 if [[ ! $SITES_DIR =~ ^/[A-Za-z0-9_./+@,-]+$ ]]; then
-  fail "T3X_SITES_DIR（$SITES_DIR）只能由字母、数字和 _ . / + @ , - 组成：compose 会解释其他字符。"
+  fail "T3X_SITES_DIR（${SITES_DIR}）只能由字母、数字和 _ . / + @ , - 组成：compose 会解释其他字符。"
 fi
 
 local_trial=0
@@ -120,6 +160,27 @@ esac
 if [ "$public_port" != 443 ] && [ "$local_trial" = 0 ]; then
   fail "--public-port 只用于本地试用（需要 T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.test.yml）"
 fi
+
+# The e-mail and the push server: what the install chose, unless given again.
+if [ "$email_given" = 0 ]; then
+  email=$(env_value ACME_EMAIL)
+elif [ "$(env_value ACME_EMAIL)" != "$email" ] && [ -f "$env_file" ]; then
+  echo "提示：邮箱和已有的 $env_file 里不同，这次按新值「${email:-不要邮箱}」来（原来是「$(env_value ACME_EMAIL)」）。" >&2
+fi
+if [ "$ntfy_given" = 0 ] && [ -f "$env_file" ]; then
+  kept_ntfy=$(env_value T3X_NTFY_ENABLED)
+  if [ -z "$kept_ntfy" ]; then
+    case ",$(env_value COMPOSE_PROFILES)," in *,ntfy,*) kept_ntfy=1 ;; *) kept_ntfy=0 ;; esac
+  fi
+  ntfy=$kept_ntfy
+elif [ "$ntfy_given" = 1 ] && [ -f "$env_file" ] && [ "$(env_value T3X_NTFY_ENABLED)" != "$ntfy" ] && [ -n "$(env_value T3X_NTFY_ENABLED)" ]; then
+  echo "提示：推送服务器和已有的 $env_file 里不同，这次按新的来（现在：${ntfy}，原来：$(env_value T3X_NTFY_ENABLED)）。" >&2
+fi
+# The value goes into .env and into the Caddyfile, so only a plain address is accepted.
+if [ -n "$email" ] && { [ "${#email}" -gt 254 ] || [[ ! $email =~ $email_pattern ]]; }; then
+  fail "邮箱必须是一个普通的邮箱地址，例如 you@example.com（--email 和 .env 里的 ACME_EMAIL 都一样）"
+fi
+
 # The ports Caddy uses on the host's loopback with docker-compose.host-network.yml; they go into .env so that
 # `docker compose` by hand and a rerun use the same ones.
 host_ports_text=""
@@ -127,7 +188,7 @@ case ":$COMPOSE_FILES:" in
   *:docker-compose.host-network.yml:*)
     for entry in T3X_HOST_REGISTRY_PORT:17080 T3X_HOST_ASK_PORT:17082 T3X_HOST_FRPS_PORT:17000 T3X_HOST_VHOST_PORT:17088 T3X_HOST_NTFY_PORT:17090; do
       key=${entry%%:*}
-      settle port "$key" "${!key:-}" "${entry##*:}"
+      settle port "$key" "$(is_set "$key")" "${!key:-}" "${entry##*:}"
       if [[ ! $port =~ ^[0-9]{1,5}$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
         fail "$key 必须是 1 到 65535 之间的端口号"
       fi
@@ -136,10 +197,6 @@ $key=$port"
     done
     ;;
 esac
-# The value goes into .env and into the Caddyfile, so only a plain address is accepted.
-if [ -n "$email" ] && { [ "${#email}" -gt 254 ] || [[ ! $email =~ $email_pattern ]]; }; then
-  fail "--email 必须是一个普通的邮箱地址，例如 you@example.com"
-fi
 
 origin="https://$domain"
 ntfy_url="https://ntfy.$domain"
@@ -149,7 +206,6 @@ if [ "$public_port" != 443 ]; then
 fi
 
 compose_args=(-p "$PROJECT" --env-file "$DATA_DIR/.env")
-IFS=: read -r -a files <<<"$COMPOSE_FILES"
 for file in "${files[@]}"; do
   compose_args+=(-f "$SCRIPT_DIR/$file")
 done
@@ -185,13 +241,26 @@ T3X_ACME_EMAIL_CONF=$acme_email_conf
 T3X_NTFY_ENABLED=$ntfy
 T3X_SITES_DIR=$SITES_DIR$host_ports_text"
 
+# Caddy is brought up on its own, and never recreated unless asked: it carries every other website on this server, and
+# recreating it (compose does that when its definition changed, or when it decides so after a dependency was updated)
+# takes them all down for several seconds.
+services=(registry frps)
+[ "$ntfy" = 0 ] || services+=(ntfy)
+
 if [ "$dry_run" = 1 ]; then
   echo "试运行：不会写任何文件，也不会启动服务。"
   echo
   echo "将写入 $DATA_DIR/.env："
   printf '%s\n' "$env_text" | sed 's/^/  /'
-  [ "$ntfy" = 1 ] && echo "将创建 $DATA_DIR/secrets/ntfy-phone.txt，内容是随机密码（权限 0600）。"
-  echo "将运行：docker compose ${compose_args[*]} up -d --build --wait"
+  if [ "$ntfy" = 1 ] && [ ! -s "$DATA_DIR/secrets/ntfy-phone.txt" ]; then
+    echo "将创建 $DATA_DIR/secrets/ntfy-phone.txt，内容是随机密码（权限 0600）。"
+  fi
+  echo "将运行：docker compose ${compose_args[*]} up -d --build --wait --no-deps ${services[*]}"
+  if [ "$recreate_caddy" = 1 ]; then
+    echo "将运行：docker compose ${compose_args[*]} up -d --wait caddy"
+  else
+    echo "将运行：docker compose ${compose_args[*]} up -d --wait --no-recreate caddy（Caddy 已经在跑时不重建它）"
+  fi
   [ "$ntfy" = 1 ] && echo "将创建推送服务器的账号 'phone'（对 up* 只读）。"
   echo "将运行：$SCRIPT_DIR/t3x invite --kind computer"
   exit 0
@@ -218,7 +287,21 @@ if [ "$ntfy" = 1 ] && [ ! -s "$DATA_DIR/secrets/ntfy-phone.txt" ]; then
 fi
 
 echo "正在启动服务（第一次构建大约要一分钟）..."
-compose up -d --build --wait
+compose up -d --build --wait --no-deps "${services[@]}"
+if [ "$recreate_caddy" = 1 ]; then
+  compose up -d --wait caddy
+else
+  compose up -d --wait --no-recreate caddy
+  # Without --recreate-caddy a changed definition is not applied; say so instead of leaving it unnoticed.
+  caddy_id=$(compose ps -q caddy 2>/dev/null | head -n 1 || true)
+  if [ -n "$caddy_id" ]; then
+    running_hash=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.config-hash"}}' "$caddy_id" 2>/dev/null || true)
+    wanted_hash=$(compose config --hash caddy 2>/dev/null | awk '{print $2}' || true)
+    if [ -n "$running_hash" ] && [ -n "$wanted_hash" ] && [ "$running_hash" != "$wanted_hash" ]; then
+      echo "注意：Caddy 的定义变了，但它正在跑，没有重建（重建会让这台服务器上别的网站断几秒）。要应用，在合适的时候重新运行 ./setup.sh（参数同前）并加上 --recreate-caddy。" >&2
+    fi
+  fi
+fi
 
 if [ "$ntfy" = 1 ]; then
   ntfy_password=$(tr -d '\n' <"$DATA_DIR/secrets/ntfy-phone.txt")

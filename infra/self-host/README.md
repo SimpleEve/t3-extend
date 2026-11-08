@@ -27,16 +27,18 @@
 ./setup.sh --domain t3.example.com
 ```
 
-| 参数        | 作用                                                                                  |
-| ----------- | ------------------------------------------------------------------------------------- |
-| `--domain`  | 必填。你的域名，不带 `https://`、端口和路径。                                         |
-| `--email`   | 可选。登记到 Let's Encrypt 的证书账号。它现在不再发证书到期提醒，不填也不影响签证书。 |
-| `--no-ntfy` | 不安装手机推送服务器。                                                                |
-| `--dry-run` | 只打印会做什么，不写文件、不启动服务。                                                |
+| 参数               | 作用                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| `--domain`         | 必填。你的域名，不带 `https://`、端口和路径。                                         |
+| `--email`          | 可选。登记到 Let's Encrypt 的证书账号。它现在不再发证书到期提醒，不填也不影响签证书。 |
+| `--no-email`       | 去掉已经登记的邮箱（`--email ''` 同义）。                                             |
+| `--no-ntfy`        | 不安装手机推送服务器。已经装了的要装回来用 `--ntfy`。                                 |
+| `--recreate-caddy` | 重建 Caddy。只在 Caddy 的定义变了时用，见「日常运维」里的「升级」。                   |
+| `--dry-run`        | 只打印会做什么，不写文件、不启动服务。                                                |
 
 第一次会构建镜像，大约一分钟。结束时它会打印注册表信息和第一份**邀请**：一串以 `t3x1.` 开头的字符串，加一个二维码。
 
-脚本可以重复运行，不会重置已有的数据。换域名等于重新开始：先删掉 `.env` 和注册表的数据卷。
+脚本可以重复运行，不会重置已有的数据。重新运行时，没有再次给出的选择沿用上一次装的：`--email`、`--no-ntfy`、`T3X_COMPOSE_FILES`、`T3X_SITES_DIR`、`T3X_PROJECT` 和 `T3X_HOST_*`；再给一次就按新的来，并打印一行提示；变量设成空值（`T3X_SITES_DIR=`）表示改回默认。换域名等于重新开始：先删掉 `.env` 和注册表的数据卷。
 
 **确认证书已经签好**：DNS 生效后，在任何一台电脑上运行 `curl -sS https://t3.example.com/v1/info`，返回一段包含 `registryId` 的 JSON 就说明 HTTPS 通了。如果报证书错误或连接超时，先确认两条 DNS 记录已经生效、80/443 从外网能访问，再看 `docker compose logs caddy`（在这个目录里运行，原因见「日常运维」）。每台电脑的子域名证书在第一次访问时才申请，只为已登记的名字申请；推送服务器 `ntfy.t3.example.com` 的证书也是第一次访问时才申请，所以刚装好后它的第一次连接会慢一点。
 
@@ -75,7 +77,7 @@ Caddy 默认不记访问日志，`Caddyfile` 里也没有 `log`；frps 以 info 
 
 **重载或重启会断开所有隧道几秒**：重载 Caddy，重启 Caddy 或 frps（包括升级时重跑 `setup.sh`），每台电脑的隧道都会断开，几秒内自动重连，不用重新加入。原因是 frpc 和 frps 之间的连接也经过 Caddy，重载时保留不住。经隧道打开着的实时页面（WebSocket、SSE）要刷新一下，Vite 这类开发服务器会自己刷新。
 
-**升级**：更新这个目录的文件后重新运行 `./setup.sh`（参数同安装时），它会重新构建镜像并重启有变化的服务，数据保留。所有镜像都钉了版本和摘要，升级时 frps、Caddy、ntfy 和 registry 的基础镜像一起改。frps 的版本必须和电脑上 frpc 的版本一致（`packages/shared/src/forkFrp.ts` 里的 `FRP_VERSION`）。
+**升级**：更新这个目录的文件后重新运行 `./setup.sh --domain <你的域名>`（上一次的选择自动沿用，不用重新带），它会重新构建镜像并重建有变化的服务（registry、frps、ntfy），数据保留。**Caddy 不会被顺带重建**：`setup.sh` 只创建还不存在的 Caddy，已经在跑的不动；Caddy 的定义变了（比如 Caddy 镜像升级、换了站点目录或 compose 文件）时，它会打印一行提示，等你选个合适的时间再加上 `--recreate-caddy` 重新运行。Caddy 的重建，在这台 VPS 上还有别的网站时，会让它们断几秒，加上上面说的隧道断几秒；改站点文件用重载就够了（见「这台 VPS 上已经有别的网站」）。所有镜像都钉了版本和摘要，升级时 frps、Caddy、ntfy 和 registry 的基础镜像一起改。frps 的版本必须和电脑上 frpc 的版本一致（`packages/shared/src/forkFrp.ts` 里的 `FRP_VERSION`）。
 
 **备份**：要备份的是 `registry_data` 数据卷（设备公钥、邀请、子域名；默认项目名下叫 `t3x_registry_data`，用 `docker volume ls` 确认）和 `secrets/ntfy-phone.txt`。`caddy_data` 里是证书，丢了可以重新申请，但 Let's Encrypt 有申请频率限制。丢了 `registry_data` 等于所有设备都要重新加入。
 
@@ -132,7 +134,7 @@ export T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.host-network.yml
 ./setup.sh --domain t3.example.com
 ```
 
-有自己的覆盖文件时写成 `docker-compose.yml:docker-compose.host-network.yml:docker-compose.local.yml`。`setup.sh` 把 compose 文件、站点目录（`T3X_SITES_DIR`，相对路径会按这个目录转成绝对路径）和用到的端口写进 `.env`，之后直接敲 `docker compose` 操作的就是这一套。**升级时直接重新运行 `./setup.sh --domain t3.example.com` 就行**：没有再次给出的 `T3X_COMPOSE_FILES`、`T3X_SITES_DIR` 和 `T3X_HOST_*` 沿用 `.env` 里的值，不用重新带上；这次给出的值和 `.env` 不同，就按新值来，并打印一行提示。`docker-compose.host-network.yml` 做了两件事：Caddy 直接占宿主机的 80 和 443（没有 `ports`）；registry、frps、ntfy 仍然在 compose 网络里，Caddy 要访问的端口只发布到 `127.0.0.1`，默认用不常用的端口：
+有自己的覆盖文件时写成 `docker-compose.yml:docker-compose.host-network.yml:docker-compose.local.yml`。`setup.sh` 把 compose 文件、站点目录（`T3X_SITES_DIR`，相对路径会按这个目录转成绝对路径）和用到的端口写进 `.env`，之后直接敲 `docker compose` 操作的就是这一套。**升级时直接重新运行 `./setup.sh --domain t3.example.com` 就行**：没有再次给出的 `T3X_COMPOSE_FILES`、`T3X_SITES_DIR`、`T3X_HOST_*`、邮箱和推送服务器沿用 `.env` 里的值，不用重新带上；这次给出的值和 `.env` 不同，就按新值来，并打印一行提示。重跑不会重建正在跑的 Caddy，所以不会让别的网站断线；Caddy 的定义变了才需要 `--recreate-caddy`（见「日常运维」里的「升级」）。`docker-compose.host-network.yml` 做了两件事：Caddy 直接占宿主机的 80 和 443（没有 `ports`）；registry、frps、ntfy 仍然在 compose 网络里，Caddy 要访问的端口只发布到 `127.0.0.1`，默认用不常用的端口：
 
 | 服务和用途                     | 宿主机上的地址    | 改端口的变量             |
 | ------------------------------ | ----------------- | ------------------------ |

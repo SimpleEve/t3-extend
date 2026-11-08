@@ -33,8 +33,9 @@ import /etc/caddy/ntfy.caddy
 
 # Every computer's own subdomain: <name>.<domain> goes to frps, which routes by Host. The address is the wildcard and
 # not a bare `https://`: an on-demand site that matches every name also takes the certificate lookup of a client that
-# sends no SNI, and then `default_sni` (a *.options file) cannot find the certificate it points at. ntfy.<domain> is
-# covered by this on-demand policy too; the registry's `ask` says yes to it when the push server is installed.
+# sends no SNI, and then `default_sni` (a *.options file) cannot find the certificate it points at. See Caddyfile for
+# why ntfy.<domain> (caddy/ntfy.caddy) is on-demand too. This file's policy layout is not a deployment's: with
+# local_certs every policy has one issuer and Caddy merges them, so registry/caddy-certs.test.mjs runs the real Caddyfile.
 *.{$T3X_DOMAIN} {
 	tls {
 		on_demand

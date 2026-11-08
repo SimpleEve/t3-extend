@@ -1,5 +1,7 @@
 ntfy.{$T3X_DOMAIN} {
-	# Under the on-demand *.{$T3X_DOMAIN} site, Caddy does not obtain this name at startup; the registry's ask says yes to it.
+	# Without this the name would sit in an ordinary managed policy (listed before the on-demand wildcard): not obtained
+	# at startup because the wildcard covers it, and not put to `ask` at a handshake either, so it would never get a
+	# certificate. With it, the first visit asks the registry, which says yes to ntfy when the push server is installed.
 	tls {
 		on_demand
 	}

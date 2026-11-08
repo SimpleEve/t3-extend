@@ -36,13 +36,16 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 /** Runs setup.sh against an empty data directory. `os` fakes `uname -s`. */
-function setup(args, { files, os, project, composeWorks, sitesDir, env = {} } = {}) {
+function setup(args, { files, os, project, composeWorks, sitesDir, env = {}, before } = {}) {
   const bin = NodePath.join(dir, "bin");
   if (composeWorks) {
     // `docker compose version` passes, so setup.sh gets as far as writing .env; `up` then fails and stops it.
+    // With "all", every docker call succeeds and prints nothing, so setup.sh runs to the end.
     writeFileSync(
       NodePath.join(bin, "docker"),
-      `#!/bin/sh\necho "$@" >> '${dir}/docker-calls'\n[ "$*" = "compose version" ] && exit 0\nexit 1\n`,
+      composeWorks === "all"
+        ? `#!/bin/sh\necho "$@" >> '${dir}/docker-calls'\nexit 0\n`
+        : `#!/bin/sh\necho "$@" >> '${dir}/docker-calls'\n[ "$*" = "compose version" ] && exit 0\nexit 1\n`,
     );
   }
   if (os !== undefined) {
@@ -51,6 +54,7 @@ function setup(args, { files, os, project, composeWorks, sitesDir, env = {} } = 
   }
   const data = NodePath.join(dir, "data");
   NodeFS.mkdirSync(data, { recursive: true });
+  before?.(data);
   const result = spawnSync("bash", [SETUP, ...args], {
     encoding: "utf8",
     env: {
@@ -71,6 +75,10 @@ function setup(args, { files, os, project, composeWorks, sitesDir, env = {} } = 
       ? NodeFS.readFileSync(NodePath.join(data, ".env"), "utf8")
       : undefined,
     dockerCalled: existsSync(NodePath.join(dir, "docker-calls")),
+    calls: existsSync(NodePath.join(dir, "docker-calls"))
+      ? NodeFS.readFileSync(NodePath.join(dir, "docker-calls"), "utf8").trim().split("\n")
+      : [],
+    dataDir: data,
   };
 }
 
@@ -95,7 +103,7 @@ if (hasBash) {
             os: "Linux",
           });
           assert.equal(result.status, 1, result.stderr);
-          assert.match(result.stderr, /--email 必须是一个普通的邮箱地址/);
+          assert.match(result.stderr, /邮箱必须是一个普通的邮箱地址/);
           assert.deepEqual(result.written, []);
           assert.equal(result.dockerCalled, false);
         }
@@ -319,6 +327,151 @@ if (hasBash) {
       });
       assert.equal(result.status, 1);
       assert.match(result.stderr, /只用在 Linux VPS 上/);
+    });
+  });
+
+  describe("setup.sh reads the old .env strictly", () => {
+    const args = ["--domain", "t3.example.com"];
+    const HOST = "docker-compose.yml:docker-compose.host-network.yml";
+    const base = (extra = "") =>
+      [
+        "T3X_DOMAIN=t3.example.com",
+        "T3X_PUBLIC_ORIGIN=https://t3.example.com",
+        "ACME_EMAIL=",
+        "COMPOSE_PROFILES=ntfy",
+        "COMPOSE_PROJECT_NAME=t3x",
+        `COMPOSE_FILE=${HOST}`,
+        `T3X_SITES_DIR=${join(dir, "srv-sites")}`,
+        extra,
+      ].join("\n");
+    const withEnv = (text) => (data) => writeFileSync(join(data, ".env"), text);
+
+    // Each of these used to be read wrongly, or not at all: setup.sh then wrote the wrong .env, and compose failed later.
+    for (const [what, makeText, message] of [
+      ["an export", () => base().replace("COMPOSE_FILE=", "export COMPOSE_FILE="), /第 6 行看不懂/],
+      ["a trailing comment", () => base().replace(`${HOST}`, `${HOST} # kept`), /第 6 行看不懂/],
+      ["a quoted value", () => base().replace(`${HOST}`, `"${HOST}"`), /第 6 行看不懂/],
+      ["a key twice", () => base("COMPOSE_PROJECT_NAME=other"), /COMPOSE_PROJECT_NAME 出现了两次/],
+      ["spaces around the equals sign", () => base("T3X_NTFY_ENABLED = 1"), /看不懂/],
+    ]) {
+      it(`refuses an old .env with ${what}, and leaves it as it was`, () => {
+        const text = makeText();
+        const result = setup(args, { os: "Linux", composeWorks: true, before: withEnv(text) });
+        assert.equal(result.status, 1, result.stderr);
+        assert.match(result.stderr, message);
+        assert.equal(result.env, text);
+        assert.equal(
+          result.calls.some((call) => call.startsWith("compose -p")),
+          false,
+        );
+      });
+    }
+
+    it("takes an explicitly empty variable as back to the default, not as not given", () => {
+      const result = setup(args, {
+        os: "Linux",
+        composeWorks: true,
+        before: withEnv(base()),
+        env: { T3X_COMPOSE_FILES: "", T3X_SITES_DIR: "" },
+      });
+      assert.equal(result.status, 1, "the fake docker stops it at `up`; .env is what matters");
+      assert.match(result.env, /^COMPOSE_FILE=docker-compose\.yml$/m);
+      assert.match(result.env, new RegExp(`^T3X_SITES_DIR=${SELF_HOST}/sites$`, "m"));
+      assert.match(result.stderr, /COMPOSE_FILE 和已有的/);
+      assert.doesNotMatch(result.env, /T3X_HOST_/);
+    });
+
+    for (const [what, value] of [
+      ["a path", "docker-compose.yml:../evil.yml"],
+      ["an absolute path", "docker-compose.yml:/etc/evil.yml"],
+      ["a file that is not there", "docker-compose.yml:docker-compose.nowhere.yml"],
+      ["an empty name", "docker-compose.yml::docker-compose.host-network.yml"],
+      ["a trailing colon", "docker-compose.yml:"],
+      ["a name with a space", "docker-compose.yml:my file.yml"],
+    ]) {
+      it(`refuses T3X_COMPOSE_FILES with ${what} before it creates anything`, () => {
+        const result = setup(args, { os: "Linux", files: value, sitesDir: join(dir, "new-sites") });
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /T3X_COMPOSE_FILES/);
+        assert.deepEqual(result.written, []);
+        assert.equal(existsSync(join(dir, "new-sites")), false);
+        assert.equal(result.dockerCalled, false);
+      });
+    }
+
+    it("keeps --no-ntfy and the e-mail when they are not given again, and takes them when they are", () => {
+      const first = setup([...args, "--no-ntfy", "--email", "you@example.com"], {
+        os: "Linux",
+        composeWorks: true,
+      });
+      assert.match(first.env, /^T3X_NTFY_ENABLED=0$/m);
+      assert.match(first.env, /^COMPOSE_PROFILES=$/m);
+      const again = setup(args, { os: "Linux", composeWorks: true });
+      assert.equal(again.env, first.env);
+      assert.equal(again.stderr.includes("提示"), false, again.stderr);
+      const dry = setup([...args, "--dry-run"], { os: "Linux" });
+      assert.match(dry.stdout, /^ {2}ACME_EMAIL=you@example\.com$/m);
+      assert.doesNotMatch(dry.stdout, /ntfy-phone/);
+      // Given again: the new value wins, with a note.
+      const ntfyBack = setup([...args, "--ntfy"], { os: "Linux", composeWorks: true });
+      assert.match(ntfyBack.env, /^T3X_NTFY_ENABLED=1$/m);
+      assert.match(ntfyBack.env, /^COMPOSE_PROFILES=ntfy$/m);
+      assert.match(ntfyBack.env, /^ACME_EMAIL=you@example\.com$/m);
+      assert.match(ntfyBack.stderr, /推送服务器/);
+      for (const removal of [["--no-email"], ["--email", ""]]) {
+        const removed = setup([...args, ...removal], { os: "Linux", composeWorks: true });
+        assert.match(removed.env, /^ACME_EMAIL=$/m, removal.join(" "));
+        assert.match(removed.env, /^T3X_ACME_EMAIL_CONF=\.\/caddy\/acme-email-off\.caddy$/m);
+        setup([...args, "--email", "you@example.com"], { os: "Linux", composeWorks: true });
+      }
+    });
+
+    it("knows from an old .env without T3X_NTFY_ENABLED that the push server was left out", () => {
+      const old = base().replace("COMPOSE_PROFILES=ntfy", "COMPOSE_PROFILES=");
+      const result = setup(args, { os: "Linux", composeWorks: true, before: withEnv(old) });
+      assert.match(result.env, /^T3X_NTFY_ENABLED=0$/m);
+      assert.match(result.env, /^T3X_NTFY_SITE=\.\/caddy\/ntfy-off\.caddy$/m);
+    });
+
+    it("keeps the project name the install used", () => {
+      const first = setup(args, { os: "Linux", composeWorks: true, project: "mine" });
+      assert.match(first.env, /^COMPOSE_PROJECT_NAME=mine$/m);
+      const again = setup(args, { os: "Linux", composeWorks: true });
+      assert.match(again.env, /^COMPOSE_PROJECT_NAME=mine$/m);
+      const bad = setup(args, { os: "Linux", project: "Not Valid" });
+      assert.equal(bad.status, 1);
+      assert.match(bad.stderr, /T3X_PROJECT/);
+    });
+
+    it("does not say it will create the ntfy password when the file is already there", () => {
+      const without = setup([...args, "--dry-run"], { os: "Linux" });
+      assert.match(without.stdout, /将创建 .*ntfy-phone\.txt/);
+      NodeFS.mkdirSync(join(without.dataDir, "secrets"));
+      writeFileSync(join(without.dataDir, "secrets", "ntfy-phone.txt"), "already-there\n");
+      const withSecret = setup([...args, "--dry-run"], { os: "Linux" });
+      assert.doesNotMatch(withSecret.stdout, /将创建 .*ntfy-phone\.txt/);
+    });
+
+    it("brings the services up without Caddy first, and Caddy on its own without recreating it", () => {
+      const run = (extra = []) => setup([...args, ...extra], { os: "Linux", composeWorks: "all" });
+      const ups = (result) =>
+        result.calls
+          .filter((call) => / up /.test(call))
+          .map((call) => call.replace(/^.* up /, "up "));
+      assert.deepEqual(ups(run()), [
+        "up -d --build --wait --no-deps registry frps ntfy",
+        "up -d --wait --no-recreate caddy",
+      ]);
+      rmSync(join(dir, "docker-calls"));
+      assert.deepEqual(ups(run(["--recreate-caddy"])), [
+        "up -d --build --wait --no-deps registry frps ntfy",
+        "up -d --wait caddy",
+      ]);
+      rmSync(join(dir, "docker-calls"));
+      assert.deepEqual(ups(run(["--no-ntfy"])), [
+        "up -d --build --wait --no-deps registry frps",
+        "up -d --wait --no-recreate caddy",
+      ]);
     });
   });
 
