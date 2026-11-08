@@ -71,6 +71,15 @@ async function withCaddy(askPort, body) {
       "-v",
       `${sites}:/etc/caddy/sites:ro`,
       CADDY_IMAGE,
+      // A test run that is killed cannot remove its container; this makes the container remove itself.
+      "timeout",
+      "90",
+      "caddy",
+      "run",
+      "--config",
+      "/etc/caddy/Caddyfile",
+      "--adapter",
+      "caddyfile",
     ],
     { stdio: ["ignore", "pipe", "pipe"] },
   );
@@ -93,7 +102,10 @@ async function withCaddy(askPort, body) {
     const mapped = docker(["port", name, "443/tcp"]).stdout.trim().split("\n")[0];
     return await body(Number(mapped.slice(mapped.lastIndexOf(":") + 1)));
   } finally {
-    docker(["rm", "-f", name]);
+    // Under load the daemon can refuse a first removal; the container's own timeout is the backstop.
+    for (let attempt = 0; attempt < 3 && docker(["rm", "-f", name]).status !== 0; attempt += 1) {
+      if (docker(["ps", "-aq", "--filter", `name=${name}`]).stdout.trim() === "") break;
+    }
   }
 }
 
