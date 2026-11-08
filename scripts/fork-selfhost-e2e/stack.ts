@@ -1,6 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off globalTimers:off globalDate:off - docker compose around the checked-in test stack.
 // The self-host stack (registry, frps, Caddy) as infra/self-host's docker-compose.test.yml runs it,
 // on a port and a project name of this script's own. The override file lives in the work directory.
+import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
@@ -83,7 +84,14 @@ export async function prepareStack(options: {
   const overrideFile = NodePath.join(workDir, "compose.override.yml");
   const sitesDir = NodePath.join(workDir, "sites");
   writeSitesFixture(sitesDir);
-  // What setup.sh writes, minus ntfy (the push server is not part of these scenarios), with the fixture sites directory.
+  // What setup.sh writes, minus ntfy (the push server is not part of these scenarios), with the fixture sites directory,
+  // and Caddy's configuration directory the way setup.sh makes it (Caddyfile.test, no ntfy route, no e-mail).
+  const confDir = NodePath.join(workDir, "caddy-conf");
+  NodeChildProcess.execFileSync("bash", [
+    NodePath.join(SELF_HOST, "caddy/conf.sh"),
+    confDir,
+    "--test",
+  ]);
   NodeFS.writeFileSync(
     envFile,
     [
@@ -91,7 +99,7 @@ export async function prepareStack(options: {
       `T3X_PUBLIC_ORIGIN=${origin}`,
       "ACME_EMAIL=",
       "COMPOSE_PROFILES=",
-      "T3X_NTFY_SITE=./caddy/ntfy-off.caddy",
+      `T3X_CADDY_CONF_DIR=${confDir}`,
       `T3X_SITES_DIR=${sitesDir}`,
       `T3X_NTFY_URL=https://ntfy.${DOMAIN}:${port}`,
       "",

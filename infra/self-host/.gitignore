@@ -3,3 +3,6 @@
 secrets/
 # Your own compose overrides (extra bind mounts for the sites in sites/); see README.md.
 docker-compose.local.yml
+# Caddy's configuration directory as setup.sh writes it (caddy/conf.sh), and the digest of what Caddy has loaded.
+caddy-conf/
+.caddy-conf.applied

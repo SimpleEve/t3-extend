@@ -2,6 +2,7 @@
 #
 #   docker compose -p t3x-e2e -f docker-compose.yml -f docker-compose.test.yml up -d --build
 #
+# setup.sh (or the e2e stack) writes Caddy's configuration directory with `caddy/conf.sh --test`, which puts Caddyfile.test in it.
 # Caddy publishes only on the loopback addresses (IPv4 and IPv6, so a client that resolves *.localhost to ::1 first
 # still connects), uses its own internal CA, and serves t3.localhost. Nothing is reachable from the network.
 services:
@@ -9,8 +10,6 @@ services:
     ports: !override
       - "127.0.0.1:18443:443"
       - "[::1]:18443:443"
-    volumes:
-      - ./Caddyfile.test:/etc/caddy/Caddyfile:ro
   registry:
     environment:
       NODE_OPTIONS: --import=/test/preload.mjs

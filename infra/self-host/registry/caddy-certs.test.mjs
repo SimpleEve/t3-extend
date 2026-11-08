@@ -1,7 +1,6 @@
 // The real Caddyfile (ACME issuers, no local_certs) in a real Caddy: which names does it put to `ask`? Caddyfile.test cannot
-// stand in: with local_certs Caddy merges the policies and ntfy.<domain> lands under the on-demand one by accident (FORK.md).
-// ACME cannot reach any CA here (the container's DNS points nowhere), so the observable is the question asked, not the certificate.
-// Needs docker and openssl; without docker the file is skipped, and with CI set it fails.
+// stand in (local_certs merges the policies, FORK.md). ACME cannot reach a CA here, so this shows the question asked and
+// answered, not that Let's Encrypt would sign. Needs docker and openssl; without docker it is skipped, with CI set it fails.
 import * as NodeAssert from "node:assert/strict";
 import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "node:crypto";
@@ -38,21 +37,25 @@ async function startAsk(ntfyInstalled) {
   const store = { hasRegisteredSubdomain: (label) => label === "a" };
   const server = createAskServer({ store, config: { domain: DOMAIN, ntfyInstalled } });
   const asked = [];
+  const answers = new Map();
   const waiting = new Map();
-  server.on("request", (req) => {
+  server.on("request", (req, res) => {
     const domain = new URL(req.url ?? "/", "http://ask.invalid").searchParams.get("domain");
     if (domain === null) return;
     asked.push(domain);
-    waiting.get(domain)?.();
+    res.on("finish", () => {
+      answers.set(domain, res.statusCode);
+      waiting.get(domain)?.();
+    });
   });
   await new Promise((resolve) => server.listen(0, "0.0.0.0", resolve));
-  /** Resolves when Caddy has put the question about `name`. */
+  /** Resolves when the question about `name` has been answered. */
   const questionAbout = (name) =>
     new Promise((resolve) => {
-      if (asked.includes(name)) resolve();
+      if (answers.has(name)) resolve();
       else waiting.set(name, resolve);
     });
-  return { server, asked, questionAbout, port: server.address().port };
+  return { server, asked, answers, questionAbout, port: server.address().port };
 }
 
 /** A site with certificate files of its own, the way a certbot certificate is used. */
@@ -63,9 +66,8 @@ function writeManualCertificate(sites) {
       "req",
       "-x509",
       "-newkey",
-      "ec",
-      "-pkeyopt",
-      "ec_paramgen_curve:prime256v1",
+      // RSA: LibreSSL (macOS's /usr/bin/openssl) writes EC parameters that Caddy refuses to load.
+      "rsa:2048",
       "-nodes",
       "-keyout",
       NodePath.join(sites, "manual-key.pem"),
@@ -100,10 +102,18 @@ function writeIpSite(sites) {
  * Runs the real Caddyfile (and the real ntfy and e-mail snippets) over a sites directory that `fill` fills, until Caddy has
  * served what it can serve locally, calls `body(port)`, and always removes the container.
  */
-async function withCaddy({ askPort, fill, waitForIpSite }, body) {
+async function withCaddy({ askPort, fill, waitForIpSite, ntfy = true }, body) {
   const sites = NodePath.join(work, `sites-${NodeCrypto.randomUUID()}`);
   NodeFS.mkdirSync(sites);
   fill(sites);
+  // The configuration directory exactly as setup.sh makes it.
+  const conf = NodePath.join(work, `conf-${NodeCrypto.randomUUID()}`);
+  const written = NodeChildProcess.spawnSync(
+    "bash",
+    [NodePath.join(SELF_HOST, "caddy/conf.sh"), conf, ...(ntfy ? ["--ntfy"] : [])],
+    { encoding: "utf8" },
+  );
+  assert.equal(written.status, 0, written.stderr);
   const name = `t3x-certs-test-${NodeCrypto.randomUUID().slice(0, 8)}`;
   const caddy = NodeChildProcess.spawn(
     "docker",
@@ -124,11 +134,7 @@ async function withCaddy({ askPort, fill, waitForIpSite }, body) {
       "-e",
       `T3X_REGISTRY_ASK=host.docker.internal:${askPort}`,
       "-v",
-      `${NodePath.join(SELF_HOST, "Caddyfile")}:/etc/caddy/Caddyfile:ro`,
-      "-v",
-      `${NodePath.join(SELF_HOST, "caddy/ntfy.caddy")}:/etc/caddy/ntfy.caddy:ro`,
-      "-v",
-      `${NodePath.join(SELF_HOST, "caddy/acme-email-off.caddy")}:/etc/caddy/acme-email.caddy:ro`,
+      `${conf}:/etc/caddy/conf:ro`,
       "-v",
       `${sites}:/etc/caddy/sites:ro`,
       CADDY_IMAGE,
@@ -138,7 +144,7 @@ async function withCaddy({ askPort, fill, waitForIpSite }, body) {
       "caddy",
       "run",
       "--config",
-      "/etc/caddy/Caddyfile",
+      "/etc/caddy/conf/Caddyfile",
       "--adapter",
       "caddyfile",
     ],
@@ -256,6 +262,28 @@ if (hasDocker) {
         );
       } finally {
         ask.server.close();
+      }
+    });
+
+    it("the registry answers yes to ntfy with the push server and no without it; Caddy asks either way", async () => {
+      for (const ntfyInstalled of [true, false]) {
+        const ask = await startAsk(ntfyInstalled);
+        try {
+          await withCaddy(
+            { askPort: ask.port, fill: () => {}, waitForIpSite: false, ntfy: ntfyInstalled },
+            async (port) => {
+              await handshakes(ask, port, [`ntfy.${DOMAIN}`, `www.${DOMAIN}`]);
+              assert.equal(ask.answers.get(`ntfy.${DOMAIN}`), ntfyInstalled ? 200 : 403);
+              assert.equal(
+                ask.answers.get(`www.${DOMAIN}`),
+                403,
+                "another reserved name is never yes",
+              );
+            },
+          );
+        } finally {
+          ask.server.close();
+        }
       }
     });
   });

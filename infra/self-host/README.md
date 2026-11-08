@@ -27,14 +27,14 @@
 ./setup.sh --domain t3.example.com
 ```
 
-| 参数               | 作用                                                                                  |
-| ------------------ | ------------------------------------------------------------------------------------- |
-| `--domain`         | 必填。你的域名，不带 `https://`、端口和路径。                                         |
-| `--email`          | 可选。登记到 Let's Encrypt 的证书账号。它现在不再发证书到期提醒，不填也不影响签证书。 |
-| `--no-email`       | 去掉已经登记的邮箱（`--email ''` 同义）。                                             |
-| `--no-ntfy`        | 不安装手机推送服务器。已经装了的要装回来用 `--ntfy`。                                 |
-| `--recreate-caddy` | 重建 Caddy。只在 Caddy 的定义变了时用，见「日常运维」里的「升级」。                   |
-| `--dry-run`        | 只打印会做什么，不写文件、不启动服务。                                                |
+| 参数               | 作用                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------- |
+| `--domain`         | 必填。你的域名，不带 `https://`、端口和路径。                                               |
+| `--email`          | 可选。登记到 Let's Encrypt 的证书账号。它现在不再发证书到期提醒，不填也不影响签证书。       |
+| `--no-email`       | 去掉已经登记的邮箱（`--email ''` 同义）。                                                   |
+| `--no-ntfy`        | 不安装手机推送服务器。已经装了的要装回来用 `--ntfy`。                                       |
+| `--recreate-caddy` | 重建 Caddy。只在 Caddy 的定义变了（镜像、挂载、环境变量）时用，见「日常运维」里的「升级」。 |
+| `--dry-run`        | 只打印会做什么，不写文件、不启动服务。                                                      |
 
 第一次会构建镜像，大约一分钟。结束时它会打印注册表信息和第一份**邀请**：一串以 `t3x1.` 开头的字符串，加一个二维码。
 
@@ -77,7 +77,12 @@ Caddy 默认不记访问日志，`Caddyfile` 里也没有 `log`；frps 以 info 
 
 **重载或重启会断开所有隧道几秒**：重载 Caddy，重启 Caddy 或 frps（包括升级时重跑 `setup.sh`），每台电脑的隧道都会断开，几秒内自动重连，不用重新加入。原因是 frpc 和 frps 之间的连接也经过 Caddy，重载时保留不住。经隧道打开着的实时页面（WebSocket、SSE）要刷新一下，Vite 这类开发服务器会自己刷新。
 
-**升级**：更新这个目录的文件后重新运行 `./setup.sh --domain <你的域名>`（上一次的选择自动沿用，不用重新带），它会重新构建镜像并重建有变化的服务（registry、frps、ntfy），数据保留。**Caddy 不会被顺带重建**：`setup.sh` 只创建还不存在的 Caddy，已经在跑的不动；Caddy 的定义变了（比如 Caddy 镜像升级、换了站点目录或 compose 文件）时，它会打印一行提示，等你选个合适的时间再加上 `--recreate-caddy` 重新运行。Caddy 的重建，在这台 VPS 上还有别的网站时，会让它们断几秒，加上上面说的隧道断几秒；改站点文件用重载就够了（见「这台 VPS 上已经有别的网站」）。所有镜像都钉了版本和摘要，升级时 frps、Caddy、ntfy 和 registry 的基础镜像一起改。frps 的版本必须和电脑上 frpc 的版本一致（`packages/shared/src/forkFrp.ts` 里的 `FRP_VERSION`）。
+**升级**：更新这个目录的文件后重新运行 `./setup.sh --domain <你的域名>`（上一次的选择自动沿用，不用重新带），它会重新构建镜像并重建有变化的服务（registry、frps、ntfy），数据保留。Caddy 要分两种情况：
+
+- **配置内容变了**（Caddyfile 随升级变了、开关推送服务器、加了或去掉邮箱）：`setup.sh` 把 Caddy 要读的配置整个写进数据目录里的 `caddy-conf/`（compose 把这个目录整个挂进容器，不是单个文件），记下里面内容的摘要；摘要变了，就在 Caddy 里执行平滑重载。别的网站不会断；T3 的隧道会断几秒后自动重连。重载被拒绝时 Caddy 继续用旧配置，`setup.sh` 把 Caddy 的报错原样打印出来并以非零状态退出，改好后重新运行就会再试。`caddy-conf/` 是 `setup.sh` 生成的，不要手改，也不进仓库。
+- **Caddy 的定义变了**（Caddy 镜像升级、换了站点目录、compose 文件的组合变了，或者你自己的 `docker-compose.local.yml` 改了挂载）：`setup.sh` 不会重建正在跑的 Caddy，只打印一行提示。重建时**这台 VPS 上别的网站会断几秒**，所以选个合适的时间重新运行 `./setup.sh`（参数同前），加上 `--recreate-caddy`。
+
+**从旧版（Caddy 的配置是单个文件挂载）升级，要重建一次 Caddy**：配置目录的挂载让 Caddy 的定义变了，运行 `./setup.sh --domain <你的域名> --recreate-caddy`，别的网站会断几秒（本地试用栈上量到 1.3 秒，没有连接时；有人在用时 Caddy 会等连接关闭，线上实测过 7 秒）。之后所有升级和开关都只是重载。关掉推送服务器（`--no-ntfy`）时 `setup.sh` 会停止并删除 ntfy 的容器、重载 Caddy 去掉它的路由，数据卷（账号和缓存）保留，`--ntfy` 装回来时还在；要连数据一起删，用 `docker compose --profile ntfy down -v`（这也会删掉所有其他数据卷，见「卸载」）。
 
 **备份**：要备份的是 `registry_data` 数据卷（设备公钥、邀请、子域名；默认项目名下叫 `t3x_registry_data`，用 `docker volume ls` 确认）和 `secrets/ntfy-phone.txt`。`caddy_data` 里是证书，丢了可以重新申请，但 Let's Encrypt 有申请频率限制。丢了 `registry_data` 等于所有设备都要重新加入。
 
@@ -151,7 +156,7 @@ export T3X_COMPOSE_FILES=docker-compose.yml:docker-compose.host-network.yml
 **4. 改了站点文件要重载 Caddy**：
 
 ```
-docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+docker compose exec caddy caddy reload --config /etc/caddy/conf/Caddyfile --adapter caddyfile
 ```
 
 新文件有错时重载会失败，Caddy 继续用原来的配置。**重载会让所有电脑的隧道断开几秒**，原因见「日常运维」里「重载或重启会断开所有隧道几秒」；它们会自动重连。

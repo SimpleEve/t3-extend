@@ -29,7 +29,7 @@
 }
 
 # The push server (or nothing, with --no-ntfy).
-import /etc/caddy/ntfy.caddy
+import /etc/caddy/conf/ntfy.caddy
 
 # Every computer's own subdomain: <name>.<domain> goes to frps, which routes by Host. The address is the wildcard and
 # not a bare `https://`: an on-demand site that matches every name also takes the certificate lookup of a client that

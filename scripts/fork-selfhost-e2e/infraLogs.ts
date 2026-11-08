@@ -20,7 +20,6 @@ export function checkNoAccessLogConfigured(): void {
     "Caddyfile.test",
     "caddy/ntfy.caddy",
     "caddy/ntfy-off.caddy",
-    "caddy/acme-email.caddy",
     "caddy/acme-email-off.caddy",
   ]) {
     const offending = read(file)
@@ -75,7 +74,7 @@ export async function enableCaddyAccessLog(
     check(result.status === 0, `caddy reload ${path} failed: ${result.stderr}`);
   };
   await reload(CADDY_CONFIG_IN_CONTAINER, true);
-  return { restore: () => reload("/etc/caddy/Caddyfile", true) };
+  return { restore: () => reload("/etc/caddy/conf/Caddyfile", true) };
 }
 
 /** Every line every service of the stack has printed so far. */

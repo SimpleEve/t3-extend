@@ -49,6 +49,28 @@ function composeConfig(files, env = "") {
   return JSON.parse(result.stdout);
 }
 
+/** The hash compose gives Caddy's definition: when it changes, `up` recreates the container. */
+function caddyHash(files, env) {
+  const envFile = NodePath.join(work, "hash.env");
+  NodeFS.writeFileSync(
+    envFile,
+    `T3X_DOMAIN=t3.example.com\nT3X_PUBLIC_ORIGIN=https://t3.example.com\n${env}`,
+  );
+  const result = docker([
+    "compose",
+    "--project-directory",
+    SELF_HOST,
+    "--env-file",
+    envFile,
+    ...files.flatMap((file) => ["-f", NodePath.join(SELF_HOST, file)]),
+    "config",
+    "--hash",
+    "caddy",
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+}
+
 const published = (service) =>
   (service.ports ?? []).map((p) => ({
     ip: p.host_ip,
@@ -57,36 +79,44 @@ const published = (service) =>
   }));
 
 /**
- * `caddy adapt` of one Caddyfile the way the container sees it: the ntfy file, the e-mail file and the sites directory
- * (with these files in it) mounted where docker-compose.yml puts them. Returns the JSON text of the result.
+ * `caddy adapt` of the configuration directory that caddy/conf.sh writes and of a sites directory (with these files in it),
+ * mounted where docker-compose.yml puts them. Returns the JSON text of the result.
  */
-function adapt({ caddyfile = "Caddyfile", email, env = {}, sites = {} }) {
+function adapt({ test = false, ntfy = true, email, env = {}, sites = {} }) {
   const dir = NodeFS.mkdtempSync(NodePath.join(work, "adapt-"));
   const sitesDir = NodePath.join(dir, "sites");
   NodeFS.mkdirSync(sitesDir);
   for (const [name, text] of Object.entries(sites))
     NodeFS.writeFileSync(NodePath.join(sitesDir, name), text);
-  const emailFile = email === undefined ? "caddy/acme-email-off.caddy" : "caddy/acme-email.caddy";
+  // The configuration directory exactly as setup.sh makes it.
+  const confDir = NodePath.join(dir, "conf");
+  const written = NodeChildProcess.spawnSync(
+    "bash",
+    [
+      NodePath.join(SELF_HOST, "caddy/conf.sh"),
+      confDir,
+      ...(test ? ["--test"] : []),
+      ...(ntfy ? ["--ntfy"] : []),
+      ...(email === undefined ? [] : ["--email", email]),
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(written.status, 0, written.stderr);
   const result = docker([
     "run",
     "--rm",
     "-e",
     "T3X_DOMAIN=t3.example.com",
-    ...(email === undefined ? [] : ["-e", `ACME_EMAIL=${email}`]),
     ...Object.entries(env).flatMap(([name, value]) => ["-e", `${name}=${value}`]),
     "-v",
-    `${NodePath.join(SELF_HOST, caddyfile)}:/etc/caddy/Caddyfile:ro`,
-    "-v",
-    `${NodePath.join(SELF_HOST, "caddy/ntfy.caddy")}:/etc/caddy/ntfy.caddy:ro`,
-    "-v",
-    `${NodePath.join(SELF_HOST, emailFile)}:/etc/caddy/acme-email.caddy:ro`,
+    `${confDir}:/etc/caddy/conf:ro`,
     "-v",
     `${sitesDir}:/etc/caddy/sites:ro`,
     CADDY_IMAGE,
     "caddy",
     "adapt",
     "--config",
-    "/etc/caddy/Caddyfile",
+    "/etc/caddy/conf/Caddyfile",
   ]);
   assert.equal(result.status, 0, result.stderr);
   return result.stdout;
@@ -138,6 +168,43 @@ if (hasDocker) {
       assert.equal(env.T3X_FRPS_CONTROL, at("frps", 7000));
       assert.equal(env.T3X_FRPS_VHOST, at("frps", 8080));
       assert.equal(env.T3X_NTFY_UPSTREAM, at("ntfy", 80));
+    });
+
+    it("flipping the push server or the e-mail does not change Caddy's definition, so it needs no recreate", () => {
+      // Those switches are the contents of files in the configuration directory (caddy/conf.sh), never a variable here.
+      for (const files of [
+        ["docker-compose.yml"],
+        ["docker-compose.yml", "docker-compose.host-network.yml"],
+      ]) {
+        const base = caddyHash(files, "T3X_NTFY_ENABLED=1\nCOMPOSE_PROFILES=ntfy\nACME_EMAIL=\n");
+        assert.equal(
+          caddyHash(files, "T3X_NTFY_ENABLED=0\nCOMPOSE_PROFILES=\nACME_EMAIL=you@example.com\n"),
+          base,
+          files.join(" + "),
+        );
+      }
+    });
+
+    it("mounts Caddy's configuration directory whole and starts Caddy from it", () => {
+      const { services } = composeConfig(["docker-compose.yml"]);
+      const conf = services.caddy.volumes.find((v) => v.target === "/etc/caddy/conf");
+      assert.equal(conf.read_only, true);
+      assert.equal(conf.type, "bind");
+      assert.deepEqual(services.caddy.command, [
+        "caddy",
+        "run",
+        "--config",
+        "/etc/caddy/conf/Caddyfile",
+        "--adapter",
+        "caddyfile",
+      ]);
+      // A single-file mount would keep the old inode when git or mv replaces the file.
+      for (const volume of services.caddy.volumes.filter((v) => v.type === "bind")) {
+        assert.ok(
+          NodeFS.statSync(volume.source, { throwIfNoEntry: false })?.isFile() !== true,
+          `${volume.source} is a file`,
+        );
+      }
     });
 
     it("tells the registry whether the push server is installed", () => {
@@ -219,6 +286,11 @@ if (hasDocker) {
       }
     });
 
+    it("without the push server there is no ntfy site; with --email the address is in the ACME policy", () => {
+      assert.doesNotMatch(adapt({ ntfy: false }), /ntfy/);
+      assert.match(adapt({ ntfy: true }), /"ntfy\.t3\.example\.com"/);
+    });
+
     it("an e-mail is passed to ACME, and none is fine", () => {
       assert.match(adapt({ email: "you@example.com" }), /"email":"you@example\.com"/);
       assert.doesNotMatch(adapt({}), /"email"/);
@@ -232,8 +304,8 @@ if (hasDocker) {
         "ip.options": "default_sni 203.0.113.7\n",
         "README.md": "this is not a Caddyfile {\n",
       };
-      for (const caddyfile of ["Caddyfile", "Caddyfile.test"]) {
-        const json = adapt({ caddyfile, sites });
+      for (const test of [false, true]) {
+        const json = adapt({ test, sites });
         assert.match(json, /"other\.example\.net"/);
         assert.match(json, /127\.0\.0\.1:9000/);
         assert.match(json, /"files\.example\.net"/);

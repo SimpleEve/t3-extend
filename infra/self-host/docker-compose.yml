@@ -62,18 +62,19 @@ services:
         condition: service_healthy
       frps:
         condition: service_started
+    # Everything that decides what Caddy does is in files, and the files are in directories: a single-file mount keeps the
+    # old inode when the file is replaced (git pull, mv), while a directory shows the new file, so `caddy reload` is
+    # enough. No environment variable or mount here may depend on a switch (ntfy on or off, an e-mail), or flipping
+    # it would change this definition and need the container recreated, which takes every other website down for seconds.
+    command: ["caddy", "run", "--config", "/etc/caddy/conf/Caddyfile", "--adapter", "caddyfile"]
     environment:
       T3X_DOMAIN: ${T3X_DOMAIN:?run setup.sh first}
-      ACME_EMAIL: ${ACME_EMAIL:-}
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      # setup.sh points this at caddy/ntfy.caddy, or at caddy/ntfy-off.caddy for --no-ntfy.
-      - ${T3X_NTFY_SITE:-./caddy/ntfy.caddy}:/etc/caddy/ntfy.caddy:ro
-      # setup.sh points this at caddy/acme-email.caddy when it was given --email.
-      - ${T3X_ACME_EMAIL_CONF:-./caddy/acme-email-off.caddy}:/etc/caddy/acme-email.caddy:ro
+      # Written by setup.sh (caddy/conf.sh): Caddyfile, ntfy.caddy, acme-email.caddy.
+      - ${T3X_CADDY_CONF_DIR:-./caddy-conf}:/etc/caddy/conf:ro
       # Other websites on this server: *.caddy files are sites, *.options files are global options.
       - ${T3X_SITES_DIR:-./sites}:/etc/caddy/sites:ro
       - caddy_data:/data
