@@ -61,6 +61,7 @@ export default {
   "No commits beyond the default branch": "没有超出默认分支的提交",
   "Pull request was merged": "PR 已合并",
   "No expired files": "没有过期的文件",
+  "Could not parse the pnpm modules manifest.": "无法解析 pnpm 的 modules 清单。",
   "Removed {count} browser artifacts": "已删除 {count} 个浏览器产物",
   "Removed {count} rotated logs": "已删除 {count} 个轮转日志",
 };

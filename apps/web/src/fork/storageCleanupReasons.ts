@@ -62,6 +62,7 @@ const REASON_TEMPLATES = [
   "No expired files",
   "Removed {count} browser artifacts",
   "Removed {count} rotated logs",
+  "Could not parse the pnpm modules manifest.",
 ] as const;
 
 // The same English is an action elsewhere ("Open terminal" opens one).

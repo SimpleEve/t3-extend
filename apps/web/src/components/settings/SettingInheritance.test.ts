@@ -73,7 +73,7 @@ describe("settingInheritanceLayers", () => {
       `zh:${source.replace(/\{(\w+)\}/g, (_, name: string) => String(params?.[name]))}`;
     const settings = {
       ...DEFAULT_SERVER_SETTINGS,
-      sidebarAutoSettleAfterDays: 7,
+      sidebarAutoSettleAfterDays: 14,
       // A model id that matches a catalog key must not be translated.
       defaultModelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "Off" },
     };
@@ -84,7 +84,7 @@ describe("settingInheritanceLayers", () => {
       ...resolveProjectSettings(settings, projectId),
     };
     const days = settingInheritanceLayers(target, settings, "sidebarAutoSettleAfterDays", t);
-    expect(days.map((layer) => layer.value)).toEqual(["zh:7 days", "zh:3 days"]);
+    expect(days.map((layer) => layer.value)).toEqual(["zh:14 days", "zh:7 days"]);
     const model = settingInheritanceLayers(target, settings, "defaultModelSelection", t);
     expect(model.map((layer) => layer.value)).toEqual(["Off", "zh:Automatic"]);
   });
