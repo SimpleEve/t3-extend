@@ -79,10 +79,10 @@ Caddy 默认不记访问日志，`Caddyfile` 里也没有 `log`；frps 以 info 
 
 **升级**：更新这个目录的文件后重新运行 `./setup.sh --domain <你的域名>`（上一次的选择自动沿用，不用重新带），它会重新构建镜像并重建有变化的服务（registry、frps、ntfy），数据保留。Caddy 要分两种情况：
 
-- **配置内容变了**（Caddyfile 随升级变了、开关推送服务器、加了或去掉邮箱）：`setup.sh` 把 Caddy 要读的配置整个写进数据目录里的 `caddy-conf/`（compose 把这个目录整个挂进容器，不是单个文件），记下里面内容的摘要；摘要变了，就在 Caddy 里执行平滑重载。别的网站不会断；T3 的隧道会断几秒后自动重连。重载被拒绝时 Caddy 继续用旧配置，`setup.sh` 把 Caddy 的报错原样打印出来并以非零状态退出，改好后重新运行就会再试。`caddy-conf/` 是 `setup.sh` 生成的，不要手改，也不进仓库。
+- **配置内容变了**（Caddyfile 随升级变了、开关推送服务器、加了或去掉邮箱、改了 `sites/` 里的站点文件）：`setup.sh` 把 Caddy 要读的配置整个写进数据目录里的 `caddy-conf/`（compose 把这个目录整个挂进容器，不是单个文件），记下里面内容的摘要；摘要变了，就在 Caddy 里执行平滑重载。别的网站不会断；T3 的隧道会断几秒后自动重连。重载被拒绝时 Caddy 继续用旧配置，`setup.sh` 把 Caddy 的报错原样打印出来并以非零状态退出，改好后重新运行就会再试。`caddy-conf/` 是 `setup.sh` 生成的，不要手改，也不进仓库。
 - **Caddy 的定义变了**（Caddy 镜像升级、换了站点目录、compose 文件的组合变了，或者你自己的 `docker-compose.local.yml` 改了挂载）：`setup.sh` 不会重建正在跑的 Caddy，只打印一行提示。重建时**这台 VPS 上别的网站会断几秒**，所以选个合适的时间重新运行 `./setup.sh`（参数同前），加上 `--recreate-caddy`。
 
-**从旧版（Caddy 的配置是单个文件挂载）升级，要重建一次 Caddy**：配置目录的挂载让 Caddy 的定义变了，运行 `./setup.sh --domain <你的域名> --recreate-caddy`，别的网站会断几秒（本地试用栈上量到 1.3 秒，没有连接时；有人在用时 Caddy 会等连接关闭，线上实测过 7 秒）。之后所有升级和开关都只是重载。关掉推送服务器（`--no-ntfy`）时 `setup.sh` 会停止并删除 ntfy 的容器、重载 Caddy 去掉它的路由，数据卷（账号和缓存）保留，`--ntfy` 装回来时还在；要连数据一起删，用 `docker compose --profile ntfy down -v`（这也会删掉所有其他数据卷，见「卸载」）。
+**从旧版（Caddy 的配置是单个文件挂载）升级，要重建一次 Caddy**：配置目录的挂载让 Caddy 的定义变了，运行 `./setup.sh --domain <你的域名> --recreate-caddy`，别的网站会断几秒（本地试用栈上量到 1.3 秒，没有连接时；有人在用时 Caddy 会等连接关闭，线上实测过 7 秒）。之后所有升级和开关都只是重载。退回旧版也一样要加 `--recreate-caddy`：不加的话，旧版的 `setup.sh` 会保留正在跑的新结构的 Caddy，别的网站同样会断几秒。关掉推送服务器（`--no-ntfy`）时 `setup.sh` 会停止并删除 ntfy 的容器、重载 Caddy 去掉它的路由，数据卷（账号和缓存）保留，`--ntfy` 装回来时还在；要连数据一起删，用 `docker compose --profile ntfy down -v`（这也会删掉所有其他数据卷，见「卸载」）。
 
 **备份**：要备份的是 `registry_data` 数据卷（设备公钥、邀请、子域名；默认项目名下叫 `t3x_registry_data`，用 `docker volume ls` 确认）和 `secrets/ntfy-phone.txt`。`caddy_data` 里是证书，丢了可以重新申请，但 Let's Encrypt 有申请频率限制。丢了 `registry_data` 等于所有设备都要重新加入。
 

@@ -255,26 +255,38 @@ conf_args=()
 [ "$local_trial" = 0 ] || conf_args+=(--test)
 [ "$ntfy" = 0 ] || conf_args+=(--ntfy)
 [ -z "$email" ] || conf_args+=(--email "$email")
-# The digest of the directory's files (names and contents): what Caddy has loaded is recorded in this file, so that a
-# change is noticed whether the files were replaced by git, by rsync or by hand. .caddy-conf.applied is only written
-# after a successful start or reload.
+# The digest of what the Caddyfile reads (names and contents): the configuration directory, and the other websites'
+# *.caddy and *.options that it imports. What Caddy has loaded is recorded in this file, so that a change is noticed
+# whether the files were replaced by git, by rsync or by hand. .caddy-conf.applied is only written after a successful
+# start or reload.
 applied_file="$DATA_DIR/.caddy-conf.applied"
 sha256() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum | awk '{print $1}'; else shasum -a 256 | awk '{print $1}'; fi
 }
 conf_digest() {
-  (
-    cd "$CADDY_CONF_DIR"
-    find . -type f | LC_ALL=C sort | while IFS= read -r f; do
-      printf '%s\n' "$f"
-      cat "$f"
-    done
-  ) | sha256
+  {
+    (
+      cd "$CADDY_CONF_DIR"
+      find . -type f | LC_ALL=C sort | while IFS= read -r f; do
+        printf 'conf %s\n' "$f"
+        cat "$f"
+      done
+    )
+    (
+      cd "$SITES_DIR"
+      find . -maxdepth 1 -type f \( -name '*.caddy' -o -name '*.options' \) | LC_ALL=C sort | while IFS= read -r f; do
+        printf 'site %s\n' "$f"
+        cat "$f"
+      done
+    )
+  } | sha256
 }
 
 # Caddy is brought up on its own, and never recreated unless asked: it carries every other website on this server, and
 # recreating it (compose does that when its definition changed, or when it decides so after a dependency was updated)
-# takes them all down for several seconds.
+# takes them all down for several seconds. None of these services depends on Caddy, so the first `up` leaves it alone
+# without --no-deps, which would skip frps's wait for a healthy registry (and on compose 2.26+ can recreate unchanged
+# services, docker/compose#12069).
 services=(registry frps)
 [ "$ntfy" = 0 ] || services+=(ntfy)
 
@@ -287,7 +299,7 @@ if [ "$dry_run" = 1 ]; then
     echo "将创建 $DATA_DIR/secrets/ntfy-phone.txt，内容是随机密码（权限 0600）。"
   fi
   echo "将写入 Caddy 的配置目录 $CADDY_CONF_DIR：$SCRIPT_DIR/caddy/conf.sh ${conf_args[*]:-}"
-  echo "将运行：docker compose ${compose_args[*]} up -d --build --wait --no-deps ${services[*]}"
+  echo "将运行：docker compose ${compose_args[*]} up -d --build --wait ${services[*]}"
   [ "$ntfy" = 1 ] || echo "将停止并删除已有的推送服务器容器（数据卷保留）。"
   if [ "$recreate_caddy" = 1 ]; then
     echo "将运行：docker compose ${compose_args[*]} up -d --wait caddy（定义变了才重建；配置内容变了就重载）"
@@ -315,7 +327,7 @@ if [ "$ntfy" = 1 ] && [ ! -s "$DATA_DIR/secrets/ntfy-phone.txt" ]; then
 fi
 
 echo "正在启动服务（第一次构建大约要一分钟）..."
-compose up -d --build --wait --no-deps "${services[@]}"
+compose up -d --build --wait "${services[@]}"
 if [ "$ntfy" = 0 ] && [ -n "$(compose --profile ntfy ps -aq ntfy 2>/dev/null)" ]; then
   # The service is in the ntfy profile, which is off now; --profile brings it back into view just to remove it. The
   # volumes (ntfy_data, ntfy_cache: the accounts and the cache) stay, so --ntfy later finds them again.

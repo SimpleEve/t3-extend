@@ -480,17 +480,17 @@ if (hasBash) {
           .filter((call) => / up /.test(call))
           .map((call) => call.replace(/^.* up /, "up "));
       assert.deepEqual(ups(run()), [
-        "up -d --build --wait --no-deps registry frps ntfy",
+        "up -d --build --wait registry frps ntfy",
         "up -d --wait --no-recreate caddy",
       ]);
       rmSync(join(dir, "docker-calls"));
       assert.deepEqual(ups(run(["--recreate-caddy"])), [
-        "up -d --build --wait --no-deps registry frps ntfy",
+        "up -d --build --wait registry frps ntfy",
         "up -d --wait caddy",
       ]);
       rmSync(join(dir, "docker-calls"));
       assert.deepEqual(ups(run(["--no-ntfy"])), [
-        "up -d --build --wait --no-deps registry frps",
+        "up -d --build --wait registry frps",
         "up -d --wait --no-recreate caddy",
       ]);
     });
@@ -552,6 +552,32 @@ if (hasBash) {
       );
       assert.notEqual(applied(changed), digestBefore);
       assert.doesNotMatch(changed.calls.join("\n"), /--recreate|up -d --wait caddy$/m);
+    });
+
+    it("reloads Caddy when another website's file changes, and only for the files the Caddyfile imports", () => {
+      const sitesDir = join(dir, "sites");
+      NodeFS.mkdirSync(sitesDir, { recursive: true });
+      writeFileSync(join(sitesDir, "blog.caddy"), "blog.example.com {\n\trespond ok\n}\n");
+      const digestBefore = applied(run([], { sitesDir }));
+      rmSync(join(dir, "docker-calls"));
+      writeFileSync(join(sitesDir, "README.md"), "not read by Caddy\n");
+      writeFileSync(join(sitesDir, ".hash.bcrypt"), "$2a$14$not-read-by-caddy\n");
+      const unrelated = run([], { sitesDir });
+      assert.equal(reloads(unrelated).length, 0);
+      assert.equal(applied(unrelated), digestBefore);
+      rmSync(join(dir, "docker-calls"));
+      writeFileSync(join(sitesDir, "blog.caddy"), "blog.example.com {\n\trespond changed\n}\n");
+      const site = run([], { sitesDir });
+      assert.equal(site.status, 0, site.stderr);
+      assert.equal(reloads(site).length, 1);
+      assert.notEqual(applied(site), digestBefore);
+      rmSync(join(dir, "docker-calls"));
+      writeFileSync(join(sitesDir, "ip.options"), "default_sni 203.0.113.7\n");
+      assert.equal(
+        reloads(run([], { sitesDir })).length,
+        1,
+        "a new *.options file is imported too",
+      );
     });
 
     it("reports a refused reload as it is, exits non-zero, and tries again on the next run", () => {
