@@ -40,7 +40,8 @@ function setup(args, { files, os, project, composeWorks, sitesDir, env = {}, bef
   const bin = NodePath.join(dir, "bin");
   if (composeWorks) {
     // `true`: `up` fails and stops setup.sh after it wrote .env. "all": every call succeeds. "stateful": files in the test
-    // directory stand for containers (caddy-id, ntfy-id), Caddy's definition hash (hash) and a refused reload (reload-fails).
+    // directory stand for containers (caddy-id, ntfy-id), Caddy's definition hash (hash), a refused reload (reload-fails)
+    // and ntfy's account (ntfy-phone; its list is longer than a pipe holds, like a real one that a reader leaves early).
     const fake = {
       all: `#!/bin/sh\necho "$@" >> '${dir}/docker-calls'\nexit 0\n`,
       stateful: `#!/bin/sh
@@ -53,6 +54,8 @@ case "$*" in
   *" up "*" ntfy") echo ntfy-1 > "$D/ntfy-id"; exit 0 ;;
   *" rm -sf ntfy"*) rm -f "$D/ntfy-id"; exit 0 ;;
   *"caddy reload"*) if [ -f "$D/reload-fails" ]; then echo "reload refused: boom" >&2; exit 1; fi; exit 0 ;;
+  *"ntfy user list"*) [ -f "$D/ntfy-phone" ] || exit 0; echo "user phone (role: user, tier: none)"; i=0; while [ $i -lt 20000 ]; do echo "- read-only access to topic up*"; i=$((i + 1)); done; exit 0 ;;
+  *"ntfy user add phone"*) if [ -f "$D/ntfy-phone" ]; then echo "user phone already exists" >&2; exit 1; fi; : > "$D/ntfy-phone"; exit 0 ;;
   *"config --hash caddy"*) echo "caddy HASH-$(cat "$D/hash" 2>/dev/null)"; exit 0 ;;
   "inspect "*) echo "HASH-$(cat "$D/caddy-hash" 2>/dev/null)"; exit 0 ;;
 esac
@@ -578,6 +581,14 @@ if (hasBash) {
         1,
         "a new *.options file is imported too",
       );
+    });
+
+    it("finds the push server's account on a rerun, even when the list is read only up to its first line", () => {
+      assert.equal(run().status, 0);
+      rmSync(join(dir, "docker-calls"));
+      const again = run();
+      assert.equal(again.status, 0, again.stderr);
+      assert.equal(calls(again, /ntfy user add/).length, 0);
     });
 
     it("reports a refused reload as it is, exits non-zero, and tries again on the next run", () => {

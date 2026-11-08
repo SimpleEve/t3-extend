@@ -367,7 +367,10 @@ fi
 
 if [ "$ntfy" = 1 ]; then
   ntfy_password=$(tr -d '\n' <"$DATA_DIR/secrets/ntfy-phone.txt")
-  if ! compose exec -T ntfy ntfy user list 2>/dev/null | grep -q '^user phone'; then
+  # Read the whole list first: under pipefail, `grep -q` stopping at the first line can kill `docker compose exec` with
+  # SIGPIPE, and an existing account would look missing (the add then fails).
+  ntfy_users=$(compose exec -T ntfy ntfy user list 2>/dev/null || true)
+  if ! grep -q '^user phone' <<<"$ntfy_users"; then
     NTFY_PASSWORD="$ntfy_password" compose exec -T -e NTFY_PASSWORD ntfy ntfy user add phone
   fi
   compose exec -T ntfy ntfy access phone 'up*' read-only
