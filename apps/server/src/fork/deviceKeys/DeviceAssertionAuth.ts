@@ -78,9 +78,16 @@ const scopesForDevice = (kind: "computer" | "phone"): ReadonlyArray<AuthEnvironm
     ? AuthStandardClientScopes
     : AuthStandardClientScopes.filter((scope) => !PHONE_WITHHELD_SCOPES.has(scope));
 
+// Browsers hide non-safelisted response headers from cross-origin pages unless they are listed here.
+// The CORS middleware only sets its own keys, so this survives it; do not give `layerBrowserApiCors`
+// an `exposedHeaders` of its own without adding this name, or it will replace this value.
+const exposeReason = { "access-control-expose-headers": "t3x-reason" } as const;
+
 const withReason = (reason: AssertionRejection) =>
   HttpEffect.appendPreResponseHandler((_request, response) =>
-    Effect.succeed(HttpServerResponse.setHeader(response, "t3x-reason", reason)),
+    Effect.succeed(
+      HttpServerResponse.setHeaders(response, { ...exposeReason, "t3x-reason": reason }),
+    ),
   );
 
 const rejected = (reason: AssertionRejection) =>
@@ -98,7 +105,12 @@ const unavailable = (reason: "list_unavailable" | "list_expired") =>
       { error: "service_unavailable" },
       {
         status: 503,
-        headers: { "t3x-reason": reason, "cache-control": "no-store", pragma: "no-cache" },
+        headers: {
+          ...exposeReason,
+          "t3x-reason": reason,
+          "cache-control": "no-store",
+          pragma: "no-cache",
+        },
       },
     ),
   );

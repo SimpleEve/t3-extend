@@ -67,6 +67,20 @@ const arrange = Effect.gen(function* () {
 const reason = (response: { headers: Readonly<Record<string, unknown>> }) =>
   response.headers["t3x-reason"];
 
+// A renderer on another origin only sees `t3x-reason` if the response exposes it (CORS hides the rest).
+const RENDERER_ORIGIN = { origin: "http://127.0.0.1:5173" } as const;
+const assertReasonReadable = (
+  response: { headers: Readonly<Record<string, unknown>> },
+  name: string,
+) => {
+  const exposed = String(response.headers["access-control-expose-headers"] ?? "")
+    .toLowerCase()
+    .split(",")
+    .map((header) => header.trim());
+  assert.include(exposed, "t3x-reason", name);
+  assert.equal(response.headers["access-control-allow-origin"], RENDERER_ORIGIN.origin, name);
+};
+
 describe("POST /oauth/t3x-device", () => {
   it.effect("T1: runs inside the global middleware, behind the readiness gate", () =>
     Effect.gen(function* () {
@@ -288,9 +302,14 @@ describe("POST /oauth/t3x-device", () => {
         assertion: string,
         expected: string,
       ) {
-        const { response } = yield* exchange(phone, { assertion, dpop: dpop });
+        const { response } = yield* exchange(phone, {
+          assertion,
+          dpop: dpop,
+          extraHeaders: RENDERER_ORIGIN,
+        });
         assert.equal(response.status, 401, name);
         assert.equal(reason(response), expected, name);
+        assertReasonReadable(response, name);
         assert.deepEqual(
           { code: response.json().code, reason: response.json().reason },
           { code: "auth_invalid", reason: "invalid_credential" },
@@ -338,9 +357,11 @@ describe("POST /oauth/t3x-device", () => {
         assertion: yield* pass(laptop, {
           iat: Math.floor((yield* Clock.currentTimeMillis) / 1000),
         }),
+        extraHeaders: RENDERER_ORIGIN,
       })).response;
       assert.equal(stale.status, 503);
       assert.equal(reason(stale), "list_expired");
+      assertReasonReadable(stale, "list_expired");
       assert.deepEqual(stale.json(), { error: "service_unavailable" });
       // An old list only stops device passes; the app's own sign-in is untouched.
       const local = yield* exchangeBootstrap({
@@ -362,9 +383,11 @@ describe("POST /oauth/t3x-device", () => {
         origin: harness.origin,
         assertion: yield* passFor(generateDeviceKey(), { audience: harness.environmentId, dpop }),
         dpop,
+        extraHeaders: RENDERER_ORIGIN,
       });
       assert.equal(response.status, 503);
       assert.equal(reason(response), "list_unavailable");
+      assertReasonReadable(response, "list_unavailable");
     }).pipe(Effect.provide(layerHarness)),
   );
 
