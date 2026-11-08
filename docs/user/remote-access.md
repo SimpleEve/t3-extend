@@ -419,10 +419,12 @@ Things that may surprise you:
   environment turns it off.
 
 **Connections checked so far.** Forwarding has been checked on a connection to
-an environment on the same computer, and on a self-hosted tunnel ([Your own
-server](#your-own-server)) set up on a single test machine. It has not been
-checked over HTTPS on a local network, over Tailscale, over SSH, or through a
-self-hosted tunnel on a VPS, even where the rules above would turn it on.
+an environment on the same computer, over Tailscale using the environment's
+tailnet IPv6 address, and through [Your own server](#your-own-server) on a
+VPS. It has not been checked over HTTPS on a local network, with Tailscale
+MagicDNS names, or through Tailscale Serve, even where the rules above would
+turn it on. SSH environments that the desktop app sets up run official T3
+Code's server, so they don't offer it.
 
 ### Browser host setup
 

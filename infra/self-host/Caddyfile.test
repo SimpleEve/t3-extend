@@ -38,8 +38,6 @@ https:// {
 	reverse_proxy frps:8080 {
 		# Streaming responses (SSE) go out immediately.
 		flush_interval -1
-		# Keep open WebSockets alive across a Caddy reload.
-		stream_close_delay 5m
 		header_up X-T3x-Client-IP {remote_host}
 	}
 }
