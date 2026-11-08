@@ -48,6 +48,10 @@ vi.mock("../features/cloud/managedRelayLayer", async () => {
   const Layer = await import("effect/Layer");
   return { layer: () => Layer.empty };
 });
+// fork: self-hosted devices. The real layer needs the relay layer's DPoP signer, which is mocked empty here.
+vi.mock("../fork/deviceKeys/deviceKeysRuntime", async () => ({
+  layer: (await import("effect/Layer")).empty,
+}));
 vi.mock("../features/cloud/publicConfig", () => ({
   resolveCloudPublicConfig: () => ({ relay: { url: null } }),
 }));
