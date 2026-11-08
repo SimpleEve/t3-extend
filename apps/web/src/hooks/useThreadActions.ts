@@ -926,7 +926,7 @@ export function useThreadActions() {
       (result) => result._tag === "Success",
     );
 
-  const confirmAndDeleteThread = async (target: ScopedThreadRef) => {
+  const confirmAndDeleteThread = async (target: ScopedThreadRef, knownTitle?: string) => {
     const permissionFailure = threadOperationFailure(target);
     if (permissionFailure) return permissionFailure;
     const localApi = readLocalApi();
@@ -934,7 +934,7 @@ export function useThreadActions() {
 
     if (confirmThreadDelete && localApi) {
       const locale = getUiLocale();
-      const title = resolved?.thread.title ?? translate(locale, "this thread");
+      const title = resolved?.thread.title ?? knownTitle ?? translate(locale, "this thread");
       const confirmationResult = await settlePromise(() =>
         localApi.dialogs.confirm(
           [

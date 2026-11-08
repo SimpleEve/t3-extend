@@ -14,8 +14,11 @@ function bannerDescription(
 ) {
   return usageLimitRecoveryBannerItem({
     runId: RunId.make("run-1"),
+    errorCode: null,
     resetAt: resetAt.toISOString(),
     stoppedAt: stoppedAt.toISOString(),
+    settled: false,
+    requestPending: false,
     snoozedUntil: null,
     recovery: null,
     timestampFormat,

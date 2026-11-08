@@ -1,25 +1,25 @@
 import { Pressable, ScrollView } from "react-native";
 import { SymbolView } from "../../components/ui/AppSymbol";
-import { ListFilterMenu } from "../workspace/ListFilterMenu";
-import type { HomeHeaderProps } from "./HomeHeader.types";
+import { ListFilterMenu } from "../layout/workspace/ListFilterMenu";
+import type { EnvironmentId } from "@t3tools/contracts";
+import type {
+  HomeListFilterMenuEnvironment,
+  HomeListFilterMenuProject,
+} from "./home-list-filter-menu";
 import { useT } from "../../hooks/useT"; // fork: i18n
 import { useThreadListViewPreferences } from "../../fork/threadListView"; // fork: thread list views
 import { isSidebarViewMode } from "@t3tools/client-runtime/state/thread-grouping"; // fork: thread list views
 
-export function ThreadListFilters(
-  props: Pick<
-    HomeHeaderProps,
-    | "environments"
-    | "projects"
-    | "selectedEnvironmentId"
-    | "selectedProjectKey"
-    | "onEnvironmentChange"
-    | "onProjectChange"
-  > & {
-    /** List padding the scroller bleeds through so pills start where row content does. */
-    readonly gutter: number;
-  },
-) {
+export function ThreadListFilters(props: {
+  readonly environments: ReadonlyArray<HomeListFilterMenuEnvironment>;
+  readonly projects: ReadonlyArray<HomeListFilterMenuProject>;
+  readonly selectedEnvironmentId: EnvironmentId | null;
+  readonly selectedProjectKey: string | null;
+  readonly onEnvironmentChange: (environmentId: EnvironmentId | null) => void;
+  readonly onProjectChange: (projectKey: string | null) => void;
+  /** List padding the scroller bleeds through so pills start where row content does. */
+  readonly gutter: number;
+}) {
   const t = useT();
   const { viewMode, setViewMode } = useThreadListViewPreferences(); // fork: thread list views
   const selectedEnvironment = props.environments.find(
@@ -32,7 +32,7 @@ export function ThreadListFilters(
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      style={{ marginHorizontal: -props.gutter }}
+      style={{ marginHorizontal: -props.gutter, overflow: "visible" }}
       contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 2, paddingBottom: 10, gap: 8 }}
     >
       <ListFilterMenu

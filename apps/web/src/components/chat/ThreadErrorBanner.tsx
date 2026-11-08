@@ -16,7 +16,7 @@ import { ExpandableText } from "../settings/ExpandableText";
 import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork
 import { useT } from "~/hooks/useT"; // fork: interface language
 
-function copyAdminRequest() {
+export function copyAdminRequest() {
   void writeTextToClipboard(CHATGPT_WORKSPACE_ADMIN_REQUEST, "admin request").then(
     () =>
       toastManager.add({
@@ -102,14 +102,14 @@ export const ThreadErrorBanner = memo(function ThreadErrorBanner({
         <AlertDescription>
           {chatGptLimit ? (
             <div className="space-y-1">
-              <p className="font-medium">{t("ChatGPT usage limit reached")}</p>
-              <p>
-                {workspaceLimit
-                  ? t(
-                      "You've reached your workspace's limit for using your ChatGPT plan in other apps. Copy a request to ask your workspace admin for increased usage limits.",
-                    )
-                  : t("Review your usage settings in ChatGPT.")}
-              </p>
+              <p className="font-medium">ChatGPT usage limit reached</p>
+              {workspaceLimit ? (
+                <p>
+                  {
+                    "You've reached your workspace's limit for using your ChatGPT plan in other apps. Copy a request to ask your workspace admin for increased usage limits."
+                  }
+                </p>
+              ) : null}
             </div>
           ) : (
             <ExpandableText text={error} collapsedText={getThreadErrorBannerMessage(error)} />
