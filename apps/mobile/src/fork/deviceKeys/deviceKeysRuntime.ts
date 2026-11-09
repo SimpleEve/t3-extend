@@ -43,6 +43,15 @@ const source: DeviceAuthorizationSource = {
           )
         : Effect.succeed(pass);
     }),
+  // A computer that stops accepting this phone is the first sign it was removed: ask the registry
+  // now, so the phone shows "removed" without waiting for the next foreground refresh.
+  passRefused: () => {
+    Effect.runFork(
+      Effect.flatMap(loadStore, (store) =>
+        Effect.promise(() => store.deviceSync.refresh({ force: true })),
+      ),
+    );
+  },
 };
 
 export const layer = Layer.merge(
