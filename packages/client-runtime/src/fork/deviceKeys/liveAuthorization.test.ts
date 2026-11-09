@@ -211,6 +211,8 @@ describe("device authorization: the pass exchange", () => {
       expect(error).toMatchObject({ hop: expect.not.stringMatching(/relay/) });
       expect(rig.passRequests()).toHaveLength(1);
       expect(rig.waits).toEqual([]);
+      // Only a refusal that may mean "removed" is worth asking the registry about.
+      expect(rig.refusals()).toBe(rejection.reason === "device_revoked" ? 1 : 0);
     }),
   );
 
@@ -229,8 +231,9 @@ describe("device authorization: the pass exchange", () => {
       const prepared = yield* Fiber.join(prepare);
       expect(prepared.httpAuthorization._tag).toBe("Dpop");
       expect(rig.wait.snapshot().size).toBe(0);
-      // Each attempt gets a fresh pass.
+      // Each attempt gets a fresh pass, but the registry is asked once, at the first refusal.
       expect(yield* Ref.get(rig.signed)).toHaveLength(3);
+      expect(rig.refusals()).toBe(1);
     }),
   );
 

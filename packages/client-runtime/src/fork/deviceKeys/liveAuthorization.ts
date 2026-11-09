@@ -54,6 +54,12 @@ export interface DeviceAuthorizationSource {
     readonly audienceEnvironmentId: string;
     readonly dpopThumbprint: string;
   }) => Effect.Effect<string, ConnectionAttemptError>;
+  /**
+   * A computer refused a pass as `device_unknown` or `device_revoked`: this device may have been
+   * removed. Called once per sign-in, without waiting, so the platform can ask the registry now
+   * instead of at its next refresh.
+   */
+  readonly passRefused?: () => void;
 }
 
 /** Environments currently waiting for another computer to learn about this device. */
@@ -207,6 +213,7 @@ export const makeDeviceKeyAuthorization = (
     readonly expectedEnvironmentId: string;
     readonly httpBaseUrl: string;
     readonly thumbprint: string;
+    readonly onRemovalSuspected: () => void;
   }) {
     const assertion = yield* source.signAssertion({
       audienceEnvironmentId: input.expectedEnvironmentId,
@@ -250,7 +257,9 @@ export const makeDeviceKeyAuthorization = (
       ),
     );
     if (response.status === 401) {
-      return yield* Effect.fail(rejectedPass(response.headers["t3x-reason"]));
+      const reason = response.headers["t3x-reason"];
+      if (reason === "device_unknown" || reason === "device_revoked") input.onRemovalSuspected();
+      return yield* Effect.fail(rejectedPass(reason));
     }
     if (response.status === 503) {
       return yield* transient("That computer cannot check devices until it reaches your server.");
@@ -275,10 +284,16 @@ export const makeDeviceKeyAuthorization = (
 
   /** `device_unknown` is retried with backoff and shown as waiting; nothing else is retried. */
   const exchange = Effect.fn("deviceKeys.exchange")(
-    function* (input: Parameters<typeof exchangeOnce>[0]) {
+    function* (input: Omit<Parameters<typeof exchangeOnce>[0], "onRemovalSuspected">) {
       let attempt = 0;
+      let asked = false;
+      const onRemovalSuspected = () => {
+        if (asked) return;
+        asked = true;
+        source.passRefused?.();
+      };
       for (;;) {
-        const result = yield* exchangeOnce(input).pipe(Effect.result);
+        const result = yield* exchangeOnce({ ...input, onRemovalSuspected }).pipe(Effect.result);
         if (result._tag === "Success") return result.success;
         if (!isPeerHasNotSynced(result.failure)) return yield* result.failure;
         const delay = delays[attempt++];

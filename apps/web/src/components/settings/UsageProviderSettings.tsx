@@ -17,6 +17,7 @@ import { AddUsageLimitSourceDialog } from "./AddUsageLimitSourceDialog";
 import { searchableSetting } from "./settingsSearch";
 import { SettingsRow, SettingsSection } from "./settingsLayout";
 import { useT } from "../../hooks/useT";
+import { verbatim } from "~/fork/verbatim"; // fork: i18n
 
 export function UsageProviderSettings({
   environmentId,
@@ -55,7 +56,7 @@ export function UsageProviderSettings({
             return (
               <SettingsRow
                 key={id}
-                title={label}
+                title={verbatim(label)}
                 description={
                   <span className="break-all">
                     {t("CLI Proxy")}

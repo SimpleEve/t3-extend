@@ -419,6 +419,12 @@ export class SessionStore extends Context.Service<
     readonly revokeAllExcept: (
       sessionId: AuthSessionId,
     ) => Effect.Effect<number, SessionCredentialInternalError>;
+    /**
+     * Reports sessions that a live socket still depends on but whose row another process revoked
+     * (the CLI writes the database directly), so their sockets close. Returns how many it found.
+     * A session it cannot read is skipped, not reported.
+     */
+    readonly announceRevoked: () => Effect.Effect<number>; // fork:
     readonly markConnected: (sessionId: AuthSessionId) => Effect.Effect<void, never>;
     readonly markDisconnected: (sessionId: AuthSessionId) => Effect.Effect<void, never>;
   }
@@ -1039,6 +1045,42 @@ const make = Effect.gen(function* () {
     return revokedSessionIds.length;
   });
 
+  // fork: closes sockets of sessions that another process revoked (`devices remove` in the CLI).
+  const announceRevoked: SessionStore["Service"]["announceRevoked"] = Effect.fn(
+    "SessionStore.announceRevoked",
+  )(function* () {
+    // Sockets sit on a connected session, or follow its renewals as the newest one for their key.
+    const watched = new Set([
+      ...(yield* Ref.get(connectedSessionsRef)).keys(),
+      ...latestSessionByProofKey.values(),
+    ]);
+    const gone: Array<AuthSessionId> = [];
+    for (const sessionId of watched) {
+      const row = yield* authSessions.getById({ sessionId }).pipe(Effect.result);
+      if (row._tag === "Failure") {
+        yield* Effect.logWarning("Could not read a session to see whether it was revoked.", {
+          sessionId,
+          cause: row.failure,
+        });
+        continue;
+      }
+      if (Option.isNone(row.success) || row.success.value.revokedAt !== null) {
+        gone.push(sessionId);
+      }
+    }
+    if (gone.length === 0) return 0;
+    yield* Ref.update(connectedSessionsRef, (current) => {
+      const next = new Map(current);
+      for (const sessionId of gone) next.delete(sessionId);
+      return next;
+    });
+    for (const [key, sessionId] of latestSessionByProofKey) {
+      if (gone.includes(sessionId)) latestSessionByProofKey.delete(key);
+    }
+    yield* Effect.forEach(gone, emitRemoved, { concurrency: "unbounded", discard: true });
+    return gone.length;
+  });
+
   const awaitInvalidation = Effect.fn(function* (
     sessionId: AuthSessionId,
     proofKeyThumbprint?: string,
@@ -1107,6 +1149,7 @@ const make = Effect.gen(function* () {
     verifyWebSocketToken,
     listActive,
     awaitInvalidation,
+    announceRevoked, // fork:
     get streamChanges() {
       return Stream.fromPubSub(changesPubSub);
     },

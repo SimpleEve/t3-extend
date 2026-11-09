@@ -19,90 +19,91 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 
 ## 术语
 
-| 英文                     | 中文                   | 说明                                                                     |
-| ------------------------ | ---------------------- | ------------------------------------------------------------------------ |
-| thread                   | 对话                   |                                                                          |
-| session（登录会话）      | 会话                   | Agent session 也译"会话"                                                 |
-| project                  | 项目                   |                                                                          |
-| worktree                 | worktree               | 不译                                                                     |
-| main checkout            | 主 checkout            | 项目的原始目录，和 linked worktree 相对                                  |
-| Main（worktree 徽标）    | 主                     | 按项目视图里主 checkout 子组的标记                                       |
-| branch                   | 分支                   |                                                                          |
-| commit                   | 提交                   |                                                                          |
-| PR / pull request        | PR                     | 按钮里的 "pull requests" 也写 PR                                         |
-| agent                    | Agent                  |                                                                          |
-| provider                 | provider               | 不译；设置导航里的分区名写 Provider                                      |
-| environment              | 环境                   |                                                                          |
-| turn                     | 轮次                   |                                                                          |
-| checkpoint               | 检查点                 |                                                                          |
-| Pin / Pinned             | 置顶 / 已置顶          |                                                                          |
-| Unpin                    | 取消置顶               |                                                                          |
-| Snooze / Snoozed         | 稍后处理               | 动作和分区同名                                                           |
-| Wake / Woke              | 唤醒 / 已唤醒          | 让稍后处理的对话提前回来                                                 |
-| Settle / Settled         | 标为已处理 / 已处理    |                                                                          |
-| Un-settle                | 移出已处理             |                                                                          |
-| Auto-settle              | 自动标为已处理         |                                                                          |
-| Working                  | 运行中                 | 对话状态和侧边栏分区                                                     |
-| Active                   | 进行中                 | 侧边栏分区                                                               |
-| Waiting / Done / Failed  | 等待中 / 已完成 / 失败 | 对话状态                                                                 |
-| Approval / Input         | 待批准 / 待输入        | 对话等你处理的状态                                                       |
-| Settings                 | 设置                   |                                                                          |
-| Appearance               | 外观                   |                                                                          |
-| Sharing & access         | 共享与访问             |                                                                          |
-| Archive                  | 归档                   |                                                                          |
-| draft                    | 草稿                   |                                                                          |
-| composer                 | 输入框                 | 用户写消息的区域                                                         |
-| prompt                   | 提示词                 |                                                                          |
-| diff                     | 差异                   |                                                                          |
-| theme                    | 主题                   |                                                                          |
-| Follow system / System   | 跟随系统               | 外观模式和语言选项                                                       |
-| Copy                     | 复制                   | 菜单和按钮通用；"Duplicate theme" 也译复制主题                           |
-| pairing code / token     | 配对码 / 配对令牌      | "Copy code" 有三种 context，见改动记录                                   |
-| token（模型）            | token                  | 上下文、用量里的 token 计数不译                                          |
-| tunnel                   | 隧道                   |                                                                          |
-| route                    | 路由                   |                                                                          |
-| backend                  | 后端                   |                                                                          |
-| host（机器）             | 主机                   | 见下文"host 的两种义项"                                                  |
-| host（源码托管方）       | 托管平台               | GitHub、GitLab 这类；PR 过滤用 `source control` context                  |
-| scope                    | 权限范围               |                                                                          |
-| relay client             | 中继客户端             |                                                                          |
-| credential               | 凭据                   |                                                                          |
-| Live Activities          | 实时活动               |                                                                          |
-| Review guide / guide     | 审查导读 / 导读        |                                                                          |
-| SnapShots                | SnapShots              | 功能名不译；动作 snapshot 译"截图"                                       |
-| Boring sidebar           | 朴素侧边栏             |                                                                          |
-| Supervised               | 受监督                 | runtime mode                                                             |
-| Auto-accept edits        | 自动接受编辑           | runtime mode                                                             |
-| Auto                     | 自动                   | runtime mode                                                             |
-| Full access              | 完全访问               | runtime mode                                                             |
-| Working（按钮）          | 处理中                 | 按钮上的进行态用 `pending button` context；对话状态仍是"运行中"          |
-| steer                    | 引导                   |                                                                          |
-| queue                    | 排队发送               | 动作和设置选项都用"排队发送"；已排队的消息写"排队的消息"，状态写"排队中" |
-| stash（输入框）          | 暂存 / 暂存区          | git 的 stash 不译                                                        |
-| side chat                | 侧边对话               |                                                                          |
-| compact                  | 压缩                   |                                                                          |
-| handoff                  | 交接                   |                                                                          |
-| fork（对话）             | 分叉                   | git 的 fork 不在这个义项里                                               |
-| subagent                 | 子 Agent               |                                                                          |
-| checks                   | 检查                   |                                                                          |
-| review                   | 审查                   | 更新通道里的 "Review" 用 `update channel` context 译"查看"               |
-| Write                    | 编辑                   | PR 编辑器的标签页；磁盘 IO 用 `disk io` context 译"写入"                 |
-| stack                    | 堆叠                   |                                                                          |
-| check out                | 检出                   |                                                                          |
-| push / pull              | 推送 / 拉取            |                                                                          |
-| rebase / merge / remote  | 不译                   | 按钮上的 "Merge" 动作译"合并"                                            |
-| MR / change request      | MR / 变更请求          | PR 和 MR 原样保留                                                        |
-| mention                  | 引用                   |                                                                          |
-| cite / citation          | 引述                   | 引用 Agent 回复里的一段文字；"引用"已给 mention                          |
-| annotation               | 标注                   |                                                                          |
-| Plan / Build（交互模式） | 计划 / 构建            | 用 `interaction mode` context；设置里的 "Plan" 指套餐                    |
-| server                   | 服务器                 | 中文句子里都写"服务器"，如"T3 Code 服务器"；命令和代码标识符不改         |
-| limits                   | 上限                   | 用量、速率这类限额都写"上限"                                             |
-| triage                   | 排查                   |                                                                          |
-| detached HEAD            | 分离的 HEAD            |                                                                          |
-| Open / Closed / Merged   | 开放 / 已关闭 / 已合并 | PR 状态，用 `pull request state` context；小写形式也建 key               |
-| Reopen                   | 重新打开               | 动作                                                                     |
-| Lint                     | Lint                   | 开发术语，脚本图标名保留英文（`script icon` context）                    |
+| 英文                     | 中文                   | 说明                                                                                                 |
+| ------------------------ | ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| thread                   | 对话                   |                                                                                                      |
+| session（登录会话）      | 会话                   | Agent session 也译"会话"                                                                             |
+| project                  | 项目                   |                                                                                                      |
+| worktree                 | worktree               | 不译                                                                                                 |
+| main checkout            | 主 checkout            | 项目的原始目录，和 linked worktree 相对                                                              |
+| Main（worktree 徽标）    | 主                     | 按项目视图里主 checkout 子组的标记                                                                   |
+| branch                   | 分支                   |                                                                                                      |
+| commit                   | 提交                   |                                                                                                      |
+| PR / pull request        | PR                     | 按钮里的 "pull requests" 也写 PR                                                                     |
+| agent                    | Agent                  |                                                                                                      |
+| provider                 | provider               | 不译；设置导航里的分区名写 Provider                                                                  |
+| environment              | 环境                   |                                                                                                      |
+| turn                     | 轮次                   |                                                                                                      |
+| checkpoint               | 检查点                 |                                                                                                      |
+| Pin / Pinned             | 置顶 / 已置顶          |                                                                                                      |
+| Unpin                    | 取消置顶               |                                                                                                      |
+| Snooze / Snoozed         | 稍后处理               | 动作和分区同名                                                                                       |
+| Wake / Woke              | 唤醒 / 已唤醒          | 让稍后处理的对话提前回来                                                                             |
+| Settle / Settled         | 标为已处理 / 已处理    |                                                                                                      |
+| Un-settle                | 移出已处理             |                                                                                                      |
+| Auto-settle              | 自动标为已处理         |                                                                                                      |
+| Working                  | 运行中                 | 对话状态和侧边栏分区                                                                                 |
+| Active                   | 进行中                 | 侧边栏分区                                                                                           |
+| Waiting / Done / Failed  | 等待中 / 已完成 / 失败 | 对话状态                                                                                             |
+| Approval / Input         | 待批准 / 待输入        | 对话等你处理的状态                                                                                   |
+| Settings                 | 设置                   |                                                                                                      |
+| Appearance               | 外观                   |                                                                                                      |
+| Sharing & access         | 共享与访问             |                                                                                                      |
+| Archive                  | 归档                   |                                                                                                      |
+| draft                    | 草稿                   |                                                                                                      |
+| composer                 | 输入框                 | 用户写消息的区域                                                                                     |
+| prompt                   | 提示词                 |                                                                                                      |
+| diff                     | 差异                   |                                                                                                      |
+| theme                    | 主题                   |                                                                                                      |
+| Follow system / System   | 跟随系统               | 外观模式和语言选项                                                                                   |
+| Copy                     | 复制                   | 菜单和按钮通用；"Duplicate theme" 也译复制主题                                                       |
+| pairing code / token     | 配对码 / 配对令牌      | "Copy code" 有三种 context，见改动记录                                                               |
+| token（模型）            | token                  | 上下文、用量里的 token 计数不译                                                                      |
+| tunnel                   | 隧道                   |                                                                                                      |
+| route                    | 路由                   |                                                                                                      |
+| backend                  | 后端                   |                                                                                                      |
+| host（机器）             | 主机                   | 见下文"host 的两种义项"                                                                              |
+| host（源码托管方）       | 托管平台               | GitHub、GitLab 这类；PR 过滤用 `source control` context                                              |
+| scope                    | 权限范围               |                                                                                                      |
+| relay client             | 中继客户端             |                                                                                                      |
+| credential               | 凭据                   |                                                                                                      |
+| Live Activities          | 实时活动               |                                                                                                      |
+| Review guide / guide     | 审查导读 / 导读        |                                                                                                      |
+| SnapShots                | SnapShots              | 功能名不译；动作 snapshot 译"截图"                                                                   |
+| Boring sidebar           | 朴素侧边栏             |                                                                                                      |
+| Supervised               | 受监督                 | runtime mode                                                                                         |
+| Auto-accept edits        | 自动接受编辑           | runtime mode                                                                                         |
+| Auto                     | 自动                   | runtime mode                                                                                         |
+| Full access              | 完全访问               | runtime mode                                                                                         |
+| Working（按钮）          | 处理中                 | 按钮上的进行态用 `pending button` context；对话状态仍是"运行中"                                      |
+| steer                    | 引导                   |                                                                                                      |
+| queue                    | 排队发送               | 动作和设置选项都用"排队发送"；已排队的消息写"排队的消息"，状态写"排队中"                             |
+| stash（输入框）          | 暂存 / 暂存区          | git 的 stash 不译                                                                                    |
+| side chat                | 侧边对话               |                                                                                                      |
+| compact                  | 压缩                   |                                                                                                      |
+| handoff                  | 交接                   |                                                                                                      |
+| fork（对话）             | 分叉                   | git 的 fork 不在这个义项里                                                                           |
+| subagent                 | 子 Agent               |                                                                                                      |
+| checks                   | 检查                   |                                                                                                      |
+| review                   | 审查                   | 更新通道里的 "Review" 用 `update channel` context 译"查看"                                           |
+| Write                    | 编辑                   | PR 编辑器的标签页；磁盘 IO 用 `disk io` context 译"写入"                                             |
+| stack                    | 堆叠                   |                                                                                                      |
+| check out                | 检出                   |                                                                                                      |
+| push / pull              | 推送 / 拉取            |                                                                                                      |
+| rebase / merge / remote  | 不译                   | 按钮上的 "Merge" 动作译"合并"                                                                        |
+| MR / change request      | MR / 变更请求          | PR 和 MR 原样保留                                                                                    |
+| mention                  | 引用                   |                                                                                                      |
+| cite / citation          | 引述                   | 引用 Agent 回复里的一段文字；"引用"已给 mention                                                      |
+| annotation               | 标注                   |                                                                                                      |
+| Plan / Build（交互模式） | 计划 / 构建            | 用 `interaction mode` context；设置里的 "Plan" 指套餐                                                |
+| server                   | 服务器                 | 中文句子里都写"服务器"，如"T3 Code 服务器"；命令和代码标识符不改                                     |
+| limits                   | 上限                   | 用量、速率这类限额都写"上限"                                                                         |
+| triage                   | 排查                   |                                                                                                      |
+| detached HEAD            | 分离的 HEAD            |                                                                                                      |
+| Open / Closed / Merged   | 开放 / 已关闭 / 已合并 | PR 状态，用 `pull request state` context；小写形式也建 key                                           |
+| Reopen                   | 重新打开               | 动作                                                                                                 |
+| setup（脚本角色）        | 创建 worktree 时       | 脚本菜单和徽标里的角色，用 `script role` context；和 "on settle"（标为已处理时）并列，都是“何时运行” |
+| Lint                     | Lint                   | 开发术语，脚本图标名保留英文（`script icon` context）                                                |
 
 ## host 的两种义项
 
@@ -139,3 +140,4 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 - `Plain text` 在设置里指明文（和"敏感"相对），代码块语言选择器用 `code language` context 译"纯文本"。
 - 限额类原来混用"上限"和"限额"：统一为"上限"。
 - 句子里原来夹着英文 `server`：统一为"服务器"。
+- 脚本角色 `setup` 原来是裸 key，译"设置"，和 Settings 混在一起；改用 `script role` context 译"创建 worktree 时"，与 `on settle`（标为已处理时）并列，都是"何时运行"。

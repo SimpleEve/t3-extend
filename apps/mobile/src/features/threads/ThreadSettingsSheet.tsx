@@ -1212,6 +1212,7 @@ function ThreadSettingsModelsScreen() {
                 items: providerFilters.map((filter) => ({
                   id: filter.id,
                   title: filter.title,
+                  verbatim: true, // fork: i18n, provider names and copy translated above
                   selected: session.providerFilter === filter.value,
                   onPress: () => session.setProviderFilter(filter.value),
                 })),

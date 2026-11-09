@@ -41,6 +41,7 @@ const layerSeed = (baseDir: string) => {
       Layer.succeed(SessionStore.SessionStore, {
         listActive: () => Effect.succeed([]),
         revoke: () => Effect.succeed(false),
+        announceRevoked: () => Effect.succeed(0),
       } as unknown as SessionStore.SessionStore["Service"]),
     ),
     Layer.provideMerge(environment),

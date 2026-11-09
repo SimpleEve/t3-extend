@@ -1,5 +1,7 @@
-// fork: i18n. AppBar draws the labels, menus and actions that screens hand it; translating them
-// here, once, keeps upstream's screens free of t() for copy that only the bar renders.
+// fork: i18n. The wrapper translates what screens hand the bar, so upstream's screens need no t().
+// It cannot tell copy from data: a menu or action holding a user's own text (a project,
+// environment, branch, device name, a URL) must say `verbatim`, or a project called `server`
+// shows as 服务器. `appBarI18n.test.ts` runs the data-carrying menus with such names.
 import type { Translator } from "@t3tools/client-runtime/i18n";
 
 import type {
@@ -10,10 +12,10 @@ import type {
 } from "../components/ui/AppBar.types";
 import type { SheetHeaderProps } from "../components/ui/SheetHeader.types";
 
-function localizeAction<A extends Pick<AppBarAction, "accessibilityLabel" | "subtitle">>(
-  action: A,
-  t: Translator,
-): A {
+function localizeAction<
+  A extends Pick<AppBarAction, "accessibilityLabel" | "subtitle"> & { readonly verbatim?: boolean },
+>(action: A, t: Translator): A {
+  if (action.verbatim) return action;
   return {
     ...action,
     accessibilityLabel: t(action.accessibilityLabel),
@@ -25,10 +27,11 @@ function localizeItem(item: AppBarMenuItem, t: Translator): AppBarMenuItem {
   if ("items" in item) {
     return {
       ...item,
-      ...(item.title === undefined ? undefined : { title: t(item.title) }),
+      ...(item.title === undefined || item.verbatim ? undefined : { title: t(item.title) }),
       items: item.items.map((child) => localizeItem(child, t)),
     };
   }
+  if (item.verbatim) return item;
   return {
     ...item,
     title: t(item.title),
@@ -37,11 +40,13 @@ function localizeItem(item: AppBarMenuItem, t: Translator): AppBarMenuItem {
 }
 
 function localizeMenu(menu: AppBarMenu, t: Translator): AppBarMenu {
+  const items = menu.items.map((item) => localizeItem(item, t));
+  if (menu.verbatim) return { ...menu, items };
   return {
     ...menu,
     title: t(menu.title),
     ...(menu.status === undefined ? undefined : { status: t(menu.status) }),
-    items: menu.items.map((item) => localizeItem(item, t)),
+    items,
   };
 }
 

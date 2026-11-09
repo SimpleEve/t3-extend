@@ -2720,7 +2720,7 @@ export default {
   "Could not update {value}.": "无法更新 {value}。",
   and: "且",
   or: "或",
-  setup: "设置",
+  "script role|setup": "创建 worktree 时",
   "Change accent color for {displayName}": "更改 {displayName} 的强调色",
   "Add accent color for {displayName}": "为 {displayName} 添加强调色",
   "{status}, view details": "{status}，查看详情",

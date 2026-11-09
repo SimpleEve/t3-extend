@@ -156,6 +156,7 @@ import {
   SETTINGS_PICKER_TRIGGER_CLASSNAME,
 } from "./settingsLayout";
 import { useT, useUiLocale } from "../../hooks/useT";
+import { verbatim } from "~/fork/verbatim"; // fork: i18n
 
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -745,7 +746,7 @@ function ScheduledTaskEnvironmentSection({
   const linkedTask = tasks?.find((task) => task.id === taskId);
   return (
     <SettingsSection
-      title={environment.label}
+      title={verbatim(environment.label)}
       hideTitle
       icon={
         <EnvironmentMachineIcon
@@ -844,7 +845,7 @@ function ScheduledTaskRow({
   };
   return (
     <SettingsRow
-      title={task.title}
+      title={verbatim(task.title)}
       description={<span className="line-clamp-2">{task.prompt}</span>}
       status={
         <div className="flex flex-wrap items-center gap-2">

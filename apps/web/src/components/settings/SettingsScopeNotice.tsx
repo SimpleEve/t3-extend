@@ -20,6 +20,7 @@ import {
   settingsScopeProjectMachines,
 } from "./settingsScopeAxis";
 import { useT } from "../../hooks/useT";
+import { verbatim } from "~/fork/verbatim"; // fork: i18n
 
 interface ScopeChoice {
   label: string;
@@ -170,7 +171,7 @@ export function SettingsScopeNotice({
       <div className="space-y-4">
         {choiceGroups.map((group) =>
           group?.displayName ? (
-            <SettingsSection key={group.projectKey} title={group.displayName}>
+            <SettingsSection key={group.projectKey} title={verbatim(group.displayName)}>
               {renderChoices(group)}
             </SettingsSection>
           ) : (

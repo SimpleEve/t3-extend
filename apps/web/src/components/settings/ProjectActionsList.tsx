@@ -37,7 +37,7 @@ export function ProjectActionsList({
             <span className="min-w-0 truncate">{script.name}</span>
             {script.runOnWorktreeCreate ? (
               <span className="shrink-0 rounded-sm border border-border/60 px-1.5 py-px text-2xs font-normal text-muted-foreground">
-                {t("setup")}
+                {t("setup", undefined, "script role")}
               </span>
             ) : null}
             {script.runOnSettle ? (

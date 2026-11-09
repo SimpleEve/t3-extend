@@ -593,10 +593,11 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
                         destructive: true,
                         disabled: !action.available("delete-branch"),
                         subtitle: action.busy
-                          ? "Deleting…"
+                          ? t("Deleting…") // fork: i18n
                           : connected
                             ? pr.headBranch
-                            : "Reconnect to delete this branch.",
+                            : t("Reconnect to delete this branch."), // fork: i18n
+                        verbatim: true, // fork: i18n, the branch name is the user's
                         onPress: confirmDeleteBranch,
                       },
                     ]

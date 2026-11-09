@@ -147,6 +147,7 @@ import { AddEnvironmentDialog } from "./AddEnvironmentDialog";
 import { YourServerSettings } from "../../fork/YourServerSettings"; // fork: self-hosted connection and devices
 import { isSelfHostEndpoint } from "~/fork/selfHostStore";
 import { useT } from "../../hooks/useT"; // fork: self-hosted connection
+import { verbatim } from "~/fork/verbatim"; // fork: i18n
 
 const DEFAULT_TAILSCALE_SERVE_PORT = FORK.tailscaleServePort; // fork: own Tailscale Serve port
 const EMPTY_ADVERTISED_ENDPOINTS: ReadonlyArray<AdvertisedEndpoint> = [];
@@ -1175,7 +1176,11 @@ function ConnectionsSettingsContent({
           <SettingsSection
             {...searchableSetting("connections-environment")}
             title={
-              accessEnvironment?.label ?? (desktopBridge ? "This machine" : "Primary environment")
+              accessEnvironment?.label !== undefined
+                ? verbatim(accessEnvironment.label)
+                : desktopBridge
+                  ? "This machine"
+                  : "Primary environment"
             }
             icon={
               <EnvironmentMachineIcon

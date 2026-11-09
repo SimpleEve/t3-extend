@@ -162,6 +162,8 @@ const layerConfig = Layer.effect(
 /** Steers what the directory's session store does, so a test can hold a reconcile mid-revoke. */
 export interface RevokeHooks {
   beforeRevoke: Effect.Effect<void>;
+  /** Runs first in the store's check for sessions another process revoked. */
+  beforeAnnounce: Effect.Effect<void>;
   /** Runs inside the pass route right after it reads the list, before it judges the pass. */
   afterStateRead: Effect.Effect<void>;
   /** Runs inside the pass route as it asks for the gate. */
@@ -186,6 +188,7 @@ export const layerHarness = Layer.unwrap(
     const limiterClients: Array<string> = [];
     const hooks: RevokeHooks = {
       beforeRevoke: Effect.void,
+      beforeAnnounce: Effect.void,
       afterStateRead: Effect.void,
       onGateRequested: Effect.void,
       ready: Effect.void,
@@ -207,7 +210,8 @@ export const layerHarness = Layer.unwrap(
 
     const layerEnvironmentAuth = EnvironmentAuth.layer.pipe(
       Layer.provide(ManagedPolicy.layerTest()),
-      Layer.provide(SqlitePersistence.layerMemory),
+      // Visible, so a test can write the database the way another process would.
+      Layer.provideMerge(SqlitePersistence.layerMemory),
       Layer.provide(ServerSecretStore.layer),
       Layer.provide(ServerEnvironment.layerIdentity),
       Layer.provide(layerConfig),
@@ -220,6 +224,7 @@ export const layerHarness = Layer.unwrap(
         return SessionStore.SessionStore.of({
           ...real,
           revoke: (sessionId) => hooks.beforeRevoke.pipe(Effect.andThen(real.revoke(sessionId))),
+          announceRevoked: () => hooks.beforeAnnounce.pipe(Effect.andThen(real.announceRevoked())),
         });
       }),
     );
@@ -517,6 +522,7 @@ export const layerMemoryWith = <ROut, E, R>(registry: Layer.Layer<ROut, E, R>) =
       Layer.succeed(SessionStore.SessionStore, {
         listActive: () => Effect.succeed([]),
         revoke: () => Effect.succeed(false),
+        announceRevoked: () => Effect.succeed(0),
       } as unknown as SessionStore.SessionStore["Service"]),
     ),
     Layer.provideMerge(

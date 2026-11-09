@@ -159,6 +159,7 @@ function TerminalHeader(props: {
                   ...props.sessions.map((session) => ({
                     id: `terminal-session:${session.terminalId}`,
                     title: localizeTerminalLabel(session.displayLabel, t), // fork: i18n
+                    verbatim: true, // fork: i18n, localized above, with the folder name
                     icon: "terminal",
                     subtitle: [
                       getTerminalStatusLabel(

@@ -146,7 +146,11 @@ export const makeRig = Effect.fn("DeviceAuthorizationRig.make")(function* (input
   const current = yield* Ref.make(input?.view ?? view());
   const listReady = yield* Ref.make(input?.listNotReady !== true);
   const signed = yield* Ref.make<ReadonlyArray<{ audience: string; jkt: string }>>([]);
+  let refusals = 0;
   const source: DeviceAuthorizationSource = {
+    passRefused: () => {
+      refusals += 1;
+    },
     directory: Ref.get(listReady).pipe(
       Effect.flatMap((ready) => (ready ? Ref.get(current) : Effect.fail(deviceListNotReady()))),
     ),
@@ -195,6 +199,7 @@ export const makeRig = Effect.fn("DeviceAuthorizationRig.make")(function* (input
     index,
     wait,
     waits,
+    refusals: () => refusals,
     passRequests: () =>
       requests.filter((request) => new URL(request.url).pathname === T3X_DEVICE_TOKEN_PATH),
   };

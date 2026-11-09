@@ -15,7 +15,14 @@ import * as Redacted from "effect/Redacted";
 
 import { makeGatewayEnvironment } from "../../apps/desktop/src/fork/loopbackGateway/GatewayEnvironment.ts";
 import { openLoopbackTunnel } from "../../apps/desktop/src/fork/loopbackGateway/TunnelClient.ts";
-import { cliJoin, type Computer, type E2eContext, newHome, startComputer } from "./computer.ts";
+import {
+  cliJoin,
+  cliRemove,
+  type Computer,
+  type E2eContext,
+  newHome,
+  startComputer,
+} from "./computer.ts";
 import {
   keepAliveFetcher,
   loadModuleGraph,
@@ -865,6 +872,43 @@ export const scenarios: ReadonlyArray<Scenario> = [
           sessionOnB.close(),
         ]);
       }
+    },
+  },
+  {
+    id: 18,
+    title:
+      "removing a phone with the CLI while the server runs: that server closes its open socket by itself",
+    timeoutMs: 180_000,
+    run: async (world) => {
+      const a = need(world.a, "A");
+      const aEnv = need(world.aEnv, "A's environment");
+      const aUrl = tunnelUrl(world, "a");
+      const { invite } = (await a.call("devices.invite", { kind: "phone" })) as { invite: string };
+      const phone = await Phone.join(invite, "Phone3");
+      await a.refresh();
+      const { accessToken } = await phone.login(aUrl, aEnv);
+      const socket = new WebSocket(await phone.webSocketUrl(aUrl, accessToken));
+      await new Promise<void>((resolve, reject) => {
+        socket.addEventListener("open", () => resolve());
+        socket.addEventListener("error", () =>
+          reject(new E2eFailure("Phone3's socket could not open.")),
+        );
+      });
+      const closed = new Promise<void>((resolve) =>
+        socket.addEventListener("close", () => resolve()),
+      );
+
+      // A second process writes the database and the registry; A's server is not told, and nothing
+      // here asks it to sync: only its own 60-second tick can find out.
+      const output = await cliRemove(world.ctx, a.home, "Phone3");
+      check(output.includes("Removed Phone3"), `unexpected remove output: ${output}`);
+      const removedAt = Date.now();
+      await failWithin(closed, "Phone3's open socket to close", 120_000);
+      say(
+        `  the socket closed ${((Date.now() - removedAt) / 1000).toFixed(1)} s after the CLI exited`,
+      );
+      const again = await phone.exchange(aUrl, phone.pass({ audienceEnvironmentId: aEnv }));
+      checkEqual(again.status, 401, "a removed phone's new pass");
     },
   },
   {

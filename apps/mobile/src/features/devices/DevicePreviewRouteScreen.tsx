@@ -259,6 +259,7 @@ export function DevicePreviewScreen({
               id: device.key,
               title: device.name,
               subtitle: device.description,
+              verbatim: true, // fork: i18n
               selected: device.key === preview?.key,
               onPress: () => setSelectedKey(device.key),
             })),

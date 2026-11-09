@@ -12,6 +12,7 @@ import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 import * as TestClock from "effect/testing/TestClock";
 import * as SqlClient from "effect/sql/SqlClient";
+import * as Stream from "effect/Stream";
 
 import * as ServerConfig from "../config.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
@@ -113,6 +114,92 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("SessionStore.lay
         expect(yield* Deferred.isDone(ownerInvalidated)).toBe(false);
         yield* sessions.awaitInvalidation(client.sessionId);
       }).pipe(Effect.scoped, Effect.provide(Layer.merge(layerSessionStore(), TestClock.layer()))),
+  );
+
+  it.effect(
+    "announces sessions another process revoked, once, including a renewal in the chain",
+    () =>
+      Effect.gen(function* () {
+        const sessions = yield* SessionStore.SessionStore;
+        const sql = yield* SqlClient.SqlClient;
+        const revokeBehindItsBack = (sessionId: string) =>
+          sql`UPDATE auth_sessions SET revoked_at = '2030-01-01T00:00:00.000Z' WHERE session_id = ${sessionId}`;
+        const watch = (sessionId: string) =>
+          Effect.gen(function* () {
+            const closed = yield* Deferred.make<void>();
+            yield* sessions
+              .awaitInvalidation(sessionId as never, relaySessionInput.proofKeyThumbprint)
+              .pipe(
+                Effect.andThen(Deferred.succeed(closed, undefined)),
+                Effect.forkScoped({ startImmediately: true }),
+              );
+            return closed;
+          });
+        const removals: Array<string> = [];
+        yield* sessions.streamChanges.pipe(
+          Stream.runForEach((change) =>
+            change.type === "clientRemoved"
+              ? Effect.sync(() => removals.push(change.sessionId))
+              : Effect.void,
+          ),
+          Effect.forkScoped({ startImmediately: true }),
+        );
+
+        const first = yield* sessions.issue(relaySessionInput);
+        yield* sessions.markConnected(first.sessionId);
+        const firstClosed = yield* watch(first.sessionId);
+        const bystander = yield* sessions.issue({
+          ...relaySessionInput,
+          proofKeyThumbprint: "other",
+          ttl: Duration.hours(5),
+        });
+        yield* sessions.markConnected(bystander.sessionId);
+        const bystanderClosed = yield* watch(bystander.sessionId);
+        expect(yield* sessions.announceRevoked()).toBe(0);
+
+        // The socket on `first` outlives it and follows the renewal; the CLI revokes the renewal.
+        yield* TestClock.adjust(Duration.minutes(59));
+        const renewal = yield* sessions.issue(relaySessionInput);
+        yield* TestClock.adjust(Duration.minutes(2));
+        yield* revokeBehindItsBack(renewal.sessionId);
+        yield* TestClock.adjust(Duration.seconds(1));
+        expect(yield* Deferred.isDone(firstClosed)).toBe(false);
+
+        expect(yield* sessions.announceRevoked()).toBe(1);
+        yield* Deferred.await(firstClosed);
+        expect(yield* Deferred.isDone(bystanderClosed)).toBe(false);
+        expect(yield* sessions.announceRevoked()).toBe(0);
+        expect(removals).toEqual([renewal.sessionId]);
+
+        yield* revokeBehindItsBack(bystander.sessionId);
+        expect(yield* sessions.announceRevoked()).toBe(1);
+        yield* Deferred.await(bystanderClosed);
+      }).pipe(
+        Effect.scoped,
+        Effect.provide(
+          Layer.mergeAll(layerSessionStore(), SqlitePersistence.layerMemory, TestClock.layer()),
+        ),
+      ),
+  );
+
+  it.effect("skips a session it cannot read and still announces the others", () =>
+    Effect.gen(function* () {
+      const sessions = yield* SessionStore.SessionStore;
+      const sql = yield* SqlClient.SqlClient;
+      const unreadable = yield* sessions.issue(relaySessionInput);
+      const revoked = yield* sessions.issue({ ...relaySessionInput, proofKeyThumbprint: "other" });
+      yield* sessions.markConnected(unreadable.sessionId);
+      yield* sessions.markConnected(revoked.sessionId);
+      yield* sql`UPDATE auth_sessions SET scopes = 'not json' WHERE session_id = ${unreadable.sessionId}`;
+      yield* sql`UPDATE auth_sessions SET revoked_at = '2030-01-01T00:00:00.000Z' WHERE session_id = ${revoked.sessionId}`;
+
+      expect(yield* sessions.announceRevoked()).toBe(1);
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        Layer.mergeAll(layerSessionStore(), SqlitePersistence.layerMemory, TestClock.layer()),
+      ),
+    ),
   );
 
   it.effect("expires a connected session at its credential deadline", () =>
