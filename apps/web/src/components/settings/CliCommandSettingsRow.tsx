@@ -29,7 +29,10 @@ export function CliCommandSettingsRow() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: action === "install" ? t("Could not install t3") : t("Could not remove t3"),
+            title:
+              action === "install"
+                ? t("Could not install {command}", { command: FORK.cliCommand }) // fork: t3x
+                : t("Could not remove {command}", { command: FORK.cliCommand }),
             description: error instanceof Error ? error.message : t("Something went wrong."),
           }),
         );
@@ -39,13 +42,23 @@ export function CliCommandSettingsRow() {
 
   if (!bridge || !state?.supported) return null;
   const installed = state.installedPath !== null;
+  // fork: t3x, i18n. The app name, command and paths are data, not translated.
+  const app = FORK.appBaseName;
+  const command = FORK.cliCommand;
   const description = state.shadowedBy
-    ? `Another ${FORK.cliCommand} at ${state.shadowedBy} runs first in a new terminal. Remove it to use ${FORK.appBaseName}'s.` // fork: t3x
+    ? t("Another {command} at {path} runs first in a new terminal. Remove it to use {app}'s.", {
+        command,
+        path: state.shadowedBy,
+        app,
+      })
     : !installed
-      ? `Run ${FORK.appBaseName}'s CLI as \`${FORK.cliCommand}\` from any terminal.` // fork: t3x
+      ? t("Run {app}'s CLI as `{command}` from any terminal.", { app, command })
       : state.onPath
-        ? `Installed at ${state.installedPath}. Open a new terminal to use it.`
-        : `Installed at ${state.installedPath}, which is not on your PATH yet. Add its folder to your PATH to run \`${FORK.cliCommand}\`.`; // fork: t3x
+        ? t("Installed at {path}. Open a new terminal to use it.", { path: state.installedPath })
+        : t(
+            "Installed at {path}, which is not on your PATH yet. Add its folder to your PATH to run `{command}`.",
+            { path: state.installedPath, command },
+          );
 
   return (
     <SettingsRow

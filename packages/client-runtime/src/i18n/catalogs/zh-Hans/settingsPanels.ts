@@ -414,8 +414,23 @@ export default {
   "Your ChatGPT plan is connected": "已连接你的 ChatGPT 套餐",
   "Eligible usage in T3 Code uses your ChatGPT plan. Manage your shared usage and any credit settings in ChatGPT.":
     "T3 Code 中符合条件的用量会使用你的 ChatGPT 套餐。请在 ChatGPT 中管理共享用量和额度设置。",
-  "Could not install t3": "无法安装 t3",
-  "Could not remove t3": "无法移除 t3",
+  "Could not read your PATH, so it was left unchanged.": "无法读取你的 PATH，所以没有改动它。",
+  "Could not update your PATH.": "无法更新你的 PATH。",
+  "Could not set up the {command} launcher at {path}.": "无法在 {path} 设置 {command} 启动器。",
+  "The {command} command needs an installed app.": "{command} 命令需要已安装的应用。",
+  "Added {command} to your PATH but could not record it.":
+    "已把 {command} 加入你的 PATH，但无法记录这次改动。",
+  "Could not replace {path}.": "无法替换 {path}。",
+  "Could not remove {path}.": "无法移除 {path}。",
+  "Could not install {command}": "无法安装 {command}",
+  "Could not remove {command}": "无法移除 {command}",
+  "Another {command} at {path} runs first in a new terminal. Remove it to use {app}'s.":
+    "位于 {path} 的另一个 {command} 会在新终端里优先运行。移除它才能使用 {app} 的。",
+  "Run {app}'s CLI as `{command}` from any terminal.":
+    "在任意终端里用 `{command}` 运行 {app} 的命令行工具。",
+  "Installed at {path}. Open a new terminal to use it.": "已安装在 {path}。打开新终端即可使用。",
+  "Installed at {path}, which is not on your PATH yet. Add its folder to your PATH to run `{command}`.":
+    "已安装在 {path}，但它还不在 PATH 里。把所在文件夹加入 PATH 后才能运行 `{command}`。",
   "Something went wrong.": "出了点问题。",
   Remove: "移除",
   "Signed in as {email}.": "已登录为 {email}。",
@@ -1363,6 +1378,16 @@ export default {
   "Install failed.": "安装失败。",
   "Could not check for updates": "无法检查更新",
   "Automatic updates are not available in this build.": "此版本不支持自动更新。",
+  // The desktop main process words why its updater is off; the client translates these fixed sentences.
+  "Updates are turned off on this machine.": "这台电脑上的更新已关闭。",
+  "Automatic updates are not available because no update feed is configured.":
+    "未配置更新源，无法自动更新。",
+  "Automatic updates are only available in packaged production builds.":
+    "只有打包的正式版才支持自动更新。",
+  "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.":
+    "自动更新已被 T3CODE_DISABLE_AUTO_UPDATE 设置关闭。",
+  "Automatic updates on Linux require the AppImage or the .deb package.":
+    "Linux 上的自动更新需要 AppImage 或 .deb 安装包。",
   "Update check failed.": "检查更新失败。",
   "1 machine still runs": "还有 1 台机器在运行",
   "{unswitchedMachines} machines still run": "还有 {unswitchedMachines} 台机器在运行",

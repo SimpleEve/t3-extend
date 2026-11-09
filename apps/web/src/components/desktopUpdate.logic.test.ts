@@ -4,6 +4,7 @@ import type { DesktopUpdateState } from "@t3tools/contracts";
 import {
   canCheckForUpdate,
   getDesktopUpdateButtonTooltip,
+  getDesktopUpdateDisabledReason,
   getDesktopUpdateReleaseHistoryUrl,
   getDesktopUpdateReleaseUrl,
   resolveDesktopUpdateButtonAction,
@@ -88,5 +89,30 @@ describe("canCheckForUpdate", () => {
         downloadedVersion: "1.1.0",
       }),
     ).toBe(true);
+  });
+});
+
+describe("getDesktopUpdateDisabledReason", () => {
+  const translate = (source: string) => `zh:${source}`;
+  const disabled = (extra: Partial<DesktopUpdateState>): DesktopUpdateState => ({
+    ...baseState,
+    enabled: false,
+    status: "disabled",
+    ...extra,
+  });
+
+  it("translates the app's own sentence but not an administrator's wording", () => {
+    const fixed = "Automatic updates on Linux require the AppImage or the .deb package.";
+    expect(
+      getDesktopUpdateDisabledReason(
+        disabled({ message: fixed, messageFixed: true }),
+        undefined,
+        translate,
+      ),
+    ).toBe(`zh:${fixed}`);
+    // Same words, but from a policy: shown as written.
+    expect(getDesktopUpdateDisabledReason(disabled({ message: fixed }), undefined, translate)).toBe(
+      fixed,
+    );
   });
 });

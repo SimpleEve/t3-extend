@@ -284,6 +284,9 @@ export interface DesktopUpdateState {
   notAppliedVersion?: string;
   /** Off only because a managed policy rules out this channel; switching channels turns it on. */
   channelBlockedByPolicy?: true;
+  // fork: `message` is one of this app's own fixed sentences for a disabled updater, so a client can
+  // translate it. Absent when the text came from an administrator's policy or an updater error.
+  messageFixed?: true;
 }
 
 export interface DesktopUpdateReleaseNote {

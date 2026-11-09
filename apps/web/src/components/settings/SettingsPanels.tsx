@@ -38,6 +38,7 @@ import {
   getDesktopUpdateInstallConfirmationMessage,
   isDesktopUpdateButtonDisabled,
   resolveDesktopUpdateButtonAction,
+  getDesktopUpdateMessage,
 } from "../../components/desktopUpdate.logic";
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
 import { TraitsPicker } from "../chat/TraitsPicker";
@@ -261,7 +262,7 @@ function AboutVersionSection() {
               title: t("Could not check for updates"),
               description:
                 updatesDenial ??
-                result.state.message ??
+                getDesktopUpdateMessage(result.state, t) ?? // fork: i18n
                 t("Automatic updates are not available in this build."),
             }),
           );

@@ -149,6 +149,19 @@ export function getDesktopUpdateInstallConfirmationMessage(
   return `${question}\n\n${t("Any running tasks will be interrupted. Make sure you're ready before continuing.")}`;
 }
 
+/**
+ * fork: the sentence a disabled updater reports. Only the app's own fixed sentences (`messageFixed`)
+ * are translated; an administrator's wording and updater errors are shown as they came.
+ */
+export function getDesktopUpdateMessage(
+  state: Pick<DesktopUpdateState, "status" | "message" | "messageFixed">,
+  t: Translator = translatorFor("en"),
+): string | null {
+  const message = state.message?.trim();
+  if (!message) return null;
+  return state.status === "disabled" && state.messageFixed === true ? t(message) : message;
+}
+
 export function getDesktopUpdateActionError(result: DesktopUpdateActionResult): string | null {
   if (!result.accepted || result.completed) return null;
   if (typeof result.state.message !== "string") return null;
@@ -169,17 +182,19 @@ export function canCheckForUpdate(state: DesktopUpdateState | null): boolean {
 
 /** `managedDenial` is this machine's policy refusing updates (`managedUpdatesDenial`); it wins. */
 export function getDesktopUpdateDisabledReason(
-  state: Pick<DesktopUpdateState, "enabled" | "status" | "message"> | null,
+  state: Pick<DesktopUpdateState, "enabled" | "status" | "message" | "messageFixed"> | null,
   managedDenial?: string,
   t: Translator = translatorFor("en"), // fork: interface language
 ): string | null {
   if (managedDenial !== undefined) return managedDenial;
   if (!state || (state.enabled && state.status !== "disabled")) return null;
-  return state.message?.trim() || t("Automatic updates are not available in this build.");
+  return (
+    getDesktopUpdateMessage(state, t) ?? t("Automatic updates are not available in this build.")
+  );
 }
 
 export function getDesktopUpdateIdleTooltip(
-  state: Pick<DesktopUpdateState, "enabled" | "status" | "message"> | null,
+  state: Pick<DesktopUpdateState, "enabled" | "status" | "message" | "messageFixed"> | null,
   managedDenial?: string,
   t: Translator = translatorFor("en"), // fork: interface language
 ) {

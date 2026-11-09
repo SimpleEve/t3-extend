@@ -26,6 +26,7 @@ import {
   resolveDesktopUpdateButtonAction,
   shouldShowArm64IntelBuildWarning,
   shouldToastDesktopUpdateActionResult,
+  getDesktopUpdateMessage,
 } from "../desktopUpdate.logic";
 import { showDesktopUpdateDownloadedToast } from "../desktopUpdate.toast";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
@@ -340,7 +341,7 @@ function SidebarUpdateControl() {
             title: t("Could not check for updates"),
             description:
               updatesDenial ??
-              result.state.message ??
+              getDesktopUpdateMessage(result.state, t) ?? // fork: i18n
               t("Automatic updates are not available in this build."),
           }),
         );

@@ -16,6 +16,7 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as DesktopCliShim from "./DesktopCliShim.ts";
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export class DesktopCliCommandError extends Schema.TaggedError<DesktopCliCommandError>()(
   "DesktopCliCommandError",
@@ -76,7 +77,9 @@ export const make = Effect.gen(function* () {
   const binDirectory = path.dirname(launcher);
   const ownedPathMarker = path.join(environment.stateDir, "cli-command-path-entry");
 
-  const fail = (message: string) => new DesktopCliCommandError({ message });
+  // fork: i18n. The settings row shows these messages, so they follow the interface language.
+  const fail = (message: string, params?: Readonly<Record<string, string>>) =>
+    new DesktopCliCommandError({ message: translate(getUiLocale(), message, params) });
   const exists = (target: string) => fs.exists(target).pipe(Effect.orElseSucceed(() => false));
   const writableDirectory = (directory: string) =>
     fs.access(directory, { writable: true }).pipe(
@@ -214,7 +217,12 @@ export const make = Effect.gen(function* () {
     Effect.flatMap(
       Option.match({
         onNone: () =>
-          Effect.fail(fail(`Could not set up the ${FORK.cliCommand} launcher at ${launcher}.`)),
+          Effect.fail(
+            fail("Could not set up the {command} launcher at {path}.", {
+              command: FORK.cliCommand,
+              path: launcher,
+            }),
+          ),
         onSome: () => Effect.void,
       }),
     ),
@@ -222,19 +230,21 @@ export const make = Effect.gen(function* () {
 
   const install: DesktopCliCommand["Service"]["install"] = Effect.gen(function* () {
     if (!environment.isPackaged)
-      return yield* fail(`The ${FORK.cliCommand} command needs an installed app.`);
+      return yield* fail("The {command} command needs an installed app.", {
+        command: FORK.cliCommand,
+      });
     yield* ensureLauncher;
     if (windows) {
       const entries = pathEntries(yield* readUserPath, ";");
       if (!entries.some((entry) => sameWindowsPath(entry, binDirectory))) {
         yield* writeUserPath([...entries, binDirectory].join(";"));
-        yield* fs
-          .writeFileString(ownedPathMarker, `${binDirectory}\n`)
-          .pipe(
-            Effect.mapError(() =>
-              fail(`Added ${FORK.cliCommand} to your PATH but could not record it.`),
-            ),
-          );
+        yield* fs.writeFileString(ownedPathMarker, `${binDirectory}\n`).pipe(
+          Effect.mapError(() =>
+            fail("Added {command} to your PATH but could not record it.", {
+              command: FORK.cliCommand,
+            }),
+          ),
+        );
       }
       return yield* state;
     }
@@ -244,7 +254,7 @@ export const make = Effect.gen(function* () {
       if (Option.getOrUndefined(target) === launcher) return yield* state;
       yield* fs
         .remove(existing.value)
-        .pipe(Effect.mapError(() => fail(`Could not replace ${existing.value}.`)));
+        .pipe(Effect.mapError(() => fail("Could not replace {path}.", { path: existing.value })));
     }
     const shadowedBy = yield* foreignFirstOnPath;
     if (Option.isSome(shadowedBy)) {
@@ -290,7 +300,9 @@ export const make = Effect.gen(function* () {
     for (const directory of unixCandidates(environment.homeDirectory, environment.platform)) {
       const link = path.join(directory, FORK.cliCommand); // fork: t3x
       if (yield* isOurLink(link)) {
-        yield* fs.remove(link).pipe(Effect.mapError(() => fail(`Could not remove ${link}.`)));
+        yield* fs
+          .remove(link)
+          .pipe(Effect.mapError(() => fail("Could not remove {path}.", { path: link })));
       }
     }
     return yield* state;

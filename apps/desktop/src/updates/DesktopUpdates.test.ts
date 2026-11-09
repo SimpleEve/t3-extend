@@ -53,6 +53,7 @@ describe("DesktopUpdates", () => {
 
         const configured = yield* updates.getState;
         assert.equal(configured.message, reason);
+        assert.isTrue(configured.messageFixed);
 
         const changed = yield* updates.setChannel("nightly");
         assert.equal(changed.channel, "nightly");
@@ -987,6 +988,8 @@ describe("DesktopUpdates under a managed policy", () => {
         const state = yield* updates.getState;
         assert.equal(state.status, "disabled");
         assert.equal(state.message, message);
+        // The administrator's wording is not one of the app's own sentences.
+        assert.isUndefined(state.messageFixed);
         assert.isFalse((yield* updates.check("menu")).checked);
         assert.deepEqual(yield* updates.disabledReason, Option.some(message));
         assert.equal(harness.checkCount(), 0);
@@ -1064,6 +1067,7 @@ describe("DesktopUpdates under a managed policy", () => {
         assert.equal(held.status, "disabled");
         assert.include(held.message ?? "", message);
         assert.isTrue(held.channelBlockedByPolicy);
+        assert.isUndefined(held.messageFixed);
         assert.isFalse((yield* updates.check("menu")).checked);
         assert.equal(harness.checkCount(), 0);
 

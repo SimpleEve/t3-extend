@@ -706,6 +706,13 @@ export const make = Effect.gen(function* () {
         disabledReason.value === Option.getOrUndefined(channelBlockedReason(channel))
           ? { channelBlockedByPolicy: true as const }
           : {}),
+        // fork: everything else that turns updates off is one of this app's own fixed sentences,
+        // except what an administrator's policy says (`policy.message`).
+        ...(Option.isSome(disabledReason) &&
+        disabledReason.value !== policy.message &&
+        disabledReason.value !== Option.getOrUndefined(channelBlockedReason(channel))
+          ? { messageFixed: true as const }
+          : {}),
         ...Option.match(notAppliedVersion, {
           onNone: () => ({}),
           onSome: (version) => ({ notAppliedVersion: version }),

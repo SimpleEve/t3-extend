@@ -186,6 +186,7 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 
 - 服务器或模型给出的文案：server 返回的错误和状态（如 "Codex provider status has not been checked in this session yet."）、ACP Registry 里各 Agent 的介绍、模型的推理强度名（Low / Medium / High 这类选项标签来自模型能力数据，输入框和设置里原样显示）、快捷键 when 条件、主题名。
 - web 里客户端自己产生、会写日志的错误信息（`connection/`、`cloud/linkEnvironment.ts`、各处 `EnvironmentAuthorizationError` 的 `message`、预览 worker 的回复、`files/` 下各预览 worker 的内部错误）保持英文，显示处只有 `connection/errorMessages.ts` 和 `clientErrors.ts` 认识的几条会翻译；文档预览的兜底页名（"Page 1"）、设置搜索里带托管平台名的条目、更新对话框里带渠道名的跳过原因、自定义模型预设的档位值（存进设置，模型选择器原样显示）。
+- 桌面主进程传给界面的固定英文：更新器关闭的原因由主进程在 `DesktopUpdateState.messageFixed` 上标出来，界面 `t(message)` 翻译（`getDesktopUpdateMessage`）；管理员策略写的话和更新器自己的错误不带这个标记，原样显示。`t3x` 安装的错误在主进程里按当前界面语言翻译（主进程的语言随设置变化，`DesktopUiLanguage`）。其余主进程错误和状态文案（SnapShots 快捷键与捕获状态、预览和浏览器导入、SSH、WSL、托管策略不可用的说明等）仍是英文。
 - 桌面预览的标注浮层（`apps/desktop/src/preview/PickPreload.ts`）：十来条固定文案（按钮、占位符、提示）是英文。它跑在被预览页面的进程里，样式来自单独生成的 Tailwind 主题，生成器会从 `PickPreload.ts` 全文抽取类名；要翻译得把界面语言经 IPC 传进 preload 并改动这个文件，所以没有顺手做。用户在里面输入的评论不受影响。中文排版层也不作用于它，见 `apps/web/src/fork/zhTypography.css` 头部。
 - mobile：实时活动（iOS `AgentActivity`，widget 运行时里的固定文案）和连接与持久化层的内部错误（`connection/`、`persistence/`）。
 - 还没有在真机或模拟器上核对：Android 底部导航译文和小组件。验证时 Agent device access 是关闭的，按 test-t3-mobile 的要求没有改用 adb 驱动，只在 `t3extend-test` 上装好了 dev client；web 已在中文下核对过。
