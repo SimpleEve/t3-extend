@@ -300,7 +300,6 @@ export default {
   "This connection can’t change settings on {label}.": "这个连接不能更改 {label} 上的设置。",
   "Voice input uses the first connected microphone in this list. A wired or Bluetooth microphone is added by name the first time you dictate with it connected; until then it falls under Other. Swipe left on a named microphone to forget it.":
     "语音输入使用这个列表里第一个已连接的麦克风。有线或蓝牙麦克风会在你首次连接着它听写时按名称加入列表，在那之前归在“其他”下。向左滑动已命名的麦克风可以忘记它。",
-  "Couldn't load the {document}": "无法加载{document}",
   "Fold command failed ({status}).": "折叠命令失败（{status}）。",
   "{list} list may be incomplete": "{list} 列表可能不完整",
   "Voice · {provider}": "语音 · {provider}",

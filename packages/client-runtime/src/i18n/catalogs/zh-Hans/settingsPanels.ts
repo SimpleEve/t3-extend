@@ -769,9 +769,7 @@ export default {
     "共享项目中的新对话会在空闲 CPU 和内存最多的机器上启动，并按每台机器的偏好加权。",
   "{label} load preference": "{label} 的负载偏好",
   "Connect to your server from your phone or tablet.": "用手机或平板连接你的服务器。",
-  "Scan with your phone camera.": "用手机相机扫描。",
   "{store} link": "{store} 链接",
-  "Open {store}": "打开 {store}",
   "We do not recommend managing multiple {providerName} accounts in T3 Code.":
     "我们不建议在 T3 Code 中管理多个 {providerName} 账号。",
   "System alerts when a thread finishes, fails, or needs input or approval. Applies to this device while T3 Extend is open.":
@@ -2162,7 +2160,6 @@ export default {
   "Delete confirmation": "删除确认",
   "Quit shortcut": "退出快捷键",
   "Text generation model": "文本生成模型",
-  "Mobile app": "移动应用",
   "Usage data": "使用数据",
   "Include app text": "包含应用文字",
   "Capture shortcut": "截图快捷键",
