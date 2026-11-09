@@ -113,16 +113,7 @@ const SETTINGS_SEARCH_TERMS = {
     "final answers only",
   ],
   SettingsEnvironmentMaintenance: ["updates", "provider updates", "restart", "manage environments"],
-  SettingsAbout: [
-    "version",
-    "diagnostics",
-    "client storage",
-    "cache",
-    "legal",
-    "privacy",
-    "terms",
-    "open source licenses",
-  ],
+  SettingsAbout: ["version", "diagnostics", "client storage", "cache", "open source licenses"],
 } satisfies Partial<Record<SettingsPageTarget | "account", readonly string[]>>;
 const termsById: ReadonlyMap<string, readonly string[]> = new Map(
   Object.entries(SETTINGS_SEARCH_TERMS),

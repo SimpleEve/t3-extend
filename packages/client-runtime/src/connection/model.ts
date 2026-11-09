@@ -87,6 +87,8 @@ export const ConnectionFailureCause = Schema.Literals([
   "relay_error",
   "tunnel_pending",
   "tunnel_not_enabled",
+  // fork: this device is waiting for its own server's device list, as after a restart.
+  "device_list_pending",
 ]);
 export type ConnectionFailureCause = typeof ConnectionFailureCause.Type;
 

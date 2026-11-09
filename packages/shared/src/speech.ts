@@ -10,10 +10,28 @@ import * as Schema from "effect/Schema";
 const decodeOptions = Schema.decodeUnknownSync(Schema.fromJsonString(SpeechTranscriptionOptions));
 const encodeOptions = Schema.encodeSync(Schema.fromJsonString(SpeechTranscriptionOptions));
 
-export function cloudSpeechDisclosure(provider: CloudSpeechProvider, environment: string) {
+// fork: the disclosure takes an optional translator; without one the English is unchanged.
+type DisclosureTranslator = (source: string, params?: Readonly<Record<string, string>>) => string;
+
+const englishDisclosure: DisclosureTranslator = (source, params) =>
+  source.replace(/\{(\w+)\}/g, (match, name: string) =>
+    params && Object.hasOwn(params, name) ? params[name]! : match,
+  );
+
+export function cloudSpeechDisclosure(
+  provider: CloudSpeechProvider,
+  environment: string,
+  t: DisclosureTranslator = englishDisclosure, // fork: interface language
+) {
   return provider === "openrouter"
-    ? `After you stop, ${environment} sends the recording to OpenRouter. OpenRouter chooses who runs your model. T3 requests zero data retention; your OpenRouter account may allow safety retention.`
-    : `After you stop, ${environment} sends your recording and vocabulary hints, including project names, to ${CLOUD_SPEECH_PROVIDER_NAMES[provider]}.`;
+    ? t(
+        "After you stop, {environment} sends the recording to OpenRouter. OpenRouter chooses who runs your model. T3 requests zero data retention; your OpenRouter account may allow safety retention.",
+        { environment },
+      )
+    : t(
+        "After you stop, {environment} sends your recording and vocabulary hints, including project names, to {provider}.",
+        { environment, provider: CLOUD_SPEECH_PROVIDER_NAMES[provider] },
+      );
 }
 
 // Only offer explicit hints understood by all cloud APIs; other languages can still be detected.

@@ -125,6 +125,9 @@ function headline(
       return t("{host}'s tunnel is still being set up", { host });
     case "tunnel_not_enabled":
       return t("T3 Connect is not turned on for {host}", { host });
+    // fork: a wait, not a failure.
+    case "device_list_pending":
+      return t("Waiting for your server's device list");
     case "released":
     case "tunnel_down":
       return t("{host}'s tunnel is offline", { host });
@@ -202,6 +205,8 @@ function steps(
       ];
     case "tunnel_not_enabled":
       return [t("On {host}, open Settings > Sharing & access and turn T3 Connect on.", { host })];
+    case "device_list_pending":
+      return [t("Wait a moment. T3 Extend retries on its own.")];
     case "released":
     case "tunnel_down":
       return [
@@ -258,7 +263,7 @@ function steps(
 function helpSection(
   located: Located,
   failure: ConnectionAttemptError | null,
-): T3ConnectTroubleshootingSection {
+): T3ConnectTroubleshootingSection | null {
   switch (located.cause) {
     case "offline":
       return "this-device-cant-reach-t3-connect";
@@ -270,6 +275,9 @@ function helpSection(
     case "not_linked":
     case "tunnel_not_enabled":
       return "sign-in-account-or-link-problems";
+    // fork: your own server's device list has nothing to do with T3 Connect, so no guide link.
+    case "device_list_pending":
+      return null;
     case "relay_error":
       return "t3-connect-returned-an-error";
     case "released":
@@ -324,6 +332,16 @@ function hopLabel(t: Translator, hop: ConnectionHop, host: string): string {
     case "server":
       return t("T3 Extend on {host}", { host });
   }
+}
+
+function helpUrl(
+  located: Located,
+  failure: ConnectionAttemptError | null,
+  relayPath: boolean,
+): string | null {
+  if (!relayPath && located.cause !== "session_pending") return null;
+  const section = helpSection(located, failure);
+  return section === null ? null : t3ConnectTroubleshootingUrl(section);
 }
 
 /**
@@ -382,10 +400,7 @@ export function presentConnectionDiagnosis(
     hops,
     steps: steps(t, host, located, failure),
     facts,
-    moreInfoUrl:
-      relayPath || located.cause === "session_pending"
-        ? t3ConnectTroubleshootingUrl(helpSection(located, failure))
-        : null,
+    moreInfoUrl: helpUrl(located, failure, relayPath),
   };
 }
 

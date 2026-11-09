@@ -92,6 +92,8 @@ const DEVICES: ReadonlyArray<DeviceListEntry> = [
 function setup(
   input: {
     status?: DevicesStatus;
+    /** What the server has pushed since the one-shot status was read. */
+    pushed?: DevicesStatus;
     devices?: ReadonlyArray<DeviceListEntry>;
     desktop?: boolean;
   } = {},
@@ -100,7 +102,7 @@ function setup(
   mocks.status = Atom.make(AsyncResult.success(current));
   mocks.snapshot = Atom.make(
     AsyncResult.success({
-      status: current,
+      status: input.pushed ?? current,
       rev: 1,
       devices: input.devices ?? DEVICES,
     } satisfies DevicesSnapshot),
@@ -221,6 +223,31 @@ describe("Your server settings, not joined", () => {
       .toBeVisible();
     await expect.element(page.getByRole("button", { name: "Join my server" })).toBeVisible();
   });
+
+  it.each([
+    ["removed", "This computer was removed from your server."],
+    ["not_joined", "Connect your computers and phones through a server you run yourself."],
+  ] as const)(
+    "follows the pushed status when the server removes or leaves after the status was read (%s)",
+    async (state, message) => {
+      using _bridge = setup({
+        status: status(),
+        pushed: status({
+          state,
+          registryOrigin: null,
+          registryHost: null,
+          deviceId: null,
+          name: null,
+          url: null,
+        }),
+      });
+      await using screen = await render(ui(), { router: false });
+      await expect.element(page.getByText(message, { exact: false })).toBeVisible();
+      await expect.element(page.getByRole("button", { name: "Join my server" })).toBeVisible();
+      expect(screen.container.textContent).not.toContain("Connected to");
+      expect(page.getByRole("button", { name: "Leave this server" }).elements()).toHaveLength(0);
+    },
+  );
 });
 
 describe("Your server settings, joined", () => {

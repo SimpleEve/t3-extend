@@ -134,7 +134,7 @@ function AppSettingsSection() {
         label={t("Open source licenses")}
         target="SettingsOpenSourceLicenses"
       />
-      <SettingsRow icon="doc.text" label={t("Legal")} fullScreenTarget="SettingsLegal" />
+      {/* fork: no Legal row; it opened the terms and privacy pages on upstream's t3.codes. */}
       {updateCheckAvailable ? (
         <Pressable
           accessibilityLabel={t("Version {versionLabel}", { versionLabel })}

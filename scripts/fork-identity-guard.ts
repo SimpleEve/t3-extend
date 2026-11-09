@@ -162,17 +162,8 @@ const ALLOWED: ReadonlyArray<Allowed> = [
     reason: "Credits the upstream project.",
   },
   {
-    path: "apps/web/src/components/settings/MobileAppSettingsRow.tsx",
-    reason:
-      "The fork has no published mobile app; the official app can still pair with this server.",
-  },
-  {
     path: "apps/web/src/components/settings/MultipleAccountsNote.tsx",
     reason: "Links to upstream user documentation.",
-  },
-  {
-    path: "apps/web/src/lib/bootError.ts",
-    reason: "Upstream's public issue tracker is the only one available.",
   },
   {
     path: "packages/contracts/src/environmentHttp.ts",
@@ -252,11 +243,6 @@ const ALLOWED_BRAND: ReadonlyArray<Allowed> = [
   {
     path: "apps/web/src/components/promptLinks/HostedPromptLinkLanding.tsx",
     line: "Get T3 Code",
-    reason: "Links to the official download.",
-  },
-  {
-    path: "apps/web/src/lib/bootError.ts",
-    line: "Download and reinstall T3 Code",
     reason: "Links to the official download.",
   },
   {
