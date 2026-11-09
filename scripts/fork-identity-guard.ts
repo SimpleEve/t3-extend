@@ -246,11 +246,6 @@ const ALLOWED_BRAND: ReadonlyArray<Allowed> = [
     reason: "Links to the official download.",
   },
   {
-    path: "apps/web/src/lib/bootError.ts",
-    line: "Download and reinstall T3 Code",
-    reason: "Links to the official download.",
-  },
-  {
     path: "apps/web/src/components/clerk/",
     reason: "T3 Connect account pages; the account service belongs to official T3 Code.",
   },

@@ -1,7 +1,6 @@
 import type { DesktopBridge, DesktopUpdateState } from "@t3tools/contracts";
 
 const FALLBACK_TRIAGE_COMMAND = "npx t3 triage";
-const DOWNLOAD_URL = "https://t3.codes/download";
 const LAST_FAILURE_KEY = "t3code:boot-failed-at";
 const REPEAT_FAILURE_MS = 5 * 60_000;
 const MAX_CAUSES = 3;
@@ -341,20 +340,14 @@ export function showBootError(error: unknown) {
     ),
   );
 
-  const link = (href: string, textContent: string) =>
-    element("a", { href, textContent, target: "_blank", rel: "noreferrer" });
-  const nightly = environment.channel === "nightly";
-
   const more = element("details", { open: isRepeatFailure(Date.now()) }, [
     element("summary", { textContent: "More options if it keeps failing" }),
+    // fork: the upstream download link would install official T3 Code, which cannot repair this app.
     ...(bridge
       ? [
-          link(
-            nightly ? `${DOWNLOAD_URL}?channel=nightly` : DOWNLOAD_URL,
-            nightly
-              ? "Download and reinstall the latest nightly build"
-              : "Download and reinstall T3 Code",
-          ),
+          element("p", {
+            textContent: "Reinstall T3 Extend from the disk image you installed it from.",
+          }),
         ]
       : []),
     element("div", {}, [
