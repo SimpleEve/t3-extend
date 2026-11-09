@@ -152,6 +152,8 @@ describe("presentConnectionDiagnosis", () => {
     expect(diagnosis?.headline).toBe("Waiting for your server's device list");
     expect(diagnosis?.steps).toEqual(["Wait a moment. T3 Extend retries on its own."]);
     expect(diagnosis?.moreInfoUrl).toBeNull();
+    // Even on a relay path, a missing device list has no T3 Connect guide to point at.
+    expect(diagnose(backoff(deviceListNotReady()), "relay")?.moreInfoUrl).toBeNull();
   });
 
   it("does not report hops as working when the failure names none", () => {
