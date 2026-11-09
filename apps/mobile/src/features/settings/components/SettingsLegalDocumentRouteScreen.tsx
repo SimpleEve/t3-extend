@@ -35,7 +35,7 @@ export function SettingsLegalDocumentRouteScreen({
       onClose={() => navigation.goBack()}
       actions={[
         {
-          accessibilityLabel: "Open legal documents in external browser",
+          accessibilityLabel: t("Open legal documents in external browser"),
           icon: "safari",
           onPress: () => void Linking.openURL(safeExternalUrl).catch(() => undefined),
         },

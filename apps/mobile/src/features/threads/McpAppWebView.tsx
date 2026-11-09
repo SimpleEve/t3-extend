@@ -73,7 +73,9 @@ const commandFailure = (result: {
   const error = squashAtomCommandFailure(result);
   return new McpAppHostRefusal({
     message:
-      error instanceof Error && error.message.trim() !== "" ? error.message : "Request failed.",
+      error instanceof Error && error.message.trim() !== ""
+        ? error.message
+        : translate(getUiLocale(), "Request failed."),
   });
 };
 

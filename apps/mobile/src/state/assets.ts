@@ -1,5 +1,6 @@
 import { useAtomMount, useAtomSubscribe, useAtomValue } from "@effect/atom-react";
 import { resolveFilesystemReadAccess } from "@t3tools/client-runtime/state/filesystem";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import {
   assetUrlStateFromResult,
   blockedAssetUrlState,
@@ -163,7 +164,10 @@ const freshAssetUrlFamily = Atom.family((key: FreshAssetUrlKey) =>
           : await refreshAssetUrl(key.environmentId, key.resource, signal),
       catch: (cause) =>
         new AssetUrlUnavailableError({
-          message: cause instanceof Error ? cause.message : "The attachment is unavailable.",
+          message:
+            cause instanceof Error
+              ? cause.message
+              : translate(getUiLocale(), "The attachment is unavailable."),
           cause,
         }),
     }).pipe(
@@ -175,7 +179,7 @@ const freshAssetUrlFamily = Atom.family((key: FreshAssetUrlKey) =>
             }))
           : Effect.fail(
               new AssetUrlUnavailableError({
-                message: "Reconnect to this environment and try again.",
+                message: translate(getUiLocale(), "Reconnect to this environment and try again."),
               }),
             ),
       ),

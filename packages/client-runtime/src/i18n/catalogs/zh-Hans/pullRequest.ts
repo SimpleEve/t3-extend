@@ -709,4 +709,10 @@ export default {
     "粘贴 {kind} URL、检出命令，或输入 123 / #123。",
   "Use a {kind} URL, checkout command, 123, or #123.": "请使用 {kind} URL、检出命令、123 或 #123。",
   "Open on host": "在托管平台上打开",
+  "This repository has more people with access than are listed here. Search to find them.":
+    "这个仓库有访问权限的人比列出的更多。搜索即可找到。",
+  "Only the people already listed are matched: the host search failed. {error}":
+    "只会匹配已列出的人：托管平台的搜索失败了。{error}",
+  "More people match than the host returned. Keep typing to narrow it down.":
+    "匹配的人比托管平台返回的更多。继续输入以缩小范围。",
 } satisfies Record<string, string>;

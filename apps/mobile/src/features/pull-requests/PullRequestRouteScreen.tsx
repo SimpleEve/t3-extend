@@ -1046,7 +1046,19 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
     <View className="flex-1 android:bg-header ios:bg-screen">
       <AppBar
         title={title}
-        subtitle={`${commit ? commit.slice(0, 7) : `#${route.params.number}`} · ${data.files.length} ${data.files.length === 1 ? "file" : "files"}${filter.hideTestFiles && filter.hiddenCount ? ` · ${filter.hiddenCount} ${filter.hiddenCount === 1 ? "test" : "tests"} hidden` : ""}`}
+        subtitle={`${commit ? commit.slice(0, 7) : `#${route.params.number}`} · ${
+          data.files.length === 1
+            ? t("{count} file", { count: data.files.length })
+            : t("{count} files", { count: data.files.length })
+        }${
+          filter.hideTestFiles && filter.hiddenCount
+            ? ` · ${
+                filter.hiddenCount === 1
+                  ? t("{count} test file hidden", { count: filter.hiddenCount })
+                  : t("{count} test files hidden", { count: filter.hiddenCount })
+              }`
+            : ""
+        }`}
         onBack={() => navigation.goBack()}
         menus={[
           {

@@ -241,7 +241,7 @@ export function CloudVoiceConfiguration({
       commit?.();
       close();
     } catch {
-      setError("Couldn’t save this change. Check your connection and try again.");
+      setError(t("Couldn’t save this change. Check your connection and try again."));
     }
     setBusy(false);
   };

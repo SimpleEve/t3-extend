@@ -43,11 +43,11 @@ export function VoiceInputErrorPill(props: {
   const navigate = useNavigate();
   const openSettings = props.errorAction === "settings";
   const actionLabel = openSettings
-    ? "Open voice settings"
+    ? t("Open voice settings")
     : props.error === "Could not transcribe this recording." ||
         props.error === "Voice transcription on this environment failed."
-      ? "Retry transcription"
-      : "Record again";
+      ? t("Retry transcription")
+      : t("Record again");
   return (
     <VoiceInputPill>
       <Tooltip>
@@ -76,14 +76,16 @@ export function VoiceInputErrorPill(props: {
             <span
               tabIndex={0}
               role="status"
-              aria-label={props.error ?? t("Voice input failed")}
+              aria-label={props.error ? t(props.error) : t("Voice input failed")}
               className="min-w-0 flex-1 truncate text-sm text-destructive"
             />
           }
         >
-          {voiceErrorLabel(props.error)}
+          {t(voiceErrorLabel(props.error))}
         </TooltipTrigger>
-        <TooltipPopup side="top">{props.error ?? t("Voice input failed")}</TooltipPopup>
+        <TooltipPopup side="top">
+          {props.error ? t(props.error) : t("Voice input failed")}
+        </TooltipPopup>
       </Tooltip>
       {props.errorAction ? (
         <Tooltip>

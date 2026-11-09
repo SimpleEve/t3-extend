@@ -4,6 +4,7 @@ import {
   type SettingsSecretValue,
   type SimlockDeviceHostConfig as SimlockDeviceHostConfigType,
 } from "@t3tools/contracts";
+import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
@@ -44,9 +45,16 @@ export function simlockDeviceHostProblem(host: SimlockDeviceHostConfigType): str
     : "Keep the limits within the ranges shown.";
 }
 
-export function simlockLeaseLimits(host: SimlockDeviceHostConfigType) {
-  const devices = host.maxLeases === 1 ? "1 device" : `${host.maxLeases} devices`;
-  return `Up to ${devices} at once, each released after ${host.maxLeaseMinutes} min`;
+export function simlockLeaseLimits(
+  host: SimlockDeviceHostConfigType,
+  t: Translator = translatorFor("en"),
+) {
+  const devices =
+    host.maxLeases === 1 ? t("1 device") : t("{count} devices", { count: host.maxLeases });
+  return t("Up to {devices} at once, each released after {minutes} min", {
+    devices,
+    minutes: host.maxLeaseMinutes,
+  });
 }
 
 export interface SimlockHostEnvironment {

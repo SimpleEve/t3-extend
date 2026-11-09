@@ -883,4 +883,10 @@ export default {
   "Usage limit reached. The provider did not report a reset time. Retry manually when your limit is available.":
     "已达到用量上限。provider 没有报告重置时间，等上限恢复后请手动重试。",
   "Stop {position} of {total}": "第 {position} 站，共 {total} 站",
+  "The side chat was created, but it did not reach this device.":
+    "侧边对话已创建，但没有同步到这台设备。",
+  "The side chat is no longer available.": "侧边对话已不可用。",
+  "Could not set the side chat's permission mode.": "无法设置侧边对话的权限模式。",
+  "Fast and Ultrafast are unavailable with this ChatGPT connection. Use an existing Codex CLI login for speed options your account supports.":
+    "这个 ChatGPT 连接不支持 Fast 和 Ultrafast。要使用账号支持的速度选项，请使用已有的 Codex CLI 登录。",
 } satisfies Record<string, string>;

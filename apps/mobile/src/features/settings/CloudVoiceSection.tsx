@@ -184,8 +184,8 @@ function CloudChoices({ environment, active, onClose }: Props & { onClose: () =>
       commit();
     } catch {
       Dialog.alert(
-        "Could not enable cloud dictation",
-        "Check device storage and choose the provider again.",
+        t("Could not enable cloud dictation"),
+        t("Check device storage and choose the provider again."),
       );
     }
   };
@@ -221,8 +221,8 @@ function CloudChoices({ environment, active, onClose }: Props & { onClose: () =>
     } catch {
       setSaving(false);
       Dialog.alert(
-        "Could not update the API key",
-        "Check the environment connection and your settings permissions.",
+        t("Could not update the API key"),
+        t("Check the environment connection and your settings permissions."),
       );
       return;
     }

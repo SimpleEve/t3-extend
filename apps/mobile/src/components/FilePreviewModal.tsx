@@ -98,7 +98,7 @@ function ResolvedFilePreview(props: {
   );
   const onResolutionError = useEffectEvent((error: PreviewResolutionError) => {
     if (props.onOpenError) props.onOpenError(error.cause);
-    else Dialog.alert(t("Could not open preview"), error.fallbackMessage);
+    else Dialog.alert(t("Could not open preview"), t(error.fallbackMessage));
     props.onRequestClose();
   });
   // Resolves once per presentation and holds local file leases until it closes.

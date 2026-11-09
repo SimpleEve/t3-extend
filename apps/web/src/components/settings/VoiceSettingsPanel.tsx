@@ -658,7 +658,7 @@ function useVoiceModels(prepared: PreparedConnection | null) {
       if (current === epoch.current)
         toastManager.add({
           type: "error",
-          title: label,
+          title: t(label),
           description: error instanceof Error ? error.message : String(error),
         });
     }
@@ -753,12 +753,12 @@ function AdvancedSpeechSettings({
             }}
           >
             <SelectTrigger size="sm" aria-label={t("Unload model")} className="max-w-72">
-              <SelectValue>{UNLOAD_LABELS[supported.modelUnloadTimeout]}</SelectValue>
+              <SelectValue>{t(UNLOAD_LABELS[supported.modelUnloadTimeout])}</SelectValue>
             </SelectTrigger>
             <SelectPopup align="end" alignItemWithTrigger={false}>
               {(Object.keys(UNLOAD_LABELS) as SpeechModelUnloadTimeout[]).map((timeout) => (
                 <SelectItem key={timeout} value={timeout}>
-                  {UNLOAD_LABELS[timeout]}
+                  {t(UNLOAD_LABELS[timeout])}
                 </SelectItem>
               ))}
             </SelectPopup>
@@ -798,10 +798,10 @@ function SpeechModelBrowser(props: {
   );
   const accuracyLanguage = selectedLanguages[0] ?? "en";
   const sortLabels: Record<SpeechModelSort, string> = {
-    recommended: "Recommended",
-    size: "Smallest download",
-    accuracy: `Best ${languageLabel(accuracyLanguage)} accuracy`,
-    speed: "Fastest transcription",
+    recommended: t("Recommended"),
+    size: t("Smallest download"),
+    accuracy: t("Best {language} accuracy", { language: languageLabel(accuracyLanguage) }),
+    speed: t("Fastest transcription"),
   };
   const sortedModels = filterSpeechModels(models, {
     search,
@@ -880,7 +880,9 @@ function SpeechModelBrowser(props: {
               <div className="space-y-2 p-3">
                 <p className="text-sm font-medium">
                   {selectedLanguages.length
-                    ? "Models for " + selectedLanguages.map(languageLabel).join(", ")
+                    ? t("Models for {languages}", {
+                        languages: selectedLanguages.map(languageLabel).join(t(", ")),
+                      })
                     : t("All models")}
                 </p>
                 <InputGroup>
@@ -1170,8 +1172,8 @@ export function VoiceSettingsPanel() {
   const selectedMicrophone = settings.voiceMicrophone;
   const selectedMicrophoneLabel = selectedMicrophone
     ? (microphones.find((device) => device.deviceId === selectedMicrophone)?.label ??
-      "Selected microphone (unavailable)")
-    : "System default";
+      t("Selected microphone (unavailable)"))
+    : t("System default");
   const environmentChoices = environments.map((environment) => ({
     environment,
     value: JSON.stringify(["environment", environment.environmentId]),
@@ -1199,7 +1201,7 @@ export function VoiceSettingsPanel() {
   );
   // OpenRouter users without settings access still manage their own model choice.
   const manageLabel =
-    destination.cloudProvider === "openrouter" ? "Manage OpenRouter" : "Manage key";
+    destination.cloudProvider === "openrouter" ? t("Manage OpenRouter") : t("Manage key");
   const chosenEnvironment = environments.find(
     (environment) => environment.environmentId === destination.environmentId,
   );
@@ -1291,12 +1293,12 @@ export function VoiceSettingsPanel() {
                 aria-label={t("Dictation shortcut mode")}
                 className="max-w-72"
               >
-                <SelectValue>{SHORTCUT_MODE_LABELS[settings.voiceShortcutMode]}</SelectValue>
+                <SelectValue>{t(SHORTCUT_MODE_LABELS[settings.voiceShortcutMode])}</SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
                 {(Object.keys(SHORTCUT_MODE_LABELS) as VoiceShortcutMode[]).map((mode) => (
                   <SelectItem key={mode} value={mode}>
-                    {SHORTCUT_MODE_LABELS[mode]}
+                    {t(SHORTCUT_MODE_LABELS[mode])}
                   </SelectItem>
                 ))}
               </SelectPopup>

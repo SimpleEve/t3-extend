@@ -239,7 +239,7 @@ export function SimlockDeviceHostEditor(props: {
             </p>
             {problem === null || !gatewayUrl ? null : (
               <p className="text-xs text-destructive" role="alert">
-                {problem}
+                {t(problem)}
               </p>
             )}
           </DialogPanel>

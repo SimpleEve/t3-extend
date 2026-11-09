@@ -38,6 +38,7 @@ import { SettingsDragHandle } from "./components/SettingsDragHandle";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { SettingsSection } from "./components/SettingsSection";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import {
   deviceMicrophoneOrder,
   localVoiceTranscriberAtom,
@@ -123,8 +124,11 @@ function saveDestination(id: EnvironmentId | null) {
     chooseVoiceDestination(id);
   } catch {
     Dialog.alert(
-      "Could not save transcription choice",
-      "Dictation on an environment is off for this session. Save again before closing the app, or your previous choice may return when it restarts.",
+      translate(getUiLocale(), "Could not save transcription choice"),
+      translate(
+        getUiLocale(),
+        "Dictation on an environment is off for this session. Save again before closing the app, or your previous choice may return when it restarts.",
+      ),
     );
   }
 }

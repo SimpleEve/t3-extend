@@ -22,7 +22,7 @@ export function SettingsVoiceModelsRouteScreen({
   const { environments } = useEnvironments();
   const label =
     environments.find((environment) => environment.environmentId === route.params.environmentId)
-      ?.label ?? "This environment";
+      ?.label ?? t("This environment");
   const voice = useVoiceModels(route.params.environmentId, label);
   const benchmarks = new Map(
     (

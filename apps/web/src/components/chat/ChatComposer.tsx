@@ -1889,7 +1889,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   });
   const { blocksSubmission: voiceInputActive, submitAfterDictation } = speechInput;
   const voiceSendDisabledReason =
-    sendDisabledReason ?? (speechInput.preparing ? "Preparing voice input" : null);
+    sendDisabledReason ?? (speechInput.preparing ? t("Preparing voice input") : null);
   const dictationShortcutLabel = useDictationShortcut({
     keybindings,
     speech: speechInput,

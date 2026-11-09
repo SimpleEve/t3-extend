@@ -23,6 +23,7 @@ import { EnvironmentRegistry, EnvironmentSupervisor } from "@t3tools/client-runt
 import { request, runStream } from "@t3tools/client-runtime/rpc";
 import { ManagedRelay, relayRequestFailureDetail } from "@t3tools/client-runtime/relay";
 import { executeConnectedEnvironmentHttpRequest } from "@t3tools/client-runtime/state/environmentHttpAuth";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 import { resolveCloudPublicConfig } from "./publicConfig";
 import {
@@ -48,7 +49,7 @@ export const isCloudEnvironmentLinkError = Schema.is(CloudEnvironmentLinkError);
 
 const relayClientRpcError = (message: string) => (cause: unknown) =>
   new CloudEnvironmentLinkError({
-    message,
+    message: translate(getUiLocale(), message),
     cause,
   });
 
@@ -63,7 +64,11 @@ const ensureRelayClientAvailable = Effect.fn("linkEnvironment.ensureRelayClientA
     if (status.status === "available") return;
     if (status.status === "unsupported") {
       return yield* new CloudEnvironmentLinkError({
-        message: `T3 Extend cannot install the relay client automatically on ${status.platform}-${status.arch}.`,
+        message: translate(
+          getUiLocale(),
+          "T3 Extend cannot install the relay client automatically on {platform}.",
+          { platform: `${status.platform}-${status.arch}` },
+        ),
       });
     }
 
@@ -73,7 +78,7 @@ const ensureRelayClientAvailable = Effect.fn("linkEnvironment.ensureRelayClientA
     });
     if (!confirmed) {
       return yield* new CloudEnvironmentLinkError({
-        message: "Relay client installation was cancelled.",
+        message: translate(getUiLocale(), "Relay client installation was cancelled."),
       });
     }
 
@@ -91,7 +96,10 @@ const ensureRelayClientAvailable = Effect.fn("linkEnvironment.ensureRelayClientA
       );
     if (Option.isNone(installed) || installed.value.type !== "complete") {
       return yield* new CloudEnvironmentLinkError({
-        message: "The relay client install completed without a final status.",
+        message: translate(
+          getUiLocale(),
+          "The relay client install completed without a final status.",
+        ),
       });
     }
     const installedStatus = installed.value.status;
@@ -99,8 +107,12 @@ const ensureRelayClientAvailable = Effect.fn("linkEnvironment.ensureRelayClientA
       return yield* new CloudEnvironmentLinkError({
         message:
           installedStatus.status === "unsupported"
-            ? `T3 Extend cannot install the relay client automatically on ${installedStatus.platform}-${installedStatus.arch}.`
-            : "The relay client is still unavailable after installation.",
+            ? translate(
+                getUiLocale(),
+                "T3 Extend cannot install the relay client automatically on {platform}.",
+                { platform: `${installedStatus.platform}-${installedStatus.arch}` },
+              )
+            : translate(getUiLocale(), "The relay client is still unavailable after installation."),
       });
     }
   },
@@ -117,8 +129,9 @@ const isEnvironmentCloudApiError = Schema.is(
   ]),
 );
 
-function decodedRelayClientError(message: string) {
+function decodedRelayClientError(source: string) {
   return (cause: ManagedRelay.ManagedRelayClientError) => {
+    const message = translate(getUiLocale(), source);
     const failed = cause._tag === "ManagedRelayRequestFailedError" ? cause : undefined;
     const traceId = "traceId" in cause ? cause.traceId : undefined;
     const detail = (failed && relayRequestFailureDetail(failed)) ?? cause.message;
@@ -140,11 +153,12 @@ function findEnvironmentCloudApiError(cause: unknown): { readonly message: strin
   return "cause" in cause ? findEnvironmentCloudApiError(cause.cause) : null;
 }
 
-const environmentApiError = (message: string) => (cause: unknown) => {
+const environmentApiError = (source: string) => (cause: unknown) => {
   const environmentError = findEnvironmentCloudApiError(cause);
+  const message = translate(getUiLocale(), source);
   return new CloudEnvironmentLinkError({
     message: environmentError
-      ? `${message.replace(/[.:]$/, "")}: ${environmentError.message}`
+      ? `${message.replace(/[.:。：]$/, "")}: ${environmentError.message}`
       : message,
     cause,
   });
@@ -168,12 +182,15 @@ function ensureLinkedEnvironmentMatches(input: {
 }): Effect.Effect<void, CloudEnvironmentLinkError> {
   if (input.link.environmentId !== input.expectedEnvironmentId) {
     return new CloudEnvironmentLinkError({
-      message: "Relay returned credentials for a different environment.",
+      message: translate(getUiLocale(), "Relay returned credentials for a different environment."),
     });
   }
   if (input.link.endpoint.providerKind !== input.expectedProviderKind) {
     return new CloudEnvironmentLinkError({
-      message: "Relay returned credentials for a different endpoint provider.",
+      message: translate(
+        getUiLocale(),
+        "Relay returned credentials for a different endpoint provider.",
+      ),
     });
   }
   return Effect.void;
@@ -223,7 +240,9 @@ const preparedEndpoint = (target: CloudLinkTarget) =>
       Option.match({
         onNone: () =>
           Effect.fail(
-            new CloudEnvironmentLinkError({ message: "The environment is not connected." }),
+            new CloudEnvironmentLinkError({
+              message: translate(getUiLocale(), "The environment is not connected."),
+            }),
           ),
         onSome: ({ httpBaseUrl, target }) =>
           Effect.succeed({
@@ -338,7 +357,7 @@ export const linkEnvironmentToCloud: (input: {
   const configuredRelayUrl = relayUrl();
   if (!configuredRelayUrl) {
     return yield* new CloudEnvironmentLinkError({
-      message: "T3CODE_RELAY_URL is not configured.",
+      message: translate(getUiLocale(), "T3CODE_RELAY_URL is not configured."),
     });
   }
   const managedTunnelsEnabled = (input.mode ?? "managed") === "managed";

@@ -1,4 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { videoMimeType } from "@t3tools/shared/video";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
@@ -102,7 +103,10 @@ const localAttachmentPreviewFamily = Atom.family((key: LocalAttachmentPreviewKey
         try: (signal) => loadLocalAttachmentPreview(key.attachment, signal),
         catch: (cause) =>
           new LocalAttachmentPreviewLoadError({
-            message: cause instanceof Error ? cause.message : "The local file is unavailable.",
+            message:
+              cause instanceof Error
+                ? cause.message
+                : translate(getUiLocale(), "The local file is unavailable."),
             cause,
           }),
       }).pipe(

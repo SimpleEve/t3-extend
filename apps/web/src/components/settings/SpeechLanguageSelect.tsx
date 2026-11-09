@@ -1,11 +1,20 @@
+import { getUiLocale, uiLocaleFormatTag } from "@t3tools/client-runtime/i18n";
 import type { EnvironmentSpeechStatus } from "@t3tools/contracts";
 import { effectiveSpeechLanguage } from "@t3tools/shared/speech";
 import { updateClientSettings, useClientSettings } from "../../hooks/useSettings";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { useT } from "~/hooks/useT";
 
-const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
-export const languageLabel = (code: string) => languageNames.of(code) ?? code;
+const languageNamesByTag = new Map<string, Intl.DisplayNames>();
+export const languageLabel = (code: string) => {
+  const tag = uiLocaleFormatTag(getUiLocale());
+  let names = languageNamesByTag.get(tag);
+  if (!names) {
+    names = new Intl.DisplayNames([tag], { type: "language" });
+    languageNamesByTag.set(tag, names);
+  }
+  return names.of(code) ?? code;
+};
 
 type ModelLanguages = Pick<
   Extract<EnvironmentSpeechStatus, { supported: true }>,
@@ -22,15 +31,15 @@ export function SpeechLanguageSelect({ model }: { readonly model: ModelLanguages
         preference,
       )
     : preference;
-  const effectiveLabel = resolved === "auto" ? "Auto-detect" : languageLabel(resolved);
+  const effectiveLabel = resolved === "auto" ? t("Auto-detect") : languageLabel(resolved);
   const unavailable =
     preference !== "auto" && preference !== resolved
-      ? `${languageLabel(preference)} unavailable`
+      ? t("{language} unavailable", { language: languageLabel(preference) })
       : null;
   const label = unavailable
     ? `${effectiveLabel} (${unavailable})`
     : preference === "auto" && resolved !== "auto"
-      ? `Auto (${effectiveLabel})`
+      ? t("Auto ({language})", { language: effectiveLabel })
       : effectiveLabel;
   return (
     <Select

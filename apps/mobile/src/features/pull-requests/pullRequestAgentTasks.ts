@@ -22,6 +22,7 @@ export function pullRequestAgentThreadActions(
   threads: PullRequestLinkedThreadsResult["threads"],
   task: PullRequestAgentTask,
   canAsk: boolean,
+  t: Translator = (message) => message, // fork: i18n
 ): MenuAction[] {
   const active: MenuAction[] = [];
   const settled: MenuAction[] = [];
@@ -30,20 +31,20 @@ export function pullRequestAgentThreadActions(
       id: `${task}:${thread.id}`,
       title: thread.title,
       subtitle: thread.archivedAt
-        ? "Archived thread"
+        ? t("Archived thread")
         : thread.settled
-          ? "Settled thread"
-          : "Continue thread",
+          ? t("Settled thread")
+          : t("Continue thread"),
       image: "bubble.left.and.bubble.right",
       attributes: { disabled: task !== "ask" && Boolean(thread.archivedAt) },
     };
     (thread.settled ? settled : active).push(action);
   }
   return [
-    ...(canAsk ? [{ id: `${task}:new`, title: "Start a new thread", image: "plus" }] : []),
+    ...(canAsk ? [{ id: `${task}:new`, title: t("Start a new thread"), image: "plus" }] : []),
     ...active,
     ...(settled.length
-      ? [{ id: `${task}:settled`, title: "Settled threads", subactions: settled }]
+      ? [{ id: `${task}:settled`, title: t("Settled threads"), subactions: settled }]
       : []),
   ];
 }

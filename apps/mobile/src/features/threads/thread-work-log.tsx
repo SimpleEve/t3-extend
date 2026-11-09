@@ -1479,7 +1479,8 @@ export function ThreadThinkingRow(props: {
   readonly iconSubtleColor: ColorValue;
   readonly label?: string;
 }) {
-  const label = props.label ?? "Thinking";
+  const t = useT(); // fork: i18n
+  const label = props.label ?? t("Thinking");
   return (
     <View
       accessible

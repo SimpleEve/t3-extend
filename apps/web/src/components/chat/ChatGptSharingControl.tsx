@@ -29,9 +29,9 @@ export function ChatGptSharingControl({ provider }: { provider: ServerProvider |
           {t("Using ChatGPT plan")}
         </TooltipTrigger>
         <span id={speedNoticeId} className="sr-only">
-          {speedNotice}
+          {t(speedNotice)}
         </span>
-        <TooltipPopup side="top">{speedNotice}</TooltipPopup>
+        <TooltipPopup side="top">{t(speedNotice)}</TooltipPopup>
       </Tooltip>
       <ChatGptUsageButton size="xs" />
     </div>

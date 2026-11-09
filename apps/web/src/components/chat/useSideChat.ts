@@ -75,7 +75,7 @@ export function useSideChat(input: {
     }
     const sideChat = readThreadShell(targetRef);
     if (sideChat === null) {
-      input.onError("The side chat is no longer available.");
+      input.onError(t("The side chat is no longer available."));
       discard();
       return false;
     }
@@ -85,7 +85,7 @@ export function useSideChat(input: {
         input: { threadId: targetThreadId, runtimeMode, createdAt: new Date().toISOString() },
       });
       if (mode._tag === "Failure") {
-        reportFailure(mode, "Could not set the side chat's permission mode.");
+        reportFailure(mode, t("Could not set the side chat's permission mode."));
         discard();
         return false;
       }

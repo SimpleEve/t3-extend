@@ -34,6 +34,7 @@ import {
 } from "./sheet-paint";
 import { externalUrl } from "./links";
 import { useT } from "~/hooks/useT";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 const isSupersededError = Schema.is(SupersededError);
 
@@ -72,7 +73,7 @@ export default function Spreadsheet(props: {
       .then((value) => {
         if (!value) throw new Error("This workbook has no visible sheets.");
         setOpened({ ...value, engine });
-        onDetails(`${value.tabs.length} sheets`);
+        onDetails(translate(getUiLocale(), "{count} sheets", { count: value.tabs.length }));
       })
       .catch(fail);
     return () => {
@@ -100,7 +101,7 @@ export default function Spreadsheet(props: {
   if (!opened) return <FileSurfaceLoading />;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {error ? <FileSurfaceNotice>{error}</FileSurfaceNotice> : null}
+      {error ? <FileSurfaceNotice>{t(error)}</FileSurfaceNotice> : null}
       <SpreadsheetGrid
         key={opened.layout.info.activeSheet}
         engine={opened.engine}
@@ -160,6 +161,7 @@ function SpreadsheetGrid(props: {
   initialCell: CellAddr | undefined;
   onNavigate: (sheet: string, cell: CellAddr) => void;
 }) {
+  const t = useT();
   const { onNavigate, layout, engine, initialCell } = props;
   const scroller = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -585,7 +587,7 @@ function SpreadsheetGrid(props: {
           role="status"
           className="absolute inset-x-3 bottom-3 rounded-md bg-background p-2 text-xs text-foreground shadow-md"
         >
-          {notice}
+          {t(notice)}
         </div>
       ) : null}
     </div>

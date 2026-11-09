@@ -820,4 +820,18 @@ export default {
   "Recorded content after": "记录的修改后内容",
   "Could not copy {count} file to {target}": "无法把 {count} 个文件复制到 {target}",
   "Could not copy {count} files to {target}": "无法把 {count} 个文件复制到 {target}",
+  "vs {baseRef}": "对比 {baseRef}",
+  "1 device": "1 台设备",
+  "{count} devices": "{count} 台设备",
+  "Up to {devices} at once, each released after {minutes} min":
+    "最多同时 {devices}，每台用完 {minutes} 分钟后释放",
+  "{count} slides": "{count} 张幻灯片",
+  "{count} sheets": "{count} 个工作表",
+  "{count} pages": "{count} 页",
+  "The Office engine stopped": "Office 引擎已停止",
+  "The Office engine sent an unreadable reply": "Office 引擎返回了无法读取的内容",
+  "The call was aborted": "调用已中止",
+  "This document took too long to preview. Open it in another app.":
+    "这个文档预览耗时过长。请用其他应用打开。",
+  "The Office engine was closed": "Office 引擎已关闭",
 } satisfies Record<string, string>;

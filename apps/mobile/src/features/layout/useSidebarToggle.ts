@@ -13,9 +13,9 @@ export function useSidebarToggle() {
     visible: panes.primarySidebarVisible,
     accessibilityLabel: panes.primarySidebarVisible
       ? maximizes
-        ? "Maximize content"
+        ? t("Maximize content")
         : t("Hide sidebar")
-      : "Show sidebar",
+      : t("Show sidebar"),
     icon: maximizes ? "arrow.up.left.and.arrow.down.right" : "sidebar.left",
     onPress: togglePrimarySidebar,
   } as const;

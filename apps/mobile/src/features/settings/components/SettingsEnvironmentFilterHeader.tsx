@@ -52,7 +52,7 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
         id: "projects",
         title:
           selectableProjectGroups.find((group) => group.key === selectedProjectKey)?.label ??
-          (selectedProjectKey === null ? t("All projects") : "Unavailable project"),
+          (selectedProjectKey === null ? t("All projects") : t("Unavailable project")),
         items: [
           {
             id: "project:all",

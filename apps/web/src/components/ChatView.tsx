@@ -2639,7 +2639,7 @@ export default function ChatView(props: ChatViewProps) {
     // An approval's feedback goes to that approval; the armed session waits for the next message.
     const freshSessionItems =
       freshSessionAvailable && freshSessionArmed && activePendingApproval === null
-        ? [freshSessionBannerItem(() => disarmFreshSession(routeThreadKey))]
+        ? [freshSessionBannerItem(() => disarmFreshSession(routeThreadKey), t)]
         : [];
     if (!localCheckoutBranchMismatch || !showBranchMismatchBanner || !activeBranchMismatchKey) {
       return [

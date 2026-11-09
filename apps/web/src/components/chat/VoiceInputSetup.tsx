@@ -68,8 +68,8 @@ export function VoiceInputSetup(props: {
   );
   const selectedMicrophoneLabel = selectedMicrophone
     ? (microphones.find((device) => device.deviceId === selectedMicrophone)?.label ??
-      "Selected microphone (Unavailable)")
-    : "System default";
+      t("Selected microphone (Unavailable)"))
+    : t("System default");
   const status = props.status?.supported ? props.status : null;
   const model = props.model;
   const progress =
@@ -88,7 +88,7 @@ export function VoiceInputSetup(props: {
             value: environment?.label ?? "your transcription environment",
           })}
         >
-          <WizardSteps steps={["Model", "Ready to dictate"]} currentStep={props.step} />
+          <WizardSteps steps={[t("Model"), t("Ready to dictate")]} currentStep={props.step} />
         </WizardHeader>
         <WizardPanel>
           {props.step === 0 ? (
@@ -215,7 +215,7 @@ export function VoiceInputSetup(props: {
                 ) : null}
                 {microphoneError ? (
                   <p role="alert" className="text-xs text-muted-foreground">
-                    {microphoneError}
+                    {t(microphoneError)}
                   </p>
                 ) : null}
               </div>

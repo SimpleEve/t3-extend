@@ -14,6 +14,7 @@ import {
   type WordLink,
 } from "./word-protocol";
 import { useT } from "~/hooks/useT";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 type Opened = {
   pages: readonly WordPageSize[];
@@ -65,7 +66,11 @@ export default function WordDocument(props: {
       .then(async (first) => {
         if (controller.signal.aborted) return;
         setOpened({ pages: first.pages, paint, engine });
-        onDetails(`${first.pages.length}${first.loading ? "+" : ""} pages`);
+        onDetails(
+          translate(getUiLocale(), "{count} pages", {
+            count: `${first.pages.length}${first.loading ? "+" : ""}`,
+          }),
+        );
         if (!first.loading) return;
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         while (!controller.signal.aborted) {
@@ -73,7 +78,7 @@ export default function WordDocument(props: {
           if (!step.done) continue;
           if (step.pages.length > 1000) throw new Error("Preview limited to 1,000 pages.");
           setOpened({ pages: step.pages, paint, engine });
-          onDetails(`${step.pages.length} pages`);
+          onDetails(translate(getUiLocale(), "{count} pages", { count: step.pages.length }));
           break;
         }
       })

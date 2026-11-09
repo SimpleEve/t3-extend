@@ -10,6 +10,7 @@ import { createNativeHeaderMenu } from "./nativeHeaderMenu.ios";
 import { useControlTheme } from "./useControlTheme";
 import type { SheetCloseButtonProps, SheetHeaderProps } from "./SheetHeader.types";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { localizeSheetHeaderProps } from "../../fork/appBarI18n"; // fork: i18n
 
 export function SheetCloseButton(props: SheetCloseButtonProps) {
   const t = useT(); // fork: i18n
@@ -23,7 +24,9 @@ export function SheetCloseButton(props: SheetCloseButtonProps) {
   );
 }
 
-export function SheetHeader(props: SheetHeaderProps) {
+export function SheetHeader(rawProps: SheetHeaderProps) {
+  const t = useT(); // fork: i18n
+  const props = localizeSheetHeaderProps(rawProps, t); // fork: i18n
   return (
     <>
       <SheetDismissGuard dismissDisabled={props.dismissDisabled} />
@@ -44,9 +47,10 @@ function SheetDismissGuard(props: { readonly dismissDisabled: boolean | undefine
 }
 
 function NativeSheetHeader(props: SheetHeaderProps) {
+  const t = useT(); // fork: i18n
   const { colors } = useControlTheme();
   const onDismiss = props.onCancel ?? props.onClose;
-  const dismissLabel = props.accessibilityLabel ?? (props.onCancel ? "Cancel" : "Close");
+  const dismissLabel = props.accessibilityLabel ?? (props.onCancel ? t("Cancel") : t("Close")); // fork: i18n
   const confirmation = props.confirm;
 
   // Toolbar children are parsed as native items, so keep the actual Button

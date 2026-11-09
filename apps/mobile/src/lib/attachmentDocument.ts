@@ -47,7 +47,8 @@ async function readAttachmentText(key: AttachmentTextKey, signal: AbortSignal) {
       key.environmentId === null
         ? null
         : await refreshAssetUrl(key.environmentId, key.resource, signal);
-    if (!refreshed) throw new Error("Reconnect to this environment and try again.");
+    if (!refreshed)
+      throw new Error(translatorFor(getUiLocale())("Reconnect to this environment and try again."));
     target = refreshed;
   }
   const response = await fetch(target, {
@@ -76,7 +77,10 @@ const attachmentTextAtom = Atom.family((key: AttachmentTextKey) =>
       try: (signal) => readAttachmentText(key, signal),
       catch: (cause) =>
         new AttachmentTextReadError({
-          message: cause instanceof Error ? cause.message : "Could not read this file.",
+          message:
+            cause instanceof Error
+              ? cause.message
+              : translatorFor(getUiLocale())("Could not read this file."),
           cause,
         }),
     }),

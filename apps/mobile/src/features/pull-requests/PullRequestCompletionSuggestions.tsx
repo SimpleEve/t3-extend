@@ -25,6 +25,7 @@ const COPY = {
 const STATE_LABEL = { open: "Open", closed: "Closed", merged: "Merged" } as const;
 
 function CompletionRow({ completion }: { readonly completion: PullRequestCompletion }) {
+  const t = useT(); // fork: i18n
   if (completion.kind === "mention") {
     const { actor } = completion;
     return (
@@ -51,7 +52,7 @@ function CompletionRow({ completion }: { readonly completion: PullRequestComplet
         {candidate.title}
       </Text>
       <Text className="shrink-0 text-xs text-foreground-tertiary">
-        {STATE_LABEL[candidate.state]}
+        {t(STATE_LABEL[candidate.state])}
       </Text>
     </>
   );
@@ -77,7 +78,7 @@ export function PullRequestCompletionSuggestions({
           className="max-h-[180px]"
           keyboardShouldPersistTaps="always"
           showsVerticalScrollIndicator={false}
-          accessibilityLabel={copy.label}
+          accessibilityLabel={t(copy.label)}
         >
           {completions.candidates.map((completion, index) => (
             <Pressable
@@ -98,7 +99,7 @@ export function PullRequestCompletionSuggestions({
       ) : (
         <View className="px-3.5 py-2.5">
           <Text className="text-xs text-foreground-tertiary">
-            {copy[completions.isLoading ? "pending" : completions.failed ? "failed" : "none"]}
+            {t(copy[completions.isLoading ? "pending" : completions.failed ? "failed" : "none"])}
           </Text>
         </View>
       )}

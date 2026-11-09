@@ -3,6 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { AsyncResult, Atom } from "effect/reactivity";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 import { findEnvironmentUpdate } from "./environment-maintenance";
 
@@ -21,7 +22,10 @@ export class EnvironmentUpdateCheckError extends Schema.TaggedError<EnvironmentU
 
 const asError = (cause: unknown) =>
   new EnvironmentUpdateCheckError({
-    message: cause instanceof Error ? cause.message : "Could not check for updates.",
+    message:
+      cause instanceof Error
+        ? cause.message
+        : translate(getUiLocale(), "Could not check for updates."),
     cause,
   });
 
@@ -44,7 +48,7 @@ export const environmentReleaseCheckAtom = Atom.family((environmentId: Environme
           orElse: () =>
             Effect.fail(
               new EnvironmentUpdateCheckError({
-                message: "Checking for updates timed out. Try again.",
+                message: translate(getUiLocale(), "Checking for updates timed out. Try again."),
               }),
             ),
         }),

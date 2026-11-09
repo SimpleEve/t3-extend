@@ -1,14 +1,16 @@
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
+import { withLocalizedTitle } from "../../../fork/localizedTitle"; // fork: i18n
 import { StandaloneStack } from "../nested-stacks";
 import { pageRoute } from "../route-options";
 import { getCompactBrandHeaderOptions } from "./brand-header-options";
 
-const SIDEBAR_COLUMN_OPTIONS = {
+const SIDEBAR_COLUMN_OPTIONS = withLocalizedTitle({
+  // fork: i18n
   ...pageRoute(),
   ...getCompactBrandHeaderOptions({ fontSize: 18, fontWeight: "800" }),
-};
+});
 
 /** The iOS sidebar column hosts its own stack so it gets a native bar with the brand title. */
 export function WorkspaceSidebarColumn(props: {

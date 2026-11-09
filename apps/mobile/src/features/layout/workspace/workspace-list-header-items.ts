@@ -1,3 +1,4 @@
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import type {
   NativeStackHeaderItem,
   NativeStackHeaderItemMenu,
@@ -40,7 +41,10 @@ export function createWorkspaceListHeaderItems(input: {
     readonly items: ReadonlyArray<AppBarMenuItem>;
   };
   readonly onOpenSettings?: () => void;
+  /** Translates the Settings button; English when omitted. */ // fork: i18n
+  readonly t?: Translator;
 }): NativeStackHeaderItem[] {
+  const t = input.t ?? ((source: string) => source); // fork: i18n
   return [
     withNativeGlassHeaderItem({
       type: "menu",
@@ -58,8 +62,8 @@ export function createWorkspaceListHeaderItems(input: {
           withNativeGlassHeaderItem({
             type: "button",
             axisBehavior: "horizontalOnly",
-            label: "Settings",
-            accessibilityLabel: "Open settings",
+            label: t("Settings"), // fork: i18n
+            accessibilityLabel: t("Open settings"), // fork: i18n
             icon: sfSymbolIcon("gearshape"),
             onPress: input.onOpenSettings,
           }),

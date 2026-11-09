@@ -90,10 +90,10 @@ export function useVoiceModels(environmentId: EnvironmentId, label: string) {
           label,
           value: formatBytes(model.size),
         }),
-        confirmText: "Download",
+        confirmText: t("Download"),
         onConfirm: () =>
           void run(
-            "Could not download the model",
+            t("Could not download the model"),
             async () => {
               await runSpeech(downloadEnvironmentSpeechModel(connection, model.id));
               if (model.id !== status.modelId)
@@ -105,13 +105,13 @@ export function useVoiceModels(environmentId: EnvironmentId, label: string) {
     },
     select: (model: EnvironmentSpeechModel) => {
       if (!ready || model.active) return;
-      void run("Could not select the model", () =>
+      void run(t("Could not select the model"), () =>
         runSpeech(selectEnvironmentSpeechModel(connection, model.id)),
       );
     },
     cancel: (model: EnvironmentSpeechModel) => {
       if (!ready) return;
-      void run("Could not cancel the download", () =>
+      void run(t("Could not cancel the download"), () =>
         runSpeech(cancelEnvironmentSpeechModelDownload(connection, model.id)),
       );
     },
@@ -287,7 +287,7 @@ export function VoiceModelSection(props: {
   const voice = useVoiceModels(props.environmentId, props.label);
   const { status } = voice;
   if (!voice.connection || !status) return null;
-  const title = `Transcription model on ${props.label}`;
+  const title = t("Transcription model on {label}", { label: props.label });
   if (!status.supported) {
     return (
       <SettingsSection title={title} footer={status.reason}>
@@ -306,7 +306,10 @@ export function VoiceModelSection(props: {
       footer={
         voice.canManage
           ? undefined
-          : `This connection can’t change settings on ${props.label}. Add a transcription model using T3 Extend on that machine.`
+          : t(
+              "This connection can’t change settings on {label}. Add a transcription model using T3 Extend on that machine.",
+              { label: props.label },
+            )
       }
     >
       <ListRow

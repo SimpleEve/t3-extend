@@ -289,7 +289,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
       ));
 
   return (
-    <SettingsScreen title={PAGE_TITLES[props.page]} menus={[environmentMenu]}>
+    <SettingsScreen title={t(PAGE_TITLES[props.page])} menus={[environmentMenu]}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
@@ -333,8 +333,8 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   ).map((choice, index) => (
                     <SettingsChoiceRow
                       key={choice.mode ?? "inherit"}
-                      label={choice.label}
-                      description={choice.description}
+                      label={t(choice.label)}
+                      description={t(choice.description)}
                       selected={
                         !isMixed("defaultThreadEnvMode") &&
                         uniform("defaultThreadEnvMode") === choice.mode
@@ -357,8 +357,8 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   {runtimeModeChoices.map((choice, index) => (
                     <SettingsChoiceRow
                       key={choice.mode}
-                      label={choice.label}
-                      description={choice.disabledReason ?? choice.description}
+                      label={t(choice.label)}
+                      description={choice.disabledReason ?? t(choice.description)}
                       selected={uniform("defaultRuntimeMode") === choice.mode}
                       separated={index > 0}
                       disabled={
@@ -380,8 +380,8 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   {STREAMING_CHOICES.map((choice, index) => (
                     <SettingsChoiceRow
                       key={choice.mode}
-                      label={choice.label}
-                      description={choice.description}
+                      label={t(choice.label)}
+                      description={t(choice.description)}
                       selected={uniform("responseStreamingMode") === choice.mode}
                       separated={index > 0}
                       disabled={disabledFor("responseStreamingMode")}
@@ -395,7 +395,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                     label={t("Agent browser access")}
                     subtitle={managedSubtitle(
                       "enableAgentBrowserAccess",
-                      "Allow agents to use the in-app preview browser.",
+                      t("Allow agents to use the in-app preview browser."),
                     )}
                     value={uniform("enableAgentBrowserAccess")}
                     disabled={disabledFor("enableAgentBrowserAccess")}
@@ -420,7 +420,9 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                     label={t("Remove agent credits when merging")}
                     subtitle={managedSubtitle(
                       "removeAgentCreditsOnMerge",
-                      "Remove recognized agent credits from merge and squash messages on hosts that support it, keeping human co-authors. Includes auto-merge. Excludes merge queues, stack merges, and existing commits.",
+                      t(
+                        "Remove recognized agent credits from merge and squash messages on hosts that support it, keeping human co-authors. Includes auto-merge. Excludes merge queues, stack merges, and existing commits.",
+                      ),
                     )}
                     value={uniform("removeAgentCreditsOnMerge")}
                     disabled={disabledFor("removeAgentCreditsOnMerge")}
@@ -433,7 +435,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                     label={t("Automatically pull")}
                     subtitle={managedSubtitle(
                       "defaultAutoPull",
-                      "Keep the default branch current when there are no local changes.",
+                      t("Keep the default branch current when there are no local changes."),
                     )}
                     value={uniform("defaultAutoPull")}
                     disabled={disabledFor("defaultAutoPull")}
@@ -486,8 +488,8 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   ).map((choice, index) => (
                     <SettingsChoiceRow
                       key={choice.mode ?? "inherit"}
-                      label={choice.label}
-                      description={choice.description}
+                      label={t(choice.label)}
+                      description={t(choice.description)}
                       selected={
                         !isMixed("worktreeSubmodules") &&
                         uniform("worktreeSubmodules") === choice.mode
@@ -530,7 +532,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                         key={target.environmentId}
                         icon="server.rack"
                         label={target.label}
-                        value="Server and provider updates"
+                        value={t("Server and provider updates")}
                         onPress={() =>
                           navigation.navigate("SettingsEnvironmentDetail", {
                             environmentId: target.environmentId,
@@ -547,8 +549,10 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                     subtitle={managedSubtitle(
                       "enableProviderUpdateChecks",
                       projectSelected
-                        ? "Environment-wide setting. Select All projects to change it."
-                        : "Check installed provider CLIs for newer versions and fetch model catalog updates. When off, new models may not appear.",
+                        ? t("Environment-wide setting. Select All projects to change it.")
+                        : t(
+                            "Check installed provider CLIs for newer versions and fetch model catalog updates. When off, new models may not appear.",
+                          ),
                     )}
                     value={uniform("enableProviderUpdateChecks")}
                     disabled={disabledFor("enableProviderUpdateChecks")}
@@ -560,7 +564,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                       label={t("Continue after restart")}
                       subtitle={managedSubtitle(
                         "continueThreadsAfterServerUpdate",
-                        "Resume interrupted threads after an update or restart.",
+                        t("Resume interrupted threads after an update or restart."),
                       )}
                       value={uniform("continueThreadsAfterServerUpdate")}
                       disabled={disabledFor("continueThreadsAfterServerUpdate")}

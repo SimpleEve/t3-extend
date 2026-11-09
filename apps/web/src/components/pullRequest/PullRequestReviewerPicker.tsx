@@ -23,15 +23,13 @@ import { PullRequestActorLabel } from "./pullRequestPresentation";
 import { readableFailure } from "./pullRequestDetail.logic";
 import { useT } from "~/hooks/useT"; // fork: interface language
 
-const TRUNCATED_LABELS: Record<ReviewerTruncation, (error: string | null) => string> = {
-  unsearchable: () =>
+const TRUNCATED_LABELS: Record<ReviewerTruncation, string> = {
+  unsearchable:
     "This repository has more people with access than are listed here. Ask for the rest on the host.",
-  searchable: () =>
+  searchable:
     "This repository has more people with access than are listed here. Search to find them.",
-  "search-failed": (error) =>
-    `Only the people already listed are matched: the host search failed. ${error ?? ""}`,
-  "search-truncated": () =>
-    "More people match than the host returned. Keep typing to narrow it down.",
+  "search-failed": "Only the people already listed are matched: the host search failed. {error}",
+  "search-truncated": "More people match than the host returned. Keep typing to narrow it down.",
 };
 
 export function PullRequestReviewerPicker({
@@ -134,7 +132,9 @@ export function PullRequestReviewerPicker({
       noMatchLabel={t("Nobody with access matches that.")}
       errorLabel={t("The people with access could not be read.")}
       truncated={truncation !== null}
-      truncatedLabel={truncation === null ? "" : TRUNCATED_LABELS[truncation](searchError)}
+      truncatedLabel={
+        truncation === null ? "" : t(TRUNCATED_LABELS[truncation], { error: searchError ?? "" })
+      }
       candidateKey={(candidate) => `${candidate.kind}:${candidate.id}`}
       disabled={pending !== null}
       onSelect={(candidate) => void toggle(candidate)}

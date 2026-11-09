@@ -867,8 +867,8 @@ function ThreadDetailBody(
               time: snoozeWakeLabel(snoozedUntil, { now: lifecycleNow }),
             })
           : settled
-            ? "Settled"
-            : "Woke from snooze";
+            ? t("Settled", undefined, "thread status")
+            : t("Woke from snooze");
       const actionLabel = lifecycleSnoozed
         ? t("Wake now")
         : settled

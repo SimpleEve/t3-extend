@@ -89,19 +89,25 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
   const [tunnelLimit, setTunnelLimit] = useState<number | null>(null);
 
   const reportUpdateFailure = (cause: unknown, reason?: string) => {
+    const locale = getUiLocale();
     const message = cause instanceof Error ? cause.message : "Could not update T3 Connect access.";
     const traceId = findErrorTraceId(cause);
     console.error("[t3-connect] Could not update T3 Connect", { message, traceId, cause });
-    setOperationError(traceId ? `${message} Trace ID: ${traceId}` : message);
+    const localizedMessage = translate(locale, message);
+    setOperationError(
+      traceId
+        ? translate(locale, "{message} Trace ID: {traceId}", { message: localizedMessage, traceId })
+        : localizedMessage,
+    );
     toastManager.add(
       stackedThreadToast({
         type: "error",
         title: translate(getUiLocale(), "Could not update T3 Connect"),
-        description: reason ?? relayFailureReason(cause) ?? message,
+        description: translate(locale, reason ?? relayFailureReason(cause) ?? message),
         ...(traceId
           ? {
               actionProps: {
-                children: "Copy trace ID",
+                children: translate(locale, "Copy trace ID"),
                 onClick: () => void navigator.clipboard?.writeText(traceId),
               },
               actionVariant: "outline",

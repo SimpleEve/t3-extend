@@ -75,6 +75,8 @@ const idleWorkspaceSnapshotRefreshAtom: Atom.Atom<unknown> = Atom.make<void>(und
   Atom.withLabel("mobile:provider-workspace-snapshot-refresh:idle"),
 );
 
+const PULL_REQUEST_STATE_LABELS = { open: "Open", closed: "Closed", merged: "Merged" } as const;
+
 function composerSelectionAtEnd(draftMessage: string): ComposerEditorSelection {
   return { start: draftMessage.length, end: draftMessage.length };
 }
@@ -161,7 +163,7 @@ export function buildComposerSlashCommandItems(input: {
         type: "slash-command",
         command,
         label: `/${command}`,
-        description,
+        description: t(description),
       });
     }
   }
@@ -370,7 +372,7 @@ export function useComposerCommandMenu({
           isDraft: entry.isDraft,
         },
         label: `#${entry.number}`,
-        description: `${entry.isDraft ? "Draft" : entry.state} · ${
+        description: `${entry.isDraft ? t("Draft") : t(PULL_REQUEST_STATE_LABELS[entry.state])} · ${
           entry.repository.toLowerCase() === pullRequestRepository?.toLowerCase()
             ? ""
             : `${entry.repository} · `

@@ -56,7 +56,7 @@ function NativeFilePreview(props: {
       delivered.current = images.map((image) => image.uri);
       presentation = NativeControls.presentFiles(
         images.map((image) => image.uri ?? null),
-        images.map((image) => image.name ?? "Preview"),
+        images.map((image) => image.name ?? t("Preview")),
         selectedIndex,
         images.map((image) => image.sourceIdentifier ?? ""),
         identifier,
@@ -65,7 +65,7 @@ function NativeFilePreview(props: {
       const { uri, name, sourceIdentifier } = presented;
       presentation = NativeControls.presentFile(
         uri,
-        name ?? "Preview",
+        name ?? t("Preview"),
         sourceIdentifier ?? "",
         identifier,
       );
@@ -81,7 +81,7 @@ function NativeFilePreview(props: {
       canceled = true;
       void NativeControls.dismissFile(identifier).catch(() => undefined);
     };
-  }, [presented, identifier]);
+  }, [presented, identifier, t]);
 
   const images = props.source.kind === "image" ? props.source.images : undefined;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- hands image URLs that resolve after opening to the native viewer

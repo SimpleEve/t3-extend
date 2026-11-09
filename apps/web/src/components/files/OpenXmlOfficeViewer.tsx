@@ -101,7 +101,7 @@ export default function OfficeViewer(props: {
       >
         <p className="text-sm font-medium">{t("No preview for this file")}</p>
         <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-          {t("{error} Save it or open it in another app.", { error })}
+          {t("{error} Save it or open it in another app.", { error: t(error) })}
         </p>
       </div>
     );

@@ -476,8 +476,10 @@ export function useEnvironmentSpeechInput(input: HookInput) {
         error: choice
           ? null
           : catalog
-            ? "No model matches your language. Choose a model or change the language in Voice settings."
-            : "Could not load transcription models. Check the connection and try again.",
+            ? t(
+                "No model matches your language. Choose a model or change the language in Voice settings.",
+              )
+            : t("Could not load transcription models. Check the connection and try again."),
       }));
     },
   );
@@ -556,7 +558,7 @@ export function useEnvironmentSpeechInput(input: HookInput) {
           setSetup((current) => ({
             ...current,
             downloading: false,
-            error: "The model downloaded, but this environment could not select it. Try again.",
+            error: t("The model downloaded, but this environment could not select it. Try again."),
           }));
           return;
         }
@@ -571,14 +573,16 @@ export function useEnvironmentSpeechInput(input: HookInput) {
         ...current,
         downloading: false,
         step: ready ? 1 : current.step,
-        error: ready ? null : "The model is not ready. Try downloading it again.",
+        error: ready ? null : t("The model is not ready. Try downloading it again."),
       }));
     } catch {
       if (request !== startRequestRef.current) return;
       setSetup((current) => ({
         ...current,
         downloading: false,
-        error: "Could not download the model. Check this environment's connection and try again.",
+        error: t(
+          "Could not download the model. Check this environment's connection and try again.",
+        ),
       }));
     }
   });

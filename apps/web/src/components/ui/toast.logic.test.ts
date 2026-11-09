@@ -25,5 +25,10 @@ describe("localizeToastText", () => {
     expect(localizeToastText({ title: localized }, "zh-Hans")).toEqual({ title: localized });
     expect(localizeToastText(options, "en")).toEqual(options);
     expect("description" in localizeToastText({ title: KNOWN }, "zh-Hans")).toBe(false);
+
+    const onClick = () => undefined;
+    expect(
+      localizeToastText({ actionProps: { children: KNOWN, onClick } }, "zh-Hans").actionProps,
+    ).toEqual({ children: localized, onClick });
   });
 });

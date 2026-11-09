@@ -408,4 +408,15 @@ export default {
   "Auto-merge pending ({method})": "自动合并待执行（{method}）",
   "Auto-merge pending": "自动合并待执行",
   "Checking stack…": "正在检查堆叠…",
+  "Searching users...": "正在搜索用户…",
+  "Couldn't search users on the host": "无法在托管平台上搜索用户",
+  "No matching users": "没有匹配的用户",
+  "Searching...": "正在搜索…",
+  "No matching issues or change requests": "没有匹配的议题或变更请求",
+  "The provider has more reviewers than are listed here. Search to find them.":
+    "provider 上的审查者比这里列出的多，请搜索查找。",
+  "Only listed reviewers are matched: the provider search failed. {error}":
+    "只能匹配已列出的审查者：provider 搜索失败。{error}",
+  "More reviewers match than the provider returned. Keep typing to narrow it down.":
+    "匹配的审查者比 provider 返回的多，请继续输入以缩小范围。",
 };

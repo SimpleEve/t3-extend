@@ -1294,10 +1294,10 @@ function ScheduledTaskDestination({
   const thread = shell ?? family.data?.threads.find((row) => row.id === threadId);
   const currentLabel =
     ref !== null
-      ? thread?.title.trim() || `Thread ${ref.threadId}`
+      ? thread?.title.trim() || t("Thread {id}", { id: ref.threadId })
       : threadMode === "new_thread"
-        ? "New thread each run"
-        : "Started by the first run";
+        ? t("New thread each run")
+        : t("Started by the first run");
   const shells = useVisibleThreadShells(open);
   // Mounts older settled threads matching the query, which shells may leave out.
   useThreadSearch(open && projectId ? [environmentId] : [], query, {
@@ -1322,14 +1322,18 @@ function ScheduledTaskDestination({
   };
   const detail =
     threadMode === "new_thread"
-      ? "Each run starts a new thread with the workspace and model below."
+      ? t("Each run starts a new thread with the workspace and model below.")
       : ref === null
         ? threadMode === "continue"
-          ? "The first run starts a thread with the workspace and model below. Later runs continue that conversation."
-          : "The first run starts a thread with the workspace and model below. Later runs post there, each in a fresh session without earlier runs' context."
+          ? t(
+              "The first run starts a thread with the workspace and model below. Later runs continue that conversation.",
+            )
+          : t(
+              "The first run starts a thread with the workspace and model below. Later runs post there, each in a fresh session without earlier runs' context.",
+            )
         : threadMode === "continue"
-          ? "Each run continues this conversation, in its workspace and with its current model."
-          : "Each run starts a fresh session in this thread, without earlier runs' context.";
+          ? t("Each run continues this conversation, in its workspace and with its current model.")
+          : t("Each run starts a fresh session in this thread, without earlier runs' context.");
   return (
     <Field label={t("Destination")} htmlFor="scheduled-task-destination">
       {onThreadModeChange ? (
@@ -1338,12 +1342,12 @@ function ScheduledTaskDestination({
           onValueChange={(value) => onThreadModeChange(value as ScheduledTaskThreadMode)}
         >
           <SelectTrigger size="sm" id="scheduled-task-destination">
-            <SelectValue>{THREAD_MODE_LABELS[threadMode]}</SelectValue>
+            <SelectValue>{t(THREAD_MODE_LABELS[threadMode])}</SelectValue>
           </SelectTrigger>
           <SelectPopup>
             {(Object.keys(THREAD_MODE_LABELS) as ScheduledTaskThreadMode[]).map((mode) => (
               <SelectItem key={mode} value={mode}>
-                {THREAD_MODE_LABELS[mode]}
+                {t(THREAD_MODE_LABELS[mode])}
               </SelectItem>
             ))}
           </SelectPopup>

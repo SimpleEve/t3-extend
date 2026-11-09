@@ -29,6 +29,7 @@ import type { SettingsTarget } from "./settings-environment-filter";
 import { useT } from "../../hooks/useT";
 
 function useProviderInstanceMutation(environment: SettingsTarget) {
+  const t = useT();
   const mutate = useAtomCommand(serverEnvironment.mutateProviderInstance, {
     reportFailure: false,
     reportDefect: false,
@@ -50,7 +51,9 @@ function useProviderInstanceMutation(environment: SettingsTarget) {
     if (result._tag === "Success") return true;
     if (!isAtomCommandInterrupted(result)) {
       const failure = squashAtomCommandFailure(result);
-      setError(failure instanceof Error ? failure.message : "Could not save the Claude account.");
+      setError(
+        failure instanceof Error ? failure.message : t("Could not save the Claude account."),
+      );
     }
     return false;
   }
@@ -71,13 +74,13 @@ export function ClaudeAccount({
   const configDir = claudeConfigDir(instance);
   const name = provider.displayName ?? "Claude";
   const status = !provider.enabled
-    ? "Turned off"
+    ? t("Turned off")
     : provider.auth.status === "authenticated"
-      ? "Signed in"
+      ? t("Signed in")
       : provider.auth.status === "unauthenticated"
-        ? "Not signed in"
+        ? t("Not signed in")
         : !provider.installed
-          ? "Not installed"
+          ? t("Not installed")
           : null;
   const removable =
     provider.instanceId !== DEFAULT_CLAUDE_INSTANCE_ID &&
@@ -86,12 +89,12 @@ export function ClaudeAccount({
       `providerInstances.${provider.instanceId}`,
     );
   const actions: MenuAction[] = [
-    { id: "edit", title: "Edit", image: "pencil" },
+    { id: "edit", title: t("Edit"), image: "pencil" },
     ...(removable
       ? [
           {
             id: "remove",
-            title: "Remove",
+            title: t("Remove"),
             image: "trash",
             attributes: { destructive: true },
           } satisfies MenuAction,
@@ -100,12 +103,15 @@ export function ClaudeAccount({
   ];
   function remove() {
     Dialog.alert(
-      `Remove ${name}?`,
-      `It leaves the model picker on ${environment.label}. The config folder and its sign-in stay on the server.`,
+      t("Remove {name}?", { name }),
+      t(
+        "It leaves the model picker on {label}. The config folder and its sign-in stay on the server.",
+        { label: environment.label },
+      ),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("Cancel"), style: "cancel" },
         {
-          text: "Remove",
+          text: t("Remove"),
           style: "destructive",
           onPress: () => {
             void run({ operation: "remove", instanceId: provider.instanceId });
@@ -122,7 +128,7 @@ export function ClaudeAccount({
             {name}
           </Text>
           <Text textRole="footnote" className="text-foreground-muted" numberOfLines={2}>
-            {[status, configDir || "Default config folder"].filter(Boolean).join(" · ")}
+            {[status, configDir || t("Default config folder")].filter(Boolean).join(" · ")}
           </Text>
         </View>
         {editing ? null : (
@@ -206,6 +212,7 @@ function ClaudeAccountForm({
       policy: environment.serverConfig.managedPolicy,
       instanceId,
       draft,
+      t,
     });
     if ("error" in plan) {
       setError(plan.error);
@@ -238,8 +245,8 @@ function ClaudeAccountForm({
           { label: environment.label },
         )}
       </Text>
-      {field("name", "Account name", "Name, e.g. Work")}
-      {field("configDir", "Claude config folder", "Config folder, e.g. ~/.claude-work")}
+      {field("name", t("Account name"), t("Name, e.g. Work"))}
+      {field("configDir", t("Claude config folder"), t("Config folder, e.g. ~/.claude-work"))}
       {error ? (
         <Text accessibilityRole="alert" className="text-danger-foreground">
           {error}

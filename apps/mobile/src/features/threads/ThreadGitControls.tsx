@@ -365,9 +365,9 @@ export function useThreadGitMenuDefinition(props: ThreadGitMenuProps): AppBarMen
         ? [
             {
               id: "git-merge-back",
-              title: "Merge back to source",
+              title: t("Merge back to source"),
               icon: PullRequestGlyph.merged,
-              subtitle: "Bring this thread's latest turn into its source",
+              subtitle: t("Bring this thread's latest turn into its source"),
               onPress: props.onMergeBack,
             },
           ]

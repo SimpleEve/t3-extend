@@ -121,6 +121,24 @@ const THREAD_MODE_LABELS: Record<ScheduledTaskThreadMode, string> = {
   fresh_session: "One thread, fresh session",
 };
 
+function destinationFooter(mode: ScheduledTaskThreadMode, unstarted: boolean, t: Translator) {
+  if (mode === "new_thread") return t("Each run starts a new thread.");
+  if (mode === "continue") {
+    return unstarted
+      ? t(
+          "Runs continue one conversation. The first run starts the thread. Deleting it also deletes this task.",
+        )
+      : t("Runs continue one conversation. Deleting it also deletes this task.");
+  }
+  return unstarted
+    ? t(
+        "Runs share one thread, each in a fresh session without earlier runs' context. The first run starts the thread. Deleting it also deletes this task.",
+      )
+    : t(
+        "Runs share one thread, each in a fresh session without earlier runs' context. Deleting it also deletes this task.",
+      );
+}
+
 function describeSchedule(task: ScheduledTask, t: Translator, locale: UiLocale): string {
   if (task.schedule.type === "webhook") return t("On webhook");
   if (task.schedule.type === "once") {
@@ -947,26 +965,16 @@ function TaskForm({
 
         <SettingsSection
           title={t("Destination")}
-          footer={
-            draft.threadMode === "new_thread"
-              ? "Each run starts a new thread."
-              : `${
-                  draft.threadMode === "continue"
-                    ? "Runs continue one conversation."
-                    : "Runs share one thread, each in a fresh session without earlier runs' context."
-                }${
-                  draft.threadId === null ? " The first run starts the thread." : ""
-                } Deleting it also deletes this task.`
-          }
+          footer={destinationFooter(draft.threadMode, draft.threadId === null, t)}
         >
           {offersThreadModes ? (
             <SelectRow
               label={t("Runs go to")}
-              value={THREAD_MODE_LABELS[draft.threadMode]}
+              value={t(THREAD_MODE_LABELS[draft.threadMode])}
               actions={(Object.keys(THREAD_MODE_LABELS) as ScheduledTaskThreadMode[]).map(
                 (mode) => ({
                   id: mode,
-                  title: THREAD_MODE_LABELS[mode],
+                  title: t(THREAD_MODE_LABELS[mode]),
                   state: draft.threadMode === mode ? "on" : undefined,
                 }),
               )}
@@ -984,7 +992,7 @@ function TaskForm({
               borderTop={offersThreadModes}
               value={
                 draft.threadId === null && draft.threadMode !== "new_thread"
-                  ? "Started by the first run"
+                  ? t("Started by the first run")
                   : destinationLabel
               }
               onPress={() => navigation.navigate("SettingsScheduledTaskThread")}
@@ -1577,7 +1585,7 @@ function EnvironmentTasks({
               actions={[
                 { id: "edit", title: t("Edit") },
                 ...(task.threadId !== null && scheduledTaskThreadMode(task) !== "new_thread"
-                  ? [{ id: "thread", title: "Open thread" }]
+                  ? [{ id: "thread", title: t("Open thread") }]
                   : []),
                 {
                   id: "toggle",

@@ -8,6 +8,7 @@ import type {
   AppBarMenuItem,
   AppBarProps,
 } from "../components/ui/AppBar.types";
+import type { SheetHeaderProps } from "../components/ui/SheetHeader.types";
 
 function localizeAction<A extends Pick<AppBarAction, "accessibilityLabel" | "subtitle">>(
   action: A,
@@ -74,5 +75,17 @@ export function localizeAppBarProps<P extends AppBarProps>(props: P, t: Translat
         accessibilityLabel: t(backInSplitView.accessibilityLabel),
       },
     }),
+  };
+}
+
+/** iOS draws a sheet's header natively, without AppBar, so it needs the same pass. */
+export function localizeSheetHeaderProps<P extends SheetHeaderProps>(props: P, t: Translator): P {
+  const { actions, menus, confirm, accessibilityLabel } = props;
+  return {
+    ...props,
+    ...(actions && { actions: actions.map((action) => localizeAction(action, t)) }),
+    ...(menus && { menus: menus.map((menu) => localizeMenu(menu, t)) }),
+    ...(confirm && { confirm: { ...confirm, label: t(confirm.label) } }),
+    ...(accessibilityLabel && { accessibilityLabel: t(accessibilityLabel) }),
   };
 }

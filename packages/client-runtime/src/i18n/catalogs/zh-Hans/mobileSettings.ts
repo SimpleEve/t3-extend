@@ -557,6 +557,55 @@ export default {
   "{field}, {label}": "{field}，{label}",
   "Some settings are managed by {organizations} and cannot be changed here.":
     "部分设置由 {organizations} 管理，无法在这里更改。",
+  // Claude accounts
+  "Default config folder": "默认配置文件夹",
+  "Name, e.g. Work": "名称，例如“工作”",
+  "Claude config folder": "Claude 配置文件夹",
+  "Config folder, e.g. ~/.claude-work": "配置文件夹，例如 ~/.claude-work",
+  "Could not save the Claude account.": "无法保存 Claude 账号。",
+  "Enter a name for this account.": "请输入这个账号的名称。",
+  "Enter the Claude config folder this account is signed in with.":
+    "请输入这个账号登录所用的 Claude 配置文件夹。",
+  "It leaves the model picker on {label}. The config folder and its sign-in stay on the server.":
+    "它会从 {label} 的模型选择器中移除。配置文件夹及其登录状态仍保留在服务器上。",
+  // Voice settings
+  "Could not enable cloud dictation": "无法开启云端听写",
+  "Check device storage and choose the provider again.":
+    "请检查设备存储空间，然后重新选择 provider。",
+  "Could not update the API key": "无法更新 API 密钥",
+  "Check the environment connection and your settings permissions.":
+    "请检查环境连接和你的设置权限。",
+  "Could not download the model": "无法下载模型",
+  "Could not select the model": "无法选择模型",
+  "Could not cancel the download": "无法取消下载",
+  "Transcription model on {label}": "{label} 上的转写模型",
+  "This connection can’t change settings on {label}. Add a transcription model using T3 Extend on that machine.":
+    "这个连接无法更改 {label} 上的设置。请在那台机器上用 T3 Extend 添加转写模型。",
+  "This environment": "这个环境",
+  "Could not save transcription choice": "无法保存转写选择",
+  "Dictation on an environment is off for this session. Save again before closing the app, or your previous choice may return when it restarts.":
+    "本次会话中，环境上的听写已关闭。请在关闭应用前再保存一次，否则重启后可能会恢复你之前的选择。",
+  "Headsets and USB microphones not listed here": "这里未列出的耳机和 USB 麦克风",
+  "Earbuds, headsets, and cars, including Android Auto, not listed here":
+    "这里未列出的耳塞、耳机和车载设备，包括 Android Auto",
+  "AirPods, headsets, and cars not listed here": "这里未列出的 AirPods、耳机和车载设备",
+  // Scheduled tasks destination
+  "One thread, same conversation": "同一个对话，延续同一段内容",
+  "One thread, fresh session": "同一个对话，每次新会话",
+  "Started by the first run": "由第一次运行创建",
+  "Search threads, including older ones": "搜索对话，包括较早的对话",
+  "Each run starts a new thread.": "每次运行都会新建一个对话。",
+  "Runs continue one conversation. Deleting it also deletes this task.":
+    "每次运行都延续同一段对话。删除这个对话也会删除这个任务。",
+  "Runs continue one conversation. The first run starts the thread. Deleting it also deletes this task.":
+    "每次运行都延续同一段对话。第一次运行会创建这个对话。删除这个对话也会删除这个任务。",
+  "Runs share one thread, each in a fresh session without earlier runs' context. Deleting it also deletes this task.":
+    "每次运行共用同一个对话，但各自开启新会话，看不到之前运行的上下文。删除这个对话也会删除这个任务。",
+  "Runs share one thread, each in a fresh session without earlier runs' context. The first run starts the thread. Deleting it also deletes this task.":
+    "每次运行共用同一个对话，但各自开启新会话，看不到之前运行的上下文。第一次运行会创建这个对话。删除这个对话也会删除这个任务。",
+  // Side chat composer
+  "Ask a side question": "提一个旁支问题",
+  "Type the question after /side, then send it.": "在 /side 后面输入问题，然后发送。",
   "T3 Extend's voice input uses Google's on-device speech recognition, which needs Android 12 or later with compatible Google speech services for the device language. Without it, the composer has no microphone button, and allowing microphone access won't add one. Keyboard voice typing is separate and isn't affected.":
     "T3 Extend 的语音输入使用 Google 的设备端语音识别，需要 Android 12 或更高版本，并且设备语言要有兼容的 Google 语音服务。没有它时，输入框不会出现麦克风按钮，授予麦克风权限也不会增加。键盘语音输入是另一回事，不受影响。",
 } satisfies Record<string, string>;

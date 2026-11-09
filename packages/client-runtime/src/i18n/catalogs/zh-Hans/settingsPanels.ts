@@ -2970,4 +2970,14 @@ export default {
     "使用这台服务器上已登录的 Claude 配置文件夹。",
   "Point at a CLAUDE_CONFIG_DIR folder on {label} where Claude Code is already signed in. Sign in there with the Claude CLI first.":
     "指向 {label} 上 Claude Code 已登录的 CLAUDE_CONFIG_DIR 文件夹。请先在那里用 Claude CLI 登录。",
+  "Thread {id}": "对话 {id}",
+  "The first run starts a thread with the workspace and model below. Later runs continue that conversation.":
+    "第一次运行会用下面的工作区和模型新建一个对话，之后每次运行都接着这个对话继续。",
+  "The first run starts a thread with the workspace and model below. Later runs post there, each in a fresh session without earlier runs' context.":
+    "第一次运行会用下面的工作区和模型新建一个对话，之后每次运行都发到这个对话里，每次都是全新的会话，不带之前运行的上下文。",
+  "Each run starts a fresh session in this thread, without earlier runs' context.":
+    "每次运行都在这个对话里开一个全新的会话，不带之前运行的上下文。",
+  "One thread, continuing the conversation": "一个对话，接续同一段会话",
+  "One thread, fresh session each run": "一个对话，每次运行用全新会话",
+  "Composer: Start or Finish Dictation": "输入框：开始或结束听写",
 } satisfies Record<string, string>;

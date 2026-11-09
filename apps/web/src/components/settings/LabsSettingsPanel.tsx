@@ -116,7 +116,9 @@ function ToolCallVisibilityRow() {
               className="w-full min-w-0"
               aria-label={t("Tool calls in chat")}
             >
-              <SelectValue>{TOOL_CALL_VISIBILITY_LABELS[settings.toolCallVisibility]}</SelectValue>
+              <SelectValue>
+                {t(TOOL_CALL_VISIBILITY_LABELS[settings.toolCallVisibility])}
+              </SelectValue>
             </SelectTrigger>
             <SelectPopup align="end" alignItemWithTrigger={false}>
               <SelectItem value="showAll">{t("Show all")}</SelectItem>

@@ -28,7 +28,11 @@ export function prompt(request: TextInputDialogRequest): void {
     request.title,
     request.message,
     [
-      { text: request.cancelText ?? "Cancel", style: "cancel", onPress: request.onCancel },
+      {
+        text: request.cancelText ?? translate(getUiLocale(), "Cancel"),
+        style: "cancel",
+        onPress: request.onCancel,
+      },
       { text: request.confirmText, onPress: (value) => request.onConfirm(value ?? "") },
     ],
     "plain-text",

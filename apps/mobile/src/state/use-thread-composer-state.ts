@@ -605,14 +605,14 @@ export function useThreadComposerState(input: {
     const sideChatCommand = beforeDispatch === undefined ? parseSideChatCommand(text) : null;
     if (sideChatCommand) {
       if (sideChatUnavailableReason !== null) {
-        Dialog.alert("Side chat not started", sideChatUnavailableReason);
+        Dialog.alert(t("Side chat not started"), sideChatUnavailableReason);
       } else if (attachments.length > 0 || (draft.context?.records.length ?? 0) > 0) {
         Dialog.alert(
-          "Side chats take text only",
-          "Remove the attachments and context, then send it again.",
+          t("Side chats take text only"),
+          t("Remove the attachments and context, then send it again."),
         );
       } else if (sideChatCommand.prompt.length === 0) {
-        Dialog.alert("Ask a side question", "Type the question after /side, then send it.");
+        Dialog.alert(t("Ask a side question"), t("Type the question after /side, then send it."));
       } else if (modelUnavailable) {
         alertModelUnavailable();
       } else if (!startingSideChatRef.current) {
@@ -843,24 +843,24 @@ export function useThreadComposerState(input: {
   const sideChatUnavailableReason = (() => {
     const serverConfig = selectedEnvironmentRuntime?.serverConfig;
     if (selectedThreadShell?.lineage.sideChat === true)
-      return "Side chats cannot start side chats.";
+      return t("Side chats cannot start side chats.");
     if (selectedThreadShell?.lineage.relationshipToParent === "subagent") {
-      return "Subagent threads cannot start side chats.";
+      return t("Subagent threads cannot start side chats.");
     }
     if (!selectedThreadShell || !serverConfig) {
-      return "Side chats are not ready yet. Try again in a moment.";
+      return t("Side chats are not ready yet. Try again in a moment.");
     }
     if (serverConfig.environment.capabilities.sideChats !== true) {
-      return "Update this environment's T3 Extend server to use side chats.";
+      return t("Update this environment's T3 Extend server to use side chats.");
     }
-    if (selectedThreadCreation !== null) return "Side chats start after the first message.";
+    if (selectedThreadCreation !== null) return t("Side chats start after the first message.");
     if (
       orchestrationV2WorktreePending(
         selectedThreadShell.worktreePath ?? null,
         selectedThreadProjection?.projection.runs ?? [],
       )
     ) {
-      return "Available once the thread's worktree is set up.";
+      return t("Available once the thread's worktree is set up.");
     }
     return null;
   })();

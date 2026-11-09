@@ -120,14 +120,19 @@ export function shouldRenderThreadScopedToast(
  * Look that text up when the toast is shown; text that is already translated, or not in the
  * catalog, passes through unchanged.
  */
-export function localizeToastText<Options extends { title?: unknown; description?: unknown }>(
-  options: Options,
-  locale: UiLocale,
-): Options {
+export function localizeToastText<
+  Options extends { title?: unknown; description?: unknown; actionProps?: unknown },
+>(options: Options, locale: UiLocale): Options {
   const localized = { ...options };
   if (typeof options.title === "string") localized.title = translate(locale, options.title);
   if (typeof options.description === "string") {
     localized.description = translate(locale, options.description);
+  }
+  const action = options.actionProps;
+  if (action != null && typeof action === "object" && "children" in action) {
+    if (typeof action.children === "string") {
+      localized.actionProps = { ...action, children: translate(locale, action.children) };
+    }
   }
   return localized;
 }

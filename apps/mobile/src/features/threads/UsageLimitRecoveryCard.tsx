@@ -108,7 +108,7 @@ export function UsageLimitRecoveryCard({
   }
   const action = workspaceLimit
     ? {
-        label: "Copy request for admin",
+        label: t("Copy request for admin"),
         role: "button" as const,
         run: () => {
           setError(null);
@@ -117,19 +117,21 @@ export function UsageLimitRecoveryCard({
           void Clipboard.setStringAsync(CHATGPT_WORKSPACE_ADMIN_REQUEST)
             .then(
               () => setCopied(true),
-              () => setError("Could not copy the request. Try again."),
+              () => setError(t("Could not copy the request. Try again.")),
             )
             .finally(() => setActionPending(false));
         },
       }
     : {
-        label: "Manage usage",
+        label: t("Manage usage"),
         role: "link" as const,
         run: () => {
           setError(null);
           setActionPending(true);
           void Linking.openURL(CHATGPT_USAGE_URL)
-            .catch(() => setError("Could not open ChatGPT. Go to chatgpt.com → Settings → Usage."))
+            .catch(() =>
+              setError(t("Could not open ChatGPT. Go to chatgpt.com → Settings → Usage.")),
+            )
             .finally(() => setActionPending(false));
         },
       };

@@ -18,6 +18,7 @@ import { uuidv4 } from "../../lib/uuid";
 import { appAtomRegistry } from "../../state/atom-registry";
 import { environmentThreadShells, threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
+import { useT } from "../../hooks/useT"; // fork: i18n
 import { waitForThreadShell } from "./threadForkNavigation";
 import { useOpenLinkedThread } from "./useOpenLinkedThread";
 
@@ -27,6 +28,7 @@ import { useOpenLinkedThread } from "./useOpenLinkedThread";
  * what the parent's composer would send, which its thread gets only on its next send.
  */
 export function useStartSideChat() {
+  const t = useT(); // fork: i18n
   const forkSideChat = useAtomCommand(threadEnvironment.forkSideChat, { reportFailure: false });
   const deleteThread = useAtomCommand(threadEnvironment.delete, { reportFailure: false });
   const setRuntimeMode = useAtomCommand(threadEnvironment.setRuntimeMode, { reportFailure: false });
@@ -39,7 +41,7 @@ export function useStartSideChat() {
   ) => {
     if (isAtomCommandInterrupted(failure)) return;
     const error = squashAtomCommandFailure(failure);
-    Dialog.alert("Side chat not started", error instanceof Error ? error.message : fallback);
+    Dialog.alert(t("Side chat not started"), error instanceof Error ? error.message : t(fallback));
   };
 
   return async (
@@ -70,15 +72,15 @@ export function useStartSideChat() {
     const targetRef = scopeThreadRef(source.environmentId, targetThreadId);
     if (!(await waitForThreadShell(targetRef))) {
       Dialog.alert(
-        "Side chat not started",
-        "The side chat was created, but it did not reach this device.",
+        t("Side chat not started"),
+        t("The side chat was created, but it did not reach this device."),
       );
       discard();
       return false;
     }
     const sideChat = appAtomRegistry.get(environmentThreadShells.threadShellAtom(targetRef));
     if (sideChat === null) {
-      Dialog.alert("Side chat not started", "The side chat is no longer available.");
+      Dialog.alert(t("Side chat not started"), t("The side chat is no longer available."));
       discard();
       return false;
     }

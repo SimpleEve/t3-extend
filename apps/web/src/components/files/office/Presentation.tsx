@@ -15,6 +15,7 @@ import {
   type VectorRequest,
 } from "./slide-protocol";
 import { useT } from "../../../hooks/useT";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 type Opened = { slides: readonly SlideSummary[]; paint: PaintPage };
 export default function Presentation(props: {
@@ -85,7 +86,7 @@ export default function Presentation(props: {
         if (slides.length === 0 || slides.length > 500)
           throw new Error("Preview limited to presentations with 1 to 500 slides.");
         setOpened({ slides, paint });
-        onDetails(`${slides.length} slides`);
+        onDetails(translate(getUiLocale(), "{count} slides", { count: slides.length }));
       })
       .catch(fail);
     return () => {

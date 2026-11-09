@@ -790,4 +790,24 @@ export default {
   "Wait a moment. T3 Extend retries on its own.": "稍等片刻。T3 Extend 会自动重试。",
   "If it keeps waiting, reload or restart T3 Extend on this device.":
     "如果一直在等待，请在此设备上重新加载或重启 T3 Extend。",
+  "Could not read T3 Connect link state.": "无法读取 T3 Connect 的链接状态。",
+  "T3 Extend cannot install the relay client automatically on {platform}.":
+    "T3 Extend 无法在 {platform} 上自动安装中继客户端。",
+  "Relay client installation was cancelled.": "中继客户端的安装已取消。",
+  "The relay client install completed without a final status.":
+    "中继客户端安装结束了，但没有返回最终状态。",
+  "The relay client is still unavailable after installation.": "安装之后中继客户端仍然不可用。",
+  "T3CODE_RELAY_URL is not configured.": "未配置 T3CODE_RELAY_URL。",
+  "{message} Trace ID: {traceId}": "{message} 跟踪 ID：{traceId}",
+  "Could not reach the environment.": "无法连接到这个环境。",
+  "Could not read environment cloud link state.": "无法读取环境的云端链接状态。",
+  "Could not update environment cloud preferences.": "无法更新环境的云端偏好设置。",
+  "Could not unlink the environment from cloud.": "无法解除环境与云端的链接。",
+  "Disconnected locally, but T3 Connect did not confirm it removed this environment":
+    "已在本地断开，但 T3 Connect 没有确认已移除这个环境",
+  "Disconnected here, but T3 Connect still lists it. Remove it in Account.":
+    "已在这里断开，但 T3 Connect 仍然列着它。请在账户中移除。",
+  "T3 Connect timed out. Try again.": "T3 Connect 超时。请重试。",
+  "Could not reach T3 Connect. Check your network.": "无法连接 T3 Connect。请检查网络。",
+  "T3 Connect is unavailable. Try again.": "T3 Connect 暂时不可用。请重试。",
 } satisfies Record<string, string>;

@@ -73,7 +73,7 @@ export function SecretSourceSelect(props: {
   const { value, sources } = props;
   const known = value === null || sources.some((source) => source.id === value);
   const title =
-    value === null ? "Value" : (sources.find((source) => source.id === value)?.label ?? value);
+    value === null ? t("Value") : (sources.find((source) => source.id === value)?.label ?? value);
   return (
     <Select
       value={value ?? STORED_VALUE}

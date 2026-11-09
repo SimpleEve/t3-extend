@@ -1083,8 +1083,8 @@ export default function GitActionsControl({
   const changesTotals = resolvedChangesTotals ?? { insertions: 0, deletions: 0 };
   const changesBaseLabel = resolvedChangesTotals
     ? resolvedChangesTotals.baseRef === null
-      ? "Uncommitted"
-      : `vs ${resolvedChangesTotals.baseRef}`
+      ? t("Uncommitted")
+      : t("vs {baseRef}", { baseRef: resolvedChangesTotals.baseRef })
     : null;
 
   const allFiles = gitStatusForActions?.workingTree.files ?? [];

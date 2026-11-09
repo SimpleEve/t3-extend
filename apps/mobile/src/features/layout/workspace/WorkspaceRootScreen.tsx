@@ -1,4 +1,5 @@
 import { WorkspaceNoTabs } from "./WorkspaceNoTabs";
+import { useT } from "../../../hooks/useT"; // fork: i18n
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 import { WORKSPACE_TAB_LABELS, useEnabledNavigationTabs } from "./navigation-tabs";
 import { WorkspaceExtraTab } from "./WorkspaceExtraTab";
@@ -46,14 +47,13 @@ function WorkspaceRootTitle(props: {
   readonly columnWidth: number;
   readonly onOpenEnvironments: () => void;
 }) {
+  const t = useT(); // fork: i18n
   const { state, settingsOpen } = useWorkspaceTabs()!;
   const maxWidth = Math.max(0, props.columnWidth - (use(HeaderItemsWidthContext) ?? 160));
   const enabled = useEnabledNavigationTabs();
-  const tabTitle = settingsOpen
-    ? "Settings"
-    : enabled.length
-      ? TAB_TITLES[state.selectedTab]
-      : "Navigation";
+  const tabTitle = t(
+    settingsOpen ? "Settings" : enabled.length ? TAB_TITLES[state.selectedTab] : "Navigation",
+  );
   return (
     <View style={{ width: maxWidth, minHeight: 32, justifyContent: "center" }}>
       <WorkspaceConnectionTitle
@@ -66,6 +66,7 @@ function WorkspaceRootTitle(props: {
 }
 
 function WorkspaceRootContent() {
+  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const { width: windowWidth } = useWindowDimensions();
   const { layout, startNewTask } = useAdaptiveWorkspaceLayout();
@@ -124,13 +125,16 @@ function WorkspaceRootContent() {
             width,
             sidebarNavigation,
             enabled.length,
+            t,
           ]}
           options={{
-            title: settingsOpen
-              ? "Settings"
-              : enabled.length
-                ? TAB_TITLES[state.selectedTab]
-                : "Navigation",
+            title: t(
+              settingsOpen
+                ? "Settings"
+                : enabled.length
+                  ? TAB_TITLES[state.selectedTab]
+                  : "Navigation",
+            ),
             headerShown: true,
             headerTransparent: NATIVE_LIQUID_GLASS_SUPPORTED,
             headerStyle: NATIVE_LIQUID_GLASS_SUPPORTED

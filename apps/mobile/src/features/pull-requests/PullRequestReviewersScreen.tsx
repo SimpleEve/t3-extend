@@ -27,16 +27,25 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { PullRequestAvatar } from "./PullRequestPresentation";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
-const TRUNCATED_LABELS: Record<ReviewerTruncation, (error: string | null) => string> = {
-  unsearchable: () =>
-    "The provider has more reviewers than it returned. Find additional reviewers on the provider.",
-  searchable: () => "The provider has more reviewers than are listed here. Search to find them.",
-  "search-failed": (error) =>
-    `Only listed reviewers are matched: the provider search failed. ${error ?? ""}`,
-  "search-truncated": () =>
-    "More reviewers match than the provider returned. Keep typing to narrow it down.",
+const TRUNCATED_LABELS: Record<
+  ReviewerTruncation,
+  (error: string | null, t: Translator) => string
+> = {
+  unsearchable: (_error, t) =>
+    t(
+      "The provider has more reviewers than it returned. Find additional reviewers on the provider.",
+    ),
+  searchable: (_error, t) =>
+    t("The provider has more reviewers than are listed here. Search to find them."),
+  "search-failed": (error, t) =>
+    t("Only listed reviewers are matched: the provider search failed. {error}", {
+      error: error ?? "",
+    }),
+  "search-truncated": (_error, t) =>
+    t("More reviewers match than the provider returned. Keep typing to narrow it down."),
 };
 
 export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequestParams>) {
@@ -258,7 +267,7 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
           ListFooterComponent={
             view.truncation ? (
               <Text className="px-4 py-4 text-xs text-foreground-muted">
-                {TRUNCATED_LABELS[view.truncation](view.searchError)}
+                {TRUNCATED_LABELS[view.truncation](view.searchError, t)}
               </Text>
             ) : undefined
           }

@@ -236,11 +236,11 @@ export function T3ConnectUserProfilePage() {
       stackedThreadToast({
         type: "error",
         title: t("Could not deregister server"),
-        description: relayFailureReason(cause) ?? message,
+        description: t(relayFailureReason(cause) ?? message),
         ...(traceId
           ? {
               actionProps: {
-                children: "Copy trace ID",
+                children: t("Copy trace ID"),
                 onClick: () => void navigator.clipboard?.writeText(traceId),
               },
               actionVariant: "outline",

@@ -3,6 +3,7 @@ import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useMemo, useCallback, type Dispatch, type SetStateAction } from "react";
 
+import { useT } from "../../hooks/useT"; // fork: i18n
 import { useProjects, useServerConfigs, useThreadShell } from "../../state/entities";
 import { useEnvironmentQuery } from "../../state/query";
 import { threadFamilies } from "../../state/threads";
@@ -25,6 +26,7 @@ export function useScheduledTaskDestinationLabel(
   environmentId: EnvironmentId | null,
   threadId: ThreadId | null,
 ): string {
+  const t = useT();
   const ref =
     environmentId === null || threadId === null ? null : scopeThreadRef(environmentId, threadId);
   const shell = useThreadShell(ref);
@@ -35,8 +37,8 @@ export function useScheduledTaskDestinationLabel(
       : null,
   );
   const thread = shell ?? family.data?.threads.find((row) => row.id === threadId);
-  if (ref === null) return NEW_THREAD_DESTINATION_LABEL;
-  return thread?.title.trim() || `Thread ${ref.threadId}`;
+  if (ref === null) return t(NEW_THREAD_DESTINATION_LABEL);
+  return thread?.title.trim() || t("Thread {threadId}", { threadId: ref.threadId });
 }
 
 /** The form draft lives in an atom, so it survives while its native picker routes are on top. */
