@@ -120,9 +120,25 @@ export function UnifiedPushSettingsSection() {
       }
     });
 
+  // Some systems cut a push app's connection once it leaves the screen, so the endpoint can
+  // wait until the app is opened or allowed to run in the background.
+  const pushAppName =
+    native.distributors.find((entry) => entry.id === native.distributor)?.label ??
+    native.distributor ??
+    "";
+  const waitingHint =
+    native.enabled &&
+    (step === "waiting-for-endpoint" || step === "ready") &&
+    !native.failure &&
+    native.endpointHost === null
+      ? t("Open {app} once. If it keeps waiting, allow it to run in the background.", {
+          app: pushAppName,
+        })
+      : undefined;
+
   return (
     <>
-      <SettingsSection title={t("Push without Google")}>
+      <SettingsSection title={t("Push without Google")} footer={waitingHint}>
         <SettingsSwitchRow
           icon="bell.badge"
           label={t("Push notifications")}

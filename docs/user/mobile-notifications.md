@@ -22,6 +22,8 @@ You need three things:
 
 Once the push server answers, the screen shows the push app and the server's address (never the full endpoint), and each paired environment lists whether this phone is registered. Use **Send test notification** under an environment to check the whole path; the notification should arrive within a few seconds. If an environment shows **Not registered**, the line says why (it can't be reached, didn't answer, or refused the registration); an environment that can't be reached or doesn't answer is tried again automatically, and if one refused, turn **Push notifications** off and on again.
 
+Some Android systems cut a push app's connection once it leaves the screen, so alerts stop arriving or the screen keeps waiting for the push server. On OPPO's ColorOS, open **Settings → Apps**, pick ntfy and then T3 Extend in turn, open **Battery management** and choose **Allow full background activity**.
+
 How it works: the phone gives its endpoint and encryption keys to every environment it is paired with. An environment encrypts each alert for your phone before sending it, so the push server only ever sees ciphertext, and your phone decrypts it and shows it in its own language. A phone can only receive alerts for environments it is paired with, and each environment only alerts for its own threads.
 
 Alerts follow the same rules as T3 Connect alerts: the thread already on screen stays quiet, and a finished run is announced once it stays finished. Removing an environment from the phone, switching it off, or revoking the phone's session in **Connections** stops its alerts. A push server that no longer knows the phone makes the environment forget it; turn **Push notifications** off and on again to register afresh.

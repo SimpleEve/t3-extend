@@ -10,6 +10,8 @@ export default {
   "Push app": "推送应用",
   "Push server": "推送服务器",
   "Waiting for the push server…": "正在等待推送服务器…",
+  "Open {app} once. If it keeps waiting, allow it to run in the background.":
+    "打开一次 {app}；如果一直在等，请允许它在后台运行。",
   "Registration failed": "注册失败",
   Registered: "已注册",
   "Registering…": "正在注册…",
