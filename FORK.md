@@ -27,6 +27,8 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的私有二开 for
 | 移动端 OTA                                   | 官方 EAS 项目                                   | 无，除非设置 `T3EXTEND_EAS_PROJECT_ID` 和 `T3CODE_MOBILE_UPDATES_ENABLED=1` |
 | telemetry                                    | 默认开                                          | 默认关，`T3CODE_TELEMETRY_ENABLED=true` 才上报                              |
 
+界面和用户文档对 telemetry 的说法跟着这一行走：欢迎向导和设置 > 关于里只讲"默认不收集，要开就设 `T3CODE_TELEMETRY_ENABLED=true`"，不再链到上游 `t3.codes` 的隐私政策（fork 没有自己的）。客户端读不到服务端的实际开关（`ServerConfig` 没有这个字段），所以文案不随服务端状态分支，只在 managed policy 关掉时换成组织的说明。`docs/user/telemetry.md` 开头、中继追踪和手机端崩溃报告三处是 fork 改的上游文档，同步上游时留意冲突。
+
 git 命名空间（`FORK.gitNamespace` = `t3x`）管的是 fork 往用户仓库里新写的分支和 ref。上游把这些名字写死在 `packages/shared/src/git.ts` 的 `WORKTREE_BRANCH_PREFIX` 和 `PULL_REQUEST_BRANCH_PREFIX`、`GitVcsDriverCore.ts`、`PullRequestReviewGuideService.ts` 里，fork 的改动都带 `// fork:`。
 
 分支谓词分成两个（`packages/shared/src/git.ts`）：`isTemporaryWorktreeBranch` 只认 fork 自己的 `t3x/<hex>` 和 `t3x-<hex>`，所有会改 git 的路径都用它；`looksLikeTemporaryWorktreeBranch` 另外认官方的 `t3/<hex>`、`t3-<hex>` 和旧的 `t3code/…`，只用于显示和元数据，不会触发任何 git 写入。调用方：`ThreadLaunchService.ts` 的 flatten 和首轮重命名、`ProviderEventIngestor.ts` 的子线程分支复查用前者（前两处会 `git branch -m` 或建分支；复查只对 fork 自己重命名过的分支有意义，不写 git）；`GitActionsControl.logic.ts` 的 `resolveLiveThreadBranchUpdate` 用后者（只决定 UI 是否同步线程分支名，不写 git）；`paletteSearch.ts` 的前缀剥离是显示用的正则，同时剥 `t3x`、`t3`、`t3code`；`threadOutboxDelivery.ts`（手机）只调用 `buildTemporaryWorktreeBranchName`，生成 `t3x/<hex>`。后果：导入的官方线程（`t3/<hex>`）不会被 fork 重命名；改动之前 fork 自己创建的 `t3/<hex>` 线程与它们无法区分，同样失去首轮重命名，宁可不动。`packages/contracts/src/settings.ts` 的 `branchNamePrefix` 默认值是同一个字符串（contracts 不能 import shared），`packages/shared/src/git.test.ts` 有用例让两者保持一致。
