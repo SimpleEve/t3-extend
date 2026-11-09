@@ -1478,9 +1478,6 @@ export default {
     "逐个环境查看进程、资源占用和日志。",
   "View diagnostics": "查看诊断",
   "Current version of the application.": "应用的当前版本。",
-  "How we handle your data, including the anonymous usage data T3 Extend collects.":
-    "我们如何处理你的数据，包括 T3 Extend 收集的匿名使用数据。",
-  "View policy": "查看政策",
   "Notices for dependencies, assets, and optional tools used by T3 Extend.":
     "T3 Extend 使用的依赖、资源和可选工具的声明。",
   "View licenses": "查看许可",
@@ -2166,7 +2163,7 @@ export default {
   "Quit shortcut": "退出快捷键",
   "Text generation model": "文本生成模型",
   "Mobile app": "移动应用",
-  "Privacy policy": "隐私政策",
+  "Usage data": "使用数据",
   "Include app text": "包含应用文字",
   "Capture shortcut": "截图快捷键",
   "Capture sound": "截图声音",
@@ -2904,9 +2901,6 @@ export default {
   "Get help": "获取帮助",
   Organization: "组织",
   "Managed by {organization}.": "由 {organization} 管理。",
-  "How we handle your data. {message}": "我们如何处理你的数据。{message}",
-  "{message} To read more about how your data is used, see our {link}.":
-    "{message}想了解你的数据如何被使用，请查看我们的{link}。",
   "provider health interval": "provider 健康检查间隔",
   "active host power interval": "活跃时的主机电源检查间隔",
   "idle host power interval": "空闲时的主机电源检查间隔",

@@ -39,7 +39,6 @@ import { useEffect, useRef, useState } from "react";
 import { TYPOGRAPHY_ADVANCED_STORAGE_KEY } from "../../appearanceFonts";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { hasCloudPublicConfig } from "../../cloud/publicConfig";
-import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { useT3ConnectAuthPrompt } from "../clerk/useT3ConnectAuthPrompt";
 import { completeOnboarding } from "../../onboarding/firstRun";
 import {
@@ -334,16 +333,6 @@ function ConnectionStep({
   const t = useT();
   const { environments } = useEnvironments();
   const telemetryOff = managedTelemetryOffMessage(usePrimaryManagedPolicy(), t); // fork: interface language
-  const privacyPolicyLink = (
-    <a
-      className="underline underline-offset-2 hover:text-foreground"
-      href={PRIVACY_POLICY_URL}
-      target="_blank"
-      rel="noreferrer noopener"
-    >
-      {t("privacy policy")}
-    </a>
-  );
   const cloudEnabled = hasCloudPublicConfig();
   const directEnvironments = environments.filter(
     (environment) => !cloudEnabled || !isOnboardingRelayEnvironment(environment),
@@ -477,17 +466,11 @@ function ConnectionStep({
       ) : null}
       <div className="mt-6 flex flex-col-reverse gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
         <p className="min-w-0 text-xs leading-relaxed text-muted-foreground">
-          {telemetryOff === undefined
-            ? interpolateNodes(
-                t(
-                  "T3 Extend collects anonymous usage data to help us improve it. To read more about how your data is used and how to opt out, see our {link}.",
-                ),
-                { link: privacyPolicyLink },
-              )
-            : interpolateNodes(
-                t("{message} To read more about how your data is used, see our {link}."),
-                { message: telemetryOff, link: privacyPolicyLink },
-              )}
+          {telemetryOff ??
+            t(
+              // fork: the server reports only when T3CODE_TELEMETRY_ENABLED=true
+              "T3 Extend does not collect usage data by default. To opt in, set T3CODE_TELEMETRY_ENABLED=true in the server's environment.",
+            )}
         </p>
         <Button
           className="shrink-0 self-end"

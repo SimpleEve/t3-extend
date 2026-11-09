@@ -854,10 +854,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["phone tablet iPhone iPad iOS Android App Store Google Play QR"],
   },
   {
-    id: "privacy-policy",
-    title: "Privacy policy",
+    id: "usage-data",
+    title: "Usage data",
     to: "/settings/about",
-    searchTerms: ["telemetry analytics usage data tracking legal opt out"],
+    searchTerms: [
+      "telemetry analytics privacy tracking legal opt in opt out T3CODE_TELEMETRY_ENABLED",
+    ],
   },
   {
     id: "telemetry-export",

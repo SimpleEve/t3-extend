@@ -202,9 +202,8 @@ export default {
     "未连接，因此设置会跳过 {labels}。你可以稍后在设置中配置它。",
   "Not connected, so setup skips {labels}. You can set them up later from Settings.":
     "未连接，因此设置会跳过 {labels}。你可以稍后在设置中配置它们。",
-  "T3 Extend collects anonymous usage data to help us improve it. To read more about how your data is used and how to opt out, see our {link}.":
-    "T3 Extend 会收集匿名使用数据来帮助我们改进。要了解你的数据如何被使用以及如何退出，请查看我们的{link}。",
-  "privacy policy": "隐私政策",
+  "T3 Extend does not collect usage data by default. To opt in, set T3CODE_TELEMETRY_ENABLED=true in the server's environment.":
+    "T3 Extend 默认不收集使用数据。要开启，请在服务器的环境变量中设置 T3CODE_TELEMETRY_ENABLED=true。",
   "Loading sign-in…": "正在加载登录…",
   "Loading computers…": "正在加载电脑…",
   "No computers linked yet.": "还没有关联电脑。",
