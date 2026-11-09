@@ -422,8 +422,9 @@ export class SessionStore extends Context.Service<
     /**
      * Reports sessions that a live socket still depends on but whose row another process revoked
      * (the CLI writes the database directly), so their sockets close. Returns how many it found.
+     * A session it cannot read is skipped, not reported.
      */
-    readonly announceRevoked: () => Effect.Effect<number, SessionCredentialInternalError>; // fork:
+    readonly announceRevoked: () => Effect.Effect<number>; // fork:
     readonly markConnected: (sessionId: AuthSessionId) => Effect.Effect<void, never>;
     readonly markDisconnected: (sessionId: AuthSessionId) => Effect.Effect<void, never>;
   }
@@ -1055,12 +1056,17 @@ const make = Effect.gen(function* () {
     ]);
     const gone: Array<AuthSessionId> = [];
     for (const sessionId of watched) {
-      const row = yield* authSessions
-        .getById({ sessionId })
-        .pipe(
-          Effect.mapError((cause) => new SessionCredentialVerificationError({ sessionId, cause })),
-        );
-      if (Option.isNone(row) || row.value.revokedAt !== null) gone.push(sessionId);
+      const row = yield* authSessions.getById({ sessionId }).pipe(Effect.result);
+      if (row._tag === "Failure") {
+        yield* Effect.logWarning("Could not read a session to see whether it was revoked.", {
+          sessionId,
+          cause: row.failure,
+        });
+        continue;
+      }
+      if (Option.isNone(row.success) || row.success.value.revokedAt !== null) {
+        gone.push(sessionId);
+      }
     }
     if (gone.length === 0) return 0;
     yield* Ref.update(connectedSessionsRef, (current) => {

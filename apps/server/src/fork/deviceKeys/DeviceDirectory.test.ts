@@ -19,6 +19,7 @@ import * as DeviceIdentity from "./DeviceIdentity.ts";
 import * as DeviceKeysService from "./DeviceKeysService.ts";
 import * as RegistryClient from "./RegistryClient.ts";
 import {
+  Harness,
   NOW_MS,
   NOW_S,
   joinThisComputer,
@@ -261,6 +262,56 @@ describe("a removal another process made", () => {
         const laptopStillOpen = yield* sessions.verify(laptopSession.token);
         assert.equal(laptopStillOpen.sessionId, laptopSession.sessionId);
       }).pipe(Effect.scoped, Effect.provide(layerHarness)),
+  );
+});
+
+describe("a leave another process made", () => {
+  // `devices leave` in the CLI clears the membership and revokes the device sessions in the
+  // database; this server's sync then finds nothing to sync, but must still close the sockets.
+  it.effect(
+    "closes the open socket of a device when the membership is gone from the next sync",
+    () =>
+      Effect.gen(function* () {
+        const { directory, phone, sessions, sessionFor } = yield* arrange;
+        const secrets = yield* ServerSecretStore.ServerSecretStore;
+        const sql = yield* SqlClient.SqlClient;
+        const phoneSession = yield* sessionFor(phone, "phone");
+        const closed = yield* Deferred.make<void>();
+        yield* sessions.markConnected(phoneSession.sessionId);
+        yield* sessions
+          .awaitInvalidation(phoneSession.sessionId, "k".repeat(43))
+          .pipe(
+            Effect.andThen(Deferred.succeed(closed, undefined)),
+            Effect.forkScoped({ startImmediately: true }),
+          );
+        yield* secrets.remove(DeviceDirectory.MEMBERSHIP_SECRET);
+        const revokedAt = DateTime.formatIso(yield* DateTime.now);
+        yield* sql`
+        UPDATE auth_sessions SET revoked_at = ${revokedAt} WHERE session_id = ${phoneSession.sessionId}
+      `;
+        yield* TestClock.adjust(Duration.seconds(1));
+        assert.isFalse(yield* Deferred.isDone(closed));
+
+        assert.equal((yield* directory.sync).state, "not_joined");
+        yield* TestClock.adjust(Duration.seconds(1));
+        assert.isTrue(yield* Deferred.isDone(closed));
+      }).pipe(Effect.scoped, Effect.provide(layerHarness)),
+  );
+});
+
+describe("the check for sockets of revoked sessions", () => {
+  it.effect("failing does not fail the sync, which still revokes and publishes the list", () =>
+    Effect.gen(function* () {
+      const { fake, directory, phone, sessionFor, live } = yield* arrange;
+      const harness = yield* Harness;
+      yield* sessionFor(phone, "phone");
+      harness.hooks.beforeAnnounce = Effect.die("the database could not be read");
+      fake.removeDevice(phone.id);
+      const status = yield* directory.sync;
+      assert.equal(status.state, "joined");
+      assert.equal(status.fetchedAt, NOW_S);
+      assert.lengthOf(yield* live, 0);
+    }).pipe(Effect.provide(layerHarness)),
   );
 });
 

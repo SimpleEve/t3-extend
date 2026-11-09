@@ -182,6 +182,26 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("SessionStore.lay
       ),
   );
 
+  it.effect("skips a session it cannot read and still announces the others", () =>
+    Effect.gen(function* () {
+      const sessions = yield* SessionStore.SessionStore;
+      const sql = yield* SqlClient.SqlClient;
+      const unreadable = yield* sessions.issue(relaySessionInput);
+      const revoked = yield* sessions.issue({ ...relaySessionInput, proofKeyThumbprint: "other" });
+      yield* sessions.markConnected(unreadable.sessionId);
+      yield* sessions.markConnected(revoked.sessionId);
+      yield* sql`UPDATE auth_sessions SET scopes = 'not json' WHERE session_id = ${unreadable.sessionId}`;
+      yield* sql`UPDATE auth_sessions SET revoked_at = '2030-01-01T00:00:00.000Z' WHERE session_id = ${revoked.sessionId}`;
+
+      expect(yield* sessions.announceRevoked()).toBe(1);
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        Layer.mergeAll(layerSessionStore(), SqlitePersistence.layerMemory, TestClock.layer()),
+      ),
+    ),
+  );
+
   it.effect("expires a connected session at its credential deadline", () =>
     Effect.gen(function* () {
       const sessions = yield* SessionStore.SessionStore;

@@ -20,7 +20,13 @@ slow tunnel, and it needs the computer to hold per-attempt state. The pass needs
 neither, and the audience is an environment id rather than a URL, so the same
 pass works over the tunnel, a LAN address or a tailnet address. A pass is spent
 by its first use (replay markers share `auth/replayMarkers.ts`). The session
-lasts an hour and is revoked when the sync no longer lists the device.
+lasts an hour and is revoked when the sync no longer lists the device. A removal
+made in this process closes the device's sockets at once. One made by another
+process (the CLI's `devices remove` and `leave`, or `auth session revoke`)
+writes the database directly, so the running server learns of it only when its
+next sync ends, up to a minute later, and the old socket keeps working until
+then. Every sync therefore ends by checking the live sockets' sessions, joined
+or not, and a failure of that check never fails the sync.
 
 ## Why `t3x-device` is a separate authorization, and why it fails closed
 

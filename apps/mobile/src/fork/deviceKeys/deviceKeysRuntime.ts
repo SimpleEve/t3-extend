@@ -49,6 +49,10 @@ const source: DeviceAuthorizationSource = {
     Effect.runFork(
       Effect.flatMap(loadStore, (store) =>
         Effect.promise(() => store.deviceSync.refresh({ force: true })),
+      ).pipe(
+        Effect.catchCause((cause) =>
+          Effect.logWarning("Could not refresh the device list after a refused pass.", { cause }),
+        ),
       ),
     );
   },

@@ -230,11 +230,7 @@ const make = Effect.gen(function* () {
   const persistList = (list: StoredList) =>
     secrets.set(LIST_SECRET, new TextEncoder().encode(encodeStoredList(list))).pipe(storageFailure);
 
-  /**
-   * Revokes the sessions of every device that is not in `keep`. Idempotent, so every sync runs it.
-   * Then closes the sockets of sessions that another process (`devices remove` in the CLI) revoked
-   * already: `listActive` no longer returns those rows, and this server never saw the write.
-   */
+  /** Revokes the sessions of every device that is not in `keep`. Idempotent, so every sync runs it. */
   const reconcile = (keep: ReadonlySet<string>) =>
     sessions.listActive().pipe(
       Effect.flatMap((rows) =>
@@ -247,7 +243,6 @@ const make = Effect.gen(function* () {
           { discard: true },
         ),
       ),
-      Effect.andThen(sessions.announceRevoked()),
       storageFailure,
       Effect.withSpan("DeviceDirectory.reconcile"),
     );
@@ -290,7 +285,20 @@ const make = Effect.gen(function* () {
     yield* publish;
   });
 
-  const sync = Effect.fn("DeviceDirectory.sync")(function* () {
+  /**
+   * Closes the sockets of sessions that another process (`devices remove` or `leave` in the CLI,
+   * `auth session revoke`) revoked in the database: this server never saw those writes, and
+   * `listActive` no longer returns the rows. It must not fail or skip a sync.
+   */
+  const announceRevoked = sessions.announceRevoked().pipe(
+    Effect.catchCause((cause) =>
+      Effect.logWarning("Could not close the sockets of sessions revoked elsewhere.", { cause }),
+    ),
+    Effect.asVoid,
+    Effect.withSpan("DeviceDirectory.announceRevoked"),
+  );
+
+  const syncRegistry = Effect.fn("DeviceDirectory.sync")(function* () {
     yield* reload;
     const local = yield* Ref.get(state);
     const membership = Option.getOrUndefined(local.membership);
@@ -344,6 +352,9 @@ const make = Effect.gen(function* () {
     );
     return yield* status;
   });
+
+  // Whatever the pull finds, including no membership or an unreachable registry, the check runs.
+  const sync = () => syncRegistry().pipe(Effect.ensuring(announceRevoked));
 
   const unknownDeviceRefresh = yield* Ref.make<{
     readonly running: boolean;
