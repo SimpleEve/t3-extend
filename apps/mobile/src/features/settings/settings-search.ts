@@ -1,3 +1,4 @@
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { foldSearchQuery, rankSearchItems, scoreSearchTerms } from "@t3tools/shared/paletteSearch";
 
 import type { SettingsPageTarget } from "./components/settings-page-targets";
@@ -140,11 +141,17 @@ export interface SettingsSearchSection<Row extends SettingsSearchRow> {
 /**
  * Keeps the rows whose label, section, or page contents match `query`, in list order, and drops
  * sections left empty. Matching is the command palette's, so both searches agree.
+ * fork: with `t`, a page's terms also match in the interface language, wherever the catalog
+ * has them (an untranslated term is its own English).
  */
 export function filterSettingsSections<
   Row extends SettingsSearchRow,
   Section extends SettingsSearchSection<Row>,
->(sections: readonly Section[], query: string): Section[] {
+>(
+  sections: readonly Section[],
+  query: string,
+  t?: Translator, // fork: i18n
+): Section[] {
   const normalizedQuery = foldSearchQuery(query);
   const rows = sections.flatMap((section) =>
     section.rows.map((row) => ({ row, section: section.title })),
@@ -154,7 +161,13 @@ export function filterSettingsSections<
         rankSearchItems(rows, ({ row, section }, options) =>
           scoreSearchTerms(
             normalizedQuery,
-            [row.label, ...(section ? [section] : []), ...(termsById.get(row.id) ?? [])],
+            [
+              row.label,
+              ...(section ? [section] : []),
+              ...(termsById.get(row.id) ?? []).flatMap((term) =>
+                t === undefined || t(term) === term ? [term] : [term, t(term)],
+              ),
+            ],
             options,
           ),
         ).map(({ item }) => item.row),

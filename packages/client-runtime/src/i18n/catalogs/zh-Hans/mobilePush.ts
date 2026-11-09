@@ -13,7 +13,13 @@ export default {
   "Registration failed": "注册失败",
   Registered: "已注册",
   "Registering…": "正在注册…",
+  "Waiting for the connection…": "正在等待连接…",
   "Not registered": "未注册",
+  "Not registered: can't reach this environment": "未注册：连不上这个环境",
+  "Not registered: this environment didn't answer": "未注册：这个环境没有响应",
+  "Not registered: this connection can't register devices": "未注册：这个连接无权注册设备",
+  "Not registered: this environment refused the registration": "未注册：这个环境拒绝了注册",
+  "Not registered: this environment couldn't read the request": "未注册：这个环境无法读懂请求",
   "Send test notification": "发送测试通知",
   "Test notification sent": "测试通知已发送",
   "The push server accepted it. It should appear on this phone in a moment.":

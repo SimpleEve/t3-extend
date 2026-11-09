@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  classifyPushFailure,
   distributorToAutoSelect,
   makePushRegistrationInput,
   registrationKey,
@@ -92,5 +93,24 @@ describe("registration input", () => {
     expect(
       registrationKey(makePushRegistrationInput({ ...base, notificationsEnabled: false })),
     ).not.toBe(key);
+  });
+});
+
+describe("classifyPushFailure", () => {
+  it.each([
+    ["PushRequestTimeout", "timeout"],
+    ["EnvironmentAuthorizationError", "denied"],
+    ["PushRegistrationError", "rejected"],
+    ["EnvironmentRpcUnavailableError", "unreachable"],
+    ["RpcClientError", "unreachable"],
+    ["SchemaError", "invalid"],
+    ["SomethingElse", "unknown"],
+  ] as const)("sorts %s as %s", (tag, expected) => {
+    expect(classifyPushFailure({ _tag: tag, message: "quotes the endpoint" })).toBe(expected);
+  });
+
+  it("does not guess from the message or from non-errors", () => {
+    expect(classifyPushFailure(new Error("timed out"))).toBe("unknown");
+    expect(classifyPushFailure(null)).toBe("unknown");
   });
 });

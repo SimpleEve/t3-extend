@@ -1,15 +1,59 @@
 import type { PushRegistrationInput } from "@t3tools/contracts";
+import * as Schema from "effect/Schema";
 
 import type { UnifiedPushNativeState, UnifiedPushSubscription } from "./unifiedPushTypes";
 
 // fork: pure parts of the UnifiedPush registration flow.
 
-export type EnvironmentPushState = "pending" | "registered" | "failed";
+/** "waiting": the environment has no connection yet; it is registered once it has one. */
+export type EnvironmentPushState = "waiting" | "pending" | "registered" | "failed";
+
+/** Why a registration did not reach the environment; shown next to "Not registered". */
+export type PushFailureKind =
+  | "unreachable"
+  | "denied"
+  | "rejected"
+  | "invalid"
+  | "timeout"
+  | "unknown";
+
+export class PushRequestTimeout extends Schema.TaggedError<PushRequestTimeout>()(
+  "PushRequestTimeout",
+  {},
+) {}
+
+/**
+ * Sorts a failed `push.register` by its error's `_tag`, never by message: messages can quote the
+ * request, which carries the endpoint.
+ */
+export function classifyPushFailure(error: unknown): PushFailureKind {
+  const tag = typeof error === "object" && error !== null && "_tag" in error ? error._tag : null;
+  switch (tag) {
+    case "PushRequestTimeout":
+      return "timeout";
+    case "EnvironmentAuthorizationError":
+      return "denied";
+    case "PushRegistrationError":
+      return "rejected";
+    case "EnvironmentRpcUnavailableError":
+    case "EnvironmentNotRegisteredError":
+    case "RpcClientError":
+    case "ConnectionBlockedError":
+      return "unreachable";
+    case "SchemaError":
+    case "ParseError":
+      return "invalid";
+    default:
+      return "unknown";
+  }
+}
 
 export interface EnvironmentPushStatus {
   readonly environmentId: string;
   readonly label: string;
   readonly state: EnvironmentPushState;
+  /** Only while `state` is "failed". */
+  readonly failure?: PushFailureKind;
   readonly lastDelivery: "delivered" | "gone" | "rejected" | "unreachable" | null;
 }
 
