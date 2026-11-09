@@ -5,6 +5,8 @@ export default {
   "Sign in": "登录",
   "Signed in": "已登录",
   Notifications: "通知",
+  // A settings search term (see settings-search.ts), so “推送” finds Notifications
+  push: "推送",
   "No settings match “{query}”.": "没有匹配“{query}”的设置。",
   "Unavailable project": "不可用的项目",
   "Navigation tabs": "导航标签",

@@ -1,5 +1,7 @@
+import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { describe, expect, it } from "vite-plus/test";
 
+import { localNotificationsRows, notificationsRow } from "../../fork/push/notificationsRow"; // fork: UnifiedPush
 import { filterSettingsSections } from "./settings-search";
 
 const SECTIONS = [
@@ -66,5 +68,34 @@ describe("filterSettingsSections", () => {
 
   it("drops sections that start empty", () => {
     expect(filterSettingsSections([{ rows: [] }, ...SECTIONS], "").length).toBe(SECTIONS.length);
+  });
+});
+
+// fork: a build without T3 Connect lists Notifications next to Environments, and search finds it
+// by its name and by "push" in either language.
+describe("Notifications without T3 Connect", () => {
+  it("is listed only where the page has something to show", () => {
+    const t = translatorFor("en");
+    expect(localNotificationsRows(t, true).map((row) => row.id)).toEqual(["SettingsNotifications"]);
+    expect(localNotificationsRows(t, false)).toEqual([]);
+  });
+
+  it.each([
+    { locale: "en", queries: ["notifications", "push", "alerts"] },
+    { locale: "zh-Hans", queries: ["通知", "推送", "push"] },
+  ] as const)("is found by $queries in $locale", async ({ locale, queries }) => {
+    await loadUiCatalog(locale);
+    const t = translatorFor(locale);
+    const sections = [
+      { title: t("Connections"), rows: [{ id: "SettingsEnvironments", label: t("Environments") }] },
+      { title: t("Agents"), rows: [notificationsRow(t)] },
+    ];
+    for (const query of queries) {
+      expect(
+        filterSettingsSections(sections, query, t).flatMap((section) =>
+          section.rows.map((row) => row.id),
+        ),
+      ).toEqual(["SettingsNotifications"]);
+    }
   });
 });
