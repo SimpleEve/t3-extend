@@ -1,3 +1,4 @@
+import type { Translator } from "@t3tools/client-runtime/i18n";
 import { type EnvironmentId } from "@t3tools/contracts";
 import { FORK } from "@t3tools/shared/forkIdentity";
 import { useAtomValue } from "@effect/atom-react";
@@ -15,7 +16,11 @@ import {
   enableUnifiedPush,
   sendTestNotification,
 } from "./unifiedPushRegistration";
-import { unifiedPushSetupStep, type EnvironmentPushStatus } from "./pushRegistrationModel";
+import {
+  unifiedPushSetupStep,
+  type EnvironmentPushStatus,
+  type PushFailureKind,
+} from "./pushRegistrationModel";
 import { pushEnvironment } from "./pushCommands";
 import { useUnifiedPushState } from "./pushStore";
 
@@ -195,6 +200,23 @@ export function UnifiedPushSettingsSection() {
   );
 }
 
+function failureText(failure: PushFailureKind | undefined, t: Translator): string {
+  switch (failure) {
+    case "unreachable":
+      return t("Not registered: can't reach this environment");
+    case "timeout":
+      return t("Not registered: this environment didn't answer");
+    case "denied":
+      return t("Not registered: this connection can't register devices");
+    case "rejected":
+      return t("Not registered: this environment refused the registration");
+    case "invalid":
+      return t("Not registered: this environment couldn't read the request");
+    default:
+      return t("Not registered");
+  }
+}
+
 function EnvironmentPushSection(props: {
   readonly environment: EnvironmentPushStatus;
   readonly busy: boolean;
@@ -211,10 +233,17 @@ function EnvironmentPushSection(props: {
       ? t("Registered")
       : environment.state === "pending"
         ? t("Registering…")
-        : t("Not registered");
+        : environment.state === "waiting"
+          ? t("Waiting for the connection…")
+          : failureText(environment.failure, t);
   return (
     <SettingsSection title={environment.label || t("Environment")}>
-      <SettingsRow icon="checkmark.circle" label={t("Status")} value={status} />
+      <SettingsRow
+        icon="checkmark.circle"
+        label={t("Status")}
+        value={status}
+        valuePosition={environment.state === "failed" ? "below" : undefined}
+      />
       <SettingsRow
         icon="bell.badge"
         label={t("Send test notification")}

@@ -20,7 +20,7 @@ You need three things:
 2. **A push app on the phone** that speaks UnifiedPush. Install **ntfy** from F-Droid, open it, and in its settings set the default server to yours and sign in with the account you created for the phone.
 3. **T3 Extend's setting.** Open **Settings → Notifications**, turn on **Push notifications**, and allow notifications. If one push app is installed it is chosen for you; if several are, pick one.
 
-Once the push server answers, the screen shows the push app and the server's address (never the full endpoint), and each paired environment lists whether this phone is registered. Use **Send test notification** under an environment to check the whole path; the notification should arrive within a few seconds.
+Once the push server answers, the screen shows the push app and the server's address (never the full endpoint), and each paired environment lists whether this phone is registered. Use **Send test notification** under an environment to check the whole path; the notification should arrive within a few seconds. If an environment shows **Not registered**, the line says why (it can't be reached, didn't answer, or refused the registration); an environment that can't be reached or doesn't answer is tried again automatically, and if one refused, turn **Push notifications** off and on again.
 
 How it works: the phone gives its endpoint and encryption keys to every environment it is paired with. An environment encrypts each alert for your phone before sending it, so the push server only ever sees ciphertext, and your phone decrypts it and shows it in its own language. A phone can only receive alerts for environments it is paired with, and each environment only alerts for its own threads.
 
