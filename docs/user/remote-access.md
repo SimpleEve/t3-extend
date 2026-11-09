@@ -236,6 +236,18 @@ To start:
 Every computer that has joined then shows up as an environment on your other
 computers and phones, including ones that join later.
 
+To remove a device, choose **Remove** next to it in **Settings → Sharing &
+access → Your server** on a computer that has joined, or run `./t3x revoke
+<name>` in the server's folder on the VPS (`./t3x devices` lists the names).
+It takes effect within about a minute, and a computer that was offline then is
+cut off once it reaches the server again. After that:
+
+- The removed computer or phone says it was removed from your server. A computer
+  shows **Join my server**; it needs a new invite to come back.
+- The removed computer's public address stops answering.
+- On your other computers, it leaves the device list and its environment
+  disappears. Projects that were bound to it show as "Unavailable environment".
+
 Things that may surprise you:
 
 - A newly joined device can take a few seconds to a minute to be recognized by
@@ -245,8 +257,6 @@ Things that may surprise you:
   list. After 3 minutes the settings page says it can't reach the server. After
   24 hours it warns you. After 7 days it stops accepting new device logins until
   it syncs again.
-- Removing a device takes effect within about a minute. A computer that was
-  offline at the time is cut off once it reaches the server again.
 - If a computer leaves your server and joins again, its address on the server
   changes, for example from `mac` to `mac-2`.
 - A phone's key exists only on that phone. For a new phone, join again and
@@ -515,6 +525,9 @@ If the other machine revokes the link, or the link is removed here, the task
 fails with that reason.
 
 ## Manage or revoke access
+
+This section covers pairing links and sessions. To remove a device from
+[Your own server](#your-own-server), see the removal steps there.
 
 On the host, **Settings → Sharing & access** lets authorized administrators create
 pairing links and revoke client sessions. Revoking an unused link prevents new

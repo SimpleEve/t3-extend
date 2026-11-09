@@ -75,6 +75,31 @@ or use a package manager:
 | Arch Linux nightly | `yay -S t3code-nightly-bin`                                  |
 | Nix                | `nix profile add github:NixOS/nixpkgs/nixos-unstable#t3code` |
 
+### T3 Extend on macOS
+
+<!-- fork: T3 Extend only. Not part of upstream T3 Code. -->
+
+The downloads and package managers above install official T3 Code. T3 Extend is
+not published there. Its maintainer gives you a disk image,
+`T3-Extend-<version>-arm64.dmg`, for Macs with Apple silicon.
+
+1. Open the disk image and drag **T3 Extend (Beta)** into **Applications**.
+2. Open it from Applications. The app is signed with its own certificate and is
+   not notarized by Apple, so macOS refuses the first launch. Choose **Done**, then
+   open **System Settings → Privacy & Security**, scroll to **Security**, and choose
+   **Open Anyway** next to the message about T3 Extend (Beta). Confirm with your
+   password or Touch ID, then choose **Open**. From macOS 15, Control-clicking
+   the app and choosing **Open** no longer gets past this. If the button is not
+   there, open the app once more and look again.
+3. macOS then asks whether T3 Extend (Beta) may use "t3extend Safe Storage" in
+   your keychain. Enter your login password and choose **Always Allow**. The app
+   keeps its sign-ins there. If you chose anything else, quit the app, run
+   `security delete-generic-password -s "t3extend Safe Storage"` in Terminal, and
+   open the app again; you sign in or pair your devices again.
+
+To skip step 2, run `xattr -d com.apple.quarantine "/Applications/T3 Extend (Beta).app"` in
+Terminal before opening the app.
+
 ### Linux
 
 AppImage and `.deb` downloads are available for x86_64 and ARM64. Check your
@@ -204,18 +229,14 @@ command cannot reach the app, start or update the desktop app and try again.
 
 ## Mobile app
 
-Install T3 Code from the
-[App Store](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824) or
-[Google Play](https://play.google.com/store/apps/details?id=com.t3tools.t3code).
-The phone connects to a server on another machine. Follow
-[remote access](./remote-access.md) to link it through T3 Connect or a pairing URL.
+<!-- fork: T3 Extend only. The App Store and Google Play pages belong to official T3 Code. -->
 
-Store links and QR codes are also available in **Settings → About → Mobile app**
-on web and desktop. The store apps work with both stable and Nightly servers. Test builds are optional:
-
-- **iPhone and iPad:** TestFlight is invite-only.
-- **Android:** download an APK from the
-  [Android beta releases](https://github.com/pingdotgg/t3code/releases?q=android-beta-).
+T3 Extend's Android app is an APK that the maintainer gives you; it is not on
+Google Play, and there is no iOS version. Copy it to the phone and open it, or
+run `adb install -r <apk>` from a computer. It installs beside the official T3 Code
+app instead of replacing it. The phone connects to a server on another machine.
+Follow [remote access](./remote-access.md) to link it through
+[your own server](./remote-access.md#your-own-server) or a pairing URL.
 
 If the app crashes during launch, open Settings → Diagnostics on the next launch
 that succeeds. It lists startup crashes from the last 7 days with the error and
