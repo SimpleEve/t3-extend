@@ -114,7 +114,12 @@ function DesktopDevices() {
 function DevicesRows({ environmentId }: { readonly environmentId: EnvironmentId }) {
   const t = useT();
   const statusResult = useAtomValue(devicesStatus({ environmentId, input: {} }));
-  const status = Option.getOrNull(AsyncResult.value(statusResult));
+  const snapshot = Option.getOrNull(
+    AsyncResult.value(useAtomValue(devicesSnapshot({ environmentId, input: {} }))),
+  );
+  // The server pushes status with every change, but the one-shot status is only re-read after a
+  // join or leave here. A removal, or a change from the CLI, shows up in the pushed one first.
+  const status = snapshot?.status ?? Option.getOrNull(AsyncResult.value(statusResult));
   const [joinOpen, setJoinOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const inviteRequests = useDeviceInviteRequests();
@@ -173,6 +178,7 @@ function DevicesRows({ environmentId }: { readonly environmentId: EnvironmentId 
       <JoinedRows
         environmentId={environmentId}
         status={status}
+        devices={snapshot?.devices ?? []}
         onInvite={() => setInviteOpen(true)}
       />
       <InviteDialog environmentId={environmentId} open={inviteOpen} onOpenChange={setInviteOpen} />
@@ -182,18 +188,16 @@ function DevicesRows({ environmentId }: { readonly environmentId: EnvironmentId 
 
 function JoinedRows({
   environmentId,
-  status,
+  status: current,
+  devices: listed,
   onInvite,
 }: {
   readonly environmentId: EnvironmentId;
   readonly status: DevicesStatus;
+  readonly devices: ReadonlyArray<DeviceListEntry>;
   readonly onInvite: () => void;
 }) {
   const t = useT();
-  const snapshotResult = useAtomValue(devicesSnapshot({ environmentId, input: {} }));
-  const snapshot = Option.getOrNull(AsyncResult.value(snapshotResult));
-  // The list pushes status along with the devices, so the pushed one is the one shown.
-  const current = snapshot?.status ?? status;
   // Re-evaluated at the moments the notice changes, so an open page shows it without a re-render.
   const noticeAt = useClockWindowStart((nowMs) => serverNoticeWindow(current, nowMs));
   const notice = serverNotice(current, noticeAt);
@@ -205,7 +209,7 @@ function JoinedRows({
   } | null>(null);
   const waiting = useWaitingDeviceIds();
 
-  const devices = [...(snapshot?.devices ?? [])].toSorted(
+  const devices = [...listed].toSorted(
     (a, b) =>
       Number(b.self) - Number(a.self) ||
       Number(a.kind === "phone") - Number(b.kind === "phone") ||
