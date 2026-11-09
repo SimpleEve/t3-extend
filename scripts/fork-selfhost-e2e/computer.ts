@@ -66,6 +66,20 @@ export async function cliJoin(
   return result.stdout.trim();
 }
 
+/** `t3x devices remove`, run as its own process on a computer whose server keeps running. */
+export async function cliRemove(ctx: E2eContext, home: string, device: string): Promise<string> {
+  const result = await run(
+    process.execPath,
+    [SERVER_ENTRY, "devices", "remove", device, "--base-dir", home],
+    { env: childEnv(ctx, home), cwd: ctx.workDir },
+  );
+  check(
+    result.status === 0,
+    `devices remove failed (${result.status}): ${result.stdout} ${result.stderr}`,
+  );
+  return result.stdout.trim();
+}
+
 export interface AuthSession {
   readonly sessionId: string;
   readonly subject: string;
