@@ -1,10 +1,13 @@
 // The device list: persistence, staleness, reconcile, self-removal and the change stream.
 import { generateDeviceKey } from "@t3tools/shared/forkDeviceKeys/jws";
 import { assert, describe, it } from "@effect/vitest";
+import * as DateTime from "effect/DateTime";
+import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Option from "effect/Option";
+import * as SqlClient from "effect/sql/SqlClient";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
@@ -220,6 +223,44 @@ describe("reconcile", () => {
       yield* directory.sync;
       assert.lengthOf(yield* live, 0);
     }).pipe(Effect.provide(layerHarness)),
+  );
+});
+
+describe("a removal another process made", () => {
+  // `devices remove` in a separate CLI process revokes the session rows itself; this server never
+  // revokes them, so only its next reconcile can tell a live socket.
+  it.effect(
+    "closes the open socket of a device when the next sync finds the row already revoked",
+    () =>
+      Effect.gen(function* () {
+        const { fake, directory, phone, laptop, sessions, sessionFor } = yield* arrange;
+        const sql = yield* SqlClient.SqlClient;
+        const phoneSession = yield* sessionFor(phone, "phone");
+        const laptopSession = yield* sessionFor(laptop, "computer");
+        const closed = yield* Deferred.make<void>();
+        for (const [session, onClose] of [
+          [phoneSession, Deferred.succeed(closed, undefined)],
+          [laptopSession, Effect.void],
+        ] as const) {
+          yield* sessions.markConnected(session.sessionId);
+          yield* sessions
+            .awaitInvalidation(session.sessionId, "k".repeat(43))
+            .pipe(Effect.andThen(onClose), Effect.forkScoped({ startImmediately: true }));
+        }
+        const revokedAt = DateTime.formatIso(yield* DateTime.now);
+        yield* sql`
+        UPDATE auth_sessions SET revoked_at = ${revokedAt} WHERE session_id = ${phoneSession.sessionId}
+      `;
+        yield* TestClock.adjust(Duration.seconds(1));
+        assert.isFalse(yield* Deferred.isDone(closed));
+
+        fake.removeDevice(phone.id);
+        yield* directory.sync;
+        yield* TestClock.adjust(Duration.seconds(1));
+        assert.isTrue(yield* Deferred.isDone(closed));
+        const laptopStillOpen = yield* sessions.verify(laptopSession.token);
+        assert.equal(laptopStillOpen.sessionId, laptopSession.sessionId);
+      }).pipe(Effect.scoped, Effect.provide(layerHarness)),
   );
 });
 

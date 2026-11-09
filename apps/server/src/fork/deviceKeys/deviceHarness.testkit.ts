@@ -207,7 +207,8 @@ export const layerHarness = Layer.unwrap(
 
     const layerEnvironmentAuth = EnvironmentAuth.layer.pipe(
       Layer.provide(ManagedPolicy.layerTest()),
-      Layer.provide(SqlitePersistence.layerMemory),
+      // Visible, so a test can write the database the way another process would.
+      Layer.provideMerge(SqlitePersistence.layerMemory),
       Layer.provide(ServerSecretStore.layer),
       Layer.provide(ServerEnvironment.layerIdentity),
       Layer.provide(layerConfig),
@@ -517,6 +518,7 @@ export const layerMemoryWith = <ROut, E, R>(registry: Layer.Layer<ROut, E, R>) =
       Layer.succeed(SessionStore.SessionStore, {
         listActive: () => Effect.succeed([]),
         revoke: () => Effect.succeed(false),
+        announceRevoked: () => Effect.succeed(0),
       } as unknown as SessionStore.SessionStore["Service"]),
     ),
     Layer.provideMerge(

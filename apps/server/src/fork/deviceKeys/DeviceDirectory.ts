@@ -230,7 +230,11 @@ const make = Effect.gen(function* () {
   const persistList = (list: StoredList) =>
     secrets.set(LIST_SECRET, new TextEncoder().encode(encodeStoredList(list))).pipe(storageFailure);
 
-  /** Revokes the sessions of every device that is not in `keep`. Idempotent, so every sync runs it. */
+  /**
+   * Revokes the sessions of every device that is not in `keep`. Idempotent, so every sync runs it.
+   * Then closes the sockets of sessions that another process (`devices remove` in the CLI) revoked
+   * already: `listActive` no longer returns those rows, and this server never saw the write.
+   */
   const reconcile = (keep: ReadonlySet<string>) =>
     sessions.listActive().pipe(
       Effect.flatMap((rows) =>
@@ -243,6 +247,7 @@ const make = Effect.gen(function* () {
           { discard: true },
         ),
       ),
+      Effect.andThen(sessions.announceRevoked()),
       storageFailure,
       Effect.withSpan("DeviceDirectory.reconcile"),
     );
