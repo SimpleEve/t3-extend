@@ -2,7 +2,6 @@ import type { DesktopBridge, DesktopUpdateState } from "@t3tools/contracts";
 
 const FALLBACK_TRIAGE_COMMAND = "npx t3 triage";
 const DOWNLOAD_URL = "https://t3.codes/download";
-const ISSUE_URL = "https://github.com/pingdotgg/t3code/issues/new";
 const LAST_FAILURE_KEY = "t3code:boot-failed-at";
 const REPEAT_FAILURE_MS = 5 * 60_000;
 const MAX_CAUSES = 3;
@@ -342,12 +341,6 @@ export function showBootError(error: unknown) {
     ),
   );
 
-  const issue = new URL(ISSUE_URL);
-  issue.searchParams.set("template", "bug_report.yml");
-  issue.searchParams.set("title", "T3 Extend failed to start");
-  issue.searchParams.set("area", "apps/web");
-  issue.searchParams.set("version", `${environment.version} (${environment.channel})`);
-  issue.searchParams.set("environment", `${environment.surface}, ${environment.platform}`);
   const link = (href: string, textContent: string) =>
     element("a", { href, textContent, target: "_blank", rel: "noreferrer" });
   const nightly = environment.channel === "nightly";
@@ -376,10 +369,8 @@ export function showBootError(error: unknown) {
       element("p", {
         textContent: "Details may include local file paths and names. Check before sharing.",
       }),
-      element("div", { id: "boot-error-report" }, [
-        copyDetails,
-        link(issue.href, "File a bug report on GitHub"),
-      ]),
+      // fork: no "File a bug report on GitHub" link; it opened upstream's issue form, which is not where this fork's bugs go.
+      element("div", { id: "boot-error-report" }, [copyDetails]),
     ]),
   ]);
 

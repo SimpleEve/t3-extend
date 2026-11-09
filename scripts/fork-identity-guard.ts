@@ -166,10 +166,6 @@ const ALLOWED: ReadonlyArray<Allowed> = [
     reason: "Links to upstream user documentation.",
   },
   {
-    path: "apps/web/src/lib/bootError.ts",
-    reason: "Upstream's public issue tracker is the only one available.",
-  },
-  {
     path: "packages/contracts/src/environmentHttp.ts",
     reason: "Links to upstream T3 Connect troubleshooting documentation.",
   },
