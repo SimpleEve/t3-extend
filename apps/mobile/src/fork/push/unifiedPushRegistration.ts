@@ -58,6 +58,10 @@ interface Controller {
   readonly requestSync: (force?: boolean) => void;
   /** Lets the next sync ask the distributor for an endpoint again. */
   readonly forgetRequest: () => void;
+  /** Push is going off: drops what the controller holds and keeps in-flight results out of it. */
+  readonly reset: () => void;
+  /** Asks one environment to forget this phone, while no sync registers it again. */
+  readonly forgetEnvironment: (environmentId: EnvironmentId) => Promise<void>;
 }
 
 let active: Controller | null = null;
@@ -77,6 +81,26 @@ const withTimeout = <A>(promise: Promise<A>, ms: number): Promise<A> =>
     );
   });
 
+const lanes = new Map<string, Promise<void>>();
+
+/**
+ * One request at a time per environment, in the order they were asked, shared by register and
+ * unregister: a registration still in flight reaches the server before the unregister that
+ * follows it, so it cannot outlive it. The timeout is inside, so a hung request frees the lane.
+ */
+const inLane = <A>(environmentId: string, operation: () => Promise<A>): Promise<A> => {
+  const result = (lanes.get(environmentId) ?? Promise.resolve()).then(operation);
+  const settled = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  lanes.set(environmentId, settled);
+  void settled.then(() => {
+    if (lanes.get(environmentId) === settled) lanes.delete(environmentId);
+  });
+  return result;
+};
+
 type RegisterOutcome =
   | { readonly ok: true; readonly lastDelivery: PushDeliveryOutcome | null }
   | { readonly ok: false; readonly failure: PushFailureKind };
@@ -93,14 +117,16 @@ const registerOn = async (
   input: PushRegistrationInput,
 ): Promise<RegisterOutcome> => {
   try {
-    const result = await withTimeout(
-      runAtomCommand(
-        appAtomRegistry,
-        pushEnvironment.register,
-        { environmentId, input },
-        COMMAND_OPTIONS,
+    const result = await inLane(environmentId, () =>
+      withTimeout(
+        runAtomCommand(
+          appAtomRegistry,
+          pushEnvironment.register,
+          { environmentId, input },
+          COMMAND_OPTIONS,
+        ),
+        RPC_TIMEOUT_MS,
       ),
-      RPC_TIMEOUT_MS,
     );
     return result._tag === "Success"
       ? { ok: true, lastDelivery: result.value.lastDelivery?.outcome ?? null }
@@ -142,6 +168,9 @@ export function installUnifiedPushRegistration(): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let retryDelay = RETRY_BASE_MS;
+  let retryNext = false;
+  // Bumped when push goes off: a sync or request that began before it must not write state.
+  let generation = 0;
   let running = false;
   let queued = false;
   let forceNext = false;
@@ -150,6 +179,10 @@ export function installUnifiedPushRegistration(): () => void {
   // The last registration each environment accepted; the same key means nothing to send.
   const sent = new Map<string, string>();
   const statuses = new Map<string, EnvironmentPushStatus>();
+  // The registration each environment last failed on; only a retry or a forced sync repeats it.
+  const failedKeys = new Map<string, string>();
+  // Environments being asked to forget this phone: no sync registers them meanwhile.
+  const closing = new Set<string>();
 
   const deviceId = () =>
     (deviceIdPromise ??= loadOrCreateAgentAwarenessDeviceId().catch(
@@ -171,29 +204,48 @@ export function installUnifiedPushRegistration(): () => void {
     );
   };
 
-  // A failure that may pass (offline, reconnecting) is tried again with growing gaps, so the
-  // registration does not wait for the next foreground or the ten-minute sweep.
-  const scheduleRetry = () => {
-    clearTimeout(retryTimer);
-    const retryable = [...statuses.values()].some(
-      (entry) =>
-        entry.state === "failed" && entry.failure !== "rejected" && entry.failure !== "invalid",
-    );
-    if (!retryable) {
+  const retryable = (entry: EnvironmentPushStatus | undefined) =>
+    entry?.state === "failed" && entry.failure !== "rejected" && entry.failure !== "invalid";
+
+  // A failed attempt that may pass (offline, reconnecting) is tried again with growing gaps, so
+  // the registration does not wait for the next foreground or the ten-minute sweep. Only an
+  // attempt that failed moves the gap; a sync with nothing to retry leaves a pending retry be.
+  const settleRetry = (attemptFailed: boolean) => {
+    if (![...statuses.values()].some(retryable)) {
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
       retryDelay = RETRY_BASE_MS;
       return;
     }
-    retryTimer = setTimeout(() => requestSync(), retryDelay);
+    if (!attemptFailed && retryTimer !== undefined) return;
+    clearTimeout(retryTimer);
+    retryTimer = setTimeout(() => {
+      retryTimer = undefined;
+      retryNext = true;
+      requestSync();
+    }, retryDelay);
     retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
   };
 
-  const syncOnce = async (force: boolean) => {
+  /** Everything the controller holds for the environments: push is off or has nothing to send. */
+  const reset = () => {
+    generation += 1;
+    clearTimeout(retryTimer);
+    retryTimer = undefined;
+    retryDelay = RETRY_BASE_MS;
+    retryNext = false;
+    for (const stop of watched.values()) stop();
+    watched.clear();
+    statuses.clear();
+    sent.clear();
+    failedKeys.clear();
+  };
+
+  const syncOnce = async (force: boolean, retryDue: boolean) => {
     const native = readUnifiedPushState();
     refreshPushStore();
     if (!native.enabled) {
-      clearTimeout(retryTimer);
-      statuses.clear();
-      sent.clear();
+      reset();
       requestedFor = null;
       publish();
       return;
@@ -201,9 +253,15 @@ export function installUnifiedPushRegistration(): () => void {
     const auto = distributorToAutoSelect(native);
     if (auto !== null) selectUnifiedPushDistributor(auto);
     const distributor = native.distributor ?? auto;
-    if (distributor === null) return;
+    if (distributor === null) {
+      reset();
+      publish();
+      return;
+    }
     const subscription = readUnifiedPushSubscription();
     if (subscription === null) {
+      reset();
+      publish();
       // The distributor answers a registration with the endpoint, which fires onChange.
       if (requestedFor !== distributor) {
         requestedFor = distributor;
@@ -211,21 +269,26 @@ export function installUnifiedPushRegistration(): () => void {
       }
       return;
     }
+    const gen = generation;
     const permitted = await Notifications.getPermissionsAsync().then(
       (result) => result.granted,
       () => false,
     );
+    if (gen !== generation) return;
     const label =
       Constants.deviceName?.trim() || (Platform.OS === "android" ? "Android device" : "Device");
     const id = await deviceId();
+    if (gen !== generation) return;
     const catalog = appAtomRegistry.get(environmentCatalog.catalogValueAtom);
     const live = new Set<string>();
+    let attemptFailed = false;
     await Promise.all(
       [...catalog.entries]
         .filter(([, entry]) => entry.enabled && entry.unsupportedReason === undefined)
         .map(async ([environmentId, entry]) => {
           live.add(environmentId);
           watchEnvironment(environmentId);
+          if (closing.has(environmentId)) return;
           const name = environmentLabel(entry);
           const input = makePushRegistrationInput({
             deviceId: id,
@@ -237,6 +300,13 @@ export function installUnifiedPushRegistration(): () => void {
           const key = registrationKey(input);
           if (!force && sent.get(environmentId) === key) return;
           const previous = statuses.get(environmentId);
+          if (
+            !force &&
+            failedKeys.get(environmentId) === key &&
+            !(retryDue && retryable(previous))
+          ) {
+            return;
+          }
           const waiting = (): EnvironmentPushStatus => ({
             environmentId,
             label: name,
@@ -258,7 +328,9 @@ export function installUnifiedPushRegistration(): () => void {
           });
           publish();
           const result = await registerOn(environmentId, input);
+          if (gen !== generation || closing.has(environmentId)) return;
           if (result.ok) {
+            failedKeys.delete(environmentId);
             sent.set(environmentId, key);
             statuses.set(environmentId, {
               environmentId,
@@ -269,9 +341,12 @@ export function installUnifiedPushRegistration(): () => void {
           } else if (!isConnected(environmentId)) {
             // The connection went away under the request; its return registers it.
             sent.delete(environmentId);
+            failedKeys.delete(environmentId);
             statuses.set(environmentId, waiting());
           } else {
             sent.delete(environmentId);
+            failedKeys.set(environmentId, key);
+            if (result.failure !== "rejected" && result.failure !== "invalid") attemptFailed = true;
             statuses.set(environmentId, {
               environmentId,
               label: name,
@@ -283,11 +358,13 @@ export function installUnifiedPushRegistration(): () => void {
           publish();
         }),
     );
+    if (gen !== generation) return;
     // Environments that went away end their registration with their session.
     for (const environmentId of statuses.keys()) {
       if (!live.has(environmentId)) {
         statuses.delete(environmentId);
         sent.delete(environmentId);
+        failedKeys.delete(environmentId);
       }
     }
     for (const [environmentId, stop] of watched) {
@@ -297,7 +374,7 @@ export function installUnifiedPushRegistration(): () => void {
       }
     }
     publish();
-    scheduleRetry();
+    settleRetry(attemptFailed);
   };
 
   const drain = async () => {
@@ -310,8 +387,10 @@ export function installUnifiedPushRegistration(): () => void {
       do {
         queued = false;
         const force = forceNext;
+        const retryDue = retryNext;
         forceNext = false;
-        await syncOnce(force).catch(() => undefined);
+        retryNext = false;
+        await syncOnce(force, retryDue).catch(() => undefined);
       } while (queued && !disposed);
     } finally {
       running = false;
@@ -330,6 +409,19 @@ export function installUnifiedPushRegistration(): () => void {
     requestSync,
     forgetRequest: () => {
       requestedFor = null;
+    },
+    reset,
+    forgetEnvironment: async (environmentId) => {
+      closing.add(environmentId);
+      try {
+        await forgetOn(environmentId, await deviceId());
+      } finally {
+        closing.delete(environmentId);
+        statuses.delete(environmentId);
+        sent.delete(environmentId);
+        failedKeys.delete(environmentId);
+        publish();
+      }
     },
   };
 
@@ -352,10 +444,8 @@ export function installUnifiedPushRegistration(): () => void {
   return () => {
     disposed = true;
     clearTimeout(timer);
-    clearTimeout(retryTimer);
     clearInterval(repeat);
-    for (const stop of watched.values()) stop();
-    watched.clear();
+    reset();
     removeNative();
     removeLocale();
     appState.remove();
@@ -380,14 +470,16 @@ export async function enableUnifiedPush(): Promise<EnableUnifiedPushResult> {
 }
 
 const forgetOn = async (environmentId: EnvironmentId, deviceId: string): Promise<void> => {
-  await withTimeout(
-    runAtomCommand(
-      appAtomRegistry,
-      pushEnvironment.unregister,
-      { environmentId, input: { deviceId } },
-      COMMAND_OPTIONS,
+  await inLane(environmentId, () =>
+    withTimeout(
+      runAtomCommand(
+        appAtomRegistry,
+        pushEnvironment.unregister,
+        { environmentId, input: { deviceId } },
+        COMMAND_OPTIONS,
+      ),
+      FORGET_TIMEOUT_MS,
     ),
-    FORGET_TIMEOUT_MS,
   ).catch(() => undefined);
 };
 
@@ -398,11 +490,14 @@ export async function disableUnifiedPush(): Promise<void> {
   const known = getPushEnvironments()
     .filter((entry) => entry.state !== "waiting")
     .map((entry) => entry.environmentId as EnvironmentId);
+  // First, so a sync or registration already under way cannot write state or add to the server
+  // after this; the unregisters then queue behind any request still in flight.
+  controller?.reset();
+  setUnifiedPushEnabled(false);
   if (controller !== null && known.length > 0) {
     const id = await controller.deviceId();
     await Promise.all(known.map((environmentId) => forgetOn(environmentId, id)));
   }
-  setUnifiedPushEnabled(false);
   unregisterUnifiedPush();
   // Unregistering drops the saved distributor and the endpoint; switching on must ask again.
   controller?.forgetRequest();
@@ -425,7 +520,7 @@ export function chooseUnifiedPushDistributor(distributor: string): void {
 export async function forgetPushRegistration(environmentId: EnvironmentId): Promise<void> {
   const controller = active;
   if (controller === null || !readUnifiedPushState().enabled) return;
-  await forgetOn(environmentId, await controller.deviceId());
+  await controller.forgetEnvironment(environmentId);
 }
 
 export type TestNotificationOutcome =

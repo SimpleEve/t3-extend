@@ -1,3 +1,4 @@
+import type { EnvironmentId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import { AsyncResult } from "effect/reactivity";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -129,10 +130,16 @@ import {
   chooseUnifiedPushDistributor,
   disableUnifiedPush,
   enableUnifiedPush,
+  forgetPushRegistration,
   installUnifiedPushRegistration,
 } from "./unifiedPushRegistration";
 
 const settle = () => vi.advanceTimersByTimeAsync(1_000);
+
+const ENVIRONMENT = { enabled: true, unsupportedReason: undefined, profile: { _tag: "None" } };
+const UNREACHABLE = { _tag: "Failure", error: { _tag: "EnvironmentRpcUnavailableError" } };
+const sentCommands = () => fake.command.mock.calls.map(([command]) => command as string);
+const registers = () => sentCommands().filter((command) => command === "register").length;
 
 describe("UnifiedPush registration controller", () => {
   let dispose: () => void;
@@ -140,6 +147,7 @@ describe("UnifiedPush registration controller", () => {
   beforeEach(async () => {
     vi.useFakeTimers();
     fake.state.enabled = false;
+    fake.state.distributors = [{ id: "io.heckel.ntfy", label: "ntfy" }];
     fake.state.distributor = null;
     fake.state.subscription = null;
     fake.state.failure = null;
@@ -261,5 +269,130 @@ describe("UnifiedPush registration controller", () => {
     fake.setConnected("env-1", true);
     await settle();
     expect(getPushEnvironments().map(({ state }) => state)).toEqual(["registered"]);
+  });
+
+  it("lets go of the connection subscriptions when push goes off, and takes them again on", async () => {
+    fake.state.catalog = new Map([["env-1", ENVIRONMENT]]);
+    fake.state.connected.add("env-1");
+    await enableUnifiedPush();
+    await settle();
+    expect(fake.state.connectionListeners.size).toBe(1);
+
+    await disableUnifiedPush();
+    await settle();
+    expect(fake.state.connectionListeners.size).toBe(0);
+
+    await enableUnifiedPush();
+    await settle();
+    expect(fake.state.connectionListeners.size).toBe(1);
+  });
+
+  it("lets go of the connection subscriptions when there is no push app or endpoint left", async () => {
+    fake.state.catalog = new Map([["env-1", ENVIRONMENT]]);
+    fake.state.connected.add("env-1");
+    await enableUnifiedPush();
+    await settle();
+    expect(fake.state.connectionListeners.size).toBe(1);
+
+    fake.state.distributors = [];
+    fake.state.distributor = null;
+    fake.state.subscription = null;
+    fake.setConnected("env-1", true);
+    await settle();
+    expect(fake.state.connectionListeners.size).toBe(0);
+  });
+
+  it("does not move the retry backoff for syncs that have nothing to retry", async () => {
+    fake.state.catalog = new Map([["env-1", ENVIRONMENT]]);
+    fake.state.connected.add("env-1");
+    fake.command.mockResolvedValue(UNREACHABLE);
+    await enableUnifiedPush();
+    await settle();
+    expect(registers()).toBe(1);
+
+    // Another environment's connection, the catalog, a foreground: none is a retry.
+    for (const connected of [true, false, true]) {
+      fake.setConnected("other", connected);
+      await vi.advanceTimersByTimeAsync(500);
+    }
+    expect(registers()).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(3_500);
+    expect(registers()).toBe(2);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(registers()).toBe(2);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(registers()).toBe(3);
+  });
+
+  it("starts the retry backoff over when push is switched off", async () => {
+    fake.state.catalog = new Map([["env-1", ENVIRONMENT]]);
+    fake.state.connected.add("env-1");
+    fake.command.mockResolvedValue(UNREACHABLE);
+    await enableUnifiedPush();
+    await settle();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(registers()).toBe(2);
+
+    await disableUnifiedPush();
+    await settle();
+    const before = registers();
+    await enableUnifiedPush();
+    await settle();
+    expect(registers()).toBe(before + 1);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(registers()).toBe(before + 2);
+  });
+
+  it("leaves nothing registered when push is switched off while a registration is in flight", async () => {
+    fake.state.catalog = new Map([["env-1", ENVIRONMENT]]);
+    fake.state.connected.add("env-1");
+    let release: (result: unknown) => void = () => {};
+    fake.command.mockImplementation((command: string) =>
+      command === "register"
+        ? new Promise((resolve) => {
+            release = resolve;
+          })
+        : Promise.resolve({ _tag: "Success", value: { removed: true } }),
+    );
+    await enableUnifiedPush();
+    await settle();
+    expect(sentCommands()).toEqual(["register"]);
+
+    const disabling = disableUnifiedPush();
+    await vi.advanceTimersByTimeAsync(1_000);
+    // The unregister waits behind the registration instead of overtaking it.
+    expect(sentCommands()).toEqual(["register"]);
+
+    release({ _tag: "Success", value: { lastDelivery: null } });
+    await disabling;
+    await settle();
+    expect(sentCommands()).toEqual(["register", "unregister"]);
+    expect(getPushEnvironments()).toEqual([]);
+  });
+
+  it("does the same for an environment that is removed while its registration is in flight", async () => {
+    fake.state.catalog = new Map([["env-1", ENVIRONMENT]]);
+    fake.state.connected.add("env-1");
+    let release: (result: unknown) => void = () => {};
+    fake.command.mockImplementation((command: string) =>
+      command === "register"
+        ? new Promise((resolve) => {
+            release = resolve;
+          })
+        : Promise.resolve({ _tag: "Success", value: { removed: true } }),
+    );
+    await enableUnifiedPush();
+    await settle();
+
+    const forgetting = forgetPushRegistration("env-1" as EnvironmentId);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(sentCommands()).toEqual(["register"]);
+
+    release({ _tag: "Success", value: { lastDelivery: null } });
+    await forgetting;
+    await settle();
+    expect(sentCommands()).toEqual(["register", "unregister"]);
+    expect(getPushEnvironments()).toEqual([]);
   });
 });
