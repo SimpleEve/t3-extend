@@ -32,9 +32,19 @@ export const deviceConnectionTransient = (detail: string) =>
     via: "direct",
   });
 
+/** This device's own wait for something local, which the diagnosis words as waiting, not as failing. */
+const deviceConnectionPending = (detail: string) =>
+  new ConnectionTransientError({
+    reason: "remote-unavailable",
+    detail,
+    hop: "device",
+    via: "direct",
+    failureCause: "device_list_pending",
+  });
+
 /** The server's computer list has not arrived yet, as after a restart; it will, so the connection retries. */
 export const deviceListNotReady = () =>
-  deviceConnectionTransient("Your server's device list is not available yet.");
+  deviceConnectionPending("Your server's device list is not available yet.");
 
 export interface DeviceRoute {
   readonly expectedEnvironmentId: string;
@@ -178,7 +188,7 @@ export const refuseRelayForDeviceEnvironment = Effect.fnUntraced(function* (envi
   const index = yield* DeviceEnvironmentIndex;
   if (index.notReady()) {
     // Transient: the registry binds as it is built, so this ends by itself, and nothing falls back to a relay.
-    return yield* deviceConnectionTransient("The saved connections are not ready yet.");
+    return yield* deviceConnectionPending("The saved connections are not ready yet.");
   }
   if (index.get(environmentId) !== undefined) {
     return yield* deviceConnectionBlocked(

@@ -125,6 +125,9 @@ function headline(
       return t("{host}'s tunnel is still being set up", { host });
     case "tunnel_not_enabled":
       return t("T3 Connect is not turned on for {host}", { host });
+    // fork: a wait, not a failure.
+    case "device_list_pending":
+      return t("Waiting for your server's device list");
     case "released":
     case "tunnel_down":
       return t("{host}'s tunnel is offline", { host });
@@ -202,6 +205,8 @@ function steps(
       ];
     case "tunnel_not_enabled":
       return [t("On {host}, open Settings > Sharing & access and turn T3 Connect on.", { host })];
+    case "device_list_pending":
+      return [t("Wait a moment. T3 Extend retries on its own.")];
     case "released":
     case "tunnel_down":
       return [
@@ -270,6 +275,8 @@ function helpSection(
     case "not_linked":
     case "tunnel_not_enabled":
       return "sign-in-account-or-link-problems";
+    case "device_list_pending":
+      return "this-device-cant-reach-t3-connect";
     case "relay_error":
       return "t3-connect-returned-an-error";
     case "released":

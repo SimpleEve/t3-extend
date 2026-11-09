@@ -13,6 +13,7 @@ import {
   type ConnectionAttemptError,
   type SupervisorConnectionState,
 } from "./model.ts";
+import { deviceListNotReady } from "../fork/deviceKeys/DeviceKeyAuthorization.ts";
 import { ManagedRelayRequestFailedError } from "../relay/managedRelay.ts";
 import { RemoteEnvironmentAuthFetchError } from "../rpc/http.ts";
 
@@ -144,6 +145,13 @@ describe("presentConnectionDiagnosis", () => {
     expect(diagnose(backoff(failure), "direct")?.moreInfoUrl).toContain(
       "sign-in-account-or-link-problems",
     );
+  });
+
+  it("calls a device list that has not arrived yet a wait, not a failure of this device", () => {
+    const diagnosis = diagnose(backoff(deviceListNotReady()), "direct");
+    expect(diagnosis?.headline).toBe("Waiting for your server's device list");
+    expect(diagnosis?.steps).toEqual(["Wait a moment. T3 Extend retries on its own."]);
+    expect(diagnosis?.moreInfoUrl).toBeNull();
   });
 
   it("does not report hops as working when the failure names none", () => {
