@@ -2156,7 +2156,7 @@ export function AboutSettingsPanel() {
             />
           </>
         )}
-        {/* fork: no Mobile app row; its store links lead to official T3 Code. Android ships as an APK. */}
+        {/* fork: no Mobile app row; its store links lead to the official app. Android ships as an APK. */}
       </SettingsSection>
 
       <SettingsSection id="legal" title="Legal">

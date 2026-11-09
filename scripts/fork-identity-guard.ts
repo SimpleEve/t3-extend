@@ -162,11 +162,6 @@ const ALLOWED: ReadonlyArray<Allowed> = [
     reason: "Credits the upstream project.",
   },
   {
-    path: "apps/web/src/components/settings/MobileAppSettingsRow.tsx",
-    reason:
-      "The fork has no published mobile app; the official app can still pair with this server.",
-  },
-  {
     path: "apps/web/src/components/settings/MultipleAccountsNote.tsx",
     reason: "Links to upstream user documentation.",
   },
