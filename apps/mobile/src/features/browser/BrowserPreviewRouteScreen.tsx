@@ -154,6 +154,7 @@ function BrowserPreviewScreen({
                     id: entry.tabId,
                     title: browserTabTitle(entry, t),
                     subtitle: browserTabUrl(entry),
+                    verbatim: true, // fork: i18n
                     selected: entry.tabId === tabId,
                     onPress: () => selectTab(entry.tabId),
                   })),

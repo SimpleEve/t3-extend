@@ -78,6 +78,7 @@ import {
   getProviderVersionLabel,
 } from "./providerStatus";
 import { useT } from "../../hooks/useT";
+import { verbatim } from "~/fork/verbatim"; // fork: i18n
 import { interpolateNodes } from "../../lib/interpolateNodes";
 
 const ENVIRONMENT_VARIABLE_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -1268,7 +1269,11 @@ export function ProviderInstanceCard({
 
   return (
     <>
-      <SettingsSection title={displayName} icon={titleIconNode} headerAction={editorHeaderAction}>
+      <SettingsSection
+        title={verbatim(displayName)}
+        icon={titleIconNode}
+        headerAction={editorHeaderAction}
+      >
         <SettingsRow title="Status" status={statusContent} />
         <SettingsRow
           title="Display name"

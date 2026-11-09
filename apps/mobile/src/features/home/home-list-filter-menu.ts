@@ -43,6 +43,7 @@ export function buildHomeListFilterMenuItems(
         ...props.environments.map((environment) => ({
           id: `environment:${environment.environmentId}`,
           title: environment.label,
+          verbatim: true, // fork: i18n
           selected: props.selectedEnvironmentId === environment.environmentId,
           onPress: () => props.onEnvironmentChange(environment.environmentId),
         })),
@@ -65,6 +66,7 @@ export function buildHomeListFilterMenuItems(
         ...props.projects.map((project) => ({
           id: `project:${project.key}`,
           title: project.label,
+          verbatim: true, // fork: i18n
           selected: props.selectedProjectKey === project.key,
           onPress: () => props.onProjectChange(project.key),
         })),

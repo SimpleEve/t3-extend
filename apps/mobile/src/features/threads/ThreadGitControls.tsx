@@ -280,6 +280,7 @@ export function threadTerminalMenu(
             title: projectScriptMenuLabel(script),
             icon: projectScriptMenuIcon(script.icon),
             subtitle: script.command,
+            verbatim: true, // fork: i18n, a script's name and command are the user's
             disabled: !props.canOperateTerminal,
             onPress: () => void props.onRunProjectScript(script),
           }))
@@ -296,6 +297,7 @@ export function threadTerminalMenu(
       ...props.terminalSessions.map((session) => ({
         id: `terminal-${session.terminalId}`,
         title: localizeTerminalLabel(session.displayLabel, t), // fork: i18n
+        verbatim: true, // fork: i18n, localized above, with the folder name
         icon: "terminal",
         subtitle: [
           getTerminalStatusLabel(
@@ -335,6 +337,7 @@ export function useThreadGitMenuDefinition(props: ThreadGitMenuProps): AppBarMen
       {
         id: "git-status",
         title: compactMenuBranchLabel(model.currentBranchLabel),
+        verbatim: true, // fork: i18n, a branch name; the status below is localized
         icon: "point.topleft.down.curvedto.point.bottomright.up",
         disabled: true,
         subtitle: compactMenuStatus(props.gitStatus),

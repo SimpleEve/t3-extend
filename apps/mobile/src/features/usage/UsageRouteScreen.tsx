@@ -208,6 +208,7 @@ function UsageScreen(props: {
         id: environment.environmentId,
         title: environment.label,
         subtitle: usageEnvironmentStatus(environment, refreshingUsage, t),
+        verbatim: true, // fork: i18n
         selected:
           selectedEnvironmentIds === null || selectedEnvironmentIds.has(environment.environmentId),
         onPress: () => selectEnvironment(environment.environmentId),

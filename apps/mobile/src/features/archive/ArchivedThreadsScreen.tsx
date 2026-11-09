@@ -84,6 +84,7 @@ function ArchivedThreadsHeader(props: {
                 ...props.environments.map((environment) => ({
                   id: `environment:${environment.environmentId}`,
                   title: environment.label,
+                  verbatim: true, // fork: i18n
                   selected: props.selectedEnvironmentId === environment.environmentId,
                   onPress: () => props.onEnvironmentChange(environment.environmentId),
                 })),

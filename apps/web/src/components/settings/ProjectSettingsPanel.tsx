@@ -60,6 +60,7 @@ import { useSettingsProjectGroups } from "./useSettingsProjectGroups";
 import { readUnloadedThreadCount } from "../../state/olderSettledShelf";
 import { settingsScopeEnvironmentLabels } from "./settingsScopeAxis";
 import { useT } from "../../hooks/useT";
+import { verbatim } from "~/fork/verbatim"; // fork: i18n
 
 const ProjectIconPickerDialog = lazy(() =>
   import("./ProjectIconPickerDialog").then((module) => ({
@@ -454,7 +455,11 @@ function ProjectDetail({
           return members.map((member) => (
             <SettingsRow
               key={member.physicalProjectKey}
-              title={member.environmentLabel ?? "Environment"}
+              title={
+                member.environmentLabel === null || member.environmentLabel === undefined
+                  ? "Environment"
+                  : verbatim(member.environmentLabel)
+              }
               description={member.workspaceRoot}
               control={checkoutControls(member)}
             />
@@ -469,7 +474,7 @@ function ProjectDetail({
         return (
           <SettingsRow
             key={environmentId}
-            title={labels.primary}
+            title={verbatim(labels.primary)}
             description={
               <>
                 {labels.secondary ? (

@@ -220,8 +220,10 @@ export function SettingsSection({
   children,
   className,
   ...sectionProps
-}: ComponentPropsWithoutRef<"section"> & {
-  title: string;
+}: Omit<ComponentPropsWithoutRef<"section">, "title"> & {
+  // fork: i18n
+  /** A string is translated; wrap the user's own text in `verbatim()`. */
+  title: ReactNode;
   hideTitle?: boolean;
   icon?: ReactNode;
   titleAction?: ReactNode;
@@ -240,7 +242,7 @@ export function SettingsSection({
       className={cn(!hideTitle && "space-y-2.5", className)}
     >
       {hideTitle ? (
-        <h2 className="sr-only">{t(title)}</h2>
+        <h2 className="sr-only">{typeof title === "string" ? t(title) : title}</h2>
       ) : (
         <div
           data-settings-scroll-target
@@ -249,7 +251,7 @@ export function SettingsSection({
           <div className="flex min-w-0 items-center gap-1">
             <h2 className="flex min-h-7 items-center gap-2 text-base font-semibold text-foreground">
               {icon}
-              {t(title)}
+              {typeof title === "string" ? t(title) : title}
             </h2>
             {titleAction}
           </div>

@@ -20,6 +20,7 @@ import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settingsL
 import { searchableSetting } from "./settingsSearch";
 import { ProjectFavicon } from "../ProjectFavicon";
 import { useT } from "../../hooks/useT";
+import { verbatim } from "~/fork/verbatim"; // fork: i18n
 
 import { useRef, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
@@ -225,7 +226,7 @@ export function ArchivedThreadsPanel() {
           <SettingsSection
             key={key}
             id={index === 0 ? searchableSetting("archive").id : undefined}
-            title={title}
+            title={verbatim(title)}
             icon={<ProjectFavicon project={project} />}
           >
             {projectThreads.map((thread) => {
@@ -237,7 +238,7 @@ export function ArchivedThreadsPanel() {
                     event.preventDefault();
                     void handleContextMenu(thread, { x: event.clientX, y: event.clientY });
                   }}
-                  title={thread.title}
+                  title={verbatim(thread.title)}
                   description={
                     <span className={hasMultipleEnvironments ? "block truncate" : undefined}>
                       {hasMultipleEnvironments ? `${thread.environmentLabel} · ` : null}

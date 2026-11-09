@@ -43,6 +43,7 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
             title: entry.label,
             icon: ENVIRONMENT_MACHINE_SYMBOLS[resolveEnvironmentMachineKind(entry.serverConfig)],
             subtitle: entry.displayUrl ?? undefined,
+            verbatim: true, // fork: i18n
             selected: selectedIds === null || selectedIds.has(entry.environmentId),
             onPress: () => toggleEnvironment(entry.environmentId),
           })),
@@ -50,6 +51,7 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
       },
       {
         id: "projects",
+        verbatim: true, // fork: i18n, the selected project's name or copy translated here
         title:
           selectableProjectGroups.find((group) => group.key === selectedProjectKey)?.label ??
           (selectedProjectKey === null ? t("All projects") : t("Unavailable project")),
@@ -63,6 +65,7 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
           ...selectableProjectGroups.map((group) => ({
             id: `project:${group.key}`,
             title: projectMenuLabel(group),
+            verbatim: true, // fork: i18n
             selected: selectedProjectKey === group.key,
             onPress: () => selectProject(group.key),
           })),

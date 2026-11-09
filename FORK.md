@@ -142,6 +142,8 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 3. 跑 `vp run i18n:report`，按 "missing" 列表在对应 area 的 catalog 里补译文，按术语表翻译。
 4. 跑 `vp test run packages/client-runtime/src/i18n/i18n.test.ts`：检查占位符一致、没有破折号、跨文件同 key 同译文。
 
+共享组件里统一对标题调 `t()` 的地方，必须让数据绕过去：用户自己的文字（项目、环境、分支、对话、provider、设备名，URL，命令）恰好等于 catalog 里的 key 时（比如项目叫 `server`，dev server 就会为 `apps/server` 建这样一个项目）会被翻成“服务器”。mobile 的 `AppBar` 和 `SheetHeader` 经 `fork/appBarI18n.ts` 翻译所有菜单、操作的标题、副标题和状态，数据在菜单项、菜单或操作上写 `verbatim: true`（屏幕自己已经翻译过的文案也一样；`MenuAction` 转成菜单项的 `appBarMenuItemsFromActions` 一律标）。web 的 `SettingsSection`、`SettingsRow` 翻译字符串标题，数据用 `verbatim(text)`（`fork/verbatim.tsx`）包成节点。往菜单、标题里放数据而没标，是这类 bug 的唯一来源；`appBarI18n.test.ts` 和 `settingsSectionTitle.browser.test.tsx` 用 `server` 这样的名字守着共享的构造函数。
+
 `i18n:report`（`scripts/i18n-report.ts`）扫描 `apps/web/src`、`apps/desktop/src`、`apps/mobile/src`、`packages/client-runtime/src`、`packages/shared/src`、`packages/contracts/src`、`packages/provider-*` 和 `packages/source-control-*`（设置字段标注和安装提示），以及 `apps/server/src/sourceControl`，找出 `t("...")`、`t('...')`、不带插值的 ``t(`...`)`` 一类调用，以及 `translatorFor(locale)("...")` 和 `t(CONST[key])`、`t(CONST.prop)` 这类读模块级常量的调用，列出 catalog 里缺失的 key，以及 catalog 里有、代码里已经找不到的 key（通常是上游改了英文）。判断 stale 时，代码里的字符串字面量、`t()` 的 key、带 `${}` 的模板（插值部分当通配符），以及由 `packages/contracts/src/keybindings.ts` 的 command id 生成的快捷键名称，都算出现过。只报告，不阻断。同步上游后跑一次，把失效的 key 改成新英文。
 
 故意不翻译、但会经过 `t()` 的来源（搜索引擎名、产品名、语言名）在 `INTENTIONALLY_UNTRANSLATED` 里，不算 missing。
