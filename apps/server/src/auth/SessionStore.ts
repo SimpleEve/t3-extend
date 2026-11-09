@@ -423,7 +423,7 @@ export class SessionStore extends Context.Service<
      * Reports sessions that a live socket still depends on but whose row another process revoked
      * (the CLI writes the database directly), so their sockets close. Returns how many it found.
      */
-    readonly announceRevoked: () => Effect.Effect<number, SessionCredentialInternalError>;
+    readonly announceRevoked: () => Effect.Effect<number, SessionCredentialInternalError>; // fork:
     readonly markConnected: (sessionId: AuthSessionId) => Effect.Effect<void, never>;
     readonly markDisconnected: (sessionId: AuthSessionId) => Effect.Effect<void, never>;
   }
@@ -1044,6 +1044,7 @@ const make = Effect.gen(function* () {
     return revokedSessionIds.length;
   });
 
+  // fork: closes sockets of sessions that another process revoked (`devices remove` in the CLI).
   const announceRevoked: SessionStore["Service"]["announceRevoked"] = Effect.fn(
     "SessionStore.announceRevoked",
   )(function* () {
@@ -1142,7 +1143,7 @@ const make = Effect.gen(function* () {
     verifyWebSocketToken,
     listActive,
     awaitInvalidation,
-    announceRevoked,
+    announceRevoked, // fork:
     get streamChanges() {
       return Stream.fromPubSub(changesPubSub);
     },
