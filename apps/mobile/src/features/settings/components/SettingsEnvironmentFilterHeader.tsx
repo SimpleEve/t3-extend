@@ -1,3 +1,4 @@
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { resolveEnvironmentMachineKind } from "@t3tools/contracts";
 
 import type { AppBarMenu } from "../../../components/ui/AppBar.types";
@@ -64,7 +65,7 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
           },
           ...selectableProjectGroups.map((group) => ({
             id: `project:${group.key}`,
-            title: projectMenuLabel(group),
+            title: projectMenuLabel(group, t),
             verbatim: true, // fork: i18n
             selected: selectedProjectKey === group.key,
             onPress: () => selectProject(group.key),
@@ -75,5 +76,7 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
   };
 }
 
-const projectMenuLabel = (group: { readonly label: string; readonly archived: boolean }) =>
-  group.archived ? `${group.label} · Archived` : group.label;
+const projectMenuLabel = (
+  group: { readonly label: string; readonly archived: boolean },
+  t: Translator, // fork: i18n
+) => (group.archived ? `${group.label} · ${t("Archived")}` : group.label);

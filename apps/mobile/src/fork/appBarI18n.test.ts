@@ -1,4 +1,5 @@
 import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
+import { projectScriptMenuLabel } from "@t3tools/shared/projectScripts";
 import { beforeAll, describe, expect, it } from "vite-plus/test";
 
 import type { AppBarMenuItem } from "../components/ui/AppBar.types";
@@ -73,5 +74,29 @@ describe("the AppBar i18n wrapper", () => {
     ]);
     expect(environment).toMatchObject({ title: "环境", subtitle: "显示所有项目的对话" });
     expect(project).toMatchObject({ title: "Project" });
+  });
+
+  it("shows a name with its translated role or marker, which the screen built itself", () => {
+    const [script, project] = shown([
+      {
+        id: "script",
+        title: projectScriptMenuLabel(
+          {
+            id: "s",
+            name: "server",
+            command: "x",
+            icon: "play",
+            runOnWorktreeCreate: true,
+            runOnSettle: true,
+          },
+          t,
+        ),
+        verbatim: true,
+        onPress: () => {},
+      },
+      { id: "project", title: `server · ${t("Archived")}`, verbatim: true, onPress: () => {} },
+    ]);
+    expect(script).toMatchObject({ title: "server (创建 worktree 时、标为已处理时)" });
+    expect(project).toMatchObject({ title: "server · 已归档" });
   });
 });

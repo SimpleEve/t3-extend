@@ -277,7 +277,7 @@ export function threadTerminalMenu(
       ...(props.projectScripts.length > 0
         ? props.projectScripts.map((script) => ({
             id: `script-${script.id}`,
-            title: projectScriptMenuLabel(script),
+            title: projectScriptMenuLabel(script, t), // fork: i18n
             icon: projectScriptMenuIcon(script.icon),
             subtitle: script.command,
             verbatim: true, // fork: i18n, a script's name and command are the user's
