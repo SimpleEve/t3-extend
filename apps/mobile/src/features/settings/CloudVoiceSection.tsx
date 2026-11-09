@@ -251,7 +251,7 @@ function CloudChoices({ environment, active, onClose }: Props & { onClose: () =>
         const label = CLOUD_SPEECH_LABELS[provider];
         const company = CLOUD_SPEECH_PROVIDER_NAMES[provider];
         const routed = provider === "openrouter";
-        const disclosure = cloudSpeechDisclosure(provider, environment.label);
+        const disclosure = cloudSpeechDisclosure(provider, environment.label, t);
         const saved = keys.value![provider];
         const isActive = active?.provider === provider;
         const isEditing = editing?.provider === provider;

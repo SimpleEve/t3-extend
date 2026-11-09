@@ -198,6 +198,7 @@ it("tests the selected model after download and preserves its transcript across 
           expect(screen.getByRole("button", { name: "Set up voice input" }).query()).toBeNull();
           await userEvent.click(download);
           await expect.element(testModel).toBeVisible();
+          await expect.element(screen.getByText("Tiny uses one fixed language.")).toBeVisible();
           expect(screen.getByRole("button", { name: "Set up voice input" }).query()).toBeNull();
           await userEvent.click(testModel);
           const result = screen.getByRole("status", { name: "Test transcript" });

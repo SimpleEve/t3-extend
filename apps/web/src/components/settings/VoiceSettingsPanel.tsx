@@ -1480,7 +1480,10 @@ export function VoiceSettingsPanel() {
               destination.cloudProvider
                 ? t("The cloud provider can detect your language automatically.")
                 : model
-                  ? `${model.model} ${model.supportsLanguageDetection ? "detects the language automatically" : "uses one fixed language"}.`
+                  ? // fork: i18n
+                    model.supportsLanguageDetection
+                    ? t("{model} detects the language automatically.", { model: model.model })
+                    : t("{model} uses one fixed language.", { model: model.model })
                   : t(
                       "Choose an environment above to see the languages its transcription model supports.",
                     )

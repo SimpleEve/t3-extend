@@ -348,7 +348,7 @@ export function CloudVoiceConfiguration({
                 ? t("Anyone with dictation access to {label} can use this API key.", {
                     label: environment.label,
                   })
-                : cloudSpeechDisclosure(provider, environment.label)}
+                : cloudSpeechDisclosure(provider, environment.label, t)}
           </DialogDescription>
         </DialogHeader>
         {!remove && (

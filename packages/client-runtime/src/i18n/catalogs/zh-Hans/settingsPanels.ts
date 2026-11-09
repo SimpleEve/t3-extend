@@ -1481,9 +1481,9 @@ export default {
   "View licenses": "查看许可",
   "Open all environments": "打开所有环境",
   "Applying settings for {projects} on {environments}":
-    "正在把设置应用到 {projects}，环境：{environments}",
+    "设置作用于 {projects}，环境：{environments}",
   "Applying settings for {projects} across {environments}":
-    "正在把设置应用到 {projects}，范围：{environments}",
+    "设置作用于 {projects}，范围：{environments}",
   "No matches found.": "没有找到匹配项。",
   "Environment scope": "环境范围",
   "No environments": "没有环境",

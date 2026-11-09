@@ -3,6 +3,7 @@ import { DEFAULT_SPEECH_TRANSCRIPTION_OPTIONS, SPEECH_MAX_OPTIONS_BYTES } from "
 
 import {
   chooseSetupSpeechModel,
+  cloudSpeechDisclosure,
   decodeSpeechPcmRequest,
   encodeSpeechPcmRequest,
   resolveSpeechVocabulary,
@@ -148,5 +149,27 @@ describe("chooseSetupSpeechModel", () => {
   ] as const)("%s", (_, selectedModelId, intent, preferred, expected) => {
     const choice = chooseSetupSpeechModel(catalog, { selectedModelId, intent, preferred });
     expect(choice && { id: choice.model.id, language: choice.language }).toEqual(expected);
+  });
+});
+
+describe("cloudSpeechDisclosure", () => {
+  it("keeps the English words unchanged and passes names through a translator untouched", () => {
+    expect(cloudSpeechDisclosure("openai", "Mac mini")).toBe(
+      "After you stop, Mac mini sends your recording and vocabulary hints, including project names, to OpenAI.",
+    );
+    expect(cloudSpeechDisclosure("openai", "Mac {provider}")).toContain("Mac {provider} sends");
+    const seen: Array<Readonly<Record<string, string>> | undefined> = [];
+    cloudSpeechDisclosure("openrouter", "Mac {mini}", (source, params) => {
+      seen.push(params);
+      return source;
+    });
+    cloudSpeechDisclosure("xai", "Mac mini", (source, params) => {
+      seen.push(params);
+      return source;
+    });
+    expect(seen).toEqual([
+      { environment: "Mac {mini}" },
+      { environment: "Mac mini", provider: "xAI" },
+    ]);
   });
 });

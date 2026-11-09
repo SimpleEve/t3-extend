@@ -53,6 +53,12 @@ export default {
   "Add an API key to use this provider": "添加 API key 后才能使用这个 provider",
   "Ask an environment administrator to add an API key": "请环境管理员添加 API key",
   "Use {label} for dictation?": "用 {label} 听写？",
+  "After you stop, {environment} sends your recording and vocabulary hints, including project names, to {provider}.":
+    "停止后，{environment} 会把你的录音和词汇提示（包括项目名称）发送给 {provider}。",
+  "After you stop, {environment} sends the recording to OpenRouter. OpenRouter chooses who runs your model. T3 requests zero data retention; your OpenRouter account may allow safety retention.":
+    "停止后，{environment} 会把录音发送给 OpenRouter。由 OpenRouter 决定谁来运行你的模型。T3 Extend 会要求零数据留存；你的 OpenRouter 账号可能允许出于安全目的的留存。",
+  "{model} detects the language automatically.": "{model} 会自动检测语言。",
+  "{model} uses one fixed language.": "{model} 只使用一种固定语言。",
   "{disclosure} Select This device to stop sharing.": "{disclosure}选择“这台设备”即可停止共享。",
   "Use {label}": "使用 {label}",
   "Could not load models · Retry": "无法加载模型 · 重试",
@@ -277,7 +283,7 @@ export default {
   "Pi · {statuses}": "Pi · {statuses}",
   "Recommended for {language}": "推荐用于 {language}",
   "Download the {size} MB model to {environment}. Microphone audio is sent there for transcription, as chosen in Voice settings.":
-    "把 {size} MB 的模型下载到{environment}。麦克风音频会按你在语音设置里的选择发送到那里转写。",
+    "把 {size} MB 的模型下载到 {environment}。麦克风音频会按你在语音设置里的选择发送到那里转写。",
   "Open attachment on {host}": "在 {host} 上打开附件",
   "OpenRouter no longer lists {model}. Dictation stays off until you choose another model.":
     "OpenRouter 已不再提供 {model}。选择其他模型之前，听写保持关闭。",
