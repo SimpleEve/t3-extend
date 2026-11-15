@@ -219,7 +219,9 @@ export interface ContextMeter {
  */
 export function deriveContextMeter(snapshot: ContextWindowSnapshot | null): ContextMeter | null {
   if (snapshot === null) return null;
-  const { maxTokens, usedPercentage, autoCompactThreshold } = snapshot;
+  const maxTokens = snapshot.maxTokens ?? null;
+  const usedPercentage = snapshot.usedPercentage ?? null;
+  const autoCompactThreshold = snapshot.autoCompactThreshold ?? null;
   if (maxTokens === null || maxTokens <= 0 || usedPercentage === null) return null;
   const percent = Math.round(Math.max(0, Math.min(100, usedPercentage)));
   return {
@@ -232,6 +234,34 @@ export function deriveContextMeter(snapshot: ContextWindowSnapshot | null): Cont
         ? Math.round((autoCompactThreshold / maxTokens) * 100)
         : null,
   };
+}
+
+export type CompactNowBlocker =
+  | "permission"
+  | "provider"
+  | "empty"
+  | "working"
+  | "pending"
+  | "other";
+
+/**
+ * Why the meter's "Compact now" is off, most lasting cause first. It sends the same `/compact`
+ * a typed one does, so it is off wherever that send would be refused.
+ */
+export function compactNowBlocker(input: {
+  readonly canOperateThread: boolean;
+  readonly providerSupportsCompact: boolean;
+  readonly hasCompactableConversation: boolean;
+  readonly working: boolean;
+  readonly hasPendingRequest: boolean;
+  readonly otherwiseUnavailable: boolean;
+}): CompactNowBlocker | null {
+  if (!input.canOperateThread) return "permission";
+  if (!input.providerSupportsCompact) return "provider";
+  if (!input.hasCompactableConversation) return "empty";
+  if (input.working) return "working";
+  if (input.hasPendingRequest) return "pending";
+  return input.otherwiseUnavailable ? "other" : null;
 }
 
 export function hasDismissedResumeCompaction(

@@ -339,11 +339,15 @@ import { ComposerSurface } from "./chat/ComposerSurface";
 import { resolveThreadSyncPhase } from "../threadSync";
 import { hasAvailableCompactionProvider } from "./chat/compaction.logic";
 import {
+  compactNowBlocker, // fork: composer context meter
+  deriveContextMeter, // fork: composer context meter
   deriveLatestContextWindowSnapshot,
   hasDismissedResumeCompaction,
   latestProviderTurnTokenUsage,
   shouldOfferResumeCompaction,
 } from "@t3tools/client-runtime/state/context-window";
+import { deriveLatestTurnSpeed } from "@t3tools/client-runtime/state/turn-speed"; // fork: composer context meter
+import { useShallowStable } from "../hooks/useShallowStable"; // fork: composer context meter
 import {
   MOBILE_COMPOSER_VIEW_TRANSITION_NAME,
   MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME,
@@ -1512,6 +1516,14 @@ export default function ChatView(props: ChatViewProps) {
     activeThreadLiveTokenUsage,
     activeProviderThread,
   );
+  // fork: composer context meter. Held by value so a streamed reply does not re-render the composer.
+  const composerContextMeter = useShallowStable(deriveContextMeter(activeContextWindow));
+  const composerLastTurnSpeed = useShallowStable(
+    deriveLatestTurnSpeed(
+      serverProjection?.providerTurns ?? [],
+      (serverVisibleTurnItems ?? []).map(({ item }) => item),
+    ),
+  );
   const pendingBackgroundTasks = deriveThreadPendingBackgroundTasks(serverProjection);
   const activeWorkStartedAt =
     deriveActiveWorkStartedAt(activeActivityRun, activeRuntime, localDispatchStartedAt) ??
@@ -2525,6 +2537,15 @@ export default function ChatView(props: ChatViewProps) {
     pendingApprovals.length > 0 ||
     pendingUserInputs.length > 0;
   const compactDisabled = compactThreadUnavailable;
+  // fork: composer context meter
+  const composerCompactBlocker = compactNowBlocker({
+    canOperateThread,
+    providerSupportsCompact: manualCompactionProviderAvailable,
+    hasCompactableConversation: activeThreadHasCompactableConversation,
+    working: isWorking,
+    hasPendingRequest: pendingApprovals.length > 0 || pendingUserInputs.length > 0,
+    otherwiseUnavailable: compactThreadUnavailable,
+  });
   // The context window is the current conversation's, so a handoff destination never inherits it.
   const resumeCompactionTokens =
     activeContextWindow &&
@@ -3737,6 +3758,9 @@ export default function ChatView(props: ChatViewProps) {
                                 projectName={activeProject?.title}
                                 compactThreadUnavailable={compactThreadUnavailable}
                                 compactDisabled={compactDisabled}
+                                contextMeter={composerContextMeter} // fork: composer context meter
+                                lastTurnSpeed={composerLastTurnSpeed} // fork: composer context meter
+                                compactBlocker={composerCompactBlocker} // fork: composer context meter
                                 resolvedTheme={resolvedTheme}
                                 settings={settings}
                                 keybindings={keybindings}

@@ -16,6 +16,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   compactBeforeSendTokens,
+  compactNowBlocker,
   deriveContextMeter,
   type ContextWindowSnapshot,
 } from "./contextWindow.ts";
@@ -306,5 +307,34 @@ describe("deriveContextMeter", () => {
   it("has nothing to draw without a window size", () => {
     expect(deriveContextMeter(null)).toBeNull();
     expect(deriveContextMeter(snapshot({ maxTokens: null, usedPercentage: null }))).toBeNull();
+  });
+});
+
+describe("compactNowBlocker", () => {
+  const ready = {
+    canOperateThread: true,
+    providerSupportsCompact: true,
+    hasCompactableConversation: true,
+    working: false,
+    hasPendingRequest: false,
+    otherwiseUnavailable: false,
+  };
+
+  it("names the most lasting cause first", () => {
+    expect(compactNowBlocker(ready)).toBeNull();
+    expect(compactNowBlocker({ ...ready, otherwiseUnavailable: true })).toBe("other");
+    expect(
+      compactNowBlocker({ ...ready, hasPendingRequest: true, otherwiseUnavailable: true }),
+    ).toBe("pending");
+    expect(compactNowBlocker({ ...ready, working: true, hasPendingRequest: true })).toBe("working");
+    expect(compactNowBlocker({ ...ready, hasCompactableConversation: false, working: true })).toBe(
+      "empty",
+    );
+    expect(compactNowBlocker({ ...ready, providerSupportsCompact: false, working: true })).toBe(
+      "provider",
+    );
+    expect(compactNowBlocker({ ...ready, canOperateThread: false, working: true })).toBe(
+      "permission",
+    );
   });
 });

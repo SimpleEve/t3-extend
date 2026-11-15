@@ -5,6 +5,7 @@ import chat from "./chat.ts";
 import commandPalette from "./commandPalette.ts";
 import common from "./common.ts";
 import connection from "./connection.ts";
+import contextMeter from "./contextMeter.ts"; // fork: context meter
 import desktop from "./desktop.ts";
 import devices from "./devices.ts"; // fork: self-hosted devices
 import footer from "./footer.ts";
@@ -37,6 +38,7 @@ export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   commandPalette,
   common,
   connection,
+  contextMeter, // fork: context meter
   desktop,
   devices, // fork: self-hosted devices
   footer,

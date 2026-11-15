@@ -156,6 +156,9 @@ import {
   shouldUseCompactComposerPrimaryActions,
   shouldUseCompactComposerFooter,
 } from "../composerFooterLayout";
+import type { CompactNowBlocker, ContextMeter } from "@t3tools/client-runtime/state/context-window"; // fork: composer context meter
+import type { TurnSpeed } from "@t3tools/client-runtime/state/turn-speed"; // fork: composer context meter
+import { ComposerContextMeter } from "./ComposerContextMeter"; // fork: composer context meter
 import {
   type ComposerCitationCommentRequest,
   type ComposerPromptEditorHandle,
@@ -433,6 +436,9 @@ export interface ChatComposerProps {
 
   compactThreadUnavailable: boolean;
   compactDisabled: boolean;
+  contextMeter: ContextMeter | null; // fork: composer context meter
+  lastTurnSpeed: TurnSpeed | null; // fork: composer context meter
+  compactBlocker: CompactNowBlocker | null; // fork: composer context meter
 
   resolvedTheme: "light" | "dark";
   settings: UnifiedSettings;
@@ -3747,6 +3753,22 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   >
                     {composerControls}
                   </div>
+                  {dictationTakesFooter ? null : (
+                    <ComposerContextMeter // fork: composer context meter
+                      meter={props.contextMeter}
+                      speed={props.lastTurnSpeed}
+                      compact={isComposerFooterCompact}
+                      compactBlocker={
+                        props.compactBlocker ??
+                        (phase === "running" || isSendBusy
+                          ? "working"
+                          : noProviderAvailable
+                            ? "provider"
+                            : null)
+                      }
+                      onCompact={compactThreadContextStable}
+                    />
+                  )}
                   <ComposerFooterPrimaryActions
                     // Stop state belongs to one thread; the composer stays mounted across threads.
                     key={`${environmentId}:${activeThreadId ?? "new"}`}
