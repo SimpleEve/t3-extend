@@ -5,6 +5,8 @@ import {
   isSecretReference,
   secretReferencesInSettings,
   type ServerSettings,
+  SimlockDeviceHostConfig,
+  TextGeneratorConfig,
   UsageLimitSourceConfig,
 } from "@t3tools/contracts";
 import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
@@ -18,7 +20,9 @@ type SecretUseSettings = Pick<
   | "providerInstances"
   | "sourceControlHosts"
   | "usageLimitSources"
+  | "textGenerators"
   | "easDeviceHosts"
+  | "simlockDeviceHosts"
   | "cloudSpeechCredentials"
 >;
 
@@ -90,8 +94,19 @@ export function secretProviderUses(
         source,
       ),
     ),
+    ...Object.entries(settings.textGenerators).flatMap(([id, generator]) =>
+      uses(
+        { settingsSchema: TextGeneratorConfig },
+        `text-generator:${id}`,
+        generator.label ?? generator.baseUrl,
+        generator,
+      ),
+    ),
     ...settings.easDeviceHosts.flatMap((host) =>
       uses({ settingsSchema: EasDeviceHostConfig }, `eas:${host.id}`, host.label, host),
+    ),
+    ...settings.simlockDeviceHosts.flatMap((host) =>
+      uses({ settingsSchema: SimlockDeviceHostConfig }, `simlock:${host.id}`, host.label, host),
     ),
     ...CloudSpeechProvider.literals.flatMap((provider) => {
       const credential = settings.cloudSpeechCredentials[provider];

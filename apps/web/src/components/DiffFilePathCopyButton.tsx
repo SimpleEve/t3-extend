@@ -1,22 +1,21 @@
-import { Check, Copy } from "lucide";
+import { formatFilePathForClipboard } from "@t3tools/client-runtime/media-actions";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import { useRef } from "react";
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
-import { cn } from "../lib/utils";
-import {
-  ANCHORED_COPY_TOAST_TIMEOUT_MS,
-  showAnchoredCopyErrorToast,
-  showAnchoredCopySuccessToast,
-} from "./ui/anchoredCopyToast";
+import { ANCHORED_COPY_TOAST_TIMEOUT_MS, showAnchoredCopyErrorToast } from "./ui/anchoredCopyToast";
 import { Button } from "./ui/button";
-import { MorphIcon } from "~/components/MorphIcon";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { useT } from "~/hooks/useT";
 
-export function DiffFilePathCopyButton({ filePath }: { filePath: string }) {
-  const t = useT();
+export function DiffFilePathCopyButton({
+  filePath,
+  workspaceRoot,
+}: {
+  filePath: string;
+  workspaceRoot: string | undefined;
+}) {
   const ref = useRef<HTMLButtonElement>(null);
   const { copyToClipboard, isCopied } = useCopyToClipboard<void>({
-    onCopy: () => showAnchoredCopySuccessToast(ref),
     onError: (error) => showAnchoredCopyErrorToast(ref, error),
     timeout: ANCHORED_COPY_TOAST_TIMEOUT_MS,
   });
@@ -29,15 +28,14 @@ export function DiffFilePathCopyButton({ filePath }: { filePath: string }) {
             ref={ref}
             size="icon-micro"
             variant="ghost-muted"
-            aria-label={t("Copy file path")}
-            onClick={() => copyToClipboard(filePath, undefined)}
+            aria-label="Copy file path"
+            onClick={() =>
+              copyToClipboard(formatFilePathForClipboard(filePath, workspaceRoot), undefined)
+            }
           />
         }
       >
-        <MorphIcon
-          className={cn("size-3", isCopied && "text-success")}
-          icon={isCopied ? Check : Copy}
-        />
+        {isCopied ? <CheckIcon className="size-3 text-success" /> : <CopyIcon className="size-3" />}
       </TooltipTrigger>
       <TooltipPopup>
         <p>{isCopied ? t("Copied") : t("Copy path")}</p>

@@ -4,8 +4,15 @@ import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function connectionTone(
   state: RemoteClientConnectionState,
-  t: Translator, // fork: i18n
+  awaitingApproval?: boolean,
 ): StatusTone {
+  if (state === "reconnecting" && awaitingApproval) {
+    return {
+      label: "Waiting for approval",
+      pillClassName: "bg-update",
+      textClassName: "text-update-foreground",
+    };
+  }
   switch (state) {
     case "connected":
       return {

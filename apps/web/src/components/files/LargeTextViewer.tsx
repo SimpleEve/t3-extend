@@ -9,6 +9,10 @@ import { useT } from "~/hooks/useT";
 
 const FIRST_SCREEN_BYTES = 16 * 1024;
 
+function countLabel(count: number, noun: string) {
+  return `${count.toLocaleString()} ${noun}${count === 1 ? "" : "s"}`;
+}
+
 function firstScreen(text: string, delimiter: "," | "\t" | null, complete: boolean) {
   if (!text || text.includes("\0")) return [];
   const rows = delimiter
@@ -219,13 +223,8 @@ export default function LargeTextViewer(props: {
         role="status"
       >
         {props.delimiter
-          ? t("{count} rows", {
-              count: Math.max(0, meta.count - (meta.count ? 1 : 0)).toLocaleString(),
-            })
-          : t("{count} lines", { count: Math.max(0, meta.count).toLocaleString() })}
-        {props.delimiter
-          ? t(" · {value} columns", { value: meta.count ? meta.columns.toLocaleString() : 0 })
-          : ""}
+          ? `${countLabel(Math.max(0, meta.count - 1), "row")} · ${countLabel(meta.count ? meta.columns : 0, "column")}`
+          : countLabel(meta.count, "line")}
         {meta.complete && meta.sizeBytes !== undefined
           ? ` · ${meta.sizeBytes === 0 ? t("0 bytes") : formatAttachmentSize(meta.sizeBytes)}`
           : t(" · Indexing…")}

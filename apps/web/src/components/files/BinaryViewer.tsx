@@ -36,6 +36,9 @@ type Archive = Extract<BinaryWorkerResult, { type: "archive" }>;
 type Database = Extract<BinaryWorkerResult, { type: "sqlite" }>;
 type Rows = Extract<BinaryWorkerResult, { type: "rows" }>;
 
+const countLabel = (count: number, one: string, many: string) =>
+  `${count.toLocaleString()} ${count === 1 ? one : many}`;
+
 function ArchiveFile(props: { readonly path: string; readonly bytes: Uint8Array<ArrayBuffer> }) {
   const t = useT();
   const [url, setUrl] = useState<string | null>(null);
@@ -215,7 +218,7 @@ export default function BinaryViewer(props: {
             {selectedPath ?? (folder || t("Archive contents"))}
           </span>
           <span className="shrink-0 text-muted-foreground">
-            {t("{length} entries", { length: archive.entries.length.toLocaleString() })}
+            {countLabel(archive.entries.length, "entry", "entries")}
             {sizeBytes !== null ? ` · ${formatAttachmentSize(sizeBytes)}` : ""}
           </span>
         </div>
@@ -237,19 +240,13 @@ export default function BinaryViewer(props: {
                   size="xs"
                 >
                   <SelectValue>
-                    {t("{name} ({count} rows)", {
-                      name: table.name,
-                      count: table.count.toLocaleString(),
-                    })}
+                    {table.name} ({countLabel(table.count, "row", "rows")})
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup>
                   {database.tables.map((item) => (
                     <SelectItem key={item.name} value={item.name}>
-                      {t("{name} ({count} rows)", {
-                        name: item.name,
-                        count: item.count.toLocaleString(),
-                      })}
+                      {item.name} ({countLabel(item.count, "row", "rows")})
                     </SelectItem>
                   ))}
                 </SelectPopup>
@@ -283,10 +280,8 @@ export default function BinaryViewer(props: {
             className="border-b border-border/60 px-3 py-2 text-xs text-muted-foreground tabular-nums"
             role="status"
           >
-            {t("{count} rows · {value} columns", {
-              count: table.count.toLocaleString(),
-              value: rows?.columns.length ?? "…",
-            })}
+            {countLabel(table.count, "row", "rows")} ·{" "}
+            {rows ? countLabel(rows.columns.length, "column", "columns") : "… columns"}
             {sizeBytes !== null ? ` · ${formatAttachmentSize(sizeBytes)}` : ""}
           </div>
           <FileSurfaceNotice>

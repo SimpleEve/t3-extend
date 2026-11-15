@@ -514,6 +514,12 @@ export function summarizeT3ToolCalls(
         t("environment preferences {times}", { times }),
       );
       break;
+    case "theme-read":
+      label = phrase("Checked", "check", `themes ${times}`);
+      break;
+    case "theme-set":
+      label = phrase("Set", "set", `the theme ${times}`);
+      break;
     case "environment-links":
       label = phrase(
         "Listed {object}",
@@ -702,6 +708,9 @@ export function summarizeT3ToolCalls(
         "Tried to render {object}",
         quantity(selected.length, "{count} HTML page", "{count} HTML pages", t),
       );
+      break;
+    case "send-to-user":
+      label = phrase("Sent", "send", quantity(selected.length, "message"));
       break;
     case "capabilities":
       label = phrase(

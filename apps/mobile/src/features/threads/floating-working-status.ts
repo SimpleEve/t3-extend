@@ -1,7 +1,5 @@
 import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
-import { interpolate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-
-const untranslated: Translator = (source, params) => interpolate(source, params); // fork: i18n
+import type { EnvironmentId } from "@t3tools/contracts";
 
 export interface FloatingStatusAction {
   readonly label: string;
@@ -11,7 +9,7 @@ export interface FloatingStatusAction {
 }
 
 export type FloatingWorkingStatus =
-  | { readonly kind: "working"; readonly startedAt: string }
+  | { readonly kind: "working"; readonly environmentId: EnvironmentId; readonly startedAt: string }
   | { readonly kind: "syncing"; readonly label: string }
   | { readonly kind: "compacting" }
   | {
@@ -53,6 +51,7 @@ export type FloatingWorkingStatus =
 export function connectionFloatingStatus(input: {
   readonly connectionError: string | null;
   readonly connectionState: EnvironmentConnectionPhase;
+  readonly connectionAwaitingApproval?: boolean;
   readonly environmentLabel: string | null;
   readonly onReconnect: () => void;
   readonly t?: Translator; // fork: interface language, English when omitted
@@ -66,6 +65,14 @@ export function connectionFloatingStatus(input: {
     onPress: input.onReconnect,
   });
 
+  if (input.connectionState === "reconnecting" && input.connectionAwaitingApproval) {
+    return {
+      kind: "connection",
+      tone: "reconnecting",
+      label: `Waiting for ${environmentLabel} to approve this device`,
+      onPress: input.onReconnect,
+    };
+  }
   switch (input.connectionState) {
     case "connecting":
     case "reconnecting":

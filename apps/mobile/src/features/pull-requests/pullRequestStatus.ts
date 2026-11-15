@@ -109,11 +109,12 @@ export function checkStatus(check: PullRequestCheck, t: Translator /* fork: i18n
   }
 }
 
-export function pullRequestChecksSummary(
-  pr: Pick<PullRequestDetail, "checks">,
-  t: Translator, // fork: i18n
-) {
-  const failed = pr.checks.filter((check) => check.status === "failure").length;
+export function isFailingCheck(check: PullRequestCheck) {
+  return check.status === "failure" || check.status === "cancelled";
+}
+
+export function pullRequestChecksSummary(pr: Pick<PullRequestDetail, "checks">) {
+  const failed = pr.checks.filter(isFailingCheck).length;
   const required = pr.checks.filter((check) => check.status === "action-required").length;
   const pending = pr.checks.filter((check) => check.status === "pending").length;
   const passed = pr.checks.filter((check) => check.status === "success").length;

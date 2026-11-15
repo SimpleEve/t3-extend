@@ -101,6 +101,13 @@ export function getDesktopUpdateButtonTooltip(
       version: state.notAppliedVersion,
     });
   }
+  if (
+    (state.status === "available" || state.status === "error") &&
+    state.errorContext === "download" &&
+    state.availableVersion
+  ) {
+    return `Download failed for ${state.availableVersion}. Click to retry.`;
+  }
   if (state.status === "available") {
     return state.availableVersion
       ? t("Update {version} ready to download", { version: state.availableVersion })
@@ -118,11 +125,6 @@ export function getDesktopUpdateButtonTooltip(
       : t("Update ready downloaded. Click to restart and install.");
   }
   if (state.status === "error") {
-    if (state.errorContext === "download" && state.availableVersion) {
-      return t("Download failed for {version}. Click to retry.", {
-        version: state.availableVersion,
-      });
-    }
     if (state.errorContext === "install" && state.downloadedVersion) {
       return t("Install failed for {version}. Click to retry.", {
         version: state.downloadedVersion,

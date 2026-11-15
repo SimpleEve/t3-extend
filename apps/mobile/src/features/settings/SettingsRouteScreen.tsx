@@ -114,11 +114,11 @@ interface SettingsListSection {
 }
 
 function ConfiguredSettingsRouteScreen() {
+  const t = useT();
   const navigation = useNavigation();
   const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const { user } = useUser();
   const { savedConnectionsById } = useSavedRemoteConnections();
-  const t = useT();
   const accountLabel = !isLoaded
     ? t("Checking")
     : !isSignedIn
@@ -131,7 +131,7 @@ function ConfiguredSettingsRouteScreen() {
         {
           id: "account",
           icon: "person.crop.circle",
-          label: t("T3 Account"), // fork: interface language
+          label: t("T3 Account"),
           value: accountLabel,
           disabled: !isLoaded,
           onPress: () => navigation.navigate("SettingsAuth"),
@@ -149,8 +149,8 @@ function ConfiguredSettingsRouteScreen() {
 }
 
 function LocalSettingsRouteScreen() {
-  const { savedConnectionsById } = useSavedRemoteConnections();
   const t = useT();
+  const { savedConnectionsById } = useSavedRemoteConnections();
   return (
     <SettingsList
       connections={[
@@ -173,6 +173,7 @@ function environmentsRow(count: number, t: Translator): SettingsListRow {
 }
 
 function SettingsList(props: { readonly connections: readonly SettingsListRow[] }) {
+  const t = useT();
   // UIKit's scroll-edge material takes the scroll view's own color; like the chat list, match
   // the sidebar's surface so the bar doesn't darken over content at rest.
   // Grouped cards only lift off the screen surface; the drawer is as dark as they are.
@@ -184,7 +185,6 @@ function SettingsList(props: { readonly connections: readonly SettingsListRow[] 
   const query = workspace?.state.tabs.settings.query ?? "";
   const overflowRows = useOverflowRows();
   const indexSections = useSettingsIndexSections();
-  const t = useT();
   const sections = filterSettingsSections(
     [
       { rows: overflowRows },
@@ -233,8 +233,8 @@ function SettingsList(props: { readonly connections: readonly SettingsListRow[] 
 }
 
 function useSettingsIndexSections(): SettingsListSection[] {
-  const { selectedTargets, projectGroups, selectedProjectKey } = useSettingsEnvironmentFilter();
   const t = useT();
+  const { selectedTargets, projectGroups, selectedProjectKey } = useSettingsEnvironmentFilter();
   const noServerTargets = selectedTargets.length === 0;
   const selectedProject = projectGroups.find((group) => group.key === selectedProjectKey);
   const scopedProjectMembers =
@@ -244,8 +244,9 @@ function useSettingsIndexSections(): SettingsListSection[] {
         selectedTargets.some((target) => target.environmentId === project.environmentId),
       ) ?? [];
   const projectLabel =
-    scopedProjectMembers.length > 0
+    selectedProject && scopedProjectMembers.length > 0
       ? deriveProjectGroupLabel({
+          groupKey: selectedProject.key,
           representative: scopedProjectMembers[0]!,
           members: scopedProjectMembers,
         })
@@ -268,7 +269,7 @@ function useSettingsIndexSections(): SettingsListSection[] {
         ...(navigationCustomizationAvailable()
           ? [page("SettingsNavigation", "line.3.horizontal", t("Navigation tabs"))]
           : []),
-        ...(Platform.OS === "ios" ? [page("SettingsKeyboard", "keyboard", t("Keyboard"))] : []),
+        page("SettingsKeyboard", "keyboard", t("Keyboard")),
         page("SettingsVoice", "mic", t("Voice")),
       ],
     },
@@ -300,7 +301,7 @@ function useSettingsIndexSections(): SettingsListSection[] {
     {
       rows: [
         serverPage("SettingsEnvironmentMaintenance", "arrow.clockwise", t("Maintenance")),
-        page("SettingsLabs", "sparkles", t("Labs")),
+        page("SettingsLabs", "flask", t("Labs")),
         page("SettingsAbout", "info.circle", t("About")),
         page("SettingsArchive", "archivebox", t("Archive")),
       ],

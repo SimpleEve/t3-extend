@@ -5,7 +5,9 @@ import { isShownUnderParent } from "@t3tools/client-runtime/state/threads";
 import {
   hasUnseenCompletion,
   resolveSidebarFolderDot,
+  resolveSidebarRowStatus,
   resolveSidebarThreadStatus,
+  resolveWindowTitleThreadStatus,
   type SidebarThreadStatus,
 } from "@t3tools/client-runtime/state/thread-grouping"; // fork: shared with mobile
 import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: interface language
@@ -27,12 +29,15 @@ import {
   isListedThreadLineage,
   type ContextMenuItem,
   type EnvironmentId,
+  type ResolvedKeybindingsConfig,
+  type ScopedThreadRef,
   type ThreadId,
 } from "@t3tools/contracts";
 import type { SidebarProjectSortOrder, SidebarThreadSortOrder } from "@t3tools/contracts/settings";
 import type { AsyncResult } from "effect/reactivity";
 import {
   effectiveSnoozed,
+  hasUnseenRunFailure,
   type ThreadSnoozeShell,
 } from "@t3tools/client-runtime/state/thread-settled";
 import {
@@ -45,10 +50,19 @@ import {
 import type { SidebarThreadSummary, Thread } from "../types";
 import { normalizeSearchText } from "../lib/utils";
 import { isLatestRunSettled } from "../session-logic";
+import { THREAD_STATUS_TEXT } from "@t3tools/client-runtime/state/thread-activity-announcement";
 import { observeIntersection } from "../lib/observeIntersection";
-import { deadlineAfter, deadlineStore } from "@t3tools/client-runtime/clock";
+import { deadlineAfter, deadlineStore, type ClockStore } from "@t3tools/client-runtime/clock";
 import { useDeadlinePassed } from "../hooks/useDeadline";
 import { legacyProjectCwdPreferenceKey } from "../uiStateStore";
+import { isElectron } from "../env";
+import { shouldShowThreadJumpHintsForModifiers } from "../keybindings";
+import { isTerminalFocused, subscribeToTerminalFocusChanges } from "../lib/terminalFocus";
+import { isPreviewFocused } from "../lib/previewFocus";
+import { isModelPickerOpen, subscribeToModelPickerVisibility } from "../modelPickerVisibility";
+import { shortcutModifierStore } from "../shortcutModifierState";
+import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
+import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
 
 export function shouldNavigateAfterThreadPark(input: {
   readonly threadKey: string;
@@ -66,7 +80,7 @@ export function shouldNavigateAfterThreadPark(input: {
   );
 }
 
-const THREAD_JUMP_HINT_SHOW_DELAY_MS = 200;
+export const THREAD_JUMP_HINT_SHOW_DELAY_MS = 200;
 
 export function resolveSidebarRowAccessibility(input: {
   readonly title: string;
@@ -158,6 +172,13 @@ export function useSnoozeWakeClock(
     return nextClockMs;
   }
   return clockMs;
+}
+
+// Live status that says the cwd is not a repository means the checkout was removed.
+export function withoutRemovedCheckout<
+  T extends { readonly branch: string | null; readonly worktreePath: string | null },
+>(thread: T, gitStatus: { readonly isRepo?: boolean | undefined } | null): T {
+  return gitStatus?.isRepo === false ? { ...thread, branch: null, worktreePath: null } : thread;
 }
 
 export function useRetainedValue<T>(key: string | null, value: T | null): T | null {
@@ -683,19 +704,102 @@ type ThreadStatusInput = Pick<
   blockedOnThreadWait?: boolean | undefined;
 };
 
+// Read at event time: subscribing Sidebar to terminal or modifier state re-renders every row.
+export function threadShortcutContext(routeThreadRef: ScopedThreadRef | null) {
+  return {
+    terminalFocus: isTerminalFocused(),
+    terminalOpen:
+      routeThreadRef !== null &&
+      selectThreadTerminalUiState(
+        useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
+        routeThreadRef,
+      ).terminalOpen,
+    previewFocus: isPreviewFocused(),
+    previewOpen:
+      selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, routeThreadRef) ===
+      "preview",
+    modelPickerOpen: isModelPickerOpen(),
+    isWeb: !isElectron,
+    isDesktop: isElectron,
+  };
+}
+
+/** Whether the current modifier combination, including none, has been held unchanged for `delayMs`. */
+function createModifierHoldStore(delayMs: number): ClockStore<boolean> {
+  const listeners = new Set<() => void>();
+  let held = false;
+  let stopDeadline = () => {};
+  let stopModifiers: (() => void) | null = null;
+
+  const setHeld = (next: boolean) => {
+    if (held === next) return;
+    held = next;
+    for (const listener of listeners) listener();
+  };
+  const onModifiersChange = () => {
+    stopDeadline();
+    const deadline = deadlineStore(deadlineAfter(delayMs));
+    stopDeadline = deadline.subscribe(() => setHeld(true));
+    // A deadline another subscriber already passed never notifies a late joiner.
+    setHeld(deadline.getSnapshot());
+  };
+
+  return {
+    subscribe: (listener) => {
+      listeners.add(listener);
+      if (stopModifiers === null) {
+        stopModifiers = shortcutModifierStore.subscribe(onModifiersChange);
+        onModifiersChange();
+      }
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size > 0) return;
+        stopModifiers?.();
+        stopModifiers = null;
+        stopDeadline();
+        stopDeadline = () => {};
+        held = false;
+      };
+    },
+    getSnapshot: () => held,
+  };
+}
+
+const threadJumpModifierHold = createModifierHoldStore(THREAD_JUMP_HINT_SHOW_DELAY_MS);
+
+function subscribeToThreadJumpHintInputs(listener: () => void): () => void {
+  const unsubscribeHold = threadJumpModifierHold.subscribe(listener);
+  const unsubscribeFocus = subscribeToTerminalFocusChanges(listener);
+  const unsubscribeTerminals = useTerminalUiStateStore.subscribe(listener);
+  const unsubscribeRightPanels = useRightPanelStore.subscribe(listener);
+  const unsubscribeModelPicker = subscribeToModelPickerVisibility(listener);
+  return () => {
+    unsubscribeHold();
+    unsubscribeFocus();
+    unsubscribeTerminals();
+    unsubscribeRightPanels();
+    unsubscribeModelPicker();
+  };
+}
+
 /**
  * Thread jump hints appear once the jump modifier has been held for a moment,
  * so a quick shortcut never flashes them, and hide as soon as it is released.
+ * The snapshot is the visibility itself, so a quick shortcut never re-renders the caller.
  */
-export function useThreadJumpHintsVisible(shouldShow: boolean): boolean {
-  const [showAt, setShowAt] = React.useState<number | null>(null);
-  // The clock is read inside the updater: the compiler caches a bare clock read
-  // in render once per instance, so a second hold would reuse the first deadline.
-  // React discards this render and re-runs with the update.
-  if (shouldShow !== (showAt !== null)) {
-    setShowAt(shouldShow ? () => deadlineAfter(THREAD_JUMP_HINT_SHOW_DELAY_MS) : null);
-  }
-  return useDeadlinePassed(showAt);
+export function useThreadJumpHintsVisible(
+  keybindings: ResolvedKeybindingsConfig,
+  routeThreadRef: ScopedThreadRef | null,
+): boolean {
+  return React.useSyncExternalStore(
+    subscribeToThreadJumpHintInputs,
+    () =>
+      threadJumpModifierHold.getSnapshot() &&
+      shouldShowThreadJumpHintsForModifiers(shortcutModifierStore.getSnapshot(), keybindings, {
+        platform: navigator.platform,
+        context: threadShortcutContext(routeThreadRef),
+      }),
+  );
 }
 
 export function resolveThreadLastVisitedAt(
@@ -708,13 +812,14 @@ export function resolveThreadLastVisitedAt(
   return serverLastVisitedAt ?? undefined;
 }
 
-/** Unopened threads' failures still count as unseen, unlike completions. */
-function hasUnseenFailure(thread: ThreadStatusInput): boolean {
-  if (thread.latestRun?.status !== "failed") return false;
-  if (!thread.lastVisitedAt) return true;
-  const completedAt = Date.parse(thread.latestRun.completedAt ?? "");
+export function hasUnseenCompletion(thread: ThreadStatusInput): boolean {
+  if (!thread.latestRun?.completedAt) return false;
+  const completedAt = Date.parse(thread.latestRun.completedAt);
+  if (Number.isNaN(completedAt)) return false;
+  if (!thread.lastVisitedAt) return false;
+
   const lastVisitedAt = Date.parse(thread.lastVisitedAt);
-  if (Number.isNaN(completedAt) || Number.isNaN(lastVisitedAt)) return true;
+  if (Number.isNaN(lastVisitedAt)) return true;
   return completedAt > lastVisitedAt;
 }
 
@@ -840,7 +945,13 @@ export function shouldRecedeSidebarThread(input: {
 }
 
 // fork: moved to client-runtime so mobile shares it.
-export { hasUnseenCompletion, resolveSidebarFolderDot, resolveSidebarThreadStatus };
+export {
+  hasUnseenCompletion,
+  resolveSidebarFolderDot,
+  resolveSidebarRowStatus,
+  resolveSidebarThreadStatus,
+  resolveWindowTitleThreadStatus,
+};
 export type { SidebarThreadStatus };
 
 /**
@@ -1061,7 +1172,7 @@ export function resolveThreadStatusPill(input: {
     };
   }
 
-  if (hasUnseenFailure(thread)) {
+  if (hasUnseenRunFailure(thread)) {
     return {
       label: "Failed",
       colorClass: "text-red-600 dark:text-red-300/90",
@@ -1097,17 +1208,23 @@ export function resolveThreadStatusPill(input: {
 }
 
 export function getFallbackThreadIdAfterDelete<
-  T extends Pick<Thread, "id" | "projectId" | "createdAt" | "updatedAt" | "settledOverride"> &
+  T extends Pick<
+    Thread,
+    "id" | "projectId" | "createdAt" | "updatedAt" | "settledOverride" | "lineage"
+  > &
     ThreadSortInput &
-    ThreadSnoozeShell,
+    ThreadSnoozeShell &
+    Pick<Thread, "environmentId">,
 >(input: {
   threads: readonly T[];
   deletedThreadId: T["id"];
   sortOrder: SidebarThreadSortOrder;
   now: string;
   deletedThreadIds?: ReadonlySet<T["id"]>;
+  delegatedUnderParent: ReadonlySet<string>;
 }): T["id"] | null {
-  const { deletedThreadId, deletedThreadIds, sortOrder, now, threads } = input;
+  const { deletedThreadId, deletedThreadIds, sortOrder, now, threads, delegatedUnderParent } =
+    input;
   const deletedThread = threads.find((thread) => thread.id === deletedThreadId);
   if (!deletedThread) {
     return null;
@@ -1121,7 +1238,12 @@ export function getFallbackThreadIdAfterDelete<
           thread.id !== deletedThreadId &&
           !deletedThreadIds?.has(thread.id) &&
           thread.settledOverride !== "settled" &&
-          !effectiveSnoozed(thread, { now }),
+          !effectiveSnoozed(thread, { now }) &&
+          !isShownUnderParent(
+            { environmentId: thread.environmentId, threadId: thread.id },
+            thread.lineage,
+            delegatedUnderParent,
+          ),
       ),
       sortOrder,
     )[0]?.id ?? null

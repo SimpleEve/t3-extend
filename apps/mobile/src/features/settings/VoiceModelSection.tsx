@@ -29,8 +29,6 @@ import {
   voiceSpeechModelsAtom,
   voiceSpeechStatusAtom,
 } from "../voice-input/voiceDestination";
-import { SettingsSection } from "./components/SettingsSection";
-import { useT } from "../../hooks/useT";
 
 const isDownloading = (model: EnvironmentSpeechModel) =>
   model.state === "downloading" || model.state === "verifying";
@@ -149,12 +147,15 @@ function ModelStats(props: { readonly model: EnvironmentSpeechModel; readonly la
           ],
         ] as const)
       : []),
-    ...(data && data.secondsPer30s !== null
+    ...(data && data.secondsPer30s.accelerated !== null
       ? ([
           [
             "speed",
             <>
-              <Text className="font-t3-medium text-foreground">{data.secondsPer30s} s</Text> / 30 s
+              <Text className="font-t3-medium text-foreground">
+                {data.secondsPer30s.accelerated} s
+              </Text>{" "}
+              / 30 s
             </>,
           ],
         ] as const)
@@ -278,58 +279,63 @@ export function VoiceModelRow(props: {
   );
 }
 
-export function VoiceModelSection(props: {
+/** The environment's local-model method: chosen by its mark, opens the model list. */
+export function LocalModelChoice(props: {
   readonly environmentId: EnvironmentId;
   readonly label: string;
+  readonly selected: boolean;
+  readonly onSelect: () => void;
 }) {
   const t = useT();
   const navigation = useNavigation();
   const voice = useVoiceModels(props.environmentId, props.label);
   const { status } = voice;
-  if (!voice.connection || !status) return null;
-  const title = t("Transcription model on {label}", { label: props.label });
-  if (!status.supported) {
+  const open = () =>
+    navigation.navigate("SettingsVoiceModels", { environmentId: props.environmentId });
+  if (!voice.connection || !status || !status.supported)
     return (
-      <SettingsSection title={title} footer={status.reason}>
-        {null}
-      </SettingsSection>
+      <ListChoiceRow
+        label={t("Local model")}
+        description={
+          !voice.connection
+            ? t("Not available on this environment")
+            : status?.supported === false
+              ? status.reason
+              : t("Checking…")
+        }
+        selected={props.selected}
+        disabled
+        onPress={() => {}}
+      />
     );
-  }
 
   const active = status.state === "missing-model" ? null : status;
   const pending = voice.models.find(isDownloading);
   const progress =
     pending?.downloaded === undefined ? undefined : pending.downloaded / pending.size;
   return (
-    <SettingsSection
-      title={title}
-      footer={
-        voice.canManage
-          ? undefined
-          : t(
-              "This connection can’t change settings on {label}. Add a transcription model using T3 Extend on that machine.",
-              { label: props.label },
-            )
+    <ListRow
+      label={active?.model ?? t("Local model")}
+      description={
+        pending
+          ? pending.state === "verifying"
+            ? t("Verifying {name}…", { name: pending.name })
+            : t("Downloading {name} · {value}%", {
+                name: pending.name,
+                value: Math.round((progress ?? 0) * 100),
+              })
+          : active
+            ? t("Local model · {size}", { size: formatBytes(active.size) })
+            : voice.canManage
+              ? t("No model installed · Choose one to download")
+              : t("No model installed · Add one using T3 Extend on {label}", { label: props.label })
       }
-    >
-      <ListRow
-        label={active?.model ?? t("No model selected")}
-        description={
-          pending
-            ? pending.state === "verifying"
-              ? t("Verifying {name}…", { name: pending.name })
-              : t("Downloading {name} · {value}%", {
-                  name: pending.name,
-                  value: Math.round((progress ?? 0) * 100),
-                })
-            : active
-              ? formatBytes(active.size)
-              : t("Choose a transcription model to dictate on this environment.")
-        }
-        onPress={() =>
-          navigation.navigate("SettingsVoiceModels", { environmentId: props.environmentId })
-        }
-      />
-    </SettingsSection>
+      selected={props.selected}
+      onPress={() => {
+        if (!props.selected) props.onSelect();
+        // Switching to an installed model needs no further step.
+        if (props.selected || !active) open();
+      }}
+    />
   );
 }

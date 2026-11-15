@@ -15,8 +15,9 @@ import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 function noticeTitle(
   phase: EnvironmentConnectionPhase,
   environmentLabel: string,
-  t: Translator,
+  awaitingApproval: boolean,
 ): string {
+  if (awaitingApproval) return `Waiting for ${environmentLabel} to approve this device`;
   switch (phase) {
     case "offline":
       return t("You are offline");
@@ -39,8 +40,9 @@ function noticeDetail(
   phase: EnvironmentConnectionPhase,
   resourceName: string,
   error: string | null,
-  t: Translator,
+  awaitingApproval: boolean,
 ): string {
+  if (error && awaitingApproval) return error;
   if (error) {
     return phase === "reconnecting"
       ? t("The app will keep retrying automatically. {error}", { error })
@@ -93,10 +95,19 @@ export function EnvironmentConnectionNotice(props: {
         )}
 
         <Text className="text-center text-lg font-t3-bold text-foreground">
-          {noticeTitle(props.connection.phase, props.environmentLabel, t)}
+          {noticeTitle(
+            props.connection.phase,
+            props.environmentLabel,
+            props.connection.awaitingApproval === true,
+          )}
         </Text>
         <Text className="text-center text-sm leading-normal text-foreground-muted">
-          {noticeDetail(props.connection.phase, props.resourceName, props.connection.error, t)}
+          {noticeDetail(
+            props.connection.phase,
+            props.resourceName,
+            props.connection.error,
+            props.connection.awaitingApproval === true,
+          )}
           {props.connection.traceId ? (
             <ConnectionTraceId traceId={props.connection.traceId} />
           ) : null}

@@ -7,6 +7,7 @@ import {
   formatDayShort,
   formatHourShort,
   formatRelativeHourShort,
+  formatTokens,
   formatUsageContractMismatch,
   makeWindow,
   usageSourceMessages,
@@ -243,3 +244,9 @@ describe("formatUsageContractMismatch", () => {
     ).toBe("{environment} runs an older server version and is excluded from totals.|Laptop");
   });
 });
+
+describe("token formatting", () => {
+  it("moves to the next unit when rounding reaches it", () => {
+    expect(formatTokens(999_999)).toBe("1M");
+    expect(formatTokens(999_999_999)).toBe("1B");
+    expect(formatTokens(-999_999)).toBe("-1M");

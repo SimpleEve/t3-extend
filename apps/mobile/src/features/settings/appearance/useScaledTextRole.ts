@@ -1,4 +1,6 @@
-import { resolveScaledTextRole } from "../../../lib/appearancePreferences";
+import { Platform, useWindowDimensions } from "react-native";
+
+import { resolveComposerTextRole, resolveScaledTextRole } from "../../../lib/appearancePreferences";
 import { MOBILE_TYPOGRAPHY } from "../../../lib/typography";
 import { useUiLocale } from "../../../hooks/useT"; // fork: Chinese text sizes
 import { useAppearancePreferences } from "./AppearancePreferencesProvider";
@@ -13,4 +15,10 @@ export function useScaledTextRole(role: keyof typeof MOBILE_TYPOGRAPHY): ScaledT
   const { appearance } = useAppearancePreferences();
   // fork: Chinese text sizes. Subscribing here re-renders the caller when the language switches.
   return resolveScaledTextRole(role, appearance.baseFontSize, useUiLocale());
+}
+
+export function useComposerTextRole(): ScaledTextRole {
+  const body = useScaledTextRole("body");
+  const { fontScale } = useWindowDimensions();
+  return resolveComposerTextRole(body, fontScale, Platform.OS);
 }

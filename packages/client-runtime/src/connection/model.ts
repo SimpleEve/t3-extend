@@ -1,4 +1,4 @@
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId, type ExecutionEnvironmentDescriptor } from "@t3tools/contracts";
 import { RelayEnvironmentEndpointFailure } from "@t3tools/contracts/relay";
 import * as Schema from "effect/Schema";
 
@@ -64,6 +64,7 @@ export const ConnectionTransientReason = Schema.Literals([
   "relay-unavailable",
   "remote-unavailable",
   "session-pending",
+  "approval-pending",
 ]);
 export type ConnectionTransientReason = typeof ConnectionTransientReason.Type;
 
@@ -89,6 +90,7 @@ export const ConnectionFailureCause = Schema.Literals([
   "tunnel_not_enabled",
   // fork: this device is waiting for its own server's device list, as after a restart.
   "device_list_pending",
+  "approval_pending",
 ]);
 export type ConnectionFailureCause = typeof ConnectionFailureCause.Type;
 
@@ -110,6 +112,8 @@ export class ConnectionTransientError extends Schema.TaggedError<ConnectionTrans
     reason: ConnectionTransientReason,
     detail: Schema.String,
     traceId: Schema.optionalKey(Schema.String),
+    /** The code this device shows while the host decides whether to trust it. */
+    verificationCode: Schema.optionalKey(Schema.String),
     ...ConnectionFailureFields,
   },
 ) {
@@ -158,6 +162,8 @@ export interface PreparedConnection {
   readonly target: ConnectionTarget;
   /** fork: stamped by the resolver alone; "t3x-device" sessions never go through the relay. */
   readonly authorizer?: "t3x-device";
+  /** What the server said about itself while this connection was prepared. */
+  readonly descriptor?: ExecutionEnvironmentDescriptor;
 }
 
 export type SupervisorConnectionPhase =

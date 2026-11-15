@@ -1,7 +1,6 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
-import * as Socket from "effect/socket/Socket";
 
 import { layerRemoteHttpClient } from "@t3tools/client-runtime/rpc";
 
@@ -9,6 +8,7 @@ import * as Dpop from "../features/cloud/dpop";
 import * as ManagedRelayLayer from "../features/cloud/managedRelayLayer";
 import { resolveCloudPublicConfig } from "../features/cloud/publicConfig";
 import * as Tracing from "../features/observability/tracing";
+import * as NativeWebSocket from "../native/nativeWebSocket";
 import * as Persistence from "../persistence/layer";
 import * as DeviceKeys from "../fork/deviceKeys/deviceKeysRuntime"; // fork: self-hosted devices
 import { disposeOnFoundationReplace, type FoundationHotModule } from "./foundation-fast-refresh";
@@ -24,7 +24,7 @@ const layerHttpClient = layerRemoteHttpClient(fetch);
 
 type RuntimeLayerSource =
   | ReturnType<typeof ManagedRelayLayer.layer>
-  | typeof Socket.layerWebSocketConstructorGlobal
+  | typeof NativeWebSocket.layer
   | typeof Dpop.layer
   | typeof DeviceKeys.layer // fork: self-hosted devices
   | typeof layerHttpClient
@@ -34,7 +34,7 @@ type RuntimeLayerSource =
 const layerRuntime = Layer.merge(
   // fork: self-hosted devices sign in with the relay layer's DPoP signer.
   DeviceKeys.layer.pipe(Layer.provideMerge(ManagedRelayLayer.layer(configuredRelayUrl()))),
-  Socket.layerWebSocketConstructorGlobal,
+  NativeWebSocket.layer,
 ).pipe(
   Layer.provideMerge(Dpop.layer),
   Layer.provideMerge(layerHttpClient),

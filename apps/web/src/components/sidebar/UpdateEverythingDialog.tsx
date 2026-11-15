@@ -57,6 +57,8 @@ interface UpdateEverythingDialogProps {
   readonly disabledReason?: string | null;
   /** The confirmed work is starting; it cannot be cancelled from here. */
   readonly busy?: boolean;
+  /** Machines are still looking for provider updates, so more rows can appear. */
+  readonly checking?: boolean;
 }
 
 type UpdateEverythingDialogContentProps = Omit<
@@ -104,6 +106,7 @@ function UpdateEverythingDialogContent({
   notes = [],
   disabledReason = null,
   busy = false,
+  checking = false,
 }: UpdateEverythingDialogContentProps) {
   const t = useT();
   const stopped = useAtomValue(
@@ -149,6 +152,9 @@ function UpdateEverythingDialogContent({
               ? t("{count} provider update", { count: providerCount })
               : t("{count} provider updates", { count: providerCount })
             : null}
+          {checking
+            ? `${version !== null || providerCount > 0 ? " · " : ""}Checking for more…`
+            : null}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <ScrollArea scrollFade>
@@ -159,23 +165,31 @@ function UpdateEverythingDialogContent({
             </p>
           ))}
           {/* Machine names truncate first. Provider lists wrap between names, never inside one. */}
-          <div className="grid grid-cols-[minmax(4rem,max-content)_max-content_minmax(min-content,1fr)_max-content] gap-x-4 text-sm">
-            <div className="col-span-full grid grid-cols-subgrid border-b pb-1.5 text-muted-foreground text-xs">
-              <span>{t("Machine")}</span>
-              <span>{FORK.appBaseName}</span>
-              <span>{t("Providers")}</span>
-              <span />
+          <div
+            role="table"
+            className="grid grid-cols-[minmax(4rem,max-content)_max-content_minmax(min-content,1fr)_max-content] gap-x-4 text-sm"
+          >
+            <div
+              role="row"
+              className="col-span-full grid grid-cols-subgrid border-b pb-1.5 text-muted-foreground text-xs"
+            >
+              <span role="columnheader">{t("Machine")}</span>
+              <span role="columnheader">{FORK.appBaseName}</span>
+              <span role="columnheader">{t("Providers")}</span>
+              <span role="columnheader" />
             </div>
             {updating.map((row) => (
               <div
                 key={row.environmentId ?? "this-app"}
+                role="row"
                 className="col-span-full grid grid-cols-subgrid border-b border-border/50 py-1.5 last:border-b-0"
               >
-                <span className="max-w-32 min-w-0">
-                  <MiddleTruncate value={row.label} />
+                <span role="cell" className="max-w-32 min-w-0">
+                  <span className="sr-only">{row.label}</span>
+                  <MiddleTruncate value={row.label} aria-hidden />
                 </span>
-                <span>
-                  {row.app !== null ? t(APP_LABELS[row.app]) : null}
+                <span role="cell">
+                  {row.app !== null ? APP_LABELS[row.app] : null}
                   {row.app === null && row.skipped !== null ? (
                     <span className="text-muted-foreground">{t("Skipped")}</span>
                   ) : null}
@@ -185,7 +199,7 @@ function UpdateEverythingDialogContent({
                     </span>
                   ) : null}
                 </span>
-                <span>
+                <span role="cell">
                   {row.providers.map((provider, index) => (
                     <Fragment key={provider}>
                       <span className="whitespace-nowrap">{provider}</span>
@@ -193,7 +207,7 @@ function UpdateEverythingDialogContent({
                     </Fragment>
                   ))}
                 </span>
-                <span className="text-right">
+                <span role="cell" className="text-right">
                   {row.environmentId !== null && restarting.has(row.environmentId) ? (
                     <RunningThreads environmentId={row.environmentId} />
                   ) : null}

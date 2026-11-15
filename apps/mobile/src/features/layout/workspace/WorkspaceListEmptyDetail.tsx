@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 import { AppBar } from "../../../components/ui/AppBar";
 import { Toolbar } from "../../../components/ui/Toolbar";
 import { NativeStackScreenOptions } from "../../../native/StackHeader";
-import { useAdaptiveWorkspaceLayout } from "../adaptive-workspace-context";
+import { useWorkspacePaneState } from "../adaptive-workspace-context";
 import { WorkspaceEmptyDetail } from "../WorkspaceEmptyDetail";
 import { useT } from "../../../hooks/useT";
 
@@ -16,8 +16,7 @@ export function WorkspaceListEmptyDetail(props: {
   readonly onAddConnection: () => void;
   readonly onStartNewTask: () => void;
 }) {
-  const t = useT();
-  const { panes } = useAdaptiveWorkspaceLayout();
+  const { panes } = useWorkspacePaneState();
   return (
     <>
       <NativeStackScreenOptions

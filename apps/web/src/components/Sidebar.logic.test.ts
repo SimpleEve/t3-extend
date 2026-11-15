@@ -1,4 +1,5 @@
 import { presentThreadShell } from "@t3tools/client-runtime/state/models";
+import { threadKey } from "@t3tools/client-runtime/state/entities";
 import { isThreadWorking as isSidebarThreadWorking } from "@t3tools/client-runtime/state/thread-inbox";
 import { buildProjectViewFolders } from "@t3tools/client-runtime/state/thread-grouping";
 import * as DateTime from "effect/DateTime";
@@ -15,8 +16,10 @@ import {
   orderItemsByPreferredIds,
   pinOrderKeyBetween,
   resolveSidebarSweepKeys,
+  resolveSidebarRowStatus,
   resolveSidebarThreadStatus,
   resolveThreadStatusPill,
+  resolveWindowTitleThreadStatus,
   resolveWorkingStartedAt,
   searchSidebarThreads,
   shouldRecedeSidebarThread,
@@ -211,6 +214,151 @@ describe("orderItemsByPreferredIds", () => {
       "physical-a",
       "physical-b",
     ]);
+  });
+});
+
+describe("resolveSidebarThreadStatus", () => {
+  const runtime = {
+    status: "running" as const,
+    activeRunId: null,
+    providerInstanceId: ProviderInstanceId.make("codex"),
+    providerName: "Codex",
+    lastError: null,
+    updatedAt: "2026-03-09T10:00:00.000Z",
+  };
+
+  const idle = { hasPendingApprovals: false, hasPendingUserInput: false, runtime: null };
+
+  it("prioritizes awaiting input over a running runtime, below approval", () => {
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        hasPendingUserInput: true,
+        runtime,
+        blockedOnThreadWait: true,
+      }),
+    ).toBe("input");
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        hasPendingApprovals: true,
+        hasPendingUserInput: true,
+        blockedOnThreadWait: true,
+        runtime,
+      }),
+    ).toBe("approval");
+  });
+
+  it("shows a waiting guest message as a Request, below the agent's own requests", () => {
+    expect(resolveSidebarThreadStatus({ ...idle, pendingGuestMessageCount: 1, runtime })).toBe(
+      "request",
+    );
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        hasPendingUserInput: true,
+        pendingGuestMessageCount: 1,
+      }),
+    ).toBe("input");
+  });
+
+  it("keeps usage-limit stops Limited and visible until the thread recovers", () => {
+    const limited = {
+      ...runtime,
+      status: "failed" as const,
+      lastError: "Plan limit reached",
+      lastErrorClass: "usage_limit" as const,
+    };
+    expect(resolveSidebarThreadStatus({ ...idle, runtime: limited })).toBe("limited");
+    expect(
+      resolveSidebarThreadStatus({ ...idle, runtime: { ...limited, status: "running" } }),
+    ).toBe("working");
+    expect(
+      resolveSidebarThreadStatus({ ...idle, runtime: { ...limited, status: "completed" } }),
+    ).toBe("ready");
+    expect(
+      shouldRecedeSidebarThread({
+        status: "limited",
+        isUnread: false,
+        isWoke: false,
+        isActive: false,
+        isSelected: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("reports worktree setup as preparing, and failed only while the latest run failed", () => {
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        runtime: { ...runtime, status: "preparing" as const },
+      }),
+    ).toBe("preparing");
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        runtime: { ...runtime, status: "failed" as const, lastError: "boom" },
+      }),
+    ).toBe("failed");
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        runtime: { ...runtime, status: "completed" as const, lastError: "persisted" },
+      }),
+    ).toBe("ready");
+    expect(
+      resolveSidebarThreadStatus({
+        ...idle,
+        runtime: { ...runtime, status: "idle" as const, lastError: "persisted" },
+      }),
+    ).toBe("waiting");
+  });
+
+  it("titles the window with live work and requests only", () => {
+    const cases = [
+      [{ ...idle, hasPendingApprovals: true, runtime }, "Needs approval"],
+      [{ ...idle, hasPendingUserInput: true }, "Needs your input"],
+      [{ ...idle, runtime: { ...runtime, status: "preparing" as const } }, "Working"],
+      [{ ...idle, runtime }, "Working"],
+      [{ ...idle, runtime, pendingGuestMessageCount: 1 }, "Working"],
+      [{ ...idle, runtime, blockedOnThreadWait: true }, "Working"],
+      [{ ...idle, runtime: { ...runtime, status: "idle" as const } }, null],
+      [{ ...idle, runtime: { ...runtime, status: "failed" as const } }, null],
+      [{ ...idle, runtime: { ...runtime, status: "completed" as const } }, null],
+      [idle, null],
+    ] as const;
+    for (const [thread, title] of cases) {
+      expect(resolveWindowTitleThreadStatus(thread)).toBe(title);
+    }
+  });
+});
+
+describe("resolveSidebarRowStatus", () => {
+  const failedRuntime = {
+    status: "failed" as const,
+    activeRunId: null,
+    providerInstanceId: ProviderInstanceId.make("codex"),
+    providerName: "Codex",
+    lastError: "Provider turn failed.",
+    updatedAt: "2026-03-09T10:05:00.000Z",
+  };
+  const failed = {
+    hasActionableProposedPlan: false,
+    hasPendingApprovals: false,
+    hasPendingUserInput: false,
+    interactionMode: "default" as const,
+    runtime: failedRuntime,
+    latestRun: { ...makeLatestRun(), status: "failed" as const },
+  };
+
+  it("settles a failure the user opened to ready, without showing Done", () => {
+    expect(resolveSidebarRowStatus({ ...failed, lastVisitedAt: undefined })).toBe("failed");
+
+    const opened = { ...failed, lastVisitedAt: "2026-03-09T10:06:00.000Z" };
+    expect(resolveSidebarRowStatus(opened)).toBe("ready");
+    expect(hasUnseenCompletion(opened)).toBe(false);
+    // A runtime failure without a failed run has no date, so a visit cannot settle it.
+    expect(resolveSidebarRowStatus({ ...opened, latestRun: null })).toBe("failed");
   });
 });
 
@@ -545,6 +693,7 @@ describe("getFallbackThreadIdAfterDelete", () => {
       deletedThreadIds: new Set([ThreadId.make("thread-active"), ThreadId.make("thread-newest")]),
       sortOrder: "created_at",
       now: "2026-03-09T10:10:00.000Z",
+      delegatedUnderParent: new Set(),
     });
 
     expect(fallbackThreadId).toBe(ThreadId.make("thread-next"));
@@ -555,8 +704,30 @@ describe("getFallbackThreadIdAfterDelete", () => {
       "snoozed",
       { snoozedUntil: "2099-01-01T00:00:00.000Z", snoozedAt: "2026-03-09T10:06:00.000Z" },
     ],
+    ["delegated", { id: ThreadId.make("thread-delegated") }],
     ["settled", { settledOverride: "settled", settledAt: "2026-03-09T10:06:00.000Z" }],
-  ] as const)("skips a %s thread parked on its shelf", (_state, parked) => {
+    [
+      "side chat",
+      {
+        lineage: {
+          rootThreadId: ThreadId.make("thread-visible"),
+          parentThreadId: ThreadId.make("thread-visible"),
+          relationshipToParent: "fork",
+          sideChat: true,
+        },
+      },
+    ],
+    [
+      "subagent",
+      {
+        lineage: {
+          rootThreadId: ThreadId.make("thread-visible"),
+          parentThreadId: ThreadId.make("thread-visible"),
+          relationshipToParent: "subagent",
+        },
+      },
+    ],
+  ] as const)("skips a %s thread the sidebar does not list", (_state, parked) => {
     const fallbackThreadId = getFallbackThreadIdAfterDelete({
       threads: [
         makeThread({
@@ -579,6 +750,12 @@ describe("getFallbackThreadIdAfterDelete", () => {
       deletedThreadId: ThreadId.make("thread-active"),
       sortOrder: "created_at",
       now: "2026-03-09T10:10:00.000Z",
+      delegatedUnderParent: new Set([
+        threadKey({
+          environmentId: localEnvironmentId,
+          threadId: ThreadId.make("thread-delegated"),
+        }),
+      ]),
     });
 
     expect(fallbackThreadId).toBe(ThreadId.make("thread-visible"));

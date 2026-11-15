@@ -38,7 +38,7 @@ export interface ThreadPrPresentation {
 const PR_STATE_TEXT_CLASS: Record<ThreadPr["state"], string> = {
   open: "text-adaptive-emerald-600-400",
   merged: "text-adaptive-violet-600-400",
-  closed: "text-foreground-muted",
+  closed: "text-adaptive-rose-600-400",
 };
 
 export function presentThreadPr(
@@ -112,22 +112,9 @@ export function presentThreadLinkedPullRequests(
             state: isDraft ? t("draft") : state ? t(state) : t("status pending"),
           })
         : linkedCount !== null
-          ? t("{count} linked {plural}, overall {state}", {
-              count: linkedCount,
-              plural: changeRequestTerm(changeRequest.plural, t),
-              state: t(badge.state),
-            })
-          : t("#{number} {singular} {state}", {
-              number: link.number,
-              singular: changeRequestTerm(changeRequest.singular, t),
-              state: state === null ? t("status pending") : isDraft ? t("draft") : t(state),
-            }),
-    textClassName:
-      state === null || isDraft
-        ? "text-foreground-muted"
-        : isMultiple && state === "closed"
-          ? "text-adaptive-rose-600-400"
-          : PR_STATE_TEXT_CLASS[state],
+          ? `${linkedCount} linked ${changeRequest.plural}, overall ${badge.state}`
+          : `#${link.number} ${changeRequest.singular} ${state === null ? "status pending" : isDraft ? "draft" : state}`,
+    textClassName: state === null || isDraft ? "text-foreground-muted" : PR_STATE_TEXT_CLASS[state],
   };
 }
 

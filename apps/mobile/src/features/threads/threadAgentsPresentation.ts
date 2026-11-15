@@ -1,6 +1,7 @@
 import {
   formatSubagentDisplayTitle,
   resolveSubagentMetadata,
+  subagentCardDetail,
   subagentDetailPreview,
 } from "@t3tools/client-runtime/state/subagent-display";
 import {
@@ -16,9 +17,6 @@ import type {
   ThreadId,
 } from "@t3tools/contracts";
 import { resolveSelectableModel } from "@t3tools/shared/model";
-
-import { subagentCardDetail } from "./subagent-card-presentation";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const PROMPT_TITLE_LIMIT = 80;
 

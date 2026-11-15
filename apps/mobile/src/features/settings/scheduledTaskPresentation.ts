@@ -70,8 +70,9 @@ export function formatNextScheduledTaskRun(
   const days = localCalendarDay(next) - localCalendarDay(current);
   if (days === 0) {
     if (remaining < MINUTE) return t("Next run in less than a minute");
-    const count = Math.round(remaining / (remaining < HOUR ? MINUTE : HOUR));
-    if (remaining < HOUR) {
+    const minutes = Math.round(remaining / MINUTE);
+    const count = minutes < 60 ? minutes : Math.round(remaining / HOUR);
+    if (minutes < 60) {
       return count === 1
         ? t("Next run in {count} minute", { count })
         : t("Next run in {count} minutes", { count });

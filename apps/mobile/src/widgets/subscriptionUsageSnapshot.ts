@@ -2,6 +2,7 @@ import {
   collectLimitAccounts,
   collectLimitPools,
   type LimitAccount,
+  type LimitPoolWindow,
   type LimitPresentations,
   usageWindowLabel, // fork: i18n
 } from "@t3tools/shared/usageLimits";
@@ -73,6 +74,10 @@ export function createWidgetRefresher<Id>(refresh: (id: Id) => Promise<unknown>)
   };
 }
 
+// A reset at or before its account's observation already happened, so it cannot expire the snapshot.
+const isUpcoming = (reset: LimitPoolWindow["resets"][number]) =>
+  reset.at > Date.parse(reset.member.account.limits.checkedAt);
+
 function subscriptionUsageProps(
   accounts: readonly LimitAccount[],
   now: number,
@@ -120,7 +125,9 @@ function subscriptionUsageProps(
         const checkedAt = Math.min(...pool.accounts.map((a) => Date.parse(a.limits.checkedAt)));
         const expiresAt = Math.min(
           checkedAt + SNAPSHOT_MAX_AGE,
-          ...pool.windows.flatMap((window) => window.resets.map((reset) => reset.at)),
+          ...pool.windows.flatMap((window) =>
+            window.resets.filter(isUpcoming).map((reset) => reset.at),
+          ),
         );
         const fresh = Number.isFinite(expiresAt) && expiresAt > now;
         const sortedWindows = [...pool.windows].sort(
@@ -151,15 +158,15 @@ function subscriptionUsageProps(
                 label: usageWindowLabel(window.label, t),
                 remaining: Math.round(window.remainingPercent),
                 reset: window.resets[0]
-                  ? t("Next reset {time}", {
-                      time: formatDate(window.resets[0].at, {
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      }),
-                    })
-                  : t("Reset time unavailable"),
+                  ? `${isUpcoming(window.resets[0]) ? "Next reset" : "Reset"} ${new Date(
+                      window.resets[0].at,
+                    ).toLocaleString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}`
+                  : "Reset time unavailable",
               }))
             : [],
         };

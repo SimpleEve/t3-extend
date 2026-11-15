@@ -491,13 +491,12 @@ const RootStackConfig = createWorkspaceStackNavigator({
     Home: createNativeStackScreen({
       screen: WorkspaceRootScreen,
       linking: "",
-      listeners: {
+      listeners: ({ navigation }) => ({
         transitionStart: ({ data }) => recordHomeTransitionStart(data.closing),
-        transitionEnd: ({ data }) => recordHomeTransitionEnd(data.closing),
+        transitionEnd: ({ data }) => recordHomeTransitionEnd(data.closing, navigation.isFocused()),
         focus: recordHomeFocus,
-      },
-      options: withLocalizedTitle({
-        // fork: i18n
+      }),
+      options: {
         ...pageRoute({ duoMinimize: "never", root: true }),
         contentStyle: { backgroundColor: "transparent" },
         ...getCompactBrandHeaderOptions(),
