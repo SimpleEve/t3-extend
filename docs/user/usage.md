@@ -150,6 +150,13 @@ row to see when it resets and your pace. Turn on **Context window** to also show
 context use against the model's limit. A tick on the bar marks where the provider compacts
 automatically, when it reports that point.
 
+The ring beside the composer's send button always shows how full the context window is. Select it
+to see the numbers, the point where the provider compacts on its own, the speed of the last turn,
+and a **Compact now** button, which sends the same `/compact` you could type. The tokens-per-second
+figure beside it is approximate: it divides the output the provider reported for that turn by the
+time spent writing, not running tools, and it appears only for providers that report output per
+turn.
+
 OpenCode Go reports its session, weekly, and monthly allowance when OpenCode runs locally in
 the environment. T3 cannot report limits for external OpenCode servers because their credentials
 belong to the remote server. Limits need an OpenCode Go API key, or an OpenCode Console connected

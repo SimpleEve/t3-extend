@@ -370,6 +370,17 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - mobile：`apps/mobile/src/features/outputs/`。消息条带在 `ThreadFeed.tsx`，列表页是路由 `ThreadOutputs`（`threads/:environmentId/:threadId/outputs`），入口是 `ThreadHeader.tsx` 的"产出"按钮（数量为 0 时不出现；标题栏动作没有角标，数量写在无障碍标签里）。工作区内的文件走已有的 `ThreadFile` 路由预览，链接用系统浏览器打开，文件和链接都能复制。
 - 译文：`catalogs/zh-Hans/outputs.ts`。
 
+## 上下文圆环与输出速度
+
+输入框底部、回形针和发送按钮之间常驻两个东西：上下文用量圆环（点开：用量、自动压缩点、上一轮速度、"立即压缩"），和一个"约 xx tok/s"标签（点开：总用时、首字延迟、输出 tokens）。参考 Alma 和 DeepSeek Harness，不改 server 和 contracts。
+
+- 计算在 `packages/client-runtime/src/state/`：`turnSpeed.ts`（速度）、`contextWindow.ts` 里的 `deriveContextMeter` 和 `compactNowBlocker`，web 和 mobile 共用。百分比和 80%/90% 的色阶与"对话详情"里的 Context window 行一致，没有窗口大小时不画。
+- 速度口径：输出 token 只读 `providerTurn.turnTokenUsage`（每个 adapter 按本轮汇总，`usageStatus` 为 `complete` 才用），不读线程级的 `tokenUsage`：它是上下文快照，Claude 里的 `outputTokens` 只是最后一条消息，Pi 里是整个会话的累计。Pi 和没有声明本轮用量的 ACP 类 provider（Grok、Kiro、fx，以及除 GLM 外的 ACP Registry）没有这个字段，所以不显示，绝不显示 0。解码时长是本轮 `assistant_message` 和 `reasoning` 条目 `startedAt` 到 `completedAt` 的并集，减去工具、审批和等待用户输入的条目占用的时间；不足 0.5 秒的不算（整段一次性到达的回复没有速度可言）。首字延迟是第一个输出条目的 `startedAt` 减本轮开始时间。因为是近似，界面带"约"。
+- 只在一轮结束后更新：取最近一个已完成且有数据的轮次，生成中的轮次不影响结果。web 用 `useShallowStable` 保持结果的对象身份，流式输出不会重渲染输入框。
+- "立即压缩"发的是和手动输入 `/compact` 完全一样的消息：web 走命令面板那条 `onCompactContext`（`sendStandaloneCommand("/compact")`），mobile 走 `enqueueThreadOutboxMessage`，都不加 RPC。provider 没有 `compact` 斜杠命令、线程在运行、有待处理的请求、没有操作权限、还没有可压缩的内容时置灰并说明原因。
+- 布局：web 在 `ChatComposer.tsx` 底部一行（`ComposerContextMeter.tsx`），窄于 620px（`isComposerFooterCompact`）时速度标签隐藏、圆环不带百分比。mobile 在 `ThreadComposer.tsx` 工具栏的模型控件前，点开是输入框上方的卡片（样式同 `/usage-limits`）；速度标签只在平板的展开状态下显示，手机上只在卡片里。
+- 译文：`catalogs/zh-Hans/contextMeter.ts`。
+
 上游文件里的接线（都带 `// fork:`）：`TimelineAssistantRows.tsx`、`ChatHeader.tsx`、`ChatView.tsx`（传 `workspaceRoot`）、`threadDetail.ts`（两个 atom）、`ThreadFeed.tsx`、`ThreadHeader.tsx`、`ThreadRouteScreen.tsx`、`Stack.tsx`、`catalogs/zh-Hans/index.ts`、`packages/client-runtime/package.json`（`./outputs/*` 导出）。
 
 ## 不依赖 Google 的推送（Android）
