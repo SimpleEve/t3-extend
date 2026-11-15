@@ -59,6 +59,35 @@ describe("MiddleTruncate", () => {
     expect(width("split")).toBeCloseTo(width("whole"), 0);
   });
 
+  it("never clips the tail when its text fits but its text and the ellipsis do not", async () => {
+    const value = "gap-acquisition-plan-docs/operations";
+    const boxed = (width: number) => (
+      <div data-testid="box" style={{ width }}>
+        <MiddleTruncate value={value} tail={11} className="w-full" />
+      </div>
+    );
+    await using screen = await render(boxed(600));
+    const tail = () => screen.container.querySelector<HTMLElement>("[title] > span:last-child")!;
+    const tailWidth = tail().getBoundingClientRect().width;
+
+    // Narrower than the tail with its marker, wider than the tail alone.
+    await screen.rerender(boxed(Math.ceil(tailWidth) + 3));
+    const head = screen.container.querySelector("[title] > span:first-child")!;
+    await expect.poll(() => head.hasAttribute("data-overflow")).toBe(true);
+
+    const box = screen.getByTestId("box").element().getBoundingClientRect();
+    expect(tail().getBoundingClientRect().right).toBeLessThanOrEqual(box.right + 0.5);
+
+    // With room for the head, the ellipsis keeps its full width however far the value overflows.
+    const ellipsisWidth = () =>
+      screen.container.querySelector("[title] > span:nth-child(2)")!.getBoundingClientRect().width;
+    await screen.rerender(boxed(Math.ceil(tailWidth) + 60));
+    await expect.poll(() => ellipsisWidth()).toBeGreaterThan(4);
+    const roomy = ellipsisWidth();
+    await screen.rerender(boxed(Math.ceil(tailWidth) + 25));
+    await expect.poll(() => ellipsisWidth()).toBeCloseTo(roomy, 1);
+  });
+
   it("keeps the raw value's tail when collapsing its spaces", async () => {
     await using screen = await render(<MiddleTruncate value={"longprefix a  b.txt"} />);
 

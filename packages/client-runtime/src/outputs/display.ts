@@ -66,14 +66,26 @@ export function outputFileDisplay(
   return { name, directory: separator > 0 ? shown.slice(0, separator) : "" };
 }
 
-export function outputLinkDisplay(url: string): { readonly host: string; readonly path: string } {
+/**
+ * `path` is what follows the host. `pathTail` is how many trailing characters stay whole when it
+ * is cut to fit: the last path segment with its separator and any query, as for a folder.
+ */
+export function outputLinkDisplay(url: string): {
+  readonly host: string;
+  readonly path: string;
+  readonly pathTail: number | undefined;
+} {
   try {
     const parsed = new URL(url);
+    const pathname = parsed.pathname === "/" ? "" : parsed.pathname;
+    const path = `${pathname}${parsed.search}${parsed.hash}`;
+    const lastSeparator = pathname.replace(/\/+$/, "").lastIndexOf("/");
     return {
       host: parsed.host,
-      path: `${parsed.pathname === "/" ? "" : parsed.pathname}${parsed.search}${parsed.hash}`,
+      path,
+      pathTail: lastSeparator > 0 ? path.length - lastSeparator : undefined,
     };
   } catch {
-    return { host: url, path: "" };
+    return { host: url, path: "", pathTail: undefined };
   }
 }

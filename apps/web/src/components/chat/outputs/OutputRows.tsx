@@ -91,7 +91,7 @@ export function OutputFileRow(props: {
 export function OutputLinkRow(props: { link: OutputLink; actions: OutputActions }) {
   const { link, actions } = props;
   const t = useT();
-  const { host, path } = outputLinkDisplay(link.url);
+  const { host, path, pathTail } = outputLinkDisplay(link.url);
 
   return (
     <div
@@ -115,7 +115,14 @@ export function OutputLinkRow(props: { link: OutputLink; actions: OutputActions 
           <GlobeIcon className="size-4 shrink-0 text-icon-muted" aria-hidden />
           <span className="shrink-0 font-medium text-foreground">{host}</span>
           {path === "" ? null : (
-            <span className="min-w-0 truncate text-muted-foreground">{path}</span>
+            // The host stays whole; the path takes what is left and keeps its last segment, as a file's folder does.
+            <span className="flex min-w-0 text-muted-foreground">
+              <MiddleTruncate
+                value={path}
+                showTitle={false}
+                {...(pathTail === undefined ? {} : { tail: pathTail })}
+              />
+            </span>
           )}
         </TooltipTrigger>
         <TooltipPopup side="top">{link.url}</TooltipPopup>

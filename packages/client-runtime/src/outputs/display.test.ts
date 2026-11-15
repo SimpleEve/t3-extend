@@ -37,12 +37,28 @@ describe("outputFileDisplay", () => {
 
 describe("outputLinkDisplay", () => {
   it.each([
-    ["a bare origin", "http://localhost:3000", "localhost:3000", ""],
-    ["a path", "https://abc.trycloudflare.com/app/x", "abc.trycloudflare.com", "/app/x"],
-    ["a query", "http://192.168.1.2:5173/a?b=1", "192.168.1.2:5173", "/a?b=1"],
-    ["not a url", "nope", "nope", ""],
-  ])("%s", (_name, url, host, path) => {
-    expect(outputLinkDisplay(url)).toEqual({ host, path });
+    ["a bare origin", "http://localhost:3000", "localhost:3000", "", undefined],
+    ["a path", "https://abc.trycloudflare.com/app/x", "abc.trycloudflare.com", "/app/x", 2],
+    [
+      "a query on one segment",
+      "http://192.168.1.2:5173/a?b=1",
+      "192.168.1.2:5173",
+      "/a?b=1",
+      undefined,
+    ],
+    ["one segment", "http://h/app", "h", "/app", undefined],
+    [
+      "a deep path with a query",
+      "https://github.com/QuantumNous/new-api/releases?page=2",
+      "github.com",
+      "/QuantumNous/new-api/releases?page=2",
+      16,
+    ],
+    ["a trailing slash", "http://h/a/b/", "h", "/a/b/", 3],
+    ["a hash", "http://h/docs/intro#top", "h", "/docs/intro#top", 10],
+    ["not a url", "nope", "nope", "", undefined],
+  ])("%s", (_name, url, host, path, pathTail) => {
+    expect(outputLinkDisplay(url)).toEqual({ host, path, pathTail });
   });
 });
 

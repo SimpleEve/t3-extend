@@ -42,13 +42,18 @@ export function MiddleTruncate({
     >
       {split ? (
         <>
-          {/* The tail carries the ellipsis so it sits flush; a CSS ellipsis leaves a ragged gap. */}
-          <span ref={headRef} className="peer min-w-0 overflow-hidden whitespace-pre">
+          {/* The ellipsis is a box of its own that slides with the tail, so it sits flush (a CSS
+              ellipsis leaves a ragged gap). The head's shrink factor dwarfs the ellipsis's, so the
+              head empties first and only then does the ellipsis give way: a box too narrow for
+              both ellipsis and tail drops the ellipsis, never part of the tail. */}
+          <span ref={headRef} className="peer min-w-0 shrink-[1000] overflow-hidden whitespace-pre">
             {split.head}
           </span>
-          <span className="shrink-0 whitespace-pre peer-data-overflow:before:content-['…']">
-            {split.tail}
-          </span>
+          <span
+            aria-hidden
+            className="hidden shrink overflow-hidden whitespace-pre before:content-['…'] peer-data-overflow:block"
+          />
+          <span className="shrink-0 whitespace-pre">{split.tail}</span>
         </>
       ) : (
         // Keyed so React does not reuse the head node and its imperative clip.
@@ -84,8 +89,11 @@ function fitPendingHeads() {
   heads.forEach((head, index) => {
     const slack = slacks[index]!;
     head.style.clipPath = slack > 0 ? `inset(-0.25em ${slack}px -0.25em 0)` : "";
-    const tail = head.nextElementSibling;
-    if (tail instanceof HTMLElement) tail.style.translate = slack > 0 ? `-${slack}px 0` : "";
+    // The ellipsis and the tail both slide over the slack.
+    for (let sibling = head.nextElementSibling; sibling; sibling = sibling.nextElementSibling) {
+      if (sibling instanceof HTMLElement)
+        sibling.style.translate = slack > 0 ? `-${slack}px 0` : "";
+    }
   });
 }
 
