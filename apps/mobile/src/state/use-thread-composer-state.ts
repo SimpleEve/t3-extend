@@ -1,15 +1,14 @@
 import { useComposerAttachmentActions } from "./use-composer-attachment-actions";
 import * as Dialog from "../components/ui/Dialog";
 import { AuthOrchestrationOperateScope } from "@t3tools/contracts";
-import { readEnvironmentScope } from "./session";
+import { readEnvironmentScope, useEnvironmentScope } from "./session";
 import { useAtomValue } from "@effect/atom-react";
+import { EMPTY_ENVIRONMENT_THREAD_STATE } from "@t3tools/client-runtime/state/threads"; // fork: composer context meter
 import {
   compactBeforeSendTokens,
-  deriveContextMeter, // fork: composer context meter
-  deriveLatestContextWindowSnapshot, // fork: composer context meter
-  latestProviderTurnTokenUsage, // fork: composer context meter
+  compactNowBlocker, // fork: composer context meter
+  hasCompactableConversation, // fork: composer context meter
 } from "@t3tools/client-runtime/state/context-window";
-import { deriveLatestTurnSpeed } from "@t3tools/client-runtime/state/turn-speed"; // fork: composer context meter
 import { threadRuntimeIsActive } from "@t3tools/client-runtime/state/shell";
 import type { ThreadCheckpointSummary } from "@t3tools/client-runtime/state/thread-checkpoints";
 import { threadSteersDuringCompaction } from "@t3tools/client-runtime/state/thread-workflows";
@@ -132,6 +131,10 @@ import { useAtomCommand } from "./use-atom-command";
 import { useT } from "../hooks/useT"; // fork: i18n
 import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
+// fork: composer context meter
+const EMPTY_THREAD_HISTORY_ATOM = Atom.make(EMPTY_ENVIRONMENT_THREAD_STATE.history).pipe(
+  Atom.withLabel("mobile-thread-history:empty"),
+);
 const EMPTY_QUEUE_WORKFLOW_ATOM = Atom.make<null>(null).pipe(
   Atom.withLabel("mobile-thread-queue-workflow:empty"),
 );
@@ -475,51 +478,77 @@ export function useThreadComposerState(input: {
     selectedDraft.freshContext === true
       ? null
       : resumeCompactionTokens(modelSelection, "", new Date(nowMinuteMs).toISOString());
-  // fork: composer context meter
-  const contextProjection = selectedThreadProjection?.projection ?? null;
-  const contextProviderThread = contextProjection?.providerThreads.find(
-    (thread) => thread.id === contextProjection.thread.activeProviderThreadId,
+  // fork: composer context meter. The ring, card and speed read their own atoms; this only
+  // decides whether "Compact now" may send, and sends the same `/compact` a typed one does.
+  const compactHistory = useAtomValue(
+    selectedThreadDetailRef === null
+      ? EMPTY_THREAD_HISTORY_ATOM
+      : environmentThreadDetails.historyAtom(selectedThreadDetailRef),
   );
-  const contextMeter =
-    contextProjection === null
-      ? null
-      : deriveContextMeter(
-          deriveLatestContextWindowSnapshot(
-            selectedThreadVisibleTurnItems,
-            latestProviderTurnTokenUsage(
-              contextProjection.providerTurns,
-              contextProjection,
-              contextProviderThread,
-            ),
-            contextProviderThread,
-          ),
-        );
-  const lastTurnSpeed =
-    contextProjection === null
-      ? null
-      : deriveLatestTurnSpeed(
-          contextProjection.providerTurns,
-          selectedThreadVisibleTurnItems.map(({ item }) => item),
-        );
+  const canOperateSelectedThread = useEnvironmentScope(
+    selectedThreadShell?.environmentId ?? null,
+    AuthOrchestrationOperateScope,
+  );
+  // The state shows the button off while the message saves; the ref stops a second press that
+  // lands before that re-render.
+  const [compactSaving, setCompactSaving] = useState(false);
+  const compactInFlightRef = useRef(false);
   const providerSupportsCompact =
     serverConfig?.providers
       .find((provider) => provider.instanceId === modelSelection?.instanceId)
       ?.slashCommands.some((command) => command.name === "compact") ?? false;
-  // The same `/compact` message a typed one sends, queued without touching the draft.
+  const currentCompactNowBlocker = (canOperate: boolean) =>
+    compactNowBlocker({
+      connected: selectedEnvironmentRuntime?.connectionState === "connected",
+      canOperateThread: canOperate,
+      providerSupportsCompact,
+      hasCompactableConversation: hasCompactableConversation({
+        visibleTurnItems: selectedThreadVisibleTurnItems,
+        hasMoreHistory: compactHistory.hasMoreHistory,
+        latestUserMessageAt: selectedThreadShell?.latestUserMessageAt ?? null,
+      }),
+      working:
+        compactSaving ||
+        activeThreadBusy ||
+        runlessWorkActive ||
+        isCompacting ||
+        [selectedThreadActivityRun?.status, selectedThreadRuntime?.status].some(
+          (status) => status === "preparing" || status === "starting",
+        ) ||
+        selectedThreadQueuedMessages.length > 0 ||
+        dispatchingQueuedMessageId !== null,
+      hasPendingRequest:
+        selectedThreadProjection?.projection.runtimeRequests.some(
+          (request) => request.status === "pending",
+        ) ?? false,
+      otherwiseUnavailable:
+        queuedRunEdit !== null ||
+        selectedThreadCreation !== null ||
+        modelSelection === null ||
+        runtimeMode === null ||
+        selectedThreadProjection === null,
+    });
+  const compactNowBlockerValue = currentCompactNowBlocker(canOperateSelectedThread);
   const onCompactNow = () => {
     const thread = selectedThreadShell;
+    // Judged again now, against the latest scope, so a stale card cannot send.
     if (
+      compactInFlightRef.current ||
       !thread ||
       modelSelection === null ||
       runtimeMode === null ||
-      selectedEnvironmentRuntime?.connectionState !== "connected" ||
-      !readEnvironmentScope(thread.environmentId, AuthOrchestrationOperateScope)
+      currentCompactNowBlocker(
+        readEnvironmentScope(thread.environmentId, AuthOrchestrationOperateScope),
+      ) !== null
     ) {
       return;
     }
     const threadKey = scopedThreadKey(thread.environmentId, thread.id);
     const metadata = makeQueuedMessageMetadata();
     clearThreadComposerError(threadKey);
+    // A second press before the first is saved would queue a second /compact.
+    compactInFlightRef.current = true;
+    setCompactSaving(true);
     enqueueThreadOutboxMessage({
       environmentId: thread.environmentId,
       threadId: thread.id,
@@ -532,12 +561,17 @@ export function useThreadComposerState(input: {
       runtimeMode,
       interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
       createdAt: metadata.createdAt,
-    }).catch((error: unknown) => {
-      setThreadComposerError(
-        threadKey,
-        error instanceof Error ? error.message : t("Failed to save the queued message."),
-      );
-    });
+    })
+      .catch((error: unknown) => {
+        setThreadComposerError(
+          threadKey,
+          error instanceof Error ? error.message : t("Failed to save the queued message."),
+        );
+      })
+      .finally(() => {
+        compactInFlightRef.current = false;
+        setCompactSaving(false);
+      });
   };
   const fullHistoryThreadKeys = useAtomValue(fullHistoryThreadKeysAtom);
   const keepFullHistory =
@@ -1012,9 +1046,7 @@ export function useThreadComposerState(input: {
             keepFullHistory,
             toggleKeepFullHistory: () => setKeepFullHistory(selectedThreadKey, !keepFullHistory),
           },
-    contextMeter, // fork: composer context meter
-    lastTurnSpeed, // fork: composer context meter
-    providerSupportsCompact, // fork: composer context meter
+    compactNowBlocker: compactNowBlockerValue, // fork: composer context meter
     onCompactNow, // fork: composer context meter
     composerDraftKey,
     followUpBehavior,

@@ -87,8 +87,8 @@ import {
   ComposerToolbarRow,
 } from "../../components/ComposerToolbar";
 import { formatTokens } from "@t3tools/shared/usageFormat";
-import type { CompactNowBlocker, ContextMeter } from "@t3tools/client-runtime/state/context-window"; // fork: composer context meter
-import type { TurnSpeed } from "@t3tools/client-runtime/state/turn-speed"; // fork: composer context meter
+import type { CompactNowBlocker } from "@t3tools/client-runtime/state/context-window"; // fork: composer context meter
+import { scopeThreadRef } from "@t3tools/client-runtime/environment"; // fork: composer context meter
 import { ContextMeterCard, ContextMeterControl, TurnSpeedControl } from "./ComposerContextMeter"; // fork: composer context meter
 import { ComposerModelControl } from "../../components/ComposerModelControl";
 import {
@@ -237,8 +237,6 @@ export interface ThreadComposerProps {
     readonly toggleKeepFullHistory: () => void;
   } | null;
   // fork: composer context meter
-  readonly contextMeter?: ContextMeter | null;
-  readonly lastTurnSpeed?: TurnSpeed | null;
   readonly compactNowBlocker?: CompactNowBlocker | null;
   readonly onCompactNow?: (() => void) | undefined;
   /** Arms a fresh session for the next message; absent where `/clear` is unavailable. */
@@ -854,22 +852,24 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
 
   // fork: composer context meter
   const [contextCardOpen, setContextCardOpen] = useState(false);
-  const contextMeter = props.contextMeter ?? null;
-  const lastTurnSpeed = props.lastTurnSpeed ?? null;
+  const contextThreadRef = scopeThreadRef(
+    props.selectedThread.environmentId,
+    props.selectedThread.id,
+  );
   const contextControlSize = usesLargeControls ? "large" : "regular";
   const contextMeterControl =
-    contextMeter !== null && queuedEdit === null ? (
+    queuedEdit === null ? (
       <>
         <ContextMeterControl
-          meter={contextMeter}
+          threadRef={contextThreadRef}
           size={contextControlSize}
           showPercent={compactEditor.isExpanded}
           open={contextCardOpen}
           onPress={() => setContextCardOpen((open) => !open)}
         />
-        {lastTurnSpeed !== null && usesLargeControls && compactEditor.isExpanded ? (
+        {usesLargeControls && compactEditor.isExpanded ? (
           <TurnSpeedControl
-            speed={lastTurnSpeed}
+            threadRef={contextThreadRef}
             size={contextControlSize}
             onPress={() => setContextCardOpen(true)}
           />
@@ -970,10 +970,9 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
           />
         ) : null}
 
-        {contextCardOpen && contextMeter !== null && queuedEdit === null ? (
+        {contextCardOpen && queuedEdit === null ? (
           <ContextMeterCard
-            meter={contextMeter}
-            speed={lastTurnSpeed}
+            threadRef={contextThreadRef}
             compactBlocker={
               props.compactNowBlocker === undefined ? "other" : props.compactNowBlocker
             }

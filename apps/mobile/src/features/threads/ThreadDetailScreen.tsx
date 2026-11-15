@@ -132,7 +132,7 @@ import {
 } from "../../native/native-layout-metrics";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { collectProviderUsageLimits } from "@t3tools/shared/usageLimits";
-import { compactNowBlocker } from "@t3tools/client-runtime/state/context-window"; // fork: composer context meter
+import type { CompactNowBlocker } from "@t3tools/client-runtime/state/context-window"; // fork: composer context meter
 import type { ComposerEditorHandle } from "../../components/ComposerEditor";
 import type { StatusTone } from "../../components/StatusPill";
 import { getComposerDraftSnapshot, setFreshSessionPending } from "../../state/use-composer-drafts";
@@ -256,9 +256,7 @@ export interface ThreadDetailScreenProps {
   /** Set while the next send compacts the thread first. */
   readonly compactBeforeSend?: ThreadComposerProps["compactBeforeSend"];
   // fork: composer context meter
-  readonly contextMeter?: ThreadComposerProps["contextMeter"];
-  readonly lastTurnSpeed?: ThreadComposerProps["lastTurnSpeed"];
-  readonly providerSupportsCompact?: boolean;
+  readonly compactNowBlocker?: CompactNowBlocker | null;
   readonly onCompactNow?: () => void;
   readonly creationState:
     | {
@@ -1000,19 +998,6 @@ function ThreadDetailBody(
     ) ||
     (props.historyControls?.hasMoreHistory === true &&
       props.selectedThread.latestUserMessageAt !== null);
-  // fork: composer context meter
-  const compactNowBlockerValue = compactNowBlocker({
-    canOperateThread: props.canOperateThread,
-    providerSupportsCompact: props.providerSupportsCompact === true,
-    hasCompactableConversation,
-    working: props.activeThreadBusy || props.runlessWorkActive === true || props.isCompacting,
-    hasPendingRequest:
-      props.activePendingApprovals.length > 0 || props.activePendingUserInput !== null,
-    otherwiseUnavailable:
-      props.selectedThreadQueueCount > 0 ||
-      props.queuedRunEdit !== null ||
-      props.onCompactNow === undefined,
-  });
   const composerOverlapHeight =
     composerHeight ??
     COMPOSER_COLLAPSED_CHROME +
@@ -1918,9 +1903,7 @@ function ThreadDetailBody(
                         environmentLabel={props.environmentLabel}
                         selectedThread={props.selectedThread}
                         compactBeforeSend={props.compactBeforeSend ?? null}
-                        contextMeter={props.contextMeter ?? null} // fork: composer context meter
-                        lastTurnSpeed={props.lastTurnSpeed ?? null} // fork: composer context meter
-                        compactNowBlocker={compactNowBlockerValue} // fork: composer context meter
+                        compactNowBlocker={props.compactNowBlocker} // fork: composer context meter
                         onCompactNow={props.onCompactNow} // fork: composer context meter
                         hasCompactableConversation={
                           hasCompactableConversation && !props.isCompacting

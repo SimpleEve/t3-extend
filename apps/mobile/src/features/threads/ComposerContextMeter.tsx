@@ -1,9 +1,6 @@
 import type { CompactNowBlocker, ContextMeter } from "@t3tools/client-runtime/state/context-window";
-import {
-  formatTokensPerSecond,
-  formatTurnSeconds,
-  type TurnSpeed,
-} from "@t3tools/client-runtime/state/turn-speed";
+import { formatTokensPerSecond, formatTurnSeconds } from "@t3tools/client-runtime/state/turn-speed";
+import type { ScopedThreadRef } from "@t3tools/contracts";
 import { Pressable, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
@@ -13,6 +10,11 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { Button } from "../../components/ui/Button";
 import { useT } from "../../hooks/useT";
 import { cn } from "../../lib/cn";
+import {
+  useThreadContextMeter,
+  useThreadContextRing,
+  useThreadLastTurnSpeed,
+} from "../../state/use-thread-context-meter";
 import { withUniwind } from "uniwind";
 
 const RING_RADIUS = 6;
@@ -47,7 +49,7 @@ function ContextRing(props: { size: number; percent: number; tone: ContextMeter[
         cy="8"
         r={RING_RADIUS}
         stroke="currentColor"
-        strokeOpacity={0.25}
+        strokeOpacity={0.45}
         strokeWidth={2}
         fill="none"
       />
@@ -71,21 +73,21 @@ function ContextRing(props: { size: number; percent: number; tone: ContextMeter[
 
 /** The ring in the composer toolbar; the percentage shows when the toolbar has room. */
 export function ContextMeterControl(props: {
-  readonly meter: ContextMeter;
+  readonly threadRef: ScopedThreadRef;
   readonly size: "regular" | "large";
   readonly showPercent: boolean;
   readonly open: boolean;
   readonly onPress: () => void;
 }) {
   const t = useT();
+  const ring = useThreadContextRing(props.threadRef);
+  if (ring === null) return null;
   return (
     <ComposerInlineControl
       size={props.size}
-      label={`${props.meter.percent}%`}
-      accessibilityLabel={`${t("Context usage")} ${props.meter.percent}%`}
-      renderIcon={(size) => (
-        <ContextRing size={size} percent={props.meter.percent} tone={props.meter.tone} />
-      )}
+      label={`${ring.percent}%`}
+      accessibilityLabel={`${t("Context usage")} ${ring.percent}%`}
+      renderIcon={(size) => <ContextRing size={size} percent={ring.percent} tone={ring.tone} />}
       iconOnly={!props.showPercent}
       showChevron={false}
       selected={props.open}
@@ -96,15 +98,17 @@ export function ContextMeterControl(props: {
 
 /** The last turn's speed, where the toolbar has room; the card always carries it too. */
 export function TurnSpeedControl(props: {
-  readonly speed: TurnSpeed;
+  readonly threadRef: ScopedThreadRef;
   readonly size: "regular" | "large";
   readonly onPress: () => void;
 }) {
   const t = useT();
+  const speed = useThreadLastTurnSpeed(props.threadRef);
+  if (speed === null) return null;
   return (
     <ComposerInlineControl
       size={props.size}
-      label={t("~{speed} tok/s", { speed: formatTokensPerSecond(props.speed.tokensPerSecond) })}
+      label={t("~{speed} tok/s", { speed: formatTokensPerSecond(speed.tokensPerSecond) })}
       showChevron={false}
       onPress={props.onPress}
     />
@@ -115,6 +119,8 @@ function useBlockerLabel() {
   const t = useT();
   return (blocker: CompactNowBlocker) => {
     switch (blocker) {
+      case "offline":
+        return t("Not connected to this environment.");
       case "permission":
         return t("You don't have permission to operate this thread.");
       case "provider":
@@ -133,15 +139,17 @@ function useBlockerLabel() {
 
 /** Usage, auto-compact point, last-turn speed and Compact now, in the card style of the usage limits. */
 export function ContextMeterCard(props: {
-  readonly meter: ContextMeter;
-  readonly speed: TurnSpeed | null;
+  readonly threadRef: ScopedThreadRef;
   readonly compactBlocker: CompactNowBlocker | null;
   readonly onCompact: () => void;
   readonly onClose: () => void;
 }) {
-  const { meter, speed, compactBlocker } = props;
+  const { compactBlocker } = props;
   const t = useT();
   const blockerLabel = useBlockerLabel();
+  const meter = useThreadContextMeter(props.threadRef);
+  const speed = useThreadLastTurnSpeed(props.threadRef);
+  if (meter === null) return null;
   return (
     <View className="mb-2 gap-2 rounded-[20px] border-continuous bg-card px-4 py-3">
       <View className="flex-row items-center justify-between gap-3">

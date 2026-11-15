@@ -1,12 +1,14 @@
 import "~/index.css";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import type { ContextMeter } from "@t3tools/client-runtime/state/context-window";
+import type { TurnSpeed } from "@t3tools/client-runtime/state/turn-speed";
 import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 
 const state = vi.hoisted(() => ({
   ring: null as { percent: number; tone: "warning" | "error" | null } | null,
-  meter: null as unknown,
-  speed: null as unknown,
+  meter: null as ContextMeter | null,
+  speed: null as TurnSpeed | null,
 }));
 
 vi.mock(import("~/state/entities"), () => ({

@@ -1048,9 +1048,7 @@ function ThreadRouteContent(
           }
           isCompacting={composer.isCompacting}
           compactBeforeSend={composer.compactBeforeSend}
-          contextMeter={composer.contextMeter} // fork: composer context meter
-          lastTurnSpeed={composer.lastTurnSpeed} // fork: composer context meter
-          providerSupportsCompact={composer.providerSupportsCompact} // fork: composer context meter
+          compactNowBlocker={composer.compactNowBlocker} // fork: composer context meter
           onCompactNow={composer.onCompactNow} // fork: composer context meter
           runlessWorkActive={composer.runlessWorkActive}
           extensionStatuses={composer.extensionStatuses}
