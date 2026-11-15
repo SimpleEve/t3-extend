@@ -542,7 +542,8 @@ export function createEnvironmentThreadDetailAtoms<E>(
   // fork: the files and links each finished run produced. It moves with the thread's structure and
   // checkpoints, never with streamed text, and reads the finished replies once per change.
   const threadOutputsAtomFamily = Atom.family((key: string) => {
-    const separator = key.indexOf("\u0000");
+    // The thread key holds a separator itself, so the working directory is what follows the last.
+    const separator = key.lastIndexOf("\u0000");
     const thread = key.slice(0, separator);
     const cwd = key.slice(separator + 1);
     const derive = createThreadOutputsDeriver();

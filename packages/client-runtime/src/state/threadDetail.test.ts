@@ -552,3 +552,91 @@ describe("deriveWorkspaceMutationId", () => {
     );
   });
 });
+
+describe("outputsAtom and runOutputsAtom", () => {
+  const ref = { environmentId: EnvironmentId.make("environment-1"), threadId: v2ThreadId };
+  const finishedRun = RunId.make("run-1");
+  const liveRun = RunId.make("run-2");
+  const runRow = (id: RunId, ordinal: number, status: OrchestrationV2Run["status"]) =>
+    ({ id, ordinal, status }) as unknown as OrchestrationV2Run;
+  const item = (runId: RunId, ordinal: number, body: Record<string, unknown>) =>
+    ({
+      ...assistant,
+      id: TurnItemId.make(`item-${runId}-${ordinal}`),
+      runId,
+      ordinal,
+      ...body,
+    }) as unknown as OrchestrationV2TurnItem;
+  const liveReply = (text: string) =>
+    item(liveRun, 1, { type: "assistant_message", text, streaming: true, status: "running" });
+  const projectionWith = (live: OrchestrationV2TurnItem): OrchestrationV2ThreadProjection => {
+    const turnItems = [
+      item(finishedRun, 1, { type: "file_change", fileName: "a.ts", status: "completed" }),
+      item(finishedRun, 2, {
+        type: "assistant_message",
+        text: "[report](/tmp/report.md)",
+        streaming: false,
+        status: "completed",
+      }),
+      live,
+    ];
+    return {
+      ...v2Projection,
+      runs: [runRow(finishedRun, 1, "completed"), runRow(liveRun, 2, "running")],
+      turnItems,
+      visibleTurnItems: turnItems.map((turnItem, position) => ({
+        position,
+        visibility: "local" as const,
+        sourceThreadId: v2ThreadId,
+        sourceItemId: turnItem.id,
+        item: turnItem,
+      })),
+    };
+  };
+
+  function setup() {
+    const stateAtom = Atom.make(
+      AsyncResult.success({
+        ...EMPTY_ENVIRONMENT_THREAD_STATE,
+        data: Option.some(projectionWith(liveReply("Hel"))),
+      }),
+    );
+    const details = createEnvironmentThreadDetailAtoms(() => stateAtom);
+    const outputs = details.outputsAtom(ref, "/work/app");
+    const run = details.runOutputsAtom(ref, "/work/app", finishedRun);
+    const registry = AtomRegistry.make();
+    registry.mount(outputs);
+    registry.mount(run);
+    return {
+      outputs: () => registry.get(outputs),
+      run: () => registry.get(run),
+      stream: (text: string) =>
+        registry.set(
+          stateAtom,
+          AsyncResult.success({
+            ...EMPTY_ENVIRONMENT_THREAD_STATE,
+            data: Option.some(projectionWith(liveReply(text))),
+          }),
+        ),
+      [Symbol.dispose]: () => registry.dispose(),
+    };
+  }
+
+  it("lists a finished run's files and ignores the run still streaming", () => {
+    using thread = setup();
+    expect(thread.outputs().files.map((file) => file.path)).toEqual([
+      "/tmp/report.md",
+      "/work/app/a.ts",
+    ]);
+    expect(thread.run().files).toHaveLength(2);
+  });
+
+  it("keeps both results through streamed text", () => {
+    using thread = setup();
+    const outputs = thread.outputs();
+    const run = thread.run();
+    thread.stream("Hello there");
+    expect(thread.outputs()).toBe(outputs);
+    expect(thread.run()).toBe(run);
+  });
+});
