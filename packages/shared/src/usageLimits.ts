@@ -805,16 +805,30 @@ export function resetCreditChoices(
   input: ProviderConsumeResetCreditInput,
   now: number,
   compact = false,
+  t: ResetLabelTranslator = englishResetLabel, // fork: interface language
 ): ReadonlyArray<ResetCreditChoice> {
-  const expiresIn = (at: string | undefined) => (at ? formatDuration(Date.parse(at) - now) : null);
+  const expiresIn = (at: string | undefined) =>
+    at ? formatDuration(Date.parse(at) - now, t) : null;
   if (credits.options && "instanceId" in input) {
     return credits.options.map((option) => {
       const expires = expiresIn(option.expiresAt);
       return {
         key: option.creditId,
-        summary: `${option.label} · ${option.availableCount} left${expires ? ` · expires in ${expires}` : ""}`,
-        actionLabel: "Use",
-        confirmDescription: `${option.label}: ${option.description} This cannot be undone.`,
+        summary: expires
+          ? t("{label} · {count} left · expires in {duration}", {
+              label: option.label,
+              count: String(option.availableCount),
+              duration: expires,
+            })
+          : t("{label} · {count} left", {
+              label: option.label,
+              count: String(option.availableCount),
+            }),
+        actionLabel: t("Use"),
+        confirmDescription: t("{label}: {description} This cannot be undone.", {
+          label: option.label,
+          description: option.description,
+        }),
         availableCount: option.availableCount,
         input: { ...input, creditId: option.creditId },
       };
@@ -827,13 +841,28 @@ export function resetCreditChoices(
       key: "next",
       summary:
         count === 0
-          ? "No reset credits banked"
+          ? t("No reset credits banked")
           : compact
-            ? `${count} banked${expires ? ` · expires in ${expires}` : ""}`
-            : `${count} ${count === 1 ? "reset credit" : "reset credits"} banked${expires ? ` · next expires in ${expires}` : ""}`,
-      actionLabel: "Use reset",
-      confirmDescription:
+            ? expires
+              ? t("{count} banked · expires in {duration}", {
+                  count: String(count),
+                  duration: expires,
+                })
+              : t("{count} banked", { count: String(count) })
+            : expires
+              ? t(
+                  count === 1
+                    ? "{count} reset credit banked · next expires in {duration}"
+                    : "{count} reset credits banked · next expires in {duration}",
+                  { count: String(count), duration: expires },
+                )
+              : t(count === 1 ? "{count} reset credit banked" : "{count} reset credits banked", {
+                  count: String(count),
+                }),
+      actionLabel: t("Use reset"),
+      confirmDescription: t(
         "This redeems one credit on your account and clears the current rate-limit windows. It cannot be undone.",
+      ),
       availableCount: count,
       input,
     },

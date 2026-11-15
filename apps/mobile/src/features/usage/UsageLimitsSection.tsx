@@ -279,7 +279,7 @@ export function ResetCredits(props: {
 
   return (
     <View className="gap-1">
-      {resetCreditChoices(credits, input, now).map((choice) => (
+      {resetCreditChoices(credits, input, now, false, t).map((choice) => (
         <View key={choice.key} className="flex-row flex-wrap items-center gap-x-3 gap-y-1">
           <Text className="text-xs tabular-nums text-foreground-tertiary">{choice.summary}</Text>
           {choice.availableCount > 0 ? (

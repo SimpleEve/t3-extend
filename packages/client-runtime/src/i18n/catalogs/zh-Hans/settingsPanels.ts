@@ -3115,4 +3115,15 @@ export default {
   "Writer model not saved": "写作模型未保存",
   "Pick a time.": "请选择时间。",
   Preferences: "偏好设置",
+  "{label} · {count} left · expires in {duration}": "{label} · 剩 {count} 次 · {duration}后过期",
+  "{label} · {count} left": "{label} · 剩 {count} 次",
+  "{label}: {description} This cannot be undone.": "{label}：{description} 此操作无法撤销。",
+  "{count} banked · expires in {duration}": "存有 {count} 次 · {duration}后过期",
+  "{count} banked": "存有 {count} 次",
+  "{count} reset credit banked · next expires in {duration}":
+    "存有 {count} 次重置额度 · 最近一次{duration}后过期",
+  "{count} reset credits banked · next expires in {duration}":
+    "存有 {count} 次重置额度 · 最近一次{duration}后过期",
+  "Open from a computer to edit on {environment}":
+    "请在电脑上打开，才能编辑 {environment} 上的内容",
 } satisfies Record<string, string>;
