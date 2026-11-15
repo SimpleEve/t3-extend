@@ -855,7 +855,7 @@ function SpeechModelBrowser(props: {
   );
   const accuracyLanguage = selectedLanguages[0] ?? "en";
   const sortLabels: Record<SpeechModelSort, string> = {
-    recommended: "Recommended",
+    recommended: t("Recommended"),
     size: "Smallest",
     accuracy: "Most accurate",
     speed: "Fastest",
@@ -1382,7 +1382,7 @@ export function VoiceSettingsPanel() {
       <SettingsSection id="voice-transcription" title="Transcription">
         <SettingsRow
           {...searchableSetting("voice-transcription-destination")}
-          title="Transcribe with"
+          title={t("Transcribe with")}
           description={
             destination.environmentId && chosenUnsupported
               ? `${chosenEnvironment.label} can’t transcribe audio locally. Choose another destination.`

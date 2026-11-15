@@ -2298,7 +2298,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               type: "error",
               title: t("Failed to snooze thread"),
               description:
-                outcome.error instanceof Error ? outcome.error.message : "An error occurred.",
+                outcome.error instanceof Error ? outcome.error.message : t("An error occurred."),
             }),
           );
           return;

@@ -1453,7 +1453,8 @@ export function ThreadThinkingRow(props: {
   /** Replaces "Thinking" while the provider has not started a turn. */
   readonly providerStartingLabel?: string | undefined;
 }) {
-  const label = props.providerStartingLabel ?? props.label ?? "Thinking";
+  const t = useT(); // fork: i18n
+  const label = props.providerStartingLabel ?? props.label ?? t("Thinking");
   return (
     <View
       accessible

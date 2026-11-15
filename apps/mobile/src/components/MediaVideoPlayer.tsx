@@ -159,8 +159,8 @@ function MediaVideoPlayerContent(props: MediaVideoPlayerProps) {
   // Keep an opened player mounted while signing or reconnecting temporarily has no usable URL.
   if (playbackUri === null && props.expanded && props.uri !== null) setPlaybackUri(props.uri);
   const unavailableText = props.unavailableDetail
-    ? `Video unavailable. ${props.unavailableDetail}`
-    : "Video unavailable";
+    ? `${t("Video unavailable")}. ${props.unavailableDetail}`
+    : t("Video unavailable");
   const [videoSize, setVideoSize] = useState<{ width: number; height: number } | null>(null);
   const [bounds, setBounds] = useState<{ width: number; height: number } | null>(null);
   const sizeSource = props.fitToVideo && isFocused && videoSize === null ? props.uri : null;

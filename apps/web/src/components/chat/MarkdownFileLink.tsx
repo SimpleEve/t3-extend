@@ -243,8 +243,8 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: `Failed to copy ${title.toLowerCase()}`,
-          description: error instanceof Error ? error.message : "An error occurred.",
+          title: copyToastTitles(title).failed,
+          description: error instanceof Error ? error.message : t("An error occurred."),
         }),
       );
     });

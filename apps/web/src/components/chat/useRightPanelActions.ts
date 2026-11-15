@@ -274,7 +274,7 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Failed to copy path",
+          title: t("Failed to copy path"),
           description: error instanceof Error ? error.message : t("An error occurred."),
         }),
       );
