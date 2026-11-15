@@ -516,7 +516,8 @@ export function useThreadComposerState(input: {
           (status) => status === "preparing" || status === "starting",
         ) ||
         selectedThreadQueuedMessages.length > 0 ||
-        dispatchingQueuedMessageId !== null,
+        dispatchingQueuedMessageId !== null ||
+        selectedThreadProjection?.projection.runs.some((run) => run.status === "queued") === true,
       hasPendingRequest:
         selectedThreadProjection?.projection.runtimeRequests.some(
           (request) => request.status === "pending",

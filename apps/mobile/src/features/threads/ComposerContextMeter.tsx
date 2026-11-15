@@ -149,16 +149,19 @@ export function ContextMeterCard(props: {
   const blockerLabel = useBlockerLabel();
   const meter = useThreadContextMeter(props.threadRef);
   const speed = useThreadLastTurnSpeed(props.threadRef);
-  if (meter === null) return null;
+  // The speed control can open this card on a thread whose provider reports no context window.
+  if (meter === null && speed === null) return null;
   return (
     <View className="mb-2 gap-2 rounded-[20px] border-continuous bg-card px-4 py-3">
       <View className="flex-row items-center justify-between gap-3">
         <Text className="min-w-0 flex-1 text-base font-t3-medium text-foreground">
-          {t("Context usage")}
+          {meter !== null ? t("Context usage") : t("Last turn")}
         </Text>
-        <Text className={cn("text-base font-t3-medium", toneTextClassName(meter.tone))}>
-          {meter.percent}%
-        </Text>
+        {meter !== null ? (
+          <Text className={cn("text-base font-t3-medium", toneTextClassName(meter.tone))}>
+            {meter.percent}%
+          </Text>
+        ) : null}
         <Pressable
           accessibilityLabel={t("Close")}
           accessibilityRole="button"
@@ -175,13 +178,15 @@ export function ContextMeterCard(props: {
         </Pressable>
       </View>
       <View className="gap-0.5">
-        <Text className="text-sm text-foreground-muted">
-          {t("{used} / {max} tokens", {
-            used: meter.usedTokens.toLocaleString("en-US"),
-            max: meter.maxTokens.toLocaleString("en-US"),
-          })}
-        </Text>
-        {meter.autoCompactPercent !== null ? (
+        {meter !== null ? (
+          <Text className="text-sm text-foreground-muted">
+            {t("{used} / {max} tokens", {
+              used: meter.usedTokens.toLocaleString("en-US"),
+              max: meter.maxTokens.toLocaleString("en-US"),
+            })}
+          </Text>
+        ) : null}
+        {meter !== null && meter.autoCompactPercent !== null ? (
           <Text className="text-sm text-foreground-muted">
             {t("Compacts automatically at {percent}%", { percent: meter.autoCompactPercent })}
           </Text>

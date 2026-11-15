@@ -2539,7 +2539,7 @@ export default function ChatView(props: ChatViewProps) {
       phase === "running" ||
       sendQueuesBehindSetup ||
       isPreparingWorktree ||
-      hasHeldQueuedRuns,
+      serverProjection?.runs.some((run) => run.status === "queued") === true,
     hasPendingRequest: pendingApprovals.length > 0 || pendingUserInputs.length > 0,
     otherwiseUnavailable: compactThreadUnavailable,
   });
