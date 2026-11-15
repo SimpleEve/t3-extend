@@ -63,6 +63,15 @@ const REASON_TEMPLATES = [
   "Removed {count} browser artifacts",
   "Removed {count} rotated logs",
   "Could not parse the pnpm modules manifest.",
+  "Worktree could not be fully inspected",
+  "Contains a nested Git repository",
+  "No thread uses this folder",
+  "Thread has no branch",
+  "Could not read a worktree directory.",
+  "Hidden tracked files exceed the inspection limit",
+  "Folder is a symbolic link",
+  "Has local files ({file})",
+  "Thread has a scheduled task",
 ] as const;
 
 // The same English is an action elsewhere ("Open terminal" opens one).

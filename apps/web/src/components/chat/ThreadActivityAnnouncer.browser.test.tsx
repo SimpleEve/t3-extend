@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { MessageId, RunId } from "@t3tools/contracts";
 import { type ComponentProps } from "react";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -129,9 +130,9 @@ describe("ThreadActivityAnnouncer", () => {
 
     expect(heard).toEqual([
       ["Working", ""],
-      ["Working", "T3 Code: Checking the repo"],
-      ["Needs approval", "T3 Code: Checking the repo"],
-      ["Needs approval", "T3 Code: Checking the repo"],
+      ["Working", `${FORK.appBaseName}: Checking the repo`],
+      ["Needs approval", `${FORK.appBaseName}: Checking the repo`],
+      ["Needs approval", `${FORK.appBaseName}: Checking the repo`],
       ["Needs approval", "Running rg"],
     ]);
   });
@@ -151,7 +152,9 @@ describe("ThreadActivityAnnouncer", () => {
       }),
     );
 
-    await expect.element(detail).toHaveTextContent("T3 Code: Checking the repo. Needs approval");
+    await expect
+      .element(detail)
+      .toHaveTextContent(`${FORK.appBaseName}: Checking the repo. Needs approval`);
     await expect.element(status).toHaveTextContent("Working");
   });
 });

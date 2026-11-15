@@ -64,4 +64,13 @@ export default {
   "Could not parse the pnpm modules manifest.": "无法解析 pnpm 的 modules 清单。",
   "Removed {count} browser artifacts": "已删除 {count} 个浏览器产物",
   "Removed {count} rotated logs": "已删除 {count} 个轮转日志",
+  "Worktree could not be fully inspected": "无法完整检查 worktree",
+  "Contains a nested Git repository": "包含嵌套的 Git 仓库",
+  "No thread uses this folder": "没有对话在使用这个文件夹",
+  "Thread has no branch": "对话没有分支",
+  "Could not read a worktree directory.": "无法读取 worktree 目录。",
+  "Hidden tracked files exceed the inspection limit": "隐藏的已跟踪文件超出检查上限",
+  "Folder is a symbolic link": "文件夹是符号链接",
+  "Has local files ({file})": "有本地文件（{file}）",
+  "Thread has a scheduled task": "对话有定时任务",
 };

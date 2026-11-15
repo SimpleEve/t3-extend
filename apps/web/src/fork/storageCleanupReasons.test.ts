@@ -53,12 +53,24 @@ const CLASSIFIED: ReadonlyArray<{ readonly match: RegExp; readonly why: string }
     why: "keep()'s and waitForStop()'s own parameter; the values are their call sites, which are roots",
   },
   {
-    match: /^(?:removalReason|sharedKeepReason)$/,
+    match: /^(?:removalReason|sharedKeepReason|notDueReason)$/,
     why: "a variable whose initialiser and assignments are roots themselves",
   },
   {
-    match: /^(?:changes|finalChanges|blocked|blockedWhileMeasuring)$/,
-    why: "the result of localChangesReason or blockedSinceCheck, whose returns are evaluated below",
+    match: /^(?:changes|finalChanges|blocked|blockedWhileMeasuring|pathReason|hidden)$/,
+    why: "the result of localChangesReason, blockedSinceCheck, scratchKeepReason, worktreePathReason or hiddenTrackedChange, whose returns are evaluated below",
+  },
+  {
+    match: /^(?:inspection|finalInspection)\.reason$/,
+    why: "measureWorktree's `reason:` properties, which are roots themselves",
+  },
+  {
+    match: /^Effect\.fn\("StorageCleanup\.(?:scratchKeepReason|worktreePathReason)"\)/,
+    why: "the functions that return those reasons; their returns are evaluated below",
+  },
+  {
+    match: /^yield\* worktreePathReason\(/,
+    why: "the result of worktreePathReason, whose returns are evaluated below",
   },
   {
     match: /^kept$/,

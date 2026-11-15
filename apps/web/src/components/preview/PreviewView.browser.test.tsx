@@ -109,7 +109,7 @@ vi.mock(import("~/previewStateStore"), async (original) => ({
         hasWebContents: true,
         navStatus: mocks.idleDesktopOverlay
           ? { _tag: "Idle" }
-          : { _tag: "Success", url: "http://example.com/", title: "Example" },
+          : { _tag: "Success", url: mocks.tabUrl, title: "Example" },
         canGoBack: false,
         canGoForward: false,
         loading: mocks.loading,
