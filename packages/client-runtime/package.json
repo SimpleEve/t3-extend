@@ -395,6 +395,10 @@
       "types": "./src/state/contextWindow.ts",
       "default": "./src/state/contextWindow.ts"
     },
+    "./state/turn-speed": {
+      "types": "./src/state/turnSpeed.ts",
+      "default": "./src/state/turnSpeed.ts"
+    },
     "./state/thread-subagents": {
       "types": "./src/state/threadSubagents.ts",
       "default": "./src/state/threadSubagents.ts"

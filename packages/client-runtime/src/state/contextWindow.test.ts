@@ -14,7 +14,11 @@ import {
 import * as DateTime from "effect/DateTime";
 import { describe, expect, it } from "vite-plus/test";
 
-import { compactBeforeSendTokens } from "./contextWindow.ts";
+import {
+  compactBeforeSendTokens,
+  deriveContextMeter,
+  type ContextWindowSnapshot,
+} from "./contextWindow.ts";
 import type { ThreadStructure } from "./models.ts";
 import { v2Projection } from "./orchestrationV2TestFixtures.ts";
 
@@ -260,5 +264,47 @@ describe("compactBeforeSendTokens", () => {
     expect(compactBeforeSendTokens(sendInput(overrides as Parameters<typeof sendInput>[0]))).toBe(
       expected ? 293_611 : null,
     );
+  });
+});
+
+describe("deriveContextMeter", () => {
+  const snapshot = (overrides: Partial<ContextWindowSnapshot>): ContextWindowSnapshot =>
+    ({
+      usedTokens: 97_807,
+      maxTokens: 272_000,
+      usedPercentage: (97_807 / 272_000) * 100,
+      autoCompactThreshold: null,
+      ...overrides,
+    }) as ContextWindowSnapshot;
+
+  it("rounds the percentage the way the thread details row does", () => {
+    expect(deriveContextMeter(snapshot({}))).toEqual({
+      percent: 36,
+      usedTokens: 97_807,
+      maxTokens: 272_000,
+      tone: null,
+      autoCompactPercent: null,
+    });
+  });
+
+  it("warns from 80% and errors from 90%, like the details row", () => {
+    expect(deriveContextMeter(snapshot({ usedPercentage: 79.4 }))?.tone).toBeNull();
+    expect(deriveContextMeter(snapshot({ usedPercentage: 79.6 }))?.tone).toBe("warning");
+    expect(deriveContextMeter(snapshot({ usedPercentage: 89.6 }))?.tone).toBe("error");
+    expect(deriveContextMeter(snapshot({ usedPercentage: 140 }))?.percent).toBe(100);
+  });
+
+  it("gives the auto-compact point as a share of the window", () => {
+    expect(
+      deriveContextMeter(snapshot({ autoCompactThreshold: 190_400 }))?.autoCompactPercent,
+    ).toBe(70);
+    expect(
+      deriveContextMeter(snapshot({ autoCompactThreshold: 272_000 }))?.autoCompactPercent,
+    ).toBeNull();
+  });
+
+  it("has nothing to draw without a window size", () => {
+    expect(deriveContextMeter(null)).toBeNull();
+    expect(deriveContextMeter(snapshot({ maxTokens: null, usedPercentage: null }))).toBeNull();
   });
 });

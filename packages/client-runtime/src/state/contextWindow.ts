@@ -204,6 +204,36 @@ export function deriveLatestContextWindowSnapshot(
   return null;
 }
 
+export interface ContextMeter {
+  readonly percent: number;
+  readonly usedTokens: number;
+  readonly maxTokens: number;
+  readonly tone: "warning" | "error" | null;
+  /** Where the provider compacts on its own, as a share of the window. */
+  readonly autoCompactPercent: number | null;
+}
+
+/**
+ * What the always-visible meter draws. Same rounding and 80%/90% tones as the thread details
+ * row, so the two never disagree. Without a window size there is no ratio to draw.
+ */
+export function deriveContextMeter(snapshot: ContextWindowSnapshot | null): ContextMeter | null {
+  if (snapshot === null) return null;
+  const { maxTokens, usedPercentage, autoCompactThreshold } = snapshot;
+  if (maxTokens === null || maxTokens <= 0 || usedPercentage === null) return null;
+  const percent = Math.round(Math.max(0, Math.min(100, usedPercentage)));
+  return {
+    percent,
+    usedTokens: snapshot.usedTokens,
+    maxTokens,
+    tone: percent >= 90 ? "error" : percent >= 80 ? "warning" : null,
+    autoCompactPercent:
+      autoCompactThreshold !== null && autoCompactThreshold > 0 && autoCompactThreshold < maxTokens
+        ? Math.round((autoCompactThreshold / maxTokens) * 100)
+        : null,
+  };
+}
+
 export function hasDismissedResumeCompaction(
   activities: ReadonlyArray<{ readonly kind: string; readonly payload: unknown }>,
 ): boolean {
