@@ -2,6 +2,7 @@ import { cn } from "~/lib/utils";
 
 import { CommandBlock } from "./CommandBlock";
 import { useT } from "~/hooks/useT"; // fork: interface language
+import { interpolateNodes } from "~/lib/interpolateNodes";
 
 /**
  * Setup steps for another computer: install `t3`, then run `command`. Both installers are shown
@@ -24,9 +25,12 @@ export function InstallT3Commands({
       <p className="text-xs text-muted-foreground">{t("Then")}</p>
       <CommandBlock command={command} />
       <p className="text-xs text-muted-foreground">
-        Skip the install if you already have <code className="font-mono">t3</code>. If{" "}
-        <code className="font-mono">t3</code> is not found after installing, add the folder the
-        installer names to your PATH.
+        {interpolateNodes(
+          t(
+            "Skip the install if you already have {command}. If {command} is not found after installing, add the folder the installer names to your PATH.",
+          ),
+          { command: <code className="font-mono">t3</code> },
+        )}
       </p>
     </div>
   );

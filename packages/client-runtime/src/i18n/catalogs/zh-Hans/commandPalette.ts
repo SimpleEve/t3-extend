@@ -120,4 +120,7 @@ export default {
   "Choose a destination path and press Enter to clone.": "选择目标路径，然后按 Enter 克隆。",
   "Press Enter to create this folder and add it as a project.":
     "按 Enter 创建这个文件夹并添加为项目。",
+  "Find on page in browser": "在浏览器页面中查找",
+  "Choose a folder in the environment the repository is cloned into.":
+    "请在仓库克隆到的那个环境中选择文件夹。",
 } satisfies Record<string, string>;

@@ -1,4 +1,5 @@
 import { AuthAccessWriteScope, type AuthPairingLink, type EnvironmentId } from "@t3tools/contracts";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import { useEffect, useEffectEvent } from "react";
 
 import * as Dialog from "../../components/ui/Dialog";
@@ -7,6 +8,7 @@ import { useEnvironments } from "../../state/environments";
 import { useEnvironmentQuery } from "../../state/query";
 import { useEnvironmentsWithScope } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
+import { useT } from "../../hooks/useT"; // fork: interface language
 import {
   type ConnectDeviceApprovalPrompt,
   connectDeviceApprovalPrompts,
@@ -58,18 +60,18 @@ const approvalPrompts = createApprovalPromptQueue<QueuedApprovalPrompt>((prompt,
       }
       if (outcome === "gone") {
         return Dialog.alert(
-          "Request no longer waiting",
-          "It expired or was answered elsewhere.",
-          [{ text: "OK", onPress: () => answer("done") }],
+          translate(getUiLocale(), "Request no longer waiting"),
+          translate(getUiLocale(), "It expired or was answered elsewhere."),
+          [{ text: translate(getUiLocale(), "OK"), onPress: () => answer("done") }],
           { onDismiss: () => answer("done") },
         );
       }
       const retryIfWatched = () =>
         answer(watchedEnvironments.has(prompt.environmentId) ? "retry" : "done");
       Dialog.alert(
-        failure,
-        "The request is still waiting. Try again.",
-        [{ text: "OK", onPress: retryIfWatched }],
+        translate(getUiLocale(), failure),
+        translate(getUiLocale(), "The request is still waiting. Try again."),
+        [{ text: translate(getUiLocale(), "OK"), onPress: retryIfWatched }],
         // Another dialog took the screen; offer the request again on the next update.
         { onDismiss: () => answer("later") },
       );
@@ -78,8 +80,14 @@ const approvalPrompts = createApprovalPromptQueue<QueuedApprovalPrompt>((prompt,
     prompt.title,
     prompt.message,
     [
-      { text: "Deny", onPress: respond(prompt.deny, "Could not deny the device") },
-      { text: "Approve", onPress: respond(prompt.approve, "Could not approve the device") },
+      {
+        text: translate(getUiLocale(), "Deny"),
+        onPress: respond(prompt.deny, "Could not deny the device"),
+      },
+      {
+        text: translate(getUiLocale(), "Approve"),
+        onPress: respond(prompt.approve, "Could not approve the device"),
+      },
     ],
     // Another dialog took the screen; offer the request again on the next update.
     { cancelable: false, onDismiss: () => answer("later") },
@@ -90,6 +98,7 @@ function EnvironmentApprovalWatcher(props: {
   readonly environmentId: EnvironmentId;
   readonly environmentLabel: string;
 }) {
+  const t = useT();
   const access = useEnvironmentQuery(
     authEnvironment.accessChanges({ environmentId: props.environmentId, input: null }),
   );
@@ -101,6 +110,7 @@ function EnvironmentApprovalWatcher(props: {
   const offerPrompts = useEffectEvent((links: ReadonlyArray<AuthPairingLink>) => {
     const prompts = connectDeviceApprovalPrompts({
       environmentLabel: props.environmentLabel,
+      t,
       pairingLinks: links,
       shownIds: approvalPrompts.known,
     });

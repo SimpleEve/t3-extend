@@ -754,7 +754,7 @@ export function HomeScreen(props: HomeScreenProps) {
     hasSearchQuery && threadSearch.isPending ? (
       <EmptyState
         title={t("Searching thread messages…")}
-        detail={`Looking for "${props.searchQuery}" in messages.`}
+        detail={t('Looking for "{query}" in messages.', { query: props.searchQuery })}
         variant={Platform.OS === "android" ? "plain" : undefined}
       />
     ) : hasSearchQuery ? (

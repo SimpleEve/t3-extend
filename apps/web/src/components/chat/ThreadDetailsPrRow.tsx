@@ -363,7 +363,7 @@ export function ThreadDetailsPrRow({
           tooltip:
             composerTarget === undefined
               ? t("Check the branch out and resolve the conflicts in a new thread")
-              : "Resolve the conflicts in this thread",
+              : t("Resolve the conflicts in this thread"),
           onClick: startResolveConflicts,
         }
       : rowAction === "ready"
@@ -393,7 +393,7 @@ export function ThreadDetailsPrRow({
               tooltip:
                 composerTarget === undefined
                   ? t("Fix the failing checks in a new thread")
-                  : "Fix the failing checks in this thread",
+                  : t("Fix the failing checks in this thread"),
               onClick: startFixChecks,
             }
           : rowAction === "merge"

@@ -73,11 +73,13 @@ export function DatabaseStorageNotice({
     <SettingsSection id="storage-database" title="Database">
       <SettingsRow
         title="Reclaim freed database space"
-        description={`These databases still hold space freed by history cleanup.${
+        description={
           visible.every((recommendation) => recommendation.reclaimable)
-            ? ""
-            : " Run the command on each machine to reclaim it. It restarts the background service. Quit the desktop app first if it hosts the environment."
-        }`}
+            ? t("These databases still hold space freed by history cleanup.")
+            : t(
+                "These databases still hold space freed by history cleanup. Run the command on each machine to reclaim it. It restarts the background service. Quit the desktop app first if it hosts the environment.",
+              )
+        }
       />
       {visible.map(({ environmentId, status, label, reclaimable }) => {
         const dismiss = (
@@ -100,7 +102,7 @@ export function DatabaseStorageNotice({
         ) : (
           <SettingsRow
             key={environmentId}
-            title={`${formatGiB(status.reclaimableBytes)} on ${label}`}
+            title={t("{amount} on {label}", { amount: formatGiB(status.reclaimableBytes), label })}
             description={<code className="select-text break-all">{status.compactCommand}</code>}
             control={
               <div className="flex flex-wrap items-center gap-1.5">
@@ -147,8 +149,8 @@ function ReclaimRow({
     if (result._tag === "Success") {
       toastManager.add({
         type: "success",
-        title: `Reclaiming ${amount} on ${label}`,
-        description: `T3 Extend there restarts and is back in about ${minutes} min.`,
+        title: t("Reclaiming {amount} on {label}", { amount, label }),
+        description: t("T3 Extend there restarts and is back in about {minutes} min.", { minutes }),
       });
       return;
     }
@@ -157,17 +159,17 @@ function ReclaimRow({
     const error = squashAtomCommandFailure(result);
     toastManager.add({
       type: "error",
-      title: `Could not reclaim space on ${label}`,
-      description: error instanceof Error ? error.message : "An error occurred.",
+      title: t("Could not reclaim space on {label}", { label }),
+      description: error instanceof Error ? error.message : t("An error occurred."),
     });
   };
   return (
     <SettingsRow
-      title={`${amount} on ${label}`}
+      title={t("{amount} on {label}", { amount, label })}
       description={
         status.reclaimFailure === undefined
-          ? `Restarts T3 Extend there. It will be offline for about ${minutes} min.`
-          : `The last attempt failed: ${status.reclaimFailure}`
+          ? t("Restarts T3 Extend there. It will be offline for about {minutes} min.", { minutes })
+          : t("The last attempt failed: {error}", { error: status.reclaimFailure })
       }
       control={
         <div className="flex flex-wrap items-center gap-1.5">
@@ -184,11 +186,13 @@ function ReclaimRow({
             <AlertDialogPopup>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  Reclaim {amount} on {label}?
+                  {t("Reclaim {amount} on {label}?", { amount, label })}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  T3 Extend on {label} stops, rebuilds its database, and starts again. It will be
-                  offline for about {minutes} min. Running agents stop when it restarts.
+                  {t(
+                    "T3 Extend on {label} stops, rebuilds its database, and starts again. It will be offline for about {minutes} min. Running agents stop when it restarts.",
+                    { label, minutes },
+                  )}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

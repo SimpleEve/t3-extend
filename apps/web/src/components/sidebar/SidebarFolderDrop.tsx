@@ -73,7 +73,7 @@ export function SidebarFolderDrop(props: { children: ReactNode }) {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: `Could not add "${folder.name}"`,
+          title: t('Could not add "{name}"', { name: folder.name }),
           description: response?.message ?? "T3 Extend could not read the folder's path.",
         }),
       );

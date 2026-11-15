@@ -220,7 +220,7 @@ export function ThreadHtmlRender(props: {
         {uri !== null && !failed ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Open ${title}`}
+            accessibilityLabel={t("Open {name}", { name: title })}
             hitSlop={8}
             className="h-7 w-7 items-center justify-center rounded-full border border-border/60 bg-card/80"
             onPress={() =>

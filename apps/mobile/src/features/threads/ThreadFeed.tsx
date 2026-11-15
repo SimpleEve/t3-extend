@@ -2260,12 +2260,12 @@ function renderFeedEntry(
               {intentBadge ? (
                 <View
                   accessible
-                  accessibilityLabel={intentBadge.accessibilityLabel}
+                  accessibilityLabel={t(intentBadge.accessibilityLabel)}
                   className="flex-row items-center gap-1"
                 >
                   <SymbolView name="arrow.uturn.forward" size={12} tintColor={iconSubtleColor} />
                   <Text className="font-t3-medium text-xs text-foreground-secondary">
-                    {intentBadge.label}
+                    {t(intentBadge.label)}
                   </Text>
                 </View>
               ) : null}

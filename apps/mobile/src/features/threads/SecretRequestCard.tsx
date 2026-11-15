@@ -138,7 +138,7 @@ function PendingSecretRequestForm(props: {
       {link !== null ? (
         <View className="gap-1.5">
           <Button
-            label={`Open ${link.host}`}
+            label={t("Open {name}", { name: link.host })}
             tone="secondary"
             fullWidth
             onPress={() => void tryOpenExternalUrl(link.href, "secret-request")}

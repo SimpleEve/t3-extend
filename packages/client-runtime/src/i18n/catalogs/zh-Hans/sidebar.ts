@@ -358,4 +358,21 @@ export default {
   "Failed to restore draft": "无法恢复草稿",
   "Dropping folders needs the desktop app": "拖入文件夹需要桌面应用",
   "Drop folders to add projects": "拖入文件夹以添加项目",
+  "Could not check provider updates": "无法检查 provider 更新",
+  "Browsers do not share folder paths. Use Add project to choose a folder.":
+    "浏览器不会提供文件夹路径，请用“添加项目”选择文件夹。",
+  "This computer's server is not connected yet": "这台电脑的服务器尚未连接",
+  "Try again when it connects.": "连接后再试。",
+  'Could not add "{name}"': "无法添加“{name}”",
+  "T3 Extend could not read the folder's path.": "T3 Extend 无法读取该文件夹的路径。",
+  "Only folders can be added as projects": "只能把文件夹添加为项目",
+  "Drop files on a thread to attach them.": "把文件拖到对话上即可作为附件。",
+  "Failed to regenerate {count} of {total} thread titles":
+    "有 {count} 个（共 {total} 个）对话标题重新生成失败",
+  "Title kept": "标题已保留",
+  "The current title already fits this thread.": "当前标题已经适合这个对话。",
+  "Titles kept": "标题已保留",
+  "Kept {count} of {total} titles": "已保留 {count}/{total} 个标题",
+  "The current titles already fit these threads.": "当前标题已经适合这些对话。",
+  "Those titles already fit their threads.": "这些标题已经适合各自的对话。",
 } satisfies Record<string, string>;

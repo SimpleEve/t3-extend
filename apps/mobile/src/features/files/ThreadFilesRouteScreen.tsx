@@ -856,7 +856,7 @@ export function ThreadFileScreen(props: ThreadFileRouteScreenProps) {
       canSelectText
         ? ({
             id: "select-text",
-            title: selectingText ? "Done selecting" : "Select text",
+            title: selectingText ? t("Done selecting") : t("Select text"),
             icon: "character.cursor.ibeam",
             inline: false,
             onPress: () => setTextSelectionPath(selectingText ? null : relativePath),

@@ -249,7 +249,7 @@ export function PullRequestActionToolbar(props: {
       identifier="pull-request-agent"
       icon="ellipsis.bubble"
       title={t("AI helpers")}
-      accessibilityLabel={`${shortLabel} agent actions`}
+      accessibilityLabel={t("{label} agent actions", { label: shortLabel })}
       disabled={agent.disabled}
       separateBackground
     >

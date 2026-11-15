@@ -99,7 +99,7 @@ export function ThemeCssEditor({
         <div className="flex items-center justify-between border-t border-input px-3 py-1 font-mono text-xs">
           <span>{t("CSS")}</span>
           <span>
-            Ln {position.line}, Col {position.column}
+            {t("Ln {line}, Col {column}", { line: position.line, column: position.column })}
           </span>
         </div>
       </div>

@@ -830,4 +830,18 @@ export default {
   cells: "个单元格",
   "Find in page": "在页面中查找",
   "Find on page": "在页面上查找",
+  "Sheet {page} of {count}": "工作表 {page}/{count}",
+  "1 row": "1 行",
+  "{count} rows": "{count} 行",
+  "1 column": "1 列",
+  "{count} columns": "{count} 列",
+  "1 page": "1 页",
+  "{selected} of {total}": "已选 {selected}/{total}",
+  "Branch: {branch}": "分支：{branch}",
+  "Skip the install if you already have {command}. If {command} is not found after installing, add the folder the installer names to your PATH.":
+    "如果已经安装了 {command}，可以跳过安装。若安装后找不到 {command}，请把安装程序提示的文件夹加入 PATH。",
+  "No active threads in {project}": "{project} 中没有进行中的对话",
+  "No threads in {project} yet": "{project} 中还没有对话",
+  "these projects": "这些项目",
+  "Find on page isn't available for this page": "这个页面无法使用页面内查找",
 } satisfies Record<string, string>;

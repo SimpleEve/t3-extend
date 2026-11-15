@@ -66,7 +66,7 @@ export function McpAppFullscreenScreen({ route }: McpAppFullscreenScreenProps) {
         <AppBar
           title={t("App")}
           onClose={() => navigation.goBack()}
-          closeAccessibilityLabel="Exit full screen"
+          closeAccessibilityLabel={t("Exit full screen")}
         />
         <Text className="m-6 text-sm text-foreground-muted">{t("This app cannot be shown.")}</Text>
       </View>

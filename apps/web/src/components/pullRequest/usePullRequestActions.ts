@@ -371,7 +371,9 @@ export function usePullRequestHandoffs({
     // Explicit timeouts survive toast updates and would pin the result after loading.
     const toastId = toastManager.add({
       type: "loading",
-      title: `Preparing the ${terminology.singular} checkout...`,
+      title: translate(getUiLocale(), "Preparing the {kind} checkout...", {
+        kind: changeRequestTerm(terminology.singular, t),
+      }),
       data: {
         onClose: () => {
           cancelled = true;

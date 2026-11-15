@@ -105,8 +105,10 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
           <View className="flex-1 gap-1">
             <Text className="text-base font-t3-bold text-foreground">{t("Changed files")}</Text>
             <Text className="text-xs text-foreground-muted">
-              {selectedFiles.length} of {allFiles.length} selected · +
-              {formatDiffCount(selectedInsertions)} −{formatDiffCount(selectedDeletions)}
+              {`${t("{selected} of {total} selected", {
+                selected: selectedFiles.length,
+                total: allFiles.length,
+              })} · +${formatDiffCount(selectedInsertions)} −${formatDiffCount(selectedDeletions)}`}
             </Text>
           </View>
           {allFiles.length > 0 ? (

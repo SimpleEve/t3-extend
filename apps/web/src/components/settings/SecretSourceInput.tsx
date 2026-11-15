@@ -129,6 +129,7 @@ function SecretCheckButton(props: {
   readonly label: string;
   readonly disabled?: boolean | undefined;
 }) {
+  const t = useT();
   const { environmentId, secret } = props;
   const supported = useAtomValue(
     serverEnvironment.configValueAtom(environmentId),
@@ -148,7 +149,7 @@ function SecretCheckButton(props: {
     const response = await checkSecretSource({ environmentId, input: { source: secret } });
     const next: SecretCheck =
       response._tag !== "Success"
-        ? { status: "failed", detail: "Could not reach the server" }
+        ? { status: "failed", detail: t("Could not reach the server") }
         : response.value._tag === "Resolved"
           ? { status: "resolved" }
           : { status: "failed", detail: response.value.detail };
@@ -180,9 +181,9 @@ function SecretCheckButton(props: {
               onClick={() => void run()}
               aria-label={
                 state?.status === "failed"
-                  ? `${props.label} failed: ${state.detail}`
+                  ? t("{label} failed: {detail}", { label: props.label, detail: state.detail })
                   : state?.status === "resolved"
-                    ? `${props.label} resolved`
+                    ? t("{label} resolved", { label: props.label })
                     : props.label
               }
             >
@@ -306,7 +307,7 @@ export function SecretSourceInput({
             <SecretCheckButton
               environmentId={environmentId}
               secret={secret}
-              label={`Check ${label}`}
+              label={t("Check {label}", { label })}
               disabled={input.disabled}
             />
           ) : null}

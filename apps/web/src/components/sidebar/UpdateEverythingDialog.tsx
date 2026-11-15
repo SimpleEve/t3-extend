@@ -153,7 +153,7 @@ function UpdateEverythingDialogContent({
               : t("{count} provider updates", { count: providerCount })
             : null}
           {checking
-            ? `${version !== null || providerCount > 0 ? " · " : ""}Checking for more…`
+            ? `${version !== null || providerCount > 0 ? " · " : ""}${t("Checking for more…")}`
             : null}
         </AlertDialogDescription>
       </AlertDialogHeader>

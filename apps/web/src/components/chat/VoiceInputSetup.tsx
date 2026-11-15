@@ -99,7 +99,9 @@ export function VoiceInputSetup(props: {
           title={props.step === 0 ? t("Set up voice input") : t("Voice input is ready")}
           description={
             props.step === 0
-              ? `Download a speech model once. Your audio is transcribed on ${destination}.`
+              ? t("Download a speech model once. Your audio is transcribed on {destination}.", {
+                  destination,
+                })
               : t("Pick a microphone, then start talking.")
           }
         />

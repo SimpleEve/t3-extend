@@ -1,3 +1,4 @@
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 import type { ThreadTitleRegenerationOutcome } from "@t3tools/contracts";
 import {
   type AtomCommandResult,
@@ -35,7 +36,10 @@ export function titleRegenerationToast(results: ReadonlyArray<TitleRegenerationR
       title:
         results.length === 1
           ? "Failed to regenerate thread title"
-          : `Failed to regenerate ${failures.length} of ${results.length} thread titles`,
+          : translate(getUiLocale(), "Failed to regenerate {count} of {total} thread titles", {
+              count: failures.length,
+              total: results.length,
+            }),
       description: failures[0],
     });
   }
@@ -50,7 +54,13 @@ export function titleRegenerationToast(results: ReadonlyArray<TitleRegenerationR
   }
   return stackedThreadToast({
     type: "info",
-    title: kept === results.length ? "Titles kept" : `Kept ${kept} of ${results.length} titles`,
+    title:
+      kept === results.length
+        ? "Titles kept"
+        : translate(getUiLocale(), "Kept {count} of {total} titles", {
+            count: kept,
+            total: results.length,
+          }),
     description:
       kept === results.length
         ? "The current titles already fit these threads."

@@ -282,8 +282,8 @@ export function MobileEnrichedMarkdownText(props: SelectableMarkdownTextProps) {
       ? {
           title: model.label,
           actions: [
-            { id: "enriched-copy-link", title: "Copy model reference" },
-            { id: "enriched-share-link", title: "Share model reference" },
+            { id: "enriched-copy-link", title: t("Copy model reference") },
+            { id: "enriched-share-link", title: t("Share model reference") },
           ],
         }
       : undefined;

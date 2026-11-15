@@ -219,7 +219,7 @@ function MermaidBlock(props: MermaidCodeBlockProps & { readonly diagram: Diagram
       <View style={styles.content}>
         {diagram?.status === "error" ? (
           <Text style={[styles.error, { color: secondaryColor, fontSize: codeFontSize * 0.85 }]}>
-            Unable to render diagram: {diagram.message}
+            {t("Unable to render diagram: {message}", { message: t(diagram.message) })}
           </Text>
         ) : null}
         {svg && diagram?.status === "ready" && !showCode ? (

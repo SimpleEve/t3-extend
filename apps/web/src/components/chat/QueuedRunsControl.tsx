@@ -490,7 +490,7 @@ function QueuedMessage(props: {
                   <button
                     key={thumbnail.id}
                     type="button"
-                    aria-label={`Preview ${thumbnail.name}`}
+                    aria-label={t("Preview {name}", { name: thumbnail.name })}
                     disabled={!thumbnail.previewUrl}
                     className="size-8 overflow-hidden rounded-md border border-border/70 bg-background enabled:cursor-zoom-in"
                     onPointerDown={(event) => event.preventDefault()}

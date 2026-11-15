@@ -114,7 +114,9 @@ import { toastManager } from "../ui/toast";
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
 import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../timestampFormat";
-import { useT } from "../../hooks/useT"; // fork: interface language
+import { useT, useUiLocale } from "../../hooks/useT"; // fork: interface language
+import { interpolateNodes } from "../../lib/interpolateNodes";
+import { uiLocaleFormatTag } from "@t3tools/client-runtime/i18n";
 
 const AGENT_ONBOARDING_THREAD_ID = ThreadId.make("onboarding-agent-setup");
 const SCAN_LIMIT_MESSAGE = "Scan limit reached. Some projects or conversations may be missing.";
@@ -134,7 +136,7 @@ export function WelcomePage({
   const { environments } = useEnvironments();
   const label =
     environments.find((environment) => environment.environmentId === environmentId)?.label ??
-    "this computer";
+    t("this computer");
   const agentReady = useWelcomeAgents(environmentId).readyCount > 0;
   // The phone and `t3` on PATH belong to the primary computer, so only it offers them.
   const isPrimary = usePrimaryEnvironmentId() === environmentId;
@@ -168,8 +170,8 @@ export function WelcomePage({
       toastManager.add({
         id: "welcome-finishing",
         type: "info",
-        title: "Finishing setup",
-        description: "One moment.",
+        title: t("Finishing setup"),
+        description: t("One moment."),
       });
       return true;
     },
@@ -212,7 +214,10 @@ export function WelcomePage({
         } else if (importedThreadCount > 0) {
           toastManager.add({
             type: "success",
-            title: `Imported ${importedThreadCount} ${importedThreadCount === 1 ? "thread" : "threads"}`,
+            title:
+              importedThreadCount === 1
+                ? t("Imported 1 thread")
+                : t("Imported {count} threads", { count: importedThreadCount }),
           });
         }
         return true;
@@ -277,7 +282,9 @@ export function WelcomePage({
               {t("Welcome to T3 Extend")}
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Setting up <span className="text-foreground">{label}</span>.
+              {interpolateNodes(t("Setting up {name}."), {
+                name: <span className="text-foreground">{label}</span>,
+              })}
             </p>
             <div className="mt-10 border-t border-border/60">
               <AgentsSection
@@ -313,7 +320,9 @@ export function WelcomePage({
                       ? t("Importing…")
                       : t("Starting…")
                     : newCount > 0
-                      ? `Import ${newCount} ${newCount === 1 ? "project" : "projects"} and start`
+                      ? newCount === 1
+                        ? t("Import 1 project and start")
+                        : t("Import {count} projects and start", { count: newCount })
                       : selected.length > 0
                         ? t("Import threads and start")
                         : t("Start")}
@@ -518,7 +527,7 @@ function AgentsSection({
         const cause = squashAtomCommandFailure(result);
         toastManager.add({
           type: "error",
-          title: `Could not turn on ${agentName(provider)}`,
+          title: t("Could not turn on {name}", { name: agentName(provider) }),
           ...(cause instanceof Error ? { description: cause.message } : {}),
         });
       }
@@ -552,7 +561,7 @@ function AgentsSection({
         <Button
           size="xs"
           variant="outline"
-          aria-label={`Turn on: ${name}`}
+          aria-label={t("Turn on: {name}", { name })}
           disabled={!canManageProviders || serverConfig === null}
           onClick={() => void turnOn(provider)}
         >
@@ -568,7 +577,7 @@ function AgentsSection({
         <Button
           size="xs"
           variant="outline"
-          aria-label={`Set up: ${name}`}
+          aria-label={t("Set up: {name}", { name })}
           aria-expanded={open}
           onClick={() => setCodexSetupId(open ? null : provider.instanceId)}
         >
@@ -624,11 +633,13 @@ function AgentsSection({
         />
       ))}
       {checking && found.length === 0 ? (
-        <p className="text-sm leading-10 text-muted-foreground">Checking {label}…</p>
+        <p className="text-sm leading-10 text-muted-foreground">
+          {t("Checking {name}…", { name: label })}
+        </p>
       ) : null}
       {notes.map((note) => (
         <p key={note} className="pl-8 text-xs text-muted-foreground">
-          {note}
+          {t(note)}
         </p>
       ))}
       <Collapsible open={showMore} onOpenChange={setMoreOpen}>
@@ -771,12 +782,13 @@ function ProjectsSection({
     setSelectedKeys,
     visibleImportError,
   } = projectImport;
+  const importSources = importSourcesLabel(uiLocaleFormatTag(useUiLocale()));
   if (scan === undefined) return null;
   if (scan.isPending && candidates.length === 0) {
     return (
       <WelcomeSection title={t("Projects")}>
         <p className="text-sm leading-10 text-muted-foreground">
-          Looking for projects in your {IMPORT_SOURCES_LABEL} history…
+          {t("Looking for projects in your {sources} history…", { sources: importSources })}
         </p>
       </WelcomeSection>
     );
@@ -793,7 +805,7 @@ function ProjectsSection({
           role="alert"
           className="flex min-h-10 items-center justify-between gap-3 text-sm text-muted-foreground"
         >
-          <span>Could not check projects. {scan.error}</span>
+          <span>{t("Could not check projects. {error}", { error: scan.error })}</span>
           {retry}
         </div>
       </WelcomeSection>
@@ -836,11 +848,13 @@ function ProjectsSection({
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-medium text-foreground">
               {canWrite && selected.length > 0
-                ? `Import ${selected.length} ${selected.length === 1 ? "project" : "projects"} and their threads`
+                ? selected.length === 1
+                  ? t("Import 1 project and their threads")
+                  : t("Import {count} projects and their threads", { count: selected.length })
                 : t("Import projects and their threads")}
             </span>
             <span className="block text-xs text-muted-foreground">
-              From your {IMPORT_SOURCES_LABEL} history
+              {t("From your {sources} history", { sources: importSources })}
             </span>
           </span>
         </label>
@@ -851,7 +865,7 @@ function ProjectsSection({
             aria-expanded={reviewing}
             onClick={() => setReviewing((open) => !open)}
           >
-            {reviewing ? t("Hide") : `Review all ${candidates.length}`}
+            {reviewing ? t("Hide") : t("Review all {count}", { count: candidates.length })}
             <ChevronDownIcon className={cn("size-3.5", reviewing && "rotate-180")} />
           </Button>
         ) : null}
@@ -861,7 +875,10 @@ function ProjectsSection({
         <fieldset className="-mx-1.5 mt-1 min-w-0" disabled={isImporting}>
           <div className="flex items-center justify-between gap-3 px-2 text-xs text-muted-foreground">
             <span role="status">
-              {selected.length} of {candidates.length} selected
+              {t("{selected} of {total} selected", {
+                selected: selected.length,
+                total: candidates.length,
+              })}
             </span>
             <div className="flex items-center gap-1">
               <Button
@@ -903,7 +920,7 @@ function ProjectsSection({
           role="alert"
           className="flex items-center justify-between gap-3 pl-8 text-sm text-muted-foreground"
         >
-          <span>Could not check projects again. {scan.error}</span>
+          <span>{t("Could not check projects again. {error}", { error: scan.error })}</span>
           {retry}
         </div>
       ) : null}
@@ -1068,6 +1085,7 @@ function OnboardingCodexSetup({
   // True asks for the CLI's install or sign-in terminal once Codex has checked the CLI.
   readonly onUseCliChange: (useCli: boolean) => void;
 }) {
+  const t = useT();
   const canManageProviders = useEnvironmentScope(environmentId, AuthProvidersManageScope);
   const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
   const persistProviderInstance = usePersistEnvironmentProviderInstanceMutation(environmentId);
@@ -1096,7 +1114,7 @@ function OnboardingCodexSetup({
           const cause = squashAtomCommandFailure(result);
           toastManager.add({
             type: "error",
-            title: "Could not save Codex setup",
+            title: t("Could not save Codex setup"),
             ...(cause instanceof Error ? { description: cause.message } : {}),
           });
         }
@@ -1339,8 +1357,9 @@ function AgentInstallTerminal({
             t("This connection cannot control terminals.")
           ) : setupState === "writeFailed" ? (
             <>
-              Run <code className="rounded bg-muted px-1 font-mono">{command}</code> in this
-              terminal.
+              {interpolateNodes(t("Run {command} in this terminal."), {
+                command: <code className="rounded bg-muted px-1 font-mono">{command}</code>,
+              })}
             </>
           ) : setupState === "ready" ? (
             t("Review the command, then press Enter to run it.")
@@ -1376,7 +1395,7 @@ function AgentInstallTerminal({
             threadRef={threadRef}
             threadId={AGENT_ONBOARDING_THREAD_ID}
             terminalId={terminalId}
-            terminalLabel={`Install ${driver}`}
+            terminalLabel={t("Install {driver}", { driver })}
             cwd={cwd}
             providerInstanceId={providerInstanceId}
             advancedTypography={advancedTypography}
@@ -1857,9 +1876,10 @@ const IMPORT_SOURCE_NAMES: Record<AgentSessionSource, string> = {
   codex: "Codex",
   pi: "Pi",
 };
-const IMPORT_SOURCES_LABEL = new Intl.ListFormat("en", { type: "conjunction" }).format(
-  AgentSessionSource.literals.map((source) => IMPORT_SOURCE_NAMES[source]),
-);
+const importSourcesLabel = (locale: string) =>
+  new Intl.ListFormat(locale, { type: "conjunction" }).format(
+    AgentSessionSource.literals.map((source) => IMPORT_SOURCE_NAMES[source]),
+  );
 
 function ImportRowMeta({
   sources,
@@ -1907,12 +1927,17 @@ function CliPathSetup() {
       <p className="min-w-0 flex-1 text-sm text-muted-foreground">
         {setup.added ? (
           <>
-            Added to {setup.file}. Open a new terminal to use <code className="font-mono">t3</code>.
+            {interpolateNodes(t("Added to {file}. Open a new terminal to use {command}."), {
+              file: setup.file,
+              command: <code className="font-mono">t3</code>,
+            })}
           </>
         ) : (
           <>
-            Use <code className="font-mono">t3</code> from any terminal. Adds one line to{" "}
-            {setup.file}.
+            {interpolateNodes(t("Use {command} from any terminal. Adds one line to {file}."), {
+              command: <code className="font-mono">t3</code>,
+              file: setup.file,
+            })}
           </>
         )}
       </p>

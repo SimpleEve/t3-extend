@@ -304,8 +304,9 @@ function LinkRequestSheet(props: {
       >
         <View className="gap-1">
           <Text className="font-sans text-sm leading-5 text-foreground-muted">
-            Agents here can then launch, message and wait on threads there. It appears under
-            Authorized clients in that machine's Sharing & access, where it can be revoked.
+            {t(
+              "Agents here can then launch, message and wait on threads there. It appears under Authorized clients in that machine's Sharing & access, where it can be revoked.",
+            )}
           </Text>
           {item.url !== undefined && target.kind === "machine" ? (
             <Text className="font-sans text-xs text-foreground-muted" numberOfLines={1}>
@@ -322,8 +323,9 @@ function LinkRequestSheet(props: {
               {t("Check this address")}
             </Text>
             <Text className="font-sans text-xs leading-snug text-warning-foreground">
-              This app cannot confirm it is one of your machines. The pairing code you paste is sent
-              there.
+              {t(
+                "This app cannot confirm it is one of your machines. The pairing code you paste is sent there.",
+              )}
             </Text>
             <Text selectable className="font-sans text-xs leading-snug text-warning-foreground">
               {linkDestination(address)}
@@ -385,8 +387,10 @@ function LinkRequestSheet(props: {
         ) : null}
         {useExisting ? (
           <Text className="font-sans text-sm leading-5 text-foreground-muted">
-            This environment is already linked to {targetName}. The agent can use that link as it
-            is; change its access in Settings → Environments.
+            {t(
+              "This environment is already linked to {name}. The agent can use that link as it is; change its access in Settings → Environments.",
+              { name: targetName },
+            )}
           </Text>
         ) : target.kind === "none" ? null : (
           <>
@@ -405,8 +409,10 @@ function LinkRequestSheet(props: {
                   spellCheck={false}
                 />
                 <Text className="font-sans text-xs text-foreground-muted">
-                  Create a link on {targetName}: Settings → Sharing & access → Authorized clients →
-                  Create link, then paste its code here.
+                  {t(
+                    "Create a link on {name}: Settings → Sharing & access → Authorized clients → Create link, then paste its code here.",
+                    { name: targetName },
+                  )}
                 </Text>
               </View>
             )}

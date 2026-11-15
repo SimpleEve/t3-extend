@@ -1254,8 +1254,9 @@ export function ThemeEditorPanel({
               {cssOpen ? (
                 <>
                   <p className="text-xs text-muted-foreground">
-                    Saved with this theme and included when you export it. Web and desktop only.
-                    Rules that load remote files are ignored.
+                    {t(
+                      "Saved with this theme and included when you export it. Web and desktop only. Rules that load remote files are ignored.",
+                    )}
                   </p>
                   <ThemeCssEditor value={css} onChange={setCss} />
                 </>

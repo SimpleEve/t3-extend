@@ -514,7 +514,10 @@ function CloudChoices({ environment, active, onClose }: Props & { onClose: () =>
                   disabled={saving}
                   onPress={() =>
                     Dialog.confirm({
-                      title: `Remove the ${label} key from ${environment.label}?`,
+                      title: t("Remove the {label} key from {label2}?", {
+                        label,
+                        label2: environment.label,
+                      }),
                       message: t("Everyone using it for dictation will lose access."),
                       confirmText: t("Remove key"),
                       destructive: true,

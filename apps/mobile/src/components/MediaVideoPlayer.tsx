@@ -209,7 +209,9 @@ function MediaVideoPlayerContent(props: MediaVideoPlayerProps) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={
-              props.unavailable ? `${props.name}. ${unavailableText}` : `Play ${props.name}`
+              props.unavailable
+                ? `${props.name}. ${unavailableText}`
+                : t("Play {name}", { name: props.name })
             }
             accessibilityHint={
               mediaActions.actions.length > 0 ? t("Touch and hold for media actions") : undefined

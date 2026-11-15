@@ -164,7 +164,7 @@ export function scheduleDraftErrors(
     return [];
   }
   if (draft.scheduleMode === "fixed" && !draft.timeOfDay)
-    return [{ title: "Invalid run time", description: "Pick a time." }];
+    return [{ title: t("Invalid run time"), description: t("Pick a time.") }];
   if (draft.scheduleMode !== "webhook") return [];
   if (parseMaxDeliveryAge(draft.maxDeliveryAgeMinutes) === undefined)
     return [

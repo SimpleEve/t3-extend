@@ -369,7 +369,10 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                   {copyable.length > 0 ? (
                     <>
                       <span className="text-muted-foreground text-xs">
-                        {selectedFiles.size} of {allIgnoredFiles.data?.files.length ?? 0}
+                        {t("{selected} of {total}", {
+                          selected: selectedFiles.size,
+                          total: allIgnoredFiles.data?.files.length ?? 0,
+                        })}
                         {selectedBytes > 0 ? ` · ${formatBytes(selectedBytes)}` : ""}
                       </span>
                       <Button type="button" variant="ghost" size="xs" onClick={toggleShownFiles}>

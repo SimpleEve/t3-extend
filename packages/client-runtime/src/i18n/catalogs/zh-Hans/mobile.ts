@@ -881,4 +881,22 @@ export default {
   "Next reset {time}": "下次重置 {time}",
   "Reset {time}": "重置于 {time}",
   "Working {duration}": "运行中 {duration}",
+  "{browser} on {os}": "{os} 上的 {browser}",
+  "A new device": "一台新设备",
+  "Approve this device?": "批准这台设备？",
+  "{device} wants to connect to {environment} through T3 Connect. It shows code {code}. Approve it only if that code matches.":
+    "{device} 想通过 T3 Connect 连接到 {environment}，显示的码是 {code}。仅当该码一致时才批准。",
+  "Request no longer waiting": "请求已不再等待",
+  "It expired or was answered elsewhere.": "它已过期，或已在别处处理。",
+  "Could not deny the device": "无法拒绝该设备",
+  "Could not approve the device": "无法批准该设备",
+  "The request is still waiting. Try again.": "请求仍在等待，请重试。",
+  'Looking for "{query}" in messages.': "正在消息中查找“{query}”。",
+  "{label} agent actions": "{label} 的 Agent 操作",
+  "Project: {name}": "项目：{name}",
+  "Choose environment, {name}, {state}": "选择环境，{name}，{state}",
+  "Next send keeps all {count} tokens of history": "下次发送会保留全部 {count} 个 token 的历史",
+  "Next send compacts {count} tokens of history first": "下次发送会先压缩 {count} 个 token 的历史",
+  "Steer waiting for the agent to read it after the running command finishes":
+    "引导消息，等运行中的命令结束后由 Agent 读取",
 } satisfies Record<string, string>;
