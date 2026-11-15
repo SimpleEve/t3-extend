@@ -994,7 +994,7 @@ function ThreadSettingsMainContent(props: {
       .then((result) => {
         setIsRefreshingProviders(false);
         const error = providerCatalogRefreshError(result);
-        if (error) Dialog.alert("Could not refresh models", error);
+        if (error) Dialog.alert(t("Could not refresh models"), error);
       });
   };
   const [listLoaded, setListLoaded] = useState(false);

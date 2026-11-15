@@ -34,7 +34,6 @@ export default {
   "Downloading {name} · {value}%": "正在下载 {name} · {value}%",
   "Cloud via {label}": "通过 {label} 使用云端",
   "Cloud providers": "云端 provider",
-  "Optional · use your own API key": "可选 · 使用你自己的 API key",
   "Search OpenRouter models": "搜索 OpenRouter 模型",
   "Show all {length} models": "显示全部 {length} 个模型",
   "Environment not connected": "环境未连接",
@@ -162,7 +161,6 @@ export default {
   "Remove {term}": "移除 {term}",
   "Saved on the environment and used in every project there, along with each person’s own dictionary. Pick a project above to limit these words to one project.":
     "保存在环境上，供那里的所有项目使用，同时保留每个人自己的词典。在上方选择一个项目，可把这些词限定在该项目内。",
-  "{count} entries": "{count} 条",
   "project dictionary": "项目词典",
   "shared dictionary": "共享词典",
   "Project dictionary": "项目词典",
@@ -223,7 +221,6 @@ export default {
   Dictionary: "词典",
   "Sends the transcript and nearby draft text to the text generation provider on the draft’s environment to fix punctuation, numbers, and spoken corrections. Sends text only; off by default.":
     "把转写稿和附近的草稿文本发送给草稿所在环境的文本生成 provider，用来修正标点、数字和口头更正。只发送文本；默认关闭。",
-  "Use the built-in instructions or write your own.": "使用内置的说明，或自己编写。",
   "Cleanup instructions": "整理说明",
   "Custom cleanup instructions": "自定义整理说明",
   "The word or phrase you say to flag a correction, like “sorry” or “scratch that”. Cleanup applies the correction only where one is meant, and hears the cue as a hint.":
@@ -381,4 +378,7 @@ export default {
   "No speech heard": "没有听到语音",
   "Mic failed": "麦克风出错",
   "Mic disconnected": "麦克风已断开",
+  "Recommended for {language}": "推荐用于 {language}",
+  "Speed:": "速度：",
+  "This model": "此模型",
 } satisfies Record<string, string>;

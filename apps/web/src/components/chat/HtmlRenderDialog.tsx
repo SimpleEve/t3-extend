@@ -46,7 +46,7 @@ export function HtmlRenderDialog(props: {
         className="row-start-1"
         initialFocus={closeButtonRef}
       >
-        <DialogTitle className="sr-only">Expanded {title} preview</DialogTitle>
+        <DialogTitle className="sr-only">{t("Expanded {title} preview", { title })}</DialogTitle>
         {/* 1144px is the widest the server measures a page; pages are written for the reply column and stretch badly beyond it. */}
         <div className="relative w-[min(92vw,1176px)]">
           <Button

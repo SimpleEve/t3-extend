@@ -46,7 +46,7 @@ export function ThreadContextChip(props: {
                 draggable={false}
               />
             }
-            aria-label={`Thread, ${title}`}
+            aria-label={t("Thread, {title}", { title })}
             data-markdown-copy={props.copyMarkdown}
             className="no-underline"
           >

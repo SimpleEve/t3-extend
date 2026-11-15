@@ -203,7 +203,7 @@ export function ScheduledTaskThreadPickerRouteScreen() {
   const search = {
     value: query,
     onChangeText: setQuery,
-    placeholder: THREAD_SEARCH_PLACEHOLDER,
+    placeholder: t(THREAD_SEARCH_PLACEHOLDER),
     accessibilityLabel: t("Search threads"),
     clearAccessibilityLabel: t("Clear thread search"),
     mode: "inline" as const,
@@ -221,7 +221,9 @@ export function ScheduledTaskThreadPickerRouteScreen() {
 
   const needle = query.trim().toLocaleLowerCase();
   const rows = [
-    ...(needle ? [] : [{ key: "new-thread", title: NEW_THREAD_DESTINATION_LABEL, thread: null }]),
+    ...(needle
+      ? []
+      : [{ key: "new-thread", title: t(NEW_THREAD_DESTINATION_LABEL), thread: null }]),
     ...(threadId !== null && currentLabel.toLocaleLowerCase().includes(needle)
       ? [{ key: threadId, title: currentLabel, thread: null }]
       : []),

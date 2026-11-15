@@ -115,9 +115,9 @@ export function QuestionAttachments(props: {
         ) {
           const problems = [
             ...(result.error ? [result.error] : []),
-            ...(append(key, result.attachments) > 0 ? ["Too many attachments."] : []),
+            ...(append(key, result.attachments) > 0 ? [t("Too many attachments.")] : []),
           ];
-          if (problems.length) Dialog.alert("Could not paste image", problems.join("\n\n"));
+          if (problems.length) Dialog.alert(t("Could not paste image"), problems.join("\n\n"));
         } else await releaseUnusedComposerAttachmentFiles(result.attachments);
       })
       .catch((error) =>

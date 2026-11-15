@@ -296,7 +296,7 @@ export function SecretSourceInput({
             autoComplete="off"
             placeholder={definition?.referencePlaceholder}
             spellCheck={false}
-            aria-label={`${label} reference`}
+            aria-label={t("{label} reference", { label })}
             aria-invalid={rejectedReference !== null}
           />
           {environmentId !== undefined &&

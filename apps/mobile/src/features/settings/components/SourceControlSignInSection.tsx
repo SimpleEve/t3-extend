@@ -148,7 +148,7 @@ function AppSignInRow(props: {
     const started = await start({ environmentId, input });
     if (started._tag !== "Success") {
       setPending(null);
-      Dialog.alert("Could not start the sign-in", failureMessage(started.cause));
+      Dialog.alert(t("Could not start the sign-in"), failureMessage(started.cause));
       return;
     }
     const prompt = started.value;
@@ -160,7 +160,7 @@ function AppSignInRow(props: {
     attempt.current = null;
     setPending(null);
     if (finished._tag !== "Success") {
-      Dialog.alert("Sign-in did not finish", failureMessage(finished.cause));
+      Dialog.alert(t("Sign-in did not finish"), failureMessage(finished.cause));
     }
   };
 

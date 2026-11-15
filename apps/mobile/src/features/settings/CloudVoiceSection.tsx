@@ -114,7 +114,10 @@ function ModelPicker({
       title={t("Model")}
       footer={
         delisted
-          ? `OpenRouter no longer lists ${current}. Dictation stays off until you choose another model.`
+          ? t(
+              "OpenRouter no longer lists {model}. Dictation stays off until you choose another model.",
+              { model: current ?? "" },
+            )
           : undefined
       }
     >
@@ -160,7 +163,7 @@ function ModelPicker({
       ) : matches.length > shown.length ? (
         <Separated>
           <ListActionRow
-            label={`Show all ${matches.length} models`}
+            label={t("Show all {length} models", { length: matches.length })}
             onPress={() => setShowAll(true)}
           />
         </Separated>
@@ -303,7 +306,10 @@ function CloudChoices({ environment, active, onClose }: Props & { onClose: () =>
                   key === undefined
                     ? t("Update the environment to use this provider")
                     : isActive && routed
-                      ? `${activeModel} · Tap to change model${canManage ? " or key" : ""}`
+                      ? t("{activeModel} · Tap to change model{value}", {
+                          activeModel: activeModel ?? "",
+                          value: canManage ? " or key" : "",
+                        })
                       : isActive && key && canManage
                         ? t("Tap to manage key")
                         : key
@@ -322,9 +328,11 @@ function CloudChoices({ environment, active, onClose }: Props & { onClose: () =>
                     return;
                   }
                   Dialog.confirm({
-                    title: `Use ${label} for dictation?`,
-                    message: `${cloudSpeechDisclosure(provider, environment.label)} Select This device to stop sharing.`,
-                    confirmText: `Use ${label}`,
+                    title: t("Use {label} for dictation?", { label }),
+                    message: t("{disclosure} Select This device to stop sharing.", {
+                      disclosure: cloudSpeechDisclosure(provider, environment.label),
+                    }),
+                    confirmText: t("Use {label}", { label }),
                     onConfirm: () => enable(pendingCloudVoiceChoice(id, provider)),
                   });
                 }}
@@ -377,10 +385,20 @@ function CloudChoices({ environment, active, onClose }: Props & { onClose: () =>
             ? t(
                 "Uses the API key saved on this environment. The model choice applies only to this device.",
               )
-            : `Anyone with dictation access to ${environment.label} can bill this key.`
+            : t("Anyone with dictation access to {label} can bill this key.", {
+                label: environment.label,
+              })
           : editing.enable
-            ? `Anyone with dictation access to ${environment.label} can bill this key.`
-            : `Updates the ${company} key on ${environment.label}. Your dictation destination stays the same.`;
+            ? t("Anyone with dictation access to {label} can bill this key.", {
+                label: environment.label,
+              })
+            : t(
+                "Updates the {company} key on {label}. Your dictation destination stays the same.",
+                {
+                  company,
+                  label: environment.label,
+                },
+              );
     return (
       <>
         <Text className="px-2 text-sm text-foreground-muted">{disclosure}</Text>
@@ -439,7 +457,11 @@ function CloudChoices({ environment, active, onClose }: Props & { onClose: () =>
               )}
               <TextInput
                 key={sourceId ?? "literal"}
-                accessibilityLabel={sourceId ? `${label} API key reference` : `${label} API key`}
+                accessibilityLabel={
+                  sourceId
+                    ? t("{label} API key reference", { label })
+                    : t("{label} API key", { label })
+                }
                 placeholder={
                   source?.referencePlaceholder ??
                   (key ? t("Saved key · enter a new one to replace") : t("API key"))

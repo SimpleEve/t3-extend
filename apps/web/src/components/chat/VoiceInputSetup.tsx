@@ -116,7 +116,7 @@ export function VoiceInputSetup(props: {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {model.recommended && props.language
-                      ? `Recommended for ${languageLabel(props.language)}. `
+                      ? `${t("Recommended for {language}", { language: languageLabel(props.language) })}. `
                       : ""}
                     {t("Includes a 1.2 MB silence detector.")}
                   </p>

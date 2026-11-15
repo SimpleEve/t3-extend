@@ -197,7 +197,9 @@ export function PullRequestChecksPopover({
                 {t("checks")}
               </span>
             ) : failedCount > 0 ? (
-              <span className="min-w-0 truncate tabular-nums">{failedCount} failed</span>
+              <span className="min-w-0 truncate tabular-nums">
+                {t("{count} failed", { count: failedCount })}
+              </span>
             ) : null}
           </>
         ) : null}

@@ -420,8 +420,8 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                 )}
                 {ignoredFiles.data?.truncated ? (
                   <p className="text-muted-foreground text-xs">
-                    Showing the first {files.length} files.
-                    {canSearchFiles ? " Search to find the rest." : ""}
+                    {t("Showing the first {length} files.", { length: files.length })}
+                    {canSearchFiles ? ` ${t("Search to find the rest.")}` : ""}
                   </p>
                 ) : null}
                 <p className="text-muted-foreground text-xs">

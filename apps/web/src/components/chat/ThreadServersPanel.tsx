@@ -201,7 +201,7 @@ function ThreadServersList(props: ThreadServersPanelProps) {
             <ChevronUpIcon aria-hidden className="size-4 shrink-0" />
           )}
           {hiddenCount > 0
-            ? `Show ${Math.min(hiddenCount, SERVER_PAGE_COUNT)} more`
+            ? t("Show {count} more", { count: Math.min(hiddenCount, SERVER_PAGE_COUNT) })
             : t("Show less")}
         </ThreadDetailsControl>
       ) : null}

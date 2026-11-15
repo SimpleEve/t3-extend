@@ -109,7 +109,7 @@ export function useComposerAttachmentActions(props: {
       try {
         const result = await convertPastedImagesToAttachments({ uris });
         report(
-          "Could not paste images",
+          t("Could not paste images"),
           result.error,
           await append(key, signal, result.attachments, insertion),
         );

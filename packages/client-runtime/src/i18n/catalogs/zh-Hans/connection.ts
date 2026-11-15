@@ -844,4 +844,5 @@ export default {
     "在已连接到 {host} 的设备上，打开“设置 > 共享与访问”，然后{approve}。",
   "Or run `t3 auth connect-device approve {code}` on {host}.":
     "或者在 {host} 上运行 `t3 auth connect-device approve {code}`。",
+  "Showing the first {length} files.": "只显示前 {length} 个文件。",
 } satisfies Record<string, string>;

@@ -622,7 +622,7 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
                 ? t("Searching thread messages…")
                 : t("No matching threads")
               : selectedProjectScope !== null
-                ? `No threads in ${selectedProjectScope.title}`
+                ? t("No threads in {name}", { name: selectedProjectScope.title })
                 : t("No threads yet")}
       </Text>
       {showAddEnvironment ? (

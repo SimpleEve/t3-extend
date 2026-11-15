@@ -2920,10 +2920,10 @@ function OpenCommandPaletteDialog(props: {
   const submitButtonId = useId();
   const browseSubmitLabel =
     isCloneDestinationStep && !canCloneProject
-      ? "This connection needs permission to write source control and add projects."
+      ? t("This connection needs permission to write source control and add projects.")
       : canCreateProject
-        ? `${submitActionLabel} (${addShortcutLabel})`
-        : "This connection cannot add projects.";
+        ? `${t(submitActionLabel)} (${addShortcutLabel})`
+        : t("This connection cannot add projects.");
   const inputAccessory =
     newProjectFlow !== null ? (
       <CommandPaletteSubmitButton
@@ -2952,7 +2952,9 @@ function OpenCommandPaletteDialog(props: {
     ) : isBrowsing ? (
       <CommandPaletteSubmitButton
         id={submitButtonId}
-        label={isCloneDestinationStep && isRemoteProjectPending ? t("Cloning") : submitActionLabel}
+        label={
+          isCloneDestinationStep && isRemoteProjectPending ? t("Cloning") : t(submitActionLabel)
+        }
         shortcutLabel={addShortcutLabel}
         ariaLabel={browseSubmitLabel}
         tooltip={browseSubmitLabel}

@@ -200,8 +200,12 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
         group: "environment",
         icon: <WifiOffIcon />,
         title: awaitingApproval
-          ? `${activeEnvironmentUnavailableState.label} is waiting to approve this device`
-          : `${activeEnvironmentUnavailableState.label} is ${environmentReconnecting ? "reconnecting" : "offline"}`,
+          ? t("{name} is waiting to approve this device", {
+              name: activeEnvironmentUnavailableState.label,
+            })
+          : environmentReconnecting
+            ? t("{name} is reconnecting", { name: activeEnvironmentUnavailableState.label })
+            : t("{name} is offline", { name: activeEnvironmentUnavailableState.label }),
         description: awaitingApproval ? (
           (unavailableConnection.error ?? undefined)
         ) : activeEnvironment ? (

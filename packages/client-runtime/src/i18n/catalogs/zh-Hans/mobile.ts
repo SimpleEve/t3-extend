@@ -878,4 +878,7 @@ export default {
   "Opens the diagram full screen": "全屏打开图表",
   "Hide secret": "隐藏密钥",
   "Show secret": "显示密钥",
+  "Next reset {time}": "下次重置 {time}",
+  "Reset {time}": "重置于 {time}",
+  "Working {duration}": "运行中 {duration}",
 } satisfies Record<string, string>;

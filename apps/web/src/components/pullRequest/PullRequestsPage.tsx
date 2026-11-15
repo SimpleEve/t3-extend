@@ -1184,7 +1184,7 @@ export function PullRequestsPage() {
     </div>
   );
   const listError = listQuery.error
-    ? `${environmentLabels.get(listQuery.error.environmentId) || "Environment"}: ${listQuery.error.message}`
+    ? `${environmentLabels.get(listQuery.error.environmentId) || t("Environment")}: ${listQuery.error.message}`
     : null;
   const carriedToNothing =
     shownCount === 0 &&
@@ -1200,7 +1200,7 @@ export function PullRequestsPage() {
           error={t("Update your T3 Extend servers to browse pull requests.")}
         />
       ) : firstLoad ? (
-        <PullRequestListGhost rows={7} caption="Loading pull requests…" />
+        <PullRequestListGhost rows={7} caption={t("Loading pull requests…")} />
       ) : listError && shownCount === 0 ? (
         <PullRequestsUnavailableState
           error={listError}
@@ -1248,7 +1248,7 @@ export function PullRequestsPage() {
 
       {listError && shownCount > 0 ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning-surface px-3 py-2 text-xs">
-          <span>{listError} Showing the last pull requests loaded.</span>
+          <span>{t("{error} Showing the last pull requests loaded.", { error: listError })}</span>
           <Button size="xs" variant="outline" onClick={() => listQuery.refresh()}>
             {t("Retry")}
           </Button>
@@ -1455,7 +1455,7 @@ export function PullRequestsPage() {
     void writeTextToClipboard(url, `${singular} link`).then(undefined, (error) => {
       toastManager.add({
         type: "error",
-        title: `Failed to copy ${shortLabel} link`,
+        title: t("Failed to copy {kind} link", { kind: shortLabel }),
         description: error instanceof Error ? error.message : t("An error occurred."),
       });
     });

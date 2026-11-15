@@ -272,7 +272,7 @@ function ModelCard(props: ModelCardProps) {
             <div className="mt-2">
               <div
                 role="progressbar"
-                aria-label={`${model.name} download progress`}
+                aria-label={t("{name} download progress", { name: model.name })}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={Math.round(progress)}
@@ -286,7 +286,7 @@ function ModelCard(props: ModelCardProps) {
               <p className="mt-1 text-2xs text-muted-foreground">
                 {model.state === "verifying"
                   ? t("Verifying download…")
-                  : `${Math.round(progress)}% downloaded`}
+                  : t("{value}% downloaded", { value: Math.round(progress) })}
               </p>
             </div>
           ) : null}
@@ -297,7 +297,7 @@ function ModelCard(props: ModelCardProps) {
             <Button
               size="icon-sm"
               variant="outline"
-              aria-label={`Cancel ${model.name} download`}
+              aria-label={t("Cancel {name} download", { name: model.name })}
               disabled={!props.canCancel}
               onClick={props.onCancel}
             >
@@ -326,7 +326,7 @@ function ModelCard(props: ModelCardProps) {
               aria-label={
                 model.linkedFrom
                   ? `Stop using your ${model.name} file; the file stays on disk`
-                  : `Delete ${model.name}`
+                  : t("Delete {name}", { name: model.name })
               }
               onClick={props.onDelete}
             >
@@ -395,7 +395,7 @@ function DictionaryEditor(props: {
             maxLength={5_100}
             disabled={disabled}
             placeholder={t("Add words, separated by commas")}
-            aria-label={`Add a word or phrase to the ${label}`}
+            aria-label={t("Add a word or phrase to the {label}", { label })}
             onChange={(event) => setTermDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.nativeEvent.isComposing || event.keyCode === 229) return;
@@ -412,7 +412,7 @@ function DictionaryEditor(props: {
       </div>
       {words.length > 0 ? (
         <ul
-          aria-label={`${label} entries`}
+          aria-label={t("{label} entries", { label })}
           className="mt-2.5 flex flex-col gap-1.5 @min-[32rem]/settings-row:flex-row @min-[32rem]/settings-row:flex-wrap"
         >
           {words.map(({ term, aliases }) => (
@@ -429,7 +429,7 @@ function DictionaryEditor(props: {
                   autoFocus
                   value={aliasDraft.value}
                   maxLength={50}
-                  aria-label={`Alias for ${term}`}
+                  aria-label={t("Alias for {term}", { term })}
                   placeholder={t("Misspelling")}
                   className="ms-auto w-32"
                   onChange={(event) => setAliasDraft({ term, value: event.target.value })}
@@ -884,7 +884,9 @@ function SpeechModelBrowser(props: {
       <SettingsRow
         {...searchableSetting("speech-models")}
         title="Models"
-        description={`This environment can’t transcribe audio: ${status.reason}.`}
+        description={t("This environment can’t transcribe audio: {reason}.", {
+          reason: status.reason,
+        })}
       />
     );
   return (
@@ -964,7 +966,11 @@ function SpeechModelBrowser(props: {
         <Menu>
           <MenuTrigger
             render={<Button variant="outline" />}
-            aria-label={`Sort and filter models: ${sortLabels[sort]}${downloadedOnly ? ", downloaded only" : ""}`}
+            aria-label={
+              downloadedOnly
+                ? t("Sort and filter models: {sort}, downloaded only", { sort: sortLabels[sort] })
+                : t("Sort and filter models: {sort}", { sort: sortLabels[sort] })
+            }
           >
             <ArrowDownUpIcon />
             <span className="hidden @min-[34rem]/voice-models:inline">{sortLabels[sort]}</span>
@@ -1538,8 +1544,10 @@ export function VoiceSettingsPanel() {
               destination.cloudProvider
                 ? t("The provider detects your language automatically.")
                 : model?.supportsLanguageDetection
-                  ? `${model.model} detects the language automatically.`
-                  : `${model?.model ?? "This model"} uses one fixed language.`
+                  ? t("{model} detects the language automatically.", { model: model.model })
+                  : t("{model} uses one fixed language.", {
+                      model: model?.model ?? t("This model"),
+                    })
             }
             control={
               <SpeechLanguageSelect

@@ -106,7 +106,9 @@ export function getDesktopUpdateButtonTooltip(
     state.errorContext === "download" &&
     state.availableVersion
   ) {
-    return `Download failed for ${state.availableVersion}. Click to retry.`;
+    return t("Download failed for {version}. Click to retry.", {
+      version: state.availableVersion,
+    });
   }
   if (state.status === "available") {
     return state.availableVersion

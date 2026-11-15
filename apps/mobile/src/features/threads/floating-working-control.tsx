@@ -671,6 +671,7 @@ function WorkingTimer(props: {
   readonly environmentId: EnvironmentId;
   readonly startedAt: string;
 }) {
+  const t = useT();
   const nowMs = useVisibleSecondClock(true);
   return (
     <SystemText
@@ -678,7 +679,9 @@ function WorkingTimer(props: {
       numberOfLines={1}
       style={{ fontVariant: ["tabular-nums"], fontWeight: "500" }}
     >
-      Working {formatWorkingDuration(props.startedAt, toServerClock(props.environmentId, nowMs))}
+      {t("Working {duration}", {
+        duration: formatWorkingDuration(props.startedAt, toServerClock(props.environmentId, nowMs)),
+      })}
     </SystemText>
   );
 }

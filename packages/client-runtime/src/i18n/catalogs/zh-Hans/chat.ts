@@ -1148,7 +1148,6 @@ export default {
   "Thread, {title}": "对话，{title}",
   "On another machine, so this machine's agent can't read it. Remove it or switch back to send.":
     "它在另一台机器上，这台机器的 Agent 读不到。请移除它，或切回去再发送。",
-  "Thread no longer available": "对话已不可用",
   "{kindLabel}, {label}": "{kindLabel}，{label}",
   "{kindLabel}, {label}, {title}": "{kindLabel}，{label}，{title}",
   "Preview video attachment, {name}, {size}": "预览视频附件，{name}，{size}",
@@ -1361,4 +1360,12 @@ export default {
   "Choose a model": "选择模型",
   "Needs an admin to download": "需要管理员下载",
   "Voice settings": "语音设置",
+  "Expanded {title} preview": "展开的 {title} 预览",
+  "on {machine} · {status}": "在 {machine} 上 · {status}",
+  "{name} is reconnecting": "{name} 正在重新连接",
+  "{name} is offline": "{name} 已离线",
+  "{name} is waiting to approve this device": "{name} 正在等待批准此设备",
+  "Click to zoom in or return to fit. Pinch or Ctrl+scroll to zoom, scroll or drag to pan. Use Enter to toggle zoom, plus or minus to zoom, and 0 to fit.":
+    "点击放大或恢复适应窗口。双指捏合或按住 Ctrl 滚动缩放，滚动或拖动平移。按 Enter 切换缩放，按加号或减号缩放，按 0 适应窗口。",
+  "Search to find the rest.": "搜索以找到其余的文件。",
 } satisfies Record<string, string>;

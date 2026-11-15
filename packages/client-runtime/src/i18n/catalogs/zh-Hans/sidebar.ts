@@ -196,7 +196,6 @@ export default {
   "Could not load older threads. Retry": "无法加载更早的对话，点击重试",
   "Show {count} more": "再显示 {count} 个",
   "Failed to copy branch": "无法复制分支",
-  "Thread ID copied": "已复制对话 ID",
   "Failed to copy thread ID": "无法复制对话 ID",
   "Failed to snooze thread": "无法稍后处理对话",
   "Failed to snooze {count} thread": "无法稍后处理 {count} 个对话",
@@ -214,8 +213,6 @@ export default {
   "Failed to archive thread": "无法归档对话",
   "No threads found": "没有找到对话",
   "No projects yet": "还没有项目",
-  "No threads in these projects yet": "这些项目里还没有对话",
-  "No threads in {name} yet": "{name} 里还没有对话",
   "Thread action unavailable": "对话操作不可用",
   "This connection cannot change one or more selected threads.":
     "这个连接无法修改选中的部分或全部对话。",

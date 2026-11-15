@@ -165,8 +165,11 @@ function EnvironmentChoice({
         if (selected) return;
         if (!local) return onCloudOnly();
         Dialog.confirm({
-          title: `Send microphone audio to ${environment.label}?`,
-          message: `Finished recordings will be sent to ${environment.displayUrl ?? environment.label} for transcription. You can switch back to This device at any time.`,
+          title: t("Send microphone audio to {label}?", { label: environment.label }),
+          message: t(
+            "Finished recordings will be sent to {value} for transcription. You can switch back to This device at any time.",
+            { value: environment.displayUrl ?? environment.label },
+          ),
           confirmText: t("Use environment"),
           onConfirm: () => saveDestination(environment.environmentId),
         });

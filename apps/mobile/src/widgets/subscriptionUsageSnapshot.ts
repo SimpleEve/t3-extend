@@ -158,15 +158,15 @@ function subscriptionUsageProps(
                 label: usageWindowLabel(window.label, t),
                 remaining: Math.round(window.remainingPercent),
                 reset: window.resets[0]
-                  ? `${isUpcoming(window.resets[0]) ? "Next reset" : "Reset"} ${new Date(
-                      window.resets[0].at,
-                    ).toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}`
-                  : "Reset time unavailable",
+                  ? t(isUpcoming(window.resets[0]) ? "Next reset {time}" : "Reset {time}", {
+                      time: formatDate(window.resets[0].at, {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      }),
+                    })
+                  : t("Reset time unavailable"),
               }))
             : [],
         };

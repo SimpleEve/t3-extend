@@ -1679,8 +1679,6 @@ export default {
   "Review guide instructions": "审查导读说明",
   "Show service interfaces before implementations. Skip test files unless they change behavior. Keep summaries to two sentences.":
     "先展示服务接口，再展示实现。除非测试文件改变了行为，否则跳过它们。摘要控制在两句话以内。",
-  "Use the repository's template for change request descriptions when available.":
-    "在有模板时，使用仓库的变更请求描述模板。",
   "Model for source control text and branch or bookmark names. When disabled, use the text generation model configured for this environment.":
     "用于源代码管理文本以及分支或书签名称的模型。关闭时使用此环境配置的文本生成模型。",
   "Connect an environment to choose its source control writer model.":

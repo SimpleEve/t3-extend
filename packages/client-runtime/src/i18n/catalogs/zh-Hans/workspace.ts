@@ -660,7 +660,6 @@ export default {
   "Back to archive": "返回压缩包",
   "Parent folder": "上级文件夹",
   "Archive contents": "压缩包内容",
-  "{length} entries": "{length} 个条目",
   Table: "表格",
   "Previous rows": "上一批行",
   "0 rows": "0 行",

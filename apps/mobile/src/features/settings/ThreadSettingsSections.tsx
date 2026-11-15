@@ -269,6 +269,7 @@ function MachineBetaSection({
   readonly setting: MachineBetaSetting;
   readonly description: string;
 }) {
+  const t = useT();
   const { environments } = useEnvironments();
   const supported = environments.filter(
     (environment) =>
@@ -292,7 +293,13 @@ function MachineBetaSection({
               key={environment.environmentId}
               icon={icon}
               label={environment.label}
-              {...(managed ? { subtitle: `Managed by ${policy?.organization}.` } : {})}
+              {...(managed
+                ? {
+                    subtitle: t("Managed by {organization}.", {
+                      organization: policy?.organization ?? "",
+                    }),
+                  }
+                : {})}
               value={environment.serverConfig?.settings[setting] === true}
               disabled={managed || !writable.has(environment.environmentId)}
               onValueChange={(value) =>

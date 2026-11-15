@@ -211,7 +211,7 @@ function RetentionControl({
           <NumberFieldGroup>
             <NumberFieldDecrement aria-label={t("Decrease {label}", { label })} />
             <NumberFieldInput
-              aria-label={`${label} in days`}
+              aria-label={t("{label} in days", { label })}
               autoFocus={value === null}
               size={5}
               className="w-auto grow-0 text-right"

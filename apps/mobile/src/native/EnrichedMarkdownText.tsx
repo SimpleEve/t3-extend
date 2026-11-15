@@ -388,8 +388,8 @@ export function MobileEnrichedMarkdownText(props: SelectableMarkdownTextProps) {
               props.fileContextMenu?.(url) ?? {
                 title: url,
                 actions: [
-                  { id: "enriched-open-link", title: "Open link" },
-                  { id: "enriched-copy-link", title: "Copy link" },
+                  { id: "enriched-open-link", title: t("Open link") },
+                  { id: "enriched-copy-link", title: t("Copy link") },
                 ],
               };
             setActiveMenu({ url, menu });

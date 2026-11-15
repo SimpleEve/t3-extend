@@ -85,7 +85,7 @@ export function ModelBenchmarks({
         );
       })}
       <span>
-        Speed:{" "}
+        {t("Speed:")}{" "}
         {tier === "cpu" && data && data.secondsPer30s.cpu === undefined ? (
           t("update server")
         ) : seconds == null ? (

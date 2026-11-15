@@ -196,7 +196,7 @@ function SwitchPlan({
       busy={checking}
       disabledReason={
         switchesLocal && localBlocked !== null
-          ? `This app cannot switch: ${localBlocked}.`
+          ? t("This app cannot switch: {localBlocked}.", { localBlocked })
           : idle.disabledReason
       }
       onConfirm={() => void run()}

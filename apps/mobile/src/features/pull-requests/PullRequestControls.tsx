@@ -173,7 +173,7 @@ export function PullRequestActionToolbar(props: {
                 <View pointerEvents="none">
                   <IconButton
                     icon="ellipsis.bubble"
-                    accessibilityLabel={`${shortLabel} agent actions`}
+                    accessibilityLabel={t("{shortLabel} agent actions", { shortLabel })}
                     disabled={agent.disabled}
                   />
                 </View>
