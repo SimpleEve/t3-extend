@@ -11,7 +11,9 @@ import {
   useThreadGitMenuDefinition,
   type ThreadGitControlsProps,
 } from "./ThreadGitControls";
+import type { ScopedThreadRef } from "@t3tools/contracts";
 import { useT } from "../../hooks/useT";
+import { useThreadOutputs } from "../../state/outputs"; // fork: outputs
 
 export function ThreadHeader(props: {
   readonly title: string;
@@ -24,8 +26,16 @@ export function ThreadHeader(props: {
   readonly onOpenFilesInspector: () => void;
   // fork: opens the browser's new tab panel; absent when the host has no server browser.
   readonly onOpenNewBrowserTab?: () => void;
+  // fork: outputs. The thread whose files and links the Outputs button lists.
+  readonly outputs?: {
+    readonly threadRef: ScopedThreadRef;
+    readonly cwd: string | null;
+    readonly onOpen: () => void;
+  };
 }) {
   const t = useT();
+  const outputs = useThreadOutputs(props.outputs?.threadRef ?? null, props.outputs?.cwd);
+  const outputsCount = outputs.files.length + outputs.links.length;
   const goBack = useWorkspaceBackNavigation();
   const { toggleAuxiliaryPane, startNewTask } = useAdaptiveWorkspaceLayout();
   const { panes } = useWorkspacePaneState();
@@ -50,6 +60,14 @@ export function ThreadHeader(props: {
       accessibilityLabel: t("New browser tab"),
       icon: "globe",
       onPress: props.onOpenNewBrowserTab,
+    });
+  }
+  // fork: outputs. Hidden until a finished run has produced something.
+  if (props.outputs && outputsCount > 0) {
+    actions.push({
+      accessibilityLabel: t("Outputs, {count}", { count: outputsCount }),
+      icon: "doc.text",
+      onPress: props.outputs.onOpen,
     });
   }
   const menus = [gitMenu, terminalMenu].filter((menu): menu is AppBarMenu => menu !== null);

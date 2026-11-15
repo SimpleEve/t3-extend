@@ -6,7 +6,7 @@ import {
   outputLinkDisplay,
   visibleOutputRows,
   workspacePreviewPath,
-} from "./outputs.logic";
+} from "./display.ts";
 
 describe("workspacePreviewPath", () => {
   it.each([

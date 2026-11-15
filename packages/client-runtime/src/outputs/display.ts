@@ -1,6 +1,6 @@
 import { fileBasename, workspaceRelativeFilePath } from "@t3tools/shared/path";
 
-/** Both the strip and each list of the popover show this many rows before "Show N more". */
+/** Every outputs list shows this many rows before "Show N more". */
 export const OUTPUT_ROW_LIMIT = 6;
 
 export function visibleOutputRows<T>(

@@ -6,7 +6,7 @@ import { useRunOutputs } from "~/state/outputs";
 import { Button } from "../../ui/button";
 import { TimelineRowCtx } from "../timelineRowContext";
 import { OutputFileRow, OutputLinkRow } from "./OutputRows";
-import { visibleOutputRows } from "./outputs.logic";
+import { visibleOutputRows } from "@t3tools/client-runtime/outputs/display";
 import { useOutputActions } from "./useOutputActions";
 
 /**

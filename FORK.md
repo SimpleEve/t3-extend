@@ -359,6 +359,19 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 
 上游文件里的接线（都带 `// fork:`）：`ThreadHeader.tsx`（prop 和 Android 按钮）、`ThreadRouteScreen.tsx`（按 `serverBrowser` 传回调）、`PreviewStreamWebView.tsx`（`PHONE_STREAM_QUALITY`）、`serverBrowserStream.ts`（`quality`）。`BrowserPreviewRouteScreen.tsx`（`newTab` 参数、改用 `useBrowserTabSelection`、"+"、几处 `t()`）、`scripts/i18n-report.ts`（扫描 `apps/mobile/src`）。
 
+## 产出
+
+每条回复结束后，末尾列出这一轮产出的文件和链接；对话头部（web）或标题栏（手机）有"产出"入口，列出整个对话的产出。参考 Alma。不额外调用模型：识别全在客户端，不改 server 和 contracts。
+
+- 识别：`packages/client-runtime/src/outputs/`，web 和 mobile 共用。以一轮（run）为单位，只在 run 结束（completed / interrupted / failed / cancelled）后计算。文件按"回复里 markdown 链接到的本地文件 → 工具写过的文件（`file_change`、检查点）"排序，删除操作和 `node_modules`、`.git` 下的不收；链接取自回复文本和命令输出，命令含 `ssh`、`ss`、`netstat`、`lsof`、`nmap`，或一条输出里有 4 个以上不同的 URL 时跳过这条命令的输出（回复里的 URL 不限）。整个对话合并后按路径、URL 去重，新的 run 排前面。命令输出被 server 省略（`outputOmitted`）时不读，否则列表会随展开而变。
+- 缓存：`threadDetail.ts` 里的 `outputsAtom` / `runOutputsAtom`。只随对话结构和检查点变化，流式文本不会触发；每个 run 的结果按条目身份缓存，没变的 run 保持同一个对象，所以结束一轮时只有这一轮的条带重渲染。
+- 工作区外的文件（`/tmp`、下载目录）照样列出，但不能预览：server 只读 `KnownWorkspaces` 里的路径，也没有加按任意路径读文件的接口。
+- web：`apps/web/src/components/chat/outputs/`。消息条带在 `TimelineAssistantRows.tsx` 里 `showAssistantMeta` 时渲染，与 `ChangedFilesCard` 并列；头部按钮在 `ChatHeader.tsx`，数量为 0 时不渲染。"用默认应用打开"和"在访达中显示"只在桌面版、且当前环境就是桌面内置的 server（`hostEnvironmentIdAtom`）时出现，走已有的 `shell.openInEditor`（`file-manager`），没有新增桌面 IPC；远程环境的 server 会在另一台机器上打开文件，所以不提供。
+- mobile：`apps/mobile/src/features/outputs/`。消息条带在 `ThreadFeed.tsx`，列表页是路由 `ThreadOutputs`（`threads/:environmentId/:threadId/outputs`），入口是 `ThreadHeader.tsx` 的"产出"按钮（数量为 0 时不出现；标题栏动作没有角标，数量写在无障碍标签里）。工作区内的文件走已有的 `ThreadFile` 路由预览，链接用系统浏览器打开，文件和链接都能复制。
+- 译文：`catalogs/zh-Hans/outputs.ts`。
+
+上游文件里的接线（都带 `// fork:`）：`TimelineAssistantRows.tsx`、`ChatHeader.tsx`、`ChatView.tsx`（传 `workspaceRoot`）、`threadDetail.ts`（两个 atom）、`ThreadFeed.tsx`、`ThreadHeader.tsx`、`ThreadRouteScreen.tsx`、`Stack.tsx`、`catalogs/zh-Hans/index.ts`、`packages/client-runtime/package.json`（`./outputs/*` 导出）。
+
 ## 不依赖 Google 的推送（Android）
 
 手机通过任意 UnifiedPush 服务器（典型的是 VPS 上的 ntfy，部署包见 `infra/self-host/`）收到 Agent 提醒，不经过 Cloudflare、Firebase 和 Clerk。上游的 relay 和 FCM 路径没有改动，仍然关闭。用户说明在 `docs/user/mobile-notifications.md` 的 "Push without Google"。

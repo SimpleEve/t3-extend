@@ -19,7 +19,7 @@ import {
   revealInFileExplorerLabelForOs,
 } from "../../preview/fileExplorerLabel";
 import { toastManager } from "../../ui/toast";
-import { workspacePreviewPath } from "./outputs.logic";
+import { workspacePreviewPath } from "@t3tools/client-runtime/outputs/display";
 
 type OutputFileAction = "preview" | "open" | "reveal" | "copy";
 type OutputLinkAction = "preview" | "external" | "copy";

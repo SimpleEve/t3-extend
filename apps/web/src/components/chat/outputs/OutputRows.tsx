@@ -6,7 +6,7 @@ import { useT } from "~/hooks/useT";
 import { Button } from "../../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../../ui/tooltip";
 import { PierreEntryIcon } from "../PierreEntryIcon";
-import { outputFileDisplay, outputLinkDisplay } from "./outputs.logic";
+import { outputFileDisplay, outputLinkDisplay } from "@t3tools/client-runtime/outputs/display";
 import type { useOutputActions } from "./useOutputActions";
 
 type OutputActions = ReturnType<typeof useOutputActions>;

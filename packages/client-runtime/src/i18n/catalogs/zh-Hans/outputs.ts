@@ -1,4 +1,4 @@
-// fork: the outputs list under a reply and in the conversation header.
+// fork: the outputs list under a reply, in the conversation header, and on mobile.
 export default {
   Outputs: "产出",
   Links: "链接",
@@ -9,4 +9,8 @@ export default {
   "Open in external browser": "在外部浏览器打开",
   "Path copied": "已复制路径",
   "Link copied": "已复制链接",
+  "Preview file": "预览文件",
+  "Outputs, {count}": "产出，{count} 项",
+  "No outputs yet": "还没有产出",
+  "Files and links from finished replies show up here.": "已结束的回复产出的文件和链接会列在这里。",
 };

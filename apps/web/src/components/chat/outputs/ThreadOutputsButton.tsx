@@ -9,7 +9,7 @@ import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../../ui/popover";
 import { OutputFileRow, OutputLinkRow } from "./OutputRows";
-import { visibleOutputRows } from "./outputs.logic";
+import { visibleOutputRows } from "@t3tools/client-runtime/outputs/display";
 import { useOutputActions } from "./useOutputActions";
 
 function ExpandableSection(props: { title: string; count: number; children: React.ReactNode }) {

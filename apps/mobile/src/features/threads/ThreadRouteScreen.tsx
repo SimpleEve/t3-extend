@@ -598,6 +598,14 @@ function ThreadRouteContent(
       newTab: "1",
     });
   };
+  // fork: outputs
+  const handleOpenOutputs = () => {
+    if (selectedThread === null) return;
+    navigation.navigate("ThreadOutputs", {
+      environmentId: String(selectedThread.environmentId),
+      threadId: String(selectedThread.id),
+    });
+  };
   const handleSelectInspectorFile = (path: string) => {
     if (selectedThread === null) {
       return;
@@ -1000,6 +1008,12 @@ function ThreadRouteContent(
                 hasThreadCwd={selectedThreadCwd !== null}
                 inspectorMode={inspectorMode}
                 onOpenFilesInspector={handleOpenFilesInspector}
+                outputs={{
+                  // fork: outputs
+                  threadRef: scopeThreadRef(selectedThread.environmentId, selectedThread.id),
+                  cwd: selectedThreadCwd,
+                  onOpen: handleOpenOutputs,
+                }}
                 onOpenNewBrowserTab={
                   // fork: the new tab panel opens pages in the host's headless browser.
                   routeEnvironmentRuntime?.serverConfig?.environment.capabilities.serverBrowser

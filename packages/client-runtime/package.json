@@ -423,6 +423,10 @@
       "types": "./src/state/vcs.ts",
       "default": "./src/state/vcs.ts"
     },
+    "./outputs/display": {
+      "types": "./src/outputs/display.ts",
+      "default": "./src/outputs/display.ts"
+    },
     "./outputs/run": {
       "types": "./src/outputs/runOutputs.ts",
       "default": "./src/outputs/runOutputs.ts"

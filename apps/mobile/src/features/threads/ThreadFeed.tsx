@@ -277,6 +277,7 @@ import {
 import { waitForThreadShell } from "./threadForkNavigation";
 import { resolveUserMessageIntentBadge } from "./userMessageIntentBadge";
 import { fileChipClipboardPath, fileChipMenu, resolveFileChipTarget } from "./fileChipMenu";
+import { MessageOutputsStrip } from "../outputs/MessageOutputsStrip"; // fork: outputs
 import { useFileChipShare } from "./useFileChipShare";
 import { useOpenLinkedThread } from "./useOpenLinkedThread";
 import {
@@ -2361,6 +2362,14 @@ function renderFeedEntry(
           <TurnDiffStat
             checkpoint={message.checkpointSummary}
             onOpenTurnDiff={props.onOpenTurnDiff}
+          />
+        ) : null}
+        {showAssistantMeta ? (
+          <MessageOutputsStrip
+            environmentId={props.environmentId}
+            threadId={props.threadId}
+            runId={message.runId}
+            workspaceRoot={props.workspaceRoot}
           />
         ) : null}
         {showAssistantMeta ? (
