@@ -81,6 +81,8 @@ const EXCLUDED_TABLES: ReadonlySet<string> = new Set([
   "peer_environment_links",
   "orchestration_v2_legacy_imports",
   "orchestration_v2_events",
+  // Maintained by triggers on the turn items, so copying them would count each item twice.
+  "orchestration_v2_projection_turn_item_counts",
 ]);
 
 const THREADS_TABLE = "orchestration_v2_projection_threads";

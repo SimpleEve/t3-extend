@@ -155,7 +155,7 @@ it.each([
       program: [`${baseDir}/runtime/versions/1.2.3/t3`, "__service-launcher"],
       baseDir,
       logPath: `${baseDir}/userdata/logs/boot-service.log`,
-      unitPath: "/home/theo/.config/systemd/user/t3code.service",
+      unitPath: `/home/theo/.config/systemd/user/${FORK.bootServiceName}.service`,
     });
   } catch {
     return;
@@ -242,12 +242,13 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
       commands.push(command);
       invocations.push(input);
       timeouts.set(command, input.timeout);
-      if (command === "systemctl --user reset-failed t3code.service") control.startLimitHit = false;
+      if (command === `systemctl --user reset-failed ${FORK.bootServiceName}.service`)
+        control.startLimitHit = false;
       const refusedStart = control.startLimitHit && command.startsWith("systemctl --user restart ");
       // `--no-block` only queues the job, so systemd reports success even when it refuses it.
       const failed =
         command === control.failCommand ||
-        (refusedStart && command === "systemctl --user restart t3code.service");
+        (refusedStart && command === `systemctl --user restart ${FORK.bootServiceName}.service`);
       if (!failed && command.startsWith("loginctl enable-linger --no-ask-password ")) {
         control.linger = "yes";
         control.managerReachable ||= control.lingerStartsManager;
@@ -514,7 +515,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
         _tag: "BootServicePrerequisiteError",
         problem: "user-manager-unavailable",
       });
-      expect(commands).not.toContain("systemctl --user enable t3code.service");
+      expect(commands).not.toContain(`systemctl --user enable ${FORK.bootServiceName}.service`);
     }),
   );
 
@@ -551,7 +552,13 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
 
       const plan = yield* service.install();
 
-      const unitPath = path.join(home, ".config", "systemd", "user", "t3code.service");
+      const unitPath = path.join(
+        home,
+        ".config",
+        "systemd",
+        "user",
+        `${FORK.bootServiceName}.service`,
+      );
       expect(plan.unitPath).toBe(unitPath);
       expect(yield* service.status).toMatchObject({ current: true, unitPath });
     }),
@@ -1447,7 +1454,13 @@ process.disconnect();
       const task = yield* fs.readFileString(plan.unitPath);
 
       expect(plan.unitPath).toBe(
-        path.join(path.dirname(plan.baseDir), "AppData", "Local", "t3code", "t3code-task.xml"),
+        path.join(
+          path.dirname(plan.baseDir),
+          "AppData",
+          "Local",
+          FORK.bootServiceName,
+          `${FORK.bootServiceName}-task.xml`,
+        ),
       );
       expect(BootService.bootServiceProgramOf(task)).toBe(runtime.entryPath);
       expect(BootService.bootServiceBaseDirOf(task)).toBe(plan.baseDir);
@@ -1458,8 +1471,8 @@ process.disconnect();
         activeVersion: "1.2.3",
       });
       expect(commands.filter((command) => command.startsWith("schtasks "))).toEqual([
-        `schtasks /Create /XML ${plan.unitPath} /TN t3code-PC-theo /F`,
-        "schtasks /Run /TN t3code-PC-theo",
+        `schtasks /Create /XML ${plan.unitPath} /TN ${FORK.bootServiceName}-PC-theo /F`,
+        `schtasks /Run /TN ${FORK.bootServiceName}-PC-theo`,
       ]);
       // No launcher holds the lock here.
       expect(yield* service.status).toMatchObject({
@@ -1469,7 +1482,7 @@ process.disconnect();
       });
 
       // A task that Task Scheduler refuses to delete stays installed, so a retry finds it.
-      control.failCommand = "schtasks /Delete /TN t3code-PC-theo /F";
+      control.failCommand = `schtasks /Delete /TN ${FORK.bootServiceName}-PC-theo /F`;
       expect((yield* service.uninstall.pipe(Effect.flip))._tag).toBe("BootServiceCommandError");
       expect((yield* service.status).installed).toBe(true);
       control.failCommand = undefined;
@@ -1477,9 +1490,9 @@ process.disconnect();
       commands.length = 0;
       expect(yield* service.uninstall).toBe(true);
       expect(commands).toEqual([
-        "schtasks /Change /TN t3code-PC-theo /DISABLE",
-        "schtasks /End /TN t3code-PC-theo",
-        "schtasks /Delete /TN t3code-PC-theo /F",
+        `schtasks /Change /TN ${FORK.bootServiceName}-PC-theo /DISABLE`,
+        `schtasks /End /TN ${FORK.bootServiceName}-PC-theo`,
+        `schtasks /Delete /TN ${FORK.bootServiceName}-PC-theo /F`,
       ]);
       expect(control.task).toBeUndefined();
       expect((yield* service.status).installed).toBe(false);
@@ -1519,11 +1532,11 @@ process.disconnect();
       commands.length = 0;
       yield* service.withStopped(Effect.sync(() => commands.push("repair")));
       expect(commands.filter((command) => !command.includes("/Query"))).toEqual([
-        "schtasks /Change /TN t3code-PC-theo /DISABLE",
-        "schtasks /End /TN t3code-PC-theo",
+        `schtasks /Change /TN ${FORK.bootServiceName}-PC-theo /DISABLE`,
+        `schtasks /End /TN ${FORK.bootServiceName}-PC-theo`,
         "repair",
-        "schtasks /Change /TN t3code-PC-theo /ENABLE",
-        "schtasks /Run /TN t3code-PC-theo",
+        `schtasks /Change /TN ${FORK.bootServiceName}-PC-theo /ENABLE`,
+        `schtasks /Run /TN ${FORK.bootServiceName}-PC-theo`,
       ]);
     }),
   );
@@ -1534,9 +1547,9 @@ process.disconnect();
       const plan = yield* service.install();
       const inside = yield* makeService(undefined, "1.2.4", undefined, true);
       const handoff = [
-        `schtasks /Create /XML ${plan.unitPath} /TN t3code-PC-theo /F`,
-        "schtasks /End /TN t3code-PC-theo",
-        "schtasks /Run /TN t3code-PC-theo",
+        `schtasks /Create /XML ${plan.unitPath} /TN ${FORK.bootServiceName}-PC-theo /F`,
+        `schtasks /End /TN ${FORK.bootServiceName}-PC-theo`,
+        `schtasks /Run /TN ${FORK.bootServiceName}-PC-theo`,
       ];
       commands.length = 0;
 

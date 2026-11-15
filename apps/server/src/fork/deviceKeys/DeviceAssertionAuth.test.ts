@@ -232,12 +232,9 @@ describe("POST /oauth/t3x-device", () => {
           dpopJti: "replayed-jti-0001",
         });
         assert.equal(first.status, 200);
-        const replayedToken = yield* exchangeBootstrap({
-          port: harness.port,
-          origin: harness.origin,
-          dpop,
-          dpopJti: "replayed-jti-0001",
-        });
+        // /oauth/token only checks a proof now (an unauthenticated request must not write replay
+        // state), so a replayed jti is no longer its failure. Here the device pass was verified
+        // first, so the jti is recorded and a replay is refused.
         const deviceDpop = makeDpopSigner();
         const okPass = yield* exchange(phone, { dpop: deviceDpop, dpopJti: "replayed-jti-0002" });
         assert.equal(okPass.response.status, 200);
@@ -245,15 +242,9 @@ describe("POST /oauth/t3x-device", () => {
           dpop: deviceDpop,
           dpopJti: "replayed-jti-0002",
         })).response;
-        assert.equal(replayedDevice.status, replayedToken.status);
-        assert.equal(
-          replayedDevice.json().dpopFailureReason,
-          replayedToken.json().dpopFailureReason,
-        );
-        assert.equal(
-          replayedDevice.headers["www-authenticate"],
-          replayedToken.headers["www-authenticate"],
-        );
+        assert.equal(replayedDevice.status, 401);
+        assert.equal(replayedDevice.json().dpopFailureReason, "replay");
+        assert.equal(replayedDevice.headers["www-authenticate"], "DPoP");
         // No DPoP header at all: /oauth/token would mint a Bearer session; this endpoint must not.
         const missing = (yield* exchange(phone, { omitDpop: true })).response;
         assert.equal(missing.status, 401);

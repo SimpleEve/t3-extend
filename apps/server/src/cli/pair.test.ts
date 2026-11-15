@@ -227,9 +227,9 @@ describe("t3 pair", () => {
                   ? '{"BackendState":"Running","Self":{"DNSName":"host-a.tail.ts.net.","TailscaleIPs":["100.64.0.1"],"CapMap":{"https":null}}}'
                   : args[0] === "serve" && args[1] === "status"
                     ? JSON.stringify({
-                        TCP: { "443": { HTTPS: true } },
+                        TCP: { [FORK.tailscaleServePort]: { HTTPS: true } }, // fork: the fork's own port
                         Web: {
-                          "host-a.tail.ts.net:443": {
+                          [`host-a.tail.ts.net:${FORK.tailscaleServePort}`]: {
                             Handlers: { "/": { Proxy: otherAppOrigin } },
                           },
                         },

@@ -305,7 +305,7 @@ const defaultSystemdUnitDir = (path: Path.Path, homeDir: string, xdgConfigHome: 
   );
 
 const scheduledTaskPath = (path: Path.Path, localAppData: string) =>
-  path.join(localAppData, "t3code", BOOT_SERVICE_TASK_FILE);
+  path.join(localAppData, BOOT_SERVICE_NAME, BOOT_SERVICE_TASK_FILE); // fork: own Windows folder
 
 const launchdPlistPath = (path: Path.Path, homeDir: string) =>
   path.join(homeDir, "Library", "LaunchAgents", BOOT_SERVICE_PLIST_FILE);
