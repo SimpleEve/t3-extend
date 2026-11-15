@@ -1,3 +1,4 @@
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 import {
   getClientSettings,
   isClientSettingsHydrated,
@@ -23,7 +24,7 @@ export async function listAudioInputs(): Promise<BrowserMicrophone[]> {
 export async function listBrowserMicrophones(): Promise<BrowserMicrophone[]> {
   return (await listAudioInputs()).map(({ deviceId, label }, index) => ({
     deviceId,
-    label: label || `Microphone ${index + 1}`,
+    label: label || translate(getUiLocale(), "Microphone {number}", { number: index + 1 }),
   }));
 }
 

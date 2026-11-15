@@ -790,13 +790,13 @@ function ConfiguredCloudLinkRow({
           managed={connectDenial}
           control={
             <CloudLinkSwitch
-              ariaLabel="Require approval for new T3 Connect devices"
+              ariaLabel={t("Require approval for new T3 Connect devices")}
               checked={connectDeviceApproval.required}
               disabled={!connectDeviceApproval.canManage}
               disabledReason={
                 connectDeviceApproval.canManage
                   ? null
-                  : "Your session does not have permission to manage access."
+                  : t("Your session does not have permission to manage access.")
               }
               onCheckedChange={(enabled) =>
                 updateEnvironmentSettings({ requireConnectDeviceApproval: enabled })

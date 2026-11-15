@@ -330,10 +330,12 @@ export function EasDeviceHostEditor(props: {
               {limit("idleMinutes", "Idle minutes", 60)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Expo Simulators needs a paid Expo account. A session runs for up to 115 minutes and
-              stops early when it is idle for the idle minutes, so idle minutes must be less than
-              session minutes.
-              {props.isNew ? null : " Saving restarts this host and stops its running sessions."}
+              {t(
+                "Expo Simulators needs a paid Expo account. A session runs for up to 115 minutes and stops early when it is idle for the idle minutes, so idle minutes must be less than session minutes.",
+              )}
+              {props.isNew
+                ? null
+                : ` ${t("Saving restarts this host and stops its running sessions.")}`}
             </p>
             {problem === null ? null : (
               <p className="text-xs text-destructive" role="alert">

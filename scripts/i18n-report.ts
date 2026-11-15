@@ -108,6 +108,10 @@ const INTENTIONALLY_UNTRANSLATED = new Set([
   "Codex",
   "Pi",
   "T3 Code",
+  // Text generator services, shown with their brand names.
+  "OpenAI",
+  "OpenRouter",
+  "Anthropic",
   // A named convention.
   "Conventional Commits",
   // A language's name is written in that language.
@@ -366,6 +370,7 @@ const CODE_ELEMENTS = new Set(["code", "kbd", "pre", "samp", "style"]);
 
 // (a) Text that stays English in every language: products, formats, units, commands, sample input.
 const ALWAYS_ENGLISH_TEXT = new Set([
+  "MB", // A unit, in front of a number.
   // Products and platforms.
   "Android",
   "Code", // The second half of the T3 Code wordmark.
@@ -453,6 +458,7 @@ const SELF_TRANSLATING_PROPS = new Set([
   "DeviceToolsPanel.tsx#SwitchRow.label",
   "SettingsSection.title",
   "SettingsRow.title",
+  "MarkdownFileLink.openInEditorMenuLabel", // translateOpenInLabel() keeps the editor name and translates the rest.
   "SettingResetButton.label",
   "SettingResetButton.tooltip",
   "SidebarSectionHeader.label",

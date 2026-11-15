@@ -1403,7 +1403,7 @@ function OpenCommandPaletteDialog(props: {
     actionItems.push({
       kind: "action",
       value: "find-in-browser-page",
-      title: "Find on page in browser",
+      title: t("Find on page in browser"),
       searchTerms: ["find", "search", "browser", "preview", "page"],
       icon: <TextSearchIcon className={ITEM_ICON_CLASS} />,
       shortcutCommand: "preview.find",
@@ -1698,7 +1698,7 @@ function OpenCommandPaletteDialog(props: {
       "openclaw",
       "hermes",
     ],
-    title: "Use T3 Extend in another app (MCP)",
+    title: t("Use T3 Extend in another app (MCP)"),
     icon: <PlugIcon className={ITEM_ICON_CLASS} />,
     run: async () => {
       openUseInAnotherApp(

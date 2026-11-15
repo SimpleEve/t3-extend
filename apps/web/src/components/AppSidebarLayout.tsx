@@ -408,7 +408,8 @@ function SidebarControl({ showSidebar }: { readonly showSidebar: boolean }) {
             }
           />
           <TooltipPopup side="bottom">
-            Toggle main sidebar{shortcutLabel ? ` (${shortcutLabel})` : ""}
+            {t("Toggle main sidebar")}
+            {shortcutLabel ? ` (${shortcutLabel})` : ""}
           </TooltipPopup>
         </Tooltip>
       ) : null}

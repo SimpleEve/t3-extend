@@ -325,7 +325,7 @@ function CheckoutScopeMenu({ value, groups, onChange }: SettingsScopeMenuProps) 
     <span className="flex min-w-0 items-center gap-1.5">
       <span className="shrink-0">{t("in")}</span>
       <ScopeMenu
-        ariaLabel="Checkout scope"
+        ariaLabel={t("Checkout scope")}
         icon={<FolderIcon aria-hidden className="size-3.5 shrink-0" />}
         label={
           selected
@@ -343,7 +343,7 @@ function CheckoutScopeMenu({ value, groups, onChange }: SettingsScopeMenuProps) 
             ),
           )
         }
-        searchLabel="Search checkouts"
+        searchLabel={t("Search checkouts")}
         allOption={{ value: ALL_CHECKOUTS_VALUE, label: "All checkouts" }}
         options={checkouts.map((member) => ({
           value: member.physicalProjectKey,

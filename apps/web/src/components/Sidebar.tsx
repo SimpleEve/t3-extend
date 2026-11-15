@@ -1205,6 +1205,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       projectScopeFilter.contains(item, query, (candidate) => candidate.label),
   });
   const scopedProjectGroups = revealWidensScope ? [] : chosenProjectGroups;
+  const scopeLabel =
+    scopedProjectGroups.length > 1
+      ? t("these projects")
+      : (scopedProjectGroups[0]?.displayName ?? "");
   const scopedProjectRefs = scopedProjectGroups.flatMap((project) => project.memberProjectRefs);
   const scopedProjectKeys = revealWidensScope ? null : chosenScopeProjectKeys;
   const threadSearch = useThreadSearch(
@@ -3336,11 +3340,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               ) : scopedProjectGroups.length > 0 ? (
                 <>
                   <span>
-                    {`No ${settledCount > 0 ? "active threads" : "threads"} in ${
-                      scopedProjectGroups.length > 1
-                        ? "these projects"
-                        : scopedProjectGroups[0]!.displayName
-                    }${settledCount > 0 ? "" : " yet"}`}
+                    {settledCount > 0
+                      ? t("No active threads in {project}", { project: scopeLabel })
+                      : t("No threads in {project} yet", { project: scopeLabel })}
                   </span>
                   <button
                     type="button"

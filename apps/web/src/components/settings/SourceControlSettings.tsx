@@ -318,7 +318,9 @@ function DiscoveryItemRow({
                       checked={offered.checked}
                       disabled={offered.disabled}
                       onCheckedChange={offered.onChange}
-                      aria-label={`Offer ${item.label} when adding or publishing a project`}
+                      aria-label={t("Offer {name} when adding or publishing a project", {
+                        name: item.label,
+                      })}
                     />
                   }
                 />

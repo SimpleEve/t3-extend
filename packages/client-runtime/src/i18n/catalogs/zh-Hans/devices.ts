@@ -149,4 +149,8 @@ export default {
   "Dismiss device warning for {label}": "关闭 {label} 的设备警告",
   "No {platform} devices were listed because device discovery reported a problem.":
     "设备发现出了问题，所以没有列出 {platform} 设备。",
+  "{host} starts iOS Simulators in the cloud with Expo Simulators.":
+    "{host} 通过 Expo Simulators 在云端启动 iOS 模拟器。",
+  "{host} starts Android emulators in the cloud with Expo Simulators.":
+    "{host} 通过 Expo Simulators 在云端启动 Android 模拟器。",
 };

@@ -141,7 +141,7 @@ function MicrophoneRow(props: {
           size="icon-xs"
           variant="ghost-muted"
           disabled={props.position === 1}
-          aria-label={`Move ${name} up`}
+          aria-label={t("Move {name} up", { name })}
           onClick={() => props.onMove(-1)}
         >
           <ArrowUpIcon />
@@ -151,7 +151,7 @@ function MicrophoneRow(props: {
           size="icon-xs"
           variant="ghost-muted"
           disabled={props.position === props.count}
-          aria-label={`Move ${name} down`}
+          aria-label={t("Move {name} down", { name })}
           onClick={() => props.onMove(1)}
         >
           <ArrowDownIcon />
@@ -161,7 +161,7 @@ function MicrophoneRow(props: {
             type="button"
             size="icon-xs"
             variant="ghost-muted"
-            aria-label={`Forget ${name}`}
+            aria-label={t("Forget {name}", { name })}
             onClick={props.onForget}
           >
             <XIcon />

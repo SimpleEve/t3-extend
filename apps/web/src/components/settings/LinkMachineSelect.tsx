@@ -21,8 +21,9 @@ export function LinkAddressWarning({ address }: { readonly address: string }) {
     <Alert variant="warning">
       <AlertTitle>{t("Check this address")}</AlertTitle>
       <AlertDescription>
-        This app cannot confirm it is one of your machines. The pairing code you paste is sent
-        there.
+        {t(
+          "This app cannot confirm it is one of your machines. The pairing code you paste is sent there.",
+        )}
         <span className="block break-all">{linkDestination(address)}</span>
       </AlertDescription>
     </Alert>

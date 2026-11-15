@@ -69,12 +69,13 @@ export function ConnectDeviceApprovalSettings({
             <div className={ITEM_ROW_INNER_CLASSNAME}>
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="text-sm font-medium text-foreground">
-                  Waiting for approval ·{" "}
+                  {t("Waiting for approval ·")}{" "}
                   <span className="font-mono tabular-nums">{connectRequest.verificationCode}</span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {describeConnectDeviceClient(connectRequest)}. Approve only if the device in front
-                  of you shows this code.
+                  {t("{client}. Approve only if the device in front of you shows this code.", {
+                    client: describeConnectDeviceClient(connectRequest),
+                  })}
                 </p>
               </div>
               <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:justify-end">
@@ -124,7 +125,9 @@ export function ConnectDeviceApprovalSettings({
                 <p className="text-xs text-muted-foreground">
                   <span className="font-mono tabular-nums">{device.verificationCode}</span>
                   <span aria-hidden> · </span>
-                  Trusted since {formatAccessTimestamp(DateTime.formatIso(device.approvedAt))}
+                  {t("Trusted since {time}", {
+                    time: formatAccessTimestamp(DateTime.formatIso(device.approvedAt)),
+                  })}
                 </p>
               </div>
               <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:justify-end">

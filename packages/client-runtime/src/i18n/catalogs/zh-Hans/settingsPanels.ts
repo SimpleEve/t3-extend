@@ -603,7 +603,6 @@ export default {
   "Loading recent logs...": "正在加载最近的日志…",
   "No warnings or errors found.": "没有找到警告或错误。",
   "Loading span names...": "正在加载 span 名称…",
-  "Edit EAS host": "编辑 EAS 主机",
   "The environment's server signs in to Expo and starts the sessions. Without a token here it uses EXPO_TOKEN, then its eas login.":
     "由环境的服务器登录 Expo 并启动会话。这里没有填写令牌时，它会使用 EXPO_TOKEN，然后是它的 eas login。",
   "Expo access token": "Expo 访问令牌",
@@ -1667,8 +1666,6 @@ export default {
   "Add a Guide tab to pull requests. An agent explains the changes and points out decisions that need review.":
     "为 PR 添加“导读”标签页。由 Agent 解释改动，并指出需要审查的决策。",
   "Review guides": "审查导读",
-  "Model that reads a pull request to write its review guide. It reads the change itself over many steps, so a stronger model helps. Off uses the source control writer model.":
-    "阅读 PR 并撰写审查导读的模型。它会分多步亲自阅读改动，所以更强的模型效果更好。关闭时使用源代码管理写作模型。",
   "Connect an environment to choose its review guide model.":
     "连接一个环境以选择它的审查导读模型。",
   "Review guide model": "审查导读模型",
@@ -2907,7 +2904,6 @@ export default {
   "Use global default": "使用全局默认",
   "Grouping rule decides how each checkout joins project groups in the sidebar. Changing it can move a checkout to a different project.":
     "分组规则决定每个 checkout 如何并入侧边栏里的项目分组。更改后，某个 checkout 可能会移到另一个项目下。",
-  "{label} token": "{label} 令牌",
   "These databases still hold space freed by history cleanup. Run the command on each machine to reclaim it. It restarts the background service. Quit the desktop app first if it hosts the environment.":
     "这些数据库仍占着历史清理释放的空间。在每台机器上运行该命令即可回收，命令会重启后台服务。如果桌面应用承载着这个环境，请先退出桌面应用。",
   "Hide the commands, edits, and searches agents run. Hide successful keeps failures. Zen shows only final answers. Approvals, questions, and errors always show.":
@@ -3059,4 +3055,65 @@ export default {
     "已安装在 {path}，但它还不在你的 PATH 中。",
   "Installed at {path}, which is not on your PATH yet. Add its folder to your PATH to run `{command}`.":
     "已安装在 {path}，但它还不在你的 PATH 中。把它所在的文件夹加入 PATH 才能运行 `{command}`。",
+  "I’ve quit it": "我已退出",
+  "Waiting for approval ·": "等待批准 ·",
+  "{client}. Approve only if the device in front of you shows this code.":
+    "{client}。仅当你面前的设备显示这个码时才批准。",
+  "Trusted since {time}": "自 {time} 起受信任",
+  "Expo Simulators needs a paid Expo account. A session runs for up to 115 minutes and stops early when it is idle for the idle minutes, so idle minutes must be less than session minutes.":
+    "Expo Simulators 需要付费的 Expo 账号。会话最长运行 115 分钟，空闲达到指定分钟数后会提前结束，因此空闲分钟数必须小于会话分钟数。",
+  "Saving restarts this host and stops its running sessions.":
+    "保存会重启这个主机，并停止它正在运行的会话。",
+  "Forget {name}": "忘记 {name}",
+  "Approval for new devices is off, so a revoked device signed in to your T3 Connect account can connect again on its own.":
+    "新设备批准已关闭，因此已撤销的设备只要登录着你的 T3 Connect 账号，就能自行重新连接。",
+  "Require approval for new T3 Connect devices": "新的 T3 Connect 设备需要批准",
+  "Your session does not have permission to manage access.": "你当前的会话无权管理访问权限。",
+  "Could not reach the server": "无法连接服务器",
+  "{label} failed: {detail}": "{label} 失败：{detail}",
+  "{label} resolved": "{label} 已解析",
+  "Check {label}": "检查 {label}",
+  "Checkout scope": "checkout 范围",
+  "Search checkouts": "搜索 checkout",
+  "Offer {name} when adding or publishing a project": "添加或发布项目时提供 {name}",
+  "{name} token": "{name} 令牌",
+  "Checking for more…": "正在检查更多更新…",
+  "Ln {line}, Col {column}": "第 {line} 行，第 {column} 列",
+  "Saved with this theme and included when you export it. Web and desktop only. Rules that load remote files are ignored.":
+    "随这个主题一起保存，导出时也会包含。仅限 web 和桌面版，加载远程文件的规则会被忽略。",
+  "These databases still hold space freed by history cleanup.":
+    "这些数据库仍占着历史清理释放的空间。",
+  "{amount} on {label}": "{label} 上的 {amount}",
+  "Reclaiming {amount} on {label}": "正在收回 {label} 上的 {amount}",
+  "T3 Extend there restarts and is back in about {minutes} min.":
+    "那边的 T3 Extend 会重启，约 {minutes} 分钟后恢复。",
+  "Could not reclaim space on {label}": "无法收回 {label} 上的空间",
+  "Restarts T3 Extend there. It will be offline for about {minutes} min.":
+    "会重启那边的 T3 Extend，约 {minutes} 分钟内无法使用。",
+  "The last attempt failed: {error}": "上次尝试失败：{error}",
+  "Reclaim {amount} on {label}?": "收回 {label} 上的 {amount}？",
+  "T3 Extend on {label} stops, rebuilds its database, and starts again. It will be offline for about {minutes} min. Running agents stop when it restarts.":
+    "{label} 上的 T3 Extend 会停止、重建数据库并重新启动，约 {minutes} 分钟内无法使用。重启时，运行中的 Agent 会停止。",
+  "More actions for {name}": "{name} 的更多操作",
+  "Enable {name}": "启用 {name}",
+  "This deletes the API key stored on {environment}. Anything set to use this generator falls back to the text generation model.":
+    "这会删除保存在 {environment} 上的 API key。所有设为使用此生成器的任务会回退到文本生成模型。",
+  "{name} is connected and lists 1 model. Switch any of these to it, or keep what they use now.":
+    "{name} 已连接，提供 1 个模型。可以把下面任一项切换过去，也可以保持现状。",
+  "{name} is connected and lists {count} models. Switch any of these to it, or keep what they use now.":
+    "{name} 已连接，提供 {count} 个模型。可以把下面任一项切换过去，也可以保持现状。",
+  "{model} answered. It works.": "{model} 已回答，运行正常。",
+  "Couldn't load {name} models": "无法加载 {name} 的模型",
+  "{name} models": "{name} 的模型",
+  "1 model available. Pick one in a text generation model picker.":
+    "有 1 个模型可用，可在文本生成模型选择器中选用。",
+  "{count} models available. Pick one in a text generation model picker.":
+    "有 {count} 个模型可用，可在文本生成模型选择器中选用。",
+  "Thread titles and other generated text": "对话标题和其他生成的文字",
+  "Commit messages, pull requests, and branch names": "提交信息、PR 和分支名称",
+  "Voice transcript cleanup": "语音转写整理",
+  "Custom (OpenAI-compatible)": "自定义（兼容 OpenAI）",
+  "Writer model not saved": "写作模型未保存",
+  "Pick a time.": "请选择时间。",
+  Preferences: "偏好设置",
 } satisfies Record<string, string>;

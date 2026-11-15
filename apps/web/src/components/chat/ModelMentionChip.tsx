@@ -3,6 +3,7 @@ import type { EnvironmentId, ProviderDriverKind } from "@t3tools/contracts";
 import * as Option from "effect/Option";
 import { Atom } from "effect/reactivity";
 
+import { useT } from "~/hooks/useT"; // fork: interface language
 import { brandProviderInstanceEntries, deriveProviderInstanceEntries } from "~/providerInstances";
 import { serverEnvironment } from "~/state/server";
 import { contextChipAccentWithHueOf } from "~/themePalette";
@@ -90,6 +91,7 @@ export function ModelMentionChip(props: {
   model: string;
   source: string;
 }) {
+  const t = useT();
   const presentation = useAtomValue(
     modelMentionPresentationAtom(
       `${props.environmentId ?? ""}\u0000${modelMentionKey(props.instanceId, props.model)}`,
@@ -112,7 +114,7 @@ export function ModelMentionChip(props: {
         />
       }
       label={presentation.label}
-      accessibleLabel={`Model ${presentation.label}`}
+      accessibleLabel={t("Model {name}", { name: presentation.label })}
       copyMarkdown={props.source}
     >
       <div className="space-y-1 p-2 text-sm">

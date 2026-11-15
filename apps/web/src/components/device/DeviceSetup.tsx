@@ -156,7 +156,13 @@ export function platformSetupStatus(
     ready: true,
     message:
       remoteHost?.kind === "eas"
-        ? `${remoteHost.label} starts ${platform === "ios" ? "iOS Simulators" : "Android emulators"} in the cloud with Expo Simulators.`
+        ? platform === "ios"
+          ? t("{host} starts iOS Simulators in the cloud with Expo Simulators.", {
+              host: remoteHost.label,
+            })
+          : t("{host} starts Android emulators in the cloud with Expo Simulators.", {
+              host: remoteHost.label,
+            })
         : platform === "ios"
           ? host
             ? t("Xcode and iOS Simulator are available on {host}.", { host })

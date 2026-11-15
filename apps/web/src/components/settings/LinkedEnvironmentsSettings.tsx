@@ -300,8 +300,9 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
         <DialogHeader>
           <DialogTitle>{t("Link an environment")}</DialogTitle>
           <DialogDescription>
-            Agents here can then launch, message and wait on threads there. It appears under
-            Authorized clients in that environment's Sharing & access, where it can be revoked.
+            {t(
+              "Agents here can then launch, message and wait on threads there. It appears under Authorized clients in that environment's Sharing & access, where it can be revoked.",
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>
@@ -374,8 +375,10 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
                 />
                 {machine !== null ? (
                   <span className="block text-xs text-muted-foreground">
-                    Create a link on {machine.label}: Settings → Sharing & access → Authorized
-                    clients → Create link, then paste its code here.
+                    {t(
+                      "Create a link on {name}: Settings → Sharing & access → Authorized clients → Create link, then paste its code here.",
+                      { name: machine.label },
+                    )}
                   </span>
                 ) : null}
               </label>

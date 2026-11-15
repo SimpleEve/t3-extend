@@ -1084,7 +1084,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                 selectedInstanceId === "favorites" && !isSearching
                   ? t("No favorites yet")
                   : workspaceModelsScanning
-                    ? "Searching project models..."
+                    ? t("Searching project models...")
                     : t("No models found")
               }
               onRequestClose={onRequestClose}

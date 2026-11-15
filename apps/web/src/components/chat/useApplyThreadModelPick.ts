@@ -4,6 +4,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 import { useContext } from "react";
 
 import { type ComposerThreadTarget, useComposerDraftStore } from "../../composerDraftStore";
@@ -40,7 +41,9 @@ export function useApplyThreadModelPick() {
         stackedThreadToast({
           type: "error",
           title: "Could not apply model selection",
-          description: `This model pick was not saved. ${error instanceof Error ? error.message : "Try again."}`,
+          description: translate(getUiLocale(), "This model pick was not saved. {reason}", {
+            reason: error instanceof Error ? error.message : translate(getUiLocale(), "Try again."),
+          }),
         }),
       );
     }

@@ -207,7 +207,7 @@ function QuitStep({
         <Button variant="outline" onClick={onCancel}>
           {t("Cancel")}
         </Button>
-        <DialogAction onClick={onRechecked}>I&rsquo;ve quit it</DialogAction>
+        <DialogAction onClick={onRechecked}>{t("I’ve quit it")}</DialogAction>
       </DialogFooter>
     </>
   );

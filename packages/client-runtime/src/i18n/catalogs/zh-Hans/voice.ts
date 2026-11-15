@@ -307,7 +307,6 @@ export default {
   "After 10 minutes": "10 分钟后",
   "After 15 minutes": "15 分钟后",
   "After 1 hour": "1 小时后",
-  "Microphone access needed": "需要麦克风权限",
   "Draft unavailable": "草稿不可用",
   "Another recording active": "另一段录音正在进行",
   "Voice input unavailable": "语音输入不可用",
@@ -316,7 +315,6 @@ export default {
   "Transcription failed": "转写失败",
   "Draft changed": "草稿已变化",
   "Microphone processing failed": "麦克风处理失败",
-  "Microphone disconnected": "麦克风已断开",
   "Voice transcription on this environment failed.": "这个环境上的语音转写失败了。",
   "Microphone processing failed.": "麦克风处理失败。",
   "The microphone disconnected.": "麦克风已断开。",
@@ -381,4 +379,23 @@ export default {
   "Recommended for {language}": "推荐用于 {language}",
   "Speed:": "速度：",
   "This model": "此模型",
+  "Download a speech model once. Your audio is transcribed on {destination}.":
+    "语音模型只需下载一次。你的音频会在 {destination} 上转写。",
+  "Using your file at {path}": "正在使用你的文件：{path}",
+  "Stop using your {name} file; the file stays on disk":
+    "停止使用你的 {name} 文件，文件仍保留在磁盘上",
+  "Used by everyone who dictates in {name}.": "在 {name} 中听写的所有人都会用到。",
+  "Grades are error rates and speed is seconds per 30 s of audio, from Handy’s benchmark {tier}.":
+    "等级表示错误率，速度为每 30 秒音频所需的秒数，数据来自 Handy 的 {tier} 基准测试。",
+  "Filter by language: {languages}": "按语言筛选：{languages}",
+  "Most accurate in {language}": "{language}识别最准",
+  "{name} can’t transcribe audio locally. Choose another destination.":
+    "{name} 无法在本地转写音频，请选择其他位置。",
+  Smallest: "最小",
+  "Most accurate": "最准确",
+  Fastest: "最快",
+  "{hint}.": "{hint}。",
+  "Tap to toggle, hold to talk": "点按切换，按住说话",
+  "Record while held": "按住时录音",
+  "Tap to start, tap to stop": "点按开始，再点按停止",
 } satisfies Record<string, string>;

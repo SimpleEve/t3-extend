@@ -254,9 +254,14 @@ function ExtendedOfficeViewer(props: {
           className="flex min-h-10 shrink-0 flex-wrap items-center gap-x-1 border-b border-border/60 px-3 py-2 text-xs text-muted-foreground tabular-nums"
           role="status"
         >
-          Sheet {page + 1} of {count} · {sheet.rowCount.toLocaleString()} row
-          {sheet.rowCount === 1 ? "" : "s"} · {sheet.columns.toLocaleString()} column
-          {sheet.columns === 1 ? "" : "s"}
+          {t("Sheet {page} of {count}", { page: page + 1, count })} ·{" "}
+          {sheet.rowCount === 1
+            ? t("1 row")
+            : t("{count} rows", { count: sheet.rowCount.toLocaleString() })}{" "}
+          ·{" "}
+          {sheet.columns === 1
+            ? t("1 column")
+            : t("{count} columns", { count: sheet.columns.toLocaleString() })}
           {fileSize !== undefined
             ? ` · ${fileSize === 0 ? t("0 bytes") : formatAttachmentSize(fileSize)}`
             : ""}

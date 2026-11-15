@@ -252,7 +252,7 @@ function ModelCard(props: ModelCardProps) {
           ) : null}
           {model.linkedFrom ? (
             <p className="mt-0.5 break-all text-2xs text-muted-foreground">
-              Using your file at {model.linkedFrom}
+              {t("Using your file at {path}", { path: model.linkedFrom })}
             </p>
           ) : null}
           <ModelBenchmarks
@@ -325,7 +325,7 @@ function ModelCard(props: ModelCardProps) {
               disabled={props.busy}
               aria-label={
                 model.linkedFrom
-                  ? `Stop using your ${model.name} file; the file stays on disk`
+                  ? t("Stop using your {name} file; the file stays on disk", { name: model.name })
                   : t("Delete {name}", { name: model.name })
               }
               onClick={props.onDelete}
@@ -489,7 +489,7 @@ function ProjectDictionaryRow() {
       title={isProjectScope ? "Project dictionary" : "Shared dictionary"}
       description={
         isProjectScope
-          ? `Used by everyone who dictates in ${scope.scope.label}.`
+          ? t("Used by everyone who dictates in {name}.", { name: scope.scope.label })
           : t("Used by everyone who dictates on this environment.")
       }
     >
@@ -856,13 +856,13 @@ function SpeechModelBrowser(props: {
   const accuracyLanguage = selectedLanguages[0] ?? "en";
   const sortLabels: Record<SpeechModelSort, string> = {
     recommended: t("Recommended"),
-    size: "Smallest",
-    accuracy: "Most accurate",
-    speed: "Fastest",
+    size: t("Smallest"),
+    accuracy: t("Most accurate"),
+    speed: t("Fastest"),
   };
   const languagesLabel =
     selectedLanguages.length === 0
-      ? "All languages"
+      ? t("All languages")
       : selectedLanguages.map(languageLabel).join(", ");
   const sortedModels = filterSpeechModels(models, {
     search,
@@ -893,7 +893,10 @@ function SpeechModelBrowser(props: {
     <SettingsRow
       {...searchableSetting("speech-models")}
       title="Models"
-      description={`Grades are error rates and speed is seconds per 30 s of audio, from Handy’s benchmark ${status.benchmarkTier === "cpu" ? "CPU" : "GPU"}.`}
+      description={t(
+        "Grades are error rates and speed is seconds per 30 s of audio, from Handy’s benchmark {tier}.",
+        { tier: status.benchmarkTier === "cpu" ? "CPU" : "GPU" },
+      )}
       className="@container/voice-models"
     >
       <div className="mt-3 flex min-w-0 gap-2">
@@ -912,7 +915,7 @@ function SpeechModelBrowser(props: {
         <Menu>
           <MenuTrigger
             render={<Button variant="outline" className="max-w-56" />}
-            aria-label={`Filter by language: ${languagesLabel}`}
+            aria-label={t("Filter by language: {languages}", { languages: languagesLabel })}
           >
             <LanguagesIcon />
             <span className="hidden truncate @min-[34rem]/voice-models:inline">
@@ -986,7 +989,9 @@ function SpeechModelBrowser(props: {
                   <MenuRadioItem key={value} value={value} closeOnClick>
                     <span className="flex items-center justify-between gap-3">
                       {value === "accuracy"
-                        ? `Most accurate in ${languageLabel(accuracyLanguage)}`
+                        ? t("Most accurate in {language}", {
+                            language: languageLabel(accuracyLanguage),
+                          })
                         : sortLabels[value]}
                       <MenuRadioItemIndicator />
                     </span>
@@ -1350,7 +1355,7 @@ export function VoiceSettingsPanel() {
         <SettingsRow
           {...searchableSetting("dictation-shortcut-mode")}
           title="Dictation shortcut"
-          description={`${SHORTCUT_MODES[settings.voiceShortcutMode].hint}.`}
+          description={t("{hint}.", { hint: t(SHORTCUT_MODES[settings.voiceShortcutMode].hint) })}
           control={
             <Select
               value={settings.voiceShortcutMode}
@@ -1360,15 +1365,15 @@ export function VoiceSettingsPanel() {
               }}
             >
               <SelectTrigger size="sm" aria-label={t("Dictation shortcut mode")}>
-                <SelectValue>{SHORTCUT_MODES[settings.voiceShortcutMode].label}</SelectValue>
+                <SelectValue>{t(SHORTCUT_MODES[settings.voiceShortcutMode].label)}</SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
                 {(Object.keys(SHORTCUT_MODES) as VoiceShortcutMode[]).map((mode) => (
                   <SelectItem key={mode} value={mode}>
                     <span className="flex flex-col">
-                      {SHORTCUT_MODES[mode].label}
+                      {t(SHORTCUT_MODES[mode].label)}
                       <span className="text-xs text-muted-foreground">
-                        {SHORTCUT_MODES[mode].hint}
+                        {t(SHORTCUT_MODES[mode].hint)}
                       </span>
                     </span>
                   </SelectItem>
@@ -1385,7 +1390,9 @@ export function VoiceSettingsPanel() {
           title={t("Transcribe with")}
           description={
             destination.environmentId && chosenUnsupported
-              ? `${chosenEnvironment.label} can’t transcribe audio locally. Choose another destination.`
+              ? t("{name} can’t transcribe audio locally. Choose another destination.", {
+                  name: chosenEnvironment.label,
+                })
               : t("Where your speech is turned into text.")
           }
           control={

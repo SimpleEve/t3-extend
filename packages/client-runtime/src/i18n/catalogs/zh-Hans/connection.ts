@@ -730,8 +730,6 @@ export default {
   "This forgets its pairing, credentials, and cached threads here. Switch it off instead to keep it saved.":
     "这会清除它在这里的配对、凭据和缓存的对话。想保留它的话，改为关闭即可。",
   "Remove {label} route?": "移除 {label} 路由？",
-  'Forget {label}? Agents here stop working there. Revoke "T3 Extend · …" in {label}\'s Connections to end the session there too.':
-    "忘记 {label}？这里的 Agent 将无法再在那里工作。要同时结束那边的会话，请在 {label} 的“连接”中撤销“T3 Extend · …”。",
   // T3 Connect environment button states.
   "Reconnecting…": "正在重新连接…",
   "Connection failed": "连接失败",
@@ -845,4 +843,30 @@ export default {
   "Or run `t3 auth connect-device approve {code}` on {host}.":
     "或者在 {host} 上运行 `t3 auth connect-device approve {code}`。",
   "Showing the first {length} files.": "只显示前 {length} 个文件。",
+  "Finishing setup": "正在完成设置",
+  "One moment.": "请稍候。",
+  "Imported 1 thread": "已导入 1 个对话",
+  "this computer": "这台电脑",
+  "Setting up {name}.": "正在设置 {name}。",
+  "Import 1 project and start": "导入 1 个项目并开始",
+  "Import {count} projects and start": "导入 {count} 个项目并开始",
+  "Could not turn on {name}": "无法开启 {name}",
+  "Turn on: {name}": "开启：{name}",
+  "Set up: {name}": "设置：{name}",
+  "Checking {name}…": "正在检查 {name}…",
+  "Looking for projects in your {sources} history…": "正在你的 {sources} 历史里查找项目…",
+  "Import 1 project and its threads": "导入 1 个项目及其对话",
+  "Import {count} projects and their threads": "导入 {count} 个项目及其对话",
+  "From your {sources} history": "来自你的 {sources} 历史",
+  "Review all {count}": "查看全部 {count} 个",
+  "{selected} of {total} selected": "已选 {selected}/{total}",
+  "Could not check projects again. {error}": "无法再次检查项目。{error}",
+  "Could not save Codex setup": "无法保存 Codex 设置",
+  "Run {command} in this terminal.": "请在此终端中运行 {command}。",
+  "Added to {file}. Open a new terminal to use {command}.":
+    "已写入 {file}。打开新终端后即可使用 {command}。",
+  "Use {command} from any terminal. Adds one line to {file}.":
+    "在任意终端使用 {command}，会向 {file} 添加一行。",
+  "This connection cannot manage agents.": "此连接无法管理 Agent。",
+  "Waiting for approval…": "等待批准…",
 } satisfies Record<string, string>;

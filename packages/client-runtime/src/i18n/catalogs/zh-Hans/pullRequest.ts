@@ -716,4 +716,5 @@ export default {
   replies: "条回复",
   "The linked item is not in the loaded activity.": "链接指向的内容不在已加载的活动中。",
   "{error} Showing the last pull requests loaded.": "{error} 显示的是上次加载的 PR。",
+  "The conversation could not be updated": "无法更新这条讨论",
 } satisfies Record<string, string>;

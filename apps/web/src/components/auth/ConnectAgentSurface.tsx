@@ -33,6 +33,7 @@ import { RadioGroup } from "../ui/radio-group";
 import { Spinner } from "../ui/spinner";
 import { StandalonePage, StandalonePageHeader } from "../ui/standalone-page";
 import { useT } from "../../hooks/useT";
+import { interpolateNodes } from "../../lib/interpolateNodes";
 
 export const accessConfig: Record<
   AuthMcpClientAccess,
@@ -266,11 +267,19 @@ export function McpConsent({
         title={t("Connect {clientName}", { clientName: details.clientName })}
         description={
           <>
-            This agent wants to use the threads in every project on{" "}
-            <span className="font-medium text-foreground">
-              {environmentLabel ?? details.environmentHost}
-            </span>
-            {environmentLabel ? ` (${details.environmentHost})` : null}.
+            {interpolateNodes(
+              t("This agent wants to use the threads in every project on {environment}."),
+              {
+                environment: (
+                  <>
+                    <span className="font-medium text-foreground">
+                      {environmentLabel ?? details.environmentHost}
+                    </span>
+                    {environmentLabel ? ` (${details.environmentHost})` : null}
+                  </>
+                ),
+              },
+            )}
           </>
         }
       />
@@ -325,8 +334,12 @@ export function McpConsent({
               value={pairingCode}
             />
             <p className="text-xs text-muted-foreground">
-              Get one from Use T3 Extend in another app (MCP), Settings → Sharing & access, or{" "}
-              <code>t3 auth pairing create</code> on this machine.
+              {interpolateNodes(
+                t(
+                  "Get one from Use T3 Extend in another app (MCP), Settings → Sharing & access, or {command} on this machine.",
+                ),
+                { command: <code>t3 auth pairing create</code> },
+              )}
             </p>
           </div>
         ) : null}
@@ -356,8 +369,9 @@ export function McpConsent({
               ))}
             </RadioGroup>
             <p className="text-xs text-muted-foreground">
-              Beyond read only, it can start, message and stop threads, and none of them can run
-              with more than the mode you pick.
+              {t(
+                "Beyond read only, it can start, message and stop threads, and none of them can run with more than the mode you pick.",
+              )}
             </p>
           </div>
         )}
@@ -374,7 +388,7 @@ export function McpConsent({
               ? t("Approving…")
               : approveLevel === null
                 ? t("Choose what it may do")
-                : `Approve ${accessConfig[approveLevel].label}`}
+                : t("Approve {access}", { access: t(accessConfig[approveLevel].label) })}
           </Button>
           <Button
             disabled={pending !== null}
@@ -430,9 +444,11 @@ export function AccessOption({
   readonly disabledReason: string | undefined;
   readonly description?: string | null;
 }) {
+  const t = useT();
   const { label, icon: Icon } = accessConfig[access];
   const detail =
-    disabledReason ?? (description === undefined ? accessConfig[access].description : description);
+    disabledReason ??
+    (description === undefined ? t(accessConfig[access].description) : description);
   return (
     <RadioPrimitive.Root
       value={access}
@@ -453,7 +469,7 @@ export function AccessOption({
         )}
       />
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-foreground">{label}</span>
+        <span className="block text-sm font-medium text-foreground">{t(label)}</span>
         {detail === null ? null : (
           <span className="block text-xs text-muted-foreground">{detail}</span>
         )}
