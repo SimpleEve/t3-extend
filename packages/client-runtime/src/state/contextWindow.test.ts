@@ -352,10 +352,12 @@ describe("hasCompactableConversation", () => {
   it("needs a real user message, or earlier history that holds one", () => {
     const none = { hasMoreHistory: false, latestUserMessageAt: null };
     expect(hasCompactableConversation({ ...none, visibleTurnItems: [user("fix it")] })).toBe(true);
-    expect(hasCompactableConversation({ ...none, visibleTurnItems: [user(" /Compact ")] })).toBe(false);
-    expect(hasCompactableConversation({ ...none, visibleTurnItems: [user("/compact", [{}])] })).toBe(
-      true,
+    expect(hasCompactableConversation({ ...none, visibleTurnItems: [user(" /Compact ")] })).toBe(
+      false,
     );
+    expect(
+      hasCompactableConversation({ ...none, visibleTurnItems: [user("/compact", [{}])] }),
+    ).toBe(true);
     expect(
       hasCompactableConversation({
         visibleTurnItems: [],
@@ -364,7 +366,11 @@ describe("hasCompactableConversation", () => {
       }),
     ).toBe(true);
     expect(
-      hasCompactableConversation({ visibleTurnItems: [], hasMoreHistory: true, latestUserMessageAt: null }),
+      hasCompactableConversation({
+        visibleTurnItems: [],
+        hasMoreHistory: true,
+        latestUserMessageAt: null,
+      }),
     ).toBe(false);
   });
 });
@@ -379,11 +385,19 @@ describe("deriveThreadContextMeter", () => {
         providerTurns: [
           {
             providerThreadId: "pt-1",
-            tokenUsage: { usedTokens: 50_000, maxTokens: 200_000, updatedAt: "2026-11-15T10:00:00.000Z" },
+            tokenUsage: {
+              usedTokens: 50_000,
+              maxTokens: 200_000,
+              updatedAt: "2026-11-15T10:00:00.000Z",
+            },
           },
           {
             providerThreadId: "pt-other",
-            tokenUsage: { usedTokens: 190_000, maxTokens: 200_000, updatedAt: "2026-11-15T11:00:00.000Z" },
+            tokenUsage: {
+              usedTokens: 190_000,
+              maxTokens: 200_000,
+              updatedAt: "2026-11-15T11:00:00.000Z",
+            },
           },
         ],
       } as never,
