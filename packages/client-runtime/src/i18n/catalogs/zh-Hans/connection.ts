@@ -852,7 +852,7 @@ export default {
   "Set up: {name}": "设置：{name}",
   "Checking {name}…": "正在检查 {name}…",
   "Looking for projects in your {sources} history…": "正在你的 {sources} 历史里查找项目…",
-  "Import 1 project and its threads": "导入 1 个项目及其对话",
+  "Import 1 project and their threads": "导入 1 个项目及其对话",
   "Import {count} projects and their threads": "导入 {count} 个项目及其对话",
   "From your {sources} history": "来自你的 {sources} 历史",
   "Review all {count}": "查看全部 {count} 个",

@@ -849,7 +849,7 @@ function ProjectsSection({
             <span className="block text-sm font-medium text-foreground">
               {canWrite && selected.length > 0
                 ? selected.length === 1
-                  ? t("Import 1 project and its threads")
+                  ? t("Import 1 project and their threads")
                   : t("Import {count} projects and their threads", { count: selected.length })
                 : t("Import projects and their threads")}
             </span>
