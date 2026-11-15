@@ -4,13 +4,19 @@ import {
   formatTurnSeconds,
   type TurnSpeed,
 } from "@t3tools/client-runtime/state/turn-speed";
+import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import type { EnvironmentId, ScopedThreadRef, ThreadId } from "@t3tools/contracts";
 import { memo, useState } from "react";
 
 import { useT } from "~/hooks/useT";
+import {
+  useThreadContextMeter,
+  useThreadContextRing,
+  useThreadLastTurnSpeed,
+} from "~/state/entities";
 import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
 const RING_RADIUS = 6;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
@@ -18,7 +24,7 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 function ContextRing(props: { percent: number; tone: ContextMeter["tone"] }) {
   return (
     <svg viewBox="0 0 16 16" className="size-3.5" fill="none" strokeWidth={2} aria-hidden="true">
-      <circle cx="8" cy="8" r={RING_RADIUS} className="stroke-current opacity-25" />
+      <circle cx="8" cy="8" r={RING_RADIUS} className="stroke-muted-foreground/45" />
       {props.percent > 0 ? (
         <circle
           cx="8"
@@ -52,6 +58,8 @@ function useCompactBlockerLabel() {
   const t = useT();
   return (blocker: CompactNowBlocker) => {
     switch (blocker) {
+      case "offline":
+        return t("Not connected to this environment.");
       case "permission":
         return t("You don't have permission to operate this thread.");
       case "provider":
@@ -69,25 +77,16 @@ function useCompactBlockerLabel() {
 }
 
 function ContextMeterDetails(props: {
-  meter: ContextMeter;
-  speed: TurnSpeed | null;
+  threadRef: ScopedThreadRef;
   compactBlocker: CompactNowBlocker | null;
   onCompact: () => void;
 }) {
-  const { meter, speed, compactBlocker, onCompact } = props;
+  const { compactBlocker, onCompact } = props;
   const t = useT();
+  const meter = useThreadContextMeter(props.threadRef);
+  const speed = useThreadLastTurnSpeed(props.threadRef);
   const blockerLabel = useCompactBlockerLabel();
-  const compactButton = (
-    <Button
-      type="button"
-      size="xs"
-      variant="outline"
-      disabled={compactBlocker !== null}
-      onClick={onCompact}
-    >
-      {t("Compact now")}
-    </Button>
-  );
+  if (meter === null) return null;
   return (
     <div className="flex w-full flex-col gap-2 text-xs" data-context-meter-details="">
       <div className="flex items-baseline justify-between gap-3">
@@ -121,16 +120,22 @@ function ContextMeterDetails(props: {
           </span>
         ) : null}
       </div>
-      {compactBlocker !== null ? (
-        <Tooltip>
-          <TooltipTrigger render={<span className="inline-flex self-start" />}>
-            {compactButton}
-          </TooltipTrigger>
-          <TooltipPopup>{blockerLabel(compactBlocker)}</TooltipPopup>
-        </Tooltip>
-      ) : (
-        <span className="inline-flex self-start">{compactButton}</span>
-      )}
+      <div className="flex flex-col items-start gap-1">
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          disabled={compactBlocker !== null}
+          onClick={onCompact}
+        >
+          {t("Compact now")}
+        </Button>
+        {compactBlocker !== null ? (
+          <span className="text-muted-foreground" data-compact-blocker="">
+            {blockerLabel(compactBlocker)}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -167,43 +172,50 @@ function TurnSpeedDetails(props: { speed: TurnSpeed }) {
 }
 
 /**
- * Context usage ring and last-turn speed in the composer footer. Each renders only with data. The
- * speed is fixed per finished turn, so nothing here changes while a reply streams.
+ * Context usage ring and last-turn speed in the composer footer. It reads its own atoms, which
+ * hold still until the shown percentage or a finished turn's speed changes, so a streaming reply
+ * does not re-render the composer. Each part renders only with data.
  */
 export const ComposerContextMeter = memo(function ComposerContextMeter(props: {
-  meter: ContextMeter | null;
-  speed: TurnSpeed | null;
+  environmentId: EnvironmentId;
+  threadId: ThreadId | null;
   /** Narrow footer: the ring alone, without its percentage or the speed label. */
   compact: boolean;
   compactBlocker: CompactNowBlocker | null;
   onCompact: () => void;
 }) {
-  const { meter, speed, compact, compactBlocker, onCompact } = props;
+  const { environmentId, threadId, compact, compactBlocker, onCompact } = props;
   const t = useT();
+  const threadRef = threadId === null ? null : scopeThreadRef(environmentId, threadId);
+  const ring = useThreadContextRing(threadRef);
+  const speed = useThreadLastTurnSpeed(threadRef);
   const [meterOpen, setMeterOpen] = useState(false);
-  if (meter === null && speed === null) return null;
+  if (threadRef === null || (ring === null && speed === null)) return null;
   return (
     <div
       data-chat-composer-context-meter=""
       className="flex shrink-0 items-center gap-0.5 text-muted-foreground"
     >
-      {meter !== null ? (
+      {ring !== null ? (
         <Popover open={meterOpen} onOpenChange={setMeterOpen}>
           <PopoverTrigger
+            openOnHover
+            delay={300}
+            closeDelay={150}
             render={
               <Button
                 type="button"
                 size="xs"
                 variant="ghost-muted"
-                aria-label={`${t("Context usage")} ${meter.percent}%`}
+                aria-label={`${t("Context usage")} ${ring.percent}%`}
                 data-context-meter-trigger=""
               />
             }
           >
-            <ContextRing percent={meter.percent} tone={meter.tone} />
+            <ContextRing percent={ring.percent} tone={ring.tone} />
             {compact ? null : (
-              <span className={cn("tabular-nums", toneTextClassName(meter.tone))}>
-                {meter.percent}%
+              <span className={cn("tabular-nums", toneTextClassName(ring.tone))}>
+                {ring.percent}%
               </span>
             )}
           </PopoverTrigger>
@@ -216,8 +228,7 @@ export const ComposerContextMeter = memo(function ComposerContextMeter(props: {
             initialFocus={false}
           >
             <ContextMeterDetails
-              meter={meter}
-              speed={speed}
+              threadRef={threadRef}
               compactBlocker={compactBlocker}
               onCompact={() => {
                 setMeterOpen(false);
@@ -230,6 +241,9 @@ export const ComposerContextMeter = memo(function ComposerContextMeter(props: {
       {speed !== null && !compact ? (
         <Popover>
           <PopoverTrigger
+            openOnHover
+            delay={300}
+            closeDelay={150}
             render={
               <Button type="button" size="xs" variant="ghost-muted" data-turn-speed-trigger="" />
             }

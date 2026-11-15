@@ -156,8 +156,7 @@ import {
   shouldUseCompactComposerPrimaryActions,
   shouldUseCompactComposerFooter,
 } from "../composerFooterLayout";
-import type { CompactNowBlocker, ContextMeter } from "@t3tools/client-runtime/state/context-window"; // fork: composer context meter
-import type { TurnSpeed } from "@t3tools/client-runtime/state/turn-speed"; // fork: composer context meter
+import type { CompactNowBlocker } from "@t3tools/client-runtime/state/context-window"; // fork: composer context meter
 import { ComposerContextMeter } from "./ComposerContextMeter"; // fork: composer context meter
 import {
   type ComposerCitationCommentRequest,
@@ -436,8 +435,6 @@ export interface ChatComposerProps {
 
   compactThreadUnavailable: boolean;
   compactDisabled: boolean;
-  contextMeter: ContextMeter | null; // fork: composer context meter
-  lastTurnSpeed: TurnSpeed | null; // fork: composer context meter
   compactBlocker: CompactNowBlocker | null; // fork: composer context meter
 
   resolvedTheme: "light" | "dark";
@@ -2289,6 +2286,18 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     onCompactContext();
   };
   const compactThreadContextStable = useStableCallback(compactThreadContext);
+  // fork: composer context meter. The shared gate, plus what only the composer knows; pressed
+  // again against the latest state so a stale popover cannot send.
+  const meterCompactBlocker: CompactNowBlocker | null =
+    props.compactBlocker ??
+    (phase === "running" || phase === "connecting" || isSendBusy
+      ? "working"
+      : noProviderAvailable
+        ? "provider"
+        : null);
+  const compactFromMeterStable = useStableCallback(() => {
+    if (meterCompactBlocker === null) compactThreadContext();
+  });
   const expandMobileComposer = () => {
     if (composerBlurFrameRef.current !== null) {
       window.cancelAnimationFrame(composerBlurFrameRef.current);
@@ -3753,22 +3762,14 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                   >
                     {composerControls}
                   </div>
-                  {dictationTakesFooter ? null : (
-                    <ComposerContextMeter // fork: composer context meter
-                      meter={props.contextMeter}
-                      speed={props.lastTurnSpeed}
-                      compact={isComposerFooterCompact}
-                      compactBlocker={
-                        props.compactBlocker ??
-                        (phase === "running" || isSendBusy
-                          ? "working"
-                          : noProviderAvailable
-                            ? "provider"
-                            : null)
-                      }
-                      onCompact={compactThreadContextStable}
-                    />
-                  )}
+                  <ComposerContextMeter // fork: composer context meter
+                    environmentId={environmentId}
+                    threadId={activeThreadId}
+                    // Dictation takes the footer too, and then only the ring fits.
+                    compact={isComposerFooterCompact || dictationTakesFooter}
+                    compactBlocker={meterCompactBlocker}
+                    onCompact={compactFromMeterStable}
+                  />
                   <ComposerFooterPrimaryActions
                     // Stop state belongs to one thread; the composer stays mounted across threads.
                     key={`${environmentId}:${activeThreadId ?? "new"}`}

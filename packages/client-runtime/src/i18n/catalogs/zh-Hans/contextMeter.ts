@@ -14,6 +14,7 @@ export default {
   "{tokens} tokens": "{tokens} tokens",
   "Approximate: counts the time spent writing, not tool calls.":
     "近似值：只统计生成文字的时间，不含工具调用。",
+  "Not connected to this environment.": "未连接到这个环境。",
   "You don't have permission to operate this thread.": "你没有操作这个对话的权限。",
   "This provider doesn't support /compact.": "这个 provider 不支持 /compact。",
   "There is nothing to compact yet.": "还没有可压缩的内容。",

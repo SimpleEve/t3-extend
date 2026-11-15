@@ -29,6 +29,8 @@ import type {
   TurnItemId,
 } from "@t3tools/contracts";
 import type { ThreadCheckpointSummary } from "@t3tools/client-runtime/state/thread-checkpoints";
+import type { ContextMeter } from "@t3tools/client-runtime/state/context-window"; // fork: composer context meter
+import type { TurnSpeed } from "@t3tools/client-runtime/state/turn-speed"; // fork: composer context meter
 import { Atom } from "effect/reactivity";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { environmentProjects } from "./projects";
@@ -266,6 +268,36 @@ export function useQuietThreadVisibleTurnItems(
     ref === null
       ? EMPTY_VISIBLE_TURN_ITEMS_ATOM
       : environmentThreadDetails.quietVisibleTurnItemsAtom(ref),
+  );
+}
+
+// fork: composer context meter
+const EMPTY_CONTEXT_RING_ATOM = Atom.make<Pick<ContextMeter, "percent" | "tone"> | null>(null).pipe(
+  Atom.withLabel("web-thread-context-ring:empty"),
+);
+const EMPTY_CONTEXT_METER_ATOM = Atom.make<ContextMeter | null>(null).pipe(
+  Atom.withLabel("web-thread-context-meter:empty"),
+);
+const EMPTY_LAST_TURN_SPEED_ATOM = Atom.make<TurnSpeed | null>(null).pipe(
+  Atom.withLabel("web-thread-last-turn-speed:empty"),
+);
+
+/** The rounded percentage and tone only; it holds still while the token counts move. */
+export function useThreadContextRing(ref: ScopedThreadRef | null) {
+  return useAtomValue(
+    ref === null ? EMPTY_CONTEXT_RING_ATOM : environmentThreadDetails.contextRingAtom(ref),
+  );
+}
+
+export function useThreadContextMeter(ref: ScopedThreadRef | null) {
+  return useAtomValue(
+    ref === null ? EMPTY_CONTEXT_METER_ATOM : environmentThreadDetails.contextMeterAtom(ref),
+  );
+}
+
+export function useThreadLastTurnSpeed(ref: ScopedThreadRef | null) {
+  return useAtomValue(
+    ref === null ? EMPTY_LAST_TURN_SPEED_ATOM : environmentThreadDetails.lastTurnSpeedAtom(ref),
   );
 }
 
