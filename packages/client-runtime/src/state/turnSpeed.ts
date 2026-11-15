@@ -110,13 +110,16 @@ export function deriveTurnSpeed(
     if (item.providerTurnId !== turn.id || item.startedAt === null) continue;
     const isDecode = DECODE_ITEM_TYPES.has(item.type);
     if (!isDecode && !NON_DECODE_ITEM_TYPES.has(item.type)) continue;
-    const start = DateTime.toEpochMillis(item.startedAt);
     const endTime = item.completedAt ?? item.updatedAt;
-    const end =
+    const rawEnd =
       endTime === undefined || endTime === null ? turnEnd : DateTime.toEpochMillis(endTime);
-    if (end === null) continue;
+    if (rawEnd === null) continue;
+    // A provider can stamp an item outside its own turn; only the part inside counts.
+    const start = Math.max(DateTime.toEpochMillis(item.startedAt), turnStart);
+    const end = turnEnd === null ? rawEnd : Math.min(rawEnd, turnEnd);
+    if (end <= start) continue;
     if (isDecode) firstOutputAt = firstOutputAt === null ? start : Math.min(firstOutputAt, start);
-    if (end > start) (isDecode ? decode : blocked).push([start, end]);
+    (isDecode ? decode : blocked).push([start, end]);
   }
 
   const decodeMs = subtractIntervals(mergeIntervals(decode), mergeIntervals(blocked)).reduce(
@@ -131,7 +134,7 @@ export function deriveTurnSpeed(
     decodeMs,
     tokensPerSecond: outputTokens / (decodeMs / 1000),
     turnMs: turnEnd === null ? null : Math.max(0, turnEnd - turnStart),
-    firstTokenMs: firstOutputAt === null ? null : Math.max(0, firstOutputAt - turnStart),
+    firstTokenMs: firstOutputAt === null ? null : firstOutputAt - turnStart,
   };
 }
 
@@ -168,4 +171,45 @@ export function formatTurnSeconds(ms: number): string {
   if (tenths < 100) return `${(tenths / 10).toFixed(1)}s`;
   const seconds = Math.round(Math.max(0, ms) / 1000);
   return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
+
+type TurnSpeedCache = {
+  readonly key: string;
+  readonly rows: ReadonlyArray<unknown>;
+  readonly speed: TurnSpeed | null;
+};
+
+/**
+ * `deriveLatestTurnSpeed` that scans items only when a turn finishes or reports new usage, not on
+ * every streamed update. A turn only takes part once it is complete and carries a usable report,
+ * so the key is the list of those; with none, nothing is scanned at all.
+ */
+export function createLastTurnSpeedSelector() {
+  let cache: TurnSpeedCache | null = null;
+  return (
+    turns: ReadonlyArray<TurnSpeedTurn>,
+    rows: ReadonlyArray<{ readonly item: TurnSpeedItem }>,
+  ): TurnSpeed | null => {
+    const key = turns
+      .flatMap((turn) =>
+        turn.status === "completed" && turn.completedAt !== null && turnOutputTokens(turn) !== null
+          ? [`${turn.id}@${DateTime.toEpochMillis(turn.completedAt)}#${turnOutputTokens(turn)}`]
+          : [],
+      )
+      .join("|");
+    if (key === "") {
+      cache = null;
+      return null;
+    }
+    // A turn with no measurable speed is judged by its items, so a miss reads them again once they change.
+    if (cache !== null && cache.key === key && (cache.speed !== null || cache.rows === rows)) {
+      return cache.speed;
+    }
+    const speed = deriveLatestTurnSpeed(
+      turns,
+      rows.map(({ item }) => item),
+    );
+    cache = { key, rows, speed };
+    return speed;
+  };
 }

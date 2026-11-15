@@ -204,6 +204,25 @@ export function deriveLatestContextWindowSnapshot(
   return null;
 }
 
+/**
+ * The server checks the full history, but the first page of an agent-started thread or a long
+ * turn can hold no user message.
+ */
+export function hasCompactableConversation(input: {
+  readonly visibleTurnItems: ReadonlyArray<{ readonly item: ThreadStructureTurnItem }>;
+  readonly hasMoreHistory: boolean;
+  readonly latestUserMessageAt: string | null;
+}): boolean {
+  return (
+    input.visibleTurnItems.some(
+      ({ item }) =>
+        item.type === "user_message" &&
+        (item.text.trim().toLowerCase() !== "/compact" || item.attachments.length > 0),
+    ) ||
+    (input.hasMoreHistory && input.latestUserMessageAt !== null)
+  );
+}
+
 export interface ContextMeter {
   readonly percent: number;
   readonly usedTokens: number;
@@ -236,7 +255,28 @@ export function deriveContextMeter(snapshot: ContextWindowSnapshot | null): Cont
   };
 }
 
+/** The meter for a thread's structure, from the provider's newest report of its active conversation. */
+export function deriveThreadContextMeter(
+  projection: Pick<
+    ThreadStructure,
+    "thread" | "contextTransfers" | "providerThreads" | "providerTurns"
+  >,
+  visibleTurnItems: ReadonlyArray<{ readonly item: ThreadStructureTurnItem }>,
+): ContextMeter | null {
+  const providerThread = projection.providerThreads.find(
+    (thread) => thread.id === projection.thread.activeProviderThreadId,
+  );
+  return deriveContextMeter(
+    deriveLatestContextWindowSnapshot(
+      visibleTurnItems,
+      latestProviderTurnTokenUsage(projection.providerTurns, projection, providerThread),
+      providerThread,
+    ),
+  );
+}
+
 export type CompactNowBlocker =
+  | "offline"
   | "permission"
   | "provider"
   | "empty"
@@ -246,9 +286,12 @@ export type CompactNowBlocker =
 
 /**
  * Why the meter's "Compact now" is off, most lasting cause first. It sends the same `/compact`
- * a typed one does, so it is off wherever that send would be refused.
+ * a typed one does, so it is off wherever that send would be refused. `working` covers a run that
+ * is starting or running, a compaction, a send in flight, and queued messages; callers evaluate
+ * this again when the button is pressed.
  */
 export function compactNowBlocker(input: {
+  readonly connected: boolean;
   readonly canOperateThread: boolean;
   readonly providerSupportsCompact: boolean;
   readonly hasCompactableConversation: boolean;
@@ -256,6 +299,7 @@ export function compactNowBlocker(input: {
   readonly hasPendingRequest: boolean;
   readonly otherwiseUnavailable: boolean;
 }): CompactNowBlocker | null {
+  if (!input.connected) return "offline";
   if (!input.canOperateThread) return "permission";
   if (!input.providerSupportsCompact) return "provider";
   if (!input.hasCompactableConversation) return "empty";

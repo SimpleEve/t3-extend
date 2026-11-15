@@ -13,6 +13,11 @@ import {
   type ThreadOutputs,
 } from "../outputs/threadOutputs.ts"; // fork: outputs
 import * as Option from "effect/Option";
+import {
+  deriveThreadContextMeter, // fork: composer context meter
+  type ContextMeter, // fork: composer context meter
+} from "./contextWindow.ts";
+import { createLastTurnSpeedSelector, type TurnSpeed } from "./turnSpeed.ts"; // fork: composer context meter
 import * as Schema from "effect/Schema";
 import { AsyncResult, Atom } from "effect/reactivity";
 
@@ -62,6 +67,17 @@ const EMPTY_CHECKPOINT_SUMMARIES: ReadonlyArray<ThreadCheckpointSummary> = Objec
  * File tools are explicit; commands, MCP or dynamic tools and subagents are included because
  * they can mutate the workspace without reporting the paths they touched.
  */
+// fork: composer context meter
+function sameFields<T extends object>(left: T | null, right: T | null): boolean {
+  if (left === right) return true;
+  if (left === null || right === null) return false;
+  const keys = Object.keys(left) as Array<keyof T>;
+  return (
+    keys.length === Object.keys(right).length &&
+    keys.every((key) => Object.is(left[key], right[key]))
+  );
+}
+
 export function deriveWorkspaceMutationId(
   visibleTurnItems: ReadonlyArray<ThreadStructureVisibleTurnItem>,
   latestCheckpointCompletedAt: string | null,
@@ -393,6 +409,45 @@ export function createEnvironmentThreadDetailAtoms<E>(
     );
   });
 
+  // fork: composer context meter. Each holds its previous value while its fields are equal, so a
+  // reader re-renders when what it shows changes, not on every usage report or streamed update.
+  const contextMeterAtomFamily = Atom.family((key: string) => {
+    let value: ContextMeter | null = null;
+    return Atom.make((get) => {
+      const thread = get(quietThreadAtomFamily(key));
+      const next =
+        thread === null
+          ? null
+          : deriveThreadContextMeter(thread.projection, get(quietVisibleTurnItemsAtomFamily(key)));
+      if (!sameFields(value, next)) value = next;
+      return value;
+    }).pipe(Atom.setIdleTTL(0), Atom.withLabel(`environment-thread-context-meter:${key}`));
+  });
+
+  const contextRingAtomFamily = Atom.family((key: string) => {
+    let value: Pick<ContextMeter, "percent" | "tone"> | null = null;
+    return Atom.make((get) => {
+      const meter = get(contextMeterAtomFamily(key));
+      const next = meter === null ? null : { percent: meter.percent, tone: meter.tone };
+      if (!sameFields(value, next)) value = next;
+      return value;
+    }).pipe(Atom.setIdleTTL(0), Atom.withLabel(`environment-thread-context-ring:${key}`));
+  });
+
+  const lastTurnSpeedAtomFamily = Atom.family((key: string) => {
+    const select = createLastTurnSpeedSelector();
+    let value: TurnSpeed | null = null;
+    return Atom.make((get) => {
+      const thread = get(quietThreadAtomFamily(key));
+      const next =
+        thread === null
+          ? null
+          : select(thread.projection.providerTurns, get(quietVisibleTurnItemsAtomFamily(key)));
+      if (!sameFields(value, next)) value = next;
+      return value;
+    }).pipe(Atom.setIdleTTL(0), Atom.withLabel(`environment-thread-last-turn-speed:${key}`));
+  });
+
   // Holds while only streamed assistant text moves, so the timeline re-renders on structure;
   // each streaming message reads its text through assistantMessageTextAtom.
   const timelineVisibleTurnItemsAtomFamily = Atom.family((key: string) => {
@@ -683,6 +738,9 @@ export function createEnvironmentThreadDetailAtoms<E>(
     visibleTurnItemsAtom: (ref: ScopedThreadRef) => visibleTurnItemsAtomFamily(threadKey(ref)),
     quietVisibleTurnItemsAtom: (ref: ScopedThreadRef) =>
       quietVisibleTurnItemsAtomFamily(threadKey(ref)),
+    contextMeterAtom: (ref: ScopedThreadRef) => contextMeterAtomFamily(threadKey(ref)), // fork: composer context meter
+    contextRingAtom: (ref: ScopedThreadRef) => contextRingAtomFamily(threadKey(ref)), // fork: composer context meter
+    lastTurnSpeedAtom: (ref: ScopedThreadRef) => lastTurnSpeedAtomFamily(threadKey(ref)), // fork: composer context meter
     timelineVisibleTurnItemsAtom: (ref: ScopedThreadRef) =>
       timelineVisibleTurnItemsAtomFamily(threadKey(ref)),
     assistantMessageTextAtom: (ref: ScopedThreadRef, itemId: string) =>

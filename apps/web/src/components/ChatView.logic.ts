@@ -1041,24 +1041,8 @@ export function deriveCommittedServerUserMessageIds(
   );
 }
 
-/**
- * The server checks the full history, but the first page of an
- * agent-started thread or a long turn can hold no user message.
- */
-export function hasCompactableConversation(input: {
-  readonly visibleTurnItems: ReadonlyArray<ThreadStructureRow>;
-  readonly hasMoreHistory: boolean;
-  readonly latestUserMessageAt: string | null;
-}): boolean {
-  return (
-    input.visibleTurnItems.some(
-      ({ item }) =>
-        item.type === "user_message" &&
-        (item.text.trim().toLowerCase() !== "/compact" || item.attachments.length > 0),
-    ) ||
-    (input.hasMoreHistory && input.latestUserMessageAt !== null)
-  );
-}
+// fork: shared with mobile so both decide "Compact now" the same way.
+export { hasCompactableConversation } from "@t3tools/client-runtime/state/context-window";
 
 export function hasServerAcknowledgedLocalDispatch(input: {
   localDispatch: LocalDispatchSnapshot | null;

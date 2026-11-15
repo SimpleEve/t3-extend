@@ -640,3 +640,124 @@ describe("outputsAtom and runOutputsAtom", () => {
     expect(thread.run()).toBe(run);
   });
 });
+
+describe("composer context meter atoms", () => {
+  const ref = { environmentId: EnvironmentId.make("environment-1"), threadId: v2ThreadId };
+  const at = (seconds: number) =>
+    DateTime.makeUnsafe(Date.parse("2026-06-20T00:00:00.000Z") + seconds * 1000);
+  const usage = (usedTokens: number, seconds: number, output = 400) => ({
+    tokenUsage: {
+      usedTokens,
+      maxTokens: 200_000,
+      updatedAt: DateTime.formatIso(at(seconds)),
+    },
+    turnTokenUsage: {
+      usageScope: "main_agent",
+      usageStatus: "complete",
+      inputTokens: 1000,
+      outputTokens: output,
+      hasSubagents: false,
+    },
+  });
+  const turn = (id: string, status: string, start: number, end: number | null, extra: object) =>
+    ({
+      id,
+      providerThreadId: "pt-1",
+      status,
+      startedAt: at(start),
+      completedAt: end === null ? null : at(end),
+      ...extra,
+    }) as never;
+  const textItem = (id: string, turnId: string, start: number, end: number | null) =>
+    ({
+      id,
+      type: "assistant_message",
+      providerTurnId: turnId,
+      startedAt: at(start),
+      completedAt: end === null ? null : at(end),
+      updatedAt: at(end ?? start),
+      status: end === null ? "running" : "completed",
+      streaming: end === null,
+      text: "",
+    }) as never;
+  const projection = (providerTurns: ReadonlyArray<never>, items: ReadonlyArray<never>) =>
+    ({
+      ...v2Projection,
+      thread: { ...v2Projection.thread, activeProviderThreadId: "pt-1" as never },
+      providerThreads: [{ id: "pt-1", contextUsage: null, updatedAt: at(0) }] as never,
+      providerTurns,
+      turnItems: items,
+      visibleTurnItems: items.map((item: never, position) => ({
+        position,
+        visibility: "local" as const,
+        sourceThreadId: v2ThreadId,
+        sourceItemId: (item as { id: string }).id,
+        item,
+      })) as never,
+    }) as OrchestrationV2ThreadProjection;
+
+  function setup(initial: OrchestrationV2ThreadProjection) {
+    const stateAtom = Atom.make(
+      AsyncResult.success({ ...EMPTY_ENVIRONMENT_THREAD_STATE, data: Option.some(initial) }),
+    );
+    const details = createEnvironmentThreadDetailAtoms(() => stateAtom);
+    const registry = AtomRegistry.make();
+    registry.mount(details.contextRingAtom(ref));
+    registry.mount(details.contextMeterAtom(ref));
+    registry.mount(details.lastTurnSpeedAtom(ref));
+    return {
+      ring: () => registry.get(details.contextRingAtom(ref)),
+      meter: () => registry.get(details.contextMeterAtom(ref)),
+      speed: () => registry.get(details.lastTurnSpeedAtom(ref)),
+      [Symbol.dispose]: () => registry.dispose(),
+      push: (next: OrchestrationV2ThreadProjection) =>
+        registry.set(
+          stateAtom,
+          AsyncResult.success({ ...EMPTY_ENVIRONMENT_THREAD_STATE, data: Option.some(next) }),
+        ),
+    };
+  }
+
+  const finished = turn("turn-1", "completed", 0, 20, usage(50_000, 20));
+  const finishedItems = [textItem("a-1", "turn-1", 1, 11)];
+
+  it("shows the ring and speed of a finished turn", () => {
+    using thread = setup(projection([finished], finishedItems));
+    expect(thread.ring()).toEqual({ percent: 25, tone: null });
+    expect(thread.speed()).toMatchObject({ providerTurnId: "turn-1", tokensPerSecond: 40 });
+  });
+
+  it("keeps the ring and speed while the next turn streams within the same percent", () => {
+    using thread = setup(projection([finished], finishedItems));
+    const ring = thread.ring();
+    const speed = thread.speed();
+    const meter = thread.meter();
+    // A report from the running turn moves usedTokens but not the rounded percent.
+    thread.push(
+      projection(
+        [finished, turn("turn-2", "running", 30, null, usage(50_900, 31, 60))],
+        [...finishedItems, textItem("a-2", "turn-2", 31, null)],
+      ),
+    );
+    expect(thread.ring()).toBe(ring);
+    expect(thread.speed()).toBe(speed);
+    expect(thread.meter()).not.toBe(meter);
+    expect(thread.meter()?.usedTokens).toBe(50_900);
+  });
+
+  it("moves the ring when the percent does, and the speed when a new turn finishes", () => {
+    using thread = setup(projection([finished], finishedItems));
+    const ring = thread.ring();
+    const speed = thread.speed();
+    thread.push(
+      projection(
+        [finished, turn("turn-2", "completed", 30, 50, usage(170_000, 50, 800))],
+        [...finishedItems, textItem("a-2", "turn-2", 31, 41)],
+      ),
+    );
+    expect(thread.ring()).not.toBe(ring);
+    expect(thread.ring()).toEqual({ percent: 85, tone: "warning" });
+    expect(thread.speed()).not.toBe(speed);
+    expect(thread.speed()?.providerTurnId).toBe("turn-2");
+  });
+});

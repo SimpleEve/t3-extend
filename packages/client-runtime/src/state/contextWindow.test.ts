@@ -18,6 +18,8 @@ import {
   compactBeforeSendTokens,
   compactNowBlocker,
   deriveContextMeter,
+  deriveThreadContextMeter,
+  hasCompactableConversation,
   type ContextWindowSnapshot,
 } from "./contextWindow.ts";
 import type { ThreadStructure } from "./models.ts";
@@ -312,6 +314,7 @@ describe("deriveContextMeter", () => {
 
 describe("compactNowBlocker", () => {
   const ready = {
+    connected: true,
     canOperateThread: true,
     providerSupportsCompact: true,
     hasCompactableConversation: true,
@@ -336,5 +339,56 @@ describe("compactNowBlocker", () => {
     expect(compactNowBlocker({ ...ready, canOperateThread: false, working: true })).toBe(
       "permission",
     );
+    expect(compactNowBlocker({ ...ready, connected: false, canOperateThread: false })).toBe(
+      "offline",
+    );
+  });
+});
+
+describe("hasCompactableConversation", () => {
+  const user = (text: string, attachments: ReadonlyArray<unknown> = []) =>
+    ({ item: { type: "user_message", text, attachments } }) as never;
+
+  it("needs a real user message, or earlier history that holds one", () => {
+    const none = { hasMoreHistory: false, latestUserMessageAt: null };
+    expect(hasCompactableConversation({ ...none, visibleTurnItems: [user("fix it")] })).toBe(true);
+    expect(hasCompactableConversation({ ...none, visibleTurnItems: [user(" /Compact ")] })).toBe(false);
+    expect(hasCompactableConversation({ ...none, visibleTurnItems: [user("/compact", [{}])] })).toBe(
+      true,
+    );
+    expect(
+      hasCompactableConversation({
+        visibleTurnItems: [],
+        hasMoreHistory: true,
+        latestUserMessageAt: "2026-11-15T10:00:00.000Z",
+      }),
+    ).toBe(true);
+    expect(
+      hasCompactableConversation({ visibleTurnItems: [], hasMoreHistory: true, latestUserMessageAt: null }),
+    ).toBe(false);
+  });
+});
+
+describe("deriveThreadContextMeter", () => {
+  it("reads the active provider thread's newest report", () => {
+    const meter = deriveThreadContextMeter(
+      {
+        thread: { activeProviderThreadId: "pt-1", forkedFrom: null },
+        contextTransfers: [],
+        providerThreads: [{ id: "pt-1", contextUsage: null }],
+        providerTurns: [
+          {
+            providerThreadId: "pt-1",
+            tokenUsage: { usedTokens: 50_000, maxTokens: 200_000, updatedAt: "2026-11-15T10:00:00.000Z" },
+          },
+          {
+            providerThreadId: "pt-other",
+            tokenUsage: { usedTokens: 190_000, maxTokens: 200_000, updatedAt: "2026-11-15T11:00:00.000Z" },
+          },
+        ],
+      } as never,
+      [],
+    );
+    expect(meter).toMatchObject({ percent: 25, usedTokens: 50_000, maxTokens: 200_000 });
   });
 });

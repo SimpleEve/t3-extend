@@ -3,6 +3,7 @@ import * as DateTime from "effect/DateTime";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  createLastTurnSpeedSelector,
   deriveLatestTurnSpeed,
   deriveTurnSpeed,
   formatTokensPerSecond,
@@ -142,6 +143,88 @@ describe("deriveTurnSpeed", () => {
     expect(deriveTurnSpeed(turn(), [item("command_execution", 0, 10)])).toBeNull();
     // A reply that arrived in one piece says nothing about speed.
     expect(deriveTurnSpeed(turn(), [item("assistant_message", 3, 3.2)])).toBeNull();
+  });
+});
+
+describe("items outside the turn", () => {
+  it("counts only the part of an item inside the turn", () => {
+    // The turn runs 0-20s; a reply stamped -5..8s and one stamped 15..40s each lose their overhang.
+    const speed = deriveTurnSpeed(turn(), [
+      item("assistant_message", -5, 8),
+      item("assistant_message", 15, 40),
+    ]);
+    expect(speed?.decodeMs).toBe(13_000);
+    expect(speed?.firstTokenMs).toBe(0);
+  });
+
+  it("drops items wholly outside the turn or with reversed times", () => {
+    const speed = deriveTurnSpeed(turn(), [
+      item("assistant_message", 1, 11),
+      item("assistant_message", 25, 40),
+      item("assistant_message", -9, -3),
+      item("assistant_message", 14, 12),
+      item("reasoning", 30, 31),
+    ]);
+    expect(speed?.decodeMs).toBe(10_000);
+    expect(speed?.firstTokenMs).toBe(1000);
+  });
+
+  it("clips tool time the same way, so it never removes more than the turn held", () => {
+    // A command stamped 5..60s removes only 5..20s; the reply 1..20s keeps 1..5s.
+    const speed = deriveTurnSpeed(turn(), [
+      item("assistant_message", 1, 20),
+      item("command_execution", 5, 60),
+    ]);
+    expect(speed?.decodeMs).toBe(4000);
+  });
+});
+
+const row = (value: TurnSpeedItem) => ({ item: value });
+
+describe("createLastTurnSpeedSelector", () => {
+  it("scans items once per finished turn and keeps the result while a turn streams", () => {
+    const select = createLastTurnSpeedSelector();
+    const done = turn();
+    const items = [row(item("assistant_message", 0, 10))];
+    const first = select([done], items);
+    expect(first?.providerTurnId).toBe("turn-1");
+    const running = turn({
+      id: "turn-2",
+      status: "running",
+      startedAt: at(30),
+      completedAt: null,
+      turnTokenUsage: complete(80),
+    });
+    // New items and a new live report for the running turn leave the answer, by identity, alone.
+    const second = select(
+      [done, running],
+      [...items, row(item("assistant_message", 31, null, { providerTurnId: "turn-2" }))],
+    );
+    expect(second).toBe(first);
+  });
+
+  it("moves when a newer turn finishes, and is null with no reported turn", () => {
+    const select = createLastTurnSpeedSelector();
+    expect(
+      select([turn({ turnTokenUsage: undefined })], [row(item("assistant_message", 0, 10))]),
+    ).toBeNull();
+    const first = select([turn()], [row(item("assistant_message", 0, 10))]);
+    const next = turn({ id: "turn-2", startedAt: at(30), completedAt: at(50) });
+    const second = select(
+      [turn(), next],
+      [
+        row(item("assistant_message", 0, 10)),
+        row(item("assistant_message", 31, 41, { providerTurnId: "turn-2" })),
+      ],
+    );
+    expect(second?.providerTurnId).toBe("turn-2");
+    expect(second).not.toBe(first);
+  });
+
+  it("reads items again after a miss, since they may have been what was missing", () => {
+    const select = createLastTurnSpeedSelector();
+    expect(select([turn()], [])).toBeNull();
+    expect(select([turn()], [row(item("assistant_message", 0, 10))])?.decodeMs).toBe(10_000);
   });
 });
 
