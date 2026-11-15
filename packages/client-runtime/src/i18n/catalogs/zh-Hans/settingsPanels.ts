@@ -3055,4 +3055,10 @@ export default {
   "commit and pull request writing": "提交和 PR 写作",
   "pull request templates": "PR 模板",
   "No text generators yet": "还没有文本生成器",
+  "Installed at {path} and added to PATH in {file}. Open a new terminal to use it.":
+    "已安装在 {path}，并已添加到 {file} 的 PATH 中。打开新终端即可使用。",
+  "Installed at {path}, which is not on your PATH yet.":
+    "已安装在 {path}，但它还不在你的 PATH 中。",
+  "Installed at {path}, which is not on your PATH yet. Add its folder to your PATH to run `{command}`.":
+    "已安装在 {path}，但它还不在你的 PATH 中。把它所在的文件夹加入 PATH 才能运行 `{command}`。",
 } satisfies Record<string, string>;

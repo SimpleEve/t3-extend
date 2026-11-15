@@ -71,10 +71,20 @@ export function CliCommandSettingsRow() {
     : !installed
       ? t("Run {app}'s CLI as `{command}` from any terminal.", { app, command })
       : state.onPath
-        ? `Installed at ${state.installedPath}. Open a new terminal to use it.`
+        ? t("Installed at {path}. Open a new terminal to use it.", { path: state.installedPath })
         : state.pathSetup?.added
-          ? `Installed at ${state.installedPath} and added to PATH in ${state.pathSetup.file}. Open a new terminal to use it.`
-          : `Installed at ${state.installedPath}, which is not on your PATH yet.${state.pathSetup ? "" : " Add its folder to your PATH to run `t3`."}`;
+          ? t("Installed at {path} and added to PATH in {file}. Open a new terminal to use it.", {
+              path: state.installedPath,
+              file: state.pathSetup.file,
+            })
+          : state.pathSetup
+            ? t("Installed at {path}, which is not on your PATH yet.", {
+                path: state.installedPath,
+              })
+            : t(
+                "Installed at {path}, which is not on your PATH yet. Add its folder to your PATH to run `{command}`.",
+                { path: state.installedPath, command },
+              );
 
   return (
     <SettingsRow
