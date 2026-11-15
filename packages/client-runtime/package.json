@@ -423,6 +423,22 @@
       "types": "./src/state/vcs.ts",
       "default": "./src/state/vcs.ts"
     },
+    "./outputs/run": {
+      "types": "./src/outputs/runOutputs.ts",
+      "default": "./src/outputs/runOutputs.ts"
+    },
+    "./outputs/thread": {
+      "types": "./src/outputs/threadOutputs.ts",
+      "default": "./src/outputs/threadOutputs.ts"
+    },
+    "./outputs/urls": {
+      "types": "./src/outputs/urls.ts",
+      "default": "./src/outputs/urls.ts"
+    },
+    "./outputs/paths": {
+      "types": "./src/outputs/paths.ts",
+      "default": "./src/outputs/paths.ts"
+    },
     "./work-log/user-input": {
       "types": "./src/work-log/userInput.ts",
       "default": "./src/work-log/userInput.ts"

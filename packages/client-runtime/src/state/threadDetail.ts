@@ -3,8 +3,15 @@ import {
   OrchestrationV2ConversationMessage,
   OrchestrationV2TurnItem,
   type OrchestrationV2ThreadProjection,
+  type RunId,
   type ScopedThreadRef,
 } from "@t3tools/contracts";
+import { EMPTY_RUN_OUTPUTS, type RunOutputs } from "../outputs/runOutputs.ts"; // fork: outputs
+import {
+  createThreadOutputsDeriver,
+  EMPTY_THREAD_OUTPUTS,
+  type ThreadOutputs,
+} from "../outputs/threadOutputs.ts"; // fork: outputs
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { AsyncResult, Atom } from "effect/reactivity";
@@ -532,6 +539,39 @@ export function createEnvironmentThreadDetailAtoms<E>(
     }).pipe(Atom.setIdleTTL(0), Atom.withLabel(`environment-thread-checkpoint-summaries:${key}`));
   });
 
+  // fork: the files and links each finished run produced. It moves with the thread's structure and
+  // checkpoints, never with streamed text, and reads the finished replies once per change.
+  const threadOutputsAtomFamily = Atom.family((key: string) => {
+    const separator = key.indexOf("\u0000");
+    const thread = key.slice(0, separator);
+    const cwd = key.slice(separator + 1);
+    const derive = createThreadOutputsDeriver();
+    return Atom.make((get): ThreadOutputs => {
+      const structure = get(quietThreadAtomFamily(thread));
+      const summaries = get(checkpointSummariesAtomFamily(thread));
+      const full = structure === null ? null : get.once(threadAtomFamily(thread));
+      if (full === null) return EMPTY_THREAD_OUTPUTS;
+      const checkpointFilesByRunId = new Map<RunId, ThreadCheckpointSummary["files"]>();
+      for (const summary of summaries) checkpointFilesByRunId.set(summary.runId, summary.files);
+      return derive({
+        runs: full.projection.runs,
+        turnItems: full.projection.turnItems,
+        checkpointFilesByRunId,
+        cwd: cwd.length === 0 ? undefined : cwd,
+      });
+    }).pipe(Atom.setIdleTTL(0), Atom.withLabel(`environment-thread-outputs:${key}`));
+  });
+
+  const runOutputsAtomFamily = Atom.family((key: string) => {
+    const separator = key.lastIndexOf("\u0000");
+    const outputsKey = key.slice(0, separator);
+    const runId = key.slice(separator + 1) as RunId;
+    return Atom.make(
+      (get): RunOutputs =>
+        get(threadOutputsAtomFamily(outputsKey)).byRunId.get(runId) ?? EMPTY_RUN_OUTPUTS,
+    ).pipe(Atom.setIdleTTL(0), Atom.withLabel(`environment-run-outputs:${key}`));
+  });
+
   const lastVisitedAtAtomFamily = Atom.family((key: string) =>
     Atom.make(
       (get) =>
@@ -631,6 +671,11 @@ export function createEnvironmentThreadDetailAtoms<E>(
     turnSubagentsAtom: (ref: ScopedThreadRef) => turnSubagentsAtomFamily(threadKey(ref)),
     checkpointSummariesAtom: (ref: ScopedThreadRef) =>
       checkpointSummariesAtomFamily(threadKey(ref)),
+    /** `cwd` resolves relative paths; a thread without one still lists absolute ones. */
+    outputsAtom: (ref: ScopedThreadRef, cwd: string | undefined) =>
+      threadOutputsAtomFamily(`${threadKey(ref)}\u0000${cwd ?? ""}`),
+    runOutputsAtom: (ref: ScopedThreadRef, cwd: string | undefined, runId: RunId) =>
+      runOutputsAtomFamily(`${threadKey(ref)}\u0000${cwd ?? ""}\u0000${runId}`),
     stateAtom: (ref: ScopedThreadRef) => threadStateValueAtomFamily(threadKey(ref)),
     threadAtom: (ref: ScopedThreadRef) => threadAtomFamily(threadKey(ref)),
     quietThreadAtom: (ref: ScopedThreadRef) => quietThreadAtomFamily(threadKey(ref)),
