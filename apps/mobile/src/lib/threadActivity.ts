@@ -336,6 +336,7 @@ const projectedEntriesCache = new WeakMap<
   {
     readonly attemptId: RunAttemptId | null;
     readonly entries: ReadonlyArray<RawThreadFeedEntry>;
+    readonly t: Translator; // fork: i18n, activity labels are translated
   }
 >();
 const localMessageEntriesCache = new WeakMap<
@@ -661,7 +662,7 @@ function itemSummary(
     case "secret_request":
       return item.label;
     case "link_request":
-      return `Link ${linkRequestTargetName(item)}`;
+      return t("Link {target}", { target: linkRequestTargetName(item) });
     case "dynamic_tool": {
       const classified = classifyToolActivity({
         itemType: "dynamic_tool_call",
@@ -1061,6 +1062,8 @@ type RunFoldLabelTemplate =
   | "You stopped this response"
   | "Worked for {duration}"
   | "Worked"
+  | "Continued for {duration}"
+  | "Continued"
   | "Earlier work";
 
 interface ThreadFeedRunFold {
@@ -1318,13 +1321,15 @@ function deriveThreadFeedRunFolds(
     const duration = elapsedMs === null ? null : formatDuration(elapsedMs);
     const interrupted =
       latestRunMatches && (latestRun.status === "interrupted" || latestRun.status === "cancelled");
-    const label = interrupted
+    // fork: i18n
+    const labelTemplate: RunFoldLabelTemplate = interrupted
       ? duration
-        ? `You stopped after ${duration}`
+        ? "You stopped after {duration}"
         : "You stopped this response"
       : duration
-        ? `Worked for ${duration}`
+        ? "Worked for {duration}"
         : "Worked";
+    const label = duration ? labelTemplate.replace("{duration}", duration) : labelTemplate;
     // The top row keeps the whole turn's time. Work after a steer folds under
     // its own row below that steer, keyed apart so each segment opens alone.
     const segments = [
@@ -1332,6 +1337,8 @@ function deriveThreadFeedRunFolds(
         runId,
         entries: group.entries.slice(0, group.steerSegments[0]?.startIndex),
         label,
+        labelTemplate,
+        duration,
       },
       ...group.steerSegments.map(({ startIndex, steer }, index) => {
         const entries = group.entries.slice(startIndex, group.steerSegments[index + 1]?.startIndex);
@@ -1341,10 +1348,18 @@ function deriveThreadFeedRunFolds(
             .map((entry) => (entry.type === "message" ? entry.message.updatedAt : entry.createdAt))
             .reduce<string | null>(maxIsoTimestamp, null) ?? steer.createdAt,
         );
+        const segmentDuration = segmentMs !== null ? formatDuration(segmentMs) : null;
+        const segmentTemplate: RunFoldLabelTemplate = segmentDuration
+          ? "Continued for {duration}"
+          : "Continued";
         return {
           runId: steerFoldRunId(runId, steer.id),
           entries,
-          label: segmentMs !== null ? `Continued for ${formatDuration(segmentMs)}` : "Continued",
+          label: segmentDuration
+            ? segmentTemplate.replace("{duration}", segmentDuration)
+            : segmentTemplate,
+          labelTemplate: segmentTemplate,
+          duration: segmentDuration,
         };
       }),
     ];
@@ -1368,6 +1383,8 @@ function deriveThreadFeedRunFolds(
           segment.entries.flatMap((entry) => (hiddenEntryIds.has(entry.id) ? [entry.id] : [])),
         ),
         label: segment.label,
+        labelTemplate: segment.labelTemplate,
+        duration: segment.duration,
       });
     }
   }
@@ -2497,7 +2514,7 @@ export function buildThreadFeed(
     }
     const attemptId = resolveAttemptId(item);
     const cached = projectedEntriesCache.get(row);
-    if (cached?.attemptId === attemptId) {
+    if (cached?.attemptId === attemptId && cached.t === t) {
       for (const entry of cached.entries) {
         entries.push(entry);
         entryRows.push(index);
@@ -2517,7 +2534,7 @@ export function buildThreadFeed(
         runId: item.runId,
         render,
       };
-      projectedEntriesCache.set(row, { attemptId, entries: [entry] });
+      projectedEntriesCache.set(row, { attemptId, entries: [entry], t });
       entries.push(entry);
       entryRows.push(index);
       continue;
@@ -2534,7 +2551,7 @@ export function buildThreadFeed(
         runId: item.runId,
         text: sentMessage,
       };
-      projectedEntriesCache.set(row, { attemptId, entries: [entry] });
+      projectedEntriesCache.set(row, { attemptId, entries: [entry], t });
       entries.push(entry);
       entryRows.push(index);
       continue;
@@ -2571,12 +2588,12 @@ export function buildThreadFeed(
           projectedItem: row,
         },
       };
-      projectedEntriesCache.set(row, { attemptId, entries: [entry] });
+      projectedEntriesCache.set(row, { attemptId, entries: [entry], t });
       entries.push(entry);
       entryRows.push(index);
       continue;
     }
-    const activity = toFeedActivity(row, attemptId);
+    const activity = toFeedActivity(row, attemptId, t);
     const rowEntries: RawThreadFeedEntry[] = [
       { type: "activity", id: activity.id, createdAt, runId: item.runId, activity },
     ];
@@ -2594,7 +2611,7 @@ export function buildThreadFeed(
         app,
       });
     }
-    projectedEntriesCache.set(row, { attemptId, entries: rowEntries });
+    projectedEntriesCache.set(row, { attemptId, entries: rowEntries, t });
     for (const entry of rowEntries) {
       entries.push(entry);
       entryRows.push(index);

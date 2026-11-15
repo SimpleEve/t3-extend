@@ -9,6 +9,7 @@ import { SKILL_CHIP_ICON_SVG } from "../composerInlineChip";
 import { ContextChipPopover } from "../contextChipParts";
 import { Button } from "../ui/button";
 import { ModelMentionChip } from "./ModelMentionChip";
+import { useT } from "~/hooks/useT"; // fork: restored import
 
 function SkillInlineText(props: {
   text: string;

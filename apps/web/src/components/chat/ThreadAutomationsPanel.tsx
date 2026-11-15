@@ -31,6 +31,7 @@ import {
   THREAD_DETAILS_PANEL_ROW_CONTENT_CLASS,
 } from "./threadDetailsPanelStyles";
 import { useT } from "~/hooks/useT";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: interface language
 
 const STATUS_DOT_CLASS: Record<ScheduledTask["lastRunStatus"], string> = {
   never: "bg-muted-foreground/40",
@@ -39,7 +40,11 @@ const STATUS_DOT_CLASS: Record<ScheduledTask["lastRunStatus"], string> = {
   failed: "bg-destructive",
 };
 
-function taskScheduleLine(task: ScheduledTask, timeZone: string | undefined) {
+function taskScheduleLine(
+  task: ScheduledTask,
+  timeZone: string | undefined,
+  t: Translator, // fork: interface language
+) {
   return (
     <>
       {scheduleLabel(task.schedule, timeZone, task.nextRunAt)}
@@ -183,13 +188,13 @@ export function ThreadAutomationsPanel(props: {
                   {task.title}
                 </span>
                 <p className="truncate text-2xs text-muted-foreground">
-                  {taskScheduleLine(task, tasksQuery.data?.timeZone)}
+                  {taskScheduleLine(task, tasksQuery.data?.timeZone, t)}
                 </p>
               </TooltipTrigger>
               <TooltipPopup side="left">
                 <p className="font-medium">{task.title}</p>
                 <p className="text-muted-foreground">
-                  {taskScheduleLine(task, tasksQuery.data?.timeZone)}
+                  {taskScheduleLine(task, tasksQuery.data?.timeZone, t)}
                 </p>
               </TooltipPopup>
             </Tooltip>

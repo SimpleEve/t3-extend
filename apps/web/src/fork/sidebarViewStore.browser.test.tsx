@@ -58,10 +58,9 @@ describe("sidebar view store", () => {
   });
 
   it("is the Boring sidebar setting, read and written the way Labs does", async () => {
-    const { restore } = setup({ boringSidebarEnabled: false, legacySidebarEnabled: true });
+    const { restore } = setup({ boringSidebarEnabled: false });
     using _restore = { [Symbol.dispose]: restore };
-    // The removed legacy opt-in already counts as the Boring sidebar.
-    expect(getSidebarViewMode()).toBe("project");
+    expect(getSidebarViewMode()).toBe("status");
 
     __setClientSettingsForTests({ ...DEFAULT_CLIENT_SETTINGS, boringSidebarEnabled: true });
     expect(getSidebarViewMode()).toBe("project");
@@ -70,10 +69,7 @@ describe("sidebar view store", () => {
     expect(screen.container.textContent).toBe("view: project");
 
     await setSidebarViewMode("status");
-    expect(getClientSettings()).toMatchObject({
-      boringSidebarEnabled: false,
-      legacySidebarEnabled: false,
-    });
+    expect(getClientSettings()).toMatchObject({ boringSidebarEnabled: false });
     expect(mocks.persistedSettings.at(-1)).toMatchObject({ boringSidebarEnabled: false });
     expect(getSidebarViewMode()).toBe("status");
     await vi.waitFor(() => expect(screen.container.textContent).toBe("view: status"));

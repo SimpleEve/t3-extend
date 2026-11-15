@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vite-plus/test";
-import { byTimestamp, compareTimestamps, msUntilRelativeTimeChange, relativeTime } from "./time";
+import {
+  byTimestamp,
+  compareTimestamps,
+  messageTimeLabel,
+  msUntilRelativeTimeChange,
+  relativeTime,
+  uiFormatLocale,
+  uiFormatOptions,
+} from "./time";
 
 const at = "2026-10-19T12:00:00.000Z";
 const timestamp = Date.parse(at);

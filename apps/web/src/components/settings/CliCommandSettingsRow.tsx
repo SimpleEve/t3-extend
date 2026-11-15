@@ -21,6 +21,7 @@ const FAILURE_TITLES = {
 
 /** The desktop `t3` command's state, and its actions with a toast on failure. */
 export function useDesktopCliCommand() {
+  const t = useT();
   const bridge = getDesktopCliCommandBridge();
   const query = useEnvironmentQuery(bridge ? desktopCliCommandStateAtom : null);
   const [pending, setPending] = useState(false);
@@ -53,6 +54,7 @@ export function useDesktopCliCommand() {
 }
 
 export function CliCommandSettingsRow() {
+  const t = useT();
   const { state, busy, run } = useDesktopCliCommand();
 
   if (!state?.supported) return null;

@@ -1,11 +1,7 @@
 import type { SidebarViewMode } from "@t3tools/client-runtime/state/thread-grouping";
 import { create } from "zustand";
 
-import {
-  getClientSettings,
-  updateClientSettings,
-  useBoringSidebarEnabled,
-} from "../hooks/useSettings";
+import { getClientSettings, updateClientSettings, useClientSettings } from "../hooks/useSettings";
 
 // fork: the view is upstream's Boring sidebar setting; only the fold state is fork storage.
 const STORAGE_KEY = "t3extend:sidebar-view:v1";
@@ -46,21 +42,17 @@ export const useSidebarViewStore = create<PersistedSidebarView>(() =>
 );
 
 export function useSidebarViewMode(): SidebarViewMode {
-  return useBoringSidebarEnabled() ? "project" : "status";
+  return useClientSettings((settings) => settings.boringSidebarEnabled) ? "project" : "status";
 }
 
 /** For handlers outside React, such as keybinding commands. */
 export function getSidebarViewMode(): SidebarViewMode {
-  const { boringSidebarEnabled, legacySidebarEnabled } = getClientSettings();
-  return boringSidebarEnabled || legacySidebarEnabled ? "project" : "status";
+  return getClientSettings().boringSidebarEnabled ? "project" : "status";
 }
 
 /** Same write as the Labs switch, so the toggle, the palette and Labs always agree. */
 export function setSidebarViewMode(mode: SidebarViewMode): Promise<void> {
-  return updateClientSettings({
-    boringSidebarEnabled: mode === "project",
-    legacySidebarEnabled: false,
-  });
+  return updateClientSettings({ boringSidebarEnabled: mode === "project" });
 }
 
 export function toggleSidebarGroupCollapsed(collapseKey: string) {

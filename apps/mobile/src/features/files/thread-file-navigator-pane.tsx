@@ -21,6 +21,7 @@ export function ThreadFileNavigatorPane(props: {
   readonly selectedPath: string | null;
   readonly onSelectFile: (path: string) => void;
 }) {
+  const t = useT();
   const workspaceKey = JSON.stringify([props.environmentId, props.cwd]);
   // The pane stays mounted across thread switches; a query only filters the workspace it was typed in.
   const [search, setSearch] = useState({ workspaceKey, query: "" });

@@ -10,6 +10,7 @@ import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { SettingsRow } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
+import { useT } from "../../hooks/useT"; // fork: interface language
 
 const LOOPBACK_SECONDS = 10;
 const formatTime = (seconds: number) =>
@@ -273,6 +274,7 @@ export function MicrophoneTest({
 }
 
 function MicrophonePlayback({ src, duration }: { src: string; duration: number }) {
+  const t = useT();
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);

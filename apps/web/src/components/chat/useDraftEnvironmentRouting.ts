@@ -36,6 +36,7 @@ import type { DraftSessionState } from "../../composerDraftStore";
 import { loadBalancingSendWarning } from "./composerSend.logic";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { draftFanoutSelectionsAtom } from "./chatViewSend";
+import { useT } from "../../hooks/useT"; // fork: restored import
 
 interface DraftEnvironmentRoutingInput {
   readonly draftId: DraftId | null;

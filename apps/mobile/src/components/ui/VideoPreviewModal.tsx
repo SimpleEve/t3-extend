@@ -16,6 +16,7 @@ import {
   isAudioSessionOwner,
   releaseAudioSession,
 } from "../../lib/audioSession";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type { VideoPreviewSource } from "../../lib/videoPreviewSource";
 

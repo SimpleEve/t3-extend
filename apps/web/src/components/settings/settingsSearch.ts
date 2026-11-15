@@ -911,8 +911,8 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["onboarding setup first run getting started agents import projects"],
   },
   {
-    id: "privacy-policy",
-    title: "Privacy policy",
+    id: "usage-data", // fork: no privacy-policy link; the row states the telemetry default
+    title: "Usage data",
     to: "/settings/about",
     searchTerms: [
       "telemetry analytics privacy tracking legal opt in opt out T3CODE_TELEMETRY_ENABLED",
@@ -1579,9 +1579,9 @@ export function searchSettings(
       const titles = [
         ...new Set([normalizeSearchText(item.title), normalizeSearchText(t(item.title))]),
       ];
-      const sectionLabel = SETTINGS_SECTION_LABELS[item.to];
+
       const fields = [
-        title,
+        ...titles,
         normalizeSearchText(SETTINGS_SECTION_LABELS[item.to]),
         // The labels as displayed, so search also works in the active language.
         normalizeSearchText(translate(item.title)),

@@ -67,7 +67,17 @@ function countLabel(action: UndoOptions["action"], count: number) {
 }
 
 function threadUndoNoticeSummary(notice: Pick<UndoNotice, "action" | "count">): string {
-  return `${notice.action} ${countLabel(notice.action, notice.count)}`;
+  const [one, many] = SUMMARY_SOURCES[notice.action];
+  return translate(getUiLocale(), notice.count === 1 ? one : many, { count: notice.count });
+}
+
+/** The undo notice's short summary in the sidebar footer. */
+export function threadUndoCompactSummary(
+  notice: Pick<UndoNotice, "action" | "count">,
+  t: Translator,
+): string {
+  const [one, many] = COMPACT_SUMMARY_SOURCES[notice.action];
+  return t(notice.count === 1 ? one : many, { count: notice.count }, "undo notice");
 }
 
 export function threadUndoLabel(

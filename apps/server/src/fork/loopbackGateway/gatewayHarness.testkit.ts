@@ -44,6 +44,7 @@ import * as AuthAttemptLimiter from "../../auth/AuthAttemptLimiter.ts";
 import * as AuthHttp from "../../auth/http.ts";
 import * as EnvironmentAuth from "../../auth/EnvironmentAuth.ts";
 import * as McpOAuth from "../../auth/McpOAuth.ts";
+import * as CloudLink from "../../cloud/CloudLink.ts";
 import * as McpOAuthHttp from "../../auth/mcpOAuthHttp.ts";
 import * as ServerSecretStore from "../../auth/ServerSecretStore.ts";
 import * as SessionStore from "../../auth/SessionStore.ts";
@@ -285,6 +286,8 @@ export const makeLayerGateway = (
           Layer.provide(AuthHttp.layer),
           Layer.provide(AuthHttp.layerAuthenticatedAuth),
           Layer.provide(McpOAuthHttp.layer),
+          Layer.provide(Layer.succeed(CloudLink.CloudLink, {} as CloudLink.CloudLink["Service"])),
+          Layer.provide(ServerEnvironment.layerIdentity.pipe(Layer.provide(layerConfig))),
           Layer.provide(stubMcpOAuth),
         ),
         layerUpgradeAuthRoutes,

@@ -17,6 +17,8 @@ import { SearchField } from "./SearchField";
 import { findAppBarMenuItem, menuActionsFromAppBarItems } from "./menuActionItems";
 import type { AppBarMenuItem, AppBarProps, AppBarSearch } from "./AppBar.types";
 import { useHasWorkspaceAppBar, WorkspaceAppBar } from "./WorkspaceAppBar.android";
+import { localizeAppBarProps } from "../../fork/appBarI18n"; // fork: restored import
+import { useT } from "../../hooks/useT"; // fork: restored import
 
 function selectMenuItem(items: ReadonlyArray<AppBarMenuItem>, id: string) {
   const action = findAppBarMenuItem(items, id);

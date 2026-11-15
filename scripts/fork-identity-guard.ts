@@ -96,6 +96,11 @@ const ALLOWED: ReadonlyArray<Allowed> = [
     reason: "A linked worktree's own gitignored state directory, not official T3 Code's home.",
   },
   {
+    path: "scripts/e2e.config.ts",
+    line: "`.t3` is gitignored",
+    reason: "Comment about the scenario homes' own gitignored state directory.",
+  },
+  {
     path: "scripts/setup-worktree.ts",
     line: '".t3"',
     reason: "Setup markers in the worktree's own gitignored .t3 directory.",
@@ -136,6 +141,16 @@ const ALLOWED: ReadonlyArray<Allowed> = [
     path: "apps/desktop/src/preview/GuestProtocol.ts",
     line: "--t3code-preview-passkey-bridge",
     reason: "Internal argv flag between the app's own processes.",
+  },
+  {
+    path: "apps/desktop/src/preview/GuestProtocol.ts",
+    line: "--t3code-preview-primary-paste-disabled",
+    reason: "Internal argv flag between the app's own processes.",
+  },
+  {
+    path: "scripts/scenarios/add-project-tab-reaches-submit.e2e.ts",
+    line: "pingdotgg/t3code.git",
+    reason: "A public repository URL typed into the form to enable Continue; it is never cloned.",
   },
   {
     path: "apps/server/src/provider/ModelManifest.ts",

@@ -15,9 +15,12 @@ import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 function noticeTitle(
   phase: EnvironmentConnectionPhase,
   environmentLabel: string,
+  t: Translator,
   awaitingApproval: boolean,
 ): string {
-  if (awaitingApproval) return `Waiting for ${environmentLabel} to approve this device`;
+  if (awaitingApproval) {
+    return t("Waiting for {name} to approve this device", { name: environmentLabel });
+  }
   switch (phase) {
     case "offline":
       return t("You are offline");
@@ -40,6 +43,7 @@ function noticeDetail(
   phase: EnvironmentConnectionPhase,
   resourceName: string,
   error: string | null,
+  t: Translator,
   awaitingApproval: boolean,
 ): string {
   if (error && awaitingApproval) return error;
@@ -98,6 +102,7 @@ export function EnvironmentConnectionNotice(props: {
           {noticeTitle(
             props.connection.phase,
             props.environmentLabel,
+            t,
             props.connection.awaitingApproval === true,
           )}
         </Text>
@@ -106,6 +111,7 @@ export function EnvironmentConnectionNotice(props: {
             props.connection.phase,
             props.resourceName,
             props.connection.error,
+            t,
             props.connection.awaitingApproval === true,
           )}
           {props.connection.traceId ? (

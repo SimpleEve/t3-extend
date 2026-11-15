@@ -139,6 +139,7 @@ function firstRouteParam(value: string | string[] | undefined): string | null {
 const InspectorHeaderShownContext = createContext(false);
 
 function ThreadRouteFallbackLayout(props: { readonly children: ReactNode }) {
+  const t = useT();
   const goBack = useWorkspaceBackNavigation();
   const inspectorHeaderShown = use(InspectorHeaderShownContext);
   return (
@@ -246,6 +247,7 @@ export function ThreadRouteScreen(props: ThreadRouteScreenProps) {
 }
 
 function LiveThreadRouteController(props: ThreadRouteScreenProps) {
+  const t = useT();
   useAndroidWorkspaceBack();
   const connectionsReady = useConnectionsReady();
   const { connectionState } = useRemoteConnectionStatus();
@@ -353,6 +355,7 @@ function ThreadRouteContent(
     readonly selectedThreadDetailState: ReturnType<typeof useSelectedThreadDetailState>;
   },
 ) {
+  const t = useT();
   const { layout, showInspector, toggleAuxiliaryPane } = useAdaptiveWorkspaceLayout();
   const { connectionState } = useRemoteConnectionStatus();
   const { onReconnectEnvironment } = useRemoteConnections();
@@ -585,6 +588,15 @@ function ThreadRouteContent(
     navigation.setParams({ inspector: undefined });
     setChosenInspectorMode(props.renderInspector === undefined ? "files" : "route");
     showInspector();
+  };
+  const handleOpenNewBrowserTab = () => {
+    if (selectedThread === null) return;
+    Keyboard.dismiss();
+    navigation.navigate("ThreadBrowserPreview", {
+      environmentId: String(selectedThread.environmentId),
+      threadId: String(selectedThread.id),
+      newTab: "1",
+    });
   };
   const handleSelectInspectorFile = (path: string) => {
     if (selectedThread === null) {
@@ -1004,6 +1016,7 @@ function ThreadRouteContent(
           contentPresentation={contentPresentation}
           screenTone={connectionTone(
             routeConnectionState,
+            t,
             routeEnvironmentRuntime?.connectionAwaitingApproval === true,
           )}
           connectionError={routeConnectionError}

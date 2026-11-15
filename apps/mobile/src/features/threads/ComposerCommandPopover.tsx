@@ -22,7 +22,9 @@ import { PierreEntryIcon } from "../../components/PierreEntryIcon";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { cn } from "../../lib/cn";
 import type { ModelOption } from "../../lib/modelOptions";
-import { pullRequestStatus } from "../pull-requests/pullRequestStatus";
+import { pullRequestStatusStyle } from "../pull-requests/pullRequestStatus"; // fork: i18n
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { useT } from "../../hooks/useT"; // fork: i18n
 export type ComposerCommandItem =
   | {
       readonly id: string;
@@ -140,6 +142,7 @@ function itemIcon(item: ComposerCommandItem): AppSymbolName | null {
 function groupLabel(
   triggerKind: ComposerTriggerKind | null,
   items: ReadonlyArray<ComposerCommandItem>,
+  t: Translator, // fork: i18n
 ): string | null {
   switch (triggerKind) {
     case "pull-request":
@@ -149,7 +152,7 @@ function groupLabel(
     case "skill":
       return t("Skills");
     case "path":
-      return items.every((item) => item.type === "path") ? "Files" : "Mentions";
+      return items.every((item) => item.type === "path") ? t("Files") : t("Mentions");
     default:
       return null;
   }
@@ -167,7 +170,7 @@ function emptyText(
     case "pull-request":
       return t("No matching pull requests.");
     case "path":
-      return "No matching mentions.";
+      return t("No matching mentions.");
     case "skill":
       return t("No skills found.");
     case "slash-command":
@@ -240,7 +243,8 @@ const CommandRow = memo(function CommandRow(props: {
 export const ComposerCommandPopover = memo(function ComposerCommandPopover(
   props: ComposerCommandPopoverProps,
 ) {
-  const label = groupLabel(props.triggerKind, props.items);
+  const t = useT();
+  const label = groupLabel(props.triggerKind, props.items, t);
 
   return (
     <PopoverSurface>

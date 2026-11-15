@@ -8,6 +8,7 @@ import { resolveProviderOptionDescriptors } from "../lib/providerOptions";
 import { AppText as Text } from "./ui/AppText";
 import { ComposerInlineControl } from "./ComposerToolbar";
 import { ProviderIcon, ProviderInstanceIcon, providerInstanceNameLabel } from "./ProviderIcon";
+import { useT } from "../hooks/useT"; // fork: restored import
 
 export function ComposerModelControl(props: {
   readonly modelOption: ModelOption | null;

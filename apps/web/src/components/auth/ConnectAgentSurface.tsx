@@ -33,7 +33,6 @@ import { RadioGroup } from "../ui/radio-group";
 import { Spinner } from "../ui/spinner";
 import { StandalonePage, StandalonePageHeader } from "../ui/standalone-page";
 import { useT } from "../../hooks/useT";
-import { interpolateNodes } from "../../lib/interpolateNodes";
 
 export const accessConfig: Record<
   AuthMcpClientAccess,
@@ -125,7 +124,6 @@ export function readAuthorizationRequest(): AuthMcpAuthorizationRequest {
 }
 
 export function ConnectAgentSurface() {
-  const t = useT();
   const [authorization] = useState(readAuthorizationRequest);
   return <McpConsent authorization={authorization} transport={primaryTransport} acceptsCode />;
 }
@@ -149,6 +147,7 @@ export function McpConsent({
   readonly environmentLabel?: string | undefined;
   readonly footer?: ReactNode;
 }) {
+  const t = useT();
   const [loaded, setLoaded] = useState<Loaded>({ status: "loading" });
   const [requestedAccess, setAccess] = useState<AuthMcpClientAccess | null>(null);
   const [pairingCode, setPairingCode] = useState("");
@@ -323,7 +322,7 @@ export function McpConsent({
               value={pairingCode}
             />
             <p className="text-xs text-muted-foreground">
-              Get one from Use T3 Code in another app (MCP), Settings → Sharing & access, or{" "}
+              Get one from Use T3 Extend in another app (MCP), Settings → Sharing & access, or{" "}
               <code>t3 auth pairing create</code> on this machine.
             </p>
           </div>
@@ -349,7 +348,7 @@ export function McpConsent({
                   key={option}
                   access={option}
                   selected={option === access}
-                  disabledReason={ceilingReason(details, option)}
+                  disabledReason={ceilingReason(details, option, t)}
                 />
               ))}
             </RadioGroup>

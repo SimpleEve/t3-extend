@@ -515,10 +515,10 @@ export function summarizeT3ToolCalls(
       );
       break;
     case "theme-read":
-      label = phrase("Checked", "check", `themes ${times}`);
+      label = phrase("Checked {object}", "Tried to check {object}", t("themes {times}", { times }));
       break;
     case "theme-set":
-      label = phrase("Set", "set", `the theme ${times}`);
+      label = phrase("Set {object}", "Tried to set {object}", t("the theme {times}", { times }));
       break;
     case "environment-links":
       label = phrase(
@@ -710,7 +710,11 @@ export function summarizeT3ToolCalls(
       );
       break;
     case "send-to-user":
-      label = phrase("Sent", "send", quantity(selected.length, "message"));
+      label = phrase(
+        "Sent {object}",
+        "Tried to send {object}",
+        quantity(selected.length, "{count} message", "{count} messages", t),
+      );
       break;
     case "capabilities":
       label = phrase(

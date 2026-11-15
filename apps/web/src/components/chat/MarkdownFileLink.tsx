@@ -25,6 +25,8 @@ import {
 } from "./MarkdownFileLink.logic";
 import { reportMarkdownActionFailure } from "./markdownActionFailure";
 import { WorkspaceEntryIcon, WorkspaceEntryTooltip } from "./WorkspaceEntryIcon";
+import { Translator } from "@t3tools/client-runtime/i18n"; // fork: restored import
+import { useT } from "~/hooks/useT"; // fork: restored import
 
 interface MarkdownFileLinkProps {
   environmentId: EnvironmentId | null;

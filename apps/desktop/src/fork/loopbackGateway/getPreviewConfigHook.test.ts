@@ -64,14 +64,17 @@ const withGateway = <A>(
   Effect.scoped(
     Effect.gen(function* () {
       const listeners = new Map<string, DesktopIpc.DesktopIpcHandleListener>();
-      const ipc = DesktopIpc.make({
-        removeHandler: vi.fn(),
-        handle: (channel, listener) => {
-          listeners.set(channel, listener);
+      const ipc = DesktopIpc.make(
+        {
+          removeHandler: vi.fn(),
+          handle: (channel, listener) => {
+            listeners.set(channel, listener);
+          },
+          removeAllListeners: vi.fn(),
+          on: vi.fn(),
         },
-        removeAllListeners: vi.fn(),
-        on: vi.fn(),
-      });
+        () => Effect.succeed(true),
+      );
       const mainFrame = { url: getDesktopUrl(true) };
       const mainWindow = {
         webContents: { id: 1, isDestroyed: () => false, mainFrame },

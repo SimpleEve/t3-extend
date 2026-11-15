@@ -111,6 +111,7 @@ export function buildComposerSlashCommandItems(input: {
   readonly offersFreshSession?: boolean;
   readonly offersSideChat?: boolean;
   readonly selectedProviderStatus: Pick<ServerProvider, "driver" | "slashCommands"> | null;
+  readonly t?: Translator; // fork: interface language
 }): ComposerCommandItem[] {
   const t = input.t ?? ((source: string) => source);
   const query = input.query.toLowerCase();
@@ -121,7 +122,7 @@ export function buildComposerSlashCommandItems(input: {
           type: "slash-command",
           command: "model",
           label: "/model",
-          description: "Switch model",
+          description: t("Switch model"),
         },
       ]
     : [];
@@ -396,6 +397,7 @@ export function useComposerCommandMenu({
         offersUsageLimits,
         offersFreshSession: onFreshSession !== undefined,
         offersSideChat,
+        t,
         selectedProviderStatus: selectedProviderStatus
           ? {
               ...selectedProviderStatus,

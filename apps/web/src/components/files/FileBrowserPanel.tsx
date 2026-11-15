@@ -41,6 +41,7 @@ import { useDirectoryEntries } from "./useDirectoryEntries";
 import { useProjectPathSearch } from "~/state/queries";
 import { isMacPlatform } from "~/lib/utils";
 import { type PreviewAction, subscribePreviewAction } from "../preview/previewActionBus";
+import { useT } from "~/hooks/useT"; // fork: restored import
 
 interface FileBrowserPanelProps {
   environmentId: EnvironmentId;

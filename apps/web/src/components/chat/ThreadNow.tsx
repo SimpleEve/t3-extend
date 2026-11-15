@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { threadSyncLabel, type ThreadSyncPhase } from "../../threadSync";
 import { cn } from "~/lib/utils";
+import { useT } from "~/hooks/useT"; // fork: restored import
 
 /** A line of thread state for the end of the timeline. */
 export interface ThreadNowItem {
@@ -30,7 +31,6 @@ function ThreadNowLine({
   /** Announces the line when it appears; only for something that needs the user. */
   readonly announce?: boolean;
 }) {
-  const t = useT();
   return (
     <div
       role={announce ? "alert" : undefined}

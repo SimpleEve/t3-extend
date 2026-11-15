@@ -54,7 +54,6 @@ import {
   type UiLocale,
 } from "@t3tools/client-runtime/i18n";
 import { relativeTimeElapsedMs } from "../../timestampFormat";
-import { getUiLocale, uiLocaleFormatTag } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { useEnvironmentSettings } from "../../hooks/useSettings";
 import { getCustomModelOptionsByInstance } from "../../modelSelection";
 import { providerInstanceEntriesFor } from "../../providerInstances";
@@ -338,8 +337,13 @@ function splitModelKey(value: string): ModelSelection | null {
 }
 
 /** formatRelativeTime handles only the past; upcoming runs need future labels. */
-function relativeLabel(value: string | null, nowMs: number): string {
-  if (!value) return "Not scheduled";
+function relativeLabel(
+  value: string | null,
+  nowMs: number,
+  locale: UiLocale, // fork: interface language
+  t: Translator,
+): string {
+  if (!value) return t("Not scheduled");
   const diffMs = new Date(value).getTime() - nowMs;
   if (diffMs <= 0) {
     const elapsedMs = relativeTimeElapsedMs(value, nowMs);

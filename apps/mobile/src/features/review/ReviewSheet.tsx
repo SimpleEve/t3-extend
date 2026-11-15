@@ -67,6 +67,7 @@ function ReviewHeader(
     readonly onReturnToThread: () => void;
   },
 ) {
+  const t = useT();
   const { toggleAuxiliaryPane } = useAdaptiveWorkspaceLayout();
   const { panes } = useWorkspacePaneState();
   const presentation = useReviewHeaderPresentation(props);
@@ -145,7 +146,6 @@ function ReviewHeader(
 const SHOWCASE_ENABLED = process.env.EXPO_PUBLIC_SHOWCASE === "1";
 
 const ReviewNotice = function ReviewNotice(props: { readonly notice: string }) {
-  const t = useT(); // fork: i18n
   return (
     <ContentBand tone="warning">
       <Text className="text-xs font-t3-bold uppercase text-warning-foreground">Partial diff</Text>

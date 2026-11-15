@@ -8,6 +8,7 @@ import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
 import { Linking } from "react-native";
 
 import * as Dialog from "../../components/ui/Dialog";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: restored import
 
 /**
  * After a clone, suggests installing the forge app on the repository's owner when the server is

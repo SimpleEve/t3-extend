@@ -20,6 +20,7 @@ import type {
   FilePreviewSource,
   FilePreviewViewerProps,
 } from "./FilePreviewModal.types";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 interface FilePreviewSessionOptions {
   /** Opens before every image resolves; the viewer takes later URLs as they arrive. */
@@ -100,6 +101,7 @@ function ResolvedFilePreview(
     readonly onPresent: (isFinished: () => boolean) => void;
   },
 ) {
+  const t = useT();
   const { progressiveGallery, Viewer } = props;
   // Freeze the group at opening; streaming messages and URL refreshes must not reopen the viewer.
   const [items] = useState(() => filePreviewGallery(props.source, []));

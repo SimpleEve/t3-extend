@@ -18,6 +18,7 @@ import {
   remainingPercent,
   type ResetCreditChoice,
   resetCreditChoices,
+  usageWindowLabel,
 } from "@t3tools/shared/usageLimits";
 import { GaugeIcon, TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 import { Fragment, useLayoutEffect, useState } from "react";
@@ -43,7 +44,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { UsageLimitsPooled } from "./UsageLimitsPooled";
 import { PROVIDER_PRESENTATION } from "./usageProviders";
 import { useT } from "../../hooks/useT";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork
+// fork
 
 const PACE: Record<LimitPace, { readonly label: string; readonly icon: typeof GaugeIcon }> = {
   ahead: { label: "Ahead of pace: spending faster than the window elapses", icon: TrendingUpIcon },

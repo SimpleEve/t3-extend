@@ -110,6 +110,7 @@ export function PullRequestStatusMenu(props: RowProps) {
 }
 
 export function PullRequestChecksRow(props: RowProps) {
+  const t = useT();
   const linked = parsePullRequestAnchor(props.params.navigationUrl)?.kind === "checks";
   const [expanded, setExpanded] = useState(linked);
   const [seenNavigation, setSeenNavigation] = useState(props.params.navigationId);
@@ -117,7 +118,7 @@ export function PullRequestChecksRow(props: RowProps) {
     setSeenNavigation(props.params.navigationId);
     if (linked) setExpanded(true);
   }
-  const checks = pullRequestChecksSummary(props.pr);
+  const checks = pullRequestChecksSummary(props.pr, t);
   const action = usePullRequestAction(props.params, props.pr);
   const definition = sourceControlClients.get(props.pr.provider);
   return (

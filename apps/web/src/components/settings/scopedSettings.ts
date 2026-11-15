@@ -288,6 +288,7 @@ export function planScopedSettingsPatch(
   environments: readonly ScopedSettingsEnvironment[],
   patch: ScopedSettingsPatch,
   options?: { readonly deviceOnly?: boolean },
+  t: Translator = (source, params) => interpolate(source, params), // fork: interface language
 ) {
   const isProjectScope = scope.kind === "project" || scope.kind === "checkout";
   const refusesClientKeys = isProjectScope && options?.deviceOnly !== true;

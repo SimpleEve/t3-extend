@@ -25,6 +25,7 @@ export function ThreadHeader(props: {
   // fork: opens the browser's new tab panel; absent when the host has no server browser.
   readonly onOpenNewBrowserTab?: () => void;
 }) {
+  const t = useT();
   const goBack = useWorkspaceBackNavigation();
   const { toggleAuxiliaryPane, startNewTask } = useAdaptiveWorkspaceLayout();
   const { panes } = useWorkspacePaneState();

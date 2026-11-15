@@ -219,7 +219,7 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
                 </Text>
                 {filePath === null ? null : (
                   <Button
-                    label="View file diff"
+                    label={t("View file diff")}
                     onPress={() =>
                       navigation.navigate("PullRequestFile", { ...params, path: filePath })
                     }

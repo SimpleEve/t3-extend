@@ -1,5 +1,6 @@
 import type { RelayAgentActivityAggregateState } from "@t3tools/contracts/relay";
 
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import type { AgentActivityProps } from "./AgentActivity";
 
 // The widget only refreshes while the app is open, so after this long it stops
@@ -16,7 +17,7 @@ export function agentActivityWidgetTimeline(source: AgentActivityWidgetSource, n
   const updatedAt = new Date(now).toISOString();
   if (source.kind !== "snapshot" || !source.aggregate) {
     const props: AgentActivityProps = {
-      title: "T3 Code",
+      title: FORK.appBaseName,
       subtitle:
         source.kind === "signed-out"
           ? "Sign in to T3 Connect to see agents"

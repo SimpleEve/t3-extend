@@ -65,6 +65,8 @@ describe("parseManualDesktopSshTarget", () => {
     expect(() => parseManualDesktopSshTarget({ host: "devbox", username: "", port })).toThrow(
       "SSH port must be between 1 and 65535.",
     );
+  });
+});
 
 describe("resolveTailscaleServeBaseUrl", () => {
   it.each([

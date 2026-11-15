@@ -6,6 +6,7 @@ import type { AssetUrlFailureReason } from "../../state/asset-url-state";
 import { useEnvironmentPresentation } from "../../state/presentation";
 import { EnvironmentConnectionNotice } from "../connection/EnvironmentConnectionNotice";
 import { useRetryEnvironment } from "../connection/useRetryEnvironment";
+import { useT } from "../../hooks/useT"; // fork: restored import
 
 export function WorkspaceFilePreviewError(props: {
   readonly environmentId: EnvironmentId | null;

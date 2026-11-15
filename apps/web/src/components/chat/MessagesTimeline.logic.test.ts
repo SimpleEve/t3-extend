@@ -38,6 +38,7 @@ import {
   workEntryDisplayLabel,
 } from "./MessagesTimeline.logic";
 import { workEntryIconName } from "./TimelineWorkEntryRow.logic";
+import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: restored import
 
 describe("resolveAssistantMessageCopyState", () => {
   it("copies the rendered representation of Codex directives", () => {

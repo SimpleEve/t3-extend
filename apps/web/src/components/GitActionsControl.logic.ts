@@ -193,15 +193,15 @@ export function getMenuActionDisabledReason({
   gitStatus,
   isBusy,
   hasPrimaryRemote,
-  t,
-  kindLabel,
+  t = translatorFor("en"), // fork: interface language
+  kindLabel = (terminology) => terminology.singular, // fork
 }: {
   item: GitActionMenuItem;
   gitStatus: VcsStatusResult | null;
   isBusy: boolean;
   hasPrimaryRemote: boolean;
-  t: Translator; // fork: interface language
-  kindLabel: (terminology: ChangeRequestTerminology) => string; // fork
+  t?: Translator;
+  kindLabel?: (terminology: ChangeRequestTerminology) => string;
 }): string | null {
   if (!item.disabled) return null;
   if (isBusy) return t("Git action in progress.");

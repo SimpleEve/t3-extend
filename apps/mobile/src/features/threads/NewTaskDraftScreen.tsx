@@ -1015,6 +1015,7 @@ export function NewTaskDraftScreen(props: {
         contentPresentation={{ kind: "ready" }}
         screenTone={connectionTone(
           connectionState,
+          t,
           environmentRuntime?.connectionAwaitingApproval === true,
         )}
         connectionError={environmentRuntime?.connectionError ?? null}

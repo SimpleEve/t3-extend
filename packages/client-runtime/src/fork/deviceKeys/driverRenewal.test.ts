@@ -82,6 +82,7 @@ const connectWith = Effect.fn("connectWith")(function* (
             authorizeBearer: () => Effect.die("unused"),
             authorizeDpop: () => Effect.die("unused"),
             authorizeDpopHttp: () => Effect.die("unused"),
+            rememberCheckedDescriptor: () => Effect.void,
             renewDpopBeforeExpiry: (input) =>
               Effect.sync(() => void relayRenewals.push(input.expectedEnvironmentId)).pipe(
                 Effect.andThen(Deferred.succeed(renewed, "relay")),

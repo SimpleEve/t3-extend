@@ -77,6 +77,7 @@ export const WorkGroupSection = memo(function WorkGroupSection({
   isExpandedToolGroup: boolean;
   displayLabel?: string | undefined;
 }) {
+  const t = useT();
   const {
     workspaceRoot,
     routeThreadKey,
@@ -195,6 +196,7 @@ function ExpandedWorkGroupEntries({
   groupedEntries: ReadonlyArray<TimelineWorkEntry>;
   workspaceRoot: string | undefined;
 }) {
+  const t = useT();
   const {
     workGroupViewState: viewState,
     onToggleWorkEntry,

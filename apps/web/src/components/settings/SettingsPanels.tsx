@@ -816,7 +816,9 @@ export function GeneralSettingsPanel() {
         <NotificationSettings />
         <SettingsRow
           {...setting("in-app-notifications")}
-          description={t("Show a toast when another thread finishes, fails, or needs input or approval while this app has focus.")}
+          description={t(
+            "Show a toast when another thread finishes, fails, or needs input or approval while this app has focus.",
+          )}
           control={
             <Switch
               checked={settings.inAppNotificationsEnabled}
@@ -905,7 +907,9 @@ export function GeneralSettingsPanel() {
         />
         <SettingsRow
           {...setting("working-shelf")}
-          description={t("Fold working and monitoring threads into a Working section. They return to the top of the inbox when they need you. The boring sidebar in Labs has no Working section.")}
+          description={t(
+            "Fold working and monitoring threads into a Working section. They return to the top of the inbox when they need you. The boring sidebar in Labs has no Working section.",
+          )}
           resetAction={
             settings.sidebarWorkingShelfEnabled !==
             DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled ? (
@@ -959,9 +963,9 @@ export function GeneralSettingsPanel() {
         />
         <SettingsRow
           {...setting("archive-confirmation")}
-          description={
-            {t("Require a second click on the inline archive action before a thread is archived.")}
-          }
+          description={t(
+            "Require a second click on the inline archive action before a thread is archived.",
+          )}
           resetAction={
             settings.confirmThreadArchive !== DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive ? (
               <SettingResetButton

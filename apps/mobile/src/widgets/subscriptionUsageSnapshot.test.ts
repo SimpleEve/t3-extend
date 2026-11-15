@@ -193,6 +193,7 @@ describe("subscription widget expiry", () => {
         detail: "Subscription remaining",
         expiresAt: maxAgeDeadline,
         windows: [{ remaining: 60, reset: expect.stringMatching(/^Reset /) }],
+      });
     },
   );
 
@@ -228,9 +229,12 @@ describe("subscription widget expiry", () => {
       );
       expect(snapshot.providers[0]).toMatchObject({
         detail: "2 accounts · pooled",
+        expiresAt,
         windows: [{ remaining: 60, reset: expect.stringMatching(label) }],
+      });
     },
   );
+});
 
 describe("widget refresh probes", () => {
   it("does not overlap a slow probe even after the refresh interval", async () => {

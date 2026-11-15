@@ -1,4 +1,5 @@
 // Scenarios: e2e tests that run against the real dev stack. See docs/operations/scenarios.md.
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { mobile, type DeviceProvider } from "@e2e-dev/mobile";
@@ -177,7 +178,7 @@ export default {
         session: "t3-scenarios",
       }),
       app: {
-        bundleId: "com.t3tools.t3code.dev",
+        bundleId: `${FORK.appId}.dev`,
         // Metro starts after the server listens, so it answering means both are up.
         readyUrl: `http://127.0.0.1:${MOBILE.metroPort}/status`,
         command: {

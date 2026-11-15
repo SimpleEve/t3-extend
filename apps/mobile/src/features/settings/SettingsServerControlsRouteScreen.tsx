@@ -45,6 +45,7 @@ import { AutoSettleSettingsRows } from "./ThreadSettingsSections";
 import { supportsSharedSettingsSync } from "@t3tools/client-runtime/state/shared-settings";
 import { isSourceControlProviderOffered } from "@t3tools/client-runtime/operations/projects";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
+import { useT } from "../../hooks/useT"; // fork: restored import
 
 type SettingsPage = "threads" | "source-control" | "worktrees" | "maintenance";
 

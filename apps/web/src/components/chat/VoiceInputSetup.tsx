@@ -28,6 +28,7 @@ import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { WizardFooter, WizardHeader, WizardPanel, WizardPopup } from "../ui/wizard";
+import { useT } from "~/hooks/useT"; // fork: restored import
 
 export function VoiceInputSetup(props: {
   environmentId: EnvironmentId | null;

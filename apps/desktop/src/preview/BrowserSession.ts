@@ -17,6 +17,7 @@ import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: restored import
 
 const PREVIEW_PARTITION_PREFIX = "persist:t3code-preview-";
 /** Ephemeral partitions omit persist: but retain a product prefix so the webview gate recognizes them. */
@@ -489,7 +490,7 @@ export const make = Effect.gen(function* BrowserSessionMake() {
                       Effect.andThen(
                         electronDialog.showErrorBox(
                           `Could not trust the certificate for ${host}`,
-                          "T3 Code could not save this approval, so the page stays blocked. Check that the disk is not full and its data folder is writable, then try again.",
+                          "T3 Extend could not save this approval, so the page stays blocked. Check that the disk is not full and its data folder is writable, then try again.",
                         ),
                       ),
                       Effect.as(false),

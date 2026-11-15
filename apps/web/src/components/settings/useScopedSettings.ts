@@ -150,7 +150,14 @@ export function useUpdateScopedSettings() {
   return (patch: ScopedSettingsPatch, options?: { readonly onFailed?: () => void }) =>
     run(
       environments,
-      (current) => planScopedSettingsPatch(scope, current, patch, { deviceOnly }),
+      (current) =>
+        planScopedSettingsPatch(
+          scope,
+          current,
+          patch,
+          { deviceOnly },
+          translatorFor(getUiLocale()),
+        ),
       options?.onFailed,
     );
 }

@@ -17,6 +17,7 @@ import {
   shortcutToKeybindingInput,
   unknownWhenVariables,
   whenAstToExpression,
+  translatedCommandLabel,
 } from "./KeybindingsSettings.logic";
 
 describe("KeybindingsSettings.logic", () => {

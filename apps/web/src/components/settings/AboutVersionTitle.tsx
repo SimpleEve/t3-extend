@@ -6,6 +6,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { useT } from "../../hooks/useT";
 
 export function AboutVersionTitle() {
+  const t = useT();
   const { copyToClipboard } = useCopyToClipboard<void>({
     target: "version",
     onError: (error) => {

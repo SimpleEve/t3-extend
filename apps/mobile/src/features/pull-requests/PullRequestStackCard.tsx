@@ -15,6 +15,7 @@ export function PullRequestStackCard(props: {
   readonly params: PullRequestParams;
   readonly state: PullRequestStackState;
 }) {
+  const t = useT();
   const navigation = useNavigation();
   const [expanded, setExpanded] = useState(false);
   const stack = props.state.stack;

@@ -84,6 +84,7 @@ function TimelineComment({
   params: PullRequestParams;
   actions: CommentActions;
 }) {
+  const t = useT(); // fork: i18n
   const target = parsePullRequestAnchor(params.navigationUrl);
   const linked =
     target?.kind === "timeline" && pullRequestAnchorMatchesUrl(target.anchor, comment.url);
@@ -223,6 +224,7 @@ export function pullRequestTimelineRows(
   navigation: Pick<NavigationProp<ReactNavigation.RootParamList>, "navigate" | "dispatch">,
   actions: CommentActions,
   newestFirst: boolean,
+  t: Translator, // fork: i18n
 ) {
   const linkTarget = parsePullRequestAnchor(params.navigationUrl);
   const threads = pullRequestConversationThreads(activity);
@@ -270,7 +272,15 @@ export function pullRequestTimelineRows(
           </View>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Open ${thread.isResolved ? "resolved" : "unresolved"} discussion in ${thread.path ?? "the overview"}`}
+            accessibilityLabel={
+              thread.isResolved
+                ? t("Open resolved discussion in {path}", {
+                    path: thread.path ?? t("the overview"),
+                  })
+                : t("Open unresolved discussion in {path}", {
+                    path: thread.path ?? t("the overview"),
+                  })
+            }
             onPress={() =>
               navigation.navigate("PullRequestDiscussion", { ...params, discussionId: thread.id })
             }

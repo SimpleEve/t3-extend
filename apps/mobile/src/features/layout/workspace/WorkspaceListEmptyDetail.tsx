@@ -16,6 +16,7 @@ export function WorkspaceListEmptyDetail(props: {
   readonly onAddConnection: () => void;
   readonly onStartNewTask: () => void;
 }) {
+  const t = useT();
   const { panes } = useWorkspacePaneState();
   return (
     <>

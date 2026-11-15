@@ -8,6 +8,7 @@ import type {
   FilePreviewViewerProps,
 } from "./FilePreviewModal.types";
 import { FilePreviewSession } from "./FilePreviewSession";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export type {
   FilePreviewItem,
@@ -38,6 +39,7 @@ const NativeControls = requireNativeModule<{
 const nativeUri = (image: FilePreviewImage) => (image.failed ? null : image.uri);
 
 function NativeFilePreview(props: FilePreviewViewerProps) {
+  const t = useT();
   const identifier = useId();
   // Later URLs reach the native presentation through updateFile instead of presenting again.
   const [presented] = useState(props.source);

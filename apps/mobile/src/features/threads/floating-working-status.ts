@@ -1,5 +1,8 @@
 import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
+import { interpolate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import type { EnvironmentId } from "@t3tools/contracts";
+
+const untranslated: Translator = (source, params) => interpolate(source, params); // fork: i18n
 
 export interface FloatingStatusAction {
   readonly label: string;

@@ -587,8 +587,6 @@ export const ClientSettingsSchema = Schema.Struct({
   uiLanguage: UiLanguageSetting.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_UI_LANGUAGE)),
   ),
-  // A locale code or "system". Open string so new locales and downgrades need no migration.
-  language: Schema.String.pipe(Schema.withDecodingDefault(Effect.succeed("en"))),
   snapShotEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   snapShotIncludeAccessibility: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(true)),
@@ -2119,7 +2117,6 @@ export const ClientSettingsPatch = Schema.Struct({
   speechPostProcessingPrompt: Schema.optionalKey(SpeechPostProcessingPromptSettings),
   speechCorrectionWord: Schema.optionalKey(SpeechCorrectionCue),
   uiLanguage: Schema.optionalKey(UiLanguageSetting),
-  language: Schema.optionalKey(Schema.String),
   snapShotEnabled: Schema.optionalKey(Schema.Boolean),
   snapShotIncludeAccessibility: Schema.optionalKey(Schema.Boolean),
   snapShotShortcut: Schema.optionalKey(SnapShotShortcut),

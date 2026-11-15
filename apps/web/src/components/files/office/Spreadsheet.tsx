@@ -35,6 +35,7 @@ import {
 } from "./sheet-paint";
 import { externalUrl } from "./links";
 import { bufferedViewport, cachedViewport, retainCachedViewport } from "./sheet-viewport";
+import { useT } from "~/hooks/useT"; // fork: restored import
 
 const isSupersededError = Schema.is(SupersededError);
 
@@ -51,6 +52,7 @@ export default function Spreadsheet(props: {
   onDetails: (text: string) => void;
   onError: (cause: unknown) => void;
 }) {
+  const t = useT();
   const { onError, bytes: source, onDetails, view } = props;
   const [opened, setOpened] = useState<Opened>();
   const [error, setError] = useState("");

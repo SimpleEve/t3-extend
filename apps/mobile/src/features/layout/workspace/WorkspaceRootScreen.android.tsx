@@ -26,6 +26,7 @@ import { AndroidWorkspaceSidebar } from "./AndroidWorkspaceSidebar.android";
 import type { WorkspaceTab } from "./workspace-tabs-state";
 import { useSelectWorkspaceTab } from "./useSelectWorkspaceTab";
 import { useHardwareBack } from "../../../lib/backHandler";
+import { useT } from "../../../hooks/useT"; // fork: restored import
 
 const TABS: readonly WorkspaceTab[] = NAVIGATION_TAB_ORDER;
 

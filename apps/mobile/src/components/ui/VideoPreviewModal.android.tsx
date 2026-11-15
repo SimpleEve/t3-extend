@@ -20,6 +20,8 @@ import { usePreparedConnection } from "../../state/session";
 import { AppText } from "./AppText";
 import { MediaPreviewHeader } from "../MediaPreviewHeader";
 import { MediaVideoPlayer } from "../MediaVideoPlayer";
+import { useT } from "../../hooks/useT"; // fork: i18n
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type { VideoPreviewSource } from "../../lib/videoPreviewSource";
 

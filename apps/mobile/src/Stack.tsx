@@ -20,7 +20,6 @@ import { useResolveClassNames } from "uniwind";
 import { AppText as Text } from "./components/ui/AppText";
 import { androidWorkspaceDestinationAnimation } from "./lib/android-workspace-navigation";
 import { getCompactBrandHeaderOptions } from "./features/layout/workspace/brand-header-options";
-import { withLocalizedTitle } from "./fork/localizedTitle"; // fork: i18n
 import { WorkspaceConnectionStatusProvider } from "./features/home/WorkspaceConnectionTitle";
 import { WorkspaceRootScreen } from "./features/layout/workspace/WorkspaceRootScreen";
 import {
@@ -500,7 +499,7 @@ const RootStackConfig = createWorkspaceStackNavigator({
         ...pageRoute({ duoMinimize: "never", root: true }),
         contentStyle: { backgroundColor: "transparent" },
         ...getCompactBrandHeaderOptions(),
-      }),
+      },
     }),
     PullRequest: createNativeStackScreen({
       screen: PullRequestRouteScreen,

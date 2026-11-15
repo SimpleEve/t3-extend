@@ -26,7 +26,6 @@ import { useDeadlinePassed } from "../hooks/useDeadline";
 import { useNowSecond } from "../hooks/useNowSecond";
 import { useT, useUiLocale } from "../hooks/useT"; // fork: interface language
 import type { Translator } from "@t3tools/client-runtime/i18n";
-import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 import { flushSync } from "react-dom";
 import {
   CheckIcon,
@@ -416,6 +415,7 @@ interface PublishRepositoryDialogProps {
 }
 
 export function PublishRepositoryDialog(props: PublishRepositoryDialogProps) {
+  const t = useT();
   const openLink = useOpenLink(props.threadRef);
   const navigate = useNavigate();
   const sourceControlDiscovery = useEnvironmentQuery(

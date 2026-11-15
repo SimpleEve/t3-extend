@@ -57,7 +57,6 @@ function descendsFrom(
 
 /** Resolve apps from stored tool calls so links cannot supply apps the call never produced. */
 export function McpAppFullscreenScreen({ route }: McpAppFullscreenScreenProps) {
-  const t = useT();
   const navigation = useNavigation();
   const { environmentId, threadId, itemId } = route.params;
   if (!environmentId?.trim() || !threadId?.trim() || !itemId?.trim()) {
@@ -93,6 +92,7 @@ function McpAppFullscreen({
   readonly threadId: ThreadId;
   readonly itemId: TurnItemId;
 }) {
+  const t = useT();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   // Wait for focus before goBack; an exit under another screen must not pop that screen.

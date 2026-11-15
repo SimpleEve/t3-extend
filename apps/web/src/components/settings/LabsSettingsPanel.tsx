@@ -12,6 +12,8 @@ import { searchableSetting } from "./settingsSearch";
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
 import { useOptionalSettingsScope, useSettingsScope } from "./SettingsScopeContext";
 import { firstManagedDenial, usePrimaryManagedPolicy } from "~/state/managedPolicy";
+import { interpolateNodes } from "../../lib/interpolateNodes"; // fork: restored import
+import { useT } from "../../hooks/useT"; // fork: restored import
 
 /** Features still settling in. */
 export function LabsSettingsPanel() {

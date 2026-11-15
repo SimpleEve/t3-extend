@@ -24,6 +24,7 @@ export type {
 import { PdfPreview } from "../PdfPreview";
 import { SheetHeader } from "./SheetHeader";
 import { AppText as Text } from "./AppText";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 function PdfDocumentPreview(props: {
   readonly source: ResolvedFilePreviewDocument;

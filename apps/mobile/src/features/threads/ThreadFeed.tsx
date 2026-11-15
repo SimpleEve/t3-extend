@@ -297,7 +297,6 @@ const WIDE_MARKDOWN_BLOCK_OPTIONS = {
   includeOrderedLists: Platform.OS === "android",
 } as const;
 import type { Translator, UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { messageTimeLabel } from "../../lib/time"; // fork: i18n
 import { labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
 
 const TURN_FOLD_HEIGHT = 42;
@@ -587,7 +586,7 @@ function MessageAttachmentImage(props: {
         className={props.className}
         maxWidth={props.maxWidth}
         height={props.height}
-        accessibilityLabel={`Open ${props.name}`}
+        accessibilityLabel={t("Open {name}", { name: props.name })}
         onPress={() =>
           props.onPressPreview(
             withGallery({
@@ -996,7 +995,7 @@ function PendingMessageMedia(props: {
         className={props.className}
         maxWidth={props.maxWidth}
         height={props.height}
-        accessibilityLabel={`Open ${attachment.name}`}
+        accessibilityLabel={t("Open {name}", { name: attachment.name })}
         onPress={() => {
           const source = composerImageGallery([attachment])[0];
           if (source) props.onPressPreview(withGallery(source));
@@ -1139,6 +1138,7 @@ function ArtifactTemplateCard(props: {
   readonly template: CodexArtifactTemplate;
   readonly onUse?: ((template: CodexArtifactTemplate) => void) | undefined;
 }) {
+  const t = useT();
   const direction = textDirection(props.template.displayName);
   return (
     <View
@@ -1399,7 +1399,7 @@ function AgentMessageFoldHeader(props: {
   const senderShell = useQuietThreadShell(
     props.senderThreadId ? scopeThreadRef(props.environmentId, props.senderThreadId) : null,
   );
-  const label = senderShell?.title.trim() || props.senderTitle?.trim() || "Agent";
+  const label = senderShell?.title.trim() || props.senderTitle?.trim() || t("Agent");
   return (
     <Pressable
       accessibilityRole="button"
@@ -1941,7 +1941,11 @@ function renderFeedEntry(
     const presentation = resolveUserMessagePresentation(message);
     const renderedText = renderAssistantCitationsAsText(presentation.text);
     const styles = isUser ? markdownStyles.user : markdownStyles.assistant;
-    const timestampLabel = formatMessageTimestamp(isUser ? message.createdAt : message.updatedAt);
+    const timestampLabel = formatMessageTimestamp(
+      isUser ? message.createdAt : message.updatedAt,
+      undefined,
+      props.locale,
+    );
     const attachments = message.attachments ?? [];
     const hasReviewCommentContext = presentation.text.includes("<review_comment");
     // Android does not reposition children after maxWidth clamps bubbles; definite width prevents wide-block overlap.
@@ -2782,6 +2786,8 @@ const THREAD_FEED_MAINTAIN_SCROLL_AT_END = {
 } as const;
 
 export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
+  const t = useT();
+  const locale = useUiLocale(); // fork: i18n
   const { listRef, onIsAtEndChange, onHeaderMaterialVisibilityChange } = props;
   const workflowOpening = useWorkflowOpening(props.detailRef);
   const guestShare = useThreadGuestShare(props.detailRef);

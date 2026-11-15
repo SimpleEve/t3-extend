@@ -44,6 +44,7 @@ import {
   selectableSourceHtml,
 } from "./source-file-document";
 import { sourceHighlightAtom } from "./sourceHighlightingState";
+import { useT } from "../../hooks/useT"; // fork: restored import
 
 interface SourceFileSurfaceProps {
   readonly contents: string;

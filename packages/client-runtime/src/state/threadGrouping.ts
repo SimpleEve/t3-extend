@@ -2,6 +2,8 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 
 import type { EnvironmentThreadShell } from "./models.ts";
+import { THREAD_STATUS_TEXT } from "./threadActivityAnnouncement.ts";
+import { hasUnseenRunFailure } from "./threadSettled.ts";
 import { sortWorkingThreadsBySend } from "./threadInbox.ts";
 
 /** "status" is the upstream Inbox; "project" folds active threads by project, then worktree. */
@@ -360,6 +362,35 @@ export function hasUnseenCompletion(thread: UnseenCompletionInput): boolean {
   return completedAt > lastVisitedAt;
 }
 
+/** Sidebar row status: a failure the user has already opened settles to ready, like Done. */
+export function resolveSidebarRowStatus(
+  thread: UnseenCompletionInput & SidebarThreadStatusInput,
+): SidebarThreadStatus {
+  const status = resolveSidebarThreadStatus(thread);
+  // A runtime failure without a failed run has nothing to date it, so it stays.
+  if (status !== "failed" || thread.latestRun?.status !== "failed") return status;
+  return hasUnseenRunFailure(thread) ? status : "ready";
+}
+
+/** What the window title says the open thread is doing, in the words its announcer uses. */
+export function resolveWindowTitleThreadStatus(thread: SidebarThreadStatusInput): string | null {
+  // A guest waiting doesn't hide that the agent is still working.
+  switch (resolveSidebarThreadStatus({ ...thread, pendingGuestMessageCount: 0 })) {
+    case "approval":
+      return THREAD_STATUS_TEXT.approval;
+    case "input":
+      return THREAD_STATUS_TEXT.input;
+    case "preparing":
+    case "working":
+      return THREAD_STATUS_TEXT.working;
+    case "waiting":
+      // Waiting on a child thread is still this turn, so it must not read as finished.
+      return thread.runtime?.status === "running" ? THREAD_STATUS_TEXT.working : null;
+    default:
+      return null;
+  }
+}
+
 export type SidebarFolderDot = "attention" | "failed" | "unread" | "working";
 
 /**
@@ -369,7 +400,7 @@ export type SidebarFolderDot = "attention" | "failed" | "unread" | "working";
 export function resolveSidebarFolderDot(
   threads: ReadonlyArray<UnseenCompletionInput & SidebarThreadStatusInput>,
 ): SidebarFolderDot | null {
-  const statuses = new Set(threads.map(resolveSidebarThreadStatus));
+  const statuses = new Set(threads.map(resolveSidebarRowStatus));
   if (
     statuses.has("input") ||
     statuses.has("approval") ||
@@ -381,7 +412,7 @@ export function resolveSidebarFolderDot(
   if (statuses.has("failed")) return "failed";
   // Rows show Done only for ready threads, so the dot follows the same rule.
   const hasUnread = threads.some(
-    (thread) => resolveSidebarThreadStatus(thread) === "ready" && hasUnseenCompletion(thread),
+    (thread) => resolveSidebarRowStatus(thread) === "ready" && hasUnseenCompletion(thread),
   );
   if (hasUnread) return "unread";
   if (statuses.has("working") || statuses.has("preparing")) return "working";

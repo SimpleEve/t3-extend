@@ -9,6 +9,8 @@ import { TerminalAppearanceSection } from "./appearance/sections/TerminalAppeara
 import { TextAppearanceSection } from "./appearance/sections/TextAppearanceSection";
 import { ThemeAppearanceSection } from "./appearance/sections/ThemeAppearanceSection";
 import { ToolCallsAppearanceSection } from "./appearance/sections/ToolCallsAppearanceSection";
+import { LanguageAppearanceSection } from "./appearance/sections/LanguageAppearanceSection"; // fork: restored import
+import { useT } from "../../hooks/useT"; // fork: restored import
 
 export function SettingsAppearanceRouteScreen() {
   const insets = useSafeAreaInsets();

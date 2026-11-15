@@ -42,6 +42,7 @@ import { OpenAI } from "../Icons";
 import { Alert, AlertTitle } from "../ui/alert";
 import { Popover, PopoverCreateHandle, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { PaceIcon, ResetCreditDialog, barColor, usePaceMark, useResetCredit } from "./UsageLimits";
+import { useT } from "../../hooks/useT"; // fork: restored import
 
 function accountInitials(email: string): string {
   const [local = "", domain = ""] = email.split("@");
@@ -313,6 +314,7 @@ function RedeemableSegment({
 }: Omit<Parameters<typeof SegmentTriggers>[0], "redeem"> & {
   readonly redeemAt: NonNullable<LimitAccount["redeem"]>;
 }) {
+  const t = useT();
   const redeem = useResetCredit(redeemAt.environmentId);
   return (
     <>

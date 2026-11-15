@@ -210,6 +210,7 @@ export function backgroundWorkNowItem(input: {
   readonly stopping: boolean;
   readonly onStop: () => Promise<void>;
   readonly onOpenThread: (threadId: ThreadId) => void;
+  readonly t: Translator; // fork: interface language
 }): ThreadNowItem | null {
   const { t } = input;
   const { onOpenThread } = input;

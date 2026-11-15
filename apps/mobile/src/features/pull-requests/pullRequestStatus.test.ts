@@ -109,7 +109,7 @@ describe("mobile overview check status", () => {
       ),
     ).toMatchObject({ title: "1 check failing", count: "1 of 3" });
     expect(
-      pullRequestChecksSummary({ checks: [check("success"), check("cancelled")] }),
+      pullRequestChecksSummary({ checks: [check("success"), check("cancelled")] }, t),
     ).toMatchObject({ title: "1 check failing", tint: "accent-danger-foreground" });
   });
 

@@ -282,6 +282,7 @@ import {
   SidebarSectionPlaceholder,
 } from "./sidebar/SidebarListMarkers";
 import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
+import { useT } from "../hooks/useT"; // fork: restored import
 
 function sameSidebarProviderEntries(
   left: ReadonlyMap<string, SidebarProviderEntry>,
@@ -3239,7 +3240,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                 closeDelay={0}
                 timeout={400}
               >
-                <DndContext
+                <TranslatedDndContext
                   sensors={dndSensors}
                   autoScroll={false}
                   onDragStart={(event) => {
@@ -3298,7 +3299,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       );
                     })}
                   </ul>
-                </DndContext>
+                </TranslatedDndContext>
               </TooltipProvider>
             ) : (
               <p

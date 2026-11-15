@@ -125,6 +125,7 @@ import {
   resetPullRequestHosts,
   type PullRequestHostRead,
 } from "./pullRequestProjectAssignment.logic";
+import { useT } from "~/hooks/useT"; // fork: restored import
 
 function getShortcutContext() {
   return {

@@ -20,6 +20,7 @@ export function HtmlRenderDialog(props: {
   readonly threadRef?: ScopedThreadRef | undefined;
   readonly onClose: () => void;
 }) {
+  const t = useT();
   const { title } = props.htmlRender;
   const [zoom, setZoom] = useState(1);
   const closeButtonRef = useRef<HTMLButtonElement>(null);

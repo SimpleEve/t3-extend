@@ -27,6 +27,7 @@ import {
 import { readCachedCloudLinkState, useCloudLinkState } from "./cloudLinkState";
 import { resolveRelayClerkTokenOptions } from "./publicConfig";
 import { isManagedTunnelActive } from "./t3ConnectState";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: restored import
 
 export interface CloudLinkDesiredState {
   readonly managedTunnel: boolean;

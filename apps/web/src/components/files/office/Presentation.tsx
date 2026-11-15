@@ -10,6 +10,7 @@ import { OfficePages, type PaintPage } from "./OfficePages";
 import { createWorkerClient } from "./worker-rpc";
 import type { SlideMethods, SlideSummary } from "./slide-protocol";
 import { rasterize } from "./vector-pictures";
+import { useT } from "../../../hooks/useT"; // fork: restored import
 
 type Opened = { slides: readonly SlideSummary[]; paint: PaintPage };
 export default function Presentation(props: {

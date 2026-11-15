@@ -161,24 +161,24 @@ export function usePullRequestListActions(
     return [
       {
         id: "open",
-        title: `Open ${terminology.singular}`,
+        title: t("Open {singular}", { singular: changeRequestTerm(terminology.singular, t) }),
         image: "arrow.up.right",
       },
       ...(writableEnvironments.has(entry.environmentId) && entry.state === "open"
         ? [
             {
               id: "request-review",
-              title: "Request review",
+              title: t("Request review"),
               image: "person.badge.plus",
             },
             {
               id: entry.isDraft ? "ready" : "draft",
-              title: entry.isDraft ? "Mark ready for review" : "Convert to draft",
+              title: entry.isDraft ? t("Mark ready for review") : t("Convert to draft"),
               image: "pencil",
             },
             {
               id: "close",
-              title: pullRequestActionLabel("close", terminology),
+              title: pullRequestActionLabel("close", terminology, t),
               image: "xmark",
               attributes: { destructive: true },
             },
@@ -187,20 +187,20 @@ export function usePullRequestListActions(
           ? [
               {
                 id: "reopen",
-                title: pullRequestActionLabel("reopen", terminology),
+                title: pullRequestActionLabel("reopen", terminology, t),
                 image: "arrow.clockwise",
               },
             ]
           : []),
       {
         id: "share",
-        title: "Share…",
+        title: t("Share…"),
         image: "square.and.arrow.up",
       },
-      { id: "copy", title: "Copy link", image: "link" },
+      { id: "copy", title: t("Copy link"), image: "link" },
       {
         id: "provider",
-        title: openOnProviderLabel(entry.provider),
+        title: openOnProviderLabel(entry.provider, t),
         image: "safari",
       },
     ];

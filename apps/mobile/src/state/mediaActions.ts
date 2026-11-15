@@ -29,6 +29,7 @@ import {
 import { copyTextWithHaptic } from "../lib/copyTextWithHaptic";
 import { loadLocalAttachmentPreview } from "../lib/localAttachmentPreview";
 import { canSaveImageToLibrary, saveImageToLibrary } from "../lib/saveImageToLibrary";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: restored import
 
 function allowsHostMedia(session: SessionGrantInput | null) {
   return session === null || sessionGrantsScope(session, AuthFilesystemReadScope);
@@ -41,7 +42,6 @@ function canReadHostMedia(environmentId: EnvironmentId | null): boolean {
 }
 
 export function useMediaActions(source: MediaActionsSource | undefined, onOpenFile?: () => void) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const hostEnvironmentId =
     source &&

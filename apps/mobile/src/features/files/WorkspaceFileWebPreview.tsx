@@ -13,6 +13,7 @@ import { useHardwareBack } from "../../lib/backHandler";
 import { isPdfPreviewUri } from "../../lib/pdfPreview";
 import { webViewDecelerationRate } from "../../lib/webViewDecelerationRate";
 import { useContentTopInset } from "../../components/ui/useBarInset";
+import { useT } from "../../hooks/useT"; // fork: restored import
 
 export function WorkspaceFileWebPreview(props: { readonly uri: string | null }) {
   const t = useT(); // fork: i18n

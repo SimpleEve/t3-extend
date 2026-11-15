@@ -141,7 +141,7 @@ vi.mock(import("~/previewStateStore"), async (original) => ({
               threadId: "thread-1",
               tabId: "tab-1",
               runtime: mocks.nativeServerTab || mocks.streamedServerTab ? "server" : "desktop",
-              navStatus: { _tag: "Success", url: "http://example.com/", title: "Example" },
+              navStatus: { _tag: "Success", url: mocks.tabUrl, title: "Example" },
               canGoBack: false,
               canGoForward: false,
               updatedAt: "2026-07-13T00:00:00.000Z",
@@ -194,6 +194,7 @@ vi.mock(import("~/browser/ServerBrowserSurface"), async (original) => ({
   ServerBrowserSurface: ((props: { className?: string }) => (
     <div data-testid="server-browser-surface" className={props.className} />
   )) as never,
+}));
 
 import { useComposerDraftStore } from "~/composerDraftStore";
 import { commitBrowserViewportChange } from "~/browser/browserViewportActions";
@@ -496,6 +497,7 @@ describe("PreviewView", () => {
   });
 
   it("does not reopen find when the user returns to a tab they left with find open", async () => {
+    setup();
     const tabView = (tabId: string) => (
       <PreviewView threadRef={TEST_THREAD_REF} tabId={tabId} visible />
     );
@@ -509,4 +511,5 @@ describe("PreviewView", () => {
     await expect.element(findBar).not.toBeInTheDocument();
     await screen.rerender(tabView("tab-1"));
     await expect.element(findBar).not.toBeInTheDocument();
+  });
 });

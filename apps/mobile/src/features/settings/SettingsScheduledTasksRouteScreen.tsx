@@ -125,8 +125,31 @@ const THREAD_MODE_LABELS: Record<ScheduledTaskThreadMode, string> = {
   fresh_session: "One thread, fresh session",
 };
 
-function describeSchedule(task: ScheduledTask, timeZone?: string): string {
-  if (task.schedule.type === "webhook") return "On webhook";
+function destinationFooter(mode: ScheduledTaskThreadMode, unstarted: boolean, t: Translator) {
+  if (mode === "new_thread") return t("Each run starts a new thread.");
+  if (mode === "continue") {
+    return unstarted
+      ? t(
+          "Runs continue one conversation. The first run starts the thread. Deleting it also deletes this task.",
+        )
+      : t("Runs continue one conversation. Deleting it also deletes this task.");
+  }
+  return unstarted
+    ? t(
+        "Runs share one thread, each in a fresh session without earlier runs' context. The first run starts the thread. Deleting it also deletes this task.",
+      )
+    : t(
+        "Runs share one thread, each in a fresh session without earlier runs' context. Deleting it also deletes this task.",
+      );
+}
+
+function describeSchedule(
+  task: ScheduledTask,
+  t: Translator,
+  locale: UiLocale,
+  timeZone?: string,
+): string {
+  if (task.schedule.type === "webhook") return t("On webhook");
   if (task.schedule.type === "once") {
     const runAt = new Date(task.schedule.runAt);
     return t("Once, {date} at {time}", {
@@ -134,10 +157,14 @@ function describeSchedule(task: ScheduledTask, timeZone?: string): string {
       time: formatRunAtTime(runAt, locale),
     });
   }
-  if (task.schedule.type === "interval") return formatScheduledTaskInterval(task.schedule.everyMs);
-  const days = task.schedule.weekdays?.length ? repeatLabel(task.schedule.weekdays) : "Every day";
+  if (task.schedule.type === "interval")
+    return formatScheduledTaskInterval(task.schedule.everyMs, t);
+  const days = task.schedule.weekdays?.length
+    ? repeatLabel(task.schedule.weekdays, t)
+    : t("Every day");
   const zone = scheduleTimeZoneLabel(timeZone, task.nextRunAt);
-  return `${days} at ${formatTime(task.schedule.timeOfDay)}${zone === undefined ? "" : ` ${zone}`}`;
+  const time = formatTime(task.schedule.timeOfDay, locale);
+  return t("{days} at {time}", { days, time: zone === undefined ? time : `${time} ${zone}` });
 }
 
 function formatTime(value: string, locale: UiLocale): string {
@@ -291,6 +318,7 @@ function WebhookFilterRows(props: {
     update: (filters: ReadonlyArray<WebhookFilterDraft>) => ReadonlyArray<WebhookFilterDraft>,
   ) => void;
 }) {
+  const t = useT();
   const update = (id: WebhookFilterDraft["id"], patch: Partial<WebhookFilterDraft>) =>
     props.onChange((filters) =>
       filters.map((filter) => (filter.id === id ? { ...filter, ...patch } : filter)),
@@ -705,6 +733,8 @@ function TaskForm({
   readonly onSaved: () => void;
   readonly onChangeEnvironment: (target: SettingsTarget) => void;
 }) {
+  const t = useT();
+  const locale = useUiLocale(); // fork: i18n
   const { readEditor } = useScheduledTaskEditor();
   const navigation = useNavigation<NativeStackNavigationProp<ScheduledTaskRoutes>>();
   const tasks = useEnvironmentQuery(
@@ -921,7 +951,7 @@ function TaskForm({
             label={t("Name")}
             disabled={saving}
             value={draft.title}
-            placeholder="Check for issues"
+            placeholder={t("Check for issues")}
             onChange={(title) => setDraft((current) => ({ ...current, title }))}
           />
           {promptField}
@@ -972,7 +1002,7 @@ function TaskForm({
                   option.selection.model === shownSelection?.model,
               )?.label ??
               shownSelection?.model ??
-              (modelOptions.length ? "Choose model" : "No models available")
+              (modelOptions.length ? t("Choose model") : t("No models available"))
             }
             onPress={() => navigation.navigate("SettingsScheduledTaskModel")}
             // The saved selection only seeds new threads; bound runs ignore it.
@@ -1123,9 +1153,11 @@ function TaskForm({
             <>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Time, ${formatTime(draft.schedule.timeOfDay)}${
-                  runAtZone ? ` ${runAtZone}` : ""
-                }`}
+                accessibilityLabel={t("Time, {timeOfDay}", {
+                  timeOfDay: `${formatTime(draft.schedule.timeOfDay, locale)}${
+                    runAtZone ? ` ${runAtZone}` : ""
+                  }`,
+                })}
                 onPress={() => setTimePickerOpen((open) => !open)}
                 className="min-h-14 flex-row items-center gap-3 border-t border-border-subtle px-4 py-3 active:opacity-70"
               >
@@ -1136,7 +1168,7 @@ function TaskForm({
                   textRole="footnote"
                   className="min-w-0 flex-1 text-right text-foreground-muted"
                 >
-                  {formatTime(draft.schedule.timeOfDay)}
+                  {formatTime(draft.schedule.timeOfDay, locale)}
                   {runAtZone ? ` ${runAtZone}` : ""}
                 </Text>
                 <SymbolView
@@ -1606,7 +1638,7 @@ function EnvironmentTasks({
                 {task.title}
               </Text>
               <Text className="text-sm text-foreground-muted" numberOfLines={2}>
-                {describeSchedule(task, tasks.data?.timeZone)}
+                {describeSchedule(task, t, locale, tasks.data?.timeZone)}
                 {!task.enabled
                   ? ` · ${t("Paused")}`
                   : task.nextRunAt

@@ -17,6 +17,7 @@ import type {
   ThreadId,
 } from "@t3tools/contracts";
 import { resolveSelectableModel } from "@t3tools/shared/model";
+import { Translator } from "@t3tools/client-runtime/i18n"; // fork: restored import
 
 const PROMPT_TITLE_LIMIT = 80;
 

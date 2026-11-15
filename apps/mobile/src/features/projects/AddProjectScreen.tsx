@@ -818,6 +818,7 @@ function useOpenExistingProject(environment: EnvironmentOption | null) {
 }
 
 function useCreateProject(environment: EnvironmentOption | null) {
+  const t = useT();
   const openNewTaskDraft = useOpenNewTaskDraft();
   const navigation = useNavigation();
   const createProject = useAtomCommand(projectEnvironment.create, { reportFailure: false });

@@ -4,6 +4,7 @@ import { WebView } from "react-native-webview";
 
 import { FilePreviewLoading, FilePreviewNotice } from "../features/files/FilePreviewFeedback";
 import { webViewDecelerationRate } from "../lib/webViewDecelerationRate";
+import { useT } from "../hooks/useT"; // fork: restored import
 
 export function PdfPreview(props: { readonly uri: string }) {
   const t = useT(); // fork: i18n

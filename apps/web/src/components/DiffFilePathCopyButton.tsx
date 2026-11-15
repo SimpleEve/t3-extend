@@ -14,6 +14,7 @@ export function DiffFilePathCopyButton({
   filePath: string;
   workspaceRoot: string | undefined;
 }) {
+  const t = useT();
   const ref = useRef<HTMLButtonElement>(null);
   const { copyToClipboard, isCopied } = useCopyToClipboard<void>({
     onError: (error) => showAnchoredCopyErrorToast(ref, error),

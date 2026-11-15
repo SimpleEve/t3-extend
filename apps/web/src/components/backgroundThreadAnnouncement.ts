@@ -5,6 +5,9 @@ import {
   runOutcomeText,
   THREAD_STATUS_TEXT,
 } from "@t3tools/client-runtime/state/thread-activity-announcement";
+import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: restored import
+import { interpolate } from "@t3tools/client-runtime/i18n"; // fork: restored import
+import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: restored import
 
 export interface BackgroundThreadSnapshot {
   readonly key: string;

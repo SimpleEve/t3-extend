@@ -608,14 +608,16 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         const decodePatch = Schema.decodeUnknownOption(ClientSettingsPatch);
         const accepted: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(raw.value as Record<string, unknown>)) {
+          // Upstream removed the legacy sidebar; an older official app may still have it on.
+          if (key === "legacySidebarEnabled") {
+            if (value === true) attention.push({ code: "sidebar-settings", subject: key });
+            continue;
+          }
           if (!fields.has(key) || Option.isNone(decodePatch({ [key]: value }))) {
             skipped.push({ code: "client-setting-rejected", subject: key });
           } else accepted[key] = toFork(value);
         }
         clientSettings = accepted;
-        if (accepted.legacySidebarEnabled === true) {
-          attention.push({ code: "sidebar-settings", subject: "legacySidebarEnabled" });
-        }
       }
     }
 

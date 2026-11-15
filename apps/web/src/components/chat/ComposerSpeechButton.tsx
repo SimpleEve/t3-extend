@@ -1,4 +1,3 @@
-import { getUiLocale, translatorFor, type Translator } from "@t3tools/client-runtime/i18n";
 import type { VoiceInputState } from "@t3tools/client-runtime/voice-input";
 import { CheckIcon, MicIcon, XIcon } from "lucide-react";
 import { useEffect, useState, type PointerEvent, type ReactElement } from "react";
@@ -136,6 +135,7 @@ export function ComposerSpeechRecordingPill(props: {
   onCancel(): void;
   onSkipPostProcessing(): void;
 }) {
+  const t = useT();
   const { phase } = props.state;
   const compact = props.size === "compact";
   if (phase === "error") {

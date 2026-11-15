@@ -20,6 +20,7 @@ import {
   type FilePreviewSource,
   type FilePreviewItem,
 } from "../../components/ui/FilePreviewModal";
+import { useT } from "../../hooks/useT"; // fork: restored import
 
 export const PullRequestMediaVisibleContext = createContext(true);
 

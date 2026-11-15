@@ -152,6 +152,7 @@ function usePullRequestActivityRows(params: PullRequestParams, filter: ActivityF
       navigation,
       { permissions, onChanged: result.refresh },
       filter.newestFirst,
+      t,
     );
     if (!rows.length)
       rows.push({
@@ -370,6 +371,7 @@ function usePullRequestToolbarHeight(bottomInset: number) {
 }
 
 export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestParams>) {
+  const t = useT();
   const returnToList = useAndroidWorkspaceBack();
   const { layout } = useAdaptiveWorkspaceLayout();
   const navigation = useNavigation();

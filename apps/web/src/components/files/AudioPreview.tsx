@@ -5,6 +5,7 @@ import { useStableCallback } from "~/hooks/useStableCallback";
 import { ContextChip, ContextChipAction, ContextChipLabel } from "../ContextChip";
 import { middleTruncateAttachmentName } from "../composerInlineChip";
 import { Spinner } from "../ui/spinner";
+import { useT } from "~/hooks/useT"; // fork: restored import
 
 export const AudioPreviewUnmountContext = createContext<((audio: HTMLAudioElement) => void) | null>(
   null,
