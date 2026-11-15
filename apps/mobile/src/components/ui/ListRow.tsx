@@ -15,11 +15,12 @@ export function ListRow(
     readonly selected?: boolean;
   },
 ) {
+  const t = useT(); // fork: i18n
   const rippleStyle = useResolveClassNames("bg-subtle-strong");
   return (
     <RowPressable
       accessibilityRole="button"
-      accessibilityLabel={[props.label, props.description, props.detail].filter(Boolean).join(", ")}
+      accessibilityLabel={joinLabelParts([props.label, props.description, props.detail], t)}
       accessibilityState={{
         disabled: Boolean(props.disabled),
         ...(props.selected === undefined ? {} : { checked: props.selected }),

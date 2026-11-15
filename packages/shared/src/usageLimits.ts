@@ -840,7 +840,6 @@ export function resetCreditChoices(
   ];
 }
 
-
 /** fork: the time left alone ("5d 9h"), for rows that already say what resets. */
 export function formatResetDuration(
   window: ServerProviderUsageWindow,

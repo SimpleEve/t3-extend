@@ -111,7 +111,7 @@ import { pruneNewTaskFlowStates } from "./features/threads/new-task-flow-state";
 import { pruneNewTaskBranchCheckouts } from "./features/threads/NewTaskDraftRouteScreen";
 import { installAppUpdateChecks } from "./features/updates/app-updates";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
-import { installUiLanguageRuntime, useUiLanguageReady } from "./fork/uiLanguage"; // fork: i18n
+import { installUiLanguageRuntime } from "./fork/uiLanguage"; // fork: i18n
 import { installUnifiedPushRegistration } from "./fork/push/unifiedPushRegistration"; // fork: UnifiedPush
 import { installDeviceKeysSync } from "./fork/deviceKeys/installDeviceKeysSync"; // fork: self-hosted devices
 import { deferInitialLinkSheet, splashScreenHidden } from "./fork/initialLinkSheet"; // fork

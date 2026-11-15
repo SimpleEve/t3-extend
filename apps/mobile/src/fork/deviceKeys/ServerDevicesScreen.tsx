@@ -3,7 +3,8 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Device from "expo-device";
 import { useRef, useState, useSyncExternalStore } from "react";
-import { Modal, RefreshControl, View } from "react-native";
+import { Modal, View } from "react-native";
+import { RefreshControl } from "../../components/ui/RefreshControl";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { readInvite } from "@t3tools/client-runtime/fork/deviceKeys/inviteReading";
 

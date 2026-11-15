@@ -15,7 +15,6 @@ import {
   type WordLink,
 } from "./word-protocol";
 import { useT } from "~/hooks/useT";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 type Opened = {
   pages: readonly WordPageSize[];

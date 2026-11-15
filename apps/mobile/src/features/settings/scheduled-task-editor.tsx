@@ -3,7 +3,7 @@ import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useMemo, useCallback, type Dispatch, type SetStateAction } from "react";
 
-import { useT } from "../../hooks/useT"; // fork: i18n
+// fork: i18n
 import { useProjects, useServerConfigs, useThreadShell } from "../../state/entities";
 import { useEnvironmentQuery } from "../../state/query";
 import { threadFamilies } from "../../state/threads";

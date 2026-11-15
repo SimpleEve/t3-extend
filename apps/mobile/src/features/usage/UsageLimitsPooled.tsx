@@ -33,7 +33,6 @@ import { environmentPresentations } from "../../state/presentation";
 import { ResetCredits } from "./UsageLimitsSection";
 import { usageProviderKind, useProviderColors } from "./usageProviders";
 import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 
 const PACE_LABEL = { ahead: "Ahead of pace", on: "On pace", under: "Under pace" } as const;
