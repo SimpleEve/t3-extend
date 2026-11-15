@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   limitOutputRows,
+  outputDirectoryTail,
   OUTPUT_ROW_LIMIT,
   outputFileDisplay,
   outputLinkDisplay,
@@ -49,15 +50,31 @@ describe("visibleOutputRows", () => {
   const rows = (count: number) => Array.from({ length: count }, (_, index) => index);
 
   it.each([
-    ["fewer than the limit", OUTPUT_ROW_LIMIT - 1, false, OUTPUT_ROW_LIMIT - 1, 0],
-    ["exactly the limit", OUTPUT_ROW_LIMIT, false, OUTPUT_ROW_LIMIT, 0],
-    ["one over", OUTPUT_ROW_LIMIT + 1, false, OUTPUT_ROW_LIMIT, 1],
-    ["many", 40, false, OUTPUT_ROW_LIMIT, 40 - OUTPUT_ROW_LIMIT],
-    ["many, expanded", 40, true, 40, 0],
-  ])("%s", (_name, count, expanded, visible, hiddenCount) => {
+    ["fewer than the limit", OUTPUT_ROW_LIMIT - 1, false, OUTPUT_ROW_LIMIT - 1, 0, false],
+    ["exactly the limit", OUTPUT_ROW_LIMIT, false, OUTPUT_ROW_LIMIT, 0, false],
+    ["exactly the limit, expanded", OUTPUT_ROW_LIMIT, true, OUTPUT_ROW_LIMIT, 0, false],
+    ["one over", OUTPUT_ROW_LIMIT + 1, false, OUTPUT_ROW_LIMIT, 1, false],
+    ["many", 40, false, OUTPUT_ROW_LIMIT, 40 - OUTPUT_ROW_LIMIT, false],
+    ["many, expanded", 40, true, 40, 0, true],
+  ])("%s", (_name, count, expanded, visible, hiddenCount, canCollapse) => {
     const result = visibleOutputRows(rows(count), expanded);
     expect(result.visible).toHaveLength(visible);
     expect(result.hiddenCount).toBe(hiddenCount);
+    expect(result.canCollapse).toBe(canCollapse);
+  });
+});
+
+describe("outputDirectoryTail", () => {
+  it.each([
+    ["two segments", "design/visual", 7],
+    ["deeper", "src/components/ui", 3],
+    ["a rooted folder", "/tmp/out", 4],
+    ["windows", "C:\\work\\out", 4],
+    ["one segment", "design", undefined],
+    ["a rooted single segment", "/tmp", undefined],
+    ["empty", "", undefined],
+  ])("%s", (_name, directory, expected) => {
+    expect(outputDirectoryTail(directory)).toBe(expected);
   });
 });
 

@@ -44,7 +44,12 @@ export const AssistantOutputsStrip = memo(function AssistantOutputsStrip(props: 
     ...files.rows.map((file) => ({ kind: "file" as const, key: `f:${file.path}`, file })),
     ...links.rows.map((link) => ({ kind: "link" as const, key: `l:${link.url}`, link })),
   ];
-  const { visible, hiddenCount } = visibleOutputRows(rows, expanded);
+  const { visible, hiddenCount, canCollapse } = visibleOutputRows(rows, expanded);
+  const setExpandedAndSync = (next: boolean) => {
+    setExpanded(next);
+    // Measure before paint instead of waiting for LegendList's deferred measurement.
+    syncTimelineLayout();
+  };
 
   return (
     <div
@@ -73,13 +78,20 @@ export const AssistantOutputsStrip = memo(function AssistantOutputsStrip(props: 
           size="xs"
           variant="ghost-muted"
           data-scroll-anchor-ignore
-          onClick={() => {
-            setExpanded(true);
-            // Measure before paint instead of waiting for LegendList's deferred measurement.
-            syncTimelineLayout();
-          }}
+          onClick={() => setExpandedAndSync(true)}
         >
           {t("Show {count} more", { count: hiddenCount })}
+        </Button>
+      ) : null}
+      {canCollapse ? (
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost-muted"
+          data-scroll-anchor-ignore
+          onClick={() => setExpandedAndSync(false)}
+        >
+          {t("Show less")}
         </Button>
       ) : null}
       <OutputsOmittedNote count={files.omitted + links.omitted} />

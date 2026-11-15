@@ -99,3 +99,18 @@ export function OutputsOmittedNote(props: { readonly count: number }) {
     </Text>
   );
 }
+
+/** "Show N more" and "Show less" under a list. */
+export function OutputsToggleRow(props: { readonly label: string; readonly onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={props.onPress}
+      className="min-h-11 justify-center px-3 active:bg-subtle"
+    >
+      <Text textRole="label" className="text-foreground-muted">
+        {props.label}
+      </Text>
+    </Pressable>
+  );
+}

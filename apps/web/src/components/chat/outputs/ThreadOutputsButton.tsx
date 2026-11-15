@@ -60,6 +60,16 @@ function ThreadOutputsList(props: {
               {t("Show {count} more", { count: files.hiddenCount })}
             </Button>
           ) : null}
+          {files.canCollapse ? (
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost-muted"
+              onClick={() => setFilesExpanded(false)}
+            >
+              {t("Show less")}
+            </Button>
+          ) : null}
           <OutputsOmittedNote count={outputs.filesTotal - outputs.files.length} />
         </ExpandableSection>
       ) : null}
@@ -76,6 +86,16 @@ function ThreadOutputsList(props: {
               onClick={() => setLinksExpanded(true)}
             >
               {t("Show {count} more", { count: links.hiddenCount })}
+            </Button>
+          ) : null}
+          {links.canCollapse ? (
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost-muted"
+              onClick={() => setLinksExpanded(false)}
+            >
+              {t("Show less")}
             </Button>
           ) : null}
           <OutputsOmittedNote count={outputs.linksTotal - outputs.links.length} />

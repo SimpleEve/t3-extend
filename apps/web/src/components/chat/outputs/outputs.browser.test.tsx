@@ -94,13 +94,16 @@ describe("AssistantOutputsStrip", () => {
     await expect.element(screen.getByText("/app")).toBeVisible();
   });
 
-  it("shows six rows, then the rest on request", async () => {
+  it("shows six rows, then the rest on request, and folds back", async () => {
     setup({ files: manyFiles(9) });
     await using screen = await render(strip);
     expect(fileRows(screen.container)).toHaveLength(6);
     await userEvent.click(screen.getByRole("button", { name: "Show 3 more" }));
     expect(fileRows(screen.container)).toHaveLength(9);
     expect(screen.container.textContent).not.toContain("Show 3 more");
+    await userEvent.click(screen.getByRole("button", { name: "Show less" }));
+    expect(fileRows(screen.container)).toHaveLength(6);
+    await expect.element(screen.getByRole("button", { name: "Show 3 more" })).toBeVisible();
   });
 
   it("says how many a long run left out instead of dropping them silently", async () => {
@@ -149,7 +152,7 @@ describe("ThreadOutputsButton", () => {
     await expect.element(page.getByText("118 more not listed")).toBeVisible();
   });
 
-  it("opens with six rows per section, expands, and closes on Escape", async () => {
+  it("opens with six rows per section, expands, collapses, and closes on Escape", async () => {
     setup({ files: manyFiles(8), links: ["http://localhost:3000", "https://example.com/x"] });
     await using _screen = await render(button);
 
@@ -160,6 +163,8 @@ describe("ThreadOutputsButton", () => {
 
     await userEvent.click(page.getByRole("button", { name: "Show 2 more" }));
     expect(fileRows(document)).toHaveLength(8);
+    await userEvent.click(page.getByRole("button", { name: "Show less" }));
+    expect(fileRows(document)).toHaveLength(6);
 
     await userEvent.keyboard("{Escape}");
     await vi.waitFor(() => expect(document.querySelector("[data-outputs-section]")).toBeNull());

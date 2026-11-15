@@ -7,12 +7,12 @@ import {
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, RunId, ThreadId } from "@t3tools/contracts";
 import { memo, useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { useT } from "../../hooks/useT";
 import { useRunOutputs } from "../../state/outputs";
-import { OutputFileRow, OutputLinkRow, OutputsOmittedNote } from "./OutputRows";
+import { OutputFileRow, OutputLinkRow, OutputsOmittedNote, OutputsToggleRow } from "./OutputRows";
 import { useOutputActions } from "./useOutputActions";
 
 /**
@@ -43,7 +43,7 @@ export const MessageOutputsStrip = memo(function MessageOutputsStrip(props: {
     ...files.rows.map((file) => ({ kind: "file" as const, key: `f:${file.path}`, file })),
     ...links.rows.map((link) => ({ kind: "link" as const, key: `l:${link.url}`, link })),
   ];
-  const { visible, hiddenCount } = visibleOutputRows(rows, expanded);
+  const { visible, hiddenCount, canCollapse } = visibleOutputRows(rows, expanded);
 
   return (
     <View className="mt-3 overflow-hidden rounded-xl bg-subtle">
@@ -66,15 +66,13 @@ export const MessageOutputsStrip = memo(function MessageOutputsStrip(props: {
         ),
       )}
       {hiddenCount > 0 ? (
-        <Pressable
-          accessibilityRole="button"
+        <OutputsToggleRow
+          label={t("Show {count} more", { count: hiddenCount })}
           onPress={() => setExpanded(true)}
-          className="min-h-11 justify-center px-3 active:bg-subtle"
-        >
-          <Text textRole="label" className="text-foreground-muted">
-            {t("Show {count} more", { count: hiddenCount })}
-          </Text>
-        </Pressable>
+        />
+      ) : null}
+      {canCollapse ? (
+        <OutputsToggleRow label={t("Show less")} onPress={() => setExpanded(false)} />
       ) : null}
       <OutputsOmittedNote count={files.omitted + links.omitted} />
     </View>

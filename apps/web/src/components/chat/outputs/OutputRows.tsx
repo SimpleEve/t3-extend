@@ -4,9 +4,14 @@ import type { MouseEvent } from "react";
 
 import { useT } from "~/hooks/useT";
 import { Button } from "../../ui/button";
+import { MiddleTruncate } from "../../ui/middle-truncate";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../../ui/tooltip";
 import { PierreEntryIcon } from "../PierreEntryIcon";
-import { outputFileDisplay, outputLinkDisplay } from "@t3tools/client-runtime/outputs/display";
+import {
+  outputDirectoryTail,
+  outputFileDisplay,
+  outputLinkDisplay,
+} from "@t3tools/client-runtime/outputs/display";
 import type { useOutputActions } from "./useOutputActions";
 
 type OutputActions = ReturnType<typeof useOutputActions>;
@@ -31,6 +36,7 @@ export function OutputFileRow(props: {
   const t = useT();
   const { name, directory } = outputFileDisplay(file.path, workspaceRoot);
   const primary = actions.primaryFileAction(file);
+  const directoryTail = outputDirectoryTail(directory);
 
   return (
     <div
@@ -57,7 +63,14 @@ export function OutputFileRow(props: {
           <PierreEntryIcon pathValue={file.path} kind="file" theme={resolvedTheme} />
           <span className="shrink-0 font-medium text-foreground">{name}</span>
           {directory === "" ? null : (
-            <span className="min-w-0 truncate text-muted-foreground">{directory}</span>
+            // The name keeps its width; the folder takes what is left and cuts the same way in every row.
+            <span className="flex min-w-0 text-muted-foreground">
+              <MiddleTruncate
+                value={directory}
+                showTitle={false}
+                {...(directoryTail === undefined ? {} : { tail: directoryTail })}
+              />
+            </span>
           )}
         </TooltipTrigger>
         <TooltipPopup side="top">{file.path}</TooltipPopup>

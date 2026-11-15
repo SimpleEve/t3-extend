@@ -3,10 +3,9 @@ import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { visibleOutputRows } from "@t3tools/client-runtime/outputs/display";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 
 import { AppBar } from "../../components/ui/AppBar";
-import { AppText as Text } from "../../components/ui/AppText";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { ListSection } from "../../components/ui/ListSection";
 import { ScreenContent } from "../../components/ui/ScreenContent";
@@ -14,28 +13,13 @@ import { ScreenScrollView } from "../../components/ui/ScreenScrollView";
 import { useT } from "../../hooks/useT";
 import { useSelectedThreadWorktree } from "../../state/use-selected-thread-worktree";
 import { useThreadOutputs } from "../../state/outputs";
-import { OutputFileRow, OutputLinkRow, OutputsOmittedNote } from "./OutputRows";
+import { OutputFileRow, OutputLinkRow, OutputsOmittedNote, OutputsToggleRow } from "./OutputRows";
 import { useOutputActions } from "./useOutputActions";
 
 type ThreadOutputsRouteScreenProps = StaticScreenProps<{
   readonly environmentId: string;
   readonly threadId: string;
 }>;
-
-function ShowMoreRow(props: { readonly count: number; readonly onPress: () => void }) {
-  const t = useT();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={props.onPress}
-      className="min-h-11 justify-center px-3 active:bg-subtle"
-    >
-      <Text textRole="label" className="text-foreground-muted">
-        {t("Show {count} more", { count: props.count })}
-      </Text>
-    </Pressable>
-  );
-}
 
 /** Every file and link the conversation's finished runs produced, newest first. */
 export function ThreadOutputsRouteScreen(props: ThreadOutputsRouteScreenProps) {
@@ -79,7 +63,16 @@ export function ThreadOutputsRouteScreen(props: ThreadOutputsRouteScreenProps) {
                   />
                 ))}
                 {files.hiddenCount > 0 ? (
-                  <ShowMoreRow count={files.hiddenCount} onPress={() => setFilesExpanded(true)} />
+                  <OutputsToggleRow
+                    label={t("Show {count} more", { count: files.hiddenCount })}
+                    onPress={() => setFilesExpanded(true)}
+                  />
+                ) : null}
+                {files.canCollapse ? (
+                  <OutputsToggleRow
+                    label={t("Show less")}
+                    onPress={() => setFilesExpanded(false)}
+                  />
                 ) : null}
                 <OutputsOmittedNote count={outputs.filesTotal - outputs.files.length} />
               </ListSection>
@@ -90,7 +83,16 @@ export function ThreadOutputsRouteScreen(props: ThreadOutputsRouteScreenProps) {
                   <OutputLinkRow key={link.url} link={link} actions={actions.linkActions(link)} />
                 ))}
                 {links.hiddenCount > 0 ? (
-                  <ShowMoreRow count={links.hiddenCount} onPress={() => setLinksExpanded(true)} />
+                  <OutputsToggleRow
+                    label={t("Show {count} more", { count: links.hiddenCount })}
+                    onPress={() => setLinksExpanded(true)}
+                  />
+                ) : null}
+                {links.canCollapse ? (
+                  <OutputsToggleRow
+                    label={t("Show less")}
+                    onPress={() => setLinksExpanded(false)}
+                  />
                 ) : null}
                 <OutputsOmittedNote count={outputs.linksTotal - outputs.links.length} />
               </ListSection>

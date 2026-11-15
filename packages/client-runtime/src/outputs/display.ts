@@ -6,9 +6,29 @@ export const OUTPUT_ROW_LIMIT = 6;
 export function visibleOutputRows<T>(
   rows: ReadonlyArray<T>,
   expanded: boolean,
-): { readonly visible: ReadonlyArray<T>; readonly hiddenCount: number } {
-  if (expanded || rows.length <= OUTPUT_ROW_LIMIT) return { visible: rows, hiddenCount: 0 };
-  return { visible: rows.slice(0, OUTPUT_ROW_LIMIT), hiddenCount: rows.length - OUTPUT_ROW_LIMIT };
+): {
+  readonly visible: ReadonlyArray<T>;
+  readonly hiddenCount: number;
+  /** Expanded past the limit, so "Show less" has something to fold back. */
+  readonly canCollapse: boolean;
+} {
+  if (rows.length <= OUTPUT_ROW_LIMIT) return { visible: rows, hiddenCount: 0, canCollapse: false };
+  if (expanded) return { visible: rows, hiddenCount: 0, canCollapse: true };
+  return {
+    visible: rows.slice(0, OUTPUT_ROW_LIMIT),
+    hiddenCount: rows.length - OUTPUT_ROW_LIMIT,
+    canCollapse: false,
+  };
+}
+
+/**
+ * How many trailing characters of a folder path stay whole when it is cut to fit: the last
+ * segment with its separator, so a cut path ends in `/visual`. Undefined leaves it to the
+ * component's default (a single segment has no separator to keep).
+ */
+export function outputDirectoryTail(directory: string): number | undefined {
+  const separator = Math.max(directory.lastIndexOf("/"), directory.lastIndexOf("\\"));
+  return separator > 0 ? directory.length - separator : undefined;
 }
 
 /**
