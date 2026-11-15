@@ -1,4 +1,9 @@
-import { visibleOutputRows } from "@t3tools/client-runtime/outputs/display";
+import {
+  limitOutputRows,
+  RUN_OUTPUT_FILE_LIMIT,
+  RUN_OUTPUT_LINK_LIMIT,
+  visibleOutputRows,
+} from "@t3tools/client-runtime/outputs/display";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, RunId, ThreadId } from "@t3tools/contracts";
 import { memo, useState } from "react";
@@ -7,7 +12,7 @@ import { Pressable, View } from "react-native";
 import { AppText as Text } from "../../components/ui/AppText";
 import { useT } from "../../hooks/useT";
 import { useRunOutputs } from "../../state/outputs";
-import { OutputFileRow, OutputLinkRow } from "./OutputRows";
+import { OutputFileRow, OutputLinkRow, OutputsOmittedNote } from "./OutputRows";
 import { useOutputActions } from "./useOutputActions";
 
 /**
@@ -32,9 +37,11 @@ export const MessageOutputsStrip = memo(function MessageOutputsStrip(props: {
   const total = outputs.files.length + outputs.links.length;
   if (total === 0) return null;
 
+  const files = limitOutputRows(outputs.files, RUN_OUTPUT_FILE_LIMIT);
+  const links = limitOutputRows(outputs.links, RUN_OUTPUT_LINK_LIMIT);
   const rows = [
-    ...outputs.files.map((file) => ({ kind: "file" as const, key: `f:${file.path}`, file })),
-    ...outputs.links.map((link) => ({ kind: "link" as const, key: `l:${link.url}`, link })),
+    ...files.rows.map((file) => ({ kind: "file" as const, key: `f:${file.path}`, file })),
+    ...links.rows.map((link) => ({ kind: "link" as const, key: `l:${link.url}`, link })),
   ];
   const { visible, hiddenCount } = visibleOutputRows(rows, expanded);
 
@@ -69,6 +76,7 @@ export const MessageOutputsStrip = memo(function MessageOutputsStrip(props: {
           </Text>
         </Pressable>
       ) : null}
+      <OutputsOmittedNote count={files.omitted + links.omitted} />
     </View>
   );
 });

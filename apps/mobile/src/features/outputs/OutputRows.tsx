@@ -2,6 +2,8 @@ import { outputFileDisplay, outputLinkDisplay } from "@t3tools/client-runtime/ou
 import type { OutputFile, OutputLink } from "@t3tools/client-runtime/outputs/run";
 import { Pressable, View } from "react-native";
 
+import { useT } from "../../hooks/useT";
+
 import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { Menu } from "../../components/ui/Menu";
@@ -84,5 +86,16 @@ export function OutputLinkRow(props: {
       accessibilityLabel={props.link.url}
       actions={props.actions}
     />
+  );
+}
+
+/** The tail of a list that stops short of everything the run or conversation produced. */
+export function OutputsOmittedNote(props: { readonly count: number }) {
+  const t = useT();
+  if (props.count <= 0) return null;
+  return (
+    <Text textRole="label" className="px-3 py-2 text-foreground-muted">
+      {t("{count} more not listed", { count: props.count })}
+    </Text>
   );
 }

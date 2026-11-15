@@ -14,7 +14,7 @@ import { ScreenScrollView } from "../../components/ui/ScreenScrollView";
 import { useT } from "../../hooks/useT";
 import { useSelectedThreadWorktree } from "../../state/use-selected-thread-worktree";
 import { useThreadOutputs } from "../../state/outputs";
-import { OutputFileRow, OutputLinkRow } from "./OutputRows";
+import { OutputFileRow, OutputLinkRow, OutputsOmittedNote } from "./OutputRows";
 import { useOutputActions } from "./useOutputActions";
 
 type ThreadOutputsRouteScreenProps = StaticScreenProps<{
@@ -61,7 +61,7 @@ export function ThreadOutputsRouteScreen(props: ThreadOutputsRouteScreenProps) {
         hideBottomBorder
       />
       <ScreenContent>
-        {outputs.files.length + outputs.links.length === 0 ? (
+        {outputs.filesTotal + outputs.linksTotal === 0 ? (
           <EmptyState
             title={t("No outputs yet")}
             detail={t("Files and links from finished replies show up here.")}
@@ -69,7 +69,7 @@ export function ThreadOutputsRouteScreen(props: ThreadOutputsRouteScreenProps) {
         ) : (
           <ScreenScrollView contentContainerClassName="gap-5 px-4 py-4">
             {outputs.files.length > 0 ? (
-              <ListSection title={`${t("Files")} · ${outputs.files.length}`}>
+              <ListSection title={`${t("Files")} · ${outputs.filesTotal}`}>
                 {files.visible.map((file) => (
                   <OutputFileRow
                     key={file.path}
@@ -81,16 +81,18 @@ export function ThreadOutputsRouteScreen(props: ThreadOutputsRouteScreenProps) {
                 {files.hiddenCount > 0 ? (
                   <ShowMoreRow count={files.hiddenCount} onPress={() => setFilesExpanded(true)} />
                 ) : null}
+                <OutputsOmittedNote count={outputs.filesTotal - outputs.files.length} />
               </ListSection>
             ) : null}
             {outputs.links.length > 0 ? (
-              <ListSection title={`${t("Links")} · ${outputs.links.length}`}>
+              <ListSection title={`${t("Links")} · ${outputs.linksTotal}`}>
                 {links.visible.map((link) => (
                   <OutputLinkRow key={link.url} link={link} actions={actions.linkActions(link)} />
                 ))}
                 {links.hiddenCount > 0 ? (
                   <ShowMoreRow count={links.hiddenCount} onPress={() => setLinksExpanded(true)} />
                 ) : null}
+                <OutputsOmittedNote count={outputs.linksTotal - outputs.links.length} />
               </ListSection>
             ) : null}
           </ScreenScrollView>

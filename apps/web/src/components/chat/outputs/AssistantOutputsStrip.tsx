@@ -1,12 +1,18 @@
+import { useSyncLayout } from "@legendapp/list/react";
+import {
+  limitOutputRows,
+  RUN_OUTPUT_FILE_LIMIT,
+  RUN_OUTPUT_LINK_LIMIT,
+  visibleOutputRows,
+} from "@t3tools/client-runtime/outputs/display";
 import type { RunId } from "@t3tools/contracts";
-import { memo, use, useState } from "react";
+import { memo, use, useLayoutEffect, useState } from "react";
 
 import { useT } from "~/hooks/useT";
 import { useRunOutputs } from "~/state/outputs";
 import { Button } from "../../ui/button";
 import { TimelineRowCtx } from "../timelineRowContext";
-import { OutputFileRow, OutputLinkRow } from "./OutputRows";
-import { visibleOutputRows } from "@t3tools/client-runtime/outputs/display";
+import { OutputFileRow, OutputLinkRow, OutputsOmittedNote } from "./OutputRows";
 import { useOutputActions } from "./useOutputActions";
 
 /**
@@ -20,15 +26,23 @@ export const AssistantOutputsStrip = memo(function AssistantOutputsStrip(props: 
   const t = useT();
   const outputs = useRunOutputs(ctx.threadRef, ctx.workspaceRoot, props.runId);
   const actions = useOutputActions({ threadRef: ctx.threadRef, workspaceRoot: ctx.workspaceRoot });
+  const syncTimelineLayout = useSyncLayout();
   const [expanded, setExpanded] = useState(false);
 
   const total = outputs.files.length + outputs.links.length;
-  if (total === 0) return null;
+  const present = total > 0;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- the strip appears after its row was measured; the list must measure the new height before paint
+  useLayoutEffect(() => {
+    if (present) syncTimelineLayout();
+  }, [present, syncTimelineLayout]);
+  if (!present) return null;
 
+  const files = limitOutputRows(outputs.files, RUN_OUTPUT_FILE_LIMIT);
+  const links = limitOutputRows(outputs.links, RUN_OUTPUT_LINK_LIMIT);
   // One short list: files first, then links, cut together.
   const rows = [
-    ...outputs.files.map((file) => ({ kind: "file" as const, key: `f:${file.path}`, file })),
-    ...outputs.links.map((link) => ({ kind: "link" as const, key: `l:${link.url}`, link })),
+    ...files.rows.map((file) => ({ kind: "file" as const, key: `f:${file.path}`, file })),
+    ...links.rows.map((link) => ({ kind: "link" as const, key: `l:${link.url}`, link })),
   ];
   const { visible, hiddenCount } = visibleOutputRows(rows, expanded);
 
@@ -59,11 +73,16 @@ export const AssistantOutputsStrip = memo(function AssistantOutputsStrip(props: 
           size="xs"
           variant="ghost-muted"
           data-scroll-anchor-ignore
-          onClick={() => setExpanded(true)}
+          onClick={() => {
+            setExpanded(true);
+            // Measure before paint instead of waiting for LegendList's deferred measurement.
+            syncTimelineLayout();
+          }}
         >
           {t("Show {count} more", { count: hiddenCount })}
         </Button>
       ) : null}
+      <OutputsOmittedNote count={files.omitted + links.omitted} />
     </div>
   );
 });

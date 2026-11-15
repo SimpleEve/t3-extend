@@ -263,13 +263,27 @@ describe("deriveRunOutputs", () => {
     ).toBe(EMPTY_RUN_OUTPUTS);
   });
 
-  it("caps a run that rewrites a tree", () => {
+  it.each([
+    ["a dot folder", "[config](.git/config)", "/work/app/.git/config"],
+    ["a dependency", "[x](/work/app/node_modules/x/a.js)", "/work/app/node_modules/x/a.js"],
+    ["a nested dependency", "[x](pkg/node_modules/x/a.js:3)", "/work/app/pkg/node_modules/x/a.js"],
+  ])("keeps %s out even when the reply links it", (_name, markdown, path) => {
+    const outputs = deriveRunOutputs({
+      replyText: `${markdown} and [ok](src/ok.ts)`,
+      items: [],
+      cwd: CWD,
+    });
+    expect(outputs.files.map((file) => file.path)).toEqual(["/work/app/src/ok.ts"]);
+    expect(outputs.files.map((file) => file.path)).not.toContain(path);
+  });
+
+  it("derives every file a run wrote; the lists cut them for display", () => {
     const outputs = deriveRunOutputs({
       replyText: undefined,
       items: [fileChange(...Array.from({ length: 150 }, (_, index) => `gen/${index}.ts`))],
       cwd: CWD,
     });
-    expect(outputs.files).toHaveLength(100);
+    expect(outputs.files).toHaveLength(150);
     expect(outputs.files[0]!.path).toBe("/work/app/gen/0.ts");
   });
 });
@@ -303,6 +317,24 @@ describe("mergeThreadOutputs", () => {
     ]);
     expect(merged.files).toHaveLength(1);
     expect(merged.files[0]!.runId).toBe("r2");
+  });
+
+  it("keeps the real totals when the lists are cut", () => {
+    const merged = mergeThreadOutputs([
+      {
+        runId: run("r1"),
+        outputs: outputs(
+          Array.from({ length: 350 }, (_, index) => `/f/${index}`),
+          Array.from({ length: 120 }, (_, index) => `http://h/${index}`),
+        ),
+      },
+      { runId: run("r2"), outputs: outputs(["/f/0", "/f/new"], ["http://h/0"]) },
+    ]);
+    expect(merged.files).toHaveLength(300);
+    expect(merged.links).toHaveLength(100);
+    expect(merged.filesTotal).toBe(351);
+    expect(merged.linksTotal).toBe(120);
+    expect(merged.files[0]!.path).toBe("/f/0");
   });
 
   it("indexes only runs that produced something", () => {

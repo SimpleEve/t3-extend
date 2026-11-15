@@ -11,6 +11,22 @@ export function visibleOutputRows<T>(
   return { visible: rows.slice(0, OUTPUT_ROW_LIMIT), hiddenCount: rows.length - OUTPUT_ROW_LIMIT };
 }
 
+/**
+ * A run that rewrites a whole tree must not turn its strip into the tree. The cut is shown as a
+ * "not listed" row, and the counts people see stay the real totals.
+ */
+export const RUN_OUTPUT_FILE_LIMIT = 100;
+export const RUN_OUTPUT_LINK_LIMIT = 50;
+
+export function limitOutputRows<T>(
+  rows: ReadonlyArray<T>,
+  limit: number,
+): { readonly rows: ReadonlyArray<T>; readonly omitted: number } {
+  return rows.length <= limit
+    ? { rows, omitted: 0 }
+    : { rows: rows.slice(0, limit), omitted: rows.length - limit };
+}
+
 /** The path the file panel opens: relative to the thread's workspace, null anywhere else. */
 export function workspacePreviewPath(
   path: string,

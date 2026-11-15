@@ -9,6 +9,7 @@ export default {
   "Open in external browser": "在外部浏览器打开",
   "Path copied": "已复制路径",
   "Link copied": "已复制链接",
+  "{count} more not listed": "还有 {count} 条未列出",
   "Preview file": "预览文件",
   "Outputs, {count}": "产出，{count} 项",
   "No outputs yet": "还没有产出",

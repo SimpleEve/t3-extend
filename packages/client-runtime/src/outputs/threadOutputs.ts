@@ -27,6 +27,9 @@ export interface ThreadOutputs {
   /** Newest run first; inside a run, files its reply links to come first. */
   readonly files: ReadonlyArray<ThreadOutputFile>;
   readonly links: ReadonlyArray<ThreadOutputLink>;
+  /** What the conversation produced, deduplicated and before the lists above were cut. */
+  readonly filesTotal: number;
+  readonly linksTotal: number;
   /** Every finished run's own outputs, for the strip under its reply. */
   readonly byRunId: ReadonlyMap<RunId, RunOutputs>;
 }
@@ -34,10 +37,12 @@ export interface ThreadOutputs {
 export const EMPTY_THREAD_OUTPUTS: ThreadOutputs = Object.freeze({
   files: Object.freeze([]),
   links: Object.freeze([]),
+  filesTotal: 0,
+  linksTotal: 0,
   byRunId: new Map<RunId, RunOutputs>(),
 });
 
-/** The conversation's lists stop here; a run that rewrote a tree is already capped per run. */
+/** The conversation's lists stop here; the totals above them keep counting. */
 const MAX_THREAD_OUTPUT_FILES = 300;
 const MAX_THREAD_OUTPUT_LINKS = 100;
 
@@ -61,24 +66,32 @@ export function mergeThreadOutputs(
 ): ThreadOutputs {
   const files = new Map<string, ThreadOutputFile>();
   const links = new Map<string, ThreadOutputLink>();
+  const seenFiles = new Set<string>();
+  const seenLinks = new Set<string>();
   const byRunId = new Map<RunId, RunOutputs>();
   for (let index = runs.length - 1; index >= 0; index -= 1) {
     const { runId, outputs } = runs[index]!;
     if (outputs !== EMPTY_RUN_OUTPUTS) byRunId.set(runId, outputs);
     for (const file of outputs.files) {
       const key = outputPathKey(file.path);
-      if (!files.has(key) && files.size < MAX_THREAD_OUTPUT_FILES) {
-        files.set(key, { ...file, runId });
-      }
+      if (seenFiles.has(key)) continue;
+      seenFiles.add(key);
+      if (files.size < MAX_THREAD_OUTPUT_FILES) files.set(key, { ...file, runId });
     }
     for (const link of outputs.links) {
-      if (!links.has(link.url) && links.size < MAX_THREAD_OUTPUT_LINKS) {
-        links.set(link.url, { ...link, runId });
-      }
+      if (seenLinks.has(link.url)) continue;
+      seenLinks.add(link.url);
+      if (links.size < MAX_THREAD_OUTPUT_LINKS) links.set(link.url, { ...link, runId });
     }
   }
-  if (files.size === 0 && links.size === 0) return EMPTY_THREAD_OUTPUTS;
-  return { files: [...files.values()], links: [...links.values()], byRunId };
+  if (seenFiles.size === 0 && seenLinks.size === 0) return EMPTY_THREAD_OUTPUTS;
+  return {
+    files: [...files.values()],
+    links: [...links.values()],
+    filesTotal: seenFiles.size,
+    linksTotal: seenLinks.size,
+    byRunId,
+  };
 }
 
 export interface ThreadOutputsSource {
@@ -100,7 +113,10 @@ interface RunCacheEntry {
 }
 
 function sameItems(left: ReadonlyArray<SourceItem>, right: ReadonlyArray<SourceItem>): boolean {
-  return left.length === right.length && left.every((item, index) => item === right[index]);
+  return (
+    left === right ||
+    (left.length === right.length && left.every((item, index) => item === right[index]))
+  );
 }
 
 /**
@@ -111,19 +127,32 @@ export function createThreadOutputsDeriver() {
   const cache = new Map<RunId, RunCacheEntry>();
   let previous: ThreadOutputs = EMPTY_THREAD_OUTPUTS;
   let previousRunOrder: ReadonlyArray<RunId> = [];
+  // A change that leaves one array alone (a run changing status, a checkpoint landing) reuses
+  // what was derived from it instead of grouping every item or sorting every run again.
+  let groupedFrom: ThreadOutputsSource["turnItems"] | null = null;
+  let itemsByRunId = new Map<RunId, SourceItem[]>();
+  let sortedFrom: ThreadOutputsSource["runs"] | null = null;
+  let sortedRuns: ThreadOutputsSource["runs"] = [];
 
   return (source: ThreadOutputsSource): ThreadOutputs => {
-    const itemsByRunId = new Map<RunId, SourceItem[]>();
-    for (const item of source.turnItems) {
-      if (item.runId === null) continue;
-      const items = itemsByRunId.get(item.runId);
-      if (items === undefined) itemsByRunId.set(item.runId, [item]);
-      else items.push(item);
+    if (groupedFrom !== source.turnItems) {
+      groupedFrom = source.turnItems;
+      itemsByRunId = new Map();
+      for (const item of source.turnItems) {
+        if (item.runId === null) continue;
+        const items = itemsByRunId.get(item.runId);
+        if (items === undefined) itemsByRunId.set(item.runId, [item]);
+        else items.push(item);
+      }
+    }
+    if (sortedFrom !== source.runs) {
+      sortedFrom = source.runs;
+      sortedRuns = [...source.runs].sort((a, b) => a.ordinal - b.ordinal);
     }
 
     const finished: Array<{ runId: RunId; outputs: RunOutputs }> = [];
     const seen = new Set<RunId>();
-    for (const run of [...source.runs].sort((a, b) => a.ordinal - b.ordinal)) {
+    for (const run of sortedRuns) {
       if (!isOutputRunFinished(run.status)) continue;
       seen.add(run.id);
       const items = itemsByRunId.get(run.id) ?? [];

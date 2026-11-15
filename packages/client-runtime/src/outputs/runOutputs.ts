@@ -35,10 +35,6 @@ export const EMPTY_RUN_OUTPUTS: RunOutputs = Object.freeze({
   links: Object.freeze([]),
 });
 
-/** A run that rewrites a whole tree must not turn the list into the tree. */
-const MAX_RUN_OUTPUT_FILES = 100;
-const MAX_RUN_OUTPUT_LINKS = 50;
-
 export interface CheckpointOutputFile {
   readonly path: string;
   readonly kind: string;
@@ -116,10 +112,9 @@ export function deriveRunOutputs(input: RunOutputsInput): RunOutputs {
   const files = new Map<string, OutputFile>();
   const links = new Map<string, OutputLink>();
   const addFile = (raw: string, source: OutputFileSource, linkedLine?: number) => {
-    if (files.size >= MAX_RUN_OUTPUT_FILES) return;
     const normalized = normalizeOutputPath(raw, input.cwd);
-    if (normalized === null) return;
-    if (source === "changed" && isNoiseOutputPath(normalized.path)) return;
+    // The server refuses to read these, so even a link the reply wrote would fail to preview.
+    if (normalized === null || isNoiseOutputPath(normalized.path)) return;
     const key = outputPathKey(normalized.path);
     if (files.has(key)) return;
     const line = linkedLine ?? normalized.line;
@@ -130,7 +125,7 @@ export function deriveRunOutputs(input: RunOutputsInput): RunOutputs {
     });
   };
   const addUrl = (url: string) => {
-    if (links.size >= MAX_RUN_OUTPUT_LINKS || links.has(url)) return;
+    if (links.has(url)) return;
     links.set(url, { url });
   };
 

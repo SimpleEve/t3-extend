@@ -8,12 +8,13 @@ import { render } from "../../../../test/render";
 
 const mocks = vi.hoisted(() => ({
   run: { files: [], links: [] } as RunOutputs,
-  thread: { files: [], links: [], byRunId: new Map() } as ThreadOutputs,
-  runFileAction: vi.fn(),
-  runLinkAction: vi.fn(),
-  showFileMenu: vi.fn(async () => undefined),
-  showLinkMenu: vi.fn(async () => undefined),
-  previewable: true,
+  thread: {
+    files: [],
+    links: [],
+    filesTotal: 0,
+    linksTotal: 0,
+    byRunId: new Map(),
+  } as ThreadOutputs,
 }));
 
 vi.mock("~/state/outputs", () => ({
@@ -23,12 +24,12 @@ vi.mock("~/state/outputs", () => ({
 
 vi.mock("./useOutputActions", () => ({
   useOutputActions: () => ({
-    primaryFileAction: () => (mocks.previewable ? "preview" : null),
+    primaryFileAction: () => "preview",
     primaryLinkAction: () => "preview",
-    runFileAction: mocks.runFileAction,
-    runLinkAction: mocks.runLinkAction,
-    showFileMenu: mocks.showFileMenu,
-    showLinkMenu: mocks.showLinkMenu,
+    runFileAction: vi.fn(),
+    runLinkAction: vi.fn(),
+    showFileMenu: vi.fn(async () => undefined),
+    showLinkMenu: vi.fn(async () => undefined),
   }),
 }));
 
@@ -39,7 +40,16 @@ import { ThreadOutputsButton } from "./ThreadOutputsButton";
 const THREAD_REF = { environmentId: "env", threadId: "thread" } as unknown as ScopedThreadRef;
 const RUN_ID = "run-1" as RunId;
 
-function setup(input: { files?: string[]; links?: string[]; previewable?: boolean }) {
+const manyFiles = (count: number) =>
+  Array.from({ length: count }, (_, index) => `/work/app/src/file-${index}.ts`);
+
+/** `filesTotal` and `linksTotal` default to what is listed; a larger value means a cut list. */
+function setup(input: {
+  files?: string[];
+  links?: string[];
+  filesTotal?: number;
+  linksTotal?: number;
+}) {
   const files = (input.files ?? []).map((path) => ({
     path,
     source: "changed" as const,
@@ -47,12 +57,13 @@ function setup(input: { files?: string[]; links?: string[]; previewable?: boolea
   }));
   const links = (input.links ?? []).map((url) => ({ url, runId: RUN_ID }));
   mocks.run = { files, links };
-  mocks.thread = { ...EMPTY_THREAD_OUTPUTS, files, links, byRunId: new Map() };
-  mocks.previewable = input.previewable ?? true;
-  mocks.runFileAction.mockClear();
-  mocks.runLinkAction.mockClear();
-  mocks.showFileMenu.mockClear();
-  mocks.showLinkMenu.mockClear();
+  mocks.thread = {
+    ...EMPTY_THREAD_OUTPUTS,
+    files,
+    links,
+    filesTotal: input.filesTotal ?? files.length,
+    linksTotal: input.linksTotal ?? links.length,
+  };
 }
 
 const strip = (
@@ -69,90 +80,99 @@ const strip = (
   </TimelineRowCtx>
 );
 
-const manyFiles = (count: number) =>
-  Array.from({ length: count }, (_, index) => `/work/app/src/file-${index}.ts`);
+const fileRows = (root: ParentNode) => root.querySelectorAll("[data-output-kind='file']");
+const linkRows = (root: ParentNode) => root.querySelectorAll("[data-output-kind='link']");
 
 describe("AssistantOutputsStrip", () => {
-  it("lists files with their folder and links with host and path, and runs the primary action on click", async () => {
+  it("lists files with their folder and links with host and path", async () => {
     setup({ files: ["/work/app/src/ui/a.ts"], links: ["http://localhost:3000/app"] });
-    await using screen = await render(strip, { router: false });
+    await using screen = await render(strip);
 
     await expect.element(screen.getByText("a.ts")).toBeVisible();
     await expect.element(screen.getByText("src/ui")).toBeVisible();
     await expect.element(screen.getByText("localhost:3000")).toBeVisible();
     await expect.element(screen.getByText("/app")).toBeVisible();
-
-    await userEvent.click(screen.getByRole("button", { name: /a\.ts/ }).first());
-    expect(mocks.runFileAction).toHaveBeenCalledWith(
-      "preview",
-      expect.objectContaining({ path: "/work/app/src/ui/a.ts" }),
-    );
-    await userEvent.click(screen.getByRole("button", { name: /localhost:3000/ }).first());
-    expect(mocks.runLinkAction).toHaveBeenCalledWith(
-      "preview",
-      expect.objectContaining({ url: "http://localhost:3000/app" }),
-    );
-  });
-
-  it("opens the menu from the more button without running the primary action", async () => {
-    setup({ files: ["/tmp/report.md"] });
-    await using screen = await render(strip, { router: false });
-    await userEvent.click(screen.getByRole("button", { name: "More actions for report.md" }));
-    expect(mocks.showFileMenu).toHaveBeenCalledTimes(1);
-    expect(mocks.runFileAction).not.toHaveBeenCalled();
-  });
-
-  it("keeps a file that cannot be previewed as a row with a menu only", async () => {
-    setup({ files: ["/tmp/report.md"], previewable: false });
-    await using screen = await render(strip, { router: false });
-    await expect.element(screen.getByRole("button", { name: /report\.md/ }).first()).toBeDisabled();
-    await expect
-      .element(screen.getByRole("button", { name: "More actions for report.md" }))
-      .toBeEnabled();
   });
 
   it("shows six rows, then the rest on request", async () => {
     setup({ files: manyFiles(9) });
-    await using screen = await render(strip, { router: false });
-    expect(screen.container.querySelectorAll("[data-output-kind='file']")).toHaveLength(6);
+    await using screen = await render(strip);
+    expect(fileRows(screen.container)).toHaveLength(6);
     await userEvent.click(screen.getByRole("button", { name: "Show 3 more" }));
-    expect(screen.container.querySelectorAll("[data-output-kind='file']")).toHaveLength(9);
+    expect(fileRows(screen.container)).toHaveLength(9);
     expect(screen.container.textContent).not.toContain("Show 3 more");
+  });
+
+  it("says how many a long run left out instead of dropping them silently", async () => {
+    setup({ files: manyFiles(130) });
+    await using screen = await render(strip);
+    // The header counts everything the run produced; the list stops at its limit.
+    expect(screen.container.querySelector("[data-assistant-outputs]")?.textContent).toContain(
+      "Outputs 130",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Show 94 more" }));
+    expect(fileRows(screen.container)).toHaveLength(100);
+    await expect.element(screen.getByText("30 more not listed")).toBeVisible();
   });
 
   it("renders nothing for a run without outputs", async () => {
     setup({});
-    await using screen = await render(strip, { router: false });
+    await using screen = await render(strip);
     expect(screen.container.querySelector("[data-assistant-outputs]")).toBeNull();
   });
 });
 
 describe("ThreadOutputsButton", () => {
   const button = <ThreadOutputsButton threadRef={THREAD_REF} workspaceRoot="/work/app" />;
+  const trigger = (root: ParentNode) => root.querySelector("[data-thread-outputs-button]");
 
   it("is absent while the conversation has no outputs", async () => {
     setup({});
-    await using screen = await render(button, { router: false });
-    expect(screen.container.querySelector("[data-thread-outputs-button]")).toBeNull();
+    await using screen = await render(button);
+    expect(trigger(screen.container)).toBeNull();
   });
 
-  it("counts every output and opens a popover with a files and a links section, each cut at six", async () => {
-    setup({ files: manyFiles(8), links: ["http://localhost:3000", "https://example.com/x"] });
-    await using screen = await render(button, { router: false });
+  it("counts the real total and matches the headings of the lists it opens", async () => {
+    setup({
+      files: manyFiles(8),
+      links: ["http://localhost:3000", "https://example.com/x"],
+      filesTotal: 350,
+      linksTotal: 120,
+    });
+    await using screen = await render(button);
+    expect(trigger(screen.container)?.textContent).toContain("470");
 
-    const trigger = screen.container.querySelector("[data-thread-outputs-button]");
-    expect(trigger?.textContent).toContain("10");
     await userEvent.click(page.getByRole("button", { name: "Outputs" }));
+    await expect.element(page.getByRole("heading", { name: "Files 350" })).toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "Links 120" })).toBeVisible();
+    await expect.element(page.getByText("342 more not listed")).toBeVisible();
+    await expect.element(page.getByText("118 more not listed")).toBeVisible();
+  });
 
-    await expect.element(page.getByRole("heading", { name: /Files/ })).toBeVisible();
-    await expect.element(page.getByRole("heading", { name: /Links/ })).toBeVisible();
-    expect(document.querySelectorAll("[data-output-kind='file']")).toHaveLength(6);
-    expect(document.querySelectorAll("[data-output-kind='link']")).toHaveLength(2);
+  it("opens with six rows per section, expands, and closes on Escape", async () => {
+    setup({ files: manyFiles(8), links: ["http://localhost:3000", "https://example.com/x"] });
+    await using _screen = await render(button);
+
+    await userEvent.click(page.getByRole("button", { name: "Outputs" }));
+    await expect.element(page.getByRole("heading", { name: "Files 8" })).toBeVisible();
+    expect(fileRows(document)).toHaveLength(6);
+    expect(linkRows(document)).toHaveLength(2);
 
     await userEvent.click(page.getByRole("button", { name: "Show 2 more" }));
-    expect(document.querySelectorAll("[data-output-kind='file']")).toHaveLength(8);
+    expect(fileRows(document)).toHaveLength(8);
 
     await userEvent.keyboard("{Escape}");
     await vi.waitFor(() => expect(document.querySelector("[data-outputs-section]")).toBeNull());
+  });
+
+  it("leaves focus on the trigger, so no row's path tooltip covers the headings", async () => {
+    setup({ files: manyFiles(3) });
+    await using screen = await render(button);
+
+    await userEvent.click(page.getByRole("button", { name: "Outputs" }));
+    await expect.element(page.getByRole("heading", { name: "Files 3" })).toBeVisible();
+    const popup = document.querySelector("[data-slot='popover-popup']");
+    expect(popup?.contains(document.activeElement)).toBe(false);
+    expect(document.activeElement).toBe(trigger(screen.container));
   });
 });

@@ -21,8 +21,14 @@ import {
 import { toastManager } from "../../ui/toast";
 import { workspacePreviewPath } from "@t3tools/client-runtime/outputs/display";
 
-type OutputFileAction = "preview" | "open" | "reveal" | "copy";
-type OutputLinkAction = "preview" | "external" | "copy";
+import {
+  isUsersOwnMachine,
+  outputFileActionIds,
+  outputLinkActionIds,
+  primaryOutputAction,
+  type OutputFileActionId as OutputFileAction,
+  type OutputLinkActionId as OutputLinkAction,
+} from "./outputActions.logic";
 
 export function useOutputActions(input: {
   readonly threadRef: ScopedThreadRef | null;
@@ -36,17 +42,14 @@ export function useOutputActions(input: {
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: false });
   const openPreview = useAtomCommand(previewEnvironment.open, { reportFailure: false });
 
-  // Open and reveal act on the machine the server runs on, so only the desktop app's own server
-  // is the user's machine. A remote server's file manager would open on a computer they cannot see.
-  const onThisMachine = isElectron && environmentId !== null && environmentId === hostEnvironmentId;
+  const onThisMachine = isUsersOwnMachine({ isElectron, environmentId, hostEnvironmentId });
   const hasFileManager = serverConfig?.availableEditors.includes("file-manager") === true;
   const revealLabel =
-    onThisMachine && hasFileManager && serverConfig?.shellRevealInFileManager === true
+    serverConfig?.shellRevealInFileManager === true
       ? serverConfig.shellRevealInFileManagerKind === undefined
         ? revealInFileExplorerLabelForOs(serverConfig.environment.platform.os)
         : revealInFileExplorerLabelForKind(serverConfig.shellRevealInFileManagerKind)
       : undefined;
-  const canOpenDefault = onThisMachine && hasFileManager;
   const canPreviewLinks = canOpenLinksInApp(threadRef);
 
   const copy = (value: string, title: string) => {
@@ -80,24 +83,41 @@ export function useOutputActions(input: {
 
   const previewPathOf = (file: OutputFile) => workspacePreviewPath(file.path, workspaceRoot);
 
-  const fileMenuItems = (file: OutputFile): ContextMenuItem<OutputFileAction>[] => {
-    const items: ContextMenuItem<OutputFileAction>[] = [];
-    if (previewPathOf(file) !== null) {
-      items.push({ id: "preview", label: t("Preview in side panel") });
-    }
-    if (canOpenDefault) items.push({ id: "open", label: t("Open with default app") });
-    if (revealLabel !== undefined) items.push({ id: "reveal", label: t(revealLabel) });
-    items.push({ id: "copy", label: t("Copy path") });
-    return items;
-  };
+  const fileActionIds = (file: OutputFile) =>
+    outputFileActionIds({
+      inWorkspace: previewPathOf(file) !== null,
+      onThisMachine,
+      hasFileManager,
+      canReveal: revealLabel !== undefined,
+    });
+  const linkActionIds = () => outputLinkActionIds({ canPreviewLinks });
 
-  const linkMenuItems = (): ContextMenuItem<OutputLinkAction>[] => {
-    const items: ContextMenuItem<OutputLinkAction>[] = [];
-    if (canPreviewLinks) items.push({ id: "preview", label: t("Preview in browser panel") });
-    items.push({ id: "external", label: t("Open in external browser") });
-    items.push({ id: "copy", label: t("Copy link") });
-    return items;
+  const fileActionLabel = (id: OutputFileAction): string => {
+    switch (id) {
+      case "preview":
+        return t("Preview in side panel");
+      case "open":
+        return t("Open with default app");
+      case "reveal":
+        return t(revealLabel ?? "Reveal in Files");
+      case "copy":
+        return t("Copy path");
+    }
   };
+  const linkActionLabel = (id: OutputLinkAction): string => {
+    switch (id) {
+      case "preview":
+        return t("Preview in browser panel");
+      case "external":
+        return t("Open in external browser");
+      case "copy":
+        return t("Copy link");
+    }
+  };
+  const fileMenuItems = (file: OutputFile): ContextMenuItem<OutputFileAction>[] =>
+    fileActionIds(file).map((id) => ({ id, label: fileActionLabel(id) }));
+  const linkMenuItems = (): ContextMenuItem<OutputLinkAction>[] =>
+    linkActionIds().map((id) => ({ id, label: linkActionLabel(id) }));
 
   const runFileAction = (action: OutputFileAction, file: OutputFile) => {
     switch (action) {
@@ -143,10 +163,9 @@ export function useOutputActions(input: {
     }
   };
 
-  /** What a click does: the first menu entry, so the row and its menu never disagree. */
   const primaryFileAction = (file: OutputFile): OutputFileAction | null =>
-    fileMenuItems(file).find((item) => item.id !== "copy")?.id ?? null;
-  const primaryLinkAction = (): OutputLinkAction => (canPreviewLinks ? "preview" : "external");
+    primaryOutputAction(fileActionIds(file));
+  const primaryLinkAction = (): OutputLinkAction => primaryOutputAction(linkActionIds()) ?? "copy";
 
   const showMenu = async <T extends string>(
     items: readonly ContextMenuItem<T>[],

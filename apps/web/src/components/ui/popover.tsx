@@ -47,7 +47,7 @@ function PopoverPopup({
   ...props
 }: PopoverPrimitive.Popup.Props & {
   padding?: keyof typeof popoverViewportPaddingClassName;
-  variant?: "default" | "panel";
+  variant?: "default" | "panel" | "solid"; // fork: solid is an opaque surface for lists over text
   side?: PopoverPrimitive.Positioner.Props["side"];
   align?: PopoverPrimitive.Positioner.Props["align"];
   sideOffset?: PopoverPrimitive.Positioner.Props["sideOffset"];
@@ -93,7 +93,9 @@ function PopoverPopup({
         <PopoverPrimitive.Popup
           className={cn(
             "relative flex h-(--popup-height,auto) w-(--popup-width,auto) origin-(--transform-origin) rounded-lg text-popover-foreground outline-none transition-[width,height,scale,opacity] before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] before:shadow-[0_1px_--theme(--color-black/4%)] has-data-[slot=calendar]:rounded-xl has-data-[slot=calendar]:before:rounded-[calc(var(--radius-xl)-1px)] data-ending-style:scale-98 data-starting-style:scale-98 data-ending-style:opacity-0 data-starting-style:opacity-0 dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
-            variant !== "panel" && "dropdown-glass",
+            variant === "default" && "dropdown-glass",
+            variant === "solid" &&
+              "border border-[color-mix(in_srgb,var(--contrast-foreground)_10%,transparent)] bg-popover",
             // Electron drag hit-testing ignores z-index; popups over a drag region would swallow hover.
             "[-webkit-app-region:no-drag]",
             tooltipStyle &&

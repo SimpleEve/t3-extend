@@ -8,7 +8,7 @@ import { useTheme } from "~/hooks/useTheme";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../../ui/popover";
-import { OutputFileRow, OutputLinkRow } from "./OutputRows";
+import { OutputFileRow, OutputLinkRow, OutputsOmittedNote } from "./OutputRows";
 import { visibleOutputRows } from "@t3tools/client-runtime/outputs/display";
 import { useOutputActions } from "./useOutputActions";
 
@@ -40,7 +40,7 @@ function ThreadOutputsList(props: {
   return (
     <div className="flex max-h-[min(32rem,70vh)] w-full flex-col gap-3 overflow-y-auto">
       {outputs.files.length > 0 ? (
-        <ExpandableSection title={t("Files")} count={outputs.files.length}>
+        <ExpandableSection title={t("Files")} count={outputs.filesTotal}>
           {files.visible.map((file) => (
             <OutputFileRow
               key={file.path}
@@ -60,10 +60,11 @@ function ThreadOutputsList(props: {
               {t("Show {count} more", { count: files.hiddenCount })}
             </Button>
           ) : null}
+          <OutputsOmittedNote count={outputs.filesTotal - outputs.files.length} />
         </ExpandableSection>
       ) : null}
       {outputs.links.length > 0 ? (
-        <ExpandableSection title={t("Links")} count={outputs.links.length}>
+        <ExpandableSection title={t("Links")} count={outputs.linksTotal}>
           {links.visible.map((link) => (
             <OutputLinkRow key={link.url} link={link} actions={actions} />
           ))}
@@ -77,6 +78,7 @@ function ThreadOutputsList(props: {
               {t("Show {count} more", { count: links.hiddenCount })}
             </Button>
           ) : null}
+          <OutputsOmittedNote count={outputs.linksTotal - outputs.links.length} />
         </ExpandableSection>
       ) : null}
     </div>
@@ -95,7 +97,7 @@ export const ThreadOutputsButton = memo(function ThreadOutputsButton(props: {
   const { threadRef, workspaceRoot } = props;
   const t = useT();
   const outputs = useThreadOutputs(threadRef, workspaceRoot);
-  const count = outputs.files.length + outputs.links.length;
+  const count = outputs.filesTotal + outputs.linksTotal;
   if (count === 0) return null;
 
   return (
@@ -117,7 +119,8 @@ export const ThreadOutputsButton = memo(function ThreadOutputsButton(props: {
           {count}
         </Badge>
       </PopoverTrigger>
-      <PopoverPopup align="end" width="md" padding="compact">
+      {/* Solid: the list sits over chat text. No initial focus: the first row's path tooltip would cover the headings. */}
+      <PopoverPopup align="end" width="md" padding="compact" variant="solid" initialFocus={false}>
         <ThreadOutputsList threadRef={threadRef} workspaceRoot={workspaceRoot} />
       </PopoverPopup>
     </Popover>

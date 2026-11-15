@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  limitOutputRows,
   OUTPUT_ROW_LIMIT,
   outputFileDisplay,
   outputLinkDisplay,
@@ -57,5 +58,21 @@ describe("visibleOutputRows", () => {
     const result = visibleOutputRows(rows(count), expanded);
     expect(result.visible).toHaveLength(visible);
     expect(result.hiddenCount).toBe(hiddenCount);
+  });
+});
+
+describe("limitOutputRows", () => {
+  it.each([
+    ["under the limit", 3, 5, 3, 0],
+    ["at the limit", 5, 5, 5, 0],
+    ["over the limit", 12, 5, 5, 7],
+    ["nothing", 0, 5, 0, 0],
+  ])("%s", (_name, count, limit, listed, omitted) => {
+    const result = limitOutputRows(
+      Array.from({ length: count }, (_, index) => index),
+      limit,
+    );
+    expect(result.rows).toHaveLength(listed);
+    expect(result.omitted).toBe(omitted);
   });
 });

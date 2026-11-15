@@ -119,3 +119,14 @@ export function OutputLinkRow(props: { link: OutputLink; actions: OutputActions 
     </div>
   );
 }
+
+/** The tail of a list that stops short of everything the run or conversation produced. */
+export function OutputsOmittedNote(props: { count: number }) {
+  const t = useT();
+  if (props.count <= 0) return null;
+  return (
+    <div className="px-2 py-1.5 text-xs text-muted-foreground" data-outputs-omitted="">
+      {t("{count} more not listed", { count: props.count })}
+    </div>
+  );
+}

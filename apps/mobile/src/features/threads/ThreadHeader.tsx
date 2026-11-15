@@ -35,7 +35,7 @@ export function ThreadHeader(props: {
 }) {
   const t = useT();
   const outputs = useThreadOutputs(props.outputs?.threadRef ?? null, props.outputs?.cwd);
-  const outputsCount = outputs.files.length + outputs.links.length;
+  const outputsCount = outputs.filesTotal + outputs.linksTotal;
   const goBack = useWorkspaceBackNavigation();
   const { toggleAuxiliaryPane, startNewTask } = useAdaptiveWorkspaceLayout();
   const { panes } = useWorkspacePaneState();
