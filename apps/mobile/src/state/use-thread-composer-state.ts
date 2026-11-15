@@ -3,7 +3,13 @@ import * as Dialog from "../components/ui/Dialog";
 import { AuthOrchestrationOperateScope } from "@t3tools/contracts";
 import { readEnvironmentScope } from "./session";
 import { useAtomValue } from "@effect/atom-react";
-import { compactBeforeSendTokens } from "@t3tools/client-runtime/state/context-window";
+import {
+  compactBeforeSendTokens,
+  deriveContextMeter, // fork: composer context meter
+  deriveLatestContextWindowSnapshot, // fork: composer context meter
+  latestProviderTurnTokenUsage, // fork: composer context meter
+} from "@t3tools/client-runtime/state/context-window";
+import { deriveLatestTurnSpeed } from "@t3tools/client-runtime/state/turn-speed"; // fork: composer context meter
 import { threadRuntimeIsActive } from "@t3tools/client-runtime/state/shell";
 import type { ThreadCheckpointSummary } from "@t3tools/client-runtime/state/thread-checkpoints";
 import { threadSteersDuringCompaction } from "@t3tools/client-runtime/state/thread-workflows";
@@ -469,6 +475,70 @@ export function useThreadComposerState(input: {
     selectedDraft.freshContext === true
       ? null
       : resumeCompactionTokens(modelSelection, "", new Date(nowMinuteMs).toISOString());
+  // fork: composer context meter
+  const contextProjection = selectedThreadProjection?.projection ?? null;
+  const contextProviderThread = contextProjection?.providerThreads.find(
+    (thread) => thread.id === contextProjection.thread.activeProviderThreadId,
+  );
+  const contextMeter =
+    contextProjection === null
+      ? null
+      : deriveContextMeter(
+          deriveLatestContextWindowSnapshot(
+            selectedThreadVisibleTurnItems,
+            latestProviderTurnTokenUsage(
+              contextProjection.providerTurns,
+              contextProjection,
+              contextProviderThread,
+            ),
+            contextProviderThread,
+          ),
+        );
+  const lastTurnSpeed =
+    contextProjection === null
+      ? null
+      : deriveLatestTurnSpeed(
+          contextProjection.providerTurns,
+          selectedThreadVisibleTurnItems.map(({ item }) => item),
+        );
+  const providerSupportsCompact =
+    serverConfig?.providers
+      .find((provider) => provider.instanceId === modelSelection?.instanceId)
+      ?.slashCommands.some((command) => command.name === "compact") ?? false;
+  // The same `/compact` message a typed one sends, queued without touching the draft.
+  const onCompactNow = () => {
+    const thread = selectedThreadShell;
+    if (
+      !thread ||
+      modelSelection === null ||
+      runtimeMode === null ||
+      selectedEnvironmentRuntime?.connectionState !== "connected" ||
+      !readEnvironmentScope(thread.environmentId, AuthOrchestrationOperateScope)
+    ) {
+      return;
+    }
+    const threadKey = scopedThreadKey(thread.environmentId, thread.id);
+    const metadata = makeQueuedMessageMetadata();
+    clearThreadComposerError(threadKey);
+    enqueueThreadOutboxMessage({
+      environmentId: thread.environmentId,
+      threadId: thread.id,
+      messageId: MessageId.make(metadata.messageId),
+      commandId: CommandId.make(metadata.commandId),
+      text: "/compact",
+      attachments: [],
+      context: undefined,
+      modelSelection,
+      runtimeMode,
+      interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+      createdAt: metadata.createdAt,
+    }).catch((error: unknown) => {
+      setThreadComposerError(
+        threadKey,
+        error instanceof Error ? error.message : t("Failed to save the queued message."),
+      );
+    });
+  };
   const fullHistoryThreadKeys = useAtomValue(fullHistoryThreadKeysAtom);
   const keepFullHistory =
     selectedThreadKey !== null && fullHistoryThreadKeys[selectedThreadKey] === true;
@@ -942,6 +1012,10 @@ export function useThreadComposerState(input: {
             keepFullHistory,
             toggleKeepFullHistory: () => setKeepFullHistory(selectedThreadKey, !keepFullHistory),
           },
+    contextMeter, // fork: composer context meter
+    lastTurnSpeed, // fork: composer context meter
+    providerSupportsCompact, // fork: composer context meter
+    onCompactNow, // fork: composer context meter
     composerDraftKey,
     followUpBehavior,
     canSteerActiveTurn,

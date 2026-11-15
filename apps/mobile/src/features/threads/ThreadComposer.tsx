@@ -87,6 +87,9 @@ import {
   ComposerToolbarRow,
 } from "../../components/ComposerToolbar";
 import { formatTokens } from "@t3tools/shared/usageFormat";
+import type { CompactNowBlocker, ContextMeter } from "@t3tools/client-runtime/state/context-window"; // fork: composer context meter
+import type { TurnSpeed } from "@t3tools/client-runtime/state/turn-speed"; // fork: composer context meter
+import { ContextMeterCard, ContextMeterControl, TurnSpeedControl } from "./ComposerContextMeter"; // fork: composer context meter
 import { ComposerModelControl } from "../../components/ComposerModelControl";
 import {
   composerStripAttachments,
@@ -233,6 +236,11 @@ export interface ThreadComposerProps {
     readonly keepFullHistory: boolean;
     readonly toggleKeepFullHistory: () => void;
   } | null;
+  // fork: composer context meter
+  readonly contextMeter?: ContextMeter | null;
+  readonly lastTurnSpeed?: TurnSpeed | null;
+  readonly compactNowBlocker?: CompactNowBlocker | null;
+  readonly onCompactNow?: (() => void) | undefined;
   /** Arms a fresh session for the next message; absent where `/clear` is unavailable. */
   readonly onFreshSession?: () => void;
   readonly offersSideChat?: boolean;
@@ -844,6 +852,30 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
     </View>
   );
 
+  // fork: composer context meter
+  const [contextCardOpen, setContextCardOpen] = useState(false);
+  const contextMeter = props.contextMeter ?? null;
+  const lastTurnSpeed = props.lastTurnSpeed ?? null;
+  const contextControlSize = usesLargeControls ? "large" : "regular";
+  const contextMeterControl =
+    contextMeter !== null && queuedEdit === null ? (
+      <>
+        <ContextMeterControl
+          meter={contextMeter}
+          size={contextControlSize}
+          showPercent={compactEditor.isExpanded}
+          open={contextCardOpen}
+          onPress={() => setContextCardOpen((open) => !open)}
+        />
+        {lastTurnSpeed !== null && usesLargeControls && compactEditor.isExpanded ? (
+          <TurnSpeedControl
+            speed={lastTurnSpeed}
+            size={contextControlSize}
+            onPress={() => setContextCardOpen(true)}
+          />
+        ) : null}
+      </>
+    ) : null;
   const compactBeforeSend =
     props.compactBeforeSend && !showResumeAction && queuedEdit === null
       ? props.compactBeforeSend
@@ -935,6 +967,21 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
             label={t("Model unavailable. Open model settings.")}
             tone="text"
             onPress={openSettings}
+          />
+        ) : null}
+
+        {contextCardOpen && contextMeter !== null && queuedEdit === null ? (
+          <ContextMeterCard
+            meter={contextMeter}
+            speed={lastTurnSpeed}
+            compactBlocker={
+              props.compactNowBlocker === undefined ? "other" : props.compactNowBlocker
+            }
+            onCompact={() => {
+              setContextCardOpen(false);
+              props.onCompactNow?.();
+            }}
+            onClose={() => setContextCardOpen(false)}
           />
         ) : null}
 
@@ -1151,6 +1198,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
                 }
               >
                 {compactControl}
+                {contextMeterControl}
                 {modelControl}
                 <ComposerDictationStartAction
                   size={usesLargeControls ? "large" : "regular"}
