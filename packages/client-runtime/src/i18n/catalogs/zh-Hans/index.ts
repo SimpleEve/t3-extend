@@ -15,6 +15,7 @@ import mobilePullRequests from "./mobilePullRequests.ts";
 import mobilePush from "./mobilePush.ts";
 import mobileSettings from "./mobileSettings.ts";
 import mobileWorkspace from "./mobileWorkspace.ts";
+import outputs from "./outputs.ts"; // fork: outputs
 import pullRequest from "./pullRequest.ts";
 import settings from "./settings.ts";
 import settingsPanels from "./settingsPanels.ts";
@@ -45,6 +46,7 @@ export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   mobilePush,
   mobileSettings,
   mobileWorkspace,
+  outputs, // fork: outputs
   pullRequest,
   settings,
   settingsPanels,

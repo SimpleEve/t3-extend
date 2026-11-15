@@ -14,6 +14,7 @@ import { HtmlRenderFrame } from "./HtmlRenderFrame";
 import { McpAppFrame } from "./McpAppFrame";
 import { checkpointFileTotals } from "@t3tools/client-runtime/state/thread-checkpoints";
 import { ChangedFilesCard } from "./ChangedFilesTree";
+import { AssistantOutputsStrip } from "./outputs/AssistantOutputsStrip"; // fork: outputs
 import { useFileContextMenuHandler } from "../../fileContextMenu";
 import {
   readResponseSubagents,
@@ -91,6 +92,7 @@ export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind
             onOpenTurnDiff={ctx.onOpenTurnDiff}
           />
         ) : null}
+        {row.showAssistantMeta ? <AssistantOutputsStrip runId={row.message.runId} /> : null}
         {!row.showAssistantMeta && row.projectedItem?.item.status === "interrupted" ? (
           <div className="mt-1.5 flex">
             <AssistantStatusBadge status="interrupted" />

@@ -44,6 +44,7 @@ import { useClientSettings } from "../../hooks/useSettings";
 import { useT } from "../../hooks/useT"; // fork: interface language
 import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: interface language
 import { GuestShareIndicator } from "./GuestShareControls";
+import { ThreadOutputsButton } from "./outputs/ThreadOutputsButton"; // fork: outputs
 
 interface ChatHeaderProps {
   activeThreadEnvironmentId: EnvironmentId;
@@ -58,6 +59,7 @@ interface ChatHeaderProps {
   onNewThreadInProject: () => void;
   onOpenProjectSettings?: (() => void) | undefined;
   onFindInThread?: ((threadRef: ScopedThreadRef) => void) | undefined;
+  workspaceRoot?: string | undefined; // fork: outputs
 }
 
 function resolveRenameCommit(input: {
@@ -83,6 +85,7 @@ export const ChatHeader = memo(function ChatHeader({
   onNewThreadInProject,
   onOpenProjectSettings,
   onFindInThread,
+  workspaceRoot, // fork: outputs
 }: ChatHeaderProps) {
   const t = useT();
   const activeProjectName = activeProject?.isScratch ? t("No project") : activeProject?.title;
@@ -406,6 +409,9 @@ export const ChatHeader = memo(function ChatHeader({
           ) : null}
         </WorkspaceBreadcrumbItem>
       </WorkspaceBreadcrumb>
+      {isServerThread ? (
+        <ThreadOutputsButton threadRef={activeThreadRef} workspaceRoot={workspaceRoot} />
+      ) : null}
       {isServerThread ? <GuestShareIndicator threadRef={activeThreadRef} /> : null}
     </div>
   );
