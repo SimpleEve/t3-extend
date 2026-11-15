@@ -696,7 +696,7 @@ export function AddProjectSourceScreen(props: { readonly environmentId?: string 
                 ready={canCloneProject && readiness(candidate).ready}
                 hint={
                   !canCloneProject
-                    ? "This connection cannot clone projects."
+                    ? t("This connection cannot clone projects.")
                     : readiness(candidate).ready
                       ? addProjectRemoteSourcePathHint(candidate)
                       : (readiness(candidate).hint ?? "")

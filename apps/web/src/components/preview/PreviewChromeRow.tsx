@@ -150,7 +150,7 @@ export function PreviewChromeRow({
             >
               <RefreshIcon refreshing={loading} />
             </TooltipTrigger>
-            <TooltipPopup>{loading ? "Stop" : "Refresh"}</TooltipPopup>
+            <TooltipPopup>{loading ? t("Stop") : t("Refresh")}</TooltipPopup>
           </Tooltip>
         </div>
 

@@ -574,7 +574,7 @@ export function DeviceSourcesSettings(props: {
               })
             }
           >
-            Expo Simulators
+            {t("Expo Simulators")}
           </MenuItem>
         ) : null}
         {props.supportsSimlock && simlockEnabled ? (

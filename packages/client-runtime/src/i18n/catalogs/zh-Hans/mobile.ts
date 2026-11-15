@@ -130,8 +130,6 @@ export default {
     "在新建任务的输入框中打开草稿。向左滑动可丢弃。",
   "Sends when the environment reconnects. Opens the task for editing. Swipe left to delete.":
     "环境重新连接后发送。打开任务进行编辑。向左滑动可删除。",
-  ", messages queued to send": "，有排队待发送的消息",
-  ", regenerating title": "，正在重新生成标题",
   "Try copying this thread again.": "请再复制一次这个对话。",
   "That snooze time has passed. Choose another time.": "这个时间已经过了，请选择其他时间。",
   "Archive {title}": "归档 {title}",
@@ -210,8 +208,6 @@ export default {
   "Duration amount": "时长数值",
   "Duration unit": "时长单位",
   "Cancel custom snooze": "取消自定义稍后处理",
-  "Choose date": "选择日期",
-  "Choose time": "选择时间",
   "Choose environment, {label}, Offline": "选择环境，{label}，离线",
   "Choose environment, {label}, Connected": "选择环境，{label}，已连接",
   "Available after the first message": "发送第一条消息后可用",
@@ -236,18 +232,12 @@ export default {
   "Thread on {machine}": "{machine} 上的对话",
   // Built-in slash commands in the composer
   "Switch model": "切换模型",
-  "Switch to plan mode": "切换到计划模式",
-  "Switch to default mode": "切换到默认模式",
   "Another address…": "其他地址…",
   "Link a machine this app does not know, by its https or Tailscale address.":
     "通过 https 或 Tailscale 地址，关联一台这个应用不认识的机器。",
   "This app has no address for {name} that another machine can reach. Enter its https or Tailscale address.":
     "这个应用没有其他机器可以访问的 {name} 地址。请输入它的 https 或 Tailscale 地址。",
-  "This environment is already linked to {name}. The agent can use that link as it is; change its access in Settings → Connections.":
-    "这个环境已经关联到 {name}。Agent 可以直接使用这个关联；如需更改访问权限，请前往设置 → 连接。",
   "Paste the code": "粘贴代码",
-  "Create a link on {name}: Settings → Connections → Create link, then paste its code here.":
-    "在 {name} 上创建关联：设置 → 连接 → 创建关联，然后把代码粘贴到这里。",
   "What agents here may do there": "这里的 Agent 在那边可以做什么",
   "An agent here never gets more there than its own mode here either. Threads it starts there cannot change that environment's own threads, projects or settings.":
     "这里的 Agent 在那里获得的权限，也不会超过它在这里的模式。它在那里启动的对话不能修改那个环境自己的对话、项目或设置。",
@@ -526,8 +516,6 @@ export default {
   "Send message from {guestName}": "发送来自 {guestName} 的消息",
   "Return to chat": "返回聊天",
   "Close files": "关闭文件",
-  "Hide inspector": "隐藏检查器",
-  "Show inspector": "显示检查器",
   "Pause audio": "暂停音频",
   "Retry audio": "重试音频",
   "Play audio": "播放音频",
@@ -644,7 +632,6 @@ export default {
   "Scroll to end": "滚动到底部",
   Compacting: "正在压缩",
   "Compacting…": "正在压缩…",
-  "Working {duration}": "运行中 {duration}",
   "Could not switch machine": "无法切换机器",
   "Couldn't load output: {error}": "无法加载输出：{error}",
   "Loading output…": "正在加载输出…",
@@ -801,8 +788,6 @@ export default {
   "Choose a pull request from the sidebar to review it.": "从侧边栏选择一个 PR 进行查看。",
   Navigation: "导航",
   "Search pull requests": "搜索 PR",
-  "Show tabs, {label} selected": "显示标签，已选择{label}",
-  "Cancel search": "取消搜索",
   // Option labels and status text passed through variables
   "Photo Library": "照片图库",
   "Choose Files": "选择文件",
@@ -870,7 +855,6 @@ export default {
   "As of {time}": "截至 {time}",
   "No limits available": "没有可用的上限",
   "{count} accounts · pooled": "{count} 个账户 · 合并计算",
-  "Next reset {time}": "下次重置 {time}",
   "Reset time unavailable": "重置时间不可用",
   // Thread list times; the other units are in time.ts
   "<1m": "不到 1 分钟",
@@ -889,4 +873,9 @@ export default {
   "Could not set the side chat's permission mode.": "无法设置侧边对话的权限模式。",
   "Fast and Ultrafast are unavailable with this ChatGPT connection. Use an existing Codex CLI login for speed options your account supports.":
     "这个 ChatGPT 连接不支持 Fast 和 Ultrafast。要使用账号支持的速度选项，请使用已有的 Codex CLI 登录。",
+  Mermaid: "Mermaid",
+  "Mermaid diagram": "Mermaid 图表",
+  "Opens the diagram full screen": "全屏打开图表",
+  "Hide secret": "隐藏密钥",
+  "Show secret": "显示密钥",
 } satisfies Record<string, string>;

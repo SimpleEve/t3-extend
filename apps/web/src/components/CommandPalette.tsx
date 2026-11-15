@@ -2928,7 +2928,7 @@ function OpenCommandPaletteDialog(props: {
     newProjectFlow !== null ? (
       <CommandPaletteSubmitButton
         id={submitButtonId}
-        label={isCreatingNewProject ? "Creating" : "Create"}
+        label={isCreatingNewProject ? t("Creating") : t("Create")}
         shortcutLabel={createShortcutLabel}
         ariaLabel={t("Create ({createShortcutLabel})", { createShortcutLabel })}
         tooltip={t("Create ({createShortcutLabel})", { createShortcutLabel })}
@@ -2940,7 +2940,7 @@ function OpenCommandPaletteDialog(props: {
     ) : addProjectCloneFlow?.step === "repository" ? (
       <CommandPaletteSubmitButton
         id={submitButtonId}
-        label={isRemoteProjectPending ? "Working" : remoteProjectButtonLabel}
+        label={isRemoteProjectPending ? t("Working") : remoteProjectButtonLabel}
         shortcutLabel="Enter"
         ariaLabel={t("{value} (Enter)", { value: t(remoteProjectButtonLabel ?? "Continue") })}
         tooltip={t("{value} (Enter)", { value: t(remoteProjectButtonLabel ?? "Continue") })}
@@ -2952,7 +2952,7 @@ function OpenCommandPaletteDialog(props: {
     ) : isBrowsing ? (
       <CommandPaletteSubmitButton
         id={submitButtonId}
-        label={isCloneDestinationStep && isRemoteProjectPending ? "Cloning" : submitActionLabel}
+        label={isCloneDestinationStep && isRemoteProjectPending ? t("Cloning") : submitActionLabel}
         shortcutLabel={addShortcutLabel}
         ariaLabel={browseSubmitLabel}
         tooltip={browseSubmitLabel}

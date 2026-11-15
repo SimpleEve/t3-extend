@@ -39,6 +39,7 @@ export function MicrophoneTest({
   /** Labels and device ids become readable once the browser grants access. */
   onMicrophoneAccess: () => void;
 }) {
+  const t = useT();
   const [phase, setPhase] = useState<"idle" | "starting" | "recording" | "ready">("idle");
   const [recording, setRecording] = useState<{ url: string; duration: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -196,7 +197,7 @@ export function MicrophoneTest({
       <Button
         size="sm"
         variant="outline"
-        aria-label="Stop recording"
+        aria-label={t("Stop recording")}
         disabled={phase !== "recording"}
         onClick={() => {
           const recorder = capture.current?.recorder;
@@ -204,12 +205,12 @@ export function MicrophoneTest({
         }}
       >
         <SquareIcon />
-        Stop
+        {t("Stop")}
       </Button>
     ) : (
       <Button size="sm" variant="outline" onClick={() => void start()}>
         {phase === "ready" ? <RotateCcwIcon /> : <MicIcon />}
-        {phase === "ready" ? "Record again" : "Record"}
+        {phase === "ready" ? t("Record again") : t("Record")}
       </Button>
     );
   const panel = error ? (
@@ -218,7 +219,7 @@ export function MicrophoneTest({
     </p>
   ) : phase === "starting" ? (
     <span role="status" className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-      Opening microphone…
+      {t("Opening microphone…")}
     </span>
   ) : phase === "recording" ? (
     <>
@@ -228,12 +229,12 @@ export function MicrophoneTest({
       </div>
       <span
         className="ms-auto shrink-0 text-xs tabular-nums text-muted-foreground"
-        aria-label="Recording time"
+        aria-label={t("Recording time")}
       >
         {formatTime(elapsed)} / {formatTime(LOOPBACK_SECONDS)}
       </span>
       <meter
-        aria-label="Microphone input level"
+        aria-label={t("Microphone input level")}
         min={0}
         max={1}
         value={level}
@@ -248,7 +249,7 @@ export function MicrophoneTest({
     <SettingsRow
       {...searchableSetting("microphone-test")}
       title="Test microphone"
-      description="Record ten seconds and play it back. The audio stays on this device."
+      description={t("Record ten seconds and play it back. The audio stays on this device.")}
       control={control}
     >
       {panel ? (
@@ -262,7 +263,7 @@ export function MicrophoneTest({
           <Button
             size="icon-sm"
             variant="ghost-muted"
-            aria-label={phase === "ready" ? "Discard recording" : "Cancel microphone test"}
+            aria-label={phase === "ready" ? t("Discard recording") : t("Cancel microphone test")}
             onClick={cancel}
           >
             <XIcon />
@@ -312,14 +313,14 @@ function MicrophonePlayback({ src, duration }: { src: string; duration: number }
       <Button
         size="icon-sm-pill"
         variant="outline"
-        aria-label={playing ? "Pause recording" : "Play recording"}
+        aria-label={playing ? t("Pause recording") : t("Play recording")}
         onClick={() => void togglePlayback()}
       >
         {playing ? <PauseIcon /> : <PlayIcon />}
       </Button>
       {failed ? (
         <p role="alert" className="min-w-0 flex-1 text-xs text-destructive">
-          Could not play this recording. Try recording again.
+          {t("Could not play this recording. Try recording again.")}
         </p>
       ) : (
         <input

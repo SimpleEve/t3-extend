@@ -343,8 +343,6 @@ export default {
     "预览上限为 {ARCHIVE_ENTRY_MAX_BYTES}。请保存文件后用其他应用打开。",
   "Couldn't read this file": "无法读取这个文件",
   "Could not read this file.": "无法读取这个文件。",
-  "Added to chat": "已添加到对话",
-  "{name} is attached to your message.": "{name} 已添加到你的消息。",
   "Could not save file": "无法保存文件",
   "Could not add file to chat": "无法把文件添加到对话",
   "Show source": "显示源代码",
@@ -676,7 +674,6 @@ export default {
   "on pace": "符合匀速",
   "under pace": "慢于匀速",
   "{count} reset credit banked": "存有 {count} 次重置额度",
-  " · next expires in {expiresIn}": " · 下次 {expiresIn}后过期",
   // Thread arrangement sections and collapsed list shelves.
   "Working ({count})": "运行中（{count}）",
   "Pinned ({count})": "已置顶（{count}）",
@@ -770,8 +767,6 @@ export default {
   "Commit message": "提交信息",
   "Describe your changes…": "描述你的改动…",
   "Leave empty to generate a message automatically.": "留空则自动生成提交信息。",
-  "{count} of {total} selected · +{selectedInsertions} −{selectedDeletions}":
-    "已选 {count} / {total} · +{selectedInsertions} −{selectedDeletions}",
   "Deselect all": "取消全选",
   "No changed files to commit.": "没有可提交的改动文件。",
   "Commit on a new branch": "在新分支上提交",
@@ -894,4 +889,12 @@ export default {
   "Context compaction failed": "上下文压缩失败",
   "Context compaction stopped": "上下文压缩已停止",
   "Compacting context": "正在压缩上下文",
+  "Waiting for {name} to approve this device": "正在等待 {name} 批准此设备",
+  "Loading threads": "正在加载对话",
+  "the overview": "概览",
+  Mentions: "引用",
+  "No matching mentions.": "没有匹配的引用。",
+  "Compacts first": "先压缩",
+  "Keeps the full history": "保留完整历史",
+  "Follow settings": "跟随设置",
 };

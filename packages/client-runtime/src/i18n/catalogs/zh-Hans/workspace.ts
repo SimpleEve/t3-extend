@@ -276,7 +276,6 @@ export default {
   "Refresh files": "刷新文件",
   "Search files": "搜索文件",
   "Copy mention": "复制引用",
-  "Mention copied": "已复制引用",
   "Failed to copy mention": "无法复制引用",
   "Open a chat for this project and try again.": "请打开这个项目的对话后重试。",
   "The chat isn't ready to accept input right now.": "对话现在还不能接收输入。",
@@ -509,10 +508,6 @@ export default {
     "已安装 Xcode，但没有可用的 iOS 模拟器。请在 Xcode 设置 → Components 中安装运行时。",
   "The Android SDK is installed, but no virtual device exists. Create one in Android Studio → Device Manager.":
     "已安装 Android SDK，但没有虚拟设备。请在 Android Studio → Device Manager 中创建一个。",
-  "{host} starts iOS Simulators in the cloud with EAS Simulator.":
-    "{host} 通过 EAS Simulator 在云端启动 iOS 模拟器。",
-  "{host} starts Android emulators in the cloud with EAS Simulator.":
-    "{host} 通过 EAS Simulator 在云端启动 Android 模拟器。",
   "Xcode and iOS Simulator are available on {host}.": "{host} 上可以使用 Xcode 和 iOS 模拟器。",
   "Xcode and iOS Simulator are available.": "可以使用 Xcode 和 iOS 模拟器。",
   "The Android SDK and Emulator are available on {host}.":
@@ -568,7 +563,6 @@ export default {
   "Agent has control": "Agent 正在控制",
   "Another viewer has control": "另一位查看者正在控制",
   "browser control|Watching": "正在观看",
-  "Toggle main sidebar ({shortcut})": "切换主侧边栏（{shortcut}）",
   "Copy file path": "复制文件路径",
   "Toggle thread details panel": "切换对话详情面板",
   "Toggle thread details ({shortcut})": "切换对话详情（{shortcut}）",
@@ -668,12 +662,10 @@ export default {
   "Archive contents": "压缩包内容",
   "{length} entries": "{length} 个条目",
   Table: "表格",
-  "{name} ({count} rows)": "{name}（{count} 行）",
   "Previous rows": "上一批行",
   "0 rows": "0 行",
   "{value}–{count} of {count2}": "第 {value}–{count} 行，共 {count2} 行",
   "Next rows": "下一批行",
-  "{count} rows · {value} columns": "{count} 行 · {value} 列",
   "Read-only. Up to 50 columns and 1,024 characters per cell. Blob contents are omitted.":
     "只读。最多显示 50 列，每个单元格最多 1,024 个字符，Blob 内容已省略。",
   "Archive entries": "压缩包条目",
@@ -693,9 +685,7 @@ export default {
   "Workspace folder: {path}. Check the link's path or locate the file in Files.":
     "工作区文件夹：{path}。请检查链接里的路径，或在“文件”中查找这个文件。",
   "{error} Save it to open in another app.": "{error} 保存后可以用其他应用打开。",
-  "{count} rows": "{count} 行",
   "{count} lines": "{count} 行",
-  " · {value} columns": " · {value} 列",
   "0 bytes": "0 字节",
   " · Indexing…": " · 正在建立索引…",
   "Loading the rest of the file…": "正在加载文件的其余部分…",
@@ -704,7 +694,6 @@ export default {
   "This file is empty.": "这个文件是空的。",
   "This diagram contains resource URLs, markup, node metadata, or custom configuration. Show Mermaid source to inspect it safely.":
     "这张图包含资源 URL、标记、节点元数据或自定义配置。请查看 Mermaid 源码，安全地检查它。",
-  "{length} cells · {language}": "{length} 个单元格 · {language}",
   "Saved outputs only. Code is never executed.": "只显示已保存的输出，不会执行代码。",
   "Cell {value}": "单元格 {value}",
   "Cell {value} output": "单元格 {value} 的输出",
@@ -748,11 +737,9 @@ export default {
   "Preparing video download…": "正在准备下载视频…",
   "Copying image…": "正在复制图片…",
   "Download started": "已开始下载",
-  "Image copied": "已复制图片",
   "The media action failed.": "媒体操作失败。",
   "Save image": "保存图片",
   "Save video": "保存视频",
-  "Video unavailable · {label}": "视频不可用 · {label}",
   "Retry video": "重新加载视频",
   "Video preview": "视频预览",
   "Video preview unavailable": "视频预览不可用",
@@ -834,4 +821,14 @@ export default {
   "This document took too long to preview. Open it in another app.":
     "这个文档预览耗时过长。请用其他应用打开。",
   "The Office engine was closed": "Office 引擎已关闭",
+  "Retry T3 Connect": "重试 T3 Connect",
+  "Require approval for new devices": "新设备需要批准",
+  "Devices that sign in to your T3 Connect account wait until someone already connected here approves them.":
+    "登录你的 T3 Connect 账号的设备，要等已连接到这里的人批准后才能使用。",
+  "… columns": "… 列",
+  "File contents": "文件内容",
+  cell: "个单元格",
+  cells: "个单元格",
+  "Find in page": "在页面中查找",
+  "Find on page": "在页面上查找",
 } satisfies Record<string, string>;

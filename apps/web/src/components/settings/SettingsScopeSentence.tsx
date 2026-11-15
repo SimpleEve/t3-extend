@@ -316,13 +316,14 @@ function EnvironmentScopeMenu({
 }
 
 function CheckoutScopeMenu({ value, groups, onChange }: SettingsScopeMenuProps) {
+  const t = useT();
   const group = groups.find((candidate) => candidate.projectKey === value.project);
   const checkouts = group ? settingsScopeCheckoutChoices(group, value) : [];
   if (checkouts.length === 0) return null;
   const selected = checkouts.find((member) => member.physicalProjectKey === value.checkout);
   return (
     <span className="flex min-w-0 items-center gap-1.5">
-      <span className="shrink-0">in</span>
+      <span className="shrink-0">{t("in")}</span>
       <ScopeMenu
         ariaLabel="Checkout scope"
         icon={<FolderIcon aria-hidden className="size-3.5 shrink-0" />}
@@ -330,8 +331,8 @@ function CheckoutScopeMenu({ value, groups, onChange }: SettingsScopeMenuProps) 
           selected
             ? settingsScopeCheckoutLabel(selected, checkouts)
             : value.checkout
-              ? "Unavailable checkout"
-              : "All checkouts"
+              ? t("Unavailable checkout")
+              : t("All checkouts")
         }
         value={value.checkout ?? ALL_CHECKOUTS_VALUE}
         onChange={(next) =>

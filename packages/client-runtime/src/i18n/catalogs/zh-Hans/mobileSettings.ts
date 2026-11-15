@@ -104,8 +104,6 @@ export default {
   "Update {name}": "更新 {name}",
   "Refresh cloud environments": "刷新云端环境",
   "While the agent is running": "Agent 运行时",
-  "Long-press the send button to use the other option for a single message. With a hardware keyboard, hold Command while sending.":
-    "长按发送按钮，可以让单条消息使用另一个选项。使用实体键盘时，发送时按住 Command。",
   "Return key": "Return 键",
   "Applies to the composer when a hardware keyboard is connected.":
     "连接实体键盘时，作用于输入框。",
@@ -134,7 +132,6 @@ export default {
   "Install a newer app build to enable notifications": "请安装更新的应用版本以开启通知",
   "Notifications unavailable": "通知不可用",
   "Could not request notification permission.": "无法请求通知权限。",
-  "Notifications enabled": "通知已开启",
   "Agent notifications are enabled for this device.": "这台设备已开启 Agent 通知。",
   "Couldn't finish enabling notifications": "无法完成通知开启",
   "Notification access was granted, but this device could not be registered with T3 Connect. Notifications will start once registration succeeds.":
@@ -432,9 +429,6 @@ export default {
   "Let agents on a machine work on your other machines, and theirs on it. Turn it on for each machine. While it is off, nothing new starts over a link; tasks already running finish.":
     "让一台机器上的 Agent 在你的其他机器上工作，反之亦然。需要在每台机器上分别开启。关闭期间不会通过关联启动新任务，已在运行的任务会继续完成。",
   Legacy: "旧版",
-  "Plan Mode": "计划模式",
-  "Opt into retired interfaces kept for compatibility. Plan Mode restores the Build/Plan control; otherwise every task runs in Build mode.":
-    "启用为兼容性保留的旧界面。计划模式会恢复 Build/Plan 切换；否则所有任务都以 Build 模式运行。",
   "Days before auto-settle": "自动标为已处理前的天数",
   "Worktree branch naming": "worktree 分支命名",
   "Use t3 or t3/ for t3/add-search. Leave empty for no prefix.":
@@ -577,7 +571,6 @@ export default {
   "Could not download the model": "无法下载模型",
   "Could not select the model": "无法选择模型",
   "Could not cancel the download": "无法取消下载",
-  "Transcription model on {label}": "{label} 上的转写模型",
   "This connection can’t change settings on {label}. Add a transcription model using T3 Extend on that machine.":
     "这个连接无法更改 {label} 上的设置。请在那台机器上用 T3 Extend 添加转写模型。",
   "This environment": "这个环境",
@@ -607,4 +600,14 @@ export default {
   "Type the question after /side, then send it.": "在 /side 后面输入问题，然后发送。",
   "T3 Extend's voice input uses Google's on-device speech recognition, which needs Android 12 or later with compatible Google speech services for the device language. Without it, the composer has no microphone button, and allowing microphone access won't add one. Keyboard voice typing is separate and isn't affected.":
     "T3 Extend 的语音输入使用 Google 的设备端语音识别，需要 Android 12 或更高版本，并且设备语言要有兼容的 Google 语音服务。没有它时，输入框不会出现麦克风按钮，授予麦克风权限也不会增加。键盘语音输入是另一回事，不受影响。",
+  "Cloud provider": "云服务提供方",
+  "Use your own API key": "使用你自己的 API key",
+  "API key saved": "API key 已保存",
+  "Project sources": "项目来源",
+  "Local model": "本地模型",
+  "Not available on this environment": "此环境不可用",
+  "Local model · {size}": "本地模型 · {size}",
+  "No model installed · Choose one to download": "未安装模型 · 选择一个来下载",
+  "No model installed · Add one using T3 Extend on {label}":
+    "未安装模型 · 请在 {label} 上用 T3 Extend 添加一个",
 } satisfies Record<string, string>;

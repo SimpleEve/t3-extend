@@ -3464,9 +3464,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                       theme={resolvedTheme}
                     />
                   ) : showProviderUnavailable ? (
-                    "Enable a provider in Settings"
+                    t("Enable a provider in Settings")
                   ) : (
-                    "Ask anything..."
+                    t("Ask anything...")
                   )}
                 </button>
                 {collapsedComposerImagePreviews}
@@ -3646,20 +3646,22 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                           : t("Send a message to decline and redirect the agent")
                         : activePendingProgress
                           ? isChoiceOnlyPendingQuestion
-                            ? "Choose an option above"
+                            ? t("Choose an option above")
                             : activePendingProgress.activeQuestion?.options.length === 0
-                              ? "Type your answer"
-                              : "Type your own answer, or leave this blank to use the selected option"
+                              ? t("Type your answer")
+                              : t(
+                                  "Type your own answer, or leave this blank to use the selected option",
+                                )
                           : projectSelectionRequired
-                            ? "Choose a project above to start a thread"
+                            ? t("Choose a project above to start a thread")
                             : showProviderUnavailable
-                              ? "Enable a provider in Settings to send a message"
+                              ? t("Enable a provider in Settings to send a message")
                               : (offeredPromptSuggestion ?? DEFAULT_COMPOSER_PLACEHOLDER)
                     }
                     placeholderSuffix={
                       offeredPromptSuggestion !== null ? (
                         <span className="ml-2 inline-flex align-[1px]">
-                          <Kbd variant="outline">⇥ Tab</Kbd>
+                          <Kbd variant="outline">{t("⇥ Tab")}</Kbd>
                         </span>
                       ) : undefined
                     }

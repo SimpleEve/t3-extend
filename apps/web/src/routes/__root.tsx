@@ -257,7 +257,7 @@ function RootRouteErrorView({ error }: ErrorComponentProps) {
             isChunkLoadError(error) ? window.location.reload() : void router.invalidate()
           }
         >
-          Try again
+          {t("Try again")}
         </Button>
         <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
           {t("Reload app")}
@@ -282,7 +282,7 @@ function CopyErrorButton({ report }: { report: string }) {
   return (
     <Button size="sm" variant="outline" onClick={() => copyToClipboard(report)}>
       {isCopied ? <CheckIcon className="text-success" /> : <CopyIcon />}
-      {isCopied ? "Copied" : "Copy error"}
+      {isCopied ? t("Copied") : t("Copy error")}
     </Button>
   );
 }

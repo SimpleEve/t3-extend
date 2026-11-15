@@ -18,6 +18,7 @@ import {
 } from "./ConnectionsSettings.logic";
 import { ITEM_ROW_CLASSNAME, ITEM_ROW_INNER_CLASSNAME } from "./itemRows";
 import { SettingsSection } from "./settingsLayout";
+import { useT } from "~/hooks/useT"; // fork: interface language
 
 function reportFailure(title: string, result: Parameters<typeof isAtomCommandInterrupted>[0]) {
   if (result._tag !== "Failure" || isAtomCommandInterrupted(result)) return;
@@ -45,6 +46,7 @@ export function ConnectDeviceApprovalSettings({
   /** Revokes now, or first asks to turn approval on when it is off. */
   readonly requestRevoke: (title: string, revoke: () => Promise<void>) => void;
 }) {
+  const t = useT();
   const approve = useAtomCommand(authEnvironment.approveConnectDevice, { reportFailure: false });
   const deny = useAtomCommand(authEnvironment.revokePairingLink, { reportFailure: false });
   const revoke = useAtomCommand(authEnvironment.revokeConnectDevice, { reportFailure: false });
@@ -89,7 +91,7 @@ export function ConnectDeviceApprovalSettings({
                     )
                   }
                 >
-                  Deny
+                  {t("Deny")}
                 </Button>
                 <Button
                   size="xs"
@@ -103,7 +105,7 @@ export function ConnectDeviceApprovalSettings({
                     )
                   }
                 >
-                  {busy ? "Saving…" : "Approve"}
+                  {busy ? t("Saving…") : t("Approve")}
                 </Button>
               </div>
             </div>
@@ -144,7 +146,7 @@ export function ConnectDeviceApprovalSettings({
                     )
                   }
                 >
-                  {busy ? "Revoking…" : "Revoke"}
+                  {busy ? t("Revoking…") : t("Revoke")}
                 </Button>
               </div>
             </div>
@@ -154,7 +156,7 @@ export function ConnectDeviceApprovalSettings({
       {devices.length === 0 && requests.length === 0 ? (
         <div className={ITEM_ROW_CLASSNAME}>
           <p className="text-xs text-muted-foreground/60">
-            No device has connected through T3 Connect yet.
+            {t("No device has connected through T3 Connect yet.")}
           </p>
         </div>
       ) : null}

@@ -195,7 +195,6 @@ export default {
   Loading: "正在加载",
   "Could not load older threads. Retry": "无法加载更早的对话，点击重试",
   "Show {count} more": "再显示 {count} 个",
-  "Branch copied": "已复制分支",
   "Failed to copy branch": "无法复制分支",
   "Thread ID copied": "已复制对话 ID",
   "Failed to copy thread ID": "无法复制对话 ID",
@@ -203,7 +202,6 @@ export default {
   "Failed to snooze {count} thread": "无法稍后处理 {count} 个对话",
   "Failed to snooze {count} threads": "无法稍后处理 {count} 个对话",
   "Failed to snooze threads": "无法稍后处理对话",
-  "Failed to regenerate thread titles": "无法重新生成对话标题",
   "Failed to delete threads": "无法删除对话",
   "Could not create thread": "无法创建对话",
   "Project created": "项目已创建",
@@ -361,4 +359,6 @@ export default {
   "Failed to undo unpin": "无法撤销取消置顶",
   "Failed to undo settle": "无法撤销标为已处理",
   "Failed to restore draft": "无法恢复草稿",
+  "Dropping folders needs the desktop app": "拖入文件夹需要桌面应用",
+  "Drop folders to add projects": "拖入文件夹以添加项目",
 } satisfies Record<string, string>;

@@ -386,7 +386,7 @@ export function ThreadDetailsPrRow({
               destructive: true,
               suffix:
                 handoff === "findings" ? (
-                  <Spinner size="xs" aria-label="Preparing fix" />
+                  <Spinner size="xs" aria-label={t("Preparing fix")} />
                 ) : (
                   newThreadSuffix
                 ),

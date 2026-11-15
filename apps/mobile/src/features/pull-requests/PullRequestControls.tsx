@@ -248,7 +248,7 @@ export function PullRequestActionToolbar(props: {
     <Toolbar.Menu
       identifier="pull-request-agent"
       icon="ellipsis.bubble"
-      title="AI helpers"
+      title={t("AI helpers")}
       accessibilityLabel={`${shortLabel} agent actions`}
       disabled={agent.disabled}
       separateBackground

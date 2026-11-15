@@ -308,8 +308,10 @@ function LinkRequestDialog(props: {
     >
       <WizardPopup>
         <WizardHeader
-          title={pickMachine ? "Link a machine" : `Link ${targetName}`}
-          description="Agents here can then launch, message and wait on threads there. Revoke it in that machine's Sharing & access."
+          title={pickMachine ? t("Link a machine") : `Link ${targetName}`}
+          description={t(
+            "Agents here can then launch, message and wait on threads there. Revoke it in that machine's Sharing & access.",
+          )}
         >
           {steps.length > 1 && !useExisting ? (
             <WizardSteps

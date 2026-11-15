@@ -421,4 +421,6 @@ export default {
   "t3 tool target|a pending attachment": "待发送的附件",
   "t3 tool target|attachments": "附件",
   "t3 tool target|an HTML page": "HTML 页面",
+  "themes {times}": "主题 {times}",
+  "the theme {times}": "主题 {times}",
 } satisfies Record<string, string>;

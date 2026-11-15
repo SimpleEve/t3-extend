@@ -83,7 +83,7 @@ function T3ConnectSteps() {
       <SetupStep number={1}>
         {loadFailed ? (
           <Button size="sm" onClick={retryClerkLoad}>
-            Retry sign-in
+            {t("Retry sign-in")}
           </Button>
         ) : isSignedIn ? (
           <p className="flex items-center gap-1.5 text-muted-foreground">
@@ -161,7 +161,7 @@ function RunOnComputer({ command }: { readonly command: string }) {
   const t = useT();
   return (
     <>
-      <p>Run on your computer:</p>
+      <p>{t("Run on your computer:")}</p>
       <InstallT3Commands command={command} className="mt-2" />
       <a
         className="mt-2 inline-block text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"

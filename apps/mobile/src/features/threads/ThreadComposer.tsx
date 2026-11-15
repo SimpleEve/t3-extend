@@ -864,7 +864,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
             : `Next send compacts ${compactTokens} tokens of history first`
         }
         accessibilityHint={
-          compactBeforeSend.keepFullHistory ? "Compacts first" : "Keeps the full history"
+          compactBeforeSend.keepFullHistory ? t("Compacts first") : t("Keeps the full history")
         }
         onPress={compactBeforeSend.toggleKeepFullHistory}
       />

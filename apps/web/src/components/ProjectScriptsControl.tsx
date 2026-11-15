@@ -342,7 +342,7 @@ export default function ProjectScriptsControl({
                         variant={isPanel ? "ghost" : "outline"}
                         part="secondary"
                         panel={isPanel}
-                        aria-label="Script actions"
+                        aria-label={t("Script actions")}
                         data-toolbar-control=""
                       />
                     }
@@ -353,7 +353,7 @@ export default function ProjectScriptsControl({
                   className={isPanel ? THREAD_DETAILS_PANEL_CHEVRON_CLASS : "size-4"}
                 />
               </TooltipTrigger>
-              <TooltipPopup side="top">Script actions</TooltipPopup>
+              <TooltipPopup side="top">{t("Script actions")}</TooltipPopup>
             </Tooltip>
             <MenuPopup
               align="end"

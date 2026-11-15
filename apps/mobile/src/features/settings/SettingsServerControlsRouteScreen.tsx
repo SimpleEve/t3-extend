@@ -417,7 +417,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   />
                 )}
                 {projectSelected ? null : (
-                  <SettingsSection title="Project sources">
+                  <SettingsSection title={t("Project sources")}>
                     {sourceControlClients.definitions.map((definition) => {
                       const offered = displayTargets.map((target) =>
                         isSourceControlProviderOffered(
@@ -441,7 +441,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                     })}
                   </SettingsSection>
                 )}
-                <SettingsSection title="Pull requests">
+                <SettingsSection title={t("Pull requests")}>
                   <SettingsSwitchRow
                     icon={PullRequestGlyph.merged}
                     label={t("Remove agent credits when merging")}
@@ -601,7 +601,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                   <View className="border-t border-border-subtle">
                     <SettingsSwitchRow
                       icon="bolt.circle"
-                      label="Keep awake while agents work"
+                      label={t("Keep awake while agents work")}
                       subtitle={managedSubtitle(
                         "keepAwakeWhileAgentsWork",
                         projectSelected

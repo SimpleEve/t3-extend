@@ -141,7 +141,7 @@ export function AddUsageLimitSourceDialog({
             {t("Cancel")}
           </Button>
           <Button type="submit" form={formId} disabled={!canSave}>
-            Add hub
+            {t("Add hub")}
           </Button>
         </DialogFooter>
       </DialogPopup>

@@ -2172,7 +2172,7 @@ function ScheduledTaskEditorForm({
                       {runAtZone}
                     </span>
                   )}
-                  <span className="text-xs text-muted-foreground">on</span>
+                  <span className="text-xs text-muted-foreground">{t("on")}</span>
                 </div>
                 <ToggleGroup
                   multiple

@@ -75,7 +75,9 @@ export function CommandOutputPanel(props: {
       }}
       className="max-h-80 overflow-auto text-muted-foreground"
     >
-      {data?.output.truncated ? <div className="italic">Earlier output not shown</div> : null}
+      {data?.output.truncated ? (
+        <div className="italic">{t("Earlier output not shown")}</div>
+      ) : null}
       {spans.map((span, index) =>
         span.style === null ? (
           span.text

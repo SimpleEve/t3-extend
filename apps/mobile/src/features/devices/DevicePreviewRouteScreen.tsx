@@ -387,7 +387,7 @@ function DeviceOptionsMenu({ items }: { readonly items: ReadonlyArray<AppBarMenu
         if (action && !action.disabled) action.onPress();
       }}
     >
-      <ControlPill icon="ellipsis" accessibilityLabel="Device options" />
+      <ControlPill icon="ellipsis" accessibilityLabel={t("Device options")} />
     </Menu>
   );
 }

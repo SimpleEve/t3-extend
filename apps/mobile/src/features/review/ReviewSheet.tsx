@@ -146,9 +146,12 @@ function ReviewHeader(
 const SHOWCASE_ENABLED = process.env.EXPO_PUBLIC_SHOWCASE === "1";
 
 const ReviewNotice = function ReviewNotice(props: { readonly notice: string }) {
+  const t = useT();
   return (
     <ContentBand tone="warning">
-      <Text className="text-xs font-t3-bold uppercase text-warning-foreground">Partial diff</Text>
+      <Text className="text-xs font-t3-bold uppercase text-warning-foreground">
+        {t("Partial diff")}
+      </Text>
       <Text className="text-xs leading-normal text-warning-foreground">{props.notice}</Text>
     </ContentBand>
   );
@@ -556,7 +559,7 @@ export function ReviewSheet(props: ReviewSheetProps) {
     if (error) {
       children.push(
         <ContentBand key="review-error">
-          <Text className="text-sm font-t3-bold text-foreground">Review unavailable</Text>
+          <Text className="text-sm font-t3-bold text-foreground">{t("Review unavailable")}</Text>
           <Text className="text-xs leading-normal text-foreground-muted">{error}</Text>
         </ContentBand>,
       );
@@ -701,16 +704,18 @@ export function ReviewSheet(props: ReviewSheetProps) {
               {!selectedSection ? (
                 error ? null : (
                   <ContentStatus
-                    title="No review diffs"
-                    detail="This thread has no ready turn diffs and the worktree diff is empty."
+                    title={t("No review diffs")}
+                    detail={t(
+                      "This thread has no ready turn diffs and the worktree diff is empty.",
+                    )}
                   />
                 )
               ) : selectedSection.isLoading && selectedSection.diff === null ? (
-                <ContentStatus loading detail="Loading diff…" />
+                <ContentStatus loading detail={t("Loading diff…")} />
               ) : parsedDiff.kind === "empty" ? (
                 <ContentStatus
-                  title="No changes"
-                  detail={selectedSection.subtitle ?? "This diff is empty."}
+                  title={t("No changes")}
+                  detail={selectedSection.subtitle ?? t("This diff is empty.")}
                 />
               ) : parsedDiff.kind === "raw" ? (
                 <ContentBand spacing="roomy">

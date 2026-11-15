@@ -195,11 +195,7 @@ export default {
   Added: "已添加",
   "ACP session imported": "已导入 ACP 会话",
   "ACP session already imported": "ACP 会话已经导入过",
-  "ACP session deleted": "已删除 ACP 会话",
   "Invalid provider headers": "provider 请求头无效",
-  "ACP provider configured": "已配置 ACP provider",
-  "ACP provider disabled": "已停用 ACP provider",
-  "Logged out of ACP agent": "已退出 ACP Agent",
   "Resume agent-owned conversations as T3 threads.": "把 Agent 自己的对话作为 T3 对话继续。",
   "Logging out": "正在退出",
   "Log out": "退出登录",
@@ -324,7 +320,6 @@ export default {
   "Quit {name} to import": "退出 {name} 后才能导入",
   "{name} is open, so its cookies can’t be read yet. Quit it, then continue.":
     "{name} 正在运行，暂时无法读取它的 cookie。请先退出它，然后继续。",
-  "I’ve quit it": "我已经退出了",
   "Let T3 Extend read {name}’s cookies": "允许 T3 Extend 读取 {name} 的 cookie",
   "To import cookies from {name}, T3 Extend needs Full Disk Access. Turn it on in System Settings, then come back to finish the import. You can revoke it again once the import is done.":
     "要从 {name} 导入 cookie，T3 Extend 需要“完全磁盘访问权限”。请在系统设置中开启，然后回来完成导入。导入完成后可以再撤销。",
@@ -429,8 +424,6 @@ export default {
   "Run {app}'s CLI as `{command}` from any terminal.":
     "在任意终端里用 `{command}` 运行 {app} 的命令行工具。",
   "Installed at {path}. Open a new terminal to use it.": "已安装在 {path}。打开新终端即可使用。",
-  "Installed at {path}, which is not on your PATH yet. Add its folder to your PATH to run `{command}`.":
-    "已安装在 {path}，但它还不在 PATH 里。把所在文件夹加入 PATH 后才能运行 `{command}`。",
   "Something went wrong.": "出了点问题。",
   Remove: "移除",
   "Signed in as {email}.": "已登录为 {email}。",
@@ -531,7 +524,6 @@ export default {
   "Can't connect": "无法连接",
   "Add source": "添加来源",
   "Machine over SSH": "通过 SSH 的机器",
-  "EAS Simulator": "EAS 模拟器",
   "Simlock pool (alpha)": "Simlock 池（alpha）",
   "available on some": "部分环境可用",
   "not available": "不可用",
@@ -611,7 +603,6 @@ export default {
   "Loading recent logs...": "正在加载最近的日志…",
   "No warnings or errors found.": "没有找到警告或错误。",
   "Loading span names...": "正在加载 span 名称…",
-  "Add EAS host": "添加 EAS 主机",
   "Edit EAS host": "编辑 EAS 主机",
   "The environment's server signs in to Expo and starts the sessions. Without a token here it uses EXPO_TOKEN, then its eas login.":
     "由环境的服务器登录 Expo 并启动会话。这里没有填写令牌时，它会使用 EXPO_TOKEN，然后是它的 eas login。",
@@ -621,7 +612,6 @@ export default {
   "Checking the Expo account…": "正在检查 Expo 账号…",
   "Check the Expo account before choosing a project.": "选择项目前请先检查 Expo 账号。",
   "Check account": "检查账号",
-  "EAS project": "EAS 项目",
   "From the thread's project": "来自对话所属的项目",
   "Sessions bill the project's Expo account. \"From the thread's project\" reads extra.eas.projectId from the project's app config.":
     "会话费用记在项目的 Expo 账号上。“来自对话所属的项目”会从项目的应用配置中读取 extra.eas.projectId。",
@@ -818,8 +808,6 @@ export default {
   "Add actions declared by this checkout without editing them first.":
     "直接添加此 checkout 声明的操作，无需先编辑。",
   "Add action": "添加操作",
-  "Choose one environment to edit its list. Adding an action here adds it on every selected environment.":
-    "选择一个环境来编辑它的列表。在这里添加操作会把它添加到每个选中的环境。",
   "A t3.json exists in this checkout but fails to parse, so every action and icon it declares is ignored. Check the JSON syntax and icon values.":
     "此 checkout 中有 t3.json，但解析失败，所以其中声明的所有操作和图标都被忽略。请检查 JSON 语法和图标值。",
   "Default model not saved": "默认模型未保存",
@@ -1403,7 +1391,6 @@ export default {
   "Days of inactivity before auto-settle": "多少天无活动后自动标为已处理",
   "Restore Build/Plan, /plan, /default, and Shift+Tab. Off uses build mode.":
     "恢复 Build/Plan、/plan、/default 和 Shift+Tab。关闭时使用 build 模式。",
-  "Plan mode (legacy)": "Plan 模式（旧版）",
   "Shows context window usage as a circular indicator in the composer.":
     "在输入框中用圆形指示器显示上下文窗口用量。",
   "Context window indicator (legacy)": "上下文窗口指示器（旧版）",
@@ -1674,15 +1661,9 @@ export default {
   Token: "令牌",
   "No token saved; the server uses {tokenEnvVar} or the {cliName} login.":
     "没有保存令牌；服务器会使用 {tokenEnvVar} 或 {cliName} 登录。",
-  "Source control writing style": "源代码管理写作风格",
-  "Custom source control instructions for all selected environments":
-    "所有选中环境的自定义源代码管理说明",
   "Write the instructions each selected environment should use.": "填写每个选中环境应使用的说明。",
   "Apply instructions to all": "把说明应用到全部",
   "Write custom instructions for all": "为全部填写自定义说明",
-  "Keep titles concise. Use short bullet points in descriptions.":
-    "标题保持简洁。描述中使用简短的要点。",
-  "Custom source control writing instructions": "自定义源代码管理写作说明",
   "Add a Guide tab to pull requests. An agent explains the changes and points out decisions that need review.":
     "为 PR 添加“导读”标签页。由 Agent 解释改动，并指出需要审查的决策。",
   "Review guides": "审查导读",
@@ -1700,7 +1681,6 @@ export default {
     "先展示服务接口，再展示实现。除非测试文件改变了行为，否则跳过它们。摘要控制在两句话以内。",
   "Use the repository's template for change request descriptions when available.":
     "在有模板时，使用仓库的变更请求描述模板。",
-  "Follow change request templates": "遵循变更请求模板",
   "Model for source control text and branch or bookmark names. When disabled, use the text generation model configured for this environment.":
     "用于源代码管理文本以及分支或书签名称的模型。关闭时使用此环境配置的文本生成模型。",
   "Connect an environment to choose its source control writer model.":
@@ -1789,11 +1769,6 @@ export default {
   "Browser storage is unavailable, so the change was not kept.":
     "浏览器存储不可用，所以没有保留这次更改。",
   "{label} updated": "已更新 {label}",
-  "Its {mergedAppearance} palette was added.": "已添加它的{mergedAppearance}配色。",
-  "{label} saved": "已保存 {label}",
-  "Your changes are now active.": "你的更改已生效。",
-  "Your changes are saved.": "你的更改已保存。",
-  "{label} created": "已创建 {label}",
   "It’s now active.": "它现在已生效。",
   "Theme name": "主题名称",
   "e.g. Aurora": "例如：Aurora",
@@ -2014,7 +1989,6 @@ export default {
   Recordings: "录屏",
   "New keybinding": "新快捷键",
   "Third-party notices": "第三方声明",
-  "Different actions across environments": "各环境的操作不一致",
   "t3.json is invalid": "t3.json 无效",
   "default model": "默认模型",
   "default workspace": "默认工作区",
@@ -2115,10 +2089,7 @@ export default {
   Legal: "法律信息",
   "snooze options": "稍后处理选项",
   "Server environment": "服务器环境",
-  "Writing & review": "写作与审查",
-  "source control writing style": "源代码管理写作风格",
   "review guide instructions": "审查导读说明",
-  "change request templates": "变更请求模板",
   "worktree location": "worktree 位置",
   Cleanup: "清理",
   "Artifacts and logs": "产物和日志",
@@ -2371,8 +2342,6 @@ export default {
   "{hour} yesterday": "昨天 {hour}",
   "{start} to {end}": "{start} 至 {end}",
   "{sessions} session": "{sessions} 个会话",
-  "Combined usage across both allowances, not a third quota.":
-    "两项额度合计的用量，不是第三项配额。",
   "Grok and Composer use this first. Auto can use either pool.":
     "Grok 和 Composer 先用这项额度，Auto 两项都能用。",
   "Claude, GPT, and Gemini use this pool. Grok and Composer fall back here.":
@@ -2381,12 +2350,6 @@ export default {
   ", 1 reset credit banked": "，存有 1 次重置额度",
   ", {count} reset credits banked": "，存有 {count} 次重置额度",
   "No reset credits banked": "没有存下的重置额度",
-  "{count} banked · expires in {duration}": "存有 {count} 次 · {duration}后过期",
-  "{count} banked": "存有 {count} 次",
-  "1 reset credit banked · next expires in {duration}": "存有 1 次重置额度 · {duration}后过期",
-  "1 reset credit banked": "存有 1 次重置额度",
-  "{count} reset credits banked · next expires in {duration}":
-    "存有 {count} 次重置额度 · 最近一次 {duration}后过期",
   "{count} reset credits banked": "存有 {count} 次重置额度",
   seconds: "秒",
   "1 model": "1 个模型",
@@ -2673,8 +2636,6 @@ export default {
   "This setting is saved on a server, and the hosted app is not anchored to one. Change it from the desktop app or from the server's own address.":
     "此设置保存在服务器上，而托管版应用没有固定连接到某台服务器。请在桌面应用或服务器自己的地址中修改。",
   override: "覆盖设置",
-  "Keybindings updated": "快捷键已更新",
-  "Keybindings configuration reloaded successfully.": "快捷键配置已重新加载。",
   "Invalid keybindings configuration": "快捷键配置无效",
   "Unknown error opening file.": "打开文件时发生未知错误。",
   "Could not reopen view": "无法重新打开视图",
@@ -2724,7 +2685,6 @@ export default {
   "Paste this inside binds { … } in your Niri config, then save.":
     "把这段粘贴到 Niri 配置的 binds { … } 中，然后保存。",
   "attempt {attempt}": "第 {attempt} 次尝试",
-  "{size} GiB on {environment}": "{environment} 上的 {size} GiB",
   "This connection cannot change settings on {value}.": "这个连接无法修改 {value} 上的设置。",
   available: "可用",
   "Root process {name}": "根进程 {name}",
@@ -2996,4 +2956,103 @@ export default {
   "One thread, continuing the conversation": "一个对话，接续同一段会话",
   "One thread, fresh session each run": "一个对话，每次运行用全新会话",
   "Composer: Start or Finish Dictation": "输入框：开始或结束听写",
+  "Use in another app (MCP)": "在其他应用中使用（MCP）",
+  "Update Codex": "更新 Codex",
+  "No device has connected through T3 Connect yet.": "还没有设备通过 T3 Connect 连接。",
+  Reclaim: "收回",
+  "Restart and reclaim": "重启并收回",
+  "Expo Simulators": "Expo 模拟器",
+  "Add Expo host": "添加 Expo 主机",
+  "Edit Expo host": "编辑 Expo 主机",
+  "Expo project": "Expo 项目",
+  "Show folder threads on two lines: the title, then the branch, pull request, and agent.":
+    "文件夹中的对话分两行显示：先是标题，再是分支、PR 和 Agent。",
+  "Show a predicted next message in the empty composer after a Claude or Codex turn. Tab uses it. Each is an extra cached request on your plan. Needs Codex 0.165+. Claude threads update on restart.":
+    "Claude 或 Codex 完成一轮后，在空输入框里显示预测的下一条消息，按 Tab 采用。每次预测都会在你的套餐上多产生一次缓存请求。需要 Codex 0.165+。Claude 对话重启后生效。",
+  "Suggest next prompt": "建议下一条提示词",
+  "On a Mac, clone new worktrees from a checkout cached in the T3 home folder instead of writing every file. Uses Git’s normal checkout when it can’t. Turning it off deletes the cache.":
+    "在 Mac 上，从缓存在 T3 主目录里的 checkout 克隆新的 worktree，而不是逐个写入文件；做不到时改用 Git 的常规 checkout。关闭后会删除缓存。",
+  "Fast worktree checkout": "快速 worktree checkout",
+  "Check this address": "检查此地址",
+  'Forget {label}? Agents here stop working there. Revoke "T3 Extend · …" in {label}\'s Sharing & access to end the session there too.':
+    "忘记 {label}？这里的 Agent 将无法再在那里工作。请在 {label} 的“共享与访问”中撤销“T3 Extend · …”，以同时结束那边的会话。",
+  "From Sharing & access there, or t3 pair": "在那边的“共享与访问”中获取，或运行 t3 pair",
+  "Narrow the selection above to one checkout to edit its list. Adding an action here adds it to every selected checkout.":
+    "请把上面的选择缩小到一个 checkout 再编辑它的列表。在这里添加动作会添加到所有选中的 checkout。",
+  "Enter a valid value. It was not saved.": "请输入有效的值。未保存。",
+  "The device has to be approved here before it can connect again.":
+    "设备需要先在这里批准，才能再次连接。",
+  "Run `t3 connect link` on the host, then restart T3 Extend there.":
+    "在主机上运行 `t3 connect link`，然后重启那里的 T3 Extend。",
+  "What a screen reader hears from the open thread: a turn starting, needing you, and ending. Status and messages adds what the agent writes before its last message. Everything adds each step.":
+    "屏幕阅读器会从当前打开的对话中朗读：一轮开始、需要你处理、一轮结束。“状态和消息”会加上 Agent 在最后一条消息之前写的内容。“全部”会加上每一个步骤。",
+  "Screen reader announcements": "屏幕阅读器播报",
+  "Start the window title with the thread's status, like Needs approval, and its name, so screen readers read them first when you switch apps. Taskbars, shared screens, and time trackers see it too.":
+    "让窗口标题以对话状态（如“待批准”）和对话名称开头，这样切换应用时屏幕阅读器会先读出它们。任务栏、共享屏幕和计时工具也能看到。",
+  "Screen reader window title": "屏幕阅读器窗口标题",
+  "For thread titles and other generated text. Source control has its own setting. Text generators from Providers also appear here.":
+    "用于对话标题和其他生成的文字。源码管理有单独的设置。Provider 里的文本生成器也会出现在这里。",
+  "Stop the computer from going to sleep while agents are working, and let it sleep once they finish. Closing a laptop lid still puts it to sleep.":
+    "Agent 工作时阻止电脑进入睡眠，完成后允许睡眠。合上笔记本盖子仍会进入睡眠。",
+  "Keep awake while agents work": "Agent 工作时保持唤醒",
+  "See your agents, import projects, and set up your phone.":
+    "查看你的 Agent、导入项目并设置手机。",
+  in: "在",
+  "Unavailable checkout": "不可用的 checkout",
+  "All checkouts": "所有 checkout",
+  "Offer when adding or publishing a project": "添加或发布项目时提供",
+  "Commit and pull request writing": "提交和 PR 写作",
+  "Custom commit and pull request instructions for all selected environments":
+    "所有选中环境的自定义提交和 PR 指令",
+  "Keep commit subjects under 60 characters. Keep pull request descriptions short and plain.":
+    "提交标题不超过 60 个字符。PR 描述保持简短、平实。",
+  "Custom commit and pull request instructions": "自定义提交和 PR 指令",
+  "Must be a coding agent: it reads the pull request over many steps. Off uses the writer model, or Codex or Claude if that model is a text generator.":
+    "必须是编码 Agent：它会分多个步骤读取 PR。关闭时使用写作模型；如果该模型是文本生成器，则使用 Codex 或 Claude。",
+  "Use the repository's pull request template when it has one.": "仓库有 PR 模板时使用该模板。",
+  "Follow pull request templates": "遵循 PR 模板",
+  "Model for commit messages, pull request text, and branch or bookmark names. When disabled, use the text generation model configured for this environment.":
+    "用于提交信息、PR 文字以及分支或书签名称的模型。禁用时使用此环境配置的文本生成模型。",
+  "Commit messages and pull request titles and descriptions match each project's history.":
+    "提交信息以及 PR 标题和描述与各项目的历史风格一致。",
+  "Conventional Commit prefixes, with short pull request titles and descriptions.":
+    "使用 Conventional Commit 前缀，PR 标题和描述简短。",
+  "Your instructions shape commit messages and pull request titles and descriptions.":
+    "提交信息以及 PR 标题和描述按你的指令来写。",
+  "Add generator": "添加生成器",
+  "Add a model API to write thread titles, commit messages, and other short text without starting a coding agent.":
+    "添加一个模型 API，用来写对话标题、提交信息和其他短文本，无需启动编码 Agent。",
+  "Show models": "显示模型",
+  "Add a text generator": "添加文本生成器",
+  "Writes thread titles, commit messages, and other short text without starting a coding agent. Your API key is stored on this environment.":
+    "无需启动编码 Agent 就能写对话标题、提交信息和其他短文本。你的 API key 保存在此环境中。",
+  Service: "服务",
+  "Base URL": "Base URL",
+  "API key (optional)": "API key（可选）",
+  "Name (optional)": "名称（可选）",
+  "e.g. My local model": "例如：我的本地模型",
+  model: "个模型",
+  models: "个模型",
+  "Save and continue": "保存并继续",
+  "Follows the text generation model": "跟随文本生成模型",
+  "The model list couldn't load.": "无法加载模型列表。",
+  "Loading the model list.": "正在加载模型列表。",
+  "Custom CSS": "自定义 CSS",
+  CSS: "CSS",
+  "Tab indents. Shift+Tab unindents. Press Escape, then Tab to leave.":
+    "Tab 缩进，Shift+Tab 取消缩进。先按 Escape，再按 Tab 离开。",
+  "Tab moves to the next control.": "Tab 移到下一个控件。",
+  "Clear CSS": "清除 CSS",
+  "$0 cap": "$0 上限",
+  "T3 Connect devices": "T3 Connect 设备",
+  "Different actions across checkouts": "各 checkout 的动作不同",
+  "Screen reader": "屏幕阅读器",
+  "tool calls in chat": "聊天中的工具调用",
+  "screen reader announcements": "屏幕阅读器播报",
+  "screen reader window title": "屏幕阅读器窗口标题",
+  "keep awake while agents work": "Agent 工作时保持唤醒",
+  "Commits & pull requests": "提交与 PR",
+  "commit and pull request writing": "提交和 PR 写作",
+  "pull request templates": "PR 模板",
+  "No text generators yet": "还没有文本生成器",
 } satisfies Record<string, string>;

@@ -62,20 +62,20 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
 
   return (
     <FitSheet
-      header={<SheetHeader title="Branches & worktrees" onClose={() => navigation.goBack()} />}
+      header={<SheetHeader title={t("Branches & worktrees")} onClose={() => navigation.goBack()} />}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <FormSection title="New branch">
+      <FormSection title={t("New branch")}>
         <FormField
           value={newBranchName}
           onChangeText={setNewBranchName}
           placeholder="feature/mobile-polish"
-          accessibilityLabel="New branch name"
+          accessibilityLabel={t("New branch name")}
         />
         <SheetActionButton
           icon="plus"
-          label="Create & checkout"
+          label={t("Create & checkout")}
           tone="primary"
           disabled={!canChangeThreadBranch || busy || newBranchName.trim().length === 0}
           onPress={() => {
@@ -90,24 +90,24 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
         />
       </FormSection>
 
-      <FormSection title="New worktree">
+      <FormSection title={t("New worktree")}>
         <FormField
-          label="Base branch"
+          label={t("Base branch")}
           value={worktreeBaseBranch}
           onChangeText={setWorktreeBaseBranchOverride}
           placeholder="main"
-          accessibilityLabel="Worktree base branch"
+          accessibilityLabel={t("Worktree base branch")}
         />
         <FormField
-          label="New branch"
+          label={t("New branch")}
           value={worktreeBranchName}
           onChangeText={setWorktreeBranchName}
           placeholder="feature/mobile-thread"
-          accessibilityLabel="Worktree branch name"
+          accessibilityLabel={t("Worktree branch name")}
         />
         <SheetActionButton
           icon="square.split.2x1"
-          label="Create worktree"
+          label={t("Create worktree")}
           tone="primary"
           disabled={
             !canChangeThreadBranch ||
@@ -131,7 +131,7 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
       </FormSection>
 
       <ListSection
-        title="Existing branches"
+        title={t("Existing branches")}
         footer={
           branchesLoading
             ? "Loading branches..."

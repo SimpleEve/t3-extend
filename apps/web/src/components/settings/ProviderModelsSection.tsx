@@ -463,7 +463,7 @@ export function ProviderModelsSection({
           />
           <div className="flex shrink-0 gap-2">
             <Button size="sm" variant="outline" disabled={isSaving} onClick={handleAdd}>
-              Add
+              {t("Add")}
             </Button>
             <Button size="sm" variant="ghost" onClick={cancelAdd}>
               {t("Cancel")}

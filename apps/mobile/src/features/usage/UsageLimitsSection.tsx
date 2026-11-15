@@ -301,7 +301,7 @@ export function ResetCredits(props: {
                     : "text-sm font-t3-medium text-foreground"
                 }
               >
-                {busy ? "Using…" : choice.actionLabel}
+                {busy ? t("Using…") : choice.actionLabel}
               </Text>
             </Pressable>
           ) : null}

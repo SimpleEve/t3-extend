@@ -70,7 +70,7 @@ export function VoiceInputErrorPill(props: {
           }
         />
         <TooltipPopup side="top">
-          Dismiss
+          {t("Dismiss")}
           {props.cancelShortcutLabel ? ` (${props.cancelShortcutLabel})` : ""}
         </TooltipPopup>
       </Tooltip>
@@ -87,7 +87,7 @@ export function VoiceInputErrorPill(props: {
         >
           <CircleAlertIcon aria-hidden className="size-3.5 shrink-0" />
           <span className="truncate">
-            {(props.error && VOICE_ERROR_LABELS[props.error]) || "Voice input failed"}
+            {(props.error && VOICE_ERROR_LABELS[props.error]) || t("Voice input failed")}
           </span>
         </TooltipTrigger>
         <TooltipPopup side="top">{message}</TooltipPopup>

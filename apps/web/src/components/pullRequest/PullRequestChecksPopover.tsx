@@ -194,7 +194,7 @@ export function PullRequestChecksPopover({
                 <span className="whitespace-nowrap">
                   {checks.length - incompleteCount}/{checks.length}
                 </span>{" "}
-                checks
+                {t("checks")}
               </span>
             ) : failedCount > 0 ? (
               <span className="min-w-0 truncate tabular-nums">{failedCount} failed</span>

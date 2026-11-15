@@ -234,13 +234,13 @@ export function RevertConfirmHost(props: {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
+          <AlertDialogClose render={<Button variant="outline" />}>{t("Cancel")}</AlertDialogClose>
           <Button
             variant="destructive-outline"
             disabled={!canRestoreFiles}
             onClick={() => confirm(true)}
           >
-            Revert files too
+            {t("Revert files too")}
           </Button>
           <Button onClick={() => confirm(false)}>{t("Revert and keep changes")}</Button>
         </AlertDialogFooter>

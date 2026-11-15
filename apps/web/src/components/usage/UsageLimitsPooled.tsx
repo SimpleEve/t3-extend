@@ -216,7 +216,7 @@ function SegmentPopover({
                   className="ms-auto"
                   onClick={() => onRedeem(choice)}
                 >
-                  {redeem.busy ? "Using…" : choice.actionLabel}
+                  {redeem.busy ? t("Using…") : choice.actionLabel}
                 </Button>
               ) : null}
             </span>
@@ -532,6 +532,7 @@ function PoolBar({
   readonly color: string;
   readonly now: number;
 }) {
+  const t = useT();
   const restores = new Map(pool.resets.map((reset) => [reset.member.account.key, reset]));
   return (
     <div className="@container/pool min-w-0">
@@ -562,7 +563,7 @@ function PoolBar({
                 account={member.account}
                 className="hidden min-w-0 truncate @2xl/pool:inline-flex"
               />
-              $0 cap
+              {t("$0 cap")}
             </div>
           ) : null,
         )}

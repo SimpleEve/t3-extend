@@ -57,17 +57,18 @@ function descendsFrom(
 
 /** Resolve apps from stored tool calls so links cannot supply apps the call never produced. */
 export function McpAppFullscreenScreen({ route }: McpAppFullscreenScreenProps) {
+  const t = useT();
   const navigation = useNavigation();
   const { environmentId, threadId, itemId } = route.params;
   if (!environmentId?.trim() || !threadId?.trim() || !itemId?.trim()) {
     return (
       <View className="flex-1 bg-screen">
         <AppBar
-          title="App"
+          title={t("App")}
           onClose={() => navigation.goBack()}
           closeAccessibilityLabel="Exit full screen"
         />
-        <Text className="m-6 text-sm text-foreground-muted">This app cannot be shown.</Text>
+        <Text className="m-6 text-sm text-foreground-muted">{t("This app cannot be shown.")}</Text>
       </View>
     );
   }

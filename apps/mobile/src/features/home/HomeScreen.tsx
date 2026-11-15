@@ -107,7 +107,7 @@ import {
   ThreadListV2GroupHeader,
   ThreadListV2NestedRow,
 } from "../../fork/ThreadListGroupHeader"; // fork: thread list views
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+// fork: i18n
 import { deriveHomeEmptyState } from "./home-empty-state";
 
 interface HomeScreenProps {
@@ -753,7 +753,7 @@ export function HomeScreen(props: HomeScreenProps) {
   const v2ListEmpty =
     hasSearchQuery && threadSearch.isPending ? (
       <EmptyState
-        title="Searching thread messages…"
+        title={t("Searching thread messages…")}
         detail={`Looking for "${props.searchQuery}" in messages.`}
         variant={Platform.OS === "android" ? "plain" : undefined}
       />

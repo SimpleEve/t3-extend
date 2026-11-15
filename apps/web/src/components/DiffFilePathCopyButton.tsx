@@ -29,7 +29,7 @@ export function DiffFilePathCopyButton({
             ref={ref}
             size="icon-micro"
             variant="ghost-muted"
-            aria-label="Copy file path"
+            aria-label={t("Copy file path")}
             onClick={() =>
               copyToClipboard(formatFilePathForClipboard(filePath, workspaceRoot), undefined)
             }

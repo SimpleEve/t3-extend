@@ -1249,7 +1249,7 @@ export function ThemeEditorPanel({
                 onClick={() => setCssOpen(!cssOpen)}
               >
                 {cssOpen ? <ChevronDownIcon /> : <ChevronRightIcon />}
-                Custom CSS
+                {t("Custom CSS")}
               </Button>
               {cssOpen ? (
                 <>

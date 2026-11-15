@@ -62,10 +62,11 @@ function ComposerAttachmentUploadProgress({
 }
 
 function ComposerImageFallback() {
+  const t = useT();
   return (
     <span
       role="img"
-      aria-label="Image attachment"
+      aria-label={t("Image attachment")}
       className="flex size-full items-center justify-center p-3 text-secondary-label"
     >
       <ImageIcon aria-hidden="true" className="size-4" />
@@ -287,7 +288,7 @@ export function ComposerAttachmentMediaRow({
                   {upload?.status === "uploading" ? (
                     <ComposerAttachmentUploadProgress id={image.id} upload={upload} />
                   ) : (
-                    "Preparing"
+                    t("Preparing")
                   )}
                 </span>
               )}
@@ -483,9 +484,9 @@ export function ComposerAttachmentFileList({
             <span className="shrink-0 text-xs text-secondary-label">
               {needsReattach ? (
                 canReattachFile ? (
-                  "Attach again"
+                  t("Attach again")
                 ) : (
-                  "Remove to send"
+                  t("Remove to send")
                 )
               ) : upload?.status === "uploading" ? (
                 <ComposerAttachmentUploadProgress

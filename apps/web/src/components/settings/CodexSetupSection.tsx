@@ -186,7 +186,7 @@ export function CodexSetupSection(props: CodexSetupSectionProps) {
               disabled={props.existingCliDisabled}
               onClick={() => props.onModeChange("existing")}
             >
-              Use existing CLI
+              {t("Use existing CLI")}
             </Button>
           ) : null
         }
@@ -1005,7 +1005,7 @@ function ManagedCodexSetup({
                       void run(() => startInstall({ environmentId, input: { instanceId } }))
                     }
                   >
-                    Update Codex
+                    {t("Update Codex")}
                   </Button>
                 ) : null}
                 <Button

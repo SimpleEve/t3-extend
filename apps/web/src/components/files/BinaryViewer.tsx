@@ -281,7 +281,7 @@ export default function BinaryViewer(props: {
             role="status"
           >
             {countLabel(table.count, "row", "rows")} ·{" "}
-            {rows ? countLabel(rows.columns.length, "column", "columns") : "… columns"}
+            {rows ? countLabel(rows.columns.length, "column", "columns") : t("… columns")}
             {sizeBytes !== null ? ` · ${formatAttachmentSize(sizeBytes)}` : ""}
           </div>
           <FileSurfaceNotice>

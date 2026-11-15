@@ -132,6 +132,7 @@ type ImagePreviewProps = {
 const ImagePreviewContext = createContext<ImagePreviewProps | null>(null);
 
 function ImagePreviewHeader(header: { readonly imageIndex: number }) {
+  const t = useT();
   const props = useContext(ImagePreviewContext)!;
   const source = props.source.images[header.imageIndex];
   const insets = useSafeAreaInsets();
@@ -139,7 +140,7 @@ function ImagePreviewHeader(header: { readonly imageIndex: number }) {
   return (
     <View className="bg-black/70" style={{ paddingTop: insets.top }}>
       <MediaPreviewHeader
-        title={source?.name ?? "Image"}
+        title={source?.name ?? t("Image")}
         media={mediaActions}
         closeAccessibilityLabel="Close image"
         onClose={props.onRequestClose}

@@ -373,7 +373,7 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                         {selectedBytes > 0 ? ` · ${formatBytes(selectedBytes)}` : ""}
                       </span>
                       <Button type="button" variant="ghost" size="xs" onClick={toggleShownFiles}>
-                        {allCopyableSelected ? "None" : "All"}
+                        {allCopyableSelected ? t("None") : t("All")}
                       </Button>
                     </>
                   ) : null}
@@ -382,8 +382,8 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                   <Input
                     size="sm"
                     type="search"
-                    aria-label="Search ignored files"
-                    placeholder="Search ignored files"
+                    aria-label={t("Search ignored files")}
+                    placeholder={t("Search ignored files")}
                     value={fileQuery}
                     maxLength={256}
                     onChange={(event) => setFileQuery(event.target.value)}
@@ -400,10 +400,10 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                 ) : files.length === 0 ? (
                   <p className="text-muted-foreground text-xs">
                     {!ignoredFiles.isSuccess
-                      ? "Finding ignored files…"
+                      ? t("Finding ignored files…")
                       : searching
-                        ? "No ignored files match."
-                        : "No ignored files to copy."}
+                        ? t("No ignored files match.")
+                        : t("No ignored files to copy.")}
                   </p>
                 ) : (
                   <div className="max-h-52 overflow-y-auto rounded-md border">

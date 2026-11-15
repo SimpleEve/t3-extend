@@ -12,6 +12,7 @@ import { useAtomCommand } from "~/state/use-atom-command";
 
 import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
+import { useT } from "~/hooks/useT"; // fork: interface language
 
 /**
  * Resolves or unresolves a thread from the conversation, so threads without a diff line (such as
@@ -30,6 +31,7 @@ export function PullRequestResolveThreadButton({
   thread: Pick<PullRequestConversationThread, "id" | "isResolved" | "canResolve">;
   onRefresh: () => void;
 }) {
+  const t = useT();
   const [pending, setPending] = useState(false);
   const setThreadResolution = useAtomCommand(pullRequestEnvironment.setThreadResolution, {
     reportFailure: false,
@@ -60,7 +62,7 @@ export function PullRequestResolveThreadButton({
       disabled={pending}
       onClick={() => void toggle()}
     >
-      {thread.isResolved ? "Unresolve" : "Resolve"}
+      {thread.isResolved ? t("Unresolve") : t("Resolve")}
     </Button>
   );
 }

@@ -11,7 +11,6 @@ export default {
   "Turn on microphone access for T3 Extend in Settings to use voice input.":
     "请在设置中为 T3 Extend 打开麦克风权限，才能使用语音输入。",
   "Transcription unavailable": "无法转写",
-  "No transcription model installed": "没有安装转写模型",
   "Send finished recordings to this environment.": "把录好的音频发送到这个环境。",
   "Send microphone audio to {label}?": "把麦克风音频发送到 {label}？",
   "Finished recordings will be sent to {value} for transcription. You can switch back to This device at any time.":
@@ -31,14 +30,10 @@ export default {
   "{label} will download {value} and use it as its transcription model.":
     "{label} 会下载 {value}，并用它作为转写模型。",
   "{value}% downloaded · Tap to cancel": "已下载 {value}% · 点按取消",
-  "No model selected": "没有选择模型",
   "Verifying {name}…": "正在校验 {name}…",
   "Downloading {name} · {value}%": "正在下载 {name} · {value}%",
-  "Choose a transcription model to dictate on this environment.":
-    "选择一个转写模型，才能在这个环境上听写。",
   "Cloud via {label}": "通过 {label} 使用云端",
   "Cloud providers": "云端 provider",
-  "Using {value}": "正在使用 {value}",
   "Optional · use your own API key": "可选 · 使用你自己的 API key",
   "Search OpenRouter models": "搜索 OpenRouter 模型",
   "Show all {length} models": "显示全部 {length} 个模型",
@@ -49,7 +44,6 @@ export default {
   "{activeModel} · Tap to change model{value}": "{activeModel} · 点按更换模型{value}",
   "Tap to manage key": "点按管理密钥",
   "API key saved · choose a model to use it": "API key 已保存 · 选择模型后即可使用",
-  "API key saved on this environment": "API key 已保存在这个环境上",
   "Add an API key to use this provider": "添加 API key 后才能使用这个 provider",
   "Ask an environment administrator to add an API key": "请环境管理员添加 API key",
   "Use {label} for dictation?": "用 {label} 听写？",
@@ -69,8 +63,6 @@ export default {
   "Enter a valid API key.": "请输入有效的 API key。",
   "Uses the API key saved on this environment. The model choice applies only to this device.":
     "使用保存在这个环境上的 API key。所选模型只对这台设备生效。",
-  "{disclosure} Anyone with dictation access to {label} can bill this key.":
-    "{disclosure}任何能在 {label} 上听写的人都可能用这个密钥产生费用。",
   "Updates the {company} key on {label}. Your dictation destination stays the same.":
     "更新 {label} 上的 {company} 密钥。你的听写目标保持不变。",
   "Remove key from environment": "从环境中移除密钥",
@@ -102,13 +94,9 @@ export default {
     "所选麦克风不可用，请换一个或使用系统默认。",
   "Speak and transcribe in multiple languages or translate into English, and get names and technical terms right with the dictionary in Voice settings.":
     "可以用多种语言说话并转写，也可以翻译成英文；在语音设置的词典里添加名称和术语，就能写对它们。",
-  "Choose another model or language": "换一个模型或语言",
-  "Choose a model or language": "选择模型或语言",
   "Retry loading models": "重试加载模型",
   "Cancel download": "取消下载",
   "Download model": "下载模型",
-  "Ask an environment admin to download": "请环境管理员下载",
-  "Customize in Voice settings": "在语音设置中自定义",
   "Start dictating": "开始听写",
   "Could not update annotation voice input": "无法更新标注的语音输入",
   "OpenRouter model": "OpenRouter 模型",
@@ -165,7 +153,6 @@ export default {
   Selected: "已选择",
   "Use model": "使用模型",
   "Delete {name}": "删除 {name}",
-  "Add words or phrases, separated by commas or line breaks": "添加词语或短语，用逗号或换行分隔",
   "Add a word or phrase to the {label}": "向{label}添加词语或短语",
   "{label} entries": "{label}条目",
   "Alias for {term}": "{term} 的别名",
@@ -173,11 +160,8 @@ export default {
   "Add an alias for {term}": "为 {term} 添加别名",
   Alias: "别名",
   "Remove {term}": "移除 {term}",
-  "Saved with {label} on its environment. Everyone who dictates in this project gets these spellings, along with their own dictionary. Project spellings win when the two overlap.":
-    "保存在 {label} 所在的环境上。在这个项目里听写的每个人都会用到这些拼写，同时保留各自的词典。两者重叠时，以项目拼写为准。",
   "Saved on the environment and used in every project there, along with each person’s own dictionary. Pick a project above to limit these words to one project.":
     "保存在环境上，供那里的所有项目使用，同时保留每个人自己的词典。在上方选择一个项目，可把这些词限定在该项目内。",
-  "{count} entry": "{count} 条",
   "{count} entries": "{count} 条",
   "project dictionary": "项目词典",
   "shared dictionary": "共享词典",
@@ -189,8 +173,6 @@ export default {
   "Cleanup currently uses the text generation model on {value}. Pick another model if you want a cheaper or faster one.":
     "目前整理转写稿用的是 {value} 上的文本生成模型。想要更便宜或更快的，可以换一个模型。",
   "Cleanup model": "整理用的模型",
-  "cleanup model": "整理用的模型",
-  "No providers available.": "没有可用的 provider。",
   "Could not load transcription models": "无法加载转写模型",
   "Auto uses the environment’s GPU when it has one.": "“自动”会在环境有 GPU 时使用 GPU。",
   "Transcription hardware": "转写硬件",
@@ -199,13 +181,9 @@ export default {
   "Release the model’s memory on the environment after it sits idle.":
     "空闲一段时间后，释放模型在环境上占用的内存。",
   "Unload model": "卸载模型",
-  "Pick languages to see models that support all of them. Accuracy is word or character error rate: lower is better. Speed is the time to transcribe 30 seconds of audio on Handy’s benchmark GPU.":
-    "选择语言，可查看同时支持这些语言的模型。准确度用词或字符错误率表示，越低越好。速度是在 Handy 的基准 GPU 上转写 30 秒音频所用的时间。",
-  Languages: "语言",
   "Browse models by language": "按语言浏览模型",
   "All languages": "所有语言",
   "No languages match.": "没有匹配的语言。",
-  "All models": "所有模型",
   "Search models": "搜索模型",
   "Sort and filter models: {sort}": "排序与筛选模型：{sort}",
   "Sort and filter models: {sort}, downloaded only": "排序与筛选模型：{sort}，仅已下载",
@@ -231,11 +209,8 @@ export default {
   "On an environment": "在某个环境上",
   "The cloud provider can detect your language automatically.":
     "云端 provider 可以自动检测你的语言。",
-  "Choose an environment above to see the languages its transcription model supports.":
-    "在上方选择一个环境，可查看它的转写模型支持哪些语言。",
   "Speak any language and get English text.": "说任何语言，都得到英文文本。",
   "Translate to English": "翻译成英文",
-  "OpenAI handles silence automatically.": "OpenAI 会自动处理静音。",
   "Skip silence and other non-speech audio before transcription, keeping a short buffer so words aren’t cut off.":
     "转写前跳过静音和其他非语音音频，并保留一小段缓冲，避免截掉词语。",
   "Silence filtering": "静音过滤",
@@ -248,7 +223,6 @@ export default {
   Dictionary: "词典",
   "Sends the transcript and nearby draft text to the text generation provider on the draft’s environment to fix punctuation, numbers, and spoken corrections. Sends text only; off by default.":
     "把转写稿和附近的草稿文本发送给草稿所在环境的文本生成 provider，用来修正标点、数字和口头更正。只发送文本；默认关闭。",
-  "Clean up transcripts with a provider": "用 provider 整理转写稿",
   "Use the built-in instructions or write your own.": "使用内置的说明，或自己编写。",
   "Cleanup instructions": "整理说明",
   "Custom cleanup instructions": "自定义整理说明",
@@ -257,7 +231,6 @@ export default {
   sorry: "抱歉",
   "Correction cue": "更正提示词",
   Transcription: "转写",
-  "Transcription options": "转写选项",
   "Your transcription choice changed.": "你的转写选择已更改。",
   "This recording couldn’t be read. Try recording again.": "无法读取这段录音，请重新录制。",
   "Install a transcription model for this environment in Settings → Voice, then try again.":
@@ -281,7 +254,6 @@ export default {
   "Android may still use a different microphone if the preferred one can’t be routed.":
     "如果首选麦克风无法接入，Android 仍可能使用其他麦克风。",
   "Pi · {statuses}": "Pi · {statuses}",
-  "Recommended for {language}": "推荐用于 {language}",
   "Download the {size} MB model to {environment}. Microphone audio is sent there for transcription, as chosen in Voice settings.":
     "把 {size} MB 的模型下载到 {environment}。麦克风音频会按你在语音设置里的选择发送到那里转写。",
   "Open attachment on {host}": "在 {host} 上打开附件",
@@ -298,11 +270,8 @@ export default {
   "These read from {label} and will be unset. The secrets themselves are untouched.":
     "下面这些读取了 {label}，将被取消设置。密钥本身不会被改动。",
   "({percent}% error)": "（错误率 {percent}%）",
-  "Speed:": "速度：",
   "This environment can’t transcribe audio: {reason}.": "这个环境无法转写音频：{reason}。",
   " via {label}": "，经由 {label}",
-  "{label} can’t transcribe audio locally. Choose a different destination.":
-    "{label} 无法在本地转写音频，请选择其他转写位置。",
   "This connection can’t change settings on {label}.": "这个连接不能更改 {label} 上的设置。",
   "Voice input uses the first connected microphone in this list. A wired or Bluetooth microphone is added by name the first time you dictate with it connected; until then it falls under Other. Swipe left on a named microphone to forget it.":
     "语音输入使用这个列表里第一个已连接的麦克风。有线或蓝牙麦克风会在你首次连接着它听写时按名称加入列表，在那之前归在“其他”下。向左滑动已命名的麦克风可以忘记它。",
@@ -321,26 +290,18 @@ export default {
   "The model is not ready. Try downloading it again.": "模型尚未就绪。请重新下载。",
   "Could not download the model. Check this environment's connection and try again.":
     "无法下载模型。请检查这个环境的连接后重试。",
-  "Downloading speech model {percent}%": "正在下载语音模型 {percent}%",
   Recording: "正在录音",
-  "Post-processing": "正在后处理",
   "Cancel voice input": "取消语音输入",
   "Start voice input": "开始语音输入",
   "Finish voice input": "结束语音输入",
   "Voice input is busy": "语音输入正忙",
   "Open voice settings": "打开语音设置",
   "Retry transcription": "重试转写",
-  "Ready to dictate": "可以开始听写",
   "Couldn’t save this change. Check your connection and try again.":
     "无法保存这项更改。请检查连接后重试。",
   "Auto-detect": "自动检测",
   "{language} unavailable": "{language}不可用",
   "Auto ({language})": "自动（{language}）",
-  "Smallest download": "下载最小",
-  "Best {language} accuracy": "{language}准确率最高",
-  "Fastest transcription": "转写最快",
-  "Models for {languages}": "适用于{languages}的模型",
-  "Selected microphone (unavailable)": "所选麦克风（不可用）",
   "Manage OpenRouter": "管理 OpenRouter",
   "Manage key": "管理密钥",
   Immediately: "立即",
@@ -349,22 +310,14 @@ export default {
   "After 10 minutes": "10 分钟后",
   "After 15 minutes": "15 分钟后",
   "After 1 hour": "1 小时后",
-  "Auto: press to toggle, hold to record": "自动：按一下切换，按住录音",
-  "Hold: record while held": "按住：按住期间录音",
-  "Toggle: press to start, press again to stop": "切换：按一下开始，再按一下停止",
   "Microphone access needed": "需要麦克风权限",
   "Draft unavailable": "草稿不可用",
   "Another recording active": "另一段录音正在进行",
   "Voice input unavailable": "语音输入不可用",
-  "Transcription still busy": "转写仍在进行",
   "Language unsupported": "不支持该语言",
-  "Couldn’t prepare dictation": "无法准备听写",
-  "Couldn’t start recording": "无法开始录音",
   "Recording interrupted": "录音被中断",
-  "Couldn’t finish recording": "无法完成录音",
   "Transcription failed": "转写失败",
   "Draft changed": "草稿已变化",
-  "No speech detected": "没有检测到语音",
   "Microphone processing failed": "麦克风处理失败",
   "Microphone disconnected": "麦克风已断开",
   "Voice transcription on this environment failed.": "这个环境上的语音转写失败了。",
@@ -381,4 +334,40 @@ export default {
   "Could not change transcription hardware": "无法更改转写硬件",
   "Could not change when the model unloads": "无法更改模型的卸载时机",
   "Transcription hardware and model unloading": "转写硬件与模型卸载",
+  "Microphones, preferred first": "麦克风（按优先顺序）",
+  Record: "录音",
+  "Record ten seconds and play it back. The audio stays on this device.":
+    "录制十秒并回放。音频只保留在此设备上。",
+  "Discard recording": "丢弃录音",
+  "update server": "更新服务器",
+  "Add words, separated by commas": "添加词语，用逗号分隔",
+  "Used by everyone who dictates on this environment.": "此环境上所有使用听写的人都会用到。",
+  "Model for transcript cleanup, such as a cheaper or faster one. When disabled, use the text generation model configured for this environment.":
+    "用于整理听写文本的模型，例如更便宜或更快的模型。禁用时使用此环境配置的文本生成模型。",
+  "Use a separate cleanup model": "使用单独的整理模型",
+  "Path to a model file or folder already on this environment":
+    "此环境上已有的模型文件或文件夹的路径",
+  "Already downloaded elsewhere? Paste the model file or folder path":
+    "已在别处下载？粘贴模型文件或文件夹的路径",
+  "Use existing": "使用现有模型",
+  "Say a sentence. Cleanup is skipped, so you see exactly what the model heard.":
+    "说一句话。这里会跳过整理，所以你看到的就是模型听到的原文。",
+  "Voice input uses the first connected microphone in this list.":
+    "语音输入会使用此列表中第一个已连接的麦克风。",
+  "Where your speech is turned into text.": "把你的语音转成文字的位置。",
+  "The provider detects your language automatically.": "由 provider 自动识别你的语言。",
+  "OpenAI handles silence itself.": "OpenAI 自己处理静音。",
+  "Skip silence and background noise before transcribing.": "转写前跳过静音和背景噪音。",
+  "Drop “um” and “uh” from transcripts.": "从转写文本中去掉“嗯”“呃”之类的语气词。",
+  "Names and terms to spell your way, saved on this device.":
+    "按你的写法拼写的名称和术语，保存在此设备上。",
+  "Off by default. Sends the transcript and nearby draft text, never audio, to the cleanup model.":
+    "默认关闭。会把转写文本和附近的草稿文字（不含音频）发送给整理模型。",
+  "Clean up transcripts": "整理转写文本",
+  "Your own instructions for cleanup.": "你自己的整理指令。",
+  "Fix punctuation, numbers, lists, and spoken corrections.": "修正标点、数字、列表和口头更正。",
+  "The phrase you say to fix a mistake, like “scratch that”.":
+    "你说错时用来更正的短语，例如“划掉这句”。",
+  "Your dictionary": "你的词典",
+  Instructions: "指令",
 } satisfies Record<string, string>;

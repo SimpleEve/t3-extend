@@ -609,7 +609,7 @@ function BlockedStep({
         <Button variant="outline" onClick={onClose}>
           {t("Close")}
         </Button>
-        {onRetry ? <DialogAction onClick={onRetry}>Try again</DialogAction> : null}
+        {onRetry ? <DialogAction onClick={onRetry}>{t("Try again")}</DialogAction> : null}
       </DialogFooter>
     </>
   );

@@ -101,7 +101,7 @@ export default function NotebookPreview(props: {
         role="status"
       >
         {props.notebook.cells.length.toLocaleString()}{" "}
-        {props.notebook.cells.length === 1 ? "cell" : "cells"} · {props.notebook.language}
+        {props.notebook.cells.length === 1 ? t("cell") : t("cells")} · {props.notebook.language}
         {props.sizeBytes !== undefined
           ? ` · ${props.sizeBytes === 0 ? t("0 bytes") : formatAttachmentSize(props.sizeBytes)}`
           : ""}

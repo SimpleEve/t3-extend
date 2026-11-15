@@ -149,6 +149,7 @@ function StopGenerationButton({
   onStopRequested: () => void;
   onInterrupt: () => void;
 }) {
+  const t = useT();
   const isStopDisabled = stopPhase === "pending";
   return (
     <Tooltip>
@@ -167,7 +168,7 @@ function StopGenerationButton({
               onStopRequested();
               onInterrupt();
             }}
-            aria-label={stopPhase === "pending" ? "Stopping" : "Stop generation"}
+            aria-label={stopPhase === "pending" ? t("Stopping") : t("Stop generation")}
           />
         }
       >
@@ -175,7 +176,7 @@ function StopGenerationButton({
           <rect x="2" y="2" width="8" height="8" rx="1.5" />
         </svg>
       </TooltipTrigger>
-      <TooltipPopup>{stopPhase === "pending" ? "Stopping…" : "Interrupt"}</TooltipPopup>
+      <TooltipPopup>{stopPhase === "pending" ? t("Stopping…") : t("Interrupt")}</TooltipPopup>
     </Tooltip>
   );
 }

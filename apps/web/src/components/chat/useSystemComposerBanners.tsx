@@ -219,7 +219,7 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
                   )
                 }
               >
-                {environmentReconnecting ? "Retry now" : "Reconnect"}
+                {environmentReconnecting ? t("Retry now") : t("Reconnect")}
               </Button>
             ) : null}
             {disconnectAction}

@@ -144,6 +144,7 @@ function EnvironmentChoice({
   /** Called instead of a local grant when the environment only offers cloud transcription. */
   onCloudOnly: () => void;
 }) {
+  const t = useT();
   const local = useAtomValue(voiceConnectionAtom(environment.environmentId)) !== null;
   const cloud = useAtomValue(cloudVoiceConnectionAtom(environment.environmentId)) !== null;
   const usable = local || cloud;
@@ -154,10 +155,10 @@ function EnvironmentChoice({
       disabled={!usable}
       description={
         environment.connection.phase !== "connected"
-          ? "Not connected"
+          ? t("Not connected")
           : !usable
-            ? "Transcription unavailable"
-            : (environment.displayUrl ?? "Send finished recordings to this environment.")
+            ? t("Transcription unavailable")
+            : (environment.displayUrl ?? t("Send finished recordings to this environment."))
       }
       separated
       onPress={() => {
@@ -288,8 +289,8 @@ export function SettingsVoiceRouteScreen() {
       >
         <SettingsSection title={t("Transcribe on")}>
           <ListChoiceRow
-            label="This device"
-            description="Audio stays on this device and is transcribed here."
+            label={t("This device")}
+            description={t("Audio stays on this device and is transcribed here.")}
             selected={!grant && !sheetEnvironment}
             onPress={() => {
               setCloudSheet(null);

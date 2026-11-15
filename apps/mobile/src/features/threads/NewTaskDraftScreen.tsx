@@ -856,7 +856,7 @@ export function NewTaskDraftScreen(props: {
     <View className="flex-row items-center gap-1 px-2">
       <View className="min-w-0 shrink">
         <ComposerInlineControl
-          accessibilityHint="Opens the project picker"
+          accessibilityHint={t("Opens the project picker")}
           accessibilityLabel={`Project: ${contextProjectLabel}`}
           chevronDirection="right"
           disabled={isComposerInteractionLocked}

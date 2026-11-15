@@ -122,7 +122,7 @@ export function RelayClientInstallDialog() {
               {t("Cancel")}
             </Button>
             <DialogAction onClick={() => respondToRelayClientInstallConfirmation(true)}>
-              Download and install
+              {t("Download and install")}
             </DialogAction>
           </DialogFooter>
         ) : null}

@@ -127,7 +127,7 @@ export function goalNowItem(input: {
           {presentation.title}
           {presentation.usage === null ? null : ` · ${presentation.usage}`}
         </PopoverTrigger>
-        <PopoverPopup side="top" width="md" padding="compact" aria-label="Goal objective">
+        <PopoverPopup side="top" width="md" padding="compact" aria-label={t("Goal objective")}>
           <p className="whitespace-pre-wrap wrap-anywhere text-sm">{presentation.objective}</p>
         </PopoverPopup>
       </Popover>

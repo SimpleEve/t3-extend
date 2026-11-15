@@ -496,7 +496,7 @@ function InstanceSessionManagement(
                         onClick={() => void importNativeSession(session)}
                       >
                         {!needsImport(session)
-                          ? "Imported"
+                          ? t("Imported")
                           : importingSessionId === session.sessionId
                             ? t("Importing")
                             : t("Import")}
