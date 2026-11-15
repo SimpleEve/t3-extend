@@ -369,7 +369,7 @@ function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mess
               {promptLink !== null && (
                 <MessageCopyButton
                   text={promptLink}
-                  label="Copy prompt link"
+                  label={t("Copy prompt link")}
                   icon={LinkIcon}
                   variant="ghost"
                 />
@@ -481,7 +481,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
   const revealFoldRef = findRevealRef(() => setExpanded(true));
   const senderShell = useQuietThreadShell(folded ? senderRef : null);
   const senderLabel =
-    senderShell?.title.trim() || row.message.linkedSender?.title.trim() || "Agent";
+    senderShell?.title.trim() || row.message.linkedSender?.title.trim() || t("Agent");
   // Only an environment this client is connected to can open the sender's thread there.
   const linkedSenderEnvironment = useEnvironment(row.message.linkedSender?.environmentId ?? null);
   const canOpenSender =

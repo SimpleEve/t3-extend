@@ -112,8 +112,16 @@ export function presentThreadLinkedPullRequests(
             state: isDraft ? t("draft") : state ? t(state) : t("status pending"),
           })
         : linkedCount !== null
-          ? `${linkedCount} linked ${changeRequest.plural}, overall ${badge.state}`
-          : `#${link.number} ${changeRequest.singular} ${state === null ? "status pending" : isDraft ? "draft" : state}`,
+          ? t("{count} linked {plural}, overall {state}", {
+              count: linkedCount,
+              plural: changeRequestTerm(changeRequest.plural, t),
+              state: t(badge.state),
+            })
+          : t("#{number} {singular} {state}", {
+              number: link.number,
+              singular: changeRequestTerm(changeRequest.singular, t),
+              state: state === null ? t("status pending") : isDraft ? t("draft") : t(state),
+            }),
     textClassName: state === null || isDraft ? "text-foreground-muted" : PR_STATE_TEXT_CLASS[state],
   };
 }

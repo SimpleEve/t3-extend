@@ -377,6 +377,7 @@ describe("tailscale", () => {
       yield* ensureTailscaleServe({ localPort: 13873 });
       yield* disableTailscaleServe();
       assert.deepEqual(calls, [
+        ["status", "--json"], // upstream checks that HTTPS serving is enabled first
         ["serve", "--bg", `--https=${FORK.tailscaleServePort}`, "http://127.0.0.1:13873"],
         ["serve", `--https=${FORK.tailscaleServePort}`, "--set-path=/", "off"],
       ]);

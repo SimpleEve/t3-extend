@@ -94,7 +94,7 @@ export function PreviewAnnotationSpeech({
     available,
     phase: state.phase,
     errorAction: state.errorAction,
-    status: resolveSpeechPresentation(state, null).status,
+    status: resolveSpeechPresentation(state, null, t).status,
     preview: preview ? preview.committed + preview.tentative : null,
     level,
     shortcutLabel,

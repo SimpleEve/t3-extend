@@ -115,6 +115,7 @@ function CommentIdentity({
   comment: PullRequestComment;
   detail: PullRequestDetailView;
 }) {
+  const t = useT();
   const timestampFormat = useClientSettings((settings) => settings.timestampFormat);
   const actor = comment.author;
   const profileUrl = actor
@@ -144,7 +145,7 @@ function CommentIdentity({
         </TooltipTrigger>
         <TooltipPopup>
           {formatFullTimestamp(comment.createdAt, timestampFormat)}
-          {comment.url ? " · Open comment on host" : ""}
+          {comment.url ? t(" · Open comment on host") : ""}
         </TooltipPopup>
       </Tooltip>
     </div>

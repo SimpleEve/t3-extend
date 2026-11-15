@@ -651,7 +651,7 @@ export function NewTaskFlowProvider(
           ? error.message
           : triage?._tag === "Failure"
             ? "The server could not prepare triage."
-            : "The folder for threads without a project could not be created.",
+            : t("The folder for threads without a project could not be created."),
       );
     }
     return false;

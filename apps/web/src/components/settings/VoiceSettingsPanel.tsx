@@ -1311,7 +1311,7 @@ export function VoiceSettingsPanel() {
       <SettingsSection id="voice-input" title="Input">
         <SettingsRow
           {...searchableSetting("voice-microphone")}
-          title="Microphone"
+          title={t("Microphone")}
           description={t("Voice input uses the first connected microphone in this list.")}
           control={
             <Tooltip>

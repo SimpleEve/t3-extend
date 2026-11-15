@@ -360,7 +360,7 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: "Could not switch machine",
+            title: t("Could not switch machine"),
             description: error instanceof Error ? error.message : "An error occurred.",
           }),
         );

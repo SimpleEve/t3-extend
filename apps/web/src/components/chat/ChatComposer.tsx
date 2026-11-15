@@ -786,8 +786,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     (supportsAttachmentUploads
       ? needsReattachFileCount > 0
         ? needsReattachFileCount === 1
-          ? "Attach the interrupted file again or remove it"
-          : "Attach the interrupted files again or remove them"
+          ? t("Attach the interrupted file again or remove it")
+          : t("Attach the interrupted files again or remove them")
         : // A plain send waits for its uploads. Answers and approval redirects need them first.
           questionAttachmentTarget ||
             pendingApprovals.some((approval) => !heldRequestIds.has(approval.requestId))
@@ -1870,7 +1870,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   // The pending Submit button follows the answer's own blockers, matching submitComposer.
   const primaryActionSendDisabledReason =
     (activePendingProgress ? attachmentBlockReason : sendDisabledReason) ??
-    (speechInput.preparing ? "Preparing voice input" : null);
+    (speechInput.preparing ? t("Preparing voice input") : null);
   const primaryActionEnvironmentUnavailable =
     environmentUnavailable !== null ||
     (!activePendingProgress && (noProviderAvailable || projectSelectionRequired));
@@ -2736,7 +2736,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     if (target === "remote") {
       toastManager.add({
         type: "error",
-        title: "Folders can only be referenced on a server running on this computer",
+        title: t("Folders can only be referenced on a server running on this computer"),
       });
       return;
     }

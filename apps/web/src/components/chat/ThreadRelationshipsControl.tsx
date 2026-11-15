@@ -358,6 +358,7 @@ function DelegatedFromRow(props: {
   readonly delegatedFrom: OrchestrationV2DelegatedFrom;
   readonly fallbackLabel: string | undefined;
 }) {
+  const t = useT();
   // fork: interface language
   const navigate = useNavigate();
   const router = useRouter();
@@ -432,8 +433,10 @@ function DelegatedFromRow(props: {
             title={title}
             hint={
               environment === null
-                ? `Delegated from ${label ?? "a linked environment"}. Connect to it to open the parent thread.`
-                : `Open parent agent on ${environment.label}`
+                ? t("Delegated from {machine}. Connect to it to open the parent thread.", {
+                    machine: label ?? t("a linked environment"),
+                  })
+                : t("Open parent agent on {machine}", { machine: environment.label })
             }
           />
         </TooltipPopup>

@@ -954,7 +954,7 @@ export function useComposerSend(input: ComposerSendInput) {
       const uploadBlockReason =
         readLiveAttachmentCapabilities().fileBlockReason ??
         (getUploadedAttachments({ environmentId, images: composerAttachmentsSnapshot }) === null
-          ? "Retry or remove failed uploads before sending."
+          ? t("Retry or remove failed uploads before sending.")
           : null);
       if (uploadBlockReason !== null) {
         sendInFlightRef.current = false;
@@ -1372,10 +1372,10 @@ export function useComposerSend(input: ComposerSendInput) {
           if (backgroundDraftOpened) {
             toastManager.add({
               type: "success",
-              title: "Started in background",
+              title: t("Started in background"),
               timeout: 5_000,
               actionProps: {
-                children: "Open",
+                children: t("Open"),
                 onClick: () => {
                   void navigate({
                     to: "/$environmentId/$threadId",

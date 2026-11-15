@@ -167,7 +167,7 @@ function EnvironmentChoice({
         Dialog.confirm({
           title: `Send microphone audio to ${environment.label}?`,
           message: `Finished recordings will be sent to ${environment.displayUrl ?? environment.label} for transcription. You can switch back to This device at any time.`,
-          confirmText: "Use environment",
+          confirmText: t("Use environment"),
           onConfirm: () => saveDestination(environment.environmentId),
         });
       }}

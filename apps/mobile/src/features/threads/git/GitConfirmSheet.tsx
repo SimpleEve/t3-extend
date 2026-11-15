@@ -120,7 +120,7 @@ export function GitConfirmSheet(props: GitConfirmSheetProps) {
       showsVerticalScrollIndicator={false}
     >
       <SheetIntro
-        eyebrow="Confirm"
+        eyebrow={t("Confirm")}
         title={copy?.title ?? t("Run action on default branch?")}
         description={copy?.description ?? t("Choose how to continue.")}
       />

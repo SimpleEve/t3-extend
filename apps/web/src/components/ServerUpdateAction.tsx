@@ -297,7 +297,7 @@ export function ServerUpdateAction({
     onCopy: ({ command }) => {
       toastManager.add({
         type: "success",
-        title: updatesInstall ? "Update command copied" : "Relaunch command copied",
+        title: updatesInstall ? t("Update command copied") : t("Relaunch command copied"),
         description: updatesInstall
           ? `Run \`${command}\` on ${serverLabel}, then restart t3 with your usual options.`
           : `Stop t3 on ${serverLabel}, then relaunch with \`${command}\` using the same subcommand and options. This does not update an installed t3 command.`,
@@ -371,8 +371,8 @@ export function ServerUpdateAction({
   const actionLabel =
     manualCommand !== null
       ? updatesInstall
-        ? "Copy update command"
-        : "Copy relaunch command"
+        ? t("Copy update command")
+        : t("Copy relaunch command")
       : label;
   const onClick =
     manualCommand !== null

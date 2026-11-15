@@ -2296,7 +2296,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           toastManager.add(
             stackedThreadToast({
               type: "error",
-              title: "Failed to snooze thread",
+              title: t("Failed to snooze thread"),
               description:
                 outcome.error instanceof Error ? outcome.error.message : "An error occurred.",
             }),

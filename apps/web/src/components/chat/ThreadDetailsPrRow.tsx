@@ -362,7 +362,7 @@ export function ThreadDetailsPrRow({
           suffix: newThreadSuffix,
           tooltip:
             composerTarget === undefined
-              ? "Check the branch out and resolve the conflicts in a new thread"
+              ? t("Check the branch out and resolve the conflicts in a new thread")
               : "Resolve the conflicts in this thread",
           onClick: startResolveConflicts,
         }
@@ -380,7 +380,7 @@ export function ThreadDetailsPrRow({
           }
         : rowAction === "fix"
           ? {
-              label: "Fix",
+              label: t("Fix"),
               pendingLabel: "Fix",
               pending: handoff === "findings",
               destructive: true,
@@ -392,7 +392,7 @@ export function ThreadDetailsPrRow({
                 ),
               tooltip:
                 composerTarget === undefined
-                  ? "Fix the failing checks in a new thread"
+                  ? t("Fix the failing checks in a new thread")
                   : "Fix the failing checks in this thread",
               onClick: startFixChecks,
             }

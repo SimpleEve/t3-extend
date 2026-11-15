@@ -43,14 +43,14 @@ export function VoiceInputErrorPill(props: {
 }) {
   const t = useT();
   const navigate = useNavigate();
-  const message = props.error ?? "Voice input failed";
+  const message = props.error ?? t("Voice input failed");
   const openSettings = props.errorAction === "settings";
   const compact = props.size === "compact";
   const action = openSettings
-    ? { label: "Open voice settings", text: "Settings" }
+    ? { label: t("Open voice settings"), text: "Settings" }
     : props.error && RETRYABLE_TRANSCRIPTIONS.has(props.error)
-      ? { label: "Retry transcription", text: "Retry" }
-      : { label: "Record again", text: "Record again" };
+      ? { label: t("Retry transcription"), text: "Retry" }
+      : { label: t("Record again"), text: "Record again" };
   return (
     <VoiceInputPill tone="error" size={props.size}>
       <Tooltip>
@@ -87,7 +87,7 @@ export function VoiceInputErrorPill(props: {
         >
           <CircleAlertIcon aria-hidden className="size-3.5 shrink-0" />
           <span className="truncate">
-            {(props.error && VOICE_ERROR_LABELS[props.error]) || t("Voice input failed")}
+            {t((props.error && VOICE_ERROR_LABELS[props.error]) || "Voice input failed")}
           </span>
         </TooltipTrigger>
         <TooltipPopup side="top">{message}</TooltipPopup>

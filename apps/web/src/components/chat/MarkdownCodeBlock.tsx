@@ -170,8 +170,8 @@ export function MarkdownCodeBlock({
   const defaultWrapped = useClientSettings((settings) => settings.wordWrap);
   const [wrapOverride, setWrapOverride] = useState<boolean | null>(null);
   const wrapped = wrapOverride ?? defaultWrapped;
-  const wrapLabel = wrapped ? "Disable line wrap" : "Wrap lines";
-  const copyLabel = copied ? "Copied" : "Copy code";
+  const wrapLabel = wrapped ? t("Disable line wrap") : t("Wrap lines");
+  const copyLabel = copied ? t("Copied") : t("Copy code");
   const command = code.trim();
   const canRun =
     onRunShellCommand !== undefined &&

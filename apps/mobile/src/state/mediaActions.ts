@@ -30,6 +30,7 @@ import { copyTextWithHaptic } from "../lib/copyTextWithHaptic";
 import { loadLocalAttachmentPreview } from "../lib/localAttachmentPreview";
 import { canSaveImageToLibrary, saveImageToLibrary } from "../lib/saveImageToLibrary";
 import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: restored import
+import { useT } from "../hooks/useT"; // fork: i18n
 
 function allowsHostMedia(session: SessionGrantInput | null) {
   return session === null || sessionGrantsScope(session, AuthFilesystemReadScope);
@@ -42,6 +43,7 @@ function canReadHostMedia(environmentId: EnvironmentId | null): boolean {
 }
 
 export function useMediaActions(source: MediaActionsSource | undefined, onOpenFile?: () => void) {
+  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const hostEnvironmentId =
     source &&
@@ -76,8 +78,8 @@ export function useMediaActions(source: MediaActionsSource | undefined, onOpenFi
       .catch((error: unknown) => {
         if (!request.signal.aborted) {
           Dialog.alert(
-            kind === "share" ? "Could not share file" : "Could not save image",
-            error instanceof Error ? error.message : "Try again.",
+            kind === "share" ? t("Could not share file") : t("Could not save image"),
+            error instanceof Error ? error.message : t("Try again."),
           );
         }
       })
@@ -92,7 +94,7 @@ export function useMediaActions(source: MediaActionsSource | undefined, onOpenFi
   const hostUri = async (source: MediaActionsSource, signal: AbortSignal) => {
     const uri = "uri" in source ? normalizeNativeMarkdownUrl(source.uri) : await refresh();
     if (signal.aborted || !canReadHostMedia(hostEnvironmentId)) return null;
-    if (uri === null) throw new Error("The file could not be loaded. Reconnect and try again.");
+    if (uri === null) throw new Error(t("The file could not be loaded. Reconnect and try again."));
     return uri;
   };
 

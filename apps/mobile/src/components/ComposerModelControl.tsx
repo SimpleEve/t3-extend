@@ -38,7 +38,7 @@ export function ComposerModelControl(props: {
       }).label
     : "";
   const badge = props.modelOption?.providerBadge;
-  const label = props.modelOption?.label ?? props.selection?.model ?? "Choose model";
+  const label = props.modelOption?.label ?? props.selection?.model ?? t("Choose model");
   const providerNameLabel = badge
     ? providerInstanceNameLabel({
         provider: props.modelOption?.providerDriver,

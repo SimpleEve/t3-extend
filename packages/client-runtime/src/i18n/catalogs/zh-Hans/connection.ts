@@ -834,4 +834,14 @@ export default {
   folder: "个文件夹",
   folders: "个文件夹",
   "Add to PATH": "添加到 PATH",
+  "Could not save image": "无法保存图片",
+  "The file could not be loaded. Reconnect and try again.": "无法加载文件。请重新连接后重试。",
+  "{host} is waiting for someone to approve this device": "{host} 正在等待有人批准此设备",
+  "Open parent agent on {machine}": "在 {machine} 上打开父 Agent",
+  "approve the device showing {code}": "批准显示 {code} 的设备",
+  "approve this device": "批准此设备",
+  "On a device already connected to {host}, open Settings > Sharing & access and {approve}.":
+    "在已连接到 {host} 的设备上，打开“设置 > 共享与访问”，然后{approve}。",
+  "Or run `t3 auth connect-device approve {code}` on {host}.":
+    "或者在 {host} 上运行 `t3 auth connect-device approve {code}`。",
 } satisfies Record<string, string>;

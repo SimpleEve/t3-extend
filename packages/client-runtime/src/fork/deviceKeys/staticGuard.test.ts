@@ -19,9 +19,11 @@ const sourceFiles = (dir: string): ReadonlyArray<string> =>
 const RELAY_AUTHORIZATION = /\.(authorizeDpop|authorizeDpopHttp|renewDpopBeforeExpiry)\b/;
 
 // A new caller of the relay's authorization has to be added here on purpose: it must either stay
-// away from a stamped device connection or go through the same stamp the three below check.
+// away from a stamped device connection or go through the same stamp the ones below check.
+// connectMcpApproval builds its own unstamped `prepared` from the T3 Connect account's relay grant,
+// so it can never carry the device marker.
 describe("who may use the relay's DPoP authorization", () => {
-  it("is exactly the resolver, the driver and the HTTP authorization step", () => {
+  it("is exactly the resolver, the driver, the T3 Connect approval call and the HTTP authorization step", () => {
     const users = sourceFiles(clientRuntimeSrc)
       .filter((path) => RELAY_AUTHORIZATION.test(NodeFS.readFileSync(path, "utf8")))
       .map((path) => NodePath.relative(clientRuntimeSrc, path))
@@ -31,6 +33,7 @@ describe("who may use the relay's DPoP authorization", () => {
     expect(users).toEqual([
       NodePath.join("connection", "driver.ts"),
       NodePath.join("connection", "resolver.ts"),
+      NodePath.join("state", "connectMcpApproval.ts"),
       NodePath.join("state", "environmentHttpAuth.ts"),
     ]);
   });

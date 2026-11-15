@@ -1,3 +1,4 @@
+import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import type { VoiceInputState } from "@t3tools/client-runtime/voice-input";
 import { CheckIcon, MicIcon, XIcon } from "lucide-react";
 import { useEffect, useState, type PointerEvent, type ReactElement } from "react";
@@ -18,25 +19,28 @@ const keepFocus = (event: PointerEvent) => event.preventDefault();
 export function resolveSpeechPresentation(
   state: VoiceInputState,
   progress: DownloadProgress,
+  t: Translator = translatorFor("en"), // fork: interface language
 ): { status: string | null; active: boolean } {
   switch (state.phase) {
     case "idle":
       return { status: null, active: false };
     case "error":
-      return { status: state.error ?? "Voice input failed", active: false };
+      return { status: state.error ? t(state.error) : t("Voice input failed"), active: false };
     case "preparing":
       return {
         status: progress
-          ? `Downloading model ${Math.round((progress.downloaded / Math.max(1, progress.total)) * 100)}%`
-          : "Starting…",
+          ? t("Downloading model {percent}%", {
+              percent: Math.round((progress.downloaded / Math.max(1, progress.total)) * 100),
+            })
+          : t("Starting…"),
         active: true,
       };
     case "recording":
-      return { status: "Recording", active: true };
+      return { status: t("Recording"), active: true };
     case "transcribing":
-      return { status: "Transcribing…", active: true };
+      return { status: t("Transcribing…"), active: true };
     case "post-processing":
-      return { status: "Cleaning up…", active: true };
+      return { status: t("Cleaning up…"), active: true };
   }
 }
 
@@ -97,8 +101,9 @@ export function ComposerSpeechButton(props: {
   size?: "default" | "compact";
   onStart(): void;
 }) {
+  const t = useT(); // fork: interface language
   if (props.state.phase !== "idle") return null;
-  const label = "Start voice input";
+  const label = t("Start voice input");
 
   return (
     <ShortcutTooltip label={label} shortcut={props.shortcutLabel}>
@@ -151,7 +156,7 @@ export function ComposerSpeechRecordingPill(props: {
       />
     );
   }
-  const presentation = resolveSpeechPresentation(props.state, props.progress);
+  const presentation = resolveSpeechPresentation(props.state, props.progress, t);
   if (!presentation.active) return null;
   const recording = phase === "recording";
   const trailing = recording || phase === "post-processing";

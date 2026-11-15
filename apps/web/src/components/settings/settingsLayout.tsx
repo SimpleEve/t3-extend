@@ -463,7 +463,7 @@ export function SettingsRow({
                   : t(PRIMARY_SETTINGS_UNAVAILABLE_MESSAGE),
             )
           : environmentWide && control
-            ? inertControl("Environment-wide setting. Select an environment to change it.")
+            ? inertControl(t("Environment-wide setting. Select an environment to change it."))
             : deviceReadOnly && control
               ? inertControl("Saved on this device. Select All projects to change it.")
               : control;

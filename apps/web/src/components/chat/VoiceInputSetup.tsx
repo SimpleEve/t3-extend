@@ -90,7 +90,7 @@ export function VoiceInputSetup(props: {
     void navigate({ to: "/settings/voice", hash });
   };
 
-  const destination = environment?.label ?? "your transcription environment";
+  const destination = environment?.label ?? t("your transcription environment");
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>

@@ -98,7 +98,7 @@ function QueuedRunSender(props: {
       : attribution === "agent"
         ? {
             icon: "bubble.left.and.bubble.right" as const,
-            label: senderShell?.title.trim() || linkedSender?.title.trim() || "Agent",
+            label: senderShell?.title.trim() || linkedSender?.title.trim() || t("Agent"),
           }
         : attribution === "t3code"
           ? { icon: null, label: t("Sent by T3 Extend") }

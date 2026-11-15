@@ -938,7 +938,7 @@ export function NewTaskDraftScreen(props: {
           <ProjectCloneBanner
             clone={projectClone}
             onCancel={() =>
-              void runCloneAction("Failed to cancel clone", () =>
+              void runCloneAction(t("Failed to cancel clone"), () =>
                 cancelProjectClone({
                   environmentId: selectedProject.environmentId,
                   input: { projectId: selectedProject.id },
@@ -946,7 +946,7 @@ export function NewTaskDraftScreen(props: {
               )
             }
             onRetry={() =>
-              void runCloneAction("Failed to retry clone", () =>
+              void runCloneAction(t("Failed to retry clone"), () =>
                 retryProjectClone({
                   environmentId: selectedProject.environmentId,
                   input: { projectId: selectedProject.id },

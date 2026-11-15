@@ -134,9 +134,9 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
         title={t("Existing branches")}
         footer={
           branchesLoading
-            ? "Loading branches..."
+            ? t("Loading branches...")
             : availableBranches.length === 0
-              ? "No local branches found."
+              ? t("No local branches found.")
               : undefined
         }
       >
@@ -144,11 +144,11 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
           const disabled = disabledExistingBranches.has(branch.name);
           const subtitle = branch.worktreePath
             ? branch.worktreePath === currentWorktreePath
-              ? "Checked out in this thread"
-              : "Checked out in another worktree"
+              ? t("Checked out in this thread")
+              : t("Checked out in another worktree")
             : branch.isDefault
-              ? "Default branch"
-              : "Local branch";
+              ? t("Default branch")
+              : t("Local branch");
 
           return (
             <ListChoiceRow

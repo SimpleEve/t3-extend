@@ -441,7 +441,7 @@ function QueuedMessage(props: {
         ? {
             icon: MessagesSquareIcon,
             label:
-              senderShell?.title.trim() || props.message?.linkedSender?.title.trim() || "Agent",
+              senderShell?.title.trim() || props.message?.linkedSender?.title.trim() || t("Agent"),
             summary: props.previewText.split(/\r?\n/).find((line) => line.trim()) ?? "",
           }
         : null;

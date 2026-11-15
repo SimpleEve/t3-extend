@@ -372,7 +372,7 @@ export const OpenInPicker = memo(function OpenInPicker({
     );
   }
 
-  const primaryControlLabel = compact ? "Open file in preferred editor" : primaryLabel;
+  const primaryControlLabel = compact ? t("Open file in preferred editor") : primaryLabel;
   const primaryControl = (
     <ThreadDetailsControl
       aria-label={primaryControlLabel}

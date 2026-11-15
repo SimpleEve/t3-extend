@@ -371,10 +371,12 @@ function CloudChoices({ environment, active, onClose }: Props & { onClose: () =>
     };
     const keyFooter =
       draft && !credential
-        ? (source?.invalidReferenceMessage ?? "Enter a valid API key.")
+        ? (source?.invalidReferenceMessage ?? t("Enter a valid API key."))
         : routed
           ? key && !credential
-            ? "Uses the API key saved on this environment. The model choice applies only to this device."
+            ? t(
+                "Uses the API key saved on this environment. The model choice applies only to this device.",
+              )
             : `Anyone with dictation access to ${environment.label} can bill this key.`
           : editing.enable
             ? `Anyone with dictation access to ${environment.label} can bill this key.`
@@ -491,8 +493,8 @@ function CloudChoices({ environment, active, onClose }: Props & { onClose: () =>
                   onPress={() =>
                     Dialog.confirm({
                       title: `Remove the ${label} key from ${environment.label}?`,
-                      message: "Everyone using it for dictation will lose access.",
-                      confirmText: "Remove key",
+                      message: t("Everyone using it for dictation will lose access."),
+                      confirmText: t("Remove key"),
                       destructive: true,
                       onConfirm: () => void changeKey(provider, null),
                     })

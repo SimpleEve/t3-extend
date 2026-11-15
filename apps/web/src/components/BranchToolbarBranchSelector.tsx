@@ -391,7 +391,7 @@ export function BranchToolbarBranchSelector({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Failed to copy branch name",
+          title: t("Failed to copy branch name"),
           description: toBranchActionErrorMessage(error),
         }),
       );

@@ -759,6 +759,7 @@ async function draftWithPrompt(
 }
 
 function useOpenExistingProject(environment: EnvironmentOption | null) {
+  const t = useT();
   const openNewTaskDraft = useOpenNewTaskDraft();
   const updateProject = useAtomCommand(projectEnvironment.update, {
     label: "project unarchive",
@@ -796,7 +797,7 @@ function useOpenExistingProject(environment: EnvironmentOption | null) {
         })
       )._tag === "Success";
     Dialog.alert(
-      "Project already exists",
+      t("Project already exists"),
       unarchived ? existing.title : `${existing.title} is still archived. Try again later.`,
     );
     openNewTaskDraft(

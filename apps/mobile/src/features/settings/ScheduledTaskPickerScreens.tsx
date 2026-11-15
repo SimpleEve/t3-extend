@@ -204,8 +204,8 @@ export function ScheduledTaskThreadPickerRouteScreen() {
     value: query,
     onChangeText: setQuery,
     placeholder: THREAD_SEARCH_PLACEHOLDER,
-    accessibilityLabel: "Search threads",
-    clearAccessibilityLabel: "Clear thread search",
+    accessibilityLabel: t("Search threads"),
+    clearAccessibilityLabel: t("Clear thread search"),
     mode: "inline" as const,
     compactToolbar: true,
   };

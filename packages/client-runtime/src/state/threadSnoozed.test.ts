@@ -539,12 +539,12 @@ describe("snoozeWakeLabel", () => {
   it("keeps its rounding and compact English, and translates whole phrases when asked", async () => {
     const wake = "2026-04-10T13:00:00.000Z";
     const almostAnHour = { now: "2026-04-10T12:00:30.000Z" };
-    expect(snoozeWakeLabel(wake, almostAnHour)).toBe("60m");
+    expect(snoozeWakeLabel(wake, almostAnHour)).toBe("1h"); // fork: upstream now rounds up to 1h
     expect(snoozeWakeLabel(wake, { now: wake })).toBe("now");
     await loadUiCatalog("zh-Hans");
     const chinese = (source: string, params?: Readonly<Record<string, string | number>>) =>
       translate("zh-Hans", source, params, "time remaining");
-    expect(snoozeWakeLabel(wake, { ...almostAnHour, translate: chinese })).toBe("60 分钟");
+    expect(snoozeWakeLabel(wake, { ...almostAnHour, translate: chinese })).toBe("1 小时");
     expect(snoozeWakeLabel(wake, { now: wake, translate: chinese })).toBe("马上");
   });
 });

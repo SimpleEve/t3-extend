@@ -112,9 +112,9 @@ function headline(
     case "offline":
       return t("This device is offline");
     case "session_pending":
-      return "This device is still loading its T3 Connect sign-in";
+      return t("This device is still loading its T3 Connect sign-in");
     case "approval_pending":
-      return `${host} is waiting for someone to approve this device`;
+      return t("{host} is waiting for someone to approve this device", { host });
     case "outdated":
       return t("{host} runs an older T3 Extend", { host });
     case "clock_skew":
@@ -190,10 +190,21 @@ function steps(
     case "approval_pending": {
       const code =
         failure?._tag === "ConnectionTransientError" ? failure.verificationCode : undefined;
-      const approve = code ? `approve the device showing ${code}` : "approve this device";
+      const approve = code
+        ? t("approve the device showing {code}", { code })
+        : t("approve this device");
       return [
-        `On a device already connected to ${host}, open Settings > Sharing & access and ${approve}.`,
-        `Or run \`t3 auth connect-device approve ${code ?? "<code>"}\` on ${host}.`,
+        t(
+          "On a device already connected to {host}, open Settings > Sharing & access and {approve}.",
+          {
+            host,
+            approve,
+          },
+        ),
+        t("Or run `t3 auth connect-device approve {code}` on {host}.", {
+          code: code ?? "<code>",
+          host,
+        }),
       ];
     }
     case "outdated":

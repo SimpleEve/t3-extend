@@ -275,7 +275,7 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
         stackedThreadToast({
           type: "error",
           title: "Failed to copy path",
-          description: error instanceof Error ? error.message : "An error occurred.",
+          description: error instanceof Error ? error.message : t("An error occurred."),
         }),
       );
     });

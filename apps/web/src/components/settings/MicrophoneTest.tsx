@@ -248,7 +248,7 @@ export function MicrophoneTest({
   return (
     <SettingsRow
       {...searchableSetting("microphone-test")}
-      title="Test microphone"
+      title={t("Test microphone")}
       description={t("Record ten seconds and play it back. The audio stays on this device.")}
       control={control}
     >

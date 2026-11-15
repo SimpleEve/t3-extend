@@ -1,5 +1,6 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -130,7 +131,7 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       yield* Effect.all([command.addToPath, command.addToPath], { concurrency: "unbounded" });
       expect((yield* command.addToPath).pathSetup).toEqual({ file: "~/.zshrc", added: true });
       expect(yield* fs.readFileString(zshrc)).toBe(
-        '# mine\n# Added by T3 Code\nexport PATH="$PATH:$HOME/.local/bin"\n',
+        `# mine\n# Added by ${FORK.appBaseName}\nexport PATH="$PATH:$HOME/.local/bin"\n`,
       );
 
       expect((yield* command.uninstall).installedPath).toBeNull();
@@ -218,7 +219,7 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       const after = yield* commandIn({ home, baseDir: path.join(home, "new-t3"), env });
       // A first launch leaves another home's command alone; only Install takes it over.
       yield* after.installOnFirstLaunch;
-      expect(yield* fs.readLink(link!)).toBe(path.join(home, "old-t3", "bin", "t3"));
+      expect(yield* fs.readLink(link!)).toBe(path.join(home, "old-t3", "bin", "t3x"));
       // On PATH, it runs the other home's launcher. Settings offers Install (not Remove, and not
       // "another t3 runs first"), which updates that link in place.
       env.PATH = path.dirname(link!);
@@ -232,10 +233,10 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       // Behind another t3 the install fails, and the old link still works.
       const shadow = path.join(home, "shadow");
       yield* fs.makeDirectory(shadow);
-      yield* fs.writeFileString(path.join(shadow, "t3"), "#!/bin/sh\n", { mode: 0o755 });
+      yield* fs.writeFileString(path.join(shadow, "t3x"), "#!/bin/sh\n", { mode: 0o755 });
       env.PATH = shadow;
       yield* Effect.flip(after.install);
-      expect(yield* fs.readLink(link!)).toBe(path.join(home, "old-t3", "bin", "t3"));
+      expect(yield* fs.readLink(link!)).toBe(path.join(home, "old-t3", "bin", "t3x"));
       // Install takes it over, also with its folder first on PATH.
       env.PATH = path.dirname(link!);
       expect((yield* after.install).installedPath).toBe(link);
@@ -286,11 +287,11 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       // Its folder is already on PATH behind theirs; adding it again would change which t3 runs.
       yield* fs.makeDirectory(path.join(home, ".local", "bin"), { recursive: true });
       yield* fs.symlink(
-        path.join(home, ".t3", "bin", "t3"),
-        path.join(home, ".local", "bin", "t3"),
+        path.join(home, ".t3extend", "bin", "t3x"),
+        path.join(home, ".local", "bin", "t3x"),
       );
       const behind = yield* command.state;
-      expect(behind.installedPath).toBe(path.join(home, ".local", "bin", "t3"));
+      expect(behind.installedPath).toBe(path.join(home, ".local", "bin", "t3x"));
       expect(behind.pathSetup).toBeUndefined();
       // Off PATH behind theirs, adding the folder would still put ours first.
       env.PATH = shadow;
@@ -298,12 +299,12 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       yield* Effect.flip(command.addToPath);
       expect(yield* fs.exists(path.join(home, ".zshrc"))).toBe(false);
       env.PATH = [shadow, `${path.join(home, ".local", "bin")}/`].join(":");
-      yield* fs.remove(path.join(home, ".local", "bin", "t3"));
+      yield* fs.remove(path.join(home, ".local", "bin", "t3x"));
 
       // A first-launch install that failed is not retried behind the user's back.
       yield* fs.remove(theirs);
       yield* command.installOnFirstLaunch;
-      expect(yield* fs.exists(path.join(home, ".local", "bin", "t3"))).toBe(false);
+      expect(yield* fs.exists(path.join(home, ".local", "bin", "t3x"))).toBe(false);
       const installed = yield* command.install;
       expect(installed).toMatchObject({
         onPath: true,
@@ -437,7 +438,7 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       // PATH alone.
       const besideHome = yield* fs.makeTempDirectoryScoped();
       yield* fs.makeDirectory(path.join(besideHome, ".local", "bin"), { recursive: true });
-      yield* fs.writeFileString(path.join(besideHome, ".local", "bin", "t3.cmd"), "@echo off\r\n");
+      yield* fs.writeFileString(path.join(besideHome, ".local", "bin", "t3x.cmd"), "@echo off\r\n");
       const beside = fakePowerShell("C:\\Tools");
       yield* (yield* commandIn({ home: besideHome, platform: "win32" }, beside.spawner))
         .installOnFirstLaunch;

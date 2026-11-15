@@ -423,4 +423,7 @@ export default {
   "t3 tool target|an HTML page": "HTML 页面",
   "themes {times}": "主题 {times}",
   "the theme {times}": "主题 {times}",
+  "t3 tool target|themes": "主题",
+  "t3 tool target|the theme": "主题",
+  "t3 tool target|a message": "一条消息",
 } satisfies Record<string, string>;
