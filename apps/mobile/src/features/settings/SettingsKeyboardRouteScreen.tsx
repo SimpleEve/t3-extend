@@ -30,7 +30,7 @@ const ENTER_BEHAVIOR_OPTIONS: ReadonlyArray<{
   {
     behavior: "newline",
     label: "Insert new line",
-    description: `Return inserts a new line. ${SEND_MODIFIER}-Return sends the message.`,
+    description: "Return inserts a new line. {modifier}-Return sends the message.",
   },
 ];
 
@@ -58,7 +58,7 @@ export function SettingsKeyboardRouteScreen() {
             <SettingsChoiceRow
               key={option.behavior}
               label={t(option.label)}
-              description={t(option.description)}
+              description={t(option.description, { modifier: SEND_MODIFIER })}
               selected={selectedBehavior === option.behavior}
               separated={index > 0}
               disabled={!preferencesReady}

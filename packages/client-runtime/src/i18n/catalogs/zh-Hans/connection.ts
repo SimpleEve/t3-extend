@@ -254,9 +254,6 @@ export default {
     "为后端使用本地的 SSH 配置、agent 和隧道。",
   "{label}: show {scopeCountLabel}": "{label}：显示{scopeCountLabel}",
   "Granted scopes": "已授予的权限范围",
-  "Open it in the browser on the device you want to connect.": "在要连接的设备的浏览器中打开它。",
-  "Open it in the client you want to pair to this environment.":
-    "在要与此环境配对的客户端中打开它。",
   "Could not copy hosted app link": "无法复制托管应用链接",
   "Opens the hosted app, no install needed": "打开托管应用，无需安装",
   "Devices on the same network": "同一网络内的设备",

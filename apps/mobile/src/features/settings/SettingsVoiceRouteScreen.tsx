@@ -190,13 +190,14 @@ function EnvironmentMethodSection({
   cloudOpen: boolean;
   onCloudOpenChange: (open: boolean) => void;
 }) {
+  const t = useT();
   const id = environment.environmentId;
   const destination = grant?.destination.environmentId === id ? grant.destination : null;
   const cloudCapable =
     environment.serverConfig?.environment.capabilities.cloudVoiceTranscription === true ||
     destination?.kind === "cloud";
   return (
-    <SettingsSection title={`Method on ${environment.label}`}>
+    <SettingsSection title={t("Method on {name}", { name: environment.label })}>
       <LocalModelChoice
         environmentId={id}
         label={environment.label}

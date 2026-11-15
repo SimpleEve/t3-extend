@@ -419,4 +419,7 @@ export default {
     "只能匹配已列出的审查者：provider 搜索失败。{error}",
   "More reviewers match than the provider returned. Keep typing to narrow it down.":
     "匹配的审查者比 provider 返回的多，请继续输入以缩小范围。",
+  "Fast-forward merge": "fast-forward 合并",
+  "Add the commits as they are. Needs the branch to contain the base.":
+    "按原样添加这些提交。要求分支已包含基础分支。",
 };

@@ -142,7 +142,7 @@ function ImagePreviewHeader(header: { readonly imageIndex: number }) {
       <MediaPreviewHeader
         title={source?.name ?? t("Image")}
         media={mediaActions}
-        closeAccessibilityLabel="Close image"
+        closeAccessibilityLabel={t("Close image")}
         onClose={props.onRequestClose}
       />
     </View>

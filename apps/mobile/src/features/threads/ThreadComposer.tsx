@@ -860,8 +860,8 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
         disabled={!props.canOperateThread}
         accessibilityLabel={
           compactBeforeSend.keepFullHistory
-            ? `Next send keeps all ${compactTokens} tokens of history`
-            : `Next send compacts ${compactTokens} tokens of history first`
+            ? t("Next send keeps all {count} tokens of history", { count: compactTokens })
+            : t("Next send compacts {count} tokens of history first", { count: compactTokens })
         }
         accessibilityHint={
           compactBeforeSend.keepFullHistory ? t("Compacts first") : t("Keeps the full history")

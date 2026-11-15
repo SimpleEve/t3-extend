@@ -648,7 +648,6 @@ export default {
   "Delegated from {machine}. Connect to it to open the parent thread.":
     "由 {machine} 委派。连接到它才能打开上级对话。",
   "a linked environment": "已关联的环境",
-  "Open parent agent": "打开上级 Agent",
   "Could not merge back": "无法合并回去",
   "Could not disconnect agent session": "无法断开 Agent 会话",
   "Could not stop subagent": "无法停止子 Agent",
@@ -771,7 +770,6 @@ export default {
   "Failed to create and switch ref.": "创建并切换分支失败。",
   "Checkout {kind}": "检出 {kind}",
   'Create new ref "{name}"': "新建分支“{name}”",
-  "Open {kind}": "打开 {kind}",
   "Machine, {label}": "机器，{label}",
   "T3 Extend environment": "T3 Extend 环境",
   "Machine not in this app": "这台机器不在此应用中",

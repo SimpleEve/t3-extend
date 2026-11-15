@@ -51,4 +51,6 @@ export default {
   "A device wants to connect to {name}": "有设备想连接到 {name}",
   "{device}. Approve only if it shows code {code}.": "{device}。仅当它显示的码是 {code} 时才批准。",
   "Use T3 Extend in another app (MCP)": "在其他应用中使用 T3 Extend（MCP）",
+  "Agents here can then launch, message and wait on threads there. It appears under Authorized clients in that machine's Sharing & access, where it can be revoked.":
+    "之后，这里的 Agent 可以在那台机器上启动对话、发送消息并等待结果。它会出现在那台机器“共享与访问”的“已授权的客户端”下，可在那里撤销。",
 };

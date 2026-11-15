@@ -2912,7 +2912,6 @@ export default {
   "Hide successful": "隐藏成功项",
   "Hide all": "全部隐藏",
   Zen: "专注",
-  "Beta: Tool calls in chat": "Beta：对话中的工具调用",
   "Share a thread with a guest who watches it live in a browser and sends messages you approve. Sign in to T3 Connect to use guest links.":
     "把对话分享给访客，访客可在浏览器里实时观看，并发送经你批准的消息。登录 T3 Connect 后才能使用访客链接。",
   "Share a thread with a guest who watches it live in a browser and sends messages you approve. Needs T3 Connect: sign in and link this machine in {link}. Turning it off stops every guest link.":

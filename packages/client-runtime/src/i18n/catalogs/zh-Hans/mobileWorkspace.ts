@@ -897,4 +897,10 @@ export default {
   "Compacts first": "先压缩",
   "Keeps the full history": "保留完整历史",
   "Follow settings": "跟随设置",
+  "Select text": "选择文字",
+  "Done selecting": "完成选择",
+  "Saving image…": "正在保存图片…",
+  "Copy model reference": "复制模型引用",
+  "Share model reference": "分享模型引用",
+  "The diagram could not be rendered.": "图表无法渲染。",
 };

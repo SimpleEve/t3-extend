@@ -1,4 +1,7 @@
+import { interpolate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import type { AuthClientMetadata, AuthPairingLink } from "@t3tools/contracts";
+
+const untranslated: Translator = (source, params) => interpolate(source, params);
 
 export interface ConnectDeviceApprovalPrompt {
   readonly pairingLinkId: string;
@@ -6,19 +9,24 @@ export interface ConnectDeviceApprovalPrompt {
   readonly message: string;
 }
 
-export function describeConnectDevice(device: AuthClientMetadata | undefined): string {
+export function describeConnectDevice(
+  device: AuthClientMetadata | undefined,
+  t: Translator = untranslated, // fork: English when omitted
+): string {
   const { label, browser, os } = device ?? {};
   if (label) return label;
-  if (browser && os) return `${browser} on ${os}`;
-  return browser ?? os ?? "A new device";
+  if (browser && os) return t("{browser} on {os}", { browser, os });
+  return browser ?? os ?? t("A new device");
 }
 
 /** Requests waiting on approval that have not been shown yet, oldest first. */
 export function connectDeviceApprovalPrompts(input: {
   readonly environmentLabel: string;
+  readonly t?: Translator;
   readonly pairingLinks: ReadonlyArray<AuthPairingLink>;
   readonly shownIds: ReadonlySet<string>;
 }): ReadonlyArray<ConnectDeviceApprovalPrompt> {
+  const t = input.t ?? untranslated;
   const waiting = input.pairingLinks.flatMap((link) =>
     link.connectDeviceRequest !== undefined && !input.shownIds.has(link.id)
       ? [{ link, ...link.connectDeviceRequest }]
@@ -31,8 +39,15 @@ export function connectDeviceApprovalPrompts(input: {
     )
     .map(({ link, verificationCode, client: device }) => ({
       pairingLinkId: link.id,
-      title: "Approve this device?",
-      message: `${describeConnectDevice(device)} wants to connect to ${input.environmentLabel} through T3 Connect. It shows code ${verificationCode}. Approve it only if that code matches.`,
+      title: t("Approve this device?"),
+      message: t(
+        "{device} wants to connect to {environment} through T3 Connect. It shows code {code}. Approve it only if that code matches.",
+        {
+          device: describeConnectDevice(device, t),
+          environment: input.environmentLabel,
+          code: verificationCode,
+        },
+      ),
     }));
 }
 

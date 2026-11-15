@@ -513,13 +513,14 @@ function QueueAttachmentThumbnail(props: {
   readonly attachment: ChatAttachment;
   readonly onPress: () => void;
 }) {
+  const t = useT();
   const resource = queueAttachmentResource(props.attachment);
   const url = useAssetUrl(props.environmentId, resource);
   return (
     // Its own press target, so tapping an image previews it instead of editing the message.
     <Pressable
       accessibilityRole="imagebutton"
-      accessibilityLabel={`Open ${props.attachment.name}`}
+      accessibilityLabel={t("Open {name}", { name: props.attachment.name })}
       hitSlop={6}
       onPress={props.onPress}
       className="active:opacity-70"

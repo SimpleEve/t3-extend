@@ -200,7 +200,7 @@ export function useMediaActions(source: MediaActionsSource | undefined, onOpenFi
             ? [
                 {
                   id: "save-image" as const,
-                  title: busy === "save-image" ? "Saving image…" : "Save image",
+                  title: busy === "save-image" ? t("Saving image…") : t("Save image"),
                   run: saveImage,
                   disabled: busy !== null || !canReadMedia,
                 },
@@ -210,10 +210,10 @@ export function useMediaActions(source: MediaActionsSource | undefined, onOpenFi
             id: "save" as const,
             title:
               busy === "share"
-                ? "Opening share sheet…"
+                ? t("Opening share sheet…")
                 : canSaveImageToLibrary(source.mimeType)
-                  ? "Share"
-                  : "Save or share",
+                  ? t("Share")
+                  : t("Save or share"),
             run: share,
             disabled: busy !== null || !canReadMedia,
           },

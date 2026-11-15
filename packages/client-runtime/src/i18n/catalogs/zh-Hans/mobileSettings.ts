@@ -425,7 +425,6 @@ export default {
   "Use last project": "使用上次的项目",
   "Start new threads in the last project you used on this device.":
     "在这台设备上次使用的项目中新建对话。",
-  "Beta: Linked environments": "Beta：关联环境",
   "Let agents on a machine work on your other machines, and theirs on it. Turn it on for each machine. While it is off, nothing new starts over a link; tasks already running finish.":
     "让一台机器上的 Agent 在你的其他机器上工作，反之亦然。需要在每台机器上分别开启。关闭期间不会通过关联启动新任务，已在运行的任务会继续完成。",
   Legacy: "旧版",
@@ -492,8 +491,6 @@ export default {
   "Return sends the message. Shift-Return inserts a new line.":
     "Return 发送消息，Shift-Return 换行。",
   "Insert new line": "换行",
-  "Return inserts a new line. Command-Return sends the message.":
-    "Return 换行，Command-Return 发送消息。",
   "Group by repository": "按仓库分组",
   "Matching repositories appear as one project.": "相同的仓库显示为同一个项目。",
   "Group by repository path": "按仓库路径分组",
@@ -610,4 +607,10 @@ export default {
   "No model installed · Choose one to download": "未安装模型 · 选择一个来下载",
   "No model installed · Add one using T3 Extend on {label}":
     "未安装模型 · 请在 {label} 上用 T3 Extend 添加一个",
+  "Long-press the send button to use the other option for a single message. With a hardware keyboard, hold {key} while sending.":
+    "长按发送按钮，可对单条消息使用另一种方式。使用外接键盘时，发送时按住 {key}。",
+  "Method on {name}": "{name} 上的方式",
+  "Beta: {title}": "测试版：{title}",
+  "Return inserts a new line. {modifier}-Return sends the message.":
+    "Return 换行，{modifier}-Return 发送消息。",
 } satisfies Record<string, string>;
