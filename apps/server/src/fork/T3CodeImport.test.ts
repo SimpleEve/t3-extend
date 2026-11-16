@@ -1386,7 +1386,10 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
       Effect.map((rows) => rows[0]!.target_id),
     );
 
-  /** You carry on with an imported thread inside T3 Extend: one more run and message after the import. */
+  /**
+   * You carry on with an imported thread inside T3 Extend: one more run and message after the import.
+   * A background event lands in the copy as well; it is not something you wrote.
+   */
   const continueInExtend = Effect.fn("continueInExtend")(function* (
     sql: SqlClient.SqlClient,
     sourceId: string,
@@ -1397,12 +1400,16 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
     }>`SELECT MAX(stream_version) AS v FROM orchestration_events
       WHERE aggregate_kind = 'thread' AND stream_id = ${target}`;
     const next = (top?.v ?? -1) + 1;
+    const run = `run:thread:${target}:ordinal:2`;
     yield* sql`INSERT INTO orchestration_events
       (event_id, aggregate_kind, stream_id, stream_version, event_type, occurred_at, actor_kind, payload_json, metadata_json, application_event_version)
-      VALUES (${`extend-${target}-${next}`}, 'thread', ${target}, ${next}, 'run.created', '2999-01-01', 'user', '{}', '{}', 2)`;
+      VALUES (${`extend-${target}-${next}`}, 'thread', ${target}, ${next}, 'thread.settled', '2999-01-01', 'user', '{}', '{}', 2)`;
+    yield* sql`INSERT INTO orchestration_v2_projection_runs
+      (run_id, thread_id, ordinal, provider, status, requested_at, payload_json)
+      VALUES (${run}, ${target}, 2, 'codex', 'completed', '2999-01-01', '{}')`;
     yield* sql`INSERT INTO orchestration_v2_projection_messages
       (message_id, thread_id, run_id, role, streaming, created_at, updated_at, payload_json)
-      VALUES (${`extend-message:${target}`}, ${target}, ${`run:thread:${target}:ordinal:1`}, 'user', 0, '2999-01-01', '2999-01-01', '{"text":"typed in Extend"}')`;
+      VALUES (${`extend-message:${target}`}, ${target}, ${run}, 'user', 0, '2999-01-01', '2999-01-01', '{"text":"typed in Extend"}')`;
     return target;
   });
 
@@ -1494,12 +1501,17 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
   );
 
   it.effect(
-    "an updated thread that nobody touched in T3 Extend is not flagged for discarding",
+    "a background event in the copy is not something you wrote, so nothing is flagged for discarding",
     () =>
-      withService({}, ({ service, sourcePath }) =>
+      withService({}, ({ service, sql, sourcePath }) =>
         Effect.gen(function* () {
           yield* runToEnd(service, onlyThread(T_STOPPED));
+          const target = yield* targetOf(sql, T_STOPPED);
+          yield* sql`INSERT INTO orchestration_events
+            (event_id, aggregate_kind, stream_id, stream_version, event_type, occurred_at, actor_kind, payload_json, metadata_json, application_event_version)
+            VALUES ('background', 'thread', ${target}, 50, 'thread.settled', '2999-01-01', 'user', '{}', '{}', 2)`;
           yield* continueInOfficial(sourcePath, T_STOPPED);
+          assert.equal((yield* stateOfThread(service, T_STOPPED))?.localChanges, 0);
           const report = yield* service.check(onlyThread(T_STOPPED));
           assert.include(codes(report.fixed), "thread-refreshed");
           assert.notInclude(codes(report.attention), "thread-local-discarded");
@@ -1527,15 +1539,16 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
         // Checking writes nothing.
         const [untouched] = yield* sql<{
           count: number;
-        }>`SELECT COUNT(*) AS count FROM orchestration_events
-          WHERE stream_id = ${target} AND event_type = 'run.created'`;
+        }>`SELECT COUNT(*) AS count FROM orchestration_v2_projection_runs
+          WHERE thread_id = ${target} AND ordinal = 2`;
         assert.equal(untouched?.count, 1);
 
         const again = yield* runToEnd(service, onlyThread(T_STOPPED));
         assert.equal(again.importedThreads, 1);
         const [gone] = yield* sql<{ count: number }>`SELECT
           (SELECT COUNT(*) FROM orchestration_v2_projection_messages WHERE message_id LIKE 'extend-message:%') +
-          (SELECT COUNT(*) FROM orchestration_events WHERE event_id LIKE 'extend-%') AS count`;
+          (SELECT COUNT(*) FROM orchestration_events WHERE event_id LIKE 'extend-%') +
+          (SELECT COUNT(*) FROM orchestration_v2_projection_runs WHERE run_id LIKE '%:ordinal:2') AS count`;
         assert.equal(gone?.count, 0);
         assert.deepStrictEqual(
           codes(again.report.attention).filter((code) => code === "thread-local-discarded"),
@@ -1614,7 +1627,7 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
       Effect.gen(function* () {
         yield* TestClock.setTime(Date.parse("2026-09-01T00:00:00Z"));
         yield* runToEnd(service, onlyThread(T_STOPPED));
-        yield* sql`UPDATE fork_t3code_import_map SET source_version = NULL`;
+        yield* sql`UPDATE fork_t3code_import_map SET source_version = NULL, source_runs = NULL`;
         assert.equal((yield* stateOfThread(service, T_STOPPED))?.state, "imported");
         yield* continueInExtend(sql, T_STOPPED);
         assert.equal((yield* stateOfThread(service, T_STOPPED))?.state, "imported");

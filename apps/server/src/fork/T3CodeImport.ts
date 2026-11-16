@@ -359,12 +359,14 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     readonly imported_at: string;
     /** Newest stream version of the official thread when it was copied; null for imports from before it was recorded. */
     readonly source_version: number | null;
+    /** Highest run ordinal it had then; null on the same imports. */
+    readonly source_runs: number | null;
   }
 
   const mappedTargets = (kind: string) =>
     sql
       .unsafe<MappedRow>(
-        `SELECT source_id, target_id, state, imported_at, source_version FROM fork_t3code_import_map WHERE kind = ?`,
+        `SELECT source_id, target_id, state, imported_at, source_version, source_runs FROM fork_t3code_import_map WHERE kind = ?`,
         [kind],
       )
       .pipe(Effect.map((rows) => new Map(rows.map((row) => [row.source_id, row] as const))));
@@ -397,11 +399,16 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       ))[0]?.version ??
       -1;
     if (newest <= copied) return { updated: false, localRuns: 0 };
-    const local = (yield* sql.unsafe<{ readonly count: number }>(
-      `SELECT COUNT(*) AS count FROM orchestration_events
-       WHERE aggregate_kind = 'thread' AND stream_id = ? AND stream_version > ? AND event_type = 'run.created'`,
-      [row.target_id, copied],
-    ))[0]?.count;
+    // Runs are counted from their rows: maintenance prunes `run.created` events, so the stream cannot say.
+    const local = (yield* row.source_runs === null
+      ? sql.unsafe<{ readonly count: number }>(
+          `SELECT COUNT(*) AS count FROM orchestration_v2_projection_runs WHERE thread_id = ? AND requested_at > ?`,
+          [row.target_id, row.imported_at],
+        )
+      : sql.unsafe<{ readonly count: number }>(
+          `SELECT COUNT(*) AS count FROM orchestration_v2_projection_runs WHERE thread_id = ? AND ordinal > ?`,
+          [row.target_id, row.source_runs],
+        ))[0]?.count;
     return { updated: true, localRuns: Number(local ?? 0) };
   });
 
@@ -1466,10 +1473,15 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
          WHERE aggregate_kind = 'thread' AND stream_id = ?`,
         [thread.id],
       ))[0]?.version ?? -1;
+    const copiedRuns =
+      (yield* src.unsafe<{ readonly ordinal: number | null }>(
+        `SELECT MAX(ordinal) AS ordinal FROM orchestration_v2_projection_runs WHERE thread_id = ?`,
+        [thread.id],
+      ))[0]?.ordinal ?? 0;
     yield* sql.unsafe(
-      `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at, source_version)
-       VALUES ('thread', ?, ?, 'copying', ?, ?, ?)`,
-      [thread.id, targetThread, thread.worktree, yield* nowIso, copiedThrough],
+      `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at, source_version, source_runs)
+       VALUES ('thread', ?, ?, 'copying', ?, ?, ?, ?)`,
+      [thread.id, targetThread, thread.worktree, yield* nowIso, copiedThrough, copiedRuns],
     );
     const refs = yield* copyCheckpointRefs({
       src,
