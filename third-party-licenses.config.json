@@ -15,6 +15,25 @@
       "noticeFile": "apps/web/src/components/files/office/LICENSE.opencode"
     },
     {
+      "bundles": ["android", "desktop", "ios", "mobile", "web"],
+      "license": "MIT",
+      "name": "oh-my-pi icon",
+      "sourceUrl": "https://github.com/can1357/oh-my-pi/blob/main/packages/collab-web/public/favicon.svg",
+      "generatedNotices": [
+        {
+          "licenseId": "MIT",
+          "copyrights": [
+            "Copyright (c) 2025 Mario Zechner",
+            "Copyright (c) 2025-2026 Can Bölük",
+            "Copyright (c) 2026 Stencil Labs, Inc."
+          ],
+          "preamble": [
+            "The omp provider icon is the mark from the oh-my-pi repository (packages/collab-web/public/favicon.svg), which is licensed as follows."
+          ]
+        }
+      ]
+    },
+    {
       "bundles": ["desktop", "web"],
       "license": "MIT",
       "name": "Ionic keyboard assist",
