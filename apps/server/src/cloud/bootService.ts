@@ -1265,7 +1265,9 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
     let manager = yield* requireManager;
     if (appRuntime !== undefined) {
       // fork: app runtime
-      const problem = yield* appRuntimeLocationProblem(appRuntime);
+      const problem = yield* appRuntimeLocationProblem(appRuntime).pipe(
+        Effect.provideService(FileSystem.FileSystem, fs),
+      );
       if (problem !== undefined) {
         return yield* new BootServiceAppLocationError({ appPath: appRuntime.appPath, problem });
       }
