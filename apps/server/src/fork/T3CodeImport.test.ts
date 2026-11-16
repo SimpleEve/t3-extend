@@ -532,9 +532,10 @@ const withService = <A, E, R>(
       openSession: () => Effect.die("No provider process needed"),
     } as ProviderAdapter.ProviderAdapterV2["Service"];
     // Built together with the import in one layer build, so both get the same lock instance.
-    const orchestratorLayer =
+    // Only a test that asked for one reads it, so the type promises it without every test building it.
+    const orchestratorLayer: Layer.Layer<Orchestrator.OrchestratorV2> =
       options.orchestrator === undefined
-        ? Layer.empty
+        ? (Layer.empty as Layer.Layer<Orchestrator.OrchestratorV2>)
         : ProviderReplayHarness.layerWithRegistry(
             { name: "import-race" },
             ProviderAdapterRegistry.layerFromAdapters([orchestratorAdapter]),
@@ -545,7 +546,7 @@ const withService = <A, E, R>(
                 ? {}
                 : { wrapProjectionStore: options.orchestrator.wrapProjectionStore }),
             },
-          );
+          ).pipe(Layer.orDie);
     const layer = T3CodeImport.layerWithSourceHome(home).pipe(
       Layer.provideMerge(orchestratorLayer),
       Layer.provideMerge(mocks),
@@ -1979,12 +1980,13 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
                 get: (target, property) => {
                   const value = Reflect.get(target, property) as unknown;
                   if (typeof value !== "function") return value;
+                  const read = value as (...args: Array<unknown>) => Effect.Effect<unknown>;
                   return (...args: Array<unknown>) => {
-                    if (!gate.armed) return value(...args);
+                    if (!gate.armed) return read(...args);
                     gate.armed = false;
                     return Deferred.succeed(gate.entered, undefined).pipe(
                       Effect.andThen(Deferred.await(gate.release)),
-                      Effect.andThen(value(...args)),
+                      Effect.andThen(read(...args)),
                     );
                   };
                 },
