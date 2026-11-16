@@ -25,7 +25,13 @@ export const T3CodeImportFileKind = Schema.Literals([
 ]);
 export type T3CodeImportFileKind = typeof T3CodeImportFileKind.Type;
 
-export const T3CodeImportThreadState = Schema.Literals(["importable", "imported", "busy"]);
+/** `updated`: imported before, and the official app has carried on with it since. */
+export const T3CodeImportThreadState = Schema.Literals([
+  "importable",
+  "imported",
+  "updated",
+  "busy",
+]);
 
 export const T3CodeImportThread = Schema.Struct({
   threadId: ThreadId,
@@ -35,6 +41,8 @@ export const T3CodeImportThread = Schema.Struct({
   /** Subagent threads that travel with this one. */
   subagentCount: NonNegativeInt,
   state: T3CodeImportThreadState,
+  /** Runs started in T3 Extend since the import; importing the thread again would discard them. */
+  localChanges: NonNegativeInt,
   worktree: Schema.NullOr(
     Schema.Struct({ path: Schema.String, status: Schema.Literals(["present", "missing"]) }),
   ),
@@ -109,6 +117,7 @@ export const T3CodeImportNoticeCode = Schema.Literals([
   "paths-rewritten",
   "attachments-copied",
   "task-imported-active",
+  "thread-refreshed",
   // skipped
   "identity-skipped",
   "signing-secrets-skipped",
@@ -118,6 +127,7 @@ export const T3CodeImportNoticeCode = Schema.Literals([
   "browser-storage-skipped",
   "thread-busy",
   "thread-parent-busy",
+  "thread-target-busy",
   "task-project-missing",
   "task-thread-missing",
   "task-unreadable",
@@ -140,6 +150,7 @@ export const T3CodeImportNoticeCode = Schema.Literals([
   "subagents-omitted",
   "checkpoint-refs-unavailable",
   "checkpoint-refs-conflict",
+  "thread-local-discarded",
   "provider-credential-imported",
   "sidebar-settings",
 ]);

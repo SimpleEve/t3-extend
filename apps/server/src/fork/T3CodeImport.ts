@@ -279,6 +279,19 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       .unsafe<{ readonly name: string }>(`SELECT name FROM pragma_table_info(?)`, [table])
       .pipe(Effect.map((rows) => rows.map((row) => row.name)));
 
+  /** Threads with a run in flight, a pending request, or background work, whichever database `client` is. */
+  const directBusyThreadIds = (client: SqlClient.SqlClient) =>
+    client
+      .unsafe<{ readonly thread_id: string }>(
+        `SELECT thread_id FROM orchestration_v2_projection_runs WHERE status IN (${ACTIVE_RUN_STATUSES})
+         UNION SELECT thread_id FROM orchestration_v2_projection_runtime_requests WHERE status = 'pending'
+         UNION SELECT thread_id FROM ${PROVIDER_THREADS_TABLE}
+           WHERE status = 'active'
+             OR CASE WHEN json_valid(payload_json)
+               THEN json_array_length(payload_json, '$.pendingBackgroundTasks') > 0 ELSE 0 END`,
+      )
+      .pipe(Effect.map((rows) => rows.map((row) => row.thread_id)));
+
   /** Threads the official app is working on or has queued work for. */
   const busyThreadIds = Effect.fn("T3CodeImport.busyThreadIds")(function* (
     sourcePath: string,
@@ -301,15 +314,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
        UNION SELECT thread_id FROM orchestration_v2_projection_provider_session_bindings`,
     );
     const loadedIds = new Set(loaded.map((row) => row.thread_id));
-    const direct = yield* src.unsafe<{ readonly thread_id: string }>(
-      `SELECT thread_id FROM orchestration_v2_projection_runs WHERE status IN (${ACTIVE_RUN_STATUSES})
-       UNION SELECT thread_id FROM orchestration_v2_projection_runtime_requests WHERE status = 'pending'
-       UNION SELECT thread_id FROM ${PROVIDER_THREADS_TABLE}
-         WHERE status = 'active'
-           OR CASE WHEN json_valid(payload_json)
-             THEN json_array_length(payload_json, '$.pendingBackgroundTasks') > 0 ELSE 0 END`,
-    );
-    const busy = new Set<string>(direct.map((row) => row.thread_id));
+    const busy = new Set<string>(yield* directBusyThreadIds(src));
     for (const [kind, ids] of recovery) {
       for (const threadId of ids)
         if (kind !== "runtime" || !loadedIds.has(threadId)) busy.add(threadId);
@@ -347,13 +352,84 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     );
   });
 
+  interface MappedRow {
+    readonly source_id: string;
+    readonly target_id: string;
+    readonly state: string;
+    readonly imported_at: string;
+    /** Newest stream version of the official thread when it was copied; null for imports from before it was recorded. */
+    readonly source_version: number | null;
+  }
+
   const mappedTargets = (kind: string) =>
     sql
-      .unsafe<{ readonly source_id: string; readonly target_id: string; readonly state: string }>(
-        `SELECT source_id, target_id, state FROM fork_t3code_import_map WHERE kind = ?`,
+      .unsafe<MappedRow>(
+        `SELECT source_id, target_id, state, imported_at, source_version FROM fork_t3code_import_map WHERE kind = ?`,
         [kind],
       )
       .pipe(Effect.map((rows) => new Map(rows.map((row) => [row.source_id, row] as const))));
+
+  /**
+   * Whether T3 Code carried on with an imported thread since the copy, and how many runs T3 Extend added
+   * to its copy meanwhile. Both read the event streams' versions, which a copy keeps: what the copy
+   * holds ends at `source_version`, so a newer official stream is an update and newer events here are local.
+   * Pruning always keeps a stream's newest event, so its version never goes backwards.
+   */
+  const freshnessOf = Effect.fn("T3CodeImport.freshnessOf")(function* (
+    src: SqlClient.SqlClient,
+    thread: SourceThread,
+    row: MappedRow,
+  ) {
+    const newest =
+      (yield* src.unsafe<{ readonly version: number | null }>(
+        `SELECT MAX(stream_version) AS version FROM orchestration_events
+         WHERE aggregate_kind = 'thread' AND stream_id = ?`,
+        [thread.id],
+      ))[0]?.version ?? -1;
+    // An older import never recorded it; its copied events are the ones dated before the import.
+    const copied =
+      row.source_version ??
+      (yield* sql.unsafe<{ readonly version: number }>(
+        `SELECT stream_version AS version FROM orchestration_events
+         WHERE aggregate_kind = 'thread' AND stream_id = ? AND occurred_at <= ?
+         ORDER BY stream_version DESC LIMIT 1`,
+        [row.target_id, row.imported_at],
+      ))[0]?.version ??
+      -1;
+    if (newest <= copied) return { updated: false, localRuns: 0 };
+    const local = (yield* sql.unsafe<{ readonly count: number }>(
+      `SELECT COUNT(*) AS count FROM orchestration_events
+       WHERE aggregate_kind = 'thread' AND stream_id = ? AND stream_version > ? AND event_type = 'run.created'`,
+      [row.target_id, copied],
+    ))[0]?.count;
+    return { updated: true, localRuns: Number(local ?? 0) };
+  });
+
+  /** Where an imported thread stands, counting the subagents that travel with it. */
+  const importProgress = Effect.fn("T3CodeImport.importProgress")(function* (
+    src: SqlClient.SqlClient,
+    members: ReadonlyArray<SourceThread>,
+    done: ReadonlyMap<string, MappedRow>,
+  ) {
+    const copied = members.flatMap((member) => {
+      const row = done.get(member.id);
+      return row?.state === "done" ? [{ member, row }] : [];
+    });
+    if (copied.length === 0) return { state: "importable" as const, localChanges: 0 };
+    let updated = false;
+    let localChanges = 0;
+    for (const { member, row } of copied) {
+      const fresh = yield* freshnessOf(src, member, row);
+      updated ||= fresh.updated;
+      localChanges += fresh.updated ? fresh.localRuns : 0;
+    }
+    if (updated) return { state: "updated" as const, localChanges };
+    // A thread whose subagents did not all arrive (an interrupted run) can be picked again to finish.
+    return {
+      state: copied.length === members.length ? ("imported" as const) : ("importable" as const),
+      localChanges: 0,
+    };
+  });
 
   const hasNoDescendantsBusy = (
     threads: ReadonlyMap<string, SourceThread>,
@@ -398,6 +474,14 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     const busy = hasNoDescendantsBusy(threads, yield* busyThreadIds(sourcePath, src));
     const done = yield* mappedTargets("thread");
     const children = childrenOf(threads);
+    const progress = new Map<string, Effect.Success<ReturnType<typeof importProgress>>>();
+    for (const thread of threads.values()) {
+      if (!isTopLevel(thread) || busy.has(thread.id)) continue;
+      progress.set(
+        thread.id,
+        yield* importProgress(src, [thread, ...subagentDescendants(children, thread.id)], done),
+      );
+    }
     const projectRows = yield* src.unsafe<Row>(
       `SELECT project_id, title, workspace_root FROM projection_projects
        WHERE deleted_at IS NULL ORDER BY updated_at DESC`,
@@ -434,14 +518,8 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
             updatedAt: thread.updatedAt,
             archived: thread.archived,
             subagentCount: subagentDescendants(children, thread.id).length,
-            // A thread whose subagents did not all arrive (an interrupted run) can be picked again to finish.
-            state: busy.has(thread.id)
-              ? ("busy" as const)
-              : [thread, ...subagentDescendants(children, thread.id)].every(
-                    (member) => done.get(member.id)?.state === "done",
-                  )
-                ? ("imported" as const)
-                : ("importable" as const),
+            state: progress.get(thread.id)?.state ?? ("busy" as const),
+            localChanges: progress.get(thread.id)?.localChanges ?? 0,
             worktree:
               thread.worktree === null
                 ? null
@@ -680,6 +758,8 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
 
     // Which threads travel: the picked ones, the parents they depend on, and their subagents.
     const wanted = new Map<string, SourceThread>();
+    // What the user asked for by name or through its subagents; a parent pulled in only to hang a fork on stays as it is.
+    const explicit = new Set<string>();
     let pulledIn = 0;
     let busySkipped = 0;
     for (const id of selection.threadIds) {
@@ -701,6 +781,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         skipped.push({ code: "thread-parent-busy", subject: picked.title });
         continue;
       }
+      explicit.add(picked.id);
       for (const thread of chain) {
         if (
           !wanted.has(thread.id) &&
@@ -716,8 +797,10 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     const omitted = new Set<string>();
     for (const thread of wanted.values()) {
       for (const sub of subagentDescendants(children, thread.id)) {
-        if (selection.includeSubagents) wanted.set(sub.id, sub);
-        else {
+        if (selection.includeSubagents) {
+          wanted.set(sub.id, sub);
+          if (explicit.has(thread.id)) explicit.add(sub.id);
+        } else {
           omittedSubagents += 1;
           omitted.add(sub.id);
         }
@@ -729,11 +812,37 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     }
     void busySkipped;
 
+    // An imported thread that T3 Code carried on with is copied again over the one here, under the same id.
+    const refreshCandidates = [...explicit].flatMap((id) => {
+      const thread = wanted.get(id);
+      const row = doneThreads.get(id);
+      return thread !== undefined && row?.state === "done" ? [{ thread, row }] : [];
+    });
+    const refreshing = new Set<string>();
+    if (refreshCandidates.length > 0) {
+      const busyHere = new Set(yield* directBusyThreadIds(sql));
+      for (const { thread, row } of refreshCandidates) {
+        const fresh = yield* freshnessOf(src, thread, row);
+        if (!fresh.updated) continue;
+        if (busyHere.has(row.target_id)) {
+          skipped.push({ code: "thread-target-busy", subject: thread.title });
+          continue;
+        }
+        refreshing.add(thread.id);
+        if (fresh.localRuns > 0) {
+          attention.push({
+            code: "thread-local-discarded",
+            subject: thread.title,
+            count: fresh.localRuns,
+          });
+        }
+      }
+    }
     const alreadyImported = [...wanted.keys()].filter(
-      (id) => doneThreads.get(id)?.state === "done",
+      (id) => doneThreads.get(id)?.state === "done" && !refreshing.has(id),
     ).length;
     const toCopy = [...wanted.values()]
-      .filter((thread) => doneThreads.get(thread.id)?.state !== "done")
+      .filter((thread) => doneThreads.get(thread.id)?.state !== "done" || refreshing.has(thread.id))
       .toSorted((a, b) => {
         const depth = (thread: SourceThread) => {
           let count = 0;
@@ -793,8 +902,16 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     for (const id of omitted) {
       if (!threadTargets.has(id)) omittedTargets.set(id, yield* targetId("thread", id));
     }
-    if (toCopy.length > 0)
-      fixed.push({ code: "thread-ids-renewed", subject: "", count: toCopy.length });
+    if (toCopy.length > refreshing.size) {
+      fixed.push({
+        code: "thread-ids-renewed",
+        subject: "",
+        count: toCopy.length - refreshing.size,
+      });
+    }
+    if (refreshing.size > 0) {
+      fixed.push({ code: "thread-refreshed", subject: "", count: refreshing.size });
+    }
     const limitCleared = toCopy.filter((thread) => thread.hasLimitRecovery).length;
     if (limitCleared > 0)
       fixed.push({ code: "limit-recovery-cleared", subject: "", count: limitCleared });
@@ -1342,10 +1459,17 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       [thread.id],
     );
     if (previous[0] !== undefined) yield* purgeThread(allTables, targetThread);
+    // `src` holds one consistent view, so this is exactly where the copy below ends.
+    const copiedThrough =
+      (yield* src.unsafe<{ readonly version: number | null }>(
+        `SELECT MAX(stream_version) AS version FROM orchestration_events
+         WHERE aggregate_kind = 'thread' AND stream_id = ?`,
+        [thread.id],
+      ))[0]?.version ?? -1;
     yield* sql.unsafe(
-      `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at)
-       VALUES ('thread', ?, ?, 'copying', ?, ?)`,
-      [thread.id, targetThread, thread.worktree, yield* nowIso],
+      `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at, source_version)
+       VALUES ('thread', ?, ?, 'copying', ?, ?, ?)`,
+      [thread.id, targetThread, thread.worktree, yield* nowIso, copiedThrough],
     );
     const refs = yield* copyCheckpointRefs({
       src,
@@ -1414,13 +1538,14 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
           [thread.id],
         );
         // Rows from before this import were already projected; only move a cursor that was current.
+        // A thread copied again had its old events inside the cursor, so a cursor past the rest is current too.
         if (cursor !== undefined && newest !== null && newest !== undefined) {
           const before = (yield* sql.unsafe<{ readonly sequence: number | null }>(
             `SELECT MAX(sequence) AS sequence FROM orchestration_events
              WHERE application_event_version = 2 AND aggregate_kind = 'thread' AND stream_id <> ?`,
             [targetThread],
           ))[0]?.sequence;
-          if (cursor.last_sequence === (before ?? 0)) {
+          if (cursor.last_sequence >= (before ?? 0)) {
             yield* sql.unsafe(
               `UPDATE orchestration_v2_projection_metadata SET last_sequence = ? WHERE projection_name = 'thread-projections'`,
               [newest],

@@ -178,6 +178,13 @@ export const ensureImportTables = Effect.fn("SharedWorktrees.ensureImportTables"
     imported_at TEXT NOT NULL,
     PRIMARY KEY (kind, source_id)
   )`;
+  // The official thread's newest stream version at copy time. Added in place: the fork has no numbered migrations.
+  const mapColumns = yield* sql<{
+    readonly name: string;
+  }>`SELECT name FROM pragma_table_info('fork_t3code_import_map')`;
+  if (!mapColumns.some((column) => column.name === "source_version")) {
+    yield* sql`ALTER TABLE fork_t3code_import_map ADD COLUMN source_version INTEGER`;
+  }
   yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_runs (
     run_id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at TEXT NOT NULL,

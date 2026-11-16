@@ -373,6 +373,8 @@ const withService = <A, E, R>(
     readonly withoutSharedWorktreePolicy?: boolean;
     /** Receives how many worktree markers the database held each time the import marks in memory. */
     readonly markCalls?: Array<number>;
+    /** Swaps the event store for one that records what the import tells live clients, by thread id. */
+    readonly announced?: Array<string>;
   },
   use: (input: {
     readonly service: T3CodeImport.T3CodeImport["Service"];
@@ -409,8 +411,20 @@ const withService = <A, E, R>(
       }),
     );
     const captured: Captured = { tasks: [], keybindings: [], secrets: new Map() };
+    const announced = options.announced;
     const mocks = Layer.mergeAll(
-      OrchestrationEventStore.layer,
+      announced === undefined
+        ? OrchestrationEventStore.layer
+        : Layer.mock(OrchestrationEventStore.OrchestrationEventStore)({
+            // The fixtures' creation events are not full threads, so the real store cannot decode them.
+            readAgentEvents: (input) => Stream.make({ threadId: input.threadId } as never),
+            readApplicationEvents: () => Stream.empty,
+            publishCommitted: (events) =>
+              Effect.sync(() => {
+                for (const event of events)
+                  announced.push((event as never as { threadId: string }).threadId);
+              }),
+          }),
       ServerSettings.ServerSettingsService.layerTest({}, options.managedPolicy),
       Layer.mock(ScheduledTaskService.ScheduledTaskService)({
         upsert: (input) =>
@@ -1341,6 +1355,274 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
           summary_json: string;
         }>`SELECT summary_json FROM fork_t3code_import_runs ORDER BY run_id DESC LIMIT 1`;
         assert.notInclude(run!.summary_json, schedule.signature.secret);
+      }),
+    ),
+  );
+
+  /** The official app carries on with a thread: one more event, one more message, a newer update time. */
+  const continueInOfficial = (sourcePath: string, threadId: string, text = "followup") =>
+    withDatabase(
+      sourcePath,
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const [top] = yield* sql<{
+          v: number;
+        }>`SELECT MAX(stream_version) AS v FROM orchestration_events
+          WHERE aggregate_kind = 'thread' AND stream_id = ${threadId}`;
+        const next = (top?.v ?? -1) + 1;
+        yield* sql`INSERT INTO orchestration_events
+          (event_id, aggregate_kind, stream_id, stream_version, event_type, occurred_at, actor_kind, payload_json, metadata_json, application_event_version)
+          VALUES (${`official-${threadId}-${next}`}, 'thread', ${threadId}, ${next}, 'run.created', '2026-10-01', 'user', '{}', '{}', 2)`;
+        yield* sql`INSERT INTO orchestration_v2_projection_messages
+          (message_id, thread_id, run_id, role, streaming, created_at, updated_at, payload_json)
+          VALUES (${`message:${threadId}:${next}`}, ${threadId}, ${`run:thread:${threadId}:ordinal:1`}, 'user', 0, '2026-10-01', '2026-10-01', ${JSON.stringify({ text })})`;
+        yield* sql`UPDATE orchestration_v2_projection_threads SET updated_at = '2026-10-01' WHERE thread_id = ${threadId}`;
+      }),
+    );
+
+  const targetOf = (sql: SqlClient.SqlClient, sourceId: string) =>
+    sql<{ target_id: string }>`SELECT target_id FROM fork_t3code_import_map
+      WHERE kind = 'thread' AND source_id = ${sourceId}`.pipe(
+      Effect.map((rows) => rows[0]!.target_id),
+    );
+
+  /** You carry on with an imported thread inside T3 Extend: one more run and message after the import. */
+  const continueInExtend = Effect.fn("continueInExtend")(function* (
+    sql: SqlClient.SqlClient,
+    sourceId: string,
+  ) {
+    const target = yield* targetOf(sql, sourceId);
+    const [top] = yield* sql<{
+      v: number;
+    }>`SELECT MAX(stream_version) AS v FROM orchestration_events
+      WHERE aggregate_kind = 'thread' AND stream_id = ${target}`;
+    const next = (top?.v ?? -1) + 1;
+    yield* sql`INSERT INTO orchestration_events
+      (event_id, aggregate_kind, stream_id, stream_version, event_type, occurred_at, actor_kind, payload_json, metadata_json, application_event_version)
+      VALUES (${`extend-${target}-${next}`}, 'thread', ${target}, ${next}, 'run.created', '2999-01-01', 'user', '{}', '{}', 2)`;
+    yield* sql`INSERT INTO orchestration_v2_projection_messages
+      (message_id, thread_id, run_id, role, streaming, created_at, updated_at, payload_json)
+      VALUES (${`extend-message:${target}`}, ${target}, ${`run:thread:${target}:ordinal:1`}, 'user', 0, '2999-01-01', '2999-01-01', '{"text":"typed in Extend"}')`;
+    return target;
+  });
+
+  const stateOfThread = (service: T3CodeImport.T3CodeImport["Service"], threadId: string) =>
+    Effect.gen(function* () {
+      const catalog = yield* service.preview;
+      assert.equal(catalog.status, "available");
+      if (catalog.status !== "available") return undefined;
+      return catalog.projects
+        .flatMap((project) => project.threads)
+        .find((thread) => thread.threadId === threadId);
+    });
+
+  const onlyThread = (threadId: string) =>
+    selectionOf({ threadIds: [ThreadId.make(threadId)], scheduledTasks: [], files: [] });
+
+  it.effect("offers an imported thread again once T3 Code has carried on with it", () =>
+    withService({}, ({ service, sourcePath }) =>
+      Effect.gen(function* () {
+        yield* runToEnd(service, onlyThread(T_STOPPED));
+        const before = yield* stateOfThread(service, T_STOPPED);
+        assert.equal(before?.state, "imported");
+        yield* continueInOfficial(sourcePath, T_STOPPED);
+        const after = yield* stateOfThread(service, T_STOPPED);
+        assert.equal(after?.state, "updated");
+        assert.equal(after?.localChanges, 0);
+        // Other imported threads that did not change stay put.
+        yield* runToEnd(service, onlyThread(T_SOLO));
+        assert.equal((yield* stateOfThread(service, T_SOLO))?.state, "imported");
+      }),
+    ),
+  );
+
+  it.effect("a subagent that moved on makes its parent's entry updated", () =>
+    withService({}, ({ service, sourcePath }) =>
+      Effect.gen(function* () {
+        yield* runToEnd(service, onlyThread(T_PARENT));
+        assert.equal((yield* stateOfThread(service, T_PARENT))?.state, "imported");
+        yield* continueInOfficial(sourcePath, T_SUB);
+        assert.equal((yield* stateOfThread(service, T_PARENT))?.state, "updated");
+      }),
+    ),
+  );
+
+  it.effect(
+    "importing an updated thread again replaces the copy under the same id and tells live clients",
+    () => {
+      const announced: Array<string> = [];
+      return withService({ announced }, ({ service, sql, sourcePath }) =>
+        Effect.gen(function* () {
+          yield* runToEnd(service, onlyThread(T_STOPPED));
+          const target = yield* targetOf(sql, T_STOPPED);
+          announced.length = 0;
+          yield* continueInOfficial(sourcePath, T_STOPPED, "brand new words");
+          const sourceBefore = yield* hashFile(sourcePath);
+
+          const again = yield* runToEnd(service, onlyThread(T_STOPPED));
+
+          assert.equal(again.importedThreads, 1);
+          assert.equal(again.existingThreads, 0);
+          assert.include(codes(again.report.fixed), "thread-refreshed");
+          assert.notInclude(codes(again.report.fixed), "thread-ids-renewed");
+          assert.equal(yield* targetOf(sql, T_STOPPED), target);
+          const threads = yield* sql<{
+            thread_id: string;
+          }>`SELECT thread_id FROM orchestration_v2_projection_threads`;
+          assert.deepStrictEqual(
+            threads.map((row) => row.thread_id),
+            [target],
+          );
+          const messages = yield* sql<{
+            payload_json: string;
+          }>`SELECT payload_json FROM orchestration_v2_projection_messages
+            WHERE thread_id = ${target} ORDER BY created_at`;
+          assert.equal(messages.length, 2);
+          assert.include(messages[1]!.payload_json, "brand new words");
+          const [events] = yield* sql<{
+            count: number;
+          }>`SELECT COUNT(*) AS count FROM orchestration_events
+            WHERE aggregate_kind = 'thread' AND stream_id = ${target}`;
+          assert.equal(events?.count, 4);
+          assert.deepStrictEqual(yield* sourceIdsLeft(sql, [T_STOPPED]), []);
+          assert.equal((yield* stateOfThread(service, T_STOPPED))?.state, "imported");
+          assert.equal(yield* hashFile(sourcePath), sourceBefore);
+          assert.deepStrictEqual(announced, [target]);
+        }),
+      );
+    },
+  );
+
+  it.effect(
+    "an updated thread that nobody touched in T3 Extend is not flagged for discarding",
+    () =>
+      withService({}, ({ service, sourcePath }) =>
+        Effect.gen(function* () {
+          yield* runToEnd(service, onlyThread(T_STOPPED));
+          yield* continueInOfficial(sourcePath, T_STOPPED);
+          const report = yield* service.check(onlyThread(T_STOPPED));
+          assert.include(codes(report.fixed), "thread-refreshed");
+          assert.notInclude(codes(report.attention), "thread-local-discarded");
+        }),
+      ),
+  );
+
+  it.effect("warns before replacing what you wrote in T3 Extend, and only then does it", () =>
+    withService({}, ({ service, sql, sourcePath }) =>
+      Effect.gen(function* () {
+        yield* runToEnd(service, onlyThread(T_STOPPED));
+        const target = yield* continueInExtend(sql, T_STOPPED);
+        // Only T3 Extend moved on: nothing to import, nothing to lose.
+        assert.equal((yield* stateOfThread(service, T_STOPPED))?.state, "imported");
+        yield* continueInOfficial(sourcePath, T_STOPPED);
+        const entry = yield* stateOfThread(service, T_STOPPED);
+        assert.equal(entry?.state, "updated");
+        assert.equal(entry?.localChanges, 1);
+
+        const report = yield* service.check(onlyThread(T_STOPPED));
+        assert.deepStrictEqual(
+          report.attention.filter((notice) => notice.code === "thread-local-discarded"),
+          [{ code: "thread-local-discarded", subject: entry!.title, count: 1 }],
+        );
+        // Checking writes nothing.
+        const [untouched] = yield* sql<{
+          count: number;
+        }>`SELECT COUNT(*) AS count FROM orchestration_events
+          WHERE stream_id = ${target} AND event_type = 'run.created'`;
+        assert.equal(untouched?.count, 1);
+
+        const again = yield* runToEnd(service, onlyThread(T_STOPPED));
+        assert.equal(again.importedThreads, 1);
+        const [gone] = yield* sql<{ count: number }>`SELECT
+          (SELECT COUNT(*) FROM orchestration_v2_projection_messages WHERE message_id LIKE 'extend-message:%') +
+          (SELECT COUNT(*) FROM orchestration_events WHERE event_id LIKE 'extend-%') AS count`;
+        assert.equal(gone?.count, 0);
+        assert.deepStrictEqual(
+          codes(again.report.attention).filter((code) => code === "thread-local-discarded"),
+          ["thread-local-discarded"],
+        );
+      }),
+    ),
+  );
+
+  it.effect("never replaces a thread that is running or queued in T3 Extend", () =>
+    withService({}, ({ service, sql, sourcePath }) =>
+      Effect.gen(function* () {
+        yield* runToEnd(service, onlyThread(T_STOPPED));
+        const target = yield* targetOf(sql, T_STOPPED);
+        yield* sql`UPDATE orchestration_v2_projection_runs SET status = 'queued' WHERE thread_id = ${target}`;
+        yield* continueInOfficial(sourcePath, T_STOPPED);
+
+        const report = yield* service.check(onlyThread(T_STOPPED));
+        assert.include(codes(report.skipped), "thread-target-busy");
+        assert.notInclude(codes(report.fixed), "thread-refreshed");
+        const again = yield* runToEnd(service, onlyThread(T_STOPPED));
+        assert.equal(again.importedThreads, 0);
+        assert.include(codes(again.report.skipped), "thread-target-busy");
+        const [events] = yield* sql<{
+          count: number;
+        }>`SELECT COUNT(*) AS count FROM orchestration_events
+          WHERE aggregate_kind = 'thread' AND stream_id = ${target}`;
+        assert.equal(events?.count, 3);
+      }),
+    ),
+  );
+
+  it.effect("keeps skipping a thread that is busy in T3 Code even when it has updates", () =>
+    withService({}, ({ service, sql }) =>
+      Effect.gen(function* () {
+        const report = yield* service.check(onlyThread(T_RUNNING));
+        assert.include(codes(report.skipped), "thread-busy");
+        const [rows] = yield* sql<{
+          count: number;
+        }>`SELECT COUNT(*) AS count FROM fork_t3code_import_map`;
+        assert.equal(rows?.count, 0);
+      }),
+    ),
+  );
+
+  it.effect("still never moves a checkpoint ref when an updated thread is imported again", () =>
+    withService({}, ({ service, sql, sourcePath, repo }) =>
+      Effect.gen(function* () {
+        yield* runToEnd(service, onlyThread(T_STOPPED));
+        const [checkpoint] = yield* sql<{ payload_json: string }>`
+          SELECT payload_json FROM orchestration_v2_projection_checkpoints`;
+        const copiedRef = (JSON.parse(checkpoint!.payload_json) as { ref: string }).ref;
+        git(repo, ["commit", "-q", "--allow-empty", "-m", "moved on"]);
+        git(repo, ["update-ref", copiedRef, "HEAD"]);
+        const moved = git(repo, ["rev-parse", copiedRef]);
+        yield* continueInOfficial(sourcePath, T_STOPPED);
+
+        const report = yield* service.check(onlyThread(T_STOPPED));
+        assert.deepStrictEqual(
+          report.attention.filter((notice) => notice.code === "checkpoint-refs-conflict"),
+          [{ code: "checkpoint-refs-conflict", subject: "", count: 1 }],
+        );
+        const again = yield* runToEnd(service, onlyThread(T_STOPPED));
+        assert.include(codes(again.report.attention), "checkpoint-refs-conflict");
+        assert.equal(git(repo, ["rev-parse", copiedRef]), moved);
+        const [marked] = yield* sql<{
+          status: string;
+        }>`SELECT status FROM orchestration_v2_projection_checkpoints`;
+        assert.equal(marked?.status, "missing");
+      }),
+    ),
+  );
+
+  it.effect("reads an import from before this feature by its time, not a recorded version", () =>
+    withService({}, ({ service, sql, sourcePath }) =>
+      Effect.gen(function* () {
+        yield* TestClock.setTime(Date.parse("2026-09-01T00:00:00Z"));
+        yield* runToEnd(service, onlyThread(T_STOPPED));
+        yield* sql`UPDATE fork_t3code_import_map SET source_version = NULL`;
+        assert.equal((yield* stateOfThread(service, T_STOPPED))?.state, "imported");
+        yield* continueInExtend(sql, T_STOPPED);
+        assert.equal((yield* stateOfThread(service, T_STOPPED))?.state, "imported");
+        yield* TestClock.setTime(Date.parse("2026-10-02T00:00:00Z"));
+        yield* continueInOfficial(sourcePath, T_STOPPED);
+        const entry = yield* stateOfThread(service, T_STOPPED);
+        assert.equal(entry?.state, "updated");
+        assert.equal(entry?.localChanges, 1);
       }),
     ),
   );
