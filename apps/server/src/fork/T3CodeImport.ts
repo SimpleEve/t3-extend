@@ -19,6 +19,7 @@ import {
   type T3CodeImportReport,
   type T3CodeImportResult,
   type T3CodeImportSelection,
+  type ProviderSessionId,
   type T3CodeImportState,
   type ThreadId,
   ThreadId as ThreadIdSchema,
@@ -32,6 +33,7 @@ import * as Digest from "effect/crypto/Digest";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -45,6 +47,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as ServerConfig from "../config.ts";
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
+import * as ProviderSessionManager from "../orchestration-v2/ProviderSessionManager.ts";
 import * as ThreadCommandExecutor from "../orchestration-v2/ThreadCommandExecutor.ts";
 import { checkpointRefForScopeOrdinal } from "../orchestration-v2/CheckpointService.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
@@ -226,6 +229,8 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   const sharedWorktrees = yield* requireLivePolicy();
   // The lock every command and provider event for a thread runs under; a replacement takes it too.
   const threadCommands = yield* ThreadCommandExecutor.ThreadCommandExecutor;
+  // Provider events and effects do not take that lock, so a replacement also looks at the live sessions.
+  const providerSessions = yield* ProviderSessionManager.ProviderSessionManagerV2;
   const scope = yield* Effect.scope;
   const importLock = yield* Semaphore.make(1);
   const stateRef = yield* SubscriptionRef.make<T3CodeImportState>({ status: "idle" });
@@ -333,6 +338,57 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       [threadId],
     );
     return effects.length > 0;
+  });
+
+  /** The provider sessions this copy opened or is bound to, as far as the database knows. */
+  const sessionIdsOf = Effect.fn("T3CodeImport.sessionIdsOf")(function* (threadId: string) {
+    const rows = yield* sql.unsafe<{ readonly id: string }>(
+      `SELECT provider_session_id AS id FROM ${SESSIONS_TABLE} WHERE thread_id = ?1
+       UNION SELECT provider_session_id FROM ${BINDINGS_TABLE} WHERE thread_id = ?1
+       UNION SELECT provider_session_id FROM orchestration_v2_projection_provider_threads
+         WHERE thread_id = ?1 AND provider_session_id IS NOT NULL`,
+      [threadId],
+    );
+    return rows.map((row) => row.id as ProviderSessionId);
+  });
+
+  /**
+   * Whether a live session in memory still serves only this copy. The database cannot say: rows stay behind
+   * as `ready` long after a restart. One that another thread is bound to is a shared host process, which
+   * stays up after this thread left it.
+   */
+  const sessionHeld = Effect.fn("T3CodeImport.sessionHeld")(function* (threadId: string) {
+    for (const id of yield* sessionIdsOf(threadId)) {
+      if (!(yield* providerSessions.isLive(id))) continue;
+      const others = yield* sql.unsafe<{ readonly thread_id: string }>(
+        `SELECT thread_id FROM ${BINDINGS_TABLE} WHERE provider_session_id = ? AND thread_id <> ? LIMIT 1`,
+        [id, threadId],
+      );
+      if (others.length === 0) return true;
+    }
+    return false;
+  });
+
+  /**
+   * Closes this copy's idle sessions through the manager's own detach, which only drops this thread from a
+   * shared process. Returns false when one would not close.
+   */
+  const closeSessions = Effect.fn("T3CodeImport.closeSessions")(function* (threadId: string) {
+    for (const id of yield* sessionIdsOf(threadId)) {
+      if (!(yield* providerSessions.isLive(id))) continue;
+      const closed = yield* Effect.exit(
+        providerSessions.detach({ providerSessionId: id, threadId: threadId as ThreadId }),
+      );
+      if (Exit.isFailure(closed)) {
+        yield* Effect.logWarning("Could not close a provider session before replacing a thread", {
+          threadId,
+          providerSessionId: id,
+          cause: closed.cause,
+        });
+        return false;
+      }
+    }
+    return true;
   });
 
   /** Threads the official app is working on or has queued work for. */
@@ -490,6 +546,21 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   };
 
   /** What was changed on the copy here since the import, besides runs. An older import has no baseline to compare. */
+  /**
+   * Whether the copy's title differs from the one imported. The title generator writes titles too and leaves
+   * nothing that tells its work from a rename, so this is mentioned but never counted as a loss.
+   */
+  const titleChangedOf = Effect.fn("T3CodeImport.titleChangedOf")(function* (row: MappedRow) {
+    if (row.source_meta === null) return false;
+    const now = (yield* sql.unsafe<Row>(`SELECT title FROM ${THREADS_TABLE} WHERE thread_id = ?`, [
+      row.target_id,
+    ]))[0];
+    return (
+      now !== undefined &&
+      encodeJson((decodeJson(row.source_meta) as Record<string, unknown>).title) !==
+        encodeJson(now.title ?? null)
+    );
+  });
   const localEditsOf = Effect.fn("T3CodeImport.localEditsOf")(function* (row: MappedRow) {
     if (row.source_meta === null) return [] as ReadonlyArray<T3CodeImportLocalEdit>;
     const now = (yield* sql.unsafe<Row>(
@@ -501,7 +572,6 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     const is = decodeJson(metaOf(now)) as Record<string, unknown>;
     const differs = (key: string) => encodeJson(was[key]) !== encodeJson(is[key]);
     const edits: Array<T3CodeImportLocalEdit> = [];
-    if (differs("title")) edits.push("title");
     if (differs("pinnedAt")) edits.push("pinned");
     if (differs("archivedAt")) edits.push("archived");
     if (differs("snoozedUntil")) edits.push("snoozed");
@@ -974,6 +1044,9 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
           count: runs,
         });
       }
+      if (yield* titleChangedOf(row)) {
+        attention.push({ code: "thread-title-replaced", subject: thread.title });
+      }
       // The events and the three tables that hold nearly all of a long thread's rows.
       const size = (yield* src.unsafe<{ readonly count: number }>(
         `SELECT (SELECT COUNT(*) FROM orchestration_events WHERE aggregate_kind = 'thread' AND stream_id = ?1)
@@ -985,6 +1058,9 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       if (Number(size ?? 0) >= LARGE_REPLACE_ROWS) {
         attention.push({ code: "thread-large-replace", subject: thread.title });
       }
+    }
+    if (refreshing.size > 0) {
+      attention.push({ code: "thread-replace-idle", subject: "", count: refreshing.size });
     }
     const alreadyImported = [...wanted.keys()].filter(
       (id) => doneThreads.get(id)?.state === "done" && !refreshing.has(id),
@@ -1807,29 +1883,34 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       return "copied" as const;
     });
 
-    // Replacing a copy that is in use runs under the thread's command lock, the one every dispatch,
-    // provider event and effect for it takes, so no command that read the old copy can commit after the
-    // replacement. Inside it, one transaction takes the write lock before it looks, so nothing starts between
-    // the check and the purge either, and a failure leaves the old copy as it was.
+    // Under the thread's command lock, which provider events and effects do not take: so the copy must also
+    // have no live session, work or effect, checked again in the write transaction. A failure keeps the old copy.
     const outcome =
-      previous?.state === "done"
+      previous?.state === "done" || previous?.state === "copying"
         ? yield* Effect.gen(function* () {
             const waitedFrom = DateTime.toEpochMillis(yield* DateTime.now);
             return yield* threadCommands.withLock(
               targetThread as ThreadId,
               Effect.gen(function* () {
                 const heldFrom = DateTime.toEpochMillis(yield* DateTime.now);
+                // An idle session is closed first, but never one of a thread that is working.
+                if (yield* targetBlocked(targetThread)) return "busy" as const;
+                if (!(yield* closeSessions(targetThread))) return "session" as const;
                 const result = yield* sql.withTransaction(
                   Effect.gen(function* () {
                     if (yield* targetBlocked(targetThread)) return "busy" as const;
-                    // The review told the user what of theirs goes; more than that was not agreed to.
-                    const agreed = analysis.refreshing.get(thread.id);
-                    const edits = yield* localEditsOf(previous);
-                    if (
-                      (yield* localRunsOf(previous)) > (agreed?.runs ?? 0) ||
-                      edits.some((edit) => !(agreed?.edits ?? []).includes(edit))
-                    ) {
-                      return "changed" as const;
+                    if (yield* sessionHeld(targetThread)) return "session" as const;
+                    // A half-built copy has nothing the review could have named; for a finished one, what the
+                    // review told the user goes, and more than that was not agreed to.
+                    if (previous.state === "done") {
+                      const agreed = analysis.refreshing.get(thread.id);
+                      const edits = yield* localEditsOf(previous);
+                      if (
+                        (yield* localRunsOf(previous)) > (agreed?.runs ?? 0) ||
+                        edits.some((edit) => !(agreed?.edits ?? []).includes(edit))
+                      ) {
+                        return "changed" as const;
+                      }
                     }
                     return yield* write;
                   }),
@@ -2240,7 +2321,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     }
     let done = 0;
     // Replacements that were stopped at the last look, with why.
-    const stopped = new Map<string, "busy" | "changed">();
+    const stopped = new Map<string, "busy" | "changed" | "session">();
     for (const thread of analysis.toCopy) {
       yield* SubscriptionRef.set(stateRef, {
         status: "running",
@@ -2350,7 +2431,12 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         ? []
         : [
             {
-              code: why === "busy" ? "thread-target-busy" : "thread-target-changed",
+              code:
+                why === "busy"
+                  ? "thread-target-busy"
+                  : why === "session"
+                    ? "thread-target-session"
+                    : "thread-target-changed",
               subject: thread.title,
             },
           ];

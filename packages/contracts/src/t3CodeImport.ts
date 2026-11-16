@@ -34,13 +34,7 @@ export const T3CodeImportThreadState = Schema.Literals([
 ]);
 
 /** Kinds of edit made to an imported thread here that a replacement would undo, besides runs. */
-export const T3CodeImportLocalEdit = Schema.Literals([
-  "title",
-  "pinned",
-  "archived",
-  "snoozed",
-  "settings",
-]);
+export const T3CodeImportLocalEdit = Schema.Literals(["pinned", "archived", "snoozed", "settings"]);
 export type T3CodeImportLocalEdit = typeof T3CodeImportLocalEdit.Type;
 
 export const T3CodeImportThread = Schema.Struct({
@@ -53,7 +47,7 @@ export const T3CodeImportThread = Schema.Struct({
   state: T3CodeImportThreadState,
   /** Runs started in T3 Extend since the import; importing the thread again would discard them. */
   localChanges: NonNegativeInt,
-  /** Other things changed here since the import (title, pin, archive, snooze, settings). */
+  /** Other things changed here since the import (pin, archive, snooze, settings); a new title is not counted. */
   localEdits: Schema.Array(T3CodeImportLocalEdit),
   worktree: Schema.NullOr(
     Schema.Struct({ path: Schema.String, status: Schema.Literals(["present", "missing"]) }),
@@ -140,6 +134,7 @@ export const T3CodeImportNoticeCode = Schema.Literals([
   "thread-busy",
   "thread-parent-busy",
   "thread-target-busy",
+  "thread-target-session",
   "thread-target-changed",
   "task-project-missing",
   "task-thread-missing",
@@ -164,6 +159,8 @@ export const T3CodeImportNoticeCode = Schema.Literals([
   "checkpoint-refs-unavailable",
   "checkpoint-refs-conflict",
   "thread-local-discarded",
+  "thread-title-replaced",
+  "thread-replace-idle",
   "thread-large-replace",
   "provider-credential-imported",
   "sidebar-settings",
