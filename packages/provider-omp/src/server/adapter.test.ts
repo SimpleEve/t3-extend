@@ -547,6 +547,33 @@ describe("OmpAdapterV2", () => {
     }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 
+  it.effect("says so when a session approval can only be granted once", () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOmp();
+      const { runtime, takeEvent, providerThread } = yield* openRuntime(fake, "approval-required");
+      yield* startTurn(runtime, providerThread, "approval-required");
+      yield* fake.takeRequest("prompt");
+      yield* fake.emit({ type: "agent_start" });
+      yield* fake.emit(approvalPrompt("n1", ["Approve", "Deny"]));
+      yield* runtime.respondToRuntimeRequest({
+        requestId: yield* pendingApproval(takeEvent),
+        decision: "acceptForSession",
+      });
+      assert.equal((yield* fake.takeRequest("extension_ui_response"))["value"], "Approve");
+      const notice = yield* takeEvent(
+        (event) => event.type === "turn_item.updated" && event.turnItem.type === "system_notice",
+      );
+      if (notice.type !== "turn_item.updated" || notice.turnItem.type !== "system_notice") {
+        return assert.fail("expected a notice");
+      }
+      assert.equal(
+        notice.turnItem.message,
+        "omp did not offer a session-wide approval, so this request was approved once only.",
+      );
+      assert.equal(notice.turnItem.level, "warning");
+    }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
   it.effect("denies an approval prompt it cannot read instead of guessing a choice", () =>
     Effect.gen(function* () {
       const fake = yield* makeFakeOmp();
@@ -691,6 +718,20 @@ describe("OmpAdapterV2", () => {
       yield* runtime.resumeThread({ providerThread: sameCwd });
       assert.equal(lastSwitch(), sameCwd.nativeThreadRef?.nativeId);
       assert.deepEqual(forkFake.lastSpawnArgs(), []);
+
+      // A first line past the read limit hides the session record, so the cwd is unknown.
+      const oversize = `${dir}/oversize.jsonl`;
+      yield* fileSystem.writeFileString(
+        oversize,
+        `${JSON.stringify({ type: "title", v: 1, title: "", pad: "x".repeat(200_000) })}\n${JSON.stringify({ type: "session", version: 3, id: "s", cwd: host.paths.cwd })}\n`,
+      );
+      const oversized = {
+        ...sameCwd,
+        nativeThreadRef: { driver: OMP_PROVIDER, nativeId: oversize, strength: "strong" as const },
+      };
+      yield* runtime.resumeThread({ providerThread: oversized });
+      assert.isTrue(forkSpawnedFrom(oversize));
+      assert.equal(lastSwitch(), forkFile);
 
       for (const [name, sessionCwd] of [
         ["other", `${host.paths.cwd}-original-checkout`],

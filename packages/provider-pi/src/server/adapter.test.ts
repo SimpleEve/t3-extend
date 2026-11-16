@@ -2367,9 +2367,10 @@ describe("PiAdapterV2", () => {
         runtimePolicy,
       });
       const dir = yield* fileSystem.makeTempDirectoryScoped();
+      let sessionFiles = 0;
       const sessionAt = (sessionCwd: string) =>
         Effect.gen(function* () {
-          const file = `${dir}/${sessionCwd.length}.jsonl`;
+          const file = `${dir}/${sessionFiles++}.jsonl`;
           yield* fileSystem.writeFileString(
             file,
             `${JSON.stringify({ type: "session", version: 3, id: "s", cwd: sessionCwd })}\n{}\n`,
@@ -2386,6 +2387,29 @@ describe("PiAdapterV2", () => {
       yield* runtime.resumeThread({ providerThread: sameCwd });
       assert.equal(lastSwitch(), sameCwd.nativeThreadRef?.nativeId);
       assert.isFalse(forkFake.allRequests().some((request) => request.type === "get_state"));
+
+      // The runtime cwd under another spelling is the same directory, not a handoff.
+      const link = `${dir}/link-to-cwd`;
+      yield* fileSystem.symlink(host.paths.cwd, link);
+      const swapped = host.paths.cwd.replace(/[a-z]/gi, (c) =>
+        c === c.toLowerCase() ? c.toUpperCase() : c.toLowerCase(),
+      );
+      // Only a case-insensitive volume resolves the swapped spelling to the same directory.
+      const foldsCase = yield* fileSystem.stat(swapped).pipe(
+        Effect.as(true),
+        Effect.orElseSucceed(() => false),
+      );
+      for (const spelling of [
+        `${host.paths.cwd}/`,
+        `${host.paths.cwd}//`,
+        link,
+        ...(foldsCase ? [swapped] : []),
+      ]) {
+        const spelled = yield* sessionAt(spelling);
+        yield* runtime.resumeThread({ providerThread: spelled });
+        assert.equal(lastSwitch(), spelled.nativeThreadRef?.nativeId, spelling);
+        assert.isFalse(forkFake.allRequests().some((request) => request.type === "get_state"));
+      }
 
       const otherCwd = yield* sessionAt(`${host.paths.cwd}-original-checkout`);
       forkFake.queueState({ sessionFile: forkFile });

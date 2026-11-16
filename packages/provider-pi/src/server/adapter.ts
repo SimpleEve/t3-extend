@@ -212,6 +212,8 @@ export interface PiAdapterV2Options {
 
 // fork: how many leading lines a dialect's session-cwd reader may inspect.
 const SESSION_HEADER_LINES = 8;
+// fork: and how many bytes of it, so one line without a newline cannot be read whole.
+const SESSION_HEADER_MAX_BYTES = 64 * 1024;
 
 // fork: the Pi behavior every dialect parameter defaults to.
 const PI_DIALECT: PiDialect = {
@@ -521,16 +523,42 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
       if (!resolvedLaunchArgs.ok) {
         return yield* protocolError(resolvedLaunchArgs.message);
       }
+      // The same directory can be spelled several ways: a trailing slash, a symlink, another case.
+      // Comparing the canonical spellings settles most; the rest is settled by file identity.
+      const canonicalDirectory = Effect.fnUntraced(function* (directory: string) {
+        const resolved = yield* fileSystem
+          .realPath(directory)
+          .pipe(Effect.orElseSucceed(() => path.resolve(directory)));
+        return resolved.length > 1 ? resolved.replace(/[\\/]+$/, "") : resolved;
+      });
+      const sameDirectory = Effect.fnUntraced(function* (recorded: string, current: string) {
+        if (recorded === current) return true;
+        if ((yield* canonicalDirectory(recorded)) === (yield* canonicalDirectory(current))) {
+          return true;
+        }
+        // Case folding is the filesystem's choice, so ask it instead of guessing from the platform.
+        const identity = (directory: string) => fileSystem.stat(directory).pipe(Effect.option);
+        const [left, right] = yield* Effect.all([identity(recorded), identity(current)]);
+        if (Option.isNone(left) || Option.isNone(right)) return false;
+        return (
+          Option.isSome(left.value.ino) &&
+          left.value.dev === right.value.dev &&
+          Option.getOrUndefined(left.value.ino) === Option.getOrUndefined(right.value.ino)
+        );
+      });
       // A workspace handoff restarts Pi in a new cwd, but the session header still names the old one.
       const sessionHeaderNamesCwd = Effect.fnUntraced(function* (sessionFile: string) {
         const readSessionCwd = dialect.readSessionCwd; // fork:
-        const headerLines = yield* fileSystem.stream(sessionFile).pipe(
-          Stream.decodeText(),
-          Stream.splitLines,
-          Stream.take(readSessionCwd === undefined ? 1 : SESSION_HEADER_LINES), // fork:
-          Stream.runCollect,
-          Effect.orElseSucceed(() => []),
-        );
+        // fork: a damaged file with a huge unbroken line must not be read whole.
+        const headerLines = yield* fileSystem
+          .stream(sessionFile, { bytesToRead: SESSION_HEADER_MAX_BYTES })
+          .pipe(
+            Stream.decodeText(),
+            Stream.splitLines,
+            Stream.take(readSessionCwd === undefined ? 1 : SESSION_HEADER_LINES), // fork:
+            Stream.runCollect,
+            Effect.orElseSucceed(() => []),
+          );
         const header = headerLines[0];
         if (header === undefined) return true;
         const sessionCwd =
@@ -538,9 +566,7 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
             ? recordString(Option.getOrUndefined(decodeSessionHeader(header)), "cwd")
             : readSessionCwd(headerLines); // fork:
         if (sessionCwd === undefined) return readSessionCwd === undefined; // fork:
-        if (sessionCwd === cwd) return true;
-        const realCwd = yield* fileSystem.realPath(cwd).pipe(Effect.orElseSucceed(() => cwd));
-        return sessionCwd === realCwd;
+        return yield* sameDirectory(sessionCwd, cwd);
       });
       // Spawning on a session from another cwd would skip the handoff fork in registerThread.
       const initialSessionPath =

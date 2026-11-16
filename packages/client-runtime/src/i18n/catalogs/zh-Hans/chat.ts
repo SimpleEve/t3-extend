@@ -1395,4 +1395,6 @@ export default {
   "Click to zoom in or return to fit. Pinch or Ctrl+scroll to zoom, scroll or drag to pan. Use Enter to toggle zoom, plus or minus to zoom, and 0 to fit.":
     "点击放大或恢复适应窗口。双指捏合或按住 Ctrl 滚动缩放，滚动或拖动平移。按 Enter 切换缩放，按加号或减号缩放，按 0 适应窗口。",
   "Search to find the rest.": "搜索以找到其余的文件。",
+  "omp did not offer a session-wide approval, so this request was approved once only.":
+    "omp 没有提供本会话授权，这次只批准了一次。",
 } satisfies Record<string, string>;

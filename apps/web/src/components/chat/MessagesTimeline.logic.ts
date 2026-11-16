@@ -148,7 +148,7 @@ export function workEntryDisplayLabel(
   workspaceRoot: string | undefined,
   t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ) {
-  if (entry.itemType === "system_notice") return entry.label;
+  if (entry.itemType === "system_notice") return t(entry.label); // fork: notices T3 words itself are in the catalog
   if (entry.itemType === "reasoning" || entry.tone === "thinking") {
     const thought = entry.detail?.trim().replace(/\s+/g, " ");
     return thought || entry.label;

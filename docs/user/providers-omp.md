@@ -50,7 +50,9 @@ itself enforces it:
 The **Auto** option is not shown for omp, because omp has no automatic approval reviewer. Threads that
 already stored Auto behave and display as Supervised. omp's own tool policies and restricted
 folders still apply in every mode, and its approval prompts reach you in the conversation. Choosing
-_Allow for session_ uses omp's own session approval for that tool.
+_Allow for session_ uses omp's own session approval for that tool. If omp does not offer one,
+T3 Code approves that request once and says so. If T3 Code cannot tell what an omp approval prompt
+would grant, it denies the request and reports why.
 
 Changing the mode restarts the omp session and resumes the same native conversation.
 

@@ -146,14 +146,29 @@ export const makeOmpRpcConnection = Effect.fnUntraced(function* (options: PiDial
         )
       : Effect.void;
 
+  // Notices the translator raised while translating a command go to the adapter like omp's own.
+  const publishNotices = Effect.suspend(() =>
+    Effect.forEach(translator.takeNotices(), (notice) => Queue.offer(events, notice), {
+      discard: true,
+    }),
+  );
+
   return {
-    send: (record) =>
-      afterHostTools(record).pipe(Effect.andThen(raw.send(translator.toOmp(record)))),
-    request: (record, timeoutMs) =>
-      afterHostTools(record).pipe(
-        Effect.andThen(raw.request(translator.toOmp(record), timeoutMs)),
+    send: (record) => {
+      const translated = translator.toOmp(record);
+      return afterHostTools(record).pipe(
+        Effect.andThen(publishNotices),
+        Effect.andThen(raw.send(translated)),
+      );
+    },
+    request: (record, timeoutMs) => {
+      const translated = translator.toOmp(record);
+      return afterHostTools(record).pipe(
+        Effect.andThen(publishNotices),
+        Effect.andThen(raw.request(translated, timeoutMs)),
         Effect.map((data) => translateOmpResponseData(String(record["type"]), data)),
-      ),
+      );
+    },
     events,
     exited: raw.exited,
     terminate: raw.terminate,

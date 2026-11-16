@@ -454,6 +454,10 @@ describe("deriveMessagesTimelineRows", () => {
       expect(notice.entry.projectedItem).toBe(source);
       expect(notice.entry.sourceActivityKind).toBe("runtime.warning");
       expect(workEntryDisplayLabel(notice.entry, undefined)).toBe(message);
+      // A notice T3 words itself can be in the catalog; anything else passes through untouched.
+      expect(
+        workEntryDisplayLabel(notice.entry, undefined, (source) => `translated ${source}`),
+      ).toBe(`translated ${message}`);
       expect(workEntryDisplayIndicatesToolFailure(notice.entry)).toBe(false);
       const rows = deriveMessagesTimelineRows({
         timelineEntries: [

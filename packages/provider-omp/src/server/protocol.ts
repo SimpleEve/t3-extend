@@ -11,7 +11,8 @@ import {
 } from "@t3tools/provider-pi/server/rpc";
 
 /** omp's approval prompt title: `Allow tool: <name>`, then one detail line per input. */
-const APPROVAL_TITLE = /^Allow tool: (\S+)(?:\n([\s\S]*))?$/;
+const APPROVAL_TITLE = /^Allow tool: ([^\n]+)(?:\n([\s\S]*))?$/;
+const APPROVAL_TITLE_START = /^allow tool\b/i;
 
 // omp's select dialog has no option ids: the labels are the values it reads back, so choices are
 // found by their meaning. Every label must be one omp is known to send; a prompt with any other
@@ -25,13 +26,32 @@ const WIDER_GRANT_LABELS = [
   /^approve file$/,
 ];
 
+// Shown to the user as written, and translated by the client's catalog under this exact text.
+const SESSION_UNAVAILABLE_NOTICE =
+  "omp did not offer a session-wide approval, so this request was approved once only.";
+
 interface ApprovalChoices {
   readonly approve: string;
   readonly session: string | undefined;
   readonly deny: string;
 }
 
-/** `undefined` unless every option is recognised and there is one approve, one deny, and at most one session approve. */
+/** Labels omp only sends for an approval prompt, whatever its title says. */
+const looksLikeApprovalChoice = (label: string) => {
+  const normalized = normalizeLabel(label);
+  return (
+    normalized === "deny" ||
+    normalized.startsWith("approve") ||
+    normalized.startsWith("always approve")
+  );
+};
+
+/**
+ * `undefined` unless every option is recognised and the choices are unambiguous: one single
+ * approval, one deny, and at most one session approval for this tool. When anything wider than
+ * the request is on offer omp names the single approval "Approve Once" and may use plain
+ * "Approve" for a scoped grant, so without "Approve Once" no choice is known to be a single one.
+ */
 function readApprovalChoices(
   options: ReadonlyArray<string>,
   tool: string,
@@ -41,18 +61,24 @@ function readApprovalChoices(
   const plain: Array<string> = [];
   const session: Array<string> = [];
   const deny: Array<string> = [];
+  let wider = 0;
   for (const option of options) {
     const label = normalizeLabel(option);
     if (label === "approve once") once.push(option);
     else if (label === "approve") plain.push(option);
     else if (label === sessionLabel) session.push(option);
     else if (label === "deny") deny.push(option);
-    else if (!WIDER_GRANT_LABELS.some((grant) => grant.test(label))) return undefined;
+    else if (WIDER_GRANT_LABELS.some((grant) => grant.test(label))) wider += 1;
+    else return undefined;
   }
-  // With scoped grants omp calls the plain choice "Approve Once" and uses "Approve" for a grant.
-  const approve = once.length > 0 ? once : plain;
-  if (approve.length !== 1 || deny.length !== 1 || session.length > 1) return undefined;
-  return { approve: approve[0]!, session: session[0], deny: deny[0]! };
+  if (deny.length !== 1 || session.length > 1) return undefined;
+  if (once.length > 0 || wider > 0) {
+    // "Approve" beside "Approve Once" is a scoped grant; it needs "Approve Once" to be real.
+    if (once.length !== 1 || plain.length > 1 || wider + plain.length === 0) return undefined;
+    return { approve: once[0]!, session: session[0], deny: deny[0]! };
+  }
+  if (plain.length !== 1) return undefined;
+  return { approve: plain[0]!, session: session[0], deny: deny[0]! };
 }
 
 export interface OmpTranslation {
@@ -67,6 +93,8 @@ export interface OmpTranslator {
   readonly fromOmp: (frame: PiRpcRecord) => OmpTranslation;
   /** Pi adapter command to the command omp understands. */
   readonly toOmp: (record: PiRpcRecord) => PiRpcRecord;
+  /** Notices that translating commands produced for the user; each is returned once. */
+  readonly takeNotices: () => ReadonlyArray<PiRpcRecord>;
 }
 
 export function makeOmpTranslator(): OmpTranslator {
@@ -74,6 +102,7 @@ export function makeOmpTranslator(): OmpTranslator {
   // Prompts sent while the agent ran are queued behind it; omp's acknowledgement does not say so.
   const sentWhileRunning = new Map<string, boolean>();
   const approvals = new Map<string, ApprovalChoices>();
+  let notices: Array<PiRpcRecord> = [];
   const frames = (...translated: ReadonlyArray<PiRpcRecord>): OmpTranslation => ({
     frames: translated,
     replies: [],
@@ -162,29 +191,54 @@ export function makeOmpTranslator(): OmpTranslator {
     };
   };
 
+  // Guessing a choice could approve something the user never saw, so omp is told to deny.
+  const refuseApproval = (
+    id: string | undefined,
+    tool: string | undefined,
+    options: unknown,
+  ): OmpTranslation => ({
+    frames: [
+      {
+        type: "extension_ui_request",
+        id: `${id ?? "unknown"}:unreadable`,
+        method: "notify",
+        notifyType: "error",
+        message: `omp asked to allow ${tool ?? "a tool"} in a format T3 Code does not recognise (${
+          Array.isArray(options)
+            ? options.map((option) => (typeof option === "string" ? option : "?")).join(" / ")
+            : "no choices"
+        }), so the request was denied.`,
+      },
+    ],
+    replies: id === undefined ? [] : [{ type: "extension_ui_response", id, cancelled: true }],
+  });
+
   const approvalAsConfirm = (frame: PiRpcRecord): OmpTranslation => {
     if (frame["method"] !== "select") return frames(frame);
     const id = recordString(frame, "id");
-    const match = APPROVAL_TITLE.exec(recordString(frame, "title") ?? "");
+    const title = recordString(frame, "title") ?? "";
     const options = recordField(frame, "options");
-    if (id === undefined || match === null || !Array.isArray(options)) return frames(frame);
-    const labels = options.filter((option): option is string => typeof option === "string");
-    const choices = readApprovalChoices(labels, match[1] ?? "");
-    if (choices === undefined) {
-      // Guessing a choice could approve something the user never saw, so omp is told to deny.
-      return {
-        frames: [
-          {
-            type: "extension_ui_request",
-            id: `${id}:unreadable`,
-            method: "notify",
-            notifyType: "error",
-            message: `omp asked to allow ${match[1]} in a format T3 Code does not recognise (${labels.join(" / ")}), so the request was denied.`,
-          },
-        ],
-        replies: [{ type: "extension_ui_response", id, cancelled: true }],
-      };
+    // Whatever shape a prompt has, one that looks like an approval never reaches the adapter as
+    // a plain select, where the user's pick would go back to omp as an unchecked choice.
+    const approvalShaped =
+      APPROVAL_TITLE_START.test(title) ||
+      (Array.isArray(options) &&
+        options.some((option) => typeof option === "string" && looksLikeApprovalChoice(option)));
+    if (!approvalShaped) return frames(frame);
+    const match = APPROVAL_TITLE.exec(title);
+    const tool = match?.[1]?.trim();
+    if (
+      id === undefined ||
+      match === null ||
+      tool === undefined ||
+      tool.length === 0 ||
+      !Array.isArray(options) ||
+      !options.every((option): option is string => typeof option === "string")
+    ) {
+      return refuseApproval(id, tool, options);
     }
+    const choices = readApprovalChoices(options, tool);
+    if (choices === undefined) return refuseApproval(id, tool, options);
     approvals.set(id, choices);
     const details = match[2]?.trim();
     const timeout = recordNumber(frame, "timeout");
@@ -192,7 +246,7 @@ export function makeOmpTranslator(): OmpTranslator {
       type: "extension_ui_request",
       id,
       method: "confirm",
-      title: `Allow ${match[1]}?`,
+      title: `Allow ${tool}?`,
       ...(details === undefined || details.length === 0 ? {} : { message: details }),
       ...(timeout === undefined ? {} : { timeout }),
     });
@@ -240,8 +294,17 @@ export function makeOmpTranslator(): OmpTranslator {
         if (record["confirmed"] !== true) {
           return { type: "extension_ui_response", id, value: approval.deny };
         }
-        // Without omp's session choice the approval stays a single one; the adapter's own memory
-        // of identical requests still covers the rest of the session.
+        // Without omp's session choice the approval stays a single one, and the user is told;
+        // the adapter's own memory of identical requests still covers the rest of the session.
+        if (record["forSession"] === true && approval.session === undefined) {
+          notices.push({
+            type: "extension_ui_request",
+            id: `${id}:session-unavailable`,
+            method: "notify",
+            notifyType: "warning",
+            message: SESSION_UNAVAILABLE_NOTICE,
+          });
+        }
         return {
           type: "extension_ui_response",
           id,
@@ -256,7 +319,13 @@ export function makeOmpTranslator(): OmpTranslator {
     }
   };
 
-  return { fromOmp, toOmp };
+  const takeNotices = (): ReadonlyArray<PiRpcRecord> => {
+    const taken = notices;
+    notices = [];
+    return taken;
+  };
+
+  return { fromOmp, toOmp, takeNotices };
 }
 
 /** The data of a successful response, reshaped for the command the Pi adapter sent. */

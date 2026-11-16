@@ -165,6 +165,10 @@ describe("omp outbound frames", () => {
       // A session choice for another tool is not this tool's session choice.
       ["Approve", "Approve edit for this session", "Deny"],
       ["Approve", "Approve bash and edit for this session", "Deny"],
+      // Without "Approve Once", "Approve" may itself be a scoped grant, so it is not a safe choice.
+      ["Approve", "Approve Directory: /repo", "Deny"],
+      ["Approve", "Always Approve", "Deny"],
+      ["Approve Once", "Deny"],
     ];
     for (const options of unreadable) {
       const translator = makeOmpTranslator();
@@ -343,6 +347,84 @@ describe("omp inbound commands", () => {
     expect(
       translator.toOmp({ type: "extension_ui_response", id: "15cfcc57317e7bcc", confirmed: true }),
     ).toMatchObject({ value: "Approve Once" });
+  });
+
+  it("refuses an approval-shaped select it cannot parse instead of forwarding it", () => {
+    const refused = (frame: Record<string, unknown>) => {
+      const result = makeOmpTranslator().fromOmp({
+        type: "extension_ui_request",
+        method: "select",
+        ...frame,
+      });
+      expect(result.frames).toHaveLength(1);
+      expect(result.frames[0]).toMatchObject({ method: "notify", notifyType: "error" });
+      return result.replies;
+    };
+    const cancelled = [{ type: "extension_ui_response", id: "u1", cancelled: true }];
+    const choices = ["Approve", "Deny"];
+    expect(refused({ id: "u1", title: "Allow tool:\nCommand: x", options: choices })).toEqual(
+      cancelled,
+    );
+    expect(refused({ id: "u1", title: "Allow tool bash", options: choices })).toEqual(cancelled);
+    // A title that does not say so is still approval-shaped when its choices are.
+    expect(refused({ id: "u1", title: "Run this?", options: choices })).toEqual(cancelled);
+    expect(
+      refused({ id: "u1", title: "Allow tool: bash", options: ["Approve", 5, "Deny"] }),
+    ).toEqual(cancelled);
+    expect(refused({ id: "u1", title: "Allow tool: bash" })).toEqual(cancelled);
+    // With no id there is nothing to answer, but the prompt must still not reach the adapter.
+    expect(refused({ title: "Allow tool: bash", options: choices })).toEqual([]);
+  });
+
+  it("binds the session choice to a tool name that contains spaces", () => {
+    const translator = makeOmpTranslator();
+    outbound(translator, {
+      ...approvalRequest,
+      title: "Allow tool: my tool\nCommand: x",
+      options: ["Approve", "Approve my tool for this session", "Deny"],
+    });
+    expect(
+      translator.toOmp({
+        type: "extension_ui_response",
+        id: "15cfcc57317e7bcc",
+        confirmed: true,
+        forSession: true,
+      }),
+    ).toMatchObject({ value: "Approve my tool for this session" });
+  });
+
+  it("tells the user when a session approval can only be a single one", () => {
+    const translator = makeOmpTranslator();
+    outbound(translator, { ...approvalRequest, options: ["Approve", "Deny"] });
+    translator.toOmp({
+      type: "extension_ui_response",
+      id: "15cfcc57317e7bcc",
+      confirmed: true,
+      forSession: true,
+    });
+    expect(translator.takeNotices()).toEqual([
+      {
+        type: "extension_ui_request",
+        id: "15cfcc57317e7bcc:session-unavailable",
+        method: "notify",
+        notifyType: "warning",
+        message:
+          "omp did not offer a session-wide approval, so this request was approved once only.",
+      },
+    ]);
+    expect(translator.takeNotices()).toEqual([]);
+
+    // Nothing to report when the session choice exists, or when none was asked for.
+    outbound(translator, approvalRequest);
+    translator.toOmp({
+      type: "extension_ui_response",
+      id: "15cfcc57317e7bcc",
+      confirmed: true,
+      forSession: true,
+    });
+    outbound(translator, { ...approvalRequest, id: "second", options: ["Approve", "Deny"] });
+    translator.toOmp({ type: "extension_ui_response", id: "second", confirmed: true });
+    expect(translator.takeNotices()).toEqual([]);
   });
 
   it("never sends a directory or always grant, even one worded like a session choice", () => {

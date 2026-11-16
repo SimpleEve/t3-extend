@@ -289,6 +289,7 @@ export function workEntryRowLabel(
   t: Translator, // fork: i18n
 ): string {
   if (entry.itemType === "fork") return entry.label;
+  if (entry.itemType === "system_notice") return t(entry.label); // fork: notices T3 words itself are in the catalog
   if (expanded && entry.itemType === "reasoning")
     return entry.toolLifecycleStatus === "inProgress" ? t("Thinking") : t("Thought");
   const presentation = resolveWorkEntryToolPresentation(entry, undefined, t);
