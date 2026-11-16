@@ -131,9 +131,10 @@ export function resolveOmpLaunchArgs(launchArgs: string): PiLaunchArgsResolution
 
 export function buildOmpRpcLaunch(input: PiDialectLaunchInput): PiDialectLaunch {
   const args = [
-    // rpc-ui also serves the `ask` tool's questions; approvals arrive either way.
+    // omp 18.20.2 only activates host tools (T3's MCP tools) in plain rpc mode; rpc-ui lists them
+    // but never sends them to the model. The cost is omp's `ask` tool, which only rpc-ui offers.
     "--mode",
-    "rpc-ui",
+    "rpc",
     ...(input.ephemeral === true
       ? ["--no-session"]
       : input.sessionPath !== undefined
@@ -156,6 +157,7 @@ export const OMP_DIALECT: PiDialect = {
   driverKind: OMP_PROVIDER,
   defaultBinary: "omp",
   capabilities: OmpProviderCapabilities,
+  reportsTurnTokenUsage: true,
   // Approvals are omp's own and T3's tools arrive as host tools, so there is nothing to install.
   materializeExtension: () => Effect.undefined,
   resolveLaunchArgs: resolveOmpLaunchArgs,

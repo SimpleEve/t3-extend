@@ -211,7 +211,7 @@ describe("OmpAdapterV2", () => {
       // T3's runtime mode and an ordinary launch argument both reach omp; the Pi extension does not.
       assert.deepEqual(fake.lastSpawnArgs(), [
         "--mode",
-        "rpc-ui",
+        "rpc",
         "--no-lsp",
         "--approval-mode",
         "yolo",
@@ -239,6 +239,18 @@ describe("OmpAdapterV2", () => {
           event.type === "provider_turn.updated" && event.providerTurn.status === "completed",
       );
       assert.equal(completed.driver, OMP_PROVIDER);
+      // The speed meter reads this: input counts cache reads, and nothing is shown without it.
+      assert.deepEqual(
+        completed.type === "provider_turn.updated" && completed.providerTurn.turnTokenUsage,
+        {
+          usageScope: "main_agent",
+          usageStatus: "complete",
+          hasSubagents: false,
+          inputTokens: 9418 + 128,
+          outputTokens: 3,
+          cachedInputTokens: 128,
+        },
+      );
     }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 
@@ -259,6 +271,10 @@ describe("OmpAdapterV2", () => {
           (event.providerTurn.status === "failed" || event.providerTurn.status === "completed"),
       );
       assert.equal(turn.type === "provider_turn.updated" && turn.providerTurn.status, "failed");
+      assert.equal(
+        turn.type === "provider_turn.updated" && turn.providerTurn.turnTokenUsage?.usageStatus,
+        "partial",
+      );
     }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 

@@ -51,7 +51,7 @@ describe("omp launch command line", () => {
   it("binds the session by file and maps each runtime mode to omp's own approval mode", () => {
     expect(launch({ sessionPath: "/s/a.jsonl", runtimeMode: "approval-required" }).args).toEqual([
       "--mode",
-      "rpc-ui",
+      "rpc",
       "--resume",
       "/s/a.jsonl",
       "--approval-mode",
@@ -72,7 +72,7 @@ describe("omp launch command line", () => {
   it("starts probes without a session, extensions, tools or an approval mode", () => {
     expect(launch({ ephemeral: true, disableExtensions: true, disableTools: true }).args).toEqual([
       "--mode",
-      "rpc-ui",
+      "rpc",
       "--no-session",
       "--no-extensions",
       "--no-tools",

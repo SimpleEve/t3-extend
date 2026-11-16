@@ -396,6 +396,14 @@ interface ActivePiTurn {
   stopTreeRefs?: PiTurnTreeRefs | null;
   /** The provider/model Pi reported on its latest assistant message. */
   reportedModel?: string;
+  /** fork: running total of the turn's assistant message usage, for dialects that report it. */
+  usageTotals?: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+    reasoning: number;
+  };
 }
 
 interface PiTurnTreeRefs {
@@ -2032,6 +2040,31 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
             status: interrupted ? "interrupted" : failure !== null ? "failed" : "completed",
             completedAt,
             ...(tokenUsage === undefined ? {} : { tokenUsage }),
+            ...(turn.usageTotals === undefined
+              ? {}
+              : {
+                  // fork: input includes cache reads and writes, and output includes reasoning.
+                  turnTokenUsage: {
+                    usageScope: "main_agent" as const,
+                    usageStatus:
+                      interrupted || failure !== null
+                        ? ("partial" as const)
+                        : ("complete" as const),
+                    hasSubagents: false,
+                    inputTokens:
+                      turn.usageTotals.input +
+                      turn.usageTotals.cacheRead +
+                      turn.usageTotals.cacheWrite,
+                    outputTokens: turn.usageTotals.output,
+                    cachedInputTokens: turn.usageTotals.cacheRead,
+                    ...(turn.usageTotals.cacheWrite === 0
+                      ? {}
+                      : { cacheCreationTokens: turn.usageTotals.cacheWrite }),
+                    ...(turn.usageTotals.reasoning === 0
+                      ? {}
+                      : { reasoningTokens: turn.usageTotals.reasoning }),
+                  },
+                }),
             ...(turn.reportedModel === undefined ? {} : { model: turn.reportedModel }),
           },
         });
@@ -2287,6 +2320,22 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
             const message = event["message"];
             if (recordString(message, "role") !== "assistant") return;
             yield* completeOpenStreamItems(turn);
+            if (dialect.reportsTurnTokenUsage === true) {
+              // fork: one provider request per assistant message, so the turn's total is their sum.
+              const usage = recordField(message, "usage");
+              const totals = (turn.usageTotals ??= {
+                input: 0,
+                output: 0,
+                cacheRead: 0,
+                cacheWrite: 0,
+                reasoning: 0,
+              });
+              totals.input += nonNegativeInteger(usage, "input") ?? 0;
+              totals.output += nonNegativeInteger(usage, "output") ?? 0;
+              totals.cacheRead += nonNegativeInteger(usage, "cacheRead") ?? 0;
+              totals.cacheWrite += nonNegativeInteger(usage, "cacheWrite") ?? 0;
+              totals.reasoning += nonNegativeInteger(usage, "reasoningTokens") ?? 0;
+            }
             const reportedProvider = recordString(message, "provider");
             const reportedModelId = recordString(message, "model");
             if (reportedProvider && reportedModelId) {
