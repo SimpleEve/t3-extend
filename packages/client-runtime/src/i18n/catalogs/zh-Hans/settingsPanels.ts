@@ -2448,6 +2448,11 @@ export default {
   "Agent Platform (Vertex AI)": "Agent Platform（Vertex AI）",
   "Google accounts use your subscription; API keys and Agent Platform bill usage.":
     "Google 账号使用你的订阅；API 密钥和 Agent Platform 按用量计费。",
+  "Login source": "登录来源",
+  "agy CLI login": "agy CLI 的登录",
+  "Separate sign-in": "独立登录",
+  "For Google account sign-in. Automatic uses the agy CLI login on this machine for the default instance unless it signed in separately before. Choose Separate sign-in to use another account.":
+    "用于 Google 账号登录。选「自动」时，默认实例沿用这台机器上 agy CLI 的登录，除非它之前已经单独登录过。要用另一个账号，请选「独立登录」。",
   "API key": "API 密钥",
   "Gemini or Vertex AI express key. Stored separately on the host.":
     "Gemini 或 Vertex AI 快捷密钥。在主机上单独保存。",

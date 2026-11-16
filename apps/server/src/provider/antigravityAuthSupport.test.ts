@@ -33,6 +33,7 @@ import {
   parseAntigravityAuthorizationUrl,
   prepareAntigravityProfile,
   resolveAntigravityInstanceDirectories,
+  resolveAntigravityLoginSource,
 } from "./antigravityAuthSupport.ts";
 
 const authorizationUrl =
@@ -127,6 +128,31 @@ describe("Antigravity process environment", () => {
     ]);
     expect(spawn.env).not.toHaveProperty("ANTIGRAVITY_HARNESS_PATH");
     expect(spawn.env).toMatchObject({ GEMINI_HOME: profile.geminiHome, PATH: "/usr/bin" });
+  });
+
+  // fork: a shared login is the agy CLI's keyring entry; forcing file storage would hide it.
+  it("leaves the sign-in in the CLI's keyring when the instance shares the agy CLI login", () => {
+    const baseEnv = {
+      PATH: "/usr/bin",
+      AGY_ACP_FORCE_FILE_STORAGE: "1",
+      agy_acp_force_file_storage: "1",
+    };
+    const spawnFor = (sharedLogin: boolean) =>
+      buildAntigravityAcpSpawnInput({
+        installation: { executablePath: "/usr/bin/agy", harnessPath: null },
+        profile: { ...profile, sharedLogin },
+        cwd: "/project",
+        baseEnv,
+      });
+
+    const shared = spawnFor(true);
+    expect(Object.keys(shared.env ?? {}).map((key) => key.toUpperCase())).not.toContain(
+      "AGY_ACP_FORCE_FILE_STORAGE",
+    );
+    // Only the login is shared: conversations, hooks and MCP stay in the private profile.
+    expect(shared.args).toContain(profile.geminiHome);
+    expect(shared.env).toMatchObject({ GEMINI_HOME: profile.geminiHome });
+    expect(spawnFor(false).env?.AGY_ACP_FORCE_FILE_STORAGE).toBe("1");
   });
 
   it("passes only the configured method's credential and keeps the GCP pair out of the environment", () => {
@@ -234,6 +260,50 @@ describe("Antigravity process environment", () => {
         extracted(path.join(directories.profile, "antigravity-acp", "tmp")).length,
       ).toBeGreaterThanOrEqual(260);
     }).pipe(Effect.provide(Layer.mergeAll(NodeCrypto.layer, NodePath.layerWin32))),
+  );
+});
+
+// fork: which sign-in an instance uses. Only the default instance shares the agy CLI's login, and
+// an instance that already holds its own sign-in keeps it, so older setups do not change accounts.
+describe("Antigravity login source", () => {
+  const browser = "oauth-personal" as const;
+  const cases = [
+    ["a new default instance", { loginSource: "auto", defaultInstance: true }, "cli"],
+    [
+      "a default instance with its own sign-in",
+      { loginSource: "auto", defaultInstance: true, profileHasToken: true },
+      "profile",
+    ],
+    ["an additional instance", { loginSource: "auto", defaultInstance: false }, "profile"],
+    [
+      "Gemini Enterprise on the default instance",
+      { loginSource: "auto", authMethod: "oauth-business", defaultInstance: true },
+      "cli",
+    ],
+    [
+      "an explicit CLI choice over a stored sign-in",
+      { loginSource: "cli", defaultInstance: false, profileHasToken: true },
+      "cli",
+    ],
+    ["an explicit private sign-in", { loginSource: "profile", defaultInstance: true }, "profile"],
+    [
+      "an API key, which has no stored sign-in to share",
+      { loginSource: "cli", authMethod: "gemini-api-key", defaultInstance: true },
+      "profile",
+    ],
+  ] as const;
+
+  it.each(cases.map(([name, input, expected]) => ({ name, input, expected })))(
+    "resolves $name",
+    ({ input, expected }) => {
+      expect(
+        resolveAntigravityLoginSource({
+          authMethod: browser,
+          profileHasToken: false,
+          ...input,
+        }),
+      ).toBe(expected);
+    },
   );
 });
 
@@ -600,6 +670,15 @@ it.layer(NodeServices.layer)("Antigravity profile preparation", (it) => {
       yield* fs.writeFileString(profile.tokenPath, "synthetic-token-fixture");
       yield* prepareAntigravityProfile({ profileDirectory: profile.geminiHome });
       expect(yield* fs.readFileString(profile.tokenPath)).toBe("synthetic-token-fixture");
+
+      // fork: sharing the CLI login keeps the private profile and never writes a token into it.
+      const shared = yield* prepareAntigravityProfile({
+        profileDirectory: path.join(temporaryDirectory, "shared"),
+        sharedLogin: true,
+      });
+      expect(shared.sharedLogin).toBe(true);
+      expect(yield* fs.exists(shared.tokenPath)).toBe(false);
+      expect(profile.sharedLogin).not.toBe(true);
     }),
   );
 

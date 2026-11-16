@@ -885,6 +885,17 @@ export const AntigravityAuthMethod = Schema.Literals(
 );
 export type AntigravityAuthMethod = typeof AntigravityAuthMethod.Type;
 
+// fork: where a browser sign-in lives. "cli" is the agy CLI's own login in the system keyring.
+const ANTIGRAVITY_LOGIN_SOURCES = [
+  { value: "auto", label: "Automatic" },
+  { value: "cli", label: "agy CLI login" },
+  { value: "profile", label: "Separate sign-in" },
+] as const satisfies ReadonlyArray<ProviderSettingsFormOption>;
+export const AntigravityLoginSource = Schema.Literals(
+  ANTIGRAVITY_LOGIN_SOURCES.map((source) => source.value),
+);
+export type AntigravityLoginSource = typeof AntigravityLoginSource.Type;
+
 export const AntigravitySettings = makeProviderSettingsSchema(
   {
     enabled: Schema.Boolean.pipe(
@@ -900,6 +911,20 @@ export const AntigravitySettings = makeProviderSettingsSchema(
         providerSettingsForm: {
           control: "select",
           options: ANTIGRAVITY_AUTH_METHODS,
+          clearWhenEmpty: "omit",
+        },
+      }),
+    ),
+    // fork:
+    loginSource: AntigravityLoginSource.pipe(
+      Schema.withDecodingDefault(Effect.succeed("auto" as const)),
+      Schema.annotateKey({
+        title: "Login source",
+        description:
+          "For Google account sign-in. Automatic uses the agy CLI login on this machine for the default instance unless it signed in separately before. Choose Separate sign-in to use another account.",
+        providerSettingsForm: {
+          control: "select",
+          options: ANTIGRAVITY_LOGIN_SOURCES,
           clearWhenEmpty: "omit",
         },
       }),
@@ -947,7 +972,7 @@ export const AntigravitySettings = makeProviderSettingsSchema(
       Schema.annotateKey({ providerSettingsForm: { hidden: true } }),
     ),
   },
-  { order: ["authMethod", "apiKey", "gcpProject", "gcpLocation", "binaryPath"] },
+  { order: ["authMethod", "loginSource", "apiKey", "gcpProject", "gcpLocation", "binaryPath"] },
 );
 export type AntigravitySettings = typeof AntigravitySettings.Type;
 

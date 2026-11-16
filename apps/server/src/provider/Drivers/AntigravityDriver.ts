@@ -1,6 +1,7 @@
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import {
   AntigravitySettings,
+  defaultInstanceIdForDriver,
   ProviderDriverKind,
   ProviderSetupError,
   settingsSecretLiteral,
@@ -11,6 +12,7 @@ import {
   NodeRuntimeUnavailableError,
   nodeRuntimeUnavailableMessage,
 } from "@t3tools/shared/nodeRuntime";
+import * as Clock from "effect/Clock";
 import * as Digest from "effect/crypto/Digest";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as Deferred from "effect/Deferred";
@@ -34,6 +36,7 @@ import { makeAntigravityAuth, type AntigravityAuth } from "../AntigravityAuth.ts
 import * as AntigravityInstallation from "../AntigravityInstallation.ts";
 import * as AntigravityUsage from "./AntigravityUsage.ts";
 import {
+  ANTIGRAVITY_CLI_LOGIN_SIGN_OUT_MESSAGE,
   antigravityAuthConfigIssue,
   antigravityAuthLabel,
   antigravityAuthUsesBrowser,
@@ -41,6 +44,7 @@ import {
   isAntigravitySignInRequiredError,
   prepareAntigravityProfile,
   resolveAntigravityInstanceDirectories,
+  resolveAntigravityLoginSource,
   type AntigravityAuthConfig,
 } from "../antigravityAuthSupport.ts";
 import {
@@ -82,6 +86,8 @@ const isAcpErrorDetails = Schema.is(Schema.Struct({ details: Schema.String }));
 const REFRESH_FAILED =
   "Could not refresh Antigravity models. The previous model list is unchanged.";
 const PYTHON_SOCKS_REQUIRED = "python-socks is required to use a SOCKS proxy";
+// fork: an agent start per check would be wasteful, so a signed-out CLI is asked again this often.
+const SHARED_SIGN_IN_RECHECK_MS = 5 * 60_000;
 
 // Keep upstream diagnostics in cause; only recognized, fixed text reaches clients.
 function refreshFailureDetail(cause: unknown) {
@@ -171,6 +177,16 @@ export const AntigravityDriver: ProviderDriver<
       ),
     );
     const profileDirectory = directories.profile;
+    // fork: the default instance signs in from the agy CLI's own login instead of asking again.
+    const sharedLogin =
+      resolveAntigravityLoginSource({
+        authMethod: auth.authMethod,
+        loginSource: settings.loginSource,
+        defaultInstance: instanceId === defaultInstanceIdForDriver(DRIVER),
+        profileHasToken: yield* fileSystem
+          .exists(path.join(profileDirectory, "antigravity-acp", "acp_token.json"))
+          .pipe(Effect.orElseSucceed(() => false)),
+      }) === "cli";
     for (const directory of [
       directories.runtimeTemp,
       path.join(profileDirectory, "antigravity-acp", "tmp"),
@@ -228,6 +244,7 @@ export const AntigravityDriver: ProviderDriver<
         auth,
         userHome,
         tempDirectory: directories.runtimeTemp,
+        sharedLogin, // fork:
       }).pipe(
         Effect.provideService(FileSystem.FileSystem, fileSystem),
         Effect.provideService(Path.Path, path),
@@ -383,6 +400,7 @@ export const AntigravityDriver: ProviderDriver<
         ),
       onSignedOut: Effect.suspend(() => provider.onSignedOut),
       usesBrowser: antigravityAuthUsesBrowser(auth.authMethod),
+      ...(sharedLogin ? { logoutBlockedMessage: ANTIGRAVITY_CLI_LOGIN_SIGN_OUT_MESSAGE } : {}), // fork:
     });
 
     // The probe must not spawn. The agent is a PyInstaller one-file bundle
@@ -427,6 +445,7 @@ export const AntigravityDriver: ProviderDriver<
     const usage = yield* makeAntigravityUsageProbe({
       profileDirectory,
       authMethod: auth.authMethod,
+      sharedLogin, // fork:
     }).pipe(
       Effect.provideService(FileSystem.FileSystem, fileSystem),
       Effect.provideService(Path.Path, path),
@@ -440,13 +459,16 @@ export const AntigravityDriver: ProviderDriver<
       probeUsage: usage.probe,
       clearUsage: usage.clear,
       // fork: the health check never spawns the agent, so the stored token is its only sign-in signal.
-      ...(antigravityAuthUsesBrowser(auth.authMethod)
-        ? {
-            storedSignIn: fileSystem
-              .exists(path.join(profileDirectory, "antigravity-acp", "acp_token.json"))
-              .pipe(Effect.orElseSucceed(() => true)),
-          }
-        : {}),
+      // A shared CLI login has no token here, so the agent is asked now and then instead.
+      ...(sharedLogin
+        ? { silentSignIn: Effect.suspend(() => silentSignIn) }
+        : antigravityAuthUsesBrowser(auth.authMethod)
+          ? {
+              storedSignIn: fileSystem
+                .exists(path.join(profileDirectory, "antigravity-acp", "acp_token.json"))
+                .pipe(Effect.orElseSucceed(() => true)),
+            }
+          : {}),
       auth: { type: auth.authMethod, label: antigravityAuthLabel(auth.authMethod) },
       supportsTextGeneration: isAntigravityTextGenerationAvailable(profileDirectory).pipe(
         Effect.provideService(FileSystem.FileSystem, fileSystem),
@@ -551,6 +573,45 @@ export const AntigravityDriver: ProviderDriver<
             }),
       ),
     );
+
+    // fork: asks the agent whether the CLI login works. It authenticates without a session and
+    // without a browser, so a signed-out CLI only reports that sign-in is needed.
+    let lastSharedSignInCheck: number | undefined;
+    const checkSharedLogin: () => Effect.Effect<void> = Effect.fn(
+      "AntigravityDriver.checkSharedLogin",
+    )(
+      function* () {
+        const processScope = yield* Scope.make();
+        yield* Effect.addFinalizer((exit) => Scope.close(processScope, exit));
+        yield* authFlow
+          .withProcess(
+            Scope.close(processScope, Exit.void),
+            Effect.gen(function* () {
+              const runtime = yield* makeDisposableRuntime({});
+              yield* runtime.authenticate?.(auth.authMethod) ?? Effect.void;
+              yield* provider.onAuthConfirmed;
+            }),
+          )
+          .pipe(Effect.provideService(Scope.Scope, processScope));
+      },
+      Effect.scoped,
+      Effect.timeoutOption("30 seconds"),
+      Effect.asVoid,
+      Effect.catch((cause) =>
+        isAntigravitySignInRequiredError(cause) ? provider.onAuthRequired : Effect.void,
+      ),
+    );
+    const silentSignIn: Effect.Effect<void> = Effect.gen(function* () {
+      const now = yield* Clock.currentTimeMillis;
+      if (
+        lastSharedSignInCheck !== undefined &&
+        now - lastSharedSignInCheck < SHARED_SIGN_IN_RECHECK_MS
+      ) {
+        return;
+      }
+      lastSharedSignInCheck = now;
+      yield* checkSharedLogin();
+    });
 
     return {
       instanceId,

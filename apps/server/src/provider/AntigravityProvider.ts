@@ -169,6 +169,9 @@ interface AntigravityProviderOptions {
   readonly clearUsage?: Effect.Effect<void>;
   // fork: whether the profile holds a sign-in token. Absent for sign-in methods without one.
   readonly storedSignIn?: Effect.Effect<boolean>;
+  // fork: asks the agent whether the shared agy CLI login works, for profiles that hold no token.
+  // It authenticates without opening a session, so nothing else starts.
+  readonly silentSignIn?: Effect.Effect<void>;
   readonly maintenanceCapabilities?: ProviderMaintenanceCapabilities;
   readonly auth?: { readonly type: string; readonly label: string };
 }
@@ -278,6 +281,13 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
 
   const checkProvider = Effect.fn("checkAntigravityProvider")(function* () {
     if (!settings.enabled) return yield* getSnapshot;
+    // fork: a shared CLI login leaves no token to read, so only the agent can say whether it is signed in.
+    if (
+      options.silentSignIn &&
+      (yield* SubscriptionRef.get(metadata)).draft.auth.status !== "authenticated"
+    ) {
+      yield* options.silentSignIn;
+    }
     const before = yield* SubscriptionRef.get(metadata);
     const timeoutMs = resolveProviderProbeTimeoutMs(
       "antigravity",
@@ -573,6 +583,23 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
     ),
     onSignedOut: clearAccountMetadata(),
     onAuthRequired: clearAccountMetadata(),
+    // fork: the agent accepted the shared login. Models load with the next session or refresh.
+    onAuthConfirmed: SubscriptionRef.update(metadata, (state): AntigravityProviderState =>
+      !settings.enabled || state.draft.auth.status === "authenticated"
+        ? state
+        : {
+            ...state,
+            authRevision: state.authRevision + 1,
+            draft: {
+              ...state.draft,
+              auth: {
+                status: "authenticated",
+                type: options.auth?.type ?? "oauth-personal",
+                label: options.auth?.label ?? "Google account",
+              },
+            },
+          },
+    ),
     snapshotForCwd,
   };
 });

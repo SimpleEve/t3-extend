@@ -97,6 +97,8 @@ export interface AntigravityAuthOptions<
   readonly onSignedOut: Effect.Effect<void>;
   readonly forwardCallback?: (callback: URL) => Effect.Effect<void, ProviderSetupError>;
   readonly usesBrowser?: boolean;
+  // fork: the login belongs to the agy CLI, and a native logout would end it there too.
+  readonly logoutBlockedMessage?: string;
 }
 
 function visibleSnapshot(snapshot: AuthSnapshot, ownerSessionId: string): ProviderAuthState {
@@ -484,6 +486,9 @@ export const makeAntigravityAuth = Effect.fn("makeAntigravityAuth")(function* <
       return flow.state;
     }),
     logout: Effect.fn("AntigravityAuth.logout")(function* (stopSessions) {
+      if (options.logoutBlockedMessage !== undefined) {
+        return yield* setupError("logout", options.logoutBlockedMessage); // fork:
+      }
       const task = Effect.uninterruptibleMask((restore) =>
         Effect.gen(function* () {
           const flow = yield* lock.withPermits(1)(

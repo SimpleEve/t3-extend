@@ -1,7 +1,11 @@
 // @effect-diagnostics-next-line nodeBuiltinImport:off - Effect's symlink has no type argument, and Windows needs a junction to link without elevation.
 import * as NodeFSP from "node:fs/promises";
 
-import type { AntigravityAuthMethod, ProviderInstanceId } from "@t3tools/contracts";
+import type {
+  AntigravityAuthMethod,
+  AntigravityLoginSource,
+  ProviderInstanceId,
+} from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { resolveNodeExecutable, nodeRuntimeUnavailableMessage } from "@t3tools/shared/nodeRuntime";
 import * as Digest from "effect/crypto/Digest";
@@ -88,6 +92,8 @@ export interface AntigravityProfile {
   readonly tempDirectory: string;
   readonly browserCommand: string;
   readonly caBundlePath?: string;
+  // fork: sign in through the agy CLI's own login (system keyring) instead of a token file in this profile.
+  readonly sharedLogin?: boolean;
 }
 
 export interface AntigravityAuthConfig {
@@ -107,6 +113,22 @@ const ANTIGRAVITY_PERSONAL_AUTH: AntigravityAuthConfig = {
 export function antigravityAuthUsesBrowser(authMethod: AntigravityAuthMethod): boolean {
   return authMethod === "oauth-personal" || authMethod === "oauth-business";
 }
+
+// fork: only the default instance shares the agy CLI's login, so extra accounts stay separate. An
+// instance that already holds its own sign-in keeps it, so older setups do not change accounts.
+export function resolveAntigravityLoginSource(input: {
+  readonly authMethod: AntigravityAuthMethod;
+  readonly loginSource: AntigravityLoginSource;
+  readonly defaultInstance: boolean;
+  readonly profileHasToken: boolean;
+}): "cli" | "profile" {
+  if (!antigravityAuthUsesBrowser(input.authMethod)) return "profile";
+  if (input.loginSource !== "auto") return input.loginSource;
+  return input.defaultInstance && !input.profileHasToken ? "cli" : "profile";
+}
+
+export const ANTIGRAVITY_CLI_LOGIN_SIGN_OUT_MESSAGE =
+  "This instance uses your agy CLI sign-in, so signing out here would also sign out agy in your terminal. Sign out with agy in a terminal, or set Login source to Separate sign-in.";
 
 export function antigravityAuthLabel(authMethod: AntigravityAuthMethod): string {
   switch (authMethod) {
@@ -222,7 +244,8 @@ function antigravityEnvironment(
       ? { SSL_CERT_FILE: profile.caBundlePath }
       : {}),
     GEMINI_HOME: profile.geminiHome,
-    AGY_ACP_FORCE_FILE_STORAGE: "1",
+    // fork: file storage hides the CLI's keyring login from the agent.
+    ...(profile.sharedLogin ? {} : { AGY_ACP_FORCE_FILE_STORAGE: "1" }),
     BROWSER: profile.browserCommand,
     PYTHONUNBUFFERED: "1",
     ELECTRON_RUN_AS_NODE: "1",
@@ -309,6 +332,8 @@ export const prepareAntigravityProfile = Effect.fn("prepareAntigravityProfile")(
   readonly auth?: AntigravityAuthConfig;
   readonly userHome?: string;
   readonly tempDirectory?: string;
+  // fork:
+  readonly sharedLogin?: boolean;
 }) {
   const auth = input.auth ?? ANTIGRAVITY_PERSONAL_AUTH;
   const fs = yield* FileSystem.FileSystem;
@@ -381,6 +406,7 @@ export const prepareAntigravityProfile = Effect.fn("prepareAntigravityProfile")(
     tempDirectory,
     browserCommand,
     ...(caBundlePath === undefined ? {} : { caBundlePath }),
+    ...(input.sharedLogin ? { sharedLogin: true } : {}), // fork:
   };
   const environment = antigravityEnvironment(profile, input.baseEnv ?? process.env, auth);
   yield* Effect.gen(function* () {

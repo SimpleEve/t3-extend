@@ -210,6 +210,8 @@ function modelWindows(models: typeof Models.Type) {
 export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(function* (input: {
   readonly profileDirectory: string;
   readonly authMethod: AntigravitySettings["authMethod"];
+  // fork: the sign-in is the agy CLI's, kept in the system keyring rather than a profile token file.
+  readonly sharedLogin?: boolean;
 }) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -241,7 +243,9 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
       return makeUnavailableUsageLimits({
         checkedAt,
         reason: "unsupported",
-        message: "Sign in with Google to see Antigravity limits.",
+        message: input.sharedLogin // fork:
+          ? "Limits are not available while Antigravity uses your agy CLI sign-in. Set Login source to Separate sign-in to see them."
+          : "Sign in with Google to see Antigravity limits.",
       });
     }
     const token = yield* fs.readFileString(tokenPath).pipe(Effect.flatMap(decodeTokenFile));

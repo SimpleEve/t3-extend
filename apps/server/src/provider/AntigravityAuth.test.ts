@@ -58,6 +58,7 @@ const makeHarness = Effect.fn("makeAuthTestHarness")(function* (
     readonly interactive?: boolean;
     readonly authorizationUrls?: ReadonlyArray<string>;
     readonly supportsLogout?: boolean;
+    readonly logoutBlockedMessage?: string;
     readonly beforeInitialize?: Effect.Effect<void>;
     readonly forwardCallback?: Effect.Effect<void, ProviderSetupError>;
   } = {},
@@ -74,6 +75,9 @@ const makeHarness = Effect.fn("makeAuthTestHarness")(function* (
   let catalog = ["previous-account-model"];
   const auth = yield* makeAntigravityAuth({
     instanceId,
+    ...(options.logoutBlockedMessage === undefined
+      ? {}
+      : { logoutBlockedMessage: options.logoutBlockedMessage }),
     makeRuntime: (input) =>
       Effect.gen(function* () {
         receiveAuthorizationUrl = input.onAuthorizationUrl;
@@ -572,6 +576,26 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("AntigravityAuth"
       assert.equal(result.phase, "idle");
       assert.deepEqual(harness.catalog(), []);
       assert.include(harness.events, "logout");
+    }),
+  );
+
+  // fork: a shared login is the agy CLI's own, and a native logout would sign the terminal out too.
+  it.effect("refuses sign-out before starting anything when the login belongs to the agy CLI", () =>
+    Effect.gen(function* () {
+      const message = "This instance uses your agy CLI sign-in. Sign out from agy in a terminal.";
+      const harness = yield* makeHarness({ logoutBlockedMessage: message });
+      let stopped = false;
+      const error = yield* harness.auth.controller
+        .logout(
+          Effect.sync(() => {
+            stopped = true;
+          }),
+        )
+        .pipe(Effect.flip);
+      assert.strictEqual((error as ProviderSetupError).detail, message);
+      assert.deepEqual(harness.events, []);
+      assert.isFalse(stopped);
+      assert.deepEqual(harness.catalog(), ["previous-account-model"]);
     }),
   );
 

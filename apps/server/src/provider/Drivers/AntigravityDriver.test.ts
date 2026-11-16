@@ -530,6 +530,68 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
     }),
   );
 
+  // fork: the default instance signs in from the agy CLI's own login instead of asking again.
+  it.effect.skipIf(windowsHost)(
+    "uses the agy CLI login without a token in the profile, once, and leaves its sign-out alone",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ account: "signed-out", config: { loginSource: "cli" } });
+        yield* h.instance.snapshot.refresh;
+        expect(yield* h.instance.snapshot.getSnapshot).toMatchObject({
+          installed: true,
+          status: "ready",
+          auth: { status: "authenticated" },
+        });
+        const agentLaunches = () => h.launches.filter((launch) => launch.harnessPath !== undefined);
+        expect(agentLaunches()).toHaveLength(1);
+        expect(agentLaunches()[0]?.profileDirectory).toBe(h.profileDirectory);
+        for (const launch of h.launches) expect(launch.forceFileStorage).toBeUndefined();
+        expect(
+          yield* h.fs.exists(h.path.join(h.profileDirectory, "antigravity-acp", "acp_token.json")),
+        ).toBe(false);
+        // Only the login is checked: no session, so no MCP servers, hooks or browser can start.
+        expect((yield* h.readRequests).map((request) => request.method)).toEqual([
+          "initialize",
+          "auth/login",
+        ]);
+        yield* h.assertClosed;
+
+        const logout = h.instance.auth?.logout;
+        if (!logout) return yield* Effect.die("Antigravity does not expose sign-out.");
+        const error = yield* logout(Effect.void).pipe(Effect.flip);
+        expect(error.detail).toContain("agy CLI");
+        expect(agentLaunches()).toHaveLength(1);
+      }),
+  );
+
+  it.effect.skipIf(windowsHost)(
+    "asks to sign in when the agy CLI is signed out, and does not start the agent on every check",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ account: "signed-out", config: { loginSource: "cli" } });
+        h.controls.selected = h.signedOut;
+        yield* h.instance.snapshot.refresh;
+        expect(yield* h.instance.snapshot.getSnapshot).toMatchObject({
+          status: "warning",
+          auth: { status: "unauthenticated" },
+        });
+        yield* h.instance.snapshot.refresh;
+        expect(h.launches.filter((launch) => launch.harnessPath !== undefined)).toHaveLength(1);
+        yield* h.assertClosed;
+      }),
+  );
+
+  it.effect.skipIf(windowsHost)(
+    "keeps an instance that already holds its own sign-in on file storage",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ account: "signed-in", config: { loginSource: "auto" } });
+        yield* h.refresh();
+        expect(h.launches.length).toBeGreaterThan(0);
+        for (const launch of h.launches) expect(launch.forceFileStorage).toBe("1");
+      }),
+  );
+
   it.effect.skipIf(windowsHost)(
     "reports a stored sign-in whose quota read succeeds as signed in without starting the agent",
     () =>

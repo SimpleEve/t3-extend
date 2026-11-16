@@ -66,6 +66,7 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
     userInfoAt?: number;
     missingToken?: boolean;
     authMethod?: "oauth-personal" | "oauth-business" | "gemini-api-key";
+    sharedLogin?: boolean;
   } = {},
 ) {
   const fs = yield* FileSystem.FileSystem;
@@ -132,6 +133,7 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
   const usage = yield* makeAntigravityUsageProbe({
     profileDirectory,
     authMethod: options.authMethod ?? "oauth-personal",
+    ...(options.sharedLogin ? { sharedLogin: true } : {}),
   }).pipe(Effect.provideService(HttpClient.HttpClient, http));
   return { ...usage, requests, writeToken, tokenPath };
 });
@@ -651,6 +653,17 @@ describe("Antigravity subscription limits", () => {
       expect(limits.windows).toEqual([]);
       expect(limits.unavailable?.reason).toBe("probeFailed");
       expect(JSON.stringify(limits)).not.toMatch(/client-secret|refresh-a|access-token/);
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+  );
+
+  // fork: the shared login lives in the system keyring, which the probe never reads.
+  it.effect("explains why limits are unavailable when the sign-in is the agy CLI's", () =>
+    Effect.gen(function* () {
+      const { probe, requests } = yield* fixture({ missingToken: true, sharedLogin: true });
+      const limits = yield* probe;
+      expect(limits.unavailable?.reason).toBe("unsupported");
+      expect(limits.unavailable?.message).toContain("agy CLI");
+      expect(requests).toEqual([]);
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
 

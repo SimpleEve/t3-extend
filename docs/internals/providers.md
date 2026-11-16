@@ -50,7 +50,8 @@ the translator sends omp's `branch` instead.
 
 Antigravity separates account profiles per instance while sharing installed executables across the
 environment. It forces file-based credential storage because the native macOS keychain entry would
-otherwise be shared across instances. The launch environment removes ambient Google credentials,
+otherwise be shared across instances. T3 Extend lifts that for one instance, the default one, so it
+can use the `agy` CLI's own login (a "shared login"); see FORK.md. The launch environment removes ambient Google credentials,
 so an instance cannot silently use another account or billing project. The agent also resolves
 its user-global skill directories under that profile, so the profile links those two directories
 back to the user's real `~/.gemini`; MCP servers, hooks, and rules there stay out of the profile.

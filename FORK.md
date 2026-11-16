@@ -226,6 +226,30 @@ macOS 打包版的设置 > 通用 > "后台运行" 有一个开关"在后台保�
 
 没有改的：launcher 的 `__service-launcher` 命令、service state 的格式和协议号、`t3x service` 的其余子命令。测试都用假的 ProcessRunner 和临时目录（`appService.test.ts`、`DesktopBackgroundService.test.ts`），不碰真实 launchd；真机验证的命令清单在交付报告里。
 
+## Antigravity 沿用本机 agy CLI 的登录
+
+官方 T3 Code 让每个 Antigravity 实例用自己的 gemini home（`<T3 home>/userdata/providers/antigravity/<sha256(实例 id)>/`），并给 agy 设 `AGY_ACP_FORCE_FILE_STORAGE=1`，登录态只写进 profile 里的 `antigravity-acp/acp_token.json`。所以 T3 里的 agy 看不到用户在终端里 `agy` 的登录，要在 T3 里再登录一次。上游这样做的理由写在 `docs/internals/providers.md`：agy 默认把登录放在系统 keyring（macOS 钥匙串，条目与 gemini home 无关），多个实例会共用同一条，隔离多账号只能强制文件存储。
+
+实测（临时 profile、真实 `agy acp`，只做 `initialize` 和 `authenticate`，没发对话）：不设 `AGY_ACP_FORCE_FILE_STORAGE` 时，agy 日志是 `ChainedAuth: authenticated via keyring`，直接用 CLI 的登录，不生成 `acp_token.json`，不调浏览器；再发 `session/new` 也能取到模型列表。`~/.gemini` 下的文件 mtime 前后一致，钥匙串条目的修改时间也没变。`~/.gemini/oauth_creds.json` 是旧 gemini CLI 的凭据，和 agy 的登录无关，没用它。
+
+做法：只共享登录，不共享 gemini home。设置里加了 `loginSource`（设置 > provider > Antigravity > Login source），三个值：
+
+- `auto`（默认）：**默认实例**（实例 id 就是 `antigravity`）且 profile 里没有自己的 `acp_token.json` 时用 CLI 登录；额外实例，以及已经在 profile 里登录过的实例（比如从官方导入的），保持独立登录，账号不会悄悄换掉。
+- `cli`：强制用 CLI 登录，不管实例和 profile。
+- `profile`：独立登录，也就是上游原来的行为，多账号用它。
+
+只对 Google 账号和 Gemini Enterprise 两种浏览器登录生效；API key 和 Agent Platform 不变。判定函数是 `resolveAntigravityLoginSource`（`antigravityAuthSupport.ts`），驱动创建时算一次。
+
+用 CLI 登录时：
+
+- 只是 `buildAntigravityAcpSpawnInput` 不再设 `AGY_ACP_FORCE_FILE_STORAGE`（`AntigravityProfile.sharedLogin`）。`--gemini-dir` 和 `GEMINI_HOME` 仍指向 T3 自己的 profile，会话、hooks、MCP、skills 链接、临时目录清理（`removeAntigravitySessionFiles`、`retireAntigravityRuntimeTempDirs`）都只在 profile 里动，碰不到 `~/.gemini`。
+- 健康检查读不到 token 文件，原来的"有没有 token"判定不能用。改成 `silentSignIn`：健康检查发现还没登录时，起一个一次性的 agy 做 `initialize` + `authenticate`（不建会话，不触发 MCP、hooks，也不拉浏览器；没登录时在 stdout 变换里就报"需要登录"），成功就记为已登录。已登录不再检查；没登录时最多 5 分钟检查一次（`SHARED_SIGN_IN_RECHECK_MS`）。设置里手动「刷新 provider 状态」走 `refreshModels`，不受这个间隔限制，并且会加载模型。自动检查不加载模型，重启后要等一次会话或手动刷新，和独立登录模式一致。这是对 `docs/internals/providers.md` 里"健康检查不起会话"原则的最小例外：只做认证。
+- 登出被禁用（`logoutBlockedMessage`）：原生 `logout` 会清掉 keyring 里的登录，终端里的 `agy` 也会跟着退出。T3 里点退出登录、或在对话里发 `/logout`，都会得到说明而不是执行。
+- 用量限额（Usage > Limits）读不到：用量探测靠 token 文件里的 refresh token 调 Google 配额接口，而 CLI 登录在 keyring 里，T3 不读（`security` 读别的应用的钥匙串条目要用户授权，后台服务里弹不出来）。所以这时限额显示"不可用"和原因。需要限额就把 Login source 改成独立登录。
+- 在 T3 里点 Sign in：CLI 已登录就瞬间完成，没有浏览器；CLI 没登录时走浏览器登录，结果写进 keyring，终端的 `agy` 也会登录上（两边是同一条登录）。
+
+没验证的：Linux 或没有 keyring 的主机上，agy 在不强制文件存储时放哪里；Windows 凭据管理器；keyring 里的登录过期且 refresh token 失效时（只看到过 keyring 里的 token 过期后自动刷新成功）；官方 T3 Code 和 Extend 同机同时运行时，两边的 agy 同时刷新同一条 keyring 登录。
+
 ## 侧边栏视图
 
 侧边栏有"按状态"（上游的 Inbox）和"按项目"两种视图，后者在项目文件夹下再按 worktree 分子组，是默认视图：`boringSidebarEnabled` 的默认值在 contracts 里改成了 true（带 `// fork:`），手机端偏好未设置时回落到 `"project"`（`threadListViewState.ts` 的 `DEFAULT_VIEW_MODE`）。默认值只对没存过这一项的设备生效：桌面版一旦存过任何客户端设置，整份设置（包括 `boringSidebarEnabled`）都会写进 `client-settings.json`，所以以前存过 `false` 的设备要手动切一次。用户说明见 `docs/user/thread-sidebar.md` 的 "Choose a sidebar view"。

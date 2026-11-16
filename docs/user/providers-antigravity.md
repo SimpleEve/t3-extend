@@ -1,8 +1,10 @@
 # Antigravity
 
 T3 Code runs Google's official Antigravity ACP agent on your selected environment.
-T3 manages its own CLI installation and sign-in, separate from your terminal or IDE. Google controls
-which models and account access are available through this agent.
+T3 manages its own CLI installation, separate from your terminal or IDE. The default instance uses
+the same Google sign-in as the `agy` CLI on that machine, and other instances sign in on their own
+(see [Use your agy CLI sign-in](#use-your-agy-cli-sign-in)). Google controls which models and
+account access are available through this agent.
 
 ## Set up Antigravity
 
@@ -11,6 +13,9 @@ your project, and enable Antigravity. Install its runtime there, then choose
 **Sign in** and complete the browser sign-in. Wait for T3 Code to confirm
 account access and load models before starting a thread. Once the runtime is installed,
 you can also sign in from **Settings > Providers** in the mobile app.
+
+If you already signed in with `agy` in a terminal on that machine, you do not need this step: the
+default instance picks that sign-in up by itself.
 
 Installation continues if you leave settings or reconnect. Setup requires
 permission to operate the environment; update an older server if it does not offer
@@ -123,11 +128,39 @@ which children a batch started, the view says so. See
 [agent work](./thread-sidebar.md#inspect-agent-work) for where to inspect
 activity.
 
+## Use your agy CLI sign-in
+
+The default Antigravity instance uses the Google sign-in of the `agy` CLI on the same machine. On a
+machine where you have already run `agy`, enabling Antigravity needs no second sign-in. T3 asks the agent whether that sign-in works when the provider
+is enabled and now and then while it is not signed in. **Refresh provider status** checks right
+away, for example after you sign in from a terminal. **Sign in** also finishes at once, without a
+browser, when the CLI is already signed in.
+
+Only the sign-in is shared. Threads, hooks, MCP servers, and rules stay in T3's own profile, and
+nothing in `~/.gemini` is changed.
+
+Choose **Login source** in the Antigravity provider settings. It applies to Google account and
+Gemini Enterprise sign-in:
+
+| Login source     | Behavior                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
+| Automatic        | The default instance uses the agy CLI login unless it signed in on its own before. Others do not. |
+| agy CLI login    | Use the agy CLI login, even for another instance or one that signed in on its own before.         |
+| Separate sign-in | Keep a sign-in only T3 uses, for example to run another Google account next to the CLI's.         |
+
+Limits of sharing the CLI sign-in:
+
+- **Sign out** is unavailable, because signing out here would also sign out `agy` in your terminal.
+  Sign out with `agy`, or switch **Login source** to **Separate sign-in**.
+- **Usage > Limits** is empty for this instance. The sign-in sits in the system keyring, which T3
+  does not read. Choose **Separate sign-in** to see Antigravity limits.
+- Signing in from T3 while the CLI is signed out can also sign the CLI in, because both use one sign-in.
+
 ## Accounts and removal
 
 Add an Antigravity provider instance for each Google account in
-**Settings > Providers** on web or desktop. Each has its own sign-in; downloaded
-runtimes are shared on the environment.
+**Settings > Providers** on web or desktop. Each additional instance has its own sign-in; downloaded
+runtimes are shared on the environment. The default instance can use the agy CLI's account instead.
 
 | Action                    | Effect                                                            |
 | ------------------------- | ----------------------------------------------------------------- |
