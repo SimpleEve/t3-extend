@@ -10,7 +10,7 @@ import {
 const OLD = "11111111-1111-4111-8111-111111111111";
 const NEW = "22222222-2222-4222-8222-222222222222";
 
-it("moves only the scheduledTaskId field to the task's imported id, escaped or not", () => {
+it("moves only scheduledTaskId properties of the JSON, never text that looks like one", () => {
   const rewriter = makeRewriter({
     ids: new Map(),
     taskIds: new Map([["scheduled-task:a", "scheduled-task:import-b"]]),
@@ -18,18 +18,30 @@ it("moves only the scheduledTaskId field to the task's imported id, escaped or n
     targetAttachmentsDir: "/a",
     targetBrowserArtifactsDir: "/b",
   });
-  const plain = JSON.stringify({
+  const quoted = '{"scheduledTaskId":"scheduled-task:a"}';
+  const document = JSON.stringify({
     scheduledTaskId: "scheduled-task:a",
-    text: "see scheduled-task:a",
+    items: [{ scheduledTaskId: "scheduled-task:a", note: "scheduled-task:a" }],
+    text: `a payload: ${quoted}`,
+    other: { scheduledTaskIdentity: "scheduled-task:a" },
   });
   assert.equal(
-    rewriter.rewrite(plain),
-    JSON.stringify({ scheduledTaskId: "scheduled-task:import-b", text: "see scheduled-task:a" }),
+    rewriter.rewrite(document),
+    JSON.stringify({
+      scheduledTaskId: "scheduled-task:import-b",
+      items: [{ scheduledTaskId: "scheduled-task:import-b", note: "scheduled-task:a" }],
+      text: `a payload: ${quoted}`,
+      other: { scheduledTaskIdentity: "scheduled-task:a" },
+    }),
   );
-  const nested = JSON.stringify({ inner: plain });
-  assert.include(rewriter.rewrite(nested), 'scheduledTaskId\\":\\"scheduled-task:import-b');
+  // Not JSON, or nothing to move: the text comes back as it was.
+  const prose = `see ${quoted} above`;
+  assert.equal(rewriter.rewrite(prose), prose);
   const unknown = JSON.stringify({ scheduledTaskId: "scheduled-task:z" });
   assert.equal(rewriter.rewrite(unknown), unknown);
+  // A string that holds a JSON document is text.
+  const wrapped = JSON.stringify({ text: quoted });
+  assert.equal(rewriter.rewrite(wrapped), wrapped);
 });
 
 it("renames ids everywhere in a row and moves official folders to this environment's", () => {

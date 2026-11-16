@@ -62,6 +62,7 @@ import {
   clearLimitRecovery,
   detachProviderThread,
   makeRewriter,
+  moveTaskIdFields,
   markCheckpointMissing,
   unlinkSubagentChild,
   uuidFromDigest,
@@ -805,6 +806,8 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     return yield* withSource(located.sourcePath, (src) => catalogOf(located.sourcePath, src));
   }).pipe(
     Effect.mapError((cause) => (isImportError(cause) ? cause : failed(cause))),
+    // Opening the dialog also retries a relink that failed; it only touches this database.
+    Effect.tap(() => relinkInBackground),
     Effect.withSpan("T3CodeImport.preview"),
   );
 
@@ -2103,14 +2106,19 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     return { imported, unreadable, secretNotices };
   });
 
-  /** Tables whose rows hold messages as JSON; a message's `scheduledTaskId` is what links it to its task. */
+  /** Tables whose rows hold messages as JSON, and the column that says which thread a row belongs to. */
   const TASK_LINK_TABLES = [
-    "orchestration_v2_projection_messages",
-    "orchestration_v2_projection_turn_items",
-    "orchestration_events",
-    "orchestration_v2_events",
+    { table: "orchestration_v2_projection_messages", thread: "thread_id", where: "" },
+    { table: "orchestration_v2_projection_turn_items", thread: "thread_id", where: "" },
+    { table: "orchestration_events", thread: "stream_id", where: "aggregate_kind = 'thread' AND " },
+    { table: "orchestration_v2_events", thread: "thread_id", where: "" },
   ] as const;
 
+  /**
+   * Moves the official task id in imported messages to the imported task's id, a thread at a time under the
+   * thread's command lock, so a command that read the old id cannot write it back after the move. The task is
+   * marked linked only once every thread is done; until then it stays pending and the next call finishes it.
+   */
   const relinkPendingTasks = Effect.fn("T3CodeImport.relinkPendingTasks")(function* () {
     const pending = yield* sql.unsafe<{ readonly source_id: string; readonly target_id: string }>(
       `SELECT source_id, target_id FROM fork_t3code_import_map AS task
@@ -2118,45 +2126,88 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
          SELECT 1 FROM fork_t3code_import_map AS link WHERE link.kind = 'task-links' AND link.source_id = task.source_id)`,
     );
     if (pending.length === 0) return 0;
-    const field = (id: string) => `"scheduledTaskId":"${id}"`;
-    return yield* sql.withTransaction(
-      Effect.gen(function* () {
-        let changed = 0;
-        for (const table of TASK_LINK_TABLES) {
-          const columns = yield* sql.unsafe<{ readonly name: string }>(
-            `SELECT name FROM pragma_table_info('${table}')`,
-          );
-          if (!columns.some((column) => column.name === "payload_json")) continue;
-          let expression = "payload_json";
-          const params: Array<string> = [];
-          for (const task of pending) {
-            expression = `replace(${expression}, ?, ?)`;
-            params.push(field(task.source_id), field(task.target_id));
-          }
-          yield* sql.unsafe(
-            `UPDATE ${table} SET payload_json = ${expression}
-             WHERE ${pending.map(() => "instr(payload_json, ?) > 0").join(" OR ")}`,
-            [...params, ...pending.map((task) => field(task.source_id))],
-          );
-          const rows = yield* sql.unsafe<{ readonly n: number }>(`SELECT changes() AS n`);
-          changed += Number(rows[0]?.n ?? 0);
-        }
-        const at = yield* nowIso;
-        for (const task of pending) {
-          yield* sql.unsafe(
+    const taskIds = new Map(pending.map((task) => [task.source_id, task.target_id] as const));
+    const mentions = pending.map(() => "instr(payload_json, ?) > 0").join(" OR ");
+    const sourceIds = pending.map((task) => task.source_id);
+
+    const tables: Array<(typeof TASK_LINK_TABLES)[number]> = [];
+    for (const entry of TASK_LINK_TABLES) {
+      const columns = yield* sql.unsafe<{ readonly name: string }>(
+        `SELECT name FROM pragma_table_info('${entry.table}')`,
+      );
+      const names = new Set(columns.map((column) => column.name));
+      if (names.has("payload_json") && names.has(entry.thread)) tables.push(entry);
+    }
+    const threads = new Set<string>();
+    for (const { table, thread, where } of tables) {
+      const rows = yield* sql.unsafe<{ readonly id: string }>(
+        `SELECT DISTINCT ${thread} AS id FROM ${table} WHERE ${where}(${mentions})`,
+        sourceIds,
+      );
+      for (const row of rows) threads.add(String(row.id));
+    }
+
+    let changed = 0;
+    // A fixed order, so two callers never hold one thread's lock while waiting for another's.
+    for (const threadId of [...threads].toSorted()) {
+      changed += yield* threadCommands.withLock(
+        threadId as ThreadId,
+        sql.withTransaction(
+          Effect.gen(function* () {
+            let moved = 0;
+            for (const { table, thread, where } of tables) {
+              const rows = yield* sql.unsafe<{
+                readonly rid: number;
+                readonly payload_json: string;
+              }>(
+                `SELECT rowid AS rid, payload_json FROM ${table} WHERE ${where}${thread} = ? AND (${mentions})`,
+                [threadId, ...sourceIds],
+              );
+              for (const row of rows) {
+                const json = moveTaskIdFields(String(row.payload_json), taskIds);
+                if (json === null) continue;
+                yield* sql.unsafe(`UPDATE ${table} SET payload_json = ? WHERE rowid = ?`, [
+                  json,
+                  row.rid,
+                ]);
+                moved += 1;
+              }
+            }
+            return moved;
+          }),
+        ),
+      );
+    }
+
+    const at = yield* nowIso;
+    yield* sql.withTransaction(
+      Effect.forEach(
+        pending,
+        (task) =>
+          sql.unsafe(
             `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at)
              VALUES ('task-links', ?, ?, 'done', NULL, ?)`,
             [task.source_id, task.target_id, at],
-          );
-        }
-        return changed;
-      }),
+          ),
+        { discard: true },
+      ),
     );
+    return changed;
   });
 
+  /** The driver already waits out a busy database; two more tries cover a lock lost in between, and what still fails stays pending. */
+  const relinkWithRetry = relinkPendingTasks().pipe(Effect.retry({ times: 2 }));
   const relinkTaskMessages: T3CodeImport["Service"]["relinkTaskMessages"] = importLock
-    .withPermits(1)(relinkPendingTasks())
+    .withPermits(1)(relinkWithRetry)
     .pipe(Effect.mapError(failed));
+  const relinkQuietly = relinkWithRetry.pipe(
+    Effect.catch((cause) =>
+      Effect.logWarning("Could not relink imported task messages; they stay pending", { cause }),
+    ),
+  );
+  const relinkInBackground = importLock
+    .withPermits(1)(relinkQuietly)
+    .pipe(Effect.forkIn(scope), Effect.asVoid);
 
   const importFiles = Effect.fn("T3CodeImport.importFiles")(function* (
     analysis: Analysis,
@@ -2451,8 +2502,6 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       unreadable: unreadableTasks,
       secretNotices,
     } = yield* importScheduledTasks(analysis);
-    // Threads imported by an earlier run name these tasks by the official id.
-    if (importedTasks.length > 0) yield* relinkPendingTasks();
 
     // The final list reports what actually happened.
     const counters = context.counters;
@@ -2648,9 +2697,14 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         .withPermits(1)(
           runImport(selection).pipe(
             Effect.matchEffect({
-              onSuccess: (result) => SubscriptionRef.set(stateRef, { status: "finished", result }),
+              // Every run also finishes any relink an earlier try left pending, whatever it imported.
+              onSuccess: (result) =>
+                relinkQuietly.pipe(
+                  Effect.andThen(SubscriptionRef.set(stateRef, { status: "finished", result })),
+                ),
               onFailure: (cause) =>
                 Effect.logWarning("Import from T3 Code failed", { cause }).pipe(
+                  Effect.andThen(relinkQuietly),
                   Effect.andThen(
                     SubscriptionRef.set(stateRef, {
                       status: "failed",
@@ -2666,12 +2720,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   );
 
   // Tasks an earlier build imported; once linked they are marked, so later starts do nothing.
-  yield* relinkTaskMessages.pipe(
-    Effect.catch((cause) =>
-      Effect.logWarning("Could not relink imported task messages", { cause }),
-    ),
-    Effect.forkIn(scope),
-  );
+  yield* relinkInBackground;
 
   return T3CodeImport.of({
     preview,

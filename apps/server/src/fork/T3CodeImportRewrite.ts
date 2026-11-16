@@ -14,8 +14,50 @@ export const uuidFromDigest = (digest: Uint8Array): string => {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
 
-/** A `scheduledTaskId` JSON field, also when its quotes are escaped inside a string. */
-const TASK_FIELD = /(scheduledTaskId\\*"\s*:\s*\\*")([^"\\]+)/g;
+const TASK_FIELD = "scheduledTaskId";
+
+const moveTaskFields = (
+  value: unknown,
+  taskIds: ReadonlyMap<string, string>,
+  state: { changed: boolean },
+): unknown => {
+  if (Array.isArray(value)) return value.map((item) => moveTaskFields(item, taskIds, state));
+  if (typeof value !== "object" || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => {
+      if (key === TASK_FIELD && typeof item === "string") {
+        const target = taskIds.get(item);
+        if (target !== undefined) {
+          state.changed = true;
+          return [key, target];
+        }
+      }
+      return [key, moveTaskFields(item, taskIds, state)];
+    }),
+  );
+};
+
+/**
+ * Moves the `scheduledTaskId` property of any object in a JSON document to its imported id, or returns null when
+ * the text is not JSON or holds none to move. The document is parsed, so text that merely contains the same
+ * characters (a message quoting a payload, a string holding JSON) is never touched. A changed document is written
+ * back compact, as these rows were written; numbers beyond double precision would differ, and the payloads have none.
+ */
+export const moveTaskIdFields = (
+  text: string,
+  taskIds: ReadonlyMap<string, string>,
+): string | null => {
+  if (taskIds.size === 0 || !text.includes(TASK_FIELD)) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const state = { changed: false };
+  const moved = moveTaskFields(parsed, taskIds, state);
+  return state.changed ? JSON.stringify(moved) : null;
+};
 
 export interface CopiedFileRef {
   readonly kind: "attachments" | "browser-artifacts";
@@ -98,13 +140,7 @@ export const makeRewriter = (input: {
       }
     }
     if (idPattern !== null) next = next.replace(idPattern, (match) => ids.get(match) ?? match);
-    const taskIds = input.taskIds;
-    if (taskIds === undefined || taskIds.size === 0 || !next.includes("scheduledTaskId"))
-      return next;
-    return next.replace(TASK_FIELD, (match, head: string, id: string) => {
-      const target = taskIds.get(id);
-      return target === undefined ? match : `${head}${target}`;
-    });
+    return (input.taskIds === undefined ? null : moveTaskIdFields(next, input.taskIds)) ?? next;
   };
   return {
     rewrite,

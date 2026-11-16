@@ -80,6 +80,8 @@ const TASK_ONCE_PAST = "scheduled-task:dddd";
 const TASK_ONCE_FUTURE = "scheduled-task:eeee";
 /** Runs in the scheduled thread, so Thread Details lists it there. */
 const TASK_BOUND = "scheduled-task:abab";
+/** Text that only looks like a link: a message quoting a payload. */
+const QUOTED_FIELD = `{"scheduledTaskId":"${TASK_INTERVAL}"}`;
 const CURSOR_CREDENTIAL =
   "provider-auth-02a8ae355046b982b21f46e0b092be604758b64fa8ae971800289f628c780a54";
 
@@ -257,7 +259,7 @@ const createSourceHome = Effect.fn("createSourceHome")(function* (
       yield* sql`INSERT INTO orchestration_v2_projection_turn_items
         (turn_item_id, thread_id, run_id, ordinal, type, status, updated_at, payload_json)
         VALUES (${`scheduled-item:${T_SCHEDULED}`}, ${T_SCHEDULED}, ${`run:thread:${T_SCHEDULED}:ordinal:1`}, 0, 'user_message', 'completed', '2026-08-01',
-          ${JSON.stringify({ ...scheduledRef(TASK_INTERVAL), summary: `mentions ${TASK_INTERVAL} in prose` })})`;
+          ${JSON.stringify({ ...scheduledRef(TASK_INTERVAL), summary: `mentions ${TASK_INTERVAL} in prose`, quoted: QUOTED_FIELD })})`;
       yield* sql`INSERT INTO orchestration_events
         (event_id, aggregate_kind, stream_id, stream_version, event_type, occurred_at, actor_kind, payload_json, metadata_json, application_event_version)
         VALUES (${`scheduled-sent-${T_SCHEDULED}`}, 'thread', ${T_SCHEDULED}, 2, 'message.dispatched', '2026-08-02', 'user',
@@ -437,6 +439,8 @@ const withService = <A, E, R>(
     };
     /** Swaps the event store for one that records what the import tells live clients, by thread id. */
     readonly announced?: Array<string>;
+    /** Runs on the target database after its migrations and before the service starts, to leave an earlier build's state. */
+    readonly prepare?: Effect.Effect<void, never, SqlClient.SqlClient>;
   },
   use: (input: {
     readonly service: T3CodeImport.T3CodeImport["Service"];
@@ -470,6 +474,7 @@ const withService = <A, E, R>(
         yield* sql`INSERT OR REPLACE INTO orchestration_v2_projection_metadata
           (projection_name, schema_version, last_sequence, updated_at)
           VALUES ('thread-projections', 2, 0, '2026-09-01')`;
+        if (options.prepare !== undefined) yield* options.prepare;
       }),
     );
     const captured: Captured = { tasks: [], keybindings: [], secrets: new Map() };
@@ -1092,6 +1097,16 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
         ),
     );
 
+  /** What a turn item says about the task in prose is the author's text and stays as it was. */
+  const assertProseKept = Effect.fn("assertProseKept")(function* (sql: SqlClient.SqlClient) {
+    const [item] = yield* sql<{
+      payload_json: string;
+    }>`SELECT payload_json FROM orchestration_v2_projection_turn_items`;
+    const payload = JSON.parse(item!.payload_json) as { summary: string; quoted: string };
+    assert.equal(payload.summary, `mentions ${TASK_INTERVAL} in prose`);
+    assert.equal(payload.quoted, QUOTED_FIELD);
+  });
+
   it.effect(
     "points a copied thread's scheduled messages at the id the task is imported under",
     () =>
@@ -1111,11 +1126,7 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
             [expected],
           );
           assert.deepStrictEqual(yield* scheduledRefs(sql), [expected, expected, expected]);
-          // Prose that merely mentions the id is the author's text, not a link.
-          const [item] = yield* sql<{
-            payload_json: string;
-          }>`SELECT payload_json FROM orchestration_v2_projection_turn_items`;
-          assert.include(item?.payload_json, `mentions ${TASK_INTERVAL} in prose`);
+          yield* assertProseKept(sql);
         }),
       ),
   );
@@ -1209,6 +1220,7 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
 
         assert.equal(yield* service.relinkTaskMessages, 3);
         assert.deepStrictEqual(yield* scheduledRefs(sql), [expected, expected, expected]);
+        yield* assertProseKept(sql);
         assert.equal(yield* service.relinkTaskMessages, 0);
         assert.equal(captured.tasks.length, 1);
       }),
@@ -2698,4 +2710,156 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
         }),
       ),
   );
+  /** The scheduled thread imported with its task, then put back the way an earlier build left it. */
+  const leaveEarlierBuildState = Effect.fn("leaveEarlierBuildState")(function* (
+    service: T3CodeImport.T3CodeImport["Service"],
+    sql: SqlClient.SqlClient,
+  ) {
+    const expected = yield* importedTaskId(TASK_INTERVAL);
+    yield* runToEnd(
+      service,
+      selectionOf({
+        threadIds: [ThreadId.make(T_SCHEDULED)],
+        files: [],
+        scheduledTasks: [{ taskId: TASK_INTERVAL, enabled: true }],
+      }),
+    );
+    yield* sourceIdsAgain(sql, expected);
+    yield* sql`DELETE FROM fork_t3code_import_map WHERE kind = 'task-links'`;
+    return expected;
+  });
+  const UNLINKED = [TASK_INTERVAL, TASK_INTERVAL, TASK_INTERVAL];
+
+  it.effect("a relink waits for a command holding the thread and is not undone by it", () =>
+    Effect.gen(function* () {
+      const { threadCommands } = yield* lockWithAction();
+      const held = Deferred.makeUnsafe<void>();
+      const release = Deferred.makeUnsafe<void>();
+      const requested = Deferred.makeUnsafe<void>();
+      // The command takes its lock first; the relink's own request for the same lock is what `requested` marks.
+      const asked: ThreadCommandExecutor.ThreadCommandExecutor["Service"] = {
+        activeKeys: threadCommands.activeKeys,
+        withLock: (key, effect) =>
+          Effect.suspend(() => {
+            if (Deferred.isDoneUnsafe(held)) Deferred.doneUnsafe(requested, Effect.void);
+            return threadCommands.withLock(key, effect);
+          }),
+      };
+      return yield* withService({ threadCommands: asked }, ({ service, sql }) =>
+        Effect.gen(function* () {
+          const expected = yield* leaveEarlierBuildState(service, sql);
+          const thread = yield* targetOf(sql, T_SCHEDULED);
+          // A command that read the thread before the relink and writes back what it read once it commits.
+          const command = yield* asked
+            .withLock(
+              thread as ThreadId,
+              Deferred.succeed(held, undefined).pipe(
+                Effect.andThen(Deferred.await(release)),
+                Effect.andThen(
+                  sql`UPDATE orchestration_v2_projection_messages
+                    SET payload_json = replace(payload_json, ${expected}, ${TASK_INTERVAL})`,
+                ),
+              ),
+            )
+            .pipe(Effect.orDie, Effect.forkChild);
+          yield* Deferred.await(held);
+          const relinking = yield* service.relinkTaskMessages.pipe(Effect.forkChild);
+          yield* Deferred.await(requested);
+          // The relink has asked for the lock and is waiting for it, so nothing has moved.
+          assert.deepStrictEqual(yield* scheduledRefs(sql), UNLINKED);
+          yield* Deferred.succeed(release, undefined);
+          yield* Fiber.join(command);
+          assert.equal(yield* Fiber.join(relinking), 3);
+          assert.deepStrictEqual(yield* scheduledRefs(sql), [expected, expected, expected]);
+        }),
+      );
+    }),
+  );
+
+  it.effect(
+    "a relink that fails changes nothing, stays pending, and is finished by the next try",
+    () =>
+      withService({}, ({ service, sql }) =>
+        Effect.gen(function* () {
+          const expected = yield* leaveEarlierBuildState(service, sql);
+          // Fails after the messages were rewritten, so the thread's whole move has to roll back.
+          yield* sql`CREATE TRIGGER fail_relink BEFORE UPDATE ON orchestration_v2_projection_turn_items
+          BEGIN SELECT RAISE(ABORT, 'database is locked'); END`;
+          const failing = yield* service.relinkTaskMessages.pipe(Effect.exit, Effect.forkChild);
+          yield* TestClock.adjust("5 seconds");
+          assert.isTrue(Exit.isFailure(yield* Fiber.join(failing)));
+          assert.deepStrictEqual(yield* scheduledRefs(sql), UNLINKED);
+          const [links] = yield* sql<{
+            count: number;
+          }>`SELECT COUNT(*) AS count FROM fork_t3code_import_map WHERE kind = 'task-links'`;
+          assert.equal(links?.count, 0);
+
+          // An import with nothing to do with tasks tries again; failing there does not fail the import.
+          const nothing = selectionOf({ threadIds: [], files: [], scheduledTasks: [] });
+          yield* runToEnd(service, nothing);
+          assert.deepStrictEqual(yield* scheduledRefs(sql), UNLINKED);
+
+          yield* sql`DROP TRIGGER fail_relink`;
+          yield* runToEnd(service, nothing);
+          assert.deepStrictEqual(yield* scheduledRefs(sql), [expected, expected, expected]);
+          assert.equal(yield* service.relinkTaskMessages, 0);
+        }),
+      ),
+  );
+
+  it.effect("opening the import dialog finishes a pending relink", () => {
+    const requested = Deferred.makeUnsafe<void>();
+    const armed = { current: false };
+    return withService(
+      {
+        lockRequested: () =>
+          armed.current ? Deferred.succeed(requested, undefined).pipe(Effect.asVoid) : Effect.void,
+      },
+      ({ service, sql }) =>
+        Effect.gen(function* () {
+          const expected = yield* leaveEarlierBuildState(service, sql);
+          // From here a request for a thread lock can only be the relink the preview starts.
+          armed.current = true;
+          yield* service.preview;
+          yield* Deferred.await(requested);
+          // That relink holds the import lock; asking again waits for it and finds nothing left.
+          assert.equal(yield* service.relinkTaskMessages, 0);
+          assert.deepStrictEqual(yield* scheduledRefs(sql), [expected, expected, expected]);
+        }),
+    );
+  });
+
+  it.effect("starting the service relinks what an earlier build left, in the background", () => {
+    const requested = Deferred.makeUnsafe<void>();
+    const THREAD = "prepared-thread";
+    return withService(
+      {
+        lockRequested: (key) =>
+          key === THREAD ? Deferred.succeed(requested, undefined).pipe(Effect.asVoid) : Effect.void,
+        prepare: Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* SharedWorktrees.ensureImportTables();
+          yield* sql`INSERT INTO fork_t3code_import_map (kind, source_id, target_id, state, imported_at)
+            VALUES ('task', ${TASK_INTERVAL}, 'scheduled-task:import-prepared', 'done', '2026-09-01')`;
+          yield* sql`INSERT INTO orchestration_v2_projection_messages
+            (message_id, thread_id, run_id, role, streaming, created_at, updated_at, payload_json)
+            VALUES ('prepared-message', ${THREAD}, 'run', 'user', 0, '2026-09-01', '2026-09-01',
+              ${JSON.stringify({ scheduledTaskId: TASK_INTERVAL })})`;
+        }).pipe(Effect.orDie),
+      },
+      ({ service, sql }) =>
+        Effect.gen(function* () {
+          // Nothing but the service's own start can have asked for this thread's lock.
+          yield* Deferred.await(requested);
+          assert.equal(yield* service.relinkTaskMessages, 0);
+          const [message] = yield* sql<{
+            payload_json: string;
+          }>`SELECT payload_json FROM orchestration_v2_projection_messages WHERE message_id = 'prepared-message'`;
+          assert.equal(
+            (JSON.parse(message!.payload_json) as { scheduledTaskId: string }).scheduledTaskId,
+            "scheduled-task:import-prepared",
+          );
+        }),
+    );
+  });
 });
