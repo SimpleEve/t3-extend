@@ -345,6 +345,32 @@ describe("OmpAdapterV2", () => {
       }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 
+  it.effect("does not show extension status text, which clients label as Pi's", () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOmp();
+      const { runtime, takeEvent } = yield* openRuntime(fake, "full-access");
+      yield* fake.emit({
+        type: "extension_ui_request",
+        id: "s1",
+        method: "setStatus",
+        statusKey: "watch",
+        statusText: "Watching 3 files",
+      });
+      // Frames are handled in order, so a dialog raised after the status proves it was handled.
+      yield* fake.emit({
+        type: "extension_ui_request",
+        id: "barrier",
+        method: "confirm",
+        title: "Continue?",
+      });
+      yield* takeEvent(
+        (event) =>
+          event.type === "runtime_request.updated" && event.runtimeRequest.status === "pending",
+      );
+      assert.deepEqual(runtime.providerSession.extensionStatuses, []);
+    }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
   it.effect("stops a turn by withdrawing queued input and aborting", () =>
     Effect.gen(function* () {
       const fake = yield* makeFakeOmp();

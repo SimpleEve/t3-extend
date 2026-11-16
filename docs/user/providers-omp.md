@@ -68,6 +68,7 @@ a subagent.
 - omp does not write thread titles, commit messages, or other [text generation](./text-generation.md);
   pick another model for them.
 - omp usage does not appear in the usage page.
+- Status text that omp extensions publish is not shown near the composer.
 
 ## Troubleshooting
 

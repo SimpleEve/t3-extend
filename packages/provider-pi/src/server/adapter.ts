@@ -775,6 +775,7 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
       // Frequent notifications share the event pump's tracing boundary and outlive individual turns.
       const updateExtensionStatus = Effect.fnUntraced(function* (event: PiRpcRecord) {
         if (
+          dialect.showsExtensionStatuses === false || // fork:
           closed ||
           stopRequested ||
           runtimeRetired ||

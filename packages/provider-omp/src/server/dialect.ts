@@ -158,6 +158,7 @@ export const OMP_DIALECT: PiDialect = {
   defaultBinary: "omp",
   capabilities: OmpProviderCapabilities,
   reportsTurnTokenUsage: true,
+  showsExtensionStatuses: false,
   // Approvals are omp's own and T3's tools arrive as host tools, so there is nothing to install.
   materializeExtension: () => Effect.undefined,
   resolveLaunchArgs: resolveOmpLaunchArgs,

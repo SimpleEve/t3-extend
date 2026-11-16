@@ -41,6 +41,8 @@ export interface PiDialect {
   readonly capabilities: OrchestrationV2ProviderCapabilities;
   /** Sum each assistant message's usage into the turn's `turnTokenUsage`, which Pi's usage cannot supply. */
   readonly reportsTurnTokenUsage?: boolean;
+  /** `false` drops extension status text; clients label it as Pi's, so other agents must not show it. */
+  readonly showsExtensionStatuses?: boolean;
   /** Pi injects a permission and MCP extension; dialects with native equivalents return undefined. */
   readonly materializeExtension: (
     cacheDir: string,
