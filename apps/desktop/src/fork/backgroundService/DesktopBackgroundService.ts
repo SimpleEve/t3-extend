@@ -2,8 +2,8 @@ import type {
   BackgroundServiceChange,
   BackgroundServiceState,
 } from "@t3tools/shared/backgroundService";
-import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -161,10 +161,11 @@ export const make = Effect.fn("desktop.backgroundService.make")(function* (input
   const recordFailure = Effect.fn("desktop.backgroundService.recordFailure")(function* (
     reason: string,
   ) {
-    const at = new Date(yield* Clock.currentTimeMillis).toISOString();
+    const at = DateTime.formatIso(yield* DateTime.now);
     yield* fs.makeDirectory(`${input.cli.baseDir}/runtime`, { recursive: true });
+    // @effect-diagnostics-next-line globalJsonInEffect:off - a fixed two-field record.
     yield* fs.writeFileString(failurePath, `${JSON.stringify({ at, reason })}\n`, { mode: 0o600 });
-  }, Effect.ignore);
+  });
 
   const getState = Effect.gen(function* () {
     if (!available) return { kind: "unavailable" } as const;
@@ -217,7 +218,7 @@ export const make = Effect.fn("desktop.backgroundService.make")(function* (input
     yield* Effect.logWarning("could not start the background service after the app quit", {
       reason: failure,
     });
-    yield* recordFailure(failure);
+    yield* recordFailure(failure).pipe(Effect.ignore);
   }).pipe(Effect.withSpan("desktop.backgroundService.resumeAfterApp"));
 
   const setEnabled = Effect.fn("desktop.backgroundService.setEnabled")(function* (
