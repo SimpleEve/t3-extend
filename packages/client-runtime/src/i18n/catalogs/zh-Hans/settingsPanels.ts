@@ -35,7 +35,6 @@ export default {
     "你在这里改过它（{changes}）。再次导入会丢弃这些改动。",
   "{count} run you started": "{count} 轮你发起的对话",
   "{count} runs you started": "{count} 轮你发起的对话",
-  "a new title": "新的标题",
   "a changed pin": "置顶状态的改动",
   "a changed archive state": "归档状态的改动",
   "a changed snooze": "延后提醒的改动",
@@ -46,6 +45,12 @@ export default {
     "{count} 个对话按 {app} 里的最新内容原地更新，在侧栏里的位置不变。",
   "{count} threads are updated in place from {app}. They keep their place in the sidebar.":
     "{count} 个对话按 {app} 里的最新内容原地更新，在侧栏里的位置不变。",
+  "{subject}: its session here is still open, so it is not replaced. Close this thread's session and import again.":
+    "{subject}：它在这里的会话还开着，所以不会被覆盖。请先关闭这个对话的会话，再导入一次。",
+  "{subject}: its title here goes back to the one in {app}.":
+    "{subject}：它在这里的标题会换回 {app} 里的标题。",
+  "Importing again replaces the copy here. Do it only while the thread is idle: anything still being written to it at that moment can be lost.":
+    "再次导入会替换这里的副本。请只在对话空闲时导入：此刻还在写入它的内容可能丢失。",
   "{subject}: it is running or has queued work here, so it is not replaced. Let it finish and import again.":
     "{subject}：它在这里正在运行或有排队的任务，所以不会被覆盖。等它结束后再导入一次。",
   "{subject}: replacing it discards what you changed here since the last import: {changes}.":

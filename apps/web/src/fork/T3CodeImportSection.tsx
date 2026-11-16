@@ -145,9 +145,6 @@ function localChangesText(
   }
   for (const edit of edits) {
     switch (edit) {
-      case "title":
-        parts.push(t("a new title"));
-        break;
       case "pinned":
         parts.push(t("a changed pin"));
         break;
@@ -291,6 +288,11 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
         "{subject}: it changed here after the review, so it is not replaced. Review and import again.",
         { subject },
       );
+    case "thread-target-session":
+      return t(
+        "{subject}: its session here is still open, so it is not replaced. Close this thread's session and import again.",
+        { subject },
+      );
     case "task-project-missing":
       return t("{subject}: its project is not part of this import.", { subject });
     case "task-thread-missing":
@@ -401,6 +403,12 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
       return t(
         "{subject}: it is a long thread, so replacing it may briefly pause your other threads while it is copied.",
         { subject },
+      );
+    case "thread-title-replaced":
+      return t("{subject}: its title here goes back to the one in {app}.", { app, subject });
+    case "thread-replace-idle":
+      return t(
+        "Importing again replaces the copy here. Do it only while the thread is idle: anything still being written to it at that moment can be lost.",
       );
     case "provider-credential-imported":
       return one
