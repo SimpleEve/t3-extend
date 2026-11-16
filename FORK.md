@@ -234,18 +234,22 @@ macOS 打包版的设置 > 通用 > "后台运行" 有一个开关"在后台保�
 
 做法：只共享登录，不共享 gemini home。设置里加了 `loginSource`（设置 > provider > Antigravity > Login source），三个值：
 
-- `auto`（默认）：**默认实例**（实例 id 就是 `antigravity`）且 profile 里没有自己的 `acp_token.json` 时用 CLI 登录；额外实例，以及已经在 profile 里登录过的实例（比如从官方导入的），保持独立登录，账号不会悄悄换掉。
+- `auto`（默认）：**默认实例**（实例 id 就是 `antigravity`）在 profile 里从没独立登录过时用 CLI 登录；额外实例一律独立登录。“独立登录过”看两样东西，任何一样在就算：`antigravity-acp/acp_token.json`，或 `antigravity-acp/login-source` 标记（内容只有 `profile`，不含凭据）。标记在驱动创建时看到 token、或在 T3 里独立登录成功时写下（`markAntigravityProfileLogin`），之后 token 被删（退出登录）也不消失，所以重启或重建驱动不会悄悄换成钥匙串里的另一个账号。读不出来（权限、IO 错误）按“用过”处理。想换回 CLI 登录就显式选 `cli`。
 - `cli`：强制用 CLI 登录，不管实例和 profile。
 - `profile`：独立登录，也就是上游原来的行为，多账号用它。
 
-只对 Google 账号和 Gemini Enterprise 两种浏览器登录生效；API key 和 Agent Platform 不变。判定函数是 `resolveAntigravityLoginSource`（`antigravityAuthSupport.ts`），驱动创建时算一次。
+只对 Google 账号和 Gemini Enterprise 两种浏览器登录生效；API key 和 Agent Platform 不变。判定函数是 `resolveAntigravityLoginSource`（`antigravityAuthSupport.ts`），驱动创建时算一次。官方导入只复制 provider 实例配置，不复制 `userdata/providers` 下的 profile，所以导入进来的 Antigravity 实例没有 token；`pinImportedAntigravityLogin`（`T3CodeImportRewrite.ts`）在导入时把它的 `loginSource` 写成 `profile`（实例里已有的选择保留），`auto` 不会把它当成默认实例的 CLI 登录。
 
 用 CLI 登录时：
 
 - 只是 `buildAntigravityAcpSpawnInput` 不再设 `AGY_ACP_FORCE_FILE_STORAGE`（`AntigravityProfile.sharedLogin`）。`--gemini-dir` 和 `GEMINI_HOME` 仍指向 T3 自己的 profile，会话、hooks、MCP、skills 链接、临时目录清理（`removeAntigravitySessionFiles`、`retireAntigravityRuntimeTempDirs`）都只在 profile 里动，碰不到 `~/.gemini`。
-- 健康检查读不到 token 文件，原来的"有没有 token"判定不能用。改成 `silentSignIn`：健康检查发现还没登录时，起一个一次性的 agy 做 `initialize` + `authenticate`（不建会话，不触发 MCP、hooks，也不拉浏览器；没登录时在 stdout 变换里就报"需要登录"），成功就记为已登录。已登录不再检查；没登录时最多 5 分钟检查一次（`SHARED_SIGN_IN_RECHECK_MS`）。设置里手动「刷新 provider 状态」走 `refreshModels`，不受这个间隔限制，并且会加载模型。自动检查不加载模型，重启后要等一次会话或手动刷新，和独立登录模式一致。这是对 `docs/internals/providers.md` 里"健康检查不起会话"原则的最小例外：只做认证。
+- 健康检查读不到 token 文件，原来的“有没有 token”判定不能用。改成 `silentSignIn`：健康检查发现不是已登录时，起一个一次性的 agy 做 `initialize` + `authenticate`（不建会话，不触发 MCP、hooks，也不拉浏览器；没登录时在 stdout 变换里就报“需要登录”），成功记为已登录。这是对 `docs/internals/providers.md` 里“健康检查不起会话”原则的最小例外：只做认证。
+  - **已登录有 TTL**（`SHARED_SIGN_IN_TTL_MS`，30 分钟）：会话成功或静默检查成功时记下时间，超过 TTL 的下一次健康检查先降为 `unknown`，再静默检查一次。CLI 里 `agy logout` 后，T3 最多 30 分钟内发现。取舍：每个共享实例每半小时多起一次很短的 agy；再短没有收益（会话和手动刷新会更快确认），更长会让退出登录的提示拖太久。
+  - **没登录时**同一实例最多 5 分钟检查一次（`SHARED_SIGN_IN_RECHECK_MS`）。设置里手动「刷新 provider 状态」走 `refreshModels`，不受这个间隔限制，并且会加载模型。自动检查不加载模型，重启后要等一次会话或手动刷新，和独立登录模式一致。
+  - **预算 90 秒**（`SHARED_LOGIN_CHECK_TIMEOUT_MS`，与模型刷新相同；Windows 解压 agy 约要一分钟，见 `AntigravityAuth.ts`）。超时后离开作用域，子进程随之关闭；超时的结论是 `unknown`（账号显示“未检查”），不当作已退出。
+  - **环境级 single-flight**（`antigravitySharedLoginCheck.ts`）：同一个 agy 可执行文件上的多个共享实例同时启动，只起一次 agy，其余等同一个答案；最近 60 秒内的明确答案（已登录或需要登录）直接复用，`unknown` 不复用。放在模块作用域是因为驱动随设置重建，而可执行文件和钥匙串不变；测试里每个用例用自己的可执行文件路径当 key。
 - 登出被禁用（`logoutBlockedMessage`）：原生 `logout` 会清掉 keyring 里的登录，终端里的 `agy` 也会跟着退出。T3 里点退出登录、或在对话里发 `/logout`，都会得到说明而不是执行。
-- 用量限额（Usage > Limits）读不到：用量探测靠 token 文件里的 refresh token 调 Google 配额接口，而 CLI 登录在 keyring 里，T3 不读（`security` 读别的应用的钥匙串条目要用户授权，后台服务里弹不出来）。所以这时限额显示"不可用"和原因。需要限额就把 Login source 改成独立登录。
+- 用量限额（Usage > Limits）读不到，并且共享登录时**不读** profile 里的 token 文件（那可能是别的账号留下的）：用量探测靠 token 文件里的 refresh token 调 Google 配额接口，而 CLI 登录在 keyring 里，T3 不读（`security` 读别的应用的钥匙串条目要用户授权，后台服务里弹不出来）。所以这时限额显示"不可用"和原因。需要限额就把 Login source 改成独立登录。
 - 在 T3 里点 Sign in：CLI 已登录就瞬间完成，没有浏览器；CLI 没登录时走浏览器登录，结果写进 keyring，终端的 `agy` 也会登录上（两边是同一条登录）。
 
 没验证的：Linux 或没有 keyring 的主机上，agy 在不强制文件存储时放哪里；Windows 凭据管理器；keyring 里的登录过期且 refresh token 失效时（只看到过 keyring 里的 token 过期后自动刷新成功）；官方 T3 Code 和 Extend 同机同时运行时，两边的 agy 同时刷新同一条 keyring 登录。

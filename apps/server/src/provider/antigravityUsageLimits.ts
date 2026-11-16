@@ -238,14 +238,22 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
     if (input.authMethod !== "oauth-personal" && input.authMethod !== "oauth-business") {
       return makeUnavailableUsageLimits({ checkedAt, reason: "unsupported" });
     }
+    // fork: a shared login has no token of its own. A leftover file may belong to another account.
+    if (input.sharedLogin) {
+      cached = undefined;
+      return makeUnavailableUsageLimits({
+        checkedAt,
+        reason: "unsupported",
+        message:
+          "Limits are not available while Antigravity uses your agy CLI sign-in. Set Login source to Separate sign-in to see them.",
+      });
+    }
     if (!(yield* fs.exists(tokenPath))) {
       cached = undefined;
       return makeUnavailableUsageLimits({
         checkedAt,
         reason: "unsupported",
-        message: input.sharedLogin // fork:
-          ? "Limits are not available while Antigravity uses your agy CLI sign-in. Set Login source to Separate sign-in to see them."
-          : "Sign in with Google to see Antigravity limits.",
+        message: "Sign in with Google to see Antigravity limits.",
       });
     }
     const token = yield* fs.readFileString(tokenPath).pipe(Effect.flatMap(decodeTokenFile));

@@ -10,6 +10,7 @@ import {
   type ServerProviderUsageLimits,
 } from "@t3tools/contracts";
 import { createModelCapabilities } from "@t3tools/shared/model";
+import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
@@ -42,6 +43,11 @@ import { antigravityThinkingConfig } from "./acp/AntigravityAcpSupport.ts";
 const EMPTY_MODEL_CAPABILITIES = createModelCapabilities({ optionDescriptors: [] });
 const MAX_WORKSPACE_SNAPSHOTS = 32;
 const HEALTH_CHECK_TIMEOUT_MS = 90_000;
+// fork: how long a shared CLI login counts as signed in without asking the agent again. Signing out
+// with `agy` in a terminal leaves nothing here to notice, so this bounds how stale "signed in" can
+// be. 30 minutes costs one short agent start per instance per half hour, and a session or a manual
+// refresh confirms sooner.
+export const SHARED_SIGN_IN_TTL_MS = 30 * 60_000;
 const SIGN_IN_MESSAGE = "Sign in with Google to use Antigravity.";
 const AUTH_UNCHECKED_MESSAGE =
   "Antigravity is installed. Google account access is not checked yet.";
@@ -155,6 +161,8 @@ interface AntigravityProviderState {
   readonly authRevision: number;
   // fork: whether the last quota read was accepted. A read Google accepts proves the stored token.
   readonly quotaRead?: "accepted" | "failed" | undefined;
+  // fork: when a shared CLI login last worked, from the agent or a session.
+  readonly signInConfirmedAt?: number | undefined;
 }
 
 interface AntigravityProviderOptions {
@@ -282,11 +290,24 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
   const checkProvider = Effect.fn("checkAntigravityProvider")(function* () {
     if (!settings.enabled) return yield* getSnapshot;
     // fork: a shared CLI login leaves no token to read, so only the agent can say whether it is signed in.
-    if (
-      options.silentSignIn &&
-      (yield* SubscriptionRef.get(metadata)).draft.auth.status !== "authenticated"
-    ) {
-      yield* options.silentSignIn;
+    if (options.silentSignIn) {
+      const now = yield* Clock.currentTimeMillis;
+      const state = yield* SubscriptionRef.updateAndGet(
+        metadata,
+        (current): AntigravityProviderState =>
+          current.draft.auth.status === "authenticated" &&
+          (current.signInConfirmedAt === undefined ||
+            now - current.signInConfirmedAt >= SHARED_SIGN_IN_TTL_MS)
+            ? {
+                ...current,
+                draft: {
+                  ...current.draft,
+                  auth: { status: "unknown", ...(options.auth ? { type: options.auth.type } : {}) },
+                },
+              }
+            : current,
+      );
+      if (state.draft.auth.status !== "authenticated") yield* options.silentSignIn;
     }
     const before = yield* SubscriptionRef.get(metadata);
     const timeoutMs = resolveProviderProbeTimeoutMs(
@@ -409,6 +430,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
     const before = yield* SubscriptionRef.get(metadata);
     const supportsTextGeneration = yield* options.supportsTextGeneration;
     const updatedAt = DateTime.formatIso(yield* DateTime.now);
+    const confirmedAt = yield* Clock.currentTimeMillis; // fork:
     yield* SubscriptionRef.update(metadata, (state) => {
       if (
         state.authRevision !== before.authRevision &&
@@ -421,6 +443,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
       const workspace = cwd ? workspaces.find((entry) => entry.cwd === cwd) : undefined;
       return {
         authRevision: state.authRevision + 1,
+        signInConfirmedAt: confirmedAt, // fork:
         draft: {
           ...draft,
           installed: true,
@@ -584,21 +607,26 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
     onSignedOut: clearAccountMetadata(),
     onAuthRequired: clearAccountMetadata(),
     // fork: the agent accepted the shared login. Models load with the next session or refresh.
-    onAuthConfirmed: SubscriptionRef.update(metadata, (state): AntigravityProviderState =>
-      !settings.enabled || state.draft.auth.status === "authenticated"
-        ? state
-        : {
-            ...state,
-            authRevision: state.authRevision + 1,
-            draft: {
-              ...state.draft,
-              auth: {
-                status: "authenticated",
-                type: options.auth?.type ?? "oauth-personal",
-                label: options.auth?.label ?? "Google account",
+    onAuthConfirmed: Effect.flatMap(Clock.currentTimeMillis, (confirmedAt) =>
+      SubscriptionRef.update(metadata, (state): AntigravityProviderState =>
+        !settings.enabled
+          ? state
+          : state.draft.auth.status === "authenticated"
+            ? { ...state, signInConfirmedAt: confirmedAt }
+            : {
+                ...state,
+                authRevision: state.authRevision + 1,
+                signInConfirmedAt: confirmedAt,
+                draft: {
+                  ...state.draft,
+                  auth: {
+                    status: "authenticated",
+                    type: options.auth?.type ?? "oauth-personal",
+                    label: options.auth?.label ?? "Google account",
+                  },
+                },
               },
-            },
-          },
+      ),
     ),
     snapshotForCwd,
   };

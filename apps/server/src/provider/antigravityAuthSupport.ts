@@ -115,17 +115,51 @@ export function antigravityAuthUsesBrowser(authMethod: AntigravityAuthMethod): b
 }
 
 // fork: only the default instance shares the agy CLI's login, so extra accounts stay separate. An
-// instance that already holds its own sign-in keeps it, so older setups do not change accounts.
+// instance that ever signed in on its own keeps that account (`profileLoginUsed`), even after its
+// token is gone, so a restart never swaps it for the CLI's account.
 export function resolveAntigravityLoginSource(input: {
   readonly authMethod: AntigravityAuthMethod;
   readonly loginSource: AntigravityLoginSource;
   readonly defaultInstance: boolean;
-  readonly profileHasToken: boolean;
+  readonly profileLoginUsed: boolean;
 }): "cli" | "profile" {
   if (!antigravityAuthUsesBrowser(input.authMethod)) return "profile";
   if (input.loginSource !== "auto") return input.loginSource;
-  return input.defaultInstance && !input.profileHasToken ? "cli" : "profile";
+  return input.defaultInstance && !input.profileLoginUsed ? "cli" : "profile";
 }
+
+const PROFILE_LOGIN_MARKER = "login-source";
+
+/** The token, or the marker left once one existed. A profile that cannot be read counts as used. */
+export const antigravityProfileLoginUsed = Effect.fn("antigravityProfileLoginUsed")(function* (
+  profileDirectory: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const acpDirectory = path.join(profileDirectory, "antigravity-acp");
+  for (const name of ["acp_token.json", PROFILE_LOGIN_MARKER]) {
+    if (yield* fs.exists(path.join(acpDirectory, name)).pipe(Effect.orElseSucceed(() => true))) {
+      return true;
+    }
+  }
+  return false;
+});
+
+/** Records that this profile holds its own sign-in. Never holds a credential; best effort. */
+export const markAntigravityProfileLogin = Effect.fn("markAntigravityProfileLogin")(
+  function* (profileDirectory: string) {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const acpDirectory = path.join(profileDirectory, "antigravity-acp");
+    yield* fs.makeDirectory(acpDirectory, { recursive: true, mode: 0o700 });
+    yield* fs.writeFileString(path.join(acpDirectory, PROFILE_LOGIN_MARKER), "profile\n", {
+      mode: 0o600,
+    });
+  },
+  Effect.catch((cause) =>
+    Effect.logWarning("Could not record the Antigravity profile sign-in.", { cause }),
+  ),
+);
 
 export const ANTIGRAVITY_CLI_LOGIN_SIGN_OUT_MESSAGE =
   "This instance uses your agy CLI sign-in, so signing out here would also sign out agy in your terminal. Sign out with agy in a terminal, or set Login source to Separate sign-in.";

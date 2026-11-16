@@ -9,7 +9,9 @@ import {
   type AntigravitySettings,
 } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
@@ -17,12 +19,14 @@ import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as Stream from "effect/Stream";
+import * as TestClock from "effect/testing/TestClock";
 import { HttpClient, HttpClientResponse } from "effect/http";
 
 import * as BackgroundPolicy from "../../background/BackgroundPolicy.ts";
 import * as ServerConfig from "../../config.ts";
 import * as ServerSettings from "../../serverSettings.ts";
 import * as AntigravityInstallation from "../AntigravityInstallation.ts";
+import { SHARED_LOGIN_CHECK_TIMEOUT_MS } from "../antigravitySharedLoginCheck.ts";
 import {
   ANTIGRAVITY_AUTH_STDOUT_PREFIX,
   resolveAntigravityInstanceDirectories,
@@ -63,6 +67,10 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
     readonly enabled?: boolean;
     /** The profile's stored sign-in and how the quota host answers it. Defaults to signed in. */
     readonly account?: "signed-in" | "quota-failed" | "signed-out";
+    /** Runs as the default instance (`antigravity`), whose profile is wiped before and after. */
+    readonly defaultInstance?: boolean;
+    /** Leaves the marker a profile sign-in once recorded, with no token. */
+    readonly profileLoginMarker?: boolean;
   } = {},
 ) {
   const fs = yield* FileSystem.FileSystem;
@@ -72,7 +80,9 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
   const nodePath = yield* HostProcess.ExecutablePath;
   const baseEnv = yield* HostProcess.Environment;
   const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-antigravity-driver-" });
-  const instanceId = ProviderInstanceId.make(path.basename(root));
+  const instanceId = ProviderInstanceId.make(
+    options.defaultInstance ? "antigravity" : path.basename(root),
+  );
   const mockAgentPath = yield* path.fromFileUrl(
     new URL("../../../scripts/acp-mock-agent.ts", import.meta.url),
   );
@@ -80,6 +90,18 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
   const directories = yield* resolveAntigravityInstanceDirectories(config.stateDir, instanceId);
   const profileDirectory = directories.profile;
   const account = options.account ?? "signed-in";
+  if (options.defaultInstance) {
+    const wipe = fs.remove(profileDirectory, { recursive: true, force: true }).pipe(Effect.ignore);
+    yield* wipe;
+    yield* Effect.addFinalizer(() => wipe);
+  }
+  if (options.profileLoginMarker) {
+    yield* fs.makeDirectory(path.join(profileDirectory, "antigravity-acp"), { recursive: true });
+    yield* fs.writeFileString(
+      path.join(profileDirectory, "antigravity-acp", "login-source"),
+      "profile\n",
+    );
+  }
   if (account !== "signed-out") {
     // The fixture agent does not write a token, so stand in for the one a real sign-in leaves.
     const acpDirectory = path.join(profileDirectory, "antigravity-acp");
@@ -578,6 +600,94 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
         yield* h.instance.snapshot.refresh;
         expect(h.launches.filter((launch) => launch.harnessPath !== undefined)).toHaveLength(1);
         yield* h.assertClosed;
+      }),
+  );
+
+  // fork: the default instance with no setting changed, as a user who never opened Login source.
+  it.effect.skipIf(windowsHost)(
+    "the default instance on automatic signs in from the agy CLI without any setting",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ account: "signed-out", defaultInstance: true });
+        expect(h.instance.instanceId).toBe("antigravity");
+        yield* h.instance.snapshot.refresh;
+        expect(yield* h.instance.snapshot.getSnapshot).toMatchObject({
+          status: "ready",
+          auth: { status: "authenticated" },
+        });
+        expect(h.launches.length).toBeGreaterThan(0);
+        for (const launch of h.launches) expect(launch.forceFileStorage).toBeUndefined();
+        expect(
+          yield* h.fs.exists(h.path.join(h.profileDirectory, "antigravity-acp", "login-source")),
+        ).toBe(false);
+      }),
+  );
+
+  it.effect.skipIf(windowsHost)(
+    "the default instance keeps its own sign-in after the token is gone, so a restart never swaps accounts",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({
+          account: "signed-out",
+          defaultInstance: true,
+          profileLoginMarker: true,
+        });
+        yield* h.instance.snapshot.refresh;
+        expect(yield* h.instance.snapshot.getSnapshot).toMatchObject({
+          auth: { status: "unauthenticated" },
+        });
+        // Signed out of its own account: the agent is never asked about the CLI's.
+        expect(h.launches).toEqual([]);
+        yield* h.refresh().pipe(Effect.ignore);
+        for (const launch of h.launches) expect(launch.forceFileStorage).toBe("1");
+      }),
+  );
+
+  it.effect.skipIf(windowsHost)(
+    "records a profile sign-in the first time its token is seen, and keeps it when the token goes",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ account: "signed-in" });
+        const acpDirectory = h.path.join(h.profileDirectory, "antigravity-acp");
+        expect(yield* h.fs.exists(h.path.join(acpDirectory, "login-source"))).toBe(true);
+        yield* h.fs.remove(h.path.join(acpDirectory, "acp_token.json"));
+        expect(yield* h.fs.exists(h.path.join(acpDirectory, "login-source"))).toBe(true);
+      }),
+  );
+
+  it.effect.skipIf(windowsHost)(
+    "ignores a token left in the profile when the sign-in is the agy CLI's",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ account: "signed-in", config: { loginSource: "cli" } });
+        const unavailable = yield* Stream.toPull(
+          h.instance.snapshot.streamChanges.pipe(
+            Stream.filter((snapshot) => snapshot.usageLimits?.unavailable !== undefined),
+          ),
+        );
+        yield* h.instance.snapshot.refresh;
+        expect((yield* unavailable)[0]?.usageLimits?.unavailable?.message).toContain("agy CLI");
+      }),
+  );
+
+  it.effect.skipIf(windowsHost)(
+    "stops waiting for a hung agent once its budget is spent, and leaves the account unchecked",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ account: "signed-out", config: { loginSource: "cli" } });
+        const inside = yield* Deferred.make<void>();
+        h.controls.beforeAcquire = Deferred.succeed(inside, undefined).pipe(
+          Effect.andThen(Effect.never),
+        );
+        const refresh = yield* Effect.forkChild(h.instance.snapshot.refresh);
+        yield* Deferred.await(inside);
+        yield* TestClock.adjust(SHARED_LOGIN_CHECK_TIMEOUT_MS);
+        yield* Fiber.join(refresh);
+        // A timeout is not "signed out": the account stays unchecked.
+        expect(yield* h.instance.snapshot.getSnapshot).toMatchObject({
+          auth: { status: "unknown" },
+        });
+        expect(h.releases).toEqual([]);
       }),
   );
 

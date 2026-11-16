@@ -66,6 +66,7 @@ import {
   markCheckpointMissing,
   unlinkSubagentChild,
   uuidFromDigest,
+  pinImportedAntigravityLogin,
 } from "./T3CodeImportRewrite.ts";
 
 /**
@@ -865,7 +866,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
               skipped.push({ code: "provider-instance-managed", subject: id, detail: managedBy });
               continue;
             }
-            providerInstances.push({ id, config: toFork(instance) });
+            providerInstances.push({ id, config: pinImportedAntigravityLogin(toFork(instance)) });
           }
           continue;
         }

@@ -667,6 +667,17 @@ describe("Antigravity subscription limits", () => {
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
 
+  it.effect("ignores a token left in the profile while the sign-in is the agy CLI's", () =>
+    Effect.gen(function* () {
+      const { probe, requests } = yield* fixture({ sharedLogin: true });
+      const limits = yield* probe;
+      expect(limits.unavailable?.reason).toBe("unsupported");
+      expect(limits.unavailable?.message).toContain("agy CLI");
+      expect(limits.windows).toEqual([]);
+      expect(requests).toEqual([]);
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+  );
+
   it.effect("does not make network requests for API keys or missing sign-ins", () =>
     Effect.gen(function* () {
       for (const options of [{ authMethod: "gemini-api-key" as const }, { missingToken: true }]) {

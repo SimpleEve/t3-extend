@@ -4,6 +4,7 @@ import {
   clearLimitRecovery,
   detachProviderThread,
   makeRewriter,
+  pinImportedAntigravityLogin,
   uuidFromDigest,
 } from "./T3CodeImportRewrite.ts";
 
@@ -92,4 +93,25 @@ it("derives the same id from the same digest and clears only what would act on i
       nativeThreadRef: { nativeId: "n" },
     },
   );
+});
+
+it("pins an imported Antigravity instance to a separate sign-in unless it already chose", () => {
+  assert.deepStrictEqual(
+    pinImportedAntigravityLogin({ driver: "antigravity", displayName: "Work", enabled: true }),
+    {
+      driver: "antigravity",
+      displayName: "Work",
+      enabled: true,
+      config: { loginSource: "profile" },
+    },
+  );
+  assert.deepStrictEqual(
+    pinImportedAntigravityLogin({
+      driver: "antigravity",
+      config: { loginSource: "cli", authMethod: "oauth-business" },
+    }),
+    { driver: "antigravity", config: { loginSource: "cli", authMethod: "oauth-business" } },
+  );
+  const cursor = { driver: "cursor", displayName: "Cursor" };
+  assert.strictEqual(pinImportedAntigravityLogin(cursor), cursor);
 });

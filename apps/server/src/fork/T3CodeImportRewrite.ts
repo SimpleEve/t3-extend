@@ -205,3 +205,19 @@ export const markCheckpointMissing = (
   if (payload === null || typeof payload.ref !== "string" || !missing.has(payload.ref)) return null;
   return JSON.stringify({ ...payload, status: "missing" });
 };
+
+/**
+ * An imported Antigravity instance signed in through the official app's own profile, which the
+ * import does not copy. Pin it to a separate sign-in so `auto` never gives it the agy CLI's account.
+ * A choice already made in the instance stays.
+ */
+export const pinImportedAntigravityLogin = (instance: unknown): unknown => {
+  if (typeof instance !== "object" || instance === null) return instance;
+  const record = instance as { readonly driver?: unknown; readonly config?: unknown };
+  if (record.driver !== "antigravity") return instance;
+  const settings =
+    typeof record.config === "object" && record.config !== null
+      ? (record.config as Record<string, unknown>)
+      : {};
+  return { ...record, config: { loginSource: "profile", ...settings } };
+};

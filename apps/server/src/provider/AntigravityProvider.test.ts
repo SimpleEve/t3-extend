@@ -16,6 +16,7 @@ import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
+import * as TestClock from "effect/testing/TestClock";
 import * as EffectAcpErrors from "effect-acp/errors";
 import type * as EffectAcpSchema from "effect-acp/compat";
 
@@ -29,6 +30,7 @@ import type { ServerProvider } from "@t3tools/contracts";
 import {
   buildAntigravityModelsFromSession,
   makeAntigravityProvider,
+  SHARED_SIGN_IN_TTL_MS,
 } from "./AntigravityProvider.ts";
 
 const decodeSettings = Schema.decodeSync(AntigravitySettings);
@@ -136,8 +138,12 @@ const makeHarness = Effect.fn("makeAntigravityProviderHarness")(function* (
     readonly safe?: boolean;
     readonly probeUsage?: Effect.Effect<ServerProviderUsageLimits>;
     readonly storedSignIn?: Effect.Effect<boolean>;
+    /** A shared CLI login: the health check asks this instead of reading a token. */
+    readonly silentSignIn?: boolean;
   } = {},
 ) {
+  const silentCalls = yield* Ref.make(0);
+  const silentBehavior = yield* Ref.make<Effect.Effect<void>>(Effect.void);
   const initialProbe = yield* Deferred.make<EffectAcpSchema.InitializeResponse, ProbeError>();
   const probeCalls = yield* Ref.make(0);
   const safetyCalls = yield* Ref.make(0);
@@ -152,6 +158,14 @@ const makeHarness = Effect.fn("makeAntigravityProviderHarness")(function* (
       ...(options.auth ? { auth: options.auth } : {}),
       ...(options.probeUsage ? { probeUsage: options.probeUsage } : {}),
       ...(options.storedSignIn ? { storedSignIn: options.storedSignIn } : {}),
+      ...(options.silentSignIn
+        ? {
+            silentSignIn: Ref.update(silentCalls, (count) => count + 1).pipe(
+              Effect.andThen(Ref.get(silentBehavior)),
+              Effect.flatten,
+            ),
+          }
+        : {}),
       probe: Ref.update(probeCalls, (count) => count + 1).pipe(
         Effect.andThen(Ref.get(probe)),
         Effect.flatten,
@@ -186,6 +200,8 @@ const makeHarness = Effect.fn("makeAntigravityProviderHarness")(function* (
     initialUpdate,
     initialize,
     nextPublish,
+    silentCalls,
+    silentBehavior,
   };
 });
 
@@ -406,6 +422,54 @@ it.layer(layerTest)("Antigravity provider snapshots", (it) => {
         auth: { status: "authenticated" },
       });
     }),
+  );
+
+  // fork: a shared CLI login can end outside T3 (`agy logout`), so "signed in" expires.
+  it.effect("asks the agent again once a shared CLI login has gone unconfirmed for the TTL", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeHarness({ silentSignIn: true });
+      yield* harness.initialize;
+      const calls = Ref.get(harness.silentCalls);
+      yield* Ref.set(harness.silentBehavior, harness.provider.onAuthConfirmed);
+      expect(yield* harness.provider.snapshot.refresh).toMatchObject({
+        status: "ready",
+        auth: { status: "authenticated" },
+      });
+      const confirmed = yield* calls;
+
+      // Within the TTL the answer stands and the agent is left alone.
+      yield* TestClock.adjust(SHARED_SIGN_IN_TTL_MS - 60_000);
+      expect(yield* harness.provider.snapshot.refresh).toMatchObject({
+        auth: { status: "authenticated" },
+      });
+      expect(yield* calls).toBe(confirmed);
+
+      // Past it the state is unknown until the agent answers; here it says the CLI signed out.
+      yield* Ref.set(harness.silentBehavior, harness.provider.onAuthRequired);
+      yield* TestClock.adjust(120_000);
+      expect(yield* harness.provider.snapshot.refresh).toMatchObject({
+        status: "warning",
+        auth: { status: "unauthenticated" },
+      });
+      expect(yield* calls).toBe(confirmed + 1);
+    }),
+  );
+
+  it.effect(
+    "leaves a shared CLI login unchecked, not signed out, when the agent cannot answer",
+    () =>
+      Effect.gen(function* () {
+        const harness = yield* makeHarness({ silentSignIn: true });
+        yield* harness.initialize;
+        yield* Ref.set(harness.silentBehavior, harness.provider.onAuthConfirmed);
+        yield* harness.provider.snapshot.refresh;
+        yield* Ref.set(harness.silentBehavior, Effect.void);
+        yield* TestClock.adjust(SHARED_SIGN_IN_TTL_MS);
+        expect(yield* harness.provider.snapshot.refresh).toMatchObject({
+          status: "warning",
+          auth: { status: "unknown" },
+        });
+      }),
   );
 
   it.effect("a successful quota read proves the stored sign-in without starting a session", () =>

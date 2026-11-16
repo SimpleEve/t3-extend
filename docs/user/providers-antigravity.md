@@ -131,10 +131,12 @@ activity.
 ## Use your agy CLI sign-in
 
 The default Antigravity instance uses the Google sign-in of the `agy` CLI on the same machine. On a
-machine where you have already run `agy`, enabling Antigravity needs no second sign-in. T3 asks the agent whether that sign-in works when the provider
-is enabled and now and then while it is not signed in. **Refresh provider status** checks right
-away, for example after you sign in from a terminal. **Sign in** also finishes at once, without a
-browser, when the CLI is already signed in.
+machine where you have already run `agy`, enabling Antigravity needs no second sign-in. T3 asks the
+agent whether that sign-in works when the provider is enabled, now and then while it is not signed
+in, and again after 30 minutes without a confirmation, so signing out with `agy` shows up here
+within about half an hour. **Refresh provider status** checks right away, for example after you sign
+in from a terminal. **Sign in** also finishes at once, without a browser, when the CLI is already
+signed in.
 
 Only the sign-in is shared. Threads, hooks, MCP servers, and rules stay in T3's own profile, and
 nothing in `~/.gemini` is changed.
@@ -142,16 +144,21 @@ nothing in `~/.gemini` is changed.
 Choose **Login source** in the Antigravity provider settings. It applies to Google account and
 Gemini Enterprise sign-in:
 
-| Login source     | Behavior                                                                                          |
-| ---------------- | ------------------------------------------------------------------------------------------------- |
-| Automatic        | The default instance uses the agy CLI login unless it signed in on its own before. Others do not. |
-| agy CLI login    | Use the agy CLI login, even for another instance or one that signed in on its own before.         |
-| Separate sign-in | Keep a sign-in only T3 uses, for example to run another Google account next to the CLI's.         |
+| Login source     | Behavior                                                                                                                                |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Automatic        | The default instance uses the agy CLI login. Other instances, and any instance that ever signed in on its own, keep a separate sign-in. |
+| agy CLI login    | Use the agy CLI login, even for another instance or one that signed in on its own before.                                               |
+| Separate sign-in | Keep a sign-in only T3 uses, for example to run another Google account next to the CLI's.                                               |
+
+Automatic remembers a separate sign-in even after you sign out of it, so a restart never swaps that
+account for the CLI's. Choose **agy CLI login** to switch it over on purpose. Instances imported
+from official T3 Code start on **Separate sign-in**.
 
 Limits of sharing the CLI sign-in:
 
-- **Sign out** is unavailable, because signing out here would also sign out `agy` in your terminal.
-  Sign out with `agy`, or switch **Login source** to **Separate sign-in**.
+- **Sign out**, and `/logout` in a thread, are unavailable for this instance, because signing out
+  here would also sign out `agy` in your terminal. Sign out with `agy`, or switch **Login source**
+  to **Separate sign-in**.
 - **Usage > Limits** is empty for this instance. The sign-in sits in the system keyring, which T3
   does not read. Choose **Separate sign-in** to see Antigravity limits.
 - Signing in from T3 while the CLI is signed out can also sign the CLI in, because both use one sign-in.
@@ -162,15 +169,16 @@ Add an Antigravity provider instance for each Google account in
 **Settings > Providers** on web or desktop. Each additional instance has its own sign-in; downloaded
 runtimes are shared on the environment. The default instance can use the agy CLI's account instead.
 
-| Action                    | Effect                                                            |
-| ------------------------- | ----------------------------------------------------------------- |
-| Disable                   | Stops the instance's sessions and keeps its Google sign-in.       |
-| Sign out                  | Stops the instance's sessions and removes its saved Google login. |
-| Remove downloaded runtime | Removes the shared installation and keeps Google credentials.     |
+| Action                    | Effect                                                                                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Disable                   | Stops the instance's sessions and keeps its Google sign-in.                                                                  |
+| Sign out                  | Stops the instance's sessions and removes its saved Google login. Not available while the instance uses the agy CLI sign-in. |
+| Remove downloaded runtime | Removes the shared installation and keeps Google credentials.                                                                |
 
-All three keep thread history and workspace files. Sending `/logout` by itself in
-a thread signs out its instance, including stopping that instance's other sessions.
-Sign out, then sign in again to replace an account.
+All three keep thread history and workspace files. For an instance with its own sign-in, sending
+`/logout` by itself in a thread signs it out, including stopping that instance's other sessions.
+Sign out, then sign in again to replace an account. An instance that uses the agy CLI sign-in
+ignores both; see [Use your agy CLI sign-in](#use-your-agy-cli-sign-in).
 
 Before removing a managed runtime, disable its instances and cancel any active
 installation. Clear any explicit binary path pointing into that runtime. Removal

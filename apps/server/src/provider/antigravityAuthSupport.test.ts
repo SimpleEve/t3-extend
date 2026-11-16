@@ -34,6 +34,8 @@ import {
   prepareAntigravityProfile,
   resolveAntigravityInstanceDirectories,
   resolveAntigravityLoginSource,
+  antigravityProfileLoginUsed,
+  markAntigravityProfileLogin,
 } from "./antigravityAuthSupport.ts";
 
 const authorizationUrl =
@@ -271,7 +273,7 @@ describe("Antigravity login source", () => {
     ["a new default instance", { loginSource: "auto", defaultInstance: true }, "cli"],
     [
       "a default instance with its own sign-in",
-      { loginSource: "auto", defaultInstance: true, profileHasToken: true },
+      { loginSource: "auto", defaultInstance: true, profileLoginUsed: true },
       "profile",
     ],
     ["an additional instance", { loginSource: "auto", defaultInstance: false }, "profile"],
@@ -282,7 +284,7 @@ describe("Antigravity login source", () => {
     ],
     [
       "an explicit CLI choice over a stored sign-in",
-      { loginSource: "cli", defaultInstance: false, profileHasToken: true },
+      { loginSource: "cli", defaultInstance: false, profileLoginUsed: true },
       "cli",
     ],
     ["an explicit private sign-in", { loginSource: "profile", defaultInstance: true }, "profile"],
@@ -299,11 +301,36 @@ describe("Antigravity login source", () => {
       expect(
         resolveAntigravityLoginSource({
           authMethod: browser,
-          profileHasToken: false,
+          profileLoginUsed: false,
           ...input,
         }),
       ).toBe(expected);
     },
+  );
+});
+
+it.layer(NodeServices.layer)("Antigravity profile sign-in marker", (it) => {
+  it.effect("remembers a profile sign-in after its token is gone, and only then", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const profileDirectory = path.join(yield* fs.makeTempDirectoryScoped(), "profile");
+      expect(yield* antigravityProfileLoginUsed(profileDirectory)).toBe(false);
+
+      yield* fs.makeDirectory(path.join(profileDirectory, "antigravity-acp"), { recursive: true });
+      const token = path.join(profileDirectory, "antigravity-acp", "acp_token.json");
+      yield* fs.writeFileString(token, "synthetic-token-fixture");
+      expect(yield* antigravityProfileLoginUsed(profileDirectory)).toBe(true);
+      yield* fs.remove(token);
+      expect(yield* antigravityProfileLoginUsed(profileDirectory)).toBe(false);
+
+      yield* markAntigravityProfileLogin(profileDirectory);
+      yield* fs.remove(token, { force: true });
+      expect(yield* antigravityProfileLoginUsed(profileDirectory)).toBe(true);
+      // A rebuilt profile keeps it: preparing never clears the marker.
+      yield* prepareAntigravityProfile({ profileDirectory });
+      expect(yield* antigravityProfileLoginUsed(profileDirectory)).toBe(true);
+    }),
   );
 });
 

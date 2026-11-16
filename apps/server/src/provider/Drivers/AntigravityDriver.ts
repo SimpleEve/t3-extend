@@ -33,6 +33,11 @@ import {
   makeAntigravityTextGeneration,
 } from "../../textGeneration/AntigravityTextGeneration.ts";
 import { makeAntigravityAuth, type AntigravityAuth } from "../AntigravityAuth.ts";
+import {
+  runSharedLoginCheck,
+  SHARED_LOGIN_CHECK_TIMEOUT_MS,
+  type SharedLoginOutcome,
+} from "../antigravitySharedLoginCheck.ts";
 import * as AntigravityInstallation from "../AntigravityInstallation.ts";
 import * as AntigravityUsage from "./AntigravityUsage.ts";
 import {
@@ -40,8 +45,10 @@ import {
   antigravityAuthConfigIssue,
   antigravityAuthLabel,
   antigravityAuthUsesBrowser,
+  antigravityProfileLoginUsed,
   buildAntigravityAcpSpawnInput,
   isAntigravitySignInRequiredError,
+  markAntigravityProfileLogin,
   prepareAntigravityProfile,
   resolveAntigravityInstanceDirectories,
   resolveAntigravityLoginSource,
@@ -183,10 +190,25 @@ export const AntigravityDriver: ProviderDriver<
         authMethod: auth.authMethod,
         loginSource: settings.loginSource,
         defaultInstance: instanceId === defaultInstanceIdForDriver(DRIVER),
-        profileHasToken: yield* fileSystem
-          .exists(path.join(profileDirectory, "antigravity-acp", "acp_token.json"))
-          .pipe(Effect.orElseSucceed(() => false)),
+        profileLoginUsed: yield* antigravityProfileLoginUsed(profileDirectory).pipe(
+          Effect.provideService(FileSystem.FileSystem, fileSystem),
+          Effect.provideService(Path.Path, path),
+        ),
       }) === "cli";
+    // fork: remember that this profile signed in on its own, so `auto` never switches it to the CLI.
+    const rememberProfileLogin = markAntigravityProfileLogin(profileDirectory).pipe(
+      Effect.provideService(FileSystem.FileSystem, fileSystem),
+      Effect.provideService(Path.Path, path),
+    );
+    if (
+      !sharedLogin &&
+      antigravityAuthUsesBrowser(auth.authMethod) &&
+      (yield* fileSystem
+        .exists(path.join(profileDirectory, "antigravity-acp", "acp_token.json"))
+        .pipe(Effect.orElseSucceed(() => false)))
+    ) {
+      yield* rememberProfileLogin;
+    }
     for (const directory of [
       directories.runtimeTemp,
       path.join(profileDirectory, "antigravity-acp", "tmp"),
@@ -396,6 +418,7 @@ export const AntigravityDriver: ProviderDriver<
       // A new sign-in may be another account; drop any in-flight quota read first.
       onAuthenticated: (started, runtime) =>
         Effect.suspend(() => provider.onSignedIn).pipe(
+          Effect.andThen(sharedLogin ? Effect.void : rememberProfileLogin), // fork:
           Effect.andThen(publishCatalog(started, runtime)),
         ),
       onSignedOut: Effect.suspend(() => provider.onSignedOut),
@@ -575,9 +598,10 @@ export const AntigravityDriver: ProviderDriver<
     );
 
     // fork: asks the agent whether the CLI login works. It authenticates without a session and
-    // without a browser, so a signed-out CLI only reports that sign-in is needed.
+    // without a browser, so a signed-out CLI only reports that sign-in is needed. Leaving the scope,
+    // on the timeout too, stops the agent.
     let lastSharedSignInCheck: number | undefined;
-    const checkSharedLogin: () => Effect.Effect<void> = Effect.fn(
+    const checkSharedLogin: () => Effect.Effect<SharedLoginOutcome> = Effect.fn(
       "AntigravityDriver.checkSharedLogin",
     )(
       function* () {
@@ -589,16 +613,20 @@ export const AntigravityDriver: ProviderDriver<
             Effect.gen(function* () {
               const runtime = yield* makeDisposableRuntime({});
               yield* runtime.authenticate?.(auth.authMethod) ?? Effect.void;
-              yield* provider.onAuthConfirmed;
             }),
           )
           .pipe(Effect.provideService(Scope.Scope, processScope));
+        return "signed-in" as const;
       },
       Effect.scoped,
-      Effect.timeoutOption("30 seconds"),
-      Effect.asVoid,
+      Effect.timeoutOption(SHARED_LOGIN_CHECK_TIMEOUT_MS),
+      Effect.map((outcome): SharedLoginOutcome =>
+        outcome._tag === "Some" ? outcome.value : "unknown",
+      ),
       Effect.catch((cause) =>
-        isAntigravitySignInRequiredError(cause) ? provider.onAuthRequired : Effect.void,
+        Effect.succeed<SharedLoginOutcome>(
+          isAntigravitySignInRequiredError(cause) ? "sign-in-required" : "unknown",
+        ),
       ),
     );
     const silentSignIn: Effect.Effect<void> = Effect.gen(function* () {
@@ -610,7 +638,17 @@ export const AntigravityDriver: ProviderDriver<
         return;
       }
       lastSharedSignInCheck = now;
-      yield* checkSharedLogin();
+      // Instances that share the CLI login share the answer; the executable names the keyring's owner.
+      const executable = yield* installation
+        .resolve(settings.binaryPath, processEnvironment)
+        .pipe(Effect.option);
+      if (executable._tag === "None") return;
+      const outcome = yield* runSharedLoginCheck(
+        executable.value.executablePath,
+        checkSharedLogin(),
+      );
+      if (outcome === "signed-in") yield* provider.onAuthConfirmed;
+      else if (outcome === "sign-in-required") yield* provider.onAuthRequired;
     });
 
     return {
