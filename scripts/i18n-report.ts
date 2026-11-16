@@ -108,6 +108,7 @@ const INTENTIONALLY_UNTRANSLATED = new Set([
   "Codex",
   "Pi",
   "T3 Code",
+  "Tailscale HTTPS",
   // Text generator services, shown with their brand names.
   "OpenAI",
   "OpenRouter",
@@ -251,6 +252,45 @@ export function scanIndirectSources(
       else if (named === "translate" && literalString(second) === null) found = sourcesOf(second);
       for (const source of found) {
         if (ENGLISH_WORD.test(source)) sources.push({ line: lineOf(node.start), source });
+      }
+    }
+    Object.values(node).forEach(walk);
+  };
+  walk(program);
+  return sources;
+}
+
+// fork: tables whose listed properties reach t() through a variable, so no call site carries the
+// literal. `SettingsRow` and `SettingsSection` run `t(title)` on titles that arrive from
+// `searchableSetting(id)`; the report cannot follow that, so these literals count as called.
+const TRANSLATED_PROPERTY_TABLES: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ["apps/web/src/components/settings/settingsSearch.ts", new Set(["title"])],
+  // `t(outcome)` and `t(THREAD_STATUS_TEXT[key])` read these through a variable.
+  [
+    "packages/client-runtime/src/state/threadActivityAnnouncement.ts",
+    new Set(["working", "approval", "input", "done", "failed", "stopped"]),
+  ],
+]);
+
+/** String literals in the named properties of every object literal in a table file. */
+export function scanTranslatedTable(
+  code: string,
+  fileName: string,
+  properties: ReadonlySet<string>,
+  program: unknown = parseAst(code, { lang: fileName.endsWith(".tsx") ? "tsx" : "ts" }),
+): ReadonlyArray<IndirectSource> {
+  const sources: IndirectSource[] = [];
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (!isAstNode(node)) return;
+    if (node.type === "Property" && node.computed !== true) {
+      const name = propertyName(node);
+      const source = name !== null && properties.has(name) ? literalString(node.value) : null;
+      if (source !== null && ENGLISH_WORD.test(source)) {
+        sources.push({ line: code.slice(0, node.start).split("\n").length, source });
       }
     }
     Object.values(node).forEach(walk);
@@ -548,8 +588,16 @@ interface DisplayString {
 }
 
 // The display strings an expression can evaluate to. A call such as t("...") yields nothing.
-function displayStrings(expression: AstNode): ReadonlyArray<DisplayString> {
+// fork: `constants` are the file's top-level string constants, so `{MESSAGE}` shows its text.
+function displayStrings(
+  expression: AstNode,
+  constants?: ReadonlyMap<string, string>,
+): ReadonlyArray<DisplayString> {
   switch (expression.type) {
+    case "Identifier": {
+      const text = constants?.get(String(expression.name));
+      return text === undefined ? [] : [{ start: expression.start, text, interpolated: false }];
+    }
     case "Literal":
       return typeof expression.value === "string"
         ? [{ start: expression.start, text: expression.value, interpolated: false }]
@@ -564,17 +612,17 @@ function displayStrings(expression: AstNode): ReadonlyArray<DisplayString> {
     }
     case "ConditionalExpression":
       return [expression.consequent, expression.alternate].flatMap((branch) =>
-        displayStrings(branch as AstNode),
+        displayStrings(branch as AstNode, constants),
       );
     case "LogicalExpression":
       return [expression.left, expression.right].flatMap((branch) =>
-        displayStrings(branch as AstNode),
+        displayStrings(branch as AstNode, constants),
       );
     case "ParenthesizedExpression":
     case "TSAsExpression":
     case "TSSatisfiesExpression":
     case "TSNonNullExpression":
-      return displayStrings(expression.expression as AstNode);
+      return displayStrings(expression.expression as AstNode, constants);
     default:
       return [];
   }
@@ -588,6 +636,17 @@ export function scanHardCodedText(
   const hits: HardCodedHit[] = [];
   const selfTranslated: string[] = [];
   const lineOf = (offset: number) => code.slice(0, offset).split("\n").length;
+  const constants = new Map<string, string>();
+  for (const statement of (program as { body: ReadonlyArray<AstNode> }).body) {
+    const declaration =
+      statement.type === "ExportNamedDeclaration" ? (statement.declaration as AstNode) : statement;
+    if (declaration?.type !== "VariableDeclaration" || declaration.kind !== "const") continue;
+    for (const declarator of declaration.declarations as ReadonlyArray<AstNode>) {
+      const id = declarator.id as AstNode;
+      const text = id.type === "Identifier" ? literalString(declarator.init) : null;
+      if (text !== null) constants.set(String(id.name), text);
+    }
+  }
   const report = (start: number, kind: string, raw: string) => {
     // JSXText keeps entities such as &middot; raw; they are not words.
     const text = raw.replace(/&\w+;/gu, " ").replace(/\s+/gu, " ").trim();
@@ -603,7 +662,7 @@ export function scanHardCodedText(
       if (child.type === "JSXText") {
         report(child.start, "text", String(child.value));
       } else if (child.type === "JSXExpressionContainer") {
-        for (const { start, text } of displayStrings(child.expression as AstNode)) {
+        for (const { start, text } of displayStrings(child.expression as AstNode, constants)) {
           report(start, "child", text);
         }
       }
@@ -626,7 +685,7 @@ export function scanHardCodedText(
       const translatesItself =
         (fileName.startsWith("apps/web/") && SELF_TRANSLATING_PROPS.has(prop)) ||
         SELF_TRANSLATING_PROPS.has(`${NodePath.basename(fileName)}#${prop}`);
-      for (const { start, text, interpolated } of displayStrings(expression)) {
+      for (const { start, text, interpolated } of displayStrings(expression, constants)) {
         // An interpolated value can never match a catalog key, so t() inside the component misses it.
         if (translatesItself && !interpolated) {
           if (needsTranslation(text)) selfTranslated.push(text);
@@ -986,6 +1045,167 @@ export function riskyComparisons(
   );
 }
 
+// fork: the "omitted translator" section finds callers of a function whose translator parameter
+// is optional or defaulted to English (`t: Translator = translatorFor("en")`) that leave it out:
+// the call site has no t() for the scan above to see, and the text silently stays English.
+const TRANSLATOR_PARAMETER = /\bTranslator\b/u;
+
+export interface TranslatorParameter {
+  readonly name: string;
+  /** Position of the translator among the parameters. */
+  readonly index: number;
+}
+
+export interface CallArity {
+  readonly line: number;
+  readonly name: string;
+  readonly argumentCount: number;
+}
+
+const functionNodes = new Set([
+  "ArrowFunctionExpression",
+  "FunctionDeclaration",
+  "FunctionExpression",
+]);
+
+/** Functions with an optional or defaulted `Translator` parameter, by the name they are bound to. */
+export function scanTranslatorParameters(
+  code: string,
+  fileName: string,
+  program: unknown = parseAst(code, { lang: fileName.endsWith(".tsx") ? "tsx" : "ts" }),
+): ReadonlyArray<TranslatorParameter> {
+  const found: TranslatorParameter[] = [];
+  const bind = (name: string | null, fn: AstNode) => {
+    if (name === null) return;
+    (fn.params as ReadonlyArray<AstNode>).forEach((parameter, index) => {
+      const text = code.slice(parameter.start, parameter.end as number);
+      // A default that reads the interface language (`translatorFor(getUiLocale())`) is not English.
+      const defaulted = parameter.type === "AssignmentPattern" && !text.includes("getUiLocale");
+      const optional = parameter.type === "Identifier" && parameter.optional === true;
+      if ((defaulted || optional) && TRANSLATOR_PARAMETER.test(text.split("=")[0]!)) {
+        found.push({ name, index });
+      }
+    });
+  };
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (!isAstNode(node)) return;
+    if (node.type === "FunctionDeclaration" && isAstNode(node.id)) {
+      bind(String(node.id.name), node);
+    } else if (node.type === "VariableDeclarator" && isAstNode(node.id) && isAstNode(node.init)) {
+      const init = unwrapExpression(node.init);
+      if (init !== null && functionNodes.has(init.type) && node.id.type === "Identifier") {
+        bind(String(node.id.name), init);
+      }
+    } else if (
+      (node.type === "Property" || node.type === "MethodDefinition") &&
+      isAstNode(node.value) &&
+      functionNodes.has(node.value.type)
+    ) {
+      bind(propertyName(node), node.value);
+    }
+    Object.values(node).forEach(walk);
+  };
+  walk(program);
+  return found;
+}
+
+/** Calls by callee name (`fn(...)` and `obj.fn(...)`) with their argument count; spreads are skipped. */
+export function scanCallArities(
+  code: string,
+  fileName: string,
+  program: unknown = parseAst(code, { lang: fileName.endsWith(".tsx") ? "tsx" : "ts" }),
+): ReadonlyArray<CallArity> {
+  const calls: CallArity[] = [];
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (!isAstNode(node)) return;
+    if (node.type === "CallExpression") {
+      const name = calleeName(node.callee as AstNode);
+      const args = node.arguments as ReadonlyArray<AstNode>;
+      if (name !== null && !args.some((argument) => argument.type === "SpreadElement")) {
+        calls.push({
+          line: code.slice(0, node.start).split("\n").length,
+          name,
+          argumentCount: args.length,
+        });
+      }
+    }
+    Object.values(node).forEach(walk);
+  };
+  walk(program);
+  return calls;
+}
+
+// `path#name` pairs whose callers may leave the translator out. Each needs a reason.
+const OMITTED_TRANSLATOR_ALLOWLIST = new Set([
+  // Only the events' links are matched; no title is shown.
+  "apps/web/src/components/pullRequest/PullRequestDetailPanel.tsx#buildPullRequestTimeline",
+  // Only the number of errors is read.
+  "apps/web/src/components/settings/scheduledTasksSettings.logic.ts#scheduleDraftErrors",
+  // `row.conflicts` is not rendered; the settings rows call keybindingConflictLabels with `t`.
+  "apps/web/src/components/settings/KeybindingsSettings.logic.ts#keybindingConflictLabels",
+  // A prop of the field, not the translated formatter that shares its name.
+  "apps/mobile/src/components/ui/NumberField.tsx#formatValue",
+  "apps/mobile/src/components/ui/NumberField.android.tsx#formatValue",
+]);
+
+/** Calls that stop before a translator parameter of the function they name. */
+export function omittedTranslators(
+  parameters: ReadonlyMap<string, number>,
+  scans: ReadonlyArray<readonly [file: string, calls: ReadonlyArray<CallArity>]>,
+): ReadonlyArray<{ readonly file: string; readonly line: number; readonly name: string }> {
+  return scans.flatMap(([file, calls]) =>
+    calls.flatMap(({ line, name, argumentCount }) => {
+      const index = parameters.get(name);
+      if (index === undefined || argumentCount > index) return [];
+      if (OMITTED_TRANSLATOR_ALLOWLIST.has(`${file}#${name}`)) return [];
+      return [{ file, line, name }];
+    }),
+  );
+}
+
+function omittedTranslatorSection(): Section {
+  // A name defined twice keeps its earliest translator position: a call that stops short of it
+  // omits the translator for at least one of the definitions.
+  const parameters = new Map<string, number>();
+  const perRoot = COMPARE_ROOTS.map((root) => {
+    const files = sourceFiles(root)
+      .toSorted()
+      .map((file) => {
+        const code = NodeFS.readFileSync(file, "utf8");
+        const program = parseSource(file, code);
+        for (const { name, index } of scanTranslatorParameters(code, file, program)) {
+          parameters.set(name, Math.min(index, parameters.get(name) ?? index));
+        }
+        return [file, scanCallArities(code, file, program)] as const;
+      });
+    return [root, files] as const;
+  });
+  const hits = omittedTranslators(
+    parameters,
+    perRoot.flatMap(([, files]) => files),
+  );
+  return section(
+    "calls that leave out a function's optional translator, so its fixed text stays English; the allowlist is in scripts/i18n-report.ts",
+    "omitted translator",
+    COMPARE_ROOTS.map((root) => {
+      const rootHits = hits.filter(({ file }) => file.startsWith(`${root}/`));
+      return [
+        root,
+        rootHits.map(({ file, line, name }) => `    ${file}:${line} ${name}()`),
+        rootHits.length,
+      ] as const;
+    }),
+  );
+}
+
 interface Section {
   readonly lines: ReadonlyArray<string>;
   readonly total: number;
@@ -1131,6 +1351,20 @@ function main(): void {
         if (!called.has(source)) called.set(source, NodePath.relative(process.cwd(), file));
       }
     }
+    const tableProperties = TRANSLATED_PROPERTY_TABLES.get(NodePath.relative(process.cwd(), file));
+    if (tableProperties !== undefined) {
+      for (const { line, source } of scanTranslatedTable(
+        text,
+        file,
+        tableProperties,
+        parseSource(file, text),
+      )) {
+        literals.add(source);
+        if (!called.has(source)) called.set(source, `${file}:${line}`);
+        // Read through a bare t(variable): a "context|source" entry does not serve it.
+        neededKeys.set(source, (neededKeys.get(source) ?? new Set<string | null>()).add(source));
+      }
+    }
     // fork: curried translators and label tables read through t() carry sources too.
     if (!TRANSLATOR_USE.test(text)) continue;
     for (const call of scanCallKeys(text, file, parseSource(file, text))) {
@@ -1164,6 +1398,7 @@ function main(): void {
   const known = new Set([...keysByLocale.values()].flat().map(catalogKeySource));
   const [hardCoded, hardCodedProperties] = hardCodedSections(called, known);
   const compared = comparedSection(called);
+  const omitted = omittedTranslatorSection();
   const lines: string[] = [];
   let missingTotal = 0;
   let staleTotal = 0;
@@ -1197,8 +1432,9 @@ function main(): void {
     ...hardCoded.lines,
     ...hardCodedProperties.lines,
     ...compared.lines,
+    ...omitted.lines,
     "",
-    `i18n report: ${missingTotal} missing, ${staleTotal} stale, ${hardCoded.total} hard-coded, ${hardCodedProperties.total} hard-coded (properties), ${compared.total} compared (report only)`,
+    `i18n report: ${missingTotal} missing, ${staleTotal} stale, ${hardCoded.total} hard-coded, ${hardCodedProperties.total} hard-coded (properties), ${compared.total} compared, ${omitted.total} omitted translator (report only)`,
   );
   process.stdout.write(`${lines.join("\n")}\n`);
 }

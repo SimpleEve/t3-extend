@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 // @effect-diagnostics nodeBuiltinImport:off - Probes the server's native SQLite ownership lock.
 import * as NodeSqlite from "node:sqlite";
 
@@ -92,14 +93,14 @@ export const readLiveHomeOwner = Effect.fn("DesktopHomeOwner.readLiveHomeOwner")
 export const homeOwnedMessage = (owner: Option.Option<HomeOwner>): string =>
   Option.match(owner, {
     onNone: () =>
-      "Another T3 Extend server, such as the background service, is using this data directory, or an older background service is set up for it. Stop that server or try `t3 update`. If the older launcher cannot update, run `t3 service uninstall` and optionally reinstall with `t3 service install` from a current CLI. Use `npx t3@latest` if `t3` is missing or outdated, and pass `--base-dir` with the service's T3 home to each command. Then reopen T3 Extend. You can also set a separate T3CODE_HOME and pair with the running server.",
+      `Another T3 Extend server, such as the background service, is using this data directory, or an older background service is set up for it. Stop that server or try \`${FORK.cliCommand} update\`. If the older launcher cannot update, run \`${FORK.cliCommand} service uninstall\` and optionally reinstall with \`${FORK.cliCommand} service install\` from a current CLI. Use \`npx t3@latest\` if \`${FORK.cliCommand}\` is missing or outdated, and pass \`--base-dir\` with the service's T3 home to each command. Then reopen T3 Extend. You can also set a separate T3CODE_HOME and pair with the running server.`,
     onSome: (owner) => {
       const kind = owner.serviceManaged
         ? "The T3 Extend background service"
-        : "Another T3 Extend server (for example `t3 serve`, or one started over SSH)";
+        : `Another T3 Extend server (for example \`${FORK.cliCommand} serve\`, or one started over SSH)`;
       const version = owner.serverVersion ? `, version ${owner.serverVersion}` : "";
       const stop = owner.serviceManaged
-        ? "Stop it with `t3 service uninstall`, passing `--base-dir` with this T3 home"
+        ? `Stop it with \`${FORK.cliCommand} service uninstall\`, passing \`--base-dir\` with this T3 home`
         : "If a T3 Extend app on another machine started it over SSH, that app restarts it: remove or disconnect that SSH environment there, or quit that app. Then stop the server";
       return `${kind} is using this T3 home (PID ${owner.pid}, port ${owner.port}${version}). ${stop}, and reopen T3 Extend. You can also set a separate T3CODE_HOME and pair with the running server.`;
     },

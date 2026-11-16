@@ -157,12 +157,19 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 
 "compared" 一节报告拿像句子的英文字面量（或全大写常量）去比较（`===`、`switch`、`.includes`、`.startsWith`、`.has` 等），而同一句又在别处经过 `t()` 的代码：比较的那个值一旦被翻译，比较就悄悄失效。比较原始值、显示时才翻译的写法是对的，核实后放进白名单。
 
+"omitted translator" 一节报告漏传翻译器的调用：函数的 `t` 参数是可选的或默认英文（`t: Translator = translatorFor("en")`、`t?: Translator`），调用处少传了这个参数，界面就悄悄显示英文。调用处没有 `t("…")`，前面的扫描看不到它，打包版里欢迎页 Agent 卡片的 "Not authenticated"（`getProviderSummary(provider)`）就是这样漏的。按函数名匹配（同名函数取最靠前的翻译器位置），所以名字相撞会误报，核实后放进 `OMITTED_TRANSLATOR_ALLOWLIST`。默认值是 `translatorFor(getUiLocale())` 的不算。新写带翻译器参数的函数，优先写成必填。
+
+经变量传给 `t()` 的表也会漏：`SettingsRow`、`SettingsSection` 对标题执行 `t(title)`，标题来自 `settingsSearch.ts` 的字面量（`searchableSetting(id)`），调用处没有字面量，目录里少一条也没人发现（"Welcome page"、"Text generators" 就是这样漏的）。`TRANSLATED_PROPERTY_TABLES` 列出这类文件和属性，里面的字面量算作被 `t()` 调用，并且要求目录里有不带上下文的条目。
+
+用户可见文案里的命令名跟身份走：`t3x` 来自 `FORK.cliCommand`，分支前缀示例来自 `FORK.gitNamespace`，不要写死 `t3`。没有改的：`npx t3 …` 和 `t3@<版本>`（npm 包名，fork 没有自己的包）、服务端 CLI 自己打印的终端文字、WSL 和 SSH 远程主机上的命令（那里装的是官方 server）、`DesktopCliShim` 写进启动脚本的标记行（用来认出自己写的脚本）。
+
 白名单都在 `scripts/i18n-report.ts` 里，每一条都写了理由：
 
 - `ALWAYS_ENGLISH_TEXT` / `ALWAYS_ENGLISH_PATTERNS`：在任何语言下都保持英文的文本，比如产品名、格式名和单位、命令行、示例输入（URL、主机名、环境变量名）。
 - `SELF_TRANSLATING_PROPS`：组件内部会调用 `t()` 的 `组件.属性`，比如 `SettingsSection.title`。同名的本地组件写成 `文件名#组件.属性`。只对 web 生效，因为 mobile 有同名的不同组件。传给这些属性的字面量仍会进 missing 检查；带插值的模板查不到 key，照样报告。加一条前先读组件源码。
 - `PROPERTY_ALLOWLIST`：properties 一节的 `文件` 或 `文件#属性`，比如会写日志的错误对象、worker 的回复、存进设置的值、搜索用的文本、没有渲染的字段。
 - `COMPARED_ALLOWLIST`：compared 一节的 `文件#文本`。
+- `OMITTED_TRANSLATOR_ALLOWLIST`：omitted translator 一节的 `文件#函数名`，比如返回值只用来比较、不显示的调用，或同名的无关属性。
 
 确认框：调用方把整句模板翻译好再交给 `ConfirmDialogHost`（`t('Archive thread "{title}"?', { title })`），host 按半角或全角问号拆出标题。
 

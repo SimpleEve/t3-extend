@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 import { useAuth } from "@clerk/react";
 import { useAtomValue } from "@effect/atom-react";
 import { offersLinkedEnvironments } from "@t3tools/client-runtime/link-request";
@@ -489,7 +490,7 @@ function GateScreen({
             <p className="text-sm text-muted-foreground">{turnOnHere.reason}</p>
           ) : (
             <div className="space-y-2 text-sm">
-              <CommandBlock command="t3 connect link" />
+              <CommandBlock command={`${FORK.cliCommand} connect link`} />
               <p>{t("Restart T3 Extend on {name}.", { name })}</p>
               {checkAgain}
             </div>

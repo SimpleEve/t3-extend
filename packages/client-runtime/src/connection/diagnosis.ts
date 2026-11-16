@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 import {
   t3ConnectTroubleshootingUrl,
   type T3ConnectTroubleshootingSection,
@@ -176,9 +177,10 @@ function steps(
   located: Located,
   failure: ConnectionAttemptError | null,
 ): string[] {
-  const checkHost = t("On {host}, check Settings > Sharing & access or run `t3 connect status`.", {
-    host,
-  });
+  const checkHost = t(
+    "On {host}, check Settings > Sharing & access or run `{cli} connect status`.",
+    { host, cli: FORK.cliCommand },
+  );
   switch (located.cause) {
     case "offline":
       return [t("Connect this device to the internet. T3 Extend reconnects on its own.")];
@@ -201,9 +203,10 @@ function steps(
             approve,
           },
         ),
-        t("Or run `t3 auth connect-device approve {code}` on {host}.", {
+        t("Or run `{cli} auth connect-device approve {code}` on {host}.", {
           code: code ?? "<code>",
           host,
+          cli: FORK.cliCommand,
         }),
       ];
     }

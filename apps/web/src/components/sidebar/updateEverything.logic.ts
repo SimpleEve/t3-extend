@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 import { getUiLocale, translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import type { ServerUpdateState } from "@t3tools/client-runtime/state/server";
 import {
@@ -301,7 +302,7 @@ export function collectChannelSwitchTargets(
       compareSemverVersions(release.version, serverVersion) <= 0
     ) {
       skip(
-        `run \`t3 update --channel ${release.channel === "nightly" ? "nightly" : "stable"} --allow-downgrade\` there`,
+        `run \`${FORK.cliCommand} update --channel ${release.channel === "nightly" ? "nightly" : "stable"} --allow-downgrade\` there`,
       );
       continue;
     }

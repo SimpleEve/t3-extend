@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 import { useAuth } from "@clerk/react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { Link } from "@tanstack/react-router";
@@ -97,7 +98,7 @@ function T3ConnectSteps() {
         )}
       </SetupStep>
       <SetupStep number={2}>
-        <RunOnComputer command="t3 connect" />
+        <RunOnComputer command={`${FORK.cliCommand} connect`} />
         {isSignedIn ? (
           <div className="mt-4 space-y-1.5">
             <CloudEnvironmentConnectRows
@@ -131,7 +132,7 @@ function PairingSteps() {
   return (
     <>
       <SetupStep number={1}>
-        <RunOnComputer command="t3 pair" />
+        <RunOnComputer command={`${FORK.cliCommand} pair`} />
       </SetupStep>
       <SetupStep number={2}>
         <Button render={<Link to="/settings/connections" />} size="sm">

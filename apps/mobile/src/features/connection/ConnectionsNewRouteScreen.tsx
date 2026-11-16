@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 import { ListRow } from "../../components/ui/ListRow";
 import * as Dialog from "../../components/ui/Dialog";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
@@ -350,7 +351,9 @@ function PairingScanCard(props: {
           )}
         </View>
         <Text className={cn("text-center text-sm", light ? "text-black/70" : "text-white/80")}>
-          {t("Scan the code from t3 pair or desktop Connections settings")}
+          {t("Scan the code from {cli} pair or desktop Connections settings", {
+            cli: FORK.cliCommand,
+          })}
         </Text>
       </View>
     </Pressable>

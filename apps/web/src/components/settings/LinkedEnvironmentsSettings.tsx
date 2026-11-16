@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 import { useAtomValue } from "@effect/atom-react";
 import { ANOTHER_ADDRESS, linkRequestFailureMessage } from "@t3tools/client-runtime/link-request";
 import {
@@ -365,7 +366,7 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
                   onChange={(event) => setPairingCode(event.target.value)}
                   placeholder={
                     machine === null
-                      ? t("From Sharing & access there, or t3 pair")
+                      ? t("From Sharing & access there, or {cli} pair", { cli: FORK.cliCommand })
                       : t("Paste the code")
                   }
                   disabled={busy}

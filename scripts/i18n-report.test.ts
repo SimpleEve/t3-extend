@@ -3,12 +3,16 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   callCatalogKey,
   catalogKeySource,
+  omittedTranslators,
   riskyComparisons,
+  scanCallArities,
   scanCallKeys,
   scanComparisons,
   scanHardCodedText,
   scanIndirectSources,
   scanPropertyText,
+  scanTranslatedTable,
+  scanTranslatorParameters,
   templateSourcePattern,
 } from "./i18n-report.ts";
 
@@ -59,6 +63,13 @@ describe("scanHardCodedText", () => {
     );
     expect(scan.selfTranslated).toEqual(["Display"]);
     expect(scan.hits.map(({ text }) => text)).toEqual(["Disk ${…}"]);
+  });
+
+  it("follows a module string constant into a child, but not through t()", () => {
+    const code = (child: string) =>
+      `const MESSAGE = "Scan limit reached."; const x = <p>{${child}}</p>;`;
+    expect(hitsOf(code("MESSAGE"))).toEqual(["child: Scan limit reached."]);
+    expect(hitsOf(code("t(MESSAGE)"))).toEqual([]);
   });
 
   it("applies the self-translating allowlist to web only", () => {
@@ -304,5 +315,62 @@ describe("templateSourcePattern", () => {
   it("drops a template with no word in its fixed text, which would match every sentence", () => {
     expect(templateSourcePattern("${families}, ${defaultStack}")).toBeNull();
     expect(templateSourcePattern("${a}${b}")).toBeNull();
+  });
+});
+
+describe("omitted translators", () => {
+  const parametersIn = (code: string) =>
+    scanTranslatorParameters(code, "apps/web/src/example.ts").map(
+      ({ name, index }) => `${name}@${index}`,
+    );
+
+  it.each([
+    [
+      "a default English translator",
+      'function label(a: string, t: Translator = translatorFor("en")) {}',
+      ["label@1"],
+    ],
+    ["an optional translator", "const label = (a: string, t?: Translator) => a;", ["label@1"]],
+    ["a method", "const x = { label(t: Translator = (source) => source) {} };", ["label@0"]],
+  ])("finds %s", (_case, code, expected) => {
+    expect(parametersIn(code)).toEqual(expected);
+  });
+
+  it.each([
+    ["a required translator", "function label(t: Translator) {}"],
+    [
+      "a default that follows the interface language",
+      "function label(t: Translator = translatorFor(getUiLocale())) {}",
+    ],
+    ["a parameter that is not a translator", "function label(a = 1) {}"],
+  ])("ignores %s", (_case, code) => {
+    expect(parametersIn(code)).toEqual([]);
+  });
+
+  it("reports calls that stop before the translator, and only those", () => {
+    const file = "apps/web/src/Example.tsx";
+    const calls = scanCallArities("a(x); a(x, t); a(...rest); obj.a(x); b(x);", file);
+    expect(
+      omittedTranslators(new Map([["a", 1]]), [[file, calls]]).map(
+        ({ line, name }) => `${name}:${line}`,
+      ),
+    ).toEqual(["a:1", "a:1"]);
+  });
+
+  it("skips an allowlisted call", () => {
+    const file = "apps/mobile/src/components/ui/NumberField.tsx";
+    const calls = scanCallArities("formatValue(1);", file);
+    expect(omittedTranslators(new Map([["formatValue", 1]]), [[file, calls]])).toEqual([]);
+  });
+});
+
+describe("scanTranslatedTable", () => {
+  it("reads the named properties of every object, however deep", () => {
+    const sources = scanTranslatedTable(
+      'export const ITEMS = [{ id: "a", title: "Welcome page", note: "Skip me" }, { nested: { title: "Open" } }];',
+      "apps/web/src/example.ts",
+      new Set(["title"]),
+    );
+    expect(sources.map(({ source }) => source)).toEqual(["Welcome page", "Open"]);
   });
 });

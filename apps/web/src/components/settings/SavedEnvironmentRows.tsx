@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 import { SessionPermissions } from "./SessionPermissions";
 import {
   ChevronRightIcon,
@@ -730,13 +731,16 @@ function ConfiguredCloudLinkRow({
         <SettingsRow
           title={searchableSetting("t3-connect").title}
           description={t(
-            "This environment was removed from T3 Connect. Run `t3 connect link` on the host to link it again.",
+            "This environment was removed from T3 Connect. Run `{cli} connect link` on the host to link it again.",
+            { cli: FORK.cliCommand },
           )}
         />
       ) : isElectron ? (
         <SettingsRow
           title={searchableSetting("t3-connect").title}
-          description={t("Run `t3 connect link` on the host, then restart T3 Extend there.")}
+          description={t("Run `{cli} connect link` on the host, then restart T3 Extend there.", {
+            cli: FORK.cliCommand,
+          })}
         />
       ) : null}
       {signedOut && showSwitch ? null : (
