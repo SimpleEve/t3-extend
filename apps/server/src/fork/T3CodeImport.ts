@@ -157,6 +157,10 @@ interface Analysis {
   readonly threadTargets: ReadonlyMap<string, string>;
   /** Subagents left behind: references to them still get the id they would have if imported later. */
   readonly omittedTargets: ReadonlyMap<string, string>;
+  /** Imported threads copied again, with the runs started here that the copy was told it discards. */
+  readonly refreshing: ReadonlyMap<string, number>;
+  /** Subagents left out next to a thread that is copied: their source version is recorded as a baseline. */
+  readonly omittedToRecord: ReadonlyArray<SourceThread>;
   readonly tasks: ReadonlyArray<{
     readonly row: Row;
     readonly enabled: boolean;
@@ -279,18 +283,36 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       .unsafe<{ readonly name: string }>(`SELECT name FROM pragma_table_info(?)`, [table])
       .pipe(Effect.map((rows) => rows.map((row) => row.name)));
 
-  /** Threads with a run in flight, a pending request, or background work, whichever database `client` is. */
-  const directBusyThreadIds = (client: SqlClient.SqlClient) =>
-    client
+  /**
+   * Threads with a run in flight, a pending request, or background work, whichever database `client` is;
+   * with `threadId`, only that one.
+   */
+  const directBusyThreadIds = (client: SqlClient.SqlClient, threadId?: string) => {
+    const only = threadId === undefined ? "" : "AND thread_id = ?";
+    const params = threadId === undefined ? [] : [threadId, threadId, threadId];
+    return client
       .unsafe<{ readonly thread_id: string }>(
-        `SELECT thread_id FROM orchestration_v2_projection_runs WHERE status IN (${ACTIVE_RUN_STATUSES})
-         UNION SELECT thread_id FROM orchestration_v2_projection_runtime_requests WHERE status = 'pending'
+        `SELECT thread_id FROM orchestration_v2_projection_runs WHERE status IN (${ACTIVE_RUN_STATUSES}) ${only}
+         UNION SELECT thread_id FROM orchestration_v2_projection_runtime_requests WHERE status = 'pending' ${only}
          UNION SELECT thread_id FROM ${PROVIDER_THREADS_TABLE}
-           WHERE status = 'active'
+           WHERE (status = 'active'
              OR CASE WHEN json_valid(payload_json)
-               THEN json_array_length(payload_json, '$.pendingBackgroundTasks') > 0 ELSE 0 END`,
+               THEN json_array_length(payload_json, '$.pendingBackgroundTasks') > 0 ELSE 0 END) ${only}`,
+        params,
       )
       .pipe(Effect.map((rows) => rows.map((row) => row.thread_id)));
+  };
+
+  /** Whether T3 Extend is working on a thread: a run, a request, background work, or an effect still to run. */
+  const targetBlocked = Effect.fn("T3CodeImport.targetBlocked")(function* (threadId: string) {
+    if ((yield* directBusyThreadIds(sql, threadId)).length > 0) return true;
+    const effects = yield* sql.unsafe<{ readonly effect_id: string }>(
+      `SELECT effect_id FROM orchestration_v2_effect_outbox
+       WHERE thread_id = ? AND status IN ('pending', 'running') LIMIT 1`,
+      [threadId],
+    );
+    return effects.length > 0;
+  });
 
   /** Threads the official app is working on or has queued work for. */
   const busyThreadIds = Effect.fn("T3CodeImport.busyThreadIds")(function* (
@@ -372,12 +394,11 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       .pipe(Effect.map((rows) => new Map(rows.map((row) => [row.source_id, row] as const))));
 
   /**
-   * Whether T3 Code carried on with an imported thread since the copy, and how many runs T3 Extend added
-   * to its copy meanwhile. Both read the event streams' versions, which a copy keeps: what the copy
-   * holds ends at `source_version`, so a newer official stream is an update and newer events here are local.
-   * Pruning always keeps a stream's newest event, so its version never goes backwards.
+   * Whether T3 Code carried on with an imported thread since the copy. A copy keeps the events'
+   * `stream_version`, so what it holds ends at `source_version` and a newer official stream is an update.
+   * Pruning always keeps a stream's newest event, so the version never goes backwards.
    */
-  const freshnessOf = Effect.fn("T3CodeImport.freshnessOf")(function* (
+  const movedSince = Effect.fn("T3CodeImport.movedSince")(function* (
     src: SqlClient.SqlClient,
     thread: SourceThread,
     row: MappedRow,
@@ -398,9 +419,15 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         [row.target_id, row.imported_at],
       ))[0]?.version ??
       -1;
-    if (newest <= copied) return { updated: false, localRuns: 0 };
-    // Runs are counted from their rows: maintenance prunes `run.created` events, so the stream cannot say.
-    const local = (yield* row.source_runs === null
+    return newest > copied;
+  });
+
+  /**
+   * Runs T3 Extend added to an imported copy since the import, counted from their rows: maintenance
+   * prunes `run.created` events, so the stream cannot say.
+   */
+  const localRunsOf = Effect.fn("T3CodeImport.localRunsOf")(function* (row: MappedRow) {
+    const counted = yield* row.source_runs === null
       ? sql.unsafe<{ readonly count: number }>(
           `SELECT COUNT(*) AS count FROM orchestration_v2_projection_runs WHERE thread_id = ? AND requested_at > ?`,
           [row.target_id, row.imported_at],
@@ -408,8 +435,27 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       : sql.unsafe<{ readonly count: number }>(
           `SELECT COUNT(*) AS count FROM orchestration_v2_projection_runs WHERE thread_id = ? AND ordinal > ?`,
           [row.target_id, row.source_runs],
-        ))[0]?.count;
-    return { updated: true, localRuns: Number(local ?? 0) };
+        );
+    return Number(counted[0]?.count ?? 0);
+  });
+
+  /**
+   * An imported thread is stale when its own source moved, or a subagent that was left out of the import
+   * did (its baseline was recorded with state 'omitted'), so picking the thread again brings the news.
+   */
+  const isStale = Effect.fn("T3CodeImport.isStale")(function* (
+    src: SqlClient.SqlClient,
+    thread: SourceThread,
+    row: MappedRow,
+    children: ReadonlyMap<string, ReadonlyArray<SourceThread>>,
+    done: ReadonlyMap<string, MappedRow>,
+  ) {
+    if (yield* movedSince(src, thread, row)) return true;
+    for (const sub of subagentDescendants(children, thread.id)) {
+      const omitted = done.get(sub.id);
+      if (omitted?.state === "omitted" && (yield* movedSince(src, sub, omitted))) return true;
+    }
+    return false;
   });
 
   /** Where an imported thread stands, counting the subagents that travel with it. */
@@ -417,6 +463,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     src: SqlClient.SqlClient,
     members: ReadonlyArray<SourceThread>,
     done: ReadonlyMap<string, MappedRow>,
+    children: ReadonlyMap<string, ReadonlyArray<SourceThread>>,
   ) {
     const copied = members.flatMap((member) => {
       const row = done.get(member.id);
@@ -426,9 +473,9 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     let updated = false;
     let localChanges = 0;
     for (const { member, row } of copied) {
-      const fresh = yield* freshnessOf(src, member, row);
-      updated ||= fresh.updated;
-      localChanges += fresh.updated ? fresh.localRuns : 0;
+      if (!(yield* isStale(src, member, row, children, done))) continue;
+      updated = true;
+      localChanges += yield* localRunsOf(row);
     }
     if (updated) return { state: "updated" as const, localChanges };
     // A thread whose subagents did not all arrive (an interrupted run) can be picked again to finish.
@@ -486,7 +533,12 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       if (!isTopLevel(thread) || busy.has(thread.id)) continue;
       progress.set(
         thread.id,
-        yield* importProgress(src, [thread, ...subagentDescendants(children, thread.id)], done),
+        yield* importProgress(
+          src,
+          [thread, ...subagentDescendants(children, thread.id)],
+          done,
+          children,
+        ),
       );
     }
     const projectRows = yield* src.unsafe<Row>(
@@ -825,24 +877,17 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       const row = doneThreads.get(id);
       return thread !== undefined && row?.state === "done" ? [{ thread, row }] : [];
     });
-    const refreshing = new Set<string>();
-    if (refreshCandidates.length > 0) {
-      const busyHere = new Set(yield* directBusyThreadIds(sql));
-      for (const { thread, row } of refreshCandidates) {
-        const fresh = yield* freshnessOf(src, thread, row);
-        if (!fresh.updated) continue;
-        if (busyHere.has(row.target_id)) {
-          skipped.push({ code: "thread-target-busy", subject: thread.title });
-          continue;
-        }
-        refreshing.add(thread.id);
-        if (fresh.localRuns > 0) {
-          attention.push({
-            code: "thread-local-discarded",
-            subject: thread.title,
-            count: fresh.localRuns,
-          });
-        }
+    const refreshing = new Map<string, number>();
+    for (const { thread, row } of refreshCandidates) {
+      if (!(yield* isStale(src, thread, row, children, doneThreads))) continue;
+      if (yield* targetBlocked(row.target_id)) {
+        skipped.push({ code: "thread-target-busy", subject: thread.title });
+        continue;
+      }
+      const localRuns = yield* localRunsOf(row);
+      refreshing.set(thread.id, localRuns);
+      if (localRuns > 0) {
+        attention.push({ code: "thread-local-discarded", subject: thread.title, count: localRuns });
       }
     }
     const alreadyImported = [...wanted.keys()].filter(
@@ -903,11 +948,22 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       }
     }
     const threadTargets = new Map<string, string>();
-    for (const [id, row] of doneThreads) threadTargets.set(id, row.target_id);
+    // A subagent left out of an earlier import only has a baseline; there is no thread to point at yet.
+    for (const [id, row] of doneThreads)
+      if (row.state !== "omitted") threadTargets.set(id, row.target_id);
     for (const thread of toCopy) threadTargets.set(thread.id, yield* targetId("thread", thread.id));
     const omittedTargets = new Map<string, string>();
     for (const id of omitted) {
       if (!threadTargets.has(id)) omittedTargets.set(id, yield* targetId("thread", id));
+    }
+    const omittedToRecord = new Map<string, SourceThread>();
+    for (const thread of toCopy) {
+      for (const sub of subagentDescendants(children, thread.id)) {
+        const recorded = doneThreads.get(sub.id)?.state;
+        if (omitted.has(sub.id) && recorded !== "done" && recorded !== "copying") {
+          omittedToRecord.set(sub.id, sub);
+        }
+      }
     }
     if (toCopy.length > refreshing.size) {
       fixed.push({
@@ -1087,6 +1143,8 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       projects,
       threadTargets,
       omittedTargets,
+      refreshing,
+      omittedToRecord: [...omittedToRecord.values()],
       tasks,
       files,
       report: { fixed, skipped, attention },
@@ -1450,6 +1508,46 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     );
   });
 
+  /**
+   * Hand-offs between this thread and another imported one. They have no `thread_id` column, so a purge
+   * does not reach them: the ones that tie it to an imported thread are dropped and read again from the
+   * source, in the same transaction as the thread. The pair is written by whichever of the two lands second.
+   */
+  const replaceTransfers = Effect.fn("T3CodeImport.replaceTransfers")(function* (
+    context: RunContext,
+    thread: SourceThread,
+    targetThread: string,
+  ) {
+    const imported = `SELECT target_id FROM fork_t3code_import_map WHERE kind = 'thread' AND state = 'done' AND target_id <> ?`;
+    yield* sql.unsafe(
+      `DELETE FROM ${quote(TRANSFERS_TABLE)}
+       WHERE (source_thread_id = ? AND target_thread_id IN (${imported}))
+          OR (target_thread_id = ? AND source_thread_id IN (${imported}))`,
+      [targetThread, targetThread, targetThread, targetThread],
+    );
+    const done = new Set(
+      (yield* sql.unsafe<{ readonly source_id: string }>(
+        `SELECT source_id FROM fork_t3code_import_map WHERE kind = 'thread' AND state = 'done'`,
+      )).map((row) => row.source_id),
+    );
+    const columns = yield* sharedColumns(context.src, TRANSFERS_TABLE);
+    const rows = (yield* context.src.unsafe<Row>(
+      `SELECT * FROM ${quote(TRANSFERS_TABLE)} WHERE source_thread_id = ? OR target_thread_id = ?`,
+      [thread.id, thread.id],
+    ))
+      .filter((row) => {
+        const other =
+          row.source_thread_id === thread.id ? row.target_thread_id : row.source_thread_id;
+        return other !== thread.id && done.has(String(other));
+      })
+      .map((row) =>
+        columns.map((column) =>
+          typeof row[column] === "string" ? context.rewrite(String(row[column])) : row[column],
+        ),
+      );
+    yield* insertRows(TRANSFERS_TABLE, columns, rows);
+  });
+
   const copyThread = Effect.fn("T3CodeImport.copyThread")(function* (
     context: RunContext,
     thread: SourceThread,
@@ -1460,13 +1558,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     const targetProject = project?.targetId ?? thread.projectId;
     const allTables = context.tables.map((table) => table.name);
 
-    // A run that stopped halfway left a partial copy; start this thread over.
-    const previous = yield* sql.unsafe<{ readonly state: string }>(
-      `SELECT state FROM fork_t3code_import_map WHERE kind = 'thread' AND source_id = ?`,
-      [thread.id],
-    );
-    if (previous[0] !== undefined) yield* purgeThread(allTables, targetThread);
-    // `src` holds one consistent view, so this is exactly where the copy below ends.
+    // `src` holds one consistent view, so these are exactly where the copy below ends.
     const copiedThrough =
       (yield* src.unsafe<{ readonly version: number | null }>(
         `SELECT MAX(stream_version) AS version FROM orchestration_events
@@ -1478,11 +1570,9 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         `SELECT MAX(ordinal) AS ordinal FROM orchestration_v2_projection_runs WHERE thread_id = ?`,
         [thread.id],
       ))[0]?.ordinal ?? 0;
-    yield* sql.unsafe(
-      `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at, source_version, source_runs)
-       VALUES ('thread', ?, ?, 'copying', ?, ?, ?, ?)`,
-      [thread.id, targetThread, thread.worktree, yield* nowIso, copiedThrough, copiedRuns],
-    );
+    const importedAt = yield* nowIso;
+    const countersBefore = { ...context.counters };
+    // Refs are only ever created, so this is safe to do before the replacement is decided.
     const refs = yield* copyCheckpointRefs({
       src,
       thread,
@@ -1491,81 +1581,121 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       counters: context.counters,
     });
 
-    for (const table of context.tables) {
-      let last = -1;
+    const previous = (yield* sql.unsafe<MappedRow>(
+      `SELECT source_id, target_id, state, imported_at, source_version, source_runs
+       FROM fork_t3code_import_map WHERE kind = 'thread' AND source_id = ?`,
+      [thread.id],
+    ))[0];
+    const eventColumns = context.eventColumns;
+    const write = Effect.gen(function* () {
+      // A run that stopped halfway left a partial copy, and a finished one is being replaced: start over.
+      if (previous?.state === "done" || previous?.state === "copying") {
+        yield* purgeThread(allTables, targetThread);
+      }
+      yield* sql.unsafe(
+        `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at, source_version, source_runs)
+         VALUES ('thread', ?, ?, 'copying', ?, ?, ?, ?)`,
+        [thread.id, targetThread, thread.worktree, importedAt, copiedThrough, copiedRuns],
+      );
+
+      for (const table of context.tables) {
+        let last = -1;
+        for (;;) {
+          const batch = yield* src.unsafe<Row>(
+            `SELECT rowid AS "__rowid", * FROM ${quote(table.name)} WHERE thread_id = ? AND rowid > ? ORDER BY rowid LIMIT ?`,
+            [thread.id, last, ROWS_PER_BATCH],
+          );
+          if (batch.length === 0) break;
+          last = Number(batch[batch.length - 1]!["__rowid"]);
+          const values = batch.map((row) =>
+            transformRow(context, table.name, table.columns, row, targetProject, refs),
+          );
+          yield* sql.withTransaction(insertRows(table.name, table.columns, values));
+        }
+      }
+
+      let lastSequence = -1;
       for (;;) {
         const batch = yield* src.unsafe<Row>(
-          `SELECT rowid AS "__rowid", * FROM ${quote(table.name)} WHERE thread_id = ? AND rowid > ? ORDER BY rowid LIMIT ?`,
-          [thread.id, last, ROWS_PER_BATCH],
+          `SELECT * FROM orchestration_events WHERE aggregate_kind = 'thread' AND stream_id = ? AND sequence > ?
+           ORDER BY sequence LIMIT ?`,
+          [thread.id, lastSequence, ROWS_PER_BATCH],
         );
         if (batch.length === 0) break;
-        last = Number(batch[batch.length - 1]!["__rowid"]);
-        const values = batch.map((row) =>
-          transformRow(context, table.name, table.columns, row, targetProject, refs),
-        );
-        yield* sql.withTransaction(insertRows(table.name, table.columns, values));
-      }
-    }
-
-    const eventColumns = context.eventColumns;
-    let lastSequence = -1;
-    for (;;) {
-      const batch = yield* src.unsafe<Row>(
-        `SELECT * FROM orchestration_events WHERE aggregate_kind = 'thread' AND stream_id = ? AND sequence > ?
-         ORDER BY sequence LIMIT ?`,
-        [thread.id, lastSequence, ROWS_PER_BATCH],
-      );
-      if (batch.length === 0) break;
-      lastSequence = Number(batch[batch.length - 1]!["sequence"]);
-      const values = batch.map((row) => {
-        // Rebuilding projections from these events must give the same checkpoint state the rows have.
-        const marked =
-          row.event_type === "checkpoint.captured" && typeof row.payload_json === "string"
-            ? markCheckpointMissing(row.payload_json, refs.missing)
-            : null;
-        return eventColumns.map((column) => {
-          const value = column === "payload_json" && marked !== null ? marked : row[column];
-          if (typeof value !== "string") return value;
-          const withRefs = value.includes("refs/t3/orchestration-v2/checkpoints")
-            ? value.replace(REF_PATTERN, (ref) => refs.refMap.get(ref) ?? ref)
-            : value;
-          return context.rewrite(withRefs);
+        lastSequence = Number(batch[batch.length - 1]!["sequence"]);
+        const values = batch.map((row) => {
+          // Rebuilding projections from these events must give the same checkpoint state the rows have.
+          const marked =
+            row.event_type === "checkpoint.captured" && typeof row.payload_json === "string"
+              ? markCheckpointMissing(row.payload_json, refs.missing)
+              : null;
+          return eventColumns.map((column) => {
+            const value = column === "payload_json" && marked !== null ? marked : row[column];
+            if (typeof value !== "string") return value;
+            const withRefs = value.includes("refs/t3/orchestration-v2/checkpoints")
+              ? value.replace(REF_PATTERN, (ref) => refs.refMap.get(ref) ?? ref)
+              : value;
+            return context.rewrite(withRefs);
+          });
         });
-      });
-      yield* sql.withTransaction(insertRows("orchestration_events", eventColumns, values));
-    }
+        yield* sql.withTransaction(insertRows("orchestration_events", eventColumns, values));
+      }
 
-    // The copied rows already hold what the new events say, so a caught-up projection cursor moves with them.
-    yield* sql.withTransaction(
-      Effect.gen(function* () {
-        const cursor = (yield* sql.unsafe<{ readonly last_sequence: number }>(
-          `SELECT last_sequence FROM orchestration_v2_projection_metadata WHERE projection_name = 'thread-projections'`,
-        ))[0];
-        const newest = (yield* sql.unsafe<{ readonly sequence: number | null }>(
-          `SELECT MAX(sequence) AS sequence FROM orchestration_events
-           WHERE application_event_version = 2 AND aggregate_kind = 'thread'`,
-        ))[0]?.sequence;
-        yield* sql.unsafe(
-          `UPDATE fork_t3code_import_map SET state = 'done' WHERE kind = 'thread' AND source_id = ?`,
-          [thread.id],
-        );
-        // Rows from before this import were already projected; only move a cursor that was current.
-        // A thread copied again had its old events inside the cursor, so a cursor past the rest is current too.
-        if (cursor !== undefined && newest !== null && newest !== undefined) {
-          const before = (yield* sql.unsafe<{ readonly sequence: number | null }>(
+      yield* replaceTransfers(context, thread, targetThread);
+
+      // The copied rows already hold what the new events say, so a caught-up projection cursor moves with them.
+      yield* sql.withTransaction(
+        Effect.gen(function* () {
+          const cursor = (yield* sql.unsafe<{ readonly last_sequence: number }>(
+            `SELECT last_sequence FROM orchestration_v2_projection_metadata WHERE projection_name = 'thread-projections'`,
+          ))[0];
+          const newest = (yield* sql.unsafe<{ readonly sequence: number | null }>(
             `SELECT MAX(sequence) AS sequence FROM orchestration_events
-             WHERE application_event_version = 2 AND aggregate_kind = 'thread' AND stream_id <> ?`,
-            [targetThread],
+             WHERE application_event_version = 2 AND aggregate_kind = 'thread'`,
           ))[0]?.sequence;
-          if (cursor.last_sequence >= (before ?? 0)) {
-            yield* sql.unsafe(
-              `UPDATE orchestration_v2_projection_metadata SET last_sequence = ? WHERE projection_name = 'thread-projections'`,
-              [newest],
-            );
+          yield* sql.unsafe(
+            `UPDATE fork_t3code_import_map SET state = 'done' WHERE kind = 'thread' AND source_id = ?`,
+            [thread.id],
+          );
+          // Rows from before this import were already projected; only move a cursor that was current.
+          // A thread copied again had its old events inside the cursor, so a cursor past the rest is current too.
+          if (cursor !== undefined && newest !== null && newest !== undefined) {
+            const before = (yield* sql.unsafe<{ readonly sequence: number | null }>(
+              `SELECT MAX(sequence) AS sequence FROM orchestration_events
+               WHERE application_event_version = 2 AND aggregate_kind = 'thread' AND stream_id <> ?`,
+              [targetThread],
+            ))[0]?.sequence;
+            if (cursor.last_sequence >= (before ?? 0)) {
+              yield* sql.unsafe(
+                `UPDATE orchestration_v2_projection_metadata SET last_sequence = ? WHERE projection_name = 'thread-projections'`,
+                [newest],
+              );
+            }
           }
-        }
-      }),
-    );
+        }),
+      );
+      return "copied" as const;
+    });
+
+    // Replacing a copy that is in use is one transaction. It takes the write lock before it looks, so nothing
+    // can start work on the thread between the check and the purge, and a failure leaves the old copy as it was.
+    const outcome =
+      previous?.state === "done"
+        ? yield* sql.withTransaction(
+            Effect.gen(function* () {
+              if (yield* targetBlocked(targetThread)) return "busy" as const;
+              // The review told the user how many runs of theirs go; more than that was not agreed to.
+              if ((yield* localRunsOf(previous)) > (analysis.refreshing.get(thread.id) ?? 0)) {
+                return "changed" as const;
+              }
+              return yield* write;
+            }),
+          )
+        : yield* write;
+    if (outcome !== "copied") {
+      Object.assign(context.counters, countersBefore);
+      return outcome;
+    }
 
     // Attachments are named after their thread; browser artifacts are found through the paths rows hold.
     const attachmentNames = yield* fs
@@ -1592,6 +1722,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
           Effect.logWarning("Could not announce an imported thread to live clients", { cause }),
         ),
       );
+    return "copied" as const;
   });
 
   const copyProject = Effect.fn("T3CodeImport.copyProject")(function* (
@@ -1888,8 +2019,8 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
           src: input.src,
           dst,
           table: TRANSFERS_TABLE,
-          where: "source_thread_id = ?",
-          params: [threadId],
+          where: "(source_thread_id = ? OR target_thread_id = ?)",
+          params: [threadId, threadId],
         });
       }
     }).pipe(Effect.provide(staging));
@@ -1952,6 +2083,8 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       importedProjects += 1;
     }
     let done = 0;
+    // Replacements that were stopped at the last look, with why.
+    const stopped = new Map<string, "busy" | "changed">();
     for (const thread of analysis.toCopy) {
       yield* SubscriptionRef.set(stateRef, {
         status: "running",
@@ -1960,35 +2093,28 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         totalThreads: analysis.toCopy.length,
         currentTitle: thread.title,
       });
-      yield* copyThread(context, thread);
+      const outcome = yield* copyThread(context, thread);
+      if (outcome !== "copied") stopped.set(thread.id, outcome);
       done += 1;
     }
 
-    // Hand-offs between two imported threads, now that both exist.
-    if (analysis.toCopy.length > 0) {
-      const columns = yield* sharedColumns(src, TRANSFERS_TABLE);
-      const transfers = yield* src.unsafe<Row>(`SELECT * FROM ${TRANSFERS_TABLE}`);
-      const rows = transfers
-        .filter(
-          (row) =>
-            analysis.toCopy.some((thread) => thread.id === row.source_thread_id) &&
-            analysis.threadTargets.has(String(row.target_thread_id)),
-        )
-        .map((row) =>
-          columns.map((column) =>
-            typeof row[column] === "string" ? context.rewrite(String(row[column])) : row[column],
-          ),
-        );
-      yield* sql.withTransaction(
-        Effect.forEach(
-          rows,
-          (values) =>
-            sql.unsafe(
-              `INSERT OR IGNORE INTO ${quote(TRANSFERS_TABLE)} (${columns.map(quote).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`,
-              values as Array<never>,
-            ),
-          { discard: true },
-        ),
+    // Subagents left out: where they stand now is the baseline later updates are measured from.
+    for (const sub of analysis.omittedToRecord) {
+      const version =
+        (yield* src.unsafe<{ readonly version: number | null }>(
+          `SELECT MAX(stream_version) AS version FROM orchestration_events
+           WHERE aggregate_kind = 'thread' AND stream_id = ?`,
+          [sub.id],
+        ))[0]?.version ?? -1;
+      const runs =
+        (yield* src.unsafe<{ readonly ordinal: number | null }>(
+          `SELECT MAX(ordinal) AS ordinal FROM orchestration_v2_projection_runs WHERE thread_id = ?`,
+          [sub.id],
+        ))[0]?.ordinal ?? 0;
+      yield* sql.unsafe(
+        `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at, source_version, source_runs)
+         VALUES ('thread', ?, ?, 'omitted', NULL, ?, ?, ?)`,
+        [sub.id, analysis.omittedTargets.get(sub.id) ?? sub.id, yield* nowIso, version, runs],
       );
     }
 
@@ -2056,13 +2182,36 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       ),
       ...secretNotices,
     ];
+    // A replacement that was stopped at the last look is not an import; its warning is withdrawn too.
+    const stoppedTitles = new Set(
+      analysis.toCopy.filter((thread) => stopped.has(thread.id)).map((thread) => thread.title),
+    );
+    const stoppedNotices = analysis.toCopy.flatMap((thread): Array<T3CodeImportNotice> => {
+      const why = stopped.get(thread.id);
+      return why === undefined
+        ? []
+        : [
+            {
+              code: why === "busy" ? "thread-target-busy" : "thread-target-changed",
+              subject: thread.title,
+            },
+          ];
+    });
+    fixed = replaceCount(fixed, "thread-refreshed", analysis.refreshing.size - stopped.size);
     const result: T3CodeImportResult = {
       importedProjects,
-      importedThreads: analysis.toCopy.length,
+      importedThreads: analysis.toCopy.length - stopped.size,
       existingThreads: analysis.alreadyImported,
       importedTasks,
       clientSettings: analysis.files.clientSettings,
-      report: { fixed, skipped: [...analysis.report.skipped, ...unreadableTasks], attention },
+      report: {
+        fixed,
+        skipped: [...analysis.report.skipped, ...stoppedNotices, ...unreadableTasks],
+        attention: attention.filter(
+          (notice) =>
+            notice.code !== "thread-local-discarded" || !stoppedTitles.has(notice.subject),
+        ),
+      },
     };
     yield* sql.unsafe(
       `UPDATE fork_t3code_import_runs SET finished_at = ?, summary_json = ? WHERE run_id = ?`,

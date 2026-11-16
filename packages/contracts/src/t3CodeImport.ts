@@ -128,6 +128,7 @@ export const T3CodeImportNoticeCode = Schema.Literals([
   "thread-busy",
   "thread-parent-busy",
   "thread-target-busy",
+  "thread-target-changed",
   "task-project-missing",
   "task-thread-missing",
   "task-unreadable",

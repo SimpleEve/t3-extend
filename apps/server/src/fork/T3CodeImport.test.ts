@@ -373,6 +373,10 @@ const withService = <A, E, R>(
     readonly withoutSharedWorktreePolicy?: boolean;
     /** Receives how many worktree markers the database held each time the import marks in memory. */
     readonly markCalls?: Array<number>;
+    /** Runs before every git command the import issues; a test uses it to act between two of its steps. */
+    readonly gitHook?: {
+      current: ((args: ReadonlyArray<string>) => Effect.Effect<void>) | undefined;
+    };
     /** Swaps the event store for one that records what the import tells live clients, by thread id. */
     readonly announced?: Array<string>;
   },
@@ -453,13 +457,16 @@ const withService = <A, E, R>(
       }),
       Layer.mock(GitVcsDriver.GitVcsDriver)({
         execute: (input) =>
-          Effect.sync(() => ({
-            exitCode: 0 as never,
-            stdout: git(input.cwd, input.args, input.stdin),
-            stderr: "",
-            stdoutTruncated: false,
-            stderrTruncated: false,
-          })),
+          Effect.gen(function* () {
+            if (options.gitHook?.current !== undefined) yield* options.gitHook.current(input.args);
+            return {
+              exitCode: 0 as never,
+              stdout: git(input.cwd, input.args, input.stdin),
+              stderr: "",
+              stdoutTruncated: false,
+              stderrTruncated: false,
+            };
+          }),
       }),
     );
     const sqlite = NodeSqliteClient.layer({ filename: config.dbPath });
@@ -1638,5 +1645,212 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
         assert.equal(entry?.localChanges, 1);
       }),
     ),
+  );
+
+  /** Acts at the second `git cat-file` of a run: after the review's look, before the replacement starts. */
+  const betweenCheckAndReplace = (
+    hook: NonNullable<Parameters<typeof withService>[0]["gitHook"]>,
+    act: Effect.Effect<void>,
+  ) => {
+    let calls = 0;
+    hook.current = (args) => (args[0] === "cat-file" && ++calls === 2 ? act : Effect.void);
+  };
+
+  it.effect.each([
+    ["a run starts", "thread-target-busy"],
+    ["a run is queued and finishes", "thread-target-changed"],
+    ["an effect is left in the outbox", "thread-target-busy"],
+  ] as const)(
+    "does not replace a thread that gets new work after the review: %s",
+    ([what, code]) => {
+      const gitHook: NonNullable<Parameters<typeof withService>[0]["gitHook"]> = {
+        current: undefined,
+      };
+      return withService({ gitHook }, ({ service, sql, sourcePath }) =>
+        Effect.gen(function* () {
+          yield* runToEnd(service, onlyThread(T_STOPPED));
+          const target = yield* targetOf(sql, T_STOPPED);
+          yield* continueInOfficial(sourcePath, T_STOPPED, "newer words");
+          const [before] = yield* sql<{
+            count: number;
+          }>`SELECT COUNT(*) AS count FROM orchestration_events
+          WHERE aggregate_kind = 'thread' AND stream_id = ${target}`;
+          betweenCheckAndReplace(
+            gitHook,
+            (what === "an effect is left in the outbox"
+              ? sql`INSERT INTO orchestration_v2_effect_outbox
+                (effect_id, command_id, thread_id, effect_type, payload_json, status, attempt_count, available_at, created_at, updated_at)
+                VALUES ('late-effect', 'late-command', ${target}, 'start-run', '{}', 'pending', 0, '2999-01-01', '2999-01-01', '2999-01-01')`
+              : sql`INSERT INTO orchestration_v2_projection_runs
+                (run_id, thread_id, ordinal, provider, status, requested_at, payload_json)
+                VALUES (${`run:thread:${target}:ordinal:2`}, ${target}, 2, 'codex',
+                  ${what === "a run starts" ? "running" : "completed"}, '2999-01-01', '{}')`
+            ).pipe(Effect.orDie, Effect.asVoid),
+          );
+
+          const result = yield* runToEnd(service, onlyThread(T_STOPPED));
+
+          assert.equal(result.importedThreads, 0);
+          assert.include(codes(result.report.skipped), code);
+          assert.notInclude(codes(result.report.fixed), "thread-refreshed");
+          // What arrived in the meantime is still there, and so is the copy it arrived in.
+          const [after] = yield* sql<{
+            count: number;
+          }>`SELECT COUNT(*) AS count FROM orchestration_events
+          WHERE aggregate_kind = 'thread' AND stream_id = ${target}`;
+          assert.equal(after?.count, before?.count);
+          const [messages] = yield* sql<{
+            count: number;
+          }>`SELECT COUNT(*) AS count FROM orchestration_v2_projection_messages
+          WHERE thread_id = ${target}`;
+          assert.equal(messages?.count, 1);
+          const late = yield* sql<{ count: number }>`SELECT
+          (SELECT COUNT(*) FROM orchestration_v2_projection_runs WHERE run_id LIKE '%:ordinal:2') +
+          (SELECT COUNT(*) FROM orchestration_v2_effect_outbox WHERE effect_id = 'late-effect') AS count`;
+          assert.equal(late[0]?.count, 1);
+          const [row] = yield* sql<{ state: string }>`SELECT state FROM fork_t3code_import_map
+          WHERE kind = 'thread' AND source_id = ${T_STOPPED}`;
+          assert.equal(row?.state, "done");
+        }),
+      );
+    },
+  );
+
+  it.effect(
+    "an effect already waiting in the outbox keeps a thread from being offered for replacement",
+    () =>
+      withService({}, ({ service, sql, sourcePath }) =>
+        Effect.gen(function* () {
+          yield* runToEnd(service, onlyThread(T_STOPPED));
+          const target = yield* targetOf(sql, T_STOPPED);
+          yield* sql`INSERT INTO orchestration_v2_effect_outbox
+          (effect_id, command_id, thread_id, effect_type, payload_json, status, attempt_count, available_at, created_at, updated_at)
+          VALUES ('waiting', 'command', ${target}, 'start-run', '{}', 'running', 0, '2999-01-01', '2999-01-01', '2999-01-01')`;
+          yield* continueInOfficial(sourcePath, T_STOPPED);
+          const report = yield* service.check(onlyThread(T_STOPPED));
+          assert.include(codes(report.skipped), "thread-target-busy");
+        }),
+      ),
+  );
+
+  it.effect("replacing a thread rewrites its hand-offs and leaves the ones you made here", () =>
+    withService({}, ({ service, sql, sourcePath }) =>
+      Effect.gen(function* () {
+        yield* runToEnd(
+          service,
+          selectionOf({
+            threadIds: [ThreadId.make(T_ARCHIVED), ThreadId.make(T_STOPPED)],
+            scheduledTasks: [],
+            files: [],
+          }),
+        );
+        const handOff = () =>
+          sql<{ source_thread_id: string; target_thread_id: string; status: string }>`
+            SELECT source_thread_id, target_thread_id, status FROM orchestration_v2_projection_context_transfers
+            WHERE context_transfer_id = 'transfer-1'`;
+        const stopped = yield* targetOf(sql, T_STOPPED);
+        const archived = yield* targetOf(sql, T_ARCHIVED);
+        assert.deepStrictEqual(yield* handOff(), [
+          { source_thread_id: archived, target_thread_id: stopped, status: "completed" },
+        ]);
+        yield* sql`INSERT INTO orchestration_v2_projection_context_transfers
+          (context_transfer_id, source_thread_id, target_thread_id, type, status, updated_at, payload_json)
+          VALUES ('made-here', ${stopped}, 'a-thread-that-only-exists-here', 'provider_handoff', 'completed', '2999-01-01', '{}')`;
+        yield* withDatabase(
+          sourcePath,
+          Effect.gen(function* () {
+            const source = yield* SqlClient.SqlClient;
+            yield* source`UPDATE orchestration_v2_projection_context_transfers SET status = 'failed' WHERE context_transfer_id = 'transfer-1'`;
+          }),
+        );
+        yield* continueInOfficial(sourcePath, T_STOPPED);
+
+        // Only the target end is picked again: the hand-off ending in it must follow the source.
+        yield* runToEnd(service, onlyThread(T_STOPPED));
+
+        assert.deepStrictEqual(yield* handOff(), [
+          { source_thread_id: archived, target_thread_id: stopped, status: "failed" },
+        ]);
+        const [kept] = yield* sql<{
+          count: number;
+        }>`SELECT COUNT(*) AS count FROM orchestration_v2_projection_context_transfers
+          WHERE context_transfer_id = 'made-here'`;
+        assert.equal(kept?.count, 1);
+      }),
+    ),
+  );
+
+  it.effect(
+    "every column that can name a thread is either purged with the thread or handled by name",
+    () =>
+      withService({}, ({ sql }) =>
+        Effect.gen(function* () {
+          // Rows without a `thread_id` column are not reached by a purge, so each such table needs its own handling.
+          const rows = yield* sql<{ name: string; columns: string }>`
+          SELECT m.name AS name, group_concat(c.name) AS columns
+          FROM sqlite_master m, pragma_table_info(m.name) c
+          WHERE m.type = 'table' AND c.name LIKE '%thread%'
+            AND m.name NOT IN (
+              SELECT m2.name FROM sqlite_master m2, pragma_table_info(m2.name) c2
+              WHERE m2.type = 'table' AND c2.name = 'thread_id')
+          GROUP BY m.name ORDER BY m.name`;
+          assert.deepStrictEqual(
+            rows.map((row) => [row.name, row.columns]),
+            [
+              // Hand-offs: dropped and rewritten with the thread (`replaceTransfers`).
+              [
+                "orchestration_v2_projection_context_transfers",
+                "source_thread_id,target_thread_id",
+              ],
+              // A mode, not an id.
+              ["projection_projects", "default_thread_env_mode"],
+            ],
+          );
+        }),
+      ),
+  );
+
+  it.effect(
+    "a subagent left out of the first import is watched, so its news reaches the parent",
+    () =>
+      withService({}, ({ service, sql, sourcePath }) =>
+        Effect.gen(function* () {
+          const without = selectionOf({
+            threadIds: [ThreadId.make(T_PARENT)],
+            includeSubagents: false,
+            scheduledTasks: [],
+            files: [],
+          });
+          yield* runToEnd(service, without);
+          const [baseline] = yield* sql<{ state: string; source_version: number | null }>`
+          SELECT state, source_version FROM fork_t3code_import_map WHERE kind = 'thread' AND source_id = ${T_SUB}`;
+          assert.equal(baseline?.state, "omitted");
+          assert.isNotNull(baseline?.source_version);
+          const copies = yield* sql<{
+            count: number;
+          }>`SELECT COUNT(*) AS count FROM orchestration_v2_projection_threads`;
+          assert.equal(copies[0]?.count, 1);
+          assert.equal((yield* stateOfThread(service, T_PARENT))?.state, "importable");
+
+          yield* continueInOfficial(sourcePath, T_SUB);
+          assert.equal((yield* stateOfThread(service, T_PARENT))?.state, "updated");
+          const report = yield* service.check(without);
+          assert.include(codes(report.fixed), "thread-refreshed");
+
+          // Taking the news without the subagent moves the baseline, so it is not offered forever.
+          const again = yield* runToEnd(service, without);
+          assert.equal(again.importedThreads, 1);
+          assert.equal((yield* stateOfThread(service, T_PARENT))?.state, "importable");
+
+          // Later wanting subagents too: the subagent arrives and the parent's card opens it.
+          yield* continueInOfficial(sourcePath, T_SUB, "more");
+          const withSub = yield* runToEnd(service, { ...without, includeSubagents: true });
+          assert.equal(withSub.importedThreads, 2);
+          const [card] = yield* sql<{ child_thread_id: string | null }>`
+          SELECT child_thread_id FROM orchestration_v2_projection_subagents`;
+          assert.isNotNull(card?.child_thread_id);
+          assert.equal((yield* stateOfThread(service, T_PARENT))?.state, "imported");
+        }),
+      ),
   );
 });
