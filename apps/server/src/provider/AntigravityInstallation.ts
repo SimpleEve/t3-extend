@@ -400,14 +400,14 @@ export const makeAntigravityInstallation = Effect.fn("AntigravityInstallation.ma
           ChildProcess.make(command.command, command.args, {
             shell: command.shell,
             stdin: "ignore",
-            stderr: "ignore",
             killSignal: "SIGKILL",
             ...(processEnvironment === undefined
               ? {}
               : { env: processEnvironment, extendEnv: true }),
           }),
         );
-        const output = yield* child.stdout.pipe(
+        // `agy acp --help` prints its usage to stderr, so read both streams.
+        const output = yield* child.all.pipe(
           Stream.decodeText(),
           Stream.take(CLI_PROBE_MAX_CHUNKS),
           Stream.mkString,

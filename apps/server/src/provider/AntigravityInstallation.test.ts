@@ -323,8 +323,12 @@ const makeCliProbeSpawner = (behavior: CliProbeBehavior) => {
           : behavior.kind === "exit"
             ? (behavior.output ?? "")
             : "";
-      const stdout =
+      const all =
         behavior.kind === "hang" ? Stream.never : Stream.make(new TextEncoder().encode(output));
+      // Like agy 1.5.9: the version goes to stdout, the `acp --help` usage only to stderr.
+      const helpOnStderr = behavior.kind === "agy" && !/--version\W*$/u.test(line);
+      const stdout = helpOnStderr ? Stream.empty : all;
+      const stderr = helpOnStderr ? all : Stream.empty;
       return ChildProcessSpawner.makeHandle({
         pid: ChildProcessSpawner.ProcessId(900_000_401),
         exitCode:
@@ -338,8 +342,8 @@ const makeCliProbeSpawner = (behavior: CliProbeBehavior) => {
         unref: Effect.succeed(Effect.void),
         stdin: Sink.drain,
         stdout,
-        stderr: Stream.empty,
-        all: stdout,
+        stderr,
+        all,
         getInputFd: () => Sink.drain,
         getOutputFd: () => Stream.empty,
       });
