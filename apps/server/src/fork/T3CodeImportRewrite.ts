@@ -14,6 +14,9 @@ export const uuidFromDigest = (digest: Uint8Array): string => {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
 
+/** A `scheduledTaskId` JSON field, also when its quotes are escaped inside a string. */
+const TASK_FIELD = /(scheduledTaskId\\*"\s*:\s*\\*")([^"\\]+)/g;
+
 export interface CopiedFileRef {
   readonly kind: "attachments" | "browser-artifacts";
   /** File name as it is called in the source folder. */
@@ -51,6 +54,8 @@ export const makeRewriter = (input: {
   readonly sourceStateDir: string;
   readonly targetAttachmentsDir: string;
   readonly targetBrowserArtifactsDir: string;
+  /** Official scheduled-task id → the id it is (or will be) imported under; only the `scheduledTaskId` fields move. */
+  readonly taskIds?: ReadonlyMap<string, string>;
 }): Rewriter => {
   const ids = spellings(input.ids);
   const allUuids = [...ids.keys()].every((id) => UUID_ONLY.test(id));
@@ -92,7 +97,14 @@ export const makeRewriter = (input: {
         });
       }
     }
-    return idPattern === null ? next : next.replace(idPattern, (match) => ids.get(match) ?? match);
+    if (idPattern !== null) next = next.replace(idPattern, (match) => ids.get(match) ?? match);
+    const taskIds = input.taskIds;
+    if (taskIds === undefined || taskIds.size === 0 || !next.includes("scheduledTaskId"))
+      return next;
+    return next.replace(TASK_FIELD, (match, head: string, id: string) => {
+      const target = taskIds.get(id);
+      return target === undefined ? match : `${head}${target}`;
+    });
   };
   return {
     rewrite,

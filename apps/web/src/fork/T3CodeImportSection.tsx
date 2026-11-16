@@ -105,7 +105,8 @@ const draftFor = (catalog: Available): Draft => ({
   tasks: new Map(
     catalog.scheduledTasks.map((task) => [
       task.taskId,
-      { picked: !task.alreadyImported, enabled: task.enabled },
+      // Paused: the official app keeps running its copy, and two copies would each run the task.
+      { picked: !task.alreadyImported, enabled: false },
     ]),
   ),
   files: new Set(catalog.files.filter((file) => file.available).map((file) => file.kind)),
@@ -746,6 +747,12 @@ function ChooseStep(props: {
       {catalog.scheduledTasks.length > 0 && (
         <section className="flex flex-col gap-1">
           <h3 className="text-sm font-medium">{t("Scheduled tasks")}</h3>
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "Tasks are imported paused so they do not run in both apps. Turn one on once you have paused it in {app}.",
+              { app: OFFICIAL_APP_NAME },
+            )}
+          </p>
           <ul className="flex flex-col divide-y divide-border/60">
             {catalog.scheduledTasks.map((task) => {
               const choice = draft.tasks.get(task.taskId) ?? { picked: false, enabled: false };

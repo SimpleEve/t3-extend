@@ -207,6 +207,11 @@ export class T3CodeImport extends Context.Service<
     /** Starts the import in the background; progress arrives through `state`. */
     readonly start: (selection: T3CodeImportSelection) => Effect.Effect<void, T3CodeImportError>;
     readonly state: Stream.Stream<T3CodeImportState>;
+    /**
+     * Points messages of imported threads at the tasks imported from the same app, for threads and tasks that
+     * were imported before copied messages carried the task's new id. Safe to repeat; returns the rows changed.
+     */
+    readonly relinkTaskMessages: Effect.Effect<number, T3CodeImportError>;
   }
 >()("t3/fork/T3CodeImport") {}
 
@@ -244,6 +249,11 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       .digest(Digest.sha256, new TextEncoder().encode(`t3x-import|${kind}|${sourceId}`))
       .pipe(Effect.orDie);
     return uuidFromDigest(digest);
+  });
+
+  /** Stable per official task, so messages copied before the task is picked already name it. */
+  const taskTargetId = Effect.fn("T3CodeImport.taskTargetId")(function* (sourceId: string) {
+    return ScheduledTaskId.make(`scheduled-task:import-${yield* targetId("task", sourceId)}`);
   });
 
   const sourceHome = Effect.gen(function* () {
@@ -2035,7 +2045,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     for (const task of analysis.tasks) {
       const row = task.row;
       const sourceId = String(row.task_id);
-      const id = ScheduledTaskId.make(`scheduled-task:import-${yield* targetId("task", sourceId)}`);
+      const id = yield* taskTargetId(sourceId);
       const decode = <A>(schema: Schema.Decoder<A>, json: unknown) =>
         Schema.decodeUnknownEffect(Schema.fromJsonString(schema))(json);
       let signingSecret: string | null = null;
@@ -2092,6 +2102,61 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     }
     return { imported, unreadable, secretNotices };
   });
+
+  /** Tables whose rows hold messages as JSON; a message's `scheduledTaskId` is what links it to its task. */
+  const TASK_LINK_TABLES = [
+    "orchestration_v2_projection_messages",
+    "orchestration_v2_projection_turn_items",
+    "orchestration_events",
+    "orchestration_v2_events",
+  ] as const;
+
+  const relinkPendingTasks = Effect.fn("T3CodeImport.relinkPendingTasks")(function* () {
+    const pending = yield* sql.unsafe<{ readonly source_id: string; readonly target_id: string }>(
+      `SELECT source_id, target_id FROM fork_t3code_import_map AS task
+       WHERE kind = 'task' AND state = 'done' AND NOT EXISTS (
+         SELECT 1 FROM fork_t3code_import_map AS link WHERE link.kind = 'task-links' AND link.source_id = task.source_id)`,
+    );
+    if (pending.length === 0) return 0;
+    const field = (id: string) => `"scheduledTaskId":"${id}"`;
+    return yield* sql.withTransaction(
+      Effect.gen(function* () {
+        let changed = 0;
+        for (const table of TASK_LINK_TABLES) {
+          const columns = yield* sql.unsafe<{ readonly name: string }>(
+            `SELECT name FROM pragma_table_info('${table}')`,
+          );
+          if (!columns.some((column) => column.name === "payload_json")) continue;
+          let expression = "payload_json";
+          const params: Array<string> = [];
+          for (const task of pending) {
+            expression = `replace(${expression}, ?, ?)`;
+            params.push(field(task.source_id), field(task.target_id));
+          }
+          yield* sql.unsafe(
+            `UPDATE ${table} SET payload_json = ${expression}
+             WHERE ${pending.map(() => "instr(payload_json, ?) > 0").join(" OR ")}`,
+            [...params, ...pending.map((task) => field(task.source_id))],
+          );
+          const rows = yield* sql.unsafe<{ readonly n: number }>(`SELECT changes() AS n`);
+          changed += Number(rows[0]?.n ?? 0);
+        }
+        const at = yield* nowIso;
+        for (const task of pending) {
+          yield* sql.unsafe(
+            `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at)
+             VALUES ('task-links', ?, ?, 'done', NULL, ?)`,
+            [task.source_id, task.target_id, at],
+          );
+        }
+        return changed;
+      }),
+    );
+  });
+
+  const relinkTaskMessages: T3CodeImport["Service"]["relinkTaskMessages"] = importLock
+    .withPermits(1)(relinkPendingTasks())
+    .pipe(Effect.mapError(failed));
 
   const importFiles = Effect.fn("T3CodeImport.importFiles")(function* (
     analysis: Analysis,
@@ -2274,8 +2339,14 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     const { src, sourceStateDir, runId, analysis } = input;
     const ids = new Map<string, string>([...analysis.threadTargets, ...analysis.omittedTargets]);
     for (const project of analysis.projects.values()) ids.set(project.sourceId, project.targetId);
+    const taskIds = new Map<string, string>();
+    for (const row of yield* src.unsafe<Row>(`SELECT task_id FROM scheduled_tasks`)) {
+      const sourceTask = String(row.task_id);
+      taskIds.set(sourceTask, yield* taskTargetId(sourceTask));
+    }
     const rewriter = makeRewriter({
       ids,
+      taskIds,
       sourceStateDir,
       targetAttachmentsDir: config.attachmentsDir,
       targetBrowserArtifactsDir: config.browserArtifactsDir,
@@ -2380,6 +2451,8 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       unreadable: unreadableTasks,
       secretNotices,
     } = yield* importScheduledTasks(analysis);
+    // Threads imported by an earlier run name these tasks by the official id.
+    if (importedTasks.length > 0) yield* relinkPendingTasks();
 
     // The final list reports what actually happened.
     const counters = context.counters;
@@ -2592,11 +2665,20 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     },
   );
 
+  // Tasks an earlier build imported; once linked they are marked, so later starts do nothing.
+  yield* relinkTaskMessages.pipe(
+    Effect.catch((cause) =>
+      Effect.logWarning("Could not relink imported task messages", { cause }),
+    ),
+    Effect.forkIn(scope),
+  );
+
   return T3CodeImport.of({
     preview,
     check,
     start,
     state: SubscriptionRef.changes(stateRef),
+    relinkTaskMessages,
   });
 });
 

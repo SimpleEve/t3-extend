@@ -10,6 +10,28 @@ import {
 const OLD = "11111111-1111-4111-8111-111111111111";
 const NEW = "22222222-2222-4222-8222-222222222222";
 
+it("moves only the scheduledTaskId field to the task's imported id, escaped or not", () => {
+  const rewriter = makeRewriter({
+    ids: new Map(),
+    taskIds: new Map([["scheduled-task:a", "scheduled-task:import-b"]]),
+    sourceStateDir: "/home/me/.t3/userdata",
+    targetAttachmentsDir: "/a",
+    targetBrowserArtifactsDir: "/b",
+  });
+  const plain = JSON.stringify({
+    scheduledTaskId: "scheduled-task:a",
+    text: "see scheduled-task:a",
+  });
+  assert.equal(
+    rewriter.rewrite(plain),
+    JSON.stringify({ scheduledTaskId: "scheduled-task:import-b", text: "see scheduled-task:a" }),
+  );
+  const nested = JSON.stringify({ inner: plain });
+  assert.include(rewriter.rewrite(nested), 'scheduledTaskId\\":\\"scheduled-task:import-b');
+  const unknown = JSON.stringify({ scheduledTaskId: "scheduled-task:z" });
+  assert.equal(rewriter.rewrite(unknown), unknown);
+});
+
 it("renames ids everywhere in a row and moves official folders to this environment's", () => {
   const rewriter = makeRewriter({
     ids: new Map([[OLD, NEW]]),

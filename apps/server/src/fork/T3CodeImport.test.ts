@@ -63,6 +63,8 @@ const T_PARENT = id(16);
 const T_SUB = id(17);
 const T_DELETED = id(18);
 const T_SOLO = id(19);
+/** A thread a scheduled task ran in: its message, turn item and event name the task. */
+const T_SCHEDULED = id(20);
 /** What the allocator makes of a delegated task's thread: colons in the id, and `%3A` already inside it. */
 const T_COLON =
   "thread:delegated-task:command%3Amcp%3A8842e825-5e61-4de5-8b58-077dd48645b7%3Adelegate-task%3Aimpl";
@@ -76,6 +78,8 @@ const TASK_WEBHOOK = "scheduled-task:bbbb";
 const TASK_ORPHAN = "scheduled-task:cccc";
 const TASK_ONCE_PAST = "scheduled-task:dddd";
 const TASK_ONCE_FUTURE = "scheduled-task:eeee";
+/** Runs in the scheduled thread, so Thread Details lists it there. */
+const TASK_BOUND = "scheduled-task:abab";
 const CURSOR_CREDENTIAL =
   "provider-auth-02a8ae355046b982b21f46e0b092be604758b64fa8ae971800289f628c780a54";
 
@@ -238,6 +242,26 @@ const createSourceHome = Effect.fn("createSourceHome")(function* (
         payload: {},
         updatedAt: "2026-08-07",
       });
+      yield* insertThread({
+        threadId: T_SCHEDULED,
+        projectId: P_KEPT,
+        runStatus: "completed",
+        payload: {},
+        updatedAt: "2026-08-08",
+      });
+      const scheduledRef = (taskId: string) => ({ scheduledTaskId: taskId, text: "nightly check" });
+      yield* sql`INSERT INTO orchestration_v2_projection_messages
+        (message_id, thread_id, run_id, role, streaming, created_at, updated_at, payload_json)
+        VALUES (${`scheduled-message:${T_SCHEDULED}`}, ${T_SCHEDULED}, ${`run:thread:${T_SCHEDULED}:ordinal:1`}, 'user', 0, '2026-08-01', '2026-08-01',
+          ${JSON.stringify(scheduledRef(TASK_INTERVAL))})`;
+      yield* sql`INSERT INTO orchestration_v2_projection_turn_items
+        (turn_item_id, thread_id, run_id, ordinal, type, status, updated_at, payload_json)
+        VALUES (${`scheduled-item:${T_SCHEDULED}`}, ${T_SCHEDULED}, ${`run:thread:${T_SCHEDULED}:ordinal:1`}, 0, 'user_message', 'completed', '2026-08-01',
+          ${JSON.stringify({ ...scheduledRef(TASK_INTERVAL), summary: `mentions ${TASK_INTERVAL} in prose` })})`;
+      yield* sql`INSERT INTO orchestration_events
+        (event_id, aggregate_kind, stream_id, stream_version, event_type, occurred_at, actor_kind, payload_json, metadata_json, application_event_version)
+        VALUES (${`scheduled-sent-${T_SCHEDULED}`}, 'thread', ${T_SCHEDULED}, 2, 'message.dispatched', '2026-08-02', 'user',
+          ${JSON.stringify(scheduledRef(TASK_INTERVAL))}, '{}', 2)`;
       // The parent's card for its subagent, an event about it and a hand-off to it.
       yield* sql`INSERT INTO orchestration_v2_projection_subagents
         (subagent_id, thread_id, run_id, parent_node_id, provider, provider_thread_id, child_thread_id, origin, status, started_at, completed_at, updated_at, payload_json)
@@ -335,6 +359,7 @@ const createSourceHome = Effect.fn("createSourceHome")(function* (
         1,
         null,
       );
+      yield* task(TASK_BOUND, P_KEPT, { type: "interval", everyMs: 3_600_000 }, 1, T_SCHEDULED);
       yield* sql`INSERT INTO orchestration_command_receipts
         (command_id, aggregate_kind, aggregate_id, accepted_at, result_sequence, status)
         VALUES ('command-1', 'thread', ${T_STOPPED}, '2026-08-01', 1, 'accepted')`;
@@ -684,11 +709,12 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
               ["14", "importable", 0],
               ["15", "importable", 0],
               ["16", "importable", 1],
+              ["20", "importable", 0],
             ],
           );
           assert.deepStrictEqual(
             catalog.scheduledTasks.map((task) => task.enabled),
-            [true, false, true, true, true, true],
+            [true, false, true, true, true, true, true],
           );
           assert.deepStrictEqual(
             catalog.files.filter((file) => !file.available).map((file) => file.kind),
@@ -1026,6 +1052,169 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
           }),
       ),
   );
+  /** The task ids the scheduled thread's message, turn item and event name, in that order. */
+  const scheduledRefs = Effect.fn("scheduledRefs")(function* (sql: SqlClient.SqlClient) {
+    const read = (table: string) =>
+      sql
+        .unsafe<{ readonly payload_json: string }>(
+          `SELECT payload_json FROM ${table} WHERE payload_json LIKE '%"scheduledTaskId"%'`,
+        )
+        .pipe(
+          Effect.map((rows) =>
+            rows.map(
+              (row) =>
+                (JSON.parse(row.payload_json) as { scheduledTaskId: string }).scheduledTaskId,
+            ),
+          ),
+        );
+    return [
+      ...(yield* read("orchestration_v2_projection_messages")),
+      ...(yield* read("orchestration_v2_projection_turn_items")),
+      ...(yield* read("orchestration_events")),
+    ];
+  });
+  const importedTaskId = Effect.fn("importedTaskId")(function* (sourceTaskId: string) {
+    const digest = yield* (yield* Digest.Digest)
+      .digest(Digest.sha256, new TextEncoder().encode(`t3x-import|task|${sourceTaskId}`))
+      .pipe(Effect.orDie);
+    return `scheduled-task:import-${uuidFromDigest(digest)}`;
+  });
+  const sourceIdsAgain = (sql: SqlClient.SqlClient, target: string) =>
+    Effect.forEach(
+      [
+        "orchestration_v2_projection_messages",
+        "orchestration_v2_projection_turn_items",
+        "orchestration_events",
+      ],
+      (table) =>
+        sql.unsafe(
+          `UPDATE ${table} SET payload_json = replace(payload_json, '"scheduledTaskId":"${target}"', '"scheduledTaskId":"${TASK_INTERVAL}"')`,
+        ),
+    );
+
+  it.effect(
+    "points a copied thread's scheduled messages at the id the task is imported under",
+    () =>
+      withService({}, ({ service, sql, captured }) =>
+        Effect.gen(function* () {
+          const expected = yield* importedTaskId(TASK_INTERVAL);
+          yield* runToEnd(
+            service,
+            selectionOf({
+              threadIds: [ThreadId.make(T_SCHEDULED)],
+              files: [],
+              scheduledTasks: [{ taskId: TASK_INTERVAL, enabled: true }],
+            }),
+          );
+          assert.deepStrictEqual(
+            captured.tasks.map((task) => task.id),
+            [expected],
+          );
+          assert.deepStrictEqual(yield* scheduledRefs(sql), [expected, expected, expected]);
+          // Prose that merely mentions the id is the author's text, not a link.
+          const [item] = yield* sql<{
+            payload_json: string;
+          }>`SELECT payload_json FROM orchestration_v2_projection_turn_items`;
+          assert.include(item?.payload_json, `mentions ${TASK_INTERVAL} in prose`);
+        }),
+      ),
+  );
+
+  it.effect(
+    "a task imported after its threads attaches to them, and importing it twice adds nothing",
+    () =>
+      withService({}, ({ service, sql, captured }) =>
+        Effect.gen(function* () {
+          const expected = yield* importedTaskId(TASK_INTERVAL);
+          const threadsOnly = selectionOf({
+            threadIds: [ThreadId.make(T_SCHEDULED)],
+            files: [],
+            scheduledTasks: [],
+          });
+          yield* runToEnd(service, threadsOnly);
+          // A task nobody imported keeps a stable id, so the link works the day it is imported.
+          assert.deepStrictEqual(yield* scheduledRefs(sql), [expected, expected, expected]);
+          const tasksOnly = selectionOf({
+            threadIds: [],
+            files: [],
+            scheduledTasks: [{ taskId: TASK_INTERVAL, enabled: false }],
+          });
+          yield* runToEnd(service, tasksOnly);
+          assert.deepStrictEqual(
+            captured.tasks.map((task) => [task.id, task.enabled]),
+            [[expected, false]],
+          );
+          yield* runToEnd(service, tasksOnly);
+          assert.equal(captured.tasks.length, 1);
+          const catalog = yield* service.preview;
+          assert.isTrue(
+            catalog.status === "available" &&
+              catalog.scheduledTasks.find((task) => task.taskId === TASK_INTERVAL)
+                ?.alreadyImported === true,
+          );
+        }),
+      ),
+  );
+
+  it.effect("a task bound to a thread imports once that thread is here, and only then", () =>
+    withService({}, ({ service, sql, captured }) =>
+      Effect.gen(function* () {
+        const bound = selectionOf({
+          threadIds: [],
+          files: [],
+          scheduledTasks: [{ taskId: TASK_BOUND, enabled: true }],
+        });
+        const early = yield* runToEnd(service, bound);
+        assert.deepStrictEqual(early.importedTasks, []);
+        assert.include(codes(early.report.skipped), "task-thread-missing");
+        assert.equal(captured.tasks.length, 0);
+
+        yield* runToEnd(
+          service,
+          selectionOf({ threadIds: [ThreadId.make(T_SCHEDULED)], files: [], scheduledTasks: [] }),
+        );
+        const [thread] = yield* sql<{
+          target_id: string;
+        }>`SELECT target_id FROM fork_t3code_import_map WHERE kind = 'thread' AND source_id = ${T_SCHEDULED}`;
+        const late = yield* runToEnd(service, bound);
+        assert.equal(late.importedTasks.length, 1);
+        assert.deepStrictEqual(
+          captured.tasks.map((task) => task.threadId),
+          [thread?.target_id],
+        );
+      }),
+    ),
+  );
+
+  it.effect("relinks threads imported before ids were stable, once and without another task", () =>
+    withService({}, ({ service, sql, captured }) =>
+      Effect.gen(function* () {
+        const expected = yield* importedTaskId(TASK_INTERVAL);
+        yield* runToEnd(
+          service,
+          selectionOf({
+            threadIds: [ThreadId.make(T_SCHEDULED)],
+            files: [],
+            scheduledTasks: [{ taskId: TASK_INTERVAL, enabled: true }],
+          }),
+        );
+        // The shape an earlier build left: the official id in the messages, the task already imported.
+        yield* sourceIdsAgain(sql, expected);
+        yield* sql`DELETE FROM fork_t3code_import_map WHERE kind = 'task-links'`;
+        assert.deepStrictEqual(yield* scheduledRefs(sql), [
+          TASK_INTERVAL,
+          TASK_INTERVAL,
+          TASK_INTERVAL,
+        ]);
+
+        assert.equal(yield* service.relinkTaskMessages, 3);
+        assert.deepStrictEqual(yield* scheduledRefs(sql), [expected, expected, expected]);
+        assert.equal(yield* service.relinkTaskMessages, 0);
+        assert.equal(captured.tasks.length, 1);
+      }),
+    ),
+  );
+
   it.effect("imports a one-time task whose time has passed turned off and says so", () =>
     withService({}, ({ service, captured }) =>
       Effect.gen(function* () {

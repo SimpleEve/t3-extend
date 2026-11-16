@@ -66,6 +66,8 @@ export default {
   "Runs on its schedule": "按计划运行",
   "{app} keeps running its own copy until you pause it there.":
     "在 {app} 里暂停它之前，{app} 会继续运行它自己的那一份。",
+  "Tasks are imported paused so they do not run in both apps. Turn one on once you have paused it in {app}.":
+    "任务默认以暂停状态导入，避免两边各跑一次。在 {app} 里暂停它之后，再在这里打开。",
   Settings: "设置",
   "Provider instances and their sign-ins": "提供方实例及其登录凭据",
   "Usage price overrides": "用量价格覆盖",
