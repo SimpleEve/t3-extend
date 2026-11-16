@@ -16,7 +16,8 @@ import * as Path from "effect/Path";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
-import { HttpClient } from "effect/http";
+import * as Stream from "effect/Stream";
+import { HttpClient, HttpClientResponse } from "effect/http";
 
 import * as BackgroundPolicy from "../../background/BackgroundPolicy.ts";
 import * as ServerConfig from "../../config.ts";
@@ -57,7 +58,12 @@ function shellQuote(value: string): string {
 }
 
 const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
-  options: { readonly config?: Partial<AntigravitySettings>; readonly enabled?: boolean } = {},
+  options: {
+    readonly config?: Partial<AntigravitySettings>;
+    readonly enabled?: boolean;
+    /** The profile's stored sign-in and how the quota host answers it. Defaults to signed in. */
+    readonly account?: "signed-in" | "quota-failed" | "signed-out";
+  } = {},
 ) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -73,6 +79,49 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
   const requestLog = path.join(root, "requests.jsonl");
   const directories = yield* resolveAntigravityInstanceDirectories(config.stateDir, instanceId);
   const profileDirectory = directories.profile;
+  const account = options.account ?? "signed-in";
+  if (account !== "signed-out") {
+    // The fixture agent does not write a token, so stand in for the one a real sign-in leaves.
+    const acpDirectory = path.join(profileDirectory, "antigravity-acp");
+    yield* fs.makeDirectory(acpDirectory, { recursive: true });
+    yield* fs.writeFileString(
+      path.join(acpDirectory, "acp_token.json"),
+      JSON.stringify({
+        client_id: "client-id",
+        client_secret: "client-secret",
+        refresh_token: "refresh-token",
+        project_id: "project-id",
+      }),
+    );
+  }
+  const quotaHost = HttpClient.make((request) =>
+    Effect.succeed(
+      HttpClientResponse.fromWeb(
+        request,
+        account !== "signed-in"
+          ? Response.json({}, { status: 500 })
+          : request.url.endsWith("/token")
+            ? Response.json({ access_token: "access-token", expires_in: 3600 })
+            : request.url.endsWith("/userinfo")
+              ? Response.json({ id: "account-id" })
+              : Response.json({
+                  groups: [
+                    {
+                      displayName: "Gemini Models",
+                      buckets: [
+                        {
+                          bucketId: "gemini-5h",
+                          window: "5h",
+                          remainingFraction: 0.9,
+                          resetTime: "2026-10-09T16:06:01Z",
+                        },
+                      ],
+                    },
+                  ],
+                }),
+      ),
+    ),
+  );
   const instancePath = `${path.join(root, "instance-bin")}:${baseEnv.PATH ?? ""}`;
 
   const makeExecutable = Effect.fn("AntigravityDriverTest.makeExecutable")(function* (
@@ -225,6 +274,7 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
   }).pipe(
     Effect.provide(layerInstallation),
     Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, observedSpawner),
+    Effect.provideService(HttpClient.HttpClient, quotaHost),
   );
   const refresh = instance.refreshModels;
   if (!refresh) return yield* Effect.die("Antigravity does not expose model refresh.");
@@ -469,7 +519,7 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
 
   it.effect.skipIf(windowsHost)("reports a profile without a stored sign-in as signed out", () =>
     Effect.gen(function* () {
-      const h = yield* makeHarness();
+      const h = yield* makeHarness({ account: "signed-out" });
       expect(yield* h.fs.exists(h.path.join(h.profileDirectory, "antigravity-acp"))).toBe(false);
       yield* h.instance.snapshot.refresh;
       expect(yield* h.instance.snapshot.getSnapshot).toMatchObject({
@@ -478,6 +528,44 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
         auth: { status: "unauthenticated" },
       });
     }),
+  );
+
+  it.effect.skipIf(windowsHost)(
+    "reports a stored sign-in whose quota read succeeds as signed in without starting the agent",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ account: "signed-in" });
+        const signedIn = yield* Stream.toPull(
+          h.instance.snapshot.streamChanges.pipe(
+            Stream.filter((snapshot) => snapshot.auth.status === "authenticated"),
+          ),
+        );
+        yield* h.instance.snapshot.refresh;
+        expect((yield* signedIn)[0]).toMatchObject({ status: "ready", installed: true });
+        expect(h.launches).toEqual([]);
+      }),
+  );
+
+  it.effect.skipIf(windowsHost)(
+    "keeps a stored sign-in whose quota read fails unchecked rather than signed out",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ account: "quota-failed" });
+        const failed = yield* Stream.toPull(
+          h.instance.snapshot.streamChanges.pipe(
+            Stream.filter(
+              (snapshot) => snapshot.usageLimits?.unavailable?.reason === "probeFailed",
+            ),
+          ),
+        );
+        yield* h.instance.snapshot.refresh;
+        yield* failed;
+        expect(yield* h.instance.snapshot.getSnapshot).toMatchObject({
+          installed: true,
+          status: "warning",
+          auth: { status: "unknown" },
+        });
+      }),
   );
 
   it.effect.skipIf(windowsHost)("keeps the previous catalog when executable resolution fails", () =>

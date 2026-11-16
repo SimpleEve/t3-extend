@@ -454,6 +454,135 @@ it.layer(layerTest)("Antigravity provider snapshots", (it) => {
     }),
   );
 
+  describe("sign-in state follows the stored token and the quota read", () => {
+    const quotaOk = {
+      checkedAt: "2026-10-09T12:00:00.000Z",
+      windows: [{ id: "gemini-5h", kind: "session", label: "Gemini · 5-hour", usedPercent: 10 }],
+    } satisfies ServerProviderUsageLimits;
+    const quotaFailed = {
+      checkedAt: "2026-10-09T12:01:00.000Z",
+      windows: [],
+      unavailable: { reason: "probeFailed" },
+    } satisfies ServerProviderUsageLimits;
+    const quotaUnsigned = {
+      checkedAt: "2026-10-09T12:00:00.000Z",
+      windows: [],
+      unavailable: { reason: "unsupported" },
+    } satisfies ServerProviderUsageLimits;
+
+    const makeSignInHarness = Effect.fn("makeSignInHarness")(function* (input: {
+      readonly token: boolean;
+      readonly usage: ServerProviderUsageLimits;
+    }) {
+      const tokenRead = yield* Ref.make<Effect.Effect<boolean>>(Effect.succeed(input.token));
+      const usage = yield* Ref.make(input.usage);
+      const harness = yield* makeHarness({
+        storedSignIn: Ref.get(tokenRead).pipe(Effect.flatten),
+        probeUsage: Ref.get(usage),
+      });
+      const token = { set: (present: boolean) => Ref.set(tokenRead, Effect.succeed(present)) };
+      // The first quota read publishes its limits; waiting for it keeps later reads from overlapping.
+      const firstRead = yield* harness.nextPublish((snapshot) => !!snapshot.usageLimits);
+      yield* harness.initialize;
+      yield* firstRead;
+      return { harness, token, tokenRead, usage };
+    });
+
+    it.effect("a profile that signs in later becomes signed in on the next refresh", () =>
+      Effect.gen(function* () {
+        const { harness, token, usage } = yield* makeSignInHarness({
+          token: false,
+          usage: quotaUnsigned,
+        });
+        expect(yield* harness.provider.snapshot.getSnapshot).toMatchObject({
+          auth: { status: "unauthenticated" },
+        });
+        yield* token.set(true);
+        yield* Ref.set(usage, quotaOk);
+        const signedIn = yield* harness.nextPublish(
+          (snapshot) => snapshot.auth.status === "authenticated",
+        );
+        yield* harness.provider.snapshot.refresh;
+        expect(yield* signedIn).toMatchObject({ status: "ready" });
+      }),
+    );
+
+    it.effect("a deleted token turns a signed-in profile into a signed-out one", () =>
+      Effect.gen(function* () {
+        const { harness, token } = yield* makeSignInHarness({ token: true, usage: quotaOk });
+        yield* harness.provider.snapshot.refresh;
+        expect(yield* harness.provider.snapshot.getSnapshot).toMatchObject({
+          status: "ready",
+          auth: { status: "authenticated" },
+        });
+        yield* token.set(false);
+        expect(yield* harness.provider.snapshot.refresh).toMatchObject({
+          status: "warning",
+          auth: { status: "unauthenticated" },
+          message: "Sign in with Google to use Antigravity.",
+        });
+      }),
+    );
+
+    it.effect("a failed quota read turns a signed-in profile back into unchecked", () =>
+      Effect.gen(function* () {
+        const { harness, usage } = yield* makeSignInHarness({ token: true, usage: quotaOk });
+        yield* harness.provider.snapshot.refresh;
+        expect(yield* harness.provider.snapshot.getSnapshot).toMatchObject({
+          auth: { status: "authenticated" },
+        });
+        yield* Ref.set(usage, quotaFailed);
+        const unchecked = yield* harness.nextPublish(
+          (snapshot) => snapshot.auth.status === "unknown",
+        );
+        yield* harness.provider.snapshot.refresh;
+        expect(yield* unchecked).toMatchObject({
+          status: "warning",
+          message: "Antigravity is installed. Google account access is not checked yet.",
+        });
+      }),
+    );
+
+    it.effect("a stored token whose quota read fails is unchecked, not signed out", () =>
+      Effect.gen(function* () {
+        const { harness, token, usage } = yield* makeSignInHarness({
+          token: false,
+          usage: quotaUnsigned,
+        });
+        yield* token.set(true);
+        yield* Ref.set(usage, quotaFailed);
+        const unchecked = yield* harness.nextPublish(
+          (snapshot) => snapshot.auth.status === "unknown",
+        );
+        yield* harness.provider.snapshot.refresh;
+        expect(yield* unchecked).toMatchObject({ status: "warning" });
+      }),
+    );
+
+    it.effect("a health check that started before a session sign-in cannot overwrite it", () =>
+      Effect.gen(function* () {
+        const { harness, tokenRead } = yield* makeSignInHarness({ token: true, usage: quotaOk });
+        const entered = yield* Deferred.make<void>();
+        const release = yield* Deferred.make<void>();
+        yield* Ref.set(
+          tokenRead,
+          Deferred.succeed(entered, undefined).pipe(
+            Effect.andThen(Deferred.await(release)),
+            Effect.as(false),
+          ),
+        );
+        const refresh = yield* harness.provider.snapshot.refresh.pipe(Effect.forkChild);
+        yield* Deferred.await(entered);
+        yield* harness.provider.onSessionStarted(started);
+        yield* Deferred.succeed(release, undefined);
+        expect(yield* Fiber.join(refresh)).toMatchObject({
+          status: "ready",
+          auth: { status: "authenticated" },
+        });
+      }),
+    );
+  });
+
   it.effect("clears all account metadata on sign-out and authentication failure", () =>
     Effect.gen(function* () {
       const auth = { type: "gemini-api-key", label: "Gemini API key" };

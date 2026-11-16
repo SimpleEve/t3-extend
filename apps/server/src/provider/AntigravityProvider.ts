@@ -153,6 +153,8 @@ function isMissingInstallation(error: EffectAcpErrors.AcpError | ProviderSetupEr
 interface AntigravityProviderState {
   readonly draft: ServerProviderDraft;
   readonly authRevision: number;
+  // fork: whether the last quota read was accepted. A read Google accepts proves the stored token.
+  readonly quotaRead?: "accepted" | "failed" | undefined;
 }
 
 interface AntigravityProviderOptions {
@@ -244,20 +246,10 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
         Effect.flatMap((probed) =>
           SubscriptionRef.update(metadata, (state) => ({
             ...state,
+            quotaRead:
+              probed.unavailable === undefined ? ("accepted" as const) : ("failed" as const),
             draft: {
               ...state.draft,
-              // fork: a quota read needs a token Google accepts, so it also checks the sign-in.
-              ...(state.draft.auth.status === "unknown" &&
-              probed.unavailable === undefined &&
-              probed.windows.length > 0
-                ? {
-                    auth: {
-                      status: "authenticated" as const,
-                      type: options.auth?.type ?? "oauth-personal",
-                      label: options.auth?.label ?? "Google account",
-                    },
-                  }
-                : {}),
               usageLimits: resolveUsageLimitsAfterProbe({
                 published: state.draft.usageLimits,
                 probed,
@@ -316,10 +308,24 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
     const next = yield* SubscriptionRef.updateAndGet(metadata, (state) => {
       if (state.authRevision !== before.authRevision) return state;
       const { message: _previousMessage, ...draft } = state.draft;
-      const auth =
-        hasStoredSignIn === false && draft.auth.status === "unknown"
-          ? ({ status: "unauthenticated", ...(usesCredentials ? options.auth : {}) } as const)
-          : draft.auth;
+      // fork: every check decides again: no token is signed out, a token Google accepts is signed in,
+      // and a token that cannot be verified is unchecked. Only a session sign-in outranks it.
+      const auth: ServerProvider["auth"] =
+        hasStoredSignIn === undefined
+          ? draft.auth
+          : !hasStoredSignIn
+            ? { status: "unauthenticated" }
+            : state.quotaRead === "accepted"
+              ? draft.auth.status === "authenticated"
+                ? draft.auth
+                : {
+                    status: "authenticated",
+                    type: options.auth?.type ?? "oauth-personal",
+                    label: options.auth?.label ?? "Google account",
+                  }
+              : state.quotaRead === "failed" || draft.auth.status === "unauthenticated"
+                ? { status: "unknown", ...(options.auth ? { type: options.auth.type } : {}) }
+                : draft.auth;
       const authenticated = auth.status === "authenticated";
       const message =
         errorMessage ??
@@ -330,6 +336,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
             : authUncheckedMessage);
       return {
         ...state,
+        ...(hasStoredSignIn === false ? { quotaRead: undefined } : {}),
         draft: {
           ...draft,
           auth,
@@ -491,6 +498,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
       (state) =>
         ({
           authRevision: state.authRevision + 1,
+          quotaRead: undefined,
           draft: {
             ...state.draft,
             auth: {
@@ -552,7 +560,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
       Effect.andThen(
         SubscriptionRef.update(metadata, (state) => {
           const { usageLimits: _previousAccount, ...draft } = state.draft;
-          return { ...state, draft };
+          return { ...state, quotaRead: undefined, draft };
         }),
       ),
       Effect.andThen(
