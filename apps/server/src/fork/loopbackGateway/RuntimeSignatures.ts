@@ -116,6 +116,11 @@ export const NO_SIGNATURE: ReadonlyArray<{ readonly driver: string; readonly rea
       "ACP runtime with a user-installed binary whose name and argv were not verified without running it",
   },
   {
+    driver: "omp",
+    reason:
+      "omp is a compiled binary that also starts `__omp_worker_*` helpers and a shared daemon broker; its process tree under T3 was not verified",
+  },
+  {
     driver: "acpRegistry",
     reason:
       "the command is whatever the registry entry or the user configured (npx, uvx or a binary), so no fixed shape exists",
