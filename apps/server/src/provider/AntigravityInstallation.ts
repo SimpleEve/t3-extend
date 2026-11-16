@@ -8,7 +8,7 @@ import * as EffectNodeStream from "@effect/platform-node/NodeStream";
 import { ProviderDriverKind, type ProviderInstallState } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { resolveNodeExecutable, nodeRuntimeUnavailableMessage } from "@t3tools/shared/nodeRuntime";
-import { resolveCommandPath } from "@t3tools/shared/shell";
+import { resolveCommandPath, resolveSpawnCommand } from "@t3tools/shared/shell";
 import * as Clock from "effect/Clock";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
@@ -390,8 +390,15 @@ export const makeAntigravityInstallation = Effect.fn("AntigravityInstallation.ma
   ) =>
     Effect.scoped(
       Effect.gen(function* () {
+        // Same resolution as the real launch, so a Windows `agy.cmd` shim runs through the shell.
+        const command = yield* resolveSpawnCommand(
+          executable,
+          args,
+          processEnvironment === undefined ? {} : { env: processEnvironment, extendEnv: true },
+        ).pipe(Effect.provideService(HostProcess.Platform, platform));
         const child = yield* spawner.spawn(
-          ChildProcess.make(executable, args, {
+          ChildProcess.make(command.command, command.args, {
+            shell: command.shell,
             stdin: "ignore",
             stderr: "ignore",
             killSignal: "SIGKILL",

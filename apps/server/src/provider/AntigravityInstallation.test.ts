@@ -297,6 +297,7 @@ type CliProbeBehavior =
 // Stands in for the executable found on PATH; real files here are not runnable programs.
 const makeCliProbeSpawner = (behavior: CliProbeBehavior) => {
   const calls: Array<ReadonlyArray<string>> = [];
+  const shells: Array<boolean> = [];
   const spawned = Deferred.makeUnsafe<void>();
   let released = 0;
   const spawner = ChildProcessSpawner.make((command) =>
@@ -304,6 +305,9 @@ const makeCliProbeSpawner = (behavior: CliProbeBehavior) => {
       if (!ChildProcess.isStandardCommand(command)) return yield* Effect.die("Unexpected spawn.");
       const args = command.args.map(String);
       calls.push([String(command.command), ...args]);
+      shells.push(command.options.shell === true);
+      // A `.cmd` shim runs through the shell as one escaped command line with no separate args.
+      const line = [String(command.command), ...args].join(" ");
       yield* Deferred.succeed(spawned, undefined);
       yield* Effect.addFinalizer(() =>
         Effect.sync(() => {
@@ -312,7 +316,7 @@ const makeCliProbeSpawner = (behavior: CliProbeBehavior) => {
       );
       const output =
         behavior.kind === "agy"
-          ? args[0] === "--version"
+          ? /--version\W*$/u.test(line)
             ? `${behavior.version ?? "1.5.9"}\n`
             : (behavior.help ??
               "Usage: agy acp [flags]\n\nStart the Agent Client Protocol (ACP) stdio server\n")
@@ -341,7 +345,7 @@ const makeCliProbeSpawner = (behavior: CliProbeBehavior) => {
       });
     }).pipe(Effect.orDie),
   );
-  return { spawner, calls, spawned, released: () => released };
+  return { spawner, calls, shells, spawned, released: () => released };
 };
 
 // A fake agy on a one-entry PATH, named for the platform so it works on every host.
@@ -1184,6 +1188,16 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("Antigravity inst
           );
         }
       }
+      // The probe launches `agy.cmd` the way the real launch does: through the shell.
+      expect(
+        probe.calls.map(([command], index) => [/\.cmd/iu.test(command ?? ""), probe.shells[index]]),
+      ).toEqual(
+        probe.calls.map(([command]) => [
+          /\.cmd/iu.test(command ?? ""),
+          /\.cmd/iu.test(command ?? ""),
+        ]),
+      );
+      expect(probe.shells).toContain(true);
     }),
   );
 
