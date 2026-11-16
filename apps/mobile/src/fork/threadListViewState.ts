@@ -6,6 +6,9 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Preferences } from "../persistence/mobile-preferences";
 import { setCollapsedKey, toggleCollapsedKey } from "./threadListCollapse";
 
+/** The view of a device that never chose one; a pending or failed read still shows the status view. */
+const DEFAULT_VIEW_MODE: SidebarViewMode = "project";
+
 /** How long the list waits for the saved view before it shows the status view. */
 export const VIEW_PREFERENCE_GRACE_MS = 1000;
 
@@ -28,7 +31,7 @@ export function resolveThreadListViewState(
     return {
       ready: true,
       writable: true,
-      viewMode: result.value.threadListViewMode ?? "status",
+      viewMode: result.value.threadListViewMode ?? DEFAULT_VIEW_MODE,
       collapsed: result.value.threadListCollapsedGroups,
       failure: null,
     };

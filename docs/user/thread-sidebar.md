@@ -155,8 +155,9 @@ or **Sidebar: Group by status** and **Sidebar: Group by project** in the command
 Each device keeps its own choice. **By project** is the same setting as **Settings → Labs →
 Boring sidebar (group by project)**, so changing either one changes the other.
 
-**By status** is the default list described above. **By project** puts active threads in a
-folder for each project, in your project order. When a project has threads in a worktree, its
+**By project** is the default on a device that has not chosen a view. **By status** is the
+list described above: a flat list with the project shown on each row. **By project** puts
+active threads in a folder for each project, in your project order. When a project has threads in a worktree, its
 folder splits them by checkout: the project's main checkout comes first, then
 its worktrees, the one you most recently sent a message in first. Each checkout's threads sit one
 level in, under a thin guide line. A checkout is labeled with its branch, or the worktree's folder
@@ -169,7 +170,9 @@ Shift-click starts in the current project. In this view you cannot drag threads,
 the Working section is off. The view lists
 worktrees that have threads; a worktree with no threads does not appear.
 
-On mobile, open the filter menu on the thread list and pick **Group threads → By project**. The
+On mobile, the thread list is grouped by project until you choose otherwise: open the filter
+menu on the thread list and pick **Group threads → By status** for the flat list, or **By
+project** to return. The
 groups, their order, and what stays in the Pinned, Snoozed, and Settled sections match the
 description above. Tap a project or checkout header to fold it; the open thread stays visible, and
 the header shows the thread count, and a dot when a folded project or a checkout holds a
@@ -179,8 +182,8 @@ you clear the search. Threads of a project the app does not list go in **Other p
 
 ### Group threads by project (beta)
 
-Turn on **Settings → Labs → Boring sidebar (group by project)** on web and desktop to put active
-threads in a folder for each project. Pinned projects come first. A project with no active
+**Settings → Labs → Boring sidebar (group by project)** on web and desktop puts active
+threads in a folder for each project. It is on unless you turned it off. Pinned projects come first. A project with no active
 threads has no folder unless it is pinned or you pick it in the project filter. An archived
 project's folder comes last and shows only while it has active threads. Click a folder to open or
 close it. A closed folder shows how many threads it holds, and a dot when one of them

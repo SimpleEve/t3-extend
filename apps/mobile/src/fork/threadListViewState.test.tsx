@@ -45,6 +45,17 @@ describe("resolveThreadListViewState", () => {
       ),
     ).toMatchObject({ ready: true, writable: true, viewMode: "project", collapsed: ["k"] });
   });
+
+  it("groups by project on a device that never chose, and keeps a chosen status view", () => {
+    expect(resolveThreadListViewState(stored({}), false)).toMatchObject({
+      ready: true,
+      writable: true,
+      viewMode: "project",
+    });
+    expect(
+      resolveThreadListViewState(stored({ threadListViewMode: "status" }), false),
+    ).toMatchObject({ writable: true, viewMode: "status" });
+  });
 });
 
 describe("toggleCollapsedKey", () => {
