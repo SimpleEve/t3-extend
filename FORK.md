@@ -383,6 +383,17 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 
 上游文件里的接线（都带 `// fork:`）：`TimelineAssistantRows.tsx`、`ChatHeader.tsx`、`ChatView.tsx`（传 `workspaceRoot`）、`threadDetail.ts`（两个 atom）、`ThreadFeed.tsx`、`ThreadHeader.tsx`、`ThreadRouteScreen.tsx`、`Stack.tsx`、`catalogs/zh-Hans/index.ts`、`packages/client-runtime/package.json`（`./outputs/*` 导出）。
 
+## omp provider
+
+omp（oh-my-pi，Pi 的分支）是原生 provider，和上游的 Pi 并存。用户说明 `docs/user/providers-omp.md`，设计要点在 `docs/internals/providers.md`。ACP Registry 里的 omp 入口没动。
+
+- **复用而不是复制：** omp 的 RPC 与 Pi 同源，所以走 Pi 的 adapter，差异做成 `PiDialect`（`packages/provider-pi/src/server/dialect.ts`：driver 种类、能力表、启动参数、连接工厂、是否汇总本轮 usage）。fork 自己的代码全在新包 `packages/provider-omp`：`protocol.ts` 是 omp 帧与命令到 Pi 形状的翻译（纯函数，有单测），`connection.ts` 包住 omp 进程并用 `set_host_tools` 暴露 T3 的 MCP 工具，`dialect.ts` 管启动参数和审批模式映射，`status.ts` 探测版本、模型和命令。
+- **上游文件里的接线（都带 `// fork:`）：** `packages/provider-pi/src/server/adapter.ts`（读 `options.dialect`，在 `makePiAdapterV2` 开头用同名局部常量盖住 `PI_PROVIDER`、能力表、启动函数，另有按 dialect 汇总的 `turnTokenUsage`；`PiProviderCapabilitiesV2` 加了 `export`）、`provider-pi/package.json`（多导出几个子路径）、`builtInDrivers.ts`、`managedProviders.ts`、`settingsSecrets.ts`、`providerClients.ts`、`ProviderRegistry.ts`（omp 和 Pi 一样按鉴权状态保留模型）、`model-manifest.json`（omp 条目，`updatedAt` 已更新）、contracts 的 `model.ts` 和 `settings.ts`（显示名、默认关闭）、`ProviderModelsSection.tsx`、`customModelEditor.logic.ts`、`catalogs/zh-Hans/settingsPanels.ts`、根 `package.json` 的 knip 工作区列表、`scripts/release-smoke.ts`。同步上游时 `adapter.ts` 里 `PI_PROVIDER` 的局部覆盖最容易在新增用法处出问题：新代码若在闭包外用它，会拿到 Pi 的值。
+- **审批、MCP、会话：** 审批是 omp 自己的（`--approval-mode`：Supervised → `always-ask`，Auto-accept edits → `write`，Full access → `yolo`；`--approval-mode`、`--yolo`、`--auto-approve` 等写进启动参数会被拒绝）。omp 的审批弹窗是 `select`（标题 `Allow tool: <名字>`），翻译层把它改成 Pi adapter 认得的 `confirm`，回答再改回 `Approve` 或 `Deny`。MCP 走 omp 的 host tool 子协议，名字沿用 `mcp__t3-code__…`，T3 编排说明用 `--append-system-prompt` 追加。会话用 omp 自己的会话文件：`--resume <文件>`、`switch_session`、`fork`（带 `entryId`）、`get_entries`，omp 的 `message` 条目和 Pi 同形，回滚和分叉直接复用；这几个命令在真实 omp 18.20.2 上逐个跑过。
+- **必须用 `--mode rpc`：** 在 `rpc-ui` 里 `set_host_tools` 成功、`get_state` 也列出了工具，但 omp 不把它发给模型（用一个本地桩模型服务记录请求的 `tools` 数组证实过），所以 T3 的 MCP 工具只能用 `rpc`。代价是 omp 自带的 `ask` 工具只在 `rpc-ui` 里有，用不了；扩展的 `select`、`confirm`、`input`、`editor` 对话框不受影响。以后 omp 修了再换。
+- **能力取舍：** 不支持子 agent（omp 的 `task` 工具当普通工具调用显示）、文本生成（`supportsTextGeneration: false`）、用量页和从 `~/.omp` 导入会话。没有 Pi 那样的服务层级选项。`clear_queue` 在 omp 里不存在，翻译成 `abort_and_restore_queue`（会顺便中止，调用方随后本来就要中止）。omp 的会话文件第一行是 `title`，cwd 在第二行，所以 adapter 里"会话头部 cwd 与新工作目录是否一致"的检查对 omp 恒为真，工作区交接时不会触发 `--fork`（omp 也没有这个参数）。
+- **测试：** `protocol.test.ts` 和 `hostTools.test.ts` 是纯函数；`adapter.test.ts` 用真实录下来的 omp 帧经完整 adapter 回放；`connection.test.ts` 覆盖 host tool 往返；`live.test.ts` 在 `OMP_LIVE_AGENT_DIR` 指向一个 omp 配置目录时才跑，用真实 omp 和真实模型跑普通回合、审批回合和 host tool 回合（环境变量不能以 `T3` 开头，`vp test` 会把它们过滤掉）。
+
 ## 不依赖 Google 的推送（Android）
 
 手机通过任意 UnifiedPush 服务器（典型的是 VPS 上的 ntfy，部署包见 `infra/self-host/`）收到 Agent 提醒，不经过 Cloudflare、Firebase 和 Clerk。上游的 relay 和 FCM 路径没有改动，仍然关闭。用户说明在 `docs/user/mobile-notifications.md` 的 "Push without Google"。

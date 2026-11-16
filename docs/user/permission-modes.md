@@ -37,6 +37,9 @@ runs in **Supervised**.
 T3 Code offers no **Auto-accept edits** or **Full access** for fx. An fx thread already set to either runs in
 **Supervised**.
 
+omp offers no **Auto**: an omp thread already set to it runs in **Supervised**. omp enforces the other
+modes itself, with its own approval prompts. See [omp permissions](./providers-omp.md#permission-modes).
+
 Grok offers no **Auto-accept edits**. A Grok thread already set to it runs in **Supervised**. Grok
 file-change approvals offer **Allow all edits this session**. Its command approvals have no
 session-wide choice, because Grok would remember that command for the whole project.

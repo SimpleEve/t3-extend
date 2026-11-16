@@ -2435,6 +2435,9 @@ export default {
   "Path to the Pi coding agent binary.": "Pi 编程 Agent 的可执行文件路径。",
   "Additional CLI arguments passed to pi --mode rpc on session start.":
     "会话启动时传给 pi --mode rpc 的额外 CLI 参数。",
+  "Path to the omp (oh-my-pi) coding agent binary.": "omp（oh-my-pi）编程 Agent 的可执行文件路径。",
+  "Additional CLI arguments passed to omp --mode rpc on session start.":
+    "会话启动时传给 omp --mode rpc 的额外 CLI 参数。",
   "Access token": "访问令牌",
   "Scoped to one repository, project, or workspace. Create it in that item's Bitbucket settings.":
     "只作用于一个仓库、项目或工作区。在对应条目的 Bitbucket 设置中创建。",

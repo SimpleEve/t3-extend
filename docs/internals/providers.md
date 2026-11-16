@@ -36,6 +36,15 @@ Forks use Pi's CLI in the destination directory because RPC session switching re
 session's cwd. Provider switches still use portable handoff summaries.
 See the [adapter](../../packages/provider-pi/src/server/adapter.ts).
 
+omp (oh-my-pi) runs through that same adapter. It speaks a close dialect of Pi's RPC protocol, so
+[`packages/provider-omp`](../../packages/provider-omp) supplies a `PiDialect` instead of a second
+adapter: a connection that translates omp's frames and commands into Pi's shapes
+([`protocol.ts`](../../packages/provider-omp/src/server/protocol.ts)), omp's own `--approval-mode`
+in place of Pi's permission hook, and T3's MCP tools as omp host tools in place of Pi's bridge
+extension. It must run in plain `--mode rpc`: in `rpc-ui`, omp 18.20.2 lists host tools but never
+sends them to the model. Pi's adapter stays the only code that knows turn lifecycle; keep
+omp-specific cases in the dialect.
+
 Antigravity separates account profiles per instance while sharing installed executables across the
 environment. It forces file-based credential storage because the native macOS keychain entry would
 otherwise be shared across instances. The launch environment removes ambient Google credentials,
