@@ -37,6 +37,8 @@ import { OmpAdapterV2Driver } from "./adapter.ts";
 const AGENT_DIR = process.env["OMP_LIVE_AGENT_DIR"];
 const LOG_FILE = process.env["OMP_LIVE_LOG"];
 const OMP_BINARY = process.env["OMP_LIVE_BINARY"] ?? "omp";
+const HOST_PATH = process.env["PATH"] ?? "";
+const HOST_HOME = process.env["HOME"] ?? "";
 
 const layerTest = Layer.mergeAll(
   NodeServices.layer,
@@ -144,8 +146,8 @@ const openRuntime = Effect.fnUntraced(function* (
     },
   }).pipe(
     Effect.provideService(HostProcess.Environment, {
-      PATH: process.env["PATH"] ?? "",
-      HOME: process.env["HOME"] ?? "",
+      PATH: HOST_PATH,
+      HOME: HOST_HOME,
       PI_CODING_AGENT_DIR: AGENT_DIR ?? "",
     }),
     Effect.provideService(ProviderContinuationRequests.ProviderContinuationRequests, {
