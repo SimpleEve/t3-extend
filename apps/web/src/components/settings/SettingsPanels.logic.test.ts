@@ -10,6 +10,7 @@ import {
   editAutoSettleDaysField,
   failAutoSettleDaysField,
   getChangedBrowserSettingLabels,
+  getChangedSidebarViewSettingLabels,
   hasChangedBackgroundActivitySettings,
   syncAutoSettleDaysField,
 } from "./SettingsPanels.logic";
@@ -82,6 +83,19 @@ describe("background activity settings restore", () => {
         automaticGitFetchInterval,
       },
     });
+  });
+});
+
+describe("getChangedSidebarViewSettingLabels", () => {
+  it("counts the by-status view as a change, since by project is the default", () => {
+    expect(DEFAULT_UNIFIED_SETTINGS.boringSidebarEnabled).toBe(true);
+    expect(getChangedSidebarViewSettingLabels(DEFAULT_UNIFIED_SETTINGS)).toEqual([]);
+    expect(
+      getChangedSidebarViewSettingLabels({
+        ...DEFAULT_UNIFIED_SETTINGS,
+        boringSidebarEnabled: false,
+      }),
+    ).toEqual(["Sidebar view"]);
   });
 });
 

@@ -228,9 +228,9 @@ macOS 打包版的设置 > 通用 > "后台运行" 有一个开关"在后台保�
 
 ## 侧边栏视图
 
-侧边栏有"按状态"（上游的 Inbox，默认）和"按项目"两种视图，后者在项目文件夹下再按 worktree 分子组。用户说明见 `docs/user/thread-sidebar.md` 的 "Choose a sidebar view"。
+侧边栏有"按状态"（上游的 Inbox）和"按项目"两种视图，后者在项目文件夹下再按 worktree 分子组，是默认视图：`boringSidebarEnabled` 的默认值在 contracts 里改成了 true（带 `// fork:`），手机端偏好未设置时回落到 `"project"`（`threadListViewState.ts` 的 `DEFAULT_VIEW_MODE`）。默认值只对没存过这一项的设备生效：桌面版一旦存过任何客户端设置，整份设置（包括 `boringSidebarEnabled`）都会写进 `client-settings.json`，所以以前存过 `false` 的设备要手动切一次。用户说明见 `docs/user/thread-sidebar.md` 的 "Choose a sidebar view"。
 
-- 视图就是上游 Labs 里的 Boring sidebar 设置（`ClientSettings.boringSidebarEnabled`，经 `ensureLocalApi().persistence` 按设备保存，不跨设备同步）：开是"按项目"，关是"按状态"。顶部切换、命令面板两项和 Labs 开关读写同一个设置：`useSidebarViewMode()` 由 `useBoringSidebarEnabled()` 推出（旧的 `legacySidebarEnabled` 也算开），`setSidebarViewMode()` 和 Labs 一样写 `{ boringSidebarEnabled, legacySidebarEnabled: false }`。fork 自己的 store（`apps/web/src/fork/sidebarViewStore.ts`，localStorage key `t3extend:sidebar-view:v1`）只存折叠状态；旧数据里的 `mode` 字段直接忽略，不迁移（升级后最坏显示一次"按状态"，点一下就回来）。折叠 key 带视图前缀（`sidebarGroupCollapseKey`），不进 `ClientSettings`，不改 contracts。
+- 视图就是上游 Labs 里的 Boring sidebar 设置（`ClientSettings.boringSidebarEnabled`，经 `ensureLocalApi().persistence` 按设备保存，不跨设备同步）：开是"按项目"，关是"按状态"。顶部切换、命令面板两项和 Labs 开关读写同一个设置：`useSidebarViewMode()` 和 `getSidebarViewMode()` 直接读 `boringSidebarEnabled`，`setSidebarViewMode()` 和 Labs 一样只写 `{ boringSidebarEnabled }`；上游已删掉 `legacySidebarEnabled`。「恢复默认」（设置页 `useSettingsRestore`）把它当作"侧边栏视图"一项，不是默认值就列出并重置。fork 自己的 store（`apps/web/src/fork/sidebarViewStore.ts`，localStorage key `t3extend:sidebar-view:v1`）只存折叠状态；旧数据里的 `mode` 字段直接忽略，不迁移。折叠 key 带视图前缀（`sidebarGroupCollapseKey`），不进 `ClientSettings`，不改 contracts。
 - 分组是纯函数，放在 `packages/client-runtime/src/state/threadGrouping.ts`（`@t3tools/client-runtime/state/thread-grouping`），web 和以后的 Android 共用。
 - 按项目视图复用 boring 的所有分支：没有 Working shelf、不能拖拽，New thread 和 `chat.new` 的行为与 boring 相同（多个项目时弹项目选择器，只有 legacy 侧边栏直接在当前项目新建）。按项目视图就是开着 boring sidebar 的侧栏，只多了 worktree 子分组，所以没有单独的"boring 开、按状态"这种状态。
 - `Sidebar.tsx` 的接线（都带 `// fork:`）：
@@ -250,7 +250,7 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - 按项目视图下没有 Working 货架，也不能手动上下移动；搜索时仍按相关度平铺，清空搜索后恢复分组。
 - 入口：筛选菜单里的"对话分组"（Android `HomeHeader.android.tsx` 和平板侧栏 `ThreadNavigationSidebar.tsx`，菜单项在 `fork/threadListViewMenu.ts`；iOS 原生头部走 `buildHomeListFilterMenu`，iOS Home 的筛选条多一个胶囊）。
 - 状态点：`resolveSidebarFolderDot`、`resolveSidebarThreadStatus`、`hasUnseenCompletion` 现在在 `threadGrouping.ts`，web 的 `Sidebar.logic.ts` re-export，测试只在共享层。规则同 web：折叠的项目头说明它藏起来的对话，worktree 头永远说明自己的全部对话；`ThreadListV2GroupHeaderListItem.dot` 带它。
-- 启动：偏好没读出来之前，Home 和平板侧栏什么都不画，不会先闪一下按状态视图。冷启动时启动画面本来就等偏好，所以默认视图的用户看不到额外延迟。读取失败时立刻显示按状态视图并 `console.warn`；超过 `VIEW_PREFERENCE_GRACE_MS`（1 秒）还没读出来也先显示按状态视图，读出来后切到保存的视图。偏好读出之前用户做的选择（切视图、折叠）先记在内存里（所有列表和菜单共用），界面照常反映；偏好读出后叠加在保存值之上并保存一次，用户的选择优先于迟到的保存值（折叠按目标状态记，不会因为保存值里已有该 key 而翻转）。读出时超过上限的折叠列表只留最新的 200 个（`persistence/mobile-preferences.ts`）。逻辑在 `fork/threadListViewState.ts` 和 `threadListCollapse.ts`，测试在同目录。
+- 启动：偏好没读出来之前，Home 和平板侧栏什么都不画，不会先闪一下按状态视图。冷启动时启动画面本来就等偏好，所以默认视图的用户看不到额外延迟。读取失败时立刻显示默认视图（按项目）并 `console.warn`；超过 `VIEW_PREFERENCE_GRACE_MS`（1 秒）还没读出来也先显示默认视图，所以迟到的空偏好不会让列表重排，只有真正存过的值才会切换视图。偏好读出之前用户做的选择（切视图、折叠）先记在内存里（所有列表和菜单共用），界面照常反映；偏好读出后叠加在保存值之上并保存一次，用户的选择优先于迟到的保存值（折叠按目标状态记，不会因为保存值里已有该 key 而翻转）。读出时超过上限的折叠列表只留最新的 200 个（`persistence/mobile-preferences.ts`）。逻辑在 `fork/threadListViewState.ts` 和 `threadListCollapse.ts`，测试在同目录。
 - 折叠 key 不按项目列表清理：离线的环境没有加载项目，按列表清理会误删它们的折叠。改为只保留最近的 `MAX_COLLAPSED_GROUPS`（200）个，已删除项目的 key 会随新的折叠挤出去。
 - iOS 没有实机或模拟器验证。
 
@@ -625,7 +625,7 @@ GitHub Actions 在这个仓库里是关着的：2026-11-04 起，`SimpleEve/t3-e
 
 - 受管策略（managed policy）：macOS 的 managed preferences 和描述文件模板按 `FORK.appId` / `FORK.appBaseName` 生成（`packages/shared/src/managedPolicyFile.ts`、`apps/server/src/policy/policyTemplates.ts`，后者有测试守着）。`/Library/Application Support/T3Code/policy.json` 和 Windows 的 `SOFTWARE\Policies\T3Tools\T3Code` 注册表路径仍是上游的，fork 和官方共用同一份策略；Windows 的 ADMX 模板同理。
 - `DesktopUpdates.hasUpdateFeed` 把受管镜像（`policy.feedUrl`）也算作更新源，否则管理员配了镜像、构建里却没有 `app-update.yml` 时，入口会被隐藏。
-- 侧栏"按项目"就是上游的 Boring 侧栏（视图由 `useBoringSidebarEnabled()` 推出，`Sidebar.tsx` 里那一行是上游原样）。上游把 `sidebarTree.ts` 的 `role=tree` / `aria-level` 去掉了，fork 在 `lib/sidebarTree.ts` 已经没有改动，`shortcuts/chatRouteCommands.ts` 里 `chat.new` 的项目视图分支也删了（`chat.new` 在项目视图里和 boring 一样走项目选择器）。
+- 侧栏"按项目"就是上游的 Boring 侧栏（视图由 `boringSidebarEnabled` 决定，`Sidebar.tsx` 里那一行是上游原样）。上游把 `sidebarTree.ts` 的 `role=tree` / `aria-level` 去掉了，fork 在 `lib/sidebarTree.ts` 已经没有改动，`shortcuts/chatRouteCommands.ts` 里 `chat.new` 的项目视图分支也删了（`chat.new` 在项目视图里和 boring 一样走项目选择器）。
 - 上游把 `app.t3.codes` 的链接声明加进了 `app.config.ts`。Android 的 intentFilter fork 不采用：没验证过的 http 链接过滤器会让 fork 出现在"用哪个应用打开"的选择框里，用户看得到。iOS 的 `applinks:app.t3.codes` 保留上游原样，不加 fork 改动：官方站点的 apple-app-site-association 不会列出 fork 的 bundle id，这条声明在 fork 里不起作用；fork 目前不发 iOS；iOS 的 native fingerprint 本来就会因为麦克风文案变化而变。原则是只在用户看得到影响时才偏离上游。
 - Effect 升到 4.1.2 后 `effect/Crypto` 拆成 `effect/crypto/Digest` 和 `effect/crypto/SecureRandom`；fork 的 `T3CodeImport`、`DeviceAssertionAuth` 和测试夹具都改用新服务，测试要用 `NodeCrypto.layer`（`@effect/platform-node/NodeCrypto`）。同一版本不再读 `X-Forwarded-Proto`，上游加了 `apps/server/src/requestUrl.ts`；server 里取请求 URL 一律走它，不要直接调 `HttpServerRequest.toURL`（隧道监听口的夹具也一样）；端到端的场景 3、4、14（经隧道的 DPoP、限速桶、伪造的 `X-T3x-Client-IP`）验证的就是这一点。
 - 上游新增的测试经常写死官方标识（`t3code://`、`t3code.service`、默认端口 3773、Tailscale Serve 的默认端口）；换成 `FORK.scheme`、`FORK.bootServiceName`、`FORK.defaultPort`、`FORK.tailscaleServePort`。服务端新增清理原因要同步 `apps/web/src/fork/storageCleanupReasons.ts` 的模板表和 zh-Hans 目录，否则 `storageCleanupReasons.test.ts` 会报。`T3CodeImport.test.ts` 把源库固定在迁移 76（077 之前），不要写成"当前 head 减一"，上游每加迁移就会失效。

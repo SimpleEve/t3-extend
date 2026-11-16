@@ -6,7 +6,10 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Preferences } from "../persistence/mobile-preferences";
 import { setCollapsedKey, toggleCollapsedKey } from "./threadListCollapse";
 
-/** How long the list waits for the saved view before it shows the status view. */
+/** The view of a device that never chose one, and of a list whose saved view is late or unreadable, so a late empty preference never changes it. */
+const DEFAULT_VIEW_MODE: SidebarViewMode = "project";
+
+/** How long the list waits for the saved view before it shows the default view. */
 export const VIEW_PREFERENCE_GRACE_MS = 1000;
 
 export interface ThreadListViewState {
@@ -16,7 +19,7 @@ export interface ThreadListViewState {
   readonly writable: boolean;
   readonly viewMode: SidebarViewMode;
   readonly collapsed: readonly string[] | undefined;
-  /** The read failed; the list shows the status view and the choice is not saved. */
+  /** The read failed; the list shows the default view and the choice is not saved. */
   readonly failure: { readonly cause: unknown } | null;
 }
 
@@ -28,7 +31,7 @@ export function resolveThreadListViewState(
     return {
       ready: true,
       writable: true,
-      viewMode: result.value.threadListViewMode ?? "status",
+      viewMode: result.value.threadListViewMode ?? DEFAULT_VIEW_MODE,
       collapsed: result.value.threadListCollapsedGroups,
       failure: null,
     };
@@ -36,7 +39,7 @@ export function resolveThreadListViewState(
   return {
     ready: AsyncResult.isFailure(result) || graceElapsed,
     writable: false,
-    viewMode: "status",
+    viewMode: DEFAULT_VIEW_MODE,
     collapsed: undefined,
     failure: AsyncResult.isFailure(result) ? { cause: result.cause } : null,
   };
@@ -127,7 +130,7 @@ export function useThreadListViewState(
   useEffect(() => {
     if (AsyncResult.isFailure(result)) {
       console.warn(
-        "[thread-list-view] could not read mobile preferences; showing the status view",
+        "[thread-list-view] could not read mobile preferences; showing the default view",
         result.cause,
       );
     }

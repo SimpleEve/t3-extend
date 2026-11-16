@@ -1448,6 +1448,7 @@ export default {
   "Fold working and monitoring threads into a Working section. They return to the top of the inbox when they need you. The boring sidebar in Labs has no Working section.":
     "把运行中和监控中的对话收进“运行中”分区。需要你处理时，它们会回到收件箱顶部。实验室中的朴素侧边栏没有“运行中”分区。",
   "Working section": "运行中分区",
+  "Sidebar view": "侧边栏视图",
   "Ask before unpinning a thread from the pinned section.": "从置顶分区取消置顶对话前先询问。",
   "Confirm thread unpinning": "取消置顶前确认",
   "Require a second click on the inline archive action before a thread is archived.":
