@@ -3,6 +3,29 @@
 On Linux, macOS, and Windows, T3 Code can run as a service for your user so you
 do not need to keep a terminal open.
 
+## T3 Extend desktop app on macOS
+
+In the T3 Extend app, open Settings, General, then turn on **Keep running in
+the background**. Quitting the app with Cmd+Q then leaves T3 Extend running, so
+your phone stays connected and notifications keep arriving. Closing the window
+does not quit the app, as before.
+
+- The service runs the app itself, so nothing is downloaded. Keep the app in
+  your Applications folder: a copy opened from a disk image is refused.
+- Only one server can use your data at a time. While the app is open, its own
+  server runs and the service is stopped. When you quit, the service starts
+  again, and your phone reconnects once it is up.
+- Turning the switch off removes the service. Your projects, threads, and
+  settings are kept.
+- If you move or delete the app, the row says so. Turn it off and on again from
+  the app's new location. After you install a new version of the app, the row
+  offers **Repair**.
+- If the app crashes or is force-quit, the service stays stopped until you next
+  open and quit the app, or log in again.
+
+The same service is managed from a terminal with the `t3x` command the app
+installs, using the commands below.
+
 ## Manage the service
 
 Install the `t3` CLI first ([Install T3 Code](./install.md#command-line)), then

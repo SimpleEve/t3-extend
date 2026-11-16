@@ -58,7 +58,7 @@ Tailscale 的默认端口走 `FORK.tailscaleServePort`：`packages/tailscale` �
 
 - SSH 远程主机默认装的是同版本的官方 server 归档（`OFFICIAL_CLI_RELEASE_DOWNLOAD_URL`），不影响本机的 fork。
 - 没有官方 `.env`，所以 T3 Connect、guest link、passkey 默认都不可用；Android 的移动推送改走自建的 UnifiedPush，见下文。Clerk 回跳绑定的是官方 scheme，即使自己提供 `.env`，Connect 登录也可能失败。
-- `t3x service install` 同样需要下载 server 归档，在 fork 发布自己的归档之前会失败。可以用 `T3CODE_RELEASE_BASE_URL` 指向自己的发布镜像。
+- 非桌面版的 `t3x service install`（npm 等）同样需要下载 server 归档，在 fork 发布自己的归档之前会失败，可以用 `T3CODE_RELEASE_BASE_URL` 指向自己的发布镜像。macOS 打包版从 app 自带的 `t3x` 运行时不下载，见"后台运行（桌面版）"。
 - Linux 打包身份（`executableName`、`StartupWMClass`、metainfo、`.desktop` 名称）还没有改，fork 的 deb / AppImage 会和官方包冲突。不要在同一台 Linux 机器上同时安装两者。
 - `scripts/install.sh`、`scripts/install.ps1`、`scripts/npm-launcher/` 是官方的安装器，默认把官方 `t3` 装进 `~/.t3`。只有上游的 release workflow 会用到它们，而这个 workflow 限定在 `pingdotgg/t3code` 仓库运行。fork 不要用它们安装。
 - 远程 model manifest 仍然读上游的 `raw.githubusercontent.com/pingdotgg/t3code`，它是只读数据。
@@ -207,6 +207,24 @@ mobile：
 - 启动：`apps/mobile/src/fork/uiLanguage.ts` 订阅偏好，启动画面要等偏好读出、语言生效后才隐藏。要加载中文 catalog 时最多等 `FIRST_FRAME_LANGUAGE_WAIT_MS`（1000ms），超时先显示英文，加载完再切换。英文不加载 catalog，不增加等待。加载失败保持当前语言，只记一条 warning。
 - Android 上 Hermes 的 `Intl` 不管传什么 locale 都给英文星期名，中文也可能按 12 小时制输出。所以星期名走 catalog（稍后处理菜单的 `formatWeekday`、定时任务的下次运行），中文时间用 `lib/time.ts` 的 `uiFormatOptions` 强制 24 小时制。
 - 译文在 `catalogs/zh-Hans/mobile.ts`（首页、对话列表、对话页、输入框、连接、通知）、`mobileSettings.ts`（设置各页）、`mobilePullRequests.ts`（PR）和 `mobileWorkspace.ts`（文件、终端、审查、用量、Git 子页面等）。Android 底部导航的标签由 JS 传给原生模块，见上文。
+
+## 后台运行（桌面版）
+
+macOS 打包版的设置 > 通用 > "后台运行" 有一个开关"在后台保持运行"：打开就是 `t3x service install`，关闭就是 `t3x service uninstall`，退出 app（Cmd+Q）后服务继续跑，手机和推送不断。代码：`apps/server/src/fork/appRuntime.ts`（识别）、`apps/desktop/src/fork/backgroundService/`（开关、IPC、启动和退出的接力）、`apps/web/src/fork/BackgroundServiceSettings.tsx`（设置行）、`packages/shared/src/backgroundService.ts`（桥接类型）。
+
+**服务直接用 app 自带的运行时，不下载。** 识别（`detectAppRuntime`，只认 macOS）要三条同时成立：`ELECTRON_RUN_AS_NODE=1`；`argv[1]` 是 `<X>.app/Contents/Resources/app.asar/apps/server/dist/bin.mjs`；`execPath` 在同一个 `<X>.app/Contents/MacOS/` 下。这正是 `DesktopCliShim` 写的 `t3x` 启动脚本和桌面开关调用 CLI 的方式，npm、pinned runtime、dev 都不满足，行为不变。命中时 `BootService.make`：
+
+- plist 的 ProgramArguments 是 `[<app 可执行文件>, <asar 里的 bin.mjs>, "__service-launcher"]`（原来是 `[<T3 home>/runtime/versions/<版本>/t3, "__service-launcher">]`），EnvironmentVariables 多了 `ELECTRON_RUN_AS_NODE=1`、`T3X_FRPC_PATH`（`Contents/Resources/bin/frpc`，取 shim 导出的值）和 `T3X_APP_RUNTIME_VERSION`（装它的 app 版本）；PATH 里不再放 app 的 `Contents/MacOS`。`BootServicePlan.environment` 只有 plist 渲染它，systemd 和计划任务不渲染，因为 app 模式只在 macOS 出现。
+- `install` 跳过 `ensurePinnedRuntimeInstalled`（不访问 GitHub、不建 `runtime/versions`），其余照旧：先停、写 `service-state.json` 和 plist、`launchctl enable` 加 `bootstrap`、失败回滚。app 在磁盘映像（`/Volumes/`）或 App Translocation 路径下时拒绝安装（`BootServiceAppLocationError`），否则重启后 plist 指向的路径就没了。
+- launcher（`serviceLauncher.ts`，三处 `// fork:`）：自己也是这个 app 进程，所以子进程用 `<execPath> <argv[1]> serve`，环境从 plist 继承。`runtimeExists` 在 app 模式只认"版本等于 `T3X_APP_RUNTIME_VERSION` 且可执行文件在"，所以旧 state 或被换掉的 app 会得到原来的 "runtime is missing or incomplete" 而不是启动错的版本。
+- 更新交接和 prune：app 模式不会产生 `versions/` 里的目录，prune 只处理那里，碰不到 app。plist 里的 program 不匹配 `repointServiceUnit` 的正则，原样保留。app 升级后 state 的 `activeVersion` 与 app 版本不一致，`status` 变成"需要修复"，设置里的"修复"重新 install 即可；`t3x update` 对这种服务仍会尝试下载并因私有仓库没有归档而失败，与上面一致。没有做自动修复。
+- `status`：新增 `app-runtime-missing`（app 被移动或删除；修复办法是放回原处，或从新位置打开 app 后把开关关掉再打开），macOS 上多一个 `running`（`launchctl print` 里 `state = running`）。`t3x service status --json` 输出整份状态，桌面开关读它。
+
+**桌面 app 和服务的关系：交替持有，不连接服务。** 同一个 `~/.t3extend` 只能有一个 server（`server-owner.sqlite` 独占锁）。上游遇到服务占着 home 时只弹窗然后退出，没有"连到已有服务"的机制；要做就得让 app 去认证一个没有它那份随机 bootstrap secret 的服务，而且 app 自己的后端还通过私有管道带着 in-app 浏览器、遥测、原生选择器这些只属于桌面的通道，launchd 起的 server 没有这根管道，连过去会悄悄丢功能。所以：启动时（`startLocalBackend` 里，检查 home 归属之前）`pauseForApp` 对装了 app 模式服务的 plist 执行 `launchctl bootout --wait` 让服务退出并释放锁，再走原有流程起 app 自己的后端；退出时（`scopedProgram` 的 finalizer 里，所有后端停掉之后、`markComplete` 之前）`resumeAfterApp`：服务还在 launchd 里就 `kickstart -k`，不在就 `enable` 加 `bootstrap`，服务的 server 立刻拿到锁，不必等 launcher 每 30 秒一次的轮询。开关打开时 install 之后立刻 `pauseForApp`，因为此刻 app 正占着 home。app 崩溃或被强杀不会执行退出那一步，服务停到下一次 app 退出或重新登录（plist 有 RunAtLoad），用户文档里写了。只处理 plist 里带 `ELECTRON_RUN_AS_NODE` 的服务，别的服务（npm 装的、官方的）一律不碰。
+
+只在 macOS 打包版显示开关（`available` = darwin 且 `isPackaged`；其他情况 IPC 返回 `unavailable`，设置行不渲染）。dev 版、Windows、Linux 保持上游行为：开机服务仍要下载运行时，桌面遇到被占用的 home 仍是弹窗加退出。没有 Linux 和 Windows 的 app 模式。
+
+没有改的：launcher 的 `__service-launcher` 命令、service state 的格式和协议号、`t3x service` 的其余子命令。测试都用假的 ProcessRunner 和临时目录（`appService.test.ts`、`DesktopBackgroundService.test.ts`），不碰真实 launchd；真机验证的命令清单在交付报告里。
 
 ## 侧边栏视图
 
