@@ -31,22 +31,27 @@ export default {
   "{picked} of {total}": "{picked} / {total}",
   "already imported": "已导入",
   "updated in {app}": "{app} 里有更新",
-  "You added {count} run here. Importing it again discards that run.":
-    "你在这里新增了 {count} 轮对话。再次导入会丢弃这一轮。",
-  "You added {count} runs here. Importing it again discards those runs.":
-    "你在这里新增了 {count} 轮对话。再次导入会丢弃这些对话。",
-  "Importing replaces what you continued here. This cannot be undone.":
-    "导入会覆盖你在这里接着聊的内容，且无法撤销。",
+  "You changed this here ({changes}). Importing it again discards that.":
+    "你在这里改过它（{changes}）。再次导入会丢弃这些改动。",
+  "{count} run you started": "{count} 轮你发起的对话",
+  "{count} runs you started": "{count} 轮你发起的对话",
+  "a new title": "新的标题",
+  "a changed pin": "置顶状态的改动",
+  "a changed archive state": "归档状态的改动",
+  "a changed snooze": "延后提醒的改动",
+  "changed mode or model settings": "模式或模型设置的改动",
+  "Importing replaces what you changed here. This cannot be undone.":
+    "导入会覆盖你在这里做过的改动，且无法撤销。",
   "{count} thread is updated in place from {app}. It keeps its place in the sidebar.":
     "{count} 个对话按 {app} 里的最新内容原地更新，在侧栏里的位置不变。",
   "{count} threads are updated in place from {app}. They keep their place in the sidebar.":
     "{count} 个对话按 {app} 里的最新内容原地更新，在侧栏里的位置不变。",
   "{subject}: it is running or has queued work here, so it is not replaced. Let it finish and import again.":
     "{subject}：它在这里正在运行或有排队的任务，所以不会被覆盖。等它结束后再导入一次。",
-  "{subject}: replacing it discards the {count} run you started in T3 Extend since the last import.":
-    "{subject}：覆盖它会丢弃你在 T3 Extend 里自上次导入后新增的 {count} 轮对话。",
-  "{subject}: replacing it discards the {count} runs you started in T3 Extend since the last import.":
-    "{subject}：覆盖它会丢弃你在 T3 Extend 里自上次导入后新增的 {count} 轮对话。",
+  "{subject}: replacing it discards what you changed here since the last import: {changes}.":
+    "{subject}：覆盖它会丢弃你自上次导入后在这里做的改动：{changes}。",
+  "{subject}: it is a long thread, so replacing it may briefly pause your other threads while it is copied.":
+    "{subject}：这是个很长的对话，覆盖它时其他对话可能会短暂停顿。",
   "busy in {app}": "{app} 正在运行",
   archived: "已归档",
   "{count} subagent": "{count} 个子 Agent",

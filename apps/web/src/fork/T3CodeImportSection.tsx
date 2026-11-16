@@ -88,7 +88,8 @@ type CatalogThread = Available["projects"][number]["threads"][number];
 
 /** Threads a bulk pick may take: new ones and updated ones whose copy here has nothing of yours in it. */
 const isBulkSelectable = (thread: CatalogThread) =>
-  thread.state === "importable" || (thread.state === "updated" && thread.localChanges === 0);
+  thread.state === "importable" ||
+  (thread.state === "updated" && thread.localChanges === 0 && thread.localEdits.length === 0);
 
 const draftFor = (catalog: Available): Draft => ({
   threads: new Set(
@@ -127,6 +128,42 @@ const selectionFrom = (catalog: Available, draft: Draft): T3CodeImportSelection 
   }),
   files: [...draft.files],
 });
+
+/** What a replacement would undo, in words: the runs started here and the edits made to the copy. */
+function localChangesText(
+  t: ReturnType<typeof useT>,
+  runs: number,
+  edits: ReadonlyArray<string>,
+): string {
+  const parts: Array<string> = [];
+  if (runs > 0) {
+    parts.push(
+      runs === 1
+        ? t("{count} run you started", { count: runs })
+        : t("{count} runs you started", { count: runs }),
+    );
+  }
+  for (const edit of edits) {
+    switch (edit) {
+      case "title":
+        parts.push(t("a new title"));
+        break;
+      case "pinned":
+        parts.push(t("a changed pin"));
+        break;
+      case "archived":
+        parts.push(t("a changed archive state"));
+        break;
+      case "snoozed":
+        parts.push(t("a changed snooze"));
+        break;
+      case "settings":
+        parts.push(t("changed mode or model settings"));
+        break;
+    }
+  }
+  return parts.join(", ");
+}
 
 function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
   const t = useT();
@@ -356,21 +393,15 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
             { count },
           );
     case "thread-local-discarded":
-      return one
-        ? t(
-            "{subject}: replacing it discards the {count} run you started in T3 Extend since the last import.",
-            {
-              subject,
-              count,
-            },
-          )
-        : t(
-            "{subject}: replacing it discards the {count} runs you started in T3 Extend since the last import.",
-            {
-              subject,
-              count,
-            },
-          );
+      return t(
+        "{subject}: replacing it discards what you changed here since the last import: {changes}.",
+        { subject, changes: localChangesText(t, count, detail === "" ? [] : detail.split(",")) },
+      );
+    case "thread-large-replace":
+      return t(
+        "{subject}: it is a long thread, so replacing it may briefly pause your other threads while it is copied.",
+        { subject },
+      );
     case "provider-credential-imported":
       return one
         ? t("{subject}: its sign-in credential is copied together with the provider.", { subject })
@@ -425,7 +456,7 @@ function ReviewReport(props: { readonly report: T3CodeImportReport }) {
       <Alert variant="warning">
         <AlertDescription>
           <p className="font-medium">
-            {t("Importing replaces what you continued here. This cannot be undone.")}
+            {t("Importing replaces what you changed here. This cannot be undone.")}
           </p>
           <ul className="mt-1 flex flex-col gap-1">
             {discards.map((notice) => (
@@ -617,18 +648,17 @@ function ProjectRow(props: {
                         .filter((part) => part !== null)
                         .join(" · ")}
                     </span>
-                    {thread.state === "updated" && thread.localChanges > 0 && (
-                      <span className="block text-warning-foreground">
-                        {thread.localChanges === 1
-                          ? t("You added {count} run here. Importing it again discards that run.", {
-                              count: thread.localChanges,
-                            })
-                          : t(
-                              "You added {count} runs here. Importing it again discards those runs.",
-                              { count: thread.localChanges },
-                            )}
-                      </span>
-                    )}
+                    {thread.state === "updated" &&
+                      (thread.localChanges > 0 || thread.localEdits.length > 0) && (
+                        <span className="block text-warning-foreground">
+                          {t(
+                            "You changed this here ({changes}). Importing it again discards that.",
+                            {
+                              changes: localChangesText(t, thread.localChanges, thread.localEdits),
+                            },
+                          )}
+                        </span>
+                      )}
                   </span>
                 </label>
               </li>
