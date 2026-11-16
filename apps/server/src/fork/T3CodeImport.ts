@@ -806,8 +806,6 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     return yield* withSource(located.sourcePath, (src) => catalogOf(located.sourcePath, src));
   }).pipe(
     Effect.mapError((cause) => (isImportError(cause) ? cause : failed(cause))),
-    // Opening the dialog also retries a relink that failed; it only touches this database.
-    Effect.tap(() => relinkInBackground),
     Effect.withSpan("T3CodeImport.preview"),
   );
 

@@ -2807,28 +2807,6 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
       ),
   );
 
-  it.effect("opening the import dialog finishes a pending relink", () => {
-    const requested = Deferred.makeUnsafe<void>();
-    const armed = { current: false };
-    return withService(
-      {
-        lockRequested: () =>
-          armed.current ? Deferred.succeed(requested, undefined).pipe(Effect.asVoid) : Effect.void,
-      },
-      ({ service, sql }) =>
-        Effect.gen(function* () {
-          const expected = yield* leaveEarlierBuildState(service, sql);
-          // From here a request for a thread lock can only be the relink the preview starts.
-          armed.current = true;
-          yield* service.preview;
-          yield* Deferred.await(requested);
-          // That relink holds the import lock; asking again waits for it and finds nothing left.
-          assert.equal(yield* service.relinkTaskMessages, 0);
-          assert.deepStrictEqual(yield* scheduledRefs(sql), [expected, expected, expected]);
-        }),
-    );
-  });
-
   it.effect("starting the service relinks what an earlier build left, in the background", () => {
     const requested = Deferred.makeUnsafe<void>();
     const THREAD = "prepared-thread";
