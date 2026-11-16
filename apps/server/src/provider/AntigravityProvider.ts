@@ -165,6 +165,8 @@ interface AntigravityProviderOptions {
   readonly supportsTextGeneration: Effect.Effect<boolean>;
   readonly probeUsage?: Effect.Effect<ServerProviderUsageLimits>;
   readonly clearUsage?: Effect.Effect<void>;
+  // fork: whether the profile holds a sign-in token. Absent for sign-in methods without one.
+  readonly storedSignIn?: Effect.Effect<boolean>;
   readonly maintenanceCapabilities?: ProviderMaintenanceCapabilities;
   readonly auth?: { readonly type: string; readonly label: string };
 }
@@ -244,6 +246,18 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
             ...state,
             draft: {
               ...state.draft,
+              // fork: a quota read needs a token Google accepts, so it also checks the sign-in.
+              ...(state.draft.auth.status === "unknown" &&
+              probed.unavailable === undefined &&
+              probed.windows.length > 0
+                ? {
+                    auth: {
+                      status: "authenticated" as const,
+                      type: options.auth?.type ?? "oauth-personal",
+                      label: options.auth?.label ?? "Google account",
+                    },
+                  }
+                : {}),
               usageLimits: resolveUsageLimitsAfterProbe({
                 published: state.draft.usageLimits,
                 probed,
@@ -296,22 +310,29 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
               : `Antigravity did not respond to its local health check within ${timeoutMs / 1_000} seconds.`;
     const supportsTextGeneration =
       initialized !== undefined ? yield* options.supportsTextGeneration : false;
+    // fork: reading the token file spawns nothing, so the check can tell "signed out" from "unchecked".
+    const hasStoredSignIn = options.storedSignIn ? yield* options.storedSignIn : undefined;
     const updatedAt = DateTime.formatIso(yield* DateTime.now);
     const next = yield* SubscriptionRef.updateAndGet(metadata, (state) => {
       if (state.authRevision !== before.authRevision) return state;
       const { message: _previousMessage, ...draft } = state.draft;
-      const authenticated = draft.auth.status === "authenticated";
+      const auth =
+        hasStoredSignIn === false && draft.auth.status === "unknown"
+          ? ({ status: "unauthenticated", ...(usesCredentials ? options.auth : {}) } as const)
+          : draft.auth;
+      const authenticated = auth.status === "authenticated";
       const message =
         errorMessage ??
         (authenticated
           ? undefined
-          : draft.auth.status === "unauthenticated"
+          : auth.status === "unauthenticated"
             ? signInMessage
             : authUncheckedMessage);
       return {
         ...state,
         draft: {
           ...draft,
+          auth,
           installed: !missingInstallation,
           // Lightweight custom-launcher probes lack versions; preserve the real handshake's version.
           version: version === "unknown" ? draft.version : version || draft.version,
@@ -329,8 +350,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
             : {}),
           ...(initialized !== undefined
             ? {
-                supportsTextGeneration:
-                  supportsTextGeneration && draft.auth.status !== "unauthenticated",
+                supportsTextGeneration: supportsTextGeneration && auth.status !== "unauthenticated",
               }
             : {}),
           ...(message ? { message } : {}),

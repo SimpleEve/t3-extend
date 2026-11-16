@@ -467,6 +467,19 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
       }),
   );
 
+  it.effect.skipIf(windowsHost)("reports a profile without a stored sign-in as signed out", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness();
+      expect(yield* h.fs.exists(h.path.join(h.profileDirectory, "antigravity-acp"))).toBe(false);
+      yield* h.instance.snapshot.refresh;
+      expect(yield* h.instance.snapshot.getSnapshot).toMatchObject({
+        installed: true,
+        status: "warning",
+        auth: { status: "unauthenticated" },
+      });
+    }),
+  );
+
   it.effect.skipIf(windowsHost)("keeps the previous catalog when executable resolution fails", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness();

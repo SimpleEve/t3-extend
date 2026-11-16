@@ -135,6 +135,7 @@ const makeHarness = Effect.fn("makeAntigravityProviderHarness")(function* (
     readonly enabled?: boolean;
     readonly safe?: boolean;
     readonly probeUsage?: Effect.Effect<ServerProviderUsageLimits>;
+    readonly storedSignIn?: Effect.Effect<boolean>;
   } = {},
 ) {
   const initialProbe = yield* Deferred.make<EffectAcpSchema.InitializeResponse, ProbeError>();
@@ -150,6 +151,7 @@ const makeHarness = Effect.fn("makeAntigravityProviderHarness")(function* (
       stampIdentity: (snapshot) => Effect.succeed({ ...snapshot, instanceId, driver }),
       ...(options.auth ? { auth: options.auth } : {}),
       ...(options.probeUsage ? { probeUsage: options.probeUsage } : {}),
+      ...(options.storedSignIn ? { storedSignIn: options.storedSignIn } : {}),
       probe: Ref.update(probeCalls, (count) => count + 1).pipe(
         Effect.andThen(Ref.get(probe)),
         Effect.flatten,
@@ -383,6 +385,72 @@ it.layer(layerTest)("Antigravity provider snapshots", (it) => {
         expectedCommands,
       );
       expect(yield* Ref.get(harness.probeCalls)).toBe(1);
+    }),
+  );
+
+  it.effect("reports a profile with no stored sign-in as signed out instead of unchecked", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeHarness({ storedSignIn: Effect.succeed(false) });
+      yield* harness.initialize;
+      expect(yield* harness.provider.snapshot.getSnapshot).toMatchObject({
+        installed: true,
+        status: "warning",
+        auth: { status: "unauthenticated" },
+        message: "Sign in with Google to use Antigravity.",
+        supportsTextGeneration: false,
+      });
+      // A completed sign-in still wins over the earlier file check.
+      yield* harness.provider.onSessionStarted(started);
+      expect(yield* harness.provider.snapshot.getSnapshot).toMatchObject({
+        status: "ready",
+        auth: { status: "authenticated" },
+      });
+    }),
+  );
+
+  it.effect("a successful quota read proves the stored sign-in without starting a session", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeHarness({
+        storedSignIn: Effect.succeed(true),
+        probeUsage: Effect.succeed({
+          checkedAt: "2026-10-09T12:00:00.000Z",
+          windows: [
+            { id: "gemini-5h", kind: "session", label: "Gemini · 5-hour", usedPercent: 10 },
+          ],
+        }),
+      });
+      const ready = yield* harness.nextPublish(
+        (snapshot) => snapshot.auth.status === "authenticated" && snapshot.status === "ready",
+      );
+      yield* harness.initialize;
+      expect(yield* ready).toMatchObject({
+        status: "ready",
+        auth: { status: "authenticated", type: "oauth-personal", label: "Google account" },
+      });
+      expect((yield* harness.provider.snapshot.getSnapshot).message).toBeUndefined();
+    }),
+  );
+
+  it.effect("keeps sign-in unchecked when a stored sign-in could not be verified", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeHarness({
+        storedSignIn: Effect.succeed(true),
+        probeUsage: Effect.succeed({
+          checkedAt: "2026-10-09T12:00:00.000Z",
+          windows: [],
+          unavailable: { reason: "probeFailed" },
+        }),
+      });
+      const published = yield* harness.nextPublish(
+        (snapshot) => snapshot.usageLimits?.unavailable?.reason === "probeFailed",
+      );
+      yield* harness.initialize;
+      yield* published;
+      expect(yield* harness.provider.snapshot.getSnapshot).toMatchObject({
+        status: "warning",
+        auth: { status: "unknown" },
+        message: "Antigravity is installed. Google account access is not checked yet.",
+      });
     }),
   );
 

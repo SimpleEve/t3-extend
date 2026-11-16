@@ -439,6 +439,14 @@ export const AntigravityDriver: ProviderDriver<
       probe,
       probeUsage: usage.probe,
       clearUsage: usage.clear,
+      // fork: the health check never spawns the agent, so the stored token is its only sign-in signal.
+      ...(antigravityAuthUsesBrowser(auth.authMethod)
+        ? {
+            storedSignIn: fileSystem
+              .exists(path.join(profileDirectory, "antigravity-acp", "acp_token.json"))
+              .pipe(Effect.orElseSucceed(() => true)),
+          }
+        : {}),
       auth: { type: auth.authMethod, label: antigravityAuthLabel(auth.authMethod) },
       supportsTextGeneration: isAntigravityTextGenerationAvailable(profileDirectory).pipe(
         Effect.provideService(FileSystem.FileSystem, fileSystem),
