@@ -21,8 +21,8 @@ export default {
   "Review…": "检查…",
   "Review what will happen, then confirm.": "检查将会发生的事，然后确认。",
   "{app}'s own data is only read, never changed.": "{app} 自己的数据只会被读取，不会被修改。",
-  "Pick what to bring over. Threads you already imported are skipped.":
-    "选择要带过来的内容。已经导入过的对话会被跳过。",
+  "Pick what to bring over. Threads you already imported are skipped, unless {app} has carried on with them since.":
+    "选择要带过来的内容。已经导入过的对话会被跳过，除非它们在 {app} 里又有了新内容。",
   "Projects and threads": "项目和对话",
   "Archived threads": "已归档的对话",
   "Subagent threads": "子 Agent 对话",
@@ -30,6 +30,23 @@ export default {
   "joins your existing project": "并入你已有的项目",
   "{picked} of {total}": "{picked} / {total}",
   "already imported": "已导入",
+  "updated in {app}": "{app} 里有更新",
+  "You added {count} run here. Importing it again discards that run.":
+    "你在这里新增了 {count} 轮对话。再次导入会丢弃这一轮。",
+  "You added {count} runs here. Importing it again discards those runs.":
+    "你在这里新增了 {count} 轮对话。再次导入会丢弃这些对话。",
+  "Importing replaces what you continued here. This cannot be undone.":
+    "导入会覆盖你在这里接着聊的内容，且无法撤销。",
+  "{count} thread is updated in place from {app}. It keeps its place in the sidebar.":
+    "{count} 个对话按 {app} 里的最新内容原地更新，在侧栏里的位置不变。",
+  "{count} threads are updated in place from {app}. They keep their place in the sidebar.":
+    "{count} 个对话按 {app} 里的最新内容原地更新，在侧栏里的位置不变。",
+  "{subject}: it is running or has queued work here, so it is not replaced. Let it finish and import again.":
+    "{subject}：它在这里正在运行或有排队的任务，所以不会被覆盖。等它结束后再导入一次。",
+  "{subject}: replacing it discards the {count} run you started in T3 Extend since the last import.":
+    "{subject}：覆盖它会丢弃你在 T3 Extend 里自上次导入后新增的 {count} 轮对话。",
+  "{subject}: replacing it discards the {count} runs you started in T3 Extend since the last import.":
+    "{subject}：覆盖它会丢弃你在 T3 Extend 里自上次导入后新增的 {count} 轮对话。",
   "busy in {app}": "{app} 正在运行",
   archived: "已归档",
   "{count} subagent": "{count} 个子 Agent",

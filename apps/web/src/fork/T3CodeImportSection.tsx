@@ -84,11 +84,17 @@ const FILE_KINDS: ReadonlyArray<T3CodeImportFileKind> = [
 
 const errorMessage = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause));
 
+type CatalogThread = Available["projects"][number]["threads"][number];
+
+/** Threads a bulk pick may take: new ones and updated ones whose copy here has nothing of yours in it. */
+const isBulkSelectable = (thread: CatalogThread) =>
+  thread.state === "importable" || (thread.state === "updated" && thread.localChanges === 0);
+
 const draftFor = (catalog: Available): Draft => ({
   threads: new Set(
     catalog.projects.flatMap((project) =>
       project.threads
-        .filter((thread) => thread.state === "importable" && !thread.archived)
+        .filter((thread) => isBulkSelectable(thread) && !thread.archived)
         .map((thread) => thread.threadId),
     ),
   ),
@@ -185,6 +191,19 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
       return t("{subject} is imported and active. Its first run is at its next scheduled time.", {
         subject,
       });
+    case "thread-refreshed":
+      return one
+        ? t("{count} thread is updated in place from {app}. It keeps its place in the sidebar.", {
+            app,
+            count,
+          })
+        : t(
+            "{count} threads are updated in place from {app}. They keep their place in the sidebar.",
+            {
+              app,
+              count,
+            },
+          );
     case "identity-skipped":
       return subject
         ? t(
@@ -225,6 +244,11 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
       });
     case "thread-parent-busy":
       return t("{subject}: its parent thread is busy in {app}.", { app, subject });
+    case "thread-target-busy":
+      return t(
+        "{subject}: it is running or has queued work here, so it is not replaced. Let it finish and import again.",
+        { subject },
+      );
     case "task-project-missing":
       return t("{subject}: its project is not part of this import.", { subject });
     case "task-thread-missing":
@@ -326,6 +350,22 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
             "{count} checkpoints were left out because the names they would take already point to different commits. They show as missing.",
             { count },
           );
+    case "thread-local-discarded":
+      return one
+        ? t(
+            "{subject}: replacing it discards the {count} run you started in T3 Extend since the last import.",
+            {
+              subject,
+              count,
+            },
+          )
+        : t(
+            "{subject}: replacing it discards the {count} runs you started in T3 Extend since the last import.",
+            {
+              subject,
+              count,
+            },
+          );
     case "provider-credential-imported":
       return one
         ? t("{subject}: its sign-in credential is copied together with the provider.", { subject })
@@ -364,6 +404,41 @@ function Report(props: { readonly report: T3CodeImportReport }) {
           )}
         </section>
       ))}
+    </div>
+  );
+}
+
+/** What replacing a thread throws away is said first and apart: it cannot be undone. */
+function ReviewReport(props: { readonly report: T3CodeImportReport }) {
+  const t = useT();
+  const discards = props.report.attention.filter(
+    (notice) => notice.code === "thread-local-discarded",
+  );
+  if (discards.length === 0) return <Report report={props.report} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <Alert variant="warning">
+        <AlertDescription>
+          <p className="font-medium">
+            {t("Importing replaces what you continued here. This cannot be undone.")}
+          </p>
+          <ul className="mt-1 flex flex-col gap-1">
+            {discards.map((notice) => (
+              <li key={notice.subject}>
+                <NoticeText notice={notice} />
+              </li>
+            ))}
+          </ul>
+        </AlertDescription>
+      </Alert>
+      <Report
+        report={{
+          ...props.report,
+          attention: props.report.attention.filter(
+            (notice) => notice.code !== "thread-local-discarded",
+          ),
+        }}
+      />
     </div>
   );
 }
@@ -446,7 +521,7 @@ function ProjectRow(props: {
   const t = useT();
   const { project, draft } = props;
   const selectable = project.threads.filter(
-    (thread) => thread.state === "importable" && (draft.includeArchived || !thread.archived),
+    (thread) => isBulkSelectable(thread) && (draft.includeArchived || !thread.archived),
   );
   const picked = selectable.filter((thread) => draft.threads.has(thread.threadId)).length;
   const isEmpty = project.threads.length === 0;
@@ -504,7 +579,8 @@ function ProjectRow(props: {
         <ul className="ml-6 flex flex-col pb-2">
           {project.threads.map((thread) => {
             const disabled =
-              thread.state !== "importable" || (thread.archived && !draft.includeArchived);
+              (thread.state !== "importable" && thread.state !== "updated") ||
+              (thread.archived && !draft.includeArchived);
             return (
               <li key={thread.threadId}>
                 <label className="flex items-start gap-2 py-1">
@@ -519,6 +595,9 @@ function ProjectRow(props: {
                     <span className="block text-muted-foreground">
                       {[
                         thread.state === "imported" ? t("already imported") : null,
+                        thread.state === "updated"
+                          ? t("updated in {app}", { app: OFFICIAL_APP_NAME })
+                          : null,
                         thread.state === "busy"
                           ? t("busy in {app}", { app: OFFICIAL_APP_NAME })
                           : null,
@@ -533,6 +612,18 @@ function ProjectRow(props: {
                         .filter((part) => part !== null)
                         .join(" · ")}
                     </span>
+                    {thread.state === "updated" && thread.localChanges > 0 && (
+                      <span className="block text-warning-foreground">
+                        {thread.localChanges === 1
+                          ? t("You added {count} run here. Importing it again discards that run.", {
+                              count: thread.localChanges,
+                            })
+                          : t(
+                              "You added {count} runs here. Importing it again discards those runs.",
+                              { count: thread.localChanges },
+                            )}
+                      </span>
+                    )}
                   </span>
                 </label>
               </li>
@@ -820,7 +911,10 @@ function ImportRow(props: {
                 ? t("Review what will happen, then confirm.")
                 : step.kind === "running"
                   ? t("{app}'s own data is only read, never changed.", { app: OFFICIAL_APP_NAME })
-                  : t("Pick what to bring over. Threads you already imported are skipped.")}
+                  : t(
+                      "Pick what to bring over. Threads you already imported are skipped, unless {app} has carried on with them since.",
+                      { app: OFFICIAL_APP_NAME },
+                    )}
             </DialogDescription>
           </DialogHeader>
           <DialogPanel>
@@ -848,7 +942,7 @@ function ImportRow(props: {
                   {t("Checking every selected item…")}
                 </div>
               ) : (
-                <Report report={step.report} />
+                <ReviewReport report={step.report} />
               ))}
             {step.kind === "running" && (
               <Progress environmentId={props.environmentId} onFinished={finish} />
