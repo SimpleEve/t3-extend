@@ -9,12 +9,40 @@ import {
 
 /** omp's approval prompt title: `Allow tool: <name>`, then one detail line per input. */
 const APPROVAL_TITLE = /^Allow tool: (\S+)(?:\n([\s\S]*))?$/;
-const APPROVE_FALLBACK = "Approve";
-const DENY_FALLBACK = "Deny";
+
+// omp's select dialog has no option ids: the labels are the values it reads back, so choices are
+// found by their meaning. Grant choices ("Approve Directory: …", "Always …") are never picked.
+const normalizeLabel = (label: string) => label.trim().replace(/\s+/g, " ").toLowerCase();
+
+interface ApprovalChoices {
+  readonly approve: string;
+  readonly session: string | undefined;
+  readonly deny: string;
+}
+
+/** `undefined` when the options are not exactly one approve, at most one session approve and one deny. */
+function readApprovalChoices(options: ReadonlyArray<string>): ApprovalChoices | undefined {
+  const matching = (test: (label: string) => boolean) =>
+    options.filter((option) => test(normalizeLabel(option)));
+  // With scoped grants omp calls the plain choice "Approve Once" and uses "Approve" for a grant.
+  const once = matching((label) => label === "approve once");
+  const approve = once.length > 0 ? once : matching((label) => label === "approve");
+  const session = matching((label) => /^approve .+ for this session$/.test(label));
+  const deny = matching((label) => label === "deny");
+  if (approve.length !== 1 || deny.length !== 1 || session.length > 1) return undefined;
+  return { approve: approve[0]!, session: session[0], deny: deny[0]! };
+}
+
+export interface OmpTranslation {
+  /** What the Pi adapter should see, possibly nothing. */
+  readonly frames: ReadonlyArray<PiRpcRecord>;
+  /** What must go straight back to omp without the adapter's involvement. */
+  readonly replies: ReadonlyArray<PiRpcRecord>;
+}
 
 export interface OmpTranslator {
-  /** omp stdout frame to the frames the Pi adapter expects (possibly none). */
-  readonly fromOmp: (frame: PiRpcRecord) => ReadonlyArray<PiRpcRecord>;
+  /** omp stdout frame to the frames the Pi adapter expects, and any replies owed to omp. */
+  readonly fromOmp: (frame: PiRpcRecord) => OmpTranslation;
   /** Pi adapter command to the command omp understands. */
   readonly toOmp: (record: PiRpcRecord) => PiRpcRecord;
 }
@@ -23,7 +51,11 @@ export function makeOmpTranslator(): OmpTranslator {
   let agentRunning = false;
   // Prompts sent while the agent ran are queued behind it; omp's acknowledgement does not say so.
   const sentWhileRunning = new Map<string, boolean>();
-  const approvals = new Map<string, { readonly approve: string; readonly deny: string }>();
+  const approvals = new Map<string, ApprovalChoices>();
+  const frames = (...translated: ReadonlyArray<PiRpcRecord>): OmpTranslation => ({
+    frames: translated,
+    replies: [],
+  });
 
   const settled = (frame: PiRpcRecord): boolean => {
     const yielded = frame["yielded"];
@@ -40,37 +72,40 @@ export function makeOmpTranslator(): OmpTranslator {
     return undefined;
   };
 
-  const fromOmp = (frame: PiRpcRecord): ReadonlyArray<PiRpcRecord> => {
+  const fromOmp = (frame: PiRpcRecord): OmpTranslation => {
     switch (frame["type"]) {
       case "ready":
       case "prompt_result":
       // The yield settles a turn (see agent_end); omp's quiescence frame would settle it twice.
       case "session_settled":
-        return [];
+        return frames();
       case "agent_start":
         agentRunning = true;
-        return [frame];
+        return frames(frame);
       case "agent_end": {
-        if (!settled(frame)) return [frame];
+        if (!settled(frame)) return frames(frame);
         agentRunning = false;
-        return [
-          frame,
-          { type: "agent_settled", aborted: lastAssistantStopReason(frame) === "aborted" },
-        ];
+        return frames(frame, {
+          type: "agent_settled",
+          aborted: lastAssistantStopReason(frame) === "aborted",
+        });
       }
       case "manual_compaction_start":
-        return [{ type: "compaction_start", reason: "manual" }];
+        return frames({ type: "compaction_start", reason: "manual" });
       case "auto_compaction_start":
-        return [{ type: "compaction_start", reason: recordString(frame, "reason") ?? "threshold" }];
+        return frames({
+          type: "compaction_start",
+          reason: recordString(frame, "reason") ?? "threshold",
+        });
       case "manual_compaction_end":
       case "auto_compaction_end":
-        return [compactionEnd(frame)];
+        return frames(compactionEnd(frame));
       case "extension_ui_request":
-        return [approvalAsConfirm(frame)];
+        return approvalAsConfirm(frame);
       case "response":
-        return [promptAcknowledgement(frame)];
+        return frames(promptAcknowledgement(frame));
       default:
-        return [frame];
+        return frames(frame);
     }
   };
 
@@ -83,7 +118,12 @@ export function makeOmpTranslator(): OmpTranslator {
       willRetry: frame["willRetry"] === true,
     };
     const result = frame["result"];
-    if (frame["skipped"] === true || result === undefined || result === null) {
+    // Nothing to compact is an ordinary outcome, so it completes with omp's explanation as its note.
+    if (frame["skipped"] === true) {
+      const note = recordString(frame, "errorMessage");
+      return { ...base, skipped: true, result: note === undefined ? {} : { summary: note } };
+    }
+    if (result === undefined || result === null) {
       const errorMessage = recordString(frame, "errorMessage");
       return { ...base, result: null, ...(errorMessage === undefined ? {} : { errorMessage }) };
     }
@@ -100,27 +140,40 @@ export function makeOmpTranslator(): OmpTranslator {
     };
   };
 
-  const approvalAsConfirm = (frame: PiRpcRecord): PiRpcRecord => {
-    if (frame["method"] !== "select") return frame;
+  const approvalAsConfirm = (frame: PiRpcRecord): OmpTranslation => {
+    if (frame["method"] !== "select") return frames(frame);
     const id = recordString(frame, "id");
     const match = APPROVAL_TITLE.exec(recordString(frame, "title") ?? "");
     const options = recordField(frame, "options");
-    if (id === undefined || match === null || !Array.isArray(options)) return frame;
+    if (id === undefined || match === null || !Array.isArray(options)) return frames(frame);
     const labels = options.filter((option): option is string => typeof option === "string");
-    approvals.set(id, {
-      approve: labels.find((label) => label === APPROVE_FALLBACK) ?? labels[0] ?? APPROVE_FALLBACK,
-      deny: labels.find((label) => label === DENY_FALLBACK) ?? labels.at(-1) ?? DENY_FALLBACK,
-    });
+    const choices = readApprovalChoices(labels);
+    if (choices === undefined) {
+      // Guessing a choice could approve something the user never saw, so omp is told to deny.
+      return {
+        frames: [
+          {
+            type: "extension_ui_request",
+            id: `${id}:unreadable`,
+            method: "notify",
+            notifyType: "error",
+            message: `omp asked to allow ${match[1]} in a format T3 Code does not recognise (${labels.join(" / ")}), so the request was denied.`,
+          },
+        ],
+        replies: [{ type: "extension_ui_response", id, cancelled: true }],
+      };
+    }
+    approvals.set(id, choices);
     const details = match[2]?.trim();
     const timeout = recordNumber(frame, "timeout");
-    return {
+    return frames({
       type: "extension_ui_request",
       id,
       method: "confirm",
       title: `Allow ${match[1]}?`,
       ...(details === undefined || details.length === 0 ? {} : { message: details }),
       ...(timeout === undefined ? {} : { timeout }),
-    };
+    });
   };
 
   const promptAcknowledgement = (frame: PiRpcRecord): PiRpcRecord => {
@@ -147,6 +200,10 @@ export function makeOmpTranslator(): OmpTranslator {
       }
       case "get_commands":
         return { ...record, type: "get_available_commands" };
+      // Pi's fork starts the new session before the entry; omp's `fork` keeps the entry, and its
+      // `branch` (which also returns the entry's text) is the one that cuts before it.
+      case "fork":
+        return { ...record, type: "branch" };
       // Pi's clear_queue empties the queue and leaves the run alone; omp's closest command also
       // aborts, which both callers (Stop and restart) send next anyway.
       case "clear_queue":
@@ -158,10 +215,18 @@ export function makeOmpTranslator(): OmpTranslator {
         approvals.delete(id);
         if (record["cancelled"] === true)
           return { type: "extension_ui_response", id, cancelled: true };
+        if (record["confirmed"] !== true) {
+          return { type: "extension_ui_response", id, value: approval.deny };
+        }
+        // Without omp's session choice the approval stays a single one; the adapter's own memory
+        // of identical requests still covers the rest of the session.
         return {
           type: "extension_ui_response",
           id,
-          value: record["confirmed"] === true ? approval.approve : approval.deny,
+          value:
+            record["forSession"] === true && approval.session !== undefined
+              ? approval.session
+              : approval.approve,
         };
       }
       default:

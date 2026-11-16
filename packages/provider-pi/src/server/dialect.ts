@@ -43,6 +43,8 @@ export interface PiDialect {
   readonly reportsTurnTokenUsage?: boolean;
   /** `false` drops extension status text; clients label it as Pi's, so other agents must not show it. */
   readonly showsExtensionStatuses?: boolean;
+  /** Sends `forSession: true` with a confirm answered "allow for session", for agents with a native session grant. */
+  readonly forwardsSessionApproval?: boolean;
   /** Pi injects a permission and MCP extension; dialects with native equivalents return undefined. */
   readonly materializeExtension: (
     cacheDir: string,

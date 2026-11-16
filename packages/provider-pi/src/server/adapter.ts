@@ -3607,6 +3607,12 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
               type: "extension_ui_response",
               id: pending.nativeRequestId,
               ...response,
+              // fork: a dialect with its own session-wide approval needs to hear which one was chosen.
+              ...(dialect.forwardsSessionApproval === true &&
+              pending.method === "confirm" &&
+              requestInput.decision === "acceptForSession"
+                ? { forSession: true }
+                : {}),
             });
             pendingPrompts.delete(String(requestInput.requestId));
             if (pending.expirationFiber !== null) yield* Fiber.interrupt(pending.expirationFiber);

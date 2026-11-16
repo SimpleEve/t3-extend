@@ -122,8 +122,11 @@ export const makeOmpRpcConnection = Effect.fnUntraced(function* (options: PiDial
         if (fiber !== undefined) yield* Fiber.interrupt(fiber);
         return;
       }
-      default:
-        for (const translated of translator.fromOmp(frame)) yield* Queue.offer(events, translated);
+      default: {
+        const translation = translator.fromOmp(frame);
+        for (const reply of translation.replies) yield* raw.send(reply);
+        for (const translated of translation.frames) yield* Queue.offer(events, translated);
+      }
     }
   });
 

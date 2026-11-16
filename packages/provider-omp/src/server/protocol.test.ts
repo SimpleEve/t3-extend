@@ -26,7 +26,7 @@ const agentEnd = (extra: Record<string, unknown> = {}, stopReason = "stop") => (
 });
 
 const outbound = (translator: OmpTranslator, ...frames: ReadonlyArray<Record<string, unknown>>) =>
-  frames.flatMap((frame) => translator.fromOmp(frame));
+  frames.flatMap((frame) => translator.fromOmp(frame).frames);
 
 describe("omp outbound frames", () => {
   it("drops frames Pi has no equivalent for", () => {
@@ -128,13 +128,14 @@ describe("omp outbound frames", () => {
         willRetry: true,
         result: { summary: "again", tokensBefore: 90000 },
       },
+      // A skipped compaction is a normal no-op that carries omp's own explanation, not a failure.
       {
         type: "compaction_end",
         reason: "manual",
         aborted: false,
         willRetry: false,
-        result: null,
-        errorMessage: "Already compacted",
+        skipped: true,
+        result: { summary: "Already compacted" },
       },
       { type: "compaction_end", reason: "manual", aborted: true, willRetry: false, result: null },
     ]);
@@ -151,6 +152,29 @@ describe("omp outbound frames", () => {
         message: "Command: echo omp-probe",
       },
     ]);
+  });
+
+  it("denies and reports an approval prompt whose choices it cannot tell apart", () => {
+    const unreadable = [
+      ["Yes", "No"],
+      ["Approve", "Approve bash for this session"],
+      ["Approve", "Approve", "Deny"],
+      ["Deny", "Deny", "Approve"],
+    ];
+    for (const options of unreadable) {
+      const translator = makeOmpTranslator();
+      const result = translator.fromOmp({ ...approvalRequest, options });
+      expect(result.replies).toEqual([
+        { type: "extension_ui_response", id: "15cfcc57317e7bcc", cancelled: true },
+      ]);
+      expect(result.frames).toHaveLength(1);
+      expect(result.frames[0]).toMatchObject({
+        type: "extension_ui_request",
+        method: "notify",
+        notifyType: "error",
+      });
+      expect(String(result.frames[0]?.["message"])).toContain("bash");
+    }
   });
 
   it("leaves other dialogs, such as the ask tool's questions, as they are", () => {
@@ -256,6 +280,79 @@ describe("omp inbound commands", () => {
     ).toEqual({ type: "extension_ui_response", id: "third", cancelled: true });
   });
 
+  it("sends omp's own session choice when the user approves for the session", () => {
+    const translator = makeOmpTranslator();
+    outbound(translator, approvalRequest);
+    expect(
+      translator.toOmp({
+        type: "extension_ui_response",
+        id: "15cfcc57317e7bcc",
+        confirmed: true,
+        forSession: true,
+      }),
+    ).toEqual({
+      type: "extension_ui_response",
+      id: "15cfcc57317e7bcc",
+      value: "Approve bash for this session",
+    });
+  });
+
+  it("finds the choices by meaning, so their order and case do not matter", () => {
+    const answer = (options: ReadonlyArray<string>, response: Record<string, unknown>) => {
+      const translator = makeOmpTranslator();
+      outbound(translator, { ...approvalRequest, options });
+      return translator.toOmp({
+        type: "extension_ui_response",
+        id: "15cfcc57317e7bcc",
+        ...response,
+      })["value"];
+    };
+    const shuffled = ["Deny", "Approve bash for this session", "Approve"];
+    expect(answer(shuffled, { confirmed: true })).toBe("Approve");
+    expect(answer(shuffled, { confirmed: true, forSession: true })).toBe(
+      "Approve bash for this session",
+    );
+    expect(answer(shuffled, { confirmed: false })).toBe("Deny");
+    const loose = [" deny", "APPROVE  bash FOR this session", "approve "];
+    expect(answer(loose, { confirmed: true })).toBe("approve ");
+    expect(answer(loose, { confirmed: true, forSession: true })).toBe(
+      "APPROVE  bash FOR this session",
+    );
+    expect(answer(loose, { confirmed: false })).toBe(" deny");
+  });
+
+  it("approves once with the plain choice when omp also offers scoped grants", () => {
+    const translator = makeOmpTranslator();
+    outbound(translator, {
+      ...approvalRequest,
+      options: [
+        "Approve Once",
+        "Approve Directory: /work",
+        "Always Approve Directory: /work",
+        "Approve",
+        "Always Approve",
+        "Approve bash for this session",
+        "Deny",
+      ],
+    });
+    expect(
+      translator.toOmp({ type: "extension_ui_response", id: "15cfcc57317e7bcc", confirmed: true }),
+    ).toMatchObject({ value: "Approve Once" });
+  });
+
+  it("approves once when the user asks for the session but omp offers no session choice", () => {
+    const translator = makeOmpTranslator();
+    outbound(translator, { ...approvalRequest, options: ["Approve", "Deny"] });
+    expect(
+      translator.toOmp({
+        type: "extension_ui_response",
+        id: "15cfcc57317e7bcc",
+        confirmed: true,
+        forSession: true,
+      }),
+    ).toMatchObject({ value: "Approve" });
+  });
+
   it("passes responses to other dialogs through", () => {
     const translator = makeOmpTranslator();
     const response = { type: "extension_ui_response", id: "ui_2", value: "SQLite" };
@@ -271,6 +368,15 @@ describe("omp inbound commands", () => {
     expect(translator.toOmp({ type: "clear_queue", id: "b" })).toEqual({
       type: "abort_and_restore_queue",
       id: "b",
+    });
+  });
+
+  it("forks before an entry with omp's branch, since omp's own fork keeps the entry", () => {
+    const translator = makeOmpTranslator();
+    expect(translator.toOmp({ type: "fork", id: "c", entryId: "e1" })).toEqual({
+      type: "branch",
+      id: "c",
+      entryId: "e1",
     });
   });
 

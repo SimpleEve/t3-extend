@@ -5,12 +5,14 @@ import {
   NodeId,
   ProviderInstanceId,
   ProviderSessionId,
+  ProviderTurnId,
   RunAttemptId,
   RunId,
   ThreadId,
   type ModelSelection,
   type OrchestrationV2AppThread,
   type OrchestrationV2ProviderThread,
+  type OrchestrationV2ProviderTurn,
   type RuntimeMode,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
@@ -18,6 +20,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Queue from "effect/Queue";
 import * as Stream from "effect/Stream";
+import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
@@ -51,7 +54,19 @@ const runtimePolicy = (runtimeMode: RuntimeMode) =>
     cwd: null,
   });
 
-const openRuntime = Effect.fnUntraced(function* (fake: FakeOmp, runtimeMode: RuntimeMode) {
+const openRuntime = Effect.fnUntraced(function* (
+  fake: FakeOmp,
+  runtimeMode: RuntimeMode,
+  forkFake?: FakeOmp,
+) {
+  const spawner =
+    forkFake === undefined
+      ? fake.spawner
+      : ChildProcessSpawner.make((command) =>
+          ChildProcess.isStandardCommand(command) && command.args.includes("--fork")
+            ? forkFake.spawner.spawn(command)
+            : fake.spawner.spawn(command),
+        );
   const adapter = yield* OmpAdapterV2Driver.create({
     instanceId: INSTANCE_ID,
     displayName: undefined,
@@ -59,7 +74,7 @@ const openRuntime = Effect.fnUntraced(function* (fake: FakeOmp, runtimeMode: Run
     environment: [],
     config: { enabled: true, binaryPath: "omp", launchArgs: "--no-lsp", customModels: [] },
   }).pipe(
-    Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, fake.spawner),
+    Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
     Effect.provideService(HostProcess.Environment, {}),
     Effect.provideService(ProviderContinuationRequests.ProviderContinuationRequests, {
       offer: () => Effect.void,
@@ -342,6 +357,164 @@ describe("OmpAdapterV2", () => {
           decision: "decline",
         });
         assert.equal((yield* fake.takeRequest("extension_ui_response"))["value"], "Deny");
+      }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
+  const approvalPrompt = (id: string, options: ReadonlyArray<string>, command = "ls") => ({
+    type: "extension_ui_request",
+    id,
+    method: "select",
+    title: `Allow tool: bash\nCommand: ${command}`,
+    options,
+  });
+
+  const pendingApproval = (
+    takeEvent: (
+      predicate: (event: ProviderAdapter.ProviderAdapterV2Event) => boolean,
+    ) => Effect.Effect<ProviderAdapter.ProviderAdapterV2Event>,
+  ) =>
+    Effect.gen(function* () {
+      const event = yield* takeEvent(
+        (candidate) =>
+          candidate.type === "runtime_request.updated" &&
+          candidate.runtimeRequest.status === "pending",
+      );
+      if (event.type !== "runtime_request.updated") return assert.fail("expected a request");
+      return event.runtimeRequest.id;
+    });
+
+  it.effect("sends omp's own session choice, whatever order omp lists its choices in", () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOmp();
+      const { runtime, takeEvent, providerThread } = yield* openRuntime(fake, "approval-required");
+      yield* startTurn(runtime, providerThread, "approval-required");
+      yield* fake.takeRequest("prompt");
+      yield* fake.emit({ type: "agent_start" });
+      yield* fake.emit(approvalPrompt("a1", ["Deny", "Approve bash for this session", "Approve"]));
+      yield* runtime.respondToRuntimeRequest({
+        requestId: yield* pendingApproval(takeEvent),
+        decision: "acceptForSession",
+      });
+      assert.equal(
+        (yield* fake.takeRequest("extension_ui_response"))["value"],
+        "Approve bash for this session",
+      );
+      yield* fake.emit(
+        approvalPrompt("a2", ["Deny", "Approve bash for this session", "Approve"], "pwd"),
+      );
+      yield* runtime.respondToRuntimeRequest({
+        requestId: yield* pendingApproval(takeEvent),
+        decision: "accept",
+      });
+      assert.equal((yield* fake.takeRequest("extension_ui_response"))["value"], "Approve");
+    }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
+  it.effect("denies an approval prompt it cannot read instead of guessing a choice", () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOmp();
+      const { runtime, takeEvent, providerThread } = yield* openRuntime(fake, "approval-required");
+      yield* startTurn(runtime, providerThread, "approval-required");
+      yield* fake.takeRequest("prompt");
+      yield* fake.emit({ type: "agent_start" });
+      yield* fake.emit(approvalPrompt("u1", ["Yes", "No"]));
+      assert.deepEqual(yield* fake.takeRequest("extension_ui_response"), {
+        type: "extension_ui_response",
+        id: "u1",
+        cancelled: true,
+      });
+      const notice = yield* takeEvent(
+        (event) => event.type === "turn_item.updated" && event.turnItem.type === "system_notice",
+      );
+      assert.include(JSON.stringify(notice), "does not recognise");
+      assert.isUndefined(
+        fake
+          .allRequests()
+          .find(
+            (request) =>
+              request["type"] === "extension_ui_response" && request["value"] !== undefined,
+          ),
+      );
+    }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
+  it.effect("completes a compaction omp skipped as a no-op instead of failing it", () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOmp();
+      const { runtime, takeEvent, providerThread } = yield* openRuntime(fake, "full-access");
+      yield* startTurn(runtime, providerThread, "full-access");
+      yield* fake.takeRequest("prompt");
+      yield* fake.emit({ type: "agent_start" });
+      yield* fake.emit({ type: "manual_compaction_start" });
+      yield* fake.emit({
+        type: "manual_compaction_end",
+        aborted: false,
+        skipped: true,
+        errorMessage: "Nothing to compact",
+      });
+      const done = yield* takeEvent(
+        (event) =>
+          event.type === "turn_item.updated" &&
+          event.turnItem.type === "compaction" &&
+          event.turnItem.status !== "running",
+      );
+      if (done.type !== "turn_item.updated" || done.turnItem.type !== "compaction") {
+        return assert.fail("expected a compaction");
+      }
+      assert.equal(done.turnItem.status, "completed");
+      assert.equal(done.turnItem.summary, "Nothing to compact");
+    }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
+  it.effect(
+    "forks a thread through omp's own --fork and its RPC fork, not Pi's session format",
+    () =>
+      Effect.gen(function* () {
+        const forkFile = "/fake/.omp/agent/sessions/--other--/forked.jsonl";
+        const fake = yield* makeFakeOmp();
+        const forkFake = yield* makeFakeOmp({ get_state: { sessionFile: forkFile } });
+        const { runtime, providerThread: source } = yield* openRuntime(
+          fake,
+          "full-access",
+          forkFake,
+        );
+        const turn = (ordinal: number): OrchestrationV2ProviderTurn => ({
+          id: ProviderTurnId.make(`turn-${ordinal}`),
+          providerThreadId: source.id,
+          nodeId: NodeId.make(`node-${ordinal}`),
+          runAttemptId: null,
+          nativeTurnRef: { driver: OMP_PROVIDER, nativeId: `u${ordinal}`, strength: "strong" },
+          ordinal,
+          status: "completed",
+          startedAt: null,
+          completedAt: null,
+        });
+        const forked = yield* runtime.forkThread({
+          sourceProviderThread: source,
+          sourceProviderTurns: [turn(1), turn(2)],
+          providerTurnId: turn(1).id,
+          targetThreadId: ThreadId.make("fork-target"),
+        });
+        assert.equal(forked.driver, OMP_PROVIDER);
+        // The live session adopts the forked file; the fake process keeps reporting its own file.
+        assert.equal(
+          fake.allRequests().findLast((request) => request["type"] === "switch_session")?.[
+            "sessionPath"
+          ],
+          forkFile,
+        );
+        const args = forkFake.lastSpawnArgs();
+        assert.equal(args[args.indexOf("--fork") + 1], source.nativeThreadRef?.nativeId);
+        assert.deepEqual(args.slice(0, 2), ["--mode", "rpc"]);
+        assert.notInclude(args, "--no-session");
+        // omp's own `fork` keeps the entry it is given and Pi's drops it; only `branch` cuts before it.
+        const forks = (process: typeof fake) =>
+          process
+            .allRequests()
+            .filter((request) => request["type"] === "branch" || request["type"] === "fork")
+            .map((request) => [request["type"], request["entryId"]]);
+        assert.deepEqual(forks(forkFake), [["branch", "u2"]]);
+        assert.deepEqual(forks(fake), []);
       }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 

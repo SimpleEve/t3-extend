@@ -94,6 +94,20 @@ const ARGUMENTS_WITH_VALUES = new Set([
   "--max-cost",
 ]);
 
+// Short flags T3 owns, and the one that takes a value: `-e` consumes the rest of its token.
+const RESERVED_SHORT_FLAGS = new Set(["c", "r", "p", "h", "v"]);
+const VALUE_SHORT_FLAG = "e";
+
+/** A reserved flag hidden in a short token: `-r=x`, `-rx`, `-cr`. */
+function reservedShortFlag(arg: string): string | undefined {
+  if (!arg.startsWith("-") || arg.startsWith("--") || arg.length < 2) return undefined;
+  for (const flag of arg.slice(1)) {
+    if (flag === VALUE_SHORT_FLAG || flag === "=") return undefined;
+    if (RESERVED_SHORT_FLAGS.has(flag)) return `-${flag}`;
+  }
+  return undefined;
+}
+
 export function resolveOmpLaunchArgs(launchArgs: string): PiLaunchArgsResolution {
   const args = tokenizeCliArgs(launchArgs).flatMap((arg) => {
     const equals = arg.indexOf("=");
@@ -106,7 +120,9 @@ export function resolveOmpLaunchArgs(launchArgs: string): PiLaunchArgsResolution
     const arg = args[index];
     if (arg === undefined) continue;
     // `--flag=value` is one token for flags outside the value list, so match its name alone.
-    const name = arg.startsWith("--") && arg.includes("=") ? arg.slice(0, arg.indexOf("=")) : arg;
+    const name =
+      reservedShortFlag(arg) ??
+      (arg.startsWith("--") && arg.includes("=") ? arg.slice(0, arg.indexOf("=")) : arg);
     if (RESERVED_ARGUMENTS.has(name)) {
       return {
         ok: false,
@@ -159,6 +175,7 @@ export const OMP_DIALECT: PiDialect = {
   capabilities: OmpProviderCapabilities,
   reportsTurnTokenUsage: true,
   showsExtensionStatuses: false,
+  forwardsSessionApproval: true,
   // Approvals are omp's own and T3's tools arrive as host tools, so there is nothing to install.
   materializeExtension: () => Effect.undefined,
   resolveLaunchArgs: resolveOmpLaunchArgs,

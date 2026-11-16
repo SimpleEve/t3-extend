@@ -35,6 +35,28 @@ describe("omp launch arguments", () => {
     });
   });
 
+  it.each([
+    ["-r=/tmp/x", "-r"],
+    ["-c=foo", "-c"],
+    ["-cr", "-c"],
+    ["-rabc", "-r"],
+    ["-xp", "-p"],
+    ["--no-lsp -ve", "-v"],
+    ["--print=1", "--print"],
+  ])("sees T3's own flag through the short forms of %s", (launchArgs, flag) => {
+    expect(resolveOmpLaunchArgs(launchArgs)).toEqual({
+      ok: false,
+      message: `omp launch argument '${flag}' is controlled by T3 Code and cannot be overridden.`,
+    });
+  });
+
+  it("keeps -e for extensions, whatever follows it", () => {
+    expect(resolveOmpLaunchArgs("-e /ext/a.ts -e=/ext/b.ts -e/ext/c.ts")).toEqual({
+      ok: true,
+      args: ["-e", "/ext/a.ts", "-e", "/ext/b.ts", "-e/ext/c.ts"],
+    });
+  });
+
   it("rejects a stray prompt, which omp would otherwise send as the first message", () => {
     expect(resolveOmpLaunchArgs("--no-lsp list the files")).toEqual({
       ok: false,
