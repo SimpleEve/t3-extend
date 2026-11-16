@@ -29,6 +29,7 @@ describe("background service switch", () => {
   it("shows an installed service as on and removes it when switched off", async () => {
     const { setEnabled, global } = stubBridge({ kind: "on" });
     using _global = global;
+    // The row has no links or navigation, so it needs no router.
     await using _screen = await render(<BackgroundServiceSettings />, { router: false });
 
     await expect
@@ -49,6 +50,7 @@ describe("background service switch", () => {
       reason: "Bootstrap failed: 5: Input/output error",
     });
     using _global = global;
+    // The row has no links or navigation, so it needs no router.
     await using _screen = await render(<BackgroundServiceSettings />, { router: false });
 
     await expect
@@ -67,6 +69,7 @@ describe("background service switch", () => {
   });
 
   it("renders nothing where there is no bridge", async () => {
+    // The row has no links or navigation, so it needs no router.
     await using screen = await render(<BackgroundServiceSettings />, { router: false });
     expect(screen.container.textContent).toBe("");
   });
