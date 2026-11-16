@@ -20,6 +20,10 @@ does not quit the app, as before.
 - If you move or delete the app, the row says so. Turn it off and on again from
   the app's new location. After you install a new version of the app, the row
   offers **Repair**.
+- If the service cannot start when you quit, the next time you open the app a
+  message says so and the setting shows why, with a **Retry** button. If the app
+  cannot stop the service when it opens, it says so and quits instead of
+  running a second server; remove the service with `t3x service uninstall`.
 - If the app crashes or is force-quit, the service stays stopped until you next
   open and quit the app, or log in again.
 
