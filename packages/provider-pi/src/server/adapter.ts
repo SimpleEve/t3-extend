@@ -210,6 +210,9 @@ export interface PiAdapterV2Options {
   readonly dialect?: PiDialect;
 }
 
+// fork: how many leading lines a dialect's session-cwd reader may inspect.
+const SESSION_HEADER_LINES = 8;
+
 // fork: the Pi behavior every dialect parameter defaults to.
 const PI_DIALECT: PiDialect = {
   driverKind: PI_PROVIDER,
@@ -520,16 +523,22 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
       }
       // A workspace handoff restarts Pi in a new cwd, but the session header still names the old one.
       const sessionHeaderNamesCwd = Effect.fnUntraced(function* (sessionFile: string) {
-        const header = yield* fileSystem.stream(sessionFile).pipe(
+        const readSessionCwd = dialect.readSessionCwd; // fork:
+        const headerLines = yield* fileSystem.stream(sessionFile).pipe(
           Stream.decodeText(),
           Stream.splitLines,
-          Stream.runHead,
-          Effect.map(Option.getOrUndefined),
-          Effect.orElseSucceed(() => undefined),
+          Stream.take(readSessionCwd === undefined ? 1 : SESSION_HEADER_LINES), // fork:
+          Stream.runCollect,
+          Effect.orElseSucceed(() => []),
         );
+        const header = headerLines[0];
         if (header === undefined) return true;
-        const sessionCwd = recordString(Option.getOrUndefined(decodeSessionHeader(header)), "cwd");
-        if (sessionCwd === undefined || sessionCwd === cwd) return true;
+        const sessionCwd =
+          readSessionCwd === undefined
+            ? recordString(Option.getOrUndefined(decodeSessionHeader(header)), "cwd")
+            : readSessionCwd(headerLines); // fork:
+        if (sessionCwd === undefined) return readSessionCwd === undefined; // fork:
+        if (sessionCwd === cwd) return true;
         const realCwd = yield* fileSystem.realPath(cwd).pipe(Effect.orElseSucceed(() => cwd));
         return sessionCwd === realCwd;
       });

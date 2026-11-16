@@ -28,6 +28,9 @@ describe("omp launch arguments", () => {
     ["--auto-approve", "--auto-approve"],
     ["--approval-mode=yolo", "--approval-mode"],
     ["--no-session", "--no-session"],
+    // T3 starts the fork of a session itself, so a second --fork would race its own.
+    ["--fork /other.jsonl", "--fork"],
+    ["--fork=/other.jsonl", "--fork"],
   ])("keeps T3's own flag %s out of the settings", (launchArgs, flag) => {
     expect(resolveOmpLaunchArgs(launchArgs)).toEqual({
       ok: false,

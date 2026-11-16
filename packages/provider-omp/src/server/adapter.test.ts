@@ -17,6 +17,7 @@ import {
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
+import * as FileSystem from "effect/FileSystem";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Queue from "effect/Queue";
@@ -28,6 +29,7 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
+import * as ProviderHost from "@t3tools/provider-core/server/ProviderHost";
 import * as ProviderContinuationRequests from "@t3tools/provider-core/server/ProviderContinuationRequests";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as TestProviderHost from "@t3tools/provider-testing/TestProviderHost";
@@ -60,6 +62,7 @@ const openRuntime = Effect.fnUntraced(function* (
   fake: FakeOmp,
   runtimeMode: RuntimeMode,
   forkFake?: FakeOmp,
+  initialNativeThreadId?: string,
 ) {
   const spawner =
     forkFake === undefined
@@ -88,6 +91,7 @@ const openRuntime = Effect.fnUntraced(function* (
     providerSessionId: SESSION_ID,
     modelSelection: modelSelection(),
     runtimePolicy: runtimePolicy(runtimeMode),
+    ...(initialNativeThreadId === undefined ? {} : { initialNativeThreadId }),
   });
   const emitted = yield* Queue.unbounded<ProviderAdapter.ProviderAdapterV2Event>();
   yield* runtime.events.pipe(
@@ -649,6 +653,70 @@ describe("OmpAdapterV2", () => {
         assert.deepEqual(forks(forkFake), [["branch", "u2"]]);
         assert.deepEqual(forks(fake), []);
       }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
+  it.effect("forks a session whose cwd is on omp's second header line into the runtime cwd", () =>
+    Effect.gen(function* () {
+      const host = yield* ProviderHost.ProviderHost;
+      const fileSystem = yield* FileSystem.FileSystem;
+      const forkFile = "/fake/.omp/agent/sessions/--worktree--/forked.jsonl";
+      const fake = yield* makeFakeOmp();
+      const forkFake = yield* makeFakeOmp({ get_state: { sessionFile: forkFile } });
+      const { runtime, providerThread } = yield* openRuntime(fake, "full-access", forkFake);
+      const dir = yield* fileSystem.makeTempDirectoryScoped();
+      // omp's first line is a title record; the session record, which names the cwd, follows it.
+      const sessionAt = (name: string, sessionCwd: string | undefined) =>
+        Effect.gen(function* () {
+          const file = `${dir}/${name}.jsonl`;
+          const session = { type: "session", version: 3, id: "s", cwd: sessionCwd };
+          yield* fileSystem.writeFileString(
+            file,
+            `${JSON.stringify({ type: "title", v: 1, title: "" })}\n${JSON.stringify(session)}\n{}\n`,
+          );
+          return {
+            ...providerThread,
+            nativeThreadRef: { driver: OMP_PROVIDER, nativeId: file, strength: "strong" as const },
+          };
+        });
+      const lastSwitch = () =>
+        fake.allRequests().findLast((request) => request["type"] === "switch_session")?.[
+          "sessionPath"
+        ];
+      const forkSpawnedFrom = (file: string | undefined) => {
+        const args = forkFake.lastSpawnArgs();
+        return args[args.indexOf("--fork") + 1] === file;
+      };
+
+      const sameCwd = yield* sessionAt("same", host.paths.cwd);
+      yield* runtime.resumeThread({ providerThread: sameCwd });
+      assert.equal(lastSwitch(), sameCwd.nativeThreadRef?.nativeId);
+      assert.deepEqual(forkFake.lastSpawnArgs(), []);
+
+      for (const [name, sessionCwd] of [
+        ["other", `${host.paths.cwd}-original-checkout`],
+        ["unknown", undefined],
+      ] as const) {
+        const thread = yield* sessionAt(name, sessionCwd);
+        yield* runtime.resumeThread({ providerThread: thread });
+        assert.isTrue(forkSpawnedFrom(thread.nativeThreadRef?.nativeId), name);
+        assert.equal(lastSwitch(), forkFile, name);
+      }
+
+      // A cold start attaches a session recorded in this cwd and no other.
+      for (const [name, thread] of [
+        ["same", sameCwd],
+        ["other", yield* sessionAt("cold-other", `${host.paths.cwd}-original-checkout`)],
+      ] as const) {
+        const coldFake = yield* makeFakeOmp();
+        yield* openRuntime(coldFake, "full-access", undefined, thread.nativeThreadRef?.nativeId);
+        const args = coldFake.lastSpawnArgs();
+        assert.equal(
+          args.includes("--resume") ? args[args.indexOf("--resume") + 1] : undefined,
+          name === "same" ? thread.nativeThreadRef?.nativeId : undefined,
+          name,
+        );
+      }
+    }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 
   it.effect("does not show extension status text, which clients label as Pi's", () =>

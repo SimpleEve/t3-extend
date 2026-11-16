@@ -160,6 +160,11 @@ describe("omp outbound frames", () => {
       ["Approve", "Approve bash for this session"],
       ["Approve", "Approve", "Deny"],
       ["Deny", "Deny", "Approve"],
+      // One unrecognised choice among readable ones is enough: the whole prompt is refused.
+      ["Approve", "Approve bash for this session", "Deny", "Approve everything forever"],
+      // A session choice for another tool is not this tool's session choice.
+      ["Approve", "Approve edit for this session", "Deny"],
+      ["Approve", "Approve bash and edit for this session", "Deny"],
     ];
     for (const options of unreadable) {
       const translator = makeOmpTranslator();
@@ -338,6 +343,35 @@ describe("omp inbound commands", () => {
     expect(
       translator.toOmp({ type: "extension_ui_response", id: "15cfcc57317e7bcc", confirmed: true }),
     ).toMatchObject({ value: "Approve Once" });
+  });
+
+  it("never sends a directory or always grant, even one worded like a session choice", () => {
+    const options = [
+      "Approve Once",
+      "Approve Directory: /repo",
+      "Approve Directory: /repo for this session",
+      "Always Approve Directory: /repo",
+      "Approve",
+      "Always Approve",
+      "Always Approve File",
+      "Approve File",
+      "Approve bash for this session",
+      "Deny",
+    ];
+    const answer = (response: Record<string, unknown>, labels = options) => {
+      const translator = makeOmpTranslator();
+      expect(translator.fromOmp({ ...approvalRequest, options: labels }).replies).toEqual([]);
+      return translator.toOmp({
+        type: "extension_ui_response",
+        id: "15cfcc57317e7bcc",
+        ...response,
+      })["value"];
+    };
+    expect(answer({ confirmed: true, forSession: true })).toBe("Approve bash for this session");
+    expect(answer({ confirmed: true })).toBe("Approve Once");
+    // With only a directory-scoped "session" grant on offer, the user gets a single approval.
+    const withoutToolSession = options.filter((label) => label !== "Approve bash for this session");
+    expect(answer({ confirmed: true, forSession: true }, withoutToolSession)).toBe("Approve Once");
   });
 
   it("approves once when the user asks for the session but omp offers no session choice", () => {

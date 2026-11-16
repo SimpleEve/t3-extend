@@ -45,6 +45,12 @@ export interface PiDialect {
   readonly showsExtensionStatuses?: boolean;
   /** Sends `forSession: true` with a confirm answered "allow for session", for agents with a native session grant. */
   readonly forwardsSessionApproval?: boolean;
+  /**
+   * Reads the cwd a session file records, from its first lines. Pi keeps it on line one and needs
+   * no reader. A dialect that supplies one is trusted to find it: a file with none counts as
+   * recorded elsewhere, so the session is forked rather than run in the wrong checkout.
+   */
+  readonly readSessionCwd?: (headerLines: ReadonlyArray<string>) => string | undefined;
   /** Pi injects a permission and MCP extension; dialects with native equivalents return undefined. */
   readonly materializeExtension: (
     cacheDir: string,

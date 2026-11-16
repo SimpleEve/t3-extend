@@ -12,6 +12,7 @@ import { PiProviderCapabilitiesV2 } from "@t3tools/provider-pi/server/adapter";
 import type { PiLaunchArgsResolution } from "@t3tools/provider-pi/server/mcpInjection";
 
 import { makeOmpRpcConnection } from "./connection.ts";
+import { readOmpSessionCwd } from "./protocol.ts";
 
 export const OMP_PROVIDER = ProviderDriverKind.make("omp");
 
@@ -42,6 +43,7 @@ const RESERVED_ARGUMENTS = new Set([
   "-c",
   "--resume",
   "-r",
+  "--fork",
   "--restore",
   "--no-session",
   "--print",
@@ -177,6 +179,7 @@ export const OMP_DIALECT: PiDialect = {
   showsExtensionStatuses: false,
   forwardsSessionApproval: true,
   // Approvals are omp's own and T3's tools arrive as host tools, so there is nothing to install.
+  readSessionCwd: readOmpSessionCwd,
   materializeExtension: () => Effect.undefined,
   resolveLaunchArgs: resolveOmpLaunchArgs,
   buildLaunch: buildOmpRpcLaunch,

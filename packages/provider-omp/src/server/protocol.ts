@@ -1,5 +1,8 @@
 // omp speaks a close dialect of Pi's RPC protocol. This file translates the differences so the Pi
 // adapter can drive omp unchanged: see docs/user/providers-omp.md for the protocol table.
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+
 import {
   piRecordField as recordField,
   piRecordNumber as recordNumber,
@@ -11,8 +14,16 @@ import {
 const APPROVAL_TITLE = /^Allow tool: (\S+)(?:\n([\s\S]*))?$/;
 
 // omp's select dialog has no option ids: the labels are the values it reads back, so choices are
-// found by their meaning. Grant choices ("Approve Directory: …", "Always …") are never picked.
+// found by their meaning. Every label must be one omp is known to send; a prompt with any other
+// label is refused whole, because an unknown choice may widen what an approval grants.
 const normalizeLabel = (label: string) => label.trim().replace(/\s+/g, " ").toLowerCase();
+
+// Grants wider than the one request: never sent, but recognised so they do not refuse the prompt.
+const WIDER_GRANT_LABELS = [
+  /^(always )?approve directory: .+$/,
+  /^always approve( file)?$/,
+  /^approve file$/,
+];
 
 interface ApprovalChoices {
   readonly approve: string;
@@ -20,15 +31,26 @@ interface ApprovalChoices {
   readonly deny: string;
 }
 
-/** `undefined` when the options are not exactly one approve, at most one session approve and one deny. */
-function readApprovalChoices(options: ReadonlyArray<string>): ApprovalChoices | undefined {
-  const matching = (test: (label: string) => boolean) =>
-    options.filter((option) => test(normalizeLabel(option)));
+/** `undefined` unless every option is recognised and there is one approve, one deny, and at most one session approve. */
+function readApprovalChoices(
+  options: ReadonlyArray<string>,
+  tool: string,
+): ApprovalChoices | undefined {
+  const sessionLabel = `approve ${normalizeLabel(tool)} for this session`;
+  const once: Array<string> = [];
+  const plain: Array<string> = [];
+  const session: Array<string> = [];
+  const deny: Array<string> = [];
+  for (const option of options) {
+    const label = normalizeLabel(option);
+    if (label === "approve once") once.push(option);
+    else if (label === "approve") plain.push(option);
+    else if (label === sessionLabel) session.push(option);
+    else if (label === "deny") deny.push(option);
+    else if (!WIDER_GRANT_LABELS.some((grant) => grant.test(label))) return undefined;
+  }
   // With scoped grants omp calls the plain choice "Approve Once" and uses "Approve" for a grant.
-  const once = matching((label) => label === "approve once");
-  const approve = once.length > 0 ? once : matching((label) => label === "approve");
-  const session = matching((label) => /^approve .+ for this session$/.test(label));
-  const deny = matching((label) => label === "deny");
+  const approve = once.length > 0 ? once : plain;
   if (approve.length !== 1 || deny.length !== 1 || session.length > 1) return undefined;
   return { approve: approve[0]!, session: session[0], deny: deny[0]! };
 }
@@ -147,7 +169,7 @@ export function makeOmpTranslator(): OmpTranslator {
     const options = recordField(frame, "options");
     if (id === undefined || match === null || !Array.isArray(options)) return frames(frame);
     const labels = options.filter((option): option is string => typeof option === "string");
-    const choices = readApprovalChoices(labels);
+    const choices = readApprovalChoices(labels, match[1] ?? "");
     if (choices === undefined) {
       // Guessing a choice could approve something the user never saw, so omp is told to deny.
       return {
@@ -293,4 +315,15 @@ export function projectOmpCommands(data: unknown): {
     });
   }
   return { commands: projected };
+}
+
+const decodeLine = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown));
+
+/** omp's first line is a title record; the `session` record that names the cwd follows it. */
+export function readOmpSessionCwd(headerLines: ReadonlyArray<string>): string | undefined {
+  for (const line of headerLines) {
+    const record = Option.getOrUndefined(decodeLine(line));
+    if (recordString(record, "type") === "session") return recordString(record, "cwd");
+  }
+  return undefined;
 }
