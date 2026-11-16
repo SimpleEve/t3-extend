@@ -20,6 +20,7 @@ import * as Stream from "effect/Stream";
 import { HttpClient, HttpClientError, HttpClientResponse } from "effect/http";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
+import * as TestClock from "effect/testing/TestClock";
 
 import * as AntigravityInstallation from "./AntigravityInstallation.ts";
 import * as ModelManifest from "./ModelManifest.ts";
@@ -286,6 +287,75 @@ const expectPreviousRelease = Effect.fn("test.expectPreviousAntigravityRelease")
   expect(yield* fs.readFileString(resolved.executablePath)).toBe(serverContents);
   expect(yield* fs.readFileString(resolved.harnessPath!)).toBe(harnessContents);
   expect((yield* installation.state).installedVersion).toBe(previousVersion);
+});
+
+type CliProbeBehavior =
+  | { readonly kind: "agy"; readonly version?: string; readonly help?: string }
+  | { readonly kind: "exit"; readonly code: number; readonly output?: string }
+  | { readonly kind: "hang" };
+
+// Stands in for the executable found on PATH; real files here are not runnable programs.
+const makeCliProbeSpawner = (behavior: CliProbeBehavior) => {
+  const calls: Array<ReadonlyArray<string>> = [];
+  const spawned = Deferred.makeUnsafe<void>();
+  let released = 0;
+  const spawner = ChildProcessSpawner.make((command) =>
+    Effect.gen(function* () {
+      if (!ChildProcess.isStandardCommand(command)) return yield* Effect.die("Unexpected spawn.");
+      const args = command.args.map(String);
+      calls.push([String(command.command), ...args]);
+      yield* Deferred.succeed(spawned, undefined);
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => {
+          released += 1;
+        }),
+      );
+      const output =
+        behavior.kind === "agy"
+          ? args[0] === "--version"
+            ? `${behavior.version ?? "1.5.9"}\n`
+            : (behavior.help ??
+              "Usage: agy acp [flags]\n\nStart the Agent Client Protocol (ACP) stdio server\n")
+          : behavior.kind === "exit"
+            ? (behavior.output ?? "")
+            : "";
+      const stdout =
+        behavior.kind === "hang" ? Stream.never : Stream.make(new TextEncoder().encode(output));
+      return ChildProcessSpawner.makeHandle({
+        pid: ChildProcessSpawner.ProcessId(900_000_401),
+        exitCode:
+          behavior.kind === "hang"
+            ? Effect.never
+            : Effect.succeed(
+                ChildProcessSpawner.ExitCode(behavior.kind === "exit" ? behavior.code : 0),
+              ),
+        isRunning: Effect.succeed(behavior.kind === "hang"),
+        kill: () => Effect.void,
+        unref: Effect.succeed(Effect.void),
+        stdin: Sink.drain,
+        stdout,
+        stderr: Stream.empty,
+        all: stdout,
+        getInputFd: () => Sink.drain,
+        getOutputFd: () => Stream.empty,
+      });
+    }).pipe(Effect.orDie),
+  );
+  return { spawner, calls, spawned, released: () => released };
+};
+
+// A fake agy on a one-entry PATH, named for the platform so it works on every host.
+const writeFakeAgy = Effect.fn("test.writeFakeAgy")(function* (contents: string) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const baseDir = yield* fs
+    .makeTempDirectoryScoped({ prefix: "t3-agy-probe-test-" })
+    .pipe(Effect.flatMap((directory) => fs.realPath(directory)));
+  const directory = path.join(baseDir, "bin");
+  yield* fs.makeDirectory(directory);
+  const file = path.join(directory, hostPlatform === "win32" ? "agy.exe" : "agy");
+  yield* fs.writeFileString(file, contents, { mode: 0o755 });
+  return { baseDir, directory, file };
 });
 
 it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("Antigravity installation", (it) => {
@@ -1016,7 +1086,8 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("Antigravity inst
         yield* fs.writeFileString(cli, "cli", { mode: 0o755 });
         yield* fs.symlink(cli, alias);
         yield* fs.writeFileString(other, "other", { mode: 0o755 });
-        const { installation } = yield* makeHarness({ baseDir });
+        const probe = makeCliProbeSpawner({ kind: "agy" });
+        const { installation } = yield* makeHarness({ baseDir, spawner: probe.spawner });
 
         expect(yield* installation.resolve(cli)).toMatchObject({
           executablePath: cli,
@@ -1035,6 +1106,9 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("Antigravity inst
         expect(yield* installation.resolve(other).pipe(Effect.flip)).toMatchObject({
           operation: "resolve",
         });
+
+        // A path the user chose is never probed; only auto-discovery vets an agy on PATH.
+        expect(probe.calls).toEqual([]);
 
         // Without a custom path, an agy CLI on PATH is found when no old runtime is there.
         expect(yield* installation.resolve(undefined, { PATH: cliDirectory })).toMatchObject({
@@ -1082,21 +1156,99 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("Antigravity inst
           executablePath: path.join(shims, "agy"),
           harnessPath: null,
         });
-
-        const { installation: windows } = yield* makeHarness({ baseDir, platform: "win32" });
-        for (const name of ["agy.EXE", "agy.cmd"]) {
-          const windowsDirectory = path.join(baseDir, `windows-${name}`);
-          yield* fs.makeDirectory(windowsDirectory);
-          yield* fs.writeFileString(path.join(windowsDirectory, name), "cli");
-          for (const binaryPath of ["agy", undefined]) {
-            const selected = yield* windows.resolve(binaryPath, { PATH: windowsDirectory });
-            expect(selected.harnessPath).toBeNull();
-            expect((yield* fs.realPath(selected.executablePath)).toLowerCase()).toBe(
-              (yield* fs.realPath(path.join(windowsDirectory, name))).toLowerCase(),
-            );
-          }
-        }
       }),
+  );
+
+  it.effect("accepts agy.exe and agy.cmd on a Windows PATH with or without a custom path", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const baseDir = yield* fs
+        .makeTempDirectoryScoped({ prefix: "t3-agy-windows-test-" })
+        .pipe(Effect.flatMap((directory) => fs.realPath(directory)));
+      const probe = makeCliProbeSpawner({ kind: "agy" });
+      const { installation } = yield* makeHarness({
+        baseDir,
+        platform: "win32",
+        spawner: probe.spawner,
+      });
+      for (const name of ["agy.EXE", "agy.cmd"]) {
+        const windowsDirectory = path.join(baseDir, `windows-${name}`);
+        yield* fs.makeDirectory(windowsDirectory);
+        yield* fs.writeFileString(path.join(windowsDirectory, name), "cli");
+        for (const binaryPath of ["agy", undefined]) {
+          const selected = yield* installation.resolve(binaryPath, { PATH: windowsDirectory });
+          expect(selected.harnessPath).toBeNull();
+          expect((yield* fs.realPath(selected.executablePath)).toLowerCase()).toBe(
+            (yield* fs.realPath(path.join(windowsDirectory, name))).toLowerCase(),
+          );
+        }
+      }
+    }),
+  );
+
+  it.effect("vets an agy found on PATH once per file version and skips anything else", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const accepted = makeCliProbeSpawner({ kind: "agy" });
+      const { baseDir, directory, file } = yield* writeFakeAgy("agy");
+      const { installation } = yield* makeHarness({ baseDir, spawner: accepted.spawner });
+      const environment = { PATH: directory };
+      expect(yield* installation.resolve(undefined, environment)).toMatchObject({
+        executablePath: file,
+        source: "path",
+        version: null,
+      });
+      expect(accepted.calls).toEqual([
+        [file, "--version"],
+        [file, "acp", "--help"],
+      ]);
+      yield* installation.resolve(undefined, environment);
+      expect(accepted.calls).toHaveLength(2);
+      // A new build at the same path is vetted again.
+      yield* fs.writeFileString(file, "agy, rebuilt");
+      yield* installation.resolve(undefined, environment);
+      expect(accepted.calls).toHaveLength(4);
+
+      const rejected: ReadonlyArray<readonly [string, CliProbeBehavior]> = [
+        ["a program that exits at once", { kind: "exit", code: 1 }],
+        ["a program that exits cleanly with no version", { kind: "exit", code: 0 }],
+        ["a program whose --version is not a version", { kind: "exit", code: 0, output: "hello" }],
+        ["a release before agy acp", { kind: "agy", version: "1.4.9" }],
+        ["a CLI that does not list ACP", { kind: "agy", help: "Usage: other [flags]\n" }],
+      ];
+      for (const [label, behavior] of rejected) {
+        const fake = makeCliProbeSpawner(behavior);
+        const other = yield* writeFakeAgy("agy");
+        const harness = yield* makeHarness({ baseDir: other.baseDir, spawner: fake.spawner });
+        expect(
+          yield* harness.installation
+            .resolve(undefined, { PATH: other.directory })
+            .pipe(Effect.flip),
+          label,
+        ).toMatchObject({ operation: "resolve" });
+        // Refreshing again does not respawn a program that already failed the check.
+        const spawns = fake.calls.length;
+        yield* harness.installation.resolve(undefined, { PATH: other.directory }).pipe(Effect.flip);
+        expect(fake.calls).toHaveLength(spawns);
+      }
+    }),
+  );
+
+  it.effect("gives up on an agy that never answers and stops its process", () =>
+    Effect.gen(function* () {
+      const hung = makeCliProbeSpawner({ kind: "hang" });
+      const { baseDir, directory } = yield* writeFakeAgy("agy");
+      const { installation } = yield* makeHarness({ baseDir, spawner: hung.spawner });
+      const resolving = yield* installation
+        .resolve(undefined, { PATH: directory })
+        .pipe(Effect.flip, Effect.forkScoped);
+      yield* Deferred.await(hung.spawned);
+      yield* TestClock.adjust("5 seconds");
+      expect(yield* Fiber.join(resolving)).toMatchObject({ operation: "resolve" });
+      expect(hung.calls).toHaveLength(1);
+      expect(hung.released()).toBe(1);
+    }),
   );
 
   // The mocked Linux PATH walk needs POSIX paths; Windows temp paths contain colons.
