@@ -51,10 +51,10 @@ import {
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import {
   appRuntimeEnvironment,
-  appRuntimeIsTransient,
   detectAppRuntime,
   parseAppRuntimeUnit,
 } from "../fork/appRuntime.ts"; // fork: app runtime
+import { appRuntimeLocationProblem } from "../fork/appRuntimeLocation.ts"; // fork: app runtime
 
 export {
   serviceUnitBaseDirOf as bootServiceBaseDirOf,
@@ -757,13 +757,15 @@ export class BootServiceBaseDirUnsupportedError extends Schema.TaggedError<BootS
   }
 }
 
-// fork: a service points into the app bundle, so the bundle must be somewhere that outlasts a reboot.
+// fork: a service points into the app bundle, so the bundle must be a real one that outlasts a reboot.
 export class BootServiceAppLocationError extends Schema.TaggedError<BootServiceAppLocationError>()(
   "BootServiceAppLocationError",
-  { appPath: Schema.String },
+  { appPath: Schema.String, problem: Schema.Literals(["transient", "mismatch"]) },
 ) {
   override get message(): string {
-    return `${FORK.appBaseName} is running from ${this.appPath}, which does not survive a restart. Move it to your Applications folder, open it from there, and try again.`;
+    return this.problem === "transient"
+      ? `${FORK.appBaseName} is running from ${this.appPath}, which does not survive a restart. Move it to your Applications folder, open it from there, and try again.`
+      : `${this.appPath} is not a complete ${FORK.appBaseName} app: its executable or app.asar is a link to somewhere else. Install the app into your Applications folder and open it from there.`;
   }
 
   override get [CliError.userMessage]() {
@@ -1261,8 +1263,12 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
     readonly start?: boolean;
   }) {
     let manager = yield* requireManager;
-    if (appRuntime !== undefined && appRuntimeIsTransient(appRuntime)) {
-      return yield* new BootServiceAppLocationError({ appPath: appRuntime.appPath }); // fork: app runtime
+    if (appRuntime !== undefined) {
+      // fork: app runtime
+      const problem = yield* appRuntimeLocationProblem(appRuntime);
+      if (problem !== undefined) {
+        return yield* new BootServiceAppLocationError({ appPath: appRuntime.appPath, problem });
+      }
     }
     if (manager.kind === "systemd" && systemdUnsafeValue(plan)) {
       return yield* new BootServiceBaseDirUnsupportedError({ baseDir: input.baseDir });

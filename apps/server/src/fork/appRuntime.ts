@@ -38,19 +38,36 @@ export function detectAppRuntime(input: {
 /** The plist records the app version it was installed from; the launcher runs the app only as that version. */
 export const APP_RUNTIME_VERSION_ENV = "T3X_APP_RUNTIME_VERSION";
 
+/** Only a plist with this variable is the app's own service; nothing else may be stopped for the app. */
+const APP_SERVICE_MARKER_ENV = "T3X_APP_SERVICE";
+
 /** What the service's plist adds so the launcher and the server it starts run as the app does. */
 export const appRuntimeEnvironment = (
   runtime: AppRuntime,
   version: string,
 ): ReadonlyArray<readonly [name: string, value: string]> => [
+  [APP_SERVICE_MARKER_ENV, "1"],
   ["ELECTRON_RUN_AS_NODE", "1"],
   ["T3X_FRPC_PATH", runtime.frpc],
   [APP_RUNTIME_VERSION_ENV, version],
 ];
 
-/** A disk image or a translocated copy is gone after a reboot; a service must not point into it. */
-export const appRuntimeIsTransient = (runtime: AppRuntime): boolean =>
-  runtime.appPath.includes("/AppTranslocation/") || runtime.appPath.startsWith("/Volumes/");
+const isTransientPath = (path: string) =>
+  path.includes("/AppTranslocation/") || path.startsWith("/Volumes/");
+
+/**
+ * A disk image or a translocated copy is gone after a reboot, and a bundle whose executable or
+ * asar is a link out of it is not the app it names. `real` holds the paths after resolving links.
+ */
+export function appLocationProblem(real: {
+  readonly appPath: string;
+  readonly executable: string;
+  readonly asar: string;
+}): "transient" | "mismatch" | undefined {
+  const inside = (path: string) => path.startsWith(`${real.appPath}/`);
+  if (!inside(real.executable) || !inside(real.asar)) return "mismatch";
+  return isTransientPath(real.appPath) ? "transient" : undefined;
+}
 
 const unescapeXmlText = (value: string) =>
   value.replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&amp;", "&");
@@ -59,7 +76,9 @@ const unescapeXmlText = (value: string) =>
 export function parseAppRuntimeUnit(
   contents: string,
 ): { readonly executable: string; readonly entry: string } | undefined {
-  if (!/<key>ELECTRON_RUN_AS_NODE<\/key>\s*<string>1<\/string>/.test(contents)) return undefined;
+  if (!new RegExp(`<key>${APP_SERVICE_MARKER_ENV}</key>\\s*<string>1</string>`).test(contents)) {
+    return undefined;
+  }
   const program =
     /<key>ProgramArguments<\/key>\s*<array>\s*<string>([^<]*)<\/string>\s*<string>([^<]*)<\/string>/.exec(
       contents,

@@ -21,6 +21,8 @@ const SERVICE_TARGET = `gui/501/${LABEL}`;
 
 const makeHarness = Effect.fn("test.make_app_service_harness")(function* (options?: {
   readonly appParent?: string;
+  /** The app path is a link: to a copy in a translocated place, or with an executable from another app. */
+  readonly link?: "translocated" | "foreign-executable";
   readonly appRuntime?: boolean;
 }) {
   const fs = yield* FileSystem.FileSystem;
@@ -41,9 +43,25 @@ const makeHarness = Effect.fn("test.make_app_service_harness")(function* (option
   );
   const frpc = path.join(appPath, "Contents", "Resources", "bin", "frpc");
   // A location the install refuses is only named, never created: it is outside the temp directory.
+  const realApp =
+    options?.link === "translocated"
+      ? path.join(home, "AppTranslocation", "x", "T3 Extend.app")
+      : appPath;
+  const created = (file: string) => path.join(realApp, path.relative(appPath, file));
   for (const file of options?.appParent === undefined ? [executable, entry, frpc] : []) {
-    yield* fs.makeDirectory(path.dirname(file), { recursive: true });
-    yield* fs.writeFileString(file, "");
+    yield* fs.makeDirectory(path.dirname(created(file)), { recursive: true });
+    yield* fs.writeFileString(created(file), "");
+  }
+  if (options?.link === "translocated") {
+    yield* fs.makeDirectory(path.dirname(appPath), { recursive: true });
+    yield* fs.symlink(realApp, appPath);
+  }
+  if (options?.link === "foreign-executable") {
+    const other = path.join(home, "Other.app", "Contents", "MacOS", "Other");
+    yield* fs.makeDirectory(path.dirname(other), { recursive: true });
+    yield* fs.writeFileString(other, "");
+    yield* fs.remove(executable);
+    yield* fs.symlink(other, executable);
   }
 
   const commands: string[] = [];
@@ -144,6 +162,7 @@ it.layer(NodeServices.layer)("service installed from the desktop app", (it) => {
       const plist = yield* h.fs.readFileString(h.plistPath);
       expect(plist).toContain(`<string>${h.executable}</string>`);
       expect(plist).toContain(`<string>${h.entry}</string>`);
+      expect(plist).toContain(`<key>T3X_APP_SERVICE</key>\n    <string>1</string>`);
       expect(plist).toContain(`<key>ELECTRON_RUN_AS_NODE</key>\n    <string>1</string>`);
       expect(plist).toContain(`<key>T3X_FRPC_PATH</key>\n    <string>${h.frpc}</string>`);
       expect(plist).toContain(`<key>T3X_APP_RUNTIME_VERSION</key>\n    <string>1.2.3</string>`);
@@ -266,6 +285,22 @@ it.layer(NodeServices.layer)("service installed from the desktop app", (it) => {
 
       expect(error._tag).toBe("BootServiceAppLocationError");
       expect(error.message).toContain("Applications");
+      expect(yield* h.fs.exists(h.plistPath)).toBe(false);
+      expect(h.commands).toEqual([]);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect.each([
+    { link: "translocated", problem: "transient" },
+    { link: "foreign-executable", problem: "mismatch" },
+  ] as const)("refuses an app path that is a link ($link)", ({ link, problem }) =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({ link });
+      const service = yield* h.makeService();
+
+      const error = yield* service.install().pipe(Effect.flip);
+
+      expect(error).toMatchObject({ _tag: "BootServiceAppLocationError", problem });
       expect(yield* h.fs.exists(h.plistPath)).toBe(false);
       expect(h.commands).toEqual([]);
     }).pipe(Effect.scoped),
