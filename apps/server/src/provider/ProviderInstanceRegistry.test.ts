@@ -102,6 +102,7 @@ const makeCodexConfig = (overrides: Partial<CodexSettings>): CodexSettings => ({
   homePath: "",
   shadowHomePath: "",
   launchArgs: "",
+  readLimitsThroughCustomEndpoint: false, // fork:
   customModels: [],
   ...overrides,
 });
