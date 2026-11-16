@@ -294,7 +294,8 @@ describe("OmpAdapterV2", () => {
           type: item.type,
           text: item.text,
           streaming: item.streaming,
-          startedAt: DateTime.toEpochMillis(item.startedAt) - origin,
+          startedAt:
+            item.startedAt === null ? Number.NaN : DateTime.toEpochMillis(item.startedAt) - origin,
           completedAt:
             item.completedAt === null ? null : DateTime.toEpochMillis(item.completedAt) - origin,
         });

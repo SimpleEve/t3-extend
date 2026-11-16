@@ -290,7 +290,7 @@ describe.skipIf(AGENT_DIR === undefined)("omp live", () => {
             const list = updates.get(item.id) ?? [];
             list.push({
               text: item.text,
-              startedAt: DateTime.formatIso(item.startedAt),
+              startedAt: item.startedAt === null ? "" : DateTime.formatIso(item.startedAt),
               streaming: item.streaming,
             });
             updates.set(item.id, list);
