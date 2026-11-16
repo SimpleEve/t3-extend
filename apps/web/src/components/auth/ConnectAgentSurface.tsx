@@ -1,4 +1,3 @@
-import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 import {
   type AuthMcpApprovalDecision,
   type AuthMcpApprovalDetails,
@@ -339,7 +338,7 @@ export function McpConsent({
                 t(
                   "Get one from Use T3 Extend in another app (MCP), Settings → Sharing & access, or {command} on this machine.",
                 ),
-                { command: <code>{FORK.cliCommand} auth pairing create</code> },
+                { command: <code>auth pairing create</code> },
               )}
             </p>
           </div>

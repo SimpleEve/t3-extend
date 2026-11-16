@@ -1,4 +1,3 @@
-import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 import { useAuth, useClerk } from "@clerk/react";
 import { readConnectAuthorizeRequest } from "@t3tools/shared/connectAuth";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
@@ -18,7 +17,7 @@ const invalidLinkMessage = {
   context: "Authorization request",
   title: "This connect link is incomplete",
   description:
-    "The link is missing its authorization request. Re-run `{cli} connect` in your terminal and open the freshly printed URL.",
+    "The link is missing its authorization request. Re-run the `connect` command in your terminal and open the freshly printed URL.",
 } as const;
 
 export function ConnectCliAuthorizeSurface() {
@@ -69,7 +68,7 @@ export function ConnectCliAuthorizeSurface() {
         <StandalonePageHeader
           context={t(invalidLinkMessage.context)}
           title={t(invalidLinkMessage.title)}
-          description={t(invalidLinkMessage.description, { cli: FORK.cliCommand })}
+          description={t(invalidLinkMessage.description)}
         />
       </StandalonePage>
     );

@@ -228,7 +228,7 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       env.PATH = "";
       // Off PATH, Add to PATH would expose the other home's command, not this one.
       expect((yield* after.state).pathSetup).toBeUndefined();
-      expect((yield* Effect.flip(after.addToPath)).message).toBe("Install the t3x command first.");
+      expect((yield* Effect.flip(after.addToPath)).message).toBe("Install the t3x command first."); // fork: t3x
       expect(yield* fs.exists(path.join(home, ".zshrc"))).toBe(false);
       // Behind another t3 the install fails, and the old link still works.
       const shadow = path.join(home, "shadow");
@@ -296,7 +296,7 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       // Off PATH behind theirs, adding the folder would still put ours first.
       env.PATH = shadow;
       expect((yield* command.state).pathSetup).toBeUndefined();
-      expect((yield* Effect.flip(command.addToPath)).message).toContain("Another t3x at ");
+      expect((yield* Effect.flip(command.addToPath)).message).toContain("Another t3x at "); // fork: t3x
       expect(yield* fs.exists(path.join(home, ".zshrc"))).toBe(false);
       env.PATH = [shadow, `${path.join(home, ".local", "bin")}/`].join(":");
       yield* fs.remove(path.join(home, ".local", "bin", "t3x"));
@@ -405,7 +405,7 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
         { home, baseDir: `${home}\\T3;Home`, platform: "win32" },
         split.spawner,
       );
-      expect((yield* Effect.flip(semicolon.install)).message).toContain("contains a semicolon");
+      expect((yield* Effect.flip(semicolon.install)).message).toContain("contains a semicolon"); // fork: reworded
       expect(split.registry).toMatchObject({ path: userPath, writes: 0 });
 
       // An inherited T3_SET=1 never turns a read into a write of the whole PATH.

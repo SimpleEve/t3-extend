@@ -735,8 +735,8 @@ export default {
     "适用于局域网或 tailnet 中的机器。provider 凭据仍保存在那台机器上。",
   "Scan QR code": "扫描二维码",
   "Tap to scan": "点按扫描",
-  "Scan the code from {cli} pair or desktop Connections settings":
-    "扫描 {cli} pair 或桌面端连接设置里显示的二维码",
+  "Scan the code from the pair command or desktop Connections settings":
+    "扫描 pair 命令或桌面端连接设置里显示的二维码",
   "Or use the managed relay": "或者使用托管中继",
   "Sign in to T3 Connect": "登录 T3 Connect",
   "Reach your machines from anywhere, no network setup.": "随时随地访问你的机器，无需配置网络。",

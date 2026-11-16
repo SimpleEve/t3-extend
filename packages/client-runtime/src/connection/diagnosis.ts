@@ -1,4 +1,3 @@
-import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 import {
   t3ConnectTroubleshootingUrl,
   type T3ConnectTroubleshootingSection,
@@ -178,8 +177,8 @@ function steps(
   failure: ConnectionAttemptError | null,
 ): string[] {
   const checkHost = t(
-    "On {host}, check Settings > Sharing & access or run `{cli} connect status`.",
-    { host, cli: FORK.cliCommand },
+    "On {host}, check Settings > Sharing & access or run the `connect status` command.",
+    { host },
   );
   switch (located.cause) {
     case "offline":
@@ -203,10 +202,9 @@ function steps(
             approve,
           },
         ),
-        t("Or run `{cli} auth connect-device approve {code}` on {host}.", {
+        t("Or run the `auth connect-device approve {code}` command on {host}.", {
           code: code ?? "<code>",
           host,
-          cli: FORK.cliCommand,
         }),
       ];
     }

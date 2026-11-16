@@ -544,8 +544,8 @@ export default {
     "T3 Connect 已开启。还没有检查可访问性。",
   "T3 Connect is out of sync. This environment is linked only to publish agent activity, so other devices cannot connect. Turn T3 Connect on to repair it.":
     "T3 Connect 状态不同步。此环境只为发布 Agent 活动而关联，其他设备无法连接。打开 T3 Connect 即可修复。",
-  "This environment was removed from T3 Connect. Run `{cli} connect link` on the host to link it again.":
-    "此环境已从 T3 Connect 中移除。在主机上运行 `{cli} connect link` 即可重新关联。",
+  "This environment was removed from T3 Connect. Run the `connect link` command on the host to link it again.":
+    "此环境已从 T3 Connect 中移除。在主机上运行 `connect link` 命令即可重新关联。",
   "Sign in to send activity to mobile notifications and Live Activities.":
     "登录后可以把活动发送到移动通知和实时活动。",
   "Send activity to mobile notifications and Live Activities without T3 Connect.":
@@ -582,8 +582,8 @@ export default {
   "T3 Connect could not reach {host}'s tunnel": "T3 Connect 无法访问 {host} 的隧道",
   "T3 Extend on {host} did not accept this device": "{host} 上的 T3 Extend 没有接受此设备",
   "T3 Extend on {host} did not answer": "{host} 上的 T3 Extend 没有响应",
-  "On {host}, check Settings > Sharing & access or run `{cli} connect status`.":
-    "在 {host} 上检查“设置 > 共享与访问”，或运行 `{cli} connect status`。",
+  "On {host}, check Settings > Sharing & access or run the `connect status` command.":
+    "在 {host} 上检查“设置 > 共享与访问”，或运行 `connect status` 命令。",
   "Connect this device to the internet. T3 Extend reconnects on its own.":
     "把此设备连接到互联网。T3 Extend 会自动重新连接。",
   "Update T3 Extend on {host}.": "更新 {host} 上的 T3 Extend。",
@@ -837,8 +837,8 @@ export default {
   "approve this device": "批准此设备",
   "On a device already connected to {host}, open Settings > Sharing & access and {approve}.":
     "在已连接到 {host} 的设备上，打开“设置 > 共享与访问”，然后{approve}。",
-  "Or run `{cli} auth connect-device approve {code}` on {host}.":
-    "或者在 {host} 上运行 `{cli} auth connect-device approve {code}`。",
+  "Or run the `auth connect-device approve {code}` command on {host}.":
+    "或者在 {host} 上运行 `auth connect-device approve {code}` 命令。",
   "Showing the first {length} files.": "只显示前 {length} 个文件。",
   "Finishing setup": "正在完成设置",
   "One moment.": "请稍候。",

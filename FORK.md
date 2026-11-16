@@ -161,7 +161,7 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 
 经变量传给 `t()` 的表也会漏：`SettingsRow`、`SettingsSection` 对标题执行 `t(title)`，标题来自 `settingsSearch.ts` 的字面量（`searchableSetting(id)`），调用处没有字面量，目录里少一条也没人发现（"Welcome page"、"Text generators" 就是这样漏的）。`TRANSLATED_PROPERTY_TABLES` 列出这类文件和属性，里面的字面量算作被 `t()` 调用，并且要求目录里有不带上下文的条目。
 
-用户可见文案里的命令名跟身份走：`t3x` 来自 `FORK.cliCommand`，分支前缀示例来自 `FORK.gitNamespace`，不要写死 `t3`。没有改的：`npx t3 …` 和 `t3@<版本>`（npm 包名，fork 没有自己的包）、服务端 CLI 自己打印的终端文字、WSL 和 SSH 远程主机上的命令（那里装的是官方 server）、`DesktopCliShim` 写进启动脚本的标记行（用来认出自己写的脚本）。
+用户可见文案里的命令名按目标走。目标是本机这个 app（欢迎页、设置里的命令行、本机 triage、本机数据目录被占用的提示）用 `FORK.cliCommand`（`t3x`），分支前缀示例来自 `FORK.gitNamespace`。目标是别的主机时，对方可能是官方 T3 Code（命令 `t3`），不能写 `t3x`：服务器报了安装身份就按它选（`apps/web/src/fork/hostCli.logic.ts` 的 `hostCliCommand`：启动器取文件名，npm 类安装是 `t3`），没报就用不带命令名的说法（诊断、配对、`connect link` 的提示）。没有改的：`npx t3 …` 和 `t3@<版本>`（npm 包名，fork 没有自己的包）、服务端 CLI 自己打印的终端文字、WSL 和 SSH 远程主机上的命令（那里装的是官方 server）、`DesktopCliShim` 写进启动脚本的标记行（用来认出自己写的脚本）。
 
 白名单都在 `scripts/i18n-report.ts` 里，每一条都写了理由：
 

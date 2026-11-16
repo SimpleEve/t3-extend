@@ -2251,8 +2251,8 @@ export default {
   "Read projects and threads. Cannot start, message or change anything.":
     "可以读取项目和对话。不能启动、发送消息或修改任何内容。",
   "This connect link is incomplete": "这个连接链接不完整",
-  "The link is missing its authorization request. Re-run `{cli} connect` in your terminal and open the freshly printed URL.":
-    "链接缺少授权请求。请在终端中重新运行 `{cli} connect`，然后打开新打印出来的 URL。",
+  "The link is missing its authorization request. Re-run the `connect` command in your terminal and open the freshly printed URL.":
+    "链接缺少授权请求。请在终端中重新运行 `connect` 命令，然后打开新打印出来的 URL。",
   "Checking current installation": "正在检查当前安装",
   "Waiting for installer": "正在等待安装程序",
   "Downloading relay client": "正在下载中继客户端",
@@ -2984,14 +2984,15 @@ export default {
   "Check this address": "检查此地址",
   'Forget {label}? Agents here stop working there. Revoke "T3 Extend · …" in {label}\'s Sharing & access to end the session there too.':
     "忘记 {label}？这里的 Agent 将无法再在那里工作。请在 {label} 的“共享与访问”中撤销“T3 Extend · …”，以同时结束那边的会话。",
-  "From Sharing & access there, or {cli} pair": "在那边的“共享与访问”中获取，或运行 {cli} pair",
+  "From Sharing & access there, or its pair command":
+    "在那边的“共享与访问”中获取，或使用它的 pair 命令",
   "Narrow the selection above to one checkout to edit its list. Adding an action here adds it to every selected checkout.":
     "请把上面的选择缩小到一个 checkout 再编辑它的列表。在这里添加动作会添加到所有选中的 checkout。",
   "Enter a valid value. It was not saved.": "请输入有效的值。未保存。",
   "The device has to be approved here before it can connect again.":
     "设备需要先在这里批准，才能再次连接。",
-  "Run `{cli} connect link` on the host, then restart T3 Extend there.":
-    "在主机上运行 `{cli} connect link`，然后重启那里的 T3 Extend。",
+  "Run the `connect link` command on the host, then restart T3 Extend there.":
+    "在主机上运行 `connect link` 命令，然后重启那里的 T3 Extend。",
   "What a screen reader hears from the open thread: a turn starting, needing you, and ending. Status and messages adds what the agent writes before its last message. Everything adds each step.":
     "屏幕阅读器会从当前打开的对话中朗读：一轮开始、需要你处理、一轮结束。“状态和消息”会加上 Agent 在最后一条消息之前写的内容。“全部”会加上每一个步骤。",
   "Screen reader announcements": "屏幕阅读器播报",

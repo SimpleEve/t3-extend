@@ -19,6 +19,7 @@ export default {
   "Only apps you approve can use it. You can turn it off in Settings.":
     "只有你批准的应用才能使用，可随时在设置中关闭。",
   "Restart T3 Extend on {name}.": "请重启 {name} 上的 T3 Extend。",
+  "Run the `connect link` command on {name}.": "在 {name} 上运行 `connect link` 命令。",
   "When {app} opens the sign-in page, choose what it may do and approve with your T3 Connect account.":
     "{app} 打开登录页后，选择它能做什么，并用你的 T3 Connect 账号批准。",
   "{name} help": "{name} 帮助",

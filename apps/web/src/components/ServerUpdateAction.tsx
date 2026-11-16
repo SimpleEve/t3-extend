@@ -1,4 +1,4 @@
-import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
+import { hostCliCommand } from "../fork/hostCli.logic"; // fork: the host's own command name
 import { useAtomValue } from "@effect/atom-react";
 import {
   AuthEnvironmentMaintainScope,
@@ -293,6 +293,8 @@ export function ServerUpdateAction({
   const update = useServerUpdate();
   const updatesInstall =
     installation?.kind === "npm-global" || installation?.kind === "t3-launcher";
+  // fork: npm-style installs are the `t3` package; a launcher is named by its own file.
+  const cli = hostCliCommand({ installation }) ?? "t3";
   const { copyToClipboard } = useCopyToClipboard<{ command: string }>({
     target: updatesInstall ? "update command" : "relaunch command",
     onCopy: ({ command }) => {
@@ -303,11 +305,11 @@ export function ServerUpdateAction({
           ? t("Run `{command}` on {serverLabel}, then restart {cli} with your usual options.", {
               command,
               serverLabel,
-              cli: FORK.cliCommand,
+              cli,
             })
           : t(
               "Stop {cli} on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed {cli} command.",
-              { command, serverLabel, cli: FORK.cliCommand },
+              { command, serverLabel, cli },
             ),
       });
     },
