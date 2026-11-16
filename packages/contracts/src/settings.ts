@@ -760,7 +760,7 @@ export const CodexSettings = makeProviderSettingsSchema(
       Schema.annotateKey({
         title: "Read subscription limits through a custom endpoint",
         description:
-          "Only turn this on when your custom endpoint still uses your ChatGPT subscription. Usage limits are then read as they would be without the endpoint.",
+          "Only turn this on when your custom endpoint still uses your ChatGPT subscription. The limits shown are those of the signed-in ChatGPT account, not any ledger the endpoint keeps.",
         providerSettingsForm: { control: "switch", clearWhenEmpty: "omit" },
       }),
     ),
@@ -775,7 +775,7 @@ export const CodexSettings = makeProviderSettingsSchema(
       "homePath",
       "shadowHomePath",
       "launchArgs",
-      "readLimitsThroughCustomEndpoint",
+      "readLimitsThroughCustomEndpoint", // fork:
     ],
   },
 );

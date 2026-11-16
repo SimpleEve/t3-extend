@@ -39,7 +39,9 @@ If your Codex config sends requests to a custom endpoint, T3 Code does not read
 your ChatGPT subscription limits, so Usage shows none for that instance. When
 the endpoint still uses your ChatGPT subscription, open **Settings > Providers**,
 edit the Codex instance, and turn on **Read subscription limits through a custom
-endpoint**. Leave it off for endpoints that do not use your subscription.
+endpoint**. The limits shown are those of the signed-in ChatGPT account, not any
+ledger the endpoint keeps. Leave it off for endpoints that do not use your
+subscription.
 
 ## Allow more time for provider checks
 
