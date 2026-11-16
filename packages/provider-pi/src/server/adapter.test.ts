@@ -2421,8 +2421,22 @@ describe("PiAdapterV2", () => {
       assert.equal(lastSwitch(), forkFile);
       assert.equal(resumed.nativeThreadRef?.nativeId, forkFile);
 
+      // Pi's header is read whole however long it is: a cwd after a long field still counts.
+      const longHeaderFile = `${dir}/long-header.jsonl`;
+      yield* fileSystem.writeFileString(
+        longHeaderFile,
+        `${JSON.stringify({ type: "session", version: 3, id: "s", pad: "x".repeat(100_000), cwd: `${host.paths.cwd}-original-checkout` })}\n{}\n`,
+      );
+      const longHeader = {
+        ...providerThread,
+        nativeThreadRef: {
+          driver: PI_PROVIDER,
+          nativeId: longHeaderFile,
+          strength: "strong" as const,
+        },
+      };
       // A cold start may attach only a session recorded in this cwd; others take the fork above.
-      for (const thread of [sameCwd, otherCwd]) {
+      for (const thread of [sameCwd, otherCwd, longHeader]) {
         const coldFake = yield* makeFakePi;
         yield* openRuntime(
           coldFake,

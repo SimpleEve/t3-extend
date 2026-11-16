@@ -255,6 +255,10 @@
       "types": "./src/cliArgs.ts",
       "import": "./src/cliArgs.ts"
     },
+    "./forkNotices": {
+      "types": "./src/forkNotices.ts",
+      "import": "./src/forkNotices.ts"
+    },
     "./connectAuth": {
       "types": "./src/connectAuth.ts",
       "import": "./src/connectAuth.ts"

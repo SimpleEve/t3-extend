@@ -549,9 +549,13 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
       // A workspace handoff restarts Pi in a new cwd, but the session header still names the old one.
       const sessionHeaderNamesCwd = Effect.fnUntraced(function* (sessionFile: string) {
         const readSessionCwd = dialect.readSessionCwd; // fork:
-        // fork: a damaged file with a huge unbroken line must not be read whole.
+        // fork: a dialect's session file is untrusted, so a huge unbroken line must not be read whole.
         const headerLines = yield* fileSystem
-          .stream(sessionFile, { bytesToRead: SESSION_HEADER_MAX_BYTES })
+          .stream(
+            sessionFile,
+            // Pi keeps reading its first line whole, as upstream does; only a dialect's reader is bounded.
+            readSessionCwd === undefined ? undefined : { bytesToRead: SESSION_HEADER_MAX_BYTES },
+          )
           .pipe(
             Stream.decodeText(),
             Stream.splitLines,

@@ -9,15 +9,16 @@ import {
   piRecordString as recordString,
   type PiRpcRecord,
 } from "@t3tools/provider-pi/server/rpc";
+import { SESSION_UNAVAILABLE_NOTICE } from "@t3tools/shared/forkNotices";
 
 /** omp's approval prompt title: `Allow tool: <name>`, then one detail line per input. */
 const APPROVAL_TITLE = /^Allow tool: ([^\n]+)(?:\n([\s\S]*))?$/;
-const APPROVAL_TITLE_START = /^allow tool\b/i;
 
-// omp's select dialog has no option ids: the labels are the values it reads back, so choices are
-// found by their meaning. Every label must be one omp is known to send; a prompt with any other
-// label is refused whole, because an unknown choice may widen what an approval grants.
-const normalizeLabel = (label: string) => label.trim().replace(/\s+/g, " ").toLowerCase();
+// omp's select options have no ids: the labels are the values it reads back, so choices are found
+// by meaning, and a prompt with any label omp is not known to send is refused whole.
+// NFKC makes full-width look-alikes read as ASCII; omp's wording is English only, so no other list.
+const normalizeLabel = (label: string) =>
+  label.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
 
 // Grants wider than the one request: never sent, but recognised so they do not refuse the prompt.
 const WIDER_GRANT_LABELS = [
@@ -25,10 +26,6 @@ const WIDER_GRANT_LABELS = [
   /^always approve( file)?$/,
   /^approve file$/,
 ];
-
-// Shown to the user as written, and translated by the client's catalog under this exact text.
-const SESSION_UNAVAILABLE_NOTICE =
-  "omp did not offer a session-wide approval, so this request was approved once only.";
 
 interface ApprovalChoices {
   readonly approve: string;
@@ -221,7 +218,7 @@ export function makeOmpTranslator(): OmpTranslator {
     // Whatever shape a prompt has, one that looks like an approval never reaches the adapter as
     // a plain select, where the user's pick would go back to omp as an unchecked choice.
     const approvalShaped =
-      APPROVAL_TITLE_START.test(title) ||
+      normalizeLabel(title).includes("allow tool") ||
       (Array.isArray(options) &&
         options.some((option) => typeof option === "string" && looksLikeApprovalChoice(option)));
     if (!approvalShaped) return frames(frame);

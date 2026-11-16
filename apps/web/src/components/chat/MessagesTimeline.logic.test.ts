@@ -1,3 +1,4 @@
+import { SESSION_UNAVAILABLE_NOTICE } from "@t3tools/shared/forkNotices";
 import { ThreadId, type WorktreeSetupSnapshot } from "@t3tools/contracts";
 import {
   CheckpointRef,
@@ -418,6 +419,34 @@ describe("deriveMessagesTimelineRows", () => {
     },
   );
 
+  it.each([
+    [SESSION_UNAVAILABLE_NOTICE, `translated ${SESSION_UNAVAILABLE_NOTICE}`],
+    ["server", "server"],
+    ["Claude changed its safety mode.", "Claude changed its safety mode."],
+  ])("translates a system notice only when it is one T3 words itself: %s", (message, expected) => {
+    const fixture = makeStreamingTimelineFixture();
+    const source: OrchestrationV2ProjectedTurnItem = {
+      ...fixture.visibleTurnItems[0]!,
+      sourceItemId: TurnItemId.make("fork-notice"),
+      item: {
+        ...fixture.visibleTurnItems[0]!.item,
+        id: TurnItemId.make("fork-notice"),
+        type: "system_notice",
+        message,
+        title: message,
+        status: "completed",
+      },
+    };
+    const [notice] = deriveTimelineEntriesFromVisibleTurnItems({
+      visibleTurnItems: [source],
+      optimisticMessages: [],
+    });
+    if (notice?.kind !== "work") throw new Error("Expected a notice work entry");
+    expect(workEntryDisplayLabel(notice.entry, undefined, (phrase) => `translated ${phrase}`)).toBe(
+      expected,
+    );
+  });
+
   it.each(["running", "completed", "superseded"] as const)(
     "keeps system notices visible as non-failing warnings through %s work",
     (state) => {
@@ -454,10 +483,6 @@ describe("deriveMessagesTimelineRows", () => {
       expect(notice.entry.projectedItem).toBe(source);
       expect(notice.entry.sourceActivityKind).toBe("runtime.warning");
       expect(workEntryDisplayLabel(notice.entry, undefined)).toBe(message);
-      // A notice T3 words itself can be in the catalog; anything else passes through untouched.
-      expect(
-        workEntryDisplayLabel(notice.entry, undefined, (source) => `translated ${source}`),
-      ).toBe(`translated ${message}`);
       expect(workEntryDisplayIndicatesToolFailure(notice.entry)).toBe(false);
       const rows = deriveMessagesTimelineRows({
         timelineEntries: [

@@ -34,9 +34,13 @@ import {
   t3ToolResultIndicatesFailure,
   type T3ToolSummaryCall,
 } from "@t3tools/client-runtime/t3ToolSummary";
-import { englishWorkLogPhrase, type WorkLogPhraseTranslator } from "./phrase.ts"; // fork
+import {
+  englishWorkLogPhrase,
+  translateForkNotice,
+  type WorkLogPhraseTranslator,
+} from "./phrase.ts"; // fork
 
-export { englishWorkLogPhrase, type WorkLogPhraseTranslator }; // fork
+export { englishWorkLogPhrase, translateForkNotice, type WorkLogPhraseTranslator }; // fork
 
 export type WorkLogToolLifecycleStatus = RuntimeItemStatus | "stopped" | "idle";
 

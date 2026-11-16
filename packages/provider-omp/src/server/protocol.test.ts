@@ -372,6 +372,20 @@ describe("omp inbound commands", () => {
       refused({ id: "u1", title: "Allow tool: bash", options: ["Approve", 5, "Deny"] }),
     ).toEqual(cancelled);
     expect(refused({ id: "u1", title: "Allow tool: bash" })).toEqual(cancelled);
+    // Leading space, full-width letters, and a title that only mentions the tool further in do not
+    // hide an approval, and neither do choices that are not omp's wording.
+    const yesNo = ["Yes", "No"];
+    expect(refused({ id: "u1", title: "  Allow tool: bash", options: yesNo })).toEqual(cancelled);
+    expect(refused({ id: "u1", title: "\nAllow tool: bash", options: yesNo })).toEqual(cancelled);
+    expect(refused({ id: "u1", title: "Ａｌｌｏｗ　ｔｏｏｌ: bash", options: yesNo })).toEqual(
+      cancelled,
+    );
+    expect(refused({ id: "u1", title: "Please ALLOW   TOOL bash", options: yesNo })).toEqual(
+      cancelled,
+    );
+    expect(refused({ id: "u1", title: "Run this?", options: ["Ａｐｐｒｏｖｅ", "No"] })).toEqual(
+      cancelled,
+    );
     // With no id there is nothing to answer, but the prompt must still not reach the adapter.
     expect(refused({ title: "Allow tool: bash", options: choices })).toEqual([]);
   });
