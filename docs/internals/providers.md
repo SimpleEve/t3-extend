@@ -43,7 +43,10 @@ adapter: a connection that translates omp's frames and commands into Pi's shapes
 in place of Pi's permission hook, and T3's MCP tools as omp host tools in place of Pi's bridge
 extension. It must run in plain `--mode rpc`: in `rpc-ui`, omp 18.20.2 lists host tools but never
 sends them to the model. Pi's adapter stays the only code that knows turn lifecycle; keep
-omp-specific cases in the dialect.
+omp-specific cases in the dialect. Two omp differences are easy to miss: its approval dialog
+returns the option label itself, so the translator finds the choices by meaning and denies any
+prompt it cannot read; and its RPC `fork` keeps the entry it is given where Pi's cuts before it, so
+the translator sends omp's `branch` instead.
 
 Antigravity separates account profiles per instance while sharing installed executables across the
 environment. It forces file-based credential storage because the native macOS keychain entry would

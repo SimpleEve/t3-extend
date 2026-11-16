@@ -50,7 +50,7 @@ itself enforces it:
 The **Auto** option is not shown for omp, because omp has no automatic approval reviewer. Threads that
 already stored Auto behave and display as Supervised. omp's own tool policies and restricted
 folders still apply in every mode, and its approval prompts reach you in the conversation. Choosing
-_Allow for session_ remembers an identical request for the rest of the session.
+_Allow for session_ uses omp's own session approval for that tool.
 
 Changing the mode restarts the omp session and resumes the same native conversation.
 
