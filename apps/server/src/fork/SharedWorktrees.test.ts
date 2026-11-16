@@ -16,6 +16,7 @@ import { removeLinkedWorktreeInSection } from "../vcs/worktreeRemoval.ts";
 import * as SqlClient from "effect/sql/SqlClient";
 
 import {
+  addColumnIfMissing,
   ensureImportTables,
   requireLivePolicy,
   SharedWorktreePolicy,
@@ -173,6 +174,30 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("SharedWorktrees"
         assert.isTrue(Exit.isFailure(yield* refused(fromImport)));
         assert.strictEqual(guarded.spawned.length, 1);
       }),
+  );
+
+  it.effect("adding a bookkeeping column that another start already added is not an error", () =>
+    Effect.gen(function* () {
+      const { guarded } = yield* setup();
+      const run = <A, E>(effect: Effect.Effect<A, E, SqlClient.SqlClient>) =>
+        effect.pipe(Effect.provideService(SqlClient.SqlClient, guarded.sql));
+      yield* run(ensureImportTables());
+      // Two starts that both found the column missing both reach the ALTER; the second loses.
+      yield* run(addColumnIfMissing("fork_t3code_import_map", "source_version"));
+      yield* run(ensureImportTables());
+      const columns = yield* guarded.sql<{ readonly name: string }>`
+        SELECT name FROM pragma_table_info('fork_t3code_import_map')`;
+      assert.deepStrictEqual(
+        columns.map((column) => column.name).filter((name) => name.startsWith("source_")),
+        ["source_id", "source_version", "source_runs"],
+      );
+      // Only the duplicate is swallowed.
+      assert.isTrue(
+        Exit.isFailure(
+          yield* Effect.exit(run(addColumnIfMissing("no_such_table", "source_version"))),
+        ),
+      );
+    }),
   );
 
   it.effect("on a database no import ever touched, refuses nothing T3 Extend owns", () =>

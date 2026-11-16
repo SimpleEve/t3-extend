@@ -167,6 +167,31 @@ export const requireLivePolicy = Effect.fn("SharedWorktrees.requireLive")(functi
   return policy;
 });
 
+const errorText = (error: unknown): string =>
+  error instanceof Error
+    ? `${error.message} ${errorText((error as { cause?: unknown }).cause)}`
+    : typeof error === "object" && error !== null && "cause" in error
+      ? errorText((error as { cause?: unknown }).cause)
+      : String(error);
+
+/**
+ * Adds an INTEGER column in place (the fork has no numbered migrations). Adding it is the check:
+ * two starts racing both reach the ALTER, and the one that loses sees "duplicate column name", which is success.
+ */
+export const addColumnIfMissing = Effect.fn("SharedWorktrees.addColumnIfMissing")(function* (
+  table: string,
+  column: string,
+) {
+  const sql = yield* SqlClient.SqlClient;
+  yield* sql
+    .unsafe(`ALTER TABLE ${table} ADD COLUMN ${column} INTEGER`)
+    .pipe(
+      Effect.catch((error) =>
+        /duplicate column name/i.test(errorText(error)) ? Effect.void : Effect.fail(error),
+      ),
+    );
+});
+
 export const ensureImportTables = Effect.fn("SharedWorktrees.ensureImportTables")(function* () {
   const sql = yield* SqlClient.SqlClient;
   yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_map (
@@ -178,15 +203,9 @@ export const ensureImportTables = Effect.fn("SharedWorktrees.ensureImportTables"
     imported_at TEXT NOT NULL,
     PRIMARY KEY (kind, source_id)
   )`;
-  // Where the official thread stood when it was copied. Added in place: the fork has no numbered migrations.
-  const mapColumns = yield* sql<{
-    readonly name: string;
-  }>`SELECT name FROM pragma_table_info('fork_t3code_import_map')`;
-  for (const column of ["source_version", "source_runs"]) {
-    if (!mapColumns.some((existing) => existing.name === column)) {
-      yield* sql.unsafe(`ALTER TABLE fork_t3code_import_map ADD COLUMN ${column} INTEGER`);
-    }
-  }
+  // Where the official thread stood when it was copied.
+  yield* addColumnIfMissing("fork_t3code_import_map", "source_version");
+  yield* addColumnIfMissing("fork_t3code_import_map", "source_runs");
   yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_runs (
     run_id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at TEXT NOT NULL,
