@@ -1036,6 +1036,42 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("Antigravity inst
           operation: "resolve",
         });
 
+        // Without a custom path, an agy CLI on PATH is found when no old runtime is there.
+        expect(yield* installation.resolve(undefined, { PATH: cliDirectory })).toMatchObject({
+          executablePath: alias,
+          harnessPath: null,
+          source: "path",
+          version: null,
+        });
+        const noCliDirectory = path.join(baseDir, "no-cli");
+        yield* fs.makeDirectory(noCliDirectory);
+        yield* fs.writeFileString(path.join(noCliDirectory, "custom-acp"), "other", {
+          mode: 0o755,
+        });
+        expect(
+          yield* installation.resolve(undefined, { PATH: noCliDirectory }).pipe(Effect.flip),
+        ).toMatchObject({ operation: "resolve" });
+        // The specifically named old runtime outranks the generic agy name, whatever the PATH order.
+        const runtimeDirectory = path.join(baseDir, "runtime");
+        yield* fs.makeDirectory(runtimeDirectory);
+        yield* fs.writeFileString(path.join(runtimeDirectory, executableName), "server", {
+          mode: 0o755,
+        });
+        yield* fs.writeFileString(path.join(runtimeDirectory, harnessName), "harness", {
+          mode: 0o755,
+        });
+        for (const directories of [
+          [cliDirectory, runtimeDirectory],
+          [runtimeDirectory, cliDirectory],
+        ]) {
+          expect(
+            yield* installation.resolve(undefined, { PATH: directories.join(":") }),
+          ).toMatchObject({
+            executablePath: path.join(runtimeDirectory, executableName),
+            source: "path",
+          });
+        }
+
         // Version-manager shims dispatch by their invoked name, so the shim path is what runs.
         const shims = path.join(baseDir, "shims");
         const mise = path.join(baseDir, "mise");
@@ -1052,11 +1088,13 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("Antigravity inst
           const windowsDirectory = path.join(baseDir, `windows-${name}`);
           yield* fs.makeDirectory(windowsDirectory);
           yield* fs.writeFileString(path.join(windowsDirectory, name), "cli");
-          const selected = yield* windows.resolve("agy", { PATH: windowsDirectory });
-          expect(selected.harnessPath).toBeNull();
-          expect((yield* fs.realPath(selected.executablePath)).toLowerCase()).toBe(
-            (yield* fs.realPath(path.join(windowsDirectory, name))).toLowerCase(),
-          );
+          for (const binaryPath of ["agy", undefined]) {
+            const selected = yield* windows.resolve(binaryPath, { PATH: windowsDirectory });
+            expect(selected.harnessPath).toBeNull();
+            expect((yield* fs.realPath(selected.executablePath)).toLowerCase()).toBe(
+              (yield* fs.realPath(path.join(windowsDirectory, name))).toLowerCase(),
+            );
+          }
         }
       }),
   );
