@@ -267,6 +267,49 @@ describe.skipIf(AGENT_DIR === undefined)("omp live", () => {
     }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 
+  it.live("streams a longer reply in growing pieces that start when the text starts", () =>
+    Effect.gen(function* () {
+      const threadId = ThreadId.make("thread-omp-live-stream");
+      const { runtime, takeEvent, providerThread } = yield* openRuntime("full-access", threadId);
+      yield* startTurn(
+        runtime,
+        providerThread,
+        threadId,
+        "full-access",
+        "Write a 200-word paragraph about why the sea is salty. No lists, no preamble.",
+      );
+      const updates = new Map<
+        string,
+        Array<{ text: string; startedAt: string; streaming: boolean }>
+      >();
+      while (true) {
+        const event = yield* takeEvent(() => true);
+        if (event.type === "turn_item.updated") {
+          const item = event.turnItem;
+          if (item.type === "assistant_message" || item.type === "reasoning") {
+            const list = updates.get(item.id) ?? [];
+            list.push({
+              text: item.text,
+              startedAt: DateTime.formatIso(item.startedAt),
+              streaming: item.streaming,
+            });
+            updates.set(item.id, list);
+          }
+        }
+        if (turnDone(event)) break;
+      }
+      const replies = [...updates.values()].filter((list) => (list.at(-1)?.text.length ?? 0) > 400);
+      assert.isAtLeast(replies.length, 1);
+      for (const list of replies) {
+        // Pieces grow, the item keeps the time its first piece arrived, and only the last is final.
+        assert.isAtLeast(new Set(list.map((update) => update.text.length)).size, 3);
+        assert.equal(new Set(list.map((update) => update.startedAt)).size, 1);
+        assert.isTrue(list.slice(0, -1).every((update) => update.streaming));
+        assert.isFalse(list.at(-1)?.streaming);
+      }
+    }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
   it.live("asks before running a command in supervised mode and runs it once approved", () =>
     Effect.gen(function* () {
       const threadId = ThreadId.make("thread-omp-live-approval");

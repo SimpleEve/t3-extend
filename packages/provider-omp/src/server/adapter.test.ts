@@ -16,10 +16,12 @@ import {
   type RuntimeMode,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Queue from "effect/Queue";
 import * as Stream from "effect/Stream";
+import * as TestClock from "effect/testing/TestClock";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
@@ -266,6 +268,136 @@ describe("OmpAdapterV2", () => {
           cachedInputTokens: 128,
         },
       );
+    }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
+  it.effect("streams thinking and text as growing items that start at their first delta", () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakeOmp();
+      const { runtime, takeEvent, providerThread } = yield* openRuntime(fake, "full-access");
+      yield* startTurn(runtime, providerThread, "full-access");
+      yield* fake.takeRequest("prompt");
+      const origin = DateTime.toEpochMillis(yield* DateTime.now);
+      const seen: Array<{
+        readonly type: string;
+        readonly text: string;
+        readonly streaming: boolean;
+        readonly startedAt: number;
+        readonly completedAt: number | null;
+      }> = [];
+      // takeEvent discards what it skips, so every event passes through here to be recorded.
+      const record = (event: ProviderAdapter.ProviderAdapterV2Event) => {
+        if (event.type !== "turn_item.updated") return;
+        const item = event.turnItem;
+        if (item.type !== "assistant_message" && item.type !== "reasoning") return;
+        seen.push({
+          type: item.type,
+          text: item.text,
+          streaming: item.streaming,
+          startedAt: DateTime.toEpochMillis(item.startedAt) - origin,
+          completedAt:
+            item.completedAt === null ? null : DateTime.toEpochMillis(item.completedAt) - origin,
+        });
+      };
+      // Frames are handled in order, so a dialog raised after a frame proves the frame was handled.
+      let barriers = 0;
+      const handled = Effect.gen(function* () {
+        barriers += 1;
+        yield* fake.emit({
+          type: "extension_ui_request",
+          id: `barrier-${barriers}`,
+          method: "confirm",
+          title: "Barrier",
+        });
+        yield* takeEvent((event) => {
+          record(event);
+          return (
+            event.type === "runtime_request.updated" &&
+            event.runtimeRequest.nativeRequestRef?.nativeId === `barrier-${barriers}`
+          );
+        });
+      });
+      const update = (assistantMessageEvent: Record<string, unknown>) =>
+        fake.emit({ type: "message_update", assistantMessageEvent, messageId: "msg-2" });
+      const later = (millis: number) => TestClock.adjust(Duration.millis(millis));
+
+      yield* fake.emit({ type: "agent_start" });
+      yield* fake.emit({
+        type: "message_start",
+        message: assistantMessage(""),
+        messageId: "msg-2",
+      });
+      yield* handled;
+      // omp took 300 ms to produce its first thinking token; the items must not start before it.
+      yield* later(300);
+      yield* update({ type: "thinking_start", contentIndex: 0 });
+      yield* update({ type: "thinking_delta", contentIndex: 0, delta: "Let me " });
+      yield* handled;
+      yield* later(100);
+      yield* update({ type: "thinking_delta", contentIndex: 0, delta: "think." });
+      yield* handled;
+      yield* later(100);
+      yield* update({ type: "thinking_end", contentIndex: 0, content: "Let me think." });
+      yield* handled;
+      yield* later(200);
+      yield* update({ type: "text_start", contentIndex: 1 });
+      yield* update({ type: "text_delta", contentIndex: 1, delta: "The sea" });
+      yield* handled;
+      yield* later(100);
+      yield* update({ type: "text_delta", contentIndex: 1, delta: " is salty." });
+      yield* handled;
+      yield* later(100);
+      yield* update({ type: "text_end", contentIndex: 1, content: "The sea is salty." });
+      const final = assistantMessage("The sea is salty.");
+      for (const frame of [
+        { type: "message_end", message: final, messageId: "msg-2" },
+        { type: "turn_end", message: final },
+        ...agentEnd(final),
+      ])
+        yield* fake.emit(frame);
+
+      yield* takeEvent((event) => {
+        record(event);
+        return event.type === "provider_turn.updated" && event.providerTurn.status === "completed";
+      });
+      assert.deepEqual(seen, [
+        { type: "reasoning", text: "Let me ", streaming: true, startedAt: 300, completedAt: null },
+        {
+          type: "reasoning",
+          text: "Let me think.",
+          streaming: true,
+          startedAt: 300,
+          completedAt: null,
+        },
+        {
+          type: "reasoning",
+          text: "Let me think.",
+          streaming: false,
+          startedAt: 300,
+          completedAt: 500,
+        },
+        {
+          type: "assistant_message",
+          text: "The sea",
+          streaming: true,
+          startedAt: 700,
+          completedAt: null,
+        },
+        {
+          type: "assistant_message",
+          text: "The sea is salty.",
+          streaming: true,
+          startedAt: 700,
+          completedAt: null,
+        },
+        {
+          type: "assistant_message",
+          text: "The sea is salty.",
+          streaming: false,
+          startedAt: 700,
+          completedAt: 900,
+        },
+      ]);
     }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 
