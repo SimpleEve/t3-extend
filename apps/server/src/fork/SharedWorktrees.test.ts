@@ -189,7 +189,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("SharedWorktrees"
         SELECT name FROM pragma_table_info('fork_t3code_import_map')`;
       assert.deepStrictEqual(
         columns.map((column) => column.name).filter((name) => name.startsWith("source_")),
-        ["source_id", "source_version", "source_runs"],
+        ["source_id", "source_version", "source_runs", "source_meta"],
       );
       // Only the duplicate is swallowed.
       assert.isTrue(

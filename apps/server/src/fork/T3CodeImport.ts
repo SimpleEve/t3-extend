@@ -14,6 +14,7 @@ import {
   T3CodeImportError,
   type T3CodeImportCatalog,
   type T3CodeImportFileKind,
+  type T3CodeImportLocalEdit,
   type T3CodeImportNotice,
   type T3CodeImportReport,
   type T3CodeImportResult,
@@ -44,6 +45,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as ServerConfig from "../config.ts";
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
+import * as ThreadCommandExecutor from "../orchestration-v2/ThreadCommandExecutor.ts";
 import { checkpointRefForScopeOrdinal } from "../orchestration-v2/CheckpointService.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
 import { BUILD_MIGRATION_HEAD, recordedMigrations } from "../persistence/databaseMigrationHead.ts";
@@ -86,6 +88,16 @@ const EXCLUDED_TABLES: ReadonlySet<string> = new Set([
 ]);
 
 const THREADS_TABLE = "orchestration_v2_projection_threads";
+const SESSIONS_TABLE = "orchestration_v2_projection_provider_sessions";
+const BINDINGS_TABLE = "orchestration_v2_projection_provider_session_bindings";
+/**
+ * A replacement copies a thread under the write lock. Measured on synthetic data at the size of the largest real
+ * threads (8,032 rows and 6,904 events, about 30 MB), it took 1.2 to 1.6 seconds, roughly 0.1 ms per row or event, so
+ * from this many the review warns that other threads pause meanwhile (see FORK.md).
+ */
+const LARGE_REPLACE_ROWS = 8_000;
+/** Holding the write lock longer than this is logged. */
+const SLOW_REPLACE_MILLIS = 1_000;
 const PROVIDER_THREADS_TABLE = "orchestration_v2_projection_provider_threads";
 const CHECKPOINTS_TABLE = "orchestration_v2_projection_checkpoints";
 const SCOPES_TABLE = "orchestration_v2_projection_checkpoint_scopes";
@@ -158,9 +170,16 @@ interface Analysis {
   /** Subagents left behind: references to them still get the id they would have if imported later. */
   readonly omittedTargets: ReadonlyMap<string, string>;
   /** Imported threads copied again, with the runs started here that the copy was told it discards. */
-  readonly refreshing: ReadonlyMap<string, number>;
+  readonly refreshing: ReadonlyMap<
+    string,
+    { readonly runs: number; readonly edits: ReadonlyArray<T3CodeImportLocalEdit> }
+  >;
   /** Subagents left out next to a thread that is copied: their source version is recorded as a baseline. */
-  readonly omittedToRecord: ReadonlyArray<SourceThread>;
+  readonly omittedToRecord: ReadonlyArray<{
+    readonly sub: SourceThread;
+    /** The copied threads it belongs under; its baseline moves only if one of them arrived. */
+    readonly owners: ReadonlyArray<string>;
+  }>;
   readonly tasks: ReadonlyArray<{
     readonly row: Row;
     readonly enabled: boolean;
@@ -205,6 +224,8 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   const secrets = yield* ServerSecretStore.ServerSecretStore;
   const scheduledTasks = yield* ScheduledTaskService.ScheduledTaskService;
   const sharedWorktrees = yield* requireLivePolicy();
+  // The lock every command and provider event for a thread runs under; a replacement takes it too.
+  const threadCommands = yield* ThreadCommandExecutor.ThreadCommandExecutor;
   const scope = yield* Effect.scope;
   const importLock = yield* Semaphore.make(1);
   const stateRef = yield* SubscriptionRef.make<T3CodeImportState>({ status: "idle" });
@@ -383,12 +404,14 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     readonly source_version: number | null;
     /** Highest run ordinal it had then; null on the same imports. */
     readonly source_runs: number | null;
+    /** The thread's user-editable fields at the copy (JSON); null for imports from before it was recorded. */
+    readonly source_meta: string | null;
   }
 
   const mappedTargets = (kind: string) =>
     sql
       .unsafe<MappedRow>(
-        `SELECT source_id, target_id, state, imported_at, source_version, source_runs FROM fork_t3code_import_map WHERE kind = ?`,
+        `SELECT source_id, target_id, state, imported_at, source_version, source_runs, source_meta FROM fork_t3code_import_map WHERE kind = ?`,
         [kind],
       )
       .pipe(Effect.map((rows) => new Map(rows.map((row) => [row.source_id, row] as const))));
@@ -440,6 +463,53 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   });
 
   /**
+   * The user-editable fields of a thread row, as one JSON text, so the copy's and today's can be compared.
+   * Settling, visits and the like are the app's own bookkeeping and are left out.
+   */
+  const metaOf = (row: Row): string => {
+    let payload: Record<string, unknown> = {};
+    try {
+      const parsed = decodeJson(String(row.payload_json ?? "{}"));
+      if (typeof parsed === "object" && parsed !== null)
+        payload = parsed as Record<string, unknown>;
+    } catch {
+      // An unreadable payload compares as empty on both sides.
+    }
+    return encodeJson({
+      title: row.title ?? null,
+      pinnedAt: payload.pinnedAt ?? null,
+      archivedAt: payload.archivedAt ?? null,
+      snoozedUntil: payload.snoozedUntil ?? null,
+      settings: [
+        row.runtime_mode ?? null,
+        row.interaction_mode ?? null,
+        payload.modelSelection ?? null,
+        payload.autoSettleDisabledAt ?? null,
+      ],
+    });
+  };
+
+  /** What was changed on the copy here since the import, besides runs. An older import has no baseline to compare. */
+  const localEditsOf = Effect.fn("T3CodeImport.localEditsOf")(function* (row: MappedRow) {
+    if (row.source_meta === null) return [] as ReadonlyArray<T3CodeImportLocalEdit>;
+    const now = (yield* sql.unsafe<Row>(
+      `SELECT title, runtime_mode, interaction_mode, payload_json FROM ${THREADS_TABLE} WHERE thread_id = ?`,
+      [row.target_id],
+    ))[0];
+    if (now === undefined) return [] as ReadonlyArray<T3CodeImportLocalEdit>;
+    const was = decodeJson(row.source_meta) as Record<string, unknown>;
+    const is = decodeJson(metaOf(now)) as Record<string, unknown>;
+    const differs = (key: string) => encodeJson(was[key]) !== encodeJson(is[key]);
+    const edits: Array<T3CodeImportLocalEdit> = [];
+    if (differs("title")) edits.push("title");
+    if (differs("pinnedAt")) edits.push("pinned");
+    if (differs("archivedAt")) edits.push("archived");
+    if (differs("snoozedUntil")) edits.push("snoozed");
+    if (differs("settings")) edits.push("settings");
+    return edits;
+  });
+
+  /**
    * An imported thread is stale when its own source moved, or a subagent that was left out of the import
    * did (its baseline was recorded with state 'omitted'), so picking the thread again brings the news.
    */
@@ -469,19 +539,24 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       const row = done.get(member.id);
       return row?.state === "done" ? [{ member, row }] : [];
     });
-    if (copied.length === 0) return { state: "importable" as const, localChanges: 0 };
+    if (copied.length === 0) {
+      return { state: "importable" as const, localChanges: 0, localEdits: [] };
+    }
     let updated = false;
     let localChanges = 0;
+    const localEdits = new Set<T3CodeImportLocalEdit>();
     for (const { member, row } of copied) {
       if (!(yield* isStale(src, member, row, children, done))) continue;
       updated = true;
       localChanges += yield* localRunsOf(row);
+      for (const edit of yield* localEditsOf(row)) localEdits.add(edit);
     }
-    if (updated) return { state: "updated" as const, localChanges };
+    if (updated) return { state: "updated" as const, localChanges, localEdits: [...localEdits] };
     // A thread whose subagents did not all arrive (an interrupted run) can be picked again to finish.
     return {
       state: copied.length === members.length ? ("imported" as const) : ("importable" as const),
       localChanges: 0,
+      localEdits: [],
     };
   });
 
@@ -579,6 +654,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
             subagentCount: subagentDescendants(children, thread.id).length,
             state: progress.get(thread.id)?.state ?? ("busy" as const),
             localChanges: progress.get(thread.id)?.localChanges ?? 0,
+            localEdits: progress.get(thread.id)?.localEdits ?? [],
             worktree:
               thread.worktree === null
                 ? null
@@ -877,17 +953,37 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       const row = doneThreads.get(id);
       return thread !== undefined && row?.state === "done" ? [{ thread, row }] : [];
     });
-    const refreshing = new Map<string, number>();
+    const refreshing = new Map<
+      string,
+      { runs: number; edits: ReadonlyArray<T3CodeImportLocalEdit> }
+    >();
     for (const { thread, row } of refreshCandidates) {
       if (!(yield* isStale(src, thread, row, children, doneThreads))) continue;
       if (yield* targetBlocked(row.target_id)) {
         skipped.push({ code: "thread-target-busy", subject: thread.title });
         continue;
       }
-      const localRuns = yield* localRunsOf(row);
-      refreshing.set(thread.id, localRuns);
-      if (localRuns > 0) {
-        attention.push({ code: "thread-local-discarded", subject: thread.title, count: localRuns });
+      const runs = yield* localRunsOf(row);
+      const edits = yield* localEditsOf(row);
+      refreshing.set(thread.id, { runs, edits });
+      if (runs > 0 || edits.length > 0) {
+        attention.push({
+          code: "thread-local-discarded",
+          subject: thread.title,
+          detail: edits.join(","),
+          count: runs,
+        });
+      }
+      // The events and the three tables that hold nearly all of a long thread's rows.
+      const size = (yield* src.unsafe<{ readonly count: number }>(
+        `SELECT (SELECT COUNT(*) FROM orchestration_events WHERE aggregate_kind = 'thread' AND stream_id = ?1)
+              + (SELECT COUNT(*) FROM orchestration_v2_projection_turn_items WHERE thread_id = ?1)
+              + (SELECT COUNT(*) FROM orchestration_v2_projection_nodes WHERE thread_id = ?1)
+              + (SELECT COUNT(*) FROM orchestration_v2_projection_messages WHERE thread_id = ?1) AS count`,
+        [thread.id],
+      ))[0]?.count;
+      if (Number(size ?? 0) >= LARGE_REPLACE_ROWS) {
+        attention.push({ code: "thread-large-replace", subject: thread.title });
       }
     }
     const alreadyImported = [...wanted.keys()].filter(
@@ -951,17 +1047,24 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     // A subagent left out of an earlier import only has a baseline; there is no thread to point at yet.
     for (const [id, row] of doneThreads)
       if (row.state !== "omitted") threadTargets.set(id, row.target_id);
-    for (const thread of toCopy) threadTargets.set(thread.id, yield* targetId("thread", thread.id));
+    // A thread copied again keeps the id it already has.
+    for (const thread of toCopy) {
+      if (!threadTargets.has(thread.id)) {
+        threadTargets.set(thread.id, yield* targetId("thread", thread.id));
+      }
+    }
     const omittedTargets = new Map<string, string>();
     for (const id of omitted) {
       if (!threadTargets.has(id)) omittedTargets.set(id, yield* targetId("thread", id));
     }
-    const omittedToRecord = new Map<string, SourceThread>();
+    const omittedToRecord = new Map<string, { sub: SourceThread; owners: Array<string> }>();
     for (const thread of toCopy) {
       for (const sub of subagentDescendants(children, thread.id)) {
         const recorded = doneThreads.get(sub.id)?.state;
         if (omitted.has(sub.id) && recorded !== "done" && recorded !== "copying") {
-          omittedToRecord.set(sub.id, sub);
+          const entry = omittedToRecord.get(sub.id) ?? { sub, owners: [] };
+          entry.owners.push(thread.id);
+          omittedToRecord.set(sub.id, entry);
         }
       }
     }
@@ -1217,6 +1320,19 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
           `DELETE FROM orchestration_events WHERE aggregate_kind = 'thread' AND stream_id = ?`,
           [targetThreadId],
         );
+        // The copy arrives with no session (its provider thread keeps only the native handle), so a session
+        // this thread opened here must not stay around to be reopened. A session another thread is still
+        // bound to stays; only this thread's binding goes.
+        yield* sql.unsafe(`DELETE FROM ${BINDINGS_TABLE} WHERE thread_id = ?`, [targetThreadId]);
+        yield* sql.unsafe(
+          `DELETE FROM ${SESSIONS_TABLE} WHERE thread_id = ? AND NOT EXISTS (
+             SELECT 1 FROM ${BINDINGS_TABLE} AS other
+             WHERE other.provider_session_id = ${SESSIONS_TABLE}.provider_session_id)`,
+          [targetThreadId],
+        );
+        yield* sql.unsafe(`DELETE FROM provider_session_runtime WHERE thread_id = ?`, [
+          targetThreadId,
+        ]);
       }),
     );
   });
@@ -1570,6 +1686,12 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         `SELECT MAX(ordinal) AS ordinal FROM orchestration_v2_projection_runs WHERE thread_id = ?`,
         [thread.id],
       ))[0]?.ordinal ?? 0;
+    const copiedMeta = metaOf(
+      (yield* src.unsafe<Row>(
+        `SELECT title, runtime_mode, interaction_mode, payload_json FROM ${THREADS_TABLE} WHERE thread_id = ?`,
+        [thread.id],
+      ))[0] ?? {},
+    );
     const importedAt = yield* nowIso;
     const countersBefore = { ...context.counters };
     // Refs are only ever created, so this is safe to do before the replacement is decided.
@@ -1582,7 +1704,7 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     });
 
     const previous = (yield* sql.unsafe<MappedRow>(
-      `SELECT source_id, target_id, state, imported_at, source_version, source_runs
+      `SELECT source_id, target_id, state, imported_at, source_version, source_runs, source_meta
        FROM fork_t3code_import_map WHERE kind = 'thread' AND source_id = ?`,
       [thread.id],
     ))[0];
@@ -1593,9 +1715,17 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         yield* purgeThread(allTables, targetThread);
       }
       yield* sql.unsafe(
-        `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at, source_version, source_runs)
-         VALUES ('thread', ?, ?, 'copying', ?, ?, ?, ?)`,
-        [thread.id, targetThread, thread.worktree, importedAt, copiedThrough, copiedRuns],
+        `INSERT OR REPLACE INTO fork_t3code_import_map (kind, source_id, target_id, state, detail, imported_at, source_version, source_runs, source_meta)
+         VALUES ('thread', ?, ?, 'copying', ?, ?, ?, ?, ?)`,
+        [
+          thread.id,
+          targetThread,
+          thread.worktree,
+          importedAt,
+          copiedThrough,
+          copiedRuns,
+          copiedMeta,
+        ],
       );
 
       for (const table of context.tables) {
@@ -1677,20 +1807,46 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
       return "copied" as const;
     });
 
-    // Replacing a copy that is in use is one transaction. It takes the write lock before it looks, so nothing
-    // can start work on the thread between the check and the purge, and a failure leaves the old copy as it was.
+    // Replacing a copy that is in use runs under the thread's command lock, the one every dispatch,
+    // provider event and effect for it takes, so no command that read the old copy can commit after the
+    // replacement. Inside it, one transaction takes the write lock before it looks, so nothing starts between
+    // the check and the purge either, and a failure leaves the old copy as it was.
     const outcome =
       previous?.state === "done"
-        ? yield* sql.withTransaction(
-            Effect.gen(function* () {
-              if (yield* targetBlocked(targetThread)) return "busy" as const;
-              // The review told the user how many runs of theirs go; more than that was not agreed to.
-              if ((yield* localRunsOf(previous)) > (analysis.refreshing.get(thread.id) ?? 0)) {
-                return "changed" as const;
-              }
-              return yield* write;
-            }),
-          )
+        ? yield* Effect.gen(function* () {
+            const waitedFrom = DateTime.toEpochMillis(yield* DateTime.now);
+            return yield* threadCommands.withLock(
+              targetThread as ThreadId,
+              Effect.gen(function* () {
+                const heldFrom = DateTime.toEpochMillis(yield* DateTime.now);
+                const result = yield* sql.withTransaction(
+                  Effect.gen(function* () {
+                    if (yield* targetBlocked(targetThread)) return "busy" as const;
+                    // The review told the user what of theirs goes; more than that was not agreed to.
+                    const agreed = analysis.refreshing.get(thread.id);
+                    const edits = yield* localEditsOf(previous);
+                    if (
+                      (yield* localRunsOf(previous)) > (agreed?.runs ?? 0) ||
+                      edits.some((edit) => !(agreed?.edits ?? []).includes(edit))
+                    ) {
+                      return "changed" as const;
+                    }
+                    return yield* write;
+                  }),
+                );
+                const heldMillis = DateTime.toEpochMillis(yield* DateTime.now) - heldFrom;
+                const waitedMillis = heldFrom - waitedFrom;
+                const detail = { thread: thread.id, outcome: result, heldMillis, waitedMillis };
+                yield* heldMillis >= SLOW_REPLACE_MILLIS
+                  ? Effect.logWarning(
+                      "T3 Code import held the write lock for a long time while replacing a thread",
+                      detail,
+                    )
+                  : Effect.logDebug("T3 Code import replaced a thread", detail);
+                return result;
+              }),
+            );
+          })
         : yield* write;
     if (outcome !== "copied") {
       Object.assign(context.counters, countersBefore);
@@ -2099,7 +2255,9 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
     }
 
     // Subagents left out: where they stand now is the baseline later updates are measured from.
-    for (const sub of analysis.omittedToRecord) {
+    for (const { sub, owners } of analysis.omittedToRecord) {
+      // A parent that was not replaced did not take the news, so the subagent's news is still news.
+      if (owners.every((owner) => stopped.has(owner))) continue;
       const version =
         (yield* src.unsafe<{ readonly version: number | null }>(
           `SELECT MAX(stream_version) AS version FROM orchestration_events
@@ -2356,7 +2514,11 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   });
 });
 
-export const layer = Layer.effect(T3CodeImport, make({}));
+// One lock instance serves the orchestrator and this service: `ThreadCommandExecutor.layer` is a single
+// layer value, so building the server's layers once shares it.
+export const layer = Layer.effect(T3CodeImport, make({})).pipe(
+  Layer.provide(ThreadCommandExecutor.layer),
+);
 
 /** Reads another home than ~/.t3; tests point it at fixture databases. */
 export const layerWithSourceHome = (sourceHome: string) =>

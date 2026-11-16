@@ -175,16 +175,17 @@ const errorText = (error: unknown): string =>
       : String(error);
 
 /**
- * Adds an INTEGER column in place (the fork has no numbered migrations). Adding it is the check:
+ * Adds a column in place (the fork has no numbered migrations). Adding it is the check:
  * two starts racing both reach the ALTER, and the one that loses sees "duplicate column name", which is success.
  */
 export const addColumnIfMissing = Effect.fn("SharedWorktrees.addColumnIfMissing")(function* (
   table: string,
   column: string,
+  type: "INTEGER" | "TEXT" = "INTEGER",
 ) {
   const sql = yield* SqlClient.SqlClient;
   yield* sql
-    .unsafe(`ALTER TABLE ${table} ADD COLUMN ${column} INTEGER`)
+    .unsafe(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
     .pipe(
       Effect.catch((error) =>
         /duplicate column name/i.test(errorText(error)) ? Effect.void : Effect.fail(error),
@@ -206,6 +207,8 @@ export const ensureImportTables = Effect.fn("SharedWorktrees.ensureImportTables"
   // Where the official thread stood when it was copied.
   yield* addColumnIfMissing("fork_t3code_import_map", "source_version");
   yield* addColumnIfMissing("fork_t3code_import_map", "source_runs");
+  // The thread's user-editable fields as the copy had them, to tell what was changed here since.
+  yield* addColumnIfMissing("fork_t3code_import_map", "source_meta", "TEXT");
   yield* sql`CREATE TABLE IF NOT EXISTS fork_t3code_import_runs (
     run_id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at TEXT NOT NULL,

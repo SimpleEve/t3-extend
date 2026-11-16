@@ -4,13 +4,19 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import {
+  CommandId,
+  ProjectId,
+  ProviderInstanceId,
   ProviderDriverKind,
   ThreadId,
   type ManagedPolicySummary,
   type T3CodeImportSelection,
 } from "@t3tools/contracts";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
+import * as KeyedLock from "@t3tools/shared/KeyedLock";
 import * as Context from "effect/Context";
+import * as Deferred from "effect/Deferred";
+import * as Fiber from "effect/Fiber";
 import * as Digest from "effect/crypto/Digest";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -26,6 +32,13 @@ import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as ServerConfig from "../config.ts";
 import { checkpointRefForScopeOrdinal } from "../orchestration-v2/CheckpointService.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
+import * as ThreadCommandExecutor from "../orchestration-v2/ThreadCommandExecutor.ts";
+import { CodexProviderCapabilitiesV2 } from "../orchestration-v2/Adapters/CodexAdapterV2.ts";
+import * as Orchestrator from "../orchestration-v2/Orchestrator.ts";
+import type * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
+import * as ProviderAdapterRegistry from "../orchestration-v2/ProviderAdapterRegistry.ts";
+import * as ProviderReplayHarness from "../orchestration-v2/testkit/ProviderReplayHarness.ts";
+import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import { BUILD_MIGRATION_HEAD } from "../persistence/databaseMigrationHead.ts";
 import { runMigrations } from "../persistence/Migrations.ts";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
@@ -377,6 +390,14 @@ const withService = <A, E, R>(
     readonly gitHook?: {
       current: ((args: ReadonlyArray<string>) => Effect.Effect<void>) | undefined;
     };
+    /** Runs the real orchestrator over the same database, sharing the thread lock with the import. */
+    readonly orchestrator?: {
+      readonly wrapProjectionStore?: (
+        store: ProjectionStore.ProjectionStoreV2Shape,
+      ) => ProjectionStore.ProjectionStoreV2Shape;
+    };
+    /** Stands in for the orchestrator's thread lock, to watch or share it. */
+    readonly threadCommands?: ThreadCommandExecutor.ThreadCommandExecutor["Service"];
     /** Swaps the event store for one that records what the import tells live clients, by thread id. */
     readonly announced?: Array<string>;
   },
@@ -417,6 +438,9 @@ const withService = <A, E, R>(
     const captured: Captured = { tasks: [], keybindings: [], secrets: new Map() };
     const announced = options.announced;
     const mocks = Layer.mergeAll(
+      options.threadCommands === undefined
+        ? ThreadCommandExecutor.layer
+        : Layer.succeed(ThreadCommandExecutor.ThreadCommandExecutor, options.threadCommands),
       announced === undefined
         ? OrchestrationEventStore.layer
         : Layer.mock(OrchestrationEventStore.OrchestrationEventStore)({
@@ -499,7 +523,31 @@ const withService = <A, E, R>(
                 });
               }),
             );
+    const instanceId = ProviderInstanceId.make("codex");
+    const orchestratorAdapter = {
+      instanceId,
+      driver: ProviderDriverKind.make("codex"),
+      getCapabilities: () => Effect.succeed(CodexProviderCapabilitiesV2),
+      planSelectionTransition: () => Effect.succeed({ type: "apply_on_next_turn" as const }),
+      openSession: () => Effect.die("No provider process needed"),
+    } as ProviderAdapter.ProviderAdapterV2["Service"];
+    // Built together with the import in one layer build, so both get the same lock instance.
+    const orchestratorLayer =
+      options.orchestrator === undefined
+        ? Layer.empty
+        : ProviderReplayHarness.layerWithRegistry(
+            { name: "import-race" },
+            ProviderAdapterRegistry.layerFromAdapters([orchestratorAdapter]),
+            {
+              databaseLayer: sqlite,
+              runEffectWorker: false,
+              ...(options.orchestrator.wrapProjectionStore === undefined
+                ? {}
+                : { wrapProjectionStore: options.orchestrator.wrapProjectionStore }),
+            },
+          );
     const layer = T3CodeImport.layerWithSourceHome(home).pipe(
+      Layer.provideMerge(orchestratorLayer),
       Layer.provideMerge(mocks),
       // The policy the server provides once at its base, over the same database.
       Layer.provideMerge(policyLayer),
@@ -1541,7 +1589,7 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
         const report = yield* service.check(onlyThread(T_STOPPED));
         assert.deepStrictEqual(
           report.attention.filter((notice) => notice.code === "thread-local-discarded"),
-          [{ code: "thread-local-discarded", subject: entry!.title, count: 1 }],
+          [{ code: "thread-local-discarded", subject: entry!.title, detail: "", count: 1 }],
         );
         // Checking writes nothing.
         const [untouched] = yield* sql<{
@@ -1850,6 +1898,357 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
           SELECT child_thread_id FROM orchestration_v2_projection_subagents`;
           assert.isNotNull(card?.child_thread_id);
           assert.equal((yield* stateOfThread(service, T_PARENT))?.state, "imported");
+        }),
+      ),
+  );
+
+  const ONLY_ORIGINAL_TITLE = (threadId: string) => `title ${threadId.slice(-2)}`;
+
+  it.effect(
+    "a replacement runs inside the thread's command lock, after the old copy and before the new one shows",
+    () =>
+      Effect.gen(function* () {
+        const inner = yield* KeyedLock.make<ThreadId>();
+        const probe: { sql: SqlClient.SqlClient | undefined } = { sql: undefined };
+        const seen: Array<{ key: string; events: number; at: "enter" | "exit" }> = [];
+        const eventsOf = (key: string) =>
+          probe
+            .sql!.unsafe<{ count: number }>(
+              `SELECT COUNT(*) AS count FROM orchestration_events WHERE aggregate_kind = 'thread' AND stream_id = ?`,
+              [key],
+            )
+            .pipe(
+              Effect.map((rows) => Number(rows[0]?.count)),
+              Effect.orDie,
+            );
+        const threadCommands: ThreadCommandExecutor.ThreadCommandExecutor["Service"] = {
+          activeKeys: inner.activeKeys,
+          withLock: (key, effect) =>
+            inner.withLock(
+              key,
+              Effect.gen(function* () {
+                seen.push({ key, events: yield* eventsOf(key), at: "enter" });
+                const result = yield* effect;
+                seen.push({ key, events: yield* eventsOf(key), at: "exit" });
+                return result;
+              }),
+            ),
+        };
+        return yield* withService({ threadCommands }, ({ service, sql, sourcePath }) =>
+          Effect.gen(function* () {
+            probe.sql = sql;
+            yield* runToEnd(service, onlyThread(T_STOPPED));
+            const target = yield* targetOf(sql, T_STOPPED);
+            // The first copy takes no lock: nothing is in use yet.
+            assert.deepStrictEqual(seen, []);
+            yield* continueInOfficial(sourcePath, T_STOPPED);
+            yield* runToEnd(service, onlyThread(T_STOPPED));
+            // Taken once, for this thread only; the old copy (3 events) is there when it is taken, the new one (4) when it is let go.
+            assert.deepStrictEqual(seen, [
+              { key: target, events: 3, at: "enter" },
+              { key: target, events: 4, at: "exit" },
+            ]);
+          }),
+        );
+      }),
+  );
+
+  it.effect(
+    "a replacement waits for a command that holds the thread's lock, then replaces what that command wrote",
+    () => {
+      // A plain id, as the importer's own targets are: the rewriter does not treat one with colons as a whole.
+      const REAL = ThreadId.make(id(170));
+      const gate = {
+        armed: false,
+        entered: Deferred.makeUnsafe<void>(),
+        release: Deferred.makeUnsafe<void>(),
+      };
+      // Set when the import is about to ask for the lock (its last git step before the replacement).
+      const reached = Deferred.makeUnsafe<void>();
+      const gitHook: NonNullable<Parameters<typeof withService>[0]["gitHook"]> = {
+        current: undefined,
+      };
+      betweenCheckAndReplace(gitHook, Deferred.succeed(reached, undefined).pipe(Effect.asVoid));
+      return withService(
+        {
+          gitHook,
+          orchestrator: {
+            // Holds the command's first projection read open: the command is inside its lock, not yet committed.
+            wrapProjectionStore: (store) =>
+              new Proxy(store, {
+                get: (target, property) => {
+                  const value = Reflect.get(target, property) as unknown;
+                  if (typeof value !== "function") return value;
+                  return (...args: Array<unknown>) => {
+                    if (!gate.armed) return value(...args);
+                    gate.armed = false;
+                    return Deferred.succeed(gate.entered, undefined).pipe(
+                      Effect.andThen(Deferred.await(gate.release)),
+                      Effect.andThen(value(...args)),
+                    );
+                  };
+                },
+              }),
+          },
+        },
+        ({ service, sql }) =>
+          Effect.gen(function* () {
+            const orchestrator = yield* Orchestrator.OrchestratorV2;
+            yield* orchestrator.dispatch({
+              type: "thread.create",
+              commandId: CommandId.make("create-real-target"),
+              threadId: REAL,
+              projectId: ProjectId.make("project-here"),
+              title: "Real thread",
+              modelSelection: {
+                instanceId: ProviderInstanceId.make("codex"),
+                model: "gpt-5.1-codex",
+              },
+              runtimeMode: "full-access",
+              interactionMode: "default",
+              branch: null,
+              worktreePath: null,
+              createdBy: "user",
+              creationSource: "web",
+            });
+            // This thread was imported from the fixture's T_STOPPED earlier, with what the source had then.
+            yield* sql`INSERT INTO fork_t3code_import_map
+            (kind, source_id, target_id, state, imported_at, source_version, source_runs)
+            VALUES ('thread', ${T_STOPPED}, ${REAL}, 'done', '2026-01-01T00:00:00.000Z', 0, 0)`;
+
+            gate.armed = true;
+            const command = yield* orchestrator
+              .dispatch({
+                type: "thread.metadata.update",
+                commandId: CommandId.make("rename-while-importing"),
+                threadId: REAL,
+                title: "Typed while importing",
+              })
+              .pipe(Effect.forkChild);
+            yield* Deferred.await(gate.entered);
+
+            const importing = yield* runToEnd(service, onlyThread(T_STOPPED)).pipe(
+              Effect.forkChild,
+            );
+            yield* Deferred.await(reached);
+            // Plenty of database round trips for an import that is not waiting to get through.
+            for (let turn = 0; turn < 600; turn += 1) yield* sql`SELECT 1`;
+            assert.isUndefined(importing.pollUnsafe());
+            const renamed = () =>
+              sql<{ count: number }>`SELECT COUNT(*) AS count FROM orchestration_events
+              WHERE stream_id = ${REAL} AND event_type = 'thread.metadata-updated'`;
+            assert.equal((yield* renamed())[0]?.count, 0);
+
+            yield* Deferred.succeed(gate.release, undefined);
+            yield* Fiber.join(command);
+            assert.equal((yield* renamed())[0]?.count, 1);
+            const result = yield* Fiber.join(importing);
+
+            // The command finished first and the replacement then took the thread: nothing of the old
+            // copy, including what the command just wrote, is left behind.
+            assert.equal(result.importedThreads, 1);
+            assert.equal((yield* renamed())[0]?.count, 0);
+            const [thread] = yield* sql<{
+              title: string;
+            }>`SELECT title FROM orchestration_v2_projection_threads
+            WHERE thread_id = ${REAL}`;
+            assert.equal(thread?.title, ONLY_ORIGINAL_TITLE(T_STOPPED));
+            const stray = yield* sql<{
+              count: number;
+            }>`SELECT COUNT(*) AS count FROM orchestration_v2_effect_outbox
+            WHERE thread_id = ${REAL} AND status IN ('pending', 'running')`;
+            assert.equal(stray[0]?.count, 0);
+          }),
+      );
+    },
+  );
+
+  it.effect(
+    "replacing a thread closes the provider sessions it opened here, but not one another thread is bound to",
+    () =>
+      withService({}, ({ service, sql, sourcePath }) =>
+        Effect.gen(function* () {
+          yield* runToEnd(service, onlyThread(T_STOPPED));
+          const target = yield* targetOf(sql, T_STOPPED);
+          yield* sql`INSERT INTO orchestration_v2_projection_provider_sessions
+          (provider_session_id, thread_id, provider, status, updated_at, payload_json)
+          VALUES ('mine', ${target}, 'codex', 'ready', '2999-01-01', '{}'),
+                 ('shared', ${target}, 'codex', 'ready', '2999-01-01', '{}')`;
+          yield* sql`INSERT INTO orchestration_v2_projection_provider_session_bindings
+          (provider_session_id, thread_id)
+          VALUES ('mine', ${target}), ('shared', ${target}), ('shared', 'some-other-thread')`;
+          yield* sql`INSERT INTO provider_session_runtime
+          (thread_id, provider_name, adapter_key, runtime_mode, status, last_seen_at, resume_cursor_json, runtime_payload_json, provider_instance_id)
+          VALUES (${target}, 'codex', 'codex', 'full-access', 'running', '2999-01-01', 'null', '{}', 'codex')`;
+          yield* continueInOfficial(sourcePath, T_STOPPED);
+
+          yield* runToEnd(service, onlyThread(T_STOPPED));
+
+          const sessions = yield* sql<{ provider_session_id: string }>`
+          SELECT provider_session_id FROM orchestration_v2_projection_provider_sessions ORDER BY 1`;
+          assert.deepStrictEqual(
+            sessions.map((row) => row.provider_session_id),
+            ["shared"],
+          );
+          const bindings = yield* sql<{ provider_session_id: string; thread_id: string }>`
+          SELECT provider_session_id, thread_id FROM orchestration_v2_projection_provider_session_bindings`;
+          assert.deepStrictEqual(bindings, [
+            { provider_session_id: "shared", thread_id: "some-other-thread" },
+          ]);
+          const [runtime] = yield* sql<{
+            count: number;
+          }>`SELECT COUNT(*) AS count FROM provider_session_runtime`;
+          assert.equal(runtime?.count, 0);
+        }),
+      ),
+  );
+
+  /** A thread lock that runs `before` once the lock is held, to act the way a command in flight would. */
+  const lockWithAction = Effect.fn("lockWithAction")(function* () {
+    const inner = yield* KeyedLock.make<ThreadId>();
+    const hook: { current: Effect.Effect<void> | undefined } = { current: undefined };
+    const threadCommands: ThreadCommandExecutor.ThreadCommandExecutor["Service"] = {
+      activeKeys: inner.activeKeys,
+      withLock: (key, effect) =>
+        inner.withLock(
+          key,
+          Effect.gen(function* () {
+            if (hook.current !== undefined) yield* hook.current;
+            return yield* effect;
+          }),
+        ),
+    };
+    return { threadCommands, hook };
+  });
+
+  it.effect("a subagent's news is not taken in when its parent was not replaced", () =>
+    Effect.gen(function* () {
+      const { threadCommands, hook } = yield* lockWithAction();
+      return yield* withService({ threadCommands }, ({ service, sql, sourcePath }) =>
+        Effect.gen(function* () {
+          const without = selectionOf({
+            threadIds: [ThreadId.make(T_PARENT)],
+            includeSubagents: false,
+            scheduledTasks: [],
+            files: [],
+          });
+          yield* runToEnd(service, without);
+          const baseline = () =>
+            sql<{ source_version: number }>`SELECT source_version FROM fork_t3code_import_map
+              WHERE kind = 'thread' AND source_id = ${T_SUB}`;
+          const before = (yield* baseline())[0]?.source_version;
+          yield* continueInOfficial(sourcePath, T_SUB);
+          const parent = yield* targetOf(sql, T_PARENT);
+          // A run starts on the parent once the replacement holds the lock, so it is stopped there.
+          hook.current =
+            sql`UPDATE orchestration_v2_projection_runs SET status = 'running' WHERE thread_id = ${parent}`.pipe(
+              Effect.orDie,
+              Effect.asVoid,
+            );
+          const result = yield* runToEnd(service, without);
+          hook.current = undefined;
+          assert.equal(result.importedThreads, 0);
+          assert.include(codes(result.report.skipped), "thread-target-busy");
+          assert.equal((yield* baseline())[0]?.source_version, before);
+          yield* sql`UPDATE orchestration_v2_projection_runs SET status = 'completed' WHERE thread_id = ${parent}`;
+          assert.equal((yield* stateOfThread(service, T_PARENT))?.state, "updated");
+        }),
+      );
+    }),
+  );
+
+  it.effect(
+    "a rename or pin made here is named in the review, keeps the thread unticked, and is replaced",
+    () =>
+      withService({}, ({ service, sql, sourcePath }) =>
+        Effect.gen(function* () {
+          yield* runToEnd(service, onlyThread(T_STOPPED));
+          const target = yield* targetOf(sql, T_STOPPED);
+          yield* continueInOfficial(sourcePath, T_STOPPED);
+          assert.deepStrictEqual((yield* stateOfThread(service, T_STOPPED))?.localEdits, []);
+
+          yield* sql`UPDATE orchestration_v2_projection_threads
+          SET title = 'Renamed here', payload_json = json_set(payload_json, '$.pinnedAt', '2999-01-01T00:00:00.000Z')
+          WHERE thread_id = ${target}`;
+          const entry = yield* stateOfThread(service, T_STOPPED);
+          assert.equal(entry?.state, "updated");
+          assert.equal(entry?.localChanges, 0);
+          assert.deepStrictEqual(entry?.localEdits, ["title", "pinned"]);
+          const report = yield* service.check(onlyThread(T_STOPPED));
+          assert.deepStrictEqual(
+            report.attention.filter((notice) => notice.code === "thread-local-discarded"),
+            [
+              {
+                code: "thread-local-discarded",
+                subject: entry!.title,
+                detail: "title,pinned",
+                count: 0,
+              },
+            ],
+          );
+
+          yield* runToEnd(service, onlyThread(T_STOPPED));
+          const [thread] = yield* sql<{ title: string; pinned: string | null }>`
+          SELECT title, json_extract(payload_json, '$.pinnedAt') AS pinned
+          FROM orchestration_v2_projection_threads WHERE thread_id = ${target}`;
+          assert.equal(thread?.title, ONLY_ORIGINAL_TITLE(T_STOPPED));
+          assert.isNull(thread?.pinned);
+          assert.deepStrictEqual((yield* stateOfThread(service, T_STOPPED))?.localEdits, []);
+        }),
+      ),
+  );
+
+  it.effect("a rename made after the review is not replaced without having been shown", () =>
+    Effect.gen(function* () {
+      const { threadCommands, hook } = yield* lockWithAction();
+      return yield* withService({ threadCommands }, ({ service, sql, sourcePath }) =>
+        Effect.gen(function* () {
+          yield* runToEnd(service, onlyThread(T_STOPPED));
+          const target = yield* targetOf(sql, T_STOPPED);
+          yield* continueInOfficial(sourcePath, T_STOPPED);
+          hook.current =
+            sql`UPDATE orchestration_v2_projection_threads SET title = 'Renamed late' WHERE thread_id = ${target}`.pipe(
+              Effect.orDie,
+              Effect.asVoid,
+            );
+          const result = yield* runToEnd(service, onlyThread(T_STOPPED));
+          hook.current = undefined;
+          assert.equal(result.importedThreads, 0);
+          assert.include(codes(result.report.skipped), "thread-target-changed");
+          const [thread] = yield* sql<{
+            title: string;
+          }>`SELECT title FROM orchestration_v2_projection_threads
+            WHERE thread_id = ${target}`;
+          assert.equal(thread?.title, "Renamed late");
+        }),
+      );
+    }),
+  );
+
+  it.effect(
+    "warns before replacing a thread long enough to pause other threads, and only then",
+    () =>
+      withService({}, ({ service, sourcePath }) =>
+        Effect.gen(function* () {
+          yield* runToEnd(service, onlyThread(T_STOPPED));
+          yield* continueInOfficial(sourcePath, T_STOPPED);
+          const small = yield* service.check(onlyThread(T_STOPPED));
+          assert.notInclude(codes(small.attention), "thread-large-replace");
+
+          yield* withDatabase(
+            sourcePath,
+            Effect.gen(function* () {
+              const src = yield* SqlClient.SqlClient;
+              yield* src.unsafe(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i < 8000)
+              INSERT INTO orchestration_v2_projection_nodes (node_id, thread_id, root_node_id, kind, status, payload_json)
+              SELECT 'long-' || i, '${T_STOPPED}', 'node', 'tool', 'completed', '{}' FROM n`);
+            }),
+          );
+          const large = yield* service.check(onlyThread(T_STOPPED));
+          assert.deepStrictEqual(
+            large.attention.filter((notice) => notice.code === "thread-large-replace"),
+            [{ code: "thread-large-replace", subject: ONLY_ORIGINAL_TITLE(T_STOPPED) }],
+          );
         }),
       ),
   );
