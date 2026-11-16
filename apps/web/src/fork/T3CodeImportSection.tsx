@@ -249,6 +249,11 @@ function NoticeText(props: { readonly notice: T3CodeImportNotice }) {
         "{subject}: it is running or has queued work here, so it is not replaced. Let it finish and import again.",
         { subject },
       );
+    case "thread-target-changed":
+      return t(
+        "{subject}: it changed here after the review, so it is not replaced. Review and import again.",
+        { subject },
+      );
     case "task-project-missing":
       return t("{subject}: its project is not part of this import.", { subject });
     case "task-thread-missing":

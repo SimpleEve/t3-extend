@@ -132,6 +132,8 @@ export default {
   "{subject}: {app} is working on it right now. Stop it there and import again.":
     "{subject}：{app} 正在处理它。请先在那边停止，然后再导入一次。",
   "{subject}: its parent thread is busy in {app}.": "{subject}：它的父对话在 {app} 中正在运行。",
+  "{subject}: it changed here after the review, so it is not replaced. Review and import again.":
+    "{subject}：检查之后它在这里又有了变化，所以不会被覆盖。请重新检查后再导入一次。",
   "{subject}: its project is not part of this import.": "{subject}：它所属的项目不在这次导入里。",
   "{subject}: the thread it belongs to is not part of this import.":
     "{subject}：它所属的对话不在这次导入里。",
