@@ -730,6 +730,7 @@ function ConfiguredCloudLinkRow({
         <SettingsRow
           title={searchableSetting("t3-connect").title}
           description={t(
+            // fork: the host may run the official `t3` or this fork's `t3x`, so no command is named.
             "This environment was removed from T3 Connect. Run the `connect link` command on the host to link it again.",
           )}
         />
@@ -737,6 +738,7 @@ function ConfiguredCloudLinkRow({
         <SettingsRow
           title={searchableSetting("t3-connect").title}
           description={t(
+            // fork: the host may run the official `t3` or this fork's `t3x`, so no command is named.
             "Run the `connect link` command on the host, then restart T3 Extend there.",
           )}
         />

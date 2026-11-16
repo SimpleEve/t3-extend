@@ -365,7 +365,8 @@ function LinkEnvironmentAction({ environmentId }: { readonly environmentId: Envi
                   onChange={(event) => setPairingCode(event.target.value)}
                   placeholder={
                     machine === null
-                      ? t("From Sharing & access there, or its pair command")
+                      ? // fork: the host may run the official `t3` or this fork's `t3x`.
+                        t("From Sharing & access there, or its pair command")
                       : t("Paste the code")
                   }
                   disabled={busy}

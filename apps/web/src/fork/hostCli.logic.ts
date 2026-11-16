@@ -12,13 +12,14 @@ export function hostCliCommand(input: {
 }): string | null {
   if (input.local === true) return FORK.cliCommand;
   switch (input.installation?.kind) {
-    case "t3-launcher":
-      return (
-        input.installation.launcher
-          .split(/[\\/]/u)
-          .pop()
-          ?.replace(/\.(?:cmd|exe)$/iu, "") || null
-      );
+    case "t3-launcher": {
+      const name = input.installation.launcher
+        .split(/[\\/]/u)
+        .pop()
+        ?.replace(/\.(?:cmd|exe)$/iu, "");
+      // A name a shell would split or expand cannot be pasted as a command.
+      return name !== undefined && /^[\w.-]+$/u.test(name) ? name : null;
+    }
     case "npm-global":
     case "npx":
     case "pnpm-dlx":

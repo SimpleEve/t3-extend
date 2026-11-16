@@ -176,6 +176,7 @@ function steps(
   located: Located,
   failure: ConnectionAttemptError | null,
 ): string[] {
+  // fork: the host may run the official `t3` or this fork's `t3x`, so no command is named.
   const checkHost = t(
     "On {host}, check Settings > Sharing & access or run the `connect status` command.",
     { host },
@@ -202,6 +203,7 @@ function steps(
             approve,
           },
         ),
+        // fork: the host may run the official `t3` or this fork's `t3x`, so no command is named.
         t("Or run the `auth connect-device approve {code}` command on {host}.", {
           code: code ?? "<code>",
           host,

@@ -370,11 +370,10 @@ function GateScreen({
   const t = useT();
   const name = environment.label;
   const turnOnHere = useT3ConnectTurnOn(environment.environmentId);
-  // fork: only this machine is surely T3 Extend; another host may run official T3 Code.
+  // fork: only this app's own server is surely T3 Extend; a WSL backend or another host may run
+  // the official `t3`.
   const hostCli = hostCliCommand({
-    local:
-      environment.environmentId === usePrimaryEnvironmentId() ||
-      isDesktopLocalConnectionTarget(environment.entry.target),
+    local: environment.environmentId === usePrimaryEnvironmentId(),
     installation: environment.serverConfig?.environment.capabilities.serverInstallation,
   });
   const { openAuthPrompt } = useT3ConnectAuthPrompt();

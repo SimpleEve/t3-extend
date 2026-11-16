@@ -14,6 +14,7 @@ describe("hostCliCommand", () => {
     ["a Windows launcher", { installation: launcher("C:\\Users\\me\\bin\\t3.cmd") }, "t3"],
     ["npm", { installation: { kind: "npm-global", prefix: "/usr/local" } as const }, "t3"],
     ["npx", { installation: { kind: "npx" } as const }, "t3"],
+    ["a launcher named unsafely", { installation: launcher("/opt/my tools/t3 x") }, null],
     ["a host that reports nothing", {}, null],
   ])("answers for %s", (_case, input, expected) => {
     expect(hostCliCommand(input)).toBe(expected);

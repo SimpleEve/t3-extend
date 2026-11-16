@@ -301,11 +301,15 @@ export function collectChannelSwitchTargets(
       move.selfUpdate === "boot-service" &&
       compareSemverVersions(release.version, serverVersion) <= 0
     ) {
-      const cli =
-        hostCliCommand({ installation: config.environment.capabilities.serverInstallation }) ??
-        "t3";
+      // fork: name the host's command only when it reports its install.
+      const cli = hostCliCommand({
+        installation: config.environment.capabilities.serverInstallation,
+      });
+      const update = `update --channel ${release.channel === "nightly" ? "nightly" : "stable"} --allow-downgrade`;
       skip(
-        `run \`${cli} update --channel ${release.channel === "nightly" ? "nightly" : "stable"} --allow-downgrade\` there`,
+        cli !== null
+          ? `run \`${cli} ${update}\` there`
+          : `run its T3 command's \`${update}\` there`,
       );
       continue;
     }

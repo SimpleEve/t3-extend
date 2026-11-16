@@ -187,7 +187,8 @@ describe("collectChannelSwitchTargets", () => {
     ]);
     expect(targets.every((target) => target.targetDatabaseMigration === 69)).toBe(true);
     expect(skipped.map((entry) => [entry.label, entry.reason])).toEqual([
-      ["newer-service", "run `t3 update --channel stable --allow-downgrade` there"],
+      // fork: a boot-service host reports no install, so the command is not named.
+      ["newer-service", "run its T3 command's `update --channel stable --allow-downgrade` there"],
       [
         "new-service",
         "its database has changes 0.1.3 does not support yet; stay on Nightly until Stable has them",
