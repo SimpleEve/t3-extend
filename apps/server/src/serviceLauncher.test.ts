@@ -23,6 +23,7 @@ import {
 import {
   databaseBackupBlocker,
   Launcher,
+  type LauncherAppRuntime, // fork: app runtime
   main,
   readServiceEnvironment,
   type BackupSpaceProbe,
@@ -166,10 +167,10 @@ const writeFakeRuntime = (
     return entryPath;
   });
 
-const runLauncher = async (root: string) => {
+const runLauncher = async (root: string, appRuntime?: LauncherAppRuntime) => {
   vi.stubEnv("T3CODE_HOME", root);
   try {
-    await main();
+    await main(appRuntime === undefined ? {} : { appRuntime });
   } finally {
     vi.unstubAllEnvs();
   }
@@ -690,6 +691,67 @@ process.exit(0);
       );
 
       assert.isTrue(yield* fs.exists(path.join(versionDir, "started")));
+    }),
+  );
+
+  // fork: the packaged app is the runtime; nothing is downloaded into runtime/versions.
+  it.effect("runs the desktop app as the server when the service was installed from it", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-app-" });
+      const entry = path.join(root, "app-entry.mjs");
+      yield* fs.writeFileString(
+        entry,
+        `
+import { writeFileSync } from "node:fs";
+writeFileSync(new URL("./started", import.meta.url), JSON.stringify(process.argv.slice(2)));
+process.exit(0);
+`,
+      );
+      yield* fs.makeDirectory(path.join(root, "runtime"), { recursive: true });
+      yield* fs.writeFileString(
+        path.join(root, "runtime", "service-state.json"),
+        JSON.stringify({ protocol: 4, activeVersion: "1.0.0" }),
+      );
+      const appRuntime = {
+        version: "1.0.0",
+        runtime: { appPath: root, executable: process.execPath, entry, frpc: "/unused/frpc" },
+      };
+
+      yield* Effect.promise(() =>
+        expect(runLauncher(root, appRuntime)).rejects.toThrow(
+          "Active child exited unexpectedly (0).",
+        ),
+      );
+
+      assert.equal(yield* fs.readFileString(path.join(root, "started")), '["serve"]');
+      assert.isFalse(yield* fs.exists(path.join(root, "runtime", "versions")));
+    }),
+  );
+
+  it.effect("refuses to start the app as a version it is not", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-app-old-" });
+      const entry = path.join(root, "app-entry.mjs");
+      yield* fs.writeFileString(entry, "process.exit(0);\n");
+      yield* fs.makeDirectory(path.join(root, "runtime"), { recursive: true });
+      const statePath = path.join(root, "runtime", "service-state.json");
+      const contents = JSON.stringify({ protocol: 2, activeVersion: "0.9.0" });
+      yield* fs.writeFileString(statePath, contents);
+      const childCount = spawnedChildren.length;
+
+      yield* Effect.promise(() =>
+        expect(
+          runLauncher(root, {
+            version: "1.0.0",
+            runtime: { appPath: root, executable: process.execPath, entry, frpc: "/unused/frpc" },
+          }),
+        ).rejects.toThrow("Selected t3@0.9.0 runtime is missing or incomplete."),
+      );
+      assert.equal(spawnedChildren.length, childCount);
     }),
   );
 

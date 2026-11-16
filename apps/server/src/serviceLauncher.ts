@@ -10,6 +10,7 @@ import * as NodeUtil from "node:util";
 import { acquireServiceSelectionLock } from "./cloud/serviceSelectionLock.ts";
 import { isNoCopyOnWrite, markNoCopyOnWrite } from "./noCopyOnWrite.ts";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { APP_RUNTIME_VERSION_ENV, detectAppRuntime, type AppRuntime } from "./fork/appRuntime.ts"; // fork: app runtime
 
 import type {
   PendingServiceUpdate,
@@ -687,7 +688,27 @@ async function replaceFileDurably(filePath: string, contents: string): Promise<v
   }
 }
 
-async function runtimeExists(baseDir: string, version: string): Promise<boolean> {
+// fork: a service installed from the packaged app runs that app, so only its own version exists
+// (`t3x service install` records it; a different version means the app was replaced).
+export interface LauncherAppRuntime {
+  readonly runtime: AppRuntime;
+  readonly version: string | undefined;
+}
+
+async function runtimeExists(
+  baseDir: string,
+  version: string,
+  app?: LauncherAppRuntime, // fork: app runtime
+): Promise<boolean> {
+  if (app !== undefined) {
+    return (
+      app.version === version &&
+      (await NodeFSP.stat(app.runtime.executable).then(
+        (entry) => entry.isFile(),
+        () => false,
+      ))
+    );
+  }
   const paths = runtimePaths(baseDir, version);
   try {
     const [entry, sentinel] = await Promise.all([
@@ -870,6 +891,7 @@ export class Launcher {
   readonly #lockPath: string | undefined;
   #servingLock: { readonly close: () => void } | undefined;
   readonly #stopChildOverIpc: boolean;
+  readonly #appRuntime: LauncherAppRuntime | undefined; // fork: app runtime
 
   constructor(
     baseDir: string,
@@ -885,6 +907,8 @@ export class Launcher {
       readonly lockPath?: string;
       /** Windows `kill()` is TerminateProcess, which skips the server's shutdown finalizers. */
       readonly stopChildOverIpc?: boolean;
+      /** fork: run the packaged app, not a downloaded runtime, as the server. */
+      readonly appRuntime?: LauncherAppRuntime;
     } = {},
   ) {
     this.#baseDir = baseDir;
@@ -894,6 +918,7 @@ export class Launcher {
     this.#environment = { ...(options.environment ?? process.env) };
     this.#output = options.output;
     this.#lockPath = options.lockPath;
+    this.#appRuntime = options.appRuntime; // fork: app runtime
     // oxlint-disable-next-line t3code/no-global-process-runtime -- Standalone launcher has no Effect runtime.
     this.#stopChildOverIpc = options.stopChildOverIpc ?? process.platform === "win32";
     this.#statePath = NodePath.join(baseDir, "runtime", SERVICE_STATE_FILE);
@@ -1131,7 +1156,7 @@ export class Launcher {
       await this.#returnToPrevious(update, "failed", "rollback-interrupted");
       return;
     }
-    if (!(await runtimeExists(this.#baseDir, update.targetVersion))) {
+    if (!(await runtimeExists(this.#baseDir, update.targetVersion, this.#appRuntime))) {
       await this.#returnToPrevious(update, "failed", "target-runtime-missing");
       return;
     }
@@ -1166,7 +1191,7 @@ export class Launcher {
       )
     )
       return;
-    if (!(await runtimeExists(this.#baseDir, version))) {
+    if (!(await runtimeExists(this.#baseDir, version, this.#appRuntime))) {
       throw new Error(`Selected t3@${version} runtime is missing or incomplete.`);
     }
     if (this.#stopping) return;
@@ -1176,7 +1201,13 @@ export class Launcher {
       childVersion: version,
       ...(update === undefined ? {} : { update }),
     };
-    const spawnArguments = runtimeSpawnArguments(paths);
+    const spawnArguments =
+      this.#appRuntime === undefined
+        ? runtimeSpawnArguments(paths)
+        : {
+            command: this.#appRuntime.runtime.executable,
+            args: [this.#appRuntime.runtime.entry, "serve"],
+          }; // fork: app runtime
     const child = NodeChildProcess.spawn(spawnArguments.command, spawnArguments.args, {
       env: { ...this.#environment, [SERVICE_LAUNCHER_CONTEXT_ENV]: JSON.stringify(context) },
       stdio:
@@ -1259,7 +1290,7 @@ export class Launcher {
       await reject("The requested database path is not absolute.");
       return;
     }
-    if (!(await runtimeExists(this.#baseDir, message.targetVersion))) {
+    if (!(await runtimeExists(this.#baseDir, message.targetVersion, this.#appRuntime))) {
       await reject("The requested target runtime is missing or incomplete.");
       return;
     }
@@ -1521,6 +1552,23 @@ export interface LauncherOptions {
   readonly baseDir?: string | undefined;
   readonly logFile?: string | undefined;
   readonly serviceUnit?: string | undefined;
+  /** fork: set by tests; the launcher otherwise recognises the packaged app from its own process. */
+  readonly appRuntime?: LauncherAppRuntime | undefined;
+}
+
+// fork: a launcher the packaged app's CLI started is itself the app runtime; the plist records its version.
+function launcherAppRuntime(): LauncherAppRuntime | undefined {
+  /* oxlint-disable t3code/no-global-process-runtime -- Standalone launcher has no Effect runtime. */
+  const runtime = detectAppRuntime({
+    platform: process.platform,
+    execPath: process.execPath,
+    argv: process.argv,
+    env: process.env,
+  });
+  return runtime === undefined
+    ? undefined
+    : { runtime, version: process.env[APP_RUNTIME_VERSION_ENV]?.trim() || undefined };
+  /* oxlint-enable t3code/no-global-process-runtime */
 }
 
 export async function main(options: LauncherOptions = {}): Promise<void> {
@@ -1544,13 +1592,14 @@ export async function main(options: LauncherOptions = {}): Promise<void> {
       ...(options.serviceUnit === undefined ? {} : { [SERVICE_UNIT_ENV]: options.serviceUnit }),
     };
     const environment = await readServiceEnvironment(baseDir, managerEnvironment);
+    const appRuntime = options.appRuntime ?? launcherAppRuntime(); // fork: app runtime
     const statePath = NodePath.join(baseDir, "runtime", SERVICE_STATE_FILE);
     const contents = await NodeFSP.readFile(statePath, "utf8");
     let state = parseServiceState(contents);
     if (state === undefined) {
       state = adoptLegacyServiceState(contents);
       if (state === undefined) throw new Error("Service state is invalid or unsupported.");
-      if (!(await runtimeExists(baseDir, state.activeVersion))) {
+      if (!(await runtimeExists(baseDir, state.activeVersion, appRuntime))) {
         throw new Error(`Selected t3@${state.activeVersion} runtime is missing or incomplete.`);
       }
     }
@@ -1568,6 +1617,7 @@ export async function main(options: LauncherOptions = {}): Promise<void> {
       ...(serviceUnit === undefined ? {} : { serviceUnit }),
       ...(output === undefined ? {} : { output }),
       ...(windows ? { lockPath: serviceLauncherLockPath(baseDir) } : {}),
+      ...(appRuntime === undefined ? {} : { appRuntime }), // fork: app runtime
     });
     // Ending a scheduled task kills its console host without a signal; the console read fails instead.
     const watchConsole = windows && process.stdin.isTTY === true;

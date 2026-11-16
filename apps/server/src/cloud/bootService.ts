@@ -49,6 +49,12 @@ import {
   type ServiceState,
 } from "./serviceProtocol.ts";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import {
+  appRuntimeEnvironment,
+  appRuntimeIsTransient,
+  detectAppRuntime,
+  parseAppRuntimeUnit,
+} from "../fork/appRuntime.ts"; // fork: app runtime
 
 export {
   serviceUnitBaseDirOf as bootServiceBaseDirOf,
@@ -88,6 +94,8 @@ export interface BootServicePlan {
   readonly logPath: string;
   readonly unitPath: string;
   readonly installBinDir?: string;
+  /** fork: extra launch agent variables, for a service that runs the desktop app. macOS only. */
+  readonly environment?: ReadonlyArray<readonly [name: string, value: string]>;
   /** The manager accepted a detached install; its outcome is written to `logPath`. */
   readonly handedOff?: boolean;
 }
@@ -182,6 +190,10 @@ export function renderBootServicePlist(
         ]),
     `    <key>${SERVICE_UNIT_ENV}</key>`,
     `    <string>${BOOT_SERVICE_PLIST_FILE}</string>`,
+    ...(plan.environment ?? []).flatMap(([name, value]) => [
+      `    <key>${escapeXmlText(name)}</key>`,
+      `    <string>${escapeXmlText(value)}</string>`,
+    ]), // fork: app runtime
     `  </dict>`,
     `  <key>WorkingDirectory</key>`,
     `  <string>${escapeXmlText(options.homeDir)}</string>`,
@@ -650,6 +662,7 @@ const BootServiceProblem = Schema.Literals([
   "service-disabled",
   "service-stopped",
   "restart-pending",
+  "app-runtime-missing", // fork: the app a service runs from is gone
 ]);
 type BootServiceProblem = typeof BootServiceProblem.Type;
 
@@ -673,6 +686,8 @@ export function formatBootServiceProblem(
       return `The service is not running. Check the service log (on Linux, also \`systemctl --user status ${BOOT_SERVICE_UNIT_FILE}\`), then run \`${commands.install}\`.`; // fork: own unit
     case "restart-pending":
       return `A newer version is installed but the service is still running the previous one. Run \`${commands.restart}\` to switch.`;
+    case "app-runtime-missing":
+      return `The ${FORK.appBaseName} app this service runs from has been moved or deleted. Put it back, or open ${FORK.appBaseName} from its new location and turn background running off and on again (or run \`${commands.install}\` from the app's command).`; // fork: app runtime
   }
 }
 
@@ -742,7 +757,22 @@ export class BootServiceBaseDirUnsupportedError extends Schema.TaggedError<BootS
   }
 }
 
+// fork: a service points into the app bundle, so the bundle must be somewhere that outlasts a reboot.
+export class BootServiceAppLocationError extends Schema.TaggedError<BootServiceAppLocationError>()(
+  "BootServiceAppLocationError",
+  { appPath: Schema.String },
+) {
+  override get message(): string {
+    return `${FORK.appBaseName} is running from ${this.appPath}, which does not survive a restart. Move it to your Applications folder, open it from there, and try again.`;
+  }
+
+  override get [CliError.userMessage]() {
+    return this.message;
+  }
+}
+
 export type BootServiceError =
+  | BootServiceAppLocationError // fork: app runtime
   | BootServiceUnsupportedError
   | BootServiceBaseDirUnsupportedError
   | BootServiceOtherBaseDirError
@@ -756,6 +786,8 @@ export interface BootServiceStatus {
   readonly supported: boolean;
   readonly installed: boolean;
   readonly current: boolean;
+  /** fork: launchd has the service running; reported on macOS only. */
+  readonly running?: boolean;
   readonly installedVersion?: string;
   readonly installedBaseDir?: string;
   /** Set when the installed unit serves a different T3 home than this CLI. */
@@ -842,6 +874,13 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
             processRunner.run({ ...request, env: { ...userManagerEnv, ...request.env } }),
         };
   const host = input.host ?? { execPath: hostExecPath };
+  // fork: a CLI the packaged app started services itself: no runtime to download.
+  const appRuntime = detectAppRuntime({
+    platform,
+    execPath: hostExecPath,
+    argv: yield* HostProcess.Arguments,
+    env: yield* HostProcess.Environment,
+  });
   const runtimePaths = pinnedRuntimePaths(path, input.baseDir, input.cliVersion, platform);
   const versionsDir = pinnedRuntimeVersionsDir(path, input.baseDir);
   const xmlSafeInstallerDirectories = installerPath.split(":").filter(
@@ -858,7 +897,7 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
     new Set(
       [
         ...xmlSafeInstallerDirectories,
-        path.dirname(host.execPath),
+        ...(appRuntime === undefined ? [path.dirname(host.execPath)] : []), // fork: not the app's MacOS directory
         "/opt/homebrew/bin",
         "/usr/local/bin",
         "/usr/bin",
@@ -996,12 +1035,22 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
           }),
     });
     const unitPath = manager?.unitPath ?? "";
-    const plan: BootServicePlan = {
-      program: [runtimePaths.entryPath, "__service-launcher"],
-      baseDir: input.baseDir,
-      logPath,
-      unitPath,
-    };
+    const plan: BootServicePlan =
+      appRuntime === undefined
+        ? {
+            program: [runtimePaths.entryPath, "__service-launcher"],
+            baseDir: input.baseDir,
+            logPath,
+            unitPath,
+          }
+        : {
+            // fork: the launcher the app's own CLI would run, as the shim runs it
+            program: [appRuntime.executable, appRuntime.entry, "__service-launcher"],
+            baseDir: input.baseDir,
+            logPath,
+            unitPath,
+            environment: appRuntimeEnvironment(appRuntime, input.cliVersion),
+          };
     return { manager, unitPath, plan };
   };
   let systemdUnitDir = platform === "linux" ? yield* readSystemdUnitDirectory(runner) : undefined;
@@ -1212,6 +1261,9 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
     readonly start?: boolean;
   }) {
     let manager = yield* requireManager;
+    if (appRuntime !== undefined && appRuntimeIsTransient(appRuntime)) {
+      return yield* new BootServiceAppLocationError({ appPath: appRuntime.appPath }); // fork: app runtime
+    }
     if (manager.kind === "systemd" && systemdUnsafeValue(plan)) {
       return yield* new BootServiceBaseDirUnsupportedError({ baseDir: input.baseDir });
     }
@@ -1297,6 +1349,8 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
             })
           : new BootServiceInstallError({ cause: error }),
       ),
+      // fork: the app is the runtime, and it is already running this install
+      (runtimeInstall) => (appRuntime === undefined ? runtimeInstall : Effect.void),
     );
     const installed = yield* fs
       .exists(unitPath)
@@ -1558,6 +1612,15 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
       : undefined;
     const installedBaseDir = bootServiceBaseDirOf(unit);
     const otherBaseDir = otherBaseDirOf(unit);
+    // fork: a unit that runs the app has no runtime directory; its app must still be there.
+    const unitApp = parseAppRuntimeUnit(unit);
+    const unitAppPresent = unitApp === undefined ? undefined : yield* fs.exists(unitApp.executable);
+    const runtimeReady =
+      unitApp === undefined
+        ? runtimeEntryExists &&
+          Option.isSome(runtimeSentinel) &&
+          runtimeSentinel.value.trim() === input.cliVersion
+        : unitAppPresent === true;
     const normalizeUnit = (contents: string) =>
       manager.kind === "launchd"
         ? contents.replace(/(<key>PATH<\/key>\n\s*<string>)[^<]*(<\/string>)/, "$1$2")
@@ -1568,10 +1631,24 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
         : manager.kind === "schtasks"
           ? [...(yield* readSchtasksProblems(Option.some(unit)))]
           : [];
+    if (unitAppPresent === false) problems.push("app-runtime-missing"); // fork: app runtime
     if (yield* fs.exists(restartPendingPath)) problems.push("restart-pending");
+    // fork: launchd reports whether the job runs; the other managers fold it into `problems`
+    const running =
+      manager.kind === "launchd"
+        ? yield* probe("launchctl", ["print", `gui/${uid}/${BOOT_SERVICE_LAUNCHD_LABEL}`]).pipe(
+            Effect.map(
+              (printed) =>
+                Option.isSome(printed) &&
+                printed.value.code === 0 &&
+                /\bstate = running\b/.test(printed.value.stdout),
+            ),
+          )
+        : undefined;
     return {
       supported: true,
       installed: true,
+      ...(running === undefined ? {} : { running }),
       ...(installedVersion === undefined ? {} : { installedVersion }),
       ...(installedBaseDir === undefined ? {} : { installedBaseDir }),
       ...(otherBaseDir === undefined ? {} : { otherBaseDir }),
@@ -1580,9 +1657,7 @@ export const make = Effect.fn("cloud.boot_service.make")(function* (input: {
         problems.length === 0 &&
         !(manager.kind === "systemd" && systemdUnsafeValue(planForUnit(unit))) &&
         normalizeUnit(unit) === normalizeUnit(manager.render(planForUnit(unit))) &&
-        runtimeEntryExists &&
-        Option.isSome(runtimeSentinel) &&
-        runtimeSentinel.value.trim() === input.cliVersion &&
+        runtimeReady &&
         state?.activeVersion === input.cliVersion &&
         state?.update?.status !== "pending",
       unitPath,
