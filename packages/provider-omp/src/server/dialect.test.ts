@@ -57,7 +57,7 @@ describe("omp launch command line", () => {
       "--approval-mode",
       "always-ask",
     ]);
-    const modeOf = (runtimeMode: NonNullable<Parameters<typeof launch>[0]["runtimeMode"]>) =>
+    const modeOf = (runtimeMode: "auto" | "auto-accept-edits" | "full-access") =>
       launch({ runtimeMode }).args.at(-1);
     expect(modeOf("auto")).toBe("always-ask");
     expect(modeOf("auto-accept-edits")).toBe("write");

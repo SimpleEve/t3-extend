@@ -35,7 +35,7 @@ describe("omp model discovery", () => {
     });
     const thinking = parsed?.[0]?.capabilities?.optionDescriptors?.[0];
     expect(thinking).toMatchObject({ id: "thinking", type: "select" });
-    expect((thinking as { options: Array<{ id: string; isDefault?: boolean }> }).options).toEqual([
+    expect(thinking?.type === "select" ? thinking.options : undefined).toEqual([
       { id: "off", label: "Off" },
       { id: "low", label: "Low" },
       { id: "high", label: "High", isDefault: true },
