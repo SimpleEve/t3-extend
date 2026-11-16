@@ -136,6 +136,14 @@ function isSamePreviewViewport(
     : true;
 }
 
+export function getChangedSidebarViewSettingLabels(
+  settings: Pick<UnifiedSettings, "boringSidebarEnabled">,
+): string[] {
+  return settings.boringSidebarEnabled !== DEFAULT_UNIFIED_SETTINGS.boringSidebarEnabled
+    ? ["Sidebar view"] // fork: the by-project view is the default
+    : [];
+}
+
 export function getChangedBrowserSettingLabels(settings: BrowserDefaultSettings): string[] {
   return [
     ...(isSamePreviewViewport(
