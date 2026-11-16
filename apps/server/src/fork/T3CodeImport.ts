@@ -66,6 +66,7 @@ import {
   markCheckpointMissing,
   unlinkSubagentChild,
   uuidFromDigest,
+  importedProviderInstanceIds,
   pinImportedAntigravityLogin,
 } from "./T3CodeImportRewrite.ts";
 
@@ -243,6 +244,32 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
   const stateRef = yield* SubscriptionRef.make<T3CodeImportState>({ status: "idle" });
 
   yield* ensureImportTables();
+
+  // An earlier build imported Antigravity instances without pinning their sign-in, and the profile
+  // they signed in with was never copied. Only an instance a past import recorded is pinned: one
+  // made in T3 Extend has no such record, and keeps using the agy CLI's sign-in.
+  yield* Effect.gen(function* () {
+    const runs = yield* sql<{ readonly summary_json: string | null }>`
+      SELECT summary_json FROM fork_t3code_import_runs WHERE summary_json IS NOT NULL`;
+    const imported = new Set(runs.flatMap((run) => importedProviderInstanceIds(run.summary_json)));
+    if (imported.size === 0) return;
+    const { providerInstances } = yield* settingsService.getSettings;
+    for (const id of imported) {
+      const instance = providerInstances[ProviderInstanceId.make(id)];
+      const config = instance?.config as { readonly loginSource?: unknown } | undefined;
+      if (instance === undefined || instance.driver !== "antigravity") continue;
+      if (config?.loginSource !== undefined) continue;
+      yield* settingsService.updateProviderInstance({
+        operation: "upsert",
+        instanceId: ProviderInstanceId.make(id),
+        instance: pinImportedAntigravityLogin(instance) as never,
+      });
+    }
+  }).pipe(
+    Effect.catch((cause) =>
+      Effect.logWarning("Could not pin imported Antigravity sign-ins.", { cause }),
+    ),
+  );
 
   const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
 

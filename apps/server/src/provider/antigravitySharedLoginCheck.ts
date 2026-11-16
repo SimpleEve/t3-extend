@@ -24,12 +24,21 @@ interface Entry {
 
 const entries = new Map<string, Entry>();
 
+/** How many executables the registry still remembers; tests use it to see that old ones leave. */
+export const sharedLoginCheckEntryCount = () => entries.size;
+
 /** `key` names what is asked, such as the agent executable. `check` never fails; a doubt is `unknown`. */
 export const runSharedLoginCheck = Effect.fn("runSharedLoginCheck")(function* (
   key: string,
   check: Effect.Effect<SharedLoginOutcome>,
 ) {
   const now = yield* Clock.currentTimeMillis;
+  // Answers past their reuse window are never read again, so none outlives its executable.
+  for (const [other, { pending, answered }] of entries) {
+    if (!pending && (answered === undefined || now - answered.at >= SHARED_LOGIN_REUSE_MS)) {
+      entries.delete(other);
+    }
+  }
   const entry = entries.get(key);
   if (entry?.pending) return yield* Deferred.await(entry.pending);
   if (
@@ -40,13 +49,15 @@ export const runSharedLoginCheck = Effect.fn("runSharedLoginCheck")(function* (
     return entry.answered.outcome;
   }
   const pending = yield* Deferred.make<SharedLoginOutcome>();
-  entries.set(key, { ...(entry?.answered ? { answered: entry.answered } : {}), pending });
+  entries.set(key, { pending });
   return yield* check.pipe(
     Effect.onExit((exit) =>
       Effect.gen(function* () {
         // An interrupted check answers `unknown`, so the instances waiting on it are never stuck.
         const outcome = Exit.isSuccess(exit) ? exit.value : "unknown";
-        entries.set(key, { answered: { outcome, at: yield* Clock.currentTimeMillis } });
+        // A doubt is never reused, so it is not kept.
+        if (outcome === "unknown") entries.delete(key);
+        else entries.set(key, { answered: { outcome, at: yield* Clock.currentTimeMillis } });
         yield* Deferred.succeed(pending, outcome);
       }),
     ),

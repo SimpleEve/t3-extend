@@ -7,6 +7,7 @@ import * as TestClock from "effect/testing/TestClock";
 
 import {
   runSharedLoginCheck,
+  sharedLoginCheckEntryCount,
   SHARED_LOGIN_CHECK_TIMEOUT_MS,
   SHARED_LOGIN_REUSE_MS,
   type SharedLoginOutcome,
@@ -89,3 +90,24 @@ it.effect("an interrupted check frees the instances waiting on it", () =>
 it("allows a check as long as a model refresh", () => {
   expect(SHARED_LOGIN_CHECK_TIMEOUT_MS).toBeGreaterThanOrEqual(90_000);
 });
+
+it.effect("forgets an executable once its answer can no longer be reused", () =>
+  Effect.gen(function* () {
+    const { release, check } = yield* countedCheck("signed-in");
+    yield* Deferred.succeed(release, undefined);
+    const before = sharedLoginCheckEntryCount();
+    yield* runSharedLoginCheck(freshKey(), check);
+    yield* runSharedLoginCheck(freshKey(), check);
+    expect(sharedLoginCheckEntryCount()).toBe(before + 2);
+    yield* TestClock.adjust(SHARED_LOGIN_REUSE_MS);
+    yield* runSharedLoginCheck(freshKey(), check);
+    // The two old answers expired and left; only the one just made remains.
+    expect(sharedLoginCheckEntryCount()).toBeLessThanOrEqual(before + 1);
+
+    const unknown = yield* countedCheck("unknown");
+    yield* Deferred.succeed(unknown.release, undefined);
+    const counted = sharedLoginCheckEntryCount();
+    yield* runSharedLoginCheck(freshKey(), unknown.check);
+    expect(sharedLoginCheckEntryCount()).toBe(counted);
+  }),
+);

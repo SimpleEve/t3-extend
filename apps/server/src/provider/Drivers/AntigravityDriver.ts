@@ -95,6 +95,8 @@ const REFRESH_FAILED =
 const PYTHON_SOCKS_REQUIRED = "python-socks is required to use a SOCKS proxy";
 // fork: an agent start per check would be wasteful, so a signed-out CLI is asked again this often.
 const SHARED_SIGN_IN_RECHECK_MS = 5 * 60_000;
+// An agent that could not answer is tried again sooner, since nothing is known about the account.
+const SHARED_SIGN_IN_RETRY_MS = 60_000;
 
 // Keep upstream diagnostics in cause; only recognized, fixed text reaches clients.
 function refreshFailureDetail(cause: unknown) {
@@ -600,7 +602,9 @@ export const AntigravityDriver: ProviderDriver<
     // fork: asks the agent whether the CLI login works. It authenticates without a session and
     // without a browser, so a signed-out CLI only reports that sign-in is needed. Leaving the scope,
     // on the timeout too, stops the agent.
-    let lastSharedSignInCheck: number | undefined;
+    let lastSharedSignInCheck:
+      | { readonly at: number; readonly outcome: SharedLoginOutcome }
+      | undefined;
     const checkSharedLogin: () => Effect.Effect<SharedLoginOutcome> = Effect.fn(
       "AntigravityDriver.checkSharedLogin",
     )(
@@ -631,13 +635,14 @@ export const AntigravityDriver: ProviderDriver<
     );
     const silentSignIn: Effect.Effect<void> = Effect.gen(function* () {
       const now = yield* Clock.currentTimeMillis;
+      const last = lastSharedSignInCheck;
       if (
-        lastSharedSignInCheck !== undefined &&
-        now - lastSharedSignInCheck < SHARED_SIGN_IN_RECHECK_MS
+        last !== undefined &&
+        now - last.at <
+          (last.outcome === "unknown" ? SHARED_SIGN_IN_RETRY_MS : SHARED_SIGN_IN_RECHECK_MS)
       ) {
         return;
       }
-      lastSharedSignInCheck = now;
       // Instances that share the CLI login share the answer; the executable names the keyring's owner.
       const executable = yield* installation
         .resolve(settings.binaryPath, processEnvironment)
@@ -647,8 +652,10 @@ export const AntigravityDriver: ProviderDriver<
         executable.value.executablePath,
         checkSharedLogin(),
       );
+      lastSharedSignInCheck = { at: yield* Clock.currentTimeMillis, outcome };
       if (outcome === "signed-in") yield* provider.onAuthConfirmed;
       else if (outcome === "sign-in-required") yield* provider.onAuthRequired;
+      else yield* provider.onAuthUnknown;
     });
 
     return {

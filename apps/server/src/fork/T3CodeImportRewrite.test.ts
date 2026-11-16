@@ -3,6 +3,7 @@ import { assert, it } from "@effect/vitest";
 import {
   clearLimitRecovery,
   detachProviderThread,
+  importedProviderInstanceIds,
   makeRewriter,
   pinImportedAntigravityLogin,
   uuidFromDigest,
@@ -114,4 +115,17 @@ it("pins an imported Antigravity instance to a separate sign-in unless it alread
   );
   const cursor = { driver: "cursor", displayName: "Cursor" };
   assert.strictEqual(pinImportedAntigravityLogin(cursor), cursor);
+});
+
+it("reads the instances an earlier import copied from its stored summary", () => {
+  const summary = JSON.stringify({
+    attention: [
+      { code: "provider-credential-imported", subject: "antigravity, cursor", count: 2 },
+      { code: "task-runs-in-both", subject: "antigravity" },
+    ],
+  });
+  assert.deepStrictEqual(importedProviderInstanceIds(summary), ["antigravity", "cursor"]);
+  assert.deepStrictEqual(importedProviderInstanceIds(null), []);
+  assert.deepStrictEqual(importedProviderInstanceIds("not json"), []);
+  assert.deepStrictEqual(importedProviderInstanceIds("{}"), []);
 });

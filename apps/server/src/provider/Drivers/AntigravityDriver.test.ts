@@ -692,6 +692,48 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
   );
 
   it.effect.skipIf(windowsHost)(
+    "replaces a stale signed-out state with unchecked when the agent cannot answer, and retries soon",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({ account: "signed-out", config: { loginSource: "cli" } });
+        h.controls.selected = h.signedOut;
+        yield* h.instance.snapshot.refresh;
+        expect(yield* h.instance.snapshot.getSnapshot).toMatchObject({
+          auth: { status: "unauthenticated" },
+        });
+
+        // Past the signed-out recheck the agent hangs: the answer is "unknown", not "still signed out".
+        yield* TestClock.adjust("301 seconds");
+        h.controls.selected = h.first;
+        const inside = yield* Deferred.make<void>();
+        h.controls.beforeAcquire = Deferred.succeed(inside, undefined).pipe(
+          Effect.andThen(Effect.never),
+        );
+        const hung = yield* Effect.forkChild(h.instance.snapshot.refresh);
+        yield* Deferred.await(inside);
+        yield* TestClock.adjust(SHARED_LOGIN_CHECK_TIMEOUT_MS);
+        yield* Fiber.join(hung);
+        expect(yield* h.instance.snapshot.getSnapshot).toMatchObject({
+          status: "warning",
+          auth: { status: "unknown" },
+        });
+
+        // A doubt is not the five-minute signed-out wait: it waits a minute, then asks again.
+        const asked = h.acquisitions.length;
+        h.controls.beforeAcquire = Effect.void;
+        yield* h.instance.snapshot.refresh;
+        expect(h.acquisitions.length).toBe(asked);
+        yield* TestClock.adjust("60 seconds");
+        yield* h.instance.snapshot.refresh;
+        expect(h.acquisitions.length).toBe(asked + 1);
+        expect(yield* h.instance.snapshot.getSnapshot).toMatchObject({
+          status: "ready",
+          auth: { status: "authenticated" },
+        });
+      }),
+  );
+
+  it.effect.skipIf(windowsHost)(
     "keeps an instance that already holds its own sign-in on file storage",
     () =>
       Effect.gen(function* () {

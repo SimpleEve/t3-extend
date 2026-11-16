@@ -439,6 +439,8 @@ const withService = <A, E, R>(
     };
     /** Swaps the event store for one that records what the import tells live clients, by thread id. */
     readonly announced?: Array<string>;
+    /** Settings the target starts with. */
+    readonly settings?: Parameters<typeof ServerSettings.ServerSettingsService.layerTest>[0];
     /** Runs on the target database after its migrations and before the service starts, to leave an earlier build's state. */
     readonly prepare?: Effect.Effect<void, never, SqlClient.SqlClient>;
   },
@@ -503,7 +505,7 @@ const withService = <A, E, R>(
                   announced.push((event as never as { threadId: string }).threadId);
               }),
           }),
-      ServerSettings.ServerSettingsService.layerTest({}, options.managedPolicy),
+      ServerSettings.ServerSettingsService.layerTest(options.settings ?? {}, options.managedPolicy),
       Layer.mock(ScheduledTaskService.ScheduledTaskService)({
         upsert: (input) =>
           Effect.sync(() => {
@@ -2805,6 +2807,59 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
           assert.equal(yield* service.relinkTaskMessages, 0);
         }),
       ),
+  );
+
+  // An earlier build imported instances and recorded them only in the run's summary.
+  it.effect("pins Antigravity instances an earlier import recorded, and no others", () =>
+    withService(
+      {
+        settings: {
+          providerInstances: {
+            antigravity: { driver: "antigravity", enabled: true },
+            "antigravity-work": { driver: "antigravity", enabled: true },
+            "antigravity-chosen": {
+              driver: "antigravity",
+              enabled: true,
+              config: { loginSource: "cli" },
+            },
+            cursor: { driver: "cursor", enabled: true },
+          } as never,
+        },
+        prepare: Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* SharedWorktrees.ensureImportTables();
+          const summary = JSON.stringify({
+            fixed: [],
+            skipped: [],
+            attention: [
+              {
+                code: "provider-credential-imported",
+                subject: "antigravity-work, antigravity-chosen, cursor",
+                count: 3,
+              },
+            ],
+          });
+          yield* sql`INSERT INTO fork_t3code_import_runs (started_at, finished_at, source_path, summary_json)
+            VALUES ('2026-09-01', '2026-09-01', '/official', ${summary})`;
+        }).pipe(Effect.orDie),
+      },
+      () =>
+        Effect.gen(function* () {
+          const { providerInstances } = yield* (yield* ServerSettings.ServerSettingsService)
+            .getSettings;
+          const loginOf = (id: string) =>
+            (
+              providerInstances[ProviderInstanceId.make(id)]?.config as
+                | { loginSource?: string }
+                | undefined
+            )?.loginSource;
+          assert.equal(loginOf("antigravity-work"), "profile");
+          // The default instance was made in T3 Extend: nothing imported it, so it stays automatic.
+          assert.equal(loginOf("antigravity"), undefined);
+          assert.equal(loginOf("antigravity-chosen"), "cli");
+          assert.equal(loginOf("cursor"), undefined);
+        }),
+    ),
   );
 
   it.effect("starting the service relinks what an earlier build left, in the background", () => {

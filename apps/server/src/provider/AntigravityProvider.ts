@@ -628,6 +628,18 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
               },
       ),
     ),
+    // fork: the agent could not say (it timed out or failed). Say so, so "signed out" does not linger.
+    onAuthUnknown: SubscriptionRef.update(metadata, (state): AntigravityProviderState =>
+      !settings.enabled || state.draft.auth.status !== "unauthenticated"
+        ? state
+        : {
+            ...state,
+            draft: {
+              ...state.draft,
+              auth: { status: "unknown", ...(options.auth ? { type: options.auth.type } : {}) },
+            },
+          },
+    ),
     snapshotForCwd,
   };
 });

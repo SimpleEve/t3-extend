@@ -455,6 +455,27 @@ it.layer(layerTest)("Antigravity provider snapshots", (it) => {
     }),
   );
 
+  it.effect("an unknown answer replaces signed out, and leaves a signed-in account alone", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeHarness({ silentSignIn: true });
+      yield* harness.initialize;
+      yield* Ref.set(harness.silentBehavior, harness.provider.onAuthRequired);
+      expect(yield* harness.provider.snapshot.refresh).toMatchObject({
+        auth: { status: "unauthenticated" },
+      });
+      yield* Ref.set(harness.silentBehavior, harness.provider.onAuthUnknown);
+      expect(yield* harness.provider.snapshot.refresh).toMatchObject({
+        status: "warning",
+        auth: { status: "unknown" },
+      });
+      yield* harness.provider.onSessionStarted(started);
+      yield* harness.provider.onAuthUnknown;
+      expect(yield* harness.provider.snapshot.getSnapshot).toMatchObject({
+        auth: { status: "authenticated" },
+      });
+    }),
+  );
+
   it.effect(
     "leaves a shared CLI login unchecked, not signed out, when the agent cannot answer",
     () =>

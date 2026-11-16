@@ -221,3 +221,19 @@ export const pinImportedAntigravityLogin = (instance: unknown): unknown => {
       : {};
   return { ...record, config: { loginSource: "profile", ...settings } };
 };
+
+/**
+ * The provider instances an earlier import copied over, from the summary it stored. Before imports
+ * recorded them anywhere else, this notice was the only trace.
+ */
+export const importedProviderInstanceIds = (summaryJson: string | null): ReadonlyArray<string> => {
+  const summary = summaryJson === null ? null : parseObject(summaryJson);
+  const attention = summary?.attention;
+  if (!Array.isArray(attention)) return [];
+  return attention.flatMap((notice: unknown) => {
+    const { code, subject } = (notice ?? {}) as { code?: unknown; subject?: unknown };
+    return code === "provider-credential-imported" && typeof subject === "string"
+      ? subject.split(", ").filter((id) => id.length > 0)
+      : [];
+  });
+};
