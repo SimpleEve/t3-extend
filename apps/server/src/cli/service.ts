@@ -345,7 +345,14 @@ const serviceUninstallCommand = Command.make("uninstall", projectLocationFlags).
   ),
 );
 
-const serviceStatusCommand = Command.make("status", projectLocationFlags).pipe(
+const serviceStatusCommand = Command.make("status", {
+  ...projectLocationFlags,
+  // fork: the desktop app reads the status as one JSON line
+  json: Flag.Boolean("json").pipe(
+    Flag.withDescription("Print the status as one JSON line."),
+    Flag.withDefault(false),
+  ),
+}).pipe(
   Command.withDescription("Show whether the T3 Code background service is installed."),
   Command.withHandler((flags) =>
     runServiceCommand(
@@ -354,6 +361,7 @@ const serviceStatusCommand = Command.make("status", projectLocationFlags).pipe(
         const service = yield* BootService.BootService;
         const path = yield* Path.Path;
         const status = yield* service.status;
+        if (flags.json) return yield* Console.log(JSON.stringify(status)); // fork: desktop app
         const protection =
           status.installed && (yield* HostProcess.Platform) === "linux"
             ? yield* ServiceProtection.readProtection(path.dirname(status.unitPath)).pipe(

@@ -43,6 +43,7 @@ import * as DesktopWslBackend from "../wsl/DesktopWslBackend.ts";
 import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import * as DesktopBackgroundService from "../fork/backgroundService/DesktopBackgroundService.ts"; // fork: background service
 
 const DEFAULT_DESKTOP_BACKEND_PORT = FORK.defaultPort; // fork: avoid official 3773
 const MAX_TCP_PORT = 65_535;
@@ -207,6 +208,8 @@ const startLocalBackend = Effect.gen(function* () {
     return yield* new DesktopDevelopmentBackendPortRequiredError();
   }
 
+  // fork: between app sessions the background service owns this home; stop it so the app's server can.
+  yield* (yield* DesktopBackgroundService.DesktopBackgroundService).pauseForApp;
   // A backend started while another server holds this home's lock can only exit with code 78.
   if (
     !(settings.wslOnly && settings.wslBackendEnabled) &&
@@ -421,10 +424,12 @@ const scopedProgram = Effect.scoped(
 
     const shutdown = yield* DesktopShutdown.DesktopShutdown;
     const rendererHistory = yield* DesktopRendererHistory.DesktopRendererHistory;
+    const backgroundService = yield* DesktopBackgroundService.DesktopBackgroundService; // fork: background service
 
     yield* Effect.addFinalizer(() =>
       // Quit can outrun layer finalizers; stop pooled backends here so they receive SIGTERM before OS teardown.
       stopAllPoolInstances().pipe(
+        Effect.ensuring(backgroundService.resumeAfterApp), // fork: hand the home back once the app's server is down
         Effect.ensuring(rendererHistory.shutdown),
         Effect.ensuring(shutdown.markComplete),
         Effect.withSpan("desktop.app.shutdown"),

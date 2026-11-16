@@ -60,6 +60,7 @@ import * as DesktopIpc from "../ipc/DesktopIpc.ts";
 import * as DesktopLocalEnvironmentAuth from "../backend/DesktopLocalEnvironmentAuth.ts";
 import * as DesktopManagedPolicy from "./DesktopManagedPolicy.ts";
 import * as DesktopSelfHost from "../selfHost/DesktopSelfHost.ts"; // fork: self-hosted connection
+import * as DesktopBackgroundService from "../fork/backgroundService/DesktopBackgroundService.ts"; // fork: background service
 import * as DesktopPrimaryPaste from "./DesktopPrimaryPaste.ts";
 import * as DesktopSshEnvironment from "../ssh/DesktopSshEnvironment.ts";
 import * as DesktopSshPasswordPrompts from "../ssh/DesktopSshPasswordPrompts.ts";
@@ -232,6 +233,11 @@ it.effect.each([false, true])(
             }),
             Layer.mock(DesktopManagedPolicy.DesktopManagedPolicy, {}),
             Layer.mock(DesktopSelfHost.DesktopSelfHost, {}), // fork: self-hosted connection
+            // fork: background service
+            Layer.mock(DesktopBackgroundService.DesktopBackgroundService, {
+              pauseForApp: record("service-pause"),
+              resumeAfterApp: record("service-resume"),
+            }),
             Layer.succeed(DesktopPrimaryPaste.DesktopPrimaryPaste, { enabled: true }),
             Layer.mock(DesktopSshEnvironment.DesktopSshEnvironment, {}),
             Layer.mock(DesktopSshPasswordPrompts.DesktopSshPasswordPrompts, {}),
@@ -265,7 +271,7 @@ it.effect.each([false, true])(
       // The backend spawns before menus, and its token is minted without waiting for the renderer.
       assert.deepEqual(
         events.filter((event) => event !== "token"),
-        ["identity", "ready", "identity", "backend", "menu", "window"],
+        ["identity", "ready", "identity", "service-pause", "backend", "menu", "window"],
       );
       assert.isAbove(events.indexOf("token"), events.indexOf("backend"));
       assert.isFalse(yield* Deferred.isDone(registrationStopped));
@@ -275,8 +281,11 @@ it.effect.each([false, true])(
       yield* Deferred.await(secondStopStarted);
       assert.isFalse(yield* Deferred.isDone(historyStarted));
       assert.isFalse(yield* shutdown.isComplete);
+      // fork: the service gets the home back only after every backend stopped
+      assert.isFalse(events.includes("service-resume"));
       yield* Deferred.succeed(releaseStops, undefined);
       yield* Deferred.await(historyStarted);
+      assert.isTrue(events.includes("service-resume"));
       assert.isFalse(yield* shutdown.isComplete);
       yield* Deferred.succeed(releaseHistory, undefined);
       const result = yield* Fiber.await(app);

@@ -199,6 +199,10 @@
       "types": "./src/remote.ts",
       "import": "./src/remote.ts"
     },
+    "./backgroundService": {
+      "types": "./src/backgroundService.ts",
+      "import": "./src/backgroundService.ts"
+    },
     "./keepAwake": {
       "types": "./src/keepAwake.ts",
       "import": "./src/keepAwake.ts"

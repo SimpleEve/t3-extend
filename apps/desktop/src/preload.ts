@@ -16,6 +16,8 @@ import type { SelfHostBridge, SelfHostState } from "@t3tools/shared/selfHost"; /
 import * as SelfHostIpcChannels from "./selfHost/selfHostChannels.ts"; // fork: self-hosted connection
 import type { KeepAwakeBridge } from "@t3tools/shared/keepAwake"; // fork: keep awake
 import * as KeepAwakeChannels from "./keepAwake/keepAwakeChannels.ts"; // fork: keep awake
+import type { BackgroundServiceBridge } from "@t3tools/shared/backgroundService"; // fork: background service
+import * as BackgroundServiceChannels from "./fork/backgroundService/channels.ts"; // fork: background service
 import { exposeLoopbackGatewayBridge } from "./fork/loopbackGateway/preloadBridge.ts"; // fork: loopback gateway
 import { mergeLegacyLocalStorage } from "./legacyLocalStorageMerge.ts";
 
@@ -128,6 +130,14 @@ contextBridge.exposeInMainWorld(SelfHostIpcChannels.SELF_HOST_BRIDGE_GLOBAL, {
 contextBridge.exposeInMainWorld(KeepAwakeChannels.KEEP_AWAKE_BRIDGE_GLOBAL, {
   setActive: (active) => ipcRenderer.invoke(KeepAwakeChannels.SET_KEEP_AWAKE_CHANNEL, active),
 } satisfies KeepAwakeBridge);
+
+// fork: background service
+contextBridge.exposeInMainWorld(BackgroundServiceChannels.BACKGROUND_SERVICE_BRIDGE_GLOBAL, {
+  getState: () =>
+    ipcRenderer.invoke(BackgroundServiceChannels.GET_BACKGROUND_SERVICE_STATE_CHANNEL),
+  setEnabled: (enabled) =>
+    ipcRenderer.invoke(BackgroundServiceChannels.SET_BACKGROUND_SERVICE_ENABLED_CHANNEL, enabled),
+} satisfies BackgroundServiceBridge);
 
 exposeLoopbackGatewayBridge(contextBridge, ipcRenderer); // fork: loopback gateway
 
