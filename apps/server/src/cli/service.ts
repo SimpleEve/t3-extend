@@ -361,6 +361,7 @@ const serviceStatusCommand = Command.make("status", {
         const service = yield* BootService.BootService;
         const path = yield* Path.Path;
         const status = yield* service.status;
+        // @effect-diagnostics-next-line globalJsonInEffect:off - a plain status record, no unknown shapes.
         if (flags.json) return yield* Console.log(JSON.stringify(status)); // fork: desktop app
         const protection =
           status.installed && (yield* HostProcess.Platform) === "linux"
