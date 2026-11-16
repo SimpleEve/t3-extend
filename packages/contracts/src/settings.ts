@@ -754,13 +754,29 @@ export const CodexSettings = makeProviderSettingsSchema(
         description: "Additional CLI arguments passed to codex app-server on session start.",
       }),
     ),
+    // fork:
+    readLimitsThroughCustomEndpoint: Schema.Boolean.pipe(
+      Schema.withDecodingDefault(Effect.succeed(false)),
+      Schema.annotateKey({
+        title: "Read subscription limits through a custom endpoint",
+        description:
+          "Only turn this on when your custom endpoint still uses your ChatGPT subscription. The limits shown are those of the signed-in ChatGPT account, not any ledger the endpoint keeps.",
+        providerSettingsForm: { control: "switch", clearWhenEmpty: "omit" },
+      }),
+    ),
     customModels: Schema.Array(CustomModelSetting).pipe(
       Schema.withDecodingDefault(Effect.succeed([])),
       Schema.annotateKey({ providerSettingsForm: { hidden: true } }),
     ),
   },
   {
-    order: ["binaryPath", "homePath", "shadowHomePath", "launchArgs"],
+    order: [
+      "binaryPath",
+      "homePath",
+      "shadowHomePath",
+      "launchArgs",
+      "readLimitsThroughCustomEndpoint", // fork:
+    ],
   },
 );
 export type CodexSettings = typeof CodexSettings.Type;

@@ -193,6 +193,27 @@ it("reports native quota only for an OpenAI login on a native route", () => {
       name,
     );
   }
+  // fork: an endpoint the user vouches for still reads the subscription quota, but only for a login that has one.
+  const readThroughEndpoint = [
+    [
+      "proxy url",
+      chatgpt,
+      true,
+      { openai_base_url: "http://127.0.0.1:3425/backend-api/codex" },
+      true,
+    ],
+    ["custom provider", chatgpt, true, hub, true],
+    ["unreadable config", chatgpt, true, null, true],
+    ["login not required", chatgpt, false, {}, false],
+    ["api key", { type: "apiKey" }, true, {}, false],
+  ] as const;
+  for (const [name, account, requiresOpenaiAuth, config, expected] of readThroughEndpoint) {
+    assert.strictEqual(
+      codexRoutesSpendNativeQuota({ account, requiresOpenaiAuth }, config, true),
+      expected,
+      `read through endpoint: ${name}`,
+    );
+  }
   // The custom endpoint is what a usage-limit hub is matched against.
   assert.strictEqual(codexCustomEndpoint(hub), "https://hub.example.com");
   assert.strictEqual(

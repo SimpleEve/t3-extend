@@ -127,11 +127,15 @@ export function codexCustomEndpoint(config: unknown): string | undefined {
 }
 
 // A stored login does not mean this provider's traffic spends that login's quota.
+// fork: `readThroughCustomEndpoint` is the instance's word that a custom route still spends the login's quota.
 export const codexRoutesSpendNativeQuota = (
   account: CodexSchema.V2GetAccountResponse,
   config: unknown,
+  readThroughCustomEndpoint = false,
 ): boolean =>
-  account.requiresOpenaiAuth && account.account?.type !== "apiKey" && routesToNativeOpenai(config);
+  account.requiresOpenaiAuth &&
+  account.account?.type !== "apiKey" &&
+  (readThroughCustomEndpoint || routesToNativeOpenai(config));
 
 const CODEX_APP_SERVER_PROBE_FORCE_KILL_AFTER = "2 seconds" as const;
 const CODEX_CATALOG_REFRESH_TIMEOUT_MS = 3_000;
@@ -709,6 +713,7 @@ const probeCodexAppServerProvider = Effect.fn("probeCodexAppServerProvider")(fun
   readonly cwd: string;
   readonly environment?: NodeJS.ProcessEnv;
   readonly skipNativeUsage?: boolean;
+  readonly readLimitsThroughCustomEndpoint?: boolean; // fork:
 }) {
   const spawnedAtMs = DateTime.toEpochMillis(yield* DateTime.now);
   const { client, initialize } = yield* withCodexAppServerClient(input);
@@ -751,7 +756,11 @@ const probeCodexAppServerProvider = Effect.fn("probeCodexAppServerProvider")(fun
           const nativeUsage =
             !input.skipNativeUsage &&
             config !== undefined &&
-            codexRoutesSpendNativeQuota(accountResponse, config.config);
+            codexRoutesSpendNativeQuota(
+              accountResponse,
+              config.config,
+              input.readLimitsThroughCustomEndpoint, // fork:
+            );
           const readUsage: Effect.Effect<CodexRateLimitsProbe | undefined> = nativeUsage
             ? readCodexRateLimits(client, deadlineMs)
             : Effect.undefined;
@@ -933,6 +942,7 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
     readonly cwd: string;
     readonly environment?: NodeJS.ProcessEnv;
     readonly skipNativeUsage?: boolean;
+    readonly readLimitsThroughCustomEndpoint?: boolean; // fork:
   }) => Effect.Effect<
     CodexAppServerProviderSnapshot,
     CodexErrors.CodexAppServerError,
@@ -979,6 +989,7 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
     cwd: process.cwd(),
     environment: resolvedEnvironment,
     ...(managedAuth ? { skipNativeUsage: true } : {}),
+    readLimitsThroughCustomEndpoint: codexSettings.readLimitsThroughCustomEndpoint, // fork:
   }).pipe(
     // Process teardown can outlast the work budget without discarding a completed snapshot.
     Effect.timeoutOption(Duration.millis(probeTimeoutMs)),
