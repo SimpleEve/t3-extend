@@ -10,14 +10,21 @@ export type BackgroundServiceProblem =
   /** The login service belongs to another T3 home. */
   | "other-home"
   /** The status command failed or printed something unexpected. */
-  | "unreadable";
+  | "unreadable"
+  /** The service did not start when the app last quit; `reason` says why. */
+  | "resume-failed";
 
 export type BackgroundServiceState =
   /** Not the packaged macOS app: the row is not shown. */
   | { readonly kind: "unavailable" }
   | { readonly kind: "off" }
   | { readonly kind: "on" }
-  | { readonly kind: "attention"; readonly problem: BackgroundServiceProblem };
+  | {
+      readonly kind: "attention";
+      readonly problem: BackgroundServiceProblem;
+      /** Only for `resume-failed`: the command's own last line. */
+      readonly reason?: string;
+    };
 
 export interface BackgroundServiceChange {
   readonly state: BackgroundServiceState;

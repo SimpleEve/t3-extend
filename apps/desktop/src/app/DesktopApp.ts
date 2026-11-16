@@ -209,7 +209,23 @@ const startLocalBackend = Effect.gen(function* () {
   }
 
   // fork: between app sessions the background service owns this home; stop it so the app's server can.
-  yield* (yield* DesktopBackgroundService.DesktopBackgroundService).pauseForApp;
+  const paused = yield* (yield* DesktopBackgroundService.DesktopBackgroundService).pauseForApp;
+  if (paused.kind === "failed") {
+    // Starting a second server beside it would only wait out the ownership grace and then fail.
+    yield* logBootstrapWarning("bootstrap could not stop the background service", {
+      reason: paused.reason,
+    });
+    yield* (yield* ElectronDialog.ElectronDialog).showErrorBox(
+      translate(getUiLocale(), "The background service did not stop"),
+      translate(
+        getUiLocale(),
+        "T3 Extend's background service is still running, so the app cannot start its own server on the same data folder.\n\n{reason}\n\nRun `{command} service uninstall` in a terminal to remove the background service, then open T3 Extend again.",
+        { reason: paused.reason, command: FORK.cliCommand },
+      ),
+    );
+    yield* (yield* ElectronApp.ElectronApp).quit;
+    return false;
+  }
   // A backend started while another server holds this home's lock can only exit with code 78.
   if (
     !(settings.wslOnly && settings.wslBackendEnabled) &&

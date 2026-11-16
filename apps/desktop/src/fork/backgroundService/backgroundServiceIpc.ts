@@ -17,7 +17,14 @@ const BackgroundServiceStateSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literals(["unavailable", "off", "on"]) }),
   Schema.Struct({
     kind: Schema.Literal("attention"),
-    problem: Schema.Literals(["app-missing", "needs-repair", "other-home", "unreadable"]),
+    problem: Schema.Literals([
+      "app-missing",
+      "needs-repair",
+      "other-home",
+      "unreadable",
+      "resume-failed",
+    ]),
+    reason: Schema.optional(Schema.String),
   }),
 ]);
 

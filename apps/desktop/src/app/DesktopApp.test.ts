@@ -235,7 +235,7 @@ it.effect.each([false, true])(
             Layer.mock(DesktopSelfHost.DesktopSelfHost, {}), // fork: self-hosted connection
             // fork: background service
             Layer.mock(DesktopBackgroundService.DesktopBackgroundService, {
-              pauseForApp: record("service-pause"),
+              pauseForApp: record("service-pause").pipe(Effect.as({ kind: "stopped" as const })),
               resumeAfterApp: record("service-resume"),
             }),
             Layer.succeed(DesktopPrimaryPaste.DesktopPrimaryPaste, { enabled: true }),

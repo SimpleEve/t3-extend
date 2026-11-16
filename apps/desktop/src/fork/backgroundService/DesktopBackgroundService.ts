@@ -2,6 +2,7 @@ import type {
   BackgroundServiceChange,
   BackgroundServiceState,
 } from "@t3tools/shared/backgroundService";
+import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -14,10 +15,16 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import * as DesktopEnvironment from "../../app/DesktopEnvironment.ts";
 import { bundledFrpcPath } from "../../selfHost/bundledFrpc.ts";
 import {
+  type AppServicePlist,
   backgroundServiceState,
   launchAgentPlistPath,
   launchdServiceTarget,
+  parseAppServicePlist,
   parseCliServiceStatus,
+  parseResumeFailure,
+  RESUME_FAILURE_FILE,
+  sameAppService,
+  splitAppBundle,
 } from "./backgroundService.logic.ts";
 
 export interface CommandResult {
@@ -36,6 +43,12 @@ export interface CommandInput {
 /** Never fails: a command that could not start or ran out of time is a non-zero result. */
 export type RunCommand = (input: CommandInput) => Effect.Effect<CommandResult>;
 
+export type PauseResult =
+  | { readonly kind: "skipped" }
+  | { readonly kind: "stopped" }
+  /** The service is still loaded after the stop, so a second server would collide with it. */
+  | { readonly kind: "failed"; readonly reason: string };
+
 // A launch agent that runs the app itself, so T3 Extend outlives the app. One server owns a T3 home
 // and the app's server carries desktop-only channels, so the app stops the service while open.
 export class DesktopBackgroundService extends Context.Service<
@@ -43,9 +56,12 @@ export class DesktopBackgroundService extends Context.Service<
   {
     readonly getState: Effect.Effect<BackgroundServiceState>;
     readonly setEnabled: (enabled: boolean) => Effect.Effect<BackgroundServiceChange>;
-    /** At launch: stop the installed service so this app's server can own the T3 home. */
-    readonly pauseForApp: Effect.Effect<void>;
-    /** At quit, after the app's server stopped: start the installed service again. */
+    /** At launch: stop this app's service so this app's server can own the T3 home. */
+    readonly pauseForApp: Effect.Effect<PauseResult>;
+    /**
+     * At quit, after the app's server stopped: start this app's service again and check it
+     * loaded. A start that still fails is recorded for the next launch to report.
+     */
     readonly resumeAfterApp: Effect.Effect<void>;
   }
 >()("@t3tools/desktop/fork/backgroundService/DesktopBackgroundService") {}
@@ -102,46 +118,106 @@ export const make = Effect.fn("desktop.backgroundService.make")(function* (input
     });
   };
 
-  /** The service this app installed runs the app itself; a plist for anything else is not ours to pause. */
-  const installedFromApp = fs.readFileString(plistPath).pipe(
-    Effect.map((plist) => plist.includes("<key>ELECTRON_RUN_AS_NODE</key>")),
-    Effect.orElseSucceed(() => false),
-  );
+  const canonical = (path: string) => {
+    const split = splitAppBundle(path);
+    return fs.realPath(split?.bundle ?? path).pipe(
+      Effect.map((real) => (split === undefined ? real : `${real}${split.rest}`)),
+      Effect.orElseSucceed(() => path),
+    );
+  };
+  const canonicalService = (service: AppServicePlist) =>
+    Effect.all({
+      executable: canonical(service.executable),
+      entry: canonical(service.entry),
+      baseDir: canonical(service.baseDir),
+    });
+
+  /**
+   * Only the service this very app installed for this very T3 home: its plist carries the app
+   * service marker and names this app's program and entry and this home, links resolved. Another
+   * home's service, another copy of the app, or an npm plist is never ours to stop or start.
+   */
+  const ownedService = Effect.gen(function* () {
+    const parsed = parseAppServicePlist(yield* fs.readFileString(plistPath));
+    if (parsed === undefined) return false;
+    const current = yield* canonicalService({
+      executable: input.cli.executable,
+      entry: input.cli.entry,
+      baseDir: input.cli.baseDir,
+    });
+    return sameAppService(yield* canonicalService(parsed), current);
+  }).pipe(Effect.orElseSucceed(() => false));
 
   const launchctl = (args: ReadonlyArray<string>, timeout = LAUNCHCTL_TIMEOUT) =>
     input.runCommand({ command: "launchctl", args, timeout });
+  const isLoaded = Effect.map(launchctl(["print", target]), (result) => result.code === 0);
+
+  const failurePath = `${input.cli.baseDir}/runtime/${RESUME_FAILURE_FILE}`;
+  const readFailure = fs.readFileString(failurePath).pipe(
+    Effect.map(parseResumeFailure),
+    Effect.orElseSucceed(() => undefined),
+  );
+  const clearFailure = fs.remove(failurePath, { force: true }).pipe(Effect.ignore);
+  const recordFailure = Effect.fn("desktop.backgroundService.recordFailure")(function* (
+    reason: string,
+  ) {
+    const at = new Date(yield* Clock.currentTimeMillis).toISOString();
+    yield* fs.makeDirectory(`${input.cli.baseDir}/runtime`, { recursive: true });
+    yield* fs.writeFileString(failurePath, `${JSON.stringify({ at, reason })}\n`, { mode: 0o600 });
+  }, Effect.ignore);
 
   const getState = Effect.gen(function* () {
     if (!available) return { kind: "unavailable" } as const;
     const result = yield* runCli(["service", "status", "--json"], STATUS_TIMEOUT);
-    return backgroundServiceState(
+    const failure = yield* readFailure;
+    const state = backgroundServiceState(
       result.code === 0 ? parseCliServiceStatus(result.stdout) : undefined,
+      failure,
     );
+    // A removed service has nothing left to retry.
+    if (state.kind === "off" && failure !== undefined) yield* clearFailure;
+    return state;
   }).pipe(Effect.withSpan("desktop.backgroundService.getState"));
 
   const pauseForApp = Effect.gen(function* () {
-    if (!available || !(yield* installedFromApp)) return;
-    // Not loaded is fine: bootout then fails and there is nothing to stop.
+    if (!available || !(yield* ownedService) || !(yield* isLoaded)) {
+      return { kind: "skipped" } as const;
+    }
     const stopped = yield* launchctl(["bootout", "--wait", target], STOP_TIMEOUT);
-    yield* Effect.logInfo("paused the background service for the app", {
-      exitCode: stopped.code,
-    });
+    // Whatever bootout said, only a service that is gone has let go of the home.
+    if (yield* isLoaded) {
+      const reason = stopped.code === 0 ? "it is still loaded" : lastLine(stopped);
+      yield* Effect.logWarning("the background service did not stop for the app", { reason });
+      return { kind: "failed", reason } as const;
+    }
+    yield* Effect.logInfo("paused the background service for the app");
+    return { kind: "stopped" } as const;
   }).pipe(Effect.withSpan("desktop.backgroundService.pauseForApp"));
 
-  const resumeAfterApp = Effect.gen(function* () {
-    if (!available || !(yield* installedFromApp)) return;
-    const loaded = (yield* launchctl(["print", target])).code === 0;
+  /** Starts the service and says why not when it is still not loaded afterwards. */
+  const startService = Effect.fn("desktop.backgroundService.startService")(function* () {
     // A loaded service idles while the app owns the home; restarting it takes the home now.
-    const started = loaded
+    const started = (yield* isLoaded)
       ? yield* launchctl(["kickstart", "-k", target])
       : yield* launchctl(["enable", target]).pipe(
           Effect.andThen(launchctl(["bootstrap", `gui/${input.uid}`, plistPath])),
         );
-    if (started.code !== 0) {
-      yield* Effect.logWarning("could not start the background service after the app quit", {
-        detail: lastLine(started),
-      });
+    if (yield* isLoaded) return undefined;
+    return started.code === 0 ? "it did not load" : lastLine(started);
+  });
+
+  const resumeAfterApp = Effect.gen(function* () {
+    if (!available || !(yield* ownedService)) return;
+    // One retry keeps a transient launchd refusal from stranding the service, and stays short.
+    const failure = (yield* startService()) === undefined ? undefined : yield* startService();
+    if (failure === undefined) {
+      yield* clearFailure;
+      return;
     }
+    yield* Effect.logWarning("could not start the background service after the app quit", {
+      reason: failure,
+    });
+    yield* recordFailure(failure);
   }).pipe(Effect.withSpan("desktop.backgroundService.resumeAfterApp"));
 
   const setEnabled = Effect.fn("desktop.backgroundService.setEnabled")(function* (
@@ -149,9 +225,17 @@ export const make = Effect.fn("desktop.backgroundService.make")(function* (input
   ) {
     if (!available) return { state: { kind: "unavailable" }, error: null } as const;
     const result = yield* runCli(["service", enabled ? "install" : "uninstall"], CLI_TIMEOUT);
-    // The install starts the service, which then waits for this app to release the home.
-    if (enabled && result.code === 0) yield* pauseForApp;
-    return { state: yield* getState, error: result.code === 0 ? null : lastLine(result) };
+    let error = result.code === 0 ? null : lastLine(result);
+    if (result.code === 0) {
+      // A fresh install is a fresh start, and a removed service has nothing to retry.
+      yield* clearFailure;
+      // The install starts the service, which then waits for this app to release the home.
+      if (enabled) {
+        const paused = yield* pauseForApp;
+        if (paused.kind === "failed") error = paused.reason;
+      }
+    }
+    return { state: yield* getState, error };
   });
 
   return DesktopBackgroundService.of({ getState, setEnabled, pauseForApp, resumeAfterApp });
