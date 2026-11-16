@@ -60,7 +60,8 @@ export const PROVIDER_CHIP_ICONS: Readonly<
   },
   omp: {
     source: require("../../assets/context-chip-icons/provider-omp.png"),
-    tintsIcon: true,
+    tintsIcon: false,
+    accent: "#9B4DFF",
   },
   opencode: {
     source: require("../../assets/context-chip-icons/provider-opencode.png"),

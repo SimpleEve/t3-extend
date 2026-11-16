@@ -7,16 +7,11 @@ export const ompClient = defineProviderClient({
   driverKind: ProviderDriverKind.make("omp"),
   label: "omp",
   settingsSchema: OmpSettings,
-  // oh-my-pi has no published mark, so this is a plain ring-and-dot glyph.
+  // omp's mark from https://omp.sh/favicon.svg (MIT, can1357/oh-my-pi), cropped to the glyph.
+  // Icons take flat fills, so the logo's pink-purple-cyan gradient becomes its middle stop.
   icon: {
-    viewBox: "0 0 24 24",
-    fill: { light: "#0F0F0F", dark: "#F5F5F5" },
-    paths: [
-      {
-        d: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12Z",
-        fillRule: "evenodd",
-      },
-      { d: "M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z" },
-    ],
+    viewBox: "12 16 40 40",
+    fill: { light: "#9B4DFF", dark: "#9B4DFF" },
+    paths: [{ d: "M14 16h36v8H40v32h-8V24h-6v22h-8V24h-4z" }],
   },
 });
