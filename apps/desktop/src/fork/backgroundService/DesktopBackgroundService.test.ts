@@ -2,9 +2,13 @@
 // temp directory: nothing here reaches the real launchd.
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
+import * as Deferred from "effect/Deferred";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
+import * as TestClock from "effect/testing/TestClock";
 
 import { FORK } from "@t3tools/shared/forkIdentity";
 import * as DesktopBackgroundService from "./DesktopBackgroundService.ts";
@@ -20,28 +24,49 @@ const installedStatus = JSON.stringify({
   problems: [],
 });
 
+/** The plist as written, and what `plutil -convert json` prints for it (or that it refuses). */
+interface PlistFixture {
+  readonly xml: string;
+  readonly json: string;
+  readonly plutilCode?: number;
+}
+
 const plistFor = (input: {
   readonly baseDir: string;
   readonly executable?: string;
   readonly entry?: string;
   readonly marker?: boolean;
-}) =>
-  [
-    "<dict><key>ProgramArguments</key><array>",
-    `<string>${input.executable ?? EXECUTABLE}</string>`,
-    `<string>${input.entry ?? ENTRY}</string>`,
-    "<string>__service-launcher</string></array>",
-    "<key>EnvironmentVariables</key><dict>",
-    "<key>ELECTRON_RUN_AS_NODE</key><string>1</string>",
-    `<key>T3CODE_HOME</key><string>${input.baseDir}</string>`,
-    input.marker === false ? "" : "<key>T3X_APP_SERVICE</key><string>1</string>",
-    "</dict></dict>",
-  ].join("");
+  readonly extraXml?: string;
+}): PlistFixture => {
+  const program = [input.executable ?? EXECUTABLE, input.entry ?? ENTRY, "__service-launcher"];
+  const environment: Record<string, string> = {
+    ELECTRON_RUN_AS_NODE: "1",
+    T3CODE_HOME: input.baseDir,
+    ...(input.marker === false ? {} : { T3X_APP_SERVICE: "1" }),
+  };
+  return {
+    xml: [
+      "<dict><key>ProgramArguments</key><array>",
+      ...program.map((entry) => `<string>${entry}</string>`),
+      "</array><key>EnvironmentVariables</key><dict>",
+      ...Object.entries(environment).map(
+        ([key, value]) => `<key>${key}</key><string>${value}</string>`,
+      ),
+      input.extraXml ?? "",
+      "</dict></dict>",
+    ].join(""),
+    json: JSON.stringify({ ProgramArguments: program, EnvironmentVariables: environment }),
+  };
+};
 
 const makeHarness = Effect.fn("test.make_background_service_harness")(function* (options?: {
   readonly available?: boolean;
   /** The plist on disk: this app's own (default), another one, or none. */
-  readonly plist?: (baseDir: string) => string | null;
+  readonly plist?: (baseDir: string) => PlistFixture | null;
+  /** Commands that never answer, as when launchd hangs. */
+  readonly hang?: (command: string) => boolean;
+  /** Completes when a command first hangs. */
+  readonly hung?: Deferred.Deferred<void>;
   readonly cliExecutable?: string;
   readonly cliEntry?: string;
   readonly respond?: (command: string) => Partial<DesktopBackgroundService.CommandResult>;
@@ -54,7 +79,7 @@ const makeHarness = Effect.fn("test.make_background_service_harness")(function* 
   const plist = options?.plist === undefined ? plistFor({ baseDir }) : options.plist(baseDir);
   if (plist !== null) {
     yield* fs.makeDirectory(path.dirname(plistPath), { recursive: true });
-    yield* fs.writeFileString(plistPath, plist);
+    yield* fs.writeFileString(plistPath, plist.xml);
   }
   const calls: Array<DesktopBackgroundService.CommandInput> = [];
   const launchd = {
@@ -75,10 +100,18 @@ const makeHarness = Effect.fn("test.make_background_service_harness")(function* 
       frpcPath: `${APP}/Contents/Resources/bin/frpc`,
     },
     environment: { HOME: home, PATH: "/usr/bin", T3_BOOT_SERVICE_UNIT: "t3extend.service" },
-    runCommand: (input) =>
-      Effect.sync(() => {
-        calls.push(input);
-        const command = `${input.command} ${input.args.join(" ")}`;
+    runCommand: (input) => {
+      const command = `${input.command} ${input.args.join(" ")}`;
+      calls.push(input);
+      if (options?.hang?.(command) === true) {
+        const signal =
+          options.hung === undefined ? Effect.void : Deferred.succeed(options.hung, undefined);
+        return signal.pipe(Effect.andThen(Effect.never));
+      }
+      return Effect.sync(() => {
+        if (input.command === "/usr/bin/plutil") {
+          return { code: plist?.plutilCode ?? 0, stdout: plist?.json ?? "", stderr: "" };
+        }
         const reply = options?.respond?.(command) ?? {};
         let code = 0;
         let stderr = "";
@@ -100,7 +133,8 @@ const makeHarness = Effect.fn("test.make_background_service_harness")(function* 
         }
         if (command === `launchctl print ${TARGET}`) code = launchd.loaded ? 0 : 113;
         return { code, stdout: "", stderr, ...reply };
-      }),
+      });
+    },
   });
   return {
     service,
@@ -212,7 +246,7 @@ it.layer(NodeServices.layer)("desktop background service switch", (it) => {
   // Only the exact service this app installed for this home is ever stopped or started.
   const notOurs: ReadonlyArray<{
     readonly case: string;
-    readonly plist: (baseDir: string) => string | null;
+    readonly plist: (baseDir: string) => PlistFixture | null;
   }> = [
     { case: "no service installed", plist: () => null },
     {
@@ -231,6 +265,36 @@ it.layer(NodeServices.layer)("desktop background service switch", (it) => {
           executable: "/Applications/Other.app/Contents/MacOS/Other",
           entry: "/Applications/Other.app/Contents/Resources/app.asar/apps/server/dist/bin.mjs",
         }),
+    },
+    {
+      case: "a plist macOS cannot parse",
+      plist: (baseDir) => ({ ...plistFor({ baseDir }), xml: "<plist><dict>", plutilCode: 1 }),
+    },
+    {
+      case: "a plist that names T3CODE_HOME again in a comment",
+      plist: (baseDir) =>
+        plistFor({
+          baseDir,
+          extraXml: "<!-- <key>T3CODE_HOME</key><string>/elsewhere</string> -->",
+        }),
+    },
+    {
+      case: "a plist that names T3CODE_HOME twice",
+      plist: (baseDir) =>
+        plistFor({
+          baseDir,
+          extraXml: `<key>T3CODE_HOME</key><string>${baseDir}</string>`,
+        }),
+    },
+    {
+      case: "a plist whose values are not strings",
+      plist: (baseDir) => ({
+        ...plistFor({ baseDir }),
+        json: JSON.stringify({
+          ProgramArguments: [EXECUTABLE, ENTRY, "__service-launcher"],
+          EnvironmentVariables: { T3X_APP_SERVICE: 1, T3CODE_HOME: baseDir },
+        }),
+      }),
     },
     {
       case: "a service whose program is not an app bundle",
@@ -424,5 +488,72 @@ it.layer(NodeServices.layer)("desktop background service switch", (it) => {
       expect(yield* h.service.getState).toEqual({ kind: "off" });
       expect(yield* fs.exists(h.failurePath)).toBe(false);
     }).pipe(Effect.scoped),
+  );
+
+  it.effect("knows its service through differences of case, slashes and dot segments", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness({
+        plist: (baseDir) =>
+          plistFor({
+            baseDir: `${baseDir.toUpperCase()}//./runtime/..`,
+            executable: EXECUTABLE.toLowerCase().replace("/macos/", "//MacOS/"),
+            entry: `${ENTRY}/`,
+          }),
+      });
+
+      expect(yield* h.service.pauseForApp).toEqual({ kind: "stopped" });
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("gives up on a launchd that never answers within the deadline, and records it", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const hung = yield* Deferred.make<void>();
+      const h = yield* makeHarness({ hang: (command) => command.startsWith("launchctl"), hung });
+
+      const resuming = yield* Effect.forkChild(h.service.resumeAfterApp, {
+        startImmediately: true,
+      });
+      yield* Deferred.await(hung);
+      yield* TestClock.adjust("8 seconds");
+      yield* Fiber.join(resuming);
+
+      const recorded: unknown = JSON.parse(yield* fs.readFileString(h.failurePath));
+      expect(recorded).toMatchObject({ reason: "launchd did not answer in time" });
+      // The commands themselves are cut short well inside the deadline.
+      const timeouts = h.calls.flatMap((call) =>
+        call.command === "launchctl" ? [call.timeout] : [],
+      );
+      expect(timeouts.length).toBeGreaterThan(0);
+      for (const timeout of timeouts) expect(Duration.toMillis(timeout)).toBeLessThanOrEqual(3_000);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect(
+    "replaces a failure record that is world-readable, and never writes through a link",
+    () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const h = yield* makeHarness();
+        h.launchd.loaded = false;
+        h.launchd.startFailures = 2;
+        yield* fs.makeDirectory(`${h.baseDir}/runtime`, { recursive: true });
+        const elsewhere = path.join(h.home, "elsewhere.txt");
+        yield* fs.writeFileString(elsewhere, "untouched");
+        yield* fs.symlink(elsewhere, h.failurePath);
+
+        yield* h.service.resumeAfterApp;
+        expect(yield* fs.readFileString(elsewhere)).toBe("untouched");
+        expect((yield* fs.stat(h.failurePath)).mode & 0o777).toBe(0o600);
+        expect((yield* fs.readLink(h.failurePath).pipe(Effect.option))._tag).toBe("None");
+
+        // A record that already exists with wider permissions comes out private as well.
+        yield* fs.chmod(h.failurePath, 0o644);
+        h.launchd.loaded = false;
+        h.launchd.startFailures = 2;
+        yield* h.service.resumeAfterApp;
+        expect((yield* fs.stat(h.failurePath)).mode & 0o777).toBe(0o600);
+      }).pipe(Effect.scoped),
   );
 });

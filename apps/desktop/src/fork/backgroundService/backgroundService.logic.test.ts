@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   backgroundServiceState,
   launchAgentPlistPath,
+  comparablePath,
   launchdServiceTarget,
   parseAppServicePlist,
   parseCliServiceStatus,
@@ -97,24 +98,59 @@ describe("a failed start at the last quit", () => {
 });
 
 describe("the app's own service", () => {
-  const plist = (marker: string) =>
-    `<key>ProgramArguments</key><array><string>/A &amp; B.app/Contents/MacOS/x</string><string>/A &amp; B.app/Contents/Resources/e.mjs</string></array><key>EnvironmentVariables</key><dict><key>T3CODE_HOME</key><string>/h/.t3extend</string>${marker}</dict>`;
+  const environment = { T3X_APP_SERVICE: "1", T3CODE_HOME: "/h/.t3extend" };
+  const json = (overrides: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      ProgramArguments: [
+        "/A & B.app/Contents/MacOS/x",
+        "/A & B.app/Contents/Resources/e.mjs",
+        "__service-launcher",
+      ],
+      EnvironmentVariables: environment,
+      ...overrides,
+    });
+  const raw = `<key>ProgramArguments</key><key>T3X_APP_SERVICE</key><key>T3CODE_HOME</key>`;
 
-  it("is recognised only by the marker, and reads the program and the home", () => {
-    expect(parseAppServicePlist(plist("<key>T3X_APP_SERVICE</key><string>1</string>"))).toEqual({
+  it("reads the program and the home from what plutil printed", () => {
+    expect(parseAppServicePlist(json(), raw)).toEqual({
       executable: "/A & B.app/Contents/MacOS/x",
       entry: "/A & B.app/Contents/Resources/e.mjs",
       baseDir: "/h/.t3extend",
     });
-    expect(
-      parseAppServicePlist(plist("<key>ELECTRON_RUN_AS_NODE</key><string>1</string>")),
-    ).toBeUndefined();
-    expect(
-      parseAppServicePlist(plist("<key>T3X_APP_SERVICE</key><string>0</string>")),
-    ).toBeUndefined();
   });
 
-  it("splits a path inside an app at the bundle, so links resolve on the bundle alone", () => {
+  it.each([
+    ["no marker", json({ EnvironmentVariables: { T3CODE_HOME: "/h" } }), raw],
+    ["marker 0", json({ EnvironmentVariables: { ...environment, T3X_APP_SERVICE: "0" } }), raw],
+    [
+      "a number for the marker",
+      json({ EnvironmentVariables: { ...environment, T3X_APP_SERVICE: 1 } }),
+      raw,
+    ],
+    ["no home", json({ EnvironmentVariables: { T3X_APP_SERVICE: "1" } }), raw],
+    ["an empty home", json({ EnvironmentVariables: { ...environment, T3CODE_HOME: "" } }), raw],
+    [
+      "an extra program argument",
+      json({ ProgramArguments: ["a", "b", "__service-launcher", "c"] }),
+      raw,
+    ],
+    ["a different launcher argument", json({ ProgramArguments: ["a", "b", "serve"] }), raw],
+    ["a non-string argument", json({ ProgramArguments: ["a", 2, "__service-launcher"] }), raw],
+    ["output that is not JSON", "not json", raw],
+    ["a JSON array", "[]", raw],
+    [
+      "T3CODE_HOME written twice (or once more in a comment)",
+      json(),
+      `${raw}<key>T3CODE_HOME</key>`,
+    ],
+    ["a marker written twice", json(), `${raw}<key>T3X_APP_SERVICE</key>`],
+    ["a program written twice", json(), `${raw}<key>ProgramArguments</key>`],
+    ["a key missing from the text", json(), "<key>ProgramArguments</key>"],
+  ])("is not ours with %s", (_, plutilJson, rawPlist) => {
+    expect(parseAppServicePlist(plutilJson, rawPlist)).toBeUndefined();
+  });
+
+  it("splits a path inside an app at the bundle, as a fallback when the path will not resolve", () => {
     expect(splitAppBundle("/Applications/T3 Extend.app/Contents/MacOS/T3 Extend")).toEqual({
       bundle: "/Applications/T3 Extend.app",
       rest: "/Contents/MacOS/T3 Extend",
@@ -122,9 +158,16 @@ describe("the app's own service", () => {
     expect(splitAppBundle("/Users/x/.t3extend")).toBeUndefined();
   });
 
+  it("compares paths without regard to case, extra slashes, dot segments or a trailing slash", () => {
+    expect(comparablePath("/Applications//T3 Extend.app/./Contents/MacOS/")).toBe(
+      comparablePath("/applications/t3 extend.app/Contents/x/../MacOS"),
+    );
+    expect(comparablePath("/a/b")).not.toBe(comparablePath("/a/c"));
+  });
+
   it("is the same service only when the program, entry and home all agree", () => {
     const a = { executable: "/a", entry: "/e", baseDir: "/h" };
-    expect(sameAppService(a, { ...a })).toBe(true);
+    expect(sameAppService(a, { executable: "/A/", entry: "//e", baseDir: "/h/." })).toBe(true);
     for (const other of [{ executable: "/b" }, { entry: "/f" }, { baseDir: "/i" }]) {
       expect(sameAppService(a, { ...a, ...other })).toBe(false);
     }

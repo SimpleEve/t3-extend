@@ -71,6 +71,9 @@ const STATUS_TIMEOUT = Duration.seconds(30);
 // launchd waits up to the service's ExitTimeOut (90s) for it to stop.
 const STOP_TIMEOUT = Duration.seconds(120);
 const LAUNCHCTL_TIMEOUT = Duration.seconds(20);
+// Quitting must not hang on launchd: the whole hand-back gets this long, each command less.
+const RESUME_DEADLINE = Duration.seconds(8);
+const RESUME_COMMAND_TIMEOUT = Duration.seconds(3);
 
 /** The one line that says why a command failed. */
 const lastLine = (result: CommandResult) =>
@@ -118,12 +121,17 @@ export const make = Effect.fn("desktop.backgroundService.make")(function* (input
     });
   };
 
+  // The whole path when it resolves; else only the bundle (the entry sits inside app.asar).
   const canonical = (path: string) => {
     const split = splitAppBundle(path);
-    return fs.realPath(split?.bundle ?? path).pipe(
-      Effect.map((real) => (split === undefined ? real : `${real}${split.rest}`)),
-      Effect.orElseSucceed(() => path),
-    );
+    const throughBundle =
+      split === undefined
+        ? Effect.succeed(path)
+        : fs.realPath(split.bundle).pipe(
+            Effect.map((real) => `${real}${split.rest}`),
+            Effect.orElseSucceed(() => path),
+          );
+    return fs.realPath(path).pipe(Effect.catch(() => throughBundle));
   };
   const canonicalService = (service: AppServicePlist) =>
     Effect.all({
@@ -138,7 +146,14 @@ export const make = Effect.fn("desktop.backgroundService.make")(function* (input
    * home's service, another copy of the app, or an npm plist is never ours to stop or start.
    */
   const ownedService = Effect.gen(function* () {
-    const parsed = parseAppServicePlist(yield* fs.readFileString(plistPath));
+    const raw = yield* fs.readFileString(plistPath);
+    // macOS parses the plist (any encoding); a file it rejects is not ours.
+    const converted = yield* input.runCommand({
+      command: "/usr/bin/plutil",
+      args: ["-convert", "json", "-o", "-", plistPath],
+      timeout: LAUNCHCTL_TIMEOUT,
+    });
+    const parsed = converted.code === 0 ? parseAppServicePlist(converted.stdout, raw) : undefined;
     if (parsed === undefined) return false;
     const current = yield* canonicalService({
       executable: input.cli.executable,
@@ -150,7 +165,8 @@ export const make = Effect.fn("desktop.backgroundService.make")(function* (input
 
   const launchctl = (args: ReadonlyArray<string>, timeout = LAUNCHCTL_TIMEOUT) =>
     input.runCommand({ command: "launchctl", args, timeout });
-  const isLoaded = Effect.map(launchctl(["print", target]), (result) => result.code === 0);
+  const isLoaded = (timeout = LAUNCHCTL_TIMEOUT) =>
+    Effect.map(launchctl(["print", target], timeout), (result) => result.code === 0);
 
   const failurePath = `${input.cli.baseDir}/runtime/${RESUME_FAILURE_FILE}`;
   const readFailure = fs.readFileString(failurePath).pipe(
@@ -158,13 +174,23 @@ export const make = Effect.fn("desktop.backgroundService.make")(function* (input
     Effect.orElseSucceed(() => undefined),
   );
   const clearFailure = fs.remove(failurePath, { force: true }).pipe(Effect.ignore);
+  // A temp file renamed into place: unlike writing to the path, it neither follows a link left
+  // there nor keeps the permissions of a file that already exists.
   const recordFailure = Effect.fn("desktop.backgroundService.recordFailure")(function* (
     reason: string,
   ) {
     const at = DateTime.formatIso(yield* DateTime.now);
-    yield* fs.makeDirectory(`${input.cli.baseDir}/runtime`, { recursive: true });
-    // @effect-diagnostics-next-line globalJsonInEffect:off - a fixed two-field record.
-    yield* fs.writeFileString(failurePath, `${JSON.stringify({ at, reason })}\n`, { mode: 0o600 });
+    const directory = `${input.cli.baseDir}/runtime`;
+    yield* fs.makeDirectory(directory, { recursive: true });
+    yield* Effect.scoped(
+      Effect.gen(function* () {
+        const temp = yield* fs.makeTempFileScoped({ directory, prefix: ".resume-failed-" });
+        yield* fs.chmod(temp, 0o600);
+        // @effect-diagnostics-next-line globalJsonInEffect:off - a fixed two-field record.
+        yield* fs.writeFileString(temp, `${JSON.stringify({ at, reason })}\n`);
+        yield* fs.rename(temp, failurePath);
+      }),
+    );
   });
 
   const getState = Effect.gen(function* () {
@@ -181,12 +207,12 @@ export const make = Effect.fn("desktop.backgroundService.make")(function* (input
   }).pipe(Effect.withSpan("desktop.backgroundService.getState"));
 
   const pauseForApp = Effect.gen(function* () {
-    if (!available || !(yield* ownedService) || !(yield* isLoaded)) {
+    if (!available || !(yield* ownedService) || !(yield* isLoaded())) {
       return { kind: "skipped" } as const;
     }
     const stopped = yield* launchctl(["bootout", "--wait", target], STOP_TIMEOUT);
     // Whatever bootout said, only a service that is gone has let go of the home.
-    if (yield* isLoaded) {
+    if (yield* isLoaded()) {
       const reason = stopped.code === 0 ? "it is still loaded" : lastLine(stopped);
       yield* Effect.logWarning("the background service did not stop for the app", { reason });
       return { kind: "failed", reason } as const;
@@ -197,19 +223,20 @@ export const make = Effect.fn("desktop.backgroundService.make")(function* (input
 
   /** Starts the service and says why not when it is still not loaded afterwards. */
   const startService = Effect.fn("desktop.backgroundService.startService")(function* () {
+    const t = RESUME_COMMAND_TIMEOUT;
     // A loaded service idles while the app owns the home; restarting it takes the home now.
-    const started = (yield* isLoaded)
-      ? yield* launchctl(["kickstart", "-k", target])
-      : yield* launchctl(["enable", target]).pipe(
-          Effect.andThen(launchctl(["bootstrap", `gui/${input.uid}`, plistPath])),
+    const started = (yield* isLoaded(t))
+      ? yield* launchctl(["kickstart", "-k", target], t)
+      : yield* launchctl(["enable", target], t).pipe(
+          Effect.andThen(launchctl(["bootstrap", `gui/${input.uid}`, plistPath], t)),
         );
-    if (yield* isLoaded) return undefined;
+    if (yield* isLoaded(t)) return undefined;
     return started.code === 0 ? "it did not load" : lastLine(started);
   });
 
   const resumeAfterApp = Effect.gen(function* () {
     if (!available || !(yield* ownedService)) return;
-    // One retry keeps a transient launchd refusal from stranding the service, and stays short.
+    // One retry keeps a transient launchd refusal from stranding the service.
     const failure = (yield* startService()) === undefined ? undefined : yield* startService();
     if (failure === undefined) {
       yield* clearFailure;
@@ -219,7 +246,20 @@ export const make = Effect.fn("desktop.backgroundService.make")(function* (input
       reason: failure,
     });
     yield* recordFailure(failure).pipe(Effect.ignore);
-  }).pipe(Effect.withSpan("desktop.backgroundService.resumeAfterApp"));
+  }).pipe(
+    // Past the deadline the hand-back is abandoned and recorded, so quitting is never held up.
+    Effect.timeoutOrElse({
+      duration: RESUME_DEADLINE,
+      orElse: () =>
+        recordFailure("launchd did not answer in time").pipe(
+          Effect.ignore,
+          Effect.andThen(
+            Effect.logWarning("gave up starting the background service after the app quit"),
+          ),
+        ),
+    }),
+    Effect.withSpan("desktop.backgroundService.resumeAfterApp"),
+  );
 
   const setEnabled = Effect.fn("desktop.backgroundService.setEnabled")(function* (
     enabled: boolean,
