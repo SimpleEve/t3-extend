@@ -297,6 +297,9 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
   if (resumeCache?.owner === owner) resumeCache.snapshot = committed;
   const awaitingCompletion = yield* Ref.make(false);
   const applyLock = yield* Semaphore.make(1);
+  // A stream defect parks the subscription until something resubscribes it.
+  const resubscribes = yield* Queue.unbounded<void>(); // fork: moved up so applyEventsLocked can use it
+  let recreatedAt = 0; // fork
   // Save only completed data/cursor updates. A canceled scope must not cache
   // a cursor whose event has not reached the data yet.
   const announceRequests = makeThreadRequestsResolvedAnnouncer(environmentId, threadId);
@@ -522,6 +525,22 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
   // Per-batch streaming spans add trace volume without a useful timing boundary.
   const applyEventsLocked = Effect.fnUntraced(function* (items: ReadonlyArray<SequencedItem>) {
     const appliedSequence = yield* SubscriptionRef.get(lastSequence);
+    // fork: a thread.created for a thread already held means an import replaced it. Its events carry on
+    // from the new rows, so applying them onto the old view would keep stale content: step the cursor back
+    // before the creation and resubscribe, so the server sends a fresh snapshot (the thread was recreated).
+    const replaced = items.find(
+      (item) =>
+        item.kind === "event" &&
+        item.event.type === "thread.created" &&
+        item.sequence > appliedSequence &&
+        item.sequence > recreatedAt,
+    );
+    if (replaced !== undefined && Option.isSome((yield* SubscriptionRef.get(state)).data)) {
+      recreatedAt = replaced.sequence;
+      yield* SubscriptionRef.set(lastSequence, replaced.sequence - 1);
+      yield* Queue.offer(resubscribes, undefined);
+      return;
+    }
     let sequence = appliedSequence;
     const fresh: EventItem[] = [];
     for (const item of items) {
@@ -974,8 +993,6 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
       (yield* Ref.get(socketOnlyOpen)) && Option.isNone((yield* SubscriptionRef.get(state)).data)
     );
   });
-  // A stream defect parks the subscription until something resubscribes it.
-  const resubscribes = yield* Queue.unbounded<void>();
   const markSynchronizing = Effect.gen(function* () {
     if (yield* Ref.get(resumingLive)) return;
     yield* SubscriptionRef.update(state, (current) =>

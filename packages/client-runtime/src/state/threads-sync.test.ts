@@ -392,6 +392,21 @@ const titleUpdated = (title: string, sequence = 2): OrchestrationV2ThreadStreamI
   };
 };
 
+const recreated = (sequence: number): OrchestrationV2ThreadStreamItem => {
+  const occurredAt = DateTime.makeUnsafe("2026-06-20T03:00:00.000Z");
+  return {
+    kind: "event",
+    sequence,
+    event: {
+      id: EventId.make("event-recreated"),
+      type: "thread.created",
+      threadId: THREAD_ID,
+      occurredAt,
+      payload: { ...v2Projection.thread, title: "Replaced by an import", updatedAt: occurredAt },
+    },
+  };
+};
+
 const deleted = (sequence = 3): OrchestrationV2ThreadStreamItem => {
   const occurredAt = DateTime.makeUnsafe("2026-06-20T02:00:00.000Z");
   return {
@@ -594,6 +609,46 @@ describe("EnvironmentThreads", () => {
         [9, "Newer update"],
       ]);
     }),
+  );
+
+  it.effect(
+    "an open thread that an import replaced resubscribes from before the creation, to get a snapshot",
+    () =>
+      Effect.gen(function* () {
+        const h = yield* makeHarness({
+          httpSnapshot: {
+            _tag: "present",
+            snapshot: { projection: BASE_PROJECTION, snapshotSequence: CACHED_SNAPSHOT_SEQUENCE },
+          },
+        });
+        yield* awaitThreadState(h.observed, (value) => value.status === "live");
+        const before = yield* SubscriptionRef.get(h.subscriptionCount);
+        yield* Queue.offer(h.inputs, recreated(20));
+        yield* SubscriptionRef.changes(h.subscriptionCount).pipe(
+          Stream.filter((count) => count > before),
+          Stream.take(1),
+          Stream.runDrain,
+        );
+        // Before the creation, so the server's rebuilt-thread branch answers with a snapshot.
+        expect(yield* Ref.get(h.lastSubscribeAfterSequence)).toBe(19);
+        // The stale view is not patched with the creation payload meanwhile.
+        expect(Option.getOrThrow((yield* Ref.get(h.latest)).data).thread.title).toBe(
+          BASE_PROJECTION.thread.title,
+        );
+        // The snapshot the server sends next replaces it, and the thread carries on from there.
+        yield* Queue.offer(
+          h.inputs,
+          snapshot(
+            { ...BASE_PROJECTION, thread: { ...BASE_PROJECTION.thread, title: "Fresh" } },
+            30,
+          ),
+        );
+        const state = yield* awaitThreadState(
+          h.observed,
+          (value) => Option.isSome(value.data) && value.data.value.thread.title === "Fresh",
+        );
+        expect(state.sequence).toBe(30);
+      }),
   );
 
   it.effect("does not resume past a canceled event whose data was not applied", () =>
