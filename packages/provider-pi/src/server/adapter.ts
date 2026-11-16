@@ -102,7 +102,8 @@ const PI_UNSOLICITED_ACTIVITY_ERROR =
 const SETTLE_PROBE_MAX_ATTEMPTS = 3;
 const SETTLE_PROBE_RETRY_DELAY = Duration.millis(100);
 
-const PiProviderCapabilitiesV2 = {
+export const PiProviderCapabilitiesV2 = {
+  // fork: omp derives its capabilities from these
   runtimePolicy: { enforcement: "client-boundary" },
   sessions: {
     supportsMultipleProviderThreadsPerSession: false,

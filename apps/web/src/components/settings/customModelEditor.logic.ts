@@ -98,6 +98,21 @@ export const DESCRIPTOR_PRESETS_BY_KIND: Partial<
       ],
     },
   ],
+  // fork: omp lists the efforts each model supports; a custom model offers the common ones.
+  [ProviderDriverKind.make("omp")]: [
+    {
+      id: "thinking",
+      label: "Thinking",
+      type: "select",
+      choices: [
+        { id: "off", label: "Off" },
+        { id: "low", label: "Low" },
+        { id: "medium", label: "Medium", isDefault: true },
+        { id: "high", label: "High" },
+        { id: "max", label: "Max" },
+      ],
+    },
+  ],
   [ProviderDriverKind.make("opencode")]: [
     { id: "variant", label: "Reasoning", type: "select", choices: EFFORT_CHOICES },
     {
