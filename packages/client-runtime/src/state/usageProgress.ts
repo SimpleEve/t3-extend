@@ -44,9 +44,11 @@ export function usageProgress(
   {
     refreshing = false,
     providerLabel,
+    t = translatorFor("en"), // fork: interface language, English when omitted
   }: {
     readonly refreshing?: boolean;
     readonly providerLabel: (provider: UsageProviderKind) => string;
+    readonly t?: Translator;
   },
 ) {
   const progress = environments.map((environment) => ({
@@ -64,12 +66,12 @@ export function usageProgress(
       waiting.length === 0
         ? providers.length === 0
           ? null
-          : updatingProvidersLabel(providers, providerLabel)
+          : updatingProvidersLabel(providers, providerLabel, t)
         : environments.length === 1
-          ? "Updating…"
+          ? t("Updating…")
           : waiting.length === 1
-            ? `Updating ${waiting[0]!.label}…`
-            : `Updating ${waiting.length} environments…`,
+            ? t("Updating {environment}…", { environment: waiting[0]!.label })
+            : t("Updating {count} environments…", { count: waiting.length }),
   };
 }
 

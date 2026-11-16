@@ -147,7 +147,7 @@ export function nextThreadAnnouncement(
             ? null
             : t(THREAD_STATUS_TEXT.input)
           : turnStarted
-            ? THREAD_STATUS_TEXT.working
+            ? t(THREAD_STATUS_TEXT.working) // fork: interface language
             : null;
     return { memory: { ...memory, turnRunId: nextTurnRunId }, announcement };
   }

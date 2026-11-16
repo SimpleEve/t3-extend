@@ -20,6 +20,7 @@ import {
 } from "@t3tools/client-runtime/work-log/command-label";
 import {
   englishWorkLogPhrase, // fork
+  translateForkNotice, // fork
   type WorkLogPhraseTranslator, // fork
   liveActivityToolStatus,
   normalizeCompactToolLabel,
@@ -148,7 +149,7 @@ export function workEntryDisplayLabel(
   workspaceRoot: string | undefined,
   t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ) {
-  if (entry.itemType === "system_notice") return entry.label;
+  if (entry.itemType === "system_notice") return translateForkNotice(entry.label, t); // fork: only notices T3 words itself
   if (entry.itemType === "reasoning" || entry.tone === "thinking") {
     const thought = entry.detail?.trim().replace(/\s+/g, " ");
     return thought || entry.label;

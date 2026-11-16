@@ -157,12 +157,19 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 
 "compared" 一节报告拿像句子的英文字面量（或全大写常量）去比较（`===`、`switch`、`.includes`、`.startsWith`、`.has` 等），而同一句又在别处经过 `t()` 的代码：比较的那个值一旦被翻译，比较就悄悄失效。比较原始值、显示时才翻译的写法是对的，核实后放进白名单。
 
+"omitted translator" 一节报告漏传翻译器的调用：函数的 `t` 参数是可选的或默认英文（`t: Translator = translatorFor("en")`、`t?: Translator`），调用处少传了这个参数，界面就悄悄显示英文。调用处没有 `t("…")`，前面的扫描看不到它，打包版里欢迎页 Agent 卡片的 "Not authenticated"（`getProviderSummary(provider)`）就是这样漏的。按函数名匹配（同名函数取最靠前的翻译器位置），所以名字相撞会误报，核实后放进 `OMITTED_TRANSLATOR_ALLOWLIST`。默认值是 `translatorFor(getUiLocale())` 的不算。新写带翻译器参数的函数，优先写成必填。
+
+经变量传给 `t()` 的表也会漏：`SettingsRow`、`SettingsSection` 对标题执行 `t(title)`，标题来自 `settingsSearch.ts` 的字面量（`searchableSetting(id)`），调用处没有字面量，目录里少一条也没人发现（"Welcome page"、"Text generators" 就是这样漏的）。`TRANSLATED_PROPERTY_TABLES` 列出这类文件和属性，里面的字面量算作被 `t()` 调用，并且要求目录里有不带上下文的条目。
+
+用户可见文案里的命令名按目标走。目标是本机这个 app（欢迎页、设置里的命令行、本机 triage、本机数据目录被占用的提示）用 `FORK.cliCommand`（`t3x`），分支前缀示例来自 `FORK.gitNamespace`。目标是别的主机时，对方可能是官方 T3 Code（命令 `t3`），不能写 `t3x`：服务器报了安装身份就按它选（`apps/web/src/fork/hostCli.logic.ts` 的 `hostCliCommand`：启动器取文件名，npm 类安装是 `t3`），没报就用不带命令名的说法（诊断、配对、`connect link` 的提示）。没有改的：`npx t3 …` 和 `t3@<版本>`（npm 包名，fork 没有自己的包）、服务端 CLI 自己打印的终端文字、WSL 和 SSH 远程主机上的命令（那里装的是官方 server）、`DesktopCliShim` 写进启动脚本的标记行（用来认出自己写的脚本）。
+
 白名单都在 `scripts/i18n-report.ts` 里，每一条都写了理由：
 
 - `ALWAYS_ENGLISH_TEXT` / `ALWAYS_ENGLISH_PATTERNS`：在任何语言下都保持英文的文本，比如产品名、格式名和单位、命令行、示例输入（URL、主机名、环境变量名）。
 - `SELF_TRANSLATING_PROPS`：组件内部会调用 `t()` 的 `组件.属性`，比如 `SettingsSection.title`。同名的本地组件写成 `文件名#组件.属性`。只对 web 生效，因为 mobile 有同名的不同组件。传给这些属性的字面量仍会进 missing 检查；带插值的模板查不到 key，照样报告。加一条前先读组件源码。
 - `PROPERTY_ALLOWLIST`：properties 一节的 `文件` 或 `文件#属性`，比如会写日志的错误对象、worker 的回复、存进设置的值、搜索用的文本、没有渲染的字段。
 - `COMPARED_ALLOWLIST`：compared 一节的 `文件#文本`。
+- `OMITTED_TRANSLATOR_ALLOWLIST`：omitted translator 一节的 `文件#函数名`，比如返回值只用来比较、不显示的调用，或同名的无关属性。
 
 确认框：调用方把整句模板翻译好再交给 `ConfirmDialogHost`（`t('Archive thread "{title}"?', { title })`），host 按半角或全角问号拆出标题。
 
@@ -382,6 +389,17 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - 译文：`catalogs/zh-Hans/contextMeter.ts`。
 
 上游文件里的接线（都带 `// fork:`）：`TimelineAssistantRows.tsx`、`ChatHeader.tsx`、`ChatView.tsx`（传 `workspaceRoot`）、`threadDetail.ts`（两个 atom）、`ThreadFeed.tsx`、`ThreadHeader.tsx`、`ThreadRouteScreen.tsx`、`Stack.tsx`、`catalogs/zh-Hans/index.ts`、`packages/client-runtime/package.json`（`./outputs/*` 导出）。
+
+## omp provider
+
+omp（oh-my-pi，Pi 的分支）是原生 provider，和上游的 Pi 并存。用户说明 `docs/user/providers-omp.md`，设计要点在 `docs/internals/providers.md`。ACP Registry 里的 omp 入口没动。
+
+- **复用而不是复制：** omp 的 RPC 与 Pi 同源，所以走 Pi 的 adapter，差异做成 `PiDialect`（`packages/provider-pi/src/server/dialect.ts`：driver 种类、能力表、启动参数、连接工厂、是否汇总本轮 usage）。fork 自己的代码全在新包 `packages/provider-omp`：`protocol.ts` 是 omp 帧与命令到 Pi 形状的翻译（纯函数，有单测），`connection.ts` 包住 omp 进程并用 `set_host_tools` 暴露 T3 的 MCP 工具，`dialect.ts` 管启动参数和审批模式映射，`status.ts` 探测版本、模型和命令。
+- **上游文件里的接线（都带 `// fork:`）：** `packages/provider-pi/src/server/adapter.ts`（读 `options.dialect`，在 `makePiAdapterV2` 开头用同名局部常量盖住 `PI_PROVIDER`、能力表、启动函数，另有按 dialect 汇总的 `turnTokenUsage`；`PiProviderCapabilitiesV2` 加了 `export`）、`provider-pi/package.json`（多导出几个子路径）、`builtInDrivers.ts`、`managedProviders.ts`、`settingsSecrets.ts`、`providerClients.ts`、`ProviderRegistry.ts`（omp 和 Pi 一样按鉴权状态保留模型）、`model-manifest.json`（omp 条目，`updatedAt` 已更新）、contracts 的 `model.ts` 和 `settings.ts`（显示名、默认关闭）、`ProviderModelsSection.tsx`、`customModelEditor.logic.ts`、`catalogs/zh-Hans/settingsPanels.ts`、根 `package.json` 的 knip 工作区列表、`scripts/release-smoke.ts`。同步上游时 `adapter.ts` 里 `PI_PROVIDER` 的局部覆盖最容易在新增用法处出问题：新代码若在闭包外用它，会拿到 Pi 的值。
+- **审批、MCP、会话：** 审批是 omp 自己的（`--approval-mode`：Supervised → `always-ask`，Auto-accept edits → `write`，Full access → `yolo`；`--approval-mode`、`--yolo`、`--auto-approve` 等写进启动参数会被拒绝）。omp 的审批弹窗是 `select`（标题 `Allow tool: <名字>`），选项没有 id，回传的就是标签文字。翻译层把它改成 Pi adapter 认得的 `confirm`，按语义（大小写和空白不敏感）找出"批准一次"、"本会话批准"和 `Deny`，与选项顺序无关。原则是拿不准就取消：每个选项都必须是 omp 发过的文案（批准一次、`Approve <标题里完整的工具名> for this session`、`Deny`，以及认得但永不选择的更宽授权 `Approve Directory: …`、`Always …`、`Approve File`）；出现任何别的选项、别的工具名的会话选项、缺批准或缺否决、重复，或者有更宽授权却没有 `Approve Once`（此时普通的 `Approve` 可能就是范围授权），都直接给 omp 回 `cancelled`（omp 当拒绝）并在回合里报一条错误通知。工具名取标题第一行 `Allow tool: ` 之后的整行，可以带空格。"像审批"的判定先把标题和每个选项做 NFKC、去首尾空白、折叠空白、转小写，再看：标题里任意位置有 `allow tool`，或者任何选项是 `Deny`/`Approve…`/`Always Approve…`，就算像审批（全角字母、前导空白、选项只是 Yes/No 都挡得住）。omp 的审批文案只有英文，不做本地化白名单；以后若有别的语言，宁可取消也不去猜。像审批却解析不了（标题不是严格的 `Allow tool: <名>`、有非字符串选项、没有选项）的 select 一律取消并通知，不会当普通 select 原样转给 adapter（否则用户的选择会不经检查回传给 omp）。"Allow for session" 经 dialect 的 `forwardsSessionApproval` 让 adapter 在回答里带上 `forSession: true`，翻译层据此回 omp 自己的会话选项；omp 没给会话选项时只批准一次，并发一条警告通知（`takeNotices`，由 `connection.ts` 推给 adapter）。这条通知的英文原文在 zh-Hans 的 `chat.ts` 里有译文，web 和手机的系统通知标签（`workEntryDisplayLabel`、`workEntryRowLabel`，带 `// fork:`）只在标签原文恰好等于 `packages/shared/src/forkNotices.ts` 里登记的 T3 自拟通知时才查 catalog（`translateForkNotice`），agent 或用户的内容即使碰巧等于某个 catalog key 也不会被误译；新增这类通知要同时登记到那个集合；其他 T3 自己拼的服务端通知（取消和错误通知里带工具名和选项的）仍是英文。MCP 走 omp 的 host tool 子协议，名字沿用 `mcp__t3-code__…`，T3 编排说明用 `--append-system-prompt` 追加。会话用 omp 自己的会话文件：`--resume <文件>`、`switch_session`、`get_entries`，omp 的 `message` 条目和 Pi 同形。**分叉和回滚：** adapter 的显式分叉先用 CLI `--fork <源文件>` 把整个会话复制进目标 cwd（omp 的参数解析器认这个参数，只是 `--help` 不列，真实 omp 18.20.3 上实测会在目标 cwd 的会话目录里建新文件、源文件不动），再用 RPC 在轮次边界截断。截断必须用 `branch{entryId}`，不能用 `fork{entryId}`：Pi 的 `fork` 在该条目**之前**截断，omp 的 `fork` 却**保留**该条目，只有 `branch` 与 Pi 同义（同样返回条目文字），所以翻译层把 `fork` 改成 `branch`，回滚走同一条路径。
+- **必须用 `--mode rpc`：** 在 `rpc-ui` 里 `set_host_tools` 成功、`get_state` 也列出了工具，但 omp 不把它发给模型（用一个本地桩模型服务记录请求的 `tools` 数组证实过），所以 T3 的 MCP 工具只能用 `rpc`。代价是 omp 自带的 `ask` 工具只在 `rpc-ui` 里有，用不了；扩展的 `select`、`confirm`、`input`、`editor` 对话框不受影响。以后 omp 修了再换。
+- **能力取舍：** 不支持子 agent（omp 的 `task` 工具当普通工具调用显示）、扩展状态文字（客户端的横幅写死了"Pi ·"，dialect 的 `showsExtensionStatuses: false` 把它挡掉）、文本生成（`supportsTextGeneration: false`）、用量页和从 `~/.omp` 导入会话。没有 Pi 那样的服务层级选项。`clear_queue` 在 omp 里不存在，翻译成 `abort_and_restore_queue`（会顺便中止，调用方随后本来就要中止）。omp 的"无可压缩"（`skipped`）保留为一次正常完成的压缩，说明文字用 omp 自己的，不显示成失败。`--fork`（含 `=` 写法）也被 T3 占用，显式分叉时由它自己追加。启动参数里被 T3 占用的短参数（`-c`、`-r`、`-p`、`-h`、`-v`）连 `-r=x`、`-rx`、`-cr` 这些写法也会被拒绝。omp 的会话文件第一行是 `title`，cwd 在第二行的 `session` 记录里，所以 `PiDialect.readSessionCwd`（omp 的实现是 `readOmpSessionCwd`）读开头 8 行、找 `session` 记录；dialect 提供了读取函数却读不到 cwd，就当成"记录在别处"走 `--fork`，不会在旧 checkout 里继续。Pi 没有读取函数，仍只看第一行。只有提供了读取函数的 dialect（omp）才限制只读文件开头的 64 KiB（`SESSION_HEADER_MAX_BYTES`），一行不带换行的超长损坏文件不会被整份读进来，读不到 cwd 的 omp 会话走分叉；Pi 仍和上游一样完整读首行（合法的 Pi 首行超过 64 KiB 时，cwd 在后面也读得到）。cwd 的比较也变了：记录的 cwd 和当前 cwd 先各自规范化（`realPath`，目录不存在就退回 `path.resolve`，去掉尾部斜杠），仍不等时再比文件身份（`stat` 的设备号和 inode），这样符号链接、尾部斜杠、大小写不敏感卷上的另一种大小写都算同一个目录，大小写是否折叠由文件系统回答，不按平台猜。这对 Pi 是更正确的同类规范化：以前只把当前 cwd 做了 `realPath`。
+- **测试：** `protocol.test.ts` 和 `hostTools.test.ts` 是纯函数；`adapter.test.ts` 用真实录下来的 omp 帧经完整 adapter 回放；`connection.test.ts` 覆盖 host tool 往返；`live.test.ts` 在 `OMP_LIVE_AGENT_DIR` 指向一个 omp 配置目录时才跑，用真实 omp 和真实模型跑普通回合、审批回合和 host tool 回合（环境变量不能以 `T3` 开头，`vp test` 会把它们过滤掉）。
 
 ## 不依赖 Google 的推送（Android）
 

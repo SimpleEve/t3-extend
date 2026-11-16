@@ -78,6 +78,7 @@ import {
   materializePiT3McpExtension,
   resolvePiLaunchArgs,
 } from "./mcpInjection.ts";
+import type { PiDialect } from "./dialect.ts"; // fork:
 import { PI_FILE_CHANGE_TOOLS, PI_T3_SERVICE_TIER_COMMAND } from "./mcpExtensionSource.ts";
 import { PI_STANDARD_SERVICE_TIER } from "./modelCapabilities.ts";
 
@@ -101,7 +102,8 @@ const PI_UNSOLICITED_ACTIVITY_ERROR =
 const SETTLE_PROBE_MAX_ATTEMPTS = 3;
 const SETTLE_PROBE_RETRY_DELAY = Duration.millis(100);
 
-const PiProviderCapabilitiesV2 = {
+export const PiProviderCapabilitiesV2 = {
+  // fork: omp derives its capabilities from these
   runtimePolicy: { enforcement: "client-boundary" },
   sessions: {
     supportsMultipleProviderThreadsPerSession: false,
@@ -204,7 +206,25 @@ export interface PiAdapterV2Options {
       request: ProviderContinuationRequests.ProviderContinuationRequest,
     ) => Effect.Effect<void>;
   };
+  // fork: Pi-family agents with a close RPC dialect (omp) run through this adapter.
+  readonly dialect?: PiDialect;
 }
+
+// fork: how many leading lines a dialect's session-cwd reader may inspect.
+const SESSION_HEADER_LINES = 8;
+// fork: and how many bytes of it, so one line without a newline cannot be read whole.
+const SESSION_HEADER_MAX_BYTES = 64 * 1024;
+
+// fork: the Pi behavior every dialect parameter defaults to.
+const PI_DIALECT: PiDialect = {
+  driverKind: PI_PROVIDER,
+  defaultBinary: "pi",
+  capabilities: PiProviderCapabilitiesV2,
+  materializeExtension: materializePiT3McpExtension,
+  resolveLaunchArgs: resolvePiLaunchArgs,
+  buildLaunch: buildPiRpcLaunch,
+  connect: makePiRpcConnection,
+};
 
 function contentText(content: unknown): string {
   if (!Array.isArray(content)) {
@@ -311,13 +331,6 @@ function piToolOutput(result: unknown, toolName: string): unknown {
   };
 }
 
-function providerRef(
-  nativeId: string,
-  strength: "strong" | "weak" = "strong",
-): OrchestrationV2ProviderRef {
-  return { driver: PI_PROVIDER, nativeId, strength };
-}
-
 const PI_THINKING_LEVELS = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
 interface PiStreamItemState {
@@ -388,6 +401,14 @@ interface ActivePiTurn {
   stopTreeRefs?: PiTurnTreeRefs | null;
   /** The provider/model Pi reported on its latest assistant message. */
   reportedModel?: string;
+  /** fork: running total of the turn's assistant message usage, for dialects that report it. */
+  usageTotals?: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+    reasoning: number;
+  };
 }
 
 interface PiTurnTreeRefs {
@@ -448,6 +469,17 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
   const host = yield* ProviderHost.ProviderHost;
   const mcpSessions = yield* McpProviderSessions.McpProviderSessions;
   const { continuationRequests } = options;
+  // fork: these bindings shadow the Pi defaults so a dialect's driver, capabilities and launch apply
+  // to every use below.
+  const dialect = options.dialect ?? PI_DIALECT;
+  const PI_PROVIDER = dialect.driverKind;
+  const PiProviderCapabilitiesV2 = dialect.capabilities;
+  const resolvePiLaunchArgs = dialect.resolveLaunchArgs;
+  const buildPiRpcLaunch = dialect.buildLaunch;
+  const providerRef = (
+    nativeId: string,
+    strength: "strong" | "weak" = "strong",
+  ): OrchestrationV2ProviderRef => ({ driver: PI_PROVIDER, nativeId, strength });
 
   const protocolError = (detail: string, payload?: unknown) =>
     new ProviderAdapter.ProviderAdapterProtocolError({
@@ -485,26 +517,60 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
         );
       // Always inject the permission hook even without MCP credentials; otherwise Supervised becomes unrestricted.
       const extensionPath = yield* provideCacheFs(
-        materializePiT3McpExtension(host.paths.providerStatusCacheDir),
+        dialect.materializeExtension(host.paths.providerStatusCacheDir), // fork:
       );
       const resolvedLaunchArgs = resolvePiLaunchArgs(options.settings.launchArgs);
       if (!resolvedLaunchArgs.ok) {
         return yield* protocolError(resolvedLaunchArgs.message);
       }
+      // The same directory can be spelled several ways: a trailing slash, a symlink, another case.
+      // Comparing the canonical spellings settles most; the rest is settled by file identity.
+      const canonicalDirectory = Effect.fnUntraced(function* (directory: string) {
+        const resolved = yield* fileSystem
+          .realPath(directory)
+          .pipe(Effect.orElseSucceed(() => path.resolve(directory)));
+        return resolved.length > 1 ? resolved.replace(/[\\/]+$/, "") : resolved;
+      });
+      const sameDirectory = Effect.fnUntraced(function* (recorded: string, current: string) {
+        if (recorded === current) return true;
+        if ((yield* canonicalDirectory(recorded)) === (yield* canonicalDirectory(current))) {
+          return true;
+        }
+        // Case folding is the filesystem's choice, so ask it instead of guessing from the platform.
+        const identity = (directory: string) => fileSystem.stat(directory).pipe(Effect.option);
+        const [left, right] = yield* Effect.all([identity(recorded), identity(current)]);
+        if (Option.isNone(left) || Option.isNone(right)) return false;
+        return (
+          Option.isSome(left.value.ino) &&
+          left.value.dev === right.value.dev &&
+          Option.getOrUndefined(left.value.ino) === Option.getOrUndefined(right.value.ino)
+        );
+      });
       // A workspace handoff restarts Pi in a new cwd, but the session header still names the old one.
       const sessionHeaderNamesCwd = Effect.fnUntraced(function* (sessionFile: string) {
-        const header = yield* fileSystem.stream(sessionFile).pipe(
-          Stream.decodeText(),
-          Stream.splitLines,
-          Stream.runHead,
-          Effect.map(Option.getOrUndefined),
-          Effect.orElseSucceed(() => undefined),
-        );
+        const readSessionCwd = dialect.readSessionCwd; // fork:
+        // fork: a dialect's session file is untrusted, so a huge unbroken line must not be read whole.
+        const headerLines = yield* fileSystem
+          .stream(
+            sessionFile,
+            // Pi keeps reading its first line whole, as upstream does; only a dialect's reader is bounded.
+            readSessionCwd === undefined ? undefined : { bytesToRead: SESSION_HEADER_MAX_BYTES },
+          )
+          .pipe(
+            Stream.decodeText(),
+            Stream.splitLines,
+            Stream.take(readSessionCwd === undefined ? 1 : SESSION_HEADER_LINES), // fork:
+            Stream.runCollect,
+            Effect.orElseSucceed(() => []),
+          );
+        const header = headerLines[0];
         if (header === undefined) return true;
-        const sessionCwd = recordString(Option.getOrUndefined(decodeSessionHeader(header)), "cwd");
-        if (sessionCwd === undefined || sessionCwd === cwd) return true;
-        const realCwd = yield* fileSystem.realPath(cwd).pipe(Effect.orElseSucceed(() => cwd));
-        return sessionCwd === realCwd;
+        const sessionCwd =
+          readSessionCwd === undefined
+            ? recordString(Option.getOrUndefined(decodeSessionHeader(header)), "cwd")
+            : readSessionCwd(headerLines); // fork:
+        if (sessionCwd === undefined) return readSessionCwd === undefined; // fork:
+        return yield* sameDirectory(sessionCwd, cwd);
       });
       // Spawning on a session from another cwd would skip the handoff fork in registerThread.
       const initialSessionPath =
@@ -525,9 +591,9 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
             runtimeMode: input.runtimePolicy.runtimeMode,
           });
           const scopedLaunch = yield* agentScope.wrap({
-            command: options.settings.binaryPath || "pi",
+            command: options.settings.binaryPath || dialect.defaultBinary, // fork:
             args: launch.args,
-            name: "pi",
+            name: dialect.defaultBinary, // fork:
             threadId: input.threadId,
             env: launch.env,
           });
@@ -538,11 +604,12 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
               ? Effect.void
               : yield* Effect.cached(agentScope.stop(scopeUnit));
           yield* Effect.addFinalizer(() => stopScope);
-          const connection = yield* makePiRpcConnection({
+          const connection = yield* dialect.connect({
             command: scopedLaunch.command,
             args: scopedLaunch.args,
             cwd,
             env: launch.env,
+            mcpSession, // fork:
           });
           // Detached children can keep stdout open after Pi exits.
           if (scopeUnit !== undefined) {
@@ -747,6 +814,7 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
       // Frequent notifications share the event pump's tracing boundary and outlive individual turns.
       const updateExtensionStatus = Effect.fnUntraced(function* (event: PiRpcRecord) {
         if (
+          dialect.showsExtensionStatuses === false || // fork:
           closed ||
           stopRequested ||
           runtimeRetired ||
@@ -2012,6 +2080,31 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
             status: interrupted ? "interrupted" : failure !== null ? "failed" : "completed",
             completedAt,
             ...(tokenUsage === undefined ? {} : { tokenUsage }),
+            ...(turn.usageTotals === undefined
+              ? {}
+              : {
+                  // fork: input includes cache reads and writes, and output includes reasoning.
+                  turnTokenUsage: {
+                    usageScope: "main_agent" as const,
+                    usageStatus:
+                      interrupted || failure !== null
+                        ? ("partial" as const)
+                        : ("complete" as const),
+                    hasSubagents: false,
+                    inputTokens:
+                      turn.usageTotals.input +
+                      turn.usageTotals.cacheRead +
+                      turn.usageTotals.cacheWrite,
+                    outputTokens: turn.usageTotals.output,
+                    cachedInputTokens: turn.usageTotals.cacheRead,
+                    ...(turn.usageTotals.cacheWrite === 0
+                      ? {}
+                      : { cacheCreationTokens: turn.usageTotals.cacheWrite }),
+                    ...(turn.usageTotals.reasoning === 0
+                      ? {}
+                      : { reasoningTokens: turn.usageTotals.reasoning }),
+                  },
+                }),
             ...(turn.reportedModel === undefined ? {} : { model: turn.reportedModel }),
           },
         });
@@ -2267,6 +2360,22 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
             const message = event["message"];
             if (recordString(message, "role") !== "assistant") return;
             yield* completeOpenStreamItems(turn);
+            if (dialect.reportsTurnTokenUsage === true) {
+              // fork: one provider request per assistant message, so the turn's total is their sum.
+              const usage = recordField(message, "usage");
+              const totals = (turn.usageTotals ??= {
+                input: 0,
+                output: 0,
+                cacheRead: 0,
+                cacheWrite: 0,
+                reasoning: 0,
+              });
+              totals.input += nonNegativeInteger(usage, "input") ?? 0;
+              totals.output += nonNegativeInteger(usage, "output") ?? 0;
+              totals.cacheRead += nonNegativeInteger(usage, "cacheRead") ?? 0;
+              totals.cacheWrite += nonNegativeInteger(usage, "cacheWrite") ?? 0;
+              totals.reasoning += nonNegativeInteger(usage, "reasoningTokens") ?? 0;
+            }
             const reportedProvider = recordString(message, "provider");
             const reportedModelId = recordString(message, "model");
             if (reportedProvider && reportedModelId) {
@@ -2819,8 +2928,9 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
         });
         return yield* Effect.scoped(
           Effect.gen(function* () {
-            const forkConnection = yield* makePiRpcConnection({
-              command: options.settings.binaryPath || "pi",
+            const forkConnection = yield* dialect.connect({
+              // fork:
+              command: options.settings.binaryPath || dialect.defaultBinary,
               args: [...forkLaunch.args, "--fork", sourceFile],
               cwd,
               env: forkLaunch.env,
@@ -3536,6 +3646,12 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
               type: "extension_ui_response",
               id: pending.nativeRequestId,
               ...response,
+              // fork: a dialect with its own session-wide approval needs to hear which one was chosen.
+              ...(dialect.forwardsSessionApproval === true &&
+              pending.method === "confirm" &&
+              requestInput.decision === "acceptForSession"
+                ? { forSession: true }
+                : {}),
             });
             pendingPrompts.delete(String(requestInput.requestId));
             if (pending.expirationFiber !== null) yield* Fiber.interrupt(pending.expirationFiber);

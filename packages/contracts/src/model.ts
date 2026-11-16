@@ -122,6 +122,7 @@ const FX_DRIVER_KIND = ProviderDriverKind.make("fx");
 const KIRO_DRIVER_KIND = ProviderDriverKind.make("kiro");
 const MUSE_DRIVER_KIND = ProviderDriverKind.make("muse");
 const PI_DRIVER_KIND = ProviderDriverKind.make("pi");
+const OMP_DRIVER_KIND = ProviderDriverKind.make("omp"); // fork:
 const ACP_REGISTRY_DRIVER_KIND = ProviderDriverKind.make("acpRegistry");
 const OPENCODE_DRIVER_KIND = ProviderDriverKind.make("opencode");
 
@@ -205,5 +206,6 @@ export const PROVIDER_DISPLAY_NAMES: Partial<Record<ProviderDriverKind, string>>
   [MUSE_DRIVER_KIND]: "Muse Code",
   [ACP_REGISTRY_DRIVER_KIND]: "ACP Registry",
   [PI_DRIVER_KIND]: "Pi",
+  [OMP_DRIVER_KIND]: "omp", // fork:
   [OPENCODE_DRIVER_KIND]: "OpenCode",
 };

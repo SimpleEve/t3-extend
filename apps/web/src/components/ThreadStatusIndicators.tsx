@@ -130,6 +130,7 @@ export function useThreadDisplayedPullRequest(
   branchPr: ThreadPr = null,
   branchSourceControlProvider?: VcsStatusResult["sourceControlProvider"],
 ) {
+  const t = useT(); // fork: interface language
   const supportsLinks = useSupportsMultiplePullRequests(environmentId);
   const linkedStatus = useLinkedThreadPullRequest(
     environmentId,
@@ -149,6 +150,7 @@ export function useThreadDisplayedPullRequest(
     status: prStatusIndicator(
       pr,
       linkedStatus?.sourceControlProvider ?? branchSourceControlProvider,
+      t, // fork: interface language
     ),
     number: currentLink?.number ?? pr?.number,
     url: currentLink?.url ?? pr?.url,

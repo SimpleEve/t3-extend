@@ -335,8 +335,8 @@ export default {
   "Choose how new worktree branches are named from your first message.":
     "选择如何根据你的第一条消息为新的 worktree 分支命名。",
   "Worktree branch naming": "worktree 分支命名",
-  "For example, t3 or t3/ produces t3/add-search. Leave empty for no prefix.":
-    "例如，填 t3 或 t3/ 会生成 t3/add-search。留空表示不加前缀。",
+  "For example, {prefix} or {prefix}/ produces {prefix}/add-search. Leave empty for no prefix.":
+    "例如，填 {prefix} 或 {prefix}/ 会生成 {prefix}/add-search。留空表示不加前缀。",
   "Branch prefix": "分支前缀",
   "No prefix": "不加前缀",
   "Appended to the naming prompt. The model returns the complete branch name; no prefix or suffix is added.":
@@ -446,6 +446,19 @@ export default {
     "已把 {command} 加入你的 PATH，但无法记录这次改动。",
   "Could not replace {path}.": "无法替换 {path}。",
   "Could not remove {path}.": "无法移除 {path}。",
+  "Another {command} at {path} runs first in a new terminal. Remove it, or run the launcher directly at {launcher}.":
+    "位于 {path} 的另一个 {command} 会在新终端里优先运行。移除它，或直接运行 {launcher} 处的启动器。",
+  "Another {command} command is already in ~/.local/bin and ~/bin, or neither is writable. Run the launcher directly at {launcher}.":
+    "~/.local/bin 和 ~/bin 里已经有另一个 {command} 命令，或者这两个目录都不可写。请直接运行 {launcher} 处的启动器。",
+  "T3 Extend cannot put {folder} on PATH because it contains a semicolon. Run {launcher} directly.":
+    "T3 Extend 无法把 {folder} 加入 PATH，因为路径里有分号。请直接运行 {launcher}。",
+  "Install the {command} command first.": "请先安装 {command} 命令。",
+  "T3 Extend cannot add {command} to this shell's PATH.":
+    "T3 Extend 无法把 {command} 加入这个 shell 的 PATH。",
+  "Another {command} at {path} runs first; T3 Extend leaves it in place.":
+    "位于 {path} 的另一个 {command} 会优先运行；T3 Extend 不会动它。",
+  "Could not add {command} to {file}.": "无法把 {command} 添加到 {file}。",
+  "Could not add {command} to PATH": "无法把 {command} 加入 PATH",
   "Could not install {command}": "无法安装 {command}",
   "Could not remove {command}": "无法移除 {command}",
   "Another {command} at {path} runs first in a new terminal. Remove it to use {app}'s.":
@@ -2181,6 +2194,8 @@ export default {
   "Quit shortcut": "退出快捷键",
   "Text generation model": "文本生成模型",
   "Usage data": "使用数据",
+  "Welcome page": "欢迎页",
+  "Text generators": "文本生成器",
   "Include app text": "包含应用文字",
   "Capture shortcut": "截图快捷键",
   "Capture sound": "截图声音",
@@ -2265,8 +2280,8 @@ export default {
   "Read projects and threads. Cannot start, message or change anything.":
     "可以读取项目和对话。不能启动、发送消息或修改任何内容。",
   "This connect link is incomplete": "这个连接链接不完整",
-  "The link is missing its authorization request. Re-run `t3 connect` in your terminal and open the freshly printed URL.":
-    "链接缺少授权请求。请在终端中重新运行 `t3 connect`，然后打开新打印出来的 URL。",
+  "The link is missing its authorization request. Re-run the `connect` command in your terminal and open the freshly printed URL.":
+    "链接缺少授权请求。请在终端中重新运行 `connect` 命令，然后打开新打印出来的 URL。",
   "Checking current installation": "正在检查当前安装",
   "Waiting for installer": "正在等待安装程序",
   "Downloading relay client": "正在下载中继客户端",
@@ -2464,6 +2479,9 @@ export default {
   "Path to the Pi coding agent binary.": "Pi 编程 Agent 的可执行文件路径。",
   "Additional CLI arguments passed to pi --mode rpc on session start.":
     "会话启动时传给 pi --mode rpc 的额外 CLI 参数。",
+  "Path to the omp (oh-my-pi) coding agent binary.": "omp（oh-my-pi）编程 Agent 的可执行文件路径。",
+  "Additional CLI arguments passed to omp --mode rpc on session start.":
+    "会话启动时传给 omp --mode rpc 的额外 CLI 参数。",
   "Access token": "访问令牌",
   "Scoped to one repository, project, or workspace. Create it in that item's Bitbucket settings.":
     "只作用于一个仓库、项目或工作区。在对应条目的 Bitbucket 设置中创建。",
@@ -2998,14 +3016,15 @@ export default {
   "Check this address": "检查此地址",
   'Forget {label}? Agents here stop working there. Revoke "T3 Extend · …" in {label}\'s Sharing & access to end the session there too.':
     "忘记 {label}？这里的 Agent 将无法再在那里工作。请在 {label} 的“共享与访问”中撤销“T3 Extend · …”，以同时结束那边的会话。",
-  "From Sharing & access there, or t3 pair": "在那边的“共享与访问”中获取，或运行 t3 pair",
+  "From Sharing & access there, or its pair command":
+    "在那边的“共享与访问”中获取，或使用它的 pair 命令",
   "Narrow the selection above to one checkout to edit its list. Adding an action here adds it to every selected checkout.":
     "请把上面的选择缩小到一个 checkout 再编辑它的列表。在这里添加动作会添加到所有选中的 checkout。",
   "Enter a valid value. It was not saved.": "请输入有效的值。未保存。",
   "The device has to be approved here before it can connect again.":
     "设备需要先在这里批准，才能再次连接。",
-  "Run `t3 connect link` on the host, then restart T3 Extend there.":
-    "在主机上运行 `t3 connect link`，然后重启那里的 T3 Extend。",
+  "Run the `connect link` command on the host, then restart T3 Extend there.":
+    "在主机上运行 `connect link` 命令，然后重启那里的 T3 Extend。",
   "What a screen reader hears from the open thread: a turn starting, needing you, and ending. Status and messages adds what the agent writes before its last message. Everything adds each step.":
     "屏幕阅读器会从当前打开的对话中朗读：一轮开始、需要你处理、一轮结束。“状态和消息”会加上 Agent 在最后一条消息之前写的内容。“全部”会加上每一个步骤。",
   "Screen reader announcements": "屏幕阅读器播报",

@@ -1,3 +1,4 @@
+import { SESSION_UNAVAILABLE_NOTICE } from "@t3tools/shared/forkNotices";
 import {
   MessageId,
   CheckpointId,
@@ -721,6 +722,25 @@ describe("buildThreadFeed", () => {
     expect(activities[1]?.getFullDetail()).toContain("keep input");
     expect(activities[2]?.detail).toBe("src/example.ts");
     expect(items[0]).toMatchObject({ output: rawOutput });
+  });
+
+  it.each([
+    [SESSION_UNAVAILABLE_NOTICE, `translated ${SESSION_UNAVAILABLE_NOTICE}`],
+    ["server", "server"],
+  ])("translates a system notice only when it is one T3 words itself: %s", (message, expected) => {
+    const item: OrchestrationV2TurnItem = {
+      ...base("fork-notice", "2026-06-20T00:00:04.000Z", 3),
+      type: "system_notice",
+      message,
+      title: message,
+      level: "warning",
+    };
+    const activity = buildThreadFeed([projected(item, 0)]).flatMap((entry) =>
+      entry.type === "activity-group" ? entry.activities : [],
+    )[0]!;
+    expect(workEntryRowLabel(activity.workEntry, false, (source) => `translated ${source}`)).toBe(
+      expected,
+    );
   });
 
   it("counts every file of a multi-file patch", () => {

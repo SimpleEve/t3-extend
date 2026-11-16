@@ -1,3 +1,4 @@
+import { SESSION_UNAVAILABLE_NOTICE } from "@t3tools/shared/forkNotices";
 import { ThreadId, type WorktreeSetupSnapshot } from "@t3tools/contracts";
 import {
   CheckpointRef,
@@ -417,6 +418,44 @@ describe("deriveMessagesTimelineRows", () => {
       expect(approvalOnlyRows.some((row) => row.kind === "thinking")).toBe(false);
     },
   );
+
+  it.each([
+    [SESSION_UNAVAILABLE_NOTICE, `translated ${SESSION_UNAVAILABLE_NOTICE}`],
+    ["server", "server"],
+    ["Claude changed its safety mode.", "Claude changed its safety mode."],
+  ])("translates a system notice only when it is one T3 words itself: %s", (message, expected) => {
+    const fixture = makeStreamingTimelineFixture();
+    const source: OrchestrationV2ProjectedTurnItem = {
+      ...fixture.visibleTurnItems[0]!,
+      sourceItemId: TurnItemId.make("fork-notice"),
+      item: {
+        id: TurnItemId.make("fork-notice"),
+        threadId: fixture.threadId,
+        runId: fixture.runId,
+        nodeId: null,
+        providerThreadId: null,
+        providerTurnId: null,
+        nativeItemRef: null,
+        parentItemId: null,
+        ordinal: 1,
+        startedAt: DateTime.makeUnsafe(fixture.time(1)),
+        completedAt: DateTime.makeUnsafe(fixture.time(1)),
+        updatedAt: DateTime.makeUnsafe(fixture.time(1)),
+        type: "system_notice",
+        message,
+        title: message,
+        status: "completed",
+      },
+    };
+    const [notice] = deriveTimelineEntriesFromVisibleTurnItems({
+      visibleTurnItems: [source],
+      optimisticMessages: [],
+    });
+    if (notice?.kind !== "work") throw new Error("Expected a notice work entry");
+    expect(workEntryDisplayLabel(notice.entry, undefined, (phrase) => `translated ${phrase}`)).toBe(
+      expected,
+    );
+  });
 
   it.each(["running", "completed", "superseded"] as const)(
     "keeps system notices visible as non-failing warnings through %s work",

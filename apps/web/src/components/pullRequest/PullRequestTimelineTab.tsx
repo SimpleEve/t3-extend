@@ -776,7 +776,7 @@ export function PullRequestTimelineTab({
   onRefresh: () => void;
 }) {
   const t = useT();
-  const events = buildPullRequestTimeline(detail);
+  const events = buildPullRequestTimeline(detail, t); // fork: interface language
   const location = parsePullRequestAnchor(revealUrl);
   const revealAnchor = location?.kind === "timeline" ? location.anchor : null;
   // The linked item stays marked and open after it is shown, until another link replaces it.

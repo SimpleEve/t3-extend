@@ -1,4 +1,5 @@
 import { useIsFocused } from "@react-navigation/native";
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import {
   nextThreadAnnouncement,
   type ThreadAnnouncementMemory,
@@ -61,7 +62,11 @@ export function useThreadStatusAnnouncements({
       working,
       run: runId === null || runStatus === null ? null : { runId, status: runStatus },
     });
-    const next = nextThreadAnnouncement(previous?.announcement ?? null, activity.snapshot);
+    const next = nextThreadAnnouncement(
+      previous?.announcement ?? null,
+      activity.snapshot,
+      translatorFor(getUiLocale()), // fork: interface language, read when the status is announced
+    );
     memoryRef.current = { threadKey: activeKey, activity, announcement: next.memory };
     // Queued, like the web's polite region, so VoiceOver doesn't cut off what it is reading.
     if (next.announcement !== null) {

@@ -35,6 +35,7 @@ import {
   type WorkLogPresentationEntry,
   type WorkLogToolLifecycleStatus,
   workEntryHiddenByToolCallVisibility,
+  translateForkNotice, // fork: i18n
 } from "@t3tools/client-runtime/work-log/presentation";
 import type { ToolCallVisibility } from "@t3tools/contracts/settings";
 import {
@@ -289,6 +290,7 @@ export function workEntryRowLabel(
   t: Translator, // fork: i18n
 ): string {
   if (entry.itemType === "fork") return entry.label;
+  if (entry.itemType === "system_notice") return translateForkNotice(entry.label, t); // fork: only notices T3 words itself
   if (expanded && entry.itemType === "reasoning")
     return entry.toolLifecycleStatus === "inProgress" ? t("Thinking") : t("Thought");
   const presentation = resolveWorkEntryToolPresentation(entry, undefined, t);

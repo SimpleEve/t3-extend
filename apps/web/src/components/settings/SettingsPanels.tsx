@@ -2316,7 +2316,7 @@ export function AboutSettingsPanel() {
   const primaryPolicy = usePrimaryManagedPolicy();
   // The Welcome page sets up this computer, so it needs one.
   const primaryEnvironmentId = usePrimaryEnvironmentId();
-  const telemetryOff = managedTelemetryOffMessage(primaryPolicy);
+  const telemetryOff = managedTelemetryOffMessage(primaryPolicy, t); // fork: interface language
   return (
     <SettingsPageContainer>
       <SettingsSection id="about" title="App">

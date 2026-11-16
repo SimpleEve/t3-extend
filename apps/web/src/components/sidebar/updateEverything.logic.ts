@@ -1,3 +1,4 @@
+import { hostCliCommand } from "../../fork/hostCli.logic"; // fork: the host's own command name
 import { getUiLocale, translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import type { ServerUpdateState } from "@t3tools/client-runtime/state/server";
 import {
@@ -300,8 +301,15 @@ export function collectChannelSwitchTargets(
       move.selfUpdate === "boot-service" &&
       compareSemverVersions(release.version, serverVersion) <= 0
     ) {
+      // fork: name the host's command only when it reports its install.
+      const cli = hostCliCommand({
+        installation: config.environment.capabilities.serverInstallation,
+      });
+      const update = `update --channel ${release.channel === "nightly" ? "nightly" : "stable"} --allow-downgrade`;
       skip(
-        `run \`t3 update --channel ${release.channel === "nightly" ? "nightly" : "stable"} --allow-downgrade\` there`,
+        cli !== null
+          ? `run \`${cli} ${update}\` there`
+          : `run its T3 command's \`${update}\` there`,
       );
       continue;
     }

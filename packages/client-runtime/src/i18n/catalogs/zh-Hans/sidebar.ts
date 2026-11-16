@@ -251,10 +251,14 @@ export default {
   "Restart the app from the update button to install it.": "请通过更新按钮重启应用来安装。",
   "Update command copied": "已复制更新命令",
   "Relaunch command copied": "已复制重启命令",
-  "Run `{command}` on {serverLabel}, then restart t3 with your usual options.":
-    "在 {serverLabel} 上运行 `{command}`，然后用平常的选项重启 t3。",
-  "Stop t3 on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed t3 command.":
-    "停止 {serverLabel} 上的 t3，然后用 `{command}` 以相同的子命令和选项重新启动。这不会更新已安装的 t3 命令。",
+  "Run `{command}` on {serverLabel}, then restart {cli} with your usual options.":
+    "在 {serverLabel} 上运行 `{command}`，然后用平常的选项重启 {cli}。",
+  "Stop {cli} on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed {cli} command.":
+    "停止 {serverLabel} 上的 {cli}，然后用 `{command}` 以相同的子命令和选项重新启动。这不会更新已安装的 {cli} 命令。",
+  "Run `{command}` on {serverLabel}, then restart the server with your usual options.":
+    "在 {serverLabel} 上运行 `{command}`，然后用平常的选项重启服务器。",
+  "Stop the server on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update its installed command.":
+    "停止 {serverLabel} 上的服务器，然后用 `{command}` 以相同的子命令和选项重新启动。这不会更新它已安装的命令。",
   "Could not copy update command": "无法复制更新命令",
   "Update the desktop app on that machine to update this server.":
     "更新那台机器上的桌面应用，才能更新这个服务器。",

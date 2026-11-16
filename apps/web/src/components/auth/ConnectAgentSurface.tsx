@@ -338,7 +338,8 @@ export function McpConsent({
                 t(
                   "Get one from Use T3 Extend in another app (MCP), Settings → Sharing & access, or {command} on this machine.",
                 ),
-                { command: <code>t3 auth pairing create</code> },
+                // fork: the host may run the official `t3` or this fork's `t3x`, so no command is named.
+                { command: <code>auth pairing create</code> },
               )}
             </p>
           </div>

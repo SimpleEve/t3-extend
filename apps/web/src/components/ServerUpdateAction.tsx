@@ -1,3 +1,4 @@
+import { hostCliCommand } from "../fork/hostCli.logic"; // fork: the host's own command name
 import { useAtomValue } from "@effect/atom-react";
 import {
   AuthEnvironmentMaintainScope,
@@ -292,6 +293,9 @@ export function ServerUpdateAction({
   const update = useServerUpdate();
   const updatesInstall =
     installation?.kind === "npm-global" || installation?.kind === "t3-launcher";
+  // fork: npm-style installs are the `t3` package; a launcher is named by its own file; when the
+  // host does not say, the copy names no command.
+  const cli = hostCliCommand({ installation });
   const { copyToClipboard } = useCopyToClipboard<{ command: string }>({
     target: updatesInstall ? "update command" : "relaunch command",
     onCopy: ({ command }) => {
@@ -299,14 +303,25 @@ export function ServerUpdateAction({
         type: "success",
         title: updatesInstall ? t("Update command copied") : t("Relaunch command copied"),
         description: updatesInstall
-          ? t("Run `{command}` on {serverLabel}, then restart t3 with your usual options.", {
-              command,
-              serverLabel,
-            })
-          : t(
-              "Stop t3 on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed t3 command.",
-              { command, serverLabel },
-            ),
+          ? cli !== null
+            ? t("Run `{command}` on {serverLabel}, then restart {cli} with your usual options.", {
+                command,
+                serverLabel,
+                cli,
+              })
+            : t(
+                "Run `{command}` on {serverLabel}, then restart the server with your usual options.",
+                { command, serverLabel },
+              )
+          : cli !== null
+            ? t(
+                "Stop {cli} on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed {cli} command.",
+                { command, serverLabel, cli },
+              )
+            : t(
+                "Stop the server on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update its installed command.",
+                { command, serverLabel },
+              ),
       });
     },
     onError: (error) => {
