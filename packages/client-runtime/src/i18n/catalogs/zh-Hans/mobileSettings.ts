@@ -430,8 +430,8 @@ export default {
   Legacy: "旧版",
   "Days before auto-settle": "自动标为已处理前的天数",
   "Worktree branch naming": "worktree 分支命名",
-  "Use t3 or t3/ for t3/add-search. Leave empty for no prefix.":
-    "填 t3 或 t3/ 会得到 t3/add-search。留空表示不加前缀。",
+  "Use {prefix} or {prefix}/ for {prefix}/add-search. Leave empty for no prefix.":
+    "填 {prefix} 或 {prefix}/ 会得到 {prefix}/add-search。留空表示不加前缀。",
   "Branch prefix": "分支前缀",
   "No prefix": "不加前缀",
   "Append instructions to the naming prompt.": "在命名提示词后追加说明。",

@@ -897,12 +897,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["cli terminal shell path install command line"],
     desktopOnly: true,
   },
-  {
-    id: "mobile-app",
-    title: "Mobile app",
-    to: "/settings/about",
-    searchTerms: ["phone tablet iPhone iPad iOS Android App Store Google Play QR"],
-  },
+  // fork: no "Mobile app" entry; its row, which linked the official stores, is gone from About
   {
     id: "welcome-page",
     title: "Welcome page",

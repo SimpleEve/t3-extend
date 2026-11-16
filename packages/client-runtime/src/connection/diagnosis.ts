@@ -176,9 +176,11 @@ function steps(
   located: Located,
   failure: ConnectionAttemptError | null,
 ): string[] {
-  const checkHost = t("On {host}, check Settings > Sharing & access or run `t3 connect status`.", {
-    host,
-  });
+  // fork: the host may run the official `t3` or this fork's `t3x`, so no command is named.
+  const checkHost = t(
+    "On {host}, check Settings > Sharing & access or run the `connect status` command.",
+    { host },
+  );
   switch (located.cause) {
     case "offline":
       return [t("Connect this device to the internet. T3 Extend reconnects on its own.")];
@@ -201,7 +203,8 @@ function steps(
             approve,
           },
         ),
-        t("Or run `t3 auth connect-device approve {code}` on {host}.", {
+        // fork: the host may run the official `t3` or this fork's `t3x`, so no command is named.
+        t("Or run the `auth connect-device approve {code}` command on {host}.", {
           code: code ?? "<code>",
           host,
         }),

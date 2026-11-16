@@ -312,7 +312,8 @@ export const make = Effect.gen(function* () {
       // PATH would split the folder at the `;`, leaving two wrong entries behind.
       if (binDirectory.includes(";")) {
         return yield* fail(
-          `T3 Extend cannot put ${binDirectory} on PATH because it has a ";". Run ${launcher} directly.`,
+          "T3 Extend cannot put {folder} on PATH because it contains a semicolon. Run {launcher} directly.",
+          { folder: binDirectory, launcher },
         );
       }
       const entries = pathEntries(yield* readUserPath, ";");
@@ -338,7 +339,8 @@ export const make = Effect.gen(function* () {
     // Our own link into another T3 home runs first too; it is the one this install updates.
     if (Option.isSome(shadowedBy) && shadowedBy.value !== replaced) {
       return yield* fail(
-        `Another ${FORK.cliCommand} at ${shadowedBy.value} runs first in a new terminal. Remove it, or run the launcher directly at ${launcher}.`,
+        "Another {command} at {path} runs first in a new terminal. Remove it, or run the launcher directly at {launcher}.",
+        { command: FORK.cliCommand, path: shadowedBy.value, launcher },
       );
     }
     // An old link of ours is updated where it is, so a t3 that works now keeps working. It is
@@ -382,7 +384,8 @@ export const make = Effect.gen(function* () {
       return yield* state;
     }
     return yield* fail(
-      `Another ${FORK.cliCommand} command is already in ~/.local/bin and ~/bin, or neither is writable. Run the launcher directly at ${launcher}.`,
+      "Another {command} command is already in ~/.local/bin and ~/bin, or neither is writable. Run the launcher directly at {launcher}.",
+      { command: FORK.cliCommand, launcher },
     );
   }).pipe(Effect.withSpan("desktop.cliCommand.install"));
 
@@ -414,15 +417,20 @@ export const make = Effect.gen(function* () {
   const addToPath: DesktopCliCommand["Service"]["addToPath"] = Effect.gen(function* () {
     const installed = yield* installedAt;
     if (Option.isNone(installed) || !(yield* leadsHere(installed.value))) {
-      return yield* fail("Install the t3 command first.");
+      return yield* fail("Install the {command} command first.", { command: FORK.cliCommand }); // fork: t3x
     }
     const setup = startupLine(installed.value);
-    if (setup === undefined) return yield* fail("T3 Extend cannot add t3 to this shell's PATH.");
+    if (setup === undefined) {
+      return yield* fail("T3 Extend cannot add {command} to this shell's PATH.", {
+        command: FORK.cliCommand,
+      }); // fork: t3x
+    }
     const shadowedBy = yield* foreignFirstOnPath;
     if (Option.isSome(shadowedBy)) {
-      return yield* fail(
-        `Another t3 at ${shadowedBy.value} runs first; T3 Extend leaves it in place.`,
-      );
+      return yield* fail("Another {command} at {path} runs first; T3 Extend leaves it in place.", {
+        command: FORK.cliCommand, // fork: t3x
+        path: shadowedBy.value,
+      });
     }
     if (!(yield* folderOnPath(installed.value)) && !(yield* hasLine(setup))) {
       yield* fs.makeDirectory(path.dirname(setup.path), { recursive: true }).pipe(
@@ -431,7 +439,12 @@ export const make = Effect.gen(function* () {
             flag: "a",
           }),
         ),
-        Effect.mapError(() => fail(`Could not add t3 to ${setup.file}.`)),
+        Effect.mapError(() =>
+          fail("Could not add {command} to {file}.", {
+            command: FORK.cliCommand,
+            file: setup.file,
+          }),
+        ), // fork: t3x
       );
     }
     return yield* state;

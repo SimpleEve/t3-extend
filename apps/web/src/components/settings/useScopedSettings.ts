@@ -167,7 +167,11 @@ export function useClearScopedSettings() {
   const run = useRunScopedPlan();
   return (keys: readonly ProjectScopedServerSettingKey[]) => {
     if (context === null) return;
-    run(context.environments, (current) => planScopedSettingsClear(context.scope, current, keys));
+    run(
+      context.environments,
+      (current) =>
+        planScopedSettingsClear(context.scope, current, keys, translatorFor(getUiLocale())), // fork: interface language
+    );
   };
 }
 
@@ -179,7 +183,10 @@ export function useClearProjectOverrides() {
     keys: readonly ProjectScopedServerSettingKey[],
   ) => {
     if (context === null) return;
-    run(context.environments, (current) => planProjectOverridesClear(current, entries, keys));
+    run(
+      context.environments,
+      (current) => planProjectOverridesClear(current, entries, keys, translatorFor(getUiLocale())), // fork: interface language
+    );
   };
 }
 

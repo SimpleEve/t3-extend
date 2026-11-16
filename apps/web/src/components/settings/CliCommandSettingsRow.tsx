@@ -13,20 +13,14 @@ import { searchableSetting } from "./settingsSearch";
 import { FORK } from "@t3tools/shared/forkIdentity";
 import { useT } from "../../hooks/useT"; // fork: identity
 
-const FAILURE_TITLES = {
-  install: "Could not install t3",
-  uninstall: "Could not remove t3",
-  addToPath: "Could not add t3 to PATH",
-} as const;
-
-/** The desktop `t3` command's state, and its actions with a toast on failure. */
+/** The desktop `t3x` command's state, and its actions with a toast on failure. */
 export function useDesktopCliCommand() {
   const t = useT();
   const bridge = getDesktopCliCommandBridge();
   const query = useEnvironmentQuery(bridge ? desktopCliCommandStateAtom : null);
   const [pending, setPending] = useState(false);
 
-  const run = (action: keyof typeof FAILURE_TITLES) => {
+  const run = (action: "install" | "uninstall" | "addToPath") => {
     if (!bridge || pending) return;
     setPending(true);
     void bridge[action]()
@@ -35,10 +29,13 @@ export function useDesktopCliCommand() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
+            // fork: t3x. A failed Add to PATH used to say "Could not remove".
             title:
               action === "install"
-                ? t("Could not install {command}", { command: FORK.cliCommand }) // fork: t3x
-                : t("Could not remove {command}", { command: FORK.cliCommand }),
+                ? t("Could not install {command}", { command: FORK.cliCommand })
+                : action === "addToPath"
+                  ? t("Could not add {command} to PATH", { command: FORK.cliCommand })
+                  : t("Could not remove {command}", { command: FORK.cliCommand }),
             description: error instanceof Error ? error.message : t("Something went wrong."),
           }),
         );

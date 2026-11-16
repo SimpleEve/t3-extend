@@ -1,3 +1,4 @@
+import { hostCliCommand } from "../../fork/hostCli.logic"; // fork: the host's own command name
 import { useAuth } from "@clerk/react";
 import { useAtomValue } from "@effect/atom-react";
 import { offersLinkedEnvironments } from "@t3tools/client-runtime/link-request";
@@ -369,6 +370,12 @@ function GateScreen({
   const t = useT();
   const name = environment.label;
   const turnOnHere = useT3ConnectTurnOn(environment.environmentId);
+  // fork: only this app's own server is surely T3 Extend; a WSL backend or another host may run
+  // the official `t3`.
+  const hostCli = hostCliCommand({
+    local: environment.environmentId === usePrimaryEnvironmentId(),
+    installation: environment.serverConfig?.environment.capabilities.serverInstallation,
+  });
   const { openAuthPrompt } = useT3ConnectAuthPrompt();
   const retry = (onClick: () => void) => (
     <Button variant="outline" onClick={onClick}>
@@ -489,7 +496,11 @@ function GateScreen({
             <p className="text-sm text-muted-foreground">{turnOnHere.reason}</p>
           ) : (
             <div className="space-y-2 text-sm">
-              <CommandBlock command="t3 connect link" />
+              {hostCli === null ? (
+                <p>{t("Run the `connect link` command on {name}.", { name })}</p>
+              ) : (
+                <CommandBlock command={`${hostCli} connect link`} />
+              )}
               <p>{t("Restart T3 Extend on {name}.", { name })}</p>
               {checkAgain}
             </div>

@@ -1,3 +1,4 @@
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 import { useAuth } from "@clerk/react";
 import { useAtomValue } from "@effect/atom-react";
 import type {
@@ -815,7 +816,7 @@ function ProjectsSection({
     return scan.data?.truncated ? (
       <WelcomeSection title={t("Projects")}>
         <p className="text-xs leading-10 text-muted-foreground" role="status">
-          {SCAN_LIMIT_MESSAGE}
+          {t(SCAN_LIMIT_MESSAGE)}
         </p>
       </WelcomeSection>
     ) : null;
@@ -912,7 +913,7 @@ function ProjectsSection({
       ) : null}
       {scan.data?.truncated ? (
         <p className="pl-8 text-xs text-muted-foreground" role="status">
-          {SCAN_LIMIT_MESSAGE}
+          {t(SCAN_LIMIT_MESSAGE)}
         </p>
       ) : null}
       {scan.error !== null ? (
@@ -1185,15 +1186,15 @@ function AgentRow({
     state === "install"
       ? isInstallableDriver(provider.driver)
         ? null
-        : "Not installed"
+        : t("Not installed") // fork: interface language
       : compact || state === "ready" || state === "checking"
         ? null
         : state === "attention"
           ? (provider.unavailableReason ??
             brokenMessage ??
             provider.message ??
-            getProviderSummary(provider).headline)
-          : (brokenMessage ?? getProviderSummary(provider).headline);
+            getProviderSummary(provider, t).headline) // fork: interface language
+          : (brokenMessage ?? getProviderSummary(provider, t).headline);
   return (
     <div className={cn("flex items-center gap-3", compact ? "min-h-9" : "min-h-10 py-1")}>
       <RowIcon>
@@ -1913,7 +1914,7 @@ function ImportRowMeta({
   );
 }
 
-/** The desktop app links `t3` on a fresh install; this puts its folder on PATH when it is not. */
+/** The desktop app links `t3x` on a fresh install; this puts its folder on PATH when it is not. */
 function CliPathSetup() {
   const t = useT();
   const { state, busy, run } = useDesktopCliCommand();
@@ -1929,13 +1930,13 @@ function CliPathSetup() {
           <>
             {interpolateNodes(t("Added to {file}. Open a new terminal to use {command}."), {
               file: setup.file,
-              command: <code className="font-mono">t3</code>,
+              command: <code className="font-mono">{FORK.cliCommand}</code>,
             })}
           </>
         ) : (
           <>
             {interpolateNodes(t("Use {command} from any terminal. Adds one line to {file}."), {
-              command: <code className="font-mono">t3</code>,
+              command: <code className="font-mono">{FORK.cliCommand}</code>,
               file: setup.file,
             })}
           </>

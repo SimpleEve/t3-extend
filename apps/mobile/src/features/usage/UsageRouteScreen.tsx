@@ -145,6 +145,7 @@ function UsageScreen(props: {
   const progress = usageProgress(selectedEnvironments, {
     refreshing: refreshingUsage,
     providerLabel,
+    t, // fork: i18n
   });
   const selectWindow = (days: number) => {
     setWindowSelection({

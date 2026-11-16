@@ -728,6 +728,8 @@ export default {
   "Past 90 days": "过去 90 天",
   "Updating {provider}…": "正在更新 {provider}…",
   "Updating {count} providers…": "正在更新 {count} 个 provider…",
+  "Updating {environment}…": "正在更新 {environment}…",
+  "Updating {count} environments…": "正在更新 {count} 个环境…",
   "{environment} runs an older server version and is excluded from totals.":
     "{environment} 运行的服务器版本较旧，未计入总量。",
   "This client is older than the server on {environment}; its usage is excluded from totals.":

@@ -139,4 +139,19 @@ describe("updatingProvidersLabel", () => {
       ),
     ).toBe("zh:2");
   });
+
+  it("translates the environment labels of usageProgress too", () => {
+    const zh = (source: string, params?: Readonly<Record<string, string | number>>) =>
+      `zh:${source}:${params?.environment ?? params?.count ?? ""}`;
+    const waiting = [environment("a", { isPending: true }), environment("b", { isPending: true })];
+    expect(usageProgress(waiting, { ...options, t: zh }).label).toBe(
+      "zh:Updating {count} environments…:2",
+    );
+    expect(
+      usageProgress([environment("a"), ...waiting.slice(1), environment("c")], {
+        ...options,
+        t: zh,
+      }).label,
+    ).toBe("zh:Updating {environment}…:b");
+  });
 });

@@ -730,13 +730,17 @@ function ConfiguredCloudLinkRow({
         <SettingsRow
           title={searchableSetting("t3-connect").title}
           description={t(
-            "This environment was removed from T3 Connect. Run `t3 connect link` on the host to link it again.",
+            // fork: the host may run the official `t3` or this fork's `t3x`, so no command is named.
+            "This environment was removed from T3 Connect. Run the `connect link` command on the host to link it again.",
           )}
         />
       ) : isElectron ? (
         <SettingsRow
           title={searchableSetting("t3-connect").title}
-          description={t("Run `t3 connect link` on the host, then restart T3 Extend there.")}
+          description={t(
+            // fork: the host may run the official `t3` or this fork's `t3x`, so no command is named.
+            "Run the `connect link` command on the host, then restart T3 Extend there.",
+          )}
         />
       ) : null}
       {signedOut && showSwitch ? null : (

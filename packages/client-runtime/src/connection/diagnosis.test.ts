@@ -170,7 +170,7 @@ describe("presentConnectionDiagnosis", () => {
       ),
     );
     expect(diagnosis?.headline).toBe("Mac mini is waiting for someone to approve this device");
-    expect(diagnosis?.steps.join(" ")).toContain("t3 auth connect-device approve K7QM-2XFD");
+    expect(diagnosis?.steps.join(" ")).toContain("auth connect-device approve K7QM-2XFD"); // fork: no command name, the host may run official T3 Code
   });
 
   it("does not report hops as working when the failure names none", () => {
