@@ -6,14 +6,20 @@ export type BackgroundServiceStatus =
   | "app-missing"
   | "needs-repair"
   | "other-home"
-  | "unreadable";
+  | "unreadable"
+  | "resume-failed";
 
 export interface BackgroundServiceView {
   readonly status: BackgroundServiceStatus;
   /** The switch shows an installed service as on, even one that needs attention. */
   readonly checked: boolean;
-  /** Re-runs the install (repair) or the status read (retry); the other cases need the user to act. */
-  readonly action: "repair" | "retry" | null;
+  /**
+   * Repair and retry-start install again; retry reads the status again. The other cases need the
+   * user to act.
+   */
+  readonly action: "repair" | "retry-start" | "retry" | null;
+  /** Why the service did not start at the last quit. */
+  readonly reason: string | null;
 }
 
 /** `null` hides the row: nothing to switch on this platform, or the state is not known yet. */
@@ -23,9 +29,9 @@ export function backgroundServiceView(
   if (state === null || state.kind === "unavailable") return null;
   switch (state.kind) {
     case "off":
-      return { status: "off", checked: false, action: null };
+      return { status: "off", checked: false, action: null, reason: null };
     case "on":
-      return { status: "on", checked: true, action: null };
+      return { status: "on", checked: true, action: null, reason: null };
     case "attention":
       return {
         status: state.problem,
@@ -33,9 +39,12 @@ export function backgroundServiceView(
         action:
           state.problem === "needs-repair"
             ? "repair"
-            : state.problem === "unreadable"
-              ? "retry"
-              : null,
+            : state.problem === "resume-failed"
+              ? "retry-start"
+              : state.problem === "unreadable"
+                ? "retry"
+                : null,
+        reason: state.problem === "resume-failed" ? (state.reason ?? "") : null,
       };
   }
 }

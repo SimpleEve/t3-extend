@@ -55,6 +55,9 @@ export function BackgroundServiceSettings() {
       "A background service for another data folder is already installed on this computer. Remove it from a terminal first.",
     ),
     unreadable: t("Could not read the background service's state."),
+    "resume-failed": t("The background service did not start when you last quit: {reason}", {
+      reason: view.reason ?? "",
+    }),
   }[view.status];
 
   return (
@@ -81,7 +84,7 @@ export function BackgroundServiceSettings() {
                 size="sm"
                 variant="outline"
                 disabled={busy}
-                onClick={() => (view.action === "repair" ? change(true) : retry())}
+                onClick={() => (view.action === "retry" ? retry() : change(true))}
               >
                 {view.action === "repair" ? t("Repair") : t("Retry")}
               </Button>

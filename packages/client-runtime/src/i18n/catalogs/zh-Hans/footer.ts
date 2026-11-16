@@ -32,4 +32,12 @@ export default {
   "Could not change it: {error}": "没能完成：{error}",
   Repair: "修复",
   Retry: "重试",
+  "The background service did not start when you last quit: {reason}":
+    "上次退出时后台服务没能启动：{reason}",
+  "The background service did not start": "后台服务没能启动",
+  "It could not start when you last quit, so T3 Extend stopped with the app. Open Settings, General to retry. {reason}":
+    "上次退出时它没能启动，T3 Extend 随 App 一起停了。请打开设置，通用，点重试。{reason}",
+  "The background service did not stop": "后台服务没能停下",
+  "T3 Extend's background service is still running, so the app cannot start its own server on the same data folder.\n\n{reason}\n\nRun `{command} service uninstall` in a terminal to remove the background service, then open T3 Extend again.":
+    "T3 Extend 的后台服务还在运行，App 没法在同一个数据目录上再起自己的服务器。\n\n{reason}\n\n请在终端里运行 `{command} service uninstall` 移除后台服务，然后重新打开 T3 Extend。",
 };
