@@ -33,6 +33,14 @@ Running `codex login` does not change a managed ChatGPT connection. In
 and complete the wizard. Then select that instance from the thread's model
 picker. See [Use multiple accounts](#use-multiple-accounts).
 
+### Read limits through a custom endpoint
+
+If your Codex config sends requests to a custom endpoint, T3 Code does not read
+your ChatGPT subscription limits, so Usage shows none for that instance. When
+the endpoint still uses your ChatGPT subscription, open **Settings > Providers**,
+edit the Codex instance, and turn on **Read subscription limits through a custom
+endpoint**. Leave it off for endpoints that do not use your subscription.
+
 ## Allow more time for provider checks
 
 If an authenticated Codex installation reports “Timed out while checking Codex

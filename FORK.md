@@ -408,6 +408,15 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 
 上游文件里的接线（都带 `// fork:`）：`TimelineAssistantRows.tsx`、`ChatHeader.tsx`、`ChatView.tsx`（传 `workspaceRoot`）、`threadDetail.ts`（两个 atom）、`ThreadFeed.tsx`、`ThreadHeader.tsx`、`ThreadRouteScreen.tsx`、`Stack.tsx`、`catalogs/zh-Hans/index.ts`、`packages/client-runtime/package.json`（`./outputs/*` 导出）。
 
+## Codex 自定义端点下读订阅额度
+
+上游 #18622 之后，Codex 配置里 `openai_base_url` 或自定义 `model_provider` 指向非 OpenAI 原生地址（`api.openai.com` / `chatgpt.com`）时不再调用 `account/rateLimits/read`，用量显示 `unsupported`。本机 magpie 把 `~/.codex/config.toml` 的 `openai_base_url` 指向 `http://127.0.0.1:3425/backend-api/codex`，网关最终仍走 ChatGPT 订阅，于是 Codex 额度整个消失。
+
+- Codex 实例设置里加了 `readLimitsThroughCustomEndpoint`（`packages/contracts/src/settings.ts`，开关，默认关，设置 > 提供商 > 该 Codex 实例里）。打开后 `codexRoutesSpendNativeQuota`（`CodexProvider.ts`）跳过"是不是原生路由"的判断，其余条件不变：登录必须是 ChatGPT 账号（API key 或要求登录但没登录都不读），读取失败照常降级成 `probeFailed`。不改实际路由，也不改 `auth.endpoint` 的展示。
+- 开关只管读额度这一件事，所以没有额度可读的端点（真正的第三方代理）别打开，否则会显示一条读失败的提示。
+- 手机端没有 Codex 实例设置页，开关只在 web / 桌面设置里；额度由 server 发布，手机照常显示。
+- 上游文件里的接线都带 `// fork:`：`settings.ts`、`CodexProvider.ts`（`probeCodexAppServerProvider` 入参、`checkCodexProviderStatus` 入参）。译文在 `catalogs/zh-Hans/settingsPanels.ts`。
+
 ## omp provider
 
 omp（oh-my-pi，Pi 的分支）是原生 provider，和上游的 Pi 并存。用户说明 `docs/user/providers-omp.md`，设计要点在 `docs/internals/providers.md`。ACP Registry 里的 omp 入口没动。

@@ -2429,6 +2429,9 @@ export default {
     "按账号区分的 Codex home。auth.json 单独保存，其余状态与 CODEX_HOME 共享。",
   "Additional CLI arguments passed to codex app-server on session start.":
     "会话启动时传给 codex app-server 的额外 CLI 参数。",
+  "Read subscription limits through a custom endpoint": "通过自定义端点读取订阅额度",
+  "Only turn this on when your custom endpoint still uses your ChatGPT subscription. Usage limits are then read as they would be without the endpoint.":
+    "仅当这个自定义端点最终仍使用你的 ChatGPT 订阅时再打开。打开后，会像没有该端点时一样读取用量额度。",
   "Path to the Claude binary used by this instance.": "这个实例使用的 Claude 可执行文件路径。",
   "CLAUDE_CONFIG_DIR path": "CLAUDE_CONFIG_DIR 路径",
   "Custom Claude home and config directory. Keeps .claude.json and .claude separate.":

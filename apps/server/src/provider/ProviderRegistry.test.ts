@@ -541,6 +541,25 @@ it.layer(
       }),
     );
 
+    // fork: the per-instance switch reaches the probe, which owns the route check.
+    it.effect(
+      "tells the probe to read limits through a custom endpoint only when switched on",
+      () =>
+        Effect.gen(function* () {
+          const seen: Array<boolean | undefined> = [];
+          const probe = (input: { readonly readLimitsThroughCustomEndpoint?: boolean }) => {
+            seen.push(input.readLimitsThroughCustomEndpoint);
+            return Effect.succeed(makeCodexProbeSnapshot());
+          };
+          yield* checkCodexProviderStatus(defaultCodexSettings, probe);
+          yield* checkCodexProviderStatus(
+            decodeCodexSettings({ readLimitsThroughCustomEndpoint: true }),
+            probe,
+          );
+          assert.deepStrictEqual(seen, [false, true]);
+        }),
+    );
+
     it.effect("returns unauthenticated when app-server requires OpenAI auth", () =>
       Effect.gen(function* () {
         const status = yield* checkCodexProviderStatus(defaultCodexSettings, () =>
