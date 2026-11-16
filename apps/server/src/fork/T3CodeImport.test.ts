@@ -417,7 +417,7 @@ const withService = <A, E, R>(
         ? OrchestrationEventStore.layer
         : Layer.mock(OrchestrationEventStore.OrchestrationEventStore)({
             // The fixtures' creation events are not full threads, so the real store cannot decode them.
-            readAgentEvents: (input) => Stream.make({ threadId: input.threadId } as never),
+            readAgentEvents: (input) => Stream.make({ threadId: input?.threadId } as never),
             readApplicationEvents: () => Stream.empty,
             publishCommitted: (events) =>
               Effect.sync(() => {
