@@ -364,6 +364,7 @@ it.effect("points a stale t3 launcher at the updated AppImage with Local environ
         path,
         baseDir,
         serverRoot: path.join(baseDir, "resources", "app.asar"),
+        resourcesPath: path.join(baseDir, "resources"), // fork: the launcher shim records the bundled frpc
         appImagePath: Option.some(updatedAppImage),
       },
       fileSystem: Layer.succeed(FileSystem.FileSystem, fs),

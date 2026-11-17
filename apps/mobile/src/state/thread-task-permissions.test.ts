@@ -107,6 +107,10 @@ vi.mock("./entities", () => ({ useServerConfigs: () => new Map() }));
 vi.mock("./session", () => ({
   readEnvironmentScope: (environmentId: string, scope: string) =>
     scope === AuthOrchestrationOperateScope && state.grantedEnvironments.has(environmentId),
+  useEnvironmentScope: (environmentId: string | null, scope: string) =>
+    scope === AuthOrchestrationOperateScope &&
+    environmentId !== null &&
+    state.grantedEnvironments.has(environmentId), // fork: composer context meter's compact-now check
 }));
 vi.mock("./use-thread-selection", () => ({
   useThreadSelection: () => ({
@@ -132,6 +136,7 @@ vi.mock("./threads", async () => {
       queueWorkflowAtom: () => Atom.make(null),
       checkpointSummariesAtom: () => Atom.make([]),
       sequenceAtom: () => Atom.make(0),
+      historyAtom: () => Atom.make({ hasMoreHistory: false }), // fork: composer context meter's compact-now check
       pendingRequestsAtom: () => Atom.make(state.pendingRequests),
     },
     threadEnvironment: {
@@ -215,7 +220,7 @@ beforeEach(() => {
   state.thread.latestRun = null;
   state.projection = null;
   state.serverConfig = {
-    providers: [{ instanceId: "codex", driver: "codex", enabled: true }],
+    providers: [{ instanceId: "codex", driver: "codex", enabled: true, slashCommands: [] }],
     environment: { capabilities: {} },
   } as unknown as ServerConfig;
   state.pendingRequests = {
@@ -435,7 +440,7 @@ describe("mobile task permissions", () => {
     vi.clearAllMocks();
     state.serverConfig = {
       ...state.serverConfig,
-      providers: [{ instanceId: "codex", driver: "codex", enabled: false }],
+      providers: [{ instanceId: "codex", driver: "codex", enabled: false, slashCommands: [] }],
     } as unknown as ServerConfig;
     state.draft = { ...state.draft, attachments: [] };
     expect(await useThreadComposerState({ startSideChat }).onSendMessage()).toBeNull();
