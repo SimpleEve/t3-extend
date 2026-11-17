@@ -1,3 +1,4 @@
+import * as Context from "effect/Context";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
@@ -12,12 +13,14 @@ import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as Option from "effect/Option";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
+import * as Sink from "effect/Sink"; // fork:
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import { HttpClient, HttpClientResponse } from "effect/http";
@@ -36,6 +39,10 @@ import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderS
 import * as ModelManifest from "../ModelManifest.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
+import {
+  AntigravityCliLoginSource,
+  makeSharedAntigravityCliLoginRead,
+} from "../antigravityCliLogin.ts"; // fork:
 import { AntigravityDriver } from "./AntigravityDriver.ts";
 import * as ProviderHostLive from "../ProviderHostLive.ts";
 import * as ServerSecretStore from "../../auth/ServerSecretStore.ts";
@@ -71,6 +78,8 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
     readonly defaultInstance?: boolean;
     /** Leaves the marker a profile sign-in once recorded, with no token. */
     readonly profileLoginMarker?: boolean;
+    // fork: replaces how the agy CLI sign-in is read, so instances can share one read.
+    readonly cliLoginSource?: Context.Service.Shape<typeof AntigravityCliLoginSource>;
   } = {},
 ) {
   const fs = yield* FileSystem.FileSystem;
@@ -202,6 +211,7 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
   } = { selected: first, failResolution: false, beforeAcquire: Effect.void };
   const acquisitions: Array<{ binaryPath: string | undefined; path: string | undefined }> = [];
   const releases: Array<string | null> = [];
+  const keychainReads = { count: 0 }; // fork:
   const launches: Array<{
     command: string;
     args: ReadonlyArray<string>;
@@ -251,6 +261,23 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
     Effect.gen(function* () {
       if (command._tag !== "StandardCommand")
         return yield* Effect.die("Unexpected process pipeline.");
+      // fork: a shared login is read from the keychain, which tests never touch; report no item.
+      if (command.command === "/usr/bin/security") {
+        keychainReads.count += 1; // fork:
+        return ChildProcessSpawner.makeHandle({
+          pid: ChildProcessSpawner.ProcessId(1),
+          exitCode: Effect.succeed(ChildProcessSpawner.ExitCode(44)),
+          isRunning: Effect.succeed(false),
+          kill: () => Effect.void,
+          unref: Effect.succeed(Effect.void),
+          stdin: Sink.drain,
+          stdout: Stream.empty,
+          stderr: Stream.empty,
+          all: Stream.empty,
+          getInputFd: () => Sink.drain,
+          getOutputFd: () => Stream.empty,
+        });
+      }
       const handle = yield* spawner.spawn(command);
       const environment = command.options.env ?? {};
       const env = (name: string) => {
@@ -295,6 +322,10 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
     ].map((variable) => ({ ...variable, sensitive: false })),
   }).pipe(
     Effect.provide(layerInstallation),
+    Effect.provideService(
+      AntigravityCliLoginSource,
+      options.cliLoginSource ?? AntigravityCliLoginSource.defaultValue(),
+    ), // fork:
     Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, observedSpawner),
     Effect.provideService(HttpClient.HttpClient, quotaHost),
   );
@@ -316,6 +347,7 @@ const makeHarness = Effect.fn("makeAntigravityDriverHarness")(function* (
     }
   });
   return {
+    keychainReads, // fork:
     instance,
     refresh,
     makeExecutable,
@@ -667,6 +699,42 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
         );
         yield* h.instance.snapshot.refresh;
         expect((yield* unavailable)[0]?.usageLimits?.unavailable?.message).toContain("agy CLI");
+      }),
+  );
+
+  // fork: instances that share the agy CLI sign-in ask the keychain once between them.
+  it.effect.skipIf(windowsHost)(
+    "reads the keychain once for instances that share the agy CLI sign-in",
+    () =>
+      Effect.gen(function* () {
+        // `darwin` stands in for any host, so the keychain reader exists wherever this runs.
+        const cliLoginSource = {
+          platform: "darwin",
+          share: makeSharedAntigravityCliLoginRead(),
+        } as const;
+        const options = {
+          account: "signed-in",
+          config: { loginSource: "cli" },
+          cliLoginSource,
+        } as const;
+        const first = yield* makeHarness(options);
+        const second = yield* makeHarness(options);
+        // The limits are read after a refresh returns, so wait for each instance to publish them.
+        const unavailableMessage = (h: typeof first) =>
+          h.instance.snapshot.streamChanges.pipe(
+            Stream.filter((snapshot) => snapshot.usageLimits?.unavailable !== undefined),
+            Stream.runHead,
+            Effect.map(
+              (snapshot) => snapshot.pipe(Option.getOrUndefined)?.usageLimits?.unavailable?.message,
+            ),
+            Effect.forkChild,
+          );
+        const waits = [yield* unavailableMessage(first), yield* unavailableMessage(second)];
+        yield* Effect.all([first.instance.snapshot.refresh, second.instance.snapshot.refresh], {
+          concurrency: "unbounded",
+        });
+        for (const wait of waits) expect(yield* Fiber.join(wait)).toContain("not signed in");
+        expect(first.keychainReads.count + second.keychainReads.count).toBe(1);
       }),
   );
 
