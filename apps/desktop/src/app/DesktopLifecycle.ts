@@ -222,10 +222,14 @@ export const make = DesktopLifecycle.of({
     const electronApp = yield* ElectronApp.ElectronApp;
     const environment = yield* DesktopEnvironment.DesktopEnvironment;
     const state = yield* DesktopState.DesktopState;
+    // fork: a second app.relaunch would start another instance after quit, so only the first request goes through.
+    if (yield* Ref.getAndSet(state.quitting, true)) {
+      yield* logLifecycleInfo("desktop relaunch ignored, already quitting", { reason });
+      return;
+    }
     yield* logLifecycleInfo("desktop relaunch requested", { reason });
     yield* Effect.gen(function* () {
       yield* Effect.yieldNow;
-      yield* Ref.set(state.quitting, true);
       yield* requestDesktopShutdownAndWait();
       if (environment.isDevelopment) {
         yield* electronApp.exit(75);
@@ -242,7 +246,10 @@ export const make = DesktopLifecycle.of({
     }).pipe(
       Effect.catchCause((cause) => {
         const error = new DesktopLifecycleRelaunchError({ reason, cause });
-        return logLifecycleError(error.message, { error });
+        // fork: a relaunch is a commitment to quit; `quitting` stays set, so do not linger half shut down.
+        return logLifecycleError(error.message, { error }).pipe(
+          Effect.andThen(electronApp.exit(0)),
+        );
       }),
       Effect.forkDetach,
       Effect.asVoid,

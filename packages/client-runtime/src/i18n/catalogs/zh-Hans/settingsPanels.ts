@@ -3185,4 +3185,22 @@ export default {
     "存有 {count} 次重置额度 · 最近一次{duration}后过期",
   "Open from a computer to edit on {environment}":
     "请在电脑上打开，才能编辑 {environment} 上的内容",
+  // fork: Settings → Environments, notice for a system keychain that refused the app or cannot open the saved catalog
+  "System keychain access not allowed": "系统钥匙串未授权，无法保存连接",
+  "System keyring access not allowed": "系统密钥环未授权，无法保存连接",
+  "System secure storage not available": "系统安全存储不可用，无法保存连接",
+  "Saved connections could not be unlocked": "已保存的连接无法解锁",
+  "This app could not access its key in the macOS keychain, so saved environments and computers from your server cannot be loaded or saved. Quit and reopen the app. When macOS asks for keychain access, enter your login password and choose Always Allow.":
+    "这个 app 没能访问它在 macOS 钥匙串里的密钥，所以已保存的环境和你服务器上的电脑都无法读取或保存。请退出并重新打开 app；macOS 询问钥匙串访问时，输入登录密码并选择“始终允许”。",
+  "This app could not access the system keyring, so saved environments and computers from your server cannot be loaded or saved. Unlock or start your keyring, then quit and reopen the app.":
+    "这个 app 没能访问系统密钥环，所以已保存的环境和你服务器上的电脑都无法读取或保存。请解锁或启动密钥环，然后退出并重新打开 app。",
+  "This app could not access the system secure storage, so saved environments and computers from your server cannot be loaded or saved. Restart the app to try again.":
+    "这个 app 没能访问系统安全存储，所以已保存的环境和你服务器上的电脑都无法读取或保存。请重启 app 再试。",
+  "This app could not unlock its saved environments with its key in the macOS keychain, so they and computers from your server cannot be loaded. Quit and reopen the app. When macOS asks for keychain access, enter your login password and choose Always Allow.":
+    "这个 app 没能用它在 macOS 钥匙串里的密钥解开已保存的环境，所以这些环境和你服务器上的电脑都无法读取。请退出并重新打开 app；macOS 询问钥匙串访问时，输入登录密码并选择“始终允许”。",
+  "This app could not unlock its saved environments with the system keyring, so they and computers from your server cannot be loaded. Unlock or start your keyring, then quit and reopen the app.":
+    "这个 app 没能用系统密钥环解开已保存的环境，所以这些环境和你服务器上的电脑都无法读取。请解锁或启动密钥环，然后退出并重新打开 app。",
+  "This app could not unlock its saved environments with the system secure storage, so they and computers from your server cannot be loaded. Restart the app to try again.":
+    "这个 app 没能用系统安全存储解开已保存的环境，所以这些环境和你服务器上的电脑都无法读取。请重启 app 再试。",
+  "Restart app": "重启 app",
 } satisfies Record<string, string>;

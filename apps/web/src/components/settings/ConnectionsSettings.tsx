@@ -51,6 +51,7 @@ import { ConnectDeviceApprovalSettings } from "./ConnectDeviceApprovalSettings";
 import { EnvironmentIconMenu } from "./EnvironmentIconPicker";
 import { FoldedSettingsSection } from "./FoldedSettingsSection";
 import { LinkedEnvironmentsSettings } from "./LinkedEnvironmentsSettings";
+import { SecureStorageNotice } from "~/fork/SecureStorageNotice"; // fork: keychain denied
 import { usePeerLinkHosts } from "~/state/peerLinks";
 import { LoadBalancingSettings } from "./LoadBalancingSettings";
 import { PullRequestRoutingSettings } from "./PullRequestRoutingSettings";
@@ -1749,6 +1750,7 @@ function ConnectionsSettingsContent({
 
   return (
     <SettingsPageContainer>
+      <SecureStorageNotice /> {/* fork: keychain denied */}
       {desktopBridge ? (
         <SettingsSection id="this-app" title="This app">
           <LocalEnvironmentSetting />

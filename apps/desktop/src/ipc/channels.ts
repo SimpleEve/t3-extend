@@ -63,6 +63,9 @@ export const DISMISS_SNAP_SHOT_ANIMATION_CHANNEL = "desktop:dismiss-snap-shot-an
 export const ACKNOWLEDGE_SNAP_SHOT_CHANNEL = "desktop:acknowledge-snap-shot";
 export const GET_CONNECTION_CATALOG_CHANNEL = "desktop:get-connection-catalog";
 export const SET_CONNECTION_CATALOG_CHANNEL = "desktop:set-connection-catalog";
+// fork: catalog status and relaunch, for the system keychain notice.
+export const GET_CONNECTION_CATALOG_STATUS_CHANNEL = "desktop:get-connection-catalog-status"; // fork:
+export const RELAUNCH_APP_CHANNEL = "desktop:relaunch-app"; // fork:
 export const DISCOVER_SSH_HOSTS_CHANNEL = "desktop:discover-ssh-hosts";
 export const RESOLVE_SSH_HOST_CHANNEL = "desktop:resolve-ssh-host";
 export const ENSURE_SSH_ENVIRONMENT_CHANNEL = "desktop:ensure-ssh-environment";
