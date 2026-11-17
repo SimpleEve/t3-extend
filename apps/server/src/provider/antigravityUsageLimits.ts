@@ -15,7 +15,7 @@ import {
   makeUsageLimits,
 } from "@t3tools/provider-core/server/usageLimits";
 
-import type { AntigravityCliLogin, AntigravityCliLoginRead } from "./antigravityCliLogin.ts"; // fork:
+import { CLI_LOGIN_EXPIRY_MARGIN_MS, type AntigravityCliLoginRead } from "./antigravityCliLogin.ts"; // fork:
 
 export function antigravityUserAgent(platform: NodeJS.Platform, architecture: NodeJS.Architecture) {
   return `antigravity/hub/2.24.0 (aidev_client; os_type=${platform}; arch=${architecture}; cl=963137146)`;
@@ -43,7 +43,6 @@ const CLI_KEYCHAIN_DENIED =
   "Could not read the agy CLI sign-in from the system keychain. Allow access when asked, or set Login source to Separate sign-in to see limits.";
 const CLI_EXPIRED =
   "The agy CLI sign-in is out of date. Run agy once to renew it, or set Login source to Separate sign-in to see limits.";
-const CLI_REFUSAL_REUSE_MS = 2 * 60_000;
 const TokenFile = Schema.Struct({
   client_id: Schema.NonEmptyString,
   client_secret: Schema.NonEmptyString,
@@ -238,9 +237,7 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
     | { fingerprint: string; account: string; accessToken: string; expiresAt: number }
     | undefined;
   let generation = 0;
-  // fork: the agy CLI sign-in, read once and kept until it nearly expires so the keychain is not asked every poll.
-  let cliLogin: AntigravityCliLogin | undefined;
-  let cliRefusal: { at: number } | undefined;
+  // fork: the account of the agy CLI sign-in last seen, keyed by its tokens, so userinfo is asked once.
   let cachedCliAccount: { fingerprint: string; account: string } | undefined;
 
   const request = (request: HttpClientRequest.HttpClientRequest) =>
@@ -279,7 +276,7 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
                   Authorization: `Bearer ${accessToken}`,
                   "User-Agent": antigravityUserAgent(platform, architecture),
                 }),
-                HttpClientRequest.bodyJsonUnsafe(projectId ? { project: projectId } : {}),
+                HttpClientRequest.bodyJsonUnsafe(projectId ? { project: projectId } : {}), // fork:
               ),
             ).pipe(
               Effect.flatMap((response) => parse(response, requestedAt)),
@@ -326,45 +323,31 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
         });
       }
       const now = yield* Clock.currentTimeMillis;
-      let login = cliLogin;
-      if (!login || login.expiresAt <= now + 60_000) {
-        cliLogin = undefined;
-        // A refused or unanswered keychain prompt is not asked again on every poll.
-        if (cliRefusal && now - cliRefusal.at < CLI_REFUSAL_REUSE_MS) {
-          return makeUnavailableUsageLimits({
-            checkedAt,
-            reason: "probeFailed",
-            message: CLI_KEYCHAIN_DENIED,
-          });
-        }
-        const outcome = yield* input.readCliLogin;
-        if (outcome._tag === "missing") {
-          cliRefusal = undefined;
-          return makeUnavailableUsageLimits({
-            checkedAt,
-            reason: "unsupported",
-            message: CLI_SIGNED_OUT,
-          });
-        }
-        if (outcome._tag === "unreadable") {
-          if (generation === startedGeneration) cliRefusal = { at: now };
-          return makeUnavailableUsageLimits({
-            checkedAt,
-            reason: "probeFailed",
-            message: CLI_KEYCHAIN_DENIED,
-          });
-        }
-        cliRefusal = undefined;
-        // The access token is the agy CLI's own and only it renews it; this never writes it back.
-        if (outcome.login.expiresAt <= now + 60_000) {
-          return makeUnavailableUsageLimits({
-            checkedAt,
-            reason: "probeFailed",
-            message: CLI_EXPIRED,
-          });
-        }
-        if (generation === startedGeneration) cliLogin = outcome.login;
-        login = outcome.login;
+      // Asked on every run: the shared read is cheap, and it notices agy signing in to another account.
+      const outcome = yield* input.readCliLogin;
+      if (outcome._tag === "missing") {
+        cachedCliAccount = undefined;
+        return makeUnavailableUsageLimits({
+          checkedAt,
+          reason: "unsupported",
+          message: CLI_SIGNED_OUT,
+        });
+      }
+      if (outcome._tag === "unreadable") {
+        return makeUnavailableUsageLimits({
+          checkedAt,
+          reason: "probeFailed",
+          message: CLI_KEYCHAIN_DENIED,
+        });
+      }
+      const login = outcome.login;
+      // The access token is the agy CLI's own and only it renews it; this never writes it back.
+      if (login.expiresAt <= now + CLI_LOGIN_EXPIRY_MARGIN_MS) {
+        return makeUnavailableUsageLimits({
+          checkedAt,
+          reason: "probeFailed",
+          message: CLI_EXPIRED,
+        });
       }
       const fingerprint = yield* sha256(`agy-cli\0${login.refreshToken ?? login.accessToken}`);
       const account =
@@ -436,6 +419,7 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
       accessToken = cached.accessToken;
       account = cached.account;
     }
+    // fork: the shared tail now lives in queryLimits.
     return yield* queryLimits({
       checkedAt,
       accessToken,
@@ -461,8 +445,6 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
     probe,
     clear: Effect.sync(() => {
       cached = undefined;
-      cliLogin = undefined; // fork:
-      cliRefusal = undefined; // fork:
       cachedCliAccount = undefined; // fork:
       generation++;
     }),

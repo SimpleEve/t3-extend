@@ -1,5 +1,8 @@
+import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
@@ -31,6 +34,12 @@ const SECURITY_ITEM_NOT_FOUND = 44;
 /** Long enough to answer a keychain prompt; the prompt hangs the command until then. */
 const KEYCHAIN_READ_TIMEOUT = "25 seconds";
 const KEYCHAIN_MAX_CHUNKS = 64;
+/** An access token this close to its expiry is treated as expired. */
+export const CLI_LOGIN_EXPIRY_MARGIN_MS = 60_000;
+/** A fresh answer is shared by every instance, so a re-login to another account shows within this. */
+const SHARED_READ_REUSE_MS = 30_000;
+/** A refusal, an unreadable item, or an expired token is not asked again sooner than this. */
+const SHARED_BACKOFF_MS = 2 * 60_000;
 
 const KeychainLogin = Schema.Struct({
   token: Schema.Struct({
@@ -94,3 +103,58 @@ export const makeAntigravityCliLoginReader = (input: {
     Effect.withSpan("AntigravityCliLogin.readKeychain"),
   );
 };
+
+interface SharedAnswer {
+  readonly read: AntigravityCliLoginRead;
+  readonly at: number;
+  readonly reuseMs: number;
+}
+
+const reuseMsFor = (read: AntigravityCliLoginRead, at: number) => {
+  if (read._tag === "unreadable") return SHARED_BACKOFF_MS;
+  if (read._tag === "missing") return SHARED_READ_REUSE_MS;
+  const validFor = read.login.expiresAt - CLI_LOGIN_EXPIRY_MARGIN_MS - at;
+  // Past its expiry the token is only worth asking about again after agy has had time to renew it.
+  return validFor <= 0 ? SHARED_BACKOFF_MS : Math.min(SHARED_READ_REUSE_MS, validFor);
+};
+
+/**
+ * One keychain item serves every instance, so the read is shared: concurrent callers wait on one
+ * read, and its answer is reused for a while (longer after a failure, so a prompt nobody answered
+ * does not come back at every health check). Each cache is its own; the driver uses one per process.
+ */
+export const makeSharedAntigravityCliLoginRead = () => {
+  let pending: Deferred.Deferred<AntigravityCliLoginRead> | undefined;
+  let answered: SharedAnswer | undefined;
+  return Effect.fn("AntigravityCliLogin.sharedRead")(function* (
+    read: Effect.Effect<AntigravityCliLoginRead>,
+  ) {
+    const now = yield* Clock.currentTimeMillis;
+    const mine = yield* Deferred.make<AntigravityCliLoginRead>();
+    // No yield between the checks and `pending = mine`, so two callers never both read.
+    if (pending) return yield* Deferred.await(pending);
+    if (answered && now >= answered.at && now - answered.at < answered.reuseMs) {
+      return answered.read;
+    }
+    pending = mine;
+    return yield* read.pipe(
+      Effect.onExit((exit) =>
+        Effect.gen(function* () {
+          // An interrupted read answers `unreadable` to its waiters but is not kept.
+          const outcome: AntigravityCliLoginRead = Exit.isSuccess(exit)
+            ? exit.value
+            : { _tag: "unreadable" };
+          if (Exit.isSuccess(exit)) {
+            const at = yield* Clock.currentTimeMillis;
+            answered = { read: outcome, at, reuseMs: reuseMsFor(outcome, at) };
+          }
+          pending = undefined;
+          yield* Deferred.succeed(mine, outcome);
+        }),
+      ),
+    );
+  });
+};
+
+/** Process-wide: instances that share the agy CLI sign-in share one read of it. */
+export const shareAntigravityCliLoginRead = makeSharedAntigravityCliLoginRead();

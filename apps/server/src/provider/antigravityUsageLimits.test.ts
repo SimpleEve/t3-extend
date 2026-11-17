@@ -10,7 +10,7 @@ import * as Path from "effect/Path";
 import * as TestClock from "effect/testing/TestClock";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
 
-import type { AntigravityCliLoginRead } from "./antigravityCliLogin.ts";
+import type { AntigravityCliLoginRead } from "./antigravityCliLogin.ts"; // fork:
 import { makeAntigravityUsageProbe } from "./antigravityUsageLimits.ts";
 
 const summary = {
@@ -63,13 +63,13 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
     summaryStatusByHost?: Record<string, number>;
     tokenStatus?: number;
     refreshToken?: string;
-    userId?: string;
+    userId?: string | (() => string); // fork: a function lets a test switch the account
     userInfoAt?: number;
     missingToken?: boolean;
     authMethod?: "oauth-personal" | "oauth-business" | "gemini-api-key";
     sharedLogin?: boolean;
-    /** What the keychain reader answers; without it the probe has no way to read the agy CLI sign-in. */
-    cliLogin?: () => AntigravityCliLoginRead;
+    // fork: what the keychain reader answers; without it the probe cannot read the agy CLI sign-in.
+    cliLogin?: () => AntigravityCliLoginRead; // fork:
   } = {},
 ) {
   const fs = yield* FileSystem.FileSystem;
@@ -108,14 +108,15 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
       }
       expect(request.headers.authorization).toBe("Bearer access-token");
       if (request.url.endsWith("/userinfo")) {
+        const userId = typeof options.userId === "function" ? options.userId() : options.userId; // fork:
         return HttpClientResponse.fromWeb(
           request,
-          options.userId
-            ? Response.json({ id: options.userId, email: "someone@example.com" })
+          userId // fork:
+            ? Response.json({ id: userId, email: "someone@example.com" }) // fork:
             : Response.json({}, { status: 403 }),
         );
       }
-      expect(JSON.parse(body)).toEqual(options.sharedLogin ? {} : { project: "project-id" });
+      expect(JSON.parse(body)).toEqual(options.sharedLogin ? {} : { project: "project-id" }); // fork:
       expect(request.headers["user-agent"]).toMatch(/^antigravity\/hub\/2\.24\.0 /);
       return HttpClientResponse.fromWeb(
         request,
@@ -133,6 +134,7 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
       ),
     ),
   );
+  // fork: the keychain reader is injected, so tests never touch the real keychain.
   const cliReads = { count: 0 };
   const cliLogin = options.cliLogin;
   const usage = yield* makeAntigravityUsageProbe({
@@ -148,7 +150,7 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
         }
       : {}),
   }).pipe(Effect.provideService(HttpClient.HttpClient, http));
-  return { ...usage, requests, writeToken, tokenPath, cliReads };
+  return { ...usage, requests, writeToken, tokenPath, cliReads }; // fork:
 });
 
 describe("Antigravity subscription limits", () => {
@@ -719,10 +721,10 @@ describe("Antigravity subscription limits", () => {
           "gemini-weekly",
         ]);
         expect(requests.some((request) => request.url.endsWith("/token"))).toBe(false);
-        // A second poll reuses the read and the account lookup.
+        // A second poll asks the keychain again but reuses the account lookup.
         const userInfoRequests = requests.filter((request) => request.url.endsWith("/userinfo"));
         yield* probe;
-        expect(cliReads.count).toBe(1);
+        expect(cliReads.count).toBe(2);
         expect(requests.filter((request) => request.url.endsWith("/userinfo"))).toEqual(
           userInfoRequests,
         );
@@ -744,28 +746,22 @@ describe("Antigravity subscription limits", () => {
       }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
     );
 
-    it.effect(
-      "asks the keychain again only when the access token is about to expire or after sign-out",
-      () =>
-        Effect.gen(function* () {
-          const { probe, clear, cliReads } = yield* fixture({
-            sharedLogin: true,
-            cliLogin: () => signedIn(HOUR),
-          });
-          yield* probe;
-          yield* TestClock.adjust("50 minutes");
-          yield* probe;
-          expect(cliReads.count).toBe(1);
-          yield* TestClock.adjust(9.5 * 60_000);
-          yield* probe;
-          expect(cliReads.count).toBe(2);
-          yield* clear;
-          yield* probe;
-          expect(cliReads.count).toBe(3);
-        }).pipe(
-          Effect.scoped,
-          Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
-        ),
+    it.effect("follows agy to another account while the first access token is still valid", () =>
+      Effect.gen(function* () {
+        let signedInAs = { refresh: "cli-refresh-a", user: "google-user-1" };
+        const { probe, cliReads } = yield* fixture({
+          sharedLogin: true,
+          userId: () => signedInAs.user,
+          cliLogin: () => signedIn(HOUR, signedInAs.refresh),
+        });
+        const first = yield* probe;
+        expect((yield* probe).credentialFingerprint).toBe(first.credentialFingerprint);
+        signedInAs = { refresh: "cli-refresh-b", user: "google-user-2" };
+        const second = yield* probe;
+        expect(cliReads.count).toBe(3);
+        expect(second.unavailable).toBeUndefined();
+        expect(second.credentialFingerprint).not.toBe(first.credentialFingerprint);
+      }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
     );
 
     it.effect("says so when the agy CLI is signed out, without any request", () =>
@@ -781,25 +777,16 @@ describe("Antigravity subscription limits", () => {
       }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
     );
 
-    it.effect("does not ask a refused keychain on every poll, and says what to do", () =>
+    it.effect("says what to do when the keychain cannot be read, without any request", () =>
       Effect.gen(function* () {
-        const { probe, clear, requests, cliReads } = yield* fixture({
+        const { probe, requests } = yield* fixture({
           sharedLogin: true,
           cliLogin: () => ({ _tag: "unreadable" }),
         });
-        const first = yield* probe;
-        expect(first.unavailable?.reason).toBe("probeFailed");
-        expect(first.unavailable?.message).toContain("keychain");
-        expect(first.unavailable?.message).toContain("Separate sign-in");
-        yield* TestClock.adjust("1 minute");
-        yield* probe;
-        expect(cliReads.count).toBe(1);
-        yield* TestClock.adjust("1 minute");
-        yield* probe;
-        expect(cliReads.count).toBe(2);
-        yield* clear;
-        yield* probe;
-        expect(cliReads.count).toBe(3);
+        const limits = yield* probe;
+        expect(limits.unavailable?.reason).toBe("probeFailed");
+        expect(limits.unavailable?.message).toContain("keychain");
+        expect(limits.unavailable?.message).toContain("Separate sign-in");
         expect(requests).toEqual([]);
       }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
     );
