@@ -149,6 +149,8 @@ export class DesktopConnectionCatalogStoreProtectionError extends Schema.TaggedE
 export class DesktopConnectionCatalogStore extends Context.Service<
   DesktopConnectionCatalogStore,
   {
+    // fork: lets the renderer tell an unavailable system keychain from an empty catalog.
+    readonly isAvailable: Effect.Effect<boolean, DesktopConnectionCatalogStoreProtectionError>;
     readonly get: Effect.Effect<
       Option.Option<string>,
       | DesktopConnectionCatalogStoreReadError
@@ -462,6 +464,7 @@ export const make = Effect.gen(function* () {
   });
 
   return DesktopConnectionCatalogStore.of({
+    isAvailable: encryptionAvailable,
     get: Effect.gen(function* () {
       const document = yield* readDocument(fileSystem, catalogPath);
       if (Option.isNone(document)) {

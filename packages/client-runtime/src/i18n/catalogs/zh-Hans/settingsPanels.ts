@@ -3185,4 +3185,11 @@ export default {
     "存有 {count} 次重置额度 · 最近一次{duration}后过期",
   "Open from a computer to edit on {environment}":
     "请在电脑上打开，才能编辑 {environment} 上的内容",
+  // Shown when the system keychain refused this app.
+  "System keychain access not allowed": "系统钥匙串未授权，无法保存连接",
+  "This app could not access its key in the macOS keychain, so saved environments and computers from your server cannot be loaded or saved. Quit and reopen the app. When macOS asks for keychain access, enter your login password and choose Always Allow.":
+    "这个 app 没能访问它在 macOS 钥匙串里的密钥，所以已保存的环境和你服务器上的电脑都无法读取或保存。请退出并重新打开 app；macOS 询问钥匙串访问时，输入登录密码并选择“始终允许”。",
+  "This app could not access the system secure storage or keyring, so saved environments and computers from your server cannot be loaded or saved. Unlock or start your keyring, then quit and reopen the app.":
+    "这个 app 没能访问系统的安全存储（密钥环），所以已保存的环境和你服务器上的电脑都无法读取或保存。请解锁或启动密钥环，然后退出并重新打开 app。",
+  "Restart app": "重启 app",
 } satisfies Record<string, string>;
