@@ -2,9 +2,10 @@ import type { OrchestrationV2ProviderTurn, TurnTokenUsage } from "@t3tools/contr
 import * as DateTime from "effect/DateTime";
 
 /**
- * Output speed of one finished turn, read the way DeepSeek Harness reads a step: the provider's
- * reported output tokens over the time spent writing. Writing time is approximate, because a
- * provider only stamps when an item starts and ends.
+ * Output speed of one finished turn, read the way DeepSeek Harness reads its steps: the provider's
+ * reported output tokens over the time from the first output to the end of the turn, minus time
+ * spent in tools or waiting on the user. Output tokens include tool arguments and hidden thinking,
+ * which no reply item spans, so only counting reply items' own time reads about three times high.
  */
 export interface TurnSpeed {
   readonly providerTurnId: string;
@@ -103,9 +104,9 @@ export function deriveTurnSpeed(
 
   const turnStart = DateTime.toEpochMillis(turn.startedAt);
   const turnEnd = turn.completedAt === null ? null : DateTime.toEpochMillis(turn.completedAt);
-  const decode: Array<Interval> = [];
   const blocked: Array<Interval> = [];
   let firstOutputAt: number | null = null;
+  let lastOutputAt: number | null = null;
   for (const item of items) {
     if (item.providerTurnId !== turn.id || item.startedAt === null) continue;
     const isDecode = DECODE_ITEM_TYPES.has(item.type);
@@ -118,11 +119,17 @@ export function deriveTurnSpeed(
     const start = Math.max(DateTime.toEpochMillis(item.startedAt), turnStart);
     const end = turnEnd === null ? rawEnd : Math.min(rawEnd, turnEnd);
     if (end <= start) continue;
-    if (isDecode) firstOutputAt = firstOutputAt === null ? start : Math.min(firstOutputAt, start);
-    (isDecode ? decode : blocked).push([start, end]);
+    if (isDecode) {
+      firstOutputAt = firstOutputAt === null ? start : Math.min(firstOutputAt, start);
+      lastOutputAt = lastOutputAt === null ? end : Math.max(lastOutputAt, end);
+    } else {
+      blocked.push([start, end]);
+    }
   }
+  if (firstOutputAt === null || lastOutputAt === null) return null;
 
-  const decodeMs = subtractIntervals(mergeIntervals(decode), mergeIntervals(blocked)).reduce(
+  const window: Interval = [firstOutputAt, turnEnd ?? lastOutputAt];
+  const decodeMs = subtractIntervals([window], mergeIntervals(blocked)).reduce(
     (total, [start, end]) => total + (end - start),
     0,
   );
@@ -134,7 +141,7 @@ export function deriveTurnSpeed(
     decodeMs,
     tokensPerSecond: outputTokens / (decodeMs / 1000),
     turnMs: turnEnd === null ? null : Math.max(0, turnEnd - turnStart),
-    firstTokenMs: firstOutputAt === null ? null : firstOutputAt - turnStart,
+    firstTokenMs: firstOutputAt - turnStart,
   };
 }
 

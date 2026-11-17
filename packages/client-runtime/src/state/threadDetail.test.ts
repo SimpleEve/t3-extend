@@ -719,7 +719,7 @@ describe("composer context meter atoms", () => {
   }
 
   const finished = turn("turn-1", "completed", 0, 20, usage(50_000, 20));
-  const finishedItems = [textItem("a-1", "turn-1", 1, 11)];
+  const finishedItems = [textItem("a-1", "turn-1", 10, 20)];
 
   it("shows the ring and speed of a finished turn", () => {
     using thread = setup(projection([finished], finishedItems));

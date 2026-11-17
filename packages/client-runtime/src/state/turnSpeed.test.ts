@@ -48,11 +48,12 @@ const item = (
 });
 
 describe("deriveTurnSpeed", () => {
-  it("divides the turn's output tokens by the time spent writing, minus tool calls", () => {
-    // Writes 1-4s and 12-20s; a command runs 4-12s. Decode is 3 + 8 = 11s, not the 20s wall time.
+  it("counts from the first output to the end of the turn, minus tool calls", () => {
+    // Replies 1-3s and 12-20s; a command runs 4-12s. The 3-4s gap is the model writing the
+    // command, which its output tokens include, so decode is 3 + 8 = 11s.
     const speed = deriveTurnSpeed(turn(), [
       item("user_message", 0, 0),
-      item("assistant_message", 1, 4),
+      item("assistant_message", 1, 3),
       item("command_execution", 4, 12),
       item("assistant_message", 12, 20),
     ]);
@@ -75,12 +76,12 @@ describe("deriveTurnSpeed", () => {
     expect(speed?.tokensPerSecond).toBeCloseTo(400 / 9);
   });
 
-  it("counts reasoning, and counts time where reasoning and the reply overlap once", () => {
+  it("starts at the first reasoning or reply and runs to the end of the turn", () => {
     const speed = deriveTurnSpeed(turn({ turnTokenUsage: complete(300) }), [
       item("reasoning", 2, 6),
       item("assistant_message", 5, 9),
     ]);
-    expect(speed?.decodeMs).toBe(7000);
+    expect(speed?.decodeMs).toBe(18_000);
     expect(speed?.firstTokenMs).toBe(2000);
   });
 
@@ -89,15 +90,16 @@ describe("deriveTurnSpeed", () => {
       item("assistant_message", 1, 11),
       item("approval_request", 3, 9),
     ]);
-    expect(speed?.decodeMs).toBe(4000);
+    expect(speed?.decodeMs).toBe(13_000);
   });
 
   it("ignores items of other provider turns", () => {
     const speed = deriveTurnSpeed(turn(), [
       item("assistant_message", 1, 11),
-      item("assistant_message", 11, 19, { providerTurnId: "turn-2" }),
+      item("assistant_message", 5, 19, { providerTurnId: "turn-2" }),
     ]);
-    expect(speed?.decodeMs).toBe(10_000);
+    expect(speed?.firstTokenMs).toBe(1000);
+    expect(speed?.decodeMs).toBe(19_000);
   });
 
   it("closes a writing item left open at the end of the turn", () => {
@@ -141,8 +143,8 @@ describe("deriveTurnSpeed", () => {
   it("is null without a measurable writing time", () => {
     expect(deriveTurnSpeed(turn(), [])).toBeNull();
     expect(deriveTurnSpeed(turn(), [item("command_execution", 0, 10)])).toBeNull();
-    // A reply that arrived in one piece says nothing about speed.
-    expect(deriveTurnSpeed(turn(), [item("assistant_message", 3, 3.2)])).toBeNull();
+    // A reply that arrived in one piece at the very end says nothing about speed.
+    expect(deriveTurnSpeed(turn(), [item("assistant_message", 19.8, 20)])).toBeNull();
   });
 });
 
@@ -153,7 +155,7 @@ describe("items outside the turn", () => {
       item("assistant_message", -5, 8),
       item("assistant_message", 15, 40),
     ]);
-    expect(speed?.decodeMs).toBe(13_000);
+    expect(speed?.decodeMs).toBe(20_000);
     expect(speed?.firstTokenMs).toBe(0);
   });
 
@@ -165,7 +167,7 @@ describe("items outside the turn", () => {
       item("assistant_message", 14, 12),
       item("reasoning", 30, 31),
     ]);
-    expect(speed?.decodeMs).toBe(10_000);
+    expect(speed?.decodeMs).toBe(19_000);
     expect(speed?.firstTokenMs).toBe(1000);
   });
 
@@ -224,13 +226,13 @@ describe("createLastTurnSpeedSelector", () => {
   it("reads items again after a miss, since they may have been what was missing", () => {
     const select = createLastTurnSpeedSelector();
     expect(select([turn()], [])).toBeNull();
-    expect(select([turn()], [row(item("assistant_message", 0, 10))])?.decodeMs).toBe(10_000);
+    expect(select([turn()], [row(item("assistant_message", 0, 10))])?.decodeMs).toBe(20_000);
   });
 });
 
 describe("deriveLatestTurnSpeed", () => {
   it("reads the newest completed turn that has data", () => {
-    const older = turn({ id: "turn-1", completedAt: at(20), turnTokenUsage: complete(200) });
+    const older = turn({ id: "turn-1", completedAt: at(11), turnTokenUsage: complete(200) });
     const newerWithoutData = turn({
       id: "turn-2",
       startedAt: at(30),
