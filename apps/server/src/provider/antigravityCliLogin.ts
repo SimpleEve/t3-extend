@@ -1,4 +1,5 @@
 import * as Clock from "effect/Clock";
+import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -156,5 +157,19 @@ export const makeSharedAntigravityCliLoginRead = () => {
   });
 };
 
-/** Process-wide: instances that share the agy CLI sign-in share one read of it. */
-export const shareAntigravityCliLoginRead = makeSharedAntigravityCliLoginRead();
+export type SharedAntigravityCliLoginRead = ReturnType<typeof makeSharedAntigravityCliLoginRead>;
+
+/**
+ * How the driver reads the agy CLI sign-in. The default is one read per process, shared by every
+ * instance; tests replace it to count reads or to stand in for another platform.
+ */
+export const AntigravityCliLoginSource = Context.Reference<{
+  /** Overrides the host platform when the reader is chosen. */
+  readonly platform: NodeJS.Platform | undefined;
+  readonly share: SharedAntigravityCliLoginRead;
+}>("@t3tools/server/provider/AntigravityCliLoginSource", {
+  defaultValue: (() => {
+    const source = { platform: undefined, share: makeSharedAntigravityCliLoginRead() };
+    return () => source;
+  })(),
+});

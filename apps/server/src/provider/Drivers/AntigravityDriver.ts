@@ -75,7 +75,7 @@ import { ProviderDriverError } from "../Errors.ts";
 import { makeAntigravityProvider } from "../AntigravityProvider.ts";
 import {
   makeAntigravityCliLoginReader,
-  shareAntigravityCliLoginRead,
+  AntigravityCliLoginSource,
 } from "../antigravityCliLogin.ts"; // fork:
 import { makeAntigravityUsageProbe } from "../antigravityUsageLimits.ts";
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
@@ -471,15 +471,16 @@ export const AntigravityDriver: ProviderDriver<
       };
     });
 
+    const cliLoginSource = yield* AntigravityCliLoginSource; // fork:
     const cliLoginRead = makeAntigravityCliLoginReader({
-      platform: yield* HostProcess.Platform,
+      platform: cliLoginSource.platform ?? (yield* HostProcess.Platform),
       spawner,
     }); // fork:
     const usage = yield* makeAntigravityUsageProbe({
       profileDirectory,
       authMethod: auth.authMethod,
       sharedLogin, // fork:
-      readCliLogin: cliLoginRead && shareAntigravityCliLoginRead(cliLoginRead), // fork:
+      readCliLogin: cliLoginRead && cliLoginSource.share(cliLoginRead), // fork:
     }).pipe(
       Effect.provideService(FileSystem.FileSystem, fileSystem),
       Effect.provideService(Path.Path, path),
