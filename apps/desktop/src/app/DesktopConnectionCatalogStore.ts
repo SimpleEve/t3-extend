@@ -490,6 +490,7 @@ export const make = Effect.gen(function* () {
   });
 
   return DesktopConnectionCatalogStore.of({
+    // fork: no catalog yet is `available` when encryption works; without encryption nothing can be saved, so it is `unavailable` even on first run.
     status: Effect.gen(function* () {
       if (!(yield* encryptionAvailable)) return "unavailable" as const;
       const document = yield* readDocument(fileSystem, catalogPath);

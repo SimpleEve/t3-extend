@@ -46,6 +46,7 @@ function layerLifecycle(relaunchReasons: Array<string>) {
         Effect.sync(() => {
           relaunchReasons.push(reason);
         }),
+      tryRelaunch: () => Effect.succeed(true), // fork:
       register: Effect.void,
     }),
   );

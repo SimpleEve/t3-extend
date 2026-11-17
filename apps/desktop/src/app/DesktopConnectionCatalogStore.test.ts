@@ -119,7 +119,7 @@ describe("DesktopConnectionCatalogStore", () => {
     withStore(
       Effect.gen(function* () {
         const store = yield* DesktopConnectionCatalogStore.DesktopConnectionCatalogStore;
-        assert.strictEqual(yield* store.status, "unavailable"); // fork: keychain notice
+        assert.strictEqual(yield* store.status, "unavailable"); // fork: no catalog and no encryption is still unavailable, since nothing can be saved
         assert.isFalse(yield* store.set("{}"));
         assert.deepStrictEqual(yield* store.get, Option.none());
       }),
@@ -280,7 +280,7 @@ describe("DesktopConnectionCatalogStore", () => {
         Effect.provide(layer),
       );
 
-      assert.strictEqual(yield* store.status, "available"); // fork: no catalog yet
+      assert.strictEqual(yield* store.status, "available"); // fork: no catalog yet, encryption works
       assert.isTrue(yield* store.set('{"schemaVersion":1,"targets":[]}'));
       yield* Ref.set(failDecrypt, true);
       assert.strictEqual(yield* store.status, "unreadable"); // fork: keychain notice

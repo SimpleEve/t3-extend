@@ -136,6 +136,7 @@ it.effect.each([false, true])(
           Effect.provideService(DesktopLifecycle.DesktopLifecycle, {
             register: Effect.void,
             relaunch: () => Effect.void,
+            tryRelaunch: () => Effect.succeed(true), // fork:
           }),
           Effect.provideService(DesktopClerk.DesktopClerk, {
             configure: Effect.void,
