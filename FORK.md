@@ -492,36 +492,39 @@ A 的桌面版打开远程环境 B 的对话时，B 的 T3 终端或 agent 起�
 
 **怎么工作。** A 的桌面主进程为每个登记过的远程环境起一个只绑 `127.0.0.1` 的 HTTP 代理，该环境所有预览分区用 `session.setProxy` 把回环流量指过去。代理为每条 TCP 连接开一条 WebSocket 隧道（`/api/loopback-gateway/tunnel?port=`，票据放在 `Authorization: T3X-Gateway <票据>`），B 的网关对**每条新隧道**现场核对（进程身份 = pid + 启动时间、监听、归属、排除清单，没有缓存），通过才拨 B 的回环地址。只在加密或本机的连接上启用；B 只有 macOS 广告 `loopbackGateway` 能力（`apps/server/src/fork/loopbackGateway/GatewayAvailability.ts`）。
 
-位置：桌面主进程 `apps/desktop/src/fork/loopbackGateway/`，server `apps/server/src/fork/loopbackGateway/`（监听点清单 `exclusions.json`、驱动特征表 `RuntimeSignatures.ts`），web `apps/web/src/fork/loopbackGateway/`，契约 `packages/contracts/src/forkLoopbackGateway.ts`，共享的回环判定、传输检查和桥的类型 `packages/shared/src/forkLoopbackGateway/`，中文 `catalogs/zh-Hans/loopbackGateway.ts` 加 `desktop.ts` 里的错误页文案。新增文件 97 个：产品代码约 6,100 行（含 `exclusions.json` 361 行和中文目录 67 行），测试和夹具约 10,800 行，Electron 冒烟、Linux 检查和端到端场景脚本约 2,300 行。
+位置：桌面主进程 `apps/desktop/src/fork/loopbackGateway/`，server `apps/server/src/fork/loopbackGateway/`（监听点清单 `exclusions.json`、驱动特征表 `RuntimeSignatures.ts`），web `apps/web/src/fork/loopbackGateway/`，契约 `packages/contracts/src/forkLoopbackGateway.ts`，共享的回环判定、传输检查和桥的类型 `packages/shared/src/forkLoopbackGateway/`，中文 `catalogs/zh-Hans/loopbackGateway.ts` 加 `desktop.ts` 里的错误页文案。新增文件 103 个：产品代码约 6,700 行（含 `exclusions.json` 361 行和中文目录 90 行），测试和夹具约 11,300 行，Electron 冒烟、Linux 检查和端到端场景脚本约 2,300 行。
+
+**用户手动放行端口。** 脱离父进程的服务（`nohup uv run … &` 之后脚本退出，被 launchd 收养）归属判断认不出，原来一律 `not-owned`，没有出路。现在卡片上有“允许转发 localhost:端口”，server 把端口记在 `<stateDir>/loopback-gateway-allowed-ports.json`（`LoopbackGatewayGrants.ts`，最多 64 条，坏文件按空列表处理并记警告），按端口、全环境共用；设置 → 浏览器 → 本机服务转发和转发图标的菜单可以移除。`classifyListener` 的 `granted` 只把两处 `not-owned` 改成放行，E1 到 E4、E7、屏蔽端口和 server 自己的端口照旧拒绝，C2、C3 的现场核对不变。放行过的端口不会再以 `not-owned` 被拒：读不出监听者时是 `owner-changed`（放行过的端口不依赖快照，快照只列有主的服务，所以这里直接读一次，不受节流限制）；监听在非回环地址上是新错误码 `not-loopback`。三个 RPC（`loopbackGateway.listAllowedPorts` / `allowPort` / `removeAllowedPort`）和票据 RPC 一样要 `preview:operate` 加 `terminal:operate`；**没有 MCP 工具，agent 不能放行**。放行记录在 server 顶层的 layer 里只建一份（`layer.ts` 的 `layerGrants`，`server.ts` 一行），因为 ws 的处理器在请求期上下文里读它，放在 `layerServices` 里会漏到 CLI 的类型里。取消放行不会断开已经打开的隧道，只影响之后的新隧道。
 
 ### 上游改动清单
 
-相对阶段 9 开始前的 `12ece4aefa`，上游已有的产品文件改了 26 个，新增 132 行、删除 24 行。代码行带 `// fork:`（JSON 和翻译目录除外，多行的块在块尾标一次）。同步上游时最容易冲突的是 web 的 `PreviewView.tsx`、`PreviewUnreachable.tsx`、`browserTargetResolver.ts` 和契约的 `auth.ts`。
+相对阶段 9 开始前的 `12ece4aefa`，上游已有的产品文件改了 28 个，新增 159 行、删除 28 行。代码行带 `// fork:`（JSON 和翻译目录除外，多行的块在块尾标一次）。同步上游时最容易冲突的是 web 的 `PreviewView.tsx`、`PreviewUnreachable.tsx`、`browserTargetResolver.ts` 和契约的 `auth.ts`。
 
-| 文件                                                                       | 行         | 改了什么                                                                                               |
-| -------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------ |
-| `packages/contracts/src/auth.ts`                                           | +5 −2      | 票据用途加 `"loopback-gateway"`；通用票据端点的 schema 加过滤，不签发网关票据（只有网关的 RPC 签）     |
-| `packages/contracts/src/clientRpcPermissions.ts`                           | +8         | 受保护 RPC 的 scope 表和 `clientRpcRequiredScopes`（`preview:operate` 和 `terminal:operate` 两个都要） |
-| `packages/contracts/src/environment.ts`、`index.ts`、`rpc.ts`              | +1、+1、+2 | 能力位 `loopbackGateway`，导出 fork 契约，并入 RPC 组                                                  |
-| `packages/shared/package.json`                                             | +4         | exports                                                                                                |
-| `apps/server/src/server.ts`、`ws.ts`                                       | +3、+3     | 网关的 layer 和 RPC handler                                                                            |
-| `apps/server/src/environment/ServerEnvironment.ts`                         | +2         | 广告能力位                                                                                             |
-| `apps/server/src/observability/RpcInstrumentation.ts`                      | +2         | RPC 指标表                                                                                             |
-| `apps/desktop/src/preload.ts`、`ipc/DesktopIpcHandlers.ts`                 | +3、+2     | 桥和 IPC 安装                                                                                          |
-| `apps/desktop/src/ipc/methods/preview.ts`                                  | +3 −1      | `getPreviewConfig` 里先装代理再返回 webview 配置                                                       |
-| `apps/desktop/package.json`                                                | +3 −1      | `ws` 和 `@types/ws`                                                                                    |
-| `apps/web/src/browser/browserTargetResolver.ts`                            | +10 −2     | 转发 `active` 时回环 URL 原样放行；`systemBrowser` 选项                                                |
-| `apps/web/src/browser/ElectronBrowserHost.tsx`                             | +2         | webview 等“网关已登记”的门                                                                             |
-| `apps/web/src/components/preview/PreviewView.tsx`                          | +13 −1     | 取 fork 的标签页钩子，摆放标识和卡片；转发中的标签页不显示“在系统浏览器中打开”                         |
-| `apps/web/src/components/preview/PreviewUnreachable.tsx`                   | +23 −15    | 可选的 `gateway` 卡片文案和按钮                                                                        |
-| `apps/web/src/components/preview/PreviewChromeRow.tsx`                     | +3         | 转发标识的插槽                                                                                         |
-| `apps/web/src/components/preview/PreviewPanel.tsx`                         | +4 −1      | 离线的远程环境显示“连不上”，不是“请重新配对”                                                           |
-| `apps/web/src/components/AppSidebarLayout.tsx`                             | +2         | 挂载取票据和续期的管理组件                                                                             |
-| `apps/web/src/components/chat/ThreadServersPanel.tsx`                      | +3 −1      | 系统浏览器打开时不走转发（`{ systemBrowser: true }`）                                                  |
-| `packages/client-runtime/src/i18n/catalogs/zh-Hans/index.ts`、`desktop.ts` | +2、+21    | 注册 catalog；桌面主进程错误页的 13 条中文                                                             |
-| `package.json`、`knip.jsonc`                                               | +3、+4     | 三个脚本（Electron 冒烟、Linux 检查、模块图抓取时间）；knip 的入口                                     |
+| 文件                                                                             | 行         | 改了什么                                                                                               |
+| -------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------ |
+| `packages/contracts/src/auth.ts`                                                 | +5 −2      | 票据用途加 `"loopback-gateway"`；通用票据端点的 schema 加过滤，不签发网关票据（只有网关的 RPC 签）     |
+| `packages/contracts/src/clientRpcPermissions.ts`                                 | +9 −2      | 受保护 RPC 的 scope 表和 `clientRpcRequiredScopes`（`preview:operate` 和 `terminal:operate` 两个都要） |
+| `packages/contracts/src/environment.ts`、`index.ts`、`rpc.ts`                    | +1、+1、+2 | 能力位 `loopbackGateway`，导出 fork 契约，并入 RPC 组                                                  |
+| `packages/shared/package.json`                                                   | +4         | exports                                                                                                |
+| `apps/server/src/server.ts`、`ws.ts`                                             | +4、+3     | 网关的 layer（含放行记录的 `layerGrants`）和 RPC handler                                               |
+| `apps/server/src/environment/ServerEnvironment.ts`                               | +2         | 广告能力位                                                                                             |
+| `apps/server/src/observability/RpcInstrumentation.ts`                            | +2         | RPC 指标表                                                                                             |
+| `apps/desktop/src/preload.ts`、`ipc/DesktopIpcHandlers.ts`                       | +3、+2     | 桥和 IPC 安装                                                                                          |
+| `apps/desktop/src/ipc/methods/preview.ts`                                        | +3 −1      | `getPreviewConfig` 里先装代理再返回 webview 配置                                                       |
+| `apps/desktop/package.json`                                                      | +3 −1      | `ws` 和 `@types/ws`                                                                                    |
+| `apps/web/src/browser/browserTargetResolver.ts`                                  | +10 −2     | 转发 `active` 时回环 URL 原样放行；`systemBrowser` 选项                                                |
+| `apps/web/src/browser/ElectronBrowserHost.tsx`                                   | +2         | webview 等“网关已登记”的门                                                                             |
+| `apps/web/src/components/preview/PreviewView.tsx`                                | +13 −1     | 取 fork 的标签页钩子，摆放标识和卡片；转发中的标签页不显示“在系统浏览器中打开”                         |
+| `apps/web/src/components/preview/PreviewUnreachable.tsx`                         | +37 −17    | 可选的 `gateway` 卡片文案和按钮，以及它的主操作（允许转发）                                            |
+| `apps/web/src/components/preview/PreviewChromeRow.tsx`                           | +3         | 转发标识的插槽                                                                                         |
+| `apps/web/src/components/preview/PreviewPanel.tsx`                               | +4 −1      | 离线的远程环境显示“连不上”，不是“请重新配对”                                                           |
+| `apps/web/src/components/AppSidebarLayout.tsx`                                   | +2         | 挂载取票据和续期的管理组件                                                                             |
+| `apps/web/src/components/chat/ThreadServersPanel.tsx`                            | +3 −1      | 系统浏览器打开时不走转发（`{ systemBrowser: true }`）                                                  |
+| `packages/client-runtime/src/i18n/catalogs/zh-Hans/index.ts`、`desktop.ts`       | +2、+23    | 注册 catalog；桌面主进程错误页的 14 条中文                                                             |
+| `apps/web/src/components/settings/IntegrationsSettings.tsx`、`settingsSearch.ts` | +3、+6     | 设置 → 浏览器里的“本机服务转发”一节，和它的设置搜索项                                                  |
+| `package.json`、`knip.jsonc`                                                     | +3、+4     | 三个脚本（Electron 冒烟、Linux 检查、模块图抓取时间）；knip 的入口                                     |
 
-另有：fork 自己的 `apps/web/src/fork/FooterPorts.tsx` +3 −1；上游的 5 个测试文件加了用例（`preloadSandbox.test.ts`、`McpHttpServer.test.ts`、`browserTargetResolver.test.ts`、`PreviewView.browser.test.tsx`、`commandPermissions.test.ts`，共 +121 −1）；`pnpm-lock.yaml` +12（`ws`）。合计 132 行里，中文翻译占 23，依赖和脚本清单占 14（`apps/desktop` 和 `packages/shared` 的 `package.json`、根 `package.json`、`knip.jsonc`），其余代码行 95。
+另有：fork 自己的 `apps/web/src/fork/FooterPorts.tsx` +3 −1；上游的 6 个测试文件加了用例（`preloadSandbox.test.ts`、`McpHttpServer.test.ts`、`browserTargetResolver.test.ts`、`PreviewView.browser.test.tsx`、`commandPermissions.test.ts`、`ws.test.ts`，共 +165 −1）；`pnpm-lock.yaml` +12（`ws`）。合计 159 行里，中文翻译占 25，依赖和脚本清单占 14（`apps/desktop` 和 `packages/shared` 的 `package.json`、根 `package.json`、`knip.jsonc`），其余代码行 120。
 
 ### 维护者约束
 
@@ -538,7 +541,7 @@ A 的桌面版打开远程环境 B 的对话时，B 的 T3 终端或 agent 起�
 - **连接方式验证了三种：** 同一台电脑上的连接（真实 Electron 走查和冒烟）、Tailscale 直连（两台真实 Mac，用 tailnet 的 IPv6 地址）、自建隧道（真实 VPS，Let's Encrypt 证书）。局域网 https、Tailscale 的 MagicDNS 名字和 Serve 没测；SSH 环境在打包版里跑的是官方 server，不提供转发。重载 Caddy 或重启 frps 会让所有隧道断开几秒，因为 frpc 的控制连接也经过 Caddy。逐行状态在设计 §3.5，用户文档只写已验证的。
 - **平台：** 只支持桌面版（网页版见设计附录 C）；B 只有 macOS 广告能力。Linux 的真实进程测试已在容器里全过（91 条，连跑两遍），但广告函数没有改，要不要放开由主控定；Windows 没有读 argv 和环境的路径，不广告。
 - **私有 CA 的 `https://` 不支持：** 主进程不并入系统根证书（设计 §3.6，N7），TLS 校验失败就是失败，错误卡片说“证书不受信任”。
-- **provider：** 只有 Claude 和 Codex 设置 `T3CODE_THREAD_ID`，所以只有它们的 agent 起的服务算“agent 有主”；其余 provider 的 agent 起的服务只有在 T3 终端里起才转发，Cursor、Antigravity 和 ACP 注册表的 agent 认不出特征，整棵子树都不转发。脱离父进程的后台作业（被 launchd 收养，如 `nohup`）对所有 provider 都转发不了。这些结论来自读启动代码和假运行时的真实进程测试，**没有起真实的 provider CLI 验证**；各家 CLI 的 shell 工具是不是一次性的 shell，因而后台作业会不会被收养，也没有验证。
+- **provider：** 只有 Claude 和 Codex 设置 `T3CODE_THREAD_ID`，所以只有它们的 agent 起的服务算“agent 有主”；其余 provider 的 agent 起的服务只有在 T3 终端里起才转发，Cursor、Antigravity 和 ACP 注册表的 agent 认不出特征，整棵子树都不转发。脱离父进程的后台作业（被 launchd 收养，如 `nohup`）对所有 provider 默认都转发不了，要用户在卡片上手动放行那个端口（见上）。这些结论来自读启动代码和假运行时的真实进程测试，**没有起真实的 provider CLI 验证**；各家 CLI 的 shell 工具是不是一次性的 shell，因而后台作业会不会被收养，也没有验证。
 - **已接受的残余风险**（设计 §5.6.5、§6、§4.2）：CLI 自己起的、带 agent 标记的 MCP 进程如果在回环上监听，会按 agent 作业放行；页面对有主服务有完整的网络接口（Vite 的 `/@fs/`、source map 等），暴露程度等同本机 dev server 对本机浏览器，用户文档要求不在转发的标签页里打开不信任的网站；偷来的票据最多能开隧道到这台设备的会话链结束或被撤销；端口有没有程序在监听能被页面探测到。真实 dev server（当前 Vite 的默认 `server.fs`、`allowedHosts`、CORS）对外部来源页面的实际行为，冒烟里只有模拟的夹具，没有人工走查。
 - **小的已知现象：** 同一环境同一端口两个标签页同时加载失败时，没有 `webContentsId` 的 `CONNECT` 拒绝原因可能被两个标签页一起拿来解释（设计 §7.2）；全新分区上的第一个 `session.fetch` 得到代理的 407 且不泄露（Electron 不为它发 `login` 事件，导航之后恢复，实际影响只有 favicon 抓取，设计 §12 的 9.2 第 12 条）；B 重启后右侧面板变成“线程详情”、标签页不回来，是上游预览会话表在内存里的行为。
 

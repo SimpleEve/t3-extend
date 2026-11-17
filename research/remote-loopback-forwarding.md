@@ -811,6 +811,8 @@ M2 的设计变更见 §5.6.0.1：判断全部来自每条隧道现读的祖先�
 
 **脱离父进程的 agent 后台作业：这一版对所有驱动都拒绝（决定）。** 作业的归属只看现读的祖先链：从作业一路能走到一个活着的、匹配该驱动根特征的直接子进程，才算 agent 作业。父进程退出、作业被 launchd 收养之后，它不在 server 的子树里，被拒为 `not-owned`（`nohup cmd &` 在一次性 shell 里起的服务就是这样）。**没有按 `T3CODE_THREAD_ID` 反查 provider 来放行**，原因：那会把线程归属、provider 类型、E4、E6、E7 几个条件耦合在一起，撤销（线程或设备被撤销）的时序也更难证明，而没有真实 provider 生命周期的证据支撑。端口列表不改：这类服务仍可用“在 B 的浏览器中打开”查看，9.3 的错误卡片说明被拒原因。
 
+**后来的修订：用户手动放行可以覆盖 `not-owned`。** 上面“一律拒绝”没有给用户出路，而真实使用里（`scripts/start.sh` 用 `nohup uv run … &` 起服务后退出）这正是最常见的情形。现在用户可以在卡片上放行那个端口：server 按端口记一份全环境共用的列表，`classifyListener` 的 `granted` 只把两处 `not-owned`（不在 server 子树里；子树里但没有 agent 标记）改成放行，E1 到 E4、E7、屏蔽端口和 server 自己的端口照旧拒绝，C2、C3 的现场核对不变。这不违背 §5.1 的用意：归属规则是不让标签页里的**网页**碰到 B 上无关的服务，放行是用户在 T3 自己界面上的操作，网页点不到，而且能用转发的会话本来就有 `terminal:operate`。agent 没有 MCP 工具可以放行。放行过的端口不会再以 `not-owned` 被拒（读不出监听者是 `owner-changed`，非回环地址是 `not-loopback`），否则卡片会让用户反复点放行。代码：[`LoopbackGatewayGrants.ts`](../apps/server/src/fork/loopbackGateway/LoopbackGatewayGrants.ts)、[`GatewayExclusions.ts`](../apps/server/src/fork/loopbackGateway/GatewayExclusions.ts)、[`PortAuthorizer.ts`](../apps/server/src/fork/loopbackGateway/PortAuthorizer.ts)。
+
 **`TerminalShellRegistry`：** fork 里订阅 `TerminalManager.subscribeMetadata`，事件驱动，维护"正在运行的终端 shell 的 (pid, 启动时间)"；E2 和 §5.3 的 C2 都用它。读启动时间的读取还在进行时，`shells` 会等它完成，所以刚启动的终端不会因为"还不认识"被误拒。
 
 #### 5.6.4 验收
