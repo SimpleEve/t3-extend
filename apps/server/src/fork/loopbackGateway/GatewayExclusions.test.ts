@@ -24,13 +24,18 @@ const base = [
 const run = (
   rows: ReadonlyArray<readonly [number, number, string, string?]>,
   listenerPid: number,
-  options: { readonly launch?: string; readonly shells?: ReadonlyArray<number> } = {},
+  options: {
+    readonly launch?: string;
+    readonly shells?: ReadonlyArray<number>;
+    readonly granted?: boolean;
+  } = {},
 ) =>
   classifyListener({
     serverPid: SERVER,
     table: table(...base, ...rows),
     listenerPid,
     launchText: options.launch ?? "",
+    granted: options.granted ?? false,
     shells: new Map<number, ShellEntry>(
       (options.shells ?? []).map((pid) => [pid, { startTime: `start-${pid}` }]),
     ),
@@ -133,6 +138,7 @@ describe("classifyListener", () => {
         listenerPid: 460,
         launchText: `node vite.js ${MARKER}`,
         shells: new Map(),
+        granted: false,
         extraExecutables: configured,
         resolvePath,
       });
@@ -208,7 +214,45 @@ describe("classifyListener", () => {
       listenerPid: 600,
       launchText: MARKER,
       shells: new Map(),
+      granted: false,
     });
     assert.equal(denied(verdict), "not-owned/E5");
+  });
+
+  it("lets a port the user allowed through the not-owned refusals (E5) and no others", () => {
+    const granted = { granted: true } as const;
+    const user = { allow: true, owner: "user" } as const;
+    // Detached and adopted by launchd (`nohup ... &`), or never under this server.
+    assert.deepEqual(run([[520, 1, "python3 -m board serve"]], 520, granted), user);
+    // A job of a live provider that carries no agent marker.
+    const claude = [
+      [400, SERVER, "/Users/x/.local/bin/claude --output-format stream-json"],
+      [460, 400, "node vite.js"],
+    ] as const;
+    assert.equal(denied(run(claude, 460)), "not-owned/E5");
+    assert.deepEqual(run(claude, 460, granted), user);
+
+    // Everything else stays refused: this server and what started it, the server's other
+    // children, provider runtimes (also the leftover of a crashed server's), and debug processes.
+    assert.equal(denied(run([], SERVER, granted)), "reserved/E1");
+    assert.equal(denied(run([], 50, granted)), "reserved/E1");
+    const hub = [
+      [210, SERVER, "node hub.js"],
+      [211, 210, "node agent-device-daemon.js"],
+    ] as const;
+    assert.equal(denied(run(hub, 211, granted)), "reserved/E2");
+    assert.equal(denied(run(claude, 400, granted)).startsWith("reserved/"), true);
+    assert.equal(denied(run([[500, 1, "codex app-server"]], 500, granted)), "reserved/E4");
+    const underOrphan = [
+      [500, 1, "node /x/codex/bin/codex.js app-server"],
+      [510, 500, "node vite.js"],
+    ] as const;
+    assert.equal(denied(run(underOrphan, 510, granted)), "reserved/E4");
+    assert.equal(
+      denied(run([[530, 1, "node dev.js --inspect=0"]], 530, granted)),
+      "debug-process/E7",
+    );
+    // Not in the table at all: nothing to forward to.
+    assert.equal(denied(run([], 999, granted)), "not-owned/none");
   });
 });

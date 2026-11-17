@@ -29,6 +29,7 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Stream from "effect/Stream";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
@@ -38,6 +39,7 @@ import { requestUrl } from "../../requestUrl.ts";
 import * as GatewayAuth from "./GatewayAuth.ts";
 import * as GatewayAvailability from "./GatewayAvailability.ts";
 import * as GatewayLimits from "./GatewayLimits.ts";
+import * as LoopbackGatewayGrants from "./LoopbackGatewayGrants.ts";
 import * as PortAuthorizer from "./PortAuthorizer.ts";
 import { refuse, type DialTarget, type GatewayRefusal } from "./PortAuthorizer.ts";
 
@@ -148,6 +150,7 @@ export const layer = Layer.unwrap(
     );
     const sessions = yield* SessionStore.SessionStore;
     const authorizer = yield* PortAuthorizer.PortAuthorizer;
+    const grants = yield* LoopbackGatewayGrants.LoopbackGatewayGrants;
     // Read once, here, where layers can override them; a request handler sees only the server's context.
     const limits = yield* GatewayLimits.GatewayLimits;
     const availability = yield* GatewayAvailability.currentAvailability;
@@ -195,9 +198,32 @@ export const layer = Layer.unwrap(
         Effect.andThen(Effect.fail(refuse("unauthorized", "the session ended"))),
       );
       const target = yield* Effect.raceFirst(authorizer.authorize(port), revoked);
+      // A tunnel that only the user's allowed port vouches for ends as soon as the port leaves the
+      // list, so removing it takes effect on pooled connections and open WebSockets too. The
+      // stream starts with the current list, so a removal during the checks is seen as well.
+      const withdrawn = yield* Deferred.make<void>();
+      if (target.owner === "user") {
+        // Not dialed at all when it is already gone; the stream below covers what happens after.
+        if (!(yield* grants.list).some((entry) => entry.port === port)) {
+          return yield* refuse("not-owned", "the port is no longer allowed");
+        }
+        yield* grants.changes.pipe(
+          Stream.filter((allowed) => !allowed.some((entry) => entry.port === port)),
+          Stream.take(1),
+          Stream.runDrain,
+          Effect.andThen(Deferred.succeed(withdrawn, undefined)),
+          Effect.forkScoped,
+        );
+      }
+      const noLongerAllowed = Deferred.await(withdrawn).pipe(
+        Effect.andThen(Effect.fail(refuse("not-owned", "the port is no longer allowed"))),
+      );
       // A session that ended while the port was checked gets no connection at all.
       yield* session.recheck;
-      const tcp = yield* Effect.raceFirst(dialTarget(target), revoked);
+      const tcp = yield* Effect.raceFirst(
+        dialTarget(target),
+        Effect.raceFirst(revoked, noLongerAllowed),
+      );
       yield* Effect.addFinalizer(() => Effect.sync(() => tcp.destroy()));
       yield* session.recheck;
       const ws = yield* upgrade(request);
@@ -206,7 +232,10 @@ export const layer = Layer.unwrap(
       // Nothing is forwarded for a session that ended before the first byte could move.
       yield* session.recheck.pipe(Effect.onError(() => Effect.sync(() => ws.terminate())));
       yield* heartbeat(ws).pipe(Effect.forkScoped);
-      yield* Effect.raceFirst(pipeTunnel(ws, tcp), Deferred.await(invalidated));
+      yield* Effect.raceFirst(
+        pipeTunnel(ws, tcp),
+        Effect.raceFirst(Deferred.await(invalidated), Deferred.await(withdrawn)),
+      );
       return HttpServerResponse.empty();
     });
 

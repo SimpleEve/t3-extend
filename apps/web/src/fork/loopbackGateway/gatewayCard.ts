@@ -4,12 +4,14 @@ import type { Translator } from "@t3tools/client-runtime/i18n";
 import { parseLoopbackGatewayPort } from "@t3tools/shared/forkLoopbackGateway/protocol";
 import type { LoopbackGatewayErrorCode } from "@t3tools/shared/forkLoopbackGateway/protocol";
 
+import type { AllowedPortFailure } from "./allowedPorts";
 import type { LoopbackGatewayState } from "./gatewayState";
 
 export type GatewayCardKey =
   | "not-owned"
   | "reserved"
   | "debug-process"
+  | "not-loopback"
   | "owner-changed"
   | "upstream-refused"
   | "offline"
@@ -34,6 +36,7 @@ export const gatewayCardKeyForCode = (code: LoopbackGatewayErrorCode): GatewayCa
     case "not-owned":
     case "reserved":
     case "debug-process":
+    case "not-loopback":
     case "owner-changed":
     case "upstream-refused":
     case "offline":
@@ -73,6 +76,27 @@ export const gatewayCardKeyForState = (state: LoopbackGatewayState): GatewayCard
   }
 };
 
+/** What decides whether a tab's card shows, and which one; the card and the tab's cover share it. */
+export interface GatewayCardInputs {
+  /** The gate keeps the webview away until forwarding is set up, and setting it up failed. */
+  readonly startFailed: boolean;
+  /** The webview is not there yet: forwarding is on its way, or the environment is not connected. */
+  readonly held: boolean;
+  readonly connecting: boolean;
+  /** The code of the refusal behind what the tab shows now. */
+  readonly denialCode: LoopbackGatewayErrorCode | null;
+  readonly loadFailed: boolean;
+  readonly loopback: boolean;
+  readonly state: LoopbackGatewayState;
+}
+
+export const resolveGatewayCardKey = (input: GatewayCardInputs): GatewayCardKey | null => {
+  if (input.startFailed) return "start-failed";
+  if (input.held) return input.connecting ? null : "waiting";
+  if (input.denialCode !== null) return gatewayCardKeyForCode(input.denialCode);
+  return input.loadFailed && input.loopback ? gatewayCardKeyForState(input.state) : null;
+};
+
 /** The port a URL points at, or `null` when it is not a plain `http(s)` address. */
 export const gatewayCardPort = (url: string): number | null => {
   try {
@@ -90,6 +114,7 @@ export const gatewayCardOffersMove = (key: GatewayCardKey): boolean => {
     case "not-owned":
     case "reserved":
     case "debug-process":
+    case "not-loopback":
     case "unsupported-server":
     case "insecure-transport":
     case "insecure-transport-tailscale":
@@ -99,6 +124,27 @@ export const gatewayCardOffersMove = (key: GatewayCardKey): boolean => {
       return true;
     default:
       return false;
+  }
+};
+
+/** Whether the card leads with "allow this port": only for a service no terminal or agent started. */
+export const gatewayCardOffersAllow = (key: GatewayCardKey): boolean => key === "not-owned";
+
+/** The line under the allow button when the call failed. */
+export const describeAllowPortFailure = (failure: AllowedPortFailure, t: Translator): string => {
+  switch (failure) {
+    case "invalid-port":
+      return t("That isn't a valid port.");
+    case "reserved":
+      return t("T3 keeps this port for itself or for debugging.");
+    case "limit-reached":
+      return t(
+        "At most 64 ports can be allowed. Remove one in Settings → Browser, then try again.",
+      );
+    case "not-saved":
+      return t("Couldn't save the allowed port. Try again.");
+    case "failed":
+      return t("Couldn't allow this port. Try again.");
   }
 };
 
@@ -114,8 +160,15 @@ export const describeGatewayCard = (
       return {
         title: t("This port isn't served by a T3 terminal or agent"),
         description: t(
-          "{environment} only forwards services started by its T3 terminals and agents. This one was started some other way, or it has detached from the terminal or agent that started it (for example, moved to the background with nohup). Start it from a T3 terminal on {environment} instead.",
+          "{environment} only forwards services started by its T3 terminals and agents by default. This one was started some other way, or it has detached from the terminal or agent that started it (for example, moved to the background with nohup). If you trust it, you can allow this port.",
           { environment },
+        ),
+      };
+    case "not-loopback":
+      return {
+        title: t("This service isn't listening on localhost"),
+        description: t(
+          "It only listens on another address, which localhost can't reach. Make it listen on 127.0.0.1 as well.",
         ),
       };
     case "reserved":

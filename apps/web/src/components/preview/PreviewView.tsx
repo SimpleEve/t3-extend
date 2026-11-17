@@ -1124,7 +1124,7 @@ export function PreviewView({
             <BrowserSurfaceSlot
               key={runtimeTabId}
               tabId={runtimeTabId}
-              visible={visible && !isUnreachable}
+              visible={visible && !isUnreachable && !gateway.covering} // fork: the card is above the webview
               className="absolute inset-0 h-full w-full"
             />
           ) : (

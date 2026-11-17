@@ -56,6 +56,8 @@ import * as ManagedPolicy from "../../policy/ManagedPolicy.ts";
 import * as TunnelListener from "../deviceKeys/TunnelListener.ts";
 import * as GatewayAvailability from "./GatewayAvailability.ts";
 import * as GatewayLimits from "./GatewayLimits.ts";
+import { memoryGrants } from "./grants.testkit.ts";
+import * as LoopbackGatewayGrants from "./LoopbackGatewayGrants.ts";
 import * as PortAuthorizer from "./PortAuthorizer.ts";
 import * as TunnelRoute from "./TunnelRoute.ts";
 
@@ -100,6 +102,8 @@ export class Gateway extends Context.Service<
     readonly limiterClients: Array<string>;
     readonly setAuthorize: (impl: AuthorizeImpl) => void;
     readonly setAvailable: (value: boolean) => void;
+    /** The ports the user allowed; a test allows and removes them while tunnels are open. */
+    readonly grants: LoopbackGatewayGrants.LoopbackGatewayGrants["Service"];
     /**
      * Stalls the route's first session check after a tunnel's upgrade response was written, the
      * gap before its byte pipe is attached. Arm it before opening the tunnel.
@@ -155,8 +159,9 @@ export const makeLayerGateway = (
       const authorizeCalls: Array<number> = [];
       const limiterClients: Array<string> = [];
       const seen: Array<string> = [];
+      const grants = memoryGrants();
       let authorizeImpl: AuthorizeImpl = (port) =>
-        Effect.succeed({ host: "127.0.0.1", port, pid: process.pid });
+        Effect.succeed({ host: "127.0.0.1", port, pid: process.pid, owner: "terminal" });
       let available = true;
       // The server's side of every connection, and the stall `holdAfterUpgrade` arms.
       const serverSockets = new Set<NodeNet.Socket>();
@@ -293,6 +298,7 @@ export const makeLayerGateway = (
         layerUpgradeAuthRoutes,
         TunnelRoute.layer.pipe(
           Layer.provide(layerPortAuthorizer),
+          Layer.provide(Layer.succeed(LoopbackGatewayGrants.LoopbackGatewayGrants, grants)),
           Layer.provide(layerLimits),
           Layer.provide(layerAvailability),
         ),
@@ -337,6 +343,7 @@ export const makeLayerGateway = (
             tunnelPort: yield* tunnel.port,
             sessions,
             authorizeCalls,
+            grants,
             limiterClients,
             seen,
             setAuthorize: (impl) => {

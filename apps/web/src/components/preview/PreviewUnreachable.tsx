@@ -5,6 +5,7 @@ import { Button } from "~/components/ui/button";
 import { describePreviewError } from "./errorCodeMessages";
 import { interpolateNodes } from "~/lib/interpolateNodes";
 import { useT } from "~/hooks/useT"; // fork: interface language
+import { GatewayActionBlock, type GatewayAction } from "~/fork/loopbackGateway/GatewayActionBlock"; // fork: forwarded localhost
 
 interface Props {
   url: string;
@@ -13,7 +14,12 @@ interface Props {
   onReload: () => void;
   move?: { readonly label: string; readonly onMove: () => void };
   // fork: forwarded localhost
-  gateway?: { readonly title: string; readonly description: string; readonly reloadLabel?: string };
+  gateway?: {
+    readonly title: string;
+    readonly description: string;
+    readonly reloadLabel?: string;
+    readonly action?: GatewayAction;
+  };
 }
 
 export function PreviewFileNotShown({
@@ -78,6 +84,7 @@ export function PreviewUnreachable({ url, code, description, onReload, move, gat
           {gateway?.title ?? t("This site can’t be reached")}
         </h1>
         <p className="text-sm leading-relaxed text-muted-foreground">{reason}</p>
+        {gateway?.action ? <GatewayActionBlock action={gateway.action} /> : null}
 
         {showDetails && !gateway ? (
           <div className="mt-6 rounded-lg border border-border bg-muted/40 p-4 text-sm">
@@ -114,7 +121,12 @@ export function PreviewUnreachable({ url, code, description, onReload, move, gat
               {move.label}
             </Button>
           ) : null}
-          <Button type="button" size="sm" onClick={onReload}>
+          <Button
+            type="button"
+            size="sm"
+            variant={gateway?.action ? "outline" : "default"} // fork: the allow button leads
+            onClick={onReload}
+          >
             {/* fork: forwarded localhost */}
             {gateway?.reloadLabel ?? t("Reload")}
           </Button>

@@ -26,6 +26,11 @@ const reason = (code: LoopbackGatewayErrorCode): string => {
         locale,
         "Nothing is listening on this port in the remote environment. Start the service, then reload.",
       );
+    case "not-loopback":
+      return translate(
+        locale,
+        "This service doesn't listen on localhost. It only listens on another address, which localhost can't reach. Make it listen on 127.0.0.1 as well.",
+      );
     case "offline":
       return translate(locale, "The remote environment can't be reached.");
     case "forbidden":

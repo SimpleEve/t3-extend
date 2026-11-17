@@ -10,6 +10,7 @@ import { useEnvironment } from "~/state/environments";
 import { getLoopbackGatewayBridge } from "./bridge";
 import { badgeModeFor, LoopbackGatewayBadge } from "./LoopbackGatewayBadge";
 import { LoopbackGatewayCard } from "./LoopbackGatewayCard";
+import { useGatewayCardKey } from "./useGatewayCardKey";
 import { useLoopbackGatewayState } from "./useLoopbackGatewayState";
 
 export function useLoopbackGatewayTab(input: {
@@ -27,15 +28,23 @@ export function useLoopbackGatewayTab(input: {
   readonly card: ReactNode;
   /** The tab shows a page of the environment's localhost: the system browser would show this computer's. */
   readonly forwarding: boolean;
+  /** The card is up, so the webview steps aside: it would sit over the card and take its clicks. */
+  readonly covering: boolean;
 } {
   const t = useT();
   const { environmentId } = input.threadRef;
   const environmentLabel = useEnvironment(environmentId)?.label ?? t("the environment");
   const { runtimeTabId, url, loadFailed, onReload, onOpenInEnvironment } = input;
   const { state } = useLoopbackGatewayState(environmentId);
+  const { key: cardKey } = useGatewayCardKey({
+    environmentId,
+    runtimeTabId: runtimeTabId ?? "",
+    url,
+    loadFailed,
+  });
   const hasGateway = previewBridge !== null && getLoopbackGatewayBridge() !== undefined;
   if (!hasGateway || runtimeTabId === null || input.serverOwnsRendering) {
-    return { badge: null, card: null, forwarding: false };
+    return { badge: null, card: null, forwarding: false, covering: false };
   }
   const move =
     onOpenInEnvironment === undefined
@@ -49,5 +58,6 @@ export function useLoopbackGatewayTab(input: {
     badge: <LoopbackGatewayBadge {...props} />,
     card: <LoopbackGatewayCard {...props} />,
     forwarding: badgeModeFor(state.state, url) === "forwarding",
+    covering: cardKey !== null,
   };
 }

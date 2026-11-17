@@ -433,11 +433,18 @@ Things that may surprise you:
   **Resume forwarding** from the same place to turn it back on. This computer
   remembers the choice. While forwarding is on, other websites in that
   environment's tabs connect directly and skip your system proxy.
-- Only services that T3 terminals and agents started are forwarded. A service
-  started another way, a service whose parent process has exited, such as one
-  started with `nohup`, a service running with debugging flags such as
-  `--inspect`, and ports that debuggers use are not forwarded. The tab shows a
-  card that says why; **Open in {environment}'s browser** still works for them.
+- By default only services that T3 terminals and agents started are forwarded.
+  A service started another way, or one whose parent process has exited, such as
+  one started with `nohup`, gets a card with **Allow forwarding
+  localhost:\<port\>**. It adds that port to the environment's allowed ports.
+  From then on, whatever service is on that port is forwarded, for every device
+  and tab of that environment, so allow only ports you trust. Remove a port from
+  **Settings → Browser → Localhost forwarding**, or from the icon's menu. A
+  service running with debugging flags such as `--inspect`, ports that debuggers
+  use, and processes of T3 itself and its agents' runtimes are never forwarded,
+  allowed or not. The tab shows a card that says why; **Open in {environment}'s
+  browser** still works for them. A service that listens only on a non-local
+  address gets its own card: make it listen on `127.0.0.1` too.
 - Services started by Claude and Codex agents are forwarded. For agents of other
   providers, only services you start in a T3 terminal are.
 - Forwarding turns on only for encrypted connections and connections on the

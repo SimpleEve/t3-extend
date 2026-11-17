@@ -104,6 +104,29 @@ describe("gateway denials", () => {
     expect(denialFor()).toBeNull();
   });
 
+  it("keeps a refusal that comes while its bound tab still reads as idle, when the load is then reported as running", () => {
+    // A new tab is Idle until its first URL commits (`computeNavStatus`), which is after the proxy's
+    // response headers, where the refusal is sent: the load is reported only once it has a URL.
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: false });
+    noteGatewayDenied({ environmentId: ENV, code: "not-owned", port: 5173, webContentsId: 7 });
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: true });
+    expect(denialFor()?.code).toBe("not-owned");
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: false });
+    expect(denialFor()?.code).toBe("not-owned");
+
+    // Counted for that load only: a reload after the service was allowed retires it.
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: true });
+    expect(denialFor()).toBeNull();
+  });
+
+  it("does not let a refusal that came during a load outlive the next one", () => {
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: true });
+    noteGatewayDenied({ environmentId: ENV, code: "not-owned", port: 5173, webContentsId: 7 });
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: false });
+    noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: true });
+    expect(denialFor()).toBeNull();
+  });
+
   it("keeps a page's refusal to the tab that loaded it", () => {
     noteGatewayTabState({ runtimeTabId: TAB, webContentsId: 7, loading: true });
     noteGatewayTabState({ runtimeTabId: "tab-2", webContentsId: 8, loading: true });

@@ -3,12 +3,16 @@ import { LOOPBACK_GATEWAY_ERROR_CODES } from "@t3tools/shared/forkLoopbackGatewa
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  describeAllowPortFailure,
   describeGatewayCard,
   type GatewayCardKey,
   gatewayCardKeyForCode,
   gatewayCardKeyForState,
+  gatewayCardOffersAllow,
   gatewayCardOffersMove,
   gatewayCardPort,
+  resolveGatewayCardKey,
+  type GatewayCardInputs,
 } from "./gatewayCard";
 
 await loadUiCatalog("zh-Hans");
@@ -28,6 +32,7 @@ describe("gateway card", () => {
       reserved: "reserved",
       "debug-process": "debug-process",
       "discovery-disabled": "discovery-disabled",
+      "not-loopback": "not-loopback",
       "owner-changed": "owner-changed",
       "rate-limited": "limit",
       "limit-reached": "limit",
@@ -72,6 +77,7 @@ describe("gateway card", () => {
       "not-owned",
       "reserved",
       "debug-process",
+      "not-loopback",
       "unsupported-server",
       "insecure-transport",
       "insecure-transport-tailscale",
@@ -93,12 +99,43 @@ describe("gateway card", () => {
     expect(withheld.filter(gatewayCardOffersMove)).toEqual([]);
   });
 
-  it("explains a port that is not T3's, including a service that left its terminal", () => {
+  it("explains a port that is not T3's, including a service that left its terminal, and offers to allow it", () => {
     const { description } = describeGatewayCard("not-owned", context, en);
     expect(description).toContain("nohup");
-    expect(description).toContain("T3 terminal");
+    expect(description).toContain("T3 terminals");
+    expect(description).toContain("you can allow this port");
     expect(describeGatewayCard("not-owned", context, zh).description).toContain("nohup");
-    expect(describeGatewayCard("not-owned", context, zh).description).toContain("T3 的终端");
+    expect(describeGatewayCard("not-owned", context, zh).description).toContain("可以放行这个端口");
+    // Only a service nobody here started can be allowed; every other refusal stays one.
+    const keys = LOOPBACK_GATEWAY_ERROR_CODES.map(gatewayCardKeyForCode);
+    expect(keys.filter(gatewayCardOffersAllow)).toEqual(["not-owned"]);
+  });
+
+  it("says a service that listens on no loopback address cannot be reached through localhost", () => {
+    expect(describeGatewayCard("not-loopback", context, en)).toEqual({
+      title: "This service isn't listening on localhost",
+      description:
+        "It only listens on another address, which localhost can't reach. Make it listen on 127.0.0.1 as well.",
+    });
+    expect(describeGatewayCard("not-loopback", context, zh)).toEqual({
+      title: "这个服务没有监听 localhost",
+      description: "它只监听了别的地址，经 localhost 转发不到。让它同时监听 127.0.0.1。",
+    });
+  });
+
+  it("words every way allowing a port can fail, in both languages", () => {
+    for (const failure of [
+      "invalid-port",
+      "reserved",
+      "limit-reached",
+      "not-saved",
+      "failed",
+    ] as const) {
+      expect(describeAllowPortFailure(failure, zh), failure).not.toBe(
+        describeAllowPortFailure(failure, en),
+      );
+    }
+    expect(describeAllowPortFailure("limit-reached", en)).toContain("64");
   });
 
   it("tells a Tailscale IP address to use the MagicDNS name or https", () => {
@@ -128,6 +165,7 @@ describe("gateway card", () => {
             "not-owned",
             "reserved",
             "debug-process",
+            "not-loopback",
             "owner-changed",
             "upstream-refused",
             "offline",
@@ -156,6 +194,46 @@ describe("gateway card", () => {
       expect(chinese.description, key).not.toBe(english.description);
       expect(`${chinese.title}${chinese.description}`, key).not.toMatch(/\{\w+\}/u);
     }
+  });
+
+  describe("which card a tab shows, which is also when its webview steps aside", () => {
+    const base: GatewayCardInputs = {
+      startFailed: false,
+      held: false,
+      connecting: true,
+      denialCode: null,
+      loadFailed: false,
+      loopback: true,
+      state: { state: "active" },
+    };
+    const rows: ReadonlyArray<
+      readonly [string, Partial<GatewayCardInputs>, GatewayCardKey | null]
+    > = [
+      ["a page that loaded", {}, null],
+      ["a refusal", { denialCode: "not-owned" }, "not-owned"],
+      ["a refusal that is not about ownership", { denialCode: "reserved" }, "reserved"],
+      ["forwarding that could not start", { startFailed: true }, "start-failed"],
+      ["a held tab of an environment that is connecting", { held: true }, null],
+      ["a held tab of an environment that is not", { held: true, connecting: false }, "waiting"],
+      [
+        "a failed load while the environment cannot forward",
+        { loadFailed: true, state: { state: "unsupported-server" } },
+        "unsupported-server",
+      ],
+      [
+        "a failed load of a page that is not on localhost",
+        { loadFailed: true, loopback: false, state: { state: "unsupported-server" } },
+        null,
+      ],
+      [
+        "a refusal is stronger than the state",
+        { denialCode: "tls-untrusted", loadFailed: true },
+        "tls-untrusted",
+      ],
+    ];
+    it.each(rows)("%s", (_name, overrides, expected) => {
+      expect(resolveGatewayCardKey({ ...base, ...overrides })).toBe(expected);
+    });
   });
 
   const ports: ReadonlyArray<readonly [string, string, number | null]> = [

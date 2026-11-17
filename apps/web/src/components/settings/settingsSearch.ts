@@ -1066,6 +1066,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     targetId: "browser-profiles",
   },
   {
+    id: "loopback-allowed-ports", // fork: remote localhost forwarding
+    title: "Localhost forwarding",
+    to: "/settings/browser",
+    searchTerms: ["allowed ports remote environment forward localhost nohup remove"],
+  },
+  {
     id: "browser-default-viewport",
     title: "Default browser viewport",
     to: "/settings/browser",

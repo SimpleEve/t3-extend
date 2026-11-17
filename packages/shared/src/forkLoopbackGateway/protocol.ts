@@ -80,6 +80,8 @@ export const LOOPBACK_GATEWAY_SERVER_ERROR_STATUS = {
   "limit-reached": 429,
   internal: 500,
   "upstream-refused": 502,
+  /** The service listens, but on no loopback address, so a tunnel to localhost cannot reach it. */
+  "not-loopback": 502,
 } as const;
 
 export const LOOPBACK_GATEWAY_ERROR_CODES = [

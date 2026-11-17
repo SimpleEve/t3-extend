@@ -27,6 +27,8 @@ import {
   make as makeAuthorizer,
   type GatewayRefusal,
 } from "./PortAuthorizer.ts";
+import { memoryGrants } from "./grants.testkit.ts";
+import { LoopbackGatewayGrants } from "./LoopbackGatewayGrants.ts";
 import * as ProcessInspector from "./ProcessInspector.ts";
 import {
   TestProcesses,
@@ -57,6 +59,7 @@ const makeRig = Effect.gen(function* () {
   const scans = { background: 0, forced: 0 };
   const reads = { table: 0, startTime: 0, listeners: 0, listenersOf: 0, launchText: 0 };
   const override: Overrides = {};
+  const granted = new Set<number>();
   const rig = { snapshot: [] as Snapshot, shells: new Map<number, { startTime: string | null }>() };
   const counted = ProcessInspector.ProcessInspector.of({
     table: Effect.suspend(() => {
@@ -103,6 +106,7 @@ const makeRig = Effect.gen(function* () {
       shells: Effect.sync(() => rig.shells),
     }),
     Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
+    Effect.provideService(LoopbackGatewayGrants, memoryGrants(granted)),
   );
   /** Registers `pid` as a running terminal shell, with its real start time. */
   const registerShell = (pid: number) =>
@@ -110,7 +114,7 @@ const makeRig = Effect.gen(function* () {
   const nominate = (pid: number, port: number) => {
     rig.snapshot = [{ port, pid }];
   };
-  return { rig, scans, reads, override, authorizer, registerShell, nominate, real };
+  return { rig, scans, reads, override, authorizer, registerShell, nominate, real, granted };
 });
 
 /** "allowed", or the refusal code with its reason, so a mismatch in a list shows why. */
@@ -155,7 +159,12 @@ describe.runIf(runsOnRealProcesses)("authorizing a port against real processes",
         const port = Number(shell.info.port);
         x.nominate(Number(shell.info.pid), port);
         const target = yield* x.authorizer.authorize(port);
-        assert.deepEqual(target, { host: expected, port, pid: Number(shell.info.pid) });
+        assert.deepEqual(target, {
+          host: expected,
+          port,
+          pid: Number(shell.info.pid),
+          owner: "terminal",
+        });
       }
     }).pipe(Effect.scoped, Effect.provide(rigLayer)),
   );
@@ -176,6 +185,7 @@ describe.runIf(runsOnRealProcesses)("authorizing a port against real processes",
         host: "127.0.0.1",
         port,
         pid: Number(shell.info.pid),
+        owner: "terminal",
       });
       // That was the interval's one read: a second service a moment later waits for the next.
       const readsBefore = x.reads.listeners;
@@ -208,6 +218,47 @@ describe.runIf(runsOnRealProcesses)("authorizing a port against real processes",
       const processes = yield* TestProcesses;
       const orphan = yield* processes.spawnWithJob({ mode: "orphan" });
       yield* expectCode(x.authorizer.authorize(orphan.jobPort), "not-owned");
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  // `nohup uv run ... &` from a script that then exits: adopted by launchd, outside this server's subtree.
+  it.live("forwards a detached service once its port is allowed, and only then", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      const processes = yield* TestProcesses;
+      const orphan = yield* processes.spawnWithJob({ mode: "orphan" });
+      yield* expectCode(x.authorizer.authorize(orphan.jobPort), "not-owned");
+      x.granted.add(orphan.jobPort);
+      assert.deepEqual(yield* x.authorizer.authorize(orphan.jobPort), {
+        host: "127.0.0.1",
+        port: orphan.jobPort,
+        pid: orphan.jobPid,
+        owner: "user",
+      });
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  it.live("never answers not-owned for an allowed port whose listener could not be read", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      x.granted.add(45000);
+      x.override.listeners = Effect.fail(
+        new ProcessInspector.ProcessInspectError({ reason: "lsof failed" }),
+      );
+      yield* expectCode(x.authorizer.authorize(45000), "owner-changed");
+      // Not throttled like the shared read: the second try reads again.
+      yield* expectCode(x.authorizer.authorize(45000), "owner-changed");
+      assert.equal(x.reads.listeners, 2);
+    }).pipe(Effect.scoped, Effect.provide(rigLayer)),
+  );
+
+  it.live("keeps refusing the server's other children even when their port is allowed (E2)", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      const processes = yield* TestProcesses;
+      const direct = yield* processes.listen("127.0.0.1");
+      x.granted.add(direct.port);
+      yield* expectCode(x.authorizer.authorize(direct.port), "reserved");
     }).pipe(Effect.scoped, Effect.provide(rigLayer)),
   );
 
@@ -711,6 +762,7 @@ describe("the rescan on a miss", () => {
           shells: Effect.succeed(new Map()),
         }),
         Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
+        Effect.provideService(LoopbackGatewayGrants, memoryGrants()),
       );
       const miss = () => expectCode(authorizer.authorize(45001), "not-owned");
       yield* miss();
@@ -758,6 +810,7 @@ describe("the read that tells an empty port from an owned one", () => {
           shells: Effect.succeed(new Map()),
         }),
         Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
+        Effect.provideService(LoopbackGatewayGrants, memoryGrants()),
       );
       const burst = (port: number, count: number) =>
         Effect.all(
@@ -815,6 +868,7 @@ describe("a read of an empty port that is interrupted", () => {
           shells: Effect.succeed(new Map()),
         }),
         Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
+        Effect.provideService(LoopbackGatewayGrants, memoryGrants()),
       );
       const reader = yield* Effect.forkChild(authorizer.authorize(45020));
       yield* Deferred.await(started);
@@ -852,6 +906,7 @@ describe("a read of an empty port that is interrupted", () => {
             shells: Effect.succeed(new Map()),
           }),
           Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
+          Effect.provideService(LoopbackGatewayGrants, memoryGrants()),
         );
         yield* Fiber.await(yield* Effect.forkChild(authorizer.authorize(45021)));
         // Same interval, same port: this one shares the read the interrupted request claimed.

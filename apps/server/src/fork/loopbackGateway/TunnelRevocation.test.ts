@@ -89,6 +89,52 @@ describe("tunnel lifetime", () => {
     }).pipe(Effect.scoped, Effect.provide(layerGateway)),
   );
 
+  describe("a port the user stops allowing", () => {
+    const vouchedBy = (owner: "terminal" | "user") => (port: number) =>
+      Effect.succeed({ host: "127.0.0.1" as const, port, pid: 1, owner });
+
+    it.effect("closes the tunnels that only the allowed port vouched for, and no others", () =>
+      Effect.gen(function* () {
+        const gateway = yield* Gateway;
+        const service = yield* countingService;
+        const { ticket } = yield* issueSessionTicket();
+        yield* gateway.grants.allow(service.port);
+        gateway.setAuthorize(vouchedBy("user"));
+        const allowedWs = yield* openAndCheck(gateway.mainPort, ticket, service.port);
+        const socket = yield* Deferred.await(service.connected);
+        gateway.setAuthorize(vouchedBy("terminal"));
+        const terminalWs = yield* openAndCheck(gateway.mainPort, ticket, service.port);
+
+        const wsClosed = closed(allowedWs);
+        const serviceClosed = closed(socket);
+        yield* gateway.grants.remove(service.port);
+        yield* wsClosed;
+        yield* serviceClosed;
+        // The terminal's tunnel on the same port is not the user's to take away.
+        assert.equal(terminalWs.readyState, terminalWs.OPEN);
+        const terminalClosed = closed(terminalWs);
+        terminalWs.close();
+        yield* terminalClosed;
+      }).pipe(Effect.scoped, Effect.provide(layerGateway)),
+    );
+
+    it.effect("refuses a tunnel whose port was removed while it was being checked", () =>
+      Effect.gen(function* () {
+        const gateway = yield* Gateway;
+        const service = yield* countingService;
+        const { ticket } = yield* issueSessionTicket();
+        // The check said `user`, but the list no longer has the port by the time it is watched.
+        gateway.setAuthorize(vouchedBy("user"));
+        const attempt = yield* openTunnel(gateway.mainPort, {
+          ticket,
+          query: `port=${service.port}`,
+        });
+        assert.equal(attempt._tag, "refused");
+        assert.equal(service.state.connections, 0);
+      }).pipe(Effect.scoped, Effect.provide(layerGateway)),
+    );
+  });
+
   it.effect("closes both ends when the session expires", () =>
     Effect.gen(function* () {
       const gateway = yield* Gateway;
@@ -218,7 +264,7 @@ describe("revocation racing the upgrade", () => {
           Deferred.succeed(entered, undefined).pipe(
             Effect.andThen(Effect.never),
             Effect.onInterrupt(() => Deferred.succeed(left, undefined)),
-            Effect.as({ host: "127.0.0.1" as const, port, pid: 1 }),
+            Effect.as({ host: "127.0.0.1" as const, port, pid: 1, owner: "terminal" as const }),
           ),
         );
         const attempt = yield* Effect.forkChild(
