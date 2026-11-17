@@ -16,7 +16,6 @@ import { FORK_PUSH_GUARDED_RPC_SCOPES } from "./forkPush.ts"; // fork: UnifiedPu
 import { FORK_DEVICE_KEYS_GUARDED_RPC_SCOPES } from "./forkDeviceKeys.ts"; // fork: self-hosted pairing
 import {
   FORK_LOOPBACK_GATEWAY_GUARDED_RPC_SCOPES,
-  FORK_LOOPBACK_GATEWAY_WS_METHODS,
   LOOPBACK_GATEWAY_REQUIRED_SCOPES,
 } from "./forkLoopbackGateway.ts"; // fork: loopback gateway
 import { ORCHESTRATION_V2_WS_METHODS } from "./orchestrationV2.ts";
@@ -113,7 +112,7 @@ export function clientRpcRequiredScopes(
     )
       return [AuthSourceControlWriteScope, AuthOrchestrationReadScope];
   }
-  if (method === FORK_LOOPBACK_GATEWAY_WS_METHODS.issueTicket)
+  if (Object.hasOwn(FORK_LOOPBACK_GATEWAY_GUARDED_RPC_SCOPES, method))
     return LOOPBACK_GATEWAY_REQUIRED_SCOPES; // fork: loopback gateway
   return Object.hasOwn(CLIENT_GUARDED_RPC_SCOPES, method)
     ? [CLIENT_GUARDED_RPC_SCOPES[method as ClientGuardedRpcTag]]

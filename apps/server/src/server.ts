@@ -1383,6 +1383,7 @@ const layerMakeServer = Layer.unwrap(
       Layer.provideMerge(AgentScopeLive.layer),
       // fork: below every layer that builds a Git driver or removes worktrees, so all of them see it.
       Layer.provideMerge(SharedWorktrees.layer.pipe(Layer.provide(SqlitePersistence.layerConfig))),
+      Layer.provide(LoopbackGateway.layerGrants), // fork: the RPC handlers read the allowed ports
       Layer.provideMerge(layerPlatformServices),
       Layer.provide(Layer.succeed(HostProcess.InvokedAs, invokedAs)),
     );

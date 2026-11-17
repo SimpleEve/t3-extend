@@ -80,6 +80,8 @@ export default {
     "此端口上的服务刚刚变了。请重新加载再试。",
   "Nothing is listening on this port in the remote environment. Start the service, then reload.":
     "远程环境里没有程序在监听此端口。请先启动服务，再重新加载。",
+  "This service doesn't listen on localhost. It only listens on another address, which localhost can't reach. Make it listen on 127.0.0.1 as well.":
+    "这个服务没有监听 localhost，只监听了别的地址，经 localhost 转发不到。请让它同时监听 127.0.0.1。",
   "The remote environment can't be reached.": "连不上远程环境。",
   "This connection is not allowed to forward ports.": "此连接没有转发端口的权限。",
   "Reconnecting to the remote environment...": "正在重新连接远程环境…",

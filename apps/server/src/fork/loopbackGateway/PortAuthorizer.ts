@@ -22,6 +22,7 @@ import * as ServerConfig from "../../config.ts";
 import * as PortScanner from "../../preview/PortScanner.ts";
 import * as ServerSettings from "../../serverSettings.ts";
 import { classifyListener } from "./GatewayExclusions.ts";
+import * as LoopbackGatewayGrants from "./LoopbackGatewayGrants.ts";
 import * as ProcessInspector from "./ProcessInspector.ts";
 import type { ListenerEntry } from "./ProcessInspector.ts";
 import type { ExtraExecutable } from "./RuntimeSignatures.ts";
@@ -115,6 +116,11 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
   const inspector = yield* ProcessInspector.ProcessInspector;
   const shells = yield* TerminalShellRegistry.TerminalShellRegistry;
   const configured = yield* ConfiguredExecutables;
+  const grants = yield* LoopbackGatewayGrants.LoopbackGatewayGrants;
+  // The user's allowed ports, read for each authorization and each batch; no copy is kept here.
+  const grantedPorts = grants.list.pipe(
+    Effect.map((entries) => new Set(entries.map((entry) => entry.port))),
+  );
   const lastRescan = yield* Ref.make<number | null>(null);
 
   // A miss or a failed check may mean the snapshot is stale: scan again, but not more than once
@@ -178,6 +184,7 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
     const launchOf = new Map(pids.map((pid, index) => [pid, launches[index]!]));
     const shellsNow = yield* shells.shells;
     const extraExecutables = yield* configured.read;
+    const grantedNow = yield* grantedPorts;
 
     // C2: prove ownership of each instance now.
     const outcomes = batch.map((request): Outcome => {
@@ -199,13 +206,14 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
         listenerPid: pid,
         launchText,
         shells: shellsNow,
+        granted: grantedNow.has(port),
         extraExecutables,
         resolvePath: realPathOf,
       });
       if (!verdict.allow) return { refusal: refuse(verdict.code, verdict.reason) };
       const host = chooseDialHost(listeners);
       return host === null
-        ? { refusal: refuse("not-owned", "the service is not bound to loopback") }
+        ? { refusal: refuse("not-loopback", "the service is not bound to loopback") }
         : { host, first: row.startTime };
     });
 
@@ -347,25 +355,35 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
     ),
   );
 
+  // A port the user allowed is not in the snapshot, which only lists owned servers, and the shared
+  // read above may be skipped for the interval. This one is not throttled: the user is waiting on
+  // it, and only the ports they allowed come here.
+  const readGrantedListeners = (port: number) =>
+    inspector.listeners([port]).pipe(
+      Effect.map(([entries]) => describeListeners(entries)),
+      Effect.orElseSucceed(() => UNKNOWN),
+    );
+
   const authorize = Effect.fn("LoopbackGateway.authorize")(function* (port: number) {
     if (LOOPBACK_GATEWAY_BLOCKED_PORTS.has(port) || (yield* options.reservedPorts).has(port)) {
       return yield* refuse("reserved", "this port is reserved");
     }
+    const granted = (yield* grantedPorts).has(port);
     let pid = nominate(yield* discovery.scanBackground(), port);
-    if (pid === null) {
+    if (pid === null && !granted) {
       const rescanned = yield* rescanIfAllowed;
       pid = rescanned === null ? null : nominate(rescanned, port);
     }
     if (pid === null) {
-      const read = yield* readListeners(port);
+      const read = granted ? yield* readGrantedListeners(port) : yield* readListeners(port);
       if (read.kind === "empty") {
         return yield* refuse("upstream-refused", "nothing is listening on this port");
       }
       if (read.kind === "unknown") {
-        return yield* refuse(
-          "not-owned",
-          "no terminal or agent of this environment owns this port",
-        );
+        // A port the user allowed is never `not-owned`: the card would offer to allow it again.
+        return yield* granted
+          ? refuse("owner-changed", "the listener of an allowed port could not be identified")
+          : refuse("not-owned", "no terminal or agent of this environment owns this port");
       }
       pid = read.pid;
     }

@@ -20,6 +20,8 @@ import {
 import { GatewayLimits, makeGatewayLimits } from "./GatewayLimits.ts";
 import { makeLoopbackGatewayRpcHandlers } from "./rpcHandlers.ts";
 import { GATEWAY_SCOPES, Gateway, layerGateway } from "./gatewayHarness.testkit.ts";
+import { memoryGrants } from "./grants.testkit.ts";
+import { LoopbackGatewayGrants } from "./LoopbackGatewayGrants.ts";
 
 describe("capability advertisement", () => {
   const cases = [
@@ -48,7 +50,7 @@ const issueTicket = (session: Parameters<typeof makeLoopbackGatewayRpcHandlers>[
   Effect.gen(function* () {
     const handlers = yield* makeLoopbackGatewayRpcHandlers(session);
     return yield* handlers[FORK_LOOPBACK_GATEWAY_WS_METHODS.issueTicket]();
-  });
+  }).pipe(Effect.provideService(LoopbackGatewayGrants, memoryGrants()));
 
 describe("loopbackGateway.issueTicket", () => {
   it.effect("mints a ticket for the gateway audience that carries the session's DPoP key", () =>
@@ -119,6 +121,33 @@ describe("loopbackGateway.issueTicket", () => {
     }).pipe(
       Effect.provideService(GatewayAvailabilityOverride, { available: true }),
       Effect.provideService(GatewayLimits, makeGatewayLimits()),
+      Effect.provide(layerGateway),
+    ),
+  );
+});
+
+describe("the allowed-ports RPCs", () => {
+  it.effect("list, allow and remove answer with the whole list each time", () =>
+    Effect.gen(function* () {
+      const handlers = yield* makeLoopbackGatewayRpcHandlers({
+        sessionId: AuthSessionId.make("s"),
+      });
+      const M = FORK_LOOPBACK_GATEWAY_WS_METHODS;
+      assert.deepEqual(yield* handlers[M.listAllowedPorts](), { ports: [] });
+      yield* handlers[M.allowPort]({ port: 7733 });
+      const both = yield* handlers[M.allowPort]({ port: 8080 });
+      assert.deepEqual(
+        both.ports.map((entry) => entry.port),
+        [7733, 8080],
+      );
+      const left = yield* handlers[M.removeAllowedPort]({ port: 7733 });
+      assert.deepEqual(
+        left.ports.map((entry) => entry.port),
+        [8080],
+      );
+      assert.deepEqual(yield* handlers[M.listAllowedPorts](), left);
+    }).pipe(
+      Effect.provideService(LoopbackGatewayGrants, memoryGrants()),
       Effect.provide(layerGateway),
     ),
   );

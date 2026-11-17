@@ -15,6 +15,8 @@ import {
   make as makeAuthorizer,
   type GatewayRefusal,
 } from "./PortAuthorizer.ts";
+import { memoryGrants } from "./grants.testkit.ts";
+import { LoopbackGatewayGrants } from "./LoopbackGatewayGrants.ts";
 import * as ProcessInspector from "./ProcessInspector.ts";
 import * as TerminalShellRegistry from "./TerminalShellRegistry.ts";
 
@@ -49,7 +51,14 @@ const tableOf = (world: World): ProcessInspector.ProcessTable => {
 const entriesOn = (world: World, port: number) => {
   const found: Array<ProcessInspector.ListenerEntry> = [];
   for (const n of world.alive) {
-    if (jobPort(n) === port) found.push({ pid: jobPid(n), address: "127.0.0.1", family: "IPv4" });
+    // Job 3 listens on a LAN address only.
+    if (jobPort(n) === port) {
+      found.push({
+        pid: jobPid(n),
+        address: n === 3 ? "192.168.1.5" : "127.0.0.1",
+        family: "IPv4",
+      });
+    }
   }
   if (world.strayAlive && port === 5400) {
     found.push({ pid: 400, address: "127.0.0.1", family: "IPv4" });
@@ -118,7 +127,7 @@ const makeRig = Effect.gen(function* () {
           queueMicrotask(() => Deferred.doneUnsafe(latch, Effect.void));
         }
         // The nomination is the same for every call; the reads decide.
-        return [1, 2]
+        return [1, 2, 3]
           .map((n) => ({ port: jobPort(n), pid: jobPid(n) }))
           .concat([{ port: 5400, pid: 400 }]) as never;
       }),
@@ -133,6 +142,7 @@ const makeRig = Effect.gen(function* () {
       shells: Effect.succeed(new Map([[SHELL, { startTime: `${START} ${SHELL}` }]])),
     }),
     Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
+    Effect.provideService(LoopbackGatewayGrants, memoryGrants()),
   );
   /** Starts `ports.length` tunnels at once and resolves once each has joined the collection window. */
   const arrive = Effect.fn("arrive")(function* (ports: ReadonlyArray<number>) {
@@ -180,6 +190,16 @@ describe("batched verification", () => {
       assert.equal(x.calls.listenersOf.length, 1);
       assert.equal(x.calls.listenersOf[0]!.length, 7);
       assert.deepEqual(x.calls.startTime.toSorted(), [301, 302]);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("a service that listens on no loopback address is not-loopback, not not-owned", () =>
+    Effect.gen(function* () {
+      const x = yield* makeRig;
+      x.world.alive.add(3);
+      const [fiber] = yield* x.arrive([5003]);
+      yield* x.closeWindow;
+      assert.equal(verdict(yield* Fiber.join(fiber!)), "not-loopback");
     }).pipe(Effect.scoped),
   );
 

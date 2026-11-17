@@ -7,7 +7,7 @@ import {
   EnvironmentAuthorizationError,
   type AuthWebSocketTicketUse,
 } from "./auth.ts";
-import { TrimmedNonEmptyString } from "./baseSchemas.ts";
+import { PortSchema, TrimmedNonEmptyString } from "./baseSchemas.ts";
 
 // fork: forwarding a remote environment's loopback services to a locally rendered desktop tab
 // (research/remote-loopback-forwarding.md). Wire format only; the tunnel route's constants are in
@@ -15,6 +15,9 @@ import { TrimmedNonEmptyString } from "./baseSchemas.ts";
 
 export const FORK_LOOPBACK_GATEWAY_WS_METHODS = {
   issueTicket: "loopbackGateway.issueTicket",
+  listAllowedPorts: "loopbackGateway.listAllowedPorts",
+  allowPort: "loopbackGateway.allowPort",
+  removeAllowedPort: "loopbackGateway.removeAllowedPort",
 } as const;
 
 /** The only audience the tunnel route accepts (design 4.4); tickets with none or another are refused. */
@@ -69,16 +72,98 @@ const WsLoopbackGatewayIssueTicketRpc = Rpc.make(FORK_LOOPBACK_GATEWAY_WS_METHOD
   error: LoopbackGatewayRpcError,
 });
 
-/** Not yet in `WsRpcGroup`: adding it needs the server handler, which lands with the server half. */
-export const FORK_LOOPBACK_GATEWAY_RPCS = [WsLoopbackGatewayIssueTicketRpc] as const;
+/**
+ * A port the user allowed by hand: the service on it was not started by a terminal or an agent, so
+ * the ownership rules refuse it, and the user chose to forward it anyway. Kept on the environment
+ * and shared by every device and session of it.
+ */
+export const LoopbackGatewayAllowedPort = Schema.Struct({
+  port: PortSchema,
+  allowedAt: Schema.DateTimeUtc,
+});
+export type LoopbackGatewayAllowedPort = typeof LoopbackGatewayAllowedPort.Type;
+
+/** The whole list after the call, so a caller never has to guess what a change did. */
+export const LoopbackGatewayAllowedPortsResult = Schema.Struct({
+  ports: Schema.Array(LoopbackGatewayAllowedPort),
+});
+export type LoopbackGatewayAllowedPortsResult = typeof LoopbackGatewayAllowedPortsResult.Type;
+
+export const LoopbackGatewayListAllowedPortsInput = Schema.Struct({});
+export type LoopbackGatewayListAllowedPortsInput = typeof LoopbackGatewayListAllowedPortsInput.Type;
+
+/** An integer here, not `PortSchema`, so an out-of-range port is a typed `invalid-port` and not a decode failure. */
+export const LoopbackGatewayAllowedPortInput = Schema.Struct({ port: Schema.Int });
+export type LoopbackGatewayAllowedPortInput = typeof LoopbackGatewayAllowedPortInput.Type;
+
+export const LoopbackGatewayAllowedPortFailure = Schema.Literals([
+  /** Not 1 to 65535. */
+  "invalid-port",
+  /** A debugger or container socket port, or the port of this server itself. */
+  "reserved",
+  /** The list is full (64). */
+  "limit-reached",
+  /** The list could not be written to disk, so nothing changed. */
+  "not-saved",
+]);
+export type LoopbackGatewayAllowedPortFailure = typeof LoopbackGatewayAllowedPortFailure.Type;
+
+export class LoopbackGatewayAllowedPortError extends Schema.TaggedError<LoopbackGatewayAllowedPortError>()(
+  "LoopbackGatewayAllowedPortError",
+  {
+    reason: LoopbackGatewayAllowedPortFailure,
+    message: Schema.String,
+  },
+) {}
+
+const LoopbackGatewayAllowedPortRpcError = Schema.Union([
+  LoopbackGatewayAllowedPortError,
+  EnvironmentAuthorizationError,
+]);
+
+const WsLoopbackGatewayListAllowedPortsRpc = Rpc.make(
+  FORK_LOOPBACK_GATEWAY_WS_METHODS.listAllowedPorts,
+  {
+    payload: LoopbackGatewayListAllowedPortsInput,
+    success: LoopbackGatewayAllowedPortsResult,
+    error: EnvironmentAuthorizationError,
+  },
+);
+
+// There is deliberately no MCP tool for these: allowing a port is something the user does in the
+// interface, never something an agent can do for itself.
+const WsLoopbackGatewayAllowPortRpc = Rpc.make(FORK_LOOPBACK_GATEWAY_WS_METHODS.allowPort, {
+  payload: LoopbackGatewayAllowedPortInput,
+  success: LoopbackGatewayAllowedPortsResult,
+  error: LoopbackGatewayAllowedPortRpcError,
+});
+
+const WsLoopbackGatewayRemoveAllowedPortRpc = Rpc.make(
+  FORK_LOOPBACK_GATEWAY_WS_METHODS.removeAllowedPort,
+  {
+    payload: LoopbackGatewayAllowedPortInput,
+    success: LoopbackGatewayAllowedPortsResult,
+    error: LoopbackGatewayAllowedPortRpcError,
+  },
+);
+
+export const FORK_LOOPBACK_GATEWAY_RPCS = [
+  WsLoopbackGatewayIssueTicketRpc,
+  WsLoopbackGatewayListAllowedPortsRpc,
+  WsLoopbackGatewayAllowPortRpc,
+  WsLoopbackGatewayRemoveAllowedPortRpc,
+] as const;
 
 /**
- * The table `CLIENT_GUARDED_RPC_SCOPES` spreads (one scope per method) once the RPC is in
- * `WsRpcGroup`; before that the server's `RPC_REQUIRED_SCOPES` would name an RPC the group lacks.
- * `clientRpcRequiredScopes` returns `LOOPBACK_GATEWAY_REQUIRED_SCOPES` for it either way.
+ * The table `CLIENT_GUARDED_RPC_SCOPES` spreads (one scope per method).
+ * `clientRpcRequiredScopes` returns `LOOPBACK_GATEWAY_REQUIRED_SCOPES` for each of them, so every
+ * method needs the preview and the terminal grant together.
  */
 export const FORK_LOOPBACK_GATEWAY_GUARDED_RPC_SCOPES = {
   [FORK_LOOPBACK_GATEWAY_WS_METHODS.issueTicket]: AuthPreviewOperateScope,
+  [FORK_LOOPBACK_GATEWAY_WS_METHODS.listAllowedPorts]: AuthPreviewOperateScope,
+  [FORK_LOOPBACK_GATEWAY_WS_METHODS.allowPort]: AuthPreviewOperateScope,
+  [FORK_LOOPBACK_GATEWAY_WS_METHODS.removeAllowedPort]: AuthPreviewOperateScope,
 } as const;
 
 /**
@@ -87,4 +172,7 @@ export const FORK_LOOPBACK_GATEWAY_GUARDED_RPC_SCOPES = {
  */
 export const FORK_LOOPBACK_GATEWAY_RPC_AGGREGATES = {
   [FORK_LOOPBACK_GATEWAY_WS_METHODS.issueTicket]: "loopbackGateway",
+  [FORK_LOOPBACK_GATEWAY_WS_METHODS.listAllowedPorts]: "loopbackGateway",
+  [FORK_LOOPBACK_GATEWAY_WS_METHODS.allowPort]: "loopbackGateway",
+  [FORK_LOOPBACK_GATEWAY_WS_METHODS.removeAllowedPort]: "loopbackGateway",
 } as const;

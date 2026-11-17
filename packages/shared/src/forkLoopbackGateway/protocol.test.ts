@@ -131,6 +131,7 @@ describe("constants", () => {
       "rate-limited",
       "debug-process",
       "owner-changed",
+      "not-loopback",
     ]) {
       expect(LOOPBACK_GATEWAY_ERROR_CODES).toContain(code);
     }
@@ -160,6 +161,7 @@ describe("error body", () => {
       expect(status).toBeLessThan(600);
     }
     expect(LOOPBACK_GATEWAY_SERVER_ERROR_STATUS["upstream-refused"]).toBe(502);
+    expect(LOOPBACK_GATEWAY_SERVER_ERROR_STATUS["not-loopback"]).toBe(502);
     expect(LOOPBACK_GATEWAY_SERVER_ERROR_STATUS["rate-limited"]).toBe(429);
   });
 });

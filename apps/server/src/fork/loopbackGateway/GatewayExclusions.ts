@@ -18,7 +18,7 @@ export interface ShellEntry {
 export type ExclusionRule = "E1" | "E2" | "E3" | "E4" | "E5" | "E7" | "none";
 
 export type ClassifyVerdict =
-  | { readonly allow: true; readonly owner: "terminal" | "agent" }
+  | { readonly allow: true; readonly owner: "terminal" | "agent" | "user" }
   | {
       readonly allow: false;
       readonly code: "reserved" | "not-owned" | "debug-process";
@@ -56,6 +56,12 @@ export interface ClassifyInput {
   readonly launchText: string;
   /** The terminal shells that are running now. */
   readonly shells: ReadonlyMap<number, ShellEntry>;
+  /**
+   * The user allowed this port by hand. It turns the two `not-owned` refusals into an allow and
+   * changes nothing else: this server, its other children, provider runtimes and debug processes
+   * stay refused.
+   */
+  readonly granted: boolean;
   readonly extraExecutables?: ReadonlyArray<ExtraExecutable>;
   /** Real paths for configured binaries; the identity when absent. */
   readonly resolvePath?: ResolvePath;
@@ -88,8 +94,11 @@ export const classifyListener = (input: ClassifyInput): ClassifyVerdict => {
   if (serverIndex < 0) {
     // No longer anyone's child of this server (or never): a leftover runtime's tree is excluded
     // outright, and anything else cannot show that this server's agent or terminal started it.
-    return chain.some((row) => matchesRuntime(row.args, extra, resolve))
-      ? deny("reserved", "E4", "the process runs under a leftover provider runtime")
+    if (chain.some((row) => matchesRuntime(row.args, extra, resolve))) {
+      return deny("reserved", "E4", "the process runs under a leftover provider runtime");
+    }
+    return input.granted
+      ? { allow: true, owner: "user" }
       : deny("not-owned", "E5", "the process is not a descendant of this server");
   }
 
@@ -113,5 +122,7 @@ export const classifyListener = (input: ClassifyInput): ClassifyVerdict => {
   if (driver.agentJobs && hasAgentMarker(input.launchText)) {
     return { allow: true, owner: "agent" };
   }
-  return deny("not-owned", "E5", "not started by a terminal or by an agent of this server");
+  return input.granted
+    ? { allow: true, owner: "user" }
+    : deny("not-owned", "E5", "not started by a terminal or by an agent of this server");
 };

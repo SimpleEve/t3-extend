@@ -657,3 +657,45 @@ describe("loopback gateway ticket permissions", () => {
     ),
   );
 });
+
+// fork: the allowed-ports RPCs take the same two grants as the ticket
+describe.each([
+  FORK_LOOPBACK_GATEWAY_WS_METHODS.listAllowedPorts,
+  FORK_LOOPBACK_GATEWAY_WS_METHODS.allowPort,
+  FORK_LOOPBACK_GATEWAY_WS_METHODS.removeAllowedPort,
+])("loopback gateway allowed-ports permissions: %s", (method) => {
+  const granting = (scopes: NonNullable<AuthSessionState["scopes"]>): AuthSessionState => ({
+    ...grant(false),
+    scopes,
+    permissions: scopes,
+  });
+
+  it("asks for the preview and the terminal grant together", () => {
+    expect(clientRpcRequiredScopes(method, { port: 7733 })).toEqual([
+      AuthPreviewOperateScope,
+      AuthTerminalOperateScope,
+    ]);
+  });
+
+  it.effect("is refused unless the destination grants both", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const registry = yield* setup;
+        const command = createCommandPermissions(runtime, method);
+        for (const scopes of [[], [AuthPreviewOperateScope], [AuthTerminalOperateScope]] as const) {
+          registry.set(sessions(env), AsyncResult.success(granting(scopes)));
+          expect(registry.get(command.permissionAtom(env))).toBe(false);
+          expect((yield* command.authorize(registry, env).pipe(Effect.flip))._tag).toBe(
+            "EnvironmentAuthorizationError",
+          );
+        }
+        registry.set(
+          sessions(env),
+          AsyncResult.success(granting([AuthPreviewOperateScope, AuthTerminalOperateScope])),
+        );
+        expect(registry.get(command.permissionAtom(env))).toBe(true);
+        yield* command.authorize(registry, env);
+      }),
+    ),
+  );
+});
