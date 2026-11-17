@@ -2310,7 +2310,8 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
                   type: "thread.metadata.update",
                   commandId: CommandId.make("rename-while-importing"),
                   threadId: REAL,
-                  title: "Typed while importing",
+                  // fork: a title change also queues a provider-session effect upstream, which reads as busy
+                  branch: "typed-while-importing",
                 })
                 .pipe(Effect.forkChild);
               yield* Deferred.await(gate.entered);
