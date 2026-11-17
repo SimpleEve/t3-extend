@@ -10,6 +10,7 @@ import * as Path from "effect/Path";
 import * as TestClock from "effect/testing/TestClock";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
 
+import type { AntigravityCliLoginRead } from "./antigravityCliLogin.ts";
 import { makeAntigravityUsageProbe } from "./antigravityUsageLimits.ts";
 
 const summary = {
@@ -67,6 +68,8 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
     missingToken?: boolean;
     authMethod?: "oauth-personal" | "oauth-business" | "gemini-api-key";
     sharedLogin?: boolean;
+    /** What the keychain reader answers; without it the probe has no way to read the agy CLI sign-in. */
+    cliLogin?: () => AntigravityCliLoginRead;
   } = {},
 ) {
   const fs = yield* FileSystem.FileSystem;
@@ -112,7 +115,7 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
             : Response.json({}, { status: 403 }),
         );
       }
-      expect(JSON.parse(body)).toEqual({ project: "project-id" });
+      expect(JSON.parse(body)).toEqual(options.sharedLogin ? {} : { project: "project-id" });
       expect(request.headers["user-agent"]).toMatch(/^antigravity\/hub\/2\.24\.0 /);
       return HttpClientResponse.fromWeb(
         request,
@@ -130,12 +133,22 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
       ),
     ),
   );
+  const cliReads = { count: 0 };
+  const cliLogin = options.cliLogin;
   const usage = yield* makeAntigravityUsageProbe({
     profileDirectory,
     authMethod: options.authMethod ?? "oauth-personal",
     ...(options.sharedLogin ? { sharedLogin: true } : {}),
+    ...(cliLogin
+      ? {
+          readCliLogin: Effect.sync(() => {
+            cliReads.count += 1;
+            return cliLogin();
+          }),
+        }
+      : {}),
   }).pipe(Effect.provideService(HttpClient.HttpClient, http));
-  return { ...usage, requests, writeToken, tokenPath };
+  return { ...usage, requests, writeToken, tokenPath, cliReads };
 });
 
 describe("Antigravity subscription limits", () => {
@@ -677,6 +690,133 @@ describe("Antigravity subscription limits", () => {
       expect(requests).toEqual([]);
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
+
+  // fork: the shared login's access token comes from the keychain reader, never from a refresh.
+  describe("with the agy CLI sign-in", () => {
+    const signedIn = (
+      expiresAt: number,
+      refreshToken = "cli-refresh-a",
+    ): AntigravityCliLoginRead => ({
+      _tag: "found",
+      login: { accessToken: "access-token", refreshToken, expiresAt },
+    });
+    const HOUR = 60 * 60_000;
+
+    it.effect("reads limits with the keychain access token and never refreshes or writes it", () =>
+      Effect.gen(function* () {
+        const { probe, requests, cliReads } = yield* fixture({
+          sharedLogin: true,
+          missingToken: true,
+          userId: "google-user-1",
+          cliLogin: () => signedIn(HOUR),
+        });
+        const limits = yield* probe;
+        expect(limits.unavailable).toBeUndefined();
+        expect(limits.windows.map((window) => window.id).toSorted()).toEqual([
+          "3p-5h",
+          "3p-weekly",
+          "gemini-5h",
+          "gemini-weekly",
+        ]);
+        expect(requests.some((request) => request.url.endsWith("/token"))).toBe(false);
+        // A second poll reuses the read and the account lookup.
+        const userInfoRequests = requests.filter((request) => request.url.endsWith("/userinfo"));
+        yield* probe;
+        expect(cliReads.count).toBe(1);
+        expect(requests.filter((request) => request.url.endsWith("/userinfo"))).toEqual(
+          userInfoRequests,
+        );
+        expect(JSON.stringify(limits)).not.toMatch(/access-token|cli-refresh|google-user-1/);
+      }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+    );
+
+    it.effect("names the account like a separate sign-in of the same Google account", () =>
+      Effect.gen(function* () {
+        const shared = yield* fixture({
+          sharedLogin: true,
+          userId: "google-user-1",
+          cliLogin: () => signedIn(HOUR),
+        }).pipe(Effect.flatMap((usage) => usage.probe));
+        const separate = yield* fixture({ userId: "google-user-1" }).pipe(
+          Effect.flatMap((usage) => usage.probe),
+        );
+        expect(shared.credentialFingerprint).toBe(separate.credentialFingerprint);
+      }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+    );
+
+    it.effect(
+      "asks the keychain again only when the access token is about to expire or after sign-out",
+      () =>
+        Effect.gen(function* () {
+          const { probe, clear, cliReads } = yield* fixture({
+            sharedLogin: true,
+            cliLogin: () => signedIn(HOUR),
+          });
+          yield* probe;
+          yield* TestClock.adjust("50 minutes");
+          yield* probe;
+          expect(cliReads.count).toBe(1);
+          yield* TestClock.adjust(9.5 * 60_000);
+          yield* probe;
+          expect(cliReads.count).toBe(2);
+          yield* clear;
+          yield* probe;
+          expect(cliReads.count).toBe(3);
+        }).pipe(
+          Effect.scoped,
+          Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
+        ),
+    );
+
+    it.effect("says so when the agy CLI is signed out, without any request", () =>
+      Effect.gen(function* () {
+        const { probe, requests } = yield* fixture({
+          sharedLogin: true,
+          cliLogin: () => ({ _tag: "missing" }),
+        });
+        const limits = yield* probe;
+        expect(limits.unavailable?.reason).toBe("unsupported");
+        expect(limits.unavailable?.message).toContain("not signed in");
+        expect(requests).toEqual([]);
+      }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+    );
+
+    it.effect("does not ask a refused keychain on every poll, and says what to do", () =>
+      Effect.gen(function* () {
+        const { probe, clear, requests, cliReads } = yield* fixture({
+          sharedLogin: true,
+          cliLogin: () => ({ _tag: "unreadable" }),
+        });
+        const first = yield* probe;
+        expect(first.unavailable?.reason).toBe("probeFailed");
+        expect(first.unavailable?.message).toContain("keychain");
+        expect(first.unavailable?.message).toContain("Separate sign-in");
+        yield* TestClock.adjust("1 minute");
+        yield* probe;
+        expect(cliReads.count).toBe(1);
+        yield* TestClock.adjust("1 minute");
+        yield* probe;
+        expect(cliReads.count).toBe(2);
+        yield* clear;
+        yield* probe;
+        expect(cliReads.count).toBe(3);
+        expect(requests).toEqual([]);
+      }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+    );
+
+    it.effect("does not use an expired keychain access token", () =>
+      Effect.gen(function* () {
+        const { probe, requests } = yield* fixture({
+          sharedLogin: true,
+          cliLogin: () => signedIn(30_000),
+        });
+        const limits = yield* probe;
+        expect(limits.unavailable?.reason).toBe("probeFailed");
+        expect(limits.unavailable?.message).toContain("Run agy");
+        expect(requests).toEqual([]);
+      }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+    );
+  });
 
   it.effect("does not make network requests for API keys or missing sign-ins", () =>
     Effect.gen(function* () {

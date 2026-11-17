@@ -15,6 +15,8 @@ import {
   makeUsageLimits,
 } from "@t3tools/provider-core/server/usageLimits";
 
+import type { AntigravityCliLogin, AntigravityCliLoginRead } from "./antigravityCliLogin.ts"; // fork:
+
 export function antigravityUserAgent(platform: NodeJS.Platform, architecture: NodeJS.Architecture) {
   return `antigravity/hub/2.24.0 (aidev_client; os_type=${platform}; arch=${architecture}; cl=963137146)`;
 }
@@ -32,6 +34,16 @@ const SUMMARY_WINDOW_MINS = new Map([
   ["weekly", 7 * 24 * 60],
 ]);
 const MANUAL_REDIRECT: RequestInit = { redirect: "manual" };
+// fork: why limits are unavailable while the sign-in is the agy CLI's.
+const CLI_UNREADABLE =
+  "Limits are not available while Antigravity uses your agy CLI sign-in on this system. Set Login source to Separate sign-in to see them.";
+const CLI_SIGNED_OUT =
+  "The agy CLI is not signed in. Sign in with agy, or set Login source to Separate sign-in to see Antigravity limits.";
+const CLI_KEYCHAIN_DENIED =
+  "Could not read the agy CLI sign-in from the system keychain. Allow access when asked, or set Login source to Separate sign-in to see limits.";
+const CLI_EXPIRED =
+  "The agy CLI sign-in is out of date. Run agy once to renew it, or set Login source to Separate sign-in to see limits.";
+const CLI_REFUSAL_REUSE_MS = 2 * 60_000;
 const TokenFile = Schema.Struct({
   client_id: Schema.NonEmptyString,
   client_secret: Schema.NonEmptyString,
@@ -212,6 +224,8 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
   readonly authMethod: AntigravitySettings["authMethod"];
   // fork: the sign-in is the agy CLI's, kept in the system keyring rather than a profile token file.
   readonly sharedLogin?: boolean;
+  // fork: reads the agy CLI sign-in where this platform keeps it. Without it, limits stay unavailable.
+  readonly readCliLogin?: Effect.Effect<AntigravityCliLoginRead> | undefined;
 }) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -224,6 +238,10 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
     | { fingerprint: string; account: string; accessToken: string; expiresAt: number }
     | undefined;
   let generation = 0;
+  // fork: the agy CLI sign-in, read once and kept until it nearly expires so the keychain is not asked every poll.
+  let cliLogin: AntigravityCliLogin | undefined;
+  let cliRefusal: { at: number } | undefined;
+  let cachedCliAccount: { fingerprint: string; account: string } | undefined;
 
   const request = (request: HttpClientRequest.HttpClientRequest) =>
     client.execute(request).pipe(
@@ -232,6 +250,65 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
       Effect.flatMap((response) => response.json),
       Effect.timeout("10 seconds"),
     );
+  // fork: shared by the profile token and the agy CLI sign-in; both end in an access token.
+  const queryLimits = Effect.fn("AntigravityUsageProbe.queryLimits")(function* (query: {
+    readonly checkedAt: string;
+    readonly accessToken: string;
+    readonly account: string;
+    readonly projectId: string | undefined;
+    readonly endpoints: readonly string[];
+  }) {
+    const { checkedAt, accessToken, account, projectId, endpoints } = query;
+    // Merge endpoints because quota groups differ; the metered host's reading of a bucket wins.
+    const fetchWindows = Effect.fn("AntigravityUsageProbe.fetchWindows")(function* <E>(
+      operation: string,
+      parse: (
+        response: unknown,
+        requestedAt: number,
+      ) => Effect.Effect<ServerProviderUsageWindow[], E>,
+    ) {
+      const responses = yield* Effect.forEach(
+        endpoints,
+        (endpoint) =>
+          Effect.gen(function* () {
+            // Capture each request after auth, so refresh latency does not widen the tolerance.
+            const requestedAt = yield* Clock.currentTimeMillis;
+            return yield* request(
+              HttpClientRequest.post(`${endpoint}/v1internal:${operation}`).pipe(
+                HttpClientRequest.setHeaders({
+                  Authorization: `Bearer ${accessToken}`,
+                  "User-Agent": antigravityUserAgent(platform, architecture),
+                }),
+                HttpClientRequest.bodyJsonUnsafe(projectId ? { project: projectId } : {}),
+              ),
+            ).pipe(
+              Effect.flatMap((response) => parse(response, requestedAt)),
+              Effect.orElseSucceed(() => []),
+            );
+          }),
+        { concurrency: "unbounded" },
+      );
+      const windows = new Map<string, ServerProviderUsageWindow>();
+      for (const window of responses.flat()) {
+        if (!windows.has(window.id)) windows.set(window.id, window);
+      }
+      return [...windows.values()];
+    });
+    const summary = yield* fetchWindows("retrieveUserQuotaSummary", antigravitySummaryWindows);
+    const windows = summary.length
+      ? summary
+      : yield* fetchWindows("fetchAvailableModels", (response) =>
+          decodeModels(response).pipe(Effect.map(modelWindows)),
+        );
+    if (windows.length === 0) {
+      return makeUnavailableUsageLimits({
+        checkedAt,
+        reason: "probeFailed",
+        message: "Antigravity did not return usable quota information.",
+      });
+    }
+    return { ...makeUsageLimits({ checkedAt, windows }), credentialFingerprint: account };
+  });
   const read = Effect.gen(function* () {
     const startedGeneration = generation;
     const checkedAt = DateTime.formatIso(yield* DateTime.now);
@@ -241,11 +318,73 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
     // fork: a shared login has no token of its own. A leftover file may belong to another account.
     if (input.sharedLogin) {
       cached = undefined;
-      return makeUnavailableUsageLimits({
+      if (!input.readCliLogin) {
+        return makeUnavailableUsageLimits({
+          checkedAt,
+          reason: "unsupported",
+          message: CLI_UNREADABLE,
+        });
+      }
+      const now = yield* Clock.currentTimeMillis;
+      let login = cliLogin;
+      if (!login || login.expiresAt <= now + 60_000) {
+        cliLogin = undefined;
+        // A refused or unanswered keychain prompt is not asked again on every poll.
+        if (cliRefusal && now - cliRefusal.at < CLI_REFUSAL_REUSE_MS) {
+          return makeUnavailableUsageLimits({
+            checkedAt,
+            reason: "probeFailed",
+            message: CLI_KEYCHAIN_DENIED,
+          });
+        }
+        const outcome = yield* input.readCliLogin;
+        if (outcome._tag === "missing") {
+          cliRefusal = undefined;
+          return makeUnavailableUsageLimits({
+            checkedAt,
+            reason: "unsupported",
+            message: CLI_SIGNED_OUT,
+          });
+        }
+        if (outcome._tag === "unreadable") {
+          if (generation === startedGeneration) cliRefusal = { at: now };
+          return makeUnavailableUsageLimits({
+            checkedAt,
+            reason: "probeFailed",
+            message: CLI_KEYCHAIN_DENIED,
+          });
+        }
+        cliRefusal = undefined;
+        // The access token is the agy CLI's own and only it renews it; this never writes it back.
+        if (outcome.login.expiresAt <= now + 60_000) {
+          return makeUnavailableUsageLimits({
+            checkedAt,
+            reason: "probeFailed",
+            message: CLI_EXPIRED,
+          });
+        }
+        if (generation === startedGeneration) cliLogin = outcome.login;
+        login = outcome.login;
+      }
+      const fingerprint = yield* sha256(`agy-cli\0${login.refreshToken ?? login.accessToken}`);
+      const account =
+        cachedCliAccount?.fingerprint === fingerprint
+          ? cachedCliAccount.account
+          : yield* request(
+              HttpClientRequest.get("https://www.googleapis.com/oauth2/v2/userinfo").pipe(
+                HttpClientRequest.setHeaders({ Authorization: `Bearer ${login.accessToken}` }),
+              ),
+            ).pipe(
+              Effect.flatMap(antigravityAccountFingerprint),
+              Effect.orElseSucceed(() => fingerprint),
+            );
+      if (generation === startedGeneration) cachedCliAccount = { fingerprint, account };
+      return yield* queryLimits({
         checkedAt,
-        reason: "unsupported",
-        message:
-          "Limits are not available while Antigravity uses your agy CLI sign-in. Set Login source to Separate sign-in to see them.",
+        accessToken: login.accessToken,
+        account,
+        projectId: undefined,
+        endpoints: ENDPOINTS[input.authMethod],
       });
     }
     if (!(yield* fs.exists(tokenPath))) {
@@ -297,58 +436,13 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
       accessToken = cached.accessToken;
       account = cached.account;
     }
-    const endpoints = ENDPOINTS[input.authMethod];
-    // Merge endpoints because quota groups differ; the metered host's reading of a bucket wins.
-    const fetchWindows = Effect.fn("AntigravityUsageProbe.fetchWindows")(function* <E>(
-      operation: string,
-      parse: (
-        response: unknown,
-        requestedAt: number,
-      ) => Effect.Effect<ServerProviderUsageWindow[], E>,
-    ) {
-      const responses = yield* Effect.forEach(
-        endpoints,
-        (endpoint) =>
-          Effect.gen(function* () {
-            // Capture each request after auth, so refresh latency does not widen the tolerance.
-            const requestedAt = yield* Clock.currentTimeMillis;
-            return yield* request(
-              HttpClientRequest.post(`${endpoint}/v1internal:${operation}`).pipe(
-                HttpClientRequest.setHeaders({
-                  Authorization: `Bearer ${accessToken}`,
-                  "User-Agent": antigravityUserAgent(platform, architecture),
-                }),
-                HttpClientRequest.bodyJsonUnsafe(
-                  token.project_id ? { project: token.project_id } : {},
-                ),
-              ),
-            ).pipe(
-              Effect.flatMap((response) => parse(response, requestedAt)),
-              Effect.orElseSucceed(() => []),
-            );
-          }),
-        { concurrency: "unbounded" },
-      );
-      const windows = new Map<string, ServerProviderUsageWindow>();
-      for (const window of responses.flat()) {
-        if (!windows.has(window.id)) windows.set(window.id, window);
-      }
-      return [...windows.values()];
+    return yield* queryLimits({
+      checkedAt,
+      accessToken,
+      account,
+      projectId: token.project_id,
+      endpoints: ENDPOINTS[input.authMethod],
     });
-    const summary = yield* fetchWindows("retrieveUserQuotaSummary", antigravitySummaryWindows);
-    const windows = summary.length
-      ? summary
-      : yield* fetchWindows("fetchAvailableModels", (response) =>
-          decodeModels(response).pipe(Effect.map(modelWindows)),
-        );
-    if (windows.length === 0) {
-      return makeUnavailableUsageLimits({
-        checkedAt,
-        reason: "probeFailed",
-        message: "Antigravity did not return usable quota information.",
-      });
-    }
-    return { ...makeUsageLimits({ checkedAt, windows }), credentialFingerprint: account };
   });
   const probe = read.pipe(
     Effect.provideService(Digest.Digest, crypto),
@@ -367,6 +461,9 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
     probe,
     clear: Effect.sync(() => {
       cached = undefined;
+      cliLogin = undefined; // fork:
+      cliRefusal = undefined; // fork:
+      cachedCliAccount = undefined; // fork:
       generation++;
     }),
   };
