@@ -159,7 +159,12 @@ describe.runIf(runsOnRealProcesses)("authorizing a port against real processes",
         const port = Number(shell.info.port);
         x.nominate(Number(shell.info.pid), port);
         const target = yield* x.authorizer.authorize(port);
-        assert.deepEqual(target, { host: expected, port, pid: Number(shell.info.pid) });
+        assert.deepEqual(target, {
+          host: expected,
+          port,
+          pid: Number(shell.info.pid),
+          owner: "terminal",
+        });
       }
     }).pipe(Effect.scoped, Effect.provide(rigLayer)),
   );
@@ -180,6 +185,7 @@ describe.runIf(runsOnRealProcesses)("authorizing a port against real processes",
         host: "127.0.0.1",
         port,
         pid: Number(shell.info.pid),
+        owner: "terminal",
       });
       // That was the interval's one read: a second service a moment later waits for the next.
       const readsBefore = x.reads.listeners;
@@ -227,6 +233,7 @@ describe.runIf(runsOnRealProcesses)("authorizing a port against real processes",
         host: "127.0.0.1",
         port: orphan.jobPort,
         pid: orphan.jobPid,
+        owner: "user",
       });
     }).pipe(Effect.scoped, Effect.provide(rigLayer)),
   );

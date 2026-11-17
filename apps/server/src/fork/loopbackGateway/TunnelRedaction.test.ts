@@ -131,12 +131,16 @@ const scenarios = Effect.gen(function* () {
     gateway.setAuthorize(() => Effect.fail(refuse(code, "fixed phrase")));
     yield* attempt(refusal.ticket, 5173);
   }
-  gateway.setAuthorize((port) => Effect.succeed({ host: "127.0.0.1", port: port + 1, pid: 1 }));
+  gateway.setAuthorize((port) =>
+    Effect.succeed({ host: "127.0.0.1", port: port + 1, pid: 1, owner: "terminal" as const }),
+  );
   yield* attempt(refusal.ticket, 1);
   // A defect inside the handler.
   gateway.setAuthorize(() => Effect.die(new Error("boom inside the handler")));
   yield* attempt(refusal.ticket, 5173);
-  gateway.setAuthorize((port) => Effect.succeed({ host: "127.0.0.1", port, pid: 1 }));
+  gateway.setAuthorize((port) =>
+    Effect.succeed({ host: "127.0.0.1", port, pid: 1, owner: "terminal" as const }),
+  );
 
   // A tunnel that ends because its session was revoked.
   const mid = yield* issueSessionTicket();

@@ -186,7 +186,9 @@ describe("tunnel credentials", () => {
           Effect.promise(() => new Promise<number>((resolve) => server.close(() => resolve(port)))),
         ),
       );
-      gateway.setAuthorize((port) => Effect.succeed({ host: "127.0.0.1", port, pid: 1 }));
+      gateway.setAuthorize((port) =>
+        Effect.succeed({ host: "127.0.0.1", port, pid: 1, owner: "terminal" as const }),
+      );
       yield* refused(
         gateway.mainPort,
         { ticket, query: `port=${closedPort}` },

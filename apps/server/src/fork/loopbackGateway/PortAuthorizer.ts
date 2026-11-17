@@ -42,6 +42,8 @@ export interface DialTarget {
   readonly host: "127.0.0.1" | "::1";
   readonly port: number;
   readonly pid: number;
+  /** Who vouches for the service; `user` means only the user's allowed port does. */
+  readonly owner: "terminal" | "agent" | "user";
 }
 
 export class PortAuthorizer extends Context.Service<
@@ -163,7 +165,11 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
 
   type Outcome =
     | { readonly refusal: GatewayRefusal }
-    | { readonly host: "127.0.0.1" | "::1"; readonly first: string };
+    | {
+        readonly host: "127.0.0.1" | "::1";
+        readonly first: string;
+        readonly owner: DialTarget["owner"];
+      };
 
   /** One batch: the same C0 to C3 as a lone tunnel would do, with each read made once. */
   const runBatch = Effect.fn("LoopbackGateway.verifyBatch")(function* (
@@ -214,7 +220,7 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
       const host = chooseDialHost(listeners);
       return host === null
         ? { refusal: refuse("not-loopback", "the service is not bound to loopback") }
-        : { host, first: row.startTime };
+        : { host, first: row.startTime, owner: verdict.owner };
     });
 
     // C3: still the same instance, still on the same socket. Starts after every C2 above.
@@ -245,7 +251,12 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
       } else if (chooseDialHost(held[index]!) !== outcome.host) {
         verdicts.set(request, refuse("owner-changed", "the listener's address changed"));
       } else {
-        verdicts.set(request, { host: outcome.host, port: request.port, pid: request.pid });
+        verdicts.set(request, {
+          host: outcome.host,
+          port: request.port,
+          pid: request.pid,
+          owner: outcome.owner,
+        });
       }
     });
     return verdicts;

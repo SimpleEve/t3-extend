@@ -17,9 +17,10 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
-import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
+import type * as Stream from "effect/Stream";
+import * as SubscriptionRef from "effect/SubscriptionRef";
 
 import * as ServerConfig from "../../config.ts";
 import { writeFileAtomic } from "../deviceKeys/atomicWrite.ts";
@@ -44,6 +45,8 @@ export class LoopbackGatewayGrants extends Context.Service<
   {
     /** In the order they were allowed. */
     readonly list: Effect.Effect<AllowedPorts>;
+    /** The list now, then each new list; a tunnel that stands on an allowed port watches it. */
+    readonly changes: Stream.Stream<AllowedPorts>;
     readonly allow: (port: number) => Effect.Effect<AllowedPorts, LoopbackGatewayAllowedPortError>;
     readonly remove: (port: number) => Effect.Effect<AllowedPorts, LoopbackGatewayAllowedPortError>;
   }
@@ -90,7 +93,7 @@ export const make = Effect.fn("LoopbackGateway.makeGrants")(function* (
     }),
   );
 
-  const state = yield* Ref.make(yield* load);
+  const state = yield* SubscriptionRef.make(yield* load);
   const lock = yield* Semaphore.make(1);
 
   const save = (ports: AllowedPorts) =>
@@ -100,7 +103,7 @@ export const make = Effect.fn("LoopbackGateway.makeGrants")(function* (
           Effect.provideService(FileSystem.FileSystem, fs),
         ),
       ),
-      Effect.andThen(Ref.set(state, ports)),
+      Effect.andThen(SubscriptionRef.set(state, ports)),
       Effect.as(ports),
       Effect.tapError((error) =>
         Effect.logWarning("loopback gateway: could not save the allowed ports", {
@@ -122,7 +125,7 @@ export const make = Effect.fn("LoopbackGateway.makeGrants")(function* (
         if (LOOPBACK_GATEWAY_BLOCKED_PORTS.has(port) || (yield* options.reservedPorts).has(port)) {
           return yield* failure("reserved", "This port is reserved and can't be forwarded.");
         }
-        const current = yield* Ref.get(state);
+        const current = yield* SubscriptionRef.get(state);
         if (current.some((entry) => entry.port === port)) return current;
         if (current.length >= LOOPBACK_GATEWAY_MAX_ALLOWED_PORTS) {
           return yield* failure(
@@ -139,7 +142,7 @@ export const make = Effect.fn("LoopbackGateway.makeGrants")(function* (
     yield* checkPort(port);
     return yield* lock.withPermits(1)(
       Effect.gen(function* () {
-        const current = yield* Ref.get(state);
+        const current = yield* SubscriptionRef.get(state);
         return current.some((entry) => entry.port === port)
           ? yield* save(current.filter((entry) => entry.port !== port))
           : current;
@@ -147,7 +150,12 @@ export const make = Effect.fn("LoopbackGateway.makeGrants")(function* (
     );
   });
 
-  return LoopbackGatewayGrants.of({ list: Ref.get(state), allow, remove });
+  return LoopbackGatewayGrants.of({
+    list: SubscriptionRef.get(state),
+    changes: SubscriptionRef.changes(state),
+    allow,
+    remove,
+  });
 });
 
 export const layer = Layer.effect(

@@ -27,6 +27,8 @@ import { FakeRegistry } from "../deviceKeys/registryFake.testkit.ts";
 import { GatewayAvailabilityOverride } from "./GatewayAvailability.ts";
 import { GATEWAY_SCOPES, listenLoopback, openTunnel } from "./gatewayHarness.testkit.ts";
 import * as PortAuthorizer from "./PortAuthorizer.ts";
+import { memoryGrants } from "./grants.testkit.ts";
+import { LoopbackGatewayGrants } from "./LoopbackGatewayGrants.ts";
 import * as TunnelRoute from "./TunnelRoute.ts";
 
 const closed = (target: { once: (event: "close", listener: () => void) => unknown }) => {
@@ -44,10 +46,17 @@ const gatewayServer = Effect.gen(function* () {
     HttpRouter.serve(TunnelRoute.layer, { disableLogger: true, disableListenLog: true }).pipe(
       Layer.provide(
         Layer.succeed(PortAuthorizer.PortAuthorizer, {
-          authorize: (port: number) => Effect.succeed({ host: "127.0.0.1" as const, port, pid: 1 }),
+          authorize: (port: number) =>
+            Effect.succeed({
+              host: "127.0.0.1" as const,
+              port,
+              pid: 1,
+              owner: "terminal" as const,
+            }),
         }),
       ),
       Layer.provide(Layer.succeed(GatewayAvailabilityOverride, { available: true })),
+      Layer.provide(Layer.succeed(LoopbackGatewayGrants, memoryGrants())),
       Layer.provideMerge(
         NodeHttpServer.layer(() => NodeHttp.createServer(), { host: "127.0.0.1", port: 0 }),
       ),
