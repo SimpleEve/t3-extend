@@ -117,7 +117,7 @@ describe("loopback gateway card", () => {
     setup();
     denied("not-owned");
     const onReload = vi.fn();
-    await using screen = await render(card({ onReload }), { router: false });
+    await using screen = await render(card({ onReload }));
     await expect
       .element(screen.getByText("remove it in Settings → Browser", { exact: false }))
       .toBeVisible();
@@ -132,7 +132,7 @@ describe("loopback gateway card", () => {
     denied("not-owned");
     mocks.allowOutcome = { ok: false, failure: "limit-reached" };
     const onReload = vi.fn();
-    await using screen = await render(card({ onReload }), { router: false });
+    await using screen = await render(card({ onReload }));
     await userEvent.click(screen.getByRole("button", { name: "Allow forwarding localhost:5173" }));
     await expect
       .element(screen.getByRole("alert"))
@@ -150,7 +150,7 @@ describe("loopback gateway card", () => {
     setup();
     denied("not-owned");
     mocks.permittedToAllow = false;
-    await using screen = await render(card(), { router: false });
+    await using screen = await render(card());
     await expect.element(screen.getByRole("heading")).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Allow forwarding localhost:5173" }).elements(),
@@ -158,7 +158,7 @@ describe("loopback gateway card", () => {
 
     setup();
     denied("reserved");
-    await using reserved = await render(card(), { router: false });
+    await using reserved = await render(card());
     await expect
       .element(reserved.getByRole("heading", { name: "This port can't be forwarded" }))
       .toBeVisible();
@@ -170,7 +170,7 @@ describe("loopback gateway card", () => {
   it("says a service that listens on no loopback address is out of reach, with the environment's browser", async () => {
     setup();
     denied("not-loopback");
-    await using screen = await render(card(), { router: false });
+    await using screen = await render(card());
     await expect
       .element(screen.getByRole("heading", { name: "This service isn't listening on localhost" }))
       .toBeVisible();
@@ -365,7 +365,7 @@ describe("loopback gateway card", () => {
     denied("not-owned");
     await setUiLocale("zh-Hans");
     using _restore = { [Symbol.dispose]: () => void setUiLocale("en") };
-    await using screen = await render(card(), { router: false });
+    await using screen = await render(card());
     await expect
       .element(screen.getByRole("button", { name: "允许转发 localhost:5173" }))
       .toBeVisible();

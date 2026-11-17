@@ -12,6 +12,7 @@ import * as PortScanner from "../../preview/PortScanner.ts";
 import {
   COLLECT_WINDOW_MS,
   ConfiguredExecutables,
+  RESCAN_MIN_INTERVAL_MS,
   make as makeAuthorizer,
   type GatewayRefusal,
 } from "./PortAuthorizer.ts";
@@ -132,6 +133,7 @@ const makeRig = Effect.gen(function* () {
           .concat([{ port: 5400, pid: 400 }]) as never;
       }),
   } as never);
+  const granted = new Set<number>();
   const authorizer = yield* makeAuthorizer({
     serverPid: SERVER,
     reservedPorts: Effect.succeed(new Set<number>()),
@@ -142,7 +144,7 @@ const makeRig = Effect.gen(function* () {
       shells: Effect.succeed(new Map([[SHELL, { startTime: `${START} ${SHELL}` }]])),
     }),
     Effect.provideService(ConfiguredExecutables, { read: Effect.succeed([]) }),
-    Effect.provideService(LoopbackGatewayGrants, memoryGrants()),
+    Effect.provideService(LoopbackGatewayGrants, memoryGrants(granted)),
   );
   /** Starts `ports.length` tunnels at once and resolves once each has joined the collection window. */
   const arrive = Effect.fn("arrive")(function* (ports: ReadonlyArray<number>) {
@@ -156,7 +158,7 @@ const makeRig = Effect.gen(function* () {
     return fibers;
   });
   const closeWindow = TestClock.adjust(Duration.millis(COLLECT_WINDOW_MS));
-  return { world, calls, hooks, authorizer, arrive, closeWindow };
+  return { world, calls, hooks, authorizer, arrive, closeWindow, granted };
 });
 
 const verdict = (result: {
@@ -202,6 +204,94 @@ describe("batched verification", () => {
       assert.equal(verdict(yield* Fiber.join(fiber!)), "not-loopback");
     }).pipe(Effect.scoped),
   );
+
+  // An allowed port is not in the snapshot, so its listener is read here. Job 4 is such a port.
+  describe("the listener read of an allowed port", () => {
+    /** Reads of the allowed port's listener: every `listeners` call that no batch made. */
+    const grantedReads = (x: { readonly calls: Calls }) => x.calls.listeners.length - x.calls.table;
+
+    it.effect("is one read for tunnels that arrive together", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        x.world.alive.add(4);
+        x.granted.add(jobPort(4));
+        const fibers = yield* x.arrive([5004, 5004, 5004, 5004, 5004]);
+        yield* x.closeWindow;
+        const results = yield* Effect.forEach(fibers, Fiber.join);
+        assert.deepEqual(results.map(verdict), [
+          "allowed",
+          "allowed",
+          "allowed",
+          "allowed",
+          "allowed",
+        ]);
+        assert.equal(grantedReads(x), 1);
+      }).pipe(Effect.scoped),
+    );
+
+    it.effect("is reused within the interval and read again after it", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        x.world.alive.add(4);
+        x.granted.add(jobPort(4));
+        const [first] = yield* x.arrive([5004]);
+        yield* x.closeWindow;
+        assert.equal(verdict(yield* Fiber.join(first!)), "allowed");
+        const [second] = yield* x.arrive([5004]);
+        yield* x.closeWindow;
+        assert.equal(verdict(yield* Fiber.join(second!)), "allowed");
+        // The nomination was reused; the second tunnel was still checked on its own.
+        assert.equal(grantedReads(x), 1);
+        assert.equal(x.calls.table, 2);
+
+        yield* TestClock.adjust(Duration.millis(RESCAN_MIN_INTERVAL_MS));
+        const [third] = yield* x.arrive([5004]);
+        yield* x.closeWindow;
+        assert.equal(verdict(yield* Fiber.join(third!)), "allowed");
+        assert.equal(grantedReads(x), 2);
+      }).pipe(Effect.scoped),
+    );
+
+    it.effect("is forgotten when the check finds the listener changed, so a restart is found", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        x.world.alive.add(4);
+        x.granted.add(jobPort(4));
+        // The service goes away between the read and the check.
+        x.hooks.onTable = (call) =>
+          Effect.sync(() => {
+            if (call === 1) x.world.alive.delete(4);
+          });
+        const [first] = yield* x.arrive([5004]);
+        yield* x.closeWindow;
+        assert.equal(verdict(yield* Fiber.join(first!)), "owner-changed");
+        assert.equal(grantedReads(x), 1);
+
+        // It is back before the interval is over: the stale nomination is not used.
+        x.world.alive.add(4);
+        const [second] = yield* x.arrive([5004]);
+        yield* x.closeWindow;
+        assert.equal(verdict(yield* Fiber.join(second!)), "allowed");
+        assert.equal(grantedReads(x), 2);
+      }).pipe(Effect.scoped),
+    );
+
+    it.effect("is not kept when nothing listens", () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        x.granted.add(5999);
+        const [first] = yield* x.arrive([5999]);
+        yield* x.closeWindow;
+        // Nothing listens there: that is said as it is, and not cached.
+        assert.equal(verdict(yield* Fiber.join(first!)), "upstream-refused");
+        x.world.alive.add(4);
+        x.granted.add(jobPort(4));
+        const [second] = yield* x.arrive([5004]);
+        yield* x.closeWindow;
+        assert.equal(verdict(yield* Fiber.join(second!)), "allowed");
+      }).pipe(Effect.scoped),
+    );
+  });
 
   it.effect("six tunnels one after another are six batches: nothing is kept between them", () =>
     Effect.gen(function* () {

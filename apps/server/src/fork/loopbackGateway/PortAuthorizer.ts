@@ -366,14 +366,43 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
     ),
   );
 
-  // A port the user allowed is not in the snapshot, which only lists owned servers, and the shared
-  // read above may be skipped for the interval. This one is not throttled: the user is waiting on
-  // it, and only the ports they allowed come here.
-  const readGrantedListeners = (port: number) =>
-    inspector.listeners([port]).pipe(
-      Effect.map(([entries]) => describeListeners(entries)),
-      Effect.orElseSucceed(() => UNKNOWN),
-    );
+  // An allowed port is not in the snapshot, so its listener is read here: one read per port at a
+  // time, the answer reused for the interval (a nomination; `check` still decides). Only a sole
+  // listener is kept, and `check` finding it gone drops it, so a restarted service is found.
+  const grantedReads = new Map<
+    number,
+    { readonly at: number; readonly read: Deferred.Deferred<ListenerRead> }
+  >();
+  const forgetGrantedRead = (port: number) => Effect.sync(() => void grantedReads.delete(port));
+  const readGrantedListeners = Effect.fn("LoopbackGateway.readGrantedListeners")((port: number) =>
+    Effect.uninterruptibleMask((restore) =>
+      Effect.gen(function* () {
+        const now = yield* Clock.currentTimeMillis;
+        const mine = yield* Deferred.make<ListenerRead>();
+        const existing = grantedReads.get(port);
+        if (existing !== undefined && now - existing.at < RESCAN_MIN_INTERVAL_MS) {
+          return yield* restore(Deferred.await(existing.read));
+        }
+        grantedReads.set(port, { at: now, read: mine });
+        return yield* restore(inspector.listeners([port])).pipe(
+          Effect.map(([entries]) => describeListeners(entries)),
+          Effect.orElseSucceed(() => UNKNOWN),
+          Effect.onExit((exit) =>
+            Effect.sync(() => {
+              const result = exit._tag === "Success" ? exit.value : UNKNOWN;
+              if (result.kind !== "sole" && grantedReads.get(port)?.read === mine) {
+                grantedReads.delete(port);
+              }
+            }).pipe(
+              Effect.andThen(
+                Deferred.succeed(mine, exit._tag === "Success" ? exit.value : UNKNOWN),
+              ),
+            ),
+          ),
+        );
+      }),
+    ),
+  );
 
   const authorize = Effect.fn("LoopbackGateway.authorize")(function* (port: number) {
     if (LOOPBACK_GATEWAY_BLOCKED_PORTS.has(port) || (yield* options.reservedPorts).has(port)) {
@@ -399,6 +428,11 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
       pid = read.pid;
     }
     return yield* check(pid, port).pipe(
+      Effect.tapError((error) =>
+        granted && (error._tag === "ProcessInspectError" || error.code === "owner-changed")
+          ? forgetGrantedRead(port)
+          : Effect.void,
+      ),
       Effect.tapError((error) =>
         error._tag === "GatewayRefusal" && error.code === "owner-changed" ? changed : Effect.void,
       ),
