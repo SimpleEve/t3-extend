@@ -438,6 +438,14 @@ export class SessionStore extends Context.Service<
      * A session it cannot read is skipped, not reported.
      */
     readonly announceRevoked: () => Effect.Effect<number>; // fork:
+    /**
+     * The session a live socket stands on now: its own, or the latest valid renewal for its DPoP
+     * key once its own expired. `None` when the chain ended, so nothing should be minted for it.
+     */
+    readonly currentSessionId: (
+      sessionId: AuthSessionId,
+      proofKeyThumbprint?: string,
+    ) => Effect.Effect<Option.Option<AuthSessionId>, SessionCredentialVerificationError>; // fork:
     readonly proofKeyThumbprintOf: (
       sessionId: AuthSessionId,
     ) => Effect.Effect<Option.Option<string>, SessionCredentialInternalError>;
@@ -1123,6 +1131,57 @@ const make = Effect.gen(function* () {
     return gone.length;
   });
 
+  const readRow = (id: AuthSessionId) =>
+    authSessions
+      .getById({ sessionId: id })
+      .pipe(
+        Effect.mapError(
+          (cause) => new SessionCredentialVerificationError({ sessionId: id, cause }),
+        ),
+      );
+
+  // fork: the renewal a socket moves to when `current` expires, shared with `currentSessionId`.
+  // The socket keeps its original scopes, so the renewal must still grant all of them.
+  const renewalOf = Effect.fn("SessionStore.renewalOf")(function* (
+    original: AuthSessions.AuthSessionRecord,
+    current: AuthSessions.AuthSessionRecord,
+    proofKeyThumbprint: string | undefined,
+  ) {
+    const successorId =
+      proofKeyThumbprint === undefined
+        ? undefined
+        : latestSessionByProofKey.get(proofKeyThumbprint);
+    if (successorId === undefined || successorId === current.sessionId) return Option.none();
+    const successor = yield* readRow(successorId);
+    if (
+      Option.isNone(successor) ||
+      successor.value.subject !== original.subject ||
+      !original.scopes.every((scope) => successor.value.scopes.includes(scope))
+    ) {
+      return Option.none();
+    }
+    return successor;
+  });
+
+  // fork: the session a live socket stands on now, so a credential minted for it outlives the
+  // session the socket opened on. `None` when its chain ended: revoked, expired, or no valid renewal.
+  const currentSessionId: SessionStore["Service"]["currentSessionId"] = Effect.fn(
+    "SessionStore.currentSessionId",
+  )(function* (sessionId, proofKeyThumbprint) {
+    const original = yield* readRow(sessionId);
+    if (Option.isNone(original) || original.value.revokedAt !== null) return Option.none();
+    let current = original.value;
+    while (true) {
+      const now = yield* DateTime.now;
+      if (current.expiresAt.epochMilliseconds > now.epochMilliseconds) {
+        return Option.some(current.sessionId);
+      }
+      const successor = yield* renewalOf(original.value, current, proofKeyThumbprint);
+      if (Option.isNone(successor) || successor.value.revokedAt !== null) return Option.none();
+      current = successor.value;
+    }
+  });
+
   const awaitInvalidation = Effect.fn(function* (
     sessionId: AuthSessionId,
     proofKeyThumbprint?: string,
@@ -1131,14 +1190,6 @@ const make = Effect.gen(function* () {
       Effect.gen(function* () {
         // Subscribe before reading: revocation can race with the WebSocket upgrade.
         const subscription = yield* PubSub.subscribe(changesPubSub);
-        const readRow = (id: AuthSessionId) =>
-          authSessions
-            .getById({ sessionId: id })
-            .pipe(
-              Effect.mapError(
-                (cause) => new SessionCredentialVerificationError({ sessionId: id, cause }),
-              ),
-            );
         const original = yield* readRow(sessionId);
         if (Option.isNone(original)) return;
         // Revoking any session the socket has used closes it. Events only wake this loop
@@ -1161,21 +1212,9 @@ const make = Effect.gen(function* () {
             yield* Effect.raceFirst(nextRemoval, Effect.sleep(Duration.millis(remaining)));
             continue;
           }
-          const successorId =
-            proofKeyThumbprint === undefined
-              ? undefined
-              : latestSessionByProofKey.get(proofKeyThumbprint);
-          if (successorId === undefined || successorId === current.sessionId) return;
-          const successor = yield* readRow(successorId);
-          // The socket keeps its original scopes, so the renewal must still grant all of them.
-          if (
-            Option.isNone(successor) ||
-            successor.value.subject !== original.value.subject ||
-            !original.value.scopes.every((scope) => successor.value.scopes.includes(scope))
-          ) {
-            return;
-          }
-          chain.push(successorId);
+          const successor = yield* renewalOf(original.value, current, proofKeyThumbprint); // fork:
+          if (Option.isNone(successor)) return;
+          chain.push(successor.value.sessionId);
           current = successor.value;
         }
       }),
@@ -1192,6 +1231,7 @@ const make = Effect.gen(function* () {
     listActive,
     awaitInvalidation,
     announceRevoked, // fork:
+    currentSessionId, // fork:
     get streamChanges() {
       return Stream.fromPubSub(changesPubSub);
     },

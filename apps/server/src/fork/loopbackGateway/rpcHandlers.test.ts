@@ -3,6 +3,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import {
   AuthSessionId,
+  EnvironmentAuthorizationError,
   FORK_LOOPBACK_GATEWAY_WS_METHODS,
   LOOPBACK_GATEWAY_TICKET_AUDIENCE,
   LoopbackGatewayUnavailableError,
@@ -91,6 +92,61 @@ describe("loopbackGateway.issueTicket", () => {
     }).pipe(Effect.provide(layerGateway)),
   );
 
+  const renewable = {
+    subject: "device",
+    method: "dpop-access-token",
+    scopes: GATEWAY_SCOPES,
+    proofKeyThumbprint: "renewing-key",
+    ttl: Duration.hours(1),
+    client: { label: "rpc", deviceType: "desktop" },
+  } as const;
+
+  it.effect("binds the ticket to the renewal once the socket's own session has expired", () =>
+    Effect.gen(function* () {
+      const gateway = yield* Gateway;
+      const original = yield* gateway.sessions.issue(renewable);
+      yield* TestClock.adjust(Duration.minutes(59));
+      const renewal = yield* gateway.sessions.issue(renewable);
+      yield* TestClock.adjust(Duration.minutes(2));
+      const result = yield* issueTicket({
+        sessionId: original.sessionId,
+        proofKeyThumbprint: "renewing-key",
+      });
+      const verified = yield* gateway.sessions.verifyWebSocketToken(Redacted.value(result.ticket));
+      assert.equal(verified.sessionId, renewal.sessionId);
+      assert.equal(verified.proofKeyThumbprint, "renewing-key");
+    }).pipe(
+      Effect.provideService(GatewayAvailabilityOverride, { available: true }),
+      Effect.provide(layerGateway),
+    ),
+  );
+
+  it.effect.each([
+    { name: "no renewal", renewal: null },
+    { name: "a renewal for another key", renewal: { proofKeyThumbprint: "other-key" } },
+    { name: "a renewal with fewer scopes", renewal: { scopes: [GATEWAY_SCOPES[0]!] } },
+    { name: "a renewal that was revoked", renewal: {}, revoke: true },
+  ] as const)("refuses instead of minting a dead ticket after $name", (testCase) =>
+    Effect.gen(function* () {
+      const gateway = yield* Gateway;
+      const original = yield* gateway.sessions.issue(renewable);
+      yield* TestClock.adjust(Duration.minutes(59));
+      if (testCase.renewal !== null) {
+        const renewal = yield* gateway.sessions.issue({ ...renewable, ...testCase.renewal });
+        if ("revoke" in testCase) yield* gateway.sessions.revoke(renewal.sessionId);
+      }
+      yield* TestClock.adjust(Duration.minutes(2));
+      const error = yield* issueTicket({
+        sessionId: original.sessionId,
+        proofKeyThumbprint: "renewing-key",
+      }).pipe(Effect.flip);
+      assert.instanceOf(error, EnvironmentAuthorizationError);
+    }).pipe(
+      Effect.provideService(GatewayAvailabilityOverride, { available: true }),
+      Effect.provide(layerGateway),
+    ),
+  );
+
   it.effect.each(["discovery-disabled", "unsupported-platform"] as const)(
     "refuses with %s",
     (reason) =>
@@ -115,6 +171,7 @@ describe("loopbackGateway.issueTicket", () => {
       });
       for (let i = 0; i < 30; i++) yield* issueTicket({ sessionId: row.sessionId });
       const error = yield* issueTicket({ sessionId: row.sessionId }).pipe(Effect.flip);
+      assert.instanceOf(error, LoopbackGatewayUnavailableError);
       assert.equal(error.reason, "rate-limited");
       yield* TestClock.adjust(Duration.seconds(61));
       yield* issueTicket({ sessionId: row.sessionId });

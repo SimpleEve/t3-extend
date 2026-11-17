@@ -3,12 +3,15 @@
 // enforced before this runs, by `clientRpcRequiredScopes` in the RPC authorization layer. The
 // allowed-ports RPCs are thin calls into `LoopbackGatewayGrants` under the same two scopes.
 import {
+  AuthPreviewOperateScope,
+  EnvironmentAuthorizationError,
   FORK_LOOPBACK_GATEWAY_WS_METHODS,
   LOOPBACK_GATEWAY_TICKET_AUDIENCE,
   LoopbackGatewayUnavailableError,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 
 import * as SessionStore from "../../auth/SessionStore.ts";
@@ -58,10 +61,21 @@ export const makeLoopbackGatewayRpcHandlers = Effect.fn("makeLoopbackGatewayRpcH
               message: "Too many tickets were requested. Try again in a minute.",
             });
           }
+          // The socket outlives its session through renewals, and a ticket bound to an expired row
+          // is refused at the tunnel route, so it goes on the session the socket stands on now.
+          const current = yield* sessions
+            .currentSessionId(session.sessionId, session.proofKeyThumbprint)
+            .pipe(Effect.orDie);
+          if (Option.isNone(current)) {
+            return yield* new EnvironmentAuthorizationError({
+              message: "This session has ended. Sign in again to forward localhost.",
+              requiredScope: AuthPreviewOperateScope,
+            });
+          }
           // The session's DPoP key goes into the ticket only so the tunnel follows its renewals
           // (design N1); the tunnel route never asks for a proof.
           const issued = yield* sessions
-            .issueWebSocketToken(session.sessionId, {
+            .issueWebSocketToken(current.value, {
               audience: LOOPBACK_GATEWAY_TICKET_AUDIENCE,
               ...(session.proofKeyThumbprint === undefined
                 ? {}
