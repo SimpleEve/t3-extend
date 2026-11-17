@@ -613,6 +613,7 @@ const withService = <A, E, R>(
                   const inner = yield* ThreadCommandExecutor.ThreadCommandExecutor;
                   return {
                     activeKeys: inner.activeKeys,
+                    withDeletionLock: inner.withDeletionLock, // fork: the executor now has a deletion lock; the import never takes it
                     withLock: (key, effect) =>
                       options.lockRequested!(key).pipe(Effect.andThen(inner.withLock(key, effect))),
                   } as ThreadCommandExecutor.ThreadCommandExecutor["Service"];
@@ -2196,6 +2197,7 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
             );
         const threadCommands: ThreadCommandExecutor.ThreadCommandExecutor["Service"] = {
           activeKeys: inner.activeKeys,
+          withDeletionLock: (effect) => effect, // fork: the executor now has a deletion lock; the import never takes it
           withLock: (key, effect) =>
             inner.withLock(
               key,
@@ -2575,6 +2577,7 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
     const hook: { current: Effect.Effect<void> | undefined } = { current: undefined };
     const threadCommands: ThreadCommandExecutor.ThreadCommandExecutor["Service"] = {
       activeKeys: inner.activeKeys,
+      withDeletionLock: (effect) => effect, // fork: the executor now has a deletion lock; the import never takes it
       withLock: (key, effect) =>
         inner.withLock(
           key,
@@ -2771,6 +2774,7 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
       // The command takes its lock first; the relink's own request for the same lock is what `requested` marks.
       const asked: ThreadCommandExecutor.ThreadCommandExecutor["Service"] = {
         activeKeys: threadCommands.activeKeys,
+        withDeletionLock: threadCommands.withDeletionLock, // fork: the executor now has a deletion lock; the import never takes it
         withLock: (key, effect) =>
           Effect.suspend(() => {
             if (Deferred.isDoneUnsafe(held)) Deferred.doneUnsafe(requested, Effect.void);
