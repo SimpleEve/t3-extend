@@ -599,6 +599,8 @@ export default {
   "Checked {time}": "{time}检查",
   "Could not confirm signal": "无法确认信号",
   "Failed to send {signal}.": "无法发送 {signal}。",
+  "Expires in 1 day. Link it again to renew.": "1 天后过期。请重新关联以续期。",
+  "Expires in {count} days. Link it again to renew.": "{count} 天后过期。请重新关联以续期。",
   "Could not send {signal}": "无法发送 {signal}",
   "Process already exited": "进程已经退出",
   "The process is not a child of the T3 Server. It might already have exited.":
