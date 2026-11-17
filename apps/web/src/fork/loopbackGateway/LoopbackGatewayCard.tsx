@@ -2,7 +2,6 @@
 // (research/remote-loopback-forwarding.md 7.2). It reuses the page-unreachable card with other words.
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { isLoopbackGatewayHost } from "@t3tools/shared/forkLoopbackGateway/hosts";
 import { useEffect, useRef, useState } from "react";
 
 import { PreviewUnreachable } from "~/components/preview/PreviewUnreachable";
@@ -16,25 +15,12 @@ import {
 import {
   describeAllowPortFailure,
   describeGatewayCard,
-  gatewayCardKeyForCode,
-  gatewayCardKeyForState,
   gatewayCardOffersAllow,
   gatewayCardOffersMove,
-  gatewayCardPort,
-  type GatewayCardKey,
 } from "./gatewayCard";
-import { setLoopbackForwardingDisabled, useLoopbackForwardingDisabled } from "./disabledStore";
-import { isLoopbackGatewayHeld } from "./gatewayState";
-import { requestGatewayRetry, selectGatewayDenial, useGatewayStore } from "./gatewayStore";
-import { useLoopbackGatewayState } from "./useLoopbackGatewayState";
-
-const isLoopbackUrl = (url: string): boolean => {
-  try {
-    return isLoopbackGatewayHost(new URL(url).hostname);
-  } catch {
-    return false;
-  }
-};
+import { setLoopbackForwardingDisabled } from "./disabledStore";
+import { requestGatewayRetry, useGatewayStore } from "./gatewayStore";
+import { useGatewayCardKey } from "./useGatewayCardKey";
 
 /** What a preview tab hands the badge and the card; the badge uses the part it needs. */
 export interface LoopbackGatewayTabProps {
@@ -52,29 +38,12 @@ export interface LoopbackGatewayTabProps {
 export function LoopbackGatewayCard(props: LoopbackGatewayTabProps) {
   const { environmentId, environmentLabel, runtimeTabId, url, loadFailed, onReload, move } = props;
   const t = useT();
-  const { state, wasActive, connecting } = useLoopbackGatewayState(environmentId);
-  const disabledByUser = useLoopbackForwardingDisabled(environmentId);
-  // The webview is not there yet, so this tab shows nothing of its own: say why, and offer the way out.
-  const held = isLoopbackGatewayHeld({ state: state.state, wasActive, disabledByUser });
-  const port = gatewayCardPort(url);
-  const loopback = isLoopbackUrl(url);
-  const denial = useGatewayStore((store) =>
-    loopback ? selectGatewayDenial(store, { runtimeTabId, environmentId, port, loadFailed }) : null,
-  );
-  const registration = useGatewayStore((store) => store.registration[environmentId]);
-  // The gate keeps the webview away until forwarding is set up; when it could not be, say so.
-  const startFailed = state.state === "active" && registration === "failed" && !disabledByUser;
-  const key: GatewayCardKey | null = startFailed
-    ? "start-failed"
-    : held
-      ? connecting
-        ? null
-        : "waiting"
-      : denial !== null
-        ? gatewayCardKeyForCode(denial.code)
-        : loadFailed && loopback
-          ? gatewayCardKeyForState(state)
-          : null;
+  const { key, port, held, startFailed, denial } = useGatewayCardKey({
+    environmentId,
+    runtimeTabId,
+    url,
+    loadFailed,
+  });
 
   const ticketsDelivered = useGatewayStore((store) => store.ticketGeneration[environmentId] ?? 0);
   const waitingSince = useRef<number | null>(null);

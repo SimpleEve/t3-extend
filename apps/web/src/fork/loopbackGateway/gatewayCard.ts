@@ -76,6 +76,27 @@ export const gatewayCardKeyForState = (state: LoopbackGatewayState): GatewayCard
   }
 };
 
+/** What decides whether a tab's card shows, and which one; the card and the tab's cover share it. */
+export interface GatewayCardInputs {
+  /** The gate keeps the webview away until forwarding is set up, and setting it up failed. */
+  readonly startFailed: boolean;
+  /** The webview is not there yet: forwarding is on its way, or the environment is not connected. */
+  readonly held: boolean;
+  readonly connecting: boolean;
+  /** The code of the refusal behind what the tab shows now. */
+  readonly denialCode: LoopbackGatewayErrorCode | null;
+  readonly loadFailed: boolean;
+  readonly loopback: boolean;
+  readonly state: LoopbackGatewayState;
+}
+
+export const resolveGatewayCardKey = (input: GatewayCardInputs): GatewayCardKey | null => {
+  if (input.startFailed) return "start-failed";
+  if (input.held) return input.connecting ? null : "waiting";
+  if (input.denialCode !== null) return gatewayCardKeyForCode(input.denialCode);
+  return input.loadFailed && input.loopback ? gatewayCardKeyForState(input.state) : null;
+};
+
 /** The port a URL points at, or `null` when it is not a plain `http(s)` address. */
 export const gatewayCardPort = (url: string): number | null => {
   try {

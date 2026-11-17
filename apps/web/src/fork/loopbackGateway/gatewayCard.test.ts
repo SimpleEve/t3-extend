@@ -11,6 +11,8 @@ import {
   gatewayCardOffersAllow,
   gatewayCardOffersMove,
   gatewayCardPort,
+  resolveGatewayCardKey,
+  type GatewayCardInputs,
 } from "./gatewayCard";
 
 await loadUiCatalog("zh-Hans");
@@ -192,6 +194,46 @@ describe("gateway card", () => {
       expect(chinese.description, key).not.toBe(english.description);
       expect(`${chinese.title}${chinese.description}`, key).not.toMatch(/\{\w+\}/u);
     }
+  });
+
+  describe("which card a tab shows, which is also when its webview steps aside", () => {
+    const base: GatewayCardInputs = {
+      startFailed: false,
+      held: false,
+      connecting: true,
+      denialCode: null,
+      loadFailed: false,
+      loopback: true,
+      state: { state: "active" },
+    };
+    const rows: ReadonlyArray<
+      readonly [string, Partial<GatewayCardInputs>, GatewayCardKey | null]
+    > = [
+      ["a page that loaded", {}, null],
+      ["a refusal", { denialCode: "not-owned" }, "not-owned"],
+      ["a refusal that is not about ownership", { denialCode: "reserved" }, "reserved"],
+      ["forwarding that could not start", { startFailed: true }, "start-failed"],
+      ["a held tab of an environment that is connecting", { held: true }, null],
+      ["a held tab of an environment that is not", { held: true, connecting: false }, "waiting"],
+      [
+        "a failed load while the environment cannot forward",
+        { loadFailed: true, state: { state: "unsupported-server" } },
+        "unsupported-server",
+      ],
+      [
+        "a failed load of a page that is not on localhost",
+        { loadFailed: true, loopback: false, state: { state: "unsupported-server" } },
+        null,
+      ],
+      [
+        "a refusal is stronger than the state",
+        { denialCode: "tls-untrusted", loadFailed: true },
+        "tls-untrusted",
+      ],
+    ];
+    it.each(rows)("%s", (_name, overrides, expected) => {
+      expect(resolveGatewayCardKey({ ...base, ...overrides })).toBe(expected);
+    });
   });
 
   const ports: ReadonlyArray<readonly [string, string, number | null]> = [
