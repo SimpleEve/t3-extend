@@ -92,28 +92,28 @@ function formatProcessName(process: Pick<ResourceTelemetryProcess, "command" | "
   return normalized.split(/[\\/]/).findLast((segment) => segment.length > 0) ?? normalized;
 }
 
-function categoryLabel(category: ResourceTelemetryProcessCategory): string {
+function categoryLabel(category: ResourceTelemetryProcessCategory, t: Translator): string {
   switch (category) {
     case "server":
-      return "Server";
+      return t("Server");
     case "server-child":
-      return "Backend child";
+      return t("Backend child");
     case "provider-root":
-      return "Provider";
+      return t("Provider");
     case "terminal-root":
-      return "Terminal";
+      return t("Terminal");
     case "electron-main":
-      return "Electron main";
+      return t("Electron main");
     case "electron-renderer":
-      return "Renderer";
+      return t("Renderer");
     case "electron-gpu":
-      return "GPU";
+      return t("GPU");
     case "electron-utility":
-      return "Electron utility";
+      return t("Electron utility");
     case "resource-monitor":
-      return "Monitor";
+      return t("Monitor");
     case "unknown-t3":
-      return "T3 process";
+      return t("T3 process");
   }
 }
 
@@ -124,16 +124,16 @@ function categoryDotClass(category: ResourceTelemetryProcessCategory): string {
   return "bg-success";
 }
 
-function ioSemanticsLabel(semantics: ResourceTelemetryIoSemantics): string {
+function ioSemanticsLabel(semantics: ResourceTelemetryIoSemantics, t: Translator): string {
   switch (semantics) {
     case "storage":
-      return "Storage bytes";
+      return t("Storage bytes");
     case "logical":
-      return "Logical bytes";
+      return t("Logical bytes");
     case "all-io":
-      return "All I/O bytes";
+      return t("All I/O bytes");
     case "unavailable":
-      return "Unavailable";
+      return t("Unavailable");
   }
 }
 
@@ -681,7 +681,7 @@ function ProcessTable({
                   />
                 </td>
                 <td className="truncate px-3 py-2 text-2xs text-muted-foreground">
-                  {categoryLabel(process.category)}
+                  {categoryLabel(process.category, t)}
                 </td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums">
                   {process.cpuPercent.toFixed(1)}%
@@ -704,7 +704,9 @@ function ProcessTable({
                 <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">
                   <Tooltip>
                     <TooltipTrigger render={<span>{formatBytes(process.ioWriteBytes)}</span>} />
-                    <TooltipPopup side="top">{ioSemanticsLabel(process.ioSemantics)}</TooltipPopup>
+                    <TooltipPopup side="top">
+                      {ioSemanticsLabel(process.ioSemantics, t)}
+                    </TooltipPopup>
                   </Tooltip>
                 </td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">
@@ -798,7 +800,7 @@ function HistoryProcessTable({
                   </Tooltip>
                 </td>
                 <td className="truncate px-3 py-2 text-2xs text-muted-foreground">
-                  {categoryLabel(process.category)}
+                  {categoryLabel(process.category, t)}
                 </td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums">
                   {formatCpuTime(process.cpuTimeMs / 1_000)}
@@ -992,9 +994,11 @@ function ResourceTelemetryDiagnosticsBody({
         toastManager.add({
           type: "error",
           title: t("Could not send {signal}", { signal }),
-          description: Option.getOrElse(
-            result.value.message,
-            () => `Failed to send ${signal} to process ${process.identity.pid}.`,
+          description: Option.getOrElse(result.value.message, () =>
+            t("Failed to send {signal} to process {pid}.", {
+              signal,
+              pid: process.identity.pid,
+            }),
           ),
         });
       })
