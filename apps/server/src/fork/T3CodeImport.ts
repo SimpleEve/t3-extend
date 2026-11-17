@@ -2044,14 +2044,16 @@ const make = Effect.fn("T3CodeImport.make")(function* (options: {
         );
       }),
     );
-    // Open clients learn about the project from its creation event.
-    const created = yield* sql.unsafe<{ readonly sequence: number }>(
+    // Any project event makes open clients load the whole project, and compaction can leave
+    // the source without its creation event. Clients skip events behind their cursor, so
+    // this must be announced now: a later resume will not replay it.
+    const latest = yield* sql.unsafe<{ readonly sequence: number }>(
       `SELECT sequence FROM orchestration_events
-       WHERE aggregate_kind = 'project' AND stream_id = ? AND event_type = 'project.created'
-       ORDER BY sequence ASC LIMIT 1`,
+       WHERE aggregate_kind = 'project' AND stream_id = ?
+       ORDER BY sequence DESC LIMIT 1`,
       [project.targetId],
     );
-    const sequence = created[0]?.sequence;
+    const sequence = latest[0]?.sequence;
     if (sequence !== undefined) {
       yield* eventStore
         .readApplicationEvents({ afterSequence: sequence - 1, throughSequence: sequence })

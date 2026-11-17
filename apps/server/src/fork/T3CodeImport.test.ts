@@ -498,7 +498,8 @@ const withService = <A, E, R>(
         : Layer.mock(OrchestrationEventStore.OrchestrationEventStore)({
             // The fixtures' creation events are not full threads, so the real store cannot decode them.
             readAgentEvents: (input) => Stream.make({ threadId: input?.threadId } as never),
-            readApplicationEvents: () => Stream.empty,
+            readApplicationEvents: (input) =>
+              Stream.make({ threadId: `application-event:${input?.throughSequence}` } as never),
             publishCommitted: (events) =>
               Effect.sync(() => {
                 for (const event of events)
@@ -1794,6 +1795,34 @@ it.layer(NodeServices.layer)("T3CodeImport", (it) => {
           assert.equal((yield* stateOfThread(service, T_STOPPED))?.state, "imported");
           assert.equal(yield* hashFile(sourcePath), sourceBefore);
           assert.deepStrictEqual(announced, [target]);
+        }),
+      );
+    },
+  );
+
+  it.effect(
+    "tells live clients about a new project whose creation event was compacted away",
+    () => {
+      const announced: Array<string> = [];
+      return withService({ announced }, ({ service, sql, sourcePath }) =>
+        Effect.gen(function* () {
+          yield* withDatabase(
+            sourcePath,
+            Effect.gen(function* () {
+              const source = yield* SqlClient.SqlClient;
+              yield* source`UPDATE orchestration_events
+              SET event_type = 'project.meta-updated', stream_version = 3
+              WHERE aggregate_kind = 'project' AND stream_id = ${P_SOLO}`;
+            }),
+          );
+
+          yield* runToEnd(service, onlyThread(T_SOLO));
+
+          const [project] = yield* sql<{ sequence: number }>`SELECT e.sequence
+          FROM orchestration_events e
+          JOIN fork_t3code_import_map m ON m.kind = 'project' AND m.target_id = e.stream_id
+          WHERE e.aggregate_kind = 'project' AND m.source_id = ${P_SOLO}`;
+          assert.include(announced, `application-event:${project!.sequence}`);
         }),
       );
     },
