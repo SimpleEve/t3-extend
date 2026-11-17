@@ -42,9 +42,9 @@ export const getConnectionCatalogStatus = DesktopIpc.makeIpcMethod({
 export const relaunchApp = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.RELAUNCH_APP_CHANNEL,
   payload: Schema.Void,
-  result: Schema.Boolean,
+  result: Schema.Void,
   handler: Effect.fn("desktop.ipc.relaunchApp")(function* () {
     const lifecycle = yield* DesktopLifecycle.DesktopLifecycle;
-    return yield* lifecycle.tryRelaunch("renderer requested relaunch");
+    yield* lifecycle.relaunch("renderer requested relaunch");
   }),
 });

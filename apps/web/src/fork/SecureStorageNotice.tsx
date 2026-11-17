@@ -66,10 +66,7 @@ export function SecureStorageNotice() {
             disabled={restarting}
             onClick={() => {
               setRestarting(true);
-              const enable = () => setRestarting(false);
-              void bridge.relaunchApp?.().then((relaunched) => {
-                if (!relaunched) enable();
-              }, enable);
+              void bridge.relaunchApp?.().catch(() => setRestarting(false));
             }}
           >
             {t("Restart app")}

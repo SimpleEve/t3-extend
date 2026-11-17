@@ -1099,8 +1099,8 @@ export interface DesktopBridge {
   setConnectionCatalog: (catalog: string) => Promise<boolean>;
   /** fork: "unavailable" when the system keychain refused this process, "unreadable" when its key cannot open the saved catalog. */
   getConnectionCatalogStatus?: () => Promise<"available" | "unavailable" | "unreadable">; // fork:
-  /** fork: quit and reopen the app; resolves false when the relaunch failed (it never resolves when it worked). */
-  relaunchApp?: () => Promise<boolean>; // fork:
+  /** fork: quit and reopen the app. */
+  relaunchApp?: () => Promise<void>; // fork:
   discoverSshHosts: () => Promise<readonly DesktopDiscoveredSshHost[]>;
   resolveSshHost: (alias: string) => Promise<DesktopSshEnvironmentTarget>;
   requestSnapShotPermissions: (includeAccessibility: boolean) => Promise<void>;

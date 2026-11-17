@@ -2,7 +2,6 @@ import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
-import * as Fiber from "effect/Fiber"; // fork:
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
@@ -57,10 +56,6 @@ export class DesktopLifecycle extends Context.Service<
     readonly relaunch: (
       reason: string,
     ) => Effect.Effect<void, never, DesktopLifecycleRuntimeServices>;
-    // fork: waits for the relaunch; false when it failed and `quitting` was restored.
-    readonly tryRelaunch: (
-      reason: string,
-    ) => Effect.Effect<boolean, never, DesktopLifecycleRuntimeServices>;
     readonly register: Effect.Effect<
       void,
       never,
@@ -221,25 +216,24 @@ function quitFromSignal(
   );
 }
 
-// fork: a second app.relaunch would start another instance after quit, so only the first request
-// goes through. A failed one hands `quitting` back, as a cancelled update install does, so
-// activation and later relaunches work again. None means a quit or relaunch is already underway.
-const startRelaunch = Effect.fn("desktop.lifecycle.startRelaunch")(function* (reason: string) {
-  const electronApp = yield* ElectronApp.ElectronApp;
-  const environment = yield* DesktopEnvironment.DesktopEnvironment;
-  const state = yield* DesktopState.DesktopState;
-  if (yield* Ref.getAndSet(state.quitting, true)) {
-    yield* logLifecycleInfo("desktop relaunch ignored, already quitting", { reason });
-    return Option.none<Fiber.Fiber<boolean>>();
-  }
-  yield* logLifecycleInfo("desktop relaunch requested", { reason });
-  return Option.some(
+/** @public */
+export const make = DesktopLifecycle.of({
+  relaunch: Effect.fn("desktop.lifecycle.relaunch")(function* (reason) {
+    const electronApp = yield* ElectronApp.ElectronApp;
+    const environment = yield* DesktopEnvironment.DesktopEnvironment;
+    const state = yield* DesktopState.DesktopState;
+    // fork: a second app.relaunch would start another instance after quit, so only the first request goes through.
+    if (yield* Ref.getAndSet(state.quitting, true)) {
+      yield* logLifecycleInfo("desktop relaunch ignored, already quitting", { reason });
+      return;
+    }
+    yield* logLifecycleInfo("desktop relaunch requested", { reason });
     yield* Effect.gen(function* () {
       yield* Effect.yieldNow;
       yield* requestDesktopShutdownAndWait();
       if (environment.isDevelopment) {
         yield* electronApp.exit(75);
-        return true;
+        return;
       }
       // Startup already acted on the app link that launched it; passing it on replays it.
       const appLinkPrefix = `${ElectronProtocol.getDesktopScheme(environment.isDevelopment)}:`;
@@ -249,28 +243,17 @@ const startRelaunch = Effect.fn("desktop.lifecycle.startRelaunch")(function* (re
         args: args.slice(1).filter((arg) => !arg.toLowerCase().startsWith(appLinkPrefix)),
       });
       yield* electronApp.exit(0);
-      return true;
     }).pipe(
       Effect.catchCause((cause) => {
         const error = new DesktopLifecycleRelaunchError({ reason, cause });
-        return Ref.set(state.quitting, false).pipe(
-          Effect.andThen(logLifecycleError(error.message, { error })),
-          Effect.as(false),
+        // fork: a relaunch is a commitment to quit; `quitting` stays set, so do not linger half shut down.
+        return logLifecycleError(error.message, { error }).pipe(
+          Effect.andThen(electronApp.exit(0)),
         );
       }),
       Effect.forkDetach,
-    ),
-  );
-});
-
-/** @public */
-export const make = DesktopLifecycle.of({
-  relaunch: Effect.fn("desktop.lifecycle.relaunch")(function* (reason) {
-    yield* startRelaunch(reason);
-  }),
-  tryRelaunch: Effect.fn("desktop.lifecycle.tryRelaunch")(function* (reason) {
-    const fiber = yield* startRelaunch(reason);
-    return Option.isNone(fiber) ? true : yield* Fiber.join(fiber.value);
+      Effect.asVoid,
+    );
   }),
   register: Effect.gen(function* () {
     const desktopWindow = yield* DesktopWindow.DesktopWindow;

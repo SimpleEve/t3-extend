@@ -1,7 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
-import * as Fiber from "effect/Fiber"; // fork:
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
@@ -112,13 +111,16 @@ function layerDesktopWindow(
 }
 
 // fork: a packaged linux lifecycle whose relaunch is supplied by the test.
-function layerRelaunching(relaunch: (options: Electron.RelaunchOptions) => Effect.Effect<void>) {
+function layerRelaunching(
+  relaunch: (options: Electron.RelaunchOptions) => Effect.Effect<void>,
+  exit: (code: number) => Effect.Effect<void> = () => Effect.void,
+) {
   const layerEnvironment = Layer.succeed(DesktopEnvironment.DesktopEnvironment, {
     platform: "linux",
     isDevelopment: false,
   } as DesktopEnvironment.DesktopEnvironment["Service"]);
   return DesktopLifecycle.layer.pipe(
-    Layer.provideMerge(layerElectronApp(new Map(), Effect.void, () => Effect.void, relaunch)),
+    Layer.provideMerge(layerElectronApp(new Map(), Effect.void, exit, relaunch)),
     Layer.provideMerge(layerElectronTheme),
     Layer.provideMerge(layerElectronWindow()),
     Layer.provideMerge(layerDesktopWindow()),
@@ -296,58 +298,66 @@ describe("DesktopLifecycle", () => {
   it.effect("relaunches once when asked twice while shutdown is pending", () =>
     Effect.gen(function* () {
       const relaunches: Array<Electron.RelaunchOptions> = [];
-      const layer = layerRelaunching((options) =>
-        Effect.sync(() => {
-          relaunches.push(options);
-        }),
+      const exited = yield* Deferred.make<void>();
+      const layer = layerRelaunching(
+        (options) =>
+          Effect.sync(() => {
+            relaunches.push(options);
+          }),
+        () => Deferred.succeed(exited, undefined).pipe(Effect.asVoid),
       );
 
-      const results = yield* Effect.gen(function* () {
+      yield* Effect.gen(function* () {
         const lifecycle = yield* DesktopLifecycle.DesktopLifecycle;
-        const first = yield* lifecycle.tryRelaunch("first").pipe(Effect.forkChild);
-        const second = yield* lifecycle.tryRelaunch("second").pipe(Effect.forkChild);
+        yield* lifecycle.relaunch("first");
+        yield* lifecycle.relaunch("second");
         assert.deepEqual(relaunches, []);
         yield* (yield* DesktopShutdown.DesktopShutdown).markComplete;
-        return [yield* Fiber.join(first), yield* Fiber.join(second)];
+        yield* Deferred.await(exited);
+        // A duplicate relaunch would run one scheduler turn after the first one exits.
+        yield* Effect.yieldNow;
       }).pipe(
         Effect.provide(layer),
         Effect.provideService(HostProcess.ExecutablePath, "/opt/app"),
         Effect.provideService(HostProcess.Arguments, ["/opt/app"]),
       );
 
-      assert.deepEqual(results, [true, true]);
       assert.deepEqual(relaunches, [{ execPath: "/opt/app", args: [] }]);
     }),
   );
 
-  // fork: a failed relaunch must not leave the app refusing to open windows or relaunch again.
-  it.effect("hands quitting back when a relaunch fails so a later one works", () =>
+  // fork: a relaunch is a commitment to quit, so a failure exits instead of staying half shut down.
+  it.effect("exits when a relaunch fails and keeps ignoring further requests", () =>
     Effect.gen(function* () {
-      const relaunches: Array<Electron.RelaunchOptions> = [];
-      let failNext = true;
-      const layer = layerRelaunching((options) =>
-        Effect.suspend(() => {
-          if (failNext) {
-            failNext = false;
+      const attempts: Array<Electron.RelaunchOptions> = [];
+      const exitCodes: Array<number> = [];
+      const exited = yield* Deferred.make<void>();
+      const layer = layerRelaunching(
+        (options) =>
+          Effect.suspend(() => {
+            attempts.push(options);
             return Effect.die(new Error("relaunch failed"));
-          }
-          relaunches.push(options);
-          return Effect.void;
-        }),
+          }),
+        (code) =>
+          Effect.sync(() => {
+            exitCodes.push(code);
+          }).pipe(Effect.andThen(Deferred.succeed(exited, undefined)), Effect.asVoid),
       );
 
       yield* Effect.gen(function* () {
         const lifecycle = yield* DesktopLifecycle.DesktopLifecycle;
         const state = yield* DesktopState.DesktopState;
+        yield* lifecycle.relaunch("fails");
+        yield* lifecycle.relaunch("ignored");
         yield* (yield* DesktopShutdown.DesktopShutdown).markComplete;
+        yield* Deferred.await(exited);
+        yield* Effect.yieldNow;
+        yield* lifecycle.relaunch("after exit");
+        yield* Effect.yieldNow;
 
-        assert.isFalse(yield* lifecycle.tryRelaunch("fails"));
-        assert.isFalse(yield* Ref.get(state.quitting));
-        assert.deepEqual(relaunches, []);
-
-        assert.isTrue(yield* lifecycle.tryRelaunch("works"));
+        assert.deepEqual(exitCodes, [0]);
+        assert.lengthOf(attempts, 1);
         assert.isTrue(yield* Ref.get(state.quitting));
-        assert.lengthOf(relaunches, 1);
       }).pipe(
         Effect.provide(layer),
         Effect.provideService(HostProcess.ExecutablePath, "/opt/app"),
