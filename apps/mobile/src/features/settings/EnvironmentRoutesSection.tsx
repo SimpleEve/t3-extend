@@ -28,6 +28,7 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { StatusPill } from "../../components/StatusPill";
 import { environmentCatalog } from "../../connection/catalog";
 import { cn } from "../../lib/cn";
+import { environmentPresentations } from "../../state/presentation";
 import { environmentSession } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { connectionTone } from "../connection/connectionTone";
@@ -61,6 +62,8 @@ export function EnvironmentRoutesSection({
   const t = useT();
   const entry = useAtomValue(environmentCatalog.catalogValueAtom).entries.get(environmentId);
   const prepared = useAtomValue(environmentSession.preparedConnectionValueAtom(environmentId));
+  const refusedRouteIds =
+    useAtomValue(environmentPresentations.presentationAtom(environmentId))?.refusedRouteIds ?? [];
   const sessionResult = useAtomValue(environmentSession.sessionStateAtom(environmentId));
   const session = AsyncResult.getOrElse(sessionResult, () => null);
   const [permissionsOpen, setPermissionsOpen] = useState(false);
@@ -203,6 +206,7 @@ export function EnvironmentRoutesSection({
             position={index + 1}
             count={routes.length}
             inUse={id === activeRouteId}
+            refused={refusedRouteIds.includes(id)}
             editing={editing}
             offset={index === dragFrom ? (drag?.translation ?? 0) : shift}
             lifted={index === dragFrom}
@@ -236,6 +240,7 @@ function RouteRow(props: {
   readonly position: number;
   readonly count: number;
   readonly inUse: boolean;
+  readonly refused: boolean;
   readonly editing: boolean;
   readonly offset: number;
   readonly lifted: boolean;
@@ -250,6 +255,10 @@ function RouteRow(props: {
   const { route, lifted, offset } = props;
   const label = connectionRouteLabel(route, t); // fork: interface language
   const address = connectionRouteAddress(route);
+  const refusedHint =
+    props.refused && address !== null
+      ? t("The host refused this device's sign-in. Pair this address again with Add route.")
+      : null;
   const style = useAnimatedStyle(() => ({
     transform: [
       {
@@ -291,7 +300,9 @@ function RouteRow(props: {
           address,
           isLearned(route) ? t("Found automatically") : null,
           props.inUse ? t("In use") : null,
+          props.refused ? t("Sign-in refused") : null,
           t("Route {position} of {count}", { position: props.position, count: props.count }),
+          refusedHint,
         ]
           .filter((part) => part !== null)
           .join(", ")}
@@ -316,11 +327,21 @@ function RouteRow(props: {
             {props.inUse ? (
               <StatusPill {...connectionTone("connected", t)} label={t("In use")} size="compact" />
             ) : null}
+            {props.refused ? (
+              <StatusPill
+                {...connectionTone("error")}
+                label={t("Sign-in refused")}
+                size="compact"
+              />
+            ) : null}
           </View>
           {address !== null ? (
             <Text numberOfLines={1} className="text-sm text-foreground-muted">
               {isLearned(route) ? t("{address} · found automatically", { address }) : address}
             </Text>
+          ) : null}
+          {refusedHint !== null ? (
+            <Text className="text-sm text-foreground-muted">{refusedHint}</Text>
           ) : null}
         </View>
       </View>

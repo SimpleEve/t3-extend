@@ -10,6 +10,8 @@ import * as Arr from "effect/Array";
 import * as Result from "effect/Result";
 import { FORK } from "./forkIdentity.ts"; // fork: identity
 
+import { foldLatinDiacritics } from "./path.ts";
+
 export const WORKTREE_BRANCH_PREFIX = FORK.gitNamespace; // fork: not official `t3`
 /** Official T3 Code names its temporary branches `t3/<hex>`; the fork only labels them, never renames. */
 const OFFICIAL_WORKTREE_BRANCH_PREFIX = "t3";
@@ -28,9 +30,7 @@ const ANY_TEMP_WORKTREE_BRANCH_PATTERN = new RegExp(
 );
 
 export function sanitizeBranchFragment(raw: string): string {
-  const normalized = raw
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+  const normalized = foldLatinDiacritics(raw)
     .trim()
     .toLowerCase()
     .replace(/['"`]/g, "")

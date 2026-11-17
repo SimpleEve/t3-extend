@@ -8,7 +8,7 @@ import * as EffectNodeStream from "@effect/platform-node/NodeStream";
 import { ProviderDriverKind, type ProviderInstallState } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { resolveNodeExecutable, nodeRuntimeUnavailableMessage } from "@t3tools/shared/nodeRuntime";
-import { resolveCommandPath, resolveSpawnCommand } from "@t3tools/shared/shell";
+import { resolveCommandPath } from "@t3tools/shared/shell";
 import * as Clock from "effect/Clock";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
@@ -52,12 +52,6 @@ import { type AntigravityReleaseAsset } from "./antigravityRelease.ts";
 const DRIVER = ProviderDriverKind.make("antigravity");
 const DOWNLOAD_TIMEOUT = "45 minutes";
 const VALIDATION_TIMEOUT = "90 seconds";
-// fork: bounds for recognising an agy CLI found on PATH.
-const CLI_PROBE_TIMEOUT = "5 seconds";
-const CLI_PROBE_MAX_CHUNKS = 64;
-const MIN_ACP_CLI_VERSION = "1.5.0";
-const CLI_VERSION_LINE =
-  /^(?:(?:agy|antigravity)(?:[ -]cli)?[ \t]+)?v?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?)$/iu;
 const MAX_DOWNLOAD_BYTES = 512 * 1024 * 1024;
 const MAX_EXECUTABLE_BYTES = 512 * 1024 * 1024;
 const UPDATE_CHECK_INTERVAL = 60 * 60 * 1000;
@@ -382,72 +376,6 @@ export const makeAntigravityInstallation = Effect.fn("AntigravityInstallation.ma
     return candidates;
   });
 
-  const cliProbeVerdicts = new Map<string, boolean>();
-  const probeCli = (
-    executable: string,
-    args: ReadonlyArray<string>,
-    processEnvironment: NodeJS.ProcessEnv | undefined,
-  ) =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        // Same resolution as the real launch, so a Windows `agy.cmd` shim runs through the shell.
-        const command = yield* resolveSpawnCommand(
-          executable,
-          args,
-          processEnvironment === undefined ? {} : { env: processEnvironment, extendEnv: true },
-        ).pipe(Effect.provideService(HostProcess.Platform, platform));
-        const child = yield* spawner.spawn(
-          ChildProcess.make(command.command, command.args, {
-            shell: command.shell,
-            stdin: "ignore",
-            killSignal: "SIGKILL",
-            ...(processEnvironment === undefined
-              ? {}
-              : { env: processEnvironment, extendEnv: true }),
-          }),
-        );
-        // `agy acp --help` prints its usage to stderr, so read both streams.
-        const output = yield* child.all.pipe(
-          Stream.decodeText(),
-          Stream.take(CLI_PROBE_MAX_CHUNKS),
-          Stream.mkString,
-        );
-        return (yield* child.exitCode) === 0 ? output : null;
-      }),
-    );
-
-  // fork: a bare `agy` on PATH is launched as `agy acp`, so it must first prove it is the Antigravity
-  // CLI. The verdict is keyed by file mtime and size, so refreshes do not respawn it.
-  const isAcpCli = Effect.fn("AntigravityInstallation.isAcpCli")(function* (
-    executable: string,
-    processEnvironment: NodeJS.ProcessEnv | undefined,
-  ) {
-    const info = yield* fs.stat(executable).pipe(Effect.option);
-    if (Option.isNone(info)) return false;
-    const mtime = Option.match(info.value.mtime, {
-      onNone: () => 0,
-      onSome: (date) => date.getTime(),
-    });
-    const key = `${executable}\0${mtime}\0${info.value.size}`;
-    const known = cliProbeVerdicts.get(key);
-    if (known !== undefined) return known;
-    const verdict = yield* Effect.gen(function* () {
-      const version = yield* probeCli(executable, ["--version"], processEnvironment);
-      const reported = version?.trim().split(/\r?\n/u)[0]?.match(CLI_VERSION_LINE)?.[1];
-      if (reported === undefined || compareSemverVersions(reported, MIN_ACP_CLI_VERSION) < 0) {
-        return false;
-      }
-      // `--version` prints only the number, so ask the command itself whether it serves ACP.
-      const help = yield* probeCli(executable, ["acp", "--help"], processEnvironment);
-      return help !== null && /Agent Client Protocol/iu.test(help);
-    }).pipe(
-      Effect.timeout(CLI_PROBE_TIMEOUT),
-      Effect.orElseSucceed(() => false),
-    );
-    cliProbeVerdicts.set(key, verdict);
-    return verdict;
-  });
-
   const resolve: AntigravityInstallationService["resolve"] = Effect.fn(
     "AntigravityInstallation.resolve",
   )(
@@ -473,18 +401,10 @@ export const makeAntigravityInstallation = Effect.fn("AntigravityInstallation.ma
           );
         return installed;
       }
-      // fork: also find the agy CLI on PATH; the named old runtime is more specific, so it goes first.
       for (const command of [names.executable, "agy"]) {
         for (const candidate of yield* commandCandidates(command, processEnvironment)) {
           const selected = yield* fromExternal(candidate, "path");
-          if (
-            selected &&
-            (command !== "agy" ||
-              selected.version !== null ||
-              (yield* isAcpCli(selected.executablePath, processEnvironment)))
-          ) {
-            return selected;
-          }
+          if (selected) return selected;
         }
       }
       return yield* installationError(

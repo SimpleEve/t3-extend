@@ -56,6 +56,7 @@ import {
   applyProviderInstanceSettings,
   brandProviderInstanceEntries,
   deriveProviderInstanceEntries,
+  hasInstanceBadge,
   shouldShowInstanceBadge,
   type ProviderInstanceEntry,
 } from "../../providerInstances";
@@ -221,6 +222,7 @@ function SubagentAvatar({
   iconUrl,
   accentColor,
   showBadge,
+  anyInstanceBadge,
   status,
   className,
 }: {
@@ -229,6 +231,7 @@ function SubagentAvatar({
   iconUrl?: string | undefined;
   accentColor?: string | undefined;
   showBadge: boolean;
+  anyInstanceBadge: boolean;
   status?: OrchestrationV2TurnItem["status"] | undefined;
   className?: string;
 }) {
@@ -257,8 +260,8 @@ function SubagentAvatar({
       {status ? (
         <span
           className={cn(
-            "absolute size-2 rounded-full ring-2 ring-background",
-            showBadge ? "-left-px -top-px" : "-right-px -bottom-px",
+            "absolute -right-px size-2 rounded-full ring-2 ring-background",
+            anyInstanceBadge ? "-top-px" : "-bottom-px",
             subagentStatusVisual(status).dotClass,
           )}
         />
@@ -309,6 +312,9 @@ export function EnvironmentSubagentAvatar({
     const entry = all.find((candidate) => candidate.instanceId === providerInstanceId);
     return entry !== undefined && shouldShowInstanceBadge(entry, all);
   });
+  const anyInstanceBadge = useAtomValue(providersAtom, (providers) =>
+    hasInstanceBadge(entries(providers)),
+  );
   const iconUrl = useAtomValue(
     providersAtom,
     (providers) =>
@@ -322,6 +328,7 @@ export function EnvironmentSubagentAvatar({
       iconUrl={iconUrl}
       accentColor={accentColor}
       showBadge={showBadge}
+      anyInstanceBadge={anyInstanceBadge}
     />
   );
 }

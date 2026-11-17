@@ -287,6 +287,9 @@ export default function DiffPanel({
     selectThreadBranchBaseRef(state, routeThreadRef),
   );
   const toolCallSelection = diffSelection.kind === "tool-call" ? diffSelection : null;
+  // Turn and git diffs name files from the repository root; a tool call's diff names them as
+  // its provider recorded them, absolute or relative to the workspace.
+  const diffPathRepositoryRoot = toolCallSelection ? undefined : activeRepositoryRoot;
   const isGitSelection =
     diffSelection.kind === "branch" ||
     diffSelection.kind === "unstaged" ||
@@ -329,9 +332,7 @@ export default function DiffPanel({
     diffSelection.kind === "branch" || diffSelection.kind === "commit"
       ? diffSelection.baseRef
       : null;
-  // @pierre/diffs trims trailing whitespace from parsed file names; leading whitespace survives.
-  const selectedFilePath =
-    diffSelection.kind === "turn" ? diffSelection.filePath?.trimEnd() || null : null;
+  const selectedFilePath = diffSelection.kind === "turn" ? (diffSelection.filePath ?? null) : null;
   const selectedFileRevealRequestId =
     diffSelection.kind === "turn" ? diffSelection.revealRequestId : 0;
   const selectedTurn =
@@ -750,7 +751,7 @@ export default function DiffPanel({
       threadRef: routeThreadRef,
       filePath,
       activeCwd,
-      repositoryRoot: activeRepositoryRoot,
+      repositoryRoot: diffPathRepositoryRoot,
       openInEditor: (targetPath) => {
         void (async () => {
           const result = await openInPreferredEditor(targetPath);
@@ -1432,7 +1433,7 @@ export default function DiffPanel({
                         environmentId: activeThread?.environmentId ?? null,
                         filePath,
                         workspaceRoot: activeCwd,
-                        repositoryRoot: activeRepositoryRoot,
+                        repositoryRoot: diffPathRepositoryRoot,
                       },
                       event,
                     );

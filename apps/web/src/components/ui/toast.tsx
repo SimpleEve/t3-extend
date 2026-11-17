@@ -745,9 +745,10 @@ function AnchoredToasts() {
   return (
     <Toast.Portal data-slot="toast-portal-anchored">
       <Toast.Viewport
+        aria-label={undefined}
         className="outline-none"
         data-slot="toast-viewport-anchored"
-        aria-label={t("Notifications")} // fork: Base UI defaults to English
+        role={undefined}
       >
         {toasts
           .filter((toast) => shouldRenderThreadScopedToast(toast.data, activeThreadRef))

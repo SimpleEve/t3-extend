@@ -30,14 +30,15 @@ import {
   THREAD_JUMP_KEYBINDING_COMMANDS,
 } from "@t3tools/contracts";
 import { filterFilesystemBrowseEntries } from "@t3tools/client-runtime/state/filesystem";
+import { isShownUnderParent } from "@t3tools/client-runtime/state/threads";
 import { type ReactNode } from "react";
 import type { Translator } from "@t3tools/client-runtime/i18n";
 import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: interface language
 import { formatRelativeTimeLabel } from "../timestampFormat";
 import { type Project, type SidebarThreadSummary, type Thread } from "../types";
-import { isSidebarHiddenThread } from "./Sidebar.logic";
 
 export const RECENT_THREAD_LIMIT = 12;
+const NO_THREAD_KEYS: ReadonlySet<string> = new Set();
 export const ITEM_ICON_CLASS = "size-4 text-icon-muted";
 export const ADDON_ICON_CLASS = "size-4";
 
@@ -443,10 +444,19 @@ export function buildThreadActionItems<TThread extends BuildThreadActionItemsThr
   environmentLabelOf?: (thread: TThread) => string | null;
   // fork: interface language
   t?: Translator;
+  /** Tasks linked environments run for a listed thread; they open from under that thread. */
+  delegatedUnderParent?: ReadonlySet<string>;
 }): CommandPaletteActionItem[] {
+  const delegatedUnderParent = input.delegatedUnderParent ?? NO_THREAD_KEYS;
   // Callers order these: recents by last use, search results by rank.
   const visibleThreads = input.threads.filter(
-    (thread) => thread.archivedAt === null && !isSidebarHiddenThread(thread),
+    (thread) =>
+      thread.archivedAt === null &&
+      !isShownUnderParent(
+        { environmentId: thread.environmentId, threadId: thread.id },
+        thread.lineage,
+        delegatedUnderParent,
+      ),
   );
 
   return visibleThreads.map((thread) => {

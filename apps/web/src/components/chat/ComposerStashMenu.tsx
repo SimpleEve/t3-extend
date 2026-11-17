@@ -1,12 +1,13 @@
 import { BookmarkIcon, FileIcon, FileTextIcon } from "lucide-react";
 import { memo, useEffect, useEffectEvent, useRef, useState, type RefObject } from "react";
 import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitations";
+import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences";
 
 import { RelativeTime } from "../RelativeTime";
 import { cn } from "~/lib/utils";
 import { type PromptStashEntry } from "../../promptStashStore";
 import { ComposerBanner } from "./ComposerBanner";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork
+import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork
 import { useT } from "~/hooks/useT"; // fork: interface language
 
 const SNIPPET_MAX_CHARS = 90;
@@ -22,10 +23,21 @@ const STASH_ATTACHMENT_COUNTS = {
   image: ["(1 image)", "({count} images)"],
 } as const;
 
-function stashEntrySnippet(entry: PromptStashEntry, t: Translator): string {
-  const trimmed = assistantCitationsToPlainText(entry.prompt).trim().replace(/\s+/g, " ");
+export function stashEntrySnippet(
+  entry: PromptStashEntry,
+  t: Translator = translatorFor("en"), // fork: i18n
+): string {
+  const trimmed = assistantCitationsToPlainText(
+    replaceComposerContextReferences(entry.prompt, (reference) => reference.label),
+  )
+    .trim()
+    .replace(/\s+/g, " ");
   if (trimmed.length > 0) {
-    return trimmed.length > SNIPPET_MAX_CHARS ? `${trimmed.slice(0, SNIPPET_MAX_CHARS)}…` : trimmed;
+    if (trimmed.length <= SNIPPET_MAX_CHARS) return trimmed;
+    // Never end on a lone high surrogate, the first half of an emoji.
+    const last = trimmed.charCodeAt(SNIPPET_MAX_CHARS - 1);
+    const end = last >= 0xd800 && last <= 0xdbff ? SNIPPET_MAX_CHARS - 1 : SNIPPET_MAX_CHARS;
+    return `${trimmed.slice(0, end)}…`;
   }
   const imageCount = entry.attachments.length + entry.droppedImageNames.length;
   const fileCount = entry.files?.length ?? 0;

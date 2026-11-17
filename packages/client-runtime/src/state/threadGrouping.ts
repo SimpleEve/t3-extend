@@ -353,6 +353,10 @@ type UnseenCompletionInput = Pick<EnvironmentThreadShell, "latestRun"> & {
 
 export function hasUnseenCompletion(thread: UnseenCompletionInput): boolean {
   if (!thread.latestRun?.completedAt) return false;
+  // Upstream 40dcbc5f6a: a stopped run is not a finished one the user has yet to see.
+  if (thread.latestRun.status === "interrupted" || thread.latestRun.status === "cancelled") {
+    return false;
+  }
   const completedAt = Date.parse(thread.latestRun.completedAt);
   if (Number.isNaN(completedAt)) return false;
   if (!thread.lastVisitedAt) return false;

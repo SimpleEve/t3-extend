@@ -84,6 +84,7 @@ export function PullRequestStackMenu({
     mergeHasClosed ||
     mergeLayers.length === 0 ||
     mergeLayers.some((layer) => layer.isDraft);
+  const staleReason = notice ?? t("Checking the stack with the host…");
   const rebaseDisabled = pending || stale || hasUnknownHead || hasClosed || unmerged.length === 0;
   const run = async () => {
     if (
@@ -234,7 +235,7 @@ export function PullRequestStackMenu({
                   size="xs"
                   disabled={mergeDisabled && !stale}
                   aria-disabled={mergeDisabled || undefined}
-                  aria-description={stale ? (notice ?? undefined) : undefined}
+                  aria-description={stale ? staleReason : undefined}
                   onClick={mergeDisabled ? undefined : () => setConfirmation("merge")}
                 >
                   <PullRequestGlyph.merged aria-hidden className="size-3.5" />
@@ -245,7 +246,7 @@ export function PullRequestStackMenu({
           />
           <TooltipPopup>
             {stale
-              ? notice
+              ? staleReason
               : t("Merge stack through #{number} into {base} ({length} {kind})", {
                   number: reference.number,
                   base: stack.base,
