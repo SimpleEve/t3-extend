@@ -83,6 +83,7 @@ export function SnapShotCopyButton({
   onCopy: () => Promise<void>;
   side?: "top" | "right" | "bottom" | "left";
 }) {
+  const t = useT(); // fork: i18n
   const ref = useRef<HTMLButtonElement>(null);
   const [copied, setCopied] = useState(false);
 
@@ -92,7 +93,7 @@ export function SnapShotCopyButton({
         render={
           <Button
             ref={ref}
-            aria-label="Copy snapshot"
+            aria-label={t("Copy snapshot")}
             disabled={copied}
             onClick={(event) => {
               event.stopPropagation();
@@ -119,7 +120,7 @@ export function SnapShotCopyButton({
           <CopyIcon className="size-3" aria-hidden="true" />
         )}
       </TooltipTrigger>
-      <TooltipPopup side={side}>Copy snapshot</TooltipPopup>
+      <TooltipPopup side={side}>{t("Copy snapshot")}</TooltipPopup>
     </Tooltip>
   );
 }

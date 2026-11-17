@@ -926,6 +926,9 @@ const COMPARED_ALLOWLIST = new Set([
   // The activity's raw summary, translated only when the row renders.
   "apps/mobile/src/features/threads/ThreadFeed.tsx#Context compacted",
   "apps/web/src/components/chat/MessagesTimeline.tsx#Context compacted",
+  // The pending turn's raw status labels, compared and then translated where the row renders.
+  "apps/mobile/src/features/threads/ThreadFeed.tsx#Starting…",
+  "apps/mobile/src/features/threads/ThreadFeed.tsx#Sending…",
   // An English sentinel for a detached checkout; the label is translated where it shows.
   "apps/mobile/src/features/threads/git/GitBranchesSheet.tsx#Detached HEAD",
   // The raw heading from the device source, translated only when it renders.

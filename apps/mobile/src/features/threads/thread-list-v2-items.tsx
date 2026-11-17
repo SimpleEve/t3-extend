@@ -1008,7 +1008,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         supported: props.titleRegenerationSupported,
         isRegenerating: isRegeneratingTitle,
       }),
-      { id: "mark-unread", title: "Mark unread", image: "envelope.badge" },
+      { id: "mark-unread", title: t("Mark unread"), image: "envelope.badge" },
       ...(canTurnIntoProject
         ? [
             {

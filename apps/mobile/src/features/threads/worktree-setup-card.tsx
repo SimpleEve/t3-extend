@@ -61,14 +61,14 @@ function WorktreeSetupHeaderCard(props: WorktreeSetupCardProps & SetupDetailsCon
   const failed =
     snapshot.phase === "failed" || snapshot.stages.some((stage) => stage.status === "failed");
   const label = running
-    ? "Setting up worktree…"
+    ? t("Setting up worktree…")
     : snapshot.phase === "cancelled"
-      ? "Worktree setup cancelled"
+      ? t("Worktree setup cancelled")
       : snapshot.phase === "failed"
-        ? "Worktree setup failed"
+        ? t("Worktree setup failed")
         : failed
-          ? "Setup script failed"
-          : "Worktree ready";
+          ? t("Setup script failed")
+          : t("Worktree ready");
 
   return (
     <View accessibilityLabel={t("Worktree setup")} className="py-1">
@@ -82,7 +82,7 @@ function WorktreeSetupHeaderCard(props: WorktreeSetupCardProps & SetupDetailsCon
         </Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Worktree setup details"
+          accessibilityLabel={t("Worktree setup details")}
           accessibilityState={{ expanded: detailsOpen }}
           onPress={props.onOpenDetails}
           className="min-h-11 max-w-[55%] justify-center px-2"
@@ -96,7 +96,7 @@ function WorktreeSetupHeaderCard(props: WorktreeSetupCardProps & SetupDetailsCon
               />
             ) : null}
             <Text numberOfLines={1} className="shrink text-2xs text-foreground-secondary">
-              Details
+              {t("Details")}
             </Text>
             <SymbolView name="chevron.right" size={10} tintColorClassName="accent-icon-muted" />
           </View>
@@ -127,11 +127,17 @@ export function worktreeSetupHandedOff(props: WorktreeSetupCardProps): boolean {
 
 /** The card's state on the turn's fold row: setup still running, or a failure to look at. */
 export function WorktreeSetupFoldChip(props: WorktreeSetupCardProps & SetupDetailsControl) {
-  const scriptName = props.snapshot.setupScript?.name ?? "Setup script";
+  const t = useT(); // fork: i18n
+  const scriptName = props.snapshot.setupScript?.name ?? t("Setup script");
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Background setup is still running: ${scriptName}. Show setup progress.`}
+      accessibilityLabel={t(
+        "Background setup is still running: {scriptName}. Show setup progress.",
+        {
+          scriptName,
+        },
+      )}
       onPress={props.onOpenDetails}
       hitSlop={8}
       className="ml-2 min-w-0 max-w-[55%] flex-row items-center gap-1 rounded-full border border-border px-2 py-1 active:opacity-70"
@@ -146,7 +152,7 @@ export function WorktreeSetupFoldChip(props: WorktreeSetupCardProps & SetupDetai
         }}
       />
       <Text numberOfLines={1} className="shrink text-2xs text-foreground-secondary">
-        Background setup
+        {t("Background setup")}
       </Text>
     </Pressable>
   );
@@ -166,18 +172,19 @@ function setupWentWrong(snapshot: WorktreeSetupSnapshot): boolean {
 }
 
 function WorktreeSetupSummaryRow(props: WorktreeSetupCardProps & SetupDetailsControl) {
+  const t = useT(); // fork: i18n
   const { snapshot } = props;
   const now = useVisibleSecondClock(false);
   const label =
     snapshot.phase === "failed"
-      ? "Worktree setup failed"
+      ? t("Worktree setup failed")
       : snapshot.phase === "cancelled"
-        ? "Worktree setup cancelled"
-        : "Worktree ready, setup script failed";
+        ? t("Worktree setup cancelled")
+        : t("Worktree ready, setup script failed");
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${label}. Show setup details.`}
+      accessibilityLabel={t("{label}. Show setup details.", { label })}
       onPress={props.onOpenDetails}
       className="mb-1 min-h-8 flex-row items-center px-1 active:opacity-70"
       style={{ columnGap: 8 }}
@@ -222,10 +229,11 @@ const PREPARING_STAGES: ReadonlyArray<WorktreeSetupStage> = WORKTREE_SETUP_STAGE
 }));
 
 export function WorktreePreparingHeader() {
+  const t = useT(); // fork: i18n
   return (
     <View className="py-1">
       <View className="min-h-11 flex-row items-center border-b border-border px-1">
-        <HeaderLabel label="Setting up worktree…" active />
+        <HeaderLabel label={t("Setting up worktree…")} active />
       </View>
       <View className="pt-1 pb-2">
         {PREPARING_STAGES.map((stage) => (

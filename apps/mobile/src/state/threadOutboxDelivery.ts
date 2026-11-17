@@ -22,6 +22,7 @@ import {
   type EnvironmentId,
 } from "@t3tools/contracts";
 import { buildTemporaryWorktreeBranchName } from "@t3tools/shared/git";
+import { getUiLocale, translate, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
@@ -486,7 +487,11 @@ export const restoreRejectedQueuedMessage = Effect.fn("ThreadOutbox.restoreRejec
       if (existingAttachmentIds.size + addedAttachmentCount > PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
         setThreadComposerError(
           threadKey,
-          `Remove attachments from the draft before restoring this message. Messages can contain at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments.`,
+          translate(
+            getUiLocale(),
+            "Remove attachments from the draft before restoring this message. Messages can contain at most {PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments.",
+            { PROVIDER_SEND_TURN_MAX_ATTACHMENTS },
+          ),
           queuedMessage.messageId,
         );
         return "blocked" as const;
@@ -580,7 +585,7 @@ export const restoreRejectedQueuedMessage = Effect.fn("ThreadOutbox.restoreRejec
             threadKey,
             error.cause instanceof Error
               ? error.cause.message
-              : "The unsent message could not be restored.",
+              : translate(getUiLocale(), "The unsent message could not be restored."),
             queuedMessage.messageId,
           );
           return "retry" as const;
@@ -724,7 +729,10 @@ function reportCommandFailure(
   });
   return {
     action,
-    message: error instanceof Error ? error.message : "The message could not be sent.",
+    message:
+      error instanceof Error
+        ? error.message
+        : translate(getUiLocale(), "The message could not be sent."),
   };
 }
 
@@ -861,6 +869,7 @@ export function createThreadOutboxDelivery(): {
     const runtimeModeDenial = managedRuntimeModeDenial(
       serverConfig.managedPolicy,
       settings.runtimeMode,
+      translatorFor(getUiLocale()), // fork: interface language
     );
     if (runtimeModeDenial !== undefined) {
       return yield* restoreQueuedMessage(queuedMessage, runtimeModeDenial);
@@ -913,7 +922,9 @@ export function createThreadOutboxDelivery(): {
       if (!shouldRetryThreadOutboxDelivery(error)) {
         return yield* restoreQueuedMessage(
           queuedMessage,
-          error instanceof Error ? error.message : "An attachment could not upload.",
+          error instanceof Error
+            ? error.message
+            : translate(getUiLocale(), "An attachment could not upload."),
         );
       }
       return yield* retryDelivery;
@@ -1063,6 +1074,7 @@ export function createThreadOutboxDelivery(): {
     const runtimeModeDenial = managedRuntimeModeDenial(
       serverConfig.managedPolicy,
       settings.runtimeMode,
+      translatorFor(getUiLocale()), // fork: interface language
     );
     if (runtimeModeDenial !== undefined) {
       return yield* restoreQueuedMessage(queuedMessage, runtimeModeDenial);
@@ -1079,7 +1091,9 @@ export function createThreadOutboxDelivery(): {
       if (!shouldRetryThreadOutboxDelivery(error)) {
         return yield* restoreQueuedMessage(
           queuedMessage,
-          error instanceof Error ? error.message : "An attachment could not upload.",
+          error instanceof Error
+            ? error.message
+            : translate(getUiLocale(), "An attachment could not upload."),
         );
       }
       return yield* retryDelivery;
@@ -1134,7 +1148,11 @@ export function createThreadOutboxDelivery(): {
         ).changeRequest;
         return yield* restoreQueuedMessage(
           persistedMessage,
-          `The ${shortLabel} worktree has local changes and could not update to the ${shortLabel} head. Resolve them before trying again.`,
+          translate(
+            getUiLocale(),
+            "The {shortLabel} worktree has local changes and could not update to the {shortLabel} head. Resolve them before trying again.",
+            { shortLabel },
+          ),
         );
       }
       workspace = {
@@ -1568,11 +1586,14 @@ function loadThreadOutbox(isActive: () => boolean): void {
   void threadOutboxManager.load().then((loaded) => {
     if (loaded || !isActive()) return;
     Dialog.alert(
-      "Some queued messages could not be loaded",
-      "Unreadable records and attachment files are still saved. Other messages can still be sent.",
+      translate(getUiLocale(), "Some queued messages could not be loaded"),
+      translate(
+        getUiLocale(),
+        "Unreadable records and attachment files are still saved. Other messages can still be sent.",
+      ),
       [
-        { text: "Dismiss", style: "cancel" },
-        { text: "Retry", onPress: () => loadThreadOutbox(isActive) },
+        { text: translate(getUiLocale(), "Dismiss"), style: "cancel" },
+        { text: translate(getUiLocale(), "Retry"), onPress: () => loadThreadOutbox(isActive) },
       ],
     );
   });

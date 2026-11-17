@@ -317,7 +317,7 @@ export function ComposerAttachmentMediaRow({
                   >
                     <RefreshIcon />
                   </TooltipTrigger>
-                  <TooltipPopup side="top">{upload.reason}</TooltipPopup>
+                  <TooltipPopup side="top">{t(upload.reason)}</TooltipPopup>
                 </Tooltip>
               )}
               <span
@@ -415,7 +415,7 @@ export function ComposerAttachmentMediaRow({
                 >
                   <RefreshIcon />
                 </TooltipTrigger>
-                <TooltipPopup side="top">{upload.reason}</TooltipPopup>
+                <TooltipPopup side="top">{t(upload.reason)}</TooltipPopup>
               </Tooltip>
             )}
             <Button
@@ -522,7 +522,7 @@ export function ComposerAttachmentFileList({
                 >
                   <RefreshIcon />
                 </TooltipTrigger>
-                <TooltipPopup side="top">{upload.reason}</TooltipPopup>
+                <TooltipPopup side="top">{t(upload.reason)}</TooltipPopup>
               </Tooltip>
             ) : null}
             <Button

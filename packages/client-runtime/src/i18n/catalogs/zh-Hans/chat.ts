@@ -1397,4 +1397,24 @@ export default {
   "Search to find the rest.": "搜索以找到其余的文件。",
   "omp did not offer a session-wide approval, so this request was approved once only.":
     "omp 没有提供本会话授权，这次只批准了一次。",
+  "Unable to drag file": "无法拖动文件",
+  "Include all files": "包含全部文件",
+  "Include {path}": "包含 {path}",
+  "Could not send queued message": "无法发送排队的消息",
+  "Copy snapshot": "复制快照",
+  "Queued message not updated": "排队的消息未更新",
+  "A queued message can't move to a side chat. Remove /side or /btw to save it.":
+    "排队的消息不能移到侧边对话。请去掉 /side 或 /btw 再保存。",
+  "Draft changed while preparing this message. Review it and send again.":
+    "准备这条消息时草稿发生了变化。请检查后再发送。",
+  "Draft changed while preparing this message. Review it and save again.":
+    "准备这条消息时草稿发生了变化。请检查后再保存。",
+  "Your new draft was kept.": "你的新草稿已保留。",
+  "Answer changed while preparing attachments. Review it and send again.":
+    "准备附件时回答发生了变化。请检查后再发送。",
+  "Wait for attachments to finish uploading, or remove failed uploads.":
+    "请等附件上传完成，或移除上传失败的附件。",
+  "Failed to submit user input.": "提交输入失败。",
+  "The earlier edit was saved. Review your newer changes and save again.":
+    "之前的编辑已保存。请检查之后的改动并再次保存。",
 } satisfies Record<string, string>;

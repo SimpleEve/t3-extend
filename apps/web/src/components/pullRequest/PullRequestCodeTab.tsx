@@ -1979,15 +1979,16 @@ function WithheldFileNotice({
   readonly status: WithheldFileStatus;
   readonly onLoad: ((path: string) => void) | undefined;
 }) {
+  const t = useT(); // fork: i18n
   return (
     <div className="flex items-center gap-2 bg-warning/8 px-3 py-2 text-xs text-warning-foreground">
       <TriangleAlertIcon aria-hidden className="size-3.5 shrink-0 text-warning" />
       <span>
         {status === "error"
-          ? "Couldn't load this diff."
+          ? t("Couldn't load this diff.")
           : status === "empty"
-            ? "No text diff for this file."
-            : "Diff too large to display."}
+            ? t("No text diff for this file.")
+            : t("Diff too large to display.")}
       </span>
       {onLoad === undefined || status === "empty" ? null : (
         <Button
@@ -1996,7 +1997,11 @@ function WithheldFileNotice({
           disabled={status === "loading"}
           onClick={() => onLoad(path)}
         >
-          {status === "loading" ? "Loading..." : status === "error" ? "Retry" : "Load diff"}
+          {status === "loading"
+            ? t("Loading...")
+            : status === "error"
+              ? t("Retry")
+              : t("Load diff")}
         </Button>
       )}
     </div>

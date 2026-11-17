@@ -217,7 +217,7 @@ import { useOpenLinkedThread } from "./useOpenLinkedThread";
 import { useGlobalVoiceInput } from "../voice-input/VoiceInputProvider";
 import type { OrchestrationV2ProviderSession } from "@t3tools/contracts";
 import { useT } from "../../hooks/useT"; // fork: i18n
-import { labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
+import { joinLabelParts, labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export interface ThreadDetailScreenProps {
   readonly header?: React.ReactNode;
@@ -760,9 +760,14 @@ function ThreadDetailBody(
       key: "background",
       icon: pendingBackgroundWork.waiting ? "person.2" : "terminal",
       label: pendingBackgroundWork.title,
-      accessibilityLabel: `${pendingBackgroundWork.title}: ${pendingBackgroundWork.items
-        .map((item) => item.label)
-        .join(", ")}`,
+      accessibilityLabel: labelWithDetail(
+        pendingBackgroundWork.title,
+        joinLabelParts(
+          pendingBackgroundWork.items.map((item) => item.label),
+          t,
+        ),
+        t,
+      ),
       onOpen: () => {
         Keyboard.dismiss();
         navigation.navigate("ThreadBackgroundWork", {
@@ -771,8 +776,8 @@ function ThreadDetailBody(
         });
       },
       action: {
-        label: statusPending ? "Stopping..." : "Stop",
-        accessibilityLabel: "Stop background work",
+        label: statusPending ? t("Stopping...") : t("Stop"),
+        accessibilityLabel: t("Stop background work"),
         disabled: !props.canOperateThread || statusPending,
         onPress: () => void runStatusAction("stop"),
       },
@@ -780,7 +785,7 @@ function ThreadDetailBody(
   })();
   const lifecycleLine = ((): ThreadStatusLineModel | null => {
     if (contentPresentationKind !== "ready" || !(lifecycleSnoozed || settled || woke)) return null;
-    const actionLabel = lifecycleSnoozed ? "Wake now" : settled ? "Un-settle" : "Dismiss";
+    const actionLabel = lifecycleSnoozed ? t("Wake now") : settled ? t("Un-settle") : t("Dismiss");
     const wake =
       lifecycleSnoozed && snoozedUntil !== null
         ? snoozeWakeLabel(snoozedUntil, { now: lifecycleNow })
@@ -790,18 +795,18 @@ function ThreadDetailBody(
       icon: settled && !lifecycleSnoozed ? "checkmark.circle" : "alarm",
       label: lifecycleSnoozed
         ? wake === "now"
-          ? "Snoozed"
-          : `Snoozed, ${wake} left`
+          ? t("Snoozed", undefined, "thread status")
+          : t("Snoozed, {time} left", { time: wake })
         : settled
-          ? "Settled"
-          : "Woke from snooze",
+          ? t("Settled", undefined, "thread status")
+          : t("Woke from snooze"),
       action: {
         label: statusPending
           ? lifecycleSnoozed
-            ? "Waking..."
+            ? t("Waking...")
             : settled
-              ? "Un-settling..."
-              : "Dismissing..."
+              ? t("Un-settling...")
+              : t("Dismissing...")
           : actionLabel,
         accessibilityLabel: actionLabel,
         disabled: !props.canOperateThread || statusPending,

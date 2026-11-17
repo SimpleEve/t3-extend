@@ -1119,7 +1119,6 @@ export default {
   "T3 system footprint": "T3 系统占用",
   "Live native counters for the server, providers, terminals, desktop processes, and the monitor itself.":
     "服务器、provider、终端、桌面进程以及监控本身的实时原生计数器。",
-  "Sampling every": "采样间隔",
   "Current CPU": "当前 CPU",
   "{cpuTime} observed CPU time": "观测到 {cpuTime} CPU 时间",
   "Resident memory": "常驻内存",
@@ -3203,4 +3202,18 @@ export default {
   "This app could not unlock its saved environments with the system secure storage, so they and computers from your server cannot be loaded. Restart the app to try again.":
     "这个 app 没能用系统安全存储解开已保存的环境，所以这些环境和你服务器上的电脑都无法读取。请重启 app 再试。",
   "Restart app": "重启 app",
+  "Sign-in refused": "登录被拒绝",
+  "The host refused this device's sign-in. Pair this address again with Add route.":
+    "主机拒绝了这台设备的登录。请用“添加路由”重新配对这个地址。",
+  "Sampling on demand": "按需采样",
+  "Sampling every {ms} ms": "每 {ms} 毫秒采样一次",
+  "Sampling every {value} second": "每 {value} 秒采样一次",
+  "Sampling every {value} seconds": "每 {value} 秒采样一次",
+  "Sampling every ...": "采样间隔 ...",
+  "That file is {size}. Theme files are only a few KB, so this one was not read (limit {limit}).":
+    "这个文件有 {size}。主题文件只有几 KB，所以没有读取它（上限 {limit}）。",
+  "Streaming transcription": "流式转写",
+  "Transcribe while recording. Turn off to transcribe after stopping, which may help when live transcription falls behind.":
+    "录音时同步转写。关闭后在停止录音后再转写，实时转写跟不上时可以试试。",
+  "This model doesn’t support native streaming.": "这个模型不支持原生流式转写。",
 } satisfies Record<string, string>;

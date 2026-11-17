@@ -756,15 +756,17 @@ function AdvancedSpeechSettings({
     >
       <SettingsRow
         {...searchableSetting("speech-streaming")}
-        title="Streaming transcription"
+        title={t("Streaming transcription")}
         description={
           supported.supportsStreaming
-            ? "Transcribe while recording. Turn off to transcribe after stopping, which may help when live transcription falls behind."
-            : "This model doesn’t support native streaming."
+            ? t(
+                "Transcribe while recording. Turn off to transcribe after stopping, which may help when live transcription falls behind.",
+              )
+            : t("This model doesn’t support native streaming.")
         }
         control={
           <Switch
-            aria-label="Streaming transcription"
+            aria-label={t("Streaming transcription")}
             disabled={!supported.supportsStreaming}
             checked={settings.speechStreaming}
             onCheckedChange={(checked) => void updateClientSettings({ speechStreaming: checked })}

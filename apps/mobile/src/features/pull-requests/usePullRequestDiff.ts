@@ -180,7 +180,7 @@ export function usePullRequestDiff(
   );
   // The server says whether a withheld file can be read alone; GitHub may refuse the whole diff.
   const withheldFilesReadable = pages[0]?.result.withheldFilesReadable === true;
-  const parsed = withWithheldFiles(pagesParsed, loads, withheldFilesReadable, key);
+  const parsed = withWithheldFiles(pagesParsed, loads, withheldFilesReadable, key, t);
   const patch = useMemo(() => pages.map((page) => page.result.patch).join("\n"), [pages]);
   const nextCursor = pages.at(-1)?.result.nextCursor ?? null;
   const canLoadMore =

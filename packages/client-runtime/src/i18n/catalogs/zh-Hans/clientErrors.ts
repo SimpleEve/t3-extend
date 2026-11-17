@@ -54,4 +54,17 @@ export default {
     "此图片过大或没有可用的尺寸。请尝试保存。",
   "Image copying is unavailable in this browser.": "此浏览器无法复制图片。",
   "The image could not be converted to PNG.": "无法把图片转换为 PNG。",
+  "This connection cannot upload attachments.": "无法通过这个连接上传附件。",
+  "Uploaded file expired. Remove it and attach it again.": "已上传的文件已过期。请移除后重新添加。",
+  "Uploaded file could not be verified. Retry when the server reconnects.":
+    "无法验证已上传的文件。服务器重新连接后请重试。",
+  "Unsupported image type": "不支持的图片类型",
+  "Original file is no longer available": "原始文件已不可用",
+  "Upload could not start": "无法开始上传",
+  "Uploaded attachment could not be verified. Attach the file again.":
+    "无法验证已上传的附件。请重新添加文件。",
+  "Uploaded attachment expired. Remove it and attach it again.":
+    "已上传的附件已过期。请移除后重新添加。",
+  "Uploaded attachment could not be verified. Retry when the server reconnects.":
+    "无法验证已上传的附件。服务器重新连接后请重试。",
 } satisfies Record<string, string>;

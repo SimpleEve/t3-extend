@@ -102,7 +102,6 @@ export default {
   "Reconnect to change labels.": "重新连接后才能更改标签。",
   "This provider doesn't support changing labels.": "这个 provider 不支持更改标签。",
   "Changing labels needs triage access on this repository.": "更改标签需要这个仓库的 triage 权限。",
-  "Couldn't update this label. Try again.": "无法更新这个标签，请重试。",
   "Close labels": "关闭标签",
   "Couldn't load labels": "无法加载标签",
   "This repository has no labels": "这个仓库没有标签",
@@ -195,8 +194,6 @@ export default {
   "Search reviewers": "搜索审查者",
   "Request review": "请求审查",
   "Close request review": "关闭请求审查",
-  "Tap someone to request a review. Tap a requested reviewer to remove the request.":
-    "轻点某人即可请求审查，轻点已请求的审查者可移除请求。",
   "Requesting reviews requires write access and an open {singular}.":
     "请求审查需要写入权限，且 {singular} 处于开放状态。",
   "Remove review request from {login} team": "移除对 {login} 团队的审查请求",
@@ -422,4 +419,13 @@ export default {
   "Fast-forward merge": "fast-forward 合并",
   "Add the commits as they are. Needs the branch to contain the base.":
     "按原样添加这些提交。要求分支已包含基础分支。",
+  "Couldn't add {names}": "无法添加 {names}",
+  "Couldn't remove {names}": "无法移除 {names}",
+  "Couldn't request a review from {logins}": "无法向 {logins} 请求审查",
+  "Couldn't remove the review request from {logins}": "无法撤回对 {logins} 的审查请求",
+  "Tap someone to request a review. Tap a requested reviewer to remove the request. Changes are sent when you close this sheet.":
+    "轻点某人即可请求审查，轻点已请求的审查者可移除请求。关闭这个面板时会发送所有改动。",
+  "Diff too large to display. Tap to load it.": "差异太大，无法显示。轻点加载。",
+  "Diff too large to display here.": "差异太大，无法在这里显示。",
+  "Couldn't load this diff. Tap to try again.": "无法加载这份差异。轻点重试。",
 };

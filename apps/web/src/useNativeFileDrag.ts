@@ -7,11 +7,13 @@ import type { DragEvent } from "react";
 import { hostEnvironmentIdAtom } from "./state/primaryEnvironment";
 import { useEnvironmentScope } from "./state/session";
 import { toastManager } from "./components/ui/toast";
+import { useT } from "./hooks/useT"; // fork: i18n
 
 export function useNativeFileDrag(
   environmentId: EnvironmentId | null | undefined,
   resolvePath: () => string | Promise<string>,
 ) {
+  const t = useT(); // fork: i18n
   const hostEnvironmentId = useAtomValue(hostEnvironmentIdAtom);
   const canOperate = useEnvironmentScope(environmentId ?? null, AuthOrchestrationOperateScope);
   const enabled =
@@ -38,8 +40,8 @@ export function useNativeFileDrag(
         if (released) return;
         toastManager.add({
           type: "error",
-          title: "Unable to drag file",
-          description: error instanceof Error ? error.message : "An error occurred.",
+          title: t("Unable to drag file"),
+          description: error instanceof Error ? error.message : t("An error occurred."),
         });
       });
     },

@@ -645,9 +645,10 @@ export function useComposerSend(input: ComposerSendInput) {
         toastManager.add(
           stackedThreadToast({
             type: "warning",
-            title: "Queued message not updated",
-            description:
+            title: t("Queued message not updated"),
+            description: t(
               "A queued message can't move to a side chat. Remove /side or /btw to save it.",
+            ),
           }),
         );
         return;
@@ -958,7 +959,7 @@ export function useComposerSend(input: ComposerSendInput) {
       sendInFlightRef.current = false;
       setThreadError(
         threadIdForSend,
-        "Draft changed while preparing this message. Review it and send again.",
+        t("Draft changed while preparing this message. Review it and send again."),
       );
       setDockedDraftHeroThreadKey((currentThreadKey) =>
         currentThreadKey === activeThreadKey ? null : currentThreadKey,
@@ -995,7 +996,7 @@ export function useComposerSend(input: ComposerSendInput) {
         sendInFlightRef.current = false;
         setThreadError(
           threadIdForSend,
-          "Draft changed while preparing this message. Review it and send again.",
+          t("Draft changed while preparing this message. Review it and send again."),
         );
         setDockedDraftHeroThreadKey((currentThreadKey) =>
           currentThreadKey === activeThreadKey ? null : currentThreadKey,
@@ -1480,18 +1481,18 @@ export function useComposerSend(input: ComposerSendInput) {
           stackedThreadToast({
             type: "error",
             title: isAtomCommandInterrupted(failure)
-              ? "Message may not have been sent"
-              : "Message not sent",
+              ? t("Message may not have been sent")
+              : t("Message not sent"),
             description: hasText
-              ? "Your new draft was kept. Copy the failed message to send it again."
-              : "Your new draft was kept.",
+              ? t("Your new draft was kept. Copy the failed message to send it again.")
+              : t("Your new draft was kept."),
             // The toast holds the only trace of the failed message, so it stays until dismissed.
             timeout: 0,
             data: { hideCopyButton: true },
             ...(hasText
               ? {
                   actionProps: {
-                    children: "Copy message",
+                    children: t("Copy message"),
                     onClick: () => {
                       void writeTextToClipboard(failedText, "failed message").catch(
                         () => undefined,

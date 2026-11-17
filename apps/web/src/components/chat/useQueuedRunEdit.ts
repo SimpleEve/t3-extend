@@ -148,7 +148,10 @@ async function submitQueuedRunEdit(input: {
       uploadFiles,
     });
     if (input.draftChanged())
-      return "Draft changed while preparing this message. Review it and save again.";
+      return translate(
+        getUiLocale(),
+        "Draft changed while preparing this message. Review it and save again.",
+      );
     // The edit draft owns thread and machine mentions, so a chip removed while editing is dropped.
     const keptRecords = (editing.context?.records ?? []).filter(
       (record) =>
@@ -438,7 +441,10 @@ export function useQueuedRunEdit(input: {
     setThreadError(
       editing.threadId,
       changedAfterSave
-        ? "The earlier edit was saved. Review your newer changes and save again."
+        ? translate(
+            getUiLocale(),
+            "The earlier edit was saved. Review your newer changes and save again.",
+          )
         : error,
     );
     const current = finishSave(error === null && !changedAfterSave);

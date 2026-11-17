@@ -192,8 +192,8 @@ export function QueuedRunsControl({
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: "Could not send queued message",
-        description: error instanceof Error ? error.message : "An error occurred.",
+        title: t("Could not send queued message"),
+        description: error instanceof Error ? error.message : t("An error occurred."),
       });
     }
   };

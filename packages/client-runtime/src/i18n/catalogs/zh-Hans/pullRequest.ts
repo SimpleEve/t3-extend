@@ -549,7 +549,6 @@ export default {
   outdated: "已过时",
   "Could not take back the review request to {login}": "无法撤回对 {login} 的审查请求",
   "Could not ask {login} for a review": "无法请求 {login} 审查",
-  "Review request to {login} taken back": "已撤回对 {login} 的审查请求",
   "Review requested from {login}": "已请求 {login} 审查",
   "Asking someone to review needs write access on this repository":
     "请求审查需要这个仓库的写入权限",
@@ -717,4 +716,9 @@ export default {
   "The linked item is not in the loaded activity.": "链接指向的内容不在已加载的活动中。",
   "{error} Showing the last pull requests loaded.": "{error} 显示的是上次加载的 PR。",
   "The conversation could not be updated": "无法更新这条讨论",
+  "Couldn't load this diff.": "无法加载这份差异。",
+  "No text diff for this file.": "这个文件没有文本差异。",
+  "Diff too large to display.": "差异太大，无法显示。",
+  "{mergedCount} merge loaded": "已加载 {mergedCount} 次合并",
+  "Checking the stack with the host…": "正在向托管平台确认堆叠…",
 } satisfies Record<string, string>;

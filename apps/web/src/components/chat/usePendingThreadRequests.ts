@@ -438,7 +438,7 @@ export function usePendingThreadRequests(input: {
         ) {
           setThreadError(
             activeThreadId,
-            "Answer changed while preparing attachments. Review it and send again.",
+            t("Answer changed while preparing attachments. Review it and send again."),
           );
           return;
         }
@@ -446,7 +446,7 @@ export function usePendingThreadRequests(input: {
         if (!uploaded) {
           setThreadError(
             activeThreadId,
-            "Wait for attachments to finish uploading, or remove failed uploads.",
+            t("Wait for attachments to finish uploading, or remove failed uploads."),
           );
           return;
         }
@@ -465,7 +465,7 @@ export function usePendingThreadRequests(input: {
       ) {
         setThreadError(
           activeThreadId,
-          "Answer changed while preparing attachments. Review it and send again.",
+          t("Answer changed while preparing attachments. Review it and send again."),
         );
         return;
       }
@@ -484,7 +484,7 @@ export function usePendingThreadRequests(input: {
         const error = squashAtomCommandFailure(result);
         setThreadError(
           activeThreadId,
-          error instanceof Error ? error.message : "Failed to submit user input.",
+          error instanceof Error ? error.message : t("Failed to submit user input."),
         );
       }
       return result;

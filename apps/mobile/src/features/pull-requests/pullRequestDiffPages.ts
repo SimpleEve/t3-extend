@@ -147,15 +147,19 @@ function parseWithheldFile(result: PullRequestDiffResult, scope: string) {
   return file;
 }
 
-function withheldFileNotice(load: WithheldFileLoad | undefined, canLoad: boolean): string {
+function withheldFileNotice(
+  load: WithheldFileLoad | undefined,
+  canLoad: boolean,
+  t: Translator, // fork: i18n
+): string {
   if (load === undefined) {
     return canLoad
-      ? "Diff too large to display. Tap to load it."
-      : "Diff too large to display here.";
+      ? t("Diff too large to display. Tap to load it.")
+      : t("Diff too large to display here.");
   }
-  if (load.status === "loading") return "Loading diff…";
-  if (load.status === "error") return "Couldn't load this diff. Tap to try again.";
-  return "No text diff for this file.";
+  if (load.status === "loading") return t("Loading diff…");
+  if (load.status === "error") return t("Couldn't load this diff. Tap to try again.");
+  return t("No text diff for this file.");
 }
 
 /**
@@ -167,6 +171,7 @@ export function withWithheldFiles(
   loads: ReadonlyMap<string, WithheldFileLoad>,
   canLoad: boolean,
   scope: string,
+  t: Translator = translatorFor("en"), // fork: i18n
 ): ReviewParsedDiff {
   if (parsed.kind !== "files" || !parsed.files.some((file) => file.withheld)) return parsed;
   const files = parsed.files.map((file): ReviewRenderableFile => {
@@ -179,7 +184,7 @@ export function withWithheldFiles(
     if (loaded !== null) return { ...loaded, id: file.id };
     return {
       ...file,
-      notice: withheldFileNotice(load, canLoad),
+      notice: withheldFileNotice(load, canLoad, t),
       noticeTone: "warning",
       noticeActionable: canLoad && (load === undefined || load.status === "error"),
     };

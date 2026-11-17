@@ -37,14 +37,16 @@ export function connectionRetryLabel(input: {
   readonly connectionError: string | null;
   readonly connectionState: EnvironmentConnectionPhase;
   readonly connectionAwaitingApproval?: boolean;
+  readonly t?: Translator; // fork: interface language, English when omitted
 }): string | null {
+  const t = input.t ?? untranslated; // fork: i18n
   if (input.connectionState === "reconnecting" && input.connectionAwaitingApproval) {
-    return "Awaiting device approval";
+    return t("Awaiting device approval");
   }
   if (input.connectionState !== "connecting" && input.connectionState !== "reconnecting") {
     return null;
   }
-  return input.connectionError === null ? "Reconnecting…" : "Retrying connection…";
+  return input.connectionError === null ? t("Reconnecting…") : t("Retrying connection…");
 }
 
 export function connectionFloatingStatus(input: {
@@ -77,7 +79,7 @@ export function connectionFloatingStatus(input: {
           : t("Failed to connect to {name}", { name: environmentLabel }),
       );
     case "available":
-      return unavailable(`${environmentLabel} is not connected`);
+      return unavailable(t("{name} is not connected", { name: environmentLabel }));
     case "connecting":
     case "reconnecting":
     case "connected":

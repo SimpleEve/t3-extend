@@ -1002,11 +1002,12 @@ function ThreadRouteContent(
     connectionError: retryConnectionError,
     connectionState: routeConnectionState,
     connectionAwaitingApproval: routeEnvironmentRuntime?.connectionAwaitingApproval === true,
+    t, // fork: i18n
   });
   // A thread this client is creating has nothing older to sync.
   const threadSyncLabel =
     creationState === null
-      ? threadSyncStatusLabel(selectedThreadDetailState.status, contentPresentation.kind)
+      ? threadSyncStatusLabel(selectedThreadDetailState.status, contentPresentation.kind, t)
       : null;
   // Transient states go in the header subtitle so the composer's status slot doesn't jump.
   const threadStatusLabel = useDelayedStatus(
@@ -1015,7 +1016,7 @@ function ThreadRouteContent(
   );
   const inspectorHeader = props.inspectorPresentation ? (
     <ThreadInspectorHeader
-      title={selectedThread?.title ?? "Thread"}
+      title={selectedThread ? threadDisplayTitle(selectedThread.title, t) : t("Thread")}
       subtitle={threadStatusLabel ?? undefined}
       {...props.inspectorPresentation}
     />

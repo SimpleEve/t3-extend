@@ -481,8 +481,8 @@ function AssistantForkButton(props: {
             if (isAtomCommandInterrupted(result)) return;
             if (result._tag !== "Success") {
               Dialog.alert(
-                "Could not confirm fork",
-                "Reconnect and check the thread list before trying again.",
+                t("Could not confirm fork"),
+                t("Reconnect and check the thread list before trying again."),
               );
               return;
             }
@@ -1933,7 +1933,7 @@ function renderFeedEntry(
             numberOfLines={1}
             className="shrink font-t3-medium text-sm text-foreground-muted"
           >
-            Pending
+            {t("Pending")}
           </Text>
         </View>
       </View>
@@ -1983,7 +1983,9 @@ function renderFeedEntry(
       <ThreadThinkingRow
         rowSizing={props.workRowSizing}
         iconSubtleColor={iconSubtleColor}
-        label={entry.label}
+        label={
+          entry.label === "Starting…" || entry.label === "Sending…" ? t(entry.label) : entry.label
+        } // fork: i18n, only the two labels the pending turn writes
         providerStartingLabel={entry.providerStartingLabel}
       />
     );

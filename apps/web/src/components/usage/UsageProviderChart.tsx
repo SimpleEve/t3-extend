@@ -530,17 +530,20 @@ export function UsageProviderChart({
       {/* The plot and its axes are hover-only; this carries the same figures for screen readers. */}
       <table className="sr-only">
         <caption>
-          {`${resolution === "hour" ? "Hourly" : "Daily"} ${metric === "tokens" ? "processed tokens" : "cost"} by provider`}
+          {t("{resolution} {metric} by provider", {
+            resolution: resolution === "hour" ? t("Hourly") : t("Daily"),
+            metric: metric === "tokens" ? t("processed tokens") : t("cost"),
+          })}
         </caption>
         <thead>
           <tr>
-            <th scope="col">{resolution === "hour" ? "Hour" : "Day"}</th>
+            <th scope="col">{resolution === "hour" ? t("Hour") : t("Day")}</th>
             {providers.map((provider) => (
               <th key={provider} scope="col">
                 {PROVIDER_PRESENTATION[provider].label}
               </th>
             ))}
-            {providers.length > 1 ? <th scope="col">Total</th> : null}
+            {providers.length > 1 ? <th scope="col">{t("Total")}</th> : null}
           </tr>
         </thead>
         <tbody>

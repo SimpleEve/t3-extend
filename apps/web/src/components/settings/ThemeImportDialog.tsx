@@ -24,6 +24,7 @@ import { Button } from "../ui/button";
 import { Dialog, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from "../ui/dialog";
 import { ThemeSearchSection } from "./ThemeSearchSection";
 import { useT } from "../../hooks/useT";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 /**
  * The guard runs on the size before the bytes are ever read: a large file
@@ -37,7 +38,11 @@ const MAX_HIGHLIGHTED_JSON_LENGTH = 20_000;
 
 function describeOversizedThemeFile(bytes: number): string | null {
   if (bytes <= MAX_THEME_FILE_BYTES) return null;
-  return `That file is ${formatBytes(bytes)}. Theme files are only a few KB, so this one was not read (limit ${formatBytes(MAX_THEME_FILE_BYTES)}).`;
+  return translate(
+    getUiLocale(),
+    "That file is {size}. Theme files are only a few KB, so this one was not read (limit {limit}).",
+    { size: formatBytes(bytes), limit: formatBytes(MAX_THEME_FILE_BYTES) },
+  ); // fork: i18n
 }
 
 function isThemeIdTaken(themeId: string): boolean {

@@ -111,6 +111,11 @@ const ALLOWED: ReadonlyArray<Allowed> = [
     reason: "Comment about the worktree's own state directory.",
   },
   {
+    path: "apps/server/src/cli/config.ts",
+    line: "Bare `t3 pair` prefers a linked worktree's `.t3`",
+    reason: "Comment about the worktree's own state directory.",
+  },
+  {
     path: "apps/server/src/cli/pair.ts",
     line: "`.t3` counts",
     reason: "Comment about the worktree's own state directory.",
@@ -237,6 +242,12 @@ const BRAND_SKIPPED_FILE = /(?:^|\/)i18n\/catalogs\//u;
 const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*)/u;
 
 const ALLOWED_BRAND: ReadonlyArray<Allowed> = [
+  {
+    path: "packages/shared/src/themeCss.ts",
+    line: "the stock T3 Code theme",
+    reason:
+      "Model-facing guide: `t3-code` is the upstream built-in theme's id, which the agent must name exactly.",
+  },
   {
     path: "packages/contracts/src/t3CodeImport.ts",
     reason: "OFFICIAL_APP_NAME, the one place the import names the official app it reads from.",
