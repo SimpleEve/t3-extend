@@ -20,7 +20,7 @@ export default {
   "This port isn't served by a T3 terminal or agent":
     "这个端口上的服务不是 T3 的终端或 Agent 启动的",
   "{environment} only forwards services started by its T3 terminals and agents by default. This one was started some other way, or it has detached from the terminal or agent that started it (for example, moved to the background with nohup). If you trust it, you can allow this port.":
-    "{environment} 默认只转发 T3 终端和 agent 启动的服务。这个服务是用别的方式启动的，或者已经脱离了启动它的终端或 agent（例如用 nohup 放到了后台）。如果你信任它，可以放行这个端口。",
+    "{environment} 默认只转发 T3 终端和 Agent 启动的服务。这个服务是用别的方式启动的，或者已经脱离了启动它的终端或 Agent（例如用 nohup 放到了后台）。如果你信任它，可以放行这个端口。",
   "Allow forwarding localhost:{port}": "允许转发 localhost:{port}",
   "From then on, any service on this port is forwarded. You can remove it in Settings → Browser.":
     "之后这个端口上的服务都会被转发，可以在 设置 → 浏览器 里移除。",
@@ -77,7 +77,7 @@ export default {
   // Settings → Browser → Localhost forwarding
   "Localhost forwarding": "本机服务转发",
   "Services on these ports were not started by a T3 terminal or agent. You allowed them to be forwarded.":
-    "这些端口上的服务不是 T3 终端或 agent 启动的，是你手动放行转发的。",
+    "这些端口上的服务不是 T3 终端或 Agent 启动的，是你手动放行转发的。",
   "No allowed ports": "没有放行的端口",
   "Allowed {time}": "放行于 {time}",
   Remove: "移除",
