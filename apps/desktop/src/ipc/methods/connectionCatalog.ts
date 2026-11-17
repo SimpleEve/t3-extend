@@ -3,7 +3,7 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import * as DesktopConnectionCatalogStore from "../../app/DesktopConnectionCatalogStore.ts";
-import * as DesktopLifecycle from "../../app/DesktopLifecycle.ts";
+import * as DesktopLifecycle from "../../app/DesktopLifecycle.ts"; // fork:
 import * as IpcChannels from "../channels.ts";
 import * as DesktopIpc from "../DesktopIpc.ts";
 
@@ -28,16 +28,17 @@ export const setConnectionCatalog = DesktopIpc.makeIpcMethod({
 });
 
 // fork: a denied keychain prompt sticks for the life of the process, so the renderer offers a relaunch.
-export const getConnectionCatalogAvailable = DesktopIpc.makeIpcMethod({
-  channel: IpcChannels.GET_CONNECTION_CATALOG_AVAILABLE_CHANNEL,
+export const getConnectionCatalogStatus = DesktopIpc.makeIpcMethod({
+  channel: IpcChannels.GET_CONNECTION_CATALOG_STATUS_CHANNEL,
   payload: Schema.Void,
-  result: Schema.Boolean,
-  handler: Effect.fn("desktop.ipc.connectionCatalog.isAvailable")(function* () {
+  result: Schema.Literals(["available", "unavailable", "unreadable"]),
+  handler: Effect.fn("desktop.ipc.connectionCatalog.status")(function* () {
     const store = yield* DesktopConnectionCatalogStore.DesktopConnectionCatalogStore;
-    return yield* store.isAvailable;
+    return yield* store.status;
   }),
 });
 
+// fork: see above
 export const relaunchApp = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.RELAUNCH_APP_CHANNEL,
   payload: Schema.Void,

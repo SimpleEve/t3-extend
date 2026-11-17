@@ -146,11 +146,20 @@ export class DesktopConnectionCatalogStoreProtectionError extends Schema.TaggedE
   }
 }
 
+// fork: unavailable means the keychain refused this process; unreadable means a catalog exists but cannot be decrypted.
+export type ConnectionCatalogStatus = "available" | "unavailable" | "unreadable";
+
 export class DesktopConnectionCatalogStore extends Context.Service<
   DesktopConnectionCatalogStore,
   {
-    // fork: lets the renderer tell an unavailable system keychain from an empty catalog.
-    readonly isAvailable: Effect.Effect<boolean, DesktopConnectionCatalogStoreProtectionError>;
+    // fork: lets the renderer tell a refused system keychain, or a key that cannot open the catalog, from an empty catalog.
+    readonly status: Effect.Effect<
+      ConnectionCatalogStatus,
+      | DesktopConnectionCatalogStoreReadError
+      | DesktopConnectionCatalogStoreDocumentDecodeError
+      | DesktopConnectionCatalogStoreDecodeError
+      | DesktopConnectionCatalogStoreProtectionError
+    >;
     readonly get: Effect.Effect<
       Option.Option<string>,
       | DesktopConnectionCatalogStoreReadError
@@ -422,6 +431,23 @@ export const make = Effect.gen(function* () {
     });
   });
 
+  // fork: shared by `get` and `status`, so checking status asks the keychain nothing `get` would not.
+  const decryptDocument = (document: EncryptedConnectionCatalogDocument) =>
+    decodeSecretBytes(catalogPath, document.encryptedCatalog).pipe(
+      Effect.flatMap((encryptedCatalog) =>
+        safeStorage.decryptString(encryptedCatalog).pipe(
+          Effect.mapError(
+            (cause) =>
+              new DesktopConnectionCatalogStoreProtectionError({
+                operation: "decrypt-catalog",
+                catalogPath,
+                cause,
+              }),
+          ),
+        ),
+      ),
+    );
+
   const migrateLegacyCatalog = Effect.gen(function* () {
     if (!(yield* encryptionAvailable)) {
       return Option.none<string>();
@@ -464,7 +490,17 @@ export const make = Effect.gen(function* () {
   });
 
   return DesktopConnectionCatalogStore.of({
-    isAvailable: encryptionAvailable,
+    status: Effect.gen(function* () {
+      if (!(yield* encryptionAvailable)) return "unavailable" as const;
+      const document = yield* readDocument(fileSystem, catalogPath);
+      if (Option.isNone(document)) return "available" as const;
+      return yield* decryptDocument(document.value).pipe(
+        Effect.as("available" as const),
+        Effect.catchTags({
+          DesktopConnectionCatalogStoreProtectionError: () => Effect.succeed("unreadable" as const),
+        }),
+      );
+    }).pipe(Effect.withSpan("desktop.connectionCatalogStore.status")), // fork: renderer notice
     get: Effect.gen(function* () {
       const document = yield* readDocument(fileSystem, catalogPath);
       if (Option.isNone(document)) {
@@ -473,21 +509,7 @@ export const make = Effect.gen(function* () {
       if (!(yield* encryptionAvailable)) {
         return Option.none<string>();
       }
-      const decrypted = yield* decodeSecretBytes(catalogPath, document.value.encryptedCatalog).pipe(
-        Effect.flatMap((encryptedCatalog) =>
-          safeStorage.decryptString(encryptedCatalog).pipe(
-            Effect.mapError(
-              (cause) =>
-                new DesktopConnectionCatalogStoreProtectionError({
-                  operation: "decrypt-catalog",
-                  catalogPath,
-                  cause,
-                }),
-            ),
-          ),
-        ),
-      );
-      return Option.some(decrypted);
+      return Option.some(yield* decryptDocument(document.value)); // fork: shared decrypt
     }).pipe(Effect.withSpan("desktop.connectionCatalogStore.get")),
     set: Effect.fn("desktop.connectionCatalogStore.set")(function* (catalog) {
       if (!(yield* encryptionAvailable)) {

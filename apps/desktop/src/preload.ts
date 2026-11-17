@@ -220,10 +220,10 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   getConnectionCatalog: () => ipcRenderer.invoke(IpcChannels.GET_CONNECTION_CATALOG_CHANNEL),
   setConnectionCatalog: (catalog) =>
     ipcRenderer.invoke(IpcChannels.SET_CONNECTION_CATALOG_CHANNEL, catalog),
-  // fork: keychain-denied notice
-  getConnectionCatalogAvailable: () =>
-    ipcRenderer.invoke(IpcChannels.GET_CONNECTION_CATALOG_AVAILABLE_CHANNEL),
-  relaunchApp: () => ipcRenderer.invoke(IpcChannels.RELAUNCH_APP_CHANNEL),
+  // fork: system keychain notice
+  getConnectionCatalogStatus: () =>
+    ipcRenderer.invoke(IpcChannels.GET_CONNECTION_CATALOG_STATUS_CHANNEL), // fork:
+  relaunchApp: () => ipcRenderer.invoke(IpcChannels.RELAUNCH_APP_CHANNEL), // fork:
   discoverSshHosts: () => ipcRenderer.invoke(IpcChannels.DISCOVER_SSH_HOSTS_CHANNEL),
   resolveSshHost: (alias) => ipcRenderer.invoke(IpcChannels.RESOLVE_SSH_HOST_CHANNEL, alias),
   ensureSshEnvironment: async (target, options) =>

@@ -6,7 +6,7 @@ import { installNotificationBadge } from "./methods/notificationBadge.ts";
 import { getClientSettings, setClientSettings } from "./methods/clientSettings.ts";
 import {
   getConnectionCatalog,
-  getConnectionCatalogAvailable, // fork:
+  getConnectionCatalogStatus, // fork:
   relaunchApp, // fork:
   setConnectionCatalog,
 } from "./methods/connectionCatalog.ts";
@@ -134,7 +134,7 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
   yield* ipc.handle(dismissSnapShotAnimation);
   yield* ipc.handle(acknowledgeSnapShot);
   yield* ipc.handle(setConnectionCatalog);
-  yield* ipc.handle(getConnectionCatalogAvailable); // fork:
+  yield* ipc.handle(getConnectionCatalogStatus); // fork:
   yield* ipc.handle(relaunchApp); // fork:
 
   yield* ipc.handle(discoverSshHosts);

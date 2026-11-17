@@ -108,7 +108,7 @@ describe("DesktopConnectionCatalogStore", () => {
         const store = yield* DesktopConnectionCatalogStore.DesktopConnectionCatalogStore;
         const catalog = '{"schemaVersion":1,"targets":[]}';
 
-        assert.isTrue(yield* store.isAvailable);
+        assert.strictEqual(yield* store.status, "available"); // fork: keychain notice
         assert.isTrue(yield* store.set(catalog));
         assert.deepStrictEqual(yield* store.get, Option.some(catalog));
       }),
@@ -119,7 +119,7 @@ describe("DesktopConnectionCatalogStore", () => {
     withStore(
       Effect.gen(function* () {
         const store = yield* DesktopConnectionCatalogStore.DesktopConnectionCatalogStore;
-        assert.isFalse(yield* store.isAvailable);
+        assert.strictEqual(yield* store.status, "unavailable"); // fork: keychain notice
         assert.isFalse(yield* store.set("{}"));
         assert.deepStrictEqual(yield* store.get, Option.none());
       }),
@@ -280,8 +280,10 @@ describe("DesktopConnectionCatalogStore", () => {
         Effect.provide(layer),
       );
 
+      assert.strictEqual(yield* store.status, "available"); // fork: no catalog yet
       assert.isTrue(yield* store.set('{"schemaVersion":1,"targets":[]}'));
       yield* Ref.set(failDecrypt, true);
+      assert.strictEqual(yield* store.status, "unreadable"); // fork: keychain notice
       const error = yield* store.get.pipe(Effect.flip);
       assert.instanceOf(
         error,
@@ -299,6 +301,7 @@ describe("DesktopConnectionCatalogStore", () => {
       );
       assert.notEqual(error.message, decryptError.message);
       yield* Ref.set(failDecrypt, false);
+      assert.strictEqual(yield* store.status, "available"); // fork: keychain notice
       assert.deepStrictEqual(yield* store.get, Option.some('{"schemaVersion":1,"targets":[]}'));
     }).pipe(Effect.provide(NodeServices.layer)),
   );
