@@ -801,6 +801,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["caffeinate sleep prevent stay awake power laptop lid inhibit"],
   },
   {
+    id: "keep-running-in-background", // fork: background service switch
+    title: "Keep running in the background",
+    to: "/settings/maintenance",
+    searchTerms: ["background service launch agent quit app close phone notifications"],
+    desktopOnly: true,
+  },
+  {
     id: "background-activity",
     title: "Background activity",
     to: "/settings/maintenance",

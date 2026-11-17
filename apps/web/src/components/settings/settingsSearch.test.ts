@@ -127,6 +127,23 @@ describe("searchSettings", () => {
     expect(searchSettings("hold to quit")).toEqual([]);
     expect(searchSettings("wsl")).toEqual([]);
     expect(searchSettings("update track")).toEqual([]);
+    // fork: the background service switch only exists in the desktop app
+    expect(SETTINGS_SEARCH_ITEMS.some((item) => item.id === "keep-running-in-background")).toBe(
+      true,
+    );
+    expect(searchSettings("keep running")).toEqual([]);
+  });
+
+  // fork: the desktop app finds the background service switch by its English or Chinese title
+  it("finds the background service switch from either language", () => {
+    const item = SETTINGS_SEARCH_ITEMS.find((entry) => entry.id === "keep-running-in-background")!;
+    const t = (source: string) => (source === item.title ? "在后台保持运行" : source);
+    for (const query of ["background service", "keep running"]) {
+      expect(searchSettings(query, [{ ...item, desktopOnly: false }], t)[0]?.id, query).toBe(
+        item.id,
+      );
+    }
+    expect(searchSettings("后台", [{ ...item, desktopOnly: false }], t)[0]?.id).toBe(item.id);
   });
 
   it("hides settings whose controls are unavailable", () => {
