@@ -223,8 +223,8 @@ const runStubbedDesktop = (stub: StubbedDesktop) =>
           Layer.mock(DesktopSelfHost.DesktopSelfHost, {}), // fork: self-hosted connection
           // fork: background service
           Layer.mock(DesktopBackgroundService.DesktopBackgroundService, {
-            pauseForApp: record("service-pause").pipe(Effect.as({ kind: "stopped" as const })),
-            resumeAfterApp: record("service-resume"),
+            pauseForApp: stub.record("service-pause").pipe(Effect.as({ kind: "stopped" as const })),
+            resumeAfterApp: stub.record("service-resume"),
           }),
           Layer.succeed(DesktopPrimaryPaste.DesktopPrimaryPaste, { enabled: true }),
           Layer.mock(DesktopSshEnvironment.DesktopSshEnvironment, {}),

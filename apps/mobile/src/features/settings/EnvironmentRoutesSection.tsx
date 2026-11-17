@@ -329,7 +329,7 @@ function RouteRow(props: {
             ) : null}
             {props.refused ? (
               <StatusPill
-                {...connectionTone("error")}
+                {...connectionTone("error", t)}
                 label={t("Sign-in refused")}
                 size="compact"
               />

@@ -54,6 +54,7 @@ export function WorktreeSetupCard(props: WorktreeSetupCardProps & SetupDetailsCo
 }
 
 function WorktreeSetupHeaderCard(props: WorktreeSetupCardProps & SetupDetailsControl) {
+  const t = useT(); // fork: i18n
   const { snapshot, detailsOpen } = props;
   const running = snapshot.phase === "running";
   const now = useVisibleSecondClock(running);

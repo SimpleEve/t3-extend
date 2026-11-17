@@ -1068,7 +1068,8 @@ type RunFoldLabelTemplate =
   | "Worked"
   | "Continued for {duration}"
   | "Continued"
-  | "Earlier work";
+  | "Earlier work"
+  | "Working";
 
 interface ThreadFeedRunFold {
   readonly deferredWorkItemIds?: ReadonlyArray<string>;
@@ -2057,6 +2058,8 @@ function liveRunFoldRow(runId: RunId, startedAt: string) {
       createdAt: startedAt,
       runId,
       label: "Working",
+      labelTemplate: "Working", // fork: i18n, the live row draws a timer instead
+      duration: null, // fork: i18n
       expanded: false,
       workingSince: startedAt,
     };
