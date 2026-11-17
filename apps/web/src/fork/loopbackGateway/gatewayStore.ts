@@ -15,8 +15,12 @@ export interface GatewayDenial {
   readonly port: number;
   /** Position in the order events and tab loads were seen; later means newer. */
   readonly seq: number;
-  /** Came from a webview no tab was bound to yet: its load began before the tab could report it. */
-  readonly unbound?: boolean;
+  /**
+   * Came before the tab reported this load: no tab was bound to the webview yet, or the bound tab
+   * still read as not loading (the preview manager says Idle until a first URL commits, which is
+   * after the response headers the refusal is sent from). The next load start is this load.
+   */
+  readonly early?: boolean;
 }
 
 interface TabLoad {
@@ -132,10 +136,10 @@ export function noteGatewayTabState(input: {
   patch((store) => {
     const startsLoading = loading && previous?.loading !== true;
     const seq = startsLoading ? store.seq + 1 : store.seq;
-    // A refusal that came before this tab was bound to the webview belongs to the load that is
-    // being reported now; it must not read as an earlier one. It counts this way once.
+    // A refusal that came before this load was reported belongs to it and must not read as an
+    // earlier one. It counts this way once.
     const early = webContentsId === null ? undefined : store.pageDenials[webContentsId];
-    const adopt = early?.unbound === true;
+    const adopt = early?.early === true;
     const loadStartedSeq = !startsLoading
       ? (previous?.loadStartedSeq ?? 0)
       : adopt
@@ -145,7 +149,7 @@ export function noteGatewayTabState(input: {
       seq,
       tabs: { ...store.tabs, [runtimeTabId]: { webContentsId, loading, loadStartedSeq } },
       ...(adopt
-        ? { pageDenials: { ...store.pageDenials, [webContentsId!]: { ...early, unbound: false } } }
+        ? { pageDenials: { ...store.pageDenials, [webContentsId!]: { ...early, early: false } } }
         : {}),
     };
   });
@@ -159,10 +163,11 @@ export function noteGatewayDenied(input: {
 }) {
   patch((store) => {
     const seq = store.seq + 1;
-    const unbound =
-      input.webContentsId !== undefined &&
-      !Object.values(store.tabs).some((tab) => tab.webContentsId === input.webContentsId);
-    const denial: GatewayDenial = { code: input.code, port: input.port, seq, unbound };
+    const bound = Object.values(store.tabs).find(
+      (tab) => tab.webContentsId === input.webContentsId,
+    );
+    const early = input.webContentsId !== undefined && (bound === undefined || !bound.loading);
+    const denial: GatewayDenial = { code: input.code, port: input.port, seq, early };
     return input.webContentsId === undefined
       ? {
           seq,
