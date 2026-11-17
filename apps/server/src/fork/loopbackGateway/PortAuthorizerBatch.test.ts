@@ -40,12 +40,15 @@ interface World {
   /** Which job numbers are alive and listening. */
   alive: Set<number>;
   strayAlive: boolean;
+  /** A service that no T3 terminal or agent started (adopted by launchd), on port 5500. */
+  detached?: { readonly address: string };
 }
 
 const tableOf = (world: World): ProcessInspector.ProcessTable => {
   const rows = [row(SERVER, 1, "t3 server"), row(SHELL, SERVER, "/bin/zsh")];
   for (const n of world.alive) rows.push(row(jobPid(n), SHELL, `node dev-${n}.js`));
   if (world.strayAlive) rows.push(row(400, SERVER, "some-daemon"));
+  if (world.detached !== undefined) rows.push(row(500, 1, "python3 -m board serve"));
   return new Map(rows.map((r) => [r.pid, r]));
 };
 
@@ -60,6 +63,9 @@ const entriesOn = (world: World, port: number) => {
         family: "IPv4",
       });
     }
+  }
+  if (world.detached !== undefined && port === 5500) {
+    found.push({ pid: 500, address: world.detached.address, family: "IPv4" });
   }
   if (world.strayAlive && port === 5400) {
     found.push({ pid: 400, address: "127.0.0.1", family: "IPv4" });
@@ -292,6 +298,25 @@ describe("batched verification", () => {
       }).pipe(Effect.scoped),
     );
   });
+
+  it.effect(
+    "a service nobody here started that listens on no loopback address is not-loopback",
+    () =>
+      Effect.gen(function* () {
+        const x = yield* makeRig;
+        // Allowing it would not help, so the card must not offer that.
+        x.world.detached = { address: "192.168.1.5" };
+        const [fiber] = yield* x.arrive([5500]);
+        yield* x.closeWindow;
+        assert.equal(verdict(yield* Fiber.join(fiber!)), "not-loopback");
+
+        // The same service on loopback is the ordinary not-owned, which can be allowed.
+        x.world.detached = { address: "127.0.0.1" };
+        const [second] = yield* x.arrive([5500]);
+        yield* x.closeWindow;
+        assert.equal(verdict(yield* Fiber.join(second!)), "not-owned");
+      }).pipe(Effect.scoped),
+  );
 
   it.effect("six tunnels one after another are six batches: nothing is kept between them", () =>
     Effect.gen(function* () {

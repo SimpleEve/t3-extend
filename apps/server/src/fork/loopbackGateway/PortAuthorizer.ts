@@ -216,8 +216,14 @@ export const make = Effect.fn("LoopbackGateway.makePortAuthorizer")(function* (
         extraExecutables,
         resolvePath: realPathOf,
       });
-      if (!verdict.allow) return { refusal: refuse(verdict.code, verdict.reason) };
       const host = chooseDialHost(listeners);
+      if (!verdict.allow) {
+        // Allowing a port would not help a service that listens on no loopback address, so the
+        // card must not offer it; the other refusals keep their priority.
+        return host === null && verdict.code === "not-owned"
+          ? { refusal: refuse("not-loopback", "the service is not bound to loopback") }
+          : { refusal: refuse(verdict.code, verdict.reason) };
+      }
       return host === null
         ? { refusal: refuse("not-loopback", "the service is not bound to loopback") }
         : { host, first: row.startTime, owner: verdict.owner };
