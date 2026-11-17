@@ -3,10 +3,12 @@ import { LOOPBACK_GATEWAY_ERROR_CODES } from "@t3tools/shared/forkLoopbackGatewa
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  describeAllowPortFailure,
   describeGatewayCard,
   type GatewayCardKey,
   gatewayCardKeyForCode,
   gatewayCardKeyForState,
+  gatewayCardOffersAllow,
   gatewayCardOffersMove,
   gatewayCardPort,
 } from "./gatewayCard";
@@ -28,6 +30,7 @@ describe("gateway card", () => {
       reserved: "reserved",
       "debug-process": "debug-process",
       "discovery-disabled": "discovery-disabled",
+      "not-loopback": "not-loopback",
       "owner-changed": "owner-changed",
       "rate-limited": "limit",
       "limit-reached": "limit",
@@ -72,6 +75,7 @@ describe("gateway card", () => {
       "not-owned",
       "reserved",
       "debug-process",
+      "not-loopback",
       "unsupported-server",
       "insecure-transport",
       "insecure-transport-tailscale",
@@ -93,12 +97,43 @@ describe("gateway card", () => {
     expect(withheld.filter(gatewayCardOffersMove)).toEqual([]);
   });
 
-  it("explains a port that is not T3's, including a service that left its terminal", () => {
+  it("explains a port that is not T3's, including a service that left its terminal, and offers to allow it", () => {
     const { description } = describeGatewayCard("not-owned", context, en);
     expect(description).toContain("nohup");
-    expect(description).toContain("T3 terminal");
+    expect(description).toContain("T3 terminals");
+    expect(description).toContain("you can allow this port");
     expect(describeGatewayCard("not-owned", context, zh).description).toContain("nohup");
-    expect(describeGatewayCard("not-owned", context, zh).description).toContain("T3 的终端");
+    expect(describeGatewayCard("not-owned", context, zh).description).toContain("可以放行这个端口");
+    // Only a service nobody here started can be allowed; every other refusal stays one.
+    const keys = LOOPBACK_GATEWAY_ERROR_CODES.map(gatewayCardKeyForCode);
+    expect(keys.filter(gatewayCardOffersAllow)).toEqual(["not-owned"]);
+  });
+
+  it("says a service that listens on no loopback address cannot be reached through localhost", () => {
+    expect(describeGatewayCard("not-loopback", context, en)).toEqual({
+      title: "This service isn't listening on localhost",
+      description:
+        "It only listens on another address, which localhost can't reach. Make it listen on 127.0.0.1 as well.",
+    });
+    expect(describeGatewayCard("not-loopback", context, zh)).toEqual({
+      title: "这个服务没有监听 localhost",
+      description: "它只监听了别的地址，经 localhost 转发不到。让它同时监听 127.0.0.1。",
+    });
+  });
+
+  it("words every way allowing a port can fail, in both languages", () => {
+    for (const failure of [
+      "invalid-port",
+      "reserved",
+      "limit-reached",
+      "not-saved",
+      "failed",
+    ] as const) {
+      expect(describeAllowPortFailure(failure, zh), failure).not.toBe(
+        describeAllowPortFailure(failure, en),
+      );
+    }
+    expect(describeAllowPortFailure("limit-reached", en)).toContain("64");
   });
 
   it("tells a Tailscale IP address to use the MagicDNS name or https", () => {
@@ -128,6 +163,7 @@ describe("gateway card", () => {
             "not-owned",
             "reserved",
             "debug-process",
+            "not-loopback",
             "owner-changed",
             "upstream-refused",
             "offline",

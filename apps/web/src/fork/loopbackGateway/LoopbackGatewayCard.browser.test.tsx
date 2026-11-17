@@ -19,7 +19,25 @@ const mocks = vi.hoisted(() => ({
   state: { state: "active" } as { state: string },
   wasActive: false,
   connecting: true,
+  permittedToAllow: true,
+  allowed: [] as Array<number>,
+  allowOutcome: { ok: true } as
+    | { readonly ok: true }
+    | { readonly ok: false; readonly failure: string },
 }));
+
+// The allowed-ports commands need the connection runtime; what matters here is what the card does
+// with their answers.
+vi.mock(import("./allowedPorts"), async () => {
+  const { Atom } = await import("effect/reactivity");
+  return {
+    allowLoopbackPort: { permissionAtom: () => Atom.make(() => mocks.permittedToAllow) },
+    allowLoopbackGatewayPort: async (_environmentId: unknown, port: number) => {
+      mocks.allowed.push(port);
+      return mocks.allowOutcome;
+    },
+  } as never;
+});
 
 vi.mock(import("./useLoopbackGatewayState"), () => ({
   useLoopbackGatewayState: () => ({
@@ -40,6 +58,9 @@ function setup(state: Record<string, unknown> = { state: "active" }) {
   mocks.state = state as { state: string };
   mocks.wasActive = false;
   mocks.connecting = true;
+  mocks.permittedToAllow = true;
+  mocks.allowed = [];
+  mocks.allowOutcome = { ok: true };
   useGatewayStorage.setState({ disabled: [], wasActive: [] });
   useGatewayStore.setState({
     seq: 0,
@@ -83,13 +104,82 @@ describe("loopback gateway card", () => {
       .element(screen.getByText("moved to the background with nohup", { exact: false }))
       .toBeVisible();
     await expect
-      .element(screen.getByText("Start it from a T3 terminal on Studio", { exact: false }))
+      .element(screen.getByText("If you trust it, you can allow this port.", { exact: false }))
       .toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Open in Studio's browser" }))
       .toBeVisible();
     // The generic troubleshooting list has nothing to do with this.
     expect(screen.getByRole("button", { name: "Details" }).elements()).toEqual([]);
+  });
+
+  it("allows the port from the card and loads the tab again", async () => {
+    setup();
+    denied("not-owned");
+    const onReload = vi.fn();
+    await using screen = await render(card({ onReload }), { router: false });
+    await expect
+      .element(screen.getByText("remove it in Settings → Browser", { exact: false }))
+      .toBeVisible();
+    // The reload button is the quiet one now; the allow button leads.
+    await userEvent.click(screen.getByRole("button", { name: "Allow forwarding localhost:5173" }));
+    await vi.waitFor(() => expect(onReload).toHaveBeenCalledOnce());
+    expect(mocks.allowed).toEqual([5173]);
+  });
+
+  it("stays and says why when the port could not be allowed", async () => {
+    setup();
+    denied("not-owned");
+    mocks.allowOutcome = { ok: false, failure: "limit-reached" };
+    const onReload = vi.fn();
+    await using screen = await render(card({ onReload }), { router: false });
+    await userEvent.click(screen.getByRole("button", { name: "Allow forwarding localhost:5173" }));
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent(
+        "At most 64 ports can be allowed. Remove one in Settings → Browser, then try again.",
+      );
+    expect(onReload).not.toHaveBeenCalled();
+    // Reloading clears the line.
+    await userEvent.click(screen.getByRole("button", { name: "Reload" }));
+    expect(onReload).toHaveBeenCalledOnce();
+    expect(screen.getByRole("alert").elements()).toEqual([]);
+  });
+
+  it("offers to allow a port only for a service nobody here started, and only with permission", async () => {
+    setup();
+    denied("not-owned");
+    mocks.permittedToAllow = false;
+    await using screen = await render(card(), { router: false });
+    await expect.element(screen.getByRole("heading")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Allow forwarding localhost:5173" }).elements(),
+    ).toEqual([]);
+
+    setup();
+    denied("reserved");
+    await using reserved = await render(card(), { router: false });
+    await expect
+      .element(reserved.getByRole("heading", { name: "This port can't be forwarded" }))
+      .toBeVisible();
+    expect(
+      reserved.getByRole("button", { name: "Allow forwarding localhost:5173" }).elements(),
+    ).toEqual([]);
+  });
+
+  it("says a service that listens on no loopback address is out of reach, with the environment's browser", async () => {
+    setup();
+    denied("not-loopback");
+    await using screen = await render(card(), { router: false });
+    await expect
+      .element(screen.getByRole("heading", { name: "This service isn't listening on localhost" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Open in Studio's browser" }))
+      .toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Allow forwarding localhost:5173" }).elements(),
+    ).toEqual([]);
   });
 
   it("says a service the user can start is not running, with a reload and no way around", async () => {
@@ -268,6 +358,20 @@ describe("loopback gateway card", () => {
       .toBeVisible();
     await expect.element(screen.getByText("暂不支持私有 CA", { exact: false })).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "重新加载" })).toBeVisible();
+  });
+
+  it("offers the allow button in Chinese", async () => {
+    setup();
+    denied("not-owned");
+    await setUiLocale("zh-Hans");
+    using _restore = { [Symbol.dispose]: () => void setUiLocale("en") };
+    await using screen = await render(card(), { router: false });
+    await expect
+      .element(screen.getByRole("button", { name: "允许转发 localhost:5173" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("可以在 设置 → 浏览器 里移除", { exact: false }))
+      .toBeVisible();
   });
 });
 

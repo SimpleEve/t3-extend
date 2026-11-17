@@ -1,16 +1,24 @@
 // fork: the card over a preview tab whose localhost was meant to be forwarded and was not
 // (research/remote-loopback-forwarding.md 7.2). It reuses the page-unreachable card with other words.
+import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { isLoopbackGatewayHost } from "@t3tools/shared/forkLoopbackGateway/hosts";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { PreviewUnreachable } from "~/components/preview/PreviewUnreachable";
 import { useT } from "~/hooks/useT";
 
 import {
+  allowLoopbackGatewayPort,
+  allowLoopbackPort,
+  type AllowedPortFailure,
+} from "./allowedPorts";
+import {
+  describeAllowPortFailure,
   describeGatewayCard,
   gatewayCardKeyForCode,
   gatewayCardKeyForState,
+  gatewayCardOffersAllow,
   gatewayCardOffersMove,
   gatewayCardPort,
   type GatewayCardKey,
@@ -82,16 +90,55 @@ export function LoopbackGatewayCard(props: LoopbackGatewayTabProps) {
     }
   }, [key, ticketsDelivered, onReload]);
 
+  const permittedToAllow = useAtomValue(allowLoopbackPort.permissionAtom(environmentId));
+  const [allowing, setAllowing] = useState<{
+    readonly pending: boolean;
+    readonly failure: AllowedPortFailure | null;
+  }>({ pending: false, failure: null });
+  const allowPort = () => {
+    if (port === null) return;
+    setAllowing({ pending: true, failure: null });
+    void allowLoopbackGatewayPort(environmentId, port).then((outcome) => {
+      setAllowing({ pending: false, failure: outcome.ok ? null : outcome.failure });
+      if (outcome.ok) onReload();
+    });
+  };
+
   if (key === null) return null;
   const copy = describeGatewayCard(key, { environment: environmentLabel, port }, t);
+  const action =
+    gatewayCardOffersAllow(key) && permittedToAllow && port !== null && !held && !startFailed
+      ? {
+          label: t("Allow forwarding localhost:{port}", { port }),
+          onAction: allowPort,
+          pending: allowing.pending,
+          note: t(
+            "From then on, any service on this port is forwarded. You can remove it in Settings → Browser.",
+          ),
+          error: allowing.failure === null ? null : describeAllowPortFailure(allowing.failure, t),
+        }
+      : undefined;
   return (
     <div className="absolute inset-0 z-10 bg-background">
       <PreviewUnreachable
         url={url}
         code={0}
         description={held || startFailed ? key : (denial?.code ?? key)}
-        onReload={startFailed ? () => requestGatewayRetry(environmentId) : onReload}
-        gateway={startFailed ? { ...copy, reloadLabel: t("Retry") } : copy}
+        onReload={
+          startFailed
+            ? () => requestGatewayRetry(environmentId)
+            : () => {
+                setAllowing({ pending: false, failure: null });
+                onReload();
+              }
+        }
+        gateway={
+          startFailed
+            ? { ...copy, reloadLabel: t("Retry") }
+            : action === undefined
+              ? copy
+              : { ...copy, action }
+        }
         {...(key === "waiting" || key === "start-failed"
           ? {
               move: {

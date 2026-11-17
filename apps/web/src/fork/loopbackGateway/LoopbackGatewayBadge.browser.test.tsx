@@ -6,7 +6,27 @@ import { render } from "../../../test/render";
 import { useGatewayStorage, useLoopbackForwardingDisabled } from "./disabledStore";
 import type { LoopbackGatewayState } from "./gatewayState";
 
-const mocks = vi.hoisted(() => ({ otherwise: "active" as string }));
+const mocks = vi.hoisted(() => ({
+  otherwise: "active" as string,
+  allowed: [] as ReadonlyArray<{ readonly port: number }> | null,
+  refreshed: [] as Array<string>,
+  removed: [] as Array<number>,
+}));
+
+// The list and its commands need the connection runtime; the menu only reads the list.
+vi.mock(
+  import("./allowedPorts"),
+  () =>
+    ({
+      useAllowedLoopbackPorts: () => mocks.allowed,
+      refreshAllowedLoopbackPorts: async (environmentId: string) =>
+        void mocks.refreshed.push(environmentId),
+      removeAllowedLoopbackGatewayPort: async (_environmentId: string, port: number) => {
+        mocks.removed.push(port);
+        return { ok: true };
+      },
+    }) as never,
+);
 
 // The state hook reads the connection atoms; what matters here is only how the user's switch
 // moves it, so the real switch decides between forwarding and stopped, and a test sets the rest.
@@ -28,6 +48,9 @@ const ENV = "env-studio" as EnvironmentId;
 
 function setup(otherwise = "active") {
   mocks.otherwise = otherwise;
+  mocks.allowed = [];
+  mocks.refreshed = [];
+  mocks.removed = [];
   useGatewayStorage.setState({ disabled: [], wasActive: [] });
   window.localStorage.clear();
 }
@@ -50,7 +73,6 @@ describe("loopback gateway badge", () => {
     const onMove = vi.fn();
     await using screen = await render(
       badge({ move: { label: "Open in Studio's browser", onMove } }),
-      { router: false },
     );
 
     const mark = screen.getByRole("button", { name: "localhost is forwarded to Studio" });
@@ -92,12 +114,41 @@ describe("loopback gateway badge", () => {
       .toBeVisible();
   });
 
+  it("takes this port away from the allowed ones, only when it is one, and leads to the list", async () => {
+    setup();
+    mocks.allowed = [];
+    await using screen = await render(badge());
+    await userEvent.click(screen.getByRole("button", { name: "localhost is forwarded to Studio" }));
+    expect(mocks.refreshed).toEqual([ENV]);
+    await expect
+      .element(page.getByRole("menuitem", { name: "Manage allowed ports…" }))
+      .toBeVisible();
+    expect(page.getByRole("menuitem", { name: "Stop allowing localhost:5173" }).elements()).toEqual(
+      [],
+    );
+    await userEvent.keyboard("{Escape}");
+
+    // Another port is allowed, not this one: still no item.
+    mocks.allowed = [{ port: 8080 }];
+    await screen.rerender(badge());
+    await userEvent.click(screen.getByRole("button", { name: "localhost is forwarded to Studio" }));
+    expect(page.getByRole("menuitem", { name: "Stop allowing localhost:5173" }).elements()).toEqual(
+      [],
+    );
+    await userEvent.keyboard("{Escape}");
+
+    mocks.allowed = [{ port: 5173 }, { port: 8080 }];
+    await screen.rerender(badge());
+    await userEvent.click(screen.getByRole("button", { name: "localhost is forwarded to Studio" }));
+    await userEvent.click(page.getByRole("menuitem", { name: "Stop allowing localhost:5173" }));
+    expect(mocks.removed).toEqual([5173]);
+  });
+
   it("opens the tab in the environment's browser", async () => {
     setup();
     const onMove = vi.fn();
     await using screen = await render(
       badge({ move: { label: "Open in Studio's browser", onMove } }),
-      { router: false },
     );
     await userEvent.click(screen.getByRole("button", { name: "localhost is forwarded to Studio" }));
     await userEvent.click(page.getByRole("menuitem", { name: "Open in Studio's browser" }));
@@ -106,7 +157,7 @@ describe("loopback gateway badge", () => {
 
   it("offers no way to the environment's browser when there is none", async () => {
     setup();
-    await using screen = await render(badge(), { router: false });
+    await using screen = await render(badge());
     await userEvent.click(screen.getByRole("button", { name: "localhost is forwarded to Studio" }));
     await expect
       .element(
@@ -118,7 +169,7 @@ describe("loopback gateway badge", () => {
 
   it("is absent where nothing is forwarded or the page is not on localhost", async () => {
     setup("unsupported-route");
-    await using screen = await render(badge(), { router: false });
+    await using screen = await render(badge());
     expect(screen.container.querySelector("[data-loopback-gateway]")).toBeNull();
 
     setup();

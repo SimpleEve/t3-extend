@@ -114,6 +114,7 @@ import {
   SettingsSection,
 } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
+import { LoopbackAllowedPortsSettings } from "../../fork/loopbackGateway/LoopbackAllowedPortsSettings"; // fork: remote localhost forwarding
 import { AdvancedSettings } from "./AdvancedSettings";
 import { useSettingsScope } from "./SettingsScopeContext";
 import { BrowserImportWizard, type WizardTarget } from "./BrowserImportWizard";
@@ -1675,6 +1676,8 @@ export function BrowserSettingsPanel() {
           </SettingsUnavailableGroup>
         </AdvancedSettings>
       </SettingsSection>
+      <LoopbackAllowedPortsSettings desktopOnlyMessage={desktopOnlyMessage} />{" "}
+      {/* fork: remote localhost forwarding */}
       <SettingsSection id="browser-recordings" title="Recordings">
         <SettingsUnavailableGroup message={desktopOnlyMessage}>
           <BrowserRecordingFrameRateSetting disabled={desktopOnly} />
