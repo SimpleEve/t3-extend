@@ -1299,12 +1299,17 @@ describe("AntigravityAdapterV2 background commands", () => {
       rawInput: input,
     };
   };
-  const completed = (toolCallId: string, commandLine: string, output: string) =>
+  const completed = (
+    toolCallId: string,
+    commandLine: string,
+    output: string,
+    status: "completed" | "failed" = "completed",
+  ) =>
     ({
       sessionUpdate: "tool_call_update" as const,
       ...command(toolCallId, commandLine),
-      status: "completed" as const,
-      rawOutput: { output, exit_code: 0 },
+      status,
+      rawOutput: { output, exit_code: status === "completed" ? 0 : 1 },
       content: [{ type: "content" as const, content: { type: "text" as const, text: output } }],
     }) satisfies EffectAcpSchema.SessionUpdate;
   const permission = (toolCallId: string, commandLine: string) =>
@@ -1341,6 +1346,27 @@ describe("AntigravityAdapterV2 background commands", () => {
       let runtimeInput:
         | Parameters<Parameters<typeof makeAntigravityAdapterV2>[0]["makeRuntime"]>[0]
         | undefined;
+      const runtimeInputs: Array<NonNullable<typeof runtimeInput>> = [];
+      // Holds the next runtime request id allocation, which a permission request makes mid-admission.
+      const allocationGate: {
+        current: { entered: Deferred.Deferred<void>; release: Deferred.Deferred<void> } | undefined;
+      } = { current: undefined };
+      const ids = yield* IdAllocator.IdAllocatorV2;
+      const gatedIds = IdAllocator.IdAllocatorV2.of({
+        ...ids,
+        allocate: {
+          ...ids.allocate,
+          runtimeRequest: (input) =>
+            Effect.suspend(() => {
+              const gate = allocationGate.current;
+              if (gate === undefined) return ids.allocate.runtimeRequest(input);
+              return Deferred.succeed(gate.entered, undefined).pipe(
+                Effect.andThen(Deferred.await(gate.release)),
+                Effect.andThen(ids.allocate.runtimeRequest(input)),
+              );
+            }),
+        },
+      });
       const instanceId = ProviderInstanceId.make("antigravity-background-test");
       const threadId = ThreadId.make("thread-antigravity-background");
       const adapter = yield* makeAntigravityAdapterV2({
@@ -1355,6 +1381,7 @@ describe("AntigravityAdapterV2 background commands", () => {
         },
         makeRuntime: (input) => {
           runtimeInput = input;
+          runtimeInputs.push(input);
           return makeAntigravityAcpRuntime({
             ...input,
             childProcessSpawner,
@@ -1389,7 +1416,7 @@ describe("AntigravityAdapterV2 background commands", () => {
         },
         withProcess: (_stop, task) => task,
         defaultModel: Effect.undefined,
-      });
+      }).pipe(Effect.provideService(IdAllocator.IdAllocatorV2, gatedIds));
       const sendUpdate = (update: EffectAcpSchema.SessionUpdate) =>
         handlers.update === undefined
           ? Effect.die("the adapter must handle updates")
@@ -1491,6 +1518,17 @@ describe("AntigravityAdapterV2 background commands", () => {
         handlers,
         acknowledgeResponse: (requestId: string) =>
           runtimeInput?.onOutgoingResponse?.(requestId) ?? Effect.void,
+        runtimeInputs,
+        // Everything the adapter published since the last drain.
+        drain: Queue.clear(events),
+        gateRequestAllocation: Effect.gen(function* () {
+          const gate = {
+            entered: yield* Deferred.make<void>(),
+            release: yield* Deferred.make<void>(),
+          };
+          allocationGate.current = gate;
+          return gate;
+        }),
         offered,
         offeredSignal,
         startTurn,
@@ -1745,9 +1783,6 @@ describe("AntigravityAdapterV2 background commands", () => {
   type Setup = Effect.Success<ReturnType<typeof setup>>;
   const userMessage = (text: string) =>
     ({ createdBy: "user", creationSource: "web", text }) as const;
-  const sleepsOpen = TestClock.testClockWith((clock) =>
-    Effect.sync(() => (clock as unknown as { sleeps: ReadonlyArray<unknown> }).sleeps.length),
-  );
 
   // agy ends a turn with a backgrounded command, the command finishes, and the model's next step
   // is a permission request: the continuation run is open and the card is waiting.
@@ -1856,19 +1891,20 @@ describe("AntigravityAdapterV2 background commands", () => {
     }).pipe(Effect.provide(layerSession), Effect.scoped),
   );
 
-  it.effect("stops the continuation's finish timer when the run ends", () =>
+  it.effect("publishes nothing once the idle deadline passes on a run Stop ended", () =>
     Effect.gen(function* () {
       const t = yield* setup("approval-required");
       const { answer, request } = yield* continuationAwaitingApproval(t);
-      const armed = yield* sleepsOpen;
       yield* t.session.interruptTurn({
         providerThread: t.providerThread,
         providerTurnId: request.providerTurnId!,
         requestRuntimeRestart: true,
       });
       yield* Fiber.join(answer);
-      yield* t.collectUntil(isTerminal);
-      assert.isBelow(yield* sleepsOpen, armed);
+      yield* TestClock.adjust("1 second");
+      yield* t.drain;
+      yield* TestClock.adjust("16 minutes");
+      assert.lengthOf(yield* t.drain, 0);
     }).pipe(Effect.provide(layerSession), Effect.scoped),
   );
 
@@ -1918,9 +1954,122 @@ describe("AntigravityAdapterV2 background commands", () => {
     }).pipe(Effect.provide(layerSession), Effect.scoped),
   );
 
-  it.effect(
-    "does not hand a command that finished inside WaitMsBeforeAsync to the detached path",
-    () =>
+  it.effect("cancels a permission request that Stop overtakes while it is being admitted", () =>
+    Effect.gen(function* () {
+      const t = yield* setup("approval-required");
+      t.setFirstTurnUpdates([
+        {
+          sessionUpdate: "tool_call",
+          ...command("call_A", "sleep 20; echo first-probe"),
+          status: "in_progress",
+        },
+      ]);
+      yield* t.startTurn(1, userMessage("go"));
+      yield* t.collectUntil(isTerminal);
+      const gate = yield* t.gateRequestAllocation;
+      const requestPermission = t.handlers.permission;
+      if (requestPermission === undefined) return yield* Effect.die("permission handler");
+      const answer = yield* requestPermission(permission("call_B", "echo second-probe"), {
+        requestId: "3",
+        method: "session/request_permission",
+      }).pipe(Effect.forkScoped);
+      yield* Queue.take(t.offeredSignal);
+      yield* t.startTurn(2, {
+        createdBy: "agent",
+        creationSource: "provider",
+        text: "Background task completed.",
+      });
+      // The callback has this run's context and is part-way through registering its card.
+      yield* Deferred.await(gate.entered);
+      const started = yield* t.collectUntil(
+        (event) =>
+          event.type === "provider_turn.updated" && event.providerTurn.status === "running",
+      );
+      const turn = started.findLast((event) => event.type === "provider_turn.updated");
+      if (turn?.type !== "provider_turn.updated") return yield* Effect.die("turn");
+      const stop = yield* t.session
+        .interruptTurn({
+          providerThread: t.providerThread,
+          providerTurnId: turn.providerTurn.id,
+          requestRuntimeRestart: true,
+        })
+        .pipe(Effect.forkScoped);
+      // Let Stop go as far as it can before the callback resumes.
+      yield* TestClock.adjust("1 second");
+      yield* Deferred.succeed(gate.release, undefined);
+      yield* Fiber.join(stop);
+      yield* TestClock.adjust("1 second");
+      assert.isDefined(answer.pollUnsafe(), "the agent is still waiting for an answer");
+      assert.deepEqual(yield* Fiber.join(answer), { outcome: { outcome: "cancelled" } });
+      const rest = yield* t.drain;
+      const requests = rest.flatMap((event) =>
+        event.type === "runtime_request.updated" ? [event.runtimeRequest] : [],
+      );
+      const opened = requests.filter((request) => request.status === "pending");
+      for (const request of opened) {
+        assert.isTrue(
+          requests.some((other) => other.id === request.id && other.status === "cancelled"),
+          "a card Stop left open",
+        );
+      }
+    }).pipe(Effect.provide(layerSession), Effect.scoped),
+  );
+
+  it.effect("keeps a replaced agy process's response frames off the new process's requests", () =>
+    Effect.gen(function* () {
+      const t = yield* setup("approval-required");
+      t.setFirstTurnUpdates([
+        {
+          sessionUpdate: "tool_call",
+          ...command("call_A", "sleep 20; echo first-probe"),
+          status: "in_progress",
+        },
+      ]);
+      yield* t.startTurn(1, userMessage("go"));
+      const first = yield* t.collectUntil(isTerminal);
+      const firstTurn = first.findLast((event) => event.type === "provider_turn.updated");
+      if (firstTurn?.type !== "provider_turn.updated") return yield* Effect.die("turn");
+      yield* t.session.interruptTurn({
+        providerThread: t.providerThread,
+        providerTurnId: firstTurn.providerTurn.id,
+        requestRuntimeRestart: true,
+      });
+      t.setFirstTurnUpdates([]);
+      const release = yield* t.holdPrompt;
+      // The next turn replaces the process Stop left running.
+      yield* t.startTurn(2, userMessage("next message"));
+      assert.lengthOf(t.runtimeInputs, 2);
+      const [replaced, current] = t.runtimeInputs;
+      const requestPermission = t.handlers.permission;
+      if (requestPermission === undefined) return yield* Effect.die("permission handler");
+      // Both processes number their requests from 1.
+      const answer = yield* requestPermission(permission("call_C", "echo next"), {
+        requestId: "1",
+        method: "session/request_permission",
+      }).pipe(Effect.forkScoped);
+      const pending = yield* t.collectUntil(
+        (event) =>
+          event.type === "runtime_request.updated" && event.runtimeRequest.status === "pending",
+      );
+      const card = pending.findLast((event) => event.type === "runtime_request.updated");
+      if (card?.type !== "runtime_request.updated") return yield* Effect.die("approval card");
+      const responding = yield* t.session
+        .respondToRuntimeRequest({ requestId: card.runtimeRequest.id, decision: "accept" })
+        .pipe(Effect.forkScoped);
+      yield* Fiber.join(answer);
+      yield* replaced!.onOutgoingResponse?.("1") ?? Effect.void;
+      yield* TestClock.adjust("1 second");
+      assert.isUndefined(responding.pollUnsafe(), "the replaced process acknowledged the answer");
+      yield* current!.onOutgoingResponse?.("1") ?? Effect.void;
+      yield* Fiber.join(responding);
+      yield* Deferred.succeed(release, undefined);
+      yield* t.collectUntil(isTerminal);
+    }).pipe(Effect.provide(layerSession), Effect.scoped),
+  );
+
+  it.effect.each(["completed", "failed"] as const)(
+    "does not hand a %s command that ended inside WaitMsBeforeAsync to the detached path",
+    (status) =>
       Effect.gen(function* () {
         const t = yield* setup("approval-required");
         t.setFirstTurnUpdates([
@@ -1929,12 +2078,12 @@ describe("AntigravityAdapterV2 background commands", () => {
             ...command("call_S", "echo sync"),
             status: "in_progress",
           },
-          completed("call_S", "echo sync", "Command exited with code 0.\n\nsync\r\n"),
+          completed("call_S", "echo sync", "Command exited.\n\nsync\r\n", status),
           { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "done" } },
         ]);
         yield* t.startTurn(1, userMessage("go"));
         yield* t.collectUntil(isTerminal);
-        yield* t.sendUpdate(completed("call_S", "echo sync", "late output"));
+        yield* t.sendUpdate(completed("call_S", "echo sync", "late output", status));
         t.setFirstTurnUpdates([]);
         const release = yield* t.holdPrompt;
         yield* t.startTurn(2, userMessage("next message"));

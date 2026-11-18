@@ -2454,7 +2454,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               if (
                 continuationSettle !== undefined &&
                 tool !== undefined &&
-                toolStatus(tool.status) === "completed"
+                (toolStatus(tool.status) === "completed" || toolStatus(tool.status) === "failed")
               )
                 continue;
               next.set(taskId, context);
@@ -6971,6 +6971,13 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               const admitted = yield* runRuntimeCallbackAtGeneration(
                 handlerGeneration,
                 Effect.gen(function* () {
+                  // Stop already ended the run this request belongs to.
+                  if (continuationSettle !== undefined && (yield* Ref.get(stoppedRunQuarantine))) {
+                    return {
+                      _tag: "Immediate" as const,
+                      response: { outcome: { outcome: "cancelled" } } as const,
+                    };
+                  }
                   const context = followsAgentWorkState
                     ? yield* Ref.get(activeTurn)
                     : yield* activeContext;
@@ -8107,6 +8114,11 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
 
         // Stop leaves agy running and free to wake itself later; the next turn replaces the process.
         const fenceStoppedRuntime = Ref.set(runtimeRestartRequired, true);
+        // A request being admitted holds the callback permit, so Stop waits for it and cancels its card.
+        const cancelRequestsAfterStop = (stopMcpCalls: boolean) =>
+          continuationSettle === undefined
+            ? cancelPendingRuntimeRequests({ stopMcpCalls })
+            : runtimeCallbackPermit.withPermit(cancelPendingRuntimeRequests({ stopMcpCalls }));
 
         const finalizeTurn = Effect.fnUntraced(function* (
           context: ActiveAcpTurn,
@@ -9642,7 +9654,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                           turnInput.requestRuntimeRestart === true
                         ) {
                           yield* quarantineStoppedRun();
-                          yield* cancelPendingRuntimeRequests();
+                          yield* cancelRequestsAfterStop(true);
                           yield* runtime.cancel.pipe(Effect.ignore);
                           yield* fenceStoppedRuntime;
                           return undefined;
@@ -9781,7 +9793,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                         yield* quarantineStoppedRun();
                       }
                       // A settled soft interrupt keeps background subagents, and with them their MCP calls.
-                      yield* cancelPendingRuntimeRequests({ stopMcpCalls: !settledSoftInterrupt });
+                      yield* cancelRequestsAfterStop(!settledSoftInterrupt);
                       // Finalize before killing so projection catches up and concurrent interrupts see activeTurn cleared.
                       if (
                         (hardRestart || context.promptSettled || settledSoftInterrupt) &&
