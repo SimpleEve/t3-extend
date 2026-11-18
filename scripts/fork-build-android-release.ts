@@ -3,8 +3,9 @@
 // injected through Gradle properties, so build.gradle, app.config.ts and the native fingerprint
 // stay untouched. See FORK.md "打包与签名".
 //
-// The store password lives only in the macOS Keychain. It never goes on a command line (which
-// `ps` shows) or to stdout: keytool and Gradle read it from the environment, `security` from stdin.
+// The store password lives in the macOS Keychain, or in T3EXTEND_ANDROID_KEYSTORE_PASSWORD on CI
+// (fork-release.yml). It never goes on a command line (which `ps` shows) or to stdout: keytool and
+// Gradle read it from the environment, `security` from stdin.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "node:crypto";
 import * as NodeFS from "node:fs";
@@ -13,6 +14,8 @@ import * as NodePath from "node:path";
 import * as NodeUtil from "node:util";
 
 import { FORK } from "@t3tools/shared/forkIdentity";
+
+import { ANDROID_KEYSTORE_PASSWORD_ENV, resolveStorePassword } from "./lib/fork-android-signing.ts";
 
 const log = (message: string): void => {
   process.stdout.write(`${message}\n`);
@@ -198,9 +201,11 @@ function buildRelease(): void {
   if (!NodeFS.existsSync(keystorePath)) {
     throw new Error(`${keystorePath} is missing. Create it once with --create-keystore.`);
   }
-  const password = readKeychainPassword();
+  const password = resolveStorePassword(process.env, readKeychainPassword);
   if (password === undefined) {
-    throw new Error(`Keychain item "${keychainService}" is missing; see FORK.md.`);
+    throw new Error(
+      `Keychain item "${keychainService}" is missing and ${ANDROID_KEYSTORE_PASSWORD_ENV} is not set; see FORK.md.`,
+    );
   }
   const expectedCertificate = certificateSha256(password);
 
