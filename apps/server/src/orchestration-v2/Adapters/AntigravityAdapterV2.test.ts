@@ -1322,6 +1322,27 @@ describe("AntigravityAdapterV2 background commands", () => {
       ],
     }) satisfies EffectAcpSchema.RequestPermissionRequest;
 
+  // agy's own question: a permission request whose tool call id starts with interaction_.
+  const question = (toolCallId: string) =>
+    ({
+      sessionId: SESSION,
+      toolCall: { toolCallId, title: "Which branch?", status: "pending" as const },
+      options: [
+        { optionId: "main", name: "main", kind: "allow_once" as const },
+        { optionId: "dev", name: "dev", kind: "allow_once" as const },
+      ],
+    }) satisfies EffectAcpSchema.RequestPermissionRequest;
+  const openCards = (events: ReadonlyArray<ProviderAdapter.ProviderAdapterV2Event>) => {
+    const requests = events.flatMap((event) =>
+      event.type === "runtime_request.updated" ? [event.runtimeRequest] : [],
+    );
+    return requests.filter(
+      (request) =>
+        request.status === "pending" &&
+        !requests.some((other) => other.id === request.id && other.status !== "pending"),
+    );
+  };
+
   const setup = (runtimeMode: "approval-required" | "full-access") =>
     Effect.gen(function* () {
       const childProcessSpawner = yield* ChildProcessSpawner.ChildProcessSpawner;
@@ -2012,6 +2033,91 @@ describe("AntigravityAdapterV2 background commands", () => {
           "a card Stop left open",
         );
       }
+    }).pipe(Effect.provide(layerSession), Effect.scoped),
+  );
+
+  it.effect(
+    "answers a question that reaches agy's runtime after Stop with a cancel and no card",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* setup("approval-required");
+        t.setFirstTurnUpdates([
+          {
+            sessionUpdate: "tool_call",
+            ...command("call_A", "sleep 20; echo first-probe"),
+            status: "in_progress",
+          },
+        ]);
+        yield* t.startTurn(1, userMessage("go"));
+        const first = yield* t.collectUntil(isTerminal);
+        const turn = first.findLast((event) => event.type === "provider_turn.updated");
+        if (turn?.type !== "provider_turn.updated") return yield* Effect.die("turn");
+        yield* t.session.interruptTurn({
+          providerThread: t.providerThread,
+          providerTurnId: turn.providerTurn.id,
+          requestRuntimeRestart: true,
+        });
+        yield* t.drain;
+        const requestPermission = t.handlers.permission;
+        if (requestPermission === undefined) return yield* Effect.die("permission handler");
+        const answer = yield* requestPermission(question("interaction_1"), {
+          requestId: "4",
+          method: "session/request_permission",
+        }).pipe(Effect.forkScoped);
+        yield* TestClock.adjust("1 second");
+        assert.deepEqual(yield* Fiber.join(answer), { outcome: { outcome: "cancelled" } });
+        assert.lengthOf(openCards(yield* t.drain), 0);
+        assert.lengthOf(t.offered, 0);
+      }).pipe(Effect.provide(layerSession), Effect.scoped),
+  );
+
+  it.effect("cancels a question that Stop overtakes while it is being admitted", () =>
+    Effect.gen(function* () {
+      const t = yield* setup("approval-required");
+      t.setFirstTurnUpdates([
+        {
+          sessionUpdate: "tool_call",
+          ...command("call_A", "sleep 20; echo first-probe"),
+          status: "in_progress",
+        },
+      ]);
+      yield* t.startTurn(1, userMessage("go"));
+      yield* t.collectUntil(isTerminal);
+      const gate = yield* t.gateRequestAllocation;
+      const requestPermission = t.handlers.permission;
+      if (requestPermission === undefined) return yield* Effect.die("permission handler");
+      const answer = yield* requestPermission(question("interaction_1"), {
+        requestId: "4",
+        method: "session/request_permission",
+      }).pipe(Effect.forkScoped);
+      yield* Queue.take(t.offeredSignal);
+      yield* t.startTurn(2, {
+        createdBy: "agent",
+        creationSource: "provider",
+        text: "Background task completed.",
+      });
+      // The callback has this run's context and is part-way through registering its card.
+      yield* Deferred.await(gate.entered);
+      const started = yield* t.collectUntil(
+        (event) =>
+          event.type === "provider_turn.updated" && event.providerTurn.status === "running",
+      );
+      const turn = started.findLast((event) => event.type === "provider_turn.updated");
+      if (turn?.type !== "provider_turn.updated") return yield* Effect.die("turn");
+      const stop = yield* t.session
+        .interruptTurn({
+          providerThread: t.providerThread,
+          providerTurnId: turn.providerTurn.id,
+          requestRuntimeRestart: true,
+        })
+        .pipe(Effect.forkScoped);
+      yield* TestClock.adjust("1 second");
+      yield* Deferred.succeed(gate.release, undefined);
+      yield* Fiber.join(stop);
+      yield* TestClock.adjust("1 second");
+      assert.isDefined(answer.pollUnsafe(), "the agent is still waiting for an answer");
+      assert.deepEqual(yield* Fiber.join(answer), { outcome: { outcome: "cancelled" } });
+      assert.lengthOf(openCards(yield* t.drain), 0, "a card Stop left open");
     }).pipe(Effect.provide(layerSession), Effect.scoped),
   );
 

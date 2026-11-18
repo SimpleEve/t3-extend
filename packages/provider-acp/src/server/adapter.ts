@@ -6253,14 +6253,20 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
             }
             return yield* runRuntimeCallbackAtGeneration(
               generation,
-              request.pipe(
-                Effect.flatMap((value) =>
-                  beginUserInputRequest(value, generation, transportRequestId),
-                ),
-              ),
+              Effect.gen(function* () {
+                // Stop already ended the run this question belongs to: no card, agy gets a cancel.
+                if (continuationSettle !== undefined && (yield* Ref.get(stoppedRunQuarantine))) {
+                  return undefined;
+                }
+                const value = yield* request;
+                return yield* beginUserInputRequest(value, generation, transportRequestId);
+              }),
             ).pipe(
               Effect.flatMap((pending) => {
                 if (Option.isNone(pending)) return Effect.never;
+                if (pending.value === undefined) {
+                  return Effect.succeed({ answers: null, acknowledgeNativeResponse: Effect.void });
+                }
                 const { answers, requestId, transportRequestId } = pending.value;
                 return Deferred.await(answers).pipe(
                   Effect.flatMap((result) =>
