@@ -1558,6 +1558,8 @@ interface ActiveAcpTurn {
   /** The timer's next wake; it may be earlier than the deadline, and a sooner deadline replaces it. */
   settleWakeAt: number;
   settleTimer: Fiber.Fiber<void> | undefined;
+  /** Names the live timer, so one that was replaced cannot clear its successor. */
+  settleGeneration: number;
 }
 
 type AcpRuntimeTeardownState =
@@ -2445,7 +2447,18 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
         const detachBackgroundCommands = (context: ActiveAcpTurn) =>
           Ref.update(detachedBackgroundCommands, (current) => {
             const next = new Map(current);
-            for (const taskId of context.backgroundCommands.keys()) next.set(taskId, context);
+            for (const taskId of context.backgroundCommands.keys()) {
+              const toolCallId = context.toolCallIdsByBackgroundTaskId.get(taskId);
+              const tool = toolCallId === undefined ? undefined : context.tools.get(toolCallId);
+              // agy's finished commands have nothing left to report; Grok replays its late ACKs here.
+              if (
+                continuationSettle !== undefined &&
+                tool !== undefined &&
+                toolStatus(tool.status) === "completed"
+              )
+                continue;
+              next.set(taskId, context);
+            }
             const ended = [...next].filter(([taskId, turn]) => {
               const toolCallId = turn.toolCallIdsByBackgroundTaskId.get(taskId);
               const tool = toolCallId === undefined ? undefined : turn.tools.get(toolCallId);
@@ -2518,6 +2531,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           Queue.offer(events, event).pipe(Effect.asVoid);
         let scheduleDeferredFinalize: (context: ActiveAcpTurn) => Effect.Effect<void> = () =>
           Effect.void;
+        let rearmContinuationAfterRequest: () => Effect.Effect<void> = () => Effect.void;
 
         const nativeLogging = options.nativeLogging?.(input.threadId);
         const promptInactivityTimeoutMillis =
@@ -6271,7 +6285,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                         const updated = new Map(current);
                         updated.delete(String(requestId));
                         return updated;
-                      }),
+                      }).pipe(Effect.andThen(Effect.suspend(rearmContinuationAfterRequest))),
                     ).pipe(Effect.asVoid),
                   ),
                 );
@@ -7039,7 +7053,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                       const updated = new Map(current);
                       updated.delete(String(requestId));
                       return updated;
-                    }),
+                    }).pipe(Effect.andThen(Effect.suspend(rearmContinuationAfterRequest))),
                   ).pipe(Effect.asVoid),
                 ),
               );
@@ -8091,6 +8105,9 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           );
         });
 
+        // Stop leaves agy running and free to wake itself later; the next turn replaces the process.
+        const fenceStoppedRuntime = Ref.set(runtimeRestartRequired, true);
+
         const finalizeTurn = Effect.fnUntraced(function* (
           context: ActiveAcpTurn,
           status: "completed" | "interrupted" | "failed" | "cancelled",
@@ -8105,6 +8122,11 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           context.inactivityWatchdog = undefined;
           if (watchdog !== undefined) {
             yield* Fiber.interrupt(watchdog).pipe(Effect.forkDetach, Effect.asVoid);
+          }
+          const settleTimer = context.settleTimer;
+          context.settleTimer = undefined;
+          if (settleTimer !== undefined) {
+            yield* Fiber.interrupt(settleTimer).pipe(Effect.forkDetach, Effect.asVoid);
           }
           const directStopQuarantine = yield* Ref.get(stoppedRunQuarantine);
           if (flavor.subagentsIdleOnTurnCompletion === true) {
@@ -8329,6 +8351,10 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           }
           const superseded = context.settleTimer;
           context.settleWakeAt = context.settleDeadline;
+          const generation = ++context.settleGeneration;
+          const dropTimer = () => {
+            if (context.settleGeneration === generation) context.settleTimer = undefined;
+          };
           const timer = yield* Effect.gen(function* () {
             while (!context.finalized && !context.interrupted) {
               const wait = context.settleDeadline - (yield* Clock.currentTimeMillis);
@@ -8337,8 +8363,10 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                 yield* Effect.sleep(Duration.millis(wait));
                 continue;
               }
-              // An open approval or question is the user's to answer, and answering brings more updates.
-              if ((yield* Ref.get(pendingRuntimeRequests)).size > 0) return;
+              // An open request is the user's to answer; answering re-arms this timer.
+              if ((yield* Ref.get(pendingRuntimeRequests)).size > 0) return dropTimer();
+              // finalizeTurn interrupts the registered timer, which must not be this one.
+              dropTimer();
               yield* finalizeTurn(context, "completed");
               return;
             }
@@ -8347,6 +8375,18 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           if (superseded !== undefined) {
             yield* Fiber.interrupt(superseded).pipe(Effect.forkDetach, Effect.asVoid);
           }
+        });
+        rearmContinuationAfterRequest = Effect.fnUntraced(function* () {
+          const context = yield* Ref.get(activeTurn);
+          if (
+            context === null ||
+            !context.isContinuation ||
+            context.finalized ||
+            context.interrupted
+          )
+            return;
+          context.stepEnded = false;
+          yield* armContinuationFinalize(context);
         });
 
         const promptInactivityPaused = Effect.fn("AcpAdapterV2.promptInactivityPaused")(function* (
@@ -8595,6 +8635,10 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
         ) {
           const restartRequired = yield* Ref.get(runtimeRestartRequired);
           if (!restartRequired) return false;
+          // The old process may have frames in flight; none of them may reach the new runs.
+          if (continuationSettle !== undefined) {
+            yield* runtimeCallbackPermit.withPermit(advanceRuntimeCallbackGeneration);
+          }
           yield* restartAcpRuntime(threadId);
           yield* Ref.set(runtimeRestartRequired, false);
           yield* Ref.set(activeSessionId, null);
@@ -8791,6 +8835,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               settleDeadline: 0,
               settleWakeAt: 0,
               settleTimer: undefined,
+              settleGeneration: 0,
             };
             const carryover = yield* Ref.getAndSet(carryoverSubagents, null);
             let rehydratedCarryoverSubagents: ReadonlyArray<ActiveAcpSubagent> = [];
@@ -9599,6 +9644,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                           yield* quarantineStoppedRun();
                           yield* cancelPendingRuntimeRequests();
                           yield* runtime.cancel.pipe(Effect.ignore);
+                          yield* fenceStoppedRuntime;
                           return undefined;
                         }
                         // Contain orphan runtimes on Stop; session-wide teardown must not touch another active turn.
@@ -9724,6 +9770,13 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                     });
                     const runTransition = Effect.gen(function* () {
                       context.interrupted = true;
+                      if (
+                        continuationSettle !== undefined &&
+                        context.isContinuation &&
+                        turnInput.requestRuntimeRestart === true
+                      ) {
+                        yield* fenceStoppedRuntime;
+                      }
                       if (hardRestart || turnInput.requestRuntimeRestart === true) {
                         yield* quarantineStoppedRun();
                       }
