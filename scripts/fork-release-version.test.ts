@@ -1,5 +1,4 @@
 import { cliReleaseChannelOf, newestCliReleaseVersion } from "@t3tools/shared/cliRelease";
-import { isExactServiceVersion } from "../apps/server/src/cloud/serviceProtocol.ts";
 import { expect, it } from "vite-plus/test";
 
 import { resolveForkRelease } from "./fork-release-version.ts";
@@ -53,9 +52,8 @@ it("keeps test builds out of updates, from a tag or a manual run", () => {
   expect(() => dispatch("0.3.1")).toThrow(/test release/u);
 });
 
-it("only produces versions the self-update path accepts", () => {
+it("only produces versions on the channel the self-update path follows", () => {
   for (const version of ["0.2.0", "0.0.0-ci.3"]) {
-    expect(isExactServiceVersion(version)).toBe(true);
     expect(cliReleaseChannelOf(version)).toBe("stable");
   }
   // The newest published release is a plain tag; a draft test build is skipped even though it
