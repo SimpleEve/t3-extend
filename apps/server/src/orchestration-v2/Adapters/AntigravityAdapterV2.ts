@@ -92,6 +92,7 @@ export interface AntigravityAdapterV2Options {
   readonly onSessionEvent?: AcpAdapterV2Flavor["onSessionEvent"];
   readonly nativeLogging?: Parameters<typeof makeAcpAdapterV2>[0]["nativeLogging"];
   readonly continuationRequests?: Parameters<typeof makeAcpAdapterV2>[0]["continuationRequests"];
+  readonly testHooks?: Parameters<typeof makeAcpAdapterV2>[0]["testHooks"]; // fork:
   /** The agent's GEMINI_HOME. Its session logs show turns that ended on an upstream error. */
   readonly profileDirectory?: string;
 }
@@ -274,7 +275,7 @@ export function makeAntigravityAcpAdapterFlavor(
     },
     normalizeToolCall: normalizeAntigravityToolCall,
     extractSubagentUpdate: extractAntigravitySubagentUpdate,
-    // Commands never hold a run open (agy cannot tell a wait from a dev server); the agent's own
+    // fork: commands never hold a run open (agy cannot tell a wait from a dev server); the agent's own
     // wake after one finishes opens a continuation run. Subagents rule out deferFinalizeForBackgroundWork:
     // they stay running until the parent turn is idle.
     extractBackgroundTaskId: antigravityBackgroundCommandId,
@@ -320,5 +321,6 @@ export const makeAntigravityAdapterV2 = Effect.fn("makeAntigravityAdapterV2")(fu
     ...(options.continuationRequests === undefined
       ? {}
       : { continuationRequests: options.continuationRequests }),
+    ...(options.testHooks === undefined ? {} : { testHooks: options.testHooks }), // fork:
   });
 });

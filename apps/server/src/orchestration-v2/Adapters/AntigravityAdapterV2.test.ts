@@ -1372,6 +1372,11 @@ describe("AntigravityAdapterV2 background commands", () => {
       const allocationGate: {
         current: { entered: Deferred.Deferred<void>; release: Deferred.Deferred<void> } | undefined;
       } = { current: undefined };
+      // Holds a question after its wait for a run ended and before it takes the callback permit.
+      const admissionGate: {
+        current: { entered: Deferred.Deferred<void>; release: Deferred.Deferred<void> } | undefined;
+      } = { current: undefined };
+      const nativeLifecycle: Array<string> = [];
       const ids = yield* IdAllocator.IdAllocatorV2;
       const gatedIds = IdAllocator.IdAllocatorV2.of({
         ...ids,
@@ -1399,6 +1404,21 @@ describe("AntigravityAdapterV2 background commands", () => {
               Effect.andThen(Queue.offer(offeredSignal, undefined)),
               Effect.asVoid,
             ),
+        },
+        testHooks: {
+          beforeUserInputAdmission: () =>
+            Effect.suspend(() => {
+              const gate = admissionGate.current;
+              if (gate === undefined) return Effect.void;
+              return Deferred.succeed(gate.entered, undefined).pipe(
+                Effect.andThen(Deferred.await(gate.release)),
+                Effect.asVoid,
+              );
+            }),
+          onNativeResponseLifecycle: (event) =>
+            Effect.sync(() => {
+              nativeLifecycle.push(event.type);
+            }),
         },
         makeRuntime: (input) => {
           runtimeInput = input;
@@ -1542,6 +1562,15 @@ describe("AntigravityAdapterV2 background commands", () => {
         runtimeInputs,
         // Everything the adapter published since the last drain.
         drain: Queue.clear(events),
+        nativeLifecycle,
+        gateUserInputAdmission: Effect.gen(function* () {
+          const gate = {
+            entered: yield* Deferred.make<void>(),
+            release: yield* Deferred.make<void>(),
+          };
+          admissionGate.current = gate;
+          return gate;
+        }),
         gateRequestAllocation: Effect.gen(function* () {
           const gate = {
             entered: yield* Deferred.make<void>(),
@@ -2118,6 +2147,56 @@ describe("AntigravityAdapterV2 background commands", () => {
       assert.isDefined(answer.pollUnsafe(), "the agent is still waiting for an answer");
       assert.deepEqual(yield* Fiber.join(answer), { outcome: { outcome: "cancelled" } });
       assert.lengthOf(openCards(yield* t.drain), 0, "a card Stop left open");
+    }).pipe(Effect.provide(layerSession), Effect.scoped),
+  );
+
+  it.effect("cancels a question whose run Stop ended after its wait but before admission", () =>
+    Effect.gen(function* () {
+      const t = yield* setup("approval-required");
+      t.setFirstTurnUpdates([
+        {
+          sessionUpdate: "tool_call",
+          ...command("call_A", "sleep 20; echo first-probe"),
+          status: "in_progress",
+        },
+      ]);
+      yield* t.startTurn(1, userMessage("go"));
+      yield* t.collectUntil(isTerminal);
+      const gate = yield* t.gateUserInputAdmission;
+      const requestPermission = t.handlers.permission;
+      if (requestPermission === undefined) return yield* Effect.die("permission handler");
+      const answer = yield* requestPermission(question("interaction_1"), {
+        requestId: "4",
+        method: "session/request_permission",
+      }).pipe(Effect.forkScoped);
+      yield* Queue.take(t.offeredSignal);
+      yield* t.startTurn(2, {
+        createdBy: "agent",
+        creationSource: "provider",
+        text: "Background task completed.",
+      });
+      // The question's wait for a run is over; it has not asked for the callback permit yet.
+      yield* Deferred.await(gate.entered);
+      const started = yield* t.collectUntil(
+        (event) =>
+          event.type === "provider_turn.updated" && event.providerTurn.status === "running",
+      );
+      const turn = started.findLast((event) => event.type === "provider_turn.updated");
+      if (turn?.type !== "provider_turn.updated") return yield* Effect.die("turn");
+      const stop = yield* t.session
+        .interruptTurn({
+          providerThread: t.providerThread,
+          providerTurnId: turn.providerTurn.id,
+          requestRuntimeRestart: true,
+        })
+        .pipe(Effect.forkScoped);
+      yield* TestClock.adjust("1 second");
+      yield* Fiber.join(stop);
+      assert.isUndefined(answer.pollUnsafe(), "the agent is still waiting for an answer");
+      yield* Deferred.succeed(gate.release, undefined);
+      assert.deepEqual(yield* Fiber.join(answer), { outcome: { outcome: "cancelled" } });
+      assert.lengthOf(openCards(yield* t.drain), 0);
+      assert.notIncludeMembers(t.nativeLifecycle, ["admission_rejected", "failed"]);
     }).pipe(Effect.provide(layerSession), Effect.scoped),
   );
 

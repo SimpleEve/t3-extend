@@ -260,6 +260,18 @@ macOS 打包版的设置 > 维护 > "后台运行" 有一个开关"在后台保�
 
 没验证的：Linux 或没有 keyring 的主机上，agy 在不强制文件存储时放哪里；Windows 凭据管理器；keyring 里的登录过期且 refresh token 失效时（只看到过 keyring 里的 token 过期后自动刷新成功）；官方 T3 Code 和 Extend 同机同时运行时，两边的 agy 同时刷新同一条 keyring 登录。
 
+## Antigravity 后台命令续跑
+
+agy 把超过 `WaitMsBeforeAsync` 的 `run_command` 转成后台任务，prompt 随即返回、轮次结束。命令跑完后 agy 自己往对话里注入一条 SYSTEM_MESSAGE 并唤醒模型，这一段没有 prompt，也没有结束信号：ACP 协商出 v1，没有 `state_update idle`，只有每个模型步骤后的 `usage_update`。原来唤醒后的 `session/request_permission` 到达时没有活跃轮次，T3 回 -32603，模型的下一个 `run_command` 没有执行，线程卡到 30 分钟空闲关闭。
+
+- 通用 ACP 适配器加了 flavor 选项 `continuationWithoutPromptEnd`（`isStepEnd`、`quiet`、`idle`），只有 Antigravity 设置，需要同时开 `enablePostSettleContinuation`。Grok 和 ACP Registry 不设，下面所有分支都由 `continuationSettle !== undefined` 守住，它们的行为不变。
+- 后台命令：agy 在 ACP 里不给任务 id，用 `toolCallId` 当任务 id（`antigravityBackgroundCommandId`）。行保持 running，命令结束后同一个 id 收到 completed。命令不让这一轮保持 Working（agy 分不清在等结果还是 dev server），只靠唤醒开续跑；没开 `deferFinalizeForBackgroundWork`，因为 agy 的子 agent 要等父轮次 idle 才会终态。prompt 返回时已 completed 或 failed 的命令不登记为 detached。
+- 没有活跃轮次时 agy 发来的权限请求和提问，先请求续跑，续跑接上后再答复（full-access 直接放行，否则弹审批卡）。
+- 续跑没有 prompt 结果，靠计时器收尾：最近一次更新是 `usage_update` 后静默 2 秒，否则 15 分钟兜底。有未答复的请求时计时器让出，答复后重新计时；`finalizeTurn` 会中断计时器。
+- Stop：没有 run 时点停止，或在续跑中点停止，都设 `stoppedRunQuarantine`，在 `runtimeCallbackPermit` 下取消挂起的请求（进门中的请求会被等到注册完再取消，Stop 之后才到的权限请求和提问直接答 cancelled、不出卡片），并让下一轮先重启 agy 进程。重启前推进 callback generation，旧进程在途的帧不会进新轮次。
+- 没验证的：`IsDaemon: true` 的真实形状没探测过；收尾窗口 2 秒，模型思考间隔更长时，一次续跑可能被切成两次。
+- 上游文件里的接线（都带 `// fork:`）：`packages/provider-acp/src/server/adapter.ts`（`continuationWithoutPromptEnd`、续跑状态字段和结束计时器、权限与提问的等待和进门检查、Stop 的取消与重启隔离、detach 过滤、`testHooks.beforeUserInputAdmission`）、`apps/server/src/orchestration-v2/Adapters/AntigravityAdapterV2.ts`（flavor 接线、`testHooks` 透传）、`apps/server/src/provider/acp/AntigravityProtocol.ts`（`antigravityBackgroundCommandId`、`isAntigravityStepEnd`）。同步上游时，`adapter.ts` 里 `awaitRequestTurn`、权限处理的进门、`finalizeTurn`、`detachBackgroundCommands` 和 `interruptTurn` 没有 run 的分支最容易被上游改动盖掉，合并后要确认这些 `continuationSettle` 分支还在。
+
 ## 侧边栏视图
 
 侧边栏有"按状态"（上游的 Inbox）和"按项目"两种视图，后者在项目文件夹下再按 worktree 分子组，是默认视图：`boringSidebarEnabled` 的默认值在 contracts 里改成了 true（带 `// fork:`），手机端偏好未设置时回落到 `"project"`（`threadListViewState.ts` 的 `DEFAULT_VIEW_MODE`）。默认值只对没存过这一项的设备生效：桌面版一旦存过任何客户端设置，整份设置（包括 `boringSidebarEnabled`）都会写进 `client-settings.json`，所以以前存过 `false` 的设备要手动切一次。用户说明见 `docs/user/thread-sidebar.md` 的 "Choose a sidebar view"。
@@ -342,6 +354,7 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - 你的服务器，桌面：`apps/desktop/src/backend/DesktopBackendConfiguration.ts`（`T3X_FRPC_PATH`）、`apps/desktop/src/ipc/methods/serverExposure.ts`（把这台电脑自己的设备地址列为端点 `self-host:device:<url>`，隧道 connected 且状态文件够新时标 available）。
 - 你的服务器，client-runtime：`connection/{catalog,model,resolver,driver,registry,routes}.ts`、`state/environmentHttpAuth.ts`、`authorization/service.ts`、`rpc/client.ts`；`apps/web/src/lib/runtime.ts` 和 `apps/mobile/src/lib/runtime.ts` 提供真实的 `DeviceKeyAuthorization`；`packages/{shared,client-runtime}/package.json` 加 exports。
 - 你的服务器，界面：`apps/web/src/components/{AppSidebarLayout,CommandPalette}.tsx`、`apps/web/src/components/settings/{ConnectionsSettings,settingsSearch}.ts(x)`；`apps/mobile/src/{App,Stack}.tsx`、`features/settings/{SettingsRouteScreen,components/settings-page-targets}.ts(x)`、`apps/mobile/vite.config.ts`。
+- Antigravity 后台命令续跑：见上面「Antigravity 后台命令续跑」一节。
 
 ### 你的服务器怎么工作
 

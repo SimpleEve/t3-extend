@@ -613,6 +613,7 @@ export interface AcpAdapterV2Flavor {
   readonly terminateRuntimeProcessGroupOnInterrupt?: boolean;
   readonly preserveRuntimeOnSettledInterrupt?: boolean;
   readonly enablePostSettleContinuation?: boolean;
+  // fork: Antigravity (agy) wakes itself between turns; see FORK.md.
   /**
    * Agents that wake themselves between turns and report no end of prompt (agy over ACP v1).
    * Needs `enablePostSettleContinuation`. Requests sent with no active run wait for a continuation;
@@ -716,6 +717,8 @@ export interface AcpAdapterV2Options {
     readonly afterPromptWireSettled?: () => Effect.Effect<void>;
     readonly afterPromptSettledWithBackgroundWork?: () => Effect.Effect<void>;
     readonly afterPromptCallback?: () => Effect.Effect<void>;
+    /** After a question's wait for a run ends, before it takes the callback permit. */
+    readonly beforeUserInputAdmission?: () => Effect.Effect<void>; // fork:
     readonly onNativeResponseLifecycle?: (event: {
       readonly generation?: number;
       readonly requestId?: string;
@@ -1549,6 +1552,7 @@ interface ActiveAcpTurn {
   /** Clock millis of the prompt's last progress, for `promptInactivityTimeout`. */
   lastProgressAt: number;
   inactivityWatchdog: Fiber.Fiber<void> | undefined;
+  // fork: run state for continuationWithoutPromptEnd.
   /** Opened by the provider for work the agent started on its own. */
   readonly isContinuation: boolean;
   /** `continuationWithoutPromptEnd`: the last update closed a model step. */
@@ -1865,6 +1869,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
   const continuationRequests = options.continuationRequests;
   const postSettleContinuationEnabled =
     flavor.enablePostSettleContinuation === true && continuationRequests !== undefined;
+  // fork: continuationWithoutPromptEnd gates every agy-only branch below.
   const continuationSettle = postSettleContinuationEnabled
     ? flavor.continuationWithoutPromptEnd
     : undefined;
@@ -2450,7 +2455,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
             for (const taskId of context.backgroundCommands.keys()) {
               const toolCallId = context.toolCallIdsByBackgroundTaskId.get(taskId);
               const tool = toolCallId === undefined ? undefined : context.tools.get(toolCallId);
-              // agy's finished commands have nothing left to report; Grok replays its late ACKs here.
+              // fork: agy's finished commands have nothing left to report; Grok replays its late ACKs here.
               if (
                 continuationSettle !== undefined &&
                 tool !== undefined &&
@@ -2531,7 +2536,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           Queue.offer(events, event).pipe(Effect.asVoid);
         let scheduleDeferredFinalize: (context: ActiveAcpTurn) => Effect.Effect<void> = () =>
           Effect.void;
-        let rearmContinuationAfterRequest: () => Effect.Effect<void> = () => Effect.void;
+        let rearmContinuationAfterRequest: () => Effect.Effect<void> = () => Effect.void; // fork:
 
         const nativeLogging = options.nativeLogging?.(input.threadId);
         const promptInactivityTimeoutMillis =
@@ -5122,7 +5127,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               }
             }
           }
-          // Monitor chatter is why running work blocks wakes; agents without it wake once per step.
+          // fork: Monitor chatter is why running work blocks wakes; agents without it wake once per step.
           const backgroundWorkRunning =
             continuationSettle === undefined && (yield* Ref.get(runningBackgroundTaskIds)).size > 0;
           const handledInTurnCount = (yield* Ref.get(handledBackgroundTaskIdsInActiveTurn)).size;
@@ -5298,7 +5303,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
         });
 
         const awaitRequestTurn = Effect.fnUntraced(function* (generation: number) {
-          if (!followsAgentWorkState && continuationSettle === undefined) return true;
+          if (!followsAgentWorkState && continuationSettle === undefined) return true; // fork:
           while (true) {
             const waiting = yield* runRuntimeCallbackAtGeneration(
               generation,
@@ -5350,6 +5355,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
         ) {
           const context = yield* Ref.get(activeTurn);
           const update = notification.update;
+          // fork: step-end tracking and the finish timer for continuation runs.
           if (
             continuationSettle !== undefined &&
             notification.sessionId === (yield* Ref.get(activeSessionId)) &&
@@ -6251,10 +6257,11 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
             if (!(yield* awaitRequestTurn(generation))) {
               return { answers: null, acknowledgeNativeResponse: Effect.void };
             }
+            yield* options.testHooks?.beforeUserInputAdmission?.() ?? Effect.void; // fork:
             return yield* runRuntimeCallbackAtGeneration(
               generation,
               Effect.gen(function* () {
-                // Stop already ended the run this question belongs to: no card, agy gets a cancel.
+                // fork: Stop already ended the run this question belongs to: no card, agy gets a cancel.
                 if (continuationSettle !== undefined && (yield* Ref.get(stoppedRunQuarantine))) {
                   return undefined;
                 }
@@ -6265,6 +6272,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               Effect.flatMap((pending) => {
                 if (Option.isNone(pending)) return Effect.never;
                 if (pending.value === undefined) {
+                  // fork: Stop ended the run; the question is answered cancelled.
                   return Effect.succeed({ answers: null, acknowledgeNativeResponse: Effect.void });
                 }
                 const { answers, requestId, transportRequestId } = pending.value;
@@ -6291,7 +6299,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                         const updated = new Map(current);
                         updated.delete(String(requestId));
                         return updated;
-                      }).pipe(Effect.andThen(Effect.suspend(rearmContinuationAfterRequest))),
+                      }).pipe(Effect.andThen(Effect.suspend(rearmContinuationAfterRequest))), // fork:
                     ).pipe(Effect.asVoid),
                   ),
                 );
@@ -6967,6 +6975,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                 policy: ProviderAdapter.ProviderAdapterV2RuntimePolicy,
                 request: EffectAcpSchema.RequestPermissionRequest = params,
               ) => (flavor.permissionDisposition ?? acpPermissionDisposition)(policy, request);
+              // fork: agy's between-turn requests wait for a continuation run.
               if (
                 continuationSettle !== undefined ||
                 (followsAgentWorkState && dispositionFor(latestRuntimePolicy) === "ask")
@@ -6977,7 +6986,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               const admitted = yield* runRuntimeCallbackAtGeneration(
                 handlerGeneration,
                 Effect.gen(function* () {
-                  // Stop already ended the run this request belongs to.
+                  // fork: Stop already ended the run this request belongs to.
                   if (continuationSettle !== undefined && (yield* Ref.get(stoppedRunQuarantine))) {
                     return {
                       _tag: "Immediate" as const,
@@ -7066,7 +7075,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                       const updated = new Map(current);
                       updated.delete(String(requestId));
                       return updated;
-                    }).pipe(Effect.andThen(Effect.suspend(rearmContinuationAfterRequest))),
+                    }).pipe(Effect.andThen(Effect.suspend(rearmContinuationAfterRequest))), // fork:
                   ).pipe(Effect.asVoid),
                 ),
               );
@@ -8118,7 +8127,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           );
         });
 
-        // Stop leaves agy running and free to wake itself later; the next turn replaces the process.
+        // fork: Stop leaves agy running and free to wake itself later; the next turn replaces the process.
         const fenceStoppedRuntime = Ref.set(runtimeRestartRequired, true);
         // A request being admitted holds the callback permit, so Stop waits for it and cancels its card.
         const cancelRequestsAfterStop = (stopMcpCalls: boolean) =>
@@ -8141,6 +8150,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           if (watchdog !== undefined) {
             yield* Fiber.interrupt(watchdog).pipe(Effect.forkDetach, Effect.asVoid);
           }
+          // fork: stop the continuation's finish timer with its run.
           const settleTimer = context.settleTimer;
           context.settleTimer = undefined;
           if (settleTimer !== undefined) {
@@ -8357,7 +8367,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           );
         });
 
-        /** `continuationWithoutPromptEnd`: one timer per run, so streaming chunks only move its deadline. */
+        // fork: `continuationWithoutPromptEnd`: one timer per run, so streaming chunks only move its deadline.
         const armContinuationFinalize = Effect.fnUntraced(function* (context: ActiveAcpTurn) {
           if (continuationSettle === undefined) return;
           const delay = Duration.toMillis(
@@ -8653,7 +8663,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
         ) {
           const restartRequired = yield* Ref.get(runtimeRestartRequired);
           if (!restartRequired) return false;
-          // The old process may have frames in flight; none of them may reach the new runs.
+          // fork: The old process may have frames in flight; none of them may reach the new runs.
           if (continuationSettle !== undefined) {
             yield* runtimeCallbackPermit.withPermit(advanceRuntimeCallbackGeneration);
           }
@@ -8848,6 +8858,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               nativePromptId: undefined,
               lastProgressAt: 0,
               inactivityWatchdog: undefined,
+              // fork: continuation run state.
               isContinuation: isContinuationTurn,
               stepEnded: false,
               settleDeadline: 0,
@@ -8978,6 +8989,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               }
               context.promptSettled = true;
               context.promptSettledStatus = "completed";
+              // fork: agy reports no end of prompt, so a timer ends this run.
               if (continuationSettle !== undefined) {
                 yield* armContinuationFinalize(context);
                 return;
@@ -9653,7 +9665,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                       }
                       const context = interruptContext;
                       if (context?.providerTurnId !== turnInput.providerTurnId) {
-                        // The agent may still wake itself, and there is no run to stop: end the wait and block later wakes.
+                        // fork: The agent may still wake itself, and there is no run to stop: end the wait and block later wakes.
                         if (
                           context === null &&
                           continuationSettle !== undefined &&
@@ -9788,6 +9800,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                     });
                     const runTransition = Effect.gen(function* () {
                       context.interrupted = true;
+                      // fork: the next turn replaces the process this Stop left running.
                       if (
                         continuationSettle !== undefined &&
                         context.isContinuation &&
@@ -9799,7 +9812,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                         yield* quarantineStoppedRun();
                       }
                       // A settled soft interrupt keeps background subagents, and with them their MCP calls.
-                      yield* cancelRequestsAfterStop(!settledSoftInterrupt);
+                      yield* cancelRequestsAfterStop(!settledSoftInterrupt); // fork:
                       // Finalize before killing so projection catches up and concurrent interrupts see activeTurn cleared.
                       if (
                         (hardRestart || context.promptSettled || settledSoftInterrupt) &&
