@@ -270,19 +270,49 @@ folder paths, so in the web app use **Add project** instead.
 
 <!-- fork: T3 Extend only. The App Store and Google Play pages belong to official T3 Code. -->
 
-T3 Extend's Android app is an APK on the
-[releases page](https://github.com/SimpleEve/t3-extend/releases); it is not on
-Google Play, and there is no iOS version. Copy it to the phone and open it, or
-run `adb install -r <apk>` from a computer. It installs beside the official T3 Code
-app instead of replacing it. The phone connects to a server on another machine.
-Follow [remote access](./remote-access.md) to link it through
-[your own server](./remote-access.md#your-own-server) or a pairing URL.
+T3 Extend's Android app is an APK on the [releases
+page](https://github.com/SimpleEve/t3-extend/releases); it is not on Google
+Play. Copy it to the phone and open it, or run `adb install -r <apk>` from a
+computer. It installs beside the official T3 Code app instead of replacing it.
+The phone connects to a server on another machine. Follow [remote
+access](./remote-access.md) to link it through [your own
+server](./remote-access.md#your-own-server) or a pairing URL. There is no iOS
+release; to use T3 Extend on an iPhone, [build it
+yourself](#ios-build-it-yourself).
 
 If the app crashes during launch, open Settings → Diagnostics on the next launch
 that succeeds. It lists startup crashes from the last 7 days with the error and
 component stack that store crash reports leave out. Copy the report and paste it
 into a GitHub issue. Error messages can quote values from the app, so read it over
 before sharing.
+
+### iOS: build it yourself
+
+T3 Extend has no iOS release. You can build the app on a Mac with Xcode and
+install it on your own iPhone with a free Apple account (a Personal Team):
+
+1. Install Xcode, sign in with your Apple ID under Xcode → Settings → Accounts,
+   and connect the iPhone with Developer Mode turned on.
+2. In a checkout of this repository, run `vp i`, then from `apps/mobile`:
+
+   ```bash
+   T3CODE_IOS_PERSONAL_TEAM=1 \
+   T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID=com.example.t3extend \
+   vp run ios:release
+   ```
+
+   Use a bundle identifier of your own instead of `com.example.t3extend`.
+
+A free Apple account has limits:
+
+- Apple stops the app after 7 days. Run the build again to keep using it.
+- There are no push notifications, widgets, or share extension. UnifiedPush
+  push is Android only.
+- Connecting works the same as on Android: LAN, Tailscale, or your own server.
+  See [remote access](./remote-access.md).
+
+The mobile app's [README](../../apps/mobile/README.md) has the development
+build and the other variants.
 
 ## Providers
 

@@ -14,7 +14,7 @@ fork 的设计细节、身份表和合并规则都在 [FORK.md](../../FORK.md)�
 | 在上游的位置                 | nightly 标签 `v0.1.11-nightly.20261117.4814` 之后第 28 个提交                                                               |
 | T3 Extend 桌面版和 server    | 0.1.10                                                                                                                      |
 | T3 Extend Android 应用 (APK) | 2.3.0                                                                                                                       |
-| iOS                          | 不发布                                                                                                                      |
+| iOS                          | 不发布。可以用 Xcode 自己构建，见 [install.md](../user/install.md#ios-build-it-yourself)                                    |
 
 fork 的版本号是自己的，不等于上游的版本号：桌面版和 server 目前沿用上游的 0.1.x 编号，Android 应用有自己的编号。
 
@@ -75,7 +75,7 @@ fork 的版本号是自己的，不等于上游的版本号：桌面版和 serve
 | 桌面自动更新                                       | 没有。构建时没有显式设置更新源就不带更新 feed，菜单里也没有"Check for Updates"。升级要换新的安装包                                                                                                                                                            |
 | 移动端 OTA（官方 EAS）                             | 默认关闭，不带官方的 EAS 项目                                                                                                                                                                                                                                 |
 | server 自更新（`t3x update`、"Update everything"） | 查询并下载 `SimpleEve/t3-extend` 的 [Releases](https://github.com/SimpleEve/t3-extend/releases)，跟随最新已发布的 `vX.Y.Z`（草稿和 CI 测试版会被跳过），不会把 fork 换成官方 T3 Code。macOS 打包版的后台运行用 app 自带的运行时，不需要下载                   |
-| iOS 应用                                           | 不发布。Android 以 APK 分发，不上 Google Play；设置里没有商店二维码，也没有指向官方商店和 `t3.codes` 的链接                                                                                                                                                   |
+| iOS 应用                                           | 不发布；可以用免费的 Apple 账号自己构建，每次有效 7 天，没有推送（[install.md](../user/install.md#ios-build-it-yourself)）。Android 以 APK 分发，不上 Google Play；设置里没有商店二维码，也没有指向官方商店和 `t3.codes` 的链接                               |
 | 官方安装脚本和 npm 启动器                          | 不要用于 T3 Extend：`scripts/install.sh`、`scripts/install.ps1`、`scripts/npm-launcher/` 默认安装官方的 `t3`。T3 Extend 的 macOS 版本以磁盘映像分发，见 [install.md](../user/install.md#t3-extend-on-macos)                                                   |
 | Linux 和 Windows 的 fork 打包                      | Linux 的打包身份（可执行文件名、`.desktop` 名称、metainfo）还没有隔离，fork 的包会和官方包冲突，不要在同一台 Linux 机器上同时安装两者。后台运行开关也只在 macOS 打包版里有                                                                                    |
 | 非桌面版的 `t3x service install`                   | macOS（Apple silicon）和 Linux（x64、arm64）上可用。Release 里没有 Windows 归档，所以 Windows 上会失败。server 归档来自 fork 自己的 release，和 `scripts/install-t3x.sh` 安装、`t3x update` 跟随的是同一份；也可以用 `T3CODE_RELEASE_BASE_URL` 指向自己的镜像 |

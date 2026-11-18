@@ -25,7 +25,7 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的独立 fork。�
 - 从本机的官方 T3 Code 只读导入项目、对话和设置
 - telemetry 默认关闭
 
-**在 fork 里用不了的：** T3 Connect、guest link、passkey、桌面自动更新、移动端 OTA、iOS 应用、官方的安装脚本和应用商店渠道。
+**在 fork 里用不了的：** T3 Connect、guest link、passkey、桌面自动更新、移动端 OTA、iOS 安装包（可以[自己构建](./docs/user/install.md#ios-build-it-yourself)）、官方的安装脚本和应用商店渠道。
 
 完整的能力列表、取舍原因和同步历史见 [上游版本与 fork 能力](./docs/fork/upstream.zh-CN.md)。
 
