@@ -1,94 +1,98 @@
-# T3 Extend 和上游 T3 Code 的关系
+# How T3 Extend relates to upstream T3 Code
 
-T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的独立 fork（`SimpleEve/t3-extend`）。它跟着上游走：定期把上游 `main` 合并进来，fork 自己的改动尽量收在带 `// fork:` 注释的行和独立目录里。这份文档回答四件事：现在对应上游的哪个版本，fork 多了什么，有哪些上游能力在这里用不了，同步上游之后要更新哪里。
+English | [简体中文](./upstream.zh-CN.md)
 
-fork 的设计细节、身份表和合并规则都在 [FORK.md](../../FORK.md)，这份文档只做总览和导航。
+T3 Extend is an independent fork of [T3 Code](https://github.com/pingdotgg/t3code) (`SimpleEve/t3-extend`). It follows upstream: we merge upstream `main` in regularly, and keep the fork's own changes in lines marked `// fork:` and in separate directories where we can. This page answers four questions. Which upstream version is this? What does the fork add? Which upstream features do not work here? What do you update after syncing upstream?
 
-## 当前版本
+The fork's design details, identity table, and merge rules are in [FORK.md](../../FORK.md) (written in Chinese). This page is only an overview and a guide to where things are.
 
-| 项                           | 值                                                                                                                          |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| 最近一次合入的上游提交       | `55c134a346d5830399c82e647f29101fec22ecee`（2026-11-16，`fix(client-runtime): Tab completes a folder name when …`，#37925） |
-| 在上游的位置                 | nightly 标签 `v0.1.11-nightly.20261117.4814` 之后第 28 个提交                                                               |
-| T3 Extend 桌面版和 server    | 0.1.10                                                                                                                      |
-| T3 Extend Android 应用 (APK) | 2.3.0                                                                                                                       |
-| iOS                          | 不发布                                                                                                                      |
+## Current version
 
-fork 的版本号是自己的，不等于上游的版本号：桌面版和 server 目前沿用上游的 0.1.x 编号，Android 应用有自己的编号。
+| Item                             | Value                                                                                                                      |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Latest upstream commit merged    | `55c134a346d5830399c82e647f29101fec22ecee` (2026-11-16, `fix(client-runtime): Tab completes a folder name when …`, #37925) |
+| Position in upstream             | 28th commit after the nightly tag `v0.1.11-nightly.20261117.4814`                                                          |
+| T3 Extend desktop app and server | 0.1.10                                                                                                                     |
+| T3 Extend Android app (APK)      | 2.3.0                                                                                                                      |
+| iOS                              | Not published                                                                                                              |
 
-### 同步历史
+The fork has its own version numbers. They are not upstream's. The desktop app and server still use upstream's 0.1.x numbering. The Android app has its own numbering.
 
-下表只列能在 git 历史里核实的同步：合并提交在 fork 的 `main` 上，上游提交都是它的祖先。"提交数"是这次同步相对上一次同步点新带进来的上游提交数。
+### Sync history
 
-| 同步日期   | 上游提交     | 上游提交日期 | 合并提交     | 提交数 |
-| ---------- | ------------ | ------------ | ------------ | ------ |
-| 2026-11-04 | `322f6544df` | 2026-11-03   | `92034340ac` | 302    |
-| 2026-11-08 | `6417151c09` | 2026-11-08   | `76091396d5` | 373    |
-| 2026-11-15 | `b9bbfda087` | 2026-11-14   | `c567a700fa` | 1928   |
-| 2026-11-17 | `55c134a346` | 2026-11-16   | `aa782c0d5e` | 423    |
+This table lists only syncs you can verify in git history. The merge commit is on the fork's `main`, and the upstream commit is its ancestor. "Commits" is the number of upstream commits this sync brought in that the previous sync did not have.
 
-2026-11-04 之前也有过把上游并进来的合并，但没有留下可以核实的上游提交号，所以没有列。每次同步遇到的冲突和取舍记在 FORK.md 的[同步上游](../../FORK.md#同步上游)一节。
+| Sync date  | Upstream commit | Upstream commit date | Merge commit | Commits |
+| ---------- | --------------- | -------------------- | ------------ | ------- |
+| 2026-11-04 | `322f6544df`    | 2026-11-03           | `92034340ac` | 302     |
+| 2026-11-08 | `6417151c09`    | 2026-11-08           | `76091396d5` | 373     |
+| 2026-11-15 | `b9bbfda087`    | 2026-11-14           | `c567a700fa` | 1928    |
+| 2026-11-17 | `55c134a346`    | 2026-11-16           | `aa782c0d5e` | 423     |
 
-## fork 额外加的能力
+Upstream was also merged in before 2026-11-04, but those merges did not leave an upstream commit ID we can verify, so they are not listed. The conflicts and trade-offs of each sync are recorded in the [Syncing upstream](../../FORK.md#同步上游) section of FORK.md.
 
-### 语言和外观
+## What the fork adds
 
-- **中文界面。** 设置 → 外观 → 语言可以选英文、简体中文或跟随系统，web、桌面和 Android 都有，中文字体和字重做了单独的排版。见 [多语言](../../FORK.md#多语言)，用户说明在 [appearance.md](../user/appearance.md#language)。
-- **侧栏按项目分组。** 侧栏有"按状态"和"按项目"两种视图，默认按项目，项目下再按 worktree 分组；手机的对话列表同样可选。见 [侧边栏视图](../../FORK.md#侧边栏视图)，用户说明在 [thread-sidebar.md](../user/thread-sidebar.md#choose-a-sidebar-view)。
-- **侧栏状态芯片和保持唤醒。** 侧栏底部常驻订阅额度、资源占用和本项目本地服务端口三个芯片；桌面版另有"保持唤醒"开关，有任务在跑时不让电脑休眠。见 [侧边栏底部状态芯片与桌面保持唤醒](../../FORK.md#侧边栏底部状态芯片与桌面保持唤醒)。
+### Language and appearance
 
-### 对话里的信息
+- **Chinese interface.** Choose **Settings → Appearance → Language** to use English, Simplified Chinese, or follow the system. It works on web, desktop, and Android. Chinese text has its own font and weight settings. See [Multi-language](../../FORK.md#多语言) in FORK.md. For the user guide, see [appearance.md](../user/appearance.md#language).
+- **Sidebar grouped by project.** The sidebar has two views, "By status" and "By project". By project is the default, and it groups threads by worktree under each project. The thread list on the phone has the same choice. See [Sidebar views](../../FORK.md#侧边栏视图) in FORK.md. For the user guide, see [thread-sidebar.md](../user/thread-sidebar.md#choose-a-sidebar-view).
+- **Sidebar status chips and keep awake.** The bottom of the sidebar always shows three chips: subscription usage limits, resource use, and the local service ports of the current project. The desktop app also has a "keep awake" switch that stops the computer from sleeping while tasks run. See [Sidebar footer status chips and desktop keep awake](../../FORK.md#侧边栏底部状态芯片与桌面保持唤醒) in FORK.md.
 
-- **产出。** 每轮回复末尾列出这一轮产出的文件和链接，对话头部（web）或标题栏（手机）可以看整个对话的产出。不额外调用模型。见 [产出](../../FORK.md#产出)。
-- **上下文圆环和 tok/s。** 输入框旁常驻上下文用量圆环和上一轮的输出速度，圆环里可以直接"立即压缩"。只有 provider 上报了本轮用量才显示速度，没有数据时不显示。见 [上下文圆环与输出速度](../../FORK.md#上下文圆环与输出速度)。
+### Information in threads
 
-### 连接和远程使用
+- **Outputs.** At the end of each reply, the fork lists the files and links that turn produced. The thread header (web) or the title bar (phone) shows the outputs of the whole thread. It makes no extra model calls. See [Outputs](../../FORK.md#产出) in FORK.md.
+- **Context ring and tokens per second.** Beside the composer, a context usage ring and the output speed of the last turn are always visible. You can click "Compact now" in the ring. The speed shows only when the provider reports usage for that turn. Without that data, it is hidden. See [Context ring and output speed](../../FORK.md#上下文圆环与输出速度) in FORK.md.
 
-- **自建连接。** 用自己的 VPS 跑 registry、frps 和 Caddy，代替 T3 Connect，让电脑和手机互相连接，不经过官方 relay 和 Cloudflare。服务器一条命令部署，电脑和手机各用一把设备密钥，失败时不会回落到官方服务。见 [自建连接](../../FORK.md#自建连接)，部署步骤在 [infra/self-host/README.md](../../infra/self-host/README.md)，用户说明在 [remote-access.md](../user/remote-access.md#your-own-server)。
-- **远程环境的 localhost 转发（桌面版）。** 在桌面版里打开远程环境的对话时，对方机器上只监听回环地址的开发服务可以直接在内置浏览器里用 `localhost:<端口>` 打开。脱离父进程的服务（比如 `nohup` 起的）认不出归属，可以在卡片上手动放行端口，也能在设置里查看和移除。见 [远程环境的 localhost 转发](../../FORK.md#远程环境的-localhost-转发桌面版)，用户说明在 [remote-access.md](../user/remote-access.md#localhost-on-a-remote-environment)。
-- **手机新建浏览器标签页。** 手机上可以自己新建 Browser 标签页，打开宿主机上的页面（`localhost` 指宿主机），页面在宿主机渲染，手机只收画面。见 [手机新建浏览器标签页](../../FORK.md#手机新建浏览器标签页)，用户说明在 [remote-access.md](../user/remote-access.md#browser-on-a-remote-environment)。
-- **Android 上不依赖 Google 的推送。** 通过 UnifiedPush 收 Agent 提醒（典型做法是在自己的 VPS 上跑 ntfy），不经过 Firebase、Cloudflare 和 Clerk，载荷端到端加密。见 [不依赖 Google 的推送](../../FORK.md#不依赖-google-的推送android)，用户说明在 [mobile-notifications.md](../user/mobile-notifications.md#push-without-google)。
-- **桌面后台运行。** macOS 打包版设置 → 维护里的"在后台保持运行"开关：退出 app 之后服务继续跑，手机和推送不断。见 [后台运行（桌面版）](../../FORK.md#后台运行桌面版)，用户说明在 [background-service.md](../user/background-service.md#t3-extend-desktop-app-on-macos)。
+### Connections and remote use
 
-### Provider
+- **Self-hosted connections.** Run a registry, frps, and Caddy on your own VPS instead of T3 Connect, so your computers and phone can connect to each other without the official relay or Cloudflare. You deploy the server with one command. Each computer and phone gets its own device key. If a connection fails, it does not fall back to the official service. See [Self-hosted connections](../../FORK.md#自建连接) in FORK.md. For deployment steps, see [infra/self-host/README.md](../../infra/self-host/README.md) (in Chinese). For the user guide, see [remote-access.md](../user/remote-access.md#your-own-server).
+- **Localhost forwarding for remote environments (desktop).** When you open a thread of a remote environment in the desktop app, a dev server on that machine that listens only on the loopback address opens in the built-in browser as `localhost:<port>`. A service that has detached from its parent process (for example, one started with `nohup`) cannot be matched to the environment. You can allow its port by hand on the card, and view and remove allowed ports in Settings. See [Localhost forwarding for remote environments](../../FORK.md#远程环境的-localhost-转发桌面版) in FORK.md. For the user guide, see [remote-access.md](../user/remote-access.md#localhost-on-a-remote-environment).
+- **New browser tabs on the phone.** On the phone, you can create a Browser tab yourself and open a page on the host (`localhost` means the host). The page is rendered on the host, and the phone only receives the picture. See [New browser tabs on the phone](../../FORK.md#手机新建浏览器标签页) in FORK.md. For the user guide, see [remote-access.md](../user/remote-access.md#browser-on-a-remote-environment).
+- **Push on Android without Google.** Agent alerts arrive through UnifiedPush (typically with ntfy running on your own VPS). Nothing goes through Firebase, Cloudflare, or Clerk, and the payload is end-to-end encrypted. See [Push without Google](../../FORK.md#不依赖-google-的推送android) in FORK.md. For the user guide, see [mobile-notifications.md](../user/mobile-notifications.md#push-without-google).
+- **Desktop background service.** In the packaged macOS app, **Settings → Maintenance → Keep running in the background** keeps the server running after you quit the app, so your phone and push notifications keep working. See [Background service (desktop)](../../FORK.md#后台运行桌面版) in FORK.md. For the user guide, see [background-service.md](../user/background-service.md#t3-extend-desktop-app-on-macos).
 
-- **omp provider。** omp（oh-my-pi，Pi 的分支）作为原生 provider，和上游的 Pi 并存。见 [omp provider](../../FORK.md#omp-provider)，用户说明在 [providers-omp.md](../user/providers-omp.md)。
-- **Codex 自定义端点下读订阅额度。** Codex 配了自定义 `openai_base_url` 时，上游会把额度显示成不支持；fork 加了一个可选开关，允许在这种配置下仍然读 ChatGPT 订阅额度。见 [Codex 自定义端点下读订阅额度](../../FORK.md#codex-自定义端点下读订阅额度)，用户说明在 [providers-codex.md](../user/providers-codex.md#read-limits-through-a-custom-endpoint)。
-- **Antigravity 沿用 agy CLI 的登录。** 默认实例直接用终端里 `agy` 的登录，不用在 T3 里再登录一次；需要多账号时可以改回独立登录。见 [Antigravity 沿用本机 agy CLI 的登录](../../FORK.md#antigravity-沿用本机-agy-cli-的登录)，用户说明在 [providers-antigravity.md](../user/providers-antigravity.md#use-your-agy-cli-sign-in)。
+### Providers
 
-### 和官方 T3 Code 的关系
+- **omp provider.** omp (oh-my-pi, a fork of Pi) is a native provider. It sits next to upstream's Pi. See [omp provider](../../FORK.md#omp-provider) in FORK.md. For the user guide, see [providers-omp.md](../user/providers-omp.md).
+- **Reading subscription limits with a custom Codex endpoint.** When Codex is set up with a custom `openai_base_url`, upstream shows limits as unsupported. The fork adds an optional switch that still reads your ChatGPT subscription limits in that setup. See [Reading subscription limits with a custom Codex endpoint](../../FORK.md#codex-自定义端点下读订阅额度) in FORK.md. For the user guide, see [providers-codex.md](../user/providers-codex.md#read-limits-through-a-custom-endpoint).
+- **Antigravity reuses the agy CLI sign-in.** The default instance uses the `agy` sign-in from your terminal, so you do not sign in again in T3. If you need several accounts, you can switch back to a separate sign-in. See [Antigravity reuses the local agy CLI sign-in](../../FORK.md#antigravity-沿用本机-agy-cli-的登录) in FORK.md. For the user guide, see [providers-antigravity.md](../user/providers-antigravity.md#use-your-agy-cli-sign-in).
 
-- **可以和官方 T3 Code 同机共存。** 两个应用各用各的数据目录、命令（fork 是 `t3x`）、端口、开机服务、URL scheme、bundle id 和 git 分支前缀，互不改写对方的数据。见 [身份](../../FORK.md#身份)和[共存保证](../../FORK.md#共存保证)，用户说明在 [install.md](../user/install.md#running-next-to-official-t3-code)。
-- **从官方 T3 Code 导入。** 设置 → 维护里的"Import from T3 Code"，只读地读取本机官方 T3 Code 的数据，把选中的项目、对话、定时任务和设置带进 T3 Extend，官方数据不会被改动。只在桌面和 host 上的 server 可用，手机端没有入口。见 [从 T3 Code 导入](../../FORK.md#从-t3-code-导入)。
-- **telemetry 默认关闭。** 产品使用数据只有设置了 `T3CODE_TELEMETRY_ENABLED=true` 才会上报。用户说明在 [telemetry.md](../user/telemetry.md)。
+### Relationship with official T3 Code
 
-## 和上游不同、或者在 fork 里用不了的能力
+- **Runs next to official T3 Code on the same computer.** Each app has its own data directory, command (the fork uses `t3x`), ports, login service, URL scheme, bundle id, and git branch prefix. Neither app changes the other's data. See [Identity](../../FORK.md#身份) and [Coexistence guarantees](../../FORK.md#共存保证) in FORK.md. For the user guide, see [install.md](../user/install.md#running-next-to-official-t3-code).
+- **Import from official T3 Code.** **Settings → Maintenance → Import from T3 Code** reads the data of official T3 Code on this computer, read-only. It brings the projects, threads, scheduled tasks, and settings you select into T3 Extend. The official data is not changed. It is available only in the desktop app and on a host server. The phone has no entry for it. See [Import from T3 Code](../../FORK.md#从-t3-code-导入) in FORK.md.
+- **Telemetry is off by default.** Product usage data is reported only if you set `T3CODE_TELEMETRY_ENABLED=true`. For the user guide, see [telemetry.md](../user/telemetry.md).
 
-下面这些不是 bug，是 fork 的取舍：它们依赖官方的账号、域名、签名或发布渠道，fork 没有。完整说明在 FORK.md 的[共存保证](../../FORK.md#共存保证)。
+## Differences from upstream, and features that do not work in the fork
 
-| 上游能力                                           | 在 T3 Extend 里的情况                                                                                                                                                                                       |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| T3 Connect、guest link、passkey                    | 默认不可用：它们需要官方的 `.env` 和云账号。连接改走[自建连接](#连接和远程使用)，或者局域网、Tailscale 直连                                                                                                 |
-| 官方移动推送                                       | 不使用；Android 改用 UnifiedPush，见上                                                                                                                                                                      |
-| 桌面自动更新                                       | 没有。构建时没有显式设置更新源就不带更新 feed，菜单里也没有"Check for Updates"。升级要换新的安装包                                                                                                          |
-| 移动端 OTA（官方 EAS）                             | 默认关闭，不带官方的 EAS 项目                                                                                                                                                                               |
-| server 自更新（`t3x update`、"Update everything"） | 查询的是 `SimpleEve/t3-extend`，这个仓库目前没有发布归档，所以会失败；已经装好的运行时不会被替换。macOS 打包版的后台运行用 app 自带的运行时，不需要下载                                                     |
-| iOS 应用                                           | 不发布。Android 以 APK 分发，不上 Google Play；设置里没有商店二维码，也没有指向官方商店和 `t3.codes` 的链接                                                                                                 |
-| 官方安装脚本和 npm 启动器                          | 不要用于 T3 Extend：`scripts/install.sh`、`scripts/install.ps1`、`scripts/npm-launcher/` 默认安装官方的 `t3`。T3 Extend 的 macOS 版本以磁盘映像分发，见 [install.md](../user/install.md#t3-extend-on-macos) |
-| Linux 和 Windows 的 fork 打包                      | Linux 的打包身份（可执行文件名、`.desktop` 名称、metainfo）还没有隔离，fork 的包会和官方包冲突，不要在同一台 Linux 机器上同时安装两者。后台运行开关也只在 macOS 打包版里有                                  |
-| 非桌面版的 `t3x service install`                   | 需要下载 server 归档，fork 发布自己的归档之前会失败，可以用 `T3CODE_RELEASE_BASE_URL` 指向自己的镜像                                                                                                        |
-| SSH 远程主机                                       | 远程主机上默认装的是官方 server，不是 fork 的；这类环境没有 localhost 转发                                                                                                                                  |
-| 上游自己的多语言（`gt-react` 等）                  | 不采用，fork 用自己的字典式 i18n                                                                                                                                                                            |
+These are not bugs. They are trade-offs of the fork. These features depend on the official accounts, domains, signing, or release channels, and the fork does not have them. The full explanation is in the [Coexistence guarantees](../../FORK.md#共存保证) section of FORK.md.
 
-`FORK.md` 里[两个应用同机运行时仍然共用的东西](../../FORK.md#两个应用同机运行时仍然共用的东西)一节列出了同机运行时有意共用的资源，比如 `~/.claude`、`~/.codex` 里的登录状态和会话。
+| Upstream feature                                             | In T3 Extend                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| T3 Connect, guest link, passkey                              | Not available by default. They need the official `.env` and cloud accounts. For connections, use [self-hosted connections](#connections-and-remote-use), or connect directly over a LAN or Tailscale                                                                     |
+| Official mobile push                                         | Not used. Android uses UnifiedPush instead, see above                                                                                                                                                                                                                    |
+| Desktop auto-update                                          | None. A build without an explicit update source has no update feed, and the menu has no "Check for Updates". To upgrade, install a new package                                                                                                                           |
+| Mobile OTA updates (official EAS)                            | Off by default. The official EAS project is not included                                                                                                                                                                                                                 |
+| Server self-update (`t3x update`, "Update everything")       | It checks `SimpleEve/t3-extend`, which has no release archives at the moment, so it fails. An already installed runtime is not replaced. The background service in the packaged macOS app uses the runtime bundled with the app, so it does not need a download          |
+| iOS app                                                      | Not published. Android is distributed as an APK, not on Google Play. Settings has no store QR code and no links to the official stores or `t3.codes`                                                                                                                     |
+| Official install scripts and npm launcher                    | Do not use them for T3 Extend. `scripts/install.sh`, `scripts/install.ps1`, and `scripts/npm-launcher/` install the official `t3` by default. T3 Extend for macOS is distributed as a disk image, see [install.md](../user/install.md#t3-extend-on-macos)                |
+| Fork packaging for Linux and Windows                         | The Linux packaging identity (executable name, `.desktop` name, metainfo) is not isolated yet, so the fork's package conflicts with the official one. Do not install both on the same Linux machine. The background service switch exists only in the packaged macOS app |
+| `t3x service install` outside the desktop app                | It needs to download a server archive, so it fails until the fork publishes its own archives. You can point `T3CODE_RELEASE_BASE_URL` at your own mirror                                                                                                                 |
+| SSH remote hosts                                             | The server installed on a remote host is the official one by default, not the fork's. These environments have no localhost forwarding                                                                                                                                    |
+| Upstream's own multi-language support (`gt-react` and so on) | Not adopted. The fork uses its own dictionary-style i18n                                                                                                                                                                                                                 |
 
-## 维护说明
+The section [What stays shared when both apps run on one computer](../../FORK.md#两个应用同机运行时仍然共用的东西) in FORK.md lists the resources the two apps share on purpose, such as sign-in state and sessions in `~/.claude` and `~/.codex`.
 
-每次把上游合并进 `main` 之后，更新这几处：
+## Maintenance
 
-1. 本页[当前版本](#当前版本)里的上游提交、日期和它在上游的位置。
-2. 本页[同步历史](#同步历史)表里加一行：同步日期、上游提交、合并提交、这次新带进来的上游提交数（`git rev-list --count <上次同步的上游提交>..<这次的上游提交>`）。
-3. 改了 fork 的版本号（桌面版和 server 的 `package.json`，Android 的 `apps/mobile/app.config.ts`）就同步改表里的版本。
-4. FORK.md 的[同步上游](../../FORK.md#同步上游)一节里记这次的冲突和取舍，这里不重复。
+After you merge upstream into `main`, update these places:
 
-同步的具体步骤和检查命令也在那一节。新增或删掉 fork 的能力时，同步改本页的能力列表和上面的取舍表。
+1. In [Current version](#current-version) on this page, update the upstream commit, its date, and its position in upstream.
+2. Add a row to the [Sync history](#sync-history) table: the sync date, the upstream commit, the merge commit, and the number of new upstream commits this sync brought in (`git rev-list --count <upstream commit of the last sync>..<upstream commit of this sync>`).
+3. If you changed the fork's version numbers (`package.json` of the desktop app and server, `apps/mobile/app.config.ts` for Android), update the versions in the table too.
+4. Record this sync's conflicts and trade-offs in the [Syncing upstream](../../FORK.md#同步上游) section of FORK.md. Do not repeat them here.
+
+The exact steps and check commands for a sync are in that same section. When you add or remove a fork feature, also update the feature list on this page and the trade-off table above.
+
+These docs come in two languages, English and Chinese: this page, [Set up the server and access](./server-setup.md), and the README in the repo root. When you change one version, change the other too. The Chinese files are `upstream.zh-CN.md`, `server-setup.zh-CN.md`, and `README.zh-CN.md`.

@@ -4,8 +4,8 @@
 
 <!-- fork: T3 Extend only. Not part of upstream T3 Code. -->
 
-- [上游版本与 fork 能力](./fork/upstream.md)
-- [搭建 server 与配置访问](./fork/server-setup.md)
+- [Upstream version and fork features](./fork/upstream.md) ([简体中文](./fork/upstream.zh-CN.md))
+- [Set up a server and choose how to reach it](./fork/server-setup.md) ([简体中文](./fork/server-setup.zh-CN.md))
 
 ## Using T3 Code
 

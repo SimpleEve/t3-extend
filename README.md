@@ -1,58 +1,60 @@
 # T3 Extend
 
-T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的独立 fork。它在上游的基础上加了中文界面、自建连接、Android 上不依赖 Google 的推送等能力，并且可以和官方 T3 Code 装在同一台电脑上同时运行，两边的数据、命令、端口和服务互不干扰。
+English | [简体中文](./README.zh-CN.md)
 
-> T3 Extend 与 T3 Tools Inc. 没有隶属、背书或赞助关系。"T3 Code" 只用来说明它的来源，见 [NOTICE](./NOTICE)。
+T3 Extend is an independent fork of [T3 Code](https://github.com/pingdotgg/t3code). It adds a Chinese interface, self-hosted connections, and push notifications on Android that do not depend on Google. It can be installed on the same computer as official T3 Code and run at the same time. The two apps do not share data, commands, ports, or services.
 
-## 对应的上游版本
+> T3 Extend is not affiliated with, endorsed by, or sponsored by T3 Tools Inc. The name "T3 Code" is used only to say where this project comes from. See [NOTICE](./NOTICE).
 
-当前合入到上游提交 [`55c134a346`](https://github.com/pingdotgg/t3code/commit/55c134a346d5830399c82e647f29101fec22ecee)（2026-11-16），在上游 nightly `v0.1.11-nightly.20261117.4814` 之后第 28 个提交。T3 Extend 桌面版和 server 的版本是 0.1.10，Android 应用是 2.3.0。
+## Upstream version
 
-上游这个版本的能力，T3 Extend 基本都有。主要差别如下。
+T3 Extend currently includes upstream commit [`55c134a346`](https://github.com/pingdotgg/t3code/commit/55c134a346d5830399c82e647f29101fec22ecee) (2026-11-16). It is the 28th commit after the upstream nightly `v0.1.11-nightly.20261117.4814`. The T3 Extend desktop app and server are version 0.1.10. The Android app is version 2.3.0.
 
-**fork 额外加的：**
+T3 Extend has almost everything this upstream version has. The main differences are below.
 
-- 中文界面（web、桌面、Android），可以选英文、简体中文或跟随系统
-- 侧栏按项目分组，侧栏底部有额度、资源和端口状态，桌面版可以保持唤醒
-- 自建连接：用自己的 VPS 代替 T3 Connect，让手机和别的电脑连回来
-- 在桌面版里，可以直接用 `localhost` 打开远程环境上的开发服务；手机上可以新建浏览器标签页
-- Android 推送走 UnifiedPush 和自建 ntfy，不经过 Google
-- macOS 桌面版可以在后台运行，退出 app 后服务继续工作
-- 每轮回复列出产出的文件和链接；输入框旁显示上下文用量和输出速度
-- omp provider、Codex 自定义端点下读取额度、Antigravity 沿用 `agy` 的登录
-- 从本机的官方 T3 Code 只读导入项目、对话和设置
-- telemetry 默认关闭
+**What the fork adds:**
 
-**在 fork 里用不了的：** T3 Connect、guest link、passkey、桌面自动更新、移动端 OTA、iOS 应用、官方的安装脚本和应用商店渠道。
+- A Chinese interface (web, desktop, Android). You can choose English, Simplified Chinese, or follow the system.
+- A sidebar grouped by project. The bottom of the sidebar shows usage limits, resource use, and port status. The desktop app can keep the computer awake.
+- Self-hosted connections: use your own VPS instead of T3 Connect, so your phone and other computers can reach this one.
+- In the desktop app, you can open dev servers on a remote environment through `localhost`. On the phone, you can open a new browser tab.
+- Android push goes through UnifiedPush and a self-hosted ntfy server, not Google.
+- The macOS desktop app can run in the background. The server keeps working after you quit the app.
+- Each reply lists the files and links it produced. The composer shows context usage and output speed.
+- The omp provider, reading usage limits when Codex uses a custom endpoint, and Antigravity reusing the `agy` sign-in.
+- Read-only import of projects, threads, and settings from official T3 Code on the same computer.
+- Telemetry is off by default.
 
-完整的能力列表、取舍原因和同步历史见 [上游版本与 fork 能力](./docs/fork/upstream.md)。
+**What does not work in the fork:** T3 Connect, guest links, passkeys, desktop auto-update, mobile OTA updates, the iOS app, the official install scripts, and the official app store channels.
 
-## 安装
+For the full list of features, the reasons behind these choices, and the sync history, see [Upstream version and fork features](./docs/fork/upstream.md).
 
-T3 Extend 目前没有发布安装包，需要从源码构建：
+## Install
 
-- macOS（Apple silicon）：`vp run fork:dist:mac`，生成 `T3-Extend-<version>-arm64.dmg`。安装和第一次启动的步骤见 [install.md](./docs/user/install.md#t3-extend-on-macos)。
-- Android：`vp run fork:dist:android`，生成 APK。
-- 构建环境和签名见 [FORK.md 的打包与签名](./FORK.md#打包与签名)，第一次检出源码的步骤见 [开发手册](./docs/operations/development.md#first-checkout)。
+T3 Extend does not publish installers yet. You need to build it from source:
 
-T3 Extend 的命令行叫 `t3x`，数据目录在 `~/.t3extend`，默认端口是 3873。官方 T3 Code 用的是 `t3`、`~/.t3` 和 3773，两边不冲突。
+- macOS (Apple silicon): run `vp run fork:dist:mac`. It produces `T3-Extend-<version>-arm64.dmg`. For install and first launch, see [install.md](./docs/user/install.md#t3-extend-on-macos).
+- Android: run `vp run fork:dist:android`. It produces an APK.
+- For the build environment and signing, see the packaging and signing section of [FORK.md](./FORK.md#打包与签名) (in Chinese). For the first checkout of the source, see the [development guide](./docs/operations/development.md#first-checkout).
 
-## 让手机和别的电脑连上来
+The T3 Extend command is `t3x`. Its data directory is `~/.t3extend`, and its default port is 3873. Official T3 Code uses `t3`, `~/.t3`, and 3773, so the two do not conflict.
 
-T3 Extend 支持局域网配对、Tailscale（HTTPS 端口 8443）、自建服务器和 SSH。怎么选、怎么搭、怎么撤销访问，见 [搭建 server 与配置访问](./docs/fork/server-setup.md)。自建服务器的 VPS 部署见 [infra/self-host](./infra/self-host/README.md)。
+## Connect your phone and other computers
 
-## 文档
+T3 Extend supports LAN pairing, Tailscale (HTTPS port 8443), a self-hosted server, and SSH. For how to choose, how to set each one up, and how to revoke access, see [Set up the server and access](./docs/fork/server-setup.md). To deploy a self-hosted server on a VPS, see [infra/self-host](./infra/self-host/README.md) (in Chinese).
 
-- [上游版本与 fork 能力](./docs/fork/upstream.md)
-- [搭建 server 与配置访问](./docs/fork/server-setup.md)
-- [FORK.md](./FORK.md)：fork 的身份、共存规则、各项功能的设计和同步上游的流程
-- [上游文档](./docs/README.md)：沿用上游的用户文档，fork 改过的地方有标注；文中的 `t3` 在 T3 Extend 里换成 `t3x`
+## Documentation
 
-## 参与开发
+- [Upstream version and fork features](./docs/fork/upstream.md)
+- [Set up the server and access](./docs/fork/server-setup.md)
+- [FORK.md](./FORK.md) (in Chinese): the fork's identity, the coexistence rules, the design of each feature, and the process for syncing upstream
+- [Upstream docs](./docs/README.md): the user docs inherited from upstream. Places the fork changed are marked. Where the text says `t3`, use `t3x` in T3 Extend.
 
-- 先读 [FORK.md](./FORK.md) 和 [AGENTS.md](./AGENTS.md)。fork 改动上游文件的行都带 `// fork:` 注释，提交前要通过 `vp run fork:guard`。
-- 上游本身的问题，请到 [pingdotgg/t3code](https://github.com/pingdotgg/t3code) 反馈。
+## Contributing
 
-## 许可证
+- Read [FORK.md](./FORK.md) and [AGENTS.md](./AGENTS.md) first. Lines where the fork changes an upstream file carry a `// fork:` comment. `vp run fork:guard` must pass before you commit.
+- Report problems in upstream itself at [pingdotgg/t3code](https://github.com/pingdotgg/t3code).
 
-[MIT](./LICENSE)。上游 T3 Code 的版权归 T3 Tools Inc.，fork 的改动采用同样的许可证。随构建打包的第三方组件及其许可证见 [NOTICE](./NOTICE)。
+## License
+
+[MIT](./LICENSE). Copyright in upstream T3 Code belongs to T3 Tools Inc. The fork's changes use the same license. Third-party components bundled with the build, and their licenses, are listed in [NOTICE](./NOTICE).
