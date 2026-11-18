@@ -230,9 +230,12 @@ function buildRelease(): void {
 
   // Non-secret signing properties go on the command line; the passwords reach Gradle as
   // ORG_GRADLE_PROJECT_* environment variables. --no-daemon keeps them out of a lingering daemon.
+  // Through bash, not gradlew's `#!/bin/sh` shebang: where sh is dash (Ubuntu), it drops the
+  // dotted ORG_GRADLE_PROJECT_* names, Gradle never sees the passwords, and the APK is debug-signed.
   run(
-    "./gradlew",
+    "bash",
     [
+      "./gradlew",
       "--no-daemon",
       "app:assembleRelease",
       `-PreactNativeArchitectures=${flags.abi}`,
