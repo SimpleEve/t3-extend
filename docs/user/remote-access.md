@@ -473,9 +473,10 @@ Things that may surprise you:
 **Connections checked so far.** Forwarding has been checked on a connection to
 an environment on the same computer, over Tailscale using the environment's
 tailnet IPv6 address, and through [Your own server](#your-own-server) on a
-VPS. It has not been checked over HTTPS on a local network, with Tailscale
-MagicDNS names, or through Tailscale Serve, even where the rules above would
-turn it on. SSH environments that the desktop app sets up run official T3
+VPS. With Tailscale MagicDNS names and through Tailscale Serve, only the basic
+flow has been checked: opening a page and allowing a port by hand. Long-lived
+connections and reconnecting have not. It has not been checked over HTTPS on a
+local network, even where the rules above would turn it on. SSH environments that the desktop app sets up run official T3
 Code's server, so they don't offer it.
 
 ### Browser host setup

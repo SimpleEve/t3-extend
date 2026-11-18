@@ -166,6 +166,15 @@ host 自己用不需要任何设置：打开桌面版，或者在终端里运行
 
 - host 和客户端加入同一个 tailnet。手机也要装 Tailscale 并登录同一个 tailnet。
 - tailnet 里打开 MagicDNS 和 HTTPS 证书，见 [Tailscale 的 HTTPS 设置](https://tailscale.com/docs/how-to/set-up-https-certificates)。
+  - 打开 HTTPS 证书以后，tailnet 里的机器名（`<机器名>.<tailnet>.ts.net`）会写进公开的证书透明度日志，任何人都能查到。
+- 每台机器上 `*.ts.net` 都要能解析。后台显示 MagicDNS 已开，并不等于这台机器能解析：macOS 上用 Homebrew 装的 `tailscaled` 只写了搜索域，没写 `ts.net` 的解析，`ping <机器名>.<tailnet>.ts.net` 会报找不到主机。这时补一个文件：
+
+  ```bash
+  echo "nameserver 100.100.100.100" | sudo tee /etc/resolver/ts.net
+  ```
+
+  Tailscale 的官方 macOS 客户端会自己写这个文件，不需要手动加。
+
 - Linux 上，T3 Extend 还需要有权限管理 Tailscale，非 root 用户见 [operator 权限](https://tailscale.com/docs/reference/troubleshooting/linux/linux-operator-permission)。
 
 缺了其中任何一项，T3 Extend 照常启动，只是加不上 HTTPS 路由。
@@ -174,6 +183,7 @@ host 自己用不需要任何设置：打开桌面版，或者在终端里运行
 
 - 桌面版：「设置 → 共享与访问」，打开"Tailscale HTTPS"。在同一个地方关掉，就撤掉这条路由。
 - 命令行：`t3x serve --tailscale-serve` 启动带 HTTPS 的 server；对已经在运行的 server 用 `t3x pair --tailscale`，同时生成配对链接。端口被占时用 `--tailscale-serve-port <端口>` 换一个；传 443 会被换成 8443。
+- 用 Tailscale HTTPS 时，server 保持默认的本机监听，不要加 `--host <tailnet IP>`。HTTPS 路由转发到 server 的监听地址；server 只监听 tailnet IP 时，这条路由在 macOS 上实测连得上却一直没有响应，界面上仍显示已连接。
 
 配对链接形如 `https://<机器名>.<tailnet>.ts.net:8443/`。`t3x pair --tailscale` 建的映射会在重启后保留，手动移除：
 
@@ -256,7 +266,7 @@ t3x devices leave              # 这台电脑退出
 t3x pair --base-url https://<名字>.t3.example.com
 ```
 
-命令会先从这台电脑探测这个地址：如果它答复的是另一个环境，命令报错；连不上或答复的不像 T3 server 时只给出提示，链接在地址真正指到这个 server 之后才能用。
+命令会先从这台电脑探测这个地址：如果它答复的是另一个环境，命令报错；连不上或答复的不像 T3 server 时只给出提示，链接在地址真正指到这个 server 之后才能用。提示 "did not answer from this machine" 不一定说明地址有问题：隧道刚建好还没连上，或者这台电脑解析不了自己的 MagicDNS 名字，都会出现这句话，但其他设备用这个地址照样能连上。先在客户端上打开试一下。
 
 ### 撤销
 
@@ -288,7 +298,8 @@ t3x pair --base-url https://<名字>.t3.example.com
 
 - **只有桌面版**可以用，并且要求远程环境 B 是 **macOS** 上的 T3 Extend。Linux、Windows 的环境不提供，SSH 建立的环境跑的是官方的 server，也不提供。你的连接还要有预览和终端的权限。
 - 只在加密连接和同一台电脑上的连接上启用。明文 http 的局域网地址、Tailscale 的 `100.x` 地址走明文 http、以及 T3 Connect 的 relay，转发都不会开启。
-- 已经验证过的连接方式：同一台电脑上的连接、Tailscale 直连（用 tailnet 的 IPv6 地址）、自建服务器。局域网 https、Tailscale 的 MagicDNS 名字和 Tailscale Serve 没有测过。
+- 已经验证过的连接方式：同一台电脑上的连接、Tailscale 直连（用 tailnet 的 IPv6 地址）、自建服务器。Tailscale 的 MagicDNS 名字（`http://<机器名>.<tailnet>.ts.net:<端口>`）和 Tailscale Serve 只验证了基本流程（2026-11-18：打开页面、手动放行端口），长连接和断线重连没有测。局域网 https 没有测过。
+- 用 `http://100.x.x.x` 连的环境，卡片会建议改用 MagicDNS 名字。改之前先确认这台电脑能解析 `*.ts.net`，见第 5 节。
 - 用私有 CA 签发证书的 `https://` 地址（公司 CA、`mkcert`）暂不支持。
 
 ### 怎么用
@@ -352,22 +363,24 @@ T3 Extend 的 Android 应用可以不经过 T3 Connect、Firebase 和 Google Pla
 
 **先在 host 上确认 server 在跑**：桌面版开着，或 `t3x service status` 显示服务在运行。电脑休眠、关机或断网，所有访问方式都连不上它。
 
-| 现象                                                               | 先看这里                                                                                                                                                                            |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 手机或别的电脑打开配对链接连不上                                   | 链接里的地址如果是 `127.0.0.1`，只有本机能用，换一个对方能访问的地址重新创建。局域网里要先在 host 上开"网络访问"（或 `--lan`）。                                                    |
-| 配对码被拒，或返回 429                                             | 一次性码用过就失效，重新生成一个。同一个客户端地址 1 分钟内失败 20 次会被锁 60 秒。                                                                                                 |
-| 自建服务器：`curl https://t3.example.com/v1/info` 报证书错误或超时 | 确认两条 DNS 记录已生效、80/443 从外网能访问；大陆服务器还要确认域名已备案。再在 `infra/self-host` 目录里看 `docker compose logs caddy`。                                           |
-| 自建服务器：Caddy 起不来，日志里写着 `address already in use`      | 80 或 443 还被别的服务（比如 nginx）占着，先停掉它，或者按"这台 VPS 上已经有别的网站"那一节让 Caddy 接管。                                                                          |
-| 桌面版提示连不上你的服务器                                         | 先在那台电脑上运行 `curl https://t3.example.com/v1/info`。再看 VPS 上 `./t3x info`。设置页的提示在 3 分钟没同步后出现。                                                             |
-| 新加入的设备显示"等待那台电脑确认…"                                | 正常，对方每分钟同步一次设备清单，最多等一两分钟。一直不变就检查对方电脑的 server 是否在跑、能否连上服务器。                                                                        |
-| 隧道每隔一段时间断几秒                                             | 重载或重启 Caddy、frps 会让所有隧道断开几秒后自动重连，不用重新加入。                                                                                                               |
-| 被移除的电脑还连着                                                 | 它离线时错过了移除，要等它重新连上服务器才会撤销。                                                                                                                                  |
-| Tailscale HTTPS 开不了                                             | 检查 tailnet 是否开了 MagicDNS 和 HTTPS 证书；Linux 上检查 operator 权限。端口被占时用 `--tailscale-serve-port` 换一个，不要用 443。                                                |
-| "在后台保持运行"这一行提示 app 位置有问题                          | 移动或删除过 app，或是从磁盘映像里直接打开的。把 app 放进"应用程序"，把开关关掉再打开。                                                                                             |
-| 打开 app 时提示后台服务没能停下，然后退出                          | app 不会在服务还占着数据的时候起第二个 server。运行 `t3x service uninstall` 移除服务。                                                                                              |
-| `t3x service install` 下载失败                                     | 需要的 release 不存在，或者网络访问不了 GitHub。到 Releases 页面确认版本在不在，或者用 `T3CODE_RELEASE_BASE_URL` 指向你自己的镜像。macOS 上也可以用桌面版的开关，它不下载任何东西。 |
-| 远程环境的标签页里 localhost 打不开                                | 看标签页里的卡片说了什么。常见原因：服务不是 T3 终端或 agent 起的（点"允许转发"）、服务只监听了非本地地址（让它也监听 `127.0.0.1`）、连接是明文 http 或 T3 Connect（转发不启用）。  |
-| 手机收不到推送                                                     | 先在「设置 → 通知」里用"发送测试通知"。再检查推送服务器是不是公网地址、ntfy 应用的服务器和账号对不对、手机有没有限制 ntfy 的后台活动。                                              |
+| 现象                                                               | 先看这里                                                                                                                                                                                                             |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 手机或别的电脑打开配对链接连不上                                   | 链接里的地址如果是 `127.0.0.1`，只有本机能用，换一个对方能访问的地址重新创建。局域网里要先在 host 上开"网络访问"（或 `--lan`）。                                                                                     |
+| 配对码被拒，或返回 429                                             | 一次性码用过就失效，重新生成一个。同一个客户端地址 1 分钟内失败 20 次会被锁 60 秒。                                                                                                                                  |
+| 自建服务器：`curl https://t3.example.com/v1/info` 报证书错误或超时 | 确认两条 DNS 记录已生效、80/443 从外网能访问；大陆服务器还要确认域名已备案。再在 `infra/self-host` 目录里看 `docker compose logs caddy`。                                                                            |
+| 自建服务器：Caddy 起不来，日志里写着 `address already in use`      | 80 或 443 还被别的服务（比如 nginx）占着，先停掉它，或者按"这台 VPS 上已经有别的网站"那一节让 Caddy 接管。                                                                                                           |
+| 桌面版提示连不上你的服务器                                         | 先在那台电脑上运行 `curl https://t3.example.com/v1/info`。再看 VPS 上 `./t3x info`。设置页的提示在 3 分钟没同步后出现。                                                                                              |
+| 新加入的设备显示"等待那台电脑确认…"                                | 正常，对方每分钟同步一次设备清单，最多等一两分钟。一直不变就检查对方电脑的 server 是否在跑、能否连上服务器。                                                                                                         |
+| 隧道每隔一段时间断几秒                                             | 重载或重启 Caddy、frps 会让所有隧道断开几秒后自动重连，不用重新加入。                                                                                                                                                |
+| 被移除的电脑还连着                                                 | 它离线时错过了移除，要等它重新连上服务器才会撤销。                                                                                                                                                                   |
+| `*.ts.net` 名字解析不了（`ping`、`curl` 报找不到主机）             | 后台开了 MagicDNS，这台机器也可能没接上。macOS 上用 Homebrew 装的 `tailscaled` 要手动加 `/etc/resolver/ts.net`，见第 5 节"准备"。可以用 `dig @100.100.100.100 <机器名>.<tailnet>.ts.net` 确认 Tailscale 自己能解析。 |
+| Tailscale HTTPS 路由显示已连接，打开却一直没有响应                 | server 是不是用 `--host <tailnet IP>` 只监听了 tailnet 地址？改回默认的本机监听，再重新开 Tailscale HTTPS。                                                                                                          |
+| Tailscale HTTPS 开不了                                             | 检查 tailnet 是否开了 MagicDNS 和 HTTPS 证书；Linux 上检查 operator 权限。端口被占时用 `--tailscale-serve-port` 换一个，不要用 443。                                                                                 |
+| "在后台保持运行"这一行提示 app 位置有问题                          | 移动或删除过 app，或是从磁盘映像里直接打开的。把 app 放进"应用程序"，把开关关掉再打开。                                                                                                                              |
+| 打开 app 时提示后台服务没能停下，然后退出                          | app 不会在服务还占着数据的时候起第二个 server。运行 `t3x service uninstall` 移除服务。                                                                                                                               |
+| `t3x service install` 下载失败                                     | 需要的 release 不存在，或者网络访问不了 GitHub。到 Releases 页面确认版本在不在，或者用 `T3CODE_RELEASE_BASE_URL` 指向你自己的镜像。macOS 上也可以用桌面版的开关，它不下载任何东西。                                  |
+| 远程环境的标签页里 localhost 打不开                                | 看标签页里的卡片说了什么。常见原因：服务不是 T3 终端或 agent 起的（点"允许转发"）、服务只监听了非本地地址（让它也监听 `127.0.0.1`）、连接是明文 http 或 T3 Connect（转发不启用）。                                   |
+| 手机收不到推送                                                     | 先在「设置 → 通知」里用"发送测试通知"。再检查推送服务器是不是公网地址、ntfy 应用的服务器和账号对不对、手机有没有限制 ntfy 的后台活动。                                                                               |
 
 排查时顺序大致是：host 的 server 在不在、地址对方能不能到、凭证有没有失效。上游的 [Remote access](../user/remote-access.md) 和 [后台运行](../user/background-service.md) 文档里有更多细节，自建服务器本身的排查见 [infra/self-host/README.md 的"出问题时"](../../infra/self-host/README.md#出问题时)。
 

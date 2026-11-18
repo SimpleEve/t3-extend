@@ -555,7 +555,7 @@ A 的桌面版打开远程环境 B 的对话时，B 的 T3 终端或 agent 起�
 
 ### 已知限制
 
-- **连接方式验证了三种：** 同一台电脑上的连接（真实 Electron 走查和冒烟）、Tailscale 直连（两台真实 Mac，用 tailnet 的 IPv6 地址）、自建隧道（真实 VPS，Let's Encrypt 证书）。局域网 https、Tailscale 的 MagicDNS 名字和 Serve 没测；SSH 环境在打包版里跑的是官方 server，不提供转发。重载 Caddy 或重启 frps 会让所有隧道断开几秒，因为 frpc 的控制连接也经过 Caddy。逐行状态在设计 §3.5，用户文档只写已验证的。
+- **连接方式验证了三种：** 同一台电脑上的连接（真实 Electron 走查和冒烟）、Tailscale 直连（两台真实 Mac，用 tailnet 的 IPv6 地址）、自建隧道（真实 VPS，Let's Encrypt 证书）。Tailscale 的 MagicDNS 名字和 Serve 在 2026-11-18 测了基本流程（两台真实 Mac：打开页面、手动放行端口），长连接、重连、并发没测；局域网 https 没测；SSH 环境在打包版里跑的是官方 server，不提供转发。重载 Caddy 或重启 frps 会让所有隧道断开几秒，因为 frpc 的控制连接也经过 Caddy。逐行状态在设计 §3.5，用户文档只写已验证的。
 - **平台：** 只支持桌面版（网页版见设计附录 C）；B 只有 macOS 广告能力。Linux 的真实进程测试已在容器里全过（91 条，连跑两遍），但广告函数没有改，要不要放开由主控定；Windows 没有读 argv 和环境的路径，不广告。
 - **私有 CA 的 `https://` 不支持：** 主进程不并入系统根证书（设计 §3.6，N7），TLS 校验失败就是失败，错误卡片说“证书不受信任”。
 - **provider：** 只有 Claude 和 Codex 设置 `T3CODE_THREAD_ID`，所以只有它们的 agent 起的服务算“agent 有主”；其余 provider 的 agent 起的服务只有在 T3 终端里起才转发，Cursor、Antigravity 和 ACP 注册表的 agent 认不出特征，整棵子树都不转发。脱离父进程的后台作业（被 launchd 收养，如 `nohup`）对所有 provider 默认都转发不了，要用户在卡片上手动放行那个端口（见上）。这些结论来自读启动代码和假运行时的真实进程测试，**没有起真实的 provider CLI 验证**；各家 CLI 的 shell 工具是不是一次性的 shell，因而后台作业会不会被收养，也没有验证。
@@ -567,7 +567,8 @@ A 的桌面版打开远程环境 B 的对话时，B 的 T3 终端或 agent 起�
 - 多路复用或预开空闲隧道：Electron 真实网络走查时用户觉得慢再看（设计 §11.1）。
 - 为每次升级签一个 DPoP 证明，让明文局域网也能用（设计 §12 以后再做）。
 - 按线程精确归属（要改 contracts）；网页版。
-- 验证局域网 https 和 Tailscale 的 MagicDNS 名字、Serve，再把设计 §3.5 的“待验证”改掉，用户文档同步。
+- 验证局域网 https；MagicDNS 名字和 Serve 补测长连接、重连和并发，再把设计 §3.5 的“待验证”改掉，用户文档同步。
+- `--host <tailnet IP>` 加 Tailscale HTTPS：Serve 的转发目标取 server 的监听地址（上游的 `packages/tailscale/src/tailscale.ts` 的 `ensureTailscaleServe`），macOS 上转到自己的 tailnet IP 时一直没有响应。没有改上游代码，文档里写明保持默认的本机监听。
 - 并入系统根证书以支持私有 CA（要读系统信任库，需要主控同意）；放开 Linux 的广告。
 - 做不到也不做：只对某一个标签页关闭转发。代理是 session 级的，一个环境的所有标签页共用。
 
