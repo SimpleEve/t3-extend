@@ -113,7 +113,7 @@ t3x service uninstall
 t3x up --lan            # Install the service and allow LAN and tailnet connections (writes T3CODE_LAN=true to service.env)
 ```
 
-Limits: only a **`t3x` installed by the desktop app, on macOS,** makes the service use the runtime inside the app. In every other case (the install script, npm, or a machine without the desktop app), `t3x service install` uses a server package from the Releases page. The install script has already downloaded it, so the service reuses it; otherwise `t3x service install` downloads it, and so does `t3x update`. Set the environment variable `T3CODE_RELEASE_BASE_URL` to use your own release mirror.
+Limits: only a **`t3x` installed by the desktop app, on macOS,** makes the service use the runtime inside the app. In every other case (the install script, npm, or a machine without the desktop app), `t3x service install` uses a server package from the Releases page. The install script has already downloaded it, so the service reuses it; otherwise `t3x service install` downloads it, and so does `t3x update`. Set the environment variable `T3CODE_RELEASE_BASE_URL` to use your own release mirror. Releases only carry macOS (Apple silicon) and Linux (x64, arm64) packages, so this does not work on Windows yet.
 
 The service's environment variables go in `service.env` under the T3 home (in T3 Extend, `~/.t3extend/service.env`). For example, `T3CODE_PORT=3873`. After you change it, run `t3x service restart`.
 

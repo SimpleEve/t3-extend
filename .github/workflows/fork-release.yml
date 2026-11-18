@@ -23,8 +23,10 @@ on:
         default: ""
         type: string
 
+# One release at a time across tags: `t3x update` takes the newest-created release, so a lower
+# version must never be published after a higher one.
 concurrency:
-  group: fork-release-${{ github.ref }}
+  group: fork-release
   cancel-in-progress: false
 
 permissions:
@@ -254,18 +256,19 @@ jobs:
             exit 1
           fi
           keychain="$RUNNER_TEMP/t3x-signing.keychain-db"
+          p12="$RUNNER_TEMP/t3x-identity.p12"
+          # The final cleanup step deletes the keychain even if a later line here fails.
+          echo "T3EXTEND_SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+          trap 'rm -f "$p12"' EXIT
           keychain_secret="$(openssl rand -hex 16)"
           echo "::add-mask::$keychain_secret"
-          p12="$RUNNER_TEMP/t3x-identity.p12"
-          printf '%s' "$P12_BASE64" | base64 --decode > "$p12"
+          (umask 077 && printf '%s' "$P12_BASE64" | base64 --decode > "$p12")
           security create-keychain -p "$keychain_secret" "$keychain"
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$keychain_secret" "$keychain"
           security import "$p12" -k "$keychain" -P "$P12_PASSWORD" -f pkcs12 -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_secret" "$keychain" >/dev/null
           security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
-          rm -f "$p12"
-          echo "T3EXTEND_SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
           security find-identity -p codesigning "$keychain"
 
       - name: Align package versions to the release version
@@ -362,9 +365,9 @@ jobs:
             exit 1
           fi
           keystore="$RUNNER_TEMP/android-release.jks"
+          trap 'rm -f "$keystore"' EXIT
           (umask 077 && printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore")
           export T3EXTEND_ANDROID_KEYSTORE="$keystore"
-          trap 'rm -f "$keystore"' EXIT
           vp run fork:dist:android
 
       - name: Upload APK
@@ -459,6 +462,13 @@ jobs:
       - name: Create the release as a draft and attach every asset
         run: |
           set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            tagged="$(gh api "repos/${GH_REPO}/commits/refs/tags/${TAG}" --jq .sha)"
+            if [[ "$tagged" != "$GITHUB_SHA" ]]; then
+              echo "::error::$TAG now points at $tagged, but this run built $GITHUB_SHA."
+              exit 1
+            fi
+          fi
           args=(--draft --title "T3 Extend ${VERSION}" --notes-file release-notes.md)
           if [[ "$PUBLISH" != "true" ]]; then args+=(--prerelease); fi
           # An existing tag (a tag push) must be the one this run built.

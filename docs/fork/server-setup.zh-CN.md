@@ -113,7 +113,7 @@ t3x service uninstall
 t3x up --lan            # 安装服务并允许局域网和 tailnet 连入（写入 service.env 的 T3CODE_LAN=true）
 ```
 
-限制：只有**桌面版安装的 `t3x`、并且在 macOS 上**，服务才会用 app 自带的运行时。其他情况（安装脚本、npm、没有桌面版的机器）`t3x service install` 用的是 Releases 页面上的 server 包：安装脚本已经下载过，服务直接复用；否则 `t3x service install` 会去下载，`t3x update` 也一样。想用自己的发布镜像，设环境变量 `T3CODE_RELEASE_BASE_URL`。
+限制：只有**桌面版安装的 `t3x`、并且在 macOS 上**，服务才会用 app 自带的运行时。其他情况（安装脚本、npm、没有桌面版的机器）`t3x service install` 用的是 Releases 页面上的 server 包：安装脚本已经下载过，服务直接复用；否则 `t3x service install` 会去下载，`t3x update` 也一样。想用自己的发布镜像，设环境变量 `T3CODE_RELEASE_BASE_URL`。Release 里只有 macOS（Apple silicon）和 Linux（x64、arm64）的包，Windows 上暂时用不了。
 
 服务的环境变量写在 T3 home 下的 `service.env`（T3 Extend 里是 `~/.t3extend/service.env`），例如 `T3CODE_PORT=3873`，改完运行 `t3x service restart`。
 
