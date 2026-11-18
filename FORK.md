@@ -90,6 +90,9 @@ Tailscale 的默认端口走 `FORK.tailscaleServePort`：`packages/tailscale` �
 
 ## 开发流程
 
+- 公开仓库 `SimpleEve/t3-extend` 是唯一的开发仓库：自己的改动、外部贡献者的 PR、上游同步都在这里完成。开源之前的完整历史在一个已归档的私有仓库里，只读，不再往里提交，也不往这里同步。
+- 私人内容（任务清单、调研笔记、服务器和域名这类运维信息）放在单独的私有仓库，不进这个仓库。本地的 `.git/info/exclude` 忽略了 `tasks/`。
+- `.vite-hooks/pre-push` 会检查要推送的新提交：提交说明或新增的行里，只要出现 `~/.config/t3extend/denylist` 里的任何一个字符串（每行一个，不区分大小写），就拒绝这次推送。这份清单只存在维护者的机器上；文件不存在时，钩子什么都不做。仓库在 GitHub 上还开了 secret scanning 和 push protection。
 - 只在 linked worktree 里开发和测试。主 checkout 只用来合并和同步上游。
 - shell 里先把 vp 放进 PATH，不要 source `~/.config/vite-plus/env`：
 
@@ -662,7 +665,7 @@ vp run check:changed
 vp run fork:selfhost:e2e # 需要 Docker；隧道监听口靠改写 Host、X-Forwarded-Proto、X-Forwarded-For 工作，上游改请求 URL 的读法时靠它兜底
 ```
 
-GitHub Actions 在这个仓库里是关着的：2026-11-04 起，`SimpleEve/t3-extend` 在 Settings → Actions → General 里整体关闭了 Actions。从上游同步过来的 workflow 在这个 fork 里都用不上：`ci.yml` 指定的是上游的 `blacksmith-*` 付费 runner，每次推送都会排队、24 小时后才被自动取消；部署和发布类的 workflow 都带 `github.repository == 'pingdotgg/t3code'` 守卫，在这里只会被跳过；其余几个是管理上游公开仓库 issue 和 PR 的。fork 的安装包都在本机打（`fork:dist:mac`、`fork:dist:android`）。workflow 文件保持和上游一致，不删也不改，否则每次同步都会冲突；上游以后新增的 workflow 也会被这个开关一起挡住。私有仓库在免费套餐下用不了分支保护，所以关掉 CI 不影响合并。要重新打开：`gh api -X PUT repos/SimpleEve/t3-extend/actions/permissions -F enabled=true -f allowed_actions=all`，或者在网页设置里打开；打开后上游那批 workflow 会立刻恢复触发。要给 fork 加自己的 CI，先用 `gh workflow disable` 逐个关掉用不上的。
+GitHub Actions 在这个仓库里是关着的：`SimpleEve/t3-extend` 从 2026-11-18 建仓库起就在 Settings → Actions → General 里整体关闭了 Actions。从上游同步过来的 workflow 在这个 fork 里都用不上：`ci.yml` 指定的是上游的 `blacksmith-*` 付费 runner，每次推送都会排队、24 小时后才被自动取消；部署和发布类的 workflow 都带 `github.repository == 'pingdotgg/t3code'` 守卫，在这里只会被跳过；其余几个是管理上游公开仓库 issue 和 PR 的。fork 的安装包都在本机打（`fork:dist:mac`、`fork:dist:android`）。workflow 文件保持和上游一致，不删也不改，否则每次同步都会冲突；上游以后新增的 workflow 也会被这个开关一起挡住。私有仓库在免费套餐下用不了分支保护，所以关掉 CI 不影响合并。要重新打开：`gh api -X PUT repos/SimpleEve/t3-extend/actions/permissions -F enabled=true -f allowed_actions=all`，或者在网页设置里打开；打开后上游那批 workflow 会立刻恢复触发。要给 fork 加自己的 CI，先用 `gh workflow disable` 逐个关掉用不上的。
 
 最近一次同步到上游 `55c134a346`（合并基点 `b9bbfda087`，423 个 commit，69 个冲突文件：68 个文本冲突，1 个删除冲突，是 fork 删除、上游改过的 `SettingsLanguageRouteScreen.tsx`；上一次是 `b9bbfda087`，基点 `6417151c09`，1928 个 commit，328 个冲突文件）。累计下来的取舍，下次遇到同类冲突照做：
 

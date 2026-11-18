@@ -1,0 +1,25 @@
+# fork: refuse a push whose new commits contain a string from the maintainer's private denylist
+# (one fixed string per line, matched case-insensitively). No denylist file, no check.
+# `git push --no-verify` skips it.
+denylist="${XDG_CONFIG_HOME:-$HOME/.config}/t3extend/denylist"
+[ -s "$denylist" ] || exit 0
+
+zero=0000000000000000000000000000000000000000
+status=0
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then
+    range="$local_sha --not --remotes"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  # Messages and added lines only; removing a denied string is allowed.
+  # shellcheck disable=SC2086
+  hits=$(git log -p --no-color --no-ext-diff --format='%h %B' $range | grep -v '^-' | grep -inF -f "$denylist" || true)
+  if [ -n "$hits" ]; then
+    echo "pre-push: these new lines match $denylist:" >&2
+    echo "$hits" | cut -c1-200 | head -20 >&2
+    status=1
+  fi
+done
+exit $status
