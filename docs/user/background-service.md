@@ -5,7 +5,7 @@ do not need to keep a terminal open.
 
 ## T3 Extend desktop app on macOS
 
-In the T3 Extend app, open Settings, General, then turn on **Keep running in
+In the T3 Extend app, open Settings, Maintenance, then turn on **Keep running in
 the background**. Quitting the app with Cmd+Q then leaves T3 Extend running, so
 your phone stays connected and notifications keep arriving. Closing the window
 does not quit the app, as before.

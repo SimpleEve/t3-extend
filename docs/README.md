@@ -1,5 +1,12 @@
 # T3 Code docs
 
+## T3 Extend
+
+<!-- fork: T3 Extend only. Not part of upstream T3 Code. -->
+
+- [上游版本与 fork 能力](./fork/upstream.md)
+- [搭建 server 与配置访问](./fork/server-setup.md)
+
 ## Using T3 Code
 
 - [Install T3 Code](./user/install.md)

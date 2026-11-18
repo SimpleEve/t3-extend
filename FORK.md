@@ -210,7 +210,7 @@ mobile：
 
 ## 后台运行（桌面版）
 
-macOS 打包版的设置 > 通用 > "后台运行" 有一个开关"在后台保持运行"：打开就是 `t3x service install`，关闭就是 `t3x service uninstall`，退出 app（Cmd+Q）后服务继续跑，手机和推送不断。代码：`apps/server/src/fork/appRuntime.ts`（识别）、`apps/desktop/src/fork/backgroundService/`（开关、IPC、启动和退出的接力）、`apps/web/src/fork/BackgroundServiceSettings.tsx`（设置行）、`packages/shared/src/backgroundService.ts`（桥接类型）。
+macOS 打包版的设置 > 维护 > "后台运行" 有一个开关"在后台保持运行"：打开就是 `t3x service install`，关闭就是 `t3x service uninstall`，退出 app（Cmd+Q）后服务继续跑，手机和推送不断。代码：`apps/server/src/fork/appRuntime.ts`（识别）、`apps/desktop/src/fork/backgroundService/`（开关、IPC、启动和退出的接力）、`apps/web/src/fork/BackgroundServiceSettings.tsx`（设置行）、`packages/shared/src/backgroundService.ts`（桥接类型）。
 
 **服务直接用 app 自带的运行时，不下载。** 识别（`detectAppRuntime`，只认 macOS）要三条同时成立：`ELECTRON_RUN_AS_NODE=1`；`argv[1]` 是 `<X>.app/Contents/Resources/app.asar/apps/server/dist/bin.mjs`；`execPath` 在同一个 `<X>.app/Contents/MacOS/` 下。这正是 `DesktopCliShim` 写的 `t3x` 启动脚本和桌面开关调用 CLI 的方式，npm、pinned runtime、dev 都不满足，行为不变。命中时 `BootService.make`：
 

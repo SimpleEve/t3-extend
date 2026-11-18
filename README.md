@@ -1,108 +1,58 @@
-<p align="center">
-  <a href="https://t3.codes">
-    <img src="./assets/prod/t3-black-web-icon-192x192.png" width="80" height="80" alt="T3 Code logo" />
-  </a>
-</p>
+# T3 Extend
 
-<h1 align="center">T3 Code</h1>
+T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的独立 fork。它在上游的基础上加了中文界面、自建连接、Android 上不依赖 Google 的推送等能力，并且可以和官方 T3 Code 装在同一台电脑上同时运行，两边的数据、命令、端口和服务互不干扰。
 
-<p align="center">The open-source control plane for coding agents.</p>
+> T3 Extend 与 T3 Tools Inc. 没有隶属、背书或赞助关系。"T3 Code" 只用来说明它的来源，见 [NOTICE](./NOTICE)。
 
-<p align="center">
-  <a href="https://t3.codes/download"><strong>Download</strong></a> ·
-  <a href="https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824">iOS</a> ·
-  <a href="https://play.google.com/store/apps/details?id=com.t3tools.t3code">Android</a> ·
-  <a href="https://app.t3.codes">Web</a> ·
-  <a href="./docs/README.md">Docs</a> ·
-  <a href="https://discord.gg/jn4EGJjrvv">Discord</a>
-</p>
+## 对应的上游版本
 
-<p align="center">
-  <a href="https://t3.codes">
-    <img src="./.github/readme/hero.webp" width="100%" alt="T3 Code on desktop with a finished Claude thread, next to the phone app asking to approve a command from Codex" />
-  </a>
-</p>
+当前合入到上游提交 [`55c134a346`](https://github.com/pingdotgg/t3code/commit/55c134a346d5830399c82e647f29101fec22ecee)（2026-11-16），在上游 nightly `v0.1.11-nightly.20261117.4814` 之后第 28 个提交。T3 Extend 桌面版和 server 的版本是 0.1.10，Android 应用是 2.3.0。
 
-T3 Code runs the coding agents on your machine and gives them one fast interface. Start a thread at your desk, then approve the next step from your phone.
+上游这个版本的能力，T3 Extend 基本都有。主要差别如下。
 
-It works with Claude Code, Codex, Cursor, OpenCode, Grok Build, Antigravity, Kiro, Pi, Muse Code, fx, and any [ACP](./docs/user/providers-acp.md) agent. If an agent is set up on your computer, T3 Code can control it.
+**fork 额外加的：**
 
-## What you get
+- 中文界面（web、桌面、Android），可以选英文、简体中文或跟随系统
+- 侧栏按项目分组，侧栏底部有额度、资源和端口状态，桌面版可以保持唤醒
+- 自建连接：用自己的 VPS 代替 T3 Connect，让手机和别的电脑连回来
+- 在桌面版里，可以直接用 `localhost` 打开远程环境上的开发服务；手机上可以新建浏览器标签页
+- Android 推送走 UnifiedPush 和自建 ntfy，不经过 Google
+- macOS 桌面版可以在后台运行，退出 app 后服务继续工作
+- 每轮回复列出产出的文件和链接；输入框旁显示上下文用量和输出速度
+- omp provider、Codex 自定义端点下读取额度、Antigravity 沿用 `agy` 的登录
+- 从本机的官方 T3 Code 只读导入项目、对话和设置
+- telemetry 默认关闭
 
-- **Your subscriptions.** T3 Code does not resell tokens. It drives the agents you are already signed in to.
-- **Every agent in one place.** Change models in the middle of a thread. Let Claude hand a task to Codex.
-- **Desktop, web, and phone.** One server, and every client shows the same threads. There are apps for iOS and Android.
-- **Remote ready.** Run agents on any machine. Connect over your local network, Tailscale, or [T3 Connect](./docs/user/remote-access.md).
-- **Git built in.** Each thread can work in its own worktree. Review the diff, then commit, push, and open a pull request with one button.
-- **Fast.** Performance is a feature here. We measure it, and we treat a dropped frame as a bug.
-- **Open.** MIT licensed. If you don't like something, fork it.
+**在 fork 里用不了的：** T3 Connect、guest link、passkey、桌面自动更新、移动端 OTA、iOS 应用、官方的安装脚本和应用商店渠道。
 
-## Install
+完整的能力列表、取舍原因和同步历史见 [上游版本与 fork 能力](./docs/fork/upstream.md)。
 
-### Desktop app
+## 安装
 
-[Download T3 Code](https://t3.codes/download) for macOS, Windows, or Linux. You can also use a package manager:
+T3 Extend 目前没有发布安装包，需要从源码构建：
 
-| Platform       | Command                                                              |
-| -------------- | -------------------------------------------------------------------- |
-| macOS          | `brew install --cask t3-code`                                        |
-| Windows        | `winget install T3Tools.T3Code` or `scoop install extras/t3code`     |
-| Arch Linux     | `yay -S t3code-bin`                                                  |
-| Nix            | `nix profile add github:NixOS/nixpkgs/nixos-unstable#t3code`         |
-| Debian, Ubuntu | `.deb` from [Releases](https://github.com/pingdotgg/t3code/releases) |
+- macOS（Apple silicon）：`vp run fork:dist:mac`，生成 `T3-Extend-<version>-arm64.dmg`。安装和第一次启动的步骤见 [install.md](./docs/user/install.md#t3-extend-on-macos)。
+- Android：`vp run fork:dist:android`，生成 APK。
+- 构建环境和签名见 [FORK.md 的打包与签名](./FORK.md#打包与签名)，第一次检出源码的步骤见 [开发手册](./docs/operations/development.md#first-checkout)。
 
-### Command line
+T3 Extend 的命令行叫 `t3x`，数据目录在 `~/.t3extend`，默认端口是 3873。官方 T3 Code 用的是 `t3`、`~/.t3` 和 3773，两边不冲突。
 
-This installs the `t3` command. Run `t3` to start the server and open the web app.
+## 让手机和别的电脑连上来
 
-```bash
-curl -fsSL https://t3.codes/install.sh | sh
-```
+T3 Extend 支持局域网配对、Tailscale（HTTPS 端口 8443）、自建服务器和 SSH。怎么选、怎么搭、怎么撤销访问，见 [搭建 server 与配置访问](./docs/fork/server-setup.md)。自建服务器的 VPS 部署见 [infra/self-host](./infra/self-host/README.md)。
 
-On Windows, in PowerShell:
+## 文档
 
-```powershell
-irm https://t3.codes/install.ps1 | iex
-```
+- [上游版本与 fork 能力](./docs/fork/upstream.md)
+- [搭建 server 与配置访问](./docs/fork/server-setup.md)
+- [FORK.md](./FORK.md)：fork 的身份、共存规则、各项功能的设计和同步上游的流程
+- [上游文档](./docs/README.md)：沿用上游的用户文档，fork 改过的地方有标注；文中的 `t3` 在 T3 Extend 里换成 `t3x`
 
-To try it once without an install, run `npx t3@latest`.
+## 参与开发
 
-### Phone
+- 先读 [FORK.md](./FORK.md) 和 [AGENTS.md](./AGENTS.md)。fork 改动上游文件的行都带 `// fork:` 注释，提交前要通过 `vp run fork:guard`。
+- 上游本身的问题，请到 [pingdotgg/t3code](https://github.com/pingdotgg/t3code) 反馈。
 
-Get the app from the [App Store](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824) or [Google Play](https://play.google.com/store/apps/details?id=com.t3tools.t3code). Then follow [remote access](./docs/user/remote-access.md) to connect it to your computer.
+## 许可证
 
-### Sign in to an agent
-
-T3 Code needs one agent that is installed and signed in. For example, install [Claude Code](https://claude.com/product/claude-code) and run `claude auth login`, or install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`.
-
-[Provider setup](./docs/user/install.md#providers) has the steps for each agent. [Install T3 Code](./docs/user/install.md) covers nightly builds, AppImage, WSL, and NixOS.
-
-## "Wait, what are you selling me?"
-
-Nothing. We built T3 Code because we wanted the best possible development experience with agents. We were inspired by existing solutions like the Codex desktop app, Conductor, Claude Desktop and Cursor Glass, but none met our bar.
-
-We wanted something performant, remote-ready, and truly open. If we ever go the wrong direction, we want you to have everything you need to fork and build the tool that you want.
-
-## Documentation
-
-- [Install and first run](./docs/user/install.md)
-- [Remote access from a phone or another machine](./docs/user/remote-access.md)
-- [Permission modes](./docs/user/permission-modes.md)
-- [Source control](./docs/user/source-control.md)
-- [Connect outside agents over MCP](./docs/user/outside-agents.md)
-- [FAQ](./docs/user/faq.md)
-
-[All docs](./docs/README.md) has the full list.
-
-## Contributing
-
-We have limited review capacity. Small, focused fixes are the most likely to be merged. Features need an approved discussion first.
-
-- Read [CONTRIBUTING.md](./CONTRIBUTING.md) before you report a bug or open a pull request.
-- Put feature requests in [Ideas](https://github.com/pingdotgg/t3code/discussions/categories/ideas).
-- Build from source with the [development runbook](./docs/operations/development.md#first-checkout). The [architecture overview](./docs/internals/overview.md) explains how it works.
-- Get help in [Discord](https://discord.gg/jn4EGJjrvv).
-
-## License
-
-[MIT](./LICENSE)
+[MIT](./LICENSE)。上游 T3 Code 的版权归 T3 Tools Inc.，fork 的改动采用同样的许可证。随构建打包的第三方组件及其许可证见 [NOTICE](./NOTICE)。
