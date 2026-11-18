@@ -54,6 +54,10 @@ export const officialHomeDirectory = (
   join: (...segments: string[]) => string,
 ): string => join(homeDirectory, OFFICIAL_HOME_DIR_NAME);
 
+/** Why a data directory that is official T3 Code's own cannot be used; shown by the server and the desktop app. */
+export const officialHomeRefusal = (baseDir: string, officialHome: string): string =>
+  `${baseDir} is ${OFFICIAL_APP_NAME}'s data directory (${officialHome}). ${FORK.appBaseName} keeps its data in ~/${FORK.homeDirName} and never writes to ${OFFICIAL_APP_NAME}'s. Unset T3CODE_HOME, or choose a different directory.`;
+
 /** Fork home first, then official, newest-identity first. Callers only ever read these. */
 export const devSeedHomeCandidates = (
   homeDirectory: string,

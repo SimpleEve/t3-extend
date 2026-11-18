@@ -12,10 +12,13 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 // @effect-diagnostics-next-line nodeBuiltinImport:off - Version output must flush before Electron exits, without acquiring the runtime.
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
+// @effect-diagnostics-next-line nodeBuiltinImport:off -- the guard runs before any Effect runtime exists.
+import * as NodePath from "node:path"; // fork: official home guard
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option"; // fork: official home guard
 
 import * as Electron from "electron";
 
@@ -57,6 +60,8 @@ import * as DesktopServerExposure from "./backend/DesktopServerExposure.ts";
 import * as DesktopClientSettings from "./settings/DesktopClientSettings.ts";
 import * as DesktopUiLanguage from "./settings/DesktopUiLanguage.ts"; // fork: interface language
 import * as DesktopSavedEnvironments from "./settings/DesktopSavedEnvironments.ts";
+import { OFFICIAL_HOME_DIALOG_TITLE, officialHomeProblem } from "./fork/officialHomeGuard.ts"; // fork: official home guard
+import { resolveDesktopBaseDir } from "./app/DesktopStatePaths.ts"; // fork: official home guard
 import * as DesktopSnapShot from "./snapShot/DesktopSnapShot.ts";
 import * as DesktopAppSettings from "./settings/DesktopAppSettings.ts";
 import * as DesktopPreReadyFileSystem from "./app/DesktopPreReadyFileSystem.ts";
@@ -257,4 +262,24 @@ const layerDesktopRuntime = layerDesktopClerk.pipe(
   Layer.provideMerge(DesktopPreReadyPlatform.layer),
 );
 
-DesktopApp.program.pipe(Effect.provide(layerDesktopRuntime), NodeRuntime.runMain);
+// fork: the desktop writes below its T3 home before the server starts, so refuse official T3 Code's here.
+const officialHomeRefusal = officialHomeProblem({
+  baseDir: resolveDesktopBaseDir({
+    homeDirectory: NodeOS.homedir(),
+    joinPath: NodePath.join,
+    t3Home: Option.fromUndefinedOr(process.env.T3CODE_HOME),
+  }),
+  homeDirectory: NodeOS.homedir(),
+  platform: Effect.runSync(HostProcess.Platform),
+  join: NodePath.join,
+  resolve: NodePath.resolve,
+  dirname: NodePath.dirname,
+  basename: NodePath.basename,
+  realPath: NodeFS.realpathSync,
+});
+if (officialHomeRefusal !== null) {
+  Electron.dialog.showErrorBox(OFFICIAL_HOME_DIALOG_TITLE, officialHomeRefusal);
+  Electron.app.exit(1);
+} else {
+  DesktopApp.program.pipe(Effect.provide(layerDesktopRuntime), NodeRuntime.runMain);
+}

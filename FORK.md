@@ -45,6 +45,7 @@ Tailscale 的默认端口走 `FORK.tailscaleServePort`：`packages/tailscale` �
 ## 共存保证
 
 - 两个应用各用各的 userData、single-instance lock、T3 home、数据库、`secrets/`、worktree 目录、launchd label 和 systemd unit，互不干扰。
+- fork 不会把官方的 `~/.t3` 当成自己的数据目录：`T3CODE_HOME`、`--base-dir`、bootstrap 或软链接解析出来等于它时，server（`resolveBaseDir`）和桌面版（`main.ts` 里在任何写入之前）都会报错退出，不创建任何文件；它下面的子目录（比如开发用的 worktree `.t3`）不受影响。开发种子数据仍然只读拷贝它。
 - 桌面版写的是 `~/.t3extend/bin/t3x`，以及 PATH 上的 `t3x` 软链接，不会碰官方的 `~/.t3/bin/t3`、`/opt/homebrew/bin/t3`。
 - fork 不会被官方更新覆盖：
   - 桌面构建只认显式设置的 `T3CODE_DESKTOP_UPDATE_REPOSITORY`，不会从 CI 的 `GITHUB_REPOSITORY` 推断 feed。没有 feed 时不生成 `app-update.yml`，菜单里也没有 "Check for Updates..."。
