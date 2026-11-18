@@ -89,8 +89,10 @@ or use a package manager:
 <!-- fork: T3 Extend only. Not part of upstream T3 Code. -->
 
 The downloads and package managers above install official T3 Code. T3 Extend is
-not published there. Its maintainer gives you a disk image,
-`T3-Extend-<version>-arm64.dmg`, for Macs with Apple silicon.
+not published there. Download the disk image,
+`T3-Extend-<version>-arm64.dmg`, from the
+[T3 Extend releases page](https://github.com/SimpleEve/t3-extend/releases). It is
+for Macs with Apple silicon.
 
 1. Open the disk image and drag **T3 Extend (Beta)** into **Applications**.
 2. Open it from Applications. The app is signed with its own certificate and is
@@ -108,6 +110,25 @@ not published there. Its maintainer gives you a disk image,
 
 To skip step 2, run `xattr -d com.apple.quarantine "/Applications/T3 Extend (Beta).app"` in
 Terminal before opening the app.
+
+### T3 Extend command line
+
+<!-- fork: T3 Extend only. Not part of upstream T3 Code. -->
+
+A computer without the desktop app (macOS on Apple silicon, or Linux on x64 or
+arm64) can install the `t3x` command with one line. The script downloads the
+release archive, checks it against `SHA256SUMS`, and installs it into
+`~/.t3extend`. It never touches official T3 Code's `~/.t3` or its `t3` command,
+so the two can sit on one machine.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/SimpleEve/t3-extend/main/scripts/install-t3x.sh | sh
+```
+
+If `~/.local/bin` is not on your `PATH`, the script prints the line to add. Then
+`t3x update` moves to the newest release, and `t3x service install` keeps the
+server running in the background. Set `T3X_VERSION` to install a specific
+version.
 
 ### Linux
 
@@ -249,7 +270,8 @@ folder paths, so in the web app use **Add project** instead.
 
 <!-- fork: T3 Extend only. The App Store and Google Play pages belong to official T3 Code. -->
 
-T3 Extend's Android app is an APK that the maintainer gives you; it is not on
+T3 Extend's Android app is an APK on the
+[releases page](https://github.com/SimpleEve/t3-extend/releases); it is not on
 Google Play, and there is no iOS version. Copy it to the phone and open it, or
 run `adb install -r <apk>` from a computer. It installs beside the official T3 Code
 app instead of replacing it. The phone connects to a server on another machine.

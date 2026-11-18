@@ -196,11 +196,11 @@ const ALLOWED: ReadonlyArray<Allowed> = [
   },
   {
     path: "scripts/install.sh",
-    reason: "Official server installer; the fork publishes no server archives.",
+    reason: "Official server installer; the fork installs with scripts/install-t3x.sh.",
   },
   {
     path: "scripts/install.ps1",
-    reason: "Official server installer; the fork publishes no server archives.",
+    reason: "Official server installer; the fork installs with scripts/install-t3x.sh.",
   },
   {
     path: "scripts/npm-launcher/",

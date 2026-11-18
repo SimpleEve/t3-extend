@@ -38,7 +38,7 @@ export const OFFICIAL_APP_NAME = "T3 Code";
 export const forkTailscaleServePort = (port: number): number =>
   port === OFFICIAL_TAILSCALE_SERVE_PORT ? FORK.tailscaleServePort : port;
 
-/** SSH remote hosts get official T3 Code's server; the fork publishes no server archives. */
+/** SSH remote hosts default to official T3 Code's server archives, not the fork's. */
 export const OFFICIAL_CLI_RELEASE_DOWNLOAD_URL =
   "https://github.com/pingdotgg/t3code/releases/download";
 

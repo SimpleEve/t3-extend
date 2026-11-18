@@ -76,7 +76,14 @@ t3x --help         # List all subcommands
 
 Notes:
 
-- **Machines without the desktop app** (for example a Linux server): T3 Extend does not publish a server installer yet. The official `install.sh` installs the official `t3`, so do not use it. On these machines you can run from the source repository after installing its dependencies. This guide has only verified the `t3x` that comes with the desktop app.
+- **Machines without the desktop app** (for example a Linux server): install `t3x` with the script. It works on macOS (Apple silicon) and Linux (x64 and arm64). It downloads the archive from the [Releases](https://github.com/SimpleEve/t3-extend/releases) page, checks it against `SHA256SUMS`, and installs into `~/.t3extend`. It never touches official T3 Code's `~/.t3` or its `t3` command. Do not use the official `install.sh`: it installs the official `t3`.
+
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/SimpleEve/t3-extend/main/scripts/install-t3x.sh | sh
+  ```
+
+  `T3X_VERSION` picks a version, `T3X_HOME` and `T3X_INSTALL_BIN_DIR` change where it installs (the defaults are `~/.t3extend` and `~/.local/bin`). If `~/.local/bin` is not on your `PATH`, the script prints the line to add. Run the script again to repair the install; `t3x update` moves to the newest release.
+
 - Some `t3x` help text still says `t3`. That is the upstream wording and does not affect use.
 - Set the data directory with `--base-dir <directory>` (the same as the environment variable `T3CODE_HOME`). The default is `~/.t3extend`.
 
@@ -106,7 +113,7 @@ t3x service uninstall
 t3x up --lan            # Install the service and allow LAN and tailnet connections (writes T3CODE_LAN=true to service.env)
 ```
 
-Limits: only a **`t3x` installed by the desktop app, on macOS,** makes the service use the runtime inside the app. In every other case (installed from npm, or a machine without the desktop app), `t3x service install` needs to download a server package. The T3 Extend repository does not publish one yet, so it fails. You can point the environment variable `T3CODE_RELEASE_BASE_URL` at your own release mirror. `t3x update` fails for the same reason.
+Limits: only a **`t3x` installed by the desktop app, on macOS,** makes the service use the runtime inside the app. In every other case (the install script, npm, or a machine without the desktop app), `t3x service install` uses a server package from the Releases page. The install script has already downloaded it, so the service reuses it; otherwise `t3x service install` downloads it, and so does `t3x update`. Set the environment variable `T3CODE_RELEASE_BASE_URL` to use your own release mirror. Releases only carry macOS (Apple silicon) and Linux (x64, arm64) packages, so this does not work on Windows yet.
 
 The service's environment variables go in `service.env` under the T3 home (in T3 Extend, `~/.t3extend/service.env`). For example, `T3CODE_PORT=3873`. After you change it, run `t3x service restart`.
 
@@ -220,7 +227,7 @@ This computer's server must keep running for others to reach it at that address.
 
 ### A computer without the desktop app
 
-Use the command line:
+Install `t3x` with the [install script](#the-t3x-command) first, then use the command line:
 
 ```bash
 t3x devices join <invite>      # Join. --name <name> sets the display name; the default is the hostname
@@ -358,7 +365,7 @@ For the full description, see [Push without Google](../user/mobile-notifications
 | Tailscale HTTPS will not turn on                                                              | Check that MagicDNS and HTTPS certificates are on for the tailnet. On Linux, check operator permission. If the port is taken, use `--tailscale-serve-port` to pick another. Do not use 443.                                                                                                     |
 | The Keep running in the background row says there is a problem with the app location          | You moved or deleted the app, or opened it straight from the disk image. Put the app in Applications, then turn the switch off and on.                                                                                                                                                          |
 | On opening the app it says the background service could not be stopped, then quits            | The app will not start a second server while the service still holds the data. Run `t3x service uninstall` to remove the service.                                                                                                                                                               |
-| `t3x service install` fails to download                                                       | T3 Extend does not publish a server package yet. On macOS, use the desktop app's switch or the `t3x` that the desktop app installed. Otherwise point `T3CODE_RELEASE_BASE_URL` at your own mirror.                                                                                              |
+| `t3x service install` fails to download                                                       | The release it needs is missing or the network blocks GitHub. Check that the version exists on the Releases page, or set `T3CODE_RELEASE_BASE_URL` to your own mirror. On macOS you can also use the desktop app's switch, which downloads nothing.                                             |
 | localhost does not open in a remote environment's tab                                         | Read what the card in the tab says. Common causes: the server was not started by a T3 terminal or an agent (click Allow forwarding), the server listens on a non-local address (make it also listen on `127.0.0.1`), or the connection is plain http or T3 Connect (forwarding is not enabled). |
 | The phone gets no push                                                                        | In Settings → Notifications, use Send test notification first. Then check that the push server is at a public address, that the server and account in the ntfy app are right, and that the phone is not limiting ntfy in the background.                                                        |
 

@@ -22,7 +22,7 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的二开 fork（`S
 | 跨仓库 PR 的本地分支                                 | `t3code/pr-<n>/…`                               | `t3x/pr-<n>/…`                                                              |
 | 拉取 PR 时备份被重置掉的提交的 ref                   | `refs/t3code/pre-refresh`                       | `refs/t3x/pre-refresh`                                                      |
 | review guide 的临时 base ref                         | `refs/t3/review-guide/<n>/base`                 | `refs/t3x/review-guide/<n>/base`                                            |
-| server 发布源                                        | `pingdotgg/t3code`                              | `SimpleEve/t3-extend`（目前没有发布归档）                                   |
+| server 发布源                                        | `pingdotgg/t3code`                              | `SimpleEve/t3-extend` 的 Releases（`fork-release.yml` 发布）                |
 | 桌面更新 feed                                        | GitHub Releases                                 | 无，除非构建时设置 `T3CODE_DESKTOP_UPDATE_REPOSITORY`                       |
 | 移动端 OTA                                           | 官方 EAS 项目                                   | 无，除非设置 `T3EXTEND_EAS_PROJECT_ID` 和 `T3CODE_MOBILE_UPDATES_ENABLED=1` |
 | telemetry                                            | 默认开                                          | 默认关，`T3CODE_TELEMETRY_ENABLED=true` 才上报                              |
@@ -48,7 +48,7 @@ Tailscale 的默认端口走 `FORK.tailscaleServePort`：`packages/tailscale` �
 - 桌面版写的是 `~/.t3extend/bin/t3x`，以及 PATH 上的 `t3x` 软链接，不会碰官方的 `~/.t3/bin/t3`、`/opt/homebrew/bin/t3`。
 - fork 不会被官方更新覆盖：
   - 桌面构建只认显式设置的 `T3CODE_DESKTOP_UPDATE_REPOSITORY`，不会从 CI 的 `GITHUB_REPOSITORY` 推断 feed。没有 feed 时不生成 `app-update.yml`，菜单里也没有 "Check for Updates..."。
-  - server 自更新（`t3x update`、客户端的 "Update everything"、`t3x service install`）从 `SimpleEve/t3-extend` 查询和下载。这个仓库目前没有发布归档，请求在查询 release 或下载 `SHA256SUMS` 时就会 404。已经装好的运行时（带 sentinel 的版本目录）不会被删除或替换，`apps/server/src/cloud/pinnedRuntime.test.ts` 有对应用例。唯一的例外是目标版本目录里上次没下载完的残留：上游逻辑会在下载前先清掉它。
+  - server 自更新（`t3x update`、客户端的 "Update everything"、`t3x service install`）只从 `SimpleEve/t3-extend` 查询和下载，不会换成官方 T3 Code。查询时取 Releases 列表里第一个非草稿、形如 `vX.Y.Z` 的 release（`newestCliReleaseVersion`），所以发布的 tag 必须只增不减，规则见“打包与签名”。已经装好的运行时（带 sentinel 的版本目录）不会被删除或替换，`apps/server/src/cloud/pinnedRuntime.test.ts` 有对应用例。唯一的例外是目标版本目录里上次没下载完的残留：上游逻辑会在下载前先清掉它。
   - 移动端默认关闭 OTA，也不带官方 EAS 的 `projectId` 和 `owner`。
 - 配对链接两种都认：fork 客户端能扫官方 server 的二维码（`t3code://pair`），fork 生成的链接是 `t3extend://pair`。
   mobile 把 `pair` 当作 `connections/new` 的别名（`apps/mobile/src/Stack.tsx`），系统相机扫码直接进添加环境页。上游只在 `__DEV__` 下用链接里的 `pairingUrl` 预填表单，release 包会打开空表单。
@@ -58,9 +58,9 @@ Tailscale 的默认端口走 `FORK.tailscaleServePort`：`packages/tailscale` �
 
 - SSH 远程主机默认装的是同版本的官方 server 归档（`OFFICIAL_CLI_RELEASE_DOWNLOAD_URL`），不影响本机的 fork。
 - 没有官方 `.env`，所以 T3 Connect、guest link、passkey 默认都不可用；Android 的移动推送改走自建的 UnifiedPush，见下文。Clerk 回跳绑定的是官方 scheme，即使自己提供 `.env`，Connect 登录也可能失败。
-- 非桌面版的 `t3x service install`（npm 等）同样需要下载 server 归档，在 fork 发布自己的归档之前会失败，可以用 `T3CODE_RELEASE_BASE_URL` 指向自己的发布镜像。macOS 打包版从 app 自带的 `t3x` 运行时不下载，见"后台运行（桌面版）"。
+- 非桌面版的 `t3x service install`（安装脚本、npm 等）下载的是 fork 自己的 release 归档，安装脚本装过的版本会被直接复用；可以用 `T3CODE_RELEASE_BASE_URL` 指向自己的发布镜像。macOS 打包版从 app 自带的 `t3x` 运行时不下载，见"后台运行（桌面版）"。
 - Linux 打包身份（`executableName`、`StartupWMClass`、metainfo、`.desktop` 名称）还没有改，fork 的 deb / AppImage 会和官方包冲突。不要在同一台 Linux 机器上同时安装两者。
-- `scripts/install.sh`、`scripts/install.ps1`、`scripts/npm-launcher/` 是官方的安装器，默认把官方 `t3` 装进 `~/.t3`。只有上游的 release workflow 会用到它们，而这个 workflow 限定在 `pingdotgg/t3code` 仓库运行。fork 不要用它们安装。
+- `scripts/install.sh`、`scripts/install.ps1`、`scripts/npm-launcher/` 是官方的安装器，默认把官方 `t3` 装进 `~/.t3`。只有上游的 release workflow 会用到它们，而这个 workflow 限定在 `pingdotgg/t3code` 仓库运行。fork 不要用它们安装；没有桌面版的机器用 fork 自己的 `scripts/install-t3x.sh`（见“打包与签名”）。
 - 远程 model manifest 仍然读上游的 `raw.githubusercontent.com/pingdotgg/t3code`，它是只读数据。
 
 ## 两个应用同机运行时仍然共用的东西
@@ -220,7 +220,7 @@ macOS 打包版的设置 > 维护 > "后台运行" 有一个开关"在后台保�
 - plist 的 ProgramArguments 是 `[<app 可执行文件>, <asar 里的 bin.mjs>, "__service-launcher"]`（原来是 `[<T3 home>/runtime/versions/<版本>/t3, "__service-launcher">]`），EnvironmentVariables 多了 `T3X_APP_SERVICE=1`（身份标记）、`ELECTRON_RUN_AS_NODE=1`、`T3X_FRPC_PATH`（`Contents/Resources/bin/frpc`，取 shim 导出的值）和 `T3X_APP_RUNTIME_VERSION`（装它的 app 版本）；PATH 里不再放 app 的 `Contents/MacOS`。`BootServicePlan.environment` 只有 plist 渲染它，systemd 和计划任务不渲染，因为 app 模式只在 macOS 出现。
 - `install` 跳过 `ensurePinnedRuntimeInstalled`（不访问 GitHub、不建 `runtime/versions`），其余照旧：先停、写 `service-state.json` 和 plist、`launchctl enable` 加 `bootstrap`、失败回滚。安装前先对 `.app`、可执行文件和 `app.asar` 做 realpath（`appRuntimeLocationProblem`），再判断：真实路径在磁盘映像（`/Volumes/`）或 App Translocation 下（`transient`），或可执行文件、asar 是指向别处的链接（`mismatch`），都拒绝（`BootServiceAppLocationError`）。所以 `/Applications/Foo.app` 本身是指向这些位置的符号链接也绕不过去；路径不存在（realpath 失败）时按原文判断。
 - launcher（`serviceLauncher.ts`，三处 `// fork:`）：自己也是这个 app 进程，所以子进程用 `<execPath> <argv[1]> serve`，环境从 plist 继承。`runtimeExists` 在 app 模式只认"版本等于 `T3X_APP_RUNTIME_VERSION` 且可执行文件在"，所以旧 state 或被换掉的 app 会得到原来的 "runtime is missing or incomplete" 而不是启动错的版本。
-- 更新交接和 prune：app 模式不会产生 `versions/` 里的目录，prune 只处理那里，碰不到 app。plist 里的 program 不匹配 `repointServiceUnit` 的正则，原样保留。app 升级后 state 的 `activeVersion` 与 app 版本不一致，`status` 变成"需要修复"，设置里的"修复"重新 install 即可；`t3x update` 对这种服务仍会尝试下载并因仓库没有发布归档而失败，与上面一致。没有做自动修复。
+- 更新交接和 prune：app 模式不会产生 `versions/` 里的目录，prune 只处理那里，碰不到 app。plist 里的 program 不匹配 `repointServiceUnit` 的正则，原样保留。app 升级后 state 的 `activeVersion` 与 app 版本不一致，`status` 变成"需要修复"，设置里的"修复"重新 install 即可；`t3x update` 对这种服务会去 Releases 下载对应版本的归档（app 版本和 CLI 归档版本相同，同一个 tag 发布）。没有做自动修复。
 - `status`：新增 `app-runtime-missing`（app 被移动或删除；修复办法是放回原处，或从新位置打开 app 后把开关关掉再打开），macOS 上多一个 `running`（`launchctl print` 里 `state = running`）。`t3x service status --json` 输出整份状态，桌面开关读它。
 
 **桌面 app 和服务的关系：交替持有，不连接服务。** 同一个 `~/.t3extend` 只能有一个 server（`server-owner.sqlite` 独占锁）。上游遇到服务占着 home 时只弹窗然后退出，没有"连到已有服务"的机制；要做就得让 app 去认证一个没有它那份随机 bootstrap secret 的服务，而且 app 自己的后端还通过私有管道带着 in-app 浏览器、遥测、原生选择器这些只属于桌面的通道，launchd 起的 server 没有这根管道，连过去会悄悄丢功能。所以：启动时（`startLocalBackend` 里，检查 home 归属之前）`pauseForApp` 对**自己的**服务执行 `launchctl bootout --wait` 让它退出并释放锁，再走原有流程起 app 自己的后端。bootout 之后再 `launchctl print` 确认确实卸载了：没卸掉（`failed`）就不等 ownership 的宽限（`BACKEND_QUIT_STOP_TIMEOUT` 7 秒加 3 秒，共约 10 秒），直接弹出"后台服务没能停下"并退出，提示 `t3x service uninstall`，不会起第二个后端；退出时（`scopedProgram` 的 finalizer 里，所有后端停掉之后、`markComplete` 之前）`resumeAfterApp`：服务还在 launchd 里就 `kickstart -k`，不在就 `enable` 加 `bootstrap`，然后 `launchctl print` 确认已加载，没加载就再试一次（只一次）；整个交接有 8 秒总期限（`RESUME_DEADLINE`，单条 `launchctl` 最多 3 秒），超时就放弃，不拖住 Cmd+Q。试了两次都不行或超时，把时间和原因写进 `<T3 home>/runtime/background-service-resume-failed.json`（写到同目录临时文件、`chmod 600` 再 rename 过去，所以不会跟着符号链接写出去，也不会沿用已有文件的宽松权限），下次启动 `getState` 读到它：设置行显示"上次退出时后台服务没能启动：原因"并给"重试"（就是重新 install，成功后清掉记录），`BackgroundServiceReporter` 同时弹一条错误 toast；卸载服务或服务本来就没装时也清掉记录。服务的 server 立刻拿到锁，不必等 launcher 每 30 秒一次的轮询。开关打开时 install 之后立刻 `pauseForApp`，因为此刻 app 正占着 home。app 崩溃或被强杀不会执行退出那一步，服务停到下一次 app 退出或重新登录（plist 有 RunAtLoad），用户文档里写了。"自己的"服务由 `ownedService` 判定：交给 macOS 的 `/usr/bin/plutil -convert json -o -` 解析 plist（选它而不是自己写解析或加依赖：系统自带、认所有 plist 编码、拒绝损坏文件，零新增依赖），再严格检查类型：ProgramArguments 必须是三个字符串且最后一个是 `__service-launcher`，EnvironmentVariables 里 `T3X_APP_SERVICE` 是字符串 `"1"`、`T3CODE_HOME` 是非空字符串。plutil 会把重复的键悄悄合并、也看不见注释，所以读取的三个键还要在原文里各数一遍，必须恰好一次，多了（含注释里的）一律当"不是自己的"。解析失败、类型不对、键重复同样如此。通过后比较可执行文件、entry、`T3CODE_HOME` 是否等于当前 app 和当前 home：先对整条路径 realpath（失败再退回只解析 `.app`），再统一去掉重复和结尾斜杠、`.` 和 `..` 段并忽略大小写（macOS 的卷默认大小写不敏感；代价是大小写敏感卷上只差大小写的两个 app 会被当成一个，不值得为此放宽所有人的匹配）。用同一个 app 给别的 `--base-dir` 装的服务、另一份 app 拷贝装的服务、手写的只带 `ELECTRON_RUN_AS_NODE` 的 npm plist，启动和退出时都不碰；`DesktopBackgroundService.test.ts` 逐个有用例。
@@ -573,6 +573,48 @@ A 的桌面版打开远程环境 B 的对话时，B 的 T3 终端或 agent 起�
 
 ## 打包与签名
 
+### 发布（GitHub Actions）
+
+正式的安装包都由 `.github/workflows/fork-release.yml` 在 GitHub 托管的 runner 上构建，发布到 `SimpleEve/t3-extend` 的 Releases。本机两条命令（下一节）还在，用来本地验证或应急。
+
+**发一个版本**：确认 main 是要发的提交，然后
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+workflow 先构建所有产物，全部传上去之后才把 release 从草稿改成正式发布并标为 latest。产物：
+
+| 产物                                                 | runner             | 说明                                                                                       |
+| ---------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------ |
+| `t3-<版本>-darwin-arm64.tar.gz`                      | `macos-15`         | `t3x` 命令行，ad hoc 签名                                                                  |
+| `t3-<版本>-linux-x64.tar.gz`                         | `ubuntu-24.04`     | 同上                                                                                       |
+| `t3-<版本>-linux-arm64.tar.gz`                       | `ubuntu-24.04-arm` | 同上                                                                                       |
+| `SHA256SUMS`                                         | release 任务       | 只含上面三个归档，格式 `<sha256>  <文件名>`                                                |
+| `T3-Extend-<版本>-arm64.dmg`（附 `.sha256`）         | `macos-15`         | `fork-dist-mac.ts` 的流程，用 fork 自己的自签名身份签名                                    |
+| `T3-Extend-<应用版本>-arm64-v8a.apk`（附 `.sha256`） | `ubuntu-24.04`     | `fork-build-android-release.ts` 的流程；文件名里是移动端应用版本（现在是 2.3.0），不是 tag |
+
+每个 CLI 归档在构建它的那台 runner 上跑 `smoke-cli-archive.ts`（`--expect-version`）。DMG 构建后 workflow 再挂载一次，检查 app 的 designated requirement 含 `certificate root = H"491ecedb…8978"`（`EXPECTED_MAC_CERT_SHA1`）：换了证书的包会让用户重新授权钥匙串，所以不匹配就失败。
+
+**tag 和版本规则**（以自更新的版本比较为准）：`t3x update` 和服务的更新都靠 `newestCliReleaseVersion`：列出 `releases`（按创建时间倒序），跳过草稿，取**第一个**形如 `v<semver>` 且渠道相同的 tag，不比较大小。`-nightly.` 和 `-preview.` 后缀是另外的渠道，升级会拒绝跨渠道。所以：
+
+- 正式 tag 只能是 `vX.Y.Z`，并且必须比已发布的所有 tag 都大，否则后建的旧版本会被当成最新。`scripts/fork-release-version.ts` 在 workflow 开头检查，不合规就失败（`fork-release-version.test.ts` 有用例，包括用 `newestCliReleaseVersion` 对一遍）。
+- 测试用 `vX.Y.Z-ci.N`（tag 推送）或手动运行（`workflow_dispatch`，版本只接受 `-ci.N`，默认 `0.0.0-ci.<运行编号>`）。它们发布成**草稿加 prerelease**，永远不会公开，`t3x update` 看不到。手动运行不能发布正式版本。注意：`workflow_dispatch` 要求 workflow 文件在默认分支上，所以在开发分支上验证只能推测试 tag。
+- 版本号就是 tag 去掉 `v`。构建前 `update-release-package-versions.ts` 把 server、web、desktop、contracts 的 `package.json` 改成它，所以 CLI 的 `--version`、DMG 的 `CFBundleShortVersionString` 和 tag 一致。
+- 重跑同一个 tag：未发布的草稿会被删掉重建，已发布的 release 不会被改动，直接报错。要重发就升版本号。
+
+**Secrets**（仓库 Secrets，只在 workflow 里通过 `secrets.*` 引用，不进日志）：`T3EXTEND_MAC_CERT_P12_BASE64`、`T3EXTEND_MAC_CERT_P12_PASSWORD`（只含 `T3 Extend Code Signing` 这一个身份的 p12，每次导入临时钥匙串，任务结束删除）、`T3EXTEND_ANDROID_KEYSTORE_BASE64`、`T3EXTEND_ANDROID_KEYSTORE_PASSWORD`（release keystore，PKCS12，store 和 key 同一个密码，alias 是脚本默认的 `t3extend`）。Android 脚本读到环境变量 `T3EXTEND_ANDROID_KEYSTORE_PASSWORD` 就用它，没有才去 macOS Keychain 取（`scripts/lib/fork-android-signing.ts`），本机用法不变。
+
+**没装桌面版的机器**用 `scripts/install-t3x.sh` 装 `t3x`（上游的 `install.sh` 一行不改）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/SimpleEve/t3-extend/main/scripts/install-t3x.sh | sh
+```
+
+它下载当前平台的归档，按 `SHA256SUMS` 校验，解到 `$T3X_HOME/runtime/versions/<版本>/`（`T3X_HOME` 默认 `~/.t3extend`，和 `t3x service install`、`t3x update` 同一个布局，有 `.install-complete` 哨兵），在 `$T3X_INSTALL_BIN_DIR`（默认 `~/.local/bin`）写一个叫 `t3x` 的启动脚本，并把它记进 `runtime/launchers`——`t3x update` 找启动器时只按名字 `t3` 找 PATH，靠这份记录才认得 `t3x`，所以记录不能省。环境变量刻意不用 `T3CODE_*`：用户为官方应用导出的 `T3CODE_HOME` 不能把它带到官方的目录里去。`T3X_HOME` 等于或指向 `~/.t3` 时拒绝；已有的 `t3x` 只有是这个 home 自己的启动脚本才会被替换。`T3X_VERSION`、`T3X_RELEASE_BASE_URL`、`T3X_LATEST_URL` 供测试和镜像使用。`install-t3x.test.ts` 用本地 HTTP 夹具跑真实脚本。
+
+### 本机打包
+
 两条命令，都可以直接重跑：
 
 ```bash
@@ -679,7 +721,7 @@ vp run check:changed
 vp run fork:selfhost:e2e # 需要 Docker；隧道监听口靠改写 Host、X-Forwarded-Proto、X-Forwarded-For 工作，上游改请求 URL 的读法时靠它兜底
 ```
 
-GitHub Actions 在这个仓库里是关着的：`SimpleEve/t3-extend` 从 2026-11-18 建仓库起就在 Settings → Actions → General 里整体关闭了 Actions。从上游同步过来的 workflow 在这个 fork 里都用不上：`ci.yml` 指定的是上游的 `blacksmith-*` 付费 runner，每次推送都会排队、24 小时后才被自动取消；部署和发布类的 workflow 都带 `github.repository == 'pingdotgg/t3code'` 守卫，在这里只会被跳过；其余几个是管理上游公开仓库 issue 和 PR 的。fork 的安装包都在本机打（`fork:dist:mac`、`fork:dist:android`）。workflow 文件保持和上游一致，不删也不改，否则每次同步都会冲突；上游以后新增的 workflow 也会被这个开关一起挡住。私有仓库在免费套餐下用不了分支保护，所以关掉 CI 不影响合并。要重新打开：`gh api -X PUT repos/SimpleEve/t3-extend/actions/permissions -F enabled=true -f allowed_actions=all`，或者在网页设置里打开；打开后上游那批 workflow 会立刻恢复触发。要给 fork 加自己的 CI，先用 `gh workflow disable` 逐个关掉用不上的。
+GitHub Actions 在这个仓库里是开着的，但上游的 27 个 workflow 都在 GitHub 上单独 disable 了（`gh workflow disable`），只有 `fork-release.yml` 启用：`ci.yml` 指定的是上游的 `blacksmith-*` 付费 runner，每次推送都会排队；部署和发布类的 workflow 带 `github.repository == 'pingdotgg/t3code'` 守卫；其余几个是管理上游公开仓库 issue 和 PR 的。workflow 文件保持和上游一致，不删也不改，否则每次同步都会冲突。disable 是 GitHub 上的状态，不在文件里：上游同步过来的**新** workflow 默认是启用的，每次同步后跑 `gh workflow list --repo SimpleEve/t3-extend --all`，把新出现的上游 workflow 逐个 `gh workflow disable <文件名>`。`fork-release.yml` 自己的每个 job 都带 `github.repository == 'SimpleEve/t3-extend'`。私有仓库在免费套餐下用不了分支保护，本仓库没有 required checks，合并不依赖 CI。
 
 最近一次同步到上游 `55c134a346`（合并基点 `b9bbfda087`，423 个 commit，69 个冲突文件：68 个文本冲突，1 个删除冲突，是 fork 删除、上游改过的 `SettingsLanguageRouteScreen.tsx`；上一次是 `b9bbfda087`，基点 `6417151c09`，1928 个 commit，328 个冲突文件）。累计下来的取舍，下次遇到同类冲突照做：
 
