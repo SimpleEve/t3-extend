@@ -1429,7 +1429,13 @@ interface PendingCodexSubagentTurnStarted {
   readonly startedAt: DateTime.Utc;
 }
 
-type PendingCodexRuntimeRequest =
+// fork: the artifacts let the native turn's end close a card nobody answered.
+type PendingCodexRuntimeRequest = {
+  readonly nativeTurnId: string;
+  readonly node: OrchestrationV2ExecutionNode;
+  readonly runtimeRequest: OrchestrationV2RuntimeRequest;
+  readonly turnItem: OrchestrationV2TurnItem;
+} & (
   | {
       readonly type: "approval";
       readonly requestKind: ProviderRequestKind;
@@ -1438,7 +1444,22 @@ type PendingCodexRuntimeRequest =
   | {
       readonly type: "user_input";
       readonly answers: Deferred.Deferred<ProviderUserInputAnswers, never>;
-    };
+    }
+);
+
+const pendingRequestRecord = (
+  context: { readonly nativeTurnId: string },
+  artifacts: {
+    readonly node: OrchestrationV2ExecutionNode;
+    readonly request: OrchestrationV2RuntimeRequest;
+    readonly turnItem: OrchestrationV2TurnItem;
+  },
+) => ({
+  nativeTurnId: context.nativeTurnId,
+  node: artifacts.node,
+  runtimeRequest: artifacts.request,
+  turnItem: artifacts.turnItem,
+});
 
 type CodexWebSearchItem = {
   readonly id: string;
@@ -5884,6 +5905,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             yield* Ref.update(pendingRuntimeRequests, (current) => {
               const updated = new Map(current);
               updated.set(String(artifacts.request.id), {
+                ...pendingRequestRecord(context, artifacts),
                 type: "approval",
                 requestKind: "command",
                 decision,
@@ -5956,6 +5978,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             yield* Ref.update(pendingRuntimeRequests, (current) => {
               const updated = new Map(current);
               updated.set(String(artifacts.request.id), {
+                ...pendingRequestRecord(context, artifacts),
                 type: "approval",
                 requestKind: "file-change",
                 decision,
@@ -6019,6 +6042,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             yield* Ref.update(pendingRuntimeRequests, (current) => {
               const updated = new Map(current);
               updated.set(String(artifacts.request.id), {
+                ...pendingRequestRecord(context, artifacts),
                 type: "approval",
                 requestKind,
                 decision,
@@ -6106,6 +6130,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             yield* Ref.update(pendingRuntimeRequests, (current) => {
               const updated = new Map(current);
               updated.set(String(artifacts.request.id), {
+                ...pendingRequestRecord(context, artifacts),
                 type: "approval",
                 requestKind: "mcp-elicitation",
                 decision,
@@ -6170,6 +6195,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             yield* Ref.update(pendingRuntimeRequests, (current) => {
               const updated = new Map(current);
               updated.set(String(artifacts.request.id), {
+                ...pendingRequestRecord(context, artifacts),
                 type: "approval",
                 requestKind: "command",
                 decision,
@@ -6238,6 +6264,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             yield* Ref.update(pendingRuntimeRequests, (current) => {
               const updated = new Map(current);
               updated.set(String(artifacts.request.id), {
+                ...pendingRequestRecord(context, artifacts),
                 type: "approval",
                 requestKind: "file-change",
                 decision,
@@ -6299,6 +6326,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             yield* Ref.update(pendingRuntimeRequests, (current) => {
               const updated = new Map(current);
               updated.set(String(artifacts.request.id), {
+                ...pendingRequestRecord(context, artifacts),
                 type: "user_input",
                 answers,
               });
@@ -6741,6 +6769,58 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           },
         );
 
+        // fork: Codex drops a turn's unanswered requests when it ends; a late answer reaches nothing.
+        const cancelPendingRuntimeRequests = Effect.fn(
+          "CodexAdapterV2.cancelPendingRuntimeRequests",
+        )(function* (nativeTurnId: string, cancelledAt: DateTime.Utc) {
+          const requests = yield* Ref.modify(pendingRuntimeRequests, (current) => {
+            const ended: Array<PendingCodexRuntimeRequest> = [];
+            const remaining = new Map<string, PendingCodexRuntimeRequest>();
+            for (const [id, request] of current) {
+              if (request.nativeTurnId === nativeTurnId) ended.push(request);
+              else remaining.set(id, request);
+            }
+            return [ended, remaining] as const;
+          });
+          yield* Effect.forEach(
+            requests,
+            (request) =>
+              Effect.gen(function* () {
+                const settled = yield* request.type === "approval"
+                  ? Deferred.succeed(request.decision, "cancel")
+                  : Deferred.succeed(request.answers, {});
+                // False: the user answered first and the answer's own events close the card.
+                if (!settled) return;
+                yield* emitProviderEvent({
+                  type: "runtime_request.updated",
+                  driver: CODEX_PROVIDER,
+                  threadId: request.node.threadId,
+                  runtimeRequest: {
+                    ...request.runtimeRequest,
+                    status: "cancelled",
+                    resolvedAt: cancelledAt,
+                  },
+                });
+                yield* emitProviderEvent({
+                  type: "node.updated",
+                  driver: CODEX_PROVIDER,
+                  node: { ...request.node, status: "cancelled", completedAt: cancelledAt },
+                });
+                yield* emitProviderEvent({
+                  type: "turn_item.updated",
+                  driver: CODEX_PROVIDER,
+                  turnItem: {
+                    ...request.turnItem,
+                    status: "cancelled",
+                    completedAt: cancelledAt,
+                    updatedAt: cancelledAt,
+                  },
+                });
+              }),
+            { concurrency: 1, discard: true },
+          );
+        });
+
         const finalizeCodexTurn = (input: {
           readonly context: ActiveCodexTurnContext;
           readonly nativeTurnId: string;
@@ -6975,6 +7055,8 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                   });
                 }
               }
+              // fork: Stop, failure, or Codex ending the turn must not leave the approval card up.
+              yield* cancelPendingRuntimeRequests(input.nativeTurnId, input.completedAt);
               if (input.status === "interrupted" || input.status === "failed") {
                 yield* terminalizeRunningCommandItems(
                   input.context,

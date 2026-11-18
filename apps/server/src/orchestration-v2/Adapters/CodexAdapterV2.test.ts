@@ -2958,6 +2958,149 @@ describe("CodexAdapterV2 post-settle continuation", () => {
     ),
   );
 
+  it.effect.each([
+    {
+      name: "command approval",
+      request: {
+        method: "item/commandExecution/requestApproval",
+        params: { itemId: "stop-pending-item", startedAtMs: 1782622441000, command: "echo hi" },
+      },
+      response: { decision: "cancel" },
+    },
+    {
+      name: "question",
+      request: {
+        method: "item/tool/requestUserInput",
+        params: {
+          itemId: "stop-pending-item",
+          isBlocking: true,
+          questions: [
+            {
+              id: "choice",
+              header: "Choice",
+              question: "Which option?",
+              options: [{ label: "A", description: "Option A" }],
+            },
+          ],
+        },
+      },
+      response: { answers: {} },
+    },
+  ] as const)("Stop cancels a pending Codex $name with its turn", ({ request, response }) =>
+    Effect.gen(function* () {
+      const nativeThreadId = "stop-pending-thread";
+      const nativeTurnId = "stop-pending-turn";
+      const transcript = makeCodexReplayTranscript({
+        scenario: "codex-stop-pending-request",
+        entries: [
+          ...codexReplayPreamble({ nativeThreadId, nativeTurnId, prompt: "Run it." }),
+          {
+            type: "emit_inbound",
+            label: "request",
+            frame: {
+              id: 100,
+              method: request.method,
+              params: { threadId: nativeThreadId, turnId: nativeTurnId, ...request.params },
+            },
+          },
+          {
+            type: "expect_outbound",
+            label: "turn/interrupt",
+            frame: {
+              id: 4,
+              method: "turn/interrupt",
+              params: { threadId: nativeThreadId, turnId: nativeTurnId },
+            },
+          },
+          { type: "emit_inbound", label: "turn/interrupt", frame: { id: 4, result: {} } },
+          {
+            type: "emit_inbound",
+            label: "turn/completed",
+            frame: {
+              method: "turn/completed",
+              params: {
+                threadId: nativeThreadId,
+                turn: makeCodexReplayTurn({ id: nativeTurnId, status: "interrupted" }),
+              },
+            },
+          },
+          { type: "expect_outbound", label: "answer", frame: { id: 100, result: response } },
+        ],
+      });
+      const harness = yield* makeCodexReplayHarness(transcript);
+      yield* harness.runtime.startTurn(
+        makeCodexTestTurnInput({
+          threadId: harness.threadId,
+          providerThread: harness.providerThread,
+          now: yield* DateTime.now,
+          attemptId: RunAttemptId.make("stop-pending-attempt"),
+          text: "Run it.",
+        }),
+      );
+      const requestUpdates = () =>
+        harness.events.flatMap((event) =>
+          event.type === "runtime_request.updated" ? [event.runtimeRequest] : [],
+        );
+      yield* harness.until(() => requestUpdates().length > 0);
+      const requestId = requestUpdates()[0]!.id;
+      const providerTurnId = (yield* IdAllocator.IdAllocatorV2).derive.providerTurn({
+        driver: CodexAdapterV2.CODEX_DRIVER_KIND,
+        nativeTurnId,
+      });
+      yield* harness.runtime.interruptTurn({
+        providerThread: harness.providerThread,
+        providerTurnId,
+      });
+      yield* harness.firstTerminal;
+
+      const cancelledAt = harness.events.findIndex(
+        (event) =>
+          event.type === "runtime_request.updated" && event.runtimeRequest.status === "cancelled",
+      );
+      assert.isAtLeast(cancelledAt, 0, "Stop must cancel the pending request");
+      assert.isBelow(
+        cancelledAt,
+        harness.events.findIndex((event) => event.type === "turn.terminal"),
+        "the card closes before the run ends",
+      );
+      const cancelled = harness.events[cancelledAt];
+      assert.equal(
+        cancelled?.type === "runtime_request.updated" && cancelled.runtimeRequest.id,
+        requestId,
+      );
+      const closedNode = harness.events.find(
+        (event) =>
+          event.type === "node.updated" &&
+          event.node.runtimeRequestId === requestId &&
+          event.node.status === "cancelled",
+      );
+      const closedItem = harness.events.find(
+        (event) =>
+          event.type === "turn_item.updated" &&
+          (event.turnItem.type === "approval_request" ||
+            event.turnItem.type === "user_input_request") &&
+          event.turnItem.requestId === requestId &&
+          event.turnItem.status === "cancelled",
+      );
+      assert.isDefined(closedNode);
+      assert.isDefined(closedItem);
+      const late = yield* harness.runtime
+        .respondToRuntimeRequest({ requestId, decision: "accept" })
+        .pipe(Effect.flip);
+      assert.equal(late._tag, "ProviderAdapterRuntimeRequestResponseError");
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        Layer.mergeAll(
+          IdAllocator.layer,
+          McpProviderSessions.layer,
+          NodeServices.layer,
+          NodeCrypto.layer,
+        ),
+      ),
+    ),
+  );
+
   it.effect("records the model Codex reports on the root provider turn", () =>
     Effect.gen(function* () {
       const nativeThreadId = "reported-model-thread";
@@ -3236,6 +3379,7 @@ describe("CodexAdapterV2 post-settle continuation", () => {
             decision: "acceptForSession",
           }),
           patchRequest!,
+          patchDecision!,
           ...approval({
             id: 101,
             turnId: turnIds[0]!,
@@ -3245,7 +3389,6 @@ describe("CodexAdapterV2 post-settle continuation", () => {
           }),
           turnEvent("turn/completed", turnIds[0]!),
           ...startTurn(1),
-          patchDecision!,
           turnEvent("turn/completed", turnIds[1]!),
           ...startTurn(2),
           ...approval({
@@ -3305,10 +3448,9 @@ describe("CodexAdapterV2 post-settle continuation", () => {
 
       yield* runTurn(0);
       yield* answer(1, "command", "acceptForSession");
-      yield* harness.until(() => requests().length === 2);
+      yield* answer(2, "file-change", "acceptForSession");
       yield* harness.awaitTerminal(1);
       yield* runTurn(1);
-      yield* answer(2, "file-change", "acceptForSession");
       yield* harness.awaitTerminal(2);
       yield* runTurn(2);
       yield* answer(3, "command", "accept");

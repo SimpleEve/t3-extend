@@ -355,6 +355,7 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 - 你的服务器，client-runtime：`connection/{catalog,model,resolver,driver,registry,routes}.ts`、`state/environmentHttpAuth.ts`、`authorization/service.ts`、`rpc/client.ts`；`apps/web/src/lib/runtime.ts` 和 `apps/mobile/src/lib/runtime.ts` 提供真实的 `DeviceKeyAuthorization`；`packages/{shared,client-runtime}/package.json` 加 exports。
 - 你的服务器，界面：`apps/web/src/components/{AppSidebarLayout,CommandPalette}.tsx`、`apps/web/src/components/settings/{ConnectionsSettings,settingsSearch}.ts(x)`；`apps/mobile/src/{App,Stack}.tsx`、`features/settings/{SettingsRouteScreen,components/settings-page-targets}.ts(x)`、`apps/mobile/vite.config.ts`。
 - Antigravity 后台命令续跑：见上面「Antigravity 后台命令续跑」一节。
+- Codex 适配器的请求清理：`apps/server/src/orchestration-v2/Adapters/CodexAdapterV2.ts` 的 `pendingRequestRecord`（七处注册点各一行）和 `cancelPendingRuntimeRequests`（`finalizeCodexTurn` 里调用）。轮次结束（Stop、失败、Codex 自己结束）时取消该轮没人回答的审批和提问，卡片和侧边栏的 Approval 徽标一起撤掉；上游不清，点 Approve 什么也不会发生。`codex-session-approvals` 用例的脚本相应改成在本轮结束前回答。
 
 ### 你的服务器怎么工作
 
