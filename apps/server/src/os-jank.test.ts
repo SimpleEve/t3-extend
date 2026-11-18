@@ -3,12 +3,14 @@ import { it as effectIt } from "@effect/vitest";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { CommandAvailability, WindowsShellEnvironment } from "@t3tools/shared/shell";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
+import * as Path from "effect/Path";
 // @effect-diagnostics-next-line nodeBuiltinImport:off -- Observe the existing synchronous shell probe without launching the user's login shell.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeOS from "node:os";
 import { assert, it, vi } from "vite-plus/test";
 
-import { fixPath, hydratePosixHome, refreshWindowsPath } from "./os-jank.ts";
+import { fixPath, hydratePosixHome, refreshWindowsPath, resolveBaseDir } from "./os-jank.ts";
 
 vi.mock("node:child_process", { spy: true });
 
@@ -220,4 +222,68 @@ effectIt.effect("adds a directory an installer wrote to the registry after launc
 
     assert.deepEqual(env, { PATH: `C:\\Tools;C:\\Windows;${installed}` });
   }),
+);
+
+// fork: T3 Extend never takes official T3 Code's home as its own.
+effectIt.effect("resolveBaseDir refuses official T3 Code's home however it is named", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const home = yield* fs.realPath(yield* fs.makeTempDirectoryScoped({ prefix: "t3x-home-" }));
+    const official = path.join(home, ".t3");
+    yield* fs.makeDirectory(path.join(official, "worktrees", "w", ".t3"), { recursive: true });
+    yield* fs.symlink(official, path.join(home, "link-to-official"));
+    yield* fs.symlink(official, path.join(home, ".t3extend"));
+    yield* fs.makeDirectory(path.join(home, "own"));
+    yield* fs.symlink(path.join(home, "own"), path.join(home, "link-to-own"));
+
+    const resolve = (raw: string | undefined, platform: NodeJS.Platform = "linux") =>
+      resolveBaseDir(raw).pipe(
+        Effect.provideService(HostProcess.HomeDirectory, home),
+        Effect.provideService(HostProcess.Platform, platform),
+      );
+    const refused = (raw: string | undefined, platform?: NodeJS.Platform) =>
+      resolve(raw, platform).pipe(
+        Effect.flip,
+        Effect.map((error) => ({ tag: error._tag, cause: String(error.cause) })),
+      );
+
+    for (const raw of [
+      official,
+      "~/.t3",
+      `${official}/`,
+      path.join(home, "x", "..", ".t3"),
+      path.join(home, "link-to-official"),
+      undefined, // the default home is a link to the official one
+    ]) {
+      const error = yield* refused(raw);
+      assert.equal(error.tag, "UserError", String(raw));
+      assert.include(error.cause, "T3 Code's data directory", String(raw));
+      assert.include(error.cause, "Unset T3CODE_HOME", String(raw));
+    }
+    assert.equal((yield* refused(path.join(home, ".T3"), "darwin")).tag, "UserError");
+    // Linux names are case-sensitive, so `.T3` is a different directory there.
+    assert.equal(yield* resolve(path.join(home, ".T3")), path.join(home, ".T3"));
+
+    for (const raw of [
+      path.join(home, "other"),
+      path.join(home, "link-to-own"),
+      path.join(home, ".t3-dev"),
+      path.join(official, "worktrees", "w", ".t3"),
+    ]) {
+      assert.equal(yield* resolve(raw), raw);
+    }
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+effectIt.effect("resolveBaseDir keeps ~/.t3extend as the default home", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const home = yield* fs.realPath(yield* fs.makeTempDirectoryScoped({ prefix: "t3x-home-" }));
+    const resolved = yield* resolveBaseDir(undefined).pipe(
+      Effect.provideService(HostProcess.HomeDirectory, home),
+    );
+    assert.equal(resolved, path.join(home, ".t3extend"));
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 );

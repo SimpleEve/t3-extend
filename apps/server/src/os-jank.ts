@@ -11,6 +11,7 @@ import {
   setWindowsPath,
   WindowsShellEnvironment,
 } from "@t3tools/shared/shell";
+import * as CliError from "effect/cli/CliError"; // fork: official home guard
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -22,7 +23,7 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 // @effect-diagnostics-next-line nodeBuiltinImport:off -- the shared login shell probe runs synchronously through execFileSync.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeOS from "node:os";
-import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { FORK, officialHomeDirectory, officialHomeRefusal } from "@t3tools/shared/forkIdentity"; // fork: identity
 
 function logPathHydrationWarning(message: string, error?: unknown): void {
   process.stderr.write(
@@ -246,10 +247,45 @@ export const expandHomePath = Effect.fn(function* (input: string) {
   return input;
 });
 
+// fork: T3 Extend never uses official T3 Code's T3 home as its own, however it was named.
+// A missing path is compared by its nearest real ancestor, so a link into the official home is
+// caught before anything creates it. Only the home itself is refused: a dev worktree's own
+// state directory legitimately sits below it.
+const refuseOfficialHome = Effect.fn("refuseOfficialHome")(function* (baseDir: string) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const platform = yield* HostProcess.Platform;
+  const official = officialHomeDirectory(yield* HostProcess.HomeDirectory, path.join);
+  const caseInsensitive = platform === "darwin" || platform === "win32";
+  const realLocation = (target: string): Effect.Effect<string> =>
+    fs.realPath(target).pipe(
+      Effect.catch(() => {
+        const parent = path.dirname(target);
+        return parent === target
+          ? Effect.succeed(target)
+          : Effect.map(realLocation(parent), (real) => path.join(real, path.basename(target)));
+      }),
+    );
+  const keys = Effect.fn("refuseOfficialHome.keys")(function* (target: string) {
+    const resolved = path.resolve(target);
+    return [resolved, yield* realLocation(resolved)].map((candidate) =>
+      caseInsensitive ? candidate.normalize("NFC").toLowerCase() : candidate,
+    );
+  });
+  const officialKeys = yield* keys(official);
+  if ((yield* keys(baseDir)).some((key) => officialKeys.includes(key))) {
+    return yield* new CliError.UserError({
+      cause: officialHomeRefusal(baseDir, official),
+    });
+  }
+});
+
 export const resolveBaseDir = Effect.fn(function* (raw: string | undefined) {
   const { join, resolve } = yield* Path.Path;
-  if (!raw || raw.trim().length === 0) {
-    return join(yield* HostProcess.HomeDirectory, FORK.homeDirName); // fork: own T3 home
-  }
-  return resolve(yield* expandHomePath(raw.trim()));
+  const baseDir =
+    !raw || raw.trim().length === 0
+      ? join(yield* HostProcess.HomeDirectory, FORK.homeDirName) // fork: own T3 home
+      : resolve(yield* expandHomePath(raw.trim()));
+  yield* refuseOfficialHome(baseDir); // fork: official home guard
+  return baseDir;
 });

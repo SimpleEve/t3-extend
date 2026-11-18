@@ -268,6 +268,49 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
     }),
   );
 
+  // fork: official T3 Code's home is refused before anything is created in it.
+  it.effect("refuses official T3 Code's home from the flag, T3CODE_HOME, and a link", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      for (const source of ["flag", "T3CODE_HOME", "link"] as const) {
+        const home = yield* fs.realPath(
+          yield* fs.makeTempDirectoryScoped({ prefix: "t3-cli-official-home-" }),
+        );
+        const official = path.join(home, ".t3");
+        yield* fs.makeDirectory(official);
+        const linked = path.join(home, "linked");
+        yield* fs.symlink(official, linked);
+        const baseDir = source === "link" ? linked : official;
+        const error = yield* resolveServerConfig(
+          {
+            ...minimalWebFlags(baseDir),
+            baseDir: source === "T3CODE_HOME" ? Option.none() : Option.some(baseDir),
+            cwd: Option.some(path.join(home, "project")),
+          },
+          Option.none(),
+        ).pipe(
+          Effect.provide(
+            Layer.merge(
+              NetService.layer,
+              ConfigProvider.layer(
+                ConfigProvider.fromEnv({
+                  env: source === "T3CODE_HOME" ? { T3CODE_HOME: baseDir } : {},
+                }),
+              ),
+            ),
+          ),
+          Effect.provideService(HostProcess.HomeDirectory, home),
+          Effect.provideService(HostProcess.Platform, "linux"),
+          Effect.flip,
+        );
+        expect(String(error)).toContain("T3 Code's data directory");
+        assert.deepEqual(yield* fs.readDirectory(official), [], source);
+        assert.isFalse(yield* fs.exists(path.join(home, "project")), source);
+      }
+    }),
+  );
+
   it.effect("enables a trimmed reusable auth token only for web dev mode", () =>
     Effect.gen(function* () {
       const baseDir = yield* FileSystem.FileSystem.pipe(
