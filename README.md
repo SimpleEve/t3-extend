@@ -31,11 +31,19 @@ For the full list of features, the reasons behind these choices, and the sync hi
 
 ## Install
 
-T3 Extend does not publish installers yet. You need to build it from source:
+Download from the [Releases](https://github.com/SimpleEve/t3-extend/releases) page:
 
-- macOS (Apple silicon): run `vp run fork:dist:mac`. It produces `T3-Extend-<version>-arm64.dmg`. For install and first launch, see [install.md](./docs/user/install.md#t3-extend-on-macos).
-- Android: run `vp run fork:dist:android`. It produces an APK.
-- For the build environment and signing, see the packaging and signing section of [FORK.md](./FORK.md#打包与签名) (in Chinese). For the first checkout of the source, see the [development guide](./docs/operations/development.md#first-checkout).
+- macOS (Apple silicon): `T3-Extend-<version>-arm64.dmg`. For install and first launch, see [install.md](./docs/user/install.md#t3-extend-on-macos).
+- Android: `T3-Extend-<version>-arm64-v8a.apk`. See [install.md](./docs/user/install.md#mobile-app).
+- A computer without the desktop app (macOS on Apple silicon, Linux x64 or arm64) can install the `t3x` command with one line. It downloads the release archive, checks it against `SHA256SUMS`, and installs into `~/.t3extend`:
+
+  ```sh
+  curl -fsSL https://raw.githubusercontent.com/SimpleEve/t3-extend/main/scripts/install-t3x.sh | sh
+  ```
+
+  After that, `t3x update` keeps it current and `t3x service install` runs it in the background.
+
+To build from source instead, see the packaging and signing section of [FORK.md](./FORK.md#打包与签名) (in Chinese) and the [development guide](./docs/operations/development.md#first-checkout).
 
 The T3 Extend command is `t3x`. Its data directory is `~/.t3extend`, and its default port is 3873. Official T3 Code uses `t3`, `~/.t3`, and 3773, so the two do not conflict.
 

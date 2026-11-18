@@ -331,7 +331,8 @@ jobs:
       - name: Setup dependencies
         uses: ./.github/actions/setup-ci-deps
         with:
-          install-args: --filter=@t3tools/mobile...
+          # The build script lives in the scripts workspace and imports @t3tools/shared.
+          install-args: --filter=@t3tools/mobile... --filter=@t3tools/scripts...
 
       # JBR 21 is what FORK.md's local setup builds with.
       - name: Setup Java

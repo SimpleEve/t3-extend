@@ -31,11 +31,19 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的独立 fork。�
 
 ## 安装
 
-T3 Extend 目前没有发布安装包，需要从源码构建：
+到 [Releases](https://github.com/SimpleEve/t3-extend/releases) 页面下载：
 
-- macOS（Apple silicon）：`vp run fork:dist:mac`，生成 `T3-Extend-<version>-arm64.dmg`。安装和第一次启动的步骤见 [install.md](./docs/user/install.md#t3-extend-on-macos)。
-- Android：`vp run fork:dist:android`，生成 APK。
-- 构建环境和签名见 [FORK.md 的打包与签名](./FORK.md#打包与签名)，第一次检出源码的步骤见 [开发手册](./docs/operations/development.md#first-checkout)。
+- macOS（Apple silicon）：`T3-Extend-<version>-arm64.dmg`。安装和第一次启动的步骤见 [install.md](./docs/user/install.md#t3-extend-on-macos)。
+- Android：`T3-Extend-<version>-arm64-v8a.apk`，见 [install.md](./docs/user/install.md#mobile-app)。
+- 没装桌面版的电脑（Apple silicon 的 macOS，Linux x64 或 arm64）用一行命令装 `t3x`：它下载 release 归档，按 `SHA256SUMS` 校验，装进 `~/.t3extend`：
+
+  ```sh
+  curl -fsSL https://raw.githubusercontent.com/SimpleEve/t3-extend/main/scripts/install-t3x.sh | sh
+  ```
+
+  装好后，`t3x update` 负责更新，`t3x service install` 让它在后台运行。
+
+要自己从源码构建，见 [FORK.md 的打包与签名](./FORK.md#打包与签名)和 [开发手册](./docs/operations/development.md#first-checkout)。
 
 T3 Extend 的命令行叫 `t3x`，数据目录在 `~/.t3extend`，默认端口是 3873。官方 T3 Code 用的是 `t3`、`~/.t3` 和 3773，两边不冲突。
 
