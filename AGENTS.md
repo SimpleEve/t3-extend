@@ -1,4 +1,4 @@
-> **Fork note:** this is T3 Extend, a private fork of T3 Code that runs beside the official app. Read [FORK.md](FORK.md) first.
+> **Fork note:** this is T3 Extend, an independent fork of T3 Code that runs beside the official app. Read [FORK.md](FORK.md) first.
 > Fork identity lives in `packages/shared/src/forkIdentity.ts`; upstream lines it touches are marked `// fork:`, and `vp run fork:guard` must pass.
 > `~/.t3extend/userdata` is the fork's live database, and official T3 Code's `~/.t3/userdata` is live too; never write to either.
 > Develop only in linked worktrees; the main checkout is for merging and syncing upstream.

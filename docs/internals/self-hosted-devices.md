@@ -62,9 +62,9 @@ The VPS is the source of truth for the device list, and clients pin its identity
 the first time they join. Anyone who controls the registry (or the domain) can
 add a key of their own to the list, and HTTPS ends on the VPS, so it can also
 read traffic. The feature is for a server only the user controls. Three
-hardenings are deliberately not built yet; they are listed in `tasks/todo.md`
-under "以后再做的安全加固": computers terminating TLS themselves, a device list
-signed by the user's own devices, and non-exportable phone keys.
+hardenings are deliberately not built yet: computers terminating TLS
+themselves, a device list signed by the user's own devices, and
+non-exportable phone keys.
 
 What a session can do is bounded by scope, not by the operating system:
 

@@ -1,6 +1,6 @@
 # T3 Extend
 
-T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的私有二开 fork（`SimpleEve/t3-extend`）。它的 macOS 桌面版（开发版和打包版）、server / CLI 和 Android 应用，都可以和本机安装的官方 T3 Code 同时运行，互不改写对方的数据、命令、服务和更新。Linux 打包还没有隔离，见下文"例外和限制"。
+T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的二开 fork（`SimpleEve/t3-extend`）。它的 macOS 桌面版（开发版和打包版）、server / CLI 和 Android 应用，都可以和本机安装的官方 T3 Code 同时运行，互不改写对方的数据、命令、服务和更新。Linux 打包还没有隔离，见下文"例外和限制"。
 
 ## 身份
 
@@ -22,7 +22,7 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的私有二开 for
 | 跨仓库 PR 的本地分支                                 | `t3code/pr-<n>/…`                               | `t3x/pr-<n>/…`                                                              |
 | 拉取 PR 时备份被重置掉的提交的 ref                   | `refs/t3code/pre-refresh`                       | `refs/t3x/pre-refresh`                                                      |
 | review guide 的临时 base ref                         | `refs/t3/review-guide/<n>/base`                 | `refs/t3x/review-guide/<n>/base`                                            |
-| server 发布源                                        | `pingdotgg/t3code`                              | `SimpleEve/t3-extend`（私有，没有发布归档）                                 |
+| server 发布源                                        | `pingdotgg/t3code`                              | `SimpleEve/t3-extend`（目前没有发布归档）                                   |
 | 桌面更新 feed                                        | GitHub Releases                                 | 无，除非构建时设置 `T3CODE_DESKTOP_UPDATE_REPOSITORY`                       |
 | 移动端 OTA                                           | 官方 EAS 项目                                   | 无，除非设置 `T3EXTEND_EAS_PROJECT_ID` 和 `T3CODE_MOBILE_UPDATES_ENABLED=1` |
 | telemetry                                            | 默认开                                          | 默认关，`T3CODE_TELEMETRY_ENABLED=true` 才上报                              |
@@ -48,7 +48,7 @@ Tailscale 的默认端口走 `FORK.tailscaleServePort`：`packages/tailscale` �
 - 桌面版写的是 `~/.t3extend/bin/t3x`，以及 PATH 上的 `t3x` 软链接，不会碰官方的 `~/.t3/bin/t3`、`/opt/homebrew/bin/t3`。
 - fork 不会被官方更新覆盖：
   - 桌面构建只认显式设置的 `T3CODE_DESKTOP_UPDATE_REPOSITORY`，不会从 CI 的 `GITHUB_REPOSITORY` 推断 feed。没有 feed 时不生成 `app-update.yml`，菜单里也没有 "Check for Updates..."。
-  - server 自更新（`t3x update`、客户端的 "Update everything"、`t3x service install`）从 `SimpleEve/t3-extend` 查询和下载。这个仓库是私有的，没有发布归档，匿名请求在查询 release 或下载 `SHA256SUMS` 时就会 404。已经装好的运行时（带 sentinel 的版本目录）不会被删除或替换，`apps/server/src/cloud/pinnedRuntime.test.ts` 有对应用例。唯一的例外是目标版本目录里上次没下载完的残留：上游逻辑会在下载前先清掉它。
+  - server 自更新（`t3x update`、客户端的 "Update everything"、`t3x service install`）从 `SimpleEve/t3-extend` 查询和下载。这个仓库目前没有发布归档，请求在查询 release 或下载 `SHA256SUMS` 时就会 404。已经装好的运行时（带 sentinel 的版本目录）不会被删除或替换，`apps/server/src/cloud/pinnedRuntime.test.ts` 有对应用例。唯一的例外是目标版本目录里上次没下载完的残留：上游逻辑会在下载前先清掉它。
   - 移动端默认关闭 OTA，也不带官方 EAS 的 `projectId` 和 `owner`。
 - 配对链接两种都认：fork 客户端能扫官方 server 的二维码（`t3code://pair`），fork 生成的链接是 `t3extend://pair`。
   mobile 把 `pair` 当作 `connections/new` 的别名（`apps/mobile/src/Stack.tsx`），系统相机扫码直接进添加环境页。上游只在 `__DEV__` 下用链接里的 `pairingUrl` 预填表单，release 包会打开空表单。
@@ -90,7 +90,7 @@ Tailscale 的默认端口走 `FORK.tailscaleServePort`：`packages/tailscale` �
 
 ## 开发流程
 
-- 只在 linked worktree 里开发和测试。主 checkout（`~/projects/t3-extend`）只用来合并和同步上游。
+- 只在 linked worktree 里开发和测试。主 checkout 只用来合并和同步上游。
 - shell 里先把 vp 放进 PATH，不要 source `~/.config/vite-plus/env`：
 
   ```bash
@@ -217,7 +217,7 @@ macOS 打包版的设置 > 通用 > "后台运行" 有一个开关"在后台保�
 - plist 的 ProgramArguments 是 `[<app 可执行文件>, <asar 里的 bin.mjs>, "__service-launcher"]`（原来是 `[<T3 home>/runtime/versions/<版本>/t3, "__service-launcher">]`），EnvironmentVariables 多了 `T3X_APP_SERVICE=1`（身份标记）、`ELECTRON_RUN_AS_NODE=1`、`T3X_FRPC_PATH`（`Contents/Resources/bin/frpc`，取 shim 导出的值）和 `T3X_APP_RUNTIME_VERSION`（装它的 app 版本）；PATH 里不再放 app 的 `Contents/MacOS`。`BootServicePlan.environment` 只有 plist 渲染它，systemd 和计划任务不渲染，因为 app 模式只在 macOS 出现。
 - `install` 跳过 `ensurePinnedRuntimeInstalled`（不访问 GitHub、不建 `runtime/versions`），其余照旧：先停、写 `service-state.json` 和 plist、`launchctl enable` 加 `bootstrap`、失败回滚。安装前先对 `.app`、可执行文件和 `app.asar` 做 realpath（`appRuntimeLocationProblem`），再判断：真实路径在磁盘映像（`/Volumes/`）或 App Translocation 下（`transient`），或可执行文件、asar 是指向别处的链接（`mismatch`），都拒绝（`BootServiceAppLocationError`）。所以 `/Applications/Foo.app` 本身是指向这些位置的符号链接也绕不过去；路径不存在（realpath 失败）时按原文判断。
 - launcher（`serviceLauncher.ts`，三处 `// fork:`）：自己也是这个 app 进程，所以子进程用 `<execPath> <argv[1]> serve`，环境从 plist 继承。`runtimeExists` 在 app 模式只认"版本等于 `T3X_APP_RUNTIME_VERSION` 且可执行文件在"，所以旧 state 或被换掉的 app 会得到原来的 "runtime is missing or incomplete" 而不是启动错的版本。
-- 更新交接和 prune：app 模式不会产生 `versions/` 里的目录，prune 只处理那里，碰不到 app。plist 里的 program 不匹配 `repointServiceUnit` 的正则，原样保留。app 升级后 state 的 `activeVersion` 与 app 版本不一致，`status` 变成"需要修复"，设置里的"修复"重新 install 即可；`t3x update` 对这种服务仍会尝试下载并因私有仓库没有归档而失败，与上面一致。没有做自动修复。
+- 更新交接和 prune：app 模式不会产生 `versions/` 里的目录，prune 只处理那里，碰不到 app。plist 里的 program 不匹配 `repointServiceUnit` 的正则，原样保留。app 升级后 state 的 `activeVersion` 与 app 版本不一致，`status` 变成"需要修复"，设置里的"修复"重新 install 即可；`t3x update` 对这种服务仍会尝试下载并因仓库没有发布归档而失败，与上面一致。没有做自动修复。
 - `status`：新增 `app-runtime-missing`（app 被移动或删除；修复办法是放回原处，或从新位置打开 app 后把开关关掉再打开），macOS 上多一个 `running`（`launchctl print` 里 `state = running`）。`t3x service status --json` 输出整份状态，桌面开关读它。
 
 **桌面 app 和服务的关系：交替持有，不连接服务。** 同一个 `~/.t3extend` 只能有一个 server（`server-owner.sqlite` 独占锁）。上游遇到服务占着 home 时只弹窗然后退出，没有"连到已有服务"的机制；要做就得让 app 去认证一个没有它那份随机 bootstrap secret 的服务，而且 app 自己的后端还通过私有管道带着 in-app 浏览器、遥测、原生选择器这些只属于桌面的通道，launchd 起的 server 没有这根管道，连过去会悄悄丢功能。所以：启动时（`startLocalBackend` 里，检查 home 归属之前）`pauseForApp` 对**自己的**服务执行 `launchctl bootout --wait` 让它退出并释放锁，再走原有流程起 app 自己的后端。bootout 之后再 `launchctl print` 确认确实卸载了：没卸掉（`failed`）就不等 ownership 的宽限（`BACKEND_QUIT_STOP_TIMEOUT` 7 秒加 3 秒，共约 10 秒），直接弹出"后台服务没能停下"并退出，提示 `t3x service uninstall`，不会起第二个后端；退出时（`scopedProgram` 的 finalizer 里，所有后端停掉之后、`markComplete` 之前）`resumeAfterApp`：服务还在 launchd 里就 `kickstart -k`，不在就 `enable` 加 `bootstrap`，然后 `launchctl print` 确认已加载，没加载就再试一次（只一次）；整个交接有 8 秒总期限（`RESUME_DEADLINE`，单条 `launchctl` 最多 3 秒），超时就放弃，不拖住 Cmd+Q。试了两次都不行或超时，把时间和原因写进 `<T3 home>/runtime/background-service-resume-failed.json`（写到同目录临时文件、`chmod 600` 再 rename 过去，所以不会跟着符号链接写出去，也不会沿用已有文件的宽松权限），下次启动 `getState` 读到它：设置行显示"上次退出时后台服务没能启动：原因"并给"重试"（就是重新 install，成功后清掉记录），`BackgroundServiceReporter` 同时弹一条错误 toast；卸载服务或服务本来就没装时也清掉记录。服务的 server 立刻拿到锁，不必等 launcher 每 30 秒一次的轮询。开关打开时 install 之后立刻 `pauseForApp`，因为此刻 app 正占着 home。app 崩溃或被强杀不会执行退出那一步，服务停到下一次 app 退出或重新登录（plist 有 RunAtLoad），用户文档里写了。"自己的"服务由 `ownedService` 判定：交给 macOS 的 `/usr/bin/plutil -convert json -o -` 解析 plist（选它而不是自己写解析或加依赖：系统自带、认所有 plist 编码、拒绝损坏文件，零新增依赖），再严格检查类型：ProgramArguments 必须是三个字符串且最后一个是 `__service-launcher`，EnvironmentVariables 里 `T3X_APP_SERVICE` 是字符串 `"1"`、`T3CODE_HOME` 是非空字符串。plutil 会把重复的键悄悄合并、也看不见注释，所以读取的三个键还要在原文里各数一遍，必须恰好一次，多了（含注释里的）一律当"不是自己的"。解析失败、类型不对、键重复同样如此。通过后比较可执行文件、entry、`T3CODE_HOME` 是否等于当前 app 和当前 home：先对整条路径 realpath（失败再退回只解析 `.app`），再统一去掉重复和结尾斜杠、`.` 和 `..` 段并忽略大小写（macOS 的卷默认大小写不敏感；代价是大小写敏感卷上只差大小写的两个 app 会被当成一个，不值得为此放宽所有人的匹配）。用同一个 app 给别的 `--base-dir` 装的服务、另一份 app 拷贝装的服务、手写的只带 `ELECTRON_RUN_AS_NODE` 的 npm plist，启动和退出时都不碰；`DesktopBackgroundService.test.ts` 逐个有用例。
@@ -662,7 +662,7 @@ vp run check:changed
 vp run fork:selfhost:e2e # 需要 Docker；隧道监听口靠改写 Host、X-Forwarded-Proto、X-Forwarded-For 工作，上游改请求 URL 的读法时靠它兜底
 ```
 
-GitHub Actions 在这个仓库里是关着的：2026-11-04 起，`SimpleEve/t3-extend` 在 Settings → Actions → General 里整体关闭了 Actions。从上游同步过来的 workflow 在这个私有 fork 里都用不上：`ci.yml` 指定的是上游的 `blacksmith-*` 付费 runner，每次推送都会排队、24 小时后才被自动取消；部署和发布类的 workflow 都带 `github.repository == 'pingdotgg/t3code'` 守卫，在这里只会被跳过；其余几个是管理上游公开仓库 issue 和 PR 的。fork 的安装包都在本机打（`fork:dist:mac`、`fork:dist:android`）。workflow 文件保持和上游一致，不删也不改，否则每次同步都会冲突；上游以后新增的 workflow 也会被这个开关一起挡住。私有仓库在免费套餐下用不了分支保护，所以关掉 CI 不影响合并。要重新打开：`gh api -X PUT repos/SimpleEve/t3-extend/actions/permissions -F enabled=true -f allowed_actions=all`，或者在网页设置里打开；打开后上游那批 workflow 会立刻恢复触发。要给 fork 加自己的 CI，先用 `gh workflow disable` 逐个关掉用不上的。
+GitHub Actions 在这个仓库里是关着的：2026-11-04 起，`SimpleEve/t3-extend` 在 Settings → Actions → General 里整体关闭了 Actions。从上游同步过来的 workflow 在这个 fork 里都用不上：`ci.yml` 指定的是上游的 `blacksmith-*` 付费 runner，每次推送都会排队、24 小时后才被自动取消；部署和发布类的 workflow 都带 `github.repository == 'pingdotgg/t3code'` 守卫，在这里只会被跳过；其余几个是管理上游公开仓库 issue 和 PR 的。fork 的安装包都在本机打（`fork:dist:mac`、`fork:dist:android`）。workflow 文件保持和上游一致，不删也不改，否则每次同步都会冲突；上游以后新增的 workflow 也会被这个开关一起挡住。私有仓库在免费套餐下用不了分支保护，所以关掉 CI 不影响合并。要重新打开：`gh api -X PUT repos/SimpleEve/t3-extend/actions/permissions -F enabled=true -f allowed_actions=all`，或者在网页设置里打开；打开后上游那批 workflow 会立刻恢复触发。要给 fork 加自己的 CI，先用 `gh workflow disable` 逐个关掉用不上的。
 
 最近一次同步到上游 `55c134a346`（合并基点 `b9bbfda087`，423 个 commit，69 个冲突文件：68 个文本冲突，1 个删除冲突，是 fork 删除、上游改过的 `SettingsLanguageRouteScreen.tsx`；上一次是 `b9bbfda087`，基点 `6417151c09`，1928 个 commit，328 个冲突文件）。累计下来的取舍，下次遇到同类冲突照做：
 
