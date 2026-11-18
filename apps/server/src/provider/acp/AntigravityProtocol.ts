@@ -480,6 +480,21 @@ export function normalizeAntigravityToolCall(
   };
 }
 
+/**
+ * agy moves a `run_command` that outlives `WaitMsBeforeAsync` to a background task, but reports no
+ * task id over ACP: the call stays in progress and completes later under the same tool call id.
+ */
+export function antigravityBackgroundCommandId(toolCall: AcpToolCallState): string | undefined {
+  const input = Predicate.isObject(toolCall.data.rawInput) ? toolCall.data.rawInput : undefined;
+  return toolCall.data.name === "run_command" || typeof input?.CommandLine === "string"
+    ? toolCall.toolCallId
+    : undefined;
+}
+
+/** agy reports a model step's token usage when the step ends; it sends no end-of-prompt signal. */
+export const isAntigravityStepEnd = (notification: EffectAcpSchema.SessionNotification) =>
+  notification.update.sessionUpdate === "usage_update";
+
 const ANTIGRAVITY_SUBAGENT_TITLES = new Set([
   "Running start_subagent",
   "Run start_subagent?",

@@ -6,6 +6,8 @@ import * as AcpWireSchema from "effect-acp/schema-v1";
 import {
   extractAntigravityUserInputQuestion,
   antigravityApprovalOptions,
+  antigravityBackgroundCommandId,
+  isAntigravityStepEnd,
   antigravitySubagentOutput,
   classifyAntigravitySubagentToolCall,
   isAntigravityUserInputRequest,
@@ -290,6 +292,44 @@ describe("Antigravity tool results", () => {
     });
     expect(toolCall.data.rawOutput).not.toHaveProperty("formatted_output");
     expect(commandCompleted.update.rawOutput.formatted_output).toBe("after\n");
+  });
+
+  it("identifies a command agy moved to the background by its tool call id", () => {
+    // agy 1.5.10 reports no task id: the call stays in_progress, then completes under the same id.
+    const toolCallId = "call_5344045930524505585";
+    const rawInput = {
+      CommandLine: "sleep 25; echo done-probe",
+      IsDaemon: false,
+      WaitMsBeforeAsync: 500,
+    };
+    const started = parseToolUpdate({
+      sessionId: "session-1",
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId,
+        name: "run_command",
+        status: "in_progress",
+        kind: "execute",
+        title: "sleep 25; echo done-probe",
+        rawInput,
+      },
+    } as EffectAcpSchema.SessionNotification).toolCall;
+    expect(antigravityBackgroundCommandId(normalizeAntigravityToolCall(started))).toBe(toolCallId);
+    expect(
+      antigravityBackgroundCommandId({
+        toolCallId: "call_view",
+        kind: "read",
+        data: { name: "view_file" },
+      }),
+    ).toBeUndefined();
+
+    const update = (sessionUpdate: string) =>
+      ({
+        sessionId: "session-1",
+        update: { sessionUpdate },
+      }) as EffectAcpSchema.SessionNotification;
+    expect(isAntigravityStepEnd(update("usage_update"))).toBe(true);
+    expect(isAntigravityStepEnd(update("agent_message_chunk"))).toBe(false);
   });
 
   it("keeps the captured edit location through approval and completion", () => {

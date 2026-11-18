@@ -613,6 +613,16 @@ export interface AcpAdapterV2Flavor {
   readonly terminateRuntimeProcessGroupOnInterrupt?: boolean;
   readonly preserveRuntimeOnSettledInterrupt?: boolean;
   readonly enablePostSettleContinuation?: boolean;
+  /**
+   * Agents that wake themselves between turns and report no end of prompt (agy over ACP v1).
+   * Needs `enablePostSettleContinuation`. Requests sent with no active run wait for a continuation;
+   * it ends `quiet` after a `isStepEnd` update, or `idle` after its last update.
+   */
+  readonly continuationWithoutPromptEnd?: {
+    readonly isStepEnd: (notification: EffectAcpSchema.SessionNotification) => boolean;
+    readonly quiet: Duration.Input;
+    readonly idle: Duration.Input;
+  };
   /** Settle on native idle after the accepted user echo, only on negotiated ACP v2. */
   readonly followAgentWorkState?: boolean;
   /**
@@ -1539,6 +1549,15 @@ interface ActiveAcpTurn {
   /** Clock millis of the prompt's last progress, for `promptInactivityTimeout`. */
   lastProgressAt: number;
   inactivityWatchdog: Fiber.Fiber<void> | undefined;
+  /** Opened by the provider for work the agent started on its own. */
+  readonly isContinuation: boolean;
+  /** `continuationWithoutPromptEnd`: the last update closed a model step. */
+  stepEnded: boolean;
+  /** Clock millis at which a `continuationWithoutPromptEnd` run ends unless another update arrives. */
+  settleDeadline: number;
+  /** The timer's next wake; it may be earlier than the deadline, and a sooner deadline replaces it. */
+  settleWakeAt: number;
+  settleTimer: Fiber.Fiber<void> | undefined;
 }
 
 type AcpRuntimeTeardownState =
@@ -1844,6 +1863,9 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
   const continuationRequests = options.continuationRequests;
   const postSettleContinuationEnabled =
     flavor.enablePostSettleContinuation === true && continuationRequests !== undefined;
+  const continuationSettle = postSettleContinuationEnabled
+    ? flavor.continuationWithoutPromptEnd
+    : undefined;
 
   const readCapabilities = Effect.gen(function* () {
     if (flavor.supportsNativeGoals === undefined) return flavor.capabilities;
@@ -5086,7 +5108,9 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               }
             }
           }
-          const backgroundWorkRunning = (yield* Ref.get(runningBackgroundTaskIds)).size > 0;
+          // Monitor chatter is why running work blocks wakes; agents without it wake once per step.
+          const backgroundWorkRunning =
+            continuationSettle === undefined && (yield* Ref.get(runningBackgroundTaskIds)).size > 0;
           const handledInTurnCount = (yield* Ref.get(handledBackgroundTaskIdsInActiveTurn)).size;
           // Chunks carry no task id: while an unpolled completion awaits its report, keep them.
           const isInTurnHandledAgentChatter =
@@ -5260,7 +5284,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
         });
 
         const awaitRequestTurn = Effect.fnUntraced(function* (generation: number) {
-          if (!followsAgentWorkState) return true;
+          if (!followsAgentWorkState && continuationSettle === undefined) return true;
           while (true) {
             const waiting = yield* runRuntimeCallbackAtGeneration(
               generation,
@@ -5312,6 +5336,26 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
         ) {
           const context = yield* Ref.get(activeTurn);
           const update = notification.update;
+          if (
+            continuationSettle !== undefined &&
+            notification.sessionId === (yield* Ref.get(activeSessionId)) &&
+            !(yield* Ref.get(stoppedRunQuarantine))
+          ) {
+            const stepEnd = continuationSettle.isStepEnd(notification);
+            if (context === null) {
+              // The end of a model step can trail the wake that already asked for a run.
+              if (stepEnd && (yield* Ref.get(continuationRequested))) {
+                yield* Ref.update(wakeBuffer, (current) => [...current, notification]);
+              }
+            } else if (
+              context.isContinuation &&
+              !context.finalized &&
+              (stepEnd || acpRootSessionUpdateIngestsOutput(notification))
+            ) {
+              context.stepEnded = stepEnd;
+              yield* armContinuationFinalize(context);
+            }
+          }
           if (
             followsAgentWorkState &&
             flavor.extractSubagentSessionEvent !== undefined &&
@@ -6903,7 +6947,10 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                 policy: ProviderAdapter.ProviderAdapterV2RuntimePolicy,
                 request: EffectAcpSchema.RequestPermissionRequest = params,
               ) => (flavor.permissionDisposition ?? acpPermissionDisposition)(policy, request);
-              if (followsAgentWorkState && dispositionFor(latestRuntimePolicy) === "ask") {
+              if (
+                continuationSettle !== undefined ||
+                (followsAgentWorkState && dispositionFor(latestRuntimePolicy) === "ask")
+              ) {
                 if (!(yield* awaitRequestTurn(handlerGeneration)))
                   return { outcome: { outcome: "cancelled" } } as const;
               }
@@ -8270,6 +8317,38 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           );
         });
 
+        /** `continuationWithoutPromptEnd`: one timer per run, so streaming chunks only move its deadline. */
+        const armContinuationFinalize = Effect.fnUntraced(function* (context: ActiveAcpTurn) {
+          if (continuationSettle === undefined) return;
+          const delay = Duration.toMillis(
+            context.stepEnded ? continuationSettle.quiet : continuationSettle.idle,
+          );
+          context.settleDeadline = (yield* Clock.currentTimeMillis) + delay;
+          if (context.settleTimer !== undefined && context.settleWakeAt <= context.settleDeadline) {
+            return;
+          }
+          const superseded = context.settleTimer;
+          context.settleWakeAt = context.settleDeadline;
+          const timer = yield* Effect.gen(function* () {
+            while (!context.finalized && !context.interrupted) {
+              const wait = context.settleDeadline - (yield* Clock.currentTimeMillis);
+              if (wait > 0) {
+                context.settleWakeAt = context.settleDeadline;
+                yield* Effect.sleep(Duration.millis(wait));
+                continue;
+              }
+              // An open approval or question is the user's to answer, and answering brings more updates.
+              if ((yield* Ref.get(pendingRuntimeRequests)).size > 0) return;
+              yield* finalizeTurn(context, "completed");
+              return;
+            }
+          }).pipe(Effect.forkIn(sessionScope));
+          context.settleTimer = timer;
+          if (superseded !== undefined) {
+            yield* Fiber.interrupt(superseded).pipe(Effect.forkDetach, Effect.asVoid);
+          }
+        });
+
         const promptInactivityPaused = Effect.fn("AcpAdapterV2.promptInactivityPaused")(function* (
           context: ActiveAcpTurn,
         ) {
@@ -8707,6 +8786,11 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               nativePromptId: undefined,
               lastProgressAt: 0,
               inactivityWatchdog: undefined,
+              isContinuation: isContinuationTurn,
+              stepEnded: false,
+              settleDeadline: 0,
+              settleWakeAt: 0,
+              settleTimer: undefined,
             };
             const carryover = yield* Ref.getAndSet(carryoverSubagents, null);
             let rehydratedCarryoverSubagents: ReadonlyArray<ActiveAcpSubagent> = [];
@@ -8831,6 +8915,10 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               }
               context.promptSettled = true;
               context.promptSettledStatus = "completed";
+              if (continuationSettle !== undefined) {
+                yield* armContinuationFinalize(context);
+                return;
+              }
               if (drainedWakeCount === 0) {
                 if (continuationWasRequested && flavor.deferFinalizeForBackgroundWork === true) {
                   if (hasDeferredBackgroundWork(context)) {
@@ -9502,6 +9590,17 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                       }
                       const context = interruptContext;
                       if (context?.providerTurnId !== turnInput.providerTurnId) {
+                        // The agent may still wake itself, and there is no run to stop: end the wait and block later wakes.
+                        if (
+                          context === null &&
+                          continuationSettle !== undefined &&
+                          turnInput.requestRuntimeRestart === true
+                        ) {
+                          yield* quarantineStoppedRun();
+                          yield* cancelPendingRuntimeRequests();
+                          yield* runtime.cancel.pipe(Effect.ignore);
+                          return undefined;
+                        }
                         // Contain orphan runtimes on Stop; session-wide teardown must not touch another active turn.
                         const containOrphanRuntime =
                           context === null &&

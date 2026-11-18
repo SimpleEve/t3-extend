@@ -22,9 +22,12 @@ import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Queue from "effect/Queue";
 import * as Path from "effect/Path";
 import * as Ref from "effect/Ref";
 import * as Stream from "effect/Stream";
+import * as TestClock from "effect/testing/TestClock";
 import { ChildProcessSpawner } from "effect/process";
 import type * as EffectAcpSchema from "effect-acp/compat";
 import * as EffectAcpErrors from "effect-acp/errors";
@@ -37,6 +40,7 @@ import { makeAntigravityAcpRuntime } from "../../provider/acp/AntigravityAcpSupp
 import { normalizeAntigravitySessionUpdate } from "../../provider/acp/AntigravityProtocol.ts";
 import { ANTIGRAVITY_SIGN_IN_REQUIRED_MESSAGE } from "../../provider/antigravityAuthSupport.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
+import type * as ProviderContinuationRequests from "@t3tools/provider-core/server/ProviderContinuationRequests";
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import {
   makeAntigravityAcpAdapterFlavor,
@@ -1272,5 +1276,444 @@ describe("AntigravityAdapterV2 session system prompt", () => {
           assert.include(sent, "<pull_request_linking>");
         }
       }).pipe(Effect.provide(layerSession)),
+  );
+});
+
+describe("AntigravityAdapterV2 background commands", () => {
+  // Shapes recorded from agy 1.5.10 (gemini-3.8-flash): a run_command moved to a background task
+  // stays in_progress when session/prompt returns, then completes under the same tool call id.
+  const SESSION = "mock-session-1";
+  const command = (toolCallId: string, commandLine: string) => ({
+    toolCallId,
+    name: "run_command",
+    kind: "execute" as const,
+    title: commandLine,
+    rawInput: { CommandLine: commandLine, IsDaemon: false, WaitMsBeforeAsync: 500 },
+  });
+  const permission = (toolCallId: string, commandLine: string) =>
+    ({
+      sessionId: SESSION,
+      toolCall: { ...command(toolCallId, commandLine), status: "pending" as const },
+      options: [
+        { optionId: "allow", name: "Allow", kind: "allow_once" as const },
+        { optionId: "deny", name: "Deny", kind: "reject_once" as const },
+      ],
+    }) satisfies EffectAcpSchema.RequestPermissionRequest;
+
+  const setup = (runtimeMode: "approval-required" | "full-access") =>
+    Effect.gen(function* () {
+      const childProcessSpawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+      const fileSystem = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const crypto = yield* SecureRandom.SecureRandom;
+      const mockAgentPath = yield* path.fromFileUrl(
+        new URL("../../../scripts/acp-mock-agent.ts", import.meta.url),
+      );
+      const workspace = yield* fileSystem.makeTempDirectoryScoped({
+        prefix: "t3-antigravity-background-",
+      });
+      type RuntimeService = AcpSessionRuntime.AcpSessionRuntime["Service"];
+      const handlers: {
+        update?: Parameters<RuntimeService["handleSessionUpdate"]>[0];
+        permission?: Parameters<RuntimeService["handleRequestPermission"]>[0];
+      } = {};
+      const offered: Array<ProviderContinuationRequests.ProviderContinuationRequest> = [];
+      const offeredSignal = yield* Queue.unbounded<void>();
+      let firstTurnUpdates: ReadonlyArray<EffectAcpSchema.SessionUpdate> = [];
+      let runtimeInput:
+        | Parameters<Parameters<typeof makeAntigravityAdapterV2>[0]["makeRuntime"]>[0]
+        | undefined;
+      const instanceId = ProviderInstanceId.make("antigravity-background-test");
+      const threadId = ThreadId.make("thread-antigravity-background");
+      const adapter = yield* makeAntigravityAdapterV2({
+        instanceId,
+        selfInvocation: yield* resolveSelfInvocation(),
+        continuationRequests: {
+          offer: (request) =>
+            Effect.sync(() => offered.push(request)).pipe(
+              Effect.andThen(Queue.offer(offeredSignal, undefined)),
+              Effect.asVoid,
+            ),
+        },
+        makeRuntime: (input) => {
+          runtimeInput = input;
+          return makeAntigravityAcpRuntime({
+            ...input,
+            childProcessSpawner,
+            spawn: {
+              command: process.execPath,
+              args: [mockAgentPath],
+              cwd: input.cwd,
+              env: { T3_ACP_ANTIGRAVITY: "1" },
+            },
+          }).pipe(
+            Effect.provideService(SecureRandom.SecureRandom, crypto),
+            Effect.map((runtime): RuntimeService => ({
+              ...runtime,
+              handleSessionUpdate: (handler) =>
+                Effect.sync(() => {
+                  handlers.update = handler;
+                }).pipe(Effect.andThen(runtime.handleSessionUpdate(handler))),
+              handleRequestPermission: (handler) =>
+                Effect.sync(() => {
+                  handlers.permission = handler;
+                }).pipe(Effect.andThen(runtime.handleRequestPermission(handler))),
+              prompt: () =>
+                Effect.gen(function* () {
+                  for (const update of firstTurnUpdates) {
+                    yield* sendUpdate(update);
+                  }
+                  return { stopReason: "end_turn" as const };
+                }),
+            })),
+          );
+        },
+        withProcess: (_stop, task) => task,
+        defaultModel: Effect.undefined,
+      });
+      const sendUpdate = (update: EffectAcpSchema.SessionUpdate) =>
+        handlers.update === undefined
+          ? Effect.die("the adapter must handle updates")
+          : handlers.update(normalizeAntigravitySessionUpdate({ sessionId: SESSION, update }));
+      const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
+        runtimeMode,
+        interactionMode: "default",
+        cwd: workspace,
+      });
+      const modelSelection = { instanceId, model: "gemini-test-low" } as const;
+      const session = yield* adapter.openSession({
+        threadId,
+        providerSessionId: ProviderSessionId.make("provider-session-antigravity-background"),
+        modelSelection,
+        runtimePolicy,
+      });
+      const providerThread = yield* session.ensureThread({
+        threadId,
+        modelSelection,
+        runtimePolicy,
+      });
+      const events = yield* Queue.unbounded<ProviderAdapter.ProviderAdapterV2Event>();
+      yield* session.events.pipe(
+        Stream.runForEach((event) => Queue.offer(events, event)),
+        Effect.forkScoped,
+      );
+      const startTurn = Effect.fnUntraced(function* (
+        ordinal: number,
+        message: {
+          readonly createdBy: "user" | "agent";
+          readonly creationSource: "web" | "provider";
+          readonly text: string;
+        },
+      ) {
+        const now = yield* DateTime.now;
+        yield* session.startTurn({
+          appThread: {
+            createdBy: "user",
+            creationSource: "web",
+            id: threadId,
+            projectId: ProjectId.make("project-antigravity-background"),
+            title: "Antigravity background commands",
+            providerInstanceId: instanceId,
+            modelSelection,
+            runtimeMode,
+            interactionMode: "default",
+            branch: null,
+            worktreePath: workspace,
+            activeProviderThreadId: providerThread.id,
+            lineage: { parentThreadId: null, relationshipToParent: null, rootThreadId: threadId },
+            forkedFrom: null,
+            createdAt: now,
+            updatedAt: now,
+            archivedAt: null,
+            settledOverride: null,
+            settledAt: null,
+            lastVisitedAt: null,
+            deletedAt: null,
+          },
+          threadId,
+          runId: RunId.make(`run-antigravity-background-${ordinal}`),
+          runOrdinal: ordinal,
+          providerTurnOrdinal: ordinal,
+          attemptId: RunAttemptId.make(`attempt-antigravity-background-${ordinal}`),
+          rootNodeId: NodeId.make(`node-antigravity-background-${ordinal}`),
+          providerThread,
+          message: {
+            ...message,
+            messageId: MessageId.make(`message-antigravity-background-${ordinal}`),
+            attachments: [],
+          },
+          modelSelection,
+          runtimePolicy,
+        });
+      });
+      // Collect events up to and including the first one that satisfies `until`.
+      const collectUntil = Effect.fnUntraced(function* (
+        until: (event: ProviderAdapter.ProviderAdapterV2Event) => boolean,
+      ) {
+        const seen: Array<ProviderAdapter.ProviderAdapterV2Event> = [];
+        while (true) {
+          const event = yield* Queue.take(events);
+          seen.push(event);
+          if (until(event)) return seen;
+        }
+      });
+      const toolItem = (
+        seen: ReadonlyArray<ProviderAdapter.ProviderAdapterV2Event>,
+        nativeId: string,
+      ) => {
+        const event = seen.findLast(
+          (candidate) =>
+            candidate.type === "turn_item.updated" &&
+            candidate.turnItem.nativeItemRef?.nativeId === nativeId,
+        );
+        return event?.type === "turn_item.updated" ? event.turnItem : undefined;
+      };
+      return {
+        handlers,
+        acknowledgeResponse: (requestId: string) =>
+          runtimeInput?.onOutgoingResponse?.(requestId) ?? Effect.void,
+        offered,
+        offeredSignal,
+        startTurn,
+        collectUntil,
+        toolItem,
+        sendUpdate,
+        session,
+        providerThread,
+        setFirstTurnUpdates: (updates: ReadonlyArray<EffectAcpSchema.SessionUpdate>) => {
+          firstTurnUpdates = updates;
+        },
+      };
+    });
+
+  const isTerminal = (event: ProviderAdapter.ProviderAdapterV2Event) =>
+    event.type === "turn.terminal";
+
+  it.effect(
+    "keeps a command agy moved to the background running after the turn ends, then finishes it",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* setup("full-access");
+        t.setFirstTurnUpdates([
+          {
+            sessionUpdate: "tool_call",
+            ...command("call_A", "sleep 25; echo done-probe"),
+            status: "in_progress",
+          },
+          { sessionUpdate: "tool_call_update", toolCallId: "call_A", status: "in_progress" },
+          { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "started" } },
+        ]);
+        yield* t.startTurn(1, {
+          createdBy: "user",
+          creationSource: "web",
+          text: "run it in the background",
+        });
+        const first = yield* t.collectUntil(isTerminal);
+        assert.equal(t.toolItem(first, "call_A")?.status, "running");
+
+        yield* t.sendUpdate({
+          sessionUpdate: "tool_call_update",
+          toolCallId: "call_A",
+          status: "completed",
+          rawOutput: {
+            output: "Command exited with code 0.\n\nCommand output:\ndone-probe\r\n",
+            exit_code: 0,
+          },
+        });
+        const late = yield* t.collectUntil(
+          (event) =>
+            event.type === "turn_item.updated" &&
+            event.turnItem.nativeItemRef?.nativeId === "call_A" &&
+            event.turnItem.status === "completed",
+        );
+        assert.equal(t.toolItem(late, "call_A")?.status, "completed");
+      }).pipe(Effect.provide(layerSession), Effect.scoped),
+  );
+
+  it.effect(
+    "opens a continuation run for a permission request agy sends between turns and answers it there",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* setup("approval-required");
+        t.setFirstTurnUpdates([
+          {
+            sessionUpdate: "tool_call",
+            ...command("call_A", "sleep 20; echo first-probe"),
+            status: "in_progress",
+          },
+          { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "started" } },
+        ]);
+        yield* t.startTurn(1, {
+          createdBy: "user",
+          creationSource: "web",
+          text: "run it in the background",
+        });
+        yield* t.collectUntil(isTerminal);
+        yield* t.sendUpdate({
+          sessionUpdate: "tool_call_update",
+          toolCallId: "call_A",
+          status: "completed",
+          rawOutput: {
+            output: "Command exited with code 0.\n\nCommand output:\nfirst-probe\r\n",
+            exit_code: 0,
+          },
+        });
+
+        // The model's next step, 13 seconds after the prompt returned: a second command that needs approval.
+        yield* t.sendUpdate({ sessionUpdate: "usage_update", used: 37710, size: 1048576 });
+        yield* t.sendUpdate({
+          sessionUpdate: "tool_call",
+          ...command("call_B", "echo second-probe"),
+          status: "in_progress",
+        });
+        yield* t.sendUpdate({
+          sessionUpdate: "tool_call_update",
+          toolCallId: "call_B",
+          status: "pending",
+        });
+        const requestPermission = t.handlers.permission;
+        if (requestPermission === undefined) return yield* Effect.die("permission handler");
+        const answer = yield* requestPermission(permission("call_B", "echo second-probe"), {
+          requestId: "3",
+          method: "session/request_permission",
+        }).pipe(Effect.forkScoped);
+        yield* Queue.take(t.offeredSignal);
+        assert.lengthOf(t.offered, 1);
+        assert.isUndefined(answer.pollUnsafe());
+
+        yield* t.startTurn(2, {
+          createdBy: "agent",
+          creationSource: "provider",
+          text: "Background task completed.",
+        });
+        const pending = yield* t.collectUntil(
+          (event) =>
+            event.type === "runtime_request.updated" && event.runtimeRequest.status === "pending",
+        );
+        const request = pending.findLast((event) => event.type === "runtime_request.updated");
+        if (request?.type !== "runtime_request.updated") return yield* Effect.die("approval");
+        const responding = yield* t.session
+          .respondToRuntimeRequest({ requestId: request.runtimeRequest.id, decision: "accept" })
+          .pipe(Effect.forkScoped);
+        const response = yield* Fiber.join(answer);
+        assert.deepEqual(response, { outcome: { outcome: "selected", optionId: "allow" } });
+        yield* t.acknowledgeResponse("3");
+        yield* Fiber.join(responding);
+
+        yield* t.sendUpdate({
+          sessionUpdate: "tool_call_update",
+          toolCallId: "call_B",
+          status: "completed",
+          rawOutput: {
+            output: "Command exited with code 0.\n\nCommand output:\nsecond-probe\r\n",
+            exit_code: 0,
+          },
+        });
+        yield* t.sendUpdate({
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "sixth-probe" },
+        });
+        // agy reports no end of prompt; the model step ending with no tool call after it is the signal.
+        yield* t.sendUpdate({ sessionUpdate: "usage_update", used: 37800, size: 1048576 });
+        yield* TestClock.adjust("2 seconds");
+        const second = yield* t.collectUntil(isTerminal);
+        assert.equal(t.toolItem(second, "call_B")?.status, "completed");
+        const terminal = second.findLast(isTerminal);
+        assert.equal(terminal?.type === "turn.terminal" ? terminal.status : null, "completed");
+        assert.isTrue(
+          second.some(
+            (event) =>
+              event.type === "message.updated" &&
+              event.message.role === "assistant" &&
+              event.message.text.includes("sixth-probe"),
+          ),
+        );
+      }).pipe(Effect.provide(layerSession), Effect.scoped),
+  );
+
+  it.effect(
+    "Stop on a settled run cancels a request waiting for a continuation and blocks later wakes",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* setup("approval-required");
+        t.setFirstTurnUpdates([
+          {
+            sessionUpdate: "tool_call",
+            ...command("call_A", "sleep 20; echo first-probe"),
+            status: "in_progress",
+          },
+        ]);
+        yield* t.startTurn(1, { createdBy: "user", creationSource: "web", text: "go" });
+        const first = yield* t.collectUntil(isTerminal);
+        const turn = first.findLast((event) => event.type === "provider_turn.updated");
+        if (turn?.type !== "provider_turn.updated") return yield* Effect.die("turn");
+        const requestPermission = t.handlers.permission;
+        if (requestPermission === undefined) return yield* Effect.die("permission handler");
+        const answer = yield* requestPermission(permission("call_B", "echo second-probe"), {
+          requestId: "3",
+          method: "session/request_permission",
+        }).pipe(Effect.forkScoped);
+        yield* Queue.take(t.offeredSignal);
+        yield* t.session.interruptTurn({
+          providerThread: t.providerThread,
+          providerTurnId: turn.providerTurn.id,
+          requestRuntimeRestart: true,
+        });
+        assert.deepEqual(yield* Fiber.join(answer), { outcome: { outcome: "cancelled" } });
+        yield* t.sendUpdate({
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "late words" },
+        });
+        assert.lengthOf(t.offered, 1);
+        assert.isFalse(yield* t.session.hasPendingBackgroundWork!);
+      }).pipe(Effect.provide(layerSession), Effect.scoped),
+  );
+
+  it.effect(
+    "does not wake again once the user stopped the run, and cancels the waiting request",
+    () =>
+      Effect.gen(function* () {
+        const t = yield* setup("approval-required");
+        t.setFirstTurnUpdates([
+          {
+            sessionUpdate: "tool_call",
+            ...command("call_A", "sleep 20; echo first-probe"),
+            status: "in_progress",
+          },
+        ]);
+        yield* t.startTurn(1, { createdBy: "user", creationSource: "web", text: "go" });
+        yield* t.collectUntil(isTerminal);
+        const requestPermission = t.handlers.permission;
+        if (requestPermission === undefined) return yield* Effect.die("permission handler");
+        const answer = yield* requestPermission(permission("call_B", "echo second-probe"), {
+          requestId: "3",
+          method: "session/request_permission",
+        }).pipe(Effect.forkScoped);
+        yield* Queue.take(t.offeredSignal);
+        yield* t.startTurn(2, {
+          createdBy: "agent",
+          creationSource: "provider",
+          text: "Background task completed.",
+        });
+        const pending = yield* t.collectUntil(
+          (event) =>
+            event.type === "runtime_request.updated" && event.runtimeRequest.status === "pending",
+        );
+        const turn = pending.findLast((event) => event.type === "provider_turn.updated");
+        if (turn?.type !== "provider_turn.updated") return yield* Effect.die("turn");
+        yield* t.session.interruptTurn({
+          providerThread: t.providerThread,
+          providerTurnId: turn.providerTurn.id,
+          requestRuntimeRestart: true,
+        });
+        assert.deepEqual(yield* Fiber.join(answer), { outcome: { outcome: "cancelled" } });
+        // A late message from the agent must not start another run.
+        yield* t.sendUpdate({
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "late words" },
+        });
+        assert.lengthOf(t.offered, 1);
+        assert.isTrue(Option.isNone(yield* Queue.poll(t.offeredSignal)));
+      }).pipe(Effect.provide(layerSession), Effect.scoped),
   );
 });

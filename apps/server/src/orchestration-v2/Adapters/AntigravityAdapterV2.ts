@@ -36,9 +36,11 @@ import { readAntigravityClientTextFile } from "../../provider/acp/AntigravityCli
 import { watchAntigravityPromptOutcome } from "../../provider/acp/AntigravityTurnOutcome.ts";
 import {
   antigravityApprovalOptions,
+  antigravityBackgroundCommandId,
   antigravitySubagentOutput,
   classifyAntigravitySubagentToolCall,
   extractAntigravityUserInputQuestion,
+  isAntigravityStepEnd,
   makeAntigravityReadRepair,
   makeAntigravityUserInputResponse,
   normalizeAntigravityToolCall,
@@ -272,6 +274,17 @@ export function makeAntigravityAcpAdapterFlavor(
     },
     normalizeToolCall: normalizeAntigravityToolCall,
     extractSubagentUpdate: extractAntigravitySubagentUpdate,
+    // Commands never hold a run open (agy cannot tell a wait from a dev server); the agent's own
+    // wake after one finishes opens a continuation run. Subagents rule out deferFinalizeForBackgroundWork:
+    // they stay running until the parent turn is idle.
+    extractBackgroundTaskId: antigravityBackgroundCommandId,
+    isBackgroundCommandTool: (toolCall) => antigravityBackgroundCommandId(toolCall) !== undefined,
+    enablePostSettleContinuation: true,
+    continuationWithoutPromptEnd: {
+      isStepEnd: isAntigravityStepEnd,
+      quiet: "2 seconds",
+      idle: "15 minutes",
+    },
     supportsImagePrompts: true,
     // ACP 1.3.0 treats /compact as ordinary model input.
     supportsCompaction: false,
