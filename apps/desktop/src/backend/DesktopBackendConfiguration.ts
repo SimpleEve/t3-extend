@@ -26,6 +26,10 @@ import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopState from "../app/DesktopState.ts";
 import * as DesktopServerExposure from "./DesktopServerExposure.ts";
 import * as DesktopSelfHost from "../selfHost/DesktopSelfHost.ts"; // fork: self-hosted connection
+import {
+  apnsEnvironmentFromServiceEnv,
+  SERVICE_ENV_FILE_NAME,
+} from "../fork/apns/apnsServiceEnv.ts"; // fork: iOS push
 import { bundledFrpcPath } from "../selfHost/bundledFrpc.ts"; // fork: t3x frpc
 import * as DesktopShellEnvironment from "../shell/DesktopShellEnvironment.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
@@ -524,6 +528,7 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
       readonly cliPath: Option.Option<string>;
       readonly shellEnvironmentPrepared: boolean;
       readonly desktopAppUpdate: boolean;
+      readonly apnsEnvironment: Record<string, string>; // fork: iOS push
     },
   ): Effect.fn.Return<
     DesktopBackendManager.DesktopBackendStartConfig,
@@ -584,6 +589,7 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
           publicUrlsFile: DesktopSelfHost.publicUrlsFilePath(environment),
           environmentPublicUrls: yield* DesktopSelfHost.readEnvironmentPublicUrls,
         }),
+        ...input.apnsEnvironment, // fork: iOS push
         [DESKTOP_HOST_SCOPE_ENV]: input.hostScope,
       },
       extendEnv: true,
@@ -849,11 +855,19 @@ export const make = Effect.gen(function* () {
       Effect.provideService(DesktopEnvironment.DesktopEnvironment, environment),
     );
     const shellEnvironmentPrepared = yield* shellEnvironment.installIntoProcess;
+    // fork: iOS push, from the same file the background service reads
+    const apnsEnvironment = yield* fileSystem
+      .readFileString(environment.path.join(environment.baseDir, SERVICE_ENV_FILE_NAME))
+      .pipe(
+        Effect.map(apnsEnvironmentFromServiceEnv),
+        Effect.orElseSucceed((): Record<string, string> => ({})),
+      );
     return yield* resolvePrimaryStartConfig({
       ...shared,
       resourceMonitorPath,
       cliPath,
       shellEnvironmentPrepared,
+      apnsEnvironment,
       desktopAppUpdate: yield* Ref.get(desktopState.canInstallUpdates),
     }).pipe(
       Effect.provideService(DesktopEnvironment.DesktopEnvironment, environment),
