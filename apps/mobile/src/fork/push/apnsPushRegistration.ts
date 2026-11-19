@@ -79,16 +79,16 @@ const registerOn = async (
   input: ApnsPushRegistrationInput,
 ): Promise<RegisterOutcome> => {
   try {
-    const result = await inLane(environmentId, () =>
-      withTimeout(
+    const result = await inLane(
+      environmentId,
+      () =>
         runAtomCommand(
           appAtomRegistry,
           pushEnvironment.register,
           { environmentId, input },
           COMMAND_OPTIONS,
         ),
-        RPC_TIMEOUT_MS,
-      ),
+      RPC_TIMEOUT_MS,
     );
     return result._tag === "Success"
       ? { ok: true, lastDelivery: result.value.lastDelivery?.outcome ?? null }
@@ -99,16 +99,16 @@ const registerOn = async (
 };
 
 const forgetOn = async (environmentId: EnvironmentId, deviceId: string): Promise<void> => {
-  await inLane(environmentId, () =>
-    withTimeout(
+  await inLane(
+    environmentId,
+    () =>
       runAtomCommand(
         appAtomRegistry,
         pushEnvironment.unregister,
         { environmentId, input: { deviceId } },
         COMMAND_OPTIONS,
       ),
-      FORGET_TIMEOUT_MS,
-    ),
+    FORGET_TIMEOUT_MS,
   ).catch(() => undefined);
 };
 

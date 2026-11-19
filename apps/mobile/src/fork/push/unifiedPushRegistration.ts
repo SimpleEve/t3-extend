@@ -84,21 +84,30 @@ export const withTimeout = <A>(promise: Promise<A>, ms: number): Promise<A> =>
 const lanes = new Map<string, Promise<void>>();
 
 /**
- * One request at a time per environment, in the order they were asked, shared by register and
- * unregister: a registration still in flight reaches the server before the unregister that
- * follows it, so it cannot outlive it. The timeout is inside, so a hung request frees the lane.
+ * One request at a time per environment, in order, shared by register and unregister, so an
+ * unregister cannot be overtaken by the registration before it. The timeout only ends what the
+ * caller waits for: the lane stays taken until the request itself ends, since the server can
+ * still commit a request that timed out.
  */
-export const inLane = <A>(environmentId: string, operation: () => Promise<A>): Promise<A> => {
-  const result = (lanes.get(environmentId) ?? Promise.resolve()).then(operation);
-  const settled = result.then(
-    () => undefined,
-    () => undefined,
-  );
+export const inLane = <A>(
+  environmentId: string,
+  operation: () => Promise<A>,
+  timeoutMs: number,
+): Promise<A> => {
+  const previous = lanes.get(environmentId) ?? Promise.resolve();
+  let free: () => void = () => {};
+  const settled = new Promise<void>((resolve) => {
+    free = resolve;
+  });
   lanes.set(environmentId, settled);
   void settled.then(() => {
     if (lanes.get(environmentId) === settled) lanes.delete(environmentId);
   });
-  return result;
+  return previous.then(() => {
+    const request = (async () => operation())();
+    void request.then(free, free);
+    return withTimeout(request, timeoutMs);
+  });
 };
 
 type RegisterOutcome =
@@ -117,16 +126,16 @@ const registerOn = async (
   input: PushRegistrationInput,
 ): Promise<RegisterOutcome> => {
   try {
-    const result = await inLane(environmentId, () =>
-      withTimeout(
+    const result = await inLane(
+      environmentId,
+      () =>
         runAtomCommand(
           appAtomRegistry,
           pushEnvironment.register,
           { environmentId, input },
           COMMAND_OPTIONS,
         ),
-        RPC_TIMEOUT_MS,
-      ),
+      RPC_TIMEOUT_MS,
     );
     return result._tag === "Success"
       ? { ok: true, lastDelivery: result.value.lastDelivery?.outcome ?? null }
@@ -470,16 +479,16 @@ export async function enableUnifiedPush(): Promise<EnableUnifiedPushResult> {
 }
 
 const forgetOn = async (environmentId: EnvironmentId, deviceId: string): Promise<void> => {
-  await inLane(environmentId, () =>
-    withTimeout(
+  await inLane(
+    environmentId,
+    () =>
       runAtomCommand(
         appAtomRegistry,
         pushEnvironment.unregister,
         { environmentId, input: { deviceId } },
         COMMAND_OPTIONS,
       ),
-      FORGET_TIMEOUT_MS,
-    ),
+    FORGET_TIMEOUT_MS,
   ).catch(() => undefined);
 };
 
