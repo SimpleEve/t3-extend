@@ -142,9 +142,8 @@ export const make = Effect.gen(function* () {
       yield* Effect.sleep(delay);
       result = yield* deliverOnce(job);
     }
-    const sessionId = job.registration.sessionId;
     yield* registrations
-      .recordDelivery(sessionId, { outcome: result.outcome, httpStatus: result.status })
+      .recordDelivery(job.registration, { outcome: result.outcome, httpStatus: result.status })
       .pipe(keepGoing("recording a delivery"));
     // Only the host is logged: the endpoint and the device token are credentials.
     yield* Effect.logInfo("push delivery finished", {
@@ -155,7 +154,7 @@ export const make = Effect.gen(function* () {
     });
     if (result.outcome === "gone") {
       yield* registrations
-        .removeIfEndpoint(sessionId, PushRegistrations.registrationTarget(job.registration))
+        .removeIfCurrent(job.registration)
         .pipe(keepGoing("removing an expired registration"));
     }
     return result;

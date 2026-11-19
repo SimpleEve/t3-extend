@@ -147,6 +147,10 @@ const makeHarness = Effect.fnUntraced(function* (
     readonly readShell?: (threadId: ThreadId) => Effect.Effect<OrchestrationV2ThreadShell | null>;
     readonly project?: Option.Option<{ readonly id: ProjectId; readonly title: string }>;
     readonly apns?: PushApns.PushApns["Service"];
+    /** Runs while a delivery is on its way, like a phone registering again meanwhile. */
+    readonly duringDelivery?: (
+      registrations: PushRegistrations.PushRegistrations["Service"],
+    ) => Effect.Effect<void, unknown>;
   } = {},
 ) {
   yield* TestClock.setTime(NOW_MS);
@@ -175,14 +179,19 @@ const makeHarness = Effect.fnUntraced(function* (
   const sent: Sent[] = [];
   const transport = PushTransport.PushTransport.of({
     post: (input) =>
-      Effect.suspend(() => {
-        sent.push({ url: input.url, headers: new Headers(input.headers), body: input.body });
-        const result =
-          options.respond?.(sent.length, input.url) ?? new Response(null, { status: 200 });
-        return result instanceof Error
-          ? Effect.fail(new PushTransport.PushTransportError({ reason: "unreachable" }))
-          : Effect.succeed(result.status);
-      }),
+      (options.duringDelivery?.(registrations) ?? Effect.void).pipe(
+        Effect.orDie,
+        Effect.andThen(
+          Effect.suspend(() => {
+            sent.push({ url: input.url, headers: new Headers(input.headers), body: input.body });
+            const result =
+              options.respond?.(sent.length, input.url) ?? new Response(null, { status: 200 });
+            return result instanceof Error
+              ? Effect.fail(new PushTransport.PushTransportError({ reason: "unreachable" }))
+              : Effect.succeed(result.status);
+          }),
+        ),
+      ),
   });
 
   // One server process: its queues, notifier and consumers. `spawn` starts another over the same
@@ -806,24 +815,42 @@ describe("push registration changes", () => {
   it.effect("a new endpoint replaces the old one, and a late 410 for the old one keeps it", () =>
     Effect.gen(function* () {
       const { registrations } = yield* makeHarness();
-      yield* add(registrations, "session-1", "https://ntfy.example.test/upOld");
-      yield* add(registrations, "session-1", "https://ntfy.example.test/upNew");
+      const old = yield* add(registrations, "session-1", "https://ntfy.example.test/upOld");
+      const current = yield* add(registrations, "session-1", "https://ntfy.example.test/upNew");
       assert.deepStrictEqual(
         (yield* registrations.list).map(PushRegistrations.registrationTarget),
         ["https://ntfy.example.test/upNew"],
       );
       // A delivery that started before the change finds the old endpoint gone.
-      yield* registrations.removeIfEndpoint(
-        session("session-1"),
-        "https://ntfy.example.test/upOld",
-      );
+      yield* registrations.removeIfCurrent(old);
       assert.equal((yield* registrations.list).length, 1);
-      yield* registrations.removeIfEndpoint(
-        session("session-1"),
-        "https://ntfy.example.test/upNew",
-      );
+      yield* registrations.removeIfCurrent(current);
       assert.equal((yield* registrations.list).length, 0);
     }).pipe(Effect.scoped),
+  );
+
+  it.effect.each([201, 410] as const)(
+    "an answer %s for keys that were replaced meanwhile does not touch the new registration",
+    (status) =>
+      Effect.gen(function* () {
+        const endpoint = "https://ntfy.example.test/upSame";
+        const { notifier, registrations } = yield* makeHarness({
+          respond: () => new Response(null, { status }),
+          // The same endpoint comes back with new keys while the old ones are being pushed to.
+          duringDelivery: (store) =>
+            store
+              .upsert({
+                sessionId: session("session-1"),
+                registration: makeReceiver(endpoint).input(),
+              })
+              .pipe(Effect.asVoid),
+        });
+        yield* add(registrations, "session-1", endpoint);
+        yield* notifier.sendTest({ sessionId: session("session-1"), deviceId: "device-1" });
+        const stored = yield* registrations.list;
+        assert.equal(stored.length, 1);
+        assert.equal(stored[0]?.lastDelivery, null);
+      }).pipe(Effect.scoped),
   );
 
   it.effect("a failed write reports the error and leaves the registrations as they were", () =>
@@ -996,6 +1023,33 @@ describe("push to iPhones", () => {
       assert.equal(result.outcome, "gone");
       assert.equal((yield* registrations.list).length, 0);
     }).pipe(Effect.scoped),
+  );
+
+  it.effect.each(["delivered", "gone"] as const)(
+    "an answer %s for a token's old app does not touch the same token registered again",
+    (outcome) =>
+      Effect.gen(function* () {
+        let register: Effect.Effect<unknown, unknown> = Effect.void;
+        const service = PushApns.PushApns.of({
+          configured: true,
+          send: () =>
+            register.pipe(
+              Effect.orDie,
+              Effect.as({ outcome, status: outcome === "delivered" ? 200 : 410 }),
+            ),
+        });
+        const { notifier, registrations } = yield* makeHarness({ apns: service });
+        yield* registrations.upsert({ sessionId: session("session-1"), registration: apnsInput() });
+        // The same token comes back for another app and Apple host while the old one is pushed to.
+        register = registrations.upsert({
+          sessionId: session("session-1"),
+          registration: apnsInput({ apsEnvironment: "development", bundleId: "com.example.other" }),
+        });
+        yield* notifier.sendTest({ sessionId: session("session-1"), deviceId: "phone-1" });
+        const stored = yield* registrations.list;
+        assert.equal(stored.length, 1);
+        assert.equal(stored[0]?.lastDelivery, null);
+      }).pipe(Effect.scoped),
   );
 
   it.effect("alerts iPhones and Android phones for the same moment, each its own way", () =>

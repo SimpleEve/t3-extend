@@ -85,6 +85,17 @@ export const isApnsRegistration = (
 export const registrationTarget = (registration: StoredPushRegistration): string =>
   isApnsRegistration(registration) ? registration.deviceToken : registration.endpoint;
 
+/**
+ * Which delivery target-and-keys a registration holds. A result for one identity must not land on
+ * a registration that has since changed it, even under the same session and the same token.
+ */
+const registrationIdentity = (registration: StoredPushRegistration): string =>
+  JSON.stringify(
+    isApnsRegistration(registration)
+      ? ["apns", registration.deviceToken, registration.bundleId, registration.apsEnvironment]
+      : ["push", registration.endpoint, registration.p256dh, registration.auth],
+  );
+
 const RegistrationsDocument = Schema.Struct({
   version: Schema.Literal(1),
   registrations: Schema.Array(StoredPushRegistration),
@@ -142,17 +153,17 @@ export class PushRegistrations extends Context.Service<
     readonly retainSessions: (
       active: ReadonlySet<string>,
     ) => Effect.Effect<number, PushRegistrationError>;
+    /** Writes the result onto this exact registration; one that has changed since is left alone. */
     readonly recordDelivery: (
-      sessionId: AuthSessionId,
+      registration: StoredPushRegistration,
       delivery: Omit<StoredPushDelivery, "at">,
     ) => Effect.Effect<void, PushRegistrationError>;
     /**
-     * Removes the registration only if it still holds this endpoint (or APNs device token), so a
-     * re-registration survives a late 410.
+     * Removes the registration only if it is still this exact one (endpoint and keys, or token,
+     * app and Apple host), so a re-registration survives a late 410.
      */
-    readonly removeIfEndpoint: (
-      sessionId: AuthSessionId,
-      endpoint: string,
+    readonly removeIfCurrent: (
+      registration: StoredPushRegistration,
     ) => Effect.Effect<void, PushRegistrationError>;
   }
 >()("t3/fork/push/PushRegistrations") {}
@@ -237,8 +248,11 @@ export const make = Effect.fn("PushRegistrations.make")(function* (options: {
           readonly now: string;
         }) => StoredPushRegistration;
       };
-      const lastDeliveryFor = (previous: StoredPushRegistration | undefined, target: string) =>
-        previous !== undefined && registrationTarget(previous) === target
+      const lastDeliveryFor = (
+        previous: StoredPushRegistration | undefined,
+        next: StoredPushRegistration,
+      ) =>
+        previous !== undefined && registrationIdentity(previous) === registrationIdentity(next)
           ? previous.lastDelivery
           : null;
       const prepared: Prepared = yield* Effect.gen(function* () {
@@ -267,7 +281,7 @@ export const make = Effect.fn("PushRegistrations.make")(function* (options: {
               preferences: registration.preferences,
               createdAt: previous?.createdAt ?? now,
               updatedAt: now,
-              lastDelivery: lastDeliveryFor(previous, deviceToken),
+              lastDelivery: null,
             }),
           } satisfies Prepared;
         }
@@ -298,14 +312,15 @@ export const make = Effect.fn("PushRegistrations.make")(function* (options: {
             preferences: registration.preferences,
             createdAt: previous?.createdAt ?? now,
             updatedAt: now,
-            lastDelivery: lastDeliveryFor(previous, endpoint.url),
+            lastDelivery: null,
           }),
         } satisfies Prepared;
       });
       const now = DateTime.formatIso(yield* DateTime.now);
       const stored = yield* mutate((current) => {
         const previous = current.find((entry) => entry.sessionId === sessionId);
-        const next = prepared.build({ previous, now });
+        const built = prepared.build({ previous, now });
+        const next = { ...built, lastDelivery: lastDeliveryFor(previous, built) };
         const others = current.filter(
           (entry) =>
             entry.sessionId !== sessionId &&
@@ -360,29 +375,29 @@ export const make = Effect.fn("PushRegistrations.make")(function* (options: {
       return [next.length === current.length ? current : next, current.length - next.length];
     });
   });
+  const isSame = (entry: StoredPushRegistration, registration: StoredPushRegistration) =>
+    entry.sessionId === registration.sessionId &&
+    registrationIdentity(entry) === registrationIdentity(registration);
   const recordDelivery = Effect.fn("PushRegistrations.recordDelivery")(function* (
-    sessionId: AuthSessionId,
+    registration: StoredPushRegistration,
     delivery: Omit<StoredPushDelivery, "at">,
   ) {
     const at = DateTime.formatIso(yield* DateTime.now);
     yield* mutate((current) => {
-      if (!current.some((entry) => entry.sessionId === sessionId)) return [current, null];
+      if (!current.some((entry) => isSame(entry, registration))) return [current, null];
       return [
         current.map((entry) =>
-          entry.sessionId === sessionId ? { ...entry, lastDelivery: { at, ...delivery } } : entry,
+          isSame(entry, registration) ? { ...entry, lastDelivery: { at, ...delivery } } : entry,
         ),
         null,
       ];
     });
   });
-  const removeIfEndpoint = Effect.fn("PushRegistrations.removeIfEndpoint")(function* (
-    sessionId: AuthSessionId,
-    endpoint: string,
+  const removeIfCurrent = Effect.fn("PushRegistrations.removeIfCurrent")(function* (
+    registration: StoredPushRegistration,
   ) {
     yield* mutate((current) => {
-      const next = current.filter(
-        (entry) => !(entry.sessionId === sessionId && registrationTarget(entry) === endpoint),
-      );
+      const next = current.filter((entry) => !isSame(entry, registration));
       return [next.length === current.length ? current : next, null];
     });
   });
@@ -395,7 +410,7 @@ export const make = Effect.fn("PushRegistrations.make")(function* (options: {
     removeSession,
     retainSessions,
     recordDelivery,
-    removeIfEndpoint,
+    removeIfCurrent,
   });
 });
 
