@@ -55,6 +55,7 @@ const readReason = (body: string): string | null => {
 export interface ApnsTransportOptions {
   /** Where each environment's gateway is. Tests point it at a local server. */
   readonly origin?: (apsEnvironment: ApsEnvironment) => string;
+  readonly responseTimeoutMs?: number;
 }
 
 export const make = Effect.fn("ApnsTransport.make")(function* (options: ApnsTransportOptions = {}) {
@@ -78,6 +79,7 @@ export const make = Effect.fn("ApnsTransport.make")(function* (options: ApnsTran
       if (sessions.get(apsEnvironment) === session) sessions.delete(apsEnvironment);
     };
     // A dropped connection is replaced by the next push; the one in flight fails and is retried.
+    // A connection the network dropped silently never emits close, so `request` drops it too.
     session.on("error", forget);
     session.on("close", forget);
     session.on("goaway", () => {
@@ -91,8 +93,13 @@ export const make = Effect.fn("ApnsTransport.make")(function* (options: ApnsTran
   };
 
   const request = (input: Parameters<ApnsTransport["Service"]["send"]>[0], signal: AbortSignal) =>
-    new Promise<{ status: number; reason: string | null }>((resolve, reject) => {
+    new Promise<{ status: number; reason: string | null }>((resolve, rejectRequest) => {
       const session = sessionFor(input.apsEnvironment);
+      const reject = (error: unknown) => {
+        if (sessions.get(input.apsEnvironment) === session) sessions.delete(input.apsEnvironment);
+        session.destroy();
+        rejectRequest(error);
+      };
       const stream = session.request({
         ":method": "POST",
         ":path": `/3/device/${input.deviceToken}`,
@@ -100,7 +107,7 @@ export const make = Effect.fn("ApnsTransport.make")(function* (options: ApnsTran
       });
       const abort = () => stream.close(NodeHttp2.constants.NGHTTP2_CANCEL);
       signal.addEventListener("abort", abort, { once: true });
-      stream.setTimeout(RESPONSE_TIMEOUT_MS, abort);
+      stream.setTimeout(options.responseTimeoutMs ?? RESPONSE_TIMEOUT_MS, abort);
       let status = 0;
       let received = "";
       stream.on("response", (headers) => {

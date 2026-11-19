@@ -14,7 +14,7 @@ interface Received {
 }
 
 // Cleartext HTTP/2 on loopback: the transport's only difference from Apple's host is the origin.
-const gateway = (respond: (received: Received) => { status: number; body: string }) =>
+const gateway = (respond: (received: Received) => { status: number; body: string } | null) =>
   Effect.acquireRelease(
     Effect.promise(
       () =>
@@ -22,12 +22,14 @@ const gateway = (respond: (received: Received) => { status: number; body: string
           (resolve) => {
             const received: Received[] = [];
             const server = NodeHttp2.createServer((request, response) => {
+              // A null answer stands for a connection that went quiet: the request is never answered.
               let body = "";
               request.on("data", (chunk) => (body += chunk));
               request.on("end", () => {
                 const entry = { path: request.url, headers: request.headers, body };
                 received.push(entry);
                 const answer = respond(entry);
+                if (answer === null) return;
                 response.writeHead(answer.status, { "content-type": "application/json" });
                 response.end(answer.body);
               });
@@ -81,5 +83,21 @@ it.live("fails with a typed error when the gateway cannot be reached", () =>
     const transport = yield* ApnsTransport.make({ origin: () => "http://127.0.0.1:1" });
     const error = yield* transport.send(input).pipe(Effect.flip);
     assert.equal(error._tag, "ApnsTransportError");
+  }).pipe(Effect.scoped),
+);
+
+it.live("drops a connection that stopped answering, so the next push opens a new one", () =>
+  Effect.gen(function* () {
+    // An idle connection that the network dropped without closing looks open to Node.
+    const { origin, server } = yield* gateway((received) =>
+      received.headers["apns-topic"] === "stale" ? null : { status: 200, body: "" },
+    );
+    let connections = 0;
+    server.on("session", () => (connections += 1));
+    const transport = yield* ApnsTransport.make({ origin: () => origin, responseTimeoutMs: 100 });
+    const stale = { ...input, headers: { ...input.headers, "apns-topic": "stale" } };
+    assert.isTrue((yield* transport.send(stale).pipe(Effect.result))._tag === "Failure");
+    assert.deepStrictEqual(yield* transport.send(input), { status: 200, reason: null });
+    assert.equal(connections, 2);
   }).pipe(Effect.scoped),
 );
