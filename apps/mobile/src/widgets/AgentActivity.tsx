@@ -19,7 +19,6 @@ import {
   type LiveActivityComponent,
   type LiveActivityLayout,
 } from "expo-widgets";
-import { useT } from "../hooks/useT";
 
 type LiveActivityEnvironment = Parameters<LiveActivityComponent<AgentActivityProps>>[1];
 
@@ -57,8 +56,7 @@ function AgentActivity(
   props: AgentActivityProps,
   environment: LiveActivityEnvironment,
 ): LiveActivityLayout {
-  const t = useT();
-  ("widget");
+  "widget";
 
   // Hierarchical foregrounds inherit system tint and vibrancy.
   type Foreground = Parameters<typeof foregroundStyle>[0];
@@ -348,10 +346,10 @@ function AgentActivity(
       >
         {attentionRow
           ? attentionRow.phase === "waiting_for_approval"
-            ? t("Approval")
-            : t("Input")
+            ? "Approval"
+            : "Input"
           : failedRow
-            ? t("Failed")
+            ? "Failed"
             : activeLabel}
       </Text>
     ),
