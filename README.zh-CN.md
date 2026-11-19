@@ -8,7 +8,7 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的独立 fork。�
 
 ## 对应的上游版本
 
-当前合入到上游提交 [`55c134a346`](https://github.com/pingdotgg/t3code/commit/55c134a346d5830399c82e647f29101fec22ecee)（2026-11-16），在上游 nightly `v0.1.11-nightly.20261117.4814` 之后第 28 个提交。T3 Extend 桌面版和 server 的版本是 0.1.10，Android 应用是 2.3.0。
+当前合入到上游提交 [`55c134a346`](https://github.com/pingdotgg/t3code/commit/55c134a346d5830399c82e647f29101fec22ecee)（2026-11-16），在上游 nightly `v0.1.11-nightly.20261117.4814` 之后第 28 个提交。当前版本是 `v0.1.11-1.0`。T3 Extend 的版本号由两段组成：前一段是所基于的上游版本，后一段是 T3 Extend 自己的版本号。比如 `0.1.11-1.0`，`0.1.11` 是上游的，`1.0` 是 T3 Extend 的。Android 应用用上游的移动端版本加同一个后缀，即 `2.3.0-1.0`。
 
 上游这个版本的能力，T3 Extend 基本都有。主要差别如下。
 
