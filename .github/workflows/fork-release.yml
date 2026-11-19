@@ -3,7 +3,7 @@ name: T3 Extend release
 # T3 Extend's own release pipeline; the upstream workflows next to it are disabled on GitHub and
 # stay byte-identical to upstream. See FORK.md "打包与签名".
 #
-#   git tag v0.2.0 && git push origin v0.2.0   -> publishes the release (vX.Y.Z only)
+#   git tag v0.1.11-1.0 && git push origin v0.1.11-1.0 -> publishes the release (v<upstream>-<fork>)
 #   v0.0.0-ci.N tag, or a manual run            -> a draft prerelease for testing, never offered to t3x update
 #
 # Builds, all on GitHub-hosted runners:
@@ -51,6 +51,8 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       tag: ${{ steps.release.outputs.tag }}
       publish: ${{ steps.release.outputs.publish }}
+      fork: ${{ steps.release.outputs.fork }}
+      android_version_code: ${{ steps.release.outputs.android_version_code }}
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
@@ -358,6 +360,9 @@ jobs:
           T3EXTEND_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.T3EXTEND_ANDROID_KEYSTORE_PASSWORD }}
           # Do not reach for a shared native-client cache; this build is its own.
           T3_NATIVE_CLIENT_CACHE: "off"
+          # Empty for a test build, which keeps the app's own version and versionCode.
+          T3EXTEND_RELEASE_FORK: ${{ needs.plan.outputs.fork }}
+          T3EXTEND_ANDROID_VERSION_CODE: ${{ needs.plan.outputs.android_version_code }}
         run: |
           set -euo pipefail
           if [[ -z "$KEYSTORE_BASE64" || -z "$T3EXTEND_ANDROID_KEYSTORE_PASSWORD" ]]; then
@@ -431,6 +436,8 @@ jobs:
         run: |
           {
             echo "T3 Extend ${VERSION}."
+            echo
+            echo "The part before the dash is the upstream T3 Code release it is built on; the part after is T3 Extend's own release number."
             echo
             if [[ "$PUBLISH" != "true" ]]; then
               echo "> **Test build.** Built by CI to check the release pipeline; \`t3x update\` never offers it."

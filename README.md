@@ -8,7 +8,7 @@ T3 Extend is an independent fork of [T3 Code](https://github.com/pingdotgg/t3cod
 
 ## Upstream version
 
-T3 Extend currently includes upstream commit [`55c134a346`](https://github.com/pingdotgg/t3code/commit/55c134a346d5830399c82e647f29101fec22ecee) (2026-11-16). It is the 28th commit after the upstream nightly `v0.1.11-nightly.20261117.4814`. The T3 Extend desktop app and server are version 0.1.10. The Android app is version 2.3.0.
+T3 Extend currently includes upstream commit [`55c134a346`](https://github.com/pingdotgg/t3code/commit/55c134a346d5830399c82e647f29101fec22ecee) (2026-11-16). It is the 28th commit after the upstream nightly `v0.1.11-nightly.20261117.4814`. The current release is `v0.1.11-1.0`. A T3 Extend version is the upstream release it is built on, then the fork's own release number: in `0.1.11-1.0`, `0.1.11` is upstream and `1.0` is T3 Extend's. The Android app uses upstream's mobile version with the same suffix, `2.3.0-1.0`.
 
 T3 Extend has almost everything this upstream version has. The main differences are below.
 

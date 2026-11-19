@@ -265,7 +265,12 @@ const config: ExpoConfig = {
   slug: "t3-code",
   platforms: ["ios", "android"],
   scheme: variant.scheme,
-  version: repoEnv.T3CODE_MOBILE_VERSION ?? "2.3.0",
+  // fork: upstream's app version, then the fork release's own number, as in `2.3.0-1.0`
+  version:
+    repoEnv.T3CODE_MOBILE_VERSION ??
+    (repoEnv.T3EXTEND_RELEASE_FORK?.trim()
+      ? `2.3.0-${repoEnv.T3EXTEND_RELEASE_FORK.trim()}`
+      : "2.3.0"),
   runtimeVersion: {
     // Skip costly fingerprinting on dev launches; preview and production OTAs require matching native projects.
     policy: runtimeVersionPolicy,
@@ -321,6 +326,10 @@ const config: ExpoConfig = {
   android: {
     icon: variant.assets.appIcon,
     package: variant.androidPackage,
+    // fork: rises with every release, so an APK installs over the previous one
+    ...(repoEnv.T3EXTEND_ANDROID_VERSION_CODE?.trim()
+      ? { versionCode: Number(repoEnv.T3EXTEND_ANDROID_VERSION_CODE.trim()) }
+      : {}),
     ...(repoEnv.T3CODE_ANDROID_GOOGLE_SERVICES_FILE
       ? { googleServicesFile: repoEnv.T3CODE_ANDROID_GOOGLE_SERVICES_FILE }
       : {}),

@@ -12,11 +12,11 @@ fork 的设计细节、身份表和合并规则都在 [FORK.md](../../FORK.md)�
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | 最近一次合入的上游提交       | `55c134a346d5830399c82e647f29101fec22ecee`（2026-11-16，`fix(client-runtime): Tab completes a folder name when …`，#37925） |
 | 在上游的位置                 | nightly 标签 `v0.1.11-nightly.20261117.4814` 之后第 28 个提交                                                               |
-| T3 Extend 桌面版和 server    | 0.1.10                                                                                                                      |
-| T3 Extend Android 应用 (APK) | 2.3.0                                                                                                                       |
+| T3 Extend 桌面版和 server    | 0.1.11-1.0                                                                                                                  |
+| T3 Extend Android 应用 (APK) | 2.3.0-1.0                                                                                                                   |
 | iOS                          | 不发布。用 Xcode 和自己的 Apple 账号构建，见 [install.md](../user/install.md#ios-build-it-yourself)                         |
 
-fork 的版本号是自己的，不等于上游的版本号：桌面版和 server 目前沿用上游的 0.1.x 编号，Android 应用有自己的编号。
+版本号由两段组成：前一段是所基于的上游版本，后一段是 fork 自己的 `主.次` 版本号。`0.1.11-1.0` 就是上游 0.1.11、T3 Extend 1.0。Android 应用在上游的移动端版本后面加同一个后缀（`2.3.0-1.0`）。fork 自己的版本号跨上游同步一直往上加，不会每次同步都清零。
 
 ### 同步历史
 
@@ -74,7 +74,7 @@ fork 的版本号是自己的，不等于上游的版本号：桌面版和 serve
 | 官方移动推送                                       | 不使用；Android 改用 UnifiedPush，见上                                                                                                                                                                                                                                                                                                     |
 | 桌面自动更新                                       | 没有。构建时没有显式设置更新源就不带更新 feed，菜单里也没有"Check for Updates"。升级要换新的安装包                                                                                                                                                                                                                                         |
 | 移动端 OTA（官方 EAS）                             | 默认关闭，不带官方的 EAS 项目                                                                                                                                                                                                                                                                                                              |
-| server 自更新（`t3x update`、"Update everything"） | 查询并下载 `SimpleEve/t3-extend` 的 [Releases](https://github.com/SimpleEve/t3-extend/releases)，跟随最新已发布的 `vX.Y.Z`（草稿和 CI 测试版会被跳过），不会把 fork 换成官方 T3 Code。macOS 打包版的后台运行用 app 自带的运行时，不需要下载                                                                                                |
+| server 自更新（`t3x update`、"Update everything"） | 查询并下载 `SimpleEve/t3-extend` 的 [Releases](https://github.com/SimpleEve/t3-extend/releases)，跟随最新已发布的 `v<上游>-<fork>`（草稿和 CI 测试版会被跳过），不会把 fork 换成官方 T3 Code。macOS 打包版的后台运行用 app 自带的运行时，不需要下载                                                                                        |
 | iOS 应用                                           | 不发布，以后是否发布待定。用自己的 Apple 账号自己构建签名：付费账号构建的版本有效一年，有小组件和分享扩展；免费账号每次有效 7 天，没有这两项。iOS 推送要走 APNs，目前还没有（[install.md](../user/install.md#ios-build-it-yourself)）。Android 以 APK 分发，不上 Google Play；设置里没有商店二维码，也没有指向官方商店和 `t3.codes` 的链接 |
 | 官方安装脚本和 npm 启动器                          | 不要用于 T3 Extend：`scripts/install.sh`、`scripts/install.ps1`、`scripts/npm-launcher/` 默认安装官方的 `t3`。T3 Extend 的 macOS 版本以磁盘映像分发，见 [install.md](../user/install.md#t3-extend-on-macos)                                                                                                                                |
 | Linux 和 Windows 的 fork 打包                      | Linux 的打包身份（可执行文件名、`.desktop` 名称、metainfo）还没有隔离，fork 的包会和官方包冲突，不要在同一台 Linux 机器上同时安装两者。后台运行开关也只在 macOS 打包版里有                                                                                                                                                                 |
@@ -90,7 +90,7 @@ fork 的版本号是自己的，不等于上游的版本号：桌面版和 serve
 
 1. 本页[当前版本](#当前版本)里的上游提交、日期和它在上游的位置。
 2. 本页[同步历史](#同步历史)表里加一行：同步日期、上游提交、合并提交、这次新带进来的上游提交数（`git rev-list --count <上次同步的上游提交>..<这次的上游提交>`）。
-3. 改了 fork 的版本号（桌面版和 server 的 `package.json`，Android 的 `apps/mobile/app.config.ts`）就同步改表里的版本。
+3. 发版后，把新版本号填进表里。
 4. FORK.md 的[同步上游](../../FORK.md#同步上游)一节里记这次的冲突和取舍，这里不重复。
 
 同步的具体步骤和检查命令也在那一节。新增或删掉 fork 的能力时，同步改本页的能力列表和上面的取舍表。
