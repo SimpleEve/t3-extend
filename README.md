@@ -18,7 +18,7 @@ T3 Extend has almost everything this upstream version has. The main differences 
 - A sidebar grouped by project. The bottom of the sidebar shows usage limits, resource use, and port status. The desktop app can keep the computer awake.
 - Self-hosted connections: use your own VPS instead of T3 Connect, so your phone and other computers can reach this one.
 - In the desktop app, you can open dev servers on a remote environment through `localhost`. On the phone, you can open a new browser tab.
-- Android push goes through UnifiedPush and a self-hosted ntfy server, not Google.
+- Android push goes through UnifiedPush and a self-hosted ntfy server, not Google. On a self-built iPhone app, your own server sends push straight to APNs.
 - The macOS desktop app can run in the background. The server keeps working after you quit the app.
 - Each reply lists the files and links it produced. The composer shows context usage and output speed.
 - The omp provider, reading usage limits when Codex uses a custom endpoint, and Antigravity reusing the `agy` sign-in.

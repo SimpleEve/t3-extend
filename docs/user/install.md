@@ -351,10 +351,32 @@ T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID=com.example.t3extend \
 #### Push notifications on iOS
 
 Apple delivers every iPhone notification through its own service, APNs, and
-only the account that signed the app can send to it. T3 Extend has no relay, so
-push on iOS is not available yet. Support for sending to APNs straight from
-your own server, with a key from your own Apple account, is in progress; until
-it lands, Android is the platform with push (UnifiedPush).
+only the Apple account that signed the app can send through it. T3 Extend has no
+relay: your own T3 Extend server sends to APNs directly, with a key from the same
+account you built the app with. A free account cannot sign push, so this needs
+the paid-account build.
+
+1. In your Apple Developer account, under Certificates, Identifiers & Profiles →
+   Keys, create a key with Apple Push Notifications service (APNs) enabled.
+   Download the `.p8` file (Apple lets you download it once) and note its Key
+   ID. Creating keys needs the Admin or Account Holder role.
+2. On each computer the iPhone connects to, start the server with:
+
+   ```bash
+   T3EXTEND_APNS_KEY_FILE=/path/to/AuthKey_XXXXXXXXXX.p8
+   T3EXTEND_APNS_KEY_ID=<Key ID>
+   T3EXTEND_APNS_TEAM_ID=<your team id>
+   ```
+
+   Keep the `.p8` file private; anyone who has it can send notifications to
+   your app. Without all three, push on iOS stays off and the server logs one
+   line saying why.
+
+3. On the iPhone, open Settings → Notifications, turn on push, and allow
+   notifications. Send a test notification from the same page.
+
+The settings page shows a warning for a server that has no key configured.
+Android keeps using UnifiedPush and needs none of this.
 
 #### If the build fails
 

@@ -18,7 +18,7 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的独立 fork。�
 - 侧栏按项目分组，侧栏底部有额度、资源和端口状态，桌面版可以保持唤醒
 - 自建连接：用自己的 VPS 代替 T3 Connect，让手机和别的电脑连回来
 - 在桌面版里，可以直接用 `localhost` 打开远程环境上的开发服务；手机上可以新建浏览器标签页
-- Android 推送走 UnifiedPush 和自建 ntfy，不经过 Google
+- Android 推送走 UnifiedPush 和自建 ntfy，不经过 Google；自己构建的 iPhone 版由你自己的服务端直连 APNs 推送
 - macOS 桌面版可以在后台运行，退出 app 后服务继续工作
 - 每轮回复列出产出的文件和链接；输入框旁显示上下文用量和输出速度
 - omp provider、Codex 自定义端点下读取额度、Antigravity 沿用 `agy` 的登录
