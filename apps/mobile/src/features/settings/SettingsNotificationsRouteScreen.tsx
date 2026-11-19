@@ -51,7 +51,9 @@ import { SettingsSwitchRow } from "./components/SettingsSwitchRow";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { resolveAgentAwarenessPlatformPresentation } from "./SettingsRouteScreen.logic";
 import { useT } from "../../hooks/useT"; // fork: i18n
+import { ApnsPushSettingsSection } from "../../fork/push/ApnsPushSettingsSection"; // fork: iOS push
 import { UnifiedPushSettingsSection } from "../../fork/push/UnifiedPushSettingsSection"; // fork: UnifiedPush
+import { APNS_SUPPORT } from "../../fork/push/apnsPushStore"; // fork: iOS push
 import { useUnifiedPushState } from "../../fork/push/pushStore"; // fork: UnifiedPush
 
 /**
@@ -133,6 +135,9 @@ export function SettingsNotificationsRouteScreen() {
           {unifiedPush.supported ? (
             // fork: without T3 Connect, Android pushes through the user's own UnifiedPush server
             <UnifiedPushSettingsSection />
+          ) : APNS_SUPPORT !== "unsupported-platform" ? (
+            // fork: on an iPhone the user's own server pushes straight to Apple
+            <ApnsPushSettingsSection />
           ) : (
             <Text className="text-base text-foreground-muted">
               {t("Notifications require T3 Connect in this app build.")}

@@ -32,7 +32,8 @@ describe("push registration input", () => {
   });
 
   it("decodes an iPhone registration, with or without alert templates", () => {
-    assert.equal(decode(apns).kind, "apns");
+    const decoded = decode(apns);
+    assert.equal("kind" in decoded && decoded.kind, "apns");
     const withTemplates = decode({
       ...apns,
       templates: { approval: { title: "{thread}", body: "需要批准" } },

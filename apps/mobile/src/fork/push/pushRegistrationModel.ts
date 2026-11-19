@@ -1,4 +1,4 @@
-import type { PushRegistrationInput } from "@t3tools/contracts";
+import type { UnifiedPushRegistrationInput } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 
 import type { UnifiedPushNativeState, UnifiedPushSubscription } from "./unifiedPushTypes";
@@ -73,7 +73,7 @@ export function makePushRegistrationInput(input: {
   readonly environmentLabel: string;
   readonly subscription: UnifiedPushSubscription;
   readonly notificationsEnabled: boolean;
-}): PushRegistrationInput {
+}): UnifiedPushRegistrationInput {
   return {
     deviceId: input.deviceId,
     label: input.deviceLabel,
@@ -92,7 +92,7 @@ export function makePushRegistrationInput(input: {
 }
 
 /** Same key means the environment already has this exact registration. */
-export function registrationKey(input: PushRegistrationInput): string {
+export function registrationKey(input: UnifiedPushRegistrationInput): string {
   return JSON.stringify([
     input.endpoint,
     input.p256dh,

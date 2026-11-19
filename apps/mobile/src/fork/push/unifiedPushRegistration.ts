@@ -66,7 +66,7 @@ interface Controller {
 
 let active: Controller | null = null;
 
-const withTimeout = <A>(promise: Promise<A>, ms: number): Promise<A> =>
+export const withTimeout = <A>(promise: Promise<A>, ms: number): Promise<A> =>
   new Promise<A>((resolve, reject) => {
     const timer = setTimeout(() => reject(new PushRequestTimeout()), ms);
     promise.then(
@@ -88,7 +88,7 @@ const lanes = new Map<string, Promise<void>>();
  * unregister: a registration still in flight reaches the server before the unregister that
  * follows it, so it cannot outlive it. The timeout is inside, so a hung request frees the lane.
  */
-const inLane = <A>(environmentId: string, operation: () => Promise<A>): Promise<A> => {
+export const inLane = <A>(environmentId: string, operation: () => Promise<A>): Promise<A> => {
   const result = (lanes.get(environmentId) ?? Promise.resolve()).then(operation);
   const settled = result.then(
     () => undefined,
@@ -140,7 +140,7 @@ const registerOn = async (
  * Whether the environment has a live session right now, by the connection supervisor's own
  * state. Reads a mounted atom, so `watchEnvironment` must have subscribed to it first.
  */
-const isConnected = (environmentId: string): boolean =>
+export const isConnected = (environmentId: string): boolean =>
   AsyncResult.getOrElse(
     appAtomRegistry.get(environmentCatalog.stateAtom(environmentId as EnvironmentId)),
     () => null,
@@ -152,7 +152,7 @@ function appScheme(): string {
   return (Array.isArray(scheme) ? scheme[0] : scheme) ?? FORK.scheme;
 }
 
-function environmentLabel(entry: {
+export function environmentLabel(entry: {
   readonly profile:
     | { readonly _tag: "Some"; readonly value: { readonly label: string } }
     | { readonly _tag: "None" };

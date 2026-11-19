@@ -20,7 +20,7 @@ import { useWorkspaceEnvironments } from "../../state/workspace";
 import { relayEnvironmentDiscovery } from "../../state/relay";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { relayManagedEnvironmentIds } from "./environmentSections";
-import { forgetPushRegistration } from "../../fork/push/unifiedPushRegistration"; // fork: UnifiedPush
+import { forgetPushRegistration } from "../../fork/push/forgetPush"; // fork: UnifiedPush and iOS push
 
 export interface RelayEnvironmentView {
   readonly environment: RelayClientEnvironmentRecord;

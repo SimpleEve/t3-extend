@@ -1,4 +1,4 @@
-// Push notifications through the user's own UnifiedPush server (Android).
+// Push notifications through the user's own server: UnifiedPush (Android) and APNs (iOS).
 export default {
   "Push without Google": "不依赖 Google 的推送",
   "Delivered by your own push server through UnifiedPush, with no Google services.":
@@ -44,4 +44,26 @@ export default {
   "Question for you": "需要你回答",
   "{app} test notification": "{app} 测试通知",
   "Notifications from {environment} reach this phone.": "{environment} 的通知能送达这部手机。",
+  "Push notifications aren't supported in builds made with a free Apple account.":
+    "用免费 Apple 账号构建的版本不支持推送通知。",
+  "Sent from your own server straight to Apple's push service, with no relay.":
+    "由你自己的服务器直接发给 Apple 推送服务，不经过中继。",
+  "Notifications are turned off for this app in iOS Settings, so alerts won't show.":
+    "这个应用的通知在 iOS 设置里已关闭，所以提醒不会显示。",
+  "No push token": "没有推送令牌",
+  "Apple didn't give this app a push token. This build may be missing the Push Notifications capability.":
+    "Apple 没有给这个应用推送令牌。这个版本可能缺少推送通知（Push Notifications）能力。",
+  "Not registered: this server has no APNs key": "未注册：这台服务器没有配置 APNs 密钥",
+  "Set the T3EXTEND_APNS_* variables on that server and restart it.":
+    "请在那台服务器上设置 T3EXTEND_APNS_* 环境变量，然后重启它。",
+  "Apple accepted it. It should appear on this phone in a moment.":
+    "Apple 已接收，稍后应该会出现在这部手机上。",
+  "Apple no longer knows this phone, so {environment} removed the registration. Turn push notifications off and on again.":
+    "Apple 已不认识这部手机，所以 {environment} 删除了注册。请把推送通知关掉再打开。",
+  "Apple refused it": "Apple 拒绝了它",
+  "Apple's push service answered with an error (HTTP {status}). Check the APNs key on {environment}.":
+    "Apple 推送服务返回了错误（HTTP {status}）。请检查 {environment} 上的 APNs 密钥。",
+  "Apple's push service unreachable": "连不上 Apple 推送服务",
+  "{environment} couldn't reach Apple's push service. Check the server's network.":
+    "{environment} 连不上 Apple 推送服务。请检查服务器的网络。",
 };
