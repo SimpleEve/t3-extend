@@ -1,4 +1,4 @@
-// @effect-diagnostics nodeBuiltinImport:off -- Apple's push gateway speaks HTTP/2 only, and Effect has no HTTP/2 client.
+// @effect-diagnostics nodeBuiltinImport:off globalTimers:off -- Apple's push gateway speaks HTTP/2 only, and Effect has no HTTP/2 client; the ping deadline sits inside its callback API.
 import * as NodeHttp2 from "node:http2";
 
 import type { ApsEnvironment } from "@t3tools/contracts";
