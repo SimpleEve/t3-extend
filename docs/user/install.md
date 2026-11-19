@@ -288,31 +288,84 @@ before sharing.
 
 ### iOS: build it yourself
 
-T3 Extend has no iOS release. You can build the app on a Mac with Xcode and
-install it on your own iPhone with a free Apple account (a Personal Team):
+T3 Extend has no iOS release, on the App Store, TestFlight, or anywhere else, and
+there is no hosted service behind the app. You build it on your own Mac and sign
+it with your own Apple account. Whether the project will ever publish an iOS
+build of its own is undecided.
 
-1. Install Xcode, sign in with your Apple ID under Xcode → Settings → Accounts,
-   and connect the iPhone with Developer Mode turned on.
-2. In a checkout of this repository, run `vp i`, then from `apps/mobile`:
+You need:
 
-   ```bash
-   T3CODE_IOS_PERSONAL_TEAM=1 \
-   T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID=com.example.t3extend \
-   vp run ios:release
-   ```
+- A Mac with macOS 26.6 or later and Xcode 27.1 or later. Older Xcode versions
+  fail to compile one of the app's dependencies.
+- The iOS platform in Xcode (Xcode → Settings → Components, or
+  `xcodebuild -downloadPlatform iOS`).
+- An Apple account signed in under Xcode → Settings → Accounts. Note the team
+  ID shown there; it is ten letters and digits.
+- The iPhone connected by cable, unlocked, with Developer Mode turned on
+  (Settings → Privacy & Security).
 
-   Use a bundle identifier of your own instead of `com.example.t3extend`.
+#### With a paid Apple Developer account
 
-A free Apple account has limits:
+This is the build to use day to day. In a checkout of this repository, run
+`vp i`, then from `apps/mobile`:
 
-- Apple stops the app after 7 days. Run the build again to keep using it.
-- There are no push notifications, widgets, or share extension. UnifiedPush
-  push is Android only.
-- Connecting works the same as on Android: LAN, Tailscale, or your own server.
-  See [remote access](./remote-access.md).
+```bash
+APP_VARIANT=production T3EXTEND_IOS_TEAM_ID=<your team id> \
+  EXPO_NO_GIT_STATUS=1 npx expo prebuild --clean --platform ios
+cd ios
+xcodebuild -workspace T3Extend.xcworkspace -scheme T3Extend \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -derivedDataPath build -allowProvisioningUpdates \
+  DEVELOPMENT_TEAM=<your team id> build
+xcrun devicectl device install app --device <device id> \
+  build/Build/Products/Release-iphoneos/T3Extend.app
+```
 
-The mobile app's [README](../../apps/mobile/README.md) has the development
-build and the other variants.
+`xcrun devicectl list devices` shows the device id. The first build registers
+the app ids and the App Group under your team; `-allowProvisioningUpdates` lets
+Xcode do that. If the build stops with "doesn't match the entitlements file's
+value for the com.apple.security.application-groups entitlement", open
+`ios/T3Extend.xcworkspace` in Xcode once, select the `expo-sharing-extension`
+target, pick your team under Signing & Capabilities, and build again.
+
+Bundle identifiers are unique across all of Apple. The project's own is
+`com.simpleeve.t3extend`; if another team already registered it, set
+`T3EXTEND_IOS_BUNDLE_ID=com.example.t3extend` (an id of your own) for the
+prebuild.
+
+The app installed this way works for a year. Widgets and the share extension
+work.
+
+#### With a free Apple account
+
+A free account (a Personal Team) can install the app too, with limits: Apple
+stops the app after 7 days, and there are no push notifications, widgets, or
+share extension. Use the same steps with these variables for the prebuild:
+
+```bash
+T3CODE_IOS_PERSONAL_TEAM=1 \
+T3EXTEND_IOS_TEAM_ID=<your Personal Team id> \
+T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID=com.example.t3extend \
+```
+
+#### Push notifications on iOS
+
+Apple delivers every iPhone notification through its own service, APNs, and
+only the account that signed the app can send to it. T3 Extend has no relay, so
+push on iOS is not available yet. Support for sending to APNs straight from
+your own server, with a key from your own Apple account, is in progress; until
+it lands, Android is the platform with push (UnifiedPush).
+
+#### If the build fails
+
+- The build cannot find RaTeX's native files: run `node postinstall.mjs` in
+  `apps/mobile/node_modules/react-native-enriched-markdown`, then build again.
+- "No Accounts" or "No profiles": sign in again under Xcode → Settings →
+  Accounts.
+
+Connecting works the same as on Android: LAN, Tailscale, or your own server.
+See [remote access](./remote-access.md). The mobile app's
+[README](../../apps/mobile/README.md) has the development build.
 
 ## Providers
 

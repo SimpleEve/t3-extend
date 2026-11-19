@@ -25,7 +25,7 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的独立 fork。�
 - 从本机的官方 T3 Code 只读导入项目、对话和设置
 - telemetry 默认关闭
 
-**在 fork 里用不了的：** T3 Connect、guest link、passkey、桌面自动更新、移动端 OTA、iOS 安装包（可以[自己构建](./docs/user/install.md#ios-build-it-yourself)）、官方的安装脚本和应用商店渠道。
+**在 fork 里用不了的：** T3 Connect、guest link、passkey、桌面自动更新、移动端 OTA、iOS 安装包（可以用自己的 Apple 账号[自己构建](./docs/user/install.md#ios-build-it-yourself)）、官方的安装脚本和应用商店渠道。
 
 完整的能力列表、取舍原因和同步历史见 [上游版本与 fork 能力](./docs/fork/upstream.zh-CN.md)。
 
@@ -42,6 +42,10 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的独立 fork。�
   ```
 
   装好后，`t3x update` 负责更新，`t3x service install` 让它在后台运行。
+
+- iPhone：没有安装包。在自己的 Mac 上构建，用自己的 Apple 账号签名，见 [iOS：自己构建](./docs/user/install.md#ios-build-it-yourself)（英文）。
+
+T3 Extend 不运营任何托管服务：没有 relay、没有账号体系，也不上应用商店。所有东西都跑在你自己的电脑上，需要的话再加一台你自己的服务器。以后是否提供官方托管部署或发布 iOS 应用，目前待定。
 
 要自己从源码构建，见 [FORK.md 的打包与签名](./FORK.md#打包与签名)和 [开发手册](./docs/operations/development.md#first-checkout)。
 

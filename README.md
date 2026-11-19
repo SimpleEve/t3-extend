@@ -25,7 +25,7 @@ T3 Extend has almost everything this upstream version has. The main differences 
 - Read-only import of projects, threads, and settings from official T3 Code on the same computer.
 - Telemetry is off by default.
 
-**What does not work in the fork:** T3 Connect, guest links, passkeys, desktop auto-update, mobile OTA updates, an iOS release (you can [build it yourself](./docs/user/install.md#ios-build-it-yourself)), the official install scripts, and the official app store channels.
+**What does not work in the fork:** T3 Connect, guest links, passkeys, desktop auto-update, mobile OTA updates, an iOS release (you can [build it yourself](./docs/user/install.md#ios-build-it-yourself) with your own Apple account), the official install scripts, and the official app store channels.
 
 For the full list of features, the reasons behind these choices, and the sync history, see [Upstream version and fork features](./docs/fork/upstream.md).
 
@@ -42,6 +42,10 @@ Download from the [Releases](https://github.com/SimpleEve/t3-extend/releases) pa
   ```
 
   After that, `t3x update` keeps it current and `t3x service install` runs it in the background.
+
+- iPhone: there is no download. Build the app on your Mac and sign it with your own Apple account; see [iOS: build it yourself](./docs/user/install.md#ios-build-it-yourself).
+
+T3 Extend runs no hosted service: no relay, no account system, no app store listing. Everything runs on your own computers and, if you want one, your own server. Whether the project will offer an official hosted deployment or a published iOS app later is undecided.
 
 To build from source instead, see the packaging and signing section of [FORK.md](./FORK.md#打包与签名) (in Chinese) and the [development guide](./docs/operations/development.md#first-checkout).
 
