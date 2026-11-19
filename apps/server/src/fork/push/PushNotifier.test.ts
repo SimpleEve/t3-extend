@@ -13,6 +13,7 @@ import {
   type OrchestrationV2DomainEvent,
   type OrchestrationV2ThreadShell,
   type PushNotificationPreferences,
+  type PushRegistrationError,
   type PushRegistrationInput,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
@@ -150,7 +151,7 @@ const makeHarness = Effect.fnUntraced(function* (
     /** Runs while a delivery is on its way, like a phone registering again meanwhile. */
     readonly duringDelivery?: (
       registrations: PushRegistrations.PushRegistrations["Service"],
-    ) => Effect.Effect<void, unknown>;
+    ) => Effect.Effect<unknown, PushRegistrationError>;
   } = {},
 ) {
   yield* TestClock.setTime(NOW_MS);
@@ -1029,7 +1030,7 @@ describe("push to iPhones", () => {
     "an answer %s for a token's old app does not touch the same token registered again",
     (outcome) =>
       Effect.gen(function* () {
-        let register: Effect.Effect<unknown, unknown> = Effect.void;
+        let register: Effect.Effect<unknown, PushRegistrationError> = Effect.void;
         const service = PushApns.PushApns.of({
           configured: true,
           send: () =>
