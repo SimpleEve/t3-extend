@@ -360,9 +360,12 @@ the paid-account build.
    Keys, create a key with Apple Push Notifications service (APNs) enabled.
    Download the `.p8` file (Apple lets you download it once) and note its Key
    ID. Creating keys needs the Admin or Account Holder role.
-2. On each computer the iPhone connects to, start the server with:
+2. On each computer the iPhone connects to, add these lines to
+   `~/.t3extend/service.env` (see [background service](./background-service.md#configure-the-service-environment)),
+   then run `t3x service restart` or restart the desktop app. The background
+   service and the desktop app both read them from there:
 
-   ```bash
+   ```dotenv
    T3EXTEND_APNS_KEY_FILE=/path/to/AuthKey_XXXXXXXXXX.p8
    T3EXTEND_APNS_KEY_ID=<Key ID>
    T3EXTEND_APNS_TEAM_ID=<your team id>
