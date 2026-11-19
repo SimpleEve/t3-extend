@@ -195,6 +195,21 @@ describe("APNs delivery", () => {
     }),
   );
 
+  it.effect("tries Apple's other host when the token belongs to the other environment", () =>
+    Effect.gen(function* () {
+      // A Release build signed with a development certificate holds a sandbox token.
+      const { apns, sent } = yield* makeHarness((attempt) =>
+        attempt === 1 ? { status: 400, reason: "BadDeviceToken" } : { status: 200, reason: null },
+      );
+      const result = yield* apns.send({ registration, payload: payloadFor("failed") });
+      assert.deepStrictEqual(result, { outcome: "delivered", status: 200 });
+      assert.deepStrictEqual(
+        sent.map((request) => request.apsEnvironment),
+        ["production", "development"],
+      );
+    }),
+  );
+
   it.effect("calls a connection that failed unreachable", () =>
     Effect.gen(function* () {
       const { apns } = yield* makeHarness(() => null);

@@ -50,9 +50,9 @@ export const make = Effect.fn("PushApns.make")(function* (config: ApnsConfig) {
     const { registration, payload } = input;
     const jwt = yield* providerToken(config.credentials);
     const nowSeconds = Math.floor((yield* DateTime.now).epochMilliseconds / 1000);
-    const response = yield* transport
-      .send({
-        apsEnvironment: registration.apsEnvironment,
+    const post = (apsEnvironment: StoredApnsPushRegistration["apsEnvironment"]) =>
+      transport.send({
+        apsEnvironment,
         deviceToken: registration.deviceToken,
         headers: {
           authorization: `bearer ${jwt}`,
@@ -65,8 +65,17 @@ export const make = Effect.fn("PushApns.make")(function* (config: ApnsConfig) {
           "content-type": "application/json",
         },
         body: encodeBody(buildApnsRequestBody({ payload, templates: registration.templates })),
-      })
-      .pipe(Effect.option);
+      });
+    // The signing certificate, not the app variant the phone reports, decides which host its
+    // token belongs to; a self-built Release signed for development holds a sandbox token.
+    const other = registration.apsEnvironment === "production" ? "development" : "production";
+    const response = yield* post(registration.apsEnvironment).pipe(
+      Effect.filterOrElse(
+        (first) => !(first.status === 400 && first.reason === "BadDeviceToken"),
+        () => post(other),
+      ),
+      Effect.option,
+    );
     if (response._tag === "None") return { outcome: "unreachable", status: null } as const;
     const { status, reason } = response.value;
     // Only Apple's own words are logged; the token and the key never are.
