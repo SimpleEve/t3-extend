@@ -16,6 +16,7 @@ export const APNS_HOSTS = {
 } as const satisfies Record<ApsEnvironment, string>;
 
 const RESPONSE_TIMEOUT_MS = 10_000;
+const PING_TIMEOUT_MS = 2_000;
 const MAX_RESPONSE_BYTES = 4_096;
 
 export class ApnsTransportError extends Schema.TaggedError<ApnsTransportError>()(
@@ -56,6 +57,8 @@ export interface ApnsTransportOptions {
   /** Where each environment's gateway is. Tests point it at a local server. */
   readonly origin?: (apsEnvironment: ApsEnvironment) => string;
   readonly responseTimeoutMs?: number;
+  /** How long a connection gets to answer a ping after a request went unanswered. */
+  readonly pingTimeoutMs?: number;
 }
 
 export const make = Effect.fn("ApnsTransport.make")(function* (options: ApnsTransportOptions = {}) {
@@ -92,22 +95,49 @@ export const make = Effect.fn("ApnsTransport.make")(function* (options: ApnsTran
     return session;
   };
 
+  const drop = (apsEnvironment: ApsEnvironment, session: NodeHttp2.ClientHttp2Session) => {
+    if (sessions.get(apsEnvironment) === session) sessions.delete(apsEnvironment);
+    session.destroy();
+  };
+
+  // A request that got no answer may be the only sign of a connection the network dropped, or may
+  // be one slow request on a healthy connection that other pushes share. A ping tells them apart.
+  const dropIfDead = (apsEnvironment: ApsEnvironment, session: NodeHttp2.ClientHttp2Session) =>
+    new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        drop(apsEnvironment, session);
+        resolve();
+      }, options.pingTimeoutMs ?? PING_TIMEOUT_MS);
+      try {
+        const sent = session.ping((error) => {
+          clearTimeout(timer);
+          if (error !== null) drop(apsEnvironment, session);
+          resolve();
+        });
+        if (sent) return;
+      } catch {
+        // A session already gone cannot answer either.
+      }
+      clearTimeout(timer);
+      drop(apsEnvironment, session);
+      resolve();
+    });
+
   const request = (input: Parameters<ApnsTransport["Service"]["send"]>[0], signal: AbortSignal) =>
-    new Promise<{ status: number; reason: string | null }>((resolve, rejectRequest) => {
+    new Promise<{ status: number; reason: string | null }>((resolve, reject) => {
       const session = sessionFor(input.apsEnvironment);
-      const reject = (error: unknown) => {
-        if (sessions.get(input.apsEnvironment) === session) sessions.delete(input.apsEnvironment);
-        session.destroy();
-        rejectRequest(error);
-      };
       const stream = session.request({
         ":method": "POST",
         ":path": `/3/device/${input.deviceToken}`,
         ...input.headers,
       });
       const abort = () => stream.close(NodeHttp2.constants.NGHTTP2_CANCEL);
+      let timedOut = false;
       signal.addEventListener("abort", abort, { once: true });
-      stream.setTimeout(options.responseTimeoutMs ?? RESPONSE_TIMEOUT_MS, abort);
+      stream.setTimeout(options.responseTimeoutMs ?? RESPONSE_TIMEOUT_MS, () => {
+        timedOut = true;
+        abort();
+      });
       let status = 0;
       let received = "";
       stream.on("response", (headers) => {
@@ -117,11 +147,19 @@ export const make = Effect.fn("ApnsTransport.make")(function* (options: ApnsTran
       stream.on("data", (chunk: string) => {
         if (received.length < MAX_RESPONSE_BYTES) received += chunk;
       });
+      // One stream failing says nothing about the connection or the other requests on it.
       stream.on("error", reject);
       stream.on("close", () => {
         signal.removeEventListener("abort", abort);
-        if (status === 0) reject(new Error("no response"));
-        else resolve({ status, reason: status === 200 ? null : readReason(received) });
+        if (status !== 0) {
+          resolve({ status, reason: status === 200 ? null : readReason(received) });
+        } else if (timedOut) {
+          void dropIfDead(input.apsEnvironment, session).then(() =>
+            reject(new Error("no response")),
+          );
+        } else {
+          reject(new Error("no response"));
+        }
       });
       stream.end(input.body);
     });
