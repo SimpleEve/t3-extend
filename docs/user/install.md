@@ -369,8 +369,9 @@ the paid-account build.
    ```
 
    Keep the `.p8` file private; anyone who has it can send notifications to
-   your app. Without all three, push on iOS stays off and the server logs one
-   line saying why.
+   your app. With none of the three set, push on iOS is simply off. With only
+   some of them set, or a value that does not work, it stays off and the server
+   logs one warning saying why.
 
 3. On the iPhone, open Settings → Notifications, turn on push, and allow
    notifications. Send a test notification from the same page.
