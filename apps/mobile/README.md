@@ -84,11 +84,12 @@ project. pnpm gives each patch hash a new package path; Pods can otherwise keep 
 previous directory.
 
 If your Xcode account only has a Personal Team, use a bundle identifier you control and opt into the
-reduced-capability local build. Personal Team builds omit the widget and share extensions, push
+reduced-capability local build. T3 Extend signs every iOS build with `T3EXTEND_IOS_TEAM_ID`, the team id from Xcode → Settings → Accounts; see [install.md](../../docs/user/install.md#ios-build-it-yourself). Personal Team builds omit the widget and share extensions, push
 entitlement, and native Sign in with Apple entitlement; builds without this opt-in are unchanged.
 
 ```bash
 T3CODE_IOS_PERSONAL_TEAM=1 \
+T3EXTEND_IOS_TEAM_ID=<Personal Team id> \
 T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID=com.example.t3code.dev \
 vp run ios:dev
 ```
@@ -103,6 +104,7 @@ The Personal Team equivalent also needs a unique bundle identifier:
 
 ```bash
 T3CODE_IOS_PERSONAL_TEAM=1 \
+T3EXTEND_IOS_TEAM_ID=<Personal Team id> \
 T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID=com.example.t3code \
 vp run ios:release
 ```

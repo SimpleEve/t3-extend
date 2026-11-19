@@ -18,6 +18,10 @@ const runtimeVersionPolicy =
   (APP_VARIANT === "development" ? "appVersion" : "fingerprint");
 
 const personalTeamBundleIdentifier = repoEnv.T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID?.trim();
+// fork: signing team for every iOS build; upstream's team is not in anyone else's Xcode.
+const iosTeamId = repoEnv.T3EXTEND_IOS_TEAM_ID?.trim() || undefined;
+// fork: Apple bundle ids are global; another team building the fork needs its own.
+const iosBundleIdentifierOverride = repoEnv.T3EXTEND_IOS_BUNDLE_ID?.trim() || undefined;
 const IOS_BUNDLE_IDENTIFIER_PATTERN = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
 
 // Compiled into the native project. Without a relay, Observe's native side could dispatch to
@@ -43,6 +47,24 @@ if (
 ) {
   throw new Error(
     "T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID must be a reverse-DNS identifier such as com.example.t3code when T3CODE_IOS_PERSONAL_TEAM=1.",
+  );
+}
+// fork
+if (
+  (isIosPersonalTeamBuild || iosTeamId !== undefined) &&
+  !/^[A-Z0-9]{10}$/u.test(iosTeamId ?? "")
+) {
+  throw new Error(
+    "T3EXTEND_IOS_TEAM_ID must be your Apple team's 10-character id (Xcode > Settings > Accounts).",
+  );
+}
+// fork
+if (
+  iosBundleIdentifierOverride !== undefined &&
+  !IOS_BUNDLE_IDENTIFIER_PATTERN.test(iosBundleIdentifierOverride)
+) {
+  throw new Error(
+    "T3EXTEND_IOS_BUNDLE_ID must be a reverse-DNS identifier such as com.example.t3extend.",
   );
 }
 
@@ -126,11 +148,9 @@ function resolveAppVariant(value: string | undefined): AppVariant {
 }
 
 const variant = VARIANT_CONFIG[APP_VARIANT];
-// Copied thread links open the app. app.t3.codes/.well-known lists every variant's identifiers.
-const HOSTED_APP_HOST = "app.t3.codes";
 const iosBundleIdentifier = isIosPersonalTeamBuild
   ? personalTeamBundleIdentifier!
-  : variant.iosBundleIdentifier;
+  : (iosBundleIdentifierOverride ?? variant.iosBundleIdentifier); // fork
 
 const dmSansFonts = {
   regular: "@expo-google-fonts/dm-sans/400Regular/DMSans_400Regular.ttf",
@@ -266,14 +286,10 @@ const config: ExpoConfig = {
     requireFullScreen: process.env.T3_SHOWCASE_CAPTURE_BUILD === "1",
     bundleIdentifier: iosBundleIdentifier,
     // Avoid Personal Team fallback: it cannot sign App Groups, Apple sign-in or push entitlements.
-    appleTeamId: "ARK85ZXQ4Z",
-    associatedDomains: [
-      `applinks:${variant.relyingParty}`,
-      `webcredentials:${variant.relyingParty}`,
-      `applinks:${HOSTED_APP_HOST}`,
-    ],
+    appleTeamId: iosTeamId, // fork
+    // fork: no associatedDomains; those hosts are official T3 Code's and never list fork ids.
     entitlements: {
-      "keychain-access-groups": [`$(AppIdentifierPrefix)${variant.iosBundleIdentifier}`],
+      "keychain-access-groups": [`$(AppIdentifierPrefix)${iosBundleIdentifier}`], // fork: the signed bundle id
     },
     infoPlist: {
       UISupportedInterfaceOrientations: [
@@ -327,6 +343,8 @@ const config: ExpoConfig = {
     favicon: variant.assets.appIcon,
   },
   plugins: [
+    // fork: first in the list so it runs last and strips what later plugins add (aps-environment)
+    ...(isIosPersonalTeamBuild ? ["./plugins/withoutIosPersonalTeamCapabilities.cjs"] : []),
     "expo-asset",
     [
       "expo-font",
@@ -366,7 +384,7 @@ const config: ExpoConfig = {
       },
     ],
     // Gate Clerk here: withoutIosPersonalTeamCapabilities runs too early to strip its entitlement.
-    ["@clerk/expo", { theme: "./clerk-theme.json", appleSignIn: !isIosPersonalTeamBuild }],
+    ["@clerk/expo", { theme: "./clerk-theme.json", appleSignIn: false }], // fork: no official accounts
     "expo-web-browser",
     [
       "expo-quick-actions",
@@ -462,7 +480,6 @@ const config: ExpoConfig = {
     // MainActivity mods run in reverse order; extend the tablet-orientation override.
     "./plugins/withAndroidWindowDisplayMetrics.cjs",
     "./plugins/withAndroidTabletOrientation.cjs",
-    ...(isIosPersonalTeamBuild ? ["./plugins/withoutIosPersonalTeamCapabilities.cjs"] : []),
   ],
   extra: {
     appVariant: APP_VARIANT,
