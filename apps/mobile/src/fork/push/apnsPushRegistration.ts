@@ -15,7 +15,9 @@ import { environmentCatalog } from "../../connection/catalog";
 import { requestAgentNotificationPermission } from "../../features/agent-awareness/notificationPermissions";
 import { loadOrCreateAgentAwarenessDeviceId } from "../../persistence/imperative";
 import { appAtomRegistry } from "../../state/atom-registry";
+import { serverEnvironment } from "../../state/server";
 import {
+  serverTakesApns,
   alertTemplatesOf,
   classifyApnsFailure,
   makeApnsRegistrationInput,
@@ -121,7 +123,8 @@ const retryable = (entry: ApnsEnvironmentStatus | undefined) =>
   entry?.state === "failed" &&
   entry.failure !== "rejected" &&
   entry.failure !== "invalid" &&
-  entry.failure !== "not-configured";
+  entry.failure !== "not-configured" &&
+  entry.failure !== "server-outdated";
 
 /** App-lifetime: asks Apple for this phone's token and keeps every environment's copy current. */
 export function installApnsPushRegistration(): () => void {
@@ -158,12 +161,19 @@ export function installApnsPushRegistration(): () => void {
   const watched = new Map<string, () => void>();
   const watchEnvironment = (environmentId: string) => {
     if (watched.has(environmentId)) return;
-    watched.set(
-      environmentId,
-      appAtomRegistry.subscribe(environmentCatalog.stateAtom(environmentId as EnvironmentId), () =>
-        requestSync(),
-      ),
+    const stopState = appAtomRegistry.subscribe(
+      environmentCatalog.stateAtom(environmentId as EnvironmentId),
+      () => requestSync(),
     );
+    // The capabilities can land after the connection does.
+    const stopConfig = appAtomRegistry.subscribe(
+      serverEnvironment.configValueAtom(environmentId as EnvironmentId),
+      () => requestSync(),
+    );
+    watched.set(environmentId, () => {
+      stopState();
+      stopConfig();
+    });
   };
 
   // A failure that may pass (offline, reconnecting, no token yet) is tried again with growing
@@ -267,6 +277,22 @@ export function installApnsPushRegistration(): () => void {
             state: "waiting",
             lastDelivery: previous?.lastDelivery ?? null,
           });
+          const takesApns = serverTakesApns(
+            appAtomRegistry.get(serverEnvironment.configValueAtom(environmentId as EnvironmentId))
+              ?.environment.capabilities,
+          );
+          if (takesApns === false) {
+            sent.delete(environmentId);
+            statuses.set(environmentId, {
+              environmentId,
+              label: name,
+              state: "failed",
+              failure: "server-outdated",
+              lastDelivery: null,
+            });
+            publish();
+            return;
+          }
           if (!isConnected(environmentId)) {
             if (previous?.state !== "registered") {
               statuses.set(environmentId, waiting());

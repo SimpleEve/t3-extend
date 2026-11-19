@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import {
   alertTemplatesOf,
+  serverTakesApns,
   apnsRegistrationKey,
   apnsSetupStep,
   apnsSupport,
@@ -126,5 +127,13 @@ describe("apnsSetupStep", () => {
     expect(apnsSetupStep({ ...base, tokenFailed: true })).toBe("token-failed");
     expect(apnsSetupStep({ ...base, permission: "denied" })).toBe("permission-denied");
     expect(apnsSetupStep(base)).toBe("ready");
+  });
+});
+
+describe("serverTakesApns", () => {
+  it("knows only once the server has said what it supports", () => {
+    expect(serverTakesApns(null)).toBe(null);
+    expect(serverTakesApns({})).toBe(false);
+    expect(serverTakesApns({ apnsPush: true })).toBe(true);
   });
 });

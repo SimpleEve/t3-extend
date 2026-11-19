@@ -54,6 +54,8 @@ export default {
   "Apple didn't give this app a push token. This build may be missing the Push Notifications capability.":
     "Apple 没有给这个应用推送令牌。这个版本可能缺少推送通知（Push Notifications）能力。",
   "Not registered: this server has no APNs key": "未注册：这台服务器没有配置 APNs 密钥",
+  "Not registered: update this server to get push on iPhone":
+    "未注册：这台服务器需要更新才能推送到 iPhone",
   "Set the T3EXTEND_APNS_* variables on that server and restart it.":
     "请在那台服务器上设置 T3EXTEND_APNS_* 环境变量，然后重启它。",
   "Apple accepted it. It should appear on this phone in a moment.":

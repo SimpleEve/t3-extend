@@ -174,6 +174,8 @@ function failureText(failure: ApnsFailureKind | undefined, t: Translator): strin
   switch (failure) {
     case "not-configured":
       return t("Not registered: this server has no APNs key");
+    case "server-outdated":
+      return t("Not registered: update this server to get push on iPhone");
     case "unreachable":
       return t("Not registered: can't reach this environment");
     case "timeout":

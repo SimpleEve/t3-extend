@@ -293,6 +293,7 @@ export const make = Effect.gen(function* () {
       ...(desktopAppUpdate ? { desktopAppUpdate: true, desktopAppChannelSwitch: true } : {}),
       serverBrowser: true,
       ...loopbackGatewayCapability(hostPlatform, yield* HostProcess.Environment), // fork: loopback gateway
+      apnsPush: true, // fork: iOS push
       peerLinks: true,
       mcpModeLimitHeader: true,
       linkFence: true,

@@ -27,7 +27,15 @@ export function resolveApnsEnvironment(appVariant: unknown): ApsEnvironment {
 }
 
 /** Why an environment could not be given this phone's token. */
-export type ApnsFailureKind = PushFailureKind | "not-configured";
+export type ApnsFailureKind = PushFailureKind | "not-configured" | "server-outdated";
+
+/** A server from before iOS push reads the registration as malformed, so ask it first. */
+export function serverTakesApns(
+  capabilities: { readonly apnsPush?: boolean | undefined } | null | undefined,
+): boolean | null {
+  if (capabilities == null) return null;
+  return capabilities.apnsPush === true;
+}
 
 /** By the error's `_tag` and `reason`, never its message: a message could quote the token. */
 export function classifyApnsFailure(error: unknown): ApnsFailureKind {
