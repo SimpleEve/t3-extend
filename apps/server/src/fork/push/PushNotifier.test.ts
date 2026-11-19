@@ -31,6 +31,7 @@ import * as ServerEnvironment from "../../environment/ServerEnvironment.ts";
 import * as ThreadManagement from "../../orchestration-v2/ThreadManagementService.ts";
 import * as ProjectService from "../../project/ProjectService.ts";
 import * as PushNotifier from "./PushNotifier.ts";
+import * as PushApns from "./PushApns.ts";
 import * as PushRegistrations from "./PushRegistrations.ts";
 import * as PushTransport from "./pushTransport.ts";
 import { decryptWebPush } from "./webPush.ts";
@@ -145,6 +146,7 @@ const makeHarness = Effect.fnUntraced(function* (
     readonly activeSessions?: ReadonlyArray<string>;
     readonly readShell?: (threadId: ThreadId) => Effect.Effect<OrchestrationV2ThreadShell | null>;
     readonly project?: Option.Option<{ readonly id: ProjectId; readonly title: string }>;
+    readonly apns?: PushApns.PushApns["Service"];
   } = {},
 ) {
   yield* TestClock.setTime(NOW_MS);
@@ -163,9 +165,10 @@ const makeHarness = Effect.fnUntraced(function* (
     remove: (name) => Effect.sync(() => void values.delete(name)),
     getOrCreateRandom: unused,
   });
-  const registrations = yield* PushRegistrations.make({ allowInsecure: false }).pipe(
-    Effect.provideService(ServerSecretStore.ServerSecretStore, secrets),
-  );
+  const registrations = yield* PushRegistrations.make({
+    allowInsecure: false,
+    apnsConfigured: options.apns?.configured ?? false,
+  }).pipe(Effect.provideService(ServerSecretStore.ServerSecretStore, secrets));
 
   const currentShell = yield* Ref.make<OrchestrationV2ThreadShell | null>(shell());
   const shellReads: ThreadId[] = [];
@@ -251,6 +254,7 @@ const makeHarness = Effect.fnUntraced(function* (
 
     const notifier = yield* PushNotifier.make.pipe(
       Effect.provideService(PushRegistrations.PushRegistrations, registrations),
+      Effect.provideService(PushApns.PushApns, options.apns ?? PushApns.disabled),
       Effect.provideService(ThreadManagement.ThreadManagementService, threads),
       Effect.provideService(ProjectService.ProjectService, projects),
       Effect.provideService(SessionStore.SessionStore, sessionStore),
@@ -315,7 +319,10 @@ describe("push registrations", () => {
         sessionId: session("session-1"),
         registration: first.input(),
       });
-      assert.equal(stored.endpoint, "https://ntfy.example.test/upFirst?up=1");
+      assert.equal(
+        PushRegistrations.registrationTarget(stored),
+        "https://ntfy.example.test/upFirst?up=1",
+      );
       assert.equal((yield* registrations.list).length, 1);
 
       // The distributor hands out a new endpoint: same session, same registration, new URL.
@@ -328,7 +335,10 @@ describe("push registrations", () => {
       assert.equal((yield* registrations.list).length, 1);
       assert.equal(updated.createdAt, stored.createdAt);
       assert.notEqual(updated.updatedAt, stored.updatedAt);
-      assert.equal(updated.endpoint, "https://ntfy.example.test/upMoved?up=1");
+      assert.equal(
+        PushRegistrations.registrationTarget(updated),
+        "https://ntfy.example.test/upMoved?up=1",
+      );
 
       // A re-paired phone has a new session but the same device: the old one goes.
       yield* registrations.upsert({
@@ -799,7 +809,7 @@ describe("push registration changes", () => {
       yield* add(registrations, "session-1", "https://ntfy.example.test/upOld");
       yield* add(registrations, "session-1", "https://ntfy.example.test/upNew");
       assert.deepStrictEqual(
-        (yield* registrations.list).map((entry) => entry.endpoint),
+        (yield* registrations.list).map(PushRegistrations.registrationTarget),
         ["https://ntfy.example.test/upNew"],
       );
       // A delivery that started before the change finds the old endpoint gone.
@@ -898,6 +908,128 @@ describe("push after a restart", () => {
       // It still announces what happens next.
       yield* restarted.emit(THREAD_ID, shell({ status: "failed" }));
       assert.equal(sent.length, 2);
+    }).pipe(Effect.scoped),
+  );
+});
+
+describe("push to iPhones", () => {
+  const apnsInput = (overrides: Record<string, unknown> = {}): PushRegistrationInput =>
+    ({
+      kind: "apns",
+      deviceId: "phone-1",
+      label: "iPhone",
+      environmentLabel: "Mac mini",
+      deviceToken: "ab".repeat(32),
+      apsEnvironment: "production",
+      bundleId: "com.example.app",
+      preferences: ALL_ON,
+      ...overrides,
+    }) as PushRegistrationInput;
+
+  const fakeApns = (outcome: "delivered" | "gone" | "rejected" | "unreachable") => {
+    const calls: Array<{
+      readonly registration: PushRegistrations.StoredPushRegistration;
+      readonly kind: string;
+    }> = [];
+    const service = PushApns.PushApns.of({
+      configured: true,
+      send: ({ registration, payload }) =>
+        Effect.sync(() => {
+          calls.push({ registration, kind: payload.kind });
+          return { outcome, status: outcome === "delivered" ? 200 : 410 };
+        }),
+    });
+    return { calls, service };
+  };
+
+  it.effect("refuses an iPhone while this environment has no APNs key", () =>
+    Effect.gen(function* () {
+      const { registrations } = yield* makeHarness();
+      const error = yield* registrations
+        .upsert({ sessionId: session("session-1"), registration: apnsInput() })
+        .pipe(Effect.flip);
+      assert.equal(error.reason, "apns_not_configured");
+      assert.equal((yield* registrations.list).length, 0);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("shows Apple's host, never the token, as where it pushes", () =>
+    Effect.gen(function* () {
+      const { registrations } = yield* makeHarness({ apns: fakeApns("delivered").service });
+      const stored = yield* registrations.upsert({
+        sessionId: session("session-1"),
+        registration: apnsInput({ apsEnvironment: "development" }),
+      });
+      const status = PushRegistrations.toPushRegistrationStatus(stored);
+      assert.equal(status.endpointHost, "api.sandbox.push.apple.com");
+      assert.notInclude(JSON.stringify(status), "abab");
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("sends a test through APNs and keeps the registration when Apple accepts it", () =>
+    Effect.gen(function* () {
+      const apns = fakeApns("delivered");
+      const { notifier, registrations, sent } = yield* makeHarness({ apns: apns.service });
+      yield* registrations.upsert({ sessionId: session("session-1"), registration: apnsInput() });
+      const result = yield* notifier.sendTest({
+        sessionId: session("session-1"),
+        deviceId: "phone-1",
+      });
+      assert.deepStrictEqual(result, { registered: true, outcome: "delivered", httpStatus: 200 });
+      assert.deepStrictEqual(
+        apns.calls.map((call) => call.kind),
+        ["test"],
+      );
+      assert.equal(sent.length, 0);
+      assert.equal((yield* registrations.list)[0]?.lastDelivery?.outcome, "delivered");
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("deletes the registration when Apple says the token is gone", () =>
+    Effect.gen(function* () {
+      const { notifier, registrations } = yield* makeHarness({ apns: fakeApns("gone").service });
+      yield* registrations.upsert({ sessionId: session("session-1"), registration: apnsInput() });
+      const result = yield* notifier.sendTest({
+        sessionId: session("session-1"),
+        deviceId: "phone-1",
+      });
+      assert.equal(result.outcome, "gone");
+      assert.equal((yield* registrations.list).length, 0);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("alerts iPhones and Android phones for the same moment, each its own way", () =>
+    Effect.gen(function* () {
+      const apns = fakeApns("delivered");
+      const { registrations, start, emit, sent, notifier } = yield* makeHarness({
+        apns: apns.service,
+      });
+      yield* registrations.upsert({ sessionId: session("session-1"), registration: apnsInput() });
+      yield* registrations.upsert({
+        sessionId: session("session-2"),
+        registration: makeReceiver("https://ntfy.example.test/upAndroid", "pixel").input(),
+      });
+      // An iPhone that switched approvals off gets nothing for one.
+      yield* registrations.upsert({
+        sessionId: session("session-3"),
+        registration: apnsInput({
+          deviceId: "phone-2",
+          deviceToken: "cd".repeat(32),
+          preferences: { ...ALL_ON, notifyOnApproval: false },
+        }),
+      });
+      yield* notifier.prepare;
+      yield* start;
+      yield* emit(THREAD_ID, shell());
+      yield* emit(THREAD_ID, awaitingApproval());
+      assert.deepStrictEqual(
+        apns.calls.map((call) => [call.registration.deviceId, call.kind]),
+        [["phone-1", "approval"]],
+      );
+      assert.deepStrictEqual(
+        sent.map((entry) => entry.url),
+        ["https://ntfy.example.test/upAndroid"],
+      );
     }).pipe(Effect.scoped),
   );
 });

@@ -30,7 +30,8 @@ const Base64UrlKey = Schema.String.check(
   Schema.isMaxLength(128),
 );
 
-export const PushRegistrationInput = Schema.Struct({
+/** What the Android phone sends. It has no `kind`, so registrations from older builds still decode. */
+export const UnifiedPushRegistrationInput = Schema.Struct({
   /** Stable per app install, so a re-paired phone replaces its old registration. */
   deviceId: TrimmedNonEmptyString.check(Schema.isMaxLength(128)),
   label: TrimmedString.check(Schema.isMaxLength(100)),
@@ -44,6 +45,57 @@ export const PushRegistrationInput = Schema.Struct({
   auth: Base64UrlKey,
   preferences: PushNotificationPreferences,
 });
+export type UnifiedPushRegistrationInput = typeof UnifiedPushRegistrationInput.Type;
+
+/**
+ * One alert's wording in the phone's interface language. The environment fills `{thread}`,
+ * `{project}` and `{environment}`; an iOS phone has no extension that could format a push, so the
+ * server writes the finished text into the alert.
+ */
+export const ApnsAlertTemplate = Schema.Struct({
+  title: Schema.String.check(Schema.isMaxLength(300)),
+  body: Schema.String.check(Schema.isMaxLength(500)),
+});
+export type ApnsAlertTemplate = typeof ApnsAlertTemplate.Type;
+
+/** A kind left out is worded in English. */
+export const ApnsAlertTemplates = Schema.Struct({
+  approval: Schema.optional(ApnsAlertTemplate),
+  input: Schema.optional(ApnsAlertTemplate),
+  completed: Schema.optional(ApnsAlertTemplate),
+  failed: Schema.optional(ApnsAlertTemplate),
+  test: Schema.optional(ApnsAlertTemplate),
+});
+export type ApnsAlertTemplates = typeof ApnsAlertTemplates.Type;
+
+export const ApsEnvironment = Schema.Literals(["development", "production"]);
+export type ApsEnvironment = typeof ApsEnvironment.Type;
+
+/** What an iOS phone sends: its native APNs token, which this environment pushes to directly. */
+export const ApnsPushRegistrationInput = Schema.Struct({
+  kind: Schema.Literal("apns"),
+  deviceId: TrimmedNonEmptyString.check(Schema.isMaxLength(128)),
+  label: TrimmedString.check(Schema.isMaxLength(100)),
+  environmentLabel: TrimmedString.check(Schema.isMaxLength(100)),
+  /** Hex, as the system hands it out. It is a credential for pushing to this app on this phone. */
+  deviceToken: Schema.String.check(
+    Schema.isPattern(/^[0-9a-fA-F]+$/),
+    Schema.isMinLength(32),
+    Schema.isMaxLength(200),
+  ),
+  /** Which Apple host accepts the token: it follows the build's `aps-environment` entitlement. */
+  apsEnvironment: ApsEnvironment,
+  /** The app's bundle id, sent as `apns-topic`. */
+  bundleId: Schema.String.check(Schema.isPattern(/^[A-Za-z0-9.-]+$/), Schema.isMaxLength(155)),
+  preferences: PushNotificationPreferences,
+  templates: Schema.optional(ApnsAlertTemplates),
+});
+export type ApnsPushRegistrationInput = typeof ApnsPushRegistrationInput.Type;
+
+export const PushRegistrationInput = Schema.Union([
+  UnifiedPushRegistrationInput,
+  ApnsPushRegistrationInput,
+]);
 export type PushRegistrationInput = typeof PushRegistrationInput.Type;
 
 export const PushDeviceInput = Schema.Struct({
@@ -59,7 +111,7 @@ export const PushDeliveryOutcome = Schema.Literals([
 ]);
 export type PushDeliveryOutcome = typeof PushDeliveryOutcome.Type;
 
-/** Never carries the endpoint or keys, only its host. */
+/** Never carries the endpoint, token or keys, only the host they lead to. */
 export const PushRegistrationStatus = Schema.Struct({
   registered: Schema.Boolean,
   endpointHost: Schema.NullOr(Schema.String),
@@ -87,7 +139,14 @@ export type PushTestResult = typeof PushTestResult.Type;
 export class PushRegistrationError extends Schema.TaggedError<PushRegistrationError>()(
   "PushRegistrationError",
   {
-    reason: Schema.Literals(["invalid_endpoint", "invalid_keys", "too_many", "storage"]),
+    reason: Schema.Literals([
+      "invalid_endpoint",
+      "invalid_keys",
+      "too_many",
+      "storage",
+      // fork: an iOS phone registered, but this environment has no APNs key.
+      "apns_not_configured",
+    ]),
     message: Schema.String,
   },
 ) {}

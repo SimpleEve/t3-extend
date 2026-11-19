@@ -53,10 +53,9 @@ it.effect("keeps registrations in a private file that survives a restart", () =>
     assert.equal((yield* fs.stat(config.secretsDir)).mode & 0o777, 0o700);
 
     const afterRestart = yield* PushRegistrations.make({ allowInsecure: false });
-    assert.deepStrictEqual(
-      (yield* afterRestart.list).map((entry) => entry.endpoint),
-      ["https://ntfy.example.test/upTopic?up=1"],
-    );
+    assert.deepStrictEqual((yield* afterRestart.list).map(PushRegistrations.registrationTarget), [
+      "https://ntfy.example.test/upTopic?up=1",
+    ]);
   }).pipe(Effect.provide(layer)),
 );
 
@@ -66,5 +65,75 @@ it.effect("starts empty instead of failing when the file is damaged", () =>
     yield* secrets.set("fork-push-registrations", new TextEncoder().encode("{not json"));
     const registrations = yield* PushRegistrations.make({ allowInsecure: false });
     assert.equal((yield* registrations.list).length, 0);
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("reads a file written before iPhones could register, and adds one beside it", () =>
+  Effect.gen(function* () {
+    const secrets = yield* ServerSecretStore.ServerSecretStore;
+    const now = "2026-11-01T00:00:00.000Z";
+    const preferences = {
+      notificationsEnabled: true,
+      notifyOnApproval: true,
+      notifyOnInput: true,
+      notifyOnCompletion: true,
+      notifyOnFailure: true,
+    };
+    // No `kind` on the old entry, exactly as builds before iOS support stored it.
+    yield* secrets.set(
+      "fork-push-registrations",
+      new TextEncoder().encode(
+        JSON.stringify({
+          version: 1,
+          registrations: [
+            {
+              sessionId: "session-old",
+              deviceId: "pixel",
+              label: "Pixel",
+              environmentLabel: "Mac mini",
+              endpoint: "https://ntfy.example.test/upOld?up=1",
+              p256dh: "BAAA",
+              auth: "AAAA",
+              preferences,
+              createdAt: now,
+              updatedAt: now,
+              lastDelivery: null,
+            },
+          ],
+        }),
+      ),
+    );
+    const registrations = yield* PushRegistrations.make({
+      allowInsecure: false,
+      apnsConfigured: true,
+    });
+    assert.deepStrictEqual((yield* registrations.list).map(PushRegistrations.registrationTarget), [
+      "https://ntfy.example.test/upOld?up=1",
+    ]);
+
+    yield* registrations.upsert({
+      sessionId: AuthSessionId.make("session-ios"),
+      registration: {
+        kind: "apns",
+        deviceId: "iphone",
+        label: "iPhone",
+        environmentLabel: "Mac mini",
+        deviceToken: "AB".repeat(32),
+        apsEnvironment: "development",
+        bundleId: "com.example.app",
+        preferences,
+        templates: { completed: { title: "{thread}", body: "已完成" } },
+      },
+    });
+    const afterRestart = yield* PushRegistrations.make({
+      allowInsecure: false,
+      apnsConfigured: true,
+    });
+    const stored = yield* afterRestart.list;
+    assert.equal(stored.length, 2);
+    const iphone = stored.find(PushRegistrations.isApnsRegistration);
+    // Tokens are matched in one case, so a re-registration finds the old entry.
+    assert.equal(iphone?.deviceToken, "ab".repeat(32));
+    assert.equal(iphone?.templates?.completed?.body, "已完成");
   }).pipe(Effect.provide(layer)),
 );

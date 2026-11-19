@@ -40,6 +40,7 @@ import * as ServerSecretStore from "../src/auth/ServerSecretStore.ts";
 import * as SessionStore from "../src/auth/SessionStore.ts";
 import * as ServerEnvironment from "../src/environment/ServerEnvironment.ts";
 import * as PushNotifier from "../src/fork/push/PushNotifier.ts";
+import * as PushApns from "../src/fork/push/PushApns.ts";
 import * as PushRegistrations from "../src/fork/push/PushRegistrations.ts";
 import * as PushTransport from "../src/fork/push/pushTransport.ts";
 import { decryptWebPush } from "../src/fork/push/webPush.ts";
@@ -183,6 +184,7 @@ const program = Effect.gen(function* () {
 
   const notifier = yield* PushNotifier.make.pipe(
     Effect.provideService(PushRegistrations.PushRegistrations, registrations),
+    Effect.provideService(PushApns.PushApns, PushApns.disabled),
     Effect.provideService(ThreadManagement.ThreadManagementService, threads),
     Effect.provideService(ProjectService.ProjectService, projects),
     Effect.provideService(SessionStore.SessionStore, sessions),
