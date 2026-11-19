@@ -59,6 +59,10 @@ interface Controller {
   readonly reset: () => void;
   /** Asks one environment to forget this phone, while no sync registers it again. */
   readonly forgetEnvironment: (environmentId: EnvironmentId) => Promise<void>;
+  /** Environments that may hold this phone's registration, whatever the screen shows. */
+  readonly registeredEnvironments: () => ReadonlyArray<EnvironmentId>;
+  /** Says an environment has been asked to forget this phone. */
+  readonly forgotten: (environmentIds: ReadonlyArray<EnvironmentId>) => void;
 }
 
 let active: Controller | null = null;
@@ -149,6 +153,11 @@ export function installApnsPushRegistration(): () => void {
   const failedKeys = new Map<string, string>();
   // Environments being asked to forget this phone: no sync registers them meanwhile.
   const closing = new Set<string>();
+  // Environments that may hold a registration, from the moment one is sent: unlike `statuses` it
+  // survives a missing token or a reset, so switching push off still reaches them.
+  const held = new Set<string>();
+  // What each environment's capabilities said last, to tell a change from an unrelated update.
+  const takesSeen = new Map<string, boolean | null>();
 
   const deviceId = () =>
     (deviceIdPromise ??= loadOrCreateAgentAwarenessDeviceId().catch(
@@ -158,6 +167,11 @@ export function installApnsPushRegistration(): () => void {
 
   // Without a session the request would wait for the grants and then fail as a missing scope, so
   // an environment is only asked once it is connected, and its connection coming up registers it.
+  const takesApnsOf = (environmentId: string) =>
+    serverTakesApns(
+      appAtomRegistry.get(serverEnvironment.configValueAtom(environmentId as EnvironmentId))
+        ?.environment.capabilities,
+    );
   const watched = new Map<string, () => void>();
   const watchEnvironment = (environmentId: string) => {
     if (watched.has(environmentId)) return;
@@ -168,7 +182,14 @@ export function installApnsPushRegistration(): () => void {
     // The capabilities can land after the connection does.
     const stopConfig = appAtomRegistry.subscribe(
       serverEnvironment.configValueAtom(environmentId as EnvironmentId),
-      () => requestSync(),
+      () => {
+        // What it refused or skipped while its capabilities were unknown or different is open again.
+        if (takesApnsOf(environmentId) !== takesSeen.get(environmentId)) {
+          sent.delete(environmentId);
+          failedKeys.delete(environmentId);
+        }
+        requestSync();
+      },
     );
     watched.set(environmentId, () => {
       stopState();
@@ -207,6 +228,7 @@ export function installApnsPushRegistration(): () => void {
     statuses.clear();
     sent.clear();
     failedKeys.clear();
+    takesSeen.clear();
   };
 
   const syncOnce = async (force: boolean, retryDue: boolean) => {
@@ -231,6 +253,7 @@ export function installApnsPushRegistration(): () => void {
       statuses.clear();
       sent.clear();
       failedKeys.clear();
+      takesSeen.clear();
       publish();
       settleRetry(true, true);
       return;
@@ -248,6 +271,7 @@ export function installApnsPushRegistration(): () => void {
         .filter(([, entry]) => entry.enabled && entry.unsupportedReason === undefined)
         .map(async ([environmentId, entry]) => {
           live.add(environmentId);
+          if (gen !== generation) return;
           watchEnvironment(environmentId);
           if (closing.has(environmentId)) return;
           const name = environmentLabel(entry);
@@ -262,8 +286,26 @@ export function installApnsPushRegistration(): () => void {
             notificationsEnabled: granted,
           });
           const key = apnsRegistrationKey(input);
-          if (!force && sent.get(environmentId) === key) return;
           const previous = statuses.get(environmentId);
+          // Before the caches below: what the server can do decides whether a skipped try is still right.
+          const takesApns = takesApnsOf(environmentId);
+          takesSeen.set(environmentId, takesApns);
+          if (takesApns === false) {
+            sent.delete(environmentId);
+            failedKeys.delete(environmentId);
+            if (previous?.failure !== "server-outdated") {
+              statuses.set(environmentId, {
+                environmentId,
+                label: name,
+                state: "failed",
+                failure: "server-outdated",
+                lastDelivery: null,
+              });
+              publish();
+            }
+            return;
+          }
+          if (!force && sent.get(environmentId) === key) return;
           if (
             !force &&
             failedKeys.get(environmentId) === key &&
@@ -277,22 +319,6 @@ export function installApnsPushRegistration(): () => void {
             state: "waiting",
             lastDelivery: previous?.lastDelivery ?? null,
           });
-          const takesApns = serverTakesApns(
-            appAtomRegistry.get(serverEnvironment.configValueAtom(environmentId as EnvironmentId))
-              ?.environment.capabilities,
-          );
-          if (takesApns === false) {
-            sent.delete(environmentId);
-            statuses.set(environmentId, {
-              environmentId,
-              label: name,
-              state: "failed",
-              failure: "server-outdated",
-              lastDelivery: null,
-            });
-            publish();
-            return;
-          }
           if (!isConnected(environmentId)) {
             if (previous?.state !== "registered") {
               statuses.set(environmentId, waiting());
@@ -307,6 +333,7 @@ export function installApnsPushRegistration(): () => void {
             lastDelivery: previous?.lastDelivery ?? null,
           });
           publish();
+          held.add(environmentId);
           const result = await registerOn(environmentId as EnvironmentId, input);
           if (gen !== generation || closing.has(environmentId)) return;
           if (result.ok) {
@@ -345,6 +372,7 @@ export function installApnsPushRegistration(): () => void {
         statuses.delete(environmentId);
         sent.delete(environmentId);
         failedKeys.delete(environmentId);
+        held.delete(environmentId);
       }
     }
     for (const [environmentId, stop] of watched) {
@@ -403,11 +431,16 @@ export function installApnsPushRegistration(): () => void {
         await forgetOn(environmentId, await deviceId());
       } finally {
         closing.delete(environmentId);
+        held.delete(environmentId);
         statuses.delete(environmentId);
         sent.delete(environmentId);
         failedKeys.delete(environmentId);
         publish();
       }
+    },
+    registeredEnvironments: () => [...held] as EnvironmentId[],
+    forgotten: (environmentIds) => {
+      for (const environmentId of environmentIds) held.delete(environmentId);
     },
   };
 
@@ -466,10 +499,8 @@ export async function enableApnsPush(): Promise<EnableApnsPushResult> {
 export async function disableApnsPush(): Promise<void> {
   const controller = active;
   if (controller === null) return;
-  // A waiting environment was never asked, so there is nothing for it to forget.
-  const known = getApnsPushState()
-    .environments.filter((entry) => entry.state !== "waiting")
-    .map((entry) => entry.environmentId as EnvironmentId);
+  // Not what the screen shows: a missing token empties that while the servers keep the phone.
+  const known = controller.registeredEnvironments();
   // First, so a sync or registration already under way cannot write state or add to the server
   // after this; the unregisters then queue behind any request still in flight.
   controller.reset();
@@ -477,6 +508,7 @@ export async function disableApnsPush(): Promise<void> {
   if (known.length > 0) {
     const id = await controller.deviceId();
     await Promise.all(known.map((environmentId) => forgetOn(environmentId, id)));
+    controller.forgotten(known);
   }
   updateApnsPushState({ environments: [], tokenFailed: false });
 }
