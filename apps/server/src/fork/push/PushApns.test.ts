@@ -202,7 +202,11 @@ describe("APNs delivery", () => {
         attempt === 1 ? { status: 400, reason: "BadDeviceToken" } : { status: 200, reason: null },
       );
       const result = yield* apns.send({ registration, payload: payloadFor("failed") });
-      assert.deepStrictEqual(result, { outcome: "delivered", status: 200 });
+      assert.deepStrictEqual(result, {
+        outcome: "delivered",
+        status: 200,
+        switchedTo: "development",
+      });
       assert.deepStrictEqual(
         sent.map((request) => request.apsEnvironment),
         ["production", "development"],

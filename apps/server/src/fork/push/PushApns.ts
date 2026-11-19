@@ -1,4 +1,8 @@
-import type { PushDeliveryOutcome, PushNotificationPayload } from "@t3tools/contracts";
+import type {
+  ApsEnvironment,
+  PushDeliveryOutcome,
+  PushNotificationPayload,
+} from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -26,7 +30,12 @@ export class PushApns extends Context.Service<
     readonly send: (input: {
       readonly registration: StoredApnsPushRegistration;
       readonly payload: PushNotificationPayload;
-    }) => Effect.Effect<{ readonly outcome: PushDeliveryOutcome; readonly status: number | null }>;
+    }) => Effect.Effect<{
+      readonly outcome: PushDeliveryOutcome;
+      readonly status: number | null;
+      /** Set when Apple's other host accepted the token, so the registration can keep that one. */
+      readonly switchedTo?: ApsEnvironment;
+    }>;
   }
 >()("t3/fork/push/PushApns") {}
 
@@ -69,10 +78,11 @@ export const make = Effect.fn("PushApns.make")(function* (config: ApnsConfig) {
     // The signing certificate, not the app variant the phone reports, decides which host its
     // token belongs to; a self-built Release signed for development holds a sandbox token.
     const other = registration.apsEnvironment === "production" ? "development" : "production";
+    let usedOther = false;
     const response = yield* post(registration.apsEnvironment).pipe(
       Effect.filterOrElse(
         (first) => !(first.status === 400 && first.reason === "BadDeviceToken"),
-        () => post(other),
+        () => Effect.suspend(() => ((usedOther = true), post(other))),
       ),
       Effect.option,
     );
@@ -81,7 +91,10 @@ export const make = Effect.fn("PushApns.make")(function* (config: ApnsConfig) {
     // Only Apple's own words are logged; the token and the key never are.
     if (status !== 200) yield* Effect.logWarning("APNs refused a push", { status, reason });
     if (reason === "ExpiredProviderToken") yield* Ref.set(token, null);
-    return { outcome: apnsOutcome(status, reason), status } as const;
+    const outcome = apnsOutcome(status, reason);
+    return usedOther && outcome === "delivered"
+      ? ({ outcome, status, switchedTo: other } as const)
+      : ({ outcome, status } as const);
   });
 
   return PushApns.of({ configured: config.status === "configured", send });

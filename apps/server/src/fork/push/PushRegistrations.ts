@@ -153,10 +153,14 @@ export class PushRegistrations extends Context.Service<
     readonly retainSessions: (
       active: ReadonlySet<string>,
     ) => Effect.Effect<number, PushRegistrationError>;
-    /** Writes the result onto this exact registration; one that has changed since is left alone. */
+    /**
+     * Writes the result onto this exact registration; one that has changed since is left alone.
+     * `apsEnvironment` moves an iPhone's registration to the Apple host that accepted its token.
+     */
     readonly recordDelivery: (
       registration: StoredPushRegistration,
       delivery: Omit<StoredPushDelivery, "at">,
+      apsEnvironment?: ApsEnvironment,
     ) => Effect.Effect<void, PushRegistrationError>;
     /**
      * Removes the registration only if it is still this exact one (endpoint and keys, or token,
@@ -381,14 +385,19 @@ export const make = Effect.fn("PushRegistrations.make")(function* (options: {
   const recordDelivery = Effect.fn("PushRegistrations.recordDelivery")(function* (
     registration: StoredPushRegistration,
     delivery: Omit<StoredPushDelivery, "at">,
+    apsEnvironment?: ApsEnvironment,
   ) {
     const at = DateTime.formatIso(yield* DateTime.now);
     yield* mutate((current) => {
       if (!current.some((entry) => isSame(entry, registration))) return [current, null];
       return [
-        current.map((entry) =>
-          isSame(entry, registration) ? { ...entry, lastDelivery: { at, ...delivery } } : entry,
-        ),
+        current.map((entry) => {
+          if (!isSame(entry, registration)) return entry;
+          const delivered = { ...entry, lastDelivery: { at, ...delivery } };
+          return apsEnvironment !== undefined && isApnsRegistration(delivered)
+            ? { ...delivered, apsEnvironment }
+            : delivered;
+        }),
         null,
       ];
     });

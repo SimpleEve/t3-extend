@@ -143,7 +143,11 @@ export const make = Effect.gen(function* () {
       result = yield* deliverOnce(job);
     }
     yield* registrations
-      .recordDelivery(job.registration, { outcome: result.outcome, httpStatus: result.status })
+      .recordDelivery(
+        job.registration,
+        { outcome: result.outcome, httpStatus: result.status },
+        "switchedTo" in result ? result.switchedTo : undefined,
+      )
       .pipe(keepGoing("recording a delivery"));
     // Only the host is logged: the endpoint and the device token are credentials.
     yield* Effect.logInfo("push delivery finished", {

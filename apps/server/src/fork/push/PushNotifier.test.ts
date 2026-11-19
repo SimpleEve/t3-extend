@@ -1052,6 +1052,25 @@ describe("push to iPhones", () => {
       }).pipe(Effect.scoped),
   );
 
+  it.effect("remembers the Apple host that accepted a token, and shows it", () =>
+    Effect.gen(function* () {
+      const service = PushApns.PushApns.of({
+        configured: true,
+        send: () =>
+          Effect.succeed({ outcome: "delivered", status: 200, switchedTo: "development" } as const),
+      });
+      const { notifier, registrations } = yield* makeHarness({ apns: service });
+      yield* registrations.upsert({ sessionId: session("session-1"), registration: apnsInput() });
+      yield* notifier.sendTest({ sessionId: session("session-1"), deviceId: "phone-1" });
+      const [stored] = yield* registrations.list;
+      assert.equal(stored?.lastDelivery?.outcome, "delivered");
+      assert.equal(
+        stored === undefined ? null : PushRegistrations.registrationHost(stored),
+        "api.sandbox.push.apple.com",
+      );
+    }).pipe(Effect.scoped),
+  );
+
   it.effect("alerts iPhones and Android phones for the same moment, each its own way", () =>
     Effect.gen(function* () {
       const apns = fakeApns("delivered");
