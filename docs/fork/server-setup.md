@@ -7,26 +7,26 @@ This guide starts from zero. It shows how to run the T3 Extend server and how to
 A few terms first:
 
 - **Host**: the computer that runs the server and the agents. Your projects, provider logins, and the agents' work stay on it.
-- **Client**: an interface you use to control the host. This includes the desktop app, the web app in a browser, and the Android app.
+- **Client**: an interface you use to control the host. This includes the desktop app, the web app in a browser, the Android app, and the iPhone app.
 - **Pairing link**: an address or QR code that carries a one-time code. A client trades it for a session that you can revoke on its own. **It works like a credential.** Do not paste it into screenshots, logs, or tickets.
 
 Interface names in this guide are the English ones. If you use the Simplified Chinese interface, see the [table at the end](#interface-names-in-simplified-chinese). Commands are always written as `t3x`, the command-line name of T3 Extend. It does not interfere with `t3`, the command of official T3 Code. Where the upstream docs say `t3`, use `t3x` in T3 Extend.
 
 ## 1. Choose how to connect
 
-| Method          | Good for                                                                    | You need                                                                                 | Security                                                                                                                                | Phone                                               |
-| --------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| This computer   | Using the host itself                                                       | Nothing                                                                                  | Only this computer can reach it by default                                                                                              | Not applicable                                      |
-| LAN pairing     | Home or office, devices on one network                                      | **Network access** on the host (or `--lan`)                                              | Plain http. Anyone on the same network can read the traffic. The pairing code is the only lock.                                         | Yes. Android allows plain http.                     |
-| Tailscale       | Devices on different networks, and you already use Tailscale                | Both ends in the same tailnet. MagicDNS and HTTPS certificates turned on for the tailnet | Encrypted by Tailscale. The HTTPS port is 8443.                                                                                         | Install Tailscale on the phone and join the tailnet |
-| Your own server | Reaching your home computer from anywhere, with no VPN on the phone         | Your own Linux VPS, a domain, two DNS records, Docker on the VPS                         | HTTPS ends on your VPS, so **the VPS can see plain text**. Each device has its own key. Losing one device means removing only that one. | Yes, and Android can get push without Google        |
-| SSH             | The desktop app driving a remote Linux machine or another Apple silicon Mac | SSH access to that machine, with providers installed on it                               | Runs over SSH. The remote side runs the server of official T3 Code, so there is no T3 Extend forwarding or push.                        | No. The desktop app sets up SSH environments.       |
+| Method          | Good for                                                                    | You need                                                                                 | Security                                                                                                                                | Phone                                                              |
+| --------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| This computer   | Using the host itself                                                       | Nothing                                                                                  | Only this computer can reach it by default                                                                                              | Not applicable                                                     |
+| LAN pairing     | Home or office, devices on one network                                      | **Network access** on the host (or `--lan`)                                              | Plain http. Anyone on the same network can read the traffic. The pairing code is the only lock.                                         | Yes. Android and iPhone both allow plain http.                     |
+| Tailscale       | Devices on different networks, and you already use Tailscale                | Both ends in the same tailnet. MagicDNS and HTTPS certificates turned on for the tailnet | Encrypted by Tailscale. The HTTPS port is 8443.                                                                                         | Install Tailscale on the phone and join the tailnet                |
+| Your own server | Reaching your home computer from anywhere, with no VPN on the phone         | Your own Linux VPS, a domain, two DNS records, Docker on the VPS                         | HTTPS ends on your VPS, so **the VPS can see plain text**. Each device has its own key. Losing one device means removing only that one. | Yes. For phone push, see [section 8](#8-phones-android-and-iphone) |
+| SSH             | The desktop app driving a remote Linux machine or another Apple silicon Mac | SSH access to that machine, with providers installed on it                               | Runs over SSH. The remote side runs the server of official T3 Code, so there is no T3 Extend forwarding or push.                        | No. The desktop app sets up SSH environments.                      |
 
 How to choose:
 
 - For use at home only, choose LAN pairing.
 - If you already have Tailscale, choose Tailscale. You do not need to buy a server.
-- If you need access away from home and do not want a VPN, or you want Android push, choose your own server.
+- If you need access away from home and do not want a VPN, or you want Android push, choose your own server. iPhone push works with any of these methods.
 - If you want the desktop app to drive a remote Linux machine, choose SSH.
 
 You can use several of these at once. When a host has more than one route, the client sorts them by speed and uses the first one that connects. See [Reach one machine several ways](../user/remote-access.md#reach-one-machine-several-ways) in the upstream docs.
@@ -60,7 +60,9 @@ T3 Extend and official T3 Code can be installed on the same computer. Data, comm
 
 If the default port is taken, the server moves to another port. Use the port in the pairing link or in the log. For the details of running both side by side, see [the upstream docs](../user/install.md#running-next-to-official-t3-code) and [FORK.md](../../FORK.md#共存保证) (in Chinese).
 
-The Android app is an APK. It is not in any app store, and there is no iOS version. Copy the APK to the phone and open it, or run `adb install -r <apk>` on a computer. It installs next to the official T3 Code app and does not replace it (see [the upstream docs](../user/install.md#mobile-app)).
+The Android app is an APK. It is not in any app store. Copy the APK to the phone and open it, or run `adb install -r <apk>` on a computer. It installs next to the official T3 Code app and does not replace it (see [the upstream docs](../user/install.md#mobile-app)).
+
+The iPhone app has no download. You build it on your own Mac and sign it with your own Apple account; see [iOS: build it yourself](../user/install.md#ios-build-it-yourself).
 
 ### The `t3x` command
 
@@ -147,7 +149,7 @@ Use a new one-time link for every new device. After pairing, the device reconnec
 
 - **Browser**: open the link. It looks like `http://<host LAN address>:3873/pair#token=…`.
 - **Desktop app**: open the `t3extend://pair` link printed in the terminal. The app asks you to confirm the server address before adding it. Or use Settings → Environments → Add environment and paste the link.
-- **Android app**: scan the QR code (with the system camera or Scan QR code in the app), or use Settings → Environments → Add environment and paste the link. If you type an IP address with no protocol, the phone treats it as http. If the host uses https, write `https://`.
+- **Phone app (Android and iPhone)**: scan the QR code (with the system camera or Scan QR code in the app), or use Settings → Environments → Add environment and paste the link. If you type an IP address with no protocol, the phone treats it as http. If the host uses https, write `https://`.
 
 ### Revoke
 
@@ -252,7 +254,7 @@ t3x devices leave              # Take this computer out
 ### Add a phone or another computer
 
 - **Another computer**: in a desktop app that has already joined, choose Invite a device, set the type to computer, and copy the invite. On the new computer, open the desktop app, go to Settings → Sharing & access → Your server, choose Join my server, and paste it. For a computer with no interface, use `t3x devices join`.
-- **Phone (Android)**: in a desktop app that has already joined, choose Invite a device and set the type to phone. It shows a QR code. You can also run `./t3x invite --kind phone` on the VPS. On the phone, open Settings → Your server and choose Scan QR code or Paste invite. The phone asks you to confirm the server's domain, and sends the request only after you confirm.
+- **Phone (Android and iPhone)**: in a desktop app that has already joined, choose Invite a device and set the type to phone. It shows a QR code. You can also run `./t3x invite --kind phone` on the VPS. On the phone, open Settings → Your server and choose Scan QR code or Paste invite. The phone asks you to confirm the server's domain, and sends the request only after you confirm.
 
 Every computer that has joined shows up as an environment on your other computers and phones, and so does each one that joins later. It takes a few seconds to a minute for a newly joined device to be recognized by the other computers. During that time you see "Waiting for that computer to confirm…".
 
@@ -330,34 +332,62 @@ While forwarding is on, pages in the forwarding tabs can reach the forwarded ser
 
 For more, see [Localhost on a remote environment](../user/remote-access.md#localhost-on-a-remote-environment) in the upstream docs.
 
-## 8. Phone push (Android)
+## 8. Phones: Android and iPhone
 
-The T3 Extend Android app can receive alerts without T3 Connect, Firebase, or Google Play services. It sends one when an agent finishes, fails, needs approval, or needs input, and tapping it opens that thread. It uses UnifiedPush with your own ntfy server.
+### What each one needs
 
-The whole path: the host encrypts the alert and sends it to your ntfy server. The ntfy app on the phone receives the encrypted data and hands it to T3 Extend. T3 Extend decrypts it and shows it in the phone's current interface language. The ntfy server only handles the encrypted data.
+|                            | Android                                                                                          | iPhone                                                                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Install                    | Download the APK from [Releases](https://github.com/SimpleEve/t3-extend/releases)                | No download. Build it on a Mac with your own Apple account; needs macOS 26.6+ and Xcode 27.1+                                         |
+| Connect                    | Any method in sections 4 to 6: LAN pairing, Tailscale, or your own server                        | The same. The first time it connects over the LAN, iOS asks for Local Network access; allow it                                        |
+| Join your own server       | Settings → Your server, scan or paste the invite                                                 | The same                                                                                                                              |
+| Push path                  | host → your ntfy server → the ntfy app on the phone → T3 Extend                                  | host → Apple's APNs → iPhone, with nothing in between                                                                                 |
+| What push needs            | An ntfy server at a public address (your own server installs one), and the ntfy app on the phone | An APNs key (`.p8`) from a paid Apple Developer account, set up on **every** host. A build signed with a free account cannot get push |
+| Push and connection method | The host must reach the public ntfy server                                                       | The host must reach Apple (`api.push.apple.com` and `api.sandbox.push.apple.com`), whichever way the phone connects                   |
+| Background limits          | Some systems need "Allow full background activity" for ntfy and T3 Extend                        | Nothing to set                                                                                                                        |
+| How long an install lasts  | Indefinitely                                                                                     | A year for a paid-account build, 7 days for a free one; then build and install again                                                  |
 
-### Before you start
+Both phones only get alerts from the environments they are connected to, and each environment pushes only its own threads. A thread you are looking at does not alert. A completion alert waits a short while to make sure there is no follow-up. Removing an environment, turning it off, or revoking this phone's session stops alerts from it.
+
+### Android push
+
+The T3 Extend Android app can receive alerts without T3 Connect, Firebase, or Google Play services, through UnifiedPush and your own ntfy server. The host encrypts each alert and sends it to your ntfy server. The ntfy app on the phone receives the encrypted data and hands it to T3 Extend, which decrypts it and shows it in the phone's current interface language. The ntfy server only handles encrypted data.
 
 1. **An ntfy server at a public address.** The `setup.sh` in the Your own server section installs one by default, at `https://ntfy.t3.example.com`. The host only pushes to public addresses. Push servers on the LAN, on this computer, or on a tailnet are refused, and so are domains that resolve to those addresses.
 2. **Find the push server's address and account.** On the VPS, in the `infra/self-host` directory, run `./t3x ntfy`. It shows the server address and the account for the phone (`phone`) and its password. For a server installed with `--no-ntfy`, it tells you that ntfy is not installed.
 3. **The push app on the phone.** Install **ntfy** from F-Droid, open it, set the default server in its settings to the address above, and sign in with the `phone` account.
+4. **Turn it on in T3 Extend.** Open Settings → Notifications, turn on Push notifications, and allow notifications. If only one push app is installed, it is chosen automatically; if you have several, pick one. After the push server answers, the page shows the push app and the server's hostname, and under each environment whether this phone has registered. Tap Send test notification under an environment; one should arrive within a few seconds.
 
-### Turn it on in T3 Extend
+Good to know:
 
-Open Settings → Notifications, turn on Push notifications, and allow notifications. If only one push app is installed, it is chosen automatically. If you have several, pick one yourself.
-
-After the push server answers, the page shows the push app and the server's hostname. Under each paired environment it says whether this phone has registered. Under an environment, tap Send test notification. One should arrive within a few seconds.
-
-### Good to know
-
-- The phone gives the push address and encryption key to every paired environment. So it only gets alerts from paired environments, and each environment pushes only its own threads.
-- A thread you are looking at does not alert. A completion alert waits a short while to make sure there is no follow-up.
-- Removing an environment, turning it off, or revoking this phone's session stops alerts from it.
 - If an environment shows "not registered", the text after it gives the reason (could not connect, no answer, or registration refused). For could not connect and no answer, it retries on its own. For a refusal, turn Push notifications off and on again.
 - Force stopping the app in system settings pauses push until you open it again.
 - Some Android systems (for example ColorOS from OPPO) cut off a push app's connection once it leaves the screen. In system Settings → Apps, find ntfy and then T3 Extend, open Battery management, and choose "Allow full background activity".
 
 For the full description, see [Push without Google](../user/mobile-notifications.md#push-without-google) in the upstream docs.
+
+### iPhone push
+
+iPhone notifications can only go through Apple's APNs, and only the Apple account that signed the app can send to it. T3 Extend has no relay: each host sends alerts to Apple directly, with a key from your own account.
+
+1. **Create an APNs key.** In the paid Apple Developer account you built the app with, open Certificates, Identifiers & Profiles → Keys and create a key with Apple Push Notifications service (APNs) enabled. Download the `.p8` file (Apple lets you do this once) and note its Key ID. Creating keys needs the Admin or Account Holder role.
+2. **Set it up on every host.** Put the `.p8` somewhere on the host that only you can read (for example `~/.config/t3extend/apns/`, mode 600), and add three lines to `~/.t3extend/service.env`:
+
+   ```dotenv
+   T3EXTEND_APNS_KEY_FILE=/Users/you/.config/t3extend/apns/AuthKey_XXXXXXXXXX.p8
+   T3EXTEND_APNS_KEY_ID=XXXXXXXXXX
+   T3EXTEND_APNS_TEAM_ID=<team ID>
+   ```
+
+   The team ID is shown in Xcode → Settings → Accounts; use the team you built with. Both the background service and the desktop app read this file. After changing it, run `t3x service restart` or reopen the desktop app. With none of the three set, iPhone push is off. With only some set, or a value that does not work, the server logs one warning saying why.
+
+3. **Turn it on on the iPhone.** Open Settings → Notifications, turn on Push notifications, and allow notifications. Each environment shows whether the phone has registered. Tap Send test notification; one should arrive within a few seconds.
+
+Good to know:
+
+- "Not registered: this server has no APNs key" means that host is missing the three lines above, or has not restarted since. "Update this server to get push on iPhone" means that host runs an older version; run `t3x update` there.
+- Right after the app opens, an environment that has not connected yet shows "Waiting for the connection…", and registers within seconds of connecting. If it keeps waiting, swipe the app away and open it again.
+- The key can send any notification to your app. Keep it out of repositories, screenshots, and chats.
 
 ## 9. Troubleshooting
 
