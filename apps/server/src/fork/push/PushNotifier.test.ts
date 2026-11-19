@@ -13,6 +13,7 @@ import {
   type OrchestrationV2DomainEvent,
   type OrchestrationV2ThreadShell,
   type PushNotificationPreferences,
+  type PushRegistrationError,
   type PushRegistrationInput,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
@@ -31,6 +32,7 @@ import * as ServerEnvironment from "../../environment/ServerEnvironment.ts";
 import * as ThreadManagement from "../../orchestration-v2/ThreadManagementService.ts";
 import * as ProjectService from "../../project/ProjectService.ts";
 import * as PushNotifier from "./PushNotifier.ts";
+import * as PushApns from "./PushApns.ts";
 import * as PushRegistrations from "./PushRegistrations.ts";
 import * as PushTransport from "./pushTransport.ts";
 import { decryptWebPush } from "./webPush.ts";
@@ -145,6 +147,11 @@ const makeHarness = Effect.fnUntraced(function* (
     readonly activeSessions?: ReadonlyArray<string>;
     readonly readShell?: (threadId: ThreadId) => Effect.Effect<OrchestrationV2ThreadShell | null>;
     readonly project?: Option.Option<{ readonly id: ProjectId; readonly title: string }>;
+    readonly apns?: PushApns.PushApns["Service"];
+    /** Runs while a delivery is on its way, like a phone registering again meanwhile. */
+    readonly duringDelivery?: (
+      registrations: PushRegistrations.PushRegistrations["Service"],
+    ) => Effect.Effect<unknown, PushRegistrationError>;
   } = {},
 ) {
   yield* TestClock.setTime(NOW_MS);
@@ -163,23 +170,29 @@ const makeHarness = Effect.fnUntraced(function* (
     remove: (name) => Effect.sync(() => void values.delete(name)),
     getOrCreateRandom: unused,
   });
-  const registrations = yield* PushRegistrations.make({ allowInsecure: false }).pipe(
-    Effect.provideService(ServerSecretStore.ServerSecretStore, secrets),
-  );
+  const registrations = yield* PushRegistrations.make({
+    allowInsecure: false,
+    apnsConfigured: options.apns?.configured ?? false,
+  }).pipe(Effect.provideService(ServerSecretStore.ServerSecretStore, secrets));
 
   const currentShell = yield* Ref.make<OrchestrationV2ThreadShell | null>(shell());
   const shellReads: ThreadId[] = [];
   const sent: Sent[] = [];
   const transport = PushTransport.PushTransport.of({
     post: (input) =>
-      Effect.suspend(() => {
-        sent.push({ url: input.url, headers: new Headers(input.headers), body: input.body });
-        const result =
-          options.respond?.(sent.length, input.url) ?? new Response(null, { status: 200 });
-        return result instanceof Error
-          ? Effect.fail(new PushTransport.PushTransportError({ reason: "unreachable" }))
-          : Effect.succeed(result.status);
-      }),
+      (options.duringDelivery?.(registrations) ?? Effect.void).pipe(
+        Effect.orDie,
+        Effect.andThen(
+          Effect.suspend(() => {
+            sent.push({ url: input.url, headers: new Headers(input.headers), body: input.body });
+            const result =
+              options.respond?.(sent.length, input.url) ?? new Response(null, { status: 200 });
+            return result instanceof Error
+              ? Effect.fail(new PushTransport.PushTransportError({ reason: "unreachable" }))
+              : Effect.succeed(result.status);
+          }),
+        ),
+      ),
   });
 
   // One server process: its queues, notifier and consumers. `spawn` starts another over the same
@@ -251,6 +264,7 @@ const makeHarness = Effect.fnUntraced(function* (
 
     const notifier = yield* PushNotifier.make.pipe(
       Effect.provideService(PushRegistrations.PushRegistrations, registrations),
+      Effect.provideService(PushApns.PushApns, options.apns ?? PushApns.disabled),
       Effect.provideService(ThreadManagement.ThreadManagementService, threads),
       Effect.provideService(ProjectService.ProjectService, projects),
       Effect.provideService(SessionStore.SessionStore, sessionStore),
@@ -315,7 +329,10 @@ describe("push registrations", () => {
         sessionId: session("session-1"),
         registration: first.input(),
       });
-      assert.equal(stored.endpoint, "https://ntfy.example.test/upFirst?up=1");
+      assert.equal(
+        PushRegistrations.registrationTarget(stored),
+        "https://ntfy.example.test/upFirst?up=1",
+      );
       assert.equal((yield* registrations.list).length, 1);
 
       // The distributor hands out a new endpoint: same session, same registration, new URL.
@@ -328,7 +345,10 @@ describe("push registrations", () => {
       assert.equal((yield* registrations.list).length, 1);
       assert.equal(updated.createdAt, stored.createdAt);
       assert.notEqual(updated.updatedAt, stored.updatedAt);
-      assert.equal(updated.endpoint, "https://ntfy.example.test/upMoved?up=1");
+      assert.equal(
+        PushRegistrations.registrationTarget(updated),
+        "https://ntfy.example.test/upMoved?up=1",
+      );
 
       // A re-paired phone has a new session but the same device: the old one goes.
       yield* registrations.upsert({
@@ -796,24 +816,42 @@ describe("push registration changes", () => {
   it.effect("a new endpoint replaces the old one, and a late 410 for the old one keeps it", () =>
     Effect.gen(function* () {
       const { registrations } = yield* makeHarness();
-      yield* add(registrations, "session-1", "https://ntfy.example.test/upOld");
-      yield* add(registrations, "session-1", "https://ntfy.example.test/upNew");
+      const old = yield* add(registrations, "session-1", "https://ntfy.example.test/upOld");
+      const current = yield* add(registrations, "session-1", "https://ntfy.example.test/upNew");
       assert.deepStrictEqual(
-        (yield* registrations.list).map((entry) => entry.endpoint),
+        (yield* registrations.list).map(PushRegistrations.registrationTarget),
         ["https://ntfy.example.test/upNew"],
       );
       // A delivery that started before the change finds the old endpoint gone.
-      yield* registrations.removeIfEndpoint(
-        session("session-1"),
-        "https://ntfy.example.test/upOld",
-      );
+      yield* registrations.removeIfCurrent(old);
       assert.equal((yield* registrations.list).length, 1);
-      yield* registrations.removeIfEndpoint(
-        session("session-1"),
-        "https://ntfy.example.test/upNew",
-      );
+      yield* registrations.removeIfCurrent(current);
       assert.equal((yield* registrations.list).length, 0);
     }).pipe(Effect.scoped),
+  );
+
+  it.effect.each([201, 410] as const)(
+    "an answer %s for keys that were replaced meanwhile does not touch the new registration",
+    (status) =>
+      Effect.gen(function* () {
+        const endpoint = "https://ntfy.example.test/upSame";
+        const { notifier, registrations } = yield* makeHarness({
+          respond: () => new Response(null, { status }),
+          // The same endpoint comes back with new keys while the old ones are being pushed to.
+          duringDelivery: (store) =>
+            store
+              .upsert({
+                sessionId: session("session-1"),
+                registration: makeReceiver(endpoint).input(),
+              })
+              .pipe(Effect.asVoid),
+        });
+        yield* add(registrations, "session-1", endpoint);
+        yield* notifier.sendTest({ sessionId: session("session-1"), deviceId: "device-1" });
+        const stored = yield* registrations.list;
+        assert.equal(stored.length, 1);
+        assert.equal(stored[0]?.lastDelivery, null);
+      }).pipe(Effect.scoped),
   );
 
   it.effect("a failed write reports the error and leaves the registrations as they were", () =>
@@ -898,6 +936,174 @@ describe("push after a restart", () => {
       // It still announces what happens next.
       yield* restarted.emit(THREAD_ID, shell({ status: "failed" }));
       assert.equal(sent.length, 2);
+    }).pipe(Effect.scoped),
+  );
+});
+
+describe("push to iPhones", () => {
+  const apnsInput = (overrides: Record<string, unknown> = {}): PushRegistrationInput =>
+    ({
+      kind: "apns",
+      deviceId: "phone-1",
+      label: "iPhone",
+      environmentLabel: "Mac mini",
+      deviceToken: "ab".repeat(32),
+      apsEnvironment: "production",
+      bundleId: "com.example.app",
+      preferences: ALL_ON,
+      ...overrides,
+    }) as PushRegistrationInput;
+
+  const fakeApns = (outcome: "delivered" | "gone" | "rejected" | "unreachable") => {
+    const calls: Array<{
+      readonly registration: PushRegistrations.StoredPushRegistration;
+      readonly kind: string;
+    }> = [];
+    const service = PushApns.PushApns.of({
+      configured: true,
+      send: ({ registration, payload }) =>
+        Effect.sync(() => {
+          calls.push({ registration, kind: payload.kind });
+          return { outcome, status: outcome === "delivered" ? 200 : 410 };
+        }),
+    });
+    return { calls, service };
+  };
+
+  it.effect("refuses an iPhone while this environment has no APNs key", () =>
+    Effect.gen(function* () {
+      const { registrations } = yield* makeHarness();
+      const error = yield* registrations
+        .upsert({ sessionId: session("session-1"), registration: apnsInput() })
+        .pipe(Effect.flip);
+      assert.equal(error.reason, "apns_not_configured");
+      assert.equal((yield* registrations.list).length, 0);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("shows Apple's host, never the token, as where it pushes", () =>
+    Effect.gen(function* () {
+      const { registrations } = yield* makeHarness({ apns: fakeApns("delivered").service });
+      const stored = yield* registrations.upsert({
+        sessionId: session("session-1"),
+        registration: apnsInput({ apsEnvironment: "development" }),
+      });
+      const status = PushRegistrations.toPushRegistrationStatus(stored);
+      assert.equal(status.endpointHost, "api.sandbox.push.apple.com");
+      assert.notInclude(JSON.stringify(status), "abab");
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("sends a test through APNs and keeps the registration when Apple accepts it", () =>
+    Effect.gen(function* () {
+      const apns = fakeApns("delivered");
+      const { notifier, registrations, sent } = yield* makeHarness({ apns: apns.service });
+      yield* registrations.upsert({ sessionId: session("session-1"), registration: apnsInput() });
+      const result = yield* notifier.sendTest({
+        sessionId: session("session-1"),
+        deviceId: "phone-1",
+      });
+      assert.deepStrictEqual(result, { registered: true, outcome: "delivered", httpStatus: 200 });
+      assert.deepStrictEqual(
+        apns.calls.map((call) => call.kind),
+        ["test"],
+      );
+      assert.equal(sent.length, 0);
+      assert.equal((yield* registrations.list)[0]?.lastDelivery?.outcome, "delivered");
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("deletes the registration when Apple says the token is gone", () =>
+    Effect.gen(function* () {
+      const { notifier, registrations } = yield* makeHarness({ apns: fakeApns("gone").service });
+      yield* registrations.upsert({ sessionId: session("session-1"), registration: apnsInput() });
+      const result = yield* notifier.sendTest({
+        sessionId: session("session-1"),
+        deviceId: "phone-1",
+      });
+      assert.equal(result.outcome, "gone");
+      assert.equal((yield* registrations.list).length, 0);
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect.each(["delivered", "gone"] as const)(
+    "an answer %s for a token's old app does not touch the same token registered again",
+    (outcome) =>
+      Effect.gen(function* () {
+        let register: Effect.Effect<unknown, PushRegistrationError> = Effect.void;
+        const service = PushApns.PushApns.of({
+          configured: true,
+          send: () =>
+            register.pipe(
+              Effect.orDie,
+              Effect.as({ outcome, status: outcome === "delivered" ? 200 : 410 }),
+            ),
+        });
+        const { notifier, registrations } = yield* makeHarness({ apns: service });
+        yield* registrations.upsert({ sessionId: session("session-1"), registration: apnsInput() });
+        // The same token comes back for another app and Apple host while the old one is pushed to.
+        register = registrations.upsert({
+          sessionId: session("session-1"),
+          registration: apnsInput({ apsEnvironment: "development", bundleId: "com.example.other" }),
+        });
+        yield* notifier.sendTest({ sessionId: session("session-1"), deviceId: "phone-1" });
+        const stored = yield* registrations.list;
+        assert.equal(stored.length, 1);
+        assert.equal(stored[0]?.lastDelivery, null);
+      }).pipe(Effect.scoped),
+  );
+
+  it.effect("remembers the Apple host that accepted a token, and shows it", () =>
+    Effect.gen(function* () {
+      const service = PushApns.PushApns.of({
+        configured: true,
+        send: () =>
+          Effect.succeed({ outcome: "delivered", status: 200, switchedTo: "development" } as const),
+      });
+      const { notifier, registrations } = yield* makeHarness({ apns: service });
+      yield* registrations.upsert({ sessionId: session("session-1"), registration: apnsInput() });
+      yield* notifier.sendTest({ sessionId: session("session-1"), deviceId: "phone-1" });
+      const [stored] = yield* registrations.list;
+      assert.equal(stored?.lastDelivery?.outcome, "delivered");
+      assert.equal(
+        stored === undefined ? null : PushRegistrations.registrationHost(stored),
+        "api.sandbox.push.apple.com",
+      );
+    }).pipe(Effect.scoped),
+  );
+
+  it.effect("alerts iPhones and Android phones for the same moment, each its own way", () =>
+    Effect.gen(function* () {
+      const apns = fakeApns("delivered");
+      const { registrations, start, emit, sent, notifier } = yield* makeHarness({
+        apns: apns.service,
+      });
+      yield* registrations.upsert({ sessionId: session("session-1"), registration: apnsInput() });
+      yield* registrations.upsert({
+        sessionId: session("session-2"),
+        registration: makeReceiver("https://ntfy.example.test/upAndroid", "pixel").input(),
+      });
+      // An iPhone that switched approvals off gets nothing for one.
+      yield* registrations.upsert({
+        sessionId: session("session-3"),
+        registration: apnsInput({
+          deviceId: "phone-2",
+          deviceToken: "cd".repeat(32),
+          preferences: { ...ALL_ON, notifyOnApproval: false },
+        }),
+      });
+      yield* notifier.prepare;
+      yield* start;
+      yield* emit(THREAD_ID, shell());
+      yield* emit(THREAD_ID, awaitingApproval());
+      assert.deepStrictEqual(
+        apns.calls.map((call) => [call.registration.deviceId, call.kind]),
+        [["phone-1", "approval"]],
+      );
+      assert.deepStrictEqual(
+        sent.map((entry) => entry.url),
+        ["https://ntfy.example.test/upAndroid"],
+      );
     }).pipe(Effect.scoped),
   );
 });

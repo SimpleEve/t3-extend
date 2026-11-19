@@ -371,6 +371,33 @@ describe("UnifiedPush registration controller", () => {
     expect(getPushEnvironments()).toEqual([]);
   });
 
+  it("keeps the unregister behind a registration that timed out until the request really ends", async () => {
+    fake.state.catalog = new Map([["env-1", ENVIRONMENT]]);
+    fake.state.connected.add("env-1");
+    let release: (result: unknown) => void = () => {};
+    fake.command.mockImplementation((command: string) =>
+      command === "register"
+        ? new Promise((resolve) => {
+            release = resolve;
+          })
+        : Promise.resolve({ _tag: "Success", value: { removed: true } }),
+    );
+    await enableUnifiedPush();
+    await settle();
+    // The screen is told it timed out, but the request may still reach the server.
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(getPushEnvironments().map(({ failure }) => failure)).toEqual(["timeout"]);
+
+    const disabling = disableUnifiedPush();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(sentCommands()).toEqual(["register"]);
+
+    release({ _tag: "Success", value: { lastDelivery: null } });
+    await disabling;
+    await settle();
+    expect(sentCommands()).toEqual(["register", "unregister"]);
+  });
+
   it("does the same for an environment that is removed while its registration is in flight", async () => {
     fake.state.catalog = new Map([["env-1", ENVIRONMENT]]);
     fake.state.connected.add("env-1");

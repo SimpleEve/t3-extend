@@ -1,4 +1,6 @@
 import {
+  ApnsAlertTemplates,
+  ApsEnvironment,
   AuthSessionId,
   PushDeliveryOutcome,
   PushNotificationPreferences,
@@ -18,6 +20,8 @@ import * as Semaphore from "effect/Semaphore";
 
 import * as ServerSecretStore from "../../auth/ServerSecretStore.ts";
 import { ServerConfig } from "../../config.ts";
+import { APNS_HOSTS } from "./apnsTransport.ts"; // fork: iOS
+import * as PushApns from "./PushApns.ts"; // fork: iOS
 import { insecureEndpointsDecision, validatePushEndpoint } from "./pushEndpoint.ts";
 import { decodeWebPushKeys } from "./webPush.ts";
 
@@ -33,7 +37,8 @@ const StoredDelivery = Schema.Struct({
 });
 export type StoredPushDelivery = typeof StoredDelivery.Type;
 
-export const StoredPushRegistration = Schema.Struct({
+/** Android: no `kind`, so files written before iOS existed still read. */
+export const StoredUnifiedPushRegistration = Schema.Struct({
   sessionId: AuthSessionId,
   deviceId: Schema.String,
   label: Schema.String,
@@ -46,7 +51,50 @@ export const StoredPushRegistration = Schema.Struct({
   updatedAt: Schema.String,
   lastDelivery: Schema.NullOr(StoredDelivery),
 });
+export type StoredUnifiedPushRegistration = typeof StoredUnifiedPushRegistration.Type;
+
+// fork: iOS. The token is a credential, like an endpoint: it is stored here and never logged.
+export const StoredApnsPushRegistration = Schema.Struct({
+  kind: Schema.Literal("apns"),
+  sessionId: AuthSessionId,
+  deviceId: Schema.String,
+  label: Schema.String,
+  environmentLabel: Schema.String,
+  deviceToken: Schema.String,
+  apsEnvironment: ApsEnvironment,
+  bundleId: Schema.String,
+  templates: Schema.optional(ApnsAlertTemplates),
+  preferences: PushNotificationPreferences,
+  createdAt: Schema.String,
+  updatedAt: Schema.String,
+  lastDelivery: Schema.NullOr(StoredDelivery),
+});
+export type StoredApnsPushRegistration = typeof StoredApnsPushRegistration.Type;
+
+export const StoredPushRegistration = Schema.Union([
+  StoredApnsPushRegistration,
+  StoredUnifiedPushRegistration,
+]);
 export type StoredPushRegistration = typeof StoredPushRegistration.Type;
+
+export const isApnsRegistration = (
+  registration: StoredPushRegistration,
+): registration is StoredApnsPushRegistration => "kind" in registration;
+
+/** What a registration is delivered to: the endpoint, or the APNs device token. */
+export const registrationTarget = (registration: StoredPushRegistration): string =>
+  isApnsRegistration(registration) ? registration.deviceToken : registration.endpoint;
+
+/**
+ * Which delivery target-and-keys a registration holds. A result for one identity must not land on
+ * a registration that has since changed it, even under the same session and the same token.
+ */
+const registrationIdentity = (registration: StoredPushRegistration): string =>
+  JSON.stringify(
+    isApnsRegistration(registration)
+      ? ["apns", registration.deviceToken, registration.bundleId, registration.apsEnvironment]
+      : ["push", registration.endpoint, registration.p256dh, registration.auth],
+  );
 
 const RegistrationsDocument = Schema.Struct({
   version: Schema.Literal(1),
@@ -63,6 +111,12 @@ export const endpointHost = (endpoint: string): string | null => {
   }
 };
 
+/** Host only, for status and logs: Apple's gateway for an iPhone, the endpoint's host otherwise. */
+export const registrationHost = (registration: StoredPushRegistration): string | null =>
+  isApnsRegistration(registration)
+    ? APNS_HOSTS[registration.apsEnvironment]
+    : endpointHost(registration.endpoint);
+
 export const toPushRegistrationStatus = (
   registration: StoredPushRegistration | undefined,
 ): PushRegistrationStatus =>
@@ -70,7 +124,7 @@ export const toPushRegistrationStatus = (
     ? { registered: false, endpointHost: null, updatedAt: null, lastDelivery: null }
     : {
         registered: true,
-        endpointHost: endpointHost(registration.endpoint),
+        endpointHost: registrationHost(registration),
         updatedAt: registration.updatedAt,
         lastDelivery: registration.lastDelivery,
       };
@@ -99,20 +153,29 @@ export class PushRegistrations extends Context.Service<
     readonly retainSessions: (
       active: ReadonlySet<string>,
     ) => Effect.Effect<number, PushRegistrationError>;
+    /**
+     * Writes the result onto this exact registration; one that has changed since is left alone.
+     * `apsEnvironment` moves an iPhone's registration to the Apple host that accepted its token.
+     */
     readonly recordDelivery: (
-      sessionId: AuthSessionId,
+      registration: StoredPushRegistration,
       delivery: Omit<StoredPushDelivery, "at">,
+      apsEnvironment?: ApsEnvironment,
     ) => Effect.Effect<void, PushRegistrationError>;
-    /** Removes the registration only if it still holds this endpoint, so a re-registration survives a late 410. */
-    readonly removeIfEndpoint: (
-      sessionId: AuthSessionId,
-      endpoint: string,
+    /**
+     * Removes the registration only if it is still this exact one (endpoint and keys, or token,
+     * app and Apple host), so a re-registration survives a late 410.
+     */
+    readonly removeIfCurrent: (
+      registration: StoredPushRegistration,
     ) => Effect.Effect<void, PushRegistrationError>;
   }
 >()("t3/fork/push/PushRegistrations") {}
 
 export const make = Effect.fn("PushRegistrations.make")(function* (options: {
   readonly allowInsecure: boolean;
+  /** Whether this environment has an APNs key; without one an iPhone cannot register. */
+  readonly apnsConfigured?: boolean;
 }) {
   const secrets = yield* ServerSecretStore.ServerSecretStore;
   const lock = yield* Semaphore.make(1);
@@ -181,42 +244,92 @@ export const make = Effect.fn("PushRegistrations.make")(function* (options: {
 
   const upsert: PushRegistrations["Service"]["upsert"] = Effect.fn("PushRegistrations.upsert")(
     function* ({ sessionId, registration }) {
-      const endpoint = validatePushEndpoint(registration.endpoint, options);
-      if (endpoint === null) {
-        return yield* new PushRegistrationError({
-          reason: "invalid_endpoint",
-          message: "The push endpoint must be an https URL at a public address.",
-        });
-      }
-      const keys = decodeWebPushKeys(registration.p256dh, registration.auth);
-      if (keys === null) {
-        return yield* new PushRegistrationError({
-          reason: "invalid_keys",
-          message: "The push subscription keys are not a valid P-256 key and auth secret.",
-        });
-      }
+      // Where the alerts go, and how to write the stored entry once that is known to be usable.
+      type Prepared = {
+        readonly target: string;
+        readonly build: (input: {
+          readonly previous: StoredPushRegistration | undefined;
+          readonly now: string;
+        }) => StoredPushRegistration;
+      };
+      const lastDeliveryFor = (
+        previous: StoredPushRegistration | undefined,
+        next: StoredPushRegistration,
+      ) =>
+        previous !== undefined && registrationIdentity(previous) === registrationIdentity(next)
+          ? previous.lastDelivery
+          : null;
+      const prepared: Prepared = yield* Effect.gen(function* () {
+        if ("kind" in registration) {
+          if (options.apnsConfigured !== true) {
+            return yield* new PushRegistrationError({
+              reason: "apns_not_configured",
+              message: "This environment has no APNs key, so it cannot push to an iPhone.",
+            });
+          }
+          const deviceToken = registration.deviceToken.toLowerCase();
+          return {
+            target: deviceToken,
+            build: ({ previous, now }) => ({
+              kind: "apns",
+              sessionId,
+              deviceId: registration.deviceId,
+              label: registration.label,
+              environmentLabel: registration.environmentLabel,
+              deviceToken,
+              apsEnvironment: registration.apsEnvironment,
+              bundleId: registration.bundleId,
+              ...(registration.templates === undefined
+                ? {}
+                : { templates: registration.templates }),
+              preferences: registration.preferences,
+              createdAt: previous?.createdAt ?? now,
+              updatedAt: now,
+              lastDelivery: null,
+            }),
+          } satisfies Prepared;
+        }
+        const endpoint = validatePushEndpoint(registration.endpoint, options);
+        if (endpoint === null) {
+          return yield* new PushRegistrationError({
+            reason: "invalid_endpoint",
+            message: "The push endpoint must be an https URL at a public address.",
+          });
+        }
+        const keys = decodeWebPushKeys(registration.p256dh, registration.auth);
+        if (keys === null) {
+          return yield* new PushRegistrationError({
+            reason: "invalid_keys",
+            message: "The push subscription keys are not a valid P-256 key and auth secret.",
+          });
+        }
+        return {
+          target: endpoint.url,
+          build: ({ previous, now }) => ({
+            sessionId,
+            deviceId: registration.deviceId,
+            label: registration.label,
+            environmentLabel: registration.environmentLabel,
+            endpoint: endpoint.url,
+            p256dh: keys.p256dh.toString("base64url"),
+            auth: keys.auth.toString("base64url"),
+            preferences: registration.preferences,
+            createdAt: previous?.createdAt ?? now,
+            updatedAt: now,
+            lastDelivery: null,
+          }),
+        } satisfies Prepared;
+      });
       const now = DateTime.formatIso(yield* DateTime.now);
       const stored = yield* mutate((current) => {
         const previous = current.find((entry) => entry.sessionId === sessionId);
-        const next: StoredPushRegistration = {
-          sessionId,
-          deviceId: registration.deviceId,
-          label: registration.label,
-          environmentLabel: registration.environmentLabel,
-          endpoint: endpoint.url,
-          p256dh: keys.p256dh.toString("base64url"),
-          auth: keys.auth.toString("base64url"),
-          preferences: registration.preferences,
-          createdAt: previous?.createdAt ?? now,
-          updatedAt: now,
-          lastDelivery:
-            previous?.endpoint === endpoint.url ? (previous?.lastDelivery ?? null) : null,
-        };
+        const built = prepared.build({ previous, now });
+        const next = { ...built, lastDelivery: lastDeliveryFor(previous, built) };
         const others = current.filter(
           (entry) =>
             entry.sessionId !== sessionId &&
             entry.deviceId !== registration.deviceId &&
-            entry.endpoint !== endpoint.url,
+            registrationTarget(entry) !== prepared.target,
         );
         if (previous === undefined && others.length >= MAX_REGISTRATIONS) {
           return [current, null] as const;
@@ -266,29 +379,34 @@ export const make = Effect.fn("PushRegistrations.make")(function* (options: {
       return [next.length === current.length ? current : next, current.length - next.length];
     });
   });
+  const isSame = (entry: StoredPushRegistration, registration: StoredPushRegistration) =>
+    entry.sessionId === registration.sessionId &&
+    registrationIdentity(entry) === registrationIdentity(registration);
   const recordDelivery = Effect.fn("PushRegistrations.recordDelivery")(function* (
-    sessionId: AuthSessionId,
+    registration: StoredPushRegistration,
     delivery: Omit<StoredPushDelivery, "at">,
+    apsEnvironment?: ApsEnvironment,
   ) {
     const at = DateTime.formatIso(yield* DateTime.now);
     yield* mutate((current) => {
-      if (!current.some((entry) => entry.sessionId === sessionId)) return [current, null];
+      if (!current.some((entry) => isSame(entry, registration))) return [current, null];
       return [
-        current.map((entry) =>
-          entry.sessionId === sessionId ? { ...entry, lastDelivery: { at, ...delivery } } : entry,
-        ),
+        current.map((entry) => {
+          if (!isSame(entry, registration)) return entry;
+          const delivered = { ...entry, lastDelivery: { at, ...delivery } };
+          return apsEnvironment !== undefined && isApnsRegistration(delivered)
+            ? { ...delivered, apsEnvironment }
+            : delivered;
+        }),
         null,
       ];
     });
   });
-  const removeIfEndpoint = Effect.fn("PushRegistrations.removeIfEndpoint")(function* (
-    sessionId: AuthSessionId,
-    endpoint: string,
+  const removeIfCurrent = Effect.fn("PushRegistrations.removeIfCurrent")(function* (
+    registration: StoredPushRegistration,
   ) {
     yield* mutate((current) => {
-      const next = current.filter(
-        (entry) => !(entry.sessionId === sessionId && entry.endpoint === endpoint),
-      );
+      const next = current.filter((entry) => !isSame(entry, registration));
       return [next.length === current.length ? current : next, null];
     });
   });
@@ -301,7 +419,7 @@ export const make = Effect.fn("PushRegistrations.make")(function* (options: {
     removeSession,
     retainSessions,
     recordDelivery,
-    removeIfEndpoint,
+    removeIfCurrent,
   });
 });
 
@@ -315,6 +433,7 @@ export const layer = Layer.effect(
       environment,
       development: config.devUrl !== undefined,
     });
-    return yield* make({ allowInsecure: decision === "allowed" });
+    const apns = yield* PushApns.PushApns;
+    return yield* make({ allowInsecure: decision === "allowed", apnsConfigured: apns.configured });
   }),
 );

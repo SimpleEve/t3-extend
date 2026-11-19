@@ -30,6 +30,7 @@ import {
   shouldPublishAgentAwarenessEvent,
 } from "../../relay/AgentAwarenessRelay.ts";
 import { forkParked } from "../../serverActivation.ts";
+import * as PushApns from "./PushApns.ts"; // fork: iOS
 import * as PushRegistrations from "./PushRegistrations.ts";
 import * as PushTransport from "./pushTransport.ts";
 import {
@@ -86,6 +87,7 @@ export const make = Effect.gen(function* () {
   const serverEnvironment = yield* ServerEnvironment.ServerEnvironment;
   const sessions = yield* SessionStore.SessionStore;
   const transport = yield* PushTransport.PushTransport;
+  const apns = yield* PushApns.PushApns;
   const scope = yield* Effect.scope;
 
   // Last phase seen per thread; only moves into a new alertable phase notify.
@@ -95,7 +97,12 @@ export const make = Effect.gen(function* () {
   let seeded = false;
 
   const deliverOnce = Effect.fn("PushNotifier.deliverOnce")(function* (job: DeliveryJob) {
-    const keys = decodeWebPushKeys(job.registration.p256dh, job.registration.auth);
+    // An iPhone is pushed to directly through Apple, with the alert text already written out.
+    const registration = job.registration;
+    if (PushRegistrations.isApnsRegistration(registration)) {
+      return yield* apns.send({ registration, payload: job.payload });
+    }
+    const keys = decodeWebPushKeys(registration.p256dh, registration.auth);
     if (keys === null) return { outcome: "rejected", status: null } as const;
     const body = encryptWebPush({
       plaintext: new TextEncoder().encode(encodePayload(job.payload)),
@@ -103,7 +110,7 @@ export const make = Effect.gen(function* () {
     });
     return yield* transport
       .post({
-        url: job.registration.endpoint,
+        url: registration.endpoint,
         headers: { "content-encoding": "aes128gcm", ttl: "3600", urgency: "high" },
         body,
       })
@@ -114,7 +121,7 @@ export const make = Effect.gen(function* () {
         Effect.catch((error) =>
           (error._tag === "PushTransportError" && error.reason === "blocked"
             ? Effect.logWarning("push endpoint refused: it leads to a non-public address", {
-                host: PushRegistrations.endpointHost(job.registration.endpoint),
+                host: PushRegistrations.endpointHost(registration.endpoint),
               })
             : Effect.void
           ).pipe(Effect.as({ outcome: "unreachable", status: null } as const)),
@@ -135,20 +142,23 @@ export const make = Effect.gen(function* () {
       yield* Effect.sleep(delay);
       result = yield* deliverOnce(job);
     }
-    const sessionId = job.registration.sessionId;
     yield* registrations
-      .recordDelivery(sessionId, { outcome: result.outcome, httpStatus: result.status })
+      .recordDelivery(
+        job.registration,
+        { outcome: result.outcome, httpStatus: result.status },
+        "switchedTo" in result ? result.switchedTo : undefined,
+      )
       .pipe(keepGoing("recording a delivery"));
-    // Only the host is logged: the endpoint is a credential.
+    // Only the host is logged: the endpoint and the device token are credentials.
     yield* Effect.logInfo("push delivery finished", {
-      host: PushRegistrations.endpointHost(job.registration.endpoint),
+      host: PushRegistrations.registrationHost(job.registration),
       kind: job.payload.kind,
       outcome: result.outcome,
       status: result.status,
     });
     if (result.outcome === "gone") {
       yield* registrations
-        .removeIfEndpoint(sessionId, job.registration.endpoint)
+        .removeIfCurrent(job.registration)
         .pipe(keepGoing("removing an expired registration"));
     }
     return result;
@@ -364,4 +374,7 @@ export const make = Effect.gen(function* () {
   });
 });
 
-export const layer = Layer.effect(PushNotifier, make).pipe(Layer.provide(PushTransport.layer));
+export const layer = Layer.effect(PushNotifier, make).pipe(
+  Layer.provide(PushTransport.layer),
+  Layer.provide(PushApns.layer), // fork: iOS
+);

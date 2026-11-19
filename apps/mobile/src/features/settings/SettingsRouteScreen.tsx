@@ -35,6 +35,7 @@ import { filterSettingsSections } from "./settings-search";
 import { usePaneRole } from "../../components/ui/Pane";
 import { serverDevicesRow } from "../../fork/deviceKeys/serverDevicesRow"; // fork: self-hosted devices
 import { localNotificationsRows } from "../../fork/push/notificationsRow"; // fork: UnifiedPush
+import { APNS_SUPPORT } from "../../fork/push/apnsPushStore"; // fork: iOS push
 import { supportsUnifiedPush } from "../../fork/push/unifiedPushNative"; // fork: UnifiedPush
 import { useT } from "../../hooks/useT"; // fork: i18n
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
@@ -155,7 +156,10 @@ function LocalSettingsRouteScreen() {
     <SettingsList
       connections={[
         environmentsRow(Object.keys(savedConnectionsById).length, t),
-        ...localNotificationsRows(t, supportsUnifiedPush()), // fork: UnifiedPush
+        ...localNotificationsRows(
+          t,
+          supportsUnifiedPush() || APNS_SUPPORT !== "unsupported-platform",
+        ), // fork: UnifiedPush, iOS push
       ]}
     />
   );

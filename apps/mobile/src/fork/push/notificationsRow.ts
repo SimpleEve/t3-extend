@@ -10,8 +10,9 @@ export const notificationsRow = (t: Translator) =>
   }) as const;
 
 /**
- * Without T3 Connect that page holds only the UnifiedPush section, so a phone that cannot use it
- * (iOS, a build without the native module) gets no row that leads to an explanation alone.
+ * Without T3 Connect that page holds only the push section: UnifiedPush on Android, APNs on iOS.
+ * A phone with neither (a build without the native module) gets no row that leads to an
+ * explanation alone.
  */
-export const localNotificationsRows = (t: Translator, unifiedPushSupported: boolean) =>
-  unifiedPushSupported ? [notificationsRow(t)] : [];
+export const localNotificationsRows = (t: Translator, pushSupported: boolean) =>
+  pushSupported ? [notificationsRow(t)] : [];
