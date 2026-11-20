@@ -17,6 +17,8 @@ import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
+import { ZH_HANS_AREAS } from "../packages/client-runtime/src/i18n/catalogs/zh-Hans/index.ts";
+
 const GENERATE: Record<string, readonly [string, ...string[]]> = {
   "apps/web": ["node_modules/.bin/gt", "generate"],
   "apps/mobile": ["node_modules/.bin/gt", "generate"],
@@ -36,6 +38,8 @@ type Catalog = Record<string, unknown>;
 interface Overrides {
   /** Upstream zh term -> the fork's, replaced inside every zh value. */
   readonly terms: Readonly<Record<string, string>>;
+  /** English sources whose upstream zh keeps its own words: "会话" there can mean a sign-in session. */
+  readonly noTermsFor: string;
   /** English source -> the fork's whole zh translation. */
   readonly messages: Readonly<Record<string, string>>;
 }
@@ -64,8 +68,28 @@ const textOf = (value: unknown) => JSON.stringify(value);
 
 const overrides: Overrides = readJson(NodePath.join(root, OVERRIDES));
 const termEntries = Object.entries(overrides.terms).sort(([a], [b]) => b.length - a.length);
+const HAN = /\p{Script=Han}/u;
+// A Latin replacement such as "Agent" gets the space Chinese text puts around a Latin word.
 const applyTerms = (text: string) =>
-  termEntries.reduce((result, [from, to]) => result.split(from).join(to), text);
+  termEntries.reduce((result, [from, to]) => {
+    const parts = result.split(from);
+    return parts.reduce((joined, part, index) => {
+      if (index === 0) return part;
+      const before = joined.at(-1) ?? "";
+      const after = part[0] ?? "";
+      const lead = /^[A-Za-z]/u.test(to) && HAN.test(before) ? " " : "";
+      const tail = /[A-Za-z]$/u.test(to) && HAN.test(after) ? " " : "";
+      return `${joined}${lead}${to}${tail}${part}`;
+    }, "");
+  }, text);
+const noTermsFor = new RegExp(overrides.noTermsFor, "iu");
+
+// The fork's own zh catalog fills a zh key GT has no Chinese for, such as a sentence the fork reworded.
+const forkZh = new Map<string, string>();
+for (const area of Object.values(ZH_HANS_AREAS)) {
+  for (const [source, text] of Object.entries(area))
+    if (!source.includes("|")) forkZh.set(source, text);
+}
 
 const untranslated: string[] = [];
 let drift = false;
@@ -125,12 +149,20 @@ for (const [app, [command, ...args]] of Object.entries(GENERATE)) {
             ? old[from]
             : mapStrings(old[from], reword);
       if (locale === "zh") {
-        const english = typeof value === "string" ? overrides.messages[value] : undefined;
-        if (english !== undefined) translated = english;
-        else if (translated !== undefined) translated = mapStrings(translated, applyTerms);
+        const message = typeof value === "string" ? overrides.messages[value] : undefined;
+        if (message !== undefined) translated = message;
+        else if (translated !== undefined && !noTermsFor.test(textOf(value))) {
+          translated = mapStrings(translated, applyTerms);
+        }
       }
-      if (translated === undefined) {
-        translated = value;
+      const english = textOf(translated) === textOf(value) || translated === undefined;
+      if (locale === "zh" && english && typeof value === "string" && forkZh.has(value)) {
+        translated = forkZh.get(value);
+      } else if (
+        translated === undefined ||
+        (locale === "zh" && english && /[a-z]{3}/u.test(textOf(value)))
+      ) {
+        translated ??= value;
         if (locale === "zh") untranslated.push(`${app}: ${key} ${textOf(value)}`);
       }
       next[key] = translated;
