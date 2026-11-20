@@ -1,6 +1,7 @@
 import type { DevicePlatform, EnvironmentId } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { AsyncResult, Atom } from "effect/reactivity";
+import { T, useGT } from "gt-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { cn } from "~/lib/utils";
@@ -98,6 +99,7 @@ export function DeviceStreamView(props: {
 }) {
   const model = deviceModel(props.platform, props.deviceName ?? "");
   const isDuo = model?.id === "iphone-duo";
+  const gt = useGT();
   const [presentation, setPresentation] = useState<"phone" | "flat">("phone");
   const [keyboardAttached, setKeyboardAttached] = useState(false);
   const cancelPhoneInputRef = useRef<(() => void) | null>(null);
@@ -226,13 +228,13 @@ export function DeviceStreamView(props: {
 
   const phoneUnavailableReason =
     isDuo && !screen?.supportsHingeAngle
-      ? "iPhone Duo 3D requires Device Hub 0.11.0 or newer"
+      ? gt("iPhone Duo 3D requires Device Hub {version} or newer", { version: "0.11.0" })
       : phoneUnavailable
-        ? "3D is unavailable on this browser"
+        ? gt("3D is unavailable on this browser")
         : mjpegUrl
-          ? "3D requires the H.264 stream"
+          ? gt("3D requires the H.264 stream")
           : props.axOverlay
-            ? "Turn off accessibility frames to use 3D"
+            ? gt("Turn off accessibility frames to use 3D")
             : null;
 
   const keyboardSource = deviceKeyboard(props.platform, props.deviceName ?? "");
@@ -323,7 +325,7 @@ export function DeviceStreamView(props: {
         tabIndex={0}
         role="application"
         aria-label={
-          props.platform === "ios" ? t("iOS Simulator screen") : t("Android Emulator screen")
+          props.platform === "ios" ? gt("iOS Simulator screen") : gt("Android Emulator screen")
         }
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return;
@@ -445,7 +447,7 @@ export function DeviceStreamView(props: {
               size="xs"
               aria-pressed={!!showPhone}
               disabled={!!phoneUnavailableReason}
-              title={phoneUnavailableReason ?? "Show 3D phone"}
+              title={phoneUnavailableReason ?? gt("Show 3D phone")}
               onClick={() => setPresentation("phone")}
             >
               3D
@@ -456,7 +458,7 @@ export function DeviceStreamView(props: {
               aria-pressed={!showPhone}
               onClick={() => setPresentation("flat")}
             >
-              Flat
+              <T context="flat device view">Flat</T>
             </Button>
           </div>
         ) : null}
@@ -464,8 +466,8 @@ export function DeviceStreamView(props: {
           <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2">
             <span className="rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
               {inputState.detail
-                ? t("Input disconnected ({detail}), reconnecting…", { detail: inputState.detail })
-                : t("Input disconnected, reconnecting…")}
+                ? gt("Input disconnected ({detail}), reconnecting…", { detail: inputState.detail })
+                : gt("Input disconnected, reconnecting…")}
             </span>
           </div>
         ) : null}
@@ -473,18 +475,18 @@ export function DeviceStreamView(props: {
           // Shown only once the device has been silent for two seconds.
           <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2 transition-opacity delay-2000 duration-0 starting:opacity-0">
             <span className="rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
-              Waiting for device video…
+              <T>Waiting for device video…</T>
             </span>
           </div>
         ) : null}
         {status !== "streaming" && !(retainingFrame && showPhone) ? (
           <div className="absolute inset-0">
             <DeviceLoadingView
-              name={props.deviceName ?? "Device"}
+              name={props.deviceName ?? gt("Device")}
               description={props.deviceDescription ?? ""}
               stage="stream"
               message={
-                status === "error" ? (detail ?? t("Stream failed.")) : t("Connecting video…")
+                status === "error" ? (detail ?? gt("Stream failed.")) : gt("Connecting video…")
               }
               error={status === "error"}
             >
@@ -498,7 +500,7 @@ export function DeviceStreamView(props: {
                     session?.reconnect();
                   }}
                 >
-                  Reconnect
+                  <T>Reconnect</T>
                 </Button>
               ) : null}
             </DeviceLoadingView>

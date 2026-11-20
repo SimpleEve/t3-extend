@@ -5,6 +5,9 @@ import * as Schema from "effect/Schema";
 import { Atom } from "effect/reactivity";
 
 import { appAtomRegistry } from "~/rpc/atomRegistry";
+import { msg } from "gt-react";
+
+import { m } from "../i18n/messages";
 
 type DesktopCliCommandBridge = DesktopBridge["cliCommand"];
 
@@ -13,7 +16,7 @@ class DesktopCliCommandUnavailableError extends Schema.TaggedError<DesktopCliCom
   {},
 ) {
   override get message(): string {
-    return `The ${FORK.cliCommand} command is unavailable.`;
+    return m(msg("The t3x command is unavailable.")); // fork: t3x
   }
 }
 
@@ -22,7 +25,7 @@ class DesktopCliCommandLoadError extends Schema.TaggedError<DesktopCliCommandLoa
   { cause: Schema.Defect() },
 ) {
   override get message(): string {
-    return `Failed to load the ${FORK.cliCommand} command state.`;
+    return m(msg("Failed to load the t3x command state.")); // fork: t3x
   }
 }
 

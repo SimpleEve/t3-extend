@@ -13,6 +13,9 @@ import {
   resolveProjectSettings,
 } from "@t3tools/shared/projectSettings";
 
+import { msg } from "gt-react-native";
+
+import { m, type MessageResolver } from "../../i18n/messages";
 import type { SettingsTarget } from "./settings-environment-filter";
 
 export interface ScopedMobileSettingsTarget {
@@ -38,10 +41,13 @@ export function managedSettingOrganization(
  */
 export function managedSettingReason(
   targets: readonly ScopedMobileSettingsTarget[],
-  ...paths: readonly string[]
+  paths: readonly string[],
+  resolve: MessageResolver = m,
 ): string | undefined {
   const organization = managedSettingOrganization(targets, ...paths); // fork: shared with the translated screen
-  return organization === undefined ? undefined : `Managed by ${organization}.`;
+  return organization === undefined
+    ? undefined
+    : resolve(msg("Managed by {organization}.", { organization }));
 }
 
 export function resolveMobileSettingsTargets(

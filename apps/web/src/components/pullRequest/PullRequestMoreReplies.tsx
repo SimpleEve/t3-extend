@@ -1,3 +1,5 @@
+import { T, useGT } from "gt-react";
+
 import type { PullRequestReplyAvailability } from "./pullRequestDetail.logic";
 
 export function PullRequestMoreReplies({
@@ -5,15 +7,17 @@ export function PullRequestMoreReplies({
   hasMoreReplies,
   url,
 }: PullRequestReplyAvailability) {
+  const gt = useGT();
   if (!hasMoreReplies) return null;
   return (
     <div className="flex flex-wrap items-baseline gap-2 py-1 text-xs text-muted-foreground">
       <span>
         {moreReplies > 0
-          ? moreReplies === 1
-            ? t("{count} more reply", { count: moreReplies.toLocaleString() })
-            : t("{count} more replies", { count: moreReplies.toLocaleString() })
-          : t("More replies")}
+          ? gt("{count, plural, one {{formatted} more reply} other {{formatted} more replies}}", {
+              count: moreReplies,
+              formatted: moreReplies.toLocaleString(),
+            })
+          : gt("More replies")}
       </span>
       {url ? (
         <a
@@ -22,7 +26,7 @@ export function PullRequestMoreReplies({
           rel="noopener noreferrer"
           className="hover:text-foreground hover:underline"
         >
-          View on host
+          <T>View on host</T>
         </a>
       ) : null}
     </div>

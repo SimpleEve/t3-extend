@@ -15,6 +15,7 @@ import {
   hasQuestionAnswer,
 } from "@t3tools/client-runtime/work-log/user-input";
 import * as Haptics from "expo-haptics";
+import { T, useGT, useMessages } from "gt-react-native";
 import { Image } from "expo-image";
 import { type AppSymbolName, SymbolView } from "../../components/ui/AppSymbol";
 import { MaskedView } from "@expo/ui/community/masked-view";
@@ -780,15 +781,16 @@ function WorkspacePreparationRetryButton(props: {
       return run?.status === "failed" && run.workspacePreparation !== undefined;
     },
   );
+  const gt = useGT();
   const retry = useAtomCommand(threadEnvironment.retryWorkspacePreparation, "retry setup");
   const [busy, setBusy] = useState(false);
   if (!retryable) return null;
   return (
     <View className="ml-7 mt-2">
       <Button
-        label="Retry"
+        label={gt("Retry")}
         tone="secondary"
-        accessibilityLabel="Retry workspace preparation"
+        accessibilityLabel={gt("Retry workspace preparation")}
         disabled={busy}
         onPress={() => {
           setBusy(true);
@@ -884,6 +886,8 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
   const locale = useUiLocale(); // fork: times follow the interface language
   const formatTag = uiFormatLocale(locale);
   const { row, expanded } = props;
+  const gt = useGT();
+  const messages = useMessages();
   const openLinkedThread = useOpenLinkedThread();
   const streamsOutput =
     useCommandOutputStreaming(props.environmentId) &&
@@ -912,15 +916,20 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
       : null;
     const label = warning
       ? resetTime
-        ? t("Usage limit reached. Retry after {time}.", { time: resetTime })
-        : t("Usage limit reached.")
+        ? gt("Usage limit reached. Retry after {resetTime}.", { resetTime })
+        : gt("Usage limit reached.")
       : row.summary;
     return (
       <WorkLogPressable
         accessibilityLabel={
-          warning ? label : labelWithDetail(row.summary, failureItem.failure.message, t)
+          warning
+            ? label
+            : gt("{summary}: {message}", {
+                summary: row.summary,
+                message: failureItem.failure.message,
+              })
         }
-        accessibilityHint={t("Long press to copy.")}
+        accessibilityHint={gt("Long press to copy.")}
         onLongPress={() => props.onCopyRow(row.id, row.getCopyText())}
       >
         <View className="flex-1 py-1">
@@ -943,7 +952,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
             </Text>
             {props.copied ? (
               <Text className="pr-1 font-t3-medium text-3xs text-adaptive-emerald-600-400">
-                Copied
+                <T>Copied</T>
               </Text>
             ) : null}
             <Text
@@ -1016,13 +1025,13 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
         ? turnItemOutputText(shownItem)
         : fetchedItem
           ? (turnItemOutputText(fetchedItem) ??
-            (outputImages.length > 0 || viewedImagePath ? null : "No output."))
+            (outputImages.length > 0 || viewedImagePath ? null : gt("No output.")))
           : fetchedDetail.error
-            ? `Couldn't load output: ${fetchedDetail.error}`
+            ? gt("Couldn't load output: {error}", { error: fetchedDetail.error })
             : row.fetchesDetail
               ? fetchedDetail.data
-                ? "Output is no longer available."
-                : "Loading output…"
+                ? gt("Output is no longer available.")
+                : gt("Loading output…")
               : null;
   const exitLine =
     failedExitCode === null ? null : (
@@ -1030,13 +1039,14 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
         exit {failedExitCode}
       </Text>
     );
-  const toolPresentation = resolveWorkEntryToolPresentation(row.workEntry);
-  const previewText = row.groupStandIn?.label ?? workEntryRowLabel(row.workEntry, false, t);
+  const toolPresentation = resolveWorkEntryToolPresentation(row.workEntry, undefined, messages);
+  const previewText = row.groupStandIn?.label ?? workEntryRowLabel(row.workEntry, false, messages);
   const answerPreview = row.workEntry.questionAnswer
     ? getQuestionAnswerPreview(row.workEntry.questionAnswer)
     : null;
   const accessiblePreview = [previewText, answerPreview].filter(Boolean).join(": ");
-  const displayText = row.groupStandIn?.label ?? workEntryRowLabel(row.workEntry, expanded, t);
+  const displayText =
+    row.groupStandIn?.label ?? workEntryRowLabel(row.workEntry, expanded, messages);
   const isSystemNotice = row.projectedItem.item.type === "system_notice";
   const isUsageLimit =
     row.projectedItem.item.type === "error" &&
@@ -1060,17 +1070,17 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
         }
         accessibilityLabel={
           failed
-            ? t("{preview}, tool call failed", { preview: accessiblePreview })
+            ? gt("{preview}, tool call failed", { preview: accessiblePreview })
             : accessiblePreview
         }
         accessibilityHint={
           notifiedSubagentThreadId !== undefined
-            ? "Opens this agent's thread. Long press to copy."
+            ? gt("Opens this agent's thread. Long press to copy.")
             : canExpand
               ? expanded
-                ? t("Double tap to hide full details. Long press to copy.")
-                : t("Double tap to show full details. Long press to copy.")
-              : t("Long press to copy.")
+                ? gt("Double tap to hide full details. Long press to copy.")
+                : gt("Double tap to show full details. Long press to copy.")
+              : gt("Long press to copy.")
         }
         accessibilityState={canExpand ? { expanded } : undefined}
         onPress={() => {
@@ -1147,7 +1157,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
         <View className="shrink-0 flex-row items-center gap-px">
           {props.copied ? (
             <Text className="pr-1 font-t3-medium text-3xs text-adaptive-emerald-600-400">
-              Copied
+              <T>Copied</T>
             </Text>
           ) : null}
           {failed && toolIcon !== undefined ? (
@@ -1351,9 +1361,9 @@ export function ThreadWorkGroupToggle(props: {
   readonly trailing?: ReactNode;
   readonly onToggle: () => void;
 }) {
-  const t = useT();
+  const gt = useGT();
   const statusLabel = props.hasFailure
-    ? t("{summary}, tool call failed", { summary: props.summary })
+    ? gt("{preview}, tool call failed", { preview: props.summary })
     : props.summary;
   const accessibilityLabel = props.thought ? `${props.thought} ${statusLabel}` : statusLabel;
   const icon =
@@ -1391,12 +1401,14 @@ export function ThreadWorkGroupToggle(props: {
             accessibilityLabel={accessibilityLabel}
             accessibilityHint={
               props.expanded
-                ? props.hiddenCount === 1
-                  ? t("Double tap to hide 1 tool call.")
-                  : t("Double tap to hide {count} tool calls.", { count: props.hiddenCount })
-                : props.hiddenCount === 1
-                  ? t("Double tap to show 1 tool call.")
-                  : t("Double tap to show {count} tool calls.", { count: props.hiddenCount })
+                ? gt(
+                    "{count, plural, one {Double tap to hide {count} tool call.} other {Double tap to hide {count} tool calls.}}",
+                    { count: props.hiddenCount },
+                  )
+                : gt(
+                    "{count, plural, one {Double tap to show {count} tool call.} other {Double tap to show {count} tool calls.}}",
+                    { count: props.hiddenCount },
+                  )
             }
             onPress={() => {
               void Haptics.selectionAsync();
@@ -1449,7 +1461,8 @@ export function ThreadThinkingRow(props: {
   /** Replaces "Thinking" while the provider has not started a turn. */
   readonly providerStartingLabel?: string | undefined;
 }) {
-  const label = props.providerStartingLabel ?? props.label ?? "Thinking";
+  const gt = useGT();
+  const label = props.providerStartingLabel ?? props.label ?? gt("Thinking");
   return (
     <View
       accessible

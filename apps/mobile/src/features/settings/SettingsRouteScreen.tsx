@@ -37,8 +37,8 @@ import { serverDevicesRow } from "../../fork/deviceKeys/serverDevicesRow"; // fo
 import { localNotificationsRows } from "../../fork/push/notificationsRow"; // fork: UnifiedPush
 import { APNS_SUPPORT } from "../../fork/push/apnsPushStore"; // fork: iOS push
 import { supportsUnifiedPush } from "../../fork/push/unifiedPushNative"; // fork: UnifiedPush
-import { useT } from "../../hooks/useT"; // fork: i18n
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { useT } from "../../hooks/useT"; // fork: fork rows
+import { useGT, useMessages } from "gt-react-native";
 
 export function SettingsRouteScreen() {
   const list = useSettingsListPlacement();
@@ -76,17 +76,6 @@ function SettingsListContent() {
 }
 
 export function SettingsListScreen(props: {
-  readonly sidebar: boolean;
-  readonly selected: string | null;
-}) {
-  return (
-    <I18nProvider>
-      <TranslatedSettingsListScreen {...props} />
-    </I18nProvider>
-  );
-}
-
-function TranslatedSettingsListScreen(props: {
   readonly sidebar: boolean;
   readonly selected: string | null;
 }) {
@@ -148,7 +137,7 @@ function ConfiguredSettingsRouteScreen() {
           disabled: !isLoaded,
           onPress: () => navigation.navigate("SettingsAuth"),
         },
-        environmentsRow(Object.keys(savedConnectionsById).length, t),
+        environmentsRow(gt("Environments"), Object.keys(savedConnectionsById).length),
         {
           id: "SettingsNotifications",
           icon: "bell.badge",
@@ -162,11 +151,12 @@ function ConfiguredSettingsRouteScreen() {
 
 function LocalSettingsRouteScreen() {
   const gt = useGT();
+  const t = useT(); // fork: fork rows translate through the fork's catalog
   const { savedConnectionsById } = useSavedRemoteConnections();
   return (
     <SettingsList
       connections={[
-        environmentsRow(Object.keys(savedConnectionsById).length, t),
+        environmentsRow(gt("Environments"), Object.keys(savedConnectionsById).length),
         ...localNotificationsRows(
           t,
           supportsUnifiedPush() || APNS_SUPPORT !== "unsupported-platform",
@@ -189,6 +179,8 @@ function environmentsRow(label: string, count: number): SettingsListRow {
 
 function SettingsList(props: { readonly connections: readonly SettingsListRow[] }) {
   const gt = useGT();
+  const t = useT(); // fork: fork rows translate through the fork's catalog
+  const m = useMessages();
   // UIKit's scroll-edge material takes the scroll view's own color; like the chat list, match
   // the sidebar's surface so the bar doesn't darken over content at rest.
   // Grouped cards only lift off the screen surface; the drawer is as dark as they are.
@@ -203,10 +195,11 @@ function SettingsList(props: { readonly connections: readonly SettingsListRow[] 
   const sections = filterSettingsSections(
     [
       { rows: overflowRows },
-      { title: gt("Connections"), rows: props.connections },
+      { title: gt("Connections"), rows: [...props.connections, serverDevicesRow(t)] }, // fork: self-hosted devices
       ...indexSections,
     ],
     query,
+    m,
   );
 
   return (
@@ -324,6 +317,7 @@ function useSettingsIndexSections(): SettingsListSection[] {
 }
 
 function useOverflowRows(): SettingsListRow[] {
+  const m = useMessages();
   const order = useNavigationTabOrder();
   const hidden = useHiddenNavigationTabs();
   const { layout } = useAdaptiveWorkspaceLayout();
@@ -333,7 +327,7 @@ function useOverflowRows(): SettingsListRow[] {
   return tabs.map((tab) => ({
     id: tab,
     icon: NAVIGATION_TAB_ICONS[tab],
-    label: WORKSPACE_TAB_LABELS[tab],
+    label: m(WORKSPACE_TAB_LABELS[tab]),
     onPress: () => selectTab(tab),
   }));
 }

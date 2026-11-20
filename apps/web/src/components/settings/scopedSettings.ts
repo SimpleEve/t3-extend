@@ -1,3 +1,4 @@
+import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
 import {
   ClientSettingsSchema,
   type ClientSettingsPatch,
@@ -25,6 +26,9 @@ import { applyServerSettingsPatch } from "@t3tools/shared/serverSettings";
 import * as Equal from "effect/Equal";
 import * as Cause from "effect/Cause";
 import { Atom } from "effect/reactivity";
+import { msg } from "gt-react";
+
+import { m } from "../../i18n/messages";
 
 import type { ResolvedSettingsScope } from "./settingsScope";
 
@@ -401,14 +405,16 @@ export function planScopedSettingsPatch(
       : scope.kind === "unavailable"
         ? scope.message
         : unscopableKeys.length > 0
-          ? "This setting is environment-wide and cannot be overridden by a project."
+          ? m(msg("This setting is environment-wide and cannot be overridden by a project."))
           : isProjectScope
-            ? t(
-                "Connect the selected checkouts, or update their environments, to save a project override.",
+            ? m(
+                msg(
+                  "Connect the selected checkouts, or update their environments, to save a project override.",
+                ),
               )
             : scope.kind === "environment"
-              ? t("Connect {label} to save this setting.", { label: scope.label })
-              : t("Connect an environment to save this setting.");
+              ? m(msg("Connect {environment} to save this setting.", { environment: scope.label }))
+              : m(msg("Connect an environment to save this setting."));
   return { clientPatch, hasClientWrite, serverWrites, unavailableReason };
 }
 
@@ -430,7 +436,11 @@ export function planScopedSettingsClear(
     unavailableReason:
       serverWrites.length > 0
         ? null
-        : "Connect the selected checkouts, or update their environments, to reset this override.",
+        : m(
+            msg(
+              "Connect the selected checkouts, or update their environments, to reset this override.",
+            ),
+          ),
   };
 }
 
@@ -486,7 +496,7 @@ export function planProjectOverridesClear(
     hasClientWrite: false,
     serverWrites,
     unavailableReason:
-      serverWrites.length > 0 ? null : "Connect the environments to reset these overrides.",
+      serverWrites.length > 0 ? null : m(msg("Connect the environments to reset these overrides.")),
   };
 }
 
@@ -664,7 +674,7 @@ async function persistScopedSettingsPlan(
       return [
         {
           ...environment,
-          message: "This environment does not support this setting. Update T3 Extend on it.",
+          message: m(msg("This environment does not support this setting. Update T3 Extend on it.")),
         },
       ];
     }
@@ -679,8 +689,8 @@ async function persistScopedSettingsPlan(
         ...environment,
         message:
           error instanceof Error
-            ? error.message
-            : "The save failed. Try reconnecting and saving again.",
+            ? (errorDisplayMessage(error, m) ?? error.message)
+            : m(msg("The save failed. Try reconnecting and saving again.")),
       },
     ];
   });

@@ -1,3 +1,4 @@
+import { msg, useMessages } from "gt-react";
 import { useAtomValue } from "@effect/atom-react";
 import { PROVIDER_DISPLAY_NAMES } from "@t3tools/contracts";
 
@@ -55,6 +56,7 @@ export function useUpdateEverything(
 ) {
   const targetVersion = localUpdateVersion ?? APP_VERSION;
   const { environments } = useEnvironments();
+  const resolve = useMessages();
   const environmentIds = environmentIdsKey(environments.map(({ environmentId }) => environmentId));
   const sessionStates = useAtomValue(environmentSessionStatesAtom(environmentIds));
   const updateStates = useAtomValue(environmentUpdateStatesAtom(environmentIds));
@@ -68,8 +70,8 @@ export function useUpdateEverything(
     updateState: updateStates[index]!,
   }));
   const { targets: servers, skipped } = channelSwitch
-    ? collectChannelSwitchTargets(machines, channelSwitch)
-    : collectServerUpdateTargets(machines, targetVersion);
+    ? collectChannelSwitchTargets(machines, channelSwitch, resolve)
+    : collectServerUpdateTargets(machines, targetVersion, resolve);
   // Track-only hosts save a setting and restart nothing, so they are neither listed nor counted.
   const moving = servers.filter((server) => server.trackOnly !== true);
   const restarts = collectRestartingMachines(machines, moving, localUpdateVersion !== null);
@@ -95,7 +97,7 @@ export function useUpdateEverything(
         ),
       })),
     },
-    t,
+    resolve,
   );
 
   return {
@@ -162,7 +164,9 @@ export function useUpdateEverything(
               if (runOutcome.status !== "updated") {
                 providerFailures.set(
                   run.environmentId,
-                  runOutcome.status === "failed" ? runOutcome.line : "Provider update interrupted",
+                  runOutcome.status === "failed"
+                    ? runOutcome.line
+                    : resolve(msg("Provider update interrupted")),
                 );
               }
               return runOutcome;

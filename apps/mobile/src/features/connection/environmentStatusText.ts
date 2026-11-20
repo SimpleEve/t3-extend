@@ -1,19 +1,32 @@
 import {
+  connectionErrorText,
   connectionStatusText,
   type EnvironmentConnectionPresentation,
 } from "@t3tools/client-runtime/connection";
+import type { MarkedText } from "@t3tools/client-runtime/errors";
+
+import { m, type MessageResolver } from "../../i18n/messages";
+
+/** Connection error text from runtime state, in the current language when the error is marked. */
+export function runtimeConnectionErrorText(
+  state: { readonly connectionError: string | null; readonly i18nConnectionError?: MarkedText },
+  resolve: MessageResolver = m,
+): string | null {
+  return connectionErrorText(
+    {
+      error: state.connectionError,
+      ...(state.i18nConnectionError === undefined ? {} : { i18nError: state.i18nConnectionError }),
+    },
+    resolve,
+  );
+}
 
 export function environmentStatusText(
   connection: EnvironmentConnectionPresentation,
-  t: Translator,
+  resolve: MessageResolver = m,
 ): string {
-  if (connection.phase === "unsupported" && connection.error !== null) return connection.error;
-  // fork: i18n. Phrases with a server error keep the error as is and translate around it.
-  if (connection.phase === "reconnecting" && connection.error) {
-    return t("Failed to connect. Reconnecting... Reason: {error}", { error: connection.error });
-  }
-  if (connection.phase === "error" && connection.error) {
-    return t("Connection failed. Reason: {error}", { error: connection.error });
-  }
-  return t(connectionStatusText({ ...connection, error: null }));
+  const error = connectionErrorText(connection, resolve);
+  return connection.phase === "unsupported" && error !== null
+    ? error
+    : connectionStatusText(connection, resolve);
 }

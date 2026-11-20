@@ -2,6 +2,8 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 
 import type { EnvironmentThreadShell } from "./models.ts";
+import { mFallback } from "gt-i18n";
+import type { MFunctionType } from "gt-i18n/types";
 import { THREAD_STATUS_TEXT } from "./threadActivityAnnouncement.ts";
 import { hasUnseenRunFailure } from "./threadSettled.ts";
 import { sortWorkingThreadsBySend } from "./threadInbox.ts";
@@ -377,19 +379,22 @@ export function resolveSidebarRowStatus(
 }
 
 /** What the window title says the open thread is doing, in the words its announcer uses. */
-export function resolveWindowTitleThreadStatus(thread: SidebarThreadStatusInput): string | null {
+export function resolveWindowTitleThreadStatus(
+  thread: SidebarThreadStatusInput,
+  resolve: MFunctionType = mFallback,
+): string | null {
   // A guest waiting doesn't hide that the agent is still working.
   switch (resolveSidebarThreadStatus({ ...thread, pendingGuestMessageCount: 0 })) {
     case "approval":
-      return THREAD_STATUS_TEXT.approval;
+      return resolve(THREAD_STATUS_TEXT.approval);
     case "input":
-      return THREAD_STATUS_TEXT.input;
+      return resolve(THREAD_STATUS_TEXT.input);
     case "preparing":
     case "working":
-      return THREAD_STATUS_TEXT.working;
+      return resolve(THREAD_STATUS_TEXT.working);
     case "waiting":
       // Waiting on a child thread is still this turn, so it must not read as finished.
-      return thread.runtime?.status === "running" ? THREAD_STATUS_TEXT.working : null;
+      return thread.runtime?.status === "running" ? resolve(THREAD_STATUS_TEXT.working) : null;
     default:
       return null;
   }

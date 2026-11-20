@@ -1,4 +1,5 @@
 import * as Dialog from "../../components/ui/Dialog";
+import { m } from "../../i18n/messages";
 import {
   AuthTerminalReadScope,
   AuthTerminalOperateScope,
@@ -15,6 +16,7 @@ import { useNativeColumnLayoutMetrics } from "../../native/native-layout-metrics
 import { useContentTopInset } from "../../components/ui/useBarInset";
 import { StackActions, useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import { useAtomMount } from "@effect/atom-react";
+import { msg, T, useGT, useMessages } from "gt-react-native";
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -107,32 +109,34 @@ function TerminalHeader(props: {
   readonly onOpenNewTerminal: () => void;
   readonly onSelectTerminal: (terminalId: string) => void;
 }) {
+  const gt = useGT();
+  const resolveMessage = useMessages();
   return (
     <AppBar
-      title="Terminal"
+      title={gt("Terminal", { $context: "screen title" })}
       subtitle={props.subtitle}
       onBack={props.onCloseTerminal}
       backInSplitView={{
-        accessibilityLabel: "Back to chat",
+        accessibilityLabel: gt("Back to chat"),
         icon: "chevron.left",
       }}
       menus={
         props.isEnvironmentReady
           ? [
               {
-                title: "Terminal options",
+                title: gt("Terminal options"),
                 icon: "terminal",
-                status: getTerminalStatusLabel(props.status, t),
+                status: getTerminalStatusLabel(props.status, resolveMessage),
                 items: [
                   {
                     id: "text-size",
-                    title: "Text size",
+                    title: gt("Text size"),
                     icon: "textformat.size",
                     inline: true,
                     items: [
                       {
                         id: "font-decrease",
-                        title: t("A- {size} pt", {
+                        title: gt("A- {size} pt", {
                           size: Math.max(
                             MIN_TERMINAL_FONT_SIZE,
                             props.fontSize - TERMINAL_FONT_SIZE_STEP,
@@ -143,7 +147,7 @@ function TerminalHeader(props: {
                       },
                       {
                         id: "font-increase",
-                        title: t("A+ {size} pt", {
+                        title: gt("A+ {size} pt", {
                           size: Math.min(
                             MAX_TERMINAL_FONT_SIZE,
                             props.fontSize + TERMINAL_FONT_SIZE_STEP,
@@ -164,7 +168,7 @@ function TerminalHeader(props: {
                           status: session.status,
                           hasRunningSubprocess: session.hasRunningSubprocess,
                         },
-                        t,
+                        resolveMessage,
                       ),
                       basename(session.cwd),
                     ]
@@ -176,9 +180,13 @@ function TerminalHeader(props: {
                   {
                     id: "terminal-new",
                     disabled: !props.canOperateTerminal,
-                    title: "Open new terminal",
+                    title: gt("Open new terminal"),
                     icon: "plus",
-                    subtitle: `Start another shell in ${basename(props.workspaceRoot) ?? "this workspace"}`,
+                    subtitle: basename(props.workspaceRoot)
+                      ? gt("Start another shell in {folder}", {
+                          folder: basename(props.workspaceRoot),
+                        })
+                      : gt("Start another shell in this workspace"),
                     onPress: props.onOpenNewTerminal,
                   },
                 ],
@@ -316,17 +324,18 @@ export function ThreadTerminalRouteScreen(props: ThreadTerminalRouteScreenProps)
   }
   const explicitTerminalId = requestedTerminalId ?? bootstrapTerminalId;
   const terminalId = explicitTerminalId ?? DEFAULT_TERMINAL_ID;
+  const gt = useGT();
 
   if (!selectedThread) {
     if (!connectionsReady) {
-      return <LoadingScreen message="Opening terminal…" />;
+      return <LoadingScreen message={gt("Opening terminal…")} />;
     }
 
     return (
       <View className="flex-1 bg-screen">
         <EmptyState
-          title="Thread unavailable"
-          detail="This terminal route needs an active thread and workspace."
+          title={gt("Thread unavailable")}
+          detail={gt("This terminal route needs an active thread and workspace.")}
         />
       </View>
     );
@@ -361,7 +370,7 @@ function readLiveTerminalSessions(
       cwd: summary.cwd,
       status: summary.status,
       hasRunningSubprocess: summary.hasRunningSubprocess,
-      displayLabel: resolveTerminalSessionLabel(summary.terminalId, summary),
+      displayLabel: resolveTerminalSessionLabel(summary.terminalId, summary, m),
       updatedAt: summary.updatedAt,
     }));
 }
@@ -377,6 +386,8 @@ function ThreadTerminal(props: {
   readonly knownSessions: ReturnType<typeof useKnownTerminalSessions>;
 }) {
   const { params, routeEnvironmentId, thread: selectedThread, terminalId } = props;
+  const gt = useGT();
+  const messages = useMessages();
   const { selectedThreadProject, selectedEnvironmentConnection } = props.selection;
   const {
     session: terminalSession,
@@ -600,18 +611,21 @@ function ThreadTerminal(props: {
   const terminalBottomInset =
     (isKeyboardVisible ? keyboardHeight : 0) + (isAccessoryVisible ? TERMINAL_ACCESSORY_HEIGHT : 0);
 
-  const terminalMenuSessions: ReadonlyArray<TerminalMenuSession> = buildTerminalMenuSessions({
-    knownSessions: knownSessions ?? [],
-    workspaceRoot: selectedThreadProject?.workspaceRoot ?? null,
-    currentSession: {
-      terminalId,
-      cwd: cwd ?? null,
-      status: terminal.status,
-      hasRunningSubprocess: terminal.hasRunningSubprocess,
-      displayLabel: resolveTerminalSessionLabel(terminalId, terminal.summary),
-      updatedAt: terminal.updatedAt,
+  const terminalMenuSessions: ReadonlyArray<TerminalMenuSession> = buildTerminalMenuSessions(
+    {
+      knownSessions: knownSessions ?? [],
+      workspaceRoot: selectedThreadProject?.workspaceRoot ?? null,
+      currentSession: {
+        terminalId,
+        cwd: cwd ?? null,
+        status: terminal.status,
+        hasRunningSubprocess: terminal.hasRunningSubprocess,
+        displayLabel: resolveTerminalSessionLabel(terminalId, terminal.summary, messages),
+        updatedAt: terminal.updatedAt,
+      },
     },
-  });
+    messages,
+  );
 
   const writeInput = async (data: string): Promise<boolean> => {
     if (
@@ -805,15 +819,17 @@ function ThreadTerminal(props: {
     return (
       <View className="flex-1 bg-screen">
         <EmptyState
-          title="Terminal unavailable"
-          detail="This thread does not have a workspace root yet, so there is nowhere to open a shell."
+          title={gt("Terminal unavailable")}
+          detail={gt(
+            "This thread does not have a workspace root yet, so there is nowhere to open a shell.",
+          )}
         />
       </View>
     );
   }
 
   if (!environment.isReady && environment.presentation === null) {
-    return <LoadingScreen message="Opening terminal…" />;
+    return <LoadingScreen message={gt("Opening terminal…")} />;
   }
 
   return (
@@ -824,7 +840,7 @@ function ThreadTerminal(props: {
           environmentId={selectedThread.environmentId}
           threadId={selectedThread.id}
           terminalId={terminalId}
-          terminalLabel={resolveTerminalSessionLabel(terminalId, terminal.summary)}
+          terminalLabel={resolveTerminalSessionLabel(terminalId, terminal.summary, messages)}
           onClose={() => setCapturedOutput(null)}
           onAttach={() => {
             setCapturedOutput(null);
@@ -869,7 +885,7 @@ function ThreadTerminal(props: {
               environmentLabel={
                 environment.presentation?.entry.target.label ??
                 selectedEnvironmentConnection?.environmentLabel ??
-                "Environment"
+                gt("Environment", { $context: "fallback environment name" })
               }
               connection={
                 environment.presentation?.connection ?? {
@@ -878,49 +894,49 @@ function ThreadTerminal(props: {
                   traceId: null,
                 }
               }
-              resourceName="terminal"
+              resource="terminal"
               onRetry={handleRetryEnvironment}
             />
           ) : terminalSession.data === null && terminalSession.error === null ? (
             <EmptyState
-              title="Checking terminal access"
-              detail="Waiting for this connection's permissions."
+              title={gt("Checking terminal access")}
+              detail={gt("Waiting for this connection's permissions.")}
             />
           ) : !canReadTerminal && !canOperateTerminal ? (
             <EmptyState
               title={
                 terminalSession.error
-                  ? "Could not check terminal access"
-                  : "Terminal access unavailable"
+                  ? gt("Could not check terminal access")
+                  : gt("Terminal access unavailable")
               }
               detail={
                 terminalSession.error ??
-                "This connection does not have permission to view terminals."
+                gt("This connection does not have permission to view terminals.")
               }
             />
           ) : canOperateTerminal && launchLocation === null ? (
             sessionsError !== null ? (
-              <EmptyState title="Could not load terminals" detail={sessionsError} />
+              <EmptyState title={gt("Could not load terminals")} detail={sessionsError} />
             ) : (
               <EmptyState
-                title={t("Loading terminals")}
-                detail={t("Reading existing terminal sessions.")}
+                title={gt("Loading terminals")}
+                detail={gt("Reading existing terminal sessions.")}
               />
             )
           ) : !canOperateTerminal && !hasTerminalTarget && sessionsPending ? (
             <EmptyState
-              title={t("Loading terminals")}
-              detail={t("Reading existing terminal sessions.")}
+              title={gt("Loading terminals")}
+              detail={gt("Reading existing terminal sessions.")}
             />
           ) : !canOperateTerminal && !hasTerminalTarget && sessionsError !== null ? (
-            <EmptyState title="Could not load terminals" detail={sessionsError} />
+            <EmptyState title={gt("Could not load terminals")} detail={sessionsError} />
           ) : !canOperateTerminal && !hasTerminalTarget ? (
             <EmptyState
-              title="No terminal sessions"
-              detail="Existing terminals will appear here when another client opens one."
+              title={gt("No terminal sessions")}
+              detail={gt("Existing terminals will appear here when another client opens one.")}
             />
           ) : terminal.error !== null && (!canOperateTerminal || terminal.status === "error") ? (
-            <EmptyState title="Terminal unavailable" detail={terminal.error} />
+            <EmptyState title={gt("Terminal unavailable")} detail={terminal.error} />
           ) : (
             <>
               <View
@@ -953,8 +969,8 @@ function ThreadTerminal(props: {
                     if (text.trim()) setCapturedOutput(text);
                     else
                       Dialog.alert(
-                        t("No terminal output"),
-                        t("There is no visible output to attach."),
+                        m(msg("No terminal output")),
+                        m(msg("There is no visible output to attach.")),
                       );
                   }}
                   onInput={handleInput}
@@ -969,11 +985,11 @@ function ThreadTerminal(props: {
               {Platform.OS === "android" && !isKeyboardVisible ? (
                 <View className="min-h-14 flex-row items-center gap-2 bg-card-alt px-2">
                   {hasNativeTerminalSurface() ? (
-                    <Button label="Attach output" tone="text" onPress={requestCapture} />
+                    <Button label={gt("Attach output")} tone="text" onPress={requestCapture} />
                   ) : null}
                   <View className="flex-1" />
                   <IconButton
-                    accessibilityLabel="Show keyboard"
+                    accessibilityLabel={gt("Show keyboard")}
                     disabled={!canOperateTerminal}
                     icon="keyboard"
                     onPress={handleShowKeyboard}
@@ -996,7 +1012,7 @@ function ThreadTerminal(props: {
                   }}
                 >
                   <Text style={{ color: terminalTheme.foreground }}>
-                    {t("Attach visible output")}
+                    <T>Attach visible output</T>
                   </Text>
                 </Pressable>
               ) : null}
@@ -1042,13 +1058,13 @@ function ThreadTerminal(props: {
                         })}
                       </ComposerToolbarScroller>
                       <ComposerToolbarButton
-                        accessibilityLabel="Paste"
+                        accessibilityLabel={gt("Paste", { $context: "verb" })}
                         icon={{ ios: "doc.on.clipboard", android: "content_paste" }}
                         onPress={() => handlePaste(Clipboard.getStringAsync)}
                         showChevron={false}
                       />
                       <ComposerToolbarButton
-                        accessibilityLabel="Dismiss keyboard"
+                        accessibilityLabel={gt("Dismiss keyboard")}
                         icon={{ ios: "keyboard.chevron.compact.down", android: "keyboard_hide" }}
                         onPress={handleDismissKeyboard}
                         showChevron={false}
@@ -1058,7 +1074,7 @@ function ThreadTerminal(props: {
                 </KeyboardStickyView>
               ) : canOperateTerminal && !isKeyboardVisible && Platform.OS !== "android" ? (
                 <Pressable
-                  accessibilityLabel="Show keyboard"
+                  accessibilityLabel={gt("Show keyboard")}
                   accessibilityRole="button"
                   onPress={handleShowKeyboard}
                   style={({ pressed }) => ({

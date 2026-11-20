@@ -1,5 +1,9 @@
+import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
 import * as Dialog from "../../components/ui/Dialog";
+import { msg } from "gt-react-native";
 import { useCallback } from "react";
+
+import { m } from "../../i18n/messages";
 
 import { removeThreadOutboxMessage } from "../../state/thread-outbox-removal";
 import { clearComposerDraftContent } from "../../state/use-composer-drafts";
@@ -41,12 +45,12 @@ export function usePendingTaskListActions(
   const confirmDeletePendingTask = useCallback((pendingTask: PendingNewTask) => {
     if (pendingTask.kind === "draft") {
       Dialog.alert(
-        t("Discard draft?"),
-        t("“{title}” will be removed.", { title: pendingTask.title }),
+        m(msg("Discard draft?")),
+        m(msg("“{title}” will be removed.", { title: pendingTask.title })),
         [
-          { text: t("Cancel"), style: "cancel" },
+          { text: m(msg("Cancel")), style: "cancel" },
           {
-            text: t("Discard"),
+            text: m(msg("Discard", { $context: "verb, discards a draft" })),
             style: "destructive",
             onPress: () => {
               void withThreadDismissal(
@@ -65,12 +69,16 @@ export function usePendingTaskListActions(
       return;
     }
     Dialog.alert(
-      "Delete pending task?",
-      `“${pendingTask.title}” has not been sent yet and will be removed from the outbox.`,
+      m(msg("Delete pending task?")),
+      m(
+        msg("“{title}” has not been sent yet and will be removed from the outbox.", {
+          title: pendingTask.title,
+        }),
+      ),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: m(msg("Cancel")), style: "cancel" },
         {
-          text: "Delete",
+          text: m(msg("Delete", { $context: "verb, deletes a pending task" })),
           style: "destructive",
           onPress: () => {
             // Hold delivery from confirmation so reconnects cannot send a task during removal.
@@ -94,10 +102,10 @@ export function usePendingTaskListActions(
               .catch((error) => {
                 releaseUnlessEditing();
                 Dialog.alert(
-                  t("Could not delete pending task"),
+                  m(msg("Could not delete pending task")),
                   error instanceof Error
-                    ? error.message
-                    : t("The pending task could not be removed."),
+                    ? (errorDisplayMessage(error, m) ?? error.message)
+                    : m(msg("The pending task could not be removed.")),
                 );
               });
           },

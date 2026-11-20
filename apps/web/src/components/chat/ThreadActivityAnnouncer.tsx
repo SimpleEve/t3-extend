@@ -2,6 +2,7 @@ import type { ScreenReaderAnnouncements } from "@t3tools/contracts";
 import { memo, useEffect, useRef } from "react";
 
 import { useLiveRegion } from "../../hooks/useLiveRegion";
+import { m } from "../../i18n/messages";
 import type { TimelineEntry } from "../../session-logic";
 
 import {
@@ -112,13 +113,8 @@ export const ThreadActivityAnnouncer = memo(function ThreadActivityAnnouncer({
     const previous = memoryRef.current?.threadKey === threadKey ? memoryRef.current : null;
     const turn = nextThreadAnnouncement(
       previous?.memory ?? null,
-      {
-        status,
-        requestId,
-        runId,
-        runStatus,
-      },
-      translatorFor(getUiLocale()), // fork: interface language, read when the status is announced
+      { status, requestId, runId, runStatus },
+      m,
     );
     // A new level starts from what the turn already holds, so raising it mid-turn replays nothing.
     const previousDetail = previous?.level === level ? previous.detail : null;

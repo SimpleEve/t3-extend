@@ -1,6 +1,4 @@
 import {
-  CLOUD_SPEECH_PROVIDER_NAMES,
-  type CloudSpeechProvider,
   SPEECH_MAX_OPTIONS_BYTES,
   type SpeechCustomWords,
   type SpeechBenchmarkTier,
@@ -97,30 +95,6 @@ export function recommendSpeechModels(
     if (model && !roles.has(model.id)) roles.set(model.id, role);
   }
   return roles;
-}
-
-// fork: the disclosure takes an optional translator; without one the English is unchanged.
-type DisclosureTranslator = (source: string, params?: Readonly<Record<string, string>>) => string;
-
-const englishDisclosure: DisclosureTranslator = (source, params) =>
-  source.replace(/\{(\w+)\}/g, (match, name: string) =>
-    params && Object.hasOwn(params, name) ? params[name]! : match,
-  );
-
-export function cloudSpeechDisclosure(
-  provider: CloudSpeechProvider,
-  environment: string,
-  t: DisclosureTranslator = englishDisclosure, // fork: interface language
-) {
-  return provider === "openrouter"
-    ? t(
-        "After you stop, {environment} sends the recording to OpenRouter. OpenRouter chooses who runs your model. T3 requests zero data retention; your OpenRouter account may allow safety retention.",
-        { environment },
-      )
-    : t(
-        "After you stop, {environment} sends your recording and vocabulary hints, including project names, to {provider}.",
-        { environment, provider: CLOUD_SPEECH_PROVIDER_NAMES[provider] },
-      );
 }
 
 // Only offer explicit hints understood by all cloud APIs; other languages can still be detected.

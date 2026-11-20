@@ -1,13 +1,15 @@
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { msg } from "gt-react-native";
+
+import { m, type MessageResolver } from "../../i18n/messages";
 
 export function resolveAgentAwarenessPlatformPresentation(
   platform: string,
-  t: Translator, // fork: i18n
+  resolve: MessageResolver = m,
 ): {
   readonly supported: boolean;
   readonly subtitle: string | undefined;
 } {
   return platform === "ios" || platform === "android"
     ? { supported: true, subtitle: undefined }
-    : { supported: false, subtitle: "Unavailable on this platform" };
+    : { supported: false, subtitle: resolve(msg("Unavailable on this platform")) };
 }

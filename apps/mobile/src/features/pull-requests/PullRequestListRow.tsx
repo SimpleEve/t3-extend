@@ -1,7 +1,6 @@
-import {
-  capitalizeTerm,
-  sourceControlClients,
-} from "@t3tools/client-runtime/source-control-clients";
+import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
+import { changeRequestTermKind } from "../../lib/changeRequestTerm";
+import { useGT, useMessages } from "gt-react-native";
 import { memo } from "react";
 import { Pressable, View } from "react-native";
 import { AppText as Text } from "../../components/ui/AppText";
@@ -80,9 +79,25 @@ export const PullRequestListRow = memo(
       : props.sidebar
         ? "text-drawer-foreground-muted"
         : "text-foreground-tertiary";
-    const status = pullRequestStatus(item, t);
-    const conflict = pullRequestConflict(item, t);
-    const review = pullRequestListReviewStatus(item, t);
+    const gt = useGT();
+    const m = useMessages();
+    const status = pullRequestStatus(item, m);
+    const conflict = pullRequestConflict(item, m);
+    const review = pullRequestListReviewStatus(item, m);
+    const checksSpoken = item.checksState
+      ? {
+          passing: gt("checks passing"),
+          failing: gt("checks failing"),
+          pending: gt("checks pending"),
+        }[item.checksState]
+      : null;
+    const checksLabel = item.checksState
+      ? {
+          passing: gt("Checks passing"),
+          failing: gt("Checks failing"),
+          pending: gt("Checks pending"),
+        }[item.checksState]
+      : undefined;
     const checks = item.checksState ? pullRequestChecksStatus(item.checksState) : null;
     return (
       <View style={props.sidebar ? THREAD_LIST_V2_SIDEBAR_ROW_CONTAINER_STYLE : undefined}>
@@ -95,32 +110,37 @@ export const PullRequestListRow = memo(
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ selected: props.selected, busy: props.busy }}
-            accessibilityLabel={joinLabelParts(
-              [
-                `${capitalizeTerm(changeRequestTerm(sourceControlClients.get(item.provider).changeRequest.singular, t))} ${item.number}`,
-                item.title,
-                status.label,
-                conflict?.label.toLowerCase(),
-                t("by {author}", { author: item.author?.login ?? t("unknown author") }),
-                review?.accessibleLabel,
-                item.checksState &&
-                  t("checks {checksState}", {
-                    checksState: t(item.checksState, undefined, "checks state"),
-                  }),
-                item.stack &&
-                  t("stack {position} of {size}", {
+            accessibilityLabel={[
+              gt(
+                "{term, select, mr {Merge request} cr {Change request} other {Pull request}} {number}",
+                {
+                  term: changeRequestTermKind(
+                    sourceControlClients.get(item.provider).changeRequest,
+                  ),
+                  number: item.number,
+                },
+              ),
+              item.title,
+              status.label,
+              conflict ? conflict.label.toLowerCase() : null,
+              gt("by {author}", { author: item.author?.login ?? gt("unknown author") }),
+              review ? review.accessibleLabel : null,
+              checksSpoken,
+              item.stack
+                ? gt("stack {position} of {size}", {
                     position: item.stack.position,
                     size: item.stack.size,
-                  }),
-                ...item.labels.map((label) => label.name),
-                t("{additions} additions, {deletions} deletions", {
-                  additions: item.additions,
-                  deletions: item.deletions,
-                }),
-              ],
-              t,
-            )}
-            accessibilityHint={t("Double tap to open. Touch and hold for quick actions.")}
+                  })
+                : null,
+              item.labels.length ? item.labels.map((label) => label.name).join(", ") : null,
+              gt("{additions} additions, {deletions} deletions", {
+                additions: item.additions,
+                deletions: item.deletions,
+              }),
+            ]
+              .filter((part) => part !== null)
+              .join(", ")}
+            accessibilityHint={gt("Double tap to open. Touch and hold for quick actions.")}
             onPress={() => props.onSelect(item)}
             disabled={props.busy}
             style={props.sidebar ? THREAD_LIST_V2_SIDEBAR_ROW_STYLE : undefined}
@@ -199,12 +219,7 @@ export const PullRequestListRow = memo(
                   ) : null}
                 </View>
                 {checks ? (
-                  <View
-                    className="shrink-0"
-                    accessibilityLabel={t("Checks {checksState}", {
-                      checksState: t(item.checksState ?? "", undefined, "checks state"),
-                    })}
-                  >
+                  <View className="shrink-0" accessibilityLabel={checksLabel}>
                     <SymbolView name={checks.icon} size={13} tintColorClassName={checks.tint} />
                   </View>
                 ) : null}

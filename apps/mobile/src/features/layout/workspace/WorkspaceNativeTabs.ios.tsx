@@ -1,3 +1,4 @@
+import { useGT, useMessages } from "gt-react-native";
 import {
   WORKSPACE_TAB_LABELS,
   NAVIGATION_TAB_ICONS,
@@ -147,6 +148,8 @@ export function WorkspaceNativeTabs(props: {
   /** The sidebar column draws the tabs itself, so they leave with it. */
   readonly tabsInSidebarColumn?: boolean;
 }) {
+  const gt = useGT();
+  const m = useMessages();
   const workspace = useWorkspaceTabs()!;
   const order = useEnabledNavigationTabs();
   const primaryTabs = order.slice(0, 4);
@@ -234,8 +237,8 @@ export function WorkspaceNativeTabs(props: {
                 screenKey={slot}
                 title=""
                 tabBarItemAccessibilityLabel={
-                  settings ? t("Settings") : t(WORKSPACE_TAB_LABELS[tab])
-                } // fork: i18n
+                  settings ? gt("Settings") : m(WORKSPACE_TAB_LABELS[tab])
+                }
                 ios={{
                   prewarmRequest: prewarmRequests.get(slot) ?? 0,
                   contentReady: mountedSlots.has(slot),

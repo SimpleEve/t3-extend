@@ -56,19 +56,6 @@ export function setupProjectScript(scripts: readonly ProjectScript[]): ProjectSc
   return scripts.find((script) => script.runOnWorktreeCreate) ?? null;
 }
 
-// fork: i18n. The roles and their joiner take an optional translator, English without one. The
-// script's name is the user's and is never passed through it.
-export function projectScriptMenuLabel(
-  script: ProjectScript,
-  t: (source: string, params?: undefined, context?: string) => string = (source) => source,
-): string {
-  const roles = [
-    ...(script.runOnWorktreeCreate ? ["setup"] : []),
-    ...(script.runOnSettle ? ["on settle"] : []),
-  ];
-  return roles.length === 0 ? script.name : `${script.name} (${roles.join(", ")})`;
-}
-
 export function settleProjectScript(scripts: readonly ProjectScript[]): ProjectScript | null {
   return scripts.find((script) => script.runOnSettle === true) ?? null;
 }

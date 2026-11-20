@@ -1,3 +1,7 @@
+import { msg } from "gt-react-native";
+
+import { m, type MessageResolver } from "../../i18n/messages";
+
 export interface ZipEntry {
   readonly path: string;
   readonly name: string;
@@ -129,7 +133,7 @@ export function zipDownloadTimeLeft(
     readonly totalBytes: number;
     readonly elapsedMs: number;
   },
-  t: Translator, // fork: i18n
+  resolve: MessageResolver = m,
 ) {
   if (input.receivedBytes <= 0 || input.totalBytes <= input.receivedBytes || input.elapsedMs < 1000)
     return null;
@@ -137,8 +141,15 @@ export function zipDownloadTimeLeft(
     ((input.totalBytes - input.receivedBytes) * input.elapsedMs) / input.receivedBytes / 1000,
   );
   return seconds < 60
-    ? seconds === 1
-      ? t("About {count} second left", { count: seconds })
-      : t("About {count} seconds left", { count: seconds })
-    : t("About {count} minutes left", { count: Math.ceil(seconds / 60) });
+    ? resolve(
+        msg(
+          "{seconds, plural, one {About {seconds} second left} other {About {seconds} seconds left}}",
+          { seconds },
+        ),
+      )
+    : resolve(
+        msg("{minutes, plural, other {About {minutes} minutes left}}", {
+          minutes: Math.ceil(seconds / 60),
+        }),
+      );
 }

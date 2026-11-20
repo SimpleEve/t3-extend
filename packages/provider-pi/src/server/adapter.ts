@@ -128,6 +128,7 @@ export const PiProviderCapabilitiesV2 = {
     emitsTurnStarted: true,
     emitsTurnCompleted: true,
     supportsInterrupt: true,
+    supportsNativeResume: false,
     supportsActiveSteering: true,
     supportsSteeringByInterruptRestart: false,
     supportsQueuedMessages: true,
@@ -631,6 +632,13 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
             env: launch.env,
             mcpSession, // fork:
           });
+          // Its tools carry T3CODE_THREAD_ID, so port discovery must scan while Pi runs.
+          const trackAgent = host.trackAgent;
+          if (trackAgent !== undefined) {
+            yield* Effect.acquireRelease(Effect.sync(trackAgent), (release) =>
+              Effect.sync(release),
+            );
+          }
           // Detached children can keep stdout open after Pi exits.
           if (scopeUnit !== undefined) {
             yield* connection.exited.pipe(
@@ -3433,6 +3441,7 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
           return sessionEntity;
         },
         events: Stream.fromQueue(events),
+        backgroundTasksEndWithProcess: true,
         hasPendingBackgroundWork: Effect.sync(() => pendingWake !== null),
         hasPendingBackgroundWorkForThread: (providerThread) =>
           Effect.sync(

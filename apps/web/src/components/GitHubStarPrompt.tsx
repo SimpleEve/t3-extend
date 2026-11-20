@@ -1,8 +1,10 @@
 import { type EnvironmentId, SourceControlProviderKind } from "@t3tools/contracts";
 import { runAtomCommand } from "@t3tools/client-runtime/state/runtime";
 import * as Schema from "effect/Schema";
+import { msg } from "gt-react";
 import { StarIcon } from "lucide-react";
 
+import { m } from "../i18n/messages";
 import { getLocalStorageItem, setLocalStorageItem } from "../hooks/useLocalStorage";
 import { readLocalApi } from "../localApi";
 import { appAtomRegistry } from "../rpc/atomRegistry";
@@ -36,16 +38,14 @@ function showStarPrompt(environmentId: EnvironmentId) {
       .catch(() => undefined);
   };
   const starInPlace = async () => {
-    toastManager.update(id, {
-      actionProps: { children: translate(getUiLocale(), "Starring…"), disabled: true },
-    });
+    toastManager.update(id, { actionProps: { children: m(msg("Starring…")), disabled: true } });
     if (await starRepository(environmentId)) {
       // Thank them in place: a closing and opening toast would slide under the confetti.
       dismiss();
       toastManager.update(id, {
         type: "success",
-        title: "Thanks for the star!",
-        description: "It really helps T3 Code grow.",
+        title: m(msg("Thanks for the star!")),
+        description: m(msg("It really helps T3 Code grow.")),
         timeout: 5_000,
         actionProps: undefined,
         data: {},
@@ -57,22 +57,19 @@ function showStarPrompt(environmentId: EnvironmentId) {
     if (window.desktopBridge || navigator.userActivation?.isActive !== false)
       return openInBrowser();
     toastManager.update(id, {
-      actionProps: { children: translate(getUiLocale(), "Open GitHub"), onClick: openInBrowser },
+      actionProps: { children: m(msg("Open GitHub")), onClick: openInBrowser },
     });
   };
   const id = toastManager.add({
-    title: "Enjoying T3 Code?",
-    description: "Give us a star on GitHub to let us know!",
+    title: m(msg("Enjoying T3 Code?")),
+    description: m(msg("Give us a star on GitHub to let us know!")),
     timeout: 0,
     onClose: dismiss,
-    actionProps: {
-      children: translate(getUiLocale(), "Star on GitHub"),
-      onClick: () => void starInPlace(),
-    },
+    actionProps: { children: m(msg("Star on GitHub")), onClick: () => void starInPlace() },
     data: {
       actionLayout: "stacked-end",
       leadingIcon: <StarIcon aria-hidden className="size-4 text-warning-foreground" />,
-      secondaryActionProps: { children: "Dismiss", onClick: close },
+      secondaryActionProps: { children: m(msg("Dismiss")), onClick: close },
       secondaryActionVariant: "ghost",
     },
   });

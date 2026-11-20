@@ -7,6 +7,7 @@ import {
 import type { EnvironmentId, PullRequestSummary } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import { Atom } from "effect/reactivity";
+import { useMessages } from "gt-react-native";
 import { use, useMemo } from "react";
 
 import { connectionAtomRuntime } from "../connection/runtime";
@@ -79,6 +80,7 @@ export function withKnownPullRequestSummary<
 
 export function useThreadPr(thread: EnvironmentThreadShell): ThreadPrPresentation | null {
   const demand = use(ThreadPrDemandContext);
+  const resolve = useMessages();
   const supportsLinks = useAtomValue(
     serverEnvironment.configValueAtom(thread.environmentId),
     (config) => config !== null,
@@ -92,9 +94,15 @@ export function useThreadPr(thread: EnvironmentThreadShell): ThreadPrPresentatio
           branchPullRequest: thread.branchPullRequest,
         },
         supportsLinks,
-        t,
+        resolve,
       ),
-    [thread.pullRequests, thread.linkedPullRequest, thread.branchPullRequest, supportsLinks, t],
+    [
+      thread.pullRequests,
+      thread.linkedPullRequest,
+      thread.branchPullRequest,
+      supportsLinks,
+      resolve,
+    ],
   );
   const key = pullRequestRef === null ? null : snapshotKey(thread.environmentId, pullRequestRef);
   // Select this row's entry so answers for other pull requests do not re-render it.
@@ -125,7 +133,7 @@ export function useThreadPr(thread: EnvironmentThreadShell): ThreadPrPresentatio
             name: summary.provider,
             baseUrl: "",
           },
-          t,
+          resolve,
         );
   return linkedPresentation ?? summaryPresentation;
 }

@@ -1,4 +1,7 @@
 import type { AuthClientMetadata, AuthPairingLink } from "@t3tools/contracts";
+import { msg } from "gt-react-native";
+
+import { m } from "../../i18n/messages";
 
 export interface ConnectDeviceApprovalPrompt {
   readonly pairingLinkId: string;
@@ -12,8 +15,8 @@ export function describeConnectDevice(
 ): string {
   const { label, browser, os } = device ?? {};
   if (label) return label;
-  if (browser && os) return `${browser} on ${os}`;
-  return browser ?? os ?? "A new device";
+  if (browser && os) return m(msg("{browser} on {os}", { browser, os }));
+  return browser ?? os ?? m(msg("A new device"));
 }
 
 /** Requests waiting on approval that have not been shown yet, oldest first. */
@@ -35,14 +38,17 @@ export function connectDeviceApprovalPrompts(input: {
     )
     .map(({ link, verificationCode, client: device }) => ({
       pairingLinkId: link.id,
-      title: t("Approve this device?"),
-      message: t(
-        "{device} wants to connect to {environment} through T3 Connect. It shows code {code}. Approve it only if that code matches.",
-        {
-          device: describeConnectDevice(device, t),
-          environment: input.environmentLabel,
-          code: verificationCode,
-        },
+      title: m(msg("Approve this device?")),
+      message: m(
+        msg(
+          "{device} wants to connect to {environment} through {product}. It shows code {code}. Approve it only if that code matches.",
+          {
+            device: describeConnectDevice(device),
+            environment: input.environmentLabel,
+            product: "T3 Connect",
+            code: verificationCode,
+          },
+        ),
       ),
     }));
 }

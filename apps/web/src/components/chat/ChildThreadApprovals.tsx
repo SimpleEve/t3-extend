@@ -6,6 +6,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
+import { T, useGT, useMessages, Var } from "gt-react";
 import { useState } from "react";
 import { useEnvironmentScope } from "../../state/session";
 import { childThreadApprovalsAtom, threadEnvironment } from "../../state/threads";
@@ -15,16 +16,20 @@ import { ComposerPendingApprovalActions } from "./ComposerPendingApprovalActions
 function ChildApproval({ entry }: { entry: ChildThreadApproval }) {
   const canRespond = useEnvironmentScope(entry.thread.environmentId, AuthOrchestrationOperateScope);
   const respond = useAtomCommand(threadEnvironment.respondToApproval, { reportFailure: false });
+  const gt = useGT();
+  const messages = useMessages();
   const [responding, setResponding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { approval } = entry;
   return (
     <section
-      aria-label={`Approval from ${entry.title}`}
+      aria-label={gt("Approval from {title}", { title: entry.title })}
       className="rounded-lg border border-border bg-background p-3 text-xs"
     >
       <p className="mb-2 font-medium">
-        {t("Approval needed from {title}", { title: entry.title })}
+        <T>
+          Approval needed from <Var>{entry.title}</Var>
+        </T>
       </p>
       <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono">
         {approval.detail || approval.requestKind}
@@ -32,13 +37,13 @@ function ChildApproval({ entry }: { entry: ChildThreadApproval }) {
       {approval.appName ? <p className="mt-2 text-muted-foreground">{approval.appName}</p> : null}
       {approval.responseCapability !== "live" ? (
         <p className="mt-2 text-warning">
-          Provider process is gone. Interrupt or restart the child thread to respond.
+          <T>Provider process is gone. Interrupt or restart the child thread to respond.</T>
         </p>
       ) : null}
       {approval.reason ? <p className="mt-2 text-muted-foreground">{approval.reason}</p> : null}
       {approval.fullAccessOverride ? (
         <p className="mt-2 text-muted-foreground">
-          {fullAccessOverrideExplanation(approval.fullAccessOverride)}
+          {fullAccessOverrideExplanation(approval.fullAccessOverride, messages)}
         </p>
       ) : null}
       <div className="mt-2 flex flex-wrap gap-2">
@@ -62,7 +67,7 @@ function ChildApproval({ entry }: { entry: ChildThreadApproval }) {
               setError(
                 failure instanceof Error
                   ? failure.message
-                  : t("Failed to submit approval decision."),
+                  : gt("Failed to submit approval decision."),
               );
             }
             setResponding(false);

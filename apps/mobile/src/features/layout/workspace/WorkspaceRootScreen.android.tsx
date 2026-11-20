@@ -1,3 +1,4 @@
+import { useGT } from "gt-react-native";
 import { useAndroidFloatingTabs } from "../../settings/appearance/AppearancePreferencesProvider";
 import { WorkspaceNoTabs } from "./WorkspaceNoTabs";
 import { useEnabledNavigationTabs } from "./navigation-tabs";
@@ -35,6 +36,7 @@ export function WorkspaceRootScreen() {
 }
 
 function WorkspaceRoot() {
+  const gt = useGT();
   const floatingTabsEnabled = useAndroidFloatingTabs();
   const { layout, startNewTask, workspacePageWidth } = useAdaptiveWorkspaceLayout();
   const workspace = useWorkspaceTabs()!;
@@ -105,7 +107,11 @@ function WorkspaceRoot() {
                       <NativeStackScreenOptions options={{ headerShown: false }} />
                       <AppBar
                         embedded
-                        title={tab === "issues" ? t("Issues") : t("Pull requests")}
+                        title={
+                          tab === "issues"
+                            ? gt("Issues", { $context: "screen title, list of issues" })
+                            : gt("Pull requests")
+                        }
                       />
                       <WorkspaceEmptyDetail tab={tab} />
                     </>

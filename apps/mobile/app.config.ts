@@ -306,6 +306,8 @@ const config: ExpoConfig = {
         NSAllowsArbitraryLoads: true,
       },
       NSLocalNetworkUsageDescription: `Allow ${FORK.appBaseName} to connect to ${FORK.appBaseName} servers on your local network or tailnet.`,
+      // Built with the iOS 27 SDK, only view controllers can hide or style the status bar.
+      UIViewControllerBasedStatusBarAppearance: true,
       NSPhotoLibraryAddUsageDescription: `Allow ${FORK.appBaseName} to save images to your photo library.`,
       // System picture in picture needs background audio to start and survive outside the app.
       UIBackgroundModes: ["audio"],

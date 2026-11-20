@@ -1,4 +1,7 @@
+import { msg } from "gt-react";
+
 import { ensureClientSettingsHydrated, getClientSettings } from "~/hooks/useSettings";
+import { m } from "~/i18n/messages";
 import { readLocalApi } from "~/localApi";
 
 let pendingConfirmations = 0;
@@ -31,17 +34,19 @@ export async function confirmTerminalClose(
     return await localApi.dialogs.confirm(
       labels.length === 1
         ? [
-            `Close terminal "${labels[0]}"?`,
-            "This stops the running process and clears its history.",
+            m(msg('Close terminal "{label}"?', { label: labels[0] })),
+            m(msg("This stops the running process and clears its history.")),
           ].join("\n")
         : [
-            translate(locale, "Close {count} terminals?", { count: labels.length }),
-            translate(
-              locale,
-              "This stops their running processes and clears their histories: {labels}.",
-              {
-                labels: names.map((label) => `"${label}"`).join(translate(locale, ", ")),
-              },
+            m(
+              msg("Close {count, plural, one {{count} terminal} other {{count} terminals}}?", {
+                count: labels.length,
+              }),
+            ),
+            m(
+              msg("This stops their running processes and clears their histories: {labels}.", {
+                labels: labels.map((label) => `"${label}"`).join(", "),
+              }),
             ),
           ].join("\n"),
       { variant: "destructive" },

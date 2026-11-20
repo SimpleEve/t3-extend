@@ -1,3 +1,4 @@
+import { useGT } from "gt-react-native";
 import { RegistryContext } from "@effect/atom-react";
 import { offersLinkedEnvironments } from "@t3tools/client-runtime/link-request";
 import { peerLinkHealth } from "@t3tools/client-runtime/state/peerLinks";
@@ -18,6 +19,7 @@ export function LinkedEnvironmentsSection(props: {
   readonly environmentId: EnvironmentId;
   readonly environmentLabel: string;
 }) {
+  const gt = useGT();
   const config = useEnvironmentServerConfig(props.environmentId);
   const canRead = useEnvironmentScope(props.environmentId, AuthAccessReadScope);
   const supported = canRead && offersLinkedEnvironments(config);
@@ -63,22 +65,23 @@ export function LinkedEnvironmentsSection(props: {
   return (
     <View className="mt-5 gap-3">
       <SettingsSection
-        title={t("Linked from {environmentLabel}", { environmentLabel: props.environmentLabel })}
+        title={gt("Linked from {environment}", { environment: props.environmentLabel })}
       >
         {links.data.links.map((link) => {
           const health = peerLinkHealth(link, now);
           const status =
             health.kind === "expired"
-              ? "Expired. Link it again with a new pairing code."
+              ? gt("Expired. Link it again with a new pairing code.")
               : health.kind === "unreachable"
-                ? (health.detail ?? "Not answering right now.")
+                ? (health.detail ?? gt("Not answering right now."))
                 : health.kind === "failing"
                   ? health.detail
                   : health.expiresInDays !== null
-                    ? health.expiresInDays === 1
-                      ? t("Expires in 1 day")
-                      : t("Expires in {count} days", { count: health.expiresInDays })
-                    : t("Reachable");
+                    ? gt(
+                        "{count, plural, one {Expires in {count} day} other {Expires in {count} days}}",
+                        { count: health.expiresInDays },
+                      )
+                    : gt("Reachable");
           return (
             <View key={link.environmentId} className="gap-0.5 p-4">
               <Text className="text-base font-t3-bold text-foreground">{link.label}</Text>

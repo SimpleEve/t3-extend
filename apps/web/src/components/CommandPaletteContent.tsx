@@ -1,3 +1,4 @@
+import { T } from "gt-react";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { type ComponentProps, type ReactNode, type RefObject } from "react";
 
@@ -99,7 +100,9 @@ export function CommandPaletteContent({
               <Kbd>
                 <ArrowDownIcon />
               </Kbd>
-              <span>Navigate</span>
+              <span>
+                <T>Navigate</T>
+              </span>
             </KbdGroup>
             {footerActionLabel !== undefined ? (
               <KbdGroup>
@@ -110,12 +113,14 @@ export function CommandPaletteContent({
             {showBackHint ? (
               <KbdGroup>
                 <Kbd>Backspace</Kbd>
-                <span>Back</span>
+                <span>
+                  <T>Back</T>
+                </span>
               </KbdGroup>
             ) : null}
             <KbdGroup>
               <Kbd>Esc</Kbd>
-              <span>{escapeLabel}</span>
+              <span>{escapeLabel ?? <T>Close</T>}</span>
             </KbdGroup>
           </div>
           {footerTrailing}

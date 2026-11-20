@@ -1,9 +1,12 @@
-// fork: the host's word for a change request, in the interface language.
-// Hosts say "pull request", "merge request", or "change request" ("pull requests",
-// "merge requests", "change requests" in lists); English keeps the host's word
-// and the catalog maps each to the glossary's short form (PR, MR) so sentences read naturally.
-import type { Translator } from "@t3tools/client-runtime/i18n";
+import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 
-export function changeRequestTerm(singular: string, t: Translator): string {
-  return t(singular, undefined, "change request");
+/** Selects the noun in translated sentences, so each language writes the whole sentence per host term. */
+export type ChangeRequestTermKind = "mr" | "cr" | "pr";
+
+export function changeRequestTermKind(
+  terminology: Pick<ChangeRequestTerminology, "singular">,
+): ChangeRequestTermKind {
+  if (terminology.singular === "merge request") return "mr";
+  if (terminology.singular === "change request") return "cr";
+  return "pr";
 }

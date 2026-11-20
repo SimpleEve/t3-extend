@@ -49,9 +49,12 @@ prompt it cannot read; and its RPC `fork` keeps the entry it is given where Pi's
 the translator sends omp's `branch` instead.
 
 Antigravity separates account profiles per instance while sharing installed executables across the
-environment. It forces file-based credential storage because the native macOS keychain entry would
-otherwise be shared across instances. T3 Extend lifts that for one instance, the default one, so it
-can use the `agy` CLI's own login (a "shared login"); see FORK.md. The launch environment removes ambient Google credentials,
+environment. The 1.5 CLI keeps every profile's sign-in in one OS keyring entry and ignores
+`AGY_ACP_FORCE_FILE_STORAGE`; only its SSH-session check stores the sign-in in the profile, so Google
+account instances launch with `SSH_CONNECTION` set and sign in with `--login`. Gemini Enterprise
+has no such sign-in and still shares the keyring entry. T3 Extend leaves out `SSH_CONNECTION` and
+`--login` for one instance, the default one, so it can use the `agy` CLI's own login (a "shared
+login"); see FORK.md. The launch environment removes ambient Google credentials,
 so an instance cannot silently use another account or billing project. The agent also resolves
 its user-global skill directories under that profile, so the profile links those two directories
 back to the user's real `~/.gemini`; MCP servers, hooks, and rules there stay out of the profile.

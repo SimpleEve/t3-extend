@@ -4,7 +4,10 @@ import type { SidebarViewMode } from "@t3tools/client-runtime/state/thread-group
 import * as Arr from "effect/Array";
 import * as Order from "effect/Order";
 
+import { msg } from "gt-react-native";
+
 import type { AppBarMenuItem } from "../../components/ui/AppBar.types";
+import { m, type MessageResolver } from "../../i18n/messages";
 import type { WorkspaceEnvironment } from "../../state/workspaceModel";
 
 export interface HomeListFilterMenuEnvironment {
@@ -42,17 +45,17 @@ export function buildHomeListFilterMenuItems(
     readonly viewMode?: SidebarViewMode;
     readonly onViewModeChange?: (viewMode: SidebarViewMode) => void;
   },
-  t: Translator, // fork: i18n
+  resolve: MessageResolver = m,
 ): AppBarMenuItem[] {
   const items: AppBarMenuItem[] = [
     {
       id: "environment",
-      title: "Environment",
+      title: resolve(msg("Environment", { $context: "filter menu heading" })),
       items: [
         {
           id: "environment:all",
-          title: "All environments",
-          subtitle: "Show threads from every environment",
+          title: resolve(msg("All environments")),
+          subtitle: resolve(msg("Show threads from every environment")),
           selected: props.selectedEnvironmentId === null,
           onPress: () => props.onEnvironmentChange(null),
         },
@@ -69,12 +72,12 @@ export function buildHomeListFilterMenuItems(
   if (props.projects.length > 0) {
     items.push({
       id: "project",
-      title: "Project",
+      title: resolve(msg("Project", { $context: "filter menu heading" })),
       items: [
         {
           id: "project:all",
-          title: "All projects",
-          subtitle: "Show threads from every project",
+          title: resolve(msg("All projects")),
+          subtitle: resolve(msg("Show threads from every project")),
           selected: props.selectedProjectKey === null,
           onPress: () => props.onProjectChange(null),
         },

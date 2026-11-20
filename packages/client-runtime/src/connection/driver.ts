@@ -1,3 +1,5 @@
+import { msg } from "gt-i18n";
+import { translatableDetail } from "../errors/translatable.ts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
@@ -149,7 +151,9 @@ export const connectOverRoutes = Effect.fn("ConnectionDriver.connectOverRoutes")
       blocked ??
       new ConnectionTransientError({
         reason: "endpoint-unavailable",
-        detail: `${entry.target.label} did not answer on any saved route.`,
+        ...translatableDetail(
+          msg("{host} did not answer on any saved route.", { host: entry.target.label }),
+        ),
       })
   );
 });
@@ -248,15 +252,21 @@ export const make = Effect.gen(function* () {
         yield* session.ready;
         // The server closes a socket when its session expires, unless the same key renewed it.
         if (prepared.httpAuthorization?._tag === "Dpop") {
-          // fork: a device session renews through its own authorization, never the relay's.
-          const renew =
-            prepared.authorizer === "t3x-device"
-              ? deviceAuthorization.renew
-              : remote.renewDpopBeforeExpiry;
-          yield* renew({
+          const expiry = {
             expectedEnvironmentId: prepared.environmentId,
             expiresAtEpochMs: prepared.httpAuthorization.expiresAtEpochMs,
-          }).pipe(
+          };
+          // fork: a device session renews through its own authorization, never the relay's.
+          yield* (
+            prepared.authorizer === "t3x-device"
+              ? deviceAuthorization.renew(expiry)
+              : remote.renewDpopBeforeExpiry({
+                  ...expiry,
+                  ...(prepared.httpAuthorization.directConnection
+                    ? { directConnection: prepared.httpAuthorization.directConnection }
+                    : {}),
+                })
+          ).pipe(
             Effect.catch((error) =>
               Effect.logWarning("Could not renew the connection's credential.", { error }),
             ),

@@ -15,6 +15,8 @@ import {
   type ReviewRenderableLineRow,
 } from "./reviewModel";
 import type { ReviewInlineComment } from "./reviewCommentSelection";
+import { msg } from "gt-react-native";
+import { m } from "../../i18n/messages";
 
 const NATIVE_REVIEW_MAX_WORD_DIFF_RANGE_COUNT = 4;
 const NATIVE_REVIEW_MAX_WORD_DIFF_COVERAGE = 0.45;
@@ -22,7 +24,7 @@ const NATIVE_REVIEW_MAX_WORD_DIFF_COVERAGE = 0.45;
 const NATIVE_REVIEW_MAX_WORD_DIFF_COMPARISONS = 1_000;
 // Bound the rows serialized to the native heap before mapping and word matching.
 const NATIVE_REVIEW_MAX_FILE_ROWS = 100_000;
-const TRUNCATED_FILE_NOTICE = "This diff is too large to show in full.";
+const TRUNCATED_FILE_NOTICE = msg("This diff is too large to show in full.");
 const NATIVE_HEX_COLOR = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})([\da-f]{2})?$/i;
 const NATIVE_RGBA_COLOR =
   /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/;
@@ -294,18 +296,14 @@ function noticeRowsForFile(file: ReviewRenderableFile): ReadonlyArray<NativeRevi
       createNoticeRow(
         file.id,
         "non-text",
-        translatorFor(getUiLocale())("Unsupported format. Diff contents are not available."),
+        m(msg("Unsupported format. Diff contents are not available.")),
       ),
     ];
   }
 
   if (file.changeType === "rename-pure") {
     return [
-      createNoticeRow(
-        file.id,
-        "rename",
-        translatorFor(getUiLocale())("This file was renamed without modifications."),
-      ),
+      createNoticeRow(file.id, "rename", m(msg("This file was renamed without modifications."))),
     ];
   }
 
@@ -471,19 +469,16 @@ function prepareFileRows(file: ReviewRenderableFile): PreparedNativeReviewFileRo
   });
 
   if (sourceRows !== file.rows) {
-    rows.push(
-      createNoticeRow(file.id, "truncated", translatorFor(getUiLocale())(TRUNCATED_FILE_NOTICE)),
-    );
+    rows.push(createNoticeRow(file.id, "truncated", m(TRUNCATED_FILE_NOTICE)));
   }
   rows.push(...noticeRowsForFile(file));
   if (file.noEOFCRAdditions || file.noEOFCRDeletions) {
-    const t = translatorFor(getUiLocale()); // fork: i18n
-    const message = file.noEOFCRAdditions
+    const text = file.noEOFCRAdditions
       ? file.noEOFCRDeletions
-        ? t("Old and new files have no newline at end of file.")
-        : t("New file has no newline at end of file.")
-      : t("Old file has no newline at end of file.");
-    rows.push(createNoticeRow(file.id, "eof", message));
+        ? m(msg("Old and new files have no newline at end of file."))
+        : m(msg("New file has no newline at end of file."))
+      : m(msg("Old file has no newline at end of file."));
+    rows.push(createNoticeRow(file.id, "eof", text));
   }
   const prepared: PreparedNativeReviewFileRows = {
     fileId: file.id,

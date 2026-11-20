@@ -1,3 +1,5 @@
+import * as NodeModule from "node:module";
+
 import type { AntigravitySettings, ServerProviderUsageWindow } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Clock from "effect/Clock";
@@ -14,12 +16,21 @@ import {
   makeUnavailableUsageLimits,
   makeUsageLimits,
 } from "@t3tools/provider-core/server/usageLimits";
-
 import { CLI_LOGIN_EXPIRY_MARGIN_MS, type AntigravityCliLoginRead } from "./antigravityCliLogin.ts"; // fork:
 
 export function antigravityUserAgent(platform: NodeJS.Platform, architecture: NodeJS.Architecture) {
   return `antigravity/hub/2.24.0 (aidev_client; os_type=${platform}; arch=${architecture}; cl=963137146)`;
 }
+
+// fork: why limits are unavailable while the sign-in is the agy CLI's.
+const CLI_UNREADABLE =
+  "Limits are not available while Antigravity uses your agy CLI sign-in on this system. Set Login source to Separate sign-in to see them.";
+const CLI_SIGNED_OUT =
+  "The agy CLI is not signed in. Sign in with agy, or set Login source to Separate sign-in to see Antigravity limits.";
+const CLI_KEYCHAIN_DENIED =
+  "Could not read the agy CLI sign-in from the system keychain. Allow access when asked, or set Login source to Separate sign-in to see limits.";
+const CLI_EXPIRED =
+  "The agy CLI sign-in is out of date. Run agy once to renew it, or set Login source to Separate sign-in to see limits.";
 
 const DAILY_ENDPOINT = "https://daily-cloudcode-pa.googleapis.com";
 const PROD_ENDPOINT = "https://cloudcode-pa.googleapis.com";
@@ -34,20 +45,20 @@ const SUMMARY_WINDOW_MINS = new Map([
   ["weekly", 7 * 24 * 60],
 ]);
 const MANUAL_REDIRECT: RequestInit = { redirect: "manual" };
-// fork: why limits are unavailable while the sign-in is the agy CLI's.
-const CLI_UNREADABLE =
-  "Limits are not available while Antigravity uses your agy CLI sign-in on this system. Set Login source to Separate sign-in to see them.";
-const CLI_SIGNED_OUT =
-  "The agy CLI is not signed in. Sign in with agy, or set Login source to Separate sign-in to see Antigravity limits.";
-const CLI_KEYCHAIN_DENIED =
-  "Could not read the agy CLI sign-in from the system keychain. Allow access when asked, or set Login source to Separate sign-in to see limits.";
-const CLI_EXPIRED =
-  "The agy CLI sign-in is out of date. Run agy once to renew it, or set Login source to Separate sign-in to see limits.";
 const TokenFile = Schema.Struct({
   client_id: Schema.NonEmptyString,
   client_secret: Schema.NonEmptyString,
   refresh_token: Schema.NonEmptyString,
   project_id: Schema.optional(Schema.String),
+});
+// The 1.5.x CLI never writes acp_token.json: it keeps its sign-in in the OS keyring, or in
+// antigravity-oauth-token without one or when T3 bypasses the keyring. It stores no OAuth client, so T3 cannot refresh it.
+const CliToken = Schema.Struct({
+  token: Schema.Struct({
+    access_token: Schema.NonEmptyString,
+    refresh_token: Schema.optional(Schema.String),
+    expiry: Schema.optional(Schema.String),
+  }),
 });
 const TokenResponse = Schema.Struct({
   access_token: Schema.NonEmptyString,
@@ -89,6 +100,7 @@ const Models = Schema.Struct({
 });
 
 const decodeTokenFile = Schema.decodeEffect(Schema.fromJsonString(TokenFile));
+const decodeCliToken = Schema.decodeEffect(Schema.fromJsonString(CliToken));
 const decodeTokenResponse = Schema.decodeUnknownEffect(TokenResponse);
 const decodeUserInfo = Schema.decodeUnknownEffect(UserInfo);
 const decodeSummary = Schema.decodeUnknownEffect(Summary);
@@ -142,6 +154,104 @@ const sha256 = Effect.fnUntraced(function* (text: string) {
   );
   return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
 });
+
+/** go-keyring stores UTF-8, which it prefixes and encodes on macOS. */
+export function decodeGoKeyringSecret(secret: ArrayLike<number>): string {
+  // The binding resolves a plain number array at runtime despite its Uint8Array type.
+  const text = new TextDecoder().decode(Uint8Array.from(secret));
+  if (text.startsWith("go-keyring-base64:")) {
+    return Buffer.from(text.slice("go-keyring-base64:".length), "base64").toString("utf8");
+  }
+  if (text.startsWith("go-keyring-encoded:")) {
+    return Buffer.from(text.slice("go-keyring-encoded:".length), "hex").toString("utf8");
+  }
+  return text;
+}
+
+class AntigravityKeyringError extends Schema.TaggedError<AntigravityKeyringError>()(
+  "AntigravityKeyringError",
+  { cause: Schema.Defect() },
+) {
+  override get message(): string {
+    return "Could not read the Antigravity sign-in from the system keyring.";
+  }
+}
+
+// A single-executable server resolves packages on disk only through `require`.
+const requireExternal = NodeModule.createRequire(import.meta.url);
+
+/**
+ * go-keyring's Windows target is `gemini:antigravity`; @napi-rs/keyring reads `antigravity.gemini`,
+ * and its `withTarget` overwrites the target with an empty secret before reading.
+ */
+export function readWindowsCliCredential(
+  architecture: NodeJS.Architecture,
+): Uint8Array | undefined {
+  // CREDENTIALW offsets and the pointers below are 64-bit.
+  if (architecture !== "x64" && architecture !== "arm64") {
+    throw new Error(`no credential access on ${architecture}`);
+  }
+  const { DataType, load, open } = requireExternal("ffi-rs") as typeof import("ffi-rs");
+  open({ library: "t3-advapi32", path: "advapi32.dll" });
+  open({ library: "t3-kernel32", path: "kernel32.dll" });
+  const copy = (into: Buffer, from: bigint) =>
+    load({
+      library: "t3-kernel32",
+      funcName: "RtlMoveMemory",
+      retType: DataType.Void,
+      paramsType: [DataType.U8Array, DataType.BigInt, DataType.BigInt],
+      paramsValue: [into, from, BigInt(into.length)],
+    });
+  const out = Buffer.alloc(8);
+  const read = load({
+    library: "t3-advapi32",
+    funcName: "CredReadW",
+    retType: DataType.I32,
+    // CRED_TYPE_GENERIC
+    paramsType: [DataType.WString, DataType.U32, DataType.U32, DataType.U8Array],
+    paramsValue: ["gemini:antigravity", 1, 0, out],
+    errno: true as const,
+  });
+  if (read.value === 0) {
+    // ERROR_NOT_FOUND
+    if (read.errnoCode === 1168) return undefined;
+    throw new Error(`CredReadW failed with Windows error ${read.errnoCode}`);
+  }
+  const credential = out.readBigUInt64LE();
+  try {
+    // CredentialBlobSize is a DWORD at 32 and CredentialBlob a pointer at 40.
+    const header = Buffer.alloc(48);
+    copy(header, credential);
+    const size = header.readUInt32LE(32);
+    if (size === 0) return undefined;
+    const blob = Buffer.alloc(size);
+    copy(blob, header.readBigUInt64LE(40));
+    return blob;
+  } finally {
+    load({
+      library: "t3-advapi32",
+      funcName: "CredFree",
+      retType: DataType.Void,
+      paramsType: [DataType.BigInt],
+      paramsValue: [credential],
+    });
+  }
+}
+
+// Loaded lazily: a native binding that fails to load must not take the provider down.
+const readCliKeyringSecret = (platform: NodeJS.Platform, architecture: NodeJS.Architecture) =>
+  Effect.tryPromise({
+    try: async () => {
+      const secret =
+        platform === "win32"
+          ? readWindowsCliCredential(architecture)
+          : await new (
+              requireExternal("@napi-rs/keyring") as typeof import("@napi-rs/keyring")
+            ).AsyncEntry("gemini", "antigravity").getSecret();
+      return secret ? decodeGoKeyringSecret(secret) : undefined;
+    },
+    catch: (cause) => new AntigravityKeyringError({ cause }),
+  });
 
 /** Keys an account by its Google ID, which matches across machines and hubs; refresh tokens do not. */
 export const antigravityAccountFingerprint = (userInfo: unknown) =>
@@ -221,6 +331,7 @@ function modelWindows(models: typeof Models.Type) {
 export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(function* (input: {
   readonly profileDirectory: string;
   readonly authMethod: AntigravitySettings["authMethod"];
+  readonly readKeyringSecret?: Effect.Effect<string | undefined, AntigravityKeyringError>;
   // fork: the sign-in is the agy CLI's, kept in the system keyring rather than a profile token file.
   readonly sharedLogin?: boolean;
   // fork: reads the agy CLI sign-in where this platform keeps it. Without it, limits stay unavailable.
@@ -233,6 +344,12 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
   const platform = yield* HostProcess.Platform;
   const architecture = yield* HostProcess.Architecture;
   const tokenPath = path.join(input.profileDirectory, "antigravity-acp", "acp_token.json");
+  const cliTokenPath = path.join(
+    input.profileDirectory,
+    "antigravity-acp",
+    "antigravity-oauth-token",
+  );
+  const readKeyringSecret = input.readKeyringSecret ?? readCliKeyringSecret(platform, architecture);
   let cached:
     | { fingerprint: string; account: string; accessToken: string; expiresAt: number }
     | undefined;
@@ -247,15 +364,141 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
       Effect.flatMap((response) => response.json),
       Effect.timeout("10 seconds"),
     );
-  // fork: shared by the profile token and the agy CLI sign-in; both end in an access token.
-  const queryLimits = Effect.fn("AntigravityUsageProbe.queryLimits")(function* (query: {
-    readonly checkedAt: string;
-    readonly accessToken: string;
-    readonly account: string;
-    readonly projectId: string | undefined;
-    readonly endpoints: readonly string[];
-  }) {
-    const { checkedAt, accessToken, account, projectId, endpoints } = query;
+  const read = Effect.gen(function* () {
+    const startedGeneration = generation;
+    const checkedAt = DateTime.formatIso(yield* DateTime.now);
+    if (input.authMethod !== "oauth-personal" && input.authMethod !== "oauth-business") {
+      return makeUnavailableUsageLimits({ checkedAt, reason: "unsupported" });
+    }
+    const now = yield* Clock.currentTimeMillis;
+    let accessToken: string;
+    let account: string;
+    let projectId: string | undefined;
+    // fork: a shared login has no token of its own. A leftover file may belong to another account.
+    if (input.sharedLogin) {
+      cached = undefined;
+      if (!input.readCliLogin) {
+        return makeUnavailableUsageLimits({
+          checkedAt,
+          reason: "unsupported",
+          message: CLI_UNREADABLE,
+        });
+      }
+      // Asked on every run: the shared read is cheap, and it notices agy signing in to another account.
+      const outcome = yield* input.readCliLogin;
+      if (outcome._tag === "missing") {
+        cachedCliAccount = undefined;
+        return makeUnavailableUsageLimits({
+          checkedAt,
+          reason: "unsupported",
+          message: CLI_SIGNED_OUT,
+        });
+      }
+      if (outcome._tag === "unreadable") {
+        return makeUnavailableUsageLimits({
+          checkedAt,
+          reason: "probeFailed",
+          message: CLI_KEYCHAIN_DENIED,
+        });
+      }
+      const login = outcome.login;
+      // The access token is the agy CLI's own and only it renews it; this never writes it back.
+      if (login.expiresAt <= now + CLI_LOGIN_EXPIRY_MARGIN_MS) {
+        return makeUnavailableUsageLimits({
+          checkedAt,
+          reason: "probeFailed",
+          message: CLI_EXPIRED,
+        });
+      }
+      const fingerprint = yield* sha256(`agy-cli\0${login.refreshToken ?? login.accessToken}`);
+      accessToken = login.accessToken;
+      account =
+        cachedCliAccount?.fingerprint === fingerprint
+          ? cachedCliAccount.account
+          : yield* request(
+              HttpClientRequest.get("https://www.googleapis.com/oauth2/v2/userinfo").pipe(
+                HttpClientRequest.setHeaders({ Authorization: `Bearer ${login.accessToken}` }),
+              ),
+            ).pipe(
+              Effect.flatMap(antigravityAccountFingerprint),
+              Effect.orElseSucceed(() => fingerprint),
+            );
+      if (generation === startedGeneration) cachedCliAccount = { fingerprint, account };
+    } else if (!(yield* fs.exists(tokenPath))) {
+      cached = undefined;
+      // Google account instances bypass the keyring, whose one entry every profile shares.
+      const stored = (yield* fs.exists(cliTokenPath))
+        ? yield* fs.readFileString(cliTokenPath)
+        : input.authMethod === "oauth-business"
+          ? yield* readKeyringSecret
+          : undefined;
+      if (stored === undefined) {
+        return makeUnavailableUsageLimits({
+          checkedAt,
+          reason: "unsupported",
+          message: "Sign in with Google to see Antigravity limits.",
+        });
+      }
+      const { token } = yield* decodeCliToken(stored);
+      if (!(Date.parse(token.expiry ?? "") > now + 60_000)) {
+        return makeUnavailableUsageLimits({
+          checkedAt,
+          reason: "probeFailed",
+          message:
+            "Antigravity's saved sign-in has expired. Start an Antigravity turn to renew it, then refresh limits.",
+        });
+      }
+      accessToken = token.access_token;
+      account = yield* request(
+        HttpClientRequest.get("https://www.googleapis.com/oauth2/v2/userinfo").pipe(
+          HttpClientRequest.setHeaders({ Authorization: `Bearer ${accessToken}` }),
+        ),
+      ).pipe(
+        Effect.flatMap(antigravityAccountFingerprint),
+        Effect.catch(() => sha256(`antigravity-cli\0${token.refresh_token || accessToken}`)),
+      );
+    } else {
+      const token = yield* fs.readFileString(tokenPath).pipe(Effect.flatMap(decodeTokenFile));
+      projectId = token.project_id;
+      const fingerprint = yield* sha256(
+        `${token.client_id}\0${token.refresh_token}\0${token.project_id ?? ""}`,
+      );
+      if (cached?.fingerprint !== fingerprint || cached.expiresAt <= now + 60_000) {
+        cached = undefined;
+        const refreshed = yield* request(
+          HttpClientRequest.post("https://oauth2.googleapis.com/token").pipe(
+            HttpClientRequest.bodyUrlParams({
+              client_id: token.client_id,
+              client_secret: token.client_secret,
+              refresh_token: token.refresh_token,
+              grant_type: "refresh_token",
+            }),
+          ),
+        ).pipe(Effect.flatMap(decodeTokenResponse));
+        accessToken = refreshed.access_token;
+        // Use Google account IDs to merge accounts across environments; refresh tokens differ per machine.
+        account = yield* request(
+          HttpClientRequest.get("https://www.googleapis.com/oauth2/v2/userinfo").pipe(
+            HttpClientRequest.setHeaders({ Authorization: `Bearer ${accessToken}` }),
+          ),
+        ).pipe(
+          Effect.flatMap(antigravityAccountFingerprint),
+          Effect.orElseSucceed(() => fingerprint),
+        );
+        if (generation === startedGeneration) {
+          cached = {
+            fingerprint,
+            account,
+            accessToken,
+            expiresAt: now + refreshed.expires_in * 1000,
+          };
+        }
+      } else {
+        accessToken = cached.accessToken;
+        account = cached.account;
+      }
+    }
+    const endpoints = ENDPOINTS[input.authMethod];
     // Merge endpoints because quota groups differ; the metered host's reading of a bucket wins.
     const fetchWindows = Effect.fn("AntigravityUsageProbe.fetchWindows")(function* <E>(
       operation: string,
@@ -276,7 +519,7 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
                   Authorization: `Bearer ${accessToken}`,
                   "User-Agent": antigravityUserAgent(platform, architecture),
                 }),
-                HttpClientRequest.bodyJsonUnsafe(projectId ? { project: projectId } : {}), // fork:
+                HttpClientRequest.bodyJsonUnsafe(projectId ? { project: projectId } : {}),
               ),
             ).pipe(
               Effect.flatMap((response) => parse(response, requestedAt)),
@@ -306,128 +549,6 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
     }
     return { ...makeUsageLimits({ checkedAt, windows }), credentialFingerprint: account };
   });
-  const read = Effect.gen(function* () {
-    const startedGeneration = generation;
-    const checkedAt = DateTime.formatIso(yield* DateTime.now);
-    if (input.authMethod !== "oauth-personal" && input.authMethod !== "oauth-business") {
-      return makeUnavailableUsageLimits({ checkedAt, reason: "unsupported" });
-    }
-    // fork: a shared login has no token of its own. A leftover file may belong to another account.
-    if (input.sharedLogin) {
-      cached = undefined;
-      if (!input.readCliLogin) {
-        return makeUnavailableUsageLimits({
-          checkedAt,
-          reason: "unsupported",
-          message: CLI_UNREADABLE,
-        });
-      }
-      const now = yield* Clock.currentTimeMillis;
-      // Asked on every run: the shared read is cheap, and it notices agy signing in to another account.
-      const outcome = yield* input.readCliLogin;
-      if (outcome._tag === "missing") {
-        cachedCliAccount = undefined;
-        return makeUnavailableUsageLimits({
-          checkedAt,
-          reason: "unsupported",
-          message: CLI_SIGNED_OUT,
-        });
-      }
-      if (outcome._tag === "unreadable") {
-        return makeUnavailableUsageLimits({
-          checkedAt,
-          reason: "probeFailed",
-          message: CLI_KEYCHAIN_DENIED,
-        });
-      }
-      const login = outcome.login;
-      // The access token is the agy CLI's own and only it renews it; this never writes it back.
-      if (login.expiresAt <= now + CLI_LOGIN_EXPIRY_MARGIN_MS) {
-        return makeUnavailableUsageLimits({
-          checkedAt,
-          reason: "probeFailed",
-          message: CLI_EXPIRED,
-        });
-      }
-      const fingerprint = yield* sha256(`agy-cli\0${login.refreshToken ?? login.accessToken}`);
-      const account =
-        cachedCliAccount?.fingerprint === fingerprint
-          ? cachedCliAccount.account
-          : yield* request(
-              HttpClientRequest.get("https://www.googleapis.com/oauth2/v2/userinfo").pipe(
-                HttpClientRequest.setHeaders({ Authorization: `Bearer ${login.accessToken}` }),
-              ),
-            ).pipe(
-              Effect.flatMap(antigravityAccountFingerprint),
-              Effect.orElseSucceed(() => fingerprint),
-            );
-      if (generation === startedGeneration) cachedCliAccount = { fingerprint, account };
-      return yield* queryLimits({
-        checkedAt,
-        accessToken: login.accessToken,
-        account,
-        projectId: undefined,
-        endpoints: ENDPOINTS[input.authMethod],
-      });
-    }
-    if (!(yield* fs.exists(tokenPath))) {
-      cached = undefined;
-      return makeUnavailableUsageLimits({
-        checkedAt,
-        reason: "unsupported",
-        message: "Sign in with Google to see Antigravity limits.",
-      });
-    }
-    const token = yield* fs.readFileString(tokenPath).pipe(Effect.flatMap(decodeTokenFile));
-    const fingerprint = yield* sha256(
-      `${token.client_id}\0${token.refresh_token}\0${token.project_id ?? ""}`,
-    );
-    const now = yield* Clock.currentTimeMillis;
-    let accessToken: string;
-    let account: string;
-    if (cached?.fingerprint !== fingerprint || cached.expiresAt <= now + 60_000) {
-      cached = undefined;
-      const refreshed = yield* request(
-        HttpClientRequest.post("https://oauth2.googleapis.com/token").pipe(
-          HttpClientRequest.bodyUrlParams({
-            client_id: token.client_id,
-            client_secret: token.client_secret,
-            refresh_token: token.refresh_token,
-            grant_type: "refresh_token",
-          }),
-        ),
-      ).pipe(Effect.flatMap(decodeTokenResponse));
-      accessToken = refreshed.access_token;
-      // Use Google account IDs to merge accounts across environments; refresh tokens differ per machine.
-      account = yield* request(
-        HttpClientRequest.get("https://www.googleapis.com/oauth2/v2/userinfo").pipe(
-          HttpClientRequest.setHeaders({ Authorization: `Bearer ${accessToken}` }),
-        ),
-      ).pipe(
-        Effect.flatMap(antigravityAccountFingerprint),
-        Effect.orElseSucceed(() => fingerprint),
-      );
-      if (generation === startedGeneration) {
-        cached = {
-          fingerprint,
-          account,
-          accessToken,
-          expiresAt: now + refreshed.expires_in * 1000,
-        };
-      }
-    } else {
-      accessToken = cached.accessToken;
-      account = cached.account;
-    }
-    // fork: the shared tail now lives in queryLimits.
-    return yield* queryLimits({
-      checkedAt,
-      accessToken,
-      account,
-      projectId: token.project_id,
-      endpoints: ENDPOINTS[input.authMethod],
-    });
-  });
   const probe = read.pipe(
     Effect.provideService(Digest.Digest, crypto),
     Effect.timeout("30 seconds"),
@@ -445,7 +566,6 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
     probe,
     clear: Effect.sync(() => {
       cached = undefined;
-      cachedCliAccount = undefined; // fork:
       generation++;
     }),
   };
