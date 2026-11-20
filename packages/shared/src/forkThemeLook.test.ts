@@ -102,6 +102,17 @@ describe("themeLookCssVariables", () => {
     });
   });
 
+  it("lets the larger corner sizes shrink with the radius, so zero is square everywhere", () => {
+    // index.css derives each tier as `--radius ± step × --radius-grow`, clamped at zero.
+    const grow = (radius: number) => themeLookCssVariables({ radius })["--radius-grow"];
+    expect(grow(0)).toBe("0");
+    expect(grow(4)).toBe("0.5");
+    expect(grow(8)).toBe("1");
+    expect(grow(24)).toBe("1");
+    expect(themeLookCssVariables(undefined)["--radius-grow"]).toBeNull();
+    expect(themeLookCssVariables({ radius: 0 })["--control-radius"]).toBe("0rem");
+  });
+
   it("derives panel opacity and blur from glass, and none from zero", () => {
     expect(themeLookCssVariables({ glass: 40 })).toMatchObject({
       "--theme-panel-alpha": "60%",

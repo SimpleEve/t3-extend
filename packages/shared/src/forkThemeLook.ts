@@ -146,6 +146,8 @@ function themeLookShadowValue(
 /** Every variable a look can set on the document root besides fonts, so applying one can clear the rest. */
 export const THEME_LOOK_VARIABLES = [
   "--radius",
+  "--radius-grow",
+  "--control-radius",
   "--spacing",
   "--theme-panel-alpha",
   "--theme-panel-blur",
@@ -159,6 +161,14 @@ export function themeLookCssVariables(
   const glass = look?.glass;
   return {
     "--radius": look?.radius === undefined ? null : `${look.radius / 16}rem`,
+    // 1 from the stock radius up and shrinking to 0 below it, so the sizes around --radius close
+    // up with it and a radius of 0 leaves no rounded tier. index.css reads it with a fallback of 1.
+    // Inputs, badges and sidebar rows use their own constant, so the radius has to reach it too.
+    "--control-radius": look?.radius === undefined ? null : `${look.radius / 16}rem`,
+    "--radius-grow":
+      look?.radius === undefined
+        ? null
+        : String(Math.min(1, look.radius / THEME_LOOK_LIMITS.radius.default)),
     "--spacing": look?.density === undefined ? null : `${(0.25 * look.density) / 100}rem`,
     "--theme-panel-alpha": glass === undefined || glass === 0 ? null : `${100 - glass}%`,
     "--theme-panel-blur": glass === undefined || glass === 0 ? null : `${Math.round(glass / 4)}px`,
