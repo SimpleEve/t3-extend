@@ -6,13 +6,12 @@ const KAI =
   '"Kaiti SC", "STKaiti", "KaiTi", "Kai", "Songti SC", "STSong", "SimSun", Georgia, serif';
 const CODE = 'Menlo, "SF Mono", Consolas, "Liberation Mono", monospace';
 
-const CSS = `:root { --ink: #1d1b18; --ink-soft: #5e5849; --paper: #f1ebdc; --seal: #b8322a; }
+const CSS = `:root { --t3x-ink: #1d1b18; --t3x-ink-soft: #5e5849; --t3x-paper: #f1ebdc; --t3x-seal: #b8322a; }
 
 [data-workspace-area="conversation"] {
   background-image: radial-gradient(ellipse at 85% 112%, rgba(29, 27, 24, 0.1), transparent 55%);
-  background-attachment: local;
   border-top: 3px solid transparent;
-  border-image: linear-gradient(90deg, transparent, var(--ink) 15%, rgba(29, 27, 24, 0.3) 70%, transparent) 1;
+  border-image: linear-gradient(90deg, transparent, var(--t3x-ink) 15%, rgba(29, 27, 24, 0.3) 70%, transparent) 1;
 }
 [data-slot="sidebar-inner"] { background-image: linear-gradient(90deg, rgba(29, 27, 24, 0.05), transparent 70%); }
 [data-thread-item] [data-sidebar-row] { border-radius: 0 !important; }
@@ -21,50 +20,53 @@ const CSS = `:root { --ink: #1d1b18; --ink-soft: #5e5849; --paper: #f1ebdc; --se
 }
 
 [data-chat-header] { letter-spacing: 0.14em; border-bottom: 0 !important; }
-[data-chat-header] nav { display: flex; align-items: center; }
-[data-chat-header] nav::after {
+[data-chat-header]::before {
   content: "E";
+  content: "E" / "";
+  align-self: center;
   display: inline-grid;
   place-items: center;
   width: 1.5em;
   height: 1.5em;
-  margin-left: 0.8em;
+  margin: 0 0.8em 0 1em;
   border-radius: 2px;
-  background: var(--seal);
-  color: var(--paper);
+  background: var(--t3x-seal);
+  color: var(--t3x-paper);
   font-size: 0.75em;
   letter-spacing: 0;
-  vertical-align: middle;
 }
-:lang(zh) [data-chat-header] nav::after { content: "延"; }
+:lang(zh) [data-chat-header]::before {
+  content: "延";
+  content: "延" / "";
+}
 
 [data-message-role="user"] [data-user-message-bubble] {
   background: transparent !important;
   border: 0 !important;
-  border-right: 3px solid var(--seal) !important;
+  border-right: 3px solid var(--t3x-seal) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   padding: 2px 12px 2px 8px;
 }
 
 .chat-markdown h1, .chat-markdown h2, .chat-markdown h3 { font-weight: 400; letter-spacing: 0.14em; }
-.chat-markdown h1 { border-bottom: 1px solid var(--ink); padding-bottom: 0.2em; }
-.chat-markdown a { color: var(--seal) !important; text-decoration: underline; text-underline-offset: 3px; }
-.chat-markdown blockquote { border-left: 2px solid var(--ink) !important; }
+.chat-markdown h1 { border-bottom: 1px solid var(--t3x-ink); padding-bottom: 0.2em; }
+.chat-markdown a { color: var(--t3x-seal) !important; text-decoration: underline; text-underline-offset: 3px; }
+.chat-markdown blockquote { border-left: 2px solid var(--t3x-ink) !important; }
 .chat-markdown-codeblock {
   background: rgba(29, 27, 24, 0.06) !important;
   border: 0 !important;
-  border-left: 2px solid var(--ink) !important;
+  border-left: 2px solid var(--t3x-ink) !important;
   border-radius: 0 !important;
   font-family: ${CODE};
 }
-.chat-markdown table { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
-.chat-markdown th { font-weight: 400; letter-spacing: 0.12em; border-bottom: 1px solid var(--ink); }
+.chat-markdown table { border-top: 1px solid var(--t3x-ink); border-bottom: 1px solid var(--t3x-ink); }
+.chat-markdown th { font-weight: 400; letter-spacing: 0.12em; border-bottom: 1px solid var(--t3x-ink); }
 
 [data-slot="composer-host"] {
   background: transparent !important;
   border: 0 !important;
-  border-bottom: 1px solid var(--ink) !important;
+  border-bottom: 1px solid var(--t3x-ink) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }

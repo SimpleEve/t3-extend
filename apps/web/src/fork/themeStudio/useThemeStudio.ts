@@ -32,6 +32,7 @@ import {
   hasUnsavedChanges,
   placeTheme,
   restoreSchemeToPreset,
+  schemeBase,
   schemeColors,
   STOCK_THEME_ID,
   studioOrigin,
@@ -107,7 +108,7 @@ export function useThemeStudio() {
   const dirty =
     hasUnsavedChanges(draft, savedScheme, base) || (explicitCopy && draft !== null && !savedScheme);
   const editAppearance = editableAppearance(working, resolvedTheme);
-  const preset = working.basedOn ? getThemeDefinition(working.basedOn) : null;
+  const preset = schemeBase(working.basedOn, getThemeDefinition, customThemes);
   const background =
     environmentThemes?.find((published) => published.id === working.id)?.background !== undefined;
 
@@ -248,7 +249,7 @@ export function useThemeStudio() {
   };
 
   const presetLabel = (themeId: string) => {
-    const definition = getThemeDefinition(themeId);
+    const definition = schemeBase(themeId, getThemeDefinition, customThemes);
     return definition ? labelOf(definition) : null;
   };
 

@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
+
+import { readThemePreference } from "../../hooks/useTheme";
 
 import {
   getPresetThemes,
@@ -18,6 +20,7 @@ import {
   studioOrigin,
   studioThemeKind,
   restoreSchemeToPreset,
+  schemeBase,
   sameAppearanceOf,
   withSchemeColors,
   withSchemeCss,
@@ -181,6 +184,38 @@ describe("a preset that was retired", () => {
         stock: terminal,
       }),
     ).toEqual({ origin: terminal, restorable: false });
+  });
+
+  it("does not take a saved theme with a retired id for the preset a scheme came from", () => {
+    const imported = { ...mine(), id: "studio-paper", label: "Imported" };
+    const scheme = { ...mine(), basedOn: "studio-paper" };
+    // getThemeDefinition falls through to saved themes, so it finds the import.
+    const find = (id: string) => (id === imported.id ? imported : getThemeDefinition(id));
+    expect(find("studio-paper")).toBe(imported);
+    expect(schemeBase(scheme.basedOn, find, [imported, scheme])).toBeNull();
+    expect(schemeBase("studio-terminal", find, [imported, scheme])).toBe(terminal);
+    expect(schemeBase(undefined, find, [imported])).toBeNull();
+  });
+
+  it("forgets a stored choice of a retired preset, and leaves other unknown ids alone", () => {
+    const stored = new Map<string, string>([["t3code:theme", "studio-paper"]]);
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => stored.get(key) ?? null,
+        setItem: (key: string, value: string) => stored.set(key, value),
+        removeItem: (key: string) => stored.delete(key),
+      },
+    });
+    try {
+      expect(readThemePreference()).toBe("system");
+      expect(stored.has("t3code:theme")).toBe(false);
+      // An unpublished environment theme may come back, so its id stays.
+      stored.set("t3code:theme", "from-a-server");
+      expect(readThemePreference()).toBe("system");
+      expect(stored.get("t3code:theme")).toBe("from-a-server");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("keeps the new presets under their own ids", () => {

@@ -5,64 +5,53 @@ import type { ThemePresetSeed } from "../presets";
 const SANS = '"Avenir Next", Avenir, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
 const MONO = 'Menlo, "SF Mono", Consolas, "Liberation Mono", monospace';
 
-const CSS = `:root { --n-pink: #ff3cac; --n-cyan: #00f0ff; --n-yellow: #ffd23f; --n-bg: #140a26; }
+const CSS = `:root { --t3x-pink: #ff3cac; --t3x-cyan: #00f0ff; --t3x-yellow: #ffd23f; }
 
-body,
-[data-slot="sidebar-inset"],
 [data-workspace-area="conversation"] {
   background-image:
     linear-gradient(transparent 62%, rgba(255, 60, 172, 0.12) 62%, transparent),
     repeating-linear-gradient(90deg, transparent 0 30px, rgba(0, 240, 255, 0.07) 30px 31px);
 }
 
-[data-slot="sidebar-inner"] {
-  border-right: 1px solid var(--n-pink);
-  box-shadow: 1px 0 10px rgba(255, 60, 172, 0.5);
-}
+/* Glow is kept to a few things: the user's bubble, the composer, the current row and code blocks. */
+[data-slot="sidebar-inner"] { border-right: 1px solid var(--t3x-pink); }
 [data-thread-item] [data-sidebar-row][aria-current="page"] {
-  color: var(--n-cyan);
+  color: var(--t3x-cyan);
   text-shadow: 0 0 5px rgba(0, 240, 255, 0.6);
-  box-shadow: inset 2px 0 0 var(--n-cyan);
+  box-shadow: inset 2px 0 0 var(--t3x-cyan);
 }
-[data-chat-header] { border-bottom: 1px solid rgba(0, 240, 255, 0.45) !important; box-shadow: 0 1px 10px rgba(0, 240, 255, 0.18); }
-[data-chat-header] nav { color: var(--n-cyan); text-shadow: 0 0 5px rgba(0, 240, 255, 0.55); letter-spacing: 0.04em; }
+[data-chat-header] { border-bottom: 1px solid rgba(0, 240, 255, 0.45) !important; }
 
 [data-message-role="user"] [data-user-message-bubble] {
   background: rgba(255, 60, 172, 0.08) !important;
-  border: 1px solid var(--n-pink) !important;
+  border: 1px solid var(--t3x-pink) !important;
   border-radius: 4px !important;
   box-shadow: 0 0 9px rgba(255, 60, 172, 0.55), inset 0 0 6px rgba(255, 60, 172, 0.25) !important;
 }
-.chat-markdown h1, .chat-markdown h2, .chat-markdown h3 {
-  color: var(--n-yellow);
-  text-shadow: 0 0 7px rgba(255, 210, 63, 0.55);
-}
-.chat-markdown a { color: var(--n-cyan) !important; text-decoration: underline; text-shadow: 0 0 4px rgba(0, 240, 255, 0.45); }
+.chat-markdown h1, .chat-markdown h2, .chat-markdown h3 { color: var(--t3x-yellow); }
+.chat-markdown a { color: var(--t3x-cyan) !important; text-decoration: underline; }
 .chat-markdown-codeblock {
   background: rgba(0, 0, 0, 0.45) !important;
-  border: 1px solid var(--n-cyan) !important;
+  border: 1px solid var(--t3x-cyan) !important;
   border-radius: 3px !important;
   box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
 }
 .chat-markdown table { border: 1px solid rgba(0, 240, 255, 0.5); }
-.chat-markdown th { color: var(--n-cyan); border-bottom: 1px solid var(--n-cyan); }
+.chat-markdown th { color: var(--t3x-cyan); border-bottom: 1px solid var(--t3x-cyan); }
 
 [data-slot="composer-host"] {
   background: rgba(10, 5, 24, 0.85) !important;
-  border: 1px solid var(--n-cyan) !important;
+  border: 1px solid var(--t3x-cyan) !important;
   border-radius: 4px !important;
   box-shadow: 0 0 9px rgba(0, 240, 255, 0.45) !important;
 }
-[data-slot="composer-host"]:focus-within { border-color: var(--n-pink) !important; box-shadow: 0 0 10px rgba(255, 60, 172, 0.6) !important; }
-.composer-tiptap { caret-color: var(--n-pink); }
+[data-slot="composer-host"]:focus-within { border-color: var(--t3x-pink) !important; box-shadow: 0 0 10px rgba(255, 60, 172, 0.6) !important; }
+.composer-tiptap { caret-color: var(--t3x-pink); }
 
 [data-slot="dialog-popup"], [data-slot="popover-popup"], [data-slot="menu-popup"],
 [data-slot="select-popup"], [data-slot="alert-dialog-popup"], [data-slot="toast-popup"] {
-  border: 1px solid var(--n-pink) !important;
-  box-shadow: 0 0 12px rgba(255, 60, 172, 0.5) !important;
+  border: 1px solid var(--t3x-pink) !important;
 }
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: #4a2a80; box-shadow: 0 0 4px rgba(255, 60, 172, 0.5); }
 svg.lucide { stroke-width: 1.75; }
 `;
 

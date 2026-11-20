@@ -4,12 +4,12 @@ import type { ThemePresetSeed } from "../presets";
 const MONO =
   'Menlo, "SF Mono", Consolas, "Courier New", "PingFang SC", "Microsoft YaHei", monospace';
 
-const CSS = `:root { --b-yellow: #ffe500; --b-pink: #ff5ca8; --b-mint: #7cf0d0; --b-shadow: 4px 4px 0 #000; }
+const CSS = `:root { --t3x-yellow: #ffe500; --t3x-pink: #ff5ca8; --t3x-mint: #7cf0d0; --t3x-shadow: 4px 4px 0 #000; }
 
-body, button, input, textarea, select { font-weight: 500; }
+.chat-markdown, .composer-tiptap { font-weight: 500; }
 
 [data-slot="sidebar-inner"] { border-right: 3px solid #000; --primary: #000000; }
-[data-thread-details-card], [data-assistant-outputs] { border: 3px solid #000 !important; border-radius: 0 !important; box-shadow: var(--b-shadow) !important; background: #fff !important; }
+[data-thread-details-card], [data-assistant-outputs] { border: 3px solid #000 !important; border-radius: 0 !important; box-shadow: var(--t3x-shadow) !important; background: #fff !important; }
 [data-thread-item] [data-sidebar-row] {
   border: 2px solid #000 !important;
   border-radius: 0 !important;
@@ -18,7 +18,7 @@ body, button, input, textarea, select { font-weight: 500; }
   font-weight: 700;
 }
 [data-thread-item] [data-sidebar-row][aria-current="page"] {
-  background: var(--b-pink) !important;
+  background: var(--t3x-pink) !important;
   box-shadow: 3px 3px 0 #000;
 }
 [data-sidebar-row]:focus-visible { outline: 3px solid #000; outline-offset: 2px; }
@@ -31,24 +31,24 @@ body, button, input, textarea, select { font-weight: 500; }
 }
 
 [data-message-role="user"] [data-user-message-bubble] {
-  background: var(--b-yellow) !important;
+  background: var(--t3x-yellow) !important;
   border: 3px solid #000 !important;
   border-radius: 0 !important;
-  box-shadow: var(--b-shadow) !important;
+  box-shadow: var(--t3x-shadow) !important;
   font-weight: 700;
 }
 [data-message-role="assistant"] .chat-markdown {
   background: #fff;
   border: 3px solid #000;
-  box-shadow: var(--b-shadow);
+  box-shadow: var(--t3x-shadow);
   padding: 12px 16px;
 }
 
 .chat-markdown h1, .chat-markdown h2, .chat-markdown h3 { text-transform: uppercase; font-weight: 800; letter-spacing: 0.01em; }
-.chat-markdown a { color: #000 !important; text-decoration: underline; text-decoration-thickness: 3px; background: var(--b-mint); }
-.chat-markdown-codeblock { border: 3px solid #000 !important; border-radius: 0 !important; box-shadow: var(--b-shadow); }
+.chat-markdown a { color: #000 !important; text-decoration: underline; text-decoration-thickness: 3px; background: var(--t3x-mint); }
+.chat-markdown-codeblock { border: 3px solid #000 !important; border-radius: 0 !important; box-shadow: var(--t3x-shadow); }
 .chat-markdown table { border: 3px solid #000; }
-.chat-markdown th { background: var(--b-mint); border-bottom: 3px solid #000; text-transform: uppercase; }
+.chat-markdown th { background: var(--t3x-mint); border-bottom: 3px solid #000; text-transform: uppercase; }
 .chat-markdown td { border-top: 2px solid #000; }
 .chat-markdown :is(th, td) { padding: 6px 12px !important; }
 
@@ -56,9 +56,9 @@ body, button, input, textarea, select { font-weight: 500; }
   background: #fff !important;
   border: 3px solid #000 !important;
   border-radius: 0 !important;
-  box-shadow: var(--b-shadow) !important;
+  box-shadow: var(--t3x-shadow) !important;
 }
-[data-slot="composer-host"]:focus-within { background: var(--b-yellow) !important; }
+[data-slot="composer-host"]:focus-within { background: var(--t3x-yellow) !important; }
 
 [data-slot="button"], [data-slot="input"], [data-slot="select-trigger"], [data-slot="textarea"] {
   border: 2px solid #000 !important;
@@ -71,7 +71,7 @@ body, button, input, textarea, select { font-weight: 500; }
 [data-slot="tooltip-popup"] {
   border: 3px solid #000 !important;
   border-radius: 0 !important;
-  box-shadow: var(--b-shadow) !important;
+  box-shadow: var(--t3x-shadow) !important;
 }
 svg.lucide { stroke-width: 2.5; stroke-linecap: square; stroke-linejoin: miter; }
 `;

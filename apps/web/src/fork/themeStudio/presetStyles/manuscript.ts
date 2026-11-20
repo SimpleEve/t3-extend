@@ -7,13 +7,12 @@ const TYPEWRITER =
 const HAND =
   '"Bradley Hand", "Segoe Print", "Kaiti SC", "STKaiti", "KaiTi", "Comic Sans MS", cursive';
 
-const CSS = `:root { --pen: #b0281e; --paper-line: #b9d0e6; --margin-line: #d9605a; }
+const CSS = `:root { --t3x-pen: #b0281e; --t3x-paper-line: #b9d0e6; --t3x-margin-line: #d9605a; }
 
 [data-workspace-area="conversation"] {
   background-image:
-    linear-gradient(90deg, transparent 26px, var(--margin-line) 26px, var(--margin-line) 28px, transparent 28px),
-    repeating-linear-gradient(transparent 0 27px, var(--paper-line) 27px 28px);
-  background-attachment: local;
+    linear-gradient(90deg, transparent 26px, var(--t3x-margin-line) 26px, var(--t3x-margin-line) 28px, transparent 28px),
+    repeating-linear-gradient(transparent 0 27px, var(--t3x-paper-line) 27px 28px);
 }
 [data-slot="sidebar-inner"] { border-right: 1px solid #e3dccb; }
 [data-thread-item] [data-sidebar-row] { border-radius: 2px !important; }
@@ -26,7 +25,7 @@ const CSS = `:root { --pen: #b0281e; --paper-line: #b9d0e6; --margin-line: #d960
 
 [data-message-role="user"] [data-user-message-bubble] {
   background: transparent !important;
-  color: var(--pen) !important;
+  color: var(--t3x-pen) !important;
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
@@ -39,17 +38,18 @@ const CSS = `:root { --pen: #b0281e; --paper-line: #b9d0e6; --margin-line: #d960
 
 .chat-markdown h1, .chat-markdown h2, .chat-markdown h3 {
   font-weight: 400;
-  text-decoration: underline wavy var(--pen);
+  text-decoration: underline wavy var(--t3x-pen);
   text-underline-offset: 5px;
   text-decoration-thickness: 1px;
 }
-.chat-markdown a { color: var(--pen) !important; text-decoration: underline; }
+.chat-markdown a { color: var(--t3x-pen) !important; text-decoration: underline; }
+.chat-markdown code { background: rgba(255, 243, 168, 0.6) !important; }
+.chat-markdown .chat-markdown-codeblock code { background: transparent !important; }
 .chat-markdown-codeblock {
   background: rgba(255, 255, 255, 0.75) !important;
   border: 1px solid #d8cfba !important;
   border-radius: 2px !important;
 }
-.chat-markdown :not(pre) > code { background: rgba(255, 243, 168, 0.6) !important; }
 .chat-markdown table { background: rgba(251, 247, 236, 0.92); }
 
 [data-slot="composer-host"] {

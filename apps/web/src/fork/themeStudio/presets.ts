@@ -184,6 +184,18 @@ export const CODE_FONT_OPTIONS: ReadonlyArray<{ id: string; label: string; stack
   { id: "jetbrains", label: "JetBrains Mono", stack: MONO_STACK },
 ];
 
+/** Presets that were removed. A stored choice of one of them is dropped; a scheme made from one keeps working. */
+export const RETIRED_PRESET_IDS: ReadonlySet<string> = new Set([
+  "studio-oled",
+  "studio-paper",
+  "studio-fjord",
+  "studio-tide",
+  "studio-clay",
+  "studio-graphite",
+  "studio-frosted",
+  "studio-compact",
+]);
+
 export const THEME_PRESET_SEEDS: ReadonlyArray<ThemePresetSeed> = [
   {
     id: "studio-terminal",

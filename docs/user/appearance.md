@@ -78,7 +78,9 @@ windows, Ink wash and Neon each carry their own fonts, borders and message shape
 same in green on black. Docs and Quiet page are plain reading layouts and have a dark
 version. Presets only use fonts already installed on your device, so on a machine without them
 (Windows or Linux, for example) a close fallback shows instead. Some presets add small text to the
-chat, such as the label above your message; it follows the interface language.
+chat, such as the label above your message. It is in Chinese when the interface is in Chinese, and in
+English in every other language. That text is decoration: copying a message does not include it and
+screen readers skip it.
 
 Change anything about a preset and your version is saved as a scheme of your own, named like
 "Terminal (mine)". The preset stays as it is. If a preset a scheme was made from is ever retired, the

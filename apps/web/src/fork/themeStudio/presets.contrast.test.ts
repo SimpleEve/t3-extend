@@ -38,7 +38,7 @@ function srgbToLinear(value: number) {
   return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
 }
 
-/** Colors are stored as `#rrggbb` or `oklch(L C h)`; both reduce to linear sRGB. */
+/** Opaque literals only: `#rrggbb` or `oklch(L C h)` with no alpha, so there is nothing to composite. */
 function linearRgb(color: string): readonly [number, number, number] {
   const hex = /^#([0-9a-f]{6})$/i.exec(color)?.[1];
   if (hex) {
@@ -46,8 +46,8 @@ function linearRgb(color: string): readonly [number, number, number] {
       srgbToLinear(Number.parseInt(hex.slice(at, at + 2), 16) / 255),
     ) as [number, number, number];
   }
-  const match = /^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)/.exec(color);
-  if (!match) throw new Error(`Unsupported color: ${color}`);
+  const match = /^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)$/.exec(color);
+  if (!match) throw new Error(`Not an opaque color literal: ${color}`);
   const [lightness, chroma, hue] = [match[1], match[2], match[3]].map(Number) as [
     number,
     number,
