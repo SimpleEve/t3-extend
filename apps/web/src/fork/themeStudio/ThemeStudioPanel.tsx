@@ -208,7 +208,7 @@ function FontStackRow({
               }
             }}
           >
-            <SelectTrigger size="sm" className="w-full min-w-0" aria-label={t(title)}>
+            <SelectTrigger size="sm" aria-label={t(title)}>
               <SelectValue>{customOpen ? t("Custom") : selectedLabel}</SelectValue>
             </SelectTrigger>
             <SelectPopup align="end" alignItemWithTrigger={false}>
@@ -286,16 +286,17 @@ function ColorRow({
         onEditStart={studio.startColorEdit}
         value={valid ? value : "#000000"}
       />
-      <Input
-        aria-invalid={!valid}
-        aria-label={t("{label} hex value", { label })}
-        className="w-28 shrink-0"
-        font="mono"
-        nativeInput
-        onChange={(event) => change(event.currentTarget.value)}
-        size="compact"
-        value={hex}
-      />
+      <div className="w-28 shrink-0">
+        <Input
+          aria-invalid={!valid}
+          aria-label={t("{label} hex value", { label })}
+          font="mono"
+          nativeInput
+          onChange={(event) => change(event.currentTarget.value)}
+          size="compact"
+          value={hex}
+        />
+      </div>
     </div>
   );
 }
@@ -660,7 +661,7 @@ function LayoutSection({ studio }: { studio: Studio }) {
                 }
               }}
             >
-              <SelectTrigger size="sm" className="w-full min-w-0" aria-label={t("Chat width")}>
+              <SelectTrigger size="sm" aria-label={t("Chat width")}>
                 <SelectValue>
                   {chatWidth === undefined ? t("Your setting") : t(CHAT_WIDTH_LABELS[chatWidth])}
                 </SelectValue>
