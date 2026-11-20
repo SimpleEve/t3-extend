@@ -3107,6 +3107,43 @@ it.effect("a desktop tab reports the size the desktop draws after a resize", () 
   ).pipe(Effect.provide(layer)),
 );
 
+it.effect("a desktop tab that sends no frame tells its viewer the host is not drawing it", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      heldStill = () => new Promise(() => {});
+      const { viewer } = yield* openDesktopViewer;
+      expect((yield* Queue.takeAll(viewer.output)).map((item) => item._tag)).not.toContain(
+        "hostNotDrawing",
+      );
+
+      yield* TestClock.adjust("6 seconds");
+
+      expect((yield* Queue.takeAll(viewer.output)).map((item) => item._tag)).toContain(
+        "hostNotDrawing",
+      );
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+it.effect("a desktop tab that draws a frame never reports the host as not drawing", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      heldStill = () => new Promise(() => {});
+      const { viewer, context } = yield* openDesktopViewer;
+      const session = context.sessions.find((candidate) =>
+        candidate.send.mock.calls.some(([method]) => method === "Page.startScreencast"),
+      )!;
+      session.emit("Page.screencastFrame", { data: "ZnJhbWU=", sessionId: 1 });
+
+      yield* TestClock.adjust("6 seconds");
+
+      expect((yield* Queue.takeAll(viewer.output)).map((item) => item._tag)).not.toContain(
+        "hostNotDrawing",
+      );
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
 it.effect("a stalled desktop viewer still gets its size, control and reconnect", () =>
   Effect.scoped(
     Effect.gen(function* () {

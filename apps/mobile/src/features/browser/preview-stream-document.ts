@@ -26,6 +26,7 @@ export type PreviewStreamMessage =
   | { readonly type: "unauthorized" }
   | { readonly type: "gone" }
   | ({ readonly type: "hostSetup" } & PreviewStreamHostSetup)
+  | { readonly type: "hostNotDrawing" }
   | { readonly type: "viewport"; readonly width: number; readonly height: number }
   | { readonly type: "clipboard"; readonly text: string }
   | ({ readonly type: "download" } & PreviewStreamDownload)

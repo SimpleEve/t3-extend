@@ -115,6 +115,9 @@ const HOST_RECONNECT_DELAY = "1 second";
 const DESKTOP_ATTACH_TIMEOUT = "10 seconds";
 // A viewer still is best-effort; a capture Chromium never answers must not hold the capture lock.
 const VIEWER_STILL_TIMEOUT_MS = 2_000;
+// fork: a desktop-drawn tab that sends no frame this long is not being drawn; the phone's own
+// bootstrap gives up at 15 s, so this has to come first.
+const DESKTOP_FIRST_FRAME_TIMEOUT = "6 seconds";
 const VIEWER_OUTPUT_LIMIT = 64;
 const RECORDING_SCREENCAST = { format: "jpeg", quality: 90, everyNthFrame: 1 } as const;
 const RECORDING_BINARY_EXPORT_MIN_BYTES = 8 * 1024 * 1024;
@@ -250,7 +253,9 @@ export type ServerBrowserViewerOutput =
       readonly sizeBytes: number;
     }
   | { readonly _tag: "gone" }
-  | { readonly _tag: "reconnect" };
+  | { readonly _tag: "reconnect" }
+  /** fork: the host's desktop window draws this tab but sent no frame, e.g. a locked screen. */
+  | { readonly _tag: "hostNotDrawing" };
 
 export interface ServerBrowserViewer {
   readonly output: Queue.Dequeue<ServerBrowserViewerOutput>;
@@ -3262,6 +3267,7 @@ const make = Effect.gen(function* () {
     }
     broadcastControl(tab);
     pushFileChooser(tab);
+    let drewFrame = false;
     const pushStill = async () => {
       const data = await withCaptureLock(tab, async () => {
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -3276,7 +3282,10 @@ const make = Effect.gen(function* () {
           clearTimeout(timer);
         }
       }).catch(() => null);
-      if (data) viewer.push({ _tag: "frame", data: Buffer.from(data, "base64"), ack: Effect.void });
+      if (data) {
+        drewFrame = true;
+        viewer.push({ _tag: "frame", data: Buffer.from(data, "base64"), ack: Effect.void });
+      }
     };
     let settleTimer: ReturnType<typeof setTimeout> | null = null;
     yield* Effect.addFinalizer(() =>
@@ -3287,6 +3296,7 @@ const make = Effect.gen(function* () {
     let screencastStarted = false;
     session.on("Page.screencastFrame", (frame) => {
       screencastStarted = true;
+      drewFrame = true;
       if (framesInFlight > 0) mayHaveDropped = true;
       framesInFlight += 1;
       const arrivedAt = Date.now();
@@ -3334,6 +3344,17 @@ const make = Effect.gen(function* () {
     // An idle page does not repaint for a new screencast, so the viewer
     // starts from a still unless a live frame beat it.
     if (!screencastStarted) yield* Effect.forkScoped(Effect.promise(pushStill));
+    // fork: a locked or asleep host draws nothing in its desktop window, so no frame ever comes.
+    if (tab.desktop !== null) {
+      yield* Effect.sleep(DESKTOP_FIRST_FRAME_TIMEOUT).pipe(
+        Effect.andThen(
+          Effect.sync(() => {
+            if (!drewFrame) viewer.push({ _tag: "hostNotDrawing" });
+          }),
+        ),
+        Effect.forkScoped,
+      );
+    }
     return {
       output,
       input: (raw: unknown) =>
