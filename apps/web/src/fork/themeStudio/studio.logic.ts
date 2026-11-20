@@ -181,3 +181,25 @@ export function halvesWithout(halves: ThemeHalvesRaw, themeId: string): ThemeHal
     ...(halves.dark !== undefined && halves.dark !== themeId ? { dark: halves.dark } : {}),
   };
 }
+
+/** The id the theme library's stock card sends: the stock theme has no definition to look up. */
+export const STOCK_THEME_ID = "t3-code";
+
+/**
+ * The theme a Duplicate, Create or Edit starts from. `themeId` names one (the stock card names
+ * the stock theme); none means the theme in use. Only a theme that can be found again by id can
+ * be restored to.
+ */
+export function studioOrigin(input: {
+  themeId: string | null;
+  find: (themeId: string) => ThemeDefinition | null;
+  applied: ThemeDefinition | null;
+  stock: ThemeDefinition;
+}): { readonly origin: ThemeDefinition; readonly restorable: boolean } {
+  if (input.themeId === STOCK_THEME_ID) return { origin: input.stock, restorable: false };
+  const named = input.themeId === null ? null : input.find(input.themeId);
+  const origin = named ?? input.applied;
+  return origin === null
+    ? { origin: input.stock, restorable: false }
+    : { origin, restorable: true };
+}

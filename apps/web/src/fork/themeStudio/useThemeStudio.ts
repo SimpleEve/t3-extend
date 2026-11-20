@@ -29,6 +29,8 @@ import {
   placeTheme,
   restoreSchemeToPreset,
   schemeColors,
+  STOCK_THEME_ID,
+  studioOrigin,
   withSchemeColors,
   withSchemeCss,
   withSchemeLook,
@@ -49,7 +51,7 @@ export function themeDisplayLabel(
 /** The stock T3 theme has no definition of its own, so editing it starts from its two palettes. */
 function stockDefinition(): ThemeDefinition {
   return {
-    id: "t3-code",
+    id: STOCK_THEME_ID,
     label: FORK.appBaseName,
     appearance: "light",
     colors: getStandardThemeColors("light"),
@@ -84,13 +86,17 @@ export function useThemeStudio() {
   const [draft, setDraft] = useState<ThemeDefinition | null>(() => {
     const intent = useThemeStudioIntent.getState().intent;
     if (intent === null || !intent.duplicate) return null;
-    const target = intent.themeId === null ? null : getThemeDefinition(intent.themeId);
-    const origin = target ?? base;
+    const { origin, restorable } = studioOrigin({
+      themeId: intent.themeId,
+      find: getThemeDefinition,
+      applied,
+      stock: stockDefinition(),
+    });
     return beginScheme({
       base: origin,
       savedThemes: customThemes,
       mineLabel: intent.name ?? mineLabel(origin),
-      restorable: target !== null || applied !== null,
+      restorable,
       forceFork: true,
     });
   });

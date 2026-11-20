@@ -8,6 +8,8 @@ import {
   halvesWithout,
   overriddenSettings,
   placeTheme,
+  STOCK_THEME_ID,
+  studioOrigin,
   restoreSchemeToPreset,
   sameAppearanceOf,
   withSchemeColors,
@@ -182,5 +184,33 @@ describe("separate light and dark themes", () => {
     expect(halvesWithout({ light: "a", dark: "b" }, "a")).toEqual({ dark: "b" });
     expect(halvesWithout({ light: "a", dark: "a" }, "a")).toEqual({});
     expect(halvesWithout({ dark: "b" }, "a")).toEqual({ dark: "b" });
+  });
+});
+
+describe("what the studio copies or opens", () => {
+  const grove = { ...terminal, id: "grove", label: "Grove" };
+  const stock = { ...terminal, id: STOCK_THEME_ID, label: "Stock" };
+  const find = (id: string) => (id === "grove" ? grove : id === terminal.id ? terminal : null);
+
+  it("copies the stock theme when its card was clicked, not the theme in use", () => {
+    expect(studioOrigin({ themeId: STOCK_THEME_ID, find, applied: grove, stock })).toEqual({
+      origin: stock,
+      restorable: false,
+    });
+  });
+
+  it("copies the theme that was named, or the one in use when none was", () => {
+    expect(studioOrigin({ themeId: terminal.id, find, applied: grove, stock })).toEqual({
+      origin: terminal,
+      restorable: true,
+    });
+    expect(studioOrigin({ themeId: null, find, applied: grove, stock })).toEqual({
+      origin: grove,
+      restorable: true,
+    });
+    expect(studioOrigin({ themeId: null, find, applied: null, stock })).toEqual({
+      origin: stock,
+      restorable: false,
+    });
   });
 });

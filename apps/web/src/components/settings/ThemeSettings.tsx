@@ -49,6 +49,7 @@ import {
   intentFromEditorSession,
   useOpenThemeStudio,
 } from "../../fork/themeStudio/themeStudioStore"; // fork: theme studio
+import { STOCK_THEME_ID } from "../../fork/themeStudio/studio.logic"; // fork: theme studio
 import {
   STANDARD_THEME_CARDS,
   getThemeCardDefinition,
@@ -800,7 +801,7 @@ export function ThemeLibrary({
             onDuplicate={() =>
               openThemeEditor({
                 editingThemeId: null,
-                seedThemeId: null,
+                seedThemeId: STOCK_THEME_ID, // fork: copy the stock theme, not the one in use
                 seedName: `${standardTheme.label} copy`,
                 initialAppearance,
               })
