@@ -2555,7 +2555,6 @@ export default {
   "Usage: Open": "用量：打开",
   "Theme: Select": "主题：选择",
   "Appearance: Cycle": "外观：循环切换",
-  "Theme Editor: Toggle": "主题编辑器：切换",
   "Composer: Stash": "输入框：暂存",
   "Composer: Opposite Queue or Steer Action": "输入框：执行与默认相反的排队发送或引导",
   "Composer: Start in Background": "输入框：在后台开始",
