@@ -8,13 +8,11 @@ import { writeTextToClipboard } from "../../hooks/useCopyToClipboard";
 import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
-import type { Translator } from "@t3tools/client-runtime/i18n";
 
 // fork: `t` translates the banner; the shared notice text stays English for mobile.
 export function feedbackBannerItem(
   submission: CodexFeedbackSubmission,
   onDismiss: () => void,
-  t: Translator,
 ): ComposerBannerStackItem | null {
   const notice = codexFeedbackNotice(submission);
   if (!notice) return null;
@@ -27,8 +25,7 @@ export function feedbackBannerItem(
     variant:
       submission.status === "failed" ? "error" : submission.status === "sent" ? "success" : "info",
     icon: <MessageSquareIcon />,
-    title: t(notice.title),
-    description,
+    ...notice,
     actions:
       submission.status === "sent" ? (
         <Button
@@ -39,18 +36,18 @@ export function feedbackBannerItem(
               (error: unknown) => {
                 toastManager.add({
                   type: "error",
-                  title: t("Could not copy thread ID"),
-                  description: error instanceof Error ? error.message : t("An error occurred."),
+                  title: "Could not copy thread ID",
+                  description: error instanceof Error ? error.message : "An error occurred.",
                 });
               },
             );
           }}
         >
-          {t("Copy ID")}
+          Copy ID
         </Button>
       ) : undefined,
     ...(submission.status !== "uploading"
-      ? { dismissLabel: t("Dismiss feedback notice"), onDismiss }
+      ? { dismissLabel: "Dismiss feedback notice", onDismiss }
       : {}),
   };
 }

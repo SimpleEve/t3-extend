@@ -13,7 +13,6 @@ import { requireNativeView } from "expo";
 
 import { EmptyState } from "../../components/ui/EmptyState";
 import { NativeViewResolutionError } from "../../native/nativeViewResolutionError";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const NATIVE_REVIEW_DIFF_MODULE_NAME = "T3ReviewDiffSurface";
 const NATIVE_REVIEW_DIFF_PAYLOAD_RETRY_FRAMES = 60;
@@ -289,7 +288,6 @@ function getExpoViewConfig(moduleName: string) {
 }
 
 function NativeReviewDiffView(props: NativeReviewDiffViewProps) {
-  const t = useT(); // fork: i18n
   const [failedRowsJson, setFailedRowsJson] = useState<string | null>(null);
   const onRowsFailure = useCallback(() => setFailedRowsJson(props.rowsJson), [props.rowsJson]);
   if (failedRowsJson !== null && failedRowsJson !== props.rowsJson) setFailedRowsJson(null);
@@ -308,10 +306,10 @@ function NativeReviewDiffView(props: NativeReviewDiffViewProps) {
         ],
       },
       createElement(EmptyState, {
-        title: t("Could not display diff"),
-        detail: t("Try loading the diff view again."),
+        title: "Could not display diff",
+        detail: "Try loading the diff view again.",
         variant: "plain",
-        actionLabel: t("Retry diff"),
+        actionLabel: "Retry diff",
         onAction: () => {
           props.onDebug?.({
             nativeEvent: { message: "surface-retry" },

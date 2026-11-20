@@ -8,7 +8,6 @@ import { PullRequestMarkdown } from "../PullRequestMarkdown";
 import { Menu } from "../../../components/ui/Menu";
 
 import { useAppearancePreferences } from "../../settings/appearance/AppearancePreferencesProvider";
-import { useT } from "../../../hooks/useT"; // fork: i18n
 
 export function GuideOutline({
   guide,
@@ -19,7 +18,6 @@ export function GuideOutline({
   readonly onOpen: (position: number) => void;
   readonly onRewrite?: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const { appearance, setCodeWordBreak } = useAppearancePreferences();
   const files = new Set(guide.stops.flatMap(stopFilePaths));
   return (
@@ -36,16 +34,16 @@ export function GuideOutline({
           </Text>
         </View>
         <Menu
-          title={t("Guide options")}
+          title="Guide options"
           actions={[
             {
               id: "word-wrap",
-              title: t("Word wrap"),
+              title: "Word wrap",
               image: "text.alignleft",
               state: appearance.codeWordBreak ? "on" : "off",
             },
             ...(onRewrite
-              ? [{ id: "rewrite", title: t("Rewrite guide"), image: "arrow.clockwise" }]
+              ? [{ id: "rewrite", title: "Rewrite guide", image: "arrow.clockwise" }]
               : []),
           ]}
           onPressAction={({ nativeEvent }) =>
@@ -56,7 +54,7 @@ export function GuideOutline({
         >
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t("Guide options")}
+            accessibilityLabel="Guide options"
             className="h-11 w-11 items-center justify-center rounded-full active:bg-grouped-card"
           >
             <SymbolView name="ellipsis" size={20} tintColorClassName="accent-icon-muted" />
@@ -76,10 +74,7 @@ export function GuideOutline({
           <Pressable
             key={`${guide.headSha}:${JSON.stringify(stop)}`}
             accessibilityRole="button"
-            accessibilityLabel={t("Stop {number}: {title}", {
-              number: position + 1,
-              title: stop.title,
-            })}
+            accessibilityLabel={`Stop ${position + 1}: ${stop.title}`}
             onPress={() => onOpen(position)}
             className="flex-row gap-4 active:opacity-60"
           >
@@ -98,7 +93,7 @@ export function GuideOutline({
                   <SymbolView name="eye" size={14} tintColorClassName="accent-warning-foreground" />
                 ) : null}
                 <Text className="shrink text-xs text-foreground-muted" numberOfLines={1}>
-                  {filename ?? t("Context")}
+                  {filename ?? "Context"}
                   {paths.length > 1 ? ` +${paths.length - 1}` : ""}
                 </Text>
               </View>

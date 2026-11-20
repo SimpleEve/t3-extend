@@ -200,7 +200,6 @@ function renderHomeScrollView(props: ScrollViewProps) {
 }
 
 export function HomeScreen(props: HomeScreenProps) {
-  const t = useT();
   const usesNativeWorkspaceColumns = useNativeWorkspaceColumnsSupported();
   const workspace = useWorkspaceTabs();
   const [initialScrollOffset] = useState(() => workspace?.getScrollOffset("threads") ?? 0);
@@ -696,12 +695,12 @@ export function HomeScreen(props: HomeScreenProps) {
               <EmptyState
                 title={emptyState.title}
                 detail={emptyState.detail}
-                actionLabel={emptyState.showsAddEnvironment ? t("Add environment") : undefined}
+                actionLabel={emptyState.showsAddEnvironment ? "Add environment" : undefined}
                 onAction={emptyState.showsAddEnvironment ? props.onAddConnection : undefined}
                 action={
                   Platform.OS === "android" && emptyState.showsAddEnvironment ? (
                     <FloatingActionButton
-                      label={t("Add environment")}
+                      label="Add environment"
                       icon="plus"
                       variant="extended"
                       tone="primary"
@@ -755,41 +754,38 @@ export function HomeScreen(props: HomeScreenProps) {
   const v2ListEmpty =
     hasSearchQuery && threadSearch.isPending ? (
       <EmptyState
-        title={t("Searching thread messages…")}
-        detail={t('Looking for "{query}" in messages.', { query: props.searchQuery })}
+        title="Searching thread messages…"
+        detail={`Looking for "${props.searchQuery}" in messages.`}
         variant={Platform.OS === "android" ? "plain" : undefined}
       />
     ) : hasSearchQuery && threadSearch.failed ? (
       <EmptyState
-        title={t("Search failed")}
-        detail={t(
-          'Couldn\'t search messages for "{searchQuery}". Change the search to try again.',
-          { searchQuery: props.searchQuery },
-        )}
+        title="Search failed"
+        detail={`Couldn't search messages for "${props.searchQuery}". Change the search to try again.`}
         variant={Platform.OS === "android" ? "plain" : undefined}
       />
     ) : hasSearchQuery ? (
       <EmptyState
-        title={t("No results")}
-        detail={t("No threads matching “{query}”.", { query: props.searchQuery })}
+        title="No results"
+        detail={`No threads matching "${props.searchQuery}".`}
         variant={Platform.OS === "android" ? "plain" : undefined}
       />
     ) : v2ScopedProjectGroup !== null ? (
       <EmptyState
-        title={t("No threads in {name}", { name: v2ScopedProjectGroup.title })}
-        detail={t("Choose another project or create a new task.")}
+        title={`No threads in ${v2ScopedProjectGroup.title}`}
+        detail="Choose another project or create a new task."
         variant={Platform.OS === "android" ? "plain" : undefined}
       />
     ) : selectedEnvironmentLabel ? (
       <EmptyState
-        title={t("No threads in {name}", { name: selectedEnvironmentLabel })}
-        detail={t("Choose another environment or create a new task.")}
+        title={`No threads in ${selectedEnvironmentLabel}`}
+        detail="Choose another environment or create a new task."
         variant={Platform.OS === "android" ? "plain" : undefined}
       />
     ) : (
       <EmptyState
-        title={t("No threads yet")}
-        detail={t("Create a task to start a new coding session.")}
+        title="No threads yet"
+        detail="Create a task to start a new coding session."
         variant={Platform.OS === "android" ? "plain" : undefined}
       />
     );

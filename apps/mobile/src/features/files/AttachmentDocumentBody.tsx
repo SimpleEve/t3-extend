@@ -10,7 +10,6 @@ import { FileMarkdownPreview } from "./FileMarkdownPreview";
 import { FilePreviewLoading, FilePreviewNotice } from "./FilePreviewFeedback";
 import { SourceFileSurface } from "./SourceFileSurface";
 import { WorkspaceFileWebPreview } from "./WorkspaceFileWebPreview";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function nativeViewerKind(kind: ReturnType<typeof useAttachmentDocument>["kind"]) {
   if (kind === "image") return "image" as const;
@@ -39,34 +38,33 @@ export function AttachmentDocumentBody(props: {
   readonly nativeError: string | null;
   readonly onOpenNative: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const { document } = props;
   if (document.error) {
     return (
       <View className="flex-1 items-center justify-center bg-sheet px-6">
         <EmptyState
-          title={t("File unavailable")}
+          title="File unavailable"
           detail={document.error}
-          actionLabel={t("Try again")}
+          actionLabel="Try again"
           onAction={document.retry}
         />
       </View>
     );
   }
   if (props.nativeViewer !== null && props.nativeViewer !== "unavailable") {
-    return <FilePreviewLoading message={t("Opening in file viewer...")} />;
+    return <FilePreviewLoading message="Opening in file viewer..." />;
   }
   // ZIP text entries are read into memory and have no file URI.
   if (document.needsText ? !document.content : !document.uri) {
-    return <FilePreviewLoading message={t("Loading file...")} />;
+    return <FilePreviewLoading message="Loading file..." />;
   }
   if (document.needsText && document.content) {
     const { content, table } = document;
     return (
       <View className="flex-1 bg-sheet">
         {content.truncated ? (
-          <FilePreviewNotice title={t("Partial file")}>
-            {t("Preview limited to the first 1 MB. Save or share the file to read it in full.")}
+          <FilePreviewNotice title="Partial file">
+            Preview limited to the first 1 MB. Save or share the file to read it in full.
           </FilePreviewNotice>
         ) : null}
         {table && document.activeMode === "table" ? (
@@ -100,12 +98,12 @@ export function AttachmentDocumentBody(props: {
   return (
     <View className="flex-1 items-center justify-center bg-sheet px-6">
       <EmptyState
-        title={t("No preview for this file")}
+        title="No preview for this file"
         detail={
           props.nativeError ??
-          t("No app on this device can show this format. Save or share it to open it elsewhere.")
+          "No app on this device can show this format. Save or share it to open it elsewhere."
         }
-        actionLabel={t("Try again")}
+        actionLabel="Try again"
         onAction={props.onOpenNative}
       />
     </View>

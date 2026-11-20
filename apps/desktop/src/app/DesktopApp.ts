@@ -1,4 +1,3 @@
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 import * as Cause from "effect/Cause";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
@@ -150,8 +149,8 @@ const handleFatalStartupError = Effect.fn("desktop.startup.handleFatalStartupErr
   const wasQuitting = yield* Ref.getAndSet(state.quitting, true);
   if (!wasQuitting) {
     yield* electronDialog.showErrorBox(
-      translate(getUiLocale(), "T3 Extend failed to start"),
-      `${translate(getUiLocale(), "Stage: {stage}", { stage })}\n${message}${detail}`,
+      "T3 Code failed to start",
+      `Stage: ${stage}\n${message}${detail}`,
     );
   }
   yield* shutdown.request;

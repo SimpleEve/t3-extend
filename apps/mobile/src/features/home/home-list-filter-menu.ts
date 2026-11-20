@@ -47,19 +47,18 @@ export function buildHomeListFilterMenuItems(
   const items: AppBarMenuItem[] = [
     {
       id: "environment",
-      title: t("Environment"),
+      title: "Environment",
       items: [
         {
           id: "environment:all",
-          title: t("All environments"),
-          subtitle: t("Show threads from every environment"),
+          title: "All environments",
+          subtitle: "Show threads from every environment",
           selected: props.selectedEnvironmentId === null,
           onPress: () => props.onEnvironmentChange(null),
         },
         ...props.environments.map((environment) => ({
           id: `environment:${environment.environmentId}`,
           title: environment.label,
-          verbatim: true, // fork: i18n
           selected: props.selectedEnvironmentId === environment.environmentId,
           onPress: () => props.onEnvironmentChange(environment.environmentId),
         })),
@@ -70,19 +69,18 @@ export function buildHomeListFilterMenuItems(
   if (props.projects.length > 0) {
     items.push({
       id: "project",
-      title: t("Project"),
+      title: "Project",
       items: [
         {
           id: "project:all",
-          title: t("All projects"),
-          subtitle: t("Show threads from every project"),
+          title: "All projects",
+          subtitle: "Show threads from every project",
           selected: props.selectedProjectKey === null,
           onPress: () => props.onProjectChange(null),
         },
         ...props.projects.map((project) => ({
           id: `project:${project.key}`,
           title: project.label,
-          verbatim: true, // fork: i18n
           selected: props.selectedProjectKey === project.key,
           onPress: () => props.onProjectChange(project.key),
         })),

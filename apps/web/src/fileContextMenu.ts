@@ -17,8 +17,6 @@ import { useAtomCommand } from "./state/use-atom-command";
 import { resolvePathLinkTarget } from "@t3tools/shared/fileLinks";
 import { toastManager } from "./components/ui/toast";
 import { useAtomValue } from "@effect/atom-react";
-import { getUiLocale, translate, type Translator } from "@t3tools/client-runtime/i18n";
-import { useT } from "./hooks/useT"; // fork: interface language
 
 export type FileContextMenuAction =
   | "reveal-in-folder"
@@ -61,13 +59,12 @@ export interface FileContextMenuCapabilities {
 function buildFileContextMenuItems(input: {
   readonly hasAbsolutePath: boolean;
   readonly capabilities: FileContextMenuCapabilities;
-  readonly t: Translator; // fork: interface language
 }): readonly ContextMenuItem<FileContextMenuAction>[] {
   const { t } = input;
   if (!input.hasAbsolutePath) return [];
   const items: ContextMenuItem<FileContextMenuAction>[] = [];
   if (input.capabilities.canOpenDefault) {
-    items.push({ id: "open", label: t("Open"), icon: "pencil" });
+    items.push({ id: "open", label: "Open", icon: "pencil" });
   }
   if (input.capabilities.revealLabel !== undefined) {
     items.push({
@@ -80,7 +77,7 @@ function buildFileContextMenuItems(input: {
   if (editorIds.length > 0) {
     items.push({
       id: "open-with",
-      label: t("Open with"),
+      label: "Open with",
       children: editorIds.map((editorId) => ({
         id: `editor:${editorId}` as FileContextMenuAction,
         label: EDITOR_LABEL_BY_ID.get(editorId) ?? editorId,
@@ -91,7 +88,6 @@ function buildFileContextMenuItems(input: {
 }
 
 export function useFileContextMenu(environmentId: EnvironmentId | null) {
-  const t = useT(); // fork: interface language
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: false });
   const serverConfig = useAtomValue(serverEnvironment.configValueAtom(environmentId));
 
@@ -133,12 +129,10 @@ export function useFileContextMenu(environmentId: EnvironmentId | null) {
       type: "error",
       title:
         action === "open"
-          ? translate(getUiLocale(), "Could not open file")
+          ? "Could not open file"
           : reveal
-            ? translate(getUiLocale(), "Unable to reveal file")
-            : translate(getUiLocale(), "Could not open in {value}", {
-                value: EDITOR_LABEL_BY_ID.get(editor) ?? editor,
-              }),
+            ? "Unable to reveal file"
+            : `Could not open in ${EDITOR_LABEL_BY_ID.get(editor) ?? editor}`,
       description: absolutePath,
     });
   };

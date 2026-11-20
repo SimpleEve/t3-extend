@@ -21,14 +21,12 @@ import {
   preferredMicrophone,
 } from "../../speech/microphoneOrder";
 import { Button } from "../ui/button";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 /** The saved microphone order. Keyboard users reorder with the step buttons. */
 export function MicrophoneOrderList(props: {
   readonly order: ReadonlyArray<MicrophoneEntry>;
   readonly devices: ReadonlyArray<BrowserMicrophone>;
 }) {
-  const t = useT();
   const { order, devices } = props;
   const keys = order.map(microphoneEntryKey);
   const inUse = microphoneEntryKey(preferredMicrophone(order, devices));
@@ -53,7 +51,7 @@ export function MicrophoneOrderList(props: {
     >
       <SortableContext items={keys} strategy={verticalListSortingStrategy}>
         <ol
-          aria-label={t("Microphones, preferred first")}
+          aria-label="Microphones, preferred first"
           className="divide-y divide-border/60 rounded-lg border border-border/60"
         >
           {order.map((entry, index) => {
@@ -100,7 +98,6 @@ function MicrophoneRow(props: {
   readonly onMove: (steps: number) => void;
   readonly onForget: (() => void) | undefined;
 }) {
-  const t = useT();
   const { name } = props;
   const { listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: props.id });
@@ -121,10 +118,10 @@ function MicrophoneRow(props: {
       <span className="col-start-2 flex @min-[32rem]/settings-row:col-start-auto">
         {props.inUse ? (
           <span className="rounded-sm bg-success/12 px-1 text-2xs text-success-foreground">
-            {t("In use")}
+            In use
           </span>
         ) : props.notConnected ? (
-          <span className="text-2xs text-muted-foreground">{t("Not connected")}</span>
+          <span className="text-2xs text-muted-foreground">Not connected</span>
         ) : null}
       </span>
       <span
@@ -141,7 +138,7 @@ function MicrophoneRow(props: {
           size="icon-xs"
           variant="ghost-muted"
           disabled={props.position === 1}
-          aria-label={t("Move {name} up", { name })}
+          aria-label={`Move ${name} up`}
           onClick={() => props.onMove(-1)}
         >
           <ArrowUpIcon />
@@ -151,7 +148,7 @@ function MicrophoneRow(props: {
           size="icon-xs"
           variant="ghost-muted"
           disabled={props.position === props.count}
-          aria-label={t("Move {name} down", { name })}
+          aria-label={`Move ${name} down`}
           onClick={() => props.onMove(1)}
         >
           <ArrowDownIcon />
@@ -161,7 +158,7 @@ function MicrophoneRow(props: {
             type="button"
             size="icon-xs"
             variant="ghost-muted"
-            aria-label={t("Forget {name}", { name })}
+            aria-label={`Forget ${name}`}
             onClick={props.onForget}
           >
             <XIcon />

@@ -35,7 +35,6 @@ import {
 } from "../ThreadStatusIndicators";
 
 import { ThreadDetailsPrRow } from "./ThreadDetailsPrRow";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 function ThreadDetailsPrLinkRow({
   environmentId,
@@ -52,7 +51,6 @@ function ThreadDetailsPrLinkRow({
   onStopWatching?: (() => void) | undefined;
   composerTarget?: ComposerThreadTarget | undefined;
 }) {
-  const t = useT(); // fork: interface language
   const projects = useProjects();
   const parsed = sourceControlClients.parseChangeRequestUrl(link.url)?.link;
   const project =
@@ -93,7 +91,6 @@ function ThreadDetailsPrRows({
   currentLink: ThreadPullRequestLink | null;
   onOpenLink: (event: ReactMouseEvent<HTMLElement>, url: string) => void;
 }) {
-  const t = useT(); // fork: interface language
   const [expanded, setExpanded] = useState(false);
   const watch = useAtomCommand(threadEnvironment.watchPullRequest, { reportFailure: true });
   const stopWatching = (link: ThreadPullRequestLink | null) =>
@@ -151,7 +148,7 @@ function ThreadDetailsPrRows({
         ) : (
           <ChevronDownIcon aria-hidden className="size-4 shrink-0" />
         )}
-        {expanded ? t("Show less") : t("Show {count} more", { count: rest.length })}
+        {expanded ? "Show less" : `Show ${rest.length} more`}
       </ThreadDetailsControl>
     </>
   );

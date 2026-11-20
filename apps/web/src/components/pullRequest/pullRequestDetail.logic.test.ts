@@ -12,7 +12,6 @@ import {
   type RepositoryIdentity,
   type ThreadPullRequestLink,
 } from "@t3tools/contracts";
-import { interpolate } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 import {
   formatComposerContextReference,

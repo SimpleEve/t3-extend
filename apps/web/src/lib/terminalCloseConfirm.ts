@@ -1,5 +1,3 @@
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
-import { localizeTerminalLabel } from "@t3tools/shared/terminalLabels"; // fork: i18n
 import { ensureClientSettingsHydrated, getClientSettings } from "~/hooks/useSettings";
 import { readLocalApi } from "~/localApi";
 
@@ -33,8 +31,8 @@ export async function confirmTerminalClose(
     return await localApi.dialogs.confirm(
       labels.length === 1
         ? [
-            translate(locale, 'Close terminal "{label}"?', { label: localize(labels[0]) }),
-            translate(locale, "This stops the running process and clears its history."),
+            `Close terminal "${labels[0]}"?`,
+            "This stops the running process and clears its history.",
           ].join("\n")
         : [
             translate(locale, "Close {count} terminals?", { count: labels.length }),

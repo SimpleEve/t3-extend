@@ -8,7 +8,6 @@ import { readLocalApi } from "../localApi";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { sourceControlEnvironment } from "../state/sourceControl";
 import { toastManager } from "./ui/toast";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 // Separate keys so a count written by another tab can never undo a dismissal.
 const SENT_KEY = "t3code:github-star-prompt:sent";
@@ -45,8 +44,8 @@ function showStarPrompt(environmentId: EnvironmentId) {
       dismiss();
       toastManager.update(id, {
         type: "success",
-        title: translate(getUiLocale(), "Thanks for the star!"),
-        description: translate(getUiLocale(), "It really helps T3 Code grow."),
+        title: "Thanks for the star!",
+        description: "It really helps T3 Code grow.",
         timeout: 5_000,
         actionProps: undefined,
         data: {},
@@ -62,8 +61,8 @@ function showStarPrompt(environmentId: EnvironmentId) {
     });
   };
   const id = toastManager.add({
-    title: translate(getUiLocale(), "Enjoying T3 Code?"),
-    description: translate(getUiLocale(), "Give us a star on GitHub to let us know!"),
+    title: "Enjoying T3 Code?",
+    description: "Give us a star on GitHub to let us know!",
     timeout: 0,
     onClose: dismiss,
     actionProps: {
@@ -73,7 +72,7 @@ function showStarPrompt(environmentId: EnvironmentId) {
     data: {
       actionLayout: "stacked-end",
       leadingIcon: <StarIcon aria-hidden className="size-4 text-warning-foreground" />,
-      secondaryActionProps: { children: translate(getUiLocale(), "Dismiss"), onClick: close },
+      secondaryActionProps: { children: "Dismiss", onClick: close },
       secondaryActionVariant: "ghost",
     },
   });

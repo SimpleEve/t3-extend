@@ -12,7 +12,6 @@ import Animated, {
 import { constrainAuxiliaryPaneWidth, type WorkspacePaneLayout } from "../../lib/layout";
 import { WORKSPACE_PANE_TIMING } from "./workspace-pane-animation";
 import { WorkspacePaneDivider } from "./workspace-pane-divider";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { InspectorPanes } from "./inspector-host";
 import type { InspectorContent } from "./inspector-panes";
 
@@ -29,7 +28,6 @@ export function WorkspaceInspectorPane(props: {
   readonly content: InspectorContent | undefined;
   readonly setAuxiliaryPaneWidth: (width: number) => void;
 }) {
-  const t = useT(); // fork: i18n
   const { panes, setAuxiliaryPaneWidth } = props;
   const inspectorWidth = panes.auxiliaryPaneWidth;
   const inspectorSupported = props.content !== undefined && inspectorWidth !== null;
@@ -101,7 +99,7 @@ export function WorkspaceInspectorPane(props: {
     <>
       {inspectorVisible ? (
         <WorkspacePaneDivider
-          accessibilityLabel={t("Resize detail pane")}
+          accessibilityLabel="Resize detail pane"
           currentWidth={inspectorWidth ?? 0}
           resizeDirection={-1}
           onResizeStart={beginResize}

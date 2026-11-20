@@ -6,8 +6,6 @@ import { cn } from "../../lib/cn";
 import { AppText } from "./AppText";
 import { SymbolView } from "./AppSymbol";
 import { useAndroidControlSizing } from "./useAndroidControlSizing";
-import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function NavigationRow({
   title,
@@ -28,7 +26,6 @@ export function NavigationRow({
   readonly leading?: ReactNode;
   readonly trailing?: ReactNode;
 }) {
-  const t = useT(); // fork: i18n
   const { themeVariables } = useAppearancePreferences();
   const { smallIconSize } = useAndroidControlSizing();
   return (

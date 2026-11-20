@@ -31,7 +31,6 @@ import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { BackgroundThreadContext } from "./backgroundThread";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 /** A side chat tab: its title, Bring back, Delete and Close, over the side chat's own chat. */
 export default function SideChatPane(props: {
@@ -40,7 +39,6 @@ export default function SideChatPane(props: {
   readonly parentPanel: SideChatParentPanel;
   readonly onClose: () => void;
 }) {
-  const t = useT(); // fork: interface language
   const { parentRef, threadId } = props;
   const threadRef = scopeThreadRef(parentRef.environmentId, threadId);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- registers the parent panel as host in the panel store
@@ -61,11 +59,11 @@ export default function SideChatPane(props: {
   const mergeRun = projection ? resolveLatestMergeBackRun(projection) : null;
   // A pending merge-back would fail the main thread's queued message, so the server refuses it.
   const bringBackBlockedReason = !canOperate
-    ? t("This connection cannot change threads.")
+    ? "This connection cannot change threads."
     : threadRuntimeIsActive(parent?.runtime)
-      ? t("Available when the main thread is idle.")
+      ? "Available when the main thread is idle."
       : mergeRun === null
-        ? t("Available after a finished reply.")
+        ? "Available after a finished reply."
         : null;
 
   const bringBack = async () => {
@@ -79,14 +77,14 @@ export default function SideChatPane(props: {
     if (result._tag === "Success") {
       toastManager.add({
         type: "success",
-        title: t("Brought back"),
-        description: t("The main thread gets this side chat with your next message there."),
+        title: "Brought back",
+        description: "The main thread gets this side chat with your next message there.",
       });
     } else if (!isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: t("Could not bring back the side chat"),
+        title: "Could not bring back the side chat",
         ...(error instanceof Error ? { description: error.message } : {}),
       });
     }
@@ -100,8 +98,8 @@ export default function SideChatPane(props: {
       const confirmed = await settlePromise(() =>
         api.dialogs.confirm(
           [
-            t('Delete side chat "{title}"?', { title: shell.title }),
-            t("This permanently clears its conversation history."),
+            `Delete side chat "${shell.title}"?`,
+            "This permanently clears its conversation history.",
           ].join("\n"),
           { variant: "destructive" },
         ),
@@ -122,7 +120,7 @@ export default function SideChatPane(props: {
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: t("Could not delete the side chat"),
+        title: "Could not delete the side chat",
         ...(error instanceof Error ? { description: error.message } : {}),
       });
     }
@@ -132,7 +130,7 @@ export default function SideChatPane(props: {
     <div data-side-chat-pane={threadId} className="flex h-full min-h-0 flex-col">
       <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border pr-1 pl-3">
         <span className="min-w-0 flex-1 truncate text-xs font-medium">
-          {shell?.title ?? t("Side chat")}
+          {shell?.title ?? "Side chat"}
         </span>
         <Tooltip>
           <TooltipTrigger
@@ -143,18 +141,18 @@ export default function SideChatPane(props: {
                 aria-disabled={bringBackBlockedReason !== null || bringingBack || undefined}
                 onClick={() => void bringBack()}
               >
-                {t("Bring back")}
+                Bring back
               </Button>
             }
           />
           <TooltipPopup side="bottom">
-            {bringBackBlockedReason ?? t("Adds this side chat to the main thread's next message.")}
+            {bringBackBlockedReason ?? "Adds this side chat to the main thread's next message."}
           </TooltipPopup>
         </Tooltip>
         <Button
           variant="ghost"
           size="icon-xs"
-          aria-label={t("Delete side chat")}
+          aria-label="Delete side chat"
           disabled={!canOperate || shell === null || deleting}
           onClick={() => void deleteSideChat()}
         >
@@ -171,7 +169,7 @@ export default function SideChatPane(props: {
       </div>
       {shell === null ? (
         snapshotLoaded ? (
-          <p className="p-3 text-xs text-muted-foreground">{t("This side chat was deleted.")}</p>
+          <p className="p-3 text-xs text-muted-foreground">This side chat was deleted.</p>
         ) : null
       ) : (
         <BackgroundThreadContext value>

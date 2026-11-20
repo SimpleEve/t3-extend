@@ -51,7 +51,6 @@ import { issueListFiltersAtom } from "./issueListFilters";
 import { issueViewMatches } from "./issueSavedViews";
 import { SavedViewsMenu } from "../layout/workspace/SavedViewsMenu";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const DEFAULT_ISSUE_LIST_INPUT = { state: "open", involvement: "all", limit: 50 } as const;
 const STATES = {
@@ -401,27 +400,27 @@ export function IssuesScreen(
               <Chip
                 label={
                   labels.length === 0
-                    ? t("Labels")
+                    ? "Labels"
                     : labels.length === 1
                       ? labels[0]!
-                      : t("Labels {count}", { count: labels.length })
+                      : `Labels ${labels.length}`
                 }
                 selected={labels.length > 0}
                 trailingIcon="chevron.down"
                 glass
                 colorScheme={themeAppearance}
-                accessibilityLabel={t("Filter by label")}
+                accessibilityLabel="Filter by label"
                 onPress={() =>
                   navigation.navigate("IssueFilterSearch", { kind: "labels", scopes: filterScopes })
                 }
               />
               <Chip
-                label={assignee === null ? t("Assignee") : (assignee.name ?? assignee.login)}
+                label={assignee === null ? "Assignee" : (assignee.name ?? assignee.login)}
                 selected={assignee !== null}
                 trailingIcon="chevron.down"
                 glass
                 colorScheme={themeAppearance}
-                accessibilityLabel={t("Filter by assignee")}
+                accessibilityLabel="Filter by assignee"
                 onPress={() =>
                   navigation.navigate("IssueFilterSearch", {
                     kind: "assignee",
@@ -452,15 +451,15 @@ export function IssuesScreen(
             <View className="items-center py-5">
               <AppActivityIndicator
                 colorClassName="accent-icon"
-                accessibilityLabel={t("Loading more issues")}
+                accessibilityLabel="Loading more issues"
               />
             </View>
           ) : moreFailure ? (
             <View className="items-center gap-2 px-8 py-4">
               <Text className="text-xs text-foreground-muted">{moreFailure}</Text>
               <Button
-                label={t("Try again")}
-                accessibilityLabel={t("Retry loading more issues")}
+                label="Try again"
+                accessibilityLabel="Retry loading more issues"
                 onPress={() => void loadMore(true)}
               />
             </View>
@@ -468,8 +467,8 @@ export function IssuesScreen(
             // A filtered page can be too short to scroll, which leaves nothing to reach the end of.
             <View className="items-center py-4">
               <Button
-                label={t("Load more")}
-                accessibilityLabel={t("Load more issues")}
+                label="Load more"
+                accessibilityLabel="Load more issues"
                 onPress={() => void loadMore()}
               />
             </View>
@@ -485,26 +484,26 @@ export function IssuesScreen(
               <EmptyState
                 title={
                   list.error
-                    ? t("Couldn't load issues")
+                    ? "Couldn't load issues"
                     : connected.length > 0
                       ? query
-                        ? t("No results")
-                        : t("No matching issues")
+                        ? "No results"
+                        : "No matching issues"
                       : capable.length > 0
-                        ? t("Environment offline")
+                        ? "Environment offline"
                         : environments.length > 0
-                          ? t("Issues unavailable")
-                          : t("Connect an environment")
+                          ? "Issues unavailable"
+                          : "Connect an environment"
                 }
                 detail={
                   list.error ??
                   (connected.length > 0
-                    ? t("Issues from your environments' projects appear here.")
+                    ? "Issues from your environments' projects appear here."
                     : capable.length > 0
-                      ? t("Reconnect to load issues.")
+                      ? "Reconnect to load issues."
                       : environments.length > 0
-                        ? t("Update the environment's T3 Extend server to browse issues.") // fork: brand
-                        : t("Add an environment in Settings to browse its issues."))
+                        ? "Update the environment's T3 Code server to browse issues."
+                        : "Add an environment in Settings to browse its issues.")
                 }
                 variant="plain"
               />

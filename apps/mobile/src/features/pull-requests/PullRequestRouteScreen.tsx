@@ -134,11 +134,8 @@ import {
   capitalizeTerm,
   sourceControlClients,
 } from "@t3tools/client-runtime/source-control-clients";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 function usePullRequestActivityRows(params: PullRequestParams, filter: ActivityFilter) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const result = useEnvironmentQuery(composerPullRequests.activity(requestTarget(params)));
   const detail = useEnvironmentQuery(composerPullRequests.detail(requestTarget(params)));
@@ -160,7 +157,7 @@ function usePullRequestActivityRows(params: PullRequestParams, filter: ActivityF
         date: "",
         content: (
           <Text className="py-6 text-sm text-foreground-muted">
-            {t("No activity matches these filters.")}
+            No activity matches these filters.
           </Text>
         ),
       });
@@ -210,7 +207,6 @@ function PullRequestIdentity(props: {
   readonly pr: PullRequestDetail | PullRequestListEntry | PullRequestSummary;
   readonly params: PullRequestParams;
 }) {
-  const t = useT(); // fork: i18n
   const { pr } = props;
   const status = pullRequestStatus({ state: pr.state, isDraft: pr.isDraft === true }, t);
   return (
@@ -241,7 +237,7 @@ function PullRequestIdentity(props: {
       <View className="flex-row items-center gap-2">
         <PullRequestAvatar actor={pr.author ?? null} size={20} />
         <Text className="min-w-0 flex-1 text-xs font-t3-medium" numberOfLines={1}>
-          {pr.author?.login ?? t("Unknown author")}
+          {pr.author?.login ?? "Unknown author"}
         </Text>
         <Text className="shrink text-right text-2xs text-foreground-muted" numberOfLines={1}>
           <UpdatedAgo timestamp={pr.updatedAt} />
@@ -250,7 +246,7 @@ function PullRequestIdentity(props: {
       <View className="flex-row items-start gap-1.5">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("Copy base branch {baseBranch}", { baseBranch: pr.baseBranch })}
+          accessibilityLabel={`Copy base branch ${pr.baseBranch}`}
           onPress={() => void Clipboard.setStringAsync(pr.baseBranch)}
           className="min-w-0 shrink active:opacity-70"
           hitSlop={8}
@@ -262,7 +258,7 @@ function PullRequestIdentity(props: {
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("Copy head branch {headBranch}", { headBranch: pr.headBranch })}
+          accessibilityLabel={`Copy head branch ${pr.headBranch}`}
           onPress={() => void Clipboard.setStringAsync(pr.headBranch)}
           className="min-w-0 shrink active:opacity-70"
           hitSlop={8}
@@ -278,7 +274,6 @@ function PullRequestLabels(props: {
   readonly pr: PullRequestDetail;
   readonly params: PullRequestParams;
 }) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const connected = usePullRequestConnected(props.params.environmentId);
   const canWrite = useAtomValue(
@@ -312,10 +307,10 @@ function PullRequestLabels(props: {
       })}
       {editable ? (
         <Chip
-          label={props.pr.labels.length ? t("Edit") : t("Add labels")}
+          label={props.pr.labels.length ? "Edit" : "Add labels"}
           icon="tag"
           size="small"
-          accessibilityLabel={t("Edit labels")}
+          accessibilityLabel="Edit labels"
           onPress={() => navigation.navigate("PullRequestLabels", props.params)}
         />
       ) : null}
@@ -373,7 +368,6 @@ function usePullRequestToolbarHeight(bottomInset: number) {
 }
 
 export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestParams>) {
-  const t = useT();
   const returnToList = useAndroidWorkspaceBack();
   const { layout } = useAdaptiveWorkspaceLayout();
   const navigation = useNavigation();
@@ -598,7 +592,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
           onBack={layout.usesSplitView ? undefined : returnToList}
           menus={[
             {
-              title: t("{singular} actions", { singular: capitalizeTerm(terminology.singular) }),
+              title: `${capitalizeTerm(terminology.singular)} actions`,
               icon: "ellipsis",
               items: [
                 ...(permissions.verdicts.length
@@ -698,11 +692,10 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
                         destructive: true,
                         disabled: !action.available("delete-branch"),
                         subtitle: action.busy
-                          ? t("Deleting…") // fork: i18n
+                          ? "Deleting…"
                           : connected
                             ? pr.headBranch
-                            : t("Reconnect to delete this branch."), // fork: i18n
-                        verbatim: true, // fork: i18n, the branch name is the user's
+                            : "Reconnect to delete this branch.",
                         onPress: confirmDeleteBranch,
                       },
                     ]
@@ -924,11 +917,11 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
                           {Platform.OS !== "ios" || section === tab ? (
                             <SegmentedControl
                               options={[
-                                { value: "overview", label: t("Overview") },
+                                { value: "overview", label: "Overview" },
                                 ...(guidesEnabled
-                                  ? [{ value: "guide" as const, label: t("Guide") }]
+                                  ? [{ value: "guide" as const, label: "Guide" }]
                                   : []),
-                                { value: "activity", label: t("Activity") },
+                                { value: "activity", label: "Activity" },
                               ]}
                               selected={section}
                               onSelect={selectSection}
@@ -967,24 +960,22 @@ type PullRequestFileRouteProps = StaticScreenProps<
 >;
 
 export function PullRequestFileRouteScreen(props: PullRequestFileRouteProps) {
-  const t = useT(); // fork: i18n
   const navigation =
     useNavigation<NativeStackNavigationProp<ReactNavigation.RootParamList, "PullRequestFile">>();
   const ready = usePullRequestDiffEntry(navigation);
   if (ready) return <PullRequestFileRouteContent {...props} />;
-  const title = props.route.params.commit ? t("Commit changes") : t("Changes");
+  const title = props.route.params.commit ? "Commit changes" : "Changes";
   return (
     <View className="flex-1 bg-screen">
       <AppBar title={title} onBack={() => navigation.goBack()} />
       <View className="flex-1 items-center justify-center">
-        <AppActivityIndicator accessibilityLabel={t("Loading changes")} />
+        <AppActivityIndicator accessibilityLabel="Loading changes" />
       </View>
     </View>
   );
 }
 
 function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const contentTopInset = useContentTopInset();
@@ -1220,7 +1211,7 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
     setSelectedRowId(null);
     filter.toggle();
   };
-  const title = commit ? t("Commit changes") : t("Changes");
+  const title = commit ? "Commit changes" : "Changes";
   const seekingFile = !targetFile && result.nextCursor !== null;
   const loadingDiff = (result.isPending && !data.rows.length) || (seekingFile && !result.error);
   return (
@@ -1316,7 +1307,7 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
       />
       {route.params.replacingDraftId ? (
         <Text className="px-4 py-2 text-xs text-foreground-muted">
-          {t("Select a current line, then choose “Move draft to this line” from its menu.")}
+          Select a current line, then choose “Move draft to this line” from its menu.
         </Text>
       ) : null}
       {viewed.error ? (
@@ -1328,10 +1319,10 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
           style={{ paddingTop: contentTopInset + 8 }}
         >
           <Text className="min-w-0 flex-1 text-xs text-foreground-muted">
-            {t("The branch changed. Reload before adding line comments.")}
+            The branch changed. Reload before adding line comments.
           </Text>
           <Button
-            label={t("Reload changes")}
+            label="Reload changes"
             onPress={() => {
               result.refresh();
               setDiffHead({ scopeKey, sha: detail.data?.headSha ?? null });
@@ -1438,17 +1429,15 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
             </View>
           ) : !result.isPending && !result.error && !seekingFile ? (
             <EmptyState
-              title={t("Diff unavailable")}
-              detail={t("Open this {singular} on its provider to view the changes.", {
-                singular: terminology.singular,
-              })}
+              title="Diff unavailable"
+              detail={`Open this ${terminology.singular} on its provider to view the changes.`}
               variant="plain"
             />
           ) : null}
           {result.nextCursor && result.isPending && data.rows.length && !seekingFile ? (
             <View className="flex-row items-center justify-center gap-2 py-2">
               <AppActivityIndicator size="small" />
-              <Text className="text-xs text-foreground-muted">{t("Loading more files…")}</Text>
+              <Text className="text-xs text-foreground-muted">Loading more files…</Text>
             </View>
           ) : null}
           {result.error && result.nextCursor ? (

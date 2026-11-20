@@ -15,7 +15,6 @@ import {
   setComposerDraftText,
   waitForComposerDraftsLoaded,
 } from "../../state/use-composer-drafts";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { useSelectWorkspaceDetail } from "../layout/workspace/useSelectWorkspaceDetail";
 import { usePrepareTriage } from "./usePrepareTriage";
 
@@ -26,7 +25,6 @@ const CLI_COMMAND = "npx t3 triage";
  * clones the matching source, then a No project draft opens with the prompt.
  */
 export function useStartTriage() {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const selectDetail = useSelectWorkspaceDetail();
   const prepare = usePrepareTriage();
@@ -34,20 +32,17 @@ export function useStartTriage() {
 
   const fail = (message: string) =>
     Dialog.alert(
-      t("Could not start triage"),
-      t("{message} Run {CLI_COMMAND} in a terminal on that machine instead.", {
-        message,
-        CLI_COMMAND,
-      }),
+      "Could not start triage",
+      `${message} Run ${CLI_COMMAND} in a terminal on that machine instead.`,
       [
         {
-          text: t("Copy command"),
+          text: "Copy command",
           onPress: () =>
             void Clipboard.setStringAsync(CLI_COMMAND).catch(() =>
-              Dialog.alert(t("Could not copy"), t("Type {CLI_COMMAND} instead.", { CLI_COMMAND })),
+              Dialog.alert("Could not copy", `Type ${CLI_COMMAND} instead.`),
             ),
         },
-        { text: t("OK"), style: "cancel" },
+        { text: "OK", style: "cancel" },
       ],
     );
   const errorMessage = (error: unknown, fallback: string) =>
@@ -74,7 +69,7 @@ export function useStartTriage() {
         pipe(
           squashAtomCommandFailure(scratch),
           (failure) =>
-            errorMessage(failure, t("This machine cannot start threads without a project.")),
+            errorMessage(failure, "This machine cannot start threads without a project."),
           fail,
         );
       }
@@ -85,7 +80,7 @@ export function useStartTriage() {
       if (!isAtomCommandInterrupted(prepared)) {
         pipe(
           squashAtomCommandFailure(prepared),
-          (failure) => errorMessage(failure, t("The server could not prepare it.")),
+          (failure) => errorMessage(failure, "The server could not prepare it."),
           fail,
         );
       }
@@ -94,7 +89,7 @@ export function useStartTriage() {
     try {
       await waitForComposerDraftsLoaded();
     } catch {
-      fail(t("Drafts could not be loaded."));
+      fail("Drafts could not be loaded.");
       return;
     }
     if (routeChanged()) return;
@@ -105,9 +100,7 @@ export function useStartTriage() {
     setComposerDraftText(draftId, prepared.value.prompt);
     selectDetail({
       name: "Thread",
-      params: {
-        draft: { environmentId, projectId: scratch.value.id, title: t("Triage"), draftId },
-      },
+      params: { draft: { environmentId, projectId: scratch.value.id, title: "Triage", draftId } },
     });
   };
 }

@@ -1,5 +1,4 @@
 import type { DeviceHubAccess } from "@t3tools/client-runtime/state/deviceHubAccess";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { withDeviceHubQuery } from "@t3tools/client-runtime/state/deviceHubAccess";
 import * as Schema from "effect/Schema";
 

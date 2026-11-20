@@ -1,9 +1,6 @@
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { translatorFor } from "./i18n/store.ts";
-import { loadUiCatalog } from "./i18n/translate.ts";
-
 import {
   matchComposerEnvironmentItems,
   matchComposerThreadItems,

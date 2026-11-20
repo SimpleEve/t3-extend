@@ -18,7 +18,6 @@ import {
 } from "../ui/combobox";
 import { SelectButton } from "../ui/select";
 import { stackedThreadToast, toastManager } from "../ui/toast";
-import { useT } from "../../hooks/useT";
 
 const DEFAULT_FONT_VALUE = "__default__";
 
@@ -99,7 +98,6 @@ export function FontFamilyPicker({
   initialOpen?: boolean;
   onSelect: (family: string) => void;
 }) {
-  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   // Base UI needs an initial closed commit; mounting open loses exit transitionend and leaves the popup
@@ -146,10 +144,8 @@ export function FontFamilyPicker({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: t('"{value}" isn\'t monospace', { value }),
-          description: t(
-            "Code and terminal need a fixed-width font, so the current font was kept.",
-          ),
+          title: `"${value}" isn't monospace`,
+          description: "Code and terminal need a fixed-width font, so the current font was kept.",
         }),
       );
       return;
@@ -203,12 +199,12 @@ export function FontFamilyPicker({
       </ComboboxTrigger>
       <ComboboxPopup align="end" className="flex w-72 flex-col">
         <ComboboxSearchInput
-          placeholder={t("Search fonts…")}
+          placeholder="Search fonts…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <ComboboxEmpty>{t("No fonts found.")}</ComboboxEmpty>
+          <ComboboxEmpty>No fonts found.</ComboboxEmpty>
           {/* Short windows cap the popup; every level down to the list must shrink or rows are clipped unreachably. */}
           <div className="relative flex min-h-0 max-h-72 w-full flex-1 flex-col overflow-hidden">
             <ComboboxListVirtualized className="flex min-h-0 flex-col">

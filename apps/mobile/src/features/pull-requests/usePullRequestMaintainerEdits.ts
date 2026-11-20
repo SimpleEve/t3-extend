@@ -11,14 +11,12 @@ import * as Dialog from "../../components/ui/Dialog";
 import { composerPullRequests } from "../../state/pull-requests";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function usePullRequestMaintainerEdits(
   params: PullRequestParams,
   pr: PullRequestDetail | null,
   canEdit: boolean,
 ) {
-  const t = useT(); // fork: i18n
   const target = pullRequestTarget(params);
   const update = useAtomCommand(composerPullRequests.update, { reportFailure: false });
   const refreshDetail = useAtomRefresh(composerPullRequests.detail(target));
@@ -46,8 +44,8 @@ export function usePullRequestMaintainerEdits(
       setChoice(previousChoice);
       const cause = squashAtomCommandFailure(response);
       Dialog.alert(
-        t("Could not save maintainer access"),
-        cause instanceof Error ? cause.message : t("Try again."),
+        "Could not save maintainer access",
+        cause instanceof Error ? cause.message : "Try again.",
       );
       return;
     }
@@ -58,10 +56,8 @@ export function usePullRequestMaintainerEdits(
     value,
     saving,
     subtitle: saving
-      ? t("Saving…")
-      : t(
-          "Maintainers can push to this branch. If your fork has workflows, this can also give access to its secrets.",
-        ),
+      ? "Saving…"
+      : "Maintainers can push to this branch. If your fork has workflows, this can also give access to its secrets.",
     toggle: () => void save(!value),
   };
 }

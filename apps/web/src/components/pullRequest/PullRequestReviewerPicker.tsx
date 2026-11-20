@@ -28,7 +28,6 @@ import { toastManager } from "../ui/toast";
 import { PullRequestCandidatePicker } from "./PullRequestCandidatePicker";
 import { PullRequestActorLabel } from "./pullRequestPresentation";
 import { readableFailure } from "./pullRequestDetail.logic";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 const TRUNCATED_LABELS: Record<ReviewerTruncation, string> = {
   unsearchable:
@@ -50,7 +49,6 @@ export function PullRequestReviewerPicker({
   allowed: boolean;
   searchable: boolean;
 }) {
-  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState(emptySelection<PullRequestReviewerCandidate>);
@@ -99,8 +97,8 @@ export function PullRequestReviewerPicker({
     toastManager.add({
       type: "error",
       title: requested
-        ? t("Could not ask {login} for a review", { login: logins })
-        : t("Could not take back the review request to {login}", { login: logins }),
+        ? `Could not ask ${logins} for a review`
+        : `Could not take back the review request to ${logins}`,
       description: readableFailure(
         squashAtomCommandFailure(result),
         "The host refused it. Check that you have write access on this repository, and that they still have access to it.",
@@ -135,14 +133,14 @@ export function PullRequestReviewerPicker({
   return (
     <PullRequestCandidatePicker
       icon={<UserPlusIcon className="size-3.5" />}
-      label={t("Request a review")}
+      label="Request a review"
       allowed={allowed}
-      disabledReason={t("Asking someone to review needs write access on this repository")}
+      disabledReason="Asking someone to review needs write access on this repository"
       open={open}
       onOpenChange={onOpenChange}
       query={query}
       onQueryChange={setQuery}
-      searchLabel={t("Search people with access")}
+      searchLabel="Search people with access"
       isPending={(candidatesQuery.isPending && candidatesQuery.data === null) || searchPending}
       error={
         candidatesQuery.data === null
@@ -152,9 +150,9 @@ export function PullRequestReviewerPicker({
             : null
       }
       candidates={candidates}
-      emptyLabel={t("Nobody else has access to this repository.")}
-      noMatchLabel={t("Nobody with access matches that.")}
-      errorLabel={t("The people with access could not be read.")}
+      emptyLabel="Nobody else has access to this repository."
+      noMatchLabel="Nobody with access matches that."
+      errorLabel="The people with access could not be read."
       truncated={truncation !== null}
       truncatedLabel={
         truncation === null ? "" : t(TRUNCATED_LABELS[truncation], { error: searchError ?? "" })
@@ -175,10 +173,10 @@ export function PullRequestReviewerPicker({
         <>
           <PullRequestActorLabel actor={candidate} className="flex-1" />
           {candidate.kind === "team" ? (
-            <span className="shrink-0 text-muted-foreground">{t("team")}</span>
+            <span className="shrink-0 text-muted-foreground">team</span>
           ) : null}
           {isSelected(draft, `${candidate.kind}:${candidate.id}`, candidate.isRequested) ? (
-            <CheckIcon aria-label={t("Already asked")} className="size-3.5 shrink-0" />
+            <CheckIcon aria-label="Already asked" className="size-3.5 shrink-0" />
           ) : null}
         </>
       )}

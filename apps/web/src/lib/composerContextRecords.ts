@@ -47,8 +47,6 @@ import {
   type TerminalContextDraft,
 } from "./terminalContext";
 import type { ReviewCommentContext } from "~/reviewCommentContext";
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { changeRequestTerm } from "~/components/pullRequest/changeRequestTerm"; // fork: i18n
 
 const PREVIEW_LABEL_MAX_CHARS = 48;
 const RESPONSE_LABEL_MAX_CHARS = 64;
@@ -123,10 +121,7 @@ export function pullRequestContextKindLabel(
   ); // fork: i18n
   const state = pullRequestContextDisplayState(comment);
   if (state === null) return capitalizeTerm(term);
-  return t("{state} {kind}", {
-    state: t(capitalizeTerm(state), undefined, "pull request state"),
-    kind: term,
-  });
+  return `${capitalizeTerm(state)} ${term}`;
 }
 
 export function previewAnnotationContextLabel(annotation: PreviewAnnotationPayload): string {

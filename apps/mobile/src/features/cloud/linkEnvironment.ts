@@ -20,7 +20,6 @@ import { makeEnvironmentHttpApiClient } from "@t3tools/client-runtime/rpc";
 import type { SavedRemoteConnection } from "../../lib/connection";
 import * as MobileStorage from "../../persistence/mobile-storage";
 import { resolveCloudPublicConfig } from "./publicConfig";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function readRelayUrl(): string | null {
   return resolveCloudPublicConfig().relay.url;
@@ -139,16 +138,12 @@ function ensureLinkedEnvironmentMatches(input: {
 }): Effect.Effect<void, CloudEnvironmentLinkError> {
   if (input.link.environmentId !== input.expectedEnvironmentId) {
     return new CloudEnvironmentLinkError({
-      message: translatorFor(getUiLocale())(
-        "Relay returned credentials for a different environment.",
-      ),
+      message: "Relay returned credentials for a different environment.",
     });
   }
   if (input.link.endpoint.providerKind !== input.expectedProviderKind) {
     return new CloudEnvironmentLinkError({
-      message: translatorFor(getUiLocale())(
-        "Relay returned credentials for a different endpoint provider.",
-      ),
+      message: "Relay returned credentials for a different endpoint provider.",
     });
   }
   return Effect.void;
@@ -171,9 +166,7 @@ export const linkEnvironmentToCloudWithPreference = Effect.fn(
 ): Effect.fn.Return<void, CloudEnvironmentLinkError, LinkEnvironmentToCloudRequirements> {
   if (!input.connection.bearerToken) {
     return yield* new CloudEnvironmentLinkError({
-      message: translatorFor(getUiLocale())(
-        "Only a locally paired bearer connection can be linked to the cloud.",
-      ),
+      message: "Only a locally paired bearer connection can be linked to the cloud.",
     });
   }
   const localBearerToken = input.connection.bearerToken;

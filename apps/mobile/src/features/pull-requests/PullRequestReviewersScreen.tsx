@@ -35,9 +35,6 @@ import { useDebouncedValue } from "../../state/queries";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { PullRequestAvatar } from "./PullRequestPresentation";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 const TRUNCATED_LABELS: Record<
   ReviewerTruncation,
@@ -58,7 +55,6 @@ const TRUNCATED_LABELS: Record<
 };
 
 export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequestParams>) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const contentTopInset = useContentTopInset();
   const listRef = useRef<LegendListRef>(null);
@@ -181,9 +177,9 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
           const logins = people.map((person) => person.login).join(", ");
           Dialog.alert(
             requested
-              ? t("Couldn't request a review from {logins}", { logins })
-              : t("Couldn't remove the review request from {logins}", { logins }),
-            cause instanceof Error ? cause.message : t("The provider refused the change."),
+              ? `Couldn't request a review from ${logins}`
+              : `Couldn't remove the review request from ${logins}`,
+            cause instanceof Error ? cause.message : "The provider refused the change.",
           );
         };
         const send = async (
@@ -208,17 +204,17 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
         compactToolbar: true,
         value: query,
         onChangeText: search,
-        placeholder: t("Search reviewers"),
+        placeholder: "Search reviewers",
       }
     : undefined;
   const searchToolbarInset = useSearchToolbarInset(reviewerSearch);
   return (
     <View className="flex-1 bg-sheet">
       <AppBar
-        title={t("Request review")}
+        title="Request review"
         subtitle={`#${route.params.number} · ${route.params.repository}`}
         onClose={() => navigation.goBack()}
-        closeAccessibilityLabel={t("Close request review")}
+        closeAccessibilityLabel="Close request review"
         search={reviewerSearch}
       />
       {listCandidates ? (
@@ -238,15 +234,12 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
           ListHeaderComponent={
             <View className="gap-3 px-4 py-4">
               <Text className="text-xs text-foreground-muted">
-                {t(
-                  "Tap someone to request a review. Tap a requested reviewer to remove the request. Changes are sent when you close this sheet.",
-                )}
+                Tap someone to request a review. Tap a requested reviewer to remove the request.
+                Changes are sent when you close this sheet.
               </Text>
               {!allowed ? (
                 <Text className="text-xs text-foreground-muted">
-                  {t("Requesting reviews requires write access and an open {singular}.", {
-                    singular: changeRequestTerm(singular, t),
-                  })}
+                  Requesting reviews requires write access and an open {singular}.
                 </Text>
               ) : null}
             </View>
@@ -280,12 +273,12 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
                   </Text>
                   <Text className="text-xs text-foreground-muted" numberOfLines={1}>
                     {item.login}
-                    {item.kind === "team" ? t(" · Team") : ""}
+                    {item.kind === "team" ? " · Team" : ""}
                   </Text>
                 </View>
                 {requested ? (
                   <View className="flex-row items-center gap-1.5">
-                    <Text className="text-xs text-foreground-muted">{t("Requested")}</Text>
+                    <Text className="text-xs text-foreground-muted">Requested</Text>
                     <SymbolView name="checkmark" size={14} tintColorClassName="accent-icon" />
                   </View>
                 ) : (
@@ -302,7 +295,7 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
                 <EmptyState
                   title={
                     queryError
-                      ? t("Couldn't load reviewers")
+                      ? "Couldn't load reviewers"
                       : query.trim()
                         ? t("No matching reviewers")
                         : t("No reviewers available")
@@ -314,7 +307,7 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
                 />
                 {queryError ? (
                   <Button
-                    label={t("Retry")}
+                    label="Retry"
                     onPress={result.error ? result.refresh : searchResult.refresh}
                   />
                 ) : null}
@@ -348,11 +341,11 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
           ) : (
             <>
               <Text className="text-sm text-foreground-muted">
-                {t("This provider accepts a reviewer ID but cannot list candidates.")}
+                This provider accepts a reviewer ID but cannot list candidates.
               </Text>
               <TextInput
-                accessibilityLabel={t("Reviewer ID")}
-                placeholder={t("Reviewer login or ID")}
+                accessibilityLabel="Reviewer ID"
+                placeholder="Reviewer login or ID"
                 placeholderTextColorClassName="accent-foreground-muted"
                 value={query}
                 onChangeText={search}
@@ -361,13 +354,13 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
                 className="min-h-12 rounded-xl bg-grouped-card px-3 text-base"
               />
               <Button
-                label={t("Request review")}
+                label="Request review"
                 fullWidth
                 disabled={!allowed || !query.trim() || pending !== null}
                 onPress={() => void update({ id: query.trim(), kind: "user", isRequested: false })}
               />
               <Button
-                label={t("Remove review request")}
+                label="Remove review request"
                 fullWidth
                 tone="text"
                 disabled={!allowed || !query.trim() || pending !== null}

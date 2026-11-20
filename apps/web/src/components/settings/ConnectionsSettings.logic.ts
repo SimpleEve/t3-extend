@@ -67,7 +67,6 @@ export function isQrShareableEndpoint(endpoint: AdvertisedEndpoint): boolean {
  * means unchecked. */
 export function missingTailscaleEndpointDescription(
   state: Pick<DesktopServerExposureState, "mode" | "tailscaleServeEnabled"> | null,
-  t: Translator = translatorFor("en"), // fork: interface language
 ): string {
   return state && state.mode !== "network-accessible" && !state.tailscaleServeEnabled
     ? t("Turn on Network access to detect Tailscale.")
@@ -120,8 +119,8 @@ export function resolveLocalVersionStatusLabel(
   if (!state) return t("Up to date");
   if (state.status === "downloading") {
     return state.availableVersion
-      ? t("Downloading update {version}", { version: state.availableVersion })
-      : t("Downloading update");
+      ? `Downloading update ${state.availableVersion}`
+      : "Downloading update";
   }
   const action = resolveDesktopUpdateButtonAction(state);
   if (
@@ -130,14 +129,14 @@ export function resolveLocalVersionStatusLabel(
     (state.status === "checking" && state.downloadedVersion !== null)
   ) {
     const version = getDesktopUpdateDownloadedVersion(state);
-    return version ? t("Update {version} downloaded", { version }) : t("Update downloaded");
+    return version ? `Update ${version} downloaded` : "Update downloaded";
   }
   if (action === "download") {
     return state.availableVersion
-      ? t("Update {version} available", { version: state.availableVersion })
-      : t("Update available");
+      ? `Update ${state.availableVersion} available`
+      : "Update available";
   }
-  return t("Up to date");
+  return "Up to date";
 }
 
 export type QrEndpointOption = {
@@ -322,10 +321,9 @@ export function sortDesktopPairingLinks(links: ReadonlyArray<ServerPairingLinkRe
 export function summarizeAuthorizedClients(
   sessions: ReadonlyArray<ServerClientSessionRecord>,
   links: ReadonlyArray<ServerPairingLinkRecord>,
-  t: Translator = (source, params) => interpolate(source, params), // fork: interface language
 ): string {
   const parts = [
-    sessions.length === 1 ? t("1 client") : t("{count} clients", { count: sessions.length }),
+    `${sessions.length} ${sessions.length === 1 ? "client" : "clients"}`,
     links.length > 0
       ? links.length === 1
         ? t("1 pairing link")
@@ -460,17 +458,17 @@ export function endpointShareHint(
   t: Translator = translatorFor("en"), // fork: interface language
 ): string {
   if (isHostedAppPairingUrl(url)) {
-    return t("Opens the hosted app, no install needed");
+    return "Opens the hosted app, no install needed";
   }
   switch (endpoint.reachability) {
     case "lan":
-      return t("Devices on the same network");
+      return "Devices on the same network";
     case "private-network":
-      return t("Devices on your private network");
+      return "Devices on your private network";
     case "public":
-      return t("Reachable from anywhere");
+      return "Reachable from anywhere";
     case "loopback":
-      return t("Clients on this machine");
+      return "Clients on this machine";
   }
 }
 

@@ -27,7 +27,6 @@ import { Dialog } from "../ui/dialog";
 import { WizardPopup } from "../ui/wizard";
 import { findRevertCheckpoint } from "../../session-logic";
 import { registerThreadOverlay } from "./threadOverlayRetention";
-import { useT } from "~/hooks/useT";
 
 /**
  * Open state for overlays the chat view hosts. It lives in atoms rather than
@@ -147,9 +146,7 @@ export function BranchRestoreConfirmHost(props: {
   readonly canWriteSourceControl: boolean;
   readonly onConfirm: () => void;
 }) {
-  const t = useT();
   const open = useThreadOverlay(branchRestoreConfirmAtom, props.threadKey) !== null;
-  const [beforeBranch, afterBranch] = t("Switch to {branch}?").split("{branch}");
   return (
     <AlertDialog
       open={open}
@@ -165,13 +162,12 @@ export function BranchRestoreConfirmHost(props: {
             {afterBranch}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            {t(
-              "You have uncommitted changes. They'll carry over to the other branch, or block the switch if they conflict.",
-            )}
+            You have uncommitted changes. They'll carry over to the other branch, or block the
+            switch if they conflict.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" />}>{t("Cancel")}</AlertDialogClose>
+          <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
           <Button
             variant="default"
             disabled={!props.canWriteSourceControl}
@@ -180,7 +176,7 @@ export function BranchRestoreConfirmHost(props: {
               props.onConfirm();
             }}
           >
-            {t("Switch branch")}
+            Switch branch
           </Button>
         </AlertDialogFooter>
       </AlertDialogPopup>
@@ -205,7 +201,6 @@ export function RevertConfirmHost(props: {
   readonly worktreePath: string | null;
   readonly onConfirm: (turnCount: number, messageId: MessageId, restoreFiles: boolean) => void;
 }) {
-  const t = useT();
   const pending = useThreadOverlay(revertConfirmAtom, props.threadKey);
   // The server refuses file restore outside an isolated worktree.
   const canRestoreFiles =
@@ -226,23 +221,22 @@ export function RevertConfirmHost(props: {
     >
       <AlertDialogPopup>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t("Edit from here?")}</AlertDialogTitle>
+          <AlertDialogTitle>Edit from here?</AlertDialogTitle>
           <AlertDialogDescription>
-            {t(
-              "Rewind chat to before this message. Your prompt and attachments return to the composer. “Revert files too” also undoes your own edits.",
-            )}
+            Rewind chat to before this message. Your prompt and attachments return to the composer.
+            “Revert files too” also undoes your own edits.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" />}>{t("Cancel")}</AlertDialogClose>
+          <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
           <Button
             variant="destructive-outline"
             disabled={!canRestoreFiles}
             onClick={() => confirm(true)}
           >
-            {t("Revert files too")}
+            Revert files too
           </Button>
-          <Button onClick={() => confirm(false)}>{t("Revert and keep changes")}</Button>
+          <Button onClick={() => confirm(false)}>Revert and keep changes</Button>
         </AlertDialogFooter>
       </AlertDialogPopup>
     </AlertDialog>

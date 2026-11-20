@@ -5,7 +5,6 @@ import { cn } from "~/lib/utils";
 
 import { Badge } from "../../ui/badge";
 import { stopSubline } from "@t3tools/client-runtime/review-guide-tour";
-import { useT } from "~/hooks/useT";
 
 export function GuideRail({
   stops,
@@ -18,7 +17,6 @@ export function GuideRail({
   seen: ReadonlySet<number>;
   onSelect: (position: number) => void;
 }) {
-  const t = useT();
   const reviewed = seen.size;
   const renderStop = (stop: PullRequestReviewGuideStop, index: number) => (
     <li key={index}>
@@ -31,7 +29,7 @@ export function GuideRail({
           <>
             {stop.attention !== null ? (
               <Badge size="sm" variant="warning">
-                {t("Look closely")}
+                Look closely
               </Badge>
             ) : null}
             <span>{stopSubline(stop)}</span>
@@ -42,9 +40,9 @@ export function GuideRail({
   );
 
   return (
-    <nav aria-label={t("Review tour")} className="flex min-h-0 flex-col gap-4">
+    <nav aria-label="Review tour" className="flex min-h-0 flex-col gap-4">
       <p className="text-xs text-muted-foreground tabular-nums @max-[56rem]/guide:hidden">
-        {t("{reviewed} of {length} read", { reviewed, length: stops.length })}
+        {reviewed} of {stops.length} read
       </p>
       <div className="flex flex-col gap-4">
         <ol className="flex flex-col gap-0.5">{stops.map(renderStop)}</ol>
@@ -90,7 +88,6 @@ function RailRow({
 }
 
 function StopBullet({ number, seen }: { number: number; seen: boolean }) {
-  const t = useT();
   return (
     <span
       className={cn(

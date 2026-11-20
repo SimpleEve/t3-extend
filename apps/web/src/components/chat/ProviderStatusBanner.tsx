@@ -10,8 +10,6 @@ import { Alert, AlertAction, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button, InlineButton } from "../ui/button";
 import { formatProviderDriverKindLabel } from "../../providerModels";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { useT } from "~/hooks/useT";
-import { interpolate, type Translator } from "@t3tools/client-runtime/i18n";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { RefreshIcon } from "../ui/refresh-icon";
@@ -115,23 +113,21 @@ export function getProviderStatusMessage(
   if (status.message) return status.message;
   const providerName = status.displayName?.trim() || formatProviderDriverKindLabel(status.driver);
   if (!status.installed && hasProviderSetup(status)) {
-    return t("Open provider setup to install {provider} on this environment.", {
-      provider: formatProviderDriverKindLabel(status.driver),
-    });
+    return `Open provider setup to install ${formatProviderDriverKindLabel(status.driver)} on this environment.`;
   }
   if (status.auth.status === "unauthenticated") {
     if (hasProviderSetup(status)) {
       return status.driver === "antigravity"
-        ? t("Open provider setup to sign in with Google.")
-        : t("Open provider setup to sign in.");
+        ? "Open provider setup to sign in with Google."
+        : "Open provider setup to sign in.";
     }
-    return t("Sign in via the CLI to authenticate again.");
+    return "Sign in via the CLI to authenticate again.";
   }
   return status.status === "ready"
-    ? t("No models are available for this provider.")
+    ? "No models are available for this provider."
     : status.status === "error"
-      ? t("{provider} provider is unavailable.", { provider: providerName })
-      : t("{provider} provider has limited availability.", { provider: providerName });
+      ? `${providerName} provider is unavailable.`
+      : `${providerName} provider has limited availability.`;
 }
 
 export const ProviderStatusBanner = memo(function ProviderStatusBanner({
@@ -145,7 +141,6 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
   onOpenProviderSetup?: (instanceId: ProviderInstanceId) => void;
   status: ServerProvider | null;
 }) {
-  const t = useT();
   const canRefresh = useAtomValue(serverEnvironment.refreshProviders.permissionAtom(environmentId));
   const refreshProviders = useAtomCommand(serverEnvironment.refreshProviders, {
     label: "Refresh provider status",
@@ -173,7 +168,7 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
   const isUnauthenticated = status.status === "error" && status.auth.status === "unauthenticated";
   const incompatible = getIncompatibleVersion(status);
   const title = isUnauthenticated
-    ? t("{provider} is unauthenticated", { provider: providerName })
+    ? `${providerName} is unauthenticated`
     : incompatible
       ? incompatible.status === "broken"
         ? t("{provider} {version} is known to be broken", {
@@ -210,18 +205,18 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
             <div className="flex flex-wrap items-center justify-end gap-3">
               {onOpenProviderSetup && hasProviderSetup(status) ? (
                 <InlineButton onClick={() => onOpenProviderSetup(status.instanceId)}>
-                  {t("Open provider setup")}
+                  Open provider setup
                 </InlineButton>
               ) : null}
               <Button
-                aria-label={t("Refresh {provider} provider status", { provider: providerName })}
+                aria-label={`Refresh ${providerName} provider status`}
                 disabled={!canRefresh || isRefreshing}
                 onClick={() => void refresh()}
                 size="xs"
                 variant="outline"
               >
                 <RefreshIcon />
-                {isRefreshing ? t("Refreshing...") : t("Refresh")}
+                {isRefreshing ? "Refreshing..." : "Refresh"}
               </Button>
             </div>
           </div>

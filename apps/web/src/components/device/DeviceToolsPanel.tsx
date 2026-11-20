@@ -20,7 +20,6 @@ import { Toggle, ToggleGroup } from "~/components/ui/toggle-group";
 import { cn } from "~/lib/utils";
 import type { DeviceControls } from "./useDeviceControls";
 import { deviceEventLogAtom } from "./deviceHubAtoms";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 const TEXT_SIZES: ReadonlyArray<{ value: DeviceTextSize; label: string }> = [
   { value: "small", label: "Small" },
@@ -91,19 +90,18 @@ export function DeviceToolsPanel(props: {
   const { detail, pending, error, foregroundApp, disabled, act } = controls;
   const settings = detail?.settings;
   const isIos = device.platform === "ios";
-  const t = useT(); // fork: interface language
 
   return (
     <div
       className={cn("flex min-h-0 flex-col border-border bg-background text-sm", props.className)}
     >
       <div className="flex h-9 shrink-0 items-center gap-2 border-b px-3">
-        <span className="font-medium">{t("Tools")}</span>
+        <span className="font-medium">Tools</span>
         {pending ? <Spinner size="sm" /> : null}
         <Button
           size="icon-xs"
           variant="ghost-muted"
-          aria-label={t("Close tools")}
+          aria-label="Close tools"
           className="ml-auto"
           onClick={props.onClose}
         >
@@ -116,7 +114,7 @@ export function DeviceToolsPanel(props: {
         ) : null}
         {detail === null && !error ? (
           <div className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
-            <Spinner size="sm" /> {t("Reading device settings…")}
+            <Spinner size="sm" /> Reading device settings…
           </div>
         ) : null}
 
@@ -140,7 +138,7 @@ export function DeviceToolsPanel(props: {
                 disabled={disabled}
                 onClick={() => void act({ type: "terminateApp", appId: foregroundApp.id })}
               >
-                {t("Terminate")}
+                Terminate
               </Button>
               <Button
                 size="xs"
@@ -148,7 +146,7 @@ export function DeviceToolsPanel(props: {
                 disabled={disabled}
                 onClick={() => void act({ type: "launchApp", appId: foregroundApp.id })}
               >
-                {t("Relaunch")}
+                Relaunch
               </Button>
             </div>
           ) : null}
@@ -169,7 +167,7 @@ export function DeviceToolsPanel(props: {
         <Section title={isIos ? "Simulator" : "Emulator"}>
           <Row label="Appearance">
             <ToggleGroup
-              aria-label={t("Appearance")}
+              aria-label="Appearance"
               value={settings?.appearance ? [settings.appearance] : []}
               disabled={disabled}
               onValueChange={(value) => {
@@ -178,8 +176,8 @@ export function DeviceToolsPanel(props: {
                   void act({ type: "setAppearance", value: next });
               }}
             >
-              <Toggle value="light">{t("Light")}</Toggle>
-              <Toggle value="dark">{t("Dark")}</Toggle>
+              <Toggle value="light">Light</Toggle>
+              <Toggle value="dark">Dark</Toggle>
             </ToggleGroup>
           </Row>
           <Row label="Text size">
@@ -195,7 +193,7 @@ export function DeviceToolsPanel(props: {
             <>
               <Row label="Liquid Glass">
                 <ToggleGroup
-                  aria-label={t("Liquid Glass")}
+                  aria-label="Liquid Glass"
                   value={settings?.liquidGlass ? [settings.liquidGlass] : []}
                   disabled={disabled || settings?.liquidGlass === undefined}
                   onValueChange={(value) => {
@@ -205,8 +203,8 @@ export function DeviceToolsPanel(props: {
                     }
                   }}
                 >
-                  <Toggle value="clear">{t("Clear", undefined, "liquid glass")}</Toggle>
-                  <Toggle value="tinted">{t("Tinted", undefined, "liquid glass")}</Toggle>
+                  <Toggle value="clear">Clear</Toggle>
+                  <Toggle value="tinted">Tinted</Toggle>
                 </ToggleGroup>
               </Row>
               <Row label="Color filter">
@@ -318,7 +316,7 @@ export function DeviceToolsPanel(props: {
               }
             />
             {!foregroundApp ? (
-              <p className="text-xs text-muted-foreground">{t("Open an app first.")}</p>
+              <p className="text-xs text-muted-foreground">Open an app first.</p>
             ) : null}
           </Section>
         ) : null}
@@ -332,20 +330,18 @@ export function DeviceToolsPanel(props: {
 // fork: every title, label, action, and option below is fixed English from this file, so the
 // helpers translate what they render. City presets are place names and stay as they are.
 function Section(props: { readonly title: string; readonly children: React.ReactNode }) {
-  const t = useT();
   return (
     <section className="flex flex-col gap-2 border-b px-3 py-2.5 last:border-b-0">
-      <h3 className="text-xs font-medium text-muted-foreground">{t(props.title)}</h3>
+      <h3 className="text-xs font-medium text-muted-foreground">{props.title}</h3>
       {props.children}
     </section>
   );
 }
 
 function Row(props: { readonly label: string; readonly children: React.ReactNode }) {
-  const t = useT();
   return (
     <div className="flex min-h-7 items-center justify-between gap-3">
-      <span className="shrink-0 text-xs text-muted-foreground">{t(props.label)}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">{props.label}</span>
       <div className="flex min-w-0 items-center justify-end">{props.children}</div>
     </div>
   );
@@ -357,12 +353,11 @@ function SwitchRow(props: {
   readonly disabled: boolean;
   readonly onChange: (value: boolean) => Promise<unknown>;
 }) {
-  const t = useT();
   return (
     <Row label={props.label}>
       <Switch
         size="sm"
-        aria-label={t(props.label)}
+        aria-label={props.label}
         checked={props.checked ?? false}
         disabled={props.disabled || props.checked === undefined}
         onCheckedChange={(checked) => void props.onChange(checked)}
@@ -379,7 +374,6 @@ function ChoiceSelect<V extends string>(props: {
   readonly placeholder?: string;
   readonly onChange: (value: V) => Promise<unknown>;
 }) {
-  const t = useT();
   const current = props.options.find((option) => option.value === props.value);
   return (
     <Select
@@ -389,19 +383,19 @@ function ChoiceSelect<V extends string>(props: {
         if (value !== null && value !== props.value) void props.onChange(value as V);
       }}
     >
-      <SelectTrigger size="xs" className="w-40" aria-label={t(props.ariaLabel)}>
+      <SelectTrigger size="xs" className="w-40" aria-label={props.ariaLabel}>
         <SelectValue>
           {current ? (
-            t(current.label)
+            current.label
           ) : (
-            <span className="text-muted-foreground">{t(props.placeholder ?? "Unknown")}</span>
+            <span className="text-muted-foreground">{props.placeholder ?? "Unknown"}</span>
           )}
         </SelectValue>
       </SelectTrigger>
       <SelectPopup align="end" alignItemWithTrigger={false}>
         {props.options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
-            {t(option.label)}
+            {option.label}
           </SelectItem>
         ))}
       </SelectPopup>
@@ -415,7 +409,6 @@ function SubmitRow(props: {
   readonly disabled: boolean;
   readonly onSubmit: (value: string) => Promise<boolean>;
 }) {
-  const t = useT();
   const [value, setValue] = useState("");
   const submit = () => {
     const trimmed = value.trim();
@@ -436,7 +429,7 @@ function SubmitRow(props: {
         size="compact"
         font="mono"
         className="min-w-0 flex-1"
-        placeholder={t(props.placeholder)}
+        placeholder={props.placeholder}
         value={value}
         disabled={props.disabled}
         onChange={(event) => setValue(event.target.value)}
@@ -447,7 +440,7 @@ function SubmitRow(props: {
         variant="outline"
         disabled={props.disabled || value.trim().length === 0}
       >
-        {t(props.action)}
+        {props.action}
       </Button>
     </form>
   );
@@ -459,7 +452,6 @@ function LocationSection(props: {
   readonly onSet: (latitude: number, longitude: number) => Promise<unknown>;
   readonly onClear: () => Promise<unknown>;
 }) {
-  const t = useT(); // fork: interface language
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const parsed = { latitude: Number(latitude), longitude: Number(longitude) };
@@ -475,7 +467,7 @@ function LocationSection(props: {
           size="compact"
           font="mono"
           className="min-w-0 flex-1"
-          placeholder={t("Latitude")}
+          placeholder="Latitude"
           inputMode="decimal"
           value={latitude}
           disabled={props.disabled}
@@ -485,7 +477,7 @@ function LocationSection(props: {
           size="compact"
           font="mono"
           className="min-w-0 flex-1"
-          placeholder={t("Longitude")}
+          placeholder="Longitude"
           inputMode="decimal"
           value={longitude}
           disabled={props.disabled}
@@ -504,15 +496,15 @@ function LocationSection(props: {
             void props.onSet(preset.latitude, preset.longitude);
           }}
         >
-          <SelectTrigger size="xs" className="w-32" aria-label={t("Location preset")}>
+          <SelectTrigger size="xs" className="w-32" aria-label="Location preset">
             <SelectValue>
-              <span className="text-muted-foreground">{t("Preset…")}</span>
+              <span className="text-muted-foreground">Preset…</span>
             </SelectValue>
           </SelectTrigger>
           <SelectPopup align="start" alignItemWithTrigger={false}>
             {LOCATION_PRESETS.map((preset) => (
               <SelectItem key={preset.label} value={preset.label}>
-                {t(preset.label)}
+                {preset.label}
               </SelectItem>
             ))}
           </SelectPopup>
@@ -523,7 +515,7 @@ function LocationSection(props: {
           disabled={props.disabled || !valid}
           onClick={() => void props.onSet(parsed.latitude, parsed.longitude)}
         >
-          {t("Set")}
+          Set
         </Button>
         {props.canClear ? (
           <Button
@@ -536,7 +528,7 @@ function LocationSection(props: {
               void props.onClear();
             }}
           >
-            {t("Clear")}
+            Clear
           </Button>
         ) : null}
       </div>
@@ -555,7 +547,6 @@ function PermissionsSection(props: {
     decision: "grant" | "revoke" | "reset",
   ) => Promise<unknown>;
 }) {
-  const t = useT(); // fork: interface language
   const [appId, setAppId] = useState("");
   const [permission, setPermission] = useState<DevicePermission>("camera");
   const resolvedAppId = appId.trim() || props.defaultAppId;
@@ -566,7 +557,7 @@ function PermissionsSection(props: {
       <Input
         size="compact"
         font="mono"
-        placeholder={props.defaultAppId || t("App ID")}
+        placeholder={props.defaultAppId || "App ID"}
         value={appId}
         disabled={props.disabled}
         onChange={(event) => setAppId(event.target.value)}
@@ -588,7 +579,7 @@ function PermissionsSection(props: {
           disabled={props.disabled || !resolvedAppId}
           onClick={() => decide("grant")}
         >
-          {t("Grant")}
+          Grant
         </Button>
         <Button
           size="xs"
@@ -596,7 +587,7 @@ function PermissionsSection(props: {
           disabled={props.disabled || !resolvedAppId}
           onClick={() => decide("revoke")}
         >
-          {t("Revoke")}
+          Revoke
         </Button>
         {props.canReset ? (
           <Button
@@ -605,7 +596,7 @@ function PermissionsSection(props: {
             disabled={props.disabled || !resolvedAppId}
             onClick={() => decide("reset")}
           >
-            {t("Reset")}
+            Reset
           </Button>
         ) : null}
       </div>
@@ -617,13 +608,12 @@ function EventLogSection(props: {
   readonly access: DeviceHubAccess;
   readonly device: DeviceSummary;
 }) {
-  const t = useT(); // fork: interface language
   const [open, setOpen] = useState(false);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="flex w-full items-center gap-1.5 border-b px-3 py-2.5 text-left text-xs font-medium text-muted-foreground">
-        {t("Event log")}
+        Event log
         <ChevronDown
           className={cn("ml-auto size-3.5 transition-transform", open && "rotate-180")}
         />
@@ -640,7 +630,6 @@ function EventLogEntries(props: {
   readonly access: DeviceHubAccess;
   readonly device: DeviceSummary;
 }) {
-  const t = useT(); // fork: interface language
   const entries = useAtomValue(
     deviceEventLogAtom({
       access: props.access,
@@ -651,7 +640,7 @@ function EventLogEntries(props: {
   return (
     <ol className="max-h-64 overflow-y-auto px-3 py-2 font-mono text-2xs leading-relaxed">
       {entries.length === 0 ? (
-        <li className="text-muted-foreground">{t("No events yet.")}</li>
+        <li className="text-muted-foreground">No events yet.</li>
       ) : (
         entries.map((entry) => (
           <li key={entry.id} className="flex gap-2">

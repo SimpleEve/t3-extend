@@ -5,14 +5,12 @@ import { Linking, Pressable, View } from "react-native";
 import { AppText as Text } from "../../components/ui/AppText";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { environmentPresentations } from "../../state/presentation";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function ChatGptUsageSummary({
   selectedEnvironmentIds,
 }: {
   selectedEnvironmentIds: ReadonlySet<EnvironmentId> | null;
 }) {
-  const t = useT(); // fork: i18n
   const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
   const selected =
     selectedEnvironmentIds === null
@@ -25,20 +23,18 @@ export function ChatGptUsageSummary({
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-row items-center gap-2">
           <ProviderIcon provider="codex" size={16} />
-          <Text className="text-sm text-foreground">{t("ChatGPT shared usage")}</Text>
+          <Text className="text-sm text-foreground">ChatGPT shared usage</Text>
         </View>
         <Pressable
           accessibilityRole="link"
           className="min-h-11 justify-center"
           onPress={() => void Linking.openURL(usage.url).catch(() => undefined)}
         >
-          <Text className="text-sm font-t3-medium text-primary">{t("Manage usage")}</Text>
+          <Text className="text-sm font-t3-medium text-primary">Manage usage</Text>
         </Pressable>
       </View>
       <Text className="text-xs text-foreground-muted">
-        {t("{accounts}. Open ChatGPT with the account you connected.", {
-          accounts: usage.accounts.join(", "),
-        })}
+        {usage.accounts.join(", ")}. Open ChatGPT with the account you connected.
       </Text>
     </View>
   );

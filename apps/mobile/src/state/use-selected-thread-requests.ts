@@ -51,7 +51,6 @@ import { useSelectedThreadPendingRequests } from "./use-thread-detail";
 import { useThreadSelection } from "./use-thread-selection";
 import { useAtomCommand } from "./use-atom-command";
 import { readEnvironmentScope } from "./session";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 const EMPTY_PENDING_REQUESTS: PendingThreadRequests = { approvals: [], userInputs: [] };
 
@@ -196,7 +195,6 @@ function collectAnsweredRequestDrafts(
 }
 
 export function useSelectedThreadRequests() {
-  const t = useT(); // fork: i18n
   const respondToApproval = useAtomCommand(
     threadEnvironment.respondToApproval,
     "thread approval response",
@@ -393,8 +391,8 @@ export function useSelectedThreadRequests() {
         )
       ) {
         Dialog.alert(
-          t("Attachments are not ready"),
-          t("Wait for uploads to finish, or retry failed uploads."),
+          "Attachments are not ready",
+          "Wait for uploads to finish, or retry failed uploads.",
         );
         return;
       }

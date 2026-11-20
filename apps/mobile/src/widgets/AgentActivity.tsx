@@ -19,7 +19,6 @@ import {
   type LiveActivityComponent,
   type LiveActivityLayout,
 } from "expo-widgets";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 type LiveActivityEnvironment = Parameters<LiveActivityComponent<AgentActivityProps>>[1];
 
@@ -348,10 +347,10 @@ function AgentActivity(
       >
         {attentionRow
           ? attentionRow.phase === "waiting_for_approval"
-            ? t("Approval")
-            : t("Input")
+            ? "Approval"
+            : "Input"
           : failedRow
-            ? t("Failed")
+            ? "Failed"
             : activeLabel}
       </Text>
     ),

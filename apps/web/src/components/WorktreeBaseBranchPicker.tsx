@@ -10,7 +10,6 @@ import { resolveBranchTriggerLabel, sanitizeNewRefName } from "./BranchToolbar.l
 import { MiddleTruncate } from "./ui/middle-truncate";
 import { Button } from "./ui/button";
 import { ComboboxTrigger } from "./ui/combobox";
-import { useT } from "../hooks/useT";
 
 export function WorktreeBaseBranchPicker({
   environmentId,
@@ -31,7 +30,6 @@ export function WorktreeBaseBranchPicker({
   disabled?: boolean;
   id?: string;
 }) {
-  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const branches = usePaginatedBranches({
@@ -66,14 +64,11 @@ export function WorktreeBaseBranchPicker({
   const statusText =
     branches.error ??
     (branches.isPending && branches.data === null
-      ? t("Loading refs...")
+      ? "Loading refs..."
       : branches.isFetchingNextPage
-        ? t("Loading more refs...")
+        ? "Loading more refs..."
         : hasNextPage
-          ? t("Showing {shown} of {total} refs", {
-              shown: branches.refs.length,
-              total: branches.data?.totalCount ?? 0,
-            })
+          ? `Showing ${branches.refs.length} of ${branches.data?.totalCount} refs`
           : null);
   const handleOpenChange = (next: boolean) => {
     setOpen(next);

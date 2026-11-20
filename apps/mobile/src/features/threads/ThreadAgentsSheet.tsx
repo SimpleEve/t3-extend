@@ -31,7 +31,6 @@ import { ScreenContent } from "../../components/ui/ScreenContent";
 import { subagentThreadTarget } from "./threadAgentsPresentation";
 
 import { useOpenThreadInspector } from "./thread-inspector-navigation";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 type AgentsTarget = { readonly environmentId: EnvironmentId; readonly threadId: ThreadId };
 
@@ -48,7 +47,6 @@ export function useThreadTurnSubagents(target: AgentsTarget | null): ThreadTurnS
 }
 
 export function ThreadAgentsSheet({ route }: StaticScreenProps<AgentsTarget>) {
-  const t = useT();
   const target = route.params;
   const navigation = useNavigation();
   const openInspector = useOpenThreadInspector();
@@ -97,7 +95,7 @@ export function ThreadAgentsSheet({ route }: StaticScreenProps<AgentsTarget>) {
     >
       {subagents.length === 0 ? (
         <Text className="pt-6 text-center text-sm text-foreground-muted">
-          {t("No agents in this turn.")}
+          No agents in this turn.
         </Text>
       ) : (
         subagents.map((subagent) => {
@@ -129,7 +127,7 @@ export function ThreadAgentsSheet({ route }: StaticScreenProps<AgentsTarget>) {
 
   return (
     <View collapsable={false} className="flex-1 bg-sheet">
-      <SheetHeader title={t("Agents")} onClose={() => navigation.goBack()} />
+      <SheetHeader title="Agents" onClose={() => navigation.goBack()} />
       <ScreenContent>{content}</ScreenContent>
     </View>
   );
@@ -141,7 +139,6 @@ function AgentRow(props: {
   readonly tickSeconds: boolean;
   readonly onOpen: (child: { environmentId: EnvironmentId; threadId: ThreadId }) => void;
 }) {
-  const t = useT();
   const { subagent } = props;
   const { presentationById } = useEnvironments();
   const target = subagentThreadTarget(subagent, props.environmentId, (id) =>
@@ -166,10 +163,8 @@ function AgentRow(props: {
         className="min-w-0 flex-1"
         accessibilityHint={
           subagent.remoteChild === undefined
-            ? t("Provider-managed agent. Its work appears in the transcript.")
-            : t("Runs on {label}. Connect to it to open its thread.", {
-                label: subagent.remoteChild.label,
-              })
+            ? "Provider-managed agent. Its work appears in the transcript."
+            : `Runs on ${subagent.remoteChild.label}. Connect to it to open its thread.`
         }
       >
         {row}
@@ -177,7 +172,7 @@ function AgentRow(props: {
     ) : (
       <Pressable
         accessibilityRole="link"
-        accessibilityHint={t("Opens this agent's thread")}
+        accessibilityHint="Opens this agent's thread"
         onPress={() => props.onOpen(target)}
         className="min-w-0 flex-1 active:opacity-70"
       >

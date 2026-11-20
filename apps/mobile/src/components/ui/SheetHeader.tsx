@@ -9,15 +9,12 @@ import { Toolbar } from "./Toolbar";
 import { createNativeHeaderMenu } from "./nativeHeaderMenu.ios";
 import { useControlTheme } from "./useControlTheme";
 import type { SheetCloseButtonProps, SheetHeaderProps } from "./SheetHeader.types";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { localizeSheetHeaderProps } from "../../fork/appBarI18n"; // fork: i18n
 
 export function SheetCloseButton(props: SheetCloseButtonProps) {
-  const t = useT(); // fork: i18n
   return (
     <IconButton
       icon="xmark"
-      accessibilityLabel={props.accessibilityLabel ?? (props.onCancel ? t("Cancel") : t("Close"))}
+      accessibilityLabel={props.accessibilityLabel ?? (props.onCancel ? "Cancel" : "Close")}
       disabled={props.disabled}
       onPress={props.onCancel ?? props.onClose}
     />
@@ -47,10 +44,9 @@ function SheetDismissGuard(props: { readonly dismissDisabled: boolean | undefine
 }
 
 function NativeSheetHeader(props: SheetHeaderProps) {
-  const t = useT(); // fork: i18n
   const { colors } = useControlTheme();
   const onDismiss = props.onCancel ?? props.onClose;
-  const dismissLabel = props.accessibilityLabel ?? (props.onCancel ? t("Cancel") : t("Close")); // fork: i18n
+  const dismissLabel = props.accessibilityLabel ?? (props.onCancel ? "Cancel" : "Close");
   const confirmation = props.confirm;
 
   // Toolbar children are parsed as native items, so keep the actual Button

@@ -97,18 +97,14 @@ export function getDesktopUpdateButtonTooltip(
     (state.status === "available" || state.status === "downloaded") &&
     getDesktopUpdateDownloadedVersion(state) === state.notAppliedVersion
   ) {
-    return t("Update {version} did not apply. Click to retry.", {
-      version: state.notAppliedVersion,
-    });
+    return `Update ${state.notAppliedVersion} did not apply. Click to retry.`;
   }
   if (
     (state.status === "available" || state.status === "error") &&
     state.errorContext === "download" &&
     state.availableVersion
   ) {
-    return t("Download failed for {version}. Click to retry.", {
-      version: state.availableVersion,
-    });
+    return `Download failed for ${state.availableVersion}. Click to retry.`;
   }
   if (state.status === "available") {
     return state.availableVersion
@@ -128,23 +124,18 @@ export function getDesktopUpdateButtonTooltip(
   }
   if (state.status === "error") {
     if (state.errorContext === "install" && state.downloadedVersion) {
-      return t("Install failed for {version}. Click to retry.", {
-        version: state.downloadedVersion,
-      });
+      return `Install failed for ${state.downloadedVersion}. Click to retry.`;
     }
     if (state.downloadedVersion) {
-      return t("Update {version} downloaded. Click to restart and install.", {
-        version: state.downloadedVersion,
-      });
+      return `Update ${state.downloadedVersion} downloaded. Click to restart and install.`;
     }
-    return state.message ?? t("Update failed");
+    return state.message ?? "Update failed";
   }
-  return t("Up to date");
+  return "Up to date";
 }
 
 export function getDesktopUpdateInstallConfirmationMessage(
   state: Pick<DesktopUpdateState, "availableVersion" | "downloadedVersion">,
-  t: Translator = translatorFor("en"), // fork: interface language
 ): string {
   const version = state.downloadedVersion ?? state.availableVersion;
   const question = version
@@ -188,7 +179,6 @@ export function canCheckForUpdate(state: DesktopUpdateState | null): boolean {
 export function getDesktopUpdateDisabledReason(
   state: Pick<DesktopUpdateState, "enabled" | "status" | "message" | "messageFixed"> | null,
   managedDenial?: string,
-  t: Translator = translatorFor("en"), // fork: interface language
 ): string | null {
   if (managedDenial !== undefined) return managedDenial;
   if (!state || (state.enabled && state.status !== "disabled")) return null;
@@ -200,10 +190,9 @@ export function getDesktopUpdateDisabledReason(
 export function getDesktopUpdateIdleTooltip(
   state: Pick<DesktopUpdateState, "enabled" | "status" | "message" | "messageFixed"> | null,
   managedDenial?: string,
-  t: Translator = translatorFor("en"), // fork: interface language
 ) {
   const disabledReason = getDesktopUpdateDisabledReason(state, managedDenial, t);
   return disabledReason
-    ? { title: t("Updates unavailable"), detail: disabledReason }
-    : { title: t("Check for updates"), detail: null };
+    ? { title: "Updates unavailable", detail: disabledReason }
+    : { title: "Check for updates", detail: null };
 }

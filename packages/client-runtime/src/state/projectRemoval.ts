@@ -1,4 +1,3 @@
-import { translatorFor, type Translator } from "../i18n/store.ts"; // fork: i18n
 import { isListedThreadLineage } from "@t3tools/contracts";
 
 import type { EnvironmentProject, EnvironmentThreadShell } from "./models.ts";
@@ -17,10 +16,8 @@ export function planProjectRemoval<
   readonly threads: ReadonlyArray<Thread>;
   /** The members' threads this client does not hold: older settled threads its shell left out. */
   readonly unloadedThreadCount?: number;
-  readonly t?: Translator; // fork: interface language, English when omitted
 }) {
   const { members, groupMemberCount, hasOtherMembers, displayName, threads } = options;
-  const t = options.t ?? translatorFor("en"); // fork: interface language
   const memberKeys = new Set(members.map((member) => `${member.environmentId}:${member.id}`));
   const projectThreads = threads.filter((thread) =>
     memberKeys.has(`${thread.environmentId}:${thread.projectId}`),
@@ -51,23 +48,21 @@ export function planProjectRemoval<
     question,
     ...(singleMember
       ? [
-          t("Path: {path}", { path: singleMember.workspaceRoot }),
+          `Path: ${singleMember.workspaceRoot}`,
           ...(singleMember.environmentLabel
-            ? [t("Environment: {environment}", { environment: singleMember.environmentLabel })]
+            ? [`Environment: ${singleMember.environmentLabel}`]
             : []),
         ]
-      : [t("This removes {count} grouped project entries.", { count: members.length })]),
+      : [`This removes ${members.length} grouped project entries.`]),
     ...(threadCount > 0
       ? [
-          t(
-            "Those threads and any archived threads are deleted from T3 Extend. Provider sessions are kept.",
-          ),
+          "Those threads and any archived threads are deleted from T3 Code. Provider sessions are kept.",
         ]
-      : [t("Any archived threads are deleted from T3 Extend. Provider sessions are kept.")]),
+      : ["Any archived threads are deleted from T3 Code. Provider sessions are kept."]),
     isWholeGroup && !hasOtherMembers
-      ? t("This removes only the project entries, not the files on disk.")
-      : t("Other entries in this grouped project are unaffected."),
-    t("This action cannot be undone."),
+      ? "This removes only the project entries, not the files on disk."
+      : "Other entries in this grouped project are unaffected.",
+    "This action cannot be undone.",
   ].join("\n");
 
   return { projectThreads, isWholeGroup, targetKind, confirmationMessage };

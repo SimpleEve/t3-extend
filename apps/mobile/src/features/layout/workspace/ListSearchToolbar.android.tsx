@@ -10,7 +10,6 @@ import { SharedSlotTitle } from "./SharedSlotTitle";
 import { useWorkspaceTabs } from "./WorkspaceTabsContext";
 import type { PullRequestFilterMenu } from "../../pull-requests/PullRequestListFilters";
 import { openSettings } from "../../settings/settings-navigation";
-import { useT } from "../../../hooks/useT";
 
 const NOUNS = { pullRequests: "pull requests", issues: "issues" } as const;
 
@@ -20,7 +19,6 @@ export function ListSearchToolbar(props: {
   readonly filters?: PullRequestFilterMenu | null;
   readonly onRequestVisibility?: () => void;
 }) {
-  const t = useT();
   const navigation = useNavigation();
   const { filters, tab: section } = props;
   const noun = NOUNS[section];
@@ -73,7 +71,7 @@ export function ListSearchToolbar(props: {
       search={{
         value: tab.query,
         onChangeText: (query) => dispatch({ type: "query", tab: section, query }),
-        placeholder: t("Search {noun}", { noun: t(noun) }), // fork: i18n
+        placeholder: `Search ${noun}`,
         active: searching,
         onOpen: openSearch,
         onClose: closeSearch,
@@ -82,7 +80,7 @@ export function ListSearchToolbar(props: {
         filters
           ? [
               {
-                title: t("Filter {noun}", { noun: t(noun) }), // fork: i18n
+                title: `Filter ${noun}`,
                 icon: filters.customized
                   ? "line.3.horizontal.decrease.circle.fill"
                   : "line.3.horizontal.decrease.circle",

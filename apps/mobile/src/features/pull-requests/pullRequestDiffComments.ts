@@ -2,7 +2,6 @@ import type { PullRequestReviewPosition, PullRequestReviewThread } from "@t3tool
 import type { NativeReviewDiffRow } from "../diffs/nativeReviewDiffSurface";
 import type { NativeReviewDiffData } from "../review/nativeReviewDiffAdapter";
 import type { PendingReviewComment } from "./pullRequestReviewDrafts";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function reviewPosition(row: NativeReviewDiffRow): PullRequestReviewPosition | null {
   if (row.kind !== "line") return null;
@@ -19,8 +18,8 @@ export function reviewPosition(row: NativeReviewDiffRow): PullRequestReviewPosit
     };
   return null;
 }
-export function discussionCommentCountLabel(count: number, t: Translator /* fork: i18n */) {
-  return t(count === 1 ? "{count} comment" : "{count} comments", { count });
+export function discussionCommentCountLabel(count: number) {
+  return `${count} ${count === 1 ? "comment" : "comments"}`;
 }
 export function reviewPositionLabel(
   position: PullRequestReviewPosition,
@@ -41,7 +40,6 @@ export function annotatePullRequestDiff(
   threads: readonly PullRequestReviewThread[],
   drafts: readonly PendingReviewComment[],
   headSha: string | undefined,
-  t: Translator, // fork: i18n
 ): NativeReviewDiffData {
   if (threads.length === 0 && drafts.length === 0) return data;
   const anchors = new Map<string, NativeReviewDiffRow[]>();
@@ -109,7 +107,7 @@ export function annotatePullRequestDiff(
     attach(
       lines.get(JSON.stringify([draft.path, side, line])),
       `draft:${draft.id}`,
-      `${t("Pending review · Tap to edit")}\n${draft.body}`,
+      `Pending review · Tap to edit\n${draft.body}`,
       String(line),
     );
   }

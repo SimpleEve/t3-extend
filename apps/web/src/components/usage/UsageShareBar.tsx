@@ -2,7 +2,6 @@ import { formatPercent } from "@t3tools/shared/usageFormat";
 import type { ReactNode } from "react";
 
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export interface ShareSegment {
   readonly label: string;

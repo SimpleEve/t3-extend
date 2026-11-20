@@ -19,7 +19,6 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { Button, InlineButton } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { RedactedSensitiveText } from "./RedactedSensitiveText";
-import { useT } from "../../hooks/useT";
 
 type SignInState =
   | { readonly status: "idle" }
@@ -95,7 +94,6 @@ export function SourceControlAppSignInSettings({
   readonly account: string | null;
   readonly onChanged: () => void;
 }) {
-  const t = useT();
   const host = appSignIn.hosts[0] ?? "";
   const { signIns, tokens } = useEnvironmentSettings(environmentId, (settings) =>
     readHostCredentialSettings(settings, definition.kind),
@@ -162,12 +160,12 @@ export function SourceControlAppSignInSettings({
     subtitle =
       account !== null && !tokenOverrides ? (
         <span className="flex min-w-0 items-center gap-1">
-          {t("Signed in as")}
+          Signed in as
           <RedactedSensitiveText
             value={account}
-            ariaLabel={t("Signed-in GitHub account")}
-            revealTooltip={t("Show account")}
-            hideTooltip={t("Hide account")}
+            ariaLabel="Signed-in GitHub account"
+            revealTooltip="Show account"
+            hideTooltip="Hide account"
           />
         </span>
       ) : tokenOverrides ? (
@@ -177,7 +175,7 @@ export function SourceControlAppSignInSettings({
       );
     action = (
       <Button size="xs" variant="outline" disabled={!canSignIn} onClick={() => void signOut()}>
-        {t("Sign out")}
+        Sign out
       </Button>
     );
   } else if (waiting !== null) {
@@ -191,7 +189,7 @@ export function SourceControlAppSignInSettings({
           void cancel({ environmentId, input: { provider: definition.kind, host } });
         }}
       >
-        {t("Cancel")}
+        Cancel
       </Button>
     );
   } else {
@@ -203,7 +201,7 @@ export function SourceControlAppSignInSettings({
         onClick={() => void signIn()}
       >
         {state.status === "starting" ? <Spinner /> : null}
-        {state.status === "failed" ? t("Try again") : t("Sign in with GitHub")}
+        {state.status === "failed" ? "Try again" : "Sign in with GitHub"}
       </Button>
     );
   }
@@ -231,7 +229,7 @@ export function SourceControlAppSignInSettings({
             <Button
               size="icon-xs"
               variant="ghost"
-              aria-label={t("Copy code", undefined, "device code")}
+              aria-label="Copy code"
               onClick={() => copyToClipboard(waiting.userCode, undefined)}
             >
               {isCopied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
@@ -245,14 +243,12 @@ export function SourceControlAppSignInSettings({
               }
               onClick={() => copyToClipboard(waiting.userCode, undefined)}
             >
-              {t("Copy code & open GitHub")}
+              Copy code & open GitHub
               <ExternalLinkIcon aria-hidden className="size-3.5" />
             </Button>
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span aria-hidden className="size-1.5 rounded-full bg-warning" />
-              {t("Waiting for approval · code expires at {expiryTime}", {
-                expiryTime: expiryTime(waiting.expiresAt),
-              })}
+              Waiting for approval · code expires at {expiryTime(waiting.expiresAt)}
             </p>
           </div>
         </div>
@@ -261,10 +257,10 @@ export function SourceControlAppSignInSettings({
       {signedIn ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           <span className="min-w-0 flex-1">
-            {t("Reaches repositories in accounts and organizations that installed the app.")}
+            Reaches repositories in accounts and organizations that installed the app.
           </span>
-          <ExternalLink href={appSignIn.installUrl}>{t("Install on an organization")}</ExternalLink>
-          <ExternalLink href={appSignIn.revokeUrl}>{t("Manage on GitHub")}</ExternalLink>
+          <ExternalLink href={appSignIn.installUrl}>Install on an organization</ExternalLink>
+          <ExternalLink href={appSignIn.revokeUrl}>Manage on GitHub</ExternalLink>
         </div>
       ) : null}
 

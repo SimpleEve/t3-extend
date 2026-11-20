@@ -19,7 +19,6 @@ import {
   type PullRequestDiffPage,
   type WithheldFileLoad,
 } from "./pullRequestDiffPages";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export type PullRequestParams = {
   readonly environmentId: string;
@@ -113,7 +112,6 @@ export function usePullRequestDiff(
   params: PullRequestDiffParams,
   terminology: ChangeRequestTerminology,
 ) {
-  const t = useT(); // fork: i18n
   const reference = pullRequestTarget(params);
   const target = {
     ...reference,

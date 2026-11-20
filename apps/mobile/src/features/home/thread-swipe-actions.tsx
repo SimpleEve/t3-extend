@@ -44,8 +44,6 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";
 import { SwipeRowActivationContext, type SwipeRowActivation } from "./swipe-row-activation";
 import { registerThreadDismissal } from "./thread-dismissal";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const ACTION_ITEM_WIDTH = 58;
 const ACTION_CIRCLE_SIZE = 36;
@@ -99,15 +97,14 @@ function resolveSecondaryAction(input: {
   readonly onDelete: () => void;
   readonly secondaryAction: ThreadSwipeAction | null | undefined;
   readonly threadTitle: string;
-  readonly t: Translator;
 }): ThreadSwipeSecondaryAction | null {
   if (input.secondaryAction === null) return null;
   if (input.secondaryAction === undefined) {
     return {
-      accessibilityLabel: input.t("Delete {title}", { title: input.threadTitle }),
+      accessibilityLabel: `Delete ${input.threadTitle}`,
       tone: "danger",
       icon: "trash",
-      label: input.t("Delete"),
+      label: "Delete",
       onPress: () => {
         input.close();
         input.onDelete();
@@ -257,7 +254,6 @@ interface ThreadSwipeableProps {
 const COLLAPSED_ROW_STYLE = { height: 0, overflow: "hidden" } as const;
 
 export function ThreadSwipeable(props: ThreadSwipeableProps) {
-  const t = useT();
   const swipeableRef = useRef<SwipeableMethods | null>(null);
   const hasSecondaryAction = props.secondaryAction !== null;
   const actionsWidth = swipeActionsWidth(hasSecondaryAction);

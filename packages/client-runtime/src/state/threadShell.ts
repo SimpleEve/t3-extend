@@ -237,7 +237,6 @@ const CHILD_INPUT_TITLES = {
 
 export function childThreadInputsTitle(
   children: ReadonlyArray<Pick<EnvironmentThreadShell, "hasPendingApprovals" | "lineage">>,
-  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ): string {
   const approvals = children.filter((child) => child.hasPendingApprovals).length;
   const need = approvals === 0 ? "input" : approvals === children.length ? "approval" : "you";

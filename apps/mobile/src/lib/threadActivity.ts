@@ -35,7 +35,6 @@ import {
   type WorkLogPresentationEntry,
   type WorkLogToolLifecycleStatus,
   workEntryHiddenByToolCallVisibility,
-  translateForkNotice, // fork: i18n
 } from "@t3tools/client-runtime/work-log/presentation";
 import type { ToolCallVisibility } from "@t3tools/contracts/settings";
 import {
@@ -85,7 +84,6 @@ import {
   IDLE_COMPACTION_TITLES,
   IDLE_COMPACTING_LABELS,
 } from "@t3tools/client-runtime/user-message";
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type PendingApproval = ThreadPendingApproval;
 export type PendingUserInput = ThreadPendingUserInput;
@@ -256,8 +254,6 @@ type ThreadFeedEntryContent =
       readonly createdAt: string;
       readonly runId: RunId;
       readonly label: string;
-      readonly labelTemplate: RunFoldLabelTemplate; // fork: i18n, `label` before interpolation
-      readonly duration: string | null; // fork: i18n
       readonly expanded: boolean;
     }
   | {
@@ -316,7 +312,7 @@ export function workEntryRowLabel(
     if (firstPath) {
       return formatReadToolLabel(firstPath, Math.max(0, (entry.changedFiles?.length ?? 1) - 1));
     }
-    if (!expanded) return t("Read file");
+    if (!expanded) return "Read file";
   }
   const preview =
     entry.command ??
@@ -340,7 +336,6 @@ const projectedEntriesCache = new WeakMap<
   {
     readonly attemptId: RunAttemptId | null;
     readonly entries: ReadonlyArray<RawThreadFeedEntry>;
-    readonly t: Translator; // fork: i18n, activity labels are translated
   }
 >();
 const localMessageEntriesCache = new WeakMap<
@@ -359,7 +354,6 @@ const presentedActivityGroupsCache = new WeakMap<
     readonly isWorking: boolean;
     readonly activeTail: boolean;
     readonly rows: ReadonlyArray<ThreadFeedEntry>;
-    readonly t: Translator; // fork: i18n
   }
 >();
 const runFoldRowsCache = new WeakMap<
@@ -396,8 +390,8 @@ export function threadFeedCompactionLabels(
           (age === undefined
             ? undefined
             : {
-                title: t("Context compacted after {age} idle", { age }),
-                compacting: t("Compacting…"),
+                title: `Context compacted after ${age} idle`,
+                compacting: "Compacting…",
               });
         if (labels) labelsByEntryId.set(entry.id, labels);
         pendingResumeAgeByRunId.delete(entry.runId);
@@ -620,8 +614,7 @@ function itemToolPresentation(item: OrchestrationV2TurnItem): T3McpToolPresentat
 
 function itemSummary(
   item: OrchestrationV2TurnItem,
-  toolPresentation: T3McpToolPresentation | null,
-  t: Translator, // fork: i18n
+  toolPresentation: T3McpToolPresentation | null = null,
 ): string {
   if (item.type === "notification") return item.summary;
   if (item.type === "system_notice") return item.message;
@@ -634,39 +627,39 @@ function itemSummary(
   if (title) return toolPresentation?.displayName ?? capitalizePhrase(title);
   switch (item.type) {
     case "reasoning":
-      return t("Thinking");
+      return "Thinking";
     case "command_execution":
-      return t("Command");
+      return "Command";
     case "file_change":
       return item.changes !== undefined && item.changes.length > 1
-        ? t("Changed {count} files", { count: item.changes.length })
-        : t("Changed {fileName}", { fileName: item.fileName });
+        ? `Changed ${item.changes.length} files`
+        : `Changed ${item.fileName}`;
     case "file_search":
-      return item.title?.trim() || formatSearchToolLabel(item) || t("Searched files");
+      return item.title?.trim() || formatSearchToolLabel(item) || "Searched files";
     case "web_search":
-      return t("Searched the web");
+      return "Searched the web";
     case "approval_request":
-      return t("Approval requested");
+      return "Approval requested";
     case "user_input_request":
-      return t("Input requested");
+      return "Input requested";
     case "checkpoint":
-      return t("Checkpoint captured");
+      return "Checkpoint captured";
     case "run_interrupt_request":
-      return t("Interrupt requested");
+      return "Interrupt requested";
     case "run_interrupt_result":
-      return t("Run interrupted");
+      return "Run interrupted";
     case "error":
-      return item.failure.class === "usage_limit" ? t("Usage limit reached") : t("Provider error");
+      return item.failure.class === "usage_limit" ? "Usage limit reached" : "Provider error";
     case "handoff":
-      return t("Context handed off");
+      return "Context handed off";
     case "fork":
-      return t("Thread forked");
+      return "Thread forked";
     case "thread_created":
-      return t("Thread created");
+      return "Thread created";
     case "secret_request":
       return item.label;
     case "link_request":
-      return t("Link {target}", { target: linkRequestTargetName(item) });
+      return `Link ${linkRequestTargetName(item)}`;
     case "dynamic_tool": {
       const classified = classifyToolActivity({
         itemType: "dynamic_tool_call",
@@ -677,18 +670,18 @@ function itemSummary(
         return formatReadToolLabel(path ?? "");
       }
       if (classified === "search") {
-        return formatSearchToolLabel({ input: item.input }) ?? item.toolName ?? t("Tool call");
+        return formatSearchToolLabel({ input: item.input }) ?? item.toolName ?? "Tool call";
       }
-      return toolPresentation?.displayName ?? item.toolName ?? t("Tool call");
+      return toolPresentation?.displayName ?? item.toolName ?? "Tool call";
     }
     case "proposed_plan":
-      return t("Proposed plan");
+      return "Proposed plan";
     case "todo_list":
-      return t("Plan updated");
+      return "Plan updated";
     case "user_message":
-      return t("User message");
+      return "User message";
     case "assistant_message":
-      return t("Assistant message");
+      return "Assistant message";
   }
 }
 
@@ -837,7 +830,6 @@ export function formatItemFullDetail(
 function toFeedActivity(
   row: OrchestrationV2ProjectedTurnItem,
   attemptId: RunAttemptId | null,
-  t: Translator, // fork: i18n
 ): ThreadFeedActivity {
   const item = row.item;
   const toolPresentation = itemToolPresentation(item);
@@ -1077,8 +1069,6 @@ interface ThreadFeedRunFold {
   readonly createdAt: string;
   readonly hiddenEntryIds: ReadonlySet<string>;
   readonly label: string;
-  readonly labelTemplate: RunFoldLabelTemplate; // fork: i18n
-  readonly duration: string | null; // fork: i18n
 }
 
 export function failedFeedRunIds(
@@ -1392,8 +1382,6 @@ function deriveThreadFeedRunFolds(
       createdAt: entry.createdAt,
       hiddenEntryIds: new Set([entry.id]),
       label: "Earlier work",
-      labelTemplate: "Earlier work", // fork: i18n
-      duration: null, // fork: i18n
       deferredWorkItemIds,
     });
   }
@@ -1441,7 +1429,6 @@ interface ThreadFeedPresentationBuild {
   readonly activeWorkStartedAt: string | null;
   readonly runlessWorkActive: boolean;
   readonly display: ThreadFeedDisplay;
-  readonly t: Translator; // fork: i18n
   readonly rows: ReadonlyArray<ThreadFeedEntry>;
   /** Feed entry `entry` is a user message whose rows start at `rowsLength`. */
   readonly restarts: ReadonlyArray<{ readonly entry: number; readonly rowsLength: number }>;
@@ -1506,7 +1493,6 @@ function presentationRestart(
   activeWorkStartedAt: string | null,
   runlessWorkActive: boolean,
   display: ThreadFeedDisplay,
-  t: Translator, // fork: i18n
 ): { readonly entry: number; readonly rowsLength: number; readonly index: number } | null {
   if (
     previous === null ||
@@ -1680,7 +1666,6 @@ export function deriveThreadFeedPresentation(
   runlessWorkActive = false,
   cache?: ThreadFeedCache,
   display: ThreadFeedDisplay = DEFAULT_THREAD_FEED_DISPLAY,
-  t: Translator = translatorFor("en"), // fork: i18n
 ): ThreadFeedEntry[] {
   const previous = cache?.presentation ?? null;
   const restart = presentationRestart(
@@ -1853,8 +1838,6 @@ export function deriveThreadFeedPresentation(
           createdAt: fold.createdAt,
           runId: fold.runId,
           label: fold.label,
-          labelTemplate: fold.labelTemplate, // fork: i18n
-          duration: fold.duration, // fork: i18n
           expanded,
         };
         runFoldRowsCache.set(entry, row);
@@ -2058,8 +2041,6 @@ function liveRunFoldRow(runId: RunId, startedAt: string) {
       createdAt: startedAt,
       runId,
       label: "Working",
-      labelTemplate: "Working", // fork: i18n, the live row draws a timer instead
-      duration: null, // fork: i18n
       expanded: false,
       workingSince: startedAt,
     };
@@ -2101,7 +2082,6 @@ function appendPresentedFeedEntry(
   activeRunId: RunId | null,
   isWorking: boolean,
   activeTail: boolean,
-  t: Translator, // fork: i18n
 ): void {
   if (entry.type !== "activity-group") {
     result.push(entry);
@@ -2153,7 +2133,6 @@ function appendActivityGroupRows(
   activeRunId: RunId | null,
   isWorking: boolean,
   activeTail: boolean,
-  t: Translator, // fork: i18n
 ): void {
   const groupAnchorIdByActivityId = new Map<string, string>();
   let groupAnchorId: string | null = null;
@@ -2230,7 +2209,6 @@ function appendToolGroupRows(
   activeRunId: RunId | null,
   isWorking: boolean,
   activeTail: boolean,
-  t: Translator, // fork: i18n
 ): void {
   const expanded = expandedWorkGroupIds.has(groupId);
   const latestActiveActivity = activities.findLast(
@@ -2357,7 +2335,7 @@ function liveToolActivitySummary(
   const status = liveActivityToolStatus(activity.lifecycleStatus, presentTense);
   if (activity.workEntry.itemType === "reasoning") {
     return compactWorkEntryText(
-      activity.workEntry.detail?.trim() || (status === "inProgress" ? t("Thinking") : t("Thought")),
+      activity.workEntry.detail?.trim() || (status === "inProgress" ? "Thinking" : "Thought"),
     );
   }
   const presentation = resolveWorkEntryToolPresentation(
@@ -2390,7 +2368,6 @@ interface ThreadFeedBuild {
   readonly checkpointSummaries: ReadonlyArray<ThreadCheckpointSummary> | undefined;
   readonly foldedAnswerRunIdByMessageId: ReadonlyMap<string, RunId | null>;
   readonly delegatedChildrenByRun: ReadonlyMap<RunId, ReadonlySet<string>>;
-  readonly t: Translator; // fork: i18n
   readonly feed: ReadonlyArray<ThreadFeedEntry>;
   /** Grouping is empty before `row`: the rows before it produced `feed.slice(0, feedLength)`. */
   readonly restarts: ReadonlyArray<{ readonly row: number; readonly feedLength: number }>;
@@ -2475,10 +2452,8 @@ export function buildThreadFeed(
     readonly nodes?: ReadonlyArray<OrchestrationV2ExecutionNode>;
     readonly checkpointSummaries?: ReadonlyArray<ThreadCheckpointSummary>;
     readonly cache?: ThreadFeedCache;
-    readonly t?: Translator; // fork: i18n
   },
 ): ThreadFeedEntry[] {
-  const t = options?.t ?? translatorFor("en"); // fork: i18n
   const anchoredMessages = options?.anchoredMessages ?? [];
   const attemptByRootNodeId = new Map(
     (options?.attempts ?? []).map((attempt) => [attempt.rootNodeId, attempt] as const),

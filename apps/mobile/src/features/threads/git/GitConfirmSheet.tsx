@@ -14,7 +14,6 @@ import { useSelectedThreadGitActions } from "../../../state/use-selected-thread-
 import { useSelectedThreadGitState } from "../../../state/use-selected-thread-git-state";
 import { useThreadSelection } from "../../../state/use-thread-selection";
 import { SheetActionButton } from "./gitSheetComponents";
-import { useT, useUiLocale } from "../../../hooks/useT"; // fork: i18n
 
 type GitConfirmSheetProps = StaticScreenProps<{
   readonly environmentId: string;
@@ -27,7 +26,6 @@ type GitConfirmSheetProps = StaticScreenProps<{
 }>;
 
 export function GitConfirmSheet(props: GitConfirmSheetProps) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const gitState = useSelectedThreadGitState();
   const gitActions = useSelectedThreadGitActions();
@@ -50,7 +48,6 @@ export function GitConfirmSheet(props: GitConfirmSheetProps) {
   const environmentId = params.environmentId ?? "";
   const threadId = params.threadId ?? "";
 
-  const locale = useUiLocale(); // fork: i18n
   const copy = useMemo(
     () =>
       confirmAction
@@ -116,25 +113,25 @@ export function GitConfirmSheet(props: GitConfirmSheetProps) {
 
   return (
     <FitSheet
-      header={<SheetHeader title={t("Confirm action")} onClose={() => navigation.goBack()} />}
+      header={<SheetHeader title="Confirm action" onClose={() => navigation.goBack()} />}
       showsVerticalScrollIndicator={false}
     >
       <SheetIntro
-        eyebrow={t("Confirm")}
-        title={copy?.title ?? t("Run action on default branch?")}
-        description={copy?.description ?? t("Choose how to continue.")}
+        eyebrow="Confirm"
+        title={copy?.title ?? "Run action on default branch?"}
+        description={copy?.description ?? "Choose how to continue."}
       />
 
       <View className="gap-3">
         <SheetActionButton
           icon="arrow.right.circle"
-          label={copy?.continueLabel ?? t("Continue")}
+          label={copy?.continueLabel ?? "Continue"}
           disabled={!canWriteSourceControl}
           onPress={() => void continuePendingAction()}
         />
         <SheetActionButton
           icon="arrow.branch"
-          label={t("Feature branch & continue")}
+          label="Feature branch & continue"
           disabled={!canChangeThreadBranch}
           tone="primary"
           onPress={() => void movePendingActionToFeatureBranch()}

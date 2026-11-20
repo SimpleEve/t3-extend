@@ -30,8 +30,6 @@ import {
   type EnvironmentPullRequestListEntry,
   type PullRequestListPages,
 } from "./pullRequestList";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 type ListTarget = { readonly environmentId: EnvironmentId; readonly input: PullRequestListInput };
 type Read = <A>(atom: Atom.Atom<A>) => A;
@@ -182,7 +180,6 @@ const settledError = (result: AsyncResult.AsyncResult<string | null, never>) =>
   AsyncResult.isSuccess(result) && !result.waiting ? result.value : null;
 
 export function usePullRequestList(targets: readonly ListTarget[]) {
-  const t = useT(); // fork: i18n
   const registry = use(RegistryContext);
   const scopeKey = JSON.stringify(targets);
   const sources = useAtomValue(sourcesFamily(scopeKey));
@@ -336,7 +333,7 @@ export function usePullRequestList(targets: readonly ListTarget[]) {
           {
             environmentId: target.environmentId,
             projectTitle: "",
-            message: cause instanceof Error ? cause.message : t("Couldn't load pull requests."),
+            message: cause instanceof Error ? cause.message : "Couldn't load pull requests.",
           },
         ];
       }),
@@ -373,7 +370,7 @@ function requestErrors(results: readonly PromiseSettledResult<unknown>[]) {
           ? [
               result.reason instanceof Error
                 ? result.reason.message
-                : translate(getUiLocale(), "Couldn't load pull requests."),
+                : "Couldn't load pull requests.",
             ]
           : [],
       )

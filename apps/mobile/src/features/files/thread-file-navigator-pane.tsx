@@ -12,7 +12,6 @@ import { useAppearancePreferences } from "../settings/appearance/AppearancePrefe
 import { FileTreeBrowser } from "./FileTreeBrowser";
 import { useFileTreeEntries } from "./useFileTreeEntries";
 import { preloadWorkspaceFileContents } from "./preload-workspace-file";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function ThreadFileNavigatorPane(props: {
   readonly cwd: string;
@@ -21,7 +20,6 @@ export function ThreadFileNavigatorPane(props: {
   readonly selectedPath: string | null;
   readonly onSelectFile: (path: string) => void;
 }) {
-  const t = useT();
   const workspaceKey = JSON.stringify([props.environmentId, props.cwd]);
   // The pane stays mounted across thread switches; a query only filters the workspace it was typed in.
   const [search, setSearch] = useState({ workspaceKey, query: "" });
@@ -66,7 +64,7 @@ export function ThreadFileNavigatorPane(props: {
           ? entriesQuery.error
           : fileAccess.isPending
             ? null
-            : (fileAccess.error ?? t("This connection cannot read host files."))
+            : (fileAccess.error ?? "This connection cannot read host files.")
       }
       isPending={fileAccess.isPending || entriesQuery.isPending}
       isRefreshing={entriesQuery.isRefreshing}
@@ -86,14 +84,14 @@ export function ThreadFileNavigatorPane(props: {
   return (
     <SheetPane>
       <AppBar
-        title={t("Files")}
+        title="Files"
         subtitle={props.projectName}
         search={{
           value: searchQuery,
           onChangeText: setSearchQuery,
-          placeholder: t("Search files"),
+          placeholder: "Search files",
         }}
-        refresh={{ accessibilityLabel: t("Refresh files"), onPress: entriesQuery.refresh }}
+        refresh={{ accessibilityLabel: "Refresh files", onPress: entriesQuery.refresh }}
       />
       <ScreenContent insetHorizontal>{fileTree}</ScreenContent>
     </SheetPane>

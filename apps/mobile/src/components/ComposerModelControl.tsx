@@ -8,7 +8,6 @@ import { resolveProviderOptionDescriptors } from "../lib/providerOptions";
 import { AppText as Text } from "./ui/AppText";
 import { ComposerInlineControl } from "./ComposerToolbar";
 import { ProviderIcon, ProviderInstanceIcon, providerInstanceNameLabel } from "./ProviderIcon";
-import { useT } from "../hooks/useT"; // fork: restored import
 
 export function ComposerModelControl(props: {
   readonly modelOption: ModelOption | null;
@@ -22,7 +21,6 @@ export function ComposerModelControl(props: {
   readonly iconOnly?: boolean;
   readonly onPress: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const descriptors = resolveProviderOptionDescriptors({
     capabilities: props.modelOption?.capabilities,
     selections: props.selection?.options,
@@ -38,7 +36,7 @@ export function ComposerModelControl(props: {
       }).label
     : "";
   const badge = props.modelOption?.providerBadge;
-  const label = props.modelOption?.label ?? props.selection?.model ?? t("Choose model");
+  const label = props.modelOption?.label ?? props.selection?.model ?? "Choose model";
   const providerNameLabel = badge
     ? providerInstanceNameLabel({
         provider: props.modelOption?.providerDriver,
@@ -51,7 +49,7 @@ export function ComposerModelControl(props: {
   return (
     <ComposerInlineControl
       accessibilityLabel={[
-        t("Model and reasoning settings"),
+        "Model and reasoning settings",
         label,
         badge?.showBadge ? badge.displayName : null,
         summary,

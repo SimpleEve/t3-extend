@@ -6,7 +6,6 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import { useState } from "react";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { useEnvironmentScope } from "../../state/session";
 import { ScrollView, View } from "react-native";
 import Animated, { useAnimatedStyle, type DerivedValue } from "react-native-reanimated";
@@ -20,11 +19,10 @@ function ChildApproval({ entry }: { entry: ChildThreadApproval }) {
   const respond = useAtomCommand(threadEnvironment.respondToApproval, { reportFailure: false });
   const [responding, setResponding] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const t = useT();
   return (
     <View className="mx-3.5 my-2 gap-2">
       <AppText className="font-t3-bold text-sm text-foreground">
-        {t("Approval from {title}", { title: entry.title })}
+        Approval from {entry.title}
       </AppText>
       <PendingApprovalCard
         canOperateThread={canRespond}
@@ -41,7 +39,7 @@ function ChildApproval({ entry }: { entry: ChildThreadApproval }) {
           if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
             const failure = squashAtomCommandFailure(result);
             setError(
-              failure instanceof Error ? failure.message : t("Failed to submit approval decision."),
+              failure instanceof Error ? failure.message : "Failed to submit approval decision.",
             );
           }
           setResponding(false);

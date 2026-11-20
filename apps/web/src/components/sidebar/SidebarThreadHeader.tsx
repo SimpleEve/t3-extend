@@ -8,7 +8,6 @@ import {
 } from "react";
 
 import { cn } from "~/lib/utils";
-import { useT } from "~/hooks/useT";
 import { Button } from "../ui/button";
 import { SidebarInput, SidebarMenuButton } from "../ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -51,13 +50,12 @@ export function SidebarThreadHeader({
   activeSearchResultIndex,
   onClearSearch,
 }: SidebarThreadHeaderProps) {
-  const t = useT();
   const resultsVisible = isSearching && searchResultCount > 0;
   // Shrinking results can remove the active option; never leave aria-activedescendant pointing at it.
   const activeResultExists = resultsVisible && activeSearchResultIndex < searchResultCount;
   const newThreadLabel = newThreadShortcutLabel
-    ? t("New thread ({shortcut})", { shortcut: newThreadShortcutLabel })
-    : t("New thread");
+    ? `New thread (${newThreadShortcutLabel})`
+    : "New thread";
 
   return (
     <div className="flex items-center gap-1">
@@ -70,8 +68,8 @@ export function SidebarThreadHeader({
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.currentTarget.value)}
           onKeyDown={onSearchKeyDown}
-          placeholder={t("Search")}
-          aria-label={t("Search threads")}
+          placeholder="Search"
+          aria-label="Search threads"
           role="combobox"
           aria-autocomplete="list"
           aria-expanded={resultsVisible}
@@ -89,7 +87,7 @@ export function SidebarThreadHeader({
             size="icon-micro"
             variant="ghost-muted"
             className="shrink-0"
-            aria-label={t("Clear thread search")}
+            aria-label="Clear thread search"
             onClick={() => {
               onClearSearch();
               searchInputRef.current?.focus();
@@ -105,23 +103,20 @@ export function SidebarThreadHeader({
             {/* fork: sidebar views */}
             <SidebarViewToggle />
             {projectScope}
-            <SidebarHeaderIconButton label={t("Add project")} onClick={onNewProject}>
+            <SidebarHeaderIconButton label="Add project" onClick={onNewProject}>
               <FolderPlusIcon />
             </SidebarHeaderIconButton>
           </>
         ) : null}
         <SidebarHeaderIconButton
-          label={t("New thread")}
+          label="New thread"
           tooltip={
             showNewThreadInProjectHint ? (
               <span className="flex flex-col gap-0.5">
                 <span>{newThreadLabel}</span>
                 <span className="text-muted-foreground">
-                  {newThreadInProjectShortcutLabel
-                    ? t("New thread in current project: Shift+click ({shortcut})", {
-                        shortcut: newThreadInProjectShortcutLabel,
-                      })
-                    : t("New thread in current project: Shift+click")}
+                  New thread in current project: Shift+click
+                  {newThreadInProjectShortcutLabel ? ` (${newThreadInProjectShortcutLabel})` : ""}
                 </span>
               </span>
             ) : (

@@ -386,19 +386,19 @@ export function formatSearchToolLabel(
   const glob = firstInputString(input, SEARCH_GLOB_KEYS);
   const target = searchTargetName(firstInputString(input, SEARCH_TARGET_KEYS));
   if (query && target) {
-    return t("Searched {query} in {target}", { query, target });
+    return `Searched ${query} in ${target}`;
   }
   if (glob && target) {
-    return t("Searched files {glob} in {target}", { glob, target });
+    return `Searched files ${glob} in ${target}`;
   }
   if (glob) {
-    return t("Searched files {glob}", { glob });
+    return `Searched files ${glob}`;
   }
   if (query) {
-    return t("Searched {query}", { query });
+    return `Searched ${query}`;
   }
   if (target) {
-    return t("Searched in {target}", { target });
+    return `Searched in ${target}`;
   }
   return undefined;
 }
@@ -410,7 +410,7 @@ export function formatReadToolLabel(
 ): string {
   const trimmed = path.trim();
   if (!trimmed) {
-    return extraCount > 0 ? t("Read file +{count} more", { count: extraCount }) : t("Read file");
+    return `Read file${suffix}`;
   }
   return extraCount > 0
     ? t("Read {path} +{count} more", { path: trimmed, count: extraCount })

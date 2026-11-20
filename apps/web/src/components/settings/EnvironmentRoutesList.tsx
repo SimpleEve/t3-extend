@@ -6,7 +6,6 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { TranslatedDndContext } from "../../fork/TranslatedDndContext"; // fork: i18n
 import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
   SortableContext,
@@ -36,7 +35,6 @@ import { usePreparedConnection } from "~/state/session";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { useT } from "../../hooks/useT";
 
 export function EnvironmentRoutesList({
   environment,
@@ -45,7 +43,6 @@ export function EnvironmentRoutesList({
   readonly environment: EnvironmentPresentation;
   readonly onAddRoute: () => void;
 }) {
-  const t = useT();
   const saved = connectionRoutes(environment.entry);
   const savedIds = saved.map((route) => connectionRouteId(route.target));
   const [pending, setPending] = useState<ReadonlyArray<string> | null>(null);
@@ -71,7 +68,7 @@ export function EnvironmentRoutesList({
   const confirmRemove = async (route: ConnectionRoute) => {
     const address = connectionRouteAddress(route);
     const confirmed = await requestConfirmDialog(
-      `${t("Remove {label} route?", { label: connectionRouteLabel(route, t) })}${address === null ? "" : `\n${address}`}`,
+      `Remove ${connectionRouteLabel(route)} route?${address === null ? "" : `\n${address}`}`,
       { variant: "destructive" },
     );
     if (confirmed !== true) return;
@@ -103,7 +100,7 @@ export function EnvironmentRoutesList({
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
-          <ol aria-label={t("Routes to {label}, preferred first", { label: environment.label })}>
+          <ol aria-label={`Routes to ${environment.label}, preferred first`}>
             {routes.map((route, index) => (
               <SortableRouteRow
                 key={connectionRouteId(route.target)}
@@ -121,7 +118,7 @@ export function EnvironmentRoutesList({
       <div className="-ml-1.5 pt-1">
         <Button size="xs" variant="ghost-muted" onClick={onAddRoute}>
           <PlusIcon className="size-3" />
-          {t("Add route")}
+          Add route
         </Button>
       </div>
     </div>
@@ -143,9 +140,8 @@ function SortableRouteRow({
   readonly removable: boolean;
   readonly onRemove: () => void;
 }) {
-  const t = useT();
   const id = connectionRouteId(route.target);
-  const label = connectionRouteLabel(route, t); // fork: interface language
+  const label = connectionRouteLabel(route);
   const address = connectionRouteAddress(route);
   const {
     attributes,
@@ -171,24 +167,24 @@ function SortableRouteRow({
           {label}
           {inUse ? (
             <span className="rounded-sm bg-success/12 px-1 text-2xs font-normal text-success-foreground">
-              {t("In use")}
+              In use
             </span>
           ) : null}
           {refused ? (
             <span className="rounded-sm bg-destructive/8 px-1 text-2xs font-normal text-destructive-foreground">
-              {t("Sign-in refused")}
+              Sign-in refused
             </span>
           ) : null}
         </p>
         {address !== null ? (
           <p className="truncate text-2xs text-muted-foreground">
             {address}
-            {isLearned(route) ? t(" · found automatically") : ""}
+            {isLearned(route) ? " · found automatically" : ""}
           </p>
         ) : null}
         {refused && address !== null ? (
           <p className="text-2xs text-muted-foreground">
-            {t("The host refused this device's sign-in. Pair this address again with Add route.")}
+            The host refused this device's sign-in. Pair this address again with Add route.
           </p>
         ) : null}
       </div>
@@ -197,7 +193,7 @@ function SortableRouteRow({
         ref={setActivatorNodeRef}
         {...attributes}
         {...listeners}
-        aria-label={t("Reorder {label}, position {position}", { label, position })}
+        aria-label={`Reorder ${label}, position ${position}`}
         className="flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground/70 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:cursor-grabbing"
       >
         <GripVerticalIcon className="size-3.5" />
@@ -210,14 +206,14 @@ function SortableRouteRow({
                 type="button"
                 variant="ghost-muted"
                 size="icon-xs"
-                aria-label={t("Remove {label} route", { label })}
+                aria-label={`Remove ${label} route`}
                 onClick={onRemove}
               />
             }
           >
             <XIcon className="size-3" />
           </TooltipTrigger>
-          <TooltipPopup side="top">{t("Remove route")}</TooltipPopup>
+          <TooltipPopup side="top">Remove route</TooltipPopup>
         </Tooltip>
       ) : null}
     </li>

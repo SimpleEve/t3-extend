@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
-import { useT } from "~/hooks/useT"; // fork: interface language
 import { observeResize } from "~/lib/observeResize";
 
 export function DraftHeroProjectHeading({
@@ -10,7 +9,6 @@ export function DraftHeroProjectHeading({
   children: ReactNode;
   projectName: string;
 }) {
-  const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const inlineRef = useRef<HTMLSpanElement>(null);
   const [fitsInline, setFitsInline] = useState(false);

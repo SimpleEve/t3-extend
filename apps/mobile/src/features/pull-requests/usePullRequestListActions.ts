@@ -23,8 +23,6 @@ import { copyPullRequestLink, sharePullRequestLink } from "./pullRequestLink";
 import { pullRequestTarget } from "./usePullRequestDiff";
 import { useSelectWorkspaceDetail } from "../layout/workspace/useSelectWorkspaceDetail";
 import { useOpenWorkspaceDetail } from "../layout/useOpenWorkspaceDetail";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 export function usePullRequestListActions(
   environmentIds: readonly EnvironmentId[],
@@ -33,7 +31,6 @@ export function usePullRequestListActions(
     patch: Partial<EnvironmentPullRequestListEntry>,
   ) => void,
 ) {
-  const t = useT(); // fork: i18n
   const registry = use(RegistryContext);
   const selectDetail = useSelectWorkspaceDetail();
   const openDetail = useOpenWorkspaceDetail();
@@ -110,10 +107,8 @@ export function usePullRequestListActions(
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
       Dialog.alert(
-        t("Couldn't update this {singular}", {
-          singular: changeRequestTerm(terminology.singular, t),
-        }),
-        cause instanceof Error ? cause.message : t("Try again."),
+        `Couldn't update this ${terminology.singular}`,
+        cause instanceof Error ? cause.message : "Try again.",
       );
     }
   };
@@ -148,7 +143,7 @@ export function usePullRequestListActions(
       t,
     );
     Dialog.alert(`${label}?`, `#${entry.number} · ${entry.title}`, [
-      { text: t("Cancel"), style: "cancel" },
+      { text: "Cancel", style: "cancel" },
       {
         text: label,
         style: supported === "close" ? "destructive" : "default",
@@ -161,19 +156,19 @@ export function usePullRequestListActions(
     return [
       {
         id: "open",
-        title: t("Open {singular}", { singular: changeRequestTerm(terminology.singular, t) }),
+        title: `Open ${terminology.singular}`,
         image: "arrow.up.right",
       },
       ...(writableEnvironments.has(entry.environmentId) && entry.state === "open"
         ? [
             {
               id: "request-review",
-              title: t("Request review"),
+              title: "Request review",
               image: "person.badge.plus",
             },
             {
               id: entry.isDraft ? "ready" : "draft",
-              title: entry.isDraft ? t("Mark ready for review") : t("Convert to draft"),
+              title: entry.isDraft ? "Mark ready for review" : "Convert to draft",
               image: "pencil",
             },
             {
@@ -194,10 +189,10 @@ export function usePullRequestListActions(
           : []),
       {
         id: "share",
-        title: t("Share…"),
+        title: "Share…",
         image: "square.and.arrow.up",
       },
-      { id: "copy", title: t("Copy link"), image: "link" },
+      { id: "copy", title: "Copy link", image: "link" },
       {
         id: "provider",
         title: openOnProviderLabel(entry.provider, t),

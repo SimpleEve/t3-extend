@@ -13,7 +13,6 @@ import {
   showAnchoredCopyErrorToast,
 } from "../ui/anchoredCopyToast";
 import { HighlightedTokens } from "./HighlightedTokens";
-import { useT } from "~/hooks/useT";
 
 export const SNAP_SHOT_ATTACHMENT_FRAME_CLASS =
   "relative h-28 w-52 max-w-full overflow-hidden rounded-lg border border-border/80";
@@ -83,7 +82,6 @@ export function SnapShotCopyButton({
   onCopy: () => Promise<void>;
   side?: "top" | "right" | "bottom" | "left";
 }) {
-  const t = useT(); // fork: i18n
   const ref = useRef<HTMLButtonElement>(null);
   const [copied, setCopied] = useState(false);
 
@@ -93,7 +91,7 @@ export function SnapShotCopyButton({
         render={
           <Button
             ref={ref}
-            aria-label={t("Copy snapshot")}
+            aria-label="Copy snapshot"
             disabled={copied}
             onClick={(event) => {
               event.stopPropagation();
@@ -120,7 +118,7 @@ export function SnapShotCopyButton({
           <CopyIcon className="size-3" aria-hidden="true" />
         )}
       </TooltipTrigger>
-      <TooltipPopup side={side}>{t("Copy snapshot")}</TooltipPopup>
+      <TooltipPopup side={side}>Copy snapshot</TooltipPopup>
     </Tooltip>
   );
 }
@@ -136,11 +134,10 @@ export function SnapShotContentsButton({
   side?: "top" | "right" | "bottom" | "left";
   onCopySnapshot?: (() => Promise<void>) | undefined;
 }) {
-  const t = useT();
   const includesAccessibility = snapShotIncludesAccessibility(source);
   const ContentsIcon = includesAccessibility ? TextIcon : ImageIcon;
   const accessibilityDetails = snapShotAccessibilityDetails(source);
-  const tooltip = includesAccessibility ? t("Accessibility data") : t("No accessibility data");
+  const tooltip = includesAccessibility ? "Accessibility data" : "No accessibility data";
 
   return (
     <Popover>
@@ -151,9 +148,7 @@ export function SnapShotContentsButton({
               render={
                 <Button
                   aria-label={
-                    includesAccessibility
-                      ? t("View accessibility data")
-                      : t("No accessibility data")
+                    includesAccessibility ? "View accessibility data" : "No accessibility data"
                   }
                   className={className}
                   onClick={(event) => event.stopPropagation()}
@@ -171,7 +166,7 @@ export function SnapShotContentsButton({
       <PopoverPopup side={side} align="center" width="md">
         <div className="max-h-[min(28rem,70vh)] space-y-2 overflow-y-auto">
           <div className="flex items-center justify-between gap-2">
-            <PopoverTitle>{t("Accessibility data")}</PopoverTitle>
+            <PopoverTitle>Accessibility data</PopoverTitle>
             {onCopySnapshot && (
               <div className="-my-1.5">
                 <SnapShotCopyButton onCopy={onCopySnapshot} side={side} />
@@ -185,13 +180,12 @@ export function SnapShotContentsButton({
             />
           ) : includesAccessibility ? (
             <div className="rounded-md border border-border/70 bg-muted/45 p-2.5 text-muted-foreground text-xs leading-4">
-              {t(
-                "Structured accessibility elements were included, but they have no readable names or values.",
-              )}
+              Structured accessibility elements were included, but they have no readable names or
+              values.
             </div>
           ) : (
             <div className="rounded-md border border-border/70 bg-muted/45 p-2.5 text-muted-foreground text-xs leading-4">
-              {t("The app or capture backend did not provide verified accessibility data.")}
+              The app or capture backend did not provide verified accessibility data.
             </div>
           )}
         </div>
@@ -209,7 +203,6 @@ export function SnapShotAttachmentDetails({
   onCopySnapshot?: (() => Promise<void>) | undefined;
   className?: string;
 }) {
-  const t = useT();
   return (
     <div
       className={cn(
@@ -234,7 +227,7 @@ export function SnapShotAttachmentDetails({
           />
         </div>
         <div className="truncate text-3xs leading-3.5 text-white/70">
-          {source.windowTitle || t("Captured window")}
+          {source.windowTitle || "Captured window"}
         </div>
       </div>
     </div>

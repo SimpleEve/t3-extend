@@ -1,4 +1,3 @@
-import { translate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import chatgptLogo from "./logos/chatgpt.png";
 import claudeLogo from "./logos/claude.png";
 import geminiLogo from "./logos/gemini.png";
@@ -194,25 +193,25 @@ export function mcpHandoffAction(
   switch (handoff.kind) {
     case "open":
       return {
-        label: t("Open in {name}", { name: app.name }),
+        label: `Open in ${app.name}`,
         link: handoff.link(mcpUrl),
         appLink: null,
         copy: null,
       };
     case "copy-url":
       return {
-        label: t("Copy URL and open {name}", { name: app.name }),
+        label: `Copy URL and open ${app.name}`,
         link: handoff.link,
         appLink: null,
-        copy: { text: mcpUrl, title: t("URL copied") },
+        copy: { text: mcpUrl, title: "URL copied" },
       };
     case "copy-message": {
       const message = handoff.message(mcpUrl);
       return {
-        label: t("Copy message and open {name}", { name: app.name }),
+        label: `Copy message and open ${app.name}`,
         link: handoff.link,
         appLink: handoff.appLink?.(message) ?? null,
-        copy: { text: message, title: t("Message copied") },
+        copy: { text: message, title: "Message copied" },
       };
     }
     case "commands":

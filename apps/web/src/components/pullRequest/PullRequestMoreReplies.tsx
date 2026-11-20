@@ -1,12 +1,10 @@
 import type { PullRequestReplyAvailability } from "./pullRequestDetail.logic";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 export function PullRequestMoreReplies({
   moreReplies,
   hasMoreReplies,
   url,
 }: PullRequestReplyAvailability) {
-  const t = useT();
   if (!hasMoreReplies) return null;
   return (
     <div className="flex flex-wrap items-baseline gap-2 py-1 text-xs text-muted-foreground">
@@ -24,7 +22,7 @@ export function PullRequestMoreReplies({
           rel="noopener noreferrer"
           className="hover:text-foreground hover:underline"
         >
-          {t("View on host")}
+          View on host
         </a>
       ) : null}
     </div>

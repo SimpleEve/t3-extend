@@ -12,7 +12,6 @@ import { useAppearancePreferences } from "../settings/appearance/AppearancePrefe
 import { browserTabTitle } from "./browserTabs";
 import { PreviewStreamWebView } from "./PreviewStreamWebView";
 import { usePreparedConnection } from "../../state/session";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const PLAYER_LONG_SIDE = 184;
 const PLAYER_ENTERING = FadeIn.duration(180).reduceMotion(ReduceMotion.System);
@@ -84,7 +83,6 @@ function FloatingBrowserPlayer(props: {
   readonly onOpen: () => void;
   readonly onClose: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const { themeVariables } = useAppearancePreferences();
   const prepared = usePreparedConnection(props.environmentId);
   const httpBaseUrl = Option.isSome(prepared) ? prepared.value.httpBaseUrl : null;
@@ -102,8 +100,8 @@ function FloatingBrowserPlayer(props: {
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t("Open browser, {tab}", { tab: browserTabTitle(props.tab, t) })}
-        accessibilityHint={t("Opens the browser tab full screen")}
+        accessibilityLabel={`Open browser, ${browserTabTitle(props.tab)}`}
+        accessibilityHint="Opens the browser tab full screen"
         onPress={props.onOpen}
         className="flex-1"
       >
@@ -128,7 +126,7 @@ function FloatingBrowserPlayer(props: {
       </Pressable>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t("Close floating preview")}
+        accessibilityLabel="Close floating preview"
         hitSlop={8}
         onPress={props.onClose}
         className="absolute right-1.5 top-1.5 size-6 items-center justify-center rounded-full bg-black/55"

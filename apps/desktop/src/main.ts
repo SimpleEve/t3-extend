@@ -58,7 +58,6 @@ import * as DesktopShutdown from "./app/DesktopShutdown.ts";
 import * as DesktopObservability from "./app/DesktopObservability.ts";
 import * as DesktopServerExposure from "./backend/DesktopServerExposure.ts";
 import * as DesktopClientSettings from "./settings/DesktopClientSettings.ts";
-import * as DesktopUiLanguage from "./settings/DesktopUiLanguage.ts"; // fork: interface language
 import * as DesktopSavedEnvironments from "./settings/DesktopSavedEnvironments.ts";
 import { OFFICIAL_HOME_DIALOG_TITLE, officialHomeProblem } from "./fork/officialHomeGuard.ts"; // fork: official home guard
 import { resolveDesktopBaseDir } from "./app/DesktopStatePaths.ts"; // fork: official home guard
@@ -220,7 +219,7 @@ const layerDesktopApplication = Layer.mergeAll(
   DesktopLifecycle.layer,
   layerDesktopAppActivation,
   DesktopWebLinks.layer,
-  DesktopApplicationMenu.layer.pipe(Layer.provideMerge(DesktopUiLanguage.layer)), // fork: interface language
+  DesktopApplicationMenu.layer,
   DesktopLinuxUrlHandler.layer,
   DesktopCliCommand.layer,
 ).pipe(

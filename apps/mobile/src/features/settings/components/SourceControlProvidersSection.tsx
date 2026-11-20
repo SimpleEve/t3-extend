@@ -30,7 +30,6 @@ import { SourceControlIcon } from "../../projects/SourceControlIcon";
 import type { SettingsTarget } from "../settings-environment-filter";
 import { SettingsProviderRow } from "./SettingsProviderRow";
 import { SettingsSection } from "./SettingsSection";
-import { useT } from "../../../hooks/useT"; // fork: i18n
 
 const saveFailure = (result: Parameters<typeof squashAtomCommandFailure>[0]) => {
   const error = squashAtomCommandFailure(result);
@@ -71,7 +70,6 @@ export function SourceControlProvidersSection(props: {
   readonly environments: readonly SettingsTarget[];
   readonly canWrite: (environmentId: EnvironmentId) => boolean;
 }) {
-  const t = useT(); // fork: i18n
   return (
     <>
       {props.environments.map((environment) => (
@@ -80,8 +78,8 @@ export function SourceControlProvidersSection(props: {
           environment={environment}
           title={
             props.environments.length > 1
-              ? t("Source control providers · {label}", { label: environment.label })
-              : t("Source control providers")
+              ? `Source control providers · ${environment.label}`
+              : "Source control providers"
           }
           disabled={!props.canWrite(environment.environmentId)}
         />
@@ -95,7 +93,6 @@ function EnvironmentProviders(props: {
   readonly title: string;
   readonly disabled: boolean;
 }) {
-  const t = useT(); // fork: i18n
   const { environment } = props;
   const { environmentId } = environment;
   const discovery = useEnvironmentQuery(
@@ -113,7 +110,7 @@ function EnvironmentProviders(props: {
     return discovery.error ? (
       <SettingsSection title={props.title} footer={discovery.error}>
         <View className="p-4">
-          <Button label={t("Scan again")} tone="secondary" onPress={discovery.refresh} />
+          <Button label="Scan again" tone="secondary" onPress={discovery.refresh} />
         </View>
       </SettingsSection>
     ) : null;
@@ -147,9 +144,7 @@ function EnvironmentProviders(props: {
                 }
               : {})}
             toggle={{
-              accessibilityLabel: t("Offer {label} when adding or publishing a project", {
-                label: item.label,
-              }), // fork: i18n
+              accessibilityLabel: `Offer ${item.label} when adding or publishing a project`,
               value: isSourceControlProviderOffered(offered, item.kind),
               disabled,
               onValueChange: (value) =>
@@ -172,7 +167,6 @@ export function SourceControlTokenForm(props: {
   readonly disabled: boolean;
   readonly onSaved: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const { definition, credentials } = props;
   const { environmentId } = props.environment;
   const { tokens } = readHostCredentialSettings(
@@ -230,7 +224,7 @@ export function SourceControlTokenForm(props: {
         )}
       </Text>
       <ConnectionFormField
-        label={t("Host")}
+        label="Host"
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="url"
@@ -240,8 +234,8 @@ export function SourceControlTokenForm(props: {
         onChangeText={setHost}
       />
       <SecretTextInput
-        accessibilityLabel={t("{label} token", { label: definition.label })}
-        placeholder={saved ? t("Saved. Enter a new token to replace it") : t("Token")}
+        accessibilityLabel={`${definition.label} token`}
+        placeholder={saved ? "Saved. Enter a new token to replace it" : "Token"}
         value={draft}
         onChangeText={setDraft}
         onSubmitEditing={(value) => {
@@ -251,11 +245,8 @@ export function SourceControlTokenForm(props: {
       />
       <Text className="text-xs text-foreground-muted">
         {savedHosts.length === 0
-          ? t("No token saved; the server uses {tokenEnvVar} or the {cliName} login.", {
-              tokenEnvVar: credentials.tokenEnvVar,
-              cliName: credentials.cliName,
-            })
-          : t("Saved for {savedHosts}.", { savedHosts: savedHosts.join(", ") })}
+          ? `No token saved; the server uses ${credentials.tokenEnvVar} or the ${credentials.cliName} login.`
+          : `Saved for ${savedHosts.join(", ")}.`}
       </Text>
       {failure ? (
         <Text selectable className="text-xs text-danger-foreground">
@@ -265,7 +256,7 @@ export function SourceControlTokenForm(props: {
       <View className="flex-row flex-wrap justify-end gap-2">
         {target || defaultHost ? (
           <Button
-            label={t("Create a token")}
+            label="Create a token"
             tone="text"
             size="compact"
             onPress={() =>
@@ -277,7 +268,7 @@ export function SourceControlTokenForm(props: {
         ) : null}
         {saved ? (
           <Button
-            label={t("Remove")}
+            label="Remove"
             tone="secondary"
             size="compact"
             disabled={locked}
@@ -285,7 +276,7 @@ export function SourceControlTokenForm(props: {
           />
         ) : null}
         <Button
-          label={t("Save")}
+          label="Save"
           tone="primary"
           size="compact"
           loading={saving}
@@ -331,7 +322,6 @@ export function SourceControlHostFieldsForm(props: {
   readonly disabled: boolean;
   readonly onSaved: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const { definition } = props;
   const { environmentId } = props.environment;
   const saved: Readonly<Record<string, unknown>> =
@@ -381,7 +371,7 @@ export function SourceControlHostFieldsForm(props: {
               <SecretTextInput
                 accessibilityLabel={field.label}
                 placeholder={
-                  isSet(field.key) ? t("Saved. Enter a new value to replace it") : field.label
+                  isSet(field.key) ? "Saved. Enter a new value to replace it" : field.label
                 }
                 value={drafts[field.key] ?? ""}
                 onChangeText={(value) => setDrafts({ ...drafts, [field.key]: value })}
@@ -418,7 +408,7 @@ export function SourceControlHostFieldsForm(props: {
       <View className="flex-row flex-wrap justify-end gap-2">
         {fields.some((field) => isSet(field.key)) ? (
           <Button
-            label={t("Remove")}
+            label="Remove"
             tone="secondary"
             size="compact"
             disabled={locked}
@@ -426,7 +416,7 @@ export function SourceControlHostFieldsForm(props: {
           />
         ) : null}
         <Button
-          label={t("Save")}
+          label="Save"
           tone="primary"
           size="compact"
           loading={saving}

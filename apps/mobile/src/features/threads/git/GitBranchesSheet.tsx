@@ -14,7 +14,6 @@ import { useSelectedThreadGitState } from "../../../state/use-selected-thread-gi
 import { useSelectedThreadWorktree } from "../../../state/use-selected-thread-worktree";
 import { vcsEnvironment } from "../../../state/vcs";
 import { SheetActionButton } from "./gitSheetComponents";
-import { useT } from "../../../hooks/useT"; // fork: i18n
 
 type GitBranchesSheetProps = StaticScreenProps<{
   readonly environmentId: string;
@@ -22,7 +21,6 @@ type GitBranchesSheetProps = StaticScreenProps<{
 }>;
 
 export function GitBranchesSheet(_props: GitBranchesSheetProps) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const { selectedThread } = useThreadSelection();
   const { selectedThreadCwd } = useSelectedThreadWorktree();
@@ -62,20 +60,20 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
 
   return (
     <FitSheet
-      header={<SheetHeader title={t("Branches & worktrees")} onClose={() => navigation.goBack()} />}
+      header={<SheetHeader title="Branches & worktrees" onClose={() => navigation.goBack()} />}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <FormSection title={t("New branch")}>
+      <FormSection title="New branch">
         <FormField
           value={newBranchName}
           onChangeText={setNewBranchName}
           placeholder="feature/mobile-polish"
-          accessibilityLabel={t("New branch name")}
+          accessibilityLabel="New branch name"
         />
         <SheetActionButton
           icon="plus"
-          label={t("Create & checkout")}
+          label="Create & checkout"
           tone="primary"
           disabled={!canChangeThreadBranch || busy || newBranchName.trim().length === 0}
           onPress={() => {
@@ -90,24 +88,24 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
         />
       </FormSection>
 
-      <FormSection title={t("New worktree")}>
+      <FormSection title="New worktree">
         <FormField
-          label={t("Base branch")}
+          label="Base branch"
           value={worktreeBaseBranch}
           onChangeText={setWorktreeBaseBranchOverride}
           placeholder="main"
-          accessibilityLabel={t("Worktree base branch")}
+          accessibilityLabel="Worktree base branch"
         />
         <FormField
-          label={t("New branch")}
+          label="New branch"
           value={worktreeBranchName}
           onChangeText={setWorktreeBranchName}
           placeholder="feature/mobile-thread"
-          accessibilityLabel={t("Worktree branch name")}
+          accessibilityLabel="Worktree branch name"
         />
         <SheetActionButton
           icon="square.split.2x1"
-          label={t("Create worktree")}
+          label="Create worktree"
           tone="primary"
           disabled={
             !canChangeThreadBranch ||
@@ -131,12 +129,12 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
       </FormSection>
 
       <ListSection
-        title={t("Existing branches")}
+        title="Existing branches"
         footer={
           branchesLoading
-            ? t("Loading branches...")
+            ? "Loading branches..."
             : availableBranches.length === 0
-              ? t("No local branches found.")
+              ? "No local branches found."
               : undefined
         }
       >
@@ -144,11 +142,11 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
           const disabled = disabledExistingBranches.has(branch.name);
           const subtitle = branch.worktreePath
             ? branch.worktreePath === currentWorktreePath
-              ? t("Checked out in this thread")
-              : t("Checked out in another worktree")
+              ? "Checked out in this thread"
+              : "Checked out in another worktree"
             : branch.isDefault
-              ? t("Default branch")
-              : t("Local branch");
+              ? "Default branch"
+              : "Local branch";
 
           return (
             <ListChoiceRow

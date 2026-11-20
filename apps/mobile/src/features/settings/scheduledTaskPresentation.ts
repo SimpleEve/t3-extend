@@ -1,6 +1,3 @@
-import { translate, type Translator, type UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
-
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -10,12 +7,12 @@ export function formatScheduledTaskInterval(
   t: Translator /* fork: i18n */,
 ): string {
   const units = [
-    [7 * DAY, t("Every week"), t("{count} week"), t("{count} weeks")],
-    [DAY, t("Every day"), t("{count} day"), t("{count} days")],
-    [HOUR, t("Every hour"), t("{count} hour"), t("{count} hours")],
-    [MINUTE, t("Every minute"), t("{count} minute"), t("{count} minutes")],
-    [1_000, t("Every second"), t("{count} second"), t("{count} seconds")],
-    [1, t("Every millisecond"), t("{count} millisecond"), t("{count} milliseconds")],
+    [7 * DAY, "week"],
+    [DAY, "day"],
+    [HOUR, "hour"],
+    [MINUTE, "minute"],
+    [1_000, "second"],
+    [1, "millisecond"],
   ] as const;
   let remaining = everyMs;
   const parts: string[] = [];
@@ -26,7 +23,7 @@ export function formatScheduledTaskInterval(
     parts.push((count === 1 ? singular : plural).replace("{count}", String(count)));
     remaining %= size;
   }
-  return t("Every {interval}", { interval: parts.join(" ") });
+  return `Every ${parts.join(" ")}`;
 }
 
 function localCalendarDay(date: Date): number {
@@ -64,12 +61,12 @@ export function formatNextScheduledTaskRun(
   const next = new Date(nextRunAt);
   const current = new Date(now);
   const remaining = next.getTime() - now;
-  if (!Number.isFinite(remaining)) return t("Next run unavailable");
-  if (remaining <= 0) return t("Next run due");
+  if (!Number.isFinite(remaining)) return "Next run unavailable";
+  if (remaining <= 0) return "Next run due";
 
   const days = localCalendarDay(next) - localCalendarDay(current);
   if (days === 0) {
-    if (remaining < MINUTE) return t("Next run in less than a minute");
+    if (remaining < MINUTE) return "Next run in less than a minute";
     const minutes = Math.round(remaining / MINUTE);
     const count = minutes < 60 ? minutes : Math.round(remaining / HOUR);
     if (minutes < 60) {
@@ -98,5 +95,5 @@ export function formatNextScheduledTaskRun(
     day: "numeric",
     ...(next.getFullYear() !== current.getFullYear() ? { year: "numeric" as const } : {}),
   });
-  return t("Next run {date} at {time}", { date, time });
+  return `Next run ${date} at ${time}`;
 }

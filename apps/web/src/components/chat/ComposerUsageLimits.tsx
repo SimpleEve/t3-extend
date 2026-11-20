@@ -11,8 +11,6 @@ import { RedactedSensitiveText } from "../settings/RedactedSensitiveText";
 import { LimitWindows, ResetCredits } from "../usage/UsageLimits";
 import { ComposerBanner } from "./ComposerBanner";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
-import { useT } from "~/hooks/useT";
-import type { Translator } from "@t3tools/client-runtime/i18n";
 
 function accountLabel(account: UsageLimitsReport["accounts"][number]): string {
   if (!account.instanceId) return account.label;
@@ -26,7 +24,6 @@ function accountLabel(account: UsageLimitsReport["accounts"][number]): string {
 }
 
 function AccountSummary({ account }: { readonly account: UsageLimitsReport["accounts"][number] }) {
-  const t = useT();
   const label = accountLabel(account);
   return (
     <>
@@ -34,9 +31,9 @@ function AccountSummary({ account }: { readonly account: UsageLimitsReport["acco
         <RedactedSensitiveText
           key={label}
           value={label}
-          ariaLabel={t("Toggle account label visibility")}
-          revealTooltip={t("Click to reveal account")}
-          hideTooltip={t("Click to hide account")}
+          ariaLabel="Toggle account label visibility"
+          revealTooltip="Click to reveal account"
+          hideTooltip="Click to hide account"
           className="max-w-full truncate align-bottom font-sans text-xs leading-normal"
         />
       ) : (
@@ -53,22 +50,21 @@ export function usageLimitsBannerItem(
   report: UsageLimitsReport,
   environmentId: EnvironmentId,
   onDismiss: () => void,
-  t: Translator,
 ): ComposerBannerStackItem {
   const [first] = report.accounts;
   const single = report.accounts.length === 1 && first ? first : null;
   const summary = single ? (
     <AccountSummary account={single} />
   ) : (
-    t("{count} accounts", { count: report.accounts.length })
+    `${report.accounts.length} accounts`
   );
   return {
     id,
     variant: "info",
     icon: <GaugeIcon />,
-    title: t("Usage limits"),
+    title: "Usage limits",
     description: summary,
-    dismissLabel: t("Dismiss usage limits"),
+    dismissLabel: "Dismiss usage limits",
     onDismiss,
     children: <UsageLimitsBannerBody report={report} environmentId={environmentId} />,
   };
@@ -91,25 +87,19 @@ export function modelFallbackBannerItem({
   readonly timestampFormat: TimestampFormat;
   readonly onUseDefault: () => void;
   readonly onDismiss: () => void;
-  readonly t: Translator; // fork: interface language
 }): ComposerBannerStackItem {
   return {
     id: "fallback-model",
     variant: "info",
     icon: <GaugeIcon />,
-    title: t("Using {model}", { model: fallbackModelName }),
-    description: resetsAt
-      ? t("{provider} is out of usage · resets {time}", {
-          provider: defaultProviderName,
-          time: formatUpcomingTimestamp(resetsAt, timestampFormat),
-        })
-      : t("{provider} is out of usage", { provider: defaultProviderName }),
+    title: `Using ${fallbackModelName}`,
+    description: `${defaultProviderName} is out of usage${resetsAt ? ` · resets ${formatUpcomingTimestamp(resetsAt, timestampFormat)}` : ""}`,
     actions: (
       <Button size="xs" variant="ghost" onClick={onUseDefault}>
-        {t("Use {model}", { model: defaultModelName })}
+        Use {defaultModelName}
       </Button>
     ),
-    dismissLabel: t("Dismiss fallback model notice"),
+    dismissLabel: "Dismiss fallback model notice",
     onDismiss,
   };
 }
@@ -121,7 +111,6 @@ function UsageLimitsBannerBody({
   readonly report: UsageLimitsReport;
   readonly environmentId: EnvironmentId;
 }) {
-  const t = useT();
   const now = Date.parse(report.createdAt);
   return (
     <ComposerBanner.Scroll>
@@ -157,7 +146,7 @@ function UsageLimitsBannerBody({
                   className="self-start"
                   onClick={() => void ensureLocalApi().shell.openExternal(externalUsage.url)}
                 >
-                  {t("Manage usage")}
+                  Manage usage
                 </Button>
               ) : null}
               {resetCreditInput && account.limits.resetCredits ? (

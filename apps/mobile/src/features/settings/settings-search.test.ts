@@ -1,4 +1,3 @@
-import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { describe, expect, it } from "vite-plus/test";
 
 import { localNotificationsRows, notificationsRow } from "../../fork/push/notificationsRow"; // fork: UnifiedPush

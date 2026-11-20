@@ -30,11 +30,8 @@ import { AppText as Text } from "./ui/AppText";
 import { Sheet } from "./ui/Sheet";
 import { useAppearancePreferences } from "../features/settings/appearance/AppearancePreferencesProvider";
 import { getMobileTerminalTheme } from "../features/terminal/terminalTheme";
-import { useT } from "../hooks/useT"; // fork: i18n
-import { changeRequestTerm } from "../lib/changeRequestTerm"; // fork: i18n
 
 function ContextField(props: { label: string; value: string | null | undefined; code?: boolean }) {
-  const t = useT(); // fork: i18n
   if (!props.value) return null;
   return (
     <View className="gap-1">
@@ -95,7 +92,6 @@ export function ComposerContextSheet(props: {
   readonly records?: ReadonlyArray<ComposerContextRecord>;
   readonly attachments?: ReadonlyArray<DraftComposerAttachment>;
 }) {
-  const t = useT(); // fork: i18n
   const openPullRequest = useOpenPullRequest({
     context:
       props.environmentId && props.projectId
@@ -209,23 +205,18 @@ export function ComposerContextSheet(props: {
       >
         {terminal ? (
           <Text className="text-sm text-foreground-muted">
-            {t("Lines {lineStart}–{lineEnd}", {
-              lineStart: terminal.lineStart,
-              lineEnd: terminal.lineEnd,
-            })}
+            Lines {terminal.lineStart}–{terminal.lineEnd}
           </Text>
         ) : null}
         {!record ? (
           <Text className="text-foreground">
-            {t(
-              "Context unavailable. The reference was copied without its payload. Copy it again from the original message or remove it.",
-            )}
+            Context unavailable. The reference was copied without its payload. Copy it again from
+            the original message or remove it.
           </Text>
         ) : "payload" in record ? (
           <Text className="text-foreground">
-            {t(
-              "This context type is not supported by this version of the app. Its payload will be preserved when sent.",
-            )}
+            This context type is not supported by this version of the app. Its payload will be
+            preserved when sent.
           </Text>
         ) : (
           <>
@@ -322,7 +313,7 @@ export function ComposerContextSheet(props: {
                 <ContextField label="Thread" value={record.title} />
                 {props.onOpenThread ? (
                   <Button
-                    label={t("Open thread")}
+                    label="Open thread"
                     tone="secondary"
                     onPress={() =>
                       props.onOpenThread?.({
@@ -347,7 +338,7 @@ export function ComposerContextSheet(props: {
                 />
                 {props.onOpenSkill ? (
                   <Button
-                    label={t("View instructions")}
+                    label="View instructions"
                     tone="secondary"
                     onPress={props.onOpenSkill}
                     fullWidth
@@ -397,7 +388,7 @@ export function ComposerContextSheet(props: {
         ) : null}
         {props.onOpenAttachment ? (
           <Button
-            label={t("Open attachment")}
+            label="Open attachment"
             tone="secondary"
             onPress={props.onOpenAttachment}
             fullWidth
@@ -405,9 +396,7 @@ export function ComposerContextSheet(props: {
         ) : null}
         {props.onOpenPullRequest && !pullRequestUrl ? (
           <Button
-            label={t("Open {changeRequestTerm}", {
-              changeRequestTerm: changeRequestTerm(changeRequestWord, t),
-            })}
+            label={`Open ${changeRequestTerm}`}
             tone="secondary"
             onPress={props.onOpenPullRequest}
             fullWidth

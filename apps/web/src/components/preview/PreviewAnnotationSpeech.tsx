@@ -16,7 +16,6 @@ import { useDictationShortcut, type DictationKeyHandlers } from "~/speech/useDic
 import { useEnvironmentSpeechInput } from "~/speech/useEnvironmentSpeechInput";
 import { useProject, useThreadShell } from "~/state/entities";
 import { previewBridge } from "./previewBridge";
-import { useT } from "~/hooks/useT";
 
 /**
  * The annotation editor lives inside the preview guest, which only forwards trusted gestures
@@ -33,7 +32,6 @@ export function PreviewAnnotationSpeech({
   config: DesktopPreviewAnnotationVoiceConfig;
   keybindings: Parameters<typeof useDictationShortcut>[0]["keybindings"];
 }) {
-  const t = useT();
   const navigate = useNavigate();
   const thread = useThreadShell(threadRef);
   const draftThread = useComposerDraftStore((store) => store.getDraftThreadByRef(threadRef));
@@ -114,7 +112,7 @@ export function PreviewAnnotationSpeech({
         current.current.speech.cancel();
         toastManager.add({
           type: "error",
-          title: t("Could not update annotation voice input"),
+          title: "Could not update annotation voice input",
           description: error instanceof Error ? error.message : String(error),
         });
       }

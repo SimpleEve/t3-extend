@@ -17,7 +17,6 @@ import type { FilePreviewItem } from "../../components/ui/FilePreviewModal";
 import { isBotBadgeImage } from "./botBadgeImages";
 import { PullRequestMarkdown } from "./PullRequestMarkdown";
 import { pullRequestDescriptionContent } from "./pullRequestDescriptionContent";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const COLLAPSED_HEIGHT = 240;
 
@@ -32,7 +31,6 @@ export function PullRequestDescription(props: {
   readonly footer?: ReactNode;
   readonly onTaskListChange?: ComponentProps<typeof PullRequestMarkdown>["onTaskListChange"];
 }) {
-  const t = useT(); // fork: i18n
   const { collapse } = props;
   const expanded = collapse?.expanded ?? true;
   const [bodyHeight, setBodyHeight] = useState(0);
@@ -56,7 +54,7 @@ export function PullRequestDescription(props: {
     .map((attachment) => {
       return {
         ...pullRequestImageSource(attachment.uri, mediaContext),
-        name: new URL(attachment.uri).pathname.split("/").pop() || t("Image"),
+        name: new URL(attachment.uri).pathname.split("/").pop() || "Image",
       };
     });
   const canCollapse = collapse !== undefined && bodyHeight > COLLAPSED_HEIGHT;
@@ -64,7 +62,7 @@ export function PullRequestDescription(props: {
   return (
     <View className="gap-5">
       <View className="gap-3">
-        <PullRequestSectionHeading>{t("Description")}</PullRequestSectionHeading>
+        <PullRequestSectionHeading>Description</PullRequestSectionHeading>
         {props.markdown.trim() ? (
           <View className="overflow-hidden">
             <View
@@ -122,7 +120,7 @@ export function PullRequestDescription(props: {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded }}
-                accessibilityLabel={expanded ? t("Collapse description") : t("Expand description")}
+                accessibilityLabel={expanded ? "Collapse description" : "Expand description"}
                 onPress={() => {
                   if (expanded) collapse.onCollapse();
                   collapse.onExpandedChange(!expanded);
@@ -135,7 +133,7 @@ export function PullRequestDescription(props: {
                 className="min-h-11 flex-row items-center justify-center gap-1 py-2 active:opacity-70"
               >
                 <Text className="text-xs font-t3-medium text-foreground">
-                  {expanded ? t("Show less") : t("Show more")}
+                  {expanded ? "Show less" : "Show more"}
                 </Text>
                 <SymbolView
                   name={expanded ? "chevron.up" : "chevron.down"}
@@ -146,13 +144,13 @@ export function PullRequestDescription(props: {
             ) : null}
           </View>
         ) : (
-          <Text className="text-sm text-foreground-muted">{t("No description provided.")}</Text>
+          <Text className="text-sm text-foreground-muted">No description provided.</Text>
         )}
         {props.footer}
       </View>
       {content.attachments.length ? (
         <View className="gap-3">
-          <PullRequestSectionHeading>{t("Attachments")}</PullRequestSectionHeading>
+          <PullRequestSectionHeading>Attachments</PullRequestSectionHeading>
           <ScrollView
             horizontal
             keyboardShouldPersistTaps="always"

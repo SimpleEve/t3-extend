@@ -10,7 +10,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
 import { modelPickerModelKey } from "./modelPickerKeys";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 export const ModelListRow = memo(function ModelListRow(props: {
   index: number;
@@ -35,7 +34,6 @@ export const ModelListRow = memo(function ModelListRow(props: {
   disabledReason?: string | null;
   onToggleFavorite: (instanceId: ProviderInstanceId, slug: string) => void;
 }) {
-  const t = useT(); // fork: interface language
   const model = {
     slug: props.slug,
     name: props.name,
@@ -90,14 +88,14 @@ export const ModelListRow = memo(function ModelListRow(props: {
         {props.showNewBadge ? (
           <span
             className="shrink-0 rounded border border-update/35 bg-update/15 px-0.5 py-px text-3xs font-bold uppercase leading-none tracking-wide text-update-foreground"
-            aria-label={t("New model")}
+            aria-label="New model"
           >
-            {t("New")}
+            New
           </span>
         ) : null}
         {props.unavailable ? (
           <Badge variant="outline" size="sm">
-            {t("Unavailable")}
+            Unavailable
           </Badge>
         ) : null}
       </div>
@@ -117,7 +115,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
                   event.stopPropagation();
                 }}
                 disabled={Boolean(props.disabledReason)}
-                aria-label={props.isFavorite ? t("Remove from favorites") : t("Add to favorites")}
+                aria-label={props.isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
                 <StarIcon
                   className={cn(
@@ -131,7 +129,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
             }
           />
           <TooltipPopup side="top" align="center">
-            {props.isFavorite ? t("Remove from favorites") : t("Add to favorites")}
+            {props.isFavorite ? "Remove from favorites" : "Add to favorites"}
           </TooltipPopup>
         </Tooltip>
         {props.jumpLabel ? <Kbd>{props.jumpLabel}</Kbd> : null}

@@ -32,9 +32,6 @@ import {
   pullRequestStatus,
 } from "./pullRequestStatus";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
-import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 /** A label as list rows show it: small, tinted by its color, truncating. */
 export function ListRowLabel(props: {
@@ -67,7 +64,6 @@ export const PullRequestListRow = memo(
     readonly getActions: (item: EnvironmentPullRequestListEntry) => MenuProps["actions"];
     readonly onAction: (item: EnvironmentPullRequestListEntry, action: string) => void;
   }) {
-    const t = useT(); // fork: i18n
     const { item } = props;
     const foreground = props.selected
       ? selectedThreadRowColors.foregroundClassName

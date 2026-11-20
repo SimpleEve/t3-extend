@@ -37,8 +37,6 @@ import type { PullRequestCompletionScope } from "../PullRequestMarkdownTextarea"
 import { excerptLoader } from "./GuideExcerpt.logic";
 import { GuideNoteMarker } from "./GuideNotes";
 import { GuideProse } from "./GuideProse";
-import { useT } from "~/hooks/useT";
-import { interpolateNodes } from "~/lib/interpolateNodes";
 
 const EXCERPT_UNSAFE_CSS = `${DIFF_VIEW_UNSAFE_CSS}
 [data-code]::-webkit-scrollbar-thumb {
@@ -117,7 +115,6 @@ export function GuideExcerpt({
   loadDiffFiles: FileDiffContentsLoader;
   onOpenFile: (path: string) => void;
 }) {
-  const t = useT();
   // Keep selections outside ExcerptDiff to survive head reloads.
   const [draft, setDraft] = useState<ExcerptDraft | null>(null);
   const slice = excerptSlice(file, excerpt);
@@ -143,7 +140,7 @@ export function GuideExcerpt({
         />
       ) : loading ? (
         <p className="rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground">
-          {t("Loading {path}...", { path: excerpt.path })}
+          Loading {excerpt.path}...
         </p>
       ) : (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground">
@@ -155,7 +152,7 @@ export function GuideExcerpt({
             })}
           </span>
           <Button size="xs" variant="outline" onClick={() => onOpenFile(excerpt.path)}>
-            {t("Open in Code")}
+            Open in Code
           </Button>
         </div>
       )}
@@ -184,7 +181,6 @@ function ExcerptDiff({
   commenting: ExcerptCommenting | null;
   onOpenFile: (path: string) => void;
 }) {
-  const t = useT();
   const resolvedTheme = useRenderedAppearance();
   const loadExcerptFiles = excerptLoader(excerpt, file, slice.rows, loadDiffFiles);
 
@@ -311,7 +307,7 @@ function ExcerptDiff({
                     ? t("Add a comment…")
                     : t("Ask the agent about these lines…")
                 }
-                submitLabel={commenting.canComment ? t("Add to review") : t("Ask agent")}
+                submitLabel={commenting.canComment ? "Add to review" : "Ask agent"}
                 {...(commenting.canComment && onAskAgent !== null
                   ? {
                       secondaryAction: {
@@ -355,7 +351,7 @@ function ExcerptDiff({
             <Button
               size="icon-xs"
               variant="ghost-muted"
-              aria-label={t("Open {path} in Code", { path: excerpt.path })}
+              aria-label={`Open ${excerpt.path} in Code`}
               onClick={() => onOpenFile(excerpt.path)}
             >
               <ArrowUpRightIcon aria-hidden />

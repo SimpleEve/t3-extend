@@ -10,7 +10,6 @@ import { ContextChipPopover } from "../contextChipParts";
 import { Button } from "../ui/button";
 import { PopoverClose } from "../ui/popover";
 import { ModelMentionChip } from "./ModelMentionChip";
-import { useT } from "~/hooks/useT"; // fork: restored import
 
 function SkillInlineText(props: {
   text: string;
@@ -125,24 +124,23 @@ export function SkillChipPopover(props: {
   copyMarkdown?: string | undefined;
   onViewInstructions: (() => void) | undefined;
 }) {
-  const t = useT();
   return (
     <ContextChipPopover
       kind="skill"
       icon={<SkillChipIcon />}
       label={props.label}
-      accessibleLabel={t("Skill {label}", { label: props.label })}
+      accessibleLabel={`Skill ${props.label}`}
       copyMarkdown={props.copyMarkdown}
     >
       <div className="space-y-3 p-2 text-sm">
         <p className="font-medium">{props.label}</p>
-        <p>{props.description || t("No description is available for this skill.")}</p>
+        <p>{props.description || "No description is available for this skill."}</p>
         {props.onViewInstructions ? (
           <PopoverClose
             render={<Button variant="outline" size="sm" />}
             onClick={props.onViewInstructions}
           >
-            {t("View instructions")}
+            View instructions
           </PopoverClose>
         ) : null}
       </div>

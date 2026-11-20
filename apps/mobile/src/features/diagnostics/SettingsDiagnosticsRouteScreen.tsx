@@ -26,9 +26,6 @@ import {
   parseStartupCrashRecords,
   type StartupCrashRecord,
 } from "./crash-log-model";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 
 // expo-updates retains only seven days of logs.
 const LOG_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -83,7 +80,6 @@ function appIdentity() {
 }
 
 export function SettingsDiagnosticsRouteScreen() {
-  const t = useT(); // fork: i18n
   const insets = useSafeAreaInsets();
   const state = useCrashLogState();
   const [copied, setCopied] = useState(false);
@@ -97,7 +93,7 @@ export function SettingsDiagnosticsRouteScreen() {
   };
 
   return (
-    <SettingsScreen title={t("Diagnostics")}>
+    <SettingsScreen title="Diagnostics">
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
@@ -107,7 +103,7 @@ export function SettingsDiagnosticsRouteScreen() {
       >
         {crashReportingAvailable ? <CrashReportsSetting /> : null}
 
-        <SettingsSection title={t("Startup crashes")}>
+        <SettingsSection title="Startup crashes">
           {state.status === "loading" ? (
             <View className="items-center gap-3 px-6 py-8">
               <AppActivityIndicator />
@@ -118,14 +114,14 @@ export function SettingsDiagnosticsRouteScreen() {
           ) : state.status === "unavailable" ? (
             <EmptyState
               icon="exclamationmark.triangle"
-              title={t("Crash log unavailable")}
-              detail={t("Startup crash records are only kept in store and TestFlight builds.")}
+              title="Crash log unavailable"
+              detail="Startup crash records are only kept in store and TestFlight builds."
             />
           ) : records.length === 0 ? (
             <EmptyState
               icon="checkmark.circle"
-              title={t("No startup crashes")}
-              detail={t("Nothing has taken the app down during launch in the last 7 days.")}
+              title="No startup crashes"
+              detail="Nothing has taken the app down during launch in the last 7 days."
             />
           ) : (
             records.map((record, index) => (
@@ -135,18 +131,18 @@ export function SettingsDiagnosticsRouteScreen() {
         </SettingsSection>
 
         <View className="gap-3">
-          <SettingsSection title={t("Actions")}>
+          <SettingsSection title="Actions">
             <SettingsActionRow
               icon={copied ? "checkmark" : "doc.on.doc"}
-              label={copied ? t("Copied") : t("Copy crash report")}
+              label={copied ? "Copied" : "Copy crash report"}
               disabled={state.status !== "ready"}
               onPress={() => void copyReport()}
             />
           </SettingsSection>
           <Text className="px-2 text-sm leading-normal text-foreground-muted">
-            {t(
-              "Paste the report into a GitHub issue. It contains the app version, the JavaScript error message, and the component stack. Error messages can quote values from the app, so read it over before sharing.",
-            )}
+            Paste the report into a GitHub issue. It contains the app version, the JavaScript error
+            message, and the component stack. Error messages can quote values from the app, so read
+            it over before sharing.
           </Text>
         </View>
       </ScrollView>
@@ -155,7 +151,6 @@ export function SettingsDiagnosticsRouteScreen() {
 }
 
 function CrashReportsSetting() {
-  const t = useT(); // fork: i18n
   const preferences = useAtomValue(mobilePreferencesAtom);
   const savePreferences = useAtomSet(updateMobilePreferencesAtom, { mode: "promiseExit" });
   // One change at a time, so a slow save never turns sending back on after a later opt-out.
@@ -185,19 +180,19 @@ function CrashReportsSetting() {
 
   return (
     <View className="gap-3">
-      <SettingsSection title={t("Crash reports")}>
+      <SettingsSection title="Crash reports">
         <SettingsSwitchRow
           icon="tray.and.arrow.up"
-          label={t("Send crash reports")}
+          label="Send crash reports"
           disabled={!ready || saving}
           value={enabled}
           onValueChange={change}
         />
       </SettingsSection>
       <Text className="px-2 text-sm leading-normal text-foreground-muted">
-        {t(
-          "When the app crashes or hits an error, it sends the error message, the stack trace, the app version, and the device model and OS version to the T3 Code team. Each launch also sends startup timings. Reports carry a random ID for this install.",
-        )}
+        When the app crashes or hits an error, it sends the error message, the stack trace, the app
+        version, and the device model and OS version to the T3 Code team. Each launch also sends
+        startup timings. Reports carry a random ID for this install.
       </Text>
     </View>
   );

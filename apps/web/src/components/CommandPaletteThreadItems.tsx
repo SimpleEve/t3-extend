@@ -43,7 +43,6 @@ import {
   ThreadRowTrailingStatus,
   ThreadSearchPullRequestNumber,
 } from "./ThreadStatusIndicators";
-import { useT } from "../hooks/useT";
 
 function useProviderEntryByEnvironmentAndInstanceId() {
   const { environments } = useEnvironments();
@@ -99,7 +98,6 @@ export function useCommandPaletteThreadItems(input: {
   readonly threadSearchQuery: string;
 }) {
   const { activeThread, threadSearchQuery } = input;
-  const t = useT();
   const navigate = useNavigate();
   const threads = useVisibleThreadShells();
   const delegatedUnderParent = useDelegatedUnderParent();
@@ -123,7 +121,6 @@ export function useCommandPaletteThreadItems(input: {
       : {}),
     ...(activeThread ? { activeThread } : {}),
     projectByKey,
-    t, // fork: interface language
     icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
     renderLeadingContent: (thread) => <ThreadRowLeadingStatus thread={thread} />,
     renderTrailingContent: (thread) => (
@@ -147,7 +144,7 @@ export function useCommandPaletteThreadItems(input: {
           project={projectByKey.get(`${thread.environmentId}:${thread.projectId}`) ?? null}
           projectTitle={projectTitle ?? null}
           environmentLabel={
-            projectEnvironmentLocationById.get(thread.environmentId)?.label ?? t("Remote")
+            projectEnvironmentLocationById.get(thread.environmentId)?.label ?? "Remote"
           }
           branch={thread.branch}
           worktreePath={thread.worktreePath}

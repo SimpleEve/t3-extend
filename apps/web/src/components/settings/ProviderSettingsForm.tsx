@@ -29,7 +29,6 @@ export type SettingsFormDefinition = Pick<ProviderClientDefinition, "settingsSch
   readonly driverKind?: ProviderClientDefinition["driverKind"];
 };
 import { SettingsRow } from "./settingsLayout";
-import { useT } from "../../hooks/useT";
 
 export interface ProviderSettingsFieldModel {
   readonly key: string;
@@ -221,7 +220,6 @@ function ProviderCommandArguments({
 }: Pick<ProviderSettingsFormProps, "value" | "onChange"> & {
   readonly managedReason: string | undefined;
 }) {
-  const t = useT();
   const args = configuredCommandArgs(value);
   const [storedDraft, setDraft] = useState(() => seedRowsDraft(args, toCommandArgumentRows));
   const draft = reconcileRowsDraft(storedDraft, args, commandArgumentsEqual, toCommandArgumentRows);
@@ -239,7 +237,7 @@ function ProviderCommandArguments({
   return (
     <SettingsRow
       title="Arguments"
-      description={t("One literal argument per row, in launch order.")}
+      description="One literal argument per row, in launch order."
       managed={managedReason}
       control={
         <Button
@@ -249,7 +247,7 @@ function ProviderCommandArguments({
           onClick={() => updateArguments([...rows, makeCommandArgumentDraftRow("")])}
         >
           <PlusIcon />
-          {t("Add argument")}
+          Add argument
         </Button>
       }
     >
@@ -273,7 +271,7 @@ function ProviderCommandArguments({
                       ),
                     )
                   }
-                  aria-label={t("Argument {index}", { index: index + 1 })}
+                  aria-label={`Argument ${index + 1}`}
                   spellCheck={false}
                 />
                 <Button
@@ -283,7 +281,7 @@ function ProviderCommandArguments({
                   onClick={() =>
                     updateArguments(rows.filter((current) => current.id !== argument.id))
                   }
-                  aria-label={t("Remove argument {index}", { index: index + 1 })}
+                  aria-label={`Remove argument ${index + 1}`}
                 >
                   <XIcon />
                 </Button>
@@ -367,7 +365,6 @@ function SecretSettingsControl({
   readonly environmentId: EnvironmentId;
   readonly onChange: ProviderSettingsFormProps["onChange"];
 }) {
-  const t = useT();
   const sources = useSecretSources(environmentId);
   const saved =
     value !== null && typeof value === "object"
@@ -398,7 +395,7 @@ function SecretSettingsControl({
           size="icon-sm"
           variant="ghost-destructive"
           onClick={() => onChange(nextProviderConfigWithFieldValue(value, field, ""))}
-          aria-label={t("Clear {label}", { label: field.label })}
+          aria-label={`Clear ${field.label}`}
         >
           <XIcon className="size-3.5" />
         </Button>
@@ -442,7 +439,7 @@ function ProviderSettingsSelect({
       <SelectPopup align="start" alignItemWithTrigger={false}>
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
-            {t(option.label)}
+            {option.label}
           </SelectItem>
         ))}
       </SelectPopup>
@@ -463,7 +460,6 @@ function ProviderSettingsTextInput({
   readonly descriptionId: string | undefined;
   readonly onChange: ProviderSettingsFormProps["onChange"];
 }) {
-  const t = useT();
   const [rejected, setRejected] = useState<string | null>(null);
   return (
     <div className="flex w-full min-w-0 flex-col gap-1 @min-[32rem]/settings-row:w-56">
@@ -489,7 +485,7 @@ function ProviderSettingsTextInput({
         spellCheck={false}
       />
       {rejected !== null ? (
-        <p className="text-2xs text-destructive">{t("Enter a valid value. It was not saved.")}</p>
+        <p className="text-2xs text-destructive">Enter a valid value. It was not saved.</p>
       ) : null}
     </div>
   );
@@ -573,7 +569,7 @@ function ProviderSettingsFieldRow({
           onChange={(event) =>
             onChange(nextProviderConfigWithFieldValue(value, field, event.target.value))
           }
-          placeholder={field.placeholder === undefined ? undefined : t(field.placeholder)}
+          placeholder={field.placeholder}
           spellCheck={false}
         />
       ) : field.acceptsSecretReference && environmentId !== undefined ? (
@@ -602,7 +598,7 @@ function ProviderSettingsFieldRow({
               size="icon-sm"
               variant="ghost-destructive"
               onClick={() => onChange(nextProviderConfigWithFieldValue(value, field, ""))}
-              aria-label={t("Clear {label}", { label: field.label })}
+              aria-label={`Clear ${field.label}`}
             >
               <XIcon className="size-3.5" />
             </Button>
@@ -683,7 +679,7 @@ function ProviderSettingsFieldRow({
             onChange={(event) =>
               onChange(nextProviderConfigWithFieldValue(value, field, event.target.value))
             }
-            placeholder={field.placeholder === undefined ? undefined : t(field.placeholder)}
+            placeholder={field.placeholder}
             spellCheck={false}
           />
           {description}
@@ -708,7 +704,7 @@ function ProviderSettingsFieldRow({
             autoComplete={!field.secret && field.control === "password" ? "off" : undefined}
             value={readProviderConfigString(value, field.key)}
             onCommit={(next) => onChange(nextProviderConfigWithFieldValue(value, field, next))}
-            placeholder={field.placeholder === undefined ? undefined : t(field.placeholder)}
+            placeholder={field.placeholder}
             spellCheck={false}
           />
         ) : (
@@ -720,7 +716,7 @@ function ProviderSettingsFieldRow({
             onChange={(event) =>
               onChange(nextProviderConfigWithFieldValue(value, field, event.target.value))
             }
-            placeholder={field.placeholder === undefined ? undefined : t(field.placeholder)}
+            placeholder={field.placeholder}
             spellCheck={false}
           />
         )}

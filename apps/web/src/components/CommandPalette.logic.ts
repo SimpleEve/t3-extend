@@ -32,8 +32,6 @@ import {
 import { filterFilesystemBrowseEntries } from "@t3tools/client-runtime/state/filesystem";
 import { isShownUnderParent } from "@t3tools/client-runtime/state/threads";
 import { type ReactNode } from "react";
-import type { Translator } from "@t3tools/client-runtime/i18n";
-import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: interface language
 import { formatRelativeTimeLabel } from "../timestampFormat";
 import { type Project, type SidebarThreadSummary, type Thread } from "../types";
 
@@ -47,8 +45,6 @@ export function buildLinkedThreadActionItems(
     query: string;
     icon: ReactNode;
     runThread: (thread: Pick<SidebarThreadSummary, "environmentId" | "id">) => Promise<void>;
-    // fork: interface language
-    t?: Translator;
   },
 ): CommandPaletteActionItem[] {
   const t = input.t ?? ((source: string) => source);
@@ -56,8 +52,8 @@ export function buildLinkedThreadActionItems(
     kind: "action",
     value: `thread:${input.environmentId}:${thread.id}`,
     threadRef: { environmentId: input.environmentId, threadId: thread.id },
-    title: thread.title || t("Untitled thread"),
-    description: thread.archivedAt === null ? t("Linked thread") : t("Archived thread"),
+    title: thread.title || "Untitled thread",
+    description: thread.archivedAt === null ? "Linked thread" : "Archived thread",
     searchTerms: [input.query, thread.title],
     icon: input.icon,
     run: () => input.runThread({ environmentId: input.environmentId, id: thread.id }),
@@ -442,8 +438,6 @@ export function buildThreadActionItems<TThread extends BuildThreadActionItemsThr
   runThread: (thread: TThread) => Promise<void>;
   /** Makes the environment searchable; pass it only with two or more environments. */
   environmentLabelOf?: (thread: TThread) => string | null;
-  // fork: interface language
-  t?: Translator;
   /** Tasks linked environments run for a listed thread; they open from under that thread. */
   delegatedUnderParent?: ReadonlySet<string>;
 }): CommandPaletteActionItem[] {

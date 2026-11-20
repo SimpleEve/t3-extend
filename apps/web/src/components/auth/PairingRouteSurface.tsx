@@ -19,12 +19,11 @@ import { connectionErrorMessage } from "../../connection/errorMessages";
 import { interpolateNodes } from "../../lib/interpolateNodes";
 
 export function PairingPendingSurface() {
-  const t = useT();
   return (
     <StandalonePage>
       <StandalonePageHeader
-        title={t("Pairing with this environment")}
-        description={t("Validating the pairing link and preparing your session.")}
+        title="Pairing with this environment"
+        description="Validating the pairing link and preparing your session."
       />
     </StandalonePage>
   );
@@ -39,7 +38,6 @@ export function PairingRouteSurface({
   initialErrorMessage?: string;
   onAuthenticated: () => void;
 }) {
-  const t = useT();
   const [autoPairToken] = useState(peekPairingTokenFromUrl);
   const [credential, setCredential] = useState(autoPairToken ?? "");
   const [errorMessage, setErrorMessage] = useState(initialErrorMessage ?? "");
@@ -52,7 +50,7 @@ export function PairingRouteSurface({
 
     const submitError = await submitServerAuthCredential(nextCredential).then(
       () => null,
-      (error) => connectionErrorMessage(error, t, t("Authentication failed.")),
+      (error) => errorMessageFromUnknown(error),
     );
 
     setIsSubmitting(false);
@@ -90,14 +88,14 @@ export function PairingRouteSurface({
   return (
     <StandalonePage>
       <StandalonePageHeader
-        title={t("Pair with this environment")}
-        description={t(describeAuthGate(auth.bootstrapMethods))}
+        title="Pair with this environment"
+        description={describeAuthGate(auth.bootstrapMethods)}
       />
 
       <form className="mt-6 space-y-4" onSubmit={(event) => void handleSubmit(event)}>
         <div className="space-y-2">
           <label className="text-sm font-medium" htmlFor="pairing-token">
-            {t("Pairing token")}
+            Pairing token
           </label>
           <Input
             id="pairing-token"
@@ -107,7 +105,7 @@ export function PairingRouteSurface({
             disabled={isSubmitting}
             nativeInput
             onChange={(event) => setCredential(event.currentTarget.value)}
-            placeholder={t("Paste a one-time token or pairing secret")}
+            placeholder="Paste a one-time token or pairing secret"
             spellCheck={false}
             value={credential}
           />
@@ -121,7 +119,7 @@ export function PairingRouteSurface({
 
         <div className="flex flex-wrap gap-2">
           <Button disabled={isSubmitting} size="sm" type="submit">
-            {isSubmitting ? t("Pairing...") : t("Continue")}
+            {isSubmitting ? "Pairing..." : "Continue"}
           </Button>
           <Button
             disabled={isSubmitting}
@@ -129,20 +127,19 @@ export function PairingRouteSurface({
             size="sm"
             variant="outline"
           >
-            {t("Reload app")}
+            Reload app
           </Button>
         </div>
       </form>
 
       <div className="mt-6 rounded-lg border border-border/70 bg-background/55 px-3 py-3 text-xs leading-relaxed text-muted-foreground">
-        {t(describeSupportedMethods(auth.bootstrapMethods))}
+        {describeSupportedMethods(auth.bootstrapMethods)}
       </div>
     </StandalonePage>
   );
 }
 
 export function HostedPairingRouteSurface() {
-  const t = useT();
   const connectPairingEnvironment = useAtomCommand(connectPairing, {
     reportFailure: false,
   });
@@ -152,8 +149,8 @@ export function HostedPairingRouteSurface() {
   );
   const [message, setMessage] = useState(() =>
     request
-      ? t("Connecting to this backend.")
-      : t("This pairing link is missing its backend host or token."),
+      ? "Connecting to this backend."
+      : "This pairing link is missing its backend host or token.",
   );
   const [canRetry, setCanRetry] = useState(false);
   const submitAttemptedRef = useRef(false);
@@ -162,7 +159,7 @@ export function HostedPairingRouteSurface() {
   const submitHostedPairingRequest = async () => {
     if (!request) {
       setStatus("error");
-      setMessage(t("This pairing link is missing its backend host or token."));
+      setMessage("This pairing link is missing its backend host or token.");
       setCanRetry(false);
       return;
     }
@@ -177,7 +174,7 @@ export function HostedPairingRouteSurface() {
     }
 
     setStatus("pairing");
-    setMessage(t("Connecting to this backend."));
+    setMessage("Connecting to this backend.");
     setCanRetry(false);
     tokenSubmittedRef.current = true;
 
@@ -232,10 +229,10 @@ export function HostedPairingRouteSurface() {
       <StandalonePageHeader
         title={
           status === "paired"
-            ? t("Backend paired")
+            ? "Backend paired"
             : status === "error"
-              ? t("Pairing failed")
-              : t("Pairing backend")
+              ? "Pairing failed"
+              : "Pairing backend"
         }
         description={message}
       />
@@ -251,9 +248,8 @@ export function HostedPairingRouteSurface() {
       {status === "error" ? (
         <Alert variant="error" className="mt-5">
           <AlertDescription>
-            {t(
-              "Verify the backend is reachable from this browser, supports CORS for hosted clients, and is served over HTTPS when opening this page from HTTPS.",
-            )}
+            Verify the backend is reachable from this browser, supports CORS for hosted clients, and
+            is served over HTTPS when opening this page from HTTPS.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -261,16 +257,16 @@ export function HostedPairingRouteSurface() {
       <div className="mt-6 flex flex-wrap gap-2">
         {status === "pairing" ? (
           <Button disabled size="sm">
-            {t("Pairing...")}
+            Pairing...
           </Button>
         ) : canRetry ? (
           <Button size="sm" onClick={() => void submitHostedPairingRequest()}>
-            {t("Try again")}
+            Try again
           </Button>
         ) : null}
         {status === "paired" ? (
           <Button size="sm" variant="outline" onClick={() => (window.location.href = "/")}>
-            {t("Open app")}
+            Open app
           </Button>
         ) : null}
       </div>

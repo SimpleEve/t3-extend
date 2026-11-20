@@ -13,14 +13,13 @@ import {
 import { readLocalApi } from "../../localApi";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { toastManager } from "../ui/toast";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 function reportFailure(title: string, cause: unknown) {
   const traceId = findErrorTraceId(cause);
   toastManager.add({
     type: "error",
     title,
-    description: cause instanceof Error ? cause.message : translate(getUiLocale(), "Try again."),
+    description: cause instanceof Error ? cause.message : "Try again.",
     data: traceId
       ? {
           secondaryActionProps: {

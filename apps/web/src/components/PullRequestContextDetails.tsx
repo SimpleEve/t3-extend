@@ -6,13 +6,10 @@ import {
 import { ArrowRightIcon } from "lucide-react";
 
 import { cn } from "~/lib/utils";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { changeRequestTerm } from "./pullRequest/changeRequestTerm"; // fork: i18n
 
 import { resolvePullRequestState } from "./pullRequest/pullRequestPresentation";
 
 export function PullRequestContextDetails({ metadata }: { metadata: PullRequestContextMetadata }) {
-  const t = useT(); // fork: interface language
   const state = resolvePullRequestState(metadata);
   // A context chip carries the change request's URL alone, so the URL names its host.
   const { singular } = (

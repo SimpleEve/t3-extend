@@ -27,7 +27,6 @@ import { useAtomCommand } from "../state/use-atom-command";
 import { type DraftId, useComposerDraftStore } from "../composerDraftStore";
 import { toastManager } from "./ui/toast";
 import { stackedThreadToast } from "./ui/toastHelpers";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export function ProjectCloneToastCoordinator() {
   const { environments } = useEnvironments();
@@ -122,7 +121,7 @@ function EnvironmentCloneToasts({ environmentId }: { environmentId: EnvironmentI
       if (clone.phase === "running") {
         const options = stackedThreadToast({
           type: "loading",
-          title: translate(getUiLocale(), "Cloning {name}", { name }),
+          title: `Cloning ${name}`,
           description: projectCloneProgressSummary(clone),
           timeout: 0,
           actionProps: {
@@ -148,7 +147,7 @@ function EnvironmentCloneToasts({ environmentId }: { environmentId: EnvironmentI
       if (clone.phase === "done") {
         const options = stackedThreadToast({
           type: "success",
-          title: translate(getUiLocale(), "Cloned {name}", { name }),
+          title: `Cloned ${name}`,
           description: clone.destinationPath,
           timeout: 8_000,
           actionProps: {

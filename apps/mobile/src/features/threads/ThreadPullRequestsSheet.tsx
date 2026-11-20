@@ -15,13 +15,10 @@ import {
   useLinkedPullRequestLines,
 } from "./LinkedPullRequestList";
 import { useLinkedPullRequestActions } from "./useLinkedPullRequestActions";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 export function ThreadPullRequestsSheet(
   _props: StaticScreenProps<{ readonly environmentId: string; readonly threadId: string }>,
 ) {
-  const t = useT();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { selectedThread, selectedThreadProject, selectedEnvironmentRuntime } =
@@ -44,7 +41,7 @@ export function ThreadPullRequestsSheet(
   });
   const rowInputs = { lines, actions };
   const { singular } = actions.terminology;
-  const title = t("Linked {plural}", { plural: changeRequestTerm(actions.terminology.plural, t) });
+  const title = `Linked ${actions.terminology.plural}`;
 
   const content = (
     <View className="flex-1 bg-screen">
@@ -75,13 +72,13 @@ export function ThreadPullRequestsSheet(
         ListHeaderComponent={
           lines.length > 0 ? (
             <Text className="px-4 pt-2 pb-1 text-xs text-foreground-muted">
-              {t("{openCount} open · {count} linked", { openCount, count: lines.length })}
+              {openCount} open · {lines.length} linked
             </Text>
           ) : null
         }
         ListEmptyComponent={
           <Text className="pt-6 text-center text-sm text-foreground-muted">
-            {t("No linked {plural}.", { plural: changeRequestTerm(actions.terminology.plural, t) })}
+            No linked {actions.terminology.plural}.
           </Text>
         }
       />
@@ -97,9 +94,7 @@ export function ThreadPullRequestsSheet(
           actions.canLink
             ? [
                 {
-                  accessibilityLabel: t("Link {singular}", {
-                    singular: changeRequestTerm(singular, t),
-                  }),
+                  accessibilityLabel: `Link ${singular}`,
                   icon: "plus",
                   onPress: actions.promptLink,
                 },

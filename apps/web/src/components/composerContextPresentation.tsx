@@ -52,8 +52,6 @@ import {
   PullRequestChip,
   UnresolvedChip,
 } from "./contextChipParts";
-import { useT } from "~/hooks/useT";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type ComposerDraftContextRecord =
   | { kind: "terminal"; record: TerminalContextDraft }
@@ -142,15 +140,13 @@ function ContextChip(props: {
   detailsMode: ContextPresentationCapability["details"];
   kind: ContextChipKind;
 }) {
-  const t = useT();
-  const kindLabel = t(props.kindLabel);
   if (props.detailsMode === "popover") {
     return (
       <ContextChipPopover
         kind={props.kind}
         icon={props.icon}
         label={props.label}
-        accessibleLabel={t("{kindLabel}, {label}", { kindLabel, label: props.label })}
+        accessibleLabel={props.kindLabel + ", " + props.label}
       >
         {props.details}
       </ContextChipPopover>
@@ -219,7 +215,6 @@ function FileContextChip(props: {
   record: ComposerFileAttachment;
   upload: AttachmentUploadState | undefined;
 }) {
-  const t = useT();
   const actions = use(ComposerContextActionsContext);
   const { resolvedTheme } = useTheme();
   const needsReattach = composerFileNeedsReattach(props.record);
@@ -258,9 +253,7 @@ function FileContextChip(props: {
       }
       tooltip={
         needsReattach
-          ? t("{name} was not saved with this draft. Attach it again to send it.", {
-              name: props.record.name,
-            })
+          ? `${props.record.name} was not saved with this draft. Attach it again to send it.`
           : attachmentTooltip(props.record, props.upload)
       }
     />
@@ -268,7 +261,6 @@ function FileContextChip(props: {
 }
 
 function PullRequestContextChip(props: { record: ReviewCommentContext; kind: ContextChipKind }) {
-  const t = useT(); // fork: interface language
   const actions = use(ComposerContextActionsContext);
   const metadata = props.record.pullRequest;
   if (metadata === undefined) return null;
@@ -325,7 +317,6 @@ function ComposerPreviewAnnotationDetails({
   annotation: PreviewAnnotationPayload;
   screenshot: ComposerImageAttachment | undefined;
 }) {
-  const t = useT();
   const summary = previewAnnotationTooltip(annotation);
   const screenshotUrl = annotation.screenshot?.dataUrl || screenshot?.previewUrl;
   return (
@@ -333,12 +324,12 @@ function ComposerPreviewAnnotationDetails({
       {screenshotUrl ? (
         <img
           src={screenshotUrl}
-          alt={t("Annotated preview crop")}
+          alt="Annotated preview crop"
           className="max-h-64 w-full border-border/70 border-b bg-muted object-contain"
         />
       ) : (
         <div className="border-border/70 border-b bg-muted/40 px-3 py-2 text-secondary-label text-xs">
-          {t("Screenshot unavailable")}
+          Screenshot unavailable
         </div>
       )}
       <div className="whitespace-pre-wrap wrap-break-word px-3 py-2.5 text-sm text-foreground">
@@ -364,11 +355,10 @@ function ComposerThreadContextChip(props: { record: ThreadContextRecord }) {
 }
 
 function UnresolvedContextChip(props: { label: string }) {
-  const t = useT();
   return (
     <UnresolvedChip
       label={props.label}
-      tooltip={t("This context is no longer available. Remove it or attach it again.")}
+      tooltip="This context is no longer available. Remove it or attach it again."
     />
   );
 }
@@ -512,7 +502,6 @@ export function ComposerContextReferenceChip(props: {
   label: string;
 }): ReactElement {
   const records = use(ComposerContextRecordsContext);
-  const t = useT(); // fork: interface language
   return composerContextPresentationRegistry.render(props.kind, records.get(props.contextId), {
     label: props.label,
     t,

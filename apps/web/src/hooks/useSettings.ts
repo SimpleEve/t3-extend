@@ -62,7 +62,6 @@ import {
 } from "~/state/session";
 import { environmentIdsKey } from "~/state/environmentAtomList";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 const CLIENT_SETTINGS_PERSISTENCE_ERROR_SCOPE = "[CLIENT_SETTINGS]";
 
@@ -464,8 +463,8 @@ export function useUpdateEnvironmentModelPreferences(environmentId: EnvironmentI
     } catch {
       toastManager.add({
         type: "error",
-        title: translate(getUiLocale(), "Model preferences not saved"),
-        description: translate(getUiLocale(), "Could not load saved model preferences. Try again."),
+        title: "Model preferences not saved",
+        description: "Could not load saved model preferences. Try again.",
       });
       return;
     }
@@ -491,11 +490,8 @@ export function useToggleEnvironmentModelFavorite(environmentId: EnvironmentId |
       } catch {
         toastManager.add({
           type: "error",
-          title: translate(getUiLocale(), "Favorites not saved"),
-          description: translate(
-            getUiLocale(),
-            "Could not load saved model preferences. Try again.",
-          ),
+          title: "Favorites not saved",
+          description: "Could not load saved model preferences. Try again.",
         });
         return;
       }
@@ -670,7 +666,7 @@ function useUpdateSettingsTarget(environmentId: EnvironmentId | null) {
         options?.onFailed?.();
         return toastManager.add({
           type: "warning",
-          title: translate(getUiLocale(), "Setting not saved"),
+          title: "Setting not saved",
           description,
         });
       };

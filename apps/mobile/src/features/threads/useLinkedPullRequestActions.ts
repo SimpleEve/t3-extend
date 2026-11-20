@@ -29,8 +29,6 @@ import type { EnvironmentRuntimeState } from "../../state/remote-runtime-types";
 import { useEnvironmentScope } from "../../state/session";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 type MenuAction = MenuProps["actions"][number];
 
@@ -39,7 +37,6 @@ export function useLinkedPullRequestActions(input: {
   readonly project: EnvironmentProject | null;
   readonly runtime: EnvironmentRuntimeState | null;
 }) {
-  const t = useT(); // fork: i18n
   const { thread, project, runtime } = input;
   const terminology = sourceControlClients.get(project?.repositoryIdentity?.provider).changeRequest;
   const capabilities = runtime?.serverConfig?.environment.capabilities;
@@ -61,7 +58,7 @@ export function useLinkedPullRequestActions(input: {
     const result = await pending;
     if (result._tag === "Success" || isAtomCommandInterrupted(result)) return;
     const cause = squashAtomCommandFailure(result);
-    Dialog.alert(failureTitle, cause instanceof Error ? cause.message : t("Try again."));
+    Dialog.alert(failureTitle, cause instanceof Error ? cause.message : "Try again.");
   };
 
   const setLinked = (
@@ -79,12 +76,8 @@ export function useLinkedPullRequestActions(input: {
     const environmentId = thread.environmentId;
     void run(
       linked
-        ? t("Couldn't link this {singular}", {
-            singular: changeRequestTerm(terminology.singular, t),
-          })
-        : t("Couldn't unlink this {singular}", {
-            singular: changeRequestTerm(terminology.singular, t),
-          }),
+        ? `Couldn't link this ${terminology.singular}`
+        : `Couldn't unlink this ${terminology.singular}`,
       mutation.type === "thread.pull-request.link"
         ? link({ environmentId, input: mutation.input })
         : unlink({ environmentId, input: mutation.input }),
@@ -94,15 +87,11 @@ export function useLinkedPullRequestActions(input: {
   const promptLink = () => {
     const { singular } = terminology;
     Dialog.prompt({
-      title: t("Link {singular}", { singular: changeRequestTerm(singular, t) }),
-      message: t("Paste a {singular} URL, or enter 123 / #123 for this thread's repository.", {
-        singular: changeRequestTerm(singular, t),
-      }),
-      placeholder: t("{singular} URL or #42", {
-        singular: capitalizeTerm(changeRequestTerm(singular, t)),
-      }),
+      title: `Link ${singular}`,
+      message: `Paste a ${singular} URL, or enter 123 / #123 for this thread's repository.`,
+      placeholder: `${capitalizeTerm(singular)} URL or #42`,
       initialValue: "",
-      confirmText: t("Link"),
+      confirmText: "Link",
       onConfirm: (reference) => {
         const resolved = resolveLinkPullRequestInput({
           reference,
@@ -132,13 +121,13 @@ export function useLinkedPullRequestActions(input: {
     const open = link.snapshot === null || link.snapshot.state === "open";
     const watching = link.watch !== undefined;
     return [
-      { id: "copy", title: t("Copy link"), image: "link" },
-      { id: "browser", title: t("Open in browser"), image: "safari" },
+      { id: "copy", title: "Copy link", image: "link" },
+      { id: "browser", title: "Open in browser", image: "safari" },
       ...((watching ? canWatch : canStartWatch) && open
         ? [
             {
               id: "watch",
-              title: watching ? t("Stop watching") : t("Watch for changes"),
+              title: watching ? "Stop watching" : "Watch for changes",
               image: watching ? "eye.slash" : "eye",
             },
           ]
@@ -147,7 +136,7 @@ export function useLinkedPullRequestActions(input: {
         ? [
             {
               id: "unlink",
-              title: link.source === "stack" ? t("Dismiss from thread") : t("Unlink from thread"),
+              title: link.source === "stack" ? "Dismiss from thread" : "Unlink from thread",
               image: "xmark",
               attributes: { destructive: true },
             },
@@ -173,7 +162,7 @@ export function useLinkedPullRequestActions(input: {
       });
     else if (action === "watch" && thread !== null)
       void run(
-        t("Couldn't change watching"),
+        "Couldn't change watching",
         watch({
           environmentId: thread.environmentId,
           input: {

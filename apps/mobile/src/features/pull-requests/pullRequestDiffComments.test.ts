@@ -1,10 +1,7 @@
-import { translatorFor } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 import type { PullRequestReviewThread } from "@t3tools/contracts";
 import type { NativeReviewDiffData } from "../review/nativeReviewDiffAdapter";
 import { annotatePullRequestDiff, reviewPositionLabel } from "./pullRequestDiffComments";
-
-const t = translatorFor("en");
 const data: NativeReviewDiffData = {
   rows: [
     { kind: "file", id: "header", fileId: "f", filePath: "a.ts" },

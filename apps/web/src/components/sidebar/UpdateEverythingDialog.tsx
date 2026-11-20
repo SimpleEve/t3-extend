@@ -108,7 +108,6 @@ function UpdateEverythingDialogContent({
   busy = false,
   checking = false,
 }: UpdateEverythingDialogContentProps) {
-  const t = useT();
   const stopped = useAtomValue(
     runningThreadCountAtom(
       restarts
@@ -153,7 +152,7 @@ function UpdateEverythingDialogContent({
               : t("{count} provider updates", { count: providerCount })
             : null}
           {checking
-            ? `${version !== null || providerCount > 0 ? " · " : ""}${t("Checking for more…")}`
+            ? `${version !== null || providerCount > 0 ? " · " : ""}Checking for more…`
             : null}
         </AlertDialogDescription>
       </AlertDialogHeader>
@@ -191,7 +190,7 @@ function UpdateEverythingDialogContent({
                 <span role="cell">
                   {row.app !== null ? APP_LABELS[row.app] : null}
                   {row.app === null && row.skipped !== null ? (
-                    <span className="text-muted-foreground">{t("Skipped")}</span>
+                    <span className="text-muted-foreground">Skipped</span>
                   ) : null}
                   {row.app === "this-app" ? (
                     <span className="block text-muted-foreground text-xs">
@@ -219,7 +218,7 @@ function UpdateEverythingDialogContent({
             <Collapsible>
               <CollapsibleTrigger className="flex items-center gap-1 text-muted-foreground text-xs hover:text-foreground data-panel-open:[&_svg]:rotate-90">
                 <ChevronRightIcon className="size-3.5 transition-transform" aria-hidden />
-                {t("{length} skipped", { length: skipped.length })}
+                {skipped.length} skipped
               </CollapsibleTrigger>
               <CollapsiblePanel>
                 <div className="grid grid-cols-[minmax(0,max-content)_1fr] gap-x-3 gap-y-0.5 pt-1.5 ps-4.5 text-muted-foreground text-xs">
@@ -249,17 +248,14 @@ function UpdateEverythingDialogContent({
         ) : running > 0 ? (
           <p className="self-center text-muted-foreground text-sm max-sm:order-1 max-sm:text-center sm:mr-auto">
             {stopped === 0
-              ? t("{threads} will be interrupted and can resume after the restart.", { threads })
+              ? `${threads} will be interrupted and can resume after the restart.`
               : continuing === 0
-                ? t("{threads} will be interrupted.", { threads })
-                : t("{threads} will be interrupted. {continuing} can resume after the restart.", {
-                    threads,
-                    continuing,
-                  })}
+                ? `${threads} will be interrupted.`
+                : `${threads} will be interrupted. ${continuing} can resume after the restart.`}
           </p>
         ) : null}
         <AlertDialogClose ref={cancelRef} render={<Button variant="outline" disabled={busy} />}>
-          {t("Cancel")}
+          Cancel
         </AlertDialogClose>
         <Button disabled={disabledReason !== null || busy} onClick={onConfirm}>
           {confirmLabel}
@@ -270,7 +266,6 @@ function UpdateEverythingDialogContent({
 }
 
 function RunningThreads({ environmentId }: { readonly environmentId: EnvironmentId }) {
-  const t = useT();
   const count = useAtomValue(runningThreadCountAtom(environmentId));
   return count > 0 ? (
     <span className="whitespace-nowrap text-warning">{t("{count} running", { count })}</span>

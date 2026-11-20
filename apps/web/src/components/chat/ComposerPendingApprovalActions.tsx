@@ -8,7 +8,6 @@ import { EllipsisIcon, TriangleAlertIcon } from "lucide-react";
 import { Button, InlineButton } from "../ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { useT } from "../../hooks/useT"; // fork: interface language
 import { composerFloatingLayerProps } from "./composerEventScope";
 
 interface ComposerPendingApprovalActionsProps {
@@ -65,7 +64,7 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
           <>
             {option.warning ? <TriangleAlertIcon className="size-3 shrink-0" /> : null}
             <span className={presentation === "inline" ? "whitespace-normal" : "max-w-40 truncate"}>
-              {t(option.label)}
+              {option.label}
             </span>
           </>
         );
@@ -103,13 +102,13 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
             disabled={disabled || isResponding || !canRespond}
             render={
               presentation === "inline" ? (
-                <InlineButton tone="muted" aria-label={t("More approval options")} />
+                <InlineButton tone="muted" aria-label="More approval options" />
               ) : (
-                <Button size="icon-xs" variant="outline" aria-label={t("More approval options")} />
+                <Button size="icon-xs" variant="outline" aria-label="More approval options" />
               )
             }
           >
-            {presentation === "inline" ? t("More") : <EllipsisIcon />}
+            {presentation === "inline" ? "More" : <EllipsisIcon />}
           </MenuTrigger>
           <MenuPopup {...composerFloatingLayerProps} side="top" align="end" width="content">
             {moreOptions.map((option) => {

@@ -1,6 +1,5 @@
 import type { DesktopBridge, DesktopUpdateChannel, DesktopUpdateState } from "@t3tools/contracts";
 import { acceptsTrackSwitchRelease } from "@t3tools/shared/cliRelease";
-import { interpolate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 type TrackSwitchBridge = Pick<DesktopBridge, "setUpdateChannel">;
 
@@ -14,7 +13,6 @@ export async function prepareLocalTrackSwitch(
     readonly channel: DesktopUpdateChannel;
     readonly version: string;
     readonly reinstall: boolean;
-    readonly t?: Translator; // fork: interface language, English when omitted
   },
 ): Promise<
   | { readonly ok: true; readonly local: DesktopUpdateState | null }
@@ -34,7 +32,7 @@ export async function prepareLocalTrackSwitch(
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof Error ? error.message : t("The update track did not change."),
+      message: error instanceof Error ? error.message : "The update track did not change.",
     };
   }
   if (!input.reinstall) return { ok: true, local: null };

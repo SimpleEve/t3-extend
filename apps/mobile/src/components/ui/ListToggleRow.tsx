@@ -3,7 +3,6 @@ import { Pressable } from "react-native";
 import { AppText } from "./AppText";
 import { ListRowLayout, type ListRowContentProps } from "./ListRowLayout";
 import { ThemedSwitch } from "./ThemedSwitch";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function ListToggleRow(
   props: Omit<ListRowContentProps, "detail"> & {
@@ -11,7 +10,6 @@ export function ListToggleRow(
     readonly onValueChange: (value: boolean) => void;
   },
 ) {
-  const t = useT(); // fork: i18n
   return (
     <ListRowLayout
       icon={props.icon}
@@ -21,9 +19,7 @@ export function ListToggleRow(
       accessory={
         props.value === null ? (
           <Pressable
-            accessibilityLabel={t("Set {label} on for selected environments", {
-              label: props.label,
-            })}
+            accessibilityLabel={`Set ${props.label} on for selected environments`}
             accessibilityRole="button"
             accessibilityHint={props.description}
             accessibilityState={{ disabled: Boolean(props.disabled) }}

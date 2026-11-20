@@ -30,7 +30,6 @@ import {
 } from "./terminalTheme";
 import { useTerminalSurfaceBuffer } from "./useTerminalSurfaceBuffer";
 import { createTerminalOutputWriter } from "./terminalOutputWriter";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 interface TerminalInputEvent {
   readonly data: string;
@@ -88,16 +87,15 @@ const FallbackTerminalSurface = memo(function FallbackTerminalSurface({
   ref,
   ...props
 }: ReadyTerminalSurfaceProps) {
-  const t = useT(); // fork: i18n
   const fontSize = props.fontSize ?? MOBILE_TYPOGRAPHY.label.fontSize;
   const inputRef = useRef<TextInputInstance>(null);
   const { themeAppearance, themeId } = useAppearancePreferences();
   const theme = props.theme ?? getMobileTerminalTheme(themeId, themeAppearance);
   const statusLabel = props.readOnly
-    ? t("Viewing terminal output.")
+    ? "Viewing terminal output."
     : props.isRunning
-      ? t("Native terminal unavailable. Using text fallback.")
-      : t("Open terminal to start a shell.");
+      ? "Native terminal unavailable. Using text fallback."
+      : "Open terminal to start a shell.";
 
   const handleLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
@@ -166,7 +164,7 @@ const FallbackTerminalSurface = memo(function FallbackTerminalSurface({
           autoCorrect={false}
           blurOnSubmit={false}
           editable={props.isRunning && !props.readOnly}
-          placeholder={t("type and press return")}
+          placeholder="type and press return"
           placeholderTextColor={theme.mutedForeground}
           returnKeyType="send"
           className="text-sm"

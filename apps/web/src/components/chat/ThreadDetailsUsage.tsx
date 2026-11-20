@@ -11,7 +11,6 @@ import {
   limitsNotice,
   paceOf,
   remainingPercent,
-  usageWindowLabel, // fork: i18n
 } from "@t3tools/shared/usageLimits";
 import type { ReactNode } from "react";
 
@@ -24,7 +23,6 @@ import { formatUpcomingTimestamp } from "../../timestampFormat";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { formatContextWindowCompactionMessage } from "./compaction.logic";
 import { ThreadDetailsSection } from "./ThreadDetailsSection";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 const PACE_LABEL: Record<LimitPace, string> = {
   ahead: "Ahead of pace",
@@ -47,7 +45,6 @@ export function ThreadDetailsUsage({
   providers,
   sources,
 }: Omit<ThreadDetailsUsageInput, "contextWindow">) {
-  const t = useT(); // fork: interface language
   const nowMinute = useNowMinute();
   const now = Date.parse(`${nowMinute}:00Z`);
   const report =
@@ -66,17 +63,17 @@ export function ThreadDetailsUsage({
   return (
     <ThreadDetailsSection
       headingId="thread-details-usage-heading"
-      title={t("Usage limits")}
+      title="Usage limits"
       showHeading={false}
     >
       <div className="grid grid-cols-[auto_minmax(3rem,1fr)_auto] gap-x-3 text-xs">
         {notice ? (
           <UsageRow
-            label={t("Limits")}
+            label="Limits"
             fill={null}
             tone={null}
-            value={t("Unavailable")}
-            tooltip={<span className="text-foreground">{t(notice)}</span>}
+            value="Unavailable"
+            tooltip={<span className="text-foreground">{notice}</span>}
           />
         ) : (
           limits.windows.map((window) => <LimitRow key={window.id} window={window} now={now} />)
@@ -88,7 +85,6 @@ export function ThreadDetailsUsage({
 
 /** The thread's context window. The bar fills as context is used; the tick marks auto-compaction. */
 export function ThreadDetailsContext({ usage }: { readonly usage: ContextWindowSnapshot }) {
-  const t = useT(); // fork: interface language
   const maxTokens = usage.maxTokens != null && usage.maxTokens > 0 ? usage.maxTokens : null;
   const used =
     maxTokens !== null && usage.usedPercentage !== null
@@ -103,12 +99,12 @@ export function ThreadDetailsContext({ usage }: { readonly usage: ContextWindowS
   return (
     <ThreadDetailsSection
       headingId="thread-details-context-heading"
-      title={t("Context window")}
+      title="Context window"
       showHeading={false}
     >
       <div className="grid grid-cols-[auto_minmax(3rem,1fr)_auto] gap-x-3 text-xs">
         <UsageRow
-          label={t("Context")}
+          label="Context"
           fill={used}
           tone={used === null ? null : used >= 90 ? "error" : used >= 80 ? "warning" : null}
           tick={tick}
@@ -132,10 +128,8 @@ export function ThreadDetailsContext({ usage }: { readonly usage: ContextWindowS
               </span>
               {maxTokens !== null ? (
                 <span className="text-muted-foreground">
-                  {t("{used} of {max} tokens", {
-                    used: usage.usedTokens.toLocaleString("en-US"),
-                    max: maxTokens.toLocaleString("en-US"),
-                  })}
+                  {usage.usedTokens.toLocaleString("en-US")} of {maxTokens.toLocaleString("en-US")}{" "}
+                  tokens
                 </span>
               ) : null}
               {threshold !== null && threshold > 0 ? (
@@ -158,7 +152,6 @@ function LimitRow({
   readonly window: ServerProviderUsageWindow;
   readonly now: number;
 }) {
-  const t = useT(); // fork: interface language
   const timestampFormat = usePrimarySettings((settings) => settings.timestampFormat);
   const left = remainingPercent(window);
   const pace = paceOf(window, now);
@@ -169,21 +162,19 @@ function LimitRow({
       fill={left}
       tone={left <= 10 ? "error" : left <= 20 ? "warning" : null}
       value={`${left}%`}
-      ariaValue={t("{remaining}% left", { remaining: left })}
+      ariaValue={`${left}% left`}
       tooltip={
         <>
           <span className="text-foreground">
-            {usageWindowLabel(window.label, t)}: {t("{remaining}% left", { remaining: left })}
+            {window.label}: {left}% left
           </span>
           {window.resetsAt && resetsAt > now ? (
             <span className="text-muted-foreground">
-              {t("Resets in {duration} · {time}", {
-                duration: formatDuration(resetsAt - now, t),
-                time: formatUpcomingTimestamp(window.resetsAt, timestampFormat, now),
-              })}
+              Resets in {formatDuration(resetsAt - now)} ·{" "}
+              {formatUpcomingTimestamp(window.resetsAt, timestampFormat, now)}
             </span>
           ) : null}
-          {pace ? <span className="text-muted-foreground">{t(PACE_LABEL[pace])}</span> : null}
+          {pace ? <span className="text-muted-foreground">{PACE_LABEL[pace]}</span> : null}
         </>
       }
     />

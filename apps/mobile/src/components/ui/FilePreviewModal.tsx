@@ -8,7 +8,6 @@ import type {
   FilePreviewViewerProps,
 } from "./FilePreviewModal.types";
 import { FilePreviewSession } from "./FilePreviewSession";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export type {
   FilePreviewItem,
@@ -39,7 +38,6 @@ const NativeControls = requireNativeModule<{
 const nativeUri = (image: FilePreviewImage) => (image.failed ? null : image.uri);
 
 function NativeFilePreview(props: FilePreviewViewerProps) {
-  const t = useT();
   const identifier = useId();
   // Later URLs reach the native presentation through updateFile instead of presenting again.
   const [presented] = useState(props.source);
@@ -65,7 +63,7 @@ function NativeFilePreview(props: FilePreviewViewerProps) {
       delivered.current = images.map((image) => image.uri);
       presentation = NativeControls.presentFiles(
         images.map((image) => image.uri ?? null),
-        images.map((image) => image.name ?? t("Preview")),
+        images.map((image) => image.name ?? "Preview"),
         selectedIndex,
         images.map((image) => image.sourceIdentifier ?? ""),
         identifier,
@@ -74,7 +72,7 @@ function NativeFilePreview(props: FilePreviewViewerProps) {
       const { uri, name, sourceIdentifier } = presented;
       presentation = NativeControls.presentFile(
         uri,
-        name ?? t("Preview"),
+        name ?? "Preview",
         sourceIdentifier ?? "",
         identifier,
       );

@@ -1,4 +1,3 @@
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import {
   executeAtomQuery,
   runAtomCommand,

@@ -20,7 +20,6 @@ import {
   useVisibleThreadShells,
 } from "../state/entities";
 import { useEnvironments } from "../state/environments";
-import { useT } from "~/hooks/useT";
 
 function ChatIndexRouteView() {
   const { authGateState } = Route.useRouteContext();
@@ -92,8 +91,7 @@ function IndexDraftLanding() {
 }
 
 function DraftStartError({ onRetry }: { readonly onRetry: () => void }) {
-  const t = useT();
-  const contentArea = workspaceAreaProps("home", 1, t("Home", undefined, "workspace area"));
+  const contentArea = workspaceAreaProps("home", 1, "Home");
   return (
     <SidebarInset
       {...contentArea}
@@ -103,14 +101,14 @@ function DraftStartError({ onRetry }: { readonly onRetry: () => void }) {
       {isElectron ? <WorkspacePageHeader electron /> : null}
       <Empty className="flex-1">
         <EmptyHeader className="max-w-md">
-          <EmptyTitle>{t("Couldn’t start a new thread")}</EmptyTitle>
+          <EmptyTitle>Couldn’t start a new thread</EmptyTitle>
           <EmptyDescription>
-            {t("The project is still available. Try opening the draft again.")}
+            The project is still available. Try opening the draft again.
           </EmptyDescription>
           <div className="mt-5 flex justify-center">
             <Button size="sm" onClick={onRetry}>
               <RefreshIcon size="md" />
-              {t("Try again")}
+              Try again
             </Button>
           </div>
         </EmptyHeader>

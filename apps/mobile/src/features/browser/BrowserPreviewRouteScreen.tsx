@@ -59,7 +59,6 @@ export function BrowserPreviewRouteScreen({ route }: BrowserPreviewRouteScreenPr
 }
 
 function BrowserUnavailableScreen({ onClose }: { readonly onClose: () => void }) {
-  const t = useT();
   const insets = useSafeAreaInsets();
   const contentTopInset = useContentTopInset();
   return (
@@ -67,7 +66,7 @@ function BrowserUnavailableScreen({ onClose }: { readonly onClose: () => void })
       className="flex-1 bg-sheet"
       style={{ paddingTop: contentTopInset, paddingBottom: insets.bottom }}
     >
-      <SheetHeader title={t("Browser")} onClose={onClose} accessibilityLabel={t("Close browser")} />
+      <SheetHeader title="Browser" onClose={onClose} accessibilityLabel="Close browser" />
     </View>
   );
 }
@@ -85,7 +84,6 @@ function BrowserPreviewScreen({
   readonly startWithNewTab: boolean;
   readonly onClose: () => void;
 }) {
-  const t = useT();
   const insets = useSafeAreaInsets();
   const contentTopInset = useContentTopInset();
   const { themeVariables } = useAppearancePreferences();
@@ -119,7 +117,7 @@ function BrowserPreviewScreen({
   }, [focused, loaded, browser.shouldClose, onClose]);
   const onPictureInPicture = (state: PreviewPictureInPictureState, detail?: string) => {
     setPictureInPicture({ supported: state.supported, active: state.active });
-    if (detail) Dialog.alert(t("Picture in picture is unavailable"), detail);
+    if (detail) Dialog.alert("Picture in picture is unavailable", detail);
   };
   const selectTab = (next: string) => {
     setPictureInPicture(NO_PICTURE_IN_PICTURE);
@@ -155,8 +153,8 @@ function BrowserPreviewScreen({
                 newTabAction,
                 {
                   accessibilityLabel: pictureInPicture.active
-                    ? t("Exit picture in picture")
-                    : t("Picture in picture"),
+                    ? "Exit picture in picture"
+                    : "Picture in picture",
                   icon: {
                     ios: pictureInPicture.active ? "pip.exit" : "pip.enter",
                     android: "visibility",
@@ -171,13 +169,12 @@ function BrowserPreviewScreen({
           tabs.length > 1
             ? [
                 {
-                  title: t("Tabs"),
+                  title: "Tabs",
                   icon: "square.on.square",
                   items: tabs.map((entry) => ({
                     id: entry.tabId,
                     title: browserTabTitle(entry, t),
                     subtitle: browserTabUrl(entry),
-                    verbatim: true, // fork: i18n
                     selected: entry.tabId === tabId,
                     onPress: () => selectTab(entry.tabId),
                   })),
@@ -249,7 +246,6 @@ function BrowserAddressBar({
   readonly onCommand: PreviewStreamRef["command"];
   readonly onPaste: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const url = browserTabUrl(tab);
   const [draft, setDraft] = useState<string | null>(null);
   const submit = () => {
@@ -258,31 +254,31 @@ function BrowserAddressBar({
     try {
       onCommand({ type: "navigate", url: normalizePreviewUrl(value) });
     } catch {
-      Dialog.alert(t("Could not open this address"), t("Enter an http or https URL."));
+      Dialog.alert("Could not open this address", "Enter an http or https URL.");
     }
   };
   return (
     <View className="flex-row items-center gap-1 px-2 pb-2">
       <ControlPill
         icon="chevron.left"
-        accessibilityLabel={t("Back")}
+        accessibilityLabel="Back"
         disabled={!ready || !tab.canGoBack}
         onPress={() => onCommand({ type: "history", delta: -1 })}
       />
       <ControlPill
         icon="chevron.right"
-        accessibilityLabel={t("Forward")}
+        accessibilityLabel="Forward"
         disabled={!ready || !tab.canGoForward}
         onPress={() => onCommand({ type: "history", delta: 1 })}
       />
       <TextInput
-        accessibilityLabel={t("Address")}
+        accessibilityLabel="Address"
         editable={ready}
         value={draft ?? url}
         onChangeText={setDraft}
         onBlur={() => setDraft(null)}
         onSubmitEditing={submit}
-        placeholder={t("Enter a URL")}
+        placeholder="Enter a URL"
         placeholderTextColorClassName="accent-placeholder"
         autoCapitalize="none"
         autoCorrect={false}
@@ -294,7 +290,7 @@ function BrowserAddressBar({
       />
       <ControlPill
         icon="arrow.clockwise"
-        accessibilityLabel={t("Reload page")}
+        accessibilityLabel="Reload page"
         disabled={!ready}
         onPress={() => onCommand({ type: "reload" })}
       />

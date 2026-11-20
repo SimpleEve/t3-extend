@@ -9,7 +9,6 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { useEnvironmentPresentation } from "../../state/presentation";
 import { useEnvironmentQuery } from "../../state/query";
 import { sourceControlEnvironment } from "../../state/sourceControl";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 /**
  * Says when the server's forge app sign-in cannot reach `repository`, so requests there fall back
@@ -22,7 +21,6 @@ export function SourceControlAppAccessNotice(props: {
   /** `owner/name`. */
   readonly repository: string;
 }) {
-  const t = useT(); // fork: i18n
   const environmentId = EnvironmentId.make(props.environmentId);
   const { presentation } = useEnvironmentPresentation(environmentId);
   const definition = props.provider ? sourceControlClients.find(props.provider) : undefined;
@@ -47,10 +45,8 @@ export function SourceControlAppAccessNotice(props: {
   return (
     <View className="mb-4 gap-1 rounded-2xl bg-grouped-card px-4 py-3">
       <Text className="text-sm text-foreground-muted">
-        {t(
-          "{appName} isn't installed on {owner}, so requests here use your own GitHub login and its lower rate limit.",
-          { appName: appSignIn.appName, owner },
-        )}
+        {appSignIn.appName} isn't installed on {owner}, so requests here use your own GitHub login
+        and its lower rate limit.
       </Text>
       <Pressable
         accessibilityRole="link"

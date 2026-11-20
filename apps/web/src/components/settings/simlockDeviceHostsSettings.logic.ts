@@ -4,7 +4,6 @@ import {
   type SettingsSecretValue,
   type SimlockDeviceHostConfig as SimlockDeviceHostConfigType,
 } from "@t3tools/contracts";
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 

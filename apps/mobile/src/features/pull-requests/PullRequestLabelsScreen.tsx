@@ -28,10 +28,8 @@ import { pullRequestLabelColor } from "./pullRequestList";
 import { PullRequestSearchSheet } from "./PullRequestSearchSheet";
 import { usePullRequestConnected } from "./usePullRequestConnected";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function PullRequestLabelsScreen({ route }: StaticScreenProps<PullRequestParams>) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const target = pullRequestTarget(route.params);
   const pr = useEnvironmentQuery(composerPullRequests.detail(target)).data;
@@ -49,12 +47,12 @@ export function PullRequestLabelsScreen({ route }: StaticScreenProps<PullRequest
     !pr || allowed
       ? null
       : !connected
-        ? t("Reconnect to change labels.")
+        ? "Reconnect to change labels."
         : !canWrite
-          ? t("This device isn't allowed to change source control on this environment.")
+          ? "This device isn't allowed to change source control on this environment."
           : pr.capabilities.labels !== true
-            ? t("This provider doesn't support changing labels.")
-            : t("Changing labels needs triage access on this repository.");
+            ? "This provider doesn't support changing labels."
+            : "Changing labels needs triage access on this repository.";
   const result = useEnvironmentQuery(composerPullRequests.labelCandidates(target));
   const setLabels = useAtomCommand(composerPullRequests.setLabels, { reportFailure: false });
   const [query, setQuery] = useState("");
@@ -86,10 +84,8 @@ export function PullRequestLabelsScreen({ route }: StaticScreenProps<PullRequest
           if (!AsyncResult.isFailure(response)) return;
           const cause = squashAtomCommandFailure(response);
           Dialog.alert(
-            applied
-              ? t("Couldn't add {names}", { names: names.join(", ") })
-              : t("Couldn't remove {names}", { names: names.join(", ") }),
-            cause instanceof Error ? cause.message : t("The provider refused the change."),
+            applied ? `Couldn't add ${names.join(", ")}` : `Couldn't remove ${names.join(", ")}`,
+            cause instanceof Error ? cause.message : "The provider refused the change.",
           );
         };
         const send = async (labels: ReadonlyArray<PullRequestLabelCandidate>, applied: boolean) => {
@@ -102,10 +98,10 @@ export function PullRequestLabelsScreen({ route }: StaticScreenProps<PullRequest
   );
   return (
     <PullRequestSearchSheet
-      title={t("Labels")}
-      placeholder={t("Search labels")}
-      closeAccessibilityLabel={t("Close labels")}
-      clearAccessibilityLabel={t("Clear label search")}
+      title="Labels"
+      placeholder="Search labels"
+      closeAccessibilityLabel="Close labels"
+      clearAccessibilityLabel="Clear label search"
       query={query}
       onQueryChange={setQuery}
     >
@@ -155,29 +151,28 @@ export function PullRequestLabelsScreen({ route }: StaticScreenProps<PullRequest
                 <EmptyState
                   title={
                     result.error
-                      ? t("Couldn't load labels")
+                      ? "Couldn't load labels"
                       : needle
-                        ? t("No matching labels")
-                        : t("This repository has no labels")
+                        ? "No matching labels"
+                        : "This repository has no labels"
                   }
                   detail={
                     result.error ??
                     (needle
-                      ? t("Try another name.")
-                      : t("Create labels on the provider to use them here."))
+                      ? "Try another name."
+                      : "Create labels on the provider to use them here.")
                   }
                   variant="plain"
                 />
-                {result.error ? <Button label={t("Retry")} onPress={result.refresh} /> : null}
+                {result.error ? <Button label="Retry" onPress={result.refresh} /> : null}
               </View>
             )
           }
           ListFooterComponent={
             result.data?.truncated ? (
               <Text className="py-4 text-xs text-foreground-muted">
-                {t(
-                  "This repository has more labels than are listed here. Apply the rest on the provider.",
-                )}
+                This repository has more labels than are listed here. Apply the rest on the
+                provider.
               </Text>
             ) : undefined
           }

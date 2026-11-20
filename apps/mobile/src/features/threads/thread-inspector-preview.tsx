@@ -14,7 +14,6 @@ import {
   ThreadInspectorNavigationContext,
   type ThreadInspectorTarget,
 } from "./thread-inspector-navigation";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { ThreadPreviewRoute } from "./thread-preview-route";
 
 /** A thread shown outside its route: in the inspector pane, or presented full screen with a close. */
@@ -25,7 +24,6 @@ export type ThreadInspectorPresentation =
 export function ThreadInspectorHeader(
   props: ThreadInspectorPresentation & { readonly title: string; readonly subtitle?: string },
 ) {
-  const t = useT();
   if ("onMaximize" in props) {
     return (
       <AppBar
@@ -33,7 +31,7 @@ export function ThreadInspectorHeader(
         subtitle={props.subtitle}
         actions={[
           {
-            accessibilityLabel: t("Maximize thread"),
+            accessibilityLabel: "Maximize thread",
             icon: "arrow.up.left.and.arrow.down.right",
             onPress: props.onMaximize,
           },
@@ -46,7 +44,7 @@ export function ThreadInspectorHeader(
       title={props.title}
       subtitle={props.subtitle}
       onClose={props.onClose}
-      accessibilityLabel={t("Close thread")}
+      accessibilityLabel="Close thread"
     />
   );
 }

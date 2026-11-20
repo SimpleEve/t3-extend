@@ -20,9 +20,6 @@ import {
   workflowMemberMetadata,
   workflowRail,
 } from "./threadAgentsPresentation";
-import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
-
-const t = translatorFor("en");
 
 const base = {
   title: null,

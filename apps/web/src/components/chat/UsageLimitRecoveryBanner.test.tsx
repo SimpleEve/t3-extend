@@ -1,4 +1,3 @@
-import { loadUiCatalog, setUiLocale, translatorFor } from "@t3tools/client-runtime/i18n";
 import { RunId } from "@t3tools/contracts";
 import type { TimestampFormat } from "@t3tools/contracts/settings";
 import { describe, expect, it, vi } from "vite-plus/test";

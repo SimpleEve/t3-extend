@@ -15,7 +15,6 @@ import {
 import { textDirection } from "~/textDirection";
 
 import { isCommentSubmitShortcut } from "./commentSubmitShortcut";
-import { useT } from "~/hooks/useT";
 
 interface DiffCommentSecondaryAction {
   readonly label: string;
@@ -63,7 +62,6 @@ export function DiffCommentAnnotation({
   focusOnMount = true,
   completionScope = null,
 }: DiffCommentAnnotationProps) {
-  const t = useT();
   const [localDraftText, setLocalDraftText] = useState("");
   const displayedText = kind === "draft" && !onTextChange ? localDraftText : text;
   const trimmedText = displayedText.trim();
@@ -98,7 +96,7 @@ export function DiffCommentAnnotation({
             <Button
               variant="ghost-muted"
               size="icon-xs"
-              aria-label={t("Delete comment")}
+              aria-label="Delete comment"
               onClick={onDelete}
             >
               <Trash2 className="size-3" />
@@ -138,7 +136,7 @@ export function DiffCommentAnnotation({
         value={displayedText}
         dir={textDirection(displayedText)}
         placeholder={placeholder}
-        aria-label={t("Comment on lines {rangeLabel}", { rangeLabel })}
+        aria-label={`Comment on lines ${rangeLabel}`}
         onValueChange={onTextChange ?? setLocalDraftText}
         onFocus={(event) => {
           const end = event.currentTarget.value.length;
@@ -162,7 +160,7 @@ export function DiffCommentAnnotation({
         </span>
         {speech ? <TextFieldSpeechControls speech={speech} disabled={pending} /> : null}
         <Button variant="ghost-muted" size="xs" onClick={onCancel}>
-          {t("Cancel")}
+          Cancel
         </Button>
         {secondaryAction ? (
           <Button

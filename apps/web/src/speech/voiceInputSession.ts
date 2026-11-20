@@ -19,7 +19,6 @@ import type {
 } from "@t3tools/contracts";
 import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
 import { resolveSpeechVocabulary } from "@t3tools/shared/speech";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { useEffect, useSyncExternalStore } from "react";
 
 import { toastManager } from "../components/ui/toast";
@@ -207,8 +206,8 @@ export class VoiceInputSession {
       onPostProcessingError: () =>
         toastManager.add({
           type: "warning",
-          title: translate(getUiLocale(), "Transcript cleanup failed"), // fork: i18n
-          description: translate(getUiLocale(), "The original transcript was added."), // fork: i18n
+          title: "Transcript cleanup failed",
+          description: "The original transcript was added.",
         }),
       readDraft: (): VoiceDraftSnapshot | null => {
         const target = this.target;

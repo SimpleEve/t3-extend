@@ -2,7 +2,6 @@ import { useAtomValue } from "@effect/atom-react";
 import { PROVIDER_DISPLAY_NAMES } from "@t3tools/contracts";
 
 import { APP_VERSION } from "~/branding";
-import { useT } from "~/hooks/useT"; // fork: interface language
 import { isDesktopLocalConnectionTarget } from "~/connection/desktopLocal";
 import { isElectron } from "~/env";
 import { useEnvironments } from "~/state/environments";
@@ -55,7 +54,6 @@ export function useUpdateEverything(
   channelSwitch?: ChannelSwitchRelease,
 ) {
   const targetVersion = localUpdateVersion ?? APP_VERSION;
-  const t = useT(); // fork: interface language
   const { environments } = useEnvironments();
   const environmentIds = environmentIdsKey(environments.map(({ environmentId }) => environmentId));
   const sessionStates = useAtomValue(environmentSessionStatesAtom(environmentIds));
@@ -242,7 +240,6 @@ export function useUpdateEverything(
             localFailures,
             servers: finished,
             providers: outcome.providers,
-            t, // fork: interface language
           });
         if (outcome.localReady && installLocal) {
           if (await waitForUpdateRestart(UPDATE_RESTART_DELAY_MS)) {

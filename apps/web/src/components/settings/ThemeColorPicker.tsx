@@ -6,7 +6,6 @@ import { ColorHueSlider, ColorSaturationValuePlane } from "../ui/color-picker";
 import { Input } from "../ui/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { useT } from "../../hooks/useT";
 export function getThemeRoleLabel(role: ThemeColorRole): string {
   const labels: Partial<Record<ThemeColorRole, string>> = {
     canvas: "Background",
@@ -109,7 +108,6 @@ function ThemeColorPickerPanel({
   committer: FrameCommitter;
   onChange: (value: string) => void;
 }) {
-  const t = useT();
   const normalizedValue = normalizeThemePickerColor(value);
   const alphaSuffix = themePickerAlphaSuffix(value);
   const [hsv, setHsv] = useState(() => hexToHsv(normalizedValue));
@@ -163,7 +161,7 @@ function ThemeColorPickerPanel({
       <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-foreground">{label}</p>
-          <p className="text-2xs text-muted-foreground">{t("Choose a color")}</p>
+          <p className="text-2xs text-muted-foreground">Choose a color</p>
         </div>
         <span
           className="size-7 shrink-0 rounded-full shadow-sm"
@@ -178,7 +176,7 @@ function ThemeColorPickerPanel({
           onInteractionEnd={committer.flush}
         />
         <ColorHueSlider
-          label={t("{label} hue", { label })}
+          label={`${label} hue`}
           value={hsv.h}
           onChange={(h) => commitHsv({ ...hsv, h })}
           onInteractionEnd={committer.flush}
@@ -194,7 +192,7 @@ function ThemeColorPickerPanel({
                 style={{ backgroundColor: currentColor }}
               />
               <input
-                aria-label={t("{label} picker hex value", { label })}
+                aria-label={`${label} picker hex value`}
                 className="h-8 min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none"
                 onBlur={() => {
                   setIsEditingText(false);
@@ -216,7 +214,7 @@ function ThemeColorPickerPanel({
             </span>
             <span className="flex min-w-0 items-center rounded-lg border border-input bg-background px-2 focus-within:border-ring">
               <input
-                aria-label={t("{label} picker RGB value", { label })}
+                aria-label={`${label} picker RGB value`}
                 className="h-8 min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none"
                 onBlur={() => {
                   setIsEditingText(false);
@@ -254,7 +252,6 @@ export function ThemeColorPicker({
   onEditCancel?: () => void;
   onInteract?: () => void;
 }) {
-  const t = useT();
   const [committer] = useState(createFrameCommitter);
   // Escape reverts the edit, so commits after it (the pending frame flushed on close, or a drag
   // still firing through the exit animation) are dropped instead of landing on the restored colors.
@@ -280,7 +277,7 @@ export function ThemeColorPicker({
             <PopoverTrigger
               render={
                 <button
-                  aria-label={t("Choose {label} color", { label })}
+                  aria-label={`Choose ${label} color`}
                   className="relative flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-foreground/30 transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring"
                   onFocus={onInteract}
                   onPointerDown={onInteract}
@@ -295,7 +292,7 @@ export function ThemeColorPicker({
             />
           }
         />
-        <TooltipPopup side="top">{t("Choose {label} color", { label })}</TooltipPopup>
+        <TooltipPopup side="top">{`Choose ${label} color`}</TooltipPopup>
       </Tooltip>
       <PopoverPopup
         align="end"
@@ -338,7 +335,6 @@ export const ThemeColorField = memo(function ThemeColorField({
   selected?: boolean;
   label?: string;
 }) {
-  const t = useT();
   const label = customLabel ?? getThemeRoleLabel(role);
   const isColorValue = isThemeColor(value);
   const swatchValue = isColorValue ? value : "#000000";
@@ -387,7 +383,7 @@ export const ThemeColorField = memo(function ThemeColorField({
         />
         <Input
           aria-invalid={!isColorValue}
-          aria-label={t("{label} hex value", { label })}
+          aria-label={`${label} hex value`}
           className="w-28 shrink-0"
           font="mono"
           id={`${role}-hex`}

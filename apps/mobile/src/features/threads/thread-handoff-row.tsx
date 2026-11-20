@@ -29,7 +29,6 @@ import { ProviderIcon, ProviderInstanceIcon } from "../../components/ProviderIco
 import { environmentThreadDetails } from "../../state/threads";
 import { serverEnvironment } from "../../state/server";
 import { ThreadContextDivider } from "./thread-context-divider";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 type HandoffProvider = ServerProvider & {
   readonly driverKind: ServerProvider["driver"];
@@ -85,7 +84,6 @@ export function ThreadHandoffRow(props: {
   iconColor: ColorValue;
   surfaceColor: string;
 }) {
-  const t = useT();
   const { item } = props.projectedItem;
   const endpointsAtom = useMemo(
     () => handoffEndpointsAtom(props.environmentId, props.projectedItem),
@@ -100,7 +98,7 @@ export function ThreadHandoffRow(props: {
       endpoints={endpoints}
       iconColor={color}
       surfaceColor={props.surfaceColor}
-      label={t("Context handoff")}
+      label="Context handoff"
       failed={item.status === "failed"}
     />
   );
@@ -169,7 +167,6 @@ function HandoffEndpoint(props: {
   providers: ReadonlyArray<HandoffProvider>;
   surfaceColor: string;
 }) {
-  const t = useT();
   const provider = props.providers.find((candidate) => candidate.instanceId === props.instanceId);
   const model = provider?.models.find((candidate) => candidate.slug === props.model);
   const label =
@@ -182,7 +179,7 @@ function HandoffEndpoint(props: {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityHint={t("Show provider account")}
+      accessibilityHint="Show provider account"
       className="min-h-6 max-w-full flex-row items-center justify-center gap-1.5"
       hitSlop={{ top: 8, bottom: 8 }}
       onPress={() =>

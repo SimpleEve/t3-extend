@@ -5,8 +5,6 @@ import {
   type ReviewParsedDiff,
   type ReviewRenderableFile,
 } from "../review/reviewModel";
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 export interface PullRequestDiffPage {
   readonly cursor: string | null;
@@ -17,7 +15,6 @@ interface CachedPullRequestDiffPages {
   readonly pages: readonly PullRequestDiffPage[];
   readonly cache: WeakMap<PullRequestDiffResult, ReviewParsedDiff>;
   readonly parsed: ReviewParsedDiff;
-  readonly t: Translator; // fork: i18n, the notice is translated
 }
 
 // Keep only the latest combination per scoped first page; query results own its lifetime.
@@ -30,7 +27,6 @@ export function getCachedPullRequestDiffPages(
   pages: readonly PullRequestDiffPage[],
   scope: string,
   terminology: ChangeRequestTerminology,
-  t: Translator = translatorFor("en"), // fork: i18n
 ): ReviewParsedDiff {
   const first = pages[0];
   if (!first) return { kind: "empty" };
@@ -83,7 +79,6 @@ export function combinePullRequestDiffPages(
   cache: WeakMap<PullRequestDiffResult, ReviewParsedDiff>,
   scope: string,
   terminology: ChangeRequestTerminology,
-  t: Translator = translatorFor("en"), // fork: i18n
 ): ReviewParsedDiff {
   const parsed = pages.map((page) => {
     const cached = cache.get(page.result);
@@ -124,10 +119,7 @@ export function combinePullRequestDiffPages(
     notice:
       pages.some((page) => page.result.truncated) ||
       parsed.some((page) => page.kind === "raw" || (page.kind === "files" && page.notice !== null))
-        ? t(
-            "Some file contents are unavailable. Open the {singular} on its provider to see the full changes.",
-            { singular: changeRequestTerm(terminology.singular, t) },
-          )
+        ? `Some file contents are unavailable. Open the ${terminology.singular} on its provider to see the full changes.`
         : null,
   };
 }
@@ -154,12 +146,12 @@ function withheldFileNotice(
 ): string {
   if (load === undefined) {
     return canLoad
-      ? t("Diff too large to display. Tap to load it.")
-      : t("Diff too large to display here.");
+      ? "Diff too large to display. Tap to load it."
+      : "Diff too large to display here.";
   }
-  if (load.status === "loading") return t("Loading diff…");
-  if (load.status === "error") return t("Couldn't load this diff. Tap to try again.");
-  return t("No text diff for this file.");
+  if (load.status === "loading") return "Loading diff…";
+  if (load.status === "error") return "Couldn't load this diff. Tap to try again.";
+  return "No text diff for this file.";
 }
 
 /**
@@ -171,7 +163,6 @@ export function withWithheldFiles(
   loads: ReadonlyMap<string, WithheldFileLoad>,
   canLoad: boolean,
   scope: string,
-  t: Translator = translatorFor("en"), // fork: i18n
 ): ReviewParsedDiff {
   if (parsed.kind !== "files" || !parsed.files.some((file) => file.withheld)) return parsed;
   const files = parsed.files.map((file): ReviewRenderableFile => {

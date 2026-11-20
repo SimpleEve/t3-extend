@@ -1,7 +1,6 @@
 import type { PullRequestStack } from "@t3tools/contracts";
 import { cn } from "~/lib/utils";
 import { resolvePullRequestState } from "./pullRequestPresentation";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 export function PullRequestStackLayerContent({
   layer,
@@ -10,7 +9,6 @@ export function PullRequestStackLayerContent({
   layer: PullRequestStack["layers"][number];
   compact?: boolean;
 }) {
-  const t = useT(); // fork: interface language
   const state = resolvePullRequestState({
     state: layer.state,
     isDraft: layer.isDraft ?? false,
@@ -22,7 +20,7 @@ export function PullRequestStackLayerContent({
         <span className="block truncate">{layer.title || layer.headBranch}</span>
         <span className="block truncate text-xs font-normal text-muted-foreground">
           #{layer.number} · {compact ? null : `${layer.headBranch} · `}
-          {t(state.label, undefined, "pull request state")}
+          {state.label}
         </span>
       </span>
     </>

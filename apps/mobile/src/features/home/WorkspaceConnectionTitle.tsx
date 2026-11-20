@@ -11,7 +11,6 @@ import {
   workspaceConnectionStatusPresentation,
   type WorkspaceConnectionStatusPresentation,
 } from "./workspace-connection-status";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const STATUS_SHOW_DELAY_MS = 800;
 const FADE_IN_MS = 250;
@@ -103,7 +102,6 @@ export function WorkspaceConnectionTitle(props: {
   readonly maxWidth?: number;
 }) {
   const status = use(ConnectionStatusContext);
-  const t = useT();
   const size = props.size ?? "navbar";
   const { scale } = useAndroidControlSizing();
 
@@ -120,7 +118,7 @@ export function WorkspaceConnectionTitle(props: {
   return (
     <StatusFadeIn animate={status.fadeIn} grow={props.grow} maxWidth={props.maxWidth}>
       <Pressable
-        accessibilityHint={t("Opens environment settings")}
+        accessibilityHint="Opens environment settings"
         accessibilityLabel={status.label}
         accessibilityRole="button"
         disabled={props.onPress === undefined}

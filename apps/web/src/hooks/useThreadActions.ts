@@ -61,7 +61,6 @@ import { showThreadUndoNotice } from "./showThreadUndoNotice";
 import { useAtomCommand } from "../state/use-atom-command";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
 import { useAtomQueryRunner } from "../state/use-atom-query-runner";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export class ThreadArchiveBlockedError extends Schema.TaggedError<ThreadArchiveBlockedError>()(
   "ThreadArchiveBlockedError",
@@ -181,8 +180,8 @@ async function requestThreadUnpinConfirmation(input: {
   return settlePromise(() =>
     confirm(
       [
-        translate(getUiLocale(), 'Unpin thread "{title}"?', { title: input.title }),
-        translate(getUiLocale(), "This will move the thread out of your pinned section."),
+        `Unpin thread "${input.title}"?`,
+        "This will move the thread out of your pinned section.",
       ].join("\n"),
     ),
   );
@@ -564,10 +563,10 @@ export function useThreadActions() {
       const confirmationResult = await settlePromise(() =>
         localApi.dialogs.confirm(
           [
-            translate(getUiLocale(), "This thread is the only one linked to this worktree:"),
+            "This thread is the only one linked to this worktree:",
             displayWorktreePath ?? orphanedWorktreePath,
             "",
-            translate(getUiLocale(), "Delete the worktree too?"),
+            "Delete the worktree too?",
           ].join("\n"),
           { variant: "destructive" },
         ),
@@ -696,13 +695,10 @@ export function useThreadActions() {
         stackedThreadToast({
           type: "error",
           title: removalFailed
-            ? translate(getUiLocale(), "Failed to delete worktree")
-            : translate(getUiLocale(), "Worktree deleted, but Git status refresh failed"),
+            ? "Failed to delete worktree"
+            : "Worktree deleted, but Git status refresh failed",
           description: removalFailed
-            ? translate(getUiLocale(), "Could not remove {value}. {message}", {
-                value: displayWorktreePath ?? orphanedWorktreePath,
-                message,
-              })
+            ? `Could not remove ${displayWorktreePath ?? orphanedWorktreePath}. ${message}`
             : message,
         }),
       );
@@ -861,7 +857,7 @@ export function useThreadActions() {
     const resolved = resolveThreadTarget(target);
     const confirmationResult = await requestThreadUnpinConfirmation({
       enabled: confirmThreadUnpin,
-      title: resolved?.thread.title ?? translate(getUiLocale(), "this thread"),
+      title: resolved?.thread.title ?? "this thread",
       confirm: localApi ? (message) => localApi.dialogs.confirm(message) : null,
     });
     if (confirmationResult._tag === "Failure") {
@@ -997,13 +993,12 @@ export function useThreadActions() {
     const resolved = resolveThreadTarget(target);
 
     if (confirmThreadDelete && localApi) {
-      const locale = getUiLocale();
-      const title = resolved?.thread.title ?? knownTitle ?? translate(locale, "this thread");
+      const title = resolved?.thread.title ?? knownTitle ?? "this thread";
       const confirmationResult = await settlePromise(() =>
         localApi.dialogs.confirm(
           [
-            translate(locale, 'Delete thread "{title}"?', { title }),
-            translate(locale, "This permanently clears conversation history for this thread."),
+            `Delete thread "${title}"?`,
+            "This permanently clears conversation history for this thread.",
           ].join("\n"),
           { variant: "destructive" },
         ),

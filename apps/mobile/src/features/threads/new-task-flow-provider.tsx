@@ -106,7 +106,6 @@ import {
 import { usePrepareTriage } from "../triage/usePrepareTriage";
 import { useEnvironmentShellReadiness } from "../../state/shell";
 import { useConnectionsReady, useWorkspaceEnvironments } from "../../state/workspace";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 type WorkspaceMode = "local" | "worktree";
 
@@ -226,7 +225,6 @@ export function NewTaskFlowProvider(
     routeDraftId?: string;
   }>,
 ) {
-  const t = useT();
   const projects = useProjects();
   const threads = useThreadShells();
   const { savedConnectionsById } = useSavedRemoteConnections();
@@ -640,12 +638,12 @@ export function NewTaskFlowProvider(
     if (!isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
       Dialog.alert(
-        t("Could not switch machine"),
+        "Could not switch machine",
         error instanceof Error
           ? error.message
           : triage?._tag === "Failure"
             ? "The server could not prepare triage."
-            : t("The folder for threads without a project could not be created."),
+            : "The folder for threads without a project could not be created.",
       );
     }
     return false;

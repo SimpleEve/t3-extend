@@ -5,8 +5,6 @@ import { SymbolView } from "./AppSymbol";
 import { ListRowLayout, type ListRowContentProps } from "./ListRowLayout";
 import { RadioIndicator } from "./RadioIndicator";
 import { RowPressable } from "./RowPressable";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export function ListRow(
   props: ListRowContentProps & {
@@ -15,7 +13,6 @@ export function ListRow(
     readonly selected?: boolean;
   },
 ) {
-  const t = useT(); // fork: i18n
   const rippleStyle = useResolveClassNames("bg-subtle-strong");
   return (
     <RowPressable

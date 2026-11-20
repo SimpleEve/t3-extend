@@ -15,7 +15,6 @@ import { Sheet } from "../../components/ui/Sheet";
 import { Button } from "../../components/ui/Button";
 import { uuidv4 } from "../../lib/uuid";
 import { insertComposerDraftContext } from "../../state/use-composer-drafts";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function TerminalContextSheet(props: {
   text: string;
@@ -26,7 +25,6 @@ export function TerminalContextSheet(props: {
   onClose: () => void;
   onAttach: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const insets = useSafeAreaInsets();
   const lines = props.text.replace(/\n+$/, "").split("\n");
   const [range, setRange] = useState({ start: 0, end: lines.length - 1 });
@@ -61,7 +59,7 @@ export function TerminalContextSheet(props: {
     props.onAttach();
   };
   return (
-    <Sheet title={t("Terminal output")} onClose={props.onClose}>
+    <Sheet title="Terminal output" onClose={props.onClose}>
       <ScrollView
         nestedScrollEnabled
         className="flex-1"
@@ -69,7 +67,7 @@ export function TerminalContextSheet(props: {
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
       >
         <Text className="pb-4 text-sm text-foreground-muted">
-          {t("Tap the first and last line to select a range.")}
+          Tap the first and last line to select a range.
         </Text>
         <View className="overflow-hidden rounded-xl bg-card-alt">
           {lines.map(
@@ -77,7 +75,7 @@ export function TerminalContextSheet(props: {
               /* oxlint-disable react/no-array-index-key -- Selection is addressed by line number in this captured terminal snapshot. */ <Pressable
                 key={index}
                 accessibilityRole="button"
-                accessibilityLabel={t("Line {number}: {line}", { number: index + 1, line })}
+                accessibilityLabel={`Line ${index + 1}: ${line}`}
                 accessibilityState={{ selected: index >= range.start && index <= range.end }}
                 onPress={() => {
                   if (anchor === null) {
@@ -117,11 +115,11 @@ export function TerminalContextSheet(props: {
       >
         {tooLarge ? (
           <Text className="text-sm text-foreground-muted">
-            {t("Select fewer lines to fit the context limit.")}
+            Select fewer lines to fit the context limit.
           </Text>
         ) : null}
         <Button
-          label={t("Attach selected output")}
+          label="Attach selected output"
           tone="primary"
           fullWidth
           disabled={!selectedText.trim() || tooLarge}

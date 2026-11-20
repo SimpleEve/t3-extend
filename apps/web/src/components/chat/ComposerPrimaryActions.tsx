@@ -15,8 +15,6 @@ import {
   ListPlusIcon,
 } from "lucide-react";
 import { useEnvironmentIdentificationMode } from "~/hooks/useSettings";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import type { Translator } from "@t3tools/client-runtime/i18n";
 import { formatContextWindowTokens } from "~/lib/contextWindow";
 import { cn, isMacPlatform } from "~/lib/utils";
 import { useShortcutModifierState } from "../../shortcutModifierState";
@@ -79,15 +77,15 @@ const formatPendingPrimaryActionLabel = (
   t: Translator, // fork: interface language
 ) => {
   if (input.isResponding) {
-    return t("Submitting...");
+    return "Submitting...";
   }
   if (input.compact) {
-    return input.isLastQuestion ? t("Submit") : t("Next");
+    return input.isLastQuestion ? "Submit" : "Next";
   }
   if (!input.isLastQuestion) {
-    return t("Next question");
+    return "Next question";
   }
-  return input.questionIndex > 0 ? t("Submit answers") : t("Submit answer");
+  return input.questionIndex > 0 ? "Submit answers" : "Submit answer";
 };
 
 const STOP_PENDING_MAX_MS = 10_000;
@@ -149,7 +147,6 @@ function StopGenerationButton({
   onStopRequested: () => void;
   onInterrupt: () => void;
 }) {
-  const t = useT();
   const isStopDisabled = stopPhase === "pending";
   return (
     <Tooltip>
@@ -168,7 +165,7 @@ function StopGenerationButton({
               onStopRequested();
               onInterrupt();
             }}
-            aria-label={stopPhase === "pending" ? t("Stopping") : t("Stop generation")}
+            aria-label={stopPhase === "pending" ? "Stopping" : "Stop generation"}
           />
         }
       >
@@ -176,7 +173,7 @@ function StopGenerationButton({
           <rect x="2" y="2" width="8" height="8" rx="1.5" />
         </svg>
       </TooltipTrigger>
-      <TooltipPopup>{stopPhase === "pending" ? t("Stopping…") : t("Interrupt")}</TooltipPopup>
+      <TooltipPopup>{stopPhase === "pending" ? "Stopping…" : "Interrupt"}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -254,7 +251,6 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   keepFullHistory = false,
   onToggleKeepFullHistory,
 }: ComposerPrimaryActionsProps) {
-  const t = useT();
   const [stopPhase, setStopPhase] = useStopPhase({ runId, canInterrupt, canOperateThread });
   const pointerFocusProps = preserveComposerFocusOnPointerDown
     ? { onPointerDown: preventPointerFocus }
@@ -306,7 +302,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               {...pointerFocusProps}
               onClick={onPreviousPendingQuestion}
               disabled={pendingAction.isResponding}
-              aria-label={t("Previous question")}
+              aria-label="Previous question"
             >
               <ChevronLeftIcon className="size-3.5" />
             </Button>
@@ -318,7 +314,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               onClick={onPreviousPendingQuestion}
               disabled={pendingAction.isResponding}
             >
-              {t("Previous")}
+              Previous
             </Button>
           )
         ) : null}
@@ -380,32 +376,32 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
   const compactsBeforeSend = compactTokens !== null && !keepFullHistory;
 
   const submitLabel = showResume
-    ? t("Resume thread")
+    ? "Resume thread"
     : isEditingQueuedMessage
-      ? t("Update queued message")
+      ? "Update queued message"
       : compactsBeforeSend
-        ? t("Compact and send")
+        ? "Compact and send"
         : isQueuing
-          ? t("Queue message")
+          ? "Queue message"
           : isRunning
-            ? t("Steer message")
-            : t("Submit message");
+            ? "Steer message"
+            : "Submit message";
   const submitStatus = isEnvironmentUnavailable
-    ? t("Environment disconnected")
+    ? "Environment disconnected"
     : (sendDisabledReason ??
       (isPreparingWorktree
-        ? t("Preparing worktree")
+        ? "Preparing worktree"
         : isSendBusy
           ? isEditingQueuedMessage
-            ? t("Updating queued message")
-            : t("Submitting message")
+            ? "Updating queued message"
+            : "Submitting message"
           : null));
   // fork: "steer" and "queue" are translated as verbs; the shortcut keeps its own label.
   const followUpModifier = isMacPlatform(navigator.platform) ? "⌘" : "Ctrl";
   const submitTooltip =
     submitStatus ??
     (compactsBeforeSend
-      ? t("Summarize {tokens} tokens of history, then send", { tokens: compactTokens ?? "" })
+      ? `Summarize ${compactTokens} tokens of history, then send`
       : isRunning && !isEditingQueuedMessage && canSteer
         ? alternateShortcutLabel
           ? t("Click to {action}, {modifier}-click or {shortcut} to {alternate}", {
@@ -501,9 +497,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
               className="flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-(--control-radius) px-2 font-medium text-base text-foreground/80 tabular-nums outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-64 sm:text-sm aria-pressed:bg-accent/60 aria-pressed:text-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:text-muted-foreground"
               {...pointerFocusProps}
               aria-pressed={!keepFullHistory}
-              aria-label={t("Compact {tokens} tokens of history before sending", {
-                tokens: compactTokens ?? "",
-              })}
+              aria-label={`Compact ${compactTokens} tokens of history before sending`}
               disabled={!canOperateThread}
               onClick={onToggleKeepFullHistory}
             />
@@ -511,7 +505,7 @@ export const ComposerPrimaryActions = memo(function ComposerPrimaryActions({
         >
           <Minimize2Icon aria-hidden="true" />
           <span className="@max-[480px]/composer-surface:hidden">
-            {keepFullHistory ? t("Keep") : t("Compact")}
+            {keepFullHistory ? "Keep" : "Compact"}
           </span>
           <span className="text-muted-foreground">{compactTokens}</span>
         </TooltipTrigger>

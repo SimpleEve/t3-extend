@@ -21,25 +21,20 @@ import {
   deregisterManagedRelayEnvironmentCommand,
   useManagedRelayEnvironments,
 } from "./managedRelayState";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { uiFormatLocale } from "../../lib/time"; // fork: i18n
+
+const linkedAtFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 
 function linkedAtLabel(value: string): string {
   const linkedAt = new Date(value);
   return Number.isNaN(linkedAt.getTime())
-    ? translate(getUiLocale(), "Link date unavailable")
-    : translate(getUiLocale(), "Linked {date}", {
-        date: linkedAt.toLocaleDateString(uiFormatLocale(getUiLocale()), {
-          dateStyle: "medium",
-        }),
-      });
+    ? "Link date unavailable"
+    : `Linked ${linkedAtFormatter.format(linkedAt)}`;
 }
 
 function endpointLabel(environment: RelayClientEnvironmentRecord): string {
   return environment.endpoint.providerKind === "cloudflare_tunnel"
-    ? translate(getUiLocale(), "Managed tunnel")
-    : translate(getUiLocale(), "Activity publishing only");
+    ? "Managed tunnel"
+    : "Activity publishing only";
 }
 
 function confirmDeregister(environment: RelayClientEnvironmentRecord, onConfirm: () => void) {
@@ -59,7 +54,6 @@ function confirmDeregister(environment: RelayClientEnvironmentRecord, onConfirm:
 }
 
 export function T3ConnectProfilePage() {
-  const t = useT(); // fork: i18n
   const environmentsState = useManagedRelayEnvironments();
   const deregisterEnvironment = useAtomCommand(deregisterManagedRelayEnvironmentCommand, {
     reportFailure: false,
@@ -102,7 +96,7 @@ export function T3ConnectProfilePage() {
     if (isAtomCommandInterrupted(result)) return;
 
     const cause = squashAtomCommandFailure(result);
-    const message = cause instanceof Error ? cause.message : t("Could not deregister the server.");
+    const message = cause instanceof Error ? cause.message : "Could not deregister the server.";
     const traceId = findErrorTraceId(cause);
     console.error("[t3-connect] Could not deregister environment", {
       environmentId: environment.environmentId,
@@ -111,15 +105,15 @@ export function T3ConnectProfilePage() {
       cause,
     });
     Dialog.alert(
-      t("Could not deregister server"),
-      traceId ? t("{message}\n\nTrace ID: {traceId}", { message, traceId }) : message,
+      "Could not deregister server",
+      traceId ? `${message}\n\nTrace ID: ${traceId}` : message,
       traceId
         ? [
             {
-              text: t("Copy trace ID"),
+              text: "Copy trace ID",
               onPress: () => copyTextWithHaptic(traceId, { target: "connection-trace-id" }),
             },
-            { text: t("OK"), style: "cancel" },
+            { text: "OK", style: "cancel" },
           ]
         : undefined,
     );
@@ -149,17 +143,17 @@ export function T3ConnectProfilePage() {
         />
       }
     >
-      <ClerkSectionHeader>{t("Registered servers")}</ClerkSectionHeader>
+      <ClerkSectionHeader>Registered servers</ClerkSectionHeader>
 
       {environmentsState.error ? (
         <>
           <ClerkRow
-            title={t("Could not load T3 Connect environments")}
+            title="Could not load T3 Connect environments"
             subtitle={environmentsState.error}
           />
           {errorTraceId ? (
             <ClerkButtonRow
-              label={t("Copy trace ID")}
+              label="Copy trace ID"
               onPress={() => {
                 copyTextWithHaptic(errorTraceId, { target: "connection-trace-id" });
               }}
@@ -169,7 +163,7 @@ export function T3ConnectProfilePage() {
       ) : isInitialLoad ? (
         <View className="flex-row items-center gap-3 px-6 py-4">
           <AppActivityIndicator colorClassName={"accent-clerk-foreground-muted"} size="small" />
-          <Text className="text-base text-clerk-foreground-muted">{t("Loading environments")}</Text>
+          <Text className="text-base text-clerk-foreground-muted">Loading environments</Text>
         </View>
       ) : environments.length > 0 ? (
         environments.map((environment) => (
@@ -192,7 +186,7 @@ export function T3ConnectProfilePage() {
                   }
                 >
                   <Pressable
-                    accessibilityLabel={t("Actions for {label}", { label: environment.label })}
+                    accessibilityLabel={`Actions for ${environment.label}`}
                     accessibilityRole="button"
                     disabled={deregisteringEnvironmentId !== null}
                     className="size-[30px] items-center justify-center active:opacity-60 disabled:opacity-50"
@@ -213,13 +207,13 @@ export function T3ConnectProfilePage() {
         ))
       ) : (
         <ClerkRow
-          title={t("No servers registered")}
-          subtitle={t("Link a server from its local Settings to reach it through T3 Connect.")}
+          title="No servers registered"
+          subtitle="Link a server from its local Settings to reach it through T3 Connect."
         />
       )}
 
       <Text className="px-6 pt-6 text-xs leading-normal text-clerk-foreground-muted">
-        {t("Connections on this device are managed in Settings.")}
+        Connections on this device are managed in Settings.
       </Text>
     </ScrollView>
   );

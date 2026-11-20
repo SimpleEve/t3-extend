@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { Smartphone } from "lucide-react";
 
 import { Spinner } from "~/components/ui/spinner";
-import { useT } from "~/hooks/useT";
 
 export function DeviceLoadingView(props: {
   readonly name: string;
@@ -12,7 +11,6 @@ export function DeviceLoadingView(props: {
   readonly error?: boolean;
   readonly children?: ReactNode;
 }) {
-  const t = useT();
   return (
     <div
       role={props.error ? "alert" : "status"}

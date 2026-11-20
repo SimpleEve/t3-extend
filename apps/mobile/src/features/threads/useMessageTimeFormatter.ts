@@ -1,7 +1,6 @@
 import { requireNativeModule } from "expo";
 import { useEffect, useMemo, useState } from "react";
 import { AppState, Platform } from "react-native";
-import { useUiLocale } from "../../hooks/useT"; // fork: i18n
 import { createMessageTimeFormatter } from "./messageTimestamp";
 
 function systemUses24HourClock() {
@@ -11,7 +10,6 @@ function systemUses24HourClock() {
 
 export function useMessageTimeFormatter() {
   const [is24Hour, setIs24Hour] = useState(systemUses24HourClock);
-  const uiLocale = useUiLocale(); // fork: i18n, the formatter follows the interface language
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Refresh the native clock preference when Android returns to the foreground.
   useEffect(() => {
     if (Platform.OS !== "android") return;

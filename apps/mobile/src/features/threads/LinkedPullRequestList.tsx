@@ -33,9 +33,6 @@ import {
   pullRequestConflict,
   pullRequestStatus,
 } from "../pull-requests/pullRequestStatus";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
-import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export function useLinkedPullRequestLines(
   thread: EnvironmentThreadShell | null,
@@ -66,7 +63,6 @@ export const LinkedPullRequestRow = memo(function LinkedPullRequestRow(props: {
   readonly openPullRequest: (url: string) => Promise<boolean>;
   readonly actions: LinkedPullRequestActions | null;
 }) {
-  const t = useT();
   const { link, depth, stack } = props.line;
   const snapshot = link.snapshot;
   const status = snapshot === null ? null : pullRequestStatus(snapshot, t);
@@ -189,7 +185,7 @@ export const LinkedPullRequestRow = memo(function LinkedPullRequestRow(props: {
           numberOfLines={2}
           ellipsizeMode="tail"
         >
-          {snapshot?.title ?? t("Waiting for host state")}
+          {snapshot?.title ?? "Waiting for host state"}
         </Text>
       </View>
     </Pressable>

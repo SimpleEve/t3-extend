@@ -17,7 +17,6 @@ import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: restored import
 
 const PREVIEW_PARTITION_PREFIX = "persist:t3code-preview-";
 /** Ephemeral partitions omit persist: but retain a product prefix so the webview gate recognizes them. */
@@ -324,15 +323,9 @@ export const make = Effect.gen(function* BrowserSessionMake() {
     promptPermission(
       requester,
       {
-        buttons: [translate(getUiLocale(), "Open"), translate(getUiLocale(), "Cancel")],
-        message: translate(getUiLocale(), "Open this {protocol} link?", {
-          protocol: new URL(url).protocol.slice(0, -1),
-        }),
-        detail: translate(
-          getUiLocale(),
-          "A page in the browser wants to open another application:\n\n{url}",
-          { url: truncateForPrompt(url) },
-        ),
+        buttons: ["Open", "Cancel"],
+        message: `Open this ${new URL(url).protocol.slice(0, -1)} link?`,
+        detail: `A page in the browser wants to open another application:\n\n${truncateForPrompt(url)}`,
       },
       (answer) => callback(answer === true),
     );
@@ -612,12 +605,8 @@ export const make = Effect.gen(function* BrowserSessionMake() {
             promptPermission(
               requester,
               {
-                buttons: [translate(getUiLocale(), "Allow"), translate(getUiLocale(), "Block")],
-                message: translate(
-                  getUiLocale(),
-                  "{origin} wants to see text and images copied to the clipboard",
-                  { origin: truncateForPrompt(origin) },
-                ),
+                buttons: ["Allow", "Block"],
+                message: `${truncateForPrompt(origin)} wants to see text and images copied to the clipboard`,
               },
               (answer) => {
                 if (answer !== undefined) clipboardReadDecisions.set(origin, answer);

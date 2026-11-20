@@ -9,10 +9,8 @@ import {
   useScopedSettingsMixed,
   useUpdateScopedSettings,
 } from "./useScopedSettings";
-import { useT } from "../../hooks/useT";
 
 export function ThreadTitleInstructionsSettings() {
-  const t = useT();
   const settings = useScopedSettings();
   const { targets } = useSettingsScope();
   const scopeKey = targets.map((target) => `${target.environmentId}:${target.projectId}`).join(",");
@@ -25,7 +23,7 @@ export function ThreadTitleInstructionsSettings() {
       serverScoped
       settingKeys={["threadTitleInstructions"]}
       {...searchableSetting("thread-title-instructions")}
-      description={t("Appended to the prompt for new and regenerated thread titles.")}
+      description="Appended to the prompt for new and regenerated thread titles."
       resetAction={
         mixed || settings.threadTitleInstructions !== "" ? (
           <SettingResetButton
@@ -38,7 +36,7 @@ export function ThreadTitleInstructionsSettings() {
       <div className="mt-3 max-w-2xl pb-3.5">
         <Textarea
           key={`${scopeKey}:${mixed}:${settings.threadTitleInstructions}`}
-          aria-label={t("Thread title instructions")}
+          aria-label="Thread title instructions"
           onChange={() => {
             edited.current = true;
           }}
@@ -46,8 +44,8 @@ export function ThreadTitleInstructionsSettings() {
           defaultValue={mixed ? "" : settings.threadTitleInstructions}
           placeholder={
             mixed
-              ? t("Mixed. Enter instructions to apply to all selected targets.")
-              : t("Keep titles to a few words. Lead with the main subject.")
+              ? "Mixed. Enter instructions to apply to all selected targets."
+              : "Keep titles to a few words. Lead with the main subject."
           }
           onBlur={(event) => {
             const value = event.target.value.trim();

@@ -44,7 +44,6 @@ export function PullRequestCommentForm({
   onCommented: () => void;
   onClose: () => void;
 }) {
-  const t = useT();
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState<"comment" | "close" | "reopen" | null>(null);
   const locked = submitting !== null || actionPending;
@@ -99,7 +98,7 @@ export function PullRequestCommentForm({
     });
     if (result._tag === "Failure") {
       setSubmitting(null);
-      toastManager.add({ type: "error", title: t("Could not post the comment") });
+      toastManager.add({ type: "error", title: "Could not post the comment" });
       return;
     }
     setBody("");
@@ -164,20 +163,20 @@ export function PullRequestCommentForm({
               // The longest label holds the width, so the confirming click lands on the button.
               <span className="inline-grid">
                 <span aria-hidden className="invisible col-start-1 row-start-1">
-                  {t("Close with comment")}
+                  Close with comment
                 </span>
                 <span className="col-start-1 row-start-1">
                   {submitting === "close"
-                    ? t("Closing...")
+                    ? "Closing..."
                     : inlineConfirm.isArmed("close")
-                      ? t("Confirm close?")
-                      : t("Close with comment")}
+                      ? "Confirm close?"
+                      : "Close with comment"}
                 </span>
               </span>
             ) : submitting === "reopen" ? (
-              t("Reopening...")
+              "Reopening..."
             ) : (
-              t("Reopen with comment")
+              "Reopen with comment"
             )}
           </Button>
         )}
@@ -188,7 +187,7 @@ export function PullRequestCommentForm({
           onClick={() => submitAfterDictation("comment")}
         >
           <SendIcon className="size-3.5" />
-          {submitting === "comment" ? t("Posting...") : t("Comment")}
+          {submitting === "comment" ? "Posting..." : "Comment"}
         </Button>
       </div>
     </div>

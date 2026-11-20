@@ -5,7 +5,6 @@ import {
   UsageLimitSourceId,
   type ServerProvider,
 } from "@t3tools/contracts";
-import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it, vi } from "vite-plus/test";
 import {
   buildSubscriptionUsageSnapshot,

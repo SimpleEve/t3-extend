@@ -6,7 +6,6 @@ import type {
 } from "@t3tools/contracts";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { Button } from "../../components/ui/Button";
@@ -25,7 +24,6 @@ export function NativeChildWorkSheet(props: {
   readonly threadId: ThreadId;
   readonly onClose: () => void;
 }) {
-  const t = useT();
   const insets = useSafeAreaInsets();
   const query = useEnvironmentQuery<OrchestrationV2GetNativeChildWorkResult, unknown>(
     orchestrationEnvironment.nativeChildWork({
@@ -35,7 +33,7 @@ export function NativeChildWorkSheet(props: {
   );
   const children = query.data?.children;
   return (
-    <Sheet title={t("Subagent work")} onClose={props.onClose}>
+    <Sheet title="Subagent work" onClose={props.onClose}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{
@@ -46,24 +44,24 @@ export function NativeChildWorkSheet(props: {
         }}
       >
         <Text className="font-sans text-xs text-foreground-secondary">
-          {t("Read only. These subagents cannot take messages.")}
+          Read only. These subagents cannot take messages.
         </Text>
         {query.error !== null ? (
           <Text selectable className="font-sans text-sm text-danger-foreground">
             {query.error}
           </Text>
         ) : children === undefined ? (
-          <Text className="font-sans text-sm text-foreground-secondary">{t("Loading…")}</Text>
+          <Text className="font-sans text-sm text-foreground-secondary">Loading…</Text>
         ) : children.length === 0 ? (
           <Text className="font-sans text-sm text-foreground-secondary">
-            {t("The provider has no record of which subagents this call started.")}
+            The provider has no record of which subagents this call started.
           </Text>
         ) : (
           children.map((child) => <NativeChild key={child.conversationId} child={child} />)
         )}
         <View className="flex-row justify-end">
           <Button
-            label={t("Refresh")}
+            label="Refresh"
             tone="secondary"
             disabled={query.isPending}
             onPress={query.refresh}
@@ -76,16 +74,15 @@ export function NativeChildWorkSheet(props: {
 
 function NativeChild(props: { readonly child: OrchestrationV2NativeChildWork }) {
   const { child } = props;
-  const t = useT();
   return (
     <View className="gap-2">
-      <Text className="font-t3-bold text-sm text-foreground">{child.role || t("Subagent")}</Text>
+      <Text className="font-t3-bold text-sm text-foreground">{child.role || "Subagent"}</Text>
       <Text selectable className="font-sans text-sm text-foreground-secondary">
         {child.prompt}
       </Text>
       {child.truncated ? (
         <Text className="font-sans text-xs text-foreground-secondary">
-          {t("Earlier steps are not shown.")}
+          Earlier steps are not shown.
         </Text>
       ) : null}
       {child.steps === null ? (

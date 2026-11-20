@@ -66,7 +66,6 @@ import {
   type ProviderInstanceEntry,
 } from "../../providerInstances";
 import { providerModelKey, sortProviderModelItems } from "../../modelOrdering";
-import { useT } from "~/hooks/useT"; // fork: interface language
 import { hasRuntimeModelCatalog } from "../../providerModels";
 
 type ModelPickerItem = {
@@ -209,7 +208,6 @@ function ModelPickerProviderNotices({
   onRequestClose: (() => void) | undefined;
   onOpenProviderSetup: ((instanceId: ProviderInstanceId) => void) | undefined;
 }) {
-  const t = useT(); // fork: interface language
   const navigate = useNavigate();
   return (
     <>
@@ -249,7 +247,7 @@ function ModelPickerProviderNotices({
               void navigate({ to: "/settings/providers" });
             }}
           >
-            {t("Provider settings")}
+            Provider settings
           </InlineButton>
         </p>
       ))}
@@ -354,7 +352,6 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
   /** Closes the list column, inside the popup's fixed height. */
   listFooter?: ReactNode;
 }) {
-  const t = useT(); // fork: interface language
   const {
     searchInputRef,
     keybindings: providedKeybindings,
@@ -818,7 +815,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
       setSearchQuery("");
       handleSelectInstance(next);
       announce(
-        next === "favorites" ? t("Favorites") : (entryByInstanceId.get(next)?.displayName ?? next),
+        next === "favorites" ? "Favorites" : (entryByInstanceId.get(next)?.displayName ?? next),
         "model-picker",
       );
       return;
@@ -843,7 +840,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     const name = flatModels.find(
       (item) => item.slug === selectedSlug && item.instanceId === model.instanceId,
     )?.name;
-    announce(t("Model: {model}", { model: name ?? selectedSlug }), "model-picker");
+    announce(`Model: ${name ?? selectedSlug}`, "model-picker");
   };
 
   return (
@@ -879,10 +876,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
               ? {
                   disabledInstanceIds: lockedDisabledInstanceIds,
                   getDisabledInstanceTooltip: (entry: ProviderInstanceEntry) =>
-                    t(
-                      "{provider} is unavailable in this thread. Start a new thread to switch providers.",
-                      { provider: entry.displayName },
-                    ),
+                    `${entry.displayName} is unavailable in this thread. Start a new thread to switch providers.`,
                 }
               : {})}
           />
@@ -938,7 +932,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
           >
             <ComboboxSearchInput
               ref={searchInputRef}
-              placeholder={t("Search models...")}
+              placeholder="Search models..."
               value={searchQuery}
               onChange={(e) => {
                 if (!isSearching) setSearchHeight(pickerContentRef.current?.offsetHeight ?? 0);
@@ -1039,7 +1033,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                       className="group w-full cursor-pointer"
                     >
                       <span className="text-sm leading-snug text-muted-foreground group-hover:text-foreground group-data-highlighted:text-foreground">
-                        {legacySection.isExpanded ? t("Show less") : t("Show more")}
+                        {legacySection.isExpanded ? "Show less" : "Show more"}
                       </span>
                     </ComboboxItem>
                   );
@@ -1085,10 +1079,10 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
               updateRequiredNotices={updateRequiredNotices}
               emptyLabel={
                 selectedInstanceId === "favorites" && !isSearching
-                  ? t("No favorites yet")
+                  ? "No favorites yet"
                   : workspaceModelsScanning
-                    ? t("Searching project models...")
-                    : t("No models found")
+                    ? "Searching project models..."
+                    : "No models found"
               }
               onRequestClose={onRequestClose}
               onOpenProviderSetup={onOpenProviderSetup}

@@ -21,7 +21,6 @@ import {
   THREAD_DETAILS_PANEL_SPLIT_GROUP_CLASS,
   THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS,
 } from "./threadDetailsPanelStyles";
-import { useT } from "~/hooks/useT";
 
 function phaseElapsed(phase: SubagentWorkflowGroup["phases"][number]) {
   const instants = (key: "startedAt" | "completedAt") =>
@@ -67,7 +66,6 @@ function WorkflowMemberRow({
   driver: ProviderDriverKind | undefined;
   onOpen: (threadId: string) => void;
 }) {
-  const t = useT();
   const threadId = member.childThreadId;
   const canOpen = threadId !== null;
   return (
@@ -78,7 +76,7 @@ function WorkflowMemberRow({
           render={
             <ThreadDetailsControl
               part="row"
-              aria-label={t("Open {title} chat", { title: member.title })}
+              aria-label={`Open ${member.title} chat`}
               disabled={!canOpen}
               onClick={() => canOpen && onOpen(threadId)}
             />
@@ -144,7 +142,6 @@ export function ThreadLineageWorkflowRow({
   readonly stopping: boolean;
   readonly stopDisabled: boolean;
 }) {
-  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const [phaseOpen, setPhaseOpen] = useState<ReadonlyMap<number, boolean>>(() => new Map());
   const label = group.workflow.workflowName ?? group.workflow.title;
@@ -163,7 +160,7 @@ export function ThreadLineageWorkflowRow({
                     variant="ghost"
                     part="icon"
                     tone="destructive"
-                    aria-label={t("Stop workflow {label}", { label })}
+                    aria-label={`Stop workflow ${label}`}
                     disabled={stopDisabled}
                     onClick={onStop}
                   />
@@ -175,7 +172,7 @@ export function ThreadLineageWorkflowRow({
                   <SquareIcon aria-hidden className="size-3 fill-current" />
                 )}
               </TooltipTrigger>
-              <TooltipPopup side="left">{t("Stop entire workflow")}</TooltipPopup>
+              <TooltipPopup side="left">Stop entire workflow</TooltipPopup>
             </Tooltip>
           </div>
         ) : null}
@@ -185,7 +182,7 @@ export function ThreadLineageWorkflowRow({
           variant="ghost"
           part="secondary"
           aria-expanded={expanded}
-          aria-label={expanded ? t("Collapse {label}", { label }) : t("Expand {label}", { label })}
+          aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
           onClick={() => setExpanded((value) => !value)}
         >
           <ChevronDownIcon
@@ -223,7 +220,7 @@ export function ThreadLineageWorkflowRow({
                   accessory={
                     <>
                       {status === "failed" ? (
-                        <SectionHeaderStatus>{t("Failed")}</SectionHeaderStatus>
+                        <SectionHeaderStatus>Failed</SectionHeaderStatus>
                       ) : null}
                       <span className="shrink-0 text-2xs font-normal tabular-nums">
                         {phase.members.length === 1

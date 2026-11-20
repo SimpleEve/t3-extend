@@ -22,7 +22,6 @@ import {
   type HeaderBarButtonItemWithMenu,
   type HeaderBarButtonSearchBarPlacementItem,
 } from "react-native-screens";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 // UIKit's bar margins, and the width of a glass bar button.
 const BAR_MARGINS = 32;
@@ -160,7 +159,6 @@ export function V5StackHeader(props: {
   /** UIKit morphs search items that share an identifier between bars as columns change. */
   readonly searchIdentifier?: string;
 }) {
-  const t = useT(); // fork: i18n
   const { options } = props;
   const theme = useMobileNavigationTheme();
   const nativeMetrics = useNativeLayoutMetrics();
@@ -361,7 +359,7 @@ export function V5StackHeader(props: {
                 hideWhenScrolling={false}
                 allowToolbarIntegration={searchOptions?.allowToolbarIntegration ?? true}
                 placement={bottomSearch ? "integrated" : (searchOptions?.placement ?? "automatic")}
-                placeholder={mailSearch?.placeholder ?? searchOptions?.placeholder ?? t("Search")}
+                placeholder={mailSearch?.placeholder ?? searchOptions?.placeholder ?? "Search"}
                 onFocus={(event) => {
                   searchOptions?.onFocus?.(event);
                 }}

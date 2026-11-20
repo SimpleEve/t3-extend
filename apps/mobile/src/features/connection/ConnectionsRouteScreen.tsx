@@ -11,10 +11,8 @@ import { useRemoteConnections } from "../../state/use-remote-environment-registr
 import { LocalEnvironmentList } from "./LocalEnvironmentList";
 import { PullRequestRoutingSettings } from "./PullRequestRoutingSettings";
 import { LinkedEnvironmentsSection } from "./LinkedEnvironmentsSection";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function ConnectionsRouteScreen() {
-  const t = useT();
   const {
     connectedEnvironments,
     onReconnectEnvironment,
@@ -32,12 +30,12 @@ export function ConnectionsRouteScreen() {
   return (
     <View collapsable={false} className="flex-1 bg-sheet">
       <AppBar
-        title={t("Environments")}
+        title="Environments"
         onClose={() => navigation.goBack()}
-        closeAccessibilityLabel={t("Close environments")}
+        closeAccessibilityLabel="Close environments"
         actions={[
           {
-            accessibilityLabel: t("Add environment"),
+            accessibilityLabel: "Add environment",
             icon: "plus",
             onPress: () => navigation.navigate("ConnectionsNew"),
           },

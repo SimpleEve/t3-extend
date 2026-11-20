@@ -1,14 +1,11 @@
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { resolveEnvironmentMachineKind } from "@t3tools/contracts";
 
 import type { AppBarMenu } from "../../../components/ui/AppBar.types";
 import { ENVIRONMENT_MACHINE_SYMBOLS } from "../../../components/EnvironmentMachineSymbol";
 import { useSettingsEnvironmentFilter } from "../settings-environment-filter";
-import { useT } from "../../../hooks/useT"; // fork: i18n
 
 /** The settings scope filter, as an `AppBar` menu. */
 export function useSettingsEnvironmentMenu(): AppBarMenu {
-  const t = useT();
   const {
     availableTargets,
     selectedTargets,
@@ -20,7 +17,7 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
     selectProject,
   } = useSettingsEnvironmentFilter();
   return {
-    title: t("Filter settings environments and projects"),
+    title: "Filter settings environments and projects",
     icon:
       selectedIds === null && selectedProjectKey === null
         ? "line.3.horizontal.decrease"
@@ -30,12 +27,12 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
         id: "environments",
         title:
           selectedIds === null
-            ? t("All environments")
+            ? "All environments"
             : `${selectedTargets.length} ${selectedTargets.length === 1 ? "environment" : "environments"}`,
         items: [
           {
             id: "all",
-            title: t("All connected environments"),
+            title: "All connected environments",
             selected: selectedIds === null,
             onPress: selectAll,
           },
@@ -44,7 +41,6 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
             title: entry.label,
             icon: ENVIRONMENT_MACHINE_SYMBOLS[resolveEnvironmentMachineKind(entry.serverConfig)],
             subtitle: entry.displayUrl ?? undefined,
-            verbatim: true, // fork: i18n
             selected: selectedIds === null || selectedIds.has(entry.environmentId),
             onPress: () => toggleEnvironment(entry.environmentId),
           })),
@@ -52,21 +48,19 @@ export function useSettingsEnvironmentMenu(): AppBarMenu {
       },
       {
         id: "projects",
-        verbatim: true, // fork: i18n, the selected project's name or copy translated here
         title:
           selectableProjectGroups.find((group) => group.key === selectedProjectKey)?.label ??
-          (selectedProjectKey === null ? t("All projects") : t("Unavailable project")),
+          (selectedProjectKey === null ? "All projects" : "Unavailable project"),
         items: [
           {
             id: "project:all",
-            title: t("All projects"),
+            title: "All projects",
             selected: selectedProjectKey === null,
             onPress: () => selectProject(null),
           },
           ...selectableProjectGroups.map((group) => ({
             id: `project:${group.key}`,
-            title: projectMenuLabel(group, t),
-            verbatim: true, // fork: i18n
+            title: projectMenuLabel(group),
             selected: selectedProjectKey === group.key,
             onPress: () => selectProject(group.key),
           })),

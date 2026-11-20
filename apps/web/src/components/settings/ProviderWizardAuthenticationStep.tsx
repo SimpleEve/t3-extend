@@ -8,7 +8,6 @@ import { WizardFooter, WizardPanel } from "../ui/wizard";
 import { ProviderAuthenticationSection } from "./ProviderAuthenticationSection";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsRow } from "./settingsLayout";
-import { useT } from "../../hooks/useT";
 
 export function ProviderWizardAuthenticationStep({
   environmentId,
@@ -21,7 +20,6 @@ export function ProviderWizardAuthenticationStep({
   readonly instanceId: ProviderInstanceId;
   readonly onFinish: () => void;
 }) {
-  const t = useT();
   const providers =
     useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
   const provider = providers.find((candidate) => candidate.instanceId === instanceId);
@@ -61,15 +59,15 @@ export function ProviderWizardAuthenticationStep({
               title="Account"
               description={
                 isDiscovering
-                  ? t("Discovering sign-in methods…")
+                  ? "Discovering sign-in methods…"
                   : (query.error ??
                     auth?.message ??
-                    t("No in-app sign-in advertised. Follow the provider's docs to finish setup."))
+                    "No in-app sign-in advertised. Follow the provider's docs to finish setup.")
               }
               control={
                 isDiscovering ? (
                   <Button disabled size="sm" variant="outline">
-                    {t("Sign in")}
+                    Sign in
                   </Button>
                 ) : provider?.setup?.documentationUrl ? (
                   <Button
@@ -79,7 +77,7 @@ export function ProviderWizardAuthenticationStep({
                       <a href={provider.setup.documentationUrl} target="_blank" rel="noreferrer" />
                     }
                   >
-                    {t("Open docs")}
+                    Open docs
                   </Button>
                 ) : undefined
               }
@@ -94,7 +92,7 @@ export function ProviderWizardAuthenticationStep({
           disabled={active}
           onClick={onFinish}
         >
-          {signedIn ? t("Done") : t("Skip for now")}
+          {signedIn ? "Done" : "Skip for now"}
         </Button>
       </WizardFooter>
     </>

@@ -33,7 +33,6 @@ import { StandaloneStack } from "../layout/nested-stacks";
 import { ScrollView, useWindowDimensions, View } from "react-native";
 
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const durationAmounts = Array.from({ length: 99 }, (_, index) => index + 1);
 const modes = [
@@ -50,7 +49,6 @@ export function CustomSnoozeSheet(props: {
   readonly onClose: () => void;
   readonly onSnooze: (snoozedUntil: string) => void;
 }) {
-  const t = useT();
   const { width, height } = useWindowDimensions();
   const [mode, setMode] = useState<CustomSnoozeInput["mode"]>("date");
   const [date, setDate] = useState(() => new Date(Date.now() + 3_600_000));
@@ -115,7 +113,7 @@ export function CustomSnoozeSheet(props: {
                 modifiers={[padding({ all: 16 }), foregroundStyle(colors["--color-foreground"])]}
               >
                 <Picker
-                  label={t("Snooze mode")}
+                  label="Snooze mode"
                   selection={mode}
                   onSelectionChange={(value: CustomSnoozeInput["mode"]) => {
                     setMode(value);
@@ -131,7 +129,7 @@ export function CustomSnoozeSheet(props: {
                 </Picker>
                 {mode === "date" ? (
                   <DatePicker
-                    title={t("Snooze until")}
+                    title="Snooze until"
                     selection={date}
                     displayedComponents={["date", "hourAndMinute"]}
                     onDateChange={updateDate}
@@ -144,7 +142,7 @@ export function CustomSnoozeSheet(props: {
                 ) : (
                   <HStack spacing={0}>
                     <Picker
-                      label={t("Duration amount")}
+                      label="Duration amount"
                       selection={amount}
                       onSelectionChange={(value: number) => {
                         setAmount(value);
@@ -167,7 +165,7 @@ export function CustomSnoozeSheet(props: {
                       ))}
                     </Picker>
                     <Picker
-                      label={t("Duration unit")}
+                      label="Duration unit"
                       selection={unit}
                       onSelectionChange={(value: typeof unit) => {
                         setUnit(value);
@@ -220,16 +218,15 @@ function SnoozePopoverNavigation(props: {
   readonly onSubmit: () => void;
   readonly children: ReactNode;
 }) {
-  const t = useT();
   return (
     <VStack modifiers={[frame({ width: props.width, height: props.height })]}>
       <RNHostView>
         <View style={{ width: props.width, height: props.height }}>
           <StandaloneStack>
             <SheetHeader
-              title={t("Custom snooze")}
+              title="Custom snooze"
               onCancel={props.onClose}
-              accessibilityLabel={t("Cancel custom snooze")}
+              accessibilityLabel="Cancel custom snooze"
               confirm={{ label: "Snooze", onPress: props.onSubmit }}
             />
             <ScrollView

@@ -20,8 +20,6 @@ import { cn } from "../../lib/cn";
 import { useEnvironmentServerConfig, useProject, useThreadShell } from "../../state/entities";
 import { SUBAGENT_TONE_TEXT_CLASS, SubagentStatusDot } from "./SubagentStatusDot";
 import { resolveSubagentRowPresentation } from "./threadAgentsPresentation";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
 
 type SubagentRowSubagent = Pick<
   OrchestrationV2Subagent,
@@ -80,7 +78,7 @@ export function SubagentRow(props: {
             </Text>
             {presentation.runsOn !== null ? (
               <Text numberOfLines={1} className="shrink text-xs text-foreground-muted">
-                {t("on {runsOn}", { runsOn: presentation.runsOn })}
+                on {presentation.runsOn}
               </Text>
             ) : null}
           </View>
@@ -110,7 +108,6 @@ function SubagentMetadata(props: {
   readonly environmentId: EnvironmentId;
   readonly subagent: SubagentRowSubagent;
 }) {
-  const t = useT(); // fork: i18n
   const { environmentId, subagent } = props;
   // A task in a linked environment runs a provider instance of that environment.
   const config = useEnvironmentServerConfig(subagent.remoteChild?.environmentId ?? environmentId);

@@ -11,8 +11,6 @@ import { Switch } from "../ui/switch";
 import { EnvironmentRow, EnvironmentTransportLabel } from "./EnvironmentRow";
 import { FoldedSettingsSection } from "./FoldedSettingsSection";
 import { searchableSetting } from "./settingsSearch";
-import { useT } from "../../hooks/useT";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork
 
 const preferences = [
   { value: 100, label: "Prefer" },
@@ -39,13 +37,12 @@ const PREFERENCE_SUMMARIES = {
 function summarizeLoadPreferences(
   environments: ReadonlyArray<Pick<EnvironmentPresentation, "environmentId" | "label">>,
   weights: Readonly<Record<string, number>>,
-  t: Translator, // fork: interface language
 ): string | null {
   const parts = environments.flatMap((environment) => {
     const preference = loadPreferenceForWeight(weights[environment.environmentId]);
     return preference === 50
       ? []
-      : [t(PREFERENCE_SUMMARIES[preference], { machine: environment.label })];
+      : [`${environment.label} ${preferenceLabel(preference).toLowerCase()}`];
   });
   return parts.length === 0 ? null : parts.join(" · ");
 }
@@ -55,7 +52,6 @@ export function LoadBalancingSettings({
 }: {
   environments: ReadonlyArray<EnvironmentPresentation>;
 }) {
-  const t = useT();
   const settings = useClientSettings((current) => ({
     loadBalancingEnabled: current.loadBalancingEnabled,
     loadBalancingWeights: current.loadBalancingWeights,
@@ -68,7 +64,7 @@ export function LoadBalancingSettings({
   return (
     <FoldedSettingsSection
       id={id}
-      title={t(title)} // fork: interface language
+      title={title}
       summary={
         settings.loadBalancingEnabled
           ? summarizeLoadPreferences(environments, settings.loadBalancingWeights, t)
@@ -76,7 +72,7 @@ export function LoadBalancingSettings({
       }
       control={
         <Switch
-          aria-label={t("Automatically balance load")}
+          aria-label="Automatically balance load"
           checked={settings.loadBalancingEnabled}
           disabled={!settingsHydrated}
           onCheckedChange={(loadBalancingEnabled) => updateClientSettings({ loadBalancingEnabled })}
@@ -84,9 +80,8 @@ export function LoadBalancingSettings({
       }
     >
       <p className="px-3 py-2.5 text-xs text-muted-foreground sm:px-4">
-        {t(
-          "New threads in shared projects start on the machine with the most free CPU and memory, weighted by each machine's preference.",
-        )}
+        New threads in shared projects start on the machine with the most free CPU and memory,
+        weighted by each machine's preference.
       </p>
       {environments.map((environment) => (
         <EnvironmentRow
@@ -96,8 +91,7 @@ export function LoadBalancingSettings({
           subtitle={<EnvironmentTransportLabel environment={environment} />}
         >
           <Select
-            // fork: interface language. The trigger reads labels from `items`.
-            items={preferences.map(({ value, label }) => ({ value, label: t(label) }))}
+            items={preferences}
             value={loadPreferenceForWeight(
               settings.loadBalancingWeights[environment.environmentId],
             )}
@@ -115,14 +109,14 @@ export function LoadBalancingSettings({
             <SelectTrigger
               size="xs"
               className="w-32"
-              aria-label={t("{label} load preference", { label: environment.label })}
+              aria-label={`${environment.label} load preference`}
             >
               <SelectValue />
             </SelectTrigger>
             <SelectPopup align="end" alignItemWithTrigger={false}>
               {preferences.map(({ value, label }) => (
                 <SelectItem key={value} value={value}>
-                  {t(label)}
+                  {label}
                 </SelectItem>
               ))}
             </SelectPopup>

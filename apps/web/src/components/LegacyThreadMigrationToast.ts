@@ -1,7 +1,6 @@
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { primaryServerLegacyThreadMigrationAtom } from "../state/server";
 import { toastManager } from "./ui/toast";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 type MigrationToastId = ReturnType<typeof toastManager.add>;
 

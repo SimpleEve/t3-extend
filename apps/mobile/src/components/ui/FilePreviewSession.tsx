@@ -25,7 +25,6 @@ import type {
   FilePreviewSource,
   FilePreviewViewerProps,
 } from "./FilePreviewModal.types";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 interface FilePreviewSessionOptions {
   /** Opens before every image resolves; the viewer takes later URLs as they arrive. */
@@ -106,7 +105,6 @@ function ResolvedFilePreview(
     readonly onPresent: (isFinished: () => boolean) => void;
   },
 ) {
-  const t = useT();
   const { progressiveGallery, Viewer } = props;
   // Freeze the group at opening; streaming messages and URL refreshes must not reopen the viewer.
   const [items] = useState(() => filePreviewGallery(props.source, []));
@@ -118,7 +116,7 @@ function ResolvedFilePreview(
   );
   const onResolutionError = useEffectEvent((error: PreviewResolutionError) => {
     if (props.onOpenError) props.onOpenError(error.cause);
-    else Dialog.alert(t("Could not open preview"), t(error.fallbackMessage));
+    else Dialog.alert("Could not open preview", error.fallbackMessage);
     props.onRequestClose();
   });
   // Resolves once per presentation and holds local file leases until it closes.
@@ -179,12 +177,12 @@ function ResolvedFilePreview(
   if (!uri) return null;
   const onOpenError = (error: unknown) => {
     if (props.onOpenError) return props.onOpenError(error);
-    Dialog.alert(t("Could not open preview"), nativeViewerErrorMessage(error), [
-      { text: t("Cancel"), style: "cancel" },
+    Dialog.alert("Could not open preview", nativeViewerErrorMessage(error), [
+      { text: "Cancel", style: "cancel" },
       ...(selected.kind === "document"
         ? [
             {
-              text: t("Save or share"),
+              text: "Save or share",
               onPress: () => {
                 const input = {
                   attachment: {

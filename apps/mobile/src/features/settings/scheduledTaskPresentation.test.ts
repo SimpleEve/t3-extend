@@ -1,4 +1,3 @@
-import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 
 import {

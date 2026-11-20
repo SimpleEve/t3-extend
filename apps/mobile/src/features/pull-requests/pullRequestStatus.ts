@@ -8,7 +8,6 @@ import type {
 } from "@t3tools/contracts";
 import type { AppSymbolName } from "../../components/ui/AppSymbol";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const STATES = {
   open: {
@@ -74,23 +73,23 @@ export function pullRequestConflict(
   };
 }
 
-export function checkStatus(check: PullRequestCheck, t: Translator /* fork: i18n */) {
+export function checkStatus(check: PullRequestCheck) {
   switch (check.status) {
     case "success":
       return {
-        label: t("Passed"),
+        label: "Passed",
         icon: "checkmark.circle",
         tint: "accent-adaptive-emerald-600-400",
       } as const;
     case "failure":
       return {
-        label: t("Failed"),
+        label: "Failed",
         icon: "exclamationmark.circle",
         tint: "accent-danger-foreground",
       } as const;
     case "action-required":
       return {
-        label: t("Action required"),
+        label: "Action required",
         icon: "exclamationmark.circle",
         tint: "accent-warning-foreground",
       } as const;
@@ -101,11 +100,11 @@ export function checkStatus(check: PullRequestCheck, t: Translator /* fork: i18n
         tint: "accent-warning-foreground",
       } as const;
     case "cancelled":
-      return { label: t("Cancelled"), icon: "minus", tint: "accent-icon-muted" } as const;
+      return { label: "Cancelled", icon: "minus", tint: "accent-icon-muted" } as const;
     case "skipped":
-      return { label: t("Skipped"), icon: "slash.circle", tint: "accent-icon-muted" } as const;
+      return { label: "Skipped", icon: "slash.circle", tint: "accent-icon-muted" } as const;
     case "neutral":
-      return { label: t("Neutral"), icon: "minus", tint: "accent-icon-muted" } as const;
+      return { label: "Neutral", icon: "minus", tint: "accent-icon-muted" } as const;
   }
 }
 
@@ -139,33 +138,31 @@ export function pullRequestChecksSummary(
   }
   if (required)
     return {
-      label: t("{count} need attention", { count: required }),
-      title: t("Checks need attention"),
-      count: t("{count} awaiting action", { count: required }),
+      label: `${required} need attention`,
+      title: "Checks need attention",
+      count: `${required} awaiting action`,
       icon: "exclamationmark.circle",
       tint: "accent-warning-foreground",
     } as const;
   if (pending)
     return {
-      label: t("{count} pending", { count: pending }),
-      title: t("Checks running"),
-      count: t("{count} pending", { count: pending }),
+      label: `${pending} pending`,
+      title: "Checks running",
+      count: `${pending} pending`,
       icon: "clock",
       tint: "accent-warning-foreground",
     } as const;
   if (passed)
     return {
-      label: t("{passed} of {total} passed", { passed, total: pr.checks.length }),
-      title: passed === pr.checks.length ? t("All checks passed") : t("Checks completed"),
+      label: `${passed} of ${pr.checks.length} passed`,
+      title: passed === pr.checks.length ? "All checks passed" : "Checks completed",
       count,
       icon: "checkmark.circle",
       tint: "accent-adaptive-emerald-600-400",
     } as const;
   return {
-    label: pr.checks.length
-      ? t("{count} completed", { count: pr.checks.length })
-      : t("No checks reported"),
-    title: pr.checks.length ? t("Checks completed") : t("No checks reported"),
+    label: pr.checks.length ? `${pr.checks.length} completed` : "No checks reported",
+    title: pr.checks.length ? "Checks completed" : "No checks reported",
     count,
     icon: "minus",
     tint: "accent-icon-muted",
@@ -180,7 +177,6 @@ export function normalizedReviewState(reviewState: string | null) {
 export function pullRequestReviewSummary(
   pr: Pick<PullRequestDetail, "reviewers">,
   activity: Pick<PullRequestActivity, "comments" | "commits"> | null,
-  t: Translator, // fork: i18n
 ) {
   const latest = new Map<string, PullRequestActivity["comments"][number]>();
   const comments = new Map<string, PullRequestActivity["comments"][number]>();
@@ -226,9 +222,9 @@ export function pullRequestReviewSummary(
     return {
       title:
         approved.length === 1 && approved[0]?.author
-          ? t("Approved by {login}", { login: approved[0].author.login })
-          : t("Reviews approved"),
-      count: t("{count} approved", { count: approved.length }),
+          ? `Approved by ${approved[0].author.login}`
+          : "Reviews approved",
+      count: `${approved.length} approved`,
       icon: "checkmark.circle",
       tint: "accent-adaptive-emerald-600-400",
       reviews,
@@ -236,17 +232,15 @@ export function pullRequestReviewSummary(
   const commented = reviews.filter((review) => review.reviewState === "COMMENTED");
   if (commented.length && !pr.reviewers.length)
     return {
-      title: t("Reviews"),
-      count: t("{count} commented", { count: commented.length }),
+      title: "Reviews",
+      count: `${commented.length} commented`,
       icon: "bubble.left",
       tint: "accent-icon-muted",
       reviews,
     } as const;
   return {
-    title: pr.reviewers.length ? t("Awaiting review") : t("Request a review"),
-    count: pr.reviewers.length
-      ? t("{count} requested", { count: pr.reviewers.length })
-      : t("None assigned"),
+    title: pr.reviewers.length ? "Awaiting review" : "Request a review",
+    count: pr.reviewers.length ? `${pr.reviewers.length} requested` : "None assigned",
     icon: "person.2",
     tint: "accent-icon-muted",
     reviews,
@@ -255,7 +249,6 @@ export function pullRequestReviewSummary(
 
 export function pullRequestBranchSummary(
   pr: Pick<PullRequestDetail, "mergeability" | "baseComparison" | "behindBy" | "baseBranch">,
-  t: Translator, // fork: i18n
 ) {
   if (pr.mergeability === "conflicting") return t("Has conflicts");
   if (pr.baseComparison === "behind")

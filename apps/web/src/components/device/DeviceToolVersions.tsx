@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import type { DeviceToolVersions as ToolVersions } from "@t3tools/contracts";
 import { InlineButton } from "~/components/ui/button";
 import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from "~/components/ui/popover";
-import { useT } from "~/hooks/useT";
 
 export function DeviceToolVersions({
   tools,
@@ -17,7 +16,6 @@ export function DeviceToolVersions({
   owner?: string | undefined;
   error?: string | undefined;
 }) {
-  const t = useT();
   const selected = kind ? tools?.[kind] : undefined;
   const version =
     selected?.runningVersion ??
@@ -45,14 +43,14 @@ export function DeviceToolVersions({
           ? version
             ? `v${version}`
             : selected
-              ? t("Not installed")
-              : t("Version unknown")
+              ? "Not installed"
+              : "Version unknown"
           : error
-            ? t("Versions unavailable")
-            : t("Versions")}
+            ? "Versions unavailable"
+            : "Versions"}
       </PopoverTrigger>
       <PopoverPopup align="end" width="md">
-        <PopoverTitle>{kind ? t(label) : t("Device tools")}</PopoverTitle>
+        <PopoverTitle>{kind ? label : "Device tools"}</PopoverTitle>
         {tools ? (
           <div className="mt-4 divide-y divide-border/50">
             {(
@@ -64,7 +62,7 @@ export function DeviceToolVersions({
               .filter(([name]) => !kind || name === label)
               .map(([name, tool]) => (
                 <div key={name} className="space-y-2 py-3 first:pt-0 last:pb-0">
-                  {!kind ? <p className="text-xs font-medium">{t(name)}</p> : null}
+                  {!kind ? <p className="text-xs font-medium">{name}</p> : null}
                   <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-xs">
                     <dt className="text-muted-foreground">{t("Running")}</dt>
                     <dd className="text-right font-mono">
@@ -72,9 +70,9 @@ export function DeviceToolVersions({
                     </dd>
                     <dt className="text-muted-foreground">{t("Required")}</dt>
                     <dd className="text-right font-mono">{tool.requiredVersion}</dd>
-                    <dt className="text-muted-foreground">{t("Installed")}</dt>
+                    <dt className="text-muted-foreground">Installed</dt>
                     <dd className="text-right font-mono break-words">
-                      {tool.installedVersions.join(", ") || t("None")}
+                      {tool.installedVersions.join(", ") || "None"}
                     </dd>
                   </dl>
                 </div>
@@ -86,11 +84,7 @@ export function DeviceToolVersions({
           </p>
         )}
         <p className="mt-4 border-t border-border/50 pt-3 text-xs text-muted-foreground">
-          {owner
-            ? t("Managed by {owner}. Tools update automatically on this host when needed.", {
-                owner,
-              })
-            : t("Tools update automatically on this host when needed.")}
+          {owner ? `Managed by ${owner}. ` : ""}Tools update automatically on this host when needed.
         </p>
         {error ? (
           <p role="status" className="mt-2 text-xs text-destructive">

@@ -102,7 +102,7 @@ interface BranchToolbarBranchSelectorProps {
 const WORKTREE_CHANGE_BLOCKED_MESSAGE = "Stop the current turn to switch worktrees.";
 
 function toBranchActionErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : translate(getUiLocale(), "An error occurred.");
+  return error instanceof Error ? error.message : "An error occurred.";
 }
 
 export function BranchToolbarBranchSelector({
@@ -122,7 +122,6 @@ export function BranchToolbarBranchSelector({
   onCheckoutPullRequestRequest,
   onComposerFocusRequest,
 }: BranchToolbarBranchSelectorProps) {
-  const t = useT();
   const composerFloatingLayerProps = useComposerMenuProps();
   const canWriteSourceControl = useEnvironmentScope(environmentId, AuthSourceControlWriteScope);
   const canOperateThread = useEnvironmentScope(environmentId, AuthOrchestrationOperateScope);
@@ -380,11 +379,11 @@ export function BranchToolbarBranchSelector({
   const [isBranchActionPending, startBranchActionTransition] = useTransition();
   const totalBranchCount = branchRefState.data?.totalCount ?? 0;
   const branchStatusText = isInitialBranchesLoadPending
-    ? t("Loading refs...")
+    ? "Loading refs..."
     : isFetchingNextPage
-      ? t("Loading more refs...")
+      ? "Loading more refs..."
       : hasNextPage
-        ? t("Showing {shown} of {total} refs", { shown: refs.length, total: totalBranchCount })
+        ? `Showing ${refs.length} of ${totalBranchCount} refs`
         : null;
 
   const copyBranchName = (branchName: string) => {
@@ -392,7 +391,7 @@ export function BranchToolbarBranchSelector({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: t("Failed to copy branch name"),
+          title: "Failed to copy branch name",
           description: toBranchActionErrorMessage(error),
         }),
       );
@@ -406,7 +405,7 @@ export function BranchToolbarBranchSelector({
     event.preventDefault();
     event.stopPropagation();
     const items: ContextMenuItem<"copy-branch-name">[] = [
-      { id: "copy-branch-name", label: t("Copy branch name"), icon: "copy" },
+      { id: "copy-branch-name", label: "Copy branch name", icon: "copy" },
     ];
     void api.contextMenu.show(items, { x: event.clientX, y: event.clientY }).then((action) => {
       if (action === "copy-branch-name") copyBranchName(branchName);
@@ -421,8 +420,8 @@ export function BranchToolbarBranchSelector({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: t("Action unavailable"),
-          description: t("This connection cannot change the thread's branch."),
+          title: "Action unavailable",
+          description: "This connection cannot change the thread's branch.",
         }),
       );
       return;
@@ -547,7 +546,7 @@ export function BranchToolbarBranchSelector({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: t("Failed to switch ref."),
+            title: "Failed to switch ref.",
             description: toBranchActionErrorMessage(squashAtomCommandFailure(checkoutResult)),
           }),
         );
@@ -593,7 +592,7 @@ export function BranchToolbarBranchSelector({
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: t("Failed to create and switch ref."),
+            title: "Failed to create and switch ref.",
             description: toBranchActionErrorMessage(squashAtomCommandFailure(createBranchResult)),
           }),
         );
@@ -736,9 +735,7 @@ export function BranchToolbarBranchSelector({
             <SourceControlIcon className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="flex min-w-0 flex-col items-start">
               <span className="truncate font-medium">
-                {t("Checkout {kind}", {
-                  kind: changeRequestTerm(sourceControlPresentation.terminology.singular, t),
-                })}
+                Checkout {sourceControlPresentation.terminology.singular}
               </span>
               <span className="truncate text-muted-foreground text-xs">{prReference}</span>
             </span>
@@ -755,7 +752,7 @@ export function BranchToolbarBranchSelector({
           value={itemValue}
           onClick={() => selectPickerItem(itemValue)}
         >
-          <span className="truncate">{t('Create new ref "{name}"', { name: newRefName })}</span>
+          <span className="truncate">Create new ref &quot;{newRefName}&quot;</span>
         </ComboboxItem>
       );
     }
@@ -868,7 +865,7 @@ export function BranchToolbarBranchSelector({
             className="min-w-0 max-w-full active:scale-100"
             disabled={isInitialBranchesLoadPending || isBranchActionPending}
             // NVDA browse mode re-reads a combobox when its attributes change, not when its text does.
-            aria-label={t("Branch: {branch}", { branch: triggerLabel })}
+            aria-label={`Branch: ${triggerLabel}`}
           >
             <GitBranchIcon
               className={cn(

@@ -38,7 +38,6 @@ import {
   composerMentionPath,
   type ComposerDocumentAttachment,
 } from "../lib/composerContext";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 export type ComposerEditorProps = NativeComposerEditorProps & {
   readonly draftKey?: string | null;
@@ -60,7 +59,6 @@ export function ComposerEditor({
   onInertChipPress,
   ...props
 }: ComposerEditorProps) {
-  const t = useT(); // fork: i18n
   const draft = useComposerDraft(draftKey ?? null);
   const readResetGeneration = useComposerDraftResetGeneration(draftKey ?? null);
   const preferencesResult = useAtomValue(mobilePreferencesAtom);
@@ -119,17 +117,15 @@ export function ComposerEditor({
       }
       if (!insertComposerDraftContext(draftKey, result, insertion)) {
         Dialog.alert(
-          t("Could not paste context"),
-          t("Remove some attachments or context items from the draft, then paste again."),
+          "Could not paste context",
+          "Remove some attachments or context items from the draft, then paste again.",
         );
         return;
       }
       const warnings: string[] = [];
       if (result.failures.length > 0)
         warnings.push(
-          t(
-            "Some attachments could not be copied. Reconnect to the source environment and copy them again.",
-          ),
+          "Some attachments could not be copied. Reconnect to the source environment and copy them again.",
         );
       if (result.skippedThreads.length > 0)
         warnings.push(
@@ -143,8 +139,8 @@ export function ComposerEditor({
         );
       if (warnings.length > 0)
         Dialog.alert(
-          t("Some context is unavailable"),
-          [...warnings, t("Those references are marked unavailable.")].join("\n\n"),
+          "Some context is unavailable",
+          [...warnings, "Those references are marked unavailable."].join("\n\n"),
         );
     });
     operation.finish();
@@ -152,8 +148,8 @@ export function ComposerEditor({
     if (AsyncResult.isFailure(settled) && !signal.aborted) {
       const error = squashAtomCommandFailure(settled);
       Dialog.alert(
-        t("Could not paste context"),
-        error instanceof Error ? error.message : t("Try copying again."),
+        "Could not paste context",
+        error instanceof Error ? error.message : "Try copying again.",
       );
     }
   };
@@ -234,7 +230,7 @@ export function ComposerEditor({
         }}
       />
       {importing ? (
-        <Text className="py-2 text-xs text-foreground-muted">{t("Copying context…")}</Text>
+        <Text className="py-2 text-xs text-foreground-muted">Copying context…</Text>
       ) : null}
       {selected && (selectedReference || selectedSkill) ? (
         <ComposerContextSheet

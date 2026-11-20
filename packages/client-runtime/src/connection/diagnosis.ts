@@ -49,8 +49,6 @@ export interface ConnectionDiagnosisInput {
   readonly t?: Translator | undefined;
 }
 
-const untranslated: Translator = (source, params) => interpolate(source, params);
-
 interface Located {
   readonly hop: ConnectionHop;
   readonly cause:
@@ -110,21 +108,21 @@ function headline(
 ): string {
   switch (located.cause) {
     case "offline":
-      return t("This device is offline");
+      return "This device is offline";
     case "session_pending":
-      return t("This device is still loading its T3 Connect sign-in");
+      return "This device is still loading its T3 Connect sign-in";
     case "approval_pending":
-      return t("{host} is waiting for someone to approve this device", { host });
+      return `${host} is waiting for someone to approve this device`;
     case "outdated":
-      return t("{host} runs an older T3 Extend", { host });
+      return `${host} runs an older T3 Code`;
     case "clock_skew":
-      return t("This device's clock is off");
+      return "This device's clock is off";
     case "not_linked":
-      return t("{host} is not linked to your T3 Connect account", { host });
+      return `${host} is not linked to your T3 Connect account`;
     case "relay_error":
-      return t("T3 Connect returned an error");
+      return "T3 Connect returned an error";
     case "tunnel_pending":
-      return t("{host}'s tunnel is still being set up", { host });
+      return `${host}'s tunnel is still being set up`;
     case "tunnel_not_enabled":
       return t("T3 Connect is not turned on for {host}", { host });
     // fork: a wait, not a failure.
@@ -132,41 +130,41 @@ function headline(
       return t("Waiting for your server's device list");
     case "released":
     case "tunnel_down":
-      return t("{host}'s tunnel is offline", { host });
+      return `${host}'s tunnel is offline`;
     case "origin_unreachable":
-      return t("Tunnel works, but T3 Extend on {host} did not answer", { host });
+      return `Tunnel works, but T3 Code on ${host} did not answer`;
     case "invalid_response":
-      return t("T3 Extend on {host} sent an unexpected answer", { host });
+      return `T3 Code on ${host} sent an unexpected answer`;
     case "dns":
-      return t("{host}'s tunnel address did not resolve", { host });
+      return `${host}'s tunnel address did not resolve`;
     case "tls":
-      return t("Secure connection to {host}'s tunnel failed", { host });
+      return `Secure connection to ${host}'s tunnel failed`;
     case "refused":
-      return t("{host}'s tunnel refused the connection", { host });
+      return `${host}'s tunnel refused the connection`;
     case "timeout":
-      return t("{host} did not answer in time", { host });
+      return `${host} did not answer in time`;
     case "unknown":
     case null:
       break;
   }
   switch (located.hop) {
     case "device":
-      return t("This device could not prepare the connection");
+      return "This device could not prepare the connection";
     case "relay":
       return failure?.reason === "authentication"
-        ? t("T3 Connect did not accept this device's sign-in")
-        : t("This device can't reach T3 Connect");
+        ? "T3 Connect did not accept this device's sign-in"
+        : "This device can't reach T3 Connect";
     case "tunnel":
       // The relay already reached the host when this device fails on its own.
       return failure?.reason === "network" ||
         failure?.reason === "transport" ||
         failure?.reason === "timeout"
-        ? t("This device can't reach {host}'s tunnel", { host })
-        : t("T3 Connect could not reach {host}'s tunnel", { host });
+        ? `This device can't reach ${host}'s tunnel`
+        : `T3 Connect could not reach ${host}'s tunnel`;
     case "server":
       return failure?.reason === "authentication" || failure?.reason === "permission"
-        ? t("T3 Extend on {host} did not accept this device", { host })
-        : t("T3 Extend on {host} did not answer", { host });
+        ? `T3 Code on ${host} did not accept this device`
+        : `T3 Code on ${host} did not answer`;
   }
 }
 
@@ -183,11 +181,11 @@ function steps(
   );
   switch (located.cause) {
     case "offline":
-      return [t("Connect this device to the internet. T3 Extend reconnects on its own.")];
+      return ["Connect this device to the internet. T3 Code reconnects on its own."];
     case "session_pending":
       return [
-        t("Wait a moment. T3 Extend retries on its own."),
-        t("If it keeps waiting, reload or restart T3 Extend on this device."),
+        "Wait a moment. T3 Code retries on its own.",
+        "If it keeps waiting, reload or restart T3 Code on this device.",
       ];
     case "approval_pending": {
       const code =
@@ -211,22 +209,22 @@ function steps(
       ];
     }
     case "outdated":
-      return [t("Update T3 Extend on {host}.", { host })];
+      return [`Update T3 Code on ${host}.`];
     case "clock_skew":
       return [
         t("Turn on automatic date and time on this device and on {host}, then retry.", { host }),
       ];
     case "not_linked":
       return [
-        t("Check that this device is signed in to the same T3 Connect account as the host."),
-        t("On {host}, open Settings > Sharing & access and turn T3 Connect on.", { host }),
+        "Check that this device is signed in to the same T3 Connect account as the host.",
+        `On ${host}, open Settings > Sharing & access and turn T3 Connect on.`,
       ];
     case "tunnel_pending":
-      return [t("Wait a minute. T3 Extend retries on its own."), checkHost];
+      return ["Wait a minute. T3 Code retries on its own.", checkHost];
     case "relay_error":
       return [
-        t("Wait a few minutes. T3 Extend retries on its own."),
-        t("If it keeps failing, copy the diagnostics and report it."),
+        "Wait a few minutes. T3 Code retries on its own.",
+        "If it keeps failing, copy the diagnostics and report it.",
       ];
     case "tunnel_not_enabled":
       return [t("On {host}, open Settings > Sharing & access and turn T3 Connect on.", { host })];
@@ -235,59 +233,53 @@ function steps(
     case "released":
     case "tunnel_down":
       return [
-        t("Make sure {host} is awake and T3 Extend is running on it.", { host }),
+        `Make sure ${host} is awake and T3 Code is running on it.`,
         checkHost,
-        t(
-          "A VPN or Tailscale exit node on {host} can block the tunnel (port 7844). Turn it off or allow the tunnel.",
-          { host },
-        ),
+        `A VPN or Tailscale exit node on ${host} can block the tunnel (port 7844). Turn it off or allow the tunnel.`,
       ];
     case "origin_unreachable":
     case "invalid_response":
-      return [t("Open or restart T3 Extend on {host}.", { host }), checkHost];
+      return [`Open or restart T3 Code on ${host}.`, checkHost];
     // The relay saw these on its way to the host, so the fix is on the host.
     case "dns":
     case "tls":
     case "refused":
     case "timeout":
     case "unknown":
-      return [t("Make sure {host} is awake and online.", { host }), checkHost];
+      return [`Make sure ${host} is awake and online.`, checkHost];
     case null:
       break;
   }
   switch (located.hop) {
     case "device":
       return [
-        t("Restart T3 Extend on this device."),
-        t("If it keeps failing, remove {host} from this device and add it again.", { host }),
+        "Restart T3 Code on this device.",
+        `If it keeps failing, remove ${host} from this device and add it again.`,
       ];
     case "relay":
       return failure?.reason === "authentication"
-        ? [t("Sign out of T3 Connect and sign in again.")]
+        ? ["Sign out of T3 Connect and sign in again."]
         : [
-            t("Check this device's internet connection."),
-            t("A VPN, firewall, or ad blocker on this device can block T3 Connect."),
+            "Check this device's internet connection.",
+            "A VPN, firewall, or ad blocker on this device can block T3 Connect.",
           ];
     case "tunnel":
       return failure?.reason === "network" ||
         failure?.reason === "transport" ||
         failure?.reason === "timeout"
         ? [
-            t("A VPN, firewall, or DNS filter on this device can block the tunnel."),
-            t("Try another network, or add a direct route such as a Tailscale address."),
+            "A VPN, firewall, or DNS filter on this device can block the tunnel.",
+            "Try another network, or add a direct route such as a Tailscale address.",
           ]
-        : [t("Make sure {host} is awake and online.", { host }), checkHost];
+        : [`Make sure ${host} is awake and online.`, checkHost];
     case "server":
       return failure?.reason === "authentication"
         ? [
-            t(
-              "This device's sign-in to {host} expired or was revoked. Pair it again with a new pairing link from {host}.",
-              { host },
-            ),
+            `This device's sign-in to ${host} expired or was revoked. Pair it again with a new pairing link from ${host}.`,
           ]
         : [
-            t("Make sure T3 Extend is running on {host}.", { host }),
-            t("Retry. If it keeps failing, copy the diagnostics."),
+            `Make sure T3 Code is running on ${host}.`,
+            "Retry. If it keeps failing, copy the diagnostics.",
           ];
   }
 }
@@ -354,16 +346,16 @@ const HOP_ORDER = {
   direct: ["device", "server"],
 } as const;
 
-function hopLabel(t: Translator, hop: ConnectionHop, host: string): string {
+function hopLabel(hop: ConnectionHop, host: string): string {
   switch (hop) {
     case "device":
-      return t("This device");
+      return "This device";
     case "relay":
       return "T3 Connect";
     case "tunnel":
-      return t("{host} tunnel", { host });
+      return `${host} tunnel`;
     case "server":
-      return t("T3 Extend on {host}", { host });
+      return `T3 Code on ${host}`;
   }
 }
 

@@ -33,7 +33,6 @@ export function PreviewPanel({
   visible,
   onSendAnnotation,
 }: Props) {
-  const t = useT();
   const available = usePreviewAvailable(threadRef.environmentId);
   const canOperatePreview = useEnvironmentScope(threadRef.environmentId, AuthPreviewOperateScope);
   const unreachable = useUnreachablePreviewNotice(threadRef.environmentId); // fork: loopback gateway

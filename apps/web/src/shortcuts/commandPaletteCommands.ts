@@ -13,7 +13,6 @@ import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
 import { type CommandHandler, type CommandScopeOptions, registerCommands } from "./dispatcher";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { resolveThreadRouteTarget } from "../threadRoutes";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 function consume(event: KeyboardEvent): void {
   event.preventDefault();

@@ -15,8 +15,6 @@ import {
   type SourceControlHostCredentials,
 } from "@t3tools/client-runtime/source-control-clients";
 import { redactedPlaceholder } from "./RedactedSensitiveText";
-import { useT } from "../../hooks/useT";
-import { interpolateNodes } from "../../lib/interpolateNodes";
 
 /** Sentinel select value for "follow the CLI's active login"; logins never contain spaces. */
 const ACTIVE_ACCOUNT = "active cli account";
@@ -26,7 +24,6 @@ function RedactedLogin(props: {
   readonly revealed: boolean;
   readonly label?: string;
 }) {
-  const t = useT();
   return props.revealed ? (
     <span className="min-w-0 truncate font-mono text-2xs">{props.account}</span>
   ) : (
@@ -34,7 +31,7 @@ function RedactedLogin(props: {
       <span className="select-none blur-xs" aria-hidden>
         {redactedPlaceholder(props.account)}
       </span>
-      <span className="sr-only">{props.label ?? t("Hidden account")}</span>
+      <span className="sr-only">{props.label ?? "Hidden account"}</span>
     </span>
   );
 }
@@ -52,7 +49,6 @@ export function SourceControlAccountSettings({
   readonly auth: SourceControlProviderAuth;
   readonly onSaved: () => void;
 }) {
-  const t = useT();
   const { hosts } = useEnvironmentSettings(environmentId, (settings) =>
     readHostCredentialSettings(settings, definition.kind),
   );
@@ -140,7 +136,7 @@ export function SourceControlAccountSettings({
                 <span className="text-xs font-medium text-foreground">{group.host}</span>
                 {group.selectable.length === 1 && group.selectable[0] !== undefined ? (
                   <p className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                    <span>{t("Signed in as")}</span>
+                    <span>Signed in as</span>
                     <RedactedLogin revealed={revealed} account={group.selectable[0]} />
                   </p>
                 ) : null}
@@ -148,13 +144,13 @@ export function SourceControlAccountSettings({
               <Switch
                 checked={enabled}
                 disabled={saving}
-                aria-label={t("Use {label} on {host}", { label, host: group.host })}
+                aria-label={`Use ${label} on ${group.host}`}
                 onCheckedChange={(checked) => void save(group.host, { enabled: checked })}
               />
             </div>
             {group.selectable.length > 1 ? (
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-muted-foreground">{t("Account")}</span>
+                <span className="text-xs text-muted-foreground">Account</span>
                 <div className="w-64 max-w-full">
                   <Select
                     value={pinned}
@@ -174,7 +170,7 @@ export function SourceControlAccountSettings({
                         {(value: string) =>
                           value === ACTIVE_ACCOUNT ? (
                             <span className="flex min-w-0 items-center gap-1">
-                              {t("Active {cliName} account", { cliName })}
+                              Active {cliName} account
                               {group.activeAccount ? (
                                 <>
                                   (
@@ -195,7 +191,7 @@ export function SourceControlAccountSettings({
                     <SelectPopup align="end" alignItemWithTrigger={false}>
                       <SelectItem value={ACTIVE_ACCOUNT}>
                         <span className="flex min-w-0 items-center gap-1">
-                          {t("Active {cliName} account", { cliName })}
+                          Active {cliName} account
                           {group.activeAccount ? (
                             <>
                               (<RedactedLogin revealed={revealed} account={group.activeAccount} />)
@@ -208,7 +204,7 @@ export function SourceControlAccountSettings({
                           <RedactedLogin
                             revealed={revealed}
                             account={account}
-                            label={t("Account {index}", { index: index + 1 })}
+                            label={`Account ${index + 1}`}
                           />
                         </SelectItem>
                       ))}
@@ -220,10 +216,7 @@ export function SourceControlAccountSettings({
             {stalePin ? (
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs text-warning">
-                  {t(
-                    "The chosen login is no longer signed in, so the active {cliName} login is used.",
-                    { cliName },
-                  )}
+                  The chosen login is no longer signed in, so the active {cliName} login is used.
                 </p>
                 <Button
                   size="xs"
@@ -231,7 +224,7 @@ export function SourceControlAccountSettings({
                   disabled={saving}
                   onClick={() => void save(group.host, { account: null })}
                 >
-                  {t("Use active login")}
+                  Use active login
                 </Button>
               </div>
             ) : null}
@@ -242,17 +235,14 @@ export function SourceControlAccountSettings({
               >
                 <RedactedLogin revealed={revealed} account={entry.account} />
                 <span>
-                  {t("can't be used:")}{" "}
-                  {entry.error ?? t("{cliName} reports this login as invalid.", { cliName })}
+                  can't be used: {entry.error ?? `${cliName} reports this login as invalid.`}
                 </span>
               </p>
             ))}
             {group.environmentVariable ? (
               <p className="text-xs text-warning">
-                {t(
-                  "{environmentVariable} is set on the server, so it overrides the account chosen here until it is unset.",
-                  { environmentVariable: group.environmentVariable },
-                )}
+                {group.environmentVariable} is set on the server, so it overrides the account chosen
+                here until it is unset.
               </p>
             ) : null}
           </div>

@@ -1,5 +1,4 @@
 import "~/index.css";
-import { translatorFor } from "@t3tools/client-runtime/i18n";
 import { EnvironmentId, ProviderDriverKind, ThreadId, TurnItemId } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import { expect, it, vi } from "vite-plus/test";
@@ -73,7 +72,6 @@ it("opens full command details for short labels and keeps pending tasks current"
         stopping: false,
         onStop: async () => undefined,
         onOpenThread: () => undefined,
-        t: translatorFor("en"),
       })}
     />
   );

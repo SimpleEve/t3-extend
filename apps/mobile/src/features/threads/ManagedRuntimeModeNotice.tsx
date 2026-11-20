@@ -5,7 +5,6 @@ import {
   type RuntimeMode,
 } from "@t3tools/contracts";
 import { View } from "react-native";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 import { AppText } from "../../components/ui/AppText";
 import { Button } from "../../components/ui/Button";
@@ -25,10 +24,9 @@ export function ManagedRuntimeModeNotice(props: {
   readonly supportedRuntimeModes: ReadonlyArray<RuntimeMode> | undefined;
   readonly policy: ManagedPolicySummary | undefined;
 }) {
-  const t = useT();
   const draftSettings = useComposerDraftSettings(props.threadKey);
   const runtimeMode = draftSettings.runtimeMode ?? props.threadRuntimeMode;
-  const denial = managedRuntimeModeDenial(props.policy, runtimeMode, t); // fork: interface language
+  const denial = managedRuntimeModeDenial(props.policy, runtimeMode);
   if (denial === undefined) return null;
   const choices = runtimeModeChoicesForSupportedModes(props.supportedRuntimeModes);
   const target = clampManagedRuntimeMode(
@@ -40,11 +38,11 @@ export function ManagedRuntimeModeNotice(props: {
   return (
     <View className="gap-2 px-4 pb-3">
       <AppText textRole="footnote" className="text-foreground-muted">
-        {t("{denial} Switch this thread's mode to continue.", { denial })}
+        {`${denial} Switch this thread's mode to continue.`}
       </AppText>
       {target === undefined || targetLabel === undefined ? null : (
         <Button
-          label={t("Switch to {mode}", { mode: t(targetLabel) })}
+          label={`Switch to ${targetLabel}`}
           onPress={() => updateComposerDraftSettings(props.threadKey, { runtimeMode: target })}
         />
       )}

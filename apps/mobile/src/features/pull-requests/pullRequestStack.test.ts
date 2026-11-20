@@ -1,4 +1,3 @@
-import { translatorFor } from "@t3tools/client-runtime/i18n";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { ProjectId, type PullRequestStack, type ThreadPullRequestLink } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
@@ -8,8 +7,6 @@ import {
   savedPullRequestStack,
   singlePullRequestMergeAllowed,
 } from "./pullRequestStack";
-
-const t = translatorFor("en");
 
 const GITHUB = sourceControlClients.get("github").changeRequest;
 

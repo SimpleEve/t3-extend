@@ -1,6 +1,5 @@
 import { formatDiffCount } from "@t3tools/client-runtime/diff-count";
 import type { PullRequestChangeBreakdown } from "@t3tools/contracts";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 const KIND_LABELS = {
   code: "Code",
@@ -19,7 +18,6 @@ export function ChangeBreakdownGrid({
   breakdown: NonNullable<PullRequestChangeBreakdown>;
   total?: DiffTotals;
 }) {
-  const t = useT(); // fork: interface language
   return (
     <div className="grid grid-cols-[auto_auto_auto] justify-start gap-x-4 gap-y-1 py-0.5 font-mono tabular-nums">
       {(Object.keys(KIND_LABELS) as Array<keyof typeof KIND_LABELS>).map((kind) => {
@@ -27,7 +25,7 @@ export function ChangeBreakdownGrid({
         return additions === 0 && deletions === 0 ? null : (
           <BreakdownRow
             key={kind}
-            label={t(KIND_LABELS[kind])}
+            label={KIND_LABELS[kind]}
             additions={additions}
             deletions={deletions}
           />

@@ -12,7 +12,6 @@ import {
 } from "../../voice-input/ComposerDictationControl";
 import type { useVoiceInputController } from "../../voice-input/useVoiceInputController";
 import { resolveVoiceComposerPresentation } from "../../voice-input/voiceInputPresentation";
-import { useT } from "../../../hooks/useT"; // fork: i18n
 
 export function ScheduledTaskPromptField(props: {
   readonly value: string;
@@ -22,7 +21,6 @@ export function ScheduledTaskPromptField(props: {
   readonly disabled: boolean;
   readonly voiceInput: ReturnType<typeof useVoiceInputController>;
 }) {
-  const t = useT();
   const voice = props.voiceInput;
   const presentation = resolveVoiceComposerPresentation(voice.state, voice.elapsedSeconds, t);
   const showsDictation = presentation.statusKind === "active";
@@ -30,10 +28,10 @@ export function ScheduledTaskPromptField(props: {
 
   return (
     <View className="gap-2 border-t border-border-subtle px-4 py-3">
-      <Text className="text-sm text-foreground-muted">{t("Prompt")}</Text>
+      <Text className="text-sm text-foreground-muted">Prompt</Text>
       <View className="flex-row items-end">
         <TextInput
-          accessibilityLabel={t("Prompt")}
+          accessibilityLabel="Prompt"
           value={props.value}
           onChangeText={props.onChange}
           selection={props.selection}
@@ -42,7 +40,7 @@ export function ScheduledTaskPromptField(props: {
           multiline
           scrollEnabled
           textAlignVertical="top"
-          placeholder={t("What should the agent do each time?")}
+          placeholder="What should the agent do each time?"
           placeholderTextColorClassName="accent-foreground-muted"
           className="max-h-40 min-h-24 min-w-0 flex-1 font-sans text-base text-foreground"
         />

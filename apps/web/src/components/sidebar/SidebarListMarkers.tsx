@@ -3,7 +3,6 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { type ReactNode, useLayoutEffect } from "react";
 import { cn } from "~/lib/utils";
-import { useT } from "~/hooks/useT";
 import {
   animateSidebarLayoutChanges,
   sidebarMarkerId,
@@ -55,7 +54,6 @@ export function SidebarSectionPlaceholder(props: {
   showHint: boolean;
   isDropTarget: boolean;
 }) {
-  const t = useT();
   return (
     <SortableSidebarMarker
       marker={props.marker}
@@ -73,7 +71,7 @@ export function SidebarSectionPlaceholder(props: {
             props.isDropTarget && "border-primary/40 bg-primary/5 text-primary",
           )}
         >
-          {t(props.label, undefined, SIDEBAR_SECTION_CONTEXT)}
+          {props.label}
         </div>
       ) : null}
     </SortableSidebarMarker>
@@ -86,7 +84,6 @@ export function SidebarDragBoundary(props: {
   visible: boolean;
   isDropTarget: boolean;
 }) {
-  const t = useT();
   return (
     <SortableSidebarMarker
       marker={props.marker}
@@ -101,7 +98,7 @@ export function SidebarDragBoundary(props: {
               props.isDropTarget ? "text-primary" : "text-sidebar-foreground/80",
             )}
           >
-            {t(props.label, undefined, SIDEBAR_SECTION_CONTEXT)}
+            {props.label}
           </span>
           <span
             aria-hidden
@@ -126,7 +123,6 @@ export function SidebarSectionHeader(props: {
   isDropTarget?: boolean;
   toggle: { expanded: boolean; onToggle: () => void };
 }) {
-  const t = useT();
   const shelf =
     props.marker === "working-header"
       ? "working"
@@ -147,7 +143,7 @@ export function SidebarSectionHeader(props: {
         data-testid={`sidebar-${shelf}-shelf-toggle`}
         accessory={<span className="font-normal tabular-nums">{props.count}</span>}
       >
-        {t(props.label, undefined, SIDEBAR_SECTION_CONTEXT)}
+        {props.label}
       </CollapsibleSectionHeader>
     </SortableSidebarMarker>
   );

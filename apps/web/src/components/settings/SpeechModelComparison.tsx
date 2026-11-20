@@ -1,7 +1,6 @@
 import type { EnvironmentSpeechModel, SpeechBenchmarkTier } from "@t3tools/contracts";
 
 import { languageLabel } from "./SpeechLanguageSelect";
-import { useT } from "~/hooks/useT";
 
 const commonLanguages = [
   "en",
@@ -56,7 +55,6 @@ export function ModelBenchmarks({
   /** Plain facts, such as language count and size, shown after the scores. */
   facts: readonly string[];
 }) {
-  const t = useT();
   const data = model.benchmark;
   const seconds = tier === undefined ? undefined : data?.secondsPer30s[tier];
   const visible = !data
@@ -79,18 +77,18 @@ export function ModelBenchmarks({
                 {t("({percent}% error)", { percent: score.errorPercent })}
               </>
             ) : (
-              t("not benchmarked")
+              "not benchmarked"
             )}
           </span>
         );
       })}
       {data ? (
         <span>
-          {t("Speed:")}{" "}
+          Speed:{" "}
           {seconds === undefined ? (
-            t("update server for this benchmark")
+            "update server for this benchmark"
           ) : seconds === null ? (
-            t("not benchmarked")
+            "not benchmarked"
           ) : (
             <>
               <strong className="font-medium text-foreground">

@@ -11,10 +11,6 @@ import {
   releaseEditingQueuedMessage,
 } from "../../state/use-thread-outbox";
 import { withThreadDismissal } from "./thread-dismissal";
-import { getUiLocale, translate, type TranslateParams } from "@t3tools/client-runtime/i18n"; // fork: i18n
-
-// fork: i18n. Reads the language when the text is shown.
-const t = (source: string, params?: TranslateParams) => translate(getUiLocale(), source, params);
 
 export function usePendingTaskListActions(
   selectThreadRoute: (params: ReactNavigation.RootParamList["Thread"]) => void,
@@ -69,14 +65,12 @@ export function usePendingTaskListActions(
       return;
     }
     Dialog.alert(
-      t("Delete pending task?"),
-      t("“{title}” has not been sent yet and will be removed from the outbox.", {
-        title: pendingTask.title,
-      }),
+      "Delete pending task?",
+      `“${pendingTask.title}” has not been sent yet and will be removed from the outbox.`,
       [
-        { text: t("Cancel"), style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         {
-          text: t("Delete"),
+          text: "Delete",
           style: "destructive",
           onPress: () => {
             // Hold delivery from confirmation so reconnects cannot send a task during removal.

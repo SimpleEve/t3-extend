@@ -16,7 +16,6 @@ import {
   isAudioSessionOwner,
   releaseAudioSession,
 } from "../../lib/audioSession";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type { VideoPreviewSource } from "../../lib/videoPreviewSource";
 
@@ -127,15 +126,12 @@ function NativeVideoPreview(props: {
       // AVKit gives no retry, so re-mint now; the minted URL may already be unusable.
       if (ready) reauthorize();
       Dialog.alert(
-        translate(getUiLocale(), "Could not open video"),
+        "Could not open video",
         ready
-          ? translate(
-              getUiLocale(),
-              "This video couldn't be loaded or played. Check the connection, or touch and hold the video to save or share the original.",
-            )
+          ? "This video couldn't be loaded or played. Check the connection, or touch and hold the video to save or share the original."
           : error instanceof Error
             ? error.message
-            : translate(getUiLocale(), "Could not load this video."),
+            : "Could not load this video.",
       );
       onRequestClose();
     });

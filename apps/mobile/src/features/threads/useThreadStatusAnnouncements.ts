@@ -1,5 +1,4 @@
 import { useIsFocused } from "@react-navigation/native";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import {
   nextThreadAnnouncement,
   type ThreadAnnouncementMemory,

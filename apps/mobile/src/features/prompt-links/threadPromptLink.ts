@@ -16,7 +16,6 @@ import {
   promptLinkSearchFromParams,
   stepPendingPromptLink,
 } from "./prompt-link-model";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const THREAD_LINK_KEYS = ["prompt"];
 
@@ -58,7 +57,7 @@ export function takeThreadPromptLink(
   if (environmentId === null || threadId === null) return nextState;
   const parsed = parseThreadLinkPrompt(search);
   if (!parsed.ok) {
-    Dialog.alert(translate(getUiLocale(), "Could not open link"), parsed.error);
+    Dialog.alert("Could not open link", parsed.error);
     return nextState;
   }
   if (parsed.value !== null) {

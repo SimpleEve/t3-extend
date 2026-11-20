@@ -7,7 +7,6 @@ import {
 } from "~/lib/assistantTextSelection";
 import { toastManager } from "../ui/toast";
 import { observeResize } from "~/lib/observeResize";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 const CITATION_PULSE_DURATION_MS = 650;
 const CITATION_HIGHLIGHT_HOLD_MS = 1575;
@@ -195,8 +194,8 @@ function observeAssistantCitationSource({
             request.onComplete();
             toastManager.add({
               type: "warning",
-              title: translate(getUiLocale(), "Could not open the cited response"),
-              description: translate(getUiLocale(), "Click the citation to try again."),
+              title: "Could not open the cited response",
+              description: "Click the citation to try again.",
             });
           },
         );
@@ -216,11 +215,8 @@ function observeAssistantCitationSource({
       if (!range) {
         toastManager.add({
           type: "warning",
-          title: translate(getUiLocale(), "The quoted text has changed"),
-          description: translate(
-            getUiLocale(),
-            "Showing the source response. The saved quote is unchanged.",
-          ),
+          title: "The quoted text has changed",
+          description: "Showing the source response. The saved quote is unchanged.",
         });
       }
     }

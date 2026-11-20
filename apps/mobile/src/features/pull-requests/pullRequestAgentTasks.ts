@@ -4,7 +4,6 @@ import {
 } from "@t3tools/client-runtime/source-control-clients";
 import type { MenuAction } from "@react-native-menu/menu";
 import type { PullRequestDetail, PullRequestLinkedThreadsResult } from "@t3tools/contracts";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type PullRequestAgentTask = "ask" | "explain" | "feedback" | "conflicts" | "watch";
 
@@ -22,7 +21,6 @@ export function pullRequestAgentThreadActions(
   threads: PullRequestLinkedThreadsResult["threads"],
   task: PullRequestAgentTask,
   canAsk: boolean,
-  t: Translator = (message) => message, // fork: i18n
 ): MenuAction[] {
   const active: MenuAction[] = [];
   const settled: MenuAction[] = [];
@@ -31,20 +29,20 @@ export function pullRequestAgentThreadActions(
       id: `${task}:${thread.id}`,
       title: thread.title,
       subtitle: thread.archivedAt
-        ? t("Archived thread")
+        ? "Archived thread"
         : thread.settled
-          ? t("Settled thread")
-          : t("Continue thread"),
+          ? "Settled thread"
+          : "Continue thread",
       image: "bubble.left.and.bubble.right",
       attributes: { disabled: task !== "ask" && Boolean(thread.archivedAt) },
     };
     (thread.settled ? settled : active).push(action);
   }
   return [
-    ...(canAsk ? [{ id: `${task}:new`, title: t("Start a new thread"), image: "plus" }] : []),
+    ...(canAsk ? [{ id: `${task}:new`, title: "Start a new thread", image: "plus" }] : []),
     ...active,
     ...(settled.length
-      ? [{ id: `${task}:settled`, title: t("Settled threads"), subactions: settled }]
+      ? [{ id: `${task}:settled`, title: "Settled threads", subactions: settled }]
       : []),
   ];
 }
@@ -77,7 +75,7 @@ export function pullRequestAgentActions(
   return [
     {
       task: "ask",
-      title: t("Ask a question"),
+      title: "Ask a question",
       icon: "bubble.left.and.text.bubble.right",
       disabled: false,
     },
@@ -89,19 +87,19 @@ export function pullRequestAgentActions(
     },
     {
       task: "feedback",
-      title: t("Address feedback"),
+      title: "Address feedback",
       icon: "wrench.and.screwdriver",
       disabled: pr.state !== "open",
     },
     {
       task: "conflicts",
-      title: t("Resolve conflicts"),
+      title: "Resolve conflicts",
       icon: "arrow.triangle.branch",
       disabled: pr.state !== "open" || pr.mergeability !== "conflicting",
     },
     {
       task: "watch",
-      title: t("Watch {shortLabel}", { shortLabel }),
+      title: `Watch ${shortLabel}`,
       icon: "eye",
       disabled: pr.state !== "open" || !canWatch,
     },

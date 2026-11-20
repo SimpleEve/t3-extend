@@ -71,7 +71,6 @@ import {
   recoverQueuedMessageEdit,
 } from "./queuedMessageEdit";
 import type { EditQueuedRunRequest } from "./QueuedRunsControl";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 interface EditingQueuedRun {
   readonly threadId: ThreadId;
@@ -148,10 +147,7 @@ async function submitQueuedRunEdit(input: {
       uploadFiles,
     });
     if (input.draftChanged())
-      return translate(
-        getUiLocale(),
-        "Draft changed while preparing this message. Review it and save again.",
-      );
+      return "Draft changed while preparing this message. Review it and save again.";
     // The edit draft owns thread and machine mentions, so a chip removed while editing is dropped.
     const keptRecords = (editing.context?.records ?? []).filter(
       (record) =>
@@ -328,7 +324,7 @@ export function useQueuedRunEdit(input: {
           toastManager.add(
             stackedThreadToast({
               type: recovery === "kept" ? "info" : "warning",
-              title: translate(getUiLocale(), "Queued message is no longer queued"),
+              title: "Queued message is no longer queued",
               description:
                 title === undefined
                   ? recovery === "kept"
@@ -441,10 +437,7 @@ export function useQueuedRunEdit(input: {
     setThreadError(
       editing.threadId,
       changedAfterSave
-        ? translate(
-            getUiLocale(),
-            "The earlier edit was saved. Review your newer changes and save again.",
-          )
+        ? "The earlier edit was saved. Review your newer changes and save again."
         : error,
     );
     const current = finishSave(error === null && !changedAfterSave);

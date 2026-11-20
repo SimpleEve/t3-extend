@@ -33,8 +33,6 @@ import {
   type WorkflowRailTone,
 } from "./threadAgentsPresentation";
 import { useVisibleSecondClock } from "./use-visible-second-clock";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 const RAIL_ICON = {
   working: "circle.inset.filled",
@@ -50,7 +48,6 @@ export function ThreadWorkflowGroup(props: {
   readonly group: SubagentWorkflowGroup;
   readonly onOpen: (threadId: ThreadId) => void;
 }) {
-  const t = useT();
   const { group } = props;
   const provider = useEnvironmentServerConfig(props.environmentId)?.providers.find(
     (candidate) => candidate.instanceId === props.subagent.providerInstanceId,
@@ -67,8 +64,8 @@ export function ThreadWorkflowGroup(props: {
         <View className="flex-row items-center">
           <RowPressable
             accessibilityRole="button"
-            accessibilityLabel={t("{label} workflow, {statusLabel}", { label, statusLabel })}
-            accessibilityHint={open ? t("Collapses the workflow") : t("Opens the current phase")}
+            accessibilityLabel={`${label} workflow, ${statusLabel}`}
+            accessibilityHint={open ? "Collapses the workflow" : "Opens the current phase"}
             accessibilityState={{ expanded: open !== undefined }}
             disabled={rail.length === 0}
             onPress={() => setSelected(nextWorkflowSelection(rail, selected))}
@@ -135,7 +132,7 @@ export function ThreadWorkflowGroup(props: {
             textRole="footnote"
             className="border-t border-border-subtle px-4 py-3 text-foreground-muted"
           >
-            {t("No agents yet")}
+            No agents yet
           </Text>
         ) : (
           open.members.map((member) => (
@@ -159,7 +156,6 @@ function WorkflowMemberRow(props: {
   readonly provider: ServerProvider | undefined;
   readonly onOpen: (threadId: ThreadId) => void;
 }) {
-  const t = useT();
   const { member } = props;
   const threadId = member.childThreadId === null ? null : ThreadId.make(member.childThreadId);
   const shell = useThreadShell(

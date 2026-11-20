@@ -7,16 +7,14 @@ import { useSettingsScope } from "./SettingsScopeContext";
 import { SettingsScopeNotice } from "./SettingsScopeNotice";
 import { SettingsPageContainer } from "./settingsLayout";
 import { ALL_ENVIRONMENTS_VALUE, selectEnvironmentAxis } from "./settingsScopeAxis";
-import { useT } from "../../hooks/useT";
 
 export function ProjectsSettings() {
-  const t = useT();
   const { search: value, scope, selectScope } = useSettingsScope();
   const unavailable =
     scope.kind === "unavailable" ? (
       <SettingsPageContainer>
         <div className="flex flex-col items-start gap-3">
-          <p className="text-sm text-muted-foreground">{t(scope.message)}</p>
+          <p className="text-sm text-muted-foreground">{scope.message}</p>
           {value.machine || value.checkout ? (
             <Button
               variant="outline"
@@ -24,7 +22,7 @@ export function ProjectsSettings() {
               onClick={() => selectScope(selectEnvironmentAxis(value, ALL_ENVIRONMENTS_VALUE))}
             >
               <LayersIcon />
-              {t("Show all environments")}
+              Show all environments
             </Button>
           ) : null}
         </div>
@@ -49,7 +47,7 @@ export function ProjectsSettings() {
         unavailable
       ) : (
         <SettingsScopeNotice target="project">
-          {t("Choose a project to manage its name, icon, checkouts and actions.")}
+          Choose a project to manage its name, icon, checkouts and actions.
         </SettingsScopeNotice>
       )}
     </div>

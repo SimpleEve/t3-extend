@@ -12,7 +12,6 @@ import {
 import { EnvironmentMachineIcon } from "./EnvironmentMachineIcon";
 import { ProjectFavicon } from "./ProjectFavicon";
 import { COMMAND_PALETTE_META_ICON_CLASS, CommandPaletteMetaDot } from "./ThreadCommandSubtitle";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 export interface CommandPaletteProjectLocation {
   readonly kind: "local" | "remote";
@@ -106,13 +105,12 @@ function ProjectLocationDescription(props: {
   readonly workspaceRoot: string;
   readonly current?: boolean;
 }) {
-  const t = useT();
   const location = props.location ?? UNKNOWN_PROJECT_LOCATION;
   return (
     <span className="flex min-w-0 items-center gap-1">
       {props.current ? (
         <>
-          <span className="shrink-0">{t("Current")}</span>
+          <span className="shrink-0">Current</span>
           <CommandPaletteMetaDot />
         </>
       ) : null}

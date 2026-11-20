@@ -1,7 +1,6 @@
 import { useRef } from "react";
 import type { SearchBarCommands } from "react-native-screens";
 
-import { useT } from "../../../hooks/useT"; // fork: i18n
 import { NativeStackScreenOptions } from "../../../native/StackHeader";
 import { useHardwareKeyboardCommand } from "../../keyboard/hardwareKeyboardCommands";
 import { getConnectionAwareBrandHeaderOptions } from "./brand-header-options";
@@ -20,7 +19,6 @@ function SidebarColumnHeader(
     readonly sidebar: NonNullable<WorkspaceListHeaderProps["sidebar"]>;
   },
 ) {
-  const t = useT(); // fork: i18n
   const { search, sidebar } = props;
   const searchBarRef = useRef<SearchBarCommands>(null);
   useHardwareKeyboardCommand("focusSearch", () => {
@@ -36,13 +34,12 @@ function SidebarColumnHeader(
   });
   const items = createWorkspaceListHeaderItems({
     filter: {
-      accessibilityLabel: t("Filter threads"), // fork: i18n
+      accessibilityLabel: "Filter threads",
       icon: workspaceListFilterIcon(props.filter.customized),
-      title: t("Thread list options"), // fork: i18n
+      title: "Thread list options",
       items: props.filter.items,
     },
     onOpenSettings: props.onOpenSettings,
-    t, // fork: i18n
   });
 
   return (

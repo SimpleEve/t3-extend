@@ -18,13 +18,11 @@ import { dismissProjectFileCopy, useProjectFileCopy } from "../../lib/addProject
 import { type ComposerBannerStackItem } from "./ComposerBannerStack";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { Button } from "../ui/button";
-import { useT } from "~/hooks/useT";
 /**
  * A project still being cloned or copied into place: the composer banner with its cancel,
  * retry, and remove actions, and the reason sending waits until it is done.
  */
 export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null) {
-  const t = useT();
   const activeProjectClone = useProjectClone(activeProjectRef);
   const cancelProjectClone = useAtomCommand(sourceControlEnvironment.cancelProjectClone, {
     reportFailure: false,
@@ -44,7 +42,7 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
         stackedThreadToast({
           type: "error",
           title,
-          description: error instanceof Error ? error.message : t("An error occurred."),
+          description: error instanceof Error ? error.message : "An error occurred.",
         }),
       );
     }
@@ -53,11 +51,11 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
   const activeProjectFileCopy = useProjectFileCopy(activeProjectRef);
   const projectCloneSendBlockReason =
     activeProjectClone?.phase === "running"
-      ? t("Cloning repository")
+      ? "Cloning repository"
       : activeProjectClone !== null && activeProjectClone.phase !== "done"
-        ? t("Repository not cloned")
+        ? "Repository not cloned"
         : activeProjectFileCopy?.phase === "copying"
-          ? t("Copying files")
+          ? "Copying files"
           : null;
   const projectCloneBannerItem = (() => {
     if (activeProjectFileCopy?.phase === "failed" && activeProjectRef) {
@@ -80,19 +78,19 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
         id: `project-clone:${projectId}`,
         variant: "info",
         icon: <DownloadIcon />,
-        title: t("Cloning {name}", { name }),
+        title: `Cloning ${name}`,
         description: projectCloneProgressSummary(activeProjectClone),
         actions: (
           <Button
             size="xs"
             variant="ghost"
             onClick={() =>
-              void runProjectCloneActionStable(t("Failed to cancel clone"), () =>
+              void runProjectCloneActionStable("Failed to cancel clone", () =>
                 cancelProjectClone({ environmentId, input: { projectId } }),
               )
             }
           >
-            {t("Cancel")}
+            Cancel
           </Button>
         ),
       };
@@ -102,10 +100,8 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
       id: `project-clone:${projectId}`,
       variant: cancelled ? "warning" : "error",
       icon: <DownloadIcon />,
-      title: cancelled
-        ? t("Cancelled cloning {name}", { name })
-        : t("Failed to clone {name}", { name }),
-      description: cancelled ? t("Retry to bring in the repository.") : activeProjectClone.error,
+      title: cancelled ? `Cancelled cloning ${name}` : `Failed to clone ${name}`,
+      description: cancelled ? "Retry to bring in the repository." : activeProjectClone.error,
       actions: (
         <>
           <Button
@@ -113,18 +109,18 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
             variant="ghost"
             onClick={() => void removeClonedProject({ environmentId, projectId })}
           >
-            {t("Remove project")}
+            Remove project
           </Button>
           <Button
             size="xs"
             variant="ghost"
             onClick={() =>
-              void runProjectCloneActionStable(t("Failed to retry clone"), () =>
+              void runProjectCloneActionStable("Failed to retry clone", () =>
                 retryProjectClone({ environmentId, input: { projectId } }),
               )
             }
           >
-            {t("Retry")}
+            Retry
           </Button>
         </>
       ),

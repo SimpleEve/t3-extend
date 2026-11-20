@@ -30,7 +30,6 @@ import {
 } from "./ComposerModelEffort";
 import type { useComposerProviderModel } from "./useComposerProviderModel";
 import { resolveComposerControlsOwnership } from "./composerControlsOwnership";
-import { useT } from "~/hooks/useT";
 
 /**
  * The composer footer controls: the model picker (which also holds effort, speed and
@@ -88,7 +87,6 @@ export function ComposerControlsBar(props: {
   modelPickerIconClassName: string | undefined;
   getModelDisabledReason: ChatComposerProps["getModelDisabledReason"];
 }) {
-  const t = useT();
   const {
     environmentId,
     routeKind,
@@ -260,7 +258,7 @@ export function ComposerControlsBar(props: {
       className="shrink-0"
     >
       <CircleAlertIcon className="size-4" />
-      {providerSetupInstanceId ? t("Open provider settings") : t("No provider available")}
+      {providerSetupInstanceId ? "Open provider settings" : "No provider available"}
     </ComposerControl>
   ) : (
     <>

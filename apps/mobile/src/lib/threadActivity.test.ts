@@ -23,7 +23,6 @@ import { summarizeToolGroup } from "@t3tools/client-runtime/work-log/presentatio
 import { getReviewSectionIdForCheckpoint } from "../features/review/reviewModel";
 import * as DateTime from "effect/DateTime";
 import { describe, expect, it } from "vite-plus/test";
-import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
 
 import {
   buildThreadFeed,
@@ -372,7 +371,7 @@ it("binds a persisted resume answer only to the next compaction in its run", () 
       compaction("resume-compact", 2, "completed"),
       compaction("auto-compact", 3, status),
     ]);
-    const labels = threadFeedCompactionLabels(feed, translatorFor("en"));
+    const labels = threadFeedCompactionLabels(feed);
     const compactRows = feed.filter(
       (entry) =>
         entry.type === "activity-group" &&
@@ -757,12 +756,8 @@ describe("buildThreadFeed", () => {
     const activity = buildThreadFeed([projected(item, 0)]).flatMap((entry) =>
       entry.type === "activity-group" ? entry.activities : [],
     )[0]!;
-    expect(workEntryRowLabel(activity.workEntry, false, translatorFor("en"))).toBe(
-      "src/a.ts +2 more",
-    );
-    expect(summarizeToolGroup([activity.workEntry], translatorFor("en")).summary).toBe(
-      "Changed 3 files",
-    );
+    expect(workEntryRowLabel(activity.workEntry)).toBe("src/a.ts +2 more");
+    expect(summarizeToolGroup([activity.workEntry]).summary).toBe("Changed 3 files");
   });
 
   it("anchors feedback before later committed turns", () => {

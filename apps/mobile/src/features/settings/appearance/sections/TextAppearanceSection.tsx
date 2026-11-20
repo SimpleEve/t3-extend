@@ -11,21 +11,19 @@ import {
 } from "../components/AppearancePreviews";
 import { FontSizeSliderRow } from "../components/FontSizeSliderRow";
 import { SettingsSwitchRow } from "../../components/SettingsSwitchRow";
-import { useT } from "../../../../hooks/useT"; // fork: i18n
 
 export function TextAppearanceSection() {
-  const t = useT();
   const { isReady, appearance, setBaseFontSize, mathRenderingEnabled, setMathRenderingEnabled } =
     useAppearancePreferences();
 
   return (
-    <SettingsSection title={t("Text")}>
+    <SettingsSection title="Text">
       <TextAppearancePreview fontSize={appearance.baseFontSize} />
       <AppearancePreviewSeparator />
       <FontSizeSliderRow
         disabled={!isReady}
         icon="textformat.size"
-        label={t("Text size")}
+        label="Text size"
         max={MAX_BASE_FONT_SIZE}
         min={MIN_BASE_FONT_SIZE}
         onChange={setBaseFontSize}
@@ -36,7 +34,7 @@ export function TextAppearanceSection() {
       <SettingsSwitchRow
         disabled={!isReady}
         icon="plusminus"
-        label={t("Render math")}
+        label="Render math"
         value={mathRenderingEnabled}
         onValueChange={setMathRenderingEnabled}
       />

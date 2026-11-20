@@ -1,7 +1,5 @@
 import { Platform } from "react-native";
 
-import { withLocalizedTitle } from "../../fork/localizedTitle"; // fork: i18n
-
 import { GLASS_HEADER_OPTIONS, type AppScreenOptions } from "../../native/glass-header-options";
 import { formSheetDetents } from "../../native/sheet-surface";
 

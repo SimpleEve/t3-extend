@@ -5,7 +5,6 @@ import { openCommandPalette } from "../../commandPaletteBus";
 import { Button } from "../ui/button";
 import { PullRequestListGhost } from "./PullRequestGhosts";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "../ui/empty";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 function BranchMark({ joined }: { joined: boolean }) {
   return (
@@ -69,21 +68,20 @@ export function PullRequestListEmptyState({
   onLoadMore: () => void;
   onRefresh: () => void;
 }) {
-  const t = useT(); // fork: interface language
   if (!hasProjects) {
     return (
       <Empty>
         <BranchMark joined={false} />
         <EmptyHeader>
-          <EmptyTitle>{t("No projects in this workspace")}</EmptyTitle>
+          <EmptyTitle>No projects in this workspace</EmptyTitle>
           <EmptyDescription>
-            {t("Add a project, and the pull requests from its repository appear here.")}
+            Add a project, and the pull requests from its repository appear here.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button size="sm" onClick={() => openCommandPalette({ open: "add-project" })}>
             <PlusIcon className="size-3.5" />
-            {t("Add project")}
+            Add project
           </Button>
         </EmptyContent>
       </Empty>
@@ -94,9 +92,7 @@ export function PullRequestListEmptyState({
     return (
       <PullRequestListGhost
         rows={5}
-        caption={t("Searching every host for “{query}”", {
-          query: query.length > 48 ? `${query.slice(0, 48)}…` : query,
-        })}
+        caption={`Searching every host for “${query.length > 48 ? `${query.slice(0, 48)}…` : query}”`}
       />
     );
   }
@@ -107,24 +103,20 @@ export function PullRequestListEmptyState({
         <BranchMark joined={false} />
         <EmptyHeader>
           <EmptyTitle>
-            {t("Nothing matches “{query}”", {
-              query: query.length > 48 ? `${query.slice(0, 48)}…` : query,
-            })}
+            Nothing matches “{query.length > 48 ? `${query.slice(0, 48)}…` : query}”
           </EmptyTitle>
           <EmptyDescription>
-            {t(
-              "The hosts were searched for it. Try fewer words, or search by number, author or branch.",
-            )}
+            The hosts were searched for it. Try fewer words, or search by number, author or branch.
           </EmptyDescription>
         </EmptyHeader>
         <div className="flex flex-wrap justify-center gap-2">
           <Button size="sm" variant="outline" onClick={onClearQuery}>
             <SearchIcon className="size-3.5" />
-            {t("Clear search")}
+            Clear search
           </Button>
           <Button size="sm" variant="outline" disabled={refreshing} onClick={onRefresh}>
             <RefreshIcon size="sm" refreshing={refreshing} />
-            {refreshing ? t("Checking...") : t("Check again")}
+            {refreshing ? "Checking..." : "Check again"}
           </Button>
         </div>
       </Empty>
@@ -140,19 +132,19 @@ export function PullRequestListEmptyState({
         </EmptyTitle>
         <EmptyDescription>
           {filtered
-            ? t("Widen the state, involvement or project filter to see more.")
-            : t("Pull requests from every project in this workspace appear here.")}
+            ? "Widen the state, involvement or project filter to see more."
+            : "Pull requests from every project in this workspace appear here."}
         </EmptyDescription>
       </EmptyHeader>
       <div className="flex flex-wrap justify-center gap-2">
         {canLoadMore ? (
           <Button size="sm" variant="outline" disabled={loadingMore} onClick={onLoadMore}>
-            {loadingMore ? t("Loading...") : t("Load more pull requests")}
+            {loadingMore ? "Loading..." : "Load more pull requests"}
           </Button>
         ) : null}
         <Button size="sm" variant="outline" disabled={refreshing} onClick={onRefresh}>
           <RefreshIcon size="sm" refreshing={refreshing} />
-          {refreshing ? t("Checking...") : t("Check again")}
+          {refreshing ? "Checking..." : "Check again"}
         </Button>
       </div>
     </Empty>

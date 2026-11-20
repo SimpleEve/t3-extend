@@ -28,7 +28,6 @@ import { environmentServerConfigsAtom, serverEnvironment } from "../state/server
 import { usePrimaryEnvironmentId } from "../state/environments";
 import { reviewEnvironment } from "../state/review";
 import { useAtomQueryRunner } from "../state/use-atom-query-runner";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export function usePullRequestPreviewTarget(environmentId: EnvironmentId | null, url: string) {
   const projects = useProjects();
@@ -229,7 +228,7 @@ export function useOpenChangeRequestLink(
             const toastId = toastManager.add(
               stackedThreadToast({
                 type: "info",
-                title: translate(getUiLocale(), "This commit is not in the thread's workspace"),
+                title: "This commit is not in the thread's workspace",
                 actionProps: {
                   children: "Open link",
                   onClick: () => {

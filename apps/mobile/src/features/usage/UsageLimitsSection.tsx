@@ -18,7 +18,6 @@ import {
   paceOf,
   paceRemainingPercent,
   remainingPercent,
-  usageWindowLabel, // fork: i18n
 } from "@t3tools/shared/usageLimits";
 import { type ReactNode, useContext, useRef, useState } from "react";
 import { Atom } from "effect/reactivity";
@@ -38,7 +37,6 @@ import {
   refreshEnvironmentLimits,
 } from "./usageLimitsRefresh";
 import { usageProviderKind, useProviderColors } from "./usageProviders";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const PACE_LABEL = { ahead: "ahead of pace", on: "on pace", under: "under pace" } as const;
 
@@ -55,7 +53,6 @@ function WindowRow(props: {
   readonly color: string | null;
   readonly now: number;
 }) {
-  const t = useT(); // fork: i18n
   const { window, now } = props;
   const remaining = remainingPercent(window);
   const timeLeft = paceRemainingPercent(window, now);
@@ -92,7 +89,7 @@ function WindowRow(props: {
       <View className="flex-row items-baseline justify-between gap-3">
         <Text className="text-sm text-foreground">{usageWindowLabel(window.label, t)}</Text>
         <Text className="text-sm font-t3-medium tabular-nums text-foreground">
-          {t("{percent}% left", { percent: remaining })}
+          {remaining}% left
         </Text>
       </View>
       <View
@@ -140,7 +137,6 @@ function WindowRow(props: {
 }
 
 function AccountInstanceLabel({ value }: { readonly value: string }) {
-  const t = useT(); // fork: i18n
   const [revealed, setRevealed] = useState(false);
   if (!value.includes("@")) {
     return (
@@ -153,7 +149,7 @@ function AccountInstanceLabel({ value }: { readonly value: string }) {
     <Pressable
       className="shrink active:opacity-60"
       accessibilityRole="button"
-      accessibilityLabel={revealed ? t("Hide account label") : t("Reveal account label")}
+      accessibilityLabel={revealed ? "Hide account label" : "Reveal account label"}
       onPress={() => setRevealed((current) => !current)}
     >
       <Text className="text-xs text-foreground-tertiary" numberOfLines={1}>
@@ -176,7 +172,6 @@ export function AccountLimits(props: {
   readonly trailing?: ReactNode;
   readonly footer?: ReactNode;
 }) {
-  const t = useT(); // fork: i18n
   const { limits, now, dense = false } = props;
   const providerColor = useBarColor(props.driver);
   const color = normalizeProviderAccentColor(props.accentColor) ?? providerColor;
@@ -220,7 +215,7 @@ export function AccountLimits(props: {
           className="min-h-11 justify-center"
           onPress={() => void Linking.openURL(externalUsage.url).catch(() => undefined)}
         >
-          <Text className="text-sm font-t3-medium text-primary">{t("Manage usage")}</Text>
+          <Text className="text-sm font-t3-medium text-primary">Manage usage</Text>
         </Pressable>
       ) : null}
       {props.footer}
@@ -242,7 +237,6 @@ export function ResetCredits(props: {
   readonly now: number;
   readonly dense?: boolean;
 }) {
-  const t = useT(); // fork: i18n
   const { environmentId, input, credits, now, dense = false } = props;
   const canManageProviders = useEnvironmentScope(environmentId, AuthProvidersManageScope);
   const consume = useAtomCommand(serverEnvironment.consumeResetCredit, {
@@ -259,21 +253,21 @@ export function ResetCredits(props: {
     const result = await consume({ environmentId, input: choice.input });
     setBusy(false);
     if (result._tag === "Success") {
-      setStatus(result.value.warning ?? t(OUTCOME_TEXT[result.value.outcome]));
+      setStatus(result.value.warning ?? OUTCOME_TEXT[result.value.outcome]);
       return;
     }
     setStatus(
       "error" in result.cause && result.cause.error instanceof Error
         ? result.cause.error.message
-        : t("Could not use the reset credit."),
+        : "Could not use the reset credit.",
     );
   };
 
   const confirm = (choice: ResetCreditChoice) => {
     if (!readEnvironmentScope(environmentId, AuthProvidersManageScope)) return;
-    Dialog.alert(t("Use a reset credit?"), choice.confirmDescription, [
-      { text: t("Cancel"), style: "cancel" },
-      { text: t("Use credit"), onPress: () => void redeem(choice) },
+    Dialog.alert("Use a reset credit?", choice.confirmDescription, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Use credit", onPress: () => void redeem(choice) },
     ]);
   };
 
@@ -301,7 +295,7 @@ export function ResetCredits(props: {
                     : "text-sm font-t3-medium text-foreground"
                 }
               >
-                {busy ? t("Using…") : choice.actionLabel}
+                {busy ? "Using…" : choice.actionLabel}
               </Text>
             </Pressable>
           ) : null}
@@ -309,7 +303,7 @@ export function ResetCredits(props: {
       ))}
       {!canManageProviders ? (
         <Text className="text-xs text-foreground-tertiary">
-          {t("This connection cannot manage provider accounts.")}
+          This connection cannot manage provider accounts.
         </Text>
       ) : null}
       {status ? <Text className="text-sm text-foreground">{status}</Text> : null}

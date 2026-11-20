@@ -13,13 +13,11 @@ import { peerLinkEnvironment } from "../../state/peerLinks";
 import { useEnvironmentQuery } from "../../state/query";
 import { useEnvironmentScope } from "../../state/session";
 import { SettingsSection } from "../settings/components/SettingsSection";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function LinkedEnvironmentsSection(props: {
   readonly environmentId: EnvironmentId;
   readonly environmentLabel: string;
 }) {
-  const t = useT();
   const config = useEnvironmentServerConfig(props.environmentId);
   const canRead = useEnvironmentScope(props.environmentId, AuthAccessReadScope);
   const supported = canRead && offersLinkedEnvironments(config);
@@ -71,9 +69,9 @@ export function LinkedEnvironmentsSection(props: {
           const health = peerLinkHealth(link, now);
           const status =
             health.kind === "expired"
-              ? t("Expired. Link it again with a new pairing code.")
+              ? "Expired. Link it again with a new pairing code."
               : health.kind === "unreachable"
-                ? (health.detail ?? t("Not answering right now."))
+                ? (health.detail ?? "Not answering right now.")
                 : health.kind === "failing"
                   ? health.detail
                   : health.expiresInDays !== null

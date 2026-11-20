@@ -102,7 +102,7 @@ function pullRequestQuantity(
     if (typeof reported === "number") count += reported;
     else if (call.input?.url !== undefined || call.input?.number !== undefined) count += 1;
     // A batch result too large to compact loses its count, so the label drops the number.
-    else return t("pull requests");
+    else return "pull requests";
   }
   return quantity(count, "{count} pull request", "{count} pull requests", t);
 }
@@ -110,7 +110,6 @@ function pullRequestQuantity(
 export function summarizeT3ToolCalls(
   action: T3McpToolSummaryAction,
   calls: ReadonlyArray<T3ToolSummaryCall>,
-  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ): { label: string; failedCount: number } {
   const results = calls.map((call) => {
     const result = readResult(call.output);
@@ -172,10 +171,8 @@ export function summarizeT3ToolCalls(
           });
         });
       label = resultsKnown
-        ? t("Created {object}", {
-            object: quantity(new Set(createdIds).size, "{count} thread", "{count} threads", t),
-          })
-        : t("Requested thread creation {times}", { times });
+        ? `Created ${quantity(new Set(createdIds).size, "thread")}`
+        : `Requested thread creation ${times}`;
       break;
     }
     case "delegate":
@@ -197,7 +194,7 @@ export function summarizeT3ToolCalls(
       break;
     }
     case "thread-list":
-      label = phrase("Listed {object}", "Tried to list {object}", t("threads {times}", { times }));
+      label = phrase("Listed", "list", `threads ${times}`);
       break;
     case "thread-interrupt":
       label = phrase(
@@ -292,7 +289,7 @@ export function summarizeT3ToolCalls(
       );
       break;
     case "thread-configure":
-      label = phrase("Set {object}", "Tried to set {object}", t("thread model {times}", { times }));
+      label = phrase("Set", "set", `thread model ${times}`);
       break;
     case "thread-fork":
       label = phrase(
@@ -468,7 +465,7 @@ export function summarizeT3ToolCalls(
       );
       break;
     case "project-list":
-      label = phrase("Listed {object}", "Tried to list {object}", t("projects {times}", { times }));
+      label = phrase("Listed", "list", `projects ${times}`);
       break;
     case "project-read":
       label = phrase(
@@ -520,10 +517,10 @@ export function summarizeT3ToolCalls(
       );
       break;
     case "theme-read":
-      label = phrase("Checked {object}", "Tried to check {object}", t("themes {times}", { times }));
+      label = phrase("Checked", "check", `themes ${times}`);
       break;
     case "theme-set":
-      label = phrase("Set {object}", "Tried to set {object}", t("the theme {times}", { times }));
+      label = phrase("Set", "set", `the theme ${times}`);
       break;
     case "environment-links":
       label = phrase(
@@ -661,14 +658,12 @@ export function summarizeT3ToolCalls(
       failedCount += failed;
       if (outcomes.length === 0) {
         label = phrase(
-          "Started writing {object}",
-          "Tried to start writing {object}",
-          selected.length === 1 ? t("review guides") : t("review guides {times}", { times }),
+          "Started writing",
+          "start writing",
+          `review guides${selected.length === 1 ? "" : ` ${times}`}`,
         );
       } else if (started === 0) {
-        label = t("Could not start {object}", {
-          object: quantity(failed, "{count} review guide", "{count} review guides", t),
-        });
+        label = `Could not start ${quantity(failed, "review guide")}`;
       } else {
         label = phrase(
           "Started {object}",
@@ -691,7 +686,7 @@ export function summarizeT3ToolCalls(
       );
       break;
     case "list-issues":
-      label = phrase("Listed {object}", "Tried to list {object}", t("issues {times}", { times }));
+      label = phrase("Listed", "list", `issues ${times}`);
       break;
     case "read-issue":
       label = phrase("Read {object}", "Tried to read {object}", issueQuantity(selected.length, t));
@@ -729,13 +724,13 @@ export function summarizeT3ToolCalls(
       break;
     case "list-thread-issues":
       label = phrase(
-        "Checked {object}",
-        "Tried to check {object}",
-        selected.length === 1 ? t("linked issues") : t("linked issues {times}", { times }),
+        "Checked",
+        "check",
+        `linked issues${selected.length === 1 ? "" : ` ${times}`}`,
       );
       break;
     case "browser":
-      label = phrase("Used {object}", "Tried to use {object}", t("browser {times}", { times }));
+      label = phrase("Used", "use", `browser ${times}`);
       break;
     case "device":
       label = phrase(

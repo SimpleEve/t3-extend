@@ -7,7 +7,6 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import { useState } from "react";
-import { useT } from "~/hooks/useT"; // fork: i18n
 import { useEnvironmentScope } from "../../state/session";
 import { childThreadApprovalsAtom, threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -19,10 +18,9 @@ function ChildApproval({ entry }: { entry: ChildThreadApproval }) {
   const [responding, setResponding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { approval } = entry;
-  const t = useT();
   return (
     <section
-      aria-label={t("Approval from {title}", { title: entry.title })}
+      aria-label={`Approval from ${entry.title}`}
       className="rounded-lg border border-border bg-background p-3 text-xs"
     >
       <p className="mb-2 font-medium">
@@ -34,7 +32,7 @@ function ChildApproval({ entry }: { entry: ChildThreadApproval }) {
       {approval.appName ? <p className="mt-2 text-muted-foreground">{approval.appName}</p> : null}
       {approval.responseCapability !== "live" ? (
         <p className="mt-2 text-warning">
-          {t("Provider process is gone. Interrupt or restart the child thread to respond.")}
+          Provider process is gone. Interrupt or restart the child thread to respond.
         </p>
       ) : null}
       {approval.reason ? <p className="mt-2 text-muted-foreground">{approval.reason}</p> : null}

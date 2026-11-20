@@ -63,10 +63,10 @@ export function projectScriptMenuLabel(
   t: (source: string, params?: undefined, context?: string) => string = (source) => source,
 ): string {
   const roles = [
-    ...(script.runOnWorktreeCreate ? [t("setup", undefined, "script role")] : []),
-    ...(script.runOnSettle ? [t("on settle")] : []),
+    ...(script.runOnWorktreeCreate ? ["setup"] : []),
+    ...(script.runOnSettle ? ["on settle"] : []),
   ];
-  return roles.length === 0 ? script.name : `${script.name} (${roles.join(t(", "))})`;
+  return roles.length === 0 ? script.name : `${script.name} (${roles.join(", ")})`;
 }
 
 export function settleProjectScript(scripts: readonly ProjectScript[]): ProjectScript | null {

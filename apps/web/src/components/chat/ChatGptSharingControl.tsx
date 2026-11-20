@@ -7,10 +7,8 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
 const speedNotice =
   "Fast and Ultrafast are unavailable with this ChatGPT connection. Use an existing Codex CLI login for speed options your account supports.";
-import { useT } from "~/hooks/useT";
 
 export function ChatGptSharingControl({ provider }: { provider: ServerProvider | null }) {
-  const t = useT();
   const speedNoticeId = useId();
   if (!usesChatGptSharing(provider)) return null;
   return (
@@ -26,12 +24,12 @@ export function ChatGptSharingControl({ provider }: { provider: ServerProvider |
           }
         >
           <OpenAI className="size-3.5" aria-hidden="true" />
-          {t("Using ChatGPT plan")}
+          Using ChatGPT plan
         </TooltipTrigger>
         <span id={speedNoticeId} className="sr-only">
-          {t(speedNotice)}
+          {speedNotice}
         </span>
-        <TooltipPopup side="top">{t(speedNotice)}</TooltipPopup>
+        <TooltipPopup side="top">{speedNotice}</TooltipPopup>
       </Tooltip>
       <ChatGptUsageButton size="xs" />
     </div>

@@ -805,7 +805,6 @@ export function resetCreditChoices(
   input: ProviderConsumeResetCreditInput,
   now: number,
   compact = false,
-  t: ResetLabelTranslator = englishResetLabel, // fork: interface language
 ): ReadonlyArray<ResetCreditChoice> {
   const expiresIn = (at: string | undefined) =>
     at ? formatDuration(Date.parse(at) - now, t) : null;
@@ -814,21 +813,9 @@ export function resetCreditChoices(
       const expires = expiresIn(option.expiresAt);
       return {
         key: option.creditId,
-        summary: expires
-          ? t("{label} · {count} left · expires in {duration}", {
-              label: option.label,
-              count: String(option.availableCount),
-              duration: expires,
-            })
-          : t("{label} · {count} left", {
-              label: option.label,
-              count: String(option.availableCount),
-            }),
-        actionLabel: t("Use"),
-        confirmDescription: t("{label}: {description} This cannot be undone.", {
-          label: option.label,
-          description: option.description,
-        }),
+        summary: `${option.label} · ${option.availableCount} left${expires ? ` · expires in ${expires}` : ""}`,
+        actionLabel: "Use",
+        confirmDescription: `${option.label}: ${option.description} This cannot be undone.`,
         availableCount: option.availableCount,
         input: { ...input, creditId: option.creditId },
       };
@@ -841,7 +828,7 @@ export function resetCreditChoices(
       key: "next",
       summary:
         count === 0
-          ? t("No reset credits banked")
+          ? "No reset credits banked"
           : compact
             ? expires
               ? t("{count} banked · expires in {duration}", {

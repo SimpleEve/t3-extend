@@ -22,7 +22,6 @@ import { RegistryContext, useAtomValue } from "@effect/atom-react";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import { reviewEnvironment } from "../../state/review";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const EMPTY_INLINE_REVIEW_COMMENTS = Object.freeze([]);
 type ParsedFilePatch = AsyncResult.AsyncResult<
@@ -77,12 +76,12 @@ function getCachedReviewFile(
           }
         : loaded
           ? {}
-          : { notice: translatorFor(getUiLocale())("Could not display file preview.") }
+          : { notice: "Could not display file preview." }
       : {
           notice:
             patch?._tag === "Failure"
-              ? translatorFor(getUiLocale())("Could not load diff. Select the file to retry.")
-              : translatorFor(getUiLocale())("Loading diff…"),
+              ? "Could not load diff. Select the file to retry."
+              : "Loading diff…",
         }),
   };
   if (patch) normalizedFiles.set(patch, { stat, diffHash, file });

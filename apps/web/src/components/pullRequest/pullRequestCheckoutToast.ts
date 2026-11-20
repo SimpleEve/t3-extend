@@ -5,11 +5,7 @@ import { changeRequestTerm } from "./changeRequestTerm";
 export function offHeadPullRequestCheckoutToast(terminology: ChangeRequestTerminology) {
   return {
     type: "warning",
-    title: translate(getUiLocale(), "Checked out, but not confirmed on the latest commit"),
-    description: translate(
-      getUiLocale(),
-      "This checkout could not be confirmed at the {kind}'s latest commit, so its code may differ. Local commits or uncommitted work keep a checkout where it is.",
-      { kind: changeRequestTerm(terminology.singular, translatorFor(getUiLocale())) },
-    ),
+    title: "Checked out, but not confirmed on the latest commit",
+    description: `This checkout could not be confirmed at the ${terminology.singular}'s latest commit, so its code may differ. Local commits or uncommitted work keep a checkout where it is.`,
   } as const;
 }

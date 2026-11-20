@@ -104,7 +104,6 @@ import {
   resolveSelectableProviderInstanceEntry,
   type ProviderInstanceEntry,
 } from "../providerInstances";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 type ThreadProjection = EnvironmentThread["projection"];
 type ThreadStructureRow = ThreadStructure["visibleTurnItems"][number];
@@ -125,24 +124,15 @@ export function agentControlledBrowserCloseConfirmation(
       desktopByTabId[surface.resourceId]?.controller === "agent",
   ).length;
   if (activeBrowserCount === 0) return null;
-  const locale = getUiLocale();
   if (activeBrowserCount === 1) {
     return [
-      translate(locale, "Close browser while the agent is using it?"),
-      translate(
-        locale,
-        "The agent is actively controlling this browser. Closing it may interrupt the current browser action.",
-      ),
+      "Close browser while the agent is using it?",
+      "The agent is actively controlling this browser. Closing it may interrupt the current browser action.",
     ].join("\n");
   }
   return [
-    translate(locale, "Close {count} browsers while the agent is using them?", {
-      count: activeBrowserCount,
-    }),
-    translate(
-      locale,
-      "The agent is actively controlling these browsers. Closing them may interrupt the current browser actions.",
-    ),
+    `Close ${activeBrowserCount} browsers while the agent is using them?`,
+    "The agent is actively controlling these browsers. Closing them may interrupt the current browser actions.",
   ].join("\n");
 }
 
@@ -775,7 +765,8 @@ export function buildExpiredTerminalContextToastCopy(
   variant: "omitted" | "empty",
 ): { title: string; description: string } {
   const count = Math.max(1, Math.floor(expiredTerminalContextCount));
-  const locale = getUiLocale();
+  const noun = count === 1 ? "Expired terminal context" : "Expired terminal contexts";
+  const pronoun = count === 1 ? "it" : "them";
   if (variant === "empty") {
     return count === 1
       ? {
@@ -904,11 +895,8 @@ export function getStartedThreadModelChangeBlockReason(input: {
     return null;
   }
   return {
-    title: translate(getUiLocale(), "Start a new chat to switch providers"),
-    description: translate(
-      getUiLocale(),
-      "This thread does not support switching providers after it has started.",
-    ),
+    title: "Start a new chat to switch providers",
+    description: "This thread does not support switching providers after it has started.",
   };
 }
 

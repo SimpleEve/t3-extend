@@ -64,14 +64,11 @@ import {
 } from "../../reviewCommentContext";
 import { TimelineRowCtx } from "./timelineRowContext";
 import { userMessageFileLabel } from "./TimelineUserMessageRow.logic";
-import { useT } from "~/hooks/useT";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function UserMessageMentionChip(props: {
   record: Extract<KnownComposerContextRecord, { kind: "mention" }>;
   copyMarkdown: string;
 }) {
-  const t = useT();
   const ctx = use(TimelineRowCtx);
   const nativeDrag = useNativeFileDrag(ctx.activeThreadEnvironmentId, () =>
     resolvePathLinkTarget(props.record.path, ctx.workspaceRoot ?? ""),
@@ -84,7 +81,7 @@ function UserMessageMentionChip(props: {
             {...nativeDrag}
             kind={documentChipKindForFileName(props.record.path) ?? "mention"}
             render={<button type="button" />}
-            aria-label={t("Preview {name}", { name: props.record.path })}
+            aria-label={`Preview ${props.record.path}`}
             data-markdown-copy={props.copyMarkdown}
             onClick={() => {
               if (ctx.threadRef)
@@ -133,7 +130,6 @@ function UserMessagePullRequestContextChip(props: {
   copyMarkdown: string;
   kind: ContextChipKind;
 }) {
-  const t = useT(); // fork: interface language
   const { activeThreadEnvironmentId, openPullRequest } = use(TimelineRowCtx);
   const metadata = props.record.pullRequest;
   if (metadata === undefined) return null;
@@ -154,7 +150,6 @@ function UserMessagePreviewAnnotationDetails(props: {
   record: Extract<KnownComposerContextRecord, { kind: "preview-annotation" }>;
   image: ChatImageAttachment | null;
 }) {
-  const t = useT();
   const ctx = use(TimelineRowCtx);
   const visibleElements = props.record.elements ?? [];
   return (
@@ -163,7 +158,7 @@ function UserMessagePreviewAnnotationDetails(props: {
         <button
           type="button"
           className="block max-h-64 w-full cursor-zoom-in overflow-hidden border-b border-border/70 bg-muted"
-          aria-label={t("Preview {name}", { name: props.image.name })}
+          aria-label={`Preview ${props.image.name}`}
           onClick={() => {
             if (!props.image) return;
             const preview = buildExpandedImagePreview([props.image], props.image.id);
@@ -172,18 +167,18 @@ function UserMessagePreviewAnnotationDetails(props: {
         >
           <img
             src={props.image.previewUrl}
-            alt={t("Annotated preview crop")}
+            alt="Annotated preview crop"
             className="max-h-64 w-full object-contain"
           />
         </button>
       ) : (
         <div className="border-b border-border/70 bg-muted/40 px-3 py-2 text-secondary-label text-xs">
-          {t("Screenshot unavailable")}
+          Screenshot unavailable
         </div>
       )}
       <div className="min-w-0 px-3 py-2.5">
         <div className="text-message-foreground text-xs font-medium">
-          {props.record.pageTitle?.trim() || props.record.pageUrl || t("Preview annotation")}
+          {props.record.pageTitle?.trim() || props.record.pageUrl || "Preview annotation"}
         </div>
         {props.record.comment ? (
           <div className="mt-1 whitespace-pre-wrap wrap-break-word text-sm">
@@ -291,12 +286,11 @@ interface UserMessageContextRenderContext {
 }
 
 function UnavailableUserMessageContextChip(props: UserMessageContextRenderContext) {
-  const t = useT();
   return (
     <UnresolvedChip
       label={props.reference.label}
       copyMarkdown={props.copyMarkdown}
-      tooltip={t("This context is no longer available.")}
+      tooltip="This context is no longer available."
     />
   );
 }
@@ -463,9 +457,7 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
         record.kind === "element" ? (
           <UserMessageContextPopover
             copyMarkdown={context.copyMarkdown}
-            accessibleLabel={context.t("Browser element, {label}", {
-              label: record.label,
-            })}
+            accessibleLabel={`Browser element, ${record.label}`}
             kind="element"
             icon={<MousePointerClickIcon />}
             label={record.label}
@@ -542,9 +534,7 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
         record.kind === "preview-annotation" ? (
           <UserMessageContextPopover
             copyMarkdown={context.copyMarkdown}
-            accessibleLabel={context.t("Preview annotation, {label}", {
-              label: record.label,
-            })}
+            accessibleLabel={`Preview annotation, ${record.label}`}
             kind="preview-annotation"
             icon={<MousePointerClickIcon />}
             label={record.label}
@@ -569,7 +559,6 @@ export function UserMessageContextReferenceChip(props: {
   onOpenFile: (file: ChatFileAttachment) => void;
 }) {
   const { resolvedTheme, activeThreadEnvironmentId } = use(TimelineRowCtx);
-  const t = useT(); // fork: interface language
   const copyMarkdown = formatComposerContextReference({
     kind: props.reference.kind,
     contextId: props.reference.contextId as ComposerContextId,

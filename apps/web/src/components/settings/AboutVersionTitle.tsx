@@ -3,17 +3,15 @@ import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
 import { InlineButton } from "../ui/button";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { useT } from "../../hooks/useT";
 
 export function AboutVersionTitle() {
-  const t = useT();
   const { copyToClipboard } = useCopyToClipboard<void>({
     target: "version",
     onError: (error) => {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: t("Could not copy version"),
+          title: "Could not copy version",
           description: error.message,
         }),
       );
@@ -22,21 +20,21 @@ export function AboutVersionTitle() {
 
   return (
     <span className="inline-flex items-baseline gap-2">
-      <span>{t("Version")}</span>
+      <span>Version</span>
       <code className="text-2xs font-medium">
         <Tooltip>
           <TooltipTrigger
             render={
               <InlineButton
                 tone="muted"
-                aria-label={t("Copy version {APP_VERSION}", { APP_VERSION })}
+                aria-label={`Copy version ${APP_VERSION}`}
                 onClick={() => copyToClipboard(APP_VERSION, undefined)}
               >
                 {APP_VERSION}
               </InlineButton>
             }
           />
-          <TooltipPopup>{t("Copy version")}</TooltipPopup>
+          <TooltipPopup>Copy version</TooltipPopup>
         </Tooltip>
       </code>
     </span>

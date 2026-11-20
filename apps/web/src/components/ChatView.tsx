@@ -30,7 +30,6 @@ import {
 } from "./chat/optimisticUserMessages";
 import { useTimelineRewind } from "./chat/useTimelineRewind";
 import { useThreadLifecycle } from "./chat/useThreadLifecycle";
-import { useT } from "../hooks/useT"; // fork: interface language
 import { useRightPanelActions } from "./chat/useRightPanelActions";
 import { type TerminalLaunchContext, useChatTerminalActions } from "./chat/useChatTerminalActions";
 import { useComposerSend } from "./chat/useComposerSend";
@@ -443,7 +442,6 @@ const DismissedFallbackWindowSchema = Schema.NullOr(Schema.String);
 const ignoreComposerFocus = () => {};
 
 export default function ChatView(props: ChatViewProps) {
-  const t = useT(); // fork: banner builders take the translator so they follow a language switch
   const {
     environmentId,
     threadId,
@@ -658,10 +656,8 @@ export default function ChatView(props: ChatViewProps) {
     if (!inserted) {
       toastManager.add({
         type: "warning",
-        title: t("The composer is not ready"),
-        description: t(
-          "Try citing the selection after the connection or pending input is resolved.",
-        ),
+        title: "The composer is not ready",
+        description: "Try citing the selection after the connection or pending input is resolved.",
       });
     }
     return inserted;
@@ -755,7 +751,7 @@ export default function ChatView(props: ChatViewProps) {
     setPendingServerThreadStartFromOriginByThreadId,
   ] = useState<Record<string, boolean>>({});
   const legendListRef = useRef<LegendListRef | null>(null);
-  const conversationArea = workspaceAreaProps("conversation", 1, t("Conversation"));
+  const conversationArea = workspaceAreaProps("conversation", 1, "Conversation");
   const [composerOverlayElement, setComposerOverlayElement] = useState<HTMLDivElement | null>(null);
   const [composerTimelineInset, setComposerTimelineInset] = useState(0);
   const composerTimelineInsetRef = useRef(0);
@@ -1526,7 +1522,7 @@ export default function ChatView(props: ChatViewProps) {
   const downloadFileAttachment = async (attachment: ChatFileAttachment) => {
     const connection = readPreparedConnection(environmentId);
     if (!connection) {
-      toastManager.add({ type: "error", title: t("The environment is not connected.") });
+      toastManager.add({ type: "error", title: "The environment is not connected." });
       return;
     }
 
@@ -1544,8 +1540,8 @@ export default function ChatView(props: ChatViewProps) {
     } catch (error) {
       toastManager.add({
         type: "error",
-        title: t("Could not download {name}", { name: attachment.name }),
-        description: error instanceof Error ? error.message : t("The attachment is unavailable."),
+        title: "Could not download " + attachment.name,
+        description: error instanceof Error ? error.message : "The attachment is unavailable.",
       });
     }
   };
@@ -1896,8 +1892,8 @@ export default function ChatView(props: ChatViewProps) {
     if (prompt !== null && !composer.insertTextAtEnd(prompt, { ensureLeadingBoundary: true })) {
       toastManager.add({
         type: "error",
-        title: t("Unable to add to chat"),
-        description: t("The composer is busy; try again once it is ready."),
+        title: "Unable to add to chat",
+        description: "The composer is busy; try again once it is ready.",
       });
       return;
     }
@@ -2867,21 +2863,21 @@ export default function ChatView(props: ChatViewProps) {
   // Main-thread surfaces show this reason; `/side` sent anyway gets it as a toast.
   const sideChatDisabledReason =
     activeThread?.lineage.sideChat === true
-      ? t("Side chats cannot start side chats.")
+      ? "Side chats cannot start side chats."
       : isSubagentThread
-        ? t("Subagent threads cannot start side chats.")
+        ? "Subagent threads cannot start side chats."
         : serverConfig === null
-          ? t("Side chats are not ready yet. Try again in a moment.")
+          ? "Side chats are not ready yet. Try again in a moment."
           : serverConfig.environment.capabilities.sideChats !== true
-            ? t("Update this environment's T3 Extend server to use side chats.")
+            ? "Update this environment's T3 Code server to use side chats."
             : sideChatsOffered && !isServerThread
-              ? t("Side chats start after the first message.")
+              ? "Side chats start after the first message."
               : sideChat.available &&
                   orchestrationV2WorktreePending(
                     activeThread?.worktreePath ?? null,
                     serverProjection?.runs ?? [],
                   )
-                ? t("Available once the thread's worktree is set up.")
+                ? "Available once the thread's worktree is set up."
                 : null;
   const openSideChatStable = useStableCallback(() => void sideChat.open());
   const sendSideChatStable = useStableCallback((prompt: string) => sideChat.open(prompt));
@@ -3701,17 +3697,17 @@ export default function ChatView(props: ChatViewProps) {
                                 isRevertingCheckpoint={isRevertingCheckpoint}
                                 sendDisabledReason={
                                   !canOperateThread
-                                    ? t("This connection cannot change threads.")
+                                    ? "This connection cannot change threads."
                                     : isEnvironmentChanging
-                                      ? t("Preparing machine")
+                                      ? "Preparing machine"
                                       : isRevertingCheckpoint
-                                        ? t("Rewinding conversation")
+                                        ? "Rewinding conversation"
                                         : feedbackUploading
-                                          ? t("Sending feedback")
+                                          ? "Sending feedback"
                                           : threadDetailLoading
-                                            ? t("Messages loading")
+                                            ? "Messages loading"
                                             : worktreeSetupBlocksSend
-                                              ? t("Preparing worktree")
+                                              ? "Preparing worktree"
                                               : projectCloneSendBlockReason
                                 }
                                 isPreparingWorktree={isPreparingWorktree && !sendQueuesBehindSetup}

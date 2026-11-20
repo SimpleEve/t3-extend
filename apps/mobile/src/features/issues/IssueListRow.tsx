@@ -14,7 +14,6 @@ import {
   THREAD_LIST_V2_SIDEBAR_ROW_STYLE,
 } from "../threads/thread-list-v2-row-appearance";
 import { issueStatus } from "./issuePresentation";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export const IssueListRow = memo(function IssueListRow(props: {
   readonly item: EnvironmentIssueEntry;
@@ -22,7 +21,6 @@ export const IssueListRow = memo(function IssueListRow(props: {
   readonly selected: boolean;
   readonly sidebar: boolean;
 }) {
-  const t = useT(); // fork: i18n
   const { item } = props;
   const foreground = props.selected
     ? selectedThreadRowColors.foregroundClassName

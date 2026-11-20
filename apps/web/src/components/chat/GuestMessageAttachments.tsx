@@ -6,7 +6,6 @@ import { cn } from "~/lib/utils";
 import { type ChatFileAttachment, isFileAttachment, isImageAttachment } from "../../types";
 import { AttachmentImage } from "../media/AttachmentImage";
 import { PierreEntryIcon } from "./PierreEntryIcon";
-import { useT } from "~/hooks/useT";
 
 const IMAGE_FRAME =
   "aspect-[4/3] overflow-hidden rounded-lg border border-border/80 bg-background/70";
@@ -25,7 +24,6 @@ export function GuestMessageAttachments(props: {
   readonly fileHref?: (attachment: ChatFileAttachment) => string;
   readonly onOpenFile?: (attachment: ChatFileAttachment) => void;
 }) {
-  const t = useT();
   const { resolvedTheme } = useTheme();
   const images = props.attachments.filter(isImageAttachment);
   const files = props.attachments.filter(isFileAttachment);
@@ -42,7 +40,7 @@ export function GuestMessageAttachments(props: {
                   <button
                     type="button"
                     className="block size-full cursor-zoom-in"
-                    aria-label={t("Preview {name}", { name: image.name })}
+                    aria-label={`Preview ${image.name}`}
                     onClick={() => props.onOpenImage(image)}
                   >
                     {/* Isolate the thumbnail raster from nearby activity repaints in Chromium. */}
@@ -88,7 +86,7 @@ export function GuestMessageAttachments(props: {
           <button
             key={file.id}
             type="button"
-            aria-label={t("Preview {name}", { name: file.name })}
+            aria-label={`Preview ${file.name}`}
             onClick={() => props.onOpenFile?.(file)}
             className={cn(FILE_ROW, "cursor-pointer hover:underline")}
           >

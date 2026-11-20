@@ -32,7 +32,6 @@ import { useEnvironmentScope } from "../../state/session";
 import { ThreadSwipeable } from "../home/thread-swipe-actions";
 import type { ArchivedThreadGroup, ArchivedThreadSortOrder } from "./archivedThreadList";
 import { SettingsScreenContent } from "../settings/components/SettingsScreen";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export interface ArchivedThreadsHeaderEnvironment {
   readonly environmentId: EnvironmentId;
@@ -49,43 +48,41 @@ function ArchivedThreadsHeader(props: {
   readonly onSearchQueryChange: (query: string) => void;
   readonly onSortOrderChange: (sortOrder: ArchivedThreadSortOrder) => void;
 }) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
   const hasCustomFilter = props.selectedEnvironmentId !== null || props.sortOrder !== "newest";
   return (
     <AppBar
-      title={t("Archived threads")}
+      title="Archived threads"
       onBack={() => navigation.goBack()}
       search={{
         value: props.searchQuery,
         onChangeText: props.onSearchQueryChange,
-        placeholder: t("Search archived threads"),
-        compactPlaceholder: t("Search"),
+        placeholder: "Search archived threads",
+        compactPlaceholder: "Search",
         mode: "inline",
         compactToolbar: width < 700,
       }}
       menus={[
         {
-          title: t("Archived thread options"),
+          title: "Archived thread options",
           icon: hasCustomFilter
             ? "line.3.horizontal.decrease.circle.fill"
             : "line.3.horizontal.decrease.circle",
           items: [
             {
               id: "environment",
-              title: t("Environment"),
+              title: "Environment",
               items: [
                 {
                   id: "environment:all",
-                  title: t("All environments"),
+                  title: "All environments",
                   selected: props.selectedEnvironmentId === null,
                   onPress: () => props.onEnvironmentChange(null),
                 },
                 ...props.environments.map((environment) => ({
                   id: `environment:${environment.environmentId}`,
                   title: environment.label,
-                  verbatim: true, // fork: i18n
                   selected: props.selectedEnvironmentId === environment.environmentId,
                   onPress: () => props.onEnvironmentChange(environment.environmentId),
                 })),
@@ -93,17 +90,17 @@ function ArchivedThreadsHeader(props: {
             },
             {
               id: "sort",
-              title: t("Sort by archived date"),
+              title: "Sort by archived date",
               items: [
                 {
                   id: "sort:newest",
-                  title: t("Newest first"),
+                  title: "Newest first",
                   selected: props.sortOrder === "newest",
                   onPress: () => props.onSortOrderChange("newest"),
                 },
                 {
                   id: "sort:oldest",
-                  title: t("Oldest first"),
+                  title: "Oldest first",
                   selected: props.sortOrder === "oldest",
                   onPress: () => props.onSortOrderChange("oldest"),
                 },
@@ -111,7 +108,7 @@ function ArchivedThreadsHeader(props: {
             },
             {
               id: "refresh",
-              title: t("Refresh archived threads"),
+              title: "Refresh archived threads",
               onPress: props.onRefresh,
             },
           ],
@@ -186,7 +183,6 @@ function ArchivedThreadRow(props: {
   readonly onUnarchive: () => void;
   readonly thread: EnvironmentThreadShell;
 }) {
-  const t = useT(); // fork: i18n
   const { width: windowWidth } = useWindowDimensions();
   const cardColor = useUniwindTheme()["--color-grouped-card"];
   const canOperateThread = useEnvironmentScope(
@@ -260,9 +256,9 @@ function ArchivedThreadRow(props: {
       onSwipeableClose={props.onSwipeableClose}
       onSwipeableWillOpen={props.onSwipeableWillOpen}
       primaryAction={{
-        accessibilityLabel: t("Unarchive {title}", { title: props.thread.title }),
+        accessibilityLabel: `Unarchive ${props.thread.title}`,
         icon: "arrow.uturn.backward",
-        label: t("Unarchive"),
+        label: "Unarchive",
         onPress: props.onUnarchive,
       }}
       simultaneousWith={props.simultaneousSwipeGesture}
@@ -274,7 +270,6 @@ function ArchivedThreadRow(props: {
 }
 
 function ArchiveError(props: { readonly message: string; readonly onRetry: () => void }) {
-  const t = useT(); // fork: i18n
   return (
     <View className="rounded-[20px] border border-danger-border bg-danger p-4">
       <Text className="text-base font-t3-bold text-danger-foreground">
@@ -284,7 +279,7 @@ function ArchiveError(props: { readonly message: string; readonly onRetry: () =>
         {t(props.message) /* fork: i18n, the archive store keeps an English error */}
       </Text>
       <View className="mt-3">
-        <Button label={t("Try again")} tone="secondary" onPress={props.onRetry} />
+        <Button label="Try again" tone="secondary" onPress={props.onRetry} />
       </View>
     </View>
   );
@@ -305,7 +300,6 @@ export function ArchivedThreadsScreen(props: {
   readonly onSortOrderChange: (sortOrder: ArchivedThreadSortOrder) => void;
   readonly onUnarchiveThread: (thread: EnvironmentThreadShell) => void;
 }) {
-  const t = useT(); // fork: i18n
   const { onDeleteThread, onUnarchiveThread } = props;
   const openSwipeableRef = useRef<SwipeableMethods | null>(null);
   const archiveScrollGesture = useNativeGesture();
@@ -389,7 +383,7 @@ export function ArchivedThreadsScreen(props: {
       return (
         <View className="items-center py-16">
           <AppActivityIndicator colorClassName="accent-icon" />
-          <Text className="mt-3 text-sm text-foreground-muted">{t("Loading archive...")}</Text>
+          <Text className="mt-3 text-sm text-foreground-muted">Loading archive...</Text>
         </View>
       );
     }
@@ -398,10 +392,10 @@ export function ArchivedThreadsScreen(props: {
       <EmptyState
         detail={
           isFiltered
-            ? t("Try another search or environment.")
-            : t("Threads you archive will appear here.")
+            ? "Try another search or environment."
+            : "Threads you archive will appear here."
         }
-        title={isFiltered ? t("No matching threads") : t("No archived threads")}
+        title={isFiltered ? "No matching threads" : "No archived threads"}
       />
     );
   }, [isFiltered, isInitialLoad, t]);

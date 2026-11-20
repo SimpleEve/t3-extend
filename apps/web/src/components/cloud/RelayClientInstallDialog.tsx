@@ -19,7 +19,6 @@ import {
   DialogPopup,
   DialogTitle,
 } from "../ui/dialog";
-import { useT } from "../../hooks/useT";
 const installSteps: ReadonlyArray<{
   readonly stage: RelayClientInstallProgressStage;
   readonly label: string;
@@ -34,7 +33,6 @@ const installSteps: ReadonlyArray<{
 ];
 
 export function RelayClientInstallDialog() {
-  const t = useT();
   const state = useSyncExternalStore(
     subscribeRelayClientInstallDialog,
     readRelayClientInstallDialogState,
@@ -68,14 +66,12 @@ export function RelayClientInstallDialog() {
             <DownloadIcon aria-hidden className="size-4.5 text-muted-foreground" />
           </div>
           <DialogTitle>
-            {isInstalling ? t("Installing relay client") : t("Install relay client?")}
+            {isInstalling ? "Installing relay client" : "Install relay client?"}
           </DialogTitle>
           <DialogDescription>
             {isInstalling
-              ? t("T3 Extend is preparing this environment for secure access through T3 Connect.")
-              : t(
-                  "T3 Extend needs the relay client to make this environment available through T3 Connect.",
-                )}
+              ? "T3 Code is preparing this environment for secure access through T3 Connect."
+              : "T3 Code needs the relay client to make this environment available through T3 Connect."}
           </DialogDescription>
         </DialogHeader>
         <DialogPanel scrollFade={false}>
@@ -83,28 +79,25 @@ export function RelayClientInstallDialog() {
             <div className="space-y-2.5">
               <div className="flex items-center justify-between gap-3 text-sm">
                 <p aria-live="polite" className="font-medium text-foreground">
-                  {activeStep ? t(activeStep.label) : null}
+                  {activeStep?.label}
                 </p>
                 <p className="shrink-0 tabular-nums text-muted-foreground">
-                  {t("{value} of {length}", {
-                    value: activeStepIndex + 1,
-                    length: installSteps.length,
-                  })}
+                  {activeStepIndex + 1} of {installSteps.length}
                 </p>
               </div>
               <progress
-                aria-label={t("Relay client installation progress")}
+                aria-label="Relay client installation progress"
                 className="h-2 w-full appearance-none overflow-hidden rounded-full bg-muted [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-primary"
                 max={installSteps.length}
                 value={activeStepIndex + 1}
               />
               <p className="text-xs leading-relaxed text-muted-foreground">
-                {t("Keep T3 Extend open while the relay client is installed.")}
+                Keep T3 Code open while the relay client is installed.
               </p>
             </div>
           ) : (
             <div className="rounded-xl border border-border/70 bg-muted/35 p-3">
-              <p className="text-sm font-medium text-foreground">{t("Managed relay client")}</p>
+              <p className="text-sm font-medium text-foreground">Managed relay client</p>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                 {t("T3 Extend will download and install version {version} locally.", {
                   version: view.status === "confirming" ? view.version : "",
@@ -119,10 +112,10 @@ export function RelayClientInstallDialog() {
               variant="outline"
               onClick={() => respondToRelayClientInstallConfirmation(false)}
             >
-              {t("Cancel")}
+              Cancel
             </Button>
             <DialogAction onClick={() => respondToRelayClientInstallConfirmation(true)}>
-              {t("Download and install")}
+              Download and install
             </DialogAction>
           </DialogFooter>
         ) : null}

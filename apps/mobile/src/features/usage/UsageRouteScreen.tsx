@@ -48,8 +48,6 @@ import { useRefreshLimits } from "./UsageLimitsSection";
 import { UsageLimitsSection } from "./UsageLimitsPooled";
 import type { UsageChartMetric } from "./usageChartData";
 import { PROVIDER_LABEL, useProviderColors, useUsageMixColors } from "./usageProviders";
-import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 type UsageView = UsageChartMetric | "limits";
 const VIEW_OPTIONS = [
@@ -151,7 +149,6 @@ function UsageScreen(props: {
   const progress = usageProgress(selectedEnvironments, {
     refreshing: refreshingUsage,
     providerLabel,
-    t, // fork: i18n
   });
   const selectWindow = (days: number) => {
     setWindowSelection({
@@ -200,7 +197,7 @@ function UsageScreen(props: {
     setSelectedEnvironmentIds((selected) => toggleUsageEnvironment(selected, environments, id));
   };
   const environmentMenu = {
-    title: t("Filter usage environments"),
+    title: "Filter usage environments",
     icon:
       selectedEnvironmentIds === null
         ? ("line.3.horizontal.decrease" as const)
@@ -208,15 +205,14 @@ function UsageScreen(props: {
     items: [
       {
         id: "all",
-        title: t("All environments"),
+        title: "All environments",
         selected: selectedEnvironmentIds === null,
         onPress: () => selectEnvironment("all"),
       },
       ...environments.map((environment) => ({
         id: environment.environmentId,
         title: environment.label,
-        subtitle: usageEnvironmentStatus(environment, refreshingUsage, t),
-        verbatim: true, // fork: i18n
+        subtitle: usageEnvironmentStatus(environment, refreshingUsage),
         selected:
           selectedEnvironmentIds === null || selectedEnvironmentIds.has(environment.environmentId),
         onPress: () => selectEnvironment(environment.environmentId),
@@ -226,7 +222,7 @@ function UsageScreen(props: {
 
   return (
     <SettingsScreen
-      title={t("Usage")}
+      title="Usage"
       menus={showEnvironmentFilter ? [environmentMenu] : undefined}
       workspaceRoot={props.workspace}
     >
@@ -303,21 +299,19 @@ function UsageScreen(props: {
                   <ChatGptUsageSummary selectedEnvironmentIds={selectedEnvironmentIds} />
                   {merged.duplicateSources.length > 0 ? (
                     <Text className="text-sm text-foreground-muted">
-                      {t(
-                        "Counted once across environments sharing a transcript directory: {duplicateSources}",
-                        { duplicateSources: merged.duplicateSources.join(", ") },
-                      )}
+                      Counted once across environments sharing a transcript directory:{" "}
+                      {merged.duplicateSources.join(", ")}
                     </Text>
                   ) : null}
                   {isPending ? (
                     <Text className="py-16 text-center text-base text-foreground-muted">
-                      {t("Scanning provider transcripts…")}
+                      Scanning provider transcripts…
                     </Text>
                   ) : selectedEnvironments.length === 0 ? (
                     <Text className="py-16 text-center text-base text-foreground-muted">
                       {environments.length === 0
-                        ? t("Connect an environment to see usage.")
-                        : t("Select an environment to see usage.")}
+                        ? "Connect an environment to see usage."
+                        : "Select an environment to see usage."}
                     </Text>
                   ) : !canReadDiagnostics ? (
                     <View className="gap-2 py-16">
@@ -327,7 +321,7 @@ function UsageScreen(props: {
                           className="text-center text-base text-foreground-muted"
                         >
                           {selectedEnvironments.length > 1 ? `${environment.label}: ` : null}
-                          {environment.error ? t(environment.error) : null /* fork: i18n */}
+                          {environment.error}
                         </Text>
                       ))}
                     </View>
@@ -445,8 +439,6 @@ function ChartCard(props: {
   /** Grows the chart past `height` to match a taller neighbouring column. */
   readonly fill?: boolean;
 }) {
-  const t = useT(); // fork: i18n
-  const locale = useUiLocale(); // fork: Chinese shows a 24-hour clock
   const { merged, metric } = props;
   const colors = useProviderColors();
   const hasActivity = props.daily.some((period) => period.totalTokens > 0);
@@ -456,7 +448,7 @@ function ChartCard(props: {
     <UsageDailyChart days={props.days} daily={props.daily} metric={metric} height={height} />
   ) : (
     <View style={{ height }} className="items-center justify-center">
-      <Text className="text-base text-foreground-muted">{t("No activity in this window.")}</Text>
+      <Text className="text-base text-foreground-muted">No activity in this window.</Text>
     </View>
   );
 
@@ -519,20 +511,19 @@ function ChartCard(props: {
 }
 
 function UsageSummary(props: { readonly merged: MergedUsage; readonly metric: UsageChartMetric }) {
-  const t = useT(); // fork: i18n
   const { merged, metric } = props;
   return (
     <View className="gap-0.5">
       <Text className="text-sm text-foreground-muted">
-        {metric === "cost" ? t("Raw token cost") : t("Processed tokens")}
+        {metric === "cost" ? "Raw token cost" : "Processed tokens"}
       </Text>
       <Text className="text-4xl font-t3-bold tabular-nums text-foreground">
         {metric === "cost" ? `${formatUsd(merged.costUsd)}*` : formatTokens(merged.totalTokens)}
       </Text>
       <Text className="text-sm text-foreground-muted">
         {metric === "cost"
-          ? t("* if billed at full API rate")
-          : t("Across {sessions} sessions", { sessions: formatCount(merged.sessions) })}
+          ? "* if billed at full API rate"
+          : `Across ${formatCount(merged.sessions)} sessions`}
       </Text>
     </View>
   );
@@ -544,7 +535,6 @@ function ProviderSection(props: {
   /** Drops the share bar so the list fits beside the chart. */
   readonly compact: boolean;
 }) {
-  const t = useT(); // fork: i18n
   const { merged, metric } = props;
   const colors = useProviderColors();
   if (merged.providers.length === 0) return null;
@@ -555,7 +545,7 @@ function ProviderSection(props: {
   );
 
   return (
-    <SettingsSection title={t("Providers")}>
+    <SettingsSection title="Providers">
       {ordered.map((provider, index) => {
         const share = metric === "cost" ? provider.costShare : provider.tokenShare;
         return (
@@ -603,14 +593,8 @@ function ProviderSection(props: {
             )}
             <Text className="text-sm text-foreground-muted">
               {metric === "cost"
-                ? t("{share} of cost · {totalTokens} tokens", {
-                    share: formatPercent(share),
-                    totalTokens: formatTokens(provider.totalTokens),
-                  })
-                : t("{share} of tokens · {costUsd}", {
-                    share: formatPercent(share),
-                    costUsd: formatUsd(provider.costUsd),
-                  })}
+                ? `${formatPercent(share)} of cost · ${formatTokens(provider.totalTokens)} tokens`
+                : `${formatPercent(share)} of tokens · ${formatUsd(provider.costUsd)}`}
             </Text>
           </View>
         );
@@ -624,7 +608,6 @@ function TotalsSection(props: {
   readonly isPast24Hours: boolean;
   readonly columns: number;
 }) {
-  const t = useT(); // fork: i18n
   const { merged } = props;
   const activePeriods = (props.isPast24Hours ? merged.hourly : merged.daily).filter(
     (period) => period.totalTokens > 0,
@@ -634,55 +617,47 @@ function TotalsSection(props: {
   const cachedShare = observedInput === 0 ? 0 : merged.cachedInputTokens / observedInput;
 
   return (
-    <SettingsSection title={t("Totals")}>
+    <SettingsSection title="Totals">
       <View className="flex-row flex-wrap">
         <MetricCell
           columns={props.columns}
-          label={t("Processed tokens")}
+          label="Processed tokens"
           value={formatTokens(merged.totalTokens)}
-          detail={t(props.isPast24Hours ? "{amount} per active hour" : "{amount} per active day", {
-            amount: formatTokens(periodAverage),
-          })}
+          detail={`${formatTokens(periodAverage)} per active ${props.isPast24Hours ? "hour" : "day"}`}
         />
         <MetricCell
           columns={props.columns}
-          label={t("Cache savings")}
+          label="Cache savings"
           value={formatUsd(merged.costQuality.cacheSavingsUsd)}
           detail={
             merged.costUsd > 0
-              ? t("{multiple}x the raw cost", {
-                  multiple: (merged.costQuality.cacheSavingsUsd / merged.costUsd).toFixed(1),
-                })
-              : t("vs full input rates")
+              ? `${(merged.costQuality.cacheSavingsUsd / merged.costUsd).toFixed(1)}x the raw cost`
+              : "vs full input rates"
           }
         />
         <MetricCell
           columns={props.columns}
-          label={t("Cached input")}
+          label="Cached input"
           value={formatTokens(merged.cachedInputTokens)}
-          detail={t("{cachedShare} of observed input", { cachedShare: formatPercent(cachedShare) })}
+          detail={`${formatPercent(cachedShare)} of observed input`}
         />
         <MetricCell
           columns={props.columns}
-          label={t("Uncached input")}
+          label="Uncached input"
           value={formatTokens(merged.uncachedInputTokens)}
-          detail={t("{cacheCreationTokens} cache writes", {
-            cacheCreationTokens: formatTokens(merged.cacheCreationTokens),
-          })}
+          detail={`${formatTokens(merged.cacheCreationTokens)} cache writes`}
         />
         <MetricCell
           columns={props.columns}
-          label={t("Output")}
+          label="Output"
           value={formatTokens(merged.outputTokens)}
-          detail={t("incl. {reasoningTokens} reasoning", {
-            reasoningTokens: formatTokens(merged.reasoningTokens),
-          })}
+          detail={`incl. ${formatTokens(merged.reasoningTokens)} reasoning`}
         />
         <MetricCell
           columns={props.columns}
-          label={t("Unpriced")}
+          label="Unpriced"
           value={formatPercent(merged.costQuality.unpricedShare)}
-          detail={t("of records, excluded from cost")}
+          detail="of records, excluded from cost"
         />
       </View>
     </SettingsSection>
@@ -690,34 +665,33 @@ function TotalsSection(props: {
 }
 
 function CostSection(props: { readonly merged: MergedUsage; readonly wide: boolean }) {
-  const t = useT(); // fork: i18n
   const { categoryCost, speedCost } = props.merged;
   const colors = useUsageMixColors();
   const byType = [
-    { label: t("Input", undefined, "token usage"), value: categoryCost.input, color: colors.input },
-    { label: t("Cache read"), value: categoryCost.cacheRead, color: colors.cacheRead },
-    { label: t("Cache write"), value: categoryCost.cacheWrite, color: colors.cacheWrite },
-    { label: t("Output"), value: categoryCost.output, color: colors.output },
+    { label: "Input", value: categoryCost.input, color: colors.input },
+    { label: "Cache read", value: categoryCost.cacheRead, color: colors.cacheRead },
+    { label: "Cache write", value: categoryCost.cacheWrite, color: colors.cacheWrite },
+    { label: "Output", value: categoryCost.output, color: colors.output },
     // Reported cost with no rates to split it, or from older servers. Below a
     // cent it is rounding, not usage.
     {
-      label: t("Other"),
+      label: "Other",
       value: categoryCost.unsplit >= 0.005 ? categoryCost.unsplit : 0,
       color: colors.other,
     },
   ];
   const bySpeed = [
-    { label: t("Standard"), value: speedCost.standard, color: colors.standard },
-    { label: t("Fast"), value: speedCost.fast, color: colors.fast },
-    { label: t("Ultrafast"), value: speedCost.ultrafast, color: colors.ultrafast },
+    { label: "Standard", value: speedCost.standard, color: colors.standard },
+    { label: "Fast", value: speedCost.fast, color: colors.fast },
+    { label: "Ultrafast", value: speedCost.ultrafast, color: colors.ultrafast },
   ];
   if (props.merged.costUsd <= 0) return null;
 
   return (
-    <SettingsSection title={t("Cost")}>
+    <SettingsSection title="Cost">
       <View className={props.wide ? "flex-row" : undefined}>
         <View className={props.wide ? "min-w-0 flex-1" : undefined}>
-          <ShareBar label={t("By type")} segments={byType} />
+          <ShareBar label="By type" segments={byType} />
         </View>
         {speedCost.fast + speedCost.ultrafast > 0 ? (
           <View
@@ -728,9 +702,9 @@ function CostSection(props: { readonly merged: MergedUsage; readonly wide: boole
             }
           >
             <ShareBar
-              label={t("By speed")}
+              label="By speed"
               segments={bySpeed}
-              aside={t("{amount} premium", { amount: formatUsd(speedCost.premium) })}
+              aside={`${formatUsd(speedCost.premium)} premium`}
             />
           </View>
         ) : null}
@@ -797,7 +771,6 @@ function ModelsSection(props: {
   readonly metric: UsageChartMetric;
   readonly columns: 1 | 2;
 }) {
-  const t = useT(); // fork: i18n
   const { merged, metric } = props;
   const colors = useProviderColors();
   if (merged.models.length === 0) return null;
@@ -810,7 +783,7 @@ function ModelsSection(props: {
   );
 
   return (
-    <SettingsSection title={t("By model")}>
+    <SettingsSection title="By model">
       <View className="flex-row flex-wrap">
         {ordered.map((model, index) => (
           <View
@@ -839,20 +812,15 @@ function ModelsSection(props: {
                         : formatUsd(model.costUsd),
                     })
                   : isModelCostUnknown(model)
-                    ? t("no known rates · {totalTokens} tokens", {
-                        totalTokens: formatTokens(model.totalTokens),
-                      })
-                    : t("{costShare} of cost · {totalTokens} tokens", {
-                        costShare: formatPercent(model.costShare),
-                        totalTokens: formatTokens(model.totalTokens),
-                      })}
+                    ? `no known rates · ${formatTokens(model.totalTokens)} tokens`
+                    : `${formatPercent(model.costShare)} of cost · ${formatTokens(model.totalTokens)} tokens`}
               </Text>
             </View>
             <Text className="text-base tabular-nums text-foreground">
               {metric === "tokens"
                 ? formatTokens(model.totalTokens)
                 : isModelCostUnknown(model)
-                  ? t("Unpriced")
+                  ? "Unpriced"
                   : formatUsd(model.costUsd)}
             </Text>
           </View>
@@ -891,8 +859,8 @@ function usageEnvironmentStatus(
       ? t("Disconnected · showing saved usage")
       : t("Waiting for connection…");
   const progress = usageEnvironmentProgress(environment, refreshing);
-  if (progress.phase === "loading") return t("Loading usage…");
-  if (progress.phase === "stale") return t("Updating usage…");
+  if (progress.phase === "loading") return "Loading usage…";
+  if (progress.phase === "stale") return "Updating usage…";
   if (progress.phase === "partway")
     return updatingProvidersLabel(progress.providers, providerLabel, t);
   return t("Usage up to date");

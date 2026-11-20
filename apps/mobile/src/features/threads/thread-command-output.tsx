@@ -8,7 +8,6 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { useServerConfigs } from "../../state/entities";
 import { orchestrationEnvironment } from "../../state/orchestration";
 import { useEnvironmentQuery } from "../../state/query";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const FOLLOW_SLACK = 8;
 
@@ -25,7 +24,6 @@ export function ThreadCommandOutput(props: {
   readonly itemId: TurnItemId;
   readonly themeAppearance: "light" | "dark";
 }) {
-  const t = useT();
   const { data, error } = useEnvironmentQuery(
     orchestrationEnvironment.v2.commandOutput({
       environmentId: props.environmentId,
@@ -41,12 +39,12 @@ export function ThreadCommandOutput(props: {
   );
   if (text.length === 0) {
     const message = error
-      ? t("Couldn't load output: {error}", { error })
+      ? `Couldn't load output: ${error}`
       : data === null
-        ? t("Loading output…")
+        ? "Loading output…"
         : data.running
           ? null
-          : t("No output.");
+          : "No output.";
     return message === null ? null : (
       <Text className="pt-1.5 font-mono text-2xs leading-normal text-foreground-muted">
         {message}

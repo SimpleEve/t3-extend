@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { withLocalizedTitle } from "../../../fork/localizedTitle"; // fork: i18n
 import { StandaloneStack } from "../nested-stacks";
 import { pageRoute } from "../route-options";
 import { getCompactBrandHeaderOptions } from "./brand-header-options";

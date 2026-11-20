@@ -50,7 +50,6 @@ import {
   useUpdateEverythingRun,
 } from "./updateEverythingRun";
 import { type ReportLocalUpdateError, useUpdateEverything } from "./useUpdateEverything";
-import { useT } from "../../hooks/useT";
 
 type SidebarUpdatePopoverChangeDetails = Parameters<
   NonNullable<ComponentProps<typeof Popover>["onOpenChange"]>
@@ -123,7 +122,6 @@ export function SidebarUpdateArchitectureWarning() {
 }
 
 function SidebarUpdateArchitectureWarningContent() {
-  const t = useT();
   const state = useDesktopUpdateState();
   const visible = shouldShowArm64IntelBuildWarning(state);
   const description = state && visible ? getArm64IntelBuildWarningDescription(state) : null;
@@ -133,7 +131,7 @@ function SidebarUpdateArchitectureWarningContent() {
   return (
     <Alert variant="warning">
       <TriangleAlertIcon />
-      <AlertTitle>{t("Intel build on Apple Silicon")}</AlertTitle>
+      <AlertTitle>Intel build on Apple Silicon</AlertTitle>
       <AlertDescription>{description}</AlertDescription>
     </Alert>
   );
@@ -200,10 +198,9 @@ export function SidebarUpdatePill() {
 }
 
 function SidebarUpdateControl() {
-  const t = useT();
   const state = useDesktopUpdateState();
   // The desktop updates this machine, whose policy the primary environment reports.
-  const updatesDenial = managedUpdatesDenial(usePrimaryManagedPolicy(), t); // fork: interface language
+  const updatesDenial = managedUpdatesDenial(usePrimaryManagedPolicy());
   const [isActionPending, setIsActionPending] = useState(false);
   const [providerCheck, setProviderCheck] = useState<"button" | "dialog" | null>(null);
   const isCheckingProviders = providerCheck === "button";
@@ -264,8 +261,8 @@ function SidebarUpdateControl() {
         ? getDesktopUpdateButtonTooltip(state, t)
         : t("Update available")
       : showCheckIcon
-        ? t("Checking for updates…")
-        : (idleTooltip?.title ?? t("Check for updates")); // fork: interface language
+        ? "Checking for updates…"
+        : (idleTooltip?.title ?? "Check for updates");
   const disabled = showCheckIcon
     ? true
     : runsEverything
@@ -313,7 +310,7 @@ function SidebarUpdateControl() {
       let confirmed = false;
       try {
         confirmed = await ensureLocalApi().dialogs.confirm(
-          getDesktopUpdateInstallConfirmationMessage(state, t), // fork: interface language
+          getDesktopUpdateInstallConfirmationMessage(state),
           { initialFocus: "confirm" },
         );
       } catch (error) {
@@ -321,8 +318,8 @@ function SidebarUpdateControl() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: t("Could not confirm update"),
-            description: error instanceof Error ? error.message : t("Update confirmation failed."),
+            title: "Could not confirm update",
+            description: error instanceof Error ? error.message : "Update confirmation failed.",
           }),
         );
         return;
@@ -346,11 +343,11 @@ function SidebarUpdateControl() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: t("Could not check for updates"),
+            title: "Could not check for updates",
             description:
               updatesDenial ??
-              getDesktopUpdateMessage(result.state, t) ?? // fork: i18n
-              t("Automatic updates are not available in this build."),
+              result.state.message ??
+              "Automatic updates are not available in this build.",
           }),
         );
       })
@@ -358,8 +355,8 @@ function SidebarUpdateControl() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: t("Could not check for updates"),
-            description: error instanceof Error ? error.message : t("Update check failed."),
+            title: "Could not check for updates",
+            description: error instanceof Error ? error.message : "Update check failed.",
           }),
         );
       });
@@ -390,8 +387,8 @@ function SidebarUpdateControl() {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: t("Could not update everything"),
-          description: error instanceof Error ? error.message : t("An unexpected error occurred."),
+          title: "Could not update everything",
+          description: error instanceof Error ? error.message : "An unexpected error occurred.",
         }),
       );
     }
@@ -568,7 +565,7 @@ function SidebarUpdateControl() {
         {showReleaseNotesPopover && state ? (
           <PopoverPopup
             align="center"
-            aria-label={t("Update release notes")}
+            aria-label="Update release notes"
             initialFocus={false}
             onKeyDownCapture={(event) => {
               if (

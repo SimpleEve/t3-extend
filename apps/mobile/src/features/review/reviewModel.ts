@@ -9,7 +9,6 @@ import { quoteGitPatchPath } from "@t3tools/shared/gitPatchPath";
 import * as Arr from "effect/Array";
 import { pipe } from "effect/Function";
 import * as Order from "effect/Order";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type ReviewSectionKind = "turn" | "working-tree" | "branch-range";
 
@@ -111,14 +110,14 @@ export type ReviewParsedDiff =
       readonly notice: string | null;
     };
 
-function checkpointTitle(checkpoint: ThreadCheckpointSummary, t: Translator): string {
-  return t("Turn {count}", { count: checkpoint.checkpointTurnCount });
+function checkpointTitle(checkpoint: ThreadCheckpointSummary): string {
+  return `Turn ${checkpoint.checkpointTurnCount}`;
 }
 
-function checkpointSubtitle(checkpoint: ThreadCheckpointSummary, t: Translator): string {
+function checkpointSubtitle(checkpoint: ThreadCheckpointSummary): string {
   const fileCount = checkpointFileTotals(checkpoint).count;
   if (checkpoint.status !== "ready") {
-    return t("Diff {status}", { status: t(checkpoint.status, undefined, "checkpoint status") });
+    return `Diff ${checkpoint.status}`;
   }
   return fileCount === 1
     ? t("{count} file changed", { count: fileCount })
@@ -140,14 +139,14 @@ const readyCheckpointOrder = Order.make<ThreadCheckpointSummary>(
   compareCheckpointTurnCountDescending,
 );
 
-function gitSubtitle(section: ReviewDiffPreviewSource, t: Translator): string | null {
+function gitSubtitle(section: ReviewDiffPreviewSource): string | null {
   if (section.kind === "working-tree") {
-    return t(UNCOMMITTED_SUBTITLE);
+    return UNCOMMITTED_SUBTITLE;
   }
   if (section.baseRef) {
     return `${section.baseRef} ... ${section.headRef ?? "HEAD"}`;
   }
-  return t("Base branch unavailable");
+  return "Base branch unavailable";
 }
 
 function stripTrailingNewline(value: string): string {
@@ -568,7 +567,7 @@ export function buildReviewSectionItems(
           {
             id: CHANGES_SECTION_ID,
             kind: "branch-range",
-            title: t(CHANGES_TITLE),
+            title: CHANGES_TITLE,
             subtitle: null,
             diff: null,
             isLoading: true,
@@ -613,7 +612,6 @@ export function buildReviewParsedDiff(
     return { kind: "empty" };
   }
 
-  // fork: i18n, parsed diffs are cached by content, so notices stay English; screens translate them.
   const notice = truncated
     ? "Diff output hit the server size cap. Showing the available excerpt."
     : null;

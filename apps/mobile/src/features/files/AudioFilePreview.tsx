@@ -6,7 +6,6 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { useFullscreenVideoOpen, useMediaAudioSessionHold } from "../../lib/videoAudioSession";
 import { createAudioPlaybackSession } from "../../lib/audioSession";
 import { usePlaybackAudioPlayer } from "../voice-input/usePlaybackAudioPlayer";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 function timestamp(seconds: number) {
   const value = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
@@ -14,7 +13,6 @@ function timestamp(seconds: number) {
 }
 
 export function AudioFilePreview(props: { uri: string; onRetry: () => void }) {
-  const t = useT(); // fork: i18n
   const player = usePlaybackAudioPlayer(props.uri);
   const status = useAudioPlayerStatus(player);
   const [playbackRequested, setPlaybackRequested] = useState(false);
@@ -51,7 +49,7 @@ export function AudioFilePreview(props: { uri: string; onRetry: () => void }) {
         <Button
           label="−15s"
           tone="text"
-          accessibilityLabel={t("Back 15 seconds")}
+          accessibilityLabel="Back 15 seconds"
           disabled={!status.isLoaded}
           onPress={() => seek(Math.max(0, status.currentTime - 15))}
         />
@@ -82,7 +80,7 @@ export function AudioFilePreview(props: { uri: string; onRetry: () => void }) {
         <Button
           label="+15s"
           tone="text"
-          accessibilityLabel={t("Forward 15 seconds")}
+          accessibilityLabel="Forward 15 seconds"
           disabled={!status.isLoaded}
           onPress={() => seek(Math.min(status.duration, status.currentTime + 15))}
         />
@@ -90,10 +88,10 @@ export function AudioFilePreview(props: { uri: string; onRetry: () => void }) {
       {status.error || seekError ? (
         <View className="items-center gap-3">
           <Text className="text-center text-foreground">
-            {t("This audio could not be played. Try again or save it to open in another app.")}
+            This audio could not be played. Try again or save it to open in another app.
           </Text>
           <View className="items-center">
-            <Button label={t("Try again")} tone="secondary" onPress={props.onRetry} />
+            <Button label="Try again" tone="secondary" onPress={props.onRetry} />
           </View>
         </View>
       ) : null}

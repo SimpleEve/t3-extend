@@ -4,7 +4,6 @@ import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { cn } from "~/lib/utils";
 
 import { Button } from "./ui/button";
-import { useT } from "~/hooks/useT";
 
 export function CommandBlock({
   command,
@@ -15,7 +14,6 @@ export function CommandBlock({
   readonly className?: string;
   readonly prominent?: boolean;
 }) {
-  const t = useT();
   const { copyToClipboard, isCopied } = useCopyToClipboard({
     timeout: 1500,
     target: "command",
@@ -35,7 +33,7 @@ export function CommandBlock({
       <Button
         size="icon-xs"
         variant="ghost"
-        aria-label={t("Copy command")}
+        aria-label="Copy command"
         onClick={() => copyToClipboard(command, undefined)}
       >
         {isCopied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}

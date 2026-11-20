@@ -34,7 +34,6 @@ import {
   type ProjectOverrideEntry,
   type ScopedSettingsPatch,
 } from "./scopedSettings";
-import { getUiLocale, translate, translatorFor } from "@t3tools/client-runtime/i18n";
 
 const readSettings = (environmentId: EnvironmentId) =>
   readEnvironment(environmentId)?.serverConfig?.settings ?? null;
@@ -68,7 +67,7 @@ function useRunScopedPlan() {
     if (plan.unavailableReason) {
       toastManager.add({
         type: "warning",
-        title: translate(getUiLocale(), "Setting not saved"),
+        title: "Setting not saved",
         description: plan.unavailableReason,
       });
       onFailed?.();

@@ -3,7 +3,6 @@ import { Pressable, type StyleProp, type ViewStyle } from "react-native";
 import { cn } from "../lib/cn";
 import { AppText } from "./ui/AppText";
 import { SymbolView } from "./ui/AppSymbol";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 export function NewThreadButton(props: {
   readonly onPress: () => void;
@@ -12,10 +11,9 @@ export function NewThreadButton(props: {
   readonly className?: string;
   readonly style?: StyleProp<ViewStyle>;
 }) {
-  const t = useT(); // fork: i18n
   return (
     <Pressable
-      accessibilityLabel={t("New thread")}
+      accessibilityLabel="New thread"
       accessibilityRole="button"
       onPress={props.onPress}
       className={cn(

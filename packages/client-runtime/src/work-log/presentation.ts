@@ -253,7 +253,6 @@ export function resolveWorkEntryToolPresentation(
     "label" | "toolTitle" | "toolData" | "toolLifecycleStatus" | "structuredPayload"
   >,
   fallbackStatus?: "inProgress" | "completed",
-  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ) {
   const definition = resolveT3McpToolDefinition(
     workEntryToolName(entry),
@@ -531,11 +530,6 @@ function joinPhrases(
   if (items.length === 2) {
     return t("{first} and {second}", { first: items[0]!, second: items[1]! }, context);
   }
-  return t(
-    "{rest}, and {last}",
-    { rest: items.slice(0, -1).join(t(", ", undefined, context)), last: items.at(-1)! },
-    context,
-  );
 }
 
 function t3ToolSummaryCall(entry: WorkLogPresentationEntry): T3ToolSummaryCall {

@@ -2,14 +2,12 @@ import { Pressable, View } from "react-native";
 
 import { AppText } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function BrowserPreviewButton(props: {
   readonly count: number;
   readonly onPress: () => void;
   readonly compact?: boolean;
 }) {
-  const t = useT(); // fork: i18n
   const compact = props.compact ?? true;
   return (
     <Pressable
@@ -30,7 +28,7 @@ export function BrowserPreviewButton(props: {
       <SymbolView name="globe" size={20} tintColorClassName="accent-icon" type="monochrome" />
       {!compact ? (
         <AppText className="font-t3-medium text-xs text-foreground">
-          {props.count === 1 ? t("One tab open") : t("{count} tabs open", { count: props.count })}
+          {props.count === 1 ? "One tab open" : `${props.count} tabs open`}
         </AppText>
       ) : props.count > 1 ? (
         <View className="absolute right-1.5 top-1.5 min-w-4 items-center rounded-full bg-primary px-1">

@@ -59,7 +59,6 @@ import { readProject } from "../state/entities";
 import { getDesktopSnapShotBridge } from "../lib/desktopSnapShot";
 import { isChunkLoadError } from "../lib/chunkReloadGuard";
 import { shouldResumeSnapShotSetupOnStartup } from "../lib/snapShotSetupResume";
-import { useT } from "~/hooks/useT";
 
 export const Route = createRootRoute({
   beforeLoad: async ({ location }) => {
@@ -115,18 +114,15 @@ export const Route = createRootRoute({
 });
 
 function RootRouteNotFoundView() {
-  const t = useT();
   return (
     <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center p-6">
       <div className="flex max-w-sm flex-col items-center gap-4 text-center">
-        <h1 className="text-lg font-medium text-foreground">{t("Page not found")}</h1>
+        <h1 className="text-lg font-medium text-foreground">Page not found</h1>
         <p className="text-sm text-muted-foreground">
-          {t(
-            "This link doesn't point to a page in {APP_DISPLAY_NAME}. Go home to choose a project or start a thread.",
-            { APP_DISPLAY_NAME },
-          )}
+          This link doesn't point to a page in {APP_DISPLAY_NAME}. Go home to choose a project or
+          start a thread.
         </p>
-        <Button render={<Link to="/" replace />}>{t("Go home")}</Button>
+        <Button render={<Link to="/" replace />}>Go home</Button>
       </div>
     </main>
   );
@@ -237,7 +233,6 @@ function RootRouteBranch() {
 }
 
 function RootRouteErrorView({ error }: ErrorComponentProps) {
-  const t = useT();
   const router = useRouter();
   const message = errorMessage(error);
   // Router pathname rather than window.location: desktop uses hash history, where the window path is always "/".
@@ -246,7 +241,7 @@ function RootRouteErrorView({ error }: ErrorComponentProps) {
 
   return (
     <StandalonePage>
-      <StandalonePageHeader title={t("Something went wrong.")} description={message} />
+      <StandalonePageHeader title="Something went wrong." description={message} />
 
       <div className="mt-5 flex flex-wrap gap-2">
         <Button
@@ -255,16 +250,16 @@ function RootRouteErrorView({ error }: ErrorComponentProps) {
             isChunkLoadError(error) ? window.location.reload() : void router.invalidate()
           }
         >
-          {t("Try again")}
+          Try again
         </Button>
         <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
-          {t("Reload app")}
+          Reload app
         </Button>
         <CopyErrorButton report={report} />
       </div>
 
       <div className="mt-5 overflow-hidden rounded-lg border border-border/70 bg-background/55">
-        <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground">{t("Error report")}</p>
+        <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Error report</p>
         <pre className="max-h-64 overflow-auto border-t border-border/70 bg-background/80 px-3 py-2 text-xs whitespace-pre-wrap text-foreground/85">
           {report}
         </pre>
@@ -274,13 +269,12 @@ function RootRouteErrorView({ error }: ErrorComponentProps) {
 }
 
 function CopyErrorButton({ report }: { report: string }) {
-  const t = useT();
   const { copyToClipboard, isCopied } = useCopyToClipboard({ target: "error-report" });
 
   return (
     <Button size="sm" variant="outline" onClick={() => copyToClipboard(report)}>
       {isCopied ? <CheckIcon className="text-success" /> : <CopyIcon />}
-      {isCopied ? t("Copied") : t("Copy error")}
+      {isCopied ? "Copied" : "Copy error"}
     </Button>
   );
 }

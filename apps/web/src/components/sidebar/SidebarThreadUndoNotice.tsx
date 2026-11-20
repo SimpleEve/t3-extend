@@ -8,7 +8,6 @@ import {
   undoLatestThreadAction,
   useThreadUndoNotice,
 } from "../../hooks/showThreadUndoNotice";
-import { useT } from "../../hooks/useT"; // fork: interface language
 import { cn } from "../../lib/utils";
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import { InlineButton } from "../ui/button";
@@ -18,7 +17,6 @@ import { SidebarMenuItem } from "../ui/sidebar";
 export function SidebarThreadUndoNotice() {
   const notice = useThreadUndoNotice((state) => state.notice);
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
-  const t = useT(); // fork: interface language
   // Short enough to fit beside the utility icons; screen readers hear the full summary.
   const summary = notice ? threadUndoCompactSummary(notice, t) : null;
 
@@ -54,7 +52,7 @@ export function SidebarThreadUndoNotice() {
             <span>{threadUndoLabel(keybindings, t)}</span>
           </span>
         </InlineButton>
-        <span>{t("{summary},", { summary: text })}</span>
+        <span>{text},</span>
       </div>
     </SidebarMenuItem>
   );

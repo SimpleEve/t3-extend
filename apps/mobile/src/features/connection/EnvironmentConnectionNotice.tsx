@@ -9,13 +9,10 @@ import { SymbolView } from "../../components/ui/AppSymbol";
 import { View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function noticeTitle(
   phase: EnvironmentConnectionPhase,
   environmentLabel: string,
-  t: Translator,
   awaitingApproval: boolean,
 ): string {
   if (awaitingApproval) {
@@ -23,17 +20,17 @@ function noticeTitle(
   }
   switch (phase) {
     case "offline":
-      return t("You are offline");
+      return "You are offline";
     case "connecting":
-      return t("Connecting to {name}...", { name: environmentLabel });
+      return `Connecting to ${environmentLabel}...`;
     case "reconnecting":
-      return t("Reconnecting to {name}...", { name: environmentLabel });
+      return `Reconnecting to ${environmentLabel}...`;
     case "unsupported":
-      return t("Client not supported");
+      return "Client not supported";
     case "error":
-      return t("{name} is unavailable", { name: environmentLabel });
+      return `${environmentLabel} is unavailable`;
     case "available":
-      return t("{name} is disconnected", { name: environmentLabel });
+      return `${environmentLabel} is disconnected`;
     case "connected":
       return "";
   }
@@ -43,7 +40,6 @@ function noticeDetail(
   phase: EnvironmentConnectionPhase,
   resourceName: string,
   error: string | null,
-  t: Translator,
   awaitingApproval: boolean,
 ): string {
   if (error && awaitingApproval) return error;
@@ -53,22 +49,17 @@ function noticeDetail(
       : error;
   }
 
-  // fork: i18n. `resourceName` is an English noun from the caller ("terminal", "review").
-  const resource = t(resourceName);
   switch (phase) {
     case "offline":
-      return t(
-        "Cached data remains available. The {resource} will load when your connection returns.",
-        { resource },
-      );
+      return `Cached data remains available. The ${resourceName} will load when your connection returns.`;
     case "connecting":
     case "reconnecting":
-      return t("The {resource} will load as soon as the environment is ready.", { resource });
+      return `The ${resourceName} will load as soon as the environment is ready.`;
     case "unsupported":
-      return t("Use compatible versions of the app and server to connect.");
+      return "Use compatible versions of the app and server to connect.";
     case "available":
     case "error":
-      return t("Reconnect the environment to load the {resource}.", { resource });
+      return `Reconnect the environment to load the ${resourceName}.`;
     case "connected":
       return "";
   }
@@ -80,7 +71,6 @@ export function EnvironmentConnectionNotice(props: {
   readonly resourceName: string;
   readonly onRetry: () => void;
 }) {
-  const t = useT();
   const isRetrying =
     props.connection.phase === "connecting" || props.connection.phase === "reconnecting";
 
@@ -121,7 +111,7 @@ export function EnvironmentConnectionNotice(props: {
 
         {props.connection.phase !== "offline" && props.connection.phase !== "unsupported" ? (
           <View className="mt-1">
-            <Button label={t("Retry now")} tone="secondary" onPress={props.onRetry} />
+            <Button label="Retry now" tone="secondary" onPress={props.onRetry} />
           </View>
         ) : null}
       </View>

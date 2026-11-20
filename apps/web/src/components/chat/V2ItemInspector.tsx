@@ -28,7 +28,6 @@ import { resolveExternalWebLinkHref } from "./externalLinkContextMenu";
 import type { ExpandedImagePreview } from "./ExpandedImagePreview";
 import { ShellCommandBlock } from "./ShellCommandBlock";
 import { useInitialOutputReady, type TurnItemSource } from "./timelineRowContext";
-import { useT } from "~/hooks/useT"; // fork: restored import
 
 interface V2ItemInspectorProps {
   readonly onInitialOutputReady?: (() => void) | undefined;
@@ -144,13 +143,12 @@ interface ToolOutputState {
 }
 
 function ToolOutputImages(props: ToolOutputState) {
-  const t = useT();
   return props.images.map((resource) => (
     <ChatMarkdownAssetImage
       key={resource.index}
       environmentId={props.environmentId}
       resource={resource}
-      alt={t("Tool output image")}
+      alt="Tool output image"
       maxHeightRem={16}
       onImageExpand={props.onImageExpand}
     />
@@ -158,17 +156,16 @@ function ToolOutputImages(props: ToolOutputState) {
 }
 
 function ToolOutput(props: ToolOutputState) {
-  const t = useT();
   return props.output ? (
     <StructuredValue value={props.output} highlightJson />
   ) : props.pending ? (
-    <div className="text-muted-foreground italic">{t("Loading output…")}</div>
+    <div className="text-muted-foreground italic">Loading output…</div>
   ) : props.error ? (
     <div className="text-destructive">
       {t("Couldn't load output: {error}", { error: props.error })}
     </div>
   ) : props.empty && props.images.length === 0 ? (
-    <div className="text-muted-foreground italic">{t("No output.")}</div>
+    <div className="text-muted-foreground italic">No output.</div>
   ) : null;
 }
 
@@ -199,7 +196,6 @@ function ToolCallBody(
     readonly outputSlot?: ReactNode;
   },
 ) {
-  const t = useT();
   const call = toolCallLines({ command: props.command, args: props.args });
   return (
     <div className={cn("space-y-1.5", monoClassName)}>
@@ -226,14 +222,13 @@ function ToolCallBody(
       {call.argsText ? <StructuredValue value={call.argsText} highlightJson /> : null}
       {props.outputSlot ?? <ToolOutput {...props} />}
       {props.exitCode !== undefined && props.exitCode !== 0 ? (
-        <div className="text-destructive">{t("exit {code}", { code: props.exitCode })}</div>
+        <div className="text-destructive">exit {props.exitCode}</div>
       ) : null}
     </div>
   );
 }
 
 export const V2ItemInspector = memo(function V2ItemInspector(props: V2ItemInspectorProps) {
-  const t = useT();
   // Command rows stream their output, including the final output, from the server.
   const environmentStreamsOutput = useCommandOutputStreaming(props.environmentId);
   const streamsOutput =
@@ -308,7 +303,7 @@ export const V2ItemInspector = memo(function V2ItemInspector(props: V2ItemInspec
                   })
                 }
               >
-                {t("Open diff")}
+                Open diff
               </Button>
             ) : null}
           </div>
@@ -374,7 +369,7 @@ export const V2ItemInspector = memo(function V2ItemInspector(props: V2ItemInspec
                   </a>
                 ) : (
                   <p className="font-medium text-foreground">
-                    {result.title ?? result.url ?? t("Search result")}
+                    {result.title ?? result.url ?? "Search result"}
                   </p>
                 )}
                 {result.snippet ? <p className="text-muted-foreground">{result.snippet}</p> : null}

@@ -2,7 +2,6 @@ import {
   connectionStatusText,
   type EnvironmentConnectionPresentation,
 } from "@t3tools/client-runtime/connection";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function environmentStatusText(
   connection: EnvironmentConnectionPresentation,

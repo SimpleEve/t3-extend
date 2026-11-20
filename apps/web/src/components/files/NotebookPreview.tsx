@@ -8,7 +8,6 @@ import ReadOnlySourcePreview from "./ReadOnlySourcePreview";
 import DocumentPages from "./DocumentPages";
 import { FileSurfaceNotice } from "./fileSurfaceChrome";
 import type { OfficeWorkerResult } from "./officePreviewProtocol";
-import { useT } from "~/hooks/useT";
 
 // Saved notebooks must not load URLs or turn authored links into app actions.
 function inertNotebookMarkdown() {
@@ -46,7 +45,6 @@ export default function NotebookPreview(props: {
   readonly notebook: Extract<OfficeWorkerResult, { type: "notebook" }>;
   readonly sizeBytes?: number | undefined;
 }) {
-  const t = useT();
   const [visible, setVisible] = useState(20);
   const scroll = useRef<HTMLDivElement>(null);
   const [outputView, setOutputView] = useState(() => ({
@@ -101,18 +99,18 @@ export default function NotebookPreview(props: {
         role="status"
       >
         {props.notebook.cells.length.toLocaleString()}{" "}
-        {props.notebook.cells.length === 1 ? t("cell") : t("cells")} · {props.notebook.language}
+        {props.notebook.cells.length === 1 ? "cell" : "cells"} · {props.notebook.language}
         {props.sizeBytes !== undefined
-          ? ` · ${props.sizeBytes === 0 ? t("0 bytes") : formatAttachmentSize(props.sizeBytes)}`
+          ? ` · ${props.sizeBytes === 0 ? "0 bytes" : formatAttachmentSize(props.sizeBytes)}`
           : ""}
       </div>
-      <FileSurfaceNotice>{t("Saved outputs only. Code is never executed.")}</FileSurfaceNotice>
+      <FileSurfaceNotice>Saved outputs only. Code is never executed.</FileSurfaceNotice>
       <div ref={scroll} className="scrollbar-gutter-both min-h-0 flex-1 overflow-auto">
         <div className="mx-auto max-w-4xl space-y-5 px-5 py-6">
           {props.notebook.cells.slice(0, visible).map((cell, index) => (
             <section
               key={index}
-              aria-label={t("Cell {value}", { value: index + 1 })}
+              aria-label={`Cell ${index + 1}`}
               className="min-w-0 overflow-hidden rounded-md border border-border/60"
             >
               <div className="border-b border-border/60 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
@@ -157,7 +155,7 @@ export default function NotebookPreview(props: {
                   ) : output.kind === "image" ? (
                     <img
                       src={output.text}
-                      alt={t("Cell {value} output", { value: index + 1 })}
+                      alt={`Cell ${index + 1} output`}
                       loading="lazy"
                       className="max-h-96 max-w-full p-4 object-contain"
                     />
@@ -171,13 +169,11 @@ export default function NotebookPreview(props: {
             </section>
           ))}
           {props.notebook.cells.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("This notebook is empty.")}</p>
+            <p className="text-sm text-muted-foreground">This notebook is empty.</p>
           ) : null}
           {visible < props.notebook.cells.length ? (
             <Button variant="outline" size="sm" onClick={() => setVisible((count) => count + 20)}>
-              {t("Show more cells ({value} remaining)", {
-                value: props.notebook.cells.length - visible,
-              })}
+              Show more cells ({props.notebook.cells.length - visible} remaining)
             </Button>
           ) : null}
         </div>

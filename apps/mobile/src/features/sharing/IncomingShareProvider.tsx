@@ -47,7 +47,6 @@ import {
   removeIncomingShareDraft,
   writeIncomingShareDraft,
 } from "./incoming-share-storage";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function receiveSharingEnabled(): boolean {
   if (Platform.OS === "android") {
@@ -236,9 +235,9 @@ function reportRefreshFailure(cause: unknown) {
     cause instanceof Error ? cause.cause : null,
   );
   const error = cause instanceof Error ? cause : new Error("Could not import shared content.");
-  Dialog.alert(translate(getUiLocale(), "Could not import shared content"), error.message, [
-    { text: translate(getUiLocale(), "Dismiss"), style: "cancel" },
-    { text: translate(getUiLocale(), "Retry"), onPress: () => void refreshIncomingShares() },
+  Dialog.alert("Could not import shared content", error.message, [
+    { text: "Dismiss", style: "cancel" },
+    { text: "Retry", onPress: () => void refreshIncomingShares() },
   ]);
 }
 
@@ -319,7 +318,7 @@ export const incomingShareImports = makeIncomingShareImports({
     }),
   releaseUnusedAttachments: scheduleUnusedComposerAttachmentCleanup,
   onWarnings: (warnings) => {
-    Dialog.alert(translate(getUiLocale(), "Some shared content was skipped"), warnings.join("\n"));
+    Dialog.alert("Some shared content was skipped", warnings.join("\n"));
   },
   onImportFailure: (target, error) => {
     Dialog.alert(
@@ -329,7 +328,7 @@ export const incomingShareImports = makeIncomingShareImports({
         : translate(getUiLocale(), "The shared content could not be saved."),
       [
         {
-          text: translate(getUiLocale(), "Cancel import"),
+          text: "Cancel import",
           style: "cancel",
           onPress: () => void incomingShareImports.cancel(target),
         },

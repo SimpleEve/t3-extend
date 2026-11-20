@@ -9,7 +9,6 @@ import { waitForProjectRemoval } from "../state/entities";
 import { projectEnvironment } from "../state/projects";
 import { useAtomCommand } from "../state/use-atom-command";
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export function useRemoveClonedProject() {
   const router = useRouter();

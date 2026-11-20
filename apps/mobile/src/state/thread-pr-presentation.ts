@@ -16,8 +16,6 @@ import {
   resolveThreadPullRequestBadge,
   threadPullRequestKeyOf,
 } from "@t3tools/client-runtime/thread-pull-requests";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { changeRequestTerm } from "../lib/changeRequestTerm"; // fork: i18n
 
 export type ThreadPr = NonNullable<VcsStatusResult["pr"]>;
 
@@ -44,7 +42,6 @@ const PR_STATE_TEXT_CLASS: Record<ThreadPr["state"], string> = {
 export function presentThreadPr(
   pr: ThreadPr,
   provider: VcsStatusResult["sourceControlProvider"] | null | undefined,
-  t: Translator, // fork: i18n
 ): ThreadPrPresentation {
   const { changeRequest } = sourceControlClients.get(provider?.kind);
   const isDraft = pr.state === "open" && pr.isDraft === true;
@@ -58,19 +55,13 @@ export function presentThreadPr(
     url: pr.url,
     changeRequest,
     label: String(pr.number),
-    // fork: i18n
-    accessibilityLabel: t("#{number} {singular} {state}", {
-      number: pr.number,
-      singular: changeRequestTerm(changeRequest.singular, t),
-      state: t(isDraft ? "draft" : pr.state),
-    }),
+    accessibilityLabel: `#${pr.number} ${changeRequest.singular} ${isDraft ? "draft" : pr.state}`,
     textClassName: isDraft ? "text-foreground-muted" : PR_STATE_TEXT_CLASS[pr.state],
   };
 }
 
 export function presentThreadLinkedPullRequests(
   links: ReadonlyArray<ThreadPullRequestLink>,
-  t: Translator, // fork: i18n
 ): ThreadPrPresentation | null {
   const link = resolveThreadCurrentPullRequestLink(links);
   const badge = resolveThreadPullRequestBadge(links);
@@ -106,22 +97,10 @@ export function presentThreadLinkedPullRequests(
     label,
     accessibilityLabel:
       badge.kind === "stack"
-        ? t("{count} {singular}s in stack, {state}", {
-            count: badge.layers,
-            singular: changeRequestTerm(changeRequest.singular, t),
-            state: isDraft ? t("draft") : state ? t(state) : t("status pending"),
-          })
+        ? `${badge.layers} ${changeRequest.singular}s in stack, ${isDraft ? "draft" : (state ?? "status pending")}`
         : linkedCount !== null
-          ? t("{count} linked {plural}, overall {state}", {
-              count: linkedCount,
-              plural: changeRequestTerm(changeRequest.plural, t),
-              state: t(badge.state),
-            })
-          : t("#{number} {singular} {state}", {
-              number: link.number,
-              singular: changeRequestTerm(changeRequest.singular, t),
-              state: state === null ? t("status pending") : isDraft ? t("draft") : t(state),
-            }),
+          ? `${linkedCount} linked ${changeRequest.plural}, overall ${badge.state}`
+          : `#${link.number} ${changeRequest.singular} ${state === null ? "status pending" : isDraft ? "draft" : state}`,
     textClassName: state === null || isDraft ? "text-foreground-muted" : PR_STATE_TEXT_CLASS[state],
   };
 }
@@ -130,7 +109,6 @@ export function resolveThreadPrSource(
   thread: Pick<EnvironmentThreadShell, "pullRequests" | "linkedPullRequest" | "branchPullRequest">,
   /** False until the server config loads; the stored references serve until then. */
   supportsSnapshots: boolean,
-  t: Translator, // fork: i18n
 ) {
   const linkedPresentation = supportsSnapshots
     ? presentThreadLinkedPullRequests(thread.pullRequests, t)
@@ -144,7 +122,7 @@ export function resolveThreadPrSource(
   return { linkedPresentation, pullRequestRef };
 }
 
-export function resolveThreadPrBadgeAction(pr: ThreadPrPresentation, t: Translator) {
+export function resolveThreadPrBadgeAction(pr: ThreadPrPresentation) {
   return pr.kind === "stack" || pr.others > 0
     ? {
         kind: "list" as const,

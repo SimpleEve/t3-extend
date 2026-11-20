@@ -28,7 +28,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { ThreadDetailsControl } from "./ThreadDetailsControl";
 import { ThreadDetailsSection } from "./ThreadDetailsSection";
 import { THREAD_DETAILS_PANEL_ICON_CLASS } from "./threadDetailsPanelStyles";
-import { useT } from "~/hooks/useT";
 
 const SERVER_PAGE_COUNT = 4;
 
@@ -45,7 +44,6 @@ export function ThreadServersPanel(props: ThreadServersPanelProps) {
 }
 
 function ThreadServersList(props: ThreadServersPanelProps) {
-  const t = useT();
   const servers = useThreadDiscoveredPorts(props);
   const canOpen = useEnvironmentScope(props.environmentId, AuthPreviewOperateScope);
   const canStop = useAtomValue(
@@ -86,12 +84,12 @@ function ThreadServersList(props: ThreadServersPanelProps) {
       }); // fork
       await readLocalApi()
         ?.shell.openExternal(url)
-        .catch((error: unknown) => reportFailure(t("Unable to open in browser"), error));
+        .catch((error: unknown) => reportFailure("Unable to open in browser", error));
       return;
     }
     const result = await openDiscoveredPort({ threadRef, port: server, openPreview });
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      reportFailure(t("Unable to open preview"), squashAtomCommandFailure(result));
+      reportFailure("Unable to open preview", squashAtomCommandFailure(result));
     }
   };
 
@@ -104,12 +102,12 @@ function ThreadServersList(props: ThreadServersPanelProps) {
     });
     setStoppingKey(null);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      reportFailure(t("Could not stop server"), squashAtomCommandFailure(result));
+      reportFailure("Could not stop server", squashAtomCommandFailure(result));
     }
   };
 
   return (
-    <ThreadDetailsSection headingId="thread-details-servers-heading" title={t("Servers")}>
+    <ThreadDetailsSection headingId="thread-details-servers-heading" title="Servers">
       <ul className="m-0 list-none p-0">
         {servers.slice(0, visibleCount).map((server, index) => {
           const key = serverKey(server);
@@ -142,16 +140,14 @@ function ThreadServersList(props: ThreadServersPanelProps) {
                       localhost:{server.port}
                     </span>
                     <span className="truncate text-2xs font-normal leading-4 text-muted-foreground">
-                      {[server.terminal === null ? t("Agent") : t("Terminal"), server.processName]
+                      {[server.terminal === null ? "Agent" : "Terminal", server.processName]
                         .filter(Boolean)
                         .join(" · ")}
                     </span>
                   </span>
                 </TooltipTrigger>
                 <TooltipPopup side="left">
-                  {t("Open in the browser panel. {shortcut} for your browser.", {
-                    shortcut: externalClickLabel,
-                  })}
+                  Open in the browser panel. {externalClickLabel} for your browser.
                 </TooltipPopup>
               </Tooltip>
               {stoppable ? (
@@ -164,7 +160,7 @@ function ThreadServersList(props: ThreadServersPanelProps) {
                           variant="ghost"
                           part="icon"
                           tone="destructive"
-                          aria-label={t("Stop localhost:{port}", { port: server.port })}
+                          aria-label={`Stop localhost:${server.port}`}
                           disabled={stoppingKey !== null}
                           onClick={() => void stop(server)}
                         />
@@ -176,7 +172,7 @@ function ThreadServersList(props: ThreadServersPanelProps) {
                         <SquareIcon aria-hidden className="size-3 fill-current" />
                       )}
                     </TooltipTrigger>
-                    <TooltipPopup side="left">{t("Stop server")}</TooltipPopup>
+                    <TooltipPopup side="left">Stop server</TooltipPopup>
                   </Tooltip>
                 </div>
               ) : null}

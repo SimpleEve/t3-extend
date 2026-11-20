@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from "react";
 import { msUntilRelativeTimeChange, relativeTime } from "../lib/time";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 // The React Compiler caches inline relativeTime calls on the timestamp alone.
 export function useRelativeTime(timestamp: string) {

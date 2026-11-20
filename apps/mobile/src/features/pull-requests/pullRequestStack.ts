@@ -1,13 +1,10 @@
 import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 import type { PullRequestRef, PullRequestStack, ThreadPullRequestLink } from "@t3tools/contracts";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 export function pullRequestStackMerge(
   stack: PullRequestStack,
   number: number,
   terminology: ChangeRequestTerminology,
-  t: Translator, // fork: i18n
 ) {
   const position = stack.layers.findIndex((layer) => layer.number === number);
   const layers = stack.layers.slice(0, position + 1).filter((layer) => layer.state !== "merged");
@@ -17,19 +14,15 @@ export function pullRequestStackMerge(
   const { singular } = terminology;
   const reason =
     position < 0
-      ? t("This {singular} is no longer in the stack. Refresh it.", {
-          singular: changeRequestTerm(singular, t),
-        })
+      ? `This ${terminology.singular} is no longer in the stack. Refresh it.`
       : stack.layers[position]?.state !== "open" || layers.length === 0
-        ? t("There are no open layers to merge through this {singular}.", {
-            singular: changeRequestTerm(singular, t),
-          })
+        ? `There are no open layers to merge through this ${terminology.singular}.`
         : layers.some((layer) => layer.state !== "open")
-          ? t("Reopen the closed layers before merging this stack.")
+          ? "Reopen the closed layers before merging this stack."
           : layers.some((layer) => layer.isDraft)
-            ? t("Mark every layer being merged ready for review.")
+            ? "Mark every layer being merged ready for review."
             : heads.length !== layers.length
-              ? t("Refresh the stack to load its latest revisions before merging.")
+              ? "Refresh the stack to load its latest revisions before merging."
               : null;
   return { position: position + 1, layers, heads, reason };
 }

@@ -1,4 +1,3 @@
-import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { describe, expect, it } from "vite-plus/test";
 import {
@@ -11,7 +10,6 @@ import {
 
 const GITHUB = sourceControlClients.get("github").changeRequest;
 const GITLAB = sourceControlClients.get("gitlab").changeRequest;
-const t = translatorFor("en");
 
 import type { PullRequestAction } from "@t3tools/contracts";
 

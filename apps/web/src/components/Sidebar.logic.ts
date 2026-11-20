@@ -623,7 +623,7 @@ export function buildBulkTitleRegenerationContextMenuItem(input: {
   if (input.actionableCount === 0) {
     return {
       id: "regenerate-title",
-      label: translate(getUiLocale(), "Regenerating… ({count})", { count: input.supportedCount }), // fork
+      label: `Regenerating… (${input.supportedCount})`,
       disabled: true,
     };
   }

@@ -44,7 +44,6 @@ import {
   selectableSourceHtml,
 } from "./source-file-document";
 import { sourceHighlightAtom } from "./sourceHighlightingState";
-import { useT } from "../../hooks/useT"; // fork: restored import
 
 interface SourceFileSurfaceProps {
   readonly contents: string;
@@ -68,7 +67,6 @@ const HighlightedSourceLine = function HighlightedSourceLine(props: {
   readonly wordBreak: boolean;
   readonly onLongPress?: () => void;
 }) {
-  const t = useT();
   const selectable = props.onLongPress === undefined;
   const row = (
     <View
@@ -141,7 +139,7 @@ const HighlightedSourceLine = function HighlightedSourceLine(props: {
   return onLongPress ? (
     <Pressable
       onLongPress={onLongPress}
-      accessibilityActions={[{ name: "longpress", label: t("Select text") }]}
+      accessibilityActions={[{ name: "longpress", label: "Select text" }]}
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === "longpress") onLongPress();
       }}
@@ -178,7 +176,6 @@ function useSourceFileModel(props: SourceFileSurfaceProps) {
 }
 
 function SourceHighlightStatusView(props: { readonly status: SourceHighlightStatus }) {
-  const t = useT(); // fork: i18n
   if (props.status === "highlighting") {
     return <LoadingStrip />;
   }

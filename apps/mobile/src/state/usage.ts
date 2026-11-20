@@ -66,7 +66,6 @@ const usageByWindowAtom = Atom.family((windowKey: string) =>
         isPending: result.waiting,
         isConnected: presentation.connection.phase === "connected",
         canReadDiagnostics: true,
-        // fork: i18n, English like the access errors above; the usage screen translates it.
         error: result._tag === "Failure" ? "This environment could not report usage." : null,
         summary,
       });

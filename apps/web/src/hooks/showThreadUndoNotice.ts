@@ -85,7 +85,7 @@ export function threadUndoLabel(
   t: Translator = translatorFor(getUiLocale()), // fork: interface language
 ) {
   const shortcut = shortcutLabelForCommand(keybindings, "thread.undo");
-  return shortcut ? t("{shortcut} to undo", { shortcut }) : t("Undo");
+  return shortcut ? `${shortcut} to undo` : "Undo";
 }
 
 let announcedSummary: string | null = null;

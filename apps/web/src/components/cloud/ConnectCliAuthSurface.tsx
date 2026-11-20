@@ -11,7 +11,6 @@ import { StandalonePage, StandalonePageHeader } from "../ui/standalone-page";
 import { resolveClerkSignInProps } from "../clerk/authRedirect";
 import { retryClerkLoad, useClerkLoadFailed } from "../clerk/clerkLoadFailure";
 import { Button } from "../ui/button";
-import { useT } from "../../hooks/useT";
 
 const invalidLinkMessage = {
   context: "Authorization request",
@@ -21,7 +20,6 @@ const invalidLinkMessage = {
 } as const;
 
 export function ConnectCliAuthorizeSurface() {
-  const t = useT();
   const [request] = useState(() => readConnectAuthorizeRequest(new URL(window.location.href)));
   const clerk = useClerk();
   const { isLoaded, isSignedIn } = useAuth();
@@ -77,24 +75,24 @@ export function ConnectCliAuthorizeSurface() {
   return (
     <StandalonePage>
       <StandalonePageHeader
-        context={t("Browser authorization")}
-        title={t("Connecting your terminal")}
+        context="Browser authorization"
+        title="Connecting your terminal"
         description={
           isSignedIn
-            ? t("Redirecting to authorize T3 Connect for your CLI…")
-            : t("Sign in to continue authorizing T3 Connect for your CLI.")
+            ? "Redirecting to authorize T3 Connect for your CLI…"
+            : "Sign in to continue authorizing T3 Connect for your CLI."
         }
       />
       {loadFailed ? (
         <div className="mt-6">
           <Button type="button" onClick={retryClerkLoad}>
-            {t("Retry sign-in")}
+            Retry sign-in
           </Button>
         </div>
       ) : isLoaded && !isSignedIn ? (
         <div className="mt-6">
           <Button type="button" onClick={openSignIn}>
-            {t("Sign in")}
+            Sign in
           </Button>
         </div>
       ) : null}

@@ -11,16 +11,14 @@ import {
   setThreadDetailsItem,
   THREAD_DETAILS_ITEMS,
 } from "./threadDetailsItems";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 /** Menu body that shows and hides thread details items. The card's context menu and Settings share it. */
 export function ThreadDetailsItemsMenuItems() {
-  const t = useT(); // fork: interface language
   const visibility = useClientSettings(resolveThreadDetailsVisibility);
   return (
     <>
       <MenuGroup>
-        <MenuGroupLabel>{t("Show in thread details")}</MenuGroupLabel>
+        <MenuGroupLabel>Show in thread details</MenuGroupLabel>
         {THREAD_DETAILS_ITEMS.map((item) => (
           <MenuCheckboxItem
             key={item.id}
@@ -31,7 +29,7 @@ export function ThreadDetailsItemsMenuItems() {
               })
             }
           >
-            {t(item.label)}
+            {item.label}
           </MenuCheckboxItem>
         ))}
       </MenuGroup>
@@ -40,7 +38,7 @@ export function ThreadDetailsItemsMenuItems() {
         disabled={isDefaultThreadDetailsVisibility(visibility)}
         onClick={() => updateClientSettings(RESET_THREAD_DETAILS_ITEMS)}
       >
-        {t("Reset to default")}
+        Reset to default
       </MenuItem>
     </>
   );

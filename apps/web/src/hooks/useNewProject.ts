@@ -16,7 +16,6 @@ import { sourceControlEnvironment } from "~/state/sourceControl";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { useNewThreadHandler } from "./useHandleNewThread";
 import { suggestAppAccessForRemote } from "../components/sourceControlAppAccessToast";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error && error.message.trim().length > 0
@@ -51,12 +50,8 @@ export function useNewProject() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: translate(getUiLocale(), "Could not create the {label} repository", { label }),
-            description: translate(
-              getUiLocale(),
-              "{result} Use Publish Repository in the Git menu to try again.",
-              { result: errorMessage(squashAtomCommandFailure(result)) },
-            ),
+            title: `Could not create the ${label} repository`,
+            description: `${errorMessage(squashAtomCommandFailure(result))} Use Publish Repository in the Git menu to try again.`,
           }),
         );
       }
@@ -65,7 +60,7 @@ export function useNewProject() {
     toastManager.add(
       stackedThreadToast({
         type: "success",
-        title: translate(getUiLocale(), "Published to {label}", { label }),
+        title: `Published to ${label}`,
         description: result.value.repository.nameWithOwner,
       }),
     );
@@ -86,7 +81,7 @@ export function useNewProject() {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: translate(getUiLocale(), "Could not create the project"),
+            title: "Could not create the project",
             description: errorMessage(squashAtomCommandFailure(result)),
           }),
         );
@@ -130,12 +125,8 @@ export function useNewProject() {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: translate(getUiLocale(), "Failed to open project"),
-          description: translate(
-            getUiLocale(),
-            "{error} It will appear in the sidebar once this client catches up.",
-            { error: errorMessage(error) },
-          ),
+          title: "Failed to open project",
+          description: `${errorMessage(error)} It will appear in the sidebar once this client catches up.`,
         }),
       );
       return null;
@@ -145,7 +136,7 @@ export function useNewProject() {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: translate(getUiLocale(), "Failed to open project"),
+          title: "Failed to open project",
           description: errorMessage(error),
         }),
       );

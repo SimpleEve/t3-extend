@@ -6,8 +6,6 @@ import {
   getDesktopUpdateReleaseUrl,
 } from "./desktopUpdate.logic";
 import { toastManager } from "./ui/toast";
-import { useT } from "../hooks/useT";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 type DesktopUpdateShell = Pick<DesktopBridge, "openExternal">;
 
@@ -31,7 +29,6 @@ function ReleaseNotesLink({
   shell: DesktopUpdateShell;
   releaseUrl: string;
 }) {
-  const t = useT();
   return (
     <button
       className="ml-2 inline cursor-pointer text-muted-foreground underline decoration-dotted underline-offset-4 transition-colors hover:text-foreground"
@@ -40,7 +37,7 @@ function ReleaseNotesLink({
       }}
       type="button"
     >
-      {t("Read more")}
+      Read more
       <ArrowRightIcon
         aria-hidden
         className="ml-1 inline size-3 -rotate-45 align-[-0.125em]"
@@ -57,10 +54,10 @@ export function showDesktopUpdateDownloadedToast(
   const releaseUrl = getDesktopUpdateReleaseUrl(getDesktopUpdateDownloadedVersion(state));
   toastManager.add({
     type: "success",
-    title: translate(getUiLocale(), "Update downloaded"),
+    title: "Update downloaded",
     description: (
       <>
-        {translate(getUiLocale(), "Restart the app from the update button to install it.")}
+        Restart the app from the update button to install it.
         {releaseUrl ? <ReleaseNotesLink releaseUrl={releaseUrl} shell={shell} /> : null}
       </>
     ),

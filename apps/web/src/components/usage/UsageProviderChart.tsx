@@ -13,7 +13,6 @@ import {
 import { cn } from "~/lib/utils";
 import { PROVIDER_ORDER, PROVIDER_PRESENTATION } from "./usageProviders";
 import { observeResize } from "~/lib/observeResize";
-import { useT } from "../../hooks/useT";
 
 const VIEW_WIDTH = 960;
 const VIEW_HEIGHT = 260;
@@ -237,7 +236,6 @@ function UsageChartTooltip({
   readonly loadingProviders: ReadonlySet<UsageProviderKind>;
   readonly format: (value: number) => string;
 }) {
-  const t = useT();
   const partial = providers.some((provider) => loadingProviders.has(provider));
   return (
     <div
@@ -273,7 +271,7 @@ function UsageChartTooltip({
         );
       })}
       <div className="mt-1 flex items-center justify-between gap-3 border-t border-border pt-1">
-        <span className="text-muted-foreground">{t("Total")}</span>
+        <span className="text-muted-foreground">Total</span>
         <span className={cn("tabular-nums", partial ? "text-muted-foreground" : "text-foreground")}>
           {format(column?.total ?? 0)}
         </span>
@@ -417,7 +415,6 @@ export function UsageProviderChart({
   timeZone,
   hour12,
 }: UsageProviderChartProps) {
-  const t = useT();
   const periods = resolution === "hour" ? hours : days;
   const totals: readonly (DailyTotals | HourlyTotals)[] = resolution === "hour" ? hourly : daily;
   const byPeriod = new Map(
@@ -532,20 +529,17 @@ export function UsageProviderChart({
       <div className="sr-only">
         <table>
           <caption>
-            {t("{resolution} {metric} by provider", {
-              resolution: resolution === "hour" ? t("Hourly") : t("Daily"),
-              metric: metric === "tokens" ? t("processed tokens") : t("cost"),
-            })}
+            {`${resolution === "hour" ? "Hourly" : "Daily"} ${metric === "tokens" ? "processed tokens" : "cost"} by provider`}
           </caption>
           <thead>
             <tr>
-              <th scope="col">{resolution === "hour" ? t("Hour") : t("Day")}</th>
+              <th scope="col">{resolution === "hour" ? "Hour" : "Day"}</th>
               {providers.map((provider) => (
                 <th key={provider} scope="col">
                   {PROVIDER_PRESENTATION[provider].label}
                 </th>
               ))}
-              {providers.length > 1 ? <th scope="col">{t("Total")}</th> : null}
+              {providers.length > 1 ? <th scope="col">Total</th> : null}
             </tr>
           </thead>
           <tbody>

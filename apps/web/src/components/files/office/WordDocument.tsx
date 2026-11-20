@@ -14,7 +14,6 @@ import {
   type WordSpan,
   type WordLink,
 } from "./word-protocol";
-import { useT } from "~/hooks/useT";
 
 type Opened = {
   pages: readonly WordPageSize[];
@@ -27,7 +26,6 @@ export default function WordDocument(props: {
   onDetails: (text: string) => void;
   onError: (cause: unknown) => void;
 }) {
-  const t = useT();
   const { onError, bytes, onDetails } = props;
   const [opened, setOpened] = useState<Opened>();
   const scroll = useRef<((index: number, y?: number) => void) | null>(null);
@@ -120,7 +118,7 @@ export default function WordDocument(props: {
     <OfficePages
       pages={opened.pages}
       paint={opened.paint}
-      label={t("Page")}
+      label="Page"
       scrollRef={scroll}
       onError={onError}
       overlay={(index) => (

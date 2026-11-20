@@ -4,7 +4,6 @@ import { Button } from "../ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
 import { cn } from "~/lib/utils";
 import { previewBridge } from "./previewBridge";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 interface PreviewFindBarProps {
   readonly tabId: string;
@@ -13,7 +12,6 @@ interface PreviewFindBarProps {
 }
 
 export function PreviewFindBar({ tabId, focusRequestId, onClose }: PreviewFindBarProps) {
-  const t = useT();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<{ active: number; matches: number } | null>(null);
@@ -87,7 +85,7 @@ export function PreviewFindBar({ tabId, focusRequestId, onClose }: PreviewFindBa
         variant="popover"
         size="lg"
         role="search"
-        aria-label={t("Find in page")}
+        aria-label="Find in page"
         className="w-full"
       >
         <InputGroupInput
@@ -95,8 +93,8 @@ export function PreviewFindBar({ tabId, focusRequestId, onClose }: PreviewFindBa
           type="search"
           size="sm"
           value={query}
-          aria-label={t("Find in page")}
-          placeholder={t("Find in page")}
+          aria-label="Find in page"
+          placeholder="Find in page"
           maxLength={200}
           spellCheck={false}
           autoComplete="off"
@@ -116,7 +114,7 @@ export function PreviewFindBar({ tabId, focusRequestId, onClose }: PreviewFindBa
           <Button
             size="icon-xs"
             variant="ghost"
-            aria-label={t("Previous match")}
+            aria-label="Previous match"
             disabled={navigationDisabled}
             onClick={() => step(false)}
           >
@@ -125,13 +123,13 @@ export function PreviewFindBar({ tabId, focusRequestId, onClose }: PreviewFindBa
           <Button
             size="icon-xs"
             variant="ghost"
-            aria-label={t("Next match")}
+            aria-label="Next match"
             disabled={navigationDisabled}
             onClick={() => step(true)}
           >
             <ChevronDownIcon />
           </Button>
-          <Button size="icon-xs" variant="ghost" aria-label={t("Close find")} onClick={onClose}>
+          <Button size="icon-xs" variant="ghost" aria-label="Close find" onClick={onClose}>
             <XIcon />
           </Button>
         </InputGroupAddon>

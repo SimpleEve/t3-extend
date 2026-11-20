@@ -11,9 +11,6 @@ import {
   ClerkUserProfileRow,
 } from "./ClerkUserProfilePage";
 import { useT3ChatLink } from "./useT3ChatLink";
-import { useT } from "../../hooks/useT";
-import { interpolateNodes } from "../../lib/interpolateNodes";
-import type { Translator } from "@t3tools/client-runtime/i18n";
 
 function UpgradeLink({ children }: { readonly children: ReactNode }) {
   return (
@@ -28,11 +25,10 @@ function UpgradeLink({ children }: { readonly children: ReactNode }) {
   );
 }
 
-function planLabel(link: RelayT3ChatLink, t: Translator): ReactNode {
-  const upgrade = <UpgradeLink>{t("Upgrade on T3 Chat")}</UpgradeLink>;
+function planLabel(link: RelayT3ChatLink): ReactNode {
   switch (link.plan) {
     case "premier":
-      return t("Premier · up to {count} tunnels", { count: T3CHAT_PLAN_TUNNEL_LIMITS.premier });
+      return `Premier · up to ${T3CHAT_PLAN_TUNNEL_LIMITS.premier} tunnels`;
     case "pro":
       return interpolateNodes(
         t("Pro · up to {pro} tunnels. {upgradeLink} to Premier for {premier}."),
@@ -43,13 +39,12 @@ function planLabel(link: RelayT3ChatLink, t: Translator): ReactNode {
         },
       );
     case "free":
-      return interpolateNodes(t("{upgradeLink} for more tunnels"), { upgradeLink: upgrade });
+      return <>{upgradeLink} for more tunnels</>;
   }
 }
 
 /** Links a T3 Chat account so paid subscribers get more tunnels. */
 export function T3ChatUserProfilePage() {
-  const t = useT();
   const { linkState, pending, linkUrl, link: handleLink, unlink: handleUnlink } = useT3ChatLink();
   const usage = useManagedTunnelUsage();
 
@@ -59,10 +54,7 @@ export function T3ChatUserProfilePage() {
   return (
     <ClerkUserProfilePage
       title="T3 Chat"
-      description={t(
-        "Link a paid T3 Chat account for more T3 Connect tunnels: up to {pro} with Pro, {premier} with Premier.",
-        { pro: T3CHAT_PLAN_TUNNEL_LIMITS.pro, premier: T3CHAT_PLAN_TUNNEL_LIMITS.premier },
-      )}
+      description={`Link a paid T3 Chat account for more T3 Connect tunnels: up to ${T3CHAT_PLAN_TUNNEL_LIMITS.pro} with Pro, ${T3CHAT_PLAN_TUNNEL_LIMITS.premier} with Premier.`}
       action={
         <ClerkUserProfileRefreshButton
           disabled={pending !== null}
@@ -80,7 +72,7 @@ export function T3ChatUserProfilePage() {
         </div>
       ) : data === null ? null : !data.available ? (
         <p className="border-t py-4 text-xs text-muted-foreground">
-          {t("This T3 Connect server does not support T3 Chat linking.")}
+          This T3 Connect server does not support T3 Chat linking.
         </p>
       ) : (
         <ul className="border-t">
@@ -88,7 +80,7 @@ export function T3ChatUserProfilePage() {
             <div className="flex items-start gap-4">
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-sm leading-4.5 font-medium text-foreground">
-                  {link ? link.email : t("Not linked")}
+                  {link ? link.email : "Not linked"}
                 </h3>
                 <p className="mt-1 text-xs leading-4.5 text-muted-foreground">
                   {link ? (
@@ -109,7 +101,7 @@ export function T3ChatUserProfilePage() {
                       })}
                     </>
                   ) : (
-                    t("You confirm the link on t3.chat.")
+                    "You confirm the link on t3.chat."
                   )}
                 </p>
               </div>
@@ -120,11 +112,11 @@ export function T3ChatUserProfilePage() {
                   disabled={pending !== null}
                   onClick={() => void handleUnlink()}
                 >
-                  {pending === "unlink" ? t("Unlinking…") : t("Unlink")}
+                  {pending === "unlink" ? "Unlinking…" : "Unlink"}
                 </Button>
               ) : (
                 <Button size="sm" disabled={pending !== null} onClick={() => void handleLink()}>
-                  {pending === "link" ? t("Opening…") : t("Link T3 Chat")}
+                  {pending === "link" ? "Opening…" : "Link T3 Chat"}
                 </Button>
               )}
             </div>

@@ -15,7 +15,6 @@ import { useAtomCommand } from "~/state/use-atom-command";
 import { writeTextToClipboard } from "./useCopyToClipboard";
 import { useNewThreadHandler } from "./useHandleNewThread";
 import { useScratchProject } from "./useScratchProject";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export const TRIAGE_CLI_COMMAND = "npx t3 triage";
 
@@ -23,9 +22,7 @@ const copyTriageCliCommand = () =>
   writeTextToClipboard(TRIAGE_CLI_COMMAND, "command").catch(() =>
     toastManager.add({
       type: "error",
-      title: translate(getUiLocale(), "Could not copy. Type {TRIAGE_CLI_COMMAND} instead.", {
-        TRIAGE_CLI_COMMAND,
-      }),
+      title: `Could not copy. Type ${TRIAGE_CLI_COMMAND} instead.`,
     }),
   );
 
@@ -96,7 +93,7 @@ export function useStartTriage() {
     const pendingTimer = setTimeout(() => {
       pendingToastId = toastManager.add({
         type: "loading",
-        title: translate(getUiLocale(), "Starting triage…"),
+        title: "Starting triage…",
         timeout: 0,
       });
     }, 400);

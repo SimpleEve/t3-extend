@@ -163,13 +163,13 @@ export function HomeRouteScreen() {
     <AndroidHomeFabLayout onStartNewTask={startNewTask}>
       <>
         <WorkspaceListHeader
-          accessibilityLabel={`${FORK.appBaseName}, ${t("Threads")}`} // fork: brand
+          accessibilityLabel="T3 Code, Threads"
           onOpenEnvironments={() => openSettings(navigation, "SettingsEnvironments")}
           search={{
             value: searchQuery,
             onChangeText: setSearchQuery,
-            placeholder: t("Search"),
-            accessibilityLabel: t("Search threads"),
+            placeholder: "Search",
+            accessibilityLabel: "Search threads",
           }}
           filter={{
             customized: selectedEnvironmentId !== null || selectedProjectKey !== null,

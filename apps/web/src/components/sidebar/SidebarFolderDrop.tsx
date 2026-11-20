@@ -13,7 +13,6 @@ import { splitTransferredFiles } from "../chat/workspaceFileDrop";
 import { setFileDragActive } from "../Sidebar.logic";
 import { toastManager } from "../ui/toast";
 import { stackedThreadToast } from "../ui/toastHelpers";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 const isActivationPlatform = Schema.is(DesktopAppActivationPlatform);
 
@@ -28,7 +27,6 @@ function isFileDrag(event: DragEvent) {
  * Browsers expose no absolute paths, so only the desktop app can add them.
  */
 export function SidebarFolderDrop(props: { children: ReactNode }) {
-  const t = useT();
   const [isActive, setIsActive] = useState(false);
   const openLocalWorkspace = useOpenLocalWorkspace();
   const bridge = window.desktopBridge;
@@ -73,8 +71,8 @@ export function SidebarFolderDrop(props: { children: ReactNode }) {
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: t('Could not add "{name}"', { name: folder.name }),
-          description: response?.message ?? "T3 Extend could not read the folder's path.",
+          title: `Could not add "${folder.name}"`,
+          description: response?.message ?? "T3 Code could not read the folder's path.",
         }),
       );
     }
@@ -127,8 +125,8 @@ export function SidebarFolderDrop(props: { children: ReactNode }) {
         >
           <FolderPlusIcon className="size-5 text-sidebar-muted-foreground" />
           {bridge === undefined
-            ? t("Dropping folders needs the desktop app")
-            : t("Drop folders to add projects")}
+            ? "Dropping folders needs the desktop app"
+            : "Drop folders to add projects"}
         </div>
       ) : null}
     </div>

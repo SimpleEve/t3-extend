@@ -39,7 +39,7 @@ import type { MenuAction } from "@react-native-menu/menu";
 import type { ThreadListProvider } from "../../state/thread-list-environments";
 import type { ThreadMoveAvailability } from "./threadOrder";
 
-import { relativeTime, uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
+import { relativeTime } from "../../lib/time";
 import type { PendingNewTask } from "../../state/use-pending-new-tasks";
 
 import {
@@ -93,8 +93,6 @@ export function resolveThreadListV2SnoozePresets(input: {
   readonly secondary: "snooze" | null;
   readonly now: string;
   readonly presets: ReadonlyArray<SnoozePresetSetting> | undefined;
-  readonly translate?: Translator; // fork: i18n
-  readonly locale?: UiLocale; // fork: i18n
 }): ReadonlyArray<SnoozePreset> {
   return input.secondary === "snooze"
     ? resolveSnoozePresets(new Date(input.now), {
@@ -140,8 +138,6 @@ export function resolveThreadListV2SnoozeMenuSelection(input: {
   readonly displayedPresets: ReadonlyArray<SnoozePreset>;
   readonly now: Date;
   readonly presets: ReadonlyArray<SnoozePresetSetting> | undefined;
-  readonly translate?: Translator; // fork: i18n
-  readonly locale?: UiLocale; // fork: i18n
 }):
   | { readonly _tag: "selected"; readonly preset: SnoozePreset }
   | { readonly _tag: "expired" }
@@ -623,7 +619,6 @@ export function threadListV2ListItemsAreEqual(
 function resolveThreadListV2ItemTimeLabel(
   item: ThreadListV2Item,
   showSnoozeWakeLabel: boolean,
-  translate: Translator | undefined,
 ): string {
   const { thread, variant, snoozed } = item;
   if (showSnoozeWakeLabel) return "";
@@ -656,7 +651,6 @@ export function buildThreadListV2ListItems(input: {
   readonly settledShelfExpanded?: boolean;
   readonly settledShelfHeaderIndex?: number | null;
   readonly snoozeLabelNow?: string;
-  readonly translate?: Translator; // fork: i18n
   readonly snoozeEnvironmentIds?: ReadonlySet<EnvironmentId>;
   readonly queuedThreadKeys?: ReadonlySet<string>;
   readonly moveAvailability?: ReadonlyMap<string, ThreadMoveAvailability>;

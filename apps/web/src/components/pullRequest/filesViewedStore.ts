@@ -24,7 +24,6 @@ import {
   type FileViewedOverlay,
   type FileViewedPress,
 } from "./pullRequestFilesViewed.logic";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export interface FilesViewedTarget {
   readonly environmentId: EnvironmentId;

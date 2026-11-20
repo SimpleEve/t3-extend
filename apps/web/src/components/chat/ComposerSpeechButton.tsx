@@ -1,4 +1,3 @@
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import type { VoiceInputState } from "@t3tools/client-runtime/voice-input";
 import { CheckIcon, MicIcon, XIcon } from "lucide-react";
 import { useEffect, useState, type PointerEvent, type ReactElement } from "react";
@@ -9,7 +8,6 @@ import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { useT } from "~/hooks/useT";
 
 type DownloadProgress = { downloaded: number; total: number } | null;
 
@@ -19,28 +17,25 @@ const keepFocus = (event: PointerEvent) => event.preventDefault();
 export function resolveSpeechPresentation(
   state: VoiceInputState,
   progress: DownloadProgress,
-  t: Translator = translatorFor("en"), // fork: interface language
 ): { status: string | null; active: boolean } {
   switch (state.phase) {
     case "idle":
       return { status: null, active: false };
     case "error":
-      return { status: state.error ? t(state.error) : t("Voice input failed"), active: false };
+      return { status: state.error ?? "Voice input failed", active: false };
     case "preparing":
       return {
         status: progress
-          ? t("Downloading model {percent}%", {
-              percent: Math.round((progress.downloaded / Math.max(1, progress.total)) * 100),
-            })
-          : t("Starting…"),
+          ? `Downloading model ${Math.round((progress.downloaded / Math.max(1, progress.total)) * 100)}%`
+          : "Starting…",
         active: true,
       };
     case "recording":
-      return { status: t("Recording"), active: true };
+      return { status: "Recording", active: true };
     case "transcribing":
-      return { status: t("Transcribing…"), active: true };
+      return { status: "Transcribing…", active: true };
     case "post-processing":
-      return { status: t("Cleaning up…"), active: true };
+      return { status: "Cleaning up…", active: true };
   }
 }
 
@@ -108,9 +103,8 @@ export function ComposerSpeechButton(props: {
   size?: "default" | "compact";
   onStart(): void;
 }) {
-  const t = useT(); // fork: interface language
   if (props.state.phase !== "idle") return null;
-  const label = t("Start voice input");
+  const label = "Start voice input";
 
   return (
     <ShortcutTooltip label={label} shortcut={props.shortcutLabel}>
@@ -148,7 +142,6 @@ export function ComposerSpeechRecordingPill(props: {
   onCancel(): void;
   onSkipPostProcessing(): void;
 }) {
-  const t = useT();
   const { phase } = props.state;
   const compact = props.size === "compact";
   if (phase === "error") {
@@ -171,12 +164,12 @@ export function ComposerSpeechRecordingPill(props: {
 
   return (
     <VoiceInputPill size={props.size}>
-      <ShortcutTooltip label={t("Cancel voice input")} shortcut={props.cancelShortcutLabel}>
+      <ShortcutTooltip label="Cancel voice input" shortcut={props.cancelShortcutLabel}>
         <Button
           type="button"
           size={compact ? "icon-xs" : "icon-sm-pill"}
           variant="ghost"
-          aria-label={t("Cancel voice input")}
+          aria-label="Cancel voice input"
           onPointerDown={keepFocus}
           onClick={props.onCancel}
           className="shrink-0"
@@ -217,14 +210,14 @@ export function ComposerSpeechRecordingPill(props: {
           onClick={props.onSkipPostProcessing}
           className="shrink-0"
         >
-          {t("Skip")}
+          Skip
         </Button>
       ) : recording ? (
-        <ShortcutTooltip label={t("Finish voice input")} shortcut={props.finishShortcutLabel}>
+        <ShortcutTooltip label="Finish voice input" shortcut={props.finishShortcutLabel}>
           <Button
             type="button"
             size={compact ? "icon-xs" : "icon-sm-pill"}
-            aria-label={t("Finish voice input")}
+            aria-label="Finish voice input"
             onPointerDown={keepFocus}
             onClick={props.onStop}
             className="shrink-0"

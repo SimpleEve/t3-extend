@@ -47,7 +47,6 @@ import {
 } from "../ChatView.logic";
 import { readPreparedConnection } from "../../state/session";
 import { recallComposerMessage } from "./composerPromptHistory";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 // Kept per route so a send in flight, and the multiple-model selections, survive
 // ChatView remounting while the user navigates.
@@ -90,10 +89,7 @@ export async function startFanoutThread(input: {
   try {
     if (uncertainThreadId) {
       throw new Error(
-        translate(
-          getUiLocale(),
-          "The previous request may have started. Open its thread to check before sending again.",
-        ),
+        "The previous request may have started. Open its thread to check before sending again.",
       );
     }
     requestMayHaveStarted = true;
@@ -124,14 +120,11 @@ export async function startFanoutThread(input: {
               timeout: 0,
               data: {
                 secondaryActionProps: {
-                  children: translate(getUiLocale(), "Allow retry"),
+                  children: "Allow retry",
                   onClick: () => {
                     void readLocalApi()
                       ?.dialogs.confirm(
-                        translate(
-                          getUiLocale(),
-                          "The previous request may already be running. Check its thread first. Allow another send that could create a duplicate thread?",
-                        ),
+                        "The previous request may already be running. Check its thread first. Allow another send that could create a duplicate thread?",
                       )
                       .then(
                         (confirmed) => {
@@ -149,7 +142,7 @@ export async function startFanoutThread(input: {
                 },
               },
               actionProps: {
-                children: translate(getUiLocale(), "Open thread"),
+                children: "Open thread",
                 onClick: () => input.openThread(retainedThreadId),
               },
             }
@@ -201,7 +194,7 @@ export async function rewindToMessage(input: {
       );
     }
     const connection = readPreparedConnection(environmentId);
-    if (!connection) throw new Error(translate(getUiLocale(), "The environment is not connected."));
+    if (!connection) throw new Error("The environment is not connected.");
     const files = await prepareRevertedMessageAttachments({
       message,
       environmentId,
@@ -381,7 +374,7 @@ export function prepareTurnAttachments(input: {
         return uploaded;
       }
       if (attachment.type !== "image") {
-        throw new Error(translate(getUiLocale(), "This server does not support file attachments."));
+        throw new Error("This server does not support file attachments.");
       }
       return {
         type: "image" as const,

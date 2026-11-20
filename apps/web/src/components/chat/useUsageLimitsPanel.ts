@@ -9,7 +9,6 @@ import { useState } from "react";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { toastManager } from "../ui/toast";
 import { usageLimitsBannerItem } from "./ComposerUsageLimits";
-import { useT } from "../../hooks/useT";
 
 /** Keep opened data live. Retain hidden panels during reconnect; clear when quota-spending work resumes. */
 export function useUsageLimitsPanel(input: {
@@ -30,7 +29,6 @@ export function useUsageLimitsPanel(input: {
     providers,
     sources,
   } = input;
-  const t = useT();
   const [panel, setPanel] = useState<{
     readonly key: string;
     readonly threadKey: string;
@@ -69,7 +67,7 @@ export function useUsageLimitsPanel(input: {
       return true;
     }
     setPanel(null);
-    toastManager.add({ type: "info", title: t("Usage limits are unavailable for this provider") });
+    toastManager.add({ type: "info", title: "Usage limits are unavailable for this provider" });
     return false;
   });
   // Async responses may clear only their originating thread's panel.

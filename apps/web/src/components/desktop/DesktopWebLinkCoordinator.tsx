@@ -34,7 +34,6 @@ import { allReachableShellsLiveAtom } from "../../state/shell";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
 import { stackedThreadToast, toastManager } from "../ui/toast";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 /** A link handed over by the OS is a plain click: nothing about it asks for the browser. */
 const externalClick = {
@@ -152,11 +151,8 @@ export function DesktopWebLinkCoordinator() {
     pairedUrlsRef.current.add(pairingUrl);
     toastManager.add({
       type: "success",
-      title: translate(getUiLocale(), "Backend added"),
-      description: translate(
-        getUiLocale(),
-        "The environment is saved and will reconnect on app startup.",
-      ),
+      title: "Backend added",
+      description: "The environment is saved and will reconnect on app startup.",
     });
   };
 

@@ -17,9 +17,6 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { useDeadlinePassed } from "../../lib/clock";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 
 export function UsageLimitRecoveryCard({
   thread,
@@ -28,7 +25,6 @@ export function UsageLimitRecoveryCard({
   thread: EnvironmentThreadShell;
   environmentId: EnvironmentId;
 }) {
-  const t = useT();
   const updateMetadata = useAtomCommand(threadEnvironment.updateMetadata);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,15 +60,10 @@ export function UsageLimitRecoveryCard({
   )
     return null;
   const resetText = displayAt
-    ? t(canSchedule && scheduled ? "Resumes {time}." : "Resets {time}.", {
-        time: new Date(displayAt).toLocaleString(uiFormatLocale(getUiLocale()), {
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          ...uiFormatOptions(getUiLocale()),
-        }),
-      })
+    ? `${canSchedule && scheduled ? "Resumes" : "Resets"} ${new Date(displayAt).toLocaleString(
+        undefined,
+        { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" },
+      )}.`
     : null;
   const snoozed =
     limitRecoveryOwnsSnooze({
@@ -84,7 +75,7 @@ export function UsageLimitRecoveryCard({
   async function toggle(action: "resume" | "snooze") {
     if (!resetAt || !runId || !canSchedule) return;
     if (action === "snooze" && !snoozed && Date.parse(resetAt) <= Date.now()) {
-      setError(t("The reset time has passed. Retry the thread manually."));
+      setError("The reset time has passed. Retry the thread manually.");
       return;
     }
     setPending(true);
@@ -103,12 +94,12 @@ export function UsageLimitRecoveryCard({
     setPending(false);
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
-      setError(cause instanceof Error ? cause.message : t("Could not change limit recovery."));
+      setError(cause instanceof Error ? cause.message : "Could not change limit recovery.");
     }
   }
   const action = workspaceLimit
     ? {
-        label: t("Copy request for admin"),
+        label: "Copy request for admin",
         role: "button" as const,
         run: () => {
           setError(null);
@@ -117,13 +108,13 @@ export function UsageLimitRecoveryCard({
           void Clipboard.setStringAsync(CHATGPT_WORKSPACE_ADMIN_REQUEST)
             .then(
               () => setCopied(true),
-              () => setError(t("Could not copy the request. Try again.")),
+              () => setError("Could not copy the request. Try again."),
             )
             .finally(() => setActionPending(false));
         },
       }
     : {
-        label: t("Manage usage"),
+        label: "Manage usage",
         role: "link" as const,
         run: () => {
           setError(null);
@@ -148,7 +139,7 @@ export function UsageLimitRecoveryCard({
       <View className="min-w-0 flex-1 gap-1">
         {chatGptLimit ? (
           <Text className="text-sm font-t3-medium text-foreground">
-            {t("ChatGPT usage limit reached")}
+            ChatGPT usage limit reached
           </Text>
         ) : null}
         <Text
@@ -158,17 +149,13 @@ export function UsageLimitRecoveryCard({
         >
           {workspaceLimit
             ? copied
-              ? t("Request copied. Send it to your workspace admin.")
-              : t(
-                  "You've reached your workspace's limit for using your ChatGPT plan in other apps. Copy a request to ask your workspace admin for increased usage limits.",
-                )
+              ? "Request copied. Send it to your workspace admin."
+              : "You've reached your workspace's limit for using your ChatGPT plan in other apps. Copy a request to ask your workspace admin for increased usage limits."
             : chatGptLimit
-              ? (resetText ?? t("Review your usage settings in ChatGPT."))
+              ? (resetText ?? "Review your usage settings in ChatGPT.")
               : resetText
-                ? t("Usage limit reached. {resetText}", { resetText })
-                : t(
-                    "Usage limit reached. The provider did not report a reset time. Retry manually when your limit is available.",
-                  )}
+                ? `Usage limit reached. ${resetText}`
+                : "Usage limit reached. The provider did not report a reset time. Retry manually when your limit is available."}
         </Text>
         {chatGptLimit || canSchedule ? (
           // The margins cancel the 44pt touch height so the links sit 8pt under the text.
@@ -184,12 +171,12 @@ export function UsageLimitRecoveryCard({
             {canSchedule ? (
               <>
                 <RecoveryAction
-                  label={scheduled ? t("Cancel auto-resume") : t("Resume at reset")}
+                  label={scheduled ? "Cancel auto-resume" : "Resume at reset"}
                   disabled={pending}
                   onPress={() => void toggle("resume")}
                 />
                 <RecoveryAction
-                  label={snoozed ? t("Wake now") : t("Snooze until reset")}
+                  label={snoozed ? "Wake now" : "Snooze until reset"}
                   disabled={pending || (!snoozed && resetPassed)}
                   onPress={() => void toggle("snooze")}
                 />

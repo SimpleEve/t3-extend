@@ -1,4 +1,3 @@
-import { interpolate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { isListedThreadLineage, isWebhookDedupeTemplate } from "@t3tools/contracts";
 import {
   EnvironmentId,
@@ -152,7 +151,7 @@ export function scheduleDraftErrors(
   if (draft.scheduleMode === "once") {
     const runAt = new Date(draft.runAt);
     if (Number.isNaN(runAt.getTime()))
-      return [{ title: t("Invalid run time"), description: t("Pick a date and time.") }];
+      return [{ title: "Invalid run time", description: "Pick a date and time." }];
     // A time skipped by a daylight saving change parses to a different clock time.
     if (toDateTimeLocalValue(runAt) !== draft.runAt)
       return [
@@ -164,15 +163,13 @@ export function scheduleDraftErrors(
     return [];
   }
   if (draft.scheduleMode === "fixed" && !draft.timeOfDay)
-    return [{ title: t("Invalid run time"), description: t("Pick a time.") }];
+    return [{ title: "Invalid run time", description: "Pick a time." }];
   if (draft.scheduleMode !== "webhook") return [];
   if (parseMaxDeliveryAge(draft.maxDeliveryAgeMinutes) === undefined)
     return [
       {
-        title: t("Invalid age limit"),
-        description: t("Enter whole minutes from 1 to {max}, or leave it blank.", {
-          max: MAX_WEBHOOK_DELIVERY_AGE_MINUTES,
-        }),
+        title: "Invalid age limit",
+        description: `Enter whole minutes from 1 to ${MAX_WEBHOOK_DELIVERY_AGE_MINUTES}, or leave it blank.`,
       },
     ];
   const errors: Array<{ title: string; description: string }> = [];
@@ -182,15 +179,15 @@ export function scheduleDraftErrors(
   ] as const) {
     if (value.trim() && !isWebhookDedupeTemplate(value.trim()))
       errors.push({
-        title: t("Invalid webhook settings"),
-        description: t("{label} must contain a valid request placeholder.", { label: t(label) }),
+        title: "Invalid webhook settings",
+        description: `${label} must contain a valid request placeholder.`,
       });
   }
   const window = draft.coalesceWindowSeconds.trim();
   if (window && (!Number.isInteger(Number(window)) || Number(window) < 10 || Number(window) > 3600))
     errors.push({
-      title: t("Invalid webhook settings"),
-      description: t("Coalesce window must be whole seconds from 10 to 3600."),
+      title: "Invalid webhook settings",
+      description: "Coalesce window must be whole seconds from 10 to 3600.",
     });
   return errors;
 }
@@ -205,14 +202,14 @@ export function webhookDeliveryLabel(
   if (delivery.outcome === "accepted")
     return delivery.pendingWindow ? t("Opened window") : t("Ran");
   const labels: Record<string, string> = {
-    dispatch_failed: t("Run failed"),
-    duplicate: t("Duplicate"),
-    coalesced: t("Coalesced"),
-    filtered: t("Filtered"),
-    rejected_signature: t("Bad signature"),
-    disabled: t("Task paused"),
-    rate_limited: t("Rate limited"),
-    expired: t("Too old"),
+    dispatch_failed: "Run failed",
+    duplicate: "Duplicate",
+    coalesced: "Coalesced",
+    filtered: "Filtered",
+    rejected_signature: "Bad signature",
+    disabled: "Task paused",
+    rate_limited: "Rate limited",
+    expired: "Too old",
   };
   // An outcome newer than this table shows as its raw words.
   return labels[delivery.outcome] ?? delivery.outcome.replaceAll("_", " ");

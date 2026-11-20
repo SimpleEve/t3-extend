@@ -3,10 +3,8 @@ import { ExternalLinkIcon } from "lucide-react";
 import { CHATGPT_USAGE_URL } from "@t3tools/shared/usageLimits";
 import { ensureLocalApi } from "../../localApi";
 import { Button } from "../ui/button";
-import { useT } from "../../hooks/useT";
 
 export function ChatGptUsageButton(props: Omit<ComponentProps<typeof Button>, "onClick">) {
-  const t = useT();
   return (
     <Button
       variant="ghost-muted"
@@ -14,7 +12,7 @@ export function ChatGptUsageButton(props: Omit<ComponentProps<typeof Button>, "o
       {...props}
       onClick={() => void ensureLocalApi().shell.openExternal(CHATGPT_USAGE_URL)}
     >
-      {t("Manage usage")}
+      Manage usage
       <ExternalLinkIcon className="size-3.5" aria-hidden="true" />
     </Button>
   );

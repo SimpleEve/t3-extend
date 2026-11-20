@@ -15,7 +15,6 @@ import { DraftComposerAttachmentSchema } from "../../lib/composer-image-schema";
 import { fitComposerImage } from "../../lib/composerImageFit";
 import type { DraftComposerAttachment } from "../../lib/composerImages";
 import { estimateBase64ByteSize } from "../../lib/base64";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface IncomingShareDraft {
   readonly schemaVersion: 1;
@@ -292,7 +291,7 @@ export async function buildIncomingShareDraft(input: {
           : undefined;
       const name = resolved?.originalName ?? sharedFileName ?? fallbackName(uri, index, mimeType);
       if (!uri) {
-        warnings.push(translatorFor(getUiLocale())("One shared file could not be read."));
+        warnings.push("One shared file could not be read.");
         continue;
       }
       let persistedFileUri: string | undefined;
@@ -378,15 +377,13 @@ export async function buildIncomingShareDraft(input: {
       continue;
     }
     if (!uri || !mimeType.startsWith("image/")) {
-      warnings.push(translatorFor(getUiLocale())("One shared item was not a supported image."));
+      warnings.push("One shared item was not a supported image.");
       await releaseOwnedFiles(input.fileReader, [uri, payload.value]);
       continue;
     }
     if (!isProviderSendTurnSupportedImageMimeType(mimeType)) {
       warnings.push(
-        translatorFor(getUiLocale())("'{name}' is not a supported image type.", {
-          name: resolved?.originalName ?? fallbackName(uri, index, mimeType),
-        }),
+        `'${resolved?.originalName ?? fallbackName(uri, index, mimeType)}' is not a supported image type.`,
       );
       await releaseOwnedFiles(input.fileReader, [uri, payload.value]);
       continue;
@@ -397,9 +394,7 @@ export async function buildIncomingShareDraft(input: {
       resolved.contentSize > PROVIDER_SEND_TURN_MAX_IMAGE_BYTES
     ) {
       warnings.push(
-        translatorFor(getUiLocale())("'{name}' exceeds the 10 MB attachment limit.", {
-          name: resolved.originalName ?? fallbackName(uri, index, mimeType),
-        }),
+        `'${resolved.originalName ?? fallbackName(uri, index, mimeType)}' exceeds the 10 MB attachment limit.`,
       );
       await releaseOwnedFiles(input.fileReader, [uri, payload.value]);
       continue;
@@ -419,9 +414,7 @@ export async function buildIncomingShareDraft(input: {
         : (resolved?.contentSize ?? estimateBase64ByteSize(base64));
       if (sizeBytes <= 0 || sizeBytes > PROVIDER_SEND_TURN_MAX_IMAGE_BYTES) {
         warnings.push(
-          translatorFor(getUiLocale())("'{name}' exceeds the 10 MB attachment limit.", {
-            name: resolved?.originalName ?? fallbackName(uri, index, mimeType),
-          }),
+          `'${resolved?.originalName ?? fallbackName(uri, index, mimeType)}' exceeds the 10 MB attachment limit.`,
         );
         continue;
       }

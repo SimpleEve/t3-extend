@@ -5,21 +5,13 @@ import { changeRequestTerm } from "./changeRequestTerm";
 export function describePullRequestDiffError(error: string, providerName: string, term: string) {
   if (/\brate limit\b|\brate[-_]limited\b|\btoo many requests\b/i.test(error)) {
     return {
-      title: translate(getUiLocale(), "{providerName} rate limit reached", { providerName }),
-      description: translate(
-        getUiLocale(),
-        "{providerName} is temporarily limiting requests, so this diff couldn't be loaded. Try again after the limit resets, or view the changes on {providerName}.",
-        { providerName },
-      ),
+      title: `${providerName} rate limit reached`,
+      description: `${providerName} is temporarily limiting requests, so this diff couldn't be loaded. Try again after the limit resets, or view the changes on ${providerName}.`,
     };
   }
 
   return {
-    title: translate(getUiLocale(), "Couldn't load the changes"),
-    description: translate(
-      getUiLocale(),
-      "The environment couldn't load this {kind}'s diff. Try again, or view the changes on {providerName}.",
-      { kind: changeRequestTerm(term, translatorFor(getUiLocale())), providerName },
-    ),
+    title: "Couldn't load the changes",
+    description: `The environment couldn't load this ${term}'s diff. Try again, or view the changes on ${providerName}.`,
   };
 }

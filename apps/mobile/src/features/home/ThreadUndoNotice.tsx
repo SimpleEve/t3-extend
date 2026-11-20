@@ -27,7 +27,6 @@ const UNDO_NOTICE_MESSAGE = {
 } as const;
 
 export function ThreadUndoNotice(props: { readonly visible: boolean }) {
-  const t = useT();
   const floatingTabsEnabled = useAndroidFloatingTabs();
   const notice = useThreadUndoNotice();
   const insets = useSafeAreaInsets();
@@ -91,9 +90,9 @@ export function ThreadUndoNotice(props: { readonly visible: boolean }) {
       pointerEvents="box-none"
     >
       <Toast
-        message={t(UNDO_NOTICE_MESSAGE[notice.action])}
+        message={`${notice.action} thread`}
         action={{
-          label: t("Undo"),
+          label: "Undo",
           onPress: () => {
             void notice.undo();
           },

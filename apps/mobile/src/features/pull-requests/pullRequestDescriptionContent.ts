@@ -1,6 +1,5 @@
 import type { PullRequestBodySegment } from "@t3tools/client-runtime/pull-request-markdown";
 import type { MarkdownNode } from "../../lib/markdownDocument";
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function isWebUrl(url: string): boolean {
   try {
@@ -14,7 +13,6 @@ function isWebUrl(url: string): boolean {
 export function pullRequestDescriptionContent(
   document: MarkdownNode,
   media: readonly PullRequestBodySegment[] = [],
-  t: Translator = translatorFor("en"), // fork: i18n
 ) {
   const attachments = new Map<
     string,
@@ -26,7 +24,7 @@ export function pullRequestDescriptionContent(
       if (node.url && isWebUrl(node.url) && !attachments.has(node.url)) {
         attachments.set(node.url, {
           uri: node.url,
-          caption: node.alt || node.title || t("Image"),
+          caption: node.alt || node.title || "Image",
           kind: "image",
         });
       }
@@ -48,7 +46,7 @@ export function pullRequestDescriptionContent(
       const name = new URL(segment.url).pathname.split("/").pop();
       attachments.set(segment.url, {
         uri: segment.url,
-        caption: segment.media === "video" ? t("Video") : name || t("Image"),
+        caption: segment.media === "video" ? "Video" : name || "Image",
         kind: segment.media,
       });
     }

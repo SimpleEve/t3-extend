@@ -45,8 +45,6 @@ import { enqueueThreadOutboxMessage } from "../../state/thread-outbox";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { MCP_APP_INLINE_MAX_HEIGHT, mcpAppInlineHeight } from "./mcpAppSizing";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const ROW_BOTTOM_MARGIN = 8;
 
@@ -125,7 +123,6 @@ export function ThreadMcpApp(props: {
   readonly onExitFullscreen?: () => void;
   readonly height?: number;
 }) {
-  const t = useT();
   const [height, setHeight] = useState(MCP_APP_INLINE_MAX_HEIGHT);
   const [documentKey, setDocumentKeyState] = useState(0);
   // The view keeps its first URL: a re-minted one would reload the app.
@@ -334,19 +331,16 @@ export function ThreadMcpApp(props: {
         const info = await latest.current.toolInfo({ environmentId, input: { ...input, name } });
         if (info._tag !== "Success") throw commandFailure(info);
         if (!info.value.callable)
-          throw new McpAppHostRefusal({ message: t("This app cannot call that tool.") });
+          throw new McpAppHostRefusal({ message: "This app cannot call that tool." });
         if (
           !info.value.readOnly &&
           !(await confirm(
-            t("Allow {server} to run {tool}?", {
-              server: app.server,
-              tool: info.value.title ?? name,
-            }),
+            `Allow ${app.server} to run ${info.value.title ?? name}?`,
             JSON.stringify(args, null, 2),
-            t("Allow"),
+            "Allow",
           ))
         ) {
-          throw new McpAppHostRefusal({ message: t("Declined by the user.") });
+          throw new McpAppHostRefusal({ message: "Declined by the user." });
         }
         const result = await latest.current.callTool({
           environmentId,
@@ -372,7 +366,7 @@ export function ThreadMcpApp(props: {
           throw new McpAppHostRefusal({ message: t("Declined by the user.") });
         }
         if (!(await tryOpenExternalUrl(url, "mcp-app"))) {
-          throw new McpAppHostRefusal({ message: t("The link could not be opened.") });
+          throw new McpAppHostRefusal({ message: "The link could not be opened." });
         }
       },
       sendMessage: async (text) => {
@@ -489,7 +483,7 @@ export function ThreadMcpApp(props: {
             signal: new AbortController().signal,
           });
           if (!shared)
-            throw new McpAppHostRefusal({ message: t("Sharing is not available on this device.") });
+            throw new McpAppHostRefusal({ message: "Sharing is not available on this device." });
         }
       },
       onRequestTeardown: () => {
@@ -528,7 +522,7 @@ export function ThreadMcpApp(props: {
         className="items-center justify-center rounded-lg border border-border"
       >
         <Text className="text-sm text-foreground-muted">
-          {t("The {server} app is open full screen", { server: app.server })}
+          The {app.server} app is open full screen
         </Text>
       </View>
     );
@@ -545,7 +539,7 @@ export function ThreadMcpApp(props: {
         </Text>
         <View className="items-center">
           <Button
-            label={t("Show app")}
+            label="Show app"
             tone="secondary"
             onPress={() => {
               reopenDocument();
@@ -562,7 +556,7 @@ export function ThreadMcpApp(props: {
       {navigatedAway ? (
         <View className="flex-1 items-center justify-center">
           <Text className="text-sm text-foreground-muted">
-            {t("The {server} app left its page and was stopped", { server: app.server })}
+            The {app.server} app left its page and was stopped
           </Text>
         </View>
       ) : uri !== null && !crashed ? (
@@ -572,7 +566,7 @@ export function ThreadMcpApp(props: {
           onContentProcessDidTerminate={restart}
           onRenderProcessGone={restart}
           source={source!}
-          accessibilityLabel={t("{server} app", { server: app.server })}
+          accessibilityLabel={`${app.server} app`}
           style={{ flex: 1, backgroundColor: "transparent" }}
           nestedScrollEnabled
           decelerationRate={webViewDecelerationRate}

@@ -16,7 +16,6 @@ import { readThreadShell, waitForThreadShell } from "../../state/entities";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
-import { useT } from "~/hooks/useT";
 
 /**
  * Starts side chats from `threadRef`, or offers none when it is null. `open` forks the
@@ -32,7 +31,6 @@ export function useSideChat(input: {
   };
   readonly onError: (message: string) => void;
 }) {
-  const t = useT();
   const pendingRef = useRef(false);
   const forkSideChat = useAtomCommand(threadEnvironment.forkSideChat, { reportFailure: false });
   const deleteThread = useAtomCommand(threadEnvironment.delete, { reportFailure: false });
@@ -58,7 +56,7 @@ export function useSideChat(input: {
       input: { sourceThreadId: threadRef.threadId, targetThreadId, title: "Side chat" },
     });
     if (fork._tag === "Failure") {
-      reportFailure(fork, t("Could not start a side chat."));
+      reportFailure(fork, "Could not start a side chat.");
       return false;
     }
     // Drops the empty side chat a failed start leaves behind; one that got its message stays.
@@ -69,13 +67,13 @@ export function useSideChat(input: {
       });
     const targetRef = scopeThreadRef(threadRef.environmentId, targetThreadId);
     if (!(await waitForThreadShell(targetRef))) {
-      input.onError(t("The side chat was created, but it did not reach this client."));
+      input.onError("The side chat was created, but it did not reach this client.");
       discard();
       return false;
     }
     const sideChat = readThreadShell(targetRef);
     if (sideChat === null) {
-      input.onError(t("The side chat is no longer available."));
+      input.onError("The side chat is no longer available.");
       discard();
       return false;
     }
@@ -85,7 +83,7 @@ export function useSideChat(input: {
         input: { threadId: targetThreadId, runtimeMode, createdAt: new Date().toISOString() },
       });
       if (mode._tag === "Failure") {
-        reportFailure(mode, t("Could not set the side chat's permission mode."));
+        reportFailure(mode, "Could not set the side chat's permission mode.");
         discard();
         return false;
       }
@@ -106,7 +104,7 @@ export function useSideChat(input: {
         },
       });
       if (turn._tag === "Failure") {
-        reportFailure(turn, t("Could not send the side chat message."));
+        reportFailure(turn, "Could not send the side chat message.");
         discard();
         return false;
       }

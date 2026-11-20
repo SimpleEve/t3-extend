@@ -46,8 +46,6 @@ import {
   settingsScopeEnvironmentLabels,
   settingsScopeProjectMachines,
 } from "./settingsScopeAxis";
-import { useT } from "../../hooks/useT";
-import { interpolateNodes } from "../../lib/interpolateNodes";
 
 export const SETTINGS_DEVICE_ONLY_PATHS: ReadonlySet<string> = new Set([
   "/settings/general",
@@ -71,7 +69,6 @@ interface SettingsScopeMenuProps {
 }
 
 export function SettingsScopeSentence() {
-  const t = useT();
   const scope = useOptionalSettingsScope();
   const pathname = useLocation({ select: (location) => location.pathname });
   const { environments } = useEnvironments();
@@ -109,7 +106,6 @@ interface ScopeOption {
 }
 
 function ScopeOptionLabel({ option }: { option: ScopeOption }) {
-  const t = useT();
   return (
     <>
       {option.icon}
@@ -120,7 +116,7 @@ function ScopeOptionLabel({ option }: { option: ScopeOption }) {
         ) : null}
       </span>
       {option.offline ? (
-        <span className="shrink-0 text-xs text-muted-foreground">{t("Offline")}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">Offline</span>
       ) : null}
     </>
   );
@@ -145,7 +141,6 @@ function ScopeMenu({
   searchLabel: string;
   onChange: (next: string) => void;
 }) {
-  const t = useT();
   const [query, setQuery] = useState("");
   const Trigger = options.length > 6 ? ComboboxTrigger : MenuTrigger;
   const trigger = (
@@ -193,7 +188,7 @@ function ScopeMenu({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <ComboboxEmpty>{t("No matches found.")}</ComboboxEmpty>
+          <ComboboxEmpty>No matches found.</ComboboxEmpty>
           <ComboboxList>
             {(option: ScopeOption) => (
               <ComboboxItem key={option.value} value={option}>
@@ -244,7 +239,6 @@ function EnvironmentScopeMenu({
   onChange,
   singleEnvironment,
 }: SettingsScopeMenuProps) {
-  const t = useT();
   const resolved = resolveSettingsScope(value, groups, environments);
   const environmentValue = environmentAxisValue(
     value,
@@ -262,7 +256,7 @@ function EnvironmentScopeMenu({
     : environments;
   return (
     <ScopeMenu
-      ariaLabel={t("Environment scope")}
+      ariaLabel="Environment scope"
       icon={
         selected ? (
           <EnvironmentMachineIcon
@@ -276,20 +270,20 @@ function EnvironmentScopeMenu({
         selected
           ? settingsScopeEnvironmentLabel(selected, environments)
           : environmentValue !== ALL_ENVIRONMENTS_VALUE
-            ? t("Unavailable environment")
+            ? "Unavailable environment"
             : singleEnvironment
-              ? t("No environments")
-              : t("All environments")
+              ? "No environments"
+              : "All environments"
       }
       value={environmentValue}
       onChange={(next) => onChange(selectEnvironmentAxis(value, next))}
-      searchLabel={t("Search environments")}
+      searchLabel="Search environments"
       allOption={
         singleEnvironment
           ? null
           : {
               value: ALL_ENVIRONMENTS_VALUE,
-              label: t("All environments"),
+              label: "All environments",
               icon: <LayersIcon aria-hidden className="size-3.5 shrink-0" />,
             }
       }
@@ -317,23 +311,22 @@ function EnvironmentScopeMenu({
 }
 
 function CheckoutScopeMenu({ value, groups, onChange }: SettingsScopeMenuProps) {
-  const t = useT();
   const group = groups.find((candidate) => candidate.projectKey === value.project);
   const checkouts = group ? settingsScopeCheckoutChoices(group, value) : [];
   if (checkouts.length === 0) return null;
   const selected = checkouts.find((member) => member.physicalProjectKey === value.checkout);
   return (
     <span className="flex min-w-0 items-center gap-1.5">
-      <span className="shrink-0">{t("in")}</span>
+      <span className="shrink-0">in</span>
       <ScopeMenu
-        ariaLabel={t("Checkout scope")}
+        ariaLabel="Checkout scope"
         icon={<FolderIcon aria-hidden className="size-3.5 shrink-0" />}
         label={
           selected
             ? settingsScopeCheckoutLabel(selected, checkouts)
             : value.checkout
-              ? t("Unavailable checkout")
-              : t("All checkouts")
+              ? "Unavailable checkout"
+              : "All checkouts"
         }
         value={value.checkout ?? ALL_CHECKOUTS_VALUE}
         onChange={(next) =>
@@ -344,7 +337,7 @@ function CheckoutScopeMenu({ value, groups, onChange }: SettingsScopeMenuProps) 
             ),
           )
         }
-        searchLabel={t("Search checkouts")}
+        searchLabel="Search checkouts"
         allOption={{ value: ALL_CHECKOUTS_VALUE, label: "All checkouts" }}
         options={checkouts.map((member) => ({
           value: member.physicalProjectKey,
@@ -357,7 +350,6 @@ function CheckoutScopeMenu({ value, groups, onChange }: SettingsScopeMenuProps) 
 }
 
 function ProjectScopeMenu({ value, groups, environments, onChange }: SettingsScopeMenuProps) {
-  const t = useT();
   const selected = groups.find((group) => group.projectKey === value.project);
   const projects = projectScopeMenuGroups(groups, value).map((group) => ({
     group,
@@ -365,15 +357,15 @@ function ProjectScopeMenu({ value, groups, environments, onChange }: SettingsSco
   }));
   return (
     <ScopeMenu
-      ariaLabel={t("Project scope")}
+      ariaLabel="Project scope"
       icon={selected ? <ProjectFavicon project={selected} className="size-3.5 shrink-0" /> : null}
       label={
         selected?.displayName ?? (value.project ? t("Unavailable project") : t("All projects"))
       }
       value={projectAxisValue(value)}
       onChange={(next) => onChange(selectProjectAxis(value, next))}
-      searchLabel={t("Search projects")}
-      allOption={{ value: ALL_PROJECTS_VALUE, label: t("All projects") }}
+      searchLabel="Search projects"
+      allOption={{ value: ALL_PROJECTS_VALUE, label: "All projects" }}
       options={projects.map(({ group, machines }) => {
         const sameName = projects.filter(
           (other) =>

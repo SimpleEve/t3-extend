@@ -25,7 +25,6 @@ import {
   pullRequestChecksStatePresentation,
   summarizePullRequestChecks,
 } from "./pullRequestPresentation";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 // Fetch only on open to avoid per-row requests.
 function LazyChecksBody({
@@ -37,7 +36,6 @@ function LazyChecksBody({
   reference: PullRequestRef;
   threadRef: ScopedThreadRef | null;
 }) {
-  const t = useT();
   const detailQuery = useEnvironmentQuery(
     pullRequestEnvironment.detail({ environmentId, input: reference }),
   );
@@ -47,7 +45,7 @@ function LazyChecksBody({
   if (detailQuery.data === null) {
     return (
       <p className="text-muted-foreground text-xs">
-        {detailQuery.isPending ? t("Loading checks…") : t("No checks reported")}
+        {detailQuery.isPending ? "Loading checks…" : "No checks reported"}
       </p>
     );
   }
@@ -61,7 +59,6 @@ function ChecksBody({
   checks: ReadonlyArray<PullRequestCheck>;
   threadRef: ScopedThreadRef | null;
 }) {
-  const t = useT();
   const openLink = useOpenLink(threadRef);
   const [showAll, setShowAll] = useState(false);
   const { attention, running, completed } = groupPullRequestChecks(checks);
@@ -69,7 +66,7 @@ function ChecksBody({
   const visibleChecks = [...attention, ...running, ...(showAll || !canCollapse ? completed : [])];
   const hasDetails = visibleChecks.some((check) => check.url !== null);
   if (checks.length === 0) {
-    return <p className="text-muted-foreground text-xs">{t("No checks reported")}</p>;
+    return <p className="text-muted-foreground text-xs">No checks reported</p>;
   }
   return (
     <>
@@ -111,7 +108,7 @@ function ChecksBody({
                       });
                     }}
                   >
-                    {t("Details")}
+                    Details
                   </button>
                 )}
               </li>
@@ -126,7 +123,7 @@ function ChecksBody({
           aria-expanded={showAll}
           onClick={() => setShowAll(!showAll)}
         >
-          {showAll ? t("Show less") : t("Show all")}
+          {showAll ? "Show less" : "Show all"}
         </Button>
       ) : null}
     </>
@@ -154,7 +151,6 @@ export function PullRequestChecksPopover({
   className?: string;
   render?: React.ReactElement;
 }) {
-  const t = useT();
   const presentation = pullRequestChecksStatePresentation(checksState);
   const incompleteCount =
     checks?.filter((check) => check.status === "pending" || check.status === "action-required")
@@ -169,8 +165,8 @@ export function PullRequestChecksPopover({
         nativeButton={variant === "count"}
         aria-label={
           variant === "count"
-            ? t("Open checks: {summary}", { summary: summary ?? t(presentation.label) })
-            : t("Checks: {summary}", { summary: t(presentation.label) })
+            ? `Open checks: ${summary ?? presentation.label}`
+            : `Checks: ${presentation.label}`
         }
         render={
           variant === "count" ? (
@@ -194,7 +190,7 @@ export function PullRequestChecksPopover({
                 <span className="whitespace-nowrap">
                   {checks.length - incompleteCount}/{checks.length}
                 </span>{" "}
-                {t("checks")}
+                checks
               </span>
             ) : failedCount > 0 ? (
               <span className="min-w-0 truncate tabular-nums">
@@ -205,11 +201,11 @@ export function PullRequestChecksPopover({
         ) : null}
       </PopoverTrigger>
       <PopoverPopup align="start" width="md" side="bottom">
-        <p className="mb-2 font-medium text-sm">{t(presentation.label)}</p>
+        <p className="mb-2 font-medium text-sm">{presentation.label}</p>
         {summary === null ? null : <p className="mb-2 text-muted-foreground text-xs">{summary}</p>}
         {stale ? (
           <p className="text-muted-foreground text-xs">
-            {t("Check details are out of date. Refresh the pull request to update them.")}
+            Check details are out of date. Refresh the pull request to update them.
           </p>
         ) : checks !== undefined ? (
           <ChecksBody checks={checks} threadRef={threadRef} />

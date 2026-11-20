@@ -9,7 +9,6 @@ import { useEnvironmentQuery } from "~/state/query";
 import { ContextChip, ContextChipLabel } from "./ContextChip";
 import { ProjectFavicon } from "./ProjectFavicon";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
-import { useT } from "~/hooks/useT";
 
 export function ThreadContextChip(props: {
   record: Pick<ThreadContextRecord, "environmentId" | "threadId" | "title">;
@@ -17,7 +16,6 @@ export function ThreadContextChip(props: {
   copyMarkdown?: string;
   unreadable?: boolean;
 }) {
-  const t = useT();
   const { environmentId, threadId } = props.record;
   const shell = useThreadShell({ environmentId, threadId });
   const lookup = useEnvironmentQuery(
@@ -46,7 +44,7 @@ export function ThreadContextChip(props: {
                 draggable={false}
               />
             }
-            aria-label={t("Thread, {title}", { title })}
+            aria-label={`Thread, ${title}`}
             data-markdown-copy={props.copyMarkdown}
             className="no-underline"
           >
@@ -61,10 +59,8 @@ export function ThreadContextChip(props: {
       />
       <TooltipPopup side="top">
         {props.unreadable
-          ? t(
-              "On another machine, so this machine's agent can't read it. Remove it or switch back to send.",
-            )
-          : t("Open thread")}
+          ? "On another machine, so this machine's agent can't read it. Remove it or switch back to send."
+          : "Open thread"}
       </TooltipPopup>
     </Tooltip>
   );

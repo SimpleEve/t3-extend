@@ -216,7 +216,6 @@ function managedMachineUpdateDenial(
   targetVersion: string | undefined,
 ): string | undefined {
   const policy = config.managedPolicy;
-  const t = translatorFor(getUiLocale()); // fork: interface language
   return (
     managedUpdatesDenial(policy, t) ??
     (policy !== undefined &&
@@ -478,14 +477,13 @@ export function describeUpdateCapsule(
   machines: ReadonlyArray<UpdateRunMachineView>,
   local: UpdateRunLocalState,
   now: number,
-  t: Translator = translatorFor("en"), // fork: interface language
 ): UpdateCapsuleView {
   if (run.phase === "countdown" && run.restartAt !== null) {
     const seconds = Math.max(0, Math.ceil((run.restartAt - now) / 1000));
-    return { tone: "default", label: t("Restart in {seconds}s", { seconds }), action: "later" };
+    return { tone: "default", label: `Restart in ${seconds}s`, action: "later" };
   }
   if (run.phase === "installing") {
-    return { tone: "default", label: t("Restarting…"), action: null };
+    return { tone: "default", label: "Restarting…", action: null };
   }
   const active = machines.filter(({ status }) => isActive(status) && status !== "waiting");
   const slowest = active.toSorted((a, b) => a.machine.startedAt - b.machine.startedAt)[0];
@@ -494,14 +492,13 @@ export function describeUpdateCapsule(
       tone: "slow",
       label: slowest.machine.label,
       slow: {
-        status: t(RUN_STATUS_LABELS[slowest.status], undefined, "update status"),
+        status: RUN_STATUS_LABELS[slowest.status],
         elapsed: formatUpdateElapsed(now - slowest.machine.startedAt),
       },
       action: null,
     };
   }
   const done = machines.filter(({ status }) => status === "done").length;
-  const updated = t("{done} of {total} updated", { done, total: machines.length });
   if (machines.some(({ status }) => isActive(status))) {
     return { tone: "default", label: updated, action: null };
   }
@@ -560,16 +557,14 @@ export function collectUpdateEverythingResult(input: {
     | { readonly status: "interrupted" | "updated" }
     | { readonly status: "failed"; readonly line: string }
   >;
-  readonly t?: Translator; // fork: interface language, English when omitted
 }): UpdateEverythingResult {
-  const t = input.t ?? translatorFor("en"); // fork: interface language
   return {
     localVersion: input.localVersion,
     updatedServers: input.servers.filter(({ outcome }) => outcome.status === "updated").length,
     updatedProviders: input.providers.filter((outcome) => outcome.status === "updated").length,
     restarting: [],
     failures: [
-      ...input.localFailures.map((failure) => t("This app: {failure}", { failure })),
+      ...input.localFailures.map((failure) => `This app: ${failure}`),
       ...input.servers.flatMap(({ label, outcome }) =>
         outcome.status === "failed" ? [`${label}: ${outcome.message}`] : [],
       ),
@@ -581,7 +576,6 @@ export function collectUpdateEverythingResult(input: {
 export function getUpdateEverythingToastView(
   result: UpdateEverythingResult,
   appVersion: string,
-  t: Translator = translatorFor("en"), // fork: interface language
 ): {
   readonly type: "success" | "error";
   readonly title: string;
@@ -605,7 +599,7 @@ export function getUpdateEverythingToastView(
     if (parts.length === 0) return null;
     return {
       type: "success",
-      title: t("Updated {parts}", { parts: joinList(parts, t) }),
+      title: `Updated ${joinList(parts)}`,
       ...(restarting.length === 0 ? {} : { description: restarting.join("\n") }),
     };
   }
@@ -700,7 +694,7 @@ export function describeUpdateEverything(
     rows.set(environmentId, { ...row, ...change });
   };
   if (plan.localVersion) {
-    if (plan.localMachines.length === 0) update(null, t("This app"), { app: "this-app" });
+    if (plan.localMachines.length === 0) update(null, "This app", { app: "this-app" });
     for (const machine of plan.localMachines) {
       update(machine.environmentId, machine.label, { app: "this-app" });
     }

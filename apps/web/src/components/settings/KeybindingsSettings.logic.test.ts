@@ -6,7 +6,6 @@ import {
 } from "@t3tools/shared/keybindings";
 
 import { resolveShortcutCommand } from "../../keybindings";
-import { translate, __setUiCatalogForTests } from "@t3tools/client-runtime/i18n";
 
 import {
   buildKeybindingRows,

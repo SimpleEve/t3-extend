@@ -68,7 +68,6 @@ import { TimelineSystemDivider } from "./TimelineSystemDivider";
 import { subagentResumedSince } from "./V2LifecycleRow.logic";
 import { Button, InlineButton } from "../ui/button";
 import { T3Wordmark } from "../T3Wordmark";
-import { useT } from "../../hooks/useT"; // fork: interface language
 
 export type { HandoffTimelineRun } from "@t3tools/client-runtime/handoff";
 
@@ -79,12 +78,11 @@ export function V2LifecycleRow(props: {
   readonly runs: ReadonlyArray<HandoffTimelineRun>;
   readonly onOpenThread: (threadId: ThreadId) => void;
 }) {
-  const t = useT();
   const { item } = props;
   if (item.type === "run_interrupt_result") {
     return (
       <TimelineSystemDivider
-        label={t("Run interrupted")}
+        label="Run interrupted"
         detail={item.message}
         icon={CircleStopIcon}
         wrapDetail
@@ -104,9 +102,9 @@ export function V2LifecycleRow(props: {
     const relatedThreadId = item.source.type === "run" ? item.source.threadId : item.targetThreadId;
     return (
       <TimelineSystemDivider
-        label={item.source.type === "run" ? t("Forked from conversation") : t("Conversation fork")}
+        label={item.source.type === "run" ? "Forked from conversation" : "Conversation fork"}
         icon={GitForkIcon}
-        actionLabel={item.source.type === "run" ? t("Open source conversation") : t("Open fork")}
+        actionLabel={item.source.type === "run" ? "Open source conversation" : "Open fork"}
         onAction={() => props.onOpenThread(relatedThreadId)}
       />
     );
@@ -122,7 +120,7 @@ export function V2LifecycleRow(props: {
             <MessageSquareIcon className="size-4 text-secondary-label" aria-hidden />
           </span>
           <span className="min-w-0 flex-1 truncate text-sm font-medium">
-            {item.title ?? t("Created thread")}
+            {item.title ?? "Created thread"}
           </span>
           <Button
             size="xs"
@@ -132,7 +130,7 @@ export function V2LifecycleRow(props: {
             }
             onClick={() => props.onOpenThread(item.targetThreadId)}
           >
-            {t("Open chat")}
+            Open chat
           </Button>
         </div>
       );
@@ -154,7 +152,7 @@ export function V2LifecycleRow(props: {
             }
             onClick={() => props.onOpenThread(item.targetThreadId)}
           >
-            {t("Open chat")}
+            Open chat
           </InlineButton>
         }
       />
@@ -426,7 +424,6 @@ function SubagentTimelineLink(props: {
     readonly timestamp: string;
   };
 }) {
-  const t = useT();
   const agent = useAtomValue(
     environmentThreadDetails.threadAtom(props.parentRef),
     (thread) => thread?.projection.subagents.find((agent) => agent.id === props.subagentId) ?? null,
@@ -529,7 +526,7 @@ function SubagentTimelineLink(props: {
             <button
               type="button"
               data-v2-item-type="subagent"
-              aria-label={t("Open {title}", { title: props.title })}
+              aria-label={`Open ${props.title}`}
               aria-description={statusLabel}
               onClick={open}
               className={cn(
@@ -613,8 +610,7 @@ function EnvironmentHandoffRow({
 
 /** Marks where `/clear` or an automation started a new provider session in this thread. */
 export function FreshSessionRow() {
-  const t = useT();
-  return <TimelineSystemDivider label={t("New session")} icon={EraserIcon} />;
+  return <TimelineSystemDivider label="New session" icon={EraserIcon} />;
 }
 
 /** A same-harness model or effort change. Shows only what changed. */
@@ -648,14 +644,13 @@ export function HandoffRow(props: {
   readonly pending?: boolean;
   readonly failed?: boolean;
 }) {
-  const t = useT();
   const { from: fromEndpoints, to } = props.endpoints;
   const settings = useAtomValue(serverEnvironment.settingsValueAtom(props.environmentId));
   const derived = deriveProviderInstanceEntries(props.providers);
   const entries = settings ? applyProviderInstanceSettings(derived, settings, null) : derived;
   return (
     <TimelineSystemDivider
-      label={props.pending ? t("Context handoff pending") : t("Context handoff")}
+      label={props.pending ? "Context handoff pending" : "Context handoff"}
       icon={ArrowRightLeftIcon}
       showDetailSeparator={false}
       tone={props.failed ? "danger" : "neutral"}

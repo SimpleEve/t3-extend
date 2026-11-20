@@ -36,8 +36,6 @@ import { useTurnItemDetail } from "~/state/queries";
 import { mcpAppEnvironment } from "~/state/mcpApps";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { observeResize } from "~/lib/observeResize";
-import { useT } from "~/hooks/useT";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 import { useNativeTitlebarHeight } from "~/lib/windowControlsOverlay";
 
 const commandFailure = (result: {
@@ -93,7 +91,6 @@ export function McpAppFrame(props: {
   readonly awaitingUser?: boolean;
   readonly onFullscreenChange?: (fullscreen: boolean) => void;
 }) {
-  const t = useT();
   const { app } = props;
   const theme = useHtmlRenderTheme();
   const nativeTitlebarHeight = useNativeTitlebarHeight();
@@ -267,7 +264,7 @@ export function McpAppFrame(props: {
       flushSync(() => setDisplayMode("inline"));
       const approved = await requestConfirmDialog(message);
       if (approved === undefined) {
-        throw new McpAppHostRefusal({ message: t("T3 could not ask for approval here.") });
+        throw new McpAppHostRefusal({ message: "T3 could not ask for approval here." });
       }
       return approved;
     };
@@ -287,10 +284,10 @@ export function McpAppFrame(props: {
         const info = await readLive().toolInfo({ environmentId, input: { ...input, name } });
         if (info._tag !== "Success") throw commandFailure(info);
         if (!info.value.callable)
-          throw new McpAppHostRefusal({ message: t("This app cannot call that tool.") });
+          throw new McpAppHostRefusal({ message: "This app cannot call that tool." });
         if (!info.value.readOnly) {
           const approved = await ask(
-            `${translate(getUiLocale(), "Allow {server} to run {tool}?", { server: app.server, tool: info.value.title ?? name })}\n${JSON.stringify(args, null, 2)}`,
+            `Allow ${app.server} to run ${info.value.title ?? name}?\n${JSON.stringify(args, null, 2)}`,
           );
           if (approved !== true)
             throw new McpAppHostRefusal({ message: t("Declined by the user.") });
@@ -313,7 +310,7 @@ export function McpAppFrame(props: {
       },
       openLink: async (url) => {
         if (document.activeElement !== frameRef.current || !navigator.userActivation?.isActive) {
-          throw new McpAppHostRefusal({ message: t("Links open only from a click in the app.") });
+          throw new McpAppHostRefusal({ message: "Links open only from a click in the app." });
         }
         window.open(url, "_blank", "noopener,noreferrer");
       },
@@ -435,7 +432,7 @@ export function McpAppFrame(props: {
   if (closed) {
     return (
       <div className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-muted-foreground text-xs">
-        <span>{t("The {server} app was closed", { server: app.server })}</span>
+        <span>The {app.server} app was closed</span>
         <Button
           size="xs"
           variant="ghost"
@@ -445,7 +442,7 @@ export function McpAppFrame(props: {
             setClosed(false);
           }}
         >
-          {t("Show app")}
+          Show app
         </Button>
       </div>
     );
@@ -479,7 +476,7 @@ export function McpAppFrame(props: {
           >
             <span className="truncate">{app.server}</span>
             <Button
-              aria-label={t("Exit full screen")}
+              aria-label="Exit full screen"
               size="icon-sm"
               variant="ghost"
               onClick={() => setDisplayMode("inline")}
@@ -490,13 +487,13 @@ export function McpAppFrame(props: {
         ) : null}
         {navigatedAway ? (
           <p className="flex size-full items-center justify-center text-muted-foreground text-xs">
-            {t("The {server} app left its page and was stopped", { server: app.server })}
+            The {app.server} app left its page and was stopped
           </p>
         ) : src !== null ? (
           <iframe
             ref={attachFrame}
             src={src}
-            title={t("{server} app", { server: app.server })}
+            title={`${app.server} app`}
             // Omitting allow-same-origin isolates the app from the session.
             sandbox="allow-scripts allow-forms"
             allow={mcpAppAllowAttribute(app.permissions)}
@@ -506,7 +503,7 @@ export function McpAppFrame(props: {
           />
         ) : asset._tag === "Failure" ? (
           <p className="flex size-full items-center justify-center text-muted-foreground text-xs">
-            {t("Unable to load the {server} app", { server: app.server })}
+            Unable to load the {app.server} app
           </p>
         ) : null}
       </div>

@@ -5,7 +5,6 @@ import { ScrollView, View } from "react-native";
 import { AppText as Text } from "./ui/AppText";
 import { Button } from "./ui/Button";
 import { copyTextWithHaptic } from "../lib/copyTextWithHaptic";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 interface RenderErrorBoundaryProps {
   readonly children: ReactNode;
@@ -91,8 +90,7 @@ export function RenderFailureView(
     readonly exit?: { readonly label: string; readonly onPress: () => void };
   },
 ) {
-  const t = useT(); // fork: i18n
-  const title = props.title ?? t("This screen couldn't be displayed");
+  const title = props.title ?? "This screen couldn't be displayed";
   return (
     <ScrollView
       className="flex-1 bg-screen"
@@ -105,15 +103,15 @@ export function RenderFailureView(
         {title}
       </Text>
       <Text className="text-center text-sm text-foreground-muted">
-        {t("Try again. If it keeps happening, copy the details for a bug report.")}
+        Try again. If it keeps happening, copy the details for a bug report.
       </Text>
       <Text selectable className="text-center font-mono text-xs text-danger-foreground">
         {props.details.split("\n", 1)[0]?.slice(0, 300)}
       </Text>
       <View className="w-full max-w-xs gap-2">
-        <Button label={t("Try again")} onPress={props.retry} tone="primary" fullWidth />
+        <Button label="Try again" onPress={props.retry} tone="primary" fullWidth />
         <Button
-          label={t("Copy details")}
+          label="Copy details"
           onPress={() => copyTextWithHaptic(props.details, { target: "error details" })}
           fullWidth
         />

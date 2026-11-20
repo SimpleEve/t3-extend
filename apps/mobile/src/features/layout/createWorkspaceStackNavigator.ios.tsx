@@ -90,7 +90,6 @@ import {
   WorkspaceSlotOptionsContext,
   slotScreenOptions,
 } from "../../native/v5-workspace-context";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 type ViewProps = ComponentProps<typeof NativeStackView>;
 type Descriptor = ViewProps["descriptors"][string];
@@ -225,7 +224,6 @@ function EmptyDetailHeader(props: { readonly onCompose: (() => void) | undefined
 function WorkspaceColumns(
   props: ViewProps & { readonly primary: Route; readonly detail: Route[] },
 ) {
-  const t = useT(); // fork: i18n
   const {
     layout,
     setPrimarySidebarVisible,
@@ -507,7 +505,7 @@ function WorkspaceColumns(
                     pointerEvents="box-none"
                   >
                     <WorkspacePaneDivider
-                      accessibilityLabel={t("Resize inspector")}
+                      accessibilityLabel="Resize inspector"
                       currentWidth={inspectorWidth}
                       resizeDirection={-1}
                       onResizeStart={() => {

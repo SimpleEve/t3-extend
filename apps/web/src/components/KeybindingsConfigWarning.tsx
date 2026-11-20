@@ -9,7 +9,6 @@ import { useOpenInPreferredEditor } from "../editorPreferences";
 import { useEnvironmentScope } from "../state/session";
 import { Button } from "./ui/button";
 import { stackedThreadToast, toastManager } from "./ui/toast";
-import { useT } from "../hooks/useT";
 
 export function KeybindingsConfigWarning({
   message,
@@ -22,7 +21,6 @@ export function KeybindingsConfigWarning({
   configPath: string | null;
   availableEditors: readonly EditorId[];
 }) {
-  const t = useT();
   const canOpenEditor = useEnvironmentScope(environmentId, AuthOrchestrationOperateScope);
   const openInEditor = useOpenInPreferredEditor(environmentId, availableEditors);
 
@@ -49,7 +47,7 @@ export function KeybindingsConfigWarning({
             );
           }}
         >
-          {t("Open keybindings.json")}
+          Open keybindings.json
         </Button>
       </span>
     </>

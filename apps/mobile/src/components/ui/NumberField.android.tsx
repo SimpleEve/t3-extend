@@ -3,11 +3,8 @@ import { View } from "react-native";
 import { AppText } from "./AppText";
 import { IconButton } from "./IconButton";
 import type { NumberFieldProps } from "./NumberField.types";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export function NumberField(props: NumberFieldProps) {
-  const t = useT(); // fork: i18n
   const adjust = (amount: number) => {
     if (props.disabled) return;
     const next = Math.max(props.min, Math.min(props.max, props.value + amount));
@@ -23,7 +20,7 @@ export function NumberField(props: NumberFieldProps) {
       />
       <IconButton
         icon="minus"
-        accessibilityLabel={t("Decrease {label}", { label: props.label })}
+        accessibilityLabel={`Decrease ${props.label}`}
         disabled={props.disabled || props.value <= props.min}
         onPress={() => adjust(-1)}
       />
@@ -42,7 +39,7 @@ export function NumberField(props: NumberFieldProps) {
       </AppText>
       <IconButton
         icon="plus"
-        accessibilityLabel={t("Increase {label}", { label: props.label })}
+        accessibilityLabel={`Increase ${props.label}`}
         disabled={props.disabled || props.value >= props.max}
         onPress={() => adjust(1)}
       />

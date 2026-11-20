@@ -1,10 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 
-import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
-
 import { projectThreadContentPresentation } from "./threadContentPresentation";
-
-const t = translatorFor("en");
 
 describe("thread content presentation", () => {
   it("renders cached detail while its environment reconnects", () => {

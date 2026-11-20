@@ -36,8 +36,6 @@ import {
   type PullRequestStatePresentation,
   type PullRequestGlyphIcon,
 } from "./pullRequestIcons";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 export function PullRequestLabelChip({
   label,
@@ -103,15 +101,14 @@ export function PullRequestReviewDecisionGlyph({
 }: {
   decision: PullRequestReviewDecision;
 }) {
-  const t = useT(); // fork: interface language
   const presentation = reviewDecisionPresentation(decision);
   return (
     <Tooltip>
       <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
         <presentation.Icon aria-hidden className={cn("size-3.5", presentation.toneClassName)} />
-        <span className="sr-only">{t(presentation.label)}</span>
+        <span className="sr-only">{presentation.label}</span>
       </TooltipTrigger>
-      <TooltipPopup>{t(presentation.label)}</TooltipPopup>
+      <TooltipPopup>{presentation.label}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -142,9 +139,7 @@ function resolvePullRequestConflict(input: {
   // fork: read the language when the glyph renders; its component re-renders on a change.
   const t = translatorFor(getUiLocale());
   return {
-    label: input.baseBranch
-      ? t("Conflicts with {branch}", { branch: input.baseBranch })
-      : t("Has conflicts"),
+    label: input.baseBranch ? `Conflicts with ${input.baseBranch}` : "Has conflicts",
     toneClassName: "text-destructive",
     Icon: PullRequestGlyph.conflicting,
   };
@@ -159,18 +154,17 @@ export function PullRequestStateGlyph({
   isDraft: boolean;
   className?: string;
 }) {
-  const t = useT(); // fork: interface language
   const presentation = resolvePullRequestState({ state, isDraft });
   return (
     <Tooltip>
       <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
         <presentation.Icon
           role="img"
-          aria-label={t(presentation.label)}
+          aria-label={presentation.label}
           className={cn("size-4 shrink-0", presentation.toneClassName, className)}
         />
       </TooltipTrigger>
-      <TooltipPopup>{t(presentation.label)}</TooltipPopup>
+      <TooltipPopup>{presentation.label}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -188,7 +182,6 @@ export function PullRequestConflictGlyph({
   baseBranch?: string;
   className?: string;
 }) {
-  const t = useT(); // fork: interface language
   const presentation = resolvePullRequestConflict({
     state,
     isDraft,
@@ -201,11 +194,11 @@ export function PullRequestConflictGlyph({
       <TooltipTrigger render={<span className="inline-flex shrink-0" />}>
         <presentation.Icon
           role="img"
-          aria-label={t(presentation.label)}
+          aria-label={presentation.label}
           className={cn("size-4 shrink-0", presentation.toneClassName, className)}
         />
       </TooltipTrigger>
-      <TooltipPopup>{t(presentation.label)}</TooltipPopup>
+      <TooltipPopup>{presentation.label}</TooltipPopup>
     </Tooltip>
   );
 }
@@ -249,8 +242,8 @@ export function pullRequestCheckStatusLabel(
   // fork: callers render this string; read the language when they do.
   const t = translatorFor(getUiLocale());
   return isWorkflowApprovalCheck(check)
-    ? t("Awaiting approval")
-    : t(CHECK_STATUS_PRESENTATION[check.status].label);
+    ? "Awaiting approval"
+    : CHECK_STATUS_PRESENTATION[check.status].label;
 }
 
 export function PullRequestCheckStatusIcon({ status }: { status: PullRequestCheckStatus }) {
@@ -362,7 +355,7 @@ const REVIEW_OUTCOME_STALE_LABELS = {
 } as const satisfies Record<PullRequestReviewOutcome, string>;
 
 export function pullRequestReviewOutcomeStaleLabel(outcome: PullRequestReviewOutcome): string {
-  return translatorFor(getUiLocale())(REVIEW_OUTCOME_STALE_LABELS[outcome]);
+  return `${REVIEW_OUTCOME_PRESENTATION[outcome].label} earlier changes`;
 }
 
 export function PullRequestReviewOutcomeIcon({
@@ -404,7 +397,7 @@ export function PullRequestReviewOutcomeAvatarBadge({
 }
 
 export function pullRequestReviewOutcomeLabel(outcome: PullRequestReviewOutcome): string {
-  return translatorFor(getUiLocale())(REVIEW_OUTCOME_PRESENTATION[outcome].label); // fork
+  return REVIEW_OUTCOME_PRESENTATION[outcome].label;
 }
 
 export function PullRequestReviewOutcomeBadge({
@@ -414,13 +407,12 @@ export function PullRequestReviewOutcomeBadge({
   outcome: PullRequestReviewOutcome;
   className?: string;
 }) {
-  const t = useT(); // fork: interface language
   const presentation = REVIEW_OUTCOME_PRESENTATION[outcome];
   return (
     <Badge size="sm" variant={presentation.badgeVariant} className={className}>
       <span className="inline-flex items-baseline gap-1">
         <presentation.Icon aria-hidden className="size-3 self-center" />
-        <span>{t(presentation.label)}</span>
+        <span>{presentation.label}</span>
       </span>
     </Badge>
   );
@@ -471,7 +463,6 @@ export function PullRequestActorLabel({
   tooltip?: boolean;
   profileUrl?: string | null;
 }) {
-  const t = useT(); // fork: interface language
   const login = actor?.login ?? "ghost";
   const label = (
     <span className={cn("flex min-w-0 items-baseline", variant === "label" && "gap-1.5")}>
@@ -495,7 +486,7 @@ export function PullRequestActorLabel({
                   href={profileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={t("Open {login}'s profile", { login })}
+                  aria-label={`Open ${login}'s profile`}
                 />
               }
             />
@@ -508,7 +499,7 @@ export function PullRequestActorLabel({
       </TooltipTrigger>
       <TooltipPopup side="top">
         {actor?.name && actor.name !== login ? `${actor.name} (@${login})` : login}
-        {profileUrl ? t(" · Open profile") : ""}
+        {profileUrl ? " · Open profile" : ""}
       </TooltipPopup>
     </Tooltip>
   );

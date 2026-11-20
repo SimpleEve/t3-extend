@@ -4,7 +4,6 @@ import { memo, useEffect, useRef } from "react";
 import { useLiveRegion } from "../../hooks/useLiveRegion";
 import type { TimelineEntry } from "../../session-logic";
 
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import {
   nextThreadAnnouncement,
   type ThreadActivitySnapshot,

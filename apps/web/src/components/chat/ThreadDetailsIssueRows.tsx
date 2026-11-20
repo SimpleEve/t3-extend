@@ -9,7 +9,6 @@ import {
   THREAD_DETAILS_PANEL_ICON_CLASS,
   THREAD_DETAILS_PANEL_LABEL_CLASS,
 } from "./threadDetailsPanelStyles";
-import { useT } from "~/hooks/useT"; // fork: i18n
 
 /**
  * The thread details panel's issue rows, one per linked issue, beside the pull request rows. A
@@ -23,7 +22,6 @@ export function ThreadDetailsIssueRows({
   links: ReadonlyArray<ThreadIssueLink>;
   onOpenLink: (event: ReactMouseEvent<HTMLElement>, link: ThreadIssueLink) => void;
 }) {
-  const t = useT(); // fork: i18n
   if (links.length === 0) return null;
   return (
     <>
@@ -31,10 +29,7 @@ export function ThreadDetailsIssueRows({
         <ThreadDetailsControl
           key={threadIssueKeyOf(link)}
           part="row"
-          aria-label={t("Issue {displayKey}: {title}", {
-            displayKey: link.displayKey,
-            title: link.title,
-          })}
+          aria-label={`Issue ${link.displayKey}: ${link.title}`}
           onClick={(event) => onOpenLink(event, link)}
         >
           <IssueGlyph.issue aria-hidden className={THREAD_DETAILS_PANEL_ICON_CLASS} />

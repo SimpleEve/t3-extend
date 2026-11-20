@@ -17,7 +17,6 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { Button } from "./ui/button";
-import { useT } from "../hooks/useT";
 
 type ConfirmationCopy = {
   readonly title: string;
@@ -53,7 +52,6 @@ export function resolveConfirmDialogCopy(message: string): ConfirmationCopy {
 }
 
 export function ConfirmDialogHost() {
-  const t = useT();
   const state = useSyncExternalStore(
     subscribeConfirmDialogHost,
     readConfirmDialogState,
@@ -78,20 +76,20 @@ export function ConfirmDialogHost() {
     >
       <AlertDialogPopup>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t(copy.title)}</AlertDialogTitle>
+          <AlertDialogTitle>{copy.title}</AlertDialogTitle>
           {copy.description ? (
             <AlertDialogDescription className="whitespace-pre-line">
-              {t(copy.description)}
+              {copy.description}
             </AlertDialogDescription>
           ) : null}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" />}>{t("Cancel")}</AlertDialogClose>
+          <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
           {focusConfirm && confirmVariant === "default" ? (
-            <AlertDialogAction onClick={onConfirm}>{t("Confirm")}</AlertDialogAction>
+            <AlertDialogAction onClick={onConfirm}>Confirm</AlertDialogAction>
           ) : (
             <Button variant={confirmVariant} onClick={onConfirm}>
-              {t("Confirm")}
+              Confirm
             </Button>
           )}
         </AlertDialogFooter>

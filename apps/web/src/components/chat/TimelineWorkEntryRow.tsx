@@ -1,4 +1,3 @@
-import { useT } from "~/hooks/useT"; // fork: interface language
 import { TimelinePendingApprovalRow } from "./TimelinePendingApprovalRow";
 import { WorkLogDetails, WorkLogRow } from "./WorkLog";
 import {
@@ -209,7 +208,6 @@ export function ViewedImagesTimelineRow({
 }
 
 function WorkEntryLogRow(props: WorkEntryRowProps) {
-  const t = useT(); // fork: interface language
   const { workEntry, workspaceRoot, displayLabel } = props;
   const ctx = use(TimelineRowCtx);
   const { threadRef, onImageExpand, timestampFormat } = ctx;
@@ -307,7 +305,7 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
               onClick={() => onRetryWorkspacePreparation(retryRunId)}
             >
               <RotateCcwIcon aria-hidden />
-              {t("Retry")}
+              Retry
             </Button>
           </div>
         ) : null}
@@ -457,7 +455,7 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
         <span
           className={iconWrapperClass}
           role={showFailedIndicator ? "img" : undefined}
-          aria-label={showFailedIndicator ? t("Tool call failed") : undefined}
+          aria-label={showFailedIndicator ? "Tool call failed" : undefined}
         >
           <ToolActivityIconView
             icon={entryToolIcon}
@@ -532,19 +530,19 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
               }}
               onKeyDown={stopRowToggle}
             >
-              {t("Open chat")}
+              Open chat
             </button>
           ) : null}
           {notifiedSubagentThreadId ? (
             <InlineButton
-              aria-label={t("Open subagent thread")}
+              aria-label="Open subagent thread"
               onClick={(event) => {
                 event.stopPropagation();
                 ctx.onOpenThread(notifiedSubagentThreadId);
               }}
               onKeyDown={stopRowToggle}
             >
-              {t("Open subagent")}
+              Open subagent
             </InlineButton>
           ) : null}
           {showFailedIndicator &&

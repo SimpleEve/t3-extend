@@ -1,4 +1,3 @@
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 /** Resolves web references without inheriting the desktop renderer's custom app scheme. */
 export function resolveProtocolRelativeMediaUrl(src: string): string {
   if (!src.startsWith("//")) return src;
@@ -29,7 +28,7 @@ function readDataUrlBlob(src: string): Blob {
   const [mimeType = "", ...parameters] = url.slice("data:".length, comma).split(";");
   const payload = url.slice(comma + 1);
   try {
-    if (comma < 0) throw new Error(translate(getUiLocale(), "Missing data URL payload.")); // fork: i18n
+    if (comma < 0) throw new Error("Missing data URL payload.");
     const isBase64 = parameters.some((parameter) => parameter.trim().toLowerCase() === "base64");
     // Base64 text is ASCII, so any escape that is not valid UTF-8 is malformed anyway.
     const bytes = isBase64
@@ -37,7 +36,7 @@ function readDataUrlBlob(src: string): Blob {
       : decodePercentBytes(payload);
     return new Blob([bytes], { type: mimeType || "text/plain" });
   } catch (cause) {
-    throw new Error(translate(getUiLocale(), "This inline media could not be decoded."), { cause }); // fork: i18n
+    throw new Error("This inline media could not be decoded.", { cause });
   }
 }
 
@@ -106,20 +105,16 @@ export async function readMediaPng(src: string): Promise<Blob> {
       await image.decode();
     } catch (cause) {
       throw new Error(
-        translate(
-          getUiLocale(),
-          "The browser could not decode this image for copying. Try saving it instead.",
-        ),
-        { cause }, // fork: i18n
+        "The browser could not decode this image for copying. Try saving it instead.",
+        {
+          cause,
+        },
       );
     }
     const { naturalWidth: width, naturalHeight: height } = image;
     if (width <= 0 || height <= 0 || width * height > 64_000_000) {
       throw new Error(
-        translate(
-          getUiLocale(),
-          "This image is too large or has no usable dimensions. Try saving it instead.",
-        ), // fork: i18n
+        "This image is too large or has no usable dimensions. Try saving it instead.",
       );
     }
     const canvas = document.createElement("canvas");

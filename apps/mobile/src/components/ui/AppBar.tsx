@@ -21,8 +21,6 @@ import { useAppearancePreferences } from "../../features/settings/appearance/App
 import type { AppBarMenuItem, AppBarProps } from "./AppBar.types";
 import type { AppSymbolName } from "./AppSymbol";
 import { useNativeMailSearchToolbar } from "../../native/use-native-mail-search-toolbar";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { localizeAppBarProps } from "../../fork/appBarI18n"; // fork: i18n
 import { useControlTheme } from "./useControlTheme";
 
 function iosIcon(icon: AppSymbolName) {
@@ -182,7 +180,7 @@ export function AppBar(rawProps: AppBarProps) {
         <Toolbar placement="left">
           <Toolbar.Button
             icon="xmark"
-            accessibilityLabel={props.closeAccessibilityLabel ?? t("Close")}
+            accessibilityLabel={props.closeAccessibilityLabel ?? "Close"}
             onPress={props.onClose}
           />
         </Toolbar>
@@ -190,7 +188,7 @@ export function AppBar(rawProps: AppBarProps) {
         <Toolbar placement="left">
           {rootBack ? (
             <ScreenHeaderButton
-              accessibilityLabel={t("Back")}
+              accessibilityLabel="Back"
               icon="chevron.left"
               onPress={rootBack}
               separateBackground
@@ -208,8 +206,8 @@ export function AppBar(rawProps: AppBarProps) {
           ) : null}
           {compose ? (
             <ScreenHeaderButton
-              accessibilityLabel={t("New task")}
-              label={t("New task")}
+              accessibilityLabel="New task"
+              label="New task"
               icon="square.and.pencil"
               onPress={compose}
               separateBackground
@@ -268,7 +266,7 @@ export function AppBar(rawProps: AppBarProps) {
           ) : null}
           {closeInspector ? (
             <ScreenHeaderButton
-              accessibilityLabel={t("Close inspector")}
+              accessibilityLabel="Close inspector"
               icon="xmark"
               onPress={closeInspector}
               separateBackground

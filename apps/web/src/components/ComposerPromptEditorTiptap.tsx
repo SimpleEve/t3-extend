@@ -150,7 +150,6 @@ import {
   type ComposerAttachmentInsertion,
 } from "./composerAttachmentInsertion";
 import type { ComposerDraftContextRecords } from "./composerContextPresentation";
-import { useT } from "~/hooks/useT";
 
 export interface ComposerPromptEditorHandle {
   focus: () => void;
@@ -287,7 +286,6 @@ const ComposerMentionExtension = Node.create({
 });
 
 function ComposerMentionNodeView({ node }: NodeViewProps) {
-  const t = useT();
   const actions = use(ComposerContextActionsContext);
   const path = (node.attrs.path as string) ?? "";
   const nativeDrag = useNativeFileDrag(actions.environmentId, () =>
@@ -300,7 +298,7 @@ function ComposerMentionNodeView({ node }: NodeViewProps) {
       dir="ltr"
       render={<button type="button" />}
       onClick={() => actions.openMention(path)}
-      aria-label={t("Preview {name}", { name: path })}
+      aria-label={`Preview ${path}`}
       contentEditable={false}
       spellCheck={false}
       data-composer-mention-chip="true"

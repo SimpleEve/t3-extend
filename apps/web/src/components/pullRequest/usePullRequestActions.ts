@@ -80,62 +80,51 @@ export function usePullRequestDefaultMergeMethodResolver(
   };
 }
 
-// fork: the toast reads these when it shows, so `t` translates whole sentences then.
-const actionSuccessLabels = (term: string, t: Translator): Record<PullRequestAction, string> => ({
-  merge: t("Merge requested"),
-  ready: t("Marked ready for review"),
-  draft: t("Converted to draft"),
-  close: t("{kind} closed", { kind: capitalizeTerm(term) }),
-  reopen: t("{kind} reopened", { kind: capitalizeTerm(term) }),
-  "update-branch": t("Branch updated with the base branch"),
-  "enable-auto-merge": t("Auto-merge enabled"),
-  "disable-auto-merge": t("Auto-merge disabled"),
-  revert: t("Revert {kind} opened", { kind: term }),
-  "delete-branch": t("Branch deleted"),
-  "approve-workflows": t("Workflows approved"),
+const actionSuccessLabels = (term: string): Record<PullRequestAction, string> => ({
+  merge: "Merge requested",
+  ready: "Marked ready for review",
+  draft: "Converted to draft",
+  close: `${capitalizeTerm(term)} closed`,
+  reopen: `${capitalizeTerm(term)} reopened`,
+  "update-branch": "Branch updated with the base branch",
+  "enable-auto-merge": "Auto-merge enabled",
+  "disable-auto-merge": "Auto-merge disabled",
+  revert: `Revert ${term} opened`,
+  "delete-branch": "Branch deleted",
+  "approve-workflows": "Workflows approved",
 });
 
-const actionFailureLabels = (term: string, t: Translator): Record<PullRequestAction, string> => ({
-  merge: t("Could not merge this {kind}", { kind: term }),
-  ready: t("Could not mark this ready for review"),
-  draft: t("Could not convert this to a draft"),
-  close: t("Could not close this {kind}", { kind: term }),
-  reopen: t("Could not reopen this {kind}", { kind: term }),
-  "update-branch": t("Could not update this branch"),
-  "enable-auto-merge": t("Could not enable auto-merge"),
-  "disable-auto-merge": t("Could not disable auto-merge"),
-  revert: t("Could not open a revert {kind}", { kind: term }),
-  "delete-branch": t("Could not delete this branch"),
-  "approve-workflows": t("Could not approve workflows"),
+const actionFailureLabels = (term: string): Record<PullRequestAction, string> => ({
+  merge: `Could not merge this ${term}`,
+  ready: "Could not mark this ready for review",
+  draft: "Could not convert this to a draft",
+  close: `Could not close this ${term}`,
+  reopen: `Could not reopen this ${term}`,
+  "update-branch": "Could not update this branch",
+  "enable-auto-merge": "Could not enable auto-merge",
+  "disable-auto-merge": "Could not disable auto-merge",
+  revert: `Could not open a revert ${term}`,
+  "delete-branch": "Could not delete this branch",
+  "approve-workflows": "Could not approve workflows",
 });
 
-const actionFailureHints = (term: string, t: Translator): Record<PullRequestAction, string> => ({
-  merge: t(
+const actionFailureHints = (term: string): Record<PullRequestAction, string> => ({
+  merge:
     "The host refused the merge. Check that you have write access, that the checks it requires have passed, and that the branch is not conflicting.",
-  ),
-  ready: t("The host refused it. Check that you have write access to this repository."),
-  draft: t("The host refused it. Check that you have write access to this repository."),
-  close: t("The host refused it. Check that you have write access, or that you opened it."),
-  reopen: t(
+  ready: "The host refused it. Check that you have write access to this repository.",
+  draft: "The host refused it. Check that you have write access to this repository.",
+  close: "The host refused it. Check that you have write access, or that you opened it.",
+  reopen:
     "The host refused it. Check that you have write access, and that the branch still exists.",
-  ),
-  "update-branch": t(
+  "update-branch":
     "The host refused it. Check that you have write access, and that the base branch has not diverged in a way the host cannot merge.",
-  ),
-  "enable-auto-merge": t(
+  "enable-auto-merge":
     "The host refused it. Check that auto-merge is enabled for this repository and that you have write access.",
-  ),
-  "disable-auto-merge": t(
-    "The host refused it. Check that you have write access to this repository.",
-  ),
-  revert: t(
-    "The host refused it. Check that you have write access and that this {kind} was merged on the host.",
-    { kind: term },
-  ),
-  "delete-branch": t(
+  "disable-auto-merge": "The host refused it. Check that you have write access to this repository.",
+  revert: `The host refused it. Check that you have write access and that this ${term} was merged on the host.`,
+  "delete-branch":
     "The host refused it. Check that you have write access to the source repository and that the branch has not moved since this page loaded.",
-  ),
-  "approve-workflows": t(
+  "approve-workflows":
     "The host refused it. Check that you have Actions write access and that these workflow runs are still awaiting approval.",
   ),
 });
@@ -154,7 +143,6 @@ export function usePullRequestActionRunner({
   /** Resolve repository settings on click to avoid per-row reads. */
   resolveMergeMethod?: (detail: PullRequestDetail) => PullRequestMergeMethod;
 }) {
-  const t = useT();
   const runAction = useAtomCommand(pullRequestEnvironment.runAction, {
     reportFailure: false,
   });
@@ -209,7 +197,6 @@ export function usePullRequestActionRunner({
 export function usePullRequestCloseBatch(
   onClosed: (entry: EnvironmentPullRequestEntry, reply: PullRequestSummary | undefined) => void,
 ) {
-  const t = useT();
   const runAction = useAtomCommand(pullRequestEnvironment.runAction, { reportFailure: false });
   const pending = useRef(new Set<string>());
   const [closingKeys, setClosingKeys] = useState<ReadonlySet<string>>(() => new Set());
@@ -296,7 +283,6 @@ export function usePullRequestHandoffs({
   environmentId: EnvironmentId;
   detail: PullRequestHandoffDetail | null;
 }) {
-  const t = useT();
   const newThread = useNewThreadHandler();
   const prepareThread = usePreparePullRequestThreadAction({
     environmentId,
@@ -337,25 +323,18 @@ export function usePullRequestHandoffs({
     if (opened === null) {
       toastManager.add({
         type: "error",
-        title: translate(getUiLocale(), "Could not open a thread"),
-        description: translate(
-          getUiLocale(),
-          "Try again from the project, or open a thread first.",
-        ),
+        title: "Could not open a thread",
+        description: "Try again from the project, or open a thread first.",
       });
       return;
     }
     toastManager.add({
       type: "success",
-      title: translate(getUiLocale(), "Asked in a thread"),
+      title: "Asked in a thread",
       description:
         task.prompt.length > 0
-          ? translate(getUiLocale(), "The question is in the composer. Read it over, then send.")
-          : translate(
-              getUiLocale(),
-              "The {kind} is in the composer. Type your question, then send.",
-              { kind: changeRequestTerm(terminology.singular, t) },
-            ),
+          ? "The question is in the composer. Read it over, then send."
+          : `The ${terminology.singular} is in the composer. Type your question, then send.`,
     });
   };
 
@@ -371,9 +350,7 @@ export function usePullRequestHandoffs({
     // Explicit timeouts survive toast updates and would pin the result after loading.
     const toastId = toastManager.add({
       type: "loading",
-      title: translate(getUiLocale(), "Preparing the {kind} checkout...", {
-        kind: changeRequestTerm(terminology.singular, t),
-      }),
+      title: `Preparing the ${terminology.singular} checkout...`,
       data: {
         onClose: () => {
           cancelled = true;
@@ -394,11 +371,8 @@ export function usePullRequestHandoffs({
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
-        title: translate(getUiLocale(), "Could not open a thread for the checkout"),
-        description: translate(
-          getUiLocale(),
-          "Try again from the project, or open a thread first.",
-        ),
+        title: "Could not open a thread for the checkout",
+        description: "Try again from the project, or open a thread first.",
       });
       return;
     }
@@ -415,9 +389,7 @@ export function usePullRequestHandoffs({
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
-        title: translate(getUiLocale(), "Could not prepare the {kind} checkout", {
-          kind: changeRequestTerm(terminology.singular, t),
-        }),
+        title: `Could not prepare the ${terminology.singular} checkout`,
         description: checkoutFailureDescription(
           isAtomCommandInterrupted(prepared) ? undefined : squashAtomCommandFailure(prepared),
         ),
@@ -440,12 +412,8 @@ export function usePullRequestHandoffs({
       setHandoff(null);
       toastManager.update(toastId, {
         type: "error",
-        title: translate(getUiLocale(), "Checked out, but the thread stayed where it was"),
-        description: translate(
-          getUiLocale(),
-          "The checkout is ready on `{branch}`. Point a thread at it from the branch picker, then ask again.",
-          { branch: prepared.value.branch },
-        ),
+        title: "Checked out, but the thread stayed where it was",
+        description: `The checkout is ready on \`${prepared.value.branch}\`. Point a thread at it from the branch picker, then ask again.`,
       });
       return;
     }
@@ -469,16 +437,8 @@ export function usePullRequestHandoffs({
                   : translate(getUiLocale(), "Checked out"),
               description:
                 mode === "local"
-                  ? translate(
-                      getUiLocale(),
-                      "This repository is on the {kind}'s branch, with a thread open on it.",
-                      { kind: changeRequestTerm(terminology.singular, t) },
-                    )
-                  : translate(
-                      getUiLocale(),
-                      "The {kind} is in its own worktree, with a thread open on it.",
-                      { kind: changeRequestTerm(terminology.singular, t) },
-                    ),
+                  ? `This repository is on the ${terminology.singular}'s branch, with a thread open on it.`
+                  : `The ${terminology.singular} is in its own worktree, with a thread open on it.`,
             }
           : offHeadPullRequestCheckoutToast(terminology),
       );
@@ -492,11 +452,8 @@ export function usePullRequestHandoffs({
       prepared.value.isOnPullRequestHead
         ? {
             type: "success",
-            title: translate(getUiLocale(), "Checkout ready"),
-            description: translate(
-              getUiLocale(),
-              "The task is in the composer. Read it over, then send.",
-            ),
+            title: "Checkout ready",
+            description: "The task is in the composer. Read it over, then send.",
           }
         : offHeadPullRequestCheckoutToast(terminology),
     );

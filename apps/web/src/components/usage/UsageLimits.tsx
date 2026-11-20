@@ -60,7 +60,6 @@ export function barColor(driver: ServerProvider["driver"]): string {
 }
 
 export function PaceIcon({ pace }: { readonly pace: LimitPace }) {
-  const t = useT();
   const Icon = PACE[pace].icon;
   return (
     <Tooltip>
@@ -68,7 +67,7 @@ export function PaceIcon({ pace }: { readonly pace: LimitPace }) {
         render={
           <span
             role="img"
-            aria-label={t(PACE[pace].label)}
+            aria-label={PACE[pace].label}
             className="inline-flex text-muted-foreground"
           />
         }
@@ -127,7 +126,6 @@ function WindowBar({
   readonly window: ServerProviderUsageWindow;
   readonly now: number;
 }) {
-  const t = useT();
   const timestampFormat = usePrimarySettings((settings) => settings.timestampFormat);
   const remaining = remainingPercent(window);
   const timeLeft = paceRemainingPercent(window, now);
@@ -136,9 +134,9 @@ function WindowBar({
   const resetsAt = window.resetsAt
     ? formatUpcomingTimestamp(window.resetsAt, timestampFormat, now)
     : null;
-  const summary = `${usageWindowLabel(window.label, t)}: ${t("{remaining}% left", { remaining })}${
-    timeLeft === null ? "" : t(", {timeLeft}% of the window left", { timeLeft })
-  }${resetsIn ? `${t(", ")}${resetsIn}` : ""}`;
+  const summary = `${window.label}: ${remaining}% left${
+    timeLeft === null ? "" : `, ${timeLeft}% of the window left`
+  }${resetsIn ? `, ${resetsIn}` : ""}`;
 
   return (
     <Tooltip>
@@ -174,8 +172,7 @@ function WindowBar({
       <TooltipPopup side="top">
         <div className="flex flex-col gap-0.5">
           <span className="text-foreground">
-            {t("{remaining}% left", { remaining })}
-            {timeLeft !== null ? t(" · {timeLeft}% of the window left", { timeLeft }) : ""}
+            {remaining}% left{timeLeft !== null ? ` · ${timeLeft}% of the window left` : ""}
           </span>
           {timeLeft !== null ? (
             <span className="text-muted-foreground">
@@ -184,7 +181,7 @@ function WindowBar({
           ) : null}
           {resetsAt ? (
             <span className="text-muted-foreground">
-              {t("Resets {resetsAt}", { resetsAt })}
+              Resets {resetsAt}
               {resetsIn ? ` · ${resetsIn}` : ""}
             </span>
           ) : null}
@@ -207,7 +204,6 @@ export function LimitWindows({
   readonly now: number;
   readonly compact?: boolean;
 }) {
-  const t = useT();
   const color = normalizeProviderAccentColor(accentColor) ?? barColor(driver);
   return (
     <div
@@ -227,7 +223,7 @@ export function LimitWindows({
                 {usageWindowLabel(window.label, t)}
               </span>
               <span className="ms-auto shrink-0 font-medium text-foreground tabular-nums">
-                {t("{remainingPercent}% left", { remainingPercent: remainingPercent(window) })}
+                {remainingPercent(window)}% left
               </span>
             </span>
             <WindowBar color={color} window={window} now={now} />
@@ -300,18 +296,17 @@ export function ResetCreditDialog({
   readonly onConfirm: () => void;
   readonly disabled?: boolean;
 }) {
-  const t = useT();
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogPopup>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t("Use a reset credit?")}</AlertDialogTitle>
+          <AlertDialogTitle>Use a reset credit?</AlertDialogTitle>
           <AlertDialogDescription>{choice?.confirmDescription}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" />}>{t("Cancel")}</AlertDialogClose>
+          <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
           <Button disabled={disabled} onClick={onConfirm}>
-            {t("Use credit")}
+            Use credit
           </Button>
         </AlertDialogFooter>
       </AlertDialogPopup>
@@ -330,7 +325,6 @@ export function ResetCredits({
   readonly credits: ServerProviderResetCredits;
   readonly now: number;
 }) {
-  const t = useT();
   const { canManageProviders, choice, confirming, setConfirming, confirm, busy, status, redeem } =
     useResetCredit(environmentId);
   if (credits.availableCount === 0 && status === null) return null;
@@ -346,7 +340,7 @@ export function ResetCredits({
               disabled={busy || !canManageProviders}
               onClick={() => confirm(choice)}
             >
-              {busy ? t("Using…") : choice.actionLabel}
+              {busy ? "Using…" : choice.actionLabel}
             </Button>
           ) : null}
         </div>

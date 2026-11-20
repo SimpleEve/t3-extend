@@ -9,5 +9,5 @@ export function resolveAgentAwarenessPlatformPresentation(
 } {
   return platform === "ios" || platform === "android"
     ? { supported: true, subtitle: undefined }
-    : { supported: false, subtitle: t("Unavailable on this platform") };
+    : { supported: false, subtitle: "Unavailable on this platform" };
 }

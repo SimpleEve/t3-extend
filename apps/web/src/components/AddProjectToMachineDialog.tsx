@@ -56,7 +56,6 @@ import { Label } from "./ui/label";
 import { MiddleTruncate } from "./ui/middle-truncate";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "./ui/select";
 import { Toggle, ToggleGroup } from "./ui/toggle-group";
-import { useT } from "../hooks/useT";
 
 interface AddProjectToMachineRequest {
   readonly projectRef: ScopedProjectRef;
@@ -95,7 +94,6 @@ export function AddProjectToMachineDialogHost() {
 }
 
 function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRequest }) {
-  const t = useT();
   const id = useId();
   const project = useProject(request.projectRef);
   const handleNewThread = useNewThreadHandler();
@@ -256,11 +254,10 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
           }}
         >
           <DialogHeader>
-            <DialogTitle>{t("Add to another machine")}</DialogTitle>
+            <DialogTitle>Add to another machine</DialogTitle>
             <DialogDescription>
-              {t("Clone {value} and bring the local files git does not track.", {
-                value: project?.repositoryIdentity?.displayName ?? project?.title ?? "",
-              })}
+              Clone {project?.repositoryIdentity?.displayName ?? project?.title} and bring the local
+              files git does not track.
             </DialogDescription>
           </DialogHeader>
           <DialogPanel>
@@ -271,7 +268,7 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                     kind={resolveEnvironmentMachineKind(source?.serverConfig ?? null)}
                     className="size-3.5 shrink-0"
                   />
-                  <span className="truncate">{source?.label ?? t("This machine")}</span>
+                  <span className="truncate">{source?.label ?? "This machine"}</span>
                 </span>
                 <span className="flex min-w-0 font-mono text-muted-foreground text-xs">
                   <MiddleTruncate value={project?.workspaceRoot ?? ""} />
@@ -300,7 +297,7 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                     }}
                     items={targets.map((t) => ({ value: t.environmentId, label: t.label }))}
                   >
-                    <SelectTrigger size="sm" aria-label={t("Machine to add the project to")}>
+                    <SelectTrigger size="sm" aria-label="Machine to add the project to">
                       {target ? (
                         <EnvironmentMachineIcon kind={target.machine} className="size-3.5" />
                       ) : null}
@@ -322,7 +319,7 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                     {target ? (
                       <EnvironmentMachineIcon kind={target.machine} className="size-3.5 shrink-0" />
                     ) : null}
-                    <span className="truncate">{target?.label ?? t("No machine available")}</span>
+                    <span className="truncate">{target?.label ?? "No machine available"}</span>
                   </span>
                 )}
                 <span className="flex min-w-0 font-mono text-muted-foreground text-xs">
@@ -332,10 +329,10 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label>{t("Clone over")}</Label>
+              <Label>Clone over</Label>
               {sshUrl && httpsUrl ? (
                 <ToggleGroup
-                  aria-label={t("Clone protocol")}
+                  aria-label="Clone protocol"
                   value={protocol ? [protocol] : []}
                   onValueChange={(next) => {
                     const value = next[0];
@@ -367,18 +364,15 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
             {canListFiles ? (
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2">
-                  <Label className="flex-1">{t("Copy ignored files")}</Label>
+                  <Label className="flex-1">Copy ignored files</Label>
                   {copyable.length > 0 ? (
                     <>
                       <span className="text-muted-foreground text-xs">
-                        {t("{selected} of {total}", {
-                          selected: selectedFiles.size,
-                          total: allIgnoredFiles.data?.files.length ?? 0,
-                        })}
+                        {selectedFiles.size} of {allIgnoredFiles.data?.files.length ?? 0}
                         {selectedBytes > 0 ? ` · ${formatBytes(selectedBytes)}` : ""}
                       </span>
                       <Button type="button" variant="ghost" size="xs" onClick={toggleShownFiles}>
-                        {allCopyableSelected ? t("None") : t("All")}
+                        {allCopyableSelected ? "None" : "All"}
                       </Button>
                     </>
                   ) : null}
@@ -387,8 +381,8 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                   <Input
                     size="sm"
                     type="search"
-                    aria-label={t("Search ignored files")}
-                    placeholder={t("Search ignored files")}
+                    aria-label="Search ignored files"
+                    placeholder="Search ignored files"
                     value={fileQuery}
                     maxLength={256}
                     onChange={(event) => setFileQuery(event.target.value)}
@@ -405,10 +399,10 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                 ) : files.length === 0 ? (
                   <p className="text-muted-foreground text-xs">
                     {!ignoredFiles.isSuccess
-                      ? t("Finding ignored files…")
+                      ? "Finding ignored files…"
                       : searching
-                        ? t("No ignored files match.")
-                        : t("No ignored files to copy.")}
+                        ? "No ignored files match."
+                        : "No ignored files to copy."}
                   </p>
                 ) : (
                   <div className="max-h-52 overflow-y-auto rounded-md border">
@@ -425,14 +419,13 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
                 )}
                 {ignoredFiles.data?.truncated ? (
                   <p className="text-muted-foreground text-xs">
-                    {t("Showing the first {length} files.", { length: files.length })}
-                    {canSearchFiles ? ` ${t("Search to find the rest.")}` : ""}
+                    Showing the first {files.length} files.
+                    {canSearchFiles ? " Search to find the rest." : ""}
                   </p>
                 ) : null}
                 <p className="text-muted-foreground text-xs">
-                  {t(
-                    "Files are copied after the clone finishes. Folders git ignores whole, like node_modules, are left out.",
-                  )}
+                  Files are copied after the clone finishes. Folders git ignores whole, like
+                  node_modules, are left out.
                 </p>
               </div>
             ) : null}
@@ -441,12 +434,10 @@ function AddProjectToMachineDialog({ request }: { request: AddProjectToMachineRe
           </DialogPanel>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={close}>
-              {t("Cancel")}
+              Cancel
             </Button>
             <Button type="submit" disabled={unavailable || submitting}>
-              {submitting
-                ? t("Starting…")
-                : t("Clone to {label}", { label: target?.label ?? t("machine") })}
+              {submitting ? "Starting…" : `Clone to ${target?.label ?? "machine"}`}
             </Button>
           </DialogFooter>
         </form>
@@ -491,7 +482,6 @@ function IgnoredFileRow({
   disabled: boolean;
   onCheckedChange: (checked: boolean) => void;
 }) {
-  const t = useT();
   const tooLarge = file.byteLength > COPYABLE_FILE_MAX_BYTES;
   return (
     <label className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-sm not-last:border-b has-disabled:cursor-not-allowed has-disabled:opacity-64">
@@ -502,7 +492,7 @@ function IgnoredFileRow({
       />
       <span className="min-w-0 flex-1 truncate font-mono text-xs">{file.path}</span>
       <span className="shrink-0 text-muted-foreground text-xs tabular-nums">
-        {tooLarge ? t("Over 1 MB") : formatBytes(file.byteLength)}
+        {tooLarge ? "Over 1 MB" : formatBytes(file.byteLength)}
       </span>
     </label>
   );

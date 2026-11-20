@@ -38,8 +38,6 @@ import {
   applySnoozePickerTime,
   snoozeDateToPickerDate,
 } from "./customSnoozeDate";
-import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
-import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 
 type Props = {
   readonly onClose: () => void;
@@ -63,8 +61,6 @@ function systemUses24HourClock() {
 }
 
 export function CustomSnoozeSheet(props: Props) {
-  const t = useT();
-  const locale = useUiLocale(); // fork: i18n
   const { themeAppearance, themeVariables: colors } = useAppearancePreferences();
   const [is24Hour, setIs24Hour] = useState(systemUses24HourClock);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to AppState to re-read the native 24-hour clock setting when the app resumes
@@ -150,11 +146,11 @@ export function CustomSnoozeSheet(props: Props) {
                 verticalArrangement={{ spacedBy: 16 }}
                 modifiers={[fillMaxWidth(), padding(24, 24, 24, 16)]}
               >
-                <Text style={titleTypography}>{t("Custom snooze")}</Text>
+                <Text style={titleTypography}>Custom snooze</Text>
                 <RNHostView matchContents={{ vertical: true }} modifiers={[fillMaxWidth()]}>
                   <SegmentedControl
                     variant="card"
-                    options={modes.map((option) => ({ ...option, label: t(option.label) }))}
+                    options={modes}
                     selected={mode}
                     onSelect={(value) => {
                       setMode(value);
@@ -249,7 +245,7 @@ export function CustomSnoozeSheet(props: Props) {
                   <RNHostView matchContents={{ vertical: true }} modifiers={[fillMaxWidth()]}>
                     <SegmentedControl
                       variant="card"
-                      options={units.map((option) => ({ ...option, label: t(option.label) }))}
+                      options={units}
                       selected={unit}
                       onSelect={setUnit}
                     />
@@ -270,13 +266,13 @@ export function CustomSnoozeSheet(props: Props) {
                     onClick={props.onClose}
                     colors={{ contentColor: colors["--color-foreground"] }}
                   >
-                    <Text style={bodyTypography}>{t("Cancel")}</Text>
+                    <Text style={bodyTypography}>Cancel</Text>
                   </TextButton>
                   <TextButton
                     onClick={submit}
                     colors={{ contentColor: colors["--color-foreground"] }}
                   >
-                    <Text style={bodyTypography}>{t("Snooze")}</Text>
+                    <Text style={bodyTypography}>Snooze</Text>
                   </TextButton>
                 </Row>
               </Column>

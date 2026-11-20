@@ -15,7 +15,6 @@ import { readEnvironment } from "../state/environments";
 import { projectEnvironment } from "../state/projects";
 import { readEnvironmentScope, useEnvironmentsWithScope } from "../state/session";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export type ProjectGroupUpdate = Partial<{
   title: string;

@@ -19,11 +19,8 @@ import { useState } from "react";
 import { NativeThemeHost } from "./NativeThemeHost";
 import { useControlTheme } from "./useControlTheme";
 import type { NumberFieldProps } from "./NumberField.types";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
 
 export function NumberField(props: NumberFieldProps) {
-  const t = useT(); // fork: i18n
   const { colors, fontSize } = useControlTheme();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(props.value);
@@ -83,7 +80,7 @@ export function NumberField(props: NumberFieldProps) {
             </Picker>
             <HStack>
               <Button
-                label={t("Cancel")}
+                label="Cancel"
                 systemImage="xmark"
                 onPress={() => setOpen(false)}
                 modifiers={[
@@ -95,7 +92,7 @@ export function NumberField(props: NumberFieldProps) {
               />
               <Spacer />
               <Button
-                label={t("Done")}
+                label="Done"
                 systemImage="checkmark"
                 onPress={() => {
                   setOpen(false);

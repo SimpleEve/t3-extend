@@ -14,8 +14,6 @@ import {
 
 import { RelativeTime } from "~/components/RelativeTime";
 import { pullRequestEnvironment, useSharedPullRequestSummary } from "~/state/pullRequests";
-import { useT } from "~/hooks/useT"; // fork: i18n
-import { interpolateNodes } from "~/lib/interpolateNodes"; // fork: i18n
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { useEnvironmentQuery } from "~/state/query";
 
@@ -54,7 +52,6 @@ export function PullRequestLinkPreview({
   onOpenFallback?: (url: string) => Promise<void>;
   fallback?: ReactNode;
 }) {
-  const t = useT(); // fork: i18n
   const [open, setOpen] = useState(false);
   const previewActionsRef = useRef<PreviewCardPrimitive.Root.Actions | null>(null);
   const [resolvingClick, setResolvingClick] = useState(false);
@@ -155,7 +152,7 @@ export function PullRequestLinkPreview({
                   {state === null ? null : (
                     <span className="inline-flex shrink-0 items-center gap-1">
                       <state.Icon aria-hidden className={`size-3 ${state.toneClassName}`} />
-                      {t(state.label, undefined, "pull request state")}
+                      {state.label}
                     </span>
                   )}
                 </div>
@@ -202,7 +199,6 @@ function LinkedComment({
 }: {
   subject: Extract<ReturnType<typeof pullRequestLinkSubject>, { kind: "comment" }>;
 }) {
-  const t = useT();
   const outcome = pullRequestReviewOutcome(subject.reviewState);
   return (
     <div className="mt-2 min-w-0">
@@ -212,7 +208,7 @@ function LinkedComment({
           {actorLabel(subject.author)}
         </span>
         {outcome === null ? (
-          <span className="shrink-0">{t("commented")}</span>
+          <span className="shrink-0">commented</span>
         ) : (
           <PullRequestReviewOutcomeBadge outcome={outcome} className="shrink-0" />
         )}

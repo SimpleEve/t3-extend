@@ -31,7 +31,6 @@ import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { tryOpenExternalUrl } from "../../lib/openExternalUrl";
 import { Button } from "../../components/ui/Button";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { Chip } from "../../components/ui/Chip";
 
 const LOCK_SYMBOL: AppSymbolName = { ios: "lock", android: "lock" };
@@ -75,7 +74,6 @@ function PendingSecretRequestForm(props: {
   readonly item: SecretRequestItem;
   readonly iconColor: ColorValue;
 }) {
-  const t = useT();
   const { item } = props;
   const answer = useAtomCommand(serverEnvironment.answerSecretRequest, {
     label: "answer secret request",
@@ -138,7 +136,7 @@ function PendingSecretRequestForm(props: {
       {link !== null ? (
         <View className="gap-1.5">
           <Button
-            label={t("Open {name}", { name: link.host })}
+            label={`Open ${link.host}`}
             tone="secondary"
             fullWidth
             onPress={() => void tryOpenExternalUrl(link.href, "secret-request")}
@@ -154,7 +152,7 @@ function PendingSecretRequestForm(props: {
       {sources.length > 0 ? (
         <View className="flex-row flex-wrap gap-2">
           <Chip
-            label={t("Value")}
+            label="Value"
             size="small"
             selected={source === null}
             disabled={submitting}
@@ -190,10 +188,7 @@ function PendingSecretRequestForm(props: {
       ) : (
         <TextInput
           key={source.id}
-          accessibilityLabel={t("{label} reference in {label2}", {
-            label: item.label,
-            label2: source.label,
-          })}
+          accessibilityLabel={`${item.label} reference in ${source.label}`}
           placeholder={source.referencePlaceholder}
           value={reference}
           onChangeText={(next) => {
@@ -221,7 +216,7 @@ function PendingSecretRequestForm(props: {
         </Text>
       ) : null}
       <Button
-        label={t("Save securely")}
+        label="Save securely"
         tone="primary"
         fullWidth
         disabled={submitting || draft.trim().length === 0}
@@ -240,7 +235,7 @@ function PendingSecretRequestForm(props: {
           </Text>
         </View>
         <Button
-          label={t("Decline")}
+          label="Decline"
           tone="text"
           disabled={submitting}
           onPress={() => void send({ type: "decline" })}

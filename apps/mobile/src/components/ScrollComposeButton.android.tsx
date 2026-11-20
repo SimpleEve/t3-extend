@@ -12,7 +12,6 @@ import { I18nManager, Pressable, View, type StyleProp, type ViewStyle } from "re
 import { useAndroidControlSizing } from "./ui/useAndroidControlSizing";
 import { useAppearancePreferences } from "../features/settings/appearance/AppearancePreferencesProvider";
 import { resolveScaledTextRole } from "../lib/appearancePreferences";
-import { useT, useUiLocale } from "../hooks/useT"; // fork: i18n
 
 /** Keep the animated width and icon positioning entirely inside Compose, not Yoga. */
 export function ScrollComposeButton(props: {
@@ -22,7 +21,6 @@ export function ScrollComposeButton(props: {
   readonly className?: string;
   readonly style?: StyleProp<ViewStyle>;
 }) {
-  const t = useT(); // fork: i18n
   const { appearance, themeVariables: colors } = useAppearancePreferences();
   const locale = useUiLocale(); // fork: Chinese text sizes
   const typography = resolveScaledTextRole("footnote", appearance.baseFontSize, locale);
@@ -82,7 +80,7 @@ export function ScrollComposeButton(props: {
                     fontWeight: "500",
                   }}
                 >
-                  {t("New thread")}
+                  New thread
                 </Text>
               </ExtendedFloatingActionButton.Text>
             </ExtendedFloatingActionButton>
@@ -93,7 +91,7 @@ export function ScrollComposeButton(props: {
       <Pressable
         onPress={props.onPress}
         accessibilityRole="button"
-        accessibilityLabel={t("New thread")}
+        accessibilityLabel="New thread"
         android_ripple={{ foreground: true }}
         style={{
           position: "absolute",

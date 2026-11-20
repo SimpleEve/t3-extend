@@ -1,5 +1,4 @@
 import { WizardSteps } from "../ui/wizard";
-import { useT } from "../../hooks/useT"; // fork: interface language
 import {
   ADD_PROVIDER_WIZARD_STEPS,
   resolveWizardNavigation,
@@ -30,10 +29,9 @@ export function AddProviderInstanceWizardSteps({
   onNavigation,
   disabled = false,
 }: AddProviderInstanceWizardStepsProps) {
-  const t = useT(); // fork: interface language
   return (
     <WizardSteps
-      steps={steps.map((step) => t(step))}
+      steps={steps}
       currentStep={currentStep}
       summaries={summaries}
       isStepDisabled={() => disabled}

@@ -1,7 +1,5 @@
 import type { UsageProviderKind, UsageSummary } from "@t3tools/contracts";
 
-import { translatorFor, type Translator } from "../i18n/store.ts"; // fork: i18n
-
 interface UsageProgressEnvironment {
   readonly label: string;
   readonly isConnected: boolean;
@@ -32,11 +30,10 @@ export function usageEnvironmentProgress(
 export function updatingProvidersLabel(
   providers: readonly UsageProviderKind[],
   providerLabel: (provider: UsageProviderKind) => string,
-  t: Translator = translatorFor("en"), // fork: interface language, English when omitted
 ) {
   return providers.length === 1
-    ? t("Updating {provider}…", { provider: providerLabel(providers[0]!) })
-    : t("Updating {count} providers…", { count: providers.length });
+    ? `Updating ${providerLabel(providers[0]!)}…`
+    : `Updating ${providers.length} providers…`;
 }
 
 export function usageProgress(
@@ -44,11 +41,9 @@ export function usageProgress(
   {
     refreshing = false,
     providerLabel,
-    t = translatorFor("en"), // fork: interface language, English when omitted
   }: {
     readonly refreshing?: boolean;
     readonly providerLabel: (provider: UsageProviderKind) => string;
-    readonly t?: Translator;
   },
 ) {
   const progress = environments.map((environment) => ({
@@ -68,10 +63,10 @@ export function usageProgress(
           ? null
           : updatingProvidersLabel(providers, providerLabel, t)
         : environments.length === 1
-          ? t("Updating…")
+          ? "Updating…"
           : waiting.length === 1
-            ? t("Updating {environment}…", { environment: waiting[0]!.label })
-            : t("Updating {count} environments…", { count: waiting.length }),
+            ? `Updating ${waiting[0]!.label}…`
+            : `Updating ${waiting.length} environments…`,
   };
 }
 

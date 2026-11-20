@@ -2,9 +2,6 @@ import { sanitizeNewRefName } from "@t3tools/shared/git";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { resolveSendEnvMode } from "@t3tools/shared/projectSettings";
 import type { ComposerDraftWorkspaceSelection } from "../../state/use-composer-drafts";
-import { interpolate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-
-const untranslated: Translator = (source, params) => interpolate(source, params); // fork: i18n
 
 type WorkspaceMode = "local" | "worktree";
 
@@ -80,9 +77,7 @@ export function resolveNewTaskBranchLabel(input: {
   readonly startFromOrigin: boolean;
   readonly workspaceMode: WorkspaceMode;
   readonly pullRequestReference?: string;
-  readonly t?: Translator; // fork: interface language, English when omitted
 }): string {
-  const t = input.t ?? untranslated; // fork: i18n
   if (input.workspaceMode === "worktree" && input.pullRequestReference) {
     const parsed = sourceControlClients.parseChangeRequestUrl(input.pullRequestReference);
     if (parsed) {
@@ -92,7 +87,7 @@ export function resolveNewTaskBranchLabel(input: {
     }
   }
   if (!input.branchName) {
-    return t("Choose branch");
+    return "Choose branch";
   }
 
   if (input.workspaceMode === "local") {

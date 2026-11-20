@@ -19,8 +19,6 @@ import {
 import { Button } from "./ui/button";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
-import { useT } from "~/hooks/useT";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 // `refreshModels` always drops the server's hour-long latest-version cache. `modelCatalogOnly`
 // drops it only when the model manifest changed.
@@ -107,7 +105,7 @@ export function useProviderUpdates() {
         })),
       ),
     );
-    const view = quiet ? null : getProviderUpdateRunToastView(runs, translatorFor(getUiLocale())); // fork: i18n
+    const view = quiet ? null : getProviderUpdateRunToastView(runs);
     if (view) {
       toastManager.add(
         stackedThreadToast({
@@ -123,7 +121,6 @@ export function useProviderUpdates() {
 }
 
 export function ProviderUpdatesAction() {
-  const t = useT();
   const { machines, updateAll } = useProviderUpdates();
   const pending = useRef(false);
   const [isPending, setIsPending] = useState(false);
@@ -150,7 +147,7 @@ export function ProviderUpdatesAction() {
             disabled={isPending}
             onClick={() => void handleUpdate()}
           >
-            {isPending ? t("Updating…") : t("Update all")}
+            {isPending ? "Updating…" : "Update all"}
           </Button>
         }
       />

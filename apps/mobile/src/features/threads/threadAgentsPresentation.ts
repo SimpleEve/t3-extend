@@ -17,7 +17,6 @@ import type {
   ThreadId,
 } from "@t3tools/contracts";
 import { resolveSelectableModel } from "@t3tools/shared/model";
-import { Translator } from "@t3tools/client-runtime/i18n"; // fork: restored import
 
 const PROMPT_TITLE_LIMIT = 80;
 
@@ -60,7 +59,7 @@ function rowTitle(
   const title = subagent.title?.trim();
   if (title) return formatSubagentDisplayTitle(title);
   const prompt = subagent.prompt.trim();
-  if (prompt.length === 0) return t("Subagent");
+  if (prompt.length === 0) return "Subagent";
   return prompt.length > PROMPT_TITLE_LIMIT
     ? `${prompt.slice(0, PROMPT_TITLE_LIMIT - 3)}...`
     : prompt;
@@ -73,23 +72,23 @@ function rowTone(status: OrchestrationV2Subagent["status"]): SubagentRowTone {
   return "stopped";
 }
 
-function rowStatusLabel(status: OrchestrationV2Subagent["status"], t: Translator): string {
+function rowStatusLabel(status: OrchestrationV2Subagent["status"]): string {
   switch (status) {
     case "pending":
     case "running":
-      return t("Working");
+      return "Working";
     case "waiting":
-      return t("Waiting");
+      return "Waiting";
     case "idle":
-      return t("Idle");
+      return "Idle";
     case "completed":
-      return t("Completed");
+      return "Completed";
     case "failed":
-      return t("Failed");
+      return "Failed";
     case "cancelled":
-      return t("Cancelled");
+      return "Cancelled";
     case "interrupted":
-      return t("Interrupted");
+      return "Interrupted";
   }
 }
 
@@ -98,7 +97,6 @@ export function resolveSubagentRowPresentation(
     OrchestrationV2Subagent,
     "title" | "prompt" | "status" | "progress" | "result" | "childThreadId" | "remoteChild"
   >,
-  t: Translator, // fork: i18n
   canOpenRemote = false,
 ): SubagentRowPresentation {
   const live = isActiveSubagentStatus(subagent.status);
@@ -145,7 +143,7 @@ export function workflowRail(
   if (group.unphasedMembers.length > 0) {
     items.push({
       key: "unphased",
-      title: items.length === 0 ? t("Agents") : t("Other"),
+      title: items.length === 0 ? "Agents" : "Other",
       members: group.unphasedMembers,
     });
   }

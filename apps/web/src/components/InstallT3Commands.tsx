@@ -1,8 +1,6 @@
 import { cn } from "~/lib/utils";
 
 import { CommandBlock } from "./CommandBlock";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { interpolateNodes } from "~/lib/interpolateNodes";
 
 /**
  * Setup steps for another computer: install `t3`, then run `command`. Both installers are shown
@@ -15,14 +13,13 @@ export function InstallT3Commands({
   readonly command: string;
   readonly className?: string;
 }) {
-  const t = useT();
   return (
     <div className={cn("space-y-2", className)}>
-      <p className="text-xs text-muted-foreground">{t("macOS, Linux")}</p>
+      <p className="text-xs text-muted-foreground">macOS, Linux</p>
       <CommandBlock command="curl -fsSL https://t3.codes/install.sh | sh" />
-      <p className="text-xs text-muted-foreground">{t("Windows (PowerShell)")}</p>
+      <p className="text-xs text-muted-foreground">Windows (PowerShell)</p>
       <CommandBlock command="irm https://t3.codes/install.ps1 | iex" />
-      <p className="text-xs text-muted-foreground">{t("Then")}</p>
+      <p className="text-xs text-muted-foreground">Then</p>
       <CommandBlock command={command} />
       <p className="text-xs text-muted-foreground">
         {interpolateNodes(

@@ -1,7 +1,4 @@
 import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
-import { interpolate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-
-const untranslated: Translator = (source, params) => interpolate(source, params); // fork: i18n
 
 export interface FloatingStatusAction {
   readonly label: string;
@@ -37,16 +34,14 @@ export function connectionRetryLabel(input: {
   readonly connectionError: string | null;
   readonly connectionState: EnvironmentConnectionPhase;
   readonly connectionAwaitingApproval?: boolean;
-  readonly t?: Translator; // fork: interface language, English when omitted
 }): string | null {
-  const t = input.t ?? untranslated; // fork: i18n
   if (input.connectionState === "reconnecting" && input.connectionAwaitingApproval) {
-    return t("Awaiting device approval");
+    return "Awaiting device approval";
   }
   if (input.connectionState !== "connecting" && input.connectionState !== "reconnecting") {
     return null;
   }
-  return input.connectionError === null ? t("Reconnecting…") : t("Retrying connection…");
+  return input.connectionError === null ? "Reconnecting…" : "Retrying connection…";
 }
 
 export function connectionFloatingStatus(input: {
@@ -54,10 +49,8 @@ export function connectionFloatingStatus(input: {
   readonly connectionState: EnvironmentConnectionPhase;
   readonly environmentLabel: string | null;
   readonly onReconnect: () => void;
-  readonly t?: Translator; // fork: interface language, English when omitted
 }): FloatingWorkingStatus | null {
-  const t = input.t ?? untranslated; // fork: i18n
-  const environmentLabel = input.environmentLabel ?? t("Environment");
+  const environmentLabel = input.environmentLabel ?? "Environment";
   const unavailable = (label: string): FloatingWorkingStatus => ({
     kind: "connection",
     label,
@@ -66,20 +59,17 @@ export function connectionFloatingStatus(input: {
 
   switch (input.connectionState) {
     case "offline":
-      return unavailable(t("You are offline"));
+      return unavailable("You are offline");
     case "unsupported":
-      return unavailable(t("Client not supported"));
+      return unavailable("Client not supported");
     case "error":
       return unavailable(
         input.connectionError
-          ? t("Failed to connect to {name}: {error}", {
-              name: environmentLabel,
-              error: input.connectionError,
-            })
-          : t("Failed to connect to {name}", { name: environmentLabel }),
+          ? `Failed to connect to ${environmentLabel}: ${input.connectionError}`
+          : `Failed to connect to ${environmentLabel}`,
       );
     case "available":
-      return unavailable(t("{name} is not connected", { name: environmentLabel }));
+      return unavailable(`${environmentLabel} is not connected`);
     case "connecting":
     case "reconnecting":
     case "connected":

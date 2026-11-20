@@ -2,7 +2,6 @@ import {
   deriveAvailableInstanceId,
   deriveInstanceId,
 } from "@t3tools/client-runtime/provider-instance-ids";
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import {
   defaultInstanceIdForDriver,
   isManagedSettingPath,
@@ -38,15 +37,13 @@ export function planClaudeAccountSave(input: {
   readonly policy: ManagedPolicySummary | undefined;
   readonly instanceId: ProviderInstanceId | null;
   readonly draft: ClaudeAccountDraft;
-  readonly t?: Translator;
 }): { readonly mutation: ProviderInstanceMutation } | { readonly error: string } {
-  const t = input.t ?? translatorFor("en");
   const name = input.draft.name.trim();
   const configDir = input.draft.configDir.trim();
   const adding = input.instanceId === null;
-  if (adding && name.length === 0) return { error: t("Enter a name for this account.") };
+  if (adding && name.length === 0) return { error: "Enter a name for this account." };
   if (adding && configDir.length === 0) {
-    return { error: t("Enter the Claude config folder this account is signed in with.") };
+    return { error: "Enter the Claude config folder this account is signed in with." };
   }
   const instanceId =
     input.instanceId ??
@@ -58,7 +55,7 @@ export function planClaudeAccountSave(input: {
       ),
     );
   if (input.policy && isManagedSettingPath(input.policy, `providerInstances.${instanceId}`)) {
-    return { error: t("Managed by {organization}.", { organization: input.policy.organization }) };
+    return { error: `Managed by ${input.policy.organization}.` };
   }
   const current: ProviderInstanceConfig = Object.hasOwn(input.providerInstances, instanceId)
     ? input.providerInstances[instanceId]!

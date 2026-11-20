@@ -15,7 +15,6 @@ import { serverEnvironment } from "./server";
 import { environmentThreadShells } from "./threads";
 import { useEnvironmentQuery } from "./query";
 import { ThreadPrDemandContext } from "./thread-pr-demand";
-import { useT } from "../hooks/useT"; // fork: i18n
 import {
   knownPullRequestSummary,
   rememberBounded,
@@ -80,7 +79,6 @@ export function withKnownPullRequestSummary<
 
 export function useThreadPr(thread: EnvironmentThreadShell): ThreadPrPresentation | null {
   const demand = use(ThreadPrDemandContext);
-  const t = useT(); // fork: i18n
   const supportsLinks = useAtomValue(
     serverEnvironment.configValueAtom(thread.environmentId),
     (config) => config !== null,

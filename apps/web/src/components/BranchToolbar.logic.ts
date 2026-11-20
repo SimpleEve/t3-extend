@@ -7,7 +7,6 @@ import type {
 } from "@t3tools/contracts";
 import type { ThreadStructureRuntime } from "@t3tools/client-runtime/state/shell";
 import * as Schema from "effect/Schema";
-import { interpolate, type Translator } from "@t3tools/client-runtime/i18n";
 import { sanitizeNewRefName } from "@t3tools/shared/git";
 import { workspaceRelativeFilePath } from "@t3tools/shared/path";
 import { toSortableTimestamp } from "@t3tools/client-runtime/state/thread-sort";
@@ -264,13 +263,13 @@ export function resolveBranchTriggerLabel(
     startFromOrigin,
   } = input;
   if (!resolvedActiveBranch) {
-    return t("Select ref");
+    return "Select ref";
   }
   if (effectiveEnvMode === "worktree" && !activeWorktreePath) {
     // Only the server can determine a local branch's configured remote.
     return startFromOrigin && resolvedActiveBranchIsRemote === false
-      ? t("From {branch} (remote)", { branch: resolvedActiveBranch })
-      : t("From {branch}", { branch: resolvedActiveBranch });
+      ? `From ${resolvedActiveBranch} (remote)`
+      : `From ${resolvedActiveBranch}`;
   }
   return resolvedActiveBranch;
 }

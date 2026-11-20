@@ -35,7 +35,6 @@ import {
 } from "../ui/alert-dialog";
 import { Button } from "../ui/button";
 import { stackedThreadToast, toastManager } from "../ui/toast";
-import { useT } from "../../hooks/useT";
 
 /** Moves this app and every connected machine to `channel`. */
 export function UpdateTrackSwitchDialog({
@@ -45,7 +44,6 @@ export function UpdateTrackSwitchDialog({
   readonly channel: DesktopUpdateChannel;
   readonly onClose: () => void;
 }) {
-  const t = useT();
   // npm dist-tags match the desktop channel names.
   const release = useAtomValue(npmReleaseAtom(channel));
   if (AsyncResult.isSuccess(release) && release.value !== null) {
@@ -56,20 +54,17 @@ export function UpdateTrackSwitchDialog({
     <AlertDialog open onOpenChange={(open) => !open && onClose()}>
       <AlertDialogPopup>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t("Switch to {label}", { label })}</AlertDialogTitle>
+          <AlertDialogTitle>Switch to {label}</AlertDialogTitle>
           <AlertDialogDescription>
             {AsyncResult.isFailure(release)
               ? npmReleaseFailureMessage(release.cause)
               : AsyncResult.isSuccess(release)
-                ? t(
-                    "Could not find the latest {label} release in this environment's npm registry.",
-                    { label },
-                  )
-                : t("Checking releases…")}
+                ? `Could not find the latest ${label} release in this environment's npm registry.`
+                : "Checking releases…"}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" />}>{t("Cancel")}</AlertDialogClose>
+          <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
         </AlertDialogFooter>
       </AlertDialogPopup>
     </AlertDialog>
@@ -83,7 +78,6 @@ function SwitchPlan({
   readonly release: ChannelSwitchRelease;
   readonly onClose: () => void;
 }) {
-  const t = useT();
   const updateState = useDesktopUpdateState();
   const { environments } = useEnvironments();
   const crossesLocal = desktopUpdateChannelOf(APP_VERSION) !== release.channel;
@@ -131,7 +125,6 @@ function SwitchPlan({
       channel: release.channel,
       version: release.version,
       reinstall: switchesLocal,
-      t, // fork: interface language
     });
     onClose();
     if (!prepared.ok) {
@@ -178,7 +171,7 @@ function SwitchPlan({
     <UpdateEverythingDialog
       open
       onOpenChange={(open) => !open && !checking && onClose()}
-      title={t("Switch to {label}?", { label })}
+      title={`Switch to ${label}?`}
       version={release.version}
       providerCount={0}
       rows={everything.rows}
@@ -192,11 +185,11 @@ function SwitchPlan({
           : []),
       ]}
       restarts={everything.restarts}
-      confirmLabel={checking ? t("Checking…") : t("Switch to {label}", { label })}
+      confirmLabel={checking ? "Checking…" : `Switch to ${label}`}
       busy={checking}
       disabledReason={
         switchesLocal && localBlocked !== null
-          ? t("This app cannot switch: {localBlocked}.", { localBlocked })
+          ? `This app cannot switch: ${localBlocked}.`
           : idle.disabledReason
       }
       onConfirm={() => void run()}

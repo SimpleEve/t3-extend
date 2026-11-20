@@ -39,7 +39,6 @@ import {
   enrichedModelReference,
   enrichedLinkVariantPattern,
 } from "../lib/enrichedLinkPresentation";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 function enrichedStyle(
   style: SelectableMarkdownTextProps["textStyle"],
@@ -219,7 +218,6 @@ function codeBlockElement(
 }
 
 export function MobileEnrichedMarkdownText(props: SelectableMarkdownTextProps) {
-  const t = useT(); // fork: i18n
   const { renderImage, resolveImageSource, fileEmbedLabel } = props;
   const { themeAppearance, mathRenderingEnabled } = useAppearancePreferences();
   const { markdown, fileHrefs } = useMemo(() => {
@@ -282,8 +280,8 @@ export function MobileEnrichedMarkdownText(props: SelectableMarkdownTextProps) {
       ? {
           title: model.label,
           actions: [
-            { id: "enriched-copy-link", title: t("Copy model reference") },
-            { id: "enriched-share-link", title: t("Share model reference") },
+            { id: "enriched-copy-link", title: "Copy model reference" },
+            { id: "enriched-share-link", title: "Share model reference" },
           ],
         }
       : undefined;
@@ -302,9 +300,9 @@ export function MobileEnrichedMarkdownText(props: SelectableMarkdownTextProps) {
               fileContextMenu?.(url) ?? {
                 title: url,
                 actions: [
-                  { id: "enriched-open-link", title: t("Open link") },
-                  { id: "enriched-copy-link", title: t("Copy link") },
-                  { id: "enriched-share-link", title: t("Share link") },
+                  { id: "enriched-open-link", title: "Open link" },
+                  { id: "enriched-copy-link", title: "Copy link" },
+                  { id: "enriched-share-link", title: "Share link" },
                 ],
               };
             return [
@@ -388,8 +386,8 @@ export function MobileEnrichedMarkdownText(props: SelectableMarkdownTextProps) {
               props.fileContextMenu?.(url) ?? {
                 title: url,
                 actions: [
-                  { id: "enriched-open-link", title: t("Open link") },
-                  { id: "enriched-copy-link", title: t("Copy link") },
+                  { id: "enriched-open-link", title: "Open link" },
+                  { id: "enriched-copy-link", title: "Copy link" },
                 ],
               };
             setActiveMenu({ url, menu });

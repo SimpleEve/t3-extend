@@ -40,7 +40,6 @@ import { Dialog } from "../ui/dialog";
 import { Switch } from "../ui/switch";
 import { toastManager } from "../ui/toast";
 import { WizardSteps, WizardPopup, WizardHeader, WizardPanel, WizardFooter } from "../ui/wizard";
-import { useT } from "../../hooks/useT";
 
 export function ConnectOnboardingDialog() {
   if (!hasCloudPublicConfig()) return null;
@@ -53,7 +52,6 @@ type OnboardingStep = "publish" | "devices";
 const EMPTY_SESSION_STATE_ATOM = Atom.make(AsyncResult.initial<AuthSessionState>());
 
 function ConfiguredConnectOnboardingDialog() {
-  const t = useT();
   // Pending Clerk sessions must not look signed out or activation would look like a new sign-in.
   const { isLoaded, isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
   const [optOutState, setOptOutState] = useLocalStorage(
@@ -211,10 +209,10 @@ function ConfiguredConnectOnboardingDialog() {
     if (!ok) return;
     toastManager.add({
       type: "success",
-      title: t("T3 Connect enabled"),
+      title: "T3 Connect enabled",
       description: exposeEnvironment
-        ? t("This environment is available to your other devices through T3 Connect.")
-        : t("This environment publishes agent activity to your mobile clients."),
+        ? "This environment is available to your other devices through T3 Connect."
+        : "This environment publishes agent activity to your mobile clients.",
     });
     setStep("devices");
   };
@@ -237,18 +235,17 @@ function ConfiguredConnectOnboardingDialog() {
     >
       <WizardPopup>
         <WizardHeader
-          title={t("Set up T3 Connect")}
+          title="Set up T3 Connect"
           description={
             <>
-              {t(
-                "Mesh your devices together. Publish this environment and connect the rest, all in one place.",
-              )}
+              Mesh your devices together. Publish this environment and connect the rest, all in one
+              place.
             </>
           }
         >
           {steps.length > 1 ? (
             <WizardSteps
-              steps={steps.map((id) => t(STEP_LABELS[id]))}
+              steps={steps.map((id) => STEP_LABELS[id])}
               currentStep={steps.indexOf(step)}
               isStepDisabled={() => isApplying}
               onStepChange={(index) => {
@@ -307,25 +304,25 @@ function ConfiguredConnectOnboardingDialog() {
                 checked={dontShowAgain}
                 onCheckedChange={(checked) => setDontShowAgain(checked === true)}
               />
-              {t("Don't show this again")}
+              Don&apos;t show this again
             </label>
           }
         >
           {step === "publish" ? (
             <>
               <Button variant="ghost" disabled={isApplying} onClick={() => setStep("devices")}>
-                {t("Not now")}
+                Not now
               </Button>
               <Button
                 disabled={isApplying || !canManageRelay || linkStateData === null}
                 onClick={() => void applyPublishSelection()}
               >
-                {isApplying ? t("Enabling…") : t("Continue")}
+                {isApplying ? "Enabling…" : "Continue"}
               </Button>
             </>
           ) : (
             <Button disabled={isApplying} onClick={complete}>
-              {t("Done")}
+              Done
             </Button>
           )}
         </WizardFooter>
@@ -367,34 +364,27 @@ function PublishStep({
   readonly onExposeEnvironmentChange: (enabled: boolean) => void;
   readonly onPublishAgentActivityChange: (enabled: boolean) => void;
 }) {
-  const t = useT();
   return (
     <div className="space-y-3">
       <div className="rounded-lg border">
         <OnboardingToggleRow
-          title={t("Publish this environment")}
-          description={t(
-            "Make this environment available to your other devices through T3 Connect.",
-          )}
+          title="Publish this environment"
+          description="Make this environment available to your other devices through T3 Connect."
           checked={exposeEnvironment}
           disabled={disabled}
           onCheckedChange={onExposeEnvironmentChange}
         />
         <OnboardingToggleRow
-          title={t("Publish agent activity")}
-          description={t(
-            "Send activity from this environment to your mobile clients for push notifications and Live Activities.",
-          )}
+          title="Publish agent activity"
+          description="Send activity from this environment to your mobile clients for push notifications and Live Activities."
           checked={publishAgentActivity}
           disabled={disabled}
           onCheckedChange={onPublishAgentActivityChange}
         />
         {requireDeviceApproval !== null ? (
           <OnboardingToggleRow
-            title={t("Require approval for new devices")}
-            description={t(
-              "Devices that sign in to your T3 Connect account wait until someone already connected here approves them.",
-            )}
+            title="Require approval for new devices"
+            description="Devices that sign in to your T3 Connect account wait until someone already connected here approves them."
             checked={requireDeviceApproval}
             disabled={disabled || requireDeviceApprovalLocked}
             onCheckedChange={onRequireDeviceApprovalChange}
@@ -454,7 +444,6 @@ function OnboardingToggleRow({
 }
 
 function DevicesStep() {
-  const t = useT();
   const { environments } = useEnvironments();
   const primaryEnvironment = usePrimaryEnvironment();
   const savedEnvironments = environments.filter(
@@ -469,9 +458,8 @@ function DevicesStep() {
         showSavedEnvironments
         empty={
           <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-            {t(
-              "No other environments are published to your account yet. Publish one from another device and it will show up here.",
-            )}
+            No other environments are published to your account yet. Publish one from another device
+            and it will show up here.
           </p>
         }
       />

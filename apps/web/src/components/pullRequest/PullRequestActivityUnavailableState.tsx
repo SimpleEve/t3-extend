@@ -18,7 +18,6 @@ export function PullRequestActivityUnavailableState({
   onRetry: () => void;
   compact?: boolean;
 }) {
-  const t = useT();
   return (
     <div
       className={cn(
@@ -32,7 +31,7 @@ export function PullRequestActivityUnavailableState({
       <p className="max-w-md text-xs text-muted-foreground">{error}</p>
       <Button size="sm" variant="outline" onClick={onRetry}>
         <RefreshIcon aria-hidden size="sm" />
-        {t("Retry")}
+        Retry
       </Button>
     </div>
   );

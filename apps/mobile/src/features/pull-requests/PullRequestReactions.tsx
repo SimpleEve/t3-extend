@@ -26,7 +26,6 @@ import { useEnvironmentQuery } from "../../state/query";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 import { usePullRequestPermissions } from "./usePullRequestPermissions";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const EMPTY_PENDING: ReadonlyMap<PullRequestReactionContent, PendingPullRequestReaction> =
   new Map();
@@ -39,7 +38,6 @@ export function ReactionPills(props: {
   readonly onReact: (content: PullRequestReactionContent, reacted: boolean) => Promise<boolean>;
   readonly onChanged?: () => void;
 }) {
-  const t = useT(); // fork: i18n
   // Keyed by what the host last reported, so a refresh that lands the change drops the overlay.
   const [pending, setPending] = useState({ signature: "", values: EMPTY_PENDING });
   const signature = pullRequestReactionsSignature(props.reactions);
@@ -55,7 +53,7 @@ export function ReactionPills(props: {
         next.delete(content);
         return { signature: current.signature, values: next };
       });
-      Dialog.alert(t("Couldn't save the reaction"), t("Try again in a moment."));
+      Dialog.alert("Couldn't save the reaction", "Try again in a moment.");
       return;
     }
     props.onChanged?.();
@@ -83,7 +81,7 @@ export function ReactionPills(props: {
       ))}
       {props.canReact ? (
         <Menu
-          accessibilityLabel={t("Add a reaction")}
+          accessibilityLabel="Add a reaction"
           actions={PULL_REQUEST_REACTION_ORDER.map((content) => ({
             id: content,
             title: `${pullRequestReactionEmoji(content)}  ${pullRequestReactionName(content)}`,
@@ -162,7 +160,6 @@ export function PullRequestCommentFooter(props: {
   readonly onChanged: () => void;
   readonly onEdit?: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const { comment } = props;
   const reactions = comment.reactions ?? [];
@@ -182,7 +179,7 @@ export function PullRequestCommentFooter(props: {
       {canEdit && editableKind !== null ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("Edit comment")}
+          accessibilityLabel="Edit comment"
           onPress={() => {
             props.onEdit?.();
             navigation.navigate("PullRequestEdit", {
@@ -200,7 +197,7 @@ export function PullRequestCommentFooter(props: {
           className={cn(PILL, "ml-auto border-transparent")}
         >
           <SymbolView name="pencil" size={13} tintColorClassName="accent-icon-muted" />
-          <Text className="text-xs font-t3-medium text-foreground-muted">{t("Edit")}</Text>
+          <Text className="text-xs font-t3-medium text-foreground-muted">Edit</Text>
         </Pressable>
       ) : null}
     </View>

@@ -45,7 +45,6 @@ import {
   pullRequestProjectChoices,
 } from "./pullRequestList";
 import { useDebouncedValue } from "../../state/queries";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { useWorkspaceTabs } from "../layout/workspace/WorkspaceTabsContext";
 import { useSearchScrollRestoration } from "../layout/workspace/useSearchScrollRestoration";
 import { useSelectWorkspaceDetail } from "../layout/workspace/useSelectWorkspaceDetail";
@@ -96,7 +95,6 @@ export function PullRequestsScreen(
     readonly renderFrame?: (filters: PullRequestFilterMenu | null, list: ReactNode) => ReactNode;
   } = {},
 ) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const primaryColumn = use(NativePrimaryColumnContext);
   const workspace = useWorkspaceTabs()!;
@@ -378,15 +376,15 @@ export function PullRequestsScreen(
             <View className="items-center py-5">
               <AppActivityIndicator
                 colorClassName="accent-icon"
-                accessibilityLabel={t("Loading more pull requests")}
+                accessibilityLabel="Loading more pull requests"
               />
             </View>
           ) : result.loadMoreError ? (
             <View className="items-center gap-2 px-8 py-4">
               <Text className="text-xs text-foreground-muted">{result.loadMoreError}</Text>
               <Button
-                label={t("Try again")}
-                accessibilityLabel={t("Retry loading more pull requests")}
+                label="Try again"
+                accessibilityLabel="Retry loading more pull requests"
                 onPress={() => void result.loadMore(true)}
               />
             </View>
@@ -394,8 +392,8 @@ export function PullRequestsScreen(
             // A filtered page can be too short to scroll, which leaves nothing to reach the end of.
             <View className="items-center py-4">
               <Button
-                label={t("Load more")}
-                accessibilityLabel={t("Load more pull requests")}
+                label="Load more"
+                accessibilityLabel="Load more pull requests"
                 onPress={() => void result.loadMore()}
               />
             </View>
@@ -411,22 +409,22 @@ export function PullRequestsScreen(
               <EmptyState
                 title={
                   result.error
-                    ? t("Couldn't load pull requests")
+                    ? "Couldn't load pull requests"
                     : targets.length && connectedTargets.length === 0
-                      ? t("Environment offline")
+                      ? "Environment offline"
                       : targets.length
                         ? query
-                          ? t("No results")
-                          : t("No matching pull requests")
-                        : t("Connect an environment")
+                          ? "No results"
+                          : "No matching pull requests"
+                        : "Connect an environment"
                 }
                 detail={
                   result.error ??
                   (targets.length && connectedTargets.length === 0
-                    ? t("Reconnect to load pull requests that aren't saved on this device.")
+                    ? "Reconnect to load pull requests that aren't saved on this device."
                     : targets.length
-                      ? t("Pull requests from the selected environments' projects appear here.")
-                      : t("Add an environment in Settings to browse its pull requests."))
+                      ? "Pull requests from the selected environments' projects appear here."
+                      : "Add an environment in Settings to browse its pull requests.")
                 }
                 variant="plain"
               />

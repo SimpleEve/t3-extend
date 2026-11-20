@@ -16,7 +16,6 @@ import {
   ClerkUserProfileRefreshButton,
   ClerkUserProfileRow,
 } from "./ClerkUserProfilePage";
-import { useT } from "../../hooks/useT";
 
 const MOBILE_CLIENT_SKELETON_ROWS = ["primary", "secondary"] as const;
 
@@ -27,16 +26,14 @@ function MobileClientStatusBadge({
   readonly enabled: boolean;
   readonly label: string;
 }) {
-  const t = useT();
   return (
     <Badge variant={enabled ? "success" : "outline"}>
-      {label}: {enabled ? t("On") : t("Off")}
+      {label}: {enabled ? "On" : "Off"}
     </Badge>
   );
 }
 
 function MobileClientRow({ device }: { readonly device: RelayClientDeviceRecord }) {
-  const t = useT();
   return (
     <ClerkUserProfileRow icon={<SmartphoneIcon className="size-4" />}>
       <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
@@ -70,9 +67,8 @@ function MobileClientRow({ device }: { readonly device: RelayClientDeviceRecord 
 }
 
 function MobileClientsSkeleton() {
-  const t = useT();
   return (
-    <div aria-label={t("Loading mobile clients")} className="divide-y border-t" role="status">
+    <div aria-label="Loading mobile clients" className="divide-y border-t" role="status">
       {MOBILE_CLIENT_SKELETON_ROWS.map((row) => (
         <div key={row} className="py-4">
           <div className="flex gap-3">
@@ -93,18 +89,16 @@ function MobileClientsSkeleton() {
 }
 
 function EmptyMobileClients() {
-  const t = useT();
   return (
     <Empty size="compact">
       <EmptyMedia variant="icon">
         <SmartphoneIcon />
       </EmptyMedia>
       <EmptyHeader>
-        <EmptyTitle>{t("No mobile clients")}</EmptyTitle>
+        <EmptyTitle>No mobile clients</EmptyTitle>
         <EmptyDescription>
-          {t(
-            "Install T3 Code on your phone and sign in to T3 Connect to get push notifications and Live Activities.",
-          )}
+          Install T3 Code on your phone and sign in to T3 Connect to get push notifications and Live
+          Activities.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
@@ -112,7 +106,6 @@ function EmptyMobileClients() {
 }
 
 export function MobileClientsUserProfilePage() {
-  const t = useT();
   const devicesState = useManagedRelayDevices();
   const devices = devicesState.data ?? [];
   const isInitialLoad =
@@ -121,8 +114,8 @@ export function MobileClientsUserProfilePage() {
 
   return (
     <ClerkUserProfilePage
-      title={t("Mobile clients")}
-      description={t("Mobile devices that get notifications from your environments.")}
+      title="Mobile clients"
+      description="Mobile devices that get notifications from your environments."
       action={
         <ClerkUserProfileRefreshButton
           isPending={devicesState.isPending}
@@ -138,12 +131,12 @@ export function MobileClientsUserProfilePage() {
           >
             <div>
               <p className="font-medium text-destructive-foreground">
-                {t("Could not load mobile clients")}
+                Could not load mobile clients
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">{devicesState.error}</p>
             </div>
             <Button size="xs" variant="outline" onClick={devicesState.refresh}>
-              {t("Try again")}
+              Try again
             </Button>
           </div>
         ) : null}

@@ -5,7 +5,6 @@ import { useClientSettings } from "~/hooks/useSettings";
 import { FileSurfaceFailure, FileSurfaceLoading, FileSurfaceNotice } from "./fileSurfaceChrome";
 import { PREVIEW_PAGE_ROWS, type TextPreviewResult } from "./largeTextProtocol";
 import VirtualTablePreview from "./VirtualTablePreview";
-import { useT } from "~/hooks/useT";
 
 const FIRST_SCREEN_BYTES = 16 * 1024;
 
@@ -44,7 +43,6 @@ export default function LargeTextViewer(props: {
   /** A preview's own wrap toggle; omitted follows the word wrap setting. */
   readonly wordWrap?: boolean;
 }) {
-  const t = useT();
   const [meta, setMeta] = useState<Extract<TextPreviewResult, { type: "meta" }> | null>(null);
   const [pages, setPages] = useState(new Map<number, string[][]>());
   const [error, setError] = useState<string | null>(null);
@@ -226,17 +224,17 @@ export default function LargeTextViewer(props: {
           ? `${countLabel(Math.max(0, meta.count - 1), "row")} · ${countLabel(meta.count ? meta.columns : 0, "column")}`
           : countLabel(meta.count, "line")}
         {meta.complete && meta.sizeBytes !== undefined
-          ? ` · ${meta.sizeBytes === 0 ? t("0 bytes") : formatAttachmentSize(meta.sizeBytes)}`
-          : t(" · Indexing…")}
+          ? ` · ${meta.sizeBytes === 0 ? "0 bytes" : formatAttachmentSize(meta.sizeBytes)}`
+          : " · Indexing…"}
       </div>
       {!meta.complete ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20">
-          <FileSurfaceNotice>{t("Loading the rest of the file…")}</FileSurfaceNotice>
+          <FileSurfaceNotice>Loading the rest of the file…</FileSurfaceNotice>
         </div>
       ) : null}
       {meta.columns === 1024 ? (
         <FileSurfaceNotice>
-          {t("Showing the first 1,024 columns. Source and Save retain every column.")}
+          Showing the first 1,024 columns. Source and Save retain every column.
         </FileSurfaceNotice>
       ) : null}
       {meta.count > 0 ? (
@@ -258,7 +256,7 @@ export default function LargeTextViewer(props: {
         />
       ) : (
         <div className="flex flex-1 items-center justify-center p-6 text-xs text-muted-foreground">
-          {t("This file is empty.")}
+          This file is empty.
         </div>
       )}
     </div>

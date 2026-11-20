@@ -18,7 +18,6 @@ import {
 } from "./threadDetailsCardLayout";
 import { observeResize } from "../../lib/observeResize";
 import { requestWorkspaceFocus } from "../../lib/workspaceFocus";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 export function ThreadDetailsCard({
   threadRef,
@@ -36,8 +35,7 @@ export function ThreadDetailsCard({
   onContextMenu?: MouseEventHandler<HTMLDivElement>;
   children: (density: "full" | "compact" | "essential") => ReactNode;
 }) {
-  const t = useT(); // fork: interface language
-  const detailsArea = workspaceAreaProps("details", 3, t("Thread details"));
+  const detailsArea = workspaceAreaProps("details", 3, "Thread details");
   const canvas = useChatCanvas();
   const preferredPlacement = canvas?.preferredDetailsCard ?? null;
   const placement = canvas?.detailsCardPlacement ?? null;

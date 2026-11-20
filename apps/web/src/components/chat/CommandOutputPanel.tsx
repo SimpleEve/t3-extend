@@ -8,7 +8,6 @@ import { useServerConfigs } from "../../state/entities";
 import { orchestrationEnvironment } from "../../state/orchestration";
 import { useEnvironmentQuery } from "../../state/query";
 import { useInitialOutputReady, type TurnItemSource } from "./timelineRowContext";
-import { useT } from "~/hooks/useT"; // fork: restored import
 
 const FOLLOW_SLACK_PX = 8;
 
@@ -42,7 +41,6 @@ export function CommandOutputPanel(props: {
   const followRef = useRef(true);
   const text = data?.output.text ?? "";
   const { resolvedTheme } = useTheme();
-  const t = useT();
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- pins the output scroller's scrollTop to the bottom after each commit while the user follows
   useLayoutEffect(() => {

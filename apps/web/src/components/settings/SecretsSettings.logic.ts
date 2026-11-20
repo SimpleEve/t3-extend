@@ -9,7 +9,6 @@ import {
   TextGeneratorConfig,
   UsageLimitSourceConfig,
 } from "@t3tools/contracts";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { getProviderClient } from "@t3tools/client-runtime/provider-clients";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 

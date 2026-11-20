@@ -1,5 +1,4 @@
 import type { ResourceTelemetryProcess, ResourceTelemetrySourceStatus } from "@t3tools/contracts";
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function processIdentityKey(process: Pick<ResourceTelemetryProcess, "identity">): string {
   return `${process.identity.pid}:${process.identity.startTimeMs}`;
@@ -77,8 +76,8 @@ export function formatSamplingStatus(
   t: Translator = translatorFor("en"), // fork: i18n
 ): string {
   // The server reports 0 while the native monitor is idle and samples only on request.
-  if (intervalMs <= 0) return t("Sampling on demand");
-  if (intervalMs < 1_000) return t("Sampling every {ms} ms", { ms: Math.round(intervalMs) });
+  if (intervalMs <= 0) return "Sampling on demand";
+  if (intervalMs < 1_000) return `Sampling every ${Math.round(intervalMs)} ms`;
   const seconds = intervalMs / 1_000;
   const value = seconds.toLocaleString(undefined, { maximumFractionDigits: 1 });
   return seconds === 1

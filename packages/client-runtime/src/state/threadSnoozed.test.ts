@@ -6,9 +6,6 @@ import { TurnId } from "@t3tools/contracts";
 import type { SnoozePresetSetting } from "@t3tools/contracts/settings";
 import { describe, expect, it } from "vite-plus/test";
 
-import { uiLocaleFormatTag } from "../i18n/locale.ts";
-import { loadUiCatalog, translate } from "../i18n/translate.ts";
-
 import {
   canSnooze,
   effectiveSnoozed,

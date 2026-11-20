@@ -1,5 +1,4 @@
 import type { NativeStackNavigationOptions } from "@react-navigation/native-stack";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { Platform } from "react-native";
 
 import { brandTitleOffset, CompactBrandTitle } from "../../../components/CompactBrandTitle";
@@ -15,7 +14,7 @@ export function getCompactBrandHeaderOptions(
   return {
     headerTitle: renderCompactBrandTitle,
     headerTitleStyle: fallbackTitleStyle,
-    title: translate(getUiLocale(), "Threads"), // fork: i18n; module-level callers wrap it in withLocalizedTitle
+    title: "Threads",
     unstable_headerLeftItems: undefined,
   };
 }

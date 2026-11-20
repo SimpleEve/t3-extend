@@ -22,7 +22,6 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 // Host in chat to survive command palette dismissal.
 const linkPullRequestDialogThreadAtom = Atom.make<ScopedThreadRef | null>(null).pipe(
@@ -64,7 +63,6 @@ function LinkPullRequestDialog({
   projectId,
   onOpenChange,
 }: LinkPullRequestDialogProps) {
-  const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [reference, setReference] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -116,9 +114,9 @@ function LinkPullRequestDialog({
   const validation = !dirty
     ? null
     : reference.trim().length === 0
-      ? t("Paste a pull request URL or enter 123 / #123.")
+      ? "Paste a pull request URL or enter 123 / #123."
       : resolved === null
-        ? t("Use a pull request URL, 123, or #123.")
+        ? "Use a pull request URL, 123, or #123."
         : "error" in resolved
           ? resolved.error
           : null;
@@ -127,17 +125,16 @@ function LinkPullRequestDialog({
     <Dialog open={open} onOpenChange={(next) => (pending ? undefined : onOpenChange(next))}>
       <DialogPopup className="max-w-xl" initialFocus={inputRef}>
         <DialogHeader>
-          <DialogTitle>{t("Link pull request")}</DialogTitle>
+          <DialogTitle>Link pull request</DialogTitle>
           <DialogDescription>
-            {t(
-              "Attach a pull request to this thread by its URL, or by its number for this thread's repository.",
-            )}
+            Attach a pull request to this thread by its URL, or by its number for this thread's
+            repository.
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>
           <Input
             ref={inputRef}
-            placeholder={t("Pull request URL or #42")}
+            placeholder="Pull request URL or #42"
             value={reference}
             onChange={(event) => {
               setDirty(true);
@@ -166,7 +163,7 @@ function LinkPullRequestDialog({
             onClick={() => onOpenChange(false)}
             disabled={pending}
           >
-            {t("Cancel")}
+            Cancel
           </Button>
           <Button
             type="button"
@@ -174,7 +171,7 @@ function LinkPullRequestDialog({
             onClick={() => void submit()}
             disabled={pending || resolved === null || "error" in resolved}
           >
-            {pending ? t("Linking...") : t("Link")}
+            {pending ? "Linking..." : "Link"}
           </Button>
         </DialogFooter>
       </DialogPopup>

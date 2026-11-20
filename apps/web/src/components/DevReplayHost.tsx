@@ -15,7 +15,6 @@ import { buildThreadRouteParams, resolveThreadRouteTarget } from "../threadRoute
 import { Button } from "./ui/button";
 import { Dialog, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from "./ui/dialog";
 import { toastManager } from "./ui/toast";
-import { useT } from "~/hooks/useT";
 
 // Dev servers register this free ACP agent; see ProviderInstanceRegistryHydration.ts.
 const DEV_REPLAY_INSTANCE_ID = ProviderInstanceId.make("devReplay");
@@ -25,7 +24,6 @@ const DEV_REPLAY_INSTANCE_ID = ProviderInstanceId.make("devReplay");
  * opens a picker, and `window.t3dev.replay(scenario)` does the same from the console.
  */
 export function DevReplayHost() {
-  const t = useT();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const environmentId = usePrimaryEnvironmentId();
@@ -115,7 +113,7 @@ export function DevReplayHost() {
     replay(scenario).catch((error: unknown) =>
       toastManager.add({
         type: "error",
-        title: t("Replay failed"),
+        title: "Replay failed",
         description: error instanceof Error ? error.message : String(error),
       }),
     );
@@ -134,7 +132,7 @@ export function DevReplayHost() {
         <DialogPanel>
           {scenarios.length === 0 || project === undefined ? (
             <p className="text-sm text-muted-foreground">
-              {t("Needs a project and the Replay (dev) provider, which dev servers start.")}
+              Needs a project and the Replay (dev) provider, which dev servers start.
             </p>
           ) : (
             <div className="flex flex-col items-start gap-1">

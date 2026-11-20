@@ -1,4 +1,3 @@
-import { translate, type UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import type { ScopedThreadRef, ThreadId } from "@t3tools/contracts";
 
 /** Base UI updates omit undefined; clear actions with defined actionProps and empty children, treated as

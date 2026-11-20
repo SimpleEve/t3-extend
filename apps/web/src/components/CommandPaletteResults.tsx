@@ -5,7 +5,6 @@ import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { ChevronRightIcon } from "lucide-react";
 import { type ReactNode, type RefObject, useState } from "react";
 import { cn } from "~/lib/utils";
-import { useT } from "~/hooks/useT";
 import { textDirection } from "~/textDirection";
 import { shortcutLabelForCommand } from "../keybindings";
 import {
@@ -38,13 +37,12 @@ interface CommandPaletteResultsProps {
 }
 
 function CommandPaletteEmptyState(props: { emptyStateMessage?: string; isActionsOnly: boolean }) {
-  const t = useT();
   return (
     <div className="py-10 text-center text-sm text-muted-foreground">
-      {(props.emptyStateMessage === undefined ? undefined : t(props.emptyStateMessage)) ??
+      {props.emptyStateMessage ??
         (props.isActionsOnly
-          ? t("No matching actions.")
-          : t("No matching commands, projects, or threads."))}
+          ? "No matching actions."
+          : "No matching commands, projects, or threads.")}
     </div>
   );
 }
@@ -60,7 +58,7 @@ export function CommandPaletteResults(props: CommandPaletteResultsProps) {
     <CommandList>
       {props.groups.map((group) => (
         <CommandGroup items={group.items} key={group.value}>
-          {group.label ? <CommandGroupLabel>{t(group.label)}</CommandGroupLabel> : null}
+          {group.label ? <CommandGroupLabel>{group.label}</CommandGroupLabel> : null}
           <CommandCollection>
             {(item) =>
               item.disabled ? (
@@ -106,7 +104,6 @@ interface CommandPaletteVirtualizedResultsProps extends Omit<CommandPaletteResul
 /** Pass flat items with virtualized to Command, scroll highlights via listRef, and handle Enter for
  * unmounted rows. */
 export function CommandPaletteVirtualizedResults(props: CommandPaletteVirtualizedResultsProps) {
-  const t = useT();
   const { listRef } = props;
   const [scrollFade, setScrollFade] = useState({ top: false, bottom: false });
   const updateScrollFade = () => {
@@ -136,7 +133,7 @@ export function CommandPaletteVirtualizedResults(props: CommandPaletteVirtualize
         renderItem={({ item: row }) =>
           row.kind === "label" ? (
             <div className={row.first ? undefined : "pt-1.5"}>
-              <CommandListHeading>{t(row.label)}</CommandListHeading>
+              <CommandListHeading>{row.label}</CommandListHeading>
             </div>
           ) : row.itemIndex === null ? (
             <DisabledCommandPaletteResultRow item={row.item} />

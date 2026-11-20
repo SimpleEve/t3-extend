@@ -21,7 +21,6 @@ import {
   deviceStreamMessage,
   type DeviceStreamConfiguration,
 } from "./device-stream-document";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export interface DeviceStreamRef {
   home: () => void;
@@ -95,7 +94,6 @@ function DeviceStreamDocumentView({
   readonly onStreaming: () => void;
   readonly onRecoverProcess: () => boolean;
 }) {
-  const t = useT(); // fork: i18n
   const webView = useRef<WebView<object>>(null);
   const active = useRef(false);
   const failed = useRef(false);
@@ -117,7 +115,7 @@ function DeviceStreamDocumentView({
     setStatus("error");
   };
   const bootstrapTimedOut = useEffectEvent(() =>
-    fail(t("Device viewer could not start. Reconnect to try again.")),
+    fail("Device viewer could not start. Reconnect to try again."),
   );
   const resetInput = useEffectEvent(() => void onInputConnected(false));
   // The stream lives exactly as long as this view.
@@ -153,7 +151,7 @@ function DeviceStreamDocumentView({
   const processTerminated = () => {
     if (!active.current || failed.current) return;
     void onInputConnected(false);
-    if (!onRecoverProcess()) fail(t("Device viewer stopped. Reconnect to try again."));
+    if (!onRecoverProcess()) fail("Device viewer stopped. Reconnect to try again.");
   };
   return (
     <View className="flex-1" style={{ backgroundColor: background }}>
@@ -168,8 +166,8 @@ function DeviceStreamDocumentView({
         contentInsetAdjustmentBehavior="never"
         setSupportMultipleWindows={false}
         style={{ flex: 1, backgroundColor: background }}
-        onError={() => fail(t("Device viewer could not load. Reconnect to try again."))}
-        onHttpError={() => fail(t("Device viewer could not load. Reconnect to try again."))}
+        onError={() => fail("Device viewer could not load. Reconnect to try again.")}
+        onHttpError={() => fail("Device viewer could not load. Reconnect to try again.")}
         onContentProcessDidTerminate={processTerminated}
         onRenderProcessGone={processTerminated}
         onShouldStartLoadWithRequest={(request) =>
@@ -202,11 +200,11 @@ function DeviceStreamDocumentView({
             accessibilityLiveRegion="polite"
             className="text-center text-sm text-foreground-muted"
           >
-            {status === "error" ? error : t("Connecting to device...")}
+            {status === "error" ? error : "Connecting to device..."}
           </AppText>
           {status === "error" ? (
             <View className="items-center">
-              <Button label={t("Reconnect")} tone="secondary" onPress={onRetry} />
+              <Button label="Reconnect" tone="secondary" onPress={onRetry} />
             </View>
           ) : null}
         </View>

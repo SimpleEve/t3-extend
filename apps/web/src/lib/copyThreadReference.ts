@@ -6,7 +6,6 @@ import {
 
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
 import { writeTextToClipboard } from "../hooks/useCopyToClipboard";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 export async function copyThreadReference(target: ThreadReferenceCopyTarget): Promise<void> {
   const fragment = target.fragment ? encodeComposerContextFragment(target.fragment) : null;

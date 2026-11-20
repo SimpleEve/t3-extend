@@ -1,5 +1,4 @@
 import { type EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import type { EnvironmentThreadStatus } from "@t3tools/client-runtime/state/threads";
 
 export type ThreadContentPresentation =
@@ -16,7 +15,6 @@ export function projectThreadContentPresentation(input: {
   readonly detailError: string | null;
   readonly detailDeleted: boolean;
   readonly connectionState: EnvironmentConnectionPhase;
-  readonly t: Translator; // fork: i18n
 }): ThreadContentPresentation {
   const { t } = input;
   if (input.hasDetail) {
@@ -25,14 +23,14 @@ export function projectThreadContentPresentation(input: {
   if (input.detailDeleted) {
     return {
       kind: "unavailable",
-      title: t("Thread unavailable"),
-      detail: t("This thread was deleted or is no longer available."),
+      title: "Thread unavailable",
+      detail: "This thread was deleted or is no longer available.",
     };
   }
   if (input.detailError !== null) {
     return {
       kind: "unavailable",
-      title: t("Could not load conversation"),
+      title: "Could not load conversation",
       detail: input.detailError,
     };
   }
@@ -45,17 +43,16 @@ export function projectThreadContentPresentation(input: {
   }
   return {
     kind: "unavailable",
-    title: t("Messages not cached"),
-    detail: t("Reconnect this environment to load the conversation."),
+    title: "Messages not cached",
+    detail: "Reconnect this environment to load the conversation.",
   };
 }
 
 export function threadSyncStatusLabel(
   status: EnvironmentThreadStatus,
   presentation: ThreadContentPresentation["kind"],
-  t: Translator = translatorFor("en"), // fork: i18n
 ): string | null {
   if (status !== "empty" && status !== "cached" && status !== "synchronizing") return null;
-  if (presentation === "ready") return t("Syncing messages…");
-  return presentation === "loading" ? t("Loading messages…") : null;
+  if (presentation === "ready") return "Syncing messages…";
+  return presentation === "loading" ? "Loading messages…" : null;
 }

@@ -20,7 +20,6 @@ import {
   ComboboxTrigger,
 } from "../ui/combobox";
 import { PierreEntryIcon } from "./PierreEntryIcon";
-import { useT } from "~/hooks/useT";
 
 function LanguageIcon(props: { language: string; theme: "light" | "dark" }) {
   const fileName = props.language ? syntheticFileNameForLanguageId(props.language) : "file.txt";
@@ -75,9 +74,7 @@ export function ComposerCodeBlockLanguagePicker(props: {
               variant="ghost-muted"
               size="xs"
               disabled={props.disabled}
-              aria-label={t("Code language: {language}", {
-                language: languageLabel(props.language),
-              })}
+              aria-label={`Code language: ${codeLanguageLabel(props.language)}`}
             />
           }
         >
@@ -87,12 +84,12 @@ export function ComposerCodeBlockLanguagePicker(props: {
         </ComboboxTrigger>
         <ComboboxPopup align="start" className="w-56">
           <ComboboxSearchInput
-            aria-label={t("Search languages")}
-            placeholder={t("Search languages")}
+            aria-label="Search languages"
+            placeholder="Search languages"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <ComboboxEmpty>{t("No matching languages.")}</ComboboxEmpty>
+          <ComboboxEmpty>No matching languages.</ComboboxEmpty>
           <ComboboxList>
             {(entry: CodeBlockLanguage) => (
               <ComboboxItem key={entry.id || "plain"} value={entry}>

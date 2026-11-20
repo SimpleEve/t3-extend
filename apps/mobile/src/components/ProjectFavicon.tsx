@@ -30,7 +30,6 @@ import {
   markProjectFaviconFailed,
   markProjectFaviconLoaded,
 } from "../lib/projectFaviconRequests";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 const EMPTY_FAVICON_URL = Atom.make<string | null>(null);
 
@@ -148,7 +147,6 @@ function ProjectFaviconImage(props: {
   readonly projectTitle: string;
   readonly size: number;
 }) {
-  const t = useT(); // fork: i18n
   const faviconRequest = createProjectFaviconRequest(props.cacheKey, props.faviconUrl);
   // Registers with the module-level loader before the Image's native onLoad/onError can fire,
   // so stale loads for a superseded URL under the same cacheKey are ignored.
@@ -207,7 +205,7 @@ function ProjectFaviconImage(props: {
           }
           cachePolicy={inlineFaviconUrl !== null ? "memory" : "memory-disk"}
           recyclingKey={faviconRequest.cacheKey}
-          accessibilityLabel={t("{projectTitle} favicon", { projectTitle: props.projectTitle })}
+          accessibilityLabel={`${props.projectTitle} favicon`}
           style={{
             width: props.size,
             height: props.size,

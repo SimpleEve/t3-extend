@@ -4,7 +4,6 @@ import { use, useState } from "react";
 
 import { serializeCodeBlockToMarkdown } from "../../markdown-clipboard";
 import { Button } from "../ui/button";
-import { useT } from "~/hooks/useT";
 
 type Pele = typeof import("pele/lazy");
 type PeleLoad = { readonly status: "loaded"; readonly pele: Pele } | { readonly status: "failed" };
@@ -227,7 +226,6 @@ export function MermaidDiagram({
   source: string;
   onExpand: (imageUrl: string) => void;
 }) {
-  const t = useT();
   const [, setAttempt] = useState(0);
   const [renderError, setRenderError] = useState<string | null>(null);
   const trimmedSource = source.trim();
@@ -258,7 +256,7 @@ export function MermaidDiagram({
   if (load.status === "failed") {
     return (
       <DiagramError
-        message={t("The diagram renderer failed to load.")}
+        message="The diagram renderer failed to load."
         source={source}
         onRetry={() => {
           if (core.status === "failed") coreLoad = null;
@@ -278,7 +276,7 @@ export function MermaidDiagram({
       {renderError ? <DiagramError message={renderError} source={source} /> : null}
       <button
         type="button"
-        aria-label={t("Expand diagram")}
+        aria-label="Expand diagram"
         hidden={renderError !== null}
         className="block w-full cursor-zoom-in rounded-md focus-visible:outline-2 focus-visible:outline-ring"
         onClick={(event) => {
@@ -301,7 +299,6 @@ function DiagramError({
   source: string;
   onRetry?: () => void;
 }) {
-  const t = useT();
   return (
     <div>
       <div className="flex items-center justify-between gap-2">
@@ -310,7 +307,7 @@ function DiagramError({
         </p>
         {onRetry ? (
           <Button type="button" variant="ghost" size="xs" onClick={onRetry}>
-            {t("Retry")}
+            Retry
           </Button>
         ) : null}
       </div>

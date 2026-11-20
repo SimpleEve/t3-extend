@@ -53,8 +53,6 @@ import { Label } from "./ui/label";
 import { Popover, PopoverPopup, PopoverTrigger } from "./ui/popover";
 import { Switch } from "./ui/switch";
 import { Textarea } from "./ui/textarea";
-import { useT } from "~/hooks/useT";
-import { interpolateNodes } from "~/lib/interpolateNodes";
 
 const SCRIPT_ICONS: Array<{ id: ProjectScriptIcon; label: string }> = [
   { id: "play", label: "Play" },
@@ -156,7 +154,6 @@ export function ProjectScriptEditorDialog({
   onDelete: (scriptId: string) => void;
   onClose: () => void;
 }) {
-  const t = useT();
   const canEditActions = useEnvironmentScope(environmentId, editScope);
   // Scope errors by request so late saves cannot overwrite a newer request's error.
   const [errorState, setErrorState] = useState<{
@@ -223,7 +220,7 @@ export function ProjectScriptEditorDialog({
             <AlertDialogDescription>{t("This action cannot be undone.")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose render={<Button variant="outline" />}>{t("Cancel")}</AlertDialogClose>
+            <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
             <Button
               variant="destructive"
               disabled={!canEditActions}
@@ -238,7 +235,7 @@ export function ProjectScriptEditorDialog({
                 onDelete(request.scriptId);
               }}
             >
-              {t("Delete action")}
+              Delete action
             </Button>
           </AlertDialogFooter>
         </AlertDialogPopup>
@@ -271,7 +268,6 @@ function ProjectScriptEditorForm({
   onRequestDelete: (name: string) => void;
   onClose: () => void;
 }) {
-  const t = useT();
   const canEditActions = useEnvironmentScope(environmentId, editScope);
   const canWriteSettings = useEnvironmentScope(environmentId, AuthSettingsWriteScope);
   const formId = React.useId();
@@ -411,16 +407,16 @@ function ProjectScriptEditorForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{isEditing ? t("Edit Action") : t("Add Action")}</DialogTitle>
+        <DialogTitle>{isEditing ? "Edit Action" : "Add Action"}</DialogTitle>
         <DialogDescription>
-          {t("Actions are project-scoped commands you can run from the top bar or keybindings.")}
+          Actions are project-scoped commands you can run from the top bar or keybindings.
         </DialogDescription>
       </DialogHeader>
       <DialogPanel>
         <form id={formId} onSubmit={submit}>
           <fieldset className="space-y-4" disabled={isSaving || !canEditActions}>
             <div className="space-y-1.5">
-              <Label htmlFor="script-name">{t("Name")}</Label>
+              <Label htmlFor="script-name">Name</Label>
               <div className="flex items-center gap-2">
                 <Popover onOpenChange={setIconPickerOpen} open={iconPickerOpen}>
                   <PopoverTrigger
@@ -429,7 +425,7 @@ function ProjectScriptEditorForm({
                         type="button"
                         variant="outline"
                         className="size-9 shrink-0"
-                        aria-label={t("Choose icon")}
+                        aria-label="Choose icon"
                       />
                     }
                   >
@@ -454,7 +450,7 @@ function ProjectScriptEditorForm({
                             }}
                           >
                             <ScriptIcon icon={entry.id} className="size-4" />
-                            <span>{t(entry.label, undefined, "script icon")}</span>
+                            <span>{entry.label}</span>
                           </button>
                         );
                       })}
@@ -464,33 +460,29 @@ function ProjectScriptEditorForm({
                 <Input
                   id="script-name"
                   autoFocus
-                  placeholder={t("Test")}
+                  placeholder="Test"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                 />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="script-keybinding">{t("Keybinding")}</Label>
+              <Label htmlFor="script-keybinding">Keybinding</Label>
               <Input
                 disabled={!canWriteSettings}
                 id="script-keybinding"
-                placeholder={t("Press shortcut")}
+                placeholder="Press shortcut"
                 value={keybinding}
                 readOnly
                 onKeyDown={captureKeybinding}
               />
               <p className="text-xs text-muted-foreground">
-                {interpolateNodes(
-                  t(
-                    "Press a shortcut. Use {code} to clear. Shortcuts are environment-wide. Projects using the same action share its shortcut.",
-                  ),
-                  { code: <code>Backspace</code> },
-                )}
+                Press a shortcut. Use <code>Backspace</code> to clear. Shortcuts are
+                environment-wide. Projects using the same action share its shortcut.
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="script-command">{t("Command")}</Label>
+              <Label htmlFor="script-command">Command</Label>
               <Textarea
                 id="script-command"
                 placeholder="bun test"
@@ -499,7 +491,7 @@ function ProjectScriptEditorForm({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="script-preview-url">{t("Preview URL (optional)")}</Label>
+              <Label htmlFor="script-preview-url">Preview URL (optional)</Label>
               <Input
                 id="script-preview-url"
                 placeholder="http://localhost:5173"
@@ -507,11 +499,11 @@ function ProjectScriptEditorForm({
                 onChange={(event) => setPreviewUrl(event.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                {t("Open this URL in the in-app preview when this action runs.")}
+                Open this URL in the in-app preview when this action runs.
               </p>
             </div>
             <label className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2 text-sm dark:border-transparent dark:bg-white/[0.035]">
-              <span>{t("Run automatically on worktree creation")}</span>
+              <span>Run automatically on worktree creation</span>
               <Switch
                 checked={runOnWorktreeCreate}
                 onCheckedChange={(checked) => setRunOnWorktreeCreate(Boolean(checked))}
@@ -522,7 +514,7 @@ function ProjectScriptEditorForm({
                 runOnWorktreeCreate ? "" : "opacity-60"
               }`}
             >
-              <span>{t("Wait for it to finish before the agent starts")}</span>
+              <span>Wait for it to finish before the agent starts</span>
               <Switch
                 checked={waitForSetup}
                 disabled={!runOnWorktreeCreate}
@@ -530,14 +522,14 @@ function ProjectScriptEditorForm({
               />
             </label>
             <label className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2 text-sm dark:border-transparent dark:bg-white/[0.035]">
-              <span>{t("Run in the thread's worktree when the thread settles")}</span>
+              <span>Run in the thread's worktree when the thread settles</span>
               <Switch
                 checked={runOnSettle}
                 onCheckedChange={(checked) => setRunOnSettle(Boolean(checked))}
               />
             </label>
             <label className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2 text-sm dark:border-transparent dark:bg-white/[0.035]">
-              <span>{t("Stop this action when the thread settles")}</span>
+              <span>Stop this action when the thread settles</span>
               <Switch
                 checked={stopOnSettle}
                 onCheckedChange={(checked) => setStopOnSettle(Boolean(checked))}
@@ -548,7 +540,7 @@ function ProjectScriptEditorForm({
                 previewUrl.trim().length === 0 ? "opacity-60" : ""
               }`}
             >
-              <span>{t("Open preview automatically when this action runs")}</span>
+              <span>Open preview automatically when this action runs</span>
               <Switch
                 checked={autoOpenPreview}
                 disabled={previewUrl.trim().length === 0}
@@ -568,14 +560,14 @@ function ProjectScriptEditorForm({
             disabled={isSaving || !canEditActions}
             onClick={() => onRequestDelete(name)}
           >
-            {t("Delete")}
+            Delete
           </Button>
         )}
         <Button type="button" variant="outline" onClick={close}>
-          {t("Cancel")}
+          Cancel
         </Button>
         <Button form={formId} type="submit" disabled={isSaving || !canEditActions}>
-          {isSaving ? t("Saving…") : isEditing ? t("Save changes") : t("Save action")}
+          {isSaving ? "Saving…" : isEditing ? "Save changes" : "Save action"}
         </Button>
       </DialogFooter>
     </>

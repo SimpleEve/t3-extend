@@ -55,20 +55,20 @@ export function relativeTime(
 ): string {
   const timestamp = Date.parse(input);
   if (Number.isNaN(timestamp)) {
-    return t("<1m");
+    return "<1m";
   }
 
   const deltaSeconds = Math.max(0, Math.floor((nowMs - timestamp) / 1000));
-  if (deltaSeconds < 60) return t("<1m");
+  if (deltaSeconds < 60) return "<1m";
 
   const deltaMinutes = Math.floor(deltaSeconds / 60);
-  if (deltaMinutes < 60) return t("{count}m", { count: deltaMinutes });
+  if (deltaMinutes < 60) return `${deltaMinutes}m`;
 
   const deltaHours = Math.floor(deltaMinutes / 60);
-  if (deltaHours < 24) return t("{count}h", { count: deltaHours });
+  if (deltaHours < 24) return `${deltaHours}h`;
 
   const deltaDays = Math.floor(deltaHours / 24);
-  return t("{count}d", { count: deltaDays });
+  return `${deltaDays}d`;
 }
 
 /** Milliseconds until the relative-time label next changes. */

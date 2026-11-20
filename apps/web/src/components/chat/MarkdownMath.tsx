@@ -3,7 +3,6 @@ import { lazy, memo, Suspense, useLayoutEffect, useRef, useState } from "react";
 import { observeResize } from "../../lib/observeResize";
 
 import { RenderErrorBoundary } from "../RenderErrorBoundary";
-import { useT } from "~/hooks/useT";
 
 const MathTypeset = lazy(() => import("./MathTypeset"));
 
@@ -17,7 +16,6 @@ export const MarkdownMath = memo(function MarkdownMath(props: {
   display: boolean;
   focusable?: boolean;
 }) {
-  const t = useT();
   const viewportRef = useRef<HTMLSpanElement>(null);
   const contentRef = useRef<HTMLSpanElement>(null);
   const [overflows, setOverflows] = useState(false);
@@ -49,8 +47,8 @@ export const MarkdownMath = memo(function MarkdownMath(props: {
         props.focusable === false
           ? undefined
           : props.display
-            ? t("Display equation")
-            : t("Inline equation")
+            ? "Display equation"
+            : "Inline equation"
       }
     >
       <span
@@ -61,8 +59,8 @@ export const MarkdownMath = memo(function MarkdownMath(props: {
           !scrollable
             ? undefined
             : props.display
-              ? t("Scroll display equation")
-              : t("Scroll inline equation")
+              ? "Scroll display equation"
+              : "Scroll inline equation"
         }
       >
         <span

@@ -18,8 +18,6 @@ import { localAttachmentPreviewAtom, localAttachmentPreviewState } from "./local
 import { downloadAndShareAttachment, shareLocalAttachment } from "./attachmentDownload";
 import { refreshAssetUrl, useFreshAssetUrl, useRefreshAssetUrl } from "../state/assets";
 import { attachmentDocumentPresentation } from "./attachmentDocumentPresentation";
-import { useT } from "../hooks/useT"; // fork: i18n
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const isLocalUri = (uri: string) => /^(file|content):/.test(uri);
 
@@ -99,7 +97,6 @@ export function useAttachmentDocument(input: {
   readonly environmentId: EnvironmentId | null;
   readonly attachment: FileBackedComposerAttachment | null;
 }) {
-  const t = useT(); // fork: i18n
   const kind = filePreviewKind(input, { richDocuments: false });
   const delimiter = filePreviewDelimiter(input);
   const shareController = useRef<AbortController | null>(null);
@@ -175,8 +172,8 @@ export function useAttachmentDocument(input: {
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
       Dialog.alert(
-        t("Could not share file"),
-        cause instanceof Error ? cause.message : t("Please try again."),
+        "Could not share file",
+        cause instanceof Error ? cause.message : "Please try again.",
       );
     }
   };

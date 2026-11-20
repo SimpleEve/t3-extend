@@ -18,14 +18,12 @@ import { useAssetUrlState, useRefreshAssetUrl } from "../state/assets";
 import { AppText as Text } from "./ui/AppText";
 import { FilePreviewModal } from "./ui/FilePreviewModal";
 import { PresentationSource } from "./ui/NativePresentation";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 export function ComposerContextAttachment(props: {
   record: Extract<ComposerContextRecord, { attachmentId: string }>;
   environmentId?: EnvironmentId;
   attachment?: DraftComposerAttachment;
 }) {
-  const t = useT(); // fork: i18n
   const { record, attachment } = props;
   const shareSourceIdentifier = useId();
   const resource = {
@@ -41,7 +39,7 @@ export function ComposerContextAttachment(props: {
   const asset = useAssetUrlState(remoteEnvironmentId, resource);
   const refresh = useRefreshAssetUrl(remoteEnvironmentId, resource);
   const localPreview = useLocalAttachmentPreview(local ?? null);
-  const error = localPreview.error ? t("The local file is unavailable. Attach it again.") : null;
+  const error = localPreview.error ? "The local file is unavailable. Attach it again." : null;
   const [sharing, setSharing] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const uri = local
@@ -75,8 +73,8 @@ export function ComposerContextAttachment(props: {
     if (AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
       Dialog.alert(
-        t("Could not open attachment"),
-        cause instanceof Error ? cause.message : t("Try again."),
+        "Could not open attachment",
+        cause instanceof Error ? cause.message : "Try again.",
       );
     }
   };
@@ -85,7 +83,7 @@ export function ComposerContextAttachment(props: {
       {record.kind === "image" && uri ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("Preview {name}", { name: record.name })}
+          accessibilityLabel={`Preview ${record.name}`}
           onPress={() => setPreviewOpen(true)}
         >
           <Image
@@ -102,12 +100,12 @@ export function ComposerContextAttachment(props: {
       ) : null}
       {error || (!local && asset._tag === "Failure") ? (
         <Text className="text-foreground-muted">
-          {error ?? t("Attachment unavailable. Reconnect and try again.")}
+          {error ?? "Attachment unavailable. Reconnect and try again."}
         </Text>
       ) : null}
       <PresentationSource identifier={shareSourceIdentifier}>
         <Button
-          label={sharing ? t("Opening attachment…") : t("Open or share attachment")}
+          label={sharing ? "Opening attachment…" : "Open or share attachment"}
           tone="secondary"
           disabled={sharing}
           onPress={() => void share()}

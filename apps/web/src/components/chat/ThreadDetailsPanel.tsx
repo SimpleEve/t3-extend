@@ -44,7 +44,6 @@ import {
   THREAD_DETAILS_PANEL_LABEL_CLASS,
 } from "./threadDetailsPanelStyles";
 import { Menu, MenuPopup } from "../ui/menu";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 const GitActionsControl = memo(BaseGitActionsControl);
 
@@ -95,7 +94,6 @@ interface ThreadDetailsPanelProps extends Pick<
 }
 
 export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
-  const t = useT(); // fork: interface language
   const visible = useClientSettings(resolveThreadDetailsVisibility);
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const fileScripts = useT3ProjectFileScripts(
@@ -185,7 +183,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
               {show.environment || show.openIn || show.scripts ? (
                 <ThreadDetailsSection
                   headingId="thread-details-workspace-heading"
-                  title={t("Workspace")}
+                  title="Workspace"
                   separated={false}
                   showHeading={false}
                 >
@@ -235,7 +233,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
               {show.branch || show.pullRequests || show.git ? (
                 <ThreadDetailsSection
                   headingId="thread-details-version-control-heading"
-                  title={t("Version Control")}
+                  title="Version Control"
                   showHeading={false}
                   separated={density === "full"}
                 >
@@ -306,7 +304,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
                 >
                   <SlidersHorizontalIcon className={THREAD_DETAILS_PANEL_ICON_CLASS} aria-hidden />
                   <span className={cn("ml-0.5", THREAD_DETAILS_PANEL_LABEL_CLASS)}>
-                    {t("Choose what to show")}
+                    Choose what to show
                   </span>
                 </ThreadDetailsControl>
               </div>

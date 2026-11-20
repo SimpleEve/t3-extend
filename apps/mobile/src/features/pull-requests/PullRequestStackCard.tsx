@@ -8,14 +8,12 @@ import { pullRequestStatus } from "./pullRequestStatus";
 import type { PullRequestParams } from "./usePullRequestDiff";
 import type { PullRequestStackState } from "./usePullRequestStack";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { withKnownPullRequestSummary } from "../../state/use-thread-pr";
 
 export function PullRequestStackCard(props: {
   readonly params: PullRequestParams;
   readonly state: PullRequestStackState;
 }) {
-  const t = useT();
   const navigation = useNavigation();
   const [expanded, setExpanded] = useState(false);
   const stack = props.state.stack;
@@ -28,9 +26,9 @@ export function PullRequestStackCard(props: {
     return (
       <PullRequestCardGroup>
         <PullRequestCardRow
-          title={t("Stack")}
+          title="Stack"
           icon={PullRequestGlyph.stack}
-          value={t("{position} of {size}", { position: summary.position, size: summary.size })}
+          value={`${summary.position} of ${summary.size}`}
           last
         />
       </PullRequestCardGroup>
@@ -40,7 +38,7 @@ export function PullRequestStackCard(props: {
   return (
     <PullRequestCardGroup>
       <PullRequestCardRow
-        title={t("Stack")}
+        title="Stack"
         icon={PullRequestGlyph.stack}
         value={t("{position} of {size}", { position, size: stack.layers.length })}
         accessibilityLabel={
@@ -72,12 +70,8 @@ export function PullRequestStackCard(props: {
                   title={layer.title ?? layer.headBranch}
                   icon={status.icon}
                   tint={status.tint}
-                  value={selected ? t("Current") : status.label}
-                  detail={t("#{number} · {position} of {size}", {
-                    number: layer.number,
-                    position: index + 1,
-                    size: stack.layers.length,
-                  })}
+                  value={selected ? "Current" : status.label}
+                  detail={`#${layer.number} · ${index + 1} of ${stack.layers.length}`}
                   onPress={
                     selected
                       ? undefined
@@ -97,9 +91,7 @@ export function PullRequestStackCard(props: {
             );
           })}
           <Text className="px-4 py-3 text-xs text-foreground-muted">
-            {t("Base: {base}. Open a layer to review it or merge the stack through that layer.", {
-              base: stack.base,
-            })}
+            Base: {stack.base}. Open a layer to review it or merge the stack through that layer.
           </Text>
         </View>
       ) : null}

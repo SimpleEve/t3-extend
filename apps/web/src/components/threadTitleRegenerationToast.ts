@@ -1,4 +1,3 @@
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 import type { ThreadTitleRegenerationOutcome } from "@t3tools/contracts";
 import {
   type AtomCommandResult,
@@ -36,10 +35,7 @@ export function titleRegenerationToast(results: ReadonlyArray<TitleRegenerationR
       title:
         results.length === 1
           ? "Failed to regenerate thread title"
-          : translate(getUiLocale(), "Failed to regenerate {count} of {total} thread titles", {
-              count: failures.length,
-              total: results.length,
-            }),
+          : `Failed to regenerate ${failures.length} of ${results.length} thread titles`,
       description: failures[0],
     });
   }

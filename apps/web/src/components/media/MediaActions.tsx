@@ -29,8 +29,6 @@ import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { downloadMedia, readMediaPng } from "./mediaContent";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
-import { useT } from "~/hooks/useT";
 
 export interface MediaActionSource {
   readonly kind: "image" | "video";
@@ -121,7 +119,6 @@ export function MediaActions({
   children: ReactElement;
   showTooltip?: boolean;
 }) {
-  const t = useT();
   const { save, copyImage, canReadMedia, assertCanReadMedia } = useMediaActions(source);
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const menuOpen = useRef(false);
@@ -133,7 +130,7 @@ export function MediaActions({
     if (!api || menuOpen.current) return;
     menuOpen.current = true;
     setTooltipOpen(false);
-    let failureTitle = t("Could not open media menu");
+    let failureTitle = "Could not open media menu";
     let progressToast: ReturnType<typeof toastManager.add> | undefined;
     const result = await settlePromise(async () => {
       const unavailable = !canReadMedia || (source.src === null && source.asset === undefined);
@@ -143,11 +140,11 @@ export function MediaActions({
         typeof ClipboardItem !== "undefined";
       const items: ContextMenuItem<MediaActionId>[] = [];
       if (reference?.kind === "file") {
-        items.push({ id: "copy-full-path", label: t("Copy full path") });
+        items.push({ id: "copy-full-path", label: "Copy full path" });
         if (reference.relativePath)
-          items.push({ id: "copy-relative-path", label: t("Copy relative path") });
+          items.push({ id: "copy-relative-path", label: "Copy relative path" });
       } else if (reference?.kind === "url") {
-        items.push({ id: "copy-url", label: t("Copy URL") });
+        items.push({ id: "copy-url", label: "Copy URL" });
       }
       if (source.onOpenFile)
         items.push({ id: "open-file", label: t("Open in file viewer"), disabled: !canReadMedia });
@@ -159,7 +156,7 @@ export function MediaActions({
       if (source.kind === "image") {
         items.push({
           id: "copy-image",
-          label: t("Copy image"),
+          label: "Copy image",
           disabled: unavailable || !canCopyImage,
         });
       }

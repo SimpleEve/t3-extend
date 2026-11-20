@@ -4,7 +4,6 @@ import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { useAppModalPeek } from "../fork/appModalPeek"; // fork: peek behind the modal
 import { useNativeTitlebarHeight } from "../lib/windowControlsOverlay";
-import { useT } from "../hooks/useT";
 import { useCloseAppModal } from "./sidebar/mainAppLocation";
 import { GlobalVoiceInputIndicator } from "./chat/GlobalVoiceInputIndicator";
 import { Button } from "./ui/button";
@@ -107,20 +106,19 @@ export function AppRouteModal({ label, children }: { label: string; children: Re
 }
 
 export function AppRouteModalClose() {
-  const t = useT();
   return (
     <Tooltip>
       <TooltipTrigger
         render={
           <DialogPrimitive.Close
-            aria-label={t("Close")}
+            aria-label="Close"
             render={<Button size="icon-sm" variant="ghost" />}
           />
         }
       >
         <XIcon />
       </TooltipTrigger>
-      <TooltipPopup side="bottom">{t("Close (Esc)")}</TooltipPopup>
+      <TooltipPopup side="bottom">Close (Esc)</TooltipPopup>
     </Tooltip>
   );
 }

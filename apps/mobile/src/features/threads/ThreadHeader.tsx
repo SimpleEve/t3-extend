@@ -45,7 +45,7 @@ export function ThreadHeader(props: {
   const actions: AppBarAction[] = props.hasThreadCwd
     ? [
         {
-          accessibilityLabel: filesVisible ? t("Close files") : t("Open files"),
+          accessibilityLabel: filesVisible ? "Close files" : "Open files",
           icon: "folder",
           selected: filesVisible,
           disabled: !props.gitControls.canOpenFiles,
@@ -81,7 +81,7 @@ export function ThreadHeader(props: {
       backInSplitView={
         props.onReturnToThread
           ? {
-              accessibilityLabel: t("Return to chat"),
+              accessibilityLabel: "Return to chat",
               icon: "chevron.left",
               onPress: props.onReturnToThread,
             }

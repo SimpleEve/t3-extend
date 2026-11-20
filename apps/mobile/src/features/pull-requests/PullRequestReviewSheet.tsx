@@ -21,11 +21,8 @@ import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff"
 import { usePullRequestPermissions } from "./usePullRequestPermissions";
 import { PullRequestCompletionSuggestions } from "./PullRequestCompletionSuggestions";
 import { usePullRequestCompletions } from "./usePullRequestCompletions";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 function useActionSubmission(params: PullRequestParams) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const refreshDetail = useAtomRefresh(composerPullRequests.detail(pullRequestTarget(params)));
   const refreshActivity = useAtomRefresh(composerPullRequests.activity(pullRequestTarget(params)));
@@ -50,7 +47,7 @@ function useActionSubmission(params: PullRequestParams) {
       setError(
         cause instanceof Error
           ? cause.message
-          : t("The provider could not complete this action. Try again."),
+          : "The provider could not complete this action. Try again.",
       );
     }
   };
@@ -69,7 +66,6 @@ const VERDICTS = [
 export function PullRequestReviewSheet({
   route,
 }: StaticScreenProps<PullRequestParams & { readonly mode: "review" | "comment" }>) {
-  const t = useT(); // fork: i18n
   const params = route.params;
   const target = pullRequestTarget(params);
   const result = useEnvironmentQuery(composerPullRequests.detail(target));
@@ -119,7 +115,7 @@ export function PullRequestReviewSheet({
   const perform = () =>
     submission.submit(async () => {
       if (!canSubmit)
-        throw new Error(t("Add your feedback and check your permissions before submitting."));
+        throw new Error("Add your feedback and check your permissions before submitting.");
       const submitted = store.draft;
       const response =
         reviewing && verdict
@@ -159,14 +155,14 @@ export function PullRequestReviewSheet({
         <Button
           label={
             submission.busy
-              ? t("Submitting…")
+              ? "Submitting…"
               : reviewing
                 ? verdict?.value === "approve"
-                  ? t("Approve")
+                  ? "Approve"
                   : verdict?.value === "request-changes"
-                    ? t("Request changes")
-                    : t("Submit review")
-                : t("Post comment")
+                    ? "Request changes"
+                    : "Submit review"
+                : "Post comment"
           }
           fullWidth
           tone="contrast"
@@ -178,7 +174,7 @@ export function PullRequestReviewSheet({
     >
       {reviewing && offered.length > 1 ? (
         <SegmentedControl
-          options={offered.map((option) => ({ value: option.value, label: t(option.title) }))}
+          options={offered.map((option) => ({ value: option.value, label: option.title }))}
           selected={verdict?.value ?? "comment"}
           onSelect={(value) => {
             if (!submission.busy) setRequestedVerdict(value);
@@ -187,7 +183,7 @@ export function PullRequestReviewSheet({
         />
       ) : null}
       <Text className="px-4 text-xs text-foreground-muted">
-        {reviewing ? t("Summary") : t("Comment")}
+        {reviewing ? "Summary" : "Comment"}
       </Text>
       <PullRequestCompletionSuggestions completions={completions} />
       <TextInput
@@ -195,13 +191,13 @@ export function PullRequestReviewSheet({
         selection={completions.selection}
         onSelectionChange={completions.onSelectionChange}
         onBlur={completions.onBlur}
-        accessibilityLabel={reviewing ? t("Review summary") : t("Comment")}
+        accessibilityLabel={reviewing ? "Review summary" : "Comment"}
         placeholder={
           reviewing
             ? summaryRequired
-              ? t("Summary required to request changes…")
-              : t("Summarize your review…")
-            : t("Write a comment…")
+              ? "Summary required to request changes…"
+              : "Summarize your review…"
+            : "Write a comment…"
         }
         placeholderTextColorClassName="accent-foreground-muted"
         editable={store.ready && !submission.busy}
@@ -252,8 +248,8 @@ export function PullRequestReviewSheet({
               </Text>
               <Text className="text-2xs text-foreground-muted">
                 {draft.headSha !== result.data?.headSha
-                  ? t("Branch changed · Tap to choose a new line")
-                  : t("Tap to edit")}
+                  ? "Branch changed · Tap to choose a new line"
+                  : "Tap to edit"}
               </Text>
             </Pressable>
           ))}
@@ -261,9 +257,7 @@ export function PullRequestReviewSheet({
       ) : null}
       {reviewing && stale ? (
         <Text className="text-sm text-danger-foreground">
-          {t(
-            "The branch changed since you wrote a comment. Choose its current line before submitting.",
-          )}
+          The branch changed since you wrote a comment. Choose its current line before submitting.
         </Text>
       ) : null}
       {reviewing && !canSubmitComments ? (

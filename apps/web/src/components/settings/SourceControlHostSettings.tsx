@@ -8,7 +8,6 @@ import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { Button } from "../ui/button";
 import { ProviderSettingsForm } from "./ProviderSettingsForm";
-import { useT } from "../../hooks/useT";
 
 export function SourceControlHostSettings({
   environmentId,
@@ -21,7 +20,6 @@ export function SourceControlHostSettings({
   };
   readonly onSaved: () => void;
 }) {
-  const t = useT();
   const saved = useEnvironmentSettings(
     environmentId,
     (settings) => settings.sourceControlHosts[definition.kind],
@@ -70,7 +68,7 @@ export function SourceControlHostSettings({
               void save(Object.fromEntries(Object.keys(saved ?? {}).map((key) => [key, ""])))
             }
           >
-            {t("Remove")}
+            Remove
           </Button>
         </div>
       ) : null}

@@ -130,8 +130,6 @@ import { enqueueThreadOutboxMessage } from "./thread-outbox";
 import { dispatchingQueuedMessageIdsAtom, useThreadOutboxMessages } from "./use-thread-outbox";
 import { threadEnvironment } from "./threads";
 import { useAtomCommand } from "./use-atom-command";
-import { useT } from "../hooks/useT"; // fork: i18n
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 // fork: composer context meter
 const EMPTY_THREAD_HISTORY_ATOM = Atom.make(EMPTY_ENVIRONMENT_THREAD_STATE.history).pipe(
@@ -231,7 +229,6 @@ export function useThreadComposerState(input: {
     settings: { readonly runtimeMode: RuntimeMode; readonly modelSelection: ModelSelection },
   ) => Promise<boolean>;
 }) {
-  const t = useT(); // fork: i18n
   const {
     selectedThread: selectedThreadShell,
     selectedThreadCreation,
@@ -318,7 +315,6 @@ export function useThreadComposerState(input: {
       nodes: selectedThreadNodes,
       checkpointSummaries,
       cache: feedCache,
-      t, // fork: i18n
     });
     const pendingAcknowledgments = selectPendingAcknowledgedMessages(acknowledgedMessages, {
       threadKey: selectedThreadKey,
@@ -611,7 +607,7 @@ export function useThreadComposerState(input: {
       edit.existingAttachments.length === 0 &&
       draft.attachments.length === 0
     ) {
-      Dialog.alert(t("Add a message"), t("A queued message cannot be left empty."));
+      Dialog.alert("Add a message", "A queued message cannot be left empty.");
       return;
     }
     if (
@@ -619,21 +615,16 @@ export function useThreadComposerState(input: {
       PROVIDER_SEND_TURN_MAX_ATTACHMENTS
     ) {
       Dialog.alert(
-        t("Too many attachments"),
-        t("Remove attachments until there are at most {PROVIDER_SEND_TURN_MAX_ATTACHMENTS}.", {
-          PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
-        }),
+        "Too many attachments",
+        `Remove attachments until there are at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS}.`,
       );
       return;
     }
     // A queued message stays in its thread, so saving `/side` would send it to main.
     if (parseSideChatCommand(text)) {
       Dialog.alert(
-        translate(getUiLocale(), "Queued message not updated"),
-        translate(
-          getUiLocale(),
-          "A queued message can't move to a side chat. Remove /side or /btw to save it.",
-        ),
+        "Queued message not updated",
+        "A queued message can't move to a side chat. Remove /side or /btw to save it.",
       );
       return;
     }
@@ -659,8 +650,8 @@ export function useThreadComposerState(input: {
       finishSave(false);
       const error = squashAtomCommandFailure(prepared);
       Dialog.alert(
-        t("Could not save the queued message"),
-        error instanceof Error ? error.message : t("Your edit is still in the composer."),
+        "Could not save the queued message",
+        error instanceof Error ? error.message : "Your edit is still in the composer.",
       );
       return;
     }
@@ -695,8 +686,8 @@ export function useThreadComposerState(input: {
       // The run left the queue during the save; its exit already told the composer what happened.
       if (!finishSave(false)) return;
       Dialog.alert(
-        t("Could not save the queued message"),
-        t("It may have already started. Your edit is still in the composer."),
+        "Could not save the queued message",
+        "It may have already started. Your edit is still in the composer.",
       );
       return;
     }
@@ -773,14 +764,14 @@ export function useThreadComposerState(input: {
     const sideChatCommand = beforeDispatch === undefined ? parseSideChatCommand(text) : null;
     if (sideChatCommand) {
       if (sideChatUnavailableReason !== null) {
-        Dialog.alert(t("Side chat not started"), sideChatUnavailableReason);
+        Dialog.alert("Side chat not started", sideChatUnavailableReason);
       } else if (attachments.length > 0 || (draft.context?.records.length ?? 0) > 0) {
         Dialog.alert(
-          t("Side chats take text only"),
-          t("Remove the attachments and context, then send it again."),
+          "Side chats take text only",
+          "Remove the attachments and context, then send it again.",
         );
       } else if (sideChatCommand.prompt.length === 0) {
-        Dialog.alert(t("Ask a side question"), t("Type the question after /side, then send it."));
+        Dialog.alert("Ask a side question", "Type the question after /side, then send it.");
       } else if (modelUnavailable) {
         alertModelUnavailable();
       } else if (!startingSideChatRef.current) {
@@ -826,17 +817,15 @@ export function useThreadComposerState(input: {
     // Recovery preserves over-cap attachments; require trimming or outbox delivery would reject indefinitely.
     if (attachments.length > PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
       Dialog.alert(
-        t("Too many attachments"),
-        t("Remove attachments until there are at most {PROVIDER_SEND_TURN_MAX_ATTACHMENTS}.", {
-          PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
-        }),
+        "Too many attachments",
+        `Remove attachments until there are at most ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS}.`,
       );
       return null;
     }
 
     const contextBlockReason = composerContextSendBlockReason(draft.context);
     if (contextBlockReason) {
-      Dialog.alert(t("Too much context"), contextBlockReason);
+      Dialog.alert("Too much context", contextBlockReason);
       return null;
     }
 
@@ -987,7 +976,7 @@ export function useThreadComposerState(input: {
         if (freshContext) setFreshSessionPending(threadKey, true);
         setThreadComposerError(
           threadKey,
-          error instanceof Error ? error.message : t("Failed to save the queued message."),
+          error instanceof Error ? error.message : "Failed to save the queued message.",
         );
       },
     );
@@ -998,24 +987,24 @@ export function useThreadComposerState(input: {
   const sideChatUnavailableReason = (() => {
     const serverConfig = selectedEnvironmentRuntime?.serverConfig;
     if (selectedThreadShell?.lineage.sideChat === true)
-      return t("Side chats cannot start side chats.");
+      return "Side chats cannot start side chats.";
     if (selectedThreadShell?.lineage.relationshipToParent === "subagent") {
-      return t("Subagent threads cannot start side chats.");
+      return "Subagent threads cannot start side chats.";
     }
     if (!selectedThreadShell || !serverConfig) {
-      return t("Side chats are not ready yet. Try again in a moment.");
+      return "Side chats are not ready yet. Try again in a moment.";
     }
     if (serverConfig.environment.capabilities.sideChats !== true) {
-      return t("Update this environment's T3 Extend server to use side chats.");
+      return "Update this environment's T3 Code server to use side chats.";
     }
-    if (selectedThreadCreation !== null) return t("Side chats start after the first message.");
+    if (selectedThreadCreation !== null) return "Side chats start after the first message.";
     if (
       orchestrationV2WorktreePending(
         selectedThreadShell.worktreePath ?? null,
         selectedThreadProjection?.projection.runs ?? [],
       )
     ) {
-      return t("Available once the thread's worktree is set up.");
+      return "Available once the thread's worktree is set up.";
     }
     return null;
   })();

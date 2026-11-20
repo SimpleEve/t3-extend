@@ -14,7 +14,6 @@ import {
   formatInlineContextReference,
   removeInlineContextReference,
 } from "./composerContextReferences";
-import { interpolate } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 
 import {

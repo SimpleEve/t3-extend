@@ -26,7 +26,6 @@ export function CompactBrandTitle(
     readonly fit?: boolean;
   } = {},
 ) {
-  const t = useT(); // fork: i18n
   const stageLabel = resolveMobileStageLabel(Constants.expoConfig?.extra?.appVariant);
   const titleOffset = brandTitleOffset();
   const { scale } = useAndroidControlSizing();
@@ -42,7 +41,7 @@ export function CompactBrandTitle(
         props.fit && showStage ? (event) => setFullWidth(event.nativeEvent.layout.width) : undefined
       }
       aria-level={1}
-      accessibilityLabel={props.accessibilityLabel ?? t("T3 Extend, Threads")}
+      accessibilityLabel={props.accessibilityLabel ?? "T3 Code, Threads"}
       accessible
       role="heading"
       className="flex-row items-center gap-1.5"

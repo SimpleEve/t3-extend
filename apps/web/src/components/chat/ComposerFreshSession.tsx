@@ -1,5 +1,4 @@
 import { EraserIcon } from "lucide-react";
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n";
 
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
 
@@ -12,9 +11,9 @@ export function freshSessionBannerItem(
     id: "fresh-session",
     variant: "info",
     icon: <EraserIcon />,
-    title: t("Your next message starts a fresh session"),
-    description: t("The agent won't see earlier messages in this thread."),
-    dismissLabel: t("Keep the current session"),
+    title: "Your next message starts a fresh session",
+    description: "The agent won't see earlier messages in this thread.",
+    dismissLabel: "Keep the current session",
     onDismiss: onUndo,
   };
 }

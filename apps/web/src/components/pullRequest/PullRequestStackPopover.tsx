@@ -6,7 +6,6 @@ import { Menu, MenuTrigger, MenuPopup, MenuGroup, MenuGroupLabel, MenuItem } fro
 import { PullRequestStackLayers } from "./PullRequestStackLayers";
 import { PullRequestStackHeader } from "./PullRequestStackHeader";
 import { PullRequestGlyph } from "./pullRequestIcons";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 // Mount only on open to avoid per-row stack fetches.
 function StackBody({
@@ -20,7 +19,6 @@ function StackBody({
   onSelect: (reference: PullRequestRef) => void;
   stackNumber: number;
 }) {
-  const t = useT();
   const query = usePullRequestStack(environmentId, reference);
   if (query.data !== null) {
     return (
@@ -42,7 +40,7 @@ function StackBody({
       <PullRequestStackHeader number={stackNumber} />
       <MenuGroupLabel>
         {query.error ??
-          (query.isPending ? t("Loading stack…") : t("This pull request is no longer in a stack."))}
+          (query.isPending ? "Loading stack…" : "This pull request is no longer in a stack.")}
       </MenuGroupLabel>
     </>
   );
@@ -59,7 +57,6 @@ export function PullRequestStackPopover({
   membership: PullRequestStackMembership;
   onSelect: (reference: PullRequestRef) => void;
 }) {
-  const t = useT();
   const [open, setOpen] = useState(false);
   return (
     <Menu open={open} onOpenChange={setOpen}>
@@ -75,11 +72,7 @@ export function PullRequestStackPopover({
                   className="inline-flex shrink-0 cursor-pointer items-center gap-1 text-xs font-normal text-muted-foreground"
                 />
               }
-              aria-label={t("Stack {number}, layer {position} of {size}", {
-                number: membership.number,
-                position: membership.position,
-                size: membership.size,
-              })}
+              aria-label={`Stack ${membership.number}, layer ${membership.position} of ${membership.size}`}
               onClick={(event) => event.stopPropagation()}
               onKeyDown={(event) => event.stopPropagation()}
             >
@@ -89,11 +82,7 @@ export function PullRequestStackPopover({
           }
         />
         <TooltipPopup>
-          {t("View stack #{number}, layer {position} of {size}", {
-            number: membership.number,
-            position: membership.position,
-            size: membership.size,
-          })}
+          View stack #{membership.number}, layer {membership.position} of {membership.size}
         </TooltipPopup>
       </Tooltip>
       <MenuPopup

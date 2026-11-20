@@ -25,8 +25,6 @@ import { pullRequestDescriptionContent } from "./pullRequestDescriptionContent";
 import { discussionCommentCountLabel } from "./pullRequestDiffComments";
 import { normalizedReviewState } from "./pullRequestStatus";
 import type { PullRequestParams } from "./usePullRequestDiff";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function TimelineEvent(props: {
   icon: AppSymbolName | "commit";
@@ -84,7 +82,6 @@ function TimelineComment({
   params: PullRequestParams;
   actions: CommentActions;
 }) {
-  const t = useT(); // fork: i18n
   const target = parsePullRequestAnchor(params.navigationUrl);
   const linked =
     target?.kind === "timeline" && pullRequestAnchorMatchesUrl(target.anchor, comment.url);
@@ -108,9 +105,9 @@ function TimelineComment({
         <PullRequestAvatar actor={comment.author} size={22} />
         <View className="min-w-0 flex-1">
           <Text className="text-sm">
-            <Text className="font-t3-medium">{comment.author?.login ?? t("Unknown author")}</Text>
+            <Text className="font-t3-medium">{comment.author?.login ?? "Unknown author"}</Text>
             <Text className="text-foreground-muted">
-              {approved ? t(" approved") : changes ? t(" requested changes") : t(" commented")}
+              {approved ? " approved" : changes ? " requested changes" : " commented"}
             </Text>
           </Text>
         </View>
@@ -197,7 +194,7 @@ function TimelineComment({
               className="flex-row items-center justify-center gap-1 py-2 active:opacity-70"
             >
               <Text className="text-xs font-t3-medium text-foreground">
-                {expanded ? t("Show less") : t("Show more")}
+                {expanded ? "Show less" : "Show more"}
               </Text>
               <SymbolView
                 name={expanded ? "chevron.up" : "chevron.down"}
@@ -224,7 +221,6 @@ export function pullRequestTimelineRows(
   navigation: Pick<NavigationProp<ReactNavigation.RootParamList>, "navigate" | "dispatch">,
   actions: CommentActions,
   newestFirst: boolean,
-  t: Translator, // fork: i18n
 ) {
   const linkTarget = parsePullRequestAnchor(params.navigationUrl);
   const threads = pullRequestConversationThreads(activity);
@@ -260,9 +256,9 @@ export function pullRequestTimelineRows(
             <PullRequestAvatar actor={thread.comments[0]?.author ?? null} size={22} />
             <Text className="flex-1 text-sm">
               <Text className="font-t3-medium">
-                {thread.comments[0]?.author?.login ?? t("Unknown author")}
+                {thread.comments[0]?.author?.login ?? "Unknown author"}
               </Text>
-              <Text className="text-foreground-muted">{t(" started a discussion")}</Text>
+              <Text className="text-foreground-muted"> started a discussion</Text>
             </Text>
             {thread.comments[0] ? (
               <Text className="text-2xs text-foreground-tertiary">
@@ -288,7 +284,7 @@ export function pullRequestTimelineRows(
           >
             <View className="flex-row items-center gap-2">
               {thread.path === null ? (
-                <Text className="flex-1 text-xs">{t("Overview")}</Text>
+                <Text className="flex-1 text-xs">Overview</Text>
               ) : (
                 <>
                   <SymbolView name="doc.text" size={14} tintColorClassName="accent-icon-muted" />
@@ -316,10 +312,7 @@ export function pullRequestTimelineRows(
         <TimelineEvent icon="commit">
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t("View commit {oid}, {messageHeadline}", {
-              oid: commit.oid.slice(0, 7),
-              messageHeadline: commit.messageHeadline,
-            })}
+            accessibilityLabel={`View commit ${commit.oid.slice(0, 7)}, ${commit.messageHeadline}`}
             onPress={() =>
               navigation.dispatch(
                 StackActions.push("PullRequestFile", { ...params, commit: commit.oid, path: "" }),
@@ -345,7 +338,7 @@ export function pullRequestTimelineRows(
       date: "",
       content: (
         <Text className="py-3 text-xs text-foreground-muted">
-          {t("More activity is available on the provider.")}
+          More activity is available on the provider.
         </Text>
       ),
     });

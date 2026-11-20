@@ -35,7 +35,6 @@ import {
 } from "./sheet-paint";
 import { externalUrl } from "./links";
 import { bufferedViewport, cachedViewport, retainCachedViewport } from "./sheet-viewport";
-import { useT } from "~/hooks/useT"; // fork: restored import
 
 const isSupersededError = Schema.is(SupersededError);
 
@@ -52,7 +51,6 @@ export default function Spreadsheet(props: {
   onDetails: (text: string) => void;
   onError: (cause: unknown) => void;
 }) {
-  const t = useT();
   const { onError, bytes: source, onDetails, view } = props;
   const [opened, setOpened] = useState<Opened>();
   const [error, setError] = useState("");
@@ -103,7 +101,7 @@ export default function Spreadsheet(props: {
   if (!opened) return <FileSurfaceLoading />;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {error ? <FileSurfaceNotice>{t(error)}</FileSurfaceNotice> : null}
+      {error ? <FileSurfaceNotice>{error}</FileSurfaceNotice> : null}
       <SpreadsheetGrid
         key={opened.layout.info.activeSheet}
         engine={opened.engine}
@@ -116,7 +114,7 @@ export default function Spreadsheet(props: {
       />
       <div
         role="tablist"
-        aria-label={t("Sheets")}
+        aria-label="Sheets"
         className="flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-t border-border px-2"
         onKeyDown={(event) => {
           const current = opened.tabs.findIndex(
@@ -163,7 +161,6 @@ function SpreadsheetGrid(props: {
   initialCell: CellAddr | undefined;
   onNavigate: (sheet: string, cell: CellAddr) => void;
 }) {
-  const t = useT();
   const { onNavigate, layout, engine, initialCell } = props;
   const scroller = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -756,7 +753,7 @@ function SpreadsheetGrid(props: {
           role="status"
           className="absolute inset-x-3 bottom-3 rounded-md bg-background p-2 text-xs text-foreground shadow-md"
         >
-          {t(notice)}
+          {notice}
         </div>
       ) : null}
     </div>

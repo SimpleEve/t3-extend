@@ -17,7 +17,6 @@ import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { HtmlRenderDialog } from "./HtmlRenderDialog";
 import { observeResize } from "~/lib/observeResize";
-import { useT } from "~/hooks/useT";
 
 const MIN_URL_LIFE_MS = 5 * 60_000;
 
@@ -27,7 +26,6 @@ export function HtmlRenderFrame(props: {
   readonly threadRef: ScopedThreadRef | undefined;
   readonly onFullscreenChange?: (fullscreen: boolean) => void;
 }) {
-  const t = useT();
   const { attachmentId, title } = props.htmlRender;
   const [width, setWidth] = useState(HTML_RENDER_COLUMN_WIDTH);
   const observeBox = (box: HTMLDivElement) => {
@@ -85,7 +83,7 @@ export function HtmlRenderFrame(props: {
               <TooltipTrigger
                 render={
                   <Button
-                    aria-label={t("Open full screen")}
+                    aria-label="Open full screen"
                     size="icon-xs"
                     variant="glass"
                     onClick={async () => {
@@ -97,8 +95,8 @@ export function HtmlRenderFrame(props: {
                       else
                         toastManager.add({
                           type: "error",
-                          title: t("Page unavailable"),
-                          description: t("Reconnect to the environment and try again."),
+                          title: "Page unavailable",
+                          description: "Reconnect to the environment and try again.",
                         });
                     }}
                   />
@@ -106,7 +104,7 @@ export function HtmlRenderFrame(props: {
               >
                 <Maximize2Icon className="size-3.5" />
               </TooltipTrigger>
-              <TooltipPopup side="left">{t("Open full screen")}</TooltipPopup>
+              <TooltipPopup side="left">Open full screen</TooltipPopup>
             </Tooltip>
           </div>
           {expandedSrc !== null ? (
@@ -120,7 +118,7 @@ export function HtmlRenderFrame(props: {
         </>
       ) : failed ? (
         <p className="flex size-full items-center justify-center text-muted-foreground text-xs">
-          {t("Unable to load {title}", { title })}
+          Unable to load {title}
         </p>
       ) : null}
     </div>

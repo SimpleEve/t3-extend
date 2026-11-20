@@ -4,7 +4,6 @@ import {
   resolveHostedAppChannelLabel,
   resolveWebAppStageLabel,
 } from "./branding.logic";
-import { FORK } from "@t3tools/shared/forkIdentity"; // fork: restored import
 
 function readInjectedDesktopAppBranding(): DesktopAppBranding | null {
   if (typeof window === "undefined") {

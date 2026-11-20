@@ -5,9 +5,6 @@ import {
   runOutcomeText,
   THREAD_STATUS_TEXT,
 } from "@t3tools/client-runtime/state/thread-activity-announcement";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: restored import
-import { interpolate } from "@t3tools/client-runtime/i18n"; // fork: restored import
-import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: restored import
 
 export interface BackgroundThreadSnapshot {
   readonly key: string;
@@ -57,7 +54,6 @@ export function nextBackgroundThreadAnnouncement(
   previous: BackgroundThreadMemory,
   threads: ReadonlyArray<BackgroundThreadSnapshot>,
   openThreadKey: string | null,
-  t: Translator = (source, params) => interpolate(source, params), // fork: interface language
 ): { readonly memory: BackgroundThreadMemory; readonly announcement: string | null } {
   const memory = new Map<string, BackgroundThreadMemoryEntry>();
   const announcements: string[] = [];
@@ -94,6 +90,6 @@ export function nextBackgroundThreadAnnouncement(
   }
   return {
     memory,
-    announcement: announcements.length === 0 ? null : announcements.join(t(". ")),
+    announcement: announcements.length === 0 ? null : announcements.join(". "),
   };
 }

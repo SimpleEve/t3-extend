@@ -24,7 +24,6 @@ import { fitComposerImage, renderPhoto } from "./composerImageFit";
 import { beginForegroundHandoff } from "./foreground-handoff";
 import { uuidv4 } from "./uuid";
 import { writeFileAtomically } from "./atomic-file";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface DraftComposerImageAttachment extends Omit<UploadChatImageAttachment, "dataUrl"> {
   readonly id: string;
@@ -264,9 +263,7 @@ export async function pickComposerFiles(input: {
   if (remainingSlots <= 0) {
     return {
       files: [],
-      error: translatorFor(getUiLocale())("You can attach up to {count} files per message.", {
-        count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
-      }),
+      error: `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} files per message.`,
     };
   }
 
@@ -354,9 +351,7 @@ export async function pickComposerFiles(input: {
     }
   }
   if (exceededAttachmentLimit) {
-    error = translatorFor(getUiLocale())("You can attach up to {count} files per message.", {
-      count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
-    });
+    error = `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} files per message.`;
   }
   return { files: attachments, error };
 }
@@ -391,9 +386,7 @@ export async function pickComposerMedia(input: {
   if (remainingSlots <= 0) {
     return {
       attachments: [],
-      error: translatorFor(getUiLocale())("You can attach up to {count} attachments per message.", {
-        count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
-      }),
+      error: `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments per message.`,
     };
   }
 
@@ -441,16 +434,13 @@ export async function pickComposerMedia(input: {
 
   for (const asset of result.assets) {
     if (attachments.length >= remainingSlots) {
-      error = translatorFor(getUiLocale())(
-        "You can attach up to {count} attachments per message.",
-        { count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS },
-      );
+      error = `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} attachments per message.`;
       break;
     }
     const mimeType = asset.mimeType?.toLowerCase();
     if (asset.type === "video" || mimeType?.startsWith("video/")) {
       if (input.maxVideoBytes === undefined) {
-        error = translatorFor(getUiLocale())("Video attachments are unavailable here.");
+        error = "Video attachments are unavailable here.";
         continue;
       }
       try {
@@ -476,9 +466,7 @@ export async function pickComposerMedia(input: {
       continue;
     }
     if (asset.type !== "image" && !mimeType?.startsWith("image/")) {
-      error = translatorFor(getUiLocale())("Unsupported file type for '{name}'.", {
-        name: asset.fileName ?? "image",
-      });
+      error = `Unsupported file type for '${asset.fileName ?? "image"}'.`;
       continue;
     }
 
@@ -527,15 +515,13 @@ export async function pickComposerMedia(input: {
         };
       }
     } catch {
-      error = translatorFor(getUiLocale())("Failed to read '{name}'.", { name });
+      error = `Failed to read '${name}'.`;
       continue;
     }
 
     const sizeBytes = estimateBase64ByteSize(image.base64);
     if (sizeBytes <= 0 || sizeBytes > PROVIDER_SEND_TURN_MAX_IMAGE_BYTES) {
-      error = translatorFor(getUiLocale())("'{name}' exceeds the 10 MB attachment limit.", {
-        name,
-      });
+      error = `'${name}' exceeds the 10 MB attachment limit.`;
       continue;
     }
 

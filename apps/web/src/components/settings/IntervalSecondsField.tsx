@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import {
   NumberField,
   NumberFieldDecrement,
@@ -22,7 +21,6 @@ export function IntervalSecondsField({
   step: number;
   onCommit: (seconds: number, options: { onFailed: () => void }) => void;
 }) {
-  const t = useT(); // fork: i18n
   const [field, setField] = useState({
     saved: value,
     draft: value as number | null,
@@ -68,13 +66,11 @@ export function IntervalSecondsField({
       }}
     >
       <NumberFieldGroup>
-        <NumberFieldDecrement aria-label={t("Decrease {label}", { label })} />
+        <NumberFieldDecrement aria-label={`Decrease ${label}`} />
         <NumberFieldInput
-          aria-label={t("{label} in seconds", {
-            label: `${label.charAt(0).toUpperCase()}${label.slice(1)}`,
-          })}
+          aria-label={`${label.charAt(0).toUpperCase()}${label.slice(1)} in seconds`}
         />
-        <NumberFieldIncrement aria-label={t("Increase {label}", { label })} />
+        <NumberFieldIncrement aria-label={`Increase ${label}`} />
       </NumberFieldGroup>
     </NumberField>
   );

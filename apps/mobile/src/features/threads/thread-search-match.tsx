@@ -3,7 +3,6 @@ import type { EnvironmentThreadSearchMatch } from "@t3tools/client-runtime/state
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { cn } from "../../lib/cn";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function ThreadSearchMatchExcerpt(props: {
   readonly match: EnvironmentThreadSearchMatch;
@@ -12,7 +11,6 @@ export function ThreadSearchMatchExcerpt(props: {
   readonly compact?: boolean;
   readonly sidebar?: boolean;
 }) {
-  const t = useT();
   const isUser = props.match.source === "user";
   const parts = splitSearchText(
     props.match.snippet,
@@ -42,7 +40,7 @@ export function ThreadSearchMatchExcerpt(props: {
               : "text-adaptive-emerald-600-400",
         )}
       >
-        {isUser ? t("You:") : t("Agent:")}{" "}
+        {isUser ? "You:" : "Agent:"}{" "}
       </Text>
       {parts.map((part) => (
         <Text

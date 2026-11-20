@@ -21,7 +21,6 @@ import { scopedThreadKey } from "../../lib/scopedEntities";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { isZipFile, ZipArchiveView } from "./ZipArchiveView";
 import { AttachmentDocumentBody, nativeViewerKind } from "./AttachmentDocumentBody";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export type AttachmentFileRouteParams = {
   readonly environmentId?: string;
@@ -37,7 +36,6 @@ export type AttachmentFileRouteParams = {
 type AttachmentFileScreenProps = StaticScreenProps<AttachmentFileRouteParams>;
 
 export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const { appearance, setCodeWordBreak } = useAppearancePreferences();
   const params = props.route.params;
@@ -92,7 +90,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
     const message = pendingNativeError.current;
     pendingNativeError.current = null;
     if (nativeViewer === null) {
-      if (message) Dialog.alert(t("Could not open document"), message);
+      if (message) Dialog.alert("Could not open document", message);
       return;
     }
     if (message) {
@@ -113,7 +111,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
     renderedMode
       ? ({
           id: "preview",
-          title: renderedMode === "table" ? t("Table") : t("Preview"),
+          title: renderedMode === "table" ? "Table" : "Preview",
           icon: renderedMode === "table" ? "tablecells" : "eye",
           inline: true,
           onPress: () => setRendered(true),
@@ -122,7 +120,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
     renderedMode
       ? ({
           id: "source",
-          title: t("Source"),
+          title: "Source",
           icon: "doc.text",
           inline: true,
           onPress: () => setRendered(false),
@@ -131,7 +129,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
     content && activeMode === "source"
       ? ({
           id: "word-wrap",
-          title: appearance.codeWordBreak ? t("Disable word wrap") : t("Enable word wrap"),
+          title: appearance.codeWordBreak ? "Disable word wrap" : "Enable word wrap",
           icon: "text.alignleft",
           inline: false,
           onPress: () => setCodeWordBreak(!appearance.codeWordBreak),
@@ -140,7 +138,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
     content
       ? ({
           id: "copy",
-          title: content.truncated ? t("Copy preview") : t("Copy contents"),
+          title: content.truncated ? "Copy preview" : "Copy contents",
           icon: "doc.on.doc",
           inline: false,
           onPress: () => copyTextWithHaptic(content.text),
@@ -149,7 +147,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
     uri
       ? ({
           id: "share",
-          title: sharing ? t("Opening share sheet…") : t("Save or share"),
+          title: sharing ? "Opening share sheet…" : "Save or share",
           icon: "square.and.arrow.up",
           inline: false,
           onPress: () => void share(),
@@ -158,7 +156,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
     uri
       ? ({
           id: "open-viewer",
-          title: t("Open in file viewer"),
+          title: "Open in file viewer",
           icon: "arrow.up.left.and.arrow.down.right",
           inline: false,
           onPress: () => {
@@ -170,7 +168,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
     draftKey
       ? ({
           id: "remove",
-          title: t("Remove from draft"),
+          title: "Remove from draft",
           icon: "trash",
           inline: false,
           destructive: true,
@@ -211,7 +209,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
         })),
     ],
   };
-  const subtitle = `${draftKey ? t("Draft attachment") : t("Attachment")}${sizeBytes > 0 ? ` · ${formatAttachmentSize(sizeBytes)}` : ""}`;
+  const subtitle = `${draftKey ? "Draft attachment" : "Attachment"}${sizeBytes > 0 ? ` · ${formatAttachmentSize(sizeBytes)}` : ""}`;
   const refresh = useRefreshAssetUrl(environmentId, resource);
   const capabilities = useEnvironmentServerConfig(environmentId)?.environment.capabilities;
 

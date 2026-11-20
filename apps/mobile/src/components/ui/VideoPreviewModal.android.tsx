@@ -20,8 +20,6 @@ import { usePreparedConnection } from "../../state/session";
 import { AppText } from "./AppText";
 import { MediaPreviewHeader } from "../MediaPreviewHeader";
 import { MediaVideoPlayer } from "../MediaVideoPlayer";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type { VideoPreviewSource } from "../../lib/videoPreviewSource";
 
@@ -109,7 +107,6 @@ function OpenVideoPreviewModal(props: {
   readonly playback: PlaybackState;
   readonly onRequestClose: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const { playback } = props;
   const insets = useSafeAreaInsets();
   const mediaActions = useMediaActions(playback.actionsSource, props.onRequestClose);
@@ -130,13 +127,13 @@ function OpenVideoPreviewModal(props: {
         <MediaPreviewHeader
           title={props.name}
           media={mediaActions}
-          closeAccessibilityLabel={t("Close video")}
+          closeAccessibilityLabel="Close video"
           onClose={props.onRequestClose}
         />
         {playback.uri === null && !playback.unavailable ? (
           <View className="flex-1 items-center justify-center gap-3 px-6">
             <AppActivityIndicator color="#ffffff" />
-            <AppText className="text-sm text-white/80">{t("Loading video...")}</AppText>
+            <AppText className="text-sm text-white/80">Loading video...</AppText>
           </View>
         ) : (
           <MediaVideoPlayer
@@ -158,13 +155,13 @@ function OpenVideoPreviewModal(props: {
         ) : null}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("Save or share video")}
+          accessibilityLabel="Save or share video"
           disabled={playback.uri === null || mediaActions.sharing}
           onPress={mediaActions.share}
           className="mx-4 my-3 min-h-12 items-center justify-center rounded-xl bg-white/15 px-4"
         >
           <AppText className="font-t3-medium text-base text-white">
-            {mediaActions.sharing ? t("Opening share sheet...") : t("Save or share video")}
+            {mediaActions.sharing ? "Opening share sheet..." : "Save or share video"}
           </AppText>
         </Pressable>
       </View>

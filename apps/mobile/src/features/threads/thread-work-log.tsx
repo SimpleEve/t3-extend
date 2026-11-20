@@ -109,9 +109,6 @@ import { useAssetUrl } from "../../state/assets";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
 import { useOpenLinkedThread } from "./useOpenLinkedThread";
 import { startShimmerSteps } from "./work-shimmer-steps";
-import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
-import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
-import { labelWithDetail } from "../../lib/accessibilityLabel"; // fork: i18n
 
 const SHIMMER_WIDTH = 72;
 const SHIMMER_ICON_AND_GAP_WIDTH = 30;
@@ -776,7 +773,6 @@ function WorkspacePreparationRetryButton(props: {
   readonly threadId: ThreadId;
   readonly runId: RunId;
 }) {
-  const t = useT();
   const retryable = useAtomValue(
     environmentThreadDetails.threadAtom(scopeThreadRef(props.environmentId, props.threadId)),
     (thread) => {
@@ -790,9 +786,9 @@ function WorkspacePreparationRetryButton(props: {
   return (
     <View className="ml-7 mt-2">
       <Button
-        label={t("Retry")}
+        label="Retry"
         tone="secondary"
-        accessibilityLabel={t("Retry workspace preparation")}
+        accessibilityLabel="Retry workspace preparation"
         disabled={busy}
         onPress={() => {
           setBusy(true);
@@ -947,7 +943,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
             </Text>
             {props.copied ? (
               <Text className="pr-1 font-t3-medium text-3xs text-adaptive-emerald-600-400">
-                {t("Copied")}
+                Copied
               </Text>
             ) : null}
             <Text
@@ -1020,18 +1016,18 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
         ? turnItemOutputText(shownItem)
         : fetchedItem
           ? (turnItemOutputText(fetchedItem) ??
-            (outputImages.length > 0 || viewedImagePath ? null : t("No output.")))
+            (outputImages.length > 0 || viewedImagePath ? null : "No output."))
           : fetchedDetail.error
-            ? t("Couldn't load output: {error}", { error: fetchedDetail.error })
+            ? `Couldn't load output: ${fetchedDetail.error}`
             : row.fetchesDetail
               ? fetchedDetail.data
-                ? t("Output is no longer available.")
-                : t("Loading output…")
+                ? "Output is no longer available."
+                : "Loading output…"
               : null;
   const exitLine =
     failedExitCode === null ? null : (
       <Text className="mt-1.5 font-mono text-2xs leading-normal text-danger-foreground">
-        {t("exit {failedExitCode}", { failedExitCode })}
+        exit {failedExitCode}
       </Text>
     );
   const toolPresentation = resolveWorkEntryToolPresentation(row.workEntry);
@@ -1069,7 +1065,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
         }
         accessibilityHint={
           notifiedSubagentThreadId !== undefined
-            ? t("Opens this agent's thread. Long press to copy.")
+            ? "Opens this agent's thread. Long press to copy."
             : canExpand
               ? expanded
                 ? t("Double tap to hide full details. Long press to copy.")
@@ -1151,7 +1147,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
         <View className="shrink-0 flex-row items-center gap-px">
           {props.copied ? (
             <Text className="pr-1 font-t3-medium text-3xs text-adaptive-emerald-600-400">
-              {t("Copied")}
+              Copied
             </Text>
           ) : null}
           {failed && toolIcon !== undefined ? (
@@ -1453,8 +1449,7 @@ export function ThreadThinkingRow(props: {
   /** Replaces "Thinking" while the provider has not started a turn. */
   readonly providerStartingLabel?: string | undefined;
 }) {
-  const t = useT(); // fork: i18n
-  const label = props.providerStartingLabel ?? props.label ?? t("Thinking");
+  const label = props.providerStartingLabel ?? props.label ?? "Thinking";
   return (
     <View
       accessible

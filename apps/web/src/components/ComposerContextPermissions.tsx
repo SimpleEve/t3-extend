@@ -15,7 +15,6 @@ import {
 import { ComposerContextLabel } from "./ComposerContextLabel";
 import { Menu, MenuPopup, MenuTrigger } from "./ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 export function ComposerContextPermissions(props: {
   environmentId: EnvironmentId | null;
@@ -23,7 +22,6 @@ export function ComposerContextPermissions(props: {
   supportedRuntimeModes: ReadonlyArray<RuntimeMode> | undefined;
   onRuntimeModeChange: (mode: RuntimeMode) => void;
 }) {
-  const t = useT(); // fork: interface language
   const shortcutLabel = shortcutLabelForCommand(
     useAtomValue(primaryServerKeybindingsAtom),
     "composer.mode",
@@ -32,7 +30,7 @@ export function ComposerContextPermissions(props: {
     props.runtimeMode,
     props.supportedRuntimeModes,
   );
-  const options = resolveRuntimeModeOptions(modes, useManagedPolicy(props.environmentId), t); // fork: interface language
+  const options = resolveRuntimeModeOptions(modes, useManagedPolicy(props.environmentId));
   const composerMenuProps = useComposerMenuProps();
   const { icon: Icon, label: englishLabel } = runtimeModeConfig[mode];
   const label = t(englishLabel); // fork: interface language
@@ -46,7 +44,7 @@ export function ComposerContextPermissions(props: {
                 <ComposerControl
                   size="xs"
                   className="ms-auto min-w-0 shrink-0"
-                  aria-label={t("Permissions: {mode}", { mode: label })} // fork: interface language
+                  aria-label={`Permissions: ${label}`}
                   data-composer-context-control
                 />
               }

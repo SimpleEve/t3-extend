@@ -129,7 +129,6 @@ export function ThreadNavigationSidebar(props: ThreadNavigationSidebarProps) {
 }
 
 function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
-  const t = useT();
   const floatingTabsEnabled = useAndroidFloatingTabs();
   const { themeVariables: materialTheme } = useAppearancePreferences();
   const drawerColor = materialTheme["--color-drawer"];
@@ -568,14 +567,14 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
   };
   const header = (
     <WorkspaceListHeader
-      accessibilityLabel={joinLabelParts([FORK.appBaseName, t("Threads")], t)} // fork: brand
+      accessibilityLabel="T3 Code, Threads"
       onOpenEnvironments={props.onOpenEnvironmentSettings}
       onOpenSettings={props.onOpenSettings}
       search={{
         value: props.searchQuery,
         onChangeText: props.onSearchQueryChange,
-        placeholder: t("Search"),
-        accessibilityLabel: t("Search threads"),
+        placeholder: "Search",
+        accessibilityLabel: "Search threads",
       }}
       filter={{
         customized: options.selectedEnvironmentId !== null || selectedProjectKey !== null,
@@ -614,18 +613,18 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
         }
       >
         {catalogState.isLoadingConnections
-          ? t("Loading threads…")
+          ? "Loading threads…"
           : showAddEnvironment
-            ? t("No environments connected")
+            ? "No environments connected"
             : props.searchQuery.trim().length > 0
               ? threadSearch.isPending
-                ? t("Searching thread messages…")
+                ? "Searching thread messages…"
                 : threadSearch.failed
-                  ? t("Couldn't search thread messages")
-                  : t("No matching threads")
+                  ? "Couldn't search thread messages"
+                  : "No matching threads"
               : selectedProjectScope !== null
-                ? t("No threads in {name}", { name: selectedProjectScope.title })
-                : t("No threads yet")}
+                ? `No threads in ${selectedProjectScope.title}`
+                : "No threads yet"}
       </Text>
       {showAddEnvironment ? (
         <View className={Platform.OS === "android" ? "self-center" : "px-2"}>
@@ -633,7 +632,7 @@ function ThreadNavigationSidebarPane(props: ThreadNavigationSidebarProps) {
             tone="primary"
             size="compact"
             icon="plus"
-            label={t("Add environment")}
+            label="Add environment"
             onPress={props.onOpenEnvironmentSettings}
           />
         </View>

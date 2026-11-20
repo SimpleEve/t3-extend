@@ -5,7 +5,6 @@ import { commandForProjectScript } from "../../projectScripts";
 import { ScriptIcon } from "../projectScriptEditor";
 import { Button } from "../ui/button";
 import { SettingsRow } from "./settingsLayout";
-import { useT } from "../../hooks/useT";
 
 export function ProjectActionsList({
   scripts,
@@ -18,11 +17,10 @@ export function ProjectActionsList({
   disabled: boolean;
   onEdit: (script: ProjectScript) => void;
 }) {
-  const t = useT();
   if (scripts.length === 0)
     return (
       <p className="px-3 py-2 text-base text-muted-foreground sm:px-4 sm:text-sm">
-        {t("No actions configured.")}
+        No actions configured.
       </p>
     );
   return scripts.map((script) => {
@@ -37,17 +35,17 @@ export function ProjectActionsList({
             <span className="min-w-0 truncate">{script.name}</span>
             {script.runOnWorktreeCreate ? (
               <span className="shrink-0 rounded-sm border border-border/60 px-1.5 py-px text-2xs font-normal text-muted-foreground">
-                {t("setup", undefined, "script role")}
+                setup
               </span>
             ) : null}
             {script.runOnSettle ? (
               <span className="shrink-0 rounded-sm border border-border/60 px-1.5 py-px text-2xs font-normal text-muted-foreground">
-                {t("on settle")}
+                on settle
               </span>
             ) : null}
             {script.previewUrl ? (
               <span className="shrink-0 rounded-sm border border-border/60 px-1.5 py-px text-2xs font-normal text-muted-foreground max-sm:hidden">
-                {t("preview · desktop only")}
+                preview · desktop only
               </span>
             ) : null}
           </span>
@@ -62,7 +60,7 @@ export function ProjectActionsList({
               <Button
                 size="icon-xs"
                 variant="ghost-muted"
-                aria-label={t("Edit {name}", { name: script.name })}
+                aria-label={`Edit ${script.name}`}
                 disabled={disabled}
                 onClick={() => onEdit(script)}
               >

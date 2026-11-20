@@ -9,14 +9,12 @@ import {
 import type { PullRequestParams } from "./usePullRequestDiff";
 import { usePullRequestConnected } from "./usePullRequestConnected";
 import { usePullRequestThreads } from "./usePullRequestThreads";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function usePullRequestAgentActions(
   params: PullRequestParams,
   pr: PullRequestDetail | null,
   filePath?: string,
 ) {
-  const t = useT(); // fork: i18n
   const links = usePullRequestThreads(params, pr, filePath);
   const connected = usePullRequestConnected(params.environmentId);
   const actions = pr ? pullRequestAgentActions(pr, links.canWatch, t) : [];
@@ -46,13 +44,13 @@ export function usePullRequestAgentActions(
             (item) =>
               item.subactions?.map((child) => ({
                 ...child,
-                title: t("Settled: {title}", { title: child.title }),
+                title: `Settled: ${child.title}`,
               })) ?? [item],
           )
         : items;
     return {
       id: task,
-      title: action?.title ?? t("Open thread"),
+      title: action?.title ?? "Open thread",
       image: action?.icon,
       attributes: { disabled: disabled || !links.canAsk || action?.disabled },
       ...(chooseThread ? { subactions } : {}),

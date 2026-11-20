@@ -18,8 +18,6 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { Button, InlineButton } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { useT } from "../../hooks/useT";
-import { interpolateNodes } from "../../lib/interpolateNodes";
 import { SecretSourceInput, useSecretSources } from "./SecretSourceInput";
 
 const hasToken = (token: SettingsSecretValue | undefined) =>
@@ -36,7 +34,6 @@ export function SourceControlTokenSettings({
   readonly credentials: SourceControlHostCredentials;
   readonly onSaved: () => void;
 }) {
-  const t = useT();
   const { tokens } = useEnvironmentSettings(environmentId, (settings) =>
     readHostCredentialSettings(settings, definition.kind),
   );
@@ -119,14 +116,14 @@ export function SourceControlTokenSettings({
                 />
               }
             >
-              {t("Create a token")}
+              Create a token
               <ExternalLinkIcon aria-hidden className="size-3" />
             </InlineButton>
           ) : null}
         </p>
         <div className="grid gap-3 sm:grid-cols-[12rem_1fr]">
           <div className="grid gap-1.5">
-            <Label htmlFor={`${definition.kind}-token-host-${environmentId}`}>{t("Host")}</Label>
+            <Label htmlFor={`${definition.kind}-token-host-${environmentId}`}>Host</Label>
             <Input
               id={`${definition.kind}-token-host-${environmentId}`}
               autoComplete="off"
@@ -137,11 +134,11 @@ export function SourceControlTokenSettings({
             />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor={`${definition.kind}-token-${environmentId}`}>{t("Token")}</Label>
+            <Label htmlFor={`${definition.kind}-token-${environmentId}`}>Token</Label>
             <SecretSourceInput
               id={`${definition.kind}-token-${environmentId}`}
               size="sm"
-              aria-label={t("{name} token", { name: definition.label })}
+              aria-label={`${definition.label} token`}
               environmentId={environmentId}
               configured={isSaved && !isSecretReference(savedToken)}
               value={draft}
@@ -154,11 +151,8 @@ export function SourceControlTokenSettings({
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
             {savedHosts.length === 0
-              ? t("No token saved; the server uses {tokenEnvVar} or the {cliName} login.", {
-                  tokenEnvVar: credentials.tokenEnvVar,
-                  cliName: credentials.cliName,
-                })
-              : t("Saved for {value}.", { value: savedHosts.join(", ") })}
+              ? `No token saved; the server uses ${credentials.tokenEnvVar} or the ${credentials.cliName} login.`
+              : `Saved for ${savedHosts.join(", ")}.`}
           </p>
           <div className="flex shrink-0 gap-2">
             {isSaved ? (
@@ -168,7 +162,7 @@ export function SourceControlTokenSettings({
                 disabled={saving}
                 onClick={() => void save(normalizedHost, "")}
               >
-                {t("Remove")}
+                Remove
               </Button>
             ) : null}
             <Button
@@ -176,7 +170,7 @@ export function SourceControlTokenSettings({
               size="xs"
               disabled={!normalizedHost || submission === "" || saving}
             >
-              {t("Save")}
+              Save
             </Button>
           </div>
         </div>

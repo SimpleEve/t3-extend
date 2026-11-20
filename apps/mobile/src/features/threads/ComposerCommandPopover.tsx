@@ -22,9 +22,7 @@ import { PierreEntryIcon } from "../../components/PierreEntryIcon";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { cn } from "../../lib/cn";
 import type { ModelOption } from "../../lib/modelOptions";
-import { pullRequestStatusStyle } from "../pull-requests/pullRequestStatus"; // fork: i18n
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { useT } from "../../hooks/useT"; // fork: i18n
+import { pullRequestStatus } from "../pull-requests/pullRequestStatus";
 export type ComposerCommandItem =
   | {
       readonly id: string;
@@ -142,17 +140,16 @@ function itemIcon(item: ComposerCommandItem): AppSymbolName | null {
 function groupLabel(
   triggerKind: ComposerTriggerKind | null,
   items: ReadonlyArray<ComposerCommandItem>,
-  t: Translator, // fork: i18n
 ): string | null {
   switch (triggerKind) {
     case "pull-request":
-      return t("Pull requests");
+      return "Pull requests";
     case "slash-command":
-      return t("Commands");
+      return "Commands";
     case "skill":
-      return t("Skills");
+      return "Skills";
     case "path":
-      return items.every((item) => item.type === "path") ? t("Files") : t("Mentions");
+      return items.every((item) => item.type === "path") ? "Files" : "Mentions";
     default:
       return null;
   }
@@ -164,19 +161,19 @@ function emptyText(
   t: Translator,
 ): string {
   if (isLoading) {
-    return triggerKind === "path" ? t("Searching files…") : t("Loading…");
+    return triggerKind === "path" ? "Searching files…" : "Loading…";
   }
   switch (triggerKind) {
     case "pull-request":
-      return t("No matching pull requests.");
+      return "No matching pull requests.";
     case "path":
-      return t("No matching mentions.");
+      return "No matching mentions.";
     case "skill":
-      return t("No skills found.");
+      return "No skills found.";
     case "slash-command":
-      return t("No matching commands.");
+      return "No matching commands.";
     default:
-      return t("No results.");
+      return "No results.";
   }
 }
 

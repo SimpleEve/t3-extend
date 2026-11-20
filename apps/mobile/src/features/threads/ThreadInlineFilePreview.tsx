@@ -19,7 +19,6 @@ import {
   releaseAudioSession,
 } from "../../lib/audioSession";
 import { usePlaybackAudioPlayer } from "../voice-input/usePlaybackAudioPlayer";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 type PreviewProps = {
   readonly source: FilePreviewSource;
@@ -30,11 +29,10 @@ type PreviewProps = {
 };
 
 function FileCardHeader(props: PreviewProps) {
-  const t = useT();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={t("Open {name}", { name: props.source.name ?? "" })}
+      accessibilityLabel={`Open ${props.source.name}`}
       onPress={props.onOpen}
       onLongPress={props.onLongPress}
       className="h-[72px] flex-row items-center gap-3 p-3 active:bg-subtle"
@@ -47,7 +45,7 @@ function FileCardHeader(props: PreviewProps) {
           {props.source.name}
         </Text>
         <Text className="text-xs text-foreground-muted" numberOfLines={1}>
-          {t("Audio")}
+          Audio
           {props.sizeBytes !== undefined ? ` · ${formatAttachmentSize(props.sizeBytes)}` : ""}
         </Text>
       </View>
@@ -67,7 +65,6 @@ function InlineAudio(
     readonly onPlaybackActivityChange?: (active: boolean) => void;
   },
 ) {
-  const t = useT(); // fork: i18n
   const { onPlaybackActivityChange } = props;
   // An empty source keeps native buffering off until the user explicitly plays.
   const player = usePlaybackAudioPlayer(null);
@@ -208,7 +205,7 @@ function InlineAudio(
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
-            playing ? t("Pause audio") : error || status.error ? t("Retry audio") : t("Play audio")
+            playing ? "Pause audio" : error || status.error ? "Retry audio" : "Play audio"
           }
           accessibilityState={{ busy }}
           onPress={toggle}
@@ -230,9 +227,9 @@ function InlineAudio(
           </View>
           <Text className="text-xs text-foreground-muted" numberOfLines={1}>
             {error || status.error
-              ? t("Unavailable · tap play to retry")
+              ? "Unavailable · tap play to retry"
               : busy
-                ? t("Loading…")
+                ? "Loading…"
                 : `${timestamp(status.currentTime)} / ${status.isLoaded ? timestamp(status.duration) : "--:--"}`}
           </Text>
         </View>

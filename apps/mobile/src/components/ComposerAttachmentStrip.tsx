@@ -29,7 +29,6 @@ import {
   retryComposerAttachmentUpload,
   useComposerAttachmentUploadState,
 } from "../state/composer-attachment-uploads";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 export interface ComposerAttachmentStripProps {
   readonly environmentId?: EnvironmentId;
@@ -61,7 +60,6 @@ type ComposerAttachmentThumbnailProps = {
 };
 
 export function ComposerAttachmentThumbnail(props: ComposerAttachmentThumbnailProps) {
-  const t = useT(); // fork: i18n
   const upload = useComposerAttachmentUploadState(props.environmentId, props.attachment.id);
   return (
     <View style={{ width: props.size, height: props.size }}>
@@ -71,11 +69,8 @@ export function ComposerAttachmentThumbnail(props: ComposerAttachmentThumbnailPr
           accessibilityRole={upload.status === "failed" ? "button" : "text"}
           accessibilityLabel={
             upload.status === "failed"
-              ? t("Retry uploading {name}", { name: props.attachment.name })
-              : t("Uploading {name}, {percent}%", {
-                  name: props.attachment.name,
-                  percent: Math.floor(upload.progress * 100),
-                })
+              ? `Retry uploading ${props.attachment.name}`
+              : `Uploading ${props.attachment.name}, ${Math.floor(upload.progress * 100)}%`
           }
           accessibilityHint={upload.status === "failed" ? upload.reason : undefined}
           disabled={upload.status !== "failed"}
@@ -93,7 +88,7 @@ export function ComposerAttachmentThumbnail(props: ComposerAttachmentThumbnailPr
           />
           {!props.compact ? (
             <Text className="text-2xs text-white">
-              {upload.status === "failed" ? t("Retry") : `${Math.floor(upload.progress * 100)}%`}
+              {upload.status === "failed" ? "Retry" : `${Math.floor(upload.progress * 100)}%`}
             </Text>
           ) : null}
         </Pressable>
@@ -136,7 +131,6 @@ function useComposerImagePreviewUri(attachment: DraftComposerImageAttachment): s
 function ComposerImageAttachment(
   props: ComposerAttachmentThumbnailProps & { readonly attachment: DraftComposerImageAttachment },
 ) {
-  const t = useT(); // fork: i18n
   const { attachment } = props;
   const withGallery = useFilePreviewGallery();
   const style = { width: props.size, height: props.size, borderRadius: props.borderRadius };
@@ -146,7 +140,7 @@ function ComposerImageAttachment(
     <PresentationSource identifier={sourceIdentifier}>
       <Pressable
         accessibilityRole="imagebutton"
-        accessibilityLabel={t("Open {name}", { name: attachment.name })}
+        accessibilityLabel={`Open ${attachment.name}`}
         disabled={!props.onPressPreview}
         onPress={() =>
           props.onPressPreview?.(
@@ -209,7 +203,6 @@ function ComposerAttachmentContent(props: ComposerAttachmentThumbnailProps) {
 function ComposerFileAttachment(
   props: ComposerAttachmentThumbnailProps & { readonly attachment: DraftComposerFileAttachment },
 ) {
-  const t = useT(); // fork: i18n
   const { attachment } = props;
   const style = { width: props.size, height: props.size, borderRadius: props.borderRadius };
   const canPreview = isPdfFile(attachment) && props.onPressPreview !== undefined;
@@ -220,7 +213,7 @@ function ComposerFileAttachment(
       <PresentationSource identifier={sourceIdentifier}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("Open {name}", { name: attachment.name })}
+          accessibilityLabel={`Open ${attachment.name}`}
           disabled={!canPreview && onPressDocument === undefined}
           onPress={() =>
             canPreview
@@ -285,7 +278,6 @@ function ComposerVideoAttachment(props: {
 }
 
 export function ComposerAttachmentStrip(props: ComposerAttachmentStripProps) {
-  const t = useT(); // fork: i18n
   const gallery = composerImageGallery(props.attachments);
   const size = props.imageSize ?? 72;
   const radius = props.imageBorderRadius ?? 16;
@@ -325,7 +317,7 @@ export function ComposerAttachmentStrip(props: ComposerAttachmentStripProps) {
               />
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={t("Remove {name}", { name: attachment.name })}
+                accessibilityLabel={`Remove ${attachment.name}`}
                 className="absolute h-[22px] w-[22px] items-center justify-center rounded-[11px] bg-black/55"
                 style={{
                   top: removeButtonPlacement === "gutter" ? 0 : 4,

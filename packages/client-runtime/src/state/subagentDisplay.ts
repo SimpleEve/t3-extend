@@ -13,7 +13,6 @@ import { isTerminalSubagentStatus } from "./subagentRuntime.ts";
 
 export function subagentGroupSummary(
   members: ReadonlyArray<{ readonly status: OrchestrationV2TurnItemStatus }>,
-  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ) {
   const active = members.some(
     ({ status }) => status === "pending" || status === "running" || status === "waiting",
@@ -42,7 +41,6 @@ const SUBAGENT_STATUS_COUNT_PHRASES = {
 
 export function summarizeSubagentStatuses(
   statuses: ReadonlyArray<OrchestrationV2TurnItemStatus>,
-  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ): string {
   const counts = { working: 0, done: 0, failed: 0, stopped: 0, idle: 0 };
   for (const status of statuses) {
@@ -54,7 +52,7 @@ export function summarizeSubagentStatuses(
   }
   return (Object.keys(counts) as Array<keyof typeof counts>)
     .filter((key) => counts[key] > 0)
-    .map((key) => t(SUBAGENT_STATUS_COUNT_PHRASES[key], { count: counts[key] }))
+    .map((key) => `${counts[key]} ${key}`)
     .join(" · ");
 }
 

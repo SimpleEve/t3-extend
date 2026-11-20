@@ -17,11 +17,9 @@ import { Button } from "./ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "./ui/empty";
 import { SidebarInset } from "./ui/sidebar";
 import { WorkspacePageHeader } from "./WorkspacePageHeader";
-import { useT } from "../hooks/useT";
 
 /** Home screen for the hosted app before any computer is added. */
 export function HostedEmptyState() {
-  const t = useT();
   const cloudEnabled = hasCloudPublicConfig();
   const localEnvironmentOff = isLocalEnvironmentDisabled();
 
@@ -39,20 +37,20 @@ export function HostedEmptyState() {
         <Empty className="flex-1">
           <EmptyHeader>
             <EmptyTitle>
-              {localEnvironmentOff ? t("This computer is off") : t("No computer connected")}
+              {localEnvironmentOff ? "This computer is off" : "No computer connected"}
             </EmptyTitle>
             <EmptyDescription>
               {localEnvironmentOff
-                ? t("Turn it back on, or connect a different computer.")
+                ? "Turn it back on, or connect a different computer."
                 : cloudEnabled
-                  ? t("Your agents run on your computer.")
-                  : t("Your agents run on your computer. Start T3 Extend there first.")}
+                  ? "Your agents run on your computer."
+                  : "Your agents run on your computer. Start T3 Code there first."}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             {localEnvironmentOff ? (
               <Button render={<Link to="/settings/connections" />} size="sm">
-                {t("Open Environments")}
+                Open Environments
               </Button>
             ) : (
               <ol className="w-full space-y-4 text-left">
@@ -67,7 +65,6 @@ export function HostedEmptyState() {
 }
 
 function T3ConnectSteps() {
-  const t = useT();
   const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const loadFailed = useClerkLoadFailed();
   const { openAuthPrompt } = useT3ConnectAuthPrompt();
@@ -83,16 +80,16 @@ function T3ConnectSteps() {
       <SetupStep number={1}>
         {loadFailed ? (
           <Button size="sm" onClick={retryClerkLoad}>
-            {t("Retry sign-in")}
+            Retry sign-in
           </Button>
         ) : isSignedIn ? (
           <p className="flex items-center gap-1.5 text-muted-foreground">
             <CheckIcon className="size-4" />
-            {t("Signed in")}
+            Signed in
           </p>
         ) : (
           <Button size="sm" disabled={!isLoaded} onClick={openAuthPrompt}>
-            {t("Sign in")}
+            Sign in
           </Button>
         )}
       </SetupStep>
@@ -127,7 +124,6 @@ function T3ConnectSteps() {
 }
 
 function PairingSteps() {
-  const t = useT();
   return (
     <>
       <SetupStep number={1}>
@@ -135,7 +131,7 @@ function PairingSteps() {
       </SetupStep>
       <SetupStep number={2}>
         <Button render={<Link to="/settings/connections" />} size="sm">
-          {t("Add pairing link")}
+          Add pairing link
         </Button>
       </SetupStep>
     </>
@@ -158,10 +154,9 @@ function SetupStep({
 }
 
 function RunOnComputer({ command }: { readonly command: string }) {
-  const t = useT();
   return (
     <>
-      <p>{t("Run on your computer:")}</p>
+      <p>Run on your computer:</p>
       <InstallT3Commands command={command} className="mt-2" />
       <a
         className="mt-2 inline-block text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
@@ -169,7 +164,7 @@ function RunOnComputer({ command }: { readonly command: string }) {
         target="_blank"
         rel="noreferrer noopener"
       >
-        {t("Or download the desktop app")}
+        Or download the desktop app
       </a>
     </>
   );

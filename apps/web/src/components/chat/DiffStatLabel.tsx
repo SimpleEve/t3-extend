@@ -1,6 +1,5 @@
 import { memo } from "react";
 import { cn } from "~/lib/utils";
-import { useT } from "~/hooks/useT";
 
 export function hasNonZeroStat(stat: { additions: number; deletions: number }): boolean {
   return stat.additions > 0 || stat.deletions > 0;
@@ -26,12 +25,11 @@ export const DiffStatLabel = memo(function DiffStatLabel(props: {
   className?: string;
   layout?: "aligned" | "inline";
 }) {
-  const t = useT();
   const { additions, deletions, className, layout = "aligned" } = props;
   return (
     <span
       role="group"
-      aria-label={t("{additions} additions, {deletions} deletions", { additions, deletions })}
+      aria-label={`${additions} additions, ${deletions} deletions`}
       className={cn(
         layout === "inline"
           ? "inline-flex items-center gap-1 tabular-nums align-middle"

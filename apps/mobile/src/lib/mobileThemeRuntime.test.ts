@@ -7,7 +7,6 @@ import {
 
 const initialState: MobileThemeRuntimeState = {
   baseFontSize: 16,
-  uiLocale: "en",
   themeAppearance: "light",
   themeMode: "system",
 };

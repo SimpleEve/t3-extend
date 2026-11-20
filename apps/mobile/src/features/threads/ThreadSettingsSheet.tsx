@@ -123,7 +123,6 @@ import {
   providerSectionIsCollapsed,
 } from "./thread-settings-sheet-state";
 import { formatProviderUpdateRequiredNotice } from "@t3tools/client-runtime/providerUpdateRequiredModels";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const PRIMARY_PROVIDER_DRIVERS: ReadonlySet<string> = new Set([
   "claudeAgent",
@@ -157,7 +156,6 @@ function ProviderHeader(props: {
   readonly modelCount: number;
   readonly onToggle: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const content = (
     <>
       <ProviderIcon iconUrl={props.iconUrl} provider={props.driver} size={15} />
@@ -184,10 +182,7 @@ function ProviderHeader(props: {
   if (props.collapsible) {
     return (
       <Pressable
-        accessibilityLabel={t("{label}, {modelCount} models", {
-          label: props.label,
-          modelCount: props.modelCount,
-        })}
+        accessibilityLabel={`${props.label}, ${props.modelCount} models`}
         accessibilityRole="button"
         accessibilityState={{ expanded: !props.collapsed }}
         className="mx-4 mt-1 flex-row items-center gap-2 rounded-xl px-1 pt-2 active:opacity-60"
@@ -334,7 +329,6 @@ const ThreadSettingsSessionContext = createContext<ThreadSettingsSessionValue | 
 function ThreadSettingsSessionProvider(
   props: ThreadSettingsSessionProps & { readonly children: ReactNode },
 ) {
-  const t = useT();
   const registry = use(RegistryContext);
   const preferences = useAtomValue(mobilePreferencesAtom);
   const configs = useAtomValue(environmentServerConfigsAtom);
@@ -515,7 +509,6 @@ function ThreadSettingsSessionProvider(
   const runtimeModeChoices = withManagedRuntimeModeLimits(
     runtimeModeChoicesForSupportedModes(displayedModel?.supportedRuntimeModes),
     [config?.managedPolicy],
-    t, // fork: interface language
   );
   const compatibleRuntimeMode = compatibleRuntimeModeForChoices(
     props.runtimeMode,
@@ -529,8 +522,8 @@ function ThreadSettingsSessionProvider(
     if (pendingModel) {
       if (!canCommitPendingModel(pendingModel, props.providerGroups)) {
         Dialog.alert(
-          t("Model unavailable"),
-          t("Set up this provider on web or desktop, or select another model."),
+          "Model unavailable",
+          "Set up this provider on web or desktop, or select another model.",
         );
         return false;
       }
@@ -860,7 +853,6 @@ function ThreadSettingsOptionsItem(props: {
   readonly bottomInset: number;
   readonly onOpenSubmenu: (submenu: ThreadSettingsSubmenuPage) => void;
 }) {
-  const t = useT();
   const insets = useSafeAreaInsets();
   const session = useThreadSettingsSession();
   const configs = useAtomValue(environmentServerConfigsAtom);
@@ -926,8 +918,8 @@ function ThreadSettingsOptionsItem(props: {
         <Animated.View layout={THREAD_SETTINGS_OPTIONS_LAYOUT_TRANSITION}>
           <DisclosureRow
             isLast
-            label={t("Runtime", undefined, "runtime mode")}
-            value={t(
+            label="Runtime"
+            value={
               session.runtimeModeChoices.find((choice) => choice.mode === session.runtimeMode)
                 ?.label ?? "",
             )}
@@ -941,7 +933,7 @@ function ThreadSettingsOptionsItem(props: {
       </Text>
       <View className="mx-4 overflow-hidden rounded-2xl bg-grouped-card">
         <SwitchRow
-          label={t("Manage hidden models")}
+          label="Manage hidden models"
           value={session.manageHidden}
           onValueChange={session.setManageHidden}
           isLast
@@ -955,7 +947,6 @@ function ThreadSettingsMainContent(props: {
   readonly bottomInset: number;
   readonly onOpenSubmenu: (submenu: ThreadSettingsSubmenuPage) => void;
 }) {
-  const t = useT();
   const session = useThreadSettingsSession();
   const refreshProvidersCommand = useAtomCommand(serverEnvironment.refreshProviders, {
     reportFailure: false,
@@ -995,7 +986,7 @@ function ThreadSettingsMainContent(props: {
       .then((result) => {
         setIsRefreshingProviders(false);
         const error = providerCatalogRefreshError(result);
-        if (error) Dialog.alert(t("Could not refresh models"), error);
+        if (error) Dialog.alert("Could not refresh models", error);
       });
   };
   const [listLoaded, setListLoaded] = useState(false);
@@ -1032,10 +1023,10 @@ function ThreadSettingsMainContent(props: {
           <Text className="text-center text-sm text-foreground-muted">
             {session.providerFilter === FAVORITES_PROVIDER_FILTER &&
             session.searchQuery.trim().length === 0
-              ? t("No favorite models")
+              ? "No favorite models"
               : hasActiveCatalogFilter
-                ? t("No matching models")
-                : t("No available models")}
+                ? "No matching models"
+                : "No available models"}
           </Text>
         </View>
       );
@@ -1095,7 +1086,6 @@ function ThreadSettingsChoiceContent(props: {
   readonly submenu: ThreadSettingsSubmenuPage;
   readonly onSelected: () => void;
 }) {
-  const t = useT();
   const insets = useSafeAreaInsets();
   const session = useThreadSettingsSession();
   const descriptorId = props.submenu.kind === "descriptor" ? props.submenu.id : null;
@@ -1112,8 +1102,8 @@ function ThreadSettingsChoiceContent(props: {
       ? {
           rows: session.runtimeModeChoices.map((choice) => ({
             id: choice.mode,
-            label: t(choice.label),
-            description: choice.disabledReason ?? t(choice.description),
+            label: choice.label,
+            description: choice.disabledReason ?? choice.description,
             disabled: choice.disabledReason !== undefined,
             selected: choice.mode === session.runtimeMode,
             onPress: () => {
@@ -1147,10 +1137,8 @@ function ThreadSettingsChoiceContent(props: {
                   activeDescriptor.id === session.promptTraits.primarySelectDescriptor?.id
                 ) {
                   Dialog.alert(
-                    t("Reasoning controlled by prompt"),
-                    t(
-                      'Your prompt contains "ultrathink" in the text. Remove it to change this option.',
-                    ),
+                    "Reasoning controlled by prompt",
+                    'Your prompt contains "ultrathink" in the text. Remove it to change this option.',
                   );
                   return;
                 }
@@ -1218,7 +1206,6 @@ function useThreadSettingsPickerPresentation() {
 }
 
 function ThreadSettingsModelsScreen() {
-  const t = useT();
   const session = useThreadSettingsSession();
   const presentation = useThreadSettingsPickerPresentation();
   const navigation = useNavigation<NativeStackNavigationProp<ThreadSettingsPickerStackParams>>();
@@ -1237,8 +1224,8 @@ function ThreadSettingsModelsScreen() {
   };
   const searchToolbarInset = useSearchToolbarInset(search);
   const providerFilters = [
-    { id: "all-providers", title: t("All providers"), value: null },
-    { id: "favorites", title: t("Favorites"), value: FAVORITES_PROVIDER_FILTER },
+    { id: "all-providers", title: "All providers", value: null },
+    { id: "favorites", title: "Favorites", value: FAVORITES_PROVIDER_FILTER },
     ...session.providerGroups.map((group) => ({
       id: `provider:${group.providerKey}`,
       title: group.providerLabel,
@@ -1249,24 +1236,23 @@ function ThreadSettingsModelsScreen() {
   return (
     <>
       <AppBar
-        title={t("Thread settings")}
+        title="Thread settings"
         onClose={presentation.onClose}
-        closeAccessibilityLabel={t("Cancel thread settings")}
+        closeAccessibilityLabel="Cancel thread settings"
         search={search}
         menus={[
           {
-            title: t("Model filters"),
+            title: "Model filters",
             icon: hasCustomCatalogFilter
               ? "line.3.horizontal.decrease.circle.fill"
               : "line.3.horizontal.decrease",
             items: [
               {
                 id: "provider",
-                title: t("Provider"),
+                title: "Provider",
                 items: providerFilters.map((filter) => ({
                   id: filter.id,
                   title: filter.title,
-                  verbatim: true, // fork: i18n, provider names and copy translated above
                   selected: session.providerFilter === filter.value,
                   onPress: () => session.setProviderFilter(filter.value),
                 })),
@@ -1275,7 +1261,7 @@ function ThreadSettingsModelsScreen() {
                 ? [
                     {
                       id: "show-legacy",
-                      title: t("Show legacy models"),
+                      title: "Show legacy models",
                       selected: session.showLegacy,
                       onPress: () => session.setShowLegacy(!session.showLegacy),
                     },
@@ -1302,10 +1288,10 @@ function ThreadSettingsModelsScreen() {
           onOpenSubmenu={(submenu) => {
             const title =
               submenu.kind === "runtime"
-                ? t("Runtime", undefined, "runtime mode")
+                ? "Runtime"
                 : (session.displayedDescriptors.find(
                     (descriptor) => descriptor.type === "select" && descriptor.id === submenu.id,
-                  )?.label ?? t("Option"));
+                  )?.label ?? "Option");
             navigation.navigate("ThreadSettingsChoice", { ...submenu, title });
           }}
         />
@@ -1332,7 +1318,6 @@ function ThreadSettingsChoiceScreen() {
 }
 
 function ThreadSettingsPickerNavigator(props: ThreadSettingsPickerPresentation) {
-  const t = useT();
   const screenOptions = useSheetStackOptions();
   const presentation = {
     onClose: props.onClose,
@@ -1347,7 +1332,7 @@ function ThreadSettingsPickerNavigator(props: ThreadSettingsPickerPresentation) 
         <ThreadSettingsPickerStack.Screen
           name="ThreadSettingsModels"
           component={ThreadSettingsModelsScreen}
-          options={{ headerBackVisible: false, title: t("Thread settings") }}
+          options={{ headerBackVisible: false, title: "Thread settings" }}
         />
         <ThreadSettingsPickerStack.Screen
           name="ThreadSettingsChoice"

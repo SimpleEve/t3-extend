@@ -37,7 +37,6 @@ import { PullRequestMarkdown } from "./PullRequestMarkdown";
 import { PullRequestMarkdownEditor } from "./PullRequestMarkdownEditor";
 import { PullRequestReactionBar } from "./PullRequestReactions";
 import type { PendingReviewComment } from "./pullRequestReviewStore";
-import { useT } from "~/hooks/useT"; // fork: interface language
 import {
   PullRequestMarkdownTextarea,
   type PullRequestCompletionScope,
@@ -93,7 +92,6 @@ export function PendingReviewCommentCard({
   comment: PendingReviewComment;
   onRemove: () => void;
 }) {
-  const t = useT();
   return (
     <div
       className={cn(CARD_CLASS, "border-dashed")}
@@ -102,12 +100,12 @@ export function PendingReviewCommentCard({
     >
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <MessageSquareIcon className="size-3.5" />
-        <span>{t("Pending. Sent when you submit the review")}</span>
+        <span>Pending. Sent when you submit the review</span>
         <Button
           size="icon-xs"
           variant="ghost"
           className="ml-auto"
-          aria-label={t("Discard this comment")}
+          aria-label="Discard this comment"
           onClick={onRemove}
         >
           <Trash2Icon className="size-3.5" />
@@ -226,7 +224,6 @@ export function ReviewThreadCard({
   /** Set on a diff line. Hidden draws nothing but stays mounted, so an unsent reply survives. */
   hidden?: boolean;
 }) {
-  const t = useT();
   const [expanded, setExpanded] = useState(hidden !== undefined || !thread.isResolved);
   const [replying, setReplying] = useState(false);
   const [reply, setReply] = useState("");
@@ -325,7 +322,7 @@ export function ReviewThreadCard({
             ? t("{count} comment", { count: commentCount })
             : t("{count} comments", { count: commentCount })}
         </button>
-        {thread.isOutdated ? <span>{t("outdated")}</span> : null}
+        {thread.isOutdated ? <span>outdated</span> : null}
         {onFix ? (
           <Button
             size="compact"
@@ -335,7 +332,7 @@ export function ReviewThreadCard({
             onClick={onFix}
           >
             <HammerIcon className="size-3" />
-            {fixPending ? t("Preparing...") : fixLabel}
+            {fixPending ? "Preparing..." : fixLabel}
           </Button>
         ) : null}
         {onAddToChat && comments.some((comment) => visibleBody(comment.body) !== null) ? (
@@ -346,7 +343,7 @@ export function ReviewThreadCard({
             onClick={() => onAddToChat({ ...thread, comments })}
           >
             <MessageSquarePlusIcon className="size-3" />
-            {t("Add to chat")}
+            Add to chat
           </Button>
         ) : null}
         {canResolve ? (
@@ -357,7 +354,7 @@ export function ReviewThreadCard({
             disabled={pending}
             onClick={onToggleResolved}
           >
-            {thread.isResolved ? t("Unresolve") : t("Resolve")}
+            {thread.isResolved ? "Unresolve" : "Resolve"}
           </Button>
         ) : null}
       </div>
@@ -389,7 +386,7 @@ export function ReviewThreadCard({
                     cwd={workspaceRoot}
                     environmentId={environmentId}
                     completionScope={completionScope}
-                    label={t("Edit comment")}
+                    label="Edit comment"
                     saving={savingEdit}
                     onSave={(body) => void saveEdit(comment.id, body)}
                     onCancel={() => setEditingId(null)}
@@ -404,7 +401,7 @@ export function ReviewThreadCard({
                     />
                     {canEditComment(comment) ? (
                       <PullRequestEditButton
-                        aria-label={t("Edit comment")}
+                        aria-label="Edit comment"
                         onClick={() => setEditingId(comment.id)}
                       />
                     ) : null}
@@ -421,7 +418,7 @@ export function ReviewThreadCard({
                 disabled={loadingMore}
                 onClick={() => void loadMore()}
               >
-                {loadingMore ? t("Loading...") : t("Load more comments")}
+                {loadingMore ? "Loading..." : "Load more comments"}
               </Button>
             </div>
           ) : null}
@@ -446,8 +443,8 @@ export function ReviewThreadCard({
                       size="sm"
                       completionScope={completionScope}
                       value={reply}
-                      placeholder={t("Reply")}
-                      aria-label={t("Reply to this conversation")}
+                      placeholder="Reply"
+                      aria-label="Reply to this conversation"
                       onValueChange={setReply}
                       onKeyDown={submitKeys({
                         value: reply,
@@ -461,7 +458,7 @@ export function ReviewThreadCard({
                     <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
                       <TextFieldSpeechControls speech={speech} disabled={pending} />
                       <Button size="xs" variant="ghost" onClick={() => setReplying(false)}>
-                        {t("Cancel")}
+                        Cancel
                       </Button>
                       <Button
                         size="xs"
@@ -472,7 +469,7 @@ export function ReviewThreadCard({
                         }
                         onClick={() => speech.submitAfterDictation((text) => void send(text))}
                       >
-                        {t("Reply")}
+                        Reply
                       </Button>
                     </div>
                   </div>
@@ -480,7 +477,7 @@ export function ReviewThreadCard({
               </SpeechTextField>
             ) : (
               <Button size="xs" variant="ghost" className="mt-2" onClick={() => setReplying(true)}>
-                {t("Reply")}
+                Reply
               </Button>
             )
           ) : null}

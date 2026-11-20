@@ -8,7 +8,6 @@ import { appAtomRegistry } from "../../state/atom-registry";
 import { projectEnvironmentPresentation } from "../../state/environments";
 import { environmentPresentations } from "../../state/presentation";
 import { environmentSession } from "../../state/session";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const storageKey = "t3code.permission-update.v1";
 
@@ -66,14 +65,9 @@ export function installPermissionUpdateNotice(): () => void {
       presentNext();
     };
     Dialog.alert(
-      translate(getUiLocale(), "Permissions have changed for {label}", {
-        label: environment.label,
-      }),
-      translate(
-        getUiLocale(),
-        "This connection still uses the old permissions, so some actions may no longer be available. Pair again using a new link with the permissions you need.",
-      ),
-      [{ text: translate(getUiLocale(), "Got it"), onPress: dismiss }],
+      `Permissions have changed for ${environment.label}`,
+      "This connection still uses the old permissions, so some actions may no longer be available. Pair again using a new link with the permissions you need.",
+      [{ text: "Got it", onPress: dismiss }],
       { cancelable: false },
     );
   };

@@ -294,12 +294,11 @@ function snoozePresetLabel(
   // "today" and "tomorrow" always land here; naming them narrows `day` to a weekday below.
   if (daysAhead === 0 || setting.day === "today") {
     const hour = Number(setting.time.slice(0, 2));
-    return hour < 12 ? t("This morning") : hour < 17 ? t("This afternoon") : t("This evening");
+    return hour < 12 ? "This morning" : hour < 17 ? "This afternoon" : "This evening";
   }
-  if (daysAhead === 1 || setting.day === "tomorrow") return t("Tomorrow");
-  if (namesNextWeek(setting, daysAhead)) return t("Next week");
-  const day = t(WEEKDAY_LABELS[setting.day]);
-  return daysAhead === 7 ? t("Next {day}", { day }) : day;
+  if (daysAhead === 1) return "Tomorrow";
+  if (setting.day === "monday") return "Next week";
+  return daysAhead === 7 ? `Next ${capitalize(setting.day)}` : capitalize(setting.day);
 }
 
 export function snoozePresetId(setting: SnoozePresetSetting): string {
@@ -419,13 +418,13 @@ export function snoozeWakeLabel(
   const t = options.translate ?? englishSnoozeLabel;
   const wakeMs = Date.parse(snoozedUntil);
   const nowMs = Date.parse(options.now);
-  if (Number.isNaN(wakeMs) || Number.isNaN(nowMs)) return t("now");
-  if (wakeMs <= nowMs) return t("now");
+  if (Number.isNaN(wakeMs) || Number.isNaN(nowMs)) return "now";
+  if (wakeMs <= nowMs) return "now";
   // Count clock minutes: callers pass a minute-floored or live `now`, and durations keep seconds.
   const minutes = Math.max(1, Math.floor(wakeMs / 60_000) - Math.floor(nowMs / 60_000));
-  if (minutes < 60) return t("{count}m", { count: minutes });
-  if (minutes < 24 * 60) return t("{count}h", { count: Math.ceil(minutes / 60) });
-  return t("{count}d", { count: Math.ceil(minutes / (24 * 60)) });
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 24 * 60) return `${Math.ceil(minutes / 60)}h`;
+  return `${Math.ceil(minutes / (24 * 60))}d`;
 }
 
 export type CustomSnoozeInput =

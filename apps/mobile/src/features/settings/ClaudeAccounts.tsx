@@ -26,10 +26,8 @@ import {
   type ClaudeAccountDraft,
 } from "./claude-accounts";
 import type { SettingsTarget } from "./settings-environment-filter";
-import { useT } from "../../hooks/useT";
 
 function useProviderInstanceMutation(environment: SettingsTarget) {
-  const t = useT();
   const mutate = useAtomCommand(serverEnvironment.mutateProviderInstance, {
     reportFailure: false,
     reportDefect: false,
@@ -67,20 +65,19 @@ export function ClaudeAccount({
   readonly environment: SettingsTarget;
   readonly provider: ServerProvider;
 }) {
-  const t = useT();
   const [editing, setEditing] = useState(false);
   const { run, pending, error } = useProviderInstanceMutation(environment);
   const instance = environment.serverConfig.settings.providerInstances[provider.instanceId];
   const configDir = claudeConfigDir(instance);
   const name = provider.displayName ?? "Claude";
   const status = !provider.enabled
-    ? t("Turned off")
+    ? "Turned off"
     : provider.auth.status === "authenticated"
-      ? t("Signed in")
+      ? "Signed in"
       : provider.auth.status === "unauthenticated"
-        ? t("Not signed in")
+        ? "Not signed in"
         : !provider.installed
-          ? t("Not installed")
+          ? "Not installed"
           : null;
   const removable =
     provider.instanceId !== DEFAULT_CLAUDE_INSTANCE_ID &&
@@ -89,12 +86,12 @@ export function ClaudeAccount({
       `providerInstances.${provider.instanceId}`,
     );
   const actions: MenuAction[] = [
-    { id: "edit", title: t("Edit"), image: "pencil" },
+    { id: "edit", title: "Edit", image: "pencil" },
     ...(removable
       ? [
           {
             id: "remove",
-            title: t("Remove"),
+            title: "Remove",
             image: "trash",
             attributes: { destructive: true },
           } satisfies MenuAction,
@@ -103,15 +100,12 @@ export function ClaudeAccount({
   ];
   function remove() {
     Dialog.alert(
-      t("Remove {name}?", { name }),
-      t(
-        "It leaves the model picker on {label}. The config folder and its sign-in stay on the server.",
-        { label: environment.label },
-      ),
+      `Remove ${name}?`,
+      `It leaves the model picker on ${environment.label}. The config folder and its sign-in stay on the server.`,
       [
-        { text: t("Cancel"), style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         {
-          text: t("Remove"),
+          text: "Remove",
           style: "destructive",
           onPress: () => {
             void run({ operation: "remove", instanceId: provider.instanceId });
@@ -128,14 +122,14 @@ export function ClaudeAccount({
             {name}
           </Text>
           <Text textRole="footnote" className="text-foreground-muted" numberOfLines={2}>
-            {[status, configDir || t("Default config folder")].filter(Boolean).join(" · ")}
+            {[status, configDir || "Default config folder"].filter(Boolean).join(" · ")}
           </Text>
         </View>
         {editing ? null : (
           <Menu
             accessible
             accessibilityRole="button"
-            accessibilityLabel={t("{name} options", { name })}
+            accessibilityLabel={`${name} options`}
             title={name}
             actions={actions}
             onPressAction={({ nativeEvent }) => {
@@ -146,7 +140,7 @@ export function ClaudeAccount({
           >
             <ControlPill
               icon="ellipsis"
-              accessibilityLabel={t("{name} options", { name })}
+              accessibilityLabel={`${name} options`}
               disabled={pending}
             />
           </Menu>
@@ -169,7 +163,6 @@ export function ClaudeAccount({
 }
 
 export function AddClaudeAccount({ environment }: { readonly environment: SettingsTarget }) {
-  const t = useT();
   const [adding, setAdding] = useState(false);
   return (
     <View className="border-t border-border-subtle">
@@ -183,8 +176,8 @@ export function AddClaudeAccount({ environment }: { readonly environment: Settin
       ) : (
         <ListActionRow
           icon="plus"
-          label={t("Add Claude account")}
-          description={t("Use a Claude config folder that is already signed in on this server.")}
+          label="Add Claude account"
+          description="Use a Claude config folder that is already signed in on this server."
           onPress={() => setAdding(true)}
         />
       )}
@@ -203,7 +196,6 @@ function ClaudeAccountForm({
   readonly initial: ClaudeAccountDraft;
   readonly onDone: () => void;
 }) {
-  const t = useT();
   const [draft, setDraft] = useState(initial);
   const { run, pending, error, setError } = useProviderInstanceMutation(environment);
   function save() {
@@ -240,23 +232,20 @@ function ClaudeAccountForm({
   return (
     <View className="gap-2 px-4 py-3">
       <Text textRole="footnote" className="text-foreground-muted">
-        {t(
-          "Point at a CLAUDE_CONFIG_DIR folder on {label} where Claude Code is already signed in. Sign in there with the Claude CLI first.",
-          { label: environment.label },
-        )}
+        {`Point at a CLAUDE_CONFIG_DIR folder on ${environment.label} where Claude Code is already signed in. Sign in there with the Claude CLI first.`}
       </Text>
-      {field("name", t("Account name"), t("Name, e.g. Work"))}
-      {field("configDir", t("Claude config folder"), t("Config folder, e.g. ~/.claude-work"))}
+      {field("name", "Account name", "Name, e.g. Work")}
+      {field("configDir", "Claude config folder", "Config folder, e.g. ~/.claude-work")}
       {error ? (
         <Text accessibilityRole="alert" className="text-danger-foreground">
           {error}
         </Text>
       ) : null}
       <View className="flex-row justify-end gap-2">
-        <ControlPill variant="pill" label={t("Cancel")} disabled={pending} onPress={onDone} />
+        <ControlPill variant="pill" label="Cancel" disabled={pending} onPress={onDone} />
         <ControlPill
           variant="primary"
-          label={instanceId === null ? t("Add") : t("Save")}
+          label={instanceId === null ? "Add" : "Save"}
           disabled={pending}
           onPress={save}
         />

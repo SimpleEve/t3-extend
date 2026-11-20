@@ -31,7 +31,7 @@ import {
   type ScopedThreadRef,
   type ThreadId,
 } from "@t3tools/contracts";
-import { getTerminalLabel, localizeTerminalLabel } from "@t3tools/shared/terminalLabels"; // fork: i18n
+import { getTerminalLabel } from "@t3tools/shared/terminalLabels";
 import * as Schema from "effect/Schema";
 import { AsyncResult } from "effect/reactivity";
 import {
@@ -104,8 +104,6 @@ import {
   resolveTerminalFontSizePreference,
   TYPOGRAPHY_ADVANCED_STORAGE_KEY,
 } from "../appearanceFonts";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 const MIN_DRAWER_HEIGHT = 180;
 const MAX_DRAWER_HEIGHT_RATIO = 0.75;
@@ -1322,7 +1320,6 @@ function TerminalSplitPanes({
   visible: boolean;
   keybindings: ResolvedKeybindingsConfig;
 }) {
-  const t = useT();
   return (
     <div
       className="grid h-full w-full min-w-0 gap-0 overflow-hidden"
@@ -1358,7 +1355,7 @@ function TerminalSplitPanes({
                 threadRef={threadRef}
                 threadId={threadId}
                 terminalId={terminalId}
-                terminalLabel={terminalLabelById.get(terminalId) ?? t("Terminal")}
+                terminalLabel={terminalLabelById.get(terminalId) ?? "Terminal"}
                 cwd={terminalLaunchLocation.cwd}
                 {...(terminalLaunchLocation.worktreePath !== undefined
                   ? { worktreePath: terminalLaunchLocation.worktreePath }
@@ -1398,7 +1395,6 @@ function TerminalSidebarGroup({
   onActiveTerminalChange: (terminalId: string) => void;
   onCloseTerminal: (terminalId: string) => void;
 }) {
-  const t = useT();
   const isGroupActive = terminalGroup.terminalIds.includes(activeTerminalId);
   const groupActiveTerminalId = isGroupActive
     ? activeTerminalId
@@ -1406,10 +1402,10 @@ function TerminalSidebarGroup({
   const terminalCount = terminalGroup.terminalIds.length;
   const isSplitGroup = terminalCount > 1;
   const groupLabel = !isSplitGroup
-    ? t("Single")
+    ? "Single"
     : terminalGroup.splitDirection === "vertical"
-      ? t("Stacked")
-      : t("Side by side");
+      ? "Stacked"
+      : "Side by side";
   const GroupIcon = !isSplitGroup
     ? Square
     : terminalGroup.splitDirection === "vertical"
@@ -1513,9 +1509,8 @@ export default function ThreadTerminalDrawer({
   terminalLabelsById,
   terminalLaunchLocationsById,
 }: ThreadTerminalDrawerProps) {
-  const t = useT();
   const canOperateTerminal = useEnvironmentScope(threadRef.environmentId, AuthTerminalOperateScope);
-  const terminalArea = workspaceAreaProps("terminal", 5, t("Terminal"));
+  const terminalArea = workspaceAreaProps("terminal", 5, "Terminal");
   const isPanel = mode === "panel";
   const [advancedTypography] = useLocalStorage(
     TYPOGRAPHY_ADVANCED_STORAGE_KEY,
@@ -1667,21 +1662,21 @@ export default function ThreadTerminalDrawer({
       ...(runtimeEnv ? { runtimeEnv } : {}),
     };
   const splitTerminalActionLabel = hasReachedSplitLimit
-    ? t("Split Terminal Horizontally (max {count} per group)", { count: MAX_TERMINALS_PER_GROUP })
+    ? `Split Terminal Horizontally (max ${MAX_TERMINALS_PER_GROUP} per group)`
     : splitShortcutLabel
-      ? t("Split Terminal Horizontally ({shortcut})", { shortcut: splitShortcutLabel })
-      : t("Split Terminal Horizontally");
+      ? `Split Terminal Horizontally (${splitShortcutLabel})`
+      : "Split Terminal Horizontally";
   const splitTerminalVerticalActionLabel = hasReachedSplitLimit
-    ? t("Split Terminal Vertically (max {count} per group)", { count: MAX_TERMINALS_PER_GROUP })
+    ? `Split Terminal Vertically (max ${MAX_TERMINALS_PER_GROUP} per group)`
     : splitVerticalShortcutLabel
-      ? t("Split Terminal Vertically ({shortcut})", { shortcut: splitVerticalShortcutLabel })
-      : t("Split Terminal Vertically");
+      ? `Split Terminal Vertically (${splitVerticalShortcutLabel})`
+      : "Split Terminal Vertically";
   const newTerminalActionLabel = newShortcutLabel
-    ? t("New Terminal ({shortcut})", { shortcut: newShortcutLabel })
-    : t("New Terminal");
+    ? `New Terminal (${newShortcutLabel})`
+    : "New Terminal";
   const closeTerminalActionLabel = closeShortcutLabel
-    ? t("Close Terminal ({shortcut})", { shortcut: closeShortcutLabel })
-    : t("Close Terminal");
+    ? `Close Terminal (${closeShortcutLabel})`
+    : "Close Terminal";
   const onSplitTerminalAction = () => {
     if (!canOperateTerminal || hasReachedSplitLimit) return;
     onSplitTerminal();
@@ -1822,7 +1817,7 @@ export default function ThreadTerminalDrawer({
       >
         {resizeHandle}
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 py-6 text-center text-sm text-muted-foreground">
-          <p>{t("No terminal sessions for this thread yet.")}</p>
+          <p>No terminal sessions for this thread yet.</p>
           <Button
             size="xs"
             variant="outline"

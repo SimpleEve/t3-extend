@@ -261,7 +261,7 @@ export function managedCapabilityDenial(
       ? limits.clients !== undefined && !limits.clients.includes("remote")
       : limits[capability] === false;
   return denied
-    ? managedPolicyDeniedMessage(summary.organization, t(CAPABILITY_LABELS[capability]), t)
+    ? managedPolicyDeniedMessage(summary.organization, CAPABILITY_LABELS[capability])
     : undefined;
 }
 

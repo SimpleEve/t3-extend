@@ -2,7 +2,6 @@ import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { cn } from "~/lib/utils";
 
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 export function PullRequestCopyableCode({
   value,
@@ -21,7 +20,6 @@ export function PullRequestCopyableCode({
   readonly tooltipSide?: "top" | "bottom";
   readonly onError?: (error: Error) => void;
 }) {
-  const t = useT();
   const { copyToClipboard, isCopied } = useCopyToClipboard({
     target,
     timeout: 1600,
@@ -57,11 +55,11 @@ export function PullRequestCopyableCode({
             isCopied ? "opacity-100" : "opacity-0",
           )}
         >
-          {t("Copied")}
+          Copied
         </span>
       </TooltipTrigger>
       <TooltipPopup variant="code" side={tooltipSide}>
-        {t("{label}: {value}", { label: isCopied ? t("Copied") : copyLabel, value })}
+        {`${isCopied ? "Copied" : copyLabel}: ${value}`}
       </TooltipPopup>
     </Tooltip>
   );

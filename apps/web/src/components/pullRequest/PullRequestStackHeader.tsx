@@ -1,6 +1,5 @@
 import { MenuGroupLabel } from "../ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { useT } from "../../hooks/useT";
 
 export function PullRequestStackHeader({
   number,
@@ -11,15 +10,14 @@ export function PullRequestStackHeader({
   notice?: string | null | undefined;
   stale?: boolean;
 }) {
-  const t = useT();
   return (
     <MenuGroupLabel>
       <div className="flex items-center justify-between gap-2">
-        <span>{t("Stack #{number}", { number })}</span>
+        <span>Stack #{number}</span>
         {notice ? (
           <Tooltip>
             <TooltipTrigger render={<span role="status" className="text-xs font-normal" />}>
-              {stale ? t("May be stale") : t("Refreshing…")}
+              {stale ? "May be stale" : "Refreshing…"}
             </TooltipTrigger>
             <TooltipPopup>{notice}</TooltipPopup>
           </Tooltip>

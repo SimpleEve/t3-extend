@@ -37,8 +37,6 @@ import { projectEnvironment } from "~/state/projects";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { readEnvironmentScope, useEnvironmentScope } from "~/state/session";
-import { interpolateNodes } from "~/lib/interpolateNodes"; // fork
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 export const ProposedPlanCard = memo(function ProposedPlanCard({
   planMarkdown,
@@ -55,7 +53,6 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
   workspaceRoot: string | undefined;
   findActive?: boolean;
 }) {
-  const t = useT(); // fork: interface language
   const [expanded, setExpanded] = useState(false);
   const canWriteFiles = useEnvironmentScope(environmentId, AuthFilesystemWriteScope);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
@@ -77,7 +74,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
       );
     },
   });
-  const title = proposedPlanTitle(planMarkdown) ?? t("Proposed plan");
+  const title = proposedPlanTitle(planMarkdown) ?? "Proposed plan";
   const lineCount = planMarkdown.split("\n").length;
   const canCollapse = planMarkdown.length > 900 || lineCount > 20;
   const displayedPlanMarkdown = stripDisplayedPlanMarkdown(planMarkdown);
@@ -105,8 +102,8 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: t("Workspace path is unavailable"),
-          description: t("This thread does not have a workspace path to save into."),
+          title: "Workspace path is unavailable",
+          description: "This thread does not have a workspace path to save into.",
         }),
       );
       return;
@@ -122,7 +119,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
     if (!relativePath) {
       toastManager.add({
         type: "warning",
-        title: t("Enter a workspace path"),
+        title: "Enter a workspace path",
       });
       return;
     }
@@ -143,7 +140,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
         setIsSaveDialogOpen(false);
         toastManager.add({
           type: "success",
-          title: t("Plan saved to workspace"),
+          title: "Plan saved to workspace",
           description: result.value.relativePath,
         });
         return;
@@ -166,7 +163,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
     <div className="rounded-2xl border border-border/80 bg-card/70 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <Badge variant="secondary">{t("Plan", undefined, "proposed plan")}</Badge>
+          <Badge variant="secondary">Plan</Badge>
           {}
           <h3 data-thread-find-text="true" className="truncate text-sm font-medium text-foreground">
             {title}
@@ -174,20 +171,20 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
         </div>
         <Menu>
           <MenuTrigger
-            render={<Button aria-label={t("Plan actions")} size="icon-xs" variant="outline" />}
+            render={<Button aria-label="Plan actions" size="icon-xs" variant="outline" />}
           >
             <EllipsisIcon aria-hidden="true" className="size-4" />
           </MenuTrigger>
           <MenuPopup align="end">
             <MenuItem onClick={handleCopyPlan}>
-              {isCopied ? t("Copied!") : t("Copy to clipboard")}
+              {isCopied ? "Copied!" : "Copy to clipboard"}
             </MenuItem>
-            <MenuItem onClick={handleDownload}>{t("Download as markdown")}</MenuItem>
+            <MenuItem onClick={handleDownload}>Download as markdown</MenuItem>
             <MenuItem
               onClick={openSaveDialog}
               disabled={!canWriteFiles || !workspaceRoot || isSavingToWorkspace}
             >
-              {t("Save to workspace")}
+              Save to workspace
             </MenuItem>
           </MenuPopup>
         </Menu>
@@ -230,7 +227,7 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
               data-scroll-anchor-ignore
               onClick={() => setExpanded((value) => !value)}
             >
-              {expanded ? t("Collapse plan") : t("Expand plan")}
+              {expanded ? "Collapse plan" : "Expand plan"}
             </Button>
           </div>
         ) : null}
@@ -277,22 +274,19 @@ function SavePlanToWorkspaceForm({
   onCancel: () => void;
   onSave: (path: string) => void;
 }) {
-  const t = useT(); // fork: interface language
   const [savePath, setSavePath] = useState(initialPath);
   const savePathInputId = useId();
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{t("Save plan to workspace")}</DialogTitle>
+        <DialogTitle>Save plan to workspace</DialogTitle>
         <DialogDescription>
-          {interpolateNodes(t("Enter a path relative to {workspace}."), {
-            workspace: <code>{workspaceRoot ?? t("the workspace")}</code>,
-          })}
+          Enter a path relative to <code>{workspaceRoot ?? "the workspace"}</code>.
         </DialogDescription>
       </DialogHeader>
       <DialogPanel>
         <label htmlFor={savePathInputId} className="grid gap-1.5">
-          <span className="text-xs font-medium text-foreground">{t("Workspace path")}</span>
+          <span className="text-xs font-medium text-foreground">Workspace path</span>
           <Input
             id={savePathInputId}
             value={savePath}
@@ -305,10 +299,10 @@ function SavePlanToWorkspaceForm({
       </DialogPanel>
       <DialogFooter>
         <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>
-          {t("Cancel")}
+          Cancel
         </Button>
         <Button size="sm" onClick={() => onSave(savePath)} disabled={!canWriteFiles || saving}>
-          {saving ? t("Saving...") : t("Save")}
+          {saving ? "Saving..." : "Save"}
         </Button>
       </DialogFooter>
     </>

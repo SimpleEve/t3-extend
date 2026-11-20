@@ -42,7 +42,6 @@ import { Input } from "../ui/input";
 import { Radio, RadioGroup } from "../ui/radio-group";
 import { WizardFooter, WizardHeader, WizardPanel, WizardPopup, WizardSteps } from "../ui/wizard";
 import { WorkLogRow } from "./WorkLog";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 const accessLabel = (access: AuthMcpClientAccess) => accessConfig[access].label;
 
@@ -60,9 +59,8 @@ export function LinkRequestCard(props: {
   readonly item: LinkRequestItem;
   readonly visibility: OrchestrationV2ProjectedTurnItem["visibility"];
 }) {
-  const t = useT(); // fork: interface language
   const { item } = props;
-  const display = linkRequestDisplay(item, props.visibility, (access) => t(accessLabel(access)), t);
+  const display = linkRequestDisplay(item, props.visibility, accessLabel);
   if (display.kind === "answered" || display.kind === "pending-elsewhere") {
     const Icon =
       display.kind === "pending-elsewhere"
@@ -87,7 +85,6 @@ function PendingLinkRequest(props: {
   readonly environmentId: EnvironmentId;
   readonly item: LinkRequestItem;
 }) {
-  const t = useT(); // fork: interface language
   const { item } = props;
   const [open, setOpen] = useState(false);
   const [declining, setDeclining] = useState(false);
@@ -127,8 +124,8 @@ function PendingLinkRequest(props: {
       <div className="flex min-w-0 flex-col gap-1">
         <p className="text-sm font-medium text-foreground">
           {picksMachine(item)
-            ? t("Link a machine to this environment")
-            : t("Link {target} to this environment", { target })}
+            ? "Link a machine to this environment"
+            : `Link ${target} to this environment`}
         </p>
         {item.reason.trim() ? <p className="text-sm text-muted-foreground">{item.reason}</p> : null}
       </div>
@@ -146,15 +143,15 @@ function PendingLinkRequest(props: {
             disabled={declining}
             onClick={() => void decline()}
           >
-            {t("Decline")}
+            Decline
           </Button>
           <Button type="button" size="xs" disabled={declining} onClick={() => setOpen(true)}>
-            {picksMachine(item) ? t("Choose machine…") : t("Review link…")}
+            {picksMachine(item) ? "Choose machine…" : "Review link…"}
           </Button>
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">
-          {t("Only a session that manages access here can answer this.")}
+          Only a session that manages access here can answer this.
         </p>
       )}
       <LinkRequestDialog
@@ -176,7 +173,6 @@ function LinkRequestDialog(props: {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }) {
-  const t = useT(); // fork: interface language
   const { item } = props;
   const formId = useId();
   const pickMachine = picksMachine(item);
@@ -308,14 +304,12 @@ function LinkRequestDialog(props: {
     >
       <WizardPopup>
         <WizardHeader
-          title={pickMachine ? t("Link a machine") : t("Link {target}", { target: targetName })}
-          description={t(
-            "Agents here can then launch, message and wait on threads there. Revoke it in that machine's Sharing & access.",
-          )}
+          title={pickMachine ? "Link a machine" : `Link ${targetName}`}
+          description="Agents here can then launch, message and wait on threads there. Revoke it in that machine's Sharing & access."
         >
           {steps.length > 1 && !useExisting ? (
             <WizardSteps
-              steps={[t("Machine"), t("Access")]}
+              steps={["Machine", "Access"]}
               currentStep={steps.indexOf(current)}
               summaries={[target.kind === "none" ? null : targetName, null]}
               showSummaries
@@ -366,10 +360,8 @@ function LinkRequestDialog(props: {
                     />
                     {target.kind === "machine" ? (
                       <span className="block text-xs text-muted-foreground">
-                        {t(
-                          "This app has no address for {machine} that another machine can reach. Enter its https or Tailscale address.",
-                          { machine: target.label },
-                        )}
+                        This app has no address for {target.label} that another machine can reach.
+                        Enter its https or Tailscale address.
                       </span>
                     ) : null}
                   </label>
@@ -386,22 +378,20 @@ function LinkRequestDialog(props: {
                     {canMint ? null : (
                       <label className="block space-y-1.5">
                         <span className="block text-xs font-medium text-foreground">
-                          {t("Pairing code")}
+                          Pairing code
                         </span>
                         <Input
                           value={pairingCode}
                           onChange={(event) => setPairingCode(event.target.value)}
-                          placeholder={t("Paste the code")}
+                          placeholder="Paste the code"
                           disabled={busy}
                           autoComplete="one-time-code"
                           nativeInput
                           spellCheck={false}
                         />
                         <span className="block text-xs text-muted-foreground">
-                          {t(
-                            "Create a link on {name}: Settings → Sharing & access → Authorized clients → Create link, then paste its code here.",
-                            { name: targetName },
-                          )}
+                          Create a link on {targetName}: Settings → Sharing & access → Authorized
+                          clients → Create link, then paste its code here.
                         </span>
                       </label>
                     )}
@@ -412,10 +402,8 @@ function LinkRequestDialog(props: {
             )}
             {useExisting ? (
               <p className="text-xs text-muted-foreground">
-                {t(
-                  "This environment is already linked to {name}. The agent can use that link as it is; change its access in Settings → Environments.",
-                  { name: targetName },
-                )}
+                This environment is already linked to {targetName}. The agent can use that link as
+                it is; change its access in Settings → Environments.
               </p>
             ) : null}
             {error !== null ? (
@@ -436,11 +424,11 @@ function LinkRequestDialog(props: {
                 setError(null);
               }}
             >
-              {t("Back")}
+              Back
             </Button>
           ) : (
             <Button variant="outline" type="button" disabled={busy} onClick={close}>
-              {t("Cancel")}
+              Cancel
             </Button>
           )}
           <Button
@@ -469,12 +457,11 @@ function MachinePicker(props: {
   readonly disabled: boolean;
   readonly onChange: (value: string) => void;
 }) {
-  const t = useT(); // fork: interface language
   const labelId = useId();
   return (
     <div className="space-y-2">
       <span id={labelId} className="block text-xs font-medium">
-        {t("Machine")}
+        Machine
       </span>
       <RadioGroup
         aria-labelledby={labelId}
@@ -498,7 +485,7 @@ function MachinePicker(props: {
         ))}
         <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-sm">
           <Radio value={ANOTHER_ADDRESS} />
-          <span className="min-w-0 flex-1 font-medium">{t("Another address…")}</span>
+          <span className="min-w-0 flex-1 font-medium">Another address…</span>
         </label>
       </RadioGroup>
     </div>

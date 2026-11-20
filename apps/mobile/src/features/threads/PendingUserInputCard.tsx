@@ -36,7 +36,6 @@ import {
   type PendingUserInputDraftAnswer,
 } from "@t3tools/client-runtime/state/pending-user-input";
 import type { PendingUserInput } from "../../lib/threadActivity";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export interface PendingUserInputCardProps {
   readonly environmentId: EnvironmentId;
@@ -121,7 +120,6 @@ function QuestionText(props: {
 }
 
 export function PendingUserInputCard(props: PendingUserInputCardProps) {
-  const t = useT();
   const questionCount = props.pendingUserInput.questions.length;
   const canRespond = props.pendingUserInput.responseCapability !== "not_resumable";
   const isResponding = props.respondingUserInputId === props.pendingUserInput.requestId;
@@ -174,7 +172,7 @@ export function PendingUserInputCard(props: PendingUserInputCardProps) {
 
   const stopButton = props.onStopThread ? (
     <ControlPill
-      accessibilityLabel={t("Stop")}
+      accessibilityLabel="Stop"
       icon="stop.fill"
       variant="danger"
       className="h-9 w-9"
@@ -201,7 +199,7 @@ export function PendingUserInputCard(props: PendingUserInputCardProps) {
         className="min-h-10 flex-1 flex-row items-center gap-2 active:opacity-70"
       >
         <Text className="font-t3-bold text-2xs uppercase tracking-[1.1px] text-foreground-secondary">
-          {t("User input needed")}
+          User input needed
         </Text>
         <Text className="font-sans text-xs text-foreground-muted">
           {questionCount === 1
@@ -231,16 +229,16 @@ export function PendingUserInputCard(props: PendingUserInputCardProps) {
       <View className="flex-row items-start gap-2">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("Collapse user input")}
+          accessibilityLabel="Collapse user input"
           onPress={props.onToggleCollapsed}
           className="flex-1 flex-row items-start gap-2"
         >
           <View className="flex-1 gap-2.5">
             <Text className="font-t3-bold text-2xs uppercase tracking-[1.1px] text-foreground-secondary">
-              {t("User input needed")}
+              User input needed
             </Text>
             <Text className="font-t3-bold text-lg text-foreground">
-              {t("Fill in the pending answers")}
+              Fill in the pending answers
             </Text>
           </View>
           <View className="h-8 w-8 items-center justify-center rounded-full bg-subtle-strong">
@@ -265,9 +263,8 @@ export function PendingUserInputCard(props: PendingUserInputCardProps) {
       >
         {!canRespond ? (
           <Text className="font-sans text-sm leading-5 text-foreground-muted">
-            {t(
-              "The provider process for this request is no longer available. Interrupt or restart the run to continue.",
-            )}
+            The provider process for this request is no longer available. Interrupt or restart the
+            run to continue.
           </Text>
         ) : null}
         {props.pendingUserInput.questions.map((question) => {
@@ -367,7 +364,7 @@ export function PendingUserInputCard(props: PendingUserInputCardProps) {
         })}
       </ScrollView>
       <Button
-        label={t("Submit answers")}
+        label="Submit answers"
         fullWidth
         tone={props.answers ? "primary" : "secondary"}
         disabled={!props.canOperateThread || responseDisabled || props.answers === null}
@@ -375,7 +372,7 @@ export function PendingUserInputCard(props: PendingUserInputCardProps) {
       />
       {props.pendingUserInput.dismissible ? (
         <Button
-          label={t("Dismiss without answering")}
+          label="Dismiss without answering"
           tone="text"
           disabled={isResponding}
           onPress={() => void props.onDismiss()}
@@ -383,7 +380,7 @@ export function PendingUserInputCard(props: PendingUserInputCardProps) {
       ) : null}
       {!props.canOperateThread ? (
         <Text className="font-sans text-xs text-foreground-tertiary">
-          {t("This connection cannot submit answers.")}
+          This connection cannot submit answers.
         </Text>
       ) : null}
     </Animated.View>

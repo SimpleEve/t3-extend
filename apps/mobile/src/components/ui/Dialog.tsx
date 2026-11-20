@@ -1,6 +1,5 @@
 import { Alert } from "react-native";
 import type { ConfirmDialogRequest, TextInputDialogRequest } from "./Dialog.types";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export type { ConfirmDialogRequest, TextInputDialogRequest } from "./Dialog.types";
 

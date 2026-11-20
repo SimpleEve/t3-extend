@@ -31,7 +31,6 @@ import { PullRequestCommentFooter } from "./PullRequestReactions";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 import { usePullRequestPermissions } from "./usePullRequestPermissions";
 import { pullRequestReviewKey } from "./pullRequestReviewDrafts";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { PullRequestCompletionSuggestions } from "./PullRequestCompletionSuggestions";
 import { usePullRequestCompletions } from "./usePullRequestCompletions";
 
@@ -47,7 +46,6 @@ export function PullRequestDiscussionScreen({
 }
 
 function Discussion({ params }: { params: PullRequestParams & { readonly discussionId: string } }) {
-  const t = useT(); // fork: i18n
   const target = pullRequestTarget(params);
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -104,7 +102,7 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
     if (result && AsyncResult.isFailure(result)) {
       const cause = squashAtomCommandFailure(result);
       setError(
-        cause instanceof Error ? cause.message : t("The provider could not complete this action."),
+        cause instanceof Error ? cause.message : "The provider could not complete this action.",
       );
     }
   };
@@ -118,7 +116,7 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
       });
       if (AsyncResult.isFailure(response)) return response;
       setBody((current) => (current === submitted ? "" : current));
-      setNotice(t("Reply posted."));
+      setNotice("Reply posted.");
       refresh();
       return response;
     });
@@ -159,7 +157,7 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
       ? resolvePullRequestReviewAnchor(location.anchor, [], [{ comments }])
       : null;
   const canReply = permissions.canReply && Boolean(thread);
-  const resolveLabel = thread?.isResolved ? t("Unresolve") : t("Resolve");
+  const resolveLabel = thread?.isResolved ? "Unresolve" : "Resolve";
   return (
     <PullRequestMarkdownRepository params={params} changeRequest={detail.data}>
       <KeyboardAvoidingView
@@ -172,7 +170,7 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
         }}
       >
         <AppBar
-          title={t("Discussion")}
+          title="Discussion"
           subtitle={`#${params.number}`}
           onBack={() => navigation.goBack()}
           actions={
@@ -214,12 +212,12 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
                   </Text>
                 )}
                 <Text className="text-xs text-foreground-muted">
-                  {thread.isResolved ? t("Resolved") : t("Unresolved")}
-                  {thread.isOutdated ? t(" · Outdated") : ""}
+                  {thread.isResolved ? "Resolved" : "Unresolved"}
+                  {thread.isOutdated ? " · Outdated" : ""}
                 </Text>
                 {filePath === null ? null : (
                   <Button
-                    label={t("View file diff")}
+                    label="View file diff"
                     onPress={() =>
                       navigation.navigate("PullRequestFile", { ...params, path: filePath })
                     }
@@ -227,7 +225,7 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
                 )}
               </View>
             ) : !activity.isPending ? (
-              <Text>{t("This discussion is no longer available.")}</Text>
+              <Text>This discussion is no longer available.</Text>
             ) : null}
             {comments.map((comment) => (
               <View
@@ -252,7 +250,7 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
                 <View className="flex-row items-center gap-2">
                   <PullRequestAvatar actor={comment.author} size={28} />
                   <Text className="min-w-0 flex-1 text-sm font-t3-medium">
-                    {comment.author?.login ?? t("Unknown author")}
+                    {comment.author?.login ?? "Unknown author"}
                   </Text>
                   <Text className="text-2xs text-foreground-muted">
                     {relativeTime(comment.createdAt, undefined, t)}
@@ -273,7 +271,7 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
             ))}
             {nextCursor ? (
               <Button
-                label={busy ? t("Loading…") : t("Load more replies")}
+                label={busy ? "Loading…" : "Load more replies"}
                 disabled={busy}
                 onPress={() => void more()}
               />
@@ -298,13 +296,13 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
               className="flex-row items-end gap-1 p-1"
             >
               <TextInput
-                accessibilityLabel={t("Discussion reply")}
+                accessibilityLabel="Discussion reply"
                 selection={completions.selection}
                 onSelectionChange={completions.onSelectionChange}
                 onBlur={completions.onBlur}
                 multiline
                 maxLength={65536}
-                placeholder={t("Reply…")}
+                placeholder="Reply…"
                 placeholderTextColorClassName="accent-foreground-muted"
                 value={body}
                 onChangeText={setBody}
@@ -313,7 +311,7 @@ function Discussion({ params }: { params: PullRequestParams & { readonly discuss
               />
               <View>
                 <Button
-                  label={busy ? t("Posting…") : t("Reply")}
+                  label={busy ? "Posting…" : "Reply"}
                   tone="contrast"
                   disabled={busy || !body.trim()}
                   onPress={() => void post()}

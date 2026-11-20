@@ -58,8 +58,8 @@ export function pickSnoozePreset(
   if (!picked) {
     toastManager.add({
       type: "warning",
-      title: translate(getUiLocale(), "Could not snooze thread"), // fork: interface language
-      description: translate(getUiLocale(), "That snooze time has passed. Choose another time."),
+      title: "Could not snooze thread",
+      description: "That snooze time has passed. Choose another time.",
     });
   }
   return picked;

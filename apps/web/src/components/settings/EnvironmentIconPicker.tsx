@@ -19,7 +19,6 @@ import {
   MenuSubPopup,
   MenuSubTrigger,
 } from "../ui/menu";
-import { useT } from "../../hooks/useT";
 
 export function resolveEnvironmentIconPickerLock(input: {
   readonly serverConfig: Pick<ServerConfig, "environment"> | null;
@@ -41,7 +40,6 @@ export function EnvironmentIconMenu({
   readonly environmentId: EnvironmentId;
   readonly serverConfig: Pick<ServerConfig, "environment"> | null;
 }) {
-  const t = useT();
   const updateSettings = useUpdateEnvironmentSettings(environmentId);
   const operateAccess = useEnvironmentScope(environmentId, AuthSettingsWriteScope)
     ? "granted"
@@ -54,7 +52,7 @@ export function EnvironmentIconMenu({
     <MenuSub>
       <MenuSubTrigger>
         <EnvironmentMachineIcon kind={resolved} />
-        {t("Icon")}
+        Icon
       </MenuSubTrigger>
       <MenuSubPopup>
         {lock !== null ? (
@@ -81,7 +79,7 @@ export function EnvironmentIconMenu({
                 </span>
                 {kind === detected ? (
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {serverConfig?.environment.platform.machine ? t("detected") : t("default")}
+                    {serverConfig?.environment.platform.machine ? "detected" : "default"}
                   </span>
                 ) : null}
               </span>

@@ -3,7 +3,6 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { Menu } from "../../components/ui/Menu";
 import type { ActivityFilter } from "./pullRequestActivityFilter";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function PullRequestActivityFilters({
   value,
@@ -14,16 +13,15 @@ export function PullRequestActivityFilters({
   readonly onChange: (value: ActivityFilter) => void;
   readonly hiddenCount: number;
 }) {
-  const t = useT(); // fork: i18n
   const kinds = [
-    { id: "all", title: t("All activity") },
-    { id: "comments", title: t("Comments") },
-    { id: "commits", title: t("Commits") },
+    { id: "all", title: "All activity" },
+    { id: "comments", title: "Comments" },
+    { id: "commits", title: "Commits" },
   ] as const;
   return (
     <View className="mb-4 flex-row items-center justify-between gap-3">
       <Menu
-        title={t("Activity")}
+        title="Activity"
         actions={kinds.map((kind) => ({ ...kind, state: value.kind === kind.id ? "on" : "off" }))}
         onPressAction={({ nativeEvent }) => {
           const kind = kinds.find((item) => item.id === nativeEvent.event);
@@ -45,12 +43,12 @@ export function PullRequestActivityFilters({
       </Menu>
       <View className="flex-row items-center gap-3">
         <Menu
-          title={t("Show in activity")}
+          title="Show in activity"
           actions={[
-            { id: "bots", title: t("Bot comments"), state: value.bots ? "on" : "off" },
+            { id: "bots", title: "Bot comments", state: value.bots ? "on" : "off" },
             {
               id: "resolved",
-              title: t("Resolved or dismissed"),
+              title: "Resolved or dismissed",
               state: value.resolved ? "on" : "off",
             },
           ]}
@@ -61,7 +59,7 @@ export function PullRequestActivityFilters({
         >
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t("Filter activity, {hiddenCount} hidden", { hiddenCount })}
+            accessibilityLabel={`Filter activity, ${hiddenCount} hidden`}
             className="min-h-11 flex-row items-center gap-1.5 active:opacity-60"
           >
             {hiddenCount > 0 ? (
@@ -78,7 +76,7 @@ export function PullRequestActivityFilters({
         </Menu>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={value.newestFirst ? t("Newest first") : t("Oldest first")}
+          accessibilityLabel={value.newestFirst ? "Newest first" : "Oldest first"}
           onPress={() => onChange({ ...value, newestFirst: !value.newestFirst })}
           className="h-11 flex-row items-center gap-1 active:opacity-60"
         >
@@ -88,7 +86,7 @@ export function PullRequestActivityFilters({
             tintColorClassName="accent-icon-muted"
           />
           <Text className="text-xs text-foreground-muted">
-            {value.newestFirst ? t("Newest") : t("Oldest")}
+            {value.newestFirst ? "Newest" : "Oldest"}
           </Text>
         </Pressable>
       </View>

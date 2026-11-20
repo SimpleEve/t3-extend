@@ -20,7 +20,6 @@ import {
 } from "./guideRunStore";
 import { stepTourPosition, stopFilePaths } from "@t3tools/client-runtime/review-guide-tour";
 import { useGuideDiffFiles } from "./useGuideDiffFiles";
-import { useT } from "~/hooks/useT";
 
 export function GuideTour({
   environmentId,
@@ -43,7 +42,6 @@ export function GuideTour({
   onFinish: (() => void) | null;
   onOpenFile: (path: string) => void;
 }) {
-  const t = useT();
   const key = guideProgressKey(guideRunKey(environmentId, reference), guide.headSha);
   const tour = useGuideProgress(key);
   const update = (change: (current: GuideProgress) => Partial<GuideProgress>) =>
@@ -117,9 +115,7 @@ export function GuideTour({
           {banner}
           {diff.error !== null ? (
             <p className="text-xs text-muted-foreground">
-              {t("The diff could not be loaded, so excerpts are missing: {error}", {
-                error: diff.error,
-              })}
+              The diff could not be loaded, so excerpts are missing: {diff.error}
             </p>
           ) : null}
           {stop === null ? (

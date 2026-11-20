@@ -4,7 +4,6 @@ import type { AttachmentUploadStatus } from "@t3tools/client-runtime/state/attac
 
 import { parseLegacyNewTaskDraftKey } from "../state/new-task-draft-key";
 import type { DraftComposerAttachment } from "./composerImages";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface ComposerAttachmentUploadRequest {
   readonly environmentId: EnvironmentId;

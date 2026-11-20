@@ -7,8 +7,6 @@ import { RelativeTime } from "../RelativeTime";
 import { cn } from "~/lib/utils";
 import { type PromptStashEntry } from "../../promptStashStore";
 import { ComposerBanner } from "./ComposerBanner";
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 const SNIPPET_MAX_CHARS = 90;
 
@@ -43,7 +41,7 @@ export function stashEntrySnippet(
   const fileCount = entry.files?.length ?? 0;
   const attachmentCount = imageCount + fileCount;
   if (attachmentCount === 0) {
-    return t("(empty)");
+    return "(empty)";
   }
   const kind = imageCount > 0 && fileCount > 0 ? "attachment" : fileCount > 0 ? "file" : "image";
   const [one, many] = STASH_ATTACHMENT_COUNTS[kind];
@@ -59,7 +57,6 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
   onDelete: (entry: PromptStashEntry) => void;
   onClose: () => void;
 }) {
-  const t = useT(); // fork: interface language
   const { entries, stashShortcutLabel, composerFormRef, onRestore, onDelete, onClose } = props;
   const [highlightedId, setHighlightedId] = useState<string | null>(entries[0]?.id ?? null);
 
@@ -154,7 +151,7 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
     >
       <ComposerBanner.Row
         render={<button type="button" />}
-        aria-label={t("Close stash")}
+        aria-label="Close stash"
         aria-expanded="true"
         onPointerDown={(event) => event.preventDefault()}
         onClick={onClose}
@@ -171,16 +168,14 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
         </ComposerBanner.Actions>
       </ComposerBanner.Row>
       <ComposerBanner.Scroll className="flex flex-col">
-        <ComposerBanner.Children render={<ul role="list" />} aria-label={t("Stashed prompts")}>
+        <ComposerBanner.Children render={<ul role="list" />} aria-label="Stashed prompts">
           {entries.length === 0 ? (
             <ComposerBanner.Row render={<li />}>
               <ComposerBanner.Icon />
               <ComposerBanner.Content className="text-muted-foreground">
-                {t("Nothing stashed yet.")}
+                Nothing stashed yet.
                 {stashShortcutLabel
-                  ? t(" Press {shortcut} with a prompt in the composer to stash it.", {
-                      shortcut: stashShortcutLabel,
-                    })
+                  ? ` Press ${stashShortcutLabel} with a prompt in the composer to stash it.`
                   : null}
               </ComposerBanner.Content>
             </ComposerBanner.Row>
@@ -208,9 +203,7 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
                     type="button"
                     className="min-w-0 flex-1 cursor-pointer truncate text-left text-foreground/80 outline-none before:absolute before:inset-0 before:rounded-sm focus-visible:before:ring-2 focus-visible:before:ring-inset focus-visible:before:ring-ring"
                     data-stash-restore={entry.id}
-                    aria-label={t("Restore stashed prompt: {prompt}", {
-                      prompt: stashEntrySnippet(entry, t),
-                    })}
+                    aria-label={`Restore stashed prompt: ${stashEntrySnippet(entry)}`}
                     onPointerDown={(event) => event.preventDefault()}
                     onClick={() => onRestore(entry)}
                   >
@@ -258,7 +251,7 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
                   </time>
                   <ComposerBanner.Dismiss
                     className="z-10"
-                    aria-label={t("Delete stashed prompt")}
+                    aria-label="Delete stashed prompt"
                     onPointerDown={(event) => event.preventDefault()}
                     onClick={() => onDelete(entry)}
                   />

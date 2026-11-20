@@ -12,7 +12,6 @@ import {
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Spinner } from "../ui/spinner";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 export interface ConnectDeviceRevokeRequest {
   readonly title: string;
@@ -62,7 +61,6 @@ function RevokeConnectDeviceDialogPopup({
   readonly onClose: () => void;
   readonly requireApproval: () => Promise<boolean>;
 }) {
-  const t = useT();
   const [turnOnApproval, setTurnOnApproval] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -82,9 +80,8 @@ function RevokeConnectDeviceDialogPopup({
       <AlertDialogHeader>
         <AlertDialogTitle>{request.title}</AlertDialogTitle>
         <AlertDialogDescription>
-          {t(
-            "Approval for new devices is off, so a revoked device signed in to your T3 Connect account can connect again on its own.",
-          )}
+          Approval for new devices is off, so a revoked device signed in to your T3 Connect account
+          can connect again on its own.
         </AlertDialogDescription>
         <label className="mt-2 flex cursor-pointer items-start gap-3">
           <Checkbox
@@ -95,21 +92,21 @@ function RevokeConnectDeviceDialogPopup({
           />
           <span className="min-w-0">
             <span className="block text-sm font-medium text-foreground">
-              {t("Require approval for new devices")}
+              Require approval for new devices
             </span>
             <span className="block text-xs text-muted-foreground">
-              {t("The device has to be approved here before it can connect again.")}
+              The device has to be approved here before it can connect again.
             </span>
           </span>
         </label>
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogClose disabled={busy} render={<Button variant="outline" disabled={busy} />}>
-          {t("Cancel")}
+          Cancel
         </AlertDialogClose>
         <Button variant="destructive" disabled={busy} onClick={() => void confirm()}>
           {busy && <Spinner size="sm" />}
-          {t("Revoke")}
+          Revoke
         </Button>
       </AlertDialogFooter>
     </AlertDialogPopup>

@@ -1,7 +1,5 @@
 import { type SlowRpcAckRequest, subscribeSlowRpcAckRequests } from "../rpc/requestLatencyState";
 import { toastManager } from "./ui/toast";
-import { useT } from "../hooks/useT";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 function describeSlowRequests(requests: ReadonlyArray<SlowRpcAckRequest>): string {
   const count = requests.length;
@@ -13,7 +11,6 @@ function describeSlowRequests(requests: ReadonlyArray<SlowRpcAckRequest>): strin
 }
 
 function SlowRequestDetails({ requests }: { requests: ReadonlyArray<SlowRpcAckRequest> }) {
-  const t = useT();
   return (
     <ul className="space-y-2.5 text-xs text-muted-foreground">
       {requests.map((request) => (
@@ -23,7 +20,7 @@ function SlowRequestDetails({ requests }: { requests: ReadonlyArray<SlowRpcAckRe
         >
           <div className="wrap-break-word font-medium text-foreground">{request.tag}</div>
           <div className="mt-0.5 text-3xs opacity-75">
-            {t("Started {value}", { value: new Date(request.startedAt).toLocaleTimeString() })}
+            Started {new Date(request.startedAt).toLocaleTimeString()}
           </div>
         </li>
       ))}
@@ -48,14 +45,11 @@ export function startSlowRpcRequestToasts(): () => void {
       data: {
         expandableContent: <SlowRequestDetails requests={slowRequests} />,
         expandableDescriptionTrigger: true,
-        expandableLabels: {
-          collapse: translate(getUiLocale(), "Hide requests"),
-          expand: translate(getUiLocale(), "Show requests"),
-        },
+        expandableLabels: { collapse: "Hide requests", expand: "Show requests" },
       },
       description: describeSlowRequests(slowRequests),
       timeout: 0,
-      title: translate(getUiLocale(), "Some requests are slow"),
+      title: "Some requests are slow",
       type: "warning" as const,
     };
 

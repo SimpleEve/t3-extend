@@ -29,13 +29,11 @@ import {
   voiceSpeechModelsAtom,
   voiceSpeechStatusAtom,
 } from "../voice-input/voiceDestination";
-import { useT } from "../../hooks/useT"; // fork: restored import
 
 const isDownloading = (model: EnvironmentSpeechModel) =>
   model.state === "downloading" || model.state === "verifying";
 
 export function useVoiceModels(environmentId: EnvironmentId, label: string) {
-  const t = useT();
   const connection = useAtomValue(voiceConnectionAtom(environmentId));
   const statusAtom = voiceSpeechStatusAtom(environmentId);
   const modelsAtom = voiceSpeechModelsAtom(environmentId);
@@ -84,15 +82,12 @@ export function useVoiceModels(environmentId: EnvironmentId, label: string) {
     download: (model: EnvironmentSpeechModel) => {
       if (!ready) return;
       Dialog.confirm({
-        title: t("Download {name}?", { name: model.name }),
-        message: t("{label} will download {value} and use it as its transcription model.", {
-          label,
-          value: formatBytes(model.size),
-        }),
-        confirmText: t("Download"),
+        title: `Download ${model.name}?`,
+        message: `${label} will download ${formatBytes(model.size)} and use it as its transcription model.`,
+        confirmText: "Download",
         onConfirm: () =>
           void run(
-            t("Could not download the model"),
+            "Could not download the model",
             async () => {
               await runSpeech(downloadEnvironmentSpeechModel(connection, model.id));
               if (model.id !== status.modelId)
@@ -104,13 +99,13 @@ export function useVoiceModels(environmentId: EnvironmentId, label: string) {
     },
     select: (model: EnvironmentSpeechModel) => {
       if (!ready || model.active) return;
-      void run(t("Could not select the model"), () =>
+      void run("Could not select the model", () =>
         runSpeech(selectEnvironmentSpeechModel(connection, model.id)),
       );
     },
     cancel: (model: EnvironmentSpeechModel) => {
       if (!ready) return;
-      void run(t("Could not cancel the download"), () =>
+      void run("Could not cancel the download", () =>
         runSpeech(cancelEnvironmentSpeechModelDownload(connection, model.id)),
       );
     },
@@ -126,7 +121,6 @@ const languageNames =
 const languageLabel = (code: string) => languageNames?.of(code) ?? code.toUpperCase();
 
 function ModelStats(props: { readonly model: EnvironmentSpeechModel; readonly language: string }) {
-  const t = useT();
   const { model, language } = props;
   const data = model.benchmark;
   const code = !data
@@ -226,7 +220,6 @@ export function VoiceModelRow(props: {
   /** The language whose benchmark score to show, when the model has one. */
   readonly language: string;
 }) {
-  const t = useT();
   const { model, voice, separated } = props;
   const meta = <ModelStats model={model} language={props.language} />;
   if (model.state === "installed")
@@ -251,10 +244,8 @@ export function VoiceModelRow(props: {
           label={model.name}
           description={
             model.state === "verifying"
-              ? t("Verifying download…")
-              : t("{value}% downloaded · Tap to cancel", {
-                  value: Math.round((progress ?? 0) * 100),
-                })
+              ? "Verifying download…"
+              : `${Math.round((progress ?? 0) * 100)}% downloaded · Tap to cancel`
           }
           disabled={!voice.canManage || voice.busy}
           onPress={() => voice.cancel(model)}
@@ -262,7 +253,7 @@ export function VoiceModelRow(props: {
         <Progress
           className="bg-grouped-card px-4 pb-3"
           value={model.state === "verifying" ? undefined : progress}
-          label={t("{name} download progress", { name: model.name })}
+          label={`${model.name} download progress`}
         />
       </View>
     );
@@ -287,7 +278,6 @@ export function LocalModelChoice(props: {
   readonly selected: boolean;
   readonly onSelect: () => void;
 }) {
-  const t = useT();
   const navigation = useNavigation();
   const voice = useVoiceModels(props.environmentId, props.label);
   const { status } = voice;
@@ -296,13 +286,13 @@ export function LocalModelChoice(props: {
   if (!voice.connection || !status || !status.supported)
     return (
       <ListChoiceRow
-        label={t("Local model")}
+        label="Local model"
         description={
           !voice.connection
-            ? t("Not available on this environment")
+            ? "Not available on this environment"
             : status?.supported === false
               ? status.reason
-              : t("Checking…")
+              : "Checking…"
         }
         selected={props.selected}
         disabled
@@ -316,20 +306,17 @@ export function LocalModelChoice(props: {
     pending?.downloaded === undefined ? undefined : pending.downloaded / pending.size;
   return (
     <ListRow
-      label={active?.model ?? t("Local model")}
+      label={active?.model ?? "Local model"}
       description={
         pending
           ? pending.state === "verifying"
-            ? t("Verifying {name}…", { name: pending.name })
-            : t("Downloading {name} · {value}%", {
-                name: pending.name,
-                value: Math.round((progress ?? 0) * 100),
-              })
+            ? `Verifying ${pending.name}…`
+            : `Downloading ${pending.name} · ${Math.round((progress ?? 0) * 100)}%`
           : active
-            ? t("Local model · {size}", { size: formatBytes(active.size) })
+            ? `Local model · ${formatBytes(active.size)}`
             : voice.canManage
-              ? t("No model installed · Choose one to download")
-              : t("No model installed · Add one using T3 Extend on {label}", { label: props.label })
+              ? "No model installed · Choose one to download"
+              : `No model installed · Add one using T3 Code on ${props.label}`
       }
       selected={props.selected}
       onPress={() => {

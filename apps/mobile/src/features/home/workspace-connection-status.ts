@@ -1,5 +1,4 @@
 import type { WorkspaceState } from "../../state/workspaceModel";
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface WorkspaceConnectionStatusPresentation {
   readonly label: string;
@@ -17,29 +16,26 @@ function shouldShowWorkspaceConnectionStatus(state: WorkspaceState): boolean {
   );
 }
 
-function workspaceConnectionStatusLabel(state: WorkspaceState, t: Translator): string {
-  if (state.networkStatus === "offline") return t("You are offline");
+function workspaceConnectionStatusLabel(state: WorkspaceState): string {
+  if (state.networkStatus === "offline") return "You are offline";
   if (state.hasReadyEnvironment && state.hasSyncingConnectedEnvironment) {
-    return state.hasLoadedShellSnapshot ? t("Syncing threads...") : t("Loading threads...");
+    return state.hasLoadedShellSnapshot ? "Syncing threads..." : "Loading threads...";
   }
   if (state.connectingEnvironments.length === 1) {
-    return t("Reconnecting to {name}", {
-      name: state.connectingEnvironments[0]!.environmentLabel,
-    });
+    return `Reconnecting to ${state.connectingEnvironments[0]!.environmentLabel}`;
   }
   if (state.connectingEnvironments.length > 1) {
-    return t("Reconnecting {count} environments", { count: state.connectingEnvironments.length });
+    return `Reconnecting ${state.connectingEnvironments.length} environments`;
   }
   if (state.connectionError !== null) return state.connectionError;
   if (state.hasPendingShellSnapshot) {
-    return state.hasLoadedShellSnapshot ? t("Syncing threads...") : t("Loading threads...");
+    return state.hasLoadedShellSnapshot ? "Syncing threads..." : "Loading threads...";
   }
-  return t("Not connected");
+  return "Not connected";
 }
 
 export function workspaceConnectionStatusPresentation(
   state: WorkspaceState,
-  t: Translator = translatorFor("en"), // fork: i18n
 ): WorkspaceConnectionStatusPresentation | null {
   if (!shouldShowWorkspaceConnectionStatus(state)) return null;
   return {

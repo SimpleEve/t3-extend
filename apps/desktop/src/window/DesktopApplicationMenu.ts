@@ -5,7 +5,6 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import * as Electron from "electron";
-import { getUiLocale, translate, type TranslateParams } from "@t3tools/client-runtime/i18n"; // fork: interface language
 
 import { makeComponentLogger } from "../app/DesktopObservability.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
@@ -66,10 +65,8 @@ const runMainContentsCommand = Effect.fn("desktop.menu.runMainContentsCommand")(
   yield* desktopWindow.runMainContentsCommand(command);
 });
 
-const t = (source: string, params?: TranslateParams) => translate(getUiLocale(), source, params);
-
 const describeUpdate = (version: string | null) =>
-  version === null ? t("A new version of T3 Extend") : t("T3 Extend {version}", { version });
+  version === null ? "A new version of T3 Code" : `T3 Code ${version}`;
 
 const checkForUpdatesFromMenu = Effect.gen(function* () {
   const updates = yield* DesktopUpdates.DesktopUpdates;
@@ -80,21 +77,17 @@ const checkForUpdatesFromMenu = Effect.gen(function* () {
   if (updateState.status === "up-to-date") {
     yield* electronDialog.showMessageBox({
       type: "info",
-      title: t("You're up to date!"),
-      message: t("T3 Extend {version} is currently the newest version available.", {
-        version: updateState.currentVersion,
-      }),
-      buttons: [t("OK")],
+      title: "You're up to date!",
+      message: `T3 Code ${updateState.currentVersion} is currently the newest version available.`,
+      buttons: ["OK"],
     });
   } else if (updateState.status === "available") {
     const { response } = yield* electronDialog.showMessageBox({
       type: "info",
-      title: t("Update available"),
-      message: t("{update} is available.", {
-        update: describeUpdate(updateState.availableVersion),
-      }),
-      detail: t("You're running T3 Extend {version}.", { version: updateState.currentVersion }),
-      buttons: [t("Download"), t("Later")],
+      title: "Update available",
+      message: `${describeUpdate(updateState.availableVersion)} is available.`,
+      detail: `You're running T3 Code ${updateState.currentVersion}.`,
+      buttons: ["Download", "Later"],
       defaultId: 0,
       cancelId: 1,
     });
@@ -102,21 +95,17 @@ const checkForUpdatesFromMenu = Effect.gen(function* () {
   } else if (updateState.status === "downloading") {
     yield* electronDialog.showMessageBox({
       type: "info",
-      title: t("Update downloading"),
-      message: t("{update} is already downloading.", {
-        update: describeUpdate(updateState.availableVersion),
-      }),
-      buttons: [t("OK")],
+      title: "Update downloading",
+      message: `${describeUpdate(updateState.availableVersion)} is already downloading.`,
+      buttons: ["OK"],
     });
   } else if (updateState.status === "downloaded") {
     const { response } = yield* electronDialog.showMessageBox({
       type: "info",
-      title: t("Update ready"),
-      message: t("{update} is ready to install.", {
-        update: describeUpdate(updateState.downloadedVersion ?? updateState.availableVersion),
-      }),
-      detail: t("T3 Extend will restart to install it. Any running tasks will be interrupted."),
-      buttons: [t("Restart"), t("Later")],
+      title: "Update ready",
+      message: `${describeUpdate(updateState.downloadedVersion ?? updateState.availableVersion)} is ready to install.`,
+      detail: "T3 Code will restart to install it. Any running tasks will be interrupted.",
+      buttons: ["Restart", "Later"],
       defaultId: 0,
       cancelId: 1,
     });
@@ -124,10 +113,10 @@ const checkForUpdatesFromMenu = Effect.gen(function* () {
   } else if (updateState.status === "error") {
     yield* electronDialog.showMessageBox({
       type: "warning",
-      title: t("Update check failed"),
-      message: t("Could not check for updates."),
-      detail: updateState.message ?? t("An unknown error occurred. Please try again later."),
-      buttons: [t("OK")],
+      title: "Update check failed",
+      message: "Could not check for updates.",
+      detail: updateState.message ?? "An unknown error occurred. Please try again later.",
+      buttons: ["OK"],
     });
   }
 }).pipe(Effect.withSpan("desktop.menu.checkForUpdates"));
@@ -142,10 +131,10 @@ const handleCheckForUpdatesMenuClick = Effect.gen(function* () {
     });
     yield* electronDialog.showMessageBox({
       type: "info",
-      title: t("Updates unavailable"),
-      message: t("Automatic updates are not available right now."),
+      title: "Updates unavailable",
+      message: "Automatic updates are not available right now.",
       detail: disabledReason.value,
-      buttons: [t("OK")],
+      buttons: ["OK"],
     });
     return;
   }

@@ -1,5 +1,4 @@
 import type { ContextMenuItem } from "@t3tools/contracts";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 type ExternalLinkContextMenuAction =
   | "open-in-preview"

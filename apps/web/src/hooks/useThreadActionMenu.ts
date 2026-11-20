@@ -14,7 +14,6 @@ import {
   type ThreadId,
 } from "@t3tools/contracts";
 import { useRouter } from "@tanstack/react-router";
-import { useT } from "./useT";
 
 import { pickSnoozePreset, resolveSnoozePresets } from "../components/Sidebar.snooze";
 import {
@@ -49,7 +48,6 @@ import { useCopyToClipboard } from "./useCopyToClipboard";
 import { useNewThreadHandler } from "./useHandleNewThread";
 import { useClientSettings } from "./useSettings";
 import { canTurnThreadIntoProject, useThreadActions } from "./useThreadActions";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 function failureToast(title: string, error: unknown) {
   toastManager.add(
@@ -70,7 +68,6 @@ export function useThreadActionMenu(input: {
   readonly canShareWithGuest: boolean;
 }) {
   const { threadRef, projectCwd, onStartRename, onFind, canShareWithGuest } = input;
-  const t = useT();
   const router = useRouter();
   const projects = useProjects();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
@@ -271,7 +268,7 @@ export function useThreadActionMenu(input: {
           if (result._tag === "Success") {
             toastManager.add({
               type: "success",
-              title: t("Project created"),
+              title: "Project created",
               description: thread.title,
             });
           } else if (!isAtomCommandInterrupted(result)) {
@@ -285,8 +282,8 @@ export function useThreadActionMenu(input: {
             toastManager.add(
               stackedThreadToast({
                 type: "error",
-                title: t("Path unavailable"),
-                description: t("This thread does not have a workspace path to copy."),
+                title: "Path unavailable",
+                description: "This thread does not have a workspace path to copy.",
               }),
             );
             return;
@@ -310,7 +307,7 @@ export function useThreadActionMenu(input: {
         case "archive": {
           if (confirmThreadArchive) {
             const confirmed = await settlePromise(() =>
-              api.dialogs.confirm(t('Archive thread "{title}"?', { title: thread.title })),
+              api.dialogs.confirm(`Archive thread "${thread.title}"?`),
             );
             if (confirmed._tag === "Failure" || !confirmed.value) return;
           }
@@ -333,8 +330,8 @@ export function useThreadActionMenu(input: {
             const confirmed = await settlePromise(() =>
               api.dialogs.confirm(
                 [
-                  t('Delete thread "{title}"?', { title: thread.title }),
-                  t("This permanently clears conversation history for this thread."),
+                  `Delete thread "${thread.title}"?`,
+                  "This permanently clears conversation history for this thread.",
                 ].join("\n"),
                 { variant: "destructive" },
               ),

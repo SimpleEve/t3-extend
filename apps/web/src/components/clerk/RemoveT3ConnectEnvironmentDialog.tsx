@@ -14,7 +14,6 @@ import {
 } from "../ui/alert-dialog";
 import { Button, InlineButton } from "../ui/button";
 import { useT3ConnectAccountPage } from "./T3ConnectAccountPages";
-import { useT } from "../../hooks/useT";
 
 export function RemoveT3ConnectEnvironmentDialog({
   environmentLabel,
@@ -27,7 +26,6 @@ export function RemoveT3ConnectEnvironmentDialog({
   readonly onCancel: () => void;
   readonly onConfirm: () => void;
 }) {
-  const t = useT();
   const accountPage = useT3ConnectAccountPage();
   const discovery = useRelayEnvironmentDiscovery();
   const registration = environmentId
@@ -48,10 +46,10 @@ export function RemoveT3ConnectEnvironmentDialog({
         openAccountPage();
       }}
     >
-      {t("T3 Connect settings")}
+      T3 Connect settings
     </InlineButton>
   ) : (
-    t("T3 Connect settings")
+    "T3 Connect settings"
   );
   // The link sits mid-sentence, so split the translated sentence around its placeholder.
   const [registeredBefore, registeredAfter] = t(
@@ -75,7 +73,7 @@ export function RemoveT3ConnectEnvironmentDialog({
               {t("Remove {label} from this device?", { label: shown.label ?? "" })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t("This forgets its pairing, credentials, and cached threads here.")}
+              This forgets its pairing, credentials, and cached threads here.
             </AlertDialogDescription>
             <AlertDialogDescription>
               {shown.registration === "registered" ? (
@@ -85,7 +83,7 @@ export function RemoveT3ConnectEnvironmentDialog({
                   {registeredAfter}
                 </>
               ) : shown.registration === "unregistered" ? (
-                t("It's no longer on your T3 Connect account.")
+                "It's no longer on your T3 Connect account."
               ) : (
                 <>
                   {unknownBefore}
@@ -96,9 +94,9 @@ export function RemoveT3ConnectEnvironmentDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose render={<Button variant="outline" />}>{t("Cancel")}</AlertDialogClose>
+            <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
             <Button variant="destructive" onClick={onConfirm}>
-              {t("Remove from this device")}
+              Remove from this device
             </Button>
           </AlertDialogFooter>
         </AlertDialogPopup>

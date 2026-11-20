@@ -296,7 +296,6 @@ export function formatRelativeHourShort(
   relativeTo: string,
   timeZone?: string,
   hour12 = true,
-  t?: UsageDateTranslator, // fork: interface language
 ): string {
   const instant = new Date(hourStart);
   const reference = new Date(relativeTo);

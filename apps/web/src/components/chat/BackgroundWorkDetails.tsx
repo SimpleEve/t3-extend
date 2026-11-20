@@ -17,7 +17,6 @@ import {
 } from "../ui/dialog";
 import { CommandOutputPanel, useCommandOutputStreaming } from "./CommandOutputPanel";
 import { ShellCommandBlock } from "./ShellCommandBlock";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 export function BackgroundWorkDetails(props: {
   readonly environmentId: EnvironmentId;
@@ -26,15 +25,14 @@ export function BackgroundWorkDetails(props: {
   readonly turnItems: ThreadStructure["turnItems"];
   readonly onOpenThread: (threadId: ThreadId) => void;
 }) {
-  const t = useT();
   const [open, setOpen] = useState(false);
   const streamsOutput = useCommandOutputStreaming(props.environmentId);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<InlineButton />}>{t("Details")}</DialogTrigger>
+      <DialogTrigger render={<InlineButton />}>Details</DialogTrigger>
       <DialogPopup>
         <DialogHeader>
-          <DialogTitle>{t("Background work")}</DialogTitle>
+          <DialogTitle>Background work</DialogTitle>
         </DialogHeader>
         <DialogPanel>
           <div className="space-y-5">
@@ -61,7 +59,7 @@ export function BackgroundWorkDetails(props: {
                   <div className="flex items-baseline justify-between gap-3">
                     <h3 className="font-medium">{title}</h3>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {task.awaited ? t("Waiting") : t("Running")}
+                      {task.awaited ? "Waiting" : "Running"}
                     </span>
                   </div>
                   {command ? (
@@ -85,7 +83,7 @@ export function BackgroundWorkDetails(props: {
                         props.onOpenThread(childThreadId);
                       }}
                     >
-                      {t("Open subagent")}
+                      Open subagent
                     </InlineButton>
                   ) : null}
                 </section>

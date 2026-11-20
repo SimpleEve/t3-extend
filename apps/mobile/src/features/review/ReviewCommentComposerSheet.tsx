@@ -28,7 +28,6 @@ import { useAppearanceCodeSurface } from "../settings/appearance/useAppearanceCo
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { changeTone, DiffTokenText, ReviewChangeBar } from "./reviewDiffRendering";
 import { highlightReviewSelectedLines } from "./highlightReviewSelectedLines";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const REVIEW_COMMENT_PREVIEW_MAX_LINES = 5;
 const NO_LINES: ReturnType<typeof getSelectedReviewCommentLines> = [];
@@ -40,7 +39,6 @@ type ReviewCommentComposerSheetProps = StaticScreenProps<{
 }>;
 
 export function ReviewCommentComposerSheet(props: ReviewCommentComposerSheetProps) {
-  const t = useT();
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
   const { themeAppearance: selectedTheme } = useAppearancePreferences();
@@ -72,11 +70,11 @@ export function ReviewCommentComposerSheet(props: ReviewCommentComposerSheetProp
   const selectionLabel =
     selectedLines.length === 1
       ? firstNumber !== null
-        ? t("Line {firstNumber}", { firstNumber })
-        : t("File comment")
+        ? `Line ${firstNumber}`
+        : "File comment"
       : firstNumber !== null && lastNumber !== null
-        ? t("Lines {firstNumber}-{lastNumber}", { firstNumber, lastNumber })
-        : t("{count} lines selected", { count: selectedLines.length });
+        ? `Lines ${firstNumber}-${lastNumber}`
+        : `${selectedLines.length} lines selected`;
   const previewHeight = Math.max(
     Math.min(selectedLines.length, REVIEW_COMMENT_PREVIEW_MAX_LINES) * codeSurface.rowHeight,
     codeSurface.rowHeight,
@@ -130,21 +128,21 @@ export function ReviewCommentComposerSheet(props: ReviewCommentComposerSheetProp
 
   return (
     <View className="flex-1 bg-sheet">
-      <SheetHeader title={t("Add Comment")} onClose={dismissComposer} />
+      <SheetHeader title="Add Comment" onClose={dismissComposer} />
       <KeyboardSheetBody
         toolbar={
           target ? (
             <>
               <ControlPill
-                accessibilityLabel={t("Add image")}
+                accessibilityLabel="Add image"
                 icon="plus"
                 onPress={() => void handlePickImages()}
               />
               <View className="flex-1" />
               <ControlPill
-                accessibilityLabel={t("Comment")}
+                accessibilityLabel="Comment"
                 icon="arrow.up"
-                label={t("Comment")}
+                label="Comment"
                 variant="primary"
                 disabled={!canSubmit}
                 onPress={handleSubmit}
@@ -155,9 +153,9 @@ export function ReviewCommentComposerSheet(props: ReviewCommentComposerSheetProp
       >
         {!target ? (
           <View className="rounded-[22px] border border-border bg-card px-4 py-5">
-            <Text className="text-base font-t3-bold text-foreground">{t("No selection")}</Text>
+            <Text className="text-base font-t3-bold text-foreground">No selection</Text>
             <Text className="mt-1 text-sm leading-normal text-foreground-muted">
-              {t("Select a diff line or range first.")}
+              Select a diff line or range first.
             </Text>
           </View>
         ) : (
@@ -224,7 +222,7 @@ export function ReviewCommentComposerSheet(props: ReviewCommentComposerSheetProp
             </View>
 
             <View className="min-h-0 flex-1 gap-2">
-              <Text className="text-sm font-t3-bold text-foreground">{t("Comment")}</Text>
+              <Text className="text-sm font-t3-bold text-foreground">Comment</Text>
               <View className="min-h-[132px] flex-1 overflow-hidden rounded-[20px] border border-border bg-card">
                 <View className="min-h-0 flex-1 px-4 pt-3.5">
                   <TextInputWrapper onPaste={handleNativePaste} style={{ flex: 1, minHeight: 0 }}>
@@ -232,7 +230,7 @@ export function ReviewCommentComposerSheet(props: ReviewCommentComposerSheetProp
                       autoFocus
                       multiline
                       scrollEnabled
-                      placeholder={t("Leave a comment...")}
+                      placeholder="Leave a comment..."
                       textAlignVertical="top"
                       value={commentText}
                       onChangeText={setCommentText}

@@ -1,7 +1,4 @@
-import { interpolate, type Translator } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import type { AuthClientMetadata, AuthPairingLink } from "@t3tools/contracts";
-
-const untranslated: Translator = (source, params) => interpolate(source, params);
 
 export interface ConnectDeviceApprovalPrompt {
   readonly pairingLinkId: string;
@@ -15,14 +12,13 @@ export function describeConnectDevice(
 ): string {
   const { label, browser, os } = device ?? {};
   if (label) return label;
-  if (browser && os) return t("{browser} on {os}", { browser, os });
-  return browser ?? os ?? t("A new device");
+  if (browser && os) return `${browser} on ${os}`;
+  return browser ?? os ?? "A new device";
 }
 
 /** Requests waiting on approval that have not been shown yet, oldest first. */
 export function connectDeviceApprovalPrompts(input: {
   readonly environmentLabel: string;
-  readonly t?: Translator;
   readonly pairingLinks: ReadonlyArray<AuthPairingLink>;
   readonly shownIds: ReadonlySet<string>;
 }): ReadonlyArray<ConnectDeviceApprovalPrompt> {

@@ -24,7 +24,6 @@ import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { SecretInput } from "./SecretInput";
 import { classifySecretProvider } from "./SecretProviderDialog.logic";
-import { useT } from "../../hooks/useT";
 
 export interface SecretSource {
   readonly id: SecretProviderId;
@@ -73,11 +72,10 @@ export function SecretSourceSelect(props: {
   readonly disabled?: boolean;
   readonly onValueChange: (provider: SecretProviderId | null) => void;
 }) {
-  const t = useT();
   const { value, sources } = props;
   const known = value === null || sources.some((source) => source.id === value);
   const title =
-    value === null ? t("Value") : (sources.find((source) => source.id === value)?.label ?? value);
+    value === null ? "Value" : (sources.find((source) => source.id === value)?.label ?? value);
   return (
     <Select
       value={value ?? STORED_VALUE}
@@ -91,7 +89,7 @@ export function SecretSourceSelect(props: {
       <SelectTrigger
         size="sm"
         className="w-auto min-w-0 shrink-0"
-        aria-label={t("{label} source", { label: props.label })}
+        aria-label={`${props.label} source`}
         title={title}
       >
         <SelectValue>
@@ -100,7 +98,7 @@ export function SecretSourceSelect(props: {
       </SelectTrigger>
       <SelectPopup align="start" alignItemWithTrigger={false}>
         <SelectItem value={STORED_VALUE}>
-          <SourceLabel icon={TypeIcon} label={t("Value")} />
+          <SourceLabel icon={TypeIcon} label="Value" />
         </SelectItem>
         {sources.map((source) => (
           <SelectItem key={source.id} value={source.id}>
@@ -129,7 +127,6 @@ function SecretCheckButton(props: {
   readonly label: string;
   readonly disabled?: boolean | undefined;
 }) {
-  const t = useT();
   const { environmentId, secret } = props;
   const supported = useAtomValue(
     serverEnvironment.configValueAtom(environmentId),
@@ -149,7 +146,7 @@ function SecretCheckButton(props: {
     const response = await checkSecretSource({ environmentId, input: { source: secret } });
     const next: SecretCheck =
       response._tag !== "Success"
-        ? { status: "failed", detail: t("Could not reach the server") }
+        ? { status: "failed", detail: "Could not reach the server" }
         : response.value._tag === "Resolved"
           ? { status: "resolved" }
           : { status: "failed", detail: response.value.detail };
@@ -181,9 +178,9 @@ function SecretCheckButton(props: {
               onClick={() => void run()}
               aria-label={
                 state?.status === "failed"
-                  ? t("{label} failed: {detail}", { label: props.label, detail: state.detail })
+                  ? `${props.label} failed: ${state.detail}`
                   : state?.status === "resolved"
-                    ? t("{label} resolved", { label: props.label })
+                    ? `${props.label} resolved`
                     : props.label
               }
             >
@@ -230,7 +227,6 @@ export function SecretSourceInput({
   children,
   ...rest
 }: SecretSourceInputProps) {
-  const t = useT();
   // A provider picked here applies once a reference for it is committed.
   const [pendingProvider, setPendingProvider] = useState<SecretProviderId | null>(null);
   const [rejectedReference, setRejectedReference] = useState<string | null>(null);
@@ -297,7 +293,7 @@ export function SecretSourceInput({
             autoComplete="off"
             placeholder={definition?.referencePlaceholder}
             spellCheck={false}
-            aria-label={t("{label} reference", { label })}
+            aria-label={`${label} reference`}
             aria-invalid={rejectedReference !== null}
           />
           {environmentId !== undefined &&
@@ -307,14 +303,14 @@ export function SecretSourceInput({
             <SecretCheckButton
               environmentId={environmentId}
               secret={secret}
-              label={t("Check {label}", { label })}
+              label={`Check ${label}`}
               disabled={input.disabled}
             />
           ) : null}
         </div>
         {rejectedReference !== null ? (
           <p className="text-2xs text-destructive">
-            {definition?.invalidReferenceMessage ?? t("Enter a valid secret reference.")}
+            {definition?.invalidReferenceMessage ?? "Enter a valid secret reference."}
           </p>
         ) : null}
       </div>

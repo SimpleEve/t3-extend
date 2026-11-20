@@ -21,7 +21,6 @@ import { orderItemsByPreferredIds, sortLogicalProjectsForSidebar } from "./Sideb
 // source. Taking the source as an argument instead leaves the helper hook-free, and the
 // compiler then treats it as a plain function and caches nothing.
 export function useEnvironmentLookups() {
-  const t = useT();
   const { environments } = useEnvironments();
   const environmentLabelById = new Map(
     environments.map((environment) => [environment.environmentId, environment.label] as const),
@@ -68,7 +67,6 @@ export function useSortedProjectGroups(environmentLabelById: ReadonlyMap<Environ
   const projectOrder = useUiStateStore((store) => store.projectOrder);
   const clientSettings = useClientSettings(selectCommandPaletteClientSettings);
   const primaryEnvironmentId = usePrimaryEnvironmentId();
-  const t = useT(); // fork: interface language
   const projectGroupingSettings = {
     sidebarProjectGroupingMode: clientSettings.sidebarProjectGroupingMode,
     sidebarProjectGroupingOverrides: clientSettings.sidebarProjectGroupingOverrides,
@@ -92,5 +90,5 @@ export function useSortedProjectGroups(environmentLabelById: ReadonlyMap<Environ
     unsortedProjectGroups,
     threads,
     clientSettings.sidebarProjectSortOrder,
-  ).map((group) => translateScratchProjectName(group, t)); // fork: interface language
+  );
 }

@@ -132,8 +132,6 @@ import { useStartSideChat } from "./useStartSideChat";
 import { useThreadStatusAnnouncements } from "./useThreadStatusAnnouncements";
 import type { ThreadInspectorMode, ThreadInspectorTarget } from "./thread-inspector-navigation";
 import { useSelectWorkspaceDetail } from "../layout/workspace/useSelectWorkspaceDetail";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: i18n
 
 function firstRouteParam(value: string | string[] | undefined): string | null {
   const first = Array.isArray(value) ? value[0] : value;
@@ -146,14 +144,13 @@ const RECONNECT_ERROR_DELAY_MS = 5_000;
 const InspectorHeaderShownContext = createContext(false);
 
 function ThreadRouteFallbackLayout(props: { readonly children: ReactNode }) {
-  const t = useT();
   const goBack = useWorkspaceBackNavigation();
   const inspectorHeaderShown = use(InspectorHeaderShownContext);
   return (
     <ThreadScreenFallback
       header={
         inspectorHeaderShown ? undefined : (
-          <AppBar title={t("Thread")} onBackToList={goBack} hideBottomBorder />
+          <AppBar title="Thread" onBackToList={goBack} hideBottomBorder />
         )
       }
     >
@@ -163,10 +160,9 @@ function ThreadRouteFallbackLayout(props: { readonly children: ReactNode }) {
 }
 
 function OpeningThreadLoadingScreen() {
-  const t = useT();
   return (
     <ThreadRouteFallbackLayout>
-      <LoadingScreen message={t("Opening thread…")} messagePlacement="above-spinner" embedded />
+      <LoadingScreen message="Opening thread…" messagePlacement="above-spinner" embedded />
     </ThreadRouteFallbackLayout>
   );
 }
@@ -189,7 +185,6 @@ function ThreadUnavailableScreen(props: {
   readonly actionLabel: string;
   readonly onAction: () => void;
 }) {
-  const t = useT();
   return (
     <ThreadRouteFallbackLayout>
       <ScrollView
@@ -203,8 +198,8 @@ function ThreadUnavailableScreen(props: {
         className="bg-screen flex-1 android:bg-transparent"
       >
         <EmptyState
-          title={t("Thread unavailable")}
-          detail={t("This thread is not available in the current mobile snapshot.")}
+          title="Thread unavailable"
+          detail="This thread is not available in the current mobile snapshot."
           actionLabel={props.actionLabel}
           onAction={props.onAction}
         />
@@ -254,7 +249,6 @@ export function ThreadRouteScreen(props: ThreadRouteScreenProps) {
 }
 
 function LiveThreadRouteController(props: ThreadRouteScreenProps) {
-  const t = useT();
   useAndroidWorkspaceBack();
   const connectionsReady = useConnectionsReady();
   const { connectionState } = useRemoteConnectionStatus();
@@ -290,7 +284,7 @@ function LiveThreadRouteController(props: ThreadRouteScreenProps) {
     props.inspectorPresentation ? (
       <InspectorHeaderShownContext value>
         <ThreadInspectorHeader
-          title={selectedThread?.title ?? t("Thread")}
+          title={selectedThread?.title ?? "Thread"}
           {...props.inspectorPresentation}
         />
         {content}
@@ -347,7 +341,7 @@ function LiveThreadRouteController(props: ThreadRouteScreenProps) {
   return withInspectorHeader(
     <ThreadUnavailableScreen
       actionLabel={
-        routeEnvironmentRuntime === null ? t("Manage environments") : t("Reconnect environment")
+        routeEnvironmentRuntime === null ? "Manage environments" : "Reconnect environment"
       }
       onAction={() => {
         if (routeEnvironmentRuntime !== null) {
@@ -365,7 +359,6 @@ function ThreadRouteContent(
     readonly selectedThreadDetailState: ReturnType<typeof useSelectedThreadDetailState>;
   },
 ) {
-  const t = useT();
   const { layout, showInspector, toggleAuxiliaryPane } = useAdaptiveWorkspaceLayout();
   const { connectionState } = useRemoteConnectionStatus();
   const { onReconnectEnvironment } = useRemoteConnections();
@@ -549,9 +542,9 @@ function ThreadRouteContent(
     selectedEnvironmentConnection?.environmentLabel ?? null,
     // A linked environment's delegated task names its parent; other linked work its origin.
     delegatedFrom !== null
-      ? t("Subagent of {title}", { title: delegatedFromThread?.title ?? delegatedFrom.title })
+      ? `Subagent of ${delegatedFromThread?.title ?? delegatedFrom.title}`
       : selectedThread?.linkOrigin
-        ? t("From {label}", { label: selectedThread.linkOrigin.label })
+        ? `From ${selectedThread.linkOrigin.label}`
         : null,
   ]
     .filter(Boolean)
@@ -640,7 +633,7 @@ function ThreadRouteContent(
           <ThreadFileNavigatorPane
             cwd={selectedThreadCwd}
             environmentId={selectedThread.environmentId}
-            projectName={selectedThreadProject?.title ?? t("Files")}
+            projectName={selectedThreadProject?.title ?? "Files"}
             selectedPath={null}
             onSelectFile={(path) =>
               closeInspectorSheet
@@ -730,8 +723,8 @@ function ThreadRouteContent(
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
       Dialog.alert(
-        t("Could not resume thread"),
-        error instanceof Error ? error.message : t("Try again."),
+        "Could not resume thread",
+        error instanceof Error ? error.message : "Try again.",
       );
     }
   };
@@ -867,7 +860,7 @@ function ThreadRouteContent(
       await recoverFailedThreadDraft(creation);
     } catch (error) {
       Dialog.alert(
-        t("Could not restore draft"),
+        "Could not restore draft",
         error instanceof Error ? error.message : String(error),
       );
       return;
@@ -988,7 +981,6 @@ function ThreadRouteContent(
           detailError: Option.getOrNull(selectedThreadDetailState.error),
           detailDeleted: selectedThreadDetailState.status === "deleted",
           connectionState: routeConnectionState,
-          t, // fork: i18n
         });
   const connectionRetrying =
     routeConnectionState === "connecting" || routeConnectionState === "reconnecting";
@@ -1002,7 +994,6 @@ function ThreadRouteContent(
     connectionError: retryConnectionError,
     connectionState: routeConnectionState,
     connectionAwaitingApproval: routeEnvironmentRuntime?.connectionAwaitingApproval === true,
-    t, // fork: i18n
   });
   // A thread this client is creating has nothing older to sync.
   const threadSyncLabel =
@@ -1016,7 +1007,7 @@ function ThreadRouteContent(
   );
   const inspectorHeader = props.inspectorPresentation ? (
     <ThreadInspectorHeader
-      title={selectedThread ? threadDisplayTitle(selectedThread.title, t) : t("Thread")}
+      title={selectedThread?.title ?? "Thread"}
       subtitle={threadStatusLabel ?? undefined}
       {...props.inspectorPresentation}
     />

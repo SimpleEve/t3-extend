@@ -37,7 +37,6 @@ import { loadBalancingSendWarning } from "./composerSend.logic";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { seedDraftModelSelection } from "../../lib/seedDraftModelSelection";
 import { draftFanoutSelectionsAtom } from "./chatViewSend";
-import { useT } from "../../hooks/useT"; // fork: restored import
 
 interface DraftEnvironmentRoutingInput {
   readonly draftId: DraftId | null;
@@ -99,7 +98,6 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
     projectGroupingSettings,
     sendInFlightRef,
   } = input;
-  const t = useT();
   const setDraftThreadContext = useComposerDraftStore((store) => store.setDraftThreadContext);
   const getDraftSession = useComposerDraftStore((store) => store.getDraftSession);
   const getComposerDraft = useComposerDraftStore((store) => store.getComposerDraft);
@@ -234,8 +232,8 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
       toastManager.add({
         type: "warning",
         id: "load-balancing-attachments",
-        title: t("Keep attachments on this machine"),
-        description: t(
+        title: "Keep attachments on this machine",
+        description:
           "Remove attachments before choosing automatic routing, then attach them on the selected machine.",
         ),
       });
@@ -254,12 +252,12 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
   const onAutoEnvironmentStable = useStableCallback(onAutoEnvironment);
   const autoEnvironmentLabel = automaticEnvironment
     ? draftThread?.loadBalancedEnvironmentId
-      ? t("Auto balance")
+      ? "Auto balance"
       : loadBalancing.pending
-        ? t("Checking machines…")
+        ? "Checking machines…"
         : loadBalancing.failed
-          ? t("Auto balance unavailable")
-          : t("Auto balance")
+          ? "Auto balance unavailable"
+          : "Auto balance"
     : undefined;
 
   // A change in flight belongs to the draft and project it started on.
@@ -369,7 +367,7 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: t("Could not switch machine"),
+            title: "Could not switch machine",
             description: error instanceof Error ? error.message : "An error occurred.",
           }),
         );

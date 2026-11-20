@@ -11,7 +11,6 @@ import {
   resolveWorkspaceFilePath,
   resolveWorkspaceRelativeFilePath,
 } from "../files/filePath";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface FileChipTarget {
   readonly fullPath?: string;
@@ -84,7 +83,7 @@ export function fileChipMenu(
         ? [
             {
               id: "save",
-              title: t("Save or share"),
+              title: "Save or share",
             },
           ]
         : []),

@@ -8,7 +8,6 @@ import type { PullRequestParams } from "./usePullRequestDiff";
 import type { PullRequestStackState } from "./usePullRequestStack";
 import { pullRequestListReviewStatus } from "./pullRequestList";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function PullRequestOverviewLoading({
   summary,
@@ -32,7 +31,7 @@ export function PullRequestOverviewLoading({
   return (
     <View
       className="gap-5"
-      accessibilityLabel={t("Loading pull request details")}
+      accessibilityLabel="Loading pull request details"
       accessibilityState={{ busy: true }}
     >
       <PullRequestStackCard params={params} state={stack} />
@@ -41,12 +40,12 @@ export function PullRequestOverviewLoading({
           compact
           title={
             summary.checksState === "passing"
-              ? t("Checks completed")
+              ? "Checks completed"
               : summary.checksState === "failing"
-                ? t("Checks failing")
+                ? "Checks failing"
                 : summary.checksState === "pending"
-                  ? t("Checks running")
-                  : t("Checks")
+                  ? "Checks running"
+                  : "Checks"
           }
           icon={
             summary.checksState === "passing"
@@ -67,7 +66,7 @@ export function PullRequestOverviewLoading({
         </PullRequestCardRow>
         <PullRequestCardRow
           compact
-          title={review?.accessibleLabel ?? t("Reviews")}
+          title={review?.accessibleLabel ?? "Reviews"}
           icon={review?.icon ?? "bubble.left"}
           tint={review?.tint}
         >
@@ -77,10 +76,10 @@ export function PullRequestOverviewLoading({
           compact
           title={
             conflicting
-              ? t("Conflicts with {baseBranch}", { baseBranch: summary.baseBranch })
+              ? `Conflicts with ${summary.baseBranch}`
               : clean
-                ? t("No conflicts with {baseBranch}", { baseBranch: summary.baseBranch })
-                : t("Branch")
+                ? `No conflicts with ${summary.baseBranch}`
+                : "Branch"
           }
           icon={
             conflicting ? PullRequestGlyph.conflicting : clean ? "checkmark.circle" : "arrow.branch"
@@ -105,7 +104,7 @@ export function PullRequestOverviewLoading({
         </View>
       ) : null}
       <View className="gap-3">
-        <PullRequestSectionHeading>{t("Description")}</PullRequestSectionHeading>
+        <PullRequestSectionHeading>Description</PullRequestSectionHeading>
         <View className="gap-3 py-1">
           <View className="h-4 w-full rounded bg-subtle-strong" />
           <View className="h-4 w-full rounded bg-subtle-strong" />

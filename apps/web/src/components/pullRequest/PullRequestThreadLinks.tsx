@@ -62,7 +62,6 @@ function EnabledPullRequestThreadLinks({
   display,
   onPickerOpenChange,
 }: PullRequestThreadLinksProps) {
-  const t = useT();
   const parsedUrl = sourceControlClients.parseChangeRequestUrl(url);
   const parsed = parsedUrl?.link ?? null;
   const term = changeRequestTerm(
@@ -105,9 +104,7 @@ function EnabledPullRequestThreadLinks({
       const error = squashAtomCommandFailure(result);
       toastManager.add({
         type: "error",
-        title: remove
-          ? t("Could not unlink the {kind}", { kind: term })
-          : t("Could not link the {kind}", { kind: term }),
+        title: remove ? `Could not unlink the ${term}` : `Could not link the ${term}`,
         description: error instanceof Error ? error.message : String(error),
       });
       return;
@@ -183,10 +180,10 @@ function EnabledPullRequestThreadLinks({
             <PullRequestGlyph.link aria-hidden className="size-3.5" />
           )}
           {linkedHere
-            ? t("Unlink from this thread")
+            ? "Unlink from this thread"
             : currentThreadRef
-              ? t("Link to this thread")
-              : t("Link to thread")}
+              ? "Link to this thread"
+              : "Link to thread"}
         </MenuItem>
       ) : null}
       {display === "picker" ? (
@@ -219,7 +216,6 @@ function ThreadPicker({
   pending: boolean;
   onSelect: (threadId: ThreadId) => void;
 }) {
-  const t = useT();
   const threads = useVisibleThreadShells();
   const linking = usePullRequestLinking(environmentId);
   const projects = useProjects();
@@ -243,12 +239,12 @@ function ThreadPicker({
     )
     .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return (
-    <Command mode="none" value={query} onValueChange={setQuery} aria-label={t("Choose a thread")}>
-      <CommandInput placeholder={t("Search threads or projects...")} disabled={pending} />
+    <Command mode="none" value={query} onValueChange={setQuery} aria-label="Choose a thread">
+      <CommandInput placeholder="Search threads or projects..." disabled={pending} />
       <CommandList className="max-h-80 overflow-y-auto">
         {candidates.length === 0 ? (
           <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-            {t("No active threads found.")}
+            No active threads found.
           </div>
         ) : (
           candidates.map((thread) => {
@@ -262,7 +258,7 @@ function ThreadPicker({
               >
                 <MessageSquareIcon aria-hidden className="size-4 shrink-0" />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate">{thread.title || t("Untitled thread")}</span>
+                  <span className="truncate">{thread.title || "Untitled thread"}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     {projectNames.get(thread.projectId)}
                   </span>
@@ -270,7 +266,7 @@ function ThreadPicker({
                 {linked ? (
                   <>
                     <CheckIcon aria-hidden className="size-3.5" />
-                    <span className="text-xs text-muted-foreground">{t("Linked")}</span>
+                    <span className="text-xs text-muted-foreground">Linked</span>
                   </>
                 ) : null}
               </CommandItem>

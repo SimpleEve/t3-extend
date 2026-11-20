@@ -129,7 +129,6 @@ import {
   resetPullRequestHosts,
   type PullRequestHostRead,
 } from "./pullRequestProjectAssignment.logic";
-import { useT } from "~/hooks/useT"; // fork: restored import
 
 function getShortcutContext() {
   return {
@@ -187,7 +186,6 @@ function usePendingListEntries(
 }
 
 export function PullRequestsPage() {
-  const t = useT(); // fork: interface language
   const search = useSearch({ from: "/_chat/pull-requests" });
   const sort = search.sort ?? "ready";
   const statsPolicy: PullRequestStatsPolicy =
@@ -1198,8 +1196,8 @@ export function PullRequestsPage() {
   const searchInput = (
     <PullRequestSearchInput
       value={search.q ?? ""}
-      label={t("Search pull requests")}
-      placeholder={t("Search pull requests, or label:bug")}
+      label="Search pull requests"
+      placeholder="Search pull requests, or label:bug"
       busy={typedQuery.length > 0 && (!querySettled || showingCarried)}
       onChange={(query) => updateListScope({ q: query || undefined })}
       onSubmit={submitQuery}
@@ -1219,7 +1217,7 @@ export function PullRequestsPage() {
       rightPanelAvailable={rightPanelAvailable}
       rightPanelOpen={rightPanelState.isOpen}
       rightPanelShortcutLabel={shortcutLabelForCommand(keybindings, "rightPanel.toggle")}
-      rightPanelUnavailableLabel={t("Select a pull request first")}
+      rightPanelUnavailableLabel="Select a pull request first"
       onToggleTerminal={() => undefined}
       onToggleRightPanel={toggleRightPanel}
     />
@@ -1242,7 +1240,7 @@ export function PullRequestsPage() {
     </div>
   );
   const listError = listQuery.error
-    ? `${environmentLabels.get(listQuery.error.environmentId) || t("Environment")}: ${listQuery.error.message}`
+    ? `${environmentLabels.get(listQuery.error.environmentId) || "Environment"}: ${listQuery.error.message}`
     : null;
   const carriedToNothing =
     shownCount === 0 &&
@@ -1251,14 +1249,14 @@ export function PullRequestsPage() {
   const listBody = (
     <>
       {!capabilityKnown ? (
-        <PullRequestListGhost rows={7} caption={t("Loading pull requests…")} />
+        <PullRequestListGhost rows={7} caption="Loading pull requests…" />
       ) : !pullRequestsSupported ? (
         <PullRequestsUnavailableState
-          title={t("Pull requests unavailable")}
-          error={t("Update your T3 Extend servers to browse pull requests.")}
+          title="Pull requests unavailable"
+          error="Update your T3 Code servers to browse pull requests."
         />
       ) : firstLoad ? (
-        <PullRequestListGhost rows={7} caption={t("Loading pull requests…")} />
+        <PullRequestListGhost rows={7} caption="Loading pull requests…" />
       ) : listError && shownCount === 0 ? (
         <PullRequestsUnavailableState
           error={listError}
@@ -1306,9 +1304,9 @@ export function PullRequestsPage() {
 
       {listError && shownCount > 0 ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning-surface px-3 py-2 text-xs">
-          <span>{t("{error} Showing the last pull requests loaded.", { error: listError })}</span>
+          <span>{listError} Showing the last pull requests loaded.</span>
           <Button size="xs" variant="outline" onClick={() => listQuery.refresh()}>
-            {t("Retry")}
+            Retry
           </Button>
         </div>
       ) : null}
@@ -1317,7 +1315,7 @@ export function PullRequestsPage() {
           {loadingMore ? (
             <span className="flex items-center gap-2">
               <Spinner aria-hidden size="sm" />
-              {sentCursors === null ? t("Updating pull requests") : t("Loading more")}
+              {sentCursors === null ? "Updating pull requests" : "Loading more"}
             </span>
           ) : canContinue || pageSize < MAX_PAGE_SIZE ? (
             <Button
@@ -1326,10 +1324,10 @@ export function PullRequestsPage() {
               onClick={loadMore}
               disabled={listQuery.isPending || showingCarried}
             >
-              {t("Load more pull requests")}
+              Load more pull requests
             </Button>
           ) : (
-            <span>{t("Narrow your search to find more pull requests.")}</span>
+            <span>Narrow your search to find more pull requests.</span>
           )}
         </div>
       ) : null}
@@ -1337,7 +1335,7 @@ export function PullRequestsPage() {
   );
   const hostEntries = hosts.length > 0 ? hosts : expectedHosts;
   const hostMenuOptions: ReadonlyArray<PullRequestFilterOption<string>> = [
-    { value: "", label: t("All"), Icon: Plug2Icon },
+    { value: "", label: "All", Icon: Plug2Icon },
     ...hostEntries.map((entry) => {
       const summary = hosts.find((host) => host.host === entry.host);
       return {
@@ -1346,12 +1344,12 @@ export function PullRequestsPage() {
         Icon: getSourceControlPresentationForKind(entry.kind).Icon,
         ...(summary === undefined || summary.configured
           ? {}
-          : { unavailable: summary.detail ?? t("This host could not be read.") }),
+          : { unavailable: summary.detail ?? "This host could not be read." }),
       };
     }),
   ];
   const serverMenuOptions: ReadonlyArray<PullRequestFilterOption<string>> = [
-    { value: "", label: t("All servers"), Icon: LayersIcon },
+    { value: "", label: "All servers", Icon: LayersIcon },
     ...capableEnvironments.map((environment) => ({
       value: environment.environmentId,
       label: environment.label,
@@ -1360,12 +1358,12 @@ export function PullRequestsPage() {
   ];
   const sortMenu = (
     <PullRequestCompactFilterMenu
-      label={t("Sort pull requests")}
+      label="Sort pull requests"
       triggerIcon={<ArrowDownUpIcon aria-hidden className="size-4" />}
-      triggerLabel={t("Sort")}
+      triggerLabel="Sort"
       outlined
       value={sort}
-      options={translateFilterOptions(SORT_OPTIONS, t)}
+      options={SORT_OPTIONS}
       onChange={(next) => updateListScope({ sort: next })}
     />
   );
@@ -1373,12 +1371,10 @@ export function PullRequestsPage() {
     <PullRequestFiltersMenuInSidebarOrder
       onOpenChange={setFiltersOpen}
       state={search.state}
-      stateOptions={translateFilterOptions(STATE_TABS, (source) =>
-        t(source, undefined, "pull request state"),
-      )}
+      stateOptions={STATE_TABS}
       onState={(state) => updateListScope({ state })}
       involvement={search.involvement}
-      involvementOptions={translateFilterOptions(INVOLVEMENT_TABS, t)}
+      involvementOptions={INVOLVEMENT_TABS}
       onInvolvement={(involvement) => updateListScope({ involvement })}
       filters={
         typedParsed.filters.draft
@@ -1520,8 +1516,8 @@ export function PullRequestsPage() {
     void writeTextToClipboard(url, `${singular} link`).then(undefined, (error) => {
       toastManager.add({
         type: "error",
-        title: t("Failed to copy {kind} link", { kind: shortLabel }),
-        description: error instanceof Error ? error.message : t("An error occurred."),
+        title: `Failed to copy ${shortLabel} link`,
+        description: error instanceof Error ? error.message : "An error occurred.",
       });
     });
   });

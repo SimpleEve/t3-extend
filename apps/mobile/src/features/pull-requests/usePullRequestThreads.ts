@@ -44,7 +44,6 @@ import {
   pullRequestAgentPrompt,
   type PullRequestAgentTask,
 } from "./pullRequestAgentTasks";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 type LinkedThread = PullRequestLinkedThreadsResult["threads"][number];
 
@@ -53,7 +52,6 @@ export function usePullRequestThreads(
   pr: PullRequestDetail | null,
   filePath?: string,
 ) {
-  const t = useT(); // fork: i18n
   const target = pullRequestTarget(params);
   const config = useEnvironmentServerConfig(target.environmentId);
   const supported = threadPullRequestLinkMode(config?.environment.capabilities) === "multiple";

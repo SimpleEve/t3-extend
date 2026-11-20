@@ -35,7 +35,6 @@ import { useAtomCommand } from "./use-atom-command";
 import { showGitActionResult } from "./use-vcs-action-state";
 import { useThreadSelection } from "./use-thread-selection";
 import { useSelectedThreadWorktree } from "./use-selected-thread-worktree";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function refreshFailureMessage(cause: Cause.Cause<unknown>): string {
   const error = Cause.squash(cause);
@@ -103,9 +102,7 @@ export function useSelectedThreadGitActions() {
         Cause.fail(
           new EnvironmentAuthorizationError({
             requiredScope: AuthOrchestrationOperateScope,
-            message: translatorFor(getUiLocale())(
-              "This connection cannot update the thread's branch.",
-            ),
+            message: "This connection cannot update the thread's branch.",
           }),
         ),
       );
@@ -146,7 +143,7 @@ export function useSelectedThreadGitActions() {
           target,
           {
             operation: "refresh_status",
-            label: translatorFor(getUiLocale())("Refreshing source control status"),
+            label: "Refreshing source control status",
           },
           execute,
         );
@@ -265,7 +262,7 @@ export function useSelectedThreadGitActions() {
   const onCheckoutSelectedThreadBranch = async (branch: string) => {
     return runSelectedThreadGitMutation(
       "switch_ref",
-      translatorFor(getUiLocale())("Switching branch"),
+      "Switching branch",
       async ({ thread, cwd }) => {
         const result = await switchRef({
           environmentId: thread.environmentId,
@@ -291,7 +288,7 @@ export function useSelectedThreadGitActions() {
   const onCreateSelectedThreadBranch = async (branch: string) => {
     return runSelectedThreadGitMutation(
       "create_ref",
-      translatorFor(getUiLocale())("Creating branch"),
+      "Creating branch",
       async ({ thread, cwd }) => {
         const result = await createRef({
           environmentId: thread.environmentId,
@@ -320,7 +317,7 @@ export function useSelectedThreadGitActions() {
   }) => {
     return runSelectedThreadGitMutation(
       "create_worktree",
-      translatorFor(getUiLocale())("Creating worktree"),
+      "Creating worktree",
       async ({ thread, project }) => {
         const result = await createWorktree({
           environmentId: thread.environmentId,
@@ -351,7 +348,7 @@ export function useSelectedThreadGitActions() {
   const onPullSelectedThreadBranch = async () => {
     await runSelectedThreadGitMutation(
       "pull",
-      translatorFor(getUiLocale())("Pulling latest changes"),
+      "Pulling latest changes",
       async ({ thread, cwd }) => {
         const result = await pull({
           environmentId: thread.environmentId,
@@ -365,10 +362,8 @@ export function useSelectedThreadGitActions() {
           type: "success",
           title:
             result.value.status === "skipped_up_to_date"
-              ? translatorFor(getUiLocale())("Already up to date")
-              : translatorFor(getUiLocale())("Pulled latest on {refName}", {
-                  refName: result.value.refName,
-                }),
+              ? "Already up to date"
+              : `Pulled latest on ${result.value.refName}`,
         });
         return result;
       },
@@ -381,7 +376,7 @@ export function useSelectedThreadGitActions() {
     const actionId = uuidv4();
     return await runSelectedThreadGitMutation(
       "run_change_request",
-      translatorFor(getUiLocale())("Running source control action"),
+      "Running source control action",
       async ({ thread, cwd }) => {
         const result = await runStackedAction({
           actionId,

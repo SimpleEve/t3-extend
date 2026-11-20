@@ -13,7 +13,6 @@ import {
 } from "@react-navigation/native";
 import { createNativeStackScreen } from "@react-navigation/native-stack";
 import type { ReactNode } from "react";
-import { useT, useUiLocale } from "./hooks/useT"; // fork: i18n
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { useResolveClassNames } from "uniwind";
 
@@ -107,6 +106,7 @@ import {
 } from "./features/settings/SettingsSourceControlDetailRouteScreens";
 import { SettingsEnvironmentsRouteScreen } from "./features/settings/SettingsEnvironmentsRouteScreen";
 import { SettingsFollowUpRouteScreen } from "./features/settings/SettingsFollowUpRouteScreen";
+import { SettingsLanguageRouteScreen } from "./features/settings/SettingsLanguageRouteScreen";
 import {
   SettingsEnvironmentMaintenanceRouteScreen,
   SettingsThreadsRouteScreen,
@@ -448,7 +448,6 @@ function RootStackLayout(props: {
 }
 
 function NotFoundScreen() {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const screenBgStyle = StyleSheet.flatten(useResolveClassNames("bg-screen"));
   const primaryBgStyle = StyleSheet.flatten(useResolveClassNames("bg-primary"));
@@ -475,13 +474,13 @@ function NotFoundScreen() {
       style={[{ flex: 1 }, screenBgStyle]}
     >
       <Text className="text-3xl font-t3-bold text-foreground" selectable>
-        {t("Route not found")}
+        Route not found
       </Text>
       <Pressable
         style={returnHomeButtonStyle}
         onPress={() => navigation.dispatch(StackActions.replace("Home"))}
       >
-        <Text className="text-base font-t3-bold text-primary-foreground">{t("Return home")}</Text>
+        <Text className="text-base font-t3-bold text-primary-foreground">Return home</Text>
       </Pressable>
     </ScrollView>
   );
@@ -796,14 +795,13 @@ function GuardedScreenLayout(props: {
 }
 
 function ScreenRenderFallback(props: RenderFailureProps & { readonly routeName: string }) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const exit = navigation.canGoBack()
-    ? { label: t("Go back"), onPress: () => navigation.goBack() }
+    ? { label: "Go back", onPress: () => navigation.goBack() }
     : props.routeName === "Home"
       ? // Home itself failed, and the Settings list renders inside it; open a Settings page.
         {
-          label: t("Open settings"),
+          label: "Open settings",
           onPress: () => openSettings(navigation, DEFAULT_SETTINGS_PAGE),
         }
       : {
@@ -834,7 +832,6 @@ export function isRootFormSheetRoute(name: string): boolean {
 }
 
 export const RootStack = RootStackConfig.with(function AdaptiveRootStack({ Navigator }) {
-  useUiLocale(); // fork: i18n, re-renders the navigator so screen titles follow the language
   const { width, height } = useWindowDimensions();
   const nativeMetrics = useNativeLayoutMetrics();
   const usesSplitView = deriveLayout({ width, height, nativeMetrics }).usesSplitView;

@@ -8,7 +8,6 @@ import { MiddleTruncate } from "../ui/middle-truncate";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { PullRequestGlyph } from "./pullRequestIcons";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 interface BaseFreshness {
   readonly behindBy: number | null;
@@ -79,7 +78,7 @@ function PullRequestBaseFreshnessWarning({
                 onClick={() => onUpdate(method)}
               >
                 <PullRequestGlyph.merged aria-hidden className="size-3" />
-                {method === "rebase" ? t("Update with rebase") : t("Update branch")}
+                {method === "rebase" ? "Update with rebase" : "Update branch"}
               </Button>
             ))}
           </span>
@@ -105,7 +104,6 @@ export function PullRequestBaseBranch({
   readonly onUpdate: (method: PullRequestUpdateMethod) => void;
   readonly iconClassName?: string;
 }) {
-  const t = useT();
   const label = (
     <>
       {stacked ? (

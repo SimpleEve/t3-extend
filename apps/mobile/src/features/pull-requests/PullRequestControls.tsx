@@ -20,7 +20,6 @@ import { usePullRequestPermissions } from "./usePullRequestPermissions";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { usePullRequestReviewDraft } from "./usePullRequestReviewDraft";
 import { usePullRequestAgentActions } from "./usePullRequestAgentActions";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function PullRequestCardGroup(props: { readonly children: ReactNode }) {
   return (
@@ -113,7 +112,6 @@ export function PullRequestActionToolbar(props: {
   readonly onOpenFiles?: () => void;
   readonly onHeightChange?: (height: number) => void;
 }) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const { draft } = usePullRequestReviewDraft(props.params);
   const { themeVariables: colors } = useAppearancePreferences();
@@ -166,14 +164,14 @@ export function PullRequestActionToolbar(props: {
           <View className="flex-row items-center gap-2">
             {showAgentControls ? (
               <Menu
-                title={t("AI helpers")}
+                title="AI helpers"
                 actions={agentActions.map((action) => agent.menuAction(action.task))}
                 onPressAction={({ nativeEvent }) => agent.select(nativeEvent.event)}
               >
                 <View pointerEvents="none">
                   <IconButton
                     icon="ellipsis.bubble"
-                    accessibilityLabel={t("{shortLabel} agent actions", { shortLabel })}
+                    accessibilityLabel={`${shortLabel} agent actions`}
                     disabled={agent.disabled}
                   />
                 </View>
@@ -183,7 +181,7 @@ export function PullRequestActionToolbar(props: {
               <View className="min-w-0 shrink">
                 {!pendingReview && chooseThread ? (
                   <Menu
-                    title={t("Open thread")}
+                    title="Open thread"
                     actions={threadMenuItems}
                     onPressAction={({ nativeEvent }) => agent.select(nativeEvent.event)}
                   >
@@ -248,8 +246,8 @@ export function PullRequestActionToolbar(props: {
     <Toolbar.Menu
       identifier="pull-request-agent"
       icon="ellipsis.bubble"
-      title={t("AI helpers")}
-      accessibilityLabel={t("{label} agent actions", { label: shortLabel })}
+      title="AI helpers"
+      accessibilityLabel={`${shortLabel} agent actions`}
       disabled={agent.disabled}
       separateBackground
     >
@@ -275,7 +273,7 @@ export function PullRequestActionToolbar(props: {
     <Toolbar.Button
       identifier="workspace-trailing-action"
       icon={{ type: "image", source: require("../../../assets/icons/file-diff.png") }}
-      accessibilityLabel={t("Changed files")}
+      accessibilityLabel="Changed files"
       onPress={openFiles}
       separateBackground
     />

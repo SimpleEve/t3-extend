@@ -45,7 +45,6 @@ import {
   FileSurfaceLoading,
   FileSurfaceNotice,
 } from "./fileSurfaceChrome";
-import { useT } from "~/hooks/useT";
 
 const LargeTextViewer = lazy(() => import("./LargeTextViewer"));
 
@@ -109,7 +108,6 @@ export function AttachmentFilePreview(props: {
   onRemove?: () => void;
   onClose?: () => void;
 }) {
-  const t = useT();
   const kind = filePreviewKind(props);
   const officeKind = officePreviewKind(props);
   const delimiter = filePreviewDelimiter(props);
@@ -268,8 +266,8 @@ export function AttachmentFilePreview(props: {
         const cause = Cause.squash(result.cause);
         toastManager.add({
           type: "error",
-          title: t("Could not save file"),
-          description: cause instanceof Error ? cause.message : t("Please try again."),
+          title: "Could not save file",
+          description: cause instanceof Error ? cause.message : "Please try again.",
         });
       }
       setSaving(false);
@@ -380,11 +378,10 @@ export function AttachmentFilePreview(props: {
     />
   ) : (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
-      <p className="text-sm font-medium">{t("No preview for this file")}</p>
+      <p className="text-sm font-medium">No preview for this file</p>
       <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-        {t("Save it to open in an app that supports {format} files.", {
-          format: props.name.split(".").at(-1) || t("this format"),
-        })}
+        Save it to open in an app that supports {props.name.split(".").at(-1) || "this format"}{" "}
+        files.
       </p>
     </div>
   );
@@ -394,7 +391,7 @@ export function AttachmentFilePreview(props: {
       <div className={cn(FILE_SURFACE_SUBHEADER_CLASS)} data-surface-subheader>
         <div className="flex min-w-0 flex-1 items-center text-xs">
           <span className="shrink-0 px-0.5 text-muted-foreground">
-            {props.origin ?? t("Attachment")}
+            {props.origin ?? "Attachment"}
           </span>
           <ChevronRightIcon className="mx-1 size-3.5 shrink-0 text-muted-foreground/60" />
           <span aria-current="page" className="min-w-0 truncate px-0.5 font-medium text-foreground">
@@ -423,7 +420,7 @@ export function AttachmentFilePreview(props: {
         ) : null}
         {showsRawText ? (
           <FileSurfaceAction
-            label={wordWrap ? t("Disable word wrap") : t("Enable word wrap")}
+            label={wordWrap ? "Disable word wrap" : "Enable word wrap"}
             pressed={wordWrap}
             onPress={() => setWordWrapOverride(!wordWrap)}
           >
@@ -444,8 +441,8 @@ export function AttachmentFilePreview(props: {
               if (!copy) {
                 toastManager.add({
                   type: "error",
-                  title: t("Could not copy file"),
-                  description: t("Wait for the file to finish loading before copying."),
+                  title: "Could not copy file",
+                  description: "Wait for the file to finish loading before copying.",
                 });
                 return;
               }
@@ -454,8 +451,8 @@ export function AttachmentFilePreview(props: {
                 .catch((cause: unknown) =>
                   toastManager.add({
                     type: "error",
-                    title: t("Could not copy file"),
-                    description: cause instanceof Error ? cause.message : t("Try again."),
+                    title: "Could not copy file",
+                    description: cause instanceof Error ? cause.message : "Try again.",
                   }),
                 );
             }}
@@ -465,7 +462,7 @@ export function AttachmentFilePreview(props: {
         ) : null}
         {url ? (
           <FileSurfaceAction
-            label={saving ? t("Preparing file…") : t("Save file")}
+            label={saving ? "Preparing file…" : "Save file"}
             disabled={saving}
             onPress={save}
           >
@@ -473,12 +470,12 @@ export function AttachmentFilePreview(props: {
           </FileSurfaceAction>
         ) : null}
         {props.onRemove ? (
-          <FileSurfaceAction label={t("Remove from draft")} onPress={props.onRemove}>
+          <FileSurfaceAction label="Remove from draft" onPress={props.onRemove}>
             <Trash2Icon className="size-3.5" />
           </FileSurfaceAction>
         ) : null}
         {props.onClose ? (
-          <FileSurfaceAction label={t("Close")} onPress={props.onClose}>
+          <FileSurfaceAction label="Close" onPress={props.onClose}>
             <XIcon className="size-3.5" />
           </FileSurfaceAction>
         ) : null}

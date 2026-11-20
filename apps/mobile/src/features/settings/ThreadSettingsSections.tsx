@@ -30,14 +30,12 @@ import {
   resolveMobileSettingsTargets,
   uniformMobileSetting,
 } from "./settings-scoped-server";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function SettingsLabsRouteScreen() {
-  const t = useT();
   const insets = useSafeAreaInsets();
 
   return (
-    <SettingsScreen title={t("Labs")}>
+    <SettingsScreen title="Labs">
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
@@ -46,22 +44,18 @@ export function SettingsLabsRouteScreen() {
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 18) + 18 }}
       >
         <MachineBetaSection
-          title={t("Linked environments")}
+          title="Linked environments"
           icon="link"
           capability="peerLinks"
           setting="linkedEnvironmentsEnabled"
-          description={t(
-            "Let agents on a machine work on your other machines, and theirs on it. Turn it on for each machine. While off, nothing new starts over a link; running tasks finish.",
-          )}
+          description="Let agents on a machine work on your other machines, and theirs on it. Turn it on for each machine. While off, nothing new starts over a link; running tasks finish."
         />
         <MachineBetaSection
-          title={t("Fast worktree checkout")}
+          title="Fast worktree checkout"
           icon="bolt.circle"
           capability="fastWorktreeCheckout"
           setting="fastWorktreeCheckout"
-          description={t(
-            "On a Mac, clone new worktrees from a checkout cached in the T3 home folder instead of writing every file. Uses Git’s normal checkout when it can’t. Turning it off deletes the cache.",
-          )}
+          description="On a Mac, clone new worktrees from a checkout cached in the T3 home folder instead of writing every file. Uses Git’s normal checkout when it can’t. Turning it off deletes the cache."
         />
       </ScrollView>
     </SettingsScreen>
@@ -78,7 +72,6 @@ export function AutoSettleSettingsRows(props: {
   readonly write: (patch: ServerSettingsPatch) => void;
   readonly pending: boolean;
 }) {
-  const t = useT();
   const { selectedTargets, projectGroups, selectedProjectKey } = useSettingsEnvironmentFilter();
   const selectedProject = projectGroups.find((group) => group.key === selectedProjectKey);
   const writableEnvironments = useEnvironmentsWithScope(selectedTargets, AuthSettingsWriteScope);
@@ -133,40 +126,36 @@ export function AutoSettleSettingsRows(props: {
   return (
     <View className="gap-6">
       {!projectSelected ? (
-        <SettingsSection title={t("Usage limits")}>
+        <SettingsSection title="Usage limits">
           <SettingsSwitchRow
             icon="clock"
-            label={t("Resume after usage limits")}
-            subtitle={t(
-              "Automatically resume threads when their usage limits reset. You can cancel auto-resume in each thread.",
-            )}
+            label="Resume after usage limits"
+            subtitle="Automatically resume threads when their usage limits reset. You can cancel auto-resume in each thread."
             value={uniformMobileSetting(displayTargets, "autoResumeLimitedThreads")}
             disabled={disabledFor("autoResumeLimitedThreads")}
             onValueChange={(value) => writeToAll({ autoResumeLimitedThreads: value })}
           />
           <SettingsSwitchRow
             icon="clock"
-            label={t("Snooze until limits reset")}
-            subtitle={t(
-              "Snooze threads until their usage limits reset. Enable auto-resume to continue the agent after the reset.",
-            )}
+            label="Snooze until limits reset"
+            subtitle="Snooze threads until their usage limits reset. Enable auto-resume to continue the agent after the reset."
             value={uniformMobileSetting(displayTargets, "snoozeLimitedThreads")}
             disabled={disabledFor("snoozeLimitedThreads")}
             onValueChange={(value) => writeToAll({ snoozeLimitedThreads: value })}
           />
         </SettingsSection>
       ) : null}
-      <SettingsSection title={t("Auto-settle")}>
+      <SettingsSection title="Auto-settle">
         <SettingsSwitchRow
           icon="arrow.triangle.branch"
-          label={t("Auto-settle merged threads")}
+          label="Auto-settle merged threads"
           value={referenceSettings.sidebarAutoSettleOnMerge}
           disabled={disabledFor("sidebarAutoSettleOnMerge")}
           onValueChange={(value) => writeToAll({ sidebarAutoSettleOnMerge: value })}
         />
         <SettingsSwitchRow
           icon="clock"
-          label={t("Auto-settle inactive threads")}
+          label="Auto-settle inactive threads"
           value={afterDays !== null}
           disabled={disabledFor("sidebarAutoSettleAfterDays")}
           onValueChange={(value) =>
@@ -188,14 +177,14 @@ export function AutoSettleSettingsRows(props: {
         ) : null}
       </SettingsSection>
       {!props.pending && mismatches.length > 0 ? (
-        <SettingsSection title={t("Across environments")}>
+        <SettingsSection title="Across environments">
           <View className="gap-3 p-4">
-            <Text className="text-base text-foreground">{t("Auto-settle defaults differ")}</Text>
+            <Text className="text-base text-foreground">Auto-settle defaults differ</Text>
             <Text className="text-sm text-foreground-muted">
               {mismatches.map((mismatch) => mismatch.label).join(", ")}
             </Text>
             <Button
-              label={t("Apply auto-settle defaults")}
+              label="Apply auto-settle defaults"
               tone="secondary"
               disabled={disabledFor("sidebarAutoSettleOnMerge", "sidebarAutoSettleAfterDays")}
               onPress={() => writeToAll(autoSettlePatch)}
@@ -208,7 +197,6 @@ export function AutoSettleSettingsRows(props: {
 }
 
 export function WorkingSectionSettings() {
-  const t = useT();
   const savePreferences = useAtomSet(updateMobilePreferencesAtom);
   const preferences = useAtomValue(mobilePreferencesAtom);
   const workingShelfEnabled =
@@ -216,36 +204,35 @@ export function WorkingSectionSettings() {
 
   return (
     <View className="gap-3">
-      <SettingsSection title={t("Sidebar")}>
+      <SettingsSection title="Sidebar">
         <SettingsSwitchRow
           icon="bolt.circle"
-          label={t("Working section")}
+          label="Working section"
           value={workingShelfEnabled}
           onValueChange={(value) => savePreferences({ workingShelfEnabled: value })}
         />
       </SettingsSection>
       <Text className="px-2 text-sm text-foreground-muted">
-        {t(
-          "Fold working and monitoring threads into a Working section. They return to the top of the list when they need you. While this is on, active threads are ordered by time and cannot be moved.",
-        )}
+        Fold working and monitoring threads into a Working section. They return to the top of the
+        list when they need you. While this is on, active threads are ordered by time and cannot be
+        moved.
       </Text>
     </View>
   );
 }
 
 export function NewThreadSettingsSection() {
-  const t = useT();
   const savePreferences = useAtomSet(updateMobilePreferencesAtom);
   const preferences = useAtomValue(mobilePreferencesAtom);
   const useLastProject =
     AsyncResult.isSuccess(preferences) && preferences.value.useLastProjectForNewThreads !== false;
 
   return (
-    <SettingsSection title={t("New threads")}>
+    <SettingsSection title="New threads">
       <SettingsSwitchRow
         icon="square.and.pencil"
-        label={t("Use last project")}
-        subtitle={t("Start new threads in the last project you used on this device.")}
+        label="Use last project"
+        subtitle="Start new threads in the last project you used on this device."
         value={useLastProject}
         onValueChange={(value) => savePreferences({ useLastProjectForNewThreads: value })}
       />
@@ -269,7 +256,6 @@ function MachineBetaSection({
   readonly setting: MachineBetaSetting;
   readonly description: string;
 }) {
-  const t = useT();
   const { environments } = useEnvironments();
   const supported = environments.filter(
     (environment) =>
@@ -284,7 +270,7 @@ function MachineBetaSection({
   if (supported.length === 0) return null;
   return (
     <View className="gap-3">
-      <SettingsSection title={t("Beta: {title}", { title })}>
+      <SettingsSection title={`Beta: ${title}`}>
         {supported.map((environment) => {
           const policy = environment.serverConfig?.managedPolicy;
           const managed = isManagedSettingPath(policy, setting);

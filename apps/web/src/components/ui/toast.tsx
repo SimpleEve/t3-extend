@@ -29,14 +29,11 @@ import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import {
   buildVisibleToastLayout,
   hasVisibleToastAction,
-  localizeToastText, // fork: i18n
   shouldHideCollapsedToastContent,
   shouldRenderThreadScopedToast,
 } from "./toast.logic";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./tooltip";
 import { useThreadRouteTarget } from "~/hooks/useThreadRouteTarget";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { getUiLocale } from "@t3tools/client-runtime/i18n"; // fork: interface language
 
 export type ThreadToastData = {
   threadRef?: ScopedThreadRef | null;
@@ -155,9 +152,8 @@ function handleToastDismissClick(
 }
 
 function CopyErrorButton({ text }: { text: string }) {
-  const t = useT(); // fork: interface language
   const { copyToClipboard, isCopied } = useCopyToClipboard({ target: "error-message" });
-  const label = isCopied ? t("Copied error") : t("Copy error");
+  const label = isCopied ? "Copied error" : "Copy error";
 
   return (
     <Tooltip>
@@ -189,10 +185,9 @@ function ToastExpandableSection({
   children: ReactNode;
   labels: { expand?: string; collapse?: string };
 }) {
-  const t = useT(); // fork: interface language
   const [open, setOpen] = useState(false);
-  const expandLabel = labels.expand ?? t("Show details");
-  const collapseLabel = labels.collapse ?? t("Hide details");
+  const expandLabel = labels.expand ?? "Show details";
+  const collapseLabel = labels.collapse ?? "Hide details";
 
   return (
     <div className="min-w-0">
@@ -223,7 +218,6 @@ function ToastDescriptionAndExpandable({
   toastDescription: unknown;
   toastType: unknown;
 }) {
-  const t = useT(); // fork: interface language
   const expandableContent = toastData?.expandableContent;
   const labels = toastData?.expandableLabels ?? {};
   const descriptionTrigger = toastData?.expandableDescriptionTrigger ?? false;
@@ -246,8 +240,8 @@ function ToastDescriptionAndExpandable({
     );
   }
 
-  const expandLabel = labels.expand ?? t("Show details");
-  const collapseLabel = labels.collapse ?? t("Hide details");
+  const expandLabel = labels.expand ?? "Show details";
+  const collapseLabel = labels.collapse ?? "Hide details";
 
   const toggle = () => setOpen((v) => !v);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -578,7 +572,6 @@ function ToastProvider({ children, position = "top-right", ...props }: ToastProv
 }
 
 function Toasts({ position }: { position: ToastPosition }) {
-  const t = useT(); // fork: interface language
   const { toasts } = Toast.useToastManager<ThreadToastData>();
   const activeThreadRef = useActiveThreadRefFromRoute();
   const isTop = position.startsWith("top");
@@ -610,7 +603,6 @@ function Toasts({ position }: { position: ToastPosition }) {
         )}
         data-position={position}
         data-slot="toast-viewport"
-        aria-label={t("Notifications")} // fork: Base UI defaults to English
         style={
           {
             "--toast-frontmost-height": `${visibleToastLayout.frontmostHeight}px`,
@@ -689,7 +681,7 @@ function Toasts({ position }: { position: ToastPosition }) {
               />
               <div className={toastCornerDismissClass}>
                 <button
-                  aria-label={t("Dismiss notification")}
+                  aria-label="Dismiss notification"
                   className={toastCornerOrbClass}
                   data-slot="toast-close"
                   onClick={() =>
@@ -738,7 +730,6 @@ function AnchoredToastProvider({ children, ...props }: Toast.Provider.Props) {
 }
 
 function AnchoredToasts() {
-  const t = useT(); // fork: interface language
   const { toasts } = Toast.useToastManager<ThreadToastData>();
   const activeThreadRef = useActiveThreadRefFromRoute();
 
@@ -786,7 +777,7 @@ function AnchoredToasts() {
                     <>
                       <div className={toastCornerDismissClass}>
                         <button
-                          aria-label={t("Dismiss notification")}
+                          aria-label="Dismiss notification"
                           className={toastCornerOrbClass}
                           data-slot="toast-close"
                           onClick={() =>

@@ -15,7 +15,6 @@ import {
   PROJECT_FILE_PICKER_RESULT_LIMIT,
 } from "./ProjectFilePicker.logic";
 import { useProjectFilePickerQuery } from "./projectFilesQueryState";
-import { useT } from "~/hooks/useT";
 
 interface ProjectFilePickerProps {
   readonly setOpen: (open: boolean) => void;
@@ -52,26 +51,24 @@ function getEmptyStateMessage(query: string, error: string | null, isPending: bo
 }
 
 function EmptyProjectFilePicker() {
-  const t = useT();
   return (
     <CommandPaletteContent
-      aria-label={t("File picker")}
-      escapeLabel={t("Back")}
-      footerActionLabel={t("Open file")}
-      inputProps={{ disabled: true, placeholder: t("Search files…") }}
+      aria-label="File picker"
+      escapeLabel="Back"
+      footerActionLabel="Open file"
+      inputProps={{ disabled: true, placeholder: "Search files…" }}
       mode="none"
       testId="project-file-picker"
       value=""
     >
       <div className="py-10 text-center text-sm text-muted-foreground">
-        {t("Open a project to search its files.")}
+        Open a project to search its files.
       </div>
     </CommandPaletteContent>
   );
 }
 
 function OpenProjectFilePicker(props: ProjectFilePickerProps & { target: ActiveProjectTarget }) {
-  const t = useT();
   const { target } = props;
   const [query, setQuery] = useState("");
   const [highlightedItemValue, setHighlightedItemValue] = useState<string | null>(null);
@@ -113,11 +110,11 @@ function OpenProjectFilePicker(props: ProjectFilePickerProps & { target: ActiveP
 
   return (
     <CommandPaletteContent
-      aria-label={t("File picker")}
+      aria-label="File picker"
       autoHighlight="always"
-      escapeLabel={t("Back")}
-      footerActionLabel={t("Open file")}
-      inputProps={{ placeholder: t("Search files…") }}
+      escapeLabel="Back"
+      footerActionLabel="Open file"
+      inputProps={{ placeholder: "Search files…" }}
       mode="none"
       onItemHighlighted={(value) => {
         setHighlightedItemValue(typeof value === "string" ? value : null);

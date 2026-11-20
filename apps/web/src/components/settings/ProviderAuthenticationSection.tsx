@@ -25,8 +25,6 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { SettingsRow } from "./settingsLayout";
 import { RedactedSensitiveText } from "./RedactedSensitiveText";
-import { useT } from "../../hooks/useT";
-import { interpolateNodes } from "../../lib/interpolateNodes";
 
 const ProviderAuthTerminal = lazy(() => import("./ProviderAuthTerminal"));
 
@@ -43,7 +41,6 @@ export function ProviderAuthenticationSection({
   readonly provider: ServerProvider;
   readonly readOnly: boolean;
 }) {
-  const t = useT();
   const target = { environmentId, input: { instanceId } };
   const query = useEnvironmentQuery(serverEnvironment.providerAuthState(target));
   const commands = { reportFailure: false, reportDefect: false };
@@ -177,13 +174,13 @@ export function ProviderAuthenticationSection({
       description={
         signedIn && !active && provider.auth.email?.trim() ? (
           <span>
-            {t("Signed in as")}{" "}
+            Signed in as{" "}
             <RedactedSensitiveText
               key={provider.auth.email}
               value={provider.auth.email}
-              ariaLabel={t("Toggle account email visibility")}
-              revealTooltip={t("Click to reveal email")}
-              hideTooltip={t("Click to hide email")}
+              ariaLabel="Toggle account email visibility"
+              revealTooltip="Click to reveal email"
+              hideTooltip="Click to hide email"
               className="max-w-full truncate"
             />
           </span>
@@ -206,14 +203,14 @@ export function ProviderAuthenticationSection({
               disabled={disabled}
               onValueChange={(value) => setMethodId(value ?? "")}
             >
-              <SelectTrigger size="sm" aria-label={t("Sign-in method")} className="w-44">
+              <SelectTrigger size="sm" aria-label="Sign-in method" className="w-44">
                 <SelectValue>
                   {auth?.methods?.find((method) => method.id === methodId)?.name ??
-                    t("Provider default")}
+                    "Provider default"}
                 </SelectValue>
               </SelectTrigger>
               <SelectPopup>
-                <SelectItem value="">{t("Provider default")}</SelectItem>
+                <SelectItem value="">Provider default</SelectItem>
                 {auth?.methods?.map((method) => (
                   <SelectItem key={method.id} value={method.id}>
                     {method.name}
@@ -230,13 +227,13 @@ export function ProviderAuthenticationSection({
                 disabled={disabled}
                 onClick={() => void openBrowser()}
               >
-                {t("Open browser")}
+                Open browser
               </Button>
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <Button
-                      aria-label={t("Copy sign-in link")}
+                      aria-label="Copy sign-in link"
                       size="icon-sm"
                       variant="ghost-muted"
                       disabled={disabled}
@@ -255,7 +252,7 @@ export function ProviderAuthenticationSection({
                     </Button>
                   }
                 />
-                <TooltipPopup>{t("Copy sign-in link")}</TooltipPopup>
+                <TooltipPopup>Copy sign-in link</TooltipPopup>
               </Tooltip>
             </>
           ) : null}
@@ -268,13 +265,13 @@ export function ProviderAuthenticationSection({
                   <a href={provider.setup.documentationUrl} target="_blank" rel="noreferrer" />
                 }
               >
-                {t("Open docs")}
+                Open docs
               </Button>
             ) : active && auth?.flowId ? (
               <Button
                 size="sm"
                 variant="ghost-muted"
-                aria-label={t("Cancel sign-in")}
+                aria-label="Cancel sign-in"
                 disabled={disabled}
                 onClick={() =>
                   void run(() =>
@@ -282,7 +279,7 @@ export function ProviderAuthenticationSection({
                   )
                 }
               >
-                {t("Cancel")}
+                Cancel
               </Button>
             ) : !active && !needsExternalSetup && provider.setup?.canAuthenticate !== false ? (
               <Button
@@ -304,14 +301,14 @@ export function ProviderAuthenticationSection({
                 }
               >
                 {signedIn
-                  ? t("Change account")
+                  ? "Change account"
                   : auth?.phase === "failed" || auth?.phase === "cancelled"
                     ? usesCredentials
-                      ? t("Retry connection")
-                      : t("Retry sign-in")
+                      ? "Retry connection"
+                      : "Retry sign-in"
                     : usesCredentials
-                      ? t("Connect")
-                      : t("Sign in")}
+                      ? "Connect"
+                      : "Sign in"}
               </Button>
             ) : null}
             {!active && signedIn && (provider.auth.canLogout ?? provider.setup?.canAuthenticate) ? (
@@ -335,7 +332,7 @@ export function ProviderAuthenticationSection({
                     });
                 }}
               >
-                {t("Sign out")}
+                Sign out
               </Button>
             ) : null}
           </>
@@ -364,7 +361,7 @@ export function ProviderAuthenticationSection({
             <div className="py-2">
               <Suspense
                 fallback={
-                  <p className="text-xs text-muted-foreground">{t("Loading sign-in terminal…")}</p>
+                  <p className="text-xs text-muted-foreground">Loading sign-in terminal…</p>
                 }
               >
                 <ProviderAuthTerminal
@@ -445,7 +442,7 @@ export function ProviderAuthenticationSection({
                 className="w-fit"
                 disabled={disabled}
               >
-                {t("Connect")}
+                Connect
               </Button>
             </form>
           ) : null}
@@ -466,7 +463,7 @@ export function ProviderAuthenticationSection({
               }}
             >
               <label className="grid gap-1">
-                {t("If the final localhost page does not load, paste its full URL here.")}
+                If the final localhost page does not load, paste its full URL here.
                 <Input
                   size="sm"
                   id={`provider-callback-${instanceId}`}
@@ -485,7 +482,7 @@ export function ProviderAuthenticationSection({
                 className="w-fit"
                 disabled={disabled || !values.callback?.trim()}
               >
-                {t("Continue")}
+                Continue
               </Button>
             </form>
           ) : null}

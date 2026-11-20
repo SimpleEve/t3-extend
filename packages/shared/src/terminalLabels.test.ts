@@ -3,7 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { DEFAULT_TERMINAL_ID, TerminalOpenInput } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 
-import { getTerminalLabel, localizeTerminalLabel, nextTerminalId } from "./terminalLabels.ts";
+import { getTerminalLabel, nextTerminalId } from "./terminalLabels.ts";
 
 const decodeTerminalOpen = Schema.decodeUnknownSync(TerminalOpenInput);
 

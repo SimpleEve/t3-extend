@@ -4,7 +4,6 @@ import type { ContextMenuSource } from "@t3tools/contracts";
 import { ChevronDownIcon, SquarePenIcon } from "lucide-react";
 import { memo } from "react";
 
-import { useT } from "~/hooks/useT";
 import { cn } from "~/lib/utils";
 import { contextMenuSourceOf } from "../../contextMenuSource";
 import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
@@ -51,7 +50,6 @@ export const SidebarProjectFolderHeader = memo(function SidebarProjectFolderHead
   ) => void;
 }) {
   const { group, collapsed, hiddenThreads } = props;
-  const t = useT();
   const rowId = sidebarFolderRowId(group.projectKey);
   const localLastVisitedAtById = useUiStateStore((state) => state.threadLastVisitedAtById);
   const dot = collapsed
@@ -93,7 +91,7 @@ export const SidebarProjectFolderHeader = memo(function SidebarProjectFolderHead
         </span>
         {dot ? (
           <span className={cn("size-1.5 shrink-0 rounded-full", FOLDER_DOT_CLASS_NAME[dot])}>
-            <span className="sr-only">{t(FOLDER_DOT_LABEL[dot])}</span>
+            <span className="sr-only">{FOLDER_DOT_LABEL[dot]}</span>
           </span>
         ) : null}
         {collapsed && hiddenThreads.length > 0 ? (
@@ -118,7 +116,7 @@ export const SidebarProjectFolderHeader = memo(function SidebarProjectFolderHead
                 data-sidebar-action-for={rowId}
                 size="icon-xs"
                 variant="ghost-muted"
-                aria-label={t("New thread in {project}", { project: group.displayName })}
+                aria-label={`New thread in ${group.displayName}`}
                 onClick={() => props.onNewThread(group)}
               />
             }

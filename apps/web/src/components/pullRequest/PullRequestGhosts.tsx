@@ -52,9 +52,8 @@ const DEFAULT_DETAIL_TABS = [
 ] as const;
 
 export function PullRequestListGhost({ rows = 7, caption }: { rows?: number; caption?: string }) {
-  const t = useT();
   return (
-    <div role="status" aria-label={caption ?? t("Loading pull requests")} className="space-y-0.5">
+    <div role="status" aria-label={caption ?? "Loading pull requests"} className="space-y-0.5">
       {/* Outside the pulse so the explanation stays readable. */}
       {caption ? (
         <p className="px-3 pb-1 text-xs font-medium text-muted-foreground">{caption}</p>
@@ -104,7 +103,6 @@ export function PullRequestDetailGhost({
   onClose?: (() => void) | undefined;
   onCheckoutError?: ((error: Error) => void) | undefined;
 }) {
-  const t = useT();
   const seed = summary
     ? {
         ...entry,
@@ -132,7 +130,7 @@ export function PullRequestDetailGhost({
   return (
     <div
       role="status"
-      aria-label={t("Loading {kind}", { kind: changeRequestTerm(terminology.singular, t) })}
+      aria-label={`Loading ${terminology.singular}`}
       className={cn(
         "flex h-full min-h-0 flex-col overflow-hidden bg-background",
         !seed && "motion-safe:animate-skeleton",
@@ -147,7 +145,7 @@ export function PullRequestDetailGhost({
                 variant="ghost-muted"
                 className="-ml-1.5"
                 onClick={onBack}
-                aria-label={t("Back to this thread's pull requests")}
+                aria-label="Back to this thread's pull requests"
               >
                 <ArrowLeftIcon aria-hidden className="size-3.5" />
               </Button>
@@ -157,10 +155,7 @@ export function PullRequestDetailGhost({
                 <span className="min-w-0 truncate font-medium">{seed.repository}</span>
                 <InlineButton
                   onClick={() => void readLocalApi()?.shell.openExternal(seed.url)}
-                  aria-label={t("Open {kind} #{number} on host", {
-                    kind: changeRequestTerm(terminology.singular, t),
-                    number: seed.number,
-                  })}
+                  aria-label={`Open ${terminology.singular} #${seed.number} on host`}
                 >
                   <span className={statePresentation?.toneClassName}>#{seed.number}</span>
                   <ExternalLinkIcon aria-hidden className="size-2.5" />
@@ -180,9 +175,7 @@ export function PullRequestDetailGhost({
             size="icon-xs"
             variant="ghost"
             disabled
-            aria-label={t("{kind} actions loading", {
-              kind: capitalizeTerm(changeRequestTerm(terminology.singular, t)),
-            })}
+            aria-label={`${capitalizeTerm(terminology.singular)} actions loading`}
           >
             <EllipsisIcon aria-hidden className="size-4" />
           </Button>
@@ -190,9 +183,7 @@ export function PullRequestDetailGhost({
             <Button
               size="icon-xs"
               variant="ghost"
-              aria-label={t("Collapse {kind} panel", {
-                kind: changeRequestTerm(terminology.singular, t),
-              })}
+              aria-label={`Collapse ${terminology.singular} panel`}
               onClick={onClose}
             >
               <PanelRightIcon aria-hidden className="size-3.5" />
@@ -225,7 +216,7 @@ export function PullRequestDetailGhost({
               updated={
                 seed ? (
                   <span>
-                    {t("updated")} <RelativeTime timestamp={seed.updatedAt} />
+                    updated <RelativeTime timestamp={seed.updatedAt} />
                   </span>
                 ) : (
                   <GhostBar className="h-3 w-16" />
@@ -237,8 +228,8 @@ export function PullRequestDetailGhost({
                     key={checkout}
                     value={checkout}
                     target={`${terminology.singular} checkout command`}
-                    copyLabel={t("Copy checkout command")}
-                    copiedLabel={t("Checkout command copied")}
+                    copyLabel="Copy checkout command"
+                    copiedLabel="Checkout command copied"
                     className="ml-auto font-mono"
                     tooltipSide="bottom"
                     {...(onCheckoutError ? { onError: onCheckoutError } : {})}
@@ -262,10 +253,8 @@ export function PullRequestDetailGhost({
                     key={seed.headBranch}
                     value={seed.headBranch}
                     target="branch name"
-                    copyLabel={t("Copy {kind} branch", {
-                      kind: changeRequestTerm(terminology.singular, t),
-                    })}
-                    copiedLabel={t("Branch name copied")}
+                    copyLabel={`Copy ${terminology.singular} branch`}
+                    copiedLabel="Branch name copied"
                     className="min-w-0 font-mono"
                   />
                 ) : (
@@ -316,11 +305,11 @@ export function PullRequestDetailGhost({
             <div className="grid min-h-7 min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 text-xs sm:min-h-6">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <UsersIcon aria-hidden className="size-3.5" />
-                {t("Reviewers")}
+                Reviewers
               </span>
               <span className="flex min-w-0 items-center gap-1.5 text-foreground">
                 <GhostBar className="h-3 w-10" />
-                <Button size="icon-xs" variant="ghost" disabled aria-label={t("Reviewers loading")}>
+                <Button size="icon-xs" variant="ghost" disabled aria-label="Reviewers loading">
                   <UserPlusIcon aria-hidden className="size-3.5" />
                 </Button>
               </span>
@@ -328,7 +317,7 @@ export function PullRequestDetailGhost({
             <div className="grid min-h-7 min-w-0 grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 text-xs sm:min-h-6">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <TagIcon aria-hidden className="size-3.5" />
-                {t("Labels")}
+                Labels
               </span>
               <span className="flex min-w-0 flex-wrap items-center gap-1 text-foreground">
                 {entry?.labels ? (
@@ -342,7 +331,7 @@ export function PullRequestDetailGhost({
                       />
                     ))
                   ) : (
-                    <span className="text-muted-foreground">{t("None")}</span>
+                    <span className="text-muted-foreground">None</span>
                   )
                 ) : (
                   <>
@@ -350,7 +339,7 @@ export function PullRequestDetailGhost({
                     <GhostBar className="h-4.5 w-20" />
                   </>
                 )}
-                <Button size="icon-xs" variant="ghost" disabled aria-label={t("Labels loading")}>
+                <Button size="icon-xs" variant="ghost" disabled aria-label="Labels loading">
                   <TagIcon aria-hidden className="size-3.5" />
                 </Button>
               </span>
@@ -361,7 +350,7 @@ export function PullRequestDetailGhost({
         <section>
           <div className="sticky top-0 z-10 flex w-full items-center bg-background pr-4">
             <div className="flex min-w-0 flex-1 items-center gap-1.5 px-4 py-3 text-left text-xs font-medium text-muted-foreground">
-              <span>{t("Description")}</span>
+              <span>Description</span>
               <ChevronRightIcon
                 aria-hidden
                 className="size-3.5 rotate-90 text-muted-foreground/60"
@@ -384,11 +373,10 @@ export function PullRequestDetailGhost({
 }
 
 export function PullRequestPeopleGhost({ rows = 4 }: { rows?: number }) {
-  const t = useT();
   return (
     <div
       role="status"
-      aria-label={t("Loading people")}
+      aria-label="Loading people"
       className="motion-safe:animate-skeleton space-y-1 p-1"
     >
       {Array.from({ length: rows }, (_, index) => (
@@ -402,11 +390,10 @@ export function PullRequestPeopleGhost({ rows = 4 }: { rows?: number }) {
 }
 
 export function PullRequestTimelineGhost({ rows = 6 }: { rows?: number }) {
-  const t = useT();
   return (
     <div
       role="status"
-      aria-label={t("Loading timeline")}
+      aria-label="Loading timeline"
       className="motion-safe:animate-skeleton px-4 py-5"
     >
       <div className="relative ml-2 border-l border-border/70 pl-5">
@@ -429,13 +416,10 @@ export function PullRequestConversationGhost({
   rows?: number;
   terminology: ChangeRequestTerminology;
 }) {
-  const t = useT();
   return (
     <div
       role="status"
-      aria-label={t("Loading {kind} conversation", {
-        kind: changeRequestTerm(terminology.singular, t),
-      })}
+      aria-label={`Loading ${terminology.singular} conversation`}
       className="motion-safe:animate-skeleton space-y-4 py-2"
     >
       {Array.from({ length: rows }, (_, index) => (

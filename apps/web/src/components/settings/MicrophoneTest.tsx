@@ -10,7 +10,6 @@ import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { SettingsRow } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
-import { useT } from "../../hooks/useT"; // fork: interface language
 
 const LOOPBACK_SECONDS = 10;
 const formatTime = (seconds: number) =>
@@ -39,7 +38,6 @@ export function MicrophoneTest({
   /** Labels and device ids become readable once the browser grants access. */
   onMicrophoneAccess: () => void;
 }) {
-  const t = useT();
   const [phase, setPhase] = useState<"idle" | "starting" | "recording" | "ready">("idle");
   const [recording, setRecording] = useState<{ url: string; duration: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -197,7 +195,7 @@ export function MicrophoneTest({
       <Button
         size="sm"
         variant="outline"
-        aria-label={t("Stop recording")}
+        aria-label="Stop recording"
         disabled={phase !== "recording"}
         onClick={() => {
           const recorder = capture.current?.recorder;
@@ -205,12 +203,12 @@ export function MicrophoneTest({
         }}
       >
         <SquareIcon />
-        {t("Stop")}
+        Stop
       </Button>
     ) : (
       <Button size="sm" variant="outline" onClick={() => void start()}>
         {phase === "ready" ? <RotateCcwIcon /> : <MicIcon />}
-        {phase === "ready" ? t("Record again") : t("Record")}
+        {phase === "ready" ? "Record again" : "Record"}
       </Button>
     );
   const panel = error ? (
@@ -219,7 +217,7 @@ export function MicrophoneTest({
     </p>
   ) : phase === "starting" ? (
     <span role="status" className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-      {t("Opening microphone…")}
+      Opening microphone…
     </span>
   ) : phase === "recording" ? (
     <>
@@ -229,12 +227,12 @@ export function MicrophoneTest({
       </div>
       <span
         className="ms-auto shrink-0 text-xs tabular-nums text-muted-foreground"
-        aria-label={t("Recording time")}
+        aria-label="Recording time"
       >
         {formatTime(elapsed)} / {formatTime(LOOPBACK_SECONDS)}
       </span>
       <meter
-        aria-label={t("Microphone input level")}
+        aria-label="Microphone input level"
         min={0}
         max={1}
         value={level}
@@ -248,8 +246,8 @@ export function MicrophoneTest({
   return (
     <SettingsRow
       {...searchableSetting("microphone-test")}
-      title={t("Test microphone")}
-      description={t("Record ten seconds and play it back. The audio stays on this device.")}
+      title="Test microphone"
+      description="Record ten seconds and play it back. The audio stays on this device."
       control={control}
     >
       {panel ? (
@@ -263,7 +261,7 @@ export function MicrophoneTest({
           <Button
             size="icon-sm"
             variant="ghost-muted"
-            aria-label={phase === "ready" ? t("Discard recording") : t("Cancel microphone test")}
+            aria-label={phase === "ready" ? "Discard recording" : "Cancel microphone test"}
             onClick={cancel}
           >
             <XIcon />
@@ -275,7 +273,6 @@ export function MicrophoneTest({
 }
 
 function MicrophonePlayback({ src, duration }: { src: string; duration: number }) {
-  const t = useT();
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
@@ -313,19 +310,19 @@ function MicrophonePlayback({ src, duration }: { src: string; duration: number }
       <Button
         size="icon-sm-pill"
         variant="outline"
-        aria-label={playing ? t("Pause recording") : t("Play recording")}
+        aria-label={playing ? "Pause recording" : "Play recording"}
         onClick={() => void togglePlayback()}
       >
         {playing ? <PauseIcon /> : <PlayIcon />}
       </Button>
       {failed ? (
         <p role="alert" className="min-w-0 flex-1 text-xs text-destructive">
-          {t("Could not play this recording. Try recording again.")}
+          Could not play this recording. Try recording again.
         </p>
       ) : (
         <input
           type="range"
-          aria-label={t("Recording playback position")}
+          aria-label="Recording playback position"
           min={0}
           max={duration}
           step={0.01}

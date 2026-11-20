@@ -3,7 +3,6 @@ import type {
   ServerProviderVersionAdvisory,
   ServerProviderCompatibilityAdvisory,
 } from "@t3tools/contracts";
-import { interpolate, type Translator } from "@t3tools/client-runtime/i18n";
 
 export const PROVIDER_STATUS_STYLES = {
   disabled: {
@@ -52,13 +51,13 @@ export function getProviderSummary(
 ) {
   if (!provider) {
     return {
-      headline: t("Checking provider status"),
-      detail: t("Waiting for the server to report installation and authentication details."),
+      headline: "Checking provider status",
+      detail: "Waiting for the server to report installation and authentication details.",
     };
   }
   if (!provider.enabled || provider.status === "disabled") {
     return {
-      headline: t("Disabled"),
+      headline: "Disabled",
       detail:
         provider.message ??
         t("This provider is installed but disabled for new sessions in T3 Extend."),
@@ -66,28 +65,26 @@ export function getProviderSummary(
   }
   if (!provider.installed) {
     return {
-      headline: t("Not found"),
-      detail: provider.message ?? t("CLI not detected on PATH."),
+      headline: "Not found",
+      detail: provider.message ?? "CLI not detected on PATH.",
     };
   }
   if (provider.auth.status === "unauthenticated") {
     const authLabel = provider.auth.label ?? provider.auth.type;
     return {
-      headline: authLabel
-        ? t("Not authenticated · {authLabel}", { authLabel })
-        : t("Not authenticated"),
+      headline: authLabel ? `Not authenticated · ${authLabel}` : "Not authenticated",
       detail: provider.message ?? null,
     };
   }
   if (isAntigravitySignInUnchecked(provider)) {
     return {
-      headline: t("Installed · Sign-in not checked"),
+      headline: "Installed · Sign-in not checked",
       detail: provider.message ?? null,
     };
   }
   if (provider.status === "warning") {
     return {
-      headline: t("Needs attention"),
+      headline: "Needs attention",
       detail:
         provider.message ??
         t("The provider is installed, but the server could not fully verify it."),
@@ -95,19 +92,19 @@ export function getProviderSummary(
   }
   if (provider.status === "error") {
     return {
-      headline: t("Unavailable"),
-      detail: provider.message ?? t("The provider failed its startup checks."),
+      headline: "Unavailable",
+      detail: provider.message ?? "The provider failed its startup checks.",
     };
   }
   if (provider.auth.status === "authenticated") {
     const authLabel = provider.auth.label ?? provider.auth.type;
     return {
-      headline: authLabel ? t("Authenticated · {authLabel}", { authLabel }) : t("Authenticated"),
+      headline: authLabel ? `Authenticated · ${authLabel}` : "Authenticated",
       detail: provider.message ?? null,
     };
   }
   return {
-    headline: t("Available"),
+    headline: "Available",
     detail: provider.message ?? null,
   };
 }
@@ -132,7 +129,6 @@ export function getProviderVersionAdvisoryPresentation(
   advisory: ServerProviderVersionAdvisory | undefined,
   compatibility?: ServerProviderCompatibilityAdvisory | undefined,
   showCompatibility = true,
-  t: Translator = (source, params) => interpolate(source, params), // fork: interface language
 ): {
   readonly title: string;
   readonly detail: string;
@@ -155,7 +151,7 @@ export function getProviderVersionAdvisoryPresentation(
     // Latest package versions cannot be updated into recommendations requiring another package.
     const isAlreadyLatest = advisory?.status === "current";
     return {
-      title: t(COMPATIBILITY_TITLES[compatibility.status]),
+      title: COMPATIBILITY_TITLES[compatibility.status],
       detail:
         compatibility.message ??
         (recommendation
@@ -178,7 +174,7 @@ export function getProviderVersionAdvisoryPresentation(
     return null;
   }
 
-  const label = t("Update available");
+  const label = "Update available";
   const version = advisory.latestVersion;
   const versionLabel = getProviderVersionLabel(version);
 
@@ -187,8 +183,8 @@ export function getProviderVersionAdvisoryPresentation(
     detail:
       advisory.message ??
       (versionLabel
-        ? t("{label}: install {version}.", { label, version: versionLabel })
-        : t("{label}: install the latest provider version.", { label })),
+        ? `${label}: install ${versionLabel}.`
+        : `${label}: install the latest provider version.`),
     updateCommand: advisory.updateCommand,
     emphasis: "normal" as const,
     targetVersion: null,

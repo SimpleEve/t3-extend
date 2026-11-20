@@ -289,7 +289,6 @@ export function linkRequestDisplay(
   item: Pick<LinkRequestItem, "linkStatus" | "url" | "linkedLabel" | "linkedAccess" | "failure">,
   visibility: "local" | "inherited" | "synthetic",
   accessLabel: (access: AuthMcpClientAccess) => string,
-  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ): LinkRequestDisplay {
   switch (item.linkStatus) {
     case "pending":
@@ -308,7 +307,7 @@ export function linkRequestDisplay(
       };
     }
     case "declined":
-      return { kind: "answered", outcome: "declined", label: t("Declined") };
+      return { kind: "answered", outcome: "declined", label: "Declined" };
     case "failed":
       return {
         kind: "answered",
@@ -320,7 +319,7 @@ export function linkRequestDisplay(
             : t("Could not link: {reason}", { reason: item.failure }),
       };
     case "cancelled":
-      return { kind: "answered", outcome: "ended", label: t("Request ended") };
+      return { kind: "answered", outcome: "ended", label: "Request ended" };
   }
 }
 
@@ -396,5 +395,5 @@ export function linkRequestFailureMessage(
   ) {
     return failure.message;
   }
-  return t("Could not answer the request. Try again.");
+  return "Could not answer the request. Try again.";
 }

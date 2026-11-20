@@ -5,7 +5,6 @@ import { Pressable, type ColorValue } from "react-native";
 
 import { useDeadlinePassed } from "../../lib/clock";
 import { tryCopyTextWithHaptic } from "../../lib/copyTextWithHaptic";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const COPY_FEEDBACK_DURATION_MS = 1200;
 
@@ -22,7 +21,6 @@ export const CopyTextButton = memo(function CopyTextButton(props: {
   readonly iconSize?: number;
   readonly buttonSize?: number;
 }) {
-  const t = useT();
   const [copiedAtMs, setCopiedAtMs] = useState<number | null>(null);
   const feedbackEnded = useDeadlinePassed(
     copiedAtMs === null ? null : copiedAtMs + COPY_FEEDBACK_DURATION_MS,
@@ -32,7 +30,7 @@ export const CopyTextButton = memo(function CopyTextButton(props: {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={copied ? t("Copied") : props.accessibilityLabel}
+      accessibilityLabel={copied ? "Copied" : props.accessibilityLabel}
       disabled={props.text.length === 0}
       hitSlop={8}
       onLongPress={props.onLongPress}
@@ -40,11 +38,11 @@ export const CopyTextButton = memo(function CopyTextButton(props: {
         try {
           if (props.onCopy) await props.onCopy();
           else if (!(await tryCopyTextWithHaptic(props.text))) {
-            Dialog.alert(t("Could not copy"), t("Try again."));
+            Dialog.alert("Could not copy", "Try again.");
             return;
           }
         } catch {
-          Dialog.alert(t("Could not copy"), t("Try again."));
+          Dialog.alert("Could not copy", "Try again.");
           return;
         }
         setCopiedAtMs(Date.now());

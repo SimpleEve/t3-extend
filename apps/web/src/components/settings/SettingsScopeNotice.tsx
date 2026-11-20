@@ -21,8 +21,6 @@ import {
   settingsScopeEnvironmentLabels,
   settingsScopeProjectMachines,
 } from "./settingsScopeAxis";
-import { useT } from "../../hooks/useT";
-import { verbatim } from "~/fork/verbatim"; // fork: i18n
 
 interface ScopeChoice {
   label: string;
@@ -45,7 +43,6 @@ export function SettingsScopeNotice({
   targetId?: string;
   eligibleEnvironmentIds?: readonly EnvironmentId[];
 }) {
-  const t = useT();
   const { selectScope, search, groups } = useSettingsScope();
   const navigate = useNavigate({ from: "/settings" });
   const pathname = useLocation({ select: (location) => location.pathname });
@@ -120,7 +117,7 @@ export function SettingsScopeNotice({
               })
           : [
               {
-                label: t("Open all environments"),
+                label: "Open all environments",
                 icon: <LayersIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />,
                 search: {},
               },
@@ -174,7 +171,7 @@ export function SettingsScopeNotice({
       <div className="space-y-4">
         {choiceGroups.map((group) =>
           group?.displayName ? (
-            <SettingsSection key={group.projectKey} title={verbatim(group.displayName)}>
+            <SettingsSection key={group.projectKey} title={group.displayName}>
               {renderChoices(group)}
             </SettingsSection>
           ) : (

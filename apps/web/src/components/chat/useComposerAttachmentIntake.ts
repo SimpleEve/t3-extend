@@ -57,7 +57,6 @@ import {
   isPreparingComposerImage,
   removePreparingComposerImages,
 } from "./preparingComposerImages";
-import { useT } from "~/hooks/useT";
 
 /**
  * Takes files into the draft: validates and reserves slots, compresses images, inserts
@@ -91,7 +90,6 @@ export function useComposerAttachmentIntake(input: {
     pendingInsertion?: ComposerAttachmentInsertion,
   ) => boolean;
 }) {
-  const t = useT();
   const {
     activeThreadId,
     activePendingProgress,
@@ -138,7 +136,7 @@ export function useComposerAttachmentIntake(input: {
     ) {
       toastManager.add({
         type: "error",
-        title: t("This question cannot accept attachments."),
+        title: "This question cannot accept attachments.",
       });
       return false;
     }
@@ -185,27 +183,22 @@ export function useComposerAttachmentIntake(input: {
         replacedReattachMarkerIds.add(matchingReattachMarker.id);
       }
       if (!matchingReattachMarker && reservedCount >= PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
-        error = t("You can attach up to {count} files per message.", {
-          count: PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
-        });
+        error = `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} files per message.`;
         continue;
       }
       if (attachmentKind === "unsupported-image") {
-        error = t(
-          "'{name}' is not a supported image type. Attach GIF, HEIC, HEIF, JPEG, PNG, or WebP images.",
-          { name: file.name },
-        );
+        error = `'${file.name}' is not a supported image type. Attach GIF, HEIC, HEIF, JPEG, PNG, or WebP images.`;
         continue;
       }
       if (attachmentKind === "image") {
         acceptedImages.push(normalizeComposerImageFileMimeType(file));
       } else {
         if (fileStagingLimit === null) {
-          error = t("This server does not support file attachments.");
+          error = "This server does not support file attachments.";
           continue;
         }
         if (file.size <= 0) {
-          error = t("'{name}' is empty or could not be read.", { name: file.name });
+          error = `'${file.name}' is empty or could not be read.`;
           continue;
         }
         if (file.size > fileStagingLimit) {
@@ -245,11 +238,10 @@ export function useComposerAttachmentIntake(input: {
         const attached = storedFiles[0]!;
         toastManager.add({
           type: "info",
-          title: t("Large paste attached as {name}", { name: attached.name }),
-          description: t("{size} · Use {shortcut} to keep a large paste inline.", {
-            size: formatAttachmentSize(attached.sizeBytes),
-            shortcut: isMacPlatform(navigator.platform) ? "⌘⇧V" : "Ctrl+Shift+V",
-          }),
+          title: `Large paste attached as ${attached.name}`,
+          description: `${formatAttachmentSize(attached.sizeBytes)} · Use ${
+            isMacPlatform(navigator.platform) ? "⌘⇧V" : "Ctrl+Shift+V"
+          } to keep a large paste inline.`,
           data: { hideCopyButton: true },
         });
       }
@@ -433,8 +425,8 @@ export function useComposerAttachmentIntake(input: {
       }
       toastManager.add({
         type: "error",
-        title: t("Pasted text is too large for this message"),
-        description: t("Remove some text or an attachment, then paste again."),
+        title: "Pasted text is too large for this message",
+        description: "Remove some text or an attachment, then paste again.",
         data: { hideCopyButton: true },
       });
       return true;
@@ -455,8 +447,8 @@ export function useComposerAttachmentIntake(input: {
       if (!wouldExceedInputLimit) return false;
       toastManager.add({
         type: "error",
-        title: t("Pasted text is too large to attach"),
-        description: t("Reduce the clipboard contents or save a smaller excerpt as a file."),
+        title: "Pasted text is too large to attach",
+        description: "Reduce the clipboard contents or save a smaller excerpt as a file.",
         data: { hideCopyButton: true },
       });
       return true;

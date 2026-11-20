@@ -15,7 +15,6 @@ import { useT } from "../../hooks/useT"; // fork: identity
 
 /** The desktop `t3x` command's state, and its actions with a toast on failure. */
 export function useDesktopCliCommand() {
-  const t = useT();
   const bridge = getDesktopCliCommandBridge();
   const query = useEnvironmentQuery(bridge ? desktopCliCommandStateAtom : null);
   const [pending, setPending] = useState(false);
@@ -51,7 +50,6 @@ export function useDesktopCliCommand() {
 }
 
 export function CliCommandSettingsRow() {
-  const t = useT();
   const { state, busy, run } = useDesktopCliCommand();
 
   if (!state?.supported) return null;
@@ -60,15 +58,11 @@ export function CliCommandSettingsRow() {
   const app = FORK.appBaseName;
   const command = FORK.cliCommand;
   const description = state.shadowedBy
-    ? t("Another {command} at {path} runs first in a new terminal. Remove it to use {app}'s.", {
-        command,
-        path: state.shadowedBy,
-        app,
-      })
+    ? `Another t3 at ${state.shadowedBy} runs first in a new terminal. Remove it to use T3 Code's.`
     : !installed
-      ? t("Run {app}'s CLI as `{command}` from any terminal.", { app, command })
+      ? "Run T3 Code's CLI as `t3` from any terminal."
       : state.onPath
-        ? t("Installed at {path}. Open a new terminal to use it.", { path: state.installedPath })
+        ? `Installed at ${state.installedPath}. Open a new terminal to use it.`
         : state.pathSetup?.added
           ? t("Installed at {path} and added to PATH in {file}. Open a new terminal to use it.", {
               path: state.installedPath,
@@ -91,7 +85,7 @@ export function CliCommandSettingsRow() {
         <div className="flex gap-2">
           {state.pathSetup && !state.pathSetup.added ? (
             <Button size="sm" variant="outline" disabled={busy} onClick={() => run("addToPath")}>
-              {t("Add to PATH")}
+              Add to PATH
             </Button>
           ) : null}
           <Button
@@ -100,7 +94,7 @@ export function CliCommandSettingsRow() {
             disabled={busy || (!installed && Boolean(state.shadowedBy))}
             onClick={() => run(installed ? "uninstall" : "install")}
           >
-            {installed ? t("Remove") : t("Install")}
+            {installed ? "Remove" : "Install"}
           </Button>
         </div>
       }

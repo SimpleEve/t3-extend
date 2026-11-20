@@ -186,10 +186,10 @@ export function workEntryDisplayLabel(
     const path = formatWorkspaceRelativePath(firstPath, workspaceRoot);
     return entry.changedFiles!.length === 1
       ? path
-      : t("{path} +{count} more", { path, count: entry.changedFiles!.length - 1 });
+      : `${path} +${entry.changedFiles!.length - 1} more`;
   }
   if (action === "read" && !entry.viewedImagePath) {
-    return t("Read file");
+    return "Read file";
   }
   const heading = normalizeCompactToolLabel(entry.toolTitle || entry.label);
   return `${heading.charAt(0).toUpperCase()}${heading.slice(1)}`;
@@ -261,13 +261,12 @@ export function liveWorkEntryLabel(
   entry: WorkLogEntry,
   workspaceRoot: string | undefined,
   active: boolean,
-  t: WorkLogPhraseTranslator = englishWorkLogPhrase, // fork: interface language
 ) {
   const status = liveActivityToolStatus(entry.toolLifecycleStatus, active);
   if (entry.itemType === "reasoning") {
     return (
       entry.detail?.trim().replace(/\s+/g, " ") ||
-      (status === "inProgress" ? t("Thinking") : t("Thought"))
+      (status === "inProgress" ? "Thinking" : "Thought")
     );
   }
   const toolPresentation = resolveWorkEntryToolPresentation(

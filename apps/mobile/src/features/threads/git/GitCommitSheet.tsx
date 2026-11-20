@@ -15,7 +15,6 @@ import { useSelectedThreadGitActions } from "../../../state/use-selected-thread-
 import { useSelectedThreadGitState } from "../../../state/use-selected-thread-git-state";
 import { useSelectedThreadWorktree } from "../../../state/use-selected-thread-worktree";
 import { vcsEnvironment } from "../../../state/vcs";
-import { useT } from "../../../hooks/useT"; // fork: i18n
 
 type GitCommitSheetProps = StaticScreenProps<{
   readonly environmentId: string;
@@ -23,7 +22,6 @@ type GitCommitSheetProps = StaticScreenProps<{
 }>;
 
 export function GitCommitSheet(_props: GitCommitSheetProps) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const { selectedThread } = useThreadSelection();
   const { selectedThreadCwd } = useSelectedThreadWorktree();
@@ -69,10 +67,10 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
     <FitSheet
       header={
         <SheetHeader
-          title={t("Commit changes")}
-          subtitle={gitStatus.data?.refName ?? t("(detached HEAD)")}
+          title="Commit changes"
+          subtitle={gitStatus.data?.refName ?? "(detached HEAD)"}
           onCancel={() => navigation.goBack()}
-          accessibilityLabel={t("Cancel commit")}
+          accessibilityLabel="Cancel commit"
         />
       }
       keyboardShouldPersistTaps="handled"
@@ -82,28 +80,28 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
     >
       {isDefaultRef ? (
         <Text className="text-sm text-warning-foreground">
-          {t("You’re on the default branch. You can create a new branch when committing.")}
+          You’re on the default branch. You can create a new branch when committing.
         </Text>
       ) : null}
       <View className="gap-2">
-        <Text className="text-sm font-t3-medium text-foreground">{t("Commit message")}</Text>
+        <Text className="text-sm font-t3-medium text-foreground">Commit message</Text>
         <TextInput
           multiline
-          accessibilityLabel={t("Commit message")}
+          accessibilityLabel="Commit message"
           value={dialogCommitMessage}
           onChangeText={setDialogCommitMessage}
-          placeholder={t("Describe your changes…")}
+          placeholder="Describe your changes…"
           textAlignVertical="top"
           className="min-h-24 rounded-xl bg-subtle px-4 py-3 text-base"
         />
         <Text className="text-xs text-foreground-muted">
-          {t("Leave empty to generate a message automatically.")}
+          Leave empty to generate a message automatically.
         </Text>
       </View>
       <View>
         <View className="flex-row items-center justify-between gap-2 pb-2">
           <View className="flex-1 gap-1">
-            <Text className="text-base font-t3-bold text-foreground">{t("Changed files")}</Text>
+            <Text className="text-base font-t3-bold text-foreground">Changed files</Text>
             <Text className="text-xs text-foreground-muted">
               {`${t("{selected} of {total} selected", {
                 selected: selectedFiles.length,
@@ -113,7 +111,7 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
           </View>
           {allFiles.length > 0 ? (
             <Button
-              label={allSelected ? t("Deselect all") : t("Select all")}
+              label={allSelected ? "Deselect all" : "Select all"}
               tone="text"
               onPress={() =>
                 setExcludedFiles(
@@ -196,7 +194,7 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
       </View>
       <View className="gap-2">
         <Button
-          label={t("Commit changes")}
+          label="Commit changes"
           icon="checkmark"
           tone="primary"
           fullWidth
@@ -204,7 +202,7 @@ export function GitCommitSheet(_props: GitCommitSheetProps) {
           onPress={() => void runCommitAction(false)}
         />
         <Button
-          label={t("Commit on a new branch")}
+          label="Commit on a new branch"
           icon="arrow.branch"
           tone="text"
           fullWidth

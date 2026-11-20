@@ -23,7 +23,6 @@ import {
 } from "@t3tools/shared/model";
 import { resolveModelShortName } from "@t3tools/client-runtime/provider-clients";
 import { resolveProvidersForCwd } from "@t3tools/client-runtime/providerSkills";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: restored import
 
 export type ModelOption = {
   readonly key: string;
@@ -218,26 +217,19 @@ export function describeUnavailableModelSelection(
         config?.settings?.providerInstances[selection.instanceId]?.displayName,
       instanceId: selection.instanceId,
     });
-    const t = translatorFor(getUiLocale());
     return {
-      title: t("Provider not allowed"),
-      detail: t("{message} Choose another model.", {
-        message: disallowedProviderMessage(config?.managedPolicy?.organization, label),
-      }),
+      title: "Provider not allowed",
+      detail: `${disallowedProviderMessage(config?.managedPolicy?.organization, label)} Choose another model.`,
     };
   }
   return isDisabledForProject(config, provider, selection.instanceId, projectId)
     ? {
-        title: translatorFor(getUiLocale())("Model turned off for this project"),
-        detail: translatorFor(getUiLocale())(
-          "Turn it back on from web or desktop, or choose another model.",
-        ),
+        title: "Model turned off for this project",
+        detail: "Turn it back on from web or desktop, or choose another model.",
       }
     : {
-        title: translatorFor(getUiLocale())("Antigravity model unavailable"),
-        detail: translatorFor(getUiLocale())(
-          "Set up Antigravity on web or desktop, or choose another model.",
-        ),
+        title: "Antigravity model unavailable",
+        detail: "Set up Antigravity on web or desktop, or choose another model.",
       };
 }
 

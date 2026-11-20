@@ -221,7 +221,6 @@ function SendActionButton(props: {
   readonly disabled: boolean;
   readonly onSend: (followUp?: ActiveTurnComposerAction) => void;
 }) {
-  const t = useT();
   const { presentation } = props;
   const button = (
     <ComposerActionButton
@@ -241,12 +240,12 @@ function SendActionButton(props: {
   );
   return (
     <Menu
-      accessibilityLabel={t("Choose how to send this message")}
+      accessibilityLabel="Choose how to send this message"
       shouldOpenOnLongPress
       actions={actions.map((action) => ({
         id: action,
-        title: t(FOLLOW_UP_ACTION_LABEL[action]),
-        subtitle: t(FOLLOW_UP_ACTION_SUBTITLE[action]),
+        title: FOLLOW_UP_ACTION_LABEL[action],
+        subtitle: FOLLOW_UP_ACTION_SUBTITLE[action],
         state: action === presentation.action ? ("on" as const) : ("off" as const),
       }))}
       onPressAction={({ nativeEvent }) =>
@@ -259,7 +258,6 @@ function SendActionButton(props: {
 }
 
 export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps) {
-  const t = useT();
   const project = useProject(scopeProjectRef(props.environmentId, props.selectedThread.projectId));
   const { themeVariables: materialTheme } = useAppearancePreferences();
   const composerPanel = materialTheme["--color-composer-panel"];
@@ -388,7 +386,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
       !draftRunsLocally &&
       (props.connectionState !== "connected" || props.queueCount > 0 || attachmentsUploading),
   });
-  const sendLabel = t(sendPresentation.label); // fork: i18n
+  const sendLabel = sendPresentation.label;
   const openUsageLimits = () => {
     const report = collectProviderUsageLimits(
       currentModelSelection.instanceId,
@@ -443,7 +441,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
   });
   const voiceInput = useVoiceInputController({
     ownerKey: composerDraftKey,
-    label: props.selectedThread.title || t("Untitled thread"),
+    label: props.selectedThread.title || "Untitled thread",
     readDraftMessage: () => getComposerDraftSnapshot(composerDraftKey).text,
     selection: composerMenu.selection,
     onChangeDraftMessage: (text) => setComposerDraftText(composerDraftKey, text),
@@ -454,7 +452,6 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
   const voicePresentation = resolveVoiceComposerPresentation(
     voiceInput.state,
     voiceInput.elapsedSeconds,
-    t, // fork: i18n
   );
   const isVoiceInputPresented = voicePresentation.statusKind === "active";
   const isExpanded = isFocused || settingsSheetPresentation.keepsComposerExpanded;
@@ -481,9 +478,9 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
   });
   const contextImports = useAtomValue(composerContextImportsAtom);
   const sendBlockedReason =
-    (queuedEdit?.saving === true ? t("Saving…") : null) ??
+    (queuedEdit?.saving === true ? "Saving…" : null) ??
     props.sendBlockedReason ??
-    (pendingPastedTextAttachmentCount > 0 ? t("Attaching pasted text") : null) ??
+    (pendingPastedTextAttachmentCount > 0 ? "Attaching pasted text" : null) ??
     attachmentBlockReason;
   const canSend =
     (props.canOperateThread || props.connectionState !== "connected") &&
@@ -724,11 +721,11 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
         disabled={!props.canOperateThread}
         accessibilityLabel={
           compactBeforeSend.keepFullHistory
-            ? t("Next send keeps all {count} tokens of history", { count: compactTokens })
-            : t("Next send compacts {count} tokens of history first", { count: compactTokens })
+            ? `Next send keeps all ${compactTokens} tokens of history`
+            : `Next send compacts ${compactTokens} tokens of history first`
         }
         accessibilityHint={
-          compactBeforeSend.keepFullHistory ? t("Compacts first") : t("Keeps the full history")
+          compactBeforeSend.keepFullHistory ? "Compacts first" : "Keeps the full history"
         }
         onPress={compactBeforeSend.toggleKeepFullHistory}
       />
@@ -796,7 +793,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
         ) : null}
         {modelUnavailable ? (
           <Button
-            label={t("Model unavailable. Open model settings.")}
+            label="Model unavailable. Open model settings."
             tone="text"
             onPress={openSettings}
           />
@@ -968,8 +965,8 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
                         insertPaste();
                       } else {
                         Dialog.alert(
-                          t("Pasted text is too large for this message"),
-                          t("Remove some text or an attachment, then paste again."),
+                          "Pasted text is too large for this message",
+                          "Remove some text or an attachment, then paste again.",
                         );
                       }
                       return;
@@ -1048,7 +1045,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
                 {showStopAction ? (
                   <ComposerActionButton
                     size={usesLargeControls ? "large" : "regular"}
-                    accessibilityLabel={t("Stop agent")}
+                    accessibilityLabel="Stop agent"
                     icon="stop.fill"
                     variant="danger"
                     disabled={!props.canOperateThread}
@@ -1057,7 +1054,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
                 ) : showResumeAction ? (
                   <ComposerActionButton
                     size={usesLargeControls ? "large" : "regular"}
-                    accessibilityLabel={t("Resume thread")}
+                    accessibilityLabel="Resume thread"
                     icon="play"
                     disabled={!props.canOperateThread || resumingQueue}
                     onPress={() => void handleResumeQueue()}
@@ -1116,7 +1113,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
                   {showStopAction ? (
                     <ComposerActionButton
                       size={usesLargeControls ? "large" : "regular"}
-                      accessibilityLabel={t("Stop agent")}
+                      accessibilityLabel="Stop agent"
                       icon="stop.fill"
                       variant="danger"
                       disabled={!props.canOperateThread}
@@ -1125,7 +1122,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
                   ) : showResumeAction && voicePresentation.showsSend ? (
                     <ComposerActionButton
                       size={usesLargeControls ? "large" : "regular"}
-                      accessibilityLabel={t("Resume thread")}
+                      accessibilityLabel="Resume thread"
                       icon="play"
                       disabled={!props.canOperateThread || resumingQueue}
                       onPress={() => void handleResumeQueue()}
@@ -1147,7 +1144,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
 
         {props.connectionState === "connected" && operateDenied ? (
           <Text className="pt-2 text-xs text-foreground-muted">
-            {t("This connection cannot control this task. You can still edit your draft.")}
+            This connection cannot control this task. You can still edit your draft.
           </Text>
         ) : null}
       </Animated.View>

@@ -6,14 +6,12 @@ import type { AssetUrlFailureReason } from "../../state/asset-url-state";
 import { useEnvironmentPresentation } from "../../state/presentation";
 import { EnvironmentConnectionNotice } from "../connection/EnvironmentConnectionNotice";
 import { useRetryEnvironment } from "../connection/useRetryEnvironment";
-import { useT } from "../../hooks/useT"; // fork: restored import
 
 export function WorkspaceFilePreviewError(props: {
   readonly environmentId: EnvironmentId | null;
   readonly reason: AssetUrlFailureReason;
   readonly onRetry: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const { environmentId, onRetry } = props;
   const environment = useEnvironmentPresentation(environmentId);
   const retryEnvironment = useRetryEnvironment();
@@ -26,7 +24,7 @@ export function WorkspaceFilePreviewError(props: {
     return (
       <View className="flex-1 bg-sheet">
         <EnvironmentConnectionNotice
-          environmentLabel={environment.presentation?.entry.target.label ?? t("Environment")}
+          environmentLabel={environment.presentation?.entry.target.label ?? "Environment"}
           connection={
             environment.presentation?.connection ?? {
               phase: "available",
@@ -44,9 +42,9 @@ export function WorkspaceFilePreviewError(props: {
   return (
     <View className="flex-1 items-center justify-center bg-sheet px-6">
       <EmptyState
-        title={t("Preview unavailable")}
-        detail={t("This file may be missing, unsupported, or unavailable on this environment.")}
-        actionLabel={t("Try again")}
+        title="Preview unavailable"
+        detail="This file may be missing, unsupported, or unavailable on this environment."
+        actionLabel="Try again"
         onAction={props.onRetry}
       />
     </View>

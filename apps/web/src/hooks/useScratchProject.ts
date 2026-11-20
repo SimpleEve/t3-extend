@@ -19,7 +19,6 @@ import {
 } from "~/state/environments";
 import { projectEnvironment } from "~/state/projects";
 import { type NewThreadHandler, useNewThreadHandler } from "./useHandleNewThread";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 function reportScratchFailure(title: string, error: unknown) {
   toastManager.add(

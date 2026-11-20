@@ -13,14 +13,12 @@ export function appBarMenuItemsFromActions(
           id,
           title: action.title,
           icon: action.image,
-          verbatim: true, // fork: i18n, a MenuAction is localized by whoever built it
           items: appBarMenuItemsFromActions(action.subactions, onSelect),
         }
       : {
           id,
           title: action.title,
           subtitle: action.subtitle,
-          verbatim: true, // fork: i18n
           icon: action.image,
           iconColor: action.imageColor,
           selected: action.state === "on",

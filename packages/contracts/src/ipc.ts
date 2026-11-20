@@ -340,8 +340,6 @@ export const DesktopUpdateStateSchema = Schema.Struct({
   notAppliedVersion: Schema.optionalKey(Schema.String),
   // fork: upstream left it out of the schema, so getUpdateState and setChannel dropped it
   channelBlockedByPolicy: Schema.optionalKey(Schema.Literal(true)),
-  // fork: i18n
-  messageFixed: Schema.optionalKey(Schema.Literal(true)),
 });
 
 export const DesktopCliCommandStateSchema = Schema.Struct({

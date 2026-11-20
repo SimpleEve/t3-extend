@@ -6,7 +6,6 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
 
 import { ConnectionStatusDot } from "../connection/ConnectionStatusDot";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function DraftEnvironmentControl(props: {
   readonly label: string;
@@ -15,7 +14,6 @@ export function DraftEnvironmentControl(props: {
   readonly disabled: boolean;
   readonly onChooseEnvironment: () => void;
 }) {
-  const t = useT();
   const disconnected = props.connectionState !== "connected";
   return (
     <Pressable
@@ -35,7 +33,7 @@ export function DraftEnvironmentControl(props: {
         tintColorClassName="accent-icon-muted"
       />
       <Text className="shrink text-sm text-foreground-muted" numberOfLines={1}>
-        {t("on {label}", { label: props.label })}
+        on {props.label}
       </Text>
       <SymbolView name="chevron.right" size={11} tintColorClassName="accent-icon-muted" />
       {disconnected ? <ConnectionStatusDot state="error" pulse={false} size={6} /> : null}

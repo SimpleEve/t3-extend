@@ -21,7 +21,6 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collaps
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { SettingsPageContainer, SettingsSection } from "./settingsLayout";
-import { useT } from "../../hooks/useT";
 
 class LicenseManifestLoadError extends Schema.TaggedError<LicenseManifestLoadError>()(
   "LicenseManifestLoadError",
@@ -73,7 +72,6 @@ function LicenseNoticeRow({
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }) {
-  const t = useT();
   return (
     <Collapsible open={open} onOpenChange={onOpenChange}>
       <article>
@@ -95,11 +93,11 @@ function LicenseNoticeRow({
           </CollapsibleTrigger>
           {entry.sourceUrl ? (
             <Button
-              aria-label={t("View project source for {name}", { name: entry.name })}
+              aria-label={`View project source for ${entry.name}`}
               className="me-3 shrink-0 sm:me-4"
               render={<a href={entry.sourceUrl} rel="noreferrer noopener" target="_blank" />}
               size="icon-micro"
-              title={t("Project source")}
+              title="Project source"
               variant="ghost-muted"
             >
               <ExternalLinkIcon aria-hidden className="size-3" />
@@ -127,15 +125,11 @@ function LicenseCount({
   filteredCount: number;
   totalCount: number;
 }) {
-  const t = useT();
   return (
     <p className="whitespace-nowrap text-xs font-normal text-muted-foreground tabular-nums">
       {filteredCount === totalCount
-        ? t("{totalCount} notices", { totalCount: String(totalCount) })
-        : t("{filteredCount} of {totalCount}", {
-            filteredCount: String(filteredCount),
-            totalCount: String(totalCount),
-          })}
+        ? `${String(totalCount)} notices`
+        : `${String(filteredCount)} of ${String(totalCount)}`}
     </p>
   );
 }
@@ -155,7 +149,6 @@ function LicenseHeaderAction({
   filteredCount: number;
   totalCount: number;
 }) {
-  const t = useT();
   if (!searchOpen) {
     return (
       <div className="flex items-center gap-1.5">
@@ -164,7 +157,7 @@ function LicenseHeaderAction({
           <TooltipTrigger
             render={
               <Button
-                aria-label={t("Search open-source licenses")}
+                aria-label="Search open-source licenses"
                 onClick={() => onSearchOpenChange(true)}
                 size="icon-micro"
                 type="button"
@@ -174,7 +167,7 @@ function LicenseHeaderAction({
               </Button>
             }
           />
-          <TooltipPopup side="top">{t("Search licenses")}</TooltipPopup>
+          <TooltipPopup side="top">Search licenses</TooltipPopup>
         </Tooltip>
       </div>
     );
@@ -190,7 +183,7 @@ function LicenseHeaderAction({
           <SearchIcon aria-hidden className="size-3" />
         </InputGroupAddon>
         <InputGroupInput
-          aria-label={t("Search open-source licenses")}
+          aria-label="Search open-source licenses"
           autoFocus
           onBlur={() => {
             if (query.length === 0) onSearchOpenChange(false);
@@ -202,7 +195,7 @@ function LicenseHeaderAction({
             onQueryChange("");
             onSearchOpenChange(false);
           }}
-          placeholder={t("Search licenses")}
+          placeholder="Search licenses"
           size="sm"
           type="search"
           value={query}
@@ -213,7 +206,6 @@ function LicenseHeaderAction({
 }
 
 function LicenseManifestError({ message, onRetry }: { message: string; onRetry: () => void }) {
-  const t = useT();
   return (
     <div className="flex flex-col items-start gap-3 px-3 py-5 sm:px-4">
       <div className="flex flex-col gap-1">
@@ -225,14 +217,13 @@ function LicenseManifestError({ message, onRetry }: { message: string; onRetry: 
         </p>
       </div>
       <Button type="button" size="xs" variant="outline" onClick={onRetry}>
-        {t("Try again")}
+        Try again
       </Button>
     </div>
   );
 }
 
 export function OpenSourceLicensesPanel() {
-  const t = useT();
   const result = useAtomValue(licenseManifestAtom);
   const retry = useAtomRefresh(licenseManifestAtom);
   const [query, setQuery] = useState("");
@@ -282,7 +273,7 @@ export function OpenSourceLicensesPanel() {
               })
             ) : (
               <p className="px-3 py-8 text-center text-sm/6 text-muted-foreground sm:px-4">
-                {t("No licenses match that search.")}
+                No licenses match that search.
               </p>
             )}
           </div>
@@ -290,7 +281,7 @@ export function OpenSourceLicensesPanel() {
           <LicenseManifestError message={errorMessage} onRetry={retry} />
         ) : (
           <p className="px-3 py-5 text-sm/6 text-muted-foreground sm:px-4">
-            {t("Loading open-source notices…")}
+            Loading open-source notices…
           </p>
         )}
       </SettingsSection>

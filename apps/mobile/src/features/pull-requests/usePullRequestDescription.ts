@@ -14,7 +14,6 @@ import * as Dialog from "../../components/ui/Dialog";
 import { composerPullRequests } from "../../state/pull-requests";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 /** The description with checkbox ticks shown before the host confirms them. */
 export function usePullRequestDescription(
@@ -22,7 +21,6 @@ export function usePullRequestDescription(
   pr: PullRequestDetail | null,
   canEdit: boolean,
 ) {
-  const t = useT(); // fork: i18n
   const target = pullRequestTarget(params);
   const update = useAtomCommand(composerPullRequests.update, { reportFailure: false });
   const refreshDetail = useAtomRefresh(composerPullRequests.detail(target));
@@ -44,8 +42,8 @@ export function usePullRequestDescription(
     if (AsyncResult.isFailure(response)) {
       const cause = squashAtomCommandFailure(response);
       Dialog.alert(
-        t("Could not save the description"),
-        cause instanceof Error ? cause.message : t("Try again."),
+        "Could not save the description",
+        cause instanceof Error ? cause.message : "Try again.",
       );
     }
     if (savesRunning.current === 0) refreshDetail();

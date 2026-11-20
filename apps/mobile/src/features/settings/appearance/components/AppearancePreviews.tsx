@@ -7,7 +7,6 @@ import {
 } from "../../../../lib/appearancePreferences";
 import { getMobileTerminalTheme } from "../../../terminal/terminalTheme";
 import { useAppearancePreferences } from "../AppearancePreferencesProvider";
-import { useT, useUiLocale } from "../../../../hooks/useT"; // fork: i18n
 
 const CODE_FONT_FAMILY = Platform.select({
   ios: "ui-monospace",
@@ -35,7 +34,7 @@ export function TextAppearancePreview(props: { readonly fontSize: number }) {
         className="text-foreground-muted"
         style={{ fontSize: sizes.s, lineHeight: Math.round(sizes.s * 1.4) }}
       >
-        {t("Messages, labels, and headings scale with this size.")}
+        Messages, labels, and headings scale with this size.
       </Text>
     </View>
   );

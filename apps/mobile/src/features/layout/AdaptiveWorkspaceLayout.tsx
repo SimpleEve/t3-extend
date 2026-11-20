@@ -118,7 +118,6 @@ import {
 import { workspaceTabOf, type WorkspaceTab } from "./workspace/workspace-tabs-state";
 import { workspaceRoutesOf } from "./workspace-overlay-routes";
 import { SettingsWorkspaceLayout } from "../settings/SettingsWorkspaceLayout";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { WorkspaceThreadSidebar } from "./workspace/WorkspaceThreadSidebar";
 
 export { useAdaptiveWorkspaceLayout, useWorkspacePaneState };
@@ -258,7 +257,6 @@ function AdaptiveWorkspaceLayoutContent(
     readonly savedThreadListFilters?: ThreadListFilters | undefined;
   },
 ) {
-  const t = useT(); // fork: i18n
   const floatingTabsEnabled = useAndroidFloatingTabs();
   const projectGroupingMode = props.projectGroupingMode;
   const nativeWorkspace = use(NativeWorkspaceModeContext);
@@ -1033,8 +1031,8 @@ function AdaptiveWorkspaceLayoutContent(
                 renderFallback={(fallback) => (
                   <RenderFailureView
                     {...fallback}
-                    title={t("The sidebar couldn't be displayed")}
-                    exit={{ label: t("Open settings"), onPress: handleOpenSettings }}
+                    title="The sidebar couldn't be displayed"
+                    exit={{ label: "Open settings", onPress: handleOpenSettings }}
                   />
                 )}
               >
@@ -1131,7 +1129,7 @@ function AdaptiveWorkspaceLayoutContent(
           style={[{ zIndex: 1 }, scrimAnimatedStyle]}
         >
           <Pressable
-            accessibilityLabel={t("Hide sidebar")}
+            accessibilityLabel="Hide sidebar"
             className="flex-1"
             onPress={() => setPrimarySidebarVisible(false)}
           />

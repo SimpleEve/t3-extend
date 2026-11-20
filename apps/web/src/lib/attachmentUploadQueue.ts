@@ -5,7 +5,6 @@ import {
   type ChatAttachment,
   type EnvironmentId,
 } from "@t3tools/contracts";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { parseScopedThreadKey } from "@t3tools/client-runtime/environment";
 import { resolveAssetUrl } from "@t3tools/client-runtime/state/assets";
 import {

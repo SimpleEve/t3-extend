@@ -7,7 +7,6 @@ import { environmentThreadDetails, threadEnvironment } from "../../state/threads
 import { toastManager } from "../ui/toast";
 import type { AssistantCitationRequest } from "./AssistantCitationSource";
 import type { MessagesTimelineRow } from "./MessagesTimeline.logic";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 /** Whether the cited response is in the loaded history, after paging toward it. */
 export type CitedHistory =
@@ -223,8 +222,8 @@ const citedHistoryAtom = Atom.family(
         if (outcome._tag === "failed") {
           toastManager.add({
             type: "warning",
-            title: translate(getUiLocale(), outcome.title),
-            description: translate(getUiLocale(), outcome.description),
+            title: outcome.title,
+            description: outcome.description,
           });
         }
         get.setSelf({ _tag: outcome._tag });

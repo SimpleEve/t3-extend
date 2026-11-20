@@ -1,7 +1,3 @@
-import type { UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
-
-import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
-
 // Formatters pin the default zone when built, and Hermes keeps Date's local offset until a cold
 // start (react/react-native#59131), so formatting and day checks follow the zone Intl reports.
 // fork: i18n. The formatters follow the interface language; English keeps the device locale.
@@ -29,7 +25,7 @@ const ZONE_RECHECK_MS = 1_000;
 const formattersByLocale = new Map<UiLocale, ReturnType<typeof buildFormatters>>();
 let currentZone = "";
 let zoneCheckedAt = 0;
-function currentFormatters(locale: UiLocale) {
+function currentFormatters() {
   const now = Date.now();
   if (currentZone === "" || Math.abs(now - zoneCheckedAt) >= ZONE_RECHECK_MS) {
     zoneCheckedAt = now;
@@ -47,7 +43,6 @@ export function formatMessageTimestamp(
   input: string,
   nowMs: number = Date.now(),
   timeFormatter?: Intl.DateTimeFormat,
-  locale: UiLocale = "en", // fork: i18n
 ): string {
   const timestamp = Date.parse(input);
   if (Number.isNaN(timestamp)) return "";
@@ -70,7 +65,7 @@ export function createMessageTimeFormatter(
 ) {
   let cached: { timeZone: string; formatter: Intl.DateTimeFormat } | null = null;
   return (input: string, nowMs?: number): string => {
-    const { timeZone } = currentFormatters(uiLocale);
+    const { timeZone } = currentFormatters();
     if (cached?.timeZone !== timeZone) {
       cached = {
         timeZone,
@@ -85,6 +80,6 @@ export function createMessageTimeFormatter(
         ),
       };
     }
-    return formatMessageTimestamp(input, nowMs, cached.formatter, uiLocale);
+    return formatMessageTimestamp(input, nowMs, cached.formatter);
   };
 }

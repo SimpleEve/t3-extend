@@ -5,7 +5,6 @@ import { GlassSurface } from "../../components/ui/GlassSurface";
 import { PullRequestAvatar } from "./PullRequestPresentation";
 import type { PullRequestCompletion } from "@t3tools/shared/pullRequestComposerTrigger";
 import type { usePullRequestCompletions } from "./usePullRequestCompletions";
-import { useT } from "../../hooks/useT";
 
 const COPY = {
   mention: {
@@ -25,7 +24,6 @@ const COPY = {
 const STATE_LABEL = { open: "Open", closed: "Closed", merged: "Merged" } as const;
 
 function CompletionRow({ completion }: { readonly completion: PullRequestCompletion }) {
-  const t = useT(); // fork: i18n
   if (completion.kind === "mention") {
     const { actor } = completion;
     return (
@@ -52,7 +50,7 @@ function CompletionRow({ completion }: { readonly completion: PullRequestComplet
         {candidate.title}
       </Text>
       <Text className="shrink-0 text-xs text-foreground-tertiary">
-        {t(STATE_LABEL[candidate.state])}
+        {STATE_LABEL[candidate.state]}
       </Text>
     </>
   );
@@ -64,7 +62,6 @@ export function PullRequestCompletionSuggestions({
 }: {
   readonly completions: ReturnType<typeof usePullRequestCompletions>;
 }) {
-  const t = useT();
   if (completions.kind === null) return null;
   const copy = COPY[completions.kind];
   return (
@@ -78,13 +75,13 @@ export function PullRequestCompletionSuggestions({
           className="max-h-[180px]"
           keyboardShouldPersistTaps="always"
           showsVerticalScrollIndicator={false}
-          accessibilityLabel={t(copy.label)}
+          accessibilityLabel={copy.label}
         >
           {completions.candidates.map((completion, index) => (
             <Pressable
               key={completion.token}
               accessibilityRole="button"
-              accessibilityLabel={t("Insert {token}", { token: completion.token })}
+              accessibilityLabel={`Insert ${completion.token}`}
               onPress={() => completions.select(completion)}
               className="flex-row items-center gap-2.5 border-border px-3.5 py-2.5 active:opacity-60"
               style={{
@@ -99,7 +96,7 @@ export function PullRequestCompletionSuggestions({
       ) : (
         <View className="px-3.5 py-2.5">
           <Text className="text-xs text-foreground-tertiary">
-            {t(copy[completions.isLoading ? "pending" : completions.failed ? "failed" : "none"])}
+            {copy[completions.isLoading ? "pending" : completions.failed ? "failed" : "none"]}
           </Text>
         </View>
       )}

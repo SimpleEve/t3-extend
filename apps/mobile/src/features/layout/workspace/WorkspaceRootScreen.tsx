@@ -53,7 +53,6 @@ function WorkspaceRootTitle(props: {
   readonly columnWidth: number;
   readonly onOpenEnvironments: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const { state, settingsOpen } = useWorkspaceTabs()!;
   const maxWidth = Math.max(0, props.columnWidth - (use(HeaderItemsWidthContext) ?? 160));
   const enabled = useEnabledNavigationTabs();
@@ -78,7 +77,6 @@ function WorkspaceRootTitle(props: {
 }
 
 function WorkspaceRootContent() {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const { width: windowWidth } = useWindowDimensions();
   const { layout, startNewTask } = useAdaptiveWorkspaceLayout();

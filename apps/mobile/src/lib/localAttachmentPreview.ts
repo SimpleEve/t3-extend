@@ -1,5 +1,4 @@
 import { useAtomValue } from "@effect/atom-react";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { videoMimeType } from "@t3tools/shared/video";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";

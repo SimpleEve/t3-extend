@@ -20,7 +20,6 @@ import { tryOpenExternalUrl } from "../../lib/openExternalUrl";
 import { useAssetUrlState, useRefreshAssetUrl } from "../../state/assets";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { webViewDecelerationRate } from "../../lib/webViewDecelerationRate";
-import { useT } from "../../hooks/useT"; // fork: restored import
 
 const ROW_BOTTOM_MARGIN = 8;
 const ACTION_ROW_HEIGHT = 32;
@@ -181,7 +180,6 @@ export function ThreadHtmlRender(props: {
   readonly frameWidth: number;
   readonly iconColor: ColorValue;
 }) {
-  const t = useT();
   const navigation = useNavigation();
   const { attachmentId, title } = props.render;
   const height = htmlRenderFrameHeight(props.render, props.frameWidth);
@@ -220,7 +218,7 @@ export function ThreadHtmlRender(props: {
         {uri !== null && !failed ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t("Open {name}", { name: title })}
+            accessibilityLabel={`Open ${title}`}
             hitSlop={8}
             className="h-7 w-7 items-center justify-center rounded-full border border-border/60 bg-card/80"
             onPress={() =>
@@ -256,7 +254,7 @@ export function ThreadHtmlRender(props: {
         ) : failed || asset._tag === "Failure" ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t("Reload {title}", { title })}
+            accessibilityLabel={`Reload ${title}`}
             className="flex-1 items-center justify-center"
             onPress={() => {
               retried.current = false;
@@ -264,7 +262,7 @@ export function ThreadHtmlRender(props: {
               if (uri === null) void refresh().then((next) => next !== null && setUri(next));
             }}
           >
-            <Text className="text-sm text-foreground-muted">{t("Page unavailable")}</Text>
+            <Text className="text-sm text-foreground-muted">Page unavailable</Text>
           </Pressable>
         ) : (
           <View className="flex-1 items-center justify-center">

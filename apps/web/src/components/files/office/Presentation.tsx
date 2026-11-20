@@ -10,7 +10,6 @@ import { OfficePages, type PaintPage } from "./OfficePages";
 import { createWorkerClient } from "./worker-rpc";
 import type { SlideMethods, SlideSummary } from "./slide-protocol";
 import { rasterize } from "./vector-pictures";
-import { useT } from "../../../hooks/useT"; // fork: restored import
 
 type Opened = { slides: readonly SlideSummary[]; paint: PaintPage };
 export default function Presentation(props: {
@@ -18,7 +17,6 @@ export default function Presentation(props: {
   onDetails: (text: string) => void;
   onError: (cause: unknown) => void;
 }) {
-  const t = useT();
   const { onError, bytes: source, onDetails } = props;
   const [opened, setOpened] = useState<Opened>();
   const [page, setPage] = useState(0);
@@ -98,17 +96,17 @@ export default function Presentation(props: {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className={FILE_SURFACE_SUBHEADER_CLASS}>
         <FileSurfaceAction
-          label={t("Previous slide")}
+          label="Previous slide"
           disabled={page === 0}
           onPress={() => select(page - 1)}
         >
           <ChevronLeftIcon className="size-3.5" />
         </FileSurfaceAction>
         <span className="flex-1 text-center text-xs tabular-nums" aria-live="polite">
-          {t("Slide {value} of {length}", { value: page + 1, length: opened.slides.length })}
+          Slide {page + 1} of {opened.slides.length}
         </span>
         <FileSurfaceAction
-          label={t("Next slide")}
+          label="Next slide"
           disabled={page + 1 === opened.slides.length}
           onPress={() => select(page + 1)}
         >
@@ -118,7 +116,7 @@ export default function Presentation(props: {
       <OfficePages
         pages={opened.slides}
         paint={opened.paint}
-        label={t("Slide")}
+        label="Slide"
         scrollRef={scroll}
         onPageChange={setPage}
         onError={onError}
@@ -132,7 +130,7 @@ export default function Presentation(props: {
                 role="status"
                 className="absolute inset-0 flex items-center justify-center bg-background/80 p-4 text-xs text-foreground"
               >
-                {t("This slide could not be drawn.")}
+                This slide could not be drawn.
               </p>
             ) : null}
           </>
@@ -141,11 +139,11 @@ export default function Presentation(props: {
           const slide = opened.slides[index];
           return slide?.notes || slide?.hidden ? (
             <div className="space-y-1 text-xs text-muted-foreground">
-              {slide.hidden ? <p>{t("Hidden slide")}</p> : null}
+              {slide.hidden ? <p>Hidden slide</p> : null}
               {slide.notes ? (
                 <p
                   role="note"
-                  aria-label={t("Speaker notes")}
+                  aria-label="Speaker notes"
                   className="select-text whitespace-pre-wrap break-words"
                 >
                   {slide.notes}

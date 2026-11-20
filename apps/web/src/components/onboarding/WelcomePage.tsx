@@ -115,9 +115,6 @@ import { toastManager } from "../ui/toast";
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
 import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../timestampFormat";
-import { useT, useUiLocale } from "../../hooks/useT"; // fork: interface language
-import { interpolateNodes } from "../../lib/interpolateNodes";
-import { uiLocaleFormatTag } from "@t3tools/client-runtime/i18n";
 
 const AGENT_ONBOARDING_THREAD_ID = ThreadId.make("onboarding-agent-setup");
 const SCAN_LIMIT_MESSAGE = "Scan limit reached. Some projects or conversations may be missing.";
@@ -133,11 +130,10 @@ export function WelcomePage({
   readonly environmentId: EnvironmentId;
   readonly onDone: (projectRef?: ScopedProjectRef) => void | Promise<void>;
 }) {
-  const t = useT();
   const { environments } = useEnvironments();
   const label =
     environments.find((environment) => environment.environmentId === environmentId)?.label ??
-    t("this computer");
+    "this computer";
   const agentReady = useWelcomeAgents(environmentId).readyCount > 0;
   // The phone and `t3` on PATH belong to the primary computer, so only it offers them.
   const isPrimary = usePrimaryEnvironmentId() === environmentId;
@@ -171,8 +167,8 @@ export function WelcomePage({
       toastManager.add({
         id: "welcome-finishing",
         type: "info",
-        title: t("Finishing setup"),
-        description: t("One moment."),
+        title: "Finishing setup",
+        description: "One moment.",
       });
       return true;
     },
@@ -280,7 +276,7 @@ export function WelcomePage({
         <div className="min-h-0 flex-1 overflow-y-auto scrollbar-gutter-both">
           <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col px-6 pt-12 pb-8 sm:pt-20">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              {t("Welcome to T3 Extend")}
+              Welcome to T3 Code
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
               {interpolateNodes(t("Setting up {name}."), {
@@ -306,7 +302,7 @@ export function WelcomePage({
                 <span />
               ) : (
                 <Button variant="ghost-muted" disabled={isImporting} onClick={start}>
-                  {t("Start without an agent")}
+                  Start without an agent
                 </Button>
               )}
               <div className="flex items-center gap-3">
@@ -318,15 +314,15 @@ export function WelcomePage({
                 <Button disabled={!agentReady || isImporting} onClick={start}>
                   {isImporting
                     ? selected.length > 0
-                      ? t("Importing…")
-                      : t("Starting…")
+                      ? "Importing…"
+                      : "Starting…"
                     : newCount > 0
                       ? newCount === 1
                         ? t("Import 1 project and start")
                         : t("Import {count} projects and start", { count: newCount })
                       : selected.length > 0
-                        ? t("Import threads and start")
-                        : t("Start")}
+                        ? "Import threads and start"
+                        : "Start"}
                 </Button>
               </div>
             </div>
@@ -424,7 +420,6 @@ function AgentsSection({
   // The project scan only reads agents that are on, so turning one on can find more history.
   readonly onImportSourceEnabled: () => void;
 }) {
-  const t = useT();
   const { providers, serverConfig, checking, found, available } = useWelcomeAgents(environmentId);
   const refreshProviders = useAtomCommand(serverEnvironment.refreshProviders, {
     reportFailure: false,
@@ -528,7 +523,7 @@ function AgentsSection({
         const cause = squashAtomCommandFailure(result);
         toastManager.add({
           type: "error",
-          title: t("Could not turn on {name}", { name: agentName(provider) }),
+          title: `Could not turn on ${agentName(provider)}`,
           ...(cause instanceof Error ? { description: cause.message } : {}),
         });
       }
@@ -562,11 +557,11 @@ function AgentsSection({
         <Button
           size="xs"
           variant="outline"
-          aria-label={t("Turn on: {name}", { name })}
+          aria-label={`Turn on: ${name}`}
           disabled={!canManageProviders || serverConfig === null}
           onClick={() => void turnOn(provider)}
         >
-          {t("Turn on")}
+          Turn on
         </Button>
       );
     }
@@ -578,11 +573,11 @@ function AgentsSection({
         <Button
           size="xs"
           variant="outline"
-          aria-label={t("Set up: {name}", { name })}
+          aria-label={`Set up: ${name}`}
           aria-expanded={open}
           onClick={() => setCodexSetupId(open ? null : provider.instanceId)}
         >
-          {t("Set up")}
+          Set up
         </Button>
       );
     }
@@ -624,7 +619,7 @@ function AgentsSection({
   ].filter((note) => note !== null);
 
   return (
-    <WelcomeSection title={t("Agents")}>
+    <WelcomeSection title="Agents">
       {found.map((provider) => (
         <AgentRow
           key={provider.instanceId}
@@ -640,7 +635,7 @@ function AgentsSection({
       ) : null}
       {notes.map((note) => (
         <p key={note} className="pl-8 text-xs text-muted-foreground">
-          {t(note)}
+          {note}
         </p>
       ))}
       <Collapsible open={showMore} onOpenChange={setMoreOpen}>
@@ -654,7 +649,7 @@ function AgentsSection({
               found.length > 0 ? "text-muted-foreground" : "text-foreground",
             )}
           >
-            {found.length > 0 ? t("Add more agents") : t("Set up an agent")}
+            {found.length > 0 ? "Add more agents" : "Set up an agent"}
           </span>
           {showMore ? null : <AgentLogoStack providers={available} acp={acpAllowed} />}
           <ChevronDownIcon className="ml-auto size-4 text-muted-foreground group-data-panel-open:rotate-180" />
@@ -677,7 +672,7 @@ function AgentsSection({
                 <ACPRegistryIcon className="size-4" />
               </RowIcon>
               <span className="min-w-0 flex-1 text-sm text-muted-foreground">
-                {t("More agents in the ACP Registry")}
+                More agents in the ACP Registry
               </span>
               <Button
                 size="xs"
@@ -685,7 +680,7 @@ function AgentsSection({
                 disabled={!canManageProviders}
                 onClick={() => setAddingProvider(true)}
               >
-                {t("Browse")}
+                Browse
               </Button>
             </div>
           ) : null}
@@ -771,7 +766,6 @@ function ProjectsSection({
   readonly projectImport: ReturnType<typeof useProjectImport>;
   readonly isImporting: boolean;
 }) {
-  const t = useT();
   const [reviewing, setReviewing] = useState(false);
   const {
     canWrite,
@@ -783,30 +777,29 @@ function ProjectsSection({
     setSelectedKeys,
     visibleImportError,
   } = projectImport;
-  const importSources = importSourcesLabel(uiLocaleFormatTag(useUiLocale()));
   if (scan === undefined) return null;
   if (scan.isPending && candidates.length === 0) {
     return (
-      <WelcomeSection title={t("Projects")}>
+      <WelcomeSection title="Projects">
         <p className="text-sm leading-10 text-muted-foreground">
-          {t("Looking for projects in your {sources} history…", { sources: importSources })}
+          Looking for projects in your {IMPORT_SOURCES_LABEL} history…
         </p>
       </WelcomeSection>
     );
   }
   const retry = (
     <Button variant="ghost" size="sm" onClick={scan.refresh}>
-      {t("Retry")}
+      Retry
     </Button>
   );
   if (scan.error !== null && candidates.length === 0) {
     return (
-      <WelcomeSection title={t("Projects")}>
+      <WelcomeSection title="Projects">
         <div
           role="alert"
           className="flex min-h-10 items-center justify-between gap-3 text-sm text-muted-foreground"
         >
-          <span>{t("Could not check projects. {error}", { error: scan.error })}</span>
+          <span>Could not check projects. {scan.error}</span>
           {retry}
         </div>
       </WelcomeSection>
@@ -814,9 +807,9 @@ function ProjectsSection({
   }
   if (candidates.length === 0) {
     return scan.data?.truncated ? (
-      <WelcomeSection title={t("Projects")}>
+      <WelcomeSection title="Projects">
         <p className="text-xs leading-10 text-muted-foreground" role="status">
-          {t(SCAN_LIMIT_MESSAGE)}
+          {SCAN_LIMIT_MESSAGE}
         </p>
       </WelcomeSection>
     ) : null;
@@ -833,7 +826,7 @@ function ProjectsSection({
     selected.length < candidates.length &&
     !(selected.length === defaultKeys.length && defaultKeys.every((key) => selectedKeys.has(key)));
   return (
-    <WelcomeSection title={t("Projects")}>
+    <WelcomeSection title="Projects">
       <div className="flex min-h-10 items-center gap-3 py-1">
         <label className="flex min-w-0 flex-1 items-center gap-3">
           <RowIcon>
@@ -855,7 +848,7 @@ function ProjectsSection({
                 : t("Import projects and their threads")}
             </span>
             <span className="block text-xs text-muted-foreground">
-              {t("From your {sources} history", { sources: importSources })}
+              From your {IMPORT_SOURCES_LABEL} history
             </span>
           </span>
         </label>
@@ -866,7 +859,7 @@ function ProjectsSection({
             aria-expanded={reviewing}
             onClick={() => setReviewing((open) => !open)}
           >
-            {reviewing ? t("Hide") : t("Review all {count}", { count: candidates.length })}
+            {reviewing ? "Hide" : `Review all ${candidates.length}`}
             <ChevronDownIcon className={cn("size-3.5", reviewing && "rotate-180")} />
           </Button>
         ) : null}
@@ -876,10 +869,7 @@ function ProjectsSection({
         <fieldset className="-mx-1.5 mt-1 min-w-0" disabled={isImporting}>
           <div className="flex items-center justify-between gap-3 px-2 text-xs text-muted-foreground">
             <span role="status">
-              {t("{selected} of {total} selected", {
-                selected: selected.length,
-                total: candidates.length,
-              })}
+              {selected.length} of {candidates.length} selected
             </span>
             <div className="flex items-center gap-1">
               <Button
@@ -888,7 +878,7 @@ function ProjectsSection({
                 disabled={selected.length === candidates.length}
                 onClick={() => setSelectedKeys(new Set(allKeys))}
               >
-                {t("Select all")}
+                Select all
               </Button>
               <Button
                 variant="ghost"
@@ -896,7 +886,7 @@ function ProjectsSection({
                 disabled={selected.length === 0}
                 onClick={() => setSelectedKeys(new Set())}
               >
-                {t("Select none")}
+                Select none
               </Button>
             </div>
           </div>
@@ -913,7 +903,7 @@ function ProjectsSection({
       ) : null}
       {scan.data?.truncated ? (
         <p className="pl-8 text-xs text-muted-foreground" role="status">
-          {t(SCAN_LIMIT_MESSAGE)}
+          {SCAN_LIMIT_MESSAGE}
         </p>
       ) : null}
       {scan.error !== null ? (
@@ -921,7 +911,7 @@ function ProjectsSection({
           role="alert"
           className="flex items-center justify-between gap-3 pl-8 text-sm text-muted-foreground"
         >
-          <span>{t("Could not check projects again. {error}", { error: scan.error })}</span>
+          <span>Could not check projects again. {scan.error}</span>
           {retry}
         </div>
       ) : null}
@@ -933,20 +923,19 @@ function ProjectsSection({
 }
 
 function PhoneSection({ environmentId }: { readonly environmentId: EnvironmentId }) {
-  const t = useT();
   const [open, setOpen] = useState(false);
   return (
-    <WelcomeSection title={t("Phone")}>
+    <WelcomeSection title="Phone">
       <Collapsible open={open} onOpenChange={setOpen}>
         <div className="flex min-h-10 items-center gap-3 py-1">
           <RowIcon>
             <SmartphoneIcon className="size-4" />
           </RowIcon>
           <span className="min-w-0 flex-1 text-sm font-medium text-foreground">
-            {t("Use T3 Extend on your phone")}
+            Use T3 Code on your phone
           </span>
           <CollapsibleTrigger render={<Button variant="ghost-muted" size="xs" />}>
-            {open ? t("Hide") : t("Set up")}
+            {open ? "Hide" : "Set up"}
             <ChevronDownIcon className={cn("size-3.5", open && "rotate-180")} />
           </CollapsibleTrigger>
         </div>
@@ -969,7 +958,7 @@ function PhoneSection({ environmentId }: { readonly environmentId: EnvironmentId
                 size={124}
                 level="M"
                 marginSize={2}
-                title={t("T3 Extend app for iPhone and Android")}
+                title="T3 Code app for iPhone and Android"
               />
             </div>
           </div>
@@ -989,7 +978,6 @@ function PhoneStep({ step, children }: { readonly step: number; readonly childre
 }
 
 function PhoneConnectLink({ environmentId }: { readonly environmentId: EnvironmentId }) {
-  const t = useT();
   const { isLoaded, isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
   const loadFailed = useClerkLoadFailed();
   const { openAuthPrompt } = useT3ConnectAuthPrompt();
@@ -1017,12 +1005,12 @@ function PhoneConnectLink({ environmentId }: { readonly environmentId: Environme
     </Button>
   );
   if (isSignedIn && link === null && linkState.isPending) {
-    return <p className="text-sm text-muted-foreground">{t("Checking T3 Connect…")}</p>;
+    return <p className="text-sm text-muted-foreground">Checking T3 Connect…</p>;
   }
   if (isSignedIn && linkState.error !== null) {
     return (
       <>
-        <p className="text-sm text-foreground">{t("Could not check T3 Connect.")}</p>
+        <p className="text-sm text-foreground">Could not check T3 Connect.</p>
         {settingsLink("Check T3 Connect")}
       </>
     );
@@ -1031,14 +1019,14 @@ function PhoneConnectLink({ environmentId }: { readonly environmentId: Environme
     return (
       <p className="flex gap-1.5 text-sm text-foreground">
         <CheckIcon className="mt-0.5 size-4 shrink-0 text-success-foreground" />
-        {t("Your phone can reach this computer. Sign in to the app with the same account.")}
+        Your phone can reach this computer. Sign in to the app with the same account.
       </p>
     );
   }
   if (isSignedIn && shared && reachability === undefined) {
     return (
       <p className="text-sm text-foreground">
-        {t("T3 Connect is on for this computer. Sign in to the app with the same account.")}
+        T3 Connect is on for this computer. Sign in to the app with the same account.
       </p>
     );
   }
@@ -1048,8 +1036,8 @@ function PhoneConnectLink({ environmentId }: { readonly environmentId: Environme
       <>
         <p className="text-sm text-foreground">
           {shared
-            ? t("T3 Connect is on, but the app cannot reach this computer.")
-            : t("Signed in. Share this computer so the app can reach it.")}
+            ? "T3 Connect is on, but the app cannot reach this computer."
+            : "Signed in. Share this computer so the app can reach it."}
         </p>
         {settingsLink(shared ? "Check T3 Connect" : "Set up T3 Connect")}
       </>
@@ -1058,15 +1046,15 @@ function PhoneConnectLink({ environmentId }: { readonly environmentId: Environme
   return (
     <>
       <p className="text-sm text-foreground">
-        {t("Sign in to T3 Connect here, then in the app with the same account.")}
+        Sign in to T3 Connect here, then in the app with the same account.
       </p>
       {loadFailed ? (
         <Button variant="outline" size="xs" onClick={retryClerkLoad}>
-          {t("Retry sign-in")}
+          Retry sign-in
         </Button>
       ) : (
         <Button variant="outline" size="xs" disabled={!isLoaded} onClick={openAuthPrompt}>
-          {t("Sign in to T3 Connect")}
+          Sign in to T3 Connect
         </Button>
       )}
     </>
@@ -1086,7 +1074,6 @@ function OnboardingCodexSetup({
   // True asks for the CLI's install or sign-in terminal once Codex has checked the CLI.
   readonly onUseCliChange: (useCli: boolean) => void;
 }) {
-  const t = useT();
   const canManageProviders = useEnvironmentScope(environmentId, AuthProvidersManageScope);
   const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
   const persistProviderInstance = usePersistEnvironmentProviderInstanceMutation(environmentId);
@@ -1115,7 +1102,7 @@ function OnboardingCodexSetup({
           const cause = squashAtomCommandFailure(result);
           toastManager.add({
             type: "error",
-            title: t("Could not save Codex setup"),
+            title: "Could not save Codex setup",
             ...(cause instanceof Error ? { description: cause.message } : {}),
           });
         }
@@ -1176,7 +1163,6 @@ function AgentRow({
   // A row in the "Add more agents" grid: the button carries the state, so no detail line.
   readonly compact?: boolean;
 }) {
-  const t = useT();
   const name = agentName(provider);
   // Claude Code and Codex tiles show Install or Set up; other agents that are on say why not.
   const brokenMessage = isBrokenVersion(provider)
@@ -1186,7 +1172,7 @@ function AgentRow({
     state === "install"
       ? isInstallableDriver(provider.driver)
         ? null
-        : t("Not installed") // fork: interface language
+        : "Not installed"
       : compact || state === "ready" || state === "checking"
         ? null
         : state === "attention"
@@ -1218,10 +1204,10 @@ function AgentRow({
         {state === "ready" ? (
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success-foreground">
             <CheckIcon className="size-3.5" />
-            {t("Ready")}
+            Ready
           </span>
         ) : state === "checking" ? (
-          <span className="text-xs text-muted-foreground">{t("Checking…")}</span>
+          <span className="text-xs text-muted-foreground">Checking…</span>
         ) : (
           action
         )}
@@ -1239,7 +1225,6 @@ function AgentInstallTerminal({
   readonly onCommandFinished: () => void;
   readonly onClose: () => void;
 }) {
-  const t = useT();
   const { command, cwd, driver, environmentId, keybindings, providerInstanceId } = session;
   const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
   const [advancedTypography] = useLocalStorage(
@@ -1355,7 +1340,7 @@ function AgentInstallTerminal({
       <div className="flex items-center justify-between border-b border-border/60 bg-background/60 px-3 py-1.5">
         <span className="text-2xs font-medium text-muted-foreground">
           {!canOperateTerminal ? (
-            t("This connection cannot control terminals.")
+            "This connection cannot control terminals."
           ) : setupState === "writeFailed" ? (
             <>
               {interpolateNodes(t("Run {command} in this terminal."), {
@@ -1363,11 +1348,11 @@ function AgentInstallTerminal({
               })}
             </>
           ) : setupState === "ready" ? (
-            t("Review the command, then press Enter to run it.")
+            "Review the command, then press Enter to run it."
           ) : setupState === "openFailed" ? (
-            t("Could not open the setup terminal.")
+            "Could not open the setup terminal."
           ) : (
-            t("Preparing command...")
+            "Preparing command..."
           )}
         </span>
         <div className="flex items-center gap-1">
@@ -1382,11 +1367,11 @@ function AgentInstallTerminal({
                 }
               }}
             >
-              {t("Retry")}
+              Retry
             </Button>
           ) : null}
           <Button size="xs" variant="ghost-muted" onClick={onClose}>
-            {t("Close")}
+            Close
           </Button>
         </div>
       </div>
@@ -1396,7 +1381,7 @@ function AgentInstallTerminal({
             threadRef={threadRef}
             threadId={AGENT_ONBOARDING_THREAD_ID}
             terminalId={terminalId}
-            terminalLabel={t("Install {driver}", { driver })}
+            terminalLabel={`Install ${driver}`}
             cwd={cwd}
             providerInstanceId={providerInstanceId}
             advancedTypography={advancedTypography}
@@ -1689,7 +1674,6 @@ function ImportCandidateList({
   readonly selectedKeys: ReadonlySet<string>;
   readonly onSelectionChange: (next: ReadonlySet<string>) => void;
 }) {
-  const t = useT();
   const { repositories, other } = groupOnboardingProjects(candidates);
   const setKeys = (keys: ReadonlyArray<string>, checked: boolean) => {
     const next = new Set(selectedKeys);
@@ -1726,9 +1710,9 @@ function ImportCandidateList({
             />
             <CollapsibleTrigger className="group flex min-w-0 flex-1 items-center gap-1.5 text-left">
               <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-panel-open:rotate-90" />
-              <span className="truncate text-sm text-muted-foreground">{t("Other folders")}</span>
+              <span className="truncate text-sm text-muted-foreground">Other folders</span>
               <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">
-                {other.length} {other.length === 1 ? t("folder") : t("folders")}
+                {other.length} {other.length === 1 ? "folder" : "folders"}
               </span>
             </CollapsibleTrigger>
           </div>
@@ -1916,7 +1900,6 @@ function ImportRowMeta({
 
 /** The desktop app links `t3x` on a fresh install; this puts its folder on PATH when it is not. */
 function CliPathSetup() {
-  const t = useT();
   const { state, busy, run } = useDesktopCliCommand();
   const setup = state?.pathSetup;
   if (!setup) return null;
@@ -1944,7 +1927,7 @@ function CliPathSetup() {
       </p>
       {setup.added ? null : (
         <Button size="xs" variant="outline" disabled={busy} onClick={() => run("addToPath")}>
-          {t("Add to PATH")}
+          Add to PATH
         </Button>
       )}
     </div>

@@ -18,8 +18,6 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
-import { useT } from "../../hooks/useT";
-import { interpolateNodes } from "../../lib/interpolateNodes";
 
 function describeSshTarget(request: DesktopSshPasswordPromptRequest): string {
   return request.username ? `${request.username}@${request.destination}` : request.destination;
@@ -92,7 +90,6 @@ function ActiveSshPasswordPrompt({
 }: {
   readonly request: DesktopSshPasswordPromptRequest;
 }) {
-  const t = useT();
   const [password, setPassword] = useState("");
   const [isResponding, setIsResponding] = useState(false);
   const [responseError, setResponseError] = useState<string | null>(null);
@@ -166,14 +163,11 @@ function ActiveSshPasswordPrompt({
     >
       <DialogPopup className="max-w-md" initialFocus={inputRef} showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>{t("SSH verification required")}</DialogTitle>
+          <DialogTitle>SSH verification required</DialogTitle>
           <DialogDescription>
-            {interpolateNodes(
-              t(
-                "Enter the password or verification code required by {code}. T3 Extend passes your response to the local SSH process and keeps it in memory to reuse for this host. T3 Extend does not write it to disk.",
-              ),
-              { code: <code>{target}</code> },
-            )}
+            Enter the password or verification code required by <code>{target}</code>. T3 Code
+            passes your response to the local SSH process and keeps it in memory to reuse for this
+            host. T3 Code does not write it to disk.
           </DialogDescription>
         </DialogHeader>
         <DialogPanel scrollFade={false}>
@@ -196,7 +190,7 @@ function ActiveSshPasswordPrompt({
                         : "shrink-0 text-xs text-muted-foreground"
                     }
                   >
-                    {isExpired ? t("Expired") : remainingLabel}
+                    {isExpired ? "Expired" : remainingLabel}
                   </span>
                 ) : null}
               </div>
@@ -214,19 +208,18 @@ function ActiveSshPasswordPrompt({
               <p className="text-sm text-destructive">{visibleResponseError}</p>
             ) : (
               <p className="text-sm text-muted-foreground">
-                {t(
-                  "SSH keys may replace a password, but your server can still require a verification code.",
-                )}
+                SSH keys may replace a password, but your server can still require a verification
+                code.
               </p>
             )}
           </form>
         </DialogPanel>
         <DialogFooter>
           <Button disabled={isResponding} type="button" variant="outline" onClick={cancelPrompt}>
-            {isExpired ? t("Dismiss") : t("Cancel")}
+            {isExpired ? "Dismiss" : "Cancel"}
           </Button>
           <Button disabled={isResponding || isExpired} form={formId} type="submit">
-            {t("Continue")}
+            Continue
           </Button>
         </DialogFooter>
       </DialogPopup>

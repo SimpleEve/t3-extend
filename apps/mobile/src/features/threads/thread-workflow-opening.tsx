@@ -20,7 +20,6 @@ import { useMarkdownCodeHighlight } from "./markdownCodeHighlightState";
 import { SubagentRow } from "./SubagentRow";
 import { WorkLogBlock } from "./work-log-layout";
 import { useOpenLinkedThread } from "./useOpenLinkedThread";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const FOLDED_SCRIPT_LINES = 10;
 
@@ -83,7 +82,6 @@ export function ThreadWorkflowOpening(props: {
   readonly threadId: ThreadId;
   readonly opening: WorkflowOpeningValue;
 }) {
-  const t = useT();
   const openLinkedThread = useOpenLinkedThread();
   const { opening } = props;
   const headline = workflowOpeningHeadline(opening);
@@ -96,7 +94,7 @@ export function ThreadWorkflowOpening(props: {
       <Pressable
         key={member.id}
         accessibilityRole={threadId === null ? undefined : "link"}
-        accessibilityHint={threadId === null ? undefined : t("Opens this agent's thread")}
+        accessibilityHint={threadId === null ? undefined : "Opens this agent's thread"}
         disabled={threadId === null}
         onPress={() => {
           if (threadId !== null)
@@ -151,7 +149,6 @@ export function ThreadWorkflowOpening(props: {
 }
 
 function WorkflowScript(props: { readonly script: string }) {
-  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const { themeAppearance } = useAppearancePreferences();
   const script = props.script.trimEnd();
@@ -196,7 +193,7 @@ function WorkflowScript(props: { readonly script: string }) {
           className="self-start py-1 active:opacity-70"
         >
           <Text className="font-t3-medium text-xs text-foreground-muted">
-            {expanded ? t("Show less") : t("Show full script")}
+            {expanded ? "Show less" : "Show full script"}
           </Text>
         </Pressable>
       ) : null}

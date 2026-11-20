@@ -1,12 +1,10 @@
 import { View } from "react-native";
 import { Notice } from "../../components/ui/Notice";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function ComposerErrorNotice(props: {
   readonly message: string;
   readonly onDismiss: () => void;
 }) {
-  const t = useT();
   return (
     <View className="px-4 pb-3">
       <Notice
@@ -15,7 +13,7 @@ export function ComposerErrorNotice(props: {
         iconTone="danger"
         floating
         onDismiss={props.onDismiss}
-        dismissLabel={t("Dismiss error")}
+        dismissLabel="Dismiss error"
       />
     </View>
   );

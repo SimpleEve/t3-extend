@@ -7,7 +7,6 @@ import type { AppSymbolName } from "./AppSymbol";
  * environment, branch or file name, a URL) or text a screen already localized needs `verbatim`.
  */
 export interface AppBarAction {
-  readonly verbatim?: boolean; // fork: i18n
   readonly accessibilityLabel: string;
   readonly icon: AppSymbolName;
   readonly onPress: () => void;
@@ -26,7 +25,6 @@ export interface AppBarAction {
 
 export type AppBarMenuItem =
   | {
-      readonly verbatim?: boolean; // fork: i18n
       readonly id: string;
       readonly title: string;
       readonly icon?: string;
@@ -39,7 +37,6 @@ export type AppBarMenuItem =
       readonly onPress: () => void;
     }
   | {
-      readonly verbatim?: boolean; // fork: i18n
       readonly id: string;
       readonly title?: string;
       readonly icon?: string;
@@ -48,7 +45,6 @@ export type AppBarMenuItem =
     };
 
 export interface AppBarMenu {
-  readonly verbatim?: boolean; // fork: i18n
   readonly title: string;
   readonly icon: AppSymbolName;
   readonly status?: string;

@@ -15,16 +15,14 @@ import { useEnvironments } from "../../state/environments";
 import { voiceSpeechBenchmarksAtom } from "../voice-input/voiceDestination";
 import { PullRequestSearchSheet } from "../pull-requests/PullRequestSearchSheet";
 import { useVoiceModels, VoiceModelRow } from "./VoiceModelSection";
-import { useT } from "../../hooks/useT";
 
 export function SettingsVoiceModelsRouteScreen({
   route,
 }: StaticScreenProps<{ readonly environmentId: EnvironmentId }>) {
-  const t = useT();
   const { environments } = useEnvironments();
   const label =
     environments.find((environment) => environment.environmentId === route.params.environmentId)
-      ?.label ?? t("This environment");
+      ?.label ?? "This environment";
   const voice = useVoiceModels(route.params.environmentId, label);
   const benchmarks = new Map(
     (
@@ -50,10 +48,10 @@ export function SettingsVoiceModelsRouteScreen({
     );
   return (
     <PullRequestSearchSheet
-      title={t("Transcription models")}
-      placeholder={t("Search models or languages")}
-      closeAccessibilityLabel={t("Close transcription models")}
-      clearAccessibilityLabel={t("Clear model search")}
+      title="Transcription models"
+      placeholder="Search models or languages"
+      closeAccessibilityLabel="Close transcription models"
+      clearAccessibilityLabel="Clear model search"
       query={query}
       onQueryChange={setQuery}
     >
@@ -75,7 +73,7 @@ export function SettingsVoiceModelsRouteScreen({
           ListHeaderComponent={
             voice.canManage ? undefined : (
               <Text className="pb-3 text-xs text-foreground-muted">
-                {t("This connection can’t change settings on {label}.", { label })}
+                This connection can’t change settings on {label}.
               </Text>
             )
           }
@@ -95,11 +93,9 @@ export function SettingsVoiceModelsRouteScreen({
               <AppActivityIndicator className="my-8" />
             ) : (
               <EmptyState
-                title={needle ? t("No models match") : t("No transcription models")}
+                title={needle ? "No models match" : "No transcription models"}
                 detail={
-                  needle
-                    ? t("Try another name or language.")
-                    : t("{label} has no models to list.", { label })
+                  needle ? "Try another name or language." : `${label} has no models to list.`
                 }
                 variant="plain"
               />

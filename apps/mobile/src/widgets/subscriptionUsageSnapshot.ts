@@ -6,13 +6,9 @@ import {
   type LimitAccount,
   type LimitPoolWindow,
   type LimitPresentations,
-  usageWindowLabel, // fork: i18n
 } from "@t3tools/shared/usageLimits";
 
-import { translatorFor, type Translator, type UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
-
 import { providerColors } from "../features/usage/providerColors";
-import { uiFormatLocale, uiFormatOptions } from "../lib/time"; // fork: i18n
 import type { WidgetTheme } from "./widgetTheme";
 
 // fork: i18n. The widget runtime has no app module scope and no catalog, so the app sends the
@@ -97,17 +93,15 @@ export function createWidgetRefresher<Id>(refresh: (id: Id) => Promise<unknown>)
 }
 
 // Widget snapshots must not persist account emails.
-function accountName(account: LimitAccount, t: Translator) {
+function accountName(account: LimitAccount) {
   if (account.displayName && !account.displayName.includes("@")) return account.displayName;
   const email = account.email ?? account.displayName;
-  if (!email?.includes("@")) return t("Account"); // fork: i18n
+  if (!email?.includes("@")) return "Account";
   const [local = "", domain = ""] = email.split("@");
   return `${local[0] ?? ""}${domain[0] ?? ""}`.toUpperCase();
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const; // fork: i18n
-
-function clockLabel(at: number, from: number, locale: UiLocale) {
+function clockLabel(at: number, from: number) {
   const time = { hour: "numeric", minute: "2-digit" } as const;
   // fork: i18n. Hermes names weekdays in English whatever the locale, so they come from the catalog.
   const tag = uiFormatLocale(locale);
@@ -123,8 +117,7 @@ function clockLabel(at: number, from: number, locale: UiLocale) {
   );
 }
 
-function widgetAccounts(window: LimitPoolWindow, locale: UiLocale): WidgetLimitAccount[] {
-  const t = translatorFor(locale); // fork: i18n
+function widgetAccounts(window: LimitPoolWindow): WidgetLimitAccount[] {
   const seen = new Map<string, number>();
   return window.columns.map((column) => {
     // Redacted initials can collide, and the widget keys segments by name.
@@ -163,7 +156,6 @@ function subscriptionUsageProps(
   now: number,
   configuredDrivers: ReadonlySet<string>,
   maxWindowsPerProvider: number,
-  locale: UiLocale,
 ): SubscriptionUsageSnapshot {
   const t = translatorFor(locale);
   const formatDate = (at: number, options: Intl.DateTimeFormatOptions) =>
@@ -200,7 +192,7 @@ function subscriptionUsageProps(
           return {
             name,
             colors,
-            detail: t("No limits available"),
+            detail: "No limits available",
             windows: [],
             expiresAt: 0,
             totalWindows: 0,
@@ -230,10 +222,10 @@ function subscriptionUsageProps(
           name,
           colors,
           detail: !fresh
-            ? t("Open T3 to refresh")
+            ? "Open T3 to refresh"
             : pool.accounts.length > 1
-              ? t("{count} accounts · pooled", { count: String(pool.accounts.length) })
-              : t("Subscription remaining"),
+              ? `${pool.accounts.length} accounts · pooled`
+              : "Subscription remaining",
           expiresAt: fresh ? expiresAt : 0,
           totalWindows: fresh ? pool.windows.length : 0,
           windows: fresh
@@ -242,16 +234,16 @@ function subscriptionUsageProps(
                 label: usageWindowLabel(window.label, t),
                 remaining: Math.round(window.remainingPercent),
                 reset: window.resets[0]
-                  ? t(isUpcoming(window.resets[0]) ? "Next reset {time}" : "Reset {time}", {
-                      time: formatDate(window.resets[0].at, {
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      }),
-                    })
-                  : t("Reset time unavailable"),
-                accounts: widgetAccounts(window, locale),
+                  ? `${isUpcoming(window.resets[0]) ? "Next reset" : "Reset"} ${new Date(
+                      window.resets[0].at,
+                    ).toLocaleString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}`
+                  : "Reset time unavailable",
+                accounts: widgetAccounts(window),
               }))
             : [],
         };
@@ -263,7 +255,6 @@ export function buildSubscriptionUsageSnapshot(
   presentations: LimitPresentations,
   url: string,
   maxWindowsPerProvider = 6,
-  locale: UiLocale = "en", // fork: i18n
 ): SubscriptionUsageSnapshot {
   const configuredDrivers = new Set(
     [...presentations.values()].flatMap((presentation) =>

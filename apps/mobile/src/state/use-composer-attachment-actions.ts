@@ -20,14 +20,12 @@ import {
   type ComposerDraftInsertion,
 } from "./use-composer-drafts";
 import { startComposerDraftOperation } from "./composerDraftOperations";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 export function useComposerAttachmentActions(props: {
   readonly draftKey: string | null;
   readonly serverConfig: ServerConfig | null | undefined;
   readonly locked?: boolean;
 }) {
-  const t = useT(); // fork: i18n
   const reservedNames = useRef(new Map<string, Set<string>>());
   const capabilities = props.serverConfig?.environment.capabilities;
   const append = async (
@@ -74,7 +72,7 @@ export function useComposerAttachmentActions(props: {
         maxVideoBytes: capabilities?.fileAttachments?.maxUploadBytes,
       });
       report(
-        t("Could not attach photo or video"),
+        "Could not attach photo or video",
         result.error,
         await append(key, signal, result.attachments, insertion),
       );
@@ -85,7 +83,7 @@ export function useComposerAttachmentActions(props: {
     if (!key || props.locked) return;
     const maxBytes = capabilities?.fileAttachments?.maxUploadBytes;
     if (maxBytes === undefined) {
-      Dialog.alert(t("Could not attach file"), t("This server does not support file attachments."));
+      Dialog.alert("Could not attach file", "This server does not support file attachments.");
       return;
     }
     const insertion = captureComposerDraftInsertion(key);
@@ -95,7 +93,7 @@ export function useComposerAttachmentActions(props: {
         maxBytes,
       });
       report(
-        t("Could not attach file"),
+        "Could not attach file",
         result.error,
         await append(key, signal, result.files, insertion),
       );
@@ -109,14 +107,14 @@ export function useComposerAttachmentActions(props: {
       try {
         const result = await convertPastedImagesToAttachments({ uris });
         report(
-          t("Could not paste images"),
+          "Could not paste images",
           result.error,
           await append(key, signal, result.attachments, insertion),
         );
       } catch (error) {
         Dialog.alert(
-          t("Could not paste images"),
-          error instanceof Error ? error.message : t("Try again."),
+          "Could not paste images",
+          error instanceof Error ? error.message : "Try again.",
         );
       }
     });
@@ -143,11 +141,11 @@ export function useComposerAttachmentActions(props: {
           ...paste.selection,
         });
         if (rejected) await removePersistedComposerAttachmentFile(attachment.fileUri);
-        report(t("Could not attach pasted text"), null, rejected);
+        report("Could not attach pasted text", null, rejected);
       } catch (error) {
         Dialog.alert(
-          t("Could not attach pasted text"),
-          error instanceof Error ? error.message : t("Try again."),
+          "Could not attach pasted text",
+          error instanceof Error ? error.message : "Try again.",
         );
       }
     });

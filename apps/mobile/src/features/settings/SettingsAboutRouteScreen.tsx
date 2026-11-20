@@ -19,14 +19,12 @@ import {
 import { SettingsRow } from "./components/SettingsRow";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsScreen } from "./components/SettingsScreen";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function SettingsAboutRouteScreen() {
-  const t = useT();
   const insets = useSafeAreaInsets();
 
   return (
-    <SettingsScreen title={t("About")}>
+    <SettingsScreen title="About">
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
@@ -41,7 +39,6 @@ export function SettingsAboutRouteScreen() {
 }
 
 function AppSettingsSection() {
-  const t = useT();
   const [checkState, setCheckState] = useState<{
     readonly state: AppUpdateCheckState;
     // "Up to date" is a confirmation that fades back to idle.
@@ -73,7 +70,7 @@ function AppSettingsSection() {
     await settlePromise(() =>
       runAppUpdateCheck({
         applyMode: "immediate",
-        onFailure: (message) => Dialog.alert(t("Update failed"), t(message)), // fork: i18n
+        onFailure: (message) => Dialog.alert("Update failed", message),
         onStateChange: (state) =>
           setCheckState({
             state,
@@ -95,15 +92,15 @@ function AppSettingsSection() {
 
   const statusLabel =
     updateState === "checking"
-      ? t("Checking…")
+      ? "Checking…"
       : updateState === "downloading"
-        ? t("Downloading…")
+        ? "Downloading…"
         : updateState === "ready"
-          ? t("Update ready")
+          ? "Update ready"
           : updateState === "restarting"
-            ? t("Restarting…")
+            ? "Restarting…"
             : updateState === "current"
-              ? t("Up to date")
+              ? "Up to date"
               : null;
 
   const versionRow = (
@@ -115,7 +112,7 @@ function AppSettingsSection() {
         type="monochrome"
         weight="regular"
       />
-      <Text className="flex-1 text-lg text-foreground">{t("Version")}</Text>
+      <Text className="flex-1 text-lg text-foreground">Version</Text>
       <View className="items-end">
         <Text className="text-lg text-foreground-muted">{versionLabel}</Text>
         {statusLabel ? (
@@ -135,13 +132,13 @@ function AppSettingsSection() {
       <SettingsRow icon="stethoscope" label={t("Diagnostics")} target="SettingsDiagnostics" />
       <SettingsRow
         icon="doc.on.doc"
-        label={t("Open source licenses")}
+        label="Open source licenses"
         target="SettingsOpenSourceLicenses"
       />
       {/* fork: no Legal row; it opened the terms and privacy pages on upstream's t3.codes. */}
       {updateCheckAvailable ? (
         <Pressable
-          accessibilityLabel={t("Version {versionLabel}", { versionLabel })}
+          accessibilityLabel={`Version ${versionLabel}`}
           accessibilityRole="text"
           disabled={busy}
           onPress={handleVersionPress}

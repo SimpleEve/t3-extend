@@ -13,19 +13,16 @@ import { useHardwareBack } from "../../lib/backHandler";
 import { isPdfPreviewUri } from "../../lib/pdfPreview";
 import { webViewDecelerationRate } from "../../lib/webViewDecelerationRate";
 import { useContentTopInset } from "../../components/ui/useBarInset";
-import { useT } from "../../hooks/useT"; // fork: restored import
 
 export function WorkspaceFileWebPreview(props: { readonly uri: string | null }) {
-  const t = useT(); // fork: i18n
   if (props.uri === null) {
-    return <FilePreviewLoading message={t("Preparing preview...")} background="card" />;
+    return <FilePreviewLoading message="Preparing preview..." background="card" />;
   }
   return <DocumentWebPreview key={props.uri} uri={props.uri} />;
 }
 
 function DocumentWebPreview(props: { readonly uri: string }) {
   const headerInset = useContentTopInset();
-  const t = useT(); // fork: i18n
   const [loadProgress, setLoadProgress] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [linkedPdf, setLinkedPdf] = useState<string | null>(null);
@@ -50,7 +47,7 @@ function DocumentWebPreview(props: { readonly uri: string }) {
           <PdfPreview key={linkedPdf} uri={linkedPdf} />
           <SafeAreaView edges={["bottom"]} className="border-t border-border px-4 py-2">
             <ControlPill
-              label={t("Back to document")}
+              label="Back to document"
               variant="pill"
               onPress={() => setLinkedPdf(null)}
             />
@@ -88,7 +85,7 @@ function DocumentWebPreview(props: { readonly uri: string }) {
           }}
           onError={(event) => {
             setLoadProgress(0);
-            setLoadError(event.nativeEvent.description || t("The file could not be rendered."));
+            setLoadError(event.nativeEvent.description || "The file could not be rendered.");
           }}
           renderLoading={() => (
             <View className="absolute inset-0 items-center justify-center bg-card">
@@ -101,7 +98,7 @@ function DocumentWebPreview(props: { readonly uri: string }) {
           {loadProgress > 0 && loadProgress < 1 ? <LoadingStrip progress={loadProgress} /> : null}
           {loadError ? (
             <View className="border-b border-border bg-card px-4 py-2">
-              <Text className="text-xs font-t3-bold text-foreground">{t("Preview failed")}</Text>
+              <Text className="text-xs font-t3-bold text-foreground">Preview failed</Text>
               <Text className="mt-0.5 text-xs leading-snug text-foreground-muted">{loadError}</Text>
             </View>
           ) : null}

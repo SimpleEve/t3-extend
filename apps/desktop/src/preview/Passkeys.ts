@@ -1,5 +1,4 @@
 // @effect-diagnostics globalTimers:off - Ceremonies settle inside IPC handlers, outside an Effect runtime.
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 import type { IpcMainInvokeEvent, Session, WebContents, WebFrameMain } from "electron";
 import { app, BrowserWindow, dialog, webContents as electronWebContents } from "electron";
 import * as Context from "effect/Context";
@@ -54,7 +53,7 @@ const notAllowed: PasskeyCeremonyResult = { success: false, error: "NotAllowedEr
 const accountLabel = (account: Electron.WebAuthnAccount) =>
   account.displayName && account.name && account.displayName !== account.name
     ? `${account.displayName} (${account.name})`
-    : (account.name ?? account.displayName ?? translate(getUiLocale(), "Unnamed passkey"));
+    : (account.name ?? account.displayName ?? "Unnamed passkey");
 
 const ownerWindow = (frame: WebFrameMain | null) => {
   const contents = frame ? electronWebContents.fromFrame(frame) : undefined;
@@ -68,9 +67,9 @@ const chooseAccount = async (details: Electron.SelectWebauthnAccountDetails) => 
   if (details.accounts.length === 1) return onlyAccount?.credentialId;
   const options: Electron.MessageBoxOptions = {
     type: "none",
-    message: translate(getUiLocale(), "Choose a passkey"),
+    message: "Choose a passkey",
     detail: details.relyingPartyId,
-    buttons: [...details.accounts.map(accountLabel), translate(getUiLocale(), "Cancel")],
+    buttons: [...details.accounts.map(accountLabel), "Cancel"],
     cancelId: details.accounts.length,
     defaultId: 0,
     noLink: true,

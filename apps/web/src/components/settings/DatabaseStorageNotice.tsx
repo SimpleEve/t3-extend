@@ -28,7 +28,6 @@ import {
 import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 import { SettingsRow, SettingsSection } from "./settingsLayout";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 const DismissedEnvironmentIds = Schema.Array(Schema.String);
 const reclaimPermissionsAtom = environmentAtomList(
@@ -44,7 +43,6 @@ export function DatabaseStorageNotice({
 }: {
   environments: ReadonlyArray<{ readonly environmentId: EnvironmentId; readonly label: string }>;
 }) {
-  const t = useT();
   const environmentIds = environments.map((environment) => environment.environmentId);
   const recommendations = useAtomValue(
     serverEnvironment.databaseCompactionRecommendations(JSON.stringify(environmentIds)),
@@ -75,11 +73,9 @@ export function DatabaseStorageNotice({
         title="Reclaim freed database space"
         description={
           visible.every((recommendation) => recommendation.reclaimable)
-            ? t("These databases still hold space freed by history cleanup.")
-            : t(
-                "These databases still hold space freed by history cleanup. Run the command on each machine to reclaim it. It restarts the background service. Quit the desktop app first if it hosts the environment.",
-              )
-        }
+            ? ""
+            : " Run the command on each machine to reclaim it. It restarts the background service. Quit the desktop app first if it hosts the environment."
+        }`}
       />
       {visible.map(({ environmentId, status, label, reclaimable }) => {
         const dismiss = (
@@ -88,7 +84,7 @@ export function DatabaseStorageNotice({
             size="xs"
             onClick={() => setDismissed((current) => [...current, environmentId])}
           >
-            {t("Dismiss")}
+            Dismiss
           </Button>
         );
         return reclaimable ? (
@@ -102,7 +98,7 @@ export function DatabaseStorageNotice({
         ) : (
           <SettingsRow
             key={environmentId}
-            title={t("{amount} on {label}", { amount: formatGiB(status.reclaimableBytes), label })}
+            title={`${formatGiB(status.reclaimableBytes)} on ${label}`}
             description={<code className="select-text break-all">{status.compactCommand}</code>}
             control={
               <div className="flex flex-wrap items-center gap-1.5">
@@ -111,7 +107,7 @@ export function DatabaseStorageNotice({
                   size="xs"
                   onClick={() => copyToClipboard(status.compactCommand, undefined)}
                 >
-                  {t("Copy command")}
+                  Copy command
                 </Button>
                 {dismiss}
               </div>
@@ -134,7 +130,6 @@ function ReclaimRow({
   readonly status: DatabaseStorageStatus;
   readonly dismiss: ReactNode;
 }) {
-  const t = useT();
   const reclaim = useAtomCommand(serverEnvironment.reclaimDatabaseSpace);
   const [confirming, setConfirming] = useState(false);
   const [requested, setRequested] = useState(false);
@@ -149,8 +144,8 @@ function ReclaimRow({
     if (result._tag === "Success") {
       toastManager.add({
         type: "success",
-        title: t("Reclaiming {amount} on {label}", { amount, label }),
-        description: t("T3 Extend there restarts and is back in about {minutes} min.", { minutes }),
+        title: `Reclaiming ${amount} on ${label}`,
+        description: `T3 Code there restarts and is back in about ${minutes} min.`,
       });
       return;
     }
@@ -159,17 +154,17 @@ function ReclaimRow({
     const error = squashAtomCommandFailure(result);
     toastManager.add({
       type: "error",
-      title: t("Could not reclaim space on {label}", { label }),
-      description: error instanceof Error ? error.message : t("An error occurred."),
+      title: `Could not reclaim space on ${label}`,
+      description: error instanceof Error ? error.message : "An error occurred.",
     });
   };
   return (
     <SettingsRow
-      title={t("{amount} on {label}", { amount, label })}
+      title={`${amount} on ${label}`}
       description={
         status.reclaimFailure === undefined
-          ? t("Restarts T3 Extend there. It will be offline for about {minutes} min.", { minutes })
-          : t("The last attempt failed: {error}", { error: status.reclaimFailure })
+          ? `Restarts T3 Code there. It will be offline for about ${minutes} min.`
+          : `The last attempt failed: ${status.reclaimFailure}`
       }
       control={
         <div className="flex flex-wrap items-center gap-1.5">
@@ -179,14 +174,14 @@ function ReclaimRow({
             disabled={restarting}
             onClick={() => setConfirming(true)}
           >
-            {restarting ? t("Restarting…") : t("Reclaim")}
+            {restarting ? "Restarting…" : "Reclaim"}
           </Button>
           {dismiss}
           <AlertDialog open={confirming} onOpenChange={setConfirming}>
             <AlertDialogPopup>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {t("Reclaim {amount} on {label}?", { amount, label })}
+                  Reclaim {amount} on {label}?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
                   {t(

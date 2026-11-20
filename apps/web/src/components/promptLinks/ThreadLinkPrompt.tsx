@@ -6,7 +6,6 @@ import { useEffect } from "react";
 import { isThreadRoutePathname } from "../../threadRoutes";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { placeLinkedPrompt } from "./linkedPrompt";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 const handledLinkKeys = new Set<string>();
 
@@ -33,7 +32,7 @@ export function ThreadLinkPrompt({ threadRef }: { readonly threadRef: ScopedThre
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: translate(getUiLocale(), "Could not open the linked prompt"),
+            title: "Could not open the linked prompt",
             description: parsed.error,
           }),
         );

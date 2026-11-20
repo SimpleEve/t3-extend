@@ -24,7 +24,6 @@ import {
 } from "./deviceStreamSession";
 import type { DeviceHardwareButton, DeviceScreenSize } from "@t3tools/client-runtime/device/stream";
 import { observeResize } from "~/lib/observeResize";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 const NO_SESSION_ATOM = Atom.make<DeviceStreamSession | null>(null).pipe(
   Atom.withLabel("device-stream:none"),
@@ -97,7 +96,6 @@ export function DeviceStreamView(props: {
   /** The host serves only serve-sim's stream and input socket (Simlock). */
   readonly serveSimOnly?: boolean;
 }) {
-  const t = useT();
   const model = deviceModel(props.platform, props.deviceName ?? "");
   const isDuo = model?.id === "iphone-duo";
   const [presentation, setPresentation] = useState<"phone" | "flat">("phone");
@@ -234,7 +232,7 @@ export function DeviceStreamView(props: {
         : mjpegUrl
           ? "3D requires the H.264 stream"
           : props.axOverlay
-            ? t("Turn off accessibility frames to use 3D")
+            ? "Turn off accessibility frames to use 3D"
             : null;
 
   const keyboardSource = deviceKeyboard(props.platform, props.deviceName ?? "");
@@ -447,7 +445,7 @@ export function DeviceStreamView(props: {
               size="xs"
               aria-pressed={!!showPhone}
               disabled={!!phoneUnavailableReason}
-              title={phoneUnavailableReason ?? t("Show 3D phone")}
+              title={phoneUnavailableReason ?? "Show 3D phone"}
               onClick={() => setPresentation("phone")}
             >
               3D
@@ -458,7 +456,7 @@ export function DeviceStreamView(props: {
               aria-pressed={!showPhone}
               onClick={() => setPresentation("flat")}
             >
-              {t("Flat")}
+              Flat
             </Button>
           </div>
         ) : null}
@@ -475,14 +473,14 @@ export function DeviceStreamView(props: {
           // Shown only once the device has been silent for two seconds.
           <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2 transition-opacity delay-2000 duration-0 starting:opacity-0">
             <span className="rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
-              {t("Waiting for device video…")}
+              Waiting for device video…
             </span>
           </div>
         ) : null}
         {status !== "streaming" && !(retainingFrame && showPhone) ? (
           <div className="absolute inset-0">
             <DeviceLoadingView
-              name={props.deviceName ?? t("Device")}
+              name={props.deviceName ?? "Device"}
               description={props.deviceDescription ?? ""}
               stage="stream"
               message={
@@ -500,7 +498,7 @@ export function DeviceStreamView(props: {
                     session?.reconnect();
                   }}
                 >
-                  {t("Reconnect")}
+                  Reconnect
                 </Button>
               ) : null}
             </DeviceLoadingView>

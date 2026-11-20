@@ -521,8 +521,8 @@ function armAgentAwarenessLiveActivityForLocalWorkNow(input: {
     const nowIso = new Date(Date.now()).toISOString();
     const activity = startAgentLiveActivity(
       {
-        title: FORK.appBaseName,
-        subtitle: translate(getUiLocale(), "Agent work in progress"),
+        title: "T3 Code",
+        subtitle: "Agent work in progress",
         activeCount: 1,
         updatedAt: nowIso,
         activities: [
@@ -533,7 +533,7 @@ function armAgentAwarenessLiveActivityForLocalWorkNow(input: {
             threadTitle: input.threadTitle,
             modelTitle: "",
             phase: "starting",
-            status: translate(getUiLocale(), "Connecting"),
+            status: "Connecting",
             updatedAt: nowIso,
             deepLink: "/",
           },

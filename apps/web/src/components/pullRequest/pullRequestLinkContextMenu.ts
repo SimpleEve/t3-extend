@@ -29,7 +29,7 @@ function pullRequestLinkContextMenuItems(
   openLabel: string,
 ): readonly ContextMenuItem<PullRequestLinkContextMenuAction>[] {
   return [
-    { id: "copy-link", label: translate(getUiLocale(), "Copy link"), icon: "copy" }, // fork: i18n
+    { id: "copy-link", label: "Copy link", icon: "copy" },
     { id: "open-external", label: openLabel },
   ];
 }

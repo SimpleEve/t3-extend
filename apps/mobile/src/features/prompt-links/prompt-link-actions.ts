@@ -8,10 +8,9 @@ import {
   waitForComposerDraftsLoaded,
 } from "../../state/use-composer-drafts";
 import { linkedThreadDraftAction } from "./prompt-link-model";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export function showPromptLinkNotice(notice: string): void {
-  Dialog.alert(translate(getUiLocale(), "Prompt from a link"), notice);
+  Dialog.alert("Prompt from a link", notice);
 }
 
 export async function applyLinkedPromptToThreadDraft(

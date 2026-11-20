@@ -1,5 +1,3 @@
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-
 export interface ZipEntry {
   readonly path: string;
   readonly name: string;

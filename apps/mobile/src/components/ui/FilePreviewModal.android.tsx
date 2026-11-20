@@ -24,7 +24,6 @@ export type {
 import { PdfPreview } from "../PdfPreview";
 import { SheetHeader } from "./SheetHeader";
 import { AppText as Text } from "./AppText";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 function PdfDocumentPreview(props: {
   readonly source: ResolvedFilePreviewDocument;
@@ -73,15 +72,14 @@ function DocumentPreview(props: {
   readonly onRequestClose: () => void;
   readonly onOpenError?: (error: unknown) => void;
 }) {
-  const t = useT(); // fork: i18n
   const { uri, name } = props.source;
   const onRequestClose = useEffectEvent(props.onRequestClose);
   const onOpenError = useEffectEvent((error: unknown) => {
     if (props.onOpenError) props.onOpenError(error);
     else
       Dialog.alert(
-        t("Could not open document"),
-        t("A compatible viewer must be installed. Check your connection and try again."),
+        "Could not open document",
+        "A compatible viewer must be installed. Check your connection and try again.",
       );
   });
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- opens the attachment in an external viewer and aborts the open on cleanup
@@ -111,12 +109,12 @@ function DocumentPreview(props: {
     <Modal transparent animationType="fade" onRequestClose={props.onRequestClose}>
       <View className="flex-1 items-center justify-center bg-backdrop p-6">
         <View className="w-full max-w-sm gap-4 rounded-2xl bg-sheet-solid p-6">
-          <Text className="font-t3-semibold text-foreground">{t("Opening document…")}</Text>
+          <Text className="font-t3-semibold text-foreground">Opening document…</Text>
           <Text className="text-foreground-muted" numberOfLines={2}>
-            {name ?? t("Document")}
+            {name ?? "Document"}
           </Text>
           <View className="items-end">
-            <Button label={t("Cancel")} tone="text" onPress={props.onRequestClose} />
+            <Button label="Cancel" tone="text" onPress={props.onRequestClose} />
           </View>
         </View>
       </View>
@@ -132,7 +130,6 @@ type ImagePreviewProps = {
 const ImagePreviewContext = createContext<ImagePreviewProps | null>(null);
 
 function ImagePreviewHeader(header: { readonly imageIndex: number }) {
-  const t = useT();
   const props = useContext(ImagePreviewContext)!;
   const source = props.source.images[header.imageIndex];
   const insets = useSafeAreaInsets();
@@ -140,9 +137,9 @@ function ImagePreviewHeader(header: { readonly imageIndex: number }) {
   return (
     <View className="bg-black/70" style={{ paddingTop: insets.top }}>
       <MediaPreviewHeader
-        title={source?.name ?? t("Image")}
+        title={source?.name ?? "Image"}
         media={mediaActions}
-        closeAccessibilityLabel={t("Close image")}
+        closeAccessibilityLabel="Close image"
         onClose={props.onRequestClose}
       />
     </View>

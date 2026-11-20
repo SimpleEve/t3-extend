@@ -1,4 +1,3 @@
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import {
   defaultInstanceIdForDriver,
   PROVIDER_DISPLAY_NAMES,
@@ -84,7 +83,6 @@ const english = translatorFor("en");
 
 function getProviderUpdatedTitle(
   provider: Pick<ServerProvider, "driver" | "version" | "installedVersion">,
-  t: Translator,
 ): string {
   const providerName = PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver;
   const version = provider.installedVersion ?? provider.version;
@@ -108,24 +106,20 @@ export function getProviderRestartNotice(
     : null;
 }
 
-function getProviderUpdatedDescription(providerCount: number, t: Translator): string {
+function getProviderUpdatedDescription(providerCount: number): string {
   return providerCount === 1
-    ? t("New sessions will use the updated provider.")
-    : t("New sessions will use the updated providers.");
+    ? "New sessions will use the updated provider."
+    : "New sessions will use the updated providers.";
 }
 
 function getProviderFailedUpdateTitle(
   provider: Pick<ServerProvider, "driver" | "versionAdvisory">,
-  t: Translator,
 ): string {
   const providerName = PROVIDER_DISPLAY_NAMES[provider.driver] ?? provider.driver;
   const attemptedVersion = provider.versionAdvisory?.latestVersion;
   return attemptedVersion
-    ? t("{provider} {version} update failed", {
-        provider: providerName,
-        version: formatVersion(attemptedVersion),
-      })
-    : t("{provider} update failed", { provider: providerName });
+    ? `${providerName} ${formatVersion(attemptedVersion)} update failed`
+    : `${providerName} update failed`;
 }
 
 export function isProviderUpdateCandidate(
@@ -295,13 +289,10 @@ export function getProviderUpdateRunToastView(
     type: "error",
     title:
       failureLines.length < settled.length
-        ? t("{failed} of {total} provider updates failed", {
-            failed: failureLines.length,
-            total: settled.length,
-          })
+        ? `${failureLines.length} of ${settled.length} provider updates failed`
         : settled.length === 1
-          ? t("Provider update failed")
-          : t("Provider updates failed"),
+          ? "Provider update failed"
+          : "Provider updates failed",
     description: [...failureLines, ...successMessages].join("\n"),
   };
 }
@@ -352,7 +343,6 @@ function latestTerminalProvidersByDriver(providers: ReadonlyArray<ServerProvider
 export function getProviderUpdateSidebarPillView(
   providers: ReadonlyArray<ServerProvider>,
   options?: ProviderUpdateSidebarPillOptions,
-  t: Translator = english, // fork: interface language
 ): ProviderUpdateSidebarPillView | null {
   // Filter active instances before deduplicating drivers because update state is per instance.
   const activeProviders = dedupeProvidersByDriver(providers.filter(isProviderUpdateActive));
@@ -368,16 +358,12 @@ export function getProviderUpdateSidebarPillView(
       tone: "loading",
       title:
         activeProviders.length === 1
-          ? t("Updating {provider}", { provider: activeProviderName })
-          : t("Updating {count} providers", { count: activeProviders.length }),
+          ? `Updating ${activeProviderName}`
+          : `Updating ${activeProviders.length} providers`,
       description:
         activeProviders.length === 1
-          ? t("{providers} update in progress.", {
-              providers: formatProviderList(activeProviders, t),
-            })
-          : t("{providers} updates are in progress.", {
-              providers: formatProviderList(activeProviders, t),
-            }),
+          ? `${formatProviderList(activeProviders)} update in progress.`
+          : `${formatProviderList(activeProviders)} updates are in progress.`,
     };
   }
 
@@ -499,7 +485,5 @@ function getFailedProviderUpdateDescription(
       return provider.updateState.message;
     }
   }
-  return t("{providers} failed to update. Check provider settings for details.", {
-    providers: formatProviderList(providers, t),
-  });
+  return `${formatProviderList(providers)} failed to update. Check provider settings for details.`;
 }

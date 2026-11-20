@@ -19,8 +19,6 @@ import { stackedThreadToast, toastManager } from "../ui/toast";
 import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
 import { ProjectFavicon } from "../ProjectFavicon";
-import { useT } from "../../hooks/useT";
-import { verbatim } from "~/fork/verbatim"; // fork: i18n
 
 import { useRef, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
@@ -32,7 +30,6 @@ const ARCHIVE_ACTIONS = [
 type ArchiveAction = (typeof ARCHIVE_ACTIONS)[number]["action"];
 
 export function ArchivedThreadsPanel() {
-  const t = useT();
   const { scope, groups: projectGroups, environments } = useSettingsScope();
   const { unarchiveThread, confirmAndDeleteThread } = useThreadActions();
   const pendingActionsRef = useRef(new Set<string>());
@@ -145,7 +142,7 @@ export function ArchivedThreadsPanel() {
       stackedThreadToast({
         type: "error",
         title,
-        description: error instanceof Error ? error.message : t("An error occurred."),
+        description: error instanceof Error ? error.message : "An error occurred.",
       }),
     );
   };
@@ -181,7 +178,7 @@ export function ArchivedThreadsPanel() {
       const clicked = await readLocalApi()?.contextMenu.show(
         ARCHIVE_ACTIONS.map(({ action, label }) => ({
           id: action,
-          label: t(label),
+          label,
           destructive: action === "delete",
         })),
         position,
@@ -189,7 +186,7 @@ export function ArchivedThreadsPanel() {
       if (clicked === "unarchive" || clicked === "delete")
         await handleThreadAction(clicked, thread);
     });
-    reportFailure(result, t("Archived thread action failed"));
+    reportFailure(result, "Archived thread action failed");
   };
 
   return (
@@ -208,16 +205,16 @@ export function ArchivedThreadsPanel() {
                   <ArchiveIcon className="size-3.5 text-muted-foreground" />
                 )}
                 {isLoadingArchive
-                  ? t("Loading archived threads")
+                  ? "Loading archived threads"
                   : archiveError
-                    ? t("Could not load archived threads")
-                    : t("No archived threads")}
+                    ? "Could not load archived threads"
+                    : "No archived threads"}
               </span>
             }
             description={
               isLoadingArchive
-                ? t("Checking connected environments.")
-                : (archiveError ?? t("Archived threads will appear here."))
+                ? "Checking connected environments."
+                : (archiveError ?? "Archived threads will appear here.")
             }
           />
         </SettingsSection>
@@ -226,7 +223,7 @@ export function ArchivedThreadsPanel() {
           <SettingsSection
             key={key}
             id={index === 0 ? searchableSetting("archive").id : undefined}
-            title={verbatim(title)}
+            title={title}
             icon={<ProjectFavicon project={project} />}
           >
             {projectThreads.map((thread) => {
@@ -238,7 +235,7 @@ export function ArchivedThreadsPanel() {
                     event.preventDefault();
                     void handleContextMenu(thread, { x: event.clientX, y: event.clientY });
                   }}
-                  title={verbatim(thread.title)}
+                  title={thread.title}
                   description={
                     <span className={hasMultipleEnvironments ? "block truncate" : undefined}>
                       {hasMultipleEnvironments ? `${thread.environmentLabel} · ` : null}
@@ -270,7 +267,7 @@ export function ArchivedThreadsPanel() {
                           >
                             <Icon className="size-3.5" />
                           </TooltipTrigger>
-                          <TooltipPopup>{t(label)}</TooltipPopup>
+                          <TooltipPopup>{label}</TooltipPopup>
                         </Tooltip>
                       ))}
                     </div>

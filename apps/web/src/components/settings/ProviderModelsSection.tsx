@@ -17,7 +17,6 @@ import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { CustomModelEditor } from "./CustomModelEditor";
-import { useT } from "../../hooks/useT";
 
 const CUSTOM_MODEL_PLACEHOLDER_BY_KIND: Partial<Record<ProviderDriverKind, string>> = {
   [ProviderDriverKind.make("codex")]: "gpt-6.7-codex-ultra-preview",
@@ -138,7 +137,6 @@ export function ProviderModelsSection({
   onToggleFavorite,
   onModelOrderChange,
 }: ProviderModelsSectionProps) {
-  const t = useT();
   const [input, setInput] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -339,11 +337,11 @@ export function ProviderModelsSection({
           <Input
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
-            placeholder={t("Filter models")}
+            placeholder="Filter models"
             size="sm"
             className="w-56 max-w-full"
             spellCheck={false}
-            aria-label={t("Filter models")}
+            aria-label="Filter models"
           />
         ) : null}
         <div className="flex items-center gap-2">
@@ -359,17 +357,17 @@ export function ProviderModelsSection({
                 )
               }
             >
-              {allBuiltInModelsHidden ? t("Enable all") : t("Disable all")}
+              {allBuiltInModelsHidden ? "Enable all" : "Disable all"}
             </Button>
           ) : null}
           <span className="text-xs text-muted-foreground">
-            {models.length === 1 ? t("1 model") : t("{count} models", { count: models.length })}
+            {models.length} model{models.length === 1 ? "" : "s"}
             {favoriteCount > 0
               ? favoriteCount === 1
                 ? t(" · 1 favorite")
                 : t(" · {count} favorites", { count: favoriteCount })
               : ""}
-            {hiddenCount > 0 ? t(" · {hiddenCount} hidden", { hiddenCount }) : ""}
+            {hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ""}
           </span>
         </div>
         {driverKind !== "antigravity" && !isAdding ? (
@@ -382,7 +380,7 @@ export function ProviderModelsSection({
             onClick={() => setIsAdding(true)}
           >
             <PlusIcon className="size-3" />
-            {t("Add custom model")}
+            Add custom model
           </Button>
         ) : null}
       </div>
@@ -392,7 +390,7 @@ export function ProviderModelsSection({
       >
         {visibleModels.length === 0 ? (
           <p className="px-2 py-2 text-xs text-muted-foreground">
-            {isFiltering ? t("No models match.") : t("No models reported for this provider yet.")}
+            {isFiltering ? "No models match." : "No models reported for this provider yet."}
           </p>
         ) : null}
         {visibleModels.map((model, index) => {
@@ -464,10 +462,10 @@ export function ProviderModelsSection({
           />
           <div className="flex shrink-0 gap-2">
             <Button size="sm" variant="outline" disabled={isSaving} onClick={handleAdd}>
-              {t("Add")}
+              Add
             </Button>
             <Button size="sm" variant="ghost" onClick={cancelAdd}>
-              {t("Cancel")}
+              Cancel
             </Button>
           </div>
         </div>
@@ -511,7 +509,6 @@ const ProviderModelRow = memo(function ProviderModelRow({
   readonly onToggleEdit: (slug: string) => void;
   readonly onRemove: (slug: string) => void;
 }) {
-  const t = useT();
   const capLabels = describeModelCapabilities(model, flagMissingReasoning);
   const nameClassName = cn("text-xs", isHidden ? "text-muted-foreground" : "text-foreground/90");
   const pickerTooltip = model.isCustom
@@ -547,7 +544,7 @@ const ProviderModelRow = memo(function ProviderModelRow({
           <StarIcon className={cn("size-3", isFavorite && "fill-current text-warning")} />
         </TooltipTrigger>
         <TooltipPopup side="top">
-          {isFavorite ? t("Remove from favorites") : t("Add to favorites")}
+          {isFavorite ? "Remove from favorites" : "Add to favorites"}
         </TooltipPopup>
       </Tooltip>
       <span className="flex min-w-0 items-baseline gap-2">
@@ -572,12 +569,12 @@ const ProviderModelRow = memo(function ProviderModelRow({
           </TooltipPopup>
         </Tooltip>
         {model.isCustom ? (
-          <span className="shrink-0 text-2xs text-muted-foreground/70">{t("custom")}</span>
+          <span className="shrink-0 text-2xs text-muted-foreground/70">custom</span>
         ) : null}
       </span>
       <span className="text-2xs text-muted-foreground/70">
         {capLabels.length > 0 ? (
-          <span className="hidden sm:inline">{capLabels.map((label) => t(label)).join(" · ")}</span>
+          <span className="hidden sm:inline">{capLabels.join(" · ")}</span>
         ) : null}
       </span>
       <span className="flex shrink-0 items-center justify-end gap-0.5">
@@ -591,13 +588,13 @@ const ProviderModelRow = memo(function ProviderModelRow({
                     variant="ghost-muted"
                     disabled={!canWritePreferences || !canMoveUp}
                     onClick={() => onMove(model.slug, -1)}
-                    aria-label={t("Move {name} up", { name: model.name })}
+                    aria-label={`Move ${model.name} up`}
                   />
                 }
               >
                 <ArrowUpIcon className="size-3" />
               </TooltipTrigger>
-              <TooltipPopup side="top">{t("Move up")}</TooltipPopup>
+              <TooltipPopup side="top">Move up</TooltipPopup>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger
@@ -607,13 +604,13 @@ const ProviderModelRow = memo(function ProviderModelRow({
                     variant="ghost-muted"
                     disabled={!canWritePreferences || !canMoveDown}
                     onClick={() => onMove(model.slug, 1)}
-                    aria-label={t("Move {name} down", { name: model.name })}
+                    aria-label={`Move ${model.name} down`}
                   />
                 }
               >
                 <ArrowDownIcon className="size-3" />
               </TooltipTrigger>
-              <TooltipPopup side="top">{t("Move down")}</TooltipPopup>
+              <TooltipPopup side="top">Move down</TooltipPopup>
             </Tooltip>
           </>
         ) : null}
@@ -626,14 +623,14 @@ const ProviderModelRow = memo(function ProviderModelRow({
                     size="icon-micro"
                     variant="ghost-muted"
                     disabled={!canManageCustomModels}
-                    aria-label={t("Edit {slug}", { slug: model.slug })}
+                    aria-label={`Edit ${model.slug}`}
                     onClick={() => onToggleEdit(model.slug)}
                   />
                 }
               >
                 <PencilIcon className="size-3" />
               </TooltipTrigger>
-              <TooltipPopup side="top">{t("Edit name and options")}</TooltipPopup>
+              <TooltipPopup side="top">Edit name and options</TooltipPopup>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger
@@ -642,14 +639,14 @@ const ProviderModelRow = memo(function ProviderModelRow({
                     size="icon-micro"
                     variant="ghost-muted"
                     disabled={!canManageCustomModels}
-                    aria-label={t("Remove {slug}", { slug: model.slug })}
+                    aria-label={`Remove ${model.slug}`}
                     onClick={() => onRemove(model.slug)}
                   />
                 }
               >
                 <XIcon className="size-3" />
               </TooltipTrigger>
-              <TooltipPopup side="top">{t("Remove custom model")}</TooltipPopup>
+              <TooltipPopup side="top">Remove custom model</TooltipPopup>
             </Tooltip>
           </>
         ) : null}
@@ -662,10 +659,10 @@ const ProviderModelRow = memo(function ProviderModelRow({
             checked={!isHidden}
             disabled={!canWritePreferences || model.isCustom}
             onCheckedChange={(checked) => onSetHidden(model.slug, !checked)}
-            aria-label={t("Show {name} in the model picker", { name: model.name })}
+            aria-label={`Show ${model.name} in the model picker`}
           />
         </TooltipTrigger>
-        <TooltipPopup side="top">{t(pickerTooltip)}</TooltipPopup>
+        <TooltipPopup side="top">{pickerTooltip}</TooltipPopup>
       </Tooltip>
     </div>
   );

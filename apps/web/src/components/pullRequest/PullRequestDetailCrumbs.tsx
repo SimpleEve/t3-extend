@@ -36,7 +36,6 @@ const ROW_CLASS_NAME =
   "col-start-1 row-start-1 flex min-w-0 items-center gap-1 text-sm text-muted-foreground transition-[opacity,transform] ease-out motion-reduce:transform-none motion-reduce:transition-none sm:text-xs";
 
 function BackButton({ onBack, focusable }: { onBack: () => void; focusable: boolean }) {
-  const t = useT();
   return (
     <Tooltip>
       <TooltipTrigger
@@ -47,13 +46,13 @@ function BackButton({ onBack, focusable }: { onBack: () => void; focusable: bool
             {...(focusable ? {} : { tabIndex: -1 })}
             onClick={onBack}
             className="-ml-1.5"
-            aria-label={t("Back to this thread's pull requests")}
+            aria-label="Back to this thread's pull requests"
           >
             <ArrowLeftIcon aria-hidden className="size-3.5" />
           </Button>
         }
       />
-      <TooltipPopup side="top">{t("Back to pull requests")}</TooltipPopup>
+      <TooltipPopup side="top">Back to pull requests</TooltipPopup>
     </Tooltip>
   );
 }
@@ -69,7 +68,6 @@ function NumberLink({
   openOnHostText: string;
   focusable: boolean;
 }) {
-  const t = useT();
   return (
     <Tooltip>
       <TooltipTrigger
@@ -123,7 +121,6 @@ export function PullRequestDetailCrumbs({
   openOnHostText: string;
   onBack: (() => void) | undefined;
 }) {
-  const t = useT();
   const ready = detail !== null && toneClassName !== null;
   return (
     <div className="pl-4 grid h-7 min-w-0 items-center overflow-hidden">

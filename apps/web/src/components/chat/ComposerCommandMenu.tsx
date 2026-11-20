@@ -36,7 +36,6 @@ import { PierreEntryIcon } from "./PierreEntryIcon";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
 import { ComposerBanner } from "./ComposerBanner";
 import { resolvePullRequestState } from "../pullRequest/pullRequestPresentation";
-import { useT } from "~/hooks/useT";
 
 export type ComposerCommandItem =
   | {
@@ -117,7 +116,6 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
   onHighlightedItemChange: (itemId: string | null) => void;
   onSelect: (item: ComposerCommandItem) => void;
 }) {
-  const t = useT();
   const listRef = useRef<HTMLDivElement>(null);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls the highlighted menu item's DOM node into view
@@ -172,16 +170,16 @@ export const ComposerCommandMenu = memo(function ComposerCommandMenu(props: {
             <p className="text-secondary-label text-xs">
               {props.isLoading
                 ? props.triggerKind === "skill" || props.triggerKind === "slash-command"
-                  ? t("Searching workspace skills...")
+                  ? "Searching workspace skills..."
                   : props.triggerKind === "pull-request"
-                    ? t("Finding pull request...")
-                    : t("Searching workspace files...")
+                    ? "Finding pull request..."
+                    : "Searching workspace files..."
                 : (props.emptyStateText ??
                   (props.triggerKind === "skill"
-                    ? t("No skills found. Try / to browse provider commands.")
+                    ? "No skills found. Try / to browse provider commands."
                     : props.triggerKind === "path"
-                      ? t("No matching files or folders.")
-                      : t("No matching command.")))}
+                      ? "No matching files or folders."
+                      : "No matching command."))}
             </p>
           </div>
         )}
@@ -333,13 +331,12 @@ const SKILL_SOURCE_LABEL_BY_KIND: Record<ProviderSkillSourceKind, string> = {
 };
 
 function SkillSourceBadge(props: { kind: ProviderSkillSourceKind; showSkillSuffix: boolean }) {
-  const t = useT();
   const Icon = SKILL_SOURCE_ICON_BY_KIND[props.kind];
-  const source = t(SKILL_SOURCE_LABEL_BY_KIND[props.kind], undefined, "skill source");
   return (
     <Badge className="ms-auto" variant="secondary">
       <Icon aria-hidden="true" className="text-current" />
-      {props.showSkillSuffix ? t("{source} Skill", { source }) : source}
+      {SKILL_SOURCE_LABEL_BY_KIND[props.kind]}
+      {props.showSkillSuffix ? " Skill" : null}
     </Badge>
   );
 }

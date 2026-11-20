@@ -16,8 +16,6 @@ import { Button } from "../ui/button";
 import { AddUsageLimitSourceDialog } from "./AddUsageLimitSourceDialog";
 import { searchableSetting } from "./settingsSearch";
 import { SettingsRow, SettingsSection } from "./settingsLayout";
-import { useT } from "../../hooks/useT";
-import { verbatim } from "~/fork/verbatim"; // fork: i18n
 
 export function UsageProviderSettings({
   environmentId,
@@ -30,7 +28,6 @@ export function UsageProviderSettings({
   readonly sources: UnifiedSettings["usageLimitSources"];
   readonly readOnly: boolean;
 }) {
-  const t = useT();
   const updateSettings = useUpdateEnvironmentSettings(environmentId);
   const [adding, setAdding] = useState(false);
   const entries = Object.entries(sources);
@@ -43,7 +40,7 @@ export function UsageProviderSettings({
           !readOnly ? (
             <Button size="xs" variant="outline" onClick={() => setAdding(true)}>
               <PlusIcon className="size-3" aria-hidden />
-              {t("Add hub")}
+              Add hub
             </Button>
           ) : null
         }
@@ -56,11 +53,10 @@ export function UsageProviderSettings({
             return (
               <SettingsRow
                 key={id}
-                title={verbatim(label)}
+                title={label}
                 description={
                   <span className="break-all">
-                    {t("CLI Proxy")}
-                    {source.enabled ? "" : t(" · Disabled")}
+                    CLI Proxy{source.enabled ? "" : " · Disabled"}
                     {label !== source.url ? ` · ${source.url}` : ""}
                   </span>
                 }
@@ -97,25 +93,24 @@ function RemoveUsageProviderButton({
   readonly label: string;
   readonly onConfirm: () => void;
 }) {
-  const t = useT();
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button size="xs" variant="ghost" onClick={() => setOpen(true)}>
-        {t("Remove")}
+        Remove
       </Button>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogPopup>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("Remove {label}?", { label })}</AlertDialogTitle>
+            <AlertDialogTitle>Remove {label}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {t(
-                "The hub's management key is deleted from this server. Its accounts leave the Limits view; the hub itself is untouched. Add it again with the URL and key to bring them back.",
-              )}
+              The hub's management key is deleted from this server. Its accounts leave the Limits
+              view; the hub itself is untouched. Add it again with the URL and key to bring them
+              back.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose render={<Button variant="outline" />}>{t("Cancel")}</AlertDialogClose>
+            <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
             <Button
               variant="destructive"
               onClick={() => {
@@ -123,7 +118,7 @@ function RemoveUsageProviderButton({
                 onConfirm();
               }}
             >
-              {t("Remove hub")}
+              Remove hub
             </Button>
           </AlertDialogFooter>
         </AlertDialogPopup>

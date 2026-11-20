@@ -6,7 +6,6 @@ import { AppText as Text } from "../../../components/ui/AppText";
 import { ThemedSwitch } from "../../../components/ui/ThemedSwitch";
 import { cn } from "../../../lib/cn";
 import { ConnectionStatusDot } from "../../connection/ConnectionStatusDot";
-import { useT } from "../../../hooks/useT"; // fork: i18n
 
 /**
  * One integration in a settings list: its mark with a status dot, what state it is in, an
@@ -28,7 +27,6 @@ export function SettingsProviderRow(props: {
     readonly onValueChange: (value: boolean) => void;
   };
 }) {
-  const t = useT(); // fork: i18n
   const summary = (
     <View className="min-w-0 flex-1 gap-0.5">
       <View className="flex-row items-center gap-2 overflow-hidden">
@@ -70,7 +68,7 @@ export function SettingsProviderRow(props: {
         <Pressable
           className="min-w-0 flex-1 active:opacity-70"
           accessibilityRole="button"
-          accessibilityLabel={t("Manage {label}", { label: props.label })}
+          accessibilityLabel={`Manage ${props.label}`}
           accessibilityHint={props.description}
           onPress={props.onPress}
         >

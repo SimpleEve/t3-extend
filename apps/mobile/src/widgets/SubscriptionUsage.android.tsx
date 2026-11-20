@@ -60,7 +60,6 @@ export function SubscriptionUsage(props: SubscriptionUsageProps, environment: Wi
         track: material.surfaceVariant,
         error: material.error,
       };
-  const connect = text("connect", "Open T3 to connect"); // fork: i18n
   const providers = props.providers ?? [
     { name: "Codex", detail: connect, windows: [], expiresAt: 0, totalWindows: 0 },
     { name: "Claude", detail: connect, windows: [], expiresAt: 0, totalWindows: 0 },
@@ -90,7 +89,7 @@ export function SubscriptionUsage(props: SubscriptionUsageProps, environment: Wi
         {
           type: "note",
           provider: provider.name,
-          text: stale ? text("refresh", "Open T3 to refresh") : provider.detail, // fork: i18n
+          text: stale ? "Open T3 to refresh" : provider.detail,
         },
       ];
     return [...provider.windows]

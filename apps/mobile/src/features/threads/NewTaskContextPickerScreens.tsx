@@ -49,9 +49,6 @@ import {
   useConnectionDiagnosis,
 } from "../connection/ConnectionDiagnosisDetails";
 import { environmentStatusText } from "../connection/environmentStatusText";
-import { useT } from "../../hooks/useT"; // fork: i18n
-import { getUiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { uiFormatLocale, uiFormatOptions } from "../../lib/time"; // fork: i18n
 
 const BRANCH_SEARCH_DEBOUNCE_MS = 150;
 
@@ -63,7 +60,6 @@ function EnvironmentPickerRow(props: {
   isLast: boolean;
   onPress: () => void;
 }) {
-  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const { presentation } = useEnvironmentPresentation(props.environmentId);
   const { diagnosis, state } = useConnectionDiagnosis(props.environmentId, presentation);
@@ -71,7 +67,7 @@ function EnvironmentPickerRow(props: {
   const connection = presentation?.connection;
   const status =
     diagnosis?.headline ??
-    (connection ? environmentStatusText({ ...connection, error: null }, t) : t("Offline"));
+    (connection ? environmentStatusText({ ...connection, error: null }) : "Offline");
   return (
     <View className={cn("bg-grouped-card", !props.isLast && "border-b border-border-subtle")}>
       <View className="flex-row items-center">
@@ -130,17 +126,12 @@ function EnvironmentPickerRow(props: {
           )}
           {state.retryAt ? (
             <Text className="text-sm text-foreground-muted">
-              {t("Next reconnect at {time}", {
-                time: new Date(state.retryAt).toLocaleTimeString(
-                  uiFormatLocale(getUiLocale()),
-                  uiFormatOptions(getUiLocale()),
-                ),
-              })}
+              Next reconnect at {new Date(state.retryAt).toLocaleTimeString()}
             </Text>
           ) : null}
           {connection?.phase !== "connected" ? (
             <Button
-              label={t("Reconnect now")}
+              label="Reconnect now"
               onPress={() => onReconnectEnvironment(props.environmentId)}
             />
           ) : null}
@@ -190,13 +181,12 @@ function PickerSurface(props: { readonly children: ReactNode }) {
 }
 
 export function NewTaskEnvironmentPickerRouteScreen() {
-  const t = useT();
   const flow = useNewTaskFlow();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   return (
     <View className="flex-1 bg-sheet" collapsable={false}>
-      <AppBar title={t("Environment")} hideBottomBorder onBack={() => navigation.goBack()} />
+      <AppBar title="Environment" hideBottomBorder onBack={() => navigation.goBack()} />
       <ScreenContent>
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
@@ -232,7 +222,6 @@ export function NewTaskEnvironmentPickerRouteScreen() {
 }
 
 export function NewTaskBranchPickerRouteScreen() {
-  const t = useT();
   const flow = useNewTaskFlow();
   const canWriteSourceControl = useEnvironmentScope(
     flow.selectedProject?.environmentId ?? null,
@@ -296,8 +285,8 @@ export function NewTaskBranchPickerRouteScreen() {
       if (navigation.isFocused() && !isAtomCommandInterrupted(result)) {
         const error = squashAtomCommandFailure(result);
         Dialog.alert(
-          t("Could not switch branch"),
-          error instanceof Error ? error.message : t("The branch could not be checked out."),
+          "Could not switch branch",
+          error instanceof Error ? error.message : "The branch could not be checked out.",
         );
       }
       return;
@@ -315,7 +304,7 @@ export function NewTaskBranchPickerRouteScreen() {
 
   return (
     <BranchPickerScreen
-      title={flow.workspaceMode === "worktree" ? t("Base branch") : t("Branch")}
+      title={flow.workspaceMode === "worktree" ? "Base branch" : "Branch"}
       project={flow.selectedProject}
       branches={filterNewTaskBranches(branchState.refs, branchQuery)}
       selectedBranchName={
@@ -366,7 +355,6 @@ export function BranchPickerScreen(props: {
     readonly onChangeStartFromOrigin: (value: boolean) => void;
   };
 }) {
-  const t = useT();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const search: AppBarSearch = {
@@ -415,7 +403,7 @@ export function BranchPickerScreen(props: {
     >
       <ToggleRow
         onValueChange={props.worktree.onChangeStartFromOrigin}
-        title={t("Start from remote")}
+        title="Start from remote"
         value={props.worktree.startFromOrigin}
       />
     </View>
@@ -440,16 +428,16 @@ export function BranchPickerScreen(props: {
           {props.loading ? <AppActivityIndicator /> : null}
           <Text className="text-center text-sm text-foreground-muted">
             {props.loading
-              ? t("Loading branches…")
+              ? "Loading branches…"
               : props.error
                 ? props.error
                 : props.query
-                  ? t("No matching branches")
-                  : t("No branches available")}
+                  ? "No matching branches"
+                  : "No branches available"}
           </Text>
           {!props.loading && props.error ? (
             <View className="self-center">
-              <Button label={t("Try again")} tone="secondary" onPress={props.onRefresh} />
+              <Button label="Try again" tone="secondary" onPress={props.onRefresh} />
             </View>
           ) : null}
         </View>

@@ -9,7 +9,6 @@ import {
   parseMcpApprovalCode,
 } from "@t3tools/contracts";
 import { Radio as RadioPrimitive } from "@base-ui/react/radio";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import { isLoopbackHost } from "@t3tools/shared/preview";
 import { EyeIcon, type LucideIcon } from "lucide-react";
 import type * as Context from "effect/Context";
@@ -32,8 +31,6 @@ import { Input } from "../ui/input";
 import { RadioGroup } from "../ui/radio-group";
 import { Spinner } from "../ui/spinner";
 import { StandalonePage, StandalonePageHeader } from "../ui/standalone-page";
-import { useT } from "../../hooks/useT";
-import { interpolateNodes } from "../../lib/interpolateNodes";
 
 export const accessConfig: Record<
   AuthMcpClientAccess,
@@ -148,7 +145,6 @@ export function McpConsent({
   readonly environmentLabel?: string | undefined;
   readonly footer?: ReactNode;
 }) {
-  const t = useT();
   const [loaded, setLoaded] = useState<Loaded>({ status: "loading" });
   const [requestedAccess, setAccess] = useState<AuthMcpClientAccess | null>(null);
   const [pairingCode, setPairingCode] = useState("");
@@ -228,8 +224,8 @@ export function McpConsent({
     return (
       <StandalonePage>
         <ConnectAgentHeading
-          title={t("Checking the sign-in request")}
-          description={t("One moment while this environment verifies the agent's request.")}
+          title="Checking the sign-in request"
+          description="One moment while this environment verifies the agent's request."
         />
         <Spinner className="mt-6" size="lg" tone="muted" />
       </StandalonePage>
@@ -244,7 +240,7 @@ export function McpConsent({
           description={t(loaded.message)}
         />
         <p className="mt-4 text-sm text-muted-foreground">
-          {t("Close this page and start the sign-in again from your agent.")}
+          Close this page and start the sign-in again from your agent.
         </p>
         {footer}
       </StandalonePage>
@@ -264,7 +260,7 @@ export function McpConsent({
   return (
     <StandalonePage>
       <ConnectAgentHeading
-        title={t("Connect {clientName}", { clientName: details.clientName })}
+        title={`Connect ${details.clientName}`}
         description={
           <>
             {interpolateNodes(
@@ -284,23 +280,23 @@ export function McpConsent({
         }
       />
       <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
-        <dt className="text-muted-foreground">{t("App")}</dt>
+        <dt className="text-muted-foreground">App</dt>
         <dd className="min-w-0 break-words">
           {details.clientName}{" "}
           <span className="text-muted-foreground">{t("· name set by the app")}</span>
         </dd>
-        <dt className="text-muted-foreground">{t("Access goes to")}</dt>
+        <dt className="text-muted-foreground">Access goes to</dt>
         <dd className="min-w-0 break-words font-medium">
           {details.redirectHost}
           {redirectsToThisComputer(details.redirectHost) ? (
             <span className="font-normal text-muted-foreground">
               {" "}
-              {t("on the computer that opened this page")}
+              on the computer that opened this page
             </span>
           ) : (
             <span className="font-normal text-muted-foreground">
               {" "}
-              {t("· whoever runs it gets this access")}
+              · whoever runs it gets this access
             </span>
           )}
         </dd>
@@ -319,7 +315,7 @@ export function McpConsent({
         {acceptsCode ? (
           <div className="space-y-2">
             <label className="text-sm font-medium" htmlFor="connect-agent-pairing-code">
-              {t("Sign-in code")}
+              Sign-in code
             </label>
             <Input
               id="connect-agent-pairing-code"
@@ -329,7 +325,7 @@ export function McpConsent({
               disabled={pending !== null}
               nativeInput
               onChange={(event) => setPairingCode(event.currentTarget.value)}
-              placeholder={t("Paste a code")}
+              placeholder="Paste a code"
               spellCheck={false}
               value={pairingCode}
             />
@@ -347,13 +343,13 @@ export function McpConsent({
 
         {codeAccess ? (
           <p className="text-sm">
-            <span className="text-muted-foreground">{t("Access")}</span>{" "}
+            <span className="text-muted-foreground">Access</span>{" "}
             <span className="font-medium">{accessConfig[codeAccess].label}</span>
           </p>
         ) : (
           <div className="space-y-2">
             <span id="connect-agent-access-label" className="text-sm font-medium">
-              {t("What it may do")}
+              What it may do
             </span>
             <RadioGroup
               aria-labelledby="connect-agent-access-label"
@@ -370,9 +366,8 @@ export function McpConsent({
               ))}
             </RadioGroup>
             <p className="text-xs text-muted-foreground">
-              {t(
-                "Beyond read only, it can start, message and stop threads, and none of them can run with more than the mode you pick.",
-              )}
+              Beyond read only, it can start, message and stop threads, and none of them can run
+              with more than the mode you pick.
             </p>
           </div>
         )}
@@ -386,10 +381,10 @@ export function McpConsent({
         <div className="flex flex-wrap gap-2">
           <Button disabled={!canApprove} type="submit">
             {pending === "approve"
-              ? t("Approving…")
+              ? "Approving…"
               : approveLevel === null
-                ? t("Choose what it may do")
-                : t("Approve {access}", { access: t(accessConfig[approveLevel].label) })}
+                ? "Choose what it may do"
+                : `Approve ${accessConfig[approveLevel].label}`}
           </Button>
           <Button
             disabled={pending !== null}
@@ -397,7 +392,7 @@ export function McpConsent({
             type="button"
             variant="outline"
           >
-            {pending === "deny" ? t("Denying…") : t("Deny")}
+            {pending === "deny" ? "Denying…" : "Deny"}
           </Button>
         </div>
       </form>
@@ -445,7 +440,6 @@ export function AccessOption({
   readonly disabledReason: string | undefined;
   readonly description?: string | null;
 }) {
-  const t = useT();
   const { label, icon: Icon } = accessConfig[access];
   const detail =
     disabledReason ??
@@ -470,7 +464,7 @@ export function AccessOption({
         )}
       />
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-foreground">{t(label)}</span>
+        <span className="block text-sm font-medium text-foreground">{label}</span>
         {detail === null ? null : (
           <span className="block text-xs text-muted-foreground">{detail}</span>
         )}

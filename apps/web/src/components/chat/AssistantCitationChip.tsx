@@ -31,7 +31,6 @@ import { resolveAssistantCitationCommentDismissal } from "./assistantCitationCom
 import { observeAssistantCitationCommentSource } from "./AssistantCitationSource";
 import { composerFloatingLayerProps } from "./composerEventScope";
 import { textDirection } from "~/textDirection";
-import { useT } from "~/hooks/useT";
 
 function useCitationSourceLinkProps(citation: AssistantCitation) {
   const navigate = useNavigate();
@@ -123,7 +122,6 @@ export function AssistantCitationEmbed({
   leading: boolean;
   trailing: boolean;
 }) {
-  const t = useT();
   const wholeResponse = citation.prefix === "" && citation.suffix === "";
   const { comment, ...quoted } = citation;
   return (
@@ -131,7 +129,7 @@ export function AssistantCitationEmbed({
       citation={citation}
       copyMarkdown={serializeAssistantCitation(citation)}
       cardCopyMarkdown={serializeAssistantCitation(quoted)}
-      label={t("Go to quoted response: {label}", { label: assistantCitationLabel(quoted) })}
+      label={`Go to quoted response: ${assistantCitationLabel(quoted)}`}
       comment={comment}
       leading={leading}
       trailing={trailing}
@@ -164,12 +162,11 @@ export function ResponseReplyCard({
   leading: boolean;
   trailing: boolean;
 }) {
-  const t = useT();
   return (
     <ResponseCard
       citation={record.citation}
       copyMarkdown={copyMarkdown}
-      label={t("Go to the response this replies to: {label}", { label: record.label })}
+      label={`Go to the response this replies to: ${record.label}`}
       title={record.subagents?.map((subagent) => subagent.title).join(", ")}
       preview={flat(record.citation.text)}
       leading={leading}
@@ -195,7 +192,6 @@ export function AssistantCitationChip({
     onRestoreFocus?: () => void;
   };
 }) {
-  const t = useT();
   const sourceLinkProps = useCitationSourceLinkProps(citation);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const commentPopupRef = useRef<HTMLDivElement>(null);
@@ -260,7 +256,7 @@ export function AssistantCitationChip({
     <Link
       {...sourceLinkProps}
       className="inline-flex min-w-0 items-center gap-[0.2em] self-baseline text-inherit no-underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-current rounded-sm"
-      aria-label={t("View cited assistant text: {label}", { label })}
+      aria-label={`View cited assistant text: ${label}`}
     >
       <QuoteIcon aria-hidden="true" />
       <ContextChipLabel className="max-w-[16em]" dir={textDirection(label)}>
@@ -329,7 +325,7 @@ export function AssistantCitationChip({
                   : undefined
               }
               ref={commentPopupRef}
-              aria-label={t("Edit citation comment")}
+              aria-label="Edit citation comment"
               width="md"
               padding="compact"
               onPointerDown={(event) => event.stopPropagation()}

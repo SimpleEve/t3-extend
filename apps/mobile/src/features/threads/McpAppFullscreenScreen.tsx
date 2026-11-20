@@ -14,7 +14,6 @@ import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { useThreadShell, useThreadShells } from "../../state/entities";
 import { useEnvironmentQuery } from "../../state/query";
 import { ThreadMcpApp } from "./McpAppWebView";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 type McpAppFullscreenScreenProps = StaticScreenProps<{
   readonly environmentId: string;
@@ -57,18 +56,17 @@ function descendsFrom(
 
 /** Resolve apps from stored tool calls so links cannot supply apps the call never produced. */
 export function McpAppFullscreenScreen({ route }: McpAppFullscreenScreenProps) {
-  const t = useT();
   const navigation = useNavigation();
   const { environmentId, threadId, itemId } = route.params;
   if (!environmentId?.trim() || !threadId?.trim() || !itemId?.trim()) {
     return (
       <View className="flex-1 bg-screen">
         <AppBar
-          title={t("App")}
+          title="App"
           onClose={() => navigation.goBack()}
-          closeAccessibilityLabel={t("Exit full screen")}
+          closeAccessibilityLabel="Exit full screen"
         />
-        <Text className="m-6 text-sm text-foreground-muted">{t("This app cannot be shown.")}</Text>
+        <Text className="m-6 text-sm text-foreground-muted">This app cannot be shown.</Text>
       </View>
     );
   }
@@ -93,7 +91,6 @@ function McpAppFullscreen({
   readonly threadId: ThreadId;
   readonly itemId: TurnItemId;
 }) {
-  const t = useT();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   // Wait for focus before goBack; an exit under another screen must not pop that screen.
@@ -144,9 +141,9 @@ function McpAppFullscreen({
   return (
     <View className="flex-1 bg-screen">
       <AppBar
-        title={app?.server ?? t("App")}
+        title={app?.server ?? "App"}
         onClose={onClose}
-        closeAccessibilityLabel={t("Exit full screen")}
+        closeAccessibilityLabel="Exit full screen"
       />
       <View
         className="flex-1"

@@ -42,8 +42,6 @@ import { observeResize } from "~/lib/observeResize";
 import { cn } from "~/lib/utils";
 import { textDirection } from "~/textDirection";
 import { useClientSettings } from "../../hooks/useSettings";
-import { useT } from "../../hooks/useT"; // fork: interface language
-import { threadDisplayTitle } from "@t3tools/client-runtime/operations"; // fork: interface language
 import { GuestShareIndicator } from "./GuestShareControls";
 import { ThreadOutputsButton } from "./outputs/ThreadOutputsButton"; // fork: outputs
 
@@ -88,9 +86,7 @@ export const ChatHeader = memo(function ChatHeader({
   onFindInThread,
   workspaceRoot, // fork: outputs
 }: ChatHeaderProps) {
-  const t = useT();
-  const activeProjectName = activeProject?.isScratch ? t("No project") : activeProject?.title;
-  const shownTitle = threadDisplayTitle(activeThreadTitle, t); // fork: interface language
+  const activeProjectName = activeProject?.isScratch ? "No project" : activeProject?.title;
   const activeProjectCwd = activeProject?.workspaceRoot ?? null;
   const interfaceFont = useClientSettings((settings) => settings.fontFamilySans);
   const breadcrumbContainerRef = useRef<HTMLDivElement>(null);
@@ -186,7 +182,7 @@ export const ChatHeader = memo(function ChatHeader({
       originalTitle: renamingTitle ?? activeThreadTitle,
     });
     if (resolution.action === "reject-empty") {
-      toastManager.add({ type: "warning", title: t("Thread title cannot be empty") });
+      toastManager.add({ type: "warning", title: "Thread title cannot be empty" });
       return;
     }
     if (resolution.action === "noop") return;
@@ -198,8 +194,8 @@ export const ChatHeader = memo(function ChatHeader({
         const error = squashAtomCommandFailure(result);
         toastManager.add({
           type: "error",
-          title: t("Failed to rename thread"),
-          description: error instanceof Error ? error.message : t("An error occurred."),
+          title: "Failed to rename thread",
+          description: error instanceof Error ? error.message : "An error occurred.",
         });
       }
     });
@@ -231,7 +227,7 @@ export const ChatHeader = memo(function ChatHeader({
       const api = readLocalApi();
       if (!api) return;
       void api.contextMenu
-        .show([{ id: "project-settings", label: t("Project settings"), icon: "settings" }], {
+        .show([{ id: "project-settings", label: "Project settings", icon: "settings" }], {
           x: event.clientX,
           y: event.clientY,
         })
@@ -263,7 +259,7 @@ export const ChatHeader = memo(function ChatHeader({
       onContextMenu={handleHeaderContextMenu}
     >
       <WorkspaceBreadcrumb
-        ariaLabel={t("Thread breadcrumb")}
+        ariaLabel="Thread breadcrumb"
         className="flex-1 overflow-clip [overflow-clip-margin:2px]"
       >
         {activeProject ? (
@@ -274,9 +270,7 @@ export const ChatHeader = memo(function ChatHeader({
                   render={
                     <button
                       type="button"
-                      aria-label={t("New thread in {project}", {
-                        project: activeProjectName ?? "",
-                      })}
+                      aria-label={`New thread in ${activeProjectName}`}
                       onClick={onNewThreadInProject}
                       className="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                     />
@@ -308,9 +302,7 @@ export const ChatHeader = memo(function ChatHeader({
                   render={
                     <button
                       type="button"
-                      aria-label={t("Open parent thread: {title}", {
-                        title: parentThreadLink.title,
-                      })}
+                      aria-label={`Open parent thread: ${parentThreadLink.title}`}
                       onClick={() => onOpenThread(parentThreadLink.threadId)}
                       className="inline-flex min-w-0 max-w-full cursor-pointer items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                     />
@@ -341,7 +333,7 @@ export const ChatHeader = memo(function ChatHeader({
             <input
               autoFocus
               dir="auto"
-              aria-label={t("Thread title")}
+              aria-label="Thread title"
               className="min-w-0 flex-1 rounded-sm bg-transparent text-sm font-medium text-foreground outline-none ring-1 ring-inset ring-ring/50 focus:ring-ring"
               defaultValue={renamingTitle}
               onBlur={(event) => {
@@ -364,7 +356,7 @@ export const ChatHeader = memo(function ChatHeader({
                 render={
                   <button
                     type="button"
-                    aria-label={t("Thread actions for {title}", { title: shownTitle })}
+                    aria-label={`Thread actions for ${activeThreadTitle}`}
                     aria-haspopup="menu"
                     onClick={openMenuFromTitle}
                     onDoubleClick={canOperateThread ? handleTitleDoubleClick : undefined}
@@ -402,12 +394,10 @@ export const ChatHeader = memo(function ChatHeader({
           {renamingTitle === null && activeThreadLinkOrigin ? (
             <Tooltip>
               <TooltipTrigger render={<Badge variant="info" size="sm" />}>
-                {t("From {origin}", { origin: activeThreadLinkOrigin })}
+                From {activeThreadLinkOrigin}
               </TooltipTrigger>
               <TooltipPopup side="top">
-                {t("Started by an agent on {origin} through a linked environment.", {
-                  origin: activeThreadLinkOrigin,
-                })}
+                Started by an agent on {activeThreadLinkOrigin} through a linked environment.
               </TooltipPopup>
             </Tooltip>
           ) : null}

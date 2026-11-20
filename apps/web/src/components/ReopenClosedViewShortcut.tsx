@@ -43,7 +43,6 @@ import {
   resolveThreadRouteTarget,
 } from "../threadRoutes";
 import { toastManager } from "./ui/toast";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 import { readIssueListPreferences } from "./issue/issueListPreferences";
 
 const PREVIEW_FORWARDED_COMMANDS = [
@@ -158,7 +157,7 @@ export function ReopenClosedViewShortcut() {
       .catch((error: unknown) => {
         toastManager.add({
           type: "error",
-          title: translate(getUiLocale(), "Could not reopen view"),
+          title: "Could not reopen view",
           description: error instanceof Error ? error.message : String(error),
         });
       });

@@ -5,7 +5,6 @@ import { CircleAlertIcon, XIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { VoiceInputPill } from "./VoiceInputPill";
-import { useT } from "~/hooks/useT";
 
 const VOICE_ERROR_LABELS: Record<string, string> = {
   [MICROPHONE_PERMISSION_ERROR]: "Mic blocked",
@@ -41,16 +40,15 @@ export function VoiceInputErrorPill(props: {
   onRetry(): void;
   onDismiss(): void;
 }) {
-  const t = useT();
   const navigate = useNavigate();
-  const message = props.error ?? t("Voice input failed");
+  const message = props.error ?? "Voice input failed";
   const openSettings = props.errorAction === "settings";
   const compact = props.size === "compact";
   const action = openSettings
-    ? { label: t("Open voice settings"), text: "Settings" }
+    ? { label: "Open voice settings", text: "Settings" }
     : props.error && RETRYABLE_TRANSCRIPTIONS.has(props.error)
-      ? { label: t("Retry transcription"), text: "Retry" }
-      : { label: t("Record again"), text: "Record again" };
+      ? { label: "Retry transcription", text: "Retry" }
+      : { label: "Record again", text: "Record again" };
   return (
     <VoiceInputPill tone="error" size={props.size}>
       <Tooltip>
@@ -60,7 +58,7 @@ export function VoiceInputErrorPill(props: {
               type="button"
               size={compact ? "icon-xs" : "icon-sm-pill"}
               variant="ghost"
-              aria-label={t("Dismiss voice input error")}
+              aria-label="Dismiss voice input error"
               onPointerDown={(event) => event.preventDefault()}
               onClick={props.onDismiss}
               className="shrink-0"
@@ -70,7 +68,7 @@ export function VoiceInputErrorPill(props: {
           }
         />
         <TooltipPopup side="top">
-          {t("Dismiss")}
+          Dismiss
           {props.cancelShortcutLabel ? ` (${props.cancelShortcutLabel})` : ""}
         </TooltipPopup>
       </Tooltip>
@@ -87,7 +85,7 @@ export function VoiceInputErrorPill(props: {
         >
           <CircleAlertIcon aria-hidden className="size-3.5 shrink-0" />
           <span className="truncate">
-            {t((props.error && VOICE_ERROR_LABELS[props.error]) || "Voice input failed")}
+            {(props.error && VOICE_ERROR_LABELS[props.error]) || "Voice input failed"}
           </span>
         </TooltipTrigger>
         <TooltipPopup side="top">{message}</TooltipPopup>

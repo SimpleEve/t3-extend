@@ -26,11 +26,6 @@ import {
   type TerminalMenuSession,
 } from "../terminal/terminalMenu";
 import { projectScriptMenuLabel } from "@t3tools/shared/projectScripts";
-import { useT, useUiLocale } from "../../hooks/useT"; // fork: i18n
-import { localizeTerminalLabel } from "@t3tools/shared/terminalLabels"; // fork: i18n
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { changeRequestTerm } from "../../lib/changeRequestTerm"; // fork: i18n
 
 function truncateMiddle(value: string, maxLength: number): string {
   if (value.length <= maxLength) {
@@ -47,25 +42,24 @@ function compactMenuBranchLabel(branch: string): string {
 }
 
 function compactMenuStatus(gitStatus: VcsStatusResult | null): string {
-  const t = translatorFor(getUiLocale()); // fork: i18n
   if (!gitStatus) {
-    return t("Checking status");
+    return "Checking status";
   }
   if (!gitStatus.isRepo) {
-    return t("Not a repo");
+    return "Not a repo";
   }
 
   const parts: string[] = [];
   if (gitStatus.hasWorkingTreeChanges) {
-    parts.push(t("{count} changed", { count: gitStatus.workingTree.files.length }));
+    parts.push(`${gitStatus.workingTree.files.length} changed`);
   } else if (gitStatus.aheadCount === 0 && gitStatus.behindCount === 0) {
-    parts.push(t("Clean", undefined, "git status"));
+    parts.push("Clean");
   }
   if (gitStatus.aheadCount > 0) {
-    parts.push(t("{count} ahead", { count: gitStatus.aheadCount }));
+    parts.push(`${gitStatus.aheadCount} ahead`);
   }
   if (gitStatus.behindCount > 0) {
-    parts.push(t("{count} behind", { count: gitStatus.behindCount }));
+    parts.push(`${gitStatus.behindCount} behind`);
   }
   if (gitStatus.pr?.state === "open") {
     const { shortLabel } = sourceControlClients.get(
@@ -109,8 +103,6 @@ export type ThreadGitControlsProps = ThreadGitMenuProps & {
 };
 
 function useThreadGitControlModel(props: ThreadGitMenuProps) {
-  const t = useT();
-  const locale = useUiLocale(); // fork: i18n
   const navigation = useNavigation();
   const openPullRequest = useOpenPullRequest();
   const environmentId = props.environmentId;
@@ -121,7 +113,7 @@ function useThreadGitControlModel(props: ThreadGitMenuProps) {
   const threadId = props.threadId;
   const { gitStatus, gitOperationLabel, onPull, onRunAction } = props;
 
-  const currentBranchLabel = gitStatus?.refName ?? props.currentBranch ?? t("Detached HEAD");
+  const currentBranchLabel = gitStatus?.refName ?? props.currentBranch ?? "Detached HEAD";
   const busy = gitOperationLabel !== null;
   const isRepo = gitStatus?.isRepo ?? true;
   const hasPrimaryRemote = gitStatus?.hasPrimaryRemote ?? false;
@@ -130,10 +122,10 @@ function useThreadGitControlModel(props: ThreadGitMenuProps) {
   const quickAction = (() => {
     if (!isRepo) {
       return {
-        label: t("Git unavailable"),
+        label: "Git unavailable",
         disabled: true,
         kind: "show_hint" as const,
-        hint: t("This workspace is not a git repository."),
+        hint: "This workspace is not a git repository.",
       };
     }
     const action = resolveQuickAction(gitStatus, busy, isDefaultRef, hasPrimaryRemote, locale);
@@ -141,13 +133,13 @@ function useThreadGitControlModel(props: ThreadGitMenuProps) {
       ? {
           ...action,
           disabled: true,
-          hint: t("This connection cannot change source control."),
+          hint: "This connection cannot change source control.",
         }
       : action;
   })();
 
   const quickActionHint = quickAction.disabled
-    ? (quickAction.hint ?? t("This action is unavailable."))
+    ? (quickAction.hint ?? "This action is unavailable.")
     : null;
 
   const quickActionIcon: QuickActionIcon = (() => {
@@ -201,8 +193,8 @@ function useThreadGitControlModel(props: ThreadGitMenuProps) {
     ) {
       if (props.hasThread === false) {
         Dialog.alert(
-          t("Choose a feature branch"),
-          t("Switch branches before publishing changes from this draft."),
+          "Choose a feature branch",
+          "Switch branches before publishing changes from this draft.",
         );
         return;
       }
@@ -270,34 +262,32 @@ export function threadTerminalMenu(
 ): AppBarMenu | null {
   if (!props.canOpenTerminal) return null;
   return {
-    title: t("Terminal"),
+    title: "Terminal",
     icon: "terminal",
     separateBackground: false,
     items: [
       ...(props.projectScripts.length > 0
         ? props.projectScripts.map((script) => ({
             id: `script-${script.id}`,
-            title: projectScriptMenuLabel(script, t), // fork: i18n
+            title: projectScriptMenuLabel(script),
             icon: projectScriptMenuIcon(script.icon),
             subtitle: script.command,
-            verbatim: true, // fork: i18n, a script's name and command are the user's
             disabled: !props.canOperateTerminal,
             onPress: () => void props.onRunProjectScript(script),
           }))
         : [
             {
               id: "script-none",
-              title: t("No project scripts"),
+              title: "No project scripts",
               icon: "play",
-              subtitle: t("This project has no saved scripts yet"),
+              subtitle: "This project has no saved scripts yet",
               disabled: true,
               onPress: () => {},
             },
           ]),
       ...props.terminalSessions.map((session) => ({
         id: `terminal-${session.terminalId}`,
-        title: localizeTerminalLabel(session.displayLabel, t), // fork: i18n
-        verbatim: true, // fork: i18n, localized above, with the folder name
+        title: session.displayLabel,
         icon: "terminal",
         subtitle: [
           getTerminalStatusLabel(
@@ -315,9 +305,9 @@ export function threadTerminalMenu(
       })),
       {
         id: "terminal-new",
-        title: t("Open new terminal"),
+        title: "Open new terminal",
         icon: "plus",
-        subtitle: t("Start another shell for this thread"),
+        subtitle: "Start another shell for this thread",
         disabled: !props.canOperateTerminal,
         onPress: props.onOpenNewTerminal,
       },
@@ -327,17 +317,15 @@ export function threadTerminalMenu(
 
 /** The thread's git menu, shared by the thread bar and Review. */
 export function useThreadGitMenuDefinition(props: ThreadGitMenuProps): AppBarMenu | null {
-  const t = useT();
   const model = useThreadGitControlModel(props);
   return {
-    title: t("Git controls"),
+    title: "Git controls",
     icon: "point.topleft.down.curvedto.point.bottomright.up",
     separateBackground: false,
     items: [
       {
         id: "git-status",
         title: compactMenuBranchLabel(model.currentBranchLabel),
-        verbatim: true, // fork: i18n, a branch name; the status below is localized
         icon: "point.topleft.down.curvedto.point.bottomright.up",
         disabled: true,
         subtitle: compactMenuStatus(props.gitStatus),
@@ -355,35 +343,35 @@ export function useThreadGitMenuDefinition(props: ThreadGitMenuProps): AppBarMen
       },
       {
         id: "git-review",
-        title: t("Review changes", undefined, "git"),
+        title: "Review changes",
         icon: "text.bubble",
         disabled: !model.isRepo || props.hasThread === false,
         subtitle:
           props.hasThread === false
-            ? t("Available after the first message")
-            : t("Turn diffs and worktree changes"),
+            ? "Available after the first message"
+            : "Turn diffs and worktree changes",
         onPress: model.openReview,
       },
       ...(props.onMergeBack
         ? [
             {
               id: "git-merge-back",
-              title: t("Merge back to source"),
+              title: "Merge back to source",
               icon: PullRequestGlyph.merged,
-              subtitle: t("Bring this thread's latest turn into its source"),
+              subtitle: "Bring this thread's latest turn into its source",
               onPress: props.onMergeBack,
             },
           ]
         : []),
       {
         id: "git-more",
-        title: t("More"),
+        title: "More",
         icon: "ellipsis",
         disabled: props.hasThread === false,
         subtitle:
           props.hasThread === false
-            ? t("Available after the first message")
-            : t("Commit, files, branches"),
+            ? "Available after the first message"
+            : "Commit, files, branches",
         onPress: model.openGitInspector,
       },
     ],

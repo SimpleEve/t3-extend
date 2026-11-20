@@ -7,7 +7,6 @@ import { useEnvironmentQuery } from "~/state/query";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { ChangeBreakdownGrid } from "./ChangeBreakdownGrid";
 import { PullRequestDiffStat } from "./pullRequestPresentation";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 /**
  * The pull request's diff stat, with a hover split into code, tests, mocks, and generated files.
@@ -29,7 +28,6 @@ export function PullRequestChangeBreakdownStat({
   className: string;
   eager?: boolean;
 }) {
-  const t = useT(); // fork: interface language
   const [requested, setRequested] = useState(eager);
   const query = useEnvironmentQuery(
     requested ? pullRequestEnvironment.changeBreakdown({ environmentId, input: reference }) : null,
@@ -56,7 +54,7 @@ export function PullRequestChangeBreakdownStat({
           <ChangeBreakdownGrid breakdown={breakdown} total={{ additions, deletions }} />
         </TooltipPopup>
       ) : query.isPending ? (
-        <TooltipPopup side="bottom">{t("Loading breakdown")}</TooltipPopup>
+        <TooltipPopup side="bottom">Loading breakdown</TooltipPopup>
       ) : null}
     </Tooltip>
   );

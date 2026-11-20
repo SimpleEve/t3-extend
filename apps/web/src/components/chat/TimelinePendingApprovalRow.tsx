@@ -11,7 +11,6 @@ import { ComposerPendingApprovalActions } from "./ComposerPendingApprovalActions
 import { ToolActivityIconView, type WorkEntryIconName } from "./TimelineToolActivityIcon";
 import { TimelineRowCtx } from "./timelineRowContext";
 import { WorkLogRow } from "./WorkLog";
-import { useT } from "../../hooks/useT"; // fork: interface language
 
 const APPROVAL_PRESENTATION = {
   command: { icon: "terminal", label: "Command approval", detailLabel: "Command" },
@@ -37,14 +36,13 @@ export const TimelinePendingApprovalRow = memo(function TimelinePendingApprovalR
 }: {
   approval: PendingApproval;
 }) {
-  const t = useT();
   const { respondingRequestIds, canOperateThread, onRespondToApproval } = use(TimelineRowCtx);
   const presentation = APPROVAL_PRESENTATION[approval.requestKind];
   const canRespond = approval.responseCapability === "live";
   return (
     <WorkLogRow
       role="group"
-      aria-label={t(presentation.label)}
+      aria-label={presentation.label}
       data-v2-item-type="approval_request"
       wrapLabel
       icon={
@@ -57,12 +55,12 @@ export const TimelinePendingApprovalRow = memo(function TimelinePendingApprovalR
       }
       label={
         <code
-          aria-label={t(presentation.detailLabel)}
+          aria-label={presentation.detailLabel}
           className="block max-h-40 min-w-0 overflow-auto whitespace-pre-wrap font-mono text-xs leading-5 text-foreground select-text! wrap-anywhere [scrollbar-width:thin] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
           data-approval-detail="complete"
           tabIndex={0}
         >
-          {approval.detail || t(presentation.label)}
+          {approval.detail || presentation.label}
         </code>
       }
     >
@@ -78,7 +76,7 @@ export const TimelinePendingApprovalRow = memo(function TimelinePendingApprovalR
             <>
               <span className="inline-flex items-center gap-1 text-warning">
                 <ShieldIcon aria-hidden className="size-3 shrink-0" />
-                {t("Waiting for approval")}
+                Waiting for approval
               </span>
               {onRespondToApproval ? (
                 <>
@@ -99,7 +97,7 @@ export const TimelinePendingApprovalRow = memo(function TimelinePendingApprovalR
             </>
           ) : (
             <span className="text-warning">
-              {t("Provider process is gone. Interrupt or restart the run to respond.")}
+              Provider process is gone. Interrupt or restart the run to respond.
             </span>
           )}
           {approval.fullAccessOverride ? (

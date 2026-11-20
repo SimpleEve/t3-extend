@@ -1,4 +1,3 @@
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import {
   managedRuntimeModeDenial,
   type ManagedPolicySummary,
@@ -56,11 +55,10 @@ export function resolveCompatibleRuntimeMode(
 export function resolveRuntimeModeOptions(
   modes: ReadonlyArray<RuntimeMode>,
   managedPolicy: ManagedPolicySummary | undefined,
-  t: Translator, // fork: interface language
 ) {
   return modes.map((mode) => {
     const option = { mode, ...runtimeModeConfig[mode] };
-    const disabledReason = managedRuntimeModeDenial(managedPolicy, mode, t); // fork: interface language
+    const disabledReason = managedRuntimeModeDenial(managedPolicy, mode);
     return disabledReason === undefined ? option : { ...option, disabledReason };
   });
 }

@@ -10,7 +10,6 @@ import { AsyncResult } from "effect/reactivity";
 
 import { connectionAtomRuntime } from "../connection/runtime";
 import { readEnvironmentScope } from "./session";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 function requireAttachmentWriteAccess<W extends { readonly environmentId: EnvironmentId }, A, E>(
   command: AtomCommand<W, A, E>,
@@ -22,7 +21,7 @@ function requireAttachmentWriteAccess<W extends { readonly environmentId: Enviro
         return AsyncResult.failure(
           Cause.fail(
             new EnvironmentAuthorizationError({
-              message: translatorFor(getUiLocale())("This connection cannot change attachments."),
+              message: "This connection cannot change attachments.",
               requiredScope: AuthOrchestrationOperateScope,
             }),
           ),

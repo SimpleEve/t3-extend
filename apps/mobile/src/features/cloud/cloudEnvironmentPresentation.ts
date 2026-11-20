@@ -4,7 +4,6 @@ import {
   type EnvironmentConnectionPhase,
 } from "@t3tools/client-runtime/connection";
 import { relayOfflineReasonMessage } from "@t3tools/client-runtime/relay";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface AvailableCloudEnvironmentPresentation {
   readonly connectionError: string | null;
@@ -18,7 +17,6 @@ export function availableCloudEnvironmentPresentation(input: {
   readonly status: RelayEnvironmentStatusResponse | null;
   readonly statusError: string | null;
   readonly statusErrorTraceId: string | null;
-  readonly t: Translator; // fork: i18n
 }): AvailableCloudEnvironmentPresentation {
   const { t } = input;
   const compatibilityError =
@@ -38,13 +36,13 @@ export function availableCloudEnvironmentPresentation(input: {
       connectionError: null,
       connectionErrorTraceId: null,
       connectionState: "available",
-      statusText: t("Available · Relay online"),
+      statusText: "Available · Relay online",
     };
   }
 
   if (input.status?.status === "offline") {
     const connectionError =
-      relayOfflineReasonMessage(input.status) ?? input.status.error ?? t("Relay is offline.");
+      relayOfflineReasonMessage(input.status) ?? input.status.error ?? "Relay is offline.";
     return {
       connectionError,
       connectionErrorTraceId: input.status.traceId ?? null,
@@ -67,7 +65,7 @@ export function availableCloudEnvironmentPresentation(input: {
     connectionErrorTraceId: null,
     connectionState: "available",
     statusText: input.isStatusPending
-      ? t("Available · Checking relay status...")
-      : t("Available · Relay status unknown"),
+      ? "Available · Checking relay status..."
+      : "Available · Relay status unknown",
   };
 }

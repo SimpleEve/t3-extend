@@ -47,7 +47,6 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
   sweeping?: boolean;
   onCloseSweepStart?: (entry: Entry, event: PointerEvent) => void;
 }) {
-  const t = useT();
   const canWrite = useAtomValue(
     pullRequestEnvironment.runAction.permissionAtom(entry.environmentId),
   );
@@ -87,13 +86,10 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
     <SpeedModeGroup
       busy={busy}
       pending={actionPending || closing}
-      label={t("Quick actions for {kind} #{number}", {
-        kind: changeRequestTerm(terminology.singular, t),
-        number: entry.number,
-      })}
+      label={`Quick actions for ${terminology.singular} #${entry.number}`}
     >
       {actions.map((action) => {
-        const label = t(ACTIONS[action].label);
+        const label = ACTIONS[action].label;
         const Icon = ACTIONS[action].Icon;
         return (
           <Tooltip key={action}>
@@ -103,7 +99,7 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
                   variant={action === "close" ? "destructive-outline" : "outline"}
                   size="xs"
                   disabled={!canWrite || busy || (action === "merge" && entry.stack !== undefined)}
-                  aria-label={t("{action} #{number}", { action: label, number: entry.number })}
+                  aria-label={`${label} #${entry.number}`}
                   onClick={() => void perform(action)}
                   onPointerDown={(event) => {
                     if (action !== "close" || !event.isPrimary || event.button !== 0) return;
@@ -118,12 +114,10 @@ export function PullRequestSpeedActions<Entry extends PullRequestSpeedActionEntr
             </TooltipTrigger>
             <TooltipPopup>
               {action === "merge" && entry.stack
-                ? t("Open this {kind} to merge its stack", {
-                    kind: changeRequestTerm(terminology.singular, t),
-                  })
+                ? `Open this ${terminology.singular} to merge its stack`
                 : action === "close" && onCloseSweepStart
-                  ? t("Close immediately, or drag across rows to close several")
-                  : t("{action} immediately", { action: label })}
+                  ? "Close immediately, or drag across rows to close several"
+                  : `${label} immediately`}
             </TooltipPopup>
           </Tooltip>
         );

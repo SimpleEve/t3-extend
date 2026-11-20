@@ -50,8 +50,6 @@ import {
 } from "@t3tools/client-runtime/thread-pull-requests";
 
 import { inferReviewCommentFenceLanguage, type ReviewCommentContext } from "~/reviewCommentContext";
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { changeRequestTerm } from "./changeRequestTerm"; // fork: i18n
 
 export const PULL_REQUEST_MERGE_METHOD_LABELS: Record<PullRequestMergeMethod, string> = {
   merge: "Merge",
@@ -549,7 +547,7 @@ function commentTimelineEvent(
     id: comment.id,
     at: comment.createdAt,
     kind: comment.kind === "review" ? "review" : "comment",
-    title: comment.kind === "review" ? t("reviewed") : t("commented"),
+    title: comment.kind === "review" ? "reviewed" : "commented",
     body: visibleBody(comment.body),
     markdown: true,
     url: comment.url,
@@ -805,7 +803,6 @@ export function buildPullRequestTimeline(
     "provider" | "createdAt" | "author" | "commits" | "comments" | "mergedAt" | "closedAt"
   > &
     Partial<Pick<PullRequestDetailView, "reviewThreads" | "overviewThreads">>,
-  t: Translator = translatorFor("en"), // fork: interface language
 ): ReadonlyArray<PullRequestTimelineEvent> {
   const term = changeRequestTerm(
     sourceControlClients.get(detail.provider).changeRequest.singular,
@@ -817,7 +814,7 @@ export function buildPullRequestTimeline(
       id: "created",
       at: detail.createdAt,
       kind: "opened" as const,
-      title: t("opened this {kind}", { kind: term }),
+      title: `opened this ${term}`,
       body: null,
       markdown: false,
       url: null,
@@ -833,7 +830,7 @@ export function buildPullRequestTimeline(
       id: commit.oid,
       at: commit.committedDate,
       kind: "commit" as const,
-      title: t("Commit {oid}", { oid: commit.oid.slice(0, 7) }),
+      title: `Commit ${commit.oid.slice(0, 7)}`,
       body: commit.messageHeadline || null,
       markdown: false,
       url: null,
@@ -872,7 +869,7 @@ export function buildPullRequestTimeline(
             id: "merged",
             at: detail.mergedAt,
             kind: "merged" as const,
-            title: t("{kind} merged", { kind: capitalizeTerm(term) }),
+            title: `${capitalizeTerm(term)} merged`,
             body: null,
             markdown: false,
             url: null,
@@ -892,7 +889,7 @@ export function buildPullRequestTimeline(
             id: "closed",
             at: detail.closedAt,
             kind: "closed" as const,
-            title: t("{kind} closed", { kind: capitalizeTerm(term) }),
+            title: `${capitalizeTerm(term)} closed`,
             body: null,
             markdown: false,
             url: null,

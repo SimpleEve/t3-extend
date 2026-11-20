@@ -1,6 +1,5 @@
 import { useAtomMount, useAtomSubscribe, useAtomValue } from "@effect/atom-react";
 import { resolveFilesystemReadAccess } from "@t3tools/client-runtime/state/filesystem";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import {
   assetUrlStateFromResult,
   blockedAssetUrlState,
@@ -183,7 +182,7 @@ const freshAssetUrlFamily = Atom.family((key: FreshAssetUrlKey) =>
             }))
           : Effect.fail(
               new AssetUrlUnavailableError({
-                message: translate(getUiLocale(), "Reconnect to this environment and try again."),
+                message: "Reconnect to this environment and try again.",
               }),
             ),
       ),

@@ -12,7 +12,6 @@ import { useScaledTextRole } from "../../features/settings/appearance/useScaledT
 import { useToolbarLayout } from "./useToolbarLayout";
 import { useControlTheme } from "./useControlTheme";
 import { RoutedFormSheetContext } from "./RoutedFormSheetContext";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export interface AndroidHeaderAction {
   readonly accessibilityLabel: string;
@@ -47,7 +46,6 @@ export function AndroidScreenHeader(props: {
   readonly embedded?: boolean;
   readonly hideBottomBorder?: boolean;
 }) {
-  const t = useT(); // fork: i18n
   const { colors } = useControlTheme();
   const titleTypography = useScaledTextRole("title");
   const subtitleTypography = useScaledTextRole("label");
@@ -81,7 +79,7 @@ export function AndroidScreenHeader(props: {
             <View collapsable={false} className="flex-row items-center">
               {props.onBack ? (
                 <IconButton
-                  accessibilityLabel={t("Navigate up")}
+                  accessibilityLabel="Navigate up"
                   icon="arrow.left"
                   tintColorClassName="accent-header-foreground"
                   onPress={props.onBack}
@@ -170,7 +168,7 @@ export function AndroidScreenHeader(props: {
                 >
                   {(open) => (
                     <IconButton
-                      accessibilityLabel={t("More actions")}
+                      accessibilityLabel="More actions"
                       icon="ellipsis"
                       tintColorClassName="accent-header-foreground"
                       onPress={open}

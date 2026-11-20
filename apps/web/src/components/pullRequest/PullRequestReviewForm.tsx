@@ -18,7 +18,6 @@ import {
   usePendingReviewComments,
   usePullRequestReviewStore,
 } from "./pullRequestReviewStore";
-import { useT } from "~/hooks/useT"; // fork: interface language
 import {
   PullRequestMarkdownTextarea,
   type PullRequestCompletionScope,
@@ -77,7 +76,6 @@ export function PullRequestReviewForm({
   onPendingChange: (pending: boolean) => void;
   onSubmitted: () => void;
 }) {
-  const t = useT();
   const [requestedVerdict, setRequestedVerdict] = useState<PullRequestReviewVerdict>("comment");
   const comments = usePendingReviewComments(reference);
   const reviewKey = pullRequestReviewKey(reference);
@@ -125,7 +123,7 @@ export function PullRequestReviewForm({
     if (result._tag === "Failure") {
       toastManager.add({
         type: "error",
-        title: t("The review could not be submitted"),
+        title: "The review could not be submitted",
         description: readableFailure(
           squashAtomCommandFailure(result),
           "The host refused the review. Your draft is still here to try again.",
@@ -150,10 +148,10 @@ export function PullRequestReviewForm({
       : verdict === "approve" || summary.trim().length > 0 || commentCount > 0;
   const placeholder =
     selectedVerdict === undefined || canSubmit(selectedVerdict.value, "", comments.length)
-      ? t("Summarize your review (optional)")
+      ? "Summarize your review (optional)"
       : selectedVerdict.value === "request-changes" && requestChangesSummaryRequired
-        ? t("Summarize your review (required to request changes)")
-        : t("Summarize your review or add line comments");
+        ? "Summarize your review (required to request changes)"
+        : "Summarize your review or add line comments";
 
   return (
     <>
@@ -164,7 +162,7 @@ export function PullRequestReviewForm({
         readOnly={speech.freezesEditor}
         value={body}
         placeholder={placeholder}
-        aria-label={t("Review summary")}
+        aria-label="Review summary"
         onValueChange={(next) => setSummary(reviewKey, next)}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing || event.keyCode === 229 || event.repeat) return;
@@ -188,10 +186,10 @@ export function PullRequestReviewForm({
               if (value !== null) setRequestedVerdict(value);
             }}
           >
-            <SelectTrigger size="xs" className="w-auto min-w-0" aria-label={t("Review verdict")}>
+            <SelectTrigger size="xs" className="w-auto min-w-0" aria-label="Review verdict">
               <span className="flex items-center gap-1.5">
                 {selectedVerdict?.icon}
-                {selectedVerdict ? t(selectedVerdict.label) : null}
+                {selectedVerdict?.label}
               </span>
             </SelectTrigger>
             <SelectPopup side="top" alignItemWithTrigger={false}>
@@ -199,7 +197,7 @@ export function PullRequestReviewForm({
                 <SelectItem key={verdict.value} value={verdict.value}>
                   <span className="flex items-center gap-1.5">
                     {verdict.icon}
-                    {t(verdict.label)}
+                    {verdict.label}
                   </span>
                 </SelectItem>
               ))}
@@ -219,7 +217,7 @@ export function PullRequestReviewForm({
               speech.submitAfterDictation((text) => void submit(selectedVerdict, text));
           }}
         >
-          {pending ? t("Submitting...") : t("Submit review")}
+          {pending ? "Submitting..." : "Submit review"}
         </Button>
       </div>
     </>

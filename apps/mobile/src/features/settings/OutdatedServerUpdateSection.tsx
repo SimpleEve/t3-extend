@@ -30,7 +30,6 @@ export function OutdatedServerUpdateSection({
   readonly environmentId: EnvironmentId;
   readonly label: string;
 }) {
-  const t = useT();
   const describe = useAtomCommand(describeOutdatedServer, { reportFailure: false });
   const update = useAtomCommand(updateOutdatedServer, { reportFailure: false });
   const state = useAtomValue(serverEnvironment.updateStateAtom(environmentId));
@@ -56,15 +55,12 @@ export function OutdatedServerUpdateSection({
     const targetVersion = release?.targetVersion;
     if (busy || !release || !targetVersion) return;
     Dialog.alert(
-      t("Update {label}?", { label }),
-      t(
-        "Install T3 Extend {targetVersion}. T3 Extend restarts on that machine and reconnects. Running threads may be interrupted.",
-        { targetVersion },
-      ),
+      `Update ${label}?`,
+      `Install T3 Code ${targetVersion}. T3 Code restarts on that machine and reconnects. Running threads may be interrupted.`,
       [
-        { text: t("Cancel"), style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         {
-          text: t("Update"),
+          text: "Update",
           onPress: () => {
             setCheckErrorDismissed(true);
             void update({
@@ -82,24 +78,20 @@ export function OutdatedServerUpdateSection({
     <SettingsSection title={FORK.appBaseName}>
       <View className="gap-1 p-4">
         <Text className="text-base text-foreground">
-          {release
-            ? t("Version {fromVersion}", { fromVersion: release.fromVersion })
-            : t("Update required")}
+          {release ? `Version ${release.fromVersion}` : "Update required"}
         </Text>
         <Text className="text-sm text-foreground-muted">
           {state.status === "running"
             ? state.stage === "resuming"
-              ? t("Restarting and reconnecting…")
+              ? "Restarting and reconnecting…"
               : state.stage === "installing"
-                ? t("Installing update…")
-                : t("Downloading update…")
+                ? "Installing update…"
+                : "Downloading update…"
             : release
               ? release.targetVersion
-                ? t("Version {targetVersion} is available.", {
-                    targetVersion: release.targetVersion,
-                  })
-                : t("No newer version is available yet.")
-              : t("This app needs a newer version of T3 Extend on this machine.")}
+                ? `Version ${release.targetVersion} is available.`
+                : "No newer version is available yet."
+              : "This app needs a newer version of T3 Code on this machine."}
         </Text>
         {error || state.status === "failed" ? (
           <Text selectable accessibilityRole="alert" className="text-sm text-danger-foreground">
@@ -109,7 +101,7 @@ export function OutdatedServerUpdateSection({
       </View>
       <SettingsActionRow
         icon="arrow.clockwise"
-        label={t("Check for updates")}
+        label="Check for updates"
         disabled={busy}
         loading={checking}
         onPress={check}

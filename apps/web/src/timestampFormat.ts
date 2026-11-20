@@ -155,12 +155,10 @@ function ordinalSuffix(day: number): string {
 export function formatChatTimestampTooltip(
   isoDate: string,
   timestampFormat: TimestampFormat,
-  locale: UiLocale = getUiLocale(),
 ): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
   const time = formatTime(date, timestampFormat);
-  if (locale !== "en") return `${localizedDateFormatter(locale).format(date)} ${time}`; // fork: i18n
   const day = date.getDate();
   const month = monthNameFormatter.format(wallClockAsUtc(date));
   const year = date.getFullYear();
@@ -234,7 +232,6 @@ export function formatDayAwareTimestamp(
   timestampFormat: TimestampFormat,
   nowMs: number = Date.now(),
   timeZone?: string,
-  locale: UiLocale = getUiLocale(),
 ): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
@@ -245,7 +242,7 @@ export function formatDayAwareTimestamp(
   const dayDiff = today.index - messageDay.index;
 
   if (dayDiff <= 0) return time;
-  if (dayDiff === 1) return translate(locale, "yesterday at {time}", { time }); // fork: interface language
+  if (dayDiff === 1) return `yesterday at ${time}`;
   return `${formatNumericDate(date, messageDay.year === today.year, timeZone)} ${time}`;
 }
 
@@ -255,7 +252,6 @@ export function formatUpcomingTimestamp(
   timestampFormat: TimestampFormat,
   nowMs: number = Date.now(),
   timeZone?: string,
-  locale: UiLocale = getUiLocale(),
 ): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
@@ -268,7 +264,7 @@ export function formatUpcomingTimestamp(
   if (dayDiff < 0)
     return formatDayAwareTimestamp(isoDate, timestampFormat, nowMs, timeZone, locale);
   if (dayDiff === 0) return time;
-  if (dayDiff === 1) return translate(locale, "tomorrow at {time}", { time }); // fork: interface language
+  if (dayDiff === 1) return `tomorrow at ${time}`;
   return `${formatNumericDate(date, targetDay.year === today.year, timeZone)} ${time}`;
 }
 
@@ -364,7 +360,7 @@ export function formatElapsedDurationLabel(
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
   const diffMs = nowMs - date.getTime();
-  if (diffMs <= 0) return translate(locale, "just now");
+  if (diffMs <= 0) return "just now";
 
   const seconds = Math.floor(diffMs / 1000);
   if (seconds < 5) return translate(locale, "just now");
@@ -389,7 +385,7 @@ export function formatExpiresInLabel(
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
   const diffMs = date.getTime() - nowMs;
-  if (diffMs <= 0) return translate(locale, "Expired");
+  if (diffMs <= 0) return "Expired";
 
   const totalSeconds = Math.floor(diffMs / 1000);
   if (totalSeconds < 5) return translate(locale, "Expires in a moment");

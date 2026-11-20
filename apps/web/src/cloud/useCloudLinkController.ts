@@ -27,7 +27,6 @@ import {
 import { readCachedCloudLinkState, useCloudLinkState } from "./cloudLinkState";
 import { resolveRelayClerkTokenOptions } from "./publicConfig";
 import { isManagedTunnelActive } from "./t3ConnectState";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: restored import
 
 export interface CloudLinkDesiredState {
   readonly managedTunnel: boolean;
@@ -71,7 +70,6 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
   const [tunnelLimit, setTunnelLimit] = useState<number | null>(null);
 
   const reportUpdateFailure = (cause: unknown, reason?: string) => {
-    const locale = getUiLocale();
     const message = cause instanceof Error ? cause.message : "Could not update T3 Connect access.";
     const traceId = findErrorTraceId(cause);
     console.error("[t3-connect] Could not update T3 Connect", { message, traceId, cause });
@@ -84,12 +82,12 @@ export function useCloudLinkController(environmentId: EnvironmentId | null) {
     toastManager.add(
       stackedThreadToast({
         type: "error",
-        title: translate(getUiLocale(), "Could not update T3 Connect"),
-        description: translate(locale, reason ?? relayFailureReason(cause) ?? message),
+        title: "Could not update T3 Connect",
+        description: reason ?? relayFailureReason(cause) ?? message,
         ...(traceId
           ? {
               actionProps: {
-                children: translate(locale, "Copy trace ID"),
+                children: "Copy trace ID",
                 onClick: () => void navigator.clipboard?.writeText(traceId),
               },
               actionVariant: "outline",

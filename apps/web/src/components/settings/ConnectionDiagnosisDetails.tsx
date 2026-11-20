@@ -20,7 +20,6 @@ import { useNowSecond } from "../../hooks/useNowSecond";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { stackedThreadToast, toastManager } from "../ui/toast";
-import { useT } from "../../hooks/useT";
 
 /**
  * What failed on the way to an environment, or null while it is connected, off,
@@ -28,7 +27,6 @@ import { useT } from "../../hooks/useT";
  * the headline do not re-render on every attempt.
  */
 export function useConnectionDiagnosis(environment: EnvironmentPresentation) {
-  const t = useT();
   const environmentId = environment.environmentId;
   const state = AsyncResult.getOrElse(
     useAtomValue(environmentCatalog.stateAtom(environmentId)),
@@ -68,14 +66,12 @@ const HOP_NOTE = { ok: "", failed: "Failed", unchecked: "Not checked" } as const
 
 /** Ticks once per second, and only while a retry is scheduled, so the list around it does not re-render. */
 function RetryCountdown({ retryAt }: { readonly retryAt: number }) {
-  const t = useT();
-  return useDeadlinePassed(retryAt) ? t("retrying") : <RetryCountdownTicker retryAt={retryAt} />;
+  return useDeadlinePassed(retryAt) ? "retrying" : <RetryCountdownTicker retryAt={retryAt} />;
 }
 
 function RetryCountdownTicker({ retryAt }: { readonly retryAt: number }) {
-  const t = useT();
   const seconds = Math.ceil((retryAt - useNowSecond()) / 1_000);
-  return <>{seconds > 0 ? t("retrying in {seconds}s", { seconds }) : t("retrying")}</>;
+  return <>{seconds > 0 ? `retrying in ${seconds}s` : "retrying"}</>;
 }
 
 /** The collapsed failure: the full headline, then the retry state and a Details toggle. */
@@ -92,14 +88,13 @@ export function ConnectionDiagnosisSummary({
   readonly expanded: boolean;
   readonly onToggle: () => void;
 }) {
-  const t = useT();
   return (
     <div className="text-xs">
       <p className="text-destructive">{diagnosis.headline}</p>
       <p className="flex flex-wrap items-center gap-1 text-muted-foreground">
         {retryAt !== null ? <RetryCountdown retryAt={retryAt} /> : null}
         {retryAt !== null && attempt > 0 ? <span aria-hidden>·</span> : null}
-        {attempt > 0 ? <span>{t("attempt {attempt}", { attempt })}</span> : null}
+        {attempt > 0 ? <span>attempt {attempt}</span> : null}
         {retryAt !== null || attempt > 0 ? <span aria-hidden>·</span> : null}
         <button
           type="button"
@@ -107,7 +102,7 @@ export function ConnectionDiagnosisSummary({
           onClick={onToggle}
           className="inline-flex items-center gap-0.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
         >
-          {t("Details")}
+          Details
           <ChevronRightIcon
             aria-hidden
             className={cn(
@@ -133,14 +128,13 @@ export function ConnectionDiagnosisPanel({
   readonly onRetry: () => void;
   readonly onAddRoute: (() => void) | null;
 }) {
-  const t = useT();
   const { copyToClipboard } = useCopyToClipboard({
     target: "connection diagnostics",
     onError: (error) =>
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: t("Could not copy diagnostics"),
+          title: "Could not copy diagnostics",
           description: error.message,
         }),
       ),
@@ -160,12 +154,12 @@ export function ConnectionDiagnosisPanel({
               {HOP_MARK[hop.result]}
             </span>
             <span className={cn(hop.result === "ok" && "text-foreground")}>{hop.label}</span>
-            <span>{t(HOP_NOTE[hop.result])}</span>
+            <span>{HOP_NOTE[hop.result]}</span>
           </li>
         ))}
       </ol>
       <div>
-        <p className="font-medium text-foreground">{t("What to try")}</p>
+        <p className="font-medium text-foreground">What to try</p>
         <ol className="list-decimal pl-4 text-muted-foreground">
           {diagnosis.steps.map((step) => (
             <li key={step}>{step}</li>
@@ -178,7 +172,7 @@ export function ConnectionDiagnosisPanel({
             rel="noreferrer"
             className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
           >
-            {t("More info")}
+            More info
           </a>
         ) : null}
       </div>
@@ -192,7 +186,7 @@ export function ConnectionDiagnosisPanel({
       </dl>
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="xs" variant="outline" onClick={onRetry}>
-          {t("Retry now")}
+          Retry now
         </Button>
         <Button
           type="button"
@@ -203,11 +197,11 @@ export function ConnectionDiagnosisPanel({
             copyToClipboard(text, undefined);
           }}
         >
-          {t("Copy diagnostics")}
+          Copy diagnostics
         </Button>
         {onAddRoute ? (
           <Button type="button" size="xs" variant="outline" onClick={onAddRoute}>
-            {t("Add direct route")}
+            Add direct route
           </Button>
         ) : null}
       </div>

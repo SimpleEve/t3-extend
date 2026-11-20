@@ -5,7 +5,6 @@ import { cn } from "~/lib/utils";
 
 import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { PullRequestMetaLine } from "./pullRequestPresentation";
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 export function PullRequestDetailHeaderBody({
   title,
@@ -26,7 +25,6 @@ export function PullRequestDetailHeaderBody({
   files: ReactNode;
   diffStat: ReactNode;
 }) {
-  const t = useT();
   return (
     <div className="col-span-2 mt-1 min-w-0 px-4 pb-4">
       {title}
@@ -41,7 +39,7 @@ export function PullRequestDetailHeaderBody({
         <span className="flex min-w-0 flex-1 items-center gap-1.5 font-mono text-xs text-muted-foreground/70">
           {base}
           <ArrowLeftIcon
-            aria-label={t("receives changes from")}
+            aria-label="receives changes from"
             className="size-3.5 shrink-0 opacity-60"
           />
           {head}
@@ -79,7 +77,6 @@ export function PullRequestDetailTabBar<Tab extends string>({
   inert?: boolean;
   children?: ReactNode;
 }) {
-  const t = useT();
   // A pointer passing over a tab is not intent; it must rest like a list row does.
   const pointerIntent = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- A rest timer still pending when the bar unmounts must not read for a closed panel.
@@ -87,7 +84,7 @@ export function PullRequestDetailTabBar<Tab extends string>({
   return (
     <nav
       className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 border-t border-border/60 px-4 py-2"
-      aria-label={t("Pull request tabs")}
+      aria-label="Pull request tabs"
       inert={inert}
     >
       <ToggleGroup
@@ -115,7 +112,7 @@ export function PullRequestDetailTabBar<Tab extends string>({
             onPointerLeave={onTabIntent ? () => clearTimeout(pointerIntent.current) : undefined}
             onFocus={onTabIntent ? () => onTabIntent(tab.value) : undefined}
           >
-            {t(tab.label)}
+            {tab.label}
           </Toggle>
         ))}
       </ToggleGroup>

@@ -52,7 +52,6 @@ import {
   stepPendingPromptLink,
   withoutPromptLinkParams,
 } from "./prompt-link-model";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 // Found at any depth, both in the parsed link and on the live stack, so the two never disagree on
 // whether the link has landed.
@@ -299,8 +298,8 @@ async function openScratchDraft(request: LinkedDraftRequest) {
   );
   if (environmentId === null) {
     Dialog.alert(
-      translate(getUiLocale(), "Could not start without a project"),
-      translate(getUiLocale(), "No connected environment offers threads without a project."),
+      "Could not start without a project",
+      "No connected environment offers threads without a project.",
     );
     return;
   }
@@ -314,13 +313,10 @@ async function openScratchDraft(request: LinkedDraftRequest) {
     if (!isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
       Dialog.alert(
-        translate(getUiLocale(), "Could not start without a project"),
+        "Could not start without a project",
         error instanceof Error
           ? error.message
-          : translate(
-              getUiLocale(),
-              "The folder for threads without a project could not be created.",
-            ),
+          : "The folder for threads without a project could not be created.",
       );
     }
     return;
@@ -364,8 +360,8 @@ function cloneRepository(repository: PromptLinkRepository, request: LinkedDraftR
         modelUnavailable: prompt !== null && request.provider !== null,
       }),
       prompt
-        ? translate(getUiLocale(), "The prompt opens in a new task once the clone starts.")
-        : translate(getUiLocale(), "Open the link again after the clone to get the prompt."),
+        ? "The prompt opens in a new task once the clone starts."
+        : "Open the link again after the clone to get the prompt.",
     ].join("\n\n"),
   );
 }
@@ -374,7 +370,7 @@ function resolveLink(linkSearch: string) {
   const threads = appAtomRegistry.get(environmentThreadShells.threadShellsAtom);
   const parsed = parseNewThreadLink(linkSearch);
   if (!parsed.ok) {
-    Dialog.alert(translate(getUiLocale(), "Could not open link"), parsed.error);
+    Dialog.alert("Could not open link", parsed.error);
     return;
   }
   const link = parsed.value;

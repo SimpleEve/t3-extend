@@ -8,7 +8,6 @@ import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
 import { Linking } from "react-native";
 
 import * as Dialog from "../../components/ui/Dialog";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: restored import
 
 /**
  * After a clone, suggests installing the forge app on the repository's owner when the server is
@@ -31,9 +30,9 @@ export async function suggestAppAccessForRemote(
     `Give ${target.appSignIn.appName} access to ${owner}`,
     `It isn't installed there, so GitHub requests for ${target.input.repository} use your own login and its lower rate limit.`,
     [
-      { text: translate(getUiLocale(), "Not now"), style: "cancel" },
+      { text: "Not now", style: "cancel" },
       {
-        text: translate(getUiLocale(), "Install"),
+        text: "Install",
         onPress: () => void Linking.openURL(target.appSignIn.installUrl).catch(() => undefined),
       },
     ],

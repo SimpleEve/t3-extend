@@ -18,7 +18,6 @@ import {
   shortcutHref,
   withRecentThreadShortcut,
 } from "./appShortcuts";
-import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 export interface RecentThreadShortcutsDependencies {
   readonly load: () => Promise<ReadonlyArray<RecentThreadShortcut>>;

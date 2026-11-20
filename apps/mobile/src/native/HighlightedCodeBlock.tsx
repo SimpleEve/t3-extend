@@ -9,7 +9,6 @@ import type { HighlightScheme } from "../lib/highlights";
 import { CodeBlockFrame, CodeBlockHeaderButton } from "./CodeBlockFrame";
 import { fencedCodeMarkdown } from "./codeBlockMarkdown";
 import type { NativeMarkdownTextStyle } from "./SelectableMarkdownText.types";
-import { useT } from "../hooks/useT"; // fork: i18n
 
 // Header names from enriched-markdown's CodeBlockLanguages.cpp that are not the fence capitalized.
 const FENCE_DISPLAY_NAMES: Readonly<Record<string, string>> = {
@@ -46,7 +45,6 @@ export function HighlightedCodeBlock(props: {
   readonly textStyle: NativeMarkdownTextStyle;
   readonly codeStyle: NonNullable<MarkdownStyle["codeBlock"]>;
 }) {
-  const t = useT();
   const { code, codeStyle, textStyle } = props;
   const [wrapped, setWrapped] = useState(false);
   const lines = useMarkdownCodeHighlight({
@@ -108,14 +106,14 @@ export function HighlightedCodeBlock(props: {
         <>
           <CodeBlockHeaderButton
             icon="text.alignleft"
-            label={wrapped ? t("Disable line wrap") : t("Wrap lines")}
+            label={wrapped ? "Disable line wrap" : "Wrap lines"}
             textStyle={textStyle}
             active={wrapped}
             onPress={() => setWrapped((value) => !value)}
           />
           <CodeBlockHeaderButton
             icon="doc.on.doc"
-            label={t("Copy code")}
+            label="Copy code"
             textStyle={textStyle}
             onPress={() => copyTextWithHaptic(code)}
           />

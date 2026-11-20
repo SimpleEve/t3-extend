@@ -25,7 +25,6 @@ import { primaryServerConfigAtom, primaryServerWelcomeAtom } from "../../state/s
 import { environmentShell } from "../../state/shell";
 import { environmentThreadShells } from "../../state/threads";
 import { Button } from "../ui/button";
-import { useT } from "../../hooks/useT";
 
 /** Pending blocks all rendering, including EventRouter welcome navigation. */
 
@@ -188,18 +187,17 @@ function FirstRunRecovery({
   readonly reason: "settings" | "connection";
   readonly retrying?: boolean;
 }) {
-  const t = useT();
   const settingsReadFailed = reason === "settings";
   return (
     <main className="flex h-dvh min-h-0 items-center justify-center bg-background px-6 text-foreground">
       <div className="flex max-w-sm flex-col items-center text-center">
         <h1 className="text-lg font-semibold">
-          {settingsReadFailed ? t("Could not read settings") : t("Still connecting")}
+          {settingsReadFailed ? "Could not read settings" : "Still connecting"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {settingsReadFailed
-            ? t("Your saved settings could not be loaded.")
-            : t("T3 Extend could not confirm this workspace.")}
+            ? "Your saved settings could not be loaded."
+            : "T3 Code could not confirm this workspace."}
         </p>
         <Button
           className="mt-5"
@@ -215,7 +213,7 @@ function FirstRunRecovery({
           }}
         >
           <RefreshIcon refreshing={retrying} />
-          {settingsReadFailed ? t("Retry") : t("Reload")}
+          {settingsReadFailed ? "Retry" : "Reload"}
         </Button>
       </div>
     </main>

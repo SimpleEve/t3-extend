@@ -5,7 +5,6 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { NewThreadButton } from "../../components/NewThreadButton";
 import { FloatingActionButton } from "../../components/ui/FloatingActionButton";
 import { EmptyState } from "../../components/ui/EmptyState";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { ScreenContent } from "../../components/ui/ScreenContent";
 import type { WorkspaceTab } from "./workspace/workspace-tabs-state";
 
@@ -14,7 +13,6 @@ export function WorkspaceEmptyDetail(props: {
   readonly onStartNewTask?: () => void;
   readonly onAddConnection?: () => void;
 }) {
-  const t = useT(); // fork: i18n
   const pullRequests = props.tab === "pullRequests";
   const issues = props.tab === "issues";
   const settings = props.tab === "settings";
@@ -31,12 +29,12 @@ export function WorkspaceEmptyDetail(props: {
         {props.onAddConnection ? (
           <View className="w-full max-w-[430px]">
             <EmptyState
-              title={t("No environments connected")}
-              detail={t("Add an environment to load projects and start coding sessions.")}
+              title="No environments connected"
+              detail="Add an environment to load projects and start coding sessions."
               variant="plain"
               action={
                 <FloatingActionButton
-                  label={t("Add environment")}
+                  label="Add environment"
                   icon="plus"
                   variant="extended"
                   tone="primary"
@@ -55,23 +53,23 @@ export function WorkspaceEmptyDetail(props: {
             />
             <Text className="text-center text-xl font-t3-bold">
               {settings
-                ? t("Select a setting")
+                ? "Select a setting"
                 : pullRequests
-                  ? t("Select a pull request")
+                  ? "Select a pull request"
                   : issues
-                    ? t("Select an issue")
-                    : t("Select a thread")}
+                    ? "Select an issue"
+                    : "Select a thread"}
             </Text>
             <Text className="text-center text-base text-foreground-muted">
               {settings
-                ? t("Choose a page from the sidebar.")
+                ? "Choose a page from the sidebar."
                 : pullRequests
-                  ? t("Choose a pull request from the sidebar to review it.")
+                  ? "Choose a pull request from the sidebar to review it."
                   : issues
-                    ? t("Choose an issue from the sidebar to read it.")
+                    ? "Choose an issue from the sidebar to read it."
                     : Platform.OS === "android"
-                      ? t("Choose a thread from the sidebar or start a new thread.")
-                      : t("Choose a thread from the sidebar or start a new task.")}
+                      ? "Choose a thread from the sidebar or start a new thread."
+                      : "Choose a thread from the sidebar or start a new task."}
             </Text>
             {props.onStartNewTask && !pullRequests && !issues && !settings ? (
               Platform.OS === "android" ? (

@@ -1,4 +1,3 @@
-import { loadUiCatalog, setUiLocale, translate } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 

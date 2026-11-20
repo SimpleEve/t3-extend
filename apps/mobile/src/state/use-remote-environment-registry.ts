@@ -21,8 +21,6 @@ import { createRemoteEnvironmentProjectionAtoms } from "./remote-environment-pro
 import { serverEnvironment } from "./server";
 import { relayEnvironmentDiscovery } from "./relay";
 import { connectPairingUrl as connectPairingUrlCommand } from "../connection/onboarding";
-import { useT } from "../hooks/useT"; // fork: i18n
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 
 const RELAY_REMOVAL_ACCOUNT_NOTE: Record<Discovery.RelayEnvironmentRegistration, string> = {
   registered:
@@ -78,7 +76,7 @@ export async function pairEnvironment(
     "reason" in error &&
     error.reason === "unsupported"
   ) {
-    Dialog.alert(translate(getUiLocale(), "Client not supported"), message);
+    Dialog.alert("Client not supported", message);
     return { ok: false, error: null };
   }
   return { ok: false, error: message };
@@ -160,7 +158,6 @@ export function useRemoteConnectionStatus() {
 }
 
 export function useRemoteConnections() {
-  const t = useT(); // fork: i18n
   const controller = useConnectionController();
   const navigation = useNavigation();
   const connectionPairingUrl = useAtomValue(connectionPairingUrlAtom);
@@ -189,7 +186,7 @@ export function useRemoteConnections() {
       return;
     }
     const remove = {
-      text: t("Remove"),
+      text: "Remove",
       style: "destructive",
       onPress: () => {
         void controller.removeEnvironment(environmentId);
@@ -201,28 +198,22 @@ export function useRemoteConnections() {
         environmentId,
       );
       const openAccount = {
-        text: t("Open T3 Account"),
+        text: "Open T3 Account",
         onPress: () => navigation.navigate("SettingsAuth"),
       };
       Dialog.alert(
-        t("Remove from this device?"),
-        t("Forget {environmentLabel} and its cached threads on this device.\n\n{note}", {
-          environmentLabel: environment.environmentLabel,
-          note: t(RELAY_REMOVAL_ACCOUNT_NOTE[registration]),
-        }),
+        "Remove from this device?",
+        `Forget ${environment.environmentLabel} and its cached threads on this device.\n\n${RELAY_REMOVAL_ACCOUNT_NOTE[registration]}`,
         registration === "unregistered" || !hasCloudPublicConfig()
-          ? [{ text: t("Cancel"), style: "cancel" }, remove]
-          : [{ text: t("Cancel"), style: "cancel" }, openAccount, remove],
+          ? [{ text: "Cancel", style: "cancel" }, remove]
+          : [{ text: "Cancel", style: "cancel" }, openAccount, remove],
       );
       return;
     }
     Dialog.alert(
-      t("Remove from this device?"),
-      t(
-        "Forget {environmentLabel} and its cached threads on this device. Switch it off instead to keep it saved.",
-        { environmentLabel: environment.environmentLabel },
-      ),
-      [{ text: t("Cancel"), style: "cancel" }, remove],
+      "Remove from this device?",
+      `Forget ${environment.environmentLabel} and its cached threads on this device. Switch it off instead to keep it saved.`,
+      [{ text: "Cancel", style: "cancel" }, remove],
     );
   };
 

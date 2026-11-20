@@ -1,4 +1,3 @@
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { foldSearchQuery, rankSearchItems, scoreSearchTerms } from "@t3tools/shared/paletteSearch";
 
 import type { SettingsPageTarget } from "./components/settings-page-targets";

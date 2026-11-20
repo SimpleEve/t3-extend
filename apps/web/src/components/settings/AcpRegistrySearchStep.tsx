@@ -31,7 +31,6 @@ import { isConfiguredAcpRegistryAgent } from "./AddProviderInstanceDialog.logic"
 import { ProviderDriverKind } from "@t3tools/contracts";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
 import { providerClients } from "./providerDriverMeta";
-import { useT } from "../../hooks/useT";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error && error.message.trim()
@@ -146,7 +145,6 @@ export function AcpRegistrySearchStep({
   onManualConfiguration,
   onLocalConfiguration,
 }: AcpRegistrySearchStepProps) {
-  const t = useT();
   const canManageProviders = useEnvironmentScope(environmentId, AuthProvidersManageScope);
   const { query, search, preparingId, prepareError } = registry;
 
@@ -168,7 +166,7 @@ export function AcpRegistrySearchStep({
   return (
     <section className="grid gap-3" aria-labelledby="acp-registry-search-heading">
       <h3 className="sr-only" id="acp-registry-search-heading">
-        {t("Choose an agent")}
+        Choose an agent
       </h3>
 
       <form className="flex flex-wrap items-center gap-2" onSubmit={handleSearch}>
@@ -177,11 +175,11 @@ export function AcpRegistrySearchStep({
             <SearchIcon />
           </InputGroupAddon>
           <InputGroupInput
-            aria-label={t("Search ACP Registry")}
+            aria-label="Search ACP Registry"
             maxLength={ACP_REGISTRY_SEARCH_QUERY_MAX_LENGTH}
             disabled={preparingId !== null}
             onChange={(event) => registry.type(event.currentTarget.value)}
-            placeholder={t("Search agents…")}
+            placeholder="Search agents…"
             size="sm"
             type="search"
             value={query}
@@ -194,7 +192,7 @@ export function AcpRegistrySearchStep({
           type="button"
           variant="ghost-muted"
         >
-          {t("Enter manually")}
+          Enter manually
         </Button>
         {onLocalConfiguration ? (
           <Button
@@ -204,16 +202,16 @@ export function AcpRegistrySearchStep({
             type="button"
             variant="outline"
           >
-            {t("Local ACP command")}
+            Local ACP command
           </Button>
         ) : null}
       </form>
 
       <div className="sr-only" role="status">
         {isInitialSearch
-          ? t("Searching the ACP Registry.")
+          ? "Searching the ACP Registry."
           : isRefreshing
-            ? t("Refreshing ACP Registry results.")
+            ? "Refreshing ACP Registry results."
             : results
               ? resultCount === 1
                 ? t("{count} compatible agent found.", { count: resultCount })
@@ -229,15 +227,15 @@ export function AcpRegistrySearchStep({
 
       {isInitialSearch ? (
         <div className="flex min-h-20 items-center justify-center text-sm text-muted-foreground">
-          {t("Searching the registry...")}
+          Searching the registry...
         </div>
       ) : null}
 
       {results ? (
         results.length === 0 ? (
           <div className="flex min-h-28 flex-col items-center justify-center rounded-2xl border border-dashed px-4 text-center">
-            <p className="text-sm font-medium">{t("No compatible agents found")}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{t("Try a broader search.")}</p>
+            <p className="text-sm font-medium">No compatible agents found</p>
+            <p className="mt-1 text-xs text-muted-foreground">Try a broader search.</p>
           </div>
         ) : (
           <ScrollArea scrollFade className="max-h-64">
@@ -273,7 +271,6 @@ function AcpRegistryAgentRow({
   readonly isPreparing: boolean;
   readonly onAdd: (agent: AcpRegistrySearchAgent) => void;
 }) {
-  const t = useT();
   const progressLabel = agent.distribution === "binary" ? "Downloading" : "Preparing";
   const aboutUrl = agent.website || agent.repository;
   return (
@@ -304,14 +301,14 @@ function AcpRegistryAgentRow({
                   <Button
                     size="icon-xs"
                     variant="ghost-muted"
-                    aria-label={t("About {name}", { name: agent.name })}
+                    aria-label={`About ${agent.name}`}
                     render={<a href={aboutUrl} target="_blank" rel="noreferrer" />}
                   >
                     <ExternalLinkIcon />
                   </Button>
                 }
               />
-              <TooltipPopup>{t("About {name}", { name: agent.name })}</TooltipPopup>
+              <TooltipPopup>About {agent.name}</TooltipPopup>
             </Tooltip>
           ) : null}
           <Button
@@ -321,7 +318,7 @@ function AcpRegistryAgentRow({
             size="xs"
             variant={isPreparing ? "secondary" : "outline"}
           >
-            {alreadyAdded ? t("Added") : isPreparing ? progressLabel : t("Add")}
+            {alreadyAdded ? "Added" : isPreparing ? progressLabel : "Add"}
           </Button>
         </div>
       </div>

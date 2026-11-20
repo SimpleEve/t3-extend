@@ -22,7 +22,6 @@ import { pullRequestFilterChoices, pullRequestLabelColors } from "./pullRequestL
 import { PullRequestLabelDot } from "./PullRequestLabelDot";
 import { PullRequestSearchSheet } from "./PullRequestSearchSheet";
 import { usePullRequestListControls } from "./usePullRequestListControls";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export type PullRequestFilterSearchParams = {
   readonly kind: PullRequestFilterOptionKind;
@@ -54,7 +53,6 @@ const optionsFamily = Atom.family((key: string) => {
 export function PullRequestFilterSearchScreen({
   route,
 }: StaticScreenProps<PullRequestFilterSearchParams>) {
-  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const { kind, environmentId, environmentIds, suggestions, labelColors } = route.params;
   const listControls = usePullRequestListControls();
@@ -114,10 +112,10 @@ export function PullRequestFilterSearchScreen({
       },
     });
   };
-  const placeholder = kind === "labels" ? t("Search labels") : t("Search authors");
+  const placeholder = kind === "labels" ? "Search labels" : "Search authors";
   return (
     <PullRequestSearchSheet
-      title={kind === "labels" ? t("Filter by label") : t("Filter by author")}
+      title={kind === "labels" ? "Filter by label" : "Filter by author"}
       placeholder={placeholder}
       closeAccessibilityLabel={
         kind === "labels" ? t("Close label filter") : t("Close author filter")
@@ -165,17 +163,17 @@ export function PullRequestFilterSearchScreen({
               <EmptyState
                 title={
                   hosted.failed
-                    ? t("Couldn't search the host")
+                    ? "Couldn't search the host"
                     : kind === "labels"
-                      ? t("No matching labels")
-                      : t("No matching authors")
+                      ? "No matching labels"
+                      : "No matching authors"
                 }
                 detail={
                   hosted.failed
-                    ? t("The host didn't answer. Try again in a moment.")
+                    ? "The host didn't answer. Try again in a moment."
                     : kind === "labels"
-                      ? t("Search the labels of the repositories this list covers.")
-                      : t("Search people by name or handle on the repositories' hosts.")
+                      ? "Search the labels of the repositories this list covers."
+                      : "Search people by name or handle on the repositories' hosts."
                 }
                 variant="plain"
               />

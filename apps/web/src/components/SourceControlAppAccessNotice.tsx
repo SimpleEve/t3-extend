@@ -11,8 +11,6 @@ import { useEnvironmentQuery } from "../state/query";
 import { sourceControlEnvironment } from "../state/sourceControl";
 import { T3AppIcon } from "./T3AppIcon";
 import { InlineButton } from "./ui/button";
-import { useT } from "../hooks/useT";
-import { interpolateNodes } from "../lib/interpolateNodes";
 
 /**
  * Says when the server's forge app sign-in cannot reach `repository`, so requests there fall back
@@ -26,7 +24,6 @@ export function SourceControlAppAccessNotice(props: {
   readonly repository: string;
   readonly className?: string;
 }) {
-  const t = useT();
   const definition = props.provider ? sourceControlClients.find(props.provider) : undefined;
   const appSignIn = definition?.credentials?.appSignIn;
   const host = (props.host ?? definition?.publicHost ?? "").toLowerCase();
@@ -67,7 +64,7 @@ export function SourceControlAppAccessNotice(props: {
         className="shrink-0"
         render={<a href={appSignIn.installUrl} target="_blank" rel="noreferrer noopener" />}
       >
-        {t("Install on {owner}", { owner })}
+        Install on {owner}
         <ExternalLinkIcon aria-hidden className="size-3" />
       </InlineButton>
     </div>

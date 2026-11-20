@@ -34,7 +34,6 @@ import * as DesktopWindow from "../window/DesktopWindow.ts";
 import * as DesktopWslEnvironment from "../wsl/DesktopWslEnvironment.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: restored import
 
 const { logWarning: logBackendPoolWarning } =
   DesktopObservability.makeComponentLogger("desktop-backend-pool");
@@ -190,12 +189,8 @@ export const layer = Layer.effect(
             { reason },
           );
           yield* electronDialog.showErrorBox(
-            translate(getUiLocale(), "WSL backend is still unavailable"),
-            translate(
-              getUiLocale(),
-              "{reason}\n\nT3 Extend will use the Windows backend for this launch and retry WSL the next time the app starts.",
-              { reason },
-            ),
+            "WSL backend is still unavailable",
+            `${reason}\n\nT3 Code will use the Windows backend for this launch and retry WSL the next time the app starts.`,
           );
           yield* appSettings.applyWslWindowsFallbackInMemory;
           return true;
@@ -205,12 +200,8 @@ export const layer = Layer.effect(
           reason,
         });
         yield* electronDialog.showErrorBox(
-          translate(getUiLocale(), "WSL backend couldn't start"),
-          translate(
-            getUiLocale(),
-            "{reason}\n\nFalling back to the Windows backend so T3 Extend can open. Re-enable the WSL backend from Settings > Sharing & access once the WSL distro is fixed.",
-            { reason },
-          ),
+          "WSL backend couldn't start",
+          `${reason}\n\nFalling back to the Windows backend so T3 Code can open. Re-enable the WSL backend from Settings > Sharing & access once the WSL distro is fixed.`,
         );
         // Clear wslOnly too so enabling WSL cannot restore a failed mode.
         // Keep the in-memory fallback if persistence fails.
@@ -257,7 +248,7 @@ export const layer = Layer.effect(
         DesktopHomeOwner.readLiveHomeOwner().pipe(
           Effect.flatMap((owner) =>
             electronDialog.showErrorBox(
-              translate(getUiLocale(), "This T3 home is unavailable"),
+              "This T3 home is unavailable",
               DesktopHomeOwner.homeOwnedMessage(owner),
             ),
           ),

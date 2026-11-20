@@ -41,7 +41,6 @@ import {
   openQuestionAttachmentDraft,
 } from "../../questionAttachments";
 import { stackedThreadToast, toastManager } from "../ui/toast";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 import { readComposerImageBytes } from "../chat/composerAttachmentFiles";
 
 type CaptureTarget = DraftId | ScopedThreadRef;
@@ -377,11 +376,8 @@ export function SnapShotCoordinator() {
               "missing-project",
               stackedThreadToast({
                 type: "error",
-                title: translate(getUiLocale(), "Snapshot taken, but no project is available"),
-                description: translate(
-                  getUiLocale(),
-                  "Add a project, then capture the window again.",
-                ),
+                title: "Snapshot taken, but no project is available",
+                description: "Add a project, then capture the window again.",
               }),
             );
             continue;
@@ -496,8 +492,8 @@ export function SnapShotCoordinator() {
             toastManager.add(
               stackedThreadToast({
                 type: "error",
-                title: translate(getUiLocale(), "Snapshot failed"),
-                description: state.message ?? translate(getUiLocale(), "Try the capture again."),
+                title: "Snapshot failed",
+                description: state.message ?? "Try the capture again.",
               }),
             );
           });

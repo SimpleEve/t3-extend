@@ -13,8 +13,6 @@ import {
   matchComposerThreadItems,
 } from "@t3tools/client-runtime/composerThreadItems";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 const EMPTY_THREAD_SHELLS: ReadonlyArray<EnvironmentThreadShell> = [];
 const EMPTY_ENVIRONMENTS: ReadonlyArray<ComposerEnvironmentCandidate> = [];
@@ -111,7 +109,6 @@ export function buildComposerSlashCommandItems(input: {
   readonly offersFreshSession?: boolean;
   readonly offersSideChat?: boolean;
   readonly selectedProviderStatus: Pick<ServerProvider, "driver" | "slashCommands"> | null;
-  readonly t?: Translator; // fork: interface language
 }): ComposerCommandItem[] {
   const t = input.t ?? ((source: string) => source);
   const query = input.query.toLowerCase();
@@ -122,7 +119,7 @@ export function buildComposerSlashCommandItems(input: {
           type: "slash-command",
           command: "model",
           label: "/model",
-          description: t("Switch model"),
+          description: "Switch model",
         },
       ]
     : [];
@@ -141,7 +138,7 @@ export function buildComposerSlashCommandItems(input: {
         type: "slash-command",
         command,
         label: `/${command}`,
-        description: t(description),
+        description,
       });
     }
   }
@@ -151,7 +148,7 @@ export function buildComposerSlashCommandItems(input: {
       type: "slash-command",
       command: "clear",
       label: "/clear",
-      description: t("Start a fresh session"),
+      description: "Start a fresh session",
     });
   }
   for (const command of input.selectedProviderStatus?.slashCommands ?? []) {
@@ -301,7 +298,6 @@ export function useComposerCommandMenu({
   }));
   // Thread mentions rank by recency as of when the composer mounted.
   const [now] = useState(() => Date.now());
-  const t = useT(); // fork: i18n
   const insertedSelection = useComposerDraftSelection(ownerKey, draftMessage);
   const selection = resolveComposerMenuSelection({
     draftMessage,
@@ -382,7 +378,7 @@ export function useComposerCommandMenu({
           isDraft: entry.isDraft,
         },
         label: `#${entry.number}`,
-        description: `${entry.isDraft ? t("Draft") : t(PULL_REQUEST_STATE_LABELS[entry.state])} · ${
+        description: `${entry.isDraft ? "Draft" : entry.state} · ${
           entry.repository.toLowerCase() === pullRequestRepository?.toLowerCase()
             ? ""
             : `${entry.repository} · `
@@ -688,7 +684,7 @@ export function useComposerCommandMenu({
     error:
       trigger?.kind === "pull-request"
         ? pullRequestProjectId === null || pullRequestRepository === null
-          ? t("Pull requests are unavailable for this project.")
+          ? "Pull requests are unavailable for this project."
           : pullRequestSearch.error
         : null,
     onSelect,

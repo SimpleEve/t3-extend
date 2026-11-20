@@ -1,5 +1,4 @@
 import type { PullRequestActivity, PullRequestCheck, PullRequestComment } from "@t3tools/contracts";
-import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 import {
   normalizedReviewState,
@@ -8,7 +7,6 @@ import {
   pullRequestStatus,
 } from "./pullRequestStatus";
 
-const t = translatorFor("en");
 const author = { login: "julius", name: null, avatarUrl: null };
 function review(state: string, at: string): PullRequestComment {
   return {

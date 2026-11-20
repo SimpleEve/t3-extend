@@ -1,7 +1,6 @@
 import { SourceControlProviderKind, type VcsStatusResult } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { loadUiCatalog } from "../i18n/translate.ts";
 import { sourceControlClients } from "../sourceControlClients.ts";
 import {
   buildMenuItems,

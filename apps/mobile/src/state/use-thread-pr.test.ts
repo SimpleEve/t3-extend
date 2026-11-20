@@ -4,7 +4,6 @@ import {
   SourceControlProviderKind,
   type ThreadPullRequestLink,
 } from "@t3tools/contracts";
-import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -14,8 +13,6 @@ import {
   rememberBounded,
   resolveThreadPrSource,
 } from "./thread-pr-presentation";
-
-const t = translatorFor("en");
 
 function linkedPr(
   number: number,

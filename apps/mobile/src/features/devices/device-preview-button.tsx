@@ -2,14 +2,12 @@ import { Pressable, View } from "react-native";
 
 import { AppText } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
-import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function DevicePreviewButton(props: {
   readonly count: number;
   readonly onPress: () => void;
   readonly compact?: boolean;
 }) {
-  const t = useT(); // fork: i18n
   const compact = props.compact ?? true;
   return (
     <Pressable
