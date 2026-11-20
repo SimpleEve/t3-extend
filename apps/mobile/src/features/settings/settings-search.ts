@@ -1,5 +1,5 @@
 import { foldSearchQuery, rankSearchItems, scoreSearchTerms } from "@t3tools/shared/paletteSearch";
-import { msg } from "gt-react-native";
+import { decodeMsg, msg } from "gt-react-native";
 
 import { m, type MessageResolver } from "../../i18n/messages";
 
@@ -194,8 +194,7 @@ export interface SettingsSearchSection<Row extends SettingsSearchRow> {
 /**
  * Keeps the rows whose label, section, or page contents match `query`, in list order, and drops
  * sections left empty. Matching is the command palette's, so both searches agree.
- * fork: with `t`, a page's terms also match in the interface language, wherever the catalog
- * has them (an untranslated term is its own English).
+ * fork: a page's terms match in English and, where the catalog has them, the interface language.
  */
 export function filterSettingsSections<
   Row extends SettingsSearchRow,
@@ -213,7 +212,12 @@ export function filterSettingsSections<
             [
               row.label,
               ...(section ? [section] : []),
-              ...(termsById.get(row.id) ?? []).map((term) => resolve(term)),
+              // fork: a term matches in English as well as in the interface language.
+              ...(termsById.get(row.id) ?? []).flatMap((term) => {
+                const source = decodeMsg(term);
+                const shown = resolve(term);
+                return shown === source ? [source] : [source, shown];
+              }),
             ],
             options,
           ),

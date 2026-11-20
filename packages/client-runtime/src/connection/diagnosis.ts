@@ -257,6 +257,9 @@ function steps(
           ),
         ),
       ];
+    // fork: a wait, not a failure.
+    case "device_list_pending":
+      return [resolve(msg("Wait a moment. T3 Extend retries on its own."))];
     case "origin_unreachable":
     case "invalid_response":
       return [resolve(msg("Open or restart T3 Extend on {host}.", { host })), checkHost];

@@ -1229,6 +1229,8 @@ function NewKeybindingCommandSelect({
     <Select
       value={draft.commandDraft}
       onValueChange={(value) => draft.setCommandDraft(value as KeybindingCommand)}
+      // fork: without items the trigger shows the command's raw id
+      items={commandOptions.map((command) => ({ value: command, label: commandLabel(command, m) }))}
     >
       <SelectTrigger size="sm" className={className}>
         <SelectValue placeholder={gt("Command")} />

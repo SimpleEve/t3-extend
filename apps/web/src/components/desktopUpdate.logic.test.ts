@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { DesktopUpdateState } from "@t3tools/contracts";
+import { setUiLocale } from "@t3tools/client-runtime/i18n";
 
 import {
   canCheckForUpdate,
   getDesktopUpdateButtonTooltip,
+  getDesktopUpdateDisabledReason,
   getDesktopUpdateReleaseHistoryUrl,
   getDesktopUpdateReleaseUrl,
   resolveDesktopUpdateButtonAction,
@@ -97,13 +99,13 @@ describe("desktop update button state", () => {
 
 describe("desktop update UI helpers", () => {
   it.each(["owner/repo/extra", "owner#notes/repo", "owner/repo?tab=notes"])(
-    "falls back to upstream for an invalid configured repository: %s",
+    "falls back to the fork repository for an invalid configured repository: %s",
     (repository) => {
       expect(getDesktopUpdateReleaseHistoryUrl(repository)).toBe(
-        "https://github.com/pingdotgg/t3code/releases",
+        "https://github.com/SimpleEve/t3-extend/releases",
       );
       expect(getDesktopUpdateReleaseUrl("1.2.3", repository)).toBe(
-        "https://github.com/pingdotgg/t3code/releases/tag/v1.2.3",
+        "https://github.com/SimpleEve/t3-extend/releases/tag/v1.2.3",
       );
     },
   );
@@ -119,5 +121,29 @@ describe("canCheckForUpdate", () => {
         downloadedVersion: "1.1.0",
       }),
     ).toBe(true);
+  });
+});
+
+describe("getDesktopUpdateDisabledReason", () => {
+  // fork: the desktop marks its own fixed sentences; only those go through the fork's catalog.
+  it("translates the app's own sentence but not an administrator's wording", async () => {
+    const fixed = "Automatic updates on Linux require the AppImage or the .deb package.";
+    const disabled = (extra: Partial<DesktopUpdateState>): DesktopUpdateState => ({
+      ...baseState,
+      enabled: false,
+      status: "disabled",
+      message: fixed,
+      ...extra,
+    });
+    await setUiLocale("zh-Hans");
+    try {
+      expect(getDesktopUpdateDisabledReason(disabled({ messageFixed: true }))).toMatch(
+        /\p{Script=Han}/u,
+      );
+      // Same words, but from a policy: shown as written.
+      expect(getDesktopUpdateDisabledReason(disabled({}))).toBe(fixed);
+    } finally {
+      await setUiLocale("en");
+    }
   });
 });

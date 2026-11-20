@@ -13,14 +13,16 @@ function hasWindow(): boolean {
 }
 
 // fork: settings saved before the fork adopted `language` carry `uiLanguage`; rewrite them once.
-function migrateStoredUiLanguage(): void {
+// Runs after a successful read, so a failed read still reaches the caller.
+function migrateStoredUiLanguage(): boolean {
   try {
     const raw = window.localStorage.getItem(CLIENT_SETTINGS_STORAGE_KEY);
-    if (raw === null || !raw.includes('"uiLanguage"')) return;
+    if (raw === null || !raw.includes('"uiLanguage"')) return false;
     const migrated = migrateLegacyUiLanguage(JSON.parse(raw));
     window.localStorage.setItem(CLIENT_SETTINGS_STORAGE_KEY, JSON.stringify(migrated));
+    return true;
   } catch {
-    // Unreadable settings decode to defaults below, as before.
+    return false;
   }
 }
 
@@ -28,9 +30,11 @@ export function readBrowserClientSettings(): ClientSettings | null {
   if (!hasWindow()) {
     return null;
   }
-  migrateStoredUiLanguage(); // fork: legacy interface language
-
-  return getLocalStorageItem(CLIENT_SETTINGS_STORAGE_KEY, ClientSettingsSchema);
+  const settings = getLocalStorageItem(CLIENT_SETTINGS_STORAGE_KEY, ClientSettingsSchema);
+  // fork: legacy interface language
+  return migrateStoredUiLanguage()
+    ? getLocalStorageItem(CLIENT_SETTINGS_STORAGE_KEY, ClientSettingsSchema)
+    : settings;
 }
 
 export function writeBrowserClientSettings(settings: ClientSettings): void {

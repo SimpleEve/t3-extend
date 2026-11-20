@@ -2,6 +2,11 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { localNotificationsRows, notificationsRow } from "../../fork/push/notificationsRow"; // fork: UnifiedPush
 import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: notifications rows
+import { decodeOptions } from "gt-react-native";
+
+import en from "../../i18n/translations/en.json";
+import zh from "../../i18n/translations/zh.json";
+import type { MessageResolver } from "../../i18n/messages";
 import { filterSettingsSections } from "./settings-search";
 
 const SECTIONS = [
@@ -73,6 +78,20 @@ describe("filterSettingsSections", () => {
 
 // fork: a build without T3 Connect lists Notifications next to Environments, and search finds it
 // by its name and by "push" in either language.
+// fork: GT's search keywords in Chinese, looked up by their English source as the app's catalog does.
+const zhCatalog: Readonly<Record<string, unknown>> = zh;
+const zhBySource = new Map(
+  Object.entries(en).flatMap(([key, value]) => {
+    const text = zhCatalog[key];
+    return typeof value === "string" && typeof text === "string" ? [[value, text] as const] : [];
+  }),
+);
+const resolveZh = ((message: string) => {
+  const source = decodeOptions(message)?.$_source;
+  const text = typeof source === "string" ? source : message;
+  return zhBySource.get(text) ?? text;
+}) as MessageResolver;
+
 describe("Notifications without T3 Connect", () => {
   it("is listed only where the page has something to show", () => {
     const t = translatorFor("en");
@@ -92,8 +111,8 @@ describe("Notifications without T3 Connect", () => {
     ];
     for (const query of queries) {
       expect(
-        filterSettingsSections(sections, query).flatMap((section) =>
-          section.rows.map((row) => row.id),
+        filterSettingsSections(sections, query, locale === "en" ? undefined : resolveZh).flatMap(
+          (section) => section.rows.map((row) => row.id),
         ),
       ).toEqual(["SettingsNotifications"]);
     }

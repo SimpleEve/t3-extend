@@ -23,7 +23,7 @@ import { ChildProcess } from "effect/process";
 import { defaultDevMemoryLimitBytes, enforceDevMemoryLimit } from "./lib/dev-memory-limit.ts";
 import { type DevShareError, shareDevServer, unshareDevServer } from "./lib/dev-share.ts";
 import { loadRepoEnv } from "./lib/public-config.ts";
-import { devSeedHomeCandidates, FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { devSeedHomeCandidates, FORK, officialHomeDirectory } from "@t3tools/shared/forkIdentity"; // fork: identity
 
 Object.assign(process.env, loadRepoEnv());
 
@@ -334,8 +334,12 @@ export const createDevRunnerEnv = Effect.fn("dev-runner.createDevRunnerEnv")(fun
   const path = yield* Path.Path;
   // The server stores an explicit home's state in userdata, which for the T3 home is the live
   // install. Left implicit, dev state goes to <T3 home>/dev.
-  const isLiveHome =
-    resolvedBaseDir === path.join(yield* HostProcess.HomeDirectory, FORK.homeDirName); // fork: own T3 home
+  // fork: both this fork's T3 home and official T3 Code's are live installs.
+  const homeDirectory = yield* HostProcess.HomeDirectory;
+  const isLiveHome = [
+    path.join(homeDirectory, FORK.homeDirName),
+    officialHomeDirectory(homeDirectory, path.join),
+  ].includes(resolvedBaseDir);
   if (configuredBaseDir !== undefined && !isLiveHome) {
     output.T3CODE_HOME = resolvedBaseDir;
   } else {

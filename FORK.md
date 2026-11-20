@@ -138,7 +138,7 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 
 fork 自己的 `t()`（`packages/client-runtime/src/i18n/`，web 和 mobile 的 hook 是 `hooks/useT.ts`）只给 fork 独有的功能和 fork 改过的文案用，目录在 `catalogs/zh-Hans/`，只有简体中文。它不再有自己的语言设置：GT 切换语言时（web 和 mobile 的 `i18n/messages.ts` 的 `setActiveLocale`、桌面主进程的 `applyLanguage`）顺带调 `setUiLocale(uiLocaleForLanguage(locale))`，`zh` 对应 fork 的 `zh-Hans`，其他语言下 fork 文案显示英文。web 在加载 GT 目录时一起加载 fork 目录（`i18n/runtime.ts`），首屏不闪英文。
 
-写新文案：在上游文件里优先用 GT 的写法（`gt("…")`、`msg()` + `m()`、`<T>`），这样各语言都有机会翻译；fork 独有的组件里用 `t()`，并在 `catalogs/zh-Hans/` 补中文。不要再把上游文件里的 GT 调用改成 `t()`。
+写新文案：在上游文件里优先用 GT 的写法（`gt("…")`、`msg()` + `m()`、`<T>`），这样各语言都有机会翻译；fork 独有的组件里用 `t()`，并在 `catalogs/zh-Hans/` 补中文。不要再把上游文件里的 GT 调用改成 `t()`。上游的组件（`SettingsSection` 的 `title`、`SettingsRow` 等）不会替你翻译传进来的字符串，fork 文件里要写 `title={t("…")}`，不能写 `title="…"`；fork 在上游文件里加的条目（如设置搜索的标题）用 `msg()`，脚本会从 fork 目录里补上中文。lint 的 `t3code/no-untranslated-copy` 会抓到漏写的地方。
 
 **旧的语言设置迁移**：fork 以前存的是 `uiLanguage`（`system`/`en`/`zh-Hans`）。读取设置时一次性改写成 `language`（`zh-Hans` → `zh`，已有 `language` 时以它为准）：web 在 `clientPersistenceStorage.ts`，桌面在 `DesktopClientSettings.ts`，共用 `packages/contracts/src/forkUiLanguage.ts`；mobile 在 `mobile-preferences.ts` 的解析里。各有一条测试。
 

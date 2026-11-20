@@ -1,6 +1,7 @@
 import type { DesktopUpdateActionResult, DesktopUpdateState } from "@t3tools/contracts";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { msg } from "gt-react";
 
 import { m, type MessageResolver } from "../i18n/messages";
@@ -223,9 +224,11 @@ export function getDesktopUpdateDisabledReason(
 ): string | null {
   if (managedDenial !== undefined) return managedDenial;
   if (!state || (state.enabled && state.status !== "disabled")) return null;
-  return (
-    state.message?.trim() || resolve(msg("Automatic updates are not available in this build."))
-  );
+  const message = state.message?.trim();
+  // fork: the desktop's own fixed sentences (`messageFixed`) are in the fork's catalog; an
+  // administrator's wording and updater errors are shown as they came.
+  if (message) return state.messageFixed === true ? translate(getUiLocale(), message) : message;
+  return resolve(msg("Automatic updates are not available in this build."));
 }
 
 export function getDesktopUpdateIdleTooltip(

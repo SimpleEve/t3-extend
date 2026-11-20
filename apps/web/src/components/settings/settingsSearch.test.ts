@@ -149,7 +149,7 @@ describe("searchSettings", () => {
 
   it("finds the interface language in English and Chinese, and by translated titles", () => {
     for (const query of ["language", "语言", "中文"]) {
-      expect(searchSettings(query)[0]?.id, query).toBe("ui-language");
+      expect(searchSettings(query)[0]?.id, query).toBe("language");
     }
     const t = (source: string) => (source === "Chat width" ? "聊天宽度" : source);
     expect(searchSettings("聊天宽度", SETTINGS_SEARCH_ITEMS, t)[0]?.id).toBe("chat-width");
