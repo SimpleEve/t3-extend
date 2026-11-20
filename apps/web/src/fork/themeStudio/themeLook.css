@@ -3,8 +3,14 @@
  * document with data-theme-background while one is shown) and is static: no transitions.
  * Panels become translucent and blur what is behind them; with no image nothing here applies.
  */
+/* Both layers are positioned on the viewport, so the image lines up behind the sidebar and the chat. */
+:root[data-theme-glass][data-theme-background] body,
 :root[data-theme-glass][data-theme-background] [data-workspace-area="conversation"] {
-  background: var(--theme-background-image) center / cover no-repeat;
+  background-image: var(--theme-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 :root[data-theme-glass][data-theme-background] [data-slot="sidebar-inner"] {

@@ -333,7 +333,7 @@ function ColorsSection({ studio }: { studio: Studio }) {
                   key={family.id}
                   studio={studio}
                   role={family.role}
-                  label={t(family.label)}
+                  label={t(family.label, undefined, "theme color")}
                 />
               ))}
             </div>
@@ -468,6 +468,7 @@ function FontsSection({ studio }: { studio: Studio }) {
   const t = useT();
   const look = studio.working.look;
   const overridden = overriddenSettings(look);
+  const [ownOpen, setOwnOpen] = useState(false);
   return (
     <>
       <SettingsSection id="theme-studio-fonts" title="Fonts">
@@ -491,8 +492,22 @@ function FontsSection({ studio }: { studio: Studio }) {
           title={t("Code font")}
           value={look?.fontCode}
         />
+        <div className="px-3 py-2 sm:px-4">
+          <Button
+            aria-expanded={ownOpen}
+            size="xs"
+            variant="ghost"
+            onClick={() => setOwnOpen(!ownOpen)}
+          >
+            {ownOpen ? <ChevronDownIcon /> : <ChevronRightIcon />}
+            {t("Font sizes and your own fonts")}
+          </Button>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("Your own settings apply wherever the theme above leaves a font alone.")}
+          </p>
+        </div>
       </SettingsSection>
-      <TypographySection />
+      {ownOpen ? <TypographySection /> : null}
     </>
   );
 }
@@ -649,38 +664,41 @@ function StudioHeader({ studio }: { studio: Studio }) {
   const customLook = working.look !== undefined;
   return (
     <div
-      className="sticky top-0 z-10 -mx-1 rounded-xl border border-border/60 bg-background/90 px-3 py-2.5 backdrop-blur-md sm:px-4"
+      className="sticky top-0 z-10 -mx-1 rounded-xl border border-border/60 bg-background px-3 py-2.5 sm:px-4"
       data-theme-studio-header
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <h2 className="truncate text-sm font-semibold">{studio.labelOf(working)}</h2>
-            {studio.draft === null ? (
-              <Badge size="sm" variant="outline">
-                {isPreset ? t("Preset") : studio.applied === null ? t("Default") : t("Scheme")}
-              </Badge>
-            ) : studio.isFork ? (
-              <Badge size="sm" variant="info">
-                {t("Saves as a new scheme")}
-              </Badge>
-            ) : (
-              <Badge size="sm" variant="outline">
-                {t("Scheme")}
-              </Badge>
-            )}
+        <div className="min-w-48 flex-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <h2 className="min-w-0 truncate text-sm font-semibold">{studio.labelOf(working)}</h2>
             {studio.dirty ? (
               <Badge size="sm" variant="warning">
                 {t("Unsaved changes")}
               </Badge>
-            ) : null}
+            ) : (
+              <Badge size="sm" variant="outline">
+                {isPreset
+                  ? t("Preset")
+                  : studio.applied === null
+                    ? t("Default")
+                    : studio.customThemes.some((saved) => saved.id === working.id)
+                      ? t("Scheme")
+                      : t("Published")}
+              </Badge>
+            )}
           </div>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {studio.preset
-              ? t("Based on {name}", { name: studio.labelOf(studio.preset) })
-              : customLook
-                ? t("Fonts and layout come from this theme.")
-                : t("Fonts and layout come from your own settings.")}
+            {studio.isFork
+              ? studio.preset
+                ? t("Saves as a new scheme based on {name}", {
+                    name: studio.labelOf(studio.preset),
+                  })
+                : t("Saves as a new scheme")
+              : studio.preset
+                ? t("Based on {name}", { name: studio.labelOf(studio.preset) })
+                : customLook
+                  ? t("Fonts and layout come from this theme.")
+                  : t("Fonts and layout come from your own settings.")}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

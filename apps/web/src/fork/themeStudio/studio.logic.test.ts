@@ -12,6 +12,7 @@ import {
   withSchemeCss,
   withSchemeLook,
 } from "./studio.logic";
+import { intentFromEditorSession } from "./themeStudioStore";
 
 const terminal = getThemeDefinition("studio-terminal")!;
 const mine = (savedThemes: ReturnType<typeof getPresetThemes> = []) =>
@@ -139,5 +140,23 @@ describe("user settings a look overrides", () => {
       "fontUi",
       "chatWidth",
     ]);
+  });
+});
+
+describe("the theme library's editor buttons", () => {
+  it("open the studio on the theme to edit, or on a copy for Duplicate and Create", () => {
+    expect(
+      intentFromEditorSession({ editingThemeId: "mine", seedThemeId: null, seedName: null }),
+    ).toEqual({ themeId: "mine", duplicate: false, name: null });
+    expect(
+      intentFromEditorSession({
+        editingThemeId: null,
+        seedThemeId: "studio-oled",
+        seedName: "OLED Black copy",
+      }),
+    ).toEqual({ themeId: "studio-oled", duplicate: true, name: "OLED Black copy" });
+    expect(
+      intentFromEditorSession({ editingThemeId: null, seedThemeId: null, seedName: null }),
+    ).toEqual({ themeId: null, duplicate: true, name: null });
   });
 });

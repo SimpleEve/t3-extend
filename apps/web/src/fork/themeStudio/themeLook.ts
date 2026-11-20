@@ -1,4 +1,5 @@
 import type { ThemeLook } from "@t3tools/contracts";
+import { useSyncExternalStore } from "react";
 import {
   THEME_LOOK_VARIABLES,
   themeLookCssVariables,
@@ -36,4 +37,8 @@ export function applyThemeLook(look: ThemeLook | undefined): void {
   if (themeLooksEqual(activeLook, look)) return;
   activeLook = look;
   for (const listener of listeners) listener();
+}
+
+export function useActiveThemeLook(): ThemeLook | undefined {
+  return useSyncExternalStore(subscribeToThemeLook, getActiveThemeLook, () => undefined);
 }

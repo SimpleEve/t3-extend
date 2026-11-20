@@ -32,6 +32,17 @@ import {
 } from "./studio.logic";
 import { useThemeStudioIntent } from "./themeStudioStore";
 
+/** Our own presets and the built-in themes have translated names; a person's schemes do not. */
+export function themeDisplayLabel(
+  definition: ThemeDefinition,
+  t: (text: string) => string,
+): string {
+  return getPresetThemes().some((preset) => preset.id === definition.id) ||
+    BUILT_IN_THEMES.some((builtIn) => builtIn.id === definition.id)
+    ? t(definition.label)
+    : definition.label;
+}
+
 /** The stock T3 theme has no definition of its own, so editing it starts from its two palettes. */
 function stockDefinition(): ThemeDefinition {
   return {
@@ -52,12 +63,7 @@ export function useThemeStudio() {
   const applied = getThemeDefinition(appliedId);
   const base = applied ?? stockDefinition();
 
-  // Our own presets and the built-in themes have translated names; a person's schemes do not.
-  const labelOf = (definition: ThemeDefinition) =>
-    getPresetThemes().some((preset) => preset.id === definition.id) ||
-    BUILT_IN_THEMES.some((builtIn) => builtIn.id === definition.id)
-      ? t(definition.label)
-      : definition.label;
+  const labelOf = (definition: ThemeDefinition) => themeDisplayLabel(definition, t);
   const mineLabel = (definition: ThemeDefinition) =>
     t("{name} (mine)", { name: labelOf(definition) });
 

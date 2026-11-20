@@ -8,6 +8,7 @@ export default {
   Presets: "预设",
   Preset: "预设",
   Scheme: "方案",
+  Published: "已发布",
   Terminal: "终端",
   "OLED Black": "OLED 纯黑",
   Paper: "纸张",
@@ -25,8 +26,9 @@ export default {
   "Hover to preview, click to use. Changing a preset afterwards saves your version as a scheme and leaves the preset as it is.":
     "悬停预览，点击使用。之后再改预设，会把你的版本存成一个方案，预设本身不变。",
   "{name} (mine)": "{name}（我的）",
-  "Based on {name}": "基于 {name}",
+  "Based on {name}": "基于{name}",
   "Saves as a new scheme": "将存为新方案",
+  "Saves as a new scheme based on {name}": "将存为基于{name}的新方案",
   "Unsaved changes": "未保存的改动",
   Edited: "已调整",
   "Fonts and layout come from this theme.": "字体和布局来自这个主题。",
@@ -41,6 +43,7 @@ export default {
   "Editing the dark palette": "正在编辑深色配色",
   "Editing the light palette": "正在编辑浅色配色",
   "All colors": "全部颜色",
+  "theme color|Input": "输入框",
   "Every role the app paints, grouped. Changing one also updates the roles that follow it.":
     "应用用到的每个颜色角色，已分组。改一个，跟随它的角色也会一起变。",
 
@@ -52,6 +55,9 @@ export default {
   "The font for the interface and messages. Fonts must be installed on this device.":
     "界面和消息使用的字体。字体需要已安装在这台设备上。",
   "The font for code blocks and diffs.": "代码块和差异使用的字体。",
+  "Font sizes and your own fonts": "字号和你自己的字体",
+  "Your own settings apply wherever the theme above leaves a font alone.":
+    "主题没有指定字体的地方，使用你自己的设置。",
 
   Layout: "布局",
   "Corner radius": "圆角",
@@ -62,6 +68,13 @@ export default {
   "How strong shadows are. 0 is flat.": "阴影有多重。0 是平的。",
   "How wide messages and the composer can grow.": "消息和输入框最宽能到多少。",
   "Overrides your chat width setting": "覆盖你的聊天宽度设置",
+  "Set by the theme": "由主题指定",
+  "“{theme}” sets the fonts and the chat width, so your own choices below only apply where it leaves them alone.":
+    "“{theme}”指定了字体和聊天宽度，下面你自己的选择只在它没指定的地方生效。",
+  "“{theme}” sets the fonts, so your own font choices below only apply where it leaves a font alone.":
+    "“{theme}”指定了字体，下面你自己的字体选择只在它没指定字体的地方生效。",
+  "“{theme}” sets the chat width, so the chat width below does not apply while it is in use.":
+    "“{theme}”指定了聊天宽度，使用它期间下面的聊天宽度不生效。",
 
   "Background image": "背景图",
   "Panel glass": "面板毛玻璃",
