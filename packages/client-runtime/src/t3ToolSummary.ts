@@ -714,7 +714,11 @@ export function summarizeT3ToolCalls(
       );
       break;
     case "link-issue":
-      label = phrase("Linked {object}", "Tried to link {object}", issueQuantity(selected.length, t));
+      label = phrase(
+        "Linked {object}",
+        "Tried to link {object}",
+        issueQuantity(selected.length, t),
+      );
       break;
     case "unlink-issue":
       label = phrase(

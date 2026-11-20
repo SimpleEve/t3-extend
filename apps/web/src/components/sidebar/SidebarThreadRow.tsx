@@ -1828,9 +1828,7 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
               >
                 {shownTitle}
                 {isRegeneratingTitle ? (
-                  <ActivityShimmerOverlay className="truncate">
-                    {shownTitle}
-                  </ActivityShimmerOverlay>
+                  <ActivityShimmerOverlay className="truncate">{shownTitle}</ActivityShimmerOverlay>
                 ) : null}
               </span>
               <span id={`${props.resultId}-pr`} className="contents">

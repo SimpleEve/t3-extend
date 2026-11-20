@@ -640,7 +640,9 @@ export function PublishRepositoryDialog(props: PublishRepositoryDialogProps) {
                         />
                         <TooltipPopup side="top" align="end">
                           {readiness.hint ??
-                            t("Open Settings -> Source control & issues to configure this provider.")}
+                            t(
+                              "Open Settings -> Source control & issues to configure this provider.",
+                            )}
                         </TooltipPopup>
                       </Tooltip>
                     </div>

@@ -117,7 +117,10 @@ function clockLabel(at: number, from: number, locale: UiLocale) {
     return locale === "en"
       ? new Date(at).toLocaleString(undefined, { weekday: "short", ...time })
       : `${translatorFor(locale)(WEEKDAYS[new Date(at).getDay()]!)} ${clock()}`;
-  return new Date(at).toLocaleString(tag, uiFormatOptions(locale, { month: "short", day: "numeric" }));
+  return new Date(at).toLocaleString(
+    tag,
+    uiFormatOptions(locale, { month: "short", day: "numeric" }),
+  );
 }
 
 function widgetAccounts(window: LimitPoolWindow, locale: UiLocale): WidgetLimitAccount[] {
