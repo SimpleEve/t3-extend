@@ -348,8 +348,8 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: "Theme studio",
     to: "/settings/theme",
     searchTerms: [
-      "theme studio presets scheme customize colors color picker eyedropper fonts font size layout radius density spacing shadow chat width glass frosted background css",
-      "主题 主题工作室 预设 方案 颜色 配色 主色 强调色 背景色 取色 取色器 全部颜色 字体 界面字体 代码字体 等宽 字号 布局 圆角 密度 间距 阴影 背景图 背景 玻璃 毛玻璃 面板毛玻璃 半透明 模糊 自定义样式 自定义 CSS 终端 纸张 峡湾 潮汐 陶土 石墨 紧凑 纯黑",
+      "theme studio presets scheme customize colors color picker eyedropper fonts font size layout radius density spacing shadow chat width glass background css broadsheet swiss brutalist blueprint manuscript retro ink wash neon docs quiet terminal",
+      "主题 主题工作室 预设 方案 颜色 配色 主色 强调色 背景色 取色 取色器 全部颜色 字体 界面字体 代码字体 等宽 字号 布局 圆角 密度 间距 阴影 背景图 背景 玻璃 毛玻璃 面板毛玻璃 半透明 模糊 自定义样式 自定义 CSS 终端 报纸 瑞士 网格 野兽派 蓝图 手稿 复古 窗口 90 年代 水墨 霓虹 文档 留白",
     ],
   },
   {

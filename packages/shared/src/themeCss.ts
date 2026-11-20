@@ -68,6 +68,25 @@ export const THEME_CSS_HOOKS = [
   { selector: '[data-slot="tooltip-popup"]', styles: "tooltip" },
   { selector: '[data-slot="scroll-area-scrollbar"]', styles: "overlay scrollbar" },
   { selector: '[data-slot="scroll-area-thumb"]', styles: "overlay scrollbar thumb" },
+  // fork: hooks the style presets use. Each is an attribute the upstream components already set.
+  {
+    selector: "[data-sidebar-row]",
+    styles:
+      'sidebar row; inside [data-thread-item] it is the thread row, ="page" in aria-current when open',
+  },
+  { selector: '[data-slot="sidebar-footer"]', styles: "sidebar footer" },
+  { selector: "[data-timeline-root]", styles: "chat column: the messages' container" },
+  { selector: "[data-assistant-outputs]", styles: "outputs list under a reply" },
+  { selector: '[data-slot="textarea"]', styles: "multi-line text input" },
+  { selector: '[data-slot="select-popup"]', styles: "select list" },
+  { selector: '[data-slot="alert-dialog-popup"]', styles: "confirmation dialog" },
+  { selector: '[data-slot="toast-popup"]', styles: "toast" },
+  { selector: '[data-slot="dialog-header"]', styles: "dialog title area" },
+  { selector: '[data-slot="dialog-backdrop"]', styles: "dim layer behind a dialog" },
+  { selector: '[data-slot="menu-item"]', styles: "menu entry" },
+  { selector: '[data-slot="select-item"]', styles: "select entry" },
+  { selector: "[data-highlighted]", styles: "the menu or select entry under the pointer or keys" },
+  { selector: '[data-slot="badge"]', styles: "badge" },
 ] as const;
 
 /** What an agent needs to restyle the app. `t3_theme_read` returns it. */

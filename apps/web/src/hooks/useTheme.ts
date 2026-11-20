@@ -1,4 +1,5 @@
 import { pipe } from "effect/Function";
+import { RETIRED_PRESET_IDS } from "../fork/themeStudio/presets"; // fork: retired presets
 import type { DesktopBridge } from "@t3tools/contracts";
 import { safeErrorLogAttributes } from "@t3tools/client-runtime/errors";
 import * as Schema from "effect/Schema";
@@ -206,6 +207,14 @@ export function readThemePreference(): Theme {
   }
   if (raw !== null && isKnownThemePreference(raw)) {
     return canonicalThemePreference(raw);
+  }
+  // fork: a retired preset will not come back, so forget the choice (an unpublished environment theme may, so it stays)
+  if (raw !== null && RETIRED_PRESET_IDS.has(raw)) {
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // The default is shown either way.
+    }
   }
   return DEFAULT_THEME_SNAPSHOT.theme;
 }

@@ -204,6 +204,19 @@ export function studioOrigin(input: {
     : { origin, restorable: true };
 }
 
+/**
+ * The theme a scheme's `basedOn` names, or null. A saved theme is never one: an imported theme
+ * can reuse the id of a retired preset, and "Restore to preset" must not take it for the base.
+ */
+export function schemeBase(
+  basedOn: string | undefined,
+  find: (themeId: string) => ThemeDefinition | null,
+  savedThemes: ReadonlyArray<ThemeDefinition>,
+): ThemeDefinition | null {
+  if (basedOn === undefined || savedThemes.some((saved) => saved.id === basedOn)) return null;
+  return find(basedOn);
+}
+
 export type StudioThemeKind = "default" | "preset" | "builtIn" | "scheme" | "published";
 
 /** What the header calls the theme being edited. Only a theme a server publishes is "published". */
