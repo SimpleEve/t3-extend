@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useCustomThemes } from "../../hooks/useCustomThemes";
 import { useT } from "../../hooks/useT";
-import { refreshTheme, useTheme } from "../../hooks/useTheme";
+import { readThemeHalvesRaw, refreshTheme, useTheme } from "../../hooks/useTheme";
 import { themeServerEnvironmentThemesAtom } from "../../state/server";
 import {
   applyThemeColorPreview,
@@ -24,7 +24,9 @@ import {
 import {
   beginScheme,
   editableAppearance,
+  halvesWithout,
   hasUnsavedChanges,
+  placeTheme,
   restoreSchemeToPreset,
   schemeColors,
   withSchemeColors,
@@ -63,6 +65,15 @@ export function useThemeStudio() {
   const appliedId = resolveThemeHalf(theme, themeHalves, resolvedTheme);
   const applied = getThemeDefinition(appliedId);
   const base = applied ?? stockDefinition();
+
+  // Light and dark set apart: the studio changes the half in use and leaves the other alone.
+  const place = (themeId: string) => {
+    const placement = placeTheme(readThemeHalvesRaw(), resolvedTheme, themeId);
+    return placement.kind === "half"
+      ? setThemeHalf(placement.appearance, placement.themeId)
+      : setTheme(placement.themeId);
+  };
+  const halvesInUse = placeTheme(readThemeHalvesRaw(), resolvedTheme, "").kind === "half";
 
   const labelOf = (definition: ThemeDefinition) => themeDisplayLabel(definition, t);
   const mineLabel = (definition: ThemeDefinition) =>
@@ -161,8 +172,8 @@ export function useThemeStudio() {
     const intent = useThemeStudioIntent.getState().take();
     if (intent === null || intent.duplicate || intent.themeId === null) return;
     const target = getThemeDefinition(intent.themeId);
-    if (target !== null && target.id !== appliedId) setTheme(target.id);
-  }, [appliedId, setTheme]);
+    if (target !== null && target.id !== appliedId) place(target.id);
+  }, [appliedId, place]);
 
   const select = (themeId: string | null) => {
     setDraft(null);
@@ -181,7 +192,7 @@ export function useThemeStudio() {
       setSaveFailed(true);
       return;
     }
-    if (applied?.id !== draft.id && !setTheme(draft.id)) {
+    if (applied?.id !== draft.id && !place(draft.id)) {
       setSaveFailed(true);
       return;
     }
@@ -210,10 +221,22 @@ export function useThemeStudio() {
   };
 
   const remove = (scheme: ThemeDefinition) => {
-    if (applied?.id === scheme.id && !select(null)) return;
-    for (const appearance of ["light", "dark"] as const) {
-      if (themeHalves?.[appearance] === scheme.id) setThemeHalf(appearance, null);
+    // Read before setTheme clears the mix; a half whose theme has not loaded yet still counts.
+    const halves = readThemeHalvesRaw();
+    const modeOnly = appearanceMode === "system" ? "system" : appearanceMode;
+    if (getThemeDefinition(theme)?.id === scheme.id) {
+      if (!setTheme(modeOnly)) return;
+      const kept = halvesWithout(halves, scheme.id);
+      for (const appearance of ["light", "dark"] as const) {
+        const half = kept[appearance];
+        if (half !== undefined) setThemeHalf(appearance, half);
+      }
+    } else {
+      for (const appearance of ["light", "dark"] as const) {
+        if (halves[appearance] === scheme.id) setThemeHalf(appearance, null);
+      }
     }
+    setHovered(null);
     try {
       removeCustomTheme(scheme.id);
     } catch {
@@ -239,6 +262,7 @@ export function useThemeStudio() {
     applied,
     draft,
     dirty,
+    halvesInUse,
     saveFailed,
     isFork: draft !== null && savedScheme === null,
     editAppearance,

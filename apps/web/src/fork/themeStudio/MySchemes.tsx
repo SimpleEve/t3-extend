@@ -11,6 +11,7 @@ import { downloadThemeFile } from "../../components/settings/ThemeSettings";
 import { ThemeImportDialog } from "../../components/settings/ThemeImportDialog";
 import { stackedThreadToast, toastManager } from "../../components/ui/toast";
 import { verbatim } from "../verbatim";
+import { HalvesNotice } from "./HalvesNotice";
 import type { useThemeStudio } from "./useThemeStudio";
 
 type Studio = ReturnType<typeof useThemeStudio>;
@@ -155,6 +156,11 @@ export function MySchemes({ studio }: { studio: Studio }) {
         </Button>
       }
     >
+      {studio.halvesInUse ? (
+        <div className="px-3 pt-3 sm:px-4">
+          <HalvesNotice studio={studio} />
+        </div>
+      ) : null}
       {pending ? <SchemeRow pending scheme={pending} studio={studio} /> : null}
       {schemes.map((scheme) => (
         <SchemeRow key={scheme.id} pending={false} scheme={scheme} studio={studio} />

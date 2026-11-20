@@ -44,6 +44,7 @@ import {
 import { ThemeWireframe } from "../../components/settings/ThemeWireframe";
 import { TypographySection } from "../../components/settings/TypographySettings";
 import { isThemeColor, themeColorToHex } from "../../themePalette";
+import { HalvesNotice } from "./HalvesNotice";
 import { MySchemes } from "./MySchemes";
 import { CODE_FONT_OPTIONS, THEME_PRESET_SEEDS, UI_FONT_OPTIONS } from "./presets";
 import { overriddenSettings, schemeColors } from "./studio.logic";
@@ -419,6 +420,7 @@ function PresetsSection({ studio }: { studio: Studio }) {
             "Hover to preview, click to use. Changing a preset afterwards saves your version as a scheme and leaves the preset as it is.",
           )}
         </p>
+        <HalvesNotice studio={studio} />
         <div
           className="grid gap-2.5"
           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(11rem, 1fr))" }}

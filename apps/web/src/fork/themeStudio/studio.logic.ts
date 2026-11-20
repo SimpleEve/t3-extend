@@ -155,3 +155,29 @@ export function overriddenSettings(look: ThemeLook | undefined): ReadonlyArray<L
   const keys: ReadonlyArray<LookSetting> = ["fontUi", "fontCode", "chatWidth"];
   return keys.filter((key) => look?.[key] !== undefined);
 }
+
+type ThemeHalvesRaw = Readonly<{ light?: string; dark?: string }>;
+
+/**
+ * Where a theme the studio just made or opened goes. With light and dark set apart it takes only
+ * the half in use, so the other half survives; only a person choosing a whole theme replaces both.
+ */
+export function placeTheme(
+  halves: ThemeHalvesRaw,
+  appearance: ThemeAppearance,
+  themeId: string,
+):
+  | { readonly kind: "half"; readonly appearance: ThemeAppearance; readonly themeId: string }
+  | { readonly kind: "whole"; readonly themeId: string } {
+  return halves.light !== undefined || halves.dark !== undefined
+    ? { kind: "half", appearance, themeId }
+    : { kind: "whole", themeId };
+}
+
+/** The halves left after a theme is deleted. */
+export function halvesWithout(halves: ThemeHalvesRaw, themeId: string): ThemeHalvesRaw {
+  return {
+    ...(halves.light !== undefined && halves.light !== themeId ? { light: halves.light } : {}),
+    ...(halves.dark !== undefined && halves.dark !== themeId ? { dark: halves.dark } : {}),
+  };
+}

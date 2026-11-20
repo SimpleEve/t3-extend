@@ -40,6 +40,11 @@ export default {
   "Could not save the scheme. Browser storage may be unavailable or full.":
     "无法保存方案。浏览器存储可能不可用或已满。",
 
+  "Light and dark use different themes. Picking or resetting a theme here replaces both. Editing changes only the light theme.":
+    "亮色和暗色用的是不同的主题。在这里选择或恢复默认会同时替换两套，编辑只改亮色那一套。",
+  "Light and dark use different themes. Picking or resetting a theme here replaces both. Editing changes only the dark theme.":
+    "亮色和暗色用的是不同的主题。在这里选择或恢复默认会同时替换两套，编辑只改暗色那一套。",
+
   "Editing the dark palette": "正在编辑深色配色",
   "Editing the light palette": "正在编辑浅色配色",
   "All colors": "全部颜色",

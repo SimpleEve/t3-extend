@@ -5,7 +5,9 @@ import {
   beginScheme,
   editableAppearance,
   hasUnsavedChanges,
+  halvesWithout,
   overriddenSettings,
+  placeTheme,
   restoreSchemeToPreset,
   sameAppearanceOf,
   withSchemeColors,
@@ -158,5 +160,27 @@ describe("the theme library's editor buttons", () => {
     expect(
       intentFromEditorSession({ editingThemeId: null, seedThemeId: null, seedName: null }),
     ).toEqual({ themeId: null, duplicate: true, name: null });
+  });
+});
+
+describe("separate light and dark themes", () => {
+  it("puts an edited theme in the half in use and keeps the other half", () => {
+    expect(placeTheme({ light: "a", dark: "b" }, "light", "c")).toEqual({
+      kind: "half",
+      appearance: "light",
+      themeId: "c",
+    });
+    // One half alone is still a mix: the whole theme must not replace it.
+    expect(placeTheme({ dark: "b" }, "light", "c")).toMatchObject({ kind: "half" });
+  });
+
+  it("replaces the whole theme only when there is no mix to keep", () => {
+    expect(placeTheme({}, "dark", "c")).toEqual({ kind: "whole", themeId: "c" });
+  });
+
+  it("drops a removed theme from the halves and keeps the rest", () => {
+    expect(halvesWithout({ light: "a", dark: "b" }, "a")).toEqual({ dark: "b" });
+    expect(halvesWithout({ light: "a", dark: "a" }, "a")).toEqual({});
+    expect(halvesWithout({ dark: "b" }, "a")).toEqual({ dark: "b" });
   });
 });
