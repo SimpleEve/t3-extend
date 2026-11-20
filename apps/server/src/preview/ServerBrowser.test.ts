@@ -963,6 +963,27 @@ it.effect("a tab the desktop does not draw is marked headless, so the desktop st
   ).pipe(Effect.provide(layer)),
 );
 
+it.effect("a tab opened headless stays off the desktop that would draw a client's tab", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const browser = yield* ServerBrowser.ServerBrowser;
+      const manager = yield* Manager.PreviewManager;
+      desktopRendersNext = true;
+      const { tabId } = yield* manager.open({
+        threadId: scope.thread.threadId,
+        runtime: "server",
+        headless: true,
+      });
+      yield* browser.attachViewer(viewerInput(tabId, true));
+
+      expect(desktopConnections).toHaveLength(0);
+      expect(desktopRendersNext).toBe(true);
+      const { sessions } = yield* manager.list({ threadId: scope.thread.threadId });
+      expect(sessions.find((session) => session.tabId === tabId)?.headless).toBe(true);
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
 it.effect("a server started without the desktop browser channel marks its tabs headless", () =>
   Effect.scoped(
     Effect.gen(function* () {
