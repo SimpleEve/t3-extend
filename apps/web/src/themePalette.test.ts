@@ -35,6 +35,7 @@ import {
   themeColorToHex,
   toCanonicalThemeColor,
   THEME_FILE_VERSION,
+  copyThemeNamed,
 } from "./themePalette";
 
 function asHex(value: string): string {
@@ -66,6 +67,35 @@ function contrastRatio(first: string, second: string): number {
 }
 
 describe("theme files", () => {
+  // fork: a copy under another name carries everything the file format does, bar the collection
+  it("copies a theme under a new name without dropping its look, css, variants or origin", () => {
+    const original = parseThemeFile({
+      version: THEME_FILE_VERSION,
+      name: "Terminal (mine)",
+      appearance: "dark",
+      colors: { canvas: "#000000", accent: "#33ff66" },
+      variants: { light: { canvas: "#ffffff", accent: "#008800" } },
+      css: "[data-chat-header] { border-bottom: 1px dashed; }",
+      look: { radius: 0, fontCode: "Menlo, monospace", glass: 20 },
+      basedOn: "studio-terminal",
+      managed: true,
+      collection: { id: "pack", label: "Pack" },
+    });
+    const copy = copyThemeNamed(original, "Terminal (mine) copy");
+    expect(copy).toMatchObject({
+      id: "terminal-mine-copy",
+      label: "Terminal (mine) copy",
+      appearance: original.appearance,
+      colors: original.colors,
+      variants: original.variants,
+      css: original.css,
+      look: original.look,
+      basedOn: original.basedOn,
+      managed: true,
+    });
+    expect(copy.collection).toBeUndefined();
+  });
+
   it("gives non-Latin theme names distinct stable ids", () => {
     const file = {
       version: THEME_FILE_VERSION,

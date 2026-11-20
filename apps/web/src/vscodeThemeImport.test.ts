@@ -502,5 +502,22 @@ describe("VS Code theme import", () => {
       { theme: dracula("#22232e") },
     ]);
     expect(numbered.map((theme) => theme.label)).toEqual(["Dracula", "Dracula 2"]);
+    // fork: a renamed copy keeps everything else the theme carries
+    const carrying = {
+      ...dracula("#22232e"),
+      css: "[data-chat-header] { border: 0; }",
+      look: { radius: 2 },
+      basedOn: "studio-terminal",
+    };
+    const [, renamed] = resolveThemeLabelCollisions([
+      { theme: dracula("#282a36") },
+      { theme: carrying },
+    ]);
+    expect(renamed).toMatchObject({
+      label: "Dracula 2",
+      css: carrying.css,
+      look: carrying.look,
+      basedOn: carrying.basedOn,
+    });
   });
 });

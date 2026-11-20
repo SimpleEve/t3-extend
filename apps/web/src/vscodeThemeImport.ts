@@ -1,6 +1,7 @@
 import { parse, type ParseError } from "jsonc-parser";
 
 import {
+  copyThemeNamed, // fork: theme look
   createVividThemeColors,
   getStandardThemeColors,
   getThemeModes,
@@ -441,14 +442,7 @@ export function resolveThemeLabelCollisions(
 ): ReadonlyArray<ThemeDefinition> {
   const rename = (theme: ThemeDefinition, name: string): ThemeDefinition | null => {
     try {
-      return parseThemeFile({
-        version: THEME_FILE_VERSION,
-        name: name.slice(0, 48),
-        appearance: theme.appearance,
-        colors: theme.colors,
-        ...(theme.variants ? { variants: theme.variants } : {}),
-        ...(theme.managed ? { managed: true } : {}),
-      });
+      return copyThemeNamed(theme, name.slice(0, 48)); // fork: keeps css, look and basedOn
     } catch {
       return null;
     }

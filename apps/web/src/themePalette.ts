@@ -1621,6 +1621,25 @@ export function parseThemeFile(value: unknown): ThemeDefinition {
   };
 }
 
+/**
+ * The theme under another name, and so another id. It keeps everything a theme file carries
+ * except the collection, which stays behind: updating a collection replaces every theme in it.
+ */
+// fork: one copy function, so a field added to the file format cannot be dropped by one caller
+export function copyThemeNamed(theme: ThemeDefinition, name: string): ThemeDefinition {
+  return parseThemeFile({
+    version: THEME_FILE_VERSION,
+    name,
+    appearance: theme.appearance,
+    colors: theme.colors,
+    ...(theme.variants ? { variants: theme.variants } : {}),
+    ...(theme.managed ? { managed: true } : {}),
+    ...(theme.css ? { css: theme.css } : {}),
+    ...(theme.look ? { look: theme.look } : {}),
+    ...(theme.basedOn ? { basedOn: theme.basedOn } : {}),
+  });
+}
+
 export function serializeThemeFile(theme: ThemeDefinition): string {
   const canonicalTheme = canonicalizeThemeDefinition(theme);
   const file: ThemeFile = {
