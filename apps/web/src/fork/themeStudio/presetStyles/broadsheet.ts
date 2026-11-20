@@ -42,8 +42,7 @@ body, button, input, textarea, select { font-feature-settings: "onum" 1; }
   font-style: italic;
   text-transform: none;
 }
-:lang(zh) [data-chat-header] nav { display: flex; align-items: baseline; }
-[data-chat-header] nav::before { content: "本机讯 ·  "; letter-spacing: 0.1em; }
+:lang(zh) [data-chat-header] nav::before { content: "本机讯 ·  "; letter-spacing: 0.1em; }
 
 [data-message-role="user"] [data-user-message-bubble] {
   background: transparent !important;
@@ -52,6 +51,8 @@ body, button, input, textarea, select { font-feature-settings: "onum" 1; }
   border-radius: 0 !important;
   box-shadow: none !important;
   font-style: italic;
+  max-width: none;
+  width: 100%;
   padding-left: 12px !important;
 }
 [data-message-role="user"] [data-user-message-bubble]::before {

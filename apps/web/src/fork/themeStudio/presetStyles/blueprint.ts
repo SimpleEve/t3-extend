@@ -1,7 +1,7 @@
 import type { ThemePresetSeed } from "../presets";
 
 // fork: Blueprint. Prussian blue with a static drafting grid (CSS gradients only), thin light
-// lines, dashes and part marks.
+// lines and dashes.
 const MONO =
   'Menlo, "SF Mono", Consolas, "Liberation Mono", "PingFang SC", "Microsoft YaHei", monospace';
 
@@ -43,26 +43,10 @@ body,
 :lang(zh) [data-chat-header] nav::before { content: "图 1 ─ "; }
 
 [data-message-role="user"] [data-user-message-bubble] {
-  position: relative;
   background: transparent !important;
   border: 1px solid var(--bp-ink) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-}
-[data-message-role="user"] [data-user-message-bubble]::after {
-  content: "A";
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 15px;
-  height: 15px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--bp-ink);
-  border-radius: 50%;
-  background: #173d72;
-  font-size: 9px;
-  line-height: 1;
 }
 
 .chat-markdown h1, .chat-markdown h2, .chat-markdown h3 {

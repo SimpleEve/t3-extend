@@ -40,7 +40,7 @@ html::after {
   content: "Threads";
   position: absolute;
   top: 6px;
-  left: 6px;
+  left: 44px;
   right: 6px;
   height: 18px;
   padding: 0 6px;
@@ -90,6 +90,7 @@ html::after {
 .chat-markdown-codeblock { border: 0 !important; border-radius: 0 !important; box-shadow: var(--w-sunken); font-family: ${FIXED}; }
 .chat-markdown table { border: 1px solid var(--w-dark); }
 .chat-markdown th { background: var(--w-face); box-shadow: var(--w-raised); }
+.chat-markdown :is(th, td) { padding: 4px 8px !important; }
 
 [data-slot="composer-host"], [data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"],
 [data-slot="input-group"] {

@@ -50,6 +50,7 @@ body, button, input, textarea, select { font-weight: 500; }
 .chat-markdown table { border: 3px solid #000; }
 .chat-markdown th { background: var(--b-mint); border-bottom: 3px solid #000; text-transform: uppercase; }
 .chat-markdown td { border-top: 2px solid #000; }
+.chat-markdown :is(th, td) { padding: 6px 12px !important; }
 
 [data-slot="composer-host"] {
   background: #fff !important;
