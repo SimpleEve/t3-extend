@@ -6,7 +6,7 @@ import { useT } from "../../hooks/useT";
 // fork: shown over the app while the Settings modal is hidden for picking a color, first asking
 // for a click and then saying where the picked color is used. It carries
 // `data-theme-editor-panel`, which `themeInspector.ts` skips, and lets clicks through except on
-// its own button.
+// its own button. Above the spotlight (z-index 100) that outlines where the color is used.
 export function PickHint({
   phase,
   label,
@@ -19,7 +19,7 @@ export function PickHint({
   const t = useT();
   return createPortal(
     <div
-      className="pointer-events-none fixed inset-x-0 top-4 z-[70] flex justify-center px-4"
+      className="pointer-events-none fixed inset-x-0 top-4 z-[110] flex justify-center px-4"
       data-theme-editor-panel
       role="status"
     >
