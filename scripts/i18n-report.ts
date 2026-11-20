@@ -742,6 +742,8 @@ const OPERATION_LABEL_CALLS = new Set([
 
 // `path` skips a file, `path#property` one property in it. Each needs a reason a reviewer can check.
 const PROPERTY_ALLOWLIST = new Set([
+  // Preset and font names are data; the studio translates them where it draws them, and the catalog has each.
+  "apps/web/src/fork/themeStudio/presets.ts#label", // fork: theme studio
   // Programming language and product names stay English.
   "apps/web/src/composer-code-languages.ts",
   "apps/web/src/components/usage/usageProviders.ts",

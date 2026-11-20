@@ -157,6 +157,22 @@ body, button, input, textarea, select {
 svg.lucide { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 `;
 
+/** Choices for the font rows. A look's stack is tried before the app's own, so a missing font falls through. */
+export const UI_FONT_OPTIONS: ReadonlyArray<{ id: string; label: string; stack: string }> = [
+  {
+    id: "humanist",
+    label: "Humanist sans",
+    stack: '"Seravek", "Gill Sans", "Trebuchet MS", "Noto Sans", sans-serif',
+  },
+  { id: "serif", label: "Serif", stack: SERIF_STACK },
+  { id: "mono", label: "Monospace", stack: MONO_STACK },
+];
+
+export const CODE_FONT_OPTIONS: ReadonlyArray<{ id: string; label: string; stack: string }> = [
+  { id: "sf-mono", label: "SF Mono and Menlo", stack: CODE_STACK },
+  { id: "jetbrains", label: "JetBrains Mono", stack: MONO_STACK },
+];
+
 export const THEME_PRESET_SEEDS: ReadonlyArray<ThemePresetSeed> = [
   {
     id: "studio-terminal",
@@ -233,7 +249,7 @@ export const THEME_PRESET_SEEDS: ReadonlyArray<ThemePresetSeed> = [
   },
   {
     id: "studio-compact",
-    label: "Compact",
+    label: "Compact layout",
     appearance: "light",
     palette: { canvas: "#f7f7f8", accent: "#2f7d6d" },
     variant: { canvas: "#17191a", accent: "#4fb8a0" },

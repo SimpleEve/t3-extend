@@ -238,7 +238,8 @@ function ThemeColorPickerPanel({
   );
 }
 
-function ThemeColorPicker({
+export function ThemeColorPicker({
+  // fork: theme studio rows
   label,
   value,
   onChange,

@@ -1,4 +1,5 @@
 import { BUILT_IN_THEMES } from "@t3tools/shared/themePalettes";
+import { getPresetThemes } from "../themePalette"; // fork: theme presets
 import { MonitorIcon, MoonIcon, PaletteIcon, SunIcon } from "lucide-react";
 
 import { useCustomThemes } from "../hooks/useCustomThemes";
@@ -12,7 +13,7 @@ import {
   type CommandPaletteActionItem,
   type CommandPaletteSubmenuItem,
 } from "./CommandPalette.logic";
-import { toggleThemeEditorForTheme } from "./settings/themeEditorStore";
+import { useOpenThemeStudio } from "../fork/themeStudio/themeStudioStore"; // fork: theme studio
 import {
   STANDARD_THEME_CARDS,
   getThemeCardDefinition,
@@ -45,7 +46,7 @@ function useThemeCards() {
   const seen = new Set<string>();
   return [
     ...STANDARD_THEME_CARDS.map((card) => ({ ...card, id: null })),
-    ...[...BUILT_IN_THEMES, ...customThemes, ...environmentThemes]
+    ...[...BUILT_IN_THEMES, ...getPresetThemes(), ...customThemes, ...environmentThemes] // fork: theme presets
       .filter((definition) => {
         if (seen.has(definition.id)) return false;
         seen.add(definition.id);
@@ -67,6 +68,7 @@ export function useCommandPaletteThemeItems() {
   } = useTheme();
   const t = useT();
   const themeCards = useThemeCards();
+  const openThemeStudio = useOpenThemeStudio(); // fork: theme studio
 
   const changeThemeItem: CommandPaletteSubmenuItem = {
     kind: "submenu",
@@ -149,19 +151,16 @@ export function useCommandPaletteThemeItems() {
     ],
   };
 
+  // fork: the studio is the one theme editor, so this entry opens it.
   const themeEditorItem: CommandPaletteActionItem = {
     kind: "action",
     value: "action:theme-editor",
-    searchTerms: ["theme", "appearance", "colors", "palette", "customize"],
-    title: t("Toggle theme editor"),
+    searchTerms: ["theme", "appearance", "colors", "palette", "customize", "studio", "presets"],
+    title: t("Open theme studio"),
     icon: <PaletteIcon className={ITEM_ICON_CLASS} />,
     shortcutCommand: "themeEditor.toggle",
     run: async () => {
-      toggleThemeEditorForTheme({
-        theme,
-        themeHalves,
-        initialAppearance: resolvedTheme,
-      });
+      openThemeStudio();
     },
   };
 

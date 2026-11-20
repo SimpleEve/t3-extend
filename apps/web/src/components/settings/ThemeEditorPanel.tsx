@@ -59,7 +59,8 @@ type ThemeEditorColorFamily = Readonly<{
   roles: ReadonlyArray<ThemeColorRole>;
 }>;
 
-const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
+export const THEME_EDITOR_ROLE_GROUPS: ReadonlyArray<{
+  // fork: theme studio lists the same role groups
   id: string;
   title: string;
   families: ReadonlyArray<ThemeEditorColorFamily>;

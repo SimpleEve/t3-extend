@@ -26,6 +26,7 @@ export type SettingsPath =
   | "/settings/diagnostics"
   | "/settings/voice"
   | "/settings/appearance"
+  | "/settings/theme" // fork: theme studio
   | "/settings/chat"
   | "/settings/diffs"
   | "/settings/keybindings"
@@ -101,6 +102,7 @@ export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/projects": "Projects",
   "/settings/general": "General",
   "/settings/appearance": "Appearance",
+  "/settings/theme": "Theme studio", // fork: theme studio
   "/settings/chat": "Chat",
   "/settings/diffs": "Diffs & pull requests",
   "/settings/keybindings": "Keybindings",
@@ -134,6 +136,7 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
     paths: [
       "/settings/general",
       "/settings/appearance",
+      "/settings/theme", // fork: theme studio
       "/settings/chat",
       "/settings/diffs",
       "/settings/keybindings",
@@ -338,6 +341,22 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/appearance",
     searchTerms: ["appearance colors palette custom import"],
     targetId: "appearance",
+  },
+  {
+    // fork: theme studio
+    id: "theme-studio",
+    title: "Theme studio",
+    to: "/settings/theme",
+    searchTerms: [
+      "theme studio presets scheme customize colors fonts layout radius density shadow glass background css 主题 预设 方案 字体 布局 圆角 密度",
+    ],
+  },
+  {
+    // fork: theme studio
+    id: "theme-studio-schemes",
+    title: "My schemes",
+    to: "/settings/theme",
+    searchTerms: ["my schemes saved themes import export json rename delete 我的方案 导入 导出"],
   },
   {
     // Prefixed because the slider control already owns the `appearance-contrast` id.
@@ -1414,6 +1433,7 @@ const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScop
   "/settings/general": null,
   "/settings/voice": null,
   "/settings/appearance": null,
+  "/settings/theme": null, // fork: theme studio
   "/settings/chat": null,
   "/settings/diffs": null,
   "/settings/snap-shot": null,

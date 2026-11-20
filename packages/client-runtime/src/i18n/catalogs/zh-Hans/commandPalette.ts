@@ -55,7 +55,6 @@ export default {
   Select: "选择",
   "Searching messages…": "正在搜索消息…",
   "Command palette": "命令面板",
-  "Toggle theme editor": "切换主题编辑器",
 
   // Add project, clone, and environment labels
   "Untitled thread": "未命名对话",
