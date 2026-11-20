@@ -332,9 +332,10 @@ export const createDevRunnerEnv = Effect.fn("dev-runner.createDevRunnerEnv")(fun
   };
 
   const path = yield* Path.Path;
-  // The server stores an explicit home's state in userdata, which for ~/.t3 is the live
-  // install. Left implicit, dev state goes to ~/.t3/dev.
-  const isLiveHome = resolvedBaseDir === path.join(yield* HostProcess.HomeDirectory, ".t3");
+  // The server stores an explicit home's state in userdata, which for the T3 home is the live
+  // install. Left implicit, dev state goes to <T3 home>/dev.
+  const isLiveHome =
+    resolvedBaseDir === path.join(yield* HostProcess.HomeDirectory, FORK.homeDirName); // fork: own T3 home
   if (configuredBaseDir !== undefined && !isLiveHome) {
     output.T3CODE_HOME = resolvedBaseDir;
   } else {

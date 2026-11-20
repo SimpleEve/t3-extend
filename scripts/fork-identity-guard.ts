@@ -238,10 +238,16 @@ const BRAND_ROOTS = [
 ];
 /** Catalogs follow the English keys in code; `i18n:report` keeps them in step. */
 const BRAND_SOURCE_FILE = /\.(?:[cm]?[jt]sx?|json|html|webmanifest)$/u;
-const BRAND_SKIPPED_FILE = /(?:^|\/)i18n\/catalogs\//u;
+// GT catalogs (`i18n/translations`) are generated from the source keys; scripts/fork-i18n-sync.ts rebrands them.
+const BRAND_SKIPPED_FILE = /(?:^|\/)i18n\/(?:catalogs|translations)\//u;
 const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*)/u;
 
 const ALLOWED_BRAND: ReadonlyArray<Allowed> = [
+  {
+    path: "packages/contracts/src/orchestrationV2.ts",
+    line: "[T3 Code: ",
+    reason: "Model-facing provenance note; upstream's evals cover this wording.",
+  },
   {
     path: "packages/shared/src/themeCss.ts",
     line: "the stock T3 Code theme",

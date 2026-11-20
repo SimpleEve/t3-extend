@@ -2523,7 +2523,7 @@ export function AboutSettingsPanel() {
         />
         <SettingsRow
           {...setting("open-source-licenses")}
-          description={gt("Notices for dependencies, assets, and optional tools used by T3 Code.")}
+          description={gt("Notices for dependencies, assets, and optional tools used by T3 Extend.")}
           control={
             <Button
               render={<Link to="/settings/open-source-licenses" />}

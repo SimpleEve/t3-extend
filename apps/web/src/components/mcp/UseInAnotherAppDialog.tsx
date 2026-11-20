@@ -453,7 +453,7 @@ function GateScreen({
         </GateMessage>
       );
     case "update":
-      return <GateMessage title={gt("Update T3 Code on {environment}", { environment: name })} />;
+      return <GateMessage title={gt("Update T3 Extend on {environment}", { environment: name })} />;
     case "no-relay-read":
       return (
         <GateMessage
