@@ -3116,6 +3116,12 @@ it.effect("a desktop tab that sends no frame tells its viewer the host is not dr
         "hostNotDrawing",
       );
 
+      // A full backlog of one-time notifications must not swallow it.
+      const output =
+        viewer.output as unknown as Queue.Queue<ServerBrowser.ServerBrowserViewerOutput>;
+      let copies = 0;
+      while (Queue.offerUnsafe(output, { _tag: "clipboard", text: `copy ${copies}` })) copies++;
+
       yield* TestClock.adjust("6 seconds");
 
       expect((yield* Queue.takeAll(viewer.output)).map((item) => item._tag)).toContain(

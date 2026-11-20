@@ -12,7 +12,8 @@ const parseIpv4Address = (host: string): readonly number[] | null => {
     : null;
 };
 
-const parseIpv4MappedIpv6Address = (host: string): readonly number[] | null => {
+// fork: exported for the mobile link loopback check
+export const parseIpv4MappedIpv6Address = (host: string): readonly number[] | null => {
   const normalized = normalizeHostname(host);
   if (!normalized.startsWith("::ffff:")) return null;
   const suffix = normalized.slice("::ffff:".length);
@@ -25,7 +26,8 @@ const parseIpv4MappedIpv6Address = (host: string): readonly number[] | null => {
   return [high >>> 8, high & 0xff, low >>> 8, low & 0xff];
 };
 
-const parseIpv6Address = (host: string): readonly number[] | null => {
+// fork: exported for the mobile link loopback check
+export const parseIpv6Address = (host: string): readonly number[] | null => {
   const normalized = normalizeHostname(host);
   if (!normalized.includes(":")) return null;
   const halves = normalized.split("::");

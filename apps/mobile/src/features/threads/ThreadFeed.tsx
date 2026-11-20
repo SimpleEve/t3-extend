@@ -3441,10 +3441,11 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       const target = resolveFileChipTarget(href, props.workspaceRoot);
       if (target) return fileChipMenu(target, t);
       // fork: a web link's long press offers the built-in browser, the system browser, or a copy.
-      return /^https?:\/\//i.test(href)
+      const web = resolveMarkdownLinkPresentation(href);
+      return web.kind === "external"
         ? {
-            title: href,
-            actions: linkChoices(href, builtInBrowser.available).map((choice) => ({
+            title: web.href,
+            actions: linkChoices(web.href, builtInBrowser.available).map((choice) => ({
               id: `link-${choice}`,
               title: linkChoiceTitle(choice, t),
             })),
@@ -3453,9 +3454,13 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
     },
     onFileContextMenuAction: (href, actionId, reply) => {
       // fork: see the web link menu above.
-      if (actionId === "link-built-in") return void builtInBrowser.openLink(href);
-      if (actionId === "link-system") return void tryOpenExternalUrl(href, "markdown-link");
-      if (actionId === "link-copy") return copyTextWithHaptic(href);
+      if (actionId.startsWith("link-")) {
+        const web = resolveMarkdownLinkPresentation(href);
+        const url = web.kind === "external" ? web.href : href;
+        if (actionId === "link-built-in") return void builtInBrowser.openLink(url);
+        if (actionId === "link-system") return void tryOpenExternalUrl(url, "markdown-link");
+        if (actionId === "link-copy") return copyTextWithHaptic(url);
+      }
       const skill = enrichedSkillReference(href, props.skills);
       if (skill) {
         const instructionsPath = enrichedSkillInstructionsPath(skill);
