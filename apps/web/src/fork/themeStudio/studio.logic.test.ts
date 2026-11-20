@@ -18,6 +18,7 @@ import {
   withSchemeLook,
 } from "./studio.logic";
 import { locateColorRole } from "./colorFamilies";
+import { inspectorReducer } from "./colorInspector.logic";
 import { intentFromEditorSession } from "./themeStudioStore";
 
 const terminal = getThemeDefinition("studio-terminal")!;
@@ -243,5 +244,42 @@ describe("finding a color picked from the app", () => {
     expect(locateColorRole("accent")).toEqual({ role: "accent", needsAllColors: false });
     // `toolbarBorder` follows the Border family, which sits under "All colors".
     expect(locateColorRole("toolbarBorder")).toEqual({ role: "border", needsAllColors: true });
+  });
+});
+
+describe("picking a color from the app", () => {
+  const idle = { phase: "idle", selection: null } as const;
+
+  it("shows where the color is used before Settings comes back, and keeps the pick after", () => {
+    const picking = inspectorReducer(idle, { type: "start" });
+    expect(picking).toEqual({ phase: "picking", selection: null });
+    const showing = inspectorReducer(picking, { type: "picked", role: "chrome" });
+    expect(showing.phase).toBe("showing");
+    // `chrome` follows the Background row, so that row is the one to find.
+    expect(showing.selection).toMatchObject({ role: "canvas" });
+    expect(showing.selection?.roles).toContain("chrome");
+    const back = inspectorReducer(showing, { type: "back" });
+    expect(back).toEqual({ phase: "idle", selection: showing.selection });
+  });
+
+  it("treats Esc as going back once something is picked, and as cancelling before that", () => {
+    const picking = inspectorReducer(idle, { type: "start" });
+    expect(inspectorReducer(picking, { type: "escape" })).toEqual(idle);
+    const showing = inspectorReducer(picking, { type: "picked", role: "accent" });
+    expect(inspectorReducer(showing, { type: "escape" }).selection).toEqual(showing.selection);
+    expect(inspectorReducer(showing, { type: "escape" }).phase).toBe("idle");
+  });
+
+  it("ignores a pick that arrives outside picking, and counts each pick", () => {
+    expect(inspectorReducer(idle, { type: "picked", role: "accent" })).toBe(idle);
+    const first = inspectorReducer(inspectorReducer(idle, { type: "start" }), {
+      type: "picked",
+      role: "accent",
+    });
+    const second = inspectorReducer(inspectorReducer(first, { type: "back" }), { type: "start" });
+    expect(second.selection).toBeNull();
+    expect(
+      inspectorReducer(second, { type: "picked", role: "accent" }).selection?.pick,
+    ).toBeGreaterThan(0);
   });
 });

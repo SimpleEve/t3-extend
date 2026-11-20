@@ -361,17 +361,9 @@ function ColorsSection({ studio }: { studio: Studio }) {
         </div>
       }
     >
-      {inspector.inspecting ? <PickHint /> : null}
-      {!inspector.inspecting && selectedRole !== null ? (
-        <div className="flex items-center gap-2 px-3 pt-3 sm:px-4">
-          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-            {t("Highlighting where “{label}” is used.", { label: selectedLabel })}
-          </p>
-          <Button size="xs" variant="ghost" onClick={inspector.clear}>
-            {t("Clear")}
-          </Button>
-        </div>
-      ) : null}
+      {inspector.phase === "idle" ? null : (
+        <PickHint phase={inspector.phase} label={selectedLabel} onBack={inspector.back} />
+      )}
       <ColorRow
         studio={studio}
         role="canvas"

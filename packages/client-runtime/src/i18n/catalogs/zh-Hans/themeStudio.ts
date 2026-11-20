@@ -51,7 +51,9 @@ export default {
   "All colors": "全部颜色",
   "Pick from the app": "从界面取色",
   "Click an area of the app to pick its color. Esc cancels.": "点击界面区域取色，Esc 取消",
-  "Highlighting where “{label}” is used.": "正在高亮“{label}”用在哪里。",
+  "Highlighting where “{label}” is used. Click anywhere or press Esc to go back.":
+    "正在高亮“{label}”用在哪里。点击任意处或按 Esc 回到设置。",
+  "Back to Settings": "回到设置",
   "theme color|Input": "输入框",
   "Every role the app paints, grouped. Changing one also updates the roles that follow it.":
     "应用用到的每个颜色角色，已分组。改一个，跟随它的角色也会一起变。",
