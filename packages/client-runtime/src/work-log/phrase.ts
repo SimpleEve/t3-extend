@@ -1,21 +1,9 @@
-// fork: work log phrases take an optional translator so a client can show them in its interface
-// language. Each phrase is a whole sentence with its count, because word order differs by
-// language. Without a translator the English is unchanged; mobile relies on that.
-
+// fork: system notices T3 Extend words itself reach clients as plain English. A notice is looked up
+// in the fork's catalog only when its text is exactly one of them; agent and user text never is.
 import { FORK_SYSTEM_NOTICES } from "@t3tools/shared/forkNotices";
 
-/** Translates an English source phrase; `{name}` placeholders take `params`. */
-export type WorkLogPhraseTranslator = (
-  source: string,
-  params?: Readonly<Record<string, string | number>>,
-  context?: string,
-) => string;
+import { getUiLocale } from "../i18n/store.ts";
+import { translate } from "../i18n/translate.ts";
 
-export const englishWorkLogPhrase: WorkLogPhraseTranslator = (source, params) =>
-  source.replace(/\{(\w+)\}/g, (match, name: string) =>
-    params && Object.hasOwn(params, name) ? String(params[name]) : match,
-  );
-
-/** A system notice's label, translated only when T3 worded it: agent and user text is never looked up. */
-export const translateForkNotice = (label: string, t: (source: string) => string): string =>
-  FORK_SYSTEM_NOTICES.has(label) ? t(label) : label;
+export const translateForkNotice = (label: string): string =>
+  FORK_SYSTEM_NOTICES.has(label) ? translate(getUiLocale(), label) : label;

@@ -53,12 +53,6 @@ import {
 import { msg, T, useGT, useLocale, useMessages, Var } from "gt-react";
 import { m, type MessageResolver } from "../../i18n/messages";
 
-import {
-  formatRelativeElapsedLabel,
-  type Translator,
-  type UiLocale,
-} from "@t3tools/client-runtime/i18n";
-import { relativeTimeElapsedMs } from "../../timestampFormat";
 import { useEnvironmentSettings } from "../../hooks/useSettings";
 import { getCustomModelOptionsByInstance } from "../../modelSelection";
 import { providerInstanceEntriesFor } from "../../providerInstances";

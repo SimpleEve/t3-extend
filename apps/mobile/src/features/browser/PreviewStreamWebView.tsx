@@ -172,7 +172,8 @@ export function PreviewStreamWebView(
 function AuthorizedPreviewStream({
   ref,
   ...props
-}: Omit<PreviewStreamConfiguration, "labels" | "quality"> & NativeStreamBridge) { // fork: quality
+}: Omit<PreviewStreamConfiguration, "labels" | "quality"> & NativeStreamBridge) {
+  // fork: quality
   const gt = useGT();
   const [attempt, setAttempt] = useState(0);
   const [previousAccess, setPreviousAccess] = useState(props.access);

@@ -132,21 +132,15 @@ function BrowserPreviewScreen({
     browser.select(next); // fork: also leaves the new tab panel
   };
   const live = (focused && foreground) || pictureInPicture.active;
-  // fork: new tab mode's title, back, and "+" action.
-  const title = composing ? gt("New tab") : tab ? browserTabTitle(tab) : gt("Browser");
-  const onBack = composing ? browser.leave : onClose;
-  const newTabAction = {
-    accessibilityLabel: gt("New tab"),
-    icon: "plus" as const,
-    selected: composing,
-    onPress: browser.compose,
-  };
+  // fork: in new tab mode, closing the bar leaves the panel.
+  const closeBar = composing ? browser.leave : onClose;
 
   const ready = streaming && canControl;
   const command: PreviewStreamRef["command"] = (input) => streamRef.current?.command(input);
   const showPictureInPicture =
     // Android WebView cannot play video in picture in picture.
     Platform.OS === "ios" &&
+    !composing &&
     pictureInPicture.supported &&
     (pictureInPicture.active || pdfUri === null);
 
@@ -160,10 +154,10 @@ function BrowserPreviewScreen({
         key={tab ? `address:${tab.tabId}` : "address"}
         scrollsUnderBar={false}
         bar={{
-          url: tab ? browserTabUrl(tab) : "",
-          editable: ready,
-          canGoBack: ready && (tab?.canGoBack ?? false),
-          onClose,
+          url: tab && !composing ? browserTabUrl(tab) : "",
+          editable: ready && !composing,
+          canGoBack: ready && !composing && (tab?.canGoBack ?? false),
+          onClose: closeBar,
           onBack: () => command({ type: "history", delta: -1 }),
           onReload: () => command({ type: "reload" }),
           onSubmit: (value) => {
@@ -177,6 +171,14 @@ function BrowserPreviewScreen({
           },
           trailing: (
             <>
+              {/* fork: new tab panel */}
+              {composing ? null : (
+                <ControlPill
+                  icon="plus"
+                  accessibilityLabel={gt("New tab")}
+                  onPress={browser.compose}
+                />
+              )}
               {showPictureInPicture ? (
                 <ControlPill
                   icon={{
@@ -191,7 +193,7 @@ function BrowserPreviewScreen({
                   onPress={() => streamRef.current?.togglePictureInPicture()}
                 />
               ) : null}
-              {tabs.length > 1 ? (
+              {tabs.length > 1 && !composing ? (
                 <Menu
                   accessible
                   accessibilityLabel={gt("Tabs", { $context: "browser tabs menu" })}
@@ -210,7 +212,7 @@ function BrowserPreviewScreen({
                   />
                 </Menu>
               ) : null}
-              {tab ? (
+              {tab && !composing ? (
                 <BrowserTabMenu
                   environmentId={environmentId}
                   tab={tab}
@@ -224,7 +226,14 @@ function BrowserPreviewScreen({
         }}
       >
         {({ onScrollDirection }) =>
-          tab ? (
+          composing ? (
+            <NewBrowserTabPanel
+              environmentId={environmentId}
+              threadId={threadId}
+              canOpen={canOpenTab}
+              onOpened={browser.opened}
+            />
+          ) : tab ? (
             live ? (
               <PreviewStreamWebView
                 key={`stream:${tab.tabId}`}

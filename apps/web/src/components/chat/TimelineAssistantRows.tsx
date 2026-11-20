@@ -123,7 +123,7 @@ export function SentMessageTimelineRow({
 
   return (
     <div className="min-w-0 px-1 py-0.5">
-      <MessageAuthorHeading>T3 Extend</MessageAuthorHeading>
+      <MessageAuthorHeading>{FORK.appBaseName}</MessageAuthorHeading>
       {/* Sent messages have no message id; citations name their turn item instead. */}
       <AssistantCitationSource
         messageId={MessageId.make(row.id)}

@@ -778,7 +778,9 @@ function ConfiguredCloudLinkRow({
         <SettingsRow
           title={setting("t3-connect").title}
           // fork: the host may run the official `t3` or this fork's `t3x`, so no command is named.
-          description={gt("Run the `connect link` command on the host, then restart T3 Extend there.")}
+          description={gt(
+            "Run the `connect link` command on the host, then restart T3 Extend there.",
+          )}
         />
       )}
       {signedOut && showSwitch ? null : (

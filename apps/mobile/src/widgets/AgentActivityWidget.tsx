@@ -181,6 +181,7 @@ export function AgentActivityWidget(
             lineLimit(1),
           ]}
         >
+          {/* oxlint-disable-next-line t3code/no-untranslated-copy -- product name; the widget has no module scope for FORK */}
           {summary || (accessory ? "T3 Extend" : "")}
         </Text>
         <Spacer minLength={0} />

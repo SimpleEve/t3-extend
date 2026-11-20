@@ -34,7 +34,7 @@ function ToggleRow(props: {
 export function FooterStatusSettings() {
   const t = useT();
   return (
-    <SettingsSection id="appearance-sidebar-status" title="Sidebar status">
+    <SettingsSection id="appearance-sidebar-status" title={t("Sidebar status")}>
       <ToggleRow
         toggle="limits"
         title={t("Subscription limits")}
@@ -59,7 +59,7 @@ export function KeepAwakeSettings() {
   const t = useT();
   if (!isElectron) return null;
   return (
-    <SettingsSection id="keep-awake" title="Power">
+    <SettingsSection id="keep-awake" title={t("Power")}>
       <ToggleRow
         toggle="keepAwake"
         title={t("Keep computer awake while agents work")}

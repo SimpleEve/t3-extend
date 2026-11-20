@@ -22,7 +22,6 @@ import {
 import { useCustomThemes } from "../../hooks/useCustomThemes";
 import { useEnvironmentIdentificationMode } from "../../hooks/useSettings";
 import { useTheme } from "../../hooks/useTheme";
-import { useT } from "../../hooks/useT";
 import { FooterStatusSettings } from "../../fork/FooterStatusSettings"; // fork: footer status chips
 import { ThemeLookNotice } from "../../fork/themeStudio/ThemeLookNotice"; // fork: theme look
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
@@ -219,7 +218,6 @@ export function AppearanceSettingsPanel() {
             </div>
           }
         />
-
         <SettingsRow
           {...searchableSetting("setting-glass-opacity")}
           description={gt("Higher values make menus, dialogs, and the composer more solid.")}
@@ -265,7 +263,6 @@ export function AppearanceSettingsPanel() {
             </div>
           }
         />
-
         <SettingsRow
           {...searchableSetting("chat-width")}
           description={gt("Set how wide messages and the composer can grow on large screens.")}

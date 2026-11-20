@@ -20,7 +20,7 @@
   "cf6b8661ba96aa84": "이번 실행에서는 T3 Extend가 Windows 백엔드를 사용하고, 다음에 앱을 시작할 때 WSL을 다시 시도합니다.",
   "b5435aa5b470bafd": "WSL 백엔드를 시작할 수 없습니다",
   "b23f506f4c413626": "T3 Extend를 열 수 있도록 Windows 백엔드로 전환합니다. WSL 배포판을 고친 후 설정 > 공유 및 액세스에서 WSL 백엔드를 다시 켜세요.",
-  "33b7e1cf7414e0d9": "백그라운드 서비스 같은 다른 T3 Extend 서버가 이 데이터 디렉터리를 사용 중이거나, 이 디렉터리에 이전 백그라운드 서비스가 설정되어 있습니다. 해당 서버를 중지하거나 `t3x update`를 실행해 보세요. 이전 실행기를 업데이트할 수 없으면 `t3x service uninstall`을 실행하고, 필요하면 최신 CLI에서 `t3x service install`로 다시 설치하세요. `t3x`이 없거나 오래되었으면 `npx t3@latest`를 사용하고, 각 명령에 서비스의 T3 홈과 함께 `--base-dir`을 전달하세요. 그런 다음 T3 Extend를 다시 여세요. 별도의 T3CODE_HOME을 설정하고 실행 중인 서버와 페어링할 수도 있습니다.",
+  "c7993e997386459f": "백그라운드 서비스 같은 다른 T3 Extend 서버가 이 데이터 디렉터리를 사용 중이거나, 이 디렉터리에 이전 백그라운드 서비스가 설정되어 있습니다. 해당 서버를 중지하거나 `t3x update`를 실행해 보세요. 이전 실행기를 업데이트할 수 없으면 `t3x service uninstall`을 실행하고, 필요하면 최신 CLI에서 `t3x service install`로 다시 설치하세요. `t3x`이 없거나 오래되었으면 `npx t3@latest`를 사용하고, 각 명령에 서비스의 T3 홈과 함께 `--base-dir`을 전달하세요. 그런 다음 T3 Extend를 다시 여세요. 별도의 T3CODE_HOME을 설정하고 실행 중인 서버와 페어링할 수도 있습니다.",
   "08e7272bfe3a8781": "T3 Extend 백그라운드 서비스가 이 T3 홈을 사용 중입니다(PID {pid}, 포트 {port}, 버전 {version}). 이 T3 홈과 함께 `--base-dir`을 전달해 `t3x service uninstall`로 중지한 후 T3 Extend를 다시 여세요. 별도의 T3CODE_HOME을 설정하고 실행 중인 서버와 페어링할 수도 있습니다.",
   "be24d2a67b1411e4": "T3 Extend 백그라운드 서비스가 이 T3 홈을 사용 중입니다(PID {pid}, 포트 {port}). 이 T3 홈과 함께 `--base-dir`을 전달해 `t3x service uninstall`로 중지한 후 T3 Extend를 다시 여세요. 별도의 T3CODE_HOME을 설정하고 실행 중인 서버와 페어링할 수도 있습니다.",
   "3995198dc21450ba": "다른 T3 Extend 서버(예: `t3x serve` 또는 SSH로 시작한 서버)가 이 T3 홈을 사용 중입니다(PID {pid}, 포트 {port}, 버전 {version}). 다른 머신의 T3 Extend 앱이 SSH로 시작했다면 그 앱이 서버를 다시 시작합니다. 그 앱에서 해당 SSH 환경을 제거하거나 연결을 끊거나, 앱을 종료하세요. 그런 다음 서버를 중지하고 T3 Extend를 다시 여세요. 별도의 T3CODE_HOME을 설정하고 실행 중인 서버와 페어링할 수도 있습니다.",

@@ -595,6 +595,12 @@ export default defineConfig({
           "**/{test-fixtures,*TestFixtures}.ts",
           "apps/mobile/src/features/development/**",
           "packages/client-runtime/src/rpc/**",
+          // fork: the fork's zh-Hans catalogs are translations keyed by English source; the theme
+          // studio's tables are labels its panel passes through the fork's t() where they render.
+          "packages/client-runtime/src/i18n/catalogs/**",
+          "apps/web/src/fork/themeStudio/{presets,colorFamilies}.ts",
+          "apps/web/src/fork/themeStudio/presetStyles/**",
+          "**/*.testkit.ts",
         ],
         rules: { "t3code/no-untranslated-copy": "error" },
       },

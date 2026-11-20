@@ -37,7 +37,7 @@ export function ThemeLookNotice() {
   return (
     <SettingsRow
       id="theme-look-overrides"
-      title="Set by the theme"
+      title={t("Set by the theme")}
       description={description}
       control={
         <Button size="xs" variant="outline" onClick={() => openThemeStudio()}>

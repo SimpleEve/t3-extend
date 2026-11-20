@@ -4,8 +4,8 @@ import * as Schema from "effect/Schema";
 import { migrateLegacyUiLanguage } from "./forkUiLanguage.ts";
 import { ClientSettingsSchema } from "./settings.ts";
 
-const decode = (raw: unknown) =>
-  Schema.decodeUnknownSync(ClientSettingsSchema)(migrateLegacyUiLanguage(raw));
+const decodeSettings = Schema.decodeUnknownSync(ClientSettingsSchema);
+const decode = (raw: unknown) => decodeSettings(migrateLegacyUiLanguage(raw));
 
 describe("legacy interface language", () => {
   it("keeps a user's saved Chinese and maps the other saved values", () => {

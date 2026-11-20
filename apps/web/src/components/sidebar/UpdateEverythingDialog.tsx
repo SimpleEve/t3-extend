@@ -20,7 +20,6 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collaps
 import { MiddleTruncate } from "../ui/middle-truncate";
 import { ScrollArea } from "../ui/scroll-area";
 import type { RestartingMachine, UpdateEverythingRow } from "./updateEverything.logic";
-import { useT } from "~/hooks/useT";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 const isRunning = (status: string) =>
@@ -238,9 +237,7 @@ function UpdateEverythingDialogContent({
                       <span className="max-w-32 min-w-0">
                         <MiddleTruncate value={row.label} />
                       </span>
-                      <span className="wrap-anywhere">
-                        {row.skipped}
-                      </span>
+                      <span className="wrap-anywhere">{row.skipped}</span>
                     </Fragment>
                   ))}
                 </div>

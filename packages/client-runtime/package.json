@@ -507,6 +507,10 @@
       "types": "./src/work-log/itemDetail.ts",
       "default": "./src/work-log/itemDetail.ts"
     },
+    "./work-log/phrase": {
+      "types": "./src/work-log/phrase.ts",
+      "default": "./src/work-log/phrase.ts"
+    },
     "./work-log/presentation": {
       "types": "./src/work-log/presentation.ts",
       "default": "./src/work-log/presentation.ts"

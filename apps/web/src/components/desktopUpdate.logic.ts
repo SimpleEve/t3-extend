@@ -1,6 +1,5 @@
 import type { DesktopUpdateActionResult, DesktopUpdateState } from "@t3tools/contracts";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
-import { translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
 import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
 import { msg } from "gt-react";
 

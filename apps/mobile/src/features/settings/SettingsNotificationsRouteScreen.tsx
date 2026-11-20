@@ -67,7 +67,6 @@ import { SettingsSection } from "./components/SettingsSection";
 import { SettingsSwitchRow } from "./components/SettingsSwitchRow";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { resolveAgentAwarenessPlatformPresentation } from "./SettingsRouteScreen.logic";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { ApnsPushSettingsSection } from "../../fork/push/ApnsPushSettingsSection"; // fork: iOS push
 import { UnifiedPushSettingsSection } from "../../fork/push/UnifiedPushSettingsSection"; // fork: UnifiedPush
 import { APNS_SUPPORT } from "../../fork/push/apnsPushStore"; // fork: iOS push

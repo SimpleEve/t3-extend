@@ -561,7 +561,9 @@ export const AntigravityDriver: ProviderDriver<
       onSignedOut: Effect.suspend(() => provider.onSignedOut),
       usesBrowser: antigravityAuthUsesBrowser(auth.authMethod),
       // fork: a shared CLI login signs in through ACP, so the keyring entry stays the CLI's.
-      ...(sharedLogin ? { logoutBlockedMessage: ANTIGRAVITY_CLI_LOGIN_SIGN_OUT_MESSAGE } : { codeLogin }),
+      ...(sharedLogin
+        ? { logoutBlockedMessage: ANTIGRAVITY_CLI_LOGIN_SIGN_OUT_MESSAGE }
+        : { codeLogin }),
     });
 
     // The probe must not spawn. The agent is a PyInstaller one-file bundle

@@ -387,11 +387,9 @@ export function collectChannelSwitchTargets(
       });
       const update = `update --channel ${release.channel === "nightly" ? "nightly" : "stable"} --allow-downgrade`;
       skip(
-        resolve(
-          msg("run `{command}` there", {
-            command: `t3 update --channel ${release.channel === "nightly" ? "nightly" : "stable"} --allow-downgrade`,
-          }),
-        ),
+        cli !== null
+          ? resolve(msg("run `{command}` there", { command: `${cli} ${update}` }))
+          : resolve(msg("run its T3 command's `{command}` there", { command: update })),
       );
       continue;
     }

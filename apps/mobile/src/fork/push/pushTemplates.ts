@@ -13,9 +13,13 @@ export function buildPushTemplateSet(locale: UiLocale) {
   const detail = (status: string) => [status, "{project}", "{environment}"].join(SEPARATOR);
   return {
     channelName: t("Agent alerts"),
+    // oxlint-disable-next-line t3code/no-untranslated-copy -- the receiver fills in the thread's own title
     approval: { title: "{thread}", body: detail(t("Approval needed")) },
+    // oxlint-disable-next-line t3code/no-untranslated-copy -- the receiver fills in the thread's own title
     input: { title: "{thread}", body: detail(t("Question for you")) },
+    // oxlint-disable-next-line t3code/no-untranslated-copy -- the receiver fills in the thread's own title
     completed: { title: "{thread}", body: detail(t("Finished")) },
+    // oxlint-disable-next-line t3code/no-untranslated-copy -- the receiver fills in the thread's own title
     failed: { title: "{thread}", body: detail(t("Failed")) },
     test: {
       title: t("{app} test notification", { app: FORK.appBaseName }),

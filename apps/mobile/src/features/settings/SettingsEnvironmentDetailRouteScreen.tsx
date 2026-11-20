@@ -43,7 +43,6 @@ import {
   supportsEnvironmentUpdate,
 } from "./environment-maintenance";
 import { environmentReleaseCheckAtom, releaseCheckValue } from "./environmentUpdateCheck";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 export function SettingsEnvironmentDetailRouteScreen({

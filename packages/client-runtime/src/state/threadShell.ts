@@ -28,7 +28,6 @@ import {
   threadKey,
   threadRefsEqual,
 } from "./entities.ts";
-import { englishWorkLogPhrase, type WorkLogPhraseTranslator } from "../work-log/phrase.ts"; // fork
 
 const EMPTY_THREADS: ReadonlyArray<OrchestrationV2ThreadShell> = Object.freeze([]);
 const EMPTY_SCOPED_THREAD_REFS: ReadonlyArray<ScopedThreadRef> = Object.freeze([]);
@@ -201,41 +200,6 @@ const sameRequests = (
 ) =>
   left.size === right.size &&
   [...right].every(([threadId, request]) => left.get(threadId) === request);
-
-// fork: one whole phrase per case so a translation can order it; English is unchanged.
-const CHILD_INPUT_TITLES = {
-  "side chat": {
-    one: {
-      input: "Side chat needs input",
-      approval: "Side chat needs approval",
-      you: "Side chat needs you",
-    },
-    many: {
-      input: "{count} side chats need input",
-      approval: "{count} side chats need approval",
-      you: "{count} side chats need you",
-    },
-  },
-  subagent: {
-    one: {
-      input: "Subagent needs input",
-      approval: "Subagent needs approval",
-      you: "Subagent needs you",
-    },
-    many: {
-      input: "{count} subagents need input",
-      approval: "{count} subagents need approval",
-      you: "{count} subagents need you",
-    },
-  },
-  thread: {
-    many: {
-      input: "{count} threads need input",
-      approval: "{count} threads need approval",
-      you: "{count} threads need you",
-    },
-  },
-} as const;
 
 export function childThreadInputsTitle(
   children: ReadonlyArray<Pick<EnvironmentThreadShell, "hasPendingApprovals" | "lineage">>,

@@ -67,8 +67,6 @@ import {
   parseRemotePairingFields,
   formatDesktopSshConnectionError,
 } from "./ConnectionsSettings.logic";
-import { useT } from "../../hooks/useT";
-import { connectionErrorMessage } from "../../connection/errorMessages";
 
 const SSH_PROTOCOL_NAME = "SSH";
 const EMPTY_DISCOVERED_SSH_HOSTS: ReadonlyArray<DesktopDiscoveredSshHost> = [];

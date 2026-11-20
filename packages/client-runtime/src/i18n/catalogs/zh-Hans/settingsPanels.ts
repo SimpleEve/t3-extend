@@ -2417,6 +2417,7 @@ export default {
     "请把上面的选择缩小到一个 checkout 再编辑它的列表。在这里添加动作会添加到所有选中的 checkout。",
   "The device has to be approved here before it can connect again.":
     "设备需要先在这里批准，才能再次连接。",
+  "Run the `connect link` command on {name}.": "在 {name} 上运行 `connect link` 命令。",
   "Run the `connect link` command on the host, then restart T3 Extend there.":
     "在主机上运行 `connect link` 命令，然后重启那里的 T3 Extend。",
   "What a screen reader hears from the open thread: a turn starting, needing you, and ending. Status and messages adds what the agent writes before its last message. Everything adds each step.":

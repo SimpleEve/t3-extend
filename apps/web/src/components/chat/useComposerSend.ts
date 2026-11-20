@@ -493,13 +493,6 @@ export function useComposerSend(input: ComposerSendInput) {
     }
     if (needsLoadBalancing) {
       const draft = useComposerDraftStore.getState().getComposerDraft(composerDraftTarget);
-      const warning = loadBalancingSendWarning({
-        pending: loadBalancing.pending,
-        threadContexts: draft ? referencedThreadContexts(draft) : [],
-        candidateEnvironmentIds: logicalProjectEnvironments.map(
-          (candidate) => candidate.environmentId,
-        ),
-      });
       toastManager.add({
         type: "warning",
         ...loadBalancingSendWarning({

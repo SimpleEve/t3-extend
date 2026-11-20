@@ -2398,7 +2398,11 @@
   "febf4ec3cdcdf372": "Uppdateringskommandot kopierades",
   "bee440d0da53841c": "Omstartskommandot kopierades",
   "9e17a8beb64d6130": "Kör `{command}` på {serverLabel} och starta sedan om t3 med dina vanliga alternativ.",
+  "4996ffecbfc58a0d": "Run `{command}` on {serverLabel}, then restart {cli} with your usual options.",
+  "c383fdda6f004fe8": "Run `{command}` on {serverLabel}, then restart the server with your usual options.",
   "218253b96de09d5d": "Stoppa t3 på {serverLabel} och starta sedan om med `{command}` med samma underkommando och alternativ. Det här uppdaterar inte ett installerat t3-kommando.",
+  "d4fafd34c2e1b9bf": "Stop {cli} on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed {cli} command.",
+  "4ea13c886f6e2be3": "Stop the server on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update its installed command.",
   "3cb4fcae1546e2eb": "Kunde inte kopiera uppdateringskommandot",
   "c0988c56d2b07278": "Uppdatera T3 Extend-skrivbordsappen som kör {serverLabel}? Den stängs och startas om på den datorn.",
   "a1581c125ff5ba06": "Kopiera uppdateringskommando",
@@ -3099,10 +3103,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "på datorn som öppnade den här sidan"
-      ]
+      "c": [" ", "på datorn som öppnade den här sidan"]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3114,10 +3115,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "· den som kör den får den här åtkomsten"
-      ]
+      "c": [" ", "· den som kör den får den här åtkomsten"]
     }
   ],
   "c54cc9c75db9dc58": "Godkänn bara en inloggning som du själv precis har startat.",
@@ -5872,6 +5870,7 @@
   "91ffc62a69e19703": "Bara appar du godkänner kan använda den. Du kan stänga av det i Inställningar.",
   "e76bfbe44a97f9e8": "Aktivera",
   "6ba196fe7ecd3167": "Hantera tunnlar",
+  "bed19f41e5e382c7": "Run the `connect link` command on {name}.",
   "be0063581ab22dd4": "När appen öppnar inloggningssidan väljer du vad den får göra och godkänner med ditt T3 Connect-konto.",
   "be05e99085799b92": "När {app} öppnar inloggningssidan väljer du vad den får göra och godkänner med ditt T3 Connect-konto.",
   "bf14b3522e13a2c3": "URL",
@@ -6120,7 +6119,7 @@
     "i den här terminalen."
   ],
   "9d9b9624c7bd95df": "Andra mappar",
-  "1eb8f3d4695033fb": [
+  "6a81be3289fa0876": [
     "Tillagd i ",
     {
       "i": 1,
@@ -6132,16 +6131,16 @@
     {
       "t": "code",
       "i": 2,
-      "c": "t3"
+      "c": "t3x"
     },
     "."
   ],
-  "ad72bb102aa39c31": [
+  "145861210aaa364d": [
     "Använd ",
     {
       "t": "code",
       "i": 1,
-      "c": "t3"
+      "c": "t3x"
     },
     " från valfri terminal. Lägger till en rad i",
     " ",
@@ -7533,7 +7532,7 @@
   "f818040c75078d53": "Återställ namngivning av grenar till standard",
   "2c82cf0bf586ddd8": "Namngivning av worktree-grenar",
   "bff8a0d14cb10f17": "Grenprefix",
-  "4e33e869882b8ef3": "Till exempel ger t3 eller t3/ resultatet t3/add-search. Lämna tomt för inget prefix.",
+  "5cfb70ee070a9cfc": "Till exempel ger t3x eller t3x/ resultatet t3x/add-search. Lämna tomt för inget prefix.",
   "fc32aa5738bccb9a": "Återställ grenprefix till standard",
   "452b86cb8c4e0432": "Inget prefix",
   "abcdead6f7529103": "Instruktioner för grennamngivning",
@@ -7681,7 +7680,7 @@
   "e1fcc4b74faaae02": "Ta bort kortkommando…",
   "efa55bbb1d3aa45e": "Granska ändringar",
   "3e02b74615e20d82": "Manuell konfiguration",
-  "1a7397911bff6fb0": [
+  "90e4037c3cc6fa30": [
     "Stäng av inspelning i T3 Extend för att stoppa den. Ta bort kortkommandot från ",
     {
       "i": 1,
@@ -7721,7 +7720,7 @@
   "4f6e93011ef2da6f": "Installerad i {path}. Öppna en ny terminal för att använda den.",
   "371ca438cf467125": "Installerad i {path} och tillagd i PATH i {file}. Öppna en ny terminal för att använda den.",
   "fd3eece9d1a7ea38": "Installerad i {path}, som inte finns i din PATH än.",
-  "5fff98fa978bd008": "Installerad i {path}, som inte finns i din PATH än. Lägg till mappen i din PATH för att köra `t3`.",
+  "c707ea4399e3b0b8": "Installerad i {path}, som inte finns i din PATH än. Lägg till mappen i din PATH för att köra `t3x`.",
   "dc06294dd4078b00": "Ta bort",
   "b707d919dbf0222a": "Installera",
   "9a284b5893dc04a2": "OpenRouter-modell",
@@ -11391,6 +11390,7 @@
   "a5ea998202be1fbc": "Autentiseringsuppgifter för {label}",
   "8f636f473e42e657": "alla lokala filer ocommittade ändringar redigerade spårade filer ignorerade env byggutdata rensning uncommitted cleanup",
   "b1c7f74049a4147c": "lagring rensning kör nu resultat rapport borttagna behållna misslyckade storage cleanup",
+  "3c84df1b2d646a7c": "Import from {app}",
   "2678550365a59e17": "Rensning av worktrees",
   "8deb2b0fd308fc26": "disk lagring automatisk ta bort borttagna arkiverade trådar gamla inaktiva mergade klara oförändrade worktrees kvarhållning dagar projekt ärv av anpassad",
   "c875f7fa9a48560a": "worktree plats mapp katalog sökväg enhet extern disk",
@@ -11407,6 +11407,7 @@
   "a4db56afef75963c": "utseende ljust mörkt system läge",
   "d7bccc302862b538": "Teman",
   "8f5966eebd2b110f": "utseende färger palett anpassad import",
+  "db0e331bffa58616": "My schemes",
   "633ed64e952cca3b": "färger kanter gränssnitt",
   "9cf8308531b4ff31": "transparent genomskinlighet solid menyer dialoger inmatningsfält",
   "d8d6cfd630cff22d": "röd grön blå orange tillägg borttagningar ändringar antal palett färgblind",
@@ -11478,6 +11479,7 @@
   "5b8b854de7ee6f4d": "installerade cli versioner nyare tillgänglig codex claude cursor grok fx kiro opencode",
   "64f12530d55d2ad1": "återuppta pågående aktiv avbrutet arbete omstart starta om dator krasch skrivbord uppdatering automatiskt",
   "214a98497c4ed05d": "caffeinate viloläge förhindra håll vaken ström laptop lock förhindra",
+  "5363d911b044fb4c": "Keep running in the background",
   "00469926c7027e2d": "balanserad prestanda batterisparläge avancerat git fetch leverantör hälsa uppdatera värd ström övervakning inaktiv policy",
   "54e33e572cc71746": "standard arbetsyta läge utkast lokal worktree",
   "b2ece956b72c4a48": "Submoduler",
@@ -11529,6 +11531,7 @@
   "ad89031709b521b8": "simulatorstöd xcode android studio sdk avd körmiljö",
   "98a0d9d96a4b98f1": "Webbläsarprofiler",
   "769f162aadf1c6b4": "Standardprofil för webbläsaren",
+  "11759fb1a4c51db9": "Localhost forwarding",
   "9ad596e5c79fbd05": "förhandsvisning storlek bredd höjd enhet skrivbord mobil rotera",
   "4d557352caddc4da": "förhandsvisning sida skala flikar procent zoom",
   "fa3bb9e3238bd587": "förhandsvisning färgschema ljust mörkt system os",
@@ -11556,6 +11559,7 @@
   "c349ea1db3f9e9f1": "Miljöns ikon",
   "18bd7981d6c50994": "dator symbol sidofält mac mini studio laptop skrivbord server moln vm",
   "8ac2984f4e732091": "stäng av slå på inaktivera aktivera lokal server agenter bara fjärr starta om",
+  "32774821ffe65c19": "Your server",
   "3a54b8d98911331a": "Nätverksåtkomst",
   "1a31308f0884a68b": "exponera backend fjärr parkoppling lokal dator gränssnitt värd starta om",
   "468d32c6b30df608": "Tailscale HTTPS",
@@ -11740,6 +11744,7 @@
   "326d8ad8e5609579": "Den här appen kan inte byta: dess databas har ändringar som {version} inte stöder än; stanna på {from} tills {to} har dem.",
   "3ac986d604a2ad62": "Den här appen kan inte byta: dess server är inte ansluten, så dess databas kan inte kontrolleras.",
   "3bbb6e9ade0cf7e1": "kör `{command}` där",
+  "f579e70c4d60d0fe": "run its T3 command's `{command}` there",
   "e7194946af611278": "kör en förhandsversion",
   "f5eac23351c99297": "byt Mac-appen på den Macen",
   "d7444fbde9a80f04": "<1 min",

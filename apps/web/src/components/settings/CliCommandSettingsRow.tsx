@@ -89,7 +89,7 @@ export function CliCommandSettingsRow() {
               )
             : resolve(
                 msg(
-                  "Installed at {path}, which is not on your PATH yet. Add its folder to your PATH to run `t3`.",
+                  "Installed at {path}, which is not on your PATH yet. Add its folder to your PATH to run `t3x`.",
                   { path: state.installedPath },
                 ),
               );

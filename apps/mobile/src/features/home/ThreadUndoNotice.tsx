@@ -18,14 +18,6 @@ import {
   readThreadUndoNotice,
   useThreadUndoNotice,
 } from "./thread-undo-notice";
-import { useT } from "../../hooks/useT"; // fork: i18n
-
-// fork: i18n. Whole sentences per action, keyed by the notice's English action word.
-const UNDO_NOTICE_MESSAGE = {
-  Settled: "Settled thread",
-  Snoozed: "Snoozed thread",
-  Unpinned: "Unpinned thread",
-} as const;
 
 export function ThreadUndoNotice(props: { readonly visible: boolean }) {
   const gt = useGT();

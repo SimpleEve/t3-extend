@@ -2398,7 +2398,11 @@
   "febf4ec3cdcdf372": "Update command copied",
   "bee440d0da53841c": "Relaunch command copied",
   "9e17a8beb64d6130": "Run `{command}` on {serverLabel}, then restart t3 with your usual options.",
+  "4996ffecbfc58a0d": "Run `{command}` on {serverLabel}, then restart {cli} with your usual options.",
+  "c383fdda6f004fe8": "Run `{command}` on {serverLabel}, then restart the server with your usual options.",
   "218253b96de09d5d": "Stop t3 on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed t3 command.",
+  "d4fafd34c2e1b9bf": "Stop {cli} on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed {cli} command.",
+  "4ea13c886f6e2be3": "Stop the server on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update its installed command.",
   "3cb4fcae1546e2eb": "Could not copy update command",
   "c0988c56d2b07278": "Update the T3 Extend desktop app that runs the {serverLabel}? It will close and relaunch on that machine.",
   "a1581c125ff5ba06": "Copy update command",
@@ -3099,10 +3103,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "on the computer that opened this page"
-      ]
+      "c": [" ", "on the computer that opened this page"]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3114,10 +3115,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "· whoever runs it gets this access"
-      ]
+      "c": [" ", "· whoever runs it gets this access"]
     }
   ],
   "c54cc9c75db9dc58": "Only approve a sign-in you just started.",
@@ -5873,6 +5871,7 @@
   "91ffc62a69e19703": "Only apps you approve can use it. You can turn it off in Settings.",
   "e76bfbe44a97f9e8": "Turn on",
   "6ba196fe7ecd3167": "Manage tunnels",
+  "bed19f41e5e382c7": "Run the `connect link` command on {name}.",
   "be0063581ab22dd4": "When the app opens the sign-in page, choose what it may do and approve with your T3 Connect account.",
   "be05e99085799b92": "When {app} opens the sign-in page, choose what it may do and approve with your T3 Connect account.",
   "bf14b3522e13a2c3": "URL",
@@ -6121,7 +6120,7 @@
     "in this terminal."
   ],
   "9d9b9624c7bd95df": "Other folders",
-  "1eb8f3d4695033fb": [
+  "6a81be3289fa0876": [
     "Added to ",
     {
       "i": 1,
@@ -6133,16 +6132,16 @@
     {
       "t": "code",
       "i": 2,
-      "c": "t3"
+      "c": "t3x"
     },
     "."
   ],
-  "ad72bb102aa39c31": [
+  "145861210aaa364d": [
     "Use ",
     {
       "t": "code",
       "i": 1,
-      "c": "t3"
+      "c": "t3x"
     },
     " from any terminal. Adds one line to",
     " ",
@@ -7534,7 +7533,7 @@
   "f818040c75078d53": "Reset branch naming to default",
   "2c82cf0bf586ddd8": "Worktree branch naming",
   "bff8a0d14cb10f17": "Branch prefix",
-  "4e33e869882b8ef3": "For example, t3 or t3/ produces t3/add-search. Leave empty for no prefix.",
+  "5cfb70ee070a9cfc": "For example, t3x or t3x/ produces t3x/add-search. Leave empty for no prefix.",
   "fc32aa5738bccb9a": "Reset branch prefix to default",
   "452b86cb8c4e0432": "No prefix",
   "abcdead6f7529103": "Branch naming instructions",
@@ -7683,15 +7682,15 @@
   "e1fcc4b74faaae02": "Remove shortcut…",
   "efa55bbb1d3aa45e": "Review changes",
   "3e02b74615e20d82": "Manual setup",
-  "1a7397911bff6fb0": [
-    "Turn capture off in T3 Extend to stop it. Remove the shortcut from ",
+  "90e4037c3cc6fa30": [
+    "Turn capture off in T3 Extend to stop it. Remove the shortcut from",
+    " ",
     {
       "i": 1,
       "k": "_gt_value_1",
       "v": "v"
     },
-    " ",
-    "to free up the keys."
+    " to free up the keys."
   ],
   "4bf700ad94c0c486": "I've added the shortcut",
   "bcdea6ebe1a65e63": "ChatGPT account to connect",
@@ -7723,7 +7722,7 @@
   "4f6e93011ef2da6f": "Installed at {path}. Open a new terminal to use it.",
   "371ca438cf467125": "Installed at {path} and added to PATH in {file}. Open a new terminal to use it.",
   "fd3eece9d1a7ea38": "Installed at {path}, which is not on your PATH yet.",
-  "5fff98fa978bd008": "Installed at {path}, which is not on your PATH yet. Add its folder to your PATH to run `t3`.",
+  "c707ea4399e3b0b8": "Installed at {path}, which is not on your PATH yet. Add its folder to your PATH to run `t3x`.",
   "dc06294dd4078b00": "Remove",
   "b707d919dbf0222a": "Install",
   "9a284b5893dc04a2": "OpenRouter model",
@@ -11393,6 +11392,7 @@
   "a5ea998202be1fbc": "{label} credentials",
   "8f636f473e42e657": "any local files uncommitted changes edited tracked files ignored env build output cleanup",
   "b1c7f74049a4147c": "storage cleanup run now results report removed kept failed",
+  "3c84df1b2d646a7c": "Import from {app}",
   "2678550365a59e17": "Worktree cleanup",
   "8deb2b0fd308fc26": "disk storage automatic delete deleted archived threads old inactive merged settled unchanged worktrees retention days project inherit off custom",
   "c875f7fa9a48560a": "worktree location folder directory path drive external disk",
@@ -11409,6 +11409,7 @@
   "a4db56afef75963c": "appearance light dark system mode",
   "d7bccc302862b538": "Themes",
   "8f5966eebd2b110f": "appearance colors palette custom import",
+  "db0e331bffa58616": "My schemes",
   "633ed64e952cca3b": "colors borders interface",
   "9cf8308531b4ff31": "transparent transparency solid menus dialogs composer",
   "d8d6cfd630cff22d": "red green blue orange additions deletions changes counts palette colorblind",
@@ -11480,6 +11481,7 @@
   "5b8b854de7ee6f4d": "installed cli versions newer available codex claude cursor grok fx kiro opencode",
   "64f12530d55d2ad1": "resume running active interrupted work restart reboot machine crash desktop update automatically",
   "214a98497c4ed05d": "caffeinate sleep prevent stay awake power laptop lid inhibit",
+  "5363d911b044fb4c": "Keep running in the background",
   "00469926c7027e2d": "balanced performance battery saver advanced git fetch provider health refresh host power monitor idle policy",
   "54e33e572cc71746": "default workspace mode draft local worktree",
   "b2ece956b72c4a48": "Submodules",
@@ -11531,6 +11533,7 @@
   "ad89031709b521b8": "simulator support xcode android studio sdk avd runtime",
   "98a0d9d96a4b98f1": "Browser profiles",
   "769f162aadf1c6b4": "Default browser profile",
+  "11759fb1a4c51db9": "Localhost forwarding",
   "9ad596e5c79fbd05": "preview size width height device desktop mobile rotate",
   "4d557352caddc4da": "preview page scale tabs percent",
   "fa3bb9e3238bd587": "preview color scheme light dark system os",
@@ -11558,6 +11561,7 @@
   "c349ea1db3f9e9f1": "Environment icon",
   "18bd7981d6c50994": "machine glyph sidebar mac mini studio laptop desktop server cloud vm",
   "8ac2984f4e732091": "turn off on disable enable local server agents remote only restart",
+  "32774821ffe65c19": "Your server",
   "3a54b8d98911331a": "Network access",
   "1a31308f0884a68b": "expose backend remote pairing local machine interfaces host restart",
   "468d32c6b30df608": "Tailscale HTTPS",
@@ -11742,6 +11746,7 @@
   "326d8ad8e5609579": "This app cannot switch: its database has changes {version} does not support yet; stay on {from} until {to} has them.",
   "3ac986d604a2ad62": "This app cannot switch: its server is not connected, so its database cannot be checked.",
   "3bbb6e9ade0cf7e1": "run `{command}` there",
+  "f579e70c4d60d0fe": "run its T3 command's `{command}` there",
   "e7194946af611278": "runs a preview build",
   "f5eac23351c99297": "switch the Mac app on that Mac",
   "d7444fbde9a80f04": "<1m",

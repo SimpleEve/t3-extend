@@ -1,4 +1,3 @@
-import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 // @effect-diagnostics nodeBuiltinImport:off - Probes the server's native SQLite ownership lock.
 import * as NodeSqlite from "node:sqlite";
 
@@ -97,7 +96,7 @@ export const homeOwnedMessage = (owner: Option.Option<HomeOwner>): string =>
     onNone: () =>
       m(
         msg(
-          "Another T3 Extend server, such as the background service, is using this data directory, or an older background service is set up for it. Stop that server or try `t3 update`. If the older launcher cannot update, run `t3 service uninstall` and optionally reinstall with `t3 service install` from a current CLI. Use `npx t3@latest` if `t3` is missing or outdated, and pass `--base-dir` with the service's T3 home to each command. Then reopen T3 Extend. You can also set a separate T3CODE_HOME and pair with the running server.",
+          "Another T3 Extend server, such as the background service, is using this data directory, or an older background service is set up for it. Stop that server or try `t3x update`. If the older launcher cannot update, run `t3 service uninstall` and optionally reinstall with `t3 service install` from a current CLI. Use `npx t3@latest` if `t3` is missing or outdated, and pass `--base-dir` with the service's T3 home to each command. Then reopen T3 Extend. You can also set a separate T3CODE_HOME and pair with the running server.",
         ),
       ),
     onSome: (owner) => {

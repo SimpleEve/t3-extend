@@ -8,6 +8,9 @@
   "include": [
     "**/*.ts",
     "../apps/desktop/src/fork/loopbackGateway/GatewayEnvironment.ts",
+    "../packages/client-runtime/src/i18n/catalogs/zh-Hans/*.ts",
+    "../packages/client-runtime/src/i18n/translate.ts",
+    "../packages/client-runtime/src/i18n/locale.ts",
     "../apps/desktop/src/fork/loopbackGateway/LoopbackProxy.ts",
     "../apps/desktop/src/fork/loopbackGateway/TunnelClient.ts",
     "../apps/desktop/src/fork/loopbackGateway/proxyTarget.ts",

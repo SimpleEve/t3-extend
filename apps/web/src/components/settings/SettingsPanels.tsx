@@ -2387,7 +2387,6 @@ export function MaintenanceSettingsPanel() {
           }
         />
       </SettingsSection>
-
       <SettingsSection id="background" title={gt("Background activity")}>
         <BackgroundActivitySettingsRow />
         <SettingsRow
@@ -2426,7 +2425,6 @@ export function MaintenanceSettingsPanel() {
       <BackgroundServiceSettings /> {/* fork: background service switch */}
       <StorageCleanupSections />
       <T3CodeImportSection /> {/* fork: import from the official app */}
-
       <SettingsSection id="diagnostics-section" title={gt("Diagnostics")}>
         <SettingsRow
           {...setting("diagnostics")}
@@ -2523,7 +2521,9 @@ export function AboutSettingsPanel() {
         />
         <SettingsRow
           {...setting("open-source-licenses")}
-          description={gt("Notices for dependencies, assets, and optional tools used by T3 Extend.")}
+          description={gt(
+            "Notices for dependencies, assets, and optional tools used by T3 Extend.",
+          )}
           control={
             <Button
               render={<Link to="/settings/open-source-licenses" />}

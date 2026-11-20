@@ -717,7 +717,8 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
           status: "ready",
           auth: { status: "authenticated" },
         });
-        const agentLaunches = () => h.launches.filter((launch) => launch.tempDirectory !== undefined);
+        const agentLaunches = () =>
+          h.launches.filter((launch) => launch.tempDirectory !== undefined);
         expect(agentLaunches()).toHaveLength(1);
         expect(agentLaunches()[0]?.profileDirectory).toBe(h.profileDirectory);
         for (const launch of h.launches) expect(launch.forceFileStorage).toBeUndefined();

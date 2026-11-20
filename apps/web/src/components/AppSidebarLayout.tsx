@@ -67,7 +67,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { registerCommands, registerMenuAction } from "../shortcuts/dispatcher";
 import { resolveThreadRouteRef } from "../threadRoutes";
-import { useT } from "~/hooks/useT";
 import { KeepAwakeReporter } from "../fork/KeepAwakeReporter"; // fork: keep awake
 import { BackgroundServiceReporter } from "../fork/BackgroundServiceReporter"; // fork: background service
 import { LoopbackGatewayManager } from "../fork/loopbackGateway/LoopbackGatewayManager"; // fork: loopback gateway

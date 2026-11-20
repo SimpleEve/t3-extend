@@ -328,15 +328,36 @@ export function ServerUpdateAction({
       toastManager.add({
         type: "success",
         title: updatesInstall ? gt("Update command copied") : gt("Relaunch command copied"),
+        // fork: name the host's command, which may be `t3x`; upstream's copy says `t3`.
         description: updatesInstall
-          ? gt("Run `{command}` on {serverLabel}, then restart t3 with your usual options.", {
-              command,
-              serverLabel,
-            })
-          : gt(
-              "Stop t3 on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed t3 command.",
-              { command, serverLabel },
-            ),
+          ? cli === "t3"
+            ? gt("Run `{command}` on {serverLabel}, then restart t3 with your usual options.", {
+                command,
+                serverLabel,
+              })
+            : cli !== null
+              ? gt(
+                  "Run `{command}` on {serverLabel}, then restart {cli} with your usual options.",
+                  { command, serverLabel, cli },
+                )
+              : gt(
+                  "Run `{command}` on {serverLabel}, then restart the server with your usual options.",
+                  { command, serverLabel },
+                )
+          : cli === "t3"
+            ? gt(
+                "Stop t3 on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed t3 command.",
+                { command, serverLabel },
+              )
+            : cli !== null
+              ? gt(
+                  "Stop {cli} on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed {cli} command.",
+                  { command, serverLabel, cli },
+                )
+              : gt(
+                  "Stop the server on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update its installed command.",
+                  { command, serverLabel },
+                ),
       });
     },
     onError: (error) => {

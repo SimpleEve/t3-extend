@@ -5,7 +5,6 @@ import { View } from "react-native";
 
 import { AppText as Text } from "./ui/AppText";
 import { T3_CODE_BRAND_MARK_SOURCE } from "./brandAssets";
-import { useT } from "../hooks/useT"; // fork: i18n
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 const appVariant = Constants.expoConfig?.extra?.appVariant;

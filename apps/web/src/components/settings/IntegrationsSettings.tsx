@@ -121,8 +121,6 @@ import { AdvancedSettings } from "./AdvancedSettings";
 import { useSettingsScope } from "./SettingsScopeContext";
 import { BrowserImportWizard, type WizardTarget } from "./BrowserImportWizard";
 import type { ImportOutcome } from "./browserImportWizard.logic";
-import { useT } from "../../hooks/useT";
-import { interpolateNodes } from "../../lib/interpolateNodes";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 const FILL_VALUE = "fill";

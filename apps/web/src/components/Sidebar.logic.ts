@@ -10,12 +10,11 @@ import {
   resolveWindowTitleThreadStatus,
   type SidebarThreadStatus,
 } from "@t3tools/client-runtime/state/thread-grouping"; // fork: shared with mobile
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: interface language
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import { threadPullRequestSearchTerms } from "@t3tools/shared/threadPullRequests";
 import * as React from "react";
 import { msg } from "gt-react";
-import { m, type MessageResolver } from "../i18n/messages";
+import { m } from "../i18n/messages";
 import {
   isAtomCommandInterrupted,
   type AtomCommandResult,

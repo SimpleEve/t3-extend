@@ -1,5 +1,4 @@
 import { WorkspaceNoTabs } from "./WorkspaceNoTabs";
-import { useT } from "../../../hooks/useT"; // fork: i18n
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 import { isSharedSlotTab } from "./navigation-tab-order";
 import { SharedSlotTitle } from "./SharedSlotTitle";
@@ -72,7 +71,10 @@ function WorkspaceRootTitle(props: {
             <SharedSlotTitle tab={state.selectedTab} />
           ) : (
             <CompactBrandTitle
-              accessibilityLabel={gt("{product}, {title}", { product: FORK.appBaseName, title: tabTitle })} // fork: brand
+              accessibilityLabel={gt("{product}, {title}", {
+                product: FORK.appBaseName,
+                title: tabTitle,
+              })} // fork: brand
               fit
             />
           )

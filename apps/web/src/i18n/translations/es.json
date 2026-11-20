@@ -2398,7 +2398,11 @@
   "febf4ec3cdcdf372": "Comando de actualización copiado",
   "bee440d0da53841c": "Comando de reinicio copiado",
   "9e17a8beb64d6130": "Ejecuta `{command}` en {serverLabel} y reinicia t3 con tus opciones habituales.",
+  "4996ffecbfc58a0d": "Run `{command}` on {serverLabel}, then restart {cli} with your usual options.",
+  "c383fdda6f004fe8": "Run `{command}` on {serverLabel}, then restart the server with your usual options.",
   "218253b96de09d5d": "Detén t3 en {serverLabel} y vuelve a iniciarlo con `{command}` usando el mismo subcomando y las mismas opciones. Esto no actualiza un comando t3 instalado.",
+  "d4fafd34c2e1b9bf": "Stop {cli} on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed {cli} command.",
+  "4ea13c886f6e2be3": "Stop the server on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update its installed command.",
   "3cb4fcae1546e2eb": "No se pudo copiar el comando de actualización",
   "c0988c56d2b07278": "¿Actualizar la app de escritorio de T3 Extend que ejecuta {serverLabel}? Se cerrará y se volverá a abrir en esa máquina.",
   "a1581c125ff5ba06": "Copiar comando de actualización",
@@ -3099,10 +3103,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "en el ordenador que abrió esta página"
-      ]
+      "c": [" ", "en el ordenador que abrió esta página"]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3114,10 +3115,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "· quien lo ejecute obtiene este acceso"
-      ]
+      "c": [" ", "· quien lo ejecute obtiene este acceso"]
     }
   ],
   "c54cc9c75db9dc58": "Aprueba solo un inicio de sesión que acabes de iniciar.",
@@ -5871,6 +5869,7 @@
   "91ffc62a69e19703": "Solo las apps que apruebes pueden usarla. Puedes desactivarla en Ajustes.",
   "e76bfbe44a97f9e8": "Activar",
   "6ba196fe7ecd3167": "Gestionar túneles",
+  "bed19f41e5e382c7": "Run the `connect link` command on {name}.",
   "be0063581ab22dd4": "Cuando la app abra la página de inicio de sesión, elige lo que puede hacer y apruébalo con tu cuenta de T3 Connect.",
   "be05e99085799b92": "Cuando {app} abra la página de inicio de sesión, elige lo que puede hacer y apruébalo con tu cuenta de T3 Connect.",
   "bf14b3522e13a2c3": "URL",
@@ -6118,7 +6117,7 @@
     "en esta terminal."
   ],
   "9d9b9624c7bd95df": "Otras carpetas",
-  "1eb8f3d4695033fb": [
+  "6a81be3289fa0876": [
     "Añadido a ",
     {
       "i": 1,
@@ -6130,16 +6129,16 @@
     {
       "t": "code",
       "i": 2,
-      "c": "t3"
+      "c": "t3x"
     },
     "."
   ],
-  "ad72bb102aa39c31": [
+  "145861210aaa364d": [
     "Usa ",
     {
       "t": "code",
       "i": 1,
-      "c": "t3"
+      "c": "t3x"
     },
     " desde cualquier terminal. Añade una línea a",
     " ",
@@ -7527,7 +7526,7 @@
   "f818040c75078d53": "Restablecer la nomenclatura de ramas al valor predeterminado",
   "2c82cf0bf586ddd8": "Nombres de ramas de los worktrees",
   "bff8a0d14cb10f17": "Prefijo de rama",
-  "4e33e869882b8ef3": "Por ejemplo, t3 o t3/ produce t3/add-search. Déjalo vacío para no usar prefijo.",
+  "5cfb70ee070a9cfc": "Por ejemplo, t3x o t3x/ produce t3x/add-search. Déjalo vacío para no usar prefijo.",
   "fc32aa5738bccb9a": "Restablecer el prefijo de ramas al valor predeterminado",
   "452b86cb8c4e0432": "Sin prefijo",
   "abcdead6f7529103": "Instrucciones para nombrar ramas",
@@ -7675,7 +7674,7 @@
   "e1fcc4b74faaae02": "Quitar atajo…",
   "efa55bbb1d3aa45e": "Revisar cambios",
   "3e02b74615e20d82": "Configuración manual",
-  "1a7397911bff6fb0": [
+  "90e4037c3cc6fa30": [
     "Desactiva la captura en T3 Extend para detenerla. Quita el atajo de ",
     {
       "i": 1,
@@ -7715,7 +7714,7 @@
   "4f6e93011ef2da6f": "Instalado en {path}. Abre una terminal nueva para usarlo.",
   "371ca438cf467125": "Instalado en {path} y añadido al PATH en {file}. Abre una terminal nueva para usarlo.",
   "fd3eece9d1a7ea38": "Instalado en {path}, que aún no está en tu PATH.",
-  "5fff98fa978bd008": "Instalado en {path}, que aún no está en tu PATH. Añade su carpeta a tu PATH para ejecutar `t3`.",
+  "c707ea4399e3b0b8": "Instalado en {path}, que aún no está en tu PATH. Añade su carpeta a tu PATH para ejecutar `t3x`.",
   "dc06294dd4078b00": "Quitar",
   "b707d919dbf0222a": "Instalar",
   "9a284b5893dc04a2": "Modelo de OpenRouter",
@@ -11378,6 +11377,7 @@
   "a5ea998202be1fbc": "Credenciales de {label}",
   "8f636f473e42e657": "cualquier archivos locales cambios sin commit archivos con seguimiento editados ignorados env salida de compilación limpieza",
   "b1c7f74049a4147c": "almacenamiento limpieza ejecutar ahora resultados informe eliminados conservados fallidos",
+  "3c84df1b2d646a7c": "Import from {app}",
   "2678550365a59e17": "Limpieza de worktrees",
   "8deb2b0fd308fc26": "disco almacenamiento eliminar automáticamente eliminados archivados hilos antiguos inactivos fusionados resueltos sin cambios worktrees retención días proyecto heredar desactivado personalizado",
   "c875f7fa9a48560a": "worktree ubicación carpeta directorio ruta unidad disco externo",
@@ -11394,6 +11394,7 @@
   "a4db56afef75963c": "apariencia claro oscuro modo del sistema",
   "d7bccc302862b538": "Temas",
   "8f5966eebd2b110f": "apariencia colores paleta personalizada importar",
+  "db0e331bffa58616": "My schemes",
   "633ed64e952cca3b": "colores bordes interfaz",
   "9cf8308531b4ff31": "transparente transparencia sólido menús diálogos cuadro mensaje compositor",
   "d8d6cfd630cff22d": "rojo verde azul naranja adiciones eliminaciones cambios recuentos paleta daltonismo",
@@ -11465,6 +11466,7 @@
   "5b8b854de7ee6f4d": "instalado cli versiones más recientes disponibles codex claude cursor grok fx kiro opencode",
   "64f12530d55d2ad1": "reanudar en ejecución activo interrumpido trabajo reiniciar máquina fallo actualización de escritorio automáticamente",
   "214a98497c4ed05d": "caffeinate reposo evitar mantener activo energía portátil tapa inhibir",
+  "5363d911b044fb4c": "Keep running in the background",
   "00469926c7027e2d": "equilibrado rendimiento ahorro de batería avanzado git fetch proveedor estado actualizar host energía monitor inactivo política",
   "54e33e572cc71746": "espacio de trabajo predeterminado modo borrador local worktree",
   "b2ece956b72c4a48": "Submódulos",
@@ -11516,6 +11518,7 @@
   "ad89031709b521b8": "simulador compatibilidad xcode android studio sdk avd runtime",
   "98a0d9d96a4b98f1": "Perfiles del navegador",
   "769f162aadf1c6b4": "Perfil predeterminado del navegador",
+  "11759fb1a4c51db9": "Localhost forwarding",
   "9ad596e5c79fbd05": "vista previa tamaño ancho alto dispositivo escritorio móvil girar",
   "4d557352caddc4da": "vista previa página escala pestañas porcentaje",
   "fa3bb9e3238bd587": "vista previa esquema de color claro oscuro sistema so",
@@ -11543,6 +11546,7 @@
   "c349ea1db3f9e9f1": "Icono del entorno",
   "18bd7981d6c50994": "máquina glifo barra lateral mac mini studio portátil escritorio servidor nube vm",
   "8ac2984f4e732091": "apagar encender desactivar activar servidor local agentes solo remoto reiniciar",
+  "32774821ffe65c19": "Your server",
   "3a54b8d98911331a": "Acceso a la red",
   "1a31308f0884a68b": "exponer backend remoto emparejamiento máquina local interfaces host reiniciar",
   "468d32c6b30df608": "Tailscale HTTPS",
@@ -11727,6 +11731,7 @@
   "326d8ad8e5609579": "Esta app no puede cambiar: su base de datos tiene cambios que {version} aún no admite; quédate en {from} hasta que {to} los incluya.",
   "3ac986d604a2ad62": "Esta app no puede cambiar: su servidor no está conectado, así que no se puede comprobar su base de datos.",
   "3bbb6e9ade0cf7e1": "ejecuta `{command}` allí",
+  "f579e70c4d60d0fe": "run its T3 command's `{command}` there",
   "e7194946af611278": "ejecuta una compilación preliminar",
   "f5eac23351c99297": "cambia la app de Mac en ese Mac",
   "d7444fbde9a80f04": "<1 min",

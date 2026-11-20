@@ -265,7 +265,6 @@ export function SnapShotSettings() {
       }),
   });
 
-  const fixedShortcutStatus = snapShotShortcutStatus(state);
   const shortcutStatus = recording
     ? gt("Press your shortcut. Esc cancels.")
     : candidateConflict

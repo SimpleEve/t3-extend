@@ -11,7 +11,6 @@ import {
 import { SIDEBAR_SORTABLE_DRAG_DISABLED } from "./SidebarThreadRow";
 
 // Section names such as "Active" read differently from the same English word elsewhere.
-const SIDEBAR_SECTION_CONTEXT = "sidebar section";
 
 function SortableSidebarMarker(props: {
   marker: SidebarListMarker;

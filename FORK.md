@@ -147,11 +147,11 @@ fork 自己的 `t()`（`packages/client-runtime/src/i18n/`，web 和 mobile 的 
 **品牌**：上游 GT 文案里指这个 app 的 "T3 Code" 在源码里直接写成 "T3 Extend"（指本机 CLI 的 `t3` 写成 `t3x`），`fork:guard` 守着；指官方 app 或给模型看的文字按 `ALLOWED_BRAND` 放行。改源码会改变 GT 的 key（key 是原文的哈希），所以每次改完或同步上游后都要跑：
 
 ```bash
-node scripts/fork-i18n-sync.ts   # 重新生成 en.json，把各语言旧 key 的译文搬到改过品牌的新 key，并套用中文覆盖层
+vp run fork:i18n-sync   # 重新生成 en.json，把各语言旧 key 的译文搬到改过品牌的新 key，并套用中文覆盖层
 node scripts/i18n-check.ts       # 上游的 CI 检查，目录与源码一致
 ```
 
-同步上游时，`apps/*/src/i18n/translations/*.json` 的冲突一律取上游，再跑 `fork-i18n-sync.ts`；`--check` 只检查不写。脚本把找不到中文的 key 列出来（多数是单位、占位符这类本来就是英文的）。
+同步上游时，`apps/*/src/i18n/translations/*.json` 的冲突一律取上游，再跑 `vp run fork:i18n-sync`；加 `-- --check` 只检查不写。脚本把找不到中文的 key 列出来（多数是单位、占位符这类本来就是英文的）。
 
 **中文覆盖层**：`packages/client-runtime/src/i18n/gt-zh-overrides.json`，fork 的术语表（`GLOSSARY.md`）在 GT 的 zh 上胜出。`terms` 是整个 zh.json 里的词替换（会话→对话、智能体→Agent、提供方→provider、工作树→worktree、侧聊→侧边对话、暂缓→稍后处理、收尾→标为已处理、审查导览→审查导读、线路→路由、用量限制→用量上限；替换成拉丁词时自动补空格）；`messages` 是整句覆盖（含 settle、snooze、session 的句子用 fork 原有整句，避免动词和“登录会话”被换坏），`noTermsFor` 列出不做词替换的英文原文（session）。上游 zh 里 GT 没翻译的 key，优先用 fork 目录里同一句英文的译文。覆盖层是 fork 自己的文件，同步不会冲掉；要改译法就改这个文件再跑脚本，不要手改 zh.json。
 
@@ -686,7 +686,7 @@ GitHub Actions 在这个仓库里是开着的，但上游的 27 个 workflow 都
 - 上游新增的测试经常写死官方标识（`t3code://`、`t3code.service`、默认端口 3773、Tailscale Serve 的默认端口）；换成 `FORK.scheme`、`FORK.bootServiceName`、`FORK.defaultPort`、`FORK.tailscaleServePort`。服务端新增清理原因要同步 `apps/web/src/fork/storageCleanupReasons.ts` 的模板表和 zh-Hans 目录，否则 `storageCleanupReasons.test.ts` 会报。`T3CodeImport.test.ts` 把源库固定在迁移 76（077 之前），不要写成"当前 head 减一"，上游每加迁移就会失效。
 - `vp i` 在 npmmirror 缺新包版本时会 404：用 `vp i -- --registry=https://registry.npmjs.org/`，只对这一条命令生效。`check:changed` 的默认基准是 `origin/main`，会把 `.repos` 上万个文件算进来、子进程报 `E2BIG`；同步后用上一次同步到的上游 commit 当基准（这次是 `vp run check:changed b9bbfda087`，下次用 `55c134a346`）。它的 "unused patches" 一步也要联网解析依赖，同样受镜像影响。
 - mobile 的 `managedSettingReason` 保持英文输出，新增 `managedSettingOrganization` 供已翻译的屏幕使用。上游重写的 PR 状态按钮和麦克风设置页，在新逻辑上重新套了 `t()`；上游删掉的文案（"Auto-merge is enabled"）同步从 catalog 删掉。
-- mobile 的 AppBar 重构（每个页面自己画一个 `AppBar` 或 `SheetHeader`）删掉了 15 个 fork 改过 `t()`、品牌或"按项目"视图的文件（`HomeHeader.android`、`ThreadListToolbar`、`WorkspaceRootScreen` 等）。这些文件的 fork 改动没有搬到新位置原样保留，而是在新结构上重做：对话列表的视图开关进了 `buildHomeListFilterMenuItems(props, t)`（`HomeRouteScreen`、`ThreadNavigationSidebar` 传 `viewMode`）；品牌名在 `WorkspaceListHeader.android`、`PullRequestToolbar.android`、`HomeRouteScreen`、`WorkspaceRootScreen` 里用 `FORK.appBaseName`；`AppBar`/`AppBar.android` 在入口经 `fork/appBarI18n.ts` 翻译操作、菜单、搜索和确认按钮的文字，所以新页面不用逐个给这些文案包 `t()`；路由标题是 getter，`route-options.ts` 的 `pageRoute`/`sheetRoute`/`modalRoute` 经 `fork/localizedTitle.ts` 生成（展开对象会把 getter 冻成字符串，`Stack.tsx` 里合并选项用 `Object.assign`）。`Stack.tsx` 取上游，只保留设备页路由和 `connections/new` 的 `pair` 别名。
+- mobile 的 AppBar 重构（每个页面自己画一个 `AppBar` 或 `SheetHeader`）删掉了 15 个 fork 改过 `t()`、品牌或"按项目"视图的文件（`HomeHeader.android`、`ThreadListToolbar`、`WorkspaceRootScreen` 等）。这些文件的 fork 改动没有搬到新位置原样保留，而是在新结构上重做：对话列表的视图开关进了 `buildHomeListFilterMenuItems(props, t)`（`HomeRouteScreen`、`ThreadNavigationSidebar` 传 `viewMode`）；品牌名在 `WorkspaceListHeader.android`、`PullRequestToolbar.android`、`HomeRouteScreen`、`WorkspaceRootScreen` 里用 `FORK.appBaseName`；`AppBar`/`AppBar.android` 在入口经 `fork/appBarI18n.ts` 翻译操作、菜单、搜索和确认按钮的文字，所以新页面不用逐个给这些文案包 `t()`；路由标题当时经 `fork/localizedTitle.ts` 做成 getter；改用上游 GT 后路由标题由上游翻译，这个文件已删除。`Stack.tsx` 取上游，只保留设备页路由和 `connections/new` 的 `pair` 别名。
 - 解决 i18n 冲突的做法：fork 只包了 `t()` 的冲突取上游，再用 `vp run i18n:report` 的 hard-coded 清单重新包（可以写脚本按清单里的行号和文本包）；fork 在 `t` 参数、`translate:`、`translator` 之类的传参上有真实改动的冲突手工合。取上游后新文案会在报告里列为 hard-coded，再补 catalog；上游改了英文的旧 key 会列为 stale，删掉。 取上游的冲突文件里，同一个 key 在多处调用时可能只包了一部分，报告看不出来；合并后拿合并前的 main 比一遍：基点里在 `t("…")` 里、现在成了模板字符串、JSX 文本或裸字面量的句子，都要包回去（这次靠这个又找回了几十处，包括 `Working {duration}`、`Show {count} more`、语音设置里的 aria-label）。删 stale key 前先确认不是自己刚把调用点改成了模板。
 - 对话状态 "preparing" 是上游新加的（侧边栏的"准备中"）。fork 把状态函数搬到了 `packages/client-runtime/src/state/threadGrouping.ts`，上游对 `Sidebar.logic.ts` 里这几个函数的改动要手工搬过去，测试也在 `threadGrouping.test.ts`。
 - 上游把 Effect 的诊断升成了 error（`extendsNativeError`、`preferSchemaTaggedError`、`instanceOfSchema`、`processEnvInEffect`、`effectTryWithoutCatch` 等），fork 自己的类要么改成 `Schema.TaggedError`（`SharedWorktreeRefused`），要么在类上一行 `@effect-diagnostics-next-line extendsNativeError:off - <原因>`（`ProofError`、`FrpFetchError`、`RpcFailure`、`E2eFailure`、`RegistryError`、桌面网关的两个错误类）。这些原因都是"在 Effect 之外的纯 throw 里用"，以后新增 fork 错误类先看能不能直接用 Schema。

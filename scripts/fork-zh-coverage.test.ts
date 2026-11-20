@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off - a plain file scan over the source tree.
 // fork: in a Chinese interface, the copy of T3 Extend's own features must be Chinese. Their text goes
 // through either the fork's t() (zh-Hans catalog) or upstream's GT (gt(), msg(), <T>, so zh.json);
 // a sentence with no Chinese behind it would quietly show English after an upstream sync.

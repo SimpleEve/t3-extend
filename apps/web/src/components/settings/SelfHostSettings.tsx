@@ -216,6 +216,7 @@ export function SelfHostSettings() {
               size="sm"
               font="mono"
               value={command}
+              // oxlint-disable-next-line t3code/no-untranslated-copy -- a sample shell command
               placeholder="frpc -c ~/frpc.toml"
               aria-label={t("Tunnel command")}
               spellCheck={false}

@@ -646,7 +646,7 @@ const UPSTREAM_REF = "upstream/main";
 const upstreamFiles = (() => {
   const listing = NodeChildProcess.spawnSync(
     "git",
-    ["ls-tree", "-r", "--name-only", UPSTREAM_REF, "--", ...["apps/web/src", "apps/mobile/src"]],
+    ["ls-tree", "-r", "--name-only", UPSTREAM_REF, "--", "apps/web/src", "apps/mobile/src"],
     { encoding: "utf8", maxBuffer: 1 << 28 },
   );
   return listing.status === 0 ? new Set(listing.stdout.split("\n").filter(Boolean)) : null;
@@ -804,7 +804,7 @@ const PROPERTY_ALLOWLIST = new Set([
   // English on purpose: the catalog that would translate this toast is the one that failed.
   "apps/web/src/uiLanguage.ts",
   // Error objects that are logged or cross a boundary keep English where they are made; the
-  // display translates the known ones (connection/errorMessages.ts) or shows them as written.
+  // display shows them as written.
   "apps/web/src/browser/openFileInPreview.ts#message",
   "apps/web/src/cloud/linkEnvironment.ts#message",
   "apps/web/src/components/ChatMarkdown.tsx#message",
@@ -1296,7 +1296,8 @@ function hardCodedSections(
     for (const file of files) {
       const forkLines = forkLinesOf(file);
       if (forkLines !== null && forkLines.size === 0) continue;
-      const ours = (hit: { readonly line: number }) => forkLines === null || forkLines.has(hit.line);
+      const ours = (hit: { readonly line: number }) =>
+        forkLines === null || forkLines.has(hit.line);
       const code = NodeFS.readFileSync(file, "utf8");
       const program = parseSource(file, code);
       if (file.endsWith(".tsx")) {

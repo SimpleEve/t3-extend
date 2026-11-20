@@ -18,7 +18,6 @@ import { hanTextProps } from "~/fork/hanText"; // fork: Han text at 10px
 import type {
   BackgroundBooleanState,
   EnvironmentId,
-  HostPowerThermalState,
   ResourceAttributionEntry,
   ResourceTelemetryAggregate,
   ResourceTelemetryHistoryBucket,

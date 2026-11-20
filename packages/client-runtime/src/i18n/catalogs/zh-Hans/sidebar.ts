@@ -202,6 +202,11 @@ export default {
   "Restart the app from the update button to install it.": "请通过更新按钮重启应用来安装。",
   "Update command copied": "已复制更新命令",
   "Relaunch command copied": "已复制重启命令",
+  "Run `{command}` on {serverLabel}, then restart {cli} with your usual options.":
+    "在 {serverLabel} 上运行 `{command}`，然后用平常的选项重启 {cli}。",
+  "Run `{command}` on {serverLabel}, then restart the server with your usual options.":
+    "在 {serverLabel} 上运行 `{command}`，然后用平常的选项重启服务器。",
+  "run its T3 command's `{command}` there": "在那台机器上用它的 T3 命令运行 `{command}`",
   "Stop {cli} on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed {cli} command.":
     "停止 {serverLabel} 上的 {cli}，然后用 `{command}` 以相同的子命令和选项重新启动。这不会更新已安装的 {cli} 命令。",
   "Stop the server on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update its installed command.":

@@ -123,7 +123,9 @@ const checkForUpdatesFromMenu = Effect.gen(function* () {
         version === null
           ? m(msg("A new version of T3 Extend is ready to install."))
           : m(msg("T3 Extend {version} is ready to install."), { version }),
-      detail: m(msg("T3 Extend will restart to install it. Any running tasks will be interrupted.")),
+      detail: m(
+        msg("T3 Extend will restart to install it. Any running tasks will be interrupted."),
+      ),
       buttons: [m(msg("Restart", { $context: "button, restarts the app" })), m(msg("Later"))],
       defaultId: 0,
       cancelId: 1,

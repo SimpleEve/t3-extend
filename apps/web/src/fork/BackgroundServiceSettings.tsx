@@ -63,7 +63,7 @@ export function BackgroundServiceSettings() {
   }[view.status];
 
   return (
-    <SettingsSection id="background-service" title="Background running">
+    <SettingsSection id="background-service" title={t("Background running")}>
       <SettingsRow
         id={setting("keep-running-in-background").id}
         title={t("Keep running in the background")}

@@ -31,7 +31,6 @@ export function StandalonePageHeader({
           data-t3-wordmark // fork: keeps its English type in every language
         >
           <T3Wordmark className="h-3 w-auto shrink-0 text-foreground" aria-hidden />
-          {/* oxlint-disable-next-line t3code/no-untranslated-copy -- product wordmark */}
           <span className="text-lg font-medium tracking-tight text-primary">
             {FORK.wordmarkSuffix}
           </span>

@@ -367,8 +367,8 @@ const getPreviewConfig = DesktopIpc.makeIpcMethod({
     const { scope, persistent, namespace } = resolvePartitionScope(environmentId, profileId);
     // Session creation installs UA and permission handlers before a guest can attach.
     const session = yield* manager.getBrowserSession(scope, persistent, namespace);
-    // fork: loopback gateway. Upstream's LoopbackTunnel (#37948, #39xxx forwards) sets the same
-    // session's proxy; until the user picks one, the fork's gateway owns it and the tunnel stays off.
+    // fork: loopback gateway. Upstream's LoopbackTunnel sets the same session's proxy; until the
+    // user picks one, the fork's gateway owns it and the tunnel stays off.
     yield* installLoopbackGatewaySession(environmentId, session);
     yield* tunnel.route({ environmentId, session, tunnelled: false && tunnelLoopback === true });
     return {

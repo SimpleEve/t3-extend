@@ -179,7 +179,9 @@ function steps(
   );
   switch (located.cause) {
     case "offline":
-      return [resolve(msg("Connect this device to the internet. T3 Extend reconnects on its own."))];
+      return [
+        resolve(msg("Connect this device to the internet. T3 Extend reconnects on its own.")),
+      ];
     case "session_pending":
       return [
         resolve(msg("Wait a moment. T3 Extend retries on its own.")),

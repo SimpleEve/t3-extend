@@ -71,6 +71,7 @@ import { compactDynamicToolOutput } from "@t3tools/shared/toolOutput";
 import { htmlRenderReferencesEqual, type HtmlRenderReference } from "@t3tools/shared/htmlRender";
 import { mcpAppReferencesEqual, type McpAppReference } from "@t3tools/shared/mcpApp";
 import { formatDuration } from "@t3tools/shared/orchestrationTimingCopy";
+import { translateForkNotice } from "@t3tools/client-runtime/work-log/phrase"; // fork
 import { formatWorkspaceRelativePath } from "../../filePathDisplay";
 import { m, type MessageResolver } from "../../i18n/messages";
 import { collectToolFilePaths } from "@t3tools/shared/toolActivity";
@@ -149,7 +150,7 @@ export function workEntryDisplayLabel(
   workspaceRoot: string | undefined,
   resolve: MessageResolver = m,
 ) {
-  if (entry.itemType === "system_notice") return entry.label;
+  if (entry.itemType === "system_notice") return translateForkNotice(entry.label); // fork: only notices T3 Extend words itself
   if (entry.itemType === "reasoning" || entry.tone === "thinking") {
     const thought = entry.detail?.trim().replace(/\s+/g, " ");
     return thought || entry.label;

@@ -2396,7 +2396,11 @@
   "febf4ec3cdcdf372": "更新コマンドをコピーしました",
   "bee440d0da53841c": "再起動コマンドをコピーしました",
   "9e17a8beb64d6130": "{serverLabel} で `{command}` を実行してから、いつものオプションで t3 を再起動してください。",
+  "4996ffecbfc58a0d": "Run `{command}` on {serverLabel}, then restart {cli} with your usual options.",
+  "c383fdda6f004fe8": "Run `{command}` on {serverLabel}, then restart the server with your usual options.",
   "218253b96de09d5d": "{serverLabel} で t3 を停止してから、同じサブコマンドとオプションで `{command}` を使って再起動してください。インストール済みの t3 コマンドは更新されません。",
+  "d4fafd34c2e1b9bf": "Stop {cli} on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed {cli} command.",
+  "4ea13c886f6e2be3": "Stop the server on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update its installed command.",
   "3cb4fcae1546e2eb": "更新コマンドをコピーできませんでした",
   "c0988c56d2b07278": "{serverLabel} を実行している T3 Extend デスクトップアプリを更新しますか？そのマシンでアプリが終了し、再起動します。",
   "a1581c125ff5ba06": "更新コマンドをコピー",
@@ -3097,10 +3101,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "(このページを開いたコンピューター上)"
-      ]
+      "c": [" ", "(このページを開いたコンピューター上)"]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3112,10 +3113,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "· 実行した人にこのアクセス権が付与されます"
-      ]
+      "c": [" ", "· 実行した人にこのアクセス権が付与されます"]
     }
   ],
   "c54cc9c75db9dc58": "自分で開始したばかりのサインインだけを承認してください。",
@@ -5854,6 +5852,7 @@
   "91ffc62a69e19703": "使用できるのは、あなたが承認したアプリだけです。設定でオフにできます。",
   "e76bfbe44a97f9e8": "オンにする",
   "6ba196fe7ecd3167": "トンネルを管理",
+  "bed19f41e5e382c7": "Run the `connect link` command on {name}.",
   "be0063581ab22dd4": "アプリがサインインページを開いたら、許可する操作を選び、T3 Connect アカウントで承認してください。",
   "be05e99085799b92": "{app} がサインインページを開いたら、許可する操作を選び、T3 Connect アカウントで承認してください。",
   "bf14b3522e13a2c3": "URL",
@@ -6096,7 +6095,7 @@
     "を実行してください。"
   ],
   "9d9b9624c7bd95df": "その他のフォルダー",
-  "1eb8f3d4695033fb": [
+  "6a81be3289fa0876": [
     {
       "i": 1,
       "k": "_gt_value_1",
@@ -6107,15 +6106,15 @@
     {
       "t": "code",
       "i": 2,
-      "c": "t3"
+      "c": "t3x"
     },
     " を使うには新しいターミナルを開いてください。"
   ],
-  "ad72bb102aa39c31": [
+  "145861210aaa364d": [
     {
       "t": "code",
       "i": 1,
-      "c": "t3"
+      "c": "t3x"
     },
     " をどのターミナルからでも使えるようにします。",
     " ",
@@ -7495,7 +7494,7 @@
   "f818040c75078d53": "ブランチの命名をデフォルトにリセット",
   "2c82cf0bf586ddd8": "ワークツリーのブランチの命名",
   "bff8a0d14cb10f17": "ブランチのプレフィックス",
-  "4e33e869882b8ef3": "たとえば t3 または t3/ を指定すると t3/add-search になります。プレフィックスなしにするには空欄のままにします。",
+  "5cfb70ee070a9cfc": "たとえば t3x または t3x/ を指定すると t3x/add-search になります。プレフィックスなしにするには空欄のままにします。",
   "fc32aa5738bccb9a": "ブランチのプレフィックスをデフォルトにリセット",
   "452b86cb8c4e0432": "プレフィックスなし",
   "abcdead6f7529103": "ブランチの命名の指示",
@@ -7641,7 +7640,7 @@
   "e1fcc4b74faaae02": "ショートカットを削除…",
   "efa55bbb1d3aa45e": "変更を確認",
   "3e02b74615e20d82": "手動セットアップ",
-  "1a7397911bff6fb0": [
+  "90e4037c3cc6fa30": [
     "停止するには T3 Extend でキャプチャをオフにしてください。キーを解放するには ",
     {
       "i": 1,
@@ -7682,7 +7681,7 @@
   "4f6e93011ef2da6f": "{path} にインストールしました。使うには新しいターミナルを開いてください。",
   "371ca438cf467125": "{path} にインストールし、{file} で PATH に追加しました。使うには新しいターミナルを開いてください。",
   "fd3eece9d1a7ea38": "{path} にインストールしましたが、まだ PATH に含まれていません。",
-  "5fff98fa978bd008": "{path} にインストールしましたが、まだ PATH に含まれていません。`t3` を実行するには、そのフォルダーを PATH に追加してください。",
+  "c707ea4399e3b0b8": "{path} にインストールしましたが、まだ PATH に含まれていません。`t3x` を実行するには、そのフォルダーを PATH に追加してください。",
   "dc06294dd4078b00": "削除",
   "b707d919dbf0222a": "インストール",
   "9a284b5893dc04a2": "OpenRouter のモデル",
@@ -11335,6 +11334,7 @@
   "a5ea998202be1fbc": "{label} の認証情報",
   "8f636f473e42e657": "すべて ローカル ファイル 未コミット 変更 編集済み 追跡 無視 env ビルド 出力 クリーンアップ any local files uncommitted",
   "b1c7f74049a4147c": "ストレージ クリーンアップ 今すぐ実行 結果 レポート 削除 保持 失敗 storage cleanup",
+  "3c84df1b2d646a7c": "Import from {app}",
   "2678550365a59e17": "ワークツリーのクリーンアップ",
   "8deb2b0fd308fc26": "ディスク ストレージ 自動 削除 アーカイブ スレッド 古い 非アクティブ マージ済み 対応済み 未変更 ワークツリー 保持期間 日数 プロジェクト 継承 オフ カスタム disk storage worktrees",
   "c875f7fa9a48560a": "ワークツリー 場所 フォルダー ディレクトリ パス ドライブ 外付け ディスク worktree location",
@@ -11351,6 +11351,7 @@
   "a4db56afef75963c": "外観 ライト ダーク システム モード appearance light dark",
   "d7bccc302862b538": "テーマ",
   "8f5966eebd2b110f": "外観 色 パレット カスタム インポート appearance colors theme",
+  "db0e331bffa58616": "My schemes",
   "633ed64e952cca3b": "色 境界線 インターフェイス colors borders",
   "9cf8308531b4ff31": "透明 透過 不透明 メニュー ダイアログ 入力欄 transparency",
   "d8d6cfd630cff22d": "赤 緑 青 オレンジ 追加 削除 変更 件数 パレット 色覚 colorblind",
@@ -11422,6 +11423,7 @@
   "5b8b854de7ee6f4d": "インストール済み CLI バージョン 新しい 利用可能 Codex Claude Cursor Grok fx Kiro OpenCode update",
   "64f12530d55d2ad1": "再開 実行中 アクティブ 中断 作業 再起動 マシン クラッシュ デスクトップ 更新 自動 resume",
   "214a98497c4ed05d": "caffeinate スリープ 防止 スリープしない 電源 ノートパソコン 蓋 inhibit sleep",
+  "5363d911b044fb4c": "Keep running in the background",
   "00469926c7027e2d": "バランス パフォーマンス バッテリー節約 詳細 Git フェッチ プロバイダー ヘルス 更新 ホスト 電源 モニター アイドル ポリシー battery",
   "54e33e572cc71746": "デフォルト ワークスペース モード 下書き ローカル ワークツリー workspace",
   "b2ece956b72c4a48": "サブモジュール",
@@ -11473,6 +11475,7 @@
   "ad89031709b521b8": "シミュレーター サポート Xcode Android Studio SDK AVD ランタイム simulator",
   "98a0d9d96a4b98f1": "ブラウザープロファイル",
   "769f162aadf1c6b4": "デフォルトのブラウザープロファイル",
+  "11759fb1a4c51db9": "Localhost forwarding",
   "9ad596e5c79fbd05": "プレビュー サイズ 幅 高さ デバイス デスクトップ モバイル 回転 viewport",
   "4d557352caddc4da": "プレビュー ページ 拡大率 タブ パーセント zoom",
   "fa3bb9e3238bd587": "プレビュー カラースキーム ライト ダーク システム OS appearance",
@@ -11500,6 +11503,7 @@
   "c349ea1db3f9e9f1": "環境のアイコン",
   "18bd7981d6c50994": "マシン グリフ サイドバー Mac mini Studio ノートパソコン デスクトップ サーバー クラウド VM machine",
   "8ac2984f4e732091": "オフ オン 無効 有効 ローカルサーバー エージェント リモートのみ 再起動 local server",
+  "32774821ffe65c19": "Your server",
   "3a54b8d98911331a": "ネットワークアクセス",
   "1a31308f0884a68b": "公開 バックエンド リモート ペアリング ローカルマシン インターフェイス ホスト 再起動 expose",
   "468d32c6b30df608": "Tailscale HTTPS",
@@ -11684,6 +11688,7 @@
   "326d8ad8e5609579": "このアプリは切り替えられません: データベースに {version} がまだサポートしていない変更があります。{to} が対応するまで {from} のままにしてください。",
   "3ac986d604a2ad62": "このアプリは切り替えられません: サーバーが接続されていないため、データベースを確認できません。",
   "3bbb6e9ade0cf7e1": "そこで `{command}` を実行してください",
+  "f579e70c4d60d0fe": "run its T3 command's `{command}` there",
   "e7194946af611278": "プレビュービルドを実行中",
   "f5eac23351c99297": "その Mac で Mac アプリを切り替えてください",
   "d7444fbde9a80f04": "1 分未満",

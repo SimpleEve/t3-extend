@@ -5,8 +5,6 @@ import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitation
 import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences";
 import { truncate } from "@t3tools/shared/String";
 
-const PLACEHOLDER_THREAD_TITLE = "New thread";
-
 import { collectComposerModelMentions } from "../composerModelMentions.ts";
 
 export interface ThreadTitleSeedInput {

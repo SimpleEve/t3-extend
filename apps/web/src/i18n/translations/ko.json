@@ -2397,7 +2397,11 @@
   "febf4ec3cdcdf372": "업데이트 명령 복사됨",
   "bee440d0da53841c": "다시 실행 명령 복사됨",
   "9e17a8beb64d6130": "{serverLabel}에서 `{command}`을(를) 실행한 다음 평소 옵션으로 t3를 다시 시작하세요.",
+  "4996ffecbfc58a0d": "Run `{command}` on {serverLabel}, then restart {cli} with your usual options.",
+  "c383fdda6f004fe8": "Run `{command}` on {serverLabel}, then restart the server with your usual options.",
   "218253b96de09d5d": "{serverLabel}에서 t3를 중지한 다음 같은 하위 명령과 옵션으로 `{command}`을(를) 사용해 다시 실행하세요. 설치된 t3 명령은 업데이트되지 않습니다.",
+  "d4fafd34c2e1b9bf": "Stop {cli} on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed {cli} command.",
+  "4ea13c886f6e2be3": "Stop the server on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update its installed command.",
   "3cb4fcae1546e2eb": "업데이트 명령을 복사할 수 없습니다",
   "c0988c56d2b07278": "{serverLabel}을(를) 실행하는 T3 Extend 데스크톱 앱을 업데이트할까요? 해당 머신에서 앱이 닫히고 다시 실행됩니다.",
   "a1581c125ff5ba06": "업데이트 명령 복사",
@@ -3098,10 +3102,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "(이 페이지를 연 컴퓨터)"
-      ]
+      "c": [" ", "(이 페이지를 연 컴퓨터)"]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3113,10 +3114,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "· 실행하는 사람이 이 액세스 권한을 얻습니다"
-      ]
+      "c": [" ", "· 실행하는 사람이 이 액세스 권한을 얻습니다"]
     }
   ],
   "c54cc9c75db9dc58": "방금 시작한 로그인만 승인하세요.",
@@ -5852,6 +5850,7 @@
   "91ffc62a69e19703": "내가 승인한 앱만 사용할 수 있습니다. 설정에서 끌 수 있습니다.",
   "e76bfbe44a97f9e8": "켜기",
   "6ba196fe7ecd3167": "터널 관리",
+  "bed19f41e5e382c7": "Run the `connect link` command on {name}.",
   "be0063581ab22dd4": "앱이 로그인 페이지를 열면 허용할 작업을 선택하고 T3 Connect 계정으로 승인하세요.",
   "be05e99085799b92": "{app}이(가) 로그인 페이지를 열면 허용할 작업을 선택하고 T3 Connect 계정으로 승인하세요.",
   "bf14b3522e13a2c3": "URL",
@@ -6093,7 +6092,7 @@
     "을(를) 실행하세요."
   ],
   "9d9b9624c7bd95df": "기타 폴더",
-  "1eb8f3d4695033fb": [
+  "6a81be3289fa0876": [
     {
       "i": 1,
       "k": "_gt_value_1",
@@ -6104,16 +6103,16 @@
     {
       "t": "code",
       "i": 2,
-      "c": "t3"
+      "c": "t3x"
     },
     "을(를) 사용하려면 새 터미널을 여세요."
   ],
-  "ad72bb102aa39c31": [
+  "145861210aaa364d": [
     "어느 터미널에서나 ",
     {
       "t": "code",
       "i": 1,
-      "c": "t3"
+      "c": "t3x"
     },
     "을(를) 사용합니다.",
     " ",
@@ -7496,7 +7495,7 @@
   "f818040c75078d53": "브랜치 이름 지정 기본값으로 재설정",
   "2c82cf0bf586ddd8": "워크트리 브랜치 이름 지정",
   "bff8a0d14cb10f17": "브랜치 접두사",
-  "4e33e869882b8ef3": "예를 들어 t3 또는 t3/를 입력하면 t3/add-search가 됩니다. 접두사를 쓰지 않으려면 비워 두세요.",
+  "5cfb70ee070a9cfc": "예를 들어 t3x 또는 t3x/를 입력하면 t3x/add-search가 됩니다. 접두사를 쓰지 않으려면 비워 두세요.",
   "fc32aa5738bccb9a": "브랜치 접두사 기본값으로 재설정",
   "452b86cb8c4e0432": "접두사 없음",
   "abcdead6f7529103": "브랜치 이름 지정 지침",
@@ -7642,7 +7641,7 @@
   "e1fcc4b74faaae02": "단축키 제거…",
   "efa55bbb1d3aa45e": "변경 사항 검토",
   "3e02b74615e20d82": "수동 설정",
-  "1a7397911bff6fb0": [
+  "90e4037c3cc6fa30": [
     "중지하려면 T3 Extend에서 캡처를 끄세요. 키를 해제하려면 ",
     {
       "i": 1,
@@ -7684,7 +7683,7 @@
   "4f6e93011ef2da6f": "{path}에 설치되었습니다. 사용하려면 새 터미널을 여세요.",
   "371ca438cf467125": "{path}에 설치되었고 {file}에서 PATH에 추가되었습니다. 사용하려면 새 터미널을 여세요.",
   "fd3eece9d1a7ea38": "{path}에 설치되었지만 아직 PATH에 없습니다.",
-  "5fff98fa978bd008": "{path}에 설치되었지만 아직 PATH에 없습니다. `t3`를 실행하려면 해당 폴더를 PATH에 추가하세요.",
+  "c707ea4399e3b0b8": "{path}에 설치되었지만 아직 PATH에 없습니다. `t3x`를 실행하려면 해당 폴더를 PATH에 추가하세요.",
   "dc06294dd4078b00": "제거",
   "b707d919dbf0222a": "설치",
   "9a284b5893dc04a2": "OpenRouter 모델",
@@ -11332,6 +11331,7 @@
   "a5ea998202be1fbc": "{label} 자격 증명",
   "8f636f473e42e657": "모든 로컬 파일 커밋하지 않은 변경 사항 편집된 추적 파일 무시된 env 빌드 출력 정리",
   "b1c7f74049a4147c": "저장 공간 정리 지금 실행 결과 보고서 제거됨 유지됨 실패",
+  "3c84df1b2d646a7c": "Import from {app}",
   "2678550365a59e17": "워크트리 정리",
   "8deb2b0fd308fc26": "디스크 저장 공간 자동 삭제 삭제됨 보관된 스레드 오래된 비활성 병합됨 정리됨 변경 없음 워크트리 보존 기간 일 프로젝트 상속 끔 사용자 지정",
   "c875f7fa9a48560a": "워크트리 위치 폴더 디렉터리 경로 드라이브 외장 디스크",
@@ -11348,6 +11348,7 @@
   "a4db56afef75963c": "모양 라이트 다크 시스템 모드",
   "d7bccc302862b538": "테마",
   "8f5966eebd2b110f": "모양 색상 팔레트 사용자 지정 가져오기",
+  "db0e331bffa58616": "My schemes",
   "633ed64e952cca3b": "색상 테두리 인터페이스",
   "9cf8308531b4ff31": "투명 투명도 불투명 메뉴 대화 상자 입력창",
   "d8d6cfd630cff22d": "빨간색 녹색 파란색 주황색 추가 삭제 변경 개수 팔레트 색맹",
@@ -11419,6 +11420,7 @@
   "5b8b854de7ee6f4d": "설치된 CLI 버전 최신 사용 가능 Codex Claude Cursor Grok fx Kiro OpenCode",
   "64f12530d55d2ad1": "재개 실행 중 활성 중단된 작업 다시 시작 재부팅 머신 충돌 데스크톱 업데이트 자동",
   "214a98497c4ed05d": "caffeinate 절전 방지 깨어 있기 전원 노트북 덮개 inhibit",
+  "5363d911b044fb4c": "Keep running in the background",
   "00469926c7027e2d": "균형 성능 배터리 절약 고급 git 가져오기 제공자 상태 새로 고침 호스트 전원 모니터 유휴 정책",
   "54e33e572cc71746": "기본 작업 영역 모드 초안 로컬 워크트리",
   "b2ece956b72c4a48": "하위 모듈",
@@ -11470,6 +11472,7 @@
   "ad89031709b521b8": "시뮬레이터 지원 xcode android studio sdk avd 런타임",
   "98a0d9d96a4b98f1": "브라우저 프로필",
   "769f162aadf1c6b4": "기본 브라우저 프로필",
+  "11759fb1a4c51db9": "Localhost forwarding",
   "9ad596e5c79fbd05": "미리 보기 크기 너비 높이 기기 데스크톱 모바일 회전",
   "4d557352caddc4da": "미리 보기 페이지 배율 탭 퍼센트",
   "fa3bb9e3238bd587": "미리 보기 색 구성표 라이트 다크 시스템 OS",
@@ -11497,6 +11500,7 @@
   "c349ea1db3f9e9f1": "환경 아이콘",
   "18bd7981d6c50994": "머신 아이콘 사이드바 mac mini studio 노트북 데스크톱 서버 클라우드 vm",
   "8ac2984f4e732091": "끄기 켜기 사용 안 함 사용 로컬 서버 에이전트 원격 전용 다시 시작",
+  "32774821ffe65c19": "Your server",
   "3a54b8d98911331a": "네트워크 액세스",
   "1a31308f0884a68b": "노출 백엔드 원격 페어링 로컬 머신 인터페이스 호스트 다시 시작",
   "468d32c6b30df608": "Tailscale HTTPS",
@@ -11681,6 +11685,7 @@
   "326d8ad8e5609579": "이 앱은 전환할 수 없습니다. 데이터베이스에 {version}이(가) 아직 지원하지 않는 변경 사항이 있으므로 {to}에서 지원할 때까지 {from}을(를) 유지하세요.",
   "3ac986d604a2ad62": "이 앱은 전환할 수 없습니다. 서버가 연결되어 있지 않아 데이터베이스를 확인할 수 없습니다.",
   "3bbb6e9ade0cf7e1": "그곳에서 `{command}`를 실행하세요",
+  "f579e70c4d60d0fe": "run its T3 command's `{command}` there",
   "e7194946af611278": "미리 보기 빌드를 실행 중",
   "f5eac23351c99297": "해당 Mac에서 Mac 앱을 전환하세요",
   "d7444fbde9a80f04": "<1분",

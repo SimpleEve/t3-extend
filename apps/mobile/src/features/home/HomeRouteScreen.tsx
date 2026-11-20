@@ -37,7 +37,6 @@ import { usePendingTaskListActions } from "./usePendingTaskListActions";
 import { useThreadListActions } from "./useThreadListActions";
 import { useWorkspaceTabs } from "../layout/workspace/WorkspaceTabsContext";
 import { openSettings } from "../settings/settings-navigation";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { useThreadListViewPreferences } from "../../fork/threadListView"; // fork: thread list views
 import { useSelectWorkspaceTab } from "../layout/workspace/useSelectWorkspaceTab";
 import { useSelectWorkspaceDetail } from "../layout/workspace/useSelectWorkspaceDetail";

@@ -105,7 +105,10 @@ function LookSlider({
       description={description}
       resetAction={
         value !== undefined ? (
-          <SettingResetButton ariaLabel={t("Reset {label} to default", { label: t(title) })} onClick={() => onChange(undefined)} />
+          <SettingResetButton
+            ariaLabel={t("Reset {label} to default", { label: t(title) })}
+            onClick={() => onChange(undefined)}
+          />
         ) : null
       }
       control={
@@ -341,7 +344,7 @@ function ColorsSection({ studio }: { studio: Studio }) {
     <SettingsSection
       data-theme-editor-panel
       id="theme-studio-colors"
-      title="Colors"
+      title={t("Colors")}
       headerAction={
         <div className="flex items-center gap-3">
           <p className="text-xs text-muted-foreground">
@@ -487,7 +490,7 @@ function PresetsSection({ studio }: { studio: Studio }) {
     THEME_PRESET_SEEDS.filter((seed) => seed.needsBackground).map((seed) => seed.id),
   );
   return (
-    <SettingsSection id="theme-studio-presets" title="Presets">
+    <SettingsSection id="theme-studio-presets" title={t("Presets")}>
       <div className="space-y-3 p-3 sm:p-4">
         <p className="text-xs text-muted-foreground">
           {t(
@@ -547,7 +550,7 @@ function FontsSection({ studio }: { studio: Studio }) {
   const [ownOpen, setOwnOpen] = useState(false);
   return (
     <>
-      <SettingsSection id="theme-studio-fonts" title="Fonts">
+      <SettingsSection id="theme-studio-fonts" title={t("Fonts")}>
         <FontStackRow
           description={t(
             "The font for the interface and messages. Fonts must be installed on this device.",
@@ -593,7 +596,7 @@ function LayoutSection({ studio }: { studio: Studio }) {
   const look = studio.working.look;
   const chatWidth = look?.chatWidth;
   return (
-    <SettingsSection id="theme-studio-layout" title="Layout">
+    <SettingsSection id="theme-studio-layout" title={t("Layout")}>
       <LookSlider
         description={t("How round corners are. 0 is square.")}
         id="theme-studio-radius"
@@ -623,7 +626,7 @@ function LayoutSection({ studio }: { studio: Studio }) {
       />
       <SettingsRow
         id="theme-studio-chat-width"
-        title="Chat width"
+        title={t("Chat width")}
         description={t("How wide messages and the composer can grow.")}
         status={
           chatWidth !== undefined ? (
@@ -674,10 +677,10 @@ function LayoutSection({ studio }: { studio: Studio }) {
 function BackgroundSection({ studio }: { studio: Studio }) {
   const t = useT();
   return (
-    <SettingsSection id="theme-studio-background" title="Background">
+    <SettingsSection id="theme-studio-background" title={t("Background")}>
       <SettingsRow
         id="theme-studio-background-image"
-        title="Background image"
+        title={t("Background image")}
         description={
           studio.background
             ? t("This theme has a background image.")
@@ -712,7 +715,7 @@ function CssSection({ studio }: { studio: Studio }) {
   const css = studio.working.css ?? "";
   const [open, setOpen] = useState(css !== "");
   return (
-    <SettingsSection id="theme-studio-css" title="Custom CSS">
+    <SettingsSection id="theme-studio-css" title={t("Custom CSS")}>
       <div className="space-y-2 p-3 sm:p-4">
         <Button aria-expanded={open} size="xs" variant="ghost" onClick={() => setOpen(!open)}>
           {open ? <ChevronDownIcon /> : <ChevronRightIcon />}

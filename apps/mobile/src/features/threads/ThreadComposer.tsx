@@ -130,7 +130,6 @@ import {
   useThreadSettingsSheetPresentation,
   type NavigationWithFinishTransitioning,
 } from "./use-thread-settings-sheet-presentation";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 export const COMPOSER_COLLAPSED_CHROME = 60;

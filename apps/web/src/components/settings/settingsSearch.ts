@@ -268,7 +268,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "import-from-t3-code", // fork: import from the official app
-    title: `Import from ${OFFICIAL_APP_NAME}`,
+    title: msg("Import from {app}", { app: OFFICIAL_APP_NAME }),
     to: "/settings/maintenance",
     scope: "environment-defaults",
     searchTerms: ["official migrate switch projects threads history data bring over"],
@@ -356,7 +356,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   {
     // fork: theme studio
     id: "theme-studio",
-    title: "Theme studio",
+    title: msg("Theme studio"),
     to: "/settings/theme",
     searchTerms: [
       "theme studio presets scheme customize colors color picker eyedropper fonts font size layout radius density spacing shadow chat width glass background css broadsheet swiss brutalist blueprint manuscript retro ink wash neon docs quiet terminal",
@@ -366,7 +366,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   {
     // fork: theme studio
     id: "theme-studio-schemes",
-    title: "My schemes",
+    title: msg("My schemes"),
     to: "/settings/theme",
     searchTerms: ["my schemes saved themes import export json rename delete 我的方案 导入 导出"],
   },
@@ -865,7 +865,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "keep-running-in-background", // fork: background service switch
-    title: "Keep running in the background",
+    title: msg("Keep running in the background"),
     to: "/settings/maintenance",
     searchTerms: ["background service launch agent quit app close phone notifications"],
     desktopOnly: true,
@@ -1159,7 +1159,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "loopback-allowed-ports", // fork: remote localhost forwarding
-    title: "Localhost forwarding",
+    title: msg("Localhost forwarding"),
     to: "/settings/browser",
     searchTerms: ["allowed ports remote environment forward localhost nohup remove"],
   },
@@ -1361,7 +1361,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "your-server", // fork: self-hosted devices
-    title: "Your server",
+    title: msg("Your server"),
     to: "/settings/access",
     searchTerms: ["own vps registry invite join leave device phone computer pair self hosted"],
     desktopOnly: true,

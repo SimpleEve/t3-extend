@@ -120,14 +120,14 @@ export const DESCRIPTOR_PRESETS_BY_KIND: Partial<
   [ProviderDriverKind.make("omp")]: [
     {
       id: "thinking",
-      label: "Thinking",
+      label: msg("Thinking", { $context: "model option name" }),
       type: "select",
       choices: [
-        { id: "off", label: "Off" },
-        { id: "low", label: "Low" },
-        { id: "medium", label: "Medium", isDefault: true },
-        { id: "high", label: "High" },
-        { id: "max", label: "Max" },
+        { id: "off", label: msg("Off", { $context: "reasoning level" }) },
+        { id: "low", label: msg("Low", { $context: "reasoning level" }) },
+        { id: "medium", label: msg("Medium", { $context: "reasoning level" }), isDefault: true },
+        { id: "high", label: msg("High", { $context: "reasoning level" }) },
+        { id: "max", label: msg("Max", { $context: "reasoning level" }) },
       ],
     },
   ],

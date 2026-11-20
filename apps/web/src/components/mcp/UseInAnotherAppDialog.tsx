@@ -517,7 +517,11 @@ function GateScreen({
             <p className="text-sm text-muted-foreground">{turnOnHere.reason}</p>
           ) : (
             <div className="space-y-2 text-sm">
-              <CommandBlock command="t3 connect link" />
+              {hostCli === null ? (
+                <p>{gt("Run the `connect link` command on {name}.", { name })}</p>
+              ) : (
+                <CommandBlock command={`${hostCli} connect link`} />
+              )}
               <p>
                 <T>
                   Restart T3 Extend on <Var>{name}</Var>.

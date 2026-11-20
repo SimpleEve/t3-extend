@@ -11,7 +11,6 @@ import { useEnvironmentScope } from "~/state/session";
 
 import { PreviewPanelShell, type PreviewPanelMode } from "./PreviewPanelShell";
 import { PreviewView } from "./PreviewView";
-import { useT } from "~/hooks/useT";
 import { useUnreachablePreviewNotice } from "~/fork/loopbackGateway/useUnreachablePreviewNotice"; // fork: loopback gateway
 
 interface Props {
@@ -45,7 +44,8 @@ export function PreviewPanel({
           <p className="max-w-sm text-sm text-muted-foreground">
             {canOperatePreview
               ? gt("Preview is only available in the T3 Extend desktop app.")
-              : gt("Pair this client again with preview access to control browser previews.")}
+              : (unreachable /* fork: loopback gateway */ ??
+                gt("Pair this client again with preview access to control browser previews."))}
           </p>
         </div>
       </PreviewPanelShell>

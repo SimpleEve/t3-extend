@@ -17,7 +17,6 @@ export function pullRequestStackMerge(
   const heads = layers.flatMap((layer) =>
     layer.headSha ? [{ number: layer.number, headSha: layer.headSha }] : [],
   );
-  const { singular } = terminology;
   const reason =
     position < 0
       ? resolve(

@@ -71,10 +71,13 @@ import { SettingsRow } from "../components/settings/settingsLayout";
 const isDeviceKeysError = Schema.is(DeviceKeysError);
 
 /** The default name offered for this computer; the user can change it before joining. */
+// A device name the user keeps or edits; it is stored as typed, so it is not translated.
 const defaultDeviceName = (): string => {
   const platform = typeof navigator === "undefined" ? "" : navigator.platform;
+  // oxlint-disable-next-line t3code/no-untranslated-copy -- stored device name
   if (/mac/i.test(platform)) return "Mac";
   if (/win/i.test(platform)) return "PC";
+  // oxlint-disable-next-line t3code/no-untranslated-copy -- stored device name
   return "Computer";
 };
 

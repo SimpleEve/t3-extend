@@ -8,8 +8,3 @@ export type UiLocale = "en" | "zh-Hans";
 export function uiLocaleForLanguage(gtLocale: string): UiLocale {
   return gtLocale.toLowerCase().split(/[-_]/)[0] === "zh" ? "zh-Hans" : "en";
 }
-
-/** The tag for `Intl` formatters that should follow the interface language, such as month names. */
-export function uiLocaleFormatTag(locale: UiLocale): string {
-  return locale === "zh-Hans" ? "zh-CN" : "en-US";
-}

@@ -407,7 +407,8 @@ describe("runUpdateEverything", () => {
 });
 
 describe("describeUpdateEverything", () => {
-  it("gives each machine one row with its T3 Extend and provider updates", () => { // fork: brand
+  it("gives each machine one row with its T3 Extend and provider updates", () => {
+    // fork: brand
     const id = EnvironmentId.make;
     const { rows } = describeUpdateEverything({
       localVersion: "1.1.0",

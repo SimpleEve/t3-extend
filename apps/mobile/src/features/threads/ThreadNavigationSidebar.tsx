@@ -87,9 +87,7 @@ import {
 } from "./threadListV2";
 import { useSelectWorkspaceDetail } from "../layout/workspace/useSelectWorkspaceDetail";
 import { NativeScrollView } from "../../native/NativeScrollViewMarker";
-import { useT } from "../../hooks/useT";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
-import { joinLabelParts } from "../../lib/accessibilityLabel"; // fork: i18n
 
 type SidebarListItem =
   | ThreadListV2ListItem

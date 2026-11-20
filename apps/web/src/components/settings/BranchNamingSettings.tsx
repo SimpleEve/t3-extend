@@ -1,4 +1,3 @@
-import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
 import { msg, useGT, useMessages } from "gt-react";
 import { useRef } from "react";
 import { BranchNamingMode, DEFAULT_SERVER_SETTINGS } from "@t3tools/contracts";
@@ -93,7 +92,7 @@ export function BranchNamingSettings() {
           settingKeys={["branchNamePrefix"]}
           title={gt("Branch prefix")}
           description={gt(
-            "For example, t3 or t3/ produces t3/add-search. Leave empty for no prefix.",
+            "For example, t3x or t3x/ produces t3x/add-search. Leave empty for no prefix.",
           )}
           resetAction={
             prefixMixed ||

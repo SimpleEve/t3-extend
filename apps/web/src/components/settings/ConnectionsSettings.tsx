@@ -156,8 +156,6 @@ import {
 import { AddEnvironmentDialog } from "./AddEnvironmentDialog";
 import { YourServerSettings } from "../../fork/YourServerSettings"; // fork: self-hosted connection and devices
 import { isSelfHostEndpoint } from "~/fork/selfHostStore";
-import { useT } from "../../hooks/useT"; // fork: self-hosted connection
-import { verbatim } from "~/fork/verbatim"; // fork: i18n
 import {
   type ConnectDeviceRevokeRequest,
   RevokeConnectDeviceDialog,

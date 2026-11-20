@@ -144,39 +144,14 @@ export const ManagedPolicySummary = Schema.Struct({
 });
 export type ManagedPolicySummary = typeof ManagedPolicySummary.Type;
 
-/**
- * fork: the shape of a client's `t`. Contracts stay free of i18n, so every message below
- * defaults to English and a client passes its translator to get the interface language.
- */
-export type ManagedMessageTranslator = (
-  source: string,
-  params?: Readonly<Record<string, string | number>>,
-) => string;
-
-const english: ManagedMessageTranslator = (source, params) =>
-  source.replace(/\{(\w+)\}/gu, (placeholder, name: string) =>
-    params?.[name] === undefined ? placeholder : String(params[name]),
-  );
-
-// fork: the product name in these lines; clients translate the sentence around it.
-const MANAGED_APP_NAME = "T3 Extend";
-
 /** The message every surface shows when the policy stops an update. */
-export function managedUpdatesMessage(
-  organization: string,
-  t: ManagedMessageTranslator = english,
-): string {
-  return t("{organization} manages {app} updates.", { organization, app: MANAGED_APP_NAME });
+export function managedUpdatesMessage(organization: string): string {
+  return `${organization} manages T3 Extend updates.`; // fork: brand
 }
 
 /** The message when the policy allows only stable releases. */
-export function managedNightlyDeniedMessage(
-  organization: string,
-  t: ManagedMessageTranslator = english,
-): string {
-  return t("{message} Only stable releases can be installed.", {
-    message: managedUpdatesMessage(organization, t),
-  });
+export function managedNightlyDeniedMessage(organization: string): string {
+  return `${managedUpdatesMessage(organization)} Only stable releases can be installed.`;
 }
 
 /** Whether `path` is locked itself, sits inside a locked setting, or contains one. */
@@ -191,12 +166,8 @@ export function isManagedSettingPath(
 }
 
 /** The one shape users see when policy refuses something: "Example Corp's policy does not allow webhook tasks." */
-export function managedPolicyDeniedMessage(
-  organization: string,
-  capability: string,
-  t: ManagedMessageTranslator = english,
-): string {
-  return t("{organization}'s policy does not allow {capability}.", { organization, capability });
+export function managedPolicyDeniedMessage(organization: string, capability: string): string {
+  return `${organization}'s policy does not allow ${capability}.`;
 }
 
 const RUNTIME_MODE_LABELS: Record<RuntimeMode, string> = {
@@ -207,26 +178,18 @@ const RUNTIME_MODE_LABELS: Record<RuntimeMode, string> = {
 };
 
 /** "Example Corp limits threads to Auto-accept edits." */
-export function managedRuntimeModeCeilingMessage(
-  organization: string,
-  ceiling: RuntimeMode,
-  t: ManagedMessageTranslator = english,
-) {
-  return t("{organization} limits threads to {mode}.", {
-    organization,
-    mode: t(RUNTIME_MODE_LABELS[ceiling]),
-  });
+export function managedRuntimeModeCeilingMessage(organization: string, ceiling: RuntimeMode) {
+  return `${organization} limits threads to ${RUNTIME_MODE_LABELS[ceiling]}.`;
 }
 
 /** Why `mode` is unavailable on an environment with `summary`, or undefined when it is allowed. */
 export function managedRuntimeModeDenial(
   summary: ManagedPolicySummary | undefined,
   mode: RuntimeMode,
-  t: ManagedMessageTranslator = english,
 ): string | undefined {
   const ceiling = summary?.limits?.maxRuntimeMode;
   return summary !== undefined && ceiling !== undefined && isRuntimeModeAbove(mode, ceiling)
-    ? managedRuntimeModeCeilingMessage(summary.organization, ceiling, t)
+    ? managedRuntimeModeCeilingMessage(summary.organization, ceiling)
     : undefined;
 }
 
@@ -256,7 +219,6 @@ const CAPABILITY_LABELS = {
 export function managedCapabilityDenial(
   summary: ManagedPolicySummary | undefined,
   capability: keyof typeof CAPABILITY_LABELS,
-  t: ManagedMessageTranslator = english,
 ): string | undefined {
   const limits = summary?.limits;
   if (summary === undefined || limits === undefined) return undefined;
@@ -289,11 +251,8 @@ export function isManagedDriverAllowed(
 }
 
 /** Why updates are unavailable on an environment with `summary`, or undefined when allowed. */
-export function managedUpdatesDenial(
-  summary: ManagedPolicySummary | undefined,
-  t: ManagedMessageTranslator = english,
-) {
+export function managedUpdatesDenial(summary: ManagedPolicySummary | undefined) {
   return summary?.limits?.updates?.mode === "off"
-    ? managedUpdatesMessage(summary.organization, t)
+    ? managedUpdatesMessage(summary.organization)
     : undefined;
 }

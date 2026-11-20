@@ -200,7 +200,6 @@ function SidebarBrandMark({ onBackdrop }: { onBackdrop: boolean }) {
           onBackdrop ? "text-white/70" : "text-primary", // fork: brand
         )}
       >
-        {/* oxlint-disable-next-line t3code/no-untranslated-copy -- product wordmark */}
         {FORK.wordmarkSuffix}
       </span>
     </span>

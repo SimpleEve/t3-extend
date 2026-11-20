@@ -43,7 +43,7 @@ export function loadUiCatalog(locale: UiLocale): Promise<Catalog | null> {
 
 const PLACEHOLDER = /\{([A-Za-z0-9_]+)\}/g;
 
-export function interpolate(template: string, params: TranslateParams | undefined): string {
+function interpolate(template: string, params: TranslateParams | undefined): string {
   if (!params) return template;
   return template.replace(PLACEHOLDER, (match, name: string) =>
     Object.hasOwn(params, name) ? String(params[name]) : match,

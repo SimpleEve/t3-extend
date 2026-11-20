@@ -103,7 +103,6 @@ import { useFabScroll } from "./FabScrollContext";
 import { holdLaunchSplashForHomeRows, settleLaunchSplashHomeRows } from "./home-launch-splash";
 import { useWorkspaceTabs } from "../layout/workspace/WorkspaceTabsContext";
 import { ThreadListFilters } from "./ThreadListFilters";
-import { useT } from "../../hooks/useT"; // fork: i18n
 import { useThreadListViewPreferences } from "../../fork/threadListView"; // fork: thread list views
 import {
   NESTED_ROW_INDENT,

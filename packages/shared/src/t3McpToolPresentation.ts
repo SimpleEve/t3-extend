@@ -560,11 +560,9 @@ export type T3McpToolTranslator = (
   context?: string,
 ) => string;
 
-export const T3_TOOL_CONTEXT = "t3 tool";
-export const T3_TOOL_ACTION_CONTEXT = "t3 tool action";
-export const T3_TOOL_RUNNING_CONTEXT = "t3 tool running";
-export const T3_TOOL_DONE_CONTEXT = "t3 tool done";
-export const T3_TOOL_TARGET_CONTEXT = "t3 tool target";
+const T3_TOOL_CONTEXT = "t3 tool";
+const T3_TOOL_ACTION_CONTEXT = "t3 tool action";
+const T3_TOOL_TARGET_CONTEXT = "t3 tool target";
 
 export function resolveT3McpToolPresentation(
   toolName: string | null | undefined,

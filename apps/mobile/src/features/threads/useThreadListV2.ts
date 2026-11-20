@@ -297,7 +297,6 @@ export function useThreadListV2(input: {
       input.queuedThreadKeys,
       moveAvailability,
       input.shelfPreferencesLoaded,
-      t,
     ],
   );
   return { layout, items, contentOnlyThreadKeys, olderSettledShelf, groupedByProject }; // fork: thread list views

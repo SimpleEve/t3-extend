@@ -1,3 +1,4 @@
+// oxlint-disable t3code/no-untranslated-copy -- verdict details become Error messages, which keep English where they are made
 // fork: what a client may believe about a computer before it sends anything to it (design Q10).
 // Order: the registry's list, then the URL check, then the computer's own well-known answer, and
 // only then a pass. Everything here is pure; the effects live in liveAuthorization.ts.

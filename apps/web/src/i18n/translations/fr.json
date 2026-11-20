@@ -2398,7 +2398,11 @@
   "febf4ec3cdcdf372": "Commande de mise à jour copiée",
   "bee440d0da53841c": "Commande de relance copiée",
   "9e17a8beb64d6130": "Exécutez `{command}` sur {serverLabel}, puis redémarrez t3 avec vos options habituelles.",
+  "4996ffecbfc58a0d": "Run `{command}` on {serverLabel}, then restart {cli} with your usual options.",
+  "c383fdda6f004fe8": "Run `{command}` on {serverLabel}, then restart the server with your usual options.",
   "218253b96de09d5d": "Arrêtez t3 sur {serverLabel}, puis relancez-le avec `{command}` en utilisant la même sous-commande et les mêmes options. Cela ne met pas à jour une commande t3 installée.",
+  "d4fafd34c2e1b9bf": "Stop {cli} on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update an installed {cli} command.",
+  "4ea13c886f6e2be3": "Stop the server on {serverLabel}, then relaunch with `{command}` using the same subcommand and options. This does not update its installed command.",
   "3cb4fcae1546e2eb": "Impossible de copier la commande de mise à jour",
   "c0988c56d2b07278": "Mettre à jour l’app desktop T3 Extend qui fait tourner {serverLabel} ? Elle va se fermer et se relancer sur cette machine.",
   "a1581c125ff5ba06": "Copier la commande de mise à jour",
@@ -3099,10 +3103,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "sur l’ordinateur qui a ouvert cette page"
-      ]
+      "c": [" ", "sur l’ordinateur qui a ouvert cette page"]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3114,10 +3115,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "· quiconque l’exécute obtient cet accès"
-      ]
+      "c": [" ", "· quiconque l’exécute obtient cet accès"]
     }
   ],
   "c54cc9c75db9dc58": "N’approuvez qu’une connexion que vous venez de lancer.",
@@ -5872,6 +5870,7 @@
   "91ffc62a69e19703": "Seules les apps que vous approuvez peuvent l’utiliser. Vous pouvez le désactiver dans les Paramètres.",
   "e76bfbe44a97f9e8": "Activer",
   "6ba196fe7ecd3167": "Gérer les tunnels",
+  "bed19f41e5e382c7": "Run the `connect link` command on {name}.",
   "be0063581ab22dd4": "Quand l’app ouvre la page de connexion, choisissez ce qu’elle peut faire et approuvez avec votre compte T3 Connect.",
   "be05e99085799b92": "Quand {app} ouvre la page de connexion, choisissez ce qu’elle peut faire et approuvez avec votre compte T3 Connect.",
   "bf14b3522e13a2c3": "URL",
@@ -6119,7 +6118,7 @@
     "dans ce terminal."
   ],
   "9d9b9624c7bd95df": "Autres dossiers",
-  "1eb8f3d4695033fb": [
+  "6a81be3289fa0876": [
     "Ajouté à ",
     {
       "i": 1,
@@ -6131,16 +6130,16 @@
     {
       "t": "code",
       "i": 2,
-      "c": "t3"
+      "c": "t3x"
     },
     "."
   ],
-  "ad72bb102aa39c31": [
+  "145861210aaa364d": [
     "Utilisez ",
     {
       "t": "code",
       "i": 1,
-      "c": "t3"
+      "c": "t3x"
     },
     " depuis n’importe quel terminal. Ajoute une ligne à",
     " ",
@@ -7528,7 +7527,7 @@
   "f818040c75078d53": "Réinitialiser le nommage des branches à la valeur par défaut",
   "2c82cf0bf586ddd8": "Nommage des branches de worktree",
   "bff8a0d14cb10f17": "Préfixe de branche",
-  "4e33e869882b8ef3": "Par exemple, t3 ou t3/ donne t3/add-search. Laissez vide pour ne pas utiliser de préfixe.",
+  "5cfb70ee070a9cfc": "Par exemple, t3x ou t3x/ donne t3x/add-search. Laissez vide pour ne pas utiliser de préfixe.",
   "fc32aa5738bccb9a": "Réinitialiser le préfixe des branches à la valeur par défaut",
   "452b86cb8c4e0432": "Aucun préfixe",
   "abcdead6f7529103": "Instructions de nommage des branches",
@@ -7676,7 +7675,7 @@
   "e1fcc4b74faaae02": "Supprimer le raccourci…",
   "efa55bbb1d3aa45e": "Vérifier les modifications",
   "3e02b74615e20d82": "Configuration manuelle",
-  "1a7397911bff6fb0": [
+  "90e4037c3cc6fa30": [
     "Désactivez la capture dans T3 Extend pour l’arrêter. Supprimez le raccourci de ",
     {
       "i": 1,
@@ -7716,7 +7715,7 @@
   "4f6e93011ef2da6f": "Installé dans {path}. Ouvrez un nouveau terminal pour l’utiliser.",
   "371ca438cf467125": "Installé dans {path} et ajouté au PATH dans {file}. Ouvrez un nouveau terminal pour l’utiliser.",
   "fd3eece9d1a7ea38": "Installé dans {path}, qui n’est pas encore dans votre PATH.",
-  "5fff98fa978bd008": "Installé dans {path}, qui n’est pas encore dans votre PATH. Ajoutez son dossier à votre PATH pour exécuter `t3`.",
+  "c707ea4399e3b0b8": "Installé dans {path}, qui n’est pas encore dans votre PATH. Ajoutez son dossier à votre PATH pour exécuter `t3x`.",
   "dc06294dd4078b00": "Supprimer",
   "b707d919dbf0222a": "Installer",
   "9a284b5893dc04a2": "Modèle OpenRouter",
@@ -11383,6 +11382,7 @@
   "a5ea998202be1fbc": "Identifiants {label}",
   "8f636f473e42e657": "tous fichiers locaux modifications non commitées fichiers suivis modifiés ignorés env sortie de build nettoyage",
   "b1c7f74049a4147c": "stockage nettoyage exécuter maintenant résultats rapport supprimés conservés échecs",
+  "3c84df1b2d646a7c": "Import from {app}",
   "2678550365a59e17": "Nettoyage des worktrees",
   "8deb2b0fd308fc26": "disque stockage automatique supprimer supprimés fils archivés anciens inactifs fusionnés clos inchangés worktrees conservation jours projet hériter désactivé personnalisé",
   "c875f7fa9a48560a": "emplacement worktree dossier répertoire chemin lecteur disque externe",
@@ -11399,6 +11399,7 @@
   "a4db56afef75963c": "apparence clair sombre système mode",
   "d7bccc302862b538": "Thèmes",
   "8f5966eebd2b110f": "apparence couleurs palette personnalisée importer",
+  "db0e331bffa58616": "My schemes",
   "633ed64e952cca3b": "couleurs bordures interface",
   "9cf8308531b4ff31": "transparent transparence opaque menus boîtes de dialogue zone de saisie",
   "d8d6cfd630cff22d": "rouge vert bleu orange ajouts suppressions modifications compteurs palette daltonien",
@@ -11470,6 +11471,7 @@
   "5b8b854de7ee6f4d": "installé cli versions plus récentes disponibles codex claude cursor grok fx kiro opencode",
   "64f12530d55d2ad1": "reprendre en cours actif interrompu travail redémarrer redémarrage machine plantage mise à jour bureau automatiquement",
   "214a98497c4ed05d": "caffeinate veille empêcher rester éveillé alimentation portable capot inhiber",
+  "5363d911b044fb4c": "Keep running in the background",
   "00469926c7027e2d": "équilibré performances économie batterie avancé git fetch fournisseur état actualisation hôte énergie surveillance inactif politique",
   "54e33e572cc71746": "espace de travail par défaut mode brouillon local worktree",
   "b2ece956b72c4a48": "Sous-modules",
@@ -11521,6 +11523,7 @@
   "ad89031709b521b8": "prise en charge simulateur xcode android studio sdk avd runtime",
   "98a0d9d96a4b98f1": "Profils du navigateur",
   "769f162aadf1c6b4": "Profil de navigateur par défaut",
+  "11759fb1a4c51db9": "Localhost forwarding",
   "9ad596e5c79fbd05": "aperçu taille largeur hauteur appareil bureau mobile pivoter",
   "4d557352caddc4da": "aperçu page échelle onglets pourcentage",
   "fa3bb9e3238bd587": "aperçu jeu de couleurs clair sombre système os",
@@ -11548,6 +11551,7 @@
   "c349ea1db3f9e9f1": "Icône de l’environnement",
   "18bd7981d6c50994": "machine glyphe barre latérale mac mini studio portable bureau serveur cloud vm",
   "8ac2984f4e732091": "désactiver activer serveur local agents distant uniquement redémarrer",
+  "32774821ffe65c19": "Your server",
   "3a54b8d98911331a": "Accès réseau",
   "1a31308f0884a68b": "exposer backend distant appairage machine locale interfaces hôte redémarrer",
   "468d32c6b30df608": "Tailscale HTTPS",
@@ -11732,6 +11736,7 @@
   "326d8ad8e5609579": "Cette app ne peut pas basculer : sa base de données contient des modifications que {version} ne prend pas encore en charge ; restez sur {from} jusqu’à ce que {to} les prenne en charge.",
   "3ac986d604a2ad62": "Cette app ne peut pas basculer : son serveur n’est pas connecté, sa base de données ne peut donc pas être vérifiée.",
   "3bbb6e9ade0cf7e1": "lancez `{command}` sur cette machine",
+  "f579e70c4d60d0fe": "run its T3 command's `{command}` there",
   "e7194946af611278": "exécute un build preview",
   "f5eac23351c99297": "changez l’app Mac sur ce Mac",
   "d7444fbde9a80f04": "<1 min",

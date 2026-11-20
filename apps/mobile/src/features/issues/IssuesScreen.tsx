@@ -71,15 +71,6 @@ const SORTS = {
   updated: msg("Recently updated"),
   created: msg("Newest", { $context: "sort order" }),
 } as const satisfies Record<IssueListSort, string>;
-// fork: i18n. The filter menus here do not translate, so the choices arrive translated.
-function translatedChoices<Value extends string>(
-  options: Readonly<Record<Value, string>>,
-  t: (source: string) => string,
-): Readonly<Record<Value, string>> {
-  return Object.fromEntries(
-    Object.entries(options).map(([value, title]) => [value, t(title as string)]),
-  ) as Record<Value, string>;
-}
 // A 12dp inset keeps 16dp chips concentric with Android's 28dp ScreenContent corner.
 const FILTER_ROW_STYLE =
   Platform.OS === "android"

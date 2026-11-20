@@ -2,6 +2,7 @@ import type {
   ThreadPendingApproval,
   ThreadPendingUserInput,
 } from "@t3tools/client-runtime/state/thread-requests";
+import { translateForkNotice } from "@t3tools/client-runtime/work-log/phrase"; // fork
 import { linkRequestTargetName } from "@t3tools/client-runtime/link-request";
 import { turnItemIsWorkspacePreparation } from "@t3tools/client-runtime/state/turn-item-presentation";
 import type { ThreadCheckpointSummary } from "@t3tools/client-runtime/state/thread-checkpoints";
@@ -638,7 +639,7 @@ function itemSummary(
   resolve: MessageResolver,
 ): string {
   if (item.type === "notification") return item.summary;
-  if (item.type === "system_notice") return item.message;
+  if (item.type === "system_notice") return translateForkNotice(item.message); // fork: only notices T3 Extend words itself
   if (item.type === "compaction") return contextCompactionLabel(item, resolve);
   const title =
     (item.type === "dynamic_tool"

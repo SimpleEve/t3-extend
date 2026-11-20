@@ -148,7 +148,7 @@ export function MySchemes({ studio }: { studio: Studio }) {
   return (
     <SettingsSection
       id="theme-studio-schemes"
-      title="My schemes"
+      title={t("My schemes")}
       headerAction={
         <Button size="xs" variant="outline" onClick={() => setImportOpen(true)}>
           <PlusIcon />
