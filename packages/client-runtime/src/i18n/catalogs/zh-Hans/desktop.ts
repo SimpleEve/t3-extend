@@ -6,10 +6,8 @@ export default {
   "Check for Updates...": "检查更新…",
   "Settings...": "设置…",
   Services: "服务",
-  "Hide {name}": "隐藏 {name}",
   "Hide Others": "隐藏其他",
   "Show All": "全部显示",
-  "Quit {name}": "退出 {name}",
   Quit: "退出",
   File: "文件",
   "Close Window": "关闭窗口",
@@ -60,7 +58,6 @@ export default {
 
   // Startup errors
   "T3 Extend failed to start": "T3 Extend 启动失败",
-  "Stage: {stage}": "阶段：{stage}",
   "WSL backend is still unavailable": "WSL 后端仍不可用",
   "{reason}\n\nT3 Extend will use the Windows backend for this launch and retry WSL the next time the app starts.":
     "{reason}\n\nT3 Extend 本次启动将使用 Windows 后端，下次启动应用时会重试 WSL。",
@@ -91,13 +88,8 @@ export default {
     "这台电脑不信任远程环境的证书。",
   "Too many forwarded connections. Reload to try again.": "转发的连接太多。请重新加载再试。",
   "Forwarding failed ({code}).": "转发失败（{code}）。",
-  "A new version of T3 Extend": "T3 Extend 的新版本",
-  "T3 Extend {version}": "T3 Extend {version}",
-  "{update} is available.": "{update} 可用。",
   "You're running T3 Extend {version}.": "你正在运行 T3 Extend {version}。",
   "Update downloading": "正在下载更新",
-  "{update} is already downloading.": "{update} 已在下载。",
-  "{update} is ready to install.": "{update} 已可安装。",
   "T3 Extend will restart to install it. Any running tasks will be interrupted.":
     "T3 Extend 将重启以安装更新，正在运行的任务会被中断。",
   "Close Developer Tools": "关闭开发者工具",

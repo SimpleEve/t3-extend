@@ -40,6 +40,7 @@ describe("scanHardCodedText", () => {
 
   it.each([
     ["t() calls", '<a title={t("Open it")}>{t("Hello world")}</a>'],
+    ["GT's <T> and the values inside it", "<T>Hello <Var>{name}</Var> world</T>"],
     ["attributes that hold no text", '<a className="flex gap-2" href="https://x.dev" />'],
     ["single letters and punctuation", "<p>x · y</p>"],
     ["HTML entities", "<p>&middot; {failure}</p>"],

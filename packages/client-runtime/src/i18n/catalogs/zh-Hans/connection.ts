@@ -2,31 +2,19 @@
 // in Settings. Server error text is never translated; known client-side errors map in
 // apps/web/src/connection/errorMessages.ts.
 export default {
-  "This computer is off": "这台电脑已关闭",
-  "No computer connected": "没有连接电脑",
-  "Turn it back on, or connect a different computer.": "重新打开它，或连接另一台电脑。",
-  "Your agents run on your computer.": "你的 Agent 在你的电脑上运行。",
-  "Your agents run on your computer. Start T3 Extend there first.":
-    "你的 Agent 在你的电脑上运行。请先在那台电脑上启动 T3 Extend。",
-  "Open Environments": "打开环境",
   "Signed in": "已登录",
   "Sign in": "登录",
-  "Waiting for your computer…": "正在等待你的电脑…",
   "Add pairing link": "添加配对链接",
-  "Run on your computer:": "在你的电脑上运行：",
-  "Or download the desktop app": "或者下载桌面应用",
   "Checking the sign-in request": "正在检查登录请求",
   "One moment while this environment verifies the agent's request.":
     "请稍候，此环境正在验证 Agent 的请求。",
   "This sign-in cannot continue": "此登录无法继续",
   "Close this page and start the sign-in again from your agent.":
     "关闭此页面，然后从你的 Agent 重新发起登录。",
-  "Connect {clientName}": "连接 {clientName}",
   "The name is chosen by the agent. Approval returns to {redirectHost} on the computer that opened this page. Only approve a sign-in you just started.":
     "名称由 Agent 自己选择。批准后会返回打开此页面的电脑上的 {redirectHost}。只批准你刚刚发起的登录。",
   "The name is chosen by the agent. Approval gives access to whoever runs {redirectHost}. Only approve a sign-in you just started there.":
     "名称由 Agent 自己选择。批准后，运行 {redirectHost} 的任何人都会获得访问权限。只批准你刚刚在那里发起的登录。",
-  "What it may do": "它可以做什么",
   "Beyond read only, it can start, message and stop threads, and none of them can run with more than the mode you pick.":
     "除只读外，它还可以启动对话、发送消息和停止对话，且任何对话的权限都不会超过你选择的模式。",
   "Pairing code": "配对码",
@@ -39,23 +27,19 @@ export default {
   "Validating the pairing link and preparing your session.": "正在验证配对链接并准备你的会话。",
   "Authentication failed.": "认证失败。",
   "Pair with this environment": "与此环境配对",
-  "Pairing token": "配对令牌",
   "Paste a one-time token or pairing secret": "粘贴一次性令牌或配对密钥",
   "Pairing...": "正在配对…",
   Continue: "继续",
-  "Reload app": "重新加载应用",
   "Connecting to this backend.": "正在连接此后端。",
   "This pairing link is missing its backend host or token.": "此配对链接缺少后端主机或令牌。",
   "This one-time pairing token was already submitted. Request a new pairing link.":
     "这个一次性配对令牌已经提交过。请重新申请配对链接。",
-  "{label} is saved in this browser.": "{label} 已保存在此浏览器中。",
   "The environment is saved in this browser.": "环境已保存在此浏览器中。",
   "{error} If the backend accepted this one-time token, request a new pairing link before retrying.":
     "{error} 如果后端已经接受了这个一次性令牌，请先申请新的配对链接再重试。",
   "Backend paired": "后端已配对",
   "Pairing failed": "配对失败",
   "Pairing backend": "正在配对后端",
-  "Host: {host}": "主机：{host}",
   "Verify the backend is reachable from this browser, supports CORS for hosted clients, and is served over HTTPS when opening this page from HTTPS.":
     "请确认此浏览器能访问该后端、后端为托管客户端开启了 CORS，并且从 HTTPS 页面打开时后端也使用 HTTPS。",
   "Try again": "重试",
@@ -66,34 +50,22 @@ export default {
   "Push notifications": "推送通知",
   "Live Activities": "实时活动",
   "Loading mobile clients": "正在加载移动客户端",
-  "No mobile clients": "没有移动客户端",
   "Install T3 Code on your phone and sign in to T3 Connect to get push notifications and Live Activities.":
     "在手机上安装 T3 Code 并登录 T3 Connect，即可收到推送通知和实时活动。",
   "Mobile clients": "移动客户端",
   "Mobile devices that get notifications from your environments.": "接收你的环境通知的移动设备。",
-  "Could not load mobile clients": "无法加载移动客户端",
   "T3 Connect settings": "T3 Connect 设置",
   "It stays on your T3 Connect account and keeps its host space. Deregister it in {accountPageLink} to free it.":
     "它仍在你的 T3 Connect 账号中，并继续占用一个主机名额。在 {accountPageLink} 中注销它即可释放名额。",
-  "This doesn't change your T3 Connect account. To deregister it there, use {accountPageLink}.":
-    "这不会改变你的 T3 Connect 账号。要在账号中注销它，请使用 {accountPageLink}。",
   "Remove {label} from this device?": "从此设备移除 {label}？",
   "This forgets its pairing, credentials, and cached threads here.":
     "这会清除它在此处的配对、凭据和缓存的对话。",
   "It's no longer on your T3 Connect account.": "它已不在你的 T3 Connect 账号中。",
   "Remove from this device": "从此设备移除",
-  "Upgrade on T3 Chat": "在 T3 Chat 上升级",
-  "Premier · up to {count} tunnels": "Premier · 最多 {count} 个隧道",
-  "Pro · up to {pro} tunnels. {upgradeLink} to Premier for {premier}.":
-    "Pro · 最多 {pro} 个隧道。{upgradeLink}到 Premier 可用 {premier} 个。",
-  "{upgradeLink} for more tunnels": "{upgradeLink}以获得更多隧道",
   "Link a paid T3 Chat account for more T3 Connect tunnels: up to {pro} with Pro, {premier} with Premier.":
     "关联付费的 T3 Chat 账号可获得更多 T3 Connect 隧道：Pro 最多 {pro} 个，Premier 最多 {premier} 个。",
   "Could not load T3 Chat link": "无法加载 T3 Chat 关联",
-  "This T3 Connect server does not support T3 Chat linking.":
-    "此 T3 Connect 服务器不支持关联 T3 Chat。",
   "Not linked": "未关联",
-  "Confirm on {link}, then select Refresh.": "在 {link} 上确认，然后选择“刷新”。",
   "You confirm the link on t3.chat.": "你需要在 t3.chat 上确认关联。",
   "Unlinking…": "正在取消关联…",
   Unlink: "取消关联",
@@ -101,8 +73,6 @@ export default {
   "Link T3 Chat": "关联 T3 Chat",
   "Sign in to T3 Connect": "登录 T3 Connect",
   Deregister: "注销",
-  "Confirm deregistration of {label}": "确认注销 {label}",
-  "Deregister server": "注销服务器",
   "“{label}” will be removed from this account.": "“{label}”将从此账号中移除。",
   "T3 Connect access will be revoked, any managed tunnel will be removed, and a host space will become available. Local connections on your devices are not changed.":
     "T3 Connect 访问权限将被撤销，托管隧道会被移除，并空出一个主机名额。你设备上的本地连接不受影响。",
@@ -113,16 +83,10 @@ export default {
   "Could not deregister server": "无法注销服务器",
   "Environments registered to your account. Connections on this device are managed in Settings.":
     "注册到你账号的环境。此设备上的连接在设置中管理。",
-  "Could not load T3 Connect environments": "无法加载 T3 Connect 环境",
-  "Loading environments…": "正在加载环境…",
-  "No T3 Connect environments": "没有 T3 Connect 环境",
   "Link an environment from its local Settings to make it available through T3 Connect.":
     "在环境本机的设置中关联它，即可通过 T3 Connect 使用。",
   "T3 Connect route added": "已添加 T3 Connect 路由",
   "Environment added": "已添加环境",
-  "{label} falls back to T3 Connect when its other routes are unreachable.":
-    "当 {label} 的其他路由都无法访问时，会改用 T3 Connect。",
-  "Connecting to {label} through T3 Connect.": "正在通过 T3 Connect 连接 {label}。",
   "Could not connect environment": "无法连接环境",
   "Connecting…": "正在连接…",
   Available: "可用",
@@ -163,16 +127,12 @@ export default {
   "T3 Extend needs the relay client to make this environment available through T3 Connect.":
     "T3 Extend 需要中继客户端，才能让此环境通过 T3 Connect 访问。",
   "Relay client installation progress": "中继客户端安装进度",
-  "Keep T3 Extend open while the relay client is installed.":
-    "安装中继客户端期间请保持 T3 Extend 打开。",
-  "Managed relay client": "托管中继客户端",
   "T3 Extend will download and install version {version} locally.":
     "T3 Extend 将在本地下载并安装 {version} 版本。",
   "Download and install": "下载并安装",
   "{used} of {limit} tunnels in use": "已使用 {used} / {limit} 个隧道",
   "T3 Connect tunnels in use": "正在使用的 T3 Connect 隧道",
   "Manage tunnels": "管理隧道",
-  "You're out of tunnels (they cost us money).": "你的隧道用完了（隧道要花我们的钱）。",
   "Switch to Tailscale or get more tunnels by linking your T3 Chat sub (sorry!)":
     "改用 Tailscale，或关联你的 T3 Chat 订阅来获得更多隧道（抱歉！）",
   "Switch to Tailscale or get more tunnels by upgrading your T3 Chat sub (sorry!)":
@@ -187,7 +147,6 @@ export default {
   "Some history was not imported": "部分历史记录没有导入",
   "Could not finish setup": "无法完成设置",
   "Your settings could not be saved. Try again.": "无法保存你的设置。请重试。",
-  "Set up T3 Extend": "设置 T3 Extend",
   "Choose one or more computers. We’ll set up agents and projects on each.":
     "选择一台或多台电脑。我们会在每台电脑上设置 Agent 和项目。",
   "Not connected, so setup skips {labels}. You can set it up later from Settings.":
@@ -217,31 +176,18 @@ export default {
   "Select none": "全不选",
   "Could not check projects. {error}": "无法检查项目。{error}",
   "Importing…": "正在导入…",
-  "Other folders": "其他文件夹",
   "Route added": "已添加路由",
   "Environment connected": "环境已连接",
-  "{label} can now be reached over SSH {alias}.": "现在可以通过 SSH {alias} 访问 {label}。",
-  "{alias} is ready over an SSH-managed tunnel.": "{alias} 已通过 SSH 管理的隧道就绪。",
   "Failed to add backend.": "无法添加后端。",
   "Could not add backend": "无法添加后端",
-  "{label} now has another way to connect.": "{label} 现在多了一种连接方式。",
   "Backend added": "已添加后端",
   "The environment is saved and will reconnect on app startup.":
     "环境已保存，应用启动时会自动重新连接。",
   Host: "主机",
-  "Paste a full pairing URL here to fill both fields automatically.":
-    "在此粘贴完整的配对 URL，两个字段会自动填好。",
   "Could not add the route.": "无法添加路由。",
-  "This machine is on your T3 Connect account. Use it as a fallback route.":
-    "这台机器在你的 T3 Connect 账号中。可以把它用作备用路由。",
-  "Add T3 Connect": "添加 T3 Connect",
   "Add environment": "添加环境",
   "SSH host or alias": "SSH 主机或别名",
   "Search hosts or type devbox": "搜索主机或输入 devbox",
-  "Loading hosts…": "正在加载主机…",
-  Username: "用户名",
-  Port: "端口",
-  "Add a route to {label}": "为 {label} 添加路由",
   "Add Environment": "添加环境",
   "Pair this machine again over another address, such as its Tailscale name. It joins the existing routes instead of adding a second machine.":
     "通过另一个地址（例如它的 Tailscale 名称）再次配对这台机器。它会并入现有路由，而不是新增一台机器。",
@@ -252,8 +198,6 @@ export default {
   "Enter a backend host and pairing code.": "输入后端主机和配对码。",
   "Use local SSH config, agent, and tunnels for the backend.":
     "为后端使用本地的 SSH 配置、agent 和隧道。",
-  "{label}: show {scopeCountLabel}": "{label}：显示{scopeCountLabel}",
-  "Granted scopes": "已授予的权限范围",
   "Could not copy hosted app link": "无法复制托管应用链接",
   "Opens the hosted app, no install needed": "打开托管应用，无需安装",
   "Devices on the same network": "同一网络内的设备",
@@ -283,25 +227,16 @@ export default {
   "Revoking…": "正在撤销…",
   Revoke: "撤销",
   "Endpoint the pairing QR code and URL use": "配对二维码和 URL 使用的端点",
-  "Reach this machine via": "通过以下地址访问这台机器",
   "Copy link": "复制链接",
-  "Copy code only": "仅复制配对码",
-  "No QR for this endpoint. Another device scanning a loopback link would dial itself; copy the URL for use on this machine instead.":
-    "此端点没有二维码。另一台设备扫描回环地址链接只会连到它自己；请复制 URL 在这台机器上使用。",
   "Client scopes": "客户端权限范围",
   "Could not create pairing URL": "无法创建配对 URL",
   "Revoke others": "撤销其他客户端",
   "Create link": "创建链接",
   "Create pairing link": "创建配对链接",
-  "Generate a one-time link that another device can use to pair with this backend as an authorized client.":
-    "生成一个一次性链接，让另一台设备作为授权客户端与此后端配对。",
-  "Client label (optional)": "客户端名称（可选）",
   "e.g. Living room iPad": "例如：客厅的 iPad",
   Permissions: "权限",
-  "Limit what the paired client can do.": "限制配对的客户端能做什么。",
   "Read only": "只读",
   Standard: "标准",
-  "Select at least one permission.": "请至少选择一项权限。",
   // Scope titles and descriptions from packages/shared/src/authScopeOptions.ts.
   "View environment": "查看环境",
   "Read threads, status, checkpoints, and configuration.": "读取对话、状态、检查点和配置。",
@@ -339,7 +274,6 @@ export default {
   "View relay": "查看中继",
   "Inspect managed relay connectivity.": "查看托管中继的连接状态。",
   "Manage relay": "管理中继",
-  "Change managed tunnel connectivity.": "更改托管隧道的连接。",
   "Connect to this environment to view this session’s permissions.":
     "连接到这个环境后才能查看此会话的权限。",
   "This environment did not accept your session. Reconnect to try again.":
@@ -350,33 +284,25 @@ export default {
   "Connected for {duration}": "已连接：{duration}",
   "Last connected at {time}": "上次连接于 {time}",
   "Not connected yet.": "尚未连接。",
-  "This client can create or revoke access for other devices.":
-    "此客户端可以为其他设备创建或撤销访问权限。",
   "Creating…": "正在创建…",
-  "No pairing links or client sessions.": "没有配对链接或客户端会话。",
-  "Setup required": "需要设置",
   Default: "默认",
   "Restarting…": "正在重启…",
   Setup: "设置",
   "Set as default": "设为默认",
   Hide: "隐藏",
-  "Reachable at": "可通过以下地址访问",
   retrying: "正在重试",
   "retrying in {seconds}s": "{seconds} 秒后重试",
   Details: "详情",
   "Could not copy diagnostics": "无法复制诊断信息",
-  "What to try": "可以尝试",
   "More info": "更多信息",
   "Retry now": "立即重试",
   "Copy diagnostics": "复制诊断信息",
-  "Add direct route": "添加直连路由",
   "Could not update network access": "无法更新网络访问",
   "Could not set up Tailscale HTTPS": "无法设置 Tailscale HTTPS",
   "Could not disable Tailscale HTTPS": "无法关闭 Tailscale HTTPS",
   "Could not revoke pairing link": "无法撤销配对链接",
   "Could not revoke client access": "无法撤销客户端访问权限",
   "Revoked 1 other client": "已撤销 1 个其他客户端",
-  "Revoked {revokedCount} clients": "已撤销 {revokedCount} 个客户端",
   "Other paired clients will need a new pairing link before reconnecting.":
     "其他已配对的客户端需要新的配对链接才能重新连接。",
   "Could not revoke other clients": "无法撤销其他客户端",
@@ -390,7 +316,6 @@ export default {
   "Switch to Windows": "切换到 Windows",
   "Run the selected WSL distro alongside Windows. Projects remain on their current filesystem.":
     "在 Windows 之外同时运行所选的 WSL 发行版。项目仍留在当前文件系统中。",
-  "WSL backend couldn't start: {preflightError}": "WSL 后端无法启动：{preflightError}",
   "WSL backend": "WSL 后端",
   "Default distro": "默认发行版",
   " (default)": "（默认）",
@@ -412,7 +337,6 @@ export default {
     "更改网络暴露会重启后端，必须在启动服务器进程的地方控制。",
   "More actions for this machine": "这台机器的更多操作",
   "Retry update": "重试更新",
-  "Update to {clientVersion}": "更新到 {clientVersion}",
   "Authorized clients": "已授权的客户端",
   "This connection can create access links but cannot view authorized clients.":
     "此连接可以创建访问链接，但无法查看已授权的客户端。",
@@ -442,35 +366,22 @@ export default {
     "T3 Extend 将重启并只启动 WSL 后端。在你再次关闭此选项之前，Windows 端的项目将无法访问。",
   "T3 Extend will restart and bring the Windows backend back up alongside WSL.":
     "T3 Extend 将重启，并重新启动 Windows 后端与 WSL 一同运行。",
-  "Applying…": "正在应用…",
   "Use only WSL": "只使用 WSL",
   "Run both backends": "同时运行两个后端",
   "Disable WSL": "关闭 WSL",
   "Switch distro": "切换发行版",
-  "Disable Tailscale HTTPS?": "关闭 Tailscale HTTPS？",
-  "T3 Extend will restart the local backend without Tailscale Serve.":
-    "T3 Extend 将在不启用 Tailscale Serve 的情况下重启本地后端。",
-  "Set up Tailscale HTTPS?": "设置 Tailscale HTTPS？",
   "T3 Extend will restart the local backend with Tailscale Serve enabled and ask Tailscale to proxy HTTPS traffic to this backend.":
     "T3 Extend 将在启用 Tailscale Serve 的情况下重启本地后端，并请 Tailscale 把 HTTPS 流量代理到此后端。",
-  "HTTPS port": "HTTPS 端口",
   "Enter a port from 1 to 65535.": "请输入 1 到 65535 之间的端口。",
   "{port} is used by official {officialApp}. {app} uses {forkPort}.":
     "{port} 已被官方 {officialApp} 占用，{app} 使用 {forkPort}。",
-  "HTTPS endpoint": "HTTPS 端点",
   "Pending MagicDNS endpoint": "等待 MagicDNS 端点",
   Enable: "开启",
   "Connect an environment to view its settings and access.":
     "连接一个环境以查看它的设置和访问权限。",
-  "Routes to {label}, preferred first": "到 {label} 的路由，优先的在前",
   "In use": "使用中",
-  " · found automatically": " · 自动发现",
-  "Reorder {label}, position {position}": "调整 {label} 的顺序，当前位置 {position}",
-  "Remove {label} route": "移除 {label} 路由",
   "Remove route": "移除路由",
   "What agents here may do there": "这里的 Agent 在那边可以做什么",
-  "{description} An agent never gets more access there than its own mode here. Below full access, it can change only threads this link started, not that machine's own threads, projects or settings.":
-    "{description} Agent 在那边获得的权限永远不会超过它在这里的模式。低于完全访问时，它只能修改此链接发起的对话，不能修改那台机器自己的对话、项目或设置。",
   Linked: "已关联",
   "Not connected": "未连接",
   Machine: "机器",
@@ -484,10 +395,6 @@ export default {
   "Link an environment": "关联环境",
   "Agents here can then launch, message and wait on threads there. It appears in that environment's Connections, where it can be revoked.":
     "之后，这里的 Agent 就可以在那边启动对话、发送消息并等待结果。它会出现在那个环境的“连接”中，可以在那里撤销。",
-  "Already linked. Linking again renews it with the access you pick.":
-    "已经关联。再次关联会按你选择的权限续期。",
-  "This app has no address for {label} that another machine can reach. Enter its https or Tailscale address.":
-    "此应用没有其他机器能访问的 {label} 地址。请输入它的 https 或 Tailscale 地址。",
   "Paste the code": "粘贴代码",
   "Linking…": "正在关联…",
   "Run agents on this computer. Turn off to use T3 Extend only with remote environments.":
@@ -514,9 +421,7 @@ export default {
   "Switch on": "开启",
   "More actions for {label}": "{label} 的更多操作",
   "Hide routes": "隐藏路由",
-  "Copy MCP URL": "复制 MCP URL",
   "Remove from this device…": "从此设备移除…",
-  "Get more tunnels": "获取更多隧道",
   "T3 Connect linked": "已关联 T3 Connect",
   "T3 Connect tunnel disabled": "已关闭 T3 Connect 隧道",
   "T3 Connect unlinked": "已取消关联 T3 Connect",
@@ -556,7 +461,6 @@ export default {
   "Hold webhook requests while this environment is offline": "此环境离线时暂存 webhook 请求",
   "To edit these settings, pair this connection with both View relay and Manage relay permissions.":
     "要编辑这些设置，请为此连接配对“查看中继”和“管理中继”两项权限。",
-  "No saved remote environments": "没有保存的远程环境",
   "Click “Add environment” to pair another environment, or connect one from T3 Connect.":
     "点击“添加环境”与另一个环境配对，或从 T3 Connect 连接一个。",
   "Click “Add environment” to pair another environment.": "点击“添加环境”与另一个环境配对。",
@@ -655,7 +559,6 @@ export default {
     "此环境由桌面端管理。请从桌面应用打开，或者粘贴明确签发的引导凭据。",
   "This environment accepts one-time pairing tokens. Pairing links can open this page directly, or you can paste the token here.":
     "此环境接受一次性配对令牌。配对链接可以直接打开此页面，你也可以在这里粘贴令牌。",
-  "No hosts match “{query}”.": "没有与“{query}”匹配的主机。",
   "Failed to switch the backend on.": "无法开启后端。",
   "Failed to switch the backend off.": "无法关闭后端。",
   "Could not switch backend on": "无法开启后端",
@@ -670,7 +573,6 @@ export default {
   "Relay offline": "中继离线",
   "Checking relay status": "正在检查中继状态",
   "Relay status unavailable": "中继状态不可用",
-  "{value} of {length}": "{value}/{length}",
   "SSH verification required": "需要 SSH 验证",
   "Enter the password or verification code required by {code}. T3 Extend passes your response to the local SSH process and keeps it in memory to reuse for this host. T3 Extend does not write it to disk.":
     "请输入 {code} 要求的密码或验证码。T3 Extend 会把它交给本地 SSH 进程，并保存在内存中供这台主机复用，不会写入磁盘。",
@@ -681,9 +583,7 @@ export default {
     "请向所有者索取新链接。每个链接只能在一个浏览器中使用。",
   "This link has ended": "这个链接已结束",
   "The owner stopped sharing this thread.": "所有者已停止共享这个对话。",
-  "Join a shared thread": "加入共享对话",
   "Your name": "你的名字",
-  Join: "加入",
   "The owner sees your name and approves each message before the agent gets it.":
     "所有者能看到你的名字，每条消息都要所有者批准后才会发给 Agent。",
   "Attached files": "已附加的文件",
@@ -693,40 +593,26 @@ export default {
   "Return to the provider and try again.": "请回到 provider 重试。",
   "{appName} isn't installed on {value}, so requests here use your own GitHub login and its lower rate limit.":
     "{appName} 没有安装在 {value} 上，所以这里的请求使用你自己的 GitHub 登录，速率限制较低。",
-  "Install on {owner}": "安装到 {owner}",
   "Give {appName} access to {owner}": "授予 {appName} 访问 {owner} 的权限",
   "It isn't installed there, so GitHub requests for {repository} use your own login and its lower rate limit.":
     "它没有安装在那里，所以 {repository} 的 GitHub 请求会使用你自己的登录，速率限制更低。",
   "Reconnect {label} to set up its providers.": "重新连接 {label} 后才能设置它的 provider。",
   "Connect an environment to set up its providers.": "连接一个环境后才能设置它的 provider。",
   Computer: "电脑",
-  "Install {driver}": "安装 {driver}",
-  "Imported {count} thread": "已导入 {count} 个对话",
-  "Imported {count} threads": "已导入 {count} 个对话",
   "Clone {value} and bring the local files git does not track.":
     "克隆 {value}，并带上 git 没有跟踪的本地文件。",
   "no files": "没有文件",
-  "+ {count} file": "+ {count} 个文件",
-  "+ {count} files": "+ {count} 个文件",
   "Machine to add the project to": "要添加项目的机器",
   "No machine available": "没有可用的机器",
-  "Clone over": "克隆方式",
   "Clone protocol": "克隆协议",
-  "Folder on {label}": "{label} 上的文件夹",
-  "the other machine": "另一台机器",
-  "Copy ignored files": "复制被忽略的文件",
   "No ignored files to copy.": "没有可复制的被忽略文件。",
   "Finding ignored files…": "正在查找被忽略的文件…",
-  "Files are copied after the clone finishes. Folders git ignores whole, like node_modules, are left out.":
-    "克隆完成后才会复制文件。git 整个忽略的文件夹（如 node_modules）不会复制。",
-  "Clone to {label}": "克隆到 {label}",
   machine: "机器",
   "Over 1 MB": "超过 1 MB",
   // Confirmation dialogs for backends, routes, and linked environments.
   "Add the backend at {origin}?": "添加位于 {origin} 的后端？",
   "This forgets its pairing, credentials, and cached threads here. Switch it off instead to keep it saved.":
     "这会清除它在这里的配对、凭据和缓存的对话。想保留它的话，改为关闭即可。",
-  "Remove {label} route?": "移除 {label} 路由？",
   // T3 Connect environment button states.
   "Reconnecting…": "正在重新连接…",
   "Connection failed": "连接失败",
@@ -739,8 +625,6 @@ export default {
   "If it keeps waiting, reload or restart T3 Extend on this device.":
     "如果一直在等待，请在此设备上重新加载或重启 T3 Extend。",
   "Could not read T3 Connect link state.": "无法读取 T3 Connect 的链接状态。",
-  "T3 Extend cannot install the relay client automatically on {platform}.":
-    "T3 Extend 无法在 {platform} 上自动安装中继客户端。",
   "Relay client installation was cancelled.": "中继客户端的安装已取消。",
   "The relay client install completed without a final status.":
     "中继客户端安装结束了，但没有返回最终状态。",
@@ -760,9 +644,6 @@ export default {
   "T3 Connect is unavailable. Try again.": "T3 Connect 暂时不可用。请重试。",
   "Search ignored files": "搜索被忽略的文件",
   "No ignored files match.": "没有匹配的被忽略文件。",
-  "macOS, Linux": "macOS、Linux",
-  "Windows (PowerShell)": "Windows（PowerShell）",
-  Then: "然后",
   "This sign-in link is incomplete": "此登录链接不完整",
   "Open this page in its own window": "在单独的窗口中打开此页面",
   "For your safety, agent sign-ins cannot be approved inside another site.":
@@ -775,26 +656,13 @@ export default {
   "Sign in to approve": "登录后批准",
   "Sign in to T3 Connect with the account this environment is linked to.":
     "请用此环境关联的账号登录 T3 Connect。",
-  "Use a sign-in code instead": "改用登录码",
-  "Use another account": "使用其他账号",
-  "· name set by the app": "· 名称由该应用设置",
-  "Access goes to": "访问权限将授予",
-  "on the computer that opened this page": "在打开此页面的电脑上",
-  "· whoever runs it gets this access": "· 运行它的人都会获得此访问权限",
-  "Only approve a sign-in you just started.": "只批准你刚刚发起的登录。",
-  "Sign-in code": "登录码",
   "Paste a code": "粘贴登录码",
   "Choose what it may do": "选择它可以做什么",
   "Connect to an environment first.": "请先连接一个环境。",
   "T3 Connect is not available in this build.": "此版本不支持 T3 Connect。",
   "Runs commands and edits files without asking": "无需询问即可运行命令和编辑文件",
-  "Checking T3 Connect…": "正在检查 T3 Connect…",
   "Turn on": "开启",
-  "Your T3 Connect account is out of tunnels.": "你的 T3 Connect 账号的隧道额度已用完。",
-  "Which app?": "哪个应用？",
   "Something else…": "其他…",
-  "the app": "该应用",
-  "Apps that require their own client ID cannot connect.": "需要自带 client ID 的应用无法连接。",
   "Back to commands": "返回命令",
   "Back to one click": "返回一键设置",
   "Set up another way": "用其他方式设置",
@@ -802,66 +670,34 @@ export default {
   "Get code": "获取登录码",
   "New code": "新的登录码",
   "The code expired.": "登录码已过期。",
-  "Welcome to T3 Extend": "欢迎使用 T3 Extend",
-  "Start without an agent": "不用 Agent 直接开始",
-  "Set up one agent to start.": "先设置一个 Agent 即可开始。",
   "Import threads and start": "导入对话并开始",
   "Set up": "设置",
   "Add more agents": "添加更多 Agent",
   "Set up an agent": "设置 Agent",
-  "More agents in the ACP Registry": "ACP Registry 中的更多 Agent",
-  Browse: "浏览",
   "Import projects and their threads": "导入项目及其对话",
-  "Use T3 Extend on your phone": "在手机上使用 T3 Extend",
-  "Scan with your phone to get the app.": "用手机扫码下载应用。",
   "T3 Extend app for iPhone and Android": "适用于 iPhone 和 Android 的 T3 Extend 应用",
   "Could not check T3 Connect.": "无法检查 T3 Connect。",
-  "Your phone can reach this computer. Sign in to the app with the same account.":
-    "你的手机可以访问这台电脑。请在应用里登录同一个账号。",
-  "T3 Connect is on for this computer. Sign in to the app with the same account.":
-    "这台电脑已开启 T3 Connect。请在应用里登录同一个账号。",
   "T3 Connect is on, but the app cannot reach this computer.":
     "T3 Connect 已开启，但应用无法访问这台电脑。",
   "Signed in. Share this computer so the app can reach it.":
     "已登录。请共享这台电脑，应用才能访问它。",
-  "Sign in to T3 Connect here, then in the app with the same account.":
-    "先在这里登录 T3 Connect，再在应用里登录同一个账号。",
   folder: "个文件夹",
-  folders: "个文件夹",
-  "Add to PATH": "添加到 PATH",
   "Could not save image": "无法保存图片",
   "The file could not be loaded. Reconnect and try again.": "无法加载文件。请重新连接后重试。",
   "{host} is waiting for someone to approve this device": "{host} 正在等待有人批准此设备",
-  "Open parent agent on {machine}": "在 {machine} 上打开父 Agent",
-  "approve the device showing {code}": "批准显示 {code} 的设备",
-  "approve this device": "批准此设备",
   "On a device already connected to {host}, open Settings > Sharing & access and {approve}.":
     "在已连接到 {host} 的设备上，打开“设置 > 共享与访问”，然后{approve}。",
   "Or run the `auth connect-device approve {code}` command on {host}.":
     "或者在 {host} 上运行 `auth connect-device approve {code}` 命令。",
-  "Showing the first {length} files.": "只显示前 {length} 个文件。",
   "Finishing setup": "正在完成设置",
   "One moment.": "请稍候。",
-  "Imported 1 thread": "已导入 1 个对话",
   "this computer": "这台电脑",
-  "Setting up {name}.": "正在设置 {name}。",
   "Import 1 project and start": "导入 1 个项目并开始",
   "Import {count} projects and start": "导入 {count} 个项目并开始",
-  "Could not turn on {name}": "无法开启 {name}",
-  "Turn on: {name}": "开启：{name}",
-  "Set up: {name}": "设置：{name}",
-  "Checking {name}…": "正在检查 {name}…",
-  "Looking for projects in your {sources} history…": "正在你的 {sources} 历史里查找项目…",
   "Import 1 project and their threads": "导入 1 个项目及其对话",
   "Import {count} projects and their threads": "导入 {count} 个项目及其对话",
-  "From your {sources} history": "来自你的 {sources} 历史",
-  "Review all {count}": "查看全部 {count} 个",
-  "{selected} of {total} selected": "已选 {selected}/{total}",
   "Could not check projects again. {error}": "无法再次检查项目。{error}",
   "Could not save Codex setup": "无法保存 Codex 设置",
-  "Run {command} in this terminal.": "请在此终端中运行 {command}。",
-  "Added to {file}. Open a new terminal to use {command}.":
-    "已写入 {file}。打开新终端后即可使用 {command}。",
   "Use {command} from any terminal. Adds one line to {file}.":
     "在任意终端使用 {command}，会向 {file} 添加一行。",
   "This connection cannot manage agents.": "此连接无法管理 Agent。",

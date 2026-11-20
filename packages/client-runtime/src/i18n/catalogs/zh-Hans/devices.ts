@@ -141,12 +141,6 @@ export default {
   "Camera access is needed to scan the code.": "扫描二维码需要使用相机。",
   "Allow camera": "允许使用相机",
   "Scan the code shown by a computer that has already joined.": "扫描已加入的电脑上显示的二维码。",
-  "{platforms} lists on {label} may be incomplete.": "{label} 上的 {platforms} 列表可能不完整。",
-  "{platforms} list on {label} may be incomplete.": "{label} 上的 {platforms} 列表可能不完整。",
-  "Device discovery on {label} reported a warning.": "{label} 上的设备发现报告了一条警告。",
-  "Retry device discovery on {label}": "重试 {label} 上的设备发现",
-  "Details for {label}": "{label} 的详情",
-  "Dismiss device warning for {label}": "关闭 {label} 的设备警告",
   "No {platform} devices were listed because device discovery reported a problem.":
     "设备发现出了问题，所以没有列出 {platform} 设备。",
   "{host} starts iOS Simulators in the cloud with Expo Simulators.":

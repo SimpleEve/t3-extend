@@ -8,13 +8,8 @@ export default {
   "No longer paired": "已不在配对中",
   "Allow microphone access to record and to see your microphones.":
     "允许访问麦克风，才能录音并看到你的麦克风。",
-  "Turn on microphone access for T3 Extend in Settings to use voice input.":
-    "请在设置中为 T3 Extend 打开麦克风权限，才能使用语音输入。",
   "Transcription unavailable": "无法转写",
   "Send finished recordings to this environment.": "把录好的音频发送到这个环境。",
-  "Send microphone audio to {label}?": "把麦克风音频发送到 {label}？",
-  "Finished recordings will be sent to {value} for transcription. You can switch back to This device at any time.":
-    "录好的音频会发送到 {value} 转写。你随时可以切回“这台设备”。",
   "Use environment": "使用这个环境",
   "Dictation on this device needs Android 12 or later and Google speech services that support your language. Your keyboard’s voice typing is separate.":
     "这台设备上的听写需要 Android 12 或更高版本，以及支持你所用语言的 Google 语音服务。键盘自带的语音输入是另一回事。",
@@ -25,27 +20,18 @@ export default {
   "No models match": "没有匹配的模型",
   "No transcription models": "没有转写模型",
   "Try another name or language.": "换一个名称或语言试试。",
-  "{label} has no models to list.": "{label} 没有可列出的模型。",
-  "Download {name}?": "下载 {name}？",
   "{label} will download {value} and use it as its transcription model.":
     "{label} 会下载 {value}，并用它作为转写模型。",
-  "{value}% downloaded · Tap to cancel": "已下载 {value}% · 点按取消",
-  "Verifying {name}…": "正在校验 {name}…",
-  "Downloading {name} · {value}%": "正在下载 {name} · {value}%",
   "Cloud via {label}": "通过 {label} 使用云端",
   "Cloud providers": "云端 provider",
-  "Search OpenRouter models": "搜索 OpenRouter 模型",
-  "Show all {length} models": "显示全部 {length} 个模型",
   "Environment not connected": "环境未连接",
   "Could not load keys · Retry": "无法加载密钥 · 重试",
   "Checking API keys…": "正在检查 API key…",
   "Update the environment to use this provider": "更新环境后才能使用这个 provider",
-  "{activeModel} · Tap to change model{value}": "{activeModel} · 点按更换模型{value}",
   "Tap to manage key": "点按管理密钥",
   "API key saved · choose a model to use it": "API key 已保存 · 选择模型后即可使用",
   "Add an API key to use this provider": "添加 API key 后才能使用这个 provider",
   "Ask an environment administrator to add an API key": "请环境管理员添加 API key",
-  "Use {label} for dictation?": "用 {label} 听写？",
   "After you stop, {environment} sends your recording and vocabulary hints, including project names, to {provider}.":
     "停止后，{environment} 会把你的录音和词汇提示（包括项目名称）发送给 {provider}。",
   "After you stop, {environment} sends the recording to OpenRouter. OpenRouter chooses who runs your model. T3 requests zero data retention; your OpenRouter account may allow safety retention.":
@@ -53,17 +39,12 @@ export default {
   "{model} detects the language automatically.": "{model} 会自动检测语言。",
   "{model} uses one fixed language.": "{model} 只使用一种固定语言。",
   "{disclosure} Select This device to stop sharing.": "{disclosure}选择“这台设备”即可停止共享。",
-  "Use {label}": "使用 {label}",
   "Could not load models · Retry": "无法加载模型 · 重试",
   "{label} API key reference": "{label} API key 引用",
-  "{label} API key": "{label} API key",
   "Saved key · enter a new one to replace": "密钥已保存 · 输入新密钥可替换",
-  "Ask an administrator to add an OpenRouter key": "请管理员添加 OpenRouter 密钥",
   "Enter a valid API key.": "请输入有效的 API key。",
   "Uses the API key saved on this environment. The model choice applies only to this device.":
     "使用保存在这个环境上的 API key。所选模型只对这台设备生效。",
-  "Updates the {company} key on {label}. Your dictation destination stays the same.":
-    "更新 {label} 上的 {company} 密钥。你的听写目标保持不变。",
   "Remove key from environment": "从环境中移除密钥",
   "Remove the {label} key from {label2}?": "从 {label2} 移除 {label} 密钥？",
   "Everyone using it for dictation will lose access.": "所有用它听写的人都会失去访问。",
@@ -79,7 +60,6 @@ export default {
   "Set up voice input": "设置语音输入",
   "Transcribe speech on {value} and use voice input across environments.":
     "在 {value} 上转写语音，并跨环境使用语音输入。",
-  "your transcription environment": "你的转写环境",
   "Silero (1.2 MB), used for silence filtering and pause detection, downloads alongside the speech model. An installed copy is reused.":
     "用于静音过滤和停顿检测的 Silero（1.2 MB）会随语音模型一起下载，已安装的副本会被复用。",
   "Speech model download progress": "语音模型下载进度",
@@ -93,14 +73,10 @@ export default {
     "所选麦克风不可用，请换一个或使用系统默认。",
   "Speak and transcribe in multiple languages or translate into English, and get names and technical terms right with the dictionary in Voice settings.":
     "可以用多种语言说话并转写，也可以翻译成英文；在语音设置的词典里添加名称和术语，就能写对它们。",
-  "Retry loading models": "重试加载模型",
-  "Cancel download": "取消下载",
   "Download model": "下载模型",
-  "Start dictating": "开始听写",
   "Could not update annotation voice input": "无法更新标注的语音输入",
   "OpenRouter model": "OpenRouter 模型",
   "Search transcription models": "搜索转写模型",
-  "No transcription model matches.": "没有匹配的转写模型。",
   "Replace API key": "替换 API key",
   "{company} API key": "{company} API key",
   "{company} API key reference": "{company} API key 引用",
@@ -108,21 +84,10 @@ export default {
   "Enter an API key, not a URL or secret reference.": "请输入 API key，不是 URL 或密钥引用。",
   "Updating the key keeps dictation enabled.": "更新密钥后听写仍保持开启。",
   "Leave blank to keep the saved key.": "留空则保留已保存的密钥。",
-  "Anyone with dictation access to {label} can bill this key.":
-    "任何能在 {label} 上听写的人都可能用这个密钥产生费用。",
   "Remove the {company} key?": "移除 {company} 密钥？",
   "Manage OpenRouter dictation": "管理 OpenRouter 听写",
   "Manage {company} key": "管理 {company} 密钥",
   "Use {name} for dictation?": "用 {name} 听写？",
-  "Everyone using {name} for dictation on {label} will lose access.":
-    "所有在 {label} 上用 {name} 听写的人都会失去访问。",
-  "Anyone with dictation access to {label} can use this API key.":
-    "任何能在 {label} 上听写的人都可以使用这个 API key。",
-  "Retry loading API key": "重试加载 API key",
-  "Checking for an API key…": "正在检查 API key…",
-  "This choice applies only to this device. Choose Off to stop sharing.":
-    "这个选择只对这台设备生效。选择“关闭”即可停止共享。",
-  "Remove key…": "移除密钥…",
   "Remove key": "移除密钥",
   "Save and enable": "保存并启用",
   "Save key": "保存密钥",
@@ -130,14 +95,11 @@ export default {
   "Cancel microphone test": "取消麦克风测试",
   "Recording time": "录音时长",
   "Microphone input level": "麦克风输入电平",
-  "Opening microphone…": "正在打开麦克风…",
   "Pause recording": "暂停录音",
   "Play recording": "播放录音",
   "Recording playback position": "录音播放位置",
   "Record again": "重新录音",
-  "Could not play this recording. Try recording again.": "无法播放这段录音，请重新录制。",
   "Transcription language": "转写语言",
-  "not benchmarked": "未测评",
   Recommended: "推荐",
   "Live preview": "实时预览",
   "Shows words in your draft as you speak, before the recording finishes.":
@@ -146,17 +108,13 @@ export default {
   "Can write English text from speech in another language. Turn on Translate to English to use it.":
     "能把其他语言的语音写成英文文本。开启“翻译成英文”后可用。",
   "{name} download progress": "{name} 下载进度",
-  "{value}% downloaded": "已下载 {value}%",
   "Cancel {name} download": "取消下载 {name}",
-  Selected: "已选择",
-  "Use model": "使用模型",
   "Delete {name}": "删除 {name}",
   "Add a word or phrase to the {label}": "向{label}添加词语或短语",
   "{label} entries": "{label}条目",
   "Alias for {term}": "{term} 的别名",
   Misspelling: "误拼",
   "Add an alias for {term}": "为 {term} 添加别名",
-  Alias: "别名",
   "Remove {term}": "移除 {term}",
   "Saved on the environment and used in every project there, along with each person’s own dictionary. Pick a project above to limit these words to one project.":
     "保存在环境上，供那里的所有项目使用，同时保留每个人自己的词典。在上方选择一个项目，可把这些词限定在该项目内。",
@@ -180,17 +138,12 @@ export default {
   "Unload model": "卸载模型",
   "Browse models by language": "按语言浏览模型",
   "All languages": "所有语言",
-  "No languages match.": "没有匹配的语言。",
   "Search models": "搜索模型",
   "Sort and filter models: {sort}": "排序与筛选模型：{sort}",
   "Sort and filter models: {sort}, downloaded only": "排序与筛选模型：{sort}，仅已下载",
-  "Sort by": "排序方式",
-  "Downloaded only": "仅已下载",
   "Transcription models": "转写模型",
   "Test model": "测试模型",
   "Waiting for the environment to connect": "正在等待环境连接",
-  "Say a sentence in the language above. Cleanup is skipped, so you see exactly what the model heard. The transcript stays on this page.":
-    "用上面选择的语言说一句话。不会做整理，所以你能看到模型听到的原样。转写稿只留在这个页面上。",
   "Close model test": "关闭模型测试",
   "Test transcript": "测试转写稿",
   "No speech recognized. Try again.": "没有识别到语音，请再试一次。",
@@ -203,7 +156,6 @@ export default {
   Use: "使用",
   "Chosen environment (unavailable)": "所选环境（不可用）",
   "unavailable environment": "不可用的环境",
-  "On an environment": "在某个环境上",
   "The cloud provider can detect your language automatically.":
     "云端 provider 可以自动检测你的语言。",
   "Speak any language and get English text.": "说任何语言，都得到英文文本。",
@@ -235,8 +187,6 @@ export default {
   "Voice transcription could not prepare this language. Check Google speech services and try again.":
     "语音转写无法为这种语言做好准备。请检查 Google 语音服务后重试。",
   "Voice transcription failed.": "语音转写失败。",
-  "Voice transcription requires a supported device with iOS 26 or later.":
-    "语音转写需要受支持、且运行 iOS 26 或更高版本的设备。",
   "Voice transcription does not support any of your languages.": "语音转写不支持你的任何一种语言。",
   "Voice transcription failed. Check the destination in Settings → Voice.":
     "语音转写失败。请检查“设置 → 语音”中的转写位置。",
@@ -247,32 +197,15 @@ export default {
   "Reconnect to this environment and try again. The file may have been moved or deleted.":
     "请重新连接这个环境后重试。文件可能已被移动或删除。",
   "Could not sign DPoP proof.": "无法签署 DPoP 证明。",
-  "Android may still use a different microphone if the preferred one can’t be routed.":
-    "如果首选麦克风无法接入，Android 仍可能使用其他麦克风。",
-  "Pi · {statuses}": "Pi · {statuses}",
-  "Download the {size} MB model to {environment}. Microphone audio is sent there for transcription, as chosen in Voice settings.":
-    "把 {size} MB 的模型下载到 {environment}。麦克风音频会按你在语音设置里的选择发送到那里转写。",
-  "Open attachment on {host}": "在 {host} 上打开附件",
-  "OpenRouter no longer lists {model}. Dictation stays off until you choose another model.":
-    "OpenRouter 已不再提供 {model}。选择其他模型之前，听写保持关闭。",
-  "Connect to {label} with dictation access to continue.": "请连接到有听写权限的 {label} 后继续。",
-  "Update {label} to use OpenRouter dictation.": "请更新 {label}，才能使用 OpenRouter 听写。",
-  "Ask an administrator on {label} to add an API key.": "请 {label} 上的管理员添加 API key。",
-  "Uses the API key saved on {label}. This choice applies only to this device.":
-    "使用保存在 {label} 上的 API key。这个选择只对这台设备生效。",
-  "Use {name}": "使用 {name}",
   "Nothing reads from {label}. The secrets themselves are untouched.":
     "没有任何配置读取 {label}。密钥本身不会被改动。",
   "These read from {label} and will be unset. The secrets themselves are untouched.":
     "下面这些读取了 {label}，将被取消设置。密钥本身不会被改动。",
-  "({percent}% error)": "（错误率 {percent}%）",
   "This environment can’t transcribe audio: {reason}.": "这个环境无法转写音频：{reason}。",
-  " via {label}": "，经由 {label}",
   "This connection can’t change settings on {label}.": "这个连接不能更改 {label} 上的设置。",
   "Voice input uses the first connected microphone in this list. A wired or Bluetooth microphone is added by name the first time you dictate with it connected; until then it falls under Other. Swipe left on a named microphone to forget it.":
     "语音输入使用这个列表里第一个已连接的麦克风。有线或蓝牙麦克风会在你首次连接着它听写时按名称加入列表，在那之前归在“其他”下。向左滑动已命名的麦克风可以忘记它。",
   "Fold command failed ({status}).": "折叠命令失败（{status}）。",
-  "{list} list may be incomplete": "{list} 列表可能不完整",
   "Voice · {provider}": "语音 · {provider}",
   "Microphone {number}": "麦克风 {number}",
   iOS: "iOS",
@@ -313,7 +246,6 @@ export default {
   "Recording interrupted": "录音被中断",
   "Transcription failed": "转写失败",
   "Draft changed": "草稿已变化",
-  "Microphone processing failed": "麦克风处理失败",
   "Voice transcription on this environment failed.": "这个环境上的语音转写失败了。",
   "Microphone processing failed.": "麦克风处理失败。",
   "The microphone disconnected.": "麦克风已断开。",
@@ -322,8 +254,6 @@ export default {
   "No audio was recorded. Try again.": "没有录到声音。请重试。",
   "Could not record microphone audio. Try again.": "无法录制麦克风音频。请重试。",
   "Could not access the microphone.": "无法访问麦克风。",
-  "Could not list microphones. You can still use the system default.":
-    "无法列出麦克风。仍可使用系统默认设备。",
   "Could not delete the model": "无法删除模型",
   "Could not change transcription hardware": "无法更改转写硬件",
   "Could not change when the model unloads": "无法更改模型的卸载时机",
@@ -342,9 +272,6 @@ export default {
     "此环境上已有的模型文件或文件夹的路径",
   "Already downloaded elsewhere? Paste the model file or folder path":
     "已在别处下载？粘贴模型文件或文件夹的路径",
-  "Use existing": "使用现有模型",
-  "Say a sentence. Cleanup is skipped, so you see exactly what the model heard.":
-    "说一句话。这里会跳过整理，所以你看到的就是模型听到的原文。",
   "Voice input uses the first connected microphone in this list.":
     "语音输入会使用此列表中第一个已连接的麦克风。",
   "Where your speech is turned into text.": "把你的语音转成文字的位置。",
@@ -374,25 +301,16 @@ export default {
   "No speech heard": "没有听到语音",
   "Mic failed": "麦克风出错",
   "Mic disconnected": "麦克风已断开",
-  "Recommended for {language}": "推荐用于 {language}",
-  "Speed:": "速度：",
-  "This model": "此模型",
   "Download a speech model once. Your audio is transcribed on {destination}.":
     "语音模型只需下载一次。你的音频会在 {destination} 上转写。",
-  "Using your file at {path}": "正在使用你的文件：{path}",
   "Stop using your {name} file; the file stays on disk":
     "停止使用你的 {name} 文件，文件仍保留在磁盘上",
-  "Used by everyone who dictates in {name}.": "在 {name} 中听写的所有人都会用到。",
   "Grades are error rates and speed is seconds per 30 s of audio, from Handy’s benchmark {tier}.":
     "等级表示错误率，速度为每 30 秒音频所需的秒数，数据来自 Handy 的 {tier} 基准测试。",
-  "Filter by language: {languages}": "按语言筛选：{languages}",
   "Most accurate in {language}": "{language}识别最准",
-  "{name} can’t transcribe audio locally. Choose another destination.":
-    "{name} 无法在本地转写音频，请选择其他位置。",
   Smallest: "最小",
   "Most accurate": "最准确",
   Fastest: "最快",
-  "{hint}.": "{hint}。",
   "Tap to toggle, hold to talk": "点按切换，按住说话",
   "Record while held": "按住时录音",
   "Tap to start, tap to stop": "点按开始，再点按停止",

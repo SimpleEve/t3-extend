@@ -13,7 +13,6 @@ export default {
   Keyboard: "键盘",
   Microphone: "麦克风",
   // Settings pages
-  "Remove {label}?": "移除 {label}？",
   Remove: "移除",
   Routes: "路由",
   "Your permissions": "你的权限",
@@ -22,28 +21,22 @@ export default {
   Allowed: "已允许",
   "Not granted": "未授予",
   "Add route": "添加路由",
-  "Remove {label} route": "移除 {label} 路由",
   "Found automatically": "自动发现",
   "In use": "使用中",
   "Route {position} of {count}": "第 {position} 条路由，共 {count} 条",
-  "Update {label}?": "更新 {label}？",
   "Install T3 Extend {targetVersion}. T3 Extend restarts on that machine and reconnects. Running threads may be interrupted.":
     "安装 T3 Extend {targetVersion}。T3 Extend 会在那台机器上重启并重新连接。正在运行的对话可能会被中断。",
   Update: "更新",
-  "Version {fromVersion}": "版本 {fromVersion}",
   "Update required": "需要更新",
   "Restarting and reconnecting…": "正在重启并重新连接…",
   "Installing update…": "正在安装更新…",
   "Downloading update…": "正在下载更新…",
-  "Version {targetVersion} is available.": "版本 {targetVersion} 可用。",
   "No newer version is available yet.": "暂时没有更新的版本。",
   "This app needs a newer version of T3 Extend on this machine.":
     "这个应用需要这台机器上运行更新版本的 T3 Extend。",
   "Check for updates": "检查更新",
   "Retry update": "重试更新",
-  "Update to {targetVersion}": "更新到 {targetVersion}",
   "Scheduled task": "定时任务",
-  "Open a scheduled task form first.": "请先打开一个定时任务表单。",
   "Base branch": "基础分支",
   "This project is no longer available.": "此项目已不可用。",
   "Update failed": "更新失败",
@@ -56,8 +49,6 @@ export default {
   App: "应用",
   "Client Storage": "客户端存储",
   Legal: "法律信息",
-  "Version {versionLabel}": "版本 {versionLabel}",
-  "Clear cache for {label}?": "清除 {label} 的缓存？",
   "This removes offline threads, server metadata, and cached branches for this environment. The saved connection and credentials stay intact.":
     "这会移除这个环境的离线对话、服务器元数据和缓存的分支。保存的连接和凭据不受影响。",
   "Clear Cache": "清除缓存",
@@ -66,18 +57,11 @@ export default {
     "这会移除所有环境的离线数据。连接、凭据、账号数据和应用偏好设置不受影响。",
   "Clear All Caches": "清除所有缓存",
   "Environment caches": "环境缓存",
-  "Storage unavailable": "存储不可用",
   "Restart the app and try again.": "请重启应用后重试。",
-  "Inspecting cached data…": "正在检查缓存数据…",
-  "No cached data": "没有缓存数据",
-  "Offline cache records will appear here after environments are used.":
-    "使用环境后，离线缓存记录会显示在这里。",
   "Clear {size}": "清除 {size}",
   "Clear caches": "清除缓存",
   "Clearing caches never removes environment connections, credentials, account data, or appearance preferences.":
     "清除缓存不会移除环境连接、凭据、账号数据或外观偏好设置。",
-  "Client storage is temporarily unavailable. Try again after restarting the app.":
-    "客户端存储暂时不可用。请重启应用后重试。",
   "Clear {size} of cached data": "清除 {size} 缓存数据",
   "The action could not be completed. Try again.": "无法完成这个操作。请重试。",
   "Update environment?": "更新环境？",
@@ -85,10 +69,7 @@ export default {
     "安装 T3 Extend {targetVersion}。桌面应用会关闭并重新启动。正在运行的对话可能会被中断。",
   "Install T3 Extend {targetVersion}. The server will restart and reconnect. Running threads may be interrupted.":
     "安装 T3 Extend {targetVersion}。服务器会重启并重新连接。正在运行的对话可能会被中断。",
-  "Updated to {targetVersion}.": "已更新到 {targetVersion}。",
-  "This environment is no longer saved on this device.": "这台设备上已不再保存这个环境。",
   Connection: "连接",
-  "Connect this environment to manage it.": "连接这个环境后才能管理它。",
   "This connection does not have permission to manage the environment.":
     "这个连接没有管理该环境的权限。",
   "Version {version}": "版本 {version}",
@@ -99,14 +80,10 @@ export default {
   "Provider status refreshed.": "provider 状态已刷新。",
   "Version unknown": "版本未知",
   "Not installed": "未安装",
-  "Update {status}": "更新 {status}",
-  "Update this provider on the environment's machine.": "请在该环境所在的机器上更新这个 provider。",
   "Update {name}": "更新 {name}",
   "Refresh cloud environments": "刷新云端环境",
   "While the agent is running": "Agent 运行时",
   "Return key": "Return 键",
-  "Applies to the composer when a hardware keyboard is connected.":
-    "连接实体键盘时，作用于输入框。",
   "Microphone access": "麦克风权限",
   "Allow microphone access": "允许访问麦克风",
   "Preferred order": "优先顺序",
@@ -120,29 +97,22 @@ export default {
     "包括设置在内有六个分区时，才能自定义标签。",
   "Tab order": "标签顺序",
   Hidden: "已隐藏",
-  "Tab {number}": "第 {number} 个标签",
   "In Settings": "在设置中",
   "Show {tab}": "显示{tab}",
   "Hide {tab}": "隐藏{tab}",
   "Move {tab} up": "上移{tab}",
   "Move {tab} down": "下移{tab}",
   "Reset tabs": "重置标签",
-  "Notifications require T3 Connect in this app build.":
-    "这个应用版本需要 T3 Connect 才能使用通知。",
   "Install a newer app build to enable notifications": "请安装更新的应用版本以开启通知",
   "Notifications unavailable": "通知不可用",
   "Could not request notification permission.": "无法请求通知权限。",
   "Agent notifications are enabled for this device.": "这台设备已开启 Agent 通知。",
   "Couldn't finish enabling notifications": "无法完成通知开启",
-  "Notification access was granted, but this device could not be registered with T3 Connect. Notifications will start once registration succeeds.":
-    "已获得通知权限，但这台设备无法在 T3 Connect 注册。注册成功后才会开始收到通知。",
   "Agent notifications are unavailable on this platform.": "这个平台不支持 Agent 通知。",
   "Notifications disabled": "通知已关闭",
   "Notifications were not enabled.": "通知没有开启。",
   "Notifications were denied for this app. Open Settings to enable them.":
     "这个应用的通知权限被拒绝了。请在系统设置中开启。",
-  "Live Activity updates require T3 Connect so relay can deliver updates to this device.":
-    "实时活动更新需要 T3 Connect，由中继把更新推送到这台设备。",
   Continue: "继续",
   "Ongoing activity unavailable": "无法显示进行中的活动",
   "Could not enable agent notifications.": "无法开启 Agent 通知。",
@@ -158,11 +128,7 @@ export default {
   "Agent activity updates are enabled. Add an environment to start receiving updates.":
     "Agent 活动更新已开启。添加一个环境即可开始接收更新。",
   "Couldn't finish enabling activity updates": "无法完成活动更新的开启",
-  "This device could not be registered with T3 Connect, so activity updates won't appear yet. They'll start once registration succeeds.":
-    "这台设备无法在 T3 Connect 注册，所以暂时不会显示活动更新。注册成功后才会开始显示。",
   "Disable notifications": "关闭通知",
-  "Open system Settings to disable notifications for T3 Extend.":
-    "请打开系统设置关闭 T3 Extend 的通知。",
   "Agent activity": "Agent 活动",
   "Device Notifications": "设备通知",
   "Agent Live Updates": "Agent 实时更新",
@@ -171,22 +137,15 @@ export default {
   "Turn off Live Activity preference": "关闭实时活动偏好设置",
   "Live Update Settings": "实时更新设置",
   "Couldn't open Settings": "无法打开设置",
-  "Open Android Settings, select T3 Extend, then enable Live Updates in Notifications.":
-    "打开 Android 设置，选择 T3 Extend，然后在通知中开启实时更新。",
-  "License notices are unavailable in this build.": "这个版本没有包含许可声明。",
   "Search packages": "搜索软件包",
-  "No licenses match that search.": "没有与搜索匹配的许可。",
   "Search open-source licenses": "搜索开源许可",
   "Clear package search": "清除软件包搜索",
   "License notice": "许可声明",
-  "This license notice is unavailable.": "这份许可声明不可用。",
   "Opens the project website": "打开项目网站",
   "Project source": "项目源代码",
   "Project grouping": "项目分组",
   "Choose a project with the filter above to manage its name, checkouts and removal.":
     "用上方的筛选选择一个项目，管理它的名称、checkout 和移除。",
-  "This project has no checkout on the selected connected environments. Change the filter above.":
-    "这个项目在所选的已连接环境中没有 checkout。请更改上方的筛选。",
   "Failed to update project": "无法更新项目",
   "This connection can no longer change it.": "这个连接已不能再修改它。",
   'Failed to update "{title}"': "无法更新“{title}”",
@@ -220,13 +179,7 @@ export default {
     "删除所有机器上的全部 {count} 个 checkout 条目及其对话。磁盘上的文件不受影响。",
   "Deletes the project entry and its threads. Files on disk are not touched.":
     "删除项目条目及其对话。磁盘上的文件不受影响。",
-  "Remove checkout {workspaceRoot}": "移除 checkout {workspaceRoot}",
-  "Select a connected environment.": "请选择一个已连接的环境。",
   "Limited permissions": "权限受限",
-  "This session can view {label}'s providers but can't change their settings.":
-    "这个会话可以查看 {label} 的 provider，但不能修改它们的设置。",
-  "Configure a provider with in-app sign-in in web or desktop Settings.":
-    "请在 web 或桌面端的设置中配置支持应用内登录的 provider。",
   "Could not update provider sign-in.": "无法更新 provider 登录。",
   "Turned off": "已关闭",
   "Discovering sign-in methods…": "正在查找登录方式…",
@@ -234,16 +187,11 @@ export default {
     "这个 provider 没有提供应用内登录。请按照它的文档完成设置。",
   "Not signed in": "未登录",
   "Sign out?": "退出登录？",
-  "Running threads sharing this sign-in on {label} will stop. Thread history is kept.":
-    "{label} 上共用这个登录的运行中对话会停止。对话历史会保留。",
   "Sign out": "退出登录",
   "Change account": "更换账号",
   Docs: "文档",
   "Could not open the provider docs.": "无法打开 provider 文档。",
-  "Cancel {name} sign-in": "取消 {name} 登录",
-  "Sign in to {name}": "登录 {name}",
   "Sign in with": "登录方式",
-  "Enter code {code} on the sign-in page.": "请在登录页面输入代码 {code}。",
   "Terminal response": "终端响应",
   "Send response": "发送响应",
   Connect: "连接",
@@ -258,23 +206,14 @@ export default {
   "Next run unavailable": "下次运行时间不可用",
   "Next run due": "即将运行",
   "Next run in less than a minute": "不到 1 分钟后运行",
-  "Next run in {count} minute": "{count} 分钟后运行",
-  "Next run in {count} minutes": "{count} 分钟后运行",
-  "Next run in {count} hour": "{count} 小时后运行",
-  "Next run in {count} hours": "{count} 小时后运行",
   "Next run tomorrow at {time}": "明天 {time} 运行",
-  "Next run next {weekday} at {time}": "{weekday} {time} 运行",
   "Next run {date} at {time}": "{date} {time} 运行",
   Weekdays: "工作日",
   "Choose days": "选择日期",
-  "Filter {number}": "筛选条件 {number}",
   "Remove filter {number}": "移除筛选条件 {number}",
   Test: "测试",
   "Values, comma-separated": "值，用逗号分隔",
   Value: "值",
-  "Add filter": "添加筛选条件",
-  "Runs only when every filter matches. Other requests are logged as filtered. Separate “is one of” values with commas; a value can't contain a comma.":
-    "只有所有筛选条件都匹配时才运行。其他请求会记录为已过滤。“属于其中之一”的多个值用逗号分隔，单个值不能包含逗号。",
   "Connect an environment to view and create scheduled tasks.":
     "连接一个环境后才能查看和创建定时任务。",
   "No environments match these filters. Change the filter above.":
@@ -303,9 +242,6 @@ export default {
   "Project unavailable": "项目不可用",
   "Choose a project in this environment.": "请选择这个环境中的项目。",
   "Could not save task": "无法保存任务",
-  "This task no longer exists.": "这个任务已不存在。",
-  "This environment is disconnected. Reconnect before saving.":
-    "这个环境已断开连接。请重新连接后再保存。",
   "Runs on": "运行于",
   Task: "任务",
   "Check for issues": "检查问题",
@@ -328,16 +264,11 @@ export default {
   "Skip requests older than (minutes)": "跳过早于这个时间的请求（分钟）",
   "Run every request": "每个请求都运行",
   "Duplicate request key": "重复请求键",
-  "Requests with the same key run only once within 7 days.": "键相同的请求在 7 天内只运行一次。",
   "Coalesce key template": "合并 key 模板",
   "Coalesce window (seconds, 10–3600)": "合并窗口（秒，10–3600）",
   "Coalescing runs the latest payload when the window from the first delivery closes. Empty keys run normally.":
     "合并会在从第一次投递起算的窗口结束时，运行最新的 payload。key 为空时照常运行。",
   "Minutes between runs": "运行间隔（分钟）",
-  "Intervals must be at least 1 minute. Update this interval before saving.":
-    "间隔至少为 1 分钟。请修改间隔后再保存。",
-  "This task previously ran more than once per minute. Saving requires an interval of at least 1 minute.":
-    "这个任务之前每分钟运行不止一次。保存时间隔必须至少为 1 分钟。",
   "Task enabled": "任务已开启",
   "Time uses the environment's time zone, which may differ from your phone's.":
     "时间使用环境所在的时区，可能和你手机的时区不同。",
@@ -346,7 +277,6 @@ export default {
   "Create task": "创建任务",
   "The prompt can use {{body.a.b}}, {{headers.name}}, {{query.name}}, {{body}} and {{request}}. The filled-in prompt is all the agent sees.":
     "提示词中可以使用 {{body.a.b}}、{{headers.name}}、{{query.name}}、{{body}} 和 {{request}}。Agent 只会看到填充后的提示词。",
-  "Save the task to get its webhook URL.": "保存任务后即可获得它的 webhook URL。",
   "Copy webhook URL": "复制 webhook URL",
   "Copies the URL to the clipboard": "把 URL 复制到剪贴板",
   "Webhook URL": "Webhook URL",
@@ -357,8 +287,6 @@ export default {
   "The current URL stops working immediately.": "当前 URL 会立即失效。",
   Rotate: "轮换",
   "Could not rotate URL": "无法轮换 URL",
-  "Signature check configured on desktop/web.": "已在桌面端或 web 端配置签名校验。",
-  "Loading tasks…": "正在加载任务…",
   "No scheduled tasks yet.": "还没有定时任务。",
   "No tasks in this project.": "这个项目中没有任务。",
   "Edit {title}": "编辑 {title}",
@@ -413,9 +341,7 @@ export default {
   "Auto-settle": "自动标为已处理",
   "Auto-settle merged threads": "合并后自动标为已处理",
   "Auto-settle inactive threads": "不活跃时自动标为已处理",
-  "Inactive days": "不活跃天数",
   "Across environments": "跨环境",
-  "Auto-settle defaults differ": "自动标为已处理的默认设置不一致",
   "Apply auto-settle defaults": "应用自动标为已处理的默认设置",
   Sidebar: "侧边栏",
   "Working section": "运行中分区",
@@ -430,11 +356,8 @@ export default {
   Legacy: "旧版",
   "Days before auto-settle": "自动标为已处理前的天数",
   "Worktree branch naming": "worktree 分支命名",
-  "Use {prefix} or {prefix}/ for {prefix}/add-search. Leave empty for no prefix.":
-    "填 {prefix} 或 {prefix}/ 会得到 {prefix}/add-search。留空表示不加前缀。",
   "Branch prefix": "分支前缀",
   "No prefix": "不加前缀",
-  "Append instructions to the naming prompt.": "在命名提示词后追加说明。",
   "Branch naming instructions": "分支命名说明",
   "Mixed. Enter instructions for all selected targets.": "多种值。请为所有选中的目标输入说明。",
   "Use julius/ followed by the issue ID and a short description.":
@@ -447,20 +370,14 @@ export default {
   "Filter settings environments and projects": "筛选设置作用的环境和项目",
   "Settings scope": "设置范围",
   "All connected environments": "所有已连接的环境",
-  "Open in Browser": "在浏览器中打开",
   "The page could not be loaded.": "无法加载页面。",
   "The server returned status {statusCode}.": "服务器返回了状态码 {statusCode}。",
   "Use defaults": "使用默认设置",
   "Use environment defaults for this project": "这个项目使用环境的默认设置",
-  "Enter this code on GitHub, then approve {appName}. It is copied. The server finishes signing in even if you leave the app.":
-    "在 GitHub 上输入这个代码，然后批准 {appName}。代码已复制。即使离开应用，服务器也会完成登录。",
   "Open GitHub": "打开 GitHub",
   "Could not start the sign-in": "无法开始登录",
   "Sign-in did not finish": "登录没有完成",
-  "Signed in. GitHub requests use the app's higher rate limit, in repositories where the app is installed.":
-    "已登录。在安装了该应用的仓库中，GitHub 请求会使用应用更高的速率限制。",
   "Install on an organization": "安装到组织",
-  "Enter {userCode}": "输入 {userCode}",
   "Messages, labels, and headings scale with this size.": "消息、标签和标题会按这个大小缩放。",
   "Floating navigation with a separate compose button.": "悬浮导航，新建按钮单独显示。",
   "Standard Android navigation bar and side rail.": "标准的 Android 导航栏和侧边导航。",
@@ -488,8 +405,6 @@ export default {
   "Your message reaches the agent right away, changing what it is working on.":
     "你的消息会立即送达 Agent，改变它正在做的事。",
   "Send message": "发送消息",
-  "Return sends the message. Shift-Return inserts a new line.":
-    "Return 发送消息，Shift-Return 换行。",
   "Insert new line": "换行",
   "Group by repository": "按仓库分组",
   "Matching repositories appear as one project.": "相同的仓库显示为同一个项目。",
@@ -500,8 +415,6 @@ export default {
   "Static prefix": "固定前缀",
   "Add your prefix to the generated branch name.": "在生成的分支名前加上你的前缀。",
   "Semantic prefix": "语义前缀",
-  "Let the model choose feat/, fix/, refactor/, or another prefix.":
-    "让模型选择 feat/、fix/、refactor/ 或其他前缀。",
   "Custom instructions": "自定义说明",
   "Generate the complete name with no added prefix or suffix.":
     "生成完整的名称，不额外添加前缀或后缀。",
@@ -523,39 +436,22 @@ export default {
   "Show the answer when the agent finishes.": "Agent 完成后再显示回答。",
   "Finished paragraphs": "按段落",
   "Show each paragraph or code block as it completes.": "每完成一个段落或代码块就显示出来。",
-  Mon: "周一",
-  Tue: "周二",
-  Wed: "周三",
-  Thu: "周四",
-  Fri: "周五",
-  Sat: "周六",
-  Sun: "周日",
   // Settings pages: text around values
   "Last run failed: {error}": "上次运行失败：{error}",
   "Provider not allowed": "不允许使用该 provider",
   "{message} Choose another model.": "{message}请选择其他模型。",
-  "Managed by {organization}": "由 {organization} 管理",
   "Get help from {organization}": "向 {organization} 获取帮助",
   "Voice input": "语音输入",
   "T3 Extend's voice input uses Apple's on-device speech transcription, which needs iOS 26 or later on a device that supports it. Without it, the composer has no microphone button, and allowing microphone access won't add one. Apple keyboard dictation is separate and isn't affected.":
     "T3 Extend 的语音输入使用 Apple 的设备端语音转写，需要 iOS 26 或更高版本，并且设备要支持该功能。没有它时，输入框不会出现麦克风按钮，授予麦克风权限也不会增加。Apple 键盘听写是另一回事，不受影响。",
   "Connect to load models": "连接后加载模型",
-  "Connect to {name}": "连接到 {name}",
   "Once, {date} at {time}": "仅一次，{date} {time}",
-  "{denial} Switch the task to a timer, or turn it off, to save it.":
-    "{denial}请把任务改为定时或间隔运行，或将其关闭后再保存。",
-  "{field}, {label}": "{field}，{label}",
   "Some settings are managed by {organizations} and cannot be changed here.":
     "部分设置由 {organizations} 管理，无法在这里更改。",
   // Claude accounts
   "Default config folder": "默认配置文件夹",
   "Name, e.g. Work": "名称，例如“工作”",
-  "Claude config folder": "Claude 配置文件夹",
-  "Config folder, e.g. ~/.claude-work": "配置文件夹，例如 ~/.claude-work",
-  "Could not save the Claude account.": "无法保存 Claude 账号。",
   "Enter a name for this account.": "请输入这个账号的名称。",
-  "Enter the Claude config folder this account is signed in with.":
-    "请输入这个账号登录所用的 Claude 配置文件夹。",
   "It leaves the model picker on {label}. The config folder and its sign-in stay on the server.":
     "它会从 {label} 的模型选择器中移除。配置文件夹及其登录状态仍保留在服务器上。",
   // Voice settings
@@ -594,7 +490,6 @@ export default {
     "每次运行共用同一个对话，但各自开启新会话，看不到之前运行的上下文。第一次运行会创建这个对话。删除这个对话也会删除这个任务。",
   // Side chat composer
   "Ask a side question": "提一个旁支问题",
-  "Type the question after /side, then send it.": "在 /side 后面输入问题，然后发送。",
   "T3 Extend's voice input uses Google's on-device speech recognition, which needs Android 12 or later with compatible Google speech services for the device language. Without it, the composer has no microphone button, and allowing microphone access won't add one. Keyboard voice typing is separate and isn't affected.":
     "T3 Extend 的语音输入使用 Google 的设备端语音识别，需要 Android 12 或更高版本，并且设备语言要有兼容的 Google 语音服务。没有它时，输入框不会出现麦克风按钮，授予麦克风权限也不会增加。键盘语音输入是另一回事，不受影响。",
   "Cloud provider": "云服务提供方",
@@ -604,12 +499,4 @@ export default {
   "Not available on this environment": "此环境不可用",
   "Local model · {size}": "本地模型 · {size}",
   "No model installed · Choose one to download": "未安装模型 · 选择一个来下载",
-  "No model installed · Add one using T3 Extend on {label}":
-    "未安装模型 · 请在 {label} 上用 T3 Extend 添加一个",
-  "Long-press the send button to use the other option for a single message. With a hardware keyboard, hold {key} while sending.":
-    "长按发送按钮，可对单条消息使用另一种方式。使用外接键盘时，发送时按住 {key}。",
-  "Method on {name}": "{name} 上的方式",
-  "Beta: {title}": "测试版：{title}",
-  "Return inserts a new line. {modifier}-Return sends the message.":
-    "Return 换行，{modifier}-Return 发送消息。",
 } satisfies Record<string, string>;

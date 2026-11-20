@@ -1,4 +1,5 @@
 // @effect-diagnostics nodeBuiltinImport:off - a plain file scan; it must run without the app runtime.
+import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
@@ -628,6 +629,43 @@ function displayStrings(
   }
 }
 
+const GT_ELEMENTS: ReadonlySet<string> = new Set([
+  "T",
+  "Var",
+  "Num",
+  "Currency",
+  "DateTime",
+  "RelativeTime",
+  "Branch",
+  "Plural",
+]);
+
+// Upstream's own copy is translated by GT; only what the fork adds is this report's business: files
+// upstream does not have, and the lines the fork adds to upstream's. `null` means every line.
+const UPSTREAM_REF = "upstream/main";
+const upstreamFiles = (() => {
+  const listing = NodeChildProcess.spawnSync(
+    "git",
+    ["ls-tree", "-r", "--name-only", UPSTREAM_REF, "--", ...["apps/web/src", "apps/mobile/src"]],
+    { encoding: "utf8", maxBuffer: 1 << 28 },
+  );
+  return listing.status === 0 ? new Set(listing.stdout.split("\n").filter(Boolean)) : null;
+})();
+function forkLinesOf(file: string): ReadonlySet<number> | null {
+  if (upstreamFiles === null) return file.includes("/fork/") ? null : new Set();
+  if (!upstreamFiles.has(file)) return null;
+  const diff = NodeChildProcess.spawnSync("git", ["diff", "-U0", UPSTREAM_REF, "--", file], {
+    encoding: "utf8",
+    maxBuffer: 1 << 28,
+  });
+  const lines = new Set<number>();
+  for (const match of diff.stdout.matchAll(/^@@ -\S+ \+(\d+)(?:,(\d+))? @@/gmu)) {
+    const start = Number(match[1]);
+    for (let line = start; line < start + Number(match[2] ?? 1); line += 1) lines.add(line);
+  }
+  return lines;
+}
+
 export function scanHardCodedText(
   code: string,
   fileName = "",
@@ -702,6 +740,11 @@ export function scanHardCodedText(
       return;
     }
     if (!isAstNode(node)) return;
+    // GT's <T> translates its whole subtree, and <Var>, <Num> and the like hold values, not copy.
+    if (node.type === "JSXElement") {
+      const opening = node.openingElement as AstNode;
+      if (GT_ELEMENTS.has(elementName(opening.name as AstNode))) return;
+    }
     if (node.type === "JSXElement" || node.type === "JSXFragment") {
       scanChildren(node, node.children as ReadonlyArray<AstNode>);
     } else if (node.type === "JSXOpeningElement") {
@@ -1249,10 +1292,15 @@ function hardCodedSections(
       .filter((file) => !HARD_CODED_EXCLUDED_DIRS.some((dir) => file.startsWith(dir)))
       .toSorted();
     for (const file of files) {
+      const forkLines = forkLinesOf(file);
+      if (forkLines !== null && forkLines.size === 0) continue;
+      const ours = (hit: { readonly line: number }) => forkLines === null || forkLines.has(hit.line);
       const code = NodeFS.readFileSync(file, "utf8");
       const program = parseSource(file, code);
       if (file.endsWith(".tsx")) {
-        const { hits, selfTranslated } = scanHardCodedText(code, file, program);
+        const scan = scanHardCodedText(code, file, program);
+        const { selfTranslated } = scan;
+        const hits = scan.hits.filter(ours);
         for (const source of selfTranslated) {
           if (!called.has(source)) called.set(source, file);
         }
@@ -1263,7 +1311,7 @@ function hardCodedSections(
             jsxLines.push(`    ${file}:${line} [${kind}] ${text}`);
         }
       }
-      const hits = scanPropertyText(code, file, known, program);
+      const hits = scanPropertyText(code, file, known, program).filter(ours);
       if (hits.length === 0) continue;
       propertyCount += hits.length;
       propertyLines.push("", `  ${file} (${hits.length})`);

@@ -35,7 +35,6 @@ export default {
   "Settings breadcrumb": "设置导航路径",
   "Search settings": "搜索设置",
   "Clear settings search": "清除设置搜索",
-  "No settings found": "没有找到设置",
   "Settings search results": "设置搜索结果",
   Advanced: "高级",
 
@@ -51,5 +50,4 @@ export default {
   "Theme mix": "主题组合",
   "Diff colors": "差异颜色",
   "Time format": "时间格式",
-  "Restore device defaults": "恢复本设备默认设置",
 } satisfies Record<string, string>;

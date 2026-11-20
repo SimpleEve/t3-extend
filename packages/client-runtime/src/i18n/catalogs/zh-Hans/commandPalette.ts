@@ -13,8 +13,6 @@ export default {
   "Change theme": "更换主题",
   "Change appearance": "更换外观",
   Current: "当前",
-  "No matching actions.": "没有匹配的操作。",
-  "No matching commands, projects, or threads.": "没有匹配的命令、项目或对话。",
 
   // Commands
   "New thread in...": "在指定项目中新建对话…",
@@ -28,7 +26,6 @@ export default {
   "Copy PR link": "复制 PR 链接",
   "Copy thread": "复制对话",
   "Link pull request to thread": "将 PR 关联到对话",
-  "Show linked pull requests": "显示关联的 PR",
   "Restart agent session": "重启 Agent 会话",
   "Go to file": "转到文件",
   "Search project contents": "搜索项目内容",
@@ -53,7 +50,6 @@ export default {
   // Footer hints; key names (Enter, Esc) stay as they are.
   Navigate: "导航",
   Select: "选择",
-  "Searching messages…": "正在搜索消息…",
   "Command palette": "命令面板",
 
   // Add project, clone, and environment labels
@@ -64,9 +60,7 @@ export default {
   "Local folder": "本地文件夹",
   "Browse a folder on disk": "浏览磁盘上的文件夹",
   "Start a new Git repository from a name": "用名称新建一个 Git 仓库",
-  "Setup Required": "需要设置",
   "Environment unavailable": "环境不可用",
-  "{label} is not connected.": "{label} 未连接。",
   "The selected environment is not connected.": "所选环境未连接。",
   "This device": "此设备",
   "Connect an environment": "连接一个环境",
@@ -88,8 +82,6 @@ export default {
   "Add existing project": "添加现有项目",
   "Open a folder or clone a repository": "打开文件夹或克隆仓库",
   "Create private repository": "创建私有仓库",
-  "Create private repository on {label}": "在 {label} 上创建私有仓库",
-  "Your {label} account": "你的 {label} 账号",
   "Thread search is unavailable on this server.": "此服务器不支持对话搜索。",
   "Update the server to enable it.": "更新服务器即可启用。",
   "Unable to run command": "无法运行命令",
@@ -99,19 +91,11 @@ export default {
     "启动对应的 WSL 后端，然后重新选择文件夹。",
   Creating: "正在创建",
   Create: "创建",
-  "Create ({createShortcutLabel})": "创建（{createShortcutLabel}）",
   Cloning: "正在克隆",
-  "Open in {fileManagerName}": "在 {fileManagerName} 中打开",
-  "Loading folders...": "正在加载文件夹…",
   "Host for the new repository": "新仓库所在的主机",
-  "Creates {pathPreview}": "将创建 {pathPreview}",
-  "Goes in {projectsRoot}": "将放在 {projectsRoot}",
-  "Creates {pathPreview} on {environmentLabel}": "将在 {environmentLabel} 上创建 {pathPreview}",
-  "Goes in {projectsRoot} on {environmentLabel}": "将放在 {environmentLabel} 上的 {projectsRoot}",
   Repository: "仓库",
   Local: "本地",
   "{label} (Local)": "{label}（本地）",
-  "For {mode} mode": "用于{mode}模式",
   "pending button|Working": "处理中",
   // Empty states while adding a project.
   "Enter a Git clone URL and press Enter to continue.": "输入 Git 克隆 URL，然后按 Enter 继续。",

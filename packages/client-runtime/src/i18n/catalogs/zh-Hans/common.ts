@@ -42,7 +42,6 @@ export default {
   "Share with guest": "与访客共享",
   "Discard draft": "丢弃草稿",
   Close: "关闭",
-  "Close (Esc)": "关闭（Esc）",
   Back: "返回",
   Remote: "远程",
   // The label of threads outside any project; UI copy, not a project name.
@@ -53,6 +52,4 @@ export default {
   "Dismiss notification": "关闭通知",
   "Hide details": "隐藏详情",
   stack: "堆叠",
-  chain: "链",
-  "Started {value}": "开始于 {value}",
 } satisfies Record<string, string>;
