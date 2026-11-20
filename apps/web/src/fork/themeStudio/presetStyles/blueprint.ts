@@ -22,7 +22,6 @@ body,
 [data-slot="sidebar-inner"] {
   background-image: var(--bp-grid);
   background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
-  background-attachment: fixed;
 }
 
 [data-slot="sidebar-inner"] { border-right: 1px dashed var(--bp-line); }

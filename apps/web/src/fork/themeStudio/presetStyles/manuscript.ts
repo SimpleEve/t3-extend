@@ -7,7 +7,7 @@ const TYPEWRITER =
 const HAND =
   '"Bradley Hand", "Segoe Print", "Kaiti SC", "STKaiti", "KaiTi", "Comic Sans MS", cursive';
 
-const CSS = `:root { --pen: #b0281e; --paper-line: #e1eaf2; --margin-line: #e9a3a0; }
+const CSS = `:root { --pen: #b0281e; --paper-line: #b9d0e6; --margin-line: #d9605a; }
 
 [data-workspace-area="conversation"] {
   background-image:

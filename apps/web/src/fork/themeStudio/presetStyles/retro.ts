@@ -90,7 +90,7 @@ html::after {
 .chat-markdown-codeblock { border: 0 !important; border-radius: 0 !important; box-shadow: var(--w-sunken); font-family: ${FIXED}; }
 .chat-markdown table { border: 1px solid var(--w-dark); }
 .chat-markdown th { background: var(--w-face); box-shadow: var(--w-raised); }
-.chat-markdown :is(th, td) { padding: 4px 8px !important; }
+.chat-markdown :is(th, td) { padding: 4px 10px !important; }
 
 [data-slot="composer-host"], [data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"],
 [data-slot="input-group"] {

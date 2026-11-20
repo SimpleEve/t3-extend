@@ -8,18 +8,21 @@ const MONO = 'Menlo, "SF Mono", Consolas, "Liberation Mono", monospace';
 
 const CSS = `:root {
   --q-rule: #dfe2e5;
+  --q-faint: #eceeef;
   --q-quote: #6b6b6b;
   --q-head: #111111;
 }
 :root.dark {
   --q-rule: #3a3a3a;
+  --q-faint: #2d2d2d;
   --q-quote: #a3a3a3;
   --q-head: #f2f2f2;
 }
 
-[data-timeline-root], [data-chat-composer-form] { max-width: 40rem !important; margin-inline: auto; }
-.chat-markdown, .composer-tiptap { line-height: 1.7; }
-.chat-markdown p, .chat-markdown li { line-height: 1.7; }
+[data-timeline-root], [data-chat-composer-form] { max-width: 42rem !important; margin-inline: auto !important; }
+.chat-markdown, .composer-tiptap { font-size: 1.0625rem; line-height: 1.85; }
+.chat-markdown p, .chat-markdown li { line-height: 1.85; }
+.chat-markdown p { margin-block: 1.1em; }
 
 [data-slot="sidebar-inner"] { border-right: 1px solid var(--q-rule); }
 [data-thread-item] [data-sidebar-row] { background: transparent !important; border-radius: 3px !important; }
@@ -41,14 +44,17 @@ const CSS = `:root {
 
 .chat-markdown h1, .chat-markdown h2, .chat-markdown h3 {
   color: var(--q-head);
-  font-weight: 600;
+  font-weight: 500;
+  font-size: 1.12em;
   letter-spacing: 0;
+  margin-top: 1.8em;
 }
 .chat-markdown a { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
-.chat-markdown-codeblock { border: 1px solid var(--q-rule) !important; border-radius: 3px !important; }
+.chat-markdown-codeblock { border: 1px solid var(--q-faint) !important; border-radius: 3px !important; }
 .chat-markdown table { border-collapse: collapse; }
-.chat-markdown th { font-weight: 600; border-bottom: 1px solid var(--q-rule); }
-.chat-markdown td { border-top: 0; }
+.chat-markdown :is(th, td) { border-left: 0 !important; border-right: 0 !important; }
+.chat-markdown th { font-weight: 500; border-bottom: 1px solid var(--q-rule); }
+.chat-markdown td { border-top: 0 !important; border-bottom: 1px solid var(--q-faint); }
 
 [data-slot="composer-host"] {
   background: transparent !important;

@@ -13,7 +13,6 @@ body,
   background-image:
     linear-gradient(transparent 62%, rgba(255, 60, 172, 0.12) 62%, transparent),
     repeating-linear-gradient(90deg, transparent 0 30px, rgba(0, 240, 255, 0.07) 30px 31px);
-  background-attachment: fixed;
 }
 
 [data-slot="sidebar-inner"] {
