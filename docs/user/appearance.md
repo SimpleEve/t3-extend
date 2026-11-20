@@ -72,8 +72,17 @@ The page goes from top to bottom: **Presets**, **Colors**, **Fonts**, **Layout**
 **Custom CSS** and **My schemes**. Hover a preset to preview it and click to use it. Changes you make
 preview live as you drag a slider or pick a color.
 
+Most presets are whole looks, not just palettes: type, borders, message shapes and decoration come
+with them. Broadsheet (newsprint and rules), Swiss grid, Brutalist, Blueprint, Manuscript, Retro
+windows, Ink wash and Neon each carry their own fonts, borders and message shapes, and Terminal does the
+same in green on black. Docs and Quiet page are plain reading layouts and have a dark
+version. Presets only use fonts already installed on your device, so on a machine without them
+(Windows or Linux, for example) a close fallback shows instead. Some presets add small text to the
+chat, such as the label above your message; it follows the interface language.
+
 Change anything about a preset and your version is saved as a scheme of your own, named like
-"Terminal (mine)". The preset stays as it is. Nothing is saved until you choose **Apply**;
+"Terminal (mine)". The preset stays as it is. If a preset a scheme was made from is ever retired, the
+scheme keeps working and only **Restore to preset** goes away. Nothing is saved until you choose **Apply**;
 **Revert unsaved changes** drops the edits, and **Restore to preset** puts a scheme's colors, fonts
 and layout back to its preset. **Reset theme to default** goes back to the standard T3 theme without
 deleting your schemes. Picking another preset discards unsaved changes.

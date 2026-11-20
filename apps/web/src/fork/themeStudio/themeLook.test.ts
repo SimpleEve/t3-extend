@@ -66,7 +66,7 @@ describe("theme look in theme files", () => {
           appearance: "dark",
           colors: { canvas: "#101010" },
           look: { radius: 2, density: 500, shadow: "x", unknown: 1 },
-          basedOn: "studio-oled",
+          basedOn: "studio-retired-preset",
         },
       ]),
     );
@@ -79,7 +79,7 @@ describe("theme look in theme files", () => {
     invalidateCustomThemes();
     try {
       expect(getCustomThemes()).toMatchObject([
-        { id: "kept", look: { radius: 2, density: 120 }, basedOn: "studio-oled" },
+        { id: "kept", look: { radius: 2, density: 120 }, basedOn: "studio-retired-preset" },
       ]);
       installCustomTheme(parseThemeFile({ ...FILE, look: { glass: 20 } }));
       expect(JSON.parse(stored.get(CUSTOM_THEMES_STORAGE_KEY) ?? "[]")[1].look).toEqual({
@@ -151,7 +151,7 @@ describe("theme presets", () => {
   });
 
   it("cannot be taken by a saved theme", () => {
-    expect(() => parseThemeFile({ ...FILE, id: "studio-oled" })).toThrow(/reserved/);
+    expect(() => parseThemeFile({ ...FILE, id: "studio-neon" })).toThrow(/reserved/);
   });
 });
 

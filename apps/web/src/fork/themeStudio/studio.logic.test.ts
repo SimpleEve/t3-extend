@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { getPresetThemes, getThemeDefinition, parseThemeFile } from "../../themePalette";
+import {
+  getPresetThemes,
+  getThemeDefinition,
+  isKnownThemePreference,
+  parseThemeFile,
+  parseThemeHalves,
+} from "../../themePalette";
 import {
   beginScheme,
   editableAppearance,
@@ -134,8 +140,53 @@ describe("palettes", () => {
   it("edits the appearance on screen, or the scheme's own when it has no such palette", () => {
     expect(editableAppearance(terminal, "light")).toBe("dark");
     expect(editableAppearance(terminal, "dark")).toBe("dark");
-    const fjord = getThemeDefinition("studio-fjord")!;
-    expect(editableAppearance(fjord, "light")).toBe("light");
+    const docs = getThemeDefinition("studio-docs")!;
+    expect(editableAppearance(docs, "dark")).toBe("dark");
+  });
+});
+
+describe("a preset that was retired", () => {
+  const retired = [
+    "studio-oled",
+    "studio-paper",
+    "studio-fjord",
+    "studio-tide",
+    "studio-clay",
+    "studio-graphite",
+    "studio-frosted",
+    "studio-compact",
+  ];
+
+  it("leaves a scheme made from it working, with no preset to restore", () => {
+    for (const id of retired) {
+      expect(getThemeDefinition(id)).toBeNull();
+      const scheme = { ...mine(), basedOn: id };
+      expect(getThemeDefinition(scheme.basedOn)).toBeNull();
+      expect(
+        beginScheme({ base: scheme, savedThemes: [scheme], mineLabel: "x", restorable: true }),
+      ).toBe(scheme);
+    }
+  });
+
+  it("treats a selected retired preset like an unpublished theme", () => {
+    for (const id of retired) expect(isKnownThemePreference(id)).toBe(false);
+    expect(
+      parseThemeHalves(JSON.stringify({ light: "studio-paper", dark: "studio-terminal" })),
+    ).toEqual({ dark: "studio-terminal" });
+    expect(
+      studioOrigin({
+        themeId: "studio-oled",
+        find: getThemeDefinition,
+        applied: null,
+        stock: terminal,
+      }),
+    ).toEqual({ origin: terminal, restorable: false });
+  });
+
+  it("keeps the new presets under their own ids", () => {
+    const ids = getPresetThemes().map((preset) => preset.id);
+    expect(ids).toHaveLength(11);
+    expect(ids.filter((id) => retired.includes(id))).toEqual([]);
   });
 });
 
@@ -158,10 +209,10 @@ describe("the theme library's editor buttons", () => {
     expect(
       intentFromEditorSession({
         editingThemeId: null,
-        seedThemeId: "studio-oled",
-        seedName: "OLED Black copy",
+        seedThemeId: "studio-neon",
+        seedName: "Neon copy",
       }),
-    ).toEqual({ themeId: "studio-oled", duplicate: true, name: "OLED Black copy" });
+    ).toEqual({ themeId: "studio-neon", duplicate: true, name: "Neon copy" });
     expect(
       intentFromEditorSession({ editingThemeId: null, seedThemeId: null, seedName: null }),
     ).toEqual({ themeId: null, duplicate: true, name: null });

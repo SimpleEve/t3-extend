@@ -1,6 +1,17 @@
 import type { ThemeLook } from "@t3tools/contracts";
 import type { ThemeAppearance, ThemeColors } from "@t3tools/shared/themePalettes";
 
+import { BLUEPRINT_SEED } from "./presetStyles/blueprint";
+import { BRUTALIST_SEED } from "./presetStyles/brutalist";
+import { BROADSHEET_SEED } from "./presetStyles/broadsheet";
+import { DOCS_SEED } from "./presetStyles/docs";
+import { INKWASH_SEED } from "./presetStyles/inkwash";
+import { MANUSCRIPT_SEED } from "./presetStyles/manuscript";
+import { NEON_SEED } from "./presetStyles/neon";
+import { QUIET_SEED } from "./presetStyles/quiet";
+import { RETRO_SEED } from "./presetStyles/retro";
+import { SWISS_SEED } from "./presetStyles/swiss";
+
 // fork: presets for the theme studio. They are data only; themePalette.ts builds the palettes.
 // Fonts are installed or system names, never loaded from the network. Names and colors are our own.
 
@@ -188,71 +199,14 @@ export const THEME_PRESET_SEEDS: ReadonlyArray<ThemePresetSeed> = [
     },
     css: TERMINAL_CSS,
   },
-  {
-    id: "studio-oled",
-    label: "OLED Black",
-    appearance: "dark",
-    palette: { canvas: "#000000", accent: "#5cc8ff" },
-    look: { radius: 10, shadow: 0, fontCode: CODE_STACK },
-  },
-  {
-    id: "studio-paper",
-    label: "Paper",
-    appearance: "light",
-    palette: { canvas: "#f6f1e7", accent: "#b5532b" },
-    look: {
-      fontUi: SERIF_STACK,
-      fontCode: CODE_STACK,
-      radius: 4,
-      shadow: 30,
-      chatWidth: "comfortable",
-    },
-  },
-  {
-    id: "studio-fjord",
-    label: "Fjord",
-    appearance: "dark",
-    palette: { canvas: "#272d38", accent: "#7fb3c5" },
-    variant: { canvas: "#edf0f3", accent: "#3f7f99" },
-    look: { radius: 8, shadow: 70 },
-  },
-  {
-    id: "studio-tide",
-    label: "Tide",
-    appearance: "light",
-    palette: { canvas: "#f3efe2", accent: "#2a7f9e" },
-    variant: { canvas: "#0b2a33", accent: "#4cc3c9" },
-    look: { radius: 12, shadow: 60, chatWidth: "wide" },
-  },
-  {
-    id: "studio-clay",
-    label: "Clay",
-    appearance: "dark",
-    palette: { canvas: "#241b17", accent: "#e08a4b" },
-    variant: { canvas: "#faf3ec", accent: "#c0622a" },
-    look: { radius: 14, shadow: 100, fontUi: SERIF_STACK },
-  },
-  {
-    id: "studio-graphite",
-    label: "Graphite",
-    appearance: "dark",
-    palette: { canvas: "#1c1d1f", accent: "#9aa7ff" },
-    look: { radius: 6, density: 95, shadow: 50 },
-  },
-  {
-    id: "studio-frosted",
-    label: "Frosted",
-    appearance: "dark",
-    palette: { canvas: "#14161c", accent: "#7ab8ff" },
-    look: { radius: 16, shadow: 140, glass: 45 },
-    needsBackground: true,
-  },
-  {
-    id: "studio-compact",
-    label: "Compact layout",
-    appearance: "light",
-    palette: { canvas: "#f7f7f8", accent: "#2f7d6d" },
-    variant: { canvas: "#17191a", accent: "#4fb8a0" },
-    look: { radius: 6, density: 85, shadow: 40, chatWidth: "wide" },
-  },
+  BROADSHEET_SEED,
+  SWISS_SEED,
+  BRUTALIST_SEED,
+  BLUEPRINT_SEED,
+  MANUSCRIPT_SEED,
+  RETRO_SEED,
+  INKWASH_SEED,
+  NEON_SEED,
+  DOCS_SEED,
+  QUIET_SEED,
 ];

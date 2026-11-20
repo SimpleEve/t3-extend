@@ -11,7 +11,7 @@ function Harness() {
   return (
     <div>
       <HalvesNotice studio={studio} />
-      <button type="button" onClick={() => studio.select("studio-tide")}>
+      <button type="button" onClick={() => studio.select("studio-neon")}>
         pick a whole theme
       </button>
     </div>
@@ -21,7 +21,7 @@ function Harness() {
 it("takes the light and dark notice away once a whole theme replaces the pair", async () => {
   window.localStorage.setItem(
     THEME_HALVES_STORAGE_KEY,
-    JSON.stringify({ light: "studio-paper", dark: "studio-terminal" }),
+    JSON.stringify({ light: "studio-broadsheet", dark: "studio-terminal" }),
   );
   await using _screen = await render(<Harness />);
   await expect.element(page.getByText(/Light and dark use different themes/)).toBeVisible();
