@@ -47,7 +47,7 @@ import { isThemeColor, themeColorToHex } from "../../themePalette";
 import { HalvesNotice } from "./HalvesNotice";
 import { MySchemes } from "./MySchemes";
 import { CODE_FONT_OPTIONS, THEME_PRESET_SEEDS, UI_FONT_OPTIONS } from "./presets";
-import { overriddenSettings, schemeColors } from "./studio.logic";
+import { overriddenSettings, schemeColors, studioThemeKind } from "./studio.logic";
 import { useThemeStudio } from "./useThemeStudio";
 
 type Studio = ReturnType<typeof useThemeStudio>;
@@ -662,7 +662,14 @@ function CssSection({ studio }: { studio: Studio }) {
 function StudioHeader({ studio }: { studio: Studio }) {
   const t = useT();
   const { working } = studio;
-  const isPreset = studio.presets.some((preset) => preset.id === working.id);
+  const kind = studioThemeKind({
+    id: working.id,
+    stock: studio.applied === null,
+    presetIds: new Set(studio.presets.map((preset) => preset.id)),
+    builtInIds: new Set(BUILT_IN_THEMES.map((theme) => theme.id)),
+    savedIds: new Set(studio.customThemes.map((saved) => saved.id)),
+  });
+  const isPreset = kind === "preset";
   const customLook = working.look !== undefined;
   return (
     <div
@@ -679,13 +686,15 @@ function StudioHeader({ studio }: { studio: Studio }) {
               </Badge>
             ) : (
               <Badge size="sm" variant="outline">
-                {isPreset
+                {kind === "preset"
                   ? t("Preset")
-                  : studio.applied === null
-                    ? t("Default")
-                    : studio.customThemes.some((saved) => saved.id === working.id)
-                      ? t("Scheme")
-                      : t("Published")}
+                  : kind === "builtIn"
+                    ? t("Built-in")
+                    : kind === "default"
+                      ? t("Default")
+                      : kind === "scheme"
+                        ? t("Scheme")
+                        : t("Published")}
               </Badge>
             )}
           </div>

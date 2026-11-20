@@ -14,6 +14,7 @@ import {
   type CommandPaletteSubmenuItem,
 } from "./CommandPalette.logic";
 import { useOpenThemeStudio } from "../fork/themeStudio/themeStudioStore"; // fork: theme studio
+import { themeDisplayLabel } from "../fork/themeStudio/useThemeStudio"; // fork: theme studio
 import {
   STANDARD_THEME_CARDS,
   getThemeCardDefinition,
@@ -41,6 +42,7 @@ export function notifyThemeSaveFailure(): void {
 // Reads its own source hooks so the compiler caches the cards on them. Taking the
 // sources as arguments would leave it hook-free, and the compiler would cache nothing.
 function useThemeCards() {
+  const t = useT(); // fork: preset and built-in names are translated
   const customThemes = useCustomThemes();
   const environmentThemes = useEnvironmentThemeDefinitions();
   const seen = new Set<string>();
@@ -52,7 +54,10 @@ function useThemeCards() {
         seen.add(definition.id);
         return true;
       })
-      .map(getThemeCardDefinition),
+      .map((definition) => ({
+        ...getThemeCardDefinition(definition),
+        label: themeDisplayLabel(definition, t), // fork: preset and built-in names are translated
+      })),
   ];
 }
 

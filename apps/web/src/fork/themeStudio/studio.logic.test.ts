@@ -10,6 +10,7 @@ import {
   placeTheme,
   STOCK_THEME_ID,
   studioOrigin,
+  studioThemeKind,
   restoreSchemeToPreset,
   sameAppearanceOf,
   withSchemeColors,
@@ -212,5 +213,24 @@ describe("what the studio copies or opens", () => {
       origin: stock,
       restorable: false,
     });
+  });
+});
+
+describe("what kind of theme the header names", () => {
+  const ids = {
+    presetIds: new Set(["studio-terminal"]),
+    builtInIds: new Set(["grove"]),
+    savedIds: new Set(["studio-terminal-mine", "imported"]),
+  };
+
+  it("tells presets, built-in themes, saved schemes and published themes apart", () => {
+    const kind = (id: string, stock = false) => studioThemeKind({ id, stock, ...ids });
+    expect(kind("studio-terminal")).toBe("preset");
+    // A built-in theme is not published by anyone, so it must not be called that.
+    expect(kind("grove")).toBe("builtIn");
+    expect(kind("studio-terminal-mine")).toBe("scheme");
+    expect(kind("imported")).toBe("scheme");
+    expect(kind("agent-look")).toBe("published");
+    expect(kind(STOCK_THEME_ID, true)).toBe("default");
   });
 });

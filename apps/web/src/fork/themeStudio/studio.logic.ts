@@ -203,3 +203,19 @@ export function studioOrigin(input: {
     ? { origin: input.stock, restorable: false }
     : { origin, restorable: true };
 }
+
+export type StudioThemeKind = "default" | "preset" | "builtIn" | "scheme" | "published";
+
+/** What the header calls the theme being edited. Only a theme a server publishes is "published". */
+export function studioThemeKind(input: {
+  id: string;
+  stock: boolean;
+  presetIds: ReadonlySet<string>;
+  builtInIds: ReadonlySet<string>;
+  savedIds: ReadonlySet<string>;
+}): StudioThemeKind {
+  if (input.stock) return "default";
+  if (input.presetIds.has(input.id)) return "preset";
+  if (input.builtInIds.has(input.id)) return "builtIn";
+  return input.savedIds.has(input.id) ? "scheme" : "published";
+}

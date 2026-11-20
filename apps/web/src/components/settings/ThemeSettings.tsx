@@ -50,6 +50,7 @@ import {
   useOpenThemeStudio,
 } from "../../fork/themeStudio/themeStudioStore"; // fork: theme studio
 import { STOCK_THEME_ID } from "../../fork/themeStudio/studio.logic"; // fork: theme studio
+import { themeDisplayLabel } from "../../fork/themeStudio/useThemeStudio"; // fork: theme studio
 import {
   STANDARD_THEME_CARDS,
   getThemeCardDefinition,
@@ -812,7 +813,11 @@ export function ThemeLibrary({
           />
         ))}
         {MAINTAINER_THEMES.map((maintainerTheme) => {
-          const card = getThemeCardDefinition(maintainerTheme);
+          // fork: our presets and the built-in themes have translated names
+          const card = {
+            ...getThemeCardDefinition(maintainerTheme),
+            label: themeDisplayLabel(maintainerTheme, t),
+          };
           return (
             <ThemeLibraryCard
               activeModes={pickedModesFor(maintainerTheme.id)}
@@ -822,7 +827,7 @@ export function ThemeLibrary({
                 openThemeEditor({
                   editingThemeId: null,
                   seedThemeId: maintainerTheme.id,
-                  seedName: `${maintainerTheme.label} copy`,
+                  seedName: `${card.label} copy`, // fork: translated name
                   initialAppearance,
                 })
               }
