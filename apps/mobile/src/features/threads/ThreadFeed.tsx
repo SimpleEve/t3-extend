@@ -2068,7 +2068,6 @@ function renderFeedEntry(
       <View className="mb-1 flex-row items-center border-b border-border-subtle px-2">
         {entry.workingSince ? (
           <RunFoldWorking
-            t={t}
             environmentId={props.environmentId}
             startedAt={entry.workingSince}
             rowSizing={props.workRowSizing}
@@ -2106,9 +2105,7 @@ function renderFeedEntry(
       <ThreadThinkingRow
         rowSizing={props.workRowSizing}
         iconSubtleColor={iconSubtleColor}
-        label={
-          entry.label === "Starting…" || entry.label === "Sending…" ? t(entry.label) : entry.label
-        } // fork: i18n, only the two labels the pending turn writes
+        label={entry.label}
         providerStartingLabel={entry.providerStartingLabel}
       />
     );
@@ -3585,7 +3582,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
         };
       }
       const target = resolveFileChipTarget(href, props.workspaceRoot);
-      return target ? fileChipMenu(target, t) : undefined;
+      return target ? fileChipMenu(target) : undefined;
     },
     onFileContextMenuAction: (href, actionId, reply) => {
       const skill = enrichedSkillReference(href, props.skills);

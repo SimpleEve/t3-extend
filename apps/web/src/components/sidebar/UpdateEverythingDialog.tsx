@@ -239,9 +239,7 @@ function UpdateEverythingDialogContent({
                         <MiddleTruncate value={row.label} />
                       </span>
                       <span className="wrap-anywhere">
-                        {row.skipped === null
-                          ? null
-                          : t(row.skipped, undefined, "update skip reason")}
+                        {row.skipped}
                       </span>
                     </Fragment>
                   ))}

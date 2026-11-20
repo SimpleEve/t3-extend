@@ -1,29 +1,12 @@
-import type { UiLanguageSetting } from "@t3tools/contracts/settings";
-
 export type UiLocale = "en" | "zh-Hans";
 
 /**
- * Only Simplified Chinese has a catalog. Traditional Chinese tags fall back to
- * English rather than showing Simplified text to a Traditional reader.
+ * The fork's catalog for GT's active locale. GT decides the language from the `language` setting;
+ * the fork only has Simplified Chinese, and GT's `zh` is Simplified, so every other locale reads
+ * the fork's own text in English.
  */
-function resolveSystemUiLocale(systemLanguages: ReadonlyArray<string>): UiLocale {
-  const primary = systemLanguages.find((tag) => tag.trim().length > 0);
-  if (!primary) return "en";
-  const parts = primary.trim().toLowerCase().replaceAll("_", "-").split("-");
-  if (parts[0] !== "zh") return "en";
-  const subtags = parts.slice(1);
-  if (subtags.includes("hant")) return "en";
-  if (subtags.includes("hans")) return "zh-Hans";
-  const region = subtags.find((subtag) => subtag.length === 2);
-  if (region === undefined || region === "cn" || region === "sg") return "zh-Hans";
-  return "en";
-}
-
-export function resolveUiLanguage(
-  setting: UiLanguageSetting,
-  systemLanguages: ReadonlyArray<string>,
-): UiLocale {
-  return setting === "system" ? resolveSystemUiLocale(systemLanguages) : setting;
+export function uiLocaleForLanguage(gtLocale: string): UiLocale {
+  return gtLocale.toLowerCase().split(/[-_]/)[0] === "zh" ? "zh-Hans" : "en";
 }
 
 /** The tag for `Intl` formatters that should follow the interface language, such as month names. */

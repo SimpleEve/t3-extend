@@ -20,9 +20,6 @@ import {
   commandProgramName,
 } from "@t3tools/client-runtime/work-log/command-label";
 import {
-  englishWorkLogPhrase, // fork
-  translateForkNotice, // fork
-  type WorkLogPhraseTranslator, // fork
   liveActivityToolStatus,
   normalizeCompactToolLabel,
   resolveWorkEntryToolPresentation,

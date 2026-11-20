@@ -293,7 +293,6 @@ export function workEntryRowLabel(
   resolve: MessageResolver = m,
 ): string {
   if (entry.itemType === "fork") return entry.label;
-  if (entry.itemType === "system_notice") return translateForkNotice(entry.label, t); // fork: only notices T3 words itself
   if (expanded && entry.itemType === "reasoning")
     return entry.toolLifecycleStatus === "inProgress"
       ? resolve(msg("Thinking"))
@@ -1100,17 +1099,6 @@ function threadFeedActivityIsVisible(
   );
 }
 
-// fork: i18n. The row keeps its English template so the feed translates it when it renders.
-type RunFoldLabelTemplate =
-  | "You stopped after {duration}"
-  | "You stopped this response"
-  | "Worked for {duration}"
-  | "Worked"
-  | "Continued for {duration}"
-  | "Continued"
-  | "Earlier work"
-  | "Working";
-
 interface ThreadFeedRunFold {
   readonly deferredWorkItemIds?: ReadonlyArray<string>;
   readonly runId: RunId;
@@ -1350,8 +1338,7 @@ function deriveThreadFeedRunFolds(
     const duration = elapsedMs === null ? null : formatDuration(elapsedMs, resolve);
     const interrupted =
       latestRunMatches && (latestRun.status === "interrupted" || latestRun.status === "cancelled");
-    // fork: i18n
-    const labelTemplate: RunFoldLabelTemplate = interrupted
+    const label = interrupted
       ? duration
         ? resolve(msg("You stopped after {duration}", { duration }))
         : resolve(msg("You stopped this response"))
@@ -1365,8 +1352,6 @@ function deriveThreadFeedRunFolds(
         runId,
         entries: group.entries.slice(0, group.steerSegments[0]?.startIndex),
         label,
-        labelTemplate,
-        duration,
       },
       ...group.steerSegments.map(({ startIndex, steer }, index) => {
         const entries = group.entries.slice(startIndex, group.steerSegments[index + 1]?.startIndex);
@@ -1376,10 +1361,6 @@ function deriveThreadFeedRunFolds(
             .map((entry) => (entry.type === "message" ? entry.message.updatedAt : entry.createdAt))
             .reduce<string | null>(maxIsoTimestamp, null) ?? steer.createdAt,
         );
-        const segmentDuration = segmentMs !== null ? formatDuration(segmentMs) : null;
-        const segmentTemplate: RunFoldLabelTemplate = segmentDuration
-          ? "Continued for {duration}"
-          : "Continued";
         return {
           runId: steerFoldRunId(runId, steer.id),
           entries,
@@ -1412,8 +1393,6 @@ function deriveThreadFeedRunFolds(
           segment.entries.flatMap((entry) => (hiddenEntryIds.has(entry.id) ? [entry.id] : [])),
         ),
         label: segment.label,
-        labelTemplate: segment.labelTemplate,
-        duration: segment.duration,
       });
     }
   }
@@ -2588,7 +2567,6 @@ export function buildThreadFeed(
   let restartIndex = -1;
   if (
     previous !== null &&
-    previous.t === t &&
     anchoredMessages.length === 0 &&
     previous.locale === locale &&
     previous.attempts === options?.attempts &&
@@ -2824,7 +2802,6 @@ export function buildThreadFeed(
             checkpointSummaries: options?.checkpointSummaries,
             foldedAnswerRunIdByMessageId,
             delegatedChildrenByRun,
-            t,
             feed,
             restarts,
           };

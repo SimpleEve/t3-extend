@@ -22,10 +22,6 @@ export async function prepareLocalTrackSwitch(
   | { readonly ok: true; readonly local: DesktopUpdateState | null }
   | { readonly ok: false; readonly message: string }
 > {
-  const t =
-    input.t ??
-    ((source: string, params?: Readonly<Record<string, string | number>>) =>
-      interpolate(source, params)); // fork: i18n
   let local: DesktopUpdateState;
   try {
     // A build on another track re-checks the feed, older releases allowed down to the checked one.

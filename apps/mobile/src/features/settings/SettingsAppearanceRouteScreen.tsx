@@ -10,6 +10,7 @@ import { TerminalAppearanceSection } from "./appearance/sections/TerminalAppeara
 import { TextAppearanceSection } from "./appearance/sections/TextAppearanceSection";
 import { ThemeAppearanceSection } from "./appearance/sections/ThemeAppearanceSection";
 import { ToolCallsAppearanceSection } from "./appearance/sections/ToolCallsAppearanceSection";
+import { LanguageSettingsSection } from "./SettingsLanguageRouteScreen"; // fork: Appearance keeps its language entry
 
 export function SettingsAppearanceRouteScreen() {
   const gt = useGT();
@@ -26,7 +27,7 @@ export function SettingsAppearanceRouteScreen() {
           paddingBottom: Math.max(insets.bottom, 18) + 18,
         }}
       >
-        <LanguageAppearanceSection />
+        <LanguageSettingsSection /> {/* fork: also under General, as upstream has it */}
         <ThemeAppearanceSection />
         {Platform.OS === "android" ? <AndroidNavigationAppearanceSection /> : null}
         <TextAppearanceSection />

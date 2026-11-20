@@ -84,9 +84,7 @@ describe("file chip downloads", () => {
     for (const href of ["src/app.ts", "/tmp/archive.7z", "/tmp/clip.mp4.txt"]) {
       const target = resolveFileChipTarget(href, "/repo")!;
       expect(fileChipShareSource(target, threadId)).toBeNull();
-      expect(
-        fileChipMenu(target, translatorFor("en")).actions.some(({ id }) => id === "save"),
-      ).toBe(false);
+      expect(fileChipMenu(target).actions.some(({ id }) => id === "save")).toBe(false);
     }
   });
 });

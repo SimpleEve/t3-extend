@@ -17,11 +17,6 @@ export async function confirmTerminalClose(
   const localApi = readLocalApi();
   if (!localApi) return true;
   pendingConfirmations += 1;
-  const locale = getUiLocale();
-  // fork: i18n. Show the generated "Terminal N" name in the interface language.
-  const localize = (label: string) =>
-    localizeTerminalLabel(label, (source, params) => translate(locale, source, params));
-  const names = labels.map(localize);
   try {
     let shouldConfirm = true;
     try {

@@ -294,7 +294,7 @@ function SidebarThreadTooltip({
   return (
     <ThreadHoverCardPopup side="right" align="start" sideOffset={4}>
       <ThreadHoverCard
-        title={threadDisplayTitle(thread.title, t)}
+        title={thread.title}
         footer={
           supportsMultiplePullRequests && thread.pullRequests.length > 0 ? (
             <div className="border-t border-border/60 pt-2 pl-0.5 text-xs text-muted-foreground">
@@ -1064,7 +1064,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     ) : null;
 
   const accessibility = resolveSidebarRowAccessibility({
-    title: shownTitle,
+    title: thread.title,
     statusLabel: topStatus?.label ?? null,
     projectDisplayName: props.projectDisplayName,
     isActive: props.isActive,
@@ -1105,11 +1105,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       : "text-secondary-label/70",
               ),
       )}
-      dir={textDirection(shownTitle)}
+      dir={textDirection(thread.title)}
     >
-      {shownTitle}
+      {thread.title}
       {isRegeneratingTitle ? (
-        <ActivityShimmerOverlay className="truncate">{shownTitle}</ActivityShimmerOverlay>
+        <ActivityShimmerOverlay className="truncate">{thread.title}</ActivityShimmerOverlay>
       ) : null}
     </span>
   );
@@ -1798,10 +1798,8 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
   const messages = useMessages();
   const thread =
     useThreadShell(scopeThreadRef(props.thread.environmentId, props.thread.id)) ?? props.thread;
-  const t = useT(); // fork: interface language
-  const shownTitle = threadDisplayTitle(thread.title, t);
   const accessibility = resolveSidebarRowAccessibility({
-    title: shownTitle,
+    title: thread.title,
     statusLabel: null,
     projectDisplayName: props.projectDisplayName,
     isActive: props.isRouteActive,
@@ -1944,9 +1942,9 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
                       : "text-foreground",
                 )}
               >
-                {shownTitle}
+                {thread.title}
                 {isRegeneratingTitle ? (
-                  <ActivityShimmerOverlay className="truncate">{shownTitle}</ActivityShimmerOverlay>
+                  <ActivityShimmerOverlay className="truncate">{thread.title}</ActivityShimmerOverlay>
                 ) : null}
               </span>
               <span id={`${props.resultId}-pr`} className="contents">

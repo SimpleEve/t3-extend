@@ -19,8 +19,6 @@ import {
 } from "./PullRequestMarkdownTextarea";
 import { pullRequestReviewKey } from "./pullRequestReviewStore";
 import { useInlineActionConfirm } from "./useInlineActionConfirm";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { changeRequestTerm } from "./changeRequestTerm";
 
 import { changeRequestTermKind } from "./changeRequestTerm";
 

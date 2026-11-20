@@ -15,8 +15,6 @@ import {
   usePullRequestReviewStore,
 } from "./pullRequestReviewStore";
 import { pullRequestCompletionScope } from "./PullRequestMarkdownTextarea";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { changeRequestTerm } from "./changeRequestTerm";
 
 import { changeRequestTermKind } from "./changeRequestTerm";
 

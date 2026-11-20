@@ -45,7 +45,6 @@ import {
   getDesktopUpdateInstallConfirmationMessage,
   isDesktopUpdateButtonDisabled,
   resolveDesktopUpdateButtonAction,
-  getDesktopUpdateMessage,
 } from "../../components/desktopUpdate.logic";
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
 import { TraitsPicker } from "../chat/TraitsPicker";
@@ -146,16 +145,16 @@ const RESPONSE_STREAMING_MODE_DESCRIPTIONS: Record<ResponseStreamingMode, string
 };
 
 const SIDEBAR_PROJECT_SORT_ORDER_LABELS: Record<SidebarProjectSortOrder, string> = {
-  updated_at: "Last user message",
-  created_at: "Created at",
-  manual: "Manual",
+  updated_at: msg("Last user message"),
+  created_at: msg("Created at"),
+  manual: msg("Manual"),
 };
 const isSidebarProjectSortOrder = Schema.is(SidebarProjectSortOrder);
 
 const TIMESTAMP_FORMAT_LABELS = {
-  locale: "System default",
-  "12-hour": "12-hour",
-  "24-hour": "24-hour",
+  locale: msg("System default"),
+  "12-hour": msg("12-hour"),
+  "24-hour": msg("24-hour"),
 };
 
 const DIFF_LAYOUT_LABELS: Record<DiffLayout, string> = {
@@ -164,9 +163,9 @@ const DIFF_LAYOUT_LABELS: Record<DiffLayout, string> = {
 };
 
 const QUIT_CONFIRMATION_MODE_LABELS: Record<QuitConfirmationMode, string> = {
-  direct: "Direct",
-  hold: "Hold",
-  "double-click": "Double press",
+  direct: msg("Direct"),
+  hold: msg("Hold"),
+  "double-click": msg("Double press"),
 };
 
 const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
@@ -237,7 +236,6 @@ function AboutVersionSection() {
         confirmed = await ensureLocalApi().dialogs.confirm(
           getDesktopUpdateInstallConfirmationMessage(
             updateState ?? { availableVersion: null, downloadedVersion: null },
-            t,
           ),
           { initialFocus: "confirm" },
         );
@@ -521,7 +519,6 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.timestampFormat !== DEFAULT_UNIFIED_SETTINGS.timestampFormat
       ? [gt("Time format")]
       : []),
-    ...(settings.uiLanguage !== DEFAULT_UNIFIED_SETTINGS.uiLanguage ? ["Language"] : []), // fork
     ...(settings.notificationMode !== DEFAULT_UNIFIED_SETTINGS.notificationMode
       ? [gt("Thread notifications")]
       : []),
@@ -836,6 +833,9 @@ export function GeneralSettingsPanel() {
   const setting = useSearchableSetting();
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
+  const languageValue = SUPPORTED_LOCALES.includes(settings.language)
+    ? settings.language
+    : SYSTEM_LANGUAGE;
   const lastEnabledProjectGroupingMode = useRef<SidebarProjectGroupingMode>(
     readLastEnabledProjectGroupingMode(),
   );

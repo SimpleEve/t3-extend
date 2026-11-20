@@ -188,7 +188,7 @@ export function HardwareKeyboardCommandProvider({
         navigation.navigate("ThreadReview", thread);
       }
     },
-    [copyTarget, navigation, pathname, showCopyFeedback, t],
+    [copyTarget, navigation, pathname, showCopyFeedback],
   );
 
   const palette = useMemo(

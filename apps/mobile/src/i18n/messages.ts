@@ -1,5 +1,7 @@
 import { decodeOptions, getReactI18nCache, gtFallback, type useMessages } from "gt-react-native";
 
+import { setUiLocale, uiLocaleForLanguage } from "@t3tools/client-runtime/i18n"; // fork: fork copy
+
 import { DEFAULT_LOCALE } from "./locales";
 
 export type MessageResolver = ReturnType<typeof useMessages>;
@@ -9,6 +11,7 @@ let activeLocale = DEFAULT_LOCALE;
 /** I18nProvider calls this once the locale's catalog is in GT's cache. */
 export function setActiveLocale(locale: string): void {
   activeLocale = locale;
+  void setUiLocale(uiLocaleForLanguage(locale)); // fork: the fork's t() follows GT's locale
 }
 
 function resolve(message: string, variables: Parameters<MessageResolver>[1] = {}): string {

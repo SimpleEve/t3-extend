@@ -95,7 +95,7 @@ const NETWORK: ZipFailure = {
   title: msg("Couldn't download this ZIP"),
   detail: msg("Check the connection to this environment and try again."),
   retry: true,
-});
+};
 
 class ZipFailureError extends Schema.TaggedError<ZipFailureError>()("ZipFailureError", {
   failure: ZipFailure,
@@ -123,7 +123,7 @@ async function readArchiveBody(
       const { value, done } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > ARCHIVE_MAX_BYTES) throw new ZipFailureError({ failure: tooLarge() });
+      if (size > ARCHIVE_MAX_BYTES) throw new ZipFailureError({ failure: TOO_LARGE });
       chunks.push(value);
       onProgress(size);
     }
@@ -204,28 +204,24 @@ function useZipArchive(input: {
     // oxlint-disable-next-line react/set-state-in-effect -- A new archive load resets its progress.
     setState({ status: "loading", receivedBytes: 0, timeLeft: null });
     void (async () => {
-      if (sizeBytes > ARCHIVE_MAX_BYTES) throw new ZipFailureError({ failure: tooLarge() });
+      if (sizeBytes > ARCHIVE_MAX_BYTES) throw new ZipFailureError({ failure: TOO_LARGE });
       if (isLocal) {
         const file = new File(uri);
-        if ((file.size ?? 0) > ARCHIVE_MAX_BYTES)
-          throw new ZipFailureError({ failure: tooLarge() });
+        if ((file.size ?? 0) > ARCHIVE_MAX_BYTES) throw new ZipFailureError({ failure: TOO_LARGE });
         return openArchive(await file.arrayBuffer());
       }
       const url = (await refresh()) ?? uri;
       const response = await fetch(url, { signal: abort.signal });
-      if (!response.ok || !response.body) throw new ZipFailureError({ failure: networkFailure() });
+      if (!response.ok || !response.body) throw new ZipFailureError({ failure: NETWORK });
       const bytes = await readArchiveBody(response.body, (receivedBytes) =>
         setState({
           status: "loading",
           receivedBytes,
-          timeLeft: zipDownloadTimeLeft(
-            {
-              receivedBytes,
-              totalBytes: sizeBytes,
-              elapsedMs: Date.now() - startedAt,
-            },
-            translatorFor(getUiLocale()), // fork: i18n, recomputed on every chunk
-          ),
+          timeLeft: zipDownloadTimeLeft({
+            receivedBytes,
+            totalBytes: sizeBytes,
+            elapsedMs: Date.now() - startedAt,
+          }),
         }),
       );
       abort.signal.throwIfAborted();
@@ -238,7 +234,7 @@ function useZipArchive(input: {
         if (!abort.signal.aborted)
           setState({
             status: "failed",
-            failure: isZipFailureError(cause) ? cause.failure : networkFailure(),
+            failure: isZipFailureError(cause) ? cause.failure : NETWORK,
           });
       });
     return () => abort.abort();
@@ -249,7 +245,7 @@ function useZipArchive(input: {
     retry: () => setRevision((value) => value + 1),
     cancel: () => {
       controller.current?.abort();
-      setState({ status: "failed", failure: cancelled() });
+      setState({ status: "failed", failure: CANCELLED });
     },
   };
 }

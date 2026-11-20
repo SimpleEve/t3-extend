@@ -476,14 +476,6 @@ export function MobileEnrichedMarkdownText(props: SelectableMarkdownTextProps) {
           enableTaskListItemToggle={props.onTaskListItemPress !== undefined}
           onTaskListItemPress={props.onTaskListItemPress}
           enableCodeBlockWrapToggle
-          // fork: i18n, native reads these labels from props
-          accessibilityLabels={{
-            codeBlock: { wrap: t("Wrap lines"), unwrap: t("Disable line wrap") },
-          }}
-          selectionMenuConfig={{
-            copy: { label: t("Copy") },
-            copyAsMarkdown: { label: t("Copy as Markdown") },
-          }}
           spoilerOverlay="solid"
           onLinkPress={
             props.onLinkPress || props.onImagePress ? ({ url }) => onLinkPress(url) : undefined

@@ -4,7 +4,6 @@ import {
   normalizedReviewState,
   pullRequestChecksSummary,
   pullRequestReviewSummary,
-  pullRequestStatus,
 } from "./pullRequestStatus";
 
 const author = { login: "julius", name: null, avatarUrl: null };
@@ -37,7 +36,6 @@ describe("mobile overview review status", () => {
         review("CHANGES_REQUESTED", "2026-10-10T10:00:00Z"),
         review("APPROVED", "2026-10-10T09:00:00Z"),
       ]),
-      t,
     );
     expect(result.title).toBe("Changes requested");
     expect(result.reviews).toHaveLength(1);
@@ -49,7 +47,6 @@ describe("mobile overview review status", () => {
       pullRequestReviewSummary(
         { reviewers: [] },
         activity([approved, review("DISMISSED", "2026-10-10T10:00:00Z")]),
-        t,
       ).reviews,
     ).toEqual([]);
     const result = pullRequestReviewSummary(
@@ -60,7 +57,6 @@ describe("mobile overview review status", () => {
           { oid: "abc123", messageHeadline: "Update", committedDate: "2026-10-10T10:00:00Z" },
         ],
       },
-      t,
     );
     expect(result.title).toBe("Awaiting review");
   });
@@ -72,7 +68,6 @@ describe("mobile overview review status", () => {
         review("approved", "2026-10-10T09:00:00Z"),
         review("COMMENTED", "2026-10-10T10:00:00Z"),
       ]),
-      t,
     );
     expect(result.title).toBe("Approved by julius");
     expect(result.reviews).toHaveLength(1);
@@ -80,7 +75,6 @@ describe("mobile overview review status", () => {
       pullRequestReviewSummary(
         { reviewers: [] },
         activity([review("changes-requested", "2026-10-10T11:00:00Z")]),
-        t,
       ).title,
     ).toBe("Changes requested");
   });
@@ -101,33 +95,10 @@ describe("mobile review state spelling", () => {
 describe("mobile overview check status", () => {
   it("prioritizes failed checks while others are running", () => {
     expect(
-      pullRequestChecksSummary(
-        { checks: [check("success"), check("pending"), check("failure")] },
-        t,
-      ),
+      pullRequestChecksSummary({ checks: [check("success"), check("pending"), check("failure")] }),
     ).toMatchObject({ title: "1 check failing", count: "1 of 3" });
     expect(
-      pullRequestChecksSummary({ checks: [check("success"), check("cancelled")] }, t),
+      pullRequestChecksSummary({ checks: [check("success"), check("cancelled")] }),
     ).toMatchObject({ title: "1 check failing", tint: "accent-danger-foreground" });
-  });
-
-  it("follows the translator it is given", async () => {
-    await loadUiCatalog("zh-Hans");
-    const checks = { checks: [check("success"), check("success")] };
-    expect(pullRequestChecksSummary(checks, t).title).toBe("All checks passed");
-    expect(pullRequestChecksSummary(checks, translatorFor("zh-Hans")).title).toBe(
-      "所有检查都已通过",
-    );
-  });
-});
-
-describe("pullRequestStatus", () => {
-  it("names the state as a state, not the Open action", async () => {
-    expect(pullRequestStatus({ state: "open", isDraft: false }, t).label).toBe("Open");
-    await loadUiCatalog("zh-Hans");
-    const zh = translatorFor("zh-Hans");
-    expect(pullRequestStatus({ state: "open", isDraft: false }, zh).label).toBe("开放");
-    expect(pullRequestStatus({ state: "open", isDraft: true }, zh).label).toBe("草稿");
-    expect(pullRequestStatus({ state: "closed", isDraft: false }, zh).label).toBe("已关闭");
   });
 });

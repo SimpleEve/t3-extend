@@ -809,10 +809,10 @@ export function NewTaskDraftScreen(props: {
             className="min-w-0 max-w-[250px] border-b border-foreground-muted active:opacity-65"
           >
             <Text
-              key={line.before}
-              className="text-center text-2xl font-t3-medium tracking-tight text-foreground"
+              className="text-2xl font-t3-medium tracking-tight text-foreground"
+              numberOfLines={1}
             >
-              {line.before}
+              {selectedProjectLabel ?? selectedProject.title}
             </Text>
           </Pressable>
           <Text className="text-2xl font-t3-medium tracking-tight text-foreground">
@@ -1044,7 +1044,6 @@ export function NewTaskDraftScreen(props: {
         contentPresentation={{ kind: "ready" }}
         screenTone={connectionTone(
           connectionState,
-          t,
           environmentRuntime?.connectionAwaitingApproval === true,
           m,
         )}

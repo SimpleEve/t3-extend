@@ -189,7 +189,7 @@ function SubagentMetadata(props: {
         <View
           key={label}
           collapsable={false}
-          accessibilityLabel={labelWithDetail(label, value, t)}
+          accessibilityLabel={`${label}: ${value}`}
           className="min-w-0 shrink flex-row items-center gap-1.5"
         >
           <Text className="text-xs text-foreground-muted">·</Text>

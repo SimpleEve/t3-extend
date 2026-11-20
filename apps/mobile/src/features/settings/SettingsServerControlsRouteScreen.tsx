@@ -35,7 +35,7 @@ import { SettingsProjectOverridesSection } from "./components/SettingsProjectOve
 import { useSettingsEnvironmentFilter } from "./settings-environment-filter";
 import { useSettingsWriter } from "./useSettingsWriter";
 import {
-  managedSettingOrganization,
+  managedSettingReason,
   planMobileScopedSettingsClear,
   planMobileScopedSettingsPatch,
   resolveMobileSettingsTargets,

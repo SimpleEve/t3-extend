@@ -105,7 +105,7 @@ function LookSlider({
       description={description}
       resetAction={
         value !== undefined ? (
-          <SettingResetButton label={title} onClick={() => onChange(undefined)} />
+          <SettingResetButton ariaLabel={t("Reset {label} to default", { label: t(title) })} onClick={() => onChange(undefined)} />
         ) : null
       }
       control={
@@ -184,7 +184,7 @@ function FontStackRow({
       resetAction={
         value !== undefined ? (
           <SettingResetButton
-            label={title}
+            ariaLabel={t("Reset {label} to default", { label: t(title) })}
             onClick={() => {
               setCustom("");
               setCustomOpen(false);
@@ -635,7 +635,7 @@ function LayoutSection({ studio }: { studio: Studio }) {
         resetAction={
           chatWidth !== undefined ? (
             <SettingResetButton
-              label="Chat width"
+              ariaLabel={t("Reset {label} to default", { label: t("Chat width") })}
               onClick={() => studio.setLook("chatWidth", undefined)}
             />
           ) : null

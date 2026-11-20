@@ -434,14 +434,6 @@ describe("pull request timeline", () => {
         .map((event) => event.title);
     expect(titles("github")).toEqual(["Pull request closed", "opened this pull request"]);
     expect(titles("gitlab")).toEqual(["Merge request closed", "opened this merge request"]);
-    const translated = buildPullRequestTimeline(
-      { ...TIMELINE_SOURCE, closedAt: "2026-07-04T00:00:00Z" },
-      (source, params, context) =>
-        context === "change request" ? "PR" : `[${interpolate(source, params)}]`,
-    )
-      .filter((event) => event.kind === "opened" || event.kind === "closed")
-      .map((event) => event.title);
-    expect(translated).toEqual(["[PR closed]", "[opened this PR]"]);
   });
 
   it("groups conversation sections without crossing commits or PR updates", () => {

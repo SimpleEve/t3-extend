@@ -175,9 +175,7 @@ export function PullRequestLinkPreview({
                       <>
                         <span aria-hidden>·</span>
                         <span className="shrink-0">
-                          {interpolateNodes(t("opened {time}"), {
-                            time: <RelativeTime timestamp={preview.createdAt} />,
-                          })}
+                          opened <RelativeTime timestamp={preview.createdAt} />
                         </span>
                       </>
                     )}

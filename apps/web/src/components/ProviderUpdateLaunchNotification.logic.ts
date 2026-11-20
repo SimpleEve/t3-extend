@@ -83,9 +83,6 @@ function dedupeProvidersByDriver<T extends ServerProvider>(providers: ReadonlyAr
   return [...latestProviderByDriver.values()];
 }
 
-// fork: English when no translator is passed.
-const english = translatorFor("en");
-
 function getProviderUpdatedTitle(
   provider: Pick<ServerProvider, "driver" | "version" | "installedVersion">,
   resolve: MessageResolver,

@@ -158,6 +158,7 @@ import {
   SettingsSection,
   SETTINGS_PICKER_TRIGGER_CLASSNAME,
 } from "./settingsLayout";
+import { formatRelativeTime } from "../../timestampFormat";
 
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
 const WEEKDAY_SHORT = [
@@ -1625,8 +1626,7 @@ function ScheduledTaskEditorForm({
     }
     const schedule = scheduleFromDraft(draft);
     if (schedule === null) {
-      for (const error of scheduleDraftErrors(draft, t))
-        reportFailure(error.title, error.description);
+      for (const error of scheduleDraftErrors(draft)) reportFailure(error.title, error.description);
       return;
     }
     if (

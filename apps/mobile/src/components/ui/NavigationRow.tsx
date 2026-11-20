@@ -31,7 +31,7 @@ export function NavigationRow({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={joinLabelParts([title, subtitle], t)}
+      accessibilityLabel={[title, subtitle].filter(Boolean).join(", ")}
       android_ripple={{ color: themeVariables["--color-subtle-strong"] }}
       unstable_pressDelay={Platform.OS === "android" ? 50 : undefined}
       {...props}

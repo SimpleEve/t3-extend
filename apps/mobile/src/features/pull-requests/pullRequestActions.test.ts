@@ -57,13 +57,13 @@ describe("mobile pull request actions", () => {
         "merge",
       ),
     ).toBe(false);
-    expect(mergeUnavailableReason(detail(), false, GITHUB, t)).toContain("read-only");
+    expect(mergeUnavailableReason(detail(), false, GITHUB)).toContain("read-only");
   });
 
   it("blocks a conflicting PR's immediate merge and explains why", () => {
     const pr = detail({ mergeability: "conflicting" });
     expect(canPerformPullRequestAction(pr, "merge")).toBe(false);
-    expect(mergeUnavailableReason(pr, true, GITHUB, t)).toContain("conflicts");
+    expect(mergeUnavailableReason(pr, true, GITHUB)).toContain("conflicts");
   });
 
   it("picks the chosen, project default, then last used merge method the repository allows", () => {
@@ -83,20 +83,11 @@ describe("mobile pull request actions", () => {
   });
 
   it("names the change request with its host's term", () => {
-    expect(pullRequestActionLabel("close", GITHUB, t)).toBe("Close pull request");
-    expect(pullRequestActionLabel("close", GITLAB, t)).toBe("Close merge request");
-    expect(pullRequestActionLabel("revert", GITLAB, t)).toBe("Create revert merge request");
-    expect(mergeUnavailableReason(detail({ state: "merged" }), true, GITLAB, t)).toBe(
+    expect(pullRequestActionLabel("close", GITHUB)).toBe("Close pull request");
+    expect(pullRequestActionLabel("close", GITLAB)).toBe("Close merge request");
+    expect(pullRequestActionLabel("revert", GITLAB)).toBe("Create revert merge request");
+    expect(mergeUnavailableReason(detail({ state: "merged" }), true, GITLAB)).toBe(
       "This merge request has been merged.",
     );
-  });
-
-  it("follows the translator it is given", async () => {
-    await loadUiCatalog("zh-Hans");
-    const zh = translatorFor("zh-Hans");
-    expect(pullRequestActionLabel("reopen", GITHUB, t)).toBe("Reopen pull request");
-    expect(pullRequestActionLabel("reopen", GITHUB, zh)).toBe("重新打开 PR");
-    expect(pullRequestActionLabel("close", GITLAB, zh)).toBe("关闭 MR");
-    expect(mergeUnavailableReason(detail(), false, GITHUB, zh)).toBe("这个环境连接是只读的。");
   });
 });

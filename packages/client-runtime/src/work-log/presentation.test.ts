@@ -3,13 +3,8 @@ import { describe, expect, it } from "vite-plus/test";
 import { ThreadId, TurnItemId, type OrchestrationV2TurnItem } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 
-import zhHans from "../i18n/catalogs/zh-Hans/index.ts";
-import { __setUiCatalogForTests } from "../i18n/translate.ts";
-import { translatorFor } from "../i18n/store.ts";
-import { subagentGroupSummary, summarizeSubagentStatuses } from "../state/subagentDisplay.ts";
 import {
   resolveWorkEntryToolPresentation,
-  summarizeToolGroup,
   toolItemForDisplay,
   type WorkLogPresentationEntry,
   workEntryIndicatesToolFailure,
@@ -207,93 +202,5 @@ describe("resolveWorkEntryToolPresentation", () => {
         toolData: { server: "another-server", tool: "preview_click" },
       }),
     ).toBeNull();
-  });
-});
-
-// fork: summaries take an optional translator; English output must not change without one.
-describe("tool summaries in the interface language", () => {
-  const tool = (
-    id: string,
-    fields: Partial<WorkLogPresentationEntry>,
-  ): WorkLogPresentationEntry => ({
-    id,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    label: "Tool",
-    tone: "tool",
-    toolLifecycleStatus: "completed",
-    ...fields,
-  });
-  const read = (id: string) => tool(id, { requestKind: "file-read", label: "Read" });
-  const command = (id: string) => tool(id, { itemType: "command_execution", command: "ls" });
-  const integration = (id: string, name: string) =>
-    tool(id, { toolSource: { key: name, name, kind: "integration" } });
-  const zh = () => {
-    __setUiCatalogForTests("zh-Hans", zhHans);
-    return translatorFor("zh-Hans");
-  };
-
-  it.each([
-    [[command("a")], "Ran 1 command", "运行了 1 条命令"],
-    [
-      [command("a"), command("b"), read("c")],
-      "Ran 2 commands and read 1 file",
-      "运行了 2 条命令，读取了 1 个文件",
-    ],
-    [
-      [integration("a", "Linear"), integration("b", "Slack"), command("c")],
-      "Used Linear and Slack integrations and ran 1 command",
-      "使用了 Linear 和 Slack 集成，运行了 1 条命令",
-    ],
-    [
-      [
-        integration("a", "Linear"),
-        command("b"),
-        tool("c", { itemType: "web_search" }),
-        tool("d", {}),
-      ],
-      "Used Linear integration, ran 1 command, searched the web 1 time, and performed 1 other action",
-      "使用了 Linear 集成，运行了 1 条命令，搜索了 1 次网页，执行了另外 1 个操作",
-    ],
-    [
-      [tool("a", { itemType: "reasoning" }), tool("b", { itemType: "reasoning" })],
-      "Thought (×2)",
-      "已思考（×2）",
-    ],
-  ] as const)("summarizes %#", (entries, english, chinese) => {
-    expect(summarizeToolGroup(entries).summary).toBe(english);
-    expect(summarizeToolGroup(entries, zh()).summary).toBe(chinese);
-  });
-
-  it.each([
-    ["inProgress", "Reading a project", "正在读取 项目"],
-    ["completed", "Read a project", "已读取 项目"],
-    ["failed", "Failed to read a project", "未能读取 项目"],
-    ["declined", "Declined to read a project", "已拒绝读取 项目"],
-    ["stopped", "Stopped reading a project", "已停止：正在读取 项目"],
-  ] as const)("names a %s T3 tool call", (toolLifecycleStatus, english, chinese) => {
-    const entry = {
-      label: "t3_project_read",
-      toolTitle: "t3_project_read",
-      toolData: { toolName: "t3_project_read" },
-      toolLifecycleStatus,
-    } as const;
-    expect(resolveWorkEntryToolPresentation(entry)?.displayName).toBe(english);
-    expect(resolveWorkEntryToolPresentation(entry, undefined, zh())?.displayName).toBe(chinese);
-  });
-
-  it("labels subagent groups and their statuses", () => {
-    const members = [{ status: "running" }, { status: "completed" }, { status: "failed" }] as const;
-    expect(subagentGroupSummary(members).label).toBe("Kicked off 3 subagents");
-    expect(subagentGroupSummary([{ status: "completed" }]).label).toBe("Ran 1 subagent");
-    expect(summarizeSubagentStatuses(members.map(({ status }) => status))).toBe(
-      "1 working · 1 done · 1 failed",
-    );
-    expect(subagentGroupSummary(members, zh()).label).toBe("启动了 3 个子 Agent");
-    expect(
-      summarizeSubagentStatuses(
-        members.map(({ status }) => status),
-        zh(),
-      ),
-    ).toBe("1 个运行中 · 1 个已完成 · 1 个失败");
   });
 });

@@ -220,10 +220,8 @@ export function SettingsSection({
   children,
   className,
   ...sectionProps
-}: Omit<ComponentPropsWithoutRef<"section">, "title"> & {
-  // fork: i18n
-  /** A string is translated; wrap the user's own text in `verbatim()`. */
-  title: ReactNode;
+}: ComponentPropsWithoutRef<"section"> & {
+  title: string;
   hideTitle?: boolean;
   icon?: ReactNode;
   titleAction?: ReactNode;
@@ -279,8 +277,7 @@ export function SettingsUnavailableGroup({
     <div className="border-border/60 bg-muted/20 py-1.5">
       <div className="flex items-start gap-2 px-3 py-2 text-xs leading-relaxed text-muted-foreground sm:px-4">
         <InfoIcon className="mt-0.5 size-3.5 shrink-0 text-warning" />
-        {/* fork: callers pass fixed English notices. */}
-        <p>{typeof message === "string" ? t(message) : message}</p>
+        <p>{message}</p>
       </div>
       <div className="[&_h3]:opacity-64 [&_p]:opacity-64">{children}</div>
     </div>
@@ -541,9 +538,7 @@ export function SettingsRow({
       <div className="flex flex-col gap-3 @min-[32rem]/settings-row:grid @min-[32rem]/settings-row:grid-cols-[minmax(0,1fr)_auto] @min-[32rem]/settings-row:items-center @min-[32rem]/settings-row:gap-8">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex min-h-5 items-center gap-1.5">
-            <h3 className="text-sm font-medium text-foreground">
-              {typeof title === "string" ? t(title) : title}
-            </h3>
+            <h3 className="text-sm font-medium text-foreground">{title}</h3>
             {renderedInheritance ? (
               <span
                 className={cn(

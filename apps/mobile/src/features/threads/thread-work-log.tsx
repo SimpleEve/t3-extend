@@ -882,9 +882,6 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
     readonly expanded: boolean;
   },
 ) {
-  const t = useT();
-  const locale = useUiLocale(); // fork: times follow the interface language
-  const formatTag = uiFormatLocale(locale);
   const { row, expanded } = props;
   const gt = useGT();
   const messages = useMessages();
@@ -904,15 +901,12 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
     const resetAt = failureItem.failure.resetAt;
     // The reset time is the viewer's local time; naming the zone keeps it unambiguous.
     const resetTime = resetAt
-      ? `${new Date(resetAt).toLocaleString(
-          formatTag,
-          uiFormatOptions(locale, {
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          }),
-        )} (${new Intl.DateTimeFormat().resolvedOptions().timeZone})`
+      ? `${new Date(resetAt).toLocaleString(undefined, {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })} (${new Intl.DateTimeFormat().resolvedOptions().timeZone})`
       : null;
     const label = warning
       ? resetTime
@@ -956,18 +950,15 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
               </Text>
             ) : null}
             <Text
-              accessibilityLabel={timestamp.toLocaleString(formatTag, uiFormatOptions(locale))}
+              accessibilityLabel={timestamp.toLocaleString()}
               className="shrink-0 text-xs text-foreground-subtle"
             >
-              {timestamp.toLocaleString(
-                formatTag,
-                uiFormatOptions(locale, {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                }),
-              )}
+              {timestamp.toLocaleString(undefined, {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
             </Text>
           </View>
           {!warning ? (

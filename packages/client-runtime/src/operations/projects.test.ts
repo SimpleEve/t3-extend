@@ -2,13 +2,7 @@ import { SourceControlProviderKind } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 import { EnvironmentId, ProjectId } from "@t3tools/contracts";
 
-import * as Option from "effect/Option";
-
-import zhHans from "../i18n/catalogs/zh-Hans/index.ts";
-import { translatorFor } from "../i18n/store.ts";
-import { __setUiCatalogForTests } from "../i18n/translate.ts";
 import {
-  buildAddProjectRemoteSourceReadiness,
   findExistingAddProject,
   getCloneDestinationForPickedFolder,
   getCloneDestinationPath,
@@ -23,57 +17,6 @@ import {
 } from "./projects.ts";
 import type { EnvironmentProject } from "../state/models.ts";
 import { isFilesystemBrowseQuery } from "../state/projects.ts";
-
-describe("add project source readiness", () => {
-  const provider = (
-    kind: string,
-    status: "available" | "missing",
-    authStatus: "authenticated" | "unauthenticated",
-  ) => ({
-    kind: SourceControlProviderKind.make(kind),
-    label: kind === "bitbucket" ? "Bitbucket" : "GitLab",
-    status,
-    version: Option.none(),
-    installHint: "Add a Bitbucket token in Settings → Source control & issues.",
-    detail: Option.none(),
-    auth: {
-      status: authStatus,
-      account: Option.none(),
-      host: Option.none(),
-      detail: Option.none(),
-    },
-  });
-  const discovery = {
-    versionControlSystems: [],
-    sourceControlProviders: [
-      provider("bitbucket", "missing", "unauthenticated"),
-      provider("gitlab", "available", "unauthenticated"),
-    ],
-  };
-
-  it("keeps the English hints without a translator and translates them with one", () => {
-    const english = buildAddProjectRemoteSourceReadiness(discovery);
-    expect(english(SourceControlProviderKind.make("bitbucket")).hint).toBe(
-      "Add a Bitbucket token in Settings → Source control & issues.",
-    );
-    expect(english(SourceControlProviderKind.make("gitlab")).hint).toBe(
-      "GitLab is not authenticated. Open Source Control settings for setup guidance.",
-    );
-    __setUiCatalogForTests("zh-Hans", zhHans);
-    const chinese = buildAddProjectRemoteSourceReadiness(discovery, translatorFor("zh-Hans"));
-    const hints = [
-      chinese(SourceControlProviderKind.make("bitbucket")).hint,
-      chinese(SourceControlProviderKind.make("gitlab")).hint,
-      chinese(SourceControlProviderKind.make("github")).hint,
-    ];
-    __setUiCatalogForTests("zh-Hans", null);
-    expect(hints).toEqual([
-      "在设置 → 源代码管理与议题中添加 Bitbucket 令牌。",
-      "GitLab 尚未登录。请打开源代码管理设置查看配置说明。",
-      "无法获取 provider 状态。请打开源代码管理设置并重新扫描。",
-    ]);
-  });
-});
 
 describe("add project shared logic", () => {
   it("starts the Add Project picker on a browsable path for a relative base directory", () => {

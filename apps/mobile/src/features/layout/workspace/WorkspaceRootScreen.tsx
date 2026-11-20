@@ -145,7 +145,7 @@ function WorkspaceRootContent() {
             width,
             sidebarNavigation,
             enabled.length,
-            t,
+            gt,
           ]}
           options={{
             title: settingsOpen

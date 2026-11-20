@@ -2,10 +2,6 @@ import type { ReactNode } from "react";
 import type { ColorValue } from "react-native";
 import type { AppSymbolName } from "./AppSymbol";
 
-/**
- * fork: i18n. The AppBar wrapper translates every title it is handed. User data (a project,
- * environment, branch or file name, a URL) or text a screen already localized needs `verbatim`.
- */
 export interface AppBarAction {
   readonly accessibilityLabel: string;
   readonly icon: AppSymbolName;

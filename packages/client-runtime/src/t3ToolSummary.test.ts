@@ -1,16 +1,5 @@
-import {
-  resolveT3McpToolDefinition,
-  T3_MCP_TOOL_NAMES,
-  T3_TOOL_ACTION_CONTEXT,
-  T3_TOOL_DONE_CONTEXT,
-  T3_TOOL_RUNNING_CONTEXT,
-  T3_TOOL_TARGET_CONTEXT,
-  type T3McpToolSummaryAction,
-} from "@t3tools/shared/t3McpToolPresentation";
 import { describe, expect, it } from "vite-plus/test";
 
-import { ZH_HANS_AREAS } from "./i18n/catalogs/zh-Hans/index.ts";
-import { CONTEXT_SEPARATOR } from "./i18n/translate.ts";
 import { summarizeT3ToolCalls, type T3ToolSummaryCall } from "./t3ToolSummary.ts";
 
 function completed(input: unknown, output?: unknown): T3ToolSummaryCall {
@@ -156,76 +145,6 @@ describe("summarizeT3ToolCalls", () => {
     ).toEqual({
       label: "Waited on 1 thread",
       failedCount: 0,
-    });
-  });
-
-  it("keeps the same English when a translator passes phrases through", () => {
-    const passthrough = (source: string, params?: Readonly<Record<string, string | number>>) =>
-      source.replace(/\{(\w+)\}/g, (match, name: string) =>
-        params && Object.hasOwn(params, name) ? String(params[name]) : match,
-      );
-    const calls = [completed({ threadId: "a" }, { messageId: "m" })];
-    expect(summarizeT3ToolCalls("thread-send", calls, passthrough)).toEqual(
-      summarizeT3ToolCalls("thread-send", calls),
-    );
-    expect(summarizeT3ToolCalls("thread-send", calls).label).toBe("Sent 1 message to 1 thread");
-    expect(summarizeT3ToolCalls("thread-list", calls).label).toBe("Listed threads 1 time");
-    expect(
-      summarizeT3ToolCalls("thread-list", [{ input: {}, output: {}, outcome: "failed" }]).label,
-    ).toBe("Tried to list threads 1 time");
-  });
-
-  describe("Chinese catalog", () => {
-    const catalog: Readonly<Record<string, string>> = Object.assign(
-      {},
-      ...Object.values(ZH_HANS_AREAS),
-    );
-    const has = (key: string) => Object.hasOwn(catalog, key);
-
-    it("has every phrase each summary can use", () => {
-      const missing = new Set<string>();
-      const strict = (
-        source: string,
-        params?: Readonly<Record<string, string | number>>,
-        context?: string,
-      ) => {
-        if (!has(source) && !(context && has(`${context}${CONTEXT_SEPARATOR}${source}`))) {
-          missing.add(source);
-        }
-        return JSON.stringify(params ?? {});
-      };
-      const actions = new Set<T3McpToolSummaryAction>(["thread-configuration"]);
-      for (const name of T3_MCP_TOOL_NAMES) {
-        actions.add(resolveT3McpToolDefinition(name)!.summaryAction);
-      }
-      const shapes: ReadonlyArray<ReadonlyArray<T3ToolSummaryCall>> = [
-        [completed({ threadId: "a" }, { messageId: "m", threadId: "a" })],
-        [
-          completed({ threadId: "a", attachments: [1] }, { messageId: "m" }),
-          completed({ threadId: "b", attachments: [1, 2] }, { messageId: "n" }),
-        ],
-        [completed({}), completed({})],
-        [{ input: {}, output: {}, outcome: "failed" }],
-        [completed({}, { guides: [{ outcome: "started" }, { outcome: "failed" }] })],
-        [completed({}, { guides: [{ outcome: "failed" }] })],
-      ];
-      for (const action of actions) {
-        for (const calls of shapes) summarizeT3ToolCalls(action, calls, strict);
-      }
-      expect([...missing]).toEqual([]);
-    });
-
-    it("has every verb and target the tool labels use", () => {
-      const missing = [...T3_MCP_TOOL_NAMES].flatMap((name) => {
-        const [action, running, done, target] = resolveT3McpToolDefinition(name)!.labels;
-        return [
-          `${T3_TOOL_ACTION_CONTEXT}${CONTEXT_SEPARATOR}${action}`,
-          `${T3_TOOL_RUNNING_CONTEXT}${CONTEXT_SEPARATOR}${running}`,
-          `${T3_TOOL_DONE_CONTEXT}${CONTEXT_SEPARATOR}${done}`,
-          `${T3_TOOL_TARGET_CONTEXT}${CONTEXT_SEPARATOR}${target}`,
-        ].filter((key) => !has(key));
-      });
-      expect(missing).toEqual([]);
     });
   });
 });

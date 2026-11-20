@@ -51,8 +51,6 @@ function CommandPaletteEmptyState(props: { emptyStateMessage?: string; isActions
 }
 
 export function CommandPaletteResults(props: CommandPaletteResultsProps) {
-  // Group labels are fixed section names, never user content.
-  const t = useT();
   if (props.groups.length === 0) {
     return <CommandPaletteEmptyState {...props} />;
   }

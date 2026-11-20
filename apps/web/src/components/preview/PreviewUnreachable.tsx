@@ -4,8 +4,6 @@ import { useState } from "react";
 import { Button } from "~/components/ui/button";
 
 import { describePreviewError } from "./errorCodeMessages";
-import { interpolateNodes } from "~/lib/interpolateNodes";
-import { useT } from "~/hooks/useT"; // fork: interface language
 import { GatewayActionBlock, type GatewayAction } from "~/fork/loopbackGateway/GatewayActionBlock"; // fork: forwarded localhost
 
 interface Props {
@@ -66,34 +64,33 @@ export function PreviewFileNotShown({
   );
 }
 
-export function PreviewUnreachable({ url, code, description, onReload, move }: Props) {
+export function PreviewUnreachable({ url, code, description, onReload, move, gateway }: Props) {
   const gt = useGT();
   const m = useMessages();
   const [showDetails, setShowDetails] = useState(false);
   const host = safeHost(url) ?? url;
   const friendly = describePreviewError(description, m);
   const errorLabel = description.length > 0 ? description : `ERR_${Math.abs(code) || "FAILED"}`;
-  const reason = gateway?.description ?? (
-    <>
-      <span className="font-semibold text-foreground">{host}</span>: {friendly}.
-    </>
-  );
 
   return (
     <div className="scrollbar-gutter-both relative flex h-full min-h-0 w-full overflow-y-auto bg-background">
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-8 py-12 sm:py-16">
         <ErrorIcon className="mb-6 size-12 text-muted-foreground/70" />
         <h1 className="mb-3 text-2xl font-semibold leading-tight text-foreground">
-          <T>This site can&rsquo;t be reached</T>
+          {/* fork: forwarded localhost */}
+          {gateway?.title ?? <T>This site can&rsquo;t be reached</T>}
         </h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          <T>
-            <span className="font-semibold text-foreground">
-              <Var>{host}</Var>
-            </span>
-            : <Var>{friendly}</Var>.
-          </T>
+          {gateway?.description ?? (
+            <T>
+              <span className="font-semibold text-foreground">
+                <Var>{host}</Var>
+              </span>
+              : <Var>{friendly}</Var>.
+            </T>
+          )}
         </p>
+        {gateway?.action ? <GatewayActionBlock action={gateway.action} /> : null}
 
         {showDetails && !gateway ? (
           <div className="mt-6 rounded-lg border border-border bg-muted/40 p-4 text-sm">

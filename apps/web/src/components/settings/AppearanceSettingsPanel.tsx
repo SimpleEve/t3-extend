@@ -23,7 +23,6 @@ import { useCustomThemes } from "../../hooks/useCustomThemes";
 import { useEnvironmentIdentificationMode } from "../../hooks/useSettings";
 import { useTheme } from "../../hooks/useTheme";
 import { useT } from "../../hooks/useT";
-import { UiLanguageRow } from "./UiLanguageRow";
 import { FooterStatusSettings } from "../../fork/FooterStatusSettings"; // fork: footer status chips
 import { ThemeLookNotice } from "../../fork/themeStudio/ThemeLookNotice"; // fork: theme look
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";

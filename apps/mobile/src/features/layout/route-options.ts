@@ -55,14 +55,14 @@ export interface PageRouteOptions {
 
 /** A page in the workspace: pushed on compact windows, a column page on wide ones. */
 export function pageRoute(options: PageRouteOptions = {}): AppScreenOptions {
-  return withLocalizedTitle({
+  return {
     ...headerOptions(options.header ?? "glass", options.itemStyle ?? "editor"),
     ...(options.title === undefined ? undefined : { title: options.title }),
     ...(options.duoMinimize
       ? { unstable_headerMinimizationBehavior: options.duoMinimize }
       : undefined),
     ...(options.root ? { headerBackVisible: false } : undefined),
-  });
+  };
 }
 
 export interface SheetRouteOptions {
@@ -107,12 +107,12 @@ export function sheetRoute(options: SheetRouteOptions): AppScreenOptions {
     gestureEnabled: true,
   } satisfies AppScreenOptions;
   if (Platform.OS === "android" && options.android === "card") {
-    return withLocalizedTitle({ ...shared, presentation: "card" });
+    return { ...shared, presentation: "card" };
   }
   if (Platform.OS === "android" && options.android === "fullScreen") {
-    return withLocalizedTitle({ ...shared, presentation: "fullScreenModal" });
+    return { ...shared, presentation: "fullScreenModal" };
   }
-  return withLocalizedTitle({
+  return {
     ...shared,
     presentation: "formSheet",
     sheetPrefersHorizontalBars: true,
@@ -121,7 +121,7 @@ export function sheetRoute(options: SheetRouteOptions): AppScreenOptions {
       Platform.OS === "android" && options.androidFit ? "fitToContents" : sheetDetents(options),
     ...(Platform.OS === "android" ? { sheetCornerRadius: 28 } : undefined),
     ...(options.spansRail ? { nativeContentInsetHorizontally: false } : undefined),
-  } as AppScreenOptions);
+  } as AppScreenOptions;
 }
 
 export interface ModalRouteOptions {
@@ -134,7 +134,7 @@ export interface ModalRouteOptions {
 
 /** A full-screen modal over the workspace with a close button, not a back button. */
 export function modalRoute(options: ModalRouteOptions = {}): AppScreenOptions {
-  return withLocalizedTitle({
+  return {
     ...headerOptions(options.header ?? "none", options.itemStyle ?? "standard"),
     ...(options.title === undefined ? undefined : { title: options.title }),
     ...(options.duoMinimize
@@ -142,7 +142,7 @@ export function modalRoute(options: ModalRouteOptions = {}): AppScreenOptions {
       : undefined),
     headerBackVisible: false,
     presentation: "fullScreenModal",
-  });
+  };
 }
 
 /** Full-screen media (a device stream, a browser, an app) with no bar and no dismiss gesture. */

@@ -190,7 +190,7 @@ function itemSummary({
 
   if (auth) {
     if (auth.status === "authenticated") {
-      const authDetail = authDetailLabel(auth.detail, t);
+      const authDetail = optionLabel(auth.detail);
       return (
         <>
           {authAccount ? (
@@ -248,7 +248,7 @@ function itemSummary({
         </span>
       );
     }
-    const authDetail = authDetailLabel(auth.detail, t);
+    const authDetail = optionLabel(auth.detail);
     return (
       <span>
         <T>
@@ -316,7 +316,7 @@ function DiscoveryItemRow({
               ) : null}
               {authStatus?.badge ? (
                 <Badge variant={authStatus.badge} size="sm" data-t3x-han-text>
-                  {t(authStatus.label)}
+                  {authStatus.label}
                 </Badge>
               ) : null}
             </div>

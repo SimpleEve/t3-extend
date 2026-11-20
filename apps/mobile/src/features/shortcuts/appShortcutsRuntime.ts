@@ -160,9 +160,7 @@ export function installAppShortcuts(navigate: (href: string) => void): () => voi
   const recents = createRecentThreadShortcuts({
     load: loadRecentThreadShortcuts,
     save: saveRecentThreadShortcuts,
-    // fork: i18n, the label is read in the language at publish time
-    publish: (list) =>
-      QuickActions.setItems(buildShortcutActions(list, translatorFor(getUiLocale()))),
+    publish: (list) => QuickActions.setItems(buildShortcutActions(list)),
   });
   installedRecents = recents;
   const unsubscribe = appAtomRegistry.subscribe(

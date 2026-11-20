@@ -62,9 +62,6 @@ import {
 import { PullRequestGlyph } from "./pullRequestIcons";
 import { pullRequestQuickActions } from "./pullRequestList.logic";
 import { PullRequestSpeedActions, PullRequestSpeedModeContext } from "./PullRequestSpeedActions";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { changeRequestTerm } from "./changeRequestTerm";
-import { interpolateNodes } from "~/lib/interpolateNodes";
 
 import { changeRequestTermKind } from "./changeRequestTerm";
 

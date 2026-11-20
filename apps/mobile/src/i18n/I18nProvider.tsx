@@ -57,7 +57,7 @@ function readSystemLocales(): ReadonlyArray<string> {
 export function useLanguagePreference(): string {
   const preferences = useAtomValue(mobilePreferencesAtom);
   return AsyncResult.isSuccess(preferences)
-    ? (preferences.value.language ?? DEFAULT_LOCALE)
+    ? (preferences.value.language ?? "system") // fork: unset follows the device, as T3 Extend always has
     : DEFAULT_LOCALE;
 }
 

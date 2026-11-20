@@ -102,7 +102,7 @@ export function AppBar(props: AppBarProps) {
     if (searchValue === undefined || searchValue === nativeSearchText.current) return;
     nativeSearchText.current = searchValue;
     searchBarRef.current?.setText(searchValue);
-  }, [searchValue, searchBarRef, nativeSearchText]);
+  }, [searchValue]);
   const reportSearchText = (text: string) => {
     nativeSearchText.current = text;
     search?.onChangeText(text);

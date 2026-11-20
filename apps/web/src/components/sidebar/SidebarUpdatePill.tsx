@@ -26,7 +26,6 @@ import {
   resolveDesktopUpdateButtonAction,
   shouldShowArm64IntelBuildWarning,
   shouldToastDesktopUpdateActionResult,
-  getDesktopUpdateMessage,
 } from "../desktopUpdate.logic";
 import { showDesktopUpdateDownloadedToast } from "../desktopUpdate.toast";
 import { useCheckProviderUpdates } from "../ProviderUpdatesAction";

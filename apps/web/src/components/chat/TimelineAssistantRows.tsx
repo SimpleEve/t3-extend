@@ -37,6 +37,7 @@ import { MESSAGE_HEADING_LEVEL, MessageAuthorHeading } from "./TimelineRowParts"
 import { useAtomValue } from "@effect/atom-react";
 import { AsyncResult, Atom } from "effect/reactivity";
 import { vcsEnvironment } from "../../state/vcs";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: outputs
 
 const NO_VCS_STATUS = Atom.make(AsyncResult.initial());
 

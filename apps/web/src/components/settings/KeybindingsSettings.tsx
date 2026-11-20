@@ -62,6 +62,7 @@ import {
   filterKeybindingRows,
   buildKeybindingCommandOptions,
   buildWhenVariableOptions,
+  commandLabel,
   DEFAULT_WHEN_VARIABLE,
   isKnownWhenVariable,
   keybindingConflictLabels,
@@ -72,7 +73,6 @@ import {
   type KeybindingGroup,
   type KeybindingRow,
   type WhenVariableOption,
-  translatedCommandLabel,
   unknownWhenVariables,
   whenAstToExpression,
   whenNodeRemoveLabel,
@@ -1229,10 +1229,6 @@ function NewKeybindingCommandSelect({
     <Select
       value={draft.commandDraft}
       onValueChange={(value) => draft.setCommandDraft(value as KeybindingCommand)}
-      items={commandOptions.map((command) => ({
-        value: command,
-        label: translatedCommandLabel(command, t),
-      }))}
     >
       <SelectTrigger size="sm" className={className}>
         <SelectValue placeholder={gt("Command")} />

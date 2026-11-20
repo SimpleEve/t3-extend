@@ -55,12 +55,6 @@ interface MarkdownFileLinkProps {
 
 const MARKDOWN_FILE_LINK_CLASS_NAME = "chat-markdown-file-link";
 
-// fork: the editor label arrives as English "Open in <editor>"; the editor name is not translated.
-function translateOpenInLabel(label: string, t: Translator): string {
-  const editor = /^Open in (.+)$/.exec(label)?.[1];
-  return editor === undefined || editor === "editor" ? t(label) : t("Open in {editor}", { editor });
-}
-
 export const MarkdownFileLink = memo(function MarkdownFileLink({
   environmentId,
   href,
@@ -212,11 +206,6 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
     })();
   };
 
-  // fork: `title` is "Relative path" or "Full path"; failure reports keep the English.
-  const copyToastTitles = (title: string) =>
-    title === "Relative path"
-      ? { failed: t("Failed to copy relative path"), copied: t("Relative path copied") }
-      : { failed: t("Failed to copy full path"), copied: t("Full path copied") };
   const handleCopy = (resolveValue: () => Promise<string>, title: string) => {
     const failureTitle =
       title === "Relative path"

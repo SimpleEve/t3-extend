@@ -51,15 +51,3 @@ describe("nextTerminalId", () => {
     ).toMatchObject({ terminalId: second });
   });
 });
-
-describe("localizeTerminalLabel", () => {
-  const zh = (source: string, params?: Readonly<Record<string, string>>) =>
-    source === "Terminal {number}" ? `终端 ${params?.number}` : source;
-
-  it("translates only the generated name", () => {
-    expect(localizeTerminalLabel(getTerminalLabel("term-2"), zh)).toBe("终端 2");
-    expect(localizeTerminalLabel("Terminal 12", zh)).toBe("终端 12");
-    expect(localizeTerminalLabel("npm run dev", zh)).toBe("npm run dev");
-    expect(localizeTerminalLabel("Terminal", zh)).toBe("Terminal");
-  });
-});

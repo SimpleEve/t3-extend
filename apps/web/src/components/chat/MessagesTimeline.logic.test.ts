@@ -1,4 +1,3 @@
-import { SESSION_UNAVAILABLE_NOTICE } from "@t3tools/shared/forkNotices";
 import { ThreadId, type WorktreeSetupSnapshot } from "@t3tools/contracts";
 import {
   CheckpointRef,
@@ -36,7 +35,6 @@ import {
   isTimelineMinimapTurnVisible,
   resolveAssistantMessageCopyState,
   type MessagesTimelineRow,
-  liveWorkEntryLabel,
   workEntryDisplayLabel,
   workEntryReadOutput,
 } from "./MessagesTimeline.logic";
@@ -419,44 +417,6 @@ describe("deriveMessagesTimelineRows", () => {
       expect(approvalOnlyRows.some((row) => row.kind === "thinking")).toBe(false);
     },
   );
-
-  it.each([
-    [SESSION_UNAVAILABLE_NOTICE, `translated ${SESSION_UNAVAILABLE_NOTICE}`],
-    ["server", "server"],
-    ["Claude changed its safety mode.", "Claude changed its safety mode."],
-  ])("translates a system notice only when it is one T3 words itself: %s", (message, expected) => {
-    const fixture = makeStreamingTimelineFixture();
-    const source: OrchestrationV2ProjectedTurnItem = {
-      ...fixture.visibleTurnItems[0]!,
-      sourceItemId: TurnItemId.make("fork-notice"),
-      item: {
-        id: TurnItemId.make("fork-notice"),
-        threadId: fixture.threadId,
-        runId: fixture.runId,
-        nodeId: null,
-        providerThreadId: null,
-        providerTurnId: null,
-        nativeItemRef: null,
-        parentItemId: null,
-        ordinal: 1,
-        startedAt: DateTime.makeUnsafe(fixture.time(1)),
-        completedAt: DateTime.makeUnsafe(fixture.time(1)),
-        updatedAt: DateTime.makeUnsafe(fixture.time(1)),
-        type: "system_notice",
-        message,
-        title: message,
-        status: "completed",
-      },
-    };
-    const [notice] = deriveTimelineEntriesFromVisibleTurnItems({
-      visibleTurnItems: [source],
-      optimisticMessages: [],
-    });
-    if (notice?.kind !== "work") throw new Error("Expected a notice work entry");
-    expect(workEntryDisplayLabel(notice.entry, undefined, (phrase) => `translated ${phrase}`)).toBe(
-      expected,
-    );
-  });
 
   it.each(["running", "completed", "superseded"] as const)(
     "keeps system notices visible as non-failing warnings through %s work",
@@ -2901,7 +2861,7 @@ describe("deriveMessagesTimelineRows", () => {
     ["the only failure is visible", ["completed", "info", "failed"], true],
   ] as const)(
     "uses the final tool call for mixed work groups when %s",
-    async (_, statuses, hasFailure) => {
+    (_, statuses, hasFailure) => {
       const timelineEntries = statuses.map((status, index) => {
         const id = `work-${index}`;
         const createdAt = `2026-01-01T00:00:0${index}Z`;
@@ -2946,44 +2906,8 @@ describe("deriveMessagesTimelineRows", () => {
           groupedEntries: [{ tone: "error", label: "Command failed" }],
         });
       }
-      await loadUiCatalog("zh-Hans");
-      const translated = deriveMessagesTimelineRows({
-        timelineEntries,
-        isWorking: false,
-        activeTurnStartedAt: null,
-        turnDiffSummaries: [],
-        supportsConversationRollback: false,
-        translate: translatorFor("zh-Hans"),
-      });
-      expect(translated.find((row) => row.kind === "work-toggle")).toMatchObject({
-        summary: statuses.some((status) => status === "error")
-          ? "收到了 1 条更新，使用了 1 个工具"
-          : "使用了 2 个工具，收到了 1 条更新",
-      });
     },
   );
-
-  it.each([
-    ["inProgress", "pnpm test", "Running pnpm", "正在运行 pnpm"],
-    ["failed", "pnpm test", "Failed pnpm", "pnpm 运行失败"],
-    ["declined", "pnpm test", "Declined pnpm", "已拒绝运行 pnpm"],
-    ["stopped", "pnpm test", "Stopped pnpm", "已停止 pnpm"],
-    ["completed", "pnpm test", "Ran pnpm", "运行了 pnpm"],
-    ["completed", "$(cmd)", "Ran command", "运行了命令"],
-  ] as const)("labels a %s command row %j", async (status, command, english, chinese) => {
-    const entry = {
-      id: "work",
-      createdAt: "2026-01-01T00:00:00Z",
-      label: "Ran command",
-      tone: "tool" as const,
-      itemType: "command_execution" as const,
-      command,
-      toolLifecycleStatus: status,
-    };
-    await loadUiCatalog("zh-Hans");
-    expect(liveWorkEntryLabel(entry, undefined, false)).toBe(english);
-    expect(liveWorkEntryLabel(entry, undefined, false, translatorFor("zh-Hans"))).toBe(chinese);
-  });
 });
 
 describe("v2 run and attempt history", () => {

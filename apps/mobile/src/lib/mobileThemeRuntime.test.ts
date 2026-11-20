@@ -9,6 +9,7 @@ const initialState: MobileThemeRuntimeState = {
   baseFontSize: 16,
   themeAppearance: "light",
   themeMode: "system",
+  uiLocale: "en", // fork: Chinese text sizes
 };
 
 describe("mobileThemeRuntime", () => {

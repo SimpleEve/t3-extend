@@ -35,8 +35,6 @@ interface NativeNavigationProps extends ViewProps {
   readonly rail: boolean;
   readonly floating: boolean;
   readonly tabs: readonly string[];
-  // fork: i18n. The native bar owns the text, so JS sends the translated strings.
-  readonly labels: Readonly<Record<string, string>>;
   readonly selectedTab: AndroidWorkspaceNavigationTab;
   readonly dark: boolean;
   readonly textScale: number;
@@ -122,19 +120,6 @@ export function AndroidWorkspaceNavigation(props: {
         rail={rail}
         floating={floating}
         tabs={tabs}
-        labels={{
-          // fork: i18n
-          threads: t("Chats"),
-          pullRequests: t("Pulls"),
-          pullRequestsExpanded: t("Pull Requests"),
-          issues: t("Issues"),
-          usage: t("Usage"),
-          settings: t("Settings"),
-          newThread: t("New thread"),
-          expandRail: t("Expand navigation rail"),
-          collapseRail: t("Collapse navigation rail"),
-          closeRail: t("Close navigation rail"),
-        }}
         selectedTab={selectedTab}
         dark={themeAppearance === "dark"}
         textScale={scale}

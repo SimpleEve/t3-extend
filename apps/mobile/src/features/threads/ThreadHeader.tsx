@@ -37,6 +37,9 @@ export function ThreadHeader(props: {
 }) {
   const gt = useGT();
   const m = useMessages();
+  const t = useT(); // fork: new browser tab, outputs
+  const outputs = useThreadOutputs(props.outputs?.threadRef ?? null, props.outputs?.cwd); // fork: outputs
+  const outputsCount = outputs.filesTotal + outputs.linksTotal; // fork: outputs
   const goBack = useWorkspaceBackNavigation();
   const { toggleAuxiliaryPane, startNewTask } = useAdaptiveWorkspaceLayout();
   const { panes } = useWorkspacePaneState();

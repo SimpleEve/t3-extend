@@ -279,6 +279,7 @@ function ArchiveError(props: { readonly message: string; readonly onRetry: () =>
       <Text className="text-base font-t3-bold text-danger-foreground">
         <T>Could not load every archive</T>
       </Text>
+      <Text className="mt-1 text-sm text-foreground-muted">{props.message}</Text>
       <View className="mt-3">
         <Button label={gt("Try again")} tone="secondary" onPress={props.onRetry} />
       </View>

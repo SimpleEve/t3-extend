@@ -1053,7 +1053,7 @@ function ThreadRouteContent(
           header={
             props.inspectorPresentation ? null : (
               <ThreadHeader
-                title={threadDisplayTitle(selectedThread.title, t)}
+                title={selectedThread.title}
                 subtitle={threadStatusLabel ?? headerSubtitle}
                 gitControls={threadGitControlProps}
                 hasThreadCwd={selectedThreadCwd !== null}
@@ -1081,7 +1081,6 @@ function ThreadRouteContent(
           contentPresentation={contentPresentation}
           screenTone={connectionTone(
             routeConnectionState,
-            t,
             routeEnvironmentRuntime?.connectionAwaitingApproval === true,
             m,
           )}

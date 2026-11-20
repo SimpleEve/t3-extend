@@ -566,7 +566,7 @@ function ProviderAccountSummary({
     return (
       <View
         accessible
-        accessibilityLabel={joinLabelParts([name, status], t)}
+        accessibilityLabel={[name, status].filter(Boolean).join(", ")}
         className="min-w-0 shrink grow gap-0.5"
       >
         {content}

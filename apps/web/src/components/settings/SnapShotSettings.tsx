@@ -31,7 +31,7 @@ import {
 } from "../../state/desktopSnapShot";
 import { toastManager } from "../ui/toast";
 import { primaryServerKeybindingsAtom } from "../../state/server";
-import { translatedCommandLabel } from "./KeybindingsSettings.logic";
+import { commandLabel } from "./KeybindingsSettings.logic";
 import {
   snapShotStatus,
   snapShotShortcutStatus,

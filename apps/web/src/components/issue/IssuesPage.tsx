@@ -762,10 +762,7 @@ export function IssuesPage() {
                   <FilterMenu
                     label={gt("Filter by tracker")}
                     value={search.host ?? ""}
-                    // fork: i18n. Only the "All" row is ours; the others name trackers.
-                    options={hostOptions.map((option) =>
-                      option.value === "" ? { ...option, label: t(option.label) } : option,
-                    )}
+                    options={hostOptions}
                     onChange={(host) => updateSearch({ host: host || undefined })}
                   />
                 ) : null}

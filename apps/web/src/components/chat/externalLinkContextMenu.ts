@@ -107,10 +107,7 @@ export async function showExternalLinkContextMenu({
   let action: ExternalLinkContextMenuAction | null;
   try {
     action = await showContextMenu(
-      externalLinkContextMenuItems({ canOpenInPreview, threadLinkAction }).map((item) => ({
-        ...item,
-        label: translate(getUiLocale(), item.label),
-      })),
+      externalLinkContextMenuItems({ canOpenInPreview, threadLinkAction }),
       position,
     );
   } catch (cause) {

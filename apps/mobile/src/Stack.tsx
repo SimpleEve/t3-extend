@@ -208,7 +208,6 @@ const ROUTE_TITLES: Readonly<Record<string, string>> = {
   NewTaskBranch: msg("Branch"),
   AddProject: msg("Add project"),
   ThreadFiles: msg("Files"),
-  SettingsLegal: msg("Legal"),
   ConnectOnboarding: msg("Set up {product}", { product: "T3 Connect" }),
   Connections: msg("Environments"),
   ConnectionsNew: msg("Add Environment"),
@@ -822,11 +821,6 @@ const RootStackConfig = createWorkspaceStackNavigator({
       options: sheetRoute({ detent: 0.55, maxDetent: 0.7, androidFit: true }),
     }),
     ...SETTINGS_SCREENS,
-    SettingsLegal: createNativeStackScreen({
-      screen: SettingsLegalRouteScreen,
-      linking: "settings/legal",
-      options: modalRoute({ header: "solid" }),
-    }),
     ConnectOnboarding: createNativeStackScreen({
       screen: ConnectOnboardingRouteScreen,
       linking: "connect-onboarding",

@@ -513,20 +513,6 @@ export function commandLabel(command: KeybindingCommand, resolve: MessageResolve
   return raw.split(".").map(titleCaseCommandSegment).join(": ");
 }
 
-// fork: the English label is the catalog key, except where a name or metric is spliced in.
-export function translatedCommandLabel(command: KeybindingCommand, t: Translator): string {
-  const usageMetric = METRIC_OPTIONS.find((option) => option.command === command);
-  if (usageMetric) return t("Usage: {metric}", { metric: t(usageMetric.label) });
-  const usagePeriod = WINDOW_OPTIONS.find((option) => option.command === command);
-  if (usagePeriod) return t("Usage: Period: {period}", { period: t(usagePeriod.label) });
-  const raw = String(command);
-  if (raw.startsWith("script.") && raw.endsWith(".run")) {
-    const name = titleCaseCommandSegment(raw.slice("script.".length, -".run".length));
-    return t("Run Script: {name}", { name });
-  }
-  return t(commandLabel(command));
-}
-
 function titleCaseCommandSegment(segment: string): string {
   const words: Array<string> = [];
   for (const part of segment.replace(/([a-z0-9])([A-Z])/g, "$1 $2").split(/[-_\s]+/)) {

@@ -1348,8 +1348,6 @@ function OpenCommandPaletteDialog(props: {
       null;
 
     if (activeProjectTitle) {
-      // fork: split the template so word order can follow the language around the bold name.
-      const [beforeProject, afterProject] = t("New thread in {project}").split("{project}");
       actionItems.push({
         kind: "action",
         value: "action:new-thread",

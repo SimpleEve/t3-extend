@@ -401,7 +401,6 @@ export function searchToolLabelParts(data: Record<string, unknown> | undefined) 
 
 export function formatSearchToolLabel(
   data: Record<string, unknown> | undefined,
-  t: ToolLabelTranslator = englishToolLabel, // fork
 ): string | undefined {
   const { query, glob, target } = searchToolLabelParts(data);
   if (query && target) {
@@ -422,18 +421,13 @@ export function formatSearchToolLabel(
   return undefined;
 }
 
-export function formatReadToolLabel(
-  path: string,
-  extraCount = 0,
-  t: ToolLabelTranslator = englishToolLabel, // fork
-): string {
+export function formatReadToolLabel(path: string, extraCount = 0): string {
   const trimmed = path.trim();
+  const suffix = extraCount > 0 ? ` +${extraCount} more` : "";
   if (!trimmed) {
     return `Read file${suffix}`;
   }
-  return extraCount > 0
-    ? t("Read {path} +{count} more", { path: trimmed, count: extraCount })
-    : t("Read {path}", { path: trimmed });
+  return `Read ${trimmed}${suffix}`;
 }
 
 export interface ToolActivityPresentationInput {

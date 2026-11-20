@@ -609,11 +609,6 @@ function ThreadPullRequestMiniListItem({
   );
 }
 
-// fork: English lowercases the state mid-sentence; the catalog keys the lowercase form too.
-function lowerStateLabel(label: string, t: Translator): string {
-  return t(label.toLowerCase(), undefined, "pull request state");
-}
-
 export function prStatusIndicator(
   pr: ThreadPr,
   provider: VcsStatusResult["sourceControlProvider"] | null | undefined,

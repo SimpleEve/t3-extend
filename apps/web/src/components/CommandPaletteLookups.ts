@@ -10,11 +10,7 @@ import { useClientSettings } from "../hooks/useSettings";
 import { getProjectOrderKey } from "@t3tools/client-runtime/state/project-grouping";
 import { useProjects, useVisibleThreadShells } from "../state/entities";
 import { useEnvironments, usePrimaryEnvironmentId } from "../state/environments";
-import { useT } from "../hooks/useT"; // fork: interface language
-import {
-  buildSidebarProjectSnapshots,
-  translateScratchProjectName,
-} from "../sidebarProjectGrouping";
+import { buildSidebarProjectSnapshots } from "../sidebarProjectGrouping";
 import { legacyProjectCwdPreferenceKey, useUiStateStore } from "../uiStateStore";
 import { orderItemsByPreferredIds, sortLogicalProjectsForSidebar } from "./Sidebar.logic";
 

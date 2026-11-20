@@ -77,9 +77,6 @@ import { ComposerControl } from "./chat/ComposerControl";
 import { MiddleTruncate } from "./ui/middle-truncate";
 import { BranchPicker, BranchPickerRefItem } from "./BranchPicker";
 import { stackedThreadToast, toastManager } from "./ui/toast";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
-import { useT } from "../hooks/useT";
-import { changeRequestTerm } from "./pullRequest/changeRequestTerm";
 
 export interface BranchToolbarBranchSelectorHandle {
   open: () => void;

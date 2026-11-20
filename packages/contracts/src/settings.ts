@@ -68,11 +68,6 @@ export const TimestampFormat = Schema.Literals(["locale", "12-hour", "24-hour"])
 export type TimestampFormat = typeof TimestampFormat.Type;
 const DEFAULT_TIMESTAMP_FORMAT: TimestampFormat = "locale";
 
-// fork: interface language; the name matches upstream's proposal so a later merge lines up.
-export const UiLanguageSetting = Schema.Literals(["system", "en", "zh-Hans"]);
-export type UiLanguageSetting = typeof UiLanguageSetting.Type;
-const DEFAULT_UI_LANGUAGE: UiLanguageSetting = "system";
-
 export const DiffLayout = Schema.Literals(["stacked", "split"]);
 export type DiffLayout = typeof DiffLayout.Type;
 const DEFAULT_DIFF_LAYOUT: DiffLayout = "stacked";
@@ -586,9 +581,8 @@ export const ClientSettingsSchema = Schema.Struct({
     ),
   ),
   speechCorrectionWord: SpeechCorrectionCue.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
-  uiLanguage: UiLanguageSetting.pipe(
-    Schema.withDecodingDefault(Effect.succeed(DEFAULT_UI_LANGUAGE)),
-  ),
+  // fork: follow the system language until the user picks one, as T3 Extend always has.
+  language: Schema.String.pipe(Schema.withDecodingDefault(Effect.succeed("system"))),
   snapShotEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   snapShotIncludeAccessibility: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(true)),
@@ -2178,7 +2172,7 @@ export const ClientSettingsPatch = Schema.Struct({
   speechRemoveFillerWords: Schema.optionalKey(Schema.Boolean),
   speechPostProcessingPrompt: Schema.optionalKey(SpeechPostProcessingPromptSettings),
   speechCorrectionWord: Schema.optionalKey(SpeechCorrectionCue),
-  uiLanguage: Schema.optionalKey(UiLanguageSetting),
+  language: Schema.optionalKey(Schema.String),
   snapShotEnabled: Schema.optionalKey(Schema.Boolean),
   snapShotIncludeAccessibility: Schema.optionalKey(Schema.Boolean),
   snapShotShortcut: Schema.optionalKey(SnapShotShortcut),

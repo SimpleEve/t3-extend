@@ -6,12 +6,7 @@ import {
 } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import {
-  updatingProvidersLabel,
-  usageEnvironmentProgress,
-  usageLoadingState,
-  usageProgress,
-} from "./usageProgress.ts";
+import { usageEnvironmentProgress, usageLoadingState, usageProgress } from "./usageProgress.ts";
 
 function summary(refreshing: readonly UsageProviderKind[] = []): UsageSummary {
   return {
@@ -121,37 +116,5 @@ describe("usageLoadingState", () => {
       environment("c", { summary: null, error: "Offline" }),
     ]);
     expect(state).toEqual({ partial: false, everyProvider: false, providers: new Set() });
-  });
-});
-
-describe("updatingProvidersLabel", () => {
-  const label = (provider: string) => provider.toUpperCase();
-
-  it("keeps the English without a translator", () => {
-    expect(updatingProvidersLabel(["codex"], label)).toBe("Updating CODEX…");
-    expect(updatingProvidersLabel(["codex", "claude"], label)).toBe("Updating 2 providers…");
-  });
-
-  it("passes whole phrases to a translator", () => {
-    expect(
-      updatingProvidersLabel(["codex", "claude"], label, (source, params) =>
-        source === "Updating {count} providers…" ? `zh:${params?.count}` : source,
-      ),
-    ).toBe("zh:2");
-  });
-
-  it("translates the environment labels of usageProgress too", () => {
-    const zh = (source: string, params?: Readonly<Record<string, string | number>>) =>
-      `zh:${source}:${params?.environment ?? params?.count ?? ""}`;
-    const waiting = [environment("a", { isPending: true }), environment("b", { isPending: true })];
-    expect(usageProgress(waiting, { ...options, t: zh }).label).toBe(
-      "zh:Updating {count} environments…:2",
-    );
-    expect(
-      usageProgress([environment("a"), ...waiting.slice(1), environment("c")], {
-        ...options,
-        t: zh,
-      }).label,
-    ).toBe("zh:Updating {environment}…:b");
   });
 });

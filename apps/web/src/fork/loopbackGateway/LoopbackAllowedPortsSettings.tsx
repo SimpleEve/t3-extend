@@ -13,7 +13,7 @@ import {
   SettingsSection,
   SettingsUnavailableGroup,
 } from "~/components/settings/settingsLayout";
-import { searchableSetting } from "~/components/settings/settingsSearch";
+import { useSearchableSetting } from "~/components/settings/settingsSearch";
 import { Button } from "~/components/ui/button";
 import { useT } from "~/hooks/useT";
 import { useEnvironments } from "~/state/environments";
@@ -102,6 +102,7 @@ export function LoopbackAllowedPortsSettings({
 }: {
   readonly desktopOnlyMessage: string | undefined;
 }) {
+  const setting = useSearchableSetting();
   const t = useT();
   const { environments } = useEnvironments();
   // Only where forwarding can apply: another computer, connected, and new enough to offer it.
@@ -113,7 +114,7 @@ export function LoopbackAllowedPortsSettings({
   );
 
   return (
-    <SettingsSection {...searchableSetting("loopback-allowed-ports")}>
+    <SettingsSection {...setting("loopback-allowed-ports")}>
       <SettingsUnavailableGroup message={desktopOnlyMessage}>
         <div className="px-3 py-3 text-sm text-muted-foreground sm:px-4">
           {t(

@@ -62,7 +62,7 @@ export function describeDevice(
 ): string {
   if (options.waiting) return t("Waiting for that computer to confirm…");
   if (device.kind === "computer" && device.online === true) return t("Computer · online");
-  const time = relativeTime(new Date(device.lastSeenAt * 1000).toISOString(), options.nowMs, t);
+  const time = relativeTime(new Date(device.lastSeenAt * 1000).toISOString(), options.nowMs);
   return device.kind === "phone"
     ? t("Phone · seen {time}", { time })
     : t("Computer · seen {time}", { time });

@@ -146,8 +146,6 @@ function resolvePullRequestConflict(
   if (input.state !== "open" || input.isDraft || input.mergeability !== "conflicting") {
     return null;
   }
-  // fork: read the language when the glyph renders; its component re-renders on a change.
-  const t = translatorFor(getUiLocale());
   return {
     label: input.baseBranch
       ? resolve(msg("Conflicts with {baseBranch}", { baseBranch: input.baseBranch }))
@@ -273,8 +271,6 @@ export function pullRequestCheckStatusLabel(
   check: Pick<PullRequestCheck, "status" | "url">,
   resolve: MessageResolver = m,
 ): string {
-  // fork: callers render this string; read the language when they do.
-  const t = translatorFor(getUiLocale());
   return isWorkflowApprovalCheck(check)
     ? resolve(msg("Awaiting approval"))
     : resolve(CHECK_STATUS_PRESENTATION[check.status].label);

@@ -10,7 +10,6 @@ import {
   buildSidebarProjectSnapshots,
   resolveSidebarProjectScopeKey,
   getSidebarProjectSettingsKey,
-  translateScratchProjectName,
 } from "./sidebarProjectGrouping";
 import type { Project } from "./types";
 
@@ -108,12 +107,10 @@ describe("environment grouping", () => {
     },
   );
 
-  it("prefers an existing ordinary repository scope over a scratch alias", async () => {
+  it("prefers an existing ordinary repository scope over a scratch alias", () => {
     const scratch = makeProject({ isScratch: true, repositoryIdentity });
     const ordinary = makeProject({
       id: ProjectId.make("ordinary"),
-      // A user may name a real project this; identity, not the title, decides translation.
-      title: "No project",
       workspaceRoot: "/ordinary",
       repositoryIdentity,
     });
@@ -126,18 +123,6 @@ describe("environment grouping", () => {
     });
     const key = deriveLogicalProjectKeyFromSettings(ordinary, defaultGroupingSettings);
     expect(resolveSidebarProjectScopeKey({ groups, key, canClearMissingScope: true })).toBe(key);
-
-    await loadUiCatalog("zh-Hans");
-    const t = translatorFor("zh-Hans");
-    expect(
-      groups.map((group) => [
-        group.isScratch === true,
-        translateScratchProjectName(group, t).displayName,
-      ]),
-    ).toEqual([
-      [true, "无项目"],
-      [false, "No project"],
-    ]);
   });
 
   it("dedupes stale project rows with the same environment and workspace path", () => {

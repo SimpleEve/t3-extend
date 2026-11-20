@@ -1,3 +1,4 @@
+import { loadUiCatalog, uiLocaleForLanguage } from "@t3tools/client-runtime/i18n"; // fork: fork copy
 import { resolveLocale } from "@t3tools/client-runtime/locales";
 import { getTranslationsSnapshot } from "gt-react";
 
@@ -29,7 +30,11 @@ function loadLocale(locale: string): Promise<void> {
   if (!load) {
     // GT resolves a failed load to an empty catalog. Leave it uncached: English renders now
     // and the next request retries.
-    load = getTranslationsSnapshot(locale).then((loaded) => {
+    // fork: the fork's own catalog loads alongside, so its text is translated on first paint.
+    load = Promise.all([
+      getTranslationsSnapshot(locale),
+      loadUiCatalog(uiLocaleForLanguage(locale)),
+    ]).then(([loaded]) => {
       pendingLoads.delete(locale);
       const translations = loaded[locale];
       if (translations && Object.keys(translations).length > 0) {

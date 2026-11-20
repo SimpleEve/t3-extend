@@ -17,7 +17,6 @@ import { m } from "../../i18n/messages";
 import { useAppForeground } from "../../lib/appState";
 
 // fork: translated strings and the new tab mode.
-import { useT } from "../../hooks/useT";
 import { useCanOpenBrowserTab, useThreadServerBrowserTabs } from "../../state/preview";
 import { usePreparedConnection } from "../../state/session";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
@@ -134,10 +133,10 @@ function BrowserPreviewScreen({
   };
   const live = (focused && foreground) || pictureInPicture.active;
   // fork: new tab mode's title, back, and "+" action.
-  const title = composing ? t("New tab") : tab ? browserTabTitle(tab, t) : t("Browser");
+  const title = composing ? gt("New tab") : tab ? browserTabTitle(tab) : gt("Browser");
   const onBack = composing ? browser.leave : onClose;
   const newTabAction = {
-    accessibilityLabel: t("New tab"),
+    accessibilityLabel: gt("New tab"),
     icon: "plus" as const,
     selected: composing,
     onPress: browser.compose,

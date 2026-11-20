@@ -31,9 +31,7 @@ interface SearchState {
   readonly inputRef: RefObject<TextInputInstance | null>;
 }
 
-export function AppBar(rawBarProps: AppBarProps) {
-  const t = useT(); // fork: i18n
-  const barProps = localizeAppBarProps(rawBarProps, t); // fork: i18n
+export function AppBar(barProps: AppBarProps) {
   const { layout } = useAdaptiveWorkspaceLayout();
   const props = {
     ...barProps,

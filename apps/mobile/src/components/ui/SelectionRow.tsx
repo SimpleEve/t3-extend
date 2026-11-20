@@ -47,7 +47,7 @@ export function SelectionRow(props: {
       />
     ) : (
       <Pressable
-        accessibilityLabel={joinLabelParts([props.title, props.subtitle], t)}
+        accessibilityLabel={[props.title, props.subtitle].filter(Boolean).join(", ")}
         accessibilityRole={role}
         accessibilityState={{ checked: props.selected }}
         className={cn(

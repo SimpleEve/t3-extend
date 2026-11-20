@@ -9,7 +9,6 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   knownPullRequestSummary,
   presentThreadLinkedPullRequests,
-  presentThreadPr,
   rememberBounded,
   resolveThreadPrSource,
 } from "./thread-pr-presentation";
@@ -44,65 +43,29 @@ describe("presentThreadLinkedPullRequests", () => {
     const bottom = linkedPr(1, { linkedAt: "2026-09-09T00:00:00.000Z" });
     const top = linkedPr(2);
     expect(
-      presentThreadLinkedPullRequests(
-        [
-          bottom,
-          {
-            ...top,
-            snapshot: { ...top.snapshot!, baseBranch: "change-1" },
-          },
-        ],
-        t,
-      ),
+      presentThreadLinkedPullRequests([
+        bottom,
+        {
+          ...top,
+          snapshot: { ...top.snapshot!, baseBranch: "change-1" },
+        },
+      ]),
     ).toMatchObject({ kind: "stack", label: "2", number: 2, url: top.url });
   });
 
   it("names a single link with its host's term", () => {
-    expect(presentThreadLinkedPullRequests([linkedPr(7)], t)?.accessibilityLabel).toBe(
+    expect(presentThreadLinkedPullRequests([linkedPr(7)])?.accessibilityLabel).toBe(
       "#7 pull request open",
     );
     expect(
-      presentThreadLinkedPullRequests(
-        [
-          linkedPr(7, {
-            host: "gitlab.com",
-            repository: "t3tools/t3code",
-            url: "https://gitlab.com/t3tools/t3code/-/merge_requests/7",
-          }),
-        ],
-        t,
-      )?.accessibilityLabel,
+      presentThreadLinkedPullRequests([
+        linkedPr(7, {
+          host: "gitlab.com",
+          repository: "t3tools/t3code",
+          url: "https://gitlab.com/t3tools/t3code/-/merge_requests/7",
+        }),
+      ])?.accessibilityLabel,
     ).toBe("#7 merge request open");
-  });
-
-  it("follows the translator it is given", async () => {
-    await loadUiCatalog("zh-Hans");
-    expect(
-      presentThreadLinkedPullRequests([linkedPr(7)], translatorFor("zh-Hans"))?.accessibilityLabel,
-    ).toBe("#7 PR 开放");
-  });
-});
-
-describe("presentThreadPr", () => {
-  const pr = {
-    number: 42,
-    title: "Change",
-    url: "https://github.com/t3tools/t3code/pull/42",
-    baseRef: "main",
-    headRef: "change",
-    state: "open",
-    isDraft: true,
-  } as const;
-
-  it("translates the spoken state and keeps the data fields", async () => {
-    expect(presentThreadPr(pr, null, t).accessibilityLabel).toBe("#42 pull request draft");
-    await loadUiCatalog("zh-Hans");
-    expect(presentThreadPr(pr, null, translatorFor("zh-Hans"))).toMatchObject({
-      number: 42,
-      state: "open",
-      isDraft: true,
-      accessibilityLabel: "#42 PR 草稿",
-    });
   });
 });
 
@@ -120,7 +83,6 @@ describe("resolveThreadPrSource compatibility", () => {
       resolveThreadPrSource(
         { pullRequests: [], linkedPullRequest: legacyRef, branchPullRequest: branchRef },
         false,
-        t,
       ),
     ).toEqual({ linkedPresentation: null, pullRequestRef: legacyRef });
   });
@@ -130,7 +92,6 @@ describe("resolveThreadPrSource compatibility", () => {
       resolveThreadPrSource(
         { pullRequests: [linkedPr(3)], linkedPullRequest: legacyRef, branchPullRequest: branchRef },
         true,
-        t,
       ),
     ).toMatchObject({ linkedPresentation: { number: 3 }, pullRequestRef: null });
   });
@@ -140,7 +101,6 @@ describe("resolveThreadPrSource compatibility", () => {
       resolveThreadPrSource(
         { pullRequests: [], linkedPullRequest: legacyRef, branchPullRequest: branchRef },
         true,
-        t,
       ),
     ).toEqual({ linkedPresentation: null, pullRequestRef: branchRef });
   });
@@ -154,7 +114,6 @@ describe("resolveThreadPrSource compatibility", () => {
           branchPullRequest: branchRef,
         },
         true,
-        t,
       ),
     ).toMatchObject({ linkedPresentation: { number: 3, state: null }, pullRequestRef: null });
   });

@@ -4,7 +4,6 @@ import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
-import { DEFAULT_CLIENT_SETTINGS, type UiLanguageSetting } from "@t3tools/contracts/settings";
 
 import type { DesktopUpdateCheckResult, DesktopUpdateState } from "@t3tools/contracts";
 import * as Electron from "electron";
@@ -23,8 +22,6 @@ import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 import { createInitialDesktopUpdateState } from "../updates/updateMachine.ts";
 import * as DesktopWindow from "./DesktopWindow.ts";
-import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
-import * as DesktopUiLanguage from "../settings/DesktopUiLanguage.ts";
 
 const environmentInput = {
   dirname: "/repo/apps/desktop/dist-electron",
@@ -64,8 +61,9 @@ const layerElectronApp = Layer.succeed(ElectronApp.ElectronApp, {
 
 interface MenuServices {
   readonly checkResult?: DesktopUpdateCheckResult;
-  readonly shownMessageBox?: Deferred.Deferred<Electron.MessageBoxOptions>;
+  /** fork: a build without an update feed has no "Check for Updates..." item. */
   readonly hasUpdateFeed?: boolean;
+  readonly shownMessageBox?: Deferred.Deferred<Electron.MessageBoxOptions>;
 }
 
 const layerElectronDialog = ({ shownMessageBox }: MenuServices) =>
@@ -87,13 +85,13 @@ const layerDesktopUpdates = ({ checkResult, hasUpdateFeed = true }: MenuServices
     subscribe: Effect.die("unexpected subscribe"),
     emitState: Effect.void,
     disabledReason: Effect.succeedNone,
-    hasUpdateFeed: Effect.succeed(hasUpdateFeed),
     configure: Effect.void,
     setChannel: () => Effect.die("unexpected setChannel"),
     check: () => (checkResult ? Effect.succeed(checkResult) : Effect.die("unexpected check")),
     download: Effect.die("unexpected download"),
     install: Effect.die("unexpected install"),
     installPrepared: () => Effect.die("unexpected installPrepared"),
+    hasUpdateFeed: Effect.succeed(hasUpdateFeed), // fork: feed-gated menu items
   } satisfies DesktopUpdates.DesktopUpdates["Service"]);
 
 const layerDesktopWindow = (selectedAction: Deferred.Deferred<string>) =>
@@ -132,7 +130,6 @@ const configureMenu = (
   applicationMenuTemplate: Deferred.Deferred<readonly Electron.MenuItemConstructorOptions[]>,
   environment: Partial<DesktopEnvironment.MakeDesktopEnvironmentInput> = {},
   services: MenuServices = {},
-  uiLanguage: UiLanguageSetting = "system",
 ) =>
   Effect.gen(function* () {
     const menu = yield* DesktopApplicationMenu.DesktopApplicationMenu;
@@ -143,15 +140,6 @@ const configureMenu = (
         Layer.provideMerge(layerElectronMenu(applicationMenuTemplate)),
         Layer.provideMerge(layerDesktopWindow(selectedAction)),
         Layer.provideMerge(layerDesktopUpdates(services)),
-        Layer.provideMerge(
-          DesktopUiLanguage.layer.pipe(
-            Layer.provide(
-              DesktopClientSettings.layerTest(
-                Option.some({ ...DEFAULT_CLIENT_SETTINGS, uiLanguage }),
-              ),
-            ),
-          ),
-        ),
         Layer.provideMerge(layerElectronDialog(services)),
         Layer.provideMerge(layerElectronApp),
         Layer.provideMerge(
@@ -282,62 +270,6 @@ describe("DesktopApplicationMenu", () => {
     }),
   );
 
-  it.effect("offers Check for Updates only when the build has an update feed", () =>
-    Effect.gen(function* () {
-      for (const hasUpdateFeed of [true, false]) {
-        const applicationMenuTemplate =
-          yield* Deferred.make<readonly Electron.MenuItemConstructorOptions[]>();
-        yield* configureMenu(
-          yield* Deferred.make<string>(),
-          applicationMenuTemplate,
-          { platform: "darwin" },
-          { hasUpdateFeed },
-        );
-        const labels = (yield* Deferred.await(applicationMenuTemplate)).flatMap((item) =>
-          Array.isArray(item.submenu) ? item.submenu.map((entry) => entry.label) : [],
-        );
-        assert.equal(
-          labels.filter((label) => label === "Check for Updates...").length,
-          hasUpdateFeed ? 2 : 0,
-        );
-      }
-    }),
-  );
-
-  it.effect("builds the menu in the saved interface language, roles included", () =>
-    Effect.gen(function* () {
-      const labelsFor = (uiLanguage: UiLanguageSetting) =>
-        Effect.gen(function* () {
-          const applicationMenuTemplate =
-            yield* Deferred.make<readonly Electron.MenuItemConstructorOptions[]>();
-          yield* configureMenu(
-            yield* Deferred.make<string>(),
-            applicationMenuTemplate,
-            { platform: "darwin" },
-            {},
-            uiLanguage,
-          );
-          const template = yield* Deferred.await(applicationMenuTemplate);
-          const edit = template[2];
-          return {
-            top: template.map((item) => item.label),
-            edit: Array.isArray(edit?.submenu) ? edit.submenu.map((item) => item.label) : [],
-          };
-        });
-
-      const chinese = yield* labelsFor("zh-Hans");
-      assert.deepStrictEqual(chinese.top.slice(1), ["文件", "编辑", "视图", "窗口", "帮助"]);
-      assert.include(chinese.edit, "粘贴为纯文本");
-      assert.include(chinese.edit, "撤销");
-
-      // English keeps Electron's own role labels; the system language here is en-US.
-      const system = yield* labelsFor("system");
-      assert.deepStrictEqual(system.top.slice(1), ["File", "Edit", "View", undefined, undefined]);
-      assert.include(system.edit, "Paste as Text");
-      assert.include(system.edit, undefined);
-    }),
-  );
-
   it.effect("never binds Cmd/Ctrl+W to closing the window", () =>
     Effect.gen(function* () {
       for (const platform of ["darwin", "linux", "win32"] as const) {
@@ -425,6 +357,24 @@ describe("DesktopApplicationMenu", () => {
         availableVersion: "0.1.7",
       });
       assert.include(`${dialog.title ?? ""} ${dialog.message} ${dialog.detail ?? ""}`, "0.1.7");
+    }),
+  );
+
+  // fork: T3 Extend builds without an update feed have nothing to check.
+  it.effect("leaves out Check for Updates... when the build has no update feed", () =>
+    Effect.gen(function* () {
+      const applicationMenuTemplate =
+        yield* Deferred.make<readonly Electron.MenuItemConstructorOptions[]>();
+      yield* configureMenu(
+        yield* Deferred.make<string>(),
+        applicationMenuTemplate,
+        { platform: "darwin" },
+        { hasUpdateFeed: false },
+      );
+      const labels = (yield* Deferred.await(applicationMenuTemplate)).flatMap((menu) =>
+        Array.isArray(menu.submenu) ? menu.submenu.map((item) => item.label) : [],
+      );
+      assert.notInclude(labels, "Check for Updates...");
     }),
   );
 

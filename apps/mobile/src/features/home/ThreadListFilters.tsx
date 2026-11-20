@@ -22,6 +22,7 @@ export function ThreadListFilters(props: {
   readonly gutter: number;
 }) {
   const gt = useGT();
+  const t = useT(); // fork: thread list views
   const { viewMode, setViewMode } = useThreadListViewPreferences(); // fork: thread list views
   const selectedEnvironment = props.environments.find(
     (environment) => environment.environmentId === props.selectedEnvironmentId,

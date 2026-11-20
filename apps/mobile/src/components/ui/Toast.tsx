@@ -53,7 +53,7 @@ function ToastContent(props: ToastProps & { readonly glassReady?: boolean }) {
   const inlineAction = props.singleLine || (!props.description && fontScale < 1.5);
   const message =
     props.singleLine && props.description
-      ? labelWithDetail(props.message, props.description, t)
+      ? `${props.message}: ${props.description}`
       : props.message;
   const action = props.action ? (
     <Button

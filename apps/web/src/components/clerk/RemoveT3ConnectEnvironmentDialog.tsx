@@ -53,13 +53,6 @@ export function RemoveT3ConnectEnvironmentDialog({
   ) : (
     gt("T3 Connect settings")
   );
-  // The link sits mid-sentence, so split the translated sentence around its placeholder.
-  const [registeredBefore, registeredAfter] = t(
-    "It stays on your T3 Connect account and keeps its host space. Deregister it in {accountPageLink} to free it.",
-  ).split("{accountPageLink}");
-  const [unknownBefore, unknownAfter] = t(
-    "This doesn't change your T3 Connect account. To deregister it there, use {accountPageLink}.",
-  ).split("{accountPageLink}");
 
   return (
     <>

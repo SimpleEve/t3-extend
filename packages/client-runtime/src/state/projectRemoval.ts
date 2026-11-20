@@ -35,20 +35,6 @@ export function planProjectRemoval<
   const targetKind = hasOtherMembers || !isWholeGroup ? "checkout" : "project";
   const singleMember = members.length === 1 ? members[0]! : null;
   const targetLabel = singleMember?.title ?? displayName;
-  // fork: whole sentences per target kind and plural, so translations order their own words.
-  const params = { label: targetLabel, count: threadCount };
-  const question =
-    threadCount === 0
-      ? targetKind === "checkout"
-        ? t('Remove checkout "{label}"?', params)
-        : t('Remove project "{label}"?', params)
-      : targetKind === "checkout"
-        ? threadCount === 1
-          ? t('Remove checkout "{label}" and delete its {count} thread?', params)
-          : t('Remove checkout "{label}" and delete its {count} threads?', params)
-        : threadCount === 1
-          ? t('Remove project "{label}" and delete its {count} thread?', params)
-          : t('Remove project "{label}" and delete its {count} threads?', params);
   const confirmationMessage = [
     threadCount > 0
       ? targetKind === "checkout"

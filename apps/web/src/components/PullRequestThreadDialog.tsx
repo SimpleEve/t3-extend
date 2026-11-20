@@ -39,8 +39,6 @@ import {
 import { Input } from "./ui/input";
 import { Spinner } from "./ui/spinner";
 import { toastManager } from "./ui/toast";
-import { useT } from "~/hooks/useT";
-import { changeRequestTerm } from "./pullRequest/changeRequestTerm";
 
 interface PullRequestThreadDialogProps {
   open: boolean;

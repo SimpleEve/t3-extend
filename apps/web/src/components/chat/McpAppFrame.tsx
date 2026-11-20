@@ -46,9 +46,7 @@ const commandFailure = (result: {
   const error = squashAtomCommandFailure(result);
   return new McpAppHostRefusal({
     message:
-      error instanceof Error && error.message.trim() !== ""
-        ? error.message
-        : translate(getUiLocale(), "Request failed."),
+      error instanceof Error && error.message.trim() !== "" ? error.message : "Request failed.",
   });
 };
 
@@ -292,8 +290,7 @@ export function McpAppFrame(props: {
           const approved = await ask(
             `${m(msg("Allow {server} to run {tool}?", { server: app.server, tool: info.value.title ?? name }))}\n${JSON.stringify(args, null, 2)}`,
           );
-          if (approved !== true)
-            throw new McpAppHostRefusal({ message: t("Declined by the user.") });
+          if (approved !== true) throw new McpAppHostRefusal({ message: "Declined by the user." });
         }
         const result = await readLive().callTool({
           environmentId,
@@ -380,13 +377,9 @@ export function McpAppFrame(props: {
             if (typeof declared === "string") mimeType = declared;
           }
           if (bytes === undefined)
-            throw new McpAppHostRefusal({
-              message: t("{name} has no contents.", { name: file.name }),
-            });
+            throw new McpAppHostRefusal({ message: `${file.name} has no contents.` });
           if (bytes.byteLength > MAX_DOWNLOAD_BYTES) {
-            throw new McpAppHostRefusal({
-              message: t("{name} is too large to save.", { name: file.name }),
-            });
+            throw new McpAppHostRefusal({ message: `${file.name} is too large to save.` });
           }
           saveBlob(new Blob([bytes.slice()], { type: mimeType }), file.name);
         }

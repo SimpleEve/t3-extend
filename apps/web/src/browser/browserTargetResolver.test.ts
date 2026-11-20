@@ -70,11 +70,15 @@ describe("browser target resolver", () => {
   });
 
   it("keeps localhost for an environment whose localhost is forwarded, except for the system browser", async () => {
-    const { resolveDiscoveredServerUrl } = await import("./browserTargetResolver");
+    const { resolveDiscoveredServerUrl, resolveExternalServerUrl } = await import(
+      "./browserTargetResolver"
+    );
     const { publishGatewayState } = await import("~/fork/loopbackGateway/gatewayStore");
     const environmentId = EnvironmentId.make("forwarded-environment");
     const resolve = (rawUrl: string, options?: { systemBrowser?: boolean }) =>
-      resolveDiscoveredServerUrl(environmentId, rawUrl, options);
+      options?.systemBrowser
+        ? resolveExternalServerUrl(environmentId, rawUrl)
+        : resolveDiscoveredServerUrl(environmentId, rawUrl);
 
     // The same remote environment, reached over a private network: each state decides alone.
     readPreparedConnection.mockReturnValue({ httpBaseUrl: "http://192.168.1.25:3773" });

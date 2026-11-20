@@ -13,23 +13,6 @@ describe("toastManager", () => {
     await expect.element(page.getByText("Raised before the first render")).toBeVisible();
   });
 
-  it("localizes text an updater function returns", async () => {
-    const source = "Upload failed";
-    await loadUiCatalog("zh-Hans");
-    const localized = translate("zh-Hans", source);
-    expect(localized).not.toBe(source);
-    await setUiLocale("zh-Hans");
-    try {
-      await using _screen = await render(<ToastProvider>{null}</ToastProvider>);
-      const id = toastManager.add({ type: "loading", title: "Working" });
-      toastManager.update(id, () => ({ type: "error", title: source }));
-
-      await expect.element(page.getByText(localized)).toBeVisible();
-    } finally {
-      await setUiLocale("en");
-    }
-  });
-
   it("exposes one Notifications landmark when both toast providers mount", async () => {
     await using _screen = await render(
       <ToastProvider>

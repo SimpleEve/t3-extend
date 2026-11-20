@@ -95,7 +95,7 @@ export function formatNextScheduledTaskRun(
       ),
     );
   }
-  const date = next.toLocaleDateString(formatTag, {
+  const date = next.toLocaleDateString([], {
     month: "short",
     day: "numeric",
     ...(next.getFullYear() !== current.getFullYear() ? { year: "numeric" as const } : {}),

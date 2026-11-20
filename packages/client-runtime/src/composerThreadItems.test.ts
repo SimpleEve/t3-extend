@@ -104,20 +104,6 @@ it("also offers threads on linked machines, naming the machine, but no other mac
       description: "Thread on Hetzner VPS",
     },
   ]);
-
-  const translated = matchComposerThreadItems({
-    shells: [
-      shell("here", "Deploy script"),
-      shell("there", "Deploy script", { environmentId: vps }),
-    ],
-    environmentId,
-    linkedEnvironments: new Map([[vps, "Hetzner VPS"]]),
-    excludeThreadId: null,
-    query: "deploy",
-    now: Date.parse("2026-10-23T00:00:00.000Z"),
-    t: translatorFor("zh-Hans"),
-  });
-  expect(translated.map((item) => item.description)).toEqual(["对话", "Hetzner VPS 上的对话"]);
 });
 
 describe("matchComposerEnvironmentItems", () => {

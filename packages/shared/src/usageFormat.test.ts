@@ -2,16 +2,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { UsageSource } from "@t3tools/contracts";
 
-import {
-  formatDateTimeShort,
-  formatDayShort,
-  formatHourShort,
-  formatRelativeHourShort,
-  formatTokens,
-  formatUsageContractMismatch,
-  makeWindow,
-  usageSourceMessages,
-} from "./usageFormat.ts";
+import { formatHourShort, formatTokens, makeWindow, usageSourceMessages } from "./usageFormat.ts";
 
 function malformedSource(count: number, overrides: Partial<UsageSource> = {}): UsageSource {
   return {
@@ -161,44 +152,6 @@ describe("hourly usage formatting", () => {
     );
   });
 
-  it("puts dates in the interface language and keeps the formatter's English", () => {
-    const english = (source: string, params?: Readonly<Record<string, string>>) =>
-      source.replace(/\{(\w+)\}/g, (match, name: string) => params?.[name] ?? match);
-    const zh: Readonly<Record<string, string>> = {
-      "{month} {day}": "{month}{day}日",
-      "{date}, {time}": "{date} {time}",
-      "{hour} today": "今天 {hour}",
-      "{hour} AM": "上午 {hour} 点",
-      "{hour} PM": "下午 {hour} 点",
-      Nov: "11月",
-    };
-    const chinese = (source: string, params?: Readonly<Record<string, string>>) =>
-      english(zh[source] ?? source, params);
-    const instant = "2026-11-02T15:37:00.000Z";
-    for (const zone of ["UTC", "America/New_York", "Asia/Kathmandu"]) {
-      for (const hour12 of [true, false]) {
-        expect(formatDateTimeShort(instant, zone, hour12, english)).toBe(
-          formatDateTimeShort(instant, zone, hour12),
-        );
-      }
-    }
-    expect(formatDayShort("2026-11-02")).toBe("Nov 2");
-    expect(formatDayShort("2026-11-02", chinese)).toBe("11月2日");
-    expect(formatDateTimeShort(instant, "UTC", false, chinese)).toBe("11月2日 15:00");
-    expect(
-      formatRelativeHourShort(instant, "2026-11-02T20:00:00.000Z", "UTC", false, chinese),
-    ).toBe("今天 15:00");
-    // The 12-hour clock names the meridiem in the interface language, including a repeated hour.
-    expect(formatHourShort(instant, "UTC", true, chinese)).toBe("下午 3 点");
-    expect(formatHourShort("2026-11-01T05:37:00.000Z", "America/New_York", true, chinese)).toBe(
-      "上午 1 点 EDT",
-    );
-    expect(formatDateTimeShort(instant, "UTC", true, chinese)).toBe("11月2日 下午 3 点");
-    for (const zone of ["UTC", "America/New_York", "Asia/Kathmandu"]) {
-      expect(formatHourShort(instant, zone, true, english)).toBe(formatHourShort(instant, zone));
-    }
-  });
-
   it("builds an exact minute-aligned 24-hour request", () => {
     const window = makeWindow(1, new Date("2026-08-11T12:37:42.123Z"), "hour");
 
@@ -221,27 +174,6 @@ describe("hourly usage formatting", () => {
     } finally {
       resolvedOptions.mockRestore();
     }
-  });
-});
-
-describe("formatUsageContractMismatch", () => {
-  it("keeps the English without a translator", () => {
-    expect(formatUsageContractMismatch("Laptop", { direction: "serverBehind" })).toBe(
-      "Laptop runs an older server version and is excluded from totals.",
-    );
-    expect(formatUsageContractMismatch("Laptop", { direction: "clientBehind" })).toBe(
-      "This client is older than the server on Laptop; its usage is excluded from totals.",
-    );
-  });
-
-  it("hands the template to a translator", () => {
-    expect(
-      formatUsageContractMismatch(
-        "Laptop",
-        { direction: "serverBehind" },
-        (source, params) => `${source}|${params?.environment}`,
-      ),
-    ).toBe("{environment} runs an older server version and is excluded from totals.|Laptop");
   });
 });
 

@@ -132,7 +132,7 @@ const isEnvironmentCloudApiError = Schema.is(
   ]),
 );
 
-function decodedRelayClientError(source: string) {
+function decodedRelayClientError(message: string) {
   return (cause: ManagedRelay.ManagedRelayClientError) => {
     const failed = cause._tag === "ManagedRelayRequestFailedError" ? cause : undefined;
     const traceId = "traceId" in cause ? cause.traceId : undefined;

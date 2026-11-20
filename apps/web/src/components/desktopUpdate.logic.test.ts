@@ -4,7 +4,6 @@ import type { DesktopUpdateState } from "@t3tools/contracts";
 import {
   canCheckForUpdate,
   getDesktopUpdateButtonTooltip,
-  getDesktopUpdateDisabledReason,
   getDesktopUpdateReleaseHistoryUrl,
   getDesktopUpdateReleaseUrl,
   resolveDesktopUpdateButtonAction,
@@ -98,13 +97,13 @@ describe("desktop update button state", () => {
 
 describe("desktop update UI helpers", () => {
   it.each(["owner/repo/extra", "owner#notes/repo", "owner/repo?tab=notes"])(
-    "falls back to the fork repository for an invalid configured repository: %s",
+    "falls back to upstream for an invalid configured repository: %s",
     (repository) => {
       expect(getDesktopUpdateReleaseHistoryUrl(repository)).toBe(
-        "https://github.com/SimpleEve/t3-extend/releases",
+        "https://github.com/pingdotgg/t3code/releases",
       );
       expect(getDesktopUpdateReleaseUrl("1.2.3", repository)).toBe(
-        "https://github.com/SimpleEve/t3-extend/releases/tag/v1.2.3",
+        "https://github.com/pingdotgg/t3code/releases/tag/v1.2.3",
       );
     },
   );
@@ -120,30 +119,5 @@ describe("canCheckForUpdate", () => {
         downloadedVersion: "1.1.0",
       }),
     ).toBe(true);
-  });
-});
-
-describe("getDesktopUpdateDisabledReason", () => {
-  const translate = (source: string) => `zh:${source}`;
-  const disabled = (extra: Partial<DesktopUpdateState>): DesktopUpdateState => ({
-    ...baseState,
-    enabled: false,
-    status: "disabled",
-    ...extra,
-  });
-
-  it("translates the app's own sentence but not an administrator's wording", () => {
-    const fixed = "Automatic updates on Linux require the AppImage or the .deb package.";
-    expect(
-      getDesktopUpdateDisabledReason(
-        disabled({ message: fixed, messageFixed: true }),
-        undefined,
-        translate,
-      ),
-    ).toBe(`zh:${fixed}`);
-    // Same words, but from a policy: shown as written.
-    expect(getDesktopUpdateDisabledReason(disabled({ message: fixed }), undefined, translate)).toBe(
-      fixed,
-    );
   });
 });

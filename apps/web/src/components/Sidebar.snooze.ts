@@ -1,16 +1,10 @@
-import {
-  getUiLocale,
-  translate,
-  uiLocaleFormatTag,
-  type Translator,
-} from "@t3tools/client-runtime/i18n";
 import type { EnvironmentId } from "@t3tools/contracts";
 import type { TimestampFormat } from "@t3tools/contracts/settings";
 import { msg } from "gt-react";
 import {
   pickSnoozePreset as pickSharedSnoozePreset,
   resolveSnoozePresets as resolveSharedSnoozePresets,
-  snoozeWakeLabel as sharedSnoozeWakeLabel,
+  snoozeWakeLabel,
   type SnoozePreset,
 } from "@t3tools/client-runtime/state/thread-settled";
 
@@ -20,20 +14,7 @@ import { serverEnvironment } from "../state/server";
 import { formatShortTimestamp } from "../timestampFormat";
 import { toastManager } from "./ui/toast";
 
-export { type SnoozePreset };
-
-/** fork: the shared wake label ("60m", "now") in the interface language, keeping its rounding. */
-export function snoozeWakeLabel(
-  snoozedUntil: string,
-  options: { readonly now: string },
-  t: Translator,
-): string {
-  return sharedSnoozeWakeLabel(snoozedUntil, {
-    now: options.now,
-    // "now" alone reads as "just now"; here it means the wake is due.
-    translate: (source, params) => t(source, params, "time remaining"),
-  });
-}
+export { snoozeWakeLabel, type SnoozePreset };
 
 /** The snooze menu for a thread, from its environment's presets, read when the menu opens. */
 export function resolveSnoozePresets(
@@ -77,9 +58,5 @@ function snoozeOptions(timestampFormat: TimestampFormat, environmentId: Environm
   return {
     ...(presets ? { presets } : {}),
     formatTime: (date: Date) => formatShortTimestamp(date.toISOString(), timestampFormat),
-    // fork: presets resolve when a menu opens, so the label reads the language at that moment.
-    translate: (source: string, params?: Readonly<Record<string, string | number>>) =>
-      translate(getUiLocale(), source, params),
-    locale: uiLocaleFormatTag(getUiLocale()), // fork: "Thu 9:00" follows the interface
   };
 }

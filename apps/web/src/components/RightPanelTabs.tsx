@@ -34,6 +34,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { TranslatedDndContext as DndContext } from "../fork/TranslatedDndContext"; // fork: dnd-kit announcements in the interface language
 import { restrictToFirstScrollableAncestor, restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -292,8 +293,6 @@ export function surfaceShortcutTargetsTypingContext(
 }
 
 function DisabledReasonTooltip(props: { reason: string; trigger: ReactElement }) {
-  // fork: the reason tables hold English sources; the side chat's reason may arrive translated.
-  const t = useT();
   return (
     <Tooltip>
       <TooltipTrigger render={props.trigger} />
@@ -896,7 +895,7 @@ function SortableTabList(props: {
     if (toIndex >= 0) onMove?.(String(active.id), toIndex);
   };
   return (
-    <TranslatedDndContext
+    <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
       modifiers={TAB_DRAG_MODIFIERS}
@@ -905,7 +904,7 @@ function SortableTabList(props: {
       <SortableContext items={surfaceIds} strategy={horizontalListSortingStrategy}>
         {props.children}
       </SortableContext>
-    </TranslatedDndContext>
+    </DndContext>
   );
 }
 

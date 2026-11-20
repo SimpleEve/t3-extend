@@ -148,14 +148,7 @@ export function useUpdateScopedSettings() {
   return (patch: ScopedSettingsPatch, options?: { readonly onFailed?: () => void }) =>
     run(
       environments,
-      (current) =>
-        planScopedSettingsPatch(
-          scope,
-          current,
-          patch,
-          { deviceOnly },
-          translatorFor(getUiLocale()),
-        ),
+      (current) => planScopedSettingsPatch(scope, current, patch, { deviceOnly }),
       options?.onFailed,
     );
 }
@@ -165,11 +158,7 @@ export function useClearScopedSettings() {
   const run = useRunScopedPlan();
   return (keys: readonly ProjectScopedServerSettingKey[]) => {
     if (context === null) return;
-    run(
-      context.environments,
-      (current) =>
-        planScopedSettingsClear(context.scope, current, keys, translatorFor(getUiLocale())), // fork: interface language
-    );
+    run(context.environments, (current) => planScopedSettingsClear(context.scope, current, keys));
   };
 }
 
@@ -181,10 +170,7 @@ export function useClearProjectOverrides() {
     keys: readonly ProjectScopedServerSettingKey[],
   ) => {
     if (context === null) return;
-    run(
-      context.environments,
-      (current) => planProjectOverridesClear(current, entries, keys, translatorFor(getUiLocale())), // fork: interface language
-    );
+    run(context.environments, (current) => planProjectOverridesClear(current, entries, keys));
   };
 }
 

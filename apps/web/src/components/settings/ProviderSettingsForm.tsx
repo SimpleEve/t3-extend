@@ -593,9 +593,7 @@ function ProviderSettingsSelect({
   const options = field.options ?? [];
   const fallback = options[0]?.value ?? "";
   const current = readProviderConfigString(value, field.key) || fallback;
-  const t = useT();
-  const selected = options.find((option) => option.value === current);
-  const label = selected ? t(selected.label) : current;
+  const label = options.find((option) => option.value === current)?.label ?? current;
   return (
     <Select
       value={current}
@@ -685,7 +683,7 @@ interface ProviderSettingsFieldRowProps {
 }
 
 function ProviderSettingsFieldRow({
-  field: sourceField,
+  field,
   value,
   idPrefix,
   variant,

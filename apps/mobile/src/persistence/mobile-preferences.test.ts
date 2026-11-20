@@ -48,21 +48,15 @@ function loadStored(payload: object) {
 }
 
 describe("mobile preferences store", () => {
-  it.effect("reads the interface language, defaulting to system for old or unknown values", () =>
+  // fork: T3 Extend saved `uiLanguage` before it adopted upstream's `language`.
+  it.effect("moves a saved interface language to the language setting, keeping Chinese", () =>
     Effect.gen(function* () {
       const saved = yield* loadStored({ themeMode: "dark", uiLanguage: "zh-Hans" });
-      expect(MobilePreferences.uiLanguageSettingOf(saved)).toBe("zh-Hans");
-
-      const old = yield* loadStored({ themeMode: "dark" });
-      expect(old.uiLanguage).toBeUndefined();
-      expect(MobilePreferences.uiLanguageSettingOf(old)).toBe("system");
-      expect(old.themeMode).toBe("dark");
-
-      const unknown = yield* loadStored({ uiLanguage: "fr" });
-      expect(unknown.uiLanguage).toBeUndefined();
-      expect(MobilePreferences.uiLanguageSettingOf(unknown)).toBe("system");
-
-      expect(MobilePreferences.uiLanguageSettingOf(null)).toBe("system");
+      expect(saved.language).toBe("zh");
+      expect(saved.themeMode).toBe("dark");
+      expect((yield* loadStored({ uiLanguage: "system" })).language).toBe("system");
+      expect((yield* loadStored({ uiLanguage: "fr" })).language).toBeUndefined();
+      expect((yield* loadStored({ uiLanguage: "zh-Hans", language: "ja" })).language).toBe("ja");
     }),
   );
 

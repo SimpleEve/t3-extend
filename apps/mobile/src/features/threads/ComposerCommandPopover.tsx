@@ -123,7 +123,7 @@ const SKILL_SOURCE_SYMBOL_BY_KIND: Record<ProviderSkillSourceKind, AppSymbolName
 function itemIcon(item: ComposerCommandItem): AppSymbolName | null {
   switch (item.type) {
     case "pull-request":
-      return pullRequestStatusStyle(item.pullRequest).icon;
+      return pullRequestStatus(item.pullRequest).icon;
     case "slash-command":
     case "provider-slash-command":
       return "terminal";
@@ -211,7 +211,7 @@ const CommandRow = memo(function CommandRow(props: {
           size={14}
           tintColorClassName={
             props.item.type === "pull-request"
-              ? pullRequestStatusStyle(props.item.pullRequest).tint
+              ? pullRequestStatus(props.item.pullRequest).tint
               : "accent-icon-subtle"
           }
           type="monochrome"

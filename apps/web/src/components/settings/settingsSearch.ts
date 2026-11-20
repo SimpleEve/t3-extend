@@ -141,7 +141,7 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
   readonly paths: ReadonlyArray<SettingsPath>;
 }> = [
   {
-    heading: "Preferences",
+    heading: msg("Preferences"),
     headingHidden: true,
     paths: [
       "/settings/general",
@@ -155,7 +155,7 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
     ],
   },
   {
-    heading: "Agents",
+    heading: msg("Agents"),
     paths: [
       "/settings/providers",
       "/settings/threads",
@@ -165,11 +165,11 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
     ],
   },
   {
-    heading: "Code",
+    heading: msg("Code"),
     paths: ["/settings/projects", "/settings/source-control", "/settings/worktrees"],
   },
   {
-    heading: "Connections",
+    heading: msg("Connections"),
     paths: [
       "/settings/connections",
       "/settings/access",
@@ -177,7 +177,7 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
     ],
   },
   {
-    heading: "More",
+    heading: msg("More"),
     headingHidden: true,
     paths: ["/settings/maintenance", "/settings/labs", "/settings/about", "/settings/archived"],
   },
@@ -340,13 +340,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     ],
   },
   {
-    // fork: interface language
-    id: "ui-language",
-    title: "Language",
-    to: "/settings/appearance",
-    searchTerms: ["language locale interface translation english chinese 语言 中文 简体中文 界面"],
-  },
-  {
     id: "color-scheme",
     title: msg("Color scheme"),
     to: "/settings/appearance",
@@ -489,13 +482,13 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "project-grouping",
-    title: "Project grouping",
+    title: msg("Project grouping"),
     to: "/settings/general",
     searchTerms: [msg("combine matching repositories environments sidebar")],
   },
   {
     id: "project-order",
-    title: "Project order",
+    title: msg("Project order"),
     to: "/settings/general",
     searchTerms: [msg("sort projects sidebar manual created recent")],
   },
@@ -521,7 +514,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "working-shelf",
-    title: "Working section",
+    title: msg("Working section"),
     to: "/settings/general",
     searchTerms: [msg("hide fold running monitoring threads inbox sidebar shelf")],
   },
@@ -766,7 +759,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "in-app-notifications",
-    title: "In-app notifications",
+    title: msg("In-app notifications"),
     to: "/settings/general",
     searchTerms: [msg("notification toast popup completion input approval failure")],
   },
@@ -782,7 +775,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "time-format",
-    title: "Time format",
+    title: msg("Time format"),
     to: "/settings/general",
     searchTerms: [msg("timestamp clock locale system browser os 12 hour 24 hour")],
   },
@@ -925,31 +918,31 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "unpin-confirmation",
-    title: "Unpin confirmation",
+    title: msg("Unpin confirmation"),
     to: "/settings/general",
     searchTerms: [msg("ask before thread pinned section")],
   },
   {
     id: "archive-confirmation",
-    title: "Archive confirmation",
+    title: msg("Archive confirmation"),
     to: "/settings/general",
     searchTerms: [msg("ask before thread second click inline action")],
   },
   {
     id: "delete-confirmation",
-    title: "Delete confirmation",
+    title: msg("Delete confirmation"),
     to: "/settings/general",
     searchTerms: [msg("ask before thread chat history")],
   },
   {
     id: "terminal-close-confirmation",
-    title: "Terminal close confirmation",
+    title: msg("Terminal close confirmation"),
     to: "/settings/general",
     searchTerms: ["ask before delete stop process shell console history"],
   },
   {
     id: "quit-confirmation",
-    title: "Quit shortcut",
+    title: msg("Quit shortcut"),
     to: "/settings/general",
     searchTerms: [msg("confirmation desktop app exit direct hold double click press twice")],
     desktopOnly: true,
@@ -1704,8 +1697,6 @@ export function settingsForThisPlatform(
 export function searchSettings(
   query: string,
   items: ReadonlyArray<SettingsSearchItem> = SETTINGS_SEARCH_ITEMS,
-  // fork: also match the titles the user reads in their interface language.
-  t: Translator = (source) => source,
   translate: (message: string) => string = (message) => message,
 ): ReadonlyArray<SettingsSearchItem> {
   const normalizedQuery = normalizeSearchText(query);
@@ -1716,7 +1707,7 @@ export function searchSettings(
     .flatMap((item, index) => {
       const title = normalizeSearchText(decodeMsg(item.title));
       const fields = [
-        ...titles,
+        title,
         normalizeSearchText(SETTINGS_SECTION_LABELS[item.to]),
         // The labels as displayed, so search also works in the active language.
         normalizeSearchText(translate(item.title)),
@@ -1727,7 +1718,7 @@ export function searchSettings(
       if (!queryTokens.every((token) => fields.some((field) => field.includes(token)))) return [];
 
       const exactPhraseField = fields.findIndex((field) => field.includes(normalizedQuery));
-      const titleRank = (title: string) =>
+      const rank =
         title === normalizedQuery
           ? 5
           : title.startsWith(normalizedQuery)
@@ -1736,8 +1727,9 @@ export function searchSettings(
               ? 3
               : queryTokens.every((token) => title.includes(token))
                 ? 2
-                : 0;
-      const rank = Math.max(...titles.map(titleRank), exactPhraseField >= 0 ? 1 : 0);
+                : exactPhraseField >= 0
+                  ? 1
+                  : 0;
       return [{ item, index, rank }];
     })
     .toSorted(

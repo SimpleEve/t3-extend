@@ -717,7 +717,7 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
           status: "ready",
           auth: { status: "authenticated" },
         });
-        const agentLaunches = () => h.launches.filter((launch) => launch.harnessPath !== undefined);
+        const agentLaunches = () => h.launches.filter((launch) => launch.tempDirectory !== undefined);
         expect(agentLaunches()).toHaveLength(1);
         expect(agentLaunches()[0]?.profileDirectory).toBe(h.profileDirectory);
         for (const launch of h.launches) expect(launch.forceFileStorage).toBeUndefined();
@@ -751,7 +751,7 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
           auth: { status: "unauthenticated" },
         });
         yield* h.instance.snapshot.refresh;
-        expect(h.launches.filter((launch) => launch.harnessPath !== undefined)).toHaveLength(1);
+        expect(h.launches.filter((launch) => launch.tempDirectory !== undefined)).toHaveLength(1);
         yield* h.assertClosed;
       }),
   );

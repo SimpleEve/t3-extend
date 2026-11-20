@@ -232,15 +232,6 @@ const LEGACY_MENU_ACTIONS: MenuAction[] = [
   },
 ];
 
-// fork: i18n. Menu constants keep English sources; titles translate where a menu is shown.
-function translateMenuActions(actions: ReadonlyArray<MenuAction>, t: Translator): MenuAction[] {
-  return actions.map((action) => ({
-    ...action,
-    title: t(action.title),
-    ...(action.subactions ? { subactions: translateMenuActions(action.subactions, t) } : {}),
-  }));
-}
-
 function ThreadListV2Section(props: {
   readonly label: string;
   readonly pane?: "screen" | "sidebar";
@@ -1213,7 +1204,6 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
     swipeActions.secondary,
     thread.branch,
     titleMenuItems,
-    t,
   ]);
   const handleMenuAction = useCallback(
     ({ nativeEvent }: { readonly nativeEvent: { readonly event: string } }) => {
@@ -1301,8 +1291,6 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       setCustomSnoozeOpen,
       snoozePresets,
       props.snoozePresets,
-      t,
-      locale,
     ],
   );
   const primaryAction = useMemo(() => {
@@ -1351,7 +1339,6 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
     handleUnsnooze,
     swipeActions.primary,
     thread.title,
-    t,
   ]);
   const secondaryAction = useMemo(
     () =>
@@ -1361,7 +1348,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
             icon: "clock" as const,
             label: gt("Snooze", { $context: "verb, thread action" }),
             menu: {
-              actions: translateMenuActions(snoozePresetActions, t),
+              actions: snoozePresetActions,
               onPressAction: handleMenuAction,
               title: gt("Snooze until"),
             },
@@ -1413,7 +1400,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
               : undefined
           }
         >
-          {shownTitle}
+          {thread.title}
         </Text>
         <View className="flex-row items-center gap-1.5" style={{ minHeight: titleLineHeight }}>
           {props.hasQueuedMessages ? <QueuedMessageIcon selected={selected} /> : null}
@@ -1574,7 +1561,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
                   ? PullRequestGlyph.stack
                   : pr.state === null
                     ? PullRequestGlyph.pullRequest
-                    : pullRequestStatusStyle({ state: pr.state, isDraft: pr.isDraft }).icon
+                    : pullRequestStatus({ state: pr.state, isDraft: pr.isDraft }).icon
               }
               size={12}
               tintColorClassName={
@@ -1723,7 +1710,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
               )}
               numberOfLines={1}
             >
-              {shownTitle}
+              {thread.title}
             </Text>
             {providerNameLabel ? (
               <Text
@@ -1791,12 +1778,12 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         secondaryAction={secondaryAction}
         resetKey={`${thread.environmentId}:${thread.id}:${variant}:${snoozedRow}:${thread.settledAt}:${thread.unsettledAt}:${thread.snoozedUntil}:${thread.pinnedAt}`}
         simultaneousWith={props.simultaneousSwipeGesture}
-        threadTitle={shownTitle}
+        threadTitle={thread.title}
       >
         {(close) => (
           <Menu
             accessibilityLabel={rowAccessibilityLabel}
-            actions={translateMenuActions(menuActions, t)}
+            actions={menuActions}
             onPressAction={handleMenuAction}
             shouldOpenOnLongPress
           >

@@ -9,8 +9,6 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import {
   buildSubscriptionUsageSnapshot,
   createWidgetRefresher,
-  subscriptionUsageStrings,
-  subscriptionUsageTimeline,
   WIDGET_REFRESH_INTERVAL,
 } from "./subscriptionUsageSnapshot";
 
@@ -184,45 +182,6 @@ describe("subscription widget snapshots", () => {
     const snapshot = buildSubscriptionUsageSnapshot(input, deepLink);
     expect(snapshot.providers[0]?.detail).toBe("Subscription remaining");
     expect(snapshot.providers[0]?.windows[0]?.remaining).toBe(20);
-  });
-});
-
-describe("subscription widget language", () => {
-  it("switches the widget's strings with the language and keeps data fields raw", async () => {
-    await loadUiCatalog("zh-Hans");
-    const input = presentations();
-    const english = buildSubscriptionUsageSnapshot(input, deepLink);
-    const chinese = buildSubscriptionUsageSnapshot(input, deepLink, 6, "zh-Hans");
-    const backToEnglish = buildSubscriptionUsageSnapshot(input, deepLink, 6, "en");
-
-    expect(chinese.strings).toEqual(subscriptionUsageStrings(translatorFor("zh-Hans")));
-    expect(chinese.strings).not.toEqual(english.strings);
-    expect(chinese.checkedAtLabel).not.toBe(english.checkedAtLabel);
-    // Nothing from the earlier language survives a switch back.
-    expect(backToEnglish).toEqual(english);
-
-    // The widgets branch on provider names and window kinds, so those stay as reported.
-    const data = (snapshot: typeof english) =>
-      snapshot.providers.map(({ name, windows, expiresAt, totalWindows }) => ({
-        name,
-        expiresAt,
-        totalWindows,
-        windows: windows.map(({ kind, remaining }) => ({ kind, remaining })),
-      }));
-    expect(data(chinese)).toEqual(data(english));
-  });
-
-  it("marks an expired reading stale in the snapshot's own language", async () => {
-    await loadUiCatalog("zh-Hans");
-    const english = buildSubscriptionUsageSnapshot(presentations(), deepLink);
-    const chinese = buildSubscriptionUsageSnapshot(presentations(), deepLink, 6, "zh-Hans");
-    const expiry = chinese.providers[0]!.expiresAt;
-    const stale = subscriptionUsageTimeline(chinese, expiry - 1).at(-1)!.props.providers[0]!;
-
-    expect(stale.detail).toBe(chinese.strings?.refresh);
-    expect(stale.detail).not.toBe(english.strings?.refresh);
-    expect(stale.windows).toEqual([]);
-    expect(stale.name).toBe(english.providers[0]!.name);
   });
 });
 

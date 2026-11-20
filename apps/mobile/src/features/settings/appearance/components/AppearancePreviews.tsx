@@ -8,6 +8,7 @@ import {
 } from "../../../../lib/appearancePreferences";
 import { getMobileTerminalTheme } from "../../../terminal/terminalTheme";
 import { useAppearancePreferences } from "../AppearancePreferencesProvider";
+import { useT, useUiLocale } from "../../../../hooks/useT"; // fork: Chinese text sizes
 
 const CODE_FONT_FAMILY = Platform.select({
   ios: "ui-monospace",

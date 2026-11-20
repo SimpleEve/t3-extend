@@ -45,8 +45,7 @@ export function getCachedPullRequestDiffPages(
   }
   const previous = snapshots.get(key);
   if (
-    previous?.t === t &&
-    previous.pages.length === pages.length &&
+    previous?.pages.length === pages.length &&
     pages.every((page, index) => {
       const cached = previous.pages[index];
       return cached?.cursor === page.cursor && cached.result === page.result;

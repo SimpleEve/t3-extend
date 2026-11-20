@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { localNotificationsRows, notificationsRow } from "../../fork/push/notificationsRow"; // fork: UnifiedPush
+import { loadUiCatalog, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: notifications rows
 import { filterSettingsSections } from "./settings-search";
 
 const SECTIONS = [
@@ -91,7 +92,7 @@ describe("Notifications without T3 Connect", () => {
     ];
     for (const query of queries) {
       expect(
-        filterSettingsSections(sections, query, t).flatMap((section) =>
+        filterSettingsSections(sections, query).flatMap((section) =>
           section.rows.map((row) => row.id),
         ),
       ).toEqual(["SettingsNotifications"]);

@@ -56,14 +56,6 @@ export interface GitActionResultToastTiming {
 
 export const GIT_ACTION_SUCCESS_VISIBLE_MS = 10_000;
 
-/**
- * fork: the host's word for a change request inside a sentence. English keeps "pull request" or
- * "merge request"; other languages use the short label (PR, MR), as the glossary does.
- */
-export function changeRequestNoun(terminology: ChangeRequestTerminology, locale: UiLocale): string {
-  return locale === "en" ? terminology.singular : terminology.shortLabel;
-}
-
 export function resolveGitActionResultToastTiming(
   type: "error" | "success",
 ): GitActionResultToastTiming {
@@ -250,7 +242,6 @@ export function getMenuActionDisabledReason(
     return resolve(msg("Push is currently unavailable."));
   }
 
-  const kind = kindLabel(terminology);
   if (!hasBranch) {
     return resolve(
       msg(

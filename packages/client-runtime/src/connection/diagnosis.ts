@@ -5,9 +5,6 @@ import {
 import type { RelayEnvironmentStatusResponse } from "@t3tools/contracts/relay";
 import * as DateTime from "effect/DateTime";
 
-import { interpolate } from "../i18n/translate.ts";
-import type { Translator } from "../i18n/store.ts";
-
 import type {
   ConnectionAttemptError,
   ConnectionFailureCause,
@@ -47,8 +44,6 @@ export interface ConnectionDiagnosisInput {
   > | null;
   readonly clientVersion?: string | undefined;
   readonly serverVersion?: string | null | undefined;
-  // fork: translates the headline, hops, and steps. Facts stay English for bug reports.
-  readonly t?: Translator | undefined;
 }
 
 interface Located {
@@ -412,7 +407,6 @@ export function presentConnectionDiagnosis(
   const located = locate(input);
   if (located === null) return null;
   const host = input.hostLabel;
-  const t = input.t ?? untranslated;
   const failure = input.state.lastFailure;
   const relayPath =
     located.hop === "relay" ||

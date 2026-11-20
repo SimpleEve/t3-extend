@@ -114,26 +114,6 @@ describe("Antigravity process environment", () => {
     });
   });
 
-  it("runs the agy CLI as `agy acp` without a harness", () => {
-    const spawn = buildAntigravityAcpSpawnInput({
-      installation: { executablePath: "/usr/bin/agy", harnessPath: null },
-      profile,
-      cwd: "/project",
-      baseEnv: { PATH: "/usr/bin", ANTIGRAVITY_HARNESS_PATH: "/stale/harness" },
-    });
-
-    expect(spawn.command).toBe("/usr/bin/agy");
-    expect(spawn.args).toEqual([
-      "acp",
-      "--gemini-dir",
-      profile.geminiHome,
-      "--app-data-dir",
-      "antigravity-acp",
-    ]);
-    expect(spawn.env).not.toHaveProperty("ANTIGRAVITY_HARNESS_PATH");
-    expect(spawn.env).toMatchObject({ GEMINI_HOME: profile.geminiHome, PATH: "/usr/bin" });
-  });
-
   // fork: a shared login is the agy CLI's keyring entry; forcing file storage would hide it.
   it("leaves the sign-in in the CLI's keyring when the instance shares the agy CLI login", () => {
     const baseEnv = {
@@ -143,7 +123,7 @@ describe("Antigravity process environment", () => {
     };
     const spawnFor = (sharedLogin: boolean) =>
       buildAntigravityAcpSpawnInput({
-        installation: { executablePath: "/usr/bin/agy", harnessPath: null },
+        installation: { executablePath: "/usr/bin/agy" },
         profile: { ...profile, sharedLogin },
         cwd: "/project",
         baseEnv,

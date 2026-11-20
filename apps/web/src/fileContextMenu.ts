@@ -64,7 +64,6 @@ function buildFileContextMenuItems(input: {
   readonly capabilities: FileContextMenuCapabilities;
   readonly resolve: MessageResolver;
 }): readonly ContextMenuItem<FileContextMenuAction>[] {
-  const { t } = input;
   if (!input.hasAbsolutePath) return [];
   const items: ContextMenuItem<FileContextMenuAction>[] = [];
   if (input.capabilities.canOpenDefault) {

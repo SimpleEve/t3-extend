@@ -28,8 +28,7 @@ type ConfirmationCopy = {
 // LocalApi.confirm takes one string; translated questions may end in a full-width mark.
 const QUESTION_MARK = /[?？]/;
 
-// fork: exported for its test
-export function resolveConfirmDialogCopy(message: string, resolve: MessageResolver): ConfirmationCopy {
+function resolveConfirmDialogCopy(message: string, resolve: MessageResolver): ConfirmationCopy {
   const normalizedMessage = message.trim();
   const lines = normalizedMessage.split("\n");
   const questionLineIndex = lines.findIndex((line) => QUESTION_MARK.test(line.trim().slice(-1)));

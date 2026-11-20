@@ -49,7 +49,7 @@ import {
   reconcilePendingThreadOrder,
   type PendingThreadOrder,
 } from "./threadOrder";
-import type { Translator, UiLocale } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { getUiLocale, translatorFor, type Translator } from "@t3tools/client-runtime/i18n"; // fork: thread list views
 import type { ThreadListProjectRow } from "../../fork/threadListProjectView"; // fork: thread list views
 import {
   hasMainCheckoutBadge,
@@ -102,33 +102,6 @@ export function resolveThreadListV2SnoozePresets(
   return input.secondary === "snooze"
     ? resolveSnoozePresets(new Date(input.now), presetOptions(input.presets), resolve)
     : [];
-}
-
-// fork: Hermes on Android names weekdays in English whatever the locale.
-const WAKE_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-
-// fork: i18n. English passes nothing, so the menu keeps upstream's device-locale times.
-function snoozeLanguageOptions(input: {
-  readonly translate?: Translator;
-  readonly locale?: UiLocale;
-}) {
-  const { locale, translate } = input;
-  return {
-    ...(translate ? { translate } : {}),
-    ...(locale && locale !== "en"
-      ? {
-          locale: uiFormatLocale(locale),
-          formatTime: (date: Date) =>
-            date.toLocaleTimeString(
-              uiFormatLocale(locale),
-              uiFormatOptions(locale, { hour: "numeric", minute: "2-digit" }),
-            ),
-          ...(translate
-            ? { formatWeekday: (date: Date) => translate(WAKE_WEEKDAYS[date.getDay()]!) }
-            : {}),
-        }
-      : {}),
-  };
 }
 
 function presetOptions(presets: ReadonlyArray<SnoozePresetSetting> | undefined) {
@@ -665,6 +638,11 @@ export function buildThreadListV2ListItems(input: {
   readonly moveAvailability?: ReadonlyMap<string, ThreadMoveAvailability>;
   readonly shelfPreferencesLoading?: boolean;
   readonly resolve?: MessageResolver;
+  /** fork: thread list views. Replaces the active rows with these grouped rows. */
+  readonly projectView?: {
+    readonly activeStart: number;
+    readonly rows: ReadonlyArray<ThreadListProjectRow>;
+  };
 }): ThreadListV2ListItem[] {
   const resolve = input.resolve ?? m;
   const queuedThreadKeys = input.queuedThreadKeys?.size ? input.queuedThreadKeys : undefined;
@@ -725,7 +703,7 @@ export function buildThreadListV2ListItems(input: {
             input.projectView.rows,
             input.items,
             threadItems,
-            input.translate,
+            translatorFor(getUiLocale()),
           ),
         ]
       : threadItems.slice(0, activeEnd)),
@@ -777,10 +755,9 @@ function projectViewListItems(
   rows: ReadonlyArray<ThreadListProjectRow>,
   items: ReadonlyArray<ThreadListV2Item>,
   threadItems: ReadonlyArray<ThreadListV2ListItem>,
-  translate: Translator | undefined,
+  t: Translator,
 ): ThreadListV2ListItem[] {
   const itemByThread = new Map(items.map((item, index) => [item.thread, threadItems[index]!]));
-  const t: Translator = translate ?? ((text) => text);
   // Rows after a worktree header sit one level under it; a project header ends that.
   let underWorktree = false;
   return rows.flatMap((row, index): ThreadListV2ListItem[] => {

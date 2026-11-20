@@ -216,13 +216,6 @@ export function buildSidebarProjectSnapshots(
   });
 }
 
-// fork: the scratch group's name is UI copy, decided by identity; ordinary names are user content.
-export function translateScratchProjectName<
-  T extends Pick<SidebarProjectSnapshot, "isScratch" | "displayName">,
->(group: T, t: Translator): T {
-  return group.isScratch ? { ...group, displayName: t("No project") } : group;
-}
-
 export function buildSidebarProjectPickerEntries(input: {
   groups: ReadonlyArray<SidebarProjectSnapshot>;
   preferredProjectRef: ScopedProjectRef | null;

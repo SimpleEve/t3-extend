@@ -656,9 +656,7 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
               ) : null}
             </View>
             <View className="gap-3 rounded-[24px] border-continuous bg-grouped-card p-4">
-              <Text className="text-sm font-t3-medium text-foreground">
-                {usageWindowLabel(window.label, t)}
-              </Text>
+              <Text className="text-sm font-t3-medium text-foreground">{window.label}</Text>
               <Text className="text-3xl font-t3-bold tabular-nums text-foreground">
                 <T>
                   <Var>{remainingPercent(window)}</Var>% left

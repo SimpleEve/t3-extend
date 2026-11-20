@@ -462,8 +462,6 @@ function UnresolvedContextChip(props: { label: string }) {
 
 interface ComposerContextRenderContext {
   label: string;
-  // fork: passed in so chip labels recompute when the interface language changes.
-  t: Translator;
 }
 
 const composerContextPresentationRegistry = createContextPresentationRegistry<
@@ -587,6 +585,5 @@ export function ComposerContextReferenceChip(props: {
   const records = use(ComposerContextRecordsContext);
   return composerContextPresentationRegistry.render(props.kind, records.get(props.contextId), {
     label: props.label,
-    t,
   });
 }

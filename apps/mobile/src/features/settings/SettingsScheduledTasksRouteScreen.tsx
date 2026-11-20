@@ -99,7 +99,6 @@ import {
 import {
   formatNextScheduledTaskRun,
   formatScheduledTaskInterval,
-  formatScheduledTaskTime,
 } from "./scheduledTaskPresentation";
 
 type ScheduledTaskRoutes = {
@@ -158,12 +157,8 @@ function formatTime(value: string): string {
   return time.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function formatRunAtDate(value: Date, locale: UiLocale): string {
-  return value.toLocaleDateString(uiFormatLocale(locale), {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }); // fork: interface language
+function formatRunAtDate(value: Date): string {
+  return value.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
 }
 
 function formatRunAtTime(value: Date): string {
@@ -843,7 +838,7 @@ function TaskForm({
         gt("Once is not available here"),
         gt(
           "This environment runs an older {product}. Update it to schedule a one-time task, or pick another schedule.",
-          { product: "T3 Extend" },
+          { product: "T3 Extend" }, // fork: brand
         ),
       );
       return;
@@ -1216,7 +1211,7 @@ function TaskForm({
                   textRole="footnote"
                   className="min-w-0 flex-1 text-right text-foreground-muted"
                 >
-                  {formatTime(draft.schedule.timeOfDay, locale)}
+                  {formatTime(draft.schedule.timeOfDay)}
                   {runAtZone ? ` ${runAtZone}` : ""}
                 </Text>
                 <SymbolView
@@ -1293,8 +1288,7 @@ function TaskForm({
           ) : draft.schedule.mode === "once" ? (
             (["date", "time"] as const).map((field) => {
               const runAt = new Date(draft.schedule.runAt);
-              const label =
-                field === "date" ? formatRunAtDate(runAt, locale) : formatRunAtTime(runAt, locale);
+              const label = field === "date" ? formatRunAtDate(runAt) : formatRunAtTime(runAt);
               return (
                 <View key={field}>
                   <Pressable

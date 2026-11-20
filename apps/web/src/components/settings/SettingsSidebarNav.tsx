@@ -145,7 +145,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const [compactSearchOpen, setCompactSearchOpen] = useState(false);
   const [activeResultIndex, setActiveResultIndex] = useState(0);
   const searchableItems = useAvailableSettingsSearchItems();
-  const results = searchSettings(query, searchableItems, t);
+  const results = searchSettings(query, searchableItems, m);
   const isSearching = query.trim().length > 0;
   const hasResults = results.length > 0;
   const maxResultIndex = Math.max(results.length - 1, 0);

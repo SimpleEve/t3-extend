@@ -87,7 +87,7 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { ScreenContent } from "../../components/ui/ScreenContent";
-import { useRelativeTime } from "../../components/RelativeTime";
+import { RelativeTime } from "../../components/RelativeTime";
 import { usePullRequestConnected } from "./usePullRequestConnected";
 import { usePullRequestLiveChecks } from "./usePullRequestLiveChecks";
 import { pullRequestLabelColor } from "./pullRequestList";
@@ -207,11 +207,6 @@ function usePullRequestActivityRows(params: PullRequestParams, filter: ActivityF
     pending: result.isPending && !result.data,
     error: result.error,
   };
-}
-
-function UpdatedAgo(props: { readonly timestamp: string }) {
-  const t = useT(); // fork: i18n
-  return t("Updated {time} ago", { time: useRelativeTime(props.timestamp) });
 }
 
 function PullRequestIdentity(props: {
@@ -1490,9 +1485,7 @@ function PullRequestFileRouteContent({ route }: PullRequestFileRouteProps) {
             </View>
           ) : null}
           {parsed.kind === "files" && parsed.notice ? (
-            <Text className="px-4 py-2 text-2xs text-foreground-muted">
-              {t(parsed.notice, { singular: changeRequestTerm(terminology.singular, t) })}
-            </Text>
+            <Text className="px-4 py-2 text-2xs text-foreground-muted">{parsed.notice}</Text>
           ) : null}
         </View>
       </ScreenContent>

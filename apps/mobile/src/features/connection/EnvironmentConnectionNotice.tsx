@@ -123,7 +123,6 @@ export function EnvironmentConnectionNotice(props: {
           {noticeTitle(
             props.connection.phase,
             props.environmentLabel,
-            t,
             props.connection.awaitingApproval === true,
             m,
           )}

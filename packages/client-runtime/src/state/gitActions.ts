@@ -51,11 +51,6 @@ export function changeRequestTerminologyFor(
   return sourceControlClients.get(gitStatus?.sourceControlProvider?.kind).changeRequest;
 }
 
-// fork: English keeps the host's article ("a PR", "an MR"); other languages have none.
-function kindWithArticle(locale: UiLocale, terminology: ChangeRequestTerminology): string {
-  return locale === "en" ? terminology.shortLabelWithArticle : terminology.shortLabel;
-}
-
 export function buildMenuItems(
   gitStatus: VcsStatusResult | null,
   isBusy: boolean,
@@ -323,8 +318,6 @@ export function getGitActionDisabledReason(
   resolve: MFunctionType = mFallback,
 ): string | null {
   const { item, gitStatus, isBusy, hasOriginRemote } = input;
-  const locale = input.locale ?? "en";
-  const t = translatorFor(locale);
   if (!item.disabled) return null;
   if (isBusy) return resolve(msg("Git action in progress."));
   if (!gitStatus) return resolve(msg("Git status is unavailable."));

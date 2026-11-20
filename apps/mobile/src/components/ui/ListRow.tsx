@@ -17,7 +17,7 @@ export function ListRow(
   return (
     <RowPressable
       accessibilityRole="button"
-      accessibilityLabel={joinLabelParts([props.label, props.description, props.detail], t)}
+      accessibilityLabel={[props.label, props.description, props.detail].filter(Boolean).join(", ")}
       accessibilityState={{
         disabled: Boolean(props.disabled),
         ...(props.selected === undefined ? {} : { checked: props.selected }),

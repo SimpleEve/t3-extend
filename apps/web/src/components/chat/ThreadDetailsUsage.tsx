@@ -170,7 +170,7 @@ function LimitRow({
   const resetsAt = window.resetsAt ? Date.parse(window.resetsAt) : Number.NaN;
   return (
     <UsageRow
-      label={usageWindowLabel(window.label, t)}
+      label={window.label}
       fill={left}
       tone={left <= 10 ? "error" : left <= 20 ? "warning" : null}
       tick={timeLeft}

@@ -38,9 +38,6 @@ import {
   presentRunStop,
   threadRuntimeHasInterruptibleRun,
 } from "./threadExecution.ts";
-import zhHans from "../i18n/catalogs/zh-Hans/index.ts";
-import { translatorFor } from "../i18n/store.ts";
-import { __setUiCatalogForTests } from "../i18n/translate.ts";
 
 const now = DateTime.makeUnsafe("2026-07-28T10:00:00.000Z");
 
@@ -830,29 +827,5 @@ describe("presentPendingBackgroundWork", () => {
       },
     ]);
     expect(presentation?.items[0]?.label).toBe("mv a.ts b.ts\ncat > b.ts <<'EOF'\nexport {};\nEOF");
-  });
-
-  it.each([
-    [[{ taskId: "1", kind: "command", description: "make" }], "Running · make", "运行中 · make"],
-    [
-      [{ taskId: "1", kind: "background_task" }],
-      "Waiting on a background task",
-      "正在等待后台任务",
-    ],
-    [
-      [
-        { taskId: "1", kind: "subagent" },
-        { taskId: "2", kind: "command" },
-        { taskId: "3", kind: "command" },
-      ],
-      "Waiting on 1 subagent and 2 commands",
-      "正在等待 1 个子 Agent、2 个命令",
-    ],
-  ] as const)("titles background work %#", (tasks, english, chinese) => {
-    expect(presentPendingBackgroundWork(tasks)?.title).toBe(english);
-    __setUiCatalogForTests("zh-Hans", zhHans);
-    const presentation = presentPendingBackgroundWork(tasks, translatorFor("zh-Hans"));
-    __setUiCatalogForTests("zh-Hans", null);
-    expect(presentation?.title).toBe(chinese);
   });
 });

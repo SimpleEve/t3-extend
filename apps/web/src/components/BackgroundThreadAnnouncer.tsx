@@ -56,12 +56,7 @@ export function startBackgroundThreadAnnouncements(
         snoozed: effectiveSnoozed(thread, { now }),
       });
     }
-    const next = nextBackgroundThreadAnnouncement(
-      memory,
-      snapshots,
-      openThreadKey,
-      translatorFor(getUiLocale()), // fork: interface language
-    );
+    const next = nextBackgroundThreadAnnouncement(memory, snapshots, openThreadKey);
     memory = next.memory;
     if (next.announcement !== null) backgroundThreadLiveRegion.announce(next.announcement);
   };

@@ -24,6 +24,7 @@ import {
   type DragStartEvent,
   type Modifier,
 } from "@dnd-kit/core";
+import { TranslatedDndContext as DndContext } from "../fork/TranslatedDndContext"; // fork: dnd-kit announcements in the interface language
 import { SortableContext } from "@dnd-kit/sortable";
 import { restrictToFirstScrollableAncestor, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
@@ -1205,10 +1206,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       projectScopeFilter.contains(item, query, (candidate) => candidate.label),
   });
   const scopedProjectGroups = revealWidensScope ? [] : chosenProjectGroups;
-  const scopeLabel =
-    scopedProjectGroups.length > 1
-      ? t("these projects")
-      : (scopedProjectGroups[0]?.displayName ?? "");
   const scopedProjectRefs = scopedProjectGroups.flatMap((project) => project.memberProjectRefs);
   const scopedProjectKeys = revealWidensScope ? null : chosenScopeProjectKeys;
   const threadSearch = useThreadSearch(
@@ -2589,14 +2586,11 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           projectByKey.get(`${session.environmentId}:${session.projectId}`)?.workspaceRoot;
         const clicked = await settlePromise(() =>
           api.contextMenu.show(
-            buildDraftActionMenuItems(
-              {
-                hasPath: Boolean(workspacePath),
-                hasBranch: Boolean(session.branch),
-                hasProject: projectGroup != null,
-              },
-              t,
-            ),
+            buildDraftActionMenuItems({
+              hasPath: Boolean(workspacePath),
+              hasBranch: Boolean(session.branch),
+              hasProject: projectGroup != null,
+            }),
             position,
             source,
           ),
@@ -2713,8 +2707,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                 pinning: configLoaded,
                 titleRegeneration: configLoaded,
               },
-              t,
-            ),
+              snoozePresets,
+            }),
             position,
             source,
           ),
@@ -3269,7 +3263,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                 closeDelay={0}
                 timeout={400}
               >
-                <TranslatedDndContext
+                <DndContext
                   sensors={dndSensors}
                   autoScroll={false}
                   onDragStart={(event) => {
@@ -3329,7 +3323,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       );
                     })}
                   </ul>
-                </TranslatedDndContext>
+                </DndContext>
               </TooltipProvider>
             ) : (
               <p
@@ -3404,7 +3398,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               closeDelay={0}
               timeout={400}
             >
-              <TranslatedDndContext
+              <DndContext
                 sensors={dndSensors}
                 autoScroll={isContextDrag ? false : SIDEBAR_AUTO_SCROLL}
                 collisionDetection={dndCollisionDetection}
@@ -3765,7 +3759,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                     ) : null}
                   </ul>
                 </SortableContext>
-              </TranslatedDndContext>
+              </DndContext>
             </TooltipProvider>
           ) : null}
         </SidebarGroup>

@@ -8,7 +8,6 @@ import type {
 import { formatModelSlugName, resolveSelectableModel } from "@t3tools/shared/model";
 import { fileBasename } from "@t3tools/shared/path";
 import { resolveModelShortName } from "../providerClients.ts";
-import { englishWorkLogPhrase, type WorkLogPhraseTranslator } from "../work-log/phrase.ts"; // fork
 import { isTerminalSubagentStatus } from "./subagentRuntime.ts";
 import { mFallback, msg } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
@@ -20,7 +19,6 @@ export function subagentGroupSummary(
   const active = members.some(
     ({ status }) => status === "pending" || status === "running" || status === "waiting",
   );
-  const count = members.length;
   return {
     label: active
       ? resolve(

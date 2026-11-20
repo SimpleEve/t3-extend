@@ -5,8 +5,6 @@ import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { cn } from "~/lib/utils";
 
 import { Button } from "../ui/button";
-import { useT } from "~/hooks/useT";
-import { changeRequestTerm } from "./changeRequestTerm";
 
 import type { ChangeRequestTermKind } from "./changeRequestTerm";
 

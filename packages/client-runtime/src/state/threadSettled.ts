@@ -216,39 +216,13 @@ export interface SnoozePreset {
   readonly snoozedUntil: string;
 }
 
-/** Translates a preset label's English source; `{name}` placeholders take `params`. */
-export type SnoozeLabelTranslator = (
-  source: string,
-  params?: Readonly<Record<string, string | number>>,
-) => string;
-
 export interface SnoozePresetOptions {
   readonly presets?: ReadonlyArray<SnoozePresetSetting>;
   readonly formatTime?: (date: Date) => string;
-  readonly translate?: SnoozeLabelTranslator;
-  /** fork: `Intl` tag for the default time and the weekday in `whenLabel`; unset keeps the runtime's default locale. */
-  readonly locale?: string;
-  /** fork: names the wake day in `whenLabel` in place of `Intl`, which Hermes on Android leaves in English. */
-  readonly formatWeekday?: (date: Date) => string;
 }
 
-const englishSnoozeLabel: SnoozeLabelTranslator = (source, params) =>
-  source.replace(/\{(\w+)\}/g, (match, name: string) =>
-    params && Object.hasOwn(params, name) ? String(params[name]) : match,
-  );
-
-const WEEKDAY_LABELS = {
-  sunday: "Sunday",
-  monday: "Monday",
-  tuesday: "Tuesday",
-  wednesday: "Wednesday",
-  thursday: "Thursday",
-  friday: "Friday",
-  saturday: "Saturday",
-} as const;
-
-function snoozeTimeOfDayLabel(date: Date, locale?: string): string {
-  return date.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
+function snoozeTimeOfDayLabel(date: Date): string {
+  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
 // Calendar-day advance instead of adding DAY_MS: fixed millisecond offsets
@@ -364,11 +338,7 @@ export function resolveSnoozePreset(
     whenLabel:
       labelNamesDay || wake.toDateString() === now.toDateString()
         ? time
-        : `${
-            formatWeekday
-              ? formatWeekday(wake)
-              : wake.toLocaleDateString(locale, { weekday: "short" })
-          } ${time}`,
+        : `${wake.toLocaleDateString(undefined, { weekday: "short" })} ${time}`,
     snoozedUntil: wake.toISOString(),
   };
 }

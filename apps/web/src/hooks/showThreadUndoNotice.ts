@@ -14,12 +14,6 @@ import { announce, cancelAnnouncement } from "../lib/announce";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { primaryServerKeybindingsAtom } from "../state/server";
 import * as ThreadUndo from "@t3tools/client-runtime/state/thread-undo";
-import {
-  getUiLocale,
-  translate,
-  translatorFor,
-  type Translator,
-} from "@t3tools/client-runtime/i18n"; // fork: interface language
 
 type UndoOptions = {
   action: "Settled" | "Snoozed" | "Unpinned" | "Archived" | "Discarded";

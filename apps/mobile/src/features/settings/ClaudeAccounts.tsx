@@ -219,7 +219,6 @@ function ClaudeAccountForm({
       policy: environment.serverConfig.managedPolicy,
       instanceId,
       draft,
-      t,
     });
     if ("error" in plan) {
       setError(plan.error);

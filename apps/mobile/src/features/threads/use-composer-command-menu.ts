@@ -74,8 +74,6 @@ const idleWorkspaceSnapshotRefreshAtom: Atom.Atom<unknown> = Atom.make<void>(und
   Atom.withLabel("mobile:provider-workspace-snapshot-refresh:idle"),
 );
 
-const PULL_REQUEST_STATE_LABELS = { open: "Open", closed: "Closed", merged: "Merged" } as const;
-
 function composerSelectionAtEnd(draftMessage: string): ComposerEditorSelection {
   return { start: draftMessage.length, end: draftMessage.length };
 }

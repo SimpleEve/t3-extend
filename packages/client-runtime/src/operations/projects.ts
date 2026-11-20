@@ -183,13 +183,6 @@ export function sortAddProjectProviderSources(
   );
 }
 
-// fork: hints take an optional translator; without one the English is unchanged.
-type HintTranslator = (source: string, params?: Readonly<Record<string, string>>) => string;
-const englishHint: HintTranslator = (source, params) =>
-  source.replace(/\{(\w+)\}/g, (match, name: string) =>
-    params && Object.hasOwn(params, name) ? params[name]! : match,
-  );
-
 const READY: AddProjectRemoteSourceReadinessEntry = { ready: true, hint: null };
 const UNAVAILABLE_HINT = msg(
   "Provider status unavailable. Open Source Control settings and rescan.",

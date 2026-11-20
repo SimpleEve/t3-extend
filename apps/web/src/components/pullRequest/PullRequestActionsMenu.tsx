@@ -61,8 +61,6 @@ import { PullRequestGlyph } from "./pullRequestIcons";
 import type { PickableEnvironment } from "./pullRequestProjectAssignment.logic";
 import { PullRequestThreadLinks } from "./PullRequestThreadLinks";
 import { useInlineActionConfirm } from "./useInlineActionConfirm";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { changeRequestTerm } from "./changeRequestTerm";
 
 import { changeRequestTermKind } from "./changeRequestTerm";
 

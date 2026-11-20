@@ -49,7 +49,6 @@ import {
   type ThreadStructureTurnItem,
 } from "./models.ts";
 import { commandDisplayText } from "../work-log/commandLabel.ts";
-import { englishWorkLogPhrase, type WorkLogPhraseTranslator } from "../work-log/phrase.ts"; // fork
 import { formatSubagentDisplayTitle } from "./subagentDisplay.ts";
 import { mFallback, msg } from "gt-i18n";
 import { markedTextEnglish } from "../errors/translatable.ts";

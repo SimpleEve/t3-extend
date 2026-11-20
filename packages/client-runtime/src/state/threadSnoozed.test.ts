@@ -404,21 +404,10 @@ describe("threadWokeAt", () => {
 describe("resolveSnoozePresets", () => {
   const formatTime = (date: Date) =>
     `${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`;
-  const menu = (
-    now: Date,
-    presets?: ReadonlyArray<SnoozePresetSetting>,
-    options: { readonly chinese?: boolean } = {},
-  ) =>
-    resolveSnoozePresets(now, {
-      formatTime,
-      ...(presets ? { presets } : {}),
-      ...(options.chinese
-        ? {
-            translate: (source, params) => translate("zh-Hans", source, params),
-            locale: uiLocaleFormatTag("zh-Hans"),
-          }
-        : {}),
-    }).map((preset) => `${preset.label} ${preset.whenLabel}`);
+  const menu = (now: Date, presets?: ReadonlyArray<SnoozePresetSetting>) =>
+    resolveSnoozePresets(now, { formatTime, ...(presets ? { presets } : {}) }).map(
+      (preset) => `${preset.label} ${preset.whenLabel}`,
+    );
 
   it("lists custom presets soonest first and names the day when the label does not", () => {
     // Wednesday 20:00.
@@ -430,36 +419,6 @@ describe("resolveSnoozePresets", () => {
         { kind: "after", minutes: 180 },
       ]),
     ).toEqual(["In 3 hours 23:00", "In 6 hours Thu 2:00", "Tomorrow 21:00", "Next week Mon 18:00"]);
-  });
-
-  it("names the wake day in the interface language only when asked", async () => {
-    await loadUiCatalog("zh-Hans");
-    // Wednesday 20:00; English output without a locale is what mobile relies on.
-    expect(menu(localDate(2026, 4, 8, 20), [{ kind: "after", minutes: 360 }])).toEqual([
-      "In 6 hours Thu 2:00",
-    ]);
-    expect(
-      menu(localDate(2026, 4, 8, 20), [{ kind: "after", minutes: 360 }], { chinese: true }),
-    ).toEqual(["6 小时后 周四 2:00"]);
-  });
-
-  it("formats the default time with the given locale and keeps the runtime default otherwise", () => {
-    // Wednesday 20:00; a duration six hours out names Thursday 2:00.
-    const now = localDate(2026, 4, 8, 20);
-    const presets = [{ kind: "after", minutes: 360 }] as const;
-    const wake = localDate(2026, 4, 9, 2);
-    const english = resolveSnoozePresets(now, { presets })[0]!.whenLabel;
-    expect(english).toBe(
-      `${wake.toLocaleDateString(undefined, { weekday: "short" })} ${wake.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`,
-    );
-    const evening = resolveSnoozePresets(localDate(2026, 4, 8, 15), {
-      presets: [{ kind: "after", minutes: 360 }],
-      locale: uiLocaleFormatTag("zh-Hans"),
-    })[0]!;
-    expect(evening.whenLabel).toBe("21:00");
-    expect(
-      resolveSnoozePresets(now, { presets, locale: uiLocaleFormatTag("zh-Hans") })[0]!.whenLabel,
-    ).toBe("周四 2:00");
   });
 
   it("drops a today preset once its time passes and moves a weekday on that day to next week", () => {
@@ -475,7 +434,7 @@ describe("resolveSnoozePresets", () => {
     expect(new Date(presets[0]!.snoozedUntil)).toEqual(localDate(2026, 4, 20, 9));
   });
 
-  it("names the real day gap: a Monday option on Sunday is Tomorrow, a weekday a week out is Next", async () => {
+  it("names the real day gap: a Monday option on Sunday is Tomorrow, a weekday a week out is Next", () => {
     const theo: ReadonlyArray<SnoozePresetSetting> = [
       { kind: "at", day: "tomorrow", time: "21:00" },
       { kind: "at", day: "monday", time: "18:00" },
@@ -493,21 +452,6 @@ describe("resolveSnoozePresets", () => {
       "Next week Mon 18:00",
       "Next Friday 17:00",
     ]);
-    // Translated as whole phrases, so "Next week" still names its day without matching English.
-    await loadUiCatalog("zh-Hans");
-    expect(menu(localDate(2026, 8, 30, 14), theo, { chinese: true })).toEqual([
-      "明天 18:00",
-      "明天 21:00",
-      "周五 17:00",
-    ]);
-    expect(menu(localDate(2026, 9, 4, 10), theo, { chinese: true })).toEqual([
-      "明天 21:00",
-      "下周 周一 18:00",
-      "下周五 17:00",
-    ]);
-    expect(
-      menu(localDate(2026, 8, 30, 7, 1), [{ kind: "after", minutes: 60 }], { chinese: true }),
-    ).toEqual(["1 小时后 8:01"]);
   });
 
   it("shows one row when two presets wake at the same time", () => {
@@ -529,20 +473,6 @@ describe("resolveSnoozePresets", () => {
         { kind: "at", day: "today", time: "18:00" },
       ]),
     ).toEqual(["In 3 hours 18:00"]);
-  });
-});
-
-describe("snoozeWakeLabel", () => {
-  it("keeps its rounding and compact English, and translates whole phrases when asked", async () => {
-    const wake = "2026-04-10T13:00:00.000Z";
-    const almostAnHour = { now: "2026-04-10T12:00:30.000Z" };
-    expect(snoozeWakeLabel(wake, almostAnHour)).toBe("1h"); // fork: upstream now rounds up to 1h
-    expect(snoozeWakeLabel(wake, { now: wake })).toBe("now");
-    await loadUiCatalog("zh-Hans");
-    const chinese = (source: string, params?: Readonly<Record<string, string | number>>) =>
-      translate("zh-Hans", source, params, "time remaining");
-    expect(snoozeWakeLabel(wake, { ...almostAnHour, translate: chinese })).toBe("1 小时");
-    expect(snoozeWakeLabel(wake, { now: wake, translate: chinese })).toBe("马上");
   });
 });
 

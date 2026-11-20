@@ -258,7 +258,7 @@ function LinkedPullRequests(props: {
         <T>Linked pull requests</T>
       </PullRequestSectionHeading>
       {props.links.map((link) => {
-        const status = pullRequestStatus(link, t);
+        const status = pullRequestStatus(link);
         return (
           <Pressable
             key={`${link.repository}#${link.number}`}

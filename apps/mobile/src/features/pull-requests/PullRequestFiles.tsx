@@ -247,11 +247,7 @@ function FilesFooter({ files }: { readonly files: ChangedFiles }) {
       ) : null}
       {parsed.kind === "files" && parsed.notice ? (
         <Text textRole="label" className="py-4 text-foreground-muted">
-          {
-            t(parsed.notice, {
-              singular: changeRequestTerm(files.terminology.singular, t),
-            }) /* fork: i18n */
-          }
+          {parsed.notice}
         </Text>
       ) : null}
     </>

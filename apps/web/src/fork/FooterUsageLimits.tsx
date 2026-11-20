@@ -6,7 +6,8 @@ import {
   type ServerSettings,
 } from "@t3tools/contracts";
 import { resolveServerBackgroundActivitySettings } from "@t3tools/shared/backgroundActivitySettings";
-import { formatDuration, usageWindowLabel } from "@t3tools/shared/usageLimits";
+import { formatDuration } from "@t3tools/shared/usageLimitsCopy";
+import { useMessages } from "gt-react";
 import { useNavigate } from "@tanstack/react-router";
 import * as Duration from "effect/Duration";
 import { Atom } from "effect/reactivity";
@@ -85,6 +86,7 @@ function LimitsPanel(props: {
 }) {
   const { entries, machineLabel } = props;
   const t = useT();
+  const m = useMessages();
   const navigate = useNavigate();
   const timestampFormat = usePrimarySettings((settings) => settings.timestampFormat);
   // Only mounted while the panel is open, so the minute clock runs only then.
@@ -108,7 +110,7 @@ function LimitsPanel(props: {
               return (
                 <div key={window.id} className="flex flex-col text-2xs text-muted-foreground">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="truncate">{usageWindowLabel(window.label, t)}</span>
+                    <span className="truncate">{window.label}</span>
                     <span
                       className={`shrink-0 tabular-nums ${
                         window === entry.tightest ? FOOTER_TONE_CLASS[entry.severity] : ""
@@ -120,7 +122,7 @@ function LimitsPanel(props: {
                   {window.resetsAt && !reset && Number.isFinite(resetsAt) ? (
                     <span className="truncate tabular-nums">
                       {t("Resets in {duration} · {time}", {
-                        duration: formatDuration(resetsAt - now, t),
+                        duration: formatDuration(resetsAt - now, m),
                         time: formatUpcomingTimestamp(window.resetsAt, timestampFormat, now),
                       })}
                     </span>

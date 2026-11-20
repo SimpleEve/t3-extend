@@ -142,11 +142,7 @@ export function formatDayShort(day: string, locale?: string): string {
     "Nov",
     "Dec",
   ];
-  const monthName = MONTHS[month - 1];
-  return t("{month} {day}", {
-    month: monthName === undefined ? "" : t(monthName),
-    day: String(dayOfMonth),
-  });
+  return `${MONTHS[month - 1] ?? ""} ${dayOfMonth}`;
 }
 
 export function enumerateDays(sinceDay: string, untilDay: string): readonly string[] {
@@ -196,23 +192,7 @@ function hourOptions(hour12: boolean): Intl.DateTimeFormatOptions {
   return hour12 ? { hour: "numeric" } : { hour: "2-digit", hourCycle: "h23" };
 }
 
-function formatHour(
-  formatter: Intl.DateTimeFormat,
-  date: Date,
-  hour12: boolean,
-  t?: UsageDateTranslator, // fork: names the meridiem in the interface language
-): string {
-  if (hour12 && t !== undefined) {
-    // fork: "{hour} AM" / "{hour} PM" are whole phrases so a translation can lead with the meridiem.
-    const parts = formatter.formatToParts(date);
-    const hour = parts.find((part) => part.type === "hour")?.value;
-    const period = parts.find((part) => part.type === "dayPeriod")?.value.toUpperCase();
-    if (hour !== undefined && (period === "AM" || period === "PM")) {
-      const zone = parts.find((part) => part.type === "timeZoneName")?.value;
-      const label = t(period === "AM" ? "{hour} AM" : "{hour} PM", { hour });
-      return zone === undefined ? label : `${label} ${zone}`;
-    }
-  }
+function formatHour(formatter: Intl.DateTimeFormat, date: Date, hour12: boolean): string {
   if (hour12) return formatter.format(date);
   // Rolling buckets can start between whole hours, but their labels always name the hour.
   return formatter
@@ -258,7 +238,7 @@ export function formatHourShort(
     ...hourOptions(hour12),
     timeZoneName: "short",
   });
-  return formatHour(zonedHourFormat, instant, hour12, t);
+  return formatHour(zonedHourFormat, instant, hour12);
 }
 
 export function formatDateTimeShort(

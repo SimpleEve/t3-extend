@@ -11,12 +11,6 @@ import { m, type MessageResolver } from "~/i18n/messages";
 import { readLocalApi } from "~/localApi";
 
 import { toastManager } from "../ui/toast";
-import {
-  getUiLocale,
-  translate,
-  translatorFor,
-  type Translator,
-} from "@t3tools/client-runtime/i18n";
 
 export type PullRequestLinkContextMenuAction = "copy-link" | "open-external";
 

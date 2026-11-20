@@ -18,8 +18,5 @@ export function useMessageTimeFormatter() {
     });
     return () => subscription.remove();
   }, []);
-  return useMemo(
-    () => createMessageTimeFormatter(is24Hour, undefined, uiLocale),
-    [is24Hour, uiLocale],
-  );
+  return useMemo(() => createMessageTimeFormatter(is24Hour), [is24Hour]);
 }

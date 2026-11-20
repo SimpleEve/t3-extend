@@ -52,9 +52,6 @@ export interface SubscriptionUsageSnapshot {
   url?: string;
   text?: SubscriptionUsageText;
   checkedAt: number;
-  /** `checkedAt` as an "As of ..." line, formatted for the interface language. */
-  checkedAtLabel?: string; // fork: i18n
-  strings?: SubscriptionUsageStrings; // fork: i18n
   providers: Array<{
     name: string;
     colors?: { light: string; dark: string };
@@ -107,17 +104,11 @@ function accountName(account: LimitAccount, resolve: MessageResolver) {
 
 function clockLabel(at: number, from: number) {
   const time = { hour: "numeric", minute: "2-digit" } as const;
-  // fork: i18n. Hermes names weekdays in English whatever the locale, so they come from the catalog.
-  const tag = uiFormatLocale(locale);
-  const clock = () => new Date(at).toLocaleTimeString(tag, uiFormatOptions(locale, time));
-  if (new Date(at).toDateString() === new Date(from).toDateString()) return clock();
-  if (at - from < 6 * 86_400_000)
-    return locale === "en"
-      ? new Date(at).toLocaleString(undefined, { weekday: "short", ...time })
-      : `${translatorFor(locale)(WEEKDAYS[new Date(at).getDay()]!)} ${clock()}`;
+  if (new Date(at).toDateString() === new Date(from).toDateString())
+    return new Date(at).toLocaleTimeString(undefined, time);
   return new Date(at).toLocaleString(
-    tag,
-    uiFormatOptions(locale, { month: "short", day: "numeric" }),
+    undefined,
+    at - from < 6 * 86_400_000 ? { weekday: "short", ...time } : { month: "short", day: "numeric" },
   );
 }
 
@@ -142,7 +133,7 @@ function widgetAccounts(window: LimitPoolWindow, resolve: MessageResolver): Widg
       refill: reset ? column.refillPercent : 0,
       ...(reset && {
         resetsAt,
-        reset: clockLabel(resetsAt, checkedAt, locale),
+        reset: clockLabel(resetsAt, checkedAt),
       }),
       ...(column.window.windowDurationMins && {
         durationMs: column.window.windowDurationMins * 60_000,
@@ -217,27 +208,12 @@ function subscriptionUsageProps(
   maxWindowsPerProvider: number,
   resolve: MessageResolver,
 ): SubscriptionUsageSnapshot {
-  const t = translatorFor(locale);
-  const formatDate = (at: number, options: Intl.DateTimeFormatOptions) =>
-    new Date(at).toLocaleString(uiFormatLocale(locale), uiFormatOptions(locale, options));
   const pools = collectLimitPools(accounts, now);
   const checked = accounts
     .filter((account) => account.driver === "codex" || account.driver === "claudeAgent")
     .map((account) => Date.parse(account.limits.checkedAt));
-  const checkedAt = checked.length > 0 && checked.every(Number.isFinite) ? Math.min(...checked) : 0;
   return {
-    checkedAt,
-    checkedAtLabel: checkedAt
-      ? t("As of {time}", {
-          time: formatDate(checkedAt, {
-            hour: "numeric",
-            minute: "2-digit",
-            month: "short",
-            day: "numeric",
-          }),
-        })
-      : undefined,
-    strings: subscriptionUsageStrings(t),
+    checkedAt: checked.length > 0 && checked.every(Number.isFinite) ? Math.min(...checked) : 0,
     providers: (["codex", "claudeAgent"] as const)
       .filter(
         (driver) =>
@@ -298,7 +274,7 @@ function subscriptionUsageProps(
           windows: fresh
             ? selectedWindows.map((window) => ({
                 kind: window.kind,
-                label: usageWindowLabel(window.label, t),
+                label: window.label,
                 remaining: Math.round(window.remainingPercent),
                 reset: window.resets[0]
                   ? isUpcoming(window.resets[0])

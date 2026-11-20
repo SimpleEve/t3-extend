@@ -21,10 +21,6 @@ export function ComposerAttachmentButton(props: {
   const gt = useGT();
   const m = useMessages();
   const { scale } = useAndroidControlSizing();
-  const attachmentActions = ATTACHMENT_MENU_ACTIONS.map((action) => ({
-    ...action,
-    title: t(action.title),
-  }));
   const button = (
     <Pressable
       accessibilityLabel={gt("Add attachment")}

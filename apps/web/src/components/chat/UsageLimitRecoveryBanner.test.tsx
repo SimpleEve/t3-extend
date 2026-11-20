@@ -6,11 +6,7 @@ import { usageLimitRecoveryBannerItem } from "./UsageLimitRecoveryBanner";
 
 const stoppedAt = new Date(2026, 9, 20, 12, 0);
 
-function bannerDescription(
-  resetAt: Date,
-  timestampFormat: TimestampFormat,
-  t?: ReturnType<typeof translatorFor>,
-) {
+function bannerDescription(resetAt: Date, timestampFormat: TimestampFormat) {
   return usageLimitRecoveryBannerItem({
     runId: RunId.make("run-1"),
     errorCode: null,
@@ -22,7 +18,6 @@ function bannerDescription(
     recovery: null,
     timestampFormat,
     onChange: async () => {},
-    ...(t ? { t } : {}),
   }).description;
 }
 
@@ -40,22 +35,5 @@ describe("usageLimitRecoveryBannerItem", () => {
     expect(bannerDescription(new Date(2026, 9, 21, 17, 30), "24-hour")).toBe(
       "Resets tomorrow at 17:30",
     );
-  });
-
-  it("names the day in Chinese for resets tomorrow and yesterday", async () => {
-    using _now = vi.spyOn(Date, "now").mockReturnValue(stoppedAt.getTime());
-    await loadUiCatalog("zh-Hans");
-    await setUiLocale("zh-Hans");
-    try {
-      const t = translatorFor("zh-Hans");
-      expect(bannerDescription(new Date(2026, 9, 21, 17, 30), "24-hour", t)).toBe(
-        "明天 17:30 重置",
-      );
-      expect(bannerDescription(new Date(2026, 9, 19, 23, 35), "24-hour", t)).toBe(
-        "昨天 23:35 重置",
-      );
-    } finally {
-      await setUiLocale("en");
-    }
   });
 });

@@ -9,10 +9,7 @@ export interface ConnectDeviceApprovalPrompt {
   readonly message: string;
 }
 
-export function describeConnectDevice(
-  device: AuthClientMetadata | undefined,
-  t: Translator = untranslated, // fork: English when omitted
-): string {
+export function describeConnectDevice(device: AuthClientMetadata | undefined): string {
   const { label, browser, os } = device ?? {};
   if (label) return label;
   if (browser && os) return m(msg("{browser} on {os}", { browser, os }));
@@ -25,7 +22,6 @@ export function connectDeviceApprovalPrompts(input: {
   readonly pairingLinks: ReadonlyArray<AuthPairingLink>;
   readonly shownIds: ReadonlySet<string>;
 }): ReadonlyArray<ConnectDeviceApprovalPrompt> {
-  const t = input.t ?? untranslated;
   const waiting = input.pairingLinks.flatMap((link) =>
     link.connectDeviceRequest !== undefined && !input.shownIds.has(link.id)
       ? [{ link, ...link.connectDeviceRequest }]

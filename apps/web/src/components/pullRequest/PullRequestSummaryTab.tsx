@@ -101,8 +101,6 @@ import { canReactPullRequestComment } from "@t3tools/client-runtime/pull-request
 import { PullRequestResolveThreadButton } from "./PullRequestResolveThreadButton";
 import { PullRequestConversationGhost } from "./PullRequestGhosts";
 import { sectionCollapseAnchorScrollTop } from "./pullRequestSummaryScroll.logic";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { changeRequestTerm } from "./changeRequestTerm";
 
 import { changeRequestTermKind } from "./changeRequestTerm";
 

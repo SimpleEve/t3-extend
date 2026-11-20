@@ -226,9 +226,7 @@ function TelemetryExportForm() {
                 label: check ? `${override.label} · ${check.label}` : override.label,
                 dot: check?.dot ?? "bg-muted-foreground/40",
               }
-            : check && checkLabel
-              ? { label: checkLabel, dot: check.dot }
-              : null;
+            : check;
           return (
             <div key={key} className="grid gap-1.5">
               <div className="flex items-center justify-between gap-3">

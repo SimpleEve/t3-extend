@@ -35,8 +35,6 @@ type RecoveryProps = {
   recovery: OrchestrationV2LimitRecovery | null;
   timestampFormat: TimestampFormat;
   onChange: (recovery: OrchestrationV2LimitRecoveryUpdate) => Promise<void>;
-  /** fork: translates the banner text; English when omitted. */
-  t?: Translator;
 };
 
 export function usageLimitRecoveryBannerItem(
@@ -54,7 +52,6 @@ export function usageLimitRecoveryBannerItem(
     snoozedUntil,
     timestampFormat,
   } = props;
-  const t = props.t ?? ((source, params) => interpolate(source, params));
   // The server refuses recovery changes while a request is pending.
   const canSchedule =
     !settled && !requestPending && resetAt !== null && Date.parse(resetAt) > Date.parse(stoppedAt);

@@ -119,7 +119,6 @@ function formatValue(
 }
 
 /** Matches resolveProjectSettings order. */
-// fork: `t` translates layer values (see formatValue); English when omitted.
 export function settingInheritanceLayers(
   target: ScopedSettingsTarget,
   environmentSettings: ServerSettings,
@@ -222,11 +221,7 @@ export function SettingInheritance({
   const hasMultipleEnvironments = new Set(targets.map((target) => target.environmentId)).size > 1;
   const overrideSummary =
     overridingProjects.length > 0
-      ? `${summary} · ${
-          overridingProjects.length === 1
-            ? t("1 project override")
-            : t("{count} project overrides", { count: overridingProjects.length })
-        }`
+      ? `${summary} · ${overridingProjects.length} project ${overridingProjects.length === 1 ? "override" : "overrides"}`
       : summary;
   const chains = targets.flatMap((target) => {
     const environment = environments.find(

@@ -3,8 +3,6 @@ import ReactDOM from "react-dom/client";
 
 import "@fontsource-variable/inter";
 import "./index.css";
-import "./fork/zhTypography.css"; // fork: Chinese typography layer
-import "./fork/themeStudio/themeLook.css"; // fork: theme look glass
 
 import { hasCloudPublicConfig } from "./cloud/publicConfig";
 import { isElectron } from "./env";
@@ -12,14 +10,14 @@ import { startAppServices } from "./appInit";
 import { AppRoot } from "./AppRoot";
 import { whenLocaleReady } from "./i18n/runtime";
 import { reloadOnceForChunkLoadError } from "./lib/chunkReloadGuard";
+import "./fork/zhTypography.css"; // fork: Chinese typography layer
+import "./fork/themeStudio/themeLook.css"; // fork: theme look glass
 
 const router = startAppServices();
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 
 let reloadScheduled = false;
-// fork: interface language
-const uiLanguage = startUiLanguage({ isReloadScheduled: () => reloadScheduled });
 window.addEventListener("vite:preloadError", (event) => {
   if (reloadOnceForChunkLoadError()) {
     reloadScheduled = true;
@@ -39,8 +37,8 @@ const managedAuthShellModule =
 
 export const startup = Promise.all([
   managedAuthShellModule?.then((module) => module.default) ?? null,
-  router.load(),
-  uiLanguage.firstPaint, // fork: a saved Chinese UI paints translated, without an English flash
+  // Chained so settings have usually hydrated; English resolves without a chunk load.
+  router.load().then(whenLocaleReady),
 ])
   .then(([ManagedAuthShell]) => {
     // Route chunk failures resolve router.load() and surface later through the error boundary.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { ZH_HANS_AREAS } from "./catalogs/zh-Hans/index.ts";
-import { resolveUiLanguage } from "./locale.ts";
+import { uiLocaleForLanguage } from "./locale.ts";
 import { formatCompactElapsedLabel, formatRelativeElapsedLabel } from "./relativeTime.ts";
 import { getUiLocale, setUiLocale, subscribeUiLocale, translatorFor } from "./store.ts";
 import {
@@ -12,30 +12,15 @@ import {
   translate,
 } from "./translate.ts";
 
-describe("resolveUiLanguage", () => {
+describe("uiLocaleForLanguage", () => {
   it.each([
     ["zh", "zh-Hans"],
     ["zh-CN", "zh-Hans"],
-    ["zh_CN", "zh-Hans"],
-    ["zh-SG", "zh-Hans"],
-    ["zh-Hans", "zh-Hans"],
-    ["zh-Hans-HK", "zh-Hans"],
-    ["zh-TW", "en"],
-    ["zh-HK", "en"],
-    ["zh-MO", "en"],
-    ["zh-Hant", "en"],
-    ["zh-Hant-CN", "en"],
-    ["en-US", "en"],
-    ["ja-JP", "en"],
-  ] as const)("maps the system language %s to %s", (tag, locale) => {
-    expect(resolveUiLanguage("system", [tag])).toBe(locale);
-  });
-
-  it("follows the first system language and lets an explicit choice win", () => {
-    expect(resolveUiLanguage("system", ["en-GB", "zh-CN"])).toBe("en");
-    expect(resolveUiLanguage("system", [])).toBe("en");
-    expect(resolveUiLanguage("en", ["zh-CN"])).toBe("en");
-    expect(resolveUiLanguage("zh-Hans", ["en-US"])).toBe("zh-Hans");
+    ["en", "en"],
+    ["ja", "en"],
+    ["pt-BR", "en"],
+  ] as const)("reads GT's %s as the fork's %s", (gtLocale, locale) => {
+    expect(uiLocaleForLanguage(gtLocale)).toBe(locale);
   });
 });
 

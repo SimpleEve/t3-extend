@@ -4,7 +4,6 @@ import { Undo2Icon } from "lucide-react";
 import { useState } from "react";
 
 import {
-  threadUndoCompactSummary,
   threadUndoLabel,
   undoLatestThreadAction,
   useThreadUndoNotice,

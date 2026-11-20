@@ -39,7 +39,7 @@ import { toastManager } from "../components/ui/toast";
 import { SettingsRow, SettingsSection } from "../components/settings/settingsLayout";
 import { settingsScopeEnvironmentLabel } from "../components/settings/settingsScopeAxis";
 import { useSettingsScope } from "../components/settings/SettingsScopeContext";
-import { searchableSetting } from "../components/settings/settingsSearch";
+import { useSearchableSetting } from "../components/settings/settingsSearch";
 import { useT } from "../hooks/useT";
 import { updateClientSettings } from "../hooks/useSettings";
 import { serverEnvironment } from "../state/server";
@@ -830,6 +830,7 @@ function ImportRow(props: {
   readonly label: string;
   readonly searchable: boolean;
 }) {
+  const setting = useSearchableSetting();
   const t = useT();
   const [step, setStep] = useState<Step>({ kind: "closed" });
   const preview = useAtomCommand(serverEnvironment.previewT3CodeImport);
@@ -923,7 +924,7 @@ function ImportRow(props: {
     <>
       <SettingsRow
         {...(props.searchable
-          ? searchableSetting("import-from-t3-code")
+          ? setting("import-from-t3-code")
           : { title: t("Import from {app}", { app: OFFICIAL_APP_NAME }) })}
         description={t(
           "Choose projects, threads, scheduled tasks and settings from {app} on the computer that runs this environment to bring into T3 Extend. {app}'s own data is only read, never changed.",

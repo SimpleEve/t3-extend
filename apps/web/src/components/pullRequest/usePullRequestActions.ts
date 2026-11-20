@@ -47,10 +47,6 @@ import {
   readableFailure,
 } from "./pullRequestDetail.logic";
 import { pullRequestEntryKey, type EnvironmentPullRequestEntry } from "./pullRequestList.logic";
-import type { Translator } from "@t3tools/client-runtime/i18n";
-import { useT } from "~/hooks/useT";
-import { changeRequestTerm } from "./changeRequestTerm";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 import { changeRequestTermKind, type ChangeRequestTermKind } from "./changeRequestTerm";
 

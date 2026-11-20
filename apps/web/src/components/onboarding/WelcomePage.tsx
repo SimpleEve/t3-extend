@@ -345,11 +345,12 @@ export function WelcomePage({
 
 function TelemetryNotice({ environmentId }: { readonly environmentId: EnvironmentId }) {
   const messages = useMessages();
+  const gt = useGT();
   const telemetryOff = managedTelemetryOffMessage(useManagedPolicy(environmentId), messages);
   return (
     <p className="mt-auto pt-12 text-2xs leading-relaxed text-muted-foreground/70">
       {telemetryOff ??
-        t(
+        gt(
           // fork: the server reports only when T3CODE_TELEMETRY_ENABLED=true
           "T3 Extend does not collect usage data by default. To opt in, set T3CODE_TELEMETRY_ENABLED=true in the server's environment.",
         )}

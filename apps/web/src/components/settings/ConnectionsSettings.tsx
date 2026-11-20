@@ -1752,7 +1752,7 @@ function ConnectionsSettingsContent({
                 {tailscaleServePortIssue === "official" ? (
                   // fork: official T3 Code owns 443 on the same machine name
                   <p className="mt-2 text-xs text-destructive">
-                    {t("{port} is used by official {officialApp}. {app} uses {forkPort}.", {
+                    {gt("{port} is used by official {officialApp}. {app} uses {forkPort}.", {
                       port: OFFICIAL_TAILSCALE_SERVE_PORT,
                       officialApp: OFFICIAL_APP_NAME,
                       app: FORK.appBaseName,
@@ -1761,7 +1761,7 @@ function ConnectionsSettingsContent({
                   </p>
                 ) : tailscaleServePortIssue === "invalid" ? (
                   <p className="mt-2 text-xs text-destructive">
-                    {t("Enter a port from 1 to 65535.")}
+                    <T>Enter a port from 1 to 65535.</T>
                   </p>
                 ) : null}
                 <div className="rounded-md border border-border/70 bg-muted/20 px-3 py-2">

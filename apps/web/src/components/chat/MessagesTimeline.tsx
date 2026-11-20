@@ -26,8 +26,6 @@ import { resolveWorkGroupScrollAnchor } from "@t3tools/client-runtime/work-log/s
 import type { WorkflowOpening } from "@t3tools/client-runtime/state/subagentRuntime";
 import { observeResize } from "~/lib/observeResize";
 import { useStableCallback } from "~/hooks/useStableCallback";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { translateTimelineLabel } from "./timelineLabels";
 
 const NOOP_USE_ARTIFACT_TEMPLATE = () => {};
 const EMPTY_PENDING_APPROVALS: ReadonlyArray<PendingApproval> = [];
@@ -1876,7 +1874,7 @@ function TurnFoldTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "turn-
           className="flex cursor-pointer select-none items-center gap-1 rounded-md px-1 text-sm leading-relaxed text-muted-foreground tabular-nums transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
         >
           <span>
-            {translateTimelineLabel(row.label, t)}
+            {row.label}
             {error ? ` · ${error}` : ""}
           </span>
           {row.expanded ? (
@@ -1919,7 +1917,7 @@ function AttemptFoldTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "at
           <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
         )}
         <span className="text-xs font-medium text-foreground/80">
-          {translateTimelineLabel(row.label, t)}
+          {row.label}
           {error ? ` · ${error}` : ""}
         </span>
         <span className="text-2xs text-muted-foreground">

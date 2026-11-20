@@ -11,7 +11,6 @@ import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
 
-// fork: `t` translates the banner; the shared notice text stays English for mobile.
 export function feedbackBannerItem(
   submission: CodexFeedbackSubmission,
   onDismiss: () => void,
@@ -19,10 +18,6 @@ export function feedbackBannerItem(
 ): ComposerBannerStackItem | null {
   const notice = codexFeedbackNotice(submission, resolve);
   if (!notice) return null;
-  const description =
-    submission.status === "sent"
-      ? t("Thread ID: {id}", { id: submission.feedbackId })
-      : notice.description;
   return {
     id: `feedback:${submission.id}`,
     variant:

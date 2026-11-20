@@ -3,7 +3,8 @@ import {
   type ServerProvider,
   type ServerProviderUsageWindow,
 } from "@t3tools/contracts";
-import { limitsNotice, remainingPercent } from "@t3tools/shared/usageLimits";
+import { remainingPercent } from "@t3tools/shared/usageLimits";
+import { limitsNotice } from "@t3tools/shared/usageLimitsCopy";
 
 export type FooterLimitSeverity = "ok" | "warning" | "danger";
 

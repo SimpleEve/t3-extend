@@ -954,7 +954,7 @@ export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow
       <div className="flex min-h-7 min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <div className="flex min-h-7 min-w-0 flex-1 items-center gap-3">
           <h3 className="shrink-0 text-sm leading-5 font-medium text-foreground">
-            {endpointLabel(t, endpoint.label)}
+            {endpoint.label}
           </h3>
           {shouldShowEndpointUrl ? (
             <Tooltip>

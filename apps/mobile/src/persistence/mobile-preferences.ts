@@ -19,7 +19,6 @@ import {
   type SidebarProjectGroupingMode,
 } from "@t3tools/contracts";
 import { ToolCallVisibility } from "@t3tools/contracts/settings";
-import type { UiLanguageSetting } from "@t3tools/contracts/settings"; // fork: interface language
 import {
   isSidebarViewMode,
   type SidebarViewMode,
@@ -153,8 +152,6 @@ export interface Preferences {
   readonly lightThemeId?: MobileThemeId;
   readonly darkThemeId?: MobileThemeId;
   readonly themeMode?: MobileThemeMode;
-  /** fork: interface language. Unset means "system"; read it with `uiLanguageSettingOf`. */
-  readonly uiLanguage?: UiLanguageSetting;
   readonly androidNavigationStyle?: AndroidNavigationStyle;
   readonly baseFontSize?: number;
   readonly terminalFontSize?: number | null;
@@ -195,11 +192,6 @@ export interface Preferences {
   readonly workspaceSelections?: WorkspaceSelections;
   readonly pullRequestSavedViews?: ReadonlyArray<PullRequestSavedView>;
   readonly issueSavedViews?: ReadonlyArray<IssueSavedView>;
-}
-
-// fork: interface language
-export function uiLanguageSettingOf(preferences: Preferences | null): UiLanguageSetting {
-  return preferences?.uiLanguage ?? "system";
 }
 
 export class MobilePreferencesLoadError extends Schema.TaggedError<MobilePreferencesLoadError>()(
@@ -347,14 +339,6 @@ function sanitizePreferences(parsed: Preferences): Preferences {
   ) {
     preferences.themeMode = parsed.themeMode;
   }
-  // fork: interface language
-  if (
-    parsed.uiLanguage === "system" ||
-    parsed.uiLanguage === "en" ||
-    parsed.uiLanguage === "zh-Hans"
-  ) {
-    preferences.uiLanguage = parsed.uiLanguage;
-  }
   if (parsed.androidNavigationStyle === "one-ui" || parsed.androidNavigationStyle === "material") {
     preferences.androidNavigationStyle = parsed.androidNavigationStyle;
   }
@@ -396,6 +380,12 @@ function sanitizePreferences(parsed: Preferences): Preferences {
     preferences.followUpBehavior = parsed.followUpBehavior;
   }
   if (typeof parsed.language === "string") preferences.language = parsed.language;
+  else {
+    // fork: T3 Extend saved the interface language as `uiLanguage` before it adopted `language`.
+    const legacy = (parsed as { readonly uiLanguage?: unknown }).uiLanguage;
+    if (legacy === "zh-Hans") preferences.language = "zh";
+    else if (legacy === "en" || legacy === "system") preferences.language = legacy;
+  }
   if (Array.isArray(parsed.microphones)) {
     preferences.microphones = parsed.microphones.flatMap((entry): MicrophoneEntry[] => {
       if (typeof entry !== "object" || entry === null || !isMicrophoneKind(entry.kind)) return [];

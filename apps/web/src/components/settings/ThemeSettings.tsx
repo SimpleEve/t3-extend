@@ -61,6 +61,7 @@ import {
 } from "./ThemePreviewCircles";
 import { ThemeWireframe } from "./ThemeWireframe";
 import { T, useGT } from "gt-react";
+import { useT } from "~/hooks/useT"; // fork: theme studio names
 
 const MAINTAINER_THEMES: ReadonlyArray<ThemeDefinition> = [
   T3_CHAT_THEME,
@@ -591,6 +592,7 @@ export function ThemeLibrary({
 }) {
   const setting = useSearchableSetting();
   const gt = useGT();
+  const t = useT(); // fork: theme studio copy names
   // fork: the library's Edit, Duplicate and Create buttons open the theme studio.
   const openThemeStudio = useOpenThemeStudio();
   const openThemeEditor = (

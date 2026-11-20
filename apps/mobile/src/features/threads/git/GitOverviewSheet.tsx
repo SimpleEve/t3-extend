@@ -35,9 +35,7 @@ import { useSelectedThreadGitActions } from "../../../state/use-selected-thread-
 import { useSelectedThreadGitState } from "../../../state/use-selected-thread-git-state";
 import { useSelectedThreadWorktree } from "../../../state/use-selected-thread-worktree";
 import { vcsEnvironment } from "../../../state/vcs";
-import { fileChangedLabel, menuItemIconName, statusSummary } from "./gitSheetComponents";
-import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
-import { useT, useUiLocale } from "../../../hooks/useT"; // fork: i18n
+import { menuItemIconName, statusSummary } from "./gitSheetComponents";
 import {
   LinkedPullRequestRow,
   linkedPullRequestKey,
@@ -406,16 +404,4 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
       <ScreenContent insetHorizontal={isInspector ? true : undefined}>{content}</ScreenContent>
     </SheetPane>
   );
-}
-
-// fork: i18n, the state is a contract literal, so each one is a whole key.
-function prStateDetail(
-  t: Translator,
-  pr: string,
-  number: number,
-  state: "open" | "closed" | "merged" | undefined,
-): string {
-  if (state === "closed") return t("{pr} #{number} closed", { pr, number });
-  if (state === "merged") return t("{pr} #{number} merged", { pr, number });
-  return t("{pr} #{number} open", { pr, number });
 }

@@ -1,4 +1,8 @@
-import { ClientSettingsSchema, type ClientSettings } from "@t3tools/contracts";
+import {
+  ClientSettingsSchema,
+  migrateLegacyUiLanguage, // fork: legacy interface language
+  type ClientSettings,
+} from "@t3tools/contracts";
 
 import { getLocalStorageItem, setLocalStorageItem } from "./hooks/useLocalStorage";
 
@@ -8,10 +12,23 @@ function hasWindow(): boolean {
   return typeof window !== "undefined";
 }
 
+// fork: settings saved before the fork adopted `language` carry `uiLanguage`; rewrite them once.
+function migrateStoredUiLanguage(): void {
+  try {
+    const raw = window.localStorage.getItem(CLIENT_SETTINGS_STORAGE_KEY);
+    if (raw === null || !raw.includes('"uiLanguage"')) return;
+    const migrated = migrateLegacyUiLanguage(JSON.parse(raw));
+    window.localStorage.setItem(CLIENT_SETTINGS_STORAGE_KEY, JSON.stringify(migrated));
+  } catch {
+    // Unreadable settings decode to defaults below, as before.
+  }
+}
+
 export function readBrowserClientSettings(): ClientSettings | null {
   if (!hasWindow()) {
     return null;
   }
+  migrateStoredUiLanguage(); // fork: legacy interface language
 
   return getLocalStorageItem(CLIENT_SETTINGS_STORAGE_KEY, ClientSettingsSchema);
 }

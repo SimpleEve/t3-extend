@@ -101,7 +101,7 @@ export function ComposerCodeBlockLanguagePicker(props: {
             {(entry: CodeBlockLanguage) => (
               <ComboboxItem key={entry.id || "plain"} value={entry}>
                 <LanguageIcon language={entry.id} theme={props.theme} />
-                <span className="min-w-0 flex-1 truncate">{languageLabel(entry.id)}</span>
+                <span className="min-w-0 flex-1 truncate">{entry.label}</span>
                 {entry.id === current ? <CheckIcon className="ml-auto" /> : null}
               </ComboboxItem>
             )}

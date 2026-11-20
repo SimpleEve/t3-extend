@@ -86,24 +86,6 @@ describe("resolveThreadListV2SnoozeMenuSelection", () => {
 });
 
 describe("resolveThreadListV2SnoozePresets", () => {
-  it("formats the wake time in the interface language", () => {
-    const presets = [{ kind: "after", minutes: 360 }] as const;
-    const now = new Date(2026, 4, 8, 15).toISOString();
-    expect(
-      resolveThreadListV2SnoozePresets({ secondary: "snooze", now, presets, locale: "zh-Hans" })[0]
-        ?.whenLabel,
-    ).toBe("21:00");
-    expect(
-      resolveThreadListV2SnoozePresets({ secondary: "snooze", now, presets, locale: "en" })[0]
-        ?.whenLabel,
-    ).toBe(
-      new Date(2026, 4, 8, 21).toLocaleTimeString(undefined, {
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-    );
-  });
-
   it("reads preset times from the list minute, not the clock at first render", () => {
     using _timers = { [Symbol.dispose]: () => vi.useRealTimers() };
     vi.useFakeTimers({ now: new Date(2026, 4, 8, 10) });

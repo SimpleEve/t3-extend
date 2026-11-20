@@ -40,11 +40,6 @@ export function DraftHeroProjectHeading({
     return observeResize([container, inline], update);
   }, []);
 
-  // fork: one sentence around the name, so languages can put it first ("在 {project} 要做点什么？").
-  const [inlineBefore = "", inlineAfter = ""] = t("What should we build in {project}?").split(
-    "{project}",
-  );
-
   return (
     <div ref={containerRef} className="group/draft-hero relative w-full" data-inline={fitsInline}>
       <span

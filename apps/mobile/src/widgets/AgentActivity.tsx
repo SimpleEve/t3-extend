@@ -77,8 +77,7 @@ function AgentActivity(
   props: AgentActivityProps,
   environment: LiveActivityEnvironment,
 ): LiveActivityLayout {
-  const t = useT(); // fork: i18n
-  ("widget");
+  "widget";
 
   const text = props.text;
   // Hierarchical foregrounds inherit system tint and vibrancy.
@@ -179,7 +178,7 @@ function AgentActivity(
   const deepLinkRow = attentionRow ?? row0;
   const deepLink =
     deepLinkRow && deepLinkRow.deepLink.startsWith("/") && !deepLinkRow.deepLink.startsWith("//")
-      ? `t3extend://${deepLinkRow.deepLink.slice(1)}` // fork: widget bundles cannot import
+      ? `t3extend://${deepLinkRow.deepLink.slice(1)}` // fork: widget bundles cannot import FORK.scheme
       : null;
   const linkModifiers = deepLink ? [widgetURL(deepLink)] : [];
 

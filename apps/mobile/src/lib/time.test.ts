@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import {
-  byTimestamp,
-  compareTimestamps,
-  messageTimeLabel,
-  msUntilRelativeTimeChange,
-  relativeTime,
-  uiFormatLocale,
-  uiFormatOptions,
-} from "./time";
+import { byTimestamp, compareTimestamps, msUntilRelativeTimeChange, relativeTime } from "./time";
 
 const at = "2026-10-19T12:00:00.000Z";
 const timestamp = Date.parse(at);
@@ -75,33 +67,5 @@ describe("relative time", () => {
     expect(relativeTime(at, timestamp - 30_000)).toBe("<1m");
     expect(msUntilRelativeTimeChange(at, timestamp - 30_000)).toBe(90_000);
     expect(msUntilRelativeTimeChange(at, timestamp - 30 * 86_400_000)).toBe(86_400_000);
-  });
-});
-
-describe("messageTimeLabel", () => {
-  it("formats the clock time in the interface language", () => {
-    const afternoon = new Date(2026, 0, 2, 15, 7).getTime();
-    expect(messageTimeLabel(afternoon, "en")).toBe(
-      new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(afternoon),
-    );
-    expect(messageTimeLabel(afternoon, "zh-Hans")).toBe("15:07");
-  });
-});
-
-describe("uiFormatLocale", () => {
-  it("keeps the device locale for English and forces a 24-hour clock for Chinese", () => {
-    const options = { hour: "numeric", minute: "2-digit" } as const;
-    expect(uiFormatLocale("en")).toBeUndefined();
-    expect(uiFormatOptions("en", options)).toEqual(options);
-    expect(uiFormatLocale("zh-Hans")).toBe("zh-CN");
-    expect(uiFormatOptions("zh-Hans", options)).toEqual({ ...options, hour12: false });
-    const evening = new Date(2026, 0, 2, 21, 5);
-    expect(
-      evening.toLocaleTimeString(uiFormatLocale("zh-Hans"), uiFormatOptions("zh-Hans", options)),
-    ).toBe("21:05");
-    // A 12-hour device clock still applies in English but not in Chinese.
-    const deviceClock = { ...options, hourCycle: "h12" } as const;
-    expect(uiFormatOptions("en", deviceClock)).toEqual(deviceClock);
-    expect(uiFormatOptions("zh-Hans", deviceClock)).toEqual({ ...options, hour12: false });
   });
 });

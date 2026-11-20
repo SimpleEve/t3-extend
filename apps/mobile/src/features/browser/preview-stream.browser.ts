@@ -168,7 +168,7 @@ export function start(configuration: PreviewStreamConfiguration) {
         tabId: configuration.tabId,
         maxWidth: cap.width,
         maxHeight: cap.height,
-        quality: configuration.quality,
+        quality: configuration.quality, // fork: see PHONE_STREAM_QUALITY
         interactive,
       },
       {

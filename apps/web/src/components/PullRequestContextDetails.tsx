@@ -29,6 +29,7 @@ export function PullRequestContextDetails({ metadata }: { metadata: PullRequestC
             { term, number: metadata.number },
           )}
         </span>
+        <span className={state.toneClassName}>{state.label}</span>
       </div>
       <div className="wrap-break-word text-foreground">{metadata.title}</div>
       <div className="flex min-w-0 items-center gap-1 text-secondary-label text-3xs">

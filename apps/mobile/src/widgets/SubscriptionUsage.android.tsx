@@ -30,12 +30,6 @@ export function SubscriptionUsage(props: SubscriptionUsageProps, environment: Wi
   "widget";
   // The widget runtime evaluates this function without the app's module scope.
   const now = Date.now();
-  // fork: i18n. The app sends the strings in the interface language; English is the fallback.
-  const text = (key: string, fallback: string, params: Record<string, string | number> = {}) =>
-    Object.keys(params).reduce(
-      (value, name) => value.split(`{${name}}`).join(String(params[name])),
-      props.strings?.[key] ?? fallback,
-    );
   const mode = props.theme?.mode;
   const appearance =
     mode === "light" || mode === "dark"

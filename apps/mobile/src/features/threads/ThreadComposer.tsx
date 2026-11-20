@@ -1031,7 +1031,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
                   alternateSubmitTitle={
                     sendPresentation.alternate === null
                       ? sendLabel
-                      : t(FOLLOW_UP_ACTION_LABEL[sendPresentation.alternate])
+                      : FOLLOW_UP_ACTION_LABEL[sendPresentation.alternate]
                   }
                   {...compactEditor.editorProps}
                   textStyle={{

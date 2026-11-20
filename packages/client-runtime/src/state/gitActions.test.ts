@@ -78,24 +78,6 @@ describe("git action copy", () => {
     ).toBe("No local commits to include in an MR.");
   });
 
-  it("translates for another interface language without the English article", async () => {
-    await loadUiCatalog("zh-Hans");
-    const items = buildMenuItems(status(gitLab), false, true, "zh-Hans");
-    expect(items.map((item) => item.label)).toEqual(["提交", "推送", "创建 MR"]);
-    expect(
-      getGitActionDisabledReason({
-        item: items[2]!,
-        gitStatus: status(gitLab),
-        isBusy: false,
-        hasOriginRemote: true,
-        locale: "zh-Hans",
-      }),
-    ).toBe("没有可放进 MR 的本地提交。");
-    expect(
-      resolveQuickAction(status({ ...gitLab, pr: openPr }), false, false, true, "zh-Hans").label,
-    ).toBe("查看 MR");
-  });
-
   it("offers creating a PR after the feature branch has been fully pushed", () => {
     const pushed = status({ aheadCount: 0, behindCount: 0, aheadOfDefaultCount: 1 });
     expect(resolveQuickAction(pushed, false)).toMatchObject({
@@ -120,20 +102,5 @@ describe("git action copy", () => {
         terminology: sourceControlClients.get("gitlab").changeRequest,
       }).continueLabel,
     ).toBe("Commit, push & create MR");
-    expect(
-      resolveDefaultBranchActionDialogCopy({
-        ...input,
-        terminology: sourceControlClients.get("github").changeRequest,
-      }).description,
-    ).toBe(
-      'This action will commit, push, and create a PR on "main". You can continue on this branch or create a feature branch and run the same action there.',
-    );
-    expect(
-      resolveDefaultBranchActionDialogCopy({
-        ...input,
-        terminology: sourceControlClients.get("github").changeRequest,
-        locale: "zh-Hans",
-      }).description,
-    ).not.toContain("a PR");
   });
 });

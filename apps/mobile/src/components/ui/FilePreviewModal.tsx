@@ -94,7 +94,7 @@ function NativeFilePreview(props: FilePreviewViewerProps) {
       canceled = true;
       void NativeControls.dismissFile(identifier).catch(() => undefined);
     };
-  }, [presented, identifier, t]);
+  }, [presented, identifier]);
 
   const images = props.source.kind === "image" ? props.source.images : undefined;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- hands image URLs that resolve after opening to the native viewer

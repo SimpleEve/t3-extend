@@ -79,7 +79,6 @@ export function IssueCommentComposer(props: {
   const voicePresentation = resolveVoiceComposerPresentation(
     voiceInput.state,
     voiceInput.elapsedSeconds,
-    t,
   );
   const dictating = voicePresentation.statusKind === "active";
   const locked = props.posting || voiceInput.blocksSubmission;

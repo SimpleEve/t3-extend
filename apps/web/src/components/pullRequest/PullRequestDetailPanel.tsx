@@ -136,7 +136,6 @@ import {
   buildPullRequestTimeline,
   pullRequestFindingKey,
   pullRequestHandoffLabels,
-  AUTO_MERGE_METHOD_LABELS, // fork
   PULL_REQUEST_MERGE_METHOD_LABELS,
   checkoutFailureDescription,
   readableFailure,
@@ -168,10 +167,6 @@ import { resolveFilterOptions } from "./pullRequestListOptions";
 import { PullRequestGuideTab } from "./PullRequestGuideTab";
 import { guideRunKey, useGuideRunStore } from "./guide/guideRunStore";
 import { useReviewGuideWriter } from "./guide/useReviewGuideWriter";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { changeRequestTerm } from "./changeRequestTerm";
-import type { Translator } from "@t3tools/client-runtime/i18n";
-import { getUiLocale, translate } from "@t3tools/client-runtime/i18n";
 
 import { changeRequestTermKind, type ChangeRequestTermKind } from "./changeRequestTerm";
 

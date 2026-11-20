@@ -46,20 +46,6 @@ import { useAppearancePreferences } from "../settings/appearance/AppearancePrefe
 
 const keyOf = (thread: EnvironmentThreadShell) => scopedThreadKey(thread.environmentId, thread.id);
 type Section = "pinned" | "active" | "snoozed" | "settled";
-
-// fork: whole phrases, so a translation places the count itself.
-function sectionHeading(section: Section, count: number, t: Translator): string {
-  switch (section) {
-    case "pinned":
-      return t("Pinned ({count})", { count });
-    case "active":
-      return t("Active ({count})", { count });
-    case "snoozed":
-      return t("Snoozed ({count})", { count });
-    case "settled":
-      return t("Settled ({count})", { count });
-  }
-}
 type Destination = Exclude<ThreadMoveDestination, string>;
 type Row = {
   key: string;
@@ -510,10 +496,10 @@ function ThreadArrangementSheet(props: { onClose: () => void }) {
                         {thread ? (
                           <>
                             <Text numberOfLines={2} className="flex-1 text-base">
-                              {threadDisplayTitle(thread.title, t)}
+                              {thread.title}
                             </Text>
                             <DragHandle
-                              title={threadDisplayTitle(thread.title, t)}
+                              title={thread.title}
                               disabled={
                                 dropBusy ||
                                 pendingOrder !== null ||
@@ -612,7 +598,7 @@ function ThreadArrangementSheet(props: { onClose: () => void }) {
                       numberOfLines={visiblePreview.destination?.section ? 1 : 2}
                       className="text-base font-t3-medium"
                     >
-                      {threadDisplayTitle(visiblePreview.thread.title, t)}
+                      {visiblePreview.thread.title}
                     </Text>
                     {visiblePreview.destination?.section ? (
                       <Text className="text-xs text-foreground-muted">

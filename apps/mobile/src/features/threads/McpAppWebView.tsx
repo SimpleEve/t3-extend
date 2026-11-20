@@ -74,9 +74,7 @@ const commandFailure = (result: {
   const error = squashAtomCommandFailure(result);
   return new McpAppHostRefusal({
     message:
-      error instanceof Error && error.message.trim() !== ""
-        ? error.message
-        : translate(getUiLocale(), "Request failed."),
+      error instanceof Error && error.message.trim() !== "" ? error.message : "Request failed.",
   });
 };
 
@@ -477,13 +475,9 @@ export function ThreadMcpApp(props: {
             if (typeof declared === "string") mimeType = declared;
           }
           if (bytes === undefined)
-            throw new McpAppHostRefusal({
-              message: t("{name} has no contents.", { name: file.name }),
-            });
+            throw new McpAppHostRefusal({ message: `${file.name} has no contents.` });
           if (bytes.byteLength > MAX_DOWNLOAD_BYTES) {
-            throw new McpAppHostRefusal({
-              message: t("{name} is too large to save.", { name: file.name }),
-            });
+            throw new McpAppHostRefusal({ message: `${file.name} is too large to save.` });
           }
           const shared = await shareGeneratedAttachment({
             bytes,

@@ -92,10 +92,7 @@ export function withRecentThreadShortcut(
   ].slice(0, MAX_RECENT_THREAD_SHORTCUTS);
 }
 
-export function buildShortcutActions(
-  recents: ReadonlyArray<RecentThreadShortcut>,
-  t: Translator, // fork: i18n
-): Action[] {
+export function buildShortcutActions(recents: ReadonlyArray<RecentThreadShortcut>): Action[] {
   return [
     {
       id: NEW_TASK_SHORTCUT_ID,

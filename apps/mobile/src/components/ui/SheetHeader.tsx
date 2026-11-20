@@ -23,9 +23,7 @@ export function SheetCloseButton(props: SheetCloseButtonProps) {
   );
 }
 
-export function SheetHeader(rawProps: SheetHeaderProps) {
-  const t = useT(); // fork: i18n
-  const props = localizeSheetHeaderProps(rawProps, t); // fork: i18n
+export function SheetHeader(props: SheetHeaderProps) {
   return (
     <>
       <SheetDismissGuard dismissDisabled={props.dismissDisabled} />

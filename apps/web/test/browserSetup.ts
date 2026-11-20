@@ -17,3 +17,6 @@ declare module "vite-plus/test/browser" {
 beforeEach(async () => {
   await commands.resetPointer();
 });
+
+// The app initializes GT at startup; components using its hooks need the same here.
+initializeI18n(() => {});

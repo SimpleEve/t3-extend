@@ -307,7 +307,7 @@ function SnoozePresetList(props: {
             <div className="ml-auto flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
               {preview.tone === "menu" ? (
                 <span className="truncate">
-                  <span className="text-foreground">{preview.label}</span>{" "}
+                  <span className="text-foreground">{preview.label}</span>
                   <span className="ps-2 tabular-nums">{preview.when}</span>
                 </span>
               ) : (
@@ -430,7 +430,6 @@ function DurationFields(props: { minutes: number; onChange: (minutes: number) =>
   const unit =
     props.minutes % UNIT_MINUTES[chosenUnit] === 0 ? chosenUnit : splitMinutes(props.minutes).unit;
   const amount = props.minutes / UNIT_MINUTES[unit];
-  const unitLabels = amount === 1 ? SINGULAR_UNIT_LABELS : UNIT_LABELS;
   const maxAmount = Math.floor(MAX_SNOOZE_PRESET_MINUTES / UNIT_MINUTES[unit]);
   // Typing stays local until the field commits (blur, Enter, or a step), so half-typed
   // values never reach the server.

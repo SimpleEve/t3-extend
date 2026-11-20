@@ -32,8 +32,6 @@ import { Dialog, DialogPopup, DialogTitle } from "../ui/dialog";
 import { MenuItem } from "../ui/menu";
 import { toastManager } from "../ui/toast";
 import { PullRequestGlyph } from "./pullRequestIcons";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { changeRequestTerm } from "./changeRequestTerm";
 
 import { changeRequestTermKind } from "./changeRequestTerm";
 

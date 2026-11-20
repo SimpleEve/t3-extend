@@ -22,6 +22,7 @@ import {
   ThemePreviewCircle,
 } from "./settings/ThemePreviewCircles";
 import { stackedThreadToast, toastManager } from "./ui/toast";
+import { useT } from "~/hooks/useT"; // fork: preset and built-in theme names
 
 export const APPEARANCE_OPTIONS = [
   { mode: "system", label: msg("System"), icon: MonitorIcon },
@@ -42,6 +43,7 @@ export function notifyThemeSaveFailure(): void {
 // Reads its own source hooks so the compiler caches the cards on them. Taking the
 // sources as arguments would leave it hook-free, and the compiler would cache nothing.
 function useThemeCards() {
+  const t = useT(); // fork: preset and built-in theme names are translated
   const customThemes = useCustomThemes();
   const environmentThemes = useEnvironmentThemeDefinitions();
   const seen = new Set<string>();

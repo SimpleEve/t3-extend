@@ -194,7 +194,7 @@ function SourceStatusBadge({
           tone === "danger" && "bg-destructive",
         )}
       />
-      {label} {presentation?.label ?? sourceStatusLabel(status, t)}
+      {label} {presentation?.label ?? status}
     </span>
   );
 }
@@ -208,7 +208,6 @@ function LastSampleLabel({ sampledAt }: { sampledAt: DateTime.Utc | null }) {
       </span>
     );
   }
-  // fork: one sentence, so Chinese can put the time before the verb.
   return (
     <span className="text-2xs text-muted-foreground/60">
       {relative.suffix ? (
@@ -300,9 +299,7 @@ function AggregateCard({
           data-t3x-han-text
           className="rounded-md bg-muted/55 px-1.5 py-0.5 font-mono text-3xs tabular-nums text-muted-foreground/70"
         >
-          {aggregate.processCount === 1
-            ? t("{count} process", { count: aggregate.processCount })
-            : t("{count} processes", { count: aggregate.processCount })}
+          {aggregate.processCount} {aggregate.processCount === 1 ? "process" : "processes"}
         </div>
       </div>
       <div className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
@@ -1199,19 +1196,13 @@ function ResourceTelemetryDiagnosticsBody({
               icon={<HardDriveIcon className="size-3.5" />}
               label={gt("Read throughput")}
               value={allT3 ? formatRate(allT3.ioReadBytesPerSecond) : "..."}
-              detail={
-                allT3 ? t("{bytes} observed", { bytes: formatBytes(allT3.ioReadBytes) }) : undefined
-              }
+              detail={allT3 ? `${formatBytes(allT3.ioReadBytes)} observed` : undefined}
             />
             <IconStat
               icon={<DatabaseIcon className="size-3.5" />}
               label={gt("Write throughput")}
               value={allT3 ? formatRate(allT3.ioWriteBytesPerSecond) : "..."}
-              detail={
-                allT3
-                  ? t("{bytes} observed", { bytes: formatBytes(allT3.ioWriteBytes) })
-                  : undefined
-              }
+              detail={allT3 ? `${formatBytes(allT3.ioWriteBytes)} observed` : undefined}
               tone={
                 allT3 && allT3.ioWriteBytesPerSecond >= 10 * 1_024 * 1_024
                   ? "danger"

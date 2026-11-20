@@ -230,10 +230,7 @@ function CrashRow(props: { readonly record: StartupCrashRecord; readonly first: 
   return (
     <View className={props.first ? "gap-1.5 p-4" : "gap-1.5 border-t border-border-subtle p-4"}>
       <Text className="text-xs text-foreground-muted">
-        {new Date(record.timestamp).toLocaleString(
-          uiFormatLocale(getUiLocale()),
-          uiFormatOptions(getUiLocale()),
-        )}
+        {new Date(record.timestamp).toLocaleString()}
       </Text>
       <Text selectable className="text-base leading-snug text-danger-foreground">
         {record.description}

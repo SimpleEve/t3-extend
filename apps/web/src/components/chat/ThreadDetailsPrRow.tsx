@@ -80,8 +80,6 @@ import {
   THREAD_DETAILS_PANEL_SPLIT_GROUP_CLASS,
   THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS,
 } from "./threadDetailsPanelStyles";
-import { changeRequestTerm } from "../pullRequest/changeRequestTerm"; // fork
-import { useT } from "~/hooks/useT"; // fork: interface language
 
 // A null checks response is settled; polling cannot find checks.
 const isSettledWithoutChecks = (result: AsyncResult.AsyncResult<unknown, unknown>) =>
@@ -332,9 +330,7 @@ export function ThreadDetailsPrRow({
                 aria-hidden
                 className={cn("size-3 shrink-0", statePresentation.toneClassName)}
               />
-              <div className="min-w-0 truncate text-foreground/75">
-                {t(statePresentation.label)}
-              </div>
+              <div className="min-w-0 truncate text-foreground/75">{statePresentation.label}</div>
             </div>
             <div className="flex min-w-0 items-center gap-2">
               <GitBranchIcon className="size-3 shrink-0 stroke-muted-foreground" />

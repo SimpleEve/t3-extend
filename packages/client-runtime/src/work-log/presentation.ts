@@ -13,11 +13,6 @@ import type { ToolCallVisibility } from "@t3tools/contracts/settings";
 import {
   resolveT3McpSummaryAction,
   resolveT3McpToolDefinition,
-  T3_TOOL_ACTION_CONTEXT,
-  T3_TOOL_CONTEXT,
-  T3_TOOL_DONE_CONTEXT,
-  T3_TOOL_RUNNING_CONTEXT,
-  T3_TOOL_TARGET_CONTEXT,
   type T3McpToolDefinition,
   type T3McpToolSummaryAction,
 } from "@t3tools/shared/t3McpToolPresentation";

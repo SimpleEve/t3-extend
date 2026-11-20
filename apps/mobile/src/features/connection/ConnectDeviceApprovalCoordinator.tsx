@@ -109,7 +109,6 @@ function EnvironmentApprovalWatcher(props: {
   const offerPrompts = useEffectEvent((links: ReadonlyArray<AuthPairingLink>) => {
     const prompts = connectDeviceApprovalPrompts({
       environmentLabel: props.environmentLabel,
-      t,
       pairingLinks: links,
       shownIds: approvalPrompts.known,
     });

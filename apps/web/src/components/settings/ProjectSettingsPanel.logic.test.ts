@@ -136,7 +136,7 @@ describe("project removal confirmation", () => {
     });
     expect(plan.projectThreads).toHaveLength(3);
     expect(plan.confirmationMessage).toBe(
-      'Remove checkout "Repo" and delete its 1 thread?\nPath: /work/repo\nEnvironment: Local\nThose threads and any archived threads are deleted from T3 Extend. Provider sessions are kept.\nOther entries in this grouped project are unaffected.\nThis action cannot be undone.',
+      'Remove checkout "Repo" and delete its 1 thread?\nPath: /work/repo\nEnvironment: Local\nThose threads and any archived threads are deleted from T3 Extend. Provider sessions are kept.\nOther entries in this grouped project are unaffected.\nThis action cannot be undone.', // fork: brand
     );
   });
 
@@ -154,7 +154,7 @@ describe("project removal confirmation", () => {
       "Other entries in this grouped project are unaffected.",
     );
     expect(plan.confirmationMessage).toContain(
-      "Any archived threads are deleted from T3 Extend. Provider sessions are kept.",
+      "Any archived threads are deleted from T3 Extend. Provider sessions are kept.", // fork: brand
     );
   });
 
@@ -172,28 +172,6 @@ describe("project removal confirmation", () => {
     expect(plan.confirmationMessage).toContain(
       "This removes only the project entries, not the files on disk.",
     );
-  });
-
-  it("hands the translator whole sentences, keeping the values out of the keys", () => {
-    const plan = planProjectRemoval({
-      members: [local],
-      groupMemberCount: 1,
-      hasOtherMembers: false,
-      displayName: "Repo",
-      threads: [
-        { environmentId: local.environmentId, projectId: local.id, lineage: listed },
-        { environmentId: local.environmentId, projectId: local.id, lineage: listed },
-      ],
-      t: (source) => `<${source}>`,
-    });
-    expect(plan.confirmationMessage.split("\n")).toEqual([
-      '<Remove project "{label}" and delete its {count} threads?>',
-      "<Path: {path}>",
-      "<Environment: {environment}>",
-      "<Those threads and any archived threads are deleted from T3 Extend. Provider sessions are kept.>",
-      "<This removes only the project entries, not the files on disk.>",
-      "<This action cannot be undone.>",
-    ]);
   });
 });
 

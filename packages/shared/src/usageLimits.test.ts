@@ -20,10 +20,6 @@ import {
   collectLimitPools,
   elapsedShare,
   exhaustedUsageWindow,
-  formatDuration,
-  formatResetDuration,
-  formatResetsIn,
-  formatResetsInShort,
   paceOf,
   paceRemainingPercent,
   usesChatGptSharing,
@@ -58,33 +54,6 @@ function provider(overrides: Partial<ServerProvider>): ServerProvider {
     ...overrides,
   };
 }
-
-describe("reset labels", () => {
-  const at = (iso: string) => ({ ...window, resetsAt: iso });
-
-  it("keeps the English output without a translator", () => {
-    const later = at("2026-09-08T21:30:00.000Z");
-    expect(formatDuration(5 * 86_400_000 + 9 * 3_600_000)).toBe("5d 9h");
-    expect(formatResetsIn(later, now)).toBe("resets in 5d 9h");
-    expect(formatResetDuration(later, now)).toBe("5d 9h");
-    expect(formatResetsInShort(later, now)).toBe("in 5d 9h");
-    expect(formatResetsInShort(at("2026-09-03T11:00:00.000Z"), now)).toBe("now");
-    expect(formatResetDuration(at("2026-09-03T12:00:30.000Z"), now)).toBe("Resets momentarily");
-  });
-
-  it("builds whole phrases from translated units", () => {
-    const zh: Record<string, string> = {
-      "{count}d": "{count} 天",
-      "{count}h": "{count} 小时",
-      "in {duration}": "{duration}后",
-    };
-    const t = (source: string, params?: Readonly<Record<string, string>>) =>
-      (zh[source] ?? source).replace(/\{(\w+)\}/g, (_, name: string) => params?.[name] ?? "");
-    const later = at("2026-09-08T21:30:00.000Z");
-    expect(formatResetDuration(later, now, t)).toBe("5 天 9 小时");
-    expect(formatResetsInShort(later, now, t)).toBe("5 天 9 小时后");
-  });
-});
 
 describe("new thread model fallback", () => {
   const selection = { instanceId: ProviderInstanceId.make("codex"), model: "gpt-6.1-sol" };

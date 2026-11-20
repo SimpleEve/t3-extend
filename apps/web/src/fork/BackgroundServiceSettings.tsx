@@ -3,7 +3,7 @@ import type { BackgroundServiceState } from "@t3tools/shared/backgroundService";
 import { useEffect, useState } from "react";
 
 import { SettingsRow, SettingsSection } from "../components/settings/settingsLayout";
-import { searchableSetting } from "../components/settings/settingsSearch";
+import { useSearchableSetting } from "../components/settings/settingsSearch";
 import { Button } from "../components/ui/button";
 import { Switch } from "../components/ui/switch";
 import { useT } from "../hooks/useT";
@@ -11,6 +11,7 @@ import { getBackgroundServiceBridge } from "./backgroundServiceBridge";
 import { backgroundServiceView } from "./backgroundService.logic";
 
 export function BackgroundServiceSettings() {
+  const setting = useSearchableSetting();
   const t = useT();
   const bridge = getBackgroundServiceBridge();
   const [state, setState] = useState<BackgroundServiceState | null>(null);
@@ -64,7 +65,7 @@ export function BackgroundServiceSettings() {
   return (
     <SettingsSection id="background-service" title="Background running">
       <SettingsRow
-        id={searchableSetting("keep-running-in-background").id}
+        id={setting("keep-running-in-background").id}
         title={t("Keep running in the background")}
         description={t(
           "Keeps T3 Extend running after you quit the app, so your phone stays connected and notifications keep arriving. The app stops it while the app is open and starts it again when you quit.",

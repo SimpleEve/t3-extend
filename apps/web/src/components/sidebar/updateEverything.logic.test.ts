@@ -8,7 +8,6 @@ import {
   collectServerUpdateTargets,
   describeUpdateCapsule,
   describeUpdateEverything,
-  getUpdateEverythingToastView,
   runUpdateEverything,
   type UpdateEverythingMachine,
 } from "./updateEverything.logic";
@@ -125,7 +124,7 @@ describe("collectServerUpdateTargets", () => {
         entry.label,
         entry.reason,
       ]),
-    ).toEqual([["off", "Example Corp manages T3 Extend updates."]]);
+    ).toEqual([["off", "Example Corp manages T3 Extend updates."]]); // fork: brand
     expect(
       collectServerUpdateTargets(
         machines.map((entry) => ({
@@ -201,8 +200,7 @@ describe("collectChannelSwitchTargets", () => {
     ]);
     expect(targets.every((target) => target.targetDatabaseMigration === 69)).toBe(true);
     expect(skipped.map((entry) => [entry.label, entry.reason])).toEqual([
-      // fork: a boot-service host reports no install, so the command is not named.
-      ["newer-service", "run its T3 command's `update --channel stable --allow-downgrade` there"],
+      ["newer-service", "run `t3 update --channel stable --allow-downgrade` there"],
       [
         "new-service",
         "its database has changes 0.1.3 does not support yet; stay on Nightly until Stable has them",
@@ -259,7 +257,7 @@ describe("collectChannelSwitchTargets", () => {
       ["old-desktop", "needs a newer desktop app"],
       [
         "no-nightly",
-        "Example Corp manages T3 Extend updates. Only stable releases can be installed.",
+        "Example Corp manages T3 Extend updates. Only stable releases can be installed.", // fork: brand
       ],
     ]);
   });
@@ -409,7 +407,7 @@ describe("runUpdateEverything", () => {
 });
 
 describe("describeUpdateEverything", () => {
-  it("gives each machine one row with its T3 Code and provider updates", () => {
+  it("gives each machine one row with its T3 Extend and provider updates", () => { // fork: brand
     const id = EnvironmentId.make;
     const { rows } = describeUpdateEverything({
       localVersion: "1.1.0",
@@ -475,26 +473,5 @@ describe("describeUpdateCapsule", () => {
     expect(describeUpdateCapsule({ ...run, trackSwitch: true }, [failed], null, 0).action).toBe(
       "dismiss",
     );
-  });
-});
-
-describe("getUpdateEverythingToastView", () => {
-  it("hands the translator whole phrases for counts and lists", () => {
-    const view = getUpdateEverythingToastView(
-      {
-        localVersion: "1.1.0",
-        updatedServers: 2,
-        updatedProviders: 1,
-        failures: [],
-        restarting: ["bb-1"],
-      },
-      "1.1.0",
-      (source, params) => `[${interpolate(source, params)}]`,
-    );
-    expect(view).toEqual({
-      type: "success",
-      title: "[Updated [[this app][, ][2 servers], and [1 provider]]]",
-      description: "[bb-1 is still restarting.]",
-    });
   });
 });

@@ -28,8 +28,6 @@ import { PullRequestGlyph } from "./pullRequestIcons";
 import type { resolvePullRequestState } from "./pullRequestPresentation";
 import type { PickableEnvironment } from "./pullRequestProjectAssignment.logic";
 import { useInlineActionConfirm } from "./useInlineActionConfirm";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { changeRequestTerm } from "./changeRequestTerm";
 
 import type { ChangeRequestTermKind } from "./changeRequestTerm";
 

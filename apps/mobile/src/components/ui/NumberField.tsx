@@ -43,11 +43,7 @@ export function NumberField(props: NumberFieldProps) {
               buttonStyle("bordered"),
               disabled(props.disabled),
               accessibilityLabel(
-                labelWithDetail(
-                  props.label,
-                  String(props.formatValue?.(props.value) ?? props.value),
-                  t,
-                ),
+                `${props.label}: ${props.formatValue?.(props.value) ?? props.value}`,
               ),
               frame({ minWidth: 64, minHeight: 44 }),
               foregroundStyle(colors["--color-primary-text"]),

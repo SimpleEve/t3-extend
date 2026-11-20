@@ -1,5 +1,6 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 import type { Translator } from "@t3tools/client-runtime/i18n"; // fork: i18n
+import { getUiLocale, translatorFor } from "@t3tools/client-runtime/i18n"; // fork: thread list views
 import type { SidebarViewMode } from "@t3tools/client-runtime/state/thread-grouping"; // fork: thread list views
 import * as Arr from "effect/Array";
 import * as Order from "effect/Order";
@@ -94,6 +95,7 @@ export function buildHomeListFilterMenuItems(
   // fork: thread list views
   const { viewMode, onViewModeChange } = props;
   if (viewMode !== undefined && onViewModeChange !== undefined) {
+    const t = translatorFor(getUiLocale());
     items.unshift({
       id: "view",
       title: t("Group threads"),

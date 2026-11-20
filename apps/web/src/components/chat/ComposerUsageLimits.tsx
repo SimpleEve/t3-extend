@@ -47,7 +47,6 @@ function AccountSummary({ account }: { readonly account: UsageLimitsReport["acco
   );
 }
 
-// fork: `t` translates the banner copy.
 export function usageLimitsBannerItem(
   id: string,
   report: UsageLimitsReport,

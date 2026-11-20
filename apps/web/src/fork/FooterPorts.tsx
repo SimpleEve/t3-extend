@@ -1,5 +1,4 @@
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
-import { threadDisplayTitle } from "@t3tools/client-runtime/operations";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
@@ -13,7 +12,7 @@ import {
 import { AppWindowIcon, PlugIcon } from "lucide-react";
 import type { MouseEvent } from "react";
 
-import { resolveDiscoveredServerUrl } from "../browser/browserTargetResolver";
+import { resolveExternalServerUrl } from "../browser/browserTargetResolver";
 import { Button } from "../components/ui/button";
 import { PopoverClose } from "../components/ui/popover";
 import { openDiscoveredPort } from "../components/preview/openDiscoveredPort";
@@ -93,7 +92,7 @@ function PortsPanel(props: {
     if (event.metaKey || event.ctrlKey) {
       await readLocalApi()
         ?.shell.openExternal(
-          resolveDiscoveredServerUrl(props.environmentId, row.server.url, { systemBrowser: true }),
+          resolveExternalServerUrl(props.environmentId, row.server.url),
         )
         .catch((error: unknown) => reportFailure(t("Unable to open in browser"), error));
       return;
@@ -133,7 +132,7 @@ function PortsPanel(props: {
                   ) : null}
                 </span>
                 <span className="max-w-full truncate text-2xs font-normal text-muted-foreground">
-                  {threadDisplayTitle(row.threadTitle, t)}
+                  {row.threadTitle}
                   {" · "}
                   {row.worktree ?? t("Main checkout")}
                 </span>

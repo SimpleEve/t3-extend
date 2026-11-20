@@ -1,3 +1,4 @@
+import { setUiLocale, uiLocaleForLanguage } from "@t3tools/client-runtime/i18n"; // fork: fork copy
 import { resolveLocale } from "@t3tools/client-runtime/locales";
 import * as Effect from "effect/Effect";
 import { decodeOptions, gtFallback } from "gt-i18n";
@@ -73,6 +74,7 @@ export const applyLanguage = Effect.fn("desktop.i18n.applyLanguage")(function* (
     DEFAULT_LOCALE,
   );
   requestedLocale = locale;
+  yield* Effect.promise(() => setUiLocale(uiLocaleForLanguage(locale))); // fork: fork copy follows GT
   if (locale === activeLocale) return;
   const catalog = yield* Effect.promise(() => loadCatalog(locale));
   // A later call may have asked for another language while this catalog loaded.

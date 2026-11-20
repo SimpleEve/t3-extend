@@ -1,4 +1,3 @@
-import { SESSION_UNAVAILABLE_NOTICE } from "@t3tools/shared/forkNotices";
 import {
   MessageId,
   CheckpointId,
@@ -723,25 +722,6 @@ describe("buildThreadFeed", () => {
     expect(items[0]).toMatchObject({ output: rawOutput });
   });
 
-  it.each([
-    [SESSION_UNAVAILABLE_NOTICE, `translated ${SESSION_UNAVAILABLE_NOTICE}`],
-    ["server", "server"],
-  ])("translates a system notice only when it is one T3 words itself: %s", (message, expected) => {
-    const item: OrchestrationV2TurnItem = {
-      ...base("fork-notice", "2026-06-20T00:00:04.000Z", 3),
-      type: "system_notice",
-      message,
-      title: message,
-      level: "warning",
-    };
-    const activity = buildThreadFeed([projected(item, 0)]).flatMap((entry) =>
-      entry.type === "activity-group" ? entry.activities : [],
-    )[0]!;
-    expect(workEntryRowLabel(activity.workEntry, false, (source) => `translated ${source}`)).toBe(
-      expected,
-    );
-  });
-
   it("counts every file of a multi-file patch", () => {
     const item: OrchestrationV2TurnItem = {
       ...base("multi-file-change", "2026-06-20T00:00:04.000Z", 3),
@@ -941,12 +921,8 @@ describe("buildThreadFeed", () => {
         ),
       ]).flatMap((entry) => (entry.type === "activity-group" ? entry.activities : []))[0]!;
 
-      expect(workEntryRowLabel(activity.workEntry, false, translatorFor("en"))).toBe(
-        title ?? "Thread forked",
-      );
-      expect(workEntryRowLabel(activity.workEntry, true, translatorFor("en"))).toBe(
-        title ?? "Thread forked",
-      );
+      expect(workEntryRowLabel(activity.workEntry)).toBe(title ?? "Thread forked");
+      expect(workEntryRowLabel(activity.workEntry, true)).toBe(title ?? "Thread forked");
       expect(activity.canExpand).toBe(true);
       expect(activity.getFullDetail()).toContain(threadId);
     },
@@ -2219,18 +2195,6 @@ describe("streamed feed updates", () => {
     for (const [index, rows] of streamed.entries()) {
       expect(values(rows), `step ${index}`).toEqual(values(fresh[index]!));
     }
-  });
-
-  it("rebuilds cached activity labels when the translator changes", async () => {
-    await loadUiCatalog("zh-Hans");
-    const rows = [projected(userMessage(), 0), projected(command(), 1)];
-    const cache = createThreadFeedCache();
-    const label = (t: ReturnType<typeof translatorFor>) =>
-      buildThreadFeed(rows, { cache, t }).flatMap((entry) =>
-        entry.type === "activity-group" ? entry.activities.map((a) => a.workEntry.label) : [],
-      );
-    expect(label(translatorFor("en"))).toEqual(["Command"]);
-    expect(label(translatorFor("zh-Hans"))).toEqual(["命令"]);
   });
 
   it("hides a delegation once its child reaches back into the earlier run", () => {

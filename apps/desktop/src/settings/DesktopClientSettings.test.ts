@@ -239,6 +239,29 @@ describe("DesktopClientSettings", () => {
     ),
   );
 
+  // fork: T3 Extend saved `uiLanguage` before it adopted upstream's `language`.
+  it.effect("keeps a saved Chinese interface language as the language setting", () =>
+    withClientSettings(
+      Effect.gen(function* () {
+        const environment = yield* DesktopEnvironment.DesktopEnvironment;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const settings = yield* DesktopClientSettings.DesktopClientSettings;
+        yield* fileSystem.makeDirectory(environment.stateDir, { recursive: true });
+        yield* fileSystem.writeFileString(
+          environment.clientSettingsPath,
+          `{ "settings": { "uiLanguage": "zh-Hans", "timestampFormat": "24-hour" } }\n`,
+        );
+
+        const persisted = yield* settings.get;
+        assert.isTrue(Option.isSome(persisted));
+        if (Option.isSome(persisted)) {
+          assert.equal(persisted.value.language, "zh");
+          assert.equal(persisted.value.timestampFormat, "24-hour");
+        }
+      }),
+    ),
+  );
+
   it.effect("loads legacy wrapped client settings documents", () =>
     withClientSettings(
       Effect.gen(function* () {

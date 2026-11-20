@@ -747,9 +747,7 @@ function ThreadDetailBody(
   );
   const extensionStatus = props.extensionStatuses?.length
     ? {
-        label: t("Pi · {value}", {
-          value: props.extensionStatuses.map((status) => status.text).join(" · "),
-        }),
+        label: `Pi · ${props.extensionStatuses.map((status) => status.text).join(" · ")}`,
         onPress: () =>
           Dialog.alert("Pi", props.extensionStatuses?.map((status) => status.text).join("\n\n")),
       }
@@ -760,14 +758,9 @@ function ThreadDetailBody(
       key: "background",
       icon: pendingBackgroundWork.waiting ? "person.2" : "terminal",
       label: pendingBackgroundWork.title,
-      accessibilityLabel: labelWithDetail(
-        pendingBackgroundWork.title,
-        joinLabelParts(
-          pendingBackgroundWork.items.map((item) => item.label),
-          t,
-        ),
-        t,
-      ),
+      accessibilityLabel: `${pendingBackgroundWork.title}: ${pendingBackgroundWork.items
+        .map((item) => item.label)
+        .join(", ")}`,
       onOpen: () => {
         Keyboard.dismiss();
         navigation.navigate("ThreadBackgroundWork", {

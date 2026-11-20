@@ -141,8 +141,6 @@ export function usePullRequestListFilters(props: {
   const { value } = props;
   const m = useMessages();
   const projects = useProjectsInSidebarOrder(props.projects);
-  const translated = (options: Readonly<Record<string, string>>) =>
-    Object.fromEntries(Object.entries(options).map(([key, label]) => [key, t(label)]));
   const selectedLabels = value.filters.labels?.flat() ?? [];
   const selectedLabelSet = new Set(selectedLabels);
   const author = value.filters.author;

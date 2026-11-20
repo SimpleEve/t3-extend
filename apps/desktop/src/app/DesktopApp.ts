@@ -46,6 +46,7 @@ import { FORK } from "@t3tools/shared/forkIdentity"; // fork: identity
 import * as DesktopBackgroundService from "../fork/backgroundService/DesktopBackgroundService.ts"; // fork: background service
 import { msg } from "gt-i18n";
 import { m } from "../i18n/messages.ts";
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: background service copy
 
 const DEFAULT_DESKTOP_BACKEND_PORT = FORK.defaultPort; // fork: avoid official 3773
 const MAX_TCP_PORT = 65_535;

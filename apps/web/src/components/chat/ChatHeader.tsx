@@ -370,8 +370,8 @@ export const ChatHeader = memo(function ChatHeader({
                   />
                 }
               >
-                <h2 className="min-w-0" dir={textDirection(shownTitle)}>
-                  <WorkspaceBreadcrumbText>{shownTitle}</WorkspaceBreadcrumbText>
+                <h2 className="min-w-0" dir={textDirection(activeThreadTitle)}>
+                  <WorkspaceBreadcrumbText>{activeThreadTitle}</WorkspaceBreadcrumbText>
                 </h2>
                 <ChevronDownIcon
                   aria-hidden
@@ -379,22 +379,22 @@ export const ChatHeader = memo(function ChatHeader({
                   className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/thread-title:opacity-100 group-focus-visible/thread-title:opacity-100"
                 />
               </TooltipTrigger>
-              <TooltipPopup side="top">{shownTitle}</TooltipPopup>
+              <TooltipPopup side="top">{activeThreadTitle}</TooltipPopup>
             </Tooltip>
           ) : (
             <Tooltip>
               <TooltipTrigger
                 render={
                   <h2
-                    aria-label={shownTitle}
+                    aria-label={activeThreadTitle}
                     className="min-w-0 flex-1"
-                    dir={textDirection(shownTitle)}
+                    dir={textDirection(activeThreadTitle)}
                   />
                 }
               >
-                <WorkspaceBreadcrumbText>{shownTitle}</WorkspaceBreadcrumbText>
+                <WorkspaceBreadcrumbText>{activeThreadTitle}</WorkspaceBreadcrumbText>
               </TooltipTrigger>
-              <TooltipPopup side="top">{shownTitle}</TooltipPopup>
+              <TooltipPopup side="top">{activeThreadTitle}</TooltipPopup>
             </Tooltip>
           )}
           {renamingTitle === null && activeThreadLinkOrigin ? (

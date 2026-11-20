@@ -49,7 +49,6 @@ import { Toggle, ToggleGroup } from "~/components/ui/toggle-group";
 import { cn } from "~/lib/utils";
 import {
   buildMenuItems,
-  changeRequestNoun,
   formatGitActionElapsed,
   GIT_ACTION_SUCCESS_VISIBLE_MS,
   hasUsableGitMenuContent,

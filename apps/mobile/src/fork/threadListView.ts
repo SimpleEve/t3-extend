@@ -1,15 +1,16 @@
 // fork: T3 Extend's thread list views on mobile. The choice and the folds persist on the device.
-import { useAtomSet, useAtomValue } from "@effect/atom-react";
+import { useAtomValue } from "@effect/atom-react";
 import { useMemo } from "react";
 
-import { mobilePreferencesAtom, updateMobilePreferencesAtom } from "../state/preferences";
+import { mobilePreferencesAtom, saveMobilePreferences } from "../state/preferences";
+import { useAtomCommand } from "../state/use-atom-command";
 import { useThreadListViewState } from "./threadListViewState";
 
 export function useThreadListViewPreferences() {
-  const savePreferences = useAtomSet(updateMobilePreferencesAtom);
+  const save = useAtomCommand(saveMobilePreferences);
   const { ready, viewMode, collapsed, setViewMode, toggleGroup } = useThreadListViewState(
     useAtomValue(mobilePreferencesAtom),
-    savePreferences,
+    (update) => void save(update),
   );
   const collapsedKeys = useMemo<ReadonlySet<string>>(() => new Set(collapsed ?? []), [collapsed]);
   // `loaded` gates drawing; choices made before the preference arrives are kept and applied then.

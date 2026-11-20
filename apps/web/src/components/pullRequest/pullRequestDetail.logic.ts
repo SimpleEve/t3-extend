@@ -62,14 +62,6 @@ export const PULL_REQUEST_MERGE_METHOD_LABELS: Record<PullRequestMergeMethod, st
   "fast-forward": msg("Fast-forward merge"),
 };
 
-// fork: whole labels so a translation can order them; English matches the old lowercased form.
-export const AUTO_MERGE_METHOD_LABELS: Record<PullRequestMergeMethod, string> = {
-  merge: "Auto-merge (merge)",
-  squash: "Auto-merge (squash and merge)",
-  rebase: "Auto-merge (rebase and merge)",
-  "fast-forward": "Auto-merge (fast-forward merge)",
-};
-
 export function allowsSinglePullRequestMerge(input: {
   supportsStackActions: boolean;
   hasStack: boolean;
@@ -556,10 +548,7 @@ export function visibleBody(body: string): string | null {
   return body.replace(/<!--[\s\S]*?-->/gu, "").trim().length === 0 ? null : body.trim();
 }
 
-function commentTimelineEvent(
-  comment: PullRequestComment,
-  t: Translator = translatorFor("en"), // fork: interface language
-): PullRequestTimelineEvent {
+function commentTimelineEvent(comment: PullRequestComment): PullRequestTimelineEvent {
   return {
     comment,
     id: comment.id,
@@ -866,9 +855,9 @@ export function buildPullRequestTimeline(
       ...(detail.reviewThreads ?? []),
       ...(detail.overviewThreads ?? []),
     ]).map((item) => {
-      if (item.kind === "comment") return commentTimelineEvent(item.comment, t);
+      if (item.kind === "comment") return commentTimelineEvent(item.comment);
       return {
-        ...comment(item.root),
+        ...commentTimelineEvent(item.root),
         thread: {
           id: item.thread.id,
           ...(item.thread.canResolve === undefined ? {} : { canResolve: item.thread.canResolve }),
@@ -876,7 +865,7 @@ export function buildPullRequestTimeline(
           line: item.thread.line,
           isResolved: item.thread.isResolved,
           isOutdated: item.thread.isOutdated,
-          replies: item.replies.map(comment),
+          replies: item.replies.map(commentTimelineEvent),
           moreReplies: item.moreReplies,
           hasMoreReplies: item.hasMoreReplies,
           url: item.url,

@@ -20,6 +20,8 @@ import { pathSetup, readUserLoginShell } from "@t3tools/shared/shell";
 import * as DesktopCliShim from "./DesktopCliShim.ts";
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import { makeComponentLogger } from "./DesktopObservability.ts";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: t3x
+import { getUiLocale, translate } from "@t3tools/client-runtime/i18n"; // fork: t3x copy
 
 const { logInfo, logWarning } = makeComponentLogger("desktop-cli-command");
 

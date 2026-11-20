@@ -428,22 +428,6 @@ describe("pullRequestContextKindLabel", () => {
       pullRequestContextKindLabel(comment("https://gitlab.com/acme/app/-/merge_requests/7", true)),
     ).toBe("Draft merge request");
   });
-
-  it("translates the state and the term before joining them", () => {
-    const t = (
-      source: string,
-      params?: Readonly<Record<string, string | number>>,
-      context?: string,
-    ) =>
-      context === "change request"
-        ? "PR"
-        : context === "pull request state"
-          ? `<${source}>`
-          : `[${interpolate(source, params)}]`;
-    expect(
-      pullRequestContextKindLabel(comment("https://github.com/acme/app/pull/7", false), t),
-    ).toBe("[<Open> PR]");
-  });
 });
 
 describe("reviewCommentContextLabel", () => {

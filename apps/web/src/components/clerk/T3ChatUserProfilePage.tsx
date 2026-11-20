@@ -98,7 +98,7 @@ export function T3ChatUserProfilePage() {
                 </h3>
                 <p className="mt-1 text-xs leading-4.5 text-muted-foreground">
                   {link ? (
-                    planLabel(link, t)
+                    planLabel(link)
                   ) : linkUrl ? (
                     <T>
                       Confirm on{" "}

@@ -582,7 +582,7 @@ export function useThreadComposerState(input: {
       .catch((error: unknown) => {
         setThreadComposerError(
           threadKey,
-          error instanceof Error ? error.message : t("Failed to save the queued message."),
+          errorDisplayMessage(error, m) ?? m(msg("Failed to save the queued message.")),
         );
       })
       .finally(() => {

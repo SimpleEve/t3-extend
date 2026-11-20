@@ -27,7 +27,7 @@ import {
   RuntimeMode,
 } from "@t3tools/contracts";
 import { effectiveSnoozed, threadWokeAt } from "@t3tools/client-runtime/state/thread-settled";
-import { snoozeWakeLabel } from "../Sidebar.snooze"; // fork: wake label in the interface language
+import { snoozeWakeLabel } from "../Sidebar.snooze";
 import {
   BACKGROUND_WORK_STOP_RETRY_AFTER_MS,
   type BackgroundWorkStopRequest,
@@ -605,7 +605,6 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   const runStopNow =
     activeThread && runStop !== null
       ? runStopNowItem({
-          t,
           threadId: activeThread.id,
           stop: runStop,
           canForceStop: forceStop.canForceStop,

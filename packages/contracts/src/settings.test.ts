@@ -332,11 +332,12 @@ describe("ClientSettings notifications", () => {
   });
 });
 
-describe("ClientSettings interface language", () => {
+describe("ClientSettings language", () => {
+  // fork: T3 Extend follows the system language until the user picks one.
   it("follows the system language unless a saved value says otherwise", () => {
-    expect(decodeClientSettings({}).uiLanguage).toBe("system");
-    expect(decodeClientSettings({ uiLanguage: "zh-Hans" }).uiLanguage).toBe("zh-Hans");
-    expect(decodeClientSettingsPatch({})).not.toHaveProperty("uiLanguage");
+    expect(decodeClientSettings({}).language).toBe("system");
+    expect(decodeClientSettings({ language: "zh" }).language).toBe("zh");
+    expect(decodeClientSettingsPatch({})).not.toHaveProperty("language");
   });
 });
 

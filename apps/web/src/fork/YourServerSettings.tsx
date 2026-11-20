@@ -65,7 +65,7 @@ import { Spinner } from "../components/ui/spinner";
 import { Textarea } from "../components/ui/textarea";
 import { Toggle, ToggleGroup } from "../components/ui/toggle-group";
 import { SelfHostSettings } from "../components/settings/SelfHostSettings";
-import { searchableSetting } from "../components/settings/settingsSearch";
+import { useSearchableSetting } from "../components/settings/settingsSearch";
 import { SettingsRow } from "../components/settings/settingsLayout";
 
 const isDeviceKeysError = Schema.is(DeviceKeysError);
@@ -112,6 +112,7 @@ function DesktopDevices() {
 }
 
 function DevicesRows({ environmentId }: { readonly environmentId: EnvironmentId }) {
+  const setting = useSearchableSetting();
   const t = useT();
   const statusResult = useAtomValue(devicesStatus({ environmentId, input: {} }));
   const snapshot = Option.getOrNull(
@@ -134,7 +135,7 @@ function DevicesRows({ environmentId }: { readonly environmentId: EnvironmentId 
   if (status === null) {
     return AsyncResult.isFailure(statusResult) ? (
       <SettingsRow
-        {...searchableSetting("your-server")}
+        {...setting("your-server")}
         title={t("Your server")}
         description={t("Devices on your own server could not be loaded.")}
       />
@@ -145,7 +146,7 @@ function DevicesRows({ environmentId }: { readonly environmentId: EnvironmentId 
     return (
       <>
         <SettingsRow
-          {...searchableSetting("your-server")}
+          {...setting("your-server")}
           title={t("Your server")}
           description={t(
             "Connect your computers and phones through a server you run yourself. You need an invite from a computer that has already joined.",
@@ -197,6 +198,7 @@ function JoinedRows({
   readonly devices: ReadonlyArray<DeviceListEntry>;
   readonly onInvite: () => void;
 }) {
+  const setting = useSearchableSetting();
   const t = useT();
   // Re-evaluated at the moments the notice changes, so an open page shows it without a re-render.
   const noticeAt = useClockWindowStart((nowMs) => serverNoticeWindow(current, nowMs));
@@ -219,7 +221,7 @@ function JoinedRows({
   return (
     <>
       <SettingsRow
-        {...searchableSetting("your-server")}
+        {...setting("your-server")}
         title={t("Your server")}
         description={t("Connected to {host}.", { host: current.registryHost ?? "" })}
         status={

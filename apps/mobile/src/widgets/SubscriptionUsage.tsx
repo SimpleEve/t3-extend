@@ -32,12 +32,6 @@ function SubscriptionUsage(
   "widget";
   // The extension evaluates this function without the app's module scope.
   const family = widgetEnvironment.widgetFamily;
-  // fork: i18n. The app sends the strings in the interface language; English is the fallback.
-  const text = (key: string, fallback: string, params: Record<string, string | number> = {}) =>
-    Object.keys(params).reduce(
-      (value, name) => value.split(`{${name}}`).join(String(params[name])),
-      props.strings?.[key] ?? fallback,
-    );
   // Gallery snapshots can render an old timeline entry after it has expired.
   const now = Math.max(widgetEnvironment.date?.getTime() ?? 0, Date.now());
   const accessory = family === "accessoryRectangular";

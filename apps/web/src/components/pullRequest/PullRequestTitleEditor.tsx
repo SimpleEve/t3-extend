@@ -15,8 +15,6 @@ import { PullRequestDetailTitleRow } from "./PullRequestDetailLayout";
 import { PullRequestEditButton } from "./PullRequestEditButton";
 import { readableFailure } from "./pullRequestDetail.logic";
 import { canEditPullRequestChangeRequest } from "@t3tools/client-runtime/pull-request-editing";
-import { useT } from "~/hooks/useT"; // fork: interface language
-import { changeRequestTerm } from "./changeRequestTerm";
 
 import { changeRequestTermKind } from "./changeRequestTerm";
 

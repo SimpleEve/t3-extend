@@ -44,20 +44,8 @@ export function extensionStatusBannerItem(
     id: "pi-extension-status",
     variant: "default",
     icon: <span>▸</span>,
-    title: <PiStatusTitle statuses={statuses} />,
+    title: <output>{`Pi · ${statuses.map((status) => status.text).join(" · ")}`}</output>,
   };
-}
-
-// fork: the banner item is built outside React, so its title reads the language itself.
-function PiStatusTitle(props: {
-  readonly statuses: NonNullable<OrchestrationV2ProviderSession["extensionStatuses"]>;
-}) {
-  const t = useT();
-  return (
-    <output>
-      {t("Pi · {statuses}", { statuses: props.statuses.map((status) => status.text).join(" · ") })}
-    </output>
-  );
 }
 
 /** Subagents and side chats waiting on the user, unless the parent is itself waiting on them. */
@@ -170,7 +158,6 @@ export function runStopNowItem(input: {
   readonly forceStopping: boolean;
   readonly onForceStop: () => void;
 }): ThreadNowItem {
-  const { t } = input;
   const unresponsive = input.stop.state === "unresponsive";
   const requestedAtMs = Date.parse(input.stop.requestedAt);
   return {

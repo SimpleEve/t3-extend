@@ -93,15 +93,6 @@ function createBufferedToastManager(): BaseToastManager {
   });
   return {
     ...manager,
-    // fork: i18n
-    add: (options) => manager.add(localizeToastText(options, getUiLocale())),
-    update: (id, options) =>
-      manager.update(
-        id,
-        typeof options === "function"
-          ? (previous) => localizeToastText(options(previous), getUiLocale())
-          : localizeToastText(options, getUiLocale()),
-      ),
     " subscribe"(listener) {
       listeners.add(listener);
       for (const event of pending.splice(0)) listener(event);

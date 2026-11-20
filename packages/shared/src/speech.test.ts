@@ -3,7 +3,6 @@ import { DEFAULT_SPEECH_TRANSCRIPTION_OPTIONS, SPEECH_MAX_OPTIONS_BYTES } from "
 
 import {
   chooseSetupSpeechModel,
-  cloudSpeechDisclosure,
   recommendSpeechModels,
   decodeSpeechPcmRequest,
   encodeSpeechPcmRequest,
@@ -327,27 +326,5 @@ describe("recommendSpeechModels", () => {
         "accelerated",
       ),
     ]).toEqual([["zero", "recommended"]]);
-  });
-});
-
-describe("cloudSpeechDisclosure", () => {
-  it("keeps the English words unchanged and passes names through a translator untouched", () => {
-    expect(cloudSpeechDisclosure("openai", "Mac mini")).toBe(
-      "After you stop, Mac mini sends your recording and vocabulary hints, including project names, to OpenAI.",
-    );
-    expect(cloudSpeechDisclosure("openai", "Mac {provider}")).toContain("Mac {provider} sends");
-    const seen: Array<Readonly<Record<string, string>> | undefined> = [];
-    cloudSpeechDisclosure("openrouter", "Mac {mini}", (source, params) => {
-      seen.push(params);
-      return source;
-    });
-    cloudSpeechDisclosure("xai", "Mac mini", (source, params) => {
-      seen.push(params);
-      return source;
-    });
-    expect(seen).toEqual([
-      { environment: "Mac {mini}" },
-      { environment: "Mac mini", provider: "xAI" },
-    ]);
   });
 });

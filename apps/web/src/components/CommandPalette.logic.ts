@@ -51,7 +51,6 @@ export function buildLinkedThreadActionItems(
   },
   resolve: MessageResolver = m,
 ): CommandPaletteActionItem[] {
-  const t = input.t ?? ((source: string) => source);
   return input.threads.map((thread) => ({
     kind: "action",
     value: `thread:${input.environmentId}:${thread.id}`,
@@ -506,7 +505,7 @@ export function buildThreadActionItems<TThread extends BuildThreadActionItemsThr
           projectTitle,
           input.environmentLabelOf?.(thread),
         ),
-        title: input.t ? threadDisplayTitle(thread.title, input.t) : thread.title,
+        title: thread.title,
         description,
         timestamp: formatRelativeTimeLabel(
           thread.latestUserMessageAt ?? thread.updatedAt ?? thread.createdAt,

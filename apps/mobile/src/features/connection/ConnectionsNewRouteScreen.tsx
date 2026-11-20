@@ -363,7 +363,7 @@ function PairingScanCard(props: {
         </View>
         <Text className={cn("text-center text-sm", light ? "text-black/70" : "text-white/80")}>
           {/* fork: the host may run the official `t3` or this fork's `t3x`, so no command is named. */}
-          {t("Scan the code from the pair command or desktop Connections settings")}
+          {gt("Scan the code from the pair command or desktop Connections settings")}
         </Text>
       </View>
     </Pressable>

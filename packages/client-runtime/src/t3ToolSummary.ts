@@ -2,8 +2,6 @@ import { mFallback, msg } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
 import type { T3McpToolSummaryAction } from "@t3tools/shared/t3McpToolPresentation";
 
-import { englishWorkLogPhrase, type WorkLogPhraseTranslator } from "./work-log/phrase.ts"; // fork
-
 export interface T3ToolSummaryCall {
   readonly input: unknown;
   readonly output: unknown;

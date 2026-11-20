@@ -8,7 +8,7 @@ export function RelativeTime(props: { timestamp: string }) {
   const subscribe = (onChange: () => void) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const schedule = () => {
-      const delayMs = msUntilRelativeTimeChange(timestamp);
+      const delayMs = msUntilRelativeTimeChange(props.timestamp);
       if (delayMs === null) return;
       timer = setTimeout(() => {
         onChange();
@@ -20,8 +20,4 @@ export function RelativeTime(props: { timestamp: string }) {
   };
   const getSnapshot = () => relativeTime(props.timestamp, Date.now(), messages);
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-}
-
-export function RelativeTime(props: { timestamp: string }) {
-  return useRelativeTime(props.timestamp);
 }
