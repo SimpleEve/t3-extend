@@ -134,83 +134,38 @@ export T3_NATIVE_CLIENT_CACHE=off   # 不连 pinglabs 的共享缓存
 
 ## 多语言
 
-界面支持英文和简体中文，入口是 Settings → Appearance → Language（设置字段 `ClientSettings.uiLanguage`：`system` / `en` / `zh-Hans`，与上游开放的 PR #27965 同名）。只在客户端保存，不进 server settings。
+底层是上游的 GT（`gt-react`、`gt-react-native`、桌面主进程的 `gt-i18n`）。上游文件保持上游的 `useGT()`/`msg()`/`<T>` 写法和提交在仓库里的翻译目录（`apps/{web,mobile,desktop}/src/i18n/translations/*.json`，含 zh 和其余 8 种语言，离线可用）。语言设置就是上游的 `ClientSettings.language`（mobile 偏好里的 `language`）；fork 只把默认值改成 `system`（跟随系统，fork 一贯如此，上游默认 `en`）。
 
-方案是零依赖字典，英文原文作 key：`t("Archive thread")`。查不到译文就显示英文，所以上游改了文案只会让译文暂时变回英文；合并冲突时新旧文案都能直接看到。
+fork 自己的 `t()`（`packages/client-runtime/src/i18n/`，web 和 mobile 的 hook 是 `hooks/useT.ts`）只给 fork 独有的功能和 fork 改过的文案用，目录在 `catalogs/zh-Hans/`，只有简体中文。它不再有自己的语言设置：GT 切换语言时（web 和 mobile 的 `i18n/messages.ts` 的 `setActiveLocale`、桌面主进程的 `applyLanguage`）顺带调 `setUiLocale(uiLocaleForLanguage(locale))`，`zh` 对应 fork 的 `zh-Hans`，其他语言下 fork 文案显示英文。web 在加载 GT 目录时一起加载 fork 目录（`i18n/runtime.ts`），首屏不闪英文。
 
-- 模块：`packages/client-runtime/src/i18n/`。`translate()` 是纯函数，Electron 主进程也用它；`setUiLocale` 先用动态 `import()` 加载 catalog 再切换，英文模式不加载任何 catalog。web 的 hook 是 `apps/web/src/hooks/useT.ts`。
-- 术语表和翻译规则：`packages/client-runtime/src/i18n/GLOSSARY.md`。不能在模块顶层调用 `t()`。
-- 译文：`packages/client-runtime/src/i18n/catalogs/zh-Hans/<area>.ts`，按界面分文件。
+写新文案：在上游文件里优先用 GT 的写法（`gt("…")`、`msg()` + `m()`、`<T>`），这样各语言都有机会翻译；fork 独有的组件里用 `t()`，并在 `catalogs/zh-Hans/` 补中文。不要再把上游文件里的 GT 调用改成 `t()`。
 
-给新界面加翻译：
+**旧的语言设置迁移**：fork 以前存的是 `uiLanguage`（`system`/`en`/`zh-Hans`）。读取设置时一次性改写成 `language`（`zh-Hans` → `zh`，已有 `language` 时以它为准）：web 在 `clientPersistenceStorage.ts`，桌面在 `DesktopClientSettings.ts`，共用 `packages/contracts/src/forkUiLanguage.ts`；mobile 在 `mobile-preferences.ts` 的解析里。各有一条测试。
 
-1. 在上游文件里只把字符串字面量包进 `t()`（组件里 `const t = useT();`），不要顺手重构。非 React 代码用 `translate(getUiLocale(), "...")`，在显示时读取语言。模块级常量保留英文，在渲染处 `t(label)`。
-2. 用户内容、面向模型的文案、server 错误、日志不翻译。
-3. 跑 `vp run i18n:report`，按 "missing" 列表在对应 area 的 catalog 里补译文，按术语表翻译。
-4. 跑 `vp test run packages/client-runtime/src/i18n/i18n.test.ts`：检查占位符一致、没有破折号、跨文件同 key 同译文。
+**语言入口**：web 只留上游设置 → 通用里的语言行。mobile 有两处，打开同一个选择页：上游的「通用」顶部一行，和 fork 原来的「外观」里那一节（`SettingsAppearanceRouteScreen.tsx` 复用上游的 `LanguageSettingsSection`）。
 
-共享组件里统一对标题调 `t()` 的地方，必须让数据绕过去：用户自己的文字（项目、环境、分支、对话、provider、设备名，URL，命令）恰好等于 catalog 里的 key 时（比如项目叫 `server`，dev server 就会为 `apps/server` 建这样一个项目）会被翻成“服务器”。mobile 的 `AppBar` 和 `SheetHeader` 经 `fork/appBarI18n.ts` 翻译所有菜单、操作的标题、副标题和状态，数据在菜单项、菜单或操作上写 `verbatim: true`（屏幕自己已经翻译过的文案也一样；`MenuAction` 转成菜单项的 `appBarMenuItemsFromActions` 一律标）。web 的 `SettingsSection`、`SettingsRow` 翻译字符串标题，数据用 `verbatim(text)`（`fork/verbatim.tsx`）包成节点。往菜单、标题里放数据而没标，是这类 bug 的唯一来源；`appBarI18n.test.ts` 和 `settingsSectionTitle.browser.test.tsx` 用 `server` 这样的名字守着共享的构造函数。
+**品牌**：上游 GT 文案里指这个 app 的 "T3 Code" 在源码里直接写成 "T3 Extend"（指本机 CLI 的 `t3` 写成 `t3x`），`fork:guard` 守着；指官方 app 或给模型看的文字按 `ALLOWED_BRAND` 放行。改源码会改变 GT 的 key（key 是原文的哈希），所以每次改完或同步上游后都要跑：
 
-`i18n:report`（`scripts/i18n-report.ts`）扫描 `apps/web/src`、`apps/desktop/src`、`apps/mobile/src`、`packages/client-runtime/src`、`packages/shared/src`、`packages/contracts/src`、`packages/provider-*` 和 `packages/source-control-*`（设置字段标注和安装提示），以及 `apps/server/src/sourceControl`，找出 `t("...")`、`t('...')`、不带插值的 ``t(`...`)`` 一类调用，以及 `translatorFor(locale)("...")` 和 `t(CONST[key])`、`t(CONST.prop)` 这类读模块级常量的调用，列出 catalog 里缺失的 key，以及 catalog 里有、代码里已经找不到的 key（通常是上游改了英文）。判断 stale 时，代码里的字符串字面量、`t()` 的 key、带 `${}` 的模板（插值部分当通配符），以及由 `packages/contracts/src/keybindings.ts` 的 command id 生成的快捷键名称，都算出现过。只报告，不阻断。同步上游后跑一次，把失效的 key 改成新英文。
+```bash
+node scripts/fork-i18n-sync.ts   # 重新生成 en.json，把各语言旧 key 的译文搬到改过品牌的新 key，并套用中文覆盖层
+node scripts/i18n-check.ts       # 上游的 CI 检查，目录与源码一致
+```
 
-故意不翻译、但会经过 `t()` 的来源（搜索引擎名、产品名、语言名）在 `INTENTIONALLY_UNTRANSLATED` 里，不算 missing。
+同步上游时，`apps/*/src/i18n/translations/*.json` 的冲突一律取上游，再跑 `fork-i18n-sync.ts`；`--check` 只检查不写。脚本把找不到中文的 key 列出来（多数是单位、占位符这类本来就是英文的）。
 
-"hard-coded" 一节列出没经过 `t()` 的英文 JSX，格式是 `文件:行 [类型] 文本`，按文件分组，末尾分别给出 web 和 mobile 的数量。它用 `vite-plus` 导出的 `parseAst` 解析 `apps/web/src` 和 `apps/mobile/src` 下的 `.tsx`（不含测试），报告三类：含英文单词的 JSX 文本；JSX 子节点里的字符串和模板（三元、`??`、`||` 的每个分支都算）；文本类属性的字面量或模板，包括 `title`、`label`、`placeholder`、`aria-label`、`alt`、`tooltip`、`description`、`detail`、`message`，以及名字以 `Label`、`Title`、`Text`、`Placeholder`、`Hint`、`Message`、`Description`、`Reason` 结尾的属性。`code`、`kbd`、`pre` 里的内容不报，`apps/mobile/src/features/development/` 不扫。同步上游后，web 部分应该是 0，新增的条目就是上游新加的硬编码英文。
+**中文覆盖层**：`packages/client-runtime/src/i18n/gt-zh-overrides.json`，fork 的术语表（`GLOSSARY.md`）在 GT 的 zh 上胜出。`terms` 是整个 zh.json 里的词替换（会话→对话、智能体→Agent、提供方→provider、工作树→worktree、侧聊→侧边对话、暂缓→稍后处理、收尾→标为已处理、审查导览→审查导读、线路→路由、用量限制→用量上限；替换成拉丁词时自动补空格）；`messages` 是整句覆盖（含 settle、snooze、session 的句子用 fork 原有整句，避免动词和“登录会话”被换坏），`noTermsFor` 列出不做词替换的英文原文（session）。上游 zh 里 GT 没翻译的 key，优先用 fork 目录里同一句英文的译文。覆盖层是 fork 自己的文件，同步不会冲掉；要改译法就改这个文件再跑脚本，不要手改 zh.json。
 
-"hard-coded (properties)" 一节扫描同样两个目录下的 `.ts` 和 `.tsx`，报告对象字面量里界面类属性（`label`、`title`、`description`、`message`、`detail`、`tooltip`、`text`、`placeholder` 等，以及以 `Label`、`Title`、`Text`、`Message` 结尾的属性）的像句子的字面量。catalog 里已有的纯字面量算作在显示处翻译；带插值的模板查不到 key，总是报告。`runAtomCommand`、`useAtomCommand` 一类调用的 `label` 只进日志，不报。这一节只看 catalog 有没有这句，不检查显示处是否真的调了 `t()`，所以菜单、状态行这类仍要在真实客户端里看一遍。
+**检查**：
 
-"compared" 一节报告拿像句子的英文字面量（或全大写常量）去比较（`===`、`switch`、`.includes`、`.startsWith`、`.has` 等），而同一句又在别处经过 `t()` 的代码：比较的那个值一旦被翻译，比较就悄悄失效。比较原始值、显示时才翻译的写法是对的，核实后放进白名单。
+- `vp run i18n:report`：只看 fork 的文案，即上游没有的文件和 fork 在上游文件里新增的行（需要本地有 `upstream/main`；`I18N_REPORT_ALL=1` 连上游一起扫）。`<T>` 和 `gt()`/`msg()` 算已翻译。missing、stale 只针对 fork 的 `t()` 目录。
+- `scripts/fork-zh-coverage.test.ts`：转发放行、设备密钥、UnifiedPush、产出、上下文圆环、后台运行、主题工作室、侧栏按项目这几块代码里的每个 `t()`/`gt()`/`msg()`/`<T>`，在中文下必须有中文。新增 fork 功能时把路径加进 `FEATURES`。
+- `packages/client-runtime/src/i18n/i18n.test.ts`：fork 目录的占位符、破折号、跨文件一致。
 
-"omitted translator" 一节报告漏传翻译器的调用：函数的 `t` 参数是可选的或默认英文（`t: Translator = translatorFor("en")`、`t?: Translator`），调用处少传了这个参数，界面就悄悄显示英文。调用处没有 `t("…")`，前面的扫描看不到它，打包版里欢迎页 Agent 卡片的 "Not authenticated"（`getProviderSummary(provider)`）就是这样漏的。按函数名匹配（同名函数取最靠前的翻译器位置），所以名字相撞会误报，核实后放进 `OMITTED_TRANSLATOR_ALLOWLIST`。默认值是 `translatorFor(getUiLocale())` 的不算。新写带翻译器参数的函数，优先写成必填。
-
-经变量传给 `t()` 的表也会漏：`SettingsRow`、`SettingsSection` 对标题执行 `t(title)`，标题来自 `settingsSearch.ts` 的字面量（`searchableSetting(id)`），调用处没有字面量，目录里少一条也没人发现（"Welcome page"、"Text generators" 就是这样漏的）。`TRANSLATED_PROPERTY_TABLES` 列出这类文件和属性，里面的字面量算作被 `t()` 调用，并且要求目录里有不带上下文的条目。
-
-用户可见文案里的命令名按目标走。目标是本机这个 app（欢迎页、设置里的命令行、本机 triage、本机数据目录被占用的提示）用 `FORK.cliCommand`（`t3x`），分支前缀示例来自 `FORK.gitNamespace`。目标是别的主机时，对方可能是官方 T3 Code（命令 `t3`），不能写 `t3x`：服务器报了安装身份就按它选（`apps/web/src/fork/hostCli.logic.ts` 的 `hostCliCommand`：启动器取文件名，npm 类安装是 `t3`），没报就用不带命令名的说法（诊断、配对、`connect link` 的提示）。没有改的：`npx t3 …` 和 `t3@<版本>`（npm 包名，fork 没有自己的包）、服务端 CLI 自己打印的终端文字、WSL 和 SSH 远程主机上的命令（那里装的是官方 server）、`DesktopCliShim` 写进启动脚本的标记行（用来认出自己写的脚本）。
-
-白名单都在 `scripts/i18n-report.ts` 里，每一条都写了理由：
-
-- `ALWAYS_ENGLISH_TEXT` / `ALWAYS_ENGLISH_PATTERNS`：在任何语言下都保持英文的文本，比如产品名、格式名和单位、命令行、示例输入（URL、主机名、环境变量名）。
-- `SELF_TRANSLATING_PROPS`：组件内部会调用 `t()` 的 `组件.属性`，比如 `SettingsSection.title`。同名的本地组件写成 `文件名#组件.属性`。只对 web 生效，因为 mobile 有同名的不同组件。传给这些属性的字面量仍会进 missing 检查；带插值的模板查不到 key，照样报告。加一条前先读组件源码。
-- `PROPERTY_ALLOWLIST`：properties 一节的 `文件` 或 `文件#属性`，比如会写日志的错误对象、worker 的回复、存进设置的值、搜索用的文本、没有渲染的字段。
-- `COMPARED_ALLOWLIST`：compared 一节的 `文件#文本`。
-- `OMITTED_TRANSLATOR_ALLOWLIST`：omitted translator 一节的 `文件#函数名`，比如返回值只用来比较、不显示的调用，或同名的无关属性。
-
-确认框：调用方把整句模板翻译好再交给 `ConfirmDialogHost`（`t('Archive thread "{title}"?', { title })`），host 按半角或全角问号拆出标题。
-
-已翻译（约 9,100 条）：
-
-- web 和桌面：全部设置页与用量页、连接与配对、onboarding、命令面板、侧边栏、对话页（标题栏、Git 操作、状态行、输入框、时间线和工具调用摘要、T3 MCP 工具摘要、后台任务标题、各类卡片和横幅、模型选择器）、右侧面板（diff、文件和各个预览器、终端、浏览器、设备）、PR 面板、导读和 PR 列表页、toast（含 PR 操作）、通用确认框、无项目首页、404 和出错页、提示词链接落地页、访客页、`ServerUpdateAction`、相对时间和稍后处理的星期、桌面菜单和原生对话框。hard-coded 一节里 web 部分为 0。
-- mobile：首页与对话列表、对话页与 Git 面板（分支与 worktree、提交、默认分支确认）、输入框、新任务、连接与配对、设置各页（含页标题）、通知、浏览器页、PR（列表、筛选、详情、文件、讨论、审查、合并、导读）、终端、文件与 ZIP 浏览、代码审查、用量、归档、语音输入、设备预览、T3 Connect 资料页、诊断、命令面板、工具调用摘要和后台任务、各类提示框和无障碍标签。消息时间、自定义稍后处理、崩溃日志、用量重置、重连等时间跟随界面语言（`uiLocaleFormatTag`）。
-
-新近补上的（不再是英文）：
-
-- Android 底部导航和侧边栏的标签：原生 Compose 模块没有 catalog，由 JS 经 `labels` prop 传入译文（`AndroidWorkspaceNavigation.android.tsx` 里用 `t()` 生成，随语言切换更新；Kotlin 里的英文只是旧 bundle 的兜底）。iOS 的标签页和工具栏无障碍标签也走 `t()`。
-- 桌面小组件（Android 和 iOS）：widget 运行时没有 module 作用域和 catalog，所以 `buildSubscriptionUsageSnapshot` 按界面语言生成译文放进 snapshot（`strings`、`checkedAtLabel`、窗口名、重置时间，中文 24 小时制），widget 只读取。`SubscriptionUsageCoordinator` 按语言各取一份 snapshot，切换语言后重新发布。
-- 终端默认名 "Terminal N"：服务器生成的名字仍是数据（匹配用），显示处经 `localizeTerminalLabel`（`packages/shared/src/terminalLabels.ts`）译成"终端 N"，包括关闭确认和 mobile 的终端菜单。
-- 用量页 12 小时制的 AM/PM：`formatHourShort` 等接受可选翻译函数，中文显示"上午 7 点"。
-- 客户端自己抛出的固定英文错误（上传、附件、媒体、SSH 表单、T3 Connect 设置等）：译文在 `catalogs/zh-Hans/clientErrors.ts`；toast 在 `components/ui/toast.tsx` 的 manager 里按文案查表，`connectionErrorMessage` 对兜底的错误文本同样查表，查不到的原样显示。带参数的几条在抛出处用 `translate`。
-- dnd-kit 的屏幕阅读器说明和拖拽播报：`apps/web/src/fork/TranslatedDndContext.tsx` 包装 `DndContext`，侧边栏对话列表的 `aria-label` 也翻译了。provider 设置表单的字段标题和说明早已翻译，补上了占位示例（`e.g. --chrome`）。
+以前的 AST 扫描（找合并时丢掉的 `t()`）退役了：上游文件不再用 `t()`，对应的保障是 `i18n-check` 和上面的覆盖检查。mobile 的 `fork/appBarI18n.ts` 包装层也删了，AppBar 和 SheetHeader 的文案由上游的 GT 翻译。
 
 中文排版层（`apps/web/src/fork/zhTypography.css`，移动端对应 `apps/mobile/src/fork/zhTypography.ts`）的规则：`text-sm` 及更大的字号下调一档、字重变轻、取消负字距；12px 及以下的字号（`text-xs`、`text-2xs`、`text-3xs`、`text-[11px]` 等）保持上游原样，固定和截断的盒子因此不变形。例外只有按位置单独抬高的几处：诊断页里实际渲染汉字的元素（`data-t3x-han-text`，10px 抬到 11px；拉丁和数字单元格带 `data-t3x-latin` 或不带属性，保持 10px）、设置里带该属性的小号 Badge（源码管理状态、自建连接状态），以及供应商徽章里的汉字首字母（`fork/hanBadgeInitial.ts`：只显示第一个字素，10px，徽章尺寸不变）。英文不匹配 `:lang(zh)`，渲染与上游逐像素一致。`T3 Extend` 字标用 `data-t3-wordmark` 恢复英文的字号、字重和字距，这个属性只能放在只包着 T3 字形和后缀的节点上。
 
-还是英文（需要时再排期）：
-
-- 服务器或模型给出的文案：server 返回的错误和状态（如 "Codex provider status has not been checked in this session yet."）、ACP Registry 里各 Agent 的介绍、模型的推理强度名（Low / Medium / High 这类选项标签来自模型能力数据，输入框和设置里原样显示）、快捷键 when 条件、主题名。
-- web 里客户端自己产生、会写日志的错误信息（`connection/`、`cloud/linkEnvironment.ts`、各处 `EnvironmentAuthorizationError` 的 `message`、预览 worker 的回复、`files/` 下各预览 worker 的内部错误）保持英文，显示处只有 `connection/errorMessages.ts` 和 `clientErrors.ts` 认识的几条会翻译；文档预览的兜底页名（"Page 1"）、设置搜索里带托管平台名的条目、更新对话框里带渠道名的跳过原因、自定义模型预设的档位值（存进设置，模型选择器原样显示）。
-- 桌面主进程传给界面的固定英文：更新器关闭的原因由主进程在 `DesktopUpdateState.messageFixed` 上标出来，界面 `t(message)` 翻译（`getDesktopUpdateMessage`）；管理员策略写的话和更新器自己的错误不带这个标记，原样显示。`t3x` 安装的错误在主进程里按当前界面语言翻译（主进程的语言随设置变化，`DesktopUiLanguage`）。其余主进程错误和状态文案（SnapShots 快捷键与捕获状态、预览和浏览器导入、SSH、WSL、托管策略不可用的说明等）仍是英文。
-- 桌面预览的标注浮层（`apps/desktop/src/preview/PickPreload.ts`）：十来条固定文案（按钮、占位符、提示）是英文。它跑在被预览页面的进程里，样式来自单独生成的 Tailwind 主题，生成器会从 `PickPreload.ts` 全文抽取类名；要翻译得把界面语言经 IPC 传进 preload 并改动这个文件，所以没有顺手做。用户在里面输入的评论不受影响。中文排版层也不作用于它，见 `apps/web/src/fork/zhTypography.css` 头部。
-- mobile：实时活动（iOS `AgentActivity`，widget 运行时里的固定文案）和连接与持久化层的内部错误（`connection/`、`persistence/`）。
-- 还没有在真机或模拟器上核对：Android 底部导航译文和小组件。验证时 Agent device access 是关闭的，按 test-t3-mobile 的要求没有改用 adb 驱动，只在 `t3extend-test` 上装好了 dev client；web 已在中文下核对过。
-
-client-runtime 和 shared 里 web 和 mobile 共用的拼接文案（工具摘要、T3 MCP 工具摘要、后台任务标题、稍后处理、Git 菜单、诊断、用量日期等）都用可选的翻译参数：不传时英文输出不变。
-
-mobile：
-
-- 入口是 Settings → Appearance → Language，字段是 mobile 偏好里的 `uiLanguage`（`apps/mobile/src/persistence/mobile-preferences.ts`），取值和 web 相同。旧数据没有这个字段，按 `system` 读（`uiLanguageSettingOf`）。
-- 系统语言不加原生依赖：Android 读 `I18nManager.getConstants().localeIdentifier`，iOS 读 `Settings.get("AppleLanguages")`，都取不到时用 `Intl.DateTimeFormat().resolvedOptions().locale`。Android 的值是 Java `Locale.toString()` 格式（`zh_CN_#Hans`），`androidLocaleTag` 先转成 BCP 47 再交给 `resolveUiLanguage`。iOS 优先读用户的语言列表，因为 `Intl` 的默认 locale 可能受 app 声明的本地化限制（没有在真机上验证）。这些都是启动时读一次的常量，改系统语言后要重启 app 才生效。
-- 启动：`apps/mobile/src/fork/uiLanguage.ts` 订阅偏好，启动画面要等偏好读出、语言生效后才隐藏。要加载中文 catalog 时最多等 `FIRST_FRAME_LANGUAGE_WAIT_MS`（1000ms），超时先显示英文，加载完再切换。英文不加载 catalog，不增加等待。加载失败保持当前语言，只记一条 warning。
-- Android 上 Hermes 的 `Intl` 不管传什么 locale 都给英文星期名，中文也可能按 12 小时制输出。所以星期名走 catalog（稍后处理菜单的 `formatWeekday`、定时任务的下次运行），中文时间用 `lib/time.ts` 的 `uiFormatOptions` 强制 24 小时制。
-- 译文在 `catalogs/zh-Hans/mobile.ts`（首页、对话列表、对话页、输入框、连接、通知）、`mobileSettings.ts`（设置各页）、`mobilePullRequests.ts`（PR）和 `mobileWorkspace.ts`（文件、终端、审查、用量、Git 子页面等）。Android 底部导航的标签由 JS 传给原生模块，见上文。
+还是英文的：上游 GT 自己没翻的英文（`I18N_REPORT_ALL=1` 下 37 处 JSX、8 处属性，如诊断页的 process/observed）；fork 文案在中文以外的语言下；服务器和模型给出的文案；桌面预览标注浮层（`PickPreload.ts`）。
 
 ## 后台运行（桌面版）
 
@@ -263,15 +218,7 @@ macOS 打包版的设置 > 维护 > "后台运行" 有一个开关"在后台保�
 
 ## Antigravity 后台命令续跑
 
-agy 把超过 `WaitMsBeforeAsync` 的 `run_command` 转成后台任务，prompt 随即返回、轮次结束。命令跑完后 agy 自己往对话里注入一条 SYSTEM_MESSAGE 并唤醒模型，这一段没有 prompt，也没有结束信号：ACP 协商出 v1，没有 `state_update idle`，只有每个模型步骤后的 `usage_update`。原来唤醒后的 `session/request_permission` 到达时没有活跃轮次，T3 回 -32603，模型的下一个 `run_command` 没有执行，线程卡到 30 分钟空闲关闭。
-
-- 通用 ACP 适配器加了 flavor 选项 `continuationWithoutPromptEnd`（`isStepEnd`、`quiet`、`idle`），只有 Antigravity 设置，需要同时开 `enablePostSettleContinuation`。Grok 和 ACP Registry 不设，下面所有分支都由 `continuationSettle !== undefined` 守住，它们的行为不变。
-- 后台命令：agy 在 ACP 里不给任务 id，用 `toolCallId` 当任务 id（`antigravityBackgroundCommandId`）。行保持 running，命令结束后同一个 id 收到 completed。命令不让这一轮保持 Working（agy 分不清在等结果还是 dev server），只靠唤醒开续跑；没开 `deferFinalizeForBackgroundWork`，因为 agy 的子 agent 要等父轮次 idle 才会终态。prompt 返回时已 completed 或 failed 的命令不登记为 detached。
-- 没有活跃轮次时 agy 发来的权限请求和提问，先请求续跑，续跑接上后再答复（full-access 直接放行，否则弹审批卡）。
-- 续跑没有 prompt 结果，靠计时器收尾：最近一次更新是 `usage_update` 后静默 2 秒，否则 15 分钟兜底。有未答复的请求时计时器让出，答复后重新计时；`finalizeTurn` 会中断计时器。
-- Stop：没有 run 时点停止，或在续跑中点停止，都设 `stoppedRunQuarantine`，在 `runtimeCallbackPermit` 下取消挂起的请求（进门中的请求会被等到注册完再取消，Stop 之后才到的权限请求和提问直接答 cancelled、不出卡片），并让下一轮先重启 agy 进程。重启前推进 callback generation，旧进程在途的帧不会进新轮次。
-- 没验证的：`IsDaemon: true` 的真实形状没探测过；收尾窗口 2 秒，模型思考间隔更长时，一次续跑可能被切成两次。
-- 上游文件里的接线（都带 `// fork:`）：`packages/provider-acp/src/server/adapter.ts`（`continuationWithoutPromptEnd`、续跑状态字段和结束计时器、权限与提问的等待和进门检查、Stop 的取消与重启隔离、detach 过滤、`testHooks.beforeUserInputAdmission`）、`apps/server/src/orchestration-v2/Adapters/AntigravityAdapterV2.ts`（flavor 接线、`testHooks` 透传）、`apps/server/src/provider/acp/AntigravityProtocol.ts`（`antigravityBackgroundCommandId`、`isAntigravityStepEnd`）。同步上游时，`adapter.ts` 里 `awaitRequestTurn`、权限处理的进门、`finalizeTurn`、`detachBackgroundCommands` 和 `interruptTurn` 没有 run 的分支最容易被上游改动盖掉，合并后要确认这些 `continuationSettle` 分支还在。
+fork 的 `continuationWithoutPromptEnd` 补丁已删除：上游 #38864（`12be92d034`，`enablePostSettleContinuation` + `wakeOnDetachedRequest` + `replyEndsWithUsageUpdate`）做了同一件事。`packages/provider-acp/src/server/adapter.ts` 和 `AntigravityAdapterV2.ts` 与上游一致。Codex 停止后清审批卡（`finalizeCodexTurn`）还在。
 
 ## 侧边栏视图
 
@@ -514,6 +461,10 @@ A 的桌面版打开远程环境 B 的对话时，B 的 T3 终端或 agent 起�
 
 **用户手动放行端口。** 脱离父进程的服务（`nohup uv run … &` 之后脚本退出，被 launchd 收养）归属判断认不出，原来一律 `not-owned`，没有出路。现在卡片上有“允许转发 localhost:端口”，server 把端口记在 `<stateDir>/loopback-gateway-allowed-ports.json`（`LoopbackGatewayGrants.ts`，最多 64 条，坏文件按空列表处理并记警告），按端口、全环境共用；设置 → 浏览器 → 本机服务转发和转发图标的菜单可以移除。`classifyListener` 的 `granted` 只把两处 `not-owned` 改成放行，E1 到 E4、E7、屏蔽端口和 server 自己的端口照旧拒绝，C2、C3 的现场核对不变。放行过的端口不会再以 `not-owned` 被拒：读不出监听者时是 `owner-changed`（放行过的端口不依赖快照，快照只列有主的服务，所以这里直接读一次，不受节流限制）；监听在非回环地址上是新错误码 `not-loopback`。三个 RPC（`loopbackGateway.listAllowedPorts` / `allowPort` / `removeAllowedPort`）和票据 RPC 一样要 `preview:operate` 加 `terminal:operate`；**没有 MCP 工具，agent 不能放行**。放行记录在 server 顶层的 layer 里只建一份（`layer.ts` 的 `layerGrants`，`server.ts` 一行），因为 ws 的处理器在请求期上下文里读它，放在 `layerServices` 里会漏到 CLI 的类型里。移除放行马上生效：靠放行才通过的隧道（`DialTarget.owner` 为 `user`）在建立后监视 `LoopbackGatewayGrants.changes`，端口一离开列表就关掉两端，所以 keep-alive 连接和 HMR WebSocket 也会断；终端和 agent 归属的隧道不受影响。
 
+### 与上游 LoopbackTunnel 的关系（待决定）
+
+上游 11-18 起有了同类功能：`0226239a41`（#37948）让桌面为其他环境打开的 localhost 标签页走 SOCKS5 隧道（`apps/desktop/src/preview/LoopbackTunnel.ts`，`/api/preview/tunnel`），`420d1b5900` 把其他环境的端口转发到本机。它和 fork 的网关都对同一个 session 调 `setProxy`，同时开会互相覆盖。现在 `apps/desktop/src/ipc/methods/preview.ts` 保留 fork 网关，上游的 `tunnel.route` 固定传 `tunnelled: false`（带 `// fork:`），上游的端口转发入口照常存在。用户决定用哪套之前不要动这行。
+
 ### 上游改动清单
 
 相对阶段 9 开始前的 `12ece4aefa`，上游已有的产品文件改了 28 个，新增 159 行、删除 28 行。代码行带 `// fork:`（JSON 和翻译目录除外，多行的块在块尾标一次）。同步上游时最容易冲突的是 web 的 `PreviewView.tsx`、`PreviewUnreachable.tsx`、`browserTargetResolver.ts` 和契约的 `auth.ts`。
@@ -742,7 +693,7 @@ GitHub Actions 在这个仓库里是开着的，但上游的 27 个 workflow 都
 - 上游把 `useEnvironmentConnectionSummaries()` 从 `apps/web/src/state/environments.ts` 删掉了（还原了一个功能），fork 的底栏芯片（`fork/useFooterScope.ts`）要用，所以在那个文件末尾带 `// fork:` 加回。
 - 上游的预览 session 为 Teams 注册了 `webRequest.onBeforeSendHeaders`；网关只占用 `onHeadersReceived`，两者是不同的事件，不冲突。`singleWebRequestListener.test.ts` 的正则收窄到 `onHeadersReceived`。
 - `pullRequestDescriptionContent(document, media, t)` 的 `t` 放最后并默认英文：上游的新测试用 `(root, media)` 的签名，fork 的传参顺序要迁就它。
-- 上游引入了自己的 i18n（`gt-react`、`gt-react-native`、`I18nProvider`、`settings.language`、移动端的 SettingsLanguage 页、`@formatjs/*` 依赖、vite 和 metro 的 gt 配置）。fork 一概不采用，继续用自己的字典式 i18n 和 `uiLanguage`：合并时从 contracts 的 `settings.ts`/`rpc.ts` 去掉 `language`，删掉 SettingsLanguage 路由和设置搜索项，web 的 `AppRoot`/`appInit`/`browserSetup`/`tsconfig.json`/`package.json` 取回没有 gt 的版本。以后上游在这块再改，先判断是不是 gt 基础设施，是就不要。上游的 `scripts/i18n-check.ts` 和 CI 里的 "Check i18n catalogs" 一步也属于 gt，不要。上游 `055b44919e`（#37893）把整个 app 改成 `useGT()`/`msg()`/`<T>`，约 1400 个文件，和 fork 的 `t()` 逐行冲突；要不要改用上游的 i18n，是待用户决定的产品问题，决定之前同步只合到它的前一个提交。
+- 上游的 GT i18n（#37893）在 2026-11-21 的同步中采用，见"多语言"一节；之前那几次同步曾把 gt 基础设施删掉，现在反过来：gt 的文件、依赖、`i18n-check` 一律保留。
 - 自动解决 i18n 冲突不要用"fork 与基点的差别只在含 `useT`/`translate` 的行就取上游"这类启发式：它会丢掉逻辑文件里的 `t: Translator` 形参、fork 导出的函数和被一并删掉的 import，类型检查会炸出上百个错误。要对每个冲突文件做真正的三方合并（`git merge-file -p --diff3`，ours 是 fork 一侧，base 是上次同步的上游，theirs 是新上游），再逐个冲突块手工合；已经合坏的文件按这个办法重做。合并后跑一遍全量 lint：`ListRow` 的 `joinLabelParts` 就是在之前某次同步里被悄悄丢掉、这次才补回来的。
 - 上游删掉了 `legacySidebarEnabled` 和 `useBoringSidebarEnabled`，Boring 侧栏就是 `settings.boringSidebarEnabled`；`T3CodeImport` 遇到旧的 `legacySidebarEnabled` 只记一条 attention，不再迁移。侧栏状态函数（`resolveSidebarRowStatus`、`resolveWindowTitleThreadStatus`）也在 `threadGrouping.ts` 里补上。
 - `"widget"` 指令的文件（`apps/mobile/src/widgets/`）在没有模块作用域的环境里执行，不能引用 `FORK` 或任何 import，只能写字面量并注明原因（`AgentActivityWidget.tsx` 的品牌名和 URL scheme）；对应的 `fork:guard` 白名单有三条。
