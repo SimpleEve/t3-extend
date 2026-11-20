@@ -1,4 +1,5 @@
 import type { ThemeLook } from "@t3tools/contracts";
+import { FORK } from "@t3tools/shared/forkIdentity";
 import { BUILT_IN_THEMES } from "@t3tools/shared/themePalettes";
 import { useAtomValue } from "@effect/atom-react";
 import { useEffect, useRef, useState } from "react";
@@ -47,7 +48,7 @@ export function themeDisplayLabel(
 function stockDefinition(): ThemeDefinition {
   return {
     id: "t3-code",
-    label: "T3 Code",
+    label: FORK.appBaseName,
     appearance: "light",
     colors: getStandardThemeColors("light"),
     variants: { dark: getStandardThemeColors("dark") },
