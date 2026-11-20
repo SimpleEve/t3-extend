@@ -652,6 +652,8 @@ const upstreamFiles = (() => {
   return listing.status === 0 ? new Set(listing.stdout.split("\n").filter(Boolean)) : null;
 })();
 function forkLinesOf(file: string): ReadonlySet<number> | null {
+  // I18N_REPORT_ALL=1 scans upstream's lines too, to see what GT itself leaves in English.
+  if (process.env.I18N_REPORT_ALL === "1") return null;
   if (upstreamFiles === null) return file.includes("/fork/") ? null : new Set();
   if (!upstreamFiles.has(file)) return null;
   const diff = NodeChildProcess.spawnSync("git", ["diff", "-U0", UPSTREAM_REF, "--", file], {
