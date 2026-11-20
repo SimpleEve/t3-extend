@@ -52,6 +52,7 @@ import { interpolateNodes } from "../../lib/interpolateNodes";
 export const SETTINGS_DEVICE_ONLY_PATHS: ReadonlySet<string> = new Set([
   "/settings/general",
   "/settings/appearance",
+  "/settings/theme", // fork: theme studio
   "/settings/chat",
   "/settings/diffs",
   "/settings/snap-shot",

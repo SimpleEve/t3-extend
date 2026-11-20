@@ -25,6 +25,7 @@ import sharing from "./sharing.ts";
 import sidebar from "./sidebar.ts";
 import storageCleanup from "./storageCleanup.ts";
 import t3Tools from "./t3Tools.ts";
+import themeStudio from "./themeStudio.ts"; // fork: theme studio
 import time from "./time.ts";
 import voice from "./voice.ts"; // fork: voice input
 import workspace from "./workspace.ts";
@@ -58,6 +59,7 @@ export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   sidebar,
   storageCleanup,
   t3Tools,
+  themeStudio, // fork: theme studio
   time,
   voice, // fork: voice input
   workspace,

@@ -5,6 +5,9 @@ import { ForwardCompatibleArray, TrimmedNonEmptyString } from "./baseSchemas.ts"
 import { ExecutionEnvironmentDescriptor } from "./environment.ts";
 import {
   applyServerProviderDeltas,
+  EnvironmentTheme,
+  EnvironmentThemeFile,
+  EnvironmentThemeFileInput,
   OtlpEndpointCheckInput,
   resolveEnvironmentMachineKind,
   ServerConfigProviderStatusDeltasPayload,
@@ -194,5 +197,52 @@ describe("OtlpEndpointCheckInput", () => {
     for (const url of ["data:text/plain,ok", "file:///etc/hosts", "collector:4318/v1/traces"]) {
       expect(() => decode({ signal: "traces", url })).toThrow();
     }
+  });
+});
+
+describe("environment theme look", () => {
+  const encodeFile = Schema.encodeSync(EnvironmentThemeFile);
+  const decodeFile = Schema.decodeUnknownSync(EnvironmentThemeFile);
+  const decodeTheme = Schema.decodeUnknownSync(EnvironmentTheme);
+  const look = {
+    fontUi: '"PingFang SC", system-ui',
+    fontCode: "Menlo, monospace",
+    radius: 0,
+    density: 90,
+    shadow: 40,
+    chatWidth: "wide",
+    glass: 30,
+  } as const;
+
+  it("round-trips a look on a theme file and a published theme", () => {
+    const file = {
+      name: "Terminal",
+      appearance: "dark",
+      canvas: "#000000",
+      accent: "#33ff66",
+      look,
+    };
+    expect(decodeFile(encodeFile(decodeFile(file)))).toEqual(file);
+    expect(decodeTheme({ id: "terminal", ...file, background: "abc" }).look).toEqual(look);
+  });
+
+  it("still reads a theme file written before looks existed", () => {
+    const file = { name: "Old", appearance: "light", canvas: "#ffffff", accent: "#0066ff" };
+    expect(decodeFile(file).look).toBeUndefined();
+  });
+
+  it("names a look setting it does not know when reading what a person or agent wrote", () => {
+    const base = { name: "T", appearance: "dark", canvas: "#000000", accent: "#33ff66" };
+    const decodeInput = Schema.decodeUnknownSync(EnvironmentThemeFileInput);
+    expect(() => decodeInput({ ...base, look: { radius: 0, rounded: 4 } })).toThrow(/rounded/);
+    expect(decodeInput({ ...base, look: { radius: 0 } }).look).toEqual({ radius: 0 });
+    // A newer server's look still reads on a client that does not know the new setting.
+    expect(decodeFile({ ...base, look: { radius: 0, rounded: 4 } }).look).toEqual({ radius: 0 });
+  });
+
+  it("rejects a look value outside its range", () => {
+    const base = { name: "T", appearance: "dark", canvas: "#000000", accent: "#33ff66" };
+    expect(() => decodeFile({ ...base, look: { radius: 99 } })).toThrow();
+    expect(() => decodeFile({ ...base, look: { fontUi: "url(https://x)" } })).toThrow();
   });
 });

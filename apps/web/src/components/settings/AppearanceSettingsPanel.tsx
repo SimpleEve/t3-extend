@@ -24,6 +24,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { useT } from "../../hooks/useT";
 import { UiLanguageRow } from "./UiLanguageRow";
 import { FooterStatusSettings } from "../../fork/FooterStatusSettings"; // fork: footer status chips
+import { ThemeLookNotice } from "../../fork/themeStudio/ThemeLookNotice"; // fork: theme look
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
@@ -168,6 +169,7 @@ export function AppearanceSettingsPanel() {
 
       <SettingsSection id="appearance-interface" title="Interface">
         <UiLanguageRow />
+        <ThemeLookNotice /> {/* fork: theme look */}
         <SettingsRow
           {...searchableSetting("setting-appearance-contrast")}
           description={t("Adjust the contrast of colors and borders across the interface.")}
@@ -215,7 +217,6 @@ export function AppearanceSettingsPanel() {
             </div>
           }
         />
-
         <SettingsRow
           {...searchableSetting("setting-glass-opacity")}
           description={t("Higher values make menus, dialogs, and the composer more solid.")}
@@ -261,7 +262,6 @@ export function AppearanceSettingsPanel() {
             </div>
           }
         />
-
         <SettingsRow
           {...searchableSetting("chat-width")}
           description={t("Set how wide messages and the composer can grow on large screens.")}

@@ -7,18 +7,20 @@ import { SidebarInset } from "../components/ui/sidebar";
 import { resolveThreadRouteTarget } from "../threadRoutes";
 import { retainThreadFindForRoute } from "../components/chat/threadFindStore";
 import { ThreadLinkPrompt } from "../components/promptLinks/ThreadLinkPrompt";
+import { useAppModalPeek } from "../fork/appModalPeek"; // fork: peek behind the modal
 import { useShownThreadRouteTarget } from "../hooks/useShownThreadRouteTarget";
 
 function ChatRouteLayout() {
   // Render both routes here so draft promotion keeps the same ChatView mounted.
   const { shownTarget, modalOpen } = useShownThreadRouteTarget();
+  const peeking = useAppModalPeek((state) => state.peeking); // fork: peek behind the modal
   return (
     <>
       {shownTarget?.kind === "server" && !modalOpen ? (
         <ThreadLinkPrompt threadRef={shownTarget.threadRef} />
       ) : null}
       {shownTarget ? (
-        <ThreadRouteView target={shownTarget} background={modalOpen} />
+        <ThreadRouteView target={shownTarget} background={modalOpen} peeking={peeking} />
       ) : modalOpen ? (
         <SidebarInset className="h-dvh" />
       ) : (

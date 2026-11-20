@@ -71,9 +71,17 @@ function readStoredThemeHalves(): ThemeHalves | null {
 // Pruning unresolved published palettes would erase their halves when merging.
 function readStoredThemeHalvesRaw(): { light?: string; dark?: string } {
   try {
-    const value: unknown = JSON.parse(
-      window.localStorage.getItem(THEME_HALVES_STORAGE_KEY) ?? "null",
-    );
+    // fork: parsing moved to parseStoredThemeHalvesRaw so useThemeHalvesStored shares it
+    return parseStoredThemeHalvesRaw(window.localStorage.getItem(THEME_HALVES_STORAGE_KEY));
+  } catch {
+    return {};
+  }
+}
+
+// fork: parseStoredThemeHalvesRaw
+function parseStoredThemeHalvesRaw(stored: string | null): { light?: string; dark?: string } {
+  try {
+    const value: unknown = JSON.parse(stored ?? "null");
     if (value === null || typeof value !== "object") return {};
     const halves: { light?: string; dark?: string } = {};
     for (const appearance of ["light", "dark"] as const) {
@@ -637,6 +645,17 @@ export function refreshTheme({ preservePreview = false } = {}): void {
   lastAppliedTheme = null;
   applyTheme(getStored(), { suppressTransitions: true, preservePreview });
   emitChange();
+}
+
+// fork: the halves as stored, followed live. A render that only calls `readThemeHalvesRaw` is
+// cached by the React compiler, so it would keep the halves it saw on the first render.
+export function useThemeHalvesStored(): { light?: string; dark?: string } {
+  const raw = useSyncExternalStore(
+    subscribe,
+    () => window.localStorage.getItem(THEME_HALVES_STORAGE_KEY),
+    () => null,
+  );
+  return parseStoredThemeHalvesRaw(raw);
 }
 
 export function useTheme() {

@@ -80,6 +80,35 @@ describe("searchSettings", () => {
     expect(searchSettings("1password").map((item) => item.to)).not.toContain("/settings/secrets");
   });
 
+  // fork: every control in the theme studio can be found by the Chinese word for it
+  it("finds the theme studio by what its controls are called in Chinese", () => {
+    for (const word of [
+      "玻璃",
+      "毛玻璃",
+      "面板毛玻璃",
+      "圆角",
+      "密度",
+      "间距",
+      "阴影",
+      "字体",
+      "字号",
+      "背景图",
+      "颜色",
+      "配色",
+      "取色器",
+      "自定义样式",
+      "预设",
+      "终端",
+    ]) {
+      expect(
+        searchSettings(word).map((item) => item.id),
+        word,
+      ).toContain("theme-studio");
+    }
+    expect(searchSettings("我的方案").map((item) => item.id)).toContain("theme-studio-schemes");
+    expect(searchSettings("导出").map((item) => item.id)).toContain("theme-studio-schemes");
+  });
+
   it("finds the Scheduled tasks page", () => {
     expect(searchSettings("scheduled tasks")[0]).toMatchObject({
       id: "scheduled-tasks",
@@ -89,7 +118,11 @@ describe("searchSettings", () => {
 
   it("matches normalized title substrings", () => {
     expect(searchSettings("  WORD   WRAP  ", ITEMS).map((item) => item.id)).toEqual(["word-wrap"]);
-    expect(searchSettings("glass").map((item) => item.id)).toEqual(["setting-glass-opacity"]);
+    // fork: the theme studio also has panel glass
+    expect(searchSettings("glass").map((item) => item.id)).toEqual([
+      "setting-glass-opacity",
+      "theme-studio",
+    ]);
     expect(searchSettings("panel animations").map((item) => item.id)).toEqual(["panel-animations"]);
     expect(searchSettings("thè\u{1ab0}mes")[0]?.id).toBe("theme");
     const localeLowerCase = vi.spyOn(String.prototype, "toLocaleLowerCase").mockReturnValue("gıt");

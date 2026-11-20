@@ -26,6 +26,7 @@ export type SettingsPath =
   | "/settings/diagnostics"
   | "/settings/voice"
   | "/settings/appearance"
+  | "/settings/theme" // fork: theme studio
   | "/settings/chat"
   | "/settings/diffs"
   | "/settings/keybindings"
@@ -101,6 +102,7 @@ export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/projects": "Projects",
   "/settings/general": "General",
   "/settings/appearance": "Appearance",
+  "/settings/theme": "Theme studio", // fork: theme studio
   "/settings/chat": "Chat",
   "/settings/diffs": "Diffs & pull requests",
   "/settings/keybindings": "Keybindings",
@@ -134,6 +136,7 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
     paths: [
       "/settings/general",
       "/settings/appearance",
+      "/settings/theme", // fork: theme studio
       "/settings/chat",
       "/settings/diffs",
       "/settings/keybindings",
@@ -338,6 +341,23 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/appearance",
     searchTerms: ["appearance colors palette custom import"],
     targetId: "appearance",
+  },
+  {
+    // fork: theme studio
+    id: "theme-studio",
+    title: "Theme studio",
+    to: "/settings/theme",
+    searchTerms: [
+      "theme studio presets scheme customize colors color picker eyedropper fonts font size layout radius density spacing shadow chat width glass frosted background css",
+      "主题 主题工作室 预设 方案 颜色 配色 主色 强调色 背景色 取色 取色器 全部颜色 字体 界面字体 代码字体 等宽 字号 布局 圆角 密度 间距 阴影 背景图 背景 玻璃 毛玻璃 面板毛玻璃 半透明 模糊 自定义样式 自定义 CSS 终端 纸张 峡湾 潮汐 陶土 石墨 紧凑 纯黑",
+    ],
+  },
+  {
+    // fork: theme studio
+    id: "theme-studio-schemes",
+    title: "My schemes",
+    to: "/settings/theme",
+    searchTerms: ["my schemes saved themes import export json rename delete 我的方案 导入 导出"],
   },
   {
     // Prefixed because the slider control already owns the `appearance-contrast` id.
@@ -1414,6 +1434,7 @@ const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScop
   "/settings/general": null,
   "/settings/voice": null,
   "/settings/appearance": null,
+  "/settings/theme": null, // fork: theme studio
   "/settings/chat": null,
   "/settings/diffs": null,
   "/settings/snap-shot": null,

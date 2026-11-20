@@ -1,0 +1,35 @@
+/*
+ * fork: what a theme look's glass setting does. It needs a background image (the app marks the
+ * document with data-theme-background while one is shown) and is static: no transitions.
+ * Panels become translucent and blur what is behind them; with no image nothing here applies.
+ */
+/* Both layers are positioned on the viewport, so the image lines up behind the sidebar and the chat. */
+:root[data-theme-glass][data-theme-background] body,
+:root[data-theme-glass][data-theme-background] [data-workspace-area="conversation"] {
+  background-image: var(--theme-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+:root[data-theme-glass][data-theme-background] [data-slot="sidebar-inner"] {
+  background-color: color-mix(
+    in srgb,
+    var(--sidebar) var(--theme-panel-alpha, 100%),
+    transparent
+  ) !important;
+  -webkit-backdrop-filter: blur(var(--theme-panel-blur, 0px)) saturate(1.1);
+  backdrop-filter: blur(var(--theme-panel-blur, 0px)) saturate(1.1);
+}
+
+:root[data-theme-glass][data-theme-background]
+  :is([data-chat-header], [data-slot="composer-host"]) {
+  background-color: color-mix(
+    in srgb,
+    var(--background) var(--theme-panel-alpha, 100%),
+    transparent
+  ) !important;
+  -webkit-backdrop-filter: blur(var(--theme-panel-blur, 0px)) saturate(1.1);
+  backdrop-filter: blur(var(--theme-panel-blur, 0px)) saturate(1.1);
+}

@@ -37,6 +37,7 @@ import {
 } from "./composerDraftStore";
 import { startDefaultThemeAdoption } from "./hooks/useDefaultTheme";
 import { startEnvironmentThemeRepaint } from "./hooks/useEnvironmentTheme";
+import { getActiveThemeLook, subscribeToThemeLook } from "./fork/themeStudio/themeLook"; // fork: theme look
 import { startThemeBackground } from "./themeBackground";
 import { readLocalStorageValue, subscribeLocalStorageKey } from "./hooks/useLocalStorage";
 import { startHostEnvironmentLookup } from "./state/primaryEnvironment";
@@ -70,10 +71,14 @@ function startClientAppearance(): void {
   const root = document.documentElement;
   let applied: ClientSettings | null = null;
   let appliedSeparateFonts: boolean | null = null;
+  let appliedLook = getActiveThemeLook(); // fork: theme look
   const apply = () => {
     const settings = getClientSettings();
     const previous = applied;
     applied = settings;
+    const look = getActiveThemeLook(); // fork: theme look
+    const lookChanged = look !== appliedLook; // fork: theme look
+    appliedLook = look; // fork: theme look
     const separateFonts = readLocalStorageValue(
       TYPOGRAPHY_ADVANCED_STORAGE_KEY,
       false,
@@ -84,8 +89,8 @@ function startClientAppearance(): void {
     if (previous?.diffColorScheme !== settings.diffColorScheme) {
       root.dataset.diffColorScheme = settings.diffColorScheme;
     }
-    if (previous?.chatWidth !== settings.chatWidth) {
-      root.dataset.chatWidth = settings.chatWidth;
+    if (previous?.chatWidth !== settings.chatWidth || lookChanged) {
+      root.dataset.chatWidth = look?.chatWidth ?? settings.chatWidth; // fork: theme look
     }
     if (previous?.appearanceContrast !== settings.appearanceContrast) {
       applyAppearanceContrast(root, settings.appearanceContrast);
@@ -106,7 +111,8 @@ function startClientAppearance(): void {
       previous.fontSizePrompt !== settings.fontSizePrompt ||
       previous.fontSizeCode !== settings.fontSizeCode ||
       previous.fontSmoothing !== settings.fontSmoothing ||
-      previousSeparateFonts !== separateFonts
+      previousSeparateFonts !== separateFonts ||
+      lookChanged // fork: theme look
     ) {
       applyAppearanceFontVariables(root, {
         sans: settings.fontFamilySans,
@@ -117,10 +123,13 @@ function startClientAppearance(): void {
         sizeCode: settings.fontSizeCode,
         smoothing: settings.fontSmoothing,
         separate: separateFonts,
+        themeSans: look?.fontUi, // fork: theme look
+        themeCode: look?.fontCode, // fork: theme look
       });
     }
   };
   subscribeClientSettings(apply);
+  subscribeToThemeLook(apply); // fork: theme look
   subscribeLocalStorageKey(TYPOGRAPHY_ADVANCED_STORAGE_KEY, apply);
   apply();
 }

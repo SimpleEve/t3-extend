@@ -1,0 +1,285 @@
+import { describe, expect, it } from "vite-plus/test";
+
+import { getPresetThemes, getThemeDefinition, parseThemeFile } from "../../themePalette";
+import {
+  beginScheme,
+  editableAppearance,
+  hasUnsavedChanges,
+  halvesWithout,
+  overriddenSettings,
+  placeTheme,
+  STOCK_THEME_ID,
+  studioOrigin,
+  studioThemeKind,
+  restoreSchemeToPreset,
+  sameAppearanceOf,
+  withSchemeColors,
+  withSchemeCss,
+  withSchemeLook,
+} from "./studio.logic";
+import { locateColorRole } from "./colorFamilies";
+import { inspectorReducer } from "./colorInspector.logic";
+import { intentFromEditorSession } from "./themeStudioStore";
+
+const terminal = getThemeDefinition("studio-terminal")!;
+const mine = (savedThemes: ReturnType<typeof getPresetThemes> = []) =>
+  beginScheme({ base: terminal, savedThemes, mineLabel: "Terminal (mine)", restorable: true });
+
+describe("editing a preset", () => {
+  it("forks it into a scheme that remembers the preset and leaves the preset alone", () => {
+    const scheme = mine();
+    expect(scheme).toMatchObject({
+      id: "studio-terminal-mine",
+      label: "Terminal (mine)",
+      basedOn: "studio-terminal",
+      look: terminal.look,
+      css: terminal.css,
+    });
+    const edited = withSchemeLook(scheme, "radius", 12);
+    expect(edited.look?.radius).toBe(12);
+    expect(terminal.look?.radius).toBe(0);
+    expect(getThemeDefinition("studio-terminal")).toBe(terminal);
+  });
+
+  it("edits a saved scheme in place instead of forking again", () => {
+    const saved = mine();
+    expect(
+      beginScheme({ base: saved, savedThemes: [saved], mineLabel: "x", restorable: true }),
+    ).toBe(saved);
+  });
+
+  it("gives a second fork its own id and name", () => {
+    const first = mine();
+    const second = mine([first]);
+    expect(second.id).toBe("studio-terminal-mine-2");
+    expect(second.label).toBe("Terminal (mine) 2");
+  });
+
+  it("keeps ids and names within their limits", () => {
+    const long = { ...terminal, id: "a".repeat(48) };
+    const forked = beginScheme({
+      base: long,
+      savedThemes: [],
+      mineLabel: "n".repeat(60),
+      restorable: false,
+    });
+    expect(forked.id.length).toBeLessThanOrEqual(48);
+    expect(forked.label.length).toBeLessThanOrEqual(48);
+    expect(forked).not.toHaveProperty("basedOn");
+    expect(() => parseThemeFile({ version: 1, ...asFile(forked) })).not.toThrow();
+  });
+});
+
+function asFile(theme: ReturnType<typeof mine>) {
+  return { id: theme.id, name: theme.label, appearance: theme.appearance, colors: theme.colors };
+}
+
+describe("restoring to the preset", () => {
+  it("puts colors, CSS and look back but keeps the scheme's name and id", () => {
+    const scheme = withSchemeCss(
+      withSchemeLook(
+        withSchemeColors(mine(), "dark", { ...terminal.colors, accent: "#ff0000" }),
+        "density",
+        120,
+      ),
+      "",
+    );
+    expect(sameAppearanceOf(scheme, terminal)).toBe(false);
+
+    const restored = restoreSchemeToPreset({ ...scheme, label: "My terminal" }, terminal);
+    expect(restored.label).toBe("My terminal");
+    expect(restored.id).toBe("studio-terminal-mine");
+    expect(restored.basedOn).toBe("studio-terminal");
+    expect(sameAppearanceOf(restored, terminal)).toBe(true);
+  });
+
+  it("drops a variant the preset does not have", () => {
+    const withVariant = withSchemeColors(mine(), "light", terminal.colors);
+    expect(withVariant.variants?.light).toBeDefined();
+    expect(restoreSchemeToPreset(withVariant, terminal).variants).toBeUndefined();
+  });
+});
+
+describe("what counts as a change", () => {
+  it("is nothing without a draft", () => {
+    expect(hasUnsavedChanges(null, null, terminal)).toBe(false);
+  });
+
+  it("compares a fork nobody saved with the preset it came from", () => {
+    expect(hasUnsavedChanges(mine(), null, terminal)).toBe(false);
+    expect(hasUnsavedChanges(withSchemeLook(mine(), "radius", 12), null, terminal)).toBe(true);
+    // Editing a value and putting it back is no change.
+    const there = withSchemeLook(mine(), "radius", 9);
+    expect(
+      hasUnsavedChanges(withSchemeLook(there, "radius", terminal.look?.radius), null, terminal),
+    ).toBe(false);
+  });
+
+  it("compares a saved scheme with its stored copy, including the name", () => {
+    const saved = mine();
+    expect(hasUnsavedChanges({ ...saved }, saved, terminal)).toBe(false);
+    expect(hasUnsavedChanges(withSchemeLook(saved, "shadow", 10), saved, terminal)).toBe(true);
+    expect(hasUnsavedChanges(withSchemeCss(saved, "a{}"), saved, terminal)).toBe(true);
+    expect(hasUnsavedChanges({ ...saved, label: "Renamed" }, saved, terminal)).toBe(true);
+  });
+
+  it("clears a look setting and the look itself once nothing is left", () => {
+    const bare = { ...mine(), look: { radius: 3 } };
+    const cleared = withSchemeLook(bare, "radius", undefined);
+    expect(cleared).not.toHaveProperty("look");
+  });
+});
+
+describe("palettes", () => {
+  it("edits the appearance on screen, or the scheme's own when it has no such palette", () => {
+    expect(editableAppearance(terminal, "light")).toBe("dark");
+    expect(editableAppearance(terminal, "dark")).toBe("dark");
+    const fjord = getThemeDefinition("studio-fjord")!;
+    expect(editableAppearance(fjord, "light")).toBe("light");
+  });
+});
+
+describe("user settings a look overrides", () => {
+  it("names fonts and chat width, nothing else", () => {
+    expect(overriddenSettings(undefined)).toEqual([]);
+    expect(overriddenSettings({ radius: 2, density: 90 })).toEqual([]);
+    expect(overriddenSettings({ fontUi: "Georgia", chatWidth: "wide" })).toEqual([
+      "fontUi",
+      "chatWidth",
+    ]);
+  });
+});
+
+describe("the theme library's editor buttons", () => {
+  it("open the studio on the theme to edit, or on a copy for Duplicate and Create", () => {
+    expect(
+      intentFromEditorSession({ editingThemeId: "mine", seedThemeId: null, seedName: null }),
+    ).toEqual({ themeId: "mine", duplicate: false, name: null });
+    expect(
+      intentFromEditorSession({
+        editingThemeId: null,
+        seedThemeId: "studio-oled",
+        seedName: "OLED Black copy",
+      }),
+    ).toEqual({ themeId: "studio-oled", duplicate: true, name: "OLED Black copy" });
+    expect(
+      intentFromEditorSession({ editingThemeId: null, seedThemeId: null, seedName: null }),
+    ).toEqual({ themeId: null, duplicate: true, name: null });
+  });
+});
+
+describe("separate light and dark themes", () => {
+  it("puts an edited theme in the half in use and keeps the other half", () => {
+    expect(placeTheme({ light: "a", dark: "b" }, "light", "c")).toEqual({
+      kind: "half",
+      appearance: "light",
+      themeId: "c",
+    });
+    // One half alone is still a mix: the whole theme must not replace it.
+    expect(placeTheme({ dark: "b" }, "light", "c")).toMatchObject({ kind: "half" });
+  });
+
+  it("replaces the whole theme only when there is no mix to keep", () => {
+    expect(placeTheme({}, "dark", "c")).toEqual({ kind: "whole", themeId: "c" });
+  });
+
+  it("drops a removed theme from the halves and keeps the rest", () => {
+    expect(halvesWithout({ light: "a", dark: "b" }, "a")).toEqual({ dark: "b" });
+    expect(halvesWithout({ light: "a", dark: "a" }, "a")).toEqual({});
+    expect(halvesWithout({ dark: "b" }, "a")).toEqual({ dark: "b" });
+  });
+});
+
+describe("what the studio copies or opens", () => {
+  const grove = { ...terminal, id: "grove", label: "Grove" };
+  const stock = { ...terminal, id: STOCK_THEME_ID, label: "Stock" };
+  const find = (id: string) => (id === "grove" ? grove : id === terminal.id ? terminal : null);
+
+  it("copies the stock theme when its card was clicked, not the theme in use", () => {
+    expect(studioOrigin({ themeId: STOCK_THEME_ID, find, applied: grove, stock })).toEqual({
+      origin: stock,
+      restorable: false,
+    });
+  });
+
+  it("copies the theme that was named, or the one in use when none was", () => {
+    expect(studioOrigin({ themeId: terminal.id, find, applied: grove, stock })).toEqual({
+      origin: terminal,
+      restorable: true,
+    });
+    expect(studioOrigin({ themeId: null, find, applied: grove, stock })).toEqual({
+      origin: grove,
+      restorable: true,
+    });
+    expect(studioOrigin({ themeId: null, find, applied: null, stock })).toEqual({
+      origin: stock,
+      restorable: false,
+    });
+  });
+});
+
+describe("what kind of theme the header names", () => {
+  const ids = {
+    presetIds: new Set(["studio-terminal"]),
+    builtInIds: new Set(["grove"]),
+    savedIds: new Set(["studio-terminal-mine", "imported"]),
+  };
+
+  it("tells presets, built-in themes, saved schemes and published themes apart", () => {
+    const kind = (id: string, stock = false) => studioThemeKind({ id, stock, ...ids });
+    expect(kind("studio-terminal")).toBe("preset");
+    // A built-in theme is not published by anyone, so it must not be called that.
+    expect(kind("grove")).toBe("builtIn");
+    expect(kind("studio-terminal-mine")).toBe("scheme");
+    expect(kind("imported")).toBe("scheme");
+    expect(kind("agent-look")).toBe("published");
+    expect(kind(STOCK_THEME_ID, true)).toBe("default");
+  });
+});
+
+describe("finding a color picked from the app", () => {
+  it("lands on the visible role of the family the role belongs to", () => {
+    // `chrome` follows the Background row, which is always shown.
+    expect(locateColorRole("chrome")).toEqual({ role: "canvas", needsAllColors: false });
+    expect(locateColorRole("accent")).toEqual({ role: "accent", needsAllColors: false });
+    // `toolbarBorder` follows the Border family, which sits under "All colors".
+    expect(locateColorRole("toolbarBorder")).toEqual({ role: "border", needsAllColors: true });
+  });
+});
+
+describe("picking a color from the app", () => {
+  const idle = { phase: "idle", selection: null } as const;
+
+  it("shows where the color is used before Settings comes back, and keeps the pick after", () => {
+    const picking = inspectorReducer(idle, { type: "start" });
+    expect(picking).toEqual({ phase: "picking", selection: null });
+    const showing = inspectorReducer(picking, { type: "picked", role: "chrome" });
+    expect(showing.phase).toBe("showing");
+    // `chrome` follows the Background row, so that row is the one to find.
+    expect(showing.selection).toMatchObject({ role: "canvas" });
+    expect(showing.selection?.roles).toContain("chrome");
+    const back = inspectorReducer(showing, { type: "back" });
+    expect(back).toEqual({ phase: "idle", selection: showing.selection });
+  });
+
+  it("treats Esc as going back once something is picked, and as cancelling before that", () => {
+    const picking = inspectorReducer(idle, { type: "start" });
+    expect(inspectorReducer(picking, { type: "escape" })).toEqual(idle);
+    const showing = inspectorReducer(picking, { type: "picked", role: "accent" });
+    expect(inspectorReducer(showing, { type: "escape" }).selection).toEqual(showing.selection);
+    expect(inspectorReducer(showing, { type: "escape" }).phase).toBe("idle");
+  });
+
+  it("ignores a pick that arrives outside picking, and counts each pick", () => {
+    expect(inspectorReducer(idle, { type: "picked", role: "accent" })).toBe(idle);
+    const first = inspectorReducer(inspectorReducer(idle, { type: "start" }), {
+      type: "picked",
+      role: "accent",
+    });
+    const second = inspectorReducer(inspectorReducer(first, { type: "back" }), { type: "start" });
+    expect(second.selection).toBeNull();
+    expect(
+      inspectorReducer(second, { type: "picked", role: "accent" }).selection?.pick,
+    ).toBeGreaterThan(0);
+  });
+});

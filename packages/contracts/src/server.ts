@@ -23,6 +23,7 @@ import {
   ResolvedKeybindingsConfig,
 } from "./keybindings.ts";
 import { EditorId, FileManagerRevealKind, RemoteOpenTarget } from "./editor.ts";
+import { ThemeLook, ThemeLookInput } from "./forkThemeLook.ts"; // fork: theme look
 import { ManagedPolicySummary } from "./managedPolicy.ts";
 import { ModelCapabilities, ProviderOptionDescriptor } from "./model.ts";
 import { RuntimeMode } from "./providerPolicy.ts";
@@ -645,10 +646,18 @@ const environmentThemeFields = {
   ),
   /** Custom styles for web and desktop clients. */
   css: Schema.optional(Schema.String.check(Schema.isMaxLength(THEME_CSS_MAX_LENGTH))),
+  /** Fonts, corner radius, density, shadow, chat width and panel glass. */
+  look: Schema.optional(ThemeLook), // fork: theme look
 };
 
 export const EnvironmentThemeFile = Schema.Struct(environmentThemeFields);
 export type EnvironmentThemeFile = typeof EnvironmentThemeFile.Type;
+
+// fork: a theme file a person or agent wrote, where an unknown look setting is an error.
+export const EnvironmentThemeFileInput = Schema.Struct({
+  ...environmentThemeFields,
+  look: Schema.optional(ThemeLookInput),
+});
 
 export const EnvironmentTheme = Schema.Struct({
   id: EnvironmentThemeId,

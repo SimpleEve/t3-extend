@@ -3,6 +3,7 @@ import {
   CopyIcon,
   MoonIcon,
   PaintbrushIcon,
+  PaletteIcon, // fork: theme studio
   PenLineIcon,
   PlusIcon,
   SunIcon,
@@ -28,6 +29,7 @@ import {
   GROVE_THEME,
   IRIS_THEME,
   OCEAN_THEME,
+  getPresetThemes, // fork: theme presets
 } from "../../themePalette";
 import {
   AlertDialog,
@@ -43,7 +45,12 @@ import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { ThemeImportDialog } from "./ThemeImportDialog";
 import { searchableSetting } from "./settingsSearch";
-import { useThemeEditorStore } from "./themeEditorStore";
+import {
+  intentFromEditorSession,
+  useOpenThemeStudio,
+} from "../../fork/themeStudio/themeStudioStore"; // fork: theme studio
+import { STOCK_THEME_ID } from "../../fork/themeStudio/studio.logic"; // fork: theme studio
+import { copyName, themeDisplayLabel } from "../../fork/themeStudio/themeDisplayLabel"; // fork: theme studio
 import {
   STANDARD_THEME_CARDS,
   getThemeCardDefinition,
@@ -61,6 +68,7 @@ const MAINTAINER_THEMES: ReadonlyArray<ThemeDefinition> = [
   OCEAN_THEME,
   EMBER_THEME,
   IRIS_THEME,
+  ...getPresetThemes(), // fork: theme presets
 ];
 
 function collectionVariantLabels(themes: ReadonlyArray<ThemeDefinition>): ReadonlyArray<string> {
@@ -78,7 +86,8 @@ function collectionVariantLabels(themes: ReadonlyArray<ThemeDefinition>): Readon
   });
 }
 
-function downloadThemeFile(filename: string, contents: string): void {
+export function downloadThemeFile(filename: string, contents: string): void {
+  // fork: theme studio exports a scheme
   const url = URL.createObjectURL(new Blob([contents], { type: "application/json" }));
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -570,7 +579,13 @@ export function ThemeLibrary({
   setThemeHalf: (appearance: ThemeAppearance, themeId: string | null) => boolean;
 }) {
   const t = useT();
-  const openThemeEditor = useThemeEditorStore((store) => store.openThemeEditor);
+  // fork: the library's Edit, Duplicate and Create buttons open the theme studio.
+  const openThemeStudio = useOpenThemeStudio();
+  const openThemeEditor = (
+    session: Parameters<typeof intentFromEditorSession>[0] & {
+      initialAppearance: ThemeAppearance;
+    },
+  ) => openThemeStudio(intentFromEditorSession(session));
   const environmentThemes = useEnvironmentThemeDefinitions();
   const [themeRemovalTarget, setThemeRemovalTarget] = useState<{
     theme: ThemeDefinition;
@@ -787,8 +802,8 @@ export function ThemeLibrary({
             onDuplicate={() =>
               openThemeEditor({
                 editingThemeId: null,
-                seedThemeId: null,
-                seedName: `${standardTheme.label} copy`,
+                seedThemeId: STOCK_THEME_ID, // fork: copy the stock theme, not the one in use
+                seedName: copyName(standardTheme.label, t), // fork: translated suffix
                 initialAppearance,
               })
             }
@@ -798,7 +813,11 @@ export function ThemeLibrary({
           />
         ))}
         {MAINTAINER_THEMES.map((maintainerTheme) => {
-          const card = getThemeCardDefinition(maintainerTheme);
+          // fork: our presets and the built-in themes have translated names
+          const card = {
+            ...getThemeCardDefinition(maintainerTheme),
+            label: themeDisplayLabel(maintainerTheme, t),
+          };
           return (
             <ThemeLibraryCard
               activeModes={pickedModesFor(maintainerTheme.id)}
@@ -808,7 +827,7 @@ export function ThemeLibrary({
                 openThemeEditor({
                   editingThemeId: null,
                   seedThemeId: maintainerTheme.id,
-                  seedName: `${maintainerTheme.label} copy`,
+                  seedName: copyName(card.label, t), // fork: translated name
                   initialAppearance,
                 })
               }
@@ -832,7 +851,7 @@ export function ThemeLibrary({
                 openThemeEditor({
                   editingThemeId: null,
                   seedThemeId: environmentTheme.id,
-                  seedName: `${environmentTheme.label} copy`,
+                  seedName: copyName(environmentTheme.label, t), // fork: translated suffix
                   initialAppearance,
                 })
               }
@@ -856,7 +875,7 @@ export function ThemeLibrary({
               openThemeEditor({
                 editingThemeId: null,
                 seedThemeId: customTheme.id,
-                seedName: `${customTheme.label} copy`,
+                seedName: copyName(customTheme.label, t), // fork: translated suffix
                 initialAppearance,
               })
             }
@@ -911,6 +930,11 @@ export function ThemeLibrary({
           <Button size="xs" variant="outline" onClick={() => onImportOpenChange(true)}>
             <PlusIcon />
             {t("Add theme")}
+          </Button>
+          {/* fork: theme studio */}
+          <Button size="xs" variant="outline" onClick={() => openThemeStudio()}>
+            <PaletteIcon />
+            {t("Theme studio")}
           </Button>
         </div>
       </div>

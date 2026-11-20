@@ -168,6 +168,8 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
           '{ "name": "X", "appearance": "dark", "canvas": "{{ background }}", "accent": "#7aa2f7" }',
         "malformed.json": "{ not json",
         "no-colors.json": '{ "name": "Empty", "appearance": "dark" }',
+        // fork: a typo in a look must not be dropped silently
+        "typo-look.json": JSON.stringify({ ...NIGHTFALL_THEME, look: { radius: 0, rounded: 4 } }),
         "Bad Name.json": encodeThemeFile(SHARED_THEME),
         "ocean.json": encodeThemeFile(SHARED_THEME),
         "dark.json": encodeThemeFile(SHARED_THEME),
@@ -303,6 +305,25 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
       selected,
     );
   });
+
+  it.effect("keeps a theme's look through publishing, reading and a restart", () =>
+    withEnvironmentThemes(
+      {},
+      Effect.gen(function* () {
+        const themes = yield* EnvironmentTheme.EnvironmentThemeService;
+        const look = { fontCode: "Menlo, monospace", radius: 0, density: 90, glass: 30 } as const;
+        yield* themes.apply({ themeId: "looked", theme: { ...NIGHTFALL_THEME, look } });
+        assert.deepEqual(yield* themes.current, [{ id: "looked", ...NIGHTFALL_THEME, look }]);
+        // A file on disk is read again the way a restarted server reads it.
+        const fs = yield* FileSystem.FileSystem;
+        const { environmentThemesDir: themesDir } = yield* ServerConfig.ServerConfig;
+        const reread = yield* EnvironmentTheme.readPublishedThemes(themesDir).pipe(
+          Effect.provideService(FileSystem.FileSystem, fs),
+        );
+        assert.deepEqual(reread[0]?.look, look);
+      }),
+    ),
+  );
 
   it.effect("switches back to the stock theme after selecting another", () => {
     const selected: Array<{ readonly theme?: string; readonly appearance?: string }> = [];

@@ -54,9 +54,11 @@ function useOpenThreadFamily(threadRef: ScopedThreadRef | null, missing: boolean
 export function ThreadRouteView({
   target,
   background = false,
+  peeking = false, // fork: the Settings modal is hidden so the page behind can be picked from
 }: {
   target: ThreadRouteTarget;
   background?: boolean;
+  peeking?: boolean; // fork: see above
 }) {
   const navigate = useNavigate();
   const draftId = target.kind === "draft" ? target.draftId : null;
@@ -227,7 +229,7 @@ export function ThreadRouteView({
   return (
     <SidebarInset
       className="h-svh min-h-0 overflow-hidden overscroll-y-none md:h-dvh"
-      inert={background}
+      inert={background && !peeking} // fork: not inert while peeking
     >
       <BackgroundThreadContext value={background}>
         <HiddenThreadContext value={background}>{view}</HiddenThreadContext>

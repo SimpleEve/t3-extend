@@ -315,6 +315,7 @@ describe("KeybindingsSettings.logic", () => {
       "Usage: {metric}": "用量：{metric}",
       Cost: "费用",
       "Run Script: {name}": "运行脚本：{name}",
+      "Open theme studio": "打开主题工作室",
     });
     const t = (source: string, params?: Readonly<Record<string, string | number>>) =>
       translate("zh-Hans", source, params);
@@ -323,6 +324,8 @@ describe("KeybindingsSettings.logic", () => {
       expect(translatedCommandLabel("usage.cost", t)).toBe("用量：费用");
       expect(translatedCommandLabel("script.dev-server.run", t)).toBe("运行脚本：Dev Server");
       expect(translatedCommandLabel("terminal.new", t)).toBe("Terminal: New");
+      // fork: the old theme editor's shortcut now opens the studio, under the same command id
+      expect(translatedCommandLabel("themeEditor.toggle", t)).toBe("打开主题工作室");
     } finally {
       __setUiCatalogForTests("zh-Hans", null);
     }

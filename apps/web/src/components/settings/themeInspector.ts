@@ -344,6 +344,7 @@ function themeInspectorCandidates(): ReadonlyArray<Element> {
   return [document.body, ...document.body.querySelectorAll("*")].filter(
     (element) =>
       !element.closest("[data-theme-editor-panel]") &&
+      !element.closest("[data-app-modal]") && // fork: the Settings modal is hidden while its uses are shown
       !element.closest(`#${THEME_SPOTLIGHT_ID}, #${THEME_HOVER_ID}`),
   );
 }

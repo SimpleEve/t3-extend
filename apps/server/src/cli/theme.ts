@@ -4,7 +4,7 @@
 import * as NodeFS from "node:fs";
 
 import {
-  EnvironmentThemeFile,
+  EnvironmentThemeFileInput, // fork: theme look
   EnvironmentThemeId,
   environmentThemeFileHasColors,
 } from "@t3tools/contracts";
@@ -35,7 +35,7 @@ const SparseSettings = Schema.Record(Schema.String, Schema.Unknown);
 const decodeSettingsJson = Schema.decodeUnknownEffect(fromLenientJson(SparseSettings));
 const encodeSettingsJson = Schema.encodeEffect(fromJsonStringPretty(SparseSettings));
 const decodeThemeFileJsonExit = Schema.decodeUnknownExit(
-  Schema.fromJsonString(EnvironmentThemeFile),
+  Schema.fromJsonString(EnvironmentThemeFileInput), // fork: theme look
 );
 const isEnvironmentThemeId = Schema.is(EnvironmentThemeId);
 
@@ -404,7 +404,7 @@ const themeSetCommand = Command.make("set", {
   ),
   theme: Argument.String("theme").pipe(
     Argument.withDescription(
-      'A theme id (a built-in, or one this machine publishes, where themes/nightfall.json is "nightfall"), or a path to a theme JSON file to publish and set in one step.',
+      'A theme id (a built-in, or one this machine publishes, where themes/nightfall.json is "nightfall"), or a path to a theme JSON file to publish and set in one step. A file may carry a "look" with fonts, radius, density, shadow, chat width and glass.', // fork: theme look
     ),
   ),
 }).pipe(

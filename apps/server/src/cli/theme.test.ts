@@ -134,6 +134,25 @@ describe("t3 theme", () => {
     }),
   );
 
+  // fork: a look setting this version does not know is an error, not a theme that quietly does less
+  it.effect("rejects a look setting it does not know and sets nothing", () =>
+    Effect.gen(function* () {
+      const baseDir = makeBaseDir();
+      const themeFile = NodePath.join(baseDir, "typo.json");
+      NodeFS.writeFileSync(
+        themeFile,
+        JSON.stringify({ ...JSON.parse(NIGHTFALL_THEME_JSON), look: { radius: 0, rounded: 4 } }),
+      );
+
+      const failure = yield* runCli(["theme", "set", themeFile, "--base-dir", baseDir]).pipe(
+        Effect.flip,
+      );
+
+      assert.include(String(failure), "not a valid theme file");
+      assert.equal(NodeFS.existsSync(NodePath.join(baseDir, "userdata", "themes")), false);
+    }),
+  );
+
   it.effect("rejects a file that is not a theme and sets nothing", () =>
     Effect.gen(function* () {
       const baseDir = makeBaseDir();

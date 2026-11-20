@@ -5,11 +5,10 @@ import { useRef, useState } from "react";
 import { formatBytes } from "../../lib/formatBytes";
 import { cn } from "../../lib/utils";
 import {
+  copyThemeNamed, // fork: theme look
   getCustomThemes,
   installCustomTheme,
-  parseThemeFile,
   removeCustomTheme,
-  THEME_FILE_VERSION,
   updateCustomTheme,
   type ThemeDefinition,
 } from "../../themePalette";
@@ -338,17 +337,7 @@ function ThemeImportBody({
     theme: ThemeDefinition,
     preferredName?: string | null,
   ): ThemeDefinition => {
-    // The collection stays behind: updating a collection replaces every theme in it.
-    const copyNamed = (name: string) =>
-      parseThemeFile({
-        version: THEME_FILE_VERSION,
-        name,
-        appearance: theme.appearance,
-        colors: theme.colors,
-        ...(theme.variants ? { variants: theme.variants } : {}),
-        ...(theme.managed ? { managed: true } : {}),
-        ...(theme.css ? { css: theme.css } : {}),
-      });
+    const copyNamed = (name: string) => copyThemeNamed(theme, name); // fork: keeps look and basedOn
     if (preferredName && preferredName.toLowerCase() !== theme.label.toLowerCase()) {
       const candidate = copyNamed(preferredName.slice(0, 48));
       if (!isThemeIdTaken(candidate.id)) return candidate;

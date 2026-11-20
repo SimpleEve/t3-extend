@@ -68,6 +68,9 @@ export interface AppearanceFontPreferences {
   readonly sizeCode: number;
   readonly smoothing: boolean;
   readonly separate: boolean;
+  /** A theme look's stacks win over the user's own sans and code fonts while the theme is active. */
+  readonly themeSans?: string | undefined; // fork: theme look
+  readonly themeCode?: string | undefined; // fork: theme look
 }
 
 /** Interface size sets the root; prompt and code use pixels to avoid double scaling. */
@@ -76,8 +79,8 @@ export function applyAppearanceFontVariables(
   preferences: AppearanceFontPreferences,
 ): void {
   const families: ReadonlyArray<readonly [variable: string, custom: string, fallback: string]> = [
-    ["--font-sans", preferences.sans, DEFAULT_SANS_FONT_STACK],
-    ["--font-mono", preferences.code, DEFAULT_CODE_FONT_STACK],
+    ["--font-sans", preferences.themeSans ?? preferences.sans, DEFAULT_SANS_FONT_STACK], // fork: theme look
+    ["--font-mono", preferences.themeCode ?? preferences.code, DEFAULT_CODE_FONT_STACK], // fork: theme look
     ["--font-composer", preferences.separate ? preferences.composer : "", "var(--font-sans)"],
   ];
   for (const [variable, custom, fallback] of families) {
@@ -90,7 +93,7 @@ export function applyAppearanceFontVariables(
   }
 
   const markerWidth = probeWidth(
-    appearanceFontStack(preferences.sans, DEFAULT_SANS_FONT_STACK),
+    appearanceFontStack(preferences.themeSans ?? preferences.sans, DEFAULT_SANS_FONT_STACK), // fork: theme look
     LIST_MARKER_PROBE_TEXT,
   );
   if (markerWidth === null) {
