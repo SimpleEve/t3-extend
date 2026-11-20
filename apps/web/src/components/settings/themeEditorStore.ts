@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { ThemeAppearance } from "../../themePalette";
+import type { ThemeAppearance } from "../../themePalette"; // fork: theme studio removed the import it no longer needs
 
 export type ThemeEditorSessionInput = {
   editingThemeId: string | null;

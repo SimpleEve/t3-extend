@@ -1,5 +1,5 @@
 import { pipe } from "effect/Function";
-import { THEME_CSS_MAX_LENGTH, type EnvironmentTheme, type ThemeLook } from "@t3tools/contracts";
+import { THEME_CSS_MAX_LENGTH, type EnvironmentTheme, type ThemeLook } from "@t3tools/contracts"; // fork: theme look
 import * as Equal from "effect/Equal";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
@@ -1262,6 +1262,7 @@ function isPresetThemeId(themeId: string): boolean {
 }
 
 const BUILT_IN_THEME_DEFINITIONS: ReadonlyArray<ThemeDefinition> = BUILT_IN_THEMES;
+// fork: theme presets
 function builtInAndPresetThemes(): ReadonlyArray<ThemeDefinition> {
   return [...BUILT_IN_THEME_DEFINITIONS, ...getPresetThemes()];
 }

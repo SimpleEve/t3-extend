@@ -60,16 +60,41 @@ The main sidebar, right panel, and terminal drawer open and close immediately by
 in your operating system. Moving between threads always snaps to the selected thread's panel state
 without replaying its transitions.
 
-## Custom themes
+## Theme studio
 
-On web and desktop, choose **Create theme** to adjust a palette, or import a T3 Code or VS Code
-theme. The theme editor's color picker lets you select an area of the app to find the color to
-change. Export your theme as JSON to share it.
+On web and desktop, open **Settings → Theme studio**, or choose **Open theme studio** in the command
+palette (**Cmd+Option+Shift+T** on macOS, **Ctrl+Alt+Shift+T** on Windows/Linux). It changes more than
+colors: a theme can also set fonts, corner radius, spacing, shadows, chat width and see-through
+panels. **Settings → Appearance** keeps the theme list, and its **Create theme**, **Duplicate** and
+**Edit** buttons open the studio.
+
+The page goes from top to bottom: **Presets**, **Colors**, **Fonts**, **Layout**, **Background**,
+**Custom CSS** and **My schemes**. Hover a preset to preview it and click to use it. Changes you make
+preview live as you drag a slider or pick a color.
+
+Change anything about a preset and your version is saved as a scheme of your own, named like
+"Terminal (mine)". The preset stays as it is. Nothing is saved until you choose **Apply**;
+**Revert unsaved changes** drops the edits, and **Restore to preset** puts a scheme's colors, fonts
+and layout back to its preset. **Reset theme to default** goes back to the standard T3 theme without
+deleting your schemes. Picking another preset discards unsaved changes.
+
+**All colors** under **Colors** lists every color role the app paints. **My schemes** lists your
+schemes: use, rename, export as JSON or delete one, or **Import** a T3 Code or VS Code theme.
+**Duplicate** on a theme card makes an independent copy to edit.
+
+### Fonts and layout
+
+A theme's fonts and chat width win over your own settings while that theme is in use, and the
+studio and Appearance say so. Where a theme leaves a font or the chat width alone, your own
+settings apply. Fonts have to be installed on your device; a theme never downloads one. **Panel
+glass** makes the sidebar, header and composer see-through and blurs what is behind them. It only
+has an effect while the theme has a [background image](#background-image).
 
 ### Custom CSS
 
-For a change that colors cannot make, open **Custom CSS** in the theme editor. The CSS is saved with
-the theme, applies after T3 Code's own styles on web and desktop, and is included in exports. Use
+For a change that colors and the layout controls cannot make, open **Custom CSS** in the theme studio.
+The CSS is saved with the theme, applies after T3 Code's own styles on web and desktop, and is
+included in exports. Use
 `.dark` or `:root:not(.dark)` to target one appearance.
 
 Custom CSS cannot load files. `@import`, `image-set()`, and `url()` are ignored, except `url()`
@@ -87,7 +112,7 @@ another theme.
 
 An agent on the same machine as the server can restyle T3 Code for you. Ask it to change the look,
 for example "make T3 Code's chat header taller" or "give T3 Code a solarized theme". It publishes
-an [environment theme](#environment-themes) with colors and CSS, and web and desktop clients of that
+an [environment theme](#environment-themes) with colors, CSS and a look, and web and desktop clients of that
 server switch to it. It can also switch them to light, dark, or system mode. The thread must run
 in Full access. Ask the agent to set a built-in theme to undo it.
 
@@ -98,7 +123,7 @@ main local environment. With the desktop app's local environment off, they come 
 [background service](./background-service.md) on the same machine while the app is connected to
 it. app.t3.codes and other connections do not use them.
 
-Select a published theme in **Settings → Appearance** to follow its palette as the server updates
+Select a published theme in **Settings → Appearance** to follow its palette and look as the server updates
 it. **Duplicate** makes an independent copy you can edit. A saved custom theme with the same ID
 takes precedence. If the server stops publishing the selected theme, T3 Code falls back to its
 standard theme.
@@ -139,8 +164,29 @@ For an integration that generates a palette, this shorter format also works:
 ```
 
 Set `appearance` to `light` or `dark` and supply hex colors for `canvas` and `accent`. T3 Code
-generates the rest. The optional `colors` overrides use the names in the theme editor's advanced
-view. An optional `css` string adds [custom CSS](#custom-css).
+generates the rest. The optional `colors` overrides use the names in the theme studio's **All colors**
+view. An optional `css` string adds [custom CSS](#custom-css). An optional `look` object sets what
+the studio's **Fonts** and **Layout** sections set:
+
+```json
+{
+  "look": {
+    "fontUi": "\"Iowan Old Style\", Georgia, serif",
+    "fontCode": "Menlo, monospace",
+    "radius": 4,
+    "density": 95,
+    "shadow": 50,
+    "chatWidth": "wide",
+    "glass": 40
+  }
+}
+```
+
+Every field is optional and a whole number: `radius` 0 to 24 (px), `density` 80 to 120 (% of normal
+spacing), `shadow` 0 to 200 (% of normal), `glass` 0 to 100 (% see-through, with a background
+image) and `chatWidth` `comfortable`, `wide` or `full`. Font names are separated by commas and may
+not contain `;`, `(`, `{` or `/`. Mobile ignores a look. A theme file with an out-of-range value is
+not published.
 
 Write updates to a temporary file and rename it into place so clients never read a partial theme.
 Invalid files are not published.

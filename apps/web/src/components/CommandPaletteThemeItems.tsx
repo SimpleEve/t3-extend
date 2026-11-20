@@ -155,12 +155,12 @@ export function useCommandPaletteThemeItems() {
   const themeEditorItem: CommandPaletteActionItem = {
     kind: "action",
     value: "action:theme-editor",
-    searchTerms: ["theme", "appearance", "colors", "palette", "customize", "studio", "presets"],
+    searchTerms: ["theme", "appearance", "colors", "palette", "customize", "studio", "presets"], // fork: theme studio
     title: t("Open theme studio"),
     icon: <PaletteIcon className={ITEM_ICON_CLASS} />,
     shortcutCommand: "themeEditor.toggle",
     run: async () => {
-      openThemeStudio();
+      openThemeStudio(); // fork: theme studio
     },
   };
 
