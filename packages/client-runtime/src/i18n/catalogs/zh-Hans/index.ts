@@ -9,6 +9,7 @@ import contextMeter from "./contextMeter.ts"; // fork: context meter
 import desktop from "./desktop.ts";
 import devices from "./devices.ts"; // fork: self-hosted devices
 import footer from "./footer.ts";
+import issues from "./issues.ts";
 import loopbackGateway from "./loopbackGateway.ts"; // fork: remote loopback forwarding
 import mcpConnect from "./mcpConnect.ts"; // fork: MCP connect and linking
 import mobile from "./mobile.ts";
@@ -43,6 +44,7 @@ export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
   desktop,
   devices, // fork: self-hosted devices
   footer,
+  issues,
   loopbackGateway, // fork: remote loopback forwarding
   mcpConnect, // fork: MCP connect and linking
   mobile,

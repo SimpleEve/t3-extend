@@ -600,7 +600,6 @@ export default {
   "Cloud provider": "云服务提供方",
   "Use your own API key": "使用你自己的 API key",
   "API key saved": "API key 已保存",
-  "Project sources": "项目来源",
   "Local model": "本地模型",
   "Not available on this environment": "此环境不可用",
   "Local model · {size}": "本地模型 · {size}",

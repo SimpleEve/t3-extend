@@ -181,8 +181,8 @@ export function RightPanelSurfaceContent(props: {
       if (!props.issuesSupported) {
         return (
           <PullRequestsUnavailableState
-            title="Issues unavailable"
-            error="Update this environment's T3 Code server to browse issues."
+            title={t("Issues unavailable")}
+            error={t("Update this environment's T3 Extend server to browse issues.")} // fork: brand
           />
         );
       }

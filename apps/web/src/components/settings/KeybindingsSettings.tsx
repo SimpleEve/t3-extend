@@ -883,7 +883,7 @@ function KeybindingKeyControl({
           )}
         >
           {row.isUnassigned ? (
-            <span className="text-sm text-muted-foreground">Unassigned</span>
+            <span className="text-sm text-muted-foreground">{t("Unassigned")}</span>
           ) : (
             <KeybindingPill value={row.key} />
           )}
@@ -1002,7 +1002,7 @@ function KeybindingRowMenu({
         ) : null}
         {canUnassign ? (
           <MenuItem variant="destructive" disabled={isSaving} onClick={() => onUnassign(row)}>
-            Unassign
+            {t("Unassign")}
           </MenuItem>
         ) : null}
         {canRemove ? (
@@ -1080,6 +1080,7 @@ function KeybindingHoverRowMenu(props: {
 }
 
 function KeybindingSettingsRow(props: KeybindingRowProps) {
+  const t = useT(); // fork: i18n
   const { row, isSaving, anchorId, allRows, variables, onSave, onReset, onUnassign, onRemove } =
     props;
   const editor = useKeybindingRowEditor({ row, allRows, onSave });
@@ -1091,7 +1092,7 @@ function KeybindingSettingsRow(props: KeybindingRowProps) {
       title={<KeybindingRowTitle row={row} />}
       description={
         row.isUnassigned && !editor.isDirty ? (
-          "No keyboard shortcut assigned. Click Unassigned to set one."
+          t("No keyboard shortcut assigned. Click Unassigned to set one.")
         ) : (
           <KeybindingRowWhen row={row} editor={editor} variables={variables} />
         )

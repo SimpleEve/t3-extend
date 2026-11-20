@@ -275,7 +275,6 @@ export default {
   "{count} comments": "{count} 条评论",
   "View commit {oid}, {messageHeadline}": "查看提交 {oid}，{messageHeadline}",
   "More activity is available on the provider.": "更多活动请到 provider 上查看。",
-  "Filter pull requests": "筛选 PR",
   "Loading more pull requests": "正在加载更多 PR",
   "Retry loading more pull requests": "重新加载更多 PR",
   "Couldn't load pull requests": "无法加载 PR",

@@ -25,6 +25,7 @@ import { Skeleton } from "../ui/skeleton";
 import { SecretInput } from "./SecretInput";
 import { SettingsRow, SettingsSection } from "./settingsLayout";
 import { searchableSetting } from "./settingsSearch";
+import { useT } from "~/hooks/useT"; // fork: i18n
 
 type TrackerIcon = ElementType<{ className?: string }>;
 
@@ -41,6 +42,7 @@ const UNBOUND = "";
  * host's. Generic over the trackers the server reports; nothing here names Linear but its icon.
  */
 export function IssueTrackerSettings({ environmentId }: { readonly environmentId: EnvironmentId }) {
+  const t = useT(); // fork: i18n
   const query = useEnvironmentQuery(
     issueTrackerEnvironment.connections({ environmentId, input: {} }),
   );
@@ -63,7 +65,7 @@ export function IssueTrackerSettings({ environmentId }: { readonly environmentId
           description={query.error}
           control={
             <Button size="xs" variant="outline" onClick={query.refresh}>
-              Retry
+              {t("Retry")}
             </Button>
           }
         />
@@ -95,6 +97,7 @@ function TrackerRow({
   readonly tracker: IssueTrackerConnection;
   readonly bindings: IssueTrackerConnectionList["bindings"];
 }) {
+  const t = useT(); // fork: i18n
   const Icon = TRACKER_ICONS[tracker.tracker];
   const canEdit = useAtomValue(issueTrackerEnvironment.connect.permissionAtom(environmentId));
   const connect = useAtomCommand(issueTrackerEnvironment.connect, {
@@ -141,7 +144,7 @@ function TrackerRow({
             </span>
             {tracker.connected && tracker.account === null ? (
               <Badge variant="destructive" size="sm">
-                Credential rejected
+                {t("Credential rejected")}
               </Badge>
             ) : null}
           </div>
@@ -152,7 +155,7 @@ function TrackerRow({
           variant="ghost-muted"
           onClick={() => setIsExpanded((open) => !open)}
           aria-expanded={isExpanded}
-          aria-label={`Toggle ${tracker.displayName} details`}
+          aria-label={t("Toggle {displayName} details", { displayName: tracker.displayName })}
         >
           <ChevronDownIcon
             className={cn("size-3.5 transition-transform", isExpanded && "rotate-180")}
@@ -168,7 +171,7 @@ function TrackerRow({
                 title={<label htmlFor={inputId}>{tracker.credential.label}</label>}
                 description={
                   <>
-                    Stored on the server.
+                    {t("Stored on the server.")}
                     {tracker.credential.helpUrl ? (
                       <>
                         {" "}
@@ -181,7 +184,7 @@ function TrackerRow({
                             />
                           }
                         >
-                          Create one
+                          {t("Create one")}
                           <ExternalLinkIcon aria-hidden className="size-3" />
                         </InlineButton>
                       </>
@@ -207,7 +210,9 @@ function TrackerRow({
                         size="icon-sm"
                         variant="ghost-destructive"
                         onClick={() => void submit(null)}
-                        aria-label={`Disconnect ${tracker.displayName}`}
+                        aria-label={t("Disconnect {displayName}", {
+                          displayName: tracker.displayName,
+                        })}
                       >
                         <XIcon className="size-3.5" />
                       </Button>
@@ -240,6 +245,7 @@ function ProjectBindings({
   readonly tracker: IssueTrackerConnection;
   readonly bindings: IssueTrackerConnectionList["bindings"];
 }) {
+  const t = useT(); // fork: i18n
   const projects = useProjects().filter((project) => project.environmentId === environmentId);
   const bind = useAtomCommand(issueTrackerEnvironment.bindProject, {
     label: `bind project to ${tracker.displayName}`,
@@ -263,7 +269,10 @@ function ProjectBindings({
     <>
       <SettingsRow
         title="Projects"
-        description={`Pick the ${tracker.displayName} ${tracker.scopeNoun} whose issues each project lists beside its repository's own.`}
+        description={t(
+          "Pick the {displayName} {scopeNoun} whose issues each project lists beside its repository's own.",
+          { displayName: tracker.displayName, scopeNoun: tracker.scopeNoun },
+        )}
       />
       {projects.map((project) => {
         const bound = bindings[project.id];
@@ -282,18 +291,22 @@ function ProjectBindings({
                 }}
               >
                 <SelectTrigger
-                  aria-label={`${tracker.displayName} ${tracker.scopeNoun} for ${project.title}`}
+                  aria-label={t("{displayName} {scopeNoun} for {title}", {
+                    displayName: tracker.displayName,
+                    scopeNoun: tracker.scopeNoun,
+                    title: project.title,
+                  })}
                   className="w-full @min-[32rem]/settings-row:w-56"
                   size="sm"
                 >
                   <SelectValue>
                     {value === UNBOUND
-                      ? "Not bound"
+                      ? t("Not bound")
                       : (tracker.scopes.find((scope) => scope.key === value)?.name ?? value)}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectPopup>
-                  <SelectItem value={UNBOUND}>Not bound</SelectItem>
+                  <SelectItem value={UNBOUND}>{t("Not bound")}</SelectItem>
                   {tracker.scopes.map((scope) => (
                     <SelectItem key={scope.key} value={scope.key}>
                       {scope.name} ({scope.key})

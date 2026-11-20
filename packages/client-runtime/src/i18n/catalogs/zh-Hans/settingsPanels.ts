@@ -2622,8 +2622,8 @@ export default {
     "用 `bun install -g @gitcafe/cli` 安装 GitCafe CLI，然后运行 `cafe auth login --host https://git.cafe/api`；也可以在设置中保存令牌，或在服务器上设置 CAFE_TOKEN。",
   "Install `fj` 0.6 or later from https://codeberg.org/forgejo-contrib/forgejo-cli and run `fj --host <server-url> auth add-token`, or install `tea` 0.16 or later from https://gitea.com/gitea/tea and run `tea login add` for each Forgejo or Gitea server.":
     "从 https://codeberg.org/forgejo-contrib/forgejo-cli 安装 `fj` 0.6 或更高版本并运行 `fj --host <server-url> auth add-token`；或者从 https://gitea.com/gitea/tea 安装 `tea` 0.16 或更高版本，并为每个 Forgejo 或 Gitea 服务器运行 `tea login add`。",
-  "Add a Bitbucket token in Settings → Source Control.":
-    "在设置 → 源代码管理中添加 Bitbucket 令牌。",
+  "Add a Bitbucket token in Settings → Source control & issues.":
+    "在设置 → 源代码管理与议题中添加 Bitbucket 令牌。",
   "Install the Azure command-line tools (`az`), then enable Azure DevOps support with `az extension add --name azure-devops`.":
     "安装 Azure 命令行工具（`az`），然后用 `az extension add --name azure-devops` 启用 Azure DevOps 支持。",
   "Approve the shortcut permission prompt to continue.": "请在快捷键权限提示中点允许以继续。",

@@ -92,6 +92,8 @@ import { useEnvironments, useIssuesSupported } from "~/state/environments";
 import { issueEnvironment, useIssueList, type IssueListTarget } from "~/state/issues";
 import { useDebouncedValue } from "~/state/queries";
 import { primaryServerKeybindingsAtom } from "~/state/server";
+import { useT } from "~/hooks/useT"; // fork: i18n
+import { translateFilterOptions } from "../pullRequest/pullRequestListOptions"; // fork: i18n
 
 export interface IssuesSearch extends IssueListPreferences {
   readonly selectedEnvironmentId?: EnvironmentId | undefined;
@@ -167,6 +169,7 @@ function hostOptionsFor(trackers: ReadonlyArray<IssueTrackerSummary>, chosen: st
 }
 
 export function IssuesPage() {
+  const t = useT(); // fork: i18n
   const navigate = useNavigate({ from: "/issues" });
   const search = useSearch({ from: "/_chat/issues" });
   const { environments } = useEnvironments();
@@ -429,8 +432,8 @@ export function IssuesPage() {
 
   const listBody: ReactNode = !issuesSupported ? (
     <PullRequestsUnavailableState
-      title="Issues unavailable"
-      error="Update this environment's T3 Code server to browse issues."
+      title={t("Issues unavailable")}
+      error={t("Update this environment's T3 Extend server to browse issues.")} // fork: brand
     />
   ) : noneAnswered && list.isPending ? (
     <PullRequestListGhost />
@@ -446,17 +449,21 @@ export function IssuesPage() {
         <IssueGlyph.issue />
       </EmptyMedia>
       <EmptyHeader>
-        <EmptyTitle>No trackers to read</EmptyTitle>
-        <EmptyDescription>Add a project whose remote is on a supported tracker.</EmptyDescription>
+        <EmptyTitle>{t("No trackers to read")}</EmptyTitle>
+        <EmptyDescription>
+          {t("Add a project whose remote is on a supported tracker.")}
+        </EmptyDescription>
       </EmptyHeader>
     </Empty>
   ) : (
     <div className="flex flex-col gap-6">
       {list.error ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning-surface px-3 py-2 text-xs">
-          <span>{list.error} Showing the issues that loaded.</span>
+          <span>
+            {list.error} {t("Showing the issues that loaded.")}
+          </span>
           <Button size="xs" variant="outline" onClick={list.refresh}>
-            Retry
+            {t("Retry")}
           </Button>
         </div>
       ) : null}
@@ -473,12 +480,12 @@ export function IssuesPage() {
               ) : null}
               <span className="font-normal">
                 · {group.tracker.projectCount}{" "}
-                {group.tracker.projectCount === 1 ? "project" : "projects"}
+                {group.tracker.projectCount === 1 ? t("project") : t("projects")}
               </span>
             </h2>
             {!group.tracker.configured ? (
               <p className="px-3 text-sm text-muted-foreground">
-                {group.tracker.detail ?? "This tracker cannot be read right now."}
+                {group.tracker.detail ?? t("This tracker cannot be read right now.")}
               </p>
             ) : null}
             {group.errors.map((error) => (
@@ -491,7 +498,7 @@ export function IssuesPage() {
             ))}
             {group.tracker.configured && group.rows.length === 0 && group.errors.length === 0 ? (
               <p className="px-3 text-sm text-muted-foreground">
-                {debouncedQuery ? "Nothing matches that." : "No issues under these filters."}
+                {debouncedQuery ? t("Nothing matches that.") : t("No issues under these filters.")}
               </p>
             ) : null}
             {group.rows.map((row) => {
@@ -533,10 +540,10 @@ export function IssuesPage() {
                     onClick={() => void loadMore(environmentId, group.tracker.host)}
                   >
                     {loadingMore === `${environmentId} ${group.tracker.host}`
-                      ? "Loading…"
+                      ? t("Loading…")
                       : moreFailure === null
-                        ? "Load more"
-                        : "Retry"}
+                        ? t("Load more")
+                        : t("Retry")}
                   </Button>
                 </Fragment>
               );
@@ -556,9 +563,9 @@ export function IssuesPage() {
             reserveNativeControls={!rightPanelState.isOpen}
             className="relative bg-background"
           >
-            <WorkspaceBreadcrumb ariaLabel="Issues breadcrumb">
+            <WorkspaceBreadcrumb ariaLabel={t("Issues breadcrumb")}>
               <WorkspaceBreadcrumbItem current>
-                <h1 className="truncate">Issues</h1>
+                <h1 className="truncate">{t("Issues")}</h1>
               </WorkspaceBreadcrumbItem>
             </WorkspaceBreadcrumb>
             <div className="min-w-0 flex-1" />
@@ -579,7 +586,7 @@ export function IssuesPage() {
                 rightPanelAvailable={panelSurface !== null}
                 rightPanelOpen={rightPanelState.isOpen}
                 rightPanelShortcutLabel={shortcutLabelForCommand(keybindings, "rightPanel.toggle")}
-                rightPanelUnavailableLabel="Select an issue first"
+                rightPanelUnavailableLabel={t("Select an issue first")}
                 onToggleTerminal={() => undefined}
                 onToggleRightPanel={toggleRightPanel}
               />
@@ -592,8 +599,8 @@ export function IssuesPage() {
                 <div className="min-w-0 basis-full @lg/issue-list:min-w-48 @lg/issue-list:basis-0 @lg/issue-list:flex-1">
                   <PullRequestSearchInput
                     value={search.q ?? ""}
-                    label="Search issues"
-                    placeholder="Search issues"
+                    label={t("Search issues")}
+                    placeholder={t("Search issues")}
                     busy={
                       (search.q ?? "") !== debouncedQuery ||
                       (debouncedQuery.length > 0 && list.isPending)
@@ -603,22 +610,24 @@ export function IssuesPage() {
                   />
                 </div>
                 <PullRequestCompactFilterMenu
-                  label="Sort issues"
+                  label={t("Sort issues")}
                   triggerIcon={<ArrowDownUpIcon aria-hidden className="size-4" />}
-                  triggerLabel="Sort"
+                  triggerLabel={t("Sort")}
                   outlined
                   value={search.order ?? "updated"}
-                  options={SORT_OPTIONS}
+                  options={translateFilterOptions(SORT_OPTIONS, t)} // fork: i18n
                   onChange={(order) =>
                     updateSearch({ order: order === "created" ? "created" : undefined })
                   }
                 />
                 <IssueFiltersMenu
                   state={search.status}
-                  stateOptions={STATE_TABS}
+                  stateOptions={translateFilterOptions(STATE_TABS, (source) =>
+                    t(source, undefined, "pull request state"),
+                  )} // fork: i18n
                   onState={(status) => updateSearch({ status })}
                   involvement={search.who}
-                  involvementOptions={INVOLVEMENT_TABS}
+                  involvementOptions={translateFilterOptions(INVOLVEMENT_TABS, t)} // fork: i18n
                   onInvolvement={(who) => updateSearch({ who })}
                   scopes={filterScopes}
                   labels={search.label ?? []}
@@ -644,16 +653,19 @@ export function IssuesPage() {
                 />
                 {hostOptions.length > 1 ? (
                   <FilterMenu
-                    label="Filter by tracker"
+                    label={t("Filter by tracker")}
                     value={search.host ?? ""}
-                    options={hostOptions}
+                    // fork: i18n. Only the "All" row is ours; the others name trackers.
+                    options={hostOptions.map((option) =>
+                      option.value === "" ? { ...option, label: t(option.label) } : option,
+                    )}
                     onChange={(host) => updateSearch({ host: host || undefined })}
                   />
                 ) : null}
                 <Button
                   size="icon"
                   variant="outline"
-                  aria-label="Refresh issues"
+                  aria-label={t("Refresh issues")}
                   onClick={list.refresh}
                   disabled={list.isPending}
                 >

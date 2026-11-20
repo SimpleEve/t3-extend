@@ -14,6 +14,7 @@ import {
   THREAD_LIST_V2_SIDEBAR_ROW_STYLE,
 } from "../threads/thread-list-v2-row-appearance";
 import { issueStatus } from "./issuePresentation";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export const IssueListRow = memo(function IssueListRow(props: {
   readonly item: EnvironmentIssueEntry;
@@ -21,6 +22,7 @@ export const IssueListRow = memo(function IssueListRow(props: {
   readonly selected: boolean;
   readonly sidebar: boolean;
 }) {
+  const t = useT(); // fork: i18n
   const { item } = props;
   const foreground = props.selected
     ? selectedThreadRowColors.foregroundClassName
@@ -38,7 +40,23 @@ export const IssueListRow = memo(function IssueListRow(props: {
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ selected: props.selected }}
-        accessibilityLabel={`Issue ${item.displayKey}, ${item.title}, ${status.label}, by ${item.author?.login ?? "unknown author"}${item.labels.length ? `, ${item.labels.map((label) => label.name).join(", ")}` : ""}${item.commentCount ? `, ${item.commentCount} comments` : ""}`}
+        // fork: i18n. Each clause is its own sentence piece; labels and names are the tracker's.
+        accessibilityLabel={[
+          t("Issue {displayKey}, {title}, {state}, by {author}", {
+            displayKey: item.displayKey,
+            title: item.title,
+            state: status.label,
+            author: item.author?.login ?? t("unknown author"),
+          }),
+          ...item.labels.map((label) => label.name),
+          ...(item.commentCount
+            ? [
+                t(item.commentCount === 1 ? "{count} comment" : "{count} comments", {
+                  count: item.commentCount,
+                }),
+              ]
+            : []),
+        ].join(t(", "))}
         onPress={() => props.onSelect(item)}
         style={props.sidebar ? THREAD_LIST_V2_SIDEBAR_ROW_STYLE : undefined}
         className={cn(

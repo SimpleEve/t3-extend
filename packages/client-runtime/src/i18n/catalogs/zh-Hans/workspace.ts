@@ -100,15 +100,15 @@ export default {
   "Pick where to host it, then point us at a repo to push to.":
     "选择托管位置，再指定要推送的仓库。",
   "Setup Required": "需要设置",
-  "Open Settings -> Source control to configure this provider.":
-    "打开设置 → 源代码管理来配置这个 provider。",
-  "Provider status unavailable. Open Settings -> Source control and rescan.":
-    "无法获取 provider 状态。请打开设置 → 源代码管理并重新扫描。",
-  "{provider} is not authenticated. Open Settings -> Source control for setup guidance.":
-    "{provider} 未登录。请打开设置 → 源代码管理查看设置指引。",
+  "Open Settings -> Source control & issues to configure this provider.":
+    "打开设置 → 源代码管理与议题来配置这个 provider。",
+  "Provider status unavailable. Open Settings -> Source control & issues and rescan.":
+    "无法获取 provider 状态。请打开设置 → 源代码管理与议题并重新扫描。",
+  "{provider} is not authenticated. Open Settings -> Source control & issues for setup guidance.":
+    "{provider} 未登录。请打开设置 → 源代码管理与议题查看设置指引。",
   // Fixed auth details the Bitbucket source control reports.
-  "Add a Bitbucket token in Settings → Source Control, or set the T3CODE_BITBUCKET_* environment variables on the server.":
-    "在设置 → 源代码管理中添加 Bitbucket 令牌，或在服务器上设置 T3CODE_BITBUCKET_* 环境变量。",
+  "Add a Bitbucket token in Settings → Source control & issues, or set the T3CODE_BITBUCKET_* environment variables on the server.":
+    "在设置 → 源代码管理与议题中添加 Bitbucket 令牌，或在服务器上设置 T3CODE_BITBUCKET_* 环境变量。",
   "An access token is configured.": "已配置访问令牌。",
   "An API token is configured.": "已配置 API 令牌。",
   Visibility: "可见性",

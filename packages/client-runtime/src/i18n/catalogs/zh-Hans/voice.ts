@@ -139,7 +139,6 @@ export default {
   "Transcription language": "转写语言",
   "not benchmarked": "未测评",
   Recommended: "推荐",
-  "A good default pick for the languages it covers.": "对它支持的语言来说，是个不错的默认选择。",
   "Live preview": "实时预览",
   "Shows words in your draft as you speak, before the recording finishes.":
     "边说边在草稿里显示文字，不必等录音结束。",
@@ -334,7 +333,6 @@ export default {
   "Record ten seconds and play it back. The audio stays on this device.":
     "录制十秒并回放。音频只保留在此设备上。",
   "Discard recording": "丢弃录音",
-  "update server": "更新服务器",
   "Add words, separated by commas": "添加词语，用逗号分隔",
   "Used by everyone who dictates on this environment.": "此环境上所有使用听写的人都会用到。",
   "Model for transcript cleanup, such as a cheaper or faster one. When disabled, use the text generation model configured for this environment.":

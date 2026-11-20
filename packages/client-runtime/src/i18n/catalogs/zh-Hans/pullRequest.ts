@@ -528,8 +528,8 @@ export default {
     "正在重写这份导读，新的导读完成后会通知你。",
   "Written before the latest push.": "写于最近一次推送之前。",
   "Could not rewrite this guide. {hint}": "无法重写这份导读。{hint}",
-  "Check the review guide model in Settings → Source control.":
-    "请在“设置 → 源代码管理”中检查审查导读的模型。",
+  "Check the review guide model in Settings → Source control & issues.":
+    "请在“设置 → 源代码管理与议题”中检查审查导读的模型。",
   "Could not take {name} off": "无法移除 {name}",
   "Could not put {name} on": "无法添加 {name}",
   "Changing labels needs triage access on this repository": "修改标签需要这个仓库的 triage 权限",

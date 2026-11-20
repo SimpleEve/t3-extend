@@ -26,6 +26,7 @@ import type { SettingsTarget } from "../settings-environment-filter";
 import { SettingsProviderRow } from "./SettingsProviderRow";
 import { SettingsRow } from "./SettingsRow";
 import { SettingsSection } from "./SettingsSection";
+import { useT } from "../../../hooks/useT"; // fork: i18n
 
 const UNBOUND = "";
 const ThemedSvg = withUniwind(Svg);
@@ -42,6 +43,7 @@ const TRACKER_MARKS: Partial<Record<string, string>> = {
  * credential, then pick which of its scopes each project lists beside its repository's issues.
  */
 export function IssueTrackerSection(props: { readonly environments: readonly SettingsTarget[] }) {
+  const t = useT(); // fork: i18n
   return (
     <>
       {props.environments.map((environment) =>
@@ -51,8 +53,8 @@ export function IssueTrackerSection(props: { readonly environments: readonly Set
             environment={environment}
             title={
               props.environments.length > 1
-                ? `Issue trackers · ${environment.label}`
-                : "Issue trackers"
+                ? t("Issue trackers · {label}", { label: environment.label })
+                : t("Issue trackers")
             }
           />
         ) : null,
@@ -65,6 +67,7 @@ function EnvironmentTrackers(props: {
   readonly environment: SettingsTarget;
   readonly title: string;
 }) {
+  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const { environmentId } = props.environment;
   const query = useEnvironmentQuery(
@@ -75,7 +78,7 @@ function EnvironmentTrackers(props: {
     return query.error ? (
       <SettingsSection title={props.title} footer={query.error}>
         <View className="p-4">
-          <Button label="Try again" tone="secondary" onPress={query.refresh} />
+          <Button label={t("Try again")} tone="secondary" onPress={query.refresh} />
         </View>
       </SettingsSection>
     ) : null;
@@ -124,6 +127,7 @@ export function IssueTrackerCredentialForm(props: {
   readonly tracker: IssueTrackerConnection;
   readonly disabled: boolean;
 }) {
+  const t = useT(); // fork: i18n
   const { environmentId, tracker } = props;
   const connect = useAtomCommand(issueTrackerEnvironment.connect, { reportFailure: false });
   const [draft, setDraft] = useState("");
@@ -148,7 +152,7 @@ export function IssueTrackerCredentialForm(props: {
       <SecretTextInput
         accessibilityLabel={tracker.credential.label}
         placeholder={
-          tracker.connected ? "Saved. Enter a new value to replace it" : tracker.credential.label
+          tracker.connected ? t("Saved. Enter a new value to replace it") : tracker.credential.label
         }
         value={draft}
         onChangeText={setDraft}
@@ -165,7 +169,7 @@ export function IssueTrackerCredentialForm(props: {
       <View className="flex-row flex-wrap justify-end gap-2">
         {helpUrl ? (
           <Button
-            label="Create one"
+            label={t("Create one")}
             tone="text"
             size="compact"
             onPress={() => void Linking.openURL(helpUrl).catch(() => undefined)}
@@ -173,7 +177,7 @@ export function IssueTrackerCredentialForm(props: {
         ) : null}
         {tracker.connected ? (
           <Button
-            label="Disconnect"
+            label={t("Disconnect")}
             tone="secondary"
             size="compact"
             disabled={locked}
@@ -181,7 +185,7 @@ export function IssueTrackerCredentialForm(props: {
           />
         ) : null}
         <Button
-          label={tracker.connected ? "Replace" : "Connect"}
+          label={tracker.connected ? t("Replace") : t("Connect")}
           tone="primary"
           size="compact"
           loading={busy}
@@ -200,6 +204,7 @@ export function IssueTrackerProjectRows(props: {
   readonly bindings: IssueTrackerConnectionList["bindings"];
   readonly disabled: boolean;
 }) {
+  const t = useT(); // fork: i18n
   const { environmentId, tracker } = props;
   const bind = useAtomCommand(issueTrackerEnvironment.bindProject, {
     label: `bind project to ${tracker.displayName}`,
@@ -226,11 +231,15 @@ export function IssueTrackerProjectRows(props: {
     return (
       <Menu
         key={project.id}
-        title={`${tracker.displayName} ${tracker.scopeNoun} for ${project.title}`}
+        title={t("{displayName} {scopeNoun} for {title}", {
+          displayName: tracker.displayName,
+          scopeNoun: tracker.scopeNoun,
+          title: project.title,
+        })}
         actions={[
           {
             id: UNBOUND,
-            title: "Not bound",
+            title: t("Not bound"), // fork: i18n
             state: value === UNBOUND ? "on" : "off",
             attributes: { disabled: locked },
           },
@@ -249,7 +258,7 @@ export function IssueTrackerProjectRows(props: {
           valuePosition="trailing"
           value={
             value === UNBOUND
-              ? "Not bound"
+              ? t("Not bound") // fork: i18n
               : (tracker.scopes.find((scope) => scope.key === value)?.name ?? value)
           }
           disabled={locked}

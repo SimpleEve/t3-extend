@@ -15,7 +15,7 @@ import { useRef, useState } from "react";
 import { Linking, Platform, Pressable, Share, View } from "react-native";
 import { KeyboardStickyView } from "react-native-keyboard-controller";
 
-import { RelativeTime } from "../../components/RelativeTime";
+import { useRelativeTime } from "../../components/RelativeTime"; // fork: i18n
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { AppBar } from "../../components/ui/AppBar";
 import { SymbolView } from "../../components/ui/AppSymbol";
@@ -58,6 +58,7 @@ import {
   issueStatus,
   useIssueAccess,
 } from "./issuePresentation";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 type IssueAccess = NonNullable<ReturnType<typeof useIssueAccess>>;
 
@@ -100,12 +101,13 @@ function IssueStateControl(props: {
   readonly busy: boolean;
   readonly onMove: (state: string) => void;
 }) {
+  const t = useT(); // fork: i18n
   const status = issueStatus(props.state);
   const moves = props.states;
   const trigger = (
     <Pressable
       accessibilityRole={moves.length ? "button" : undefined}
-      accessibilityLabel={`Issue state, ${status.label}`}
+      accessibilityLabel={t("Issue state, {label}", { label: status.label })}
       disabled={!moves.length || props.busy}
       className="min-h-8 flex-row items-center gap-1.5 active:opacity-70"
     >
@@ -121,7 +123,7 @@ function IssueStateControl(props: {
     // As wide as the trigger: iOS anchors the menu to this view, not to the text inside it.
     <View className="self-start">
       <Menu
-        title="Issue state"
+        title={t("Issue state")}
         // The name is the id: unique within a workflow, and a NUL separator would end the native string.
         actions={moves.map((move) => ({ id: move.name, title: move.name }))}
         onPressAction={({ nativeEvent }) => {
@@ -143,9 +145,11 @@ function IssueIdentity(props: {
   readonly onEditLabels: () => void;
   readonly onEditAssignees: () => void;
 }) {
+  const t = useT(); // fork: i18n
   const { issue, access } = props;
   const canLabel = access?.labels === true;
   const canAssign = access?.assignees === true;
+  const when = useRelativeTime(issue.closedAt ?? issue.createdAt); // fork: i18n
   return (
     <View className="gap-3">
       <IssueStateControl
@@ -160,18 +164,13 @@ function IssueIdentity(props: {
       <View className="flex-row items-center gap-2">
         <PullRequestAvatar actor={issue.author} size={20} />
         <Text className="min-w-0 flex-1 text-xs font-t3-medium" numberOfLines={1}>
-          {issue.author?.login ?? "Unknown author"}
+          {issue.author?.login ?? t("Unknown author")}
         </Text>
         <Text className="shrink text-right text-2xs text-foreground-muted" numberOfLines={1}>
-          {issue.closedAt ? (
-            <>
-              Closed <RelativeTime timestamp={issue.closedAt} /> ago
-            </>
-          ) : (
-            <>
-              Opened <RelativeTime timestamp={issue.createdAt} /> ago
-            </>
-          )}
+          {/* fork: i18n. One sentence, so the time sits where the language puts it. */}
+          {issue.closedAt
+            ? t("Closed {time} ago", { time: when })
+            : t("Opened {time} ago", { time: when })}
         </Text>
       </View>
       {issue.labels.length || canLabel ? (
@@ -181,19 +180,19 @@ function IssueIdentity(props: {
           ))}
           {canLabel ? (
             <Chip
-              label={issue.labels.length ? "Edit" : "Add labels"}
+              label={issue.labels.length ? t("Edit") : t("Add labels")}
               icon="tag"
               size="small"
-              accessibilityLabel="Edit labels"
+              accessibilityLabel={t("Edit labels")}
               onPress={props.onEditLabels}
             />
           ) : null}
         </View>
       ) : null}
       <View className="flex-row flex-wrap items-center gap-2">
-        <Text className="text-xs text-foreground-muted">Assignees</Text>
+        <Text className="text-xs text-foreground-muted">{t("Assignees")}</Text>
         {issue.assignees.length === 0 ? (
-          <Text className="text-xs text-foreground-muted">none</Text>
+          <Text className="text-xs text-foreground-muted">{t("none")}</Text>
         ) : null}
         {issue.assignees.map((actor) => (
           <View key={actor.login} className="flex-row items-center gap-1.5">
@@ -203,10 +202,10 @@ function IssueIdentity(props: {
         ))}
         {canAssign ? (
           <Chip
-            label={issue.assignees.length ? "Edit" : "Assign"}
+            label={issue.assignees.length ? t("Edit") : t("Assign")}
             icon="person.badge.plus"
             size="small"
-            accessibilityLabel="Edit assignees"
+            accessibilityLabel={t("Edit assignees")}
             onPress={props.onEditAssignees}
           />
         ) : null}
@@ -219,19 +218,24 @@ function LinkedPullRequests(props: {
   readonly params: IssueParams;
   readonly links: ReadonlyArray<IssueLinkedPullRequest>;
 }) {
+  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   // Only a git host's tracker shares its host with the change request it links.
   const sameHost = sourceControlClients.find(props.params.tracker) !== undefined;
   return (
     <View className="gap-2">
-      <PullRequestSectionHeading>Linked pull requests</PullRequestSectionHeading>
+      <PullRequestSectionHeading>{t("Linked pull requests")}</PullRequestSectionHeading>
       {props.links.map((link) => {
-        const status = pullRequestStatus(link);
+        const status = pullRequestStatus(link, t);
         return (
           <Pressable
             key={`${link.repository}#${link.number}`}
             accessibilityRole="button"
-            accessibilityLabel={`${status.label} pull request ${link.number}, ${link.title}`}
+            accessibilityLabel={t("{label} pull request {number}, {title}", {
+              label: status.label,
+              number: link.number,
+              title: link.title,
+            })}
             onPress={() =>
               sameHost
                 ? navigation.dispatch(
@@ -254,7 +258,7 @@ function LinkedPullRequests(props: {
               </Text>
               <Text className="font-mono text-2xs text-foreground-muted" numberOfLines={1}>
                 {link.repository}#{link.number}
-                {link.closesIssue ? " · closes" : ""}
+                {link.closesIssue ? t(" · closes") : ""}
               </Text>
             </View>
             <SymbolView name="chevron.right" size={12} tintColorClassName="accent-icon-muted" />
@@ -270,15 +274,18 @@ function IssueCommentCard(props: {
   readonly comment: IssueComment;
   readonly canReact: boolean;
 }) {
+  const t = useT(); // fork: i18n
   const { comment } = props;
   return (
     <View className="gap-3 rounded-2xl bg-grouped-card p-3">
       <View className="flex-row items-center gap-2">
         <PullRequestAvatar actor={comment.author} size={22} />
         <Text className="min-w-0 flex-1 text-sm font-t3-medium" numberOfLines={1}>
-          {comment.author?.login ?? "Unknown author"}
+          {comment.author?.login ?? t("Unknown author")}
         </Text>
-        <Text className="text-2xs text-foreground-tertiary">{relativeTime(comment.createdAt)}</Text>
+        <Text className="text-2xs text-foreground-tertiary">
+          {relativeTime(comment.createdAt, undefined, t)}
+        </Text>
       </View>
       <PullRequestMarkdown markdown={comment.body} />
       {comment.reactions !== undefined ? (
@@ -294,23 +301,31 @@ function IssueCommentCard(props: {
 }
 
 function IssueEventRow({ event }: { readonly event: IssueEvent }) {
+  const t = useT(); // fork: i18n
   return (
     <View className="flex-row items-center gap-2 px-1">
       <PullRequestAvatar actor={event.actor} size={18} />
       <Text className="min-w-0 flex-1 text-xs text-foreground-muted">
-        <Text className="text-xs font-t3-medium">{event.actor?.login ?? "Someone"}</Text>{" "}
+        <Text className="text-xs font-t3-medium">{event.actor?.login ?? t("Someone")}</Text>{" "}
         {issueEventSentence(event)}
       </Text>
-      <Text className="text-2xs text-foreground-tertiary">{relativeTime(event.createdAt)}</Text>
+      <Text className="text-2xs text-foreground-tertiary">
+        {relativeTime(event.createdAt, undefined, t)}
+      </Text>
     </View>
   );
 }
 
 function IssueLoadingBody() {
+  const t = useT(); // fork: i18n
   return (
-    <View className="gap-5" accessibilityLabel="Loading issue" accessibilityState={{ busy: true }}>
+    <View
+      className="gap-5"
+      accessibilityLabel={t("Loading issue")}
+      accessibilityState={{ busy: true }}
+    >
       <View className="gap-3">
-        <PullRequestSectionHeading>Description</PullRequestSectionHeading>
+        <PullRequestSectionHeading>{t("Description")}</PullRequestSectionHeading>
         <View className="gap-3 py-1">
           <View className="h-4 w-full rounded bg-subtle-strong" />
           <View className="h-4 w-full rounded bg-subtle-strong" />
@@ -318,7 +333,7 @@ function IssueLoadingBody() {
         </View>
       </View>
       <View className="gap-3">
-        <PullRequestSectionHeading>Activity</PullRequestSectionHeading>
+        <PullRequestSectionHeading>{t("Activity")}</PullRequestSectionHeading>
         <View className="h-20 rounded-2xl bg-subtle-strong" />
         <View className="h-20 rounded-2xl bg-subtle-strong" />
       </View>
@@ -332,6 +347,7 @@ export function IssueRouteScreen({ route }: StaticScreenProps<IssueParams>) {
 }
 
 function IssueRoute({ params }: { readonly params: IssueParams }) {
+  const t = useT(); // fork: i18n
   const identity = issueIdentity(params);
   const target = issueTarget(params);
   const navigation = useNavigation();
@@ -458,7 +474,7 @@ function IssueRoute({ params }: { readonly params: IssueParams }) {
       <View className="flex-1 bg-screen">
         <AppBar
           title={issue?.displayKey ?? params.issueKey}
-          subtitle={connected ? params.scope : `${params.scope} · Offline`}
+          subtitle={connected ? params.scope : t("{scope} · Offline", { scope: params.scope })}
           onBack={layout.usesSplitView ? undefined : returnToList}
           menus={[
             {
@@ -540,7 +556,7 @@ function IssueRoute({ params }: { readonly params: IssueParams }) {
           {!issue ? (
             detailQuery.error && !detailQuery.isPending ? (
               <EmptyState
-                title="Couldn't load this issue"
+                title={t("Couldn't load this issue")}
                 detail={detailQuery.error}
                 variant="plain"
               />
@@ -565,7 +581,7 @@ function IssueRoute({ params }: { readonly params: IssueParams }) {
               {!detail ? (
                 detailQuery.error && !detailQuery.isPending ? (
                   <EmptyState
-                    title="Couldn't load this issue"
+                    title={t("Couldn't load this issue")}
                     detail={detailQuery.error}
                     variant="plain"
                   />
@@ -591,21 +607,21 @@ function IssueRoute({ params }: { readonly params: IssueParams }) {
                   ) : null}
                   <View className="gap-3">
                     <PullRequestSectionHeading>
-                      Activity
+                      {t("Activity")}
                       {detail.commentCount > 0
-                        ? ` · ${detail.commentCount} ${detail.commentCount === 1 ? "comment" : "comments"}`
+                        ? ` · ${t(detail.commentCount === 1 ? "{count} comment" : "{count} comments", { count: detail.commentCount })}`
                         : ""}
                     </PullRequestSectionHeading>
                     {nextCursor !== null ? (
                       <Button
-                        label={busy === "older" ? "Loading…" : "Load older comments"}
+                        label={busy === "older" ? t("Loading…") : t("Load older comments")}
                         disabled={busy !== null}
                         onPress={() => void loadOlder()}
                       />
                     ) : null}
                     {timeline.length === 0 ? (
                       <Text className="text-sm text-foreground-muted">
-                        Nothing has happened here yet.
+                        {t("Nothing has happened here yet.")}
                       </Text>
                     ) : null}
                     {timeline.map((item) => (

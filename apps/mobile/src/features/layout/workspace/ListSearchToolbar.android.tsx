@@ -73,7 +73,7 @@ export function ListSearchToolbar(props: {
       search={{
         value: tab.query,
         onChangeText: (query) => dispatch({ type: "query", tab: section, query }),
-        placeholder: `Search ${noun}`,
+        placeholder: t("Search {noun}", { noun: t(noun) }), // fork: i18n
         active: searching,
         onOpen: openSearch,
         onClose: closeSearch,
@@ -82,7 +82,7 @@ export function ListSearchToolbar(props: {
         filters
           ? [
               {
-                title: `Filter ${noun}`,
+                title: t("Filter {noun}", { noun: t(noun) }), // fork: i18n
                 icon: filters.customized
                   ? "line.3.horizontal.decrease.circle.fill"
                   : "line.3.horizontal.decrease.circle",

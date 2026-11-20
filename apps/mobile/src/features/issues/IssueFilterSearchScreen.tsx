@@ -9,6 +9,7 @@ import { PullRequestAvatar } from "../pull-requests/PullRequestPresentation";
 import { pullRequestLabelColor } from "../pull-requests/pullRequestList";
 import { IssueCandidatesSheet } from "./IssueCandidatesSheet";
 import { issueListFiltersAtom, unofferedIssueFilters } from "./issueListFilters";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 const matches = (needle: string, ...fields: ReadonlyArray<string | null | undefined>) =>
   needle.length === 0 || fields.some((field) => field?.toLowerCase().includes(needle));
@@ -20,6 +21,7 @@ export function IssueFilterSearchScreen({
   readonly kind: "labels" | "assignee";
   readonly scopes: ReadonlyArray<IssueCandidatesTarget>;
 }>) {
+  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const { kind, scopes } = route.params;
   const known = useIssueFilterCandidates(scopes);
@@ -56,7 +58,7 @@ export function IssueFilterSearchScreen({
   const loaded = labels ? known.labels.length > 0 : known.assignees.length > 0;
   return (
     <IssueCandidatesSheet
-      title={labels ? "Filter by label" : "Filter by assignee"}
+      title={labels ? t("Filter by label") : t("Filter by assignee")}
       noun={labels ? "labels" : "people"}
       query={query}
       onQueryChange={setQuery}

@@ -300,7 +300,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
           {issuesSupported ? (
             <SidebarUtilityItem
               icon={<IssueGlyph.issue />}
-              label="Issues"
+              label={t("Issues")}
               onClick={handleIssuesClick}
             />
           ) : null}

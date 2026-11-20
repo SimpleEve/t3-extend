@@ -857,7 +857,6 @@ export default {
   "{denial} Switch this thread's mode to continue.": "{denial}请切换此对话的模式后继续。",
   Work: "工作",
   "Close environments": "关闭环境列表",
-  "{appBaseName}, Pull requests": "{appBaseName}，PR",
   "{label} reference in {label2}": "{label2} 中的 {label} 引用",
   "Usage limit reached. {resetText}": "已达到用量上限。{resetText}",
   "Usage limit reached. The provider did not report a reset time. Retry manually when your limit is available.":

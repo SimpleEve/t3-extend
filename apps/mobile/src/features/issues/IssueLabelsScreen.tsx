@@ -21,8 +21,10 @@ import { IssueCandidatesSheet } from "./IssueCandidatesSheet";
 import { issueParamsKey, issueTarget, type IssueParams } from "./issueParams";
 import { issueLabelPicksFamily } from "./issuePicks";
 import { issueCommandError, useIssueAccess } from "./issuePresentation";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 export function IssueLabelsScreen({ route }: StaticScreenProps<IssueParams>) {
+  const t = useT(); // fork: i18n
   const navigation = useNavigation();
   const target = issueTarget(route.params);
   const detail = useEnvironmentQuery(issueEnvironment.detail(target)).data;
@@ -73,7 +75,7 @@ export function IssueLabelsScreen({ route }: StaticScreenProps<IssueParams>) {
   );
   return (
     <IssueCandidatesSheet
-      title="Labels"
+      title={t("Labels")}
       noun="labels"
       query={query}
       onQueryChange={setQuery}

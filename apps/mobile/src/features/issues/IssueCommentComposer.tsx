@@ -29,6 +29,7 @@ import {
 } from "../voice-input/ComposerDictationControl";
 import { useVoiceInputController } from "../voice-input/useVoiceInputController";
 import { resolveVoiceComposerPresentation } from "../voice-input/voiceInputPresentation";
+import { useT } from "../../hooks/useT"; // fork: i18n
 
 // The thread composer's editor starts after its attachment button; this keeps the same text inset.
 const EDITOR_LEADING_INSET = 14;
@@ -50,6 +51,7 @@ export function IssueCommentComposer(props: {
   readonly onHeightChange: (height: number) => void;
   readonly onFocusChange: (focused: boolean) => void;
 }) {
+  const t = useT(); // fork: i18n
   const editorRef = useRef<ComposerEditorHandle>(null);
   const [draft, setDraft] = useState("");
   // Read by dictation and by send after an await, when the render's `draft` may be stale.
@@ -77,6 +79,7 @@ export function IssueCommentComposer(props: {
   const voicePresentation = resolveVoiceComposerPresentation(
     voiceInput.state,
     voiceInput.elapsedSeconds,
+    t,
   );
   const dictating = voicePresentation.statusKind === "active";
   const locked = props.posting || voiceInput.blocksSubmission;
@@ -100,7 +103,7 @@ export function IssueCommentComposer(props: {
   const sendButton = (
     <ComposerActionButton
       size={chrome.controlSize}
-      accessibilityLabel={props.posting ? "Posting comment" : "Post comment"}
+      accessibilityLabel={props.posting ? t("Posting comment") : t("Post comment")}
       icon="arrow.up"
       variant="primary"
       disabled={!canSend}
@@ -180,7 +183,7 @@ export function IssueCommentComposer(props: {
                         if (!locked) changeDraft(text);
                       }}
                       onSelectionChange={setSelection}
-                      placeholder="Leave a comment"
+                      placeholder={t("Leave a comment")}
                       onFocus={() => {
                         setFocused(true);
                         props.onFocusChange(true);
@@ -190,7 +193,7 @@ export function IssueCommentComposer(props: {
                         props.onFocusChange(false);
                       }}
                       onSubmit={() => void send()}
-                      submitTitle="Comment"
+                      submitTitle={t("Comment")}
                       {...compactEditor.editorProps}
                       textStyle={textStyle}
                     />

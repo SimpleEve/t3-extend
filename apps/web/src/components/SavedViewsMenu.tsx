@@ -23,6 +23,7 @@ import { Label } from "./ui/label";
 import { Menu, MenuItem, MenuItemLabel, MenuPopup, MenuSeparator, MenuTrigger } from "./ui/menu";
 import { toastManager } from "./ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
+import { useT } from "~/hooks/useT"; // fork: i18n
 
 export interface SavedView<Preferences> {
   readonly id: string;
@@ -57,6 +58,7 @@ export function SavedViewsMenu<Preferences extends Stored, Stored, Encoded>({
   preferences: Preferences;
   onApply: (preferences: Preferences) => void;
 }) {
+  const t = useT(); // fork: i18n
   const [views, setViews] = useLocalStorage(kind.storageKey, kind.empty, kind.schema);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editor, setEditor] = useState<{ id?: string; name: string } | null>(null);
@@ -91,7 +93,7 @@ export function SavedViewsMenu<Preferences extends Stored, Stored, Encoded>({
     }
     toastManager.add({
       type: "error",
-      title: `Could not save ${kind.shortNoun} views`,
+      title: t("Could not save {shortNoun} views", { shortNoun: t(kind.shortNoun) }),
       description:
         "Local storage is unavailable or full. Try again after freeing space or allowing storage.",
     });
@@ -135,16 +137,18 @@ export function SavedViewsMenu<Preferences extends Stored, Stored, Encoded>({
             render={
               <MenuTrigger
                 render={<Button variant="outline" />}
-                aria-label={`Saved ${kind.noun} views`}
+                aria-label={t("Saved {noun} views", { noun: t(kind.noun) })}
               />
             }
           >
             <BookmarkIcon aria-hidden className="size-4" />
-            <span className="max-w-40 truncate">{selectedView?.name ?? "Views"}</span>
-            {modified ? <span aria-label="Modified view">*</span> : null}
+            <span className="max-w-40 truncate">{selectedView?.name ?? t("Views")}</span>
+            {modified ? <span aria-label={t("Modified view")}>*</span> : null}
             <ChevronDownIcon aria-hidden className="size-3 shrink-0" />
           </TooltipTrigger>
-          <TooltipPopup>{selectedView?.name ?? `Saved ${kind.noun} views`}</TooltipPopup>
+          <TooltipPopup>
+            {selectedView?.name ?? t("Saved {noun} views", { noun: t(kind.noun) })}
+          </TooltipPopup>
         </Tooltip>
         <MenuPopup align="start">
           {views.map((view) => (
@@ -170,9 +174,9 @@ export function SavedViewsMenu<Preferences extends Stored, Stored, Encoded>({
             </Tooltip>
           ))}
           {views.length > 0 ? <MenuSeparator /> : null}
-          <MenuItem onClick={() => setEditor({ name: kind.suggestedName(preferences) })}>
+          <MenuItem onClick={() => setEditor({ name: t(kind.suggestedName(preferences)) })}>
             <PlusIcon aria-hidden />
-            Save current view…
+            {t("Save current view…")}
           </MenuItem>
           {selectedView ? (
             <>
@@ -188,11 +192,11 @@ export function SavedViewsMenu<Preferences extends Stored, Stored, Encoded>({
                     )
                   }
                 >
-                  Update saved view
+                  {t("Update saved view")}
                 </MenuItem>
               ) : null}
               <MenuItem onClick={() => setEditor({ id: selectedView.id, name: selectedView.name })}>
-                Rename view…
+                {t("Rename view…")}
               </MenuItem>
               <MenuItem
                 variant="destructive"
@@ -201,7 +205,7 @@ export function SavedViewsMenu<Preferences extends Stored, Stored, Encoded>({
                     setSelectedId(null);
                 }}
               >
-                Delete view
+                {t("Delete view")}
               </MenuItem>
             </>
           ) : null}
@@ -223,21 +227,23 @@ export function SavedViewsMenu<Preferences extends Stored, Stored, Encoded>({
           >
             <DialogHeader>
               <DialogTitle>
-                {editor?.id ? `Rename ${kind.shortNoun} view` : `Save ${kind.shortNoun} view`}
+                {editor?.id
+                  ? t("Rename {shortNoun} view", { shortNoun: t(kind.shortNoun) })
+                  : t("Save {shortNoun} view", { shortNoun: t(kind.shortNoun) })}
               </DialogTitle>
               <DialogDescription>
-                Save your search, filters, and sort order on this device.
+                {t("Save your search, filters, and sort order on this device.")}
               </DialogDescription>
             </DialogHeader>
             <DialogPanel>
               <div className="flex flex-col gap-2">
-                <Label htmlFor={inputId}>View name</Label>
+                <Label htmlFor={inputId}>{t("View name")}</Label>
                 <Input
                   id={inputId}
                   autoFocus
                   value={editor?.name ?? ""}
                   maxLength={SAVED_VIEW_NAME_MAX_LENGTH}
-                  placeholder={kind.placeholder}
+                  placeholder={t(kind.placeholder)}
                   aria-invalid={Boolean(editor?.name && nameError)}
                   aria-describedby={nameError && editor?.name ? errorId : undefined}
                   onChange={(event) =>
@@ -248,17 +254,17 @@ export function SavedViewsMenu<Preferences extends Stored, Stored, Encoded>({
                 />
                 {nameError && editor?.name ? (
                   <p id={errorId} className="text-sm text-destructive-foreground">
-                    {nameError}
+                    {t(nameError) /* fork: i18n */}
                   </p>
                 ) : null}
               </div>
             </DialogPanel>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditor(null)}>
-                Cancel
+                {t("Cancel")}
               </Button>
               <Button type="submit" disabled={nameError !== null}>
-                Save
+                {t("Save")}
               </Button>
             </DialogFooter>
           </form>
