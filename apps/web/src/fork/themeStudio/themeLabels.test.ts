@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { getThemeDefinition } from "../../themePalette";
-import { themeDisplayLabel } from "./useThemeStudio";
+import { themeDisplayLabel } from "./themeDisplayLabel";
 
 describe("theme names in a language", () => {
   const t = (text: string) => `«${text}»`;

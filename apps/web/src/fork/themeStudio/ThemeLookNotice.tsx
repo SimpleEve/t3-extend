@@ -3,7 +3,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { Button } from "../../components/ui/button";
 import { SettingsRow } from "../../components/settings/settingsLayout";
 import { getThemeDefinition, resolveThemeHalf } from "../../themePalette";
-import { themeDisplayLabel } from "./useThemeStudio";
+import { themeDisplayLabel } from "./themeDisplayLabel";
 import { overriddenSettings } from "./studio.logic";
 import { useActiveThemeLook } from "./themeLook";
 import { useOpenThemeStudio } from "./themeStudioStore";

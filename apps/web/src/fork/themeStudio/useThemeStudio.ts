@@ -1,6 +1,5 @@
 import type { ThemeLook } from "@t3tools/contracts";
 import { FORK } from "@t3tools/shared/forkIdentity";
-import { BUILT_IN_THEMES } from "@t3tools/shared/themePalettes";
 import { useAtomValue } from "@effect/atom-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -35,18 +34,8 @@ import {
   withSchemeCss,
   withSchemeLook,
 } from "./studio.logic";
+import { themeDisplayLabel } from "./themeDisplayLabel";
 import { useThemeStudioIntent } from "./themeStudioStore";
-
-/** Our own presets and the built-in themes have translated names; a person's schemes do not. */
-export function themeDisplayLabel(
-  definition: ThemeDefinition,
-  t: (text: string) => string,
-): string {
-  return getPresetThemes().some((preset) => preset.id === definition.id) ||
-    BUILT_IN_THEMES.some((builtIn) => builtIn.id === definition.id)
-    ? t(definition.label)
-    : definition.label;
-}
 
 /** The stock T3 theme has no definition of its own, so editing it starts from its two palettes. */
 function stockDefinition(): ThemeDefinition {

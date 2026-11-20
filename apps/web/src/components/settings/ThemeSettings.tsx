@@ -50,7 +50,7 @@ import {
   useOpenThemeStudio,
 } from "../../fork/themeStudio/themeStudioStore"; // fork: theme studio
 import { STOCK_THEME_ID } from "../../fork/themeStudio/studio.logic"; // fork: theme studio
-import { themeDisplayLabel } from "../../fork/themeStudio/useThemeStudio"; // fork: theme studio
+import { themeDisplayLabel } from "../../fork/themeStudio/themeDisplayLabel"; // fork: theme studio
 import {
   STANDARD_THEME_CARDS,
   getThemeCardDefinition,
