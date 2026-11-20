@@ -82,6 +82,11 @@ function quantity(count: number, one: string, many: string, t: WorkLogPhraseTran
   return count === 1 ? t(one, { count }) : t(many, { count });
 }
 
+// fork: i18n
+function issueQuantity(count: number, t: WorkLogPhraseTranslator): string {
+  return quantity(count, "{count} issue", "{count} issues", t);
+}
+
 /** One PR per single call; a batch counts what its result reports. */
 function pullRequestQuantity(
   calls: ReadonlyArray<{
@@ -686,31 +691,43 @@ export function summarizeT3ToolCalls(
       );
       break;
     case "list-issues":
-      label = phrase("Listed", "list", `issues ${times}`);
+      label = phrase("Listed {object}", "Tried to list {object}", t("issues {times}", { times }));
       break;
     case "read-issue":
-      label = phrase("Read", "read", quantity(selected.length, "issue"));
+      label = phrase("Read {object}", "Tried to read {object}", issueQuantity(selected.length, t));
       break;
     case "create-issue":
-      label = phrase("Filed", "file", quantity(selected.length, "issue"));
+      label = phrase("Filed {object}", "Tried to file {object}", issueQuantity(selected.length, t));
       break;
     case "comment-issue":
-      label = phrase("Commented on", "comment on", quantity(selected.length, "issue"));
+      label = phrase(
+        "Commented on {object}",
+        "Tried to comment on {object}",
+        issueQuantity(selected.length, t),
+      );
       break;
     case "set-issue-state":
-      label = phrase("Changed", "change", `the state of ${quantity(selected.length, "issue")}`);
+      label = phrase(
+        "Changed {object}",
+        "Tried to change {object}",
+        t("the state of {issues}", { issues: issueQuantity(selected.length, t) }),
+      );
       break;
     case "link-issue":
-      label = phrase("Linked", "link", quantity(selected.length, "issue"));
+      label = phrase("Linked {object}", "Tried to link {object}", issueQuantity(selected.length, t));
       break;
     case "unlink-issue":
-      label = phrase("Unlinked", "unlink", quantity(selected.length, "issue"));
+      label = phrase(
+        "Unlinked {object}",
+        "Tried to unlink {object}",
+        issueQuantity(selected.length, t),
+      );
       break;
     case "list-thread-issues":
       label = phrase(
-        "Checked",
-        "check",
-        `linked issues${selected.length === 1 ? "" : ` ${times}`}`,
+        "Checked {object}",
+        "Tried to check {object}",
+        selected.length === 1 ? t("linked issues") : t("linked issues {times}", { times }),
       );
       break;
     case "browser":

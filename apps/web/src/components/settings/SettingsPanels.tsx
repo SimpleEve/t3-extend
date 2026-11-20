@@ -1024,7 +1024,7 @@ export function GeneralSettingsPanel() {
         />
         <SettingsRow
           {...setting("terminal-close-confirmation")}
-          description={<T>Ask before closing terminals and stopping their running processes.</T>}
+          description={t("Ask before closing terminals and stopping their running processes.")}
           resetAction={
             settings.confirmTerminalClose !== DEFAULT_UNIFIED_SETTINGS.confirmTerminalClose ? (
               <SettingResetButton
@@ -1043,7 +1043,7 @@ export function GeneralSettingsPanel() {
               onCheckedChange={(checked) =>
                 updateSettings({ confirmTerminalClose: Boolean(checked) })
               }
-              aria-label={gt("Confirm terminal closing")}
+              aria-label={t("Confirm terminal closing")}
             />
           }
         />
