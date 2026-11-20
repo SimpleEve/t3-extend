@@ -4,6 +4,7 @@ import ReactDOM from "react-dom/client";
 import "@fontsource-variable/inter";
 import "./index.css";
 import "./fork/zhTypography.css"; // fork: Chinese typography layer
+import "./fork/themeStudio/themeLook.css"; // fork: theme look glass
 
 import { hasCloudPublicConfig } from "./cloud/publicConfig";
 import { isElectron } from "./env";

@@ -19,6 +19,8 @@ function show(nextUrl: string | null): void {
   const root = document.documentElement;
   if (nextUrl === null) root.style.removeProperty(THEME_BACKGROUND_VARIABLE);
   else root.style.setProperty(THEME_BACKGROUND_VARIABLE, `url("${nextUrl}")`);
+  if (nextUrl === null) delete root.dataset.themeBackground; // fork: theme look
+  else root.dataset.themeBackground = ""; // fork: theme look
   if (objectUrl !== null) URL.revokeObjectURL(objectUrl);
   objectUrl = nextUrl;
 }

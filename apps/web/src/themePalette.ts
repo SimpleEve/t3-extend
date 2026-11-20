@@ -1,5 +1,5 @@
 import { pipe } from "effect/Function";
-import { THEME_CSS_MAX_LENGTH, type EnvironmentTheme } from "@t3tools/contracts";
+import { THEME_CSS_MAX_LENGTH, type EnvironmentTheme, type ThemeLook } from "@t3tools/contracts";
 import * as Equal from "effect/Equal";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
@@ -30,6 +30,9 @@ import {
 } from "./lib/contextChipAccents";
 
 import { appAtomRegistry, subscribeAtomChanges } from "./rpc/atomRegistry";
+import { parseThemeLook, sanitizeThemeLook } from "@t3tools/shared/forkThemeLook"; // fork: theme look
+import { THEME_PRESET_SEEDS, type ThemePresetSeed } from "./fork/themeStudio/presets"; // fork: theme presets
+import { applyThemeLook } from "./fork/themeStudio/themeLook"; // fork: theme look
 import { applyThemeBackground } from "./themeBackground";
 import { applyThemeCss } from "./themeCss";
 import { themeServerEnvironmentThemesAtom } from "./state/server";
@@ -69,6 +72,8 @@ export type ThemeFile = Readonly<{
   collection?: ThemeCollection;
   managed?: boolean;
   css?: string;
+  look?: ThemeLook; // fork: theme look
+  basedOn?: string; // fork: theme look
 }>;
 
 const customThemeListeners = new Set<() => void>();
@@ -176,13 +181,15 @@ function parseStoredThemeVariants(
 
 function parseStoredTheme(value: unknown): ThemeDefinition | null {
   if (!isRecord(value)) return null;
-  if (!isThemeId(value.id) || RESERVED_THEME_IDS.has(value.id)) return null;
+  if (!isThemeId(value.id) || isReservedThemeId(value.id)) return null; // fork: theme presets
   if (!isThemeLabel(value.label) || !isThemeAppearance(value.appearance)) return null;
   const colors = parseStoredThemeColors(value.colors, value.appearance);
   if (!colors) return null;
   const variants = parseStoredThemeVariants(value.variants, value.appearance);
   if (value.variants !== undefined && variants === null) return null;
   const collection = parseThemeCollection(value.collection);
+  const look = sanitizeThemeLook(value.look); // fork: theme look
+  const basedOn = isThemeId(value.basedOn) ? value.basedOn : undefined; // fork: theme look
 
   return {
     id: value.id,
@@ -193,6 +200,8 @@ function parseStoredTheme(value: unknown): ThemeDefinition | null {
     ...(collection ? { collection } : {}),
     ...(value.managed === true ? { managed: true } : {}),
     ...(isThemeCss(value.css) && value.css.length > 0 ? { css: value.css } : {}),
+    ...(look ? { look } : {}), // fork: theme look
+    ...(basedOn ? { basedOn } : {}), // fork: theme look
   };
 }
 
@@ -270,6 +279,7 @@ function publishedThemeColors(
 }
 
 function environmentThemeDefinition(theme: EnvironmentTheme): ThemeDefinition {
+  const look = sanitizeThemeLook(theme.look); // fork: theme look
   const variants: Partial<Record<ThemeAppearance, ThemeColors>> = {};
   for (const [variantAppearance, variantColors] of Object.entries(theme.variants ?? {})) {
     if (variantAppearance === theme.appearance) continue;
@@ -297,6 +307,7 @@ function environmentThemeDefinition(theme: EnvironmentTheme): ThemeDefinition {
       ? { managed: true }
       : {}),
     ...(theme.css ? { css: theme.css } : {}),
+    ...(look ? { look } : {}), // fork: theme look
   };
 }
 
@@ -368,7 +379,7 @@ function getEnvironmentThemes(): ReadonlyArray<ThemeDefinition> {
 }
 
 export function isReservedThemeId(themeId: string): boolean {
-  return RESERVED_THEME_IDS.has(themeId);
+  return RESERVED_THEME_IDS.has(themeId) || isPresetThemeId(themeId); // fork: theme presets
 }
 
 export function getStoredCustomThemeCollection(
@@ -1220,12 +1231,46 @@ export function updateThemeColorFamily(
   }
 }
 
+// fork: the studio's presets resolve like built-in themes, so a saved scheme cannot take their ids.
+function buildPresetColors(appearance: ThemeAppearance, palette: ThemePresetSeed["palette"]) {
+  return decodeThemeColors({
+    ...createVividThemeColors(appearance, palette.canvas, palette.accent),
+    ...lenientThemeColorOverrides(palette.colors ?? {}),
+  });
+}
+
+let presetThemes: ReadonlyArray<ThemeDefinition> | undefined;
+export function getPresetThemes(): ReadonlyArray<ThemeDefinition> {
+  return (presetThemes ??= THEME_PRESET_SEEDS.map((seed): ThemeDefinition => {
+    const otherAppearance = seed.appearance === "dark" ? "light" : "dark";
+    return {
+      id: seed.id,
+      label: seed.label,
+      appearance: seed.appearance,
+      colors: buildPresetColors(seed.appearance, seed.palette),
+      ...(seed.variant
+        ? { variants: { [otherAppearance]: buildPresetColors(otherAppearance, seed.variant) } }
+        : {}),
+      ...(seed.css ? { css: seed.css } : {}),
+      look: seed.look,
+    };
+  }));
+}
+
+function isPresetThemeId(themeId: string): boolean {
+  return THEME_PRESET_SEEDS.some((seed) => seed.id === themeId);
+}
+
 const BUILT_IN_THEME_DEFINITIONS: ReadonlyArray<ThemeDefinition> = BUILT_IN_THEMES;
+function builtInAndPresetThemes(): ReadonlyArray<ThemeDefinition> {
+  return [...BUILT_IN_THEME_DEFINITIONS, ...getPresetThemes()];
+}
 
 export function getThemeDefinition(theme: ThemePreference): ThemeDefinition | null {
   const themeId = themeIdFromPreference(theme);
   return (
     BUILT_IN_THEME_DEFINITIONS.find((definition) => definition.id === themeId) ??
+    getPresetThemes().find((definition) => definition.id === themeId) ?? // fork: theme presets
     getCustomThemes().find((definition) => definition.id === themeId) ??
     getEnvironmentThemes().find((definition) => definition.id === themeId) ??
     null
@@ -1360,7 +1405,7 @@ export function installCustomTheme(theme: ThemeDefinition): ThemeDefinition {
   }
   const library = getWritableCustomThemeLibrary();
   if (
-    BUILT_IN_THEME_DEFINITIONS.some((existing) => existing.id === theme.id) ||
+    builtInAndPresetThemes().some((existing) => existing.id === theme.id) || // fork: theme presets
     library.storedThemes.some((storedTheme) => storedThemeHasId(storedTheme, theme.id))
   ) {
     throw new Error(`A theme named "${theme.label}" is already installed.`);
@@ -1425,7 +1470,7 @@ export function replaceCustomThemeCollection(
   ) {
     throw new Error("Your installed themes changed while this package was downloading. Try again.");
   }
-  const occupiedIds = new Set(BUILT_IN_THEME_DEFINITIONS.map((theme) => theme.id));
+  const occupiedIds = new Set(builtInAndPresetThemes().map((theme) => theme.id)); // fork: theme presets
   for (const storedTheme of library.storedThemes) {
     if (
       !storedThemeHasCollectionId(storedTheme, collectionId) &&
@@ -1522,7 +1567,8 @@ export function parseThemeFile(value: unknown): ThemeDefinition {
   if (!isThemeId(id)) {
     throw new Error("Theme ids may only contain lowercase letters, numbers, and hyphens.");
   }
-  if (RESERVED_THEME_IDS.has(id)) {
+  if (isReservedThemeId(id)) {
+    // fork: theme presets
     throw new Error(`The theme id "${id}" is reserved.`);
   }
 
@@ -1534,6 +1580,11 @@ export function parseThemeFile(value: unknown): ThemeDefinition {
 
   if (value.css !== undefined && !isThemeCss(value.css)) {
     throw new Error(`Theme CSS must be text of ${THEME_CSS_MAX_LENGTH} characters or fewer.`);
+  }
+  const look = parseThemeLook(value.look); // fork: theme look
+  if (value.basedOn !== undefined && !isThemeId(value.basedOn)) {
+    // fork: theme look
+    throw new Error("A theme's basedOn must be a theme id."); // fork: theme look
   }
 
   const fallback = getDefaultThemeColors(appearance);
@@ -1564,6 +1615,8 @@ export function parseThemeFile(value: unknown): ThemeDefinition {
     ...(collection ? { collection } : {}),
     ...(value.managed === true ? { managed: true } : {}),
     ...(value.css ? { css: value.css } : {}),
+    ...(look ? { look } : {}), // fork: theme look
+    ...(value.basedOn ? { basedOn: value.basedOn as string } : {}), // fork: theme look
   };
 }
 
@@ -1579,6 +1632,8 @@ export function serializeThemeFile(theme: ThemeDefinition): string {
     ...(canonicalTheme.collection ? { collection: canonicalTheme.collection } : {}),
     ...(canonicalTheme.managed ? { managed: true } : {}),
     ...(canonicalTheme.css ? { css: canonicalTheme.css } : {}),
+    ...(canonicalTheme.look ? { look: canonicalTheme.look } : {}), // fork: theme look
+    ...(canonicalTheme.basedOn ? { basedOn: canonicalTheme.basedOn } : {}), // fork: theme look
   };
   return `${JSON.stringify(file, null, 2)}\n`;
 }
@@ -1658,6 +1713,7 @@ export function applyThemeColorPreview(
   colors: ThemeColors,
   appearance: ThemeAppearance,
   css?: string,
+  look?: ThemeLook, // fork: theme look
 ): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
@@ -1670,6 +1726,7 @@ export function applyThemeColorPreview(
   }
   applyContextChipVariables(root, colors);
   applyThemeCss(css);
+  applyThemeLook(look); // fork: theme look
   setThemePreviewAppearance(appearance);
 }
 
@@ -1682,6 +1739,7 @@ export function applyThemePalette(theme: ThemePreference, appearance?: ThemeAppe
   setThemePreviewAppearance(null);
   const palette = getThemeDefinition(theme);
   applyThemeCss(palette?.css);
+  applyThemeLook(palette?.look); // fork: theme look
   applyThemeBackground(palette?.id);
 
   if (palette) {
