@@ -1,3 +1,5 @@
+import type { ThemeLook } from "@t3tools/contracts"; // fork: theme look
+
 export const BUILT_IN_THEME_IDS = ["t3-chat", "grove", "ocean", "ember", "iris"] as const;
 
 export const MOBILE_DEFAULT_THEME_ID = "t3-code";
@@ -105,6 +107,10 @@ export type ThemeDefinition = Readonly<{
   managed?: boolean;
   /** Custom styles for web and desktop. */
   css?: string;
+  /** Fonts, shape, density and shadow for web and desktop. */
+  look?: ThemeLook; // fork: theme look
+  /** The preset a saved scheme was started from, so it can go back to it. */
+  basedOn?: string; // fork: theme look
 }>;
 
 export const T3_CODE_LIGHT_THEME_COLORS: ThemeColors = {

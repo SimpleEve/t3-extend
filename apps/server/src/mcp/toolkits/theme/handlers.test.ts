@@ -29,6 +29,7 @@ const AGENT_THEME = {
   canvas: "#101010",
   accent: "#7aa2f7",
   css: "[data-chat-header] { border-bottom: 1px solid red; }",
+  look: { radius: 0, fontCode: "Menlo, monospace" },
 } satisfies EnvironmentThemeFile;
 
 it.effect("applies the theme through the service and reports a refusal as an invalid request", () =>

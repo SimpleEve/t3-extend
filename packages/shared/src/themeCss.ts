@@ -77,6 +77,8 @@ export const THEME_GUIDE = [
   "Colors: `canvas` and `accent` (hex) derive a full palette. `colors` overrides single roles, and `variants.light` or `variants.dark` does that for the other appearance. Prefer colors over CSS.",
   `Roles: ${THEME_COLOR_ROLES.join(", ")}.`,
   "",
+  "Look (optional `look`, whole numbers): `fontUi` and `fontCode` (font family names, comma separated; installed fonts only, nothing is loaded), `radius` 0-24 (px), `density` 80-120 (% of normal spacing), `shadow` 0-200 (% of normal), `chatWidth` (comfortable, wide, full), `glass` 0-100 (% panel transparency, only while a background image is shown). A look overrides the user's own font and chat width settings while the theme is active.", // fork: theme look
+  "",
   "CSS: `css` applies after the app's styles. Use `.dark` or `:root:not(.dark)` for one appearance.",
   "It cannot load files: no @import, no image-set(), and url() only with data: or #id.",
   'For a background image, copy a JPEG, PNG, or WebP file of up to 16 MB to `<themesDir>/<themeId>.jpg` (or .png, .webp), beside the theme file. CSS shows it with `var(--theme-background-image)`, such as `[data-workspace-area="conversation"] { background: var(--theme-background-image) center / cover no-repeat; }`. Delete the file to remove it. Do not embed images in `css`: it holds 100,000 characters.',

@@ -43,6 +43,10 @@
       "types": "./src/themePalettes.ts",
       "import": "./src/themePalettes.ts"
     },
+    "./forkThemeLook": {
+      "types": "./src/forkThemeLook.ts",
+      "import": "./src/forkThemeLook.ts"
+    },
     "./themeCss": {
       "types": "./src/themeCss.ts",
       "import": "./src/themeCss.ts"
