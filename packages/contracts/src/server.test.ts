@@ -7,6 +7,7 @@ import {
   applyServerProviderDeltas,
   EnvironmentTheme,
   EnvironmentThemeFile,
+  EnvironmentThemeFileInput,
   OtlpEndpointCheckInput,
   resolveEnvironmentMachineKind,
   ServerConfigProviderStatusDeltasPayload,
@@ -228,6 +229,15 @@ describe("environment theme look", () => {
   it("still reads a theme file written before looks existed", () => {
     const file = { name: "Old", appearance: "light", canvas: "#ffffff", accent: "#0066ff" };
     expect(decodeFile(file).look).toBeUndefined();
+  });
+
+  it("names a look setting it does not know when reading what a person or agent wrote", () => {
+    const base = { name: "T", appearance: "dark", canvas: "#000000", accent: "#33ff66" };
+    const decodeInput = Schema.decodeUnknownSync(EnvironmentThemeFileInput);
+    expect(() => decodeInput({ ...base, look: { radius: 0, rounded: 4 } })).toThrow(/rounded/);
+    expect(decodeInput({ ...base, look: { radius: 0 } }).look).toEqual({ radius: 0 });
+    // A newer server's look still reads on a client that does not know the new setting.
+    expect(decodeFile({ ...base, look: { radius: 0, rounded: 4 } }).look).toEqual({ radius: 0 });
   });
 
   it("rejects a look value outside its range", () => {

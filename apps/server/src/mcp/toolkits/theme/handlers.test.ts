@@ -5,6 +5,7 @@ import {
   ProviderInstanceId,
   ThreadId,
 } from "@t3tools/contracts";
+import { AiError } from "effect/ai";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Stream from "effect/Stream";
@@ -76,6 +77,15 @@ it.effect("applies the theme through the service and reports a refusal as an inv
         themeId: "agent-look",
         published: true,
       });
+      // fork: an unknown look setting is refused, naming it, instead of dropped
+      const misspelled = yield* call({
+        themeId: "agent-look",
+        theme: { ...AGENT_THEME, look: { radius: 0, rounded: 4 } },
+      } as never);
+      const refusal = yield* (misspelled as Effect.Effect<never, AiError.AiError>).pipe(
+        Effect.flip,
+      );
+      expect(refusal.message).toContain('"rounded" is not a supported look setting');
       expect(yield* call({ themeId: "grove" })).toEqual({ themeId: "grove", published: false });
       expect(yield* call({ appearance: "dark" })).toEqual({
         appearance: "dark",

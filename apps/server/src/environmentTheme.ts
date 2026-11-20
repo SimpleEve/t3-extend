@@ -8,6 +8,7 @@ import {
   EnvironmentTheme,
   type ServerSettingsError,
   EnvironmentThemeFile,
+  EnvironmentThemeFileInput, // fork: theme look
   EnvironmentThemeId,
   environmentThemeFileHasColors,
   THEME_CSS_MAX_LENGTH,
@@ -40,7 +41,7 @@ import * as ServerConfig from "./config.ts";
 import * as ServerSettings from "./serverSettings.ts";
 
 const decodeEnvironmentThemeFileJsonExit = Schema.decodeUnknownExit(
-  Schema.fromJsonString(EnvironmentThemeFile),
+  Schema.fromJsonString(EnvironmentThemeFileInput), // fork: theme look
 );
 const encodeEnvironmentThemeFileJson = Schema.encodeEffect(
   fromJsonStringPretty(EnvironmentThemeFile),

@@ -1,6 +1,7 @@
 import {
   DefaultThemePreference,
   EnvironmentThemeFile,
+  EnvironmentThemeFileInput, // fork: theme look
   EnvironmentThemeId,
   OrchestratorMcpFailure,
 } from "@t3tools/contracts";
@@ -59,7 +60,7 @@ const ThemeSetTool = Tool.make("t3_theme_set", {
     "Restyle T3 Code itself, only when the user asks. With `theme`, publish it as `themeId` (same id updates it) and switch this server's web app and this machine's desktop app to it, not remote desktop apps. Without `theme`, switch to a built-in or published `themeId`. `theme.look` sets fonts, corner radius, density, shadow, chat width and panel glass. `appearance` sets light, dark, or system mode. Live full-access or default caller thread only.",
   parameters: Schema.Struct({
     themeId: Schema.optionalKey(EnvironmentThemeId),
-    theme: Schema.optionalKey(EnvironmentThemeFile),
+    theme: Schema.optionalKey(EnvironmentThemeFileInput), // fork: theme look
     appearance: Schema.optionalKey(Appearance),
   }),
   success: Schema.Struct({

@@ -48,6 +48,23 @@ export const ThemeLook = Schema.Struct({
 });
 export type ThemeLook = typeof ThemeLook.Type;
 
+/**
+ * `ThemeLook` for what a person or an agent wrote. Anything this version does not know is an
+ * error that names it, because a typo that is silently dropped looks like a theme that does
+ * nothing. Reading what a server sends stays on `ThemeLook`, so a newer server's look still
+ * loads on an older client.
+ */
+export const ThemeLookInput = Schema.StructWithRest(ThemeLook, [
+  Schema.Record(Schema.String, Schema.Unknown),
+]).check(
+  Schema.makeFilter((look) => {
+    const unknown = Object.keys(look).filter((key) => !isThemeLookKey(key));
+    return unknown.length === 0
+      ? undefined
+      : `${unknown.map((key) => JSON.stringify(key)).join(", ")} ${unknown.length === 1 ? "is" : "are"} not a supported look setting. Supported: ${THEME_LOOK_KEYS.join(", ")}.`;
+  }),
+);
+
 export const THEME_LOOK_KEYS = [
   "fontUi",
   "fontCode",
@@ -58,3 +75,6 @@ export const THEME_LOOK_KEYS = [
   "glass",
 ] as const satisfies ReadonlyArray<keyof ThemeLook>;
 export type ThemeLookKey = (typeof THEME_LOOK_KEYS)[number];
+function isThemeLookKey(key: string): key is ThemeLookKey {
+  return (THEME_LOOK_KEYS as ReadonlyArray<string>).includes(key);
+}

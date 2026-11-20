@@ -168,6 +168,8 @@ it.layer(NodeServices.layer)("environment theme", (it) => {
           '{ "name": "X", "appearance": "dark", "canvas": "{{ background }}", "accent": "#7aa2f7" }',
         "malformed.json": "{ not json",
         "no-colors.json": '{ "name": "Empty", "appearance": "dark" }',
+        // fork: a typo in a look must not be dropped silently
+        "typo-look.json": JSON.stringify({ ...NIGHTFALL_THEME, look: { radius: 0, rounded: 4 } }),
         "Bad Name.json": encodeThemeFile(SHARED_THEME),
         "ocean.json": encodeThemeFile(SHARED_THEME),
         "dark.json": encodeThemeFile(SHARED_THEME),
