@@ -2,6 +2,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "lucide-react";
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 
+import { useAppModalPeek } from "../fork/appModalPeek"; // fork: peek behind the modal
 import { useNativeTitlebarHeight } from "../lib/windowControlsOverlay";
 import { useT } from "../hooks/useT";
 import { useCloseAppModal } from "./sidebar/mainAppLocation";
@@ -15,6 +16,9 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
  * backdrop returns to the page that opened it. Keyboard guards that skip dialogs exempt
  * `[data-app-modal]`, because these pages own their shortcuts.
  */
+// fork: hidden while peeking; pointer-events none so the page behind receives the clicks
+const PEEKING_STYLE: CSSProperties = { visibility: "hidden", pointerEvents: "none" };
+
 export function AppRouteModal({ label, children }: { label: string; children: ReactNode }) {
   const closeAppModal = useCloseAppModal();
   const [open, setOpen] = useState(true);
@@ -27,10 +31,12 @@ export function AppRouteModal({ label, children }: { label: string; children: Re
   // buttons). Below sm the modal fills the window and leaves that strip empty; up to lg its
   // 1.5rem inset is shorter than the strip.
   const nativeTitlebarHeight = useNativeTitlebarHeight();
+  const peeking = useAppModalPeek((state) => state.peeking); // fork: peek behind the modal
 
   return (
     <DialogPrimitive.Root
       open={open}
+      modal={!peeking} // fork: a modal makes the page behind inert, so peeking turns it off
       // Portaled layers outside this tree (toasts, Clerk, confirm dialogs) are not backdrop presses.
       disablePointerDismissal
       onOpenChange={(nextOpen, eventDetails) => {
@@ -56,10 +62,11 @@ export function AppRouteModal({ label, children }: { label: string; children: Re
       }}
     >
       <DialogPrimitive.Portal>
-        <DialogBackdrop />
+        <DialogBackdrop style={peeking ? PEEKING_STYLE : undefined} />
         <DialogPrimitive.Viewport
           style={
             {
+              ...(peeking ? PEEKING_STYLE : {}), // fork: peek behind the modal
               "--app-modal-titlebar-height": `${nativeTitlebarHeight}px`,
               "--app-modal-top-inset": `max(env(safe-area-inset-top), ${nativeTitlebarHeight}px)`,
               "--app-modal-sm-top": `max(1.5rem, ${nativeTitlebarHeight}px)`,

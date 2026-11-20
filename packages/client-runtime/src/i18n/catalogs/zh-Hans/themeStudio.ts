@@ -26,6 +26,7 @@ export default {
   "Hover to preview, click to use. Changing a preset afterwards saves your version as a scheme and leaves the preset as it is.":
     "悬停预览，点击使用。之后再改预设，会把你的版本存成一个方案，预设本身不变。",
   "{name} (mine)": "{name}（我的）",
+  "{name} copy": "{name}（副本）",
   "Based on {name}": "基于{name}",
   "Saves as a new scheme": "将存为新方案",
   "Saves as a new scheme based on {name}": "将存为基于{name}的新方案",
@@ -49,8 +50,7 @@ export default {
   "Editing the light palette": "正在编辑浅色配色",
   "All colors": "全部颜色",
   "Pick from the app": "从界面取色",
-  "Click anything in the app to find its color. Esc cancels.":
-    "点一下界面上的任意位置，找到它用的颜色。按 Esc 取消。",
+  "Click an area of the app to pick its color. Esc cancels.": "点击界面区域取色，Esc 取消",
   "Highlighting where “{label}” is used.": "正在高亮“{label}”用在哪里。",
   "theme color|Input": "输入框",
   "Every role the app paints, grouped. Changing one also updates the roles that follow it.":

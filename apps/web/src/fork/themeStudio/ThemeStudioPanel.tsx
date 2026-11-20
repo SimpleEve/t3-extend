@@ -49,6 +49,7 @@ import { HalvesNotice } from "./HalvesNotice";
 import { MySchemes } from "./MySchemes";
 import { CODE_FONT_OPTIONS, THEME_PRESET_SEEDS, UI_FONT_OPTIONS } from "./presets";
 import { overriddenSettings, schemeColors, studioThemeKind } from "./studio.logic";
+import { PickHint } from "./PickHint";
 import { useColorInspector } from "./useColorInspector";
 import { useThemeStudio } from "./useThemeStudio";
 
@@ -321,7 +322,8 @@ function ColorsSection({ studio }: { studio: Studio }) {
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls the page to the row a color picked from the app belongs to, once it has rendered
   useEffect(() => {
-    if (selection === null) return;
+    // While picking the page is hidden; it is scrolled once it is back.
+    if (selection === null || inspector.inspecting) return;
     const frame = requestAnimationFrame(() => {
       document
         .querySelector(`#theme-studio-colors [data-theme-color-role="${selection.role}"]`)
@@ -333,7 +335,7 @@ function ColorsSection({ studio }: { studio: Studio }) {
         });
     });
     return () => cancelAnimationFrame(frame);
-  }, [selection]);
+  }, [selection, inspector.inspecting]);
 
   return (
     <SettingsSection
@@ -359,11 +361,8 @@ function ColorsSection({ studio }: { studio: Studio }) {
         </div>
       }
     >
-      {inspector.inspecting ? (
-        <p className="px-3 pt-3 text-xs text-muted-foreground sm:px-4">
-          {t("Click anything in the app to find its color. Esc cancels.")}
-        </p>
-      ) : selectedRole !== null ? (
+      {inspector.inspecting ? <PickHint /> : null}
+      {!inspector.inspecting && selectedRole !== null ? (
         <div className="flex items-center gap-2 px-3 pt-3 sm:px-4">
           <p className="min-w-0 flex-1 text-xs text-muted-foreground">
             {t("Highlighting where “{label}” is used.", { label: selectedLabel })}

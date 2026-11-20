@@ -83,8 +83,9 @@ leaves the other alone. Picking a preset or **Reset theme to default** replaces 
 says so above the presets.
 
 **All colors** under **Colors** lists every color role the app paints. To find the color of a part
-of the app, choose **Pick from the app** and click that part: the studio opens **All colors** at the
-role it uses and highlights where the app uses it. **Esc** cancels. **My schemes** lists your
+of the app, choose **Pick from the app**. Settings hides for a moment so you can see the whole app; click
+that part and Settings comes back with **All colors** open at the role it uses, and where the app
+uses that color is highlighted. **Esc** cancels. **My schemes** lists your
 schemes: use, rename, export as JSON or delete one, or **Import** a T3 Code or VS Code theme.
 **Duplicate** on a theme card makes an independent copy to edit.
 

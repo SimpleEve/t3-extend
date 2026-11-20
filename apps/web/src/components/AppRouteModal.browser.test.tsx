@@ -3,6 +3,8 @@ import { page, userEvent } from "vite-plus/test/browser";
 
 import { render } from "../../test/render";
 import { useCommitOnBlur } from "../hooks/useCommitOnBlur";
+import { act } from "../../test/render";
+import { useAppModalPeek } from "../fork/appModalPeek"; // fork: peek behind the modal
 import { AppRouteModal } from "./AppRouteModal";
 
 vi.mock("./chat/GlobalVoiceInputIndicator", () => ({ GlobalVoiceInputIndicator: () => null }));
@@ -25,6 +27,38 @@ describe("AppRouteModal", () => {
     await userEvent.keyboard("{Escape}");
 
     expect(onCommit).toHaveBeenCalledWith("Keep titles short");
+  });
+
+  // fork: the theme studio's color picker hides the modal to pick from the page behind it
+  it("lets the page behind be used while it is peeked behind, and comes back as it was", async () => {
+    const onBehindClick = vi.fn();
+    await using _screen = await render(
+      <>
+        <button type="button" onClick={onBehindClick}>
+          behind
+        </button>
+        <AppRouteModal label="Settings">
+          <input aria-label="Draft" />
+        </AppRouteModal>
+      </>,
+      { router: "/settings/general" },
+    );
+    const settings = page.getByRole("dialog", { name: "Settings" });
+    await expect.element(settings).toBeVisible();
+    await page.getByRole("textbox", { name: "Draft" }).fill("kept");
+
+    // Hidden, not unmounted: the draft survives, and role queries skip what is hidden.
+    const popup = () => document.querySelector("[data-app-modal]");
+    await act(() => useAppModalPeek.getState().setPeeking(true));
+    expect(popup()).not.toBeNull();
+    expect(getComputedStyle(popup()!).visibility).toBe("hidden");
+    await page.getByRole("button", { name: "behind" }).click();
+    expect(onBehindClick).toHaveBeenCalledOnce();
+
+    await act(() => useAppModalPeek.getState().setPeeking(false));
+    expect(getComputedStyle(popup()!).visibility).toBe("visible");
+    await expect.element(settings).toBeVisible();
+    await expect.element(page.getByRole("textbox", { name: "Draft" })).toHaveValue("kept");
   });
 
   it("stays open when Esc belongs to a modal outside Base UI", async () => {

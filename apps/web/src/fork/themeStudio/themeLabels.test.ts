@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { getThemeDefinition } from "../../themePalette";
-import { themeDisplayLabel } from "./themeDisplayLabel";
+import { copyName, themeDisplayLabel } from "./themeDisplayLabel";
 
 describe("theme names in a language", () => {
   const t = (text: string) => `«${text}»`;
@@ -15,5 +15,14 @@ describe("theme names in a language", () => {
         t,
       ),
     ).toBe("Terminal");
+  });
+});
+
+describe("the name of a copy", () => {
+  it("puts the suffix through the translator and leaves the name itself alone", () => {
+    const t = (text: string, params?: Readonly<Record<string, string | number>>) =>
+      text === "{name} copy" ? `${params?.name}（副本）` : text;
+    expect(copyName("Paper (mine)", t)).toBe("Paper (mine)（副本）");
+    expect(copyName("纸张", t)).toBe("纸张（副本）");
   });
 });

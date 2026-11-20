@@ -50,7 +50,7 @@ import {
   useOpenThemeStudio,
 } from "../../fork/themeStudio/themeStudioStore"; // fork: theme studio
 import { STOCK_THEME_ID } from "../../fork/themeStudio/studio.logic"; // fork: theme studio
-import { themeDisplayLabel } from "../../fork/themeStudio/themeDisplayLabel"; // fork: theme studio
+import { copyName, themeDisplayLabel } from "../../fork/themeStudio/themeDisplayLabel"; // fork: theme studio
 import {
   STANDARD_THEME_CARDS,
   getThemeCardDefinition,
@@ -803,7 +803,7 @@ export function ThemeLibrary({
               openThemeEditor({
                 editingThemeId: null,
                 seedThemeId: STOCK_THEME_ID, // fork: copy the stock theme, not the one in use
-                seedName: `${standardTheme.label} copy`,
+                seedName: copyName(standardTheme.label, t), // fork: translated suffix
                 initialAppearance,
               })
             }
@@ -827,7 +827,7 @@ export function ThemeLibrary({
                 openThemeEditor({
                   editingThemeId: null,
                   seedThemeId: maintainerTheme.id,
-                  seedName: `${card.label} copy`, // fork: translated name
+                  seedName: copyName(card.label, t), // fork: translated name
                   initialAppearance,
                 })
               }
@@ -851,7 +851,7 @@ export function ThemeLibrary({
                 openThemeEditor({
                   editingThemeId: null,
                   seedThemeId: environmentTheme.id,
-                  seedName: `${environmentTheme.label} copy`,
+                  seedName: copyName(environmentTheme.label, t), // fork: translated suffix
                   initialAppearance,
                 })
               }
@@ -875,7 +875,7 @@ export function ThemeLibrary({
               openThemeEditor({
                 editingThemeId: null,
                 seedThemeId: customTheme.id,
-                seedName: `${customTheme.label} copy`,
+                seedName: copyName(customTheme.label, t), // fork: translated suffix
                 initialAppearance,
               })
             }

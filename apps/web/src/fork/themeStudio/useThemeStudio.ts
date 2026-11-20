@@ -5,7 +5,12 @@ import { useEffect, useRef, useState } from "react";
 
 import { useCustomThemes } from "../../hooks/useCustomThemes";
 import { useT } from "../../hooks/useT";
-import { readThemeHalvesRaw, refreshTheme, useTheme } from "../../hooks/useTheme";
+import {
+  readThemeHalvesRaw,
+  refreshTheme,
+  useTheme,
+  useThemeHalvesStored,
+} from "../../hooks/useTheme";
 import { themeServerEnvironmentThemesAtom } from "../../state/server";
 import {
   applyThemeColorPreview,
@@ -57,6 +62,7 @@ export function useThemeStudio() {
   const applied = getThemeDefinition(appliedId);
   const base = applied ?? stockDefinition();
 
+  const storedHalves = useThemeHalvesStored();
   // Light and dark set apart: the studio changes the half in use and leaves the other alone.
   const place = (themeId: string) => {
     const placement = placeTheme(readThemeHalvesRaw(), resolvedTheme, themeId);
@@ -64,7 +70,7 @@ export function useThemeStudio() {
       ? setThemeHalf(placement.appearance, placement.themeId)
       : setTheme(placement.themeId);
   };
-  const halvesInUse = placeTheme(readThemeHalvesRaw(), resolvedTheme, "").kind === "half";
+  const halvesInUse = placeTheme(storedHalves, resolvedTheme, "").kind === "half";
 
   const labelOf = (definition: ThemeDefinition) => themeDisplayLabel(definition, t);
   const mineLabel = (definition: ThemeDefinition) =>

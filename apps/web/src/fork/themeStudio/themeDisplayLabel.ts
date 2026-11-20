@@ -15,3 +15,11 @@ export function themeDisplayLabel(
     ? t(definition.label)
     : definition.label;
 }
+
+/** The default name of a copy. The theme's own name goes in as given; only the suffix is translated. */
+export function copyName(
+  name: string,
+  t: (text: string, params?: Readonly<Record<string, string | number>>) => string,
+): string {
+  return t("{name} copy", { name });
+}

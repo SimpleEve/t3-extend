@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useT } from "../../hooks/useT";
+import { useAppModalPeek } from "../appModalPeek";
 import {
   clearThemeInspectorHighlights,
   clearThemeInspectorHover,
@@ -16,7 +17,8 @@ import type { ThemeColorRole } from "../../themePalette";
 import { colorFamilyOfRole, locateColorRole } from "./colorFamilies";
 
 // fork: the "pick a color from the app" tool of the floating theme editor, in the studio. It
-// only finds the color role under the pointer; `themeInspector.ts` does the finding and skips
+// only finds the color role under the pointer, with the Settings modal hidden so that the whole app
+// can be picked from; `themeInspector.ts` does the finding and skips
 // anything inside an element marked `data-theme-editor-panel`, which the Colors section is.
 
 export type ColorSelection = Readonly<{
@@ -38,6 +40,13 @@ export function useColorInspector() {
     setInspecting(false);
     setSelection(null);
   };
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- hides the Settings modal while picking so the app behind it can be clicked, and brings it back when picking ends or this page goes away
+  useEffect(() => {
+    if (!inspecting) return;
+    useAppModalPeek.getState().setPeeking(true);
+    return () => useAppModalPeek.getState().setPeeking(false);
+  }, [inspecting]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- document pointer, click and key listeners that drive the pick-mode hover overlay
   useEffect(() => {
