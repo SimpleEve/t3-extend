@@ -175,8 +175,6 @@ export default {
   "Browser viewer could not start. Reconnect to try again.":
     "浏览器画面无法启动，请重新连接后再试。",
   "Browser viewer stopped. Reconnect to try again.": "浏览器画面已停止，请重新连接后再试。",
-  "The host's desktop window is not drawing this tab, usually because its screen is locked or asleep. Unlock the host, or open a new tab from the phone.":
-    "主机的桌面窗口没有绘制这个标签页，通常是因为屏幕已锁定或休眠。请解锁主机，或在手机上新开一个标签页。",
   "Browser viewer could not load. Reconnect to try again.":
     "浏览器画面无法加载，请重新连接后再试。",
   "This session can't open the browser stream. Reconnect to try again.":

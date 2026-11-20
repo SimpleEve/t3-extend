@@ -37,6 +37,8 @@ type BrowserPreviewRouteScreenProps = StaticScreenProps<{
   // fork: opens the new tab panel from the thread's entry.
   /** Opens the new tab panel first, even when the thread already has tabs. */
   readonly newTab?: string;
+  // fork: a tab that was just opened, which may not be in the tab list yet.
+  readonly opened?: string;
 }>;
 
 export function BrowserPreviewRouteScreen({ route }: BrowserPreviewRouteScreenProps) {
@@ -53,6 +55,7 @@ export function BrowserPreviewRouteScreen({ route }: BrowserPreviewRouteScreenPr
       initialTabId={route.params.tabId ?? null}
       // fork: new tab mode.
       startWithNewTab={route.params.newTab !== undefined}
+      awaitInitialTab={route.params.opened !== undefined}
       onClose={onClose}
     />
   );
@@ -77,12 +80,14 @@ function BrowserPreviewScreen({
   threadId,
   initialTabId,
   startWithNewTab,
+  awaitInitialTab,
   onClose,
 }: {
   readonly environmentId: EnvironmentId;
   readonly threadId: ThreadId;
   readonly initialTabId: string | null;
   readonly startWithNewTab: boolean;
+  readonly awaitInitialTab: boolean;
   readonly onClose: () => void;
 }) {
   const t = useT();
@@ -106,6 +111,7 @@ function BrowserPreviewScreen({
     tabs,
     initialTabId,
     startWithNewTab,
+    awaitInitialTab,
     onSelectedTabChange: () => setPictureInPicture(NO_PICTURE_IN_PICTURE),
     onClose,
   });

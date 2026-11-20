@@ -36,13 +36,17 @@ export function useBrowserTabSelection(input: {
   readonly tabs: ReadonlyArray<PreviewSessionSnapshot>;
   readonly initialTabId: string | null;
   readonly startWithNewTab: boolean;
+  /** `initialTabId` was just opened and may not be in `tabs` yet. */
+  readonly awaitInitialTab: boolean;
   readonly onSelectedTabChange: () => void;
   readonly onClose: () => void;
 }) {
   const t = useT();
   const { environmentId, threadId, tabs, onSelectedTabChange } = input;
   const [selection, setSelection] = useState(() =>
-    initialBrowserTabSelection(input.initialTabId, input.startWithNewTab),
+    input.awaitInitialTab && input.initialTabId !== null
+      ? openedBrowserTab(input.initialTabId, Date.now())
+      : initialBrowserTabSelection(input.initialTabId, input.startWithNewTab),
   );
   const update = (next: BrowserTabSelection) => {
     if (next === selection) return;

@@ -175,6 +175,10 @@ import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import { FONT_FAMILIES } from "../../lib/fontFamilies";
 import { scopedThreadKey } from "../../lib/scopedEntities";
 import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
+import { tryOpenExternalUrl } from "../../lib/openExternalUrl"; // fork: link choices
+import { linkChoiceTitle } from "../browser/linkChoiceTitle"; // fork: link choices
+import { linkChoices, linkTapChoice } from "../browser/linkChoices"; // fork: link choices
+import { useBuiltInBrowserLink } from "../browser/useBuiltInBrowserLink"; // fork: link choices
 import { downloadAndShareAttachment } from "../../lib/attachmentDownload";
 import { splitMarkdownDetails } from "../../lib/markdownDetails";
 import { markdownReferenceDefinitions, withReferenceDefinitions } from "../../lib/markdownDocument";
@@ -3013,6 +3017,10 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   const deviceType = useDeviceType();
   const duoColumns = useNativeWorkspaceColumnsSupported() && isDuoDevice(deviceType);
   const openPullRequest = useOpenPullRequest();
+  const builtInBrowser = useBuiltInBrowserLink({
+    environmentId: props.environmentId,
+    threadId: props.threadId,
+  }); // fork: a loopback link opens in the host's browser, not this phone's
   const navigation = useNavigation();
   const openLinkedThread = useOpenLinkedThread();
   // Recycling a row disposes its native audio player, so a started clip's row stays rendered.
@@ -3369,6 +3377,11 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
     }
 
     if (presentation.href) {
+      // fork: `localhost` in a link means the host, which this phone's own browser cannot reach.
+      if (linkTapChoice(presentation.href, builtInBrowser.available) === "built-in") {
+        void builtInBrowser.openLink(presentation.href);
+        return;
+      }
       if (/^https?:\/\//i.test(presentation.href) && isPdfFile({ name: presentation.href })) {
         openPreview(markdownLinkScope, {
           file: { kind: "pdf", uri: presentation.href, name: "Document.pdf" },
@@ -3426,9 +3439,23 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
         };
       }
       const target = resolveFileChipTarget(href, props.workspaceRoot);
-      return target ? fileChipMenu(target, t) : undefined;
+      if (target) return fileChipMenu(target, t);
+      // fork: a web link's long press offers the built-in browser, the system browser, or a copy.
+      return /^https?:\/\//i.test(href)
+        ? {
+            title: href,
+            actions: linkChoices(href, builtInBrowser.available).map((choice) => ({
+              id: `link-${choice}`,
+              title: linkChoiceTitle(choice, t),
+            })),
+          }
+        : undefined;
     },
     onFileContextMenuAction: (href, actionId, reply) => {
+      // fork: see the web link menu above.
+      if (actionId === "link-built-in") return void builtInBrowser.openLink(href);
+      if (actionId === "link-system") return void tryOpenExternalUrl(href, "markdown-link");
+      if (actionId === "link-copy") return copyTextWithHaptic(href);
       const skill = enrichedSkillReference(href, props.skills);
       if (skill) {
         const instructionsPath = enrichedSkillInstructionsPath(skill);
