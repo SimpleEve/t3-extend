@@ -28,7 +28,6 @@ export default {
   Listening: "监听中",
 
   "Open in built-in browser": "在内置浏览器打开",
-  "Open in system browser": "用系统浏览器打开",
   "The host's desktop window is not drawing this tab, usually because its screen is locked or asleep. Unlock the host, or open a new tab from the phone.":
     "主机的桌面窗口没有绘制这个标签页，通常是因为屏幕已锁定或休眠。请解锁主机，或在手机上新开一个标签页。",
 };
