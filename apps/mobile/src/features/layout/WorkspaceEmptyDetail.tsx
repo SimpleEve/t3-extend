@@ -16,6 +16,7 @@ export function WorkspaceEmptyDetail(props: {
 }) {
   const t = useT(); // fork: i18n
   const pullRequests = props.tab === "pullRequests";
+  const issues = props.tab === "issues";
   const settings = props.tab === "settings";
   if (props.tab === "usage") return <View className="flex-1 bg-screen" />;
   return (
@@ -57,18 +58,22 @@ export function WorkspaceEmptyDetail(props: {
                 ? t("Select a setting")
                 : pullRequests
                   ? t("Select a pull request")
-                  : t("Select a thread")}
+                  : issues
+                    ? t("Select an issue")
+                    : t("Select a thread")}
             </Text>
             <Text className="text-center text-base text-foreground-muted">
               {settings
                 ? t("Choose a page from the sidebar.")
                 : pullRequests
                   ? t("Choose a pull request from the sidebar to review it.")
-                  : Platform.OS === "android"
-                    ? t("Choose a thread from the sidebar or start a new thread.")
-                    : t("Choose a thread from the sidebar or start a new task.")}
+                  : issues
+                    ? t("Choose an issue from the sidebar to read it.")
+                    : Platform.OS === "android"
+                      ? t("Choose a thread from the sidebar or start a new thread.")
+                      : t("Choose a thread from the sidebar or start a new task.")}
             </Text>
-            {props.onStartNewTask && !pullRequests && !settings ? (
+            {props.onStartNewTask && !pullRequests && !issues && !settings ? (
               Platform.OS === "android" ? (
                 <NewThreadButton extended className="mt-2" onPress={props.onStartNewTask} />
               ) : (

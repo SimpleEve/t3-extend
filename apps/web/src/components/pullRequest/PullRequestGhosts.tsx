@@ -39,7 +39,7 @@ import {
 import { useT } from "~/hooks/useT";
 import { changeRequestTerm } from "./changeRequestTerm";
 
-function GhostBar({ className }: { className?: string | undefined }) {
+export function GhostBar({ className }: { className?: string | undefined }) {
   return <span aria-hidden className={cn("block h-3 rounded bg-muted-foreground/15", className)} />;
 }
 

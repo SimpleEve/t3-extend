@@ -130,7 +130,7 @@ class T3WorkspaceNavigationView(
   private val onTabSelected by EventDispatcher()
   private val onNewThread by EventDispatcher()
   private val onOverlayChange by EventDispatcher()
-  var tabs by mutableStateOf(listOf("threads", "pullRequests", "usage", "settings"))
+  var tabs by mutableStateOf(listOf("threads", "pullRequests", "issues", "usage", "settings"))
   // fork: i18n. JS sends the translated strings; the English defaults stay for an old bundle.
   var labels by mutableStateOf(emptyMap<String, String>())
   var selectedTab by mutableStateOf("threads")
@@ -424,6 +424,7 @@ class T3WorkspaceNavigationView(
   private fun tabTitle(tab: String) = when (tab) {
     "threads" -> label("threads", "Chats")
     "pullRequests" -> label("pullRequests", "Pulls")
+    "issues" -> label("issues", "Issues")
     "usage" -> label("usage", "Usage")
     else -> label("settings", "Settings")
   }
@@ -436,6 +437,7 @@ class T3WorkspaceNavigationView(
     when (tab) {
       "threads" -> R.drawable.t3_chats
       "pullRequests" -> R.drawable.t3_pull_requests
+      "issues" -> R.drawable.t3_issues
       "usage" -> R.drawable.t3_usage
       else -> R.drawable.t3_settings
     }

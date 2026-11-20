@@ -1547,6 +1547,13 @@ function parseThemeColorOverrides(value: unknown): ThemeColorOverrides {
   return overrides;
 }
 
+function parseThemeSeedColor(name: string, value: unknown): string {
+  if (typeof value !== "string" || !toCanonicalThemeColor(value)) {
+    throw new Error(`The theme's "${name}" must be a literal CSS color.`);
+  }
+  return value;
+}
+
 export function parseThemeFile(value: unknown): ThemeDefinition {
   if (!isRecord(value)) {
     throw new Error("Theme files must contain a JSON object.");
@@ -1588,7 +1595,14 @@ export function parseThemeFile(value: unknown): ThemeDefinition {
     throw new Error("A theme's basedOn must be a theme id."); // fork: theme look
   }
 
-  const fallback = getDefaultThemeColors(appearance);
+  const fallback =
+    value.canvas !== undefined && value.accent !== undefined
+      ? createVividThemeColors(
+          appearance,
+          parseThemeSeedColor("canvas", value.canvas),
+          parseThemeSeedColor("accent", value.accent),
+        )
+      : getDefaultThemeColors(appearance);
   const variants: Partial<Record<ThemeAppearance, ThemeColors>> = {};
   if (value.variants !== undefined) {
     if (!isRecord(value.variants)) throw new Error("Theme variants must be an object.");
@@ -1621,12 +1635,8 @@ export function parseThemeFile(value: unknown): ThemeDefinition {
   };
 }
 
-/**
- * The theme under another name, and so another id. It keeps everything a theme file carries
- * except the collection, which stays behind: updating a collection replaces every theme in it.
- */
-// fork: one copy function, so a field added to the file format cannot be dropped by one caller
-export function copyThemeNamed(theme: ThemeDefinition, name: string): ThemeDefinition {
+/** A copy of `theme` under `name` and the id it derives. The collection stays behind. */
+export function renameTheme(theme: ThemeDefinition, name: string): ThemeDefinition {
   return parseThemeFile({
     version: THEME_FILE_VERSION,
     name,
@@ -1635,8 +1645,8 @@ export function copyThemeNamed(theme: ThemeDefinition, name: string): ThemeDefin
     ...(theme.variants ? { variants: theme.variants } : {}),
     ...(theme.managed ? { managed: true } : {}),
     ...(theme.css ? { css: theme.css } : {}),
-    ...(theme.look ? { look: theme.look } : {}),
-    ...(theme.basedOn ? { basedOn: theme.basedOn } : {}),
+    ...(theme.look ? { look: theme.look } : {}), // fork: theme look
+    ...(theme.basedOn ? { basedOn: theme.basedOn } : {}), // fork: theme look
   });
 }
 

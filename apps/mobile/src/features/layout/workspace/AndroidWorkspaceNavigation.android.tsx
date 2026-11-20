@@ -129,6 +129,7 @@ export function AndroidWorkspaceNavigation(props: {
           threads: t("Chats"),
           pullRequests: t("Pulls"),
           pullRequestsExpanded: t("Pull Requests"),
+          issues: t("Issues"),
           usage: t("Usage"),
           settings: t("Settings"),
           newThread: t("New thread"),

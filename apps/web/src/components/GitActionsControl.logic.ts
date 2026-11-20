@@ -1,9 +1,11 @@
 import type {
   GitRunStackedActionResult,
   GitStackedAction,
+  PullRequestChangeBreakdown,
   ReviewDiffPreviewSource,
   VcsStatusResult,
 } from "@t3tools/contracts";
+import { summarizeChangedFiles } from "@t3tools/shared/changedFileKind";
 import { looksLikeTemporaryWorktreeBranch } from "@t3tools/shared/git"; // fork: display-only predicate
 import type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
 import { translatorFor, type Translator, type UiLocale } from "@t3tools/client-runtime/i18n";
@@ -558,6 +560,8 @@ export type ChangesLineTotals = {
   readonly deletions: number;
   /** Ref the counts compare against; `null` means they are uncommitted changes against HEAD. */
   readonly baseRef: string | null;
+  /** `null` when the selected totals carry no per-file stats. */
+  readonly breakdown: PullRequestChangeBreakdown;
 };
 
 // `branchChanges ?? workingTree` treats `{0,0}` as present, so a zero branch total hid a dirty
@@ -575,7 +579,12 @@ export function resolveChangesTotals(
       insertions += file.additions;
       deletions += file.deletions;
     }
-    return { insertions, deletions, baseRef: branchPreview.baseRef };
+    return {
+      insertions,
+      deletions,
+      baseRef: branchPreview.baseRef,
+      breakdown: summarizeChangedFiles(branchPreview.files),
+    };
   }
   if (!status) return null;
   const branch = status.branchChanges;
@@ -590,5 +599,15 @@ export function resolveChangesTotals(
     insertions: selected.insertions,
     deletions: selected.deletions,
     baseRef: selected.baseRef,
+    breakdown:
+      selected === tree
+        ? summarizeChangedFiles(
+            tree.files.map((file) => ({
+              path: file.path,
+              additions: file.insertions,
+              deletions: file.deletions,
+            })),
+          )
+        : null,
   };
 }

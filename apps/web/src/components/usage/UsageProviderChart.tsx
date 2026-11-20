@@ -527,42 +527,45 @@ export function UsageProviderChart({
         </span>
       </div>
 
-      {/* The plot and its axes are hover-only; this carries the same figures for screen readers. */}
-      <table className="sr-only">
-        <caption>
-          {t("{resolution} {metric} by provider", {
-            resolution: resolution === "hour" ? t("Hourly") : t("Daily"),
-            metric: metric === "tokens" ? t("processed tokens") : t("cost"),
-          })}
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">{resolution === "hour" ? t("Hour") : t("Day")}</th>
-            {providers.map((provider) => (
-              <th key={provider} scope="col">
-                {PROVIDER_PRESENTATION[provider].label}
-              </th>
-            ))}
-            {providers.length > 1 ? <th scope="col">{t("Total")}</th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {periods.map((period, index) => {
-            const column = columns[index];
-            return (
-              <tr key={period}>
-                <th scope="row">{formatTooltipPeriod(period)}</th>
-                {providers.map((provider) => (
-                  <td key={provider}>
-                    {format(column?.bands.find((band) => band.provider === provider)?.value ?? 0)}
-                  </td>
-                ))}
-                {providers.length > 1 ? <td>{format(column?.total ?? 0)}</td> : null}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      {/* The plot and its axes are hover-only; this carries the same figures for screen readers.
+          sr-only sits on a wrapper: Firefox does not clip a table's caption by the table's own box. */}
+      <div className="sr-only">
+        <table>
+          <caption>
+            {t("{resolution} {metric} by provider", {
+              resolution: resolution === "hour" ? t("Hourly") : t("Daily"),
+              metric: metric === "tokens" ? t("processed tokens") : t("cost"),
+            })}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">{resolution === "hour" ? t("Hour") : t("Day")}</th>
+              {providers.map((provider) => (
+                <th key={provider} scope="col">
+                  {PROVIDER_PRESENTATION[provider].label}
+                </th>
+              ))}
+              {providers.length > 1 ? <th scope="col">{t("Total")}</th> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {periods.map((period, index) => {
+              const column = columns[index];
+              return (
+                <tr key={period}>
+                  <th scope="row">{formatTooltipPeriod(period)}</th>
+                  {providers.map((provider) => (
+                    <td key={provider}>
+                      {format(column?.bands.find((band) => band.provider === provider)?.value ?? 0)}
+                    </td>
+                  ))}
+                  {providers.length > 1 ? <td>{format(column?.total ?? 0)}</td> : null}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

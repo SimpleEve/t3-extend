@@ -297,7 +297,7 @@ function useSettingsIndexSections(): SettingsListSection[] {
         serverPage(
           "SettingsEnvironmentSourceControl",
           "arrow.triangle.branch",
-          t("Source control"),
+          t("Source control & issues"),
         ),
         serverPage("SettingsWorktrees", "square.on.square", t("Worktrees")),
       ],
