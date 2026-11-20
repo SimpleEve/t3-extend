@@ -5,10 +5,11 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  MousePointer2Icon,
   RotateCcwIcon,
   Undo2Icon,
 } from "lucide-react";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import { useT } from "../../hooks/useT";
 import { cn } from "../../lib/utils";
@@ -33,7 +34,6 @@ import {
   SettingsRow,
   SettingsSection,
 } from "../../components/settings/settingsLayout";
-import { THEME_EDITOR_ROLE_GROUPS } from "../../components/settings/ThemeEditorPanel";
 import { ThemeColorPicker } from "../../components/settings/ThemeColorPicker";
 import { ThemeCssEditor } from "../../components/settings/ThemeCssEditor";
 import {
@@ -44,10 +44,12 @@ import {
 import { ThemeWireframe } from "../../components/settings/ThemeWireframe";
 import { TypographySection } from "../../components/settings/TypographySettings";
 import { isThemeColor, themeColorToHex } from "../../themePalette";
+import { COLOR_GROUPS, colorFamilyOfRole, locateColorRole } from "./colorFamilies";
 import { HalvesNotice } from "./HalvesNotice";
 import { MySchemes } from "./MySchemes";
 import { CODE_FONT_OPTIONS, THEME_PRESET_SEEDS, UI_FONT_OPTIONS } from "./presets";
 import { overriddenSettings, schemeColors, studioThemeKind } from "./studio.logic";
+import { useColorInspector } from "./useColorInspector";
 import { useThemeStudio } from "./useThemeStudio";
 
 type Studio = ReturnType<typeof useThemeStudio>;
@@ -247,10 +249,13 @@ function ColorRow({
   studio,
   role,
   label,
+  selected,
 }: {
   studio: Studio;
   role: ThemeColorRole;
   label: string;
+  /** The row found by picking a color from the app. */
+  selected: boolean;
 }) {
   const t = useT();
   const colors = schemeColors(studio.working, studio.editAppearance) ?? studio.working.colors;
@@ -266,7 +271,13 @@ function ColorRow({
         : { ...current, [role]: next },
     );
   return (
-    <div className="flex min-h-11 min-w-0 items-center gap-2 px-3 py-1.5 sm:px-4">
+    <div
+      className={cn(
+        "flex min-h-11 min-w-0 items-center gap-2 px-3 py-1.5 sm:px-4",
+        selected && "bg-accent/30 ring-2 ring-inset ring-ring",
+      )}
+      data-theme-color-role={role}
+    >
       <span className="min-w-0 flex-1 truncate text-sm text-foreground">{label}</span>
       <ThemeColorPicker
         label={label}
@@ -291,27 +302,97 @@ function ColorRow({
 
 function ColorsSection({ studio }: { studio: Studio }) {
   const t = useT();
-  const [allOpen, setAllOpen] = useState(false);
+  const [allOpenByHand, setAllOpenByHand] = useState(false);
+  const inspector = useColorInspector();
+  const { selection } = inspector;
+  const selectedRole = selection?.role ?? null;
+  const allOpen =
+    allOpenByHand || (selectedRole !== null && locateColorRole(selectedRole).needsAllColors);
+  const family = selectedRole === null ? null : colorFamilyOfRole(selectedRole);
+  const selectedLabel =
+    selectedRole === null
+      ? ""
+      : selectedRole === "canvas"
+        ? t("Background")
+        : selectedRole === "accent"
+          ? t("Accent")
+          : t(family?.label ?? selectedRole, undefined, "theme color");
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls the page to the row a color picked from the app belongs to, once it has rendered
+  useEffect(() => {
+    if (selection === null) return;
+    const frame = requestAnimationFrame(() => {
+      document
+        .querySelector(`#theme-studio-colors [data-theme-color-role="${selection.role}"]`)
+        ?.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+            ? "auto"
+            : "smooth",
+          block: "center",
+        });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selection]);
+
   return (
     <SettingsSection
+      data-theme-editor-panel
       id="theme-studio-colors"
       title="Colors"
       headerAction={
-        <p className="text-xs text-muted-foreground">
-          {studio.editAppearance === "dark"
-            ? t("Editing the dark palette")
-            : t("Editing the light palette")}
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-muted-foreground">
+            {studio.editAppearance === "dark"
+              ? t("Editing the dark palette")
+              : t("Editing the light palette")}
+          </p>
+          <Button
+            aria-pressed={inspector.inspecting}
+            size="xs"
+            variant={inspector.inspecting ? "secondary" : "outline"}
+            onClick={inspector.inspecting ? inspector.clear : inspector.start}
+          >
+            <MousePointer2Icon />
+            {inspector.inspecting ? t("Cancel") : t("Pick from the app")}
+          </Button>
+        </div>
       }
     >
-      <ColorRow studio={studio} role="canvas" label={t("Background")} />
-      <ColorRow studio={studio} role="accent" label={t("Accent")} />
+      {inspector.inspecting ? (
+        <p className="px-3 pt-3 text-xs text-muted-foreground sm:px-4">
+          {t("Click anything in the app to find its color. Esc cancels.")}
+        </p>
+      ) : selectedRole !== null ? (
+        <div className="flex items-center gap-2 px-3 pt-3 sm:px-4">
+          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+            {t("Highlighting where “{label}” is used.", { label: selectedLabel })}
+          </p>
+          <Button size="xs" variant="ghost" onClick={inspector.clear}>
+            {t("Clear")}
+          </Button>
+        </div>
+      ) : null}
+      <ColorRow
+        studio={studio}
+        role="canvas"
+        label={t("Background")}
+        selected={selectedRole === "canvas"}
+      />
+      <ColorRow
+        studio={studio}
+        role="accent"
+        label={t("Accent")}
+        selected={selectedRole === "accent"}
+      />
       <div className="px-3 py-2 sm:px-4">
         <Button
           aria-expanded={allOpen}
           size="xs"
           variant="ghost"
-          onClick={() => setAllOpen(!allOpen)}
+          onClick={() => {
+            if (allOpen) inspector.clear();
+            setAllOpenByHand(!allOpen);
+          }}
         >
           {allOpen ? <ChevronDownIcon /> : <ChevronRightIcon />}
           {t("All colors")}
@@ -324,7 +405,7 @@ function ColorsSection({ studio }: { studio: Studio }) {
       </div>
       {allOpen ? (
         <div className="space-y-4 py-3">
-          {THEME_EDITOR_ROLE_GROUPS.map((group) => (
+          {COLOR_GROUPS.map((group) => (
             <div className="space-y-1" key={group.id}>
               <h4 className="px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:px-4">
                 {t(group.title)}
@@ -335,6 +416,7 @@ function ColorsSection({ studio }: { studio: Studio }) {
                   studio={studio}
                   role={family.role}
                   label={t(family.label, undefined, "theme color")}
+                  selected={selectedRole === family.role}
                 />
               ))}
             </div>

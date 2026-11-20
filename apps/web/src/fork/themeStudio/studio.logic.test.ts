@@ -17,6 +17,7 @@ import {
   withSchemeCss,
   withSchemeLook,
 } from "./studio.logic";
+import { locateColorRole } from "./colorFamilies";
 import { intentFromEditorSession } from "./themeStudioStore";
 
 const terminal = getThemeDefinition("studio-terminal")!;
@@ -232,5 +233,15 @@ describe("what kind of theme the header names", () => {
     expect(kind("imported")).toBe("scheme");
     expect(kind("agent-look")).toBe("published");
     expect(kind(STOCK_THEME_ID, true)).toBe("default");
+  });
+});
+
+describe("finding a color picked from the app", () => {
+  it("lands on the visible role of the family the role belongs to", () => {
+    // `chrome` follows the Background row, which is always shown.
+    expect(locateColorRole("chrome")).toEqual({ role: "canvas", needsAllColors: false });
+    expect(locateColorRole("accent")).toEqual({ role: "accent", needsAllColors: false });
+    // `toolbarBorder` follows the Border family, which sits under "All colors".
+    expect(locateColorRole("toolbarBorder")).toEqual({ role: "border", needsAllColors: true });
   });
 });

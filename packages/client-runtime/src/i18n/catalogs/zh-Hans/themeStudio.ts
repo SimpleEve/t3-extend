@@ -48,6 +48,10 @@ export default {
   "Editing the dark palette": "正在编辑深色配色",
   "Editing the light palette": "正在编辑浅色配色",
   "All colors": "全部颜色",
+  "Pick from the app": "从界面取色",
+  "Click anything in the app to find its color. Esc cancels.":
+    "点一下界面上的任意位置，找到它用的颜色。按 Esc 取消。",
+  "Highlighting where “{label}” is used.": "正在高亮“{label}”用在哪里。",
   "theme color|Input": "输入框",
   "Every role the app paints, grouped. Changing one also updates the roles that follow it.":
     "应用用到的每个颜色角色，已分组。改一个，跟随它的角色也会一起变。",

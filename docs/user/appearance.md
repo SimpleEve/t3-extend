@@ -78,7 +78,13 @@ Change anything about a preset and your version is saved as a scheme of your own
 and layout back to its preset. **Reset theme to default** goes back to the standard T3 theme without
 deleting your schemes. Picking another preset discards unsaved changes.
 
-**All colors** under **Colors** lists every color role the app paints. **My schemes** lists your
+If you set a different theme for light and dark in Appearance, the studio edits the one in use and
+leaves the other alone. Picking a preset or **Reset theme to default** replaces both, and the studio
+says so above the presets.
+
+**All colors** under **Colors** lists every color role the app paints. To find the color of a part
+of the app, choose **Pick from the app** and click that part: the studio opens **All colors** at the
+role it uses and highlights where the app uses it. **Esc** cancels. **My schemes** lists your
 schemes: use, rename, export as JSON or delete one, or **Import** a T3 Code or VS Code theme.
 **Duplicate** on a theme card makes an independent copy to edit.
 
@@ -182,7 +188,7 @@ the studio's **Fonts** and **Layout** sections set:
 }
 ```
 
-Every field is optional and a whole number: `radius` 0 to 24 (px), `density` 80 to 120 (% of normal
+Every field is optional, and the numeric fields are whole numbers: `radius` 0 to 24 (px), `density` 80 to 120 (% of normal
 spacing), `shadow` 0 to 200 (% of normal), `glass` 0 to 100 (% see-through, with a background
 image) and `chatWidth` `comfortable`, `wide` or `full`. Font names are separated by commas and may
 not contain `;`, `(`, `{` or `/`. Mobile ignores a look. A theme file with an out-of-range value is
