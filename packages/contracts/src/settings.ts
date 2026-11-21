@@ -956,6 +956,16 @@ export const AntigravitySettings = makeProviderSettingsSchema(
       }),
     ),
     // fork:
+    accountRotation: Schema.Boolean.pipe(
+      Schema.withDecodingDefault(Effect.succeed(false)),
+      Schema.annotateKey({
+        title: "Switch accounts when quota runs out",
+        description:
+          "For separate Google account sign-ins with more than one saved account. When a turn hits its usage limit, the next saved account takes over and the turn continues. Rotating accounts may breach Google's terms; you are responsible for that.",
+        providerSettingsForm: { control: "switch", clearWhenEmpty: "omit" },
+      }),
+    ),
+    // fork:
     networkProxy: TrimmedString.pipe(
       Schema.withDecodingDefault(Effect.succeed("")),
       Schema.annotateKey({
@@ -985,6 +995,7 @@ export const AntigravitySettings = makeProviderSettingsSchema(
       "apiKey",
       "gcpProject",
       "gcpLocation",
+      "accountRotation", // fork:
       "networkProxy", // fork:
       "binaryPath",
     ],

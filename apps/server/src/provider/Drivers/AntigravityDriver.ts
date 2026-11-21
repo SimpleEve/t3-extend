@@ -86,6 +86,7 @@ import {
 } from "../antigravityCliLogin.ts"; // fork:
 import { makeAntigravityUsageProbe } from "../antigravityUsageLimits.ts";
 import { makeAntigravityProxyDispatcher } from "../antigravityNetworkProxy.ts"; // fork:
+import { makeAntigravityAccountPool } from "../antigravityAccountPool.ts"; // fork:
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
 import * as ModelCatalog from "@t3tools/provider-core/server/ModelCatalog";
 import {
@@ -226,6 +227,15 @@ export const AntigravityDriver: ProviderDriver<
     ) {
       yield* rememberProfileLogin;
     }
+    // fork: several saved Google accounts, only for an instance that signs in on its own.
+    const accountPool =
+      !sharedLogin && auth.authMethod === "oauth-personal"
+        ? yield* makeAntigravityAccountPool(profileDirectory).pipe(
+            Effect.provideService(FileSystem.FileSystem, fileSystem),
+            Effect.provideService(Path.Path, path),
+            Effect.provideService(Digest.Digest, digest),
+          )
+        : undefined;
     for (const directory of [
       directories.runtimeTemp,
       path.join(profileDirectory, "antigravity-acp", "tmp"),
@@ -281,6 +291,16 @@ export const AntigravityDriver: ProviderDriver<
             }),
         ),
       );
+      // fork: with the old agy gone, the account that takes over is put in place before the new one starts.
+      if (accountPool) {
+        yield* accountPool
+          .ensureAvailable({ rotate: settings.accountRotation })
+          .pipe(
+            Effect.catch((cause) =>
+              Effect.logWarning("Could not prepare the Antigravity account.", { cause }),
+            ),
+          );
+      }
       const profile = yield* prepareAntigravityProfile({
         profileDirectory,
         baseEnv: processEnvironment,
@@ -469,6 +489,18 @@ export const AntigravityDriver: ProviderDriver<
       const { spawn } = yield* prepareSpawn(cwd, processEnvironment);
       const failed = (detail: string, cause?: unknown) =>
         new ProviderSetupError({ instanceId, operation: "start", detail, cause });
+      // fork: a sign-in adds an account. The current one is saved first so agy asks for Google again,
+      // and whatever `--login` left, or the saved account if it left nothing, is registered at the end.
+      if (accountPool) {
+        yield* accountPool.beginAdd.pipe(Effect.mapError((cause) => failed(cause.detail, cause)));
+        yield* Effect.addFinalizer(() =>
+          accountPool.settleAdd.pipe(
+            Effect.catch((cause) =>
+              Effect.logWarning("Could not save the Antigravity account.", { cause }),
+            ),
+          ),
+        );
+      }
       // Without a display it prints the link only, instead of opening a browser on this machine.
       const { DISPLAY: _display, WAYLAND_DISPLAY: _wayland, ...env } = spawn.env ?? {};
       const child = yield* spawner
