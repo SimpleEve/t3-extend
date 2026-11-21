@@ -26,6 +26,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { AntigravityAccounts } from "../../fork/AntigravityAccounts"; // fork:
 import { SettingsRow } from "./settingsLayout";
 import { RedactedSensitiveText } from "./RedactedSensitiveText";
 
@@ -175,346 +176,353 @@ export function ProviderAuthenticationSection({
   }
 
   return (
-    <SettingsRow
-      title={gt("Account")}
-      description={
-        signedIn && !active && provider.auth.email?.trim() ? (
-          <span>
-            <T>
-              Signed in as{" "}
-              <RedactedSensitiveText
-                key={provider.auth.email}
-                value={provider.auth.email}
-                ariaLabel={gt("Toggle account email visibility")}
-                revealTooltip={gt("Click to reveal email")}
-                hideTooltip={gt("Click to hide email")}
-                className="max-w-full truncate"
-              />
-            </T>
-          </span>
-        ) : (
-          <span role="status">{accountDescription}</span>
-        )
-      }
-      status={
-        statusMessage ? (
-          <p role="status" className="[overflow-wrap:anywhere]">
-            {statusMessage}
-          </p>
-        ) : undefined
-      }
-      control={
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          {!active && (auth?.methods?.length ?? 0) > 1 ? (
-            <Select
-              value={auth?.methods?.some((method) => method.id === methodId) ? methodId : ""}
-              disabled={disabled}
-              onValueChange={(value) => setMethodId(value ?? "")}
-            >
-              <SelectTrigger size="sm" aria-label={gt("Sign-in method")} className="w-44">
-                <SelectValue>
-                  {auth?.methods?.find((method) => method.id === methodId)?.name ??
-                    gt("Provider default")}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectPopup>
-                <SelectItem value="">
-                  <T>Provider default</T>
-                </SelectItem>
-                {auth?.methods?.map((method) => (
-                  <SelectItem key={method.id} value={method.id}>
-                    {method.name}
-                  </SelectItem>
-                ))}
-              </SelectPopup>
-            </Select>
-          ) : null}
-          {url ? (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={disabled}
-                onClick={() => void openBrowser()}
-              >
-                <T>Open browser</T>
-              </Button>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      aria-label={gt("Copy sign-in link")}
-                      size="icon-sm"
-                      variant="ghost-muted"
-                      disabled={disabled}
-                      onClick={() => {
-                        // Copy during the click to retain clipboard activation; consent must still be
-                        // recorded before use.
-                        const copied = writeTextToClipboard(url, {
-                          target: "Provider sign-in link",
-                          unavailableMessage: msg(
-                            "Clipboard API is unavailable while copying Provider sign-in link.",
-                          ),
-                          failureMessage: msg(
-                            "Failed to copy Provider sign-in link to the clipboard.",
-                          ),
-                        });
-                        void (async () => {
-                          await copied;
-                          if (interaction?.type === "browser" && interaction.requiresConsent)
-                            await send({ type: "browser", action: "accept" });
-                        })().catch(() => setError(gt("Could not copy the sign-in link.")));
-                      }}
-                    >
-                      <CopyIcon />
-                    </Button>
-                  }
-                />
-                <TooltipPopup>
-                  <T>Copy sign-in link</T>
-                </TooltipPopup>
-              </Tooltip>
-            </>
-          ) : null}
-          <>
-            {needsExternalSetup && provider.setup?.documentationUrl ? (
-              <Button
-                size="sm"
-                variant="outline"
-                render={
-                  <a href={provider.setup.documentationUrl} target="_blank" rel="noreferrer" />
-                }
-              >
-                <T>Open docs</T>
-              </Button>
-            ) : active && auth?.flowId ? (
-              <Button
-                size="sm"
-                variant="ghost-muted"
-                aria-label={gt("Cancel sign-in")}
-                disabled={disabled}
-                onClick={() =>
-                  void run(() =>
-                    cancel({ environmentId, input: { instanceId, flowId: auth.flowId! } }),
-                  )
-                }
-              >
-                <T>Cancel</T>
-              </Button>
-            ) : !active && !needsExternalSetup && provider.setup?.canAuthenticate !== false ? (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={disabled || !provider.enabled || !provider.installed || !auth}
-                onClick={() =>
-                  void run(() =>
-                    start({
-                      environmentId,
-                      input: {
-                        instanceId,
-                        ...(methodId && auth?.methods?.some((method) => method.id === methodId)
-                          ? { methodId }
-                          : {}),
-                      },
-                    }),
-                  )
-                }
-              >
-                {signedIn
-                  ? gt("Change account")
-                  : auth?.phase === "failed" || auth?.phase === "cancelled"
-                    ? usesCredentials
-                      ? gt("Retry connection")
-                      : gt("Retry sign-in")
-                    : usesCredentials
-                      ? gt("Connect")
-                      : gt("Sign in")}
-              </Button>
-            ) : null}
-            {!active && signedIn && (provider.auth.canLogout ?? provider.setup?.canAuthenticate) ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={disabled || !auth}
-                onClick={() => {
-                  void ensureLocalApi()
-                    .dialogs.confirm(
-                      gt(
-                        "Sign out of {provider} on {environment}? This stops running threads that share this sign-in. Thread history is kept.",
-                        {
-                          provider: provider.displayName ?? provider.driver,
-                          environment: environmentLabel,
-                        },
-                      ),
-                    )
-                    .then((confirmed) => {
-                      if (confirmed) void run(() => logout(target));
-                    });
-                }}
-              >
-                <T>Sign out</T>
-              </Button>
-            ) : null}
-          </>
-        </div>
-      }
-    >
-      {interaction?.type === "terminal" ||
-      interaction?.type === "credentials" ||
-      interaction?.type === "deviceCode" ||
-      (url && (interaction?.type === "browser" ? interaction.acceptsCallback : !interaction)) ||
-      error ||
-      query.error ? (
-        <>
-          {interaction?.type === "deviceCode" ? (
-            <p className="py-2 text-sm text-muted-foreground">
+    <>
+      <SettingsRow
+        title={gt("Account")}
+        description={
+          signedIn && !active && provider.auth.email?.trim() ? (
+            <span>
               <T>
-                Enter code{" "}
-                <code className="select-all font-mono text-foreground">
-                  <Var>{interaction.userCode}</Var>
-                </code>{" "}
-                in your browser.
+                Signed in as{" "}
+                <RedactedSensitiveText
+                  key={provider.auth.email}
+                  value={provider.auth.email}
+                  ariaLabel={gt("Toggle account email visibility")}
+                  revealTooltip={gt("Click to reveal email")}
+                  hideTooltip={gt("Click to hide email")}
+                  className="max-w-full truncate"
+                />
               </T>
+            </span>
+          ) : (
+            <span role="status">{accountDescription}</span>
+          )
+        }
+        status={
+          statusMessage ? (
+            <p role="status" className="[overflow-wrap:anywhere]">
+              {statusMessage}
             </p>
-          ) : null}
-          {interaction?.type === "terminal" ? (
-            <div className="py-2">
-              <Suspense
-                fallback={
-                  <p className="text-xs text-muted-foreground">
-                    <T>Loading sign-in terminal…</T>
-                  </p>
-                }
+          ) : undefined
+        }
+        control={
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            {!active && (auth?.methods?.length ?? 0) > 1 ? (
+              <Select
+                value={auth?.methods?.some((method) => method.id === methodId) ? methodId : ""}
+                disabled={disabled}
+                onValueChange={(value) => setMethodId(value ?? "")}
               >
-                <ProviderAuthTerminal
-                  key={`${auth?.flowId}:${interaction.id}`}
-                  output={interaction.output}
-                  outputOffset={interaction.outputOffset}
-                  onResponse={(response) => {
-                    if (readOnly || !auth?.flowId) return;
-                    for (
-                      let offset = 0;
-                      offset < Math.max(1, response.data.length);
-                      offset += 4_096
-                    ) {
-                      terminalQueue.current.push({
-                        instanceId,
-                        flowId: auth.flowId,
-                        interactionId: interaction.id,
-                        response: {
-                          ...response,
-                          data: response.data.slice(offset, offset + 4_096),
-                        },
-                      });
+                <SelectTrigger size="sm" aria-label={gt("Sign-in method")} className="w-44">
+                  <SelectValue>
+                    {auth?.methods?.find((method) => method.id === methodId)?.name ??
+                      gt("Provider default")}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectPopup>
+                  <SelectItem value="">
+                    <T>Provider default</T>
+                  </SelectItem>
+                  {auth?.methods?.map((method) => (
+                    <SelectItem key={method.id} value={method.id}>
+                      {method.name}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            ) : null}
+            {url ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={() => void openBrowser()}
+                >
+                  <T>Open browser</T>
+                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        aria-label={gt("Copy sign-in link")}
+                        size="icon-sm"
+                        variant="ghost-muted"
+                        disabled={disabled}
+                        onClick={() => {
+                          // Copy during the click to retain clipboard activation; consent must still be
+                          // recorded before use.
+                          const copied = writeTextToClipboard(url, {
+                            target: "Provider sign-in link",
+                            unavailableMessage: msg(
+                              "Clipboard API is unavailable while copying Provider sign-in link.",
+                            ),
+                            failureMessage: msg(
+                              "Failed to copy Provider sign-in link to the clipboard.",
+                            ),
+                          });
+                          void (async () => {
+                            await copied;
+                            if (interaction?.type === "browser" && interaction.requiresConsent)
+                              await send({ type: "browser", action: "accept" });
+                          })().catch(() => setError(gt("Could not copy the sign-in link.")));
+                        }}
+                      >
+                        <CopyIcon />
+                      </Button>
                     }
-                    if (terminalSending.current) return;
-                    terminalSending.current = true;
-                    void (async () => {
-                      while (terminalQueue.current.length > 0) {
-                        const input = terminalQueue.current.shift()!;
-                        const result = await respond({ environmentId, input });
-                        if (result._tag !== "Success") {
-                          terminalQueue.current = [];
-                          if (!isAtomCommandInterrupted(result))
-                            setError(gt("The provider sign-in terminal is no longer available."));
-                          break;
-                        }
-                      }
-                    })()
-                      .catch(() => {
-                        terminalQueue.current = [];
-                        setError(gt("Could not send input to the provider sign-in terminal."));
-                      })
-                      .finally(() => {
-                        terminalSending.current = false;
+                  />
+                  <TooltipPopup>
+                    <T>Copy sign-in link</T>
+                  </TooltipPopup>
+                </Tooltip>
+              </>
+            ) : null}
+            <>
+              {needsExternalSetup && provider.setup?.documentationUrl ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  render={
+                    <a href={provider.setup.documentationUrl} target="_blank" rel="noreferrer" />
+                  }
+                >
+                  <T>Open docs</T>
+                </Button>
+              ) : active && auth?.flowId ? (
+                <Button
+                  size="sm"
+                  variant="ghost-muted"
+                  aria-label={gt("Cancel sign-in")}
+                  disabled={disabled}
+                  onClick={() =>
+                    void run(() =>
+                      cancel({ environmentId, input: { instanceId, flowId: auth.flowId! } }),
+                    )
+                  }
+                >
+                  <T>Cancel</T>
+                </Button>
+              ) : !active && !needsExternalSetup && provider.setup?.canAuthenticate !== false ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={disabled || !provider.enabled || !provider.installed || !auth}
+                  onClick={() =>
+                    void run(() =>
+                      start({
+                        environmentId,
+                        input: {
+                          instanceId,
+                          ...(methodId && auth?.methods?.some((method) => method.id === methodId)
+                            ? { methodId }
+                            : {}),
+                        },
+                      }),
+                    )
+                  }
+                >
+                  {signedIn
+                    ? gt("Change account")
+                    : auth?.phase === "failed" || auth?.phase === "cancelled"
+                      ? usesCredentials
+                        ? gt("Retry connection")
+                        : gt("Retry sign-in")
+                      : usesCredentials
+                        ? gt("Connect")
+                        : gt("Sign in")}
+                </Button>
+              ) : null}
+              {!active &&
+              signedIn &&
+              (provider.auth.canLogout ?? provider.setup?.canAuthenticate) ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={disabled || !auth}
+                  onClick={() => {
+                    void ensureLocalApi()
+                      .dialogs.confirm(
+                        gt(
+                          "Sign out of {provider} on {environment}? This stops running threads that share this sign-in. Thread history is kept.",
+                          {
+                            provider: provider.displayName ?? provider.driver,
+                            environment: environmentLabel,
+                          },
+                        ),
+                      )
+                      .then((confirmed) => {
+                        if (confirmed) void run(() => logout(target));
                       });
                   }}
-                />
-              </Suspense>
-            </div>
-          ) : null}
-          {interaction?.type === "credentials" ? (
-            <form
-              className="grid gap-2 py-2 text-sm leading-normal"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void send({ type: "credentials", values }).then((sent) => {
-                  if (sent) setDraft({ id: "", values: {} });
-                });
-              }}
-            >
-              {interaction.fields.map((field) => (
-                <label key={field.name} className="grid gap-1">
-                  {field.label}
+                >
+                  <T>Sign out</T>
+                </Button>
+              ) : null}
+            </>
+          </div>
+        }
+      >
+        {interaction?.type === "terminal" ||
+        interaction?.type === "credentials" ||
+        interaction?.type === "deviceCode" ||
+        (url && (interaction?.type === "browser" ? interaction.acceptsCallback : !interaction)) ||
+        error ||
+        query.error ? (
+          <>
+            {interaction?.type === "deviceCode" ? (
+              <p className="py-2 text-sm text-muted-foreground">
+                <T>
+                  Enter code{" "}
+                  <code className="select-all font-mono text-foreground">
+                    <Var>{interaction.userCode}</Var>
+                  </code>{" "}
+                  in your browser.
+                </T>
+              </p>
+            ) : null}
+            {interaction?.type === "terminal" ? (
+              <div className="py-2">
+                <Suspense
+                  fallback={
+                    <p className="text-xs text-muted-foreground">
+                      <T>Loading sign-in terminal…</T>
+                    </p>
+                  }
+                >
+                  <ProviderAuthTerminal
+                    key={`${auth?.flowId}:${interaction.id}`}
+                    output={interaction.output}
+                    outputOffset={interaction.outputOffset}
+                    onResponse={(response) => {
+                      if (readOnly || !auth?.flowId) return;
+                      for (
+                        let offset = 0;
+                        offset < Math.max(1, response.data.length);
+                        offset += 4_096
+                      ) {
+                        terminalQueue.current.push({
+                          instanceId,
+                          flowId: auth.flowId,
+                          interactionId: interaction.id,
+                          response: {
+                            ...response,
+                            data: response.data.slice(offset, offset + 4_096),
+                          },
+                        });
+                      }
+                      if (terminalSending.current) return;
+                      terminalSending.current = true;
+                      void (async () => {
+                        while (terminalQueue.current.length > 0) {
+                          const input = terminalQueue.current.shift()!;
+                          const result = await respond({ environmentId, input });
+                          if (result._tag !== "Success") {
+                            terminalQueue.current = [];
+                            if (!isAtomCommandInterrupted(result))
+                              setError(gt("The provider sign-in terminal is no longer available."));
+                            break;
+                          }
+                        }
+                      })()
+                        .catch(() => {
+                          terminalQueue.current = [];
+                          setError(gt("Could not send input to the provider sign-in terminal."));
+                        })
+                        .finally(() => {
+                          terminalSending.current = false;
+                        });
+                    }}
+                  />
+                </Suspense>
+              </div>
+            ) : null}
+            {interaction?.type === "credentials" ? (
+              <form
+                className="grid gap-2 py-2 text-sm leading-normal"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void send({ type: "credentials", values }).then((sent) => {
+                    if (sent) setDraft({ id: "", values: {} });
+                  });
+                }}
+              >
+                {interaction.fields.map((field) => (
+                  <label key={field.name} className="grid gap-1">
+                    {field.label}
+                    <Input
+                      size="sm"
+                      type={field.secret ? "password" : "text"}
+                      autoComplete="off"
+                      value={values[field.name] ?? ""}
+                      disabled={disabled}
+                      maxLength={16_384}
+                      onChange={(event) => updateDraft(field.name, event.target.value)}
+                    />
+                  </label>
+                ))}
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant="outline"
+                  className="w-fit"
+                  disabled={disabled}
+                >
+                  <T>Connect</T>
+                </Button>
+              </form>
+            ) : null}
+            {url &&
+            (interaction?.type === "browser" ? interaction.acceptsCallback : !interaction) ? (
+              <form
+                className="grid gap-2 py-2 text-sm leading-normal"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!auth?.flowId || !values.callback?.trim()) return;
+                  void run(() =>
+                    complete({
+                      environmentId,
+                      input: { instanceId, flowId: auth.flowId!, callbackUrl: values.callback! },
+                    }),
+                  ).then((sent) => {
+                    if (sent) setDraft({ id: "", values: {} });
+                  });
+                }}
+              >
+                <label className="grid gap-1">
+                  <T>If the final localhost page does not load, paste its full URL here.</T>
                   <Input
                     size="sm"
-                    type={field.secret ? "password" : "text"}
+                    id={`provider-callback-${instanceId}`}
+                    type="url"
                     autoComplete="off"
-                    value={values[field.name] ?? ""}
+                    value={values.callback ?? ""}
                     disabled={disabled}
                     maxLength={16_384}
-                    onChange={(event) => updateDraft(field.name, event.target.value)}
+                    onChange={(event) => updateDraft("callback", event.target.value)}
                   />
                 </label>
-              ))}
-              <Button
-                type="submit"
-                size="sm"
-                variant="outline"
-                className="w-fit"
-                disabled={disabled}
-              >
-                <T>Connect</T>
-              </Button>
-            </form>
-          ) : null}
-          {url && (interaction?.type === "browser" ? interaction.acceptsCallback : !interaction) ? (
-            <form
-              className="grid gap-2 py-2 text-sm leading-normal"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!auth?.flowId || !values.callback?.trim()) return;
-                void run(() =>
-                  complete({
-                    environmentId,
-                    input: { instanceId, flowId: auth.flowId!, callbackUrl: values.callback! },
-                  }),
-                ).then((sent) => {
-                  if (sent) setDraft({ id: "", values: {} });
-                });
-              }}
-            >
-              <label className="grid gap-1">
-                <T>If the final localhost page does not load, paste its full URL here.</T>
-                <Input
+                <Button
+                  type="submit"
                   size="sm"
-                  id={`provider-callback-${instanceId}`}
-                  type="url"
-                  autoComplete="off"
-                  value={values.callback ?? ""}
-                  disabled={disabled}
-                  maxLength={16_384}
-                  onChange={(event) => updateDraft("callback", event.target.value)}
-                />
-              </label>
-              <Button
-                type="submit"
-                size="sm"
-                variant="outline"
-                className="w-fit"
-                disabled={disabled || !values.callback?.trim()}
-              >
-                <T>Continue</T>
-              </Button>
-            </form>
-          ) : null}
-          {error || query.error ? (
-            <p role="alert" className="py-2 text-xs text-destructive">
-              {error ?? query.error}
-            </p>
-          ) : null}
-        </>
-      ) : null}
-    </SettingsRow>
+                  variant="outline"
+                  className="w-fit"
+                  disabled={disabled || !values.callback?.trim()}
+                >
+                  <T>Continue</T>
+                </Button>
+              </form>
+            ) : null}
+            {error || query.error ? (
+              <p role="alert" className="py-2 text-xs text-destructive">
+                {error ?? query.error}
+              </p>
+            ) : null}
+          </>
+        ) : null}
+      </SettingsRow>
+      {/* fork: the saved accounts of a separate Antigravity sign-in */}
+      <AntigravityAccounts environmentId={environmentId} provider={provider} readOnly={readOnly} />
+    </>
   );
 }

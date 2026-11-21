@@ -671,6 +671,10 @@
       "types": "./src/providerClients.ts",
       "default": "./src/providerClients.ts"
     },
+    "./fork/antigravityAccounts/*": {
+      "types": "./src/fork/antigravityAccounts/*.ts",
+      "default": "./src/fork/antigravityAccounts/*.ts"
+    },
     "./fork/deviceKeys/*": {
       "types": "./src/fork/deviceKeys/*.ts",
       "default": "./src/fork/deviceKeys/*.ts"

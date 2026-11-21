@@ -1,4 +1,5 @@
 import type { Catalog } from "../../translate.ts";
+import antigravityAccounts from "./antigravityAccounts.ts"; // fork: Antigravity saved accounts
 import appearance from "./appearance.ts";
 import clientErrors from "./clientErrors.ts";
 import chat from "./chat.ts";
@@ -33,6 +34,7 @@ import workspace from "./workspace.ts";
 // One file per area so parallel translation work rarely touches the same file.
 // A key in two areas must translate the same; the catalog test rejects conflicts.
 export const ZH_HANS_AREAS: Readonly<Record<string, Catalog>> = {
+  antigravityAccounts, // fork: Antigravity saved accounts
   appearance,
   chat,
   clientErrors,
