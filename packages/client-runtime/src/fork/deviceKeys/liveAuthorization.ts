@@ -342,7 +342,7 @@ export const makeDeviceKeyAuthorization = (
   const prepare: DeviceKeyAuthorizationShape["prepare"] = Effect.fn("deviceKeys.prepare")(
     function* (input) {
       const { descriptor } = yield* resolveRoute(input);
-      const metadata = deps.clientMetadata?.();
+      const metadata = input.clientMetadata ?? deps.clientMetadata?.();
       routes.set(input.expectedEnvironmentId, input);
       const open = (session: Session) =>
         resolveRemoteDpopWebSocketConnectionUrl({

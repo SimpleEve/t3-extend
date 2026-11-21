@@ -1,7 +1,7 @@
 // fork: the only way a `t3x-device` environment gets a session (design Q10, 3.13). The default
 // implementation refuses everything, so a runtime that forgot to provide a real one blocks the
 // connection instead of falling back to the official relay or to a bearer token.
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { AuthClientPresentationMetadata, EnvironmentId } from "@t3tools/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
@@ -55,7 +55,10 @@ export interface DeviceRoute {
 export interface DeviceKeyAuthorizationShape {
   /** A session and socket URL for one route to the computer. Never falls back to anything. */
   readonly prepare: (
-    input: DeviceRoute,
+    input: DeviceRoute & {
+      /** Sent with the socket so the server can tell a phone from the host's desktop window. */
+      readonly clientMetadata?: AuthClientPresentationMetadata;
+    },
   ) => Effect.Effect<AuthorizedRemoteEnvironment, ConnectionAttemptError>;
   readonly authorizeHttp: (
     input: Pick<DeviceRoute, "expectedEnvironmentId" | "httpBaseUrl"> & {

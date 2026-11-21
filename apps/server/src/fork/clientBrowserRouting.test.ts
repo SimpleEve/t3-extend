@@ -15,8 +15,12 @@ describe("withClientBrowserRouting", () => {
     expect(withClientBrowserRouting("desktop", serverTab)).toEqual(serverTab);
   });
 
-  it("leaves a client that reports no surface unchanged", () => {
-    expect(withClientBrowserRouting(undefined, serverTab)).toEqual(serverTab);
+  // An installed phone that connects with a device key reports no surface.
+  it("opens a server tab headless for a client that reports no surface", () => {
+    expect(withClientBrowserRouting(undefined, serverTab)).toEqual({
+      ...serverTab,
+      headless: true,
+    });
   });
 
   it.each([undefined, "desktop" as const])(

@@ -413,11 +413,13 @@ describe("ConnectionResolver: t3x-device", () => {
 
   it.effect("stamps what the device authorization returns and nothing else", () =>
     Effect.gen(function* () {
+      let surface: string | undefined;
       const prepared = yield* prepareWith(
         catalogEntry(deviceTarget, Option.some(deviceProfile("t3x-device"))),
         {
-          prepare: (input) =>
-            Effect.succeed({
+          prepare: (input) => {
+            surface = input.clientMetadata?.surface;
+            return Effect.succeed({
               environmentId: ENVIRONMENT_ID,
               label: "Mac",
               httpBaseUrl: input.httpBaseUrl,
@@ -435,11 +437,14 @@ describe("ConnectionResolver: t3x-device", () => {
                 orchestrationProtocolVersion: ORCHESTRATION_PROTOCOL_VERSION,
                 capabilities: { repositoryIdentity: true },
               },
-            } as never),
+            } as never);
+          },
         },
       );
       expect(prepared.authorizer).toBe("t3x-device");
       expect(prepared.target).toBe(deviceTarget);
+      // fork: the server keeps a streamed client's browser tabs off the host's desktop window.
+      expect(surface).toBe("web");
       expect(prepared.httpAuthorization).toMatchObject({ _tag: "Dpop" });
     }),
   );
