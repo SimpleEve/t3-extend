@@ -1,3 +1,4 @@
+import { FORK_SYSTEM_NOTICES } from "@t3tools/shared/forkNotices";
 import { describe, expect, it } from "vite-plus/test";
 
 import { ZH_HANS_AREAS } from "./catalogs/zh-Hans/index.ts";
@@ -88,6 +89,11 @@ describe("zh-Hans catalog", () => {
       return placeholderNames(source).join() !== placeholderNames(value).join();
     });
     expect(mismatched).toEqual([]);
+  });
+
+  it("has a Chinese sentence for every system notice the server words in English", () => {
+    const keys = new Set(entries.map(([key]) => key));
+    expect([...FORK_SYSTEM_NOTICES].filter((notice) => !keys.has(notice))).toEqual([]);
   });
 
   it("uses no em dash, which the copy lint rejects", () => {

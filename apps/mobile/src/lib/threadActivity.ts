@@ -638,7 +638,7 @@ function itemSummary(
   toolPresentation: T3McpToolPresentation | null,
   resolve: MessageResolver,
 ): string {
-  if (item.type === "notification") return item.summary;
+  if (item.type === "notification") return translateForkNotice(item.summary); // fork: the server words a few of these itself
   if (item.type === "system_notice") return translateForkNotice(item.message); // fork: only notices T3 Extend words itself
   if (item.type === "compaction") return contextCompactionLabel(item, resolve);
   const title =

@@ -1110,6 +1110,8 @@ export default {
     "点击放大或恢复适应窗口。双指捏合或按住 Ctrl 滚动可缩放，滚动或拖动可平移。按 Enter 切换缩放，按加号或减号缩放，按 0 适应窗口。",
   "omp did not offer a session-wide approval, so this request was approved once only.":
     "omp 没有提供本会话授权，这次只批准了一次。",
+  "Background activity updated": "后台活动有更新",
+  "Resumed thread": "已恢复对话",
   "Unable to drag file": "无法拖动文件",
   "Include all files": "包含所有文件",
   "Include {path}": "包含 {path}",

@@ -6,4 +6,12 @@
 export const SESSION_UNAVAILABLE_NOTICE =
   "omp did not offer a session-wide approval, so this request was approved once only.";
 
-export const FORK_SYSTEM_NOTICES: ReadonlySet<string> = new Set([SESSION_UNAVAILABLE_NOTICE]);
+/** Summaries the server writes into the `notification` items that wake or resume a thread. */
+const BACKGROUND_ACTIVITY_NOTICE = "Background activity updated";
+const RESUMED_THREAD_NOTICE = "Resumed thread";
+
+export const FORK_SYSTEM_NOTICES: ReadonlySet<string> = new Set([
+  SESSION_UNAVAILABLE_NOTICE,
+  BACKGROUND_ACTIVITY_NOTICE,
+  RESUMED_THREAD_NOTICE,
+]);

@@ -150,7 +150,9 @@ export function workEntryDisplayLabel(
   workspaceRoot: string | undefined,
   resolve: MessageResolver = m,
 ) {
-  if (entry.itemType === "system_notice") return translateForkNotice(entry.label); // fork: only notices T3 Extend words itself
+  // fork: only notices T3 Extend words itself, and the few notification summaries the server writes
+  if (entry.itemType === "system_notice" || entry.itemType === "notification")
+    return translateForkNotice(entry.label);
   if (entry.itemType === "reasoning" || entry.tone === "thinking") {
     const thought = entry.detail?.trim().replace(/\s+/g, " ");
     return thought || entry.label;
