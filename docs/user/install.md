@@ -111,6 +111,34 @@ for Macs with Apple silicon.
 To skip step 2, run `xattr -d com.apple.quarantine "/Applications/T3 Extend (Beta).app"` in
 Terminal before opening the app.
 
+### T3 Extend on Windows
+
+<!-- fork: T3 Extend only. Not part of upstream T3 Code. -->
+
+The Windows installer is `T3-Extend-<version>-x64.exe` on the
+[T3 Extend releases page](https://github.com/SimpleEve/t3-extend/releases). It is
+for 64-bit Windows on Intel or AMD processors; there is no build for Windows on
+Arm. Next to it, `T3-Extend-<version>-x64.exe.sha256` holds the file's SHA-256, which
+`Get-FileHash .\T3-Extend-<version>-x64.exe` in PowerShell should match.
+
+The installer is not signed: there is no Windows code-signing certificate behind
+T3 Extend. Windows therefore warns about it:
+
+1. Run the installer. SmartScreen shows **Windows protected your PC** and names
+   the publisher as unknown. Choose **More info**, then **Run anyway**. Only do
+   this for a file you downloaded from the releases page above.
+2. The installer sets up **T3 Extend (Beta)** and starts it.
+
+If Windows blocks the installer with no **Run anyway** button, Smart App Control is
+on. It refuses every unsigned program. Turn it off under **Windows Security → App &
+browser control → Smart App Control settings**; once off, Windows does not let you
+turn it back on without reinstalling Windows.
+
+T3 Extend installs beside official T3 Code: it has its own install folder, Start
+menu entry, entry in **Installed apps**, `t3extend://` links, data folders
+(`%APPDATA%\t3extend` and `%USERPROFILE%\.t3extend`), and background-service name.
+The app does not update itself; install a newer `.exe` over the old one to upgrade.
+
 ### T3 Extend command line
 
 <!-- fork: T3 Extend only. Not part of upstream T3 Code. -->

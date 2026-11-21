@@ -11,6 +11,8 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeUtil from "node:util";
 
+import * as HostProcess from "./HostProcess.ts";
+
 import {
   type FrpArchive,
   FRP_VERSION,
@@ -146,10 +148,15 @@ export const fetchFrpc = async (input: {
     const unpacked = NodePath.join(workDir, "unpacked");
     await NodeFSP.mkdir(unpacked);
     // Only the one member we want is unpacked: nothing else in the archive is ever written to disk.
-    // Archive member names use "/" on every platform. On Windows `tar` is bsdtar, which reads zip too.
+    // Archive member names use "/" on every platform. Windows ships bsdtar, which reads zip too; it is
+    // named by path because a Git for Windows shell puts its GNU tar, which cannot, first on PATH.
     const member = `${frpArchiveDirectory(entry)}/${entry.executable}`;
+    const tar =
+      HostProcess.Platform.defaultValue() === "win32"
+        ? NodePath.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe")
+        : "tar";
     try {
-      await execFile("tar", ["-xf", archivePath, "-C", unpacked, member], { windowsHide: true });
+      await execFile(tar, ["-xf", archivePath, "-C", unpacked, member], { windowsHide: true });
     } catch (cause) {
       throw new FrpFetchError(
         "extract-failed",

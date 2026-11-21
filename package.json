@@ -32,6 +32,7 @@
     "check:changed": "node scripts/check-changed.ts",
     "fork:dist:android": "node scripts/fork-build-android-release.ts",
     "fork:dist:mac": "node scripts/fork-dist-mac.ts",
+    "fork:dist:win": "node scripts/fork-dist-win.ts",
     "fork:fetch-frp": "node scripts/fork-fetch-frp.ts",
     "fork:guard": "node scripts/fork-identity-guard.ts",
     "fork:i18n-sync": "node scripts/fork-i18n-sync.ts",
