@@ -84,11 +84,12 @@ export interface AntigravityAccountPool {
   readonly markExhausted: (resetAt?: number) => Effect.Effect<AntigravityRotationPlan>;
   /**
    * Run before agy starts. Always restores the current account if a sign-in was cut short; with
-   * `rotate`, also moves to the first usable account when the current one is spent.
+   * `rotate`, also moves to the first usable account when the current one is spent. True when the
+   * file agy reads now holds a different account than before.
    */
   readonly ensureAvailable: (options: {
     readonly rotate: boolean;
-  }) => Effect.Effect<void, AntigravityAccountPoolError>;
+  }) => Effect.Effect<boolean, AntigravityAccountPoolError>;
 }
 
 interface Identity {
@@ -361,16 +362,20 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
         if (current === undefined) {
           // A sign-in that never finished left no current file: bring the last account back.
           if (state.currentId !== null && state.order.includes(state.currentId)) {
-            yield* install(state.currentId).pipe(Effect.ignore);
+            return yield* install(state.currentId).pipe(
+              Effect.as(true),
+              Effect.orElseSucceed(() => false),
+            );
           }
-          return;
+          return false;
         }
-        if (!rotate || exhaustedAt(state, current.id, now) === null) return;
+        if (!rotate || exhaustedAt(state, current.id, now) === null) return false;
         const captured = yield* captureCurrent(state);
         const next = nextUsable(captured.state, current.id, now);
-        if (next === undefined) return;
+        if (next === undefined) return false;
         yield* install(next);
         yield* writeState(pruned({ ...captured.state, currentId: next }, now));
+        return true;
       }),
     );
 

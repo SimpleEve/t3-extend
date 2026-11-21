@@ -87,6 +87,7 @@ import {
 import { makeAntigravityUsageProbe } from "../antigravityUsageLimits.ts";
 import { makeAntigravityProxyDispatcher } from "../antigravityNetworkProxy.ts"; // fork:
 import { makeAntigravityAccountPool } from "../antigravityAccountPool.ts"; // fork:
+import { makeAntigravityUsageLimitRecovery } from "../antigravityAccountRotation.ts"; // fork:
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
 import * as ModelCatalog from "@t3tools/provider-core/server/ModelCatalog";
 import {
@@ -293,13 +294,17 @@ export const AntigravityDriver: ProviderDriver<
       );
       // fork: with the old agy gone, the account that takes over is put in place before the new one starts.
       if (accountPool) {
-        yield* accountPool
+        const swapped = yield* accountPool
           .ensureAvailable({ rotate: settings.accountRotation })
           .pipe(
             Effect.catch((cause) =>
-              Effect.logWarning("Could not prepare the Antigravity account.", { cause }),
+              Effect.logWarning("Could not prepare the Antigravity account.", { cause }).pipe(
+                Effect.as(false),
+              ),
             ),
           );
+        // The quota on screen belonged to the account that was just replaced.
+        if (swapped) yield* Effect.suspend(() => provider.onSignedIn);
       }
       const profile = yield* prepareAntigravityProfile({
         profileDirectory,
@@ -707,6 +712,10 @@ export const AntigravityDriver: ProviderDriver<
         ),
       ),
       profileDirectory,
+      // fork: only with the setting on, and only for an instance that has several accounts to use.
+      ...(accountPool && settings.accountRotation
+        ? { recoverFromUsageLimit: makeAntigravityUsageLimitRecovery(accountPool) }
+        : {}),
       onSessionStarted: (started, cwd) =>
         provider.onSessionStarted(started, cwd).pipe(Effect.andThen(authFlow.onSignedInElsewhere)),
       onSessionEvent: (event, cwd) => {
