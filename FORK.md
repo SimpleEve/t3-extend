@@ -193,7 +193,7 @@ macOS 打包版的设置 > 维护 > "后台运行" 有一个开关"在后台保�
 
 做法：只共享登录，不共享 gemini home。设置里加了 `loginSource`（设置 > provider > Antigravity > Login source），三个值：
 
-- `auto`（默认）：**默认实例**（实例 id 就是 `antigravity`）在 profile 里从没独立登录过时用 CLI 登录；额外实例一律独立登录。“独立登录过”看两样东西，任何一样在就算：`antigravity-acp/acp_token.json`，或 `antigravity-acp/login-source` 标记（内容只有 `profile`，不含凭据）。标记在驱动创建时看到 token、或在 T3 里独立登录成功时写下（`markAntigravityProfileLogin`），之后 token 被删（退出登录）也不消失，所以重启或重建驱动不会悄悄换成钥匙串里的另一个账号。读不出来（权限、IO 错误）按“用过”处理。想换回 CLI 登录就显式选 `cli`。
+- `auto`（默认）：**默认实例**（实例 id 就是 `antigravity`）在 profile 里从没独立登录过时用 CLI 登录；额外实例一律独立登录。“独立登录过”看三样东西，任何一样在就算：profile 自己的 token（旧运行时写 `antigravity-acp/acp_token.json`，1.5 CLI 写 `antigravity-acp/antigravity-oauth-token`，见 `antigravityProfileTokenExists`），或 `antigravity-acp/login-source` 标记（内容只有 `profile`，不含凭据）。标记在驱动创建时看到 token、或在 T3 里独立登录成功时写下（`markAntigravityProfileLogin`），之后 token 被删（退出登录）也不消失，所以重启或重建驱动不会悄悄换成钥匙串里的另一个账号。读不出来（权限、IO 错误）按“用过”处理。想换回 CLI 登录就显式选 `cli`。
 
   **旧版本已经导入的实例**：旧导入没有把 provider 实例记进 `fork_t3code_import_map`，唯一的痕迹是 `fork_t3code_import_runs.summary_json` 里 `attention` 的 `provider-credential-imported` 通知，`subject` 是导入的实例 id（用 `, ` 连接）。选运行时一次性迁移：`T3CodeImport` 构造时（服务启动，`ensureImportTables` 之后）读出所有这样的 id（`importedProviderInstanceIds`），对设置里 driver 是 `antigravity` 且还没有 `loginSource` 的写成 `profile`，之后因为已有 `loginSource` 不会重复动。没有这条记录的实例（Extend 里自己建的，包括这台机器的默认实例）不动，仍走 CLI。局限：记录只在导入完整结束时写入，中途中断的导入没有；已经在 Extend 里被删掉又用同一个 id 自建的实例会被误固定一次（改成 `cli` 即可）。
 

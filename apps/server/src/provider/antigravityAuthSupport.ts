@@ -130,20 +130,40 @@ export function resolveAntigravityLoginSource(input: {
 }
 
 const PROFILE_LOGIN_MARKER = "login-source";
+// fork: older runtimes wrote acp_token.json; the 1.5 CLI writes antigravity-oauth-token instead.
+const PROFILE_TOKEN_FILES = ["acp_token.json", "antigravity-oauth-token"];
+
+// Untraced: the named callers carry the span.
+const anyProfileFile = Effect.fnUntraced(function* (
+  profileDirectory: string,
+  names: readonly string[],
+  unreadable: boolean,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const acpDirectory = path.join(profileDirectory, "antigravity-acp");
+  for (const name of names) {
+    const found = yield* fs
+      .exists(path.join(acpDirectory, name))
+      .pipe(Effect.orElseSucceed(() => unreadable));
+    if (found) return true;
+  }
+  return false;
+});
+
+/** A sign-in token of the profile's own, written by any agy runtime T3 supports. */
+export const antigravityProfileTokenExists = (profileDirectory: string, unreadable = false) =>
+  anyProfileFile(profileDirectory, PROFILE_TOKEN_FILES, unreadable);
 
 /** The token, or the marker left once one existed. A profile that cannot be read counts as used. */
 export const antigravityProfileLoginUsed = Effect.fn("antigravityProfileLoginUsed")(function* (
   profileDirectory: string,
 ) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const acpDirectory = path.join(profileDirectory, "antigravity-acp");
-  for (const name of ["acp_token.json", PROFILE_LOGIN_MARKER]) {
-    if (yield* fs.exists(path.join(acpDirectory, name)).pipe(Effect.orElseSucceed(() => true))) {
-      return true;
-    }
-  }
-  return false;
+  return yield* anyProfileFile(
+    profileDirectory,
+    [...PROFILE_TOKEN_FILES, PROFILE_LOGIN_MARKER],
+    true,
+  );
 });
 
 /** Records that this profile holds its own sign-in. Never holds a credential; best effort. */

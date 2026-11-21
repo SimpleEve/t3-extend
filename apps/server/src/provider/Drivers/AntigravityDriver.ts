@@ -49,6 +49,7 @@ import {
   antigravityAuthLabel,
   antigravityAuthUsesBrowser,
   antigravityProfileLoginUsed,
+  antigravityProfileTokenExists, // fork:
   buildAntigravityAcpSpawnInput,
   isAntigravitySignInRequiredError,
   markAntigravityProfileLogin,
@@ -216,9 +217,10 @@ export const AntigravityDriver: ProviderDriver<
     if (
       !sharedLogin &&
       antigravityAuthUsesBrowser(auth.authMethod) &&
-      (yield* fileSystem
-        .exists(path.join(profileDirectory, "antigravity-acp", "acp_token.json"))
-        .pipe(Effect.orElseSucceed(() => false)))
+      (yield* antigravityProfileTokenExists(profileDirectory).pipe(
+        Effect.provideService(FileSystem.FileSystem, fileSystem),
+        Effect.provideService(Path.Path, path),
+      ))
     ) {
       yield* rememberProfileLogin;
     }
@@ -633,9 +635,10 @@ export const AntigravityDriver: ProviderDriver<
         ? { silentSignIn: Effect.suspend(() => silentSignIn) }
         : antigravityAuthUsesBrowser(auth.authMethod)
           ? {
-              storedSignIn: fileSystem
-                .exists(path.join(profileDirectory, "antigravity-acp", "acp_token.json"))
-                .pipe(Effect.orElseSucceed(() => true)),
+              storedSignIn: antigravityProfileTokenExists(profileDirectory, true).pipe(
+                Effect.provideService(FileSystem.FileSystem, fileSystem),
+                Effect.provideService(Path.Path, path),
+              ),
             }
           : {}),
       auth: { type: auth.authMethod, label: antigravityAuthLabel(auth.authMethod) },
