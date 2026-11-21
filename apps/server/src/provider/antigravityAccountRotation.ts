@@ -47,10 +47,18 @@ export const antigravityServerAccounts = (pool: Pick<AntigravityAccountPool, "li
  */
 export const makeAntigravityUsageLimitRecovery =
   (pool: Pick<AntigravityAccountPool, "markExhausted" | "list">) =>
-  (failure: OrchestrationV2ProviderFailure) =>
+  (failure: OrchestrationV2ProviderFailure, turn?: { readonly promptSentAt: number | null }) =>
     Effect.gen(function* () {
       const parsed = failure.resetAt ? Date.parse(failure.resetAt) : Number.NaN;
-      const plan = yield* pool.markExhausted(Number.isFinite(parsed) ? parsed : undefined);
+      const plan = yield* pool.markExhausted(
+        Number.isFinite(parsed) ? parsed : undefined,
+        turn?.promptSentAt ?? undefined,
+      );
+      if (plan._tag === "Moved") {
+        return {
+          notice: `This Antigravity instance had already switched to ${maskAntigravityEmail(plan.to.email)} after a usage limit. Continued this turn on it.`,
+        };
+      }
       if (plan._tag === "Rotate") {
         return {
           notice: `${maskAntigravityEmail(plan.from.email)} used its Antigravity quota (resets ${resetLabel(plan.from.resetAt)}). Switched to ${maskAntigravityEmail(plan.to.email)} and continued this turn.`,

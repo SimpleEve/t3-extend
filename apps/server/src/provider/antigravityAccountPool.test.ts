@@ -347,6 +347,56 @@ describe("Antigravity account pool rotation", () => {
     }).pipe(Effect.scoped, Effect.provide(layer)),
   );
 
+  it.effect(
+    "a thread that failed before another switched accounts does not spend the new one",
+    () =>
+      Effect.gen(function* () {
+        yield* TestClock.setTime(1_000_000);
+        const { pool, agyWrites, addAccount, readCurrent } = yield* fixture();
+        yield* agyWrites(token("a@example.com"));
+        yield* addAccount("b@example.com");
+        yield* pool.select((yield* pool.list)[0]!.id);
+        yield* TestClock.adjust(1);
+        // Two threads on a send a prompt; both come back over a's limit.
+        const sentAt = 1_000_001;
+        yield* TestClock.adjust(1);
+        const first = yield* pool.markExhausted(1_000_000 + HOUR, sentAt);
+        expect(first._tag).toBe("Rotate");
+        yield* pool.ensureAvailable({ rotate: true });
+        expect(yield* readCurrent()).toBe(token("b@example.com"));
+        yield* TestClock.adjust(1);
+        const second = yield* pool.markExhausted(1_000_000 + HOUR, sentAt);
+        expect(second).toEqual({ _tag: "Moved", to: { email: "b@example.com" } });
+        expect((yield* pool.list).map((account) => account.exhaustedUntil)).toEqual([
+          1_000_000 + HOUR,
+          null,
+        ]);
+        // A prompt sent on b after the switch does spend b.
+        expect((yield* pool.markExhausted(1_000_000 + HOUR, 1_000_004))._tag).toBe("AllExhausted");
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
+  it.effect("ignores state entries that are not account ids", () =>
+    Effect.gen(function* () {
+      const { pool, agyWrites, fs, path, acp } = yield* fixture();
+      yield* agyWrites(token("a@example.com"));
+      yield* pool.markExhausted();
+      const outside = path.join(acp, "..", "outside");
+      yield* fs.makeDirectory(outside, { recursive: true });
+      yield* fs.writeFileString(
+        path.join(outside, "antigravity-oauth-token"),
+        token("outside@example.com"),
+      );
+      const statePath = path.join(acp, "accounts", "state.json");
+      const state = JSON.parse(yield* fs.readFileString(statePath));
+      yield* fs.writeFileString(
+        statePath,
+        JSON.stringify({ ...state, order: [...state.order, "../../outside"] }),
+      );
+      expect(emails(yield* pool.list)).toEqual(["a@example.com"]);
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
   it.effect("has no account to rotate for an instance that is signed out", () =>
     Effect.gen(function* () {
       const { pool } = yield* fixture();

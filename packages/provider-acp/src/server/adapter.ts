@@ -676,6 +676,7 @@ export interface AcpAdapterV2Flavor {
    */
   readonly recoverFromUsageLimit?: (
     failure: OrchestrationV2ProviderFailure,
+    turn: { readonly promptSentAt: number | null },
   ) => Effect.Effect<
     { readonly notice: string } | { readonly failure: OrchestrationV2ProviderFailure } | undefined
   >;
@@ -9058,7 +9059,9 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                     context.accountRetries < ACP_MAX_ACCOUNT_RETRIES &&
                     !hasSurvivingBackgroundWork(context)
                   ) {
-                    const recovery = yield* flavor.recoverFromUsageLimit(hiddenFailure.failure);
+                    const recovery = yield* flavor.recoverFromUsageLimit(hiddenFailure.failure, {
+                      promptSentAt: context.promptSentAt,
+                    });
                     if (recovery !== undefined && "notice" in recovery) {
                       context.accountRetries += 1;
                       // The agent is replaced, so nothing it still owes this turn can arrive.

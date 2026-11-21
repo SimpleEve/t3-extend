@@ -1560,9 +1560,10 @@ describe("AcpAdapterV2", () => {
                   : undefined;
               return () => Effect.succeed(outcome);
             }),
-          recoverFromUsageLimit: (failure) =>
+          recoverFromUsageLimit: (failure, turn) =>
             Effect.sync(() => {
-              asked.push(failure.code ?? "");
+              // The pool needs the send time to tell whose account the failure was.
+              asked.push(`${failure.code ?? ""}:${turn.promptSentAt === null ? "unsent" : "sent"}`);
               return { notice };
             }),
           makeRuntime: makeMockRuntime({
@@ -1627,7 +1628,7 @@ describe("AcpAdapterV2", () => {
       assert.equal(promptTexts[0], promptTexts[1], "the same input is sent again");
       assert.equal(watchedSessions.length, 2);
       assert.equal(watchedSessions[0], watchedSessions[1], "the same native session is reused");
-      assert.deepEqual(asked, ["QUOTA_EXHAUSTED"]);
+      assert.deepEqual(asked, ["QUOTA_EXHAUSTED:sent"]);
       const retryItem = events.findLast(
         (event) =>
           event.type === "turn_item.updated" &&

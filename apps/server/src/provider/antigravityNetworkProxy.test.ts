@@ -85,7 +85,8 @@ describe("Antigravity proxy environment", () => {
       HTTPS_PROXY: "http://machine.proxy:3128",
       http_proxy: "http://machine.proxy:3128",
       All_Proxy: "socks5://machine.proxy:1080",
-      NO_PROXY: "internal.example.com, 10.0.0.0/8",
+      // `*` would let agy bypass the proxy that T3's own requests use.
+      NO_PROXY: "internal.example.com, *, 10.0.0.0/8",
     };
     const result = withAntigravityNetworkProxy(environment, " socks5://127.0.0.1:1080 ");
     expect(result).toEqual({

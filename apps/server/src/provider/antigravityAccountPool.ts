@@ -33,6 +33,8 @@ const PoolState = Schema.Struct({
   order: Schema.Array(Schema.String),
   currentId: Schema.NullOr(Schema.String),
   exhaustedUntil: Schema.Record(Schema.String, Schema.Finite),
+  /** When the current account last changed, so a failure from before then is not blamed on it. */
+  currentSince: Schema.optional(Schema.Finite),
 });
 type PoolState = typeof PoolState.Type;
 const decodePoolState = Schema.decodeUnknownOption(Schema.fromJsonString(PoolState));
@@ -69,6 +71,8 @@ export type AntigravityRotationPlan =
       readonly from: { readonly email: string | null; readonly resetAt: number };
       readonly to: { readonly email: string | null };
     }
+  /** Another turn already moved the instance on; the failed account was the one before. */
+  | { readonly _tag: "Moved"; readonly to: { readonly email: string | null } }
   | { readonly _tag: "AllExhausted"; readonly earliestResetAt: number }
   | { readonly _tag: "NoAccount" };
 
@@ -81,7 +85,11 @@ export interface AntigravityAccountPool {
   readonly select: (id: string) => Effect.Effect<void, AntigravityAccountPoolError>;
   readonly remove: (id: string) => Effect.Effect<void, AntigravityAccountPoolError>;
   /** Records the current account's spent quota and names the account that takes over. */
-  readonly markExhausted: (resetAt?: number) => Effect.Effect<AntigravityRotationPlan>;
+  readonly markExhausted: (
+    resetAt?: number,
+    /** When the failed prompt was sent; a change of account after it means another turn moved on. */
+    promptSentAt?: number,
+  ) => Effect.Effect<AntigravityRotationPlan>;
   /** Signing out leaves no saved account behind. */
   readonly clear: Effect.Effect<void, AntigravityAccountPoolError>;
   /**
@@ -151,8 +159,14 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
   const readState = Effect.gen(function* () {
     const text = yield* readText(statePath);
     if (text === undefined) return emptyState();
-    // A damaged file counts as no pool; the next change writes a fresh one.
-    return Option.getOrElse(decodePoolState(text), emptyState);
+    // A damaged file counts as no pool; the next change writes a fresh one. Ids name directories.
+    const state = Option.getOrElse(decodePoolState(text), emptyState);
+    return {
+      ...state,
+      order: state.order.filter((id) => ACCOUNT_ID.test(id)),
+      currentId:
+        state.currentId !== null && ACCOUNT_ID.test(state.currentId) ? state.currentId : null,
+    };
   });
   const writeState = (state: PoolState) => writeAtomic(statePath, `${encodePoolState(state)}\n`);
 
@@ -169,6 +183,11 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
     return yield* identify(text);
   });
 
+  const withCurrent = Effect.fnUntraced(function* (state: PoolState, id: string | null) {
+    if (state.currentId === id) return state;
+    return { ...state, currentId: id, currentSince: yield* Clock.currentTimeMillis };
+  });
+
   /** Brings the file agy last wrote into its slot, so a refreshed token is never lost. */
   const captureCurrent = Effect.fn("AntigravityAccountPool.captureCurrent")(function* (
     state: PoolState,
@@ -178,9 +197,8 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
     yield* writeAtomic(slotPath(current.id), current.text);
     return {
       state: {
-        ...state,
+        ...(yield* withCurrent(state, current.id)),
         order: state.order.includes(current.id) ? state.order : [...state.order, current.id],
-        currentId: current.id,
       },
       current,
     };
@@ -285,7 +303,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
           return yield* poolError("Unknown Antigravity account.");
         }
         yield* install(id);
-        yield* writeState({ ...captured.state, currentId: id });
+        yield* writeState(yield* withCurrent(captured.state, id));
       }),
     );
 
@@ -307,10 +325,10 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
             yield* fs
               .remove(currentPath, { force: true })
               .pipe(Effect.mapError((cause) => poolError("Could not remove the account.", cause)));
-            yield* writeState({ ...base, currentId: null });
+            yield* writeState(yield* withCurrent(base, null));
           } else {
             yield* install(next);
-            yield* writeState({ ...base, currentId: next });
+            yield* writeState(yield* withCurrent(base, next));
           }
         } else {
           yield* writeState(base);
@@ -321,7 +339,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
       }),
     );
 
-  const markExhausted: AntigravityAccountPool["markExhausted"] = (resetAt) =>
+  const markExhausted: AntigravityAccountPool["markExhausted"] = (resetAt, promptSentAt) =>
     synchronized(
       Effect.gen(function* () {
         const now = yield* Clock.currentTimeMillis;
@@ -329,14 +347,25 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
         const current = captured.current;
         if (current === undefined) return { _tag: "NoAccount" } as const;
         const until = resetAt !== undefined && resetAt > now ? resetAt : now + DEFAULT_EXHAUSTED_MS;
+        // Several threads share the instance: one that failed on the old account must not mark
+        // the account another thread has just switched to.
+        const movedOn =
+          promptSentAt !== undefined &&
+          captured.state.currentSince !== undefined &&
+          captured.state.currentSince > promptSentAt;
         const state = pruned(
-          {
-            ...captured.state,
-            exhaustedUntil: { ...captured.state.exhaustedUntil, [current.id]: until },
-          },
+          movedOn
+            ? captured.state
+            : {
+                ...captured.state,
+                exhaustedUntil: { ...captured.state.exhaustedUntil, [current.id]: until },
+              },
           now,
         );
         yield* writeState(state);
+        if (movedOn && exhaustedAt(state, current.id, now) === null) {
+          return { _tag: "Moved", to: { email: current.email } } as const;
+        }
         const next = nextUsable(state, current.id, now);
         if (next === undefined) {
           const earliest = Math.min(
@@ -349,7 +378,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
         }
         return {
           _tag: "Rotate",
-          from: { email: current.email, resetAt: until },
+          from: { email: current.email, resetAt: exhaustedAt(state, current.id, now) ?? until },
           to: { email: (yield* slotIdentity(next))?.email ?? null },
         } as const;
       }).pipe(Effect.orElseSucceed((): AntigravityRotationPlan => ({ _tag: "NoAccount" }))),
@@ -383,7 +412,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
         const next = nextUsable(captured.state, current.id, now);
         if (next === undefined) return false;
         yield* install(next);
-        yield* writeState(pruned({ ...captured.state, currentId: next }, now));
+        yield* writeState(pruned(yield* withCurrent(captured.state, next), now));
         return true;
       }),
     );

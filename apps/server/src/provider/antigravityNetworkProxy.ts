@@ -58,7 +58,13 @@ export function withAntigravityNetworkProxy(
     if (!PROXY_VARIABLES.has(key.toUpperCase())) {
       result[key] = value;
     } else if (key.toUpperCase() === "NO_PROXY" && value) {
-      exempt.push(...value.split(",").map((entry) => entry.trim()));
+      // A machine-wide `*` would send agy around the proxy while T3's own requests use it.
+      exempt.push(
+        ...value
+          .split(",")
+          .map((entry) => entry.trim())
+          .filter((entry) => entry !== "*"),
+      );
     }
   }
   const noProxy = [
