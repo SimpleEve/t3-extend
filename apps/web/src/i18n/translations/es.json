@@ -517,6 +517,8 @@
   "8c0cec5a99f134f0": "El agente tiene el control",
   "f268d683ce6a4ac3": "Otro espectador tiene el control",
   "af6c7f7f55306b55": "Viendo",
+  "82c32a4c66682d30": "Unpacking the browser…",
+  "ca0788824bb48353": "Installing the browser: {downloaded} of {total} MB",
   "82f89e634494a1dd": "El host de este servidor bloquea el sandbox en el que se ejecuta su navegador. Ejecuta esto una vez en el host y vuelve a intentarlo:",
   "e9bfb3a1c95b0d75": "Al host de este servidor le faltan bibliotecas que necesita su navegador. Ejecuta esto una vez en el host y vuelve a intentarlo:",
   "e7a74a45e942924d": "El relay devolvió el estado de otro entorno.",

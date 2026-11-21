@@ -517,6 +517,8 @@
   "8c0cec5a99f134f0": "Agent has control",
   "f268d683ce6a4ac3": "Another viewer has control",
   "af6c7f7f55306b55": "Watching",
+  "82c32a4c66682d30": "Unpacking the browser…",
+  "ca0788824bb48353": "Installing the browser: {downloaded} of {total} MB",
   "82f89e634494a1dd": "This server's host blocks the sandbox its browser runs in. Run this once on the host, then try again:",
   "e9bfb3a1c95b0d75": "This server's host is missing libraries its browser needs. Run this once on the host, then try again:",
   "e7a74a45e942924d": "Relay returned status for a different environment.",

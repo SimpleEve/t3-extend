@@ -364,12 +364,13 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 
 ## 手机新建浏览器标签页
 
-手机上可以自己新建 Browser 标签页，打开宿主机上的页面。页面在宿主机的 headless Chrome 里渲染，手机只收 JPEG 帧（server 已有的 `/api/preview-stream`），所以 `localhost` 指宿主机，也没有 Android cleartext 和 mixed content 的问题。不改 server 和 contracts；原生 WebView 直连 dev server 涉及同源安全，没有做。用户说明在 `docs/user/remote-access.md` 的 "Browser on a remote environment"。
+手机上可以自己新建 Browser 标签页，打开宿主机上的页面。页面在宿主机的 headless Chrome 里渲染，手机只收 JPEG 帧（server 已有的 `/api/preview-stream`），所以 `localhost` 指宿主机，也没有 Android cleartext 和 mixed content 的问题。除下面"首次使用"的安装进度外，不改 server 和 contracts；原生 WebView 直连 dev server 涉及同源安全，没有做。用户说明在 `docs/user/remote-access.md` 的 "Browser on a remote environment"。
 
 - 面板：`apps/mobile/src/features/browser/NewBrowserTabPanel.tsx`，嵌在 `BrowserPreviewRouteScreen` 里（路由参数 `newTab`），不是单独的路由。地址规范化和本地服务列表是纯函数，在 `newBrowserTab.ts`：复用 shared 的 `resolveAddressBarInput`，但不回落到搜索；本地服务列表订阅 `previewEnvironment.discoveredServers`，带上项目脚本的 Preview URL。
 - 选中哪个标签页、新建模式、等待刚打开的标签页：纯函数在 `browserTabSelection.ts`，计时器和关闭事件订阅在 `useBrowserTabSelection.ts`。`preview.open` 返回的标签页最多等 10 秒（`PENDING_BROWSER_TAB_TIMEOUT_MS`），超时或收到它的 `closed` 事件就停止等待并提示"标签页没有打开"，然后按常规处理：没有标签页就关闭浏览器，有就显示最新的。
 - 入口：Android 对话页标题栏的地球按钮（`ThreadHeader.tsx` 的 `onOpenNewBrowserTab`，只在 `capabilities.serverBrowser` 时传）；浏览器标题栏的 "+"（两个平台都有）。iOS 对话页标题栏走原生 header item，没有加入口。
 - 权限：`previewEnvironment.open.permissionAtom`（`preview:operate`）。没有权限时入口照常显示，面板里说明原因并禁用输入。
+- 首次使用时宿主机还在下载 headless 浏览器：`attachViewer` 先用 2 秒的短等待问 `PreviewBrowser.executableWithin`（`ServerBrowser.ts` 的 `awaitHeadlessBrowser`，只对还没打开、走 headless 的标签页），因为 `executable` 会为安装等 45 秒，比手机 15 秒的连接窗口还长。安装中就以关闭码 4504 收尾，reason 是 `{downloadedBytes,totalBytes,unpacking}` 的 JSON（`packages/contracts/src/forkPreviewInstall.ts`）。客户端（`serverBrowserStream.ts`）显示"正在安装浏览器：x / 105 MB"，每 3 秒重连一次，装好后第一帧到达就自己连上，不算失败也不走 `onUnauthorized`。手机收到后停掉 15 秒的启动计时器。旧客户端遇到 4504 按普通断线退避重连；旧服务端仍是 503，行为不变。
 - 推流：手机请求 `quality=60`（server 默认 70）。帧尺寸本来就按视图像素（最多 2x）封顶，没有再改。`PreviewStreamTarget` 加了可选的 `quality`（`packages/client-runtime/src/preview/serverBrowserStream.ts`）。
 - i18n：`apps/mobile/src/hooks/useT.ts` 写法同 web，语言设置见上文"多语言"。译文在 `catalogs/zh-Hans/mobileBrowser.ts`；`i18n:report` 也扫描 `apps/mobile/src` 了。
 

@@ -13,9 +13,11 @@ import {
   type PreviewStreamPointer,
   type PreviewStreamViewport,
   previewStreamHostSetupMessage,
+  previewStreamHostInstallingMessage, // fork: install progress
 } from "@t3tools/client-runtime/preview/server-browser-stream";
 import type {
   EnvironmentId,
+  PreviewStreamHostInstalling, // fork: install progress
   PreviewStreamHostSetup,
   PreviewViewportSetting,
 } from "@t3tools/contracts";
@@ -38,6 +40,7 @@ import { AgentCursorMark } from "~/components/preview/AgentBrowserCursor";
 import { CommandBlock } from "~/components/CommandBlock";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { Spinner } from "~/components/ui/spinner"; // fork: install progress
 import { toastManager } from "~/components/ui/toast";
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { m } from "~/i18n/messages";
@@ -208,6 +211,8 @@ export function ServerBrowserSurface(props: {
   const [accessDenied, setAccessDenied] = useState(false);
   const access = usePreviewStreamAccess(environmentId, { retry: visible && !accessDenied });
   const [hostSetup, setHostSetup] = useState<PreviewStreamHostSetup | null>(null);
+  // fork: the server is still downloading its headless browser; the stream client keeps retrying.
+  const [hostInstalling, setHostInstalling] = useState<PreviewStreamHostInstalling | null>(null);
   const pendingMoveRef = useRef<MouseInput | null>(null);
   const pendingWheelRef = useRef<WheelInput | null>(null);
   const inputFrameRef = useRef<number | null>(null);
@@ -389,6 +394,7 @@ export function ServerBrowserSurface(props: {
     const painter = createPreviewFramePainter(canvas, () => {
       if (hasFrameRef.current) return;
       hasFrameRef.current = true;
+      setHostInstalling(null); // fork: the install finished and the viewer reconnected
       clearNoFrameTimer();
       setFramesStalled(false);
       firstFrame();
@@ -458,6 +464,7 @@ export function ServerBrowserSurface(props: {
           clearInput();
         },
         onHostSetup: setHostSetup,
+        onHostInstalling: setHostInstalling, // fork: install progress
         onUnauthorized: () => {
           const refusals = ++unauthorizedRef.current;
           if (refusals >= MAX_UNAUTHORIZED_REFUSALS) {
@@ -951,6 +958,15 @@ export function ServerBrowserSurface(props: {
           <Button variant="outline" size="sm" onClick={() => setHostSetup(null)}>
             <T>Try again</T>
           </Button>
+        </div>
+      ) : null}
+      {visible && hostInstalling && !hostSetup ? (
+        // fork: install progress
+        <div className="visible absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background p-4 text-center">
+          <Spinner size="md" tone="muted" />
+          <p role="status" className="max-w-sm text-sm text-muted-foreground">
+            {previewStreamHostInstallingMessage(hostInstalling, resolve)}
+          </p>
         </div>
       ) : null}
       {visible && accessDenied ? (

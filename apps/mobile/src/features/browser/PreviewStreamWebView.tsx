@@ -6,12 +6,17 @@ import previewStreamScript from "@t3tools/mobile-preview-stream";
 import {
   previewStreamControlLabel,
   previewStreamHostSetupMessage,
+  previewStreamHostInstallingMessage, // fork: install progress
   type PreviewStreamControl,
   type PreviewStreamDownload,
   type PreviewStreamFileChooser,
   type PreviewStreamInput,
 } from "@t3tools/client-runtime/preview/server-browser-stream";
-import type { EnvironmentId, PreviewStreamHostSetup } from "@t3tools/contracts";
+import type {
+  EnvironmentId,
+  PreviewStreamHostInstalling, // fork: install progress
+  PreviewStreamHostSetup,
+} from "@t3tools/contracts";
 import {
   useEffectEvent,
   useImperativeHandle,
@@ -263,6 +268,8 @@ function PreviewStreamDocumentView({
   const [error, setError] = useState<string | null>(null);
   const [gone, setGone] = useState(false);
   const [hostSetup, setHostSetup] = useState<PreviewStreamHostSetup | null>(null);
+  // fork: the host is downloading its headless browser; the stream retries until it is ready.
+  const [hostInstalling, setHostInstalling] = useState<PreviewStreamHostInstalling | null>(null);
   const [control, setControl] = useState<PreviewStreamControl | null>(null);
   const dialogRef = useRef<PreviewStreamControl["dialog"]>(null);
   const [promptText, setPromptText] = useState("");
@@ -416,6 +423,15 @@ function PreviewStreamDocumentView({
                 setHostSetup({ need: message.need, command: message.command });
                 fail(previewStreamHostSetupMessage(message, m));
                 return;
+              case "hostInstalling": // fork: install progress
+                // An install can outlast the 15 s bootstrap window; the stream keeps polling.
+                clearBootstrapTimer();
+                setHostInstalling({
+                  downloadedBytes: message.downloadedBytes,
+                  totalBytes: message.totalBytes,
+                  unpacking: message.unpacking,
+                });
+                return;
               case "hostNotDrawing": // fork: locked host desktop
                 fail(
                   m(
@@ -450,6 +466,7 @@ function PreviewStreamDocumentView({
                   return;
                 }
                 setStatus(message.status);
+                if (message.status === "streaming") setHostInstalling(null); // fork: install done
                 if (message.status === "connecting") {
                   // Dialogs may have closed and reopened while this viewer was disconnected.
                   dialogRef.current = null;
@@ -536,7 +553,11 @@ function PreviewStreamDocumentView({
               accessibilityLiveRegion="polite"
               className="text-center text-sm text-foreground-muted"
             >
-              {status === "error" ? error : gt("Connecting to browser...")}
+              {status === "error"
+                ? error
+                : hostInstalling // fork: install progress
+                  ? previewStreamHostInstallingMessage(hostInstalling, messages)
+                  : gt("Connecting to browser...")}
             </AppText>
           )}
           {status === "error" && hostSetup && !compact ? (

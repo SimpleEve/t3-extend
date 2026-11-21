@@ -517,6 +517,8 @@
   "8c0cec5a99f134f0": "L’agent a le contrôle",
   "f268d683ce6a4ac3": "Un autre spectateur a le contrôle",
   "af6c7f7f55306b55": "Visionnage",
+  "82c32a4c66682d30": "Unpacking the browser…",
+  "ca0788824bb48353": "Installing the browser: {downloaded} of {total} MB",
   "82f89e634494a1dd": "L’hôte de ce serveur bloque le bac à sable dans lequel tourne son navigateur. Exécutez ceci une fois sur l’hôte, puis réessayez :",
   "e9bfb3a1c95b0d75": "Il manque à l’hôte de ce serveur des bibliothèques nécessaires à son navigateur. Exécutez ceci une fois sur l’hôte, puis réessayez :",
   "e7a74a45e942924d": "Le relais a renvoyé le statut d’un autre environnement.",

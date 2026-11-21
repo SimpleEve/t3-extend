@@ -1,5 +1,5 @@
 import type { DeviceHubAccess } from "@t3tools/client-runtime/device/hub-access";
-import type { PreviewStreamHostSetup } from "@t3tools/contracts";
+import type { PreviewStreamHostInstalling, PreviewStreamHostSetup } from "@t3tools/contracts"; // fork: install progress
 import type {
   PreviewStreamControl,
   PreviewStreamDownload,
@@ -33,6 +33,7 @@ export type PreviewStreamMessage =
   | { readonly type: "unauthorized" }
   | { readonly type: "gone" }
   | ({ readonly type: "hostSetup" } & PreviewStreamHostSetup)
+  | ({ readonly type: "hostInstalling" } & PreviewStreamHostInstalling) // fork: install progress
   | { readonly type: "hostNotDrawing" }
   | { readonly type: "viewport"; readonly width: number; readonly height: number }
   /** The direction a drag scrolls the page, sent every few dozen pixels of it. */

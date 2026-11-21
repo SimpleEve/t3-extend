@@ -517,6 +517,8 @@
   "8c0cec5a99f134f0": "Agenten har kontrollen",
   "f268d683ce6a4ac3": "En annan tittare har kontrollen",
   "af6c7f7f55306b55": "Tittar",
+  "82c32a4c66682d30": "Unpacking the browser…",
+  "ca0788824bb48353": "Installing the browser: {downloaded} of {total} MB",
   "82f89e634494a1dd": "Värden för den här servern blockerar sandlådan som dess webbläsare körs i. Kör det här en gång på värden och försök sedan igen:",
   "e9bfb3a1c95b0d75": "Värden för den här servern saknar bibliotek som dess webbläsare behöver. Kör det här en gång på värden och försök sedan igen:",
   "e7a74a45e942924d": "Reläet returnerade status för en annan miljö.",
