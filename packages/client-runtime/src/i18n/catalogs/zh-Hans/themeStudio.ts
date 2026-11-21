@@ -91,10 +91,12 @@ export default {
 
   "Background image": "背景图",
   "Panel glass": "面板毛玻璃",
-  "This theme has a background image.": "这个主题有背景图。",
-  "This theme has a background image published with it.": "这个主题随附了一张背景图。",
-  "This theme has no background image. Choose a JPEG, PNG or WebP of up to 16 MB.":
-    "这个主题还没有背景图。可选 JPEG、PNG 或 WebP，最大 16 MB。",
+  "Published with this theme as a file beside it. Choose an image to use another.":
+    "随这个主题以文件形式发布。想换一张，直接选择图片。",
+  "Choose a JPEG, PNG or WebP of up to 16 MB. It is stored on this server.":
+    "可选 JPEG、PNG 或 WebP，最大 16 MB。图片会存放在这台服务器上。",
+  "This server already keeps as many background images as it allows. Delete some from the backgrounds folder of its themes directory.":
+    "这台服务器保存的背景图已达上限。请到它主题目录下的 backgrounds 文件夹里删掉一些。",
   "Choose image…": "选择图片…",
   "Uploading…": "正在上传…",
   "The image is stored on this server. An exported scheme refers to it but does not contain it.":

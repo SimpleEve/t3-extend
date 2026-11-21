@@ -62,7 +62,7 @@ function SchemeRow({
           />
         ) : (
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-sm font-medium">{verbatim(scheme.label)}</span>
+            <span className="truncate text-sm font-medium">{verbatim(studio.labelOf(scheme))}</span>
             {active ? (
               <Badge size="sm" variant="success">
                 {t("In use")}

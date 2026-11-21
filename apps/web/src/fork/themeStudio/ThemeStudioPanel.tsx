@@ -112,7 +112,7 @@ function LookSlider({
   disabled?: boolean;
 }) {
   const t = useT();
-  const shown = value ?? limit.default;
+  const shown = disabled ? limit.min : (value ?? limit.default);
   return (
     <SettingsRow
       id={id}
@@ -129,8 +129,7 @@ function LookSlider({
             className="min-w-14 rounded-md bg-muted px-2 py-1 text-center font-mono text-xs font-medium tabular-nums text-foreground"
             htmlFor={`${id}-range`}
           >
-            {shown}
-            {unit}
+            {disabled ? t("Off") : `${shown}${unit}`}
           </output>
           <input
             aria-label={t(title)}
@@ -696,10 +695,7 @@ function BackgroundSection({ studio }: { studio: Studio }) {
   );
   const input = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [refusal, setRefusal] = useState<{
-    readonly reason: BackgroundRefusal;
-    readonly detail?: string;
-  } | null>(null);
+  const [refusal, setRefusal] = useState<BackgroundRefusal | null>(null);
 
   const choose = async (file: File) => {
     setUploading(true);
@@ -707,17 +703,19 @@ function BackgroundSection({ studio }: { studio: Studio }) {
     const outcome = await uploadThemeBackground(file);
     setUploading(false);
     if (outcome.ok) studio.setLook("background", outcome.hash);
-    else setRefusal(outcome);
+    else setRefusal(outcome.reason);
   };
   const refusalText =
     refusal === null
       ? null
-      : refusal.reason === "type"
+      : refusal === "type"
         ? t("Choose a JPEG, PNG or WebP image.")
-        : refusal.reason === "size"
+        : refusal === "size"
           ? t("The image is larger than 16 MB.")
-          : refusal.reason === "full" && refusal.detail
-            ? refusal.detail
+          : refusal === "full"
+            ? t(
+                "This server already keeps as many background images as it allows. Delete some from the backgrounds folder of its themes directory.",
+              )
             : t("Could not upload the image. Check the connection and try again.");
 
   return (
@@ -727,10 +725,12 @@ function BackgroundSection({ studio }: { studio: Studio }) {
         title="Background image"
         description={
           stored !== undefined
-            ? t("This theme has a background image.")
+            ? t(
+                "The image is stored on this server. An exported scheme refers to it but does not contain it.",
+              )
             : studio.background
-              ? t("This theme has a background image published with it.")
-              : t("This theme has no background image. Choose a JPEG, PNG or WebP of up to 16 MB.")
+              ? t("Published with this theme as a file beside it. Choose an image to use another.")
+              : t("Choose a JPEG, PNG or WebP of up to 16 MB. It is stored on this server.")
         }
         status={
           <Badge size="sm" variant={studio.background ? "success" : "outline"}>
@@ -778,11 +778,6 @@ function BackgroundSection({ studio }: { studio: Studio }) {
         }
       >
         <div className="space-y-1 pt-2 text-xs">
-          <p className="text-muted-foreground">
-            {t(
-              "The image is stored on this server. An exported scheme refers to it but does not contain it.",
-            )}
-          </p>
           {refusalText !== null ? (
             <p aria-live="polite" className="text-destructive">
               {refusalText}

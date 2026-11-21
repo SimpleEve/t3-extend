@@ -1,7 +1,7 @@
 import type { ThemeLook } from "@t3tools/contracts";
 import { FORK } from "@t3tools/shared/forkIdentity";
 import { useAtomValue } from "@effect/atom-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useCustomThemes } from "../../hooks/useCustomThemes";
 import { useT } from "../../hooks/useT";
@@ -41,7 +41,7 @@ import {
   withSchemeLook,
 } from "./studio.logic";
 import { themeDisplayLabel } from "./themeDisplayLabel";
-import { useThemeStudioIntent } from "./themeStudioStore";
+import { useThemeStudioDraft, useThemeStudioIntent } from "./themeStudioStore";
 
 /** The stock T3 theme has no definition of its own, so editing it starts from its two palettes. */
 function stockDefinition(): ThemeDefinition {
@@ -81,29 +81,11 @@ export function useThemeStudio() {
   const mineLabel = (definition: ThemeDefinition) =>
     t("{name} (mine)", { name: labelOf(definition) });
 
-  // A "Duplicate" or "Create" request starts as a copy; reading it here is pure, and the effect
-  // below clears it, so a double render cannot lose it.
-  const [draft, setDraft] = useState<ThemeDefinition | null>(() => {
-    const intent = useThemeStudioIntent.getState().intent;
-    if (intent === null || !intent.duplicate) return null;
-    const { origin, restorable } = studioOrigin({
-      themeId: intent.themeId,
-      find: getThemeDefinition,
-      applied,
-      stock: stockDefinition(),
-    });
-    return beginScheme({
-      base: origin,
-      savedThemes: customThemes,
-      mineLabel: intent.name ?? mineLabel(origin),
-      restorable,
-      forceFork: true,
-    });
-  });
-  // A copy someone asked for is worth saving even before it differs from its original.
-  const [explicitCopy, setExplicitCopy] = useState(
-    () => useThemeStudioIntent.getState().intent?.duplicate === true,
-  );
+  // Kept in a store, so leaving the page and coming back finds the same unsaved draft.
+  const draft = useThemeStudioDraft((state) => state.draft);
+  const setDraft = useThemeStudioDraft((state) => state.setDraft);
+  const explicitCopy = useThemeStudioDraft((state) => state.explicitCopy);
+  const setExplicitCopy = useThemeStudioDraft((state) => state.setExplicitCopy);
   const [hovered, setHovered] = useState<ThemeDefinition | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
   const colorEditSnapshot = useRef<ThemeDefinition | null | undefined>(undefined);
@@ -175,13 +157,41 @@ export function useThemeStudio() {
     [],
   );
 
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- clears the one-shot request a theme library button or the command palette left in the studio store, and switches to the theme an Edit asked for
-  useEffect(() => {
+  // A "Duplicate" or "Create" request starts as a copy, replacing any draft left from before; an
+  // "Edit" switches to its theme. Layout timing, so the copy is there on the first painted frame.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- takes the one-shot request a theme library button or the command palette left in the studio store
+  useLayoutEffect(() => {
     const intent = useThemeStudioIntent.getState().take();
-    if (intent === null || intent.duplicate || intent.themeId === null) return;
+    if (intent === null) return;
+    if (intent.duplicate) {
+      const { origin, restorable } = studioOrigin({
+        themeId: intent.themeId,
+        find: getThemeDefinition,
+        applied,
+        stock: stockDefinition(),
+      });
+      setDraft(
+        beginScheme({
+          base: origin,
+          savedThemes: customThemes,
+          mineLabel: intent.name ?? mineLabel(origin),
+          restorable,
+          forceFork: true,
+        }),
+      );
+      setExplicitCopy(true);
+      return;
+    }
+    if (intent.themeId === null) return;
     const target = getThemeDefinition(intent.themeId);
+    // A draft of another theme is not what an Edit of this one asked to see.
+    const { draft: kept } = useThemeStudioDraft.getState();
+    if (kept !== null && kept.id !== intent.themeId && kept.basedOn !== intent.themeId) {
+      setDraft(null);
+      setExplicitCopy(false);
+    }
     if (target !== null && target.id !== appliedId) place(target.id);
-  }, [appliedId, place]);
+  });
 
   const select = (themeId: string | null) => {
     setDraft(null);

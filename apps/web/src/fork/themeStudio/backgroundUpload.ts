@@ -26,7 +26,7 @@ const decodeUploadResult = Schema.decodeUnknownOption(ThemeBackgroundUploadResul
 
 export type BackgroundUploadOutcome =
   | { readonly ok: true; readonly hash: string }
-  | { readonly ok: false; readonly reason: BackgroundRefusal; readonly detail?: string };
+  | { readonly ok: false; readonly reason: BackgroundRefusal };
 
 export async function uploadThemeBackground(file: File): Promise<BackgroundUploadOutcome> {
   const refusal = checkBackgroundFile(file);
@@ -52,10 +52,7 @@ export async function uploadThemeBackground(file: File): Promise<BackgroundUploa
       body: file,
     });
     if (!response.ok) {
-      const reason = refusalOfStatus(response.status);
-      return reason === "full"
-        ? { ok: false, reason, detail: await response.text() }
-        : { ok: false, reason };
+      return { ok: false, reason: refusalOfStatus(response.status) };
     }
     const result = decodeUploadResult(await response.json());
     return result._tag === "Some"

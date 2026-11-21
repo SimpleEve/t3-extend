@@ -491,6 +491,7 @@ function CustomThemeCollectionCard({
   onDownload: (theme: ThemeDefinition) => void;
   onRemove: (theme: ThemeDefinition) => void;
 }) {
+  const t = useT(); // fork: a scheme's "(mine)" shows in the current language
   const [variantIndex, setVariantIndex] = useState(() => {
     const activeIndex = themes.findIndex((theme) => activeModesFor(theme.id).length > 0);
     return activeIndex < 0 ? 0 : activeIndex;
@@ -525,7 +526,7 @@ function CustomThemeCollectionCard({
       onRemove={() => onRemove(theme)}
       onUse={selectCollectionDefaults}
       onUseMode={(mode) => onUseMode(theme, mode)}
-      theme={getThemeCardDefinition(theme)}
+      theme={{ ...getThemeCardDefinition(theme), label: themeDisplayLabel(theme, t) }} // fork: localized "(mine)"
       {...(themes.length > 1
         ? {
             variantNavigation: {
