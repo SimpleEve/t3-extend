@@ -100,6 +100,33 @@ function fieldAcceptsString(
   return (value) => Option.isSome(decode(value));
 }
 
+// fork: the Antigravity settings T3 Extend adds.
+const ANTIGRAVITY_FORK_FIELD_TEXT: ReadonlyArray<readonly [string, string]> = [
+  ["Login source", msg("Login source")],
+  [
+    "For Google account sign-in. Automatic uses the agy CLI login on this machine for the default instance unless it signed in separately before. Choose Separate sign-in to use another account.",
+    msg(
+      "For Google account sign-in. Automatic uses the agy CLI login on this machine for the default instance unless it signed in separately before. Choose Separate sign-in to use another account.",
+    ),
+  ],
+  ["agy CLI login", msg("agy CLI login")],
+  ["Separate sign-in", msg("Separate sign-in")],
+  ["Switch accounts when quota runs out", msg("Switch accounts when quota runs out")],
+  [
+    "For separate Google account sign-ins with more than one saved account. When a turn hits its usage limit, the next saved account takes over and the turn continues. Rotating accounts may breach Google's terms; you are responsible for that.",
+    msg(
+      "For separate Google account sign-ins with more than one saved account. When a turn hits its usage limit, the next saved account takes over and the turn continues. Rotating accounts may breach Google's terms; you are responsible for that.",
+    ),
+  ],
+  ["Network proxy", msg("Network proxy")],
+  [
+    "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
+    msg(
+      "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
+    ),
+  ],
+];
+
 // Field text authored in contracts and the provider and source-control packages, which the server
 // also imports. Keyed by that English; text not listed here shows as authored.
 const PACKAGE_FIELD_TEXT: ReadonlyMap<string, string> = new Map([
@@ -252,6 +279,7 @@ const PACKAGE_FIELD_TEXT: ReadonlyMap<string, string> = new Map([
   ["Google account", msg("Google account")],
   ["Gemini API key", msg("Gemini API key")],
   ["Local command", msg("Local command")],
+  ...ANTIGRAVITY_FORK_FIELD_TEXT, // fork:
 ]);
 
 function packageFieldText(text: string, resolve: MessageResolver): string {

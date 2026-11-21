@@ -1398,17 +1398,27 @@ function ProviderInstanceRow({
       canWriteSettings={canWriteSettings}
       setup={
         mode === "editor" && driver === "antigravity" ? (
-          <ProviderSetupSection
-            environmentId={environmentId}
-            environmentLabel={environmentLabel}
-            instanceId={instanceId}
-            provider={liveProvider}
-            binaryPath={configuredBinaryPath(instance.config)}
-            authMethod={readAntigravityAuthMethod(instance.config)}
-            enabled={resolveProviderInstanceEnabled(instance)}
-            readOnly={readOnly}
-            onEnable={() => actions.enableInstance(instanceId, { ...instance, enabled: true })}
-          />
+          <>
+            <ProviderSetupSection
+              environmentId={environmentId}
+              environmentLabel={environmentLabel}
+              instanceId={instanceId}
+              provider={liveProvider}
+              binaryPath={configuredBinaryPath(instance.config)}
+              authMethod={readAntigravityAuthMethod(instance.config)}
+              enabled={resolveProviderInstanceEnabled(instance)}
+              readOnly={readOnly}
+              onEnable={() => actions.enableInstance(instanceId, { ...instance, enabled: true })}
+            />
+            {/* fork: the saved accounts of a separate Antigravity sign-in */}
+            {liveProvider ? (
+              <AntigravityAccounts
+                environmentId={environmentId}
+                provider={liveProvider}
+                readOnly={readOnly}
+              />
+            ) : null}
+          </>
         ) : mode === "editor" && codexSetupMode === "managed" ? (
           <CodexSetupSection
             environmentId={environmentId}
@@ -1436,22 +1446,14 @@ function ProviderInstanceRow({
           liveProvider &&
           (liveProvider.setup?.canAuthenticate ||
             (liveProvider.driver === "acpRegistry" && liveProvider.installed)) ? (
-          <>
-            <ProviderAuthenticationSection
-              key={`${environmentId}:${instanceId}`}
-              environmentId={environmentId}
-              environmentLabel={environmentLabel}
-              instanceId={instanceId}
-              provider={liveProvider}
-              readOnly={readOnly}
-            />
-            {/* fork: the saved accounts of a separate Antigravity sign-in */}
-            <AntigravityAccounts
-              environmentId={environmentId}
-              provider={liveProvider}
-              readOnly={readOnly}
-            />
-          </>
+          <ProviderAuthenticationSection
+            key={`${environmentId}:${instanceId}`}
+            environmentId={environmentId}
+            environmentLabel={environmentLabel}
+            instanceId={instanceId}
+            provider={liveProvider}
+            readOnly={readOnly}
+          />
         ) : mode === "editor" &&
           !readOnly &&
           driver === "cursor" &&
