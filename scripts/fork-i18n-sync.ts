@@ -40,8 +40,8 @@ type Catalog = Record<string, unknown>;
 interface Overrides {
   /** Upstream zh term -> the fork's, replaced inside every zh value. */
   readonly terms: Readonly<Record<string, string>>;
-  /** English sources whose upstream zh keeps its own words: "会话" there can mean a sign-in session. */
-  readonly noTermsFor: string;
+  /** zh term -> English sources where it stays: "会话" for a session is not a thread. */
+  readonly keepTermFor: Readonly<Record<string, string>>;
   /** English source -> the fork's whole zh translation. */
   readonly messages: Readonly<Record<string, string>>;
 }
@@ -98,8 +98,9 @@ const overrides: Overrides = readJson(NodePath.join(root, OVERRIDES));
 const termEntries = Object.entries(overrides.terms).sort(([a], [b]) => b.length - a.length);
 const HAN = /\p{Script=Han}/u;
 // A Latin replacement such as "Agent" gets the space Chinese text puts around a Latin word.
-const applyTerms = (text: string) =>
+const applyTerms = (text: string, kept: ReadonlySet<string>) =>
   termEntries.reduce((result, [from, to]) => {
+    if (kept.has(from)) return result;
     const parts = result.split(from);
     return parts.reduce((joined, part, index) => {
       if (index === 0) return part;
@@ -110,7 +111,11 @@ const applyTerms = (text: string) =>
       return `${joined}${lead}${to}${tail}${part}`;
     }, "");
   }, text);
-const noTermsFor = new RegExp(overrides.noTermsFor, "iu");
+const keepTermFor = Object.entries(overrides.keepTermFor).map(
+  ([term, source]) => [term, new RegExp(source, "iu")] as const,
+);
+const keptTerms = (source: string) =>
+  new Set(keepTermFor.flatMap(([term, pattern]) => (pattern.test(source) ? [term] : [])));
 
 // The fork's own zh catalog fills a zh key GT has no Chinese for, such as a sentence the fork reworded.
 const forkZh = new Map<string, string>();
@@ -185,8 +190,9 @@ for (const [app, [command, ...args]] of Object.entries(GENERATE)) {
       if (locale === "zh") {
         const message = typeof value === "string" ? overrides.messages[value] : undefined;
         if (message !== undefined) translated = message;
-        else if (translated !== undefined && !noTermsFor.test(textOf(value))) {
-          translated = mapStrings(translated, applyTerms);
+        else if (translated !== undefined) {
+          const kept = keptTerms(textOf(value));
+          translated = mapStrings(translated, (text) => applyTerms(text, kept));
         }
       }
       const english = textOf(translated) === textOf(value) || translated === undefined;

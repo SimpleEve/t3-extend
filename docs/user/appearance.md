@@ -23,15 +23,13 @@ of the selected theme.
 
 ## Language
 
-On web and desktop, choose **Settings → Appearance → Language** to show the interface in English
-or Simplified Chinese (简体中文). The change applies right away, including the desktop app's menus.
-**Follow system** uses your system language: Simplified Chinese when it is Chinese in Simplified
-script, and English otherwise, including for Traditional Chinese. Each device or browser keeps its
-own choice. If the Chinese language pack can't be downloaded, for example over a dropped
-connection, the interface stays in English and offers to reload the page.
+Choose **Settings → General → Language** to show the interface in English, Simplified Chinese
+(简体中文), or one of the other listed languages. The change applies right away, including the
+desktop app's menus. **System default** uses your system language when it is one of these, and
+English otherwise. Each device or browser keeps its own choice.
 
-Only part of the interface is translated so far; the rest stays in English. Your threads, project
-names, and agent replies are never translated.
+Features only T3 Extend has are translated into Simplified Chinese and show in English in the other
+languages. Your threads, project names, and agent replies are never translated.
 
 ## Composer context
 

@@ -6,7 +6,7 @@ export default {
   "Close browser": "关闭浏览器",
   "Picture in picture": "画中画",
   "Exit picture in picture": "退出画中画",
-  "Picture in picture is unavailable": "无法使用画中画",
+  "Picture in picture is unavailable": "画中画不可用",
 
   Address: "地址",
   "localhost:5173 or example.com": "localhost:5173 或 example.com",
@@ -25,5 +25,5 @@ export default {
   "Looking for local servers…": "正在查找本地服务…",
   "No local servers found. Start a dev server on the host to see it here.":
     "没有找到本地服务。在宿主机上启动 dev server 后会显示在这里。",
-  Listening: "监听中",
+  Listening: "正在监听",
 };

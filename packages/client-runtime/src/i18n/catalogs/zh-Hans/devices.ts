@@ -71,7 +71,7 @@ export default {
   "These computers have not reached your server since. They sign this device out once they do.":
     "这些电脑此后还没连上你的服务器。它们连上后会让这台设备退出登录。",
 
-  "Something went wrong. Try again.": "出了点问题，请重试。",
+  "Something went wrong. Try again.": "出了点问题。请重试。",
   "Only this computer's own app can manage devices.": "只有这台电脑自己的应用可以管理设备。",
   "This computer has not joined a server.": "这台电脑还没有加入服务器。",
   "This computer has already joined a server.": "这台电脑已经加入了服务器。",
@@ -142,9 +142,9 @@ export default {
   "Allow camera": "允许使用相机",
   "Scan the code shown by a computer that has already joined.": "扫描已加入的电脑上显示的二维码。",
   "No {platform} devices were listed because device discovery reported a problem.":
-    "设备发现出了问题，所以没有列出 {platform} 设备。",
+    "设备发现报告了问题，因此没有列出 {platform} 设备。",
   "{host} starts iOS Simulators in the cloud with Expo Simulators.":
-    "{host} 通过 Expo Simulators 在云端启动 iOS 模拟器。",
+    "{host} 使用 Expo Simulators 在云端启动 iOS 模拟器。",
   "{host} starts Android emulators in the cloud with Expo Simulators.":
-    "{host} 通过 Expo Simulators 在云端启动 Android 模拟器。",
+    "{host} 使用 Expo Simulators 在云端启动 Android 模拟器。",
 };

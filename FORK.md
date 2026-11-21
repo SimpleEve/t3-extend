@@ -142,7 +142,7 @@ fork 自己的 `t()`（`packages/client-runtime/src/i18n/`，web 和 mobile 的 
 
 **旧的语言设置迁移**：fork 以前存的是 `uiLanguage`（`system`/`en`/`zh-Hans`）。读取设置时一次性改写成 `language`（`zh-Hans` → `zh`，已有 `language` 时以它为准）：web 在 `clientPersistenceStorage.ts`，桌面在 `DesktopClientSettings.ts`，共用 `packages/contracts/src/forkUiLanguage.ts`；mobile 在 `mobile-preferences.ts` 的解析里。各有一条测试。
 
-**语言入口**：web 只留上游设置 → 通用里的语言行。mobile 有两处，打开同一个选择页：上游的「通用」顶部一行，和 fork 原来的「外观」里那一节（`SettingsAppearanceRouteScreen.tsx` 复用上游的 `LanguageSettingsSection`）。
+**语言入口**：web 和 mobile 都只留上游的位置（设置 → 通用里的语言行），fork 原来的「外观 → 语言」已删。
 
 **品牌**：上游 GT 文案里指这个 app 的 "T3 Code" 在源码里直接写成 "T3 Extend"（指本机 CLI 的 `t3` 写成 `t3x`），`fork:guard` 守着；指官方 app 或给模型看的文字按 `ALLOWED_BRAND` 放行。改源码会改变 GT 的 key（key 是原文的哈希），所以每次改完或同步上游后都要跑：
 
@@ -153,7 +153,7 @@ node scripts/i18n-check.ts       # 上游的 CI 检查，目录与源码一致
 
 同步上游时，`apps/*/src/i18n/translations/*.json` 的冲突一律取上游，再跑 `vp run fork:i18n-sync`；加 `-- --check` 只检查不写。脚本把找不到中文的 key 列出来（多数是单位、占位符这类本来就是英文的）。
 
-**中文覆盖层**：`packages/client-runtime/src/i18n/gt-zh-overrides.json`，fork 的术语表（`GLOSSARY.md`）在 GT 的 zh 上胜出。`terms` 是整个 zh.json 里的词替换（会话→对话、智能体→Agent、提供方→provider、工作树→worktree、侧聊→侧边对话、暂缓→稍后处理、收尾→标为已处理、审查导览→审查导读、线路→路由、用量限制→用量上限；替换成拉丁词时自动补空格）；`messages` 是整句覆盖（含 settle、snooze、session 的句子用 fork 原有整句，避免动词和“登录会话”被换坏），`noTermsFor` 列出不做词替换的英文原文（session）。上游 zh 里 GT 没翻译的 key，优先用 fork 目录里同一句英文的译文。覆盖层是 fork 自己的文件，同步不会冲掉；要改译法就改这个文件再跑脚本，不要手改 zh.json。
+**中文覆盖层**：`packages/client-runtime/src/i18n/gt-zh-overrides.json`，fork 的术语表（`GLOSSARY.md`）在 GT 的 zh 上胜出。`terms` 是整个 zh.json 里的词替换（会话→对话、智能体→Agent、提供方→provider、工作树→worktree、侧聊→侧边对话、暂缓→稍后处理、收尾→标为已处理、审查导览→审查导读、线路→路由、用量限制→用量上限；替换成拉丁词时自动补空格）；`messages` 是整句覆盖，只剩两类：settle、snooze 的句子（术语落在动词上，词替换读不通），和上游 zh 本身没有中文的句子；`keepTermFor` 指定某个词在哪些英文原文里不替换（含 session 的句子保留“会话”，其他术语照换）。除上面这些术语，译文都跟上游；fork 的 `catalogs/zh-Hans/` 里和上游同一句英文的译文也照上游的写，同一句英文在 fork 文件和上游文件里显示一样。上游 zh 里 GT 没翻译的 key，优先用 fork 目录里同一句英文的译文。覆盖层是 fork 自己的文件，同步不会冲掉；要改译法就改这个文件再跑脚本，不要手改 zh.json。
 
 **检查**：
 
@@ -705,7 +705,7 @@ GitHub Actions 在这个仓库里是开着的，但上游的 27 个 workflow 都
 - 上游的 `/oauth/token` 现在只检查 DPoP proof、不再记录 jti（未认证请求不写磁盘），所以重放同一个 jti 不再是它的失败。fork 的 `/oauth/t3x-device` 在设备 pass 验证通过之后才检查 DPoP，仍然记录 jti 并拒绝重放；`DeviceAssertionAuth.test.ts` 的 T4 不再拿 `/oauth/token` 的重放结果做对照。
 - 上游测试里写死 `~/.t3` 默认目录（如 `cli/theme.test.ts` 的 dev server 用例）、`t3/` 分支前缀、`T3 Code`（`DeviceToolchain` 的提示在 contracts 里是 `T3 Extend`）、`# Added by T3 Code`、`t3` 命令名、Tailscale 的 443 端口时，换成 `WORKTREE_BRANCH_PREFIX`、`FORK.appBaseName`、`FORK.cliCommand`、`FORK.tailscaleServePort`。
 - 11-17 同步（`55c134a346`）按规则 1 删掉了两处 fork 补丁，换成上游实现：Antigravity 从 PATH 找 `agy`（上游 `0058a4abb3`，`AntigravityInstallation.ts` 和测试与上游逐字相同，fork 的 `isAcpCli` 探测——`--version` ≥ 1.5.0 加 `acp --help`——没有了，代价是 PATH 上叫 `agy` 的其他程序不再被拒），和连接目录的 `decryptDocument`（上游自己加了逐字相同的一份，`DesktopConnectionCatalogStore.ts` 里 fork 的那份和它的 `// fork:` 标记已删）。以后上游改这两处，不要再补回来。
-- 手机语言入口只留 设置 → 外观 → 语言：上游 `16695c812f` 把 Language 挪进 General 并读 gt 的偏好，合并时 `SettingsLanguageRouteScreen.tsx` 仍删除，`SettingsProjectGroupingRouteScreen.tsx` 不带 `LanguageSettingsSection`，`settings-search.ts` 里上游加在 General 下的语言搜索词去掉。
+- 手机语言入口用上游的：设置 → 通用里那一行（上游 `16695c812f`），`SettingsLanguageRouteScreen.tsx`、语言搜索词都取上游。fork 以前的「外观 → 语言」从 GT 同步起不再保留。
 - `messageTimestamp.ts`：上游把格式化器改成跟随系统时区的缓存；fork 的缓存按界面语言分（中文 24 小时制），`createMessageTimeFormatter(is24Hour, locale, uiLocale)` 多一个参数，`useMessageTimeFormatter` 传 `useUiLocale()`。`hasUnseenCompletion` 在 `threadGrouping.ts`，上游 `40dcbc5f6a`（已停止的运行不算未读完成）要搬到那里，不是 `Sidebar.logic.ts`。
 - `ComposerAttachmentStrip` 的上传失败原因是英文原文存进状态、显示处才 `t(upload.reason)`，新增失败原因要同步 `clientErrors.ts` 目录。`RunFold` 多了 `labelTemplate`（`"Working"` 等），翻译在显示处按模板做。
 - 共享的纯函数加翻译时，`t` 放最后且默认英文（`t: Translator = translatorFor("en")`），上游测试用更少的参数调用时不用改。

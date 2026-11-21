@@ -69,7 +69,7 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 | credential               | 凭据                   |                                                                                                      |
 | Live Activities          | 实时活动               |                                                                                                      |
 | Review guide / guide     | 审查导读 / 导读        |                                                                                                      |
-| SnapShots                | SnapShots              | 功能名不译；动作 snapshot 译"截图"                                                                   |
+| SnapShots                | 快照                   | 跟上游 GT 的译法                                                                                     |
 | Boring sidebar           | 朴素侧边栏             |                                                                                                      |
 | Supervised               | 受监督                 | runtime mode                                                                                         |
 | Auto-accept edits        | 自动接受编辑           | runtime mode                                                                                         |
@@ -77,7 +77,7 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 | Full access              | 完全访问               | runtime mode                                                                                         |
 | Working（按钮）          | 处理中                 | 按钮上的进行态用 `pending button` context；对话状态仍是"运行中"                                      |
 | steer                    | 引导                   |                                                                                                      |
-| queue                    | 排队发送               | 动作和设置选项都用"排队发送"；已排队的消息写"排队的消息"，状态写"排队中"                             |
+| queue                    | 加入队列               | 动作跟上游 GT；已排队的状态写"排队中"                                                                |
 | stash（输入框）          | 暂存 / 暂存区          | git 的 stash 不译                                                                                    |
 | side chat                | 侧边对话               |                                                                                                      |
 | compact                  | 压缩                   |                                                                                                      |
@@ -92,8 +92,8 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 | push / pull              | 推送 / 拉取            |                                                                                                      |
 | rebase / merge / remote  | 不译                   | 按钮上的 "Merge" 动作译"合并"                                                                        |
 | MR / change request      | MR / 变更请求          | PR 和 MR 原样保留                                                                                    |
-| mention                  | 引用                   |                                                                                                      |
-| cite / citation          | 引述                   | 引用 Agent 回复里的一段文字；"引用"已给 mention                                                      |
+| mention                  | 提及                   | 跟上游 GT                                                                                            |
+| cite / citation          | 引用                   | 跟上游 GT                                                                                            |
 | annotation               | 标注                   |                                                                                                      |
 | Plan / Build（交互模式） | 计划 / 构建            | 用 `interaction mode` context；设置里的 "Plan" 指套餐                                                |
 | server                   | 服务器                 | 中文句子里都写"服务器"，如"T3 Code 服务器"；命令和代码标识符不改                                     |
@@ -141,3 +141,4 @@ T3 Extend 的界面译文都按这里翻译。改某一条时，在下面"改动
 - 限额类原来混用"上限"和"限额"：统一为"上限"。
 - 句子里原来夹着英文 `server`：统一为"服务器"。
 - 脚本角色 `setup` 原来是裸 key，译"设置"，和 Settings 混在一起；改用 `script role` context 译"创建 worktree 时"，与 `on settle`（标为已处理时）并列，都是"何时运行"。
+- 2026-11-21：除上面已定的 fork 术语（thread、Agent、provider、worktree、side chat、snooze、settle、review guide、route、usage limits）外，译文一律跟上游 GT 的 zh。mention、cite、queue、SnapShots 改为上游的提及、引用、加入队列、快照；fork 目录里和上游同一句英文的译文也换成了上游的写法。
