@@ -8,6 +8,7 @@ import * as PlatformCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { describe, expect, it } from "@effect/vitest";
 import { THEME_BACKGROUND_MAX_BYTES } from "@t3tools/contracts";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Stream from "effect/Stream";
@@ -166,6 +167,57 @@ describe("theme background upload", () => {
         yield* storeThemeBackgroundUpload(claims, Stream.make(PNG, Buffer.from("extra"))),
       ).toMatchObject({ ok: false, status: 400 });
     }).pipe(Effect.provide(layerTest)),
+  );
+
+  it.effect(
+    "keeps the cap when uploads arrive together, and answers copies of one picture alike",
+    () =>
+      Effect.gen(function* () {
+        const config = yield* ServerConfig.ServerConfig;
+        const directory = themeBackgroundDirectory(config.environmentThemesDir);
+        NodeFS.mkdirSync(directory, { recursive: true });
+        for (let index = 0; index < MAX_STORED_THEME_BACKGROUNDS - 2; index += 1) {
+          NodeFS.writeFileSync(
+            NodePath.join(directory, `${String(index).padStart(64, "0")}.png`),
+            PNG,
+          );
+        }
+        const gate = yield* Deferred.make<void>();
+        const upload = (bytes: Buffer) =>
+          Effect.gen(function* () {
+            const issued = yield* issueThemeBackgroundUploadUrl({ sizeBytes: bytes.length });
+            const claims = yield* validateThemeBackgroundUploadToken(
+              issued.relativeUrl.slice(`${THEME_BACKGROUND_UPLOAD_ROUTE_PREFIX}/`.length),
+            );
+            if (!claims) throw new Error("Expected upload claims");
+            // Every body waits for the same gate, so all the uploads reach the store together.
+            return yield* storeThemeBackgroundUpload(
+              claims,
+              Stream.fromEffect(Deferred.await(gate)).pipe(
+                Stream.flatMap(() => Stream.make(bytes)),
+              ),
+            );
+          });
+        const pictures = [1, 2, 3, 4, 5].map((n) => Buffer.concat([PNG, Buffer.from(`#${n}`)]));
+        // The gate opens only once every upload is waiting on it.
+        const [results] = yield* Effect.all(
+          [
+            Effect.all([...pictures.map(upload), upload(JPEG), upload(JPEG), upload(JPEG)], {
+              concurrency: "unbounded",
+            }),
+            Deferred.succeed(gate, undefined),
+          ],
+          { concurrency: "unbounded" },
+        );
+        const [first, second, third] = results.slice(pictures.length, pictures.length + 3);
+        // Two free slots: exactly two of the six different pictures are kept, never more.
+        expect(NodeFS.readdirSync(directory)).toHaveLength(MAX_STORED_THEME_BACKGROUNDS);
+        const kept = results.slice(0, pictures.length).filter((result) => result.ok).length;
+        expect(kept + (first?.ok ? 1 : 0)).toBe(2);
+        // The same bytes sent together get one answer, never a 500.
+        expect(second).toEqual(first);
+        expect(third).toEqual(first);
+      }).pipe(Effect.provide(layerTest)),
   );
 
   it.effect("accepts only a token it signed", () =>

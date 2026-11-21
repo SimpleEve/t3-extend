@@ -71,7 +71,10 @@ export type StoreThemeBackgroundResult =
   | { readonly ok: true; readonly hash: string }
   | { readonly ok: false; readonly status: number; readonly detail: string };
 
-/** Stores one picture. The same bytes sent again are not written again. */
+/**
+ * Stores one picture. The same bytes sent again are not written again. Nothing here yields, so
+ * the cap check and the write cannot interleave with another upload in this process.
+ */
 export function storeThemeBackground(
   themesDir: string,
   bytes: Uint8Array,
@@ -112,6 +115,8 @@ export function storeThemeBackground(
     }
     return { ok: true, hash };
   } catch {
+    // A rename that lost to another writer of the same bytes (another process) still stored it.
+    if (findStoredThemeBackground(themesDir, hash) !== null) return { ok: true, hash };
     return { ok: false, status: 500, detail: "Failed to store the background image." };
   }
 }

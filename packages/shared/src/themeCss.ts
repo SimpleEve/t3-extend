@@ -101,6 +101,8 @@ export const THEME_GUIDE = [
   "CSS: `css` applies after the app's styles. Use `.dark` or `:root:not(.dark)` for one appearance.",
   "It cannot load files: no @import, no image-set(), and url() only with data: or #id.",
   'For a background image, copy a JPEG, PNG, or WebP file of up to 16 MB to `<themesDir>/<themeId>.jpg` (or .png, .webp), beside the theme file. CSS shows it with `var(--theme-background-image)`, such as `[data-workspace-area="conversation"] { background: var(--theme-background-image) center / cover no-repeat; }`. Delete the file to remove it. Do not embed images in `css`: it holds 100,000 characters.',
+  // fork: a background chosen in Theme Studio
+  "A person can also choose an image in Theme Studio. The theme then has `look.background`, the 64-digit hash of the picture the server stored, and that image wins over a file beside the theme. You cannot upload a picture, so never write or invent a hash. When you publish a theme that already has `look.background`, copy it back unchanged, or the image is lost.",
   "The app's own rules can be more specific. If a rule has no effect, add !important.",
   "It cannot reach the terminal text, the file tree, or diff internals. Use color roles for those.",
   "Native scrollbars take `::-webkit-scrollbar` and `::-webkit-scrollbar-thumb`.",
