@@ -15,8 +15,24 @@ const rows: ReadonlyArray<ProcessInspector.ProcessRow> = [
   // `nohup uv run board serve --port 7733 &`: its script exited, launchd adopted it.
   { pid: 520, ppid: 1, args: "python3 -m board serve --port 7733", startTime: "s520" },
   { pid: 530, ppid: 1, args: "node app.js --inspect=9230", startTime: "s530" },
+  // omp's agent and a dev server its shell started.
+  { pid: 470, ppid: SERVER, args: "/opt/bin/omp --mode rpc", startTime: "s470" },
+  { pid: 471, ppid: 470, args: "/bin/zsh -c npm run dev", startTime: "s471" },
+  { pid: 472, ppid: 471, args: "node vite.js", startTime: "s472" },
 ];
-const LISTENERS: Readonly<Record<number, number>> = { 7733: 520, 3000: 530, 3773: SERVER };
+const LISTENERS: Readonly<Record<number, number>> = {
+  7733: 520,
+  3000: 530,
+  3773: SERVER,
+  5173: 472,
+  4100: 470,
+};
+// The environment the adapter gives the agent, inherited by what it starts.
+const ENVIRONMENT: Readonly<Record<number, string>> = {
+  470: "T3CODE_THREAD_ID=thread-1",
+  471: "T3CODE_THREAD_ID=thread-1",
+  472: "T3CODE_THREAD_ID=thread-1",
+};
 
 const setup = (options: { readonly platform?: NodeJS.Platform; readonly fail?: boolean } = {}) => {
   const reads = { listeners: 0 };
@@ -35,7 +51,10 @@ const setup = (options: { readonly platform?: NodeJS.Platform; readonly fail?: b
           ),
         );
       }),
-    launchText: (pid) => Effect.succeed(rows.find((row) => row.pid === pid)?.args ?? null),
+    launchText: (pid) => {
+      const row = rows.find((entry) => entry.pid === pid);
+      return Effect.succeed(row === undefined ? null : `${row.args} ${ENVIRONMENT[pid] ?? ""}`);
+    },
   });
   const layer = Layer.effect(
     TunnelExclusions.TunnelExclusions,
@@ -72,6 +91,13 @@ it.effect(
       assert.equal(reads.listeners, before);
     }).pipe(Effect.provide(layer));
   },
+);
+
+it.effect("forwards what omp's agent starts and refuses omp's own port", () =>
+  Effect.gen(function* () {
+    assert.isNull(yield* check(5173));
+    assert.deepEqual(yield* check(4100), { code: "reserved" });
+  }).pipe(Effect.provide(setup().layer)),
 );
 
 it.effect("shares one read among a page's connections, and reads again after the TTL", () => {

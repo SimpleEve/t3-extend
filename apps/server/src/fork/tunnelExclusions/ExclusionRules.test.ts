@@ -1,7 +1,7 @@
 // The tunnel's exclusion rules, row by row, over hand-built process tables.
 import { assert, describe, it } from "@effect/vitest";
 
-import { classifyListener, type ShellEntry } from "./ExclusionRules.ts";
+import { classifyListener, serverChildOf, type ShellEntry } from "./ExclusionRules.ts";
 import type { ProcessRow } from "./ProcessInspector.ts";
 
 const SERVER = 100;
@@ -27,6 +27,7 @@ const run = (
   options: {
     readonly launch?: string;
     readonly shells?: ReadonlyArray<number>;
+    readonly root?: string;
   } = {},
 ) =>
   classifyListener({
@@ -34,6 +35,7 @@ const run = (
     table: table(...base, ...rows),
     listenerPid,
     launchText: options.launch ?? "",
+    rootLaunchText: options.root ?? null,
     shells: new Map<number, ShellEntry>(
       (options.shells ?? []).map((pid) => [pid, { startTime: `start-${pid}` }]),
     ),
@@ -211,5 +213,39 @@ describe("classifyListener", () => {
       shells: new Map(),
     });
     assert.equal(denied(verdict), "allowed");
+  });
+
+  it("keeps only the process itself of a provider with no known shape, told by its thread marker", () => {
+    // omp's agent: `omp --mode rpc` started with the thread id in its environment.
+    const omp = [
+      [470, SERVER, "/Users/x/.local/bin/omp --mode rpc --resume /x/session.jsonl"],
+      [471, 470, "/bin/zsh -c npm run dev"],
+      [472, 471, "node vite.js --port 5173"],
+    ] as const;
+    const marked = `/Users/x/.local/bin/omp --mode rpc ${MARKER} HOME=/Users/x`;
+    // The service omp's shell started is forwarded.
+    assert.equal(
+      denied(run(omp, 472, { launch: `node vite.js ${MARKER}`, root: marked })),
+      "allowed",
+    );
+    // omp's own listener is not.
+    assert.equal(denied(run(omp, 470, { launch: marked })), "reserved/E3");
+    // Debug flags still win under it.
+    assert.equal(
+      denied(run(omp, 472, { launch: "node vite.js --inspect", root: marked })),
+      "debug-process/E7",
+    );
+    // A helper of T3's own has no marker: its whole subtree stays out.
+    assert.equal(
+      denied(run(omp, 472, { root: "/Users/x/.local/bin/omp --mode rpc" })),
+      "reserved/E2",
+    );
+  });
+
+  it("finds the server's direct child above a listener", () => {
+    const rows = table(...base, [470, SERVER, "omp --mode rpc"], [472, 470, "node vite.js"]);
+    assert.equal(serverChildOf(rows, SERVER, 472), 470);
+    assert.equal(serverChildOf(rows, SERVER, 470), 470);
+    assert.isNull(serverChildOf(table(...base, [520, 1, "python3 -m board serve"]), SERVER, 520));
   });
 });

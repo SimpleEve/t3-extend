@@ -4,6 +4,7 @@
 // Anything else is forwarded, whoever started it.
 import type { ProcessRow, ProcessTable } from "./ProcessInspector.ts";
 import {
+  hasAgentMarker,
   hasDebugFlag,
   matchRoot,
   matchesRuntime,
@@ -59,10 +60,27 @@ export interface ClassifyInput {
   readonly launchText: string;
   /** The terminal shells that are running now. */
   readonly shells: ReadonlyMap<number, ShellEntry>;
+  /**
+   * The launch text of the server's direct child above the listener (`serverChildOf`), when the
+   * listener is not that child itself. A provider without a known process shape is told from T3's
+   * own helpers by the thread marker its adapter puts in the agent's environment.
+   */
+  readonly rootLaunchText?: string | null;
   readonly extraExecutables?: ReadonlyArray<ExtraExecutable>;
   /** Real paths for configured binaries; the identity when absent. */
   readonly resolvePath?: ResolvePath;
 }
+
+/** The server's direct child that `pid` runs under (or is), or `null` when it is not under the server. */
+export const serverChildOf = (
+  table: ProcessTable,
+  serverPid: number,
+  pid: number,
+): number | null => {
+  const chain = ancestry(table, pid);
+  const index = chain.findIndex((row) => row.pid === serverPid);
+  return index > 0 ? chain[index - 1]!.pid : null;
+};
 
 export const classifyListener = (input: ClassifyInput): ClassifyVerdict => {
   const { table, serverPid, listenerPid } = input;
@@ -102,6 +120,12 @@ export const classifyListener = (input: ClassifyInput): ClassifyVerdict => {
   }
 
   const driver = matchRoot(root.args, extra, resolve);
+  // An agent of a provider whose processes have no known shape (omp, Antigravity, the ACP
+  // registry): only the provider process itself is kept out, not what it starts.
+  const rootText = root.pid === listenerPid ? input.launchText : input.rootLaunchText;
+  if (driver === null && rootText != null && hasAgentMarker(rootText)) {
+    return root.pid === listenerPid ? deny("reserved", "E3", "the provider's own process") : ALLOW;
+  }
   if (driver === null) {
     return deny(
       "reserved",

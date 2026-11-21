@@ -452,7 +452,7 @@ omp（oh-my-pi，Pi 的分支）是原生 provider，和上游的 Pi 并存。�
 
 - 屏蔽端口表（9222、9229、5858、5859、5005、5678、2375、2376），不读进程就拒；
 - 带调试参数起的进程（`--inspect` 系列、`--remote-debugging-port`、JDWP，看 argv 和启动环境）；
-- T3 自己的进程：server 和它的祖先（E1）、server 的直接子进程里不是终端 shell 也不是已知 provider 的整棵子树（E2，含 Cursor、Antigravity、omp、ACP registry 这些没有核对过进程形状的 provider 起的服务）、provider 自身和它的运行时（E3、E4，含崩溃后遗留的运行时）。
+- T3 自己的进程：server 和它的祖先（E1）、server 的直接子进程里不是终端 shell 也不是 provider 的整棵子树（E2）、provider 自身和它的运行时（E3、E4，含崩溃后遗留的运行时）。omp、Antigravity、ACP registry 没有核对过进程形状，认的是适配器给 agent 进程设的 `T3CODE_THREAD_ID`：带这个标记的直接子进程算 provider，只拒它自己的监听，它起的子进程放行；T3 自己的辅助进程不带标记，仍按 E2。Cursor 的 SDK 在 server 进程里起 agent，适配器不设标记，它起的服务仍按 E2 拒绝。Claude、Codex 按进程特征认，规则不变。
 
 其余一律放行，不管是谁起的，`nohup` 起、被 launchd 收养的服务也行。fork 以前按"谁起的进程"授权、不认识的拒为 `not-owned` 再让用户手动放行，这套连同放行卡片、设置里的放行列表、自己的代理/隧道客户端/票据都已退役（2026-11-21）。
 

@@ -490,9 +490,10 @@ reach the same services, so T3 Extend keeps a few of them out of its reach:
 - Ports debuggers and daemons commonly use: 9222, 9229, 5858, 5859, 5005,
   5678, 2375, and 2376.
 - T3 Extend's own processes on the host, its helpers, and the agents' own
-  runtimes. Services that agents of Cursor, Antigravity, omp, and ACP registry
-  providers start are kept out too, because T3 Extend can't tell them apart
-  from those runtimes; start them in a T3 terminal instead.
+  processes. Services an agent starts are forwarded; for omp, Antigravity, and
+  ACP registry agents only the agent process itself is kept out. Services that
+  Cursor agents start are kept out too, because T3 Extend can't tell them
+  apart from its own helpers; start them in a T3 terminal instead.
 
 Opening one of these in a browser shows a page that says the port can't be
 forwarded and why, also through a port forward or **Open on this device** on a

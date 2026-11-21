@@ -13,7 +13,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
 import * as ServerSettings from "../../serverSettings.ts";
-import { classifyListener } from "./ExclusionRules.ts";
+import { classifyListener, serverChildOf } from "./ExclusionRules.ts";
 import * as ProcessInspector from "./ProcessInspector.ts";
 import type { ExtraExecutable } from "./RuntimeSignatures.ts";
 import * as TerminalShellRegistry from "./TerminalShellRegistry.ts";
@@ -106,6 +106,15 @@ export const make = Effect.fn("TunnelExclusions.make")(function* (options: {
       [inspector.table, Effect.forEach(pids, inspector.launchText, { concurrency: 4 })],
       { concurrency: "unbounded" },
     );
+    const roots = pids.map((pid) => serverChildOf(table, options.serverPid, pid));
+    const rootReads = [...new Set(roots.filter((root, i) => root !== null && root !== pids[i]))];
+    const rootTexts = new Map(
+      yield* Effect.forEach(
+        rootReads as ReadonlyArray<number>,
+        (root) => Effect.map(inspector.launchText(root), (text) => [root, text] as const),
+        { concurrency: 4 },
+      ),
+    );
     const shellsNow = yield* shells.shells;
     const extraExecutables = yield* configured.read;
     for (const [index, listenerPid] of pids.entries()) {
@@ -114,6 +123,7 @@ export const make = Effect.fn("TunnelExclusions.make")(function* (options: {
         table,
         listenerPid,
         launchText: launches[index] ?? "",
+        rootLaunchText: rootTexts.get(roots[index] ?? -1) ?? null,
         shells: shellsNow,
         extraExecutables,
         resolvePath: realPathOf,

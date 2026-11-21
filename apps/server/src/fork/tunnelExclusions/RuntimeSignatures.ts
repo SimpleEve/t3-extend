@@ -1,6 +1,7 @@
 // fork: what each driver's processes look like in `ps` (design 5.6.3). A driver has a root, its
 // direct child of the server, and a runtime that may listen; `exec` makes them one process.
-// A driver whose shape was not verified is in `NO_SIGNATURE`: its whole subtree is excluded.
+// A driver whose shape was not verified is in `NO_SIGNATURE`: its root is told from T3's own
+// helpers by the thread marker in its environment, and only that root's listeners are excluded.
 
 export interface DriverSignature {
   readonly driver: string;
@@ -93,12 +94,15 @@ export const DRIVER_SIGNATURES: ReadonlyArray<DriverSignature> = [
   },
 ];
 
-/** Drivers without a verified process shape. Their roots are unrecognized, so E2 excludes the subtree. */
+/**
+ * Drivers without a verified process shape. A root that carries the thread marker is taken as the
+ * provider (E3 for its own listeners); without the marker it is one of T3's helpers (E2).
+ */
 export const NO_SIGNATURE: ReadonlyArray<{ readonly driver: string; readonly reason: string }> = [
   {
     driver: "cursor",
     reason:
-      "the Cursor SDK starts its own local agent runtime internally; its process shape was not verified without running it",
+      "the Cursor SDK starts its agent runtime from inside the server process and the adapter sets no thread marker, so what it starts is not told apart from T3's own helpers (E2)",
   },
   {
     driver: "antigravity",
@@ -187,3 +191,8 @@ const DEBUG_FLAGS =
   /(?:^|[\s="'])(?:--inspect(?:-brk|-wait|-port)?(?:[=\s"']|$)|--remote-debugging-port(?:[=\s"']|$)|-agentlib:jdwp|-Xrunjdwp)/u;
 
 export const hasDebugFlag = (launchText: string): boolean => DEBUG_FLAGS.test(launchText);
+
+/** The thread id every provider adapter sets for its agent process (`PortScanner.AGENT_THREAD_ENV`). */
+const AGENT_MARKER = /(?:^|\s)T3CODE_THREAD_ID=\S+/u;
+
+export const hasAgentMarker = (launchText: string): boolean => AGENT_MARKER.test(launchText);
