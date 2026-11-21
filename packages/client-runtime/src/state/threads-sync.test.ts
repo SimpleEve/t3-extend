@@ -15,6 +15,7 @@ import {
   type OrchestrationV2TurnItem,
 } from "@t3tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
+import { decodeOptions } from "gt-i18n";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -55,6 +56,7 @@ import * as ThreadHistoryController from "./threadHistoryController.ts";
 import {
   EMPTY_ENVIRONMENT_THREAD_STATE,
   makeEnvironmentThreadState,
+  threadErrorText,
   type EnvironmentThreadState,
   type ThreadSnapshotLoadResult,
 } from "./threads.ts";
@@ -1067,6 +1069,22 @@ describe("EnvironmentThreads", () => {
           hasMoreHistory: nextCursor !== null,
         }),
       );
+    it.effect("keeps a timed-out history page's error translatable", () =>
+      Effect.gen(function* () {
+        const harness = yield* makeHarness({
+          cached: cachedItem(command("work-1", "completed", 0, 1)),
+          cachedHistory: { historyCursor: "1000", hasMoreHistory: true },
+          historyHttpClient: HttpClient.make(() => Effect.never),
+        });
+        const loading = yield* harness.loadEarlier().pipe(Effect.forkScoped);
+        yield* TestClock.adjust("10 seconds");
+        expect((yield* Fiber.join(loading))._tag).toBe("error");
+        const { error } = (yield* SubscriptionRef.get(harness.threadState)).history;
+        // A message already in English could not follow a language switch.
+        expect(decodeOptions(error ?? "")?.$_source).toBeTypeOf("string");
+        expect(threadErrorText(error ?? "")).toMatch(/timed out after \d+ms\.$/);
+      }),
+    );
     it.effect("loads a long unwrapped turn through its user message and resumes failed pages", () =>
       Effect.gen(function* () {
         const prompt = {

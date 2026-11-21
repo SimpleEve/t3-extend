@@ -1,4 +1,4 @@
-import { mFallback, msg } from "gt-i18n";
+import { decodeOptions, mFallback, msg } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
 import {
   isOrchestrationV2WorkActive,
@@ -27,6 +27,7 @@ import { HttpClient } from "effect/http";
 import { Atom } from "effect/reactivity";
 
 import * as RemoteEnvironmentAuthorization from "../authorization/service.ts";
+import { errorI18nMessage } from "../errors/translatable.ts"; // fork: see formatHistoryError
 import * as EnvironmentRegistry from "../connection/registry.ts";
 import { connectionProjectionPhase } from "../connection/model.ts";
 import * as EnvironmentSupervisor from "../connection/supervisor.ts";
@@ -80,13 +81,16 @@ const THREAD_ERRORS: ReadonlySet<string> = new Set([
   WORK_HISTORY_CHANGED_ERROR,
 ]);
 
+// fork: an error that carries one `msg()` sentence keeps it marked, so it follows a language switch.
+const isMarkedSentence = (text: string) => typeof decodeOptions(text)?.$_source === "string";
+
 /**
  * A thread or history error in the active language. Errors this module wrote translate;
  * messages from the server or another error stay as they are.
  * @public
  */
 export function threadErrorText(error: string, resolve: MFunctionType = mFallback): string {
-  return THREAD_ERRORS.has(error) ? resolve(error) : error;
+  return THREAD_ERRORS.has(error) || isMarkedSentence(error) ? resolve(error) : error; // fork: marked sentences too
 }
 
 function formatThreadError(cause: Cause.Cause<unknown>): string {
@@ -97,6 +101,9 @@ function formatThreadError(cause: Cause.Cause<unknown>): string {
 }
 
 function formatHistoryError(error: unknown): string {
+  // fork: keep a single translatable sentence marked; several would need joining in English.
+  const marked = errorI18nMessage(error);
+  if (marked?.length === 1) return marked[0]!;
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message;
   }
