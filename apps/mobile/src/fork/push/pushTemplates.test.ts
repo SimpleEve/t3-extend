@@ -21,7 +21,7 @@ describe("buildPushTemplates", () => {
     const templates = JSON.parse(buildPushTemplates("zh-Hans"));
     expect(templates.approval.body).toBe("需要批准 · {project} · {environment}");
     expect(templates.input.body).toBe("需要你回答 · {project} · {environment}");
-    expect(templates.completed.body).toBe("已结束 · {project} · {environment}");
+    expect(templates.completed.body).toBe("已完成 · {project} · {environment}");
     expect(templates.test.body).toBe("{environment} 的通知能送达这部手机。");
     expect(templates.channelName).toBe("Agent 提醒");
   });
