@@ -1,4 +1,9 @@
-import { selectedNavigationTab, visibleNavigationTabs } from "./navigation-tab-order";
+import {
+  NAVIGATION_TAB_LABELS, // fork: i18n
+  selectedNavigationTab,
+  visibleNavigationTabs,
+} from "./navigation-tab-order";
+import { useGT, useMessages } from "gt-react-native"; // fork: i18n
 import { requireNativeView } from "expo";
 import { CommonActions, useNavigation } from "@react-navigation/native";
 import {
@@ -35,6 +40,8 @@ interface NativeNavigationProps extends ViewProps {
   readonly rail: boolean;
   readonly floating: boolean;
   readonly tabs: readonly string[];
+  /** fork: i18n. The native bar falls back to English for any label it is not given. */
+  readonly labels: Readonly<Record<string, string>>;
   readonly selectedTab: AndroidWorkspaceNavigationTab;
   readonly dark: boolean;
   readonly textScale: number;
@@ -73,6 +80,8 @@ export function AndroidWorkspaceNavigation(props: {
   readonly onOverlayChange?: (overlay: boolean) => void;
 }) {
   const workspace = useWorkspaceTabs()!;
+  const gt = useGT(); // fork: i18n
+  const m = useMessages(); // fork: i18n
   const order = useNavigationTabOrder();
   const hidden = useHiddenNavigationTabs();
   const root = useAndroidWorkspaceRoot();
@@ -120,6 +129,18 @@ export function AndroidWorkspaceNavigation(props: {
         rail={rail}
         floating={floating}
         tabs={tabs}
+        labels={{
+          // fork: i18n
+          ...Object.fromEntries(
+            Object.entries(NAVIGATION_TAB_LABELS).map(([tab, label]) => [tab, m(label)]),
+          ),
+          pullRequestsExpanded: gt("Pull Requests"),
+          settings: gt("Settings"),
+          newThread: gt("New thread"),
+          expandRail: gt("Expand navigation rail"),
+          collapseRail: gt("Collapse navigation rail"),
+          closeRail: gt("Close navigation rail"),
+        }}
         selectedTab={selectedTab}
         dark={themeAppearance === "dark"}
         textScale={scale}

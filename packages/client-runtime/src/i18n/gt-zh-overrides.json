@@ -78,6 +78,10 @@
     "Un-settle thread": "将对话移出已处理",
     "Un-settle {title}": "将 {title} 移出已处理",
     "{host} token": "{host} 令牌",
-    "{provider} token": "{provider} 令牌"
+    "{provider} token": "{provider} 令牌",
+    "Expand navigation rail": "展开导航栏",
+    "Collapse navigation rail": "收起导航栏",
+    "Close navigation rail": "关闭导航栏",
+    "Pull Requests": "PR"
   }
 }

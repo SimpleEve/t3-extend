@@ -57,6 +57,7 @@ const reactTests = [
   "src/features/devices/device-stream.browser.test.ts",
   "src/features/keyboard/keyboardControllerState.test.tsx",
   "src/fork/threadListViewState.test.tsx", // fork: thread list views
+  "src/i18n/loadedLocaleSelection.test.tsx", // fork: locale switch waits for its catalog
   "src/fork/useMarkdownTypography.test.tsx", // fork: Chinese text sizes
   "src/fork/deviceKeys/ServerDevicesScreen.test.tsx", // fork: self-hosted devices
 ];

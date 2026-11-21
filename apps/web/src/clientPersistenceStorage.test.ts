@@ -38,6 +38,22 @@ afterEach(() => {
 });
 
 describe("clientPersistenceStorage", () => {
+  // fork: T3 Extend saved the interface language as `uiLanguage` before it adopted `language`.
+  it("reads a saved Chinese interface from before the language setting moved", async () => {
+    const testWindow = getTestWindow();
+    const { language: _language, ...legacy } = DEFAULT_CLIENT_SETTINGS;
+    testWindow.localStorage.setItem(
+      "t3code:client-settings:v1",
+      JSON.stringify({ ...legacy, uiLanguage: "zh-Hans" }),
+    );
+    const { readBrowserClientSettings } = await import("./clientPersistenceStorage");
+
+    expect(readBrowserClientSettings()?.language).toBe("zh");
+    expect(testWindow.localStorage.getItem("t3code:client-settings:v1")).not.toContain(
+      "uiLanguage",
+    );
+  });
+
   it.each(["not-json", '{"wordWrap":"invalid"}'])(
     "does not treat invalid saved settings as absent: %s",
     async (value) => {

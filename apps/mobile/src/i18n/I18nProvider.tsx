@@ -1,12 +1,13 @@
 import { resolveLocaleSelection } from "@t3tools/client-runtime/locales";
 import { useAtomValue } from "@effect/atom-react";
 import { AsyncResult } from "effect/reactivity";
-import { GTProvider, initializeGT, useLocale } from "gt-react-native";
-import { createContext, use, useDeferredValue, useEffect, useMemo, type ReactNode } from "react";
+import { getReactI18nCache, GTProvider, initializeGT, useLocale } from "gt-react-native";
+import { createContext, use, useEffect, useMemo, type ReactNode } from "react";
 import { Platform, TurboModuleRegistry, View, type TurboModule } from "react-native";
 
 import { mobilePreferencesAtom } from "../state/preferences";
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./locales";
+import { useLoadedLocaleSelection } from "./loadedLocaleSelection"; // fork
 import { setActiveLocale } from "./messages";
 
 const FormattingLocaleContext = createContext(DEFAULT_LOCALE);
@@ -37,6 +38,9 @@ initializeGT({
   // Loaded catalogs never go stale; GT's default 60 s expiry would only reload the same file.
   cacheExpiryTime: null,
 });
+
+// fork: fills GT's catalog cache, which GTProvider reads the locale from.
+const preloadCatalog = (locale: string) => getReactI18nCache().loadTranslations(locale);
 
 // Read the device languages from gt-react-native's own native module: GT's getLocale() prefers
 // the last locale passed to GTProvider, which it persists, so it can't express "system".
@@ -69,10 +73,11 @@ export function I18nProvider(props: { readonly children: ReactNode }) {
     SUPPORTED_LOCALES,
     DEFAULT_LOCALE,
   );
-  // GT suspends while a locale's catalog loads. Deferring the switch keeps the current language
-  // on screen until then, instead of GT's full-screen spinner.
-  const selection = useDeferredValue(
+  // GT suspends while a locale's catalog loads. Switching only once it has loaded keeps the current
+  // language on screen until then, instead of GT's full-screen spinner.
+  const selection = useLoadedLocaleSelection(
     useMemo(() => ({ catalogLocale, formattingLocale }), [catalogLocale, formattingLocale]),
+    preloadCatalog, // fork: a deferred switch could stall, see loadedLocaleSelection
   );
   return (
     <GTProvider locale={selection.catalogLocale} fallback={<View className="flex-1 bg-screen" />}>
