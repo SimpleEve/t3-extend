@@ -11,6 +11,7 @@ import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
+import type * as Undici from "undici";
 
 import {
   makeUnavailableUsageLimits,
@@ -45,6 +46,9 @@ const SUMMARY_WINDOW_MINS = new Map([
   ["weekly", 7 * 24 * 60],
 ]);
 const MANUAL_REDIRECT: RequestInit = { redirect: "manual" };
+// fork: a proxy that cannot be used must not let the probe go out directly.
+const PROXY_UNUSABLE =
+  "Limits are not available because the Antigravity network proxy cannot be used from the T3 server. Check the proxy address in the provider settings.";
 const TokenFile = Schema.Struct({
   client_id: Schema.NonEmptyString,
   client_secret: Schema.NonEmptyString,
@@ -336,6 +340,8 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
   readonly sharedLogin?: boolean;
   // fork: reads the agy CLI sign-in where this platform keeps it. Without it, limits stay unavailable.
   readonly readCliLogin?: Effect.Effect<AntigravityCliLoginRead> | undefined;
+  // fork: the instance's proxy. `undefined` goes out directly; `null` is a proxy this server cannot use.
+  readonly proxyDispatcher?: Undici.Dispatcher | null | undefined;
 }) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -357,9 +363,13 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
   // fork: the account of the agy CLI sign-in last seen, keyed by its tokens, so userinfo is asked once.
   let cachedCliAccount: { fingerprint: string; account: string } | undefined;
 
+  // fork: `dispatcher` is undici's own fetch option, outside the DOM type.
+  const requestInit: RequestInit = input.proxyDispatcher
+    ? ({ ...MANUAL_REDIRECT, dispatcher: input.proxyDispatcher } as unknown as RequestInit)
+    : MANUAL_REDIRECT;
   const request = (request: HttpClientRequest.HttpClientRequest) =>
     client.execute(request).pipe(
-      Effect.provideService(FetchHttpClient.RequestInit, MANUAL_REDIRECT),
+      Effect.provideService(FetchHttpClient.RequestInit, requestInit),
       Effect.flatMap(HttpClientResponse.filterStatusOk),
       Effect.flatMap((response) => response.json),
       Effect.timeout("10 seconds"),
@@ -369,6 +379,13 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
     const checkedAt = DateTime.formatIso(yield* DateTime.now);
     if (input.authMethod !== "oauth-personal" && input.authMethod !== "oauth-business") {
       return makeUnavailableUsageLimits({ checkedAt, reason: "unsupported" });
+    }
+    if (input.proxyDispatcher === null) {
+      return makeUnavailableUsageLimits({
+        checkedAt,
+        reason: "probeFailed",
+        message: PROXY_UNUSABLE,
+      }); // fork:
     }
     const now = yield* Clock.currentTimeMillis;
     let accessToken: string;

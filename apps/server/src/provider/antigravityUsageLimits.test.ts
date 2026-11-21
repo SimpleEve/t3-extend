@@ -10,6 +10,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as TestClock from "effect/testing/TestClock";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http";
+import type * as Undici from "undici";
 
 import type { AntigravityCliLoginRead } from "./antigravityCliLogin.ts"; // fork:
 import {
@@ -78,6 +79,7 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
     keyringSecret?: string;
     /** Reads the OS keyring instead of `keyringSecret`. */
     nativeKeyring?: boolean;
+    proxyDispatcher?: Undici.Dispatcher | null; // fork:
   } = {},
 ) {
   const fs = yield* FileSystem.FileSystem;
@@ -101,6 +103,10 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
     Effect.sync(() => {
       const init = Context.getOrUndefined(fiber.context, FetchHttpClient.RequestInit);
       expect(init?.redirect).toBe("manual");
+      // fork: every request of a proxied instance carries the proxy's dispatcher.
+      expect((init as { dispatcher?: unknown } | undefined)?.dispatcher).toBe(
+        options.proxyDispatcher ?? undefined,
+      );
       const body =
         request.body._tag === "Uint8Array" ? new TextDecoder().decode(request.body.body) : "";
       requests.push({ url: request.url, body });
@@ -160,6 +166,7 @@ const fixture = Effect.fn("AntigravityUsageTest.fixture")(function* (
         }
       : {}),
     ...(options.nativeKeyring ? {} : { readKeyringSecret: Effect.succeed(options.keyringSecret) }),
+    ...(options.proxyDispatcher === undefined ? {} : { proxyDispatcher: options.proxyDispatcher }), // fork:
   }).pipe(Effect.provideService(HttpClient.HttpClient, http));
   return { ...usage, requests, writeToken, tokenPath, cliReads }; // fork:
 });
@@ -926,6 +933,22 @@ describe("Antigravity subscription limits", () => {
       decodeGoKeyringSecret(bytes(`go-keyring-encoded:${Buffer.from(value).toString("hex")}`)),
     ).toBe(value);
   });
+
+  // fork: a proxied instance reads its quota through that proxy, and never directly when the proxy is unusable.
+  it.effect("sends every quota request through the instance's proxy dispatcher", () =>
+    Effect.gen(function* () {
+      const dispatcher = { close: () => Promise.resolve() } as unknown as Undici.Dispatcher;
+      const { probe, requests } = yield* fixture({ proxyDispatcher: dispatcher });
+      expect((yield* probe).windows.length).toBeGreaterThan(0);
+      expect(requests.length).toBeGreaterThan(0);
+
+      const unusable = yield* fixture({ proxyDispatcher: null });
+      const limits = yield* unusable.probe;
+      expect(limits.unavailable?.reason).toBe("probeFailed");
+      expect(limits.unavailable?.message).toContain("network proxy");
+      expect(unusable.requests).toEqual([]);
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+  );
 
   it.effect("does not make network requests for API keys or missing sign-ins", () =>
     Effect.gen(function* () {

@@ -85,6 +85,7 @@ import {
   AntigravityCliLoginSource,
 } from "../antigravityCliLogin.ts"; // fork:
 import { makeAntigravityUsageProbe } from "../antigravityUsageLimits.ts";
+import { makeAntigravityProxyDispatcher } from "../antigravityNetworkProxy.ts"; // fork:
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
 import * as ModelCatalog from "@t3tools/provider-core/server/ModelCatalog";
 import {
@@ -173,6 +174,7 @@ export const AntigravityDriver: ProviderDriver<
       apiKey: settingsSecretLiteral(settings.apiKey),
       gcpProject: settings.gcpProject,
       gcpLocation: settings.gcpLocation,
+      networkProxy: settings.networkProxy, // fork:
     };
     const authConfigIssue = antigravityAuthConfigIssue(auth);
     const processEnvironment = yield* mergeProviderInstanceEnvironment(environment);
@@ -617,6 +619,8 @@ export const AntigravityDriver: ProviderDriver<
       authMethod: auth.authMethod,
       sharedLogin, // fork:
       readCliLogin: cliLoginRead && cliLoginSource.share(cliLoginRead), // fork:
+      // fork: T3's own Google requests leave through the same proxy as agy.
+      proxyDispatcher: yield* makeAntigravityProxyDispatcher(settings.networkProxy),
     }).pipe(
       Effect.provideService(FileSystem.FileSystem, fileSystem),
       Effect.provideService(Path.Path, path),
