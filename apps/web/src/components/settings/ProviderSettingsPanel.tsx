@@ -106,6 +106,7 @@ import { TextGeneratorsSettings } from "./TextGeneratorsSettings";
 import { UsageProviderSettings } from "./UsageProviderSettings";
 import { ProviderSetupSection, readAntigravityAuthMethod } from "./ProviderSetupSection";
 import { ProviderAuthenticationSection } from "./ProviderAuthenticationSection";
+import { AntigravityAccounts } from "../../fork/AntigravityAccounts"; // fork:
 import { CodexSetupSection, CodexManagedRuntimeFields } from "./CodexSetupSection";
 import { readCodexSetupMode } from "./CodexSetupSection.logic";
 import { providerClients } from "./providerDriverMeta";
@@ -1435,14 +1436,22 @@ function ProviderInstanceRow({
           liveProvider &&
           (liveProvider.setup?.canAuthenticate ||
             (liveProvider.driver === "acpRegistry" && liveProvider.installed)) ? (
-          <ProviderAuthenticationSection
-            key={`${environmentId}:${instanceId}`}
-            environmentId={environmentId}
-            environmentLabel={environmentLabel}
-            instanceId={instanceId}
-            provider={liveProvider}
-            readOnly={readOnly}
-          />
+          <>
+            <ProviderAuthenticationSection
+              key={`${environmentId}:${instanceId}`}
+              environmentId={environmentId}
+              environmentLabel={environmentLabel}
+              instanceId={instanceId}
+              provider={liveProvider}
+              readOnly={readOnly}
+            />
+            {/* fork: the saved accounts of a separate Antigravity sign-in */}
+            <AntigravityAccounts
+              environmentId={environmentId}
+              provider={liveProvider}
+              readOnly={readOnly}
+            />
+          </>
         ) : mode === "editor" &&
           !readOnly &&
           driver === "cursor" &&
