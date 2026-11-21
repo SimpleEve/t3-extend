@@ -166,7 +166,14 @@ async function verifyInstaller(installerPath: string): Promise<void> {
     log(
       `App executable: ${appExecutable}${others.length > 0 ? ` (also ${others.join(", ")})` : ""}`,
     );
-    for (const required of [bundledFrpcMember, "resources/app.asar", "resources/server.asar"]) {
+    for (const required of [
+      bundledFrpcMember,
+      "resources/app.asar",
+      "resources/server.asar",
+      // The MIT notice travels with the binary.
+      "resources/LICENSE",
+      "resources/NOTICE",
+    ]) {
       if (!members.includes(required))
         throw new Error(`${required} is missing from the installer.`);
     }

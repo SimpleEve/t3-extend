@@ -1005,7 +1005,9 @@ export const DESKTOP_FILE_EXCLUSIONS = [
   "!apps/desktop/prod-resources/windows-server/**/*",
   "!apps/desktop/prod-resources/wsl-runtime.tar.gz",
   "!apps/desktop/prod-resources/wsl-runtime.tar.gz.sha256",
-  // fork: frpc ships as an extra resource (bin/frpc.exe); without these it is also packed into the asar.
+  // fork: LICENSE and NOTICE ship as extra resources; frpc ships as bin/frpc.exe. None belongs in the asar too.
+  "!LICENSE",
+  "!NOTICE",
   "!apps/desktop/resources/frpc",
   "!apps/desktop/resources/frpc/**/*",
   "!apps/desktop/prod-resources/frpc",
@@ -3910,6 +3912,10 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
   // electron-builder is filtering out stageResourcesDir directory in the AppImage for production
   const stageProdResourcesDir = path.join(stageAppDir, "apps/desktop/prod-resources");
   yield* fs.copy(stageResourcesDir, stageProdResourcesDir);
+  // fork: DESKTOP_EXTRA_RESOURCES reads LICENSE and NOTICE from the stage dir, where nothing put them.
+  for (const notice of ["LICENSE", "NOTICE"]) {
+    yield* fs.copyFile(path.join(repoRoot, notice), path.join(stageAppDir, notice));
+  }
 
   const configuredMacPasskeySigning =
     options.platform === "mac" && options.signed

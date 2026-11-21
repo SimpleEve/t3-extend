@@ -1806,10 +1806,12 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       assert.equal(win.appId, "com.simpleeve.t3extend");
       assert.equal(win.artifactName, "T3-Extend-${version}-${arch}.${ext}");
       assert.include(win.extraResources as ReadonlyArray<unknown>, FORK_FRPC_EXTRA_RESOURCE);
-      // Staged frpc must not also be packed into app.asar, from either copy of the resources.
+      // What ships as an extra resource must not also be packed into app.asar.
       for (const excluded of [
         "!apps/desktop/resources/frpc",
         "!apps/desktop/prod-resources/frpc",
+        "!LICENSE",
+        "!NOTICE",
       ]) {
         assert.include(win.files as ReadonlyArray<string>, excluded);
       }
