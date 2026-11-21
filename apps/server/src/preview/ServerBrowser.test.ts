@@ -979,6 +979,27 @@ it.effect("a tab the desktop does not draw is marked headless, so the desktop st
   ).pipe(Effect.provide(layer)),
 );
 
+it.effect("a tab opened headless stays off the desktop that would draw a client's tab", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const browser = yield* ServerBrowser.ServerBrowser;
+      const manager = yield* Manager.PreviewManager;
+      desktopRendersNext = true;
+      const { tabId } = yield* manager.open({
+        threadId: scope.thread.threadId,
+        runtime: "server",
+        headless: true,
+      });
+      yield* browser.attachViewer(viewerInput(tabId, true));
+
+      expect(desktopConnections).toHaveLength(0);
+      expect(desktopRendersNext).toBe(true);
+      const { sessions } = yield* manager.list({ threadId: scope.thread.threadId });
+      expect(sessions.find((session) => session.tabId === tabId)?.headless).toBe(true);
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
 it.effect("a server started without the desktop browser channel marks its tabs headless", () =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -3137,6 +3158,49 @@ it.effect("a desktop tab reports the size the desktop draws after a resize", () 
       pageRead.resolve(answer(1000, 600));
       expect(yield* Fiber.join(navigated)).toEqual({ width: 900, height: 560 });
       expect(yield* Fiber.join(reloaded)).toBeUndefined();
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+it.effect("a desktop tab that sends no frame tells its viewer the host is not drawing it", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      heldStill = () => new Promise(() => {});
+      const { viewer } = yield* openDesktopViewer;
+      expect((yield* Queue.takeAll(viewer.output)).map((item) => item._tag)).not.toContain(
+        "hostNotDrawing",
+      );
+
+      // A full backlog of one-time notifications must not swallow it.
+      const output =
+        viewer.output as unknown as Queue.Queue<ServerBrowser.ServerBrowserViewerOutput>;
+      let copies = 0;
+      while (Queue.offerUnsafe(output, { _tag: "clipboard", text: `copy ${copies}` })) copies++;
+
+      yield* TestClock.adjust("6 seconds");
+
+      expect((yield* Queue.takeAll(viewer.output)).map((item) => item._tag)).toContain(
+        "hostNotDrawing",
+      );
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+it.effect("a desktop tab that draws a frame never reports the host as not drawing", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      heldStill = () => new Promise(() => {});
+      const { viewer, context } = yield* openDesktopViewer;
+      const session = context.sessions.find((candidate) =>
+        candidate.send.mock.calls.some(([method]) => method === "Page.startScreencast"),
+      )!;
+      session.emit("Page.screencastFrame", { data: "ZnJhbWU=", sessionId: 1 });
+
+      yield* TestClock.adjust("6 seconds");
+
+      expect((yield* Queue.takeAll(viewer.output)).map((item) => item._tag)).not.toContain(
+        "hostNotDrawing",
+      );
     }),
   ).pipe(Effect.provide(layer)),
 );

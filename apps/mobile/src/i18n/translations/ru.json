@@ -1814,6 +1814,7 @@
   "dbab90ee794d18d7": "Не удалось загрузить просмотр браузера. Переподключитесь, чтобы попробовать снова.",
   "380753961bf77215": "Этот сеанс не может открыть трансляцию браузера. Переподключитесь, чтобы попробовать снова.",
   "62fda56ad22bc952": "Эта вкладка закрыта.",
+  "b33d96015b60dcac": "The host's desktop window is not drawing this tab, usually because its screen is locked or asleep. Unlock the host, or open a new tab from the phone.",
   "ef42d10c48baf9e8": "Ошибка трансляции браузера.",
   "20a7b6ea31b5ac4f": "Подключение к браузеру...",
   "7873a79df0cf6d0e": "Страница браузера",
@@ -1884,6 +1885,9 @@
       "t": "p"
     }
   },
+  "914eda76b086c9b5": "Open in built-in browser",
+  "4bd2f44a35e591ca": "Open in system browser",
+  "c74a93dcfdfbb288": "The browser tab did not open",
   "9c149c8c50e58e4c": "Обновить окружения",
   "d81626aad3a95cb2": "Войдите в аккаунт T3, чтобы настроить {product}.",
   "a1b125c5ff7c2dd3": "Больше не показывать",

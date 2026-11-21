@@ -207,6 +207,8 @@ export interface PreviewStreamEvents {
   readonly onUnauthorized: () => void;
   readonly onGone?: () => void;
   readonly onHostSetup?: (setup: PreviewStreamHostSetup) => void;
+  /** fork: the host's desktop window shows this tab but sends no frames, e.g. a locked screen. */
+  readonly onHostNotDrawing?: () => void;
 }
 
 export interface PreviewStreamClient {
@@ -315,6 +317,8 @@ export function createPreviewStreamClient(
         typeof sequence === "number"
       ) {
         events.onPointer?.({ phase, x, y, sequence });
+      } else if (type === "hostNotDrawing") {
+        events.onHostNotDrawing?.();
       } else if (type === "popup" && typeof tabId === "string") {
         events.onPopup?.(tabId);
       } else if (type === "clipboard" && typeof text === "string") {

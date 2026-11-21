@@ -226,6 +226,7 @@ export function start(configuration: PreviewStreamConfiguration) {
         onUnauthorized: () => post({ type: "unauthorized" }),
         onGone: () => post({ type: "gone" }),
         onHostSetup: (setup) => post({ type: "hostSetup", ...setup }),
+        onHostNotDrawing: () => post({ type: "hostNotDrawing" }), // fork: locked host desktop
       },
     );
     client = next;

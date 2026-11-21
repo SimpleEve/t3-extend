@@ -416,6 +416,15 @@ function PreviewStreamDocumentView({
                 setHostSetup({ need: message.need, command: message.command });
                 fail(previewStreamHostSetupMessage(message, m));
                 return;
+              case "hostNotDrawing": // fork: locked host desktop
+                fail(
+                  m(
+                    msg(
+                      "The host's desktop window is not drawing this tab, usually because its screen is locked or asleep. Unlock the host, or open a new tab from the phone.",
+                    ),
+                  ),
+                );
+                return;
               case "viewport":
                 onViewport?.(message);
                 return;

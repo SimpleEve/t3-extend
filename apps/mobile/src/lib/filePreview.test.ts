@@ -263,6 +263,9 @@ vi.mock("../components/ui/FilePreviewModal", () => ({
 vi.mock("../components/ui/VideoPreviewModal", () => ({ VideoPreviewModal: () => null }));
 vi.mock("../components/ComposerContextSheet", () => ({}));
 vi.mock("../native/useOpenPullRequest", () => ({ useOpenPullRequest: () => vi.fn() }));
+vi.mock("../features/browser/useBuiltInBrowserLink", () => ({
+  useBuiltInBrowserLink: () => ({ available: false, openLink: vi.fn() }),
+}));
 vi.mock("../native/useMarkdownImageSource", () => ({ useMarkdownImageSource: () => vi.fn() }));
 vi.mock("../native/useEnrichedLinkVariants", () => ({
   enrichedThreadLinkCustomization: () => undefined,

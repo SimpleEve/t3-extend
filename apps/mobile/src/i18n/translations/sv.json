@@ -1814,6 +1814,7 @@
   "dbab90ee794d18d7": "Webbläsarvisaren kunde inte läsas in. Återanslut för att försöka igen.",
   "380753961bf77215": "Den här sessionen kan inte öppna webbläsarströmmen. Återanslut för att försöka igen.",
   "62fda56ad22bc952": "Fliken stängdes.",
+  "b33d96015b60dcac": "The host's desktop window is not drawing this tab, usually because its screen is locked or asleep. Unlock the host, or open a new tab from the phone.",
   "ef42d10c48baf9e8": "Webbläsarströmmen misslyckades.",
   "20a7b6ea31b5ac4f": "Ansluter till webbläsaren...",
   "7873a79df0cf6d0e": "Webbsida",
@@ -1860,6 +1861,9 @@
       "t": "p"
     }
   },
+  "914eda76b086c9b5": "Open in built-in browser",
+  "4bd2f44a35e591ca": "Open in system browser",
+  "c74a93dcfdfbb288": "The browser tab did not open",
   "9c149c8c50e58e4c": "Uppdatera miljöer",
   "d81626aad3a95cb2": "Logga in på ditt T3-konto för att konfigurera {product}.",
   "a1b125c5ff7c2dd3": "Visa inte det här igen",

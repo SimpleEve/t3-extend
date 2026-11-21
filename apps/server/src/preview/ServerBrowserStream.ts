@@ -165,6 +165,7 @@ const makeHandler = Effect.fnUntraced(function* (browser: ServerBrowser.ServerBr
             case "fileChooserClosed":
             case "popup":
             case "pointer":
+            case "hostNotDrawing": // fork: see ServerBrowser
             case "probe": {
               const { _tag: type, ...data } = output;
               return write(JSON.stringify({ type, ...data }));

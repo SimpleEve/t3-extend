@@ -9,6 +9,7 @@ import * as Orchestrator from "./orchestration-v2/Orchestrator.ts";
 import * as PeerLinkRequests from "./peer/PeerLinkRequests.ts";
 import { makePushRpcHandlers } from "./fork/push/pushRpcHandlers.ts"; // fork: UnifiedPush registrations
 import { makeDeviceRpcHandlers } from "./fork/deviceKeys/deviceRpcHandlers.ts"; // fork: self-hosted pairing
+import { withClientBrowserRouting } from "./fork/clientBrowserRouting.ts"; // fork: phone tabs stay headless
 import * as PeerLinks from "./peer/PeerLinks.ts";
 
 import * as DateTime from "effect/DateTime";
@@ -3300,7 +3301,8 @@ export const layerWsRpc = (
               (unsubscribe) => Effect.sync(unsubscribe),
             ),
           ),
-        [WS_METHODS.previewOpen]: (input) => previewManager.open(input),
+        [WS_METHODS.previewOpen]: (input) =>
+          previewManager.open(withClientBrowserRouting(originProps.surface, input)), // fork: see clientBrowserRouting
         [WS_METHODS.previewResize]: (input) => previewManager.resize(input),
         [WS_METHODS.previewAdjust]: (input) => previewManager.adjust(input),
         [WS_METHODS.previewClose]: (input) => previewManager.close(input),

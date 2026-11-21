@@ -1814,6 +1814,7 @@
   "dbab90ee794d18d7": "ブラウザービューアーを読み込めませんでした。再接続してもう一度お試しください。",
   "380753961bf77215": "このセッションではブラウザーのストリームを開けません。再接続してもう一度お試しください。",
   "62fda56ad22bc952": "このタブは閉じられました。",
+  "b33d96015b60dcac": "The host's desktop window is not drawing this tab, usually because its screen is locked or asleep. Unlock the host, or open a new tab from the phone.",
   "ef42d10c48baf9e8": "ブラウザーのストリームに失敗しました。",
   "20a7b6ea31b5ac4f": "ブラウザーに接続しています...",
   "7873a79df0cf6d0e": "ブラウザーのページ",
@@ -1860,6 +1861,9 @@
       "t": "p"
     }
   },
+  "914eda76b086c9b5": "Open in built-in browser",
+  "4bd2f44a35e591ca": "Open in system browser",
+  "c74a93dcfdfbb288": "The browser tab did not open",
   "9c149c8c50e58e4c": "環境を更新",
   "d81626aad3a95cb2": "{product} をセットアップするには T3 アカウントにサインインしてください。",
   "a1b125c5ff7c2dd3": "今後表示しない",

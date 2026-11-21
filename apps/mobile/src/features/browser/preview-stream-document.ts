@@ -33,6 +33,7 @@ export type PreviewStreamMessage =
   | { readonly type: "unauthorized" }
   | { readonly type: "gone" }
   | ({ readonly type: "hostSetup" } & PreviewStreamHostSetup)
+  | { readonly type: "hostNotDrawing" }
   | { readonly type: "viewport"; readonly width: number; readonly height: number }
   /** The direction a drag scrolls the page, sent every few dozen pixels of it. */
   | { readonly type: "scroll"; readonly direction: "up" | "down" }

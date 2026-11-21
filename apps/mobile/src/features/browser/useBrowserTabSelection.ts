@@ -9,7 +9,7 @@ import { AsyncResult } from "effect/reactivity";
 import { useCallback, useEffect, useEffectEvent, useState } from "react";
 
 import * as Dialog from "../../components/ui/Dialog";
-import { useT } from "../../hooks/useT";
+import { useGT } from "gt-react-native";
 import { useHardwareBack } from "../../lib/backHandler";
 import { previewEnvironment } from "../../state/preview";
 import {
@@ -36,13 +36,17 @@ export function useBrowserTabSelection(input: {
   readonly tabs: ReadonlyArray<PreviewSessionSnapshot>;
   readonly initialTabId: string | null;
   readonly startWithNewTab: boolean;
+  /** `initialTabId` was just opened and may not be in `tabs` yet. */
+  readonly awaitInitialTab: boolean;
   readonly onSelectedTabChange: () => void;
   readonly onClose: () => void;
 }) {
-  const t = useT();
+  const gt = useGT();
   const { environmentId, threadId, tabs, onSelectedTabChange } = input;
   const [selection, setSelection] = useState(() =>
-    initialBrowserTabSelection(input.initialTabId, input.startWithNewTab),
+    input.awaitInitialTab && input.initialTabId !== null
+      ? openedBrowserTab(input.initialTabId, Date.now())
+      : initialBrowserTabSelection(input.initialTabId, input.startWithNewTab),
   );
   const update = (next: BrowserTabSelection) => {
     if (next === selection) return;
@@ -56,7 +60,7 @@ export function useBrowserTabSelection(input: {
     const next = expirePendingBrowserTab(selection, Date.now());
     if (next === selection) return;
     update(next);
-    Dialog.alert(t("The browser tab did not open"));
+    Dialog.alert(gt("The browser tab did not open"));
   });
   const deadline = selection.pending?.deadline ?? null;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- times out the wait for an opened tab that never reaches the tab list
@@ -74,9 +78,9 @@ export function useBrowserTabSelection(input: {
       if (event.type !== "closed" || event.threadId !== threadId) return;
       if (event.tabId !== pendingTabId) return;
       setSelection((current) => closedBrowserTab(current, event.tabId));
-      Dialog.alert(t("The browser tab did not open"));
+      Dialog.alert(gt("The browser tab did not open"));
     },
-    [pendingTabId, threadId, t],
+    [pendingTabId, threadId, gt],
   );
   useAtomSubscribe(previewEnvironment.events({ environmentId, input: {} }), onPreviewEvent);
 

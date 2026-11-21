@@ -186,6 +186,10 @@ import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import { FONT_FAMILIES } from "../../lib/fontFamilies";
 import { scopedThreadKey } from "../../lib/scopedEntities";
 import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
+import { tryOpenExternalUrl } from "../../lib/openExternalUrl"; // fork: link choices
+import { linkChoiceTitle } from "../browser/linkChoiceTitle"; // fork: link choices
+import { linkChoices, linkTapChoice } from "../browser/linkChoices"; // fork: link choices
+import { useBuiltInBrowserLink } from "../browser/useBuiltInBrowserLink"; // fork: link choices
 import { downloadAndShareAttachment } from "../../lib/attachmentDownload";
 import { splitMarkdownDetails } from "../../lib/markdownDetails";
 import { markdownReferenceDefinitions, withReferenceDefinitions } from "../../lib/markdownDocument";
@@ -3145,6 +3149,10 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   const deviceType = useDeviceType();
   const duoColumns = useNativeWorkspaceColumnsSupported() && isDuoDevice(deviceType);
   const openPullRequest = useOpenPullRequest();
+  const builtInBrowser = useBuiltInBrowserLink({
+    environmentId: props.environmentId,
+    threadId: props.threadId,
+  }); // fork: a loopback link opens in the host's browser, not this phone's
   const navigation = useNavigation();
   const openLinkedThread = useOpenLinkedThread();
   const openLocalPreview = useOpenLocalPreview();
@@ -3515,6 +3523,11 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
     }
 
     if (presentation.href) {
+      // fork: `localhost` in a link means the host, which this phone's own browser cannot reach.
+      if (linkTapChoice(presentation.href, builtInBrowser.available) === "built-in") {
+        void builtInBrowser.openLink(presentation.href);
+        return;
+      }
       if (/^https?:\/\//i.test(presentation.href) && isPdfFile({ name: presentation.href })) {
         openPreview(markdownLinkScope, {
           file: { kind: "pdf", uri: presentation.href, name: "Document.pdf" },
@@ -3577,14 +3590,37 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
           title: href,
           actions: [
             { id: "open-on-device", title: gt("Open on this device") },
+            // fork: or in the host's own browser, as a tap does
+            ...(builtInBrowser.available
+              ? [{ id: "link-built-in", title: linkChoiceTitle("built-in", m) }]
+              : []),
             { id: "copy-link", title: gt("Copy link") },
           ],
         };
       }
       const target = resolveFileChipTarget(href, props.workspaceRoot);
-      return target ? fileChipMenu(target) : undefined;
+      if (target) return fileChipMenu(target);
+      // fork: a web link's long press offers the built-in browser, the system browser, or a copy.
+      const web = resolveMarkdownLinkPresentation(href);
+      return web.kind === "external"
+        ? {
+            title: web.href,
+            actions: linkChoices(web.href, builtInBrowser.available).map((choice) => ({
+              id: `link-${choice}`,
+              title: linkChoiceTitle(choice, m),
+            })),
+          }
+        : undefined;
     },
     onFileContextMenuAction: (href, actionId, reply) => {
+      // fork: see the web link menu above.
+      if (actionId.startsWith("link-")) {
+        const web = resolveMarkdownLinkPresentation(href);
+        const url = web.kind === "external" ? web.href : href;
+        if (actionId === "link-built-in") return void builtInBrowser.openLink(url);
+        if (actionId === "link-system") return void tryOpenExternalUrl(url, "markdown-link");
+        if (actionId === "link-copy") return copyTextWithHaptic(url);
+      }
       const skill = enrichedSkillReference(href, props.skills);
       if (skill) {
         const instructionsPath = enrichedSkillInstructionsPath(skill);

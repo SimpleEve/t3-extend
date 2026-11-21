@@ -26,4 +26,8 @@ export default {
   "No local servers found. Start a dev server on the host to see it here.":
     "没有找到本地服务。在宿主机上启动 dev server 后会显示在这里。",
   Listening: "正在监听",
+
+  "Open in built-in browser": "在内置浏览器打开",
+  "The host's desktop window is not drawing this tab, usually because its screen is locked or asleep. Unlock the host, or open a new tab from the phone.":
+    "主机的桌面窗口没有绘制这个标签页，通常是因为屏幕已锁定或休眠。请解锁主机，或在手机上新开一个标签页。",
 };
