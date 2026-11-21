@@ -131,8 +131,8 @@ T3 Extend. Windows therefore warns about it:
 
 If Windows blocks the installer with no **Run anyway** button, Smart App Control is
 on. It refuses every unsigned program. Turn it off under **Windows Security → App &
-browser control → Smart App Control settings**; once off, Windows does not let you
-turn it back on without reinstalling Windows.
+browser control → Smart App Control settings**. On some Windows versions it cannot
+be turned back on afterwards without reinstalling Windows.
 
 T3 Extend installs beside official T3 Code: it has its own install folder, Start
 menu entry, entry in **Installed apps**, `t3extend://` links, data folders
