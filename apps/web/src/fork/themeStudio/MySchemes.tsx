@@ -92,7 +92,7 @@ function SchemeRow({
             {t("Use")}
           </Button>
           <Button
-            aria-label={t("Rename {name}", { name: scheme.label })}
+            aria-label={t("Rename {name}", { name: studio.labelOf(scheme) })}
             size="icon-xs"
             variant="ghost"
             onClick={() => setRenaming(scheme.label)}
@@ -100,7 +100,7 @@ function SchemeRow({
             <PencilIcon />
           </Button>
           <Button
-            aria-label={t("Export {name} as JSON", { name: scheme.label })}
+            aria-label={t("Export {name} as JSON", { name: studio.labelOf(scheme) })}
             size="icon-xs"
             variant="ghost"
             onClick={() => downloadThemeFile(`${scheme.id}.json`, serializeThemeFile(scheme))}
@@ -125,7 +125,7 @@ function SchemeRow({
             </>
           ) : (
             <Button
-              aria-label={t("Delete {name}", { name: scheme.label })}
+              aria-label={t("Delete {name}", { name: studio.labelOf(scheme) })}
               size="icon-xs"
               variant="ghost"
               onClick={() => setConfirmingDelete(true)}
