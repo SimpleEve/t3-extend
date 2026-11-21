@@ -420,6 +420,58 @@ describe("DesktopLifecycle", () => {
     }),
   );
 
+  // fork: a shutdown that never finishes (seen on a Mac mini with the server still running) must not hold the app open.
+  it.effect("exits by itself when shutdown never completes", () =>
+    Effect.gen(function* () {
+      const appListeners = new Map<string, (...args: readonly unknown[]) => void>();
+      const exitCodes: number[] = [];
+      const quits: number[] = [];
+      const exited = yield* Deferred.make<void>();
+      const layerEnvironment = Layer.succeed(DesktopEnvironment.DesktopEnvironment, {
+        platform: "darwin",
+        isDevelopment: false,
+      } as DesktopEnvironment.DesktopEnvironment["Service"]);
+      const layer = DesktopLifecycle.layer.pipe(
+        Layer.provideMerge(
+          layerElectronApp(
+            appListeners,
+            Effect.sync(() => {
+              quits.push(1);
+            }),
+            (code) =>
+              Effect.sync(() => {
+                exitCodes.push(code);
+              }).pipe(Effect.andThen(Deferred.succeed(exited, undefined)), Effect.asVoid),
+          ),
+        ),
+        Layer.provideMerge(layerElectronTheme),
+        Layer.provideMerge(layerElectronWindow()),
+        Layer.provideMerge(layerDesktopWindow()),
+        Layer.provideMerge(layerEnvironment),
+        // Nothing marks this shutdown complete, so it stays pending.
+        Layer.provideMerge(DesktopShutdown.layer),
+        Layer.provideMerge(DesktopState.layer),
+      );
+
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const lifecycle = yield* DesktopLifecycle.DesktopLifecycle;
+          yield* lifecycle.register;
+
+          appListeners.get("before-quit")?.({ preventDefault: () => undefined } as Electron.Event);
+          yield* TestClock.adjust("24999 millis");
+          assert.deepEqual(exitCodes, [], "shutdown still has its full budget");
+
+          yield* TestClock.adjust("1 millis");
+          yield* Deferred.await(exited);
+          // Quitting through Electron would run the stalled shutdown's will-quit again.
+          assert.deepEqual(exitCodes, [0]);
+          assert.deepEqual(quits, []);
+        }),
+      ).pipe(Effect.provide(layer));
+    }),
+  );
+
   it.effect("ignores app activation while quitting", () =>
     Effect.gen(function* () {
       const appListeners = new Map<string, (...args: readonly unknown[]) => void>();

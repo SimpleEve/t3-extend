@@ -185,6 +185,14 @@ macOS 打包版的设置 > 维护 > "后台运行" 有一个开关"在后台保�
 
 没有改的：launcher 的 `__service-launcher` 命令、service state 的格式和协议号、`t3x service` 的其余子命令。测试都用假的 ProcessRunner 和临时目录（`appService.test.ts`、`DesktopBackgroundService.test.ts`），不碰真实 launchd；真机验证的命令清单在交付报告里。
 
+## 退出有上限（桌面版）
+
+Cmd+Q、SIGTERM 触发的退出，在 `DesktopLifecycle.ts` 里最多等 25 秒（`SHUTDOWN_DEADLINE`）：正常的退出是后端停止（SIGTERM、5 秒宽限、SIGKILL）加后台服务交接（8 秒），到不了这个数。到期就记一条 error（`step` 写明卡在刷窗口位置、关窗口还是等 `shutdown`），然后 `app.exit(0)`，不再走 Electron 自己的 will-quit。以前只有用户再按一次 Cmd+Q（10 秒后）才会强退，`osascript` 的 quit 只发一次，所以一直挂着。
+
+强退不会留孤儿：后端看到父进程没了，会自己停掉并带走 headless 浏览器（真机实测：打包版里开一个 headless 标签页，SIGKILL 主进程，server 和 chrome-headless-shell 都在 2 秒内退出）。刷窗口位置另有 3 秒上限，保证 `shutdown.request` 总能发出去。
+
+2026-11-21 Mac mini 上两次退出卡死（主进程 S、server Ss，server 一直没收到 SIGTERM）的具体卡点没有查出：当时的 desktop trace 没有落盘，span 只在结束时才写，卡住的 span 看不到。在打包版里人为让一个启动期的 finalizer 永不结束，能复现同样的现象（base 上 90 秒不退，修复后 25 秒退）。真正的卡点要等下次出现时看上面那条 error 的 `step`。
+
 ## Antigravity 沿用本机 agy CLI 的登录
 
 官方 T3 Code 让每个 Antigravity 实例用自己的 gemini home（`<T3 home>/userdata/providers/antigravity/<sha256(实例 id)>/`），并给 agy 设 `AGY_ACP_FORCE_FILE_STORAGE=1`，登录态只写进 profile 里的 `antigravity-acp/acp_token.json`。所以 T3 里的 agy 看不到用户在终端里 `agy` 的登录，要在 T3 里再登录一次。上游这样做的理由写在 `docs/internals/providers.md`：agy 默认把登录放在系统 keyring（macOS 钥匙串，条目与 gemini home 无关），多个实例会共用同一条，隔离多账号只能强制文件存储。

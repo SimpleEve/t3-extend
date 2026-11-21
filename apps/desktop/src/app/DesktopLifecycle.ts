@@ -91,16 +91,44 @@ function addScopedListener<Args extends ReadonlyArray<unknown>>(
   ).pipe(Effect.asVoid);
 }
 
+// fork: a quit has to end. Normal shutdown is a backend stop (SIGTERM, 5s grace, SIGKILL, 1s wait)
+// plus the background-service handoff (8s), so this only passes when something is stuck.
+// Exiting then is safe: the backend sees its parent go away and stops itself and its children.
+const SHUTDOWN_DEADLINE = Duration.seconds(25);
+const WINDOW_BOUNDS_FLUSH_TIMEOUT = Duration.seconds(3);
+
+type ShutdownStep = "flushing window bounds" | "closing windows" | "waiting for shutdown";
+
+// Resolves false when the deadline passed first, so the caller can exit instead of quitting.
 const requestDesktopShutdownAndWait = Effect.fn("desktop.lifecycle.requestShutdownAndWait")(
   function* (
     afterBoundsFlush: Effect.Effect<void> = Effect.void,
-  ): Effect.fn.Return<void, never, DesktopShutdown.DesktopShutdown | DesktopWindow.DesktopWindow> {
+  ): Effect.fn.Return<
+    boolean,
+    never,
+    DesktopShutdown.DesktopShutdown | DesktopWindow.DesktopWindow
+  > {
     const shutdown = yield* DesktopShutdown.DesktopShutdown;
     const desktopWindow = yield* DesktopWindow.DesktopWindow;
-    yield* desktopWindow.flushMainWindowBounds;
-    yield* afterBoundsFlush;
-    yield* shutdown.request;
-    yield* shutdown.awaitComplete;
+    let step: ShutdownStep = "flushing window bounds";
+    const completed = yield* Effect.gen(function* () {
+      // A slow settings write must not keep the request from reaching the backends.
+      yield* desktopWindow.flushMainWindowBounds.pipe(
+        Effect.timeoutOption(WINDOW_BOUNDS_FLUSH_TIMEOUT),
+      );
+      step = "closing windows";
+      yield* afterBoundsFlush;
+      step = "waiting for shutdown";
+      yield* shutdown.request;
+      yield* shutdown.awaitComplete;
+    }).pipe(Effect.timeoutOption(SHUTDOWN_DEADLINE), Effect.map(Option.isSome));
+    if (!completed) {
+      yield* logLifecycleError("desktop shutdown exceeded its deadline; exiting without it", {
+        step,
+        deadlineMs: Duration.toMillis(SHUTDOWN_DEADLINE),
+      });
+    }
+    return completed;
   },
 );
 
@@ -163,6 +191,16 @@ function handleBeforeQuit(
     void runEffect(exitIfShutdownStalled(quit, "before-quit"));
     return;
   }
+  const finishQuit = (completed: boolean) => {
+    quit.phase = "allowed";
+    void runEffect(
+      Effect.gen(function* () {
+        const electronApp = yield* ElectronApp.ElectronApp;
+        // fork: a stalled shutdown would stall the quit's own will-quit steps too.
+        yield* completed ? electronApp.quit : electronApp.exit(0);
+      }).pipe(Effect.withSpan("desktop.lifecycle.quitAfterShutdown")),
+    );
+  };
   void runEffect(
     Effect.gen(function* () {
       const state = yield* DesktopState.DesktopState;
@@ -170,7 +208,7 @@ function handleBeforeQuit(
       yield* startWaitingForShutdown(quit);
       yield* Ref.set(state.quitting, true);
       yield* logLifecycleInfo("before-quit received");
-      yield* requestDesktopShutdownAndWait(
+      return yield* requestDesktopShutdownAndWait(
         electronWindow.destroyAll.pipe(
           Effect.catchCause((cause) =>
             logLifecycleError("failed to destroy windows before shutdown", { cause }),
@@ -178,15 +216,7 @@ function handleBeforeQuit(
         ),
       );
     }).pipe(Effect.withSpan("desktop.lifecycle.beforeQuit")),
-  ).finally(() => {
-    quit.phase = "allowed";
-    void runEffect(
-      Effect.gen(function* () {
-        const electronApp = yield* ElectronApp.ElectronApp;
-        yield* electronApp.quit;
-      }).pipe(Effect.withSpan("desktop.lifecycle.quitAfterShutdown")),
-    );
-  });
+  ).then(finishQuit, () => finishQuit(true));
 }
 
 function quitFromSignal(
@@ -209,9 +239,10 @@ function quitFromSignal(
       if (wasQuitting) return;
       yield* startWaitingForShutdown(quit);
       yield* logLifecycleInfo("process signal received", { signal });
-      yield* requestDesktopShutdownAndWait();
+      const completed = yield* requestDesktopShutdownAndWait();
       quit.phase = "allowed";
-      yield* electronApp.quit;
+      // fork: see handleBeforeQuit.
+      yield* completed ? electronApp.quit : electronApp.exit(0);
     }).pipe(Effect.withSpan("desktop.lifecycle.processSignal")),
   );
 }
