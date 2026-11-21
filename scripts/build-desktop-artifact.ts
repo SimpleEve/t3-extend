@@ -1005,7 +1005,10 @@ export const DESKTOP_FILE_EXCLUSIONS = [
   "!apps/desktop/prod-resources/windows-server/**/*",
   "!apps/desktop/prod-resources/wsl-runtime.tar.gz",
   "!apps/desktop/prod-resources/wsl-runtime.tar.gz.sha256",
-  "!apps/desktop/prod-resources/frpc", // fork: shipped as an extra resource, not inside the asar
+  // fork: frpc ships as an extra resource (bin/frpc.exe); without these it is also packed into the asar.
+  "!apps/desktop/resources/frpc",
+  "!apps/desktop/resources/frpc/**/*",
+  "!apps/desktop/prod-resources/frpc",
   "!apps/desktop/prod-resources/frpc/**/*",
   "!apps/desktop/gnome-extension",
   "!apps/desktop/gnome-extension/**/*",
@@ -1069,6 +1072,9 @@ export function resolveWindowsServerAsarIgnoreGlobs(arch: typeof BuildArch.Type)
 }
 
 export const WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT = 80;
+// fork: built on a Windows host, the app also gets the ~24-file server compile cache that a Linux
+// cross build (what the limit above was set against) skips, plus frpc, LICENSE and NOTICE.
+export const FORK_WINDOWS_PAYLOAD_FILE_LIMIT = 100;
 export const WINDOWS_SERVER_RESOURCE_SOURCE_DIR = "apps/desktop/prod-resources/windows-server";
 export const WINDOWS_SERVER_EXTRA_RESOURCES = [
   {
@@ -4156,6 +4162,7 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       appExecutableName: `${resolveDesktopProductName(appVersion)}.exe`,
       targetArch: options.arch,
       appVersion,
+      fileLimit: FORK_WINDOWS_PAYLOAD_FILE_LIMIT, // fork: see the constant
       expectWslRuntime: bundlesWslRuntime({
         platform: options.platform,
         runtimeArchivePath: options.wslRuntime,
