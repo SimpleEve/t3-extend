@@ -8,6 +8,7 @@ import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as Orchestrator from "./orchestration-v2/Orchestrator.ts";
 import * as PeerLinkRequests from "./peer/PeerLinkRequests.ts";
 import { makePushRpcHandlers } from "./fork/push/pushRpcHandlers.ts"; // fork: UnifiedPush registrations
+import { themeBackgroundRpcHandlers } from "./fork/themeBackground/rpcHandlers.ts"; // fork: theme background upload
 import { makeDeviceRpcHandlers } from "./fork/deviceKeys/deviceRpcHandlers.ts"; // fork: self-hosted pairing
 import { withClientBrowserRouting } from "./fork/clientBrowserRouting.ts"; // fork: phone tabs stay headless
 import * as PeerLinks from "./peer/PeerLinks.ts";
@@ -2001,6 +2002,7 @@ export const layerWsRpc = (
         [WS_METHODS.issueTrackersBindProject]: (input) => issueTrackers.bindProject(input),
         ...pushHandlers, // fork: UnifiedPush registrations
         ...deviceHandlers, // fork: self-hosted pairing
+        ...themeBackgroundRpcHandlers, // fork: theme background upload
         [ORCHESTRATION_V2_WS_METHODS.dispatchCommand]: (command) =>
           Effect.annotateCurrentSpan({
             "orchestration_v2.command_id": command.commandId,
@@ -3090,6 +3092,7 @@ export const layerWsRpc = (
               input.resource._tag === "attachment" ||
               input.resource._tag === "native-app-icon" ||
               input.resource._tag === "environment-theme-background" ||
+              input.resource._tag === "theme-background-image" || // fork: theme background upload
               input.resource._tag === "tool-output-image" ||
               input.resource._tag === SOURCE_CONTROL_MEDIA_ASSET ||
               // A network path is served only from the thread's project, looked up below.

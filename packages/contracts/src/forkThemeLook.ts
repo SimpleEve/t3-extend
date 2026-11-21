@@ -18,6 +18,15 @@ export const THEME_LOOK_LIMITS = {
   glass: { min: 0, max: 100, step: 5, default: 0 },
 } as const;
 
+/** The most a background image may weigh; the server refuses more, and the studio checks first. */
+export const THEME_BACKGROUND_MAX_BYTES = 16 * 1024 * 1024;
+
+/** A background image is named by the SHA-256 of its bytes, so the same picture is stored once. */
+export const THEME_BACKGROUND_HASH_PATTERN = /^[0-9a-f]{64}$/;
+export const ThemeLookBackground = Schema.String.check(
+  Schema.isPattern(THEME_BACKGROUND_HASH_PATTERN),
+);
+
 export const THEME_LOOK_FONT_STACK_MAX_LENGTH = 200;
 
 /**
@@ -45,6 +54,8 @@ export const ThemeLook = Schema.Struct({
   shadow: Schema.optional(ranged(THEME_LOOK_LIMITS.shadow)),
   chatWidth: Schema.optional(ChatWidth),
   glass: Schema.optional(ranged(THEME_LOOK_LIMITS.glass)),
+  /** Hash of an image the environment stores for this theme's background. */
+  background: Schema.optional(ThemeLookBackground),
 });
 export type ThemeLook = typeof ThemeLook.Type;
 
@@ -73,6 +84,7 @@ export const THEME_LOOK_KEYS = [
   "shadow",
   "chatWidth",
   "glass",
+  "background",
 ] as const satisfies ReadonlyArray<keyof ThemeLook>;
 export type ThemeLookKey = (typeof THEME_LOOK_KEYS)[number];
 function isThemeLookKey(key: string): key is ThemeLookKey {

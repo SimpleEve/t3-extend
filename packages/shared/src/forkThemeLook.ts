@@ -1,4 +1,5 @@
 import {
+  THEME_BACKGROUND_HASH_PATTERN,
   THEME_LOOK_FONT_STACK_MAX_LENGTH,
   THEME_LOOK_FONT_STACK_PATTERN,
   THEME_LOOK_KEYS,
@@ -25,6 +26,10 @@ export function isThemeLookFontStack(value: unknown): value is string {
     value.length <= THEME_LOOK_FONT_STACK_MAX_LENGTH &&
     THEME_LOOK_FONT_STACK_PATTERN.test(value)
   );
+}
+
+function isThemeLookBackground(value: unknown): value is string {
+  return typeof value === "string" && THEME_BACKGROUND_HASH_PATTERN.test(value);
 }
 
 function numberInRange(key: NumericLookKey, value: unknown): value is number {
@@ -57,6 +62,11 @@ export function parseThemeLook(value: unknown): ThemeLook | undefined {
         );
       }
       look[key] = entry;
+    } else if (key === "background") {
+      if (!isThemeLookBackground(entry)) {
+        throw new Error("The look background must be the 64-digit hash of a stored image.");
+      }
+      look[key] = entry;
     } else if (key === "chatWidth") {
       if (typeof entry !== "string" || !CHAT_WIDTHS.has(entry)) {
         throw new Error('The look chatWidth must be "comfortable", "wide" or "full".');
@@ -80,6 +90,7 @@ export function sanitizeThemeLook(value: unknown): ThemeLook | undefined {
   const look: { -readonly [K in ThemeLookKey]?: ThemeLook[K] } = {};
   if (isThemeLookFontStack(value.fontUi)) look.fontUi = value.fontUi;
   if (isThemeLookFontStack(value.fontCode)) look.fontCode = value.fontCode;
+  if (isThemeLookBackground(value.background)) look.background = value.background;
   if (typeof value.chatWidth === "string" && CHAT_WIDTHS.has(value.chatWidth)) {
     look.chatWidth = value.chatWidth as ThemeLook["chatWidth"];
   }

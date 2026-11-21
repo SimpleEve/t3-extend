@@ -137,6 +137,22 @@ describe("what counts as a change", () => {
     const cleared = withSchemeLook(bare, "radius", undefined);
     expect(cleared).not.toHaveProperty("look");
   });
+
+  it("counts a background image chosen, replaced or removed as a change", () => {
+    const saved = mine();
+    const hash = "a".repeat(64);
+    const chosen = withSchemeLook(saved, "background", hash);
+    expect(chosen.look?.background).toBe(hash);
+    expect(hasUnsavedChanges(chosen, saved, terminal)).toBe(true);
+    expect(
+      hasUnsavedChanges(withSchemeLook(chosen, "background", "b".repeat(64)), chosen, terminal),
+    ).toBe(true);
+    // Removing the only setting leaves no look, and a scheme that never had an image is unchanged.
+    const { look: _look, ...unstyled } = saved;
+    const imageOnly = withSchemeLook(unstyled, "background", hash);
+    expect(imageOnly.look).toEqual({ background: hash });
+    expect(withSchemeLook(imageOnly, "background", undefined)).not.toHaveProperty("look");
+  });
 });
 
 describe("palettes", () => {
@@ -229,6 +245,7 @@ describe("user settings a look overrides", () => {
   it("names fonts and chat width, nothing else", () => {
     expect(overriddenSettings(undefined)).toEqual([]);
     expect(overriddenSettings({ radius: 2, density: 90 })).toEqual([]);
+    expect(overriddenSettings({ background: "a".repeat(64), glass: 40 })).toEqual([]);
     expect(overriddenSettings({ fontUi: "Georgia", chatWidth: "wide" })).toEqual([
       "fontUi",
       "chatWidth",

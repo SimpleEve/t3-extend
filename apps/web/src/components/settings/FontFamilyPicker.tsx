@@ -21,6 +21,7 @@ import { SelectButton } from "../ui/select";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 
 const DEFAULT_FONT_VALUE = "__default__";
+const NO_FAMILIES: readonly string[] = [];
 
 function supportsFontEnumeration(): boolean {
   return (
@@ -91,6 +92,9 @@ export function FontFamilyPicker({
   requireMonospace = false,
   initialOpen = false,
   onSelect,
+  defaultLabel, // fork: theme studio
+  fallbackFamilies, // fork: theme studio
+  acceptFamily, // fork: theme studio
 }: {
   ariaLabel: string;
   defaultFamily: string;
@@ -98,6 +102,12 @@ export function FontFamilyPicker({
   requireMonospace?: boolean;
   initialOpen?: boolean;
   onSelect: (family: string) => void;
+  /** fork: when set, the first row is this plain label instead of the default family in its own face. */
+  defaultLabel?: string;
+  /** fork: the families listed while installed fonts cannot be enumerated (no permission, or no support). */
+  fallbackFamilies?: readonly string[];
+  /** fork: leaves out families that do not fit, from either list. Keep its identity stable. */
+  acceptFamily?: (family: string) => boolean;
 }) {
   const gt = useGT();
   const [open, setOpen] = useState(false);
@@ -121,10 +131,17 @@ export function FontFamilyPicker({
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
-    if (nextOpen) setQuery("");
+    if (nextOpen) {
+      setQuery("");
+      // fork: the permission prompt needs a user gesture, and opening the list is one
+      discoverInstalledFonts();
+    }
   };
 
-  const families = enumeration.status === "granted" ? enumeration.families : [];
+  // fork: theme studio lists a short set of known families while nothing can be enumerated
+  const listed =
+    enumeration.status === "granted" ? enumeration.families : (fallbackFamilies ?? NO_FAMILIES);
+  const families = acceptFamily ? listed.filter(acceptFamily) : listed;
 
   const items = (() => {
     const trimmedQuery = query.trim().toLowerCase();
@@ -159,15 +176,22 @@ export function FontFamilyPicker({
 
   const renderItem = (item: string, index: number) => {
     const isDefault = item === DEFAULT_FONT_VALUE;
-    const family = isDefault ? defaultFamily : item;
+    const family = isDefault ? (defaultLabel ?? defaultFamily) : item;
     return (
       <ComboboxItem hideIndicator index={index} key={item} value={item}>
         <div className="flex w-full min-w-0 items-center justify-between gap-2">
-          <span className="min-w-0 truncate" style={{ fontFamily: displayFontFamily(family) }}>
+          <span
+            className="min-w-0 truncate"
+            style={
+              isDefault && defaultLabel !== undefined
+                ? undefined
+                : { fontFamily: displayFontFamily(family) }
+            }
+          >
             {family}
           </span>
           <span className="flex shrink-0 items-center gap-1.5">
-            {isDefault ? (
+            {isDefault && defaultLabel === undefined ? (
               <span className="text-3xs text-muted-foreground/60">
                 {gt("default", { $context: "marks the default font" })}
               </span>
@@ -201,7 +225,7 @@ export function FontFamilyPicker({
       }}
     >
       <ComboboxTrigger aria-label={ariaLabel} render={<SelectButton size="sm" />}>
-        {selectedFamily.length === 0 ? defaultFamily : selectedFamily}
+        {selectedFamily.length === 0 ? (defaultLabel ?? defaultFamily) : selectedFamily}
       </ComboboxTrigger>
       <ComboboxPopup align="end" className="flex w-72 flex-col">
         <ComboboxSearchInput

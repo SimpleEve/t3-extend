@@ -19,6 +19,7 @@ import {
   ThreadId,
   EnvironmentId,
   FORK_PUSH_WS_METHODS, // fork: UnifiedPush registrations
+  FORK_THEME_BACKGROUND_WS_METHODS, // fork: theme background upload
   ORCHESTRATION_V2_WS_METHODS,
   clientRpcRequiredScopes,
   ScheduledTaskId,
@@ -634,6 +635,40 @@ describe("push command permissions", () => {
         yield* command.authorize(registry, env);
         // Another environment's grant says nothing about this one.
         registry.set(sessions(other), AsyncResult.success(grant(false)));
+        expect(registry.get(command.permissionAtom(other))).toBe(false);
+      }),
+    ),
+  );
+});
+
+// fork: theme background upload
+describe("theme background upload permissions", () => {
+  const method = FORK_THEME_BACKGROUND_WS_METHODS.createUploadUrl;
+  const granting = (scopes: NonNullable<AuthSessionState["scopes"]>): AuthSessionState => ({
+    ...grant(false),
+    scopes,
+    permissions: scopes,
+  });
+
+  it("asks for the settings write grant", () => {
+    expect(clientRpcRequiredScopes(method, { sizeBytes: 1 })).toEqual([AuthSettingsWriteScope]);
+  });
+
+  it.effect("needs that grant on the environment it is sent to", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const registry = yield* setup;
+        const command = createCommandPermissions(runtime, method);
+        registry.set(sessions(env), AsyncResult.success(granting([AuthOrchestrationOperateScope])));
+        expect(registry.get(command.permissionAtom(env))).toBe(false);
+        expect((yield* command.authorize(registry, env).pipe(Effect.flip))._tag).toBe(
+          "EnvironmentAuthorizationError",
+        );
+        registry.set(sessions(env), AsyncResult.success(granting([AuthSettingsWriteScope])));
+        expect(registry.get(command.permissionAtom(env))).toBe(true);
+        yield* command.authorize(registry, env);
+        // Another environment's grant says nothing about this one.
+        registry.set(sessions(other), AsyncResult.success(granting([])));
         expect(registry.get(command.permissionAtom(other))).toBe(false);
       }),
     ),

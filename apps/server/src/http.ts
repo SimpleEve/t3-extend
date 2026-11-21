@@ -40,6 +40,7 @@ import {
   storeAttachmentUpload,
   validateAttachmentUploadToken,
 } from "./assets/AttachmentUpload.ts";
+import { THEME_BACKGROUND_UPLOAD_ROUTE_PREFIX } from "./fork/themeBackground/upload.ts"; // fork: theme background upload
 import * as BrowserTraceCollector from "./observability/BrowserTraceCollector.ts";
 import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
 import { traceRelayRequest } from "./cloud/traceRelayRequest.ts";
@@ -428,7 +429,8 @@ const isSignedUrlRequest = (request: HttpServerRequest.HttpServerRequest) => {
   return (
     path.startsWith(`${WEBHOOK_ROUTE_PREFIX}/`) ||
     path.startsWith(`${ASSET_ROUTE_PREFIX}/`) ||
-    path.startsWith(`${ATTACHMENT_UPLOAD_ROUTE_PREFIX}/`)
+    path.startsWith(`${ATTACHMENT_UPLOAD_ROUTE_PREFIX}/`) ||
+    path.startsWith(`${THEME_BACKGROUND_UPLOAD_ROUTE_PREFIX}/`) // fork: theme background upload
   );
 };
 

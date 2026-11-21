@@ -2,10 +2,8 @@ import {
   CheckIcon,
   CopyIcon,
   MoonIcon,
-  PaintbrushIcon,
   PaletteIcon, // fork: theme studio
   PenLineIcon,
-  PlusIcon,
   SunIcon,
   Trash2Icon,
   UploadIcon,
@@ -505,6 +503,7 @@ function CustomThemeCollectionCard({
   onDownload: (theme: ThemeDefinition) => void;
   onRemove: (theme: ThemeDefinition) => void;
 }) {
+  const t = useT(); // fork: a scheme's "(mine)" shows in the current language
   const [variantIndex, setVariantIndex] = useState(() => {
     const activeIndex = themes.findIndex((theme) => activeModesFor(theme.id).length > 0);
     return activeIndex < 0 ? 0 : activeIndex;
@@ -539,7 +538,7 @@ function CustomThemeCollectionCard({
       onRemove={() => onRemove(theme)}
       onUse={selectCollectionDefaults}
       onUseMode={(mode) => onUseMode(theme, mode)}
-      theme={getThemeCardDefinition(theme)}
+      theme={{ ...getThemeCardDefinition(theme), label: themeDisplayLabel(theme, t) }} // fork: localized "(mine)"
       {...(themes.length > 1
         ? {
             variantNavigation: {
@@ -700,9 +699,6 @@ export function ThemeLibrary({
       notifyThemeSaveFailure();
     }
   };
-
-  const activeThemeForAppearance =
-    getThemeDefinition((initialAppearance === "light" ? lightOwner : darkOwner) ?? "") ?? null;
 
   const cardDefById = (id: string | null): ThemeCardDefinition => {
     if (id === null) return STANDARD_THEME_CARDS[0]!;
@@ -923,33 +919,15 @@ export function ThemeLibrary({
       {renderModeTiles()}
       <div className="flex min-h-8 flex-wrap items-center justify-between gap-3 px-3 pt-5 sm:px-4">
         <h3 className="text-base font-semibold text-foreground">{setting("theme").title}</h3>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button
-            size="xs"
-            variant="outline"
-            onClick={() =>
-              openThemeEditor({
-                editingThemeId: null,
-                seedThemeId: activeThemeForAppearance?.id ?? null,
-                seedName: null,
-                initialAppearance,
-              })
-            }
-          >
-            <PaintbrushIcon />
-            <T>Create theme</T>
-          </Button>
-          <Button size="xs" variant="outline" onClick={() => onImportOpenChange(true)}>
-            <PlusIcon />
-            <T>Add theme</T>
-          </Button>
-          {/* fork: theme studio */}
-          <Button size="xs" variant="outline" onClick={() => openThemeStudio()}>
-            <PaletteIcon />
-            {gt("Theme studio")}
-          </Button>
-        </div>
+        {/* fork: Appearance picks a theme; making and changing themes (and importing) is the studio's */}
+        <Button size="xs" variant="outline" onClick={() => openThemeStudio()}>
+          <PaletteIcon />
+          {gt("Edit in Theme Studio")}
+        </Button>
       </div>
+      <p className="px-3 text-xs text-muted-foreground sm:px-4">
+        {gt("Choose which theme to use here. To make or change a theme, open Theme Studio.")}
+      </p>
       {renderPairGrid()}
       <ThemeImportDialog
         onImportedMany={(importedThemes, { updated }) => {

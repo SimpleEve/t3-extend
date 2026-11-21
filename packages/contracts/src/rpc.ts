@@ -40,6 +40,7 @@ import * as RpcMiddleware from "effect/rpc/RpcMiddleware";
 import { NonNegativeInt, TrimmedNonEmptyString } from "./baseSchemas.ts";
 import { FORK_PUSH_RPCS } from "./forkPush.ts"; // fork: UnifiedPush registrations
 import { FORK_DEVICE_KEYS_RPCS } from "./forkDeviceKeys.ts"; // fork: self-hosted pairing
+import { FORK_THEME_BACKGROUND_RPCS } from "./forkThemeBackground.ts"; // fork: theme background upload
 import { SecretSourceCheckResult } from "./settingsSecretValue.ts";
 import { SecretReference } from "./secretReference.ts";
 import {
@@ -2549,5 +2550,6 @@ export const WsRpcGroup = RpcGroup.make(
   WsOrchestrationV2SubscribeCommandOutputRpc,
   ...FORK_PUSH_RPCS, // fork: UnifiedPush registrations
   ...FORK_DEVICE_KEYS_RPCS, // fork: self-hosted pairing
+  ...FORK_THEME_BACKGROUND_RPCS, // fork: theme background upload
   WsOrchestrationV2SubscribePromptSuggestionRpc,
 ).middleware(RpcScopeAuthorization);

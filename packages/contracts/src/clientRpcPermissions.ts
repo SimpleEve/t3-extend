@@ -14,6 +14,7 @@ import {
 } from "./auth.ts";
 import { FORK_PUSH_GUARDED_RPC_SCOPES } from "./forkPush.ts"; // fork: UnifiedPush registrations
 import { FORK_DEVICE_KEYS_GUARDED_RPC_SCOPES } from "./forkDeviceKeys.ts"; // fork: self-hosted pairing
+import { FORK_THEME_BACKGROUND_GUARDED_RPC_SCOPES } from "./forkThemeBackground.ts"; // fork: theme background upload
 import { ORCHESTRATION_V2_WS_METHODS } from "./orchestrationV2.ts";
 import { WS_METHODS } from "./rpc.ts";
 
@@ -93,6 +94,7 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.peerLinksAnswerRequest]: AuthAccessWriteScope,
   ...FORK_PUSH_GUARDED_RPC_SCOPES, // fork: UnifiedPush registrations
   ...FORK_DEVICE_KEYS_GUARDED_RPC_SCOPES, // fork: self-hosted pairing
+  ...FORK_THEME_BACKGROUND_GUARDED_RPC_SCOPES, // fork: theme background upload
 } as const;
 export type ClientGuardedRpcTag = keyof typeof CLIENT_GUARDED_RPC_SCOPES;
 

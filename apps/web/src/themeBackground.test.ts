@@ -37,6 +37,7 @@ vi.mock(
     }) as never,
 );
 
+import { assetEnvironment } from "./state/assets";
 import { applyThemeBackground, startThemeBackground } from "./themeBackground";
 import {
   CUSTOM_THEMES_STORAGE_KEY,
@@ -171,5 +172,45 @@ describe("theme backgrounds", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(t.fetchBackground).not.toHaveBeenCalled();
     expect(t.properties.has(BACKGROUND)).toBe(false);
+  });
+
+  // fork: a background image chosen in the theme studio
+  it("loads the stored image a look names and keeps the last one for a preview that is left", async () => {
+    using t = setup();
+    t.fetchBackground.mockImplementation(loaded);
+    const hash = "c".repeat(64);
+
+    applyThemeBackground("mine", hash);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(assetEnvironment.createUrl).toHaveBeenLastCalledWith({
+      environmentId: "host",
+      input: { resource: { _tag: "theme-background-image", hash } },
+    });
+    expect(t.properties.get(BACKGROUND)).toMatch(/^url\("blob:/);
+
+    // A preset previewed in between has none; leaving it shows the image again without a download.
+    applyThemeBackground(undefined, undefined);
+    expect(t.properties.has(BACKGROUND)).toBe(false);
+    applyThemeBackground("mine", hash);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(t.properties.get(BACKGROUND)).toMatch(/^url\("blob:/);
+    expect(t.fetchBackground).toHaveBeenCalledTimes(1);
+
+    // Another image replaces it, and the old one does not show while the new one loads.
+    t.fetchBackground.mockImplementation(() => new Promise(() => {}));
+    applyThemeBackground("mine", "d".repeat(64));
+    expect(t.properties.has(BACKGROUND)).toBe(false);
+  });
+
+  it("prefers a stored image over the one published beside the theme", async () => {
+    using t = setup();
+    t.fetchBackground.mockImplementation(loaded);
+    applyThemeBackground("nightfall", "e".repeat(64));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(assetEnvironment.createUrl).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        input: { resource: { _tag: "theme-background-image", hash: "e".repeat(64) } },
+      }),
+    );
   });
 });

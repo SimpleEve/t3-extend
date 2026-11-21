@@ -3,6 +3,12 @@ export default {
   "Theme studio": "主题工作室",
   "Open theme studio": "打开主题工作室",
   "My schemes": "我的方案",
+  "Make and change themes here. Choose which one to use in Appearance.":
+    "在这里新建和修改主题，到外观里选择使用哪一个。",
+  "Go to Appearance": "前往外观",
+  "Choose which theme to use here. To make or change a theme, open Theme Studio.":
+    "这里选择用哪个主题。要新建或修改主题，去主题工作室。",
+  "Edit in Theme Studio": "在主题工作室中编辑",
 
   // Presets and font choices (names of our own presets are translated; a person's schemes are not)
   Presets: "预设",
@@ -20,10 +26,6 @@ export default {
   Neon: "霓虹",
   Docs: "文档",
   "Quiet page": "留白",
-  "Humanist sans": "人文无衬线",
-  Serif: "衬线",
-  Monospace: "等宽",
-  "SF Mono and Menlo": "SF Mono 和 Menlo",
   "Needs a background image": "需要背景图",
   "Hover to preview, click to use. Changing a preset afterwards saves your version as a scheme and leaves the preset as it is.":
     "悬停预览，点击使用。之后再改预设，会把你的版本存成一个方案，预设本身不变。",
@@ -61,14 +63,12 @@ export default {
     "应用用到的每个颜色角色，已分组。改一个，跟随它的角色也会一起变。",
 
   Fonts: "字体",
-  "Your setting": "你的设置",
+  "Follow Appearance setting": "跟随外观设置",
   "Overrides your font setting": "覆盖你的字体设置",
-  "{title} font names": "{title}的字体名",
-  "Georgia, serif": "Georgia, serif",
+  "Font sizes are in Appearance": "字号请到外观里设置",
   "The font for the interface and messages. Fonts must be installed on this device.":
     "界面和消息使用的字体。字体需要已安装在这台设备上。",
   "The font for code blocks and diffs.": "代码块和差异使用的字体。",
-  "Font sizes and your own fonts": "字号和你自己的字体",
   "Your own settings apply wherever the theme above leaves a font alone.":
     "主题没有指定字体的地方，使用你自己的设置。",
 
@@ -91,9 +91,21 @@ export default {
 
   "Background image": "背景图",
   "Panel glass": "面板毛玻璃",
-  "This theme has a background image.": "这个主题有背景图。",
-  "This theme has no background image. Ask an agent to set one with t3_theme_set, or copy a JPEG, PNG or WebP file of up to 16 MB next to the published theme file.":
-    "这个主题没有背景图。可以让 agent 用 t3_theme_set 设一张，或把不超过 16 MB 的 JPEG、PNG 或 WebP 文件复制到已发布主题文件旁边。",
+  "Published with this theme as a file beside it. Choose an image to use another.":
+    "随这个主题以文件形式发布。想换一张，直接选择图片。",
+  "Choose a JPEG, PNG or WebP of up to 16 MB. It is stored on this server.":
+    "可选 JPEG、PNG 或 WebP，最大 16 MB。图片会存放在这台服务器上。",
+  "This server already keeps as many background images as it allows. Delete some from the backgrounds folder of its themes directory.":
+    "这台服务器保存的背景图已达上限。请到它主题目录下的 backgrounds 文件夹里删掉一些。",
+  "Choose image…": "选择图片…",
+  "Uploading…": "正在上传…",
+  "The image is stored on this server. An exported scheme refers to it but does not contain it.":
+    "图片存放在这台服务器上。导出的方案只引用它，不包含图片本身。",
+  "Choose a JPEG, PNG or WebP image.": "请选择 JPEG、PNG 或 WebP 图片。",
+  "The image is larger than 16 MB.": "图片超过 16 MB。",
+  "Could not upload the image. Check the connection and try again.":
+    "无法上传图片。请检查连接后重试。",
+  "This connection cannot add images to this server.": "这个连接没有权限向这台服务器添加图片。",
   "Makes the sidebar, header and composer see-through and blurs what is behind them. Only with a background image.":
     "让侧边栏、标题栏和输入框半透明，并模糊它们后面的内容。只在有背景图时生效。",
 

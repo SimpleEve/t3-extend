@@ -118,6 +118,7 @@ import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
 import * as ServerOwnership from "./serverOwnership.ts";
 import * as AgentAwarenessRelay from "./relay/AgentAwarenessRelay.ts";
 import * as ForkPush from "./fork/push/layer.ts"; // fork: UnifiedPush notifications
+import * as ThemeBackgroundHttp from "./fork/themeBackground/route.ts"; // fork: theme background upload
 import * as ForkDeviceKeys from "./fork/deviceKeys/layer.ts"; // fork: self-hosted pairing
 import * as DeviceAssertionAuth from "./fork/deviceKeys/DeviceAssertionAuth.ts"; // fork: self-hosted pairing
 import * as DeviceTunnel from "./fork/deviceKeys/DeviceTunnel.ts"; // fork: self-hosted pairing
@@ -881,6 +882,7 @@ const layerMakeRoutes = Layer.mergeAll(
     ServerHttp.layerOtlpTracesProxyRoute,
     ServerHttp.layerAssetRoute,
     ServerHttp.layerAttachmentUploadRoute,
+    ThemeBackgroundHttp.layerThemeBackgroundUploadRoute, // fork: theme background upload
     GuestHttp.layer,
     DeviceHubProxy.layer,
     ServerBrowserStream.routeLayer,

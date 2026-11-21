@@ -18,6 +18,7 @@ import {
   NativeAppIconReference,
   TurnItemId,
   EnvironmentThemeId,
+  ThemeLookBackground, // fork: theme background
 } from "@t3tools/contracts";
 import {
   hostPreviewMimeTypeFromExtension,
@@ -54,6 +55,7 @@ import { makeIsServerInternalPath } from "../auth/serverInternalPaths.ts";
 import { parseAttachmentFileExtension, resolveAttachmentPathById } from "../attachmentStore.ts";
 import * as ServerConfig from "../config.ts";
 import { findThemeBackground } from "../environmentTheme.ts";
+import { findStoredThemeBackground } from "../fork/themeBackground/ThemeBackgroundStore.ts"; // fork: theme background
 import * as Orchestrator from "../orchestration-v2/Orchestrator.ts";
 import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
 import * as ProjectFaviconResolver from "../project/ProjectFaviconResolver.ts";
@@ -188,6 +190,13 @@ const AssetClaimsSchema = Schema.Union([
     version: Schema.Literal(1),
     kind: Schema.Literal("environment-theme-background"),
     themeId: EnvironmentThemeId,
+    expiresAt: Schema.Number,
+  }),
+  // fork: a background image chosen in the theme studio
+  Schema.Struct({
+    version: Schema.Literal(1),
+    kind: Schema.Literal("theme-background-image"),
+    hash: ThemeLookBackground,
     expiresAt: Schema.Number,
   }),
   Schema.Struct({
@@ -904,6 +913,17 @@ export const issueAssetUrl = Effect.fn("AssetAccess.issueAssetUrl")(function* (i
       fileName = `${input.resource.themeId}-background`;
       break;
     }
+    case "theme-background-image": {
+      // fork: stored backgrounds belong to the environment's themes, so any client may read them.
+      claims = {
+        version: 1,
+        kind: "theme-background-image",
+        hash: input.resource.hash,
+        expiresAt,
+      };
+      fileName = `${input.resource.hash}-background`;
+      break;
+    }
     case "native-app-icon": {
       claims = {
         version: 1,
@@ -1068,6 +1088,24 @@ export const resolveAsset = Effect.fn("AssetAccess.resolveAsset")(function* (
       Effect.orElseSucceed(() => null),
     );
     return file ? ({ kind: "file", path: background.path, file } satisfies ResolvedAsset) : null;
+  }
+
+  if (claims.kind === "theme-background-image") {
+    // fork: stored backgrounds belong to the environment's themes, so any client may read them.
+    const config = yield* ServerConfig.ServerConfig;
+    const fileSystem = yield* FileSystem.FileSystem;
+    const themesDir = yield* fileSystem
+      .realPath(config.environmentThemesDir)
+      .pipe(Effect.orElseSucceed(() => null));
+    const stored = themesDir === null ? null : findStoredThemeBackground(themesDir, claims.hash);
+    if (stored === null) return null;
+    const file = yield* openMediaFile(stored.path).pipe(
+      Effect.tapError((cause) =>
+        Effect.logError("Failed to open stored theme background.", { path: stored.path, cause }),
+      ),
+      Effect.orElseSucceed(() => null),
+    );
+    return file ? ({ kind: "file", path: stored.path, file } satisfies ResolvedAsset) : null;
   }
 
   if (claims.kind === "native-app-icon") {
