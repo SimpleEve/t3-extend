@@ -11,10 +11,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { ZH_HANS_AREAS } from "../packages/client-runtime/src/i18n/catalogs/zh-Hans/index.ts";
 
 const FEATURES: Readonly<Record<string, ReadonlyArray<string>>> = {
-  "loopback forwarding and allowed ports": [
-    "apps/web/src/fork/loopbackGateway",
-    "apps/web/src/fork/FooterPorts.tsx",
-  ],
+  "footer ports": ["apps/web/src/fork/FooterPorts.tsx"],
   "device keys": [
     "apps/web/src/fork/YourServerSettings.tsx",
     "apps/web/src/fork/YourServerPaletteItems.tsx",

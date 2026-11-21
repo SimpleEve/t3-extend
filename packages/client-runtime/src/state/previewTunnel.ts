@@ -9,6 +9,7 @@ import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 
 import type { PreparedConnection } from "../connection/model.ts";
 import { environmentEndpointUrl } from "../environment/endpoint.ts";
+import { localTicketExpiry } from "../fork/previewTunnel/ticketExpiry.ts"; // fork: clock skew
 import { mintMediaTicket } from "./deviceHubAccess.ts";
 
 const TICKET_REFRESH_MARGIN_MS = 30_000;
@@ -34,7 +35,10 @@ export function createPreviewTunnelUrlReader<R, E>(input: {
         // The proxy cannot send cookies, so only ticketed connections tunnel.
         if (prepared.httpAuthorization === null) return Effect.succeed(null);
         return mintMediaTicket(prepared).pipe(
-          Effect.map((ticket) => {
+          Effect.flatMap((ticket) =>
+            Effect.map(Clock.currentTimeMillis, (receivedAt) => ({ ticket, receivedAt })),
+          ), // fork: clock skew
+          Effect.map(({ ticket, receivedAt }) => {
             const url = new URL(
               environmentEndpointUrl(prepared.httpBaseUrl, "/api/preview/tunnel").replace(
                 /^http/,
@@ -44,7 +48,11 @@ export function createPreviewTunnelUrlReader<R, E>(input: {
             url.searchParams.set("wsTicket", Redacted.value(ticket.ticket));
             return {
               url: url.toString(),
-              expiresAtMillis: DateTime.toEpochMillis(ticket.expiresAt),
+              // fork: on this device's clock; the environment's may be minutes off
+              expiresAtMillis: localTicketExpiry({
+                receivedAt,
+                serverExpiresAt: DateTime.toEpochMillis(ticket.expiresAt),
+              }),
             };
           }),
         );

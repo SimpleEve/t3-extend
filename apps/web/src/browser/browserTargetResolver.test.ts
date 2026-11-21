@@ -69,50 +69,6 @@ describe("browser target resolver", () => {
     }
   });
 
-  it("keeps localhost for an environment whose localhost is forwarded, except for the system browser", async () => {
-    const { resolveDiscoveredServerUrl, resolveExternalServerUrl } =
-      await import("./browserTargetResolver");
-    const { publishGatewayState } = await import("~/fork/loopbackGateway/gatewayStore");
-    const environmentId = EnvironmentId.make("forwarded-environment");
-    const resolve = (rawUrl: string, options?: { systemBrowser?: boolean }) =>
-      options?.systemBrowser
-        ? resolveExternalServerUrl(environmentId, rawUrl)
-        : resolveDiscoveredServerUrl(environmentId, rawUrl);
-
-    // The same remote environment, reached over a private network: each state decides alone.
-    readPreparedConnection.mockReturnValue({ httpBaseUrl: "http://192.168.1.25:3773" });
-    const states = [
-      ["unknown", "http://192.168.1.25:3000/app"],
-      ["not-applicable", "http://192.168.1.25:3000/app"],
-      ["unsupported-server", "http://192.168.1.25:3000/app"],
-      ["unsupported-route", "http://192.168.1.25:3000/app"],
-      ["no-permission", "http://192.168.1.25:3000/app"],
-      ["disabled-by-user", "http://192.168.1.25:3000/app"],
-      ["active", "http://localhost:3000/app"],
-    ] as const;
-    for (const [state, expected] of states) {
-      publishGatewayState(environmentId, state);
-      expect(resolve("localhost:3000/app"), state).toBe(expected);
-      // The system browser has no forwarding, so it always gets what it got before.
-      expect(resolve("localhost:3000/app", { systemBrowser: true }), state).toBe(
-        "http://192.168.1.25:3000/app",
-      );
-    }
-
-    // A public address that could not be reached before can be now.
-    readPreparedConnection.mockReturnValue({ httpBaseUrl: "https://box.example.com" });
-    expect(resolve("localhost:5173")).toBe("http://localhost:5173/");
-    expect(resolve("localhost:5173", { systemBrowser: true })).toBe("localhost:5173");
-
-    // A server that printed 0.0.0.0 is opened as localhost, which is what gets forwarded.
-    expect(resolve("0.0.0.0:3000/app")).toBe("http://localhost:3000/app");
-    // Other addresses and other environments are not touched.
-    expect(resolve("https://example.com/x")).toBe("https://example.com/x");
-    expect(
-      resolveDiscoveredServerUrl(EnvironmentId.make("other-environment"), "localhost:5173"),
-    ).toBe("localhost:5173");
-  });
-
   it("classifies exact private IPv4 and IPv6 boundaries", async () => {
     const privateHosts = [
       "0.0.0.0",

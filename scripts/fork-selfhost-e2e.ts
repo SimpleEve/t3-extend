@@ -4,8 +4,7 @@
 // "computers" on temporary homes, simulates a phone in Node, and runs research/self-host-device-keys.md 7.2.
 //
 //   node scripts/fork-selfhost-e2e.ts [--port 18443] [--project t3x-e2e] [--frpc-path <file>] [--keep]
-//                                     [--only 1,2,4,15]   (--only also runs the optional
-//                                     measurement scenario 17, which a plain run skips)
+//                                     [--only 1,2,4]
 //
 // The port defaults to 18443 and moves to a free one when that is taken; an explicit --port that is
 // taken is an error. Only processes this script started are stopped, and the compose project, its

@@ -48,7 +48,6 @@ interface Props {
   pickDisabledReason?: string | undefined;
   trailingActions?: ReactNode;
   leadingActions?: ReactNode;
-  gatewayBadge?: ReactNode; // fork: loopback gateway
 }
 
 const NOOP = () => {};
@@ -79,7 +78,6 @@ export function PreviewChromeRow({
   pickDisabledReason,
   trailingActions,
   leadingActions,
-  gatewayBadge,
 }: Props) {
   const gt = useGT();
   const [draft, setDraft] = useState(url);
@@ -163,7 +161,6 @@ export function PreviewChromeRow({
         </div>
 
         {leadingActions}
-        {gatewayBadge /* fork: loopback gateway */}
 
         <InputGroup variant="ghost" className="group/address h-7 flex-1">
           <Tooltip>

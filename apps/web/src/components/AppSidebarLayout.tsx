@@ -69,7 +69,6 @@ import { registerCommands, registerMenuAction } from "../shortcuts/dispatcher";
 import { resolveThreadRouteRef } from "../threadRoutes";
 import { KeepAwakeReporter } from "../fork/KeepAwakeReporter"; // fork: keep awake
 import { BackgroundServiceReporter } from "../fork/BackgroundServiceReporter"; // fork: background service
-import { LoopbackGatewayManager } from "../fork/loopbackGateway/LoopbackGatewayManager"; // fork: loopback gateway
 import { DeviceKeysSync } from "../fork/DeviceKeysSync"; // fork: self-hosted devices
 
 const MACOS_TRAFFIC_LIGHTS_LEFT_INSET = "var(--desktop-window-controls-inset, 90px)";
@@ -482,7 +481,6 @@ export function AppSidebarLayout({
             <SidebarBrandWidthProbe isElectron={isElectron} onWidthChange={setBrandWidth} />
             {isElectron ? <KeepAwakeReporter /> : null /* fork: keep awake */}
             {isElectron ? <BackgroundServiceReporter /> : null /* fork: background service */}
-            {isElectron ? <LoopbackGatewayManager /> : null /* fork: loopback gateway */}
             {isElectron ? <DeviceKeysSync /> : null /* fork: self-hosted devices */}
             <Sidebar
               side="left"

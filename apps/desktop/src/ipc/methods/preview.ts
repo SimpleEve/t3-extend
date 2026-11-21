@@ -48,7 +48,6 @@ import * as DesktopClientSettings from "../../settings/DesktopClientSettings.ts"
 import { PREVIEW_WEBVIEW_PREFERENCES } from "../../preview/WebviewPreferences.ts";
 import * as IpcChannels from "../channels.ts";
 import * as DesktopIpc from "../DesktopIpc.ts";
-import { installLoopbackGatewaySession } from "../../fork/loopbackGateway/loopbackGatewayIpc.ts"; // fork: loopback gateway
 
 export const installPreviewEventForwarding = Effect.fn(
   "desktop.ipc.preview.installEventForwarding",
@@ -367,10 +366,8 @@ const getPreviewConfig = DesktopIpc.makeIpcMethod({
     const { scope, persistent, namespace } = resolvePartitionScope(environmentId, profileId);
     // Session creation installs UA and permission handlers before a guest can attach.
     const session = yield* manager.getBrowserSession(scope, persistent, namespace);
-    // fork: loopback gateway. Upstream's LoopbackTunnel sets the same session's proxy; until the
-    // user picks one, the fork's gateway owns it and the tunnel stays off.
-    yield* installLoopbackGatewaySession(environmentId, session);
-    yield* tunnel.route({ environmentId, session, tunnelled: false && tunnelLoopback === true });
+    // Routed before the renderer learns the partition, so no guest loads loopback directly.
+    yield* tunnel.route({ environmentId, session, tunnelled: tunnelLoopback === true });
     return {
       partition: yield* manager.getBrowserPartition(scope, persistent, namespace),
       webPreferences: PREVIEW_WEBVIEW_PREFERENCES,

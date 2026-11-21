@@ -66,28 +66,6 @@ export default {
     "{reason}\n\n已改用 Windows 后端，以便 T3 Extend 能够打开。修复 WSL 发行版后，可在“设置 > 共享与访问”中重新启用 WSL 后端。",
   "This T3 home is unavailable": "此 T3 主目录不可用",
 
-  // Page shown when a remote environment's localhost cannot be forwarded
-  "Can't forward localhost:{port}": "无法转发 localhost:{port}",
-  "This port was not started by a terminal or agent in T3 on the remote environment, or the service has detached from the terminal or agent that started it (for example, moved to the background with nohup). Start it from a T3 terminal.":
-    "这个端口上的服务不是由远程环境里 T3 的终端或 Agent 启动的，或者它已经脱离了启动它的终端或 Agent（例如用 nohup 放到了后台）。请改在 T3 的终端里启动它。",
-  "This port can't be forwarded.": "此端口无法转发。",
-  "This service is running with debugging turned on, so it can't be forwarded.":
-    "此服务带着调试参数运行，无法转发。",
-  "The service on this port just changed. Reload to try again.":
-    "此端口上的服务刚刚变了。请重新加载再试。",
-  "Nothing is listening on this port in the remote environment. Start the service, then reload.":
-    "远程环境里没有程序在监听此端口。请先启动服务，再重新加载。",
-  "This service doesn't listen on localhost. It only listens on another address, which localhost can't reach. Make it listen on 127.0.0.1 as well.":
-    "这个服务没有监听 localhost，只监听了别的地址，经 localhost 转发不到。请让它同时监听 127.0.0.1。",
-  "The remote environment can't be reached.": "连不上远程环境。",
-  "This connection is not allowed to forward ports.": "此连接没有转发端口的权限。",
-  "Reconnecting to the remote environment...": "正在重新连接远程环境…",
-  "The remote environment's T3 version can't forward localhost.":
-    "远程环境的 T3 版本不支持转发 localhost。",
-  "This computer does not trust the remote environment's certificate.":
-    "这台电脑不信任远程环境的证书。",
-  "Too many forwarded connections. Reload to try again.": "转发的连接太多。请重新加载再试。",
-  "Forwarding failed ({code}).": "转发失败（{code}）。",
   "You're running T3 Extend {version}.": "你当前运行的是 T3 Extend {version}。",
   "Update downloading": "正在下载更新",
   "T3 Extend will restart to install it. Any running tasks will be interrupted.":

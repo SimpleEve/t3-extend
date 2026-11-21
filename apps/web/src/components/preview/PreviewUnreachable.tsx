@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Button } from "~/components/ui/button";
 
 import { describePreviewError } from "./errorCodeMessages";
-import { GatewayActionBlock, type GatewayAction } from "~/fork/loopbackGateway/GatewayActionBlock"; // fork: forwarded localhost
 
 interface Props {
   url: string;
@@ -12,13 +11,6 @@ interface Props {
   description: string;
   onReload: () => void;
   move?: { readonly label: string; readonly onMove: () => void };
-  // fork: forwarded localhost
-  gateway?: {
-    readonly title: string;
-    readonly description: string;
-    readonly reloadLabel?: string;
-    readonly action?: GatewayAction;
-  };
 }
 
 export function PreviewFileNotShown({
@@ -64,7 +56,7 @@ export function PreviewFileNotShown({
   );
 }
 
-export function PreviewUnreachable({ url, code, description, onReload, move, gateway }: Props) {
+export function PreviewUnreachable({ url, code, description, onReload, move }: Props) {
   const gt = useGT();
   const m = useMessages();
   const [showDetails, setShowDetails] = useState(false);
@@ -77,22 +69,18 @@ export function PreviewUnreachable({ url, code, description, onReload, move, gat
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-8 py-12 sm:py-16">
         <ErrorIcon className="mb-6 size-12 text-muted-foreground/70" />
         <h1 className="mb-3 text-2xl font-semibold leading-tight text-foreground">
-          {/* fork: forwarded localhost */}
-          {gateway?.title ?? <T>This site can&rsquo;t be reached</T>}
+          <T>This site can&rsquo;t be reached</T>
         </h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          {gateway?.description ?? (
-            <T>
-              <span className="font-semibold text-foreground">
-                <Var>{host}</Var>
-              </span>
-              : <Var>{friendly}</Var>.
-            </T>
-          )}
+          <T>
+            <span className="font-semibold text-foreground">
+              <Var>{host}</Var>
+            </span>
+            : <Var>{friendly}</Var>.
+          </T>
         </p>
-        {gateway?.action ? <GatewayActionBlock action={gateway.action} /> : null}
 
-        {showDetails && !gateway ? (
+        {showDetails ? (
           <div className="mt-6 rounded-lg border border-border bg-muted/40 p-4 text-sm">
             <p className="mb-2 font-medium text-foreground">
               <T>Try:</T>
@@ -121,30 +109,22 @@ export function PreviewUnreachable({ url, code, description, onReload, move, gat
         </div>
 
         <div className="mt-auto flex items-center gap-2 pt-8">
-          {gateway ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowDetails((value) => !value)}
-            >
-              {showDetails ? gt("Hide details") : gt("Details")}
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDetails((value) => !value)}
+          >
+            {showDetails ? gt("Hide details") : gt("Details")}
+          </Button>
           <div className="flex-1" />
           {move ? (
             <Button type="button" variant="outline" size="sm" onClick={move.onMove}>
               {move.label}
             </Button>
           ) : null}
-          <Button
-            type="button"
-            size="sm"
-            variant={gateway?.action ? "outline" : "default"} // fork: the allow button leads
-            onClick={onReload}
-          >
-            {/* fork: forwarded localhost */}
-            {gateway?.reloadLabel ?? gt("Reload")}
+          <Button type="button" size="sm" onClick={onReload}>
+            <T>Reload</T>
           </Button>
         </div>
       </div>

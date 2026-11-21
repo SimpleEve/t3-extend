@@ -77,7 +77,6 @@ import { closePreviewSession } from "./closePreviewSession";
 import { openPreviewSession } from "./openPreviewSession";
 import { showPreviewPopup } from "./showPreviewPopup";
 import { PreviewChromeRow } from "./PreviewChromeRow";
-import { useLoopbackGatewayTab } from "~/fork/loopbackGateway/useLoopbackGatewayTab"; // fork: loopback gateway
 import { PreviewEmptyState } from "./PreviewEmptyState";
 import { PreviewMoreMenu, type PreviewMoreMenuActions } from "./PreviewMoreMenu";
 import { commitBrowserViewportChange } from "~/browser/browserViewportActions";
@@ -509,15 +508,6 @@ export function PreviewView({
     await closePreviewSession({ closePreview, snapshot, tabId, threadRef });
   };
 
-  const gateway = useLoopbackGatewayTab({
-    threadRef,
-    runtimeTabId,
-    url,
-    loadFailed: isUnreachable,
-    serverOwnsRendering,
-    onReload: handleRefresh,
-    onOpenInEnvironment: moveTarget === "server" ? () => void handleMoveTab() : undefined,
-  }); // fork: loopback gateway
   const handlePictureInPicture = () => {
     if (!tabId) return;
     if (miniPlayerTabId === tabId) {
@@ -1028,7 +1018,7 @@ export function PreviewView({
         onRefresh={handleRefresh}
         onStopLoading={handleStopLoading}
         onSubmit={(next) => void handleSubmitUrl(next)}
-        onOpenInBrowser={tabId && !gateway.forwarding ? handleOpenInBrowser : undefined} // fork: loopback gateway
+        onOpenInBrowser={tabId ? handleOpenInBrowser : undefined}
         onCapture={previewBridge && tabId && !isServerTab ? handleCapture : undefined}
         captureDisabled={!desktopOverlay || isUnreachable}
         recording={recordingRuntimeTabId !== null}
@@ -1047,7 +1037,6 @@ export function PreviewView({
             ? gt("Page didn't load. Pick is unavailable until the page renders")
             : undefined
         }
-        gatewayBadge={gateway.badge}
         leadingActions={
           activeProfileId !== browserDefaults.profileId ? (
             <Tooltip>
@@ -1144,7 +1133,7 @@ export function PreviewView({
             <BrowserSurfaceSlot
               key={runtimeTabId}
               tabId={runtimeTabId}
-              visible={visible && !isUnreachable && !gateway.covering} // fork: the card is above the webview
+              visible={visible && !isUnreachable}
               className="absolute inset-0 h-full w-full"
             />
           ) : (
@@ -1209,7 +1198,6 @@ export function PreviewView({
             />
           </div>
         ) : null}
-        {gateway.card}
       </div>
     </div>
   );

@@ -276,7 +276,6 @@ export default {
   "Could not open this address": "无法打开此地址",
   "Enter an http or https URL.": "请输入 http 或 https URL。",
   "Unable to change the browser tab": "无法切换浏览器标签页",
-  "Open in {environment}'s browser": "在 {environment} 的浏览器中打开",
   "Open on this computer": "在本机打开",
   "Unable to move the browser tab": "无法移动浏览器标签页",
   "Unable to update popped-out preview": "无法更新弹出的预览",

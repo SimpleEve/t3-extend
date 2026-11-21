@@ -53,4 +53,31 @@ describe("preview tunnel url", () => {
       );
     }),
   );
+
+  // fork: clock skew. The environment's clock is behind this device's, so its expiry is already past here.
+  it.live("reuses a fresh ticket whose expiry the environment's slow clock puts in the past", () =>
+    Effect.gen(function* () {
+      let minted = 0;
+      const client = HttpClient.make((request) =>
+        Effect.sync(() => {
+          minted += 1;
+          return HttpClientResponse.fromWeb(
+            request,
+            Response.json({ ticket: `ticket-${minted}`, expiresAt: "2000-01-01T00:00:00.000Z" }),
+          );
+        }),
+      );
+      const registry = AtomRegistry.make();
+      yield* Effect.addFinalizer(() => Effect.sync(() => registry.dispose()));
+      const read = createPreviewTunnelUrlReader({
+        runtime: Atom.runtime(Layer.succeed(HttpClient.HttpClient, client)),
+        registry,
+        preparedConnectionAtom: () => Atom.make(Option.some(PREPARED)),
+      });
+      yield* Effect.promise(() => read(ENVIRONMENT_ID));
+      const second = yield* Effect.promise(() => read(ENVIRONMENT_ID));
+      expect(second).toBe("wss://remote.example.test/api/preview/tunnel?wsTicket=ticket-1");
+      expect(minted).toBe(1);
+    }),
+  );
 });

@@ -199,7 +199,7 @@ Clients join and revoke the same way as in the previous section. Open the link i
 
 ### Connect directly with a Tailscale IP
 
-With network access on (or `--lan`), the server also listens on Tailscale addresses, so you can pair directly with `http://100.x.x.x:3873`. This is plain http, though it runs inside Tailscale's encrypted tunnel. With this method, localhost forwarding in remote environments is not enabled (see section 7).
+With network access on (or `--lan`), the server also listens on Tailscale addresses, so you can pair directly with `http://100.x.x.x:3873`. This is plain http, though it runs inside Tailscale's encrypted tunnel.
 
 ### A leftover 443 route from an older version
 
@@ -294,43 +294,11 @@ If you remove a device from another process, such as `t3x devices remove` or `t3
 
 ## 7. Localhost forwarding in remote environments
 
-**What it is for**: in the desktop app you are connected to a remote environment B (for example another Mac, reached through your own server or Tailscale). A terminal or agent on B starts a dev server that listens only on `localhost`, and you want to open `http://localhost:<port>` in the desktop app's built-in browser. With forwarding on, the page renders on your computer, and requests are forwarded in the background to B's loopback address.
+**What it is for**: in the desktop app you are connected to a remote environment B (for example another Mac, reached through your own server or Tailscale). A service on B listens only on its `localhost`, and you want to open `http://localhost:<port>` in the built-in browser. This uses the official app's preview tunnel: the page renders on this computer and its connections go to B's loopback. It works for any service on B, whoever started it, including one started with `nohup`.
 
-Key points:
+T3 Extend keeps a few services on B out of the tunnel's reach, because a page in such a tab can reach whatever the tunnel reaches: services started with debugging options (`--inspect` and the like), ports debuggers and daemons use (9222, 9229, 5858, 5859, 5005, 5678, 2375, 2376), and T3 Extend's own processes and the agents' runtimes. Opening one of these shows a page that says it can't be forwarded.
 
-- **Only the desktop app** can use it, and the remote environment B must be T3 Extend on **macOS**. Linux and Windows environments do not offer it. Environments set up over SSH run the official server and do not offer it either. Your connection also needs the preview and terminal permissions.
-- It is enabled only on encrypted connections and on connections on the same computer. Forwarding is not enabled for plain-http LAN addresses, for Tailscale `100.x` addresses that run over plain http, or for the T3 Connect relay.
-- Connection methods that have been verified: a connection on the same computer, a direct Tailscale connection (using the tailnet's IPv6 address), and your own server. Tailscale MagicDNS names (`http://<machine>.<tailnet>.ts.net:<port>`) and Tailscale Serve have had only the basic flow checked (2026-11-18: opening a page and allowing a port by hand). Long-lived connections and reconnecting have not been tested. LAN https has not been tested.
-- For an environment you reach at `http://100.x.x.x`, the card suggests the MagicDNS name instead. Before you switch, check that this computer can resolve `*.ts.net`; see section 5.
-- `https://` addresses with a certificate from a private CA (a company CA, `mkcert`) are not supported yet.
-
-### How to use it
-
-1. Start the server in a T3 terminal on B, or ask an agent on B to start it.
-2. In the desktop app, open a browser tab for a thread on B and type `localhost:<port>`, or pick it from the Local servers list, or click a link in the terminal. A small icon appears next to the address bar to show that localhost is being forwarded. The address bar still shows `localhost`.
-
-Forwarding applies to the whole environment, not to one tab. From the icon's menu you can choose "Stop forwarding and use this computer's localhost", and later "Resume forwarding". This computer remembers the choice. While forwarding is on, other websites in that environment's tabs bypass the system proxy and connect directly.
-
-### Allow a port by hand
-
-By default only servers started by a T3 terminal or an agent are forwarded. A **server that has detached from its parent process**, such as one started with `nohup … &` after which the script exited, cannot be traced to its source. A card appears in the tab with "Allow forwarding localhost:\<port\>". Click it to add that port to the environment's allowed list.
-
-After you allow a port:
-
-- Any server on that port is forwarded, **for every device and tab of this environment**. Allow only ports you trust.
-- The allowed list is stored on B's server. It is kept per port, shared across the whole environment, and holds at most 64 entries.
-- An agent cannot allow a port. Only you can.
-- Servers started with debugging flags (such as `--inspect`), ports used by debuggers, and the processes of T3 itself and of agent runtimes are never forwarded, whether allowed or not.
-
-### View and remove them in Settings
-
-Settings → Browser → Localhost forwarding lists every allowed port, each with a Remove button. You can also choose "Manage allowed ports…" from the forwarding icon's menu, or choose "Stop allowing localhost:\<port\>" for the current port. Removal takes effect at once. Connections that passed only because of the allowed entry are closed, including keep-alive connections and the WebSockets used for hot reload.
-
-### Security note
-
-While forwarding is on, pages in the forwarding tabs can reach the forwarded servers in that environment, and those servers see the requests as if they came from the environment itself. **Do not open websites you do not trust in these tabs.**
-
-For more, see [Localhost on a remote environment](../user/remote-access.md#localhost-on-a-remote-environment) in the upstream docs.
+To turn the tunnel off on B, use **Settings → Sharing & access → Preview tunnel** there. See [remote-access.md](../user/remote-access.md#localhost-on-a-remote-environment) for the details.
 
 ## 8. Phones: Android and iPhone
 
@@ -409,7 +377,7 @@ Good to know:
 | The Keep running in the background row says there is a problem with the app location          | You moved or deleted the app, or opened it straight from the disk image. Put the app in Applications, then turn the switch off and on.                                                                                                                                                                |
 | On opening the app it says the background service could not be stopped, then quits            | The app will not start a second server while the service still holds the data. Run `t3x service uninstall` to remove the service.                                                                                                                                                                     |
 | `t3x service install` fails to download                                                       | The release it needs is missing or the network blocks GitHub. Check that the version exists on the Releases page, or set `T3CODE_RELEASE_BASE_URL` to your own mirror. On macOS you can also use the desktop app's switch, which downloads nothing.                                                   |
-| localhost does not open in a remote environment's tab                                         | Read what the card in the tab says. Common causes: the server was not started by a T3 terminal or an agent (click Allow forwarding), the server listens on a non-local address (make it also listen on `127.0.0.1`), or the connection is plain http or T3 Connect (forwarding is not enabled).       |
+| localhost does not open in a remote environment's tab                                         | Read what the page in the tab says. A service started with debugging options, a debugger port, or one of T3's own processes is not forwarded; start the service without `--inspect` or on another port. Check that **Preview tunnel** is on under Settings → Sharing & access on the environment.     |
 | The phone gets no push                                                                        | In Settings → Notifications, use Send test notification first. Then check that the push server is at a public address, that the server and account in the ntfy app are right, and that the phone is not limiting ntfy in the background.                                                              |
 
 The usual order when troubleshooting is: is the host's server running, can the other side reach the address, and has the credential expired or been revoked. The upstream [Remote access](../user/remote-access.md) and [background service](../user/background-service.md) docs have more detail. For problems with the self-hosted server itself, see ["出问题时" (when something goes wrong) in infra/self-host/README.md](../../infra/self-host/README.md#出问题时).
@@ -418,33 +386,27 @@ The usual order when troubleshooting is: is the host's server running, can the o
 
 The body of this guide uses the English interface names. If you use the Simplified Chinese interface, these are the matching names.
 
-| English interface                                 | Simplified Chinese interface       |
-| ------------------------------------------------- | ---------------------------------- |
-| Sharing & access                                  | 共享与访问                         |
-| Your server                                       | 你的服务器                         |
-| Join my server                                    | 加入我的服务器                     |
-| Invite a device                                   | 邀请设备                           |
-| Leave this server                                 | 退出此服务器                       |
-| Remove                                            | 移除                               |
-| Network access                                    | 网络访问                           |
-| Authorized clients                                | 已授权的客户端                     |
-| Create link                                       | 创建链接                           |
-| Revoke                                            | 撤销                               |
-| Environments                                      | 环境                               |
-| Add environment                                   | 添加环境                           |
-| Keep running in the background                    | 在后台保持运行                     |
-| Maintenance                                       | 维护                               |
-| Browser                                           | 浏览器                             |
-| Localhost forwarding                              | 本机服务转发                       |
-| Allow forwarding localhost:\<port\>               | 允许转发 localhost:端口            |
-| Stop allowing localhost:\<port\>                  | 取消放行 localhost:端口            |
-| Manage allowed ports…                             | 管理已放行的端口…                  |
-| Stop forwarding and use this computer's localhost | 停止转发，使用这台电脑的 localhost |
-| Resume forwarding                                 | 恢复转发                           |
-| Local servers                                     | 本地服务                           |
-| Scan QR code                                      | 扫描二维码                         |
-| Paste invite                                      | 粘贴邀请                           |
-| Notifications                                     | 通知                               |
-| Push notifications                                | 推送通知                           |
-| Send test notification                            | 发送测试通知                       |
-| About                                             | 关于                               |
+| English interface              | Simplified Chinese interface |
+| ------------------------------ | ---------------------------- |
+| Sharing & access               | 共享与访问                   |
+| Your server                    | 你的服务器                   |
+| Join my server                 | 加入我的服务器               |
+| Invite a device                | 邀请设备                     |
+| Leave this server              | 退出此服务器                 |
+| Remove                         | 移除                         |
+| Network access                 | 网络访问                     |
+| Authorized clients             | 已授权的客户端               |
+| Create link                    | 创建链接                     |
+| Revoke                         | 撤销                         |
+| Environments                   | 环境                         |
+| Add environment                | 添加环境                     |
+| Keep running in the background | 在后台保持运行               |
+| Maintenance                    | 维护                         |
+| Browser                        | 浏览器                       |
+| Local servers                  | 本地服务                     |
+| Scan QR code                   | 扫描二维码                   |
+| Paste invite                   | 粘贴邀请                     |
+| Notifications                  | 通知                         |
+| Push notifications             | 推送通知                     |
+| Send test notification         | 发送测试通知                 |
+| About                          | 关于                         |

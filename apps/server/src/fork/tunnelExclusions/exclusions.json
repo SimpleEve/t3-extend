@@ -1,0 +1,361 @@
+{
+  "$comment": "Every listening point and long-lived child in product code, and how the preview tunnel's exclusions (TunnelExclusions.ts, rules in ExclusionRules.ts) treat it. `scan` is compared with a source scan by ExclusionsInventory.test.ts: a new listening point fails the test until someone adds it here with a handling. status `unverified-excluded` means nothing was run to confirm the claim; the port is refused by rule.",
+  "scan": {
+    "apps/desktop/src/app/DesktopAppActivation.ts": 2,
+    "apps/desktop/src/preview/LoopbackTunnel.ts": 3,
+    "apps/server/src/cli/sshHelper.ts": 2,
+    "apps/server/src/cloud/ManagedEndpointRuntime.ts": 1,
+    "apps/server/src/device/AgentDeviceShim.ts": 2,
+    "apps/server/src/device/LocalDeviceHost.ts": 1,
+    "apps/server/src/device/SshDeviceHost.ts": 2,
+    "apps/server/src/device/sshDeviceScript.ts": 2,
+    "apps/server/src/fork/deviceKeys/TunnelListener.ts": 3,
+    "apps/server/src/htmlRender/publicProxy.ts": 2,
+    "apps/server/src/preview/DesktopBrowserChannel.ts": 1,
+    "apps/server/src/provider/CodexChatGptAuth.ts": 2,
+    "apps/server/src/provider/CodexManagedTokenBroker.ts": 2,
+    "apps/server/src/server.ts": 1,
+    "packages/provider-opencode/src/server/OpenCodeRuntime.ts": 1,
+    "packages/shared/src/Net.ts": 4,
+    "packages/shared/src/codexAuthCallback.ts": 2,
+    "packages/source-control-cursor-origin/src/server/OriginPullRequestProvider.ts": 2,
+    "packages/ssh/src/tunnel.ts": 5
+  },
+  "entries": [
+    {
+      "id": "main-http-ws",
+      "file": "apps/server/src/server.ts",
+      "lines": "364",
+      "kind": "listener",
+      "tcp": true,
+      "process": "server",
+      "handling": "E1 (the server's own pid); upstream's tunnel also refuses the port it was reached on",
+      "verification": "runtime: ExclusionRules.test.ts 'excludes this server and its ancestors (E1)'; TunnelExclusions.test.ts 'forwards a detached service and refuses debuggers, this server and blocked ports'",
+      "status": "verified"
+    },
+    {
+      "id": "frp-tunnel-listener",
+      "file": "apps/server/src/fork/deviceKeys/TunnelListener.ts",
+      "lines": "90-94,120",
+      "kind": "listener",
+      "tcp": true,
+      "process": "server",
+      "handling": "E1 and E6",
+      "verification": "runtime: gatewayHarness.testkit.ts serves the same router on a second loopback listener of this kind; TunnelRoute.test.ts runs every case on both",
+      "status": "verified"
+    },
+    {
+      "id": "desktop-browser-channel",
+      "file": "apps/server/src/preview/DesktopBrowserChannel.ts",
+      "lines": "140",
+      "kind": "listener",
+      "tcp": true,
+      "process": "server (one random loopback port per attached desktop tab, path carries a secret)",
+      "handling": "E1",
+      "verification": "code: NodeSocketServer.makeWebSocket({ host: 127.0.0.1, port: 0 }) inside the server process",
+      "status": "verified"
+    },
+    {
+      "id": "codex-chatgpt-auth-callback",
+      "file": "apps/server/src/provider/CodexChatGptAuth.ts",
+      "lines": "486,500",
+      "kind": "listener",
+      "tcp": true,
+      "process": "server (only while a login is running)",
+      "handling": "E1",
+      "verification": "code: createServer + listen(0, 127.0.0.1) in the server process",
+      "status": "verified"
+    },
+    {
+      "id": "codex-auth-callback-shared",
+      "file": "packages/shared/src/codexAuthCallback.ts",
+      "lines": "39,86",
+      "kind": "listener",
+      "tcp": true,
+      "process": "the caller: the server, or the desktop main process (an ancestor of the server)",
+      "handling": "E1 covers the server and its ancestors",
+      "verification": "code: listens on the port of the redirect URI at 127.0.0.1; ancestry is read per tunnel",
+      "status": "verified"
+    },
+    {
+      "id": "html-render-public-proxy",
+      "file": "apps/server/src/htmlRender/publicProxy.ts",
+      "lines": "129,191",
+      "kind": "listener",
+      "tcp": true,
+      "process": "server",
+      "handling": "E1",
+      "verification": "code: listen(0, 127.0.0.1) in the server process",
+      "status": "verified"
+    },
+    {
+      "id": "codex-managed-token-broker",
+      "file": "apps/server/src/provider/CodexManagedTokenBroker.ts",
+      "lines": "129,201",
+      "kind": "listener",
+      "tcp": false,
+      "process": "server",
+      "handling": "not TCP: a Unix socket at <private temp dir>/s with mode 0600 (a named pipe on Windows); the port check only ever sees TCP listeners",
+      "verification": "code (listen(owned.endpoint), endpoint is a path) plus runtime: ExclusionsInventory.test.ts 'a Unix socket is not a TCP listener: its endpoint is a private socket file'",
+      "status": "verified"
+    },
+    {
+      "id": "managed-endpoint-metrics",
+      "file": "apps/server/src/cloud/ManagedEndpointRuntime.ts",
+      "lines": "705-717",
+      "kind": "child-process",
+      "tcp": true,
+      "process": "cloudflared connector, a direct child of the server (`tunnel --metrics 127.0.0.1:0 run`, detached: false)",
+      "handling": "E2: a direct child that is neither a terminal shell nor a known runtime excludes its whole subtree",
+      "verification": "runtime: ExclusionRules.test.ts 'excludes the whole subtree of an unrecognized direct child (E2), marker or not'",
+      "status": "verified"
+    },
+    {
+      "id": "device-hub",
+      "file": "apps/server/src/device/LocalDeviceHost.ts",
+      "lines": "400-430",
+      "kind": "child-process",
+      "tcp": true,
+      "process": "device hub, a direct child of the server (`--host 127.0.0.1 --port <reserved>`); its agent-device daemon is the hub's child",
+      "handling": "E2 (the hub is a direct child, so the daemon in its subtree is excluded too)",
+      "verification": "runtime: ExclusionRules.test.ts 'excludes the whole subtree of an unrecognized direct child (E2), marker or not'",
+      "status": "verified"
+    },
+    {
+      "id": "agent-device-flag-table",
+      "file": "apps/server/src/device/AgentDeviceShim.ts",
+      "lines": "55,73,91",
+      "kind": "flag-table",
+      "tcp": false,
+      "process": "none: a list of option names the shim forwards (`--host`, `--listen-host`, `--port`), not a listener",
+      "handling": "none needed; the daemon it launches is covered by device-hub",
+      "verification": "code",
+      "status": "verified"
+    },
+    {
+      "id": "ssh-device-forwards",
+      "file": "apps/server/src/device/SshDeviceHost.ts",
+      "lines": "240-290",
+      "kind": "child-process",
+      "tcp": true,
+      "process": "`ssh -L 127.0.0.1:<port>:…` for the hub and the daemon, direct children of the server",
+      "handling": "E2",
+      "verification": "runtime: same rule as managed-endpoint-metrics (any direct child)",
+      "status": "verified"
+    },
+    {
+      "id": "ssh-environment-tunnel",
+      "file": "packages/ssh/src/tunnel.ts",
+      "lines": "286,289,1529,1551,1573",
+      "kind": "child-process",
+      "tcp": true,
+      "process": "`ssh -L <port>:127.0.0.1:<remote>` for a managed SSH environment: a child of the process that manages it (the desktop main process or the server). Lines 240-243 are a script text that runs on the remote host to pick a free port",
+      "handling": "E2 when the server is the parent; when the desktop main process is the parent it is not under this server and is forwarded like any other service. What it forwards to is another T3 server, which asks for its own credentials",
+      "verification": "code",
+      "status": "verified"
+    },
+    {
+      "id": "remote-pick-port-script",
+      "file": "apps/server/src/device/sshDeviceScript.ts",
+      "lines": "81",
+      "kind": "script-text",
+      "tcp": true,
+      "process": "a Node one-liner that runs on the remote device over ssh, binds and closes at once",
+      "handling": "not on this machine; transient",
+      "verification": "code",
+      "status": "verified"
+    },
+    {
+      "id": "ssh-helper-pick-port",
+      "file": "apps/server/src/cli/sshHelper.ts",
+      "lines": "13,16",
+      "kind": "listener",
+      "tcp": true,
+      "process": "a CLI process that is not the server; binds a port and closes it at once",
+      "handling": "transient; not a descendant of the server",
+      "verification": "code",
+      "status": "verified"
+    },
+    {
+      "id": "net-helpers",
+      "file": "packages/shared/src/Net.ts",
+      "lines": "49,78,135,148",
+      "kind": "listener",
+      "tcp": true,
+      "process": "the caller: free-port probes that close at once, and a generic listen helper",
+      "handling": "transient probes; the callers are covered by their own entries",
+      "verification": "code",
+      "status": "verified"
+    },
+    {
+      "id": "desktop-activation-socket",
+      "file": "apps/desktop/src/app/DesktopAppActivation.ts",
+      "lines": "178,189",
+      "kind": "listener",
+      "tcp": false,
+      "process": "desktop main process",
+      "handling": "not TCP: a path-based socket for single-instance activation",
+      "verification": "code (listen(address) where address is a socket path)",
+      "status": "unverified-excluded"
+    },
+    {
+      "id": "opencode-serve",
+      "file": "packages/provider-opencode/src/server/OpenCodeRuntime.ts",
+      "lines": "507-545",
+      "kind": "child-process",
+      "tcp": true,
+      "process": "`opencode serve --hostname --port`, a direct child of the server",
+      "handling": "root signature (opencode serve): E3 for its own listener; descendants are jobs. E6 does not need its port: the process is recognised by what it is",
+      "verification": "runtime: RuntimeSignatures.test.ts and PortAuthorizer.test.ts (fake runtime with the same argv)",
+      "status": "verified"
+    },
+    {
+      "id": "antigravity-callback",
+      "file": "apps/server/src/provider/antigravityCallback.ts",
+      "kind": "not-a-listener",
+      "tcp": false,
+      "process": "server",
+      "handling": "a client: forwards a callback with `request` to 127.0.0.1; it does not listen",
+      "verification": "code",
+      "status": "verified"
+    },
+    {
+      "id": "desktop-remote-debugging",
+      "file": "apps/desktop/scripts/dev-electron.mjs",
+      "kind": "not-in-product",
+      "tcp": true,
+      "process": "Electron main process, only in the dev script when T3CODE_DESKTOP_REMOTE_DEBUGGING_PORT is set",
+      "handling": "E1 when the server is the desktop's child (the desktop is its ancestor), the blocked-port table (9222) and the debug-argument rule E7",
+      "verification": "code; PortAuthorizer.test.ts covers 9222 and the argument rule",
+      "status": "verified"
+    },
+    {
+      "id": "origin-pull-request-limit-flag",
+      "file": "packages/source-control-cursor-origin/src/server/OriginPullRequestProvider.ts",
+      "lines": "601,643",
+      "kind": "not-a-listener",
+      "tcp": false,
+      "process": "none: `-L <limit>` is the page-size flag of the Origin CLI's `pr list`, not a port forward (the scan pattern is written for `ssh -L`)",
+      "handling": "none needed; the CLI child it runs opens no listener",
+      "verification": "code",
+      "status": "verified"
+    },
+    {
+      "id": "mcp-http",
+      "file": "apps/server/src/mcp/McpHttpServer.ts",
+      "kind": "not-a-listener",
+      "tcp": false,
+      "process": "server",
+      "handling": "the /mcp route lives on the main listener",
+      "verification": "code",
+      "status": "verified"
+    },
+    {
+      "id": "desktop-preview-loopback-tunnel",
+      "file": "apps/desktop/src/preview/LoopbackTunnel.ts",
+      "lines": "446,515,559",
+      "kind": "listener",
+      "tcp": true,
+      "process": "desktop main process: upstream's SOCKS5 listener for a partition's loopback traffic, the listeners of forwarded ports, and a one-shot probe, all on 127.0.0.1 of the machine that renders the page",
+      "handling": "E1 when the server is the desktop's child (the desktop main process is its ancestor); otherwise they are not on the environment's machine",
+      "verification": "code",
+      "status": "verified"
+    }
+  ],
+  "children": [
+    {
+      "id": "frpc",
+      "file": "apps/server/src/fork/deviceKeys/frpcProcess.ts",
+      "lines": "33-39",
+      "process": "frpc, a direct child of the server (detached process group on POSIX); the generated config enables no admin listener",
+      "handling": "E2",
+      "status": "verified"
+    },
+    {
+      "id": "frpc-spawn",
+      "file": "apps/server/src/fork/deviceKeys/DeviceTunnel.ts",
+      "lines": "300",
+      "process": "the spawn site of frpc",
+      "handling": "E2",
+      "status": "verified"
+    },
+    {
+      "id": "headless-chrome",
+      "file": "apps/server/src/htmlRender/headlessChrome.ts",
+      "lines": "183-188",
+      "process": "headless Chrome with `--remote-debugging-pipe`, a direct child",
+      "handling": "E2; E7 would also refuse a `--remote-debugging-port` argument",
+      "status": "unverified-excluded"
+    },
+    {
+      "id": "resource-monitor",
+      "file": "apps/server/src/resourceTelemetry/NativeTelemetryClient.ts",
+      "lines": "590-603",
+      "process": "native monitor, a direct child, commands over stdin",
+      "handling": "E2. Whether the native binary opens a port was not checked",
+      "status": "unverified-excluded"
+    },
+    {
+      "id": "preview-browser-host",
+      "file": "apps/server/src/preview/PreviewBrowserHost.ts",
+      "lines": "116",
+      "process": "a short probe command",
+      "handling": "E2 if it lingers",
+      "status": "verified"
+    },
+    {
+      "id": "service-launcher",
+      "file": "apps/server/src/serviceLauncher.ts",
+      "lines": "593",
+      "process": "the launcher that starts the server runtime: the server is its child, so it is an ancestor",
+      "handling": "E1 (ancestor)",
+      "status": "verified"
+    },
+    {
+      "id": "provider-claude",
+      "file": "apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.ts",
+      "lines": "354-381",
+      "process": "/bin/sh watcher that execs the Claude CLI; the CLI is the direct child",
+      "handling": "root and runtime signature (claudeAgent); E3 for its own listeners; descendants are jobs",
+      "status": "verified"
+    },
+    {
+      "id": "provider-codex",
+      "file": "apps/server/src/orchestration-v2/Adapters/CodexAdapterV2.ts",
+      "lines": "1450-1479,1586",
+      "process": "the installed `codex` is an npm launcher script that starts a native binary (not an exec): the launcher is the direct child",
+      "handling": "root signature = the launcher (codex app-server), runtime signature = the native binary; E3 for the root's listeners, E4 for the runtime's, descendants of the runtime are jobs (E5 applies)",
+      "status": "verified"
+    },
+    {
+      "id": "provider-acp",
+      "file": "packages/provider-acp/src/server/AcpSessionRuntime.ts",
+      "lines": "1374-1445",
+      "process": "ACP agents (Cursor, Grok, Kiro, Antigravity, Fx, registry agents) as direct children",
+      "handling": "signatures for Grok, Kiro and Fx; Cursor, Antigravity and registry agents have no signature and are refused by E2 as unknown direct children",
+      "status": "verified"
+    },
+    {
+      "id": "provider-pi",
+      "file": "packages/provider-pi/src/server/rpc.ts",
+      "lines": "194-206",
+      "process": "`pi --mode rpc`, a Node script launched as a direct child",
+      "handling": "signature (pi)",
+      "status": "verified"
+    },
+    {
+      "id": "provider-muse",
+      "file": "packages/provider-muse/src/server/sdk.ts",
+      "process": "`muse`, started by the SDK over stdio",
+      "handling": "signature (muse); the SDK's own process handling was not read to the end",
+      "status": "unverified-excluded"
+    },
+    {
+      "id": "terminal-shells",
+      "file": "apps/server/src/terminal/NodePtyAdapter.ts",
+      "process": "node-pty shells, direct children of the server",
+      "handling": "TerminalShellRegistry: the only direct children whose descendants may be forwarded",
+      "status": "verified"
+    }
+  ]
+}

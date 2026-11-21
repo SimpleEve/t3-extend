@@ -199,7 +199,7 @@ tailscale serve --https=8443 --set-path=/ off
 
 ### 用 Tailscale 的 IP 直连
 
-开了网络访问（或 `--lan`）之后，server 也监听 Tailscale 的地址，可以直接用 `http://100.x.x.x:3873` 配对。这是明文 http，只是走在 Tailscale 的加密通道里。这种方式下，远程环境里的 localhost 转发不会启用（见第 7 节）。
+开了网络访问（或 `--lan`）之后，server 也监听 Tailscale 的地址，可以直接用 `http://100.x.x.x:3873` 配对。这是明文 http，只是走在 Tailscale 的加密通道里。
 
 ### 从旧版留下的 443 路由
 
@@ -294,43 +294,11 @@ t3x pair --base-url https://<名字>.t3.example.com
 
 ## 7. 远程环境里的 localhost 转发
 
-**用途**：你在桌面版里连着一个远程环境 B（比如通过自建服务器或 Tailscale 连到另一台 Mac）。B 的终端或 agent 起了一个只监听 `localhost` 的开发服务，你想在桌面版的内置浏览器里直接打开 `http://localhost:<端口>`。开启转发后，页面在你本机渲染，请求在后台转到 B 的回环地址。
+**用途**：你在桌面版里连着一个远程环境 B（比如通过自建服务器或 Tailscale 连到另一台 Mac）。B 上有个只监听 `localhost` 的服务，你想在内置浏览器里直接打开 `http://localhost:<端口>`。这用的是官方版的预览隧道：页面在本机渲染，连接转到 B 的回环地址。B 上的服务不管是谁起的都能打开，`nohup` 起的也可以。
 
-要点：
+标签页里的网页能连到隧道能连到的一切，所以 T3 Extend 把 B 上几类服务排除在外：带调试参数（`--inspect` 之类）起的服务，调试器和守护进程常用的端口（9222、9229、5858、5859、5005、5678、2375、2376），以及 T3 Extend 自己的进程和各 agent 的运行时。打开它们会显示一页说明"不能转发"。
 
-- **只有桌面版**可以用，并且要求远程环境 B 是 **macOS** 上的 T3 Extend。Linux、Windows 的环境不提供，SSH 建立的环境跑的是官方的 server，也不提供。你的连接还要有预览和终端的权限。
-- 只在加密连接和同一台电脑上的连接上启用。明文 http 的局域网地址、Tailscale 的 `100.x` 地址走明文 http、以及 T3 Connect 的 relay，转发都不会开启。
-- 已经验证过的连接方式：同一台电脑上的连接、Tailscale 直连（用 tailnet 的 IPv6 地址）、自建服务器。Tailscale 的 MagicDNS 名字（`http://<机器名>.<tailnet>.ts.net:<端口>`）和 Tailscale Serve 只验证了基本流程（2026-11-18：打开页面、手动放行端口），长连接和断线重连没有测。局域网 https 没有测过。
-- 用 `http://100.x.x.x` 连的环境，卡片会建议改用 MagicDNS 名字。改之前先确认这台电脑能解析 `*.ts.net`，见第 5 节。
-- 用私有 CA 签发证书的 `https://` 地址（公司 CA、`mkcert`）暂不支持。
-
-### 怎么用
-
-1. 在 B 的 T3 终端里起服务，或者让 B 上的 agent 起。
-2. 在桌面版里，对着 B 的线程打开一个浏览器标签页，输入 `localhost:<端口>`，或者在"本地服务"列表里选，或者点终端里的链接。地址栏旁边会出现一个小图标，表示 localhost 正在转发，地址栏仍然显示 `localhost`。
-
-转发作用于整个环境，不是某一个标签页。从图标的菜单里可以"停止转发，使用这台电脑的 localhost"，也可以"恢复转发"；这台电脑会记住这个选择。转发开着时，该环境标签页里的其他网站绕过系统代理直连。
-
-### 手动放行端口
-
-默认只转发 T3 终端和 agent 起的服务。**脱离父进程的服务**，比如 `nohup … &` 之后脚本退出的，认不出来源，标签页里会出现一张卡片，上面有"允许转发 localhost:端口"。点它就把这个端口加进该环境的放行列表。
-
-放行之后：
-
-- 这个端口上的任何服务都会被转发，**对这个环境的所有设备和标签页生效**，所以只放行你信任的端口。
-- 放行记录保存在 B 的 server 上，按端口记，全环境共用，最多 64 条。
-- agent 不能放行，只有你本人能放行。
-- 开了调试参数（如 `--inspect`）的服务、调试器用的端口、T3 自己和 agent 运行时的进程，无论是否放行都不转发。
-
-### 在设置里查看和移除
-
-「设置 → 浏览器 → 本机服务转发」列出所有放行的端口，每条旁边有"移除"。也可以在转发图标的菜单里选"管理已放行的端口…"，或者对当前端口选"取消放行 localhost:端口"。移除马上生效，依靠放行才通过的连接会被关掉，包括 keep-alive 连接和热更新用的 WebSocket。
-
-### 安全提醒
-
-转发开着时，转发标签页里的页面可以访问该环境里被转发的服务，这些服务看到的请求就像来自环境自己。**不要在这些标签页里打开你不信任的网站。**
-
-更多见上游文档的[Localhost on a remote environment](../user/remote-access.md#localhost-on-a-remote-environment)。
+要在 B 上关掉隧道，在 B 的 **设置 → 共享与访问 → 预览隧道** 里关。详见 [remote-access.md](../user/remote-access.md#localhost-on-a-remote-environment)。
 
 ## 8. 手机：Android 和 iPhone
 
@@ -409,40 +377,34 @@ iPhone 的通知只能经过 Apple 的 APNs，而且只有给应用签名的那�
 | "在后台保持运行"这一行提示 app 位置有问题                          | 移动或删除过 app，或是从磁盘映像里直接打开的。把 app 放进"应用程序"，把开关关掉再打开。                                                                                                                              |
 | 打开 app 时提示后台服务没能停下，然后退出                          | app 不会在服务还占着数据的时候起第二个 server。运行 `t3x service uninstall` 移除服务。                                                                                                                               |
 | `t3x service install` 下载失败                                     | 需要的 release 不存在，或者网络访问不了 GitHub。到 Releases 页面确认版本在不在，或者用 `T3CODE_RELEASE_BASE_URL` 指向你自己的镜像。macOS 上也可以用桌面版的开关，它不下载任何东西。                                  |
-| 远程环境的标签页里 localhost 打不开                                | 看标签页里的卡片说了什么。常见原因：服务不是 T3 终端或 agent 起的（点"允许转发"）、服务只监听了非本地地址（让它也监听 `127.0.0.1`）、连接是明文 http 或 T3 Connect（转发不启用）。                                   |
+| 远程环境的标签页里 localhost 打不开                                | 看标签页里那一页说了什么。带调试参数的服务、调试器端口和 T3 自己的进程不转发：去掉 `--inspect` 或换个端口重启服务。再确认环境上 设置 → 共享与访问 → 预览隧道 是开着的。                                              |
 | 手机收不到推送                                                     | 先在「设置 → 通知」里用"发送测试通知"。再检查推送服务器是不是公网地址、ntfy 应用的服务器和账号对不对、手机有没有限制 ntfy 的后台活动。                                                                               |
 
 排查时顺序大致是：host 的 server 在不在、地址对方能不能到、凭证有没有失效。上游的 [Remote access](../user/remote-access.md) 和 [后台运行](../user/background-service.md) 文档里有更多细节，自建服务器本身的排查见 [infra/self-host/README.md 的"出问题时"](../../infra/self-host/README.md#出问题时)。
 
 ## 界面名称对照
 
-| 简体中文界面                       | 英文界面                                          |
-| ---------------------------------- | ------------------------------------------------- |
-| 共享与访问                         | Sharing & access                                  |
-| 你的服务器                         | Your server                                       |
-| 加入我的服务器                     | Join my server                                    |
-| 邀请设备                           | Invite a device                                   |
-| 退出此服务器                       | Leave this server                                 |
-| 移除                               | Remove                                            |
-| 网络访问                           | Network access                                    |
-| 已授权的客户端                     | Authorized clients                                |
-| 创建链接                           | Create link                                       |
-| 撤销                               | Revoke                                            |
-| 环境                               | Environments                                      |
-| 添加环境                           | Add environment                                   |
-| 在后台保持运行                     | Keep running in the background                    |
-| 维护                               | Maintenance                                       |
-| 浏览器                             | Browser                                           |
-| 本机服务转发                       | Localhost forwarding                              |
-| 允许转发 localhost:端口            | Allow forwarding localhost:\<port\>               |
-| 取消放行 localhost:端口            | Stop allowing localhost:\<port\>                  |
-| 管理已放行的端口…                  | Manage allowed ports…                             |
-| 停止转发，使用这台电脑的 localhost | Stop forwarding and use this computer's localhost |
-| 恢复转发                           | Resume forwarding                                 |
-| 本地服务                           | Local servers                                     |
-| 扫描二维码                         | Scan QR code                                      |
-| 粘贴邀请                           | Paste invite                                      |
-| 通知                               | Notifications                                     |
-| 推送通知                           | Push notifications                                |
-| 发送测试通知                       | Send test notification                            |
-| 关于                               | About                                             |
+| 简体中文界面   | 英文界面                       |
+| -------------- | ------------------------------ |
+| 共享与访问     | Sharing & access               |
+| 你的服务器     | Your server                    |
+| 加入我的服务器 | Join my server                 |
+| 邀请设备       | Invite a device                |
+| 退出此服务器   | Leave this server              |
+| 移除           | Remove                         |
+| 网络访问       | Network access                 |
+| 已授权的客户端 | Authorized clients             |
+| 创建链接       | Create link                    |
+| 撤销           | Revoke                         |
+| 环境           | Environments                   |
+| 添加环境       | Add environment                |
+| 在后台保持运行 | Keep running in the background |
+| 维护           | Maintenance                    |
+| 浏览器         | Browser                        |
+| 本地服务       | Local servers                  |
+| 扫描二维码     | Scan QR code                   |
+| 粘贴邀请       | Paste invite                   |
+| 通知           | Notifications                  |
+| 推送通知       | Push notifications             |
+| 发送测试通知   | Send test notification         |
+| 关于           | About                          |

@@ -158,7 +158,7 @@ node scripts/i18n-check.ts       # 上游的 CI 检查，目录与源码一致
 **检查**：
 
 - `vp run i18n:report`：只看 fork 的文案，即上游没有的文件和 fork 在上游文件里新增的行（需要本地有 `upstream/main`；`I18N_REPORT_ALL=1` 连上游一起扫）。`<T>` 和 `gt()`/`msg()` 算已翻译。missing、stale 只针对 fork 的 `t()` 目录。
-- `scripts/fork-zh-coverage.test.ts`：转发放行、设备密钥、UnifiedPush、产出、上下文圆环、后台运行、主题工作室、侧栏按项目这几块代码里的每个 `t()`/`gt()`/`msg()`/`<T>`，在中文下必须有中文。新增 fork 功能时把路径加进 `FEATURES`。
+- `scripts/fork-zh-coverage.test.ts`：底栏端口、设备密钥、UnifiedPush、产出、上下文圆环、后台运行、主题工作室、侧栏按项目这几块代码里的每个 `t()`/`gt()`/`msg()`/`<T>`，在中文下必须有中文。新增 fork 功能时把路径加进 `FEATURES`。
 - `packages/client-runtime/src/i18n/i18n.test.ts`：fork 目录的占位符、破折号、跨文件一致。
 
 以前的 AST 扫描（找合并时丢掉的 `t()`）退役了：上游文件不再用 `t()`，对应的保障是 `i18n-check` 和上面的覆盖检查。mobile 的 `fork/appBarI18n.ts` 包装层也删了，AppBar 和 SheetHeader 的文案由上游的 GT 翻译。
@@ -341,16 +341,11 @@ mobile（Android 和 iOS 的对话列表，Home 和平板侧栏共用）：
 ### 测试
 
 - `vp run fork:selfhost:test`：`node --test "infra/self-host/registry/*.test.mjs"`，必须用通配符，传目录在 Node 24 和 26 上都会失败。Node 24 镜像里同样通过。
-- `vp run fork:selfhost:e2e`：本机端到端，17 个场景（15 个设备配对的场景，15、16 是远程 localhost 转发的），约 3–4 分钟。需要 Docker Desktop；frpc 来自 `release/fork-cache/`（归档按固定摘要校验，没有就下载；离线时 `--frpc-path <文件>`，它不做摘要校验）。用法：`vp run fork:selfhost:e2e [--port 18443] [--project t3x-e2e] [--frpc-path <文件>] [--keep] [--only 1,2,4,15]`（参数直接跟在后面，不要加 `--`）。`--only` 只跑列出的场景，写某一个场景时用；有依赖的场景要把它依赖的也列上。场景 17 是模块图抓取时间的测量（见下面「远程环境的 localhost 转发」），只有 `--only` 点名时才跑，`vp run fork:selfhost:first-paint` 就是 `--only 1,2,4,17`。
+- `vp run fork:selfhost:e2e`：本机端到端，15 个设备配对的场景，约 3–4 分钟。需要 Docker Desktop；frpc 来自 `release/fork-cache/`（归档按固定摘要校验，没有就下载；离线时 `--frpc-path <文件>`，它不做摘要校验）。用法：`vp run fork:selfhost:e2e [--port 18443] [--project t3x-e2e] [--frpc-path <文件>] [--keep] [--only 1,2,4,15]`（参数直接跟在后面，不要加 `--`）。`--only` 只跑列出的场景，写某一个场景时用；有依赖的场景要把它依赖的也列上。场景 17 是模块图抓取时间的测量（见下面「远程环境的 localhost 转发」），只有 `--only` 点名时才跑，`vp run fork:selfhost:first-paint` 就是 `--only 1,2,4,17`。
   - 它起 `infra/self-host` 的测试栈（compose 项目 `t3x-e2e`，只发布在 `127.0.0.1:<port>` 和 `[::1]:<port>`），用这个 checkout 的 `apps/server/src/bin.ts` 起 A、B、C 三台"电脑"（各自一个临时 home、空闲端口、`NODE_EXTRA_CA_CERTS` 和 `T3X_TUNNEL_CA_FILE` 指向从 Caddy 容器取出的根证书），"本机 owner"会话用 `--bootstrap-fd` 传随机 token 再走真实的 `POST /oauth/token`，手机是一个 Node 脚本（shared 协议库，私钥只在内存里）。不写钥匙串、不碰 `~/.t3` 和 fork 的真实 home。
-  - **场景 15（转发）：** 第三台电脑 D 扮演桌面：它在 B 上的设备会话，加上桌面自己的代理、隧道客户端和环境状态（`apps/desktop/src/fork/loopbackGateway/` 里的纯 Node 模块，不起 Electron；`scripts/tsconfig.json` 把用到的五个文件列进了 `include`；这是跨包源码耦合，先这样保留，长期应该把不依赖 Electron 的代理和隧道模块拆成共享包，由 desktop 和 e2e 一起依赖）。B 的终端经 RPC 打开并写入命令，起 `scripts/fork-selfhost-e2e/gateway-fixture.mjs`（页面、SSE、WebSocket）；D 经 Caddy 和 frps 的隧道把三样都当 `localhost` 读到。一个不是终端起的监听（故意脱离父进程，所以不论脚本由什么启动，结果都是 `not-owned` 而不是被 provider 进程树排除的 `reserved`）经 HTTP 和 `CONNECT` 都被拒。在 B 上移除 D 之后，打开的隧道两端都关闭，D 再请求得到 `unauthorized`。B 只在 macOS 上广告能力，其他平台这个场景只检查它没广告。
-  - **场景 16（日志脱敏）：** 检查仓库里的 Caddy 和 frps 配置没有访问日志、没有 `log_credentials`；然后在运行中的 Caddy 里临时加载一份带访问日志的配置，用真票据和哨兵票据各发一次隧道升级，要求访问日志里 `Authorization` 是 `REDACTED`，而 Caddy、frps、registry 的全部输出里都找不到两个票据（哨兵票据每一段都是独立随机内容，整串的每个 12 字符窗口都查；真票据同样查每个 12 字符窗口，只排除同一会话、同一时刻再签的另一张票据里也出现的窗口：票据的固定前缀和键名、会话 id、密钥指纹、时间戳的前几位。这些是同一会话的所有票据共有的，访问日志里 `/ws?wsTicket=` 那张就带着它们，不是这张票据能被用的原因；含唯一数字或签名任何一部分的窗口一律检查。真票据只露出这些共有部分的泄漏查不出来）。加上 `log_credentials` 时 `REDACTED` 那一步会失败；往日志里伪造一行只含票据 claims 片段的内容，场景也会失败，场景分辨得出来。`/ws?wsTicket=…` 的一次性票据在地址里，访问日志打开后会被记下，这是上游的设计，不是网关票据。
   - 端口默认 18443，被占就换一个空闲的；`--port` 指定且被占则报错。`docker-compose.test.yml` 自己写死了 18443，换端口靠脚本写在临时目录里的覆盖文件，不要改仓库里的那个。
   - 只停自己启动的 PID，结束（含失败、Ctrl-C，和 `compose up` 进行中被中断）时 `compose down -v` 并删临时目录；清理在 `up` 之前就登记好，项目名被别人占着时则拒绝启动、不会去 `down` 它。`down -v` 失败时打印 stderr、项目名和手动清理的命令，保留工作目录，整个脚本以非零退出，即使场景全部通过。失败时保留日志目录并打印路径，`--keep` 通过时也保留。
-  - 等待只靠事件（进程日志行、`devices.subscribe` 的快照），没有事件可等的才用有总时限的重试。场景执行顺序是 1,2,3,4,5,9,6,8,12,11,13,15,16,18,7,10,14（18：CLI 移除手机，A 的 server 自己关掉那部手机已打开的 socket，要等一次 60 秒同步）：7（移除 B）必须在 10（重启 Caddy）之前，否则断言的 404 会变成握手失败，原因见设计文档 7.2；15、16 要用 B，所以在 7 之前。
-- `vp run fork:loopback-gateway:linux-check [--image node:24-bookworm] [--registry <url>] [--drop-store]`：在 Docker 的 Linux 容器里跑网关的真实进程测试和排除测试（`ProcessInspector`、`PortAuthorizer`、`PortAuthorizerBatch`、`GatewayExclusions`、`ExclusionsInventory`、`RuntimeSignatures`、`TerminalShellRegistry`，91 条），以容器里的普通用户。这些真实进程测试在 macOS 和 Linux 上都跑（`processFixtures.testkit.ts` 的 `runsOnRealProcesses` 和 `realInspectorLayer`）。约 1.5–3 分钟，需要联网（容器里 `apt-get` 装 `lsof`、`npm` 装 pnpm、`pnpm install` 装依赖）。
-  - 把 `git ls-files` 的文件（工作区内容，所以没提交的改动也算；不含 `.repos` 和 `apps/mobile`）用管道送进容器自己的 `/work`，不挂载也不碰这个 checkout 的 `node_modules`。依赖装进容器里，只装 `t3`（server）包及其依赖，`--ignore-scripts`。pnpm 的下载缓存在命名卷 `t3x-linux-check-store`，`--drop-store` 在结束时删掉它；容器不发布端口、不建 compose 项目，结束（含失败、Ctrl-C）时 `docker rm -f`。
-  - Apple Silicon 上 `node:24-bookworm` 是 x86_64 镜像，模拟运行，所以不测耗时。结果只是 Linux 的真实进程核对在容器里通过；**Linux 的 B 是否广告能力由 `GatewayAvailability.ts` 决定，这个脚本没有改它**。
+  - 等待只靠事件（进程日志行、`devices.subscribe` 的快照），没有事件可等的才用有总时限的重试。场景执行顺序是 1,2,3,4,5,9,6,8,12,11,13,18,7,10,14（18：CLI 移除手机，A 的 server 自己关掉那部手机已打开的 socket，要等一次 60 秒同步）：7（移除 B）必须在 10（重启 Caddy）之前，否则断言的 404 会变成握手失败，原因见设计文档 7.2；15、16 要用 B，所以在 7 之前。
 - 桌面界面的端到端要在 Electron 里做（`test-t3-app`），本机的坑：
   - 隔离的 `HOME` 下首次用到系统钥匙串会卡在 `SecItemAdd` 的授权弹窗里，主线程被阻塞，Chromium 的调试端口随后也不再响应。必须加 `--use-mock-keychain`，不要去点那个弹窗。
   - 渲染层要信任 Caddy 的 CA：用 `--ignore-certificate-errors-spki-list=<该证书的 SPKI 哈希>` 定向信任，不要写系统钥匙串，也不要整体 `--ignore-certificate-errors`。
@@ -451,78 +446,30 @@ omp（oh-my-pi，Pi 的分支）是原生 provider，和上游的 Pi 并存。�
 
 新增原生模块和 Maven 依赖会改变 Android 的 native fingerprint（iOS 不变），之后要重新 `mobile:install` / 重新打 APK。
 
-## 远程环境的 localhost 转发（桌面版）
+## 预览隧道的排除名单
 
-A 的桌面版打开远程环境 B 的对话时，B 的 T3 终端或 agent 起的、只监听回环地址的服务，可以在内置浏览器里用 `http://localhost:<端口>` 打开：页面在 A 上渲染，请求在后台转到 B 的回环地址。设计在 `research/remote-loopback-forwarding.md`；用户文档是 `docs/user/remote-access.md` 的 “Localhost on a remote environment”。
+远程环境 localhost 的转发用上游的预览隧道（`/api/preview/tunnel`，桌面的 `apps/desktop/src/preview/LoopbackTunnel.ts`、手机的"在本设备打开"和端口转发都走它）。上游的隧道对有 `terminal:operate` 的会话放行任何回环端口，只拦 server 自己的端口。标签页里的网页能连到隧道能连到的一切，所以 fork 在上游的 handler 里加了一个挂钩，下面三类不转发：
 
-**怎么工作。** A 的桌面主进程为每个登记过的远程环境起一个只绑 `127.0.0.1` 的 HTTP 代理，该环境所有预览分区用 `session.setProxy` 把回环流量指过去。代理为每条 TCP 连接开一条 WebSocket 隧道（`/api/loopback-gateway/tunnel?port=`，票据放在 `Authorization: T3X-Gateway <票据>`），B 的网关对**每条新隧道**现场核对（进程身份 = pid + 启动时间、监听、归属、排除清单，没有缓存），通过才拨 B 的回环地址。只在加密或本机的连接上启用；B 只有 macOS 广告 `loopbackGateway` 能力（`apps/server/src/fork/loopbackGateway/GatewayAvailability.ts`）。
+- 屏蔽端口表（9222、9229、5858、5859、5005、5678、2375、2376），不读进程就拒；
+- 带调试参数起的进程（`--inspect` 系列、`--remote-debugging-port`、JDWP，看 argv 和启动环境）；
+- T3 自己的进程：server 和它的祖先（E1）、server 的直接子进程里不是终端 shell 也不是已知 provider 的整棵子树（E2，含 Cursor、Antigravity、omp、ACP registry 这些没有核对过进程形状的 provider 起的服务）、provider 自身和它的运行时（E3、E4，含崩溃后遗留的运行时）。
 
-位置：桌面主进程 `apps/desktop/src/fork/loopbackGateway/`，server `apps/server/src/fork/loopbackGateway/`（监听点清单 `exclusions.json`、驱动特征表 `RuntimeSignatures.ts`），web `apps/web/src/fork/loopbackGateway/`，契约 `packages/contracts/src/forkLoopbackGateway.ts`，共享的回环判定、传输检查和桥的类型 `packages/shared/src/forkLoopbackGateway/`，中文 `catalogs/zh-Hans/loopbackGateway.ts` 加 `desktop.ts` 里的错误页文案。新增文件 103 个：产品代码约 6,700 行（含 `exclusions.json` 361 行和中文目录 90 行），测试和夹具约 11,300 行，Electron 冒烟、Linux 检查和端到端场景脚本约 2,300 行。
+其余一律放行，不管是谁起的，`nohup` 起、被 launchd 收养的服务也行。fork 以前按"谁起的进程"授权、不认识的拒为 `not-owned` 再让用户手动放行，这套连同放行卡片、设置里的放行列表、自己的代理/隧道客户端/票据都已退役（2026-11-21）。
 
-**用户手动放行端口。** 脱离父进程的服务（`nohup uv run … &` 之后脚本退出，被 launchd 收养）归属判断认不出，原来一律 `not-owned`，没有出路。现在卡片上有“允许转发 localhost:端口”，server 把端口记在 `<stateDir>/loopback-gateway-allowed-ports.json`（`LoopbackGatewayGrants.ts`，最多 64 条，坏文件按空列表处理并记警告），按端口、全环境共用；设置 → 浏览器 → 本机服务转发和转发图标的菜单可以移除。`classifyListener` 的 `granted` 只把两处 `not-owned` 改成放行，E1 到 E4、E7、屏蔽端口和 server 自己的端口照旧拒绝，C2、C3 的现场核对不变。放行过的端口不会再以 `not-owned` 被拒：读不出监听者时是 `owner-changed`（放行过的端口不依赖快照，快照只列有主的服务，所以这里直接读一次，不受节流限制）；监听在非回环地址上是新错误码 `not-loopback`。三个 RPC（`loopbackGateway.listAllowedPorts` / `allowPort` / `removeAllowedPort`）和票据 RPC 一样要 `preview:operate` 加 `terminal:operate`；**没有 MCP 工具，agent 不能放行**。放行记录在 server 顶层的 layer 里只建一份（`layer.ts` 的 `layerGrants`，`server.ts` 一行），因为 ws 的处理器在请求期上下文里读它，放在 `layerServices` 里会漏到 CLI 的类型里。移除放行马上生效：靠放行才通过的隧道（`DialTarget.owner` 为 `user`）在建立后监视 `LoopbackGatewayGrants.changes`，端口一离开列表就关掉两端，所以 keep-alive 连接和 HMR WebSocket 也会断；终端和 agent 归属的隧道不受影响。
+**位置。** `apps/server/src/fork/tunnelExclusions/`：`TunnelExclusions.ts`（每个端口现读一次 `lsof`/`/proc` 和进程表，同一端口 2 秒内的并发连接共用一次读取；读不了就拒为 `unverified`；Windows 只查屏蔽端口）、`ExclusionRules.ts`（纯函数规则）、`RuntimeSignatures.ts`（provider 的进程特征）、`TerminalShellRegistry.ts`、`ProcessInspector.ts`、`refusalPage.ts`、监听点清单 `exclusions.json`。上游文件只动了 `apps/server/src/preview/PreviewTunnel.ts`（两行 import、两处调用）和 `server.ts`（提供 layer）。
 
-### 与上游 LoopbackTunnel 的关系（待决定）
+**被拒时的页面。** 上游客户端把隧道当成原始 TCP 流，握手时拒绝只会显示浏览器自己的网络错误页。所以挂钩在上游拨通端口之后才判定：被拒时照样完成 WebSocket 升级，读第一段数据，是 HTTP 请求就回一个 403 页面（按请求的 `Accept-Language`，中文或英文）然后关闭，不是 HTTP（TLS 握手、数据库客户端）就直接关闭，端口本身收不到一个字节。桌面标签页、端口转发进浏览器、手机的"在本设备打开"看到的都是这一页，不用改上游客户端。
 
-上游 11-18 起有了同类功能：`0226239a41`（#37948）让桌面为其他环境打开的 localhost 标签页走 SOCKS5 隧道（`apps/desktop/src/preview/LoopbackTunnel.ts`，`/api/preview/tunnel`），`420d1b5900` 把其他环境的端口转发到本机。它和 fork 的网关都对同一个 session 调 `setProxy`，同时开会互相覆盖。现在 `apps/desktop/src/ipc/methods/preview.ts` 保留 fork 网关，上游的 `tunnel.route` 固定传 `tunnelled: false`（带 `// fork:`），上游的端口转发入口照常存在。用户决定用哪套之前不要动这行。
+**时钟偏差。** 上游 `packages/client-runtime/src/state/previewTunnel.ts` 判断票据还能不能复用时，拿环境报的过期时间直接和本机时钟比；两边时钟差几分钟时，一边会一直复用过期票据（隧道全部失败），另一边每条连接都重新签票据。fork 改成按本机时钟算（`src/fork/previewTunnel/ticketExpiry.ts`：收到时刻加服务器给的寿命，限在 30 秒到 5 分钟之间，服务器给的时刻已经过去就按 5 分钟）。web 和手机共用这段。
 
-### 上游改动清单
+**一小时后 UNAUTHORIZED** 那个 fork 修过的问题不用搬：上游每次连接都用当前的会话凭据新签 media 票据，不存在"票据签在旧会话上"。服务端隧道随会话 `awaitInvalidation` 关闭，fork 在 `SessionStore` 里的 `renewalOf` 让它跟着每小时的续期走，不会在续期时误关。
 
-相对阶段 9 开始前的 `12ece4aefa`，上游已有的产品文件改了 28 个，新增 159 行、删除 28 行。代码行带 `// fork:`（JSON 和翻译目录除外，多行的块在块尾标一次）。同步上游时最容易冲突的是 web 的 `PreviewView.tsx`、`PreviewUnreachable.tsx`、`browserTargetResolver.ts` 和契约的 `auth.ts`。
+**老用户的残留数据。** 以前放行的端口记在 `<stateDir>/loopback-gateway-allowed-ports.json`，现在没有代码读它，启动不受影响，可以手动删；web 的"停止转发"记在 localStorage，同样不再读。
 
-| 文件                                                                             | 行         | 改了什么                                                                                               |
-| -------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------ |
-| `packages/contracts/src/auth.ts`                                                 | +5 −2      | 票据用途加 `"loopback-gateway"`；通用票据端点的 schema 加过滤，不签发网关票据（只有网关的 RPC 签）     |
-| `packages/contracts/src/clientRpcPermissions.ts`                                 | +9 −2      | 受保护 RPC 的 scope 表和 `clientRpcRequiredScopes`（`preview:operate` 和 `terminal:operate` 两个都要） |
-| `packages/contracts/src/environment.ts`、`index.ts`、`rpc.ts`                    | +1、+1、+2 | 能力位 `loopbackGateway`，导出 fork 契约，并入 RPC 组                                                  |
-| `packages/shared/package.json`                                                   | +4         | exports                                                                                                |
-| `apps/server/src/server.ts`、`ws.ts`                                             | +4、+3     | 网关的 layer（含放行记录的 `layerGrants`）和 RPC handler                                               |
-| `apps/server/src/environment/ServerEnvironment.ts`                               | +2         | 广告能力位                                                                                             |
-| `apps/server/src/observability/RpcInstrumentation.ts`                            | +2         | RPC 指标表                                                                                             |
-| `apps/desktop/src/preload.ts`、`ipc/DesktopIpcHandlers.ts`                       | +3、+2     | 桥和 IPC 安装                                                                                          |
-| `apps/desktop/src/ipc/methods/preview.ts`                                        | +3 −1      | `getPreviewConfig` 里先装代理再返回 webview 配置                                                       |
-| `apps/desktop/package.json`                                                      | +3 −1      | `ws` 和 `@types/ws`                                                                                    |
-| `apps/web/src/browser/browserTargetResolver.ts`                                  | +10 −2     | 转发 `active` 时回环 URL 原样放行；`systemBrowser` 选项                                                |
-| `apps/web/src/browser/ElectronBrowserHost.tsx`                                   | +2         | webview 等“网关已登记”的门                                                                             |
-| `apps/web/src/components/preview/PreviewView.tsx`                                | +13 −1     | 取 fork 的标签页钩子，摆放标识和卡片；转发中的标签页不显示“在系统浏览器中打开”                         |
-| `apps/web/src/components/preview/PreviewUnreachable.tsx`                         | +37 −17    | 可选的 `gateway` 卡片文案和按钮，以及它的主操作（允许转发）                                            |
-| `apps/web/src/components/preview/PreviewChromeRow.tsx`                           | +3         | 转发标识的插槽                                                                                         |
-| `apps/web/src/components/preview/PreviewPanel.tsx`                               | +4 −1      | 离线的远程环境显示“连不上”，不是“请重新配对”                                                           |
-| `apps/web/src/components/AppSidebarLayout.tsx`                                   | +2         | 挂载取票据和续期的管理组件                                                                             |
-| `apps/web/src/components/chat/ThreadServersPanel.tsx`                            | +3 −1      | 系统浏览器打开时不走转发（`{ systemBrowser: true }`）                                                  |
-| `packages/client-runtime/src/i18n/catalogs/zh-Hans/index.ts`、`desktop.ts`       | +2、+23    | 注册 catalog；桌面主进程错误页的 14 条中文                                                             |
-| `apps/web/src/components/settings/IntegrationsSettings.tsx`、`settingsSearch.ts` | +3、+6     | 设置 → 浏览器里的“本机服务转发”一节，和它的设置搜索项                                                  |
-| `package.json`、`knip.jsonc`                                                     | +3、+4     | 三个脚本（Electron 冒烟、Linux 检查、模块图抓取时间）；knip 的入口                                     |
+**维护者约束。**
 
-另有：fork 自己的 `apps/web/src/fork/FooterPorts.tsx` +3 −1；上游的 6 个测试文件加了用例（`preloadSandbox.test.ts`、`McpHttpServer.test.ts`、`browserTargetResolver.test.ts`、`PreviewView.browser.test.tsx`、`commandPermissions.test.ts`、`ws.test.ts`，共 +165 −1）；`pnpm-lock.yaml` +12（`ws`）。合计 159 行里，中文翻译占 25，依赖和脚本清单占 14（`apps/desktop` 和 `packages/shared` 的 `package.json`、根 `package.json`、`knip.jsonc`），其余代码行 120。
-
-### 维护者约束
-
-- **fork 占用了预览 session 的 `webRequest.onHeadersReceived`。** Electron 对每个 session 的每种 `webRequest` 事件只保留一个监听器，后注册的覆盖先注册的。网关用它把代理的错误页变成渲染进程的事件，停止转发时又把它清成 `null`。上游以后要在这些 session 上用 `webRequest`，必须和网关的处理合并，不能直接再注册一个。`apps/desktop/src/fork/loopbackGateway/singleWebRequestListener.test.ts` 在 `apps/desktop/src/fork/` 以外的产品代码里看到 `webRequest.onHeadersReceived(` 就失败；别的事件各有自己的监听器，不会互相覆盖（上游的 `BrowserSession.ts` 为 Teams 注册了 `onBeforeSendHeaders`，这是允许的）。网关以后如果再占用别的事件，要把它加进这个测试的正则。这个扫描只是守护：抓不到别名（`const w = session.webRequest; w.onX(…)`）和经封装函数的间接注册，上游开始共用这个 API 时必须人工审查，不能把它当作完备证明。
-- **转发开着时，该环境所有分区里的非回环流量绕过系统代理。** 规则是 `fixed_servers` 加 `proxyBypassRules: "*;<-loopback>"`，这是让非回环地址直连的唯一写法（`<-loopback>` 单独用会把所有地址拖进代理，PAC 抓不到回环地址，设计 §1.1）。用 Clash、公司代理的用户，在转发开着的环境的标签页里，外部网站会直连；标识菜单里有一行说明。停止转发（`disabled-by-user`）后分区恢复为 `{ mode: "system" }`，系统代理重新生效。用 `system` 是因为 app 从没给这些分区设过别的代理模式；上游以后开始管理 session 代理时，要改成保存并恢复真实配置。
-- **上游新增 provider 驱动时 `RuntimeSignatures.test.ts` 会失败。** 它要求 `BUILT_IN_DRIVERS` 里每个驱动要么在 `DRIVER_SIGNATURES` 里，要么在 `NO_SIGNATURE` 里写明理由；归属判断只看现读的进程祖先链，认不出的驱动整棵子树都不转发。新增监听点同理（扫描里的 `"-L"` 是为 `ssh -L` 写的，会把 `gh`/`origin pr list -L <limit>` 这类分页上限也数进去，这种在 `exclusions.json` 里登记成 `not-a-listener`，不需要网关接管，上游的 Origin 源码管理驱动就是这样）：`ExclusionsInventory.test.ts` 把源码里的监听点与 `exclusions.json` 逐项比较，新增的会让它失败，直到有人写上处理方式。这个扫描有盲区（动态拼出的参数、别名导入、`dgram` 和 `http2` 等其他监听 API），是回归护栏，不是证明。
-- **安全相关的守卫测试不要绕开：** 票据永远包成 `Redacted`，每个日志和 trace 的出口有测试（`TunnelRedaction.test.ts`），`Caddyfile` 里不能加 `log_credentials`（`fork:selfhost:e2e` 场景 16 会失败）；主进程的 `ws` 不设 `rejectUnauthorized: false`、不跟随重定向、不读系统信任库（`noInsecureTls.test.ts`）；能力位只在 macOS 广告，改 `VERIFIED_PLATFORMS` 之前要先有那个平台的真实进程测试。
-- **模块图抓取时间**（设计 §11.1，`vp run fork:selfhost:first-paint`，无浏览器，**不是浏览器首屏**）：抓取 300 个模块的模块图，同机网关约 0.41 秒，经本机的自建隧道约 0.45 秒；注入 50 ms 往返时 3.5 秒（没有网关、直连同样往返的服务 2.7 秒），100 ms 往返时 6.2 秒（5.3 秒）。判据是“同样往返下比直连服务多出多少”：50 ms 往返多出约 0.77 秒，100 ms 约 0.90 秒。隧道建立约 200 毫秒，几乎全是 B 的现场核对。阶段 9 不做预开隧道，用户觉得慢再看。
-
-验证入口：`vp run fork:loopback-gateway:electron-smoke`（真实 Electron，29 个场景，不进 CI）、`vp run fork:loopback-gateway:linux-check`（需要 Docker，在 `node:24-bookworm` 容器里跑 server 的真实进程测试）、`vp run fork:selfhost:e2e`（需要 Docker，场景 15 是转发，16 是日志脱敏，17 的测量只在 `fork:selfhost:first-paint` 里跑）。
-
-### 已知限制
-
-- **连接方式验证了三种：** 同一台电脑上的连接（真实 Electron 走查和冒烟）、Tailscale 直连（两台真实 Mac，用 tailnet 的 IPv6 地址）、自建隧道（真实 VPS，Let's Encrypt 证书）。Tailscale 的 MagicDNS 名字和 Serve 在 2026-11-18 测了基本流程（两台真实 Mac：打开页面、手动放行端口），长连接、重连、并发没测；局域网 https 没测；SSH 环境在打包版里跑的是官方 server，不提供转发。重载 Caddy 或重启 frps 会让所有隧道断开几秒，因为 frpc 的控制连接也经过 Caddy。逐行状态在设计 §3.5，用户文档只写已验证的。
-- **平台：** 只支持桌面版（网页版见设计附录 C）；B 只有 macOS 广告能力。Linux 的真实进程测试已在容器里全过（91 条，连跑两遍），但广告函数没有改，要不要放开由主控定；Windows 没有读 argv 和环境的路径，不广告。
-- **私有 CA 的 `https://` 不支持：** 主进程不并入系统根证书（设计 §3.6，N7），TLS 校验失败就是失败，错误卡片说“证书不受信任”。
-- **provider：** 只有 Claude 和 Codex 设置 `T3CODE_THREAD_ID`，所以只有它们的 agent 起的服务算“agent 有主”；其余 provider 的 agent 起的服务只有在 T3 终端里起才转发，Cursor、Antigravity 和 ACP 注册表的 agent 认不出特征，整棵子树都不转发。脱离父进程的后台作业（被 launchd 收养，如 `nohup`）对所有 provider 默认都转发不了，要用户在卡片上手动放行那个端口（见上）。这些结论来自读启动代码和假运行时的真实进程测试，**没有起真实的 provider CLI 验证**；各家 CLI 的 shell 工具是不是一次性的 shell，因而后台作业会不会被收养，也没有验证。
-- **已接受的残余风险**（设计 §5.6.5、§6、§4.2）：CLI 自己起的、带 agent 标记的 MCP 进程如果在回环上监听，会按 agent 作业放行；页面对有主服务有完整的网络接口（Vite 的 `/@fs/`、source map 等），暴露程度等同本机 dev server 对本机浏览器，用户文档要求不在转发的标签页里打开不信任的网站；偷来的票据最多能开隧道到这台设备的会话链结束或被撤销；端口有没有程序在监听能被页面探测到。真实 dev server（当前 Vite 的默认 `server.fs`、`allowedHosts`、CORS）对外部来源页面的实际行为，冒烟里只有模拟的夹具，没有人工走查。
-- **小的已知现象：** 同一环境同一端口两个标签页同时加载失败时，没有 `webContentsId` 的 `CONNECT` 拒绝原因可能被两个标签页一起拿来解释（设计 §7.2）；全新分区上的第一个 `session.fetch` 得到代理的 407 且不泄露（Electron 不为它发 `login` 事件，导航之后恢复，实际影响只有 favicon 抓取，设计 §12 的 9.2 第 12 条）；B 重启后右侧面板变成“线程详情”、标签页不回来，是上游预览会话表在内存里的行为。
-
-### 以后再做
-
-- 多路复用或预开空闲隧道：Electron 真实网络走查时用户觉得慢再看（设计 §11.1）。
-- 为每次升级签一个 DPoP 证明，让明文局域网也能用（设计 §12 以后再做）。
-- 按线程精确归属（要改 contracts）；网页版。
-- 验证局域网 https；MagicDNS 名字和 Serve 补测长连接、重连和并发，再把设计 §3.5 的“待验证”改掉，用户文档同步。
-- `--host <tailnet IP>` 加 Tailscale HTTPS：Serve 的转发目标取 server 的监听地址（上游的 `packages/tailscale/src/tailscale.ts` 的 `ensureTailscaleServe`），macOS 上转到自己的 tailnet IP 时一直没有响应。没有改上游代码，文档里写明保持默认的本机监听。
-- 并入系统根证书以支持私有 CA（要读系统信任库，需要主控同意）；放开 Linux 的广告。
-- 做不到也不做：只对某一个标签页关闭转发。代理是 session 级的，一个环境的所有标签页共用。
+- 上游新增 provider 驱动时 `RuntimeSignatures.test.ts` 会失败：每个驱动要么在 `DRIVER_SIGNATURES` 里，要么在 `NO_SIGNATURE` 里写明理由，认不出的驱动整棵子树都不转发。新增监听点时 `ExclusionsInventory.test.ts` 会失败，要在 `exclusions.json` 里补一条（扫描里的 `"-L"` 是为 `ssh -L` 写的，会把分页上限之类也数进去，这种写明"不是监听点"即可）。
+- 同步上游时 `PreviewTunnel.ts` 的挂钩要保留在 `tunnel.connect` 之后、`request.upgrade` 之前。
 
 ## 打包与签名
 
@@ -691,13 +638,12 @@ GitHub Actions 在这个仓库里是开着的，但上游的 27 个 workflow 都
 - 对话状态 "preparing" 是上游新加的（侧边栏的"准备中"）。fork 把状态函数搬到了 `packages/client-runtime/src/state/threadGrouping.ts`，上游对 `Sidebar.logic.ts` 里这几个函数的改动要手工搬过去，测试也在 `threadGrouping.test.ts`。
 - 上游把 Effect 的诊断升成了 error（`extendsNativeError`、`preferSchemaTaggedError`、`instanceOfSchema`、`processEnvInEffect`、`effectTryWithoutCatch` 等），fork 自己的类要么改成 `Schema.TaggedError`（`SharedWorktreeRefused`），要么在类上一行 `@effect-diagnostics-next-line extendsNativeError:off - <原因>`（`ProofError`、`FrpFetchError`、`RpcFailure`、`E2eFailure`、`RegistryError`、桌面网关的两个错误类）。这些原因都是"在 Effect 之外的纯 throw 里用"，以后新增 fork 错误类先看能不能直接用 Schema。
 - 上游把 `useEnvironmentConnectionSummaries()` 从 `apps/web/src/state/environments.ts` 删掉了（还原了一个功能），fork 的底栏芯片（`fork/useFooterScope.ts`）要用，所以在那个文件末尾带 `// fork:` 加回。
-- 上游的预览 session 为 Teams 注册了 `webRequest.onBeforeSendHeaders`；网关只占用 `onHeadersReceived`，两者是不同的事件，不冲突。`singleWebRequestListener.test.ts` 的正则收窄到 `onHeadersReceived`。
 - `pullRequestDescriptionContent(document, media, t)` 的 `t` 放最后并默认英文：上游的新测试用 `(root, media)` 的签名，fork 的传参顺序要迁就它。
 - 上游的 GT i18n（#37893）在 2026-11-21 的同步中采用，见"多语言"一节；之前那几次同步曾把 gt 基础设施删掉，现在反过来：gt 的文件、依赖、`i18n-check` 一律保留。
 - 自动解决 i18n 冲突不要用"fork 与基点的差别只在含 `useT`/`translate` 的行就取上游"这类启发式：它会丢掉逻辑文件里的 `t: Translator` 形参、fork 导出的函数和被一并删掉的 import，类型检查会炸出上百个错误。要对每个冲突文件做真正的三方合并（`git merge-file -p --diff3`，ours 是 fork 一侧，base 是上次同步的上游，theirs 是新上游），再逐个冲突块手工合；已经合坏的文件按这个办法重做。合并后跑一遍全量 lint：`ListRow` 的 `joinLabelParts` 就是在之前某次同步里被悄悄丢掉、这次才补回来的。
 - 上游删掉了 `legacySidebarEnabled` 和 `useBoringSidebarEnabled`，Boring 侧栏就是 `settings.boringSidebarEnabled`；`T3CodeImport` 遇到旧的 `legacySidebarEnabled` 只记一条 attention，不再迁移。侧栏状态函数（`resolveSidebarRowStatus`、`resolveWindowTitleThreadStatus`）也在 `threadGrouping.ts` 里补上。
 - `"widget"` 指令的文件（`apps/mobile/src/widgets/`）在没有模块作用域的环境里执行，不能引用 `FORK` 或任何 import，只能写字面量并注明原因（`AgentActivityWidget.tsx` 的品牌名和 URL scheme）；对应的 `fork:guard` 白名单有三条。
-- 新的 MCP OAuth 路由需要 `CloudLink` 和 `ServerEnvironmentIdentity`：隧道、网关的测试夹具和 server 的 harness 都要提供。`DesktopIpc.make` 多了第二个参数（发送方守卫），`PreparedConnection` 多了 `descriptor`，`RemoteEnvironmentAuthorization` 多了 `rememberCheckedDescriptor`。
+- 新的 MCP OAuth 路由需要 `CloudLink` 和 `ServerEnvironmentIdentity`：隧道的测试夹具和 server 的 harness 都要提供。`DesktopIpc.make` 多了第二个参数（发送方守卫），`PreparedConnection` 多了 `descriptor`，`RemoteEnvironmentAuthorization` 多了 `rememberCheckedDescriptor`。
 - 上游把 `clearChunkReloadGuard` 换成了按构建版本记录的守卫，`main.tsx` 取上游，只保留 `uiLanguage.firstPaint`；设置搜索里的 `privacy-policy` 在 fork 里叫 `usage-data`（fork 没有隐私政策链接，那一行写的是遥测默认关闭）；`useComposerSend.ts` 不能把 `recordPromptSent` 的 import 带回来（fork 不弹 GitHub star 提示）。
 - `@noble/curves` 是 `apps/mobile/src/fork/deviceKeys/deviceKey.ts` 在用的，上游从 mobile 的 `package.json` 里去掉了它，合并时保留；去掉 gt 后再跑一次 `vp i -- --registry=https://registry.npmjs.org/` 才能让 lockfile 和链接对齐。
 - `T3CodeImport` 按列名通用地复制所有带 `thread_id` 的表；上游新增由 trigger 维护的派生表（`orchestration_v2_projection_turn_item_counts`）必须加进 `EXCLUDED_TABLES`，否则旧源库里没有这张表会生成空列的 `INSERT`，新源库里会重复计数。以后上游新加带 `thread_id` 的派生表照此处理。

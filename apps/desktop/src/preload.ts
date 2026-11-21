@@ -18,7 +18,6 @@ import type { KeepAwakeBridge } from "@t3tools/shared/keepAwake"; // fork: keep 
 import * as KeepAwakeChannels from "./keepAwake/keepAwakeChannels.ts"; // fork: keep awake
 import type { BackgroundServiceBridge } from "@t3tools/shared/backgroundService"; // fork: background service
 import * as BackgroundServiceChannels from "./fork/backgroundService/channels.ts"; // fork: background service
-import { exposeLoopbackGatewayBridge } from "./fork/loopbackGateway/preloadBridge.ts"; // fork: loopback gateway
 import { mergeLegacyLocalStorage } from "./legacyLocalStorageMerge.ts";
 
 const SNAP_SHOT_EVENT_TYPES = new Set([
@@ -138,8 +137,6 @@ contextBridge.exposeInMainWorld(BackgroundServiceChannels.BACKGROUND_SERVICE_BRI
   setEnabled: (enabled) =>
     ipcRenderer.invoke(BackgroundServiceChannels.SET_BACKGROUND_SERVICE_ENABLED_CHANNEL, enabled),
 } satisfies BackgroundServiceBridge);
-
-exposeLoopbackGatewayBridge(contextBridge, ipcRenderer); // fork: loopback gateway
 
 contextBridge.exposeInMainWorld("desktopBridge", {
   getAppBranding: () => {

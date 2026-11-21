@@ -11,7 +11,6 @@ import type { ConnectionTarget } from "@t3tools/client-runtime/connection";
 import { isDesktopLocalConnectionTarget } from "~/connection/desktopLocal";
 import { isElectron } from "~/env";
 import { readPreparedConnection } from "~/state/session";
-import { forwardedLoopbackUrl } from "~/fork/loopbackGateway/gatewayStore"; // fork: loopback gateway
 
 export { normalizeHostname, isLocalLoopbackHost } from "@t3tools/shared/hostClassification";
 
@@ -60,8 +59,7 @@ const resolveEnvironmentPortTarget = (
 };
 
 // Loopback servers on the desktop's own primary and WSL backends answer on this machine's localhost.
-// fork: exported for the loopback gateway
-export const reachesEnvironmentLoopback = (target: ConnectionTarget): boolean =>
+const reachesEnvironmentLoopback = (target: ConnectionTarget): boolean =>
   isElectron &&
   (target._tag === "PrimaryConnectionTarget" || isDesktopLocalConnectionTarget(target));
 
@@ -73,7 +71,6 @@ const resolveLoopbackUrl = (
   environmentId: EnvironmentId,
   rawUrl: string,
   tunnelled: boolean,
-  systemBrowser = false, // fork: loopback gateway
 ): string => {
   try {
     const normalizedUrl = normalizePreviewUrl(rawUrl);
@@ -81,8 +78,6 @@ const resolveLoopbackUrl = (
     if (tunnelled || !isLoopbackHost(parsed.hostname)) return normalizedUrl;
     const target = readPreparedConnection(environmentId)?.target;
     if (target && reachesEnvironmentLoopback(target)) return normalizedUrl;
-    const forwarded = forwardedLoopbackUrl(environmentId, normalizedUrl, systemBrowser); // fork
-    if (forwarded !== null) return forwarded;
     return resolveEnvironmentPortTarget(
       environmentId,
       {
@@ -106,4 +101,4 @@ export const resolveDiscoveredServerUrl = (environmentId: EnvironmentId, rawUrl:
 
 /** The URL for the system browser, which has no tunnel and needs an address it can reach itself. */
 export const resolveExternalServerUrl = (environmentId: EnvironmentId, rawUrl: string): string =>
-  resolveLoopbackUrl(environmentId, rawUrl, false, true);
+  resolveLoopbackUrl(environmentId, rawUrl, false);

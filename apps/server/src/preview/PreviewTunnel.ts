@@ -15,6 +15,8 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import type * as Socket from "effect/socket/Socket";
 
 import { authenticateMediaRequest } from "../auth/http.ts";
+import { serveTunnelRefusal } from "../fork/tunnelExclusions/refusalPage.ts"; // fork: exclusions
+import { TunnelExclusions } from "../fork/tunnelExclusions/TunnelExclusions.ts"; // fork: exclusions
 import * as SessionStore from "../auth/SessionStore.ts";
 import { requestUrl } from "../requestUrl.ts";
 import { ServerSettingsService } from "../serverSettings.ts";
@@ -169,12 +171,16 @@ const handler = Effect.gen(function* () {
   const session = yield* authenticateMediaRequest(AuthTerminalOperateScope);
   const sessions = yield* SessionStore.SessionStore;
   const tunnel = yield* PreviewTunnel;
+  const exclusions = yield* TunnelExclusions; // fork: exclusions
   const connection = NodeHttpServerRequest.toIncomingMessage(request).socket;
   const servedPort = connection.localPort;
   return yield* Effect.gen(function* () {
     const turnedOff = yield* tunnel.watchTurnedOff;
     // Dialled before the upgrade so a dead port fails the handshake instead of an open socket.
     const upstream = yield* tunnel.connect({ port, servedPort });
+    // fork: debuggers and T3's own processes get a page that says why, not a connection.
+    const refusal = yield* exclusions.check(port);
+    if (refusal !== null) return yield* serveTunnelRefusal(port, refusal);
     const client = yield* request.upgrade;
     const clientReader = yield* client.reader;
     const clientWriter = yield* client.writer;

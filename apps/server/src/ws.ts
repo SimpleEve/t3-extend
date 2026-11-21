@@ -9,7 +9,6 @@ import * as Orchestrator from "./orchestration-v2/Orchestrator.ts";
 import * as PeerLinkRequests from "./peer/PeerLinkRequests.ts";
 import { makePushRpcHandlers } from "./fork/push/pushRpcHandlers.ts"; // fork: UnifiedPush registrations
 import { makeDeviceRpcHandlers } from "./fork/deviceKeys/deviceRpcHandlers.ts"; // fork: self-hosted pairing
-import { makeLoopbackGatewayRpcHandlers } from "./fork/loopbackGateway/rpcHandlers.ts"; // fork: loopback gateway
 import * as PeerLinks from "./peer/PeerLinks.ts";
 
 import * as DateTime from "effect/DateTime";
@@ -1984,7 +1983,6 @@ export const layerWsRpc = (
 
       const pushHandlers = yield* makePushRpcHandlers(currentSessionId); // fork: UnifiedPush registrations
       const deviceHandlers = yield* makeDeviceRpcHandlers(currentSession); // fork: self-hosted pairing
-      const gatewayHandlers = yield* makeLoopbackGatewayRpcHandlers(currentSession); // fork: loopback gateway
       const handlers = ServerWsRpcGroup.of({
         [WS_METHODS.issuesList]: (input) => issues.list(input),
         [WS_METHODS.issuesDetail]: (input) => issues.detail(input),
@@ -2002,7 +2000,6 @@ export const layerWsRpc = (
         [WS_METHODS.issueTrackersBindProject]: (input) => issueTrackers.bindProject(input),
         ...pushHandlers, // fork: UnifiedPush registrations
         ...deviceHandlers, // fork: self-hosted pairing
-        ...gatewayHandlers, // fork: loopback gateway
         [ORCHESTRATION_V2_WS_METHODS.dispatchCommand]: (command) =>
           Effect.annotateCurrentSpan({
             "orchestration_v2.command_id": command.commandId,

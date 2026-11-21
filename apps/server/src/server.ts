@@ -36,7 +36,7 @@ import * as NonBlockingSpawner from "./process/NonBlockingSpawner.ts";
 import * as KeepAwake from "./background/KeepAwake.ts";
 import * as ServerConfig from "./config.ts";
 import * as TunnelListener from "./fork/deviceKeys/TunnelListener.ts"; // fork: self-hosted pairing
-import * as LoopbackGateway from "./fork/loopbackGateway/layer.ts"; // fork: loopback gateway
+import * as TunnelExclusions from "./fork/tunnelExclusions/TunnelExclusions.ts"; // fork: preview tunnel exclusions
 import { withRootRequestSpans, withUntracedRequests } from "./http.ts";
 import * as ServerHttp from "./http.ts";
 import {
@@ -888,7 +888,6 @@ const layerMakeRoutes = Layer.mergeAll(
     PreviewTunnel.routeLayer,
     ServerHttp.layerStaticAndDevRoute,
     DeviceAssertionAuth.layerRoute, // fork: POST /oauth/t3x-device
-    LoopbackGateway.layerRoute, // fork: the tunnel route
     Ws.layer,
     speechStreamRouteLayer,
   ),
@@ -938,7 +937,7 @@ const layerMakeRoutes = Layer.mergeAll(
   Layer.provide(PreviewAutomationBroker.layer),
   Layer.provide(ServerSelfUpdate.layer.pipe(Layer.provide(layerDesktopAppUpdate))),
   Layer.provide(layerCommandReadiness),
-  Layer.provide(LoopbackGateway.layerServices), // fork: shared by the tunnel route and the ticket RPC
+  Layer.provide(TunnelExclusions.layer), // fork: what the preview tunnel never reaches
   Layer.provide(AuthAttemptLimiter.middleware.pipe(Layer.provide(AuthAttemptLimiter.layer))), // fork: auth rate limit
   Layer.provide(ServerHttp.layerBrowserApiCors),
   Layer.provide(ServerHttp.layerHttpCompression),
@@ -1412,7 +1411,6 @@ const layerMakeServer = Layer.unwrap(
       Layer.provideMerge(AgentScopeLive.layer),
       // fork: below every layer that builds a Git driver or removes worktrees, so all of them see it.
       Layer.provideMerge(SharedWorktrees.layer.pipe(Layer.provide(SqlitePersistence.layerConfig))),
-      Layer.provide(LoopbackGateway.layerGrants), // fork: the RPC handlers read the allowed ports
       Layer.provideMerge(layerPlatformServices),
       Layer.provide(Layer.succeed(HostProcess.InvokedAs, invokedAs)),
     );
