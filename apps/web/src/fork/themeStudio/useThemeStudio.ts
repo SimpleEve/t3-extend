@@ -60,7 +60,11 @@ export function useThemeStudio() {
   const customThemes = useCustomThemes();
   const environmentThemes = useAtomValue(themeServerEnvironmentThemesAtom);
   const appliedId = resolveThemeHalf(theme, themeHalves, resolvedTheme);
-  const applied = getThemeDefinition(appliedId);
+  // A saved scheme is read from the list this hook subscribes to, so an edit that was just applied
+  // shows at once. getThemeDefinition reads the same list, but the compiler cannot see that and
+  // would keep the old definition for as long as the id stays the same.
+  const applied =
+    customThemes.find((saved) => saved.id === appliedId) ?? getThemeDefinition(appliedId);
   const base = applied ?? stockDefinition();
 
   const storedHalves = useThemeHalvesStored();
@@ -109,7 +113,9 @@ export function useThemeStudio() {
     hasUnsavedChanges(draft, savedScheme, base) || (explicitCopy && draft !== null && !savedScheme);
   const editAppearance = editableAppearance(working, resolvedTheme);
   const preset = schemeBase(working.basedOn, getThemeDefinition, customThemes);
+  // A stored image chosen in the studio, or one published beside the theme.
   const background =
+    working.look?.background !== undefined ||
     environmentThemes?.find((published) => published.id === working.id)?.background !== undefined;
 
   const edit = (update: (scheme: ThemeDefinition) => ThemeDefinition) => {

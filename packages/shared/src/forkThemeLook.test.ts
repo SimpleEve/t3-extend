@@ -11,6 +11,7 @@ import {
 } from "./forkThemeLook.ts";
 
 const schemaAccepts = Schema.is(ThemeLook);
+const HASH = "a".repeat(64);
 
 describe("parseThemeLook", () => {
   it("accepts every field and treats an empty look as none", () => {
@@ -22,6 +23,7 @@ describe("parseThemeLook", () => {
       shadow: 0,
       chatWidth: "wide",
       glass: 40,
+      background: HASH,
     };
     expect(parseThemeLook(look)).toEqual(look);
     expect(schemaAccepts(look)).toBe(true);
@@ -39,6 +41,8 @@ describe("parseThemeLook", () => {
     ["font stack that loads a file", { fontUi: "url(https://example.com/a.woff)" }],
     ["font stack with a declaration", { fontCode: "Menlo; color: red" }],
     ["empty font stack", { fontUi: "" }],
+    ["background that is not a hash", { background: "../../etc/passwd" }],
+    ["background with capital digits", { background: "A".repeat(64) }],
   ])("refuses %s", (_label, look) => {
     expect(() => parseThemeLook(look)).toThrow();
     expect(schemaAccepts(look)).toBe(false);
@@ -61,9 +65,11 @@ describe("sanitizeThemeLook", () => {
         shadow: "strong",
         chatWidth: "huge",
         glass: Number.NaN,
+        background: "not-a-hash",
         extra: true,
       }),
     ).toEqual({ fontUi: "Georgia, serif", radius: 24, density: 80 });
+    expect(sanitizeThemeLook({ background: HASH })).toEqual({ background: HASH });
     expect(sanitizeThemeLook(null)).toBeUndefined();
     expect(sanitizeThemeLook({ chatWidth: "huge" })).toBeUndefined();
   });

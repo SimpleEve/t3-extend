@@ -34,6 +34,7 @@ import * as ProjectFaviconResolver from "../project/ProjectFaviconResolver.ts";
 import * as T3ProjectFileLoader from "../project/T3ProjectFileLoader.ts";
 import * as WorkspacePaths from "../workspace/WorkspacePaths.ts";
 import { assetFileResponse } from "../http.ts";
+import { storeThemeBackground } from "../fork/themeBackground/ThemeBackgroundStore.ts"; // fork: theme background upload
 import { ASSET_ROUTE_PREFIX, issueAssetUrl, readMcpAppHtml, resolveAsset } from "./AssetAccess.ts";
 import * as NativeAppIconResolver from "./NativeAppIconResolver.ts";
 import * as RepositoryIdentityResolver from "../project/RepositoryIdentityResolver.ts";
@@ -236,6 +237,40 @@ describe("AssetAccess", () => {
 
       yield* fs.remove(imagePath);
       expect(yield* resolveAsset(token, suffix.slice(separator + 1))).toBeNull();
+    }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
+  // fork: theme background upload
+  it.effect("serves a stored background image by the hash of its bytes", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const { environmentThemesDir } = yield* ServerConfig.ServerConfig;
+      const stored = storeThemeBackground(environmentThemesDir, screenshotPng);
+      if (!stored.ok) throw new Error(stored.detail);
+      const result = yield* issueAssetUrl({
+        resource: { _tag: "theme-background-image", hash: stored.hash },
+      });
+      const suffix = result.relativeUrl.slice(`${ASSET_ROUTE_PREFIX}/`.length);
+      const separator = suffix.indexOf("/");
+      const asset = yield* resolveAsset(suffix.slice(0, separator), suffix.slice(separator + 1));
+      expect(asset).toMatchObject({ kind: "file" });
+      if (asset?.kind !== "file") return;
+      expect(asset.path).toBe(
+        yield* fs.realPath(`${environmentThemesDir}/backgrounds/${stored.hash}.png`),
+      );
+      expect((yield* assetFileResponse(asset)).headers["content-type"]).toBe("image/png");
+
+      const missing = yield* issueAssetUrl({
+        resource: { _tag: "theme-background-image", hash: "0".repeat(64) },
+      });
+      const missingSuffix = missing.relativeUrl.slice(`${ASSET_ROUTE_PREFIX}/`.length);
+      const missingSeparator = missingSuffix.indexOf("/");
+      expect(
+        yield* resolveAsset(
+          missingSuffix.slice(0, missingSeparator),
+          missingSuffix.slice(missingSeparator + 1),
+        ),
+      ).toBeNull();
     }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 

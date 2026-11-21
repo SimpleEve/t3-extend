@@ -1,5 +1,6 @@
 import {
   FORK_PUSH_WS_METHODS, // fork: UnifiedPush registrations
+  FORK_THEME_BACKGROUND_WS_METHODS, // fork: theme background upload
   FORK_DEVICE_KEYS_RPC_AGGREGATES, // fork: self-hosted pairing
   FORK_LOOPBACK_GATEWAY_RPC_AGGREGATES, // fork: loopback gateway
   ORCHESTRATION_V2_WS_METHODS,
@@ -87,6 +88,7 @@ const RPC_AGGREGATES = {
   [FORK_PUSH_WS_METHODS.sendTest]: "push",
   ...FORK_DEVICE_KEYS_RPC_AGGREGATES, // fork: self-hosted pairing
   ...FORK_LOOPBACK_GATEWAY_RPC_AGGREGATES, // fork: loopback gateway
+  [FORK_THEME_BACKGROUND_WS_METHODS.createUploadUrl]: "server", // fork: theme background upload
   [WS_METHODS.serverGetSettings]: "server",
   [WS_METHODS.serverUpdateSettings]: "server",
   [WS_METHODS.serverSearchAcpRegistry]: "server",

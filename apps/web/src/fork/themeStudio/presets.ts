@@ -37,8 +37,6 @@ export type ThemePresetSeed = Readonly<{
 
 const MONO_STACK =
   '"JetBrains Mono", "SF Mono", "Cascadia Mono", Menlo, "Sarasa Mono SC", "PingFang SC", monospace';
-const SERIF_STACK = '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Songti SC", serif';
-const CODE_STACK = '"SF Mono", Menlo, "Cascadia Mono", Consolas, "Liberation Mono", monospace';
 
 // The colors are the ones of the Terminal theme people already use; the font, square corners and
 // flat shadows moved into the look, and the rest stays as CSS.
@@ -167,22 +165,6 @@ body, button, input, textarea, select {
 
 svg.lucide { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 `;
-
-/** Choices for the font rows. A look's stack is tried before the app's own, so a missing font falls through. */
-export const UI_FONT_OPTIONS: ReadonlyArray<{ id: string; label: string; stack: string }> = [
-  {
-    id: "humanist",
-    label: "Humanist sans",
-    stack: '"Seravek", "Gill Sans", "Trebuchet MS", "Noto Sans", sans-serif',
-  },
-  { id: "serif", label: "Serif", stack: SERIF_STACK },
-  { id: "mono", label: "Monospace", stack: MONO_STACK },
-];
-
-export const CODE_FONT_OPTIONS: ReadonlyArray<{ id: string; label: string; stack: string }> = [
-  { id: "sf-mono", label: "SF Mono and Menlo", stack: CODE_STACK },
-  { id: "jetbrains", label: "JetBrains Mono", stack: MONO_STACK },
-];
 
 /** Presets that were removed. A stored choice of one of them is dropped; a scheme made from one keeps working. */
 export const RETIRED_PRESET_IDS: ReadonlySet<string> = new Set([

@@ -12,7 +12,6 @@ export default {
   "Follow the system appearance": "跟随系统外观",
   "Use light mode": "使用浅色模式",
   "Use dark mode": "使用深色模式",
-  "Create theme": "创建主题",
   "Add theme": "添加主题",
   "Duplicate theme": "复制主题",
   "Duplicate {theme}": "复制 {theme}",

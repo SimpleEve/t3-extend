@@ -14,6 +14,7 @@ import {
 } from "./auth.ts";
 import { FORK_PUSH_GUARDED_RPC_SCOPES } from "./forkPush.ts"; // fork: UnifiedPush registrations
 import { FORK_DEVICE_KEYS_GUARDED_RPC_SCOPES } from "./forkDeviceKeys.ts"; // fork: self-hosted pairing
+import { FORK_THEME_BACKGROUND_GUARDED_RPC_SCOPES } from "./forkThemeBackground.ts"; // fork: theme background upload
 import {
   FORK_LOOPBACK_GATEWAY_GUARDED_RPC_SCOPES,
   LOOPBACK_GATEWAY_REQUIRED_SCOPES,
@@ -89,6 +90,7 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   ...FORK_PUSH_GUARDED_RPC_SCOPES, // fork: UnifiedPush registrations
   ...FORK_DEVICE_KEYS_GUARDED_RPC_SCOPES, // fork: self-hosted pairing
   ...FORK_LOOPBACK_GATEWAY_GUARDED_RPC_SCOPES, // fork: loopback gateway
+  ...FORK_THEME_BACKGROUND_GUARDED_RPC_SCOPES, // fork: theme background upload
 } as const;
 export type ClientGuardedRpcTag = keyof typeof CLIENT_GUARDED_RPC_SCOPES;
 

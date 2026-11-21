@@ -1,18 +1,25 @@
 import { THEME_LOOK_LIMITS, type ChatWidth } from "@t3tools/contracts";
-import { isThemeLookFontStack } from "@t3tools/shared/forkThemeLook";
 import { BUILT_IN_THEMES } from "@t3tools/shared/themePalettes";
+import { useAtomValue } from "@effect/atom-react";
+import { Atom } from "effect/reactivity";
+import { useNavigate } from "@tanstack/react-router";
 import {
+  ArrowRightIcon,
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  ImageIcon,
   MousePointer2Icon,
   RotateCcwIcon,
   Undo2Icon,
 } from "lucide-react";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
+import { isFontFamilyAvailable, isMonospaceFamily } from "../../appearanceFonts";
 import { useT } from "../../hooks/useT";
 import { cn } from "../../lib/utils";
+import { themeEnvironmentIdAtom } from "../../state/primaryEnvironment";
+import { loadStoredThemeBackground } from "../../themeBackground";
 import {
   type ThemeColorRole,
   type ThemeDefinition,
@@ -21,6 +28,7 @@ import {
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { FontFamilyPicker } from "../../components/settings/FontFamilyPicker";
 import {
   Select,
   SelectItem,
@@ -42,12 +50,20 @@ import {
   STANDARD_THEME_CARDS,
 } from "../../components/settings/ThemePreviewCircles";
 import { ThemeWireframe } from "../../components/settings/ThemeWireframe";
-import { TypographySection } from "../../components/settings/TypographySettings";
 import { isThemeColor, themeColorToHex } from "../../themePalette";
 import { COLOR_GROUPS, colorFamilyOfRole, locateColorRole } from "./colorFamilies";
 import { HalvesNotice } from "./HalvesNotice";
 import { MySchemes } from "./MySchemes";
-import { CODE_FONT_OPTIONS, THEME_PRESET_SEEDS, UI_FONT_OPTIONS } from "./presets";
+import { THEME_BACKGROUND_ACCEPT, type BackgroundRefusal } from "./backgroundUpload.logic";
+import { themeBackgroundUpload, uploadThemeBackground } from "./backgroundUpload";
+import {
+  curatedFamilies,
+  familyOfStack,
+  nextStack,
+  stackOfFamily,
+  type FontKind,
+} from "./fontChoice.logic";
+import { THEME_PRESET_SEEDS } from "./presets";
 import { overriddenSettings, schemeColors, studioThemeKind } from "./studio.logic";
 import { PickHint } from "./PickHint";
 import { useColorInspector } from "./useColorInspector";
@@ -55,7 +71,6 @@ import { useThemeStudio } from "./useThemeStudio";
 
 type Studio = ReturnType<typeof useThemeStudio>;
 
-const CUSTOM_FONT = "__custom__";
 const NO_FONT = "__setting__";
 
 const CHAT_WIDTH_LABELS: Record<ChatWidth, string> = {
@@ -139,11 +154,16 @@ function LookSlider({
   );
 }
 
+// Module-level so the picker can keep the filtered list while it is open.
+const acceptUiFamily = (family: string) => stackOfFamily(family, "ui") !== undefined;
+const acceptCodeFamily = (family: string) =>
+  stackOfFamily(family, "code") !== undefined && isMonospaceFamily(family);
+
 function FontStackRow({
   id,
   title,
   description,
-  options,
+  kind,
   value,
   overridesSetting,
   onChange,
@@ -151,23 +171,15 @@ function FontStackRow({
   id: string;
   title: string;
   description: string;
-  options: ReadonlyArray<{ id: string; label: string; stack: string }>;
+  kind: FontKind;
   value: string | undefined;
   overridesSetting: boolean;
   onChange: (value: string | undefined) => void;
 }) {
   const t = useT();
-  const known = options.find((option) => option.stack === value);
-  const selected = value === undefined ? NO_FONT : (known?.id ?? CUSTOM_FONT);
-  const [custom, setCustom] = useState(known === undefined ? (value ?? "") : "");
-  const [customOpen, setCustomOpen] = useState(selected === CUSTOM_FONT);
-  const customValid = custom.trim() === "" || isThemeLookFontStack(custom.trim());
-  const selectedLabel =
-    selected === NO_FONT
-      ? t("Your setting")
-      : selected === CUSTOM_FONT
-        ? t("Custom")
-        : t(known?.label ?? "");
+  const followSetting = t("Follow Appearance setting");
+  // Shown while this device's fonts cannot be listed: the common ones it has.
+  const common = curatedFamilies(kind, isFontFamilyAvailable);
 
   return (
     <SettingsRow
@@ -183,63 +195,23 @@ function FontStackRow({
       }
       resetAction={
         value !== undefined ? (
-          <SettingResetButton
-            label={title}
-            onClick={() => {
-              setCustom("");
-              setCustomOpen(false);
-              onChange(undefined);
-            }}
-          />
+          <SettingResetButton label={title} onClick={() => onChange(undefined)} />
         ) : null
       }
       control={
-        <div className="flex w-full flex-col items-stretch gap-2 sm:w-64">
-          <Select
-            value={customOpen ? CUSTOM_FONT : selected}
-            onValueChange={(next) => {
-              if (next === NO_FONT) {
-                setCustomOpen(false);
-                onChange(undefined);
-              } else if (next === CUSTOM_FONT) {
-                setCustomOpen(true);
-              } else {
-                setCustomOpen(false);
-                onChange(options.find((option) => option.id === next)?.stack);
-              }
+        <div className="w-full sm:w-64">
+          <FontFamilyPicker
+            acceptFamily={kind === "code" ? acceptCodeFamily : acceptUiFamily}
+            ariaLabel={t(title)}
+            defaultFamily={followSetting}
+            defaultLabel={followSetting}
+            fallbackFamilies={common}
+            onSelect={(family) => {
+              const next = nextStack(value, family, kind);
+              if (next.change) onChange(next.stack);
             }}
-          >
-            <SelectTrigger size="sm" aria-label={t(title)}>
-              <SelectValue>{customOpen ? t("Custom") : selectedLabel}</SelectValue>
-            </SelectTrigger>
-            <SelectPopup align="end" alignItemWithTrigger={false}>
-              <SelectItem value={NO_FONT}>{t("Your setting")}</SelectItem>
-              {options.map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                  {t(option.label)}
-                </SelectItem>
-              ))}
-              <SelectItem value={CUSTOM_FONT}>{t("Custom")}</SelectItem>
-            </SelectPopup>
-          </Select>
-          {customOpen ? (
-            <Input
-              size="sm"
-              aria-invalid={!customValid}
-              aria-label={t("{title} font names", { title: t(title) })}
-              autoCapitalize="off"
-              autoComplete="off"
-              font="mono"
-              onChange={(event) => {
-                const next = event.currentTarget.value;
-                setCustom(next);
-                if (isThemeLookFontStack(next.trim())) onChange(next.trim());
-                else if (next.trim() === "") onChange(undefined);
-              }}
-              placeholder={t("Georgia, serif")}
-              value={custom}
-            />
-          ) : null}
+            selectedFamily={familyOfStack(value)}
+          />
         </div>
       }
     />
@@ -542,49 +514,51 @@ function PresetsSection({ studio }: { studio: Studio }) {
 
 function FontsSection({ studio }: { studio: Studio }) {
   const t = useT();
+  const navigate = useNavigate();
   const look = studio.working.look;
   const overridden = overriddenSettings(look);
-  const [ownOpen, setOwnOpen] = useState(false);
   return (
-    <>
-      <SettingsSection id="theme-studio-fonts" title="Fonts">
-        <FontStackRow
-          description={t(
-            "The font for the interface and messages. Fonts must be installed on this device.",
-          )}
-          id="theme-studio-font-ui"
-          onChange={(value) => studio.setLook("fontUi", value)}
-          options={UI_FONT_OPTIONS}
-          overridesSetting={overridden.includes("fontUi")}
-          title={t("Interface font")}
-          value={look?.fontUi}
-        />
-        <FontStackRow
-          description={t("The font for code blocks and diffs.")}
-          id="theme-studio-font-code"
-          onChange={(value) => studio.setLook("fontCode", value)}
-          options={CODE_FONT_OPTIONS}
-          overridesSetting={overridden.includes("fontCode")}
-          title={t("Code font")}
-          value={look?.fontCode}
-        />
-        <div className="px-3 py-2 sm:px-4">
-          <Button
-            aria-expanded={ownOpen}
-            size="xs"
-            variant="ghost"
-            onClick={() => setOwnOpen(!ownOpen)}
-          >
-            {ownOpen ? <ChevronDownIcon /> : <ChevronRightIcon />}
-            {t("Font sizes and your own fonts")}
-          </Button>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t("Your own settings apply wherever the theme above leaves a font alone.")}
-          </p>
-        </div>
-      </SettingsSection>
-      {ownOpen ? <TypographySection /> : null}
-    </>
+    <SettingsSection id="theme-studio-fonts" title="Fonts">
+      <FontStackRow
+        description={t(
+          "The font for the interface and messages. Fonts must be installed on this device.",
+        )}
+        id="theme-studio-font-ui"
+        kind="ui"
+        onChange={(value) => studio.setLook("fontUi", value)}
+        overridesSetting={overridden.includes("fontUi")}
+        title={t("Interface font")}
+        value={look?.fontUi}
+      />
+      <FontStackRow
+        description={t("The font for code blocks and diffs.")}
+        id="theme-studio-font-code"
+        kind="code"
+        onChange={(value) => studio.setLook("fontCode", value)}
+        overridesSetting={overridden.includes("fontCode")}
+        title={t("Code font")}
+        value={look?.fontCode}
+      />
+      <div className="px-3 py-2 sm:px-4">
+        <Button
+          size="xs"
+          variant="ghost"
+          onClick={() =>
+            void navigate({
+              to: "/settings/appearance",
+              hash: "typography",
+              state: { settingsTargetHighlight: true },
+            })
+          }
+        >
+          {t("Font sizes are in Appearance")}
+          <ArrowRightIcon />
+        </Button>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t("Your own settings apply wherever the theme above leaves a font alone.")}
+        </p>
+      </div>
+    </SettingsSection>
   );
 }
 
@@ -641,7 +615,7 @@ function LayoutSection({ studio }: { studio: Studio }) {
           ) : null
         }
         control={
-          <div className="w-full sm:w-40">
+          <div className="w-full sm:w-52">
             <Select
               value={chatWidth ?? NO_FONT}
               onValueChange={(value) => {
@@ -654,11 +628,13 @@ function LayoutSection({ studio }: { studio: Studio }) {
             >
               <SelectTrigger size="sm" aria-label={t("Chat width")}>
                 <SelectValue>
-                  {chatWidth === undefined ? t("Your setting") : t(CHAT_WIDTH_LABELS[chatWidth])}
+                  {chatWidth === undefined
+                    ? t("Follow Appearance setting")
+                    : t(CHAT_WIDTH_LABELS[chatWidth])}
                 </SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
-                <SelectItem value={NO_FONT}>{t("Your setting")}</SelectItem>
+                <SelectItem value={NO_FONT}>{t("Follow Appearance setting")}</SelectItem>
                 <SelectItem value="comfortable">{t("Comfortable")}</SelectItem>
                 <SelectItem value="wide">{t("Wide")}</SelectItem>
                 <SelectItem value="full">{t("Full")}</SelectItem>
@@ -671,26 +647,154 @@ function LayoutSection({ studio }: { studio: Studio }) {
   );
 }
 
+const NO_UPLOAD_PERMISSION = Atom.make(false);
+
+/** The stored picture's thumbnail. A picture published beside the theme has none; the box stays empty. */
+function BackgroundThumb({ hash }: { hash: string | undefined }) {
+  const [loaded, setLoaded] = useState<{ hash: string; url: string } | null>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- downloads the stored picture for the thumbnail and frees its blob URL when the picture changes
+  useEffect(() => {
+    if (hash === undefined) return;
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+    loadStoredThemeBackground(hash, controller.signal).then(
+      (image) => {
+        if (image === null || controller.signal.aborted) return;
+        objectUrl = URL.createObjectURL(image);
+        setLoaded({ hash, url: objectUrl });
+      },
+      () => {},
+    );
+    return () => {
+      controller.abort();
+      if (objectUrl !== null) URL.revokeObjectURL(objectUrl);
+    };
+  }, [hash]);
+  const url = loaded !== null && loaded.hash === hash ? loaded.url : null;
+  return (
+    <div
+      className="grid h-10 w-16 shrink-0 place-items-center overflow-hidden rounded-md border border-border/70 bg-muted/40"
+      data-theme-background-thumb
+    >
+      {url !== null ? (
+        <img alt="" className="size-full object-cover" src={url} />
+      ) : (
+        <ImageIcon aria-hidden className="size-4 text-muted-foreground" />
+      )}
+    </div>
+  );
+}
+
 function BackgroundSection({ studio }: { studio: Studio }) {
   const t = useT();
+  const stored = studio.working.look?.background;
+  const environmentId = useAtomValue(themeEnvironmentIdAtom);
+  const canUpload = useAtomValue(
+    environmentId === null
+      ? NO_UPLOAD_PERMISSION
+      : themeBackgroundUpload.createUploadUrl.permissionAtom(environmentId),
+  );
+  const input = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [refusal, setRefusal] = useState<{
+    readonly reason: BackgroundRefusal;
+    readonly detail?: string;
+  } | null>(null);
+
+  const choose = async (file: File) => {
+    setUploading(true);
+    setRefusal(null);
+    const outcome = await uploadThemeBackground(file);
+    setUploading(false);
+    if (outcome.ok) studio.setLook("background", outcome.hash);
+    else setRefusal(outcome);
+  };
+  const refusalText =
+    refusal === null
+      ? null
+      : refusal.reason === "type"
+        ? t("Choose a JPEG, PNG or WebP image.")
+        : refusal.reason === "size"
+          ? t("The image is larger than 16 MB.")
+          : refusal.reason === "full" && refusal.detail
+            ? refusal.detail
+            : t("Could not upload the image. Check the connection and try again.");
+
   return (
     <SettingsSection id="theme-studio-background" title="Background">
       <SettingsRow
         id="theme-studio-background-image"
         title="Background image"
         description={
-          studio.background
+          stored !== undefined
             ? t("This theme has a background image.")
-            : t(
-                "This theme has no background image. Ask an agent to set one with t3_theme_set, or copy a JPEG, PNG or WebP file of up to 16 MB next to the published theme file.",
-              )
+            : studio.background
+              ? t("This theme has a background image published with it.")
+              : t("This theme has no background image. Choose a JPEG, PNG or WebP of up to 16 MB.")
         }
         status={
           <Badge size="sm" variant={studio.background ? "success" : "outline"}>
             {studio.background ? t("In use") : t("None")}
           </Badge>
         }
-      />
+        control={
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <BackgroundThumb hash={stored} />
+            <input
+              accept={THEME_BACKGROUND_ACCEPT}
+              aria-hidden
+              className="hidden"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (file) void choose(file);
+              }}
+              ref={input}
+              tabIndex={-1}
+              type="file"
+            />
+            <Button
+              disabled={!canUpload || uploading}
+              size="xs"
+              variant="outline"
+              onClick={() => input.current?.click()}
+            >
+              {uploading ? t("Uploading…") : t("Choose image…")}
+            </Button>
+            {stored !== undefined ? (
+              <Button
+                disabled={uploading}
+                size="xs"
+                variant="outline"
+                onClick={() => {
+                  setRefusal(null);
+                  studio.setLook("background", undefined);
+                }}
+              >
+                {t("Remove")}
+              </Button>
+            ) : null}
+          </div>
+        }
+      >
+        <div className="space-y-1 pt-2 text-xs">
+          <p className="text-muted-foreground">
+            {t(
+              "The image is stored on this server. An exported scheme refers to it but does not contain it.",
+            )}
+          </p>
+          {refusalText !== null ? (
+            <p aria-live="polite" className="text-destructive">
+              {refusalText}
+            </p>
+          ) : null}
+          {canUpload ? null : (
+            <p className="text-muted-foreground">
+              {t("This connection cannot add images to this server.")}
+            </p>
+          )}
+        </div>
+      </SettingsRow>
       <LookSlider
         description={t(
           "Makes the sidebar, header and composer see-through and blurs what is behind them. Only with a background image.",
@@ -819,10 +923,32 @@ function StudioHeader({ studio }: { studio: Studio }) {
   );
 }
 
+/** Says what the page is for, and where the other half of theme work is. */
+function StudioIntro() {
+  const t = useT();
+  const navigate = useNavigate();
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-1">
+      <p className="min-w-48 flex-1 text-xs text-muted-foreground">
+        {t("Make and change themes here. Choose which one to use in Appearance.")}
+      </p>
+      <Button
+        size="xs"
+        variant="outline"
+        onClick={() => void navigate({ to: "/settings/appearance", hash: "appearance" })}
+      >
+        {t("Go to Appearance")}
+        <ArrowRightIcon />
+      </Button>
+    </div>
+  );
+}
+
 export function ThemeStudioPanel() {
   const studio = useThemeStudio();
   return (
     <SettingsPageContainer>
+      <StudioIntro />
       <StudioHeader studio={studio} />
       <PresetsSection studio={studio} />
       <ColorsSection studio={studio} />

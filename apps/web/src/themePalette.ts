@@ -1747,6 +1747,7 @@ export function applyThemeColorPreview(
   applyContextChipVariables(root, colors);
   applyThemeCss(css);
   applyThemeLook(look); // fork: theme look
+  applyThemeBackground(undefined, look?.background); // fork: a stored image
   setThemePreviewAppearance(appearance);
 }
 
@@ -1760,7 +1761,7 @@ export function applyThemePalette(theme: ThemePreference, appearance?: ThemeAppe
   const palette = getThemeDefinition(theme);
   applyThemeCss(palette?.css);
   applyThemeLook(palette?.look); // fork: theme look
-  applyThemeBackground(palette?.id);
+  applyThemeBackground(palette?.id, palette?.look?.background); // fork: a stored image
 
   if (palette) {
     root.dataset.themeId = palette.id;

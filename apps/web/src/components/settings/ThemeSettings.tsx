@@ -2,10 +2,8 @@ import {
   CheckIcon,
   CopyIcon,
   MoonIcon,
-  PaintbrushIcon,
   PaletteIcon, // fork: theme studio
   PenLineIcon,
-  PlusIcon,
   SunIcon,
   Trash2Icon,
   UploadIcon,
@@ -687,9 +685,6 @@ export function ThemeLibrary({
     }
   };
 
-  const activeThemeForAppearance =
-    getThemeDefinition((initialAppearance === "light" ? lightOwner : darkOwner) ?? "") ?? null;
-
   const cardDefById = (id: string | null): ThemeCardDefinition => {
     if (id === null) return STANDARD_THEME_CARDS[0]!;
     const definition = getThemeDefinition(id);
@@ -911,33 +906,15 @@ export function ThemeLibrary({
         <h3 className="text-base font-semibold text-foreground">
           {t(searchableSetting("theme").title)}
         </h3>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button
-            size="xs"
-            variant="outline"
-            onClick={() =>
-              openThemeEditor({
-                editingThemeId: null,
-                seedThemeId: activeThemeForAppearance?.id ?? null,
-                seedName: null,
-                initialAppearance,
-              })
-            }
-          >
-            <PaintbrushIcon />
-            {t("Create theme")}
-          </Button>
-          <Button size="xs" variant="outline" onClick={() => onImportOpenChange(true)}>
-            <PlusIcon />
-            {t("Add theme")}
-          </Button>
-          {/* fork: theme studio */}
-          <Button size="xs" variant="outline" onClick={() => openThemeStudio()}>
-            <PaletteIcon />
-            {t("Theme studio")}
-          </Button>
-        </div>
+        {/* fork: Appearance picks a theme; making and changing themes (and importing) is the studio's */}
+        <Button size="xs" variant="outline" onClick={() => openThemeStudio()}>
+          <PaletteIcon />
+          {t("Edit in Theme Studio")}
+        </Button>
       </div>
+      <p className="px-3 text-xs text-muted-foreground sm:px-4">
+        {t("Choose which theme to use here. To make or change a theme, open Theme Studio.")}
+      </p>
       {renderPairGrid()}
       <ThemeImportDialog
         onImportedMany={(importedThemes, { updated }) => {

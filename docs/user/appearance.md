@@ -65,8 +65,10 @@ without replaying its transitions.
 On web and desktop, open **Settings → Theme studio**, or choose **Open theme studio** in the command
 palette (**Cmd+Option+Shift+T** on macOS, **Ctrl+Alt+Shift+T** on Windows/Linux). It changes more than
 colors: a theme can also set fonts, corner radius, spacing, shadows, chat width and see-through
-panels. **Settings → Appearance** keeps the theme list, and its **Create theme**, **Duplicate** and
-**Edit** buttons open the studio.
+panels. The two pages split the work: **Settings → Appearance** is where you choose which theme to
+use, and the studio is where themes are made and changed. Appearance's **Edit in Theme Studio**
+button and the **Edit** and **Duplicate** buttons on a theme card open the studio, and the studio
+links back to Appearance.
 
 The page goes from top to bottom: **Presets**, **Colors**, **Fonts**, **Layout**, **Background**,
 **Custom CSS** and **My schemes**. Hover a preset to preview it and click to use it. Changes you make
@@ -98,14 +100,19 @@ of the app, choose **Pick from the app**. Settings hides for a moment so you can
 that part and Settings comes back with **All colors** open at the role it uses, and where the app
 uses that color is highlighted. **Esc** cancels. **My schemes** lists your
 schemes: use, rename, export as JSON or delete one, or **Import** a T3 Code or VS Code theme.
+Importing a theme happens here, not in Appearance.
 **Duplicate** on a theme card makes an independent copy to edit.
 
 ### Fonts and layout
 
 A theme's fonts and chat width win over your own settings while that theme is in use, and the
 studio and Appearance say so. Where a theme leaves a font or the chat width alone, your own
-settings apply. Fonts have to be installed on your device; a theme never downloads one. **Panel
-glass** makes the sidebar, header and composer see-through and blurs what is behind them. It only
+settings apply: the first choice in each font list is **Follow Appearance setting**. The lists
+show your installed fonts, each in its own face, and you can type to search them. The first time you
+open one, your browser may ask to see your installed fonts. If it does not, or cannot, the list
+shows the common fonts your device has. The code font list only has fixed-width fonts. Fonts have to
+be installed on your device; a theme never downloads one. Font sizes are not part of a theme: they
+stay in **Settings → Appearance → Typography**, and the studio links there. **Panel glass** makes the sidebar, header and composer see-through and blurs what is behind them. It only
 has an effect while the theme has a [background image](#background-image).
 
 ### Custom CSS
@@ -202,7 +209,8 @@ the studio's **Fonts** and **Layout** sections set:
 
 Every field is optional, and the numeric fields are whole numbers: `radius` 0 to 24 (px), `density` 80 to 120 (% of normal
 spacing), `shadow` 0 to 200 (% of normal), `glass` 0 to 100 (% see-through, with a background
-image) and `chatWidth` `comfortable`, `wide` or `full`. Font names are separated by commas and may
+image) and `chatWidth` `comfortable`, `wide` or `full`. `background` is the 64-digit hash of an
+image stored with the studio's **Choose image…**; leave it to the studio. Font names are separated by commas and may
 not contain `;`, `(`, `{` or `/`. Mobile ignores a look. A theme file with an out-of-range value is
 not published.
 
@@ -211,10 +219,21 @@ Invalid files are not published.
 
 ### Background image
 
-A published theme can have a full-size background image. Ask an agent, for example "use
-~/Pictures/wallpaper.jpg as T3 Code's background", or save a JPEG, PNG, or WebP file of up to
-16 MB beside the theme file: `nightfall.jpg` beside `nightfall.json`. The theme's CSS decides
-where the image shows:
+A theme can have a full-size background image. In the theme studio, open **Background** and choose
+**Choose image…**: a JPEG, PNG, or WebP file of up to 16 MB. The server keeps the image, so the
+other browsers and desktop apps connected to the same server show it too once they have the
+scheme. **Remove** takes it off the scheme. The server keeps the file, because other schemes may
+use the same picture. Up to 64 images are kept; to free space, delete files from the `backgrounds`
+folder inside the server's `themes` directory.
+
+An exported scheme records the image's name, a hash of its bytes, but does not contain the picture.
+Importing it on a browser connected to the same server shows the image; on another server the
+image is missing until you choose it again. Mobile ignores a theme's look, background included.
+
+A published theme can also have a background image by file: save a JPEG, PNG, or WebP file of up to
+16 MB beside the theme file, `nightfall.jpg` beside `nightfall.json`, or ask an agent, for example
+"use ~/Pictures/wallpaper.jpg as T3 Code's background". The theme's CSS decides where the image
+shows:
 
 ```css
 [data-workspace-area="conversation"] {
@@ -222,4 +241,4 @@ where the image shows:
 }
 ```
 
-Delete the image file to remove it.
+Delete the image file to remove it. An image chosen in the studio wins over a file beside the theme.

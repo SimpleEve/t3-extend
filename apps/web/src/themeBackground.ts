@@ -1,6 +1,6 @@
 import { resolveAssetUrl } from "@t3tools/client-runtime/state/assets";
 import { executeAtomQuery } from "@t3tools/client-runtime/state/runtime";
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { AssetResource, EnvironmentId } from "@t3tools/contracts";
 
 import { appAtomRegistry, subscribeAtomChanges } from "./rpc/atomRegistry";
 import { assetEnvironment } from "./state/assets";
@@ -14,6 +14,13 @@ const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000];
 let shownKey: string | null = null;
 let loading: AbortController | null = null;
 let objectUrl: string | null = null;
+// fork: what was last asked for, so coming back online can ask again for exactly that
+let requested: { themeId: string | undefined; hash: string | undefined } = {
+  themeId: undefined,
+  hash: undefined,
+};
+// fork: the last image downloaded. A preview that is left again must not download a large image twice.
+let lastLoaded: { key: string; image: Blob } | null = null;
 
 function show(nextUrl: string | null): void {
   const root = document.documentElement;
@@ -27,14 +34,14 @@ function show(nextUrl: string | null): void {
 
 async function loadBackground(
   environmentId: EnvironmentId,
-  themeId: string,
+  resource: AssetResource, // fork: a stored image is asked for by its hash
   signal: AbortSignal,
-): Promise<string | null> {
+): Promise<Blob | null> {
   const minted = await executeAtomQuery(
     appAtomRegistry,
     assetEnvironment.createUrl({
       environmentId,
-      input: { resource: { _tag: "environment-theme-background", themeId } },
+      input: { resource },
     }),
     { label: "theme background", reportFailure: false, refresh: true, signal },
   );
@@ -47,32 +54,70 @@ async function loadBackground(
   const response = await fetch(url, { signal });
   if (!response.ok) return null;
   const image = await response.blob();
-  return image.type.startsWith("image/") ? URL.createObjectURL(image) : null;
+  return image.type.startsWith("image/") ? image : null;
+}
+
+const storedKey = (environmentId: EnvironmentId, hash: string) =>
+  JSON.stringify([environmentId, "stored", hash]);
+
+/** fork: the picture the theme studio stored under `hash`, for its thumbnail. */
+export async function loadStoredThemeBackground(
+  hash: string,
+  signal: AbortSignal,
+): Promise<Blob | null> {
+  const environmentId = appAtomRegistry.get(themeEnvironmentIdAtom);
+  if (environmentId === null) return null;
+  const key = storedKey(environmentId, hash);
+  if (lastLoaded?.key === key) return lastLoaded.image;
+  const image = await loadBackground(
+    environmentId,
+    { _tag: "theme-background-image", hash },
+    signal,
+  );
+  if (image !== null) lastLoaded = { key, image };
+  return image;
 }
 
 /**
- * Sets `--theme-background-image` to the image published beside `themeId`, or clears it.
+ * Sets `--theme-background-image` to the image the theme asks for, or clears it. A look's stored
+ * image (`hash`) wins over the image published beside `themeId`.
  * The image is copied into a blob URL once per revision, so the signed URL may expire.
  */
-export function applyThemeBackground(themeId: string | undefined): void {
+export function applyThemeBackground(themeId: string | undefined, hash?: string): void {
   if (typeof document === "undefined") return;
+  requested = { themeId, hash };
   const environmentId = appAtomRegistry.get(themeEnvironmentIdAtom);
   const revision =
-    themeId === undefined
-      ? undefined
-      : appAtomRegistry.get(themeServerEnvironmentThemesAtom)?.find((theme) => theme.id === themeId)
-          ?.background;
+    hash !== undefined
+      ? hash
+      : themeId === undefined
+        ? undefined
+        : appAtomRegistry
+            .get(themeServerEnvironmentThemesAtom)
+            ?.find((theme) => theme.id === themeId)?.background;
   const key =
-    environmentId === null || themeId === undefined || revision === undefined
+    environmentId === null || revision === undefined
       ? null
-      : JSON.stringify([environmentId, themeId, revision]);
+      : hash !== undefined
+        ? storedKey(environmentId, hash)
+        : JSON.stringify([environmentId, themeId, revision]);
   if (key === shownKey) return;
   shownKey = key;
   loading?.abort();
   loading = null;
   // The previous image must not show under the next theme while it loads.
   show(null);
-  if (environmentId === null || themeId === undefined || key === null) return;
+  const resource: AssetResource | null =
+    hash !== undefined
+      ? { _tag: "theme-background-image", hash }
+      : themeId === undefined
+        ? null
+        : { _tag: "environment-theme-background", themeId };
+  if (environmentId === null || key === null || resource === null) return;
+  if (lastLoaded?.key === key) {
+    show(URL.createObjectURL(lastLoaded.image));
+    return;
+  }
   const controller = new AbortController();
   loading = controller;
   let retries = 0;
@@ -90,15 +135,13 @@ export function applyThemeBackground(themeId: string | undefined): void {
     shownKey = null;
   };
   const load = () => {
-    loadBackground(environmentId, themeId, controller.signal).then((url) => {
-      if (controller.signal.aborted) {
-        if (url !== null) URL.revokeObjectURL(url);
-        return;
-      }
-      if (url === null) failed();
+    loadBackground(environmentId, resource, controller.signal).then((image) => {
+      if (controller.signal.aborted) return;
+      if (image === null) failed();
       else {
         loading = null;
-        show(url);
+        lastLoaded = { key, image };
+        show(URL.createObjectURL(image));
       }
     }, failed);
   };
@@ -110,7 +153,7 @@ export function applyThemeBackground(themeId: string | undefined): void {
  * Coming back online retries a download that failed; a shown image is left alone.
  */
 export function startThemeBackground(): () => void {
-  const reapply = () => applyThemeBackground(document.documentElement.dataset.themeId);
+  const reapply = () => applyThemeBackground(requested.themeId, requested.hash);
   const unsubscribe = subscribeAtomChanges(themeServerEnvironmentThemesAtom, reapply);
   window.addEventListener("online", reapply);
   return () => {
@@ -119,6 +162,7 @@ export function startThemeBackground(): () => void {
     loading?.abort();
     loading = null;
     shownKey = null;
+    lastLoaded = null;
     show(null);
   };
 }
