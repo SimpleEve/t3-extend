@@ -7,6 +7,7 @@ import {
   ProviderDriverKind,
   ProviderInstanceId,
   ProviderSetupError,
+  type ServerProviderAccount,
   type ServerProviderUsageLimits,
 } from "@t3tools/contracts";
 import * as Deferred from "effect/Deferred";
@@ -142,6 +143,8 @@ const makeHarness = Effect.fn("makeAntigravityProviderHarness")(function* (
     readonly storedSignIn?: Effect.Effect<boolean>;
     /** A shared CLI login: the health check asks this instead of reading a token. */
     readonly silentSignIn?: boolean;
+    // fork: the saved Google accounts of a separate sign-in, read whenever a snapshot is built.
+    readonly accounts?: Effect.Effect<ReadonlyArray<ServerProviderAccount>>;
   } = {},
 ) {
   const silentCalls = yield* Ref.make(0);
@@ -160,6 +163,7 @@ const makeHarness = Effect.fn("makeAntigravityProviderHarness")(function* (
       ...(options.auth ? { auth: options.auth } : {}),
       ...(options.probeUsage ? { probeUsage: options.probeUsage } : {}),
       ...(options.storedSignIn ? { storedSignIn: options.storedSignIn } : {}),
+      ...(options.accounts ? { accounts: options.accounts } : {}),
       ...(options.silentSignIn
         ? {
             silentSignIn: Ref.update(silentCalls, (count) => count + 1).pipe(
@@ -447,6 +451,37 @@ it.layer(layerTest)("Antigravity provider snapshots", (it) => {
         status: "ready",
         auth: { status: "authenticated" },
       });
+    }),
+  );
+
+  // fork: an instance with several saved accounts lists them in its snapshot, current account first in use.
+  it.effect("lists the saved accounts in the snapshot and follows changes to them", () =>
+    Effect.gen(function* () {
+      const accounts = yield* Ref.make<ReadonlyArray<ServerProviderAccount>>([]);
+      const harness = yield* makeHarness({
+        storedSignIn: Effect.succeed(true),
+        accounts: Ref.get(accounts),
+      });
+      yield* harness.initialize;
+      // No saved account means no list.
+      expect((yield* harness.provider.snapshot.getSnapshot).auth.accounts).toBeUndefined();
+      yield* Ref.set(accounts, [
+        { id: "0123456789abcdef", email: "a@example.com", current: true },
+        {
+          id: "fedcba9876543210",
+          email: "b@example.com",
+          current: false,
+          exhaustedUntil: "2026-11-21T20:00:00.000Z",
+        },
+      ]);
+      const snapshot = yield* harness.provider.snapshot.getSnapshot;
+      expect(snapshot.auth.accounts?.map((account) => account.email)).toEqual([
+        "a@example.com",
+        "b@example.com",
+      ]);
+      expect(snapshot.auth.accounts?.[1]?.exhaustedUntil).toBe("2026-11-21T20:00:00.000Z");
+      // The sign-in state is untouched by the list.
+      expect(snapshot.auth.status).not.toBe("unauthenticated");
     }),
   );
 

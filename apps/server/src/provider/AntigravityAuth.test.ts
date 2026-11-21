@@ -64,6 +64,11 @@ const makeHarness = Effect.fn("makeAuthTestHarness")(function* (
     readonly beforeInitialize?: Effect.Effect<void>;
     readonly forwardCallback?: Effect.Effect<void, ProviderSetupError>;
     readonly codeLogin?: boolean;
+    // fork: an instance with several saved accounts.
+    readonly accounts?: {
+      readonly selectMethod: (id: string) => Effect.Effect<void, ProviderSetupError>;
+      readonly removeMethod: (id: string) => Effect.Effect<void, ProviderSetupError>;
+    };
   } = {},
 ) {
   const loginCodes: string[] = [];
@@ -83,6 +88,7 @@ const makeHarness = Effect.fn("makeAuthTestHarness")(function* (
     ...(options.logoutBlockedMessage === undefined
       ? {}
       : { logoutBlockedMessage: options.logoutBlockedMessage }),
+    ...options.accounts, // fork:
     makeRuntime: (input) =>
       Effect.gen(function* () {
         receiveAuthorizationUrl = input.onAuthorizationUrl;
@@ -577,6 +583,66 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("AntigravityAuth"
       ]);
       assert.deepEqual(harness.catalog(), []);
       yield* harness.auth.withProcess(Effect.void, Effect.void).pipe(Effect.scoped);
+    }),
+  );
+
+  // fork: saved accounts are swapped with agy stopped, so it cannot write its own account back.
+  it.effect("changes a saved account only after sessions and processes have stopped", () =>
+    Effect.gen(function* () {
+      const events: string[] = [];
+      const harness = yield* makeHarness({
+        accounts: {
+          selectMethod: (id) => Effect.sync(() => events.push(`select:${id}`)).pipe(Effect.asVoid),
+          removeMethod: (id) =>
+            id === "bad"
+              ? Effect.fail(
+                  new ProviderSetupError({ instanceId, operation: "removeMethod", detail: "No." }),
+                )
+              : Effect.sync(() => events.push(`remove:${id}`)).pipe(Effect.asVoid),
+        },
+      });
+      const processScope = yield* Scope.make();
+      yield* Effect.addFinalizer(() => Scope.close(processScope, Exit.void));
+      yield* harness.auth
+        .withProcess(
+          Effect.sync(() => events.push("process-stop")).pipe(
+            Effect.andThen(Scope.close(processScope, Exit.void)),
+          ),
+          Effect.void,
+        )
+        .pipe(Scope.provide(processScope));
+      const stopSessions = Effect.sync(() => events.push("sessions-stop")).pipe(Effect.asVoid);
+      const state = yield* harness.auth.controller.selectMethod!("one", stopSessions);
+      assert.equal(state.phase, "idle");
+      assert.deepEqual(events, ["sessions-stop", "process-stop", "select:one"]);
+
+      // A failed change reports its error and does not leave the instance locked.
+      const failed = yield* harness.auth.controller.removeMethod!("bad", stopSessions).pipe(
+        Effect.flip,
+      );
+      assert.equal(failed.detail, "No.");
+      yield* harness.auth.controller.removeMethod!("two", stopSessions);
+      assert.include(events, "remove:two");
+      yield* harness.auth.withProcess(Effect.void, Effect.void).pipe(Effect.scoped);
+    }),
+  );
+
+  it.effect("refuses to change a saved account while a sign-in is running", () =>
+    Effect.gen(function* () {
+      const calls: string[] = [];
+      const harness = yield* makeHarness({
+        accounts: {
+          selectMethod: (id) => Effect.sync(() => calls.push(id)).pipe(Effect.asVoid),
+          removeMethod: (id) => Effect.sync(() => calls.push(id)).pipe(Effect.asVoid),
+        },
+      });
+      yield* harness.auth.controller.start(owner);
+      yield* phase(harness.auth, "waiting");
+      const refused = yield* harness.auth.controller.selectMethod!("one", Effect.void).pipe(
+        Effect.flip,
+      );
+      assert.include(refused.detail, "already in progress");
+      assert.deepEqual(calls, []);
     }),
   );
 

@@ -61,6 +61,16 @@ export const ServerProviderAuthStatus = Schema.Literals([
 ]);
 export type ServerProviderAuthStatus = typeof ServerProviderAuthStatus.Type;
 
+/** fork: one of the Google accounts an Antigravity instance keeps. */
+export const ServerProviderAccount = Schema.Struct({
+  id: TrimmedNonEmptyString,
+  email: Schema.optional(TrimmedNonEmptyString),
+  current: Schema.Boolean,
+  /** When its quota is back; absent while it has quota. */
+  exhaustedUntil: Schema.optional(IsoDateTime),
+});
+export type ServerProviderAccount = typeof ServerProviderAccount.Type;
+
 export const ServerProviderAuth = Schema.Struct({
   status: ServerProviderAuthStatus,
   type: Schema.optional(TrimmedNonEmptyString),
@@ -73,6 +83,8 @@ export const ServerProviderAuth = Schema.Struct({
   workspaceId: Schema.optional(TrimmedNonEmptyString),
   /** Origin of the custom endpoint the instance sends its requests to. */
   endpoint: Schema.optional(TrimmedNonEmptyString),
+  /** fork: the accounts saved in this instance, in the order they take over. */
+  accounts: Schema.optional(Schema.Array(ServerProviderAccount)),
 });
 export type ServerProviderAuth = typeof ServerProviderAuth.Type;
 

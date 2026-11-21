@@ -82,6 +82,8 @@ export interface AntigravityAccountPool {
   readonly remove: (id: string) => Effect.Effect<void, AntigravityAccountPoolError>;
   /** Records the current account's spent quota and names the account that takes over. */
   readonly markExhausted: (resetAt?: number) => Effect.Effect<AntigravityRotationPlan>;
+  /** Signing out leaves no saved account behind. */
+  readonly clear: Effect.Effect<void, AntigravityAccountPoolError>;
   /**
    * Run before agy starts. Always restores the current account if a sign-in was cut short; with
    * `rotate`, also moves to the first usable account when the current one is spent. True when the
@@ -353,6 +355,13 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
       }).pipe(Effect.orElseSucceed((): AntigravityRotationPlan => ({ _tag: "NoAccount" }))),
     );
 
+  const clear: AntigravityAccountPool["clear"] = synchronized(
+    Effect.gen(function* () {
+      yield* fs.remove(accountsDirectory, { recursive: true, force: true });
+      yield* fs.remove(currentPath, { force: true });
+    }).pipe(Effect.mapError((cause) => poolError("Could not remove the saved accounts.", cause))),
+  );
+
   const ensureAvailable: AntigravityAccountPool["ensureAvailable"] = ({ rotate }) =>
     synchronized(
       Effect.gen(function* () {
@@ -386,6 +395,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
     select,
     remove,
     markExhausted,
+    clear,
     ensureAvailable,
   } satisfies AntigravityAccountPool;
 });

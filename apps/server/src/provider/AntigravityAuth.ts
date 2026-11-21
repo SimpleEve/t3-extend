@@ -114,6 +114,9 @@ export interface AntigravityAuthOptions<
   readonly usesBrowser?: boolean;
   // fork: the login belongs to the agy CLI, and a native logout would end it there too.
   readonly logoutBlockedMessage?: string;
+  // fork: an instance that keeps several saved accounts. Each runs with agy stopped.
+  readonly selectMethod?: (methodId: string) => Effect.Effect<void, ProviderSetupError>;
+  readonly removeMethod?: (methodId: string) => Effect.Effect<void, ProviderSetupError>;
   /** Undefined when the runtime signs in through ACP `authenticate` and T3's browser helper. */
   readonly codeLogin?: (input: {
     readonly onAuthorizationUrl: (url: string) => Effect.Effect<void, AcpErrors.AcpError>;
@@ -440,6 +443,43 @@ export const makeAntigravityAuth = Effect.fn("makeAntigravityAuth")(function* <
     return flow;
   });
 
+  const changeAccounts = (
+    name: string,
+    stopSessions: Effect.Effect<void, ProviderSetupError>,
+    change: Effect.Effect<void, ProviderSetupError>,
+  ) =>
+    Effect.uninterruptibleMask((restore) =>
+      Effect.gen(function* () {
+        yield* lock.withPermits(1)(
+          Effect.gen(function* () {
+            if (operation !== "idle") {
+              return yield* setupError(name, "Antigravity setup is already in progress.");
+            }
+            // Held like a sign-out: no agy may start until the account is in place.
+            operation = "logout";
+          }),
+        );
+        const result = yield* restore(
+          stopSessions.pipe(
+            Effect.ensuring(stopOwnedProcesses),
+            Effect.andThen(change),
+            Effect.timeoutOrElse({
+              duration: "30 seconds",
+              orElse: () =>
+                Effect.fail(setupError(name, "Changing the Antigravity account timed out.")),
+            }),
+          ),
+        ).pipe(Effect.exit);
+        yield* lock.withPermits(1)(
+          Effect.sync(() => {
+            operation = "idle";
+          }),
+        );
+        if (Exit.isFailure(result)) return yield* Effect.failCause(result.cause);
+        return (yield* SubscriptionRef.get(snapshot)).state;
+      }),
+    );
+
   const controller: ProviderAuthController = {
     start: (ownerSessionId, stopSessions = Effect.void) =>
       lock.withPermits(1)(
@@ -579,6 +619,22 @@ export const makeAntigravityAuth = Effect.fn("makeAntigravityAuth")(function* <
       yield* stopFlow(flow, "cancelled", "Google sign-in was cancelled.");
       return flow.state;
     }),
+    // fork: replacing the account agy reads must not race a running agy, which would write its own
+    // account back, so sessions stop first as they do for sign-in and sign-out.
+    ...(options.selectMethod === undefined
+      ? {}
+      : {
+          selectMethod: (methodId: string, stopSessions: Effect.Effect<void, ProviderSetupError>) =>
+            changeAccounts("selectMethod", stopSessions, options.selectMethod!(methodId)),
+        }),
+    ...(options.removeMethod === undefined
+      ? {}
+      : {
+          removeMethod: (
+            methodId: string,
+            stopSessions: Effect.Effect<void, ProviderSetupError> = Effect.void,
+          ) => changeAccounts("removeMethod", stopSessions, options.removeMethod!(methodId)),
+        }),
     logout: Effect.fn("AntigravityAuth.logout")(function* (stopSessions) {
       if (options.logoutBlockedMessage !== undefined) {
         return yield* setupError("logout", options.logoutBlockedMessage); // fork:

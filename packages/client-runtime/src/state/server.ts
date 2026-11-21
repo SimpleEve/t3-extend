@@ -1534,6 +1534,11 @@ export function createServerEnvironmentAtoms<R, E>(
       label: "environment-data:provider:auth-remove-method",
       tag: WS_METHODS.providerAuthRemoveMethod,
     }),
+    // fork:
+    selectProviderAuthMethod: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:provider:auth-select-method",
+      tag: WS_METHODS.providerAuthSelectMethod,
+    }),
     logoutProviderAuth: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:provider:auth-logout",
       tag: WS_METHODS.providerAuthLogout,

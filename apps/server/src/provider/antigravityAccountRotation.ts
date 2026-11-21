@@ -1,4 +1,4 @@
-import type { OrchestrationV2ProviderFailure } from "@t3tools/contracts";
+import type { OrchestrationV2ProviderFailure, ServerProviderAccount } from "@t3tools/contracts";
 import { makeProviderFailure } from "@t3tools/provider-core/server/failure";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -25,6 +25,21 @@ function resetLabel(epochMillis: number): string {
     timeZoneName: "short",
   }).format(epochMillis);
 }
+
+/** The accounts as a provider snapshot lists them; an instance with none lists nothing. */
+export const antigravityServerAccounts = (pool: Pick<AntigravityAccountPool, "list">) =>
+  pool.list.pipe(
+    Effect.map((accounts): ReadonlyArray<ServerProviderAccount> =>
+      accounts.map((account) => ({
+        id: account.id,
+        ...(account.email === null ? {} : { email: account.email }),
+        current: account.current,
+        ...(account.exhaustedUntil === null
+          ? {}
+          : { exhaustedUntil: DateTime.formatIso(DateTime.makeUnsafe(account.exhaustedUntil)) }),
+      })),
+    ),
+  );
 
 /**
  * Called when a turn ends on a usage limit. Records the spent account, then either names the account

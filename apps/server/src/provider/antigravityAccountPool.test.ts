@@ -172,6 +172,18 @@ describe("Antigravity account pool", () => {
       }).pipe(Effect.scoped, Effect.provide(layer)),
   );
 
+  it.effect("leaves nothing behind when signing out", () =>
+    Effect.gen(function* () {
+      const { pool, agyWrites, addAccount, currentExists, fs, path, acp } = yield* fixture();
+      yield* agyWrites(token("a@example.com"));
+      yield* addAccount("b@example.com");
+      yield* pool.clear;
+      expect(yield* currentExists()).toBe(false);
+      expect(yield* fs.exists(path.join(acp, "accounts"))).toBe(false);
+      expect(yield* pool.list).toEqual([]);
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
   it.effect.runIf(HostProcess.Platform.defaultValue() !== "win32")(
     "keeps token files private to the owner",
     () =>

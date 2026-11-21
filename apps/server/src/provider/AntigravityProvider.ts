@@ -6,6 +6,7 @@ import {
   type ProviderSetupError,
   type RuntimeMode,
   type ServerProvider,
+  type ServerProviderAccount,
   type ServerProviderModel,
   type ServerProviderSlashCommand,
   type ServerProviderUsageLimits,
@@ -187,6 +188,8 @@ interface AntigravityProviderOptions {
   readonly silentSignIn?: Effect.Effect<void>;
   readonly maintenanceCapabilities?: ProviderMaintenanceCapabilities;
   readonly auth?: { readonly type: string; readonly label: string };
+  // fork: the accounts an instance with several saved sign-ins offers, read each time a snapshot is built.
+  readonly accounts?: Effect.Effect<ReadonlyArray<ServerProviderAccount>>;
 }
 
 const RUNTIME_MODES_WITHOUT_AUTO = [
@@ -261,8 +264,17 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
       thinkingLevels.set(model.currentValue, antigravityThinkingConfig(configOptions) ?? null);
     }
   };
+  // fork: the saved accounts ride along on every snapshot, so a change to them needs no state of its own.
+  const stamp = (draft: ServerProviderDraft) =>
+    (options.accounts ?? Effect.succeed([])).pipe(
+      Effect.flatMap((accounts) =>
+        options.stampIdentity(
+          accounts.length === 0 ? draft : { ...draft, auth: { ...draft.auth, accounts } },
+        ),
+      ),
+    );
   const getSnapshot = SubscriptionRef.get(metadata).pipe(
-    Effect.flatMap((state) => options.stampIdentity(state.draft)),
+    Effect.flatMap((state) => stamp(state.draft)),
   );
 
   // The quota read can take 30 seconds, so it never blocks readiness or a session start.
@@ -424,7 +436,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
       return [checked, stored === state ? Option.none() : Option.some(stored)];
     });
     if (initialized !== undefined) yield* refreshUsage();
-    return yield* options.stampIdentity(next.draft);
+    return yield* stamp(next.draft);
   });
 
   const maintenanceCapabilities =
@@ -442,9 +454,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
     checkProvider: checkProvider(),
     enrichSnapshot: ({ publishSnapshot }) =>
       SubscriptionRef.changes(metadata).pipe(
-        Stream.runForEach((state) =>
-          options.stampIdentity(state.draft).pipe(Effect.flatMap(publishSnapshot)),
-        ),
+        Stream.runForEach((state) => stamp(state.draft).pipe(Effect.flatMap(publishSnapshot))),
       ),
   });
   yield* Deferred.succeed(republish, managed.refresh);

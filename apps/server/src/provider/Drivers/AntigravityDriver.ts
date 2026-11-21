@@ -86,7 +86,11 @@ import {
 } from "../antigravityCliLogin.ts"; // fork:
 import { makeAntigravityUsageProbe } from "../antigravityUsageLimits.ts";
 import { makeAntigravityProxyDispatcher } from "../antigravityNetworkProxy.ts"; // fork:
-import { makeAntigravityAccountPool } from "../antigravityAccountPool.ts"; // fork:
+import {
+  makeAntigravityAccountPool,
+  type AntigravityAccountPoolError,
+} from "../antigravityAccountPool.ts"; // fork:
+import { antigravityServerAccounts } from "../antigravityAccountRotation.ts"; // fork:
 import { makeAntigravityUsageLimitRecovery } from "../antigravityAccountRotation.ts"; // fork:
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
 import * as ModelCatalog from "@t3tools/provider-core/server/ModelCatalog";
@@ -590,6 +594,17 @@ export const AntigravityDriver: ProviderDriver<
       yield* runtime.drainEvents;
     }, Effect.scoped);
 
+    // fork: a change of account replaces the quota on screen and the list of accounts.
+    const accountChange = (
+      operation: string,
+      change: Effect.Effect<void, AntigravityAccountPoolError>,
+    ) =>
+      change.pipe(
+        Effect.mapError(
+          (cause) => new ProviderSetupError({ instanceId, operation, detail: cause.detail, cause }),
+        ),
+        Effect.andThen(Effect.suspend(() => provider.onSignedIn)),
+      );
     const authFlow: AntigravityAuth = yield* makeAntigravityAuth({
       instanceId,
       makeRuntime: makeDisposableRuntime,
@@ -599,7 +614,24 @@ export const AntigravityDriver: ProviderDriver<
           Effect.andThen(sharedLogin ? Effect.void : rememberProfileLogin), // fork:
           Effect.andThen(publishCatalog(started, runtime)),
         ),
-      onSignedOut: Effect.suspend(() => provider.onSignedOut),
+      // fork: signing out leaves no saved account behind.
+      onSignedOut: Effect.suspend(() => provider.onSignedOut).pipe(
+        Effect.andThen(
+          accountPool?.clear.pipe(
+            Effect.catch((cause) =>
+              Effect.logWarning("Could not remove the saved Antigravity accounts.", { cause }),
+            ),
+          ) ?? Effect.void,
+        ),
+      ),
+      ...(accountPool
+        ? {
+            selectMethod: (methodId: string) =>
+              accountChange("selectMethod", accountPool.select(methodId)),
+            removeMethod: (methodId: string) =>
+              accountChange("removeMethod", accountPool.remove(methodId)),
+          }
+        : {}),
       usesBrowser: antigravityAuthUsesBrowser(auth.authMethod),
       // fork: a shared CLI login signs in through ACP, so the keyring entry stays the CLI's.
       ...(sharedLogin
@@ -683,6 +715,8 @@ export const AntigravityDriver: ProviderDriver<
             }
           : {}),
       auth: { type: auth.authMethod, label: antigravityAuthLabel(auth.authMethod) },
+      // fork: the saved Google accounts of a separate sign-in.
+      ...(accountPool ? { accounts: antigravityServerAccounts(accountPool) } : {}),
       supportsTextGeneration: isAntigravityTextGenerationAvailable(profileDirectory).pipe(
         Effect.provideService(FileSystem.FileSystem, fileSystem),
         Effect.provideService(Path.Path, path),

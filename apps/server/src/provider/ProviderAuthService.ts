@@ -54,6 +54,10 @@ export class ProviderAuthService extends Context.Service<
     readonly removeMethod: (
       input: ProviderAuthTarget & { readonly methodId: string },
     ) => Effect.Effect<ProviderAuthState, ProviderSetupError>;
+    // fork:
+    readonly selectMethod: (
+      input: ProviderAuthTarget & { readonly methodId: string },
+    ) => Effect.Effect<ProviderAuthState, ProviderSetupError>;
     readonly logout: (
       input: ProviderAuthTarget,
     ) => Effect.Effect<ProviderAuthState, ProviderSetupError>;
@@ -178,7 +182,7 @@ export const makeProviderAuthService = Effect.gen(function* () {
 
   const checkSharedBinding = Effect.fnUntraced(function* (
     instanceId: ProviderInstanceId,
-    operation: "start" | "logout" | "removeMethod",
+    operation: "start" | "logout" | "removeMethod" | "selectMethod",
     auth: ProviderAuthController,
   ) {
     const binding = auth.credentialBinding;
@@ -276,7 +280,29 @@ export const makeProviderAuthService = Effect.gen(function* () {
               operation: "removeMethod",
               detail: "This provider does not support removing saved sign-in methods.",
             });
-          return yield* auth.removeMethod(input.methodId);
+          return yield* auth.removeMethod(
+            input.methodId,
+            stopSessions(input.instanceId, auth.credentialBinding), // fork:
+          );
+        }),
+      );
+    }),
+    // fork:
+    selectMethod: Effect.fn("ProviderAuthService.selectMethod")(function (input) {
+      return credentialChanges.withPermit(
+        Effect.gen(function* () {
+          const auth = yield* getController(input.instanceId, "selectMethod");
+          yield* checkSharedBinding(input.instanceId, "selectMethod", auth);
+          if (!auth.selectMethod)
+            return yield* new ProviderSetupError({
+              instanceId: input.instanceId,
+              operation: "selectMethod",
+              detail: "This provider does not keep several saved sign-ins.",
+            });
+          return yield* auth.selectMethod(
+            input.methodId,
+            stopSessions(input.instanceId, auth.credentialBinding),
+          );
         }),
       );
     }),

@@ -213,6 +213,21 @@ const makeHarness = Effect.fn("ProviderAuthService.test.makeHarness")(function* 
       flowOwner = undefined;
       return state;
     }),
+    // fork: saved accounts change with every session of the instance stopped.
+    selectMethod: Effect.fn(function* (methodId, stopSessions) {
+      gateClosed = true;
+      actions.push("close-gate");
+      yield* stopSessions;
+      actions.push(`select:${methodId}`);
+      return idle;
+    }),
+    removeMethod: Effect.fn(function* (methodId, stopSessions = Effect.void) {
+      gateClosed = true;
+      actions.push("close-gate");
+      yield* stopSessions;
+      actions.push(`remove:${methodId}`);
+      return idle;
+    }),
     subscribe: (ownerSessionId) =>
       Stream.fromEffect(Effect.sync(() => (ownerSessionId === flowOwner ? state : idle))),
     isLogoutPrompt: (text, hasAttachments) => !hasAttachments && text.trim() === "/logout",
@@ -641,6 +656,45 @@ describe("ProviderAuthService", () => {
         "native-logout",
       ]);
       assert.deepStrictEqual(released, ["running-session", "starting-session", "idle-session"]);
+    }),
+  );
+
+  // fork:
+  it.effect.each(["selectMethod", "removeMethod"] as const)(
+    "stops every live session on the instance before %s changes the saved account",
+    (operation) =>
+      Effect.gen(function* () {
+        const { service, actions, released } = yield* makeHarness({
+          threads: [
+            makeThread("running"),
+            makeThread("other", { providerInstanceId: otherInstanceId }),
+          ],
+          sessions: new Map([
+            [ThreadId.make("running"), [makeSession("running-session", "running")]],
+            [ThreadId.make("other"), [makeSession("other-session", "ready", otherInstanceId)]],
+          ]),
+        });
+        const state = yield* service[operation]({ instanceId, methodId: "account-1" });
+        assert.strictEqual(state.phase, "idle");
+        assert.deepStrictEqual(actions, [
+          "close-gate",
+          "list-threads",
+          "sessions:running",
+          "stop:running-session",
+          "sessions:other",
+          operation === "selectMethod" ? "select:account-1" : "remove:account-1",
+        ]);
+        assert.deepStrictEqual(released, ["running-session"]);
+      }),
+  );
+
+  it.effect("refuses to select a saved account where the provider keeps none", () =>
+    Effect.gen(function* () {
+      const { service } = yield* makeHarness({});
+      const error = yield* Effect.flip(
+        service.selectMethod({ instanceId: unsupportedInstanceId, methodId: "account-1" }),
+      );
+      assert.strictEqual(error.operation, "selectMethod");
     }),
   );
 
