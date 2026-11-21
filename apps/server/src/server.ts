@@ -36,7 +36,6 @@ import * as NonBlockingSpawner from "./process/NonBlockingSpawner.ts";
 import * as KeepAwake from "./background/KeepAwake.ts";
 import * as ServerConfig from "./config.ts";
 import * as TunnelListener from "./fork/deviceKeys/TunnelListener.ts"; // fork: self-hosted pairing
-import * as TunnelExclusions from "./fork/tunnelExclusions/TunnelExclusions.ts"; // fork: preview tunnel exclusions
 import { withRootRequestSpans, withUntracedRequests } from "./http.ts";
 import * as ServerHttp from "./http.ts";
 import {
@@ -937,7 +936,6 @@ const layerMakeRoutes = Layer.mergeAll(
   Layer.provide(PreviewAutomationBroker.layer),
   Layer.provide(ServerSelfUpdate.layer.pipe(Layer.provide(layerDesktopAppUpdate))),
   Layer.provide(layerCommandReadiness),
-  Layer.provide(TunnelExclusions.layer), // fork: what the preview tunnel never reaches
   Layer.provide(AuthAttemptLimiter.middleware.pipe(Layer.provide(AuthAttemptLimiter.layer))), // fork: auth rate limit
   Layer.provide(ServerHttp.layerBrowserApiCors),
   Layer.provide(ServerHttp.layerHttpCompression),

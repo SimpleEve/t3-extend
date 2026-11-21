@@ -294,9 +294,7 @@ t3x pair --base-url https://<名字>.t3.example.com
 
 ## 7. 远程环境里的 localhost 转发
 
-**用途**：你在桌面版里连着一个远程环境 B（比如通过自建服务器或 Tailscale 连到另一台 Mac）。B 上有个只监听 `localhost` 的服务，你想在内置浏览器里直接打开 `http://localhost:<端口>`。这用的是官方版的预览隧道：页面在本机渲染，连接转到 B 的回环地址。B 上的服务不管是谁起的都能打开，`nohup` 起的也可以。
-
-标签页里的网页能连到隧道能连到的一切，所以 T3 Extend 把 B 上几类服务排除在外：带调试参数（`--inspect` 之类）起的服务，调试器和守护进程常用的端口（9222、9229、5858、5859、5005、5678、2375、2376），以及 T3 Extend 自己的进程和各 agent 的运行时。打开它们会显示一页说明"不能转发"。
+**用途**：你在桌面版里连着一个远程环境 B（比如通过自建服务器或 Tailscale 连到另一台 Mac）。B 上有个只监听 `localhost` 的服务，你想在内置浏览器里直接打开 `http://localhost:<端口>`。这和官方版完全一样：页面在本机渲染，连接经 B 的预览隧道转到 B 的回环地址。B 上任何端口都能打开，不管服务是谁起的，只有 T3 server 自己的端口除外。
 
 要在 B 上关掉隧道，在 B 的 **设置 → 共享与访问 → 预览隧道** 里关。详见 [remote-access.md](../user/remote-access.md#localhost-on-a-remote-environment)。
 
@@ -377,7 +375,7 @@ iPhone 的通知只能经过 Apple 的 APNs，而且只有给应用签名的那�
 | "在后台保持运行"这一行提示 app 位置有问题                          | 移动或删除过 app，或是从磁盘映像里直接打开的。把 app 放进"应用程序"，把开关关掉再打开。                                                                                                                              |
 | 打开 app 时提示后台服务没能停下，然后退出                          | app 不会在服务还占着数据的时候起第二个 server。运行 `t3x service uninstall` 移除服务。                                                                                                                               |
 | `t3x service install` 下载失败                                     | 需要的 release 不存在，或者网络访问不了 GitHub。到 Releases 页面确认版本在不在，或者用 `T3CODE_RELEASE_BASE_URL` 指向你自己的镜像。macOS 上也可以用桌面版的开关，它不下载任何东西。                                  |
-| 远程环境的标签页里 localhost 打不开                                | 看标签页里那一页说了什么。带调试参数的服务、调试器端口和 T3 自己的进程不转发：去掉 `--inspect` 或换个端口重启服务。再确认环境上 设置 → 共享与访问 → 预览隧道 是开着的。                                              |
+| 远程环境的标签页里 localhost 打不开                                | 确认服务在环境上监听的是 `127.0.0.1`（或 `::1`），并且那边 设置 → 共享与访问 → 预览隧道 是开着的。T3 server 自己的端口不会转发。                                                                                     |
 | 手机收不到推送                                                     | 先在「设置 → 通知」里用"发送测试通知"。再检查推送服务器是不是公网地址、ntfy 应用的服务器和账号对不对、手机有没有限制 ntfy 的后台活动。                                                                               |
 
 排查时顺序大致是：host 的 server 在不在、地址对方能不能到、凭证有没有失效。上游的 [Remote access](../user/remote-access.md) 和 [后台运行](../user/background-service.md) 文档里有更多细节，自建服务器本身的排查见 [infra/self-host/README.md 的"出问题时"](../../infra/self-host/README.md#出问题时)。

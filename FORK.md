@@ -446,30 +446,15 @@ omp（oh-my-pi，Pi 的分支）是原生 provider，和上游的 Pi 并存。�
 
 新增原生模块和 Maven 依赖会改变 Android 的 native fingerprint（iOS 不变），之后要重新 `mobile:install` / 重新打 APK。
 
-## 预览隧道的排除名单
+## 远程环境的 localhost 转发
 
-远程环境 localhost 的转发用上游的预览隧道（`/api/preview/tunnel`，桌面的 `apps/desktop/src/preview/LoopbackTunnel.ts`、手机的"在本设备打开"和端口转发都走它）。上游的隧道对有 `terminal:operate` 的会话放行任何回环端口，只拦 server 自己的端口。标签页里的网页能连到隧道能连到的一切，所以 fork 在上游的 handler 里加了一个挂钩，下面三类不转发：
+完全照上游：桌面版为其他环境打开的标签页、端口转发、手机的"在本设备打开"都走上游的预览隧道（`/api/preview/tunnel`，桌面端 `apps/desktop/src/preview/LoopbackTunnel.ts`）。宿主机上任何回环端口都能转发，只有 server 自己的端口被上游拒绝；要关掉，在宿主机的 设置 → 共享与访问 → 预览隧道 里关。fork 以前的网关（按"谁起的进程"授权、手动放行卡片、自己的代理和票据）和之后的排除名单（调试端口、调试进程、T3 自己的进程）都已退役（2026-11-21，用户决定），上游文件不留挂钩。
 
-- 屏蔽端口表（9222、9229、5858、5859、5005、5678、2375、2376），不读进程就拒；
-- 带调试参数起的进程（`--inspect` 系列、`--remote-debugging-port`、JDWP，看 argv 和启动环境）；
-- T3 自己的进程：server 和它的祖先（E1）、server 的直接子进程里不是终端 shell 也不是 provider 的整棵子树（E2）、provider 自身和它的运行时（E3、E4，含崩溃后遗留的运行时）。omp、Antigravity、ACP registry 没有核对过进程形状，认的是适配器给 agent 进程设的 `T3CODE_THREAD_ID`：带这个标记的直接子进程算 provider，只拒它自己的监听，它起的子进程放行；T3 自己的辅助进程不带标记，仍按 E2。Cursor 的 SDK 在 server 进程里起 agent，适配器不设标记，它起的服务仍按 E2 拒绝。Claude、Codex 按进程特征认，规则不变。
+fork 只保留一处修复：**时钟偏差**。上游 `packages/client-runtime/src/state/previewTunnel.ts` 判断票据还能不能复用时，拿环境报的过期时间直接和本机时钟比；两边时钟差几分钟时，一边会一直复用过期票据（隧道全部失败），另一边每条连接都重新签票据。fork 改成按本机时钟算（`src/fork/previewTunnel/ticketExpiry.ts`：收到时刻加服务器给的寿命，限在 30 秒到 5 分钟之间，服务器给的时刻已经过去就按 5 分钟）。web 和手机共用这段。
 
-其余一律放行，不管是谁起的，`nohup` 起、被 launchd 收养的服务也行。fork 以前按"谁起的进程"授权、不认识的拒为 `not-owned` 再让用户手动放行，这套连同放行卡片、设置里的放行列表、自己的代理/隧道客户端/票据都已退役（2026-11-21）。
-
-**位置。** `apps/server/src/fork/tunnelExclusions/`：`TunnelExclusions.ts`（每个端口现读一次 `lsof`/`/proc` 和进程表，同一端口 2 秒内的并发连接共用一次读取；读不了就拒为 `unverified`；Windows 只查屏蔽端口）、`ExclusionRules.ts`（纯函数规则）、`RuntimeSignatures.ts`（provider 的进程特征）、`TerminalShellRegistry.ts`、`ProcessInspector.ts`、`refusalPage.ts`、监听点清单 `exclusions.json`。上游文件只动了 `apps/server/src/preview/PreviewTunnel.ts`（两行 import、两处调用）和 `server.ts`（提供 layer）。
-
-**被拒时的页面。** 上游客户端把隧道当成原始 TCP 流，握手时拒绝只会显示浏览器自己的网络错误页。所以挂钩在上游拨通端口之后才判定：被拒时照样完成 WebSocket 升级，读第一段数据，是 HTTP 请求就回一个 403 页面（按请求的 `Accept-Language`，中文或英文）然后关闭，不是 HTTP（TLS 握手、数据库客户端）就直接关闭，端口本身收不到一个字节。桌面标签页、端口转发进浏览器、手机的"在本设备打开"看到的都是这一页，不用改上游客户端。
-
-**时钟偏差。** 上游 `packages/client-runtime/src/state/previewTunnel.ts` 判断票据还能不能复用时，拿环境报的过期时间直接和本机时钟比；两边时钟差几分钟时，一边会一直复用过期票据（隧道全部失败），另一边每条连接都重新签票据。fork 改成按本机时钟算（`src/fork/previewTunnel/ticketExpiry.ts`：收到时刻加服务器给的寿命，限在 30 秒到 5 分钟之间，服务器给的时刻已经过去就按 5 分钟）。web 和手机共用这段。
-
-**一小时后 UNAUTHORIZED** 那个 fork 修过的问题不用搬：上游每次连接都用当前的会话凭据新签 media 票据，不存在"票据签在旧会话上"。服务端隧道随会话 `awaitInvalidation` 关闭，fork 在 `SessionStore` 里的 `renewalOf` 让它跟着每小时的续期走，不会在续期时误关。
+**一小时后 UNAUTHORIZED** 那个 fork 修过的问题不用搬：上游每次连接都用当前的会话凭据新签 media 票据。服务端隧道随会话 `awaitInvalidation` 关闭，fork 在 `SessionStore` 里的 `renewalOf` 让它跟着每小时的续期走，不会在续期时误关。
 
 **老用户的残留数据。** 以前放行的端口记在 `<stateDir>/loopback-gateway-allowed-ports.json`，现在没有代码读它，启动不受影响，可以手动删；web 的"停止转发"记在 localStorage，同样不再读。
-
-**维护者约束。**
-
-- 上游新增 provider 驱动时 `RuntimeSignatures.test.ts` 会失败：每个驱动要么在 `DRIVER_SIGNATURES` 里，要么在 `NO_SIGNATURE` 里写明理由，认不出的驱动整棵子树都不转发。新增监听点时 `ExclusionsInventory.test.ts` 会失败，要在 `exclusions.json` 里补一条（扫描里的 `"-L"` 是为 `ssh -L` 写的，会把分页上限之类也数进去，这种写明"不是监听点"即可）。
-- 同步上游时 `PreviewTunnel.ts` 的挂钩要保留在 `tunnel.connect` 之后、`request.upgrade` 之前。
 
 ## 打包与签名
 

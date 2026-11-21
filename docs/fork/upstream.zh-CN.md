@@ -47,7 +47,7 @@ fork 的设计细节、身份表和合并规则都在 [FORK.md](../../FORK.md)�
 ### 连接和远程使用
 
 - **自建连接。** 用自己的 VPS 跑 registry、frps 和 Caddy，代替 T3 Connect，让电脑和手机互相连接，不经过官方 relay 和 Cloudflare。服务器一条命令部署，电脑和手机各用一把设备密钥，失败时不会回落到官方服务。见 [自建连接](../../FORK.md#自建连接)，部署步骤在 [infra/self-host/README.md](../../infra/self-host/README.md)，用户说明在 [remote-access.md](../user/remote-access.md#your-own-server)。
-- **预览隧道的排除名单。** 上游的预览隧道让桌面版和手机打开远程环境 `localhost` 上的任何服务。T3 Extend 把调试器端口、带调试参数起的服务和 T3 自己的进程排除在外，并显示一页说明原因。见 FORK.md 的[预览隧道的排除名单](../../FORK.md#预览隧道的排除名单)，用户文档见 [remote-access.md](../user/remote-access.md#localhost-on-a-remote-environment)。
+- **预览隧道的时钟偏差。** 远程 `localhost` 转发就是上游的预览隧道，没有改动；T3 Extend 只修了两台机器时钟差几分钟时票据过期的判断。见 FORK.md 的[远程环境的 localhost 转发](../../FORK.md#远程环境的-localhost-转发)。
 - **手机新建浏览器标签页。** 手机上可以自己新建 Browser 标签页，打开宿主机上的页面（`localhost` 指宿主机），页面在宿主机渲染，手机只收画面。见 [手机新建浏览器标签页](../../FORK.md#手机新建浏览器标签页)，用户说明在 [remote-access.md](../user/remote-access.md#browser-on-a-remote-environment)。
 - **Android 上不依赖 Google 的推送。** 通过 UnifiedPush 收 Agent 提醒（典型做法是在自己的 VPS 上跑 ntfy），不经过 Firebase、Cloudflare 和 Clerk，载荷端到端加密。见 [不依赖 Google 的推送](../../FORK.md#不依赖-google-的推送android)，用户说明在 [mobile-notifications.md](../user/mobile-notifications.md#push-without-google)。
 - **桌面后台运行。** macOS 打包版设置 → 维护里的"在后台保持运行"开关：退出 app 之后服务继续跑，手机和推送不断。见 [后台运行（桌面版）](../../FORK.md#后台运行桌面版)，用户说明在 [background-service.md](../user/background-service.md#t3-extend-desktop-app-on-macos)。
