@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { PREVIEW_STREAM_HOST_INSTALLING_CLOSE_CODE } from "@t3tools/contracts"; // fork: install progress
+
 import { createPreviewStreamClient, type PreviewStreamControl } from "./serverBrowserStream.ts";
 
 class FakeSocket extends EventTarget {
@@ -19,6 +21,10 @@ class FakeSocket extends EventTarget {
   }
   close() {
     this.readyState = 3;
+  }
+  // fork: a server-initiated close
+  serverClose(code: number, reason = "") {
+    this.dispatchEvent(new CloseEvent("close", { code, reason }));
   }
   message(data: unknown) {
     this.dispatchEvent(new MessageEvent("message", { data }));
@@ -210,5 +216,54 @@ describe("preview stream agent pointer", () => {
       y: 50,
       sequence: 2,
     });
+  });
+});
+
+// fork: the server closes with 4504 while its headless browser installs.
+describe("preview stream install progress", () => {
+  beforeEach(() => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+  const start = () => {
+    const events = {
+      onFrame: vi.fn(),
+      onViewport: vi.fn(),
+      onConnectedChange: vi.fn(),
+      onUnauthorized: vi.fn(),
+      onHostInstalling: vi.fn(),
+    };
+    const client = createPreviewStreamClient(target, events);
+    return { client, events, first: FakeSocket.current };
+  };
+
+  it("reports the progress and reconnects on its own without asking for new access", () => {
+    const { client, events, first } = start();
+    first.serverClose(
+      PREVIEW_STREAM_HOST_INSTALLING_CLOSE_CODE,
+      JSON.stringify({ downloadedBytes: 5_000_000, totalBytes: 105_057_133, unpacking: false }),
+    );
+    expect(events.onHostInstalling).toHaveBeenCalledWith({
+      downloadedBytes: 5_000_000,
+      totalBytes: 105_057_133,
+      unpacking: false,
+    });
+    expect(events.onUnauthorized).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(3_000);
+    expect(FakeSocket.current).not.toBe(first);
+    client.stop();
+  });
+
+  it("keeps retrying when the reason cannot be read", () => {
+    const { client, events, first } = start();
+    first.serverClose(PREVIEW_STREAM_HOST_INSTALLING_CLOSE_CODE, "not json");
+    expect(events.onHostInstalling).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(10_000);
+    expect(FakeSocket.current).not.toBe(first);
+    client.stop();
   });
 });

@@ -131,6 +131,13 @@ export class PreviewBrowser extends Context.Service<
       string,
       PreviewBrowserInstallError | PreviewBrowserInstallingError | PreviewBrowserUnsupportedError
     >;
+    /** fork: `executable` with its own wait, for a caller that cannot hold a connection for the full one. */
+    readonly executableWithin: (
+      wait: Duration.Input,
+    ) => Effect.Effect<
+      string,
+      PreviewBrowserInstallError | PreviewBrowserInstallingError | PreviewBrowserUnsupportedError
+    >;
     readonly installed: Effect.Effect<Option.Option<string>>;
   }
 >()("t3/preview/PreviewBrowser") {}
@@ -405,7 +412,10 @@ export const makePreviewBrowser = Effect.fn("PreviewBrowser.make")(function* (
       }),
     );
 
-  const executable = Effect.gen(function* () {
+  // fork: `executable` with the wait as a parameter.
+  const executableWithin = Effect.fn("PreviewBrowser.executable")(function* (
+    waitFor: Duration.Input,
+  ) {
     if (release === null) {
       return yield* new PreviewBrowserUnsupportedError({ platform, arch });
     }
@@ -419,7 +429,7 @@ export const makePreviewBrowser = Effect.fn("PreviewBrowser.make")(function* (
         return yield* Deferred.await(current.done).pipe(
           Effect.tapError(clearFailure),
           Effect.timeoutOrElse({
-            duration: wait,
+            duration: waitFor,
             orElse: () =>
               Effect.fail(
                 new PreviewBrowserInstallingError({
@@ -431,11 +441,12 @@ export const makePreviewBrowser = Effect.fn("PreviewBrowser.make")(function* (
           }),
         );
     }
-  }).pipe(Effect.withSpan("PreviewBrowser.executable"));
+  });
+  const executable = executableWithin(wait);
 
   const installed = release === null ? Effect.succeedNone : installedExecutable(release);
 
-  return PreviewBrowser.of({ executable, installed });
+  return PreviewBrowser.of({ executable, executableWithin, installed });
 });
 
 export const layer = Layer.effect(

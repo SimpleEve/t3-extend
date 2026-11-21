@@ -7,11 +7,13 @@ import * as Digest from "effect/crypto/Digest";
 import type * as Duration from "effect/Duration";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as Hex from "effect/encoding/Hex";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Stream from "effect/Stream";
+import * as TestClock from "effect/testing/TestClock";
 import { HttpClient, HttpClientResponse } from "effect/http";
 import * as NodeZlib from "node:zlib";
 
@@ -176,6 +178,25 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("PreviewBrowser",
       expect(yield* fs.readDirectory(installRoot)).toEqual([]);
       yield* browser.executable.pipe(Effect.flip);
       expect(requests).toHaveLength(2);
+    }),
+  );
+
+  // fork: a viewer's connection cannot wait out a whole install
+  it.effect("reports install progress after the wait a caller asks for, not the default", () =>
+    Effect.gen(function* () {
+      const { browser } = yield* makeHarness({ body: Stream.never, wait: "45 seconds" });
+
+      const attempt = yield* browser
+        .executableWithin("2 seconds")
+        .pipe(Effect.flip, Effect.forkScoped);
+      yield* TestClock.adjust("2 seconds");
+      const error = yield* Fiber.join(attempt);
+
+      expect(error).toMatchObject({
+        _tag: "PreviewBrowserInstallingError",
+        downloadedBytes: 0,
+        unpacking: false,
+      });
     }),
   );
 

@@ -420,6 +420,8 @@ const desktopRenders = (tabId: string) => {
 };
 /** When set, a desktop that has not attached a tab waits for it the way the real channel does. */
 let desktopAttachesLate = false;
+// fork: while set, the headless browser reports this install progress.
+let browserInstalling: PreviewBrowser.PreviewBrowserInstallingError | null = null;
 let desktopAttachWaiting = Promise.withResolvers<void>();
 const shownDesktopTabs = new (class extends Set<string> {
   override add(tabId: string) {
@@ -462,6 +464,9 @@ const dependencies = Layer.mergeAll(
   }),
   Layer.succeed(PreviewBrowser.PreviewBrowser, {
     executable: Effect.die("mock Chromium does not need an executable"),
+    // fork: a viewer asks without waiting out an install
+    executableWithin: () =>
+      browserInstalling === null ? Effect.succeed("mock-chromium") : Effect.fail(browserInstalling),
     installed: Effect.die("mock Chromium does not need an executable"),
   }),
   Layer.succeed(DesktopChannel.DesktopBrowserChannel, {
@@ -611,6 +616,7 @@ beforeEach(() => {
   desktopLoadFailures.clear();
   desktopRendersNext = false;
   desktopAttachesLate = false;
+  browserInstalling = null;
   desktopAttachWaiting = Promise.withResolvers<void>();
   desktopPageUrl = "about:blank";
   desktopConnectionGate = null;
@@ -996,6 +1002,29 @@ it.effect("a tab opened headless stays off the desktop that would draw a client'
       expect(desktopRendersNext).toBe(true);
       const { sessions } = yield* manager.list({ threadId: scope.thread.threadId });
       expect(sessions.find((session) => session.tabId === tabId)?.headless).toBe(true);
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+// fork: an install holds `executable` for up to 45 s, longer than a phone waits to connect.
+it.effect("a viewer attaching while the headless browser installs gets the progress at once", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const browser = yield* ServerBrowser.ServerBrowser;
+      const manager = yield* Manager.PreviewManager;
+      browserInstalling = new PreviewBrowser.PreviewBrowserInstallingError({
+        downloadedBytes: 12_000_000,
+        totalBytes: 105_057_133,
+        unpacking: false,
+      });
+      const { tabId } = yield* manager.open({
+        threadId: scope.thread.threadId,
+        runtime: "server",
+        headless: true,
+      });
+      const error = yield* browser.attachViewer(viewerInput(tabId, true)).pipe(Effect.flip);
+      expect(error._tag).toBe("ServerBrowserLaunchError");
+      expect("cause" in error ? error.cause : undefined).toBe(browserInstalling);
     }),
   ).pipe(Effect.provide(layer)),
 );

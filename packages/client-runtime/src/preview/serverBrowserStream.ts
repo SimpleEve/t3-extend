@@ -1,7 +1,9 @@
 // @effect-diagnostics globalTimers:off globalFetch:off - This browser and WebView transport runs without an Effect runtime.
 import { type DeviceHubAccess, withDeviceHubQuery } from "../device/hubAccess.ts";
 import {
+  PREVIEW_STREAM_HOST_INSTALLING_CLOSE_CODE, // fork: install progress
   PREVIEW_STREAM_HOST_SETUP_CLOSE_CODE,
+  type PreviewStreamHostInstalling, // fork: install progress
   type PreviewStreamHostSetup,
   type PreviewViewportSetting,
 } from "@t3tools/contracts";
@@ -207,6 +209,8 @@ export interface PreviewStreamEvents {
   readonly onUnauthorized: () => void;
   readonly onGone?: () => void;
   readonly onHostSetup?: (setup: PreviewStreamHostSetup) => void;
+  /** fork: the server is downloading its headless browser; the client reconnects on its own. */
+  readonly onHostInstalling?: (progress: PreviewStreamHostInstalling) => void;
   /** fork: the host's desktop window shows this tab but sends no frames, e.g. a locked screen. */
   readonly onHostNotDrawing?: () => void;
 }
@@ -381,6 +385,15 @@ export function createPreviewStreamClient(
         events.onHostSetup?.(decodeHostSetup(event.reason));
         return;
       }
+      // fork: poll the install at a fixed pace; it is neither a failure nor a refusal.
+      if (event.code === PREVIEW_STREAM_HOST_INSTALLING_CLOSE_CODE) {
+        const progress = decodeHostInstalling(event.reason);
+        if (progress !== null) {
+          events.onHostInstalling?.(progress);
+          retryTimer = setTimeout(connect, INSTALL_POLL_MS);
+          return;
+        }
+      }
       // Rejected upgrades surface as 1006 before open for both cookies and tickets.
       if (event.code === 1008 || event.code === 4401 || (!opened && event.code === 1006)) {
         stopped = true;
@@ -464,6 +477,41 @@ export function createPreviewFramePainter(
     },
   };
 }
+
+// fork: the server waits up to 45 s for an install on each attach, so this only paces the gap.
+const INSTALL_POLL_MS = 3_000;
+
+const decodeHostInstalling = (reason: string): PreviewStreamHostInstalling | null => {
+  try {
+    const value = JSON.parse(reason) as Partial<PreviewStreamHostInstalling> | null;
+    if (
+      typeof value?.downloadedBytes === "number" &&
+      typeof value.totalBytes === "number" &&
+      typeof value.unpacking === "boolean"
+    ) {
+      return {
+        downloadedBytes: value.downloadedBytes,
+        totalBytes: value.totalBytes,
+        unpacking: value.unpacking,
+      };
+    }
+  } catch {}
+  return null;
+};
+
+/** fork: what a viewer shows while the host installs its browser. */
+export const previewStreamHostInstallingMessage = (
+  progress: PreviewStreamHostInstalling,
+  resolve: MFunctionType = mFallback,
+) =>
+  progress.unpacking
+    ? resolve(msg("Unpacking the browser…"))
+    : resolve(
+        msg("Installing the browser: {downloaded} of {total} MB", {
+          downloaded: String(Math.round(progress.downloadedBytes / 1_000_000)),
+          total: String(Math.round(progress.totalBytes / 1_000_000)),
+        }),
+      );
 
 const decodeHostSetup = (reason: string): PreviewStreamHostSetup => {
   try {

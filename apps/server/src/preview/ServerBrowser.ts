@@ -118,6 +118,9 @@ const VIEWER_STILL_TIMEOUT_MS = 2_000;
 // fork: a desktop-drawn tab that sends no frame this long is not being drawn; the phone's own
 // bootstrap gives up at 15 s, so this has to come first.
 const DESKTOP_FIRST_FRAME_TIMEOUT = "6 seconds";
+// fork: a viewer's upgrade waits on the attach; an install in progress must answer before a phone's
+// 15 s connect window ends, so it reports its progress instead of holding the full wait.
+const VIEWER_INSTALL_WAIT = "2 seconds";
 const VIEWER_OUTPUT_LIMIT = 64;
 const RECORDING_SCREENCAST = { format: "jpeg", quality: 90, everyNthFrame: 1 } as const;
 const RECORDING_BINARY_EXPORT_MIN_BYTES = 8 * 1024 * 1024;
@@ -1780,6 +1783,23 @@ const make = Effect.gen(function* () {
     });
   });
 
+  // fork: see VIEWER_INSTALL_WAIT. Only a tab that is not open yet and renders in the headless browser.
+  const awaitHeadlessBrowser = Effect.fn("ServerBrowser.awaitHeadlessBrowser")(function* (
+    threadId: string,
+    tabId: string,
+  ) {
+    if (tabs.has(tabKey(threadId, tabId))) return;
+    const { sessions } = yield* manager.list({ threadId: ThreadId.make(threadId) });
+    const snapshot = sessions.find(
+      (session) => session.tabId === tabId && session.runtime === "server",
+    );
+    if (!snapshot || (desktopChannel.available && !snapshot.headless)) return;
+    yield* previewBrowser.executableWithin(VIEWER_INSTALL_WAIT).pipe(
+      Effect.asVoid,
+      Effect.mapError((cause) => new ServerBrowserLaunchError({ cause })),
+    );
+  });
+
   const openingReservations = () =>
     [...pendingTabs.entries()].filter(([key]) => !tabs.has(key)).map(([, pending]) => pending);
   const serverAtTabLimit = () => tabs.size + openingReservations().length >= SERVER_TAB_LIMIT;
@@ -3201,6 +3221,7 @@ const make = Effect.gen(function* () {
   const attachViewer: ServerBrowser["Service"]["attachViewer"] = Effect.fn(
     "ServerBrowser.attachViewer",
   )(function* (input) {
+    yield* awaitHeadlessBrowser(input.threadId, input.tabId); // fork: install progress
     const tab = yield* findTab(input.threadId, input.tabId);
     const output = yield* Queue.make<ServerBrowserViewerOutput>({
       capacity: VIEWER_OUTPUT_LIMIT,

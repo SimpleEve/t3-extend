@@ -2,7 +2,9 @@ import * as NodeHttpServerRequest from "@effect/platform-node/NodeHttpServerRequ
 import {
   AuthOrchestrationReadScope,
   AuthPreviewOperateScope,
+  PREVIEW_STREAM_HOST_INSTALLING_CLOSE_CODE, // fork: install progress
   PREVIEW_STREAM_HOST_SETUP_CLOSE_CODE,
+  PreviewStreamHostInstalling, // fork: install progress
   PreviewStreamHostSetup,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
@@ -23,6 +25,7 @@ import * as Socket from "effect/socket/Socket";
 import { authenticateMediaRequest, failEnvironmentInternal } from "../auth/http.ts";
 import * as SessionStore from "../auth/SessionStore.ts";
 import { assetResponseHeaders } from "../http.ts";
+import * as PreviewBrowser from "./PreviewBrowser.ts"; // fork: install progress
 import * as PreviewBrowserHost from "./PreviewBrowserHost.ts";
 import * as ServerBrowser from "./ServerBrowser.ts";
 import { requestUrl } from "../requestUrl.ts";
@@ -97,6 +100,16 @@ const makeHandler = Effect.fnUntraced(function* (browser: ServerBrowser.ServerBr
           Effect.catchTags({
             ServerBrowserTabNotFoundError: () => Effect.succeed({ _tag: "gone" as const }),
             ServerBrowserLaunchError: (error) => {
+              // fork: the headless browser is still downloading
+              if (isInstallingError(error.cause))
+                return Effect.succeed({
+                  _tag: "hostInstalling" as const,
+                  reason: encodeHostInstalling({
+                    downloadedBytes: error.cause.downloadedBytes,
+                    totalBytes: error.cause.totalBytes,
+                    unpacking: error.cause.unpacking,
+                  }),
+                });
               const setup = hostSetup(error.cause);
               return setup === undefined
                 ? Effect.fail(error)
@@ -117,6 +130,12 @@ const makeHandler = Effect.fnUntraced(function* (browser: ServerBrowser.ServerBr
       const gone = writer.write(new Socket.CloseEvent(TAB_GONE_CODE, "tab closed"));
       if (attached._tag === "gone") {
         yield* gone;
+        return HttpServerResponse.empty();
+      }
+      if (attached._tag === "hostInstalling") {
+        yield* writer.write(
+          new Socket.CloseEvent(PREVIEW_STREAM_HOST_INSTALLING_CLOSE_CODE, attached.reason),
+        );
         return HttpServerResponse.empty();
       }
       if (attached._tag === "hostSetup") {
@@ -235,6 +254,9 @@ const hostSetup = (cause: unknown): PreviewStreamHostSetup | undefined =>
 const isSandboxError = Schema.is(PreviewBrowserHost.PreviewBrowserSandboxError);
 const isLibrariesError = Schema.is(PreviewBrowserHost.PreviewBrowserLibrariesError);
 const encodeHostSetup = Schema.encodeSync(Schema.fromJsonString(PreviewStreamHostSetup));
+// fork: install progress
+const isInstallingError = Schema.is(PreviewBrowser.PreviewBrowserInstallingError);
+const encodeHostInstalling = Schema.encodeSync(Schema.fromJsonString(PreviewStreamHostInstalling));
 
 // The request span already covers this download route.
 const serveDownload = Effect.fnUntraced(function* (

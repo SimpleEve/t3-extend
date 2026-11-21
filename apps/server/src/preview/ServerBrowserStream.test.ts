@@ -7,7 +7,9 @@ import {
   AuthOrchestrationReadScope,
   AuthPreviewOperateScope,
   AuthSessionId,
+  PREVIEW_STREAM_HOST_INSTALLING_CLOSE_CODE, // fork: install progress
   PREVIEW_STREAM_HOST_SETUP_CLOSE_CODE,
+  PreviewStreamHostInstalling, // fork: install progress
   PreviewStreamHostSetup,
   type AuthEnvironmentScope,
 } from "@t3tools/contracts";
@@ -23,6 +25,7 @@ import { HttpRouter, HttpServer } from "effect/http";
 
 import * as EnvironmentAuth from "../auth/EnvironmentAuth.ts";
 import * as SessionStore from "../auth/SessionStore.ts";
+import * as PreviewBrowser from "./PreviewBrowser.ts"; // fork: install progress
 import * as PreviewBrowserHost from "./PreviewBrowserHost.ts";
 import * as ServerBrowser from "./ServerBrowser.ts";
 import { routeLayer } from "./ServerBrowserStream.ts";
@@ -398,21 +401,8 @@ it.effect("passes uploaded files to the page's open picker and needs operate sco
 
 const decodeHostSetup = Schema.decodeUnknownEffect(Schema.fromJsonString(PreviewStreamHostSetup));
 
-it.effect.each([
-  {
-    error: new PreviewBrowserHost.PreviewBrowserSandboxError({
-      setupCommand: "sudo t3 browser setup",
-    }),
-    need: "sandbox",
-  },
-  {
-    error: new PreviewBrowserHost.PreviewBrowserLibrariesError({
-      setupCommand: "sudo t3 browser setup",
-      libraries: ["libnss3.so"],
-    }),
-    need: "libraries",
-  },
-])("tells viewers the command that sets up the host ($need)", ({ error, need }) =>
+// fork: shared by the setup and install-progress cases
+const closeCodeFor = (error: unknown) =>
   Effect.gen(function* () {
     const browser = ServerBrowser.ServerBrowser.of({
       clearProfile: () => Effect.void,
@@ -448,11 +438,48 @@ it.effect.each([
       }),
       (socket) => Effect.sync(() => socket.close()),
     );
-    const { code, reason } = yield* Effect.promise(() => closed.promise);
+    return yield* Effect.promise(() => closed.promise);
+  });
+
+it.effect.each([
+  {
+    error: new PreviewBrowserHost.PreviewBrowserSandboxError({
+      setupCommand: "sudo t3 browser setup",
+    }),
+    need: "sandbox",
+  },
+  {
+    error: new PreviewBrowserHost.PreviewBrowserLibrariesError({
+      setupCommand: "sudo t3 browser setup",
+      libraries: ["libnss3.so"],
+    }),
+    need: "libraries",
+  },
+])("tells viewers the command that sets up the host ($need)", ({ error, need }) =>
+  Effect.gen(function* () {
+    const { code, reason } = yield* closeCodeFor(error);
     expect(code).toBe(PREVIEW_STREAM_HOST_SETUP_CLOSE_CODE);
     expect(yield* decodeHostSetup(reason)).toEqual({
       need,
       command: "sudo t3 browser setup",
     });
+  }),
+);
+
+// fork: a viewer attaching while the headless browser downloads is told how far along it is.
+const decodeHostInstalling = Schema.decodeUnknownEffect(
+  Schema.fromJsonString(PreviewStreamHostInstalling),
+);
+
+it.effect.each([
+  { downloadedBytes: 12_000_000, totalBytes: 105_057_133, unpacking: false },
+  { downloadedBytes: 105_057_133, totalBytes: 105_057_133, unpacking: true },
+])("tells viewers the headless browser is installing ($downloadedBytes bytes)", (progress) =>
+  Effect.gen(function* () {
+    const { code, reason } = yield* closeCodeFor(
+      new PreviewBrowser.PreviewBrowserInstallingError(progress),
+    );
+    expect(code).toBe(PREVIEW_STREAM_HOST_INSTALLING_CLOSE_CODE);
+    expect(yield* decodeHostInstalling(reason)).toEqual(progress);
   }),
 );

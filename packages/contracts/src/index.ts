@@ -49,6 +49,7 @@ export * from "./peerLink.ts";
 export * from "./forkPush.ts"; // fork: UnifiedPush registrations
 export * from "./forkDeviceKeys.ts"; // fork: self-hosted pairing
 export * from "./forkThemeLook.ts"; // fork: theme look
+export * from "./forkPreviewInstall.ts"; // fork: headless browser install progress
 export * from "./forkUiLanguage.ts"; // fork: legacy interface language
 export * from "./threadMetadataMcp.ts";
 export * from "./threadPullRequest.ts";
