@@ -1,18 +1,24 @@
 import { NATIVE_WORKSPACE_COLUMNS_SUPPORTED } from "../native/NativeWorkspaceColumns";
 import Constants from "expo-constants";
-import { useGT } from "gt-react-native";
+import { msg, useGT, useMessages } from "gt-react-native";
 import { useState } from "react";
 import { Platform, View } from "react-native";
 
 import { AppText as Text } from "./ui/AppText";
 import { T3Wordmark } from "./T3Wordmark";
 import { IPAD_HOME_TITLE_OFFSET } from "../lib/layoutMetrics";
-import { resolveMobileStageLabel } from "../lib/mobileBranding";
+import { resolveMobileStageLabel, type MobileStageLabel } from "../lib/mobileBranding";
 import { useAndroidControlSizing } from "./ui/useAndroidControlSizing";
 import { FORK } from "@t3tools/shared/forkIdentity"; // fork: brand
 
 const BRAND_MAX_FONT_SCALE = 1.4;
 const WORDMARK_SUFFIX = FORK.wordmarkSuffix; // fork: brand
+// fork: upstream draws the stage badge in English in every language; BrandMark's labels are translated.
+const STAGE_LABEL_MESSAGES: Record<MobileStageLabel, string> = {
+  Beta: msg("Beta", { $context: "app release stage badge" }),
+  Dev: msg("Dev", { $context: "app release stage badge" }),
+  Nightly: msg("Preview", { $context: "app release stage badge" }),
+};
 
 export function brandTitleOffset(): number {
   if (Platform.OS !== "ios") return 0;
@@ -28,7 +34,10 @@ export function CompactBrandTitle(
   } = {},
 ) {
   const gt = useGT();
-  const stageLabel = resolveMobileStageLabel(Constants.expoConfig?.extra?.appVariant);
+  const m = useMessages(); // fork: see STAGE_LABEL_MESSAGES
+  const stageLabel = m(
+    STAGE_LABEL_MESSAGES[resolveMobileStageLabel(Constants.expoConfig?.extra?.appVariant)],
+  );
   const titleOffset = brandTitleOffset();
   const { scale } = useAndroidControlSizing();
   const [availableWidth, setAvailableWidth] = useState<number | null>(null);
