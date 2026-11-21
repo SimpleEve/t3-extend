@@ -36,6 +36,7 @@ import {
   resolveAntigravityInstanceDirectories,
   resolveAntigravityLoginSource,
   antigravityProfileLoginUsed,
+  antigravityProfileTokenExists,
   markAntigravityProfileLogin,
 } from "./antigravityAuthSupport.ts";
 
@@ -304,11 +305,17 @@ it.layer(NodeServices.layer)("Antigravity profile sign-in marker", (it) => {
       expect(yield* antigravityProfileLoginUsed(profileDirectory)).toBe(false);
 
       yield* fs.makeDirectory(path.join(profileDirectory, "antigravity-acp"), { recursive: true });
+      // The 1.5 CLI's file comes second: a profile signed in with it must not fall back to the CLI.
+      for (const name of ["acp_token.json", "antigravity-oauth-token"]) {
+        const token = path.join(profileDirectory, "antigravity-acp", name);
+        yield* fs.writeFileString(token, "synthetic-token-fixture");
+        expect(yield* antigravityProfileLoginUsed(profileDirectory)).toBe(true);
+        expect(yield* antigravityProfileTokenExists(profileDirectory)).toBe(true);
+        yield* fs.remove(token);
+        expect(yield* antigravityProfileLoginUsed(profileDirectory)).toBe(false);
+        expect(yield* antigravityProfileTokenExists(profileDirectory)).toBe(false);
+      }
       const token = path.join(profileDirectory, "antigravity-acp", "acp_token.json");
-      yield* fs.writeFileString(token, "synthetic-token-fixture");
-      expect(yield* antigravityProfileLoginUsed(profileDirectory)).toBe(true);
-      yield* fs.remove(token);
-      expect(yield* antigravityProfileLoginUsed(profileDirectory)).toBe(false);
 
       yield* markAntigravityProfileLogin(profileDirectory);
       yield* fs.remove(token, { force: true });

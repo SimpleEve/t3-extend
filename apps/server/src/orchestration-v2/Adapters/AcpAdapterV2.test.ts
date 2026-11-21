@@ -1527,6 +1527,216 @@ describe("AcpAdapterV2", () => {
       );
     }).pipe(Effect.provide(layerTest)),
   );
+  // fork: a usage limit can be answered by another account without ending the turn.
+  it.live("continues the same turn on another account after a usage limit", () =>
+    Effect.gen(function* () {
+      const instanceId = ProviderInstanceId.make("acp-test-account-switch");
+      const threadId = ThreadId.make("thread-acp-account-switch");
+      const quota = {
+        class: "usage_limit",
+        message: "Quota reached.",
+        code: "QUOTA_EXHAUSTED",
+        retryable: true,
+        resetAt: "2030-01-01T00:00:00.000Z",
+      } as const;
+      const notice = "Account a is out of quota until 00:00. Switched to account b.";
+      const promptRuntimes: Array<number> = [];
+      const promptTexts: Array<string> = [];
+      const watchedSessions: Array<string> = [];
+      const asked: Array<string> = [];
+      const adapter = yield* makeAcpAdapterV2({
+        instanceId,
+        selfInvocation: yield* resolveSelfInvocation(),
+        flavor: {
+          driver: ACP_TEST_DRIVER,
+          capabilities: AcpProviderCapabilitiesV2,
+          // Only the first prompt hits the limit; the other account has quota.
+          watchPromptOutcome: (sessionId) =>
+            Effect.sync(() => {
+              watchedSessions.push(sessionId);
+              const outcome =
+                watchedSessions.length === 1
+                  ? { failure: quota, threadDisposition: "reusable" as const }
+                  : undefined;
+              return () => Effect.succeed(outcome);
+            }),
+          recoverFromUsageLimit: (failure, turn) =>
+            Effect.sync(() => {
+              // The pool needs the send time to tell whose account the failure was.
+              asked.push(`${failure.code ?? ""}:${turn.promptSentAt === null ? "unsent" : "sent"}`);
+              return { notice };
+            }),
+          makeRuntime: makeMockRuntime({
+            childProcessSpawner: yield* ChildProcessSpawner.ChildProcessSpawner,
+            mockAgentPath: yield* bundledMockAgentPath,
+            wrapRuntime: (runtime, runtimeOrdinal) => ({
+              ...runtime,
+              prompt: (payload) =>
+                Effect.sync(() => {
+                  promptRuntimes.push(runtimeOrdinal);
+                  promptTexts.push(
+                    payload.prompt
+                      .flatMap((block) => (block.type === "text" ? [block.text] : []))
+                      .join("\n"),
+                  );
+                  return { stopReason: "end_turn" as const };
+                }),
+            }),
+          }),
+        },
+      });
+      const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
+        runtimeMode: "full-access",
+        interactionMode: "default",
+        cwd: process.cwd(),
+      });
+      const modelSelection = { instanceId, model: "default" } as const;
+      const runtime = yield* adapter.openSession({
+        threadId,
+        providerSessionId: ProviderSessionId.make("provider-session-acp-account-switch"),
+        modelSelection,
+        runtimePolicy,
+      });
+      const providerThread = yield* runtime.ensureThread({
+        threadId,
+        modelSelection,
+        runtimePolicy,
+      });
+      yield* runtime.startTurn(
+        makeTurnInput({
+          threadId,
+          providerThread,
+          instanceId,
+          runtimePolicy,
+          now: yield* DateTime.now,
+          ordinal: 1,
+        }),
+      );
+      const events = Array.from(
+        yield* runtime.events.pipe(
+          Stream.takeUntil((event) => event.type === "turn.terminal"),
+          Stream.runCollect,
+        ),
+      );
+      const terminal = events.at(-1);
+      assert.equal(
+        terminal?.type === "turn.terminal" ? terminal.status : null,
+        "completed",
+        "the turn continues instead of failing",
+      );
+      assert.deepEqual(promptRuntimes, [1, 2], "the second prompt runs on a replacement agent");
+      assert.equal(promptTexts[0], promptTexts[1], "the same input is sent again");
+      assert.equal(watchedSessions.length, 2);
+      assert.equal(watchedSessions[0], watchedSessions[1], "the same native session is reused");
+      assert.deepEqual(asked, ["QUOTA_EXHAUSTED:sent"]);
+      const retryItem = events.findLast(
+        (event) =>
+          event.type === "turn_item.updated" &&
+          event.turnItem.type === "error" &&
+          event.turnItem.retry !== undefined,
+      );
+      if (retryItem?.type !== "turn_item.updated" || retryItem.turnItem.type !== "error") {
+        return assert.fail("expected a visible notice in the thread");
+      }
+      assert.equal(retryItem.turnItem.title, "Provider recovered");
+      assert.equal(retryItem.turnItem.failure.message, notice);
+    }).pipe(Effect.provide(layerTest)),
+  );
+  it.live(
+    "fails the turn when the hook names another failure or the accounts keep running out",
+    () =>
+      Effect.gen(function* () {
+        const quota = {
+          class: "usage_limit",
+          message: "Quota reached.",
+          code: "QUOTA_EXHAUSTED",
+          retryable: true,
+          resetAt: "2030-01-01T00:00:00.000Z",
+        } as const;
+        const allSpent = { ...quota, message: "Every saved account is out of quota until 2030." };
+        const run = Effect.fn("accountSwitchTest.run")(function* (
+          name: string,
+          recover: NonNullable<AcpAdapterV2Flavor["recoverFromUsageLimit"]>,
+        ) {
+          const instanceId = ProviderInstanceId.make(`acp-test-account-${name}`);
+          const threadId = ThreadId.make(`thread-acp-account-${name}`);
+          let prompts = 0;
+          const adapter = yield* makeAcpAdapterV2({
+            instanceId,
+            selfInvocation: yield* resolveSelfInvocation(),
+            flavor: {
+              driver: ACP_TEST_DRIVER,
+              capabilities: AcpProviderCapabilitiesV2,
+              watchPromptOutcome: () =>
+                Effect.succeed(() =>
+                  Effect.succeed({ failure: quota, threadDisposition: "reusable" as const }),
+                ),
+              recoverFromUsageLimit: recover,
+              makeRuntime: makeMockRuntime({
+                childProcessSpawner: yield* ChildProcessSpawner.ChildProcessSpawner,
+                mockAgentPath: yield* bundledMockAgentPath,
+                wrapRuntime: (runtime) => ({
+                  ...runtime,
+                  prompt: () =>
+                    Effect.sync(() => {
+                      prompts += 1;
+                      return { stopReason: "end_turn" as const };
+                    }),
+                }),
+              }),
+            },
+          });
+          const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
+            runtimeMode: "full-access",
+            interactionMode: "default",
+            cwd: process.cwd(),
+          });
+          const modelSelection = { instanceId, model: "default" } as const;
+          const session = yield* adapter.openSession({
+            threadId,
+            providerSessionId: ProviderSessionId.make(`provider-session-acp-account-${name}`),
+            modelSelection,
+            runtimePolicy,
+          });
+          const providerThread = yield* session.ensureThread({
+            threadId,
+            modelSelection,
+            runtimePolicy,
+          });
+          yield* session.startTurn(
+            makeTurnInput({
+              threadId,
+              providerThread,
+              instanceId,
+              runtimePolicy,
+              now: yield* DateTime.now,
+              ordinal: 1,
+            }),
+          );
+          const terminal = (yield* session.events.pipe(
+            Stream.takeUntil((event) => event.type === "turn.terminal"),
+            Stream.runCollect,
+          )).at(-1);
+          return { terminal, prompts };
+        });
+
+        // No other account has quota: the turn fails once, with the hook's own message.
+        const spent = yield* run("spent", () => Effect.succeed({ failure: allSpent }));
+        if (spent.terminal?.type !== "turn.terminal" || spent.terminal.status !== "failed") {
+          return assert.fail("expected a failed terminal");
+        }
+        assert.deepEqual(spent.terminal.failure, allSpent);
+        assert.equal(spent.prompts, 1);
+
+        // A hook that always finds another account still cannot loop for ever.
+        const endless = yield* run("endless", () => Effect.succeed({ notice: "Switched." }));
+        if (endless.terminal?.type !== "turn.terminal" || endless.terminal.status !== "failed") {
+          return assert.fail("expected a failed terminal");
+        }
+        assert.deepEqual(endless.terminal.failure, quota);
+        assert.equal(endless.prompts, 9, "one prompt plus eight account switches");
+      }).pipe(Effect.provide(layerTest)),
+  );
   it.live("retains returned usage when Stop finalizes before the prompt callback", () =>
     Effect.gen(function* () {
       const instanceId = ProviderInstanceId.make("acp-test-prompt-usage-stop");

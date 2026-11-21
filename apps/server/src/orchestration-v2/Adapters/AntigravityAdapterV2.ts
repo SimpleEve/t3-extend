@@ -102,6 +102,8 @@ export interface AntigravityAdapterV2Options {
   readonly continuationRequests?: Parameters<typeof makeAcpAdapterV2>[0]["continuationRequests"];
   /** The agent's GEMINI_HOME. Its session logs show turns that ended on an upstream error. */
   readonly profileDirectory?: string;
+  /** fork: moves a turn that ended on a usage limit to the next saved account, in the same turn. */
+  readonly recoverFromUsageLimit?: AcpAdapterV2Flavor["recoverFromUsageLimit"];
 }
 
 /**
@@ -249,6 +251,9 @@ export function makeAntigravityAcpAdapterFlavor(
     // `agy acp` reads a prompt sent mid-turn as a steer; cancel-and-restart killed its subagents.
     steersWithPrompt: antigravitySteersWithPrompt,
     ...(options.onSessionEvent === undefined ? {} : { onSessionEvent: options.onSessionEvent }),
+    ...(options.recoverFromUsageLimit === undefined
+      ? {}
+      : { recoverFromUsageLimit: options.recoverFromUsageLimit }), // fork:
     applyModelSelection: Effect.fn("AntigravityAdapterV2.applyModelSelection")(function* ({
       runtime,
       modelSelection,

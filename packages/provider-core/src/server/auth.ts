@@ -27,6 +27,12 @@ export interface ProviderAuthController {
   readonly refreshMethods?: Effect.Effect<void>;
   readonly removeMethod?: (
     methodId: string,
+    stopSessions?: Effect.Effect<void, ProviderSetupError>, // fork:
+  ) => Effect.Effect<ProviderAuthState, ProviderSetupError>;
+  /** fork: makes a saved sign-in the one in use. Stops running sessions first, as sign-in does. */
+  readonly selectMethod?: (
+    methodId: string,
+    stopSessions: Effect.Effect<void, ProviderSetupError>,
   ) => Effect.Effect<ProviderAuthState, ProviderSetupError>;
   readonly withAccess?: <A, E, R>(
     task: Effect.Effect<A, E, R>,

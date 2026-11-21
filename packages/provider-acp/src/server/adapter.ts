@@ -148,6 +148,8 @@ const ACP_DEFERRED_FINALIZE_DEBOUNCE: Duration.Input = "3000 millis";
 const ACP_OPEN_REPLY_QUIET_LIMIT: Duration.Input = "2 minutes";
 const ACP_BUSY_PROMPT_RETRY_INTERVAL: Duration.Input = "1 second";
 const ACP_PROMPT_INACTIVITY_SLICE_MILLIS = 60_000;
+// fork: a turn that keeps hitting usage limits stops here even if the accounts claim to have quota.
+const ACP_MAX_ACCOUNT_RETRIES = 8;
 const ACP_HOST_SLEEP_TOLERANCE_MILLIS = 10_000;
 
 // pi-agent-core agents (oh-my-pi) end a turn while background work runs and reject
@@ -666,6 +668,18 @@ export interface AcpAdapterV2Flavor {
   readonly restartRuntimeAfterInterrupt?: boolean;
   /** Prompt failures after which the agent process keeps failing until replaced. */
   readonly restartRuntimeAfterPromptError?: (error: unknown) => boolean;
+  /**
+   * fork: asked when a prompt ends on a usage limit. With a `notice`, another account will be
+   * signed in when the agent starts next: the agent is replaced, the same session is loaded and
+   * the same prompt is sent again, and the notice is shown in the thread. With a `failure`, the
+   * turn fails with that failure instead. Absent or `undefined` keeps the plain usage-limit failure.
+   */
+  readonly recoverFromUsageLimit?: (
+    failure: OrchestrationV2ProviderFailure,
+    turn: { readonly promptSentAt: number | null },
+  ) => Effect.Effect<
+    { readonly notice: string } | { readonly failure: OrchestrationV2ProviderFailure } | undefined
+  >;
   readonly restartRuntimeOnEveryInterrupt?: boolean;
   readonly terminateRuntimeProcessGroupOnInterrupt?: boolean;
   readonly preserveRuntimeOnSettledInterrupt?: boolean;
@@ -1617,6 +1631,8 @@ interface ActiveAcpTurn {
         readonly itemOrdinal: number;
       }
     | undefined;
+  /** fork: how often this turn moved to another account after a usage limit. */
+  accountRetries: number;
   contextUsage: ThreadTokenUsageSnapshot | null;
   nativeMetadata: OrchestrationV2ProviderThreadNativeMetadata | null;
   readonly tools: Map<string, AcpToolCallState & { readonly backgroundCommandTaskId?: string }>;
@@ -8967,7 +8983,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
             readonly promptParts: Effect.Success<ReturnType<typeof resolvePromptParts>> | null;
             readonly compactSession: AcpAdapterV2Flavor["compactSession"];
           },
-        ) => {
+        ): Effect.Effect<void> => {
           const sequence = ++context.promptSequence;
           const superseded = () => context.promptSequence !== sequence;
           return prompt(superseded).pipe(
@@ -9027,13 +9043,46 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                   }
                   if (context.finalized || followsAgentWorkState || superseded()) return;
                   // ACP v2 reports a failed prompt through its idle stop reason, not an RPC error.
-                  const hiddenFailure =
+                  let hiddenFailure = // fork: reassigned below
                     settle.checkPromptOutcome === undefined ||
                     context.interrupted ||
                     result.stopReason === "error" ||
                     result.stopReason === "cancelled"
                       ? undefined
                       : yield* settle.checkPromptOutcome(result);
+                  // fork: another account can take over a spent quota, in this same turn.
+                  if (
+                    hiddenFailure?.failure.class === "usage_limit" &&
+                    flavor.recoverFromUsageLimit !== undefined &&
+                    settle.promptParts !== null &&
+                    settle.compactSession === undefined &&
+                    context.accountRetries < ACP_MAX_ACCOUNT_RETRIES &&
+                    !hasSurvivingBackgroundWork(context)
+                  ) {
+                    const recovery = yield* flavor.recoverFromUsageLimit(hiddenFailure.failure, {
+                      promptSentAt: context.promptSentAt,
+                    });
+                    if (recovery !== undefined && "notice" in recovery) {
+                      context.accountRetries += 1;
+                      // The agent is replaced, so nothing it still owes this turn can arrive.
+                      openAgentRequests.clear();
+                      yield* quarantineNativeTransportAtGeneration(settle.generation);
+                      yield* advanceRuntimeCallbackGeneration;
+                      yield* Ref.set(runtimeRestartRequired, true);
+                      yield* cancelPendingRuntimeRequests();
+                      yield* terminalizeOpenForegroundTools(context, "failed");
+                      yield* resendAfterAccountSwitch(
+                        context,
+                        settle.promptParts,
+                        hiddenFailure.failure,
+                        recovery.notice,
+                      ).pipe(Effect.forkIn(sessionScope));
+                      return;
+                    }
+                    if (recovery !== undefined) {
+                      hiddenFailure = { ...hiddenFailure, failure: recovery.failure };
+                    }
+                  }
                   if (hiddenFailure !== undefined) {
                     yield* Ref.set(runtimeRestartRequired, true);
                   }
@@ -9140,6 +9189,130 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
             ),
           );
         };
+
+        // fork: after a usage limit moved the agent to another account, replaces the agent, loads the
+        // same native session and sends the turn's prompt again as a continuation of this turn.
+        const resendAfterAccountSwitch = Effect.fnUntraced(function* (
+          context: ActiveAcpTurn,
+          promptParts: Effect.Success<ReturnType<typeof resolvePromptParts>>,
+          failure: OrchestrationV2ProviderFailure,
+          notice: string,
+        ): Effect.fn.Return<void> {
+          const failTurn = Effect.gen(function* () {
+            yield* Ref.set(runtimeRestartRequired, true);
+            const generation = yield* Ref.get(runtimeCallbackGeneration);
+            yield* runRuntimeCallbackAtGeneration(
+              generation,
+              Effect.gen(function* () {
+                if (context.finalized) return;
+                yield* finalizeTurn(context, "failed", failure);
+              }),
+            );
+          });
+          yield* runtimeTransitionPermit
+            .withPermit(
+              Effect.gen(function* () {
+                if (context.finalized || context.interrupted) return;
+                yield* awaitRuntimeTeardown();
+                const threadId = context.input.threadId;
+                yield* restartRuntimeAfterTeardownIfRequired(threadId);
+                // A loaded session replays its history; with no turn open it only fills the snapshot.
+                yield* Ref.set(activeTurn, null);
+                yield* Effect.gen(function* () {
+                  const activated = yield* activateSession(context.nativeThreadId, threadId);
+                  yield* Ref.set(activeSessionId, activated.sessionId);
+                  yield* Ref.set(loadingSessionId, null);
+                  yield* setActiveSessionSetup(activated);
+                  yield* configureSession(
+                    activated,
+                    context.input.modelSelection,
+                    context.input.runtimePolicy,
+                  );
+                  yield* Ref.set(activeSelection, context.input.modelSelection);
+                  yield* Ref.set(
+                    activeInteractionMode,
+                    context.input.runtimePolicy.interactionMode,
+                  );
+                }).pipe(Effect.ensuring(Ref.set(activeTurn, context)));
+                const generation = yield* Ref.get(runtimeCallbackGeneration);
+                const checkPromptOutcome =
+                  flavor.watchPromptOutcome === undefined
+                    ? undefined
+                    : yield* flavor.watchPromptOutcome(context.nativeThreadId);
+                const dispatched = yield* Deferred.make<void, never>();
+                const resent = yield* runRuntimeCallbackAtGeneration(
+                  generation,
+                  Effect.gen(function* () {
+                    if (context.finalized || context.interrupted) return false;
+                    const now = yield* DateTime.now;
+                    context.providerRetry = {
+                      failure: { ...failure, message: notice },
+                      retry: {
+                        attempt: context.accountRetries,
+                        maxAttempts: null,
+                        retryDelayMs: null,
+                      },
+                      startedAt: now,
+                      itemOrdinal: yield* resolveItemOrdinal(
+                        context,
+                        `terminal-failure:${context.providerTurnId}`,
+                      ),
+                    };
+                    yield* emitProviderRetry(context, "completed");
+                    const released = context.foregroundIdle;
+                    context.foregroundIdle = yield* Deferred.make<void>();
+                    context.promptWireSettled = yield* Deferred.make<void, never>();
+                    context.promptSettled = false;
+                    context.promptSettledStatus = null;
+                    context.backgroundFinalizeGeneration += 1;
+                    context.promptSentAt = yield* Clock.currentTimeMillis;
+                    context.lastProgressAt = context.promptSentAt;
+                    const watchdog = context.inactivityWatchdog;
+                    context.inactivityWatchdog = undefined;
+                    if (watchdog !== undefined) {
+                      yield* Fiber.interrupt(watchdog).pipe(Effect.forkDetach, Effect.asVoid);
+                    }
+                    if (promptInactivityTimeoutMillis !== undefined) {
+                      context.inactivityWatchdog = yield* watchPromptInactivity(
+                        context,
+                        generation,
+                        promptInactivityTimeoutMillis,
+                      ).pipe(Effect.forkIn(sessionScope));
+                    }
+                    const releasedForResend = context.foregroundIdle;
+                    yield* followPrompt(
+                      context,
+                      (superseded) =>
+                        sendPromptWhenIdle(
+                          context,
+                          () =>
+                            runtime.prompt(
+                              { prompt: promptParts.prompt },
+                              { dispatched, released: releasedForResend },
+                            ),
+                          superseded,
+                        ),
+                      { generation, checkPromptOutcome, promptParts, compactSession: undefined },
+                    ).pipe(Effect.forkIn(sessionScope));
+                    yield* Deferred.succeed(released, undefined);
+                    return true;
+                  }),
+                );
+                if (!Option.contains(resent, true) && !context.finalized && !context.interrupted) {
+                  return yield* failTurn;
+                }
+              }),
+            )
+            .pipe(
+              Effect.catchCause((cause) =>
+                Effect.logWarning("orchestration-v2.acp-account-switch-failed", {
+                  driver,
+                  providerTurnId: context.providerTurnId,
+                  cause,
+                }).pipe(Effect.andThen(failTurn)),
+              ),
+            );
+        });
 
         const startTurnUnlocked = Effect.fn("AcpAdapterV2.startTurn")(
           function* (turnInput: ProviderAdapter.ProviderAdapterV2TurnInput) {
@@ -9320,6 +9493,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               nativePromptId: undefined,
               lastProgressAt: 0,
               inactivityWatchdog: undefined,
+              accountRetries: 0, // fork:
             };
             const carryover = yield* Ref.getAndSet(carryoverSubagents, null);
             let rehydratedCarryoverSubagents: ReadonlyArray<ActiveAcpSubagent> = [];

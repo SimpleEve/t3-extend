@@ -35,6 +35,7 @@ import { ListActionRow as SettingsActionRow } from "../../components/ui/ListActi
 import { useSettingsEnvironmentMenu } from "./components/SettingsEnvironmentFilterHeader";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { SettingsSection } from "./components/SettingsSection";
+import { AntigravityAccounts } from "../../fork/AntigravityAccounts"; // fork:
 import { AddClaudeAccount, ClaudeAccount } from "./ClaudeAccounts";
 import { CLAUDE_DRIVER } from "./claude-accounts";
 import { useSettingsEnvironmentFilter, type SettingsTarget } from "./settings-environment-filter";
@@ -537,6 +538,8 @@ function ProviderAccount({
           }}
         />
       ) : null}
+      {/* fork: the saved accounts of a separate Antigravity sign-in */}
+      <AntigravityAccounts environmentId={environmentId} provider={provider} />
     </View>
   );
 }

@@ -1948,6 +1948,12 @@ export default {
   "Separate sign-in": "独立登录",
   "For Google account sign-in. Automatic uses the agy CLI login on this machine for the default instance unless it signed in separately before. Choose Separate sign-in to use another account.":
     "用于 Google 账号登录。选「自动」时，默认实例沿用这台机器上 agy CLI 的登录，除非它之前已经单独登录过。要用另一个账号，请选「独立登录」。",
+  "Switch accounts when quota runs out": "额度用完时切换账户",
+  "For separate Google account sign-ins with more than one saved account. When a turn hits its usage limit, the next saved account takes over and the turn continues. Rotating accounts may breach Google's terms; you are responsible for that.":
+    "用于独立登录且保存了多个 Google 账户的实例。某一轮碰到用量上限时，由下一个保存的账户接手，这一轮继续进行。轮换账户可能违反 Google 的服务条款，后果由你自己承担。",
+  "Network proxy": "网络代理",
+  "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.":
+    "让这个实例的 Antigravity 流量都走同一个代理，支持 http://、https://、socks5:// 和 socks5h://。URL 里的账号密码会以明文保存在设置中。留空则使用这台机器自己的网络。",
   "API key": "API 密钥",
   "Gemini or Vertex AI express key. Stored separately on the host.":
     "Gemini 或 Vertex AI express 密钥，单独存储在主机上。",

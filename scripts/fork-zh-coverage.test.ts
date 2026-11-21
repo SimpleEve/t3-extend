@@ -28,6 +28,10 @@ const FEATURES: Readonly<Record<string, ReadonlyArray<string>>> = {
     "apps/web/src/fork/BackgroundServiceReporter.tsx",
   ],
   "theme studio": ["apps/web/src/fork/themeStudio"],
+  "antigravity accounts": [
+    "apps/web/src/fork/AntigravityAccounts.tsx",
+    "apps/mobile/src/fork/AntigravityAccounts.tsx",
+  ],
   "sidebar by project": [
     "apps/web/src/components/sidebar/SidebarViewToggle.tsx",
     "apps/web/src/components/sidebar/SidebarWorktreeGroupHeader.tsx",

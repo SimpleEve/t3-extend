@@ -193,7 +193,7 @@ macOS 打包版的设置 > 维护 > "后台运行" 有一个开关"在后台保�
 
 做法：只共享登录，不共享 gemini home。设置里加了 `loginSource`（设置 > provider > Antigravity > Login source），三个值：
 
-- `auto`（默认）：**默认实例**（实例 id 就是 `antigravity`）在 profile 里从没独立登录过时用 CLI 登录；额外实例一律独立登录。“独立登录过”看两样东西，任何一样在就算：`antigravity-acp/acp_token.json`，或 `antigravity-acp/login-source` 标记（内容只有 `profile`，不含凭据）。标记在驱动创建时看到 token、或在 T3 里独立登录成功时写下（`markAntigravityProfileLogin`），之后 token 被删（退出登录）也不消失，所以重启或重建驱动不会悄悄换成钥匙串里的另一个账号。读不出来（权限、IO 错误）按“用过”处理。想换回 CLI 登录就显式选 `cli`。
+- `auto`（默认）：**默认实例**（实例 id 就是 `antigravity`）在 profile 里从没独立登录过时用 CLI 登录；额外实例一律独立登录。“独立登录过”看三样东西，任何一样在就算：profile 自己的 token（旧运行时写 `antigravity-acp/acp_token.json`，1.5 CLI 写 `antigravity-acp/antigravity-oauth-token`，见 `antigravityProfileTokenExists`），或 `antigravity-acp/login-source` 标记（内容只有 `profile`，不含凭据）。标记在驱动创建时看到 token、或在 T3 里独立登录成功时写下（`markAntigravityProfileLogin`），之后 token 被删（退出登录）也不消失，所以重启或重建驱动不会悄悄换成钥匙串里的另一个账号。读不出来（权限、IO 错误）按“用过”处理。想换回 CLI 登录就显式选 `cli`。
 
   **旧版本已经导入的实例**：旧导入没有把 provider 实例记进 `fork_t3code_import_map`，唯一的痕迹是 `fork_t3code_import_runs.summary_json` 里 `attention` 的 `provider-credential-imported` 通知，`subject` 是导入的实例 id（用 `, ` 连接）。选运行时一次性迁移：`T3CodeImport` 构造时（服务启动，`ensureImportTables` 之后）读出所有这样的 id（`importedProviderInstanceIds`），对设置里 driver 是 `antigravity` 且还没有 `loginSource` 的写成 `profile`，之后因为已有 `loginSource` 不会重复动。没有这条记录的实例（Extend 里自己建的，包括这台机器的默认实例）不动，仍走 CLI。局限：记录只在导入完整结束时写入，中途中断的导入没有；已经在 Extend 里被删掉又用同一个 id 自建的实例会被误固定一次（改成 `cli` 即可）。
 
@@ -215,6 +215,24 @@ macOS 打包版的设置 > 维护 > "后台运行" 有一个开关"在后台保�
 - 在 T3 里点 Sign in：CLI 已登录就瞬间完成，没有浏览器；CLI 没登录时走浏览器登录，结果写进 keyring，终端的 `agy` 也会登录上（两边是同一条登录）。
 
 没验证的：Linux 或没有 keyring 的主机上，agy 在不强制文件存储时放哪里；Windows 凭据管理器；keyring 里的登录过期且 refresh token 失效时（只看到过 keyring 里的 token 过期后自动刷新成功）；官方 T3 Code 和 Extend 同机同时运行时，两边的 agy 同时刷新同一条 keyring 登录。
+
+## Antigravity 账号池、自动切换和网络代理
+
+边界：不做按账号的出口 IP，不做指纹、设备 id、随机延迟之类的规避；账号只通过 agy 原生 `--login` 加入，不从别处导入或软链 token。代理只有实例级的一个。
+
+**网络代理**（`networkProxy`，`antigravityNetworkProxy.ts`）：agy 进程环境里设 `HTTPS_PROXY`/`HTTP_PROXY`/`ALL_PROXY` 和小写一套，`NO_PROXY` 永远含 `localhost,127.0.0.1,::1`（T3 的 MCP over HTTP 走回环），并保留机器原来的 `NO_PROXY`；设置了代理就覆盖机器全局的代理变量（不论大小写），为空时环境与以前逐字节一致。所有起 agy 的路径都经过 `antigravityEnvironment`，所以会话、静默检查、`--login`、模型刷新、文本生成都带上了。T3 自己发给 Google 的额度请求（token 刷新、userinfo、quota）走 undici 的 `ProxyAgent`，经 effect `FetchHttpClient.RequestInit.dispatcher` 传给 fetch；SOCKS5 用 undici 8 自带的 `Socks5ProxyAgent`（`socks5h` 改写成 `socks5`，undici 把域名交给代理解析），它在 undici 里仍是 experimental，第一次用会在 stderr 打一条 ExperimentalWarning。建不出代理时（地址不合法、构造失败）额度探测返回"不可用"和原因，不会直连。`socks4` 不支持。
+
+**账号池**（`antigravityAccountPool.ts`）：只对 Google 账号 + 独立登录（`loginSource` 解析为 `profile`）生效。agy 只读写 `antigravity-acp/antigravity-oauth-token`；池在 `antigravity-acp/accounts/<id>/antigravity-oauth-token` 存每个账号一份，`accounts/state.json` 存顺序、当前账号和每个账号的 `exhaustedUntil`（毫秒时间戳，不含凭据）。`<id>` 是 `sha256("email\0" + 小写邮箱)` 的前 16 位十六进制（没有邮箱时用 refresh token）。写文件一律临时文件加 rename，权限 0600；当前文件是软链时按内容拷贝，之后就是普通文件。`list` 只读不写，实例原有的单个登录在第一次添加、切换、移除或额度用完时才落成第一个槽位；`state.json` 损坏按无池处理，下次改动重写（旧槽位文件不会被清）。
+
+- 添加账号 = 现有的登录流程：`codeLogin` 先 `beginAdd`（把当前账号存回槽位并移走当前文件，否则 agy 看到有效登录会跳过浏览器），登录结束的 finalizer 跑 `settleAdd`（有新 token 就登记成当前账号，同邮箱更新槽位；没有就把原账号装回来）。启动 agy 前 `ensureAvailable` 总会修复"登录中途被杀"留下的缺文件状态。
+- 切换账号、移除账号都先停掉实例所有会话和 agy 进程（`AntigravityAuth.changeAccounts`，和登录、退出登录一样走 `stopSessions`），否则运行中的 agy 会把自己的账号写回覆盖。新 RPC `provider.auth.selectMethod`（权限同 provider 登录），移除复用已有的 `provider.auth.removeMethod`。移除当前账号时先换到有额度的下一个，再换到任何剩下的，没有才是未登录。退出登录清空整个池。
+- 账号列表放进 provider 快照的 `auth.accounts`（`ServerProviderAccount`），由 `AntigravityProvider` 的 `stamp()` 在每次构建快照时读，不单独存状态。
+
+**额度用完自动切换**（`accountRotation`，默认关）：一轮以 `usage_limit` 结束（`AntigravityTurnOutcome` 识别 QUOTA_EXHAUSTED 和 429 RESOURCE_EXHAUSTED）时，同一轮内完成：`markExhausted` 记下当前账号的重置时间（失败信息没有重置时间按 5 小时）并算出下一个有额度的账号，但**不换文件**；适配器把 agy 换掉（关旧进程组，和 inactivity watchdog 的收尾一样）、起新进程，这时 `prepareSpawn` 里的 `ensureAvailable({ rotate: true })` 才把下一个账号的 token 放进当前文件，所以旧进程退出时刷新的 token 先被存回自己的槽位，不会覆盖新账号；然后 `session/load` 同一个原生会话，原样重发这一轮的 prompt。线程里出一条 retry 条目（标题"Provider recovered"，失败信息是"x•••@域名 额度用完（重置时间），已切到 y•••@域名 并继续本轮"，邮箱部分遮掩）。全部用完照常失败，信息里写最早的重置时间；单账号时不介入；一轮最多切 8 次。重发会让 agy 的原生历史里多一条同样的用户消息（失败那次已经记了一条）。
+
+适配器侧只有一个可选 flavor 钩子 `recoverFromUsageLimit`（`packages/provider-acp/src/server/adapter.ts` 里 `followPrompt` 的 `hiddenFailure` 分支和新函数 `resendAfterAccountSwitch`，都带 `// fork:`），只有 Antigravity 设置，其他 provider 行为不变。重发沿用 steer 重发提示的写法（重置 `foregroundIdle`/`promptWireSettled`、新 watchdog、新的 `followPrompt`），激活会话时临时把 `activeTurn` 置空，和 `startTurn` 一样，加载历史的回放只填快照，不进当前轮。有后台命令或子 agent 还在跑时不切（旧进程一关它们就没了），按普通失败处理。
+
+没处理的：同一实例里别的线程还在跑的 agy 进程仍持有旧账号，它们刷新 token 时可能把旧账号写回当前文件，下一次起 agy 前会按 `exhaustedUntil` 再换一次；这是同一个 token 文件被多个 agy 进程共用的固有问题。新增的 web 和 mobile 界面没有在真实客户端里跑过，只过了类型检查和相关的现有测试。
 
 ## Antigravity 后台命令续跑
 

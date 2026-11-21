@@ -27,6 +27,10 @@ import {
   antigravityUserSkillDirectories,
   resolveAntigravityUserHome,
 } from "./Drivers/AntigravitySkills.ts";
+import {
+  antigravityNetworkProxyIssue,
+  withAntigravityNetworkProxy,
+} from "./antigravityNetworkProxy.ts"; // fork:
 
 export const ANTIGRAVITY_AUTH_STDOUT_PREFIX =
   "Open the following link to authenticate the ACP server: ";
@@ -102,6 +106,8 @@ export interface AntigravityAuthConfig {
   readonly apiKey: string;
   readonly gcpProject: string;
   readonly gcpLocation: string;
+  // fork: sends agy's traffic through one proxy; see antigravityNetworkProxy.ts.
+  readonly networkProxy?: string;
 }
 
 const ANTIGRAVITY_PERSONAL_AUTH: AntigravityAuthConfig = {
@@ -130,20 +136,40 @@ export function resolveAntigravityLoginSource(input: {
 }
 
 const PROFILE_LOGIN_MARKER = "login-source";
+// fork: older runtimes wrote acp_token.json; the 1.5 CLI writes antigravity-oauth-token instead.
+const PROFILE_TOKEN_FILES = ["acp_token.json", "antigravity-oauth-token"];
+
+// Untraced: the named callers carry the span.
+const anyProfileFile = Effect.fnUntraced(function* (
+  profileDirectory: string,
+  names: readonly string[],
+  unreadable: boolean,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const acpDirectory = path.join(profileDirectory, "antigravity-acp");
+  for (const name of names) {
+    const found = yield* fs
+      .exists(path.join(acpDirectory, name))
+      .pipe(Effect.orElseSucceed(() => unreadable));
+    if (found) return true;
+  }
+  return false;
+});
+
+/** A sign-in token of the profile's own, written by any agy runtime T3 supports. */
+export const antigravityProfileTokenExists = (profileDirectory: string, unreadable = false) =>
+  anyProfileFile(profileDirectory, PROFILE_TOKEN_FILES, unreadable);
 
 /** The token, or the marker left once one existed. A profile that cannot be read counts as used. */
 export const antigravityProfileLoginUsed = Effect.fn("antigravityProfileLoginUsed")(function* (
   profileDirectory: string,
 ) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const acpDirectory = path.join(profileDirectory, "antigravity-acp");
-  for (const name of ["acp_token.json", PROFILE_LOGIN_MARKER]) {
-    if (yield* fs.exists(path.join(acpDirectory, name)).pipe(Effect.orElseSucceed(() => true))) {
-      return true;
-    }
-  }
-  return false;
+  return yield* anyProfileFile(
+    profileDirectory,
+    [...PROFILE_TOKEN_FILES, PROFILE_LOGIN_MARKER],
+    true,
+  );
 });
 
 /** Records that this profile holds its own sign-in. Never holds a credential; best effort. */
@@ -179,6 +205,8 @@ export function antigravityAuthLabel(authMethod: AntigravityAuthMethod): string 
 }
 
 export function antigravityAuthConfigIssue(auth: AntigravityAuthConfig): string | null {
+  const proxyIssue = antigravityNetworkProxyIssue(auth.networkProxy); // fork:
+  if (proxyIssue !== null) return proxyIssue;
   switch (auth.authMethod) {
     case "oauth-personal":
       return null;
@@ -275,7 +303,7 @@ function antigravityEnvironment(
         : {};
   // Each launch unpacks about 1 GB; use T3-owned temp so the driver can reclaim files after force-kill.
   const tempDirectory = runtimeTempDirectory ?? profile.tempDirectory;
-  return {
+  const spawnEnvironment = {
     ...environment,
     ...credential,
     ...(profile.caBundlePath !== undefined &&
@@ -300,6 +328,7 @@ function antigravityEnvironment(
       ? { TEMP: tempDirectory, TMP: tempDirectory }
       : { TMPDIR: tempDirectory }),
   };
+  return withAntigravityNetworkProxy(spawnEnvironment, auth.networkProxy); // fork:
 }
 
 class AntigravitySkillLinkError extends Schema.TaggedError<AntigravitySkillLinkError>()(

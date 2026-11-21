@@ -49,6 +49,7 @@ import {
   antigravityAuthLabel,
   antigravityAuthUsesBrowser,
   antigravityProfileLoginUsed,
+  antigravityProfileTokenExists, // fork:
   buildAntigravityAcpSpawnInput,
   isAntigravitySignInRequiredError,
   markAntigravityProfileLogin,
@@ -84,6 +85,13 @@ import {
   AntigravityCliLoginSource,
 } from "../antigravityCliLogin.ts"; // fork:
 import { makeAntigravityUsageProbe } from "../antigravityUsageLimits.ts";
+import { makeAntigravityProxyDispatcher } from "../antigravityNetworkProxy.ts"; // fork:
+import {
+  makeAntigravityAccountPool,
+  type AntigravityAccountPoolError,
+} from "../antigravityAccountPool.ts"; // fork:
+import { antigravityServerAccounts } from "../antigravityAccountRotation.ts"; // fork:
+import { makeAntigravityUsageLimitRecovery } from "../antigravityAccountRotation.ts"; // fork:
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
 import * as ModelCatalog from "@t3tools/provider-core/server/ModelCatalog";
 import {
@@ -172,6 +180,7 @@ export const AntigravityDriver: ProviderDriver<
       apiKey: settingsSecretLiteral(settings.apiKey),
       gcpProject: settings.gcpProject,
       gcpLocation: settings.gcpLocation,
+      networkProxy: settings.networkProxy, // fork:
     };
     const authConfigIssue = antigravityAuthConfigIssue(auth);
     const processEnvironment = yield* mergeProviderInstanceEnvironment(environment);
@@ -216,12 +225,22 @@ export const AntigravityDriver: ProviderDriver<
     if (
       !sharedLogin &&
       antigravityAuthUsesBrowser(auth.authMethod) &&
-      (yield* fileSystem
-        .exists(path.join(profileDirectory, "antigravity-acp", "acp_token.json"))
-        .pipe(Effect.orElseSucceed(() => false)))
+      (yield* antigravityProfileTokenExists(profileDirectory).pipe(
+        Effect.provideService(FileSystem.FileSystem, fileSystem),
+        Effect.provideService(Path.Path, path),
+      ))
     ) {
       yield* rememberProfileLogin;
     }
+    // fork: several saved Google accounts, only for an instance that signs in on its own.
+    const accountPool =
+      !sharedLogin && auth.authMethod === "oauth-personal"
+        ? yield* makeAntigravityAccountPool(profileDirectory).pipe(
+            Effect.provideService(FileSystem.FileSystem, fileSystem),
+            Effect.provideService(Path.Path, path),
+            Effect.provideService(Digest.Digest, digest),
+          )
+        : undefined;
     for (const directory of [
       directories.runtimeTemp,
       path.join(profileDirectory, "antigravity-acp", "tmp"),
@@ -277,6 +296,20 @@ export const AntigravityDriver: ProviderDriver<
             }),
         ),
       );
+      // fork: with the old agy gone, the account that takes over is put in place before the new one starts.
+      if (accountPool) {
+        const swapped = yield* accountPool
+          .ensureAvailable({ rotate: settings.accountRotation })
+          .pipe(
+            Effect.catch((cause) =>
+              Effect.logWarning("Could not prepare the Antigravity account.", { cause }).pipe(
+                Effect.as(false),
+              ),
+            ),
+          );
+        // The quota on screen belonged to the account that was just replaced.
+        if (swapped) yield* Effect.suspend(() => provider.onSignedIn);
+      }
       const profile = yield* prepareAntigravityProfile({
         profileDirectory,
         baseEnv: processEnvironment,
@@ -465,6 +498,18 @@ export const AntigravityDriver: ProviderDriver<
       const { spawn } = yield* prepareSpawn(cwd, processEnvironment);
       const failed = (detail: string, cause?: unknown) =>
         new ProviderSetupError({ instanceId, operation: "start", detail, cause });
+      // fork: a sign-in adds an account. The current one is saved first so agy asks for Google again,
+      // and whatever `--login` left, or the saved account if it left nothing, is registered at the end.
+      if (accountPool) {
+        yield* accountPool.beginAdd.pipe(Effect.mapError((cause) => failed(cause.detail, cause)));
+        yield* Effect.addFinalizer(() =>
+          accountPool.settleAdd.pipe(
+            Effect.catch((cause) =>
+              Effect.logWarning("Could not save the Antigravity account.", { cause }),
+            ),
+          ),
+        );
+      }
       // Without a display it prints the link only, instead of opening a browser on this machine.
       const { DISPLAY: _display, WAYLAND_DISPLAY: _wayland, ...env } = spawn.env ?? {};
       const child = yield* spawner
@@ -549,6 +594,17 @@ export const AntigravityDriver: ProviderDriver<
       yield* runtime.drainEvents;
     }, Effect.scoped);
 
+    // fork: a change of account replaces the quota on screen and the list of accounts.
+    const accountChange = (
+      operation: string,
+      change: Effect.Effect<void, AntigravityAccountPoolError>,
+    ) =>
+      change.pipe(
+        Effect.mapError(
+          (cause) => new ProviderSetupError({ instanceId, operation, detail: cause.detail, cause }),
+        ),
+        Effect.andThen(Effect.suspend(() => provider.onSignedIn)),
+      );
     const authFlow: AntigravityAuth = yield* makeAntigravityAuth({
       instanceId,
       makeRuntime: makeDisposableRuntime,
@@ -558,7 +614,24 @@ export const AntigravityDriver: ProviderDriver<
           Effect.andThen(sharedLogin ? Effect.void : rememberProfileLogin), // fork:
           Effect.andThen(publishCatalog(started, runtime)),
         ),
-      onSignedOut: Effect.suspend(() => provider.onSignedOut),
+      // fork: signing out leaves no saved account behind.
+      onSignedOut: Effect.suspend(() => provider.onSignedOut).pipe(
+        Effect.andThen(
+          accountPool?.clear.pipe(
+            Effect.catch((cause) =>
+              Effect.logWarning("Could not remove the saved Antigravity accounts.", { cause }),
+            ),
+          ) ?? Effect.void,
+        ),
+      ),
+      ...(accountPool
+        ? {
+            selectMethod: (methodId: string) =>
+              accountChange("selectMethod", accountPool.select(methodId)),
+            removeMethod: (methodId: string) =>
+              accountChange("removeMethod", accountPool.remove(methodId)),
+          }
+        : {}),
       usesBrowser: antigravityAuthUsesBrowser(auth.authMethod),
       // fork: a shared CLI login signs in through ACP, so the keyring entry stays the CLI's.
       ...(sharedLogin
@@ -615,6 +688,8 @@ export const AntigravityDriver: ProviderDriver<
       authMethod: auth.authMethod,
       sharedLogin, // fork:
       readCliLogin: cliLoginRead && cliLoginSource.share(cliLoginRead), // fork:
+      // fork: T3's own Google requests leave through the same proxy as agy.
+      proxyDispatcher: yield* makeAntigravityProxyDispatcher(settings.networkProxy),
     }).pipe(
       Effect.provideService(FileSystem.FileSystem, fileSystem),
       Effect.provideService(Path.Path, path),
@@ -633,12 +708,15 @@ export const AntigravityDriver: ProviderDriver<
         ? { silentSignIn: Effect.suspend(() => silentSignIn) }
         : antigravityAuthUsesBrowser(auth.authMethod)
           ? {
-              storedSignIn: fileSystem
-                .exists(path.join(profileDirectory, "antigravity-acp", "acp_token.json"))
-                .pipe(Effect.orElseSucceed(() => true)),
+              storedSignIn: antigravityProfileTokenExists(profileDirectory, true).pipe(
+                Effect.provideService(FileSystem.FileSystem, fileSystem),
+                Effect.provideService(Path.Path, path),
+              ),
             }
           : {}),
       auth: { type: auth.authMethod, label: antigravityAuthLabel(auth.authMethod) },
+      // fork: the saved Google accounts of a separate sign-in.
+      ...(accountPool ? { accounts: antigravityServerAccounts(accountPool) } : {}),
       supportsTextGeneration: isAntigravityTextGenerationAvailable(profileDirectory).pipe(
         Effect.provideService(FileSystem.FileSystem, fileSystem),
         Effect.provideService(Path.Path, path),
@@ -668,6 +746,10 @@ export const AntigravityDriver: ProviderDriver<
         ),
       ),
       profileDirectory,
+      // fork: only with the setting on, and only for an instance that has several accounts to use.
+      ...(accountPool && settings.accountRotation
+        ? { recoverFromUsageLimit: makeAntigravityUsageLimitRecovery(accountPool) }
+        : {}),
       onSessionStarted: (started, cwd) =>
         provider.onSessionStarted(started, cwd).pipe(Effect.andThen(authFlow.onSignedInElsewhere)),
       onSessionEvent: (event, cwd) => {

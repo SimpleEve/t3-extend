@@ -104,6 +104,12 @@ export const ProviderAuthRemoveMethodInput = Schema.Struct({
   methodId: SetupOperationId,
 });
 
+// fork: makes one of an instance's saved accounts the one it uses.
+export const ProviderAuthSelectMethodInput = Schema.Struct({
+  instanceId: ProviderInstanceId,
+  methodId: SetupOperationId,
+});
+
 export const ProviderAuthRespondInput = Schema.Struct({
   instanceId: ProviderInstanceId,
   flowId: SetupOperationId,
