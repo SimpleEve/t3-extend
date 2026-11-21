@@ -183,6 +183,41 @@ Before removing a managed runtime, disable its instances and cancel any active
 installation. Clear any explicit binary path pointing into that runtime. Removal
 is refused while the runtime is in use.
 
+### Keep several Google accounts in one instance
+
+An instance that signs in on its own (**Login source** set to **Separate sign-in**, Google account
+method) can keep more than one Google account. Choose **Change account** and finish the Google
+sign-in: the account that was in use stays saved, and the new one becomes the one in use.
+Signing in again with an email you already saved refreshes that account instead of adding a copy.
+
+Saved accounts are listed under **Account** in the instance's settings on web, desktop, and mobile.
+**Use** makes one the account new turns run on, and **Remove** deletes it. Both stop the instance's
+running threads first, because a running agent would otherwise write its own account back. **Sign
+out** removes every saved account. Accounts only join through Google's own sign-in; T3 does not
+import them from anywhere else. The tokens stay in the instance's profile.
+
+Turn on **Switch accounts when quota runs out** to let T3 move on by itself. When a turn hits its
+usage limit, T3 marks that account as out of quota until its reset time, starts the agent on the
+next saved account that still has quota, and sends the same message again in the same thread. The
+thread shows a "Provider recovered" notice naming both accounts, with part of each email hidden.
+If every saved account is out of quota the turn fails once and says when the first one resets, and
+a single turn switches at most eight times. With the setting off, nothing changes.
+
+Rotating between accounts to get more quota may break Google's terms. That is your decision and
+your risk. Accounts on one machine still share its network address; see
+[Send Antigravity traffic through a proxy](#send-antigravity-traffic-through-a-proxy).
+
+## Send Antigravity traffic through a proxy
+
+Set **Network proxy** in the instance's settings to `http://`, `https://`, `socks5://`, or
+`socks5h://` followed by a host and port, such as `http://127.0.0.1:7890`. Credentials can go in
+the URL, and are saved as plain settings. The one proxy covers everything the instance sends to
+Google: the agent, and the quota requests behind **Usage > Limits**. Loopback addresses are never
+proxied. Leave it empty to use the machine's own network, including any proxy variables it already
+has. A proxy that does not parse is reported as a configuration problem, and if the server cannot
+use the proxy the limits show as unavailable instead of going out directly. SOCKS5 support for the
+limit requests is Node's experimental one. The proxy is per instance, not per account.
+
 ## Run a native goal
 
 When your Antigravity runtime offers `/goal`, send `/goal` followed by a verifiable
