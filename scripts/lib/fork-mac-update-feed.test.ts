@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off globalDate:off - Fixtures on disk for a build-tooling helper.
 import * as NodeCrypto from "node:crypto";
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
@@ -5,7 +6,7 @@ import * as NodePath from "node:path";
 
 import { describe, expect, it } from "vite-plus/test";
 
-import { renderMacUpdateManifest } from "./fork-mac-update-feed.ts";
+import { renderAppUpdateConfig, renderMacUpdateManifest } from "./fork-mac-update-feed.ts";
 import { parseUpdateManifest } from "./update-manifest.ts";
 
 describe("renderMacUpdateManifest", () => {
@@ -30,5 +31,21 @@ describe("renderMacUpdateManifest", () => {
     } finally {
       NodeFS.rmSync(directory, { recursive: true, force: true });
     }
+  });
+});
+
+describe("renderAppUpdateConfig", () => {
+  it("points the app at the GitHub repository with its own cache directory", () => {
+    expect(
+      renderAppUpdateConfig({ repository: "SimpleEve/t3-extend", packageName: "t3extend" }),
+    ).toBe(
+      "owner: SimpleEve\nrepo: t3-extend\nprovider: github\nreleaseType: release\nupdaterCacheDirName: t3extend-updater\n",
+    );
+  });
+
+  it.each(["", "SimpleEve", "a/b/c", "owner/re po"])("rejects the repository %j", (repository) => {
+    expect(() => renderAppUpdateConfig({ repository, packageName: "t3extend" })).toThrow(
+      /owner\/repo/u,
+    );
   });
 });

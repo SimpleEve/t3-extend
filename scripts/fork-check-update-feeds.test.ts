@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off - Fixtures on disk for a dependency-free release step.
 import * as NodeCrypto from "node:crypto";
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
