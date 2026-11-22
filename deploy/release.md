@@ -24,13 +24,24 @@ This is the one procedure every T3 Extend release follows. The release is built 
 
 Every release has `docs/fork/changelog/<version>.md` (the version without `v`). The release body is this file plus a short download list.
 
-1. Draft it: `vp run fork:changelog --version <version>`. It finds the previous published fork tag reachable from `HEAD`, reads the first-parent history since then, and writes English items under `## English` and a `TODO(zh)` placeholder per item under `## 中文`. It never overwrites an existing file. Upstream syncs collapse into one item.
-2. Rewrite both sections by hand in user-facing language. Say what changed for someone using the app, not the commit subject. Keep the same items in both languages, grouped under 新功能/Features, 修复/Fixes, 上游同步/Upstream, 其他/Other (leave out empty groups). Delete items that no user would notice.
-3. Remove every `TODO`. The workflow refuses a published tag whose file is missing, has a `TODO`, or lacks either `## 中文` or `## English`.
-4. Say it when installs need a manual step, such as an old version that cannot update itself.
-5. Commit the file to `main` and push `main`.
+**What it covers.** Everything a user gets that they have not been told about yet: the changes since the last release that has a written changelog, not just since the previous tag. A release that went out without a changelog does not move that starting point, so its changes go in the next one. When the starting point is not the previous release, say so in one line at the top of both sections ("covers everything since 0.1.11-1.0").
+
+1. Draft it: `vp run fork:changelog --version <version>`. It picks the highest fork tag below `<version>` that has a file in `docs/fork/changelog/` (with none, the oldest fork tag), reads the first-parent history since then, and writes English items under `## English` and a `TODO(zh)` placeholder per item under `## 中文`. It prints the starting tag; check it. It never overwrites an existing file. Upstream syncs collapse into one item.
+2. Check nothing is missing. Run `git log --first-parent --format='%h %s' <starting tag>..HEAD` and go through every `Merge branch …` and `feat` line: each one is either in the changelog or deliberately left out because users cannot notice it. A new settings page, provider ability, client surface or install format always goes in.
+3. Rewrite both sections by hand, one item per thing a user can notice, not one per commit:
+   - Say what the user can now do or what stopped going wrong, and where to find it (a settings path, a menu). Not the commit subject, branch name or internals.
+   - Fold follow-up fixes and polish of the same feature into its item. Fold translation fixes into one item.
+   - Leave out tests, docs, refactors, CI, formatting and merge repairs.
+   - Put the most important items first. Bold the feature name when the list is long.
+   - Group under 新功能/Features, 修复/Fixes, 上游同步/Upstream, 其他/Other (leave out empty groups). The upstream item names the upstream commit or version and any change users will see from it.
+   - Keep the same items in the same order in both languages. Write the Chinese as Chinese, not a word-for-word translation.
+4. Remove every `TODO`. The workflow refuses a published tag whose file is missing, has a `TODO`, or lacks either `## 中文` or `## English`.
+5. Say it when installs need a manual step, such as an old version that cannot update itself.
+6. Commit the file to `main` and push `main`.
 
 The desktop update dialog shows only the section that matches the app language (`## 中文` for Chinese, `## English` otherwise), so keep each section complete on its own. Anything under a later `## ` heading, like the download list, is not shown.
+
+If a published release's notes turn out wrong or incomplete, fix the file on `main` and replace the release body with it plus the existing download list: `gh release edit v<version> -R SimpleEve/t3-extend --notes-file <file>`. Do not retag.
 
 ## 4. Tag and push
 

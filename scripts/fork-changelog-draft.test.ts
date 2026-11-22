@@ -133,4 +133,13 @@ describe("previousForkTag", () => {
     expect(previousForkTag(["v0.1.11"], "0.1.11-1.0")).toBeUndefined();
     expect(previousForkTag(tags, "0.0.0-ci.5")).toBe("v0.1.12-1.0");
   });
+
+  it("skips releases that went out without a changelog, back to the oldest fork tag", () => {
+    const tags = ["v0.1.11-1.0", "v0.1.11-1.1", "v0.1.11-1.6", "v0.1.11-1.7"];
+    const written = (versions: ReadonlyArray<string>) => (version: string) =>
+      versions.includes(version);
+    expect(previousForkTag(tags, "0.1.11-1.8", written(["0.1.11-1.7"]))).toBe("v0.1.11-1.7");
+    expect(previousForkTag(tags, "0.1.11-1.8", written(["0.1.11-1.1"]))).toBe("v0.1.11-1.1");
+    expect(previousForkTag(tags, "0.1.11-1.7", written([]))).toBe("v0.1.11-1.0");
+  });
 });

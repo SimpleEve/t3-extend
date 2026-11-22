@@ -1,6 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off processEnv:off - A dependency-free release step: it reads git and writes one file.
-// T3 Extend: draft docs/fork/changelog/<version>.md from the first-parent history since the previous
-// published fork tag. The draft has English items and a marked placeholder per Chinese item; a person rewrites both
+// T3 Extend: draft docs/fork/changelog/<version>.md from the first-parent history since the last
+// fork release with a written changelog. The draft has English items and a marked placeholder per Chinese item; a person rewrites both
 // sections in user-facing language before tagging. See deploy/release.md.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
@@ -39,6 +39,8 @@ const SECTION_TITLES: ReadonlyArray<{
 const CONVENTIONAL = /^(\w+)(?:\(([^)]*)\))?!?:\s*(.+)$/u;
 const FORK_TAG = /^v\d+\.\d+\.\d+-\d+\.\d+$/u;
 const UPSTREAM_MERGE = /^Merge\b.*\bupstream\b/iu;
+
+const CHANGELOG_DIR = NodePath.join(import.meta.dirname, "../docs/fork/changelog");
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
@@ -136,15 +138,21 @@ export function renderChangelogDraft(items: ReadonlyArray<ChangelogItem>): strin
 }
 
 /**
- * The highest published fork tag below `version`, among tags reachable from the commit being released.
- * A test build (`-ci.N`) has no place in the order, so it is drafted against the highest tag.
+ * Where the draft starts: the highest fork tag below `version` that already has a written changelog, so
+ * changes from releases that went out without one are not skipped. With none written, the oldest fork tag.
+ * A test build (`-ci.N`) has no place in the order, so every tag counts as below it.
  */
-export function previousForkTag(tags: ReadonlyArray<string>, version: string): string | undefined {
+export function previousForkTag(
+  tags: ReadonlyArray<string>,
+  version: string,
+  hasChangelog: (version: string) => boolean = () => true,
+): string | undefined {
   const testBuild = /-ci\.\d+$/u.test(version);
-  return tags
+  const below = tags
     .filter((tag) => FORK_TAG.test(tag))
     .filter((tag) => testBuild || compareReleaseVersions(tag.slice(1), version) < 0)
-    .toSorted((left, right) => compareReleaseVersions(right.slice(1), left.slice(1)))[0];
+    .toSorted((left, right) => compareReleaseVersions(right.slice(1), left.slice(1)));
+  return below.find((tag) => hasChangelog(tag.slice(1))) ?? below.at(-1);
 }
 
 function git(args: ReadonlyArray<string>): string {
@@ -180,7 +188,11 @@ export function draftChangelog(input: { readonly version: string; readonly since
 } {
   const since =
     input.since ??
-    previousForkTag(git(["tag", "--merged", "HEAD", "--list", "v*"]).split("\n"), input.version);
+    previousForkTag(
+      git(["tag", "--merged", "HEAD", "--list", "v*"]).split("\n"),
+      input.version,
+      (tagVersion) => NodeFS.existsSync(NodePath.join(CHANGELOG_DIR, `${tagVersion}.md`)),
+    );
   if (since === undefined) {
     throw new Error("No earlier fork tag is reachable from HEAD; pass --since <tag>.");
   }
@@ -218,7 +230,7 @@ if (import.meta.main) {
       process.stdout.write(`${draft}\n`);
     } else {
       const target = NodePath.resolve(
-        values.out ?? NodePath.join(import.meta.dirname, "../docs/fork/changelog", `${version}.md`),
+        values.out ?? NodePath.join(CHANGELOG_DIR, `${version}.md`),
       );
       if (NodeFS.existsSync(target)) {
         throw new Error(`${target} exists; it is never overwritten. Edit it by hand.`);
