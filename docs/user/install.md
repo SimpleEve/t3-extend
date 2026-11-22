@@ -111,6 +111,11 @@ for Macs with Apple silicon.
 To skip step 2, run `xattr -d com.apple.quarantine "/Applications/T3 Extend (Beta).app"` in
 Terminal before opening the app.
 
+The app checks the releases page for updates itself and offers a new version in
+the app. Installs of 0.1.11-1.6 and earlier have no updater: open the newer disk
+image and drag the app into **Applications** once, replacing the old one, and
+later versions update themselves.
+
 ### T3 Extend on Windows
 
 <!-- fork: T3 Extend only. Not part of upstream T3 Code. -->
@@ -137,7 +142,10 @@ be turned back on afterwards without reinstalling Windows.
 T3 Extend installs beside official T3 Code: it has its own install folder, Start
 menu entry, entry in **Installed apps**, `t3extend://` links, data folders
 (`%APPDATA%\t3extend` and `%USERPROFILE%\.t3extend`), and background-service name.
-The app does not update itself; install a newer `.exe` over the old one to upgrade.
+The app checks the releases page for updates itself and offers a new version
+in the app, so you do not have to download it. Installs of 0.1.11-1.6 and earlier
+have no updater: install the newer `.exe` over the old one once, and later
+versions update themselves.
 
 ### T3 Extend command line
 
