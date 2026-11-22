@@ -1,7 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off processEnv:off - A dependency-free release step: it reads git and writes one file.
 // T3 Extend: draft docs/fork/changelog/<version>.md from the first-parent history since the previous
 // published fork tag. The draft has English items and a marked placeholder per Chinese item; a person rewrites both
-// sections in user-facing language before tagging. See docs/fork/release.md.
+// sections in user-facing language before tagging. See deploy/release.md.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";

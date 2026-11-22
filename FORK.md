@@ -489,7 +489,7 @@ fork 只保留一处修复：**时钟偏差**。上游 `packages/client-runtime/
 
 正式的安装包都由 `.github/workflows/fork-release.yml` 在 GitHub 托管的 runner 上构建，发布到 `SimpleEve/t3-extend` 的 Releases。本机两条命令（下一节）还在，用来本地验证或应急。
 
-**发版本照 [docs/fork/release.zh-CN.md](docs/fork/release.zh-CN.md)**（英文版 [release.md](docs/fork/release.md)）：版本和 tag 规则、发布前检查、写中英双语更新说明、打 tag、发布后检查、测试构建、构建失败怎么办，都在那里，这里不再重复。
+**发版本照 [deploy/release.zh-CN.md](deploy/release.zh-CN.md)**（英文版 [release.md](deploy/release.md)）：版本和 tag 规则、发布前检查、写中英双语更新说明、打 tag、发布后检查、测试构建、构建失败怎么办，都在那里，这里不再重复。
 
 workflow 先构建所有产物，全部传上去之后才把 release 从草稿改成正式发布并标为 latest。产物：
 
@@ -509,7 +509,7 @@ Windows 任务在 runner 上用 Rust 1.95.0 先编出 `t3-resource-monitor.exe`�
 
 每个 CLI 归档在构建它的那台 runner 上跑 `smoke-cli-archive.ts`（`--expect-version`）。DMG 构建后 workflow 再挂载一次，检查 app 的 designated requirement 含 `certificate root = H"491ecedb…8978"`（`EXPECTED_MAC_CERT_SHA1`）：换了证书的包会让用户重新授权钥匙串，所以不匹配就失败。
 
-**tag 和版本的约束**（完整规则和操作见 [docs/fork/release.zh-CN.md](docs/fork/release.zh-CN.md)）：`t3x update` 和服务的更新靠 `newestCliReleaseVersion`：列出 `releases`（按创建时间倒序），跳过草稿，取**第一个**形如 `v<semver>` 且渠道相同的 tag，不比较大小。所以正式 tag 只能是 `v<上游 X.Y.Z>-<fork A.B>`，并且按 semver 必须比已发布的所有 tag 都大，已发布的 tag 绝不移动或复用；`-nightly.`、`-preview.` 是别的渠道，不能用。`scripts/fork-release-version.ts` 在 workflow 开头检查（`fork-release-version.test.ts` 有用例，包括用 `newestCliReleaseVersion` 对一遍）。测试用 `-ci.N` 的 tag 或手动运行，永远是草稿加 prerelease。同一时刻只有一个 release 运行（`concurrency`）。版本号就是 tag 去掉 `v`，构建前 `update-release-package-versions.ts` 把它写进各个 `package.json`。
+**tag 和版本的约束**（完整规则和操作见 [deploy/release.zh-CN.md](deploy/release.zh-CN.md)）：`t3x update` 和服务的更新靠 `newestCliReleaseVersion`：列出 `releases`（按创建时间倒序），跳过草稿，取**第一个**形如 `v<semver>` 且渠道相同的 tag，不比较大小。所以正式 tag 只能是 `v<上游 X.Y.Z>-<fork A.B>`，并且按 semver 必须比已发布的所有 tag 都大，已发布的 tag 绝不移动或复用；`-nightly.`、`-preview.` 是别的渠道，不能用。`scripts/fork-release-version.ts` 在 workflow 开头检查（`fork-release-version.test.ts` 有用例，包括用 `newestCliReleaseVersion` 对一遍）。测试用 `-ci.N` 的 tag 或手动运行，永远是草稿加 prerelease。同一时刻只有一个 release 运行（`concurrency`）。版本号就是 tag 去掉 `v`，构建前 `update-release-package-versions.ts` 把它写进各个 `package.json`。
 
 **更新说明**：每个版本在 `docs/fork/changelog/<版本>.md` 里有 `## 中文` 和 `## English` 两段，release 正文就是它加下载列表。`scripts/fork-changelog-draft.ts`（`vp run fork:changelog`）起草，`scripts/fork-release-changelog.ts` 在 plan 任务里检查：已发布 tag 的文件缺失、含 `TODO` 或缺任一语言就失败，测试构建缺文件时现场起草。桌面版的更新弹窗（`apps/desktop/src/updates/releaseNotes.ts`）只显示与应用语言一致的那一段，没有这两个标题的旧 release 读整段。
 

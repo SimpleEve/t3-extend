@@ -14,7 +14,7 @@ name: T3 Extend release
 #   T3-Extend-<app version>-arm64-v8a.apk   Android app, signed with the fork's release keystore
 # The release stays a draft until every asset is attached, so `t3x update` never sees half a release.
 # The release body is docs/fork/changelog/<version>.md (中文 + English) plus a short download list; a published
-# tag fails in the plan job, before any build, if that file is missing or unfinished. See docs/fork/release.md.
+# tag fails in the plan job, before any build, if that file is missing or unfinished. See deploy/release.md.
 
 on:
   push:

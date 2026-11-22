@@ -2,7 +2,7 @@
 
 [English](./release.md) | 简体中文
 
-T3 Extend 的每个版本都照这一份流程发。版本由 `.github/workflows/fork-release.yml` 在 GitHub 托管的 runner 上构建，发布到 `SimpleEve/t3-extend` 的 Releases。产物表、Secrets 和本机打包命令在 [FORK.md](../../FORK.md) 的“打包与签名”里。
+T3 Extend 的每个版本都照这一份流程发。版本由 `.github/workflows/fork-release.yml` 在 GitHub 托管的 runner 上构建，发布到 `SimpleEve/t3-extend` 的 Releases。产物表、Secrets 和本机打包命令在 [FORK.md](../FORK.md) 的“打包与签名”里。
 
 ## 1. 版本和 tag 规则
 

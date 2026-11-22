@@ -2,7 +2,7 @@
 
 English | [简体中文](./release.zh-CN.md)
 
-This is the one procedure every T3 Extend release follows. The release is built by `.github/workflows/fork-release.yml` on GitHub-hosted runners and published to the Releases of `SimpleEve/t3-extend`. The artifact table, the secrets and the local build commands are in [FORK.md](../../FORK.md) under "打包与签名".
+This is the one procedure every T3 Extend release follows. The release is built by `.github/workflows/fork-release.yml` on GitHub-hosted runners and published to the Releases of `SimpleEve/t3-extend`. The artifact table, the secrets and the local build commands are in [FORK.md](../FORK.md) under "打包与签名".
 
 ## 1. Version and tag rules
 
