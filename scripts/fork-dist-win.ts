@@ -115,11 +115,14 @@ function findInstaller(): string {
   return NodePath.join(outputDir, installers[0]!);
 }
 
-/** Remove this script's own outputs so a rerun never sees a stale installer. */
+/** Remove this script's own outputs so a rerun never sees a stale installer or update manifest. */
 function cleanOutputs(): void {
   if (!NodeFS.existsSync(outputDir)) return;
   for (const entry of NodeFS.readdirSync(outputDir)) {
-    if (entry.startsWith(`${installerStem}-`) && /-x64\.exe(\.blockmap|\.sha256)?$/u.test(entry)) {
+    if (
+      entry === "latest.yml" ||
+      (entry.startsWith(`${installerStem}-`) && /-x64\.exe(\.blockmap|\.sha256)?$/u.test(entry))
+    ) {
       NodeFS.rmSync(NodePath.join(outputDir, entry), { force: true });
     }
   }
@@ -212,10 +215,37 @@ async function verifyInstaller(installerPath: string): Promise<void> {
   }
 }
 
+/**
+ * With a feed configured electron-builder writes `latest.yml` and the installer's blockmap; an installed
+ * app updates from them, so `latest.yml` must name the installer that gets uploaded. It stays unchecked
+ * for a build without a feed.
+ */
+function verifyUpdateFeed(installerPath: string): void {
+  if (!process.env.T3CODE_DESKTOP_UPDATE_REPOSITORY?.trim()) {
+    log("T3CODE_DESKTOP_UPDATE_REPOSITORY is unset: no update feed to check.");
+    return;
+  }
+  const manifestPath = NodePath.join(outputDir, "latest.yml");
+  const installerName = NodePath.basename(installerPath);
+  if (!NodeFS.existsSync(manifestPath) || !NodeFS.existsSync(`${installerPath}.blockmap`)) {
+    throw new Error(`The build has an update feed but ${manifestPath} or the blockmap is missing.`);
+  }
+  const manifest = NodeFS.readFileSync(manifestPath, "utf8");
+  const urls = [...manifest.matchAll(/^ {2}- url: (.+)$/gmu)].map((match) => match[1]);
+  if (
+    !urls.includes(installerName) ||
+    !new RegExp(`^path: '?${installerName.replaceAll(".", "\\.")}'?$`, "mu").test(manifest)
+  ) {
+    throw new Error(`latest.yml does not name ${installerName}:\n${manifest}`);
+  }
+  log(`Update feed: latest.yml names ${installerName}, blockmap present.`);
+}
+
 cleanOutputs();
 buildInstaller();
 const installerPath = findInstaller();
 await verifyInstaller(installerPath);
+verifyUpdateFeed(installerPath);
 const digest = sha256(installerPath);
 NodeFS.writeFileSync(`${installerPath}.sha256`, `${digest}  ${NodePath.basename(installerPath)}\n`);
 log(`\nInstaller: ${installerPath}\nsha256: ${digest}`);
