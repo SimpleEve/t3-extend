@@ -83,7 +83,10 @@ function describeMerge(commit: ChangelogCommit): ReadonlyArray<ChangelogItem> {
  */
 export function changelogItems(
   commits: ReadonlyArray<ChangelogCommit>,
-  context: { readonly upstreamVersion: string; readonly previousUpstreamVersion?: string },
+  context: {
+    readonly upstreamVersion: string;
+    readonly previousUpstreamVersion?: string | undefined;
+  },
 ): ReadonlyArray<ChangelogItem> {
   const items: Array<ChangelogItem> = [];
   let upstreamSync: ChangelogItem | undefined;
