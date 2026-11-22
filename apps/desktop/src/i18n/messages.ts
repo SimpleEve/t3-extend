@@ -50,6 +50,7 @@ export function m(message: string, variables: Readonly<Record<string, string>> =
 
 /** The language the desktop shell is showing, like "en" or "zh". */
 export function activeLanguage(): string {
+  // fork: the release notes dialog picks its language section
   return activeLocale;
 }
 

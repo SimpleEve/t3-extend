@@ -66,7 +66,7 @@ gh run watch <run-id> -R SimpleEve/t3-extend --exit-status
 
 桌面版更新是怎么工作的，更新不起作用时看这里：
 
-- 应用里有 `app-update.yml`，构建时由 `T3CODE_DESKTOP_UPDATE_REPOSITORY` 写入（workflow 把它设成 `SimpleEve/t3-extend`）。没有这个变量的构建没有 feed，也没有 **Check for Updates…**。
+- 应用里有 `app-update.yml`，构建时由 `T3CODE_DESKTOP_UPDATE_REPOSITORY` 写入（workflow 每次运行都把它设成 `SimpleEve/t3-extend`，所以测试构建也带 feed；本机打包不手动设就没有）。没有这个变量的构建没有 feed，也没有 **Check for Updates…**。
 - 它向 GitHub 要 latest release，从里面读 `latest-mac.yml` 或 `latest.yml`，按 semver 更高才提示。草稿、prerelease 和测试构建永远不是 latest release。
 - macOS：Squirrel.Mac 只安装签名满足当前运行应用要求的更新。两者来自同一个自签名身份，所以 workflow 会检查 `EXPECTED_MAC_CERT_SHA1`。换了证书签的版本没法更新已有的安装，用户要手动装。
 - Windows：安装包没签名，`app-update.yml` 里没有 `publisherName`，所以更新器只检查 `latest.yml` 里的 SHA-512。
@@ -82,7 +82,7 @@ git tag v0.0.0-ci.1 && git push origin v0.0.0-ci.1
 gh workflow run fork-release.yml -R SimpleEve/t3-extend --ref <分支> -f version=0.0.0-ci.1
 ```
 
-`workflow_dispatch` 只接受 `-ci.N`，留空就是 `0.0.0-ci.<运行编号>`。测试构建有 `docs/fork/changelog/<版本>.md` 就用它，没有就现场起一份草稿，最后是草稿加 prerelease。用完清理：
+`workflow_dispatch` 只接受 `-ci.N`，留空就是 `0.0.0-ci.<运行编号>`。测试构建有 `docs/fork/changelog/<版本>.md` 就用它，没有就现场起一份草稿，最后是草稿加 prerelease。测试构建出来的应用和正式版一样带更新 feed，检查的是真正的 latest release；草稿永远不会被提示，所以无害，还能用测试构建试更新器。用完清理：
 
 ```bash
 gh release delete v0.0.0-ci.1 -R SimpleEve/t3-extend --yes --cleanup-tag

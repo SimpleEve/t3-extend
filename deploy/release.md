@@ -66,7 +66,7 @@ gh run watch <run-id> -R SimpleEve/t3-extend --exit-status
 
 How the desktop update works, so you know what to look at when it does not:
 
-- The app has `app-update.yml` inside, written at build time from `T3CODE_DESKTOP_UPDATE_REPOSITORY` (the workflow sets it to `SimpleEve/t3-extend`). A build without that variable has no feed and no **Check for Updates…**.
+- The app has `app-update.yml` inside, written at build time from `T3CODE_DESKTOP_UPDATE_REPOSITORY` (the workflow sets it to `SimpleEve/t3-extend` for every run, so test builds carry the feed too; a local build does not unless you set it). A build without that variable has no feed and no **Check for Updates…**.
 - It asks GitHub for the latest release, reads `latest-mac.yml` or `latest.yml` from it, and offers the version when it is higher under semver. Drafts, prereleases and test builds are never the latest release.
 - macOS: Squirrel.Mac only installs an update whose signature satisfies the running app's. Both come from the same self-signed identity, which is why the workflow checks `EXPECTED_MAC_CERT_SHA1`. A release signed with another certificate cannot update existing installs; users would install it by hand.
 - Windows: the installer is unsigned and `app-update.yml` has no `publisherName`, so the updater checks only the SHA-512 in `latest.yml`.
@@ -82,7 +82,7 @@ git tag v0.0.0-ci.1 && git push origin v0.0.0-ci.1
 gh workflow run fork-release.yml -R SimpleEve/t3-extend --ref <branch> -f version=0.0.0-ci.1
 ```
 
-`workflow_dispatch` only accepts `-ci.N`; an empty version means `0.0.0-ci.<run number>`. A test build uses `docs/fork/changelog/<version>.md` if it exists and otherwise a fresh draft, and ends as a draft prerelease. Clean up when done:
+`workflow_dispatch` only accepts `-ci.N`; an empty version means `0.0.0-ci.<run number>`. A test build uses `docs/fork/changelog/<version>.md` if it exists and otherwise a fresh draft, and ends as a draft prerelease. A test build's app carries the update feed like a release build. It checks the real latest release; drafts are never offered, so this is harmless, and it lets you try the updater from a test build. Clean up when done:
 
 ```bash
 gh release delete v0.0.0-ci.1 -R SimpleEve/t3-extend --yes --cleanup-tag

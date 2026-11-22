@@ -6,27 +6,27 @@ T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的二开 fork（`S
 
 所有 fork 身份集中在 `packages/shared/src/forkIdentity.ts`。上游文件里引用它的地方都只改一行，并带 `// fork:` 注释。不能 import 的地方（`apps/desktop/package.json` 的 `productName`、`apps/desktop/scripts/electron-launcher.mjs`、`apps/mobile/package.json` 的 `--scheme`、iOS 小组件、移动端测试脚本）直接写字面量。
 
-| 项                                                   | 官方 T3 Code                                    | T3 Extend                                                                   |
-| ---------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------- |
-| 应用名                                               | T3 Code (Beta / Nightly / Dev)                  | T3 Extend (Beta / Nightly / Dev)                                            |
-| appId / bundle id / Android 包名                     | `com.t3tools.t3code`                            | `com.simpleeve.t3extend`，移动端变体加 `.dev` / `.preview`                  |
-| Electron userData                                    | `t3code-v2` / `t3code-dev`                      | `t3extend` / `t3extend-dev`                                                 |
-| URL scheme                                           | `t3code` / `t3code-dev` / `t3code-preview`      | `t3extend` / `t3extend-dev` / `t3extend-preview`                            |
-| T3 home                                              | `~/.t3`                                         | `~/.t3extend`                                                               |
-| CLI shim 与 PATH 软链接                              | `t3`                                            | `t3x`                                                                       |
-| 开机服务                                             | `com.t3tools.t3code.service` / `t3code.service` | `com.simpleeve.t3extend.service` / `t3extend.service`                       |
-| 默认端口（桌面后端、headless server）                | 3773                                            | 3873                                                                        |
-| Tailscale HTTPS 端口                                 | 443                                             | 8443（`FORK.tailscaleServePort`）                                           |
-| 新 worktree 的临时分支                               | `t3/<hex>`                                      | `t3x/<hex>`；官方的 `t3/<hex>`、`t3code/…` 只用于显示                       |
-| 自动命名分支的默认前缀（`branchNamePrefix`）         | `t3`                                            | `t3x`                                                                       |
-| 跨仓库 PR 的本地分支                                 | `t3code/pr-<n>/…`                               | `t3x/pr-<n>/…`                                                              |
-| 拉取 PR 时备份被重置掉的提交的 ref                   | `refs/t3code/pre-refresh`                       | `refs/t3x/pre-refresh`                                                      |
-| review guide 的临时 base ref                         | `refs/t3/review-guide/<n>/base`                 | `refs/t3x/review-guide/<n>/base`                                            |
-| server 发布源                                        | `pingdotgg/t3code`                              | `SimpleEve/t3-extend` 的 Releases（`fork-release.yml` 发布）                |
-| 桌面更新 feed                                        | GitHub Releases                                 | `SimpleEve/t3-extend` 的 Releases，仅发布构建带 feed（见下）                |
-| 移动端 OTA                                           | 官方 EAS 项目                                   | 无，除非设置 `T3EXTEND_EAS_PROJECT_ID` 和 `T3CODE_MOBILE_UPDATES_ENABLED=1` |
-| telemetry                                            | 默认开                                          | 默认关，`T3CODE_TELEMETRY_ENABLED=true` 才上报                              |
-| 设置 > 关于 > 移动应用（商店二维码）、手机「法律」页 | 指向官方 App Store、Google Play 和 `t3.codes`   | 都去掉；Android 只发 APK，文档在 `docs/user/install.md` 的"Mobile app"      |
+| 项                                                   | 官方 T3 Code                                    | T3 Extend                                                                                                    |
+| ---------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 应用名                                               | T3 Code (Beta / Nightly / Dev)                  | T3 Extend (Beta / Nightly / Dev)                                                                             |
+| appId / bundle id / Android 包名                     | `com.t3tools.t3code`                            | `com.simpleeve.t3extend`，移动端变体加 `.dev` / `.preview`                                                   |
+| Electron userData                                    | `t3code-v2` / `t3code-dev`                      | `t3extend` / `t3extend-dev`                                                                                  |
+| URL scheme                                           | `t3code` / `t3code-dev` / `t3code-preview`      | `t3extend` / `t3extend-dev` / `t3extend-preview`                                                             |
+| T3 home                                              | `~/.t3`                                         | `~/.t3extend`                                                                                                |
+| CLI shim 与 PATH 软链接                              | `t3`                                            | `t3x`                                                                                                        |
+| 开机服务                                             | `com.t3tools.t3code.service` / `t3code.service` | `com.simpleeve.t3extend.service` / `t3extend.service`                                                        |
+| 默认端口（桌面后端、headless server）                | 3773                                            | 3873                                                                                                         |
+| Tailscale HTTPS 端口                                 | 443                                             | 8443（`FORK.tailscaleServePort`）                                                                            |
+| 新 worktree 的临时分支                               | `t3/<hex>`                                      | `t3x/<hex>`；官方的 `t3/<hex>`、`t3code/…` 只用于显示                                                        |
+| 自动命名分支的默认前缀（`branchNamePrefix`）         | `t3`                                            | `t3x`                                                                                                        |
+| 跨仓库 PR 的本地分支                                 | `t3code/pr-<n>/…`                               | `t3x/pr-<n>/…`                                                                                               |
+| 拉取 PR 时备份被重置掉的提交的 ref                   | `refs/t3code/pre-refresh`                       | `refs/t3x/pre-refresh`                                                                                       |
+| review guide 的临时 base ref                         | `refs/t3/review-guide/<n>/base`                 | `refs/t3x/review-guide/<n>/base`                                                                             |
+| server 发布源                                        | `pingdotgg/t3code`                              | `SimpleEve/t3-extend` 的 Releases（`fork-release.yml` 发布）                                                 |
+| 桌面更新 feed                                        | GitHub Releases                                 | `SimpleEve/t3-extend` 的 Releases；`fork-release.yml` 的每次构建（含测试构建）都带，本机打包默认不带（见下） |
+| 移动端 OTA                                           | 官方 EAS 项目                                   | 无，除非设置 `T3EXTEND_EAS_PROJECT_ID` 和 `T3CODE_MOBILE_UPDATES_ENABLED=1`                                  |
+| telemetry                                            | 默认开                                          | 默认关，`T3CODE_TELEMETRY_ENABLED=true` 才上报                                                               |
+| 设置 > 关于 > 移动应用（商店二维码）、手机「法律」页 | 指向官方 App Store、Google Play 和 `t3.codes`   | 都去掉；Android 只发 APK，文档在 `docs/user/install.md` 的"Mobile app"                                       |
 
 界面和用户文档对 telemetry 的说法跟着这一行走：欢迎向导和设置 > 关于里只讲"默认不收集，要开就设 `T3CODE_TELEMETRY_ENABLED=true`"，不再链到上游 `t3.codes` 的隐私政策（fork 没有自己的）。客户端读不到服务端的实际开关（`ServerConfig` 没有这个字段），所以文案不随服务端状态分支，只在 managed policy 关掉时换成组织的说明。`docs/user/telemetry.md` 开头、中继追踪和手机端崩溃报告三处是 fork 改的上游文档，同步上游时留意冲突。
 
@@ -48,7 +48,7 @@ Tailscale 的默认端口走 `FORK.tailscaleServePort`：`packages/tailscale` �
 - fork 不会把官方的 `~/.t3` 当成自己的数据目录：`T3CODE_HOME`、`--base-dir`、bootstrap 或软链接解析出来等于它时，server（`resolveBaseDir`）和桌面版（`main.ts` 里在任何写入之前）都会报错退出，不创建任何文件；它下面的子目录（比如开发用的 worktree `.t3`）不受影响。开发种子数据仍然只读拷贝它。
 - 桌面版写的是 `~/.t3extend/bin/t3x`，以及 PATH 上的 `t3x` 软链接，不会碰官方的 `~/.t3/bin/t3`、`/opt/homebrew/bin/t3`。
 - fork 不会被官方更新覆盖：
-  - 桌面构建只认显式设置的 `T3CODE_DESKTOP_UPDATE_REPOSITORY`，不会从 CI 的 `GITHUB_REPOSITORY` 推断 feed。`fork-release.yml` 把它设成 `SimpleEve/t3-extend`，所以发布出去的桌面包带着 `app-update.yml`，从本仓库的 Releases 自更新，不会去官方的 feed；本机打包不设它就没有 feed（不生成 `app-update.yml`，菜单里也没有 "Check for Updates..."）。electron-builder 只在目标含 dmg 或 zip 时才写 `app-update.yml`，而 `fork-dist-mac.ts` 用 `dir` 目标，所以 macOS 的 `app-update.yml`、更新 zip 和 `latest-mac.yml` 都由这个脚本自己写（`scripts/lib/fork-mac-update-feed.ts`）。0.1.11-1.6 及更早的安装没有 feed，要手动装一次 0.1.11-1.7。
+  - 桌面构建只认显式设置的 `T3CODE_DESKTOP_UPDATE_REPOSITORY`，不会从 CI 的 `GITHUB_REPOSITORY` 推断 feed。`fork-release.yml` 把它设成 `SimpleEve/t3-extend`，所以它构建的每个桌面包（正式发布和 `-ci.N` 测试构建一样）都带着 `app-update.yml`，从本仓库的 Releases 自更新，不会去官方的 feed。测试构建查的也是真正的 latest release：草稿永远不会被提示，所以无害，还能用测试构建来试更新器；本机打包不设它就没有 feed（不生成 `app-update.yml`，菜单里也没有 "Check for Updates..."）。electron-builder 只在目标含 dmg 或 zip 时才写 `app-update.yml`，而 `fork-dist-mac.ts` 用 `dir` 目标，所以 macOS 的 `app-update.yml`、更新 zip 和 `latest-mac.yml` 都由这个脚本自己写（`scripts/lib/fork-mac-update-feed.ts`）。0.1.11-1.6 及更早的安装没有 feed，要手动装一次 0.1.11-1.7。
   - server 自更新（`t3x update`、客户端的 "Update everything"、`t3x service install`）只从 `SimpleEve/t3-extend` 查询和下载，不会换成官方 T3 Code。查询时取 Releases 列表里第一个非草稿、渠道相同的 release（`newestCliReleaseVersion`），所以发布的 tag 必须只增不减，规则见“打包与签名”。已经装好的运行时（带 sentinel 的版本目录）不会被删除或替换，`apps/server/src/cloud/pinnedRuntime.test.ts` 有对应用例。唯一的例外是目标版本目录里上次没下载完的残留：上游逻辑会在下载前先清掉它。
   - 移动端默认关闭 OTA，也不带官方 EAS 的 `projectId` 和 `owner`。
 - 配对链接两种都认：fork 客户端能扫官方 server 的二维码（`t3code://pair`），fork 生成的链接是 `t3extend://pair`。
