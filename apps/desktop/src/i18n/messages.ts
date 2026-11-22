@@ -48,6 +48,11 @@ export function m(message: string, variables: Readonly<Record<string, string>> =
     : gtFallback(target, { ...options, $locale: activeLocale, $_fallback: source });
 }
 
+/** The language the desktop shell is showing, like "en" or "zh". */
+export function activeLanguage(): string {
+  return activeLocale;
+}
+
 /** Runs `listener` after each switch to a different UI language. */
 export function onLocaleChange(listener: () => void): () => void {
   listeners.add(listener);

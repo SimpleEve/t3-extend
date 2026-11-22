@@ -132,7 +132,34 @@ function extractReleaseNoteSummary(summary: string): ExtractedReleaseNoteItems {
   };
 }
 
-function extractReleaseNoteItems(note: string | null | undefined): ExtractedReleaseNoteItems {
+export type ReleaseNoteLanguage = "zh" | "en";
+
+const LANGUAGE_HEADINGS: Readonly<Record<ReleaseNoteLanguage, string>> = {
+  zh: "中文",
+  en: "English",
+};
+
+/**
+ * fork: T3 Extend release bodies carry `## 中文` and `## English` sections before a downloads list.
+ * Returns the lines of the section in `language`, or undefined when the body has no such heading
+ * (older releases), so the caller reads the whole body.
+ */
+function selectLanguageSection(
+  lines: ReadonlyArray<string>,
+  language: ReleaseNoteLanguage | undefined,
+): ReadonlyArray<string> | undefined {
+  if (language === undefined) return undefined;
+  const wanted = `## ${LANGUAGE_HEADINGS[language]}`;
+  const start = lines.findIndex((line) => line.trim() === wanted);
+  if (start < 0) return undefined;
+  const length = lines.slice(start + 1).findIndex((line) => /^##\s/.test(line.trim()));
+  return lines.slice(start + 1, length < 0 ? undefined : start + 1 + length);
+}
+
+function extractReleaseNoteItems(
+  note: string | null | undefined,
+  language?: ReleaseNoteLanguage,
+): ExtractedReleaseNoteItems {
   if (!note) return { items: [], totalItems: 0 };
 
   // Generated summaries fold GitHub's full list under this exact <details> block.
@@ -140,7 +167,9 @@ function extractReleaseNoteItems(note: string | null | undefined): ExtractedRele
   if (summaryEnd >= 0) return extractReleaseNoteSummary(note.slice(0, summaryEnd));
   const items: string[] = [];
   let totalItems = 0;
-  for (const rawLine of stripMarkup(note).split("\n")) {
+  const lines = stripMarkup(note).split("\n");
+  const section = selectLanguageSection(lines, language);
+  for (const rawLine of section ?? lines) {
     const item = rawLine
       .trim()
       .replace(/^[-*]\s+/, "")
@@ -152,9 +181,12 @@ function extractReleaseNoteItems(note: string | null | undefined): ExtractedRele
     if (isIgnoredReleaseNoteLine(item)) continue;
     totalItems += 1;
     items.push(truncateReleaseNoteItem(item));
-    if (items.length > MAX_RELEASE_NOTE_ITEMS_PER_GROUP) items.shift();
+    // A written section lists its best items first; a commit-style list ends with the newest.
+    if (section === undefined && items.length > MAX_RELEASE_NOTE_ITEMS_PER_GROUP) items.shift();
   }
-  return { items: items.toReversed(), totalItems };
+  return section === undefined
+    ? { items: items.toReversed(), totalItems }
+    : { items: items.slice(0, MAX_RELEASE_NOTE_ITEMS_PER_GROUP), totalItems };
 }
 
 // The update feed dates only the offered version; prerelease versions carry their UTC build day.
@@ -193,6 +225,7 @@ export function normalizeDesktopUpdateReleaseNotes(
   fallbackVersion: string,
   channel: DesktopUpdateChannel,
   releaseDate?: string,
+  language?: ReleaseNoteLanguage,
 ): NormalizedDesktopUpdateReleaseNotes {
   const rawNotes = (
     typeof releaseNotes === "string"
@@ -203,7 +236,7 @@ export function normalizeDesktopUpdateReleaseNotes(
   ).filter((entry) => desktopUpdateChannelOf(entry.version) === channel);
 
   const normalizedNotes = rawNotes.flatMap((entry) => {
-    const note = extractReleaseNoteItems(entry.note);
+    const note = extractReleaseNoteItems(entry.note, language);
     if (note.totalItems === 0 && !note.stats) return [];
     const releasedAt = resolveReleasedAt(entry.version, fallbackVersion, releaseDate);
     return [
