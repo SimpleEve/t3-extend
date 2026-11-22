@@ -13,6 +13,8 @@ name: T3 Extend release
 #   T3-Extend-<version>-x64.exe             Windows app (NSIS installer), unsigned, with .blockmap and latest.yml
 #   T3-Extend-<app version>-arm64-v8a.apk   Android app, signed with the fork's release keystore
 # The release stays a draft until every asset is attached, so `t3x update` never sees half a release.
+# The release body is docs/fork/changelog/<version>.md (中文 + English) plus a short download list; a published
+# tag fails in the plan job, before any build, if that file is missing or unfinished. See docs/fork/release.md.
 
 on:
   push:
@@ -62,9 +64,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
+          # A test build without a changelog file drafts one from git history; a published tag only reads the file.
+          fetch-depth: ${{ github.event_name == 'push' && !contains(github.ref, '-ci.') && 1 || 0 }}
           sparse-checkout: |
             package.json
             scripts/fork-release-version.ts
+            scripts/fork-release-changelog.ts
+            scripts/fork-changelog-draft.ts
+            docs/fork/changelog
           sparse-checkout-cone-mode: false
 
       - name: Setup Node.js
@@ -88,6 +95,21 @@ jobs:
             --ref "$GITHUB_REF" \
             --dispatch-version "${DISPATCH_VERSION:-}" \
             --run-number "$GITHUB_RUN_NUMBER"
+
+      # Fails a published tag with no finished changelog now, not after an hour of builds.
+      - name: Prepare the changelog
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          PUBLISH: ${{ steps.release.outputs.publish }}
+        run: node scripts/fork-release-changelog.ts --version "$VERSION" --publish "$PUBLISH" --out changelog.md
+
+      - name: Upload the changelog
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: changelog
+          path: changelog.md
+          if-no-files-found: error
+          retention-days: 1
 
   bundle:
     name: Build JS bundle
@@ -480,6 +502,12 @@ jobs:
         with:
           node-version-file: package.json
 
+      - name: Download the changelog
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: changelog
+          path: changelog
+
       - name: Download CLI archives
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -525,20 +553,23 @@ jobs:
       - name: Write release notes
         run: |
           {
-            echo "T3 Extend ${VERSION}."
-            echo
-            echo "The part before the dash is the upstream T3 Code release it is built on; the part after is T3 Extend's own release number."
-            echo
             if [[ "$PUBLISH" != "true" ]]; then
-              echo "> **Test build.** Built by CI to check the release pipeline; \`t3x update\` never offers it."
+              echo "> **测试构建 / Test build.** 由 CI 构建，用来检查发布流程；\`t3x update\` 不会提供它。Built by CI to check the release pipeline; \`t3x update\` never offers it."
               echo
             fi
-            echo "- \`T3-Extend-*-arm64.dmg\`: macOS app (Apple silicon). Open it, drag the app into Applications, and see docs/user/install.md for the first-launch prompts."
-            echo "- \`T3-Extend-*-x64.exe\`: Windows app (x64 installer). It is unsigned, so SmartScreen says \"Unknown publisher\"; see docs/user/install.md."
-            echo "- \`T3-Extend-*-arm64-v8a.apk\`: Android app."
-            echo "- \`t3-${VERSION}-<platform>-<arch>.tar.gz\` and \`SHA256SUMS\`: the \`t3x\` command line for macOS arm64, Linux x64 and Linux arm64."
+            cat changelog/changelog.md
             echo
-            echo "Install \`t3x\` without the desktop app:"
+            echo "## 下载 / Downloads"
+            echo
+            echo "版本号里短横线前是所基于的上游 T3 Code 版本，后面是 T3 Extend 自己的版本号。The part before the dash is the upstream T3 Code release it is built on; the part after is T3 Extend's own."
+            echo
+            echo "- \`T3-Extend-*-arm64.dmg\`: macOS 应用（Apple 芯片），首次启动提示见 docs/user/install.md / macOS app (Apple silicon), first-launch prompts in docs/user/install.md."
+            echo "- \`T3-Extend-*-x64.exe\`: Windows 安装包（x64，未签名，SmartScreen 会提示“未知发布者”）/ Windows installer (x64, unsigned; SmartScreen says \"Unknown publisher\")."
+            echo "- \`T3-Extend-*-arm64-v8a.apk\`: Android 应用 / Android app."
+            echo "- \`t3-${VERSION}-<platform>-<arch>.tar.gz\`, \`SHA256SUMS\`: \`t3x\` 命令行（macOS arm64、Linux x64、Linux arm64）/ the \`t3x\` command line for macOS arm64, Linux x64 and Linux arm64."
+            echo "- \`latest-mac.yml\`, \`latest.yml\`, \`*.zip\`, \`*.blockmap\`: 桌面版自动更新用，不需要手动下载 / used by the desktop app's updater, not for download."
+            echo
+            echo "不装桌面版，只装 \`t3x\` / Install \`t3x\` without the desktop app:"
             echo
             echo '```sh'
             echo "curl -fsSL https://raw.githubusercontent.com/${GH_REPO}/${TAG}/scripts/install-t3x.sh | T3X_VERSION=${VERSION} sh"

@@ -132,11 +132,15 @@ export function renderChangelogDraft(items: ReadonlyArray<ChangelogItem>): strin
   return ["## 中文", "", ...render("zh"), "## English", "", ...render("en")].join("\n");
 }
 
-/** The highest published fork tag below `version`, among tags reachable from the commit being released. */
+/**
+ * The highest published fork tag below `version`, among tags reachable from the commit being released.
+ * A test build (`-ci.N`) has no place in the order, so it is drafted against the highest tag.
+ */
 export function previousForkTag(tags: ReadonlyArray<string>, version: string): string | undefined {
+  const testBuild = /-ci\.\d+$/u.test(version);
   return tags
     .filter((tag) => FORK_TAG.test(tag))
-    .filter((tag) => compareReleaseVersions(tag.slice(1), version) < 0)
+    .filter((tag) => testBuild || compareReleaseVersions(tag.slice(1), version) < 0)
     .toSorted((left, right) => compareReleaseVersions(right.slice(1), left.slice(1)))[0];
 }
 
@@ -166,6 +170,26 @@ function readCommits(from: string): ReadonlyArray<ChangelogCommit> {
   });
 }
 
+/** The draft for `version`, against `since` or the previous fork tag reachable from HEAD. */
+export function draftChangelog(input: { readonly version: string; readonly since?: string }): {
+  readonly draft: string;
+  readonly since: string;
+} {
+  const since =
+    input.since ??
+    previousForkTag(git(["tag", "--merged", "HEAD", "--list", "v*"]).split("\n"), input.version);
+  if (since === undefined) {
+    throw new Error("No earlier fork tag is reachable from HEAD; pass --since <tag>.");
+  }
+  const draft = renderChangelogDraft(
+    changelogItems(readCommits(since), {
+      upstreamVersion: input.version.split("-")[0]!,
+      previousUpstreamVersion: since.replace(/^v/u, "").split("-")[0],
+    }),
+  );
+  return { draft, since };
+}
+
 if (import.meta.main) {
   const { values } = NodeUtil.parseArgs({
     options: {
@@ -176,39 +200,34 @@ if (import.meta.main) {
     },
   });
   const version = values.version?.replace(/^v/u, "") ?? "";
-  if (!/^\d+\.\d+\.\d+-\d+\.\d+$/u.test(version)) {
+  if (!/^\d+\.\d+\.\d+-(\d+\.\d+|ci\.\d+)$/u.test(version)) {
     process.stderr.write(
       "Usage: fork-changelog-draft.ts --version <upstream>-<fork> [--since <tag>] [--out <file>] [--stdout]\n",
     );
     process.exit(2);
   }
-  const since =
-    values.since ??
-    previousForkTag(git(["tag", "--merged", "HEAD", "--list", "v*"]).split("\n"), version);
-  if (since === undefined) {
-    process.stderr.write("No earlier fork tag is reachable from HEAD; pass --since <tag>.\n");
-    process.exit(1);
-  }
-  const draft = renderChangelogDraft(
-    changelogItems(readCommits(since), {
-      upstreamVersion: version.split("-")[0]!,
-      previousUpstreamVersion: since.replace(/^v/u, "").split("-")[0],
-    }),
-  );
-  if (values.stdout) {
-    process.stdout.write(`${draft}\n`);
-  } else {
-    const target = NodePath.resolve(
-      values.out ?? NodePath.join(import.meta.dirname, "../docs/fork/changelog", `${version}.md`),
-    );
-    if (NodeFS.existsSync(target)) {
-      process.stderr.write(`${target} exists; it is never overwritten. Edit it by hand.\n`);
-      process.exit(1);
+  try {
+    const { draft, since } = draftChangelog({
+      version,
+      ...(values.since ? { since: values.since } : {}),
+    });
+    if (values.stdout) {
+      process.stdout.write(`${draft}\n`);
+    } else {
+      const target = NodePath.resolve(
+        values.out ?? NodePath.join(import.meta.dirname, "../docs/fork/changelog", `${version}.md`),
+      );
+      if (NodeFS.existsSync(target)) {
+        throw new Error(`${target} exists; it is never overwritten. Edit it by hand.`);
+      }
+      NodeFS.mkdirSync(NodePath.dirname(target), { recursive: true });
+      NodeFS.writeFileSync(target, `${draft}\n`);
+      process.stdout.write(
+        `Wrote ${target} from ${since}..HEAD. Finish both languages, then remove every TODO.\n`,
+      );
     }
-    NodeFS.mkdirSync(NodePath.dirname(target), { recursive: true });
-    NodeFS.writeFileSync(target, `${draft}\n`);
-    process.stdout.write(
-      `Wrote ${target} from ${since}..HEAD. Finish both languages, then remove every TODO.\n`,
-    );
+  } catch (error) {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exit(1);
   }
 }

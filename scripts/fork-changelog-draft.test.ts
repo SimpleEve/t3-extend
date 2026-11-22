@@ -131,5 +131,6 @@ describe("previousForkTag", () => {
     expect(previousForkTag(tags, "0.1.12-1.1")).toBe("v0.1.12-1.0");
     expect(previousForkTag(tags, "0.1.12-1.0")).toBe("v0.1.11-1.10");
     expect(previousForkTag(["v0.1.11"], "0.1.11-1.0")).toBeUndefined();
+    expect(previousForkTag(tags, "0.0.0-ci.5")).toBe("v0.1.12-1.0");
   });
 });
