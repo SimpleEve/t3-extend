@@ -1,5 +1,7 @@
 import * as NodeModule from "node:module";
 
+import type { AppAdapter } from "electron-updater/out/AppAdapter.js";
+import { NsisUpdater } from "electron-updater/out/NsisUpdater.js";
 import { GitHubProvider } from "electron-updater/out/providers/GitHubProvider.js";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -104,4 +106,80 @@ describe("GitHubProvider nightly lookup", () => {
       apiScans: 0,
     });
   });
+});
+
+// fork: T3 Extend releases are `v<upstream>-<fork>` tags, which semver reads as prereleases with
+// the id `1`. The app runs on the stable channel (`allowPrerelease` off, as in
+// DesktopUpdates.applyAutoUpdaterChannel), so the provider takes the release GitHub marks latest.
+const FORK_REPO = "/SimpleEve/t3-extend";
+
+const offeredForkRelease = async (input: {
+  readonly current: string;
+  readonly latest: string;
+  readonly platform: "darwin" | "win32";
+}) => {
+  const requested: Array<string> = [];
+  const request = async ({ path = "" }: { readonly path?: string | null }) => {
+    requested.push(path ?? "");
+    // Newer test tags crowd the feed first; the latest-release pointer must still decide.
+    if (path === `${FORK_REPO}/releases.atom`)
+      return atomFeed(["v0.0.0-ci.9", input.latest]).replaceAll(REPO, FORK_REPO);
+    if (path === `${FORK_REPO}/releases/latest`) return JSON.stringify({ tag_name: input.latest });
+    const manifest = /\/releases\/download\/v([^/]+)\/(latest(?:-mac)?\.yml)$/.exec(path ?? "");
+    if (manifest) {
+      return `version: ${manifest[1]}\nfiles:\n  - url: T3-Extend-${manifest[1]}.bin\n    sha512: abc\n    size: 1\npath: T3-Extend-${manifest[1]}.bin\nsha512: abc\n`;
+    }
+    throw new Error(`404 ${path}`);
+  };
+  const app = {
+    version: input.current,
+    name: "T3 Extend",
+    isPackaged: true,
+    appUpdateConfigPath: "/unused",
+    userDataPath: "/unused",
+    baseCachePath: "/unused",
+    whenReady: async () => undefined,
+    quit: () => undefined,
+    onQuit: () => undefined,
+  } as unknown as AppAdapter;
+  const updater = new NsisUpdater(undefined, app);
+  Object.assign(updater, {
+    httpExecutor: { request },
+    _testOnlyOptions: { platform: input.platform },
+  });
+  updater.setFeedURL({ provider: "github", owner: "SimpleEve", repo: "t3-extend" });
+  updater.autoDownload = false;
+  updater.channel = "latest";
+  updater.allowPrerelease = false;
+  updater.allowDowngrade = false;
+  const result = await updater.checkForUpdates();
+  return {
+    offered: result?.isUpdateAvailable,
+    version: result?.updateInfo.version,
+    manifest: requested
+      .find((path) => path.endsWith(".yml"))
+      ?.split("/")
+      .pop(),
+  };
+};
+
+describe("fork release lookup", () => {
+  it.each([
+    ["0.1.11-1.6", "v0.1.11-1.7", "darwin", true, "latest-mac.yml"],
+    ["0.1.11-1.6", "v0.1.11-1.7", "win32", true, "latest.yml"],
+    ["0.1.11-1.9", "v0.1.11-1.10", "darwin", true, "latest-mac.yml"],
+    ["0.1.11-1.9", "v0.1.12-1.0", "win32", true, "latest.yml"],
+    ["0.1.11-1.7", "v0.1.11-1.6", "darwin", false, "latest-mac.yml"],
+    ["0.1.11-1.10", "v0.1.11-1.9", "win32", false, "latest.yml"],
+    ["0.1.11-1.7", "v0.1.11-1.7", "darwin", false, "latest-mac.yml"],
+  ] as const)(
+    "from %s with %s published on %s: offered=%s via %s",
+    async (current, latest, platform, offered, manifest) => {
+      expect(await offeredForkRelease({ current, latest, platform })).toEqual({
+        offered,
+        version: latest.slice(1),
+        manifest,
+      });
+    },
+  );
 });

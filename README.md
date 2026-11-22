@@ -25,7 +25,7 @@ T3 Extend has almost everything this upstream version has. The main differences 
 - Read-only import of projects, threads, and settings from official T3 Code on the same computer.
 - Telemetry is off by default.
 
-**What does not work in the fork:** T3 Connect, guest links, passkeys, desktop auto-update, mobile OTA updates, an iOS release (you can [build it yourself](./docs/user/install.md#ios-build-it-yourself) with your own Apple account), the official install scripts, and the official app store channels.
+**What does not work in the fork:** T3 Connect, guest links, passkeys, mobile OTA updates, an iOS release (you can [build it yourself](./docs/user/install.md#ios-build-it-yourself) with your own Apple account), the official install scripts, and the official app store channels.
 
 For the full list of features, the reasons behind these choices, and the sync history, see [Upstream version and fork features](./docs/fork/upstream.md).
 

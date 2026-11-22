@@ -30,6 +30,7 @@
     "typecheck": "vp run -r --cache --concurrency-limit 4 typecheck",
     "tc": "vp run -r --cache --concurrency-limit 4 typecheck",
     "check:changed": "node scripts/check-changed.ts",
+    "fork:changelog": "node scripts/fork-changelog-draft.ts",
     "fork:dist:android": "node scripts/fork-build-android-release.ts",
     "fork:dist:mac": "node scripts/fork-dist-mac.ts",
     "fork:dist:win": "node scripts/fork-dist-win.ts",

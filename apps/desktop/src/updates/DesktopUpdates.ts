@@ -38,6 +38,7 @@ import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as IpcChannels from "../ipc/channels.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopSshEnvironment from "../ssh/DesktopSshEnvironment.ts";
+import { activeLanguage } from "../i18n/messages.ts"; // fork: bilingual release notes
 import * as DesktopUpdatePolicy from "./DesktopUpdatePolicy.ts";
 import {
   normalizeDesktopUpdateReleaseNotes,
@@ -1091,6 +1092,7 @@ export const make = Effect.gen(function* () {
             info.version,
             state.channel,
             info.releaseDate,
+            activeLanguage().startsWith("zh") ? "zh" : "en", // fork: release bodies are bilingual
           );
           yield* setState(
             reduceDesktopUpdateStateOnUpdateAvailable(

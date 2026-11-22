@@ -299,4 +299,64 @@ describe("normalizeDesktopUpdateReleaseNotes", () => {
       omittedReleaseCount: 0,
     });
   });
+  // fork: a T3 Extend release body holds `## 中文` and `## English` sections, then a downloads list.
+  describe("a bilingual release body", () => {
+    const body = [
+      "## 中文",
+      "",
+      "### 新功能",
+      "- 桌面版可以自动更新",
+      "- 新增 Windows 安装包",
+      "### 修复",
+      "- 修复一个问题",
+      "",
+      "## English",
+      "",
+      "### Features",
+      "- The desktop app updates itself",
+      "- Windows installer",
+      "### Fixes",
+      "- Fixed a problem",
+      "",
+      "## 下载 / Downloads",
+      "- `T3-Extend-*-arm64.dmg`: macOS app",
+    ].join("\n");
+    const offered = (note: string, language?: "zh" | "en") =>
+      normalizeDesktopUpdateReleaseNotes(note, "0.1.11-1.7", "latest", undefined, language)
+        .releaseNotes[0];
+
+    it("keeps only the section in the app language, in the order it was written", () => {
+      expect(offered(body, "zh")).toMatchObject({
+        items: ["桌面版可以自动更新", "新增 Windows 安装包", "修复一个问题"],
+        totalItems: 3,
+      });
+      expect(offered(body, "en")).toMatchObject({
+        items: ["The desktop app updates itself", "Windows installer", "Fixed a problem"],
+        totalItems: 3,
+      });
+    });
+
+    it("reads the section from the feed's rendered HTML", () => {
+      const html =
+        "<h2>中文</h2>\n<h3>修复</h3>\n<ul>\n<li>修复一个问题</li>\n</ul>\n" +
+        "<h2>English</h2>\n<h3>Fixes</h3>\n<ul>\n<li>Fixed a problem</li>\n</ul>\n" +
+        "<h2>下载 / Downloads</h2>\n<ul>\n<li>macOS app</li>\n</ul>";
+      expect(offered(html, "en")?.items).toEqual(["Fixed a problem"]);
+      expect(offered(html, "zh")?.items).toEqual(["修复一个问题"]);
+    });
+
+    it("keeps the first items of a long section, not the last", () => {
+      const items = Array.from({ length: 10 }, (_, index) => `- change ${index + 1}`);
+      const result = offered(["## English", ...items, "## 下载 / Downloads"].join("\n"), "en");
+      expect(result?.items).toEqual(items.slice(0, 8).map((item) => item.slice(2)));
+      expect(result?.totalItems).toBe(10);
+    });
+
+    it("reads the whole body when there is no language to pick or no such section", () => {
+      const withoutSections = "- feat: first change\n- fix: second change";
+      expect(offered(withoutSections, "zh")?.items).toEqual(offered(withoutSections)?.items);
+      expect(offered("## English\n- only english", "zh")?.items).toContain("only english");
+      expect(offered(body)?.totalItems).toBeGreaterThan(3);
+    });
+  });
 });

@@ -2,6 +2,7 @@
 > Fork identity lives in `packages/shared/src/forkIdentity.ts`; upstream lines it touches are marked `// fork:`, and `vp run fork:guard` must pass.
 > `~/.t3extend/userdata` is the fork's live database, and official T3 Code's `~/.t3/userdata` is live too; never write to either.
 > Develop only in linked worktrees; the main checkout is for merging and syncing upstream.
+> Releases follow [deploy/release.md](deploy/release.md): version rules, a bilingual changelog, tagging, and post-release checks.
 
 # T3 Code
 

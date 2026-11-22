@@ -3,6 +3,7 @@
 // self-signed identity, and wrap it in a DMG. Upstream's `--signed` path needs an Apple Team ID
 // and a provisioning profile, so this signs after the build instead. `--create-identity` makes
 // the identity once per machine. See FORK.md "打包与签名".
+import { extractFile } from "@electron/asar";
 import { sign } from "@electron/osx-sign";
 import * as NodeChildProcess from "node:child_process";
 import * as NodeCrypto from "node:crypto";
@@ -16,6 +17,7 @@ import { checkFrpcVersion } from "@t3tools/shared/forkFrpFetch";
 import { FORK } from "@t3tools/shared/forkIdentity";
 
 import { resolveFrpc } from "./lib/fork-frpc.ts";
+import { renderAppUpdateConfig, renderMacUpdateManifest } from "./lib/fork-mac-update-feed.ts";
 
 const log = (message: string): void => {
   process.stdout.write(`${message}\n`);
@@ -314,6 +316,56 @@ function buildDmg(appPath: string, identityHash: string): string {
   return dmgPath;
 }
 
+/**
+ * electron-builder writes app-update.yml only when it builds a dmg or zip target, and this script builds
+ * `dir`, so a feed set by T3CODE_DESKTOP_UPDATE_REPOSITORY would never reach the app. Written before signing.
+ */
+function writeAppUpdateConfig(appPath: string): void {
+  const repository = process.env.T3CODE_DESKTOP_UPDATE_REPOSITORY?.trim();
+  if (!repository) {
+    log("T3CODE_DESKTOP_UPDATE_REPOSITORY is unset: the app gets no update feed.");
+    return;
+  }
+  const resources = NodePath.join(appPath, "Contents/Resources");
+  const { name } = JSON.parse(
+    extractFile(NodePath.join(resources, "app.asar"), "package.json").toString("utf8"),
+  ) as { name: string };
+  NodeFS.writeFileSync(
+    NodePath.join(resources, "app-update.yml"),
+    renderAppUpdateConfig({ repository, packageName: name }),
+  );
+  log(`Update feed: github.com/${repository}`);
+}
+
+/**
+ * The zip Squirrel.Mac installs from and the `latest-mac.yml` that names it, so an installed app can
+ * update itself. They only make sense when the build carries a feed (`app-update.yml`, written when
+ * T3CODE_DESKTOP_UPDATE_REPOSITORY is set); a build without one skips them.
+ */
+async function buildUpdateFeed(appPath: string): Promise<void> {
+  if (!NodeFS.existsSync(NodePath.join(appPath, "Contents/Resources/app-update.yml"))) {
+    log("No app-update.yml in the app: no update zip or latest-mac.yml.");
+    return;
+  }
+  const version = plistValue(appPath, "CFBundleShortVersionString");
+  const zipName = `${FORK.appBaseName.replaceAll(" ", "-")}-${version}-arm64.zip`;
+  const zipPath = NodePath.join(outputDir, zipName);
+  // The layout Squirrel.Mac and `ditto -x -k` agree on; it keeps the signature's symlinks and xattrs.
+  run("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", appPath, zipPath]);
+  const scratch = NodeFS.mkdtempSync(NodePath.join(outputDir, ".zip-"));
+  try {
+    run("ditto", ["-x", "-k", zipPath, scratch]);
+    await verifyApp(NodePath.join(scratch, NodePath.basename(appPath)));
+  } finally {
+    NodeFS.rmSync(scratch, { recursive: true, force: true });
+  }
+  NodeFS.writeFileSync(
+    NodePath.join(outputDir, "latest-mac.yml"),
+    renderMacUpdateManifest({ version, zipPath, zipName, releaseDate: new Date() }),
+  );
+  log(`Update feed: ${zipName} and latest-mac.yml`);
+}
+
 function tryRun(command: string, args: ReadonlyArray<string>): boolean {
   log(`$ ${command} ${args.join(" ")}`);
   return NodeChildProcess.spawnSync(command, args, { stdio: "inherit" }).status === 0;
@@ -355,7 +407,8 @@ function cleanOutputs(): void {
   for (const entry of NodeFS.readdirSync(outputDir)) {
     const ours =
       (!flags["skip-build"] && entry === "mac-arm64") ||
-      (entry.startsWith(dmgPrefix) && /-arm64\.dmg(\.sha256)?$/u.test(entry));
+      entry === "latest-mac.yml" ||
+      (entry.startsWith(dmgPrefix) && /-arm64\.(dmg(\.sha256)?|zip)$/u.test(entry));
     if (ours) NodeFS.rmSync(NodePath.join(outputDir, entry), { recursive: true, force: true });
   }
 }
@@ -552,10 +605,12 @@ cleanOutputs();
 if (!flags["skip-build"]) buildApp();
 const appPath = findApp();
 bundleFrpc(appPath, frpcSource);
+writeAppUpdateConfig(appPath);
 await signApp(appPath, identityHash);
 await verifyApp(appPath);
 const dmgPath = buildDmg(appPath, identityHash);
 await verifyDmg(dmgPath, NodePath.basename(appPath));
+await buildUpdateFeed(appPath);
 const digest = sha256(dmgPath);
 NodeFS.writeFileSync(`${dmgPath}.sha256`, `${digest}  ${NodePath.basename(dmgPath)}\n`);
 log(`\nApp: ${appPath}\nDMG: ${dmgPath}\nsha256: ${digest}`);
