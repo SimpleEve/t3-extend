@@ -1,6 +1,6 @@
 # T3 Extend
 
-T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的二开 fork（`SimpleEve/t3-extend`）。它的 macOS 桌面版（开发版和打包版）、server / CLI 和 Android 应用，都可以和本机安装的官方 T3 Code 同时运行，互不改写对方的数据、命令、服务和更新。Linux 打包还没有隔离，见下文"例外和限制"。
+T3 Extend 是 [T3 Code](https://github.com/pingdotgg/t3code) 的二开 fork（`SimpleEve/t3-extend`）。它的 macOS 桌面版（开发版和打包版）、Windows x64 安装包、server / CLI 和 Android 应用，都可以和本机安装的官方 T3 Code 同时运行，互不改写对方的数据、命令、服务和更新。Linux 打包还没有隔离，见下文"例外和限制"。
 
 ## 身份
 
@@ -504,14 +504,17 @@ workflow 先构建所有产物，全部传上去之后才把 release 从草稿�
 | `t3-<版本>-linux-arm64.tar.gz`                       | `ubuntu-24.04-arm` | 同上                                                                                                           |
 | `SHA256SUMS`                                         | release 任务       | 只含上面三个归档，格式 `<sha256>  <文件名>`                                                                    |
 | `T3-Extend-<版本>-arm64.dmg`（附 `.sha256`）         | `macos-15`         | `fork-dist-mac.ts` 的流程，用 fork 自己的自签名身份签名                                                        |
+| `T3-Extend-<版本>-x64.exe`（附 `.sha256`）           | `windows-2025`     | `fork-dist-win.ts` 的流程，NSIS 安装包，**不签名**（没有 Windows 证书）                                        |
 | `T3-Extend-<应用版本>-arm64-v8a.apk`（附 `.sha256`） | `ubuntu-24.04`     | `fork-build-android-release.ts` 的流程；文件名里是移动端应用版本（上游移动端版本加 fork 后缀，如 `2.3.0-1.0`） |
+
+Windows 任务在 runner 上用 Rust 1.95.0 先编出 `t3-resource-monitor.exe`，再设 `T3CODE_DESKTOP_REUSE_RESOURCE_MONITOR=true` 让打包脚本跳过它自己的 Visual Studio 探测（那个探测要 Spectre 库，runner 上不一定有）。release 任务要等 `exe` 也传完才建 release。
 
 每个 CLI 归档在构建它的那台 runner 上跑 `smoke-cli-archive.ts`（`--expect-version`）。DMG 构建后 workflow 再挂载一次，检查 app 的 designated requirement 含 `certificate root = H"491ecedb…8978"`（`EXPECTED_MAC_CERT_SHA1`）：换了证书的包会让用户重新授权钥匙串，所以不匹配就失败。
 
 **tag 和版本规则**（以自更新的版本比较为准）：`t3x update` 和服务的更新都靠 `newestCliReleaseVersion`：列出 `releases`（按创建时间倒序），跳过草稿，取**第一个**形如 `v<semver>` 且渠道相同的 tag，不比较大小。`-nightly.` 和 `-preview.` 后缀是另外的渠道，升级会拒绝跨渠道。所以：
 
 - 正式 tag 只能是 `v<上游 X.Y.Z>-<fork A.B>`，如 `v0.1.11-1.0`：前一段是合入的上游版本，后一段是 fork 自己的版本号，跨上游同步一直往上加。它必须按 semver 比已发布的所有 tag 都大，否则后建的旧版本会被当成最新；semver 里 `0.1.10-9.0` 小于 `0.1.10`，所以上游那一段也要越过已发布的纯 `X.Y.Z`。Android 的 `versionName` 是 `2.3.0-<A.B>`，`versionCode` 是 `A × 1000 + B`，只增不减，新 APK 能覆盖安装旧的。`scripts/fork-release-version.ts` 在 workflow 开头检查，不合规就失败（`fork-release-version.test.ts` 有用例，包括用 `newestCliReleaseVersion` 对一遍）。
-- 测试用 `vX.Y.Z-ci.N`（tag 推送）或手动运行（`workflow_dispatch`，版本只接受 `-ci.N`，默认 `0.0.0-ci.<运行编号>`）。它们发布成**草稿加 prerelease**，永远不会公开，`t3x update` 看不到。手动运行不能发布正式版本。注意：`workflow_dispatch` 要求 workflow 文件在默认分支上，所以在开发分支上验证只能推测试 tag。
+- 测试用 `vX.Y.Z-ci.N`（tag 推送）或手动运行（`workflow_dispatch`，版本只接受 `-ci.N`，默认 `0.0.0-ci.<运行编号>`）。它们发布成**草稿加 prerelease**，永远不会公开，`t3x update` 看不到。手动运行不能发布正式版本。注意：`workflow_dispatch` 要求 workflow 文件已经在默认分支上（它现在就在）；这样可以直接在开发分支上跑 `gh workflow run fork-release.yml -R SimpleEve/t3-extend --ref <分支>`，用的是该分支上的 workflow 文件；本地 `gh` 默认可能指向上游，要带 `-R`。同一时刻只有一个 release 运行（`concurrency`），后到的排队。
 - 版本号就是 tag 去掉 `v`。构建前 `update-release-package-versions.ts` 把 server、web、desktop、contracts 的 `package.json` 改成它，所以 CLI 的 `--version`、DMG 的 `CFBundleShortVersionString` 和 tag 一致。
 - 重跑同一个 tag：未发布的草稿会被删掉重建，已发布的 release 不会被改动，直接报错。要重发就升版本号。
 
@@ -532,6 +535,7 @@ curl -fsSL https://raw.githubusercontent.com/SimpleEve/t3-extend/main/scripts/in
 ```bash
 vp run fork:dist:mac       # → release/fork-mac/T3-Extend-<版本>-arm64.dmg（附 .sha256）
 vp run fork:dist:android   # → release/fork-android/T3-Extend-<版本>-arm64-v8a.apk（附 .sha256）
+vp run fork:dist:win       # → release/fork-win/T3-Extend-<版本>-x64.exe（附 .sha256），要在 Windows 上跑
 ```
 
 `release/` 已在 gitignore 里。Android 命令要先设好上文"Android 开发环境"里的环境变量。
@@ -554,6 +558,10 @@ macOS 流水线（`scripts/fork-dist-mac.ts`）：
 3. `@electron/osx-sign` 由内向外签名：嵌套的二进制和原生模块、frameworks、helpers、主程序。开启 hardened runtime，不打时间戳（Apple 的时间戳服务只给 Apple 签发的证书加签）。osx-sign 自己查找身份时不带 `-p codesigning`，所以看不到自签名证书。脚本先自己解析出 SHA-1 再传给它，并关掉它的身份校验。
 4. 用 `hdiutil` 打出带 `/Applications` 链接的 UDZO DMG，再对 DMG 签名，然后挂载 DMG，校验里面的 app。签名后和挂载后各校验一次：用 `file` 找出 `.app` 里所有 Mach-O，逐个跑 `codesign --verify --strict`，并检查 Authority 是签名身份、带 runtime flag，有任何一个不满足就失败并列出文件；另外断言 `Contents/Resources/bin/frpc` 存在、在 Mach-O 清单里、文件和 `bin` 目录都是 755，并且 `frpc -v` 输出固定版本。每次开始前会删掉上一次的 `mac-arm64/`、DMG 和 `.sha256`（`--skip-build` 时保留 `mac-arm64/`）。没有上游 DMG 的背景图和窗口布局。
 
+Windows 流水线（`scripts/fork-dist-win.ts`）：调用 `build-desktop-artifact.ts --platform win --target nsis --arch x64`，不带 `--signed`。身份全来自已有的 fork 改动：`appId` 是 `com.simpleeve.t3extend`（NSIS 的卸载项 GUID 和 AUMID 都由它得出）、`productName` 是 `T3 Extend (Beta)`（安装目录、开始菜单、可执行文件名、“已安装的应用”里的名字）、Electron userData 是 `%APPDATA%\t3extend`、home 是 `~/.t3extend`、scheme 是 `t3extend`、开机服务的计划任务文件夹和任务名用 `FORK.bootServiceName`，这些都不会和官方重合。安装包文件名在 `createBuildConfig` 的 `artifactName` 里改成 `T3-Extend-${version}-${arch}.${ext}`（原来是 `T3-Code-…`）。frpc 由同一个脚本里的 `stageForkFrpc` 放进安装包：`fetchFrpc`（和 mac 一样，归档缓存在 `release/fork-cache/frp/`，SHA-256 对 `forkFrp.ts` 里 `win32-x64` 那一行）把 `frpc.exe` 解到 stage 的 `prod-resources/frpc/`，再作为 extraResource 落在 `resources/bin/frpc.exe`，正是 `bundledFrpcPath` 在 win32 上给 `T3X_FRPC_PATH` 的位置，后端和 `t3x` 的 `.cmd` 启动器都指向它。frpc 和 LICENSE、NOTICE 都只作为 extraResource 出现一次，`files` 里排除了它们在 stage 里的副本，否则会再被打进 `app.asar.unpacked` 一份（frpc 16 MB）。LICENSE 和 NOTICE 原来从没被复制进 stage 目录，`DESKTOP_EXTRA_RESOURCES` 里的 `from: "LICENSE"` 找不到文件就被静默跳过，所以之前的 macOS 包（实测 0.1.10 的 DMG）也没有它们；现在构建时先复制进 stage。上游的“打包后不超过 80 个文件”检查是按 Linux 交叉构建定的（交叉构建不生成 server compile cache），在 Windows 主机上会多出约 24 个 cache 文件，所以 fork 把上限放到 100（`FORK_WINDOWS_PAYLOAD_FILE_LIMIT`，实测 92）。`fetchFrpc` 在 Windows 上按绝对路径用 `System32\tar.exe`（bsdtar 能解 zip），因为 Git for Windows 的 bash 会把它自带的 GNU tar 放在 PATH 最前，那个解不了 zip。
+
+打完后脚本用 7-Zip 拆开安装包（NSIS 的 `$PLUGINSDIR/app-64.7z`），检查：根目录有 `T3 Extend (…).exe`，有 `resources/bin/frpc.exe`、`resources/app.asar`、`resources/server.asar`、`resources/LICENSE`、`resources/NOTICE`；`app.asar` 里 `package.json` 的 `name` 是 `t3extend`；`frpc.exe` 的字节和固定归档里解出来的一模一样（所以版本就是 0.71.1）；在 Windows 上再跑一次 `frpc.exe -v`。没有 Windows 机器时也能用 `7zz` 在 Mac 上对下载下来的安装包做同样的检查，但装不起来，没有实测过安装和运行。
+
 entitlements 在 `packaging/fork-macos/`。主程序用 `entitlements.plist`，内容是 `renderMacPasskeyEntitlements` 去掉 team id、associated-domains、keychain-access-groups 和 passkey 后剩下的项：JIT、unsigned executable memory、disable-library-validation、camera、audio-input。helper 和其他嵌套程序用 `entitlements.inherit.plist`，内容就是 electron-builder 默认的前三项，和上游签名构建一致。
 
 Android 流水线（`scripts/fork-build-android-release.ts`）：`APP_VARIANT=production` 跑 `expo prebuild --clean`，并检查 applicationId 是 `com.simpleeve.t3extend`；从 Keychain 读出密码；运行 `gradlew --no-daemon app:assembleRelease`，签名配置用 `android.injected.signing.*` 注入。store file 和 alias 走 `-P`，两个密码走 `ORG_GRADLE_PROJECT_*` 环境变量，所以不会出现在进程参数和日志里，代价是构建期间同一用户的进程能读到这些环境变量；换成临时文件同样防不住同一用户的进程，所以没换。`--no-daemon` 是为了不留一个持有密码的常驻 daemon。build.gradle、`app.config.ts` 和 plugins 都不改，native fingerprint 不变。最后用 apksigner 确认 APK 证书就是 keystore 里的证书。默认只打 `arm64-v8a`，`--abi` 可改。versionCode 固定为 1，不影响 sideload 覆盖安装：Android 只拒绝降级，相同的 versionCode 可以覆盖。以后要上架商店，就要每个版本递增。在 `app.config.ts` 里设置 versionCode 会改变 native fingerprint，所以现在不改。`apps/mobile/android` 是生成出来的目录，之后跑 `mobile:install` 会重新 prebuild 成 development。
@@ -564,6 +572,7 @@ Android 流水线（`scripts/fork-build-android-release.ts`）：`APP_VARIANT=pr
 - 第一次启动时，macOS 会询问是否允许 `T3 Extend (Beta)` 访问钥匙串项 `t3extend Safe Storage`。把弹窗切到前台，选"始终允许"。签名身份不变时，重新打包以后 designated requirement（`identifier "com.simpleeve.t3extend" and certificate root = H"491ecedb…8978"`，即证书的 SHA-1；新证书未设信任，codesign 把这张自签名证书算作 root，T3 Extend Code Signing 时是 leaf）也不变，按理不会再问。这一点没有实测。**从 T3 Extend Code Signing 换到 `T3 Extend Code Signing` 是一次例外**：designated requirement 里的证书 hash 变成新证书的 SHA-1，所以换证书后的新包第一次启动时，会再问一次能否访问 `t3extend Safe Storage`，选"始终允许"即可；以前给 T3 Extend 授过的 macOS 隐私权限（屏幕录制、辅助功能等）也要重新授一次。之后再更新就不会再问。
 - 如果点了拒绝，或者想让签名版重新创建这一项，执行 `security delete-generic-password -s "t3extend Safe Storage"`，然后重启 app。旧项里加密保存的本地凭据会随之失效，需要重新登录或重新配对。
 - 弹窗没处理时，主线程会一直阻塞在读取 Keychain 上，app 不响应退出，第一次 SIGTERM 也不生效。这时用"强制退出"或 `kill -9 <PID>`。
+- Windows：运行 `T3-Extend-<版本>-x64.exe`。安装包没有签名，SmartScreen 会弹“Windows 已保护你的电脑”，发布者显示“未知发布者”：点“更多信息”，再点“仍要运行”。开着智能应用控制（Smart App Control）时没有“仍要运行”，要先在“Windows 安全中心 → 应用和浏览器控制 → 智能应用控制设置”里关掉（有些 Windows 版本关掉后，不重装系统就没法再打开）。用户面向的步骤在 `docs/user/install.md` 的“T3 Extend on Windows”，`docs/fork/upstream.md` 和 `upstream.zh-CN.md` 的支持表里各有一行，要一起改。
 - Android：`adb install -r <apk>`，或者把 APK 传到手机上安装。它和 dev client（`.dev`）是两个应用，可以并存。
 
 **备份**：把 `android-release.jks` 拷到离线的地方，密码存进离线密码库。读密码要在受控的终端里执行 `security find-generic-password -a t3extend-android-release -s t3extend-android-release -w`，它会把密码打印出来，存好后立即清屏。两者丢了任何一个，以后的 APK 都不能覆盖安装已装的版本，只能先卸载，应用数据会一起清掉。
@@ -572,7 +581,8 @@ Android 流水线（`scripts/fork-build-android-release.ts`）：`APP_VARIANT=pr
 
 - 自签名证书不能公证。拷到别的 Mac 上会被 Gatekeeper 拦下，要用上面的"仍要打开"或 `xattr`。本机关闭了 Gatekeeper 评估（`spctl --status` 显示 `assessments disabled`），所以本机上 `spctl -a -t exec -vv` 显示的是 `accepted` / `override=security disabled`，看不到拒绝。
 - passkey 和 Associated Domains 需要 Apple 签发的 provisioning profile，不可用。
-- 只打 arm64，没有 universal 版本，也没有 Linux 和 Windows 的 fork 打包。
+- macOS 只打 arm64，没有 universal 版本；Windows 只打 x64，没有 arm64；没有 Linux 的 fork 打包。
+- Windows 安装包没有签名：没有证书，所以每次下载都会被 SmartScreen 拦一下，Smart App Control 会直接拒绝。要消除它得买代码签名证书（或用 Azure Trusted Signing，上游的 `--signed` 路径就是它），那是以后的事。Windows 上的 frpc 没有“server 被杀就带走 frpc”的看守（见“自建连接”里已知限制）。
 
 ## 从 T3 Code 导入
 

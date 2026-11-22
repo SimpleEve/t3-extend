@@ -62,6 +62,8 @@ import * as Stream from "effect/Stream";
 import { Command, Flag } from "effect/cli";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { FORK, OFFICIAL_APP_NAME } from "@t3tools/shared/forkIdentity"; // fork: identity
+import { FRP_MIRROR_ENV, FRP_VERSION } from "@t3tools/shared/forkFrp"; // fork: bundled frpc
+import { fetchFrpc } from "@t3tools/shared/forkFrpFetch"; // fork: bundled frpc
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 const DESKTOP_APP_ID = FORK.appId; // fork: own bundle id
@@ -1003,6 +1005,13 @@ export const DESKTOP_FILE_EXCLUSIONS = [
   "!apps/desktop/prod-resources/windows-server/**/*",
   "!apps/desktop/prod-resources/wsl-runtime.tar.gz",
   "!apps/desktop/prod-resources/wsl-runtime.tar.gz.sha256",
+  // fork: LICENSE and NOTICE ship as extra resources; frpc ships as bin/frpc.exe. None belongs in the asar too.
+  "!LICENSE",
+  "!NOTICE",
+  "!apps/desktop/resources/frpc",
+  "!apps/desktop/resources/frpc/**/*",
+  "!apps/desktop/prod-resources/frpc",
+  "!apps/desktop/prod-resources/frpc/**/*",
   "!apps/desktop/gnome-extension",
   "!apps/desktop/gnome-extension/**/*",
 ] as const;
@@ -1065,6 +1074,9 @@ export function resolveWindowsServerAsarIgnoreGlobs(arch: typeof BuildArch.Type)
 }
 
 export const WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT = 80;
+// fork: built on a Windows host, the app also gets the ~24-file server compile cache that a Linux
+// cross build (what the limit above was set against) skips, plus frpc, LICENSE and NOTICE.
+export const FORK_WINDOWS_PAYLOAD_FILE_LIMIT = 100;
 export const WINDOWS_SERVER_RESOURCE_SOURCE_DIR = "apps/desktop/prod-resources/windows-server";
 export const WINDOWS_SERVER_EXTRA_RESOURCES = [
   {
@@ -1073,6 +1085,11 @@ export const WINDOWS_SERVER_EXTRA_RESOURCES = [
     filter: [WINDOWS_SERVER_ASAR_RESOURCE, `${WINDOWS_SERVER_ASAR_RESOURCE}.unpacked/**/*`],
   },
 ] as const;
+// fork: lands at <resources>/bin/frpc.exe, where apps/desktop/src/selfHost/bundledFrpc.ts looks.
+export const FORK_FRPC_EXTRA_RESOURCE = {
+  from: "apps/desktop/prod-resources/frpc",
+  to: "bin",
+} as const;
 export const WSL_RUNTIME_ARCHIVE_NAME = "wsl-runtime.tar.gz";
 export const WSL_RUNTIME_ARCHIVE_HASH_NAME = `${WSL_RUNTIME_ARCHIVE_NAME}.sha256`;
 export const WSL_RUNTIME_ARCHIVE_EXTRA_RESOURCE = {
@@ -2449,6 +2466,39 @@ export const stageResourceMonitor = Effect.fn("stageResourceMonitor")(function* 
   }
 });
 
+// fork: the pinned frpc (SHA-256 checked) for the Windows installer. Cross-arch, so it is not run here;
+// scripts/fork-dist-win.ts runs it from the unpacked installer.
+export const stageForkFrpc = Effect.fn("stageForkFrpc")(function* (input: {
+  readonly repoRoot: string;
+  readonly stageResourcesDir: string;
+  readonly platform: typeof BuildPlatform.Type;
+  readonly arch: typeof BuildArch.Type;
+}) {
+  if (input.platform !== "win") return;
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const baseUrl = yield* Config.String(FRP_MIRROR_ENV).pipe(Config.option);
+  const destination = path.join(input.stageResourcesDir, "frpc");
+  yield* fs.remove(destination, { recursive: true, force: true });
+  const fetched = yield* Effect.promise(() =>
+    fetchFrpc({
+      platform: "win32",
+      arch: input.arch,
+      destination,
+      archiveCacheDir: path.join(
+        input.repoRoot,
+        "release/fork-cache/frp",
+        `v${FRP_VERSION}`,
+        `win32-${input.arch}`,
+      ),
+      baseUrl: Option.getOrUndefined(baseUrl),
+    }),
+  );
+  yield* Effect.log(
+    `[desktop-artifact] Staged frpc ${FRP_VERSION} (${fetched.fromCache ? "cached archive" : fetched.url}, sha256 ${fetched.sha256}).`,
+  );
+});
+
 export const stageBrowserSecret = Effect.fn("stageBrowserSecret")(function* (input: {
   readonly repoRoot: string;
   readonly stageResourcesDir: string;
@@ -2798,7 +2848,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     afterPack: (yield* Path.Path).join(yield* RepoRoot, "scripts/prepare-server-compile-cache.cjs"),
     appId: DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
-    artifactName: "T3-Code-${version}-${arch}.${ext}",
+    artifactName: `${FORK.appBaseName.replaceAll(" ", "-")}-\${version}-\${arch}.\${ext}`, // fork: installer name
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
       ...DESKTOP_FILE_EXCLUSIONS,
@@ -2820,6 +2870,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       ...(platform === "linux" ? LINUX_CAPTURE_EXTRA_RESOURCES : []),
       ...(platform === "linux" ? LINUX_BROWSER_SECRET_EXTRA_RESOURCES : []),
       ...(platform === "win" ? WINDOWS_SERVER_EXTRA_RESOURCES : []),
+      ...(platform === "win" ? [FORK_FRPC_EXTRA_RESOURCE] : []), // fork: frpc
       ...(platform === "win" && wslRuntimeBundled ? WSL_RUNTIME_EXTRA_RESOURCES : []),
     ],
   };
@@ -3823,6 +3874,12 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
     arch: options.arch,
     verbose: options.verbose,
   });
+  yield* stageForkFrpc({
+    repoRoot,
+    stageResourcesDir,
+    platform: options.platform,
+    arch: options.arch,
+  }); // fork: frpc
   if (options.platform === "linux") {
     for (const backend of ["kde", "hyprland"] as const)
       yield* stageLinuxCaptureHelper({
@@ -3855,6 +3912,10 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
   // electron-builder is filtering out stageResourcesDir directory in the AppImage for production
   const stageProdResourcesDir = path.join(stageAppDir, "apps/desktop/prod-resources");
   yield* fs.copy(stageResourcesDir, stageProdResourcesDir);
+  // fork: DESKTOP_EXTRA_RESOURCES reads LICENSE and NOTICE from the stage dir, where nothing put them.
+  for (const notice of ["LICENSE", "NOTICE"]) {
+    yield* fs.copyFile(path.join(repoRoot, notice), path.join(stageAppDir, notice));
+  }
 
   const configuredMacPasskeySigning =
     options.platform === "mac" && options.signed
@@ -4107,6 +4168,7 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       appExecutableName: `${resolveDesktopProductName(appVersion)}.exe`,
       targetArch: options.arch,
       appVersion,
+      fileLimit: FORK_WINDOWS_PAYLOAD_FILE_LIMIT, // fork: see the constant
       expectWslRuntime: bundlesWslRuntime({
         platform: options.platform,
         runtimeArchivePath: options.wslRuntime,

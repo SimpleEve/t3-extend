@@ -31,6 +31,7 @@ import {
   readWorkspaceConfig,
   createBuildConfig,
   DESKTOP_FILE_EXCLUSIONS,
+  FORK_FRPC_EXTRA_RESOURCE,
   InvalidMacPasskeyRpDomainError,
   InvalidMacPasskeyPublishableKeyError,
   UnsupportedDesktopBuildArchitectureError,
@@ -1789,6 +1790,43 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         ),
       ),
     ),
+  );
+
+  it.effect("packages the Windows installer under the fork's name with frpc beside the app", () =>
+    Effect.gen(function* () {
+      const win = yield* createBuildConfig(
+        "win",
+        "nsis",
+        "1.2.3",
+        false,
+        false,
+        undefined,
+        undefined,
+      );
+      assert.equal(win.appId, "com.simpleeve.t3extend");
+      assert.equal(win.artifactName, "T3-Extend-${version}-${arch}.${ext}");
+      assert.include(win.extraResources as ReadonlyArray<unknown>, FORK_FRPC_EXTRA_RESOURCE);
+      // What ships as an extra resource must not also be packed into app.asar.
+      for (const excluded of [
+        "!apps/desktop/resources/frpc",
+        "!apps/desktop/prod-resources/frpc",
+        "!LICENSE",
+        "!NOTICE",
+      ]) {
+        assert.include(win.files as ReadonlyArray<string>, excluded);
+      }
+
+      const mac = yield* createBuildConfig(
+        "mac",
+        "dir",
+        "1.2.3",
+        false,
+        false,
+        undefined,
+        undefined,
+      );
+      assert.notInclude(mac.extraResources as ReadonlyArray<unknown>, FORK_FRPC_EXTRA_RESOURCE);
+    }),
   );
 
   it("parses Windows bsdtar member listings with CRLF line endings", () => {
