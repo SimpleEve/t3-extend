@@ -72,6 +72,14 @@ const REASON_TEMPLATES = [
   "Folder is a symbolic link",
   "Has local files ({file})",
   "Thread has a scheduled task",
+  "Work is on the default branch",
+  "Parent's pull request was merged",
+  "Deleted git metadata an earlier cleanup left behind",
+  "Git metadata at {path} could not be deleted: {detail}",
+  "Could not read the record of leftover git metadata: {detail}",
+  // From TaskFolders.remove, which reports a kept checkout's reason as its own sentence.
+  "Holds a repository that was kept",
+  "Has files that exist only in this folder",
 ] as const;
 
 // The same English is an action elsewhere ("Open terminal" opens one).

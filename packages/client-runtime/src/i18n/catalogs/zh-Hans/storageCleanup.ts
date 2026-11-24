@@ -73,4 +73,13 @@ export default {
   "Folder is a symbolic link": "文件夹是符号链接",
   "Has local files ({file})": "有本地文件（{file}）",
   "Thread has a scheduled task": "对话有定时任务",
+  "Work is on the default branch": "工作已在默认分支上",
+  "Parent's pull request was merged": "上级的 PR 已合并",
+  "Deleted git metadata an earlier cleanup left behind": "已删除之前的清理遗留的 git 元数据",
+  "Git metadata at {path} could not be deleted: {detail}":
+    "无法删除 {path} 处的 git 元数据：{detail}",
+  "Could not read the record of leftover git metadata: {detail}":
+    "无法读取遗留 git 元数据的记录：{detail}",
+  "Holds a repository that was kept": "包含一个被保留的仓库",
+  "Has files that exist only in this folder": "有只存在于这个文件夹里的文件",
 };

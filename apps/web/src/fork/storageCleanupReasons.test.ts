@@ -57,8 +57,17 @@ const CLASSIFIED: ReadonlyArray<{ readonly match: RegExp; readonly why: string }
     why: "a variable whose initialiser and assignments are roots themselves",
   },
   {
-    match: /^(?:changes|finalChanges|blocked|blockedWhileMeasuring|pathReason|hidden)$/,
+    match:
+      /^(?:changes|finalChanges|blocked|blockedWhileMeasuring|blockedTaskFolder|blockedSinceLease|pathReason|hidden)$/,
     why: "the result of localChangesReason, blockedSinceCheck, scratchKeepReason, worktreePathReason or hiddenTrackedChange, whose returns are evaluated below",
+  },
+  {
+    match: /^measureReason$/,
+    why: "measureWorktreeBounded's `reason:` properties, which are roots themselves",
+  },
+  {
+    match: /^keptCheckout\.reason$/,
+    why: "a checkout the task folder kept: inspectCheckout's `keep` strings, which are roots, TaskFolders' own sentences (listed in FROM_OTHER_FILES) or a git error shown as written",
   },
   {
     match: /^(?:inspection|finalInspection)\.reason$/,
@@ -93,7 +102,18 @@ const DYNAMIC_VALUES: ReadonlyArray<{ readonly match: RegExp; readonly why: stri
     why: "a count or a number of days, read by the \\d+ placeholders",
   },
   { match: /^file$/, why: "a file name from git, shown as the server wrote it" },
+  { match: /^adminDir$/, why: "a path in the repository's git directory" },
+  {
+    match: /^cleanupFailureReason\(\w+\)$/,
+    why: "raw git or error text, shown as the server wrote it",
+  },
 ];
+
+/** Sentences TaskFolders.remove returns for a kept checkout; storageCleanup.ts only forwards them. */
+const FROM_OTHER_FILES: ReadonlySet<string> = new Set([
+  "Holds a repository that was kept",
+  "Has files that exist only in this folder",
+]);
 
 function lineOf(code: string, node: Node): number {
   return code.slice(0, node.start).split("\n").length;
@@ -265,6 +285,7 @@ describe("storage clean-up reasons", () => {
     expect(unlisted).toEqual([]);
     const unused = STORAGE_CLEANUP_REASON_TEMPLATES.filter(
       (source) =>
+        !FROM_OTHER_FILES.has(source) &&
         !reasons.some((reason) => localizeCleanupReason(reason, tagged) === tagged(source)),
     );
     expect(unused).toEqual([]);
