@@ -9,6 +9,7 @@ import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 
 import { APP_DIR, MOBILE, MOBILE_T3_HOME } from "../e2e.config.ts";
+import { iosProjectName } from "../mobile-native-client.ts";
 import { run, ScenarioError } from "./shell.ts";
 import { makeState, runPromise, type T3State } from "./t3.ts";
 
@@ -37,7 +38,7 @@ const devClientPath = Effect.gen(function* () {
     yield* HostProcess.HomeDirectory,
     ".cache/t3code/native-clients/artifacts/ios/development",
     fingerprint,
-    "T3CodeDev.app",
+    `${iosProjectName}.app`,
   );
 });
 
