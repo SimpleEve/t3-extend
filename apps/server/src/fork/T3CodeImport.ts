@@ -91,6 +91,8 @@ const EXCLUDED_TABLES: ReadonlySet<string> = new Set([
   "orchestration_v2_events",
   // Maintained by triggers on the turn items, so copying them would count each item twice.
   "orchestration_v2_projection_turn_item_counts",
+  // The same, one level up: triggers on the table above keep it. It is WITHOUT ROWID too.
+  "orchestration_v2_projection_thread_item_counts",
 ]);
 
 const THREADS_TABLE = "orchestration_v2_projection_threads";
