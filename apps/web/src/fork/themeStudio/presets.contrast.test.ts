@@ -66,20 +66,23 @@ function linearRgb(color: string): readonly [number, number, number] {
   ];
 }
 
-function luminance(color: string): number {
-  const [r, g, b] = linearRgb(color);
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function contrast(foreground: string, background: string): number {
-  const [light, dark] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+function contrast(foreground: string, background: string, alpha = 1): number {
+  const bg = linearRgb(background);
+  // Alpha composites on the gamma-encoded values, as the browser does.
+  const encode = (value: number) =>
+    value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055;
+  const mixed = linearRgb(foreground).map((channel, at) =>
+    srgbToLinear(alpha * encode(channel) + (1 - alpha) * encode(bg[at]!)),
+  ) as [number, number, number];
+  const lum = ([r, g, b]: readonly [number, number, number]) =>
+    0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const [light, dark] = [lum(mixed), lum(bg)].sort((a, b) => b - a);
   return (light! + 0.05) / (dark! + 0.05);
 }
 
-// What the sidebar rows paint: thread titles, project names and chrome use the page's text roles
-// (not the sidebar* roles), times and icons the muted ones, and the Approval chip the warning one.
-// A preset whose sidebar has a different ground than its page sets these again inside
-// `[data-slot="sidebar-inner"]`, so what is checked is that scope's value or else the page role.
+// Sidebar rows paint the page's text roles, so a preset with a different sidebar ground sets them
+// again in `[data-slot="sidebar-inner"]` (or that scope under `:root.dark` / `:root:not(.dark)`).
+// The ground checked is `colors.sidebar`; other scopes are not read.
 const SIDEBAR_TEXT: ReadonlyArray<{
   role: ThemeColorRole;
   variable: string;
@@ -88,15 +91,51 @@ const SIDEBAR_TEXT: ReadonlyArray<{
   { role: "textMuted", variable: "--contrast-muted-foreground" },
   { role: "secondaryLabel", variable: "--contrast-secondary-label" },
   { role: "iconMuted", variable: "--contrast-icon-muted" },
+  { role: "placeholder", variable: "--contrast-placeholder" },
   { role: "warningForeground", variable: "--warning-foreground" },
   { role: "errorForeground", variable: "--error-foreground" },
 ];
 
-function sidebarScopeVariables(css: string | undefined): ReadonlyMap<string, string> {
+// The wordmark is the accent on the sidebar; as a logo it needs 3:1, not 4.5:1.
+const WORDMARK = { role: "accent", variable: "--primary" } as const;
+
+// The app dims some text: thread titles are the text color at 75% on the sidebar, the rows of the
+// details panel at 80% on a panel.
+const DIMMED: ReadonlyArray<{
+  role: ThemeColorRole;
+  variable: string;
+  ground: ThemeColorRole;
+  alpha: number;
+}> = [
+  { role: "text", variable: "--contrast-foreground", ground: "sidebar", alpha: 0.75 },
+  { role: "text", variable: "--contrast-foreground", ground: "surfaceOverlay", alpha: 0.8 },
+];
+
+const ROW_GROUNDS = ["sidebarRowHover", "sidebarRowActive", "sidebarRowSelected"] as const;
+const ROW_TEXT: ReadonlyArray<{ role: ThemeColorRole; variable?: string }> = [
+  { role: "sidebarForeground" },
+  { role: "sidebarMutedForeground" },
+  { role: "secondaryLabel", variable: "--contrast-secondary-label" },
+];
+
+/** Whether the preset paints the open row's text itself, so the palette's row colors do not apply. */
+function paintsOpenRowText(css: string | undefined): boolean {
+  return /\[aria-current="page"\]\s*\*[^{]*\{[^}]*\bcolor\s*:/.test(css ?? "");
+}
+
+const SCOPE = /^(?::root(\.dark|:not\(\.dark\)))?\s*\[data-slot="sidebar-inner"\]$/;
+
+/** The variables the sidebar scope sets for one half; a `:root.dark` or `:root:not(.dark)` rule counts for its half only. */
+function sidebarScopeVariables(
+  css: string | undefined,
+  appearance: string,
+): ReadonlyMap<string, string> {
   const found = new Map<string, string>();
   for (const rule of (css ?? "").replace(/\/\*[\s\S]*?\*\//g, "").split("}")) {
     const open = rule.lastIndexOf("{");
-    if (open < 0 || rule.slice(0, open).trim() !== '[data-slot="sidebar-inner"]') continue;
+    const half = open < 0 ? null : SCOPE.exec(rule.slice(0, open).trim());
+    if (!half) continue;
+    if (half[1] !== undefined && (half[1] === ".dark") !== (appearance === "dark")) continue;
     for (const [, name, value] of rule.slice(open + 1).matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
       found.set(name!, value!.trim());
     }
@@ -104,9 +143,13 @@ function sidebarScopeVariables(css: string | undefined): ReadonlyMap<string, str
   return found;
 }
 
-function sidebarFailures(colors: ThemeColors, css: string | undefined): string[] {
-  const scope = sidebarScopeVariables(css);
-  return SIDEBAR_TEXT.flatMap(({ role, variable }) => {
+function sidebarFailures(
+  colors: ThemeColors,
+  css: string | undefined,
+  appearance: string,
+): string[] {
+  const scope = sidebarScopeVariables(css, appearance);
+  const onSidebar = SIDEBAR_TEXT.flatMap(({ role, variable }) => {
     const color = scope.get(variable) ?? colors[role];
     const ratio = contrast(color, colors.sidebar);
     // Icons are graphics, not text: WCAG asks 3:1 of them.
@@ -114,6 +157,28 @@ function sidebarFailures(colors: ThemeColors, css: string | undefined): string[]
       ? []
       : [`${role} on sidebar: ${ratio.toFixed(2)}`];
   });
+  const wordmark = contrast(scope.get(WORDMARK.variable) ?? colors.accent, colors.sidebar);
+  const dimmed = DIMMED.flatMap(({ role, variable, ground, alpha }) => {
+    // The sidebar's own scope only applies on the sidebar.
+    const color = (ground === "sidebar" ? scope.get(variable) : undefined) ?? colors[role];
+    const ratio = contrast(color, colors[ground], alpha);
+    return ratio >= 4.5 ? [] : [`${role} at ${alpha * 100}% on ${ground}: ${ratio.toFixed(2)}`];
+  });
+  const painted = paintsOpenRowText(css);
+  const onRows = ROW_GROUNDS.flatMap((ground) =>
+    painted && ground !== "sidebarRowHover"
+      ? []
+      : ROW_TEXT.flatMap(({ role, variable }) => {
+          const ratio = contrast((variable && scope.get(variable)) || colors[role], colors[ground]);
+          return ratio >= 4.5 ? [] : [`${role} on ${ground}: ${ratio.toFixed(2)}`];
+        }),
+  );
+  return [
+    ...onSidebar,
+    ...(wordmark >= 3 ? [] : [`wordmark on sidebar: ${wordmark.toFixed(2)}`]),
+    ...dimmed,
+    ...onRows,
+  ];
 }
 
 function failures(colors: ThemeColors): string[] {
@@ -133,6 +198,7 @@ const CASES = getPresetThemes()
       ] as ReadonlyArray<readonly [string, ThemeColors]>
     ).map(([appearance, colors]) => ({
       name: `${preset.id} (${appearance})`,
+      appearance,
       colors,
       css: preset.css,
     })),
@@ -143,7 +209,10 @@ describe("preset colors", () => {
     expect(failures(colors)).toEqual([]);
   });
 
-  it.each(CASES)("$name keeps the sidebar rows readable on the sidebar", ({ colors, css }) => {
-    expect(sidebarFailures(colors, css)).toEqual([]);
-  });
+  it.each(CASES)(
+    "$name keeps the sidebar rows readable on the sidebar",
+    ({ colors, css, appearance }) => {
+      expect(sidebarFailures(colors, css, appearance)).toEqual([]);
+    },
+  );
 });

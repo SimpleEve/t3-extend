@@ -23,6 +23,7 @@ const CSS = `:root {
 }
 
 [data-slot="sidebar-inner"] { border-right: 2px solid var(--t3x-m-line); }
+:root:not(.dark) [data-slot="sidebar-inner"] { --primary: #c4326f; }
 [data-thread-item] [data-sidebar-row] { border-radius: 14px !important; }
 [data-thread-item] [data-sidebar-row][aria-current="page"] { background: var(--t3x-m-pink-soft) !important; }
 [data-chat-header] { border-bottom: 2px dotted var(--t3x-m-line) !important; }
@@ -84,7 +85,7 @@ export const MOCHI_SEED: ThemePresetSeed = {
       toolbarControlHover: "#ffdbe8",
       text: "#3b2230",
       textMuted: "#7d5a69",
-      secondaryLabel: "#7d5a69",
+      secondaryLabel: "#735160",
       mutedForeground: "#7d5a69",
       border: "#f3d8cc",
       input: "#e9c4b8",
@@ -96,7 +97,7 @@ export const MOCHI_SEED: ThemePresetSeed = {
       messageActionForeground: "#3b2230",
       sidebar: "#fff0e6",
       sidebarForeground: "#3b2230",
-      sidebarMutedForeground: "#7d5a69",
+      sidebarMutedForeground: "#735160",
       sidebarBorder: "#f3d8cc",
       codeBackground: "#fff1e6",
       codeForeground: "#3b2230",

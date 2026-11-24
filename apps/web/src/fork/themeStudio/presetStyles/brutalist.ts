@@ -86,7 +86,7 @@ export const BRUTALIST_SEED: ThemePresetSeed = {
     colors: {
       text: "#000000",
       textMuted: "#333333",
-      secondaryLabel: "#333333",
+      secondaryLabel: "#303030",
       mutedForeground: "#333333",
       placeholder: "#595959",
       border: "#000000",
