@@ -207,8 +207,8 @@ function BookmarkEditor({
         value={note}
         rows={3}
         maxLength={THREAD_BOOKMARK_NOTE_MAX_LENGTH}
-        placeholder={gt("Note")}
-        aria-label={gt("Note")}
+        placeholder={gt("Note", { $context: "a note attached to a bookmark" })}
+        aria-label={gt("Note", { $context: "a note attached to a bookmark" })}
         onChange={(event) => setNote(event.target.value)}
       />
       <div className="flex justify-end gap-1.5">

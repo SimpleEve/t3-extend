@@ -1668,7 +1668,11 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
       data-message-role={row.kind === "message" ? row.message.role : undefined}
     >
       {row.kind === "message" ? (
-        <BookmarkMessageMarker threadRef={threadRef} messageId={row.message.id} /> // fork: message bookmarks
+        <BookmarkMessageMarker
+          threadRef={threadRef}
+          messageId={row.message.id}
+          role={row.message.role}
+        /> // fork: message bookmarks
       ) : null}
       {isWorkLogRow ? (
         <WorkLogBlock
