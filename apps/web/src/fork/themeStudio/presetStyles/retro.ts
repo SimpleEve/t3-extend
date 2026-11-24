@@ -20,37 +20,24 @@ const CSS = `:root {
 
 /* The teal desktop shows as the borders between and around the two panels. */
 [data-slot="sidebar-inner"] {
-  position: relative;
-  padding-top: 24px;
   border: 6px solid var(--t3x-w-desk);
+  border-top: 0;
   box-shadow: var(--t3x-w-raised);
 }
-[data-slot="sidebar-inner"]::before {
-  content: "Threads";
-  content: "Threads" / "";
-  position: absolute;
-  top: 0;
-  left: 38px;
-  right: 0;
-  height: 18px;
-  padding: 0 6px;
+/* The sidebar's top bar is its title bar, as tall as the chat's. On desktop the window buttons sit on it, so nothing else claims their corner. */
+[data-sidebar-topbar] {
   background: var(--t3x-w-title);
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 18px;
-  z-index: 1;
+  box-shadow: var(--t3x-w-raised);
 }
-:lang(zh) [data-slot="sidebar-inner"]::before {
-  content: "对话";
-  content: "对话" / "";
-}
+[data-sidebar-topbar] *, [data-sidebar-topbar] svg.lucide { color: #ffffff !important; }
+[data-sidebar-topbar] [data-slot="button"], [data-sidebar="trigger"] { color: #ffffff !important; --control-icon-color: #ffffff; }
+[data-sidebar-topbar] [data-slot="badge"], [data-sidebar-topbar] [data-slot="badge"] * { color: #000000 !important; }
+[data-sidebar-topbar] [data-slot="badge"] { background: var(--t3x-w-face) !important; }
 
 [data-chat-header] {
   background: var(--t3x-w-title) !important;
   color: #ffffff;
   border: 0 !important;
-  border-top: 6px solid var(--t3x-w-desk) !important;
   border-right: 6px solid var(--t3x-w-desk) !important;
   box-shadow: var(--t3x-w-raised);
 }

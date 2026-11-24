@@ -66,6 +66,8 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
 
   return (
     <div
+      // fork: theme hook, the sidebar's top bar (window buttons, logo, history arrows)
+      data-sidebar-topbar=""
       className={cn(
         "relative flex h-[var(--workspace-topbar-height)] shrink-0 flex-row items-center gap-2 pr-3",
         isElectron && "drag-region",
