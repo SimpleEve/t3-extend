@@ -30,6 +30,21 @@ const QUOTA_ERROR = errorPayload(
 const RATE_LIMIT_ERROR = errorPayload(
   "Error 429, Message: Resource has been exhausted (e.g. check quota)., Status: RESOURCE_EXHAUSTED, Details: [map[@type:type.googleapis.com/google.rpc.ErrorInfo domain:cloudcode-pa.googleapis.com reason:RATE_LIMIT_EXCEEDED] map[@type:type.googleapis.com/google.rpc.RetryInfo retryDelay:42s]]",
 );
+// agy 1.5.15 quotes Google's error as JSON after the HTTP status, not as a Go map.
+const googleJsonError = (reason: string, message: string, metadata: string) =>
+  errorPayload(
+    `RESOURCE_EXHAUSTED (code 429): ${message}\tHTTP 429 Too Many Requests Sherlog:  TraceID: 0x5c8917a2286176f2 {\n  "error": {\n    "code": 429,\n    "details": [\n      {\n        "@type": "type.googleapis.com/google.rpc.ErrorInfo",\n        "domain": "cloudcode-pa.googleapis.com",\n        "metadata": {${metadata}},\n        "reason": "${reason}"\n      },\n      {\n        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n        "retryDelay": "42.5s"\n      }\n    ],\n    "message": "${message}",\n    "status": "RESOURCE_EXHAUSTED"\n  }\n}`,
+  );
+const JSON_QUOTA_ERROR = googleJsonError(
+  "QUOTA_EXHAUSTED",
+  "Individual quota reached. Please upgrade your subscription to increase your limits. Resets in 1h38m9s.",
+  '"model": "gemini-test", "quotaResetDelay": "1h38m9.41s", "quotaResetTimeStamp": "2026-11-24T14:29:01Z", "uiMessage": "true"',
+);
+const JSON_RATE_LIMIT_ERROR = googleJsonError(
+  "RATE_LIMIT_EXCEEDED",
+  "Resource has been exhausted (e.g. check quota).",
+  "",
+);
 const INVALID_ARGUMENT_ERROR = errorPayload(
   "Error 400, Message: Request contains an invalid argument., Status: INVALID_ARGUMENT, Details: []",
 );
@@ -125,6 +140,32 @@ describe("watchAntigravityPromptOutcome", () => {
           code: "RESOURCE_EXHAUSTED",
           retryable: true,
           resetAt: "1970-01-01T00:00:42.000Z",
+        }),
+      );
+      assert.deepEqual(
+        yield* turn([
+          [USER_INPUT, input],
+          [ERROR_MESSAGE, JSON_QUOTA_ERROR],
+        ]),
+        reusable({
+          class: "usage_limit",
+          message: "You have reached your Antigravity quota for this period.",
+          code: "RESOURCE_EXHAUSTED",
+          retryable: true,
+          resetAt: "2026-11-24T14:29:01.000Z",
+        }),
+      );
+      assert.deepEqual(
+        yield* turn([
+          [USER_INPUT, input],
+          [ERROR_MESSAGE, JSON_RATE_LIMIT_ERROR],
+        ]),
+        reusable({
+          class: "usage_limit",
+          message: "Resource has been exhausted (e.g. check quota).",
+          code: "RESOURCE_EXHAUSTED",
+          retryable: true,
+          resetAt: "1970-01-01T00:00:42.500Z",
         }),
       );
       assert.deepEqual(
