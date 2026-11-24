@@ -205,13 +205,15 @@ a single turn switches at most eight times. With the setting off, nothing change
 
 **Usage > Limits** shows the account in use live and every other saved account as its last
 reading, with how old it is. Google can reset quota early, and a saved account's sign-in goes stale
-about an hour after it stops being used, so by default T3 renews one saved account that is not in
-use about every 45 minutes and reads its quota. It starts agy briefly on a private copy of that
-account's sign-in and sends no prompt, so no quota is used, and it never touches the account in
-use. Turn off **Check other accounts in the background** to stop this. The refresh button next to an
-account, or next to **All accounts**, reads on demand whatever that setting says. If a read fails the
-old reading stays, and the row says why; a sign-in Google no longer accepts needs the account to
-sign in again. When a new reading shows an account's quota back, T3 lifts its out-of-quota mark.
+about an hour after it stops being used, so by default T3 reads one saved account that is not in use
+about every 45 minutes. While its saved sign-in is still good the quota is read with it directly.
+Once it has expired T3 starts agy briefly on a private copy of it to renew it, sends no prompt, so no
+quota is used, and never touches the account in use. Turn off **Check other accounts in the
+background** to stop this. The refresh button next to an account, or next to **All accounts**, reads
+on demand whatever that setting says; leaving the page while it runs stops it without counting as a
+failure. If a read fails the old reading stays, and the row says why; a sign-in Google no longer
+accepts needs the account to sign in again, and is not tried again for hours. T3 lifts an
+out-of-quota mark early only when a new reading shows every window the account had, all with quota.
 
 Rotating between accounts to get more quota may break Google's terms. That is your decision and
 your risk. Accounts on one machine still share its network address; see
