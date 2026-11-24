@@ -432,7 +432,10 @@ export const prebuildAndroid = Effect.fn("nativeClient.prebuildAndroid")(functio
   );
 });
 
-const artifactNames = { ios: "T3CodeDev.app", android: "app-debug.apk" } as const;
+// Expo names the iOS project, scheme and .app after the dev variant's app name, with everything but ASCII letters and digits dropped.
+export const iosProjectNameOf = (appName: string) => appName.replace(/[^A-Za-z0-9]+/g, "");
+export const iosProjectName = iosProjectNameOf(`${FORK.appBaseName} Dev`); // fork: identity
+const artifactNames = { ios: `${iosProjectName}.app`, android: "app-debug.apk" } as const;
 // R2 requires equal-sized parts and Workers cap request bodies at 100 MB.
 const partSize = 64 * 1024 * 1024;
 const RemoteCredentials = Schema.fromJsonString(
@@ -744,9 +747,9 @@ const build = Effect.fn("nativeClient.build")(function* (
         [
           "xcodebuild",
           "-workspace",
-          path.join(mobile, "ios/T3CodeDev.xcworkspace"),
+          path.join(mobile, `ios/${iosProjectName}.xcworkspace`),
           "-scheme",
-          "T3CodeDev",
+          iosProjectName,
           "-configuration",
           "Debug",
           "-destination",

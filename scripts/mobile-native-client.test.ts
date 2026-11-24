@@ -8,6 +8,7 @@ import * as Path from "effect/Path";
 import {
   androidSdk,
   buildRunTitle,
+  iosProjectName,
   NativeClientError,
   prebuildAndroid,
   remoteBuildState,
@@ -89,6 +90,10 @@ it.layer(NodeServices.layer)("androidSdk", (it) => {
       assert.strictEqual(resolved, sdk);
     }),
   );
+});
+
+it("names the iOS project after the fork's dev app, not upstream's", () => {
+  assert.strictEqual(iosProjectName, "T3ExtendDev");
 });
 
 it("finds a Blacksmith build by its run title and reads its state", () => {
