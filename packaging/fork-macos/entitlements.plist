@@ -11,6 +11,8 @@
     <true/>
     <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
     <!-- Terminals and coding agents inherit the app's TCC identity; without these the
          hardened runtime silently denies them the camera and microphone. -->
     <key>com.apple.security.device.camera</key>

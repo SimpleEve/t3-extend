@@ -265,12 +265,7 @@ const config: ExpoConfig = {
   slug: "t3-code",
   platforms: ["ios", "android"],
   scheme: variant.scheme,
-  // fork: upstream's app version, then the fork release's own number, as in `2.3.0-1.0`
-  version:
-    repoEnv.T3CODE_MOBILE_VERSION ??
-    (repoEnv.T3EXTEND_RELEASE_FORK?.trim()
-      ? `2.3.0-${repoEnv.T3EXTEND_RELEASE_FORK.trim()}`
-      : "2.3.0"),
+  version: repoEnv.T3CODE_MOBILE_VERSION ?? "2.3.0",
   runtimeVersion: {
     // Skip costly fingerprinting on dev launches; preview and production OTAs require matching native projects.
     policy: runtimeVersionPolicy,
@@ -528,5 +523,12 @@ const config: ExpoConfig = {
     reactCompiler: true,
   },
 };
+
+// fork: upstream's app version, then the fork release's own number, as in `2.3.0-1.0`. Kept out of the
+// `version:` line above because .github/scripts/set-mobile-version.cjs rewrites that line by shape.
+const forkReleaseNumber = repoEnv.T3EXTEND_RELEASE_FORK?.trim();
+if (repoEnv.T3CODE_MOBILE_VERSION === undefined && forkReleaseNumber) {
+  config.version = `${config.version}-${forkReleaseNumber}`;
+}
 
 export default config;

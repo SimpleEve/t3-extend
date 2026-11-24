@@ -229,9 +229,7 @@ if (import.meta.main) {
     if (values.stdout) {
       process.stdout.write(`${draft}\n`);
     } else {
-      const target = NodePath.resolve(
-        values.out ?? NodePath.join(CHANGELOG_DIR, `${version}.md`),
-      );
+      const target = NodePath.resolve(values.out ?? NodePath.join(CHANGELOG_DIR, `${version}.md`));
       if (NodeFS.existsSync(target)) {
         throw new Error(`${target} exists; it is never overwritten. Edit it by hand.`);
       }
