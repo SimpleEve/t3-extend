@@ -45,6 +45,7 @@ import {
 import { resolveUsageLimitsAfterProbe } from "@t3tools/provider-core/server/usageLimits";
 
 import { antigravityThinkingConfig } from "./acp/AntigravityAcpSupport.ts";
+import { withoutLiveReadingCopy } from "./antigravityAccountRotation.ts"; // fork:
 
 const EMPTY_MODEL_CAPABILITIES = createModelCapabilities({ optionDescriptors: [] });
 const MAX_WORKSPACE_SNAPSHOTS = 32;
@@ -267,6 +268,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
   // fork: the saved accounts ride along on every snapshot, so a change to them needs no state of its own.
   const stamp = (draft: ServerProviderDraft) =>
     (options.accounts ?? Effect.succeed([])).pipe(
+      Effect.map((accounts) => withoutLiveReadingCopy(accounts, draft.usageLimits)),
       Effect.flatMap((accounts) =>
         options.stampIdentity(
           accounts.length === 0 ? draft : { ...draft, auth: { ...draft.auth, accounts } },

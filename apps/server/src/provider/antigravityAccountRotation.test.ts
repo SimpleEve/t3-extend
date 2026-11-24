@@ -11,9 +11,9 @@ import { makeProviderFailure } from "@t3tools/provider-core/server/failure";
 
 import { makeAntigravityAccountPool } from "./antigravityAccountPool.ts";
 import {
-  antigravityServerAccounts,
   makeAntigravityUsageLimitRecovery,
   maskAntigravityEmail,
+  withoutLiveReadingCopy,
 } from "./antigravityAccountRotation.ts";
 
 const token = (email: string) =>
@@ -95,16 +95,34 @@ describe("Antigravity usage-limit recovery", () => {
 });
 
 describe("Antigravity provider account list", () => {
-  it.effect("carries each account's remembered quota reading", () =>
-    Effect.gen(function* () {
-      const { pool } = yield* fixture(["a@example.com", "b@example.com"]);
-      const reading = {
-        checkedAt: "2026-01-01T00:00:00.000Z",
-        windows: [{ id: "gemini-5h", kind: "session" as const, label: "Gemini", usedPercent: 40 }],
-      };
-      yield* pool.observeUsage(Effect.succeed(reading));
-      const accounts = yield* antigravityServerAccounts(pool);
-      expect(accounts.map((account) => account.usageLimits)).toEqual([reading, undefined]);
-    }).pipe(Effect.scoped, Effect.provide(layer)),
-  );
+  const reading = (credentialFingerprint: string) => ({
+    checkedAt: "2026-01-01T00:00:00.000Z",
+    credentialFingerprint,
+    windows: [{ id: "gemini-5h", kind: "session" as const, label: "Gemini", usedPercent: 40 }],
+  });
+  const saved = [
+    { id: "a", email: "a@example.com", current: true, usageLimits: reading("fp-a") },
+    { id: "b", email: "b@example.com", current: false, usageLimits: reading("fp-b") },
+  ];
+  const kept = (accounts: ReadonlyArray<{ readonly usageLimits?: unknown }>) =>
+    accounts.map((account) => account.usageLimits !== undefined);
+
+  it("leaves the current account's reading off while the live reading stands in for it", () => {
+    expect(kept(withoutLiveReadingCopy(saved, reading("fp-a")))).toEqual([false, true]);
+    // A reading taken before the instance had an identity still counts as the same account's.
+    expect(
+      kept(withoutLiveReadingCopy(saved, { ...reading("fp-a"), credentialFingerprint: undefined })),
+    ).toEqual([false, true]);
+  });
+
+  it("sends it when there is no usable live reading, or the live reading is another account's", () => {
+    const unreadable = {
+      checkedAt: "2026-01-01T00:00:00.000Z",
+      windows: [],
+      unavailable: { reason: "probeFailed" as const },
+    };
+    expect(kept(withoutLiveReadingCopy(saved, undefined))).toEqual([true, true]);
+    expect(kept(withoutLiveReadingCopy(saved, unreadable))).toEqual([true, true]);
+    expect(kept(withoutLiveReadingCopy(saved, reading("fp-other")))).toEqual([true, true]);
+  });
 });

@@ -1845,8 +1845,10 @@ describe("Antigravity instances with several accounts", () => {
     checkedAt: string,
     usedPercent: number,
     resetsAt = "2026-09-03T14:00:00.000Z",
+    credentialFingerprint?: string,
   ) => ({
     checkedAt,
+    ...(credentialFingerprint ? { credentialFingerprint } : {}),
     windows: [
       {
         id: "gemini-5h",
@@ -2082,5 +2084,262 @@ describe("Antigravity instances with several accounts", () => {
       later!.windows[0]!.members.find((member) => member.account.email === "b@example.com")!.window
         .usedPercent,
     ).toBe(0);
+  });
+
+  // An instance as the server reports it: any id, optional saved accounts, optional live reading.
+  const agy = (
+    instanceId: string,
+    options: {
+      readonly accounts?: NonNullable<ServerProvider["auth"]["accounts"]>;
+      readonly usageLimits?: ServerProvider["usageLimits"];
+    },
+  ) =>
+    provider({
+      driver: antigravity,
+      instanceId: ProviderInstanceId.make(instanceId),
+      auth: {
+        status: "authenticated",
+        ...(options.accounts ? { accounts: options.accounts } : {}),
+      },
+      ...(options.usageLimits ? { usageLimits: options.usageLimits } : {}),
+    });
+  const onEnvironments = (...entries: ReadonlyArray<readonly [string, ServerProvider[]]>) =>
+    collectLimitAccounts(
+      new Map(
+        entries.map(([id, providers]) => [
+          EnvironmentId.make(id),
+          { entry: { target: { label: id } }, serverConfig: { providers } },
+        ]),
+      ),
+    );
+  const unreadableLive = {
+    checkedAt: "2026-09-03T11:59:00.000Z",
+    windows: [],
+    unavailable: { reason: "probeFailed" as const },
+  };
+  const memberOf = (accounts: ReturnType<typeof onEnvironments>, email: string) =>
+    collectLimitPools(accounts, now)[0]!.windows[0]!.members.find(
+      (member) => member.account.email?.toLowerCase() === email,
+    )!;
+
+  it("counts an account once when a plain instance on the same environment runs on it too", () => {
+    const pool = agy("agy-pool", {
+      accounts: [
+        {
+          id: "aaaaaaaaaaaaaaaa",
+          email: "a@example.com",
+          current: true,
+          usageLimits: reading("2026-09-03T11:59:00.000Z", 40, undefined, "fp-a"),
+        },
+        {
+          id: "bbbbbbbbbbbbbbbb",
+          email: "b@example.com",
+          current: false,
+          usageLimits: reading("2026-09-03T09:00:00.000Z", 70, undefined, "fp-b"),
+        },
+      ],
+      usageLimits: reading("2026-09-03T11:59:00.000Z", 40, undefined, "fp-a"),
+    });
+    const plain = agy("antigravity", {
+      usageLimits: reading("2026-09-03T11:30:00.000Z", 45, undefined, "fp-a"),
+    });
+    const accounts = onEnvironments(["env-a", [pool, plain]]);
+    expect(accounts.map((account) => account.email)).toEqual(["a@example.com", "b@example.com"]);
+    expect(collectLimitPools(accounts, now)[0]!.windows[0]!.members).toHaveLength(2);
+  });
+
+  it("counts an account once when a lone-account instance on another environment runs on it", () => {
+    const pool = agy("agy-pool", {
+      accounts: [
+        {
+          id: "aaaaaaaaaaaaaaaa",
+          email: "a@example.com",
+          current: true,
+          usageLimits: reading("2026-09-03T11:59:00.000Z", 40, undefined, "fp-a"),
+        },
+        {
+          id: "bbbbbbbbbbbbbbbb",
+          email: "b@example.com",
+          current: false,
+          usageLimits: reading("2026-09-03T09:00:00.000Z", 70, undefined, "fp-b"),
+        },
+      ],
+      usageLimits: reading("2026-09-03T11:59:00.000Z", 40, undefined, "fp-a"),
+    });
+    const lone = agy("antigravity", {
+      accounts: [
+        {
+          id: "dddddddddddddddd",
+          email: "A@example.com",
+          current: true,
+          usageLimits: reading("2026-09-03T10:00:00.000Z", 25, undefined, "fp-a"),
+        },
+      ],
+      usageLimits: {
+        checkedAt: "2026-09-03T11:59:00.000Z",
+        windows: [],
+        unavailable: { reason: "probeFailed" },
+      },
+    });
+    const accounts = onEnvironments(["env-a", [pool]], ["env-b", [lone]]);
+    expect(accounts).toHaveLength(2);
+    const merged = accounts.find((account) => account.email?.toLowerCase() === "a@example.com");
+    expect(merged?.environments.map((environment) => environment.label)).toEqual([
+      "env-a",
+      "env-b",
+    ]);
+  });
+
+  it("merges a fingerprint-only plain instance into the pool account that has its fingerprint", () => {
+    const pool = agy("agy-pool", {
+      accounts: [
+        {
+          id: "aaaaaaaaaaaaaaaa",
+          email: "a@example.com",
+          current: false,
+          usageLimits: reading("2026-09-03T09:00:00.000Z", 70, undefined, "fp-a"),
+        },
+        { id: "bbbbbbbbbbbbbbbb", email: "b@example.com", current: true },
+      ],
+    });
+    const cli = agy("antigravity", {
+      usageLimits: reading("2026-09-03T11:30:00.000Z", 45, undefined, "fp-a"),
+    });
+    const accounts = onEnvironments(["env-a", [pool]], ["env-b", [cli]]);
+    expect(accounts.map((account) => account.email)).toEqual(["a@example.com", "b@example.com"]);
+    expect(memberOf(accounts, "a@example.com").window.usedPercent).toBe(45);
+  });
+
+  it("reads the current account's live reading as it is, even when an exhaustion mark is set", () => {
+    const accounts = accountsOf([
+      instance(
+        [
+          {
+            id: "aaaaaaaaaaaaaaaa",
+            email: "a@example.com",
+            current: true,
+            exhaustedUntil: "2026-09-03T17:00:00.000Z",
+          },
+          {
+            id: "bbbbbbbbbbbbbbbb",
+            email: "b@example.com",
+            current: false,
+            exhaustedUntil: "2026-09-03T17:00:00.000Z",
+            usageLimits: reading("2026-09-03T08:00:00.000Z", 20, "2026-09-03T13:00:00.000Z"),
+          },
+        ],
+        reading("2026-09-03T11:59:00.000Z", 10),
+      ),
+    ]);
+    const live = memberOf(accounts, "a@example.com");
+    expect(live.window.usedPercent).toBe(10);
+    expect(live.window.resetsAt).toBe("2026-09-03T14:00:00.000Z");
+    // A remembered reading still reads as spent until the mark passes.
+    expect(memberOf(accounts, "b@example.com").window.usedPercent).toBe(100);
+  });
+
+  it("still lists every saved account from its snapshot while the instance has no live reading", () => {
+    const accounts = onEnvironments([
+      "env-a",
+      [
+        agy("antigravity", {
+          accounts: [
+            {
+              id: "aaaaaaaaaaaaaaaa",
+              email: "a@example.com",
+              current: true,
+              usageLimits: reading("2026-09-03T11:30:00.000Z", 40),
+            },
+            {
+              id: "bbbbbbbbbbbbbbbb",
+              email: "b@example.com",
+              current: false,
+              usageLimits: reading("2026-09-03T09:00:00.000Z", 70),
+            },
+          ],
+        }),
+      ],
+    ]);
+    expect(accounts.map((account) => account.email)).toEqual(["a@example.com", "b@example.com"]);
+    expect(accounts.every((account) => account.snapshot === true)).toBe(true);
+    expect(accounts[0]?.current).toBe(true);
+  });
+
+  it("keeps a lone account's snapshot while the instance has no live reading", () => {
+    const accounts = onEnvironments([
+      "env-a",
+      [
+        agy("antigravity", {
+          accounts: [
+            {
+              id: "aaaaaaaaaaaaaaaa",
+              email: "a@example.com",
+              current: true,
+              usageLimits: reading("2026-09-03T11:30:00.000Z", 40),
+            },
+          ],
+        }),
+      ],
+    ]);
+    expect(accounts).toHaveLength(1);
+    expect(accounts[0]).toMatchObject({
+      key: "env-a:antigravity",
+      email: "a@example.com",
+      snapshot: true,
+    });
+  });
+
+  it("keeps the later exhaustion mark, and the current flag, whichever environment is fresher", () => {
+    const older = agy("antigravity", {
+      accounts: [
+        {
+          id: "aaaaaaaaaaaaaaaa",
+          email: "a@example.com",
+          current: true,
+          exhaustedUntil: "2026-09-03T16:00:00.000Z",
+          usageLimits: reading("2026-09-03T08:00:00.000Z", 80, "2026-09-03T13:00:00.000Z"),
+        },
+        { id: "bbbbbbbbbbbbbbbb", email: "b@example.com", current: false },
+      ],
+      usageLimits: unreadableLive,
+    });
+    const fresher = agy("antigravity", {
+      accounts: [
+        {
+          id: "cccccccccccccccc",
+          email: "a@example.com",
+          current: false,
+          usageLimits: reading("2026-09-03T11:00:00.000Z", 20, "2026-09-03T14:00:00.000Z"),
+        },
+        { id: "dddddddddddddddd", email: "d@example.com", current: true },
+      ],
+      usageLimits: unreadableLive,
+    });
+    const accounts = onEnvironments(["env-a", [older]], ["env-b", [fresher]]);
+    const merged = accounts.find((account) => account.email === "a@example.com")!;
+    expect(merged.limits.checkedAt).toBe("2026-09-03T11:00:00.000Z");
+    expect(merged.exhaustedUntil).toBe(Date.parse("2026-09-03T16:00:00.000Z"));
+    expect(merged.current).toBe(true);
+    expect(memberOf(accounts, "a@example.com").window.usedPercent).toBe(100);
+  });
+
+  it("shows the snapshot, not the live reading, when the live reading is another account's", () => {
+    const accounts = accountsOf([
+      instance(
+        [
+          {
+            id: "aaaaaaaaaaaaaaaa",
+            email: "a@example.com",
+            current: true,
+            usageLimits: reading("2026-09-03T11:00:00.000Z", 30, undefined, "fp-a"),
+          },
+          { id: "bbbbbbbbbbbbbbbb", email: "b@example.com", current: false },
+        ],
+        reading("2026-09-03T11:59:00.000Z", 90, undefined, "fp-other"),
+      ),
+    ]);
+    const current = accounts.find((account) => account.email === "a@example.com");
+    expect(current?.snapshot).toBe(true);
+    expect(current?.limits.windows[0]?.usedPercent).toBe(30);
   });
 });

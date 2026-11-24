@@ -138,6 +138,9 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
   const slotDirectory = (id: string) => path.join(accountsDirectory, id);
   const slotPath = (id: string) => path.join(slotDirectory(id), TOKEN_FILE);
   const usagePath = (id: string) => path.join(slotDirectory(id), USAGE_FILE);
+  // Readings by account, null for one never read. Only this pool writes them, so once an account is
+  // here listing it never touches the disk again. Read and changed under the lock.
+  const readings = new Map<string, ServerProviderUsageLimits | null>();
 
   const poolError = (detail: string, cause?: unknown) =>
     new AntigravityAccountPoolError({ detail, ...(cause === undefined ? {} : { cause }) });
@@ -198,6 +201,15 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
     const text = yield* readText(slotPath(id));
     if (text === undefined) return undefined;
     return yield* identify(text);
+  });
+
+  const usageOf = Effect.fnUntraced(function* (id: string) {
+    const known = readings.get(id);
+    if (known !== undefined) return known;
+    const text = yield* readText(usagePath(id));
+    const loaded = text === undefined ? null : Option.getOrNull(decodeUsage(text));
+    readings.set(id, loaded);
+    return loaded;
   });
 
   const withCurrent = Effect.fnUntraced(function* (state: PoolState, id: string | null) {
@@ -269,13 +281,13 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
       const accounts: Array<AntigravityAccount> = [];
       for (const id of ids) {
         const email = id === current?.id ? current.email : (yield* slotIdentity(id))?.email;
-        const usageText = yield* readText(usagePath(id));
+        const usageLimits = yield* usageOf(id);
         accounts.push({
           id,
           email: email ?? null,
           current: id === current?.id,
           exhaustedUntil: exhaustedAt(state, id, now),
-          usageLimits: usageText === undefined ? null : Option.getOrNull(decodeUsage(usageText)),
+          usageLimits,
         });
       }
       return accounts;
@@ -352,6 +364,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
         } else {
           yield* writeState(base);
         }
+        readings.delete(id);
         yield* fs
           .remove(slotDirectory(id), { recursive: true, force: true })
           .pipe(Effect.mapError((cause) => poolError("Could not remove the account.", cause)));
@@ -417,6 +430,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
         const now = yield* currentIdentity;
         if (now?.id !== before.id) return;
         yield* writeAtomic(usagePath(before.id), `${encodeUsage(limits)}\n`);
+        readings.set(before.id, limits);
       }),
     ).pipe(Effect.ignore);
     return limits;
@@ -424,6 +438,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
 
   const clear: AntigravityAccountPool["clear"] = synchronized(
     Effect.gen(function* () {
+      readings.clear();
       yield* fs.remove(accountsDirectory, { recursive: true, force: true });
       yield* fs.remove(currentPath, { force: true });
     }).pipe(Effect.mapError((cause) => poolError("Could not remove the saved accounts.", cause))),

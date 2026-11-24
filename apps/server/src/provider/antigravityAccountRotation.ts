@@ -1,4 +1,8 @@
-import type { OrchestrationV2ProviderFailure, ServerProviderAccount } from "@t3tools/contracts";
+import type {
+  OrchestrationV2ProviderFailure,
+  ServerProviderAccount,
+  ServerProviderUsageLimits,
+} from "@t3tools/contracts";
 import { makeProviderFailure } from "@t3tools/provider-core/server/failure";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -41,6 +45,30 @@ export const antigravityServerAccounts = (pool: Pick<AntigravityAccountPool, "li
       })),
     ),
   );
+
+/**
+ * The current account's remembered reading is the live one that `provider.usageLimits` already
+ * carries, so while that stands in for it the copy stays off the wire. It stays on when there is no
+ * usable live reading, or the live reading names another account: the client then shows it instead.
+ */
+export const withoutLiveReadingCopy = (
+  accounts: ReadonlyArray<ServerProviderAccount>,
+  live: ServerProviderUsageLimits | undefined,
+): ReadonlyArray<ServerProviderAccount> => {
+  if (live === undefined || live.unavailable !== undefined || live.windows.length === 0) {
+    return accounts;
+  }
+  return accounts.map((account) => {
+    const remembered = account.usageLimits?.credentialFingerprint;
+    const sameAccount =
+      remembered === undefined ||
+      live.credentialFingerprint === undefined ||
+      remembered === live.credentialFingerprint;
+    if (!account.current || account.usageLimits === undefined || !sameAccount) return account;
+    const { usageLimits: _copy, ...rest } = account;
+    return rest;
+  });
+};
 
 /**
  * Called when a turn ends on a usage limit. Records the spent account, then either names the account

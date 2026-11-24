@@ -498,7 +498,39 @@ describe("Antigravity account pool usage snapshots", () => {
       yield* pool.observeUsage(Effect.succeed(reading(10)));
       const [a] = yield* pool.list;
       yield* fs.writeFileString(path.join(acp, "accounts", a!.id, "usage.json"), "{not json");
-      expect((yield* pool.list)[0]?.usageLimits).toBeNull();
+      // A pool that starts later reads the file from disk.
+      const later = yield* makeAntigravityAccountPool(path.dirname(acp));
+      expect((yield* later.list)[0]?.usageLimits).toBeNull();
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
+  it.effect("keeps readings in memory once seen, so listing does not read every file again", () =>
+    Effect.gen(function* () {
+      const { pool, agyWrites, fs, path, acp } = yield* fixture();
+      yield* agyWrites(token("a@example.com"));
+      yield* pool.observeUsage(Effect.succeed(reading(10)));
+      const [a] = yield* pool.list;
+      const file = path.join(acp, "accounts", a!.id, "usage.json");
+      const later = yield* makeAntigravityAccountPool(path.dirname(acp));
+      expect((yield* later.list)[0]?.usageLimits?.windows[0]?.usedPercent).toBe(10);
+      yield* fs.remove(file);
+      expect((yield* later.list)[0]?.usageLimits?.windows[0]?.usedPercent).toBe(10);
+      expect((yield* pool.list)[0]?.usageLimits?.windows[0]?.usedPercent).toBe(10);
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
+  it.effect("does not bring an old reading back when a removed account is added again", () =>
+    Effect.gen(function* () {
+      const { pool, agyWrites, addAccount } = yield* fixture();
+      yield* agyWrites(token("a@example.com"));
+      yield* pool.observeUsage(Effect.succeed(reading(10)));
+      yield* addAccount("b@example.com");
+      const [a] = yield* pool.list;
+      yield* pool.remove(a!.id);
+      yield* addAccount("a@example.com");
+      expect(
+        (yield* pool.list).find((account) => account.email === "a@example.com")?.usageLimits,
+      ).toBeNull();
     }).pipe(Effect.scoped, Effect.provide(layer)),
   );
 });
