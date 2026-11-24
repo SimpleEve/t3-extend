@@ -7,6 +7,7 @@ import {
 } from "@t3tools/contracts";
 import { collectLimitAccounts, collectLimitPools } from "@t3tools/shared/usageLimits";
 
+import { accountRefreshKey, accountRefreshTarget, accountRefreshTargets } from "./refresh.ts";
 import {
   accountUsageGroups,
   accountUsageRows,
@@ -38,6 +39,7 @@ const provider: ServerProvider = {
         id: "aaaaaaaaaaaaaaaa",
         email: "far@example.com",
         current: false,
+        usageProbeFailure: { at: "2026-09-03T11:30:00.000Z", reason: "expired" as const },
         usageLimits: {
           checkedAt: "2026-09-03T09:00:00.000Z",
           windows: [window("gemini-5h", "Gemini · 5-hour", 10, "2026-09-03T16:00:00.000Z")],
@@ -141,5 +143,31 @@ describe("account usage rows", () => {
     expect(paceIsMeaningful(fresh, now)).toBe(true);
     // The pooled summary keeps its own windows, in the columns' order.
     expect(windows.map((window) => window.id)).toEqual(["gemini-5h"]);
+  });
+
+  it("offers a read of every account that is not in use, with why the last one failed", () => {
+    const { rows } = accountUsageRows(pool!, now);
+    const by = (email: string) => rows.find((row) => row.account.email === email)!.account;
+    expect(accountRefreshTarget(by("live@example.com"))).toBeNull();
+    expect(accountRefreshTarget(by("far@example.com"))).toEqual({
+      environmentId: "env",
+      instanceId: "antigravity",
+      accountId: "aaaaaaaaaaaaaaaa",
+    });
+    expect(by("far@example.com").probeFailure).toEqual({
+      at: Date.parse("2026-09-03T11:30:00.000Z"),
+      reason: "expired",
+    });
+    expect(by("soon@example.com").probeFailure).toBeUndefined();
+    // One request names the whole instance; the keys tell a single account from all of them.
+    const targets = accountRefreshTargets(pool!.accounts);
+    expect(targets).toEqual([{ environmentId: "env", instanceId: "antigravity" }]);
+    expect(accountRefreshKey(targets[0]!)).toBe("env:antigravity:*");
+    expect(accountRefreshKey(accountRefreshTarget(by("far@example.com"))!)).toBe(
+      "env:antigravity:aaaaaaaaaaaaaaaa",
+    );
+    expect(accountRefreshKey(accountRefreshTarget(by("far@example.com"))!, true)).toBe(
+      "env:antigravity:*",
+    );
   });
 });

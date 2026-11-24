@@ -304,6 +304,21 @@ export interface LimitAccount {
   readonly exhaustedUntil?: number | undefined;
   /** fork: the account an Antigravity instance runs on now. */
   readonly current?: boolean | undefined;
+  /** fork: where a saved account that is not in use can be read again on request. */
+  readonly refresh?:
+    | {
+        readonly environmentId: EnvironmentId;
+        readonly instanceId: ProviderInstanceId;
+        readonly accountId: string;
+      }
+    | undefined;
+  /** fork: the last background read of this account failed, when and why. */
+  readonly probeFailure?:
+    | {
+        readonly at: number;
+        readonly reason: "expired" | "timeout" | "unavailable" | "failed";
+      }
+    | undefined;
 }
 
 export function collectLimitAccounts(presentations: LimitPresentations): readonly LimitAccount[] {

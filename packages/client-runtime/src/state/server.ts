@@ -1539,6 +1539,11 @@ export function createServerEnvironmentAtoms<R, E>(
       label: "environment-data:provider:auth-select-method",
       tag: WS_METHODS.providerAuthSelectMethod,
     }),
+    // fork: reads the quota of Antigravity accounts that are not in use.
+    refreshProviderAuthAccounts: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:provider:auth-refresh-accounts",
+      tag: WS_METHODS.providerAuthRefreshAccounts,
+    }),
     logoutProviderAuth: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:provider:auth-logout",
       tag: WS_METHODS.providerAuthLogout,

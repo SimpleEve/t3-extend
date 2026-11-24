@@ -9091,6 +9091,8 @@
   "3b3771b44f5375e6": "Separate sign-in",
   "38db29797008e07a": "Switch accounts when quota runs out",
   "64288854e2ea95fa": "For separate Google account sign-ins with more than one saved account. When a turn hits its usage limit, the next saved account takes over and the turn continues. Rotating accounts may breach Google's terms; you are responsible for that.",
+  "d661ed75e0417a74": "Проверять другие аккаунты в фоновом режиме",
+  "14feb09decd98a26": "Для отдельных входов в Google, когда сохранено больше одного аккаунта. Примерно раз в 45 минут T3 обновляет сохранённый аккаунт, который сейчас не используется, и считывает его квоту, чтобы запомненное значение оставалось актуальным. При этом ненадолго запускается agy, но квота не расходуется. Если выключено, другие аккаунты считывает только «Обновить» в разделе «Использование».",
   "4feec982aaf115bf": "Network proxy",
   "f3fb592635f8770b": "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
   "d118c06deaf33a65": "Аргументы запуска",

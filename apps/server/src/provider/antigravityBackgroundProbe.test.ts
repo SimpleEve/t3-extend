@@ -1,13 +1,17 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import { describe, expect, it } from "@effect/vitest";
 import { ProviderInstanceId, type ServerProviderUsageLimits } from "@t3tools/contracts";
 import * as Clock from "effect/Clock";
+import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Path from "effect/Path";
+import { HttpClient, HttpClientResponse } from "effect/http";
 import * as TestClock from "effect/testing/TestClock";
 
 import {
@@ -21,6 +25,7 @@ import {
   ANTIGRAVITY_BACKGROUND_PROBE_START_DELAY_MS,
   ANTIGRAVITY_BACKGROUND_PROBE_TICK_MS,
   makeAntigravityAccountProber,
+  makeAntigravityAccountReader,
   nextAntigravityProbeAt,
   pickNextAntigravityProbe,
   startAntigravityBackgroundProbe,
@@ -72,7 +77,10 @@ describe("when an account is next read", () => {
     expect(
       nextAntigravityProbeAt(
         account("a", {
-          usageLimits: { ...reading(), checkedAt: new Date(20 * MINUTE).toISOString() },
+          usageLimits: {
+            ...reading(),
+            checkedAt: DateTime.formatIso(DateTime.makeUnsafe(20 * MINUTE)),
+          },
         }),
       ),
     ).toBe(20 * MINUTE + ANTIGRAVITY_BACKGROUND_PROBE_INTERVAL_MS);
@@ -119,7 +127,7 @@ describe("when an account is next read", () => {
  * that finishes outside the test clock, so a tick could register its next sleep after the test has
  * already moved on. The real pool's behaviour has its own tests.
  */
-const memoryPool = Effect.fn("AntigravityBackgroundProbeTest.memoryPool")(function* () {
+const memoryPool = () => {
   const accounts = new Map<string, AntigravityAccount>(
     ["a", "b", "c"].map((id) => [id, account(id, { current: id === "b", usageLimits: null })]),
   );
@@ -162,14 +170,14 @@ const memoryPool = Effect.fn("AntigravityBackgroundProbeTest.memoryPool")(functi
       }),
   };
   return { pool, accounts };
-});
+};
 
 const scheduleHarness = Effect.fn("AntigravityBackgroundProbeTest.scheduleHarness")(function* (
   options: {
     readonly outcome?: (email: string, reads: number) => AntigravityProbeOutcome | "hang";
   } = {},
 ) {
-  const { pool, accounts } = yield* memoryPool();
+  const { pool, accounts } = memoryPool();
   const reads: Array<string> = [];
   const read = (text: string): Effect.Effect<AntigravityProbeOutcome> => {
     const email = emailOf(text);
@@ -394,5 +402,188 @@ describe("manual refresh", () => {
       expect(published).toBe(0);
       expect((yield* pool.list).find((entry) => entry.id === a.id)?.usageLimits).toBeNull();
     }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+});
+
+// A stand-in for `agy acp`: answers initialize and authenticate, and rewrites the token file the way
+// agy does when it renews a sign-in. It logs what it was asked and the environment it was given.
+const FAKE_AGY = `#!/usr/bin/env node
+const fs = require("node:fs");
+const path = require("node:path");
+const home = process.env.GEMINI_HOME;
+const log = (entry) => fs.appendFileSync(process.env.FAKE_AGY_LOG, JSON.stringify(entry) + "\\n");
+log({
+  argv: process.argv.slice(2),
+  home,
+  fileStorage: process.env.AGY_CLI_FORCE_FILE_TOKEN_STORAGE,
+  autoUpdate: process.env.AGY_CLI_DISABLE_AUTO_UPDATE,
+  ssh: Boolean(process.env.SSH_CONNECTION),
+  browser: Boolean(process.env.BROWSER),
+});
+let buffer = "";
+process.stdin.on("data", (chunk) => {
+  buffer += chunk;
+  let newline;
+  while ((newline = buffer.indexOf("\\n")) >= 0) {
+    const message = JSON.parse(buffer.slice(0, newline));
+    buffer = buffer.slice(newline + 1);
+    if (message.id === undefined) continue;
+    const method = message.method === "auth/login" ? "authenticate" : message.method;
+    log({ method });
+    const reply = (body) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: message.id, ...body }) + "\\n");
+    if (method === "initialize") {
+      reply({ result: { protocolVersion: 2, agentInfo: { name: "fake-agy", version: "1.5.16" }, agentCapabilities: {}, authMethods: [{ id: "oauth-personal", name: "Google" }] } });
+    } else if (method === "authenticate") {
+      if (process.env.FAKE_AGY_MODE === "signed-out") {
+        reply({ error: { code: -32603, message: "No browser is available here" } });
+        continue;
+      }
+      const file = path.join(home, "antigravity-acp", "antigravity-oauth-token");
+      const token = JSON.parse(fs.readFileSync(file, "utf8"));
+      token.token.access_token = "renewed-access";
+      token.token.expiry = "2099-01-01T00:00:00Z";
+      fs.writeFileSync(file, JSON.stringify(token));
+      reply({ result: {} });
+    } else {
+      reply({ error: { code: -32601, message: "unexpected " + message.method } });
+    }
+  }
+});
+`;
+
+describe("reading a saved account with agy", () => {
+  const quota = {
+    groups: [
+      {
+        displayName: "Gemini Models",
+        buckets: [{ bucketId: "gemini-5h", window: "5h", remainingFraction: 0.7 }],
+      },
+    ],
+  };
+
+  const reader = Effect.fn("AntigravityBackgroundProbeTest.reader")(function* (
+    mode?: "signed-out",
+  ) {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const root = yield* fs.makeTempDirectoryScoped();
+    const agy = path.join(root, "agy");
+    const log = path.join(root, "agy.log");
+    yield* fs.writeFileString(agy, FAKE_AGY, { mode: 0o755 });
+    yield* fs.chmod(agy, 0o755);
+    const requests: Array<{ url: string; authorization: string | undefined }> = [];
+    const http = HttpClient.make((request) =>
+      Effect.sync(() => {
+        requests.push({ url: request.url, authorization: request.headers.authorization });
+        return HttpClientResponse.fromWeb(
+          request,
+          Response.json(request.url.includes("userinfo") ? { id: "google-1" } : quota),
+        );
+      }),
+    );
+    const make = makeAntigravityAccountReader({
+      resolveExecutablePath: Effect.succeed(agy),
+      baseEnv: {
+        ...(yield* HostProcess.Environment),
+        FAKE_AGY_LOG: log,
+        ...(mode === undefined ? {} : { FAKE_AGY_MODE: mode }),
+      },
+      auth: { authMethod: "oauth-personal", apiKey: "", gcpProject: "", gcpLocation: "" },
+      userHome: path.join(root, "home"),
+      tempRoot: path.join(root, "tmp"),
+      proxyDispatcher: undefined,
+    }).pipe(Effect.provideService(HttpClient.HttpClient, http));
+    return {
+      root,
+      requests,
+      read: yield* make,
+      agyLog: fs.readFileString(log).pipe(
+        Effect.map((text) =>
+          text
+            .trim()
+            .split("\n")
+            .map((line) => JSON.parse(line)),
+        ),
+      ),
+      leftovers: fs.readDirectory(path.join(root, "tmp")),
+    };
+  });
+
+  const secretToken = JSON.stringify({
+    token: {
+      access_token: "stale-access",
+      refresh_token: "refresh-a",
+      expiry: "2000-01-01T00:00:00Z",
+    },
+    id_token_email: "a@example.com",
+  });
+
+  // A real child process: the one place this file needs the wall clock.
+  it.live(
+    "renews the copy with initialize and authenticate only, reads the quota with it, and cleans up",
+    () =>
+      Effect.gen(function* () {
+        const { read, requests, agyLog, leftovers } = yield* reader();
+        const outcome = yield* read(secretToken);
+        expect(outcome._tag).toBe("Read");
+        if (outcome._tag !== "Read") return;
+        expect(JSON.parse(outcome.token).token.access_token).toBe("renewed-access");
+        expect(outcome.limits.windows.map((window) => window.id)).toEqual(["gemini-5h"]);
+        // The quota was read with the renewed token, not the stale one.
+        expect(requests.some((request) => request.authorization === "Bearer renewed-access")).toBe(
+          true,
+        );
+        expect(requests.some((request) => request.authorization === "Bearer stale-access")).toBe(
+          false,
+        );
+        const entries = yield* agyLog;
+        expect(entries.filter((entry) => entry.method).map((entry) => entry.method)).toEqual([
+          "initialize",
+          "authenticate",
+        ]);
+        const started = entries[0];
+        // agy runs the way Extend runs a profile of its own: file storage, no update, no browser.
+        expect(started).toMatchObject({
+          fileStorage: "1",
+          autoUpdate: "1",
+          ssh: true,
+          browser: true,
+        });
+        expect(started.argv.slice(0, 1)).toEqual(["acp"]);
+        expect(started.argv).toContain("--gemini-dir");
+        expect(started.argv[started.argv.indexOf("--gemini-dir") + 1]).toBe(started.home);
+        // The private home, with its copy of the token, is gone.
+        expect(yield* leftovers).toEqual([]);
+      }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+  );
+
+  it.live("reports an expired sign-in when agy has to ask for a browser", () =>
+    Effect.gen(function* () {
+      const { read, leftovers } = yield* reader("signed-out");
+      expect(yield* read(secretToken)).toEqual({ _tag: "Failed", reason: "expired" });
+      expect(yield* leftovers).toEqual([]);
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+  );
+
+  it.live("reports an unavailable agy without starting anything", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const root = yield* fs.makeTempDirectoryScoped();
+      const make = makeAntigravityAccountReader({
+        resolveExecutablePath: Effect.fail({ detail: "agy is not installed" }),
+        baseEnv: {},
+        auth: { authMethod: "oauth-personal", apiKey: "", gcpProject: "", gcpLocation: "" },
+        userHome: root,
+        tempRoot: path.join(root, "tmp"),
+        proxyDispatcher: undefined,
+      }).pipe(
+        Effect.provideService(
+          HttpClient.HttpClient,
+          HttpClient.make(() => Effect.never),
+        ),
+      );
+      expect(yield* (yield* make)(secretToken)).toEqual({ _tag: "Failed", reason: "unavailable" });
+    }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
 });

@@ -131,10 +131,14 @@ describe("command permissions", () => {
     }),
   );
 
-  it.effect("requires the destination provider grant to remove an incomplete connection", () =>
+  // fork: reading another Antigravity account's quota needs the same grant as changing the accounts.
+  it.effect.each([
+    { name: "remove an incomplete connection", method: WS_METHODS.providerAuthRemoveMethod },
+    { name: "read the other Antigravity accounts", method: WS_METHODS.providerAuthRefreshAccounts },
+  ])("requires the destination provider grant to $name", ({ method }) =>
     Effect.gen(function* () {
       const registry = yield* setup;
-      const remove = createCommandPermissions(runtime, WS_METHODS.providerAuthRemoveMethod);
+      const remove = createCommandPermissions(runtime, method);
       registry.set(sessions(env), AsyncResult.success(grant(true)));
       expect(registry.get(remove.permissionAtom(env))).toBe(false);
       expect((yield* remove.authorize(registry, env).pipe(Effect.flip))._tag).toBe(

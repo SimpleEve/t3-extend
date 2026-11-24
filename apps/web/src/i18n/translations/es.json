@@ -9089,6 +9089,8 @@
   "3b3771b44f5375e6": "Separate sign-in",
   "38db29797008e07a": "Switch accounts when quota runs out",
   "64288854e2ea95fa": "For separate Google account sign-ins with more than one saved account. When a turn hits its usage limit, the next saved account takes over and the turn continues. Rotating accounts may breach Google's terms; you are responsible for that.",
+  "d661ed75e0417a74": "Comprobar otras cuentas en segundo plano",
+  "14feb09decd98a26": "Para inicios de sesión de Google independientes con más de una cuenta guardada. Cada 45 minutos aproximadamente, T3 renueva una cuenta guardada que no está en uso y lee su cuota, para que la lectura recordada siga al día. Esto inicia agy un momento, pero no consume cuota. Si está desactivado, solo «Actualizar» en Uso lee las demás cuentas.",
   "4feec982aaf115bf": "Network proxy",
   "f3fb592635f8770b": "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
   "d118c06deaf33a65": "Argumentos de inicio",

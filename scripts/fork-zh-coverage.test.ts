@@ -12,6 +12,10 @@ import { ZH_HANS_AREAS } from "../packages/client-runtime/src/i18n/catalogs/zh-H
 
 const FEATURES: Readonly<Record<string, ReadonlyArray<string>>> = {
   "footer ports": ["apps/web/src/fork/FooterPorts.tsx"],
+  "antigravity account refresh": [
+    "apps/web/src/fork/RefreshAccountUsage.tsx",
+    "apps/mobile/src/fork/RefreshAccountUsage.tsx",
+  ],
   "device keys": [
     "apps/web/src/fork/YourServerSettings.tsx",
     "apps/web/src/fork/YourServerPaletteItems.tsx",

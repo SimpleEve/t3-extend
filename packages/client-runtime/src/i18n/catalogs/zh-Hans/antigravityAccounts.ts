@@ -10,4 +10,13 @@ export default {
   "Remove {account}? Running threads on this instance stop. Sign in again to add it back.":
     "移除 {account}？这个实例上正在运行的对话会停止。需要时重新登录即可加回来。",
   "Could not change the account. Try again.": "无法更改账户，请重试。",
+  "Refresh this account": "刷新这个账户",
+  "Refresh other accounts": "刷新其他账户",
+  "Refreshing…": "正在刷新…",
+  "Could not refresh: {reason}": "无法刷新：{reason}",
+  "sign-in expired, sign in to this account again": "登录已过期，请重新登录这个账户",
+  "timed out": "超时",
+  "quota could not be read": "读取不到额度",
+  "unexpected error": "出现意外错误",
+  "Could not start the refresh. Try again.": "无法发起刷新，请重试。",
 };

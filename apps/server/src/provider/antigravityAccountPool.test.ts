@@ -561,10 +561,13 @@ describe("Antigravity account pool usage snapshots", () => {
 
     it.effect("lends nothing while a sign-in is being added or nothing is in use", () =>
       Effect.gen(function* () {
-        const { pool, a, b } = yield* twoAccounts();
+        const { pool, a, b, agyWrites } = yield* twoAccounts();
         yield* pool.beginAdd;
         expect(yield* pool.beginProbe(a.id)).toBeUndefined();
         expect(yield* pool.beginProbe(b.id)).toBeUndefined();
+        // `agy --login` has written the new account, but the pool has not taken it in yet.
+        yield* agyWrites(token("c@example.com"));
+        expect(yield* pool.beginProbe(a.id)).toBeUndefined();
         yield* pool.settleAdd;
         expect(yield* pool.beginProbe(a.id)).toBeDefined();
       }).pipe(Effect.scoped, Effect.provide(layer)),

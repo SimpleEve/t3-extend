@@ -221,6 +221,11 @@ const makeHarness = Effect.fn("ProviderAuthService.test.makeHarness")(function* 
       actions.push(`select:${methodId}`);
       return idle;
     }),
+    // fork: reading another account's quota stops nothing and closes no gate.
+    refreshAccounts: (methodId) =>
+      Effect.sync(() => {
+        actions.push(`refresh:${methodId ?? "all"}`);
+      }),
     removeMethod: Effect.fn(function* (methodId, stopSessions = Effect.void) {
       gateClosed = true;
       actions.push("close-gate");
@@ -696,6 +701,28 @@ describe("ProviderAuthService", () => {
       );
       assert.strictEqual(error.operation, "selectMethod");
     }),
+  );
+
+  // fork:
+  it.effect(
+    "reads the other accounts without stopping sessions, and only where they are kept",
+    () =>
+      Effect.gen(function* () {
+        const { service, actions, released } = yield* makeHarness({
+          threads: [makeThread("running")],
+          sessions: new Map([
+            [ThreadId.make("running"), [makeSession("running-session", "running")]],
+          ]),
+        });
+        yield* service.refreshAccounts({ instanceId, methodId: "account-1" });
+        yield* service.refreshAccounts({ instanceId });
+        assert.deepStrictEqual(actions, ["refresh:account-1", "refresh:all"]);
+        assert.deepStrictEqual(released, []);
+        const error = yield* Effect.flip(
+          service.refreshAccounts({ instanceId: unsupportedInstanceId }),
+        );
+        assert.strictEqual(error.operation, "refreshAccounts");
+      }),
   );
 
   it.effect(

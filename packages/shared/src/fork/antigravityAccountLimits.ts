@@ -119,6 +119,8 @@ export function mergeAntigravityAccounts(input: {
     if (limits === undefined && lone) continue;
     const reading = limits ?? { checkedAt: UNREAD_AT, windows: [] };
     const exhaustedUntil = account.exhaustedUntil ? Date.parse(account.exhaustedUntil) : Number.NaN;
+    const failure = account.usageProbeFailure;
+    const failedAt = failure === undefined ? undefined : Date.parse(failure.at);
     const key = lone
       ? `${environmentId}:${provider.instanceId}`
       : `${environmentId}:${provider.instanceId}:${account.id}`;
@@ -137,6 +139,14 @@ export function mergeAntigravityAccounts(input: {
       snapshot: liveReading === undefined ? true : undefined,
       current: account.current,
       exhaustedUntil: Number.isFinite(exhaustedUntil) ? exhaustedUntil : undefined,
+      // The one in use is read live; the others can be read on request.
+      refresh: account.current
+        ? undefined
+        : { environmentId, instanceId: provider.instanceId, accountId: account.id },
+      probeFailure:
+        failure === undefined || !Number.isFinite(failedAt)
+          ? undefined
+          : { at: failedAt!, reason: failure.reason },
     });
   }
   return true;
@@ -150,7 +160,7 @@ export function mergedAntigravityFields(
   previous: LimitAccount,
   next: LimitAccount,
   winner: LimitAccount,
-): Pick<LimitAccount, "snapshot" | "current" | "exhaustedUntil"> {
+): Pick<LimitAccount, "snapshot" | "current" | "exhaustedUntil" | "refresh" | "probeFailure"> {
   const marks = [previous.exhaustedUntil, next.exhaustedUntil].filter(
     (mark): mark is number => mark !== undefined,
   );
@@ -158,6 +168,8 @@ export function mergedAntigravityFields(
     snapshot: winner.snapshot,
     current: previous.current === true || next.current === true ? true : winner.current,
     exhaustedUntil: marks.length > 0 ? Math.max(...marks) : undefined,
+    refresh: winner.refresh ?? previous.refresh ?? next.refresh,
+    probeFailure: winner.probeFailure,
   };
 }
 

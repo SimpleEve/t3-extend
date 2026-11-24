@@ -203,6 +203,16 @@ thread shows a "Provider recovered" notice naming both accounts, with part of ea
 If every saved account is out of quota the turn fails once and says when the first one resets, and
 a single turn switches at most eight times. With the setting off, nothing changes.
 
+**Usage > Limits** shows the account in use live and every other saved account as its last
+reading, with how old it is. Google can reset quota early, and a saved account's sign-in goes stale
+about an hour after it stops being used, so by default T3 renews one saved account that is not in
+use about every 45 minutes and reads its quota. It starts agy briefly on a private copy of that
+account's sign-in and sends no prompt, so no quota is used, and it never touches the account in
+use. Turn off **Check other accounts in the background** to stop this. The refresh button next to an
+account, or next to **All accounts**, reads on demand whatever that setting says. If a read fails the
+old reading stays, and the row says why; a sign-in Google no longer accepts needs the account to
+sign in again. When a new reading shows an account's quota back, T3 lifts its out-of-quota mark.
+
 Rotating between accounts to get more quota may break Google's terms. That is your decision and
 your risk. Accounts on one machine still share its network address; see
 [Send Antigravity traffic through a proxy](#send-antigravity-traffic-through-a-proxy).
