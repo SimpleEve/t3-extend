@@ -9097,7 +9097,7 @@
   "4feec982aaf115bf": "Network proxy",
   "f3fb592635f8770b": "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
   "a3ad11973b7cbbea": "Utiliser les serveurs MCP globaux",
-  "555e5a94c342e9e4": "Utilise les serveurs MCP et les connexions de votre propre configuration agy (~/.gemini) à la place de ceux de cette instance. Configurez d'abord MCP et connectez-vous dans le terminal agy. macOS et Linux uniquement. Tant que ces serveurs sont configurés, cette instance ne rédige plus de titres ni de messages de commit.",
+  "8fcf76af28041ff2": "Utilise les serveurs MCP et les connexions de votre agy en terminal (~/.gemini) à la place de ceux de cette instance. Configurez d'abord MCP et connectez-vous dans le terminal agy. macOS et Linux uniquement. Tant que la configuration globale liste un serveur, cette instance ne rédige plus de titres ni de messages de commit. Les conversations et l'agy du terminal partagent une même connexion ; si un renouvellement échoue, reconnectez-vous dans le terminal.",
   "d118c06deaf33a65": "Arguments de lancement",
   "9ebced15e0d0b234": "Chemin CLAUDE_CONFIG_DIR",
   "178f36194b25e76d": "Compactage automatique après",
