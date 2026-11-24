@@ -308,7 +308,7 @@ export const make = Effect.gen(function* () {
       mcpHostedApproval: true,
       shellThreadFamilies: true,
       shellOlderSettled: true,
-      agentFeedback: true,
+      agentFeedback: false, // fork: reports can only reach the T3 team's telemetry, which the fork keeps off
     },
   };
 

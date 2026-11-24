@@ -256,13 +256,13 @@ const ALLOWED_BRAND: ReadonlyArray<Allowed> = [
     path: "apps/web/src/components/settings/LabsSettingsPanel.tsx",
     line: "T3 Code",
     reason:
-      "Agent feedback goes to the T3 team (upstream's telemetry), so the copy names upstream.",
+      "Hidden in the fork (capabilities.agentFeedback is false); the copy names the upstream team it reports to.",
   },
   {
     path: "apps/mobile/src/features/settings/ThreadSettingsSections.tsx",
     line: "T3 Code problems",
     reason:
-      "Agent feedback goes to the T3 team (upstream's telemetry), so the copy names upstream.",
+      "Hidden in the fork (capabilities.agentFeedback is false); the copy names the upstream team it reports to.",
   },
   {
     path: "packages/contracts/src/orchestrationV2.ts",
