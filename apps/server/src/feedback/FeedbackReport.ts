@@ -204,6 +204,16 @@ export const T3_CLI_COMMANDS: ReadonlyArray<string> = [
   "t3 connect publish",
   "t3 connect status",
   "t3 connect unlink",
+  // fork: self-hosted pairing commands, which upstream's list does not have
+  "t3 devices",
+  "t3 devices invite",
+  "t3 devices join",
+  "t3 devices leave",
+  "t3 devices list",
+  "t3 devices remove",
+  "t3 devices tunnel",
+  "t3 devices tunnel install",
+  "t3 devices tunnel status",
 ];
 
 export type FeedbackInput = typeof FeedbackInput.Type;
