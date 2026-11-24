@@ -110,6 +110,13 @@ export const ProviderAuthSelectMethodInput = Schema.Struct({
   methodId: SetupOperationId,
 });
 
+// fork: reads the quota of one saved account, or of every account that is not in use when none is named.
+export const ProviderAuthRefreshAccountsInput = Schema.Struct({
+  instanceId: ProviderInstanceId,
+  methodId: Schema.optionalKey(SetupOperationId),
+});
+export type ProviderAuthRefreshAccountsInput = typeof ProviderAuthRefreshAccountsInput.Type;
+
 export const ProviderAuthRespondInput = Schema.Struct({
   instanceId: ProviderInstanceId,
   flowId: SetupOperationId,

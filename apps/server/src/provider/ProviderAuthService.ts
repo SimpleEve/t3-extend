@@ -58,6 +58,10 @@ export class ProviderAuthService extends Context.Service<
     readonly selectMethod: (
       input: ProviderAuthTarget & { readonly methodId: string },
     ) => Effect.Effect<ProviderAuthState, ProviderSetupError>;
+    // fork:
+    readonly refreshAccounts: (
+      input: ProviderAuthTarget & { readonly methodId?: string },
+    ) => Effect.Effect<void, ProviderSetupError>;
     readonly logout: (
       input: ProviderAuthTarget,
     ) => Effect.Effect<ProviderAuthState, ProviderSetupError>;
@@ -305,6 +309,18 @@ export const makeProviderAuthService = Effect.gen(function* () {
           );
         }),
       );
+    }),
+    // fork: reading another account changes no credential of the one in use, so it does not wait for
+    // sign-ins and does not stop sessions.
+    refreshAccounts: Effect.fn("ProviderAuthService.refreshAccounts")(function* (input) {
+      const auth = yield* getController(input.instanceId, "refreshAccounts");
+      if (!auth.refreshAccounts)
+        return yield* new ProviderSetupError({
+          instanceId: input.instanceId,
+          operation: "refreshAccounts",
+          detail: "This provider does not keep several saved sign-ins.",
+        });
+      return yield* auth.refreshAccounts(input.methodId);
     }),
     logout: Effect.fn("ProviderAuthService.logout")(function* (input) {
       return yield* credentialChanges.withPermit(

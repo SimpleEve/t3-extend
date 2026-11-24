@@ -34,6 +34,8 @@ export interface ProviderAuthController {
     methodId: string,
     stopSessions: Effect.Effect<void, ProviderSetupError>,
   ) => Effect.Effect<ProviderAuthState, ProviderSetupError>;
+  /** fork: reads the quota of saved sign-ins that are not in use; one when named, else all. */
+  readonly refreshAccounts?: (methodId?: string) => Effect.Effect<void, ProviderSetupError>;
   readonly withAccess?: <A, E, R>(
     task: Effect.Effect<A, E, R>,
   ) => Effect.Effect<A, E | ProviderSetupError, R | Scope.Scope>;

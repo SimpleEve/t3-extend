@@ -1,4 +1,4 @@
-import { ServerProviderUsageLimits } from "@t3tools/contracts";
+import { ServerProviderUsageLimits, type ServerProviderAccount } from "@t3tools/contracts";
 import * as Clock from "effect/Clock";
 import * as Digest from "effect/crypto/Digest";
 import * as Effect from "effect/Effect";
@@ -62,6 +62,52 @@ export class AntigravityAccountPoolError extends Schema.TaggedError<AntigravityA
   }
 }
 
+/** Why a background read of a saved account failed; what the account list shows. */
+export type AntigravityProbeFailureReason = NonNullable<
+  ServerProviderAccount["usageProbeFailure"]
+>["reason"];
+
+/** What the pool remembers, in memory only, of its attempts to read an account that is not in use. */
+export interface AntigravityProbeStatus {
+  /** Epoch milliseconds of the last attempt, successful or not; null before the first. */
+  readonly lastAttemptAt: number | null;
+  /** Failed attempts in a row. */
+  readonly failures: number;
+  readonly failure: { readonly at: number; readonly reason: AntigravityProbeFailureReason } | null;
+}
+
+const NEVER_PROBED: AntigravityProbeStatus = { lastAttemptAt: null, failures: 0, failure: null };
+
+/** The saved token of an account that is not in use, lent for one background read. */
+export interface AntigravityProbeLease {
+  readonly id: string;
+  /** The slot's token as it was lent; a write-back only happens while the slot still holds it. */
+  readonly token: string;
+}
+
+export type AntigravityProbeOutcome =
+  | {
+      readonly _tag: "Read";
+      /** The token agy renewed in the private copy. */
+      readonly token: string;
+      readonly limits: ServerProviderUsageLimits;
+    }
+  | {
+      /** The token was renewed but the quota could not be read. */
+      readonly _tag: "Renewed";
+      readonly token: string;
+      readonly reason: AntigravityProbeFailureReason;
+    }
+  | { readonly _tag: "Failed"; readonly reason: AntigravityProbeFailureReason };
+
+export type AntigravityProbeResult = "saved" | "discarded" | "failed";
+
+/** True when no window of the reading is spent, so the account can take a turn again. */
+const antigravityQuotaIsBack = (limits: ServerProviderUsageLimits): boolean =>
+  limits.unavailable === undefined &&
+  limits.windows.length > 0 &&
+  limits.windows.every((window) => window.usedPercent < 100);
+
 export interface AntigravityAccount {
   readonly id: string;
   /** Absent only when the saved sign-in carries no email. */
@@ -71,6 +117,8 @@ export interface AntigravityAccount {
   readonly exhaustedUntil: number | null;
   /** The last quota reading taken while this account was in use; null before it ever was. */
   readonly usageLimits: ServerProviderUsageLimits | null;
+  /** How the background reads of this account went; see `AntigravityProbeStatus`. */
+  readonly probe: AntigravityProbeStatus;
 }
 
 export type AntigravityRotationPlan =
@@ -106,6 +154,21 @@ export interface AntigravityAccountPool {
   readonly observeUsage: <E, R>(
     read: Effect.Effect<ServerProviderUsageLimits, E, R>,
   ) => Effect.Effect<ServerProviderUsageLimits, E, R>;
+  /**
+   * Lends the saved token of an account that is not in use, for a background read of its quota.
+   * Undefined when it may not be read now: it is the current account, nothing is current, a sign-in
+   * is being added, it is unknown, or it is already lent.
+   */
+  readonly beginProbe: (id: string) => Effect.Effect<AntigravityProbeLease | undefined>;
+  /**
+   * Takes the outcome of a lent read. The renewed token goes back into the slot it came from, and the
+   * reading beside it, only while the account is still saved, still not in use and its slot unchanged;
+   * otherwise nothing is written. A reading showing quota back clears the account's exhaustion mark.
+   */
+  readonly finishProbe: (
+    lease: AntigravityProbeLease,
+    outcome: AntigravityProbeOutcome,
+  ) => Effect.Effect<AntigravityProbeResult>;
   /** Signing out leaves no saved account behind. */
   readonly clear: Effect.Effect<void, AntigravityAccountPoolError>;
   /**
@@ -141,6 +204,11 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
   // Readings by account, null for one never read. Only this pool writes them, so once an account is
   // here listing it never touches the disk again. Read and changed under the lock.
   const readings = new Map<string, ServerProviderUsageLimits | null>();
+  // Which accounts a background read has lent the token of, and how their reads went. Both are
+  // changed under the lock and forgotten when the account goes.
+  const lent = new Set<string>();
+  const probeStatus = new Map<string, AntigravityProbeStatus>();
+  let adding = false;
 
   const poolError = (detail: string, cause?: unknown) =>
     new AntigravityAccountPoolError({ detail, ...(cause === undefined ? {} : { cause }) });
@@ -288,6 +356,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
           current: id === current?.id,
           exhaustedUntil: exhaustedAt(state, id, now),
           usageLimits,
+          probe: probeStatus.get(id) ?? NEVER_PROBED,
         });
       }
       return accounts;
@@ -296,6 +365,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
 
   const beginAdd: AntigravityAccountPool["beginAdd"] = synchronized(
     Effect.gen(function* () {
+      adding = true;
       const captured = yield* captureCurrent(yield* readState);
       if (captured.current === undefined) return;
       yield* writeState(captured.state);
@@ -310,6 +380,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
 
   const settleAdd: AntigravityAccountPool["settleAdd"] = synchronized(
     Effect.gen(function* () {
+      adding = false;
       const state = yield* readState;
       const current = yield* currentIdentity;
       if (current !== undefined) {
@@ -365,6 +436,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
           yield* writeState(base);
         }
         readings.delete(id);
+        probeStatus.delete(id);
         yield* fs
           .remove(slotDirectory(id), { recursive: true, force: true })
           .pipe(Effect.mapError((cause) => poolError("Could not remove the account.", cause)));
@@ -436,9 +508,73 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
     return limits;
   });
 
+  /** Whether `id` may be read in the background right now. Call under the lock. */
+  const probeEligible = Effect.fnUntraced(function* (id: string) {
+    if (adding || !ACCOUNT_ID.test(id)) return false;
+    const state = yield* readState;
+    const current = yield* currentIdentity;
+    return current !== undefined && current.id !== id && state.order.includes(id);
+  });
+
+  const beginProbe: AntigravityAccountPool["beginProbe"] = (id) =>
+    synchronized(
+      Effect.gen(function* () {
+        if (lent.has(id) || !(yield* probeEligible(id))) return undefined;
+        const token = yield* readText(slotPath(id));
+        if (token === undefined || (yield* identify(token))?.id !== id) return undefined;
+        lent.add(id);
+        return { id, token } satisfies AntigravityProbeLease;
+      }).pipe(Effect.orElseSucceed((): AntigravityProbeLease | undefined => undefined)),
+    );
+
+  const finishProbe: AntigravityAccountPool["finishProbe"] = (lease, outcome) =>
+    synchronized(
+      Effect.gen(function* () {
+        const { id } = lease;
+        lent.delete(id);
+        const now = yield* Clock.currentTimeMillis;
+        const previous = probeStatus.get(id) ?? NEVER_PROBED;
+        const failed = (reason: AntigravityProbeFailureReason) => {
+          probeStatus.set(id, {
+            lastAttemptAt: now,
+            failures: previous.failures + 1,
+            failure: { at: now, reason },
+          });
+          return "failed" as const;
+        };
+        // A switch, removal or sign-out meanwhile means the answer may belong to an account that is
+        // no longer where it was: nothing is written.
+        const stillThere =
+          (yield* probeEligible(id)) && (yield* readText(slotPath(id))) === lease.token;
+        if (!stillThere) return "discarded" as const;
+        if (outcome._tag === "Failed") return failed(outcome.reason);
+        // The renewed token must still be this account's, or it would land in the wrong slot.
+        if ((yield* identify(outcome.token))?.id !== id) return failed("failed");
+        if (outcome.token !== lease.token) yield* writeAtomic(slotPath(id), outcome.token);
+        if (outcome._tag === "Renewed") return failed(outcome.reason);
+        yield* writeAtomic(usagePath(id), `${encodeUsage(outcome.limits)}\n`);
+        readings.set(id, outcome.limits);
+        probeStatus.set(id, { lastAttemptAt: now, failures: 0, failure: null });
+        if (antigravityQuotaIsBack(outcome.limits)) {
+          const state = yield* readState;
+          const mark = state.exhaustedUntil[id];
+          if (mark !== undefined && mark > now) {
+            const { [id]: _spent, ...rest } = state.exhaustedUntil;
+            yield* writeState({ ...state, exhaustedUntil: rest });
+          }
+        }
+        return "saved" as const;
+      }).pipe(
+        Effect.catch(() =>
+          Effect.sync(() => lent.delete(lease.id)).pipe(Effect.as("failed" as const)),
+        ),
+      ),
+    );
+
   const clear: AntigravityAccountPool["clear"] = synchronized(
     Effect.gen(function* () {
       readings.clear();
+      probeStatus.clear();
       yield* fs.remove(accountsDirectory, { recursive: true, force: true });
       yield* fs.remove(currentPath, { force: true });
     }).pipe(Effect.mapError((cause) => poolError("Could not remove the saved accounts.", cause))),
@@ -478,6 +614,8 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
     remove,
     markExhausted,
     observeUsage,
+    beginProbe,
+    finishProbe,
     clear,
     ensureAvailable,
   } satisfies AntigravityAccountPool;

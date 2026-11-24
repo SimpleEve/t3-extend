@@ -646,6 +646,13 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
       ),
       Effect.asVoid,
     ),
+    // fork: a background read changed what the account list shows; one republish per read, with no
+    // quota read of its own.
+    onAccountsChanged: Deferred.await(republish).pipe(
+      Effect.flatten,
+      Effect.provideService(PublishingUsage, true),
+      Effect.asVoid,
+    ),
     onSignedOut: clearAccountMetadata(),
     onAuthRequired: clearAccountMetadata(),
     // fork: the agent accepted the shared login. Models load with the next session or refresh.

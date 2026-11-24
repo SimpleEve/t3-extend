@@ -966,6 +966,16 @@ export const AntigravitySettings = makeProviderSettingsSchema(
       }),
     ),
     // fork:
+    backgroundAccountCheck: Schema.Boolean.pipe(
+      Schema.withDecodingDefault(Effect.succeed(true)),
+      Schema.annotateKey({
+        title: "Check other accounts in the background",
+        description:
+          "For separate Google account sign-ins with more than one saved account. About every 45 minutes T3 renews a saved account that is not in use and reads its quota, so its remembered reading stays current. This starts agy briefly but uses no quota. When off, only Refresh in Usage reads other accounts.",
+        providerSettingsForm: { control: "switch", clearWhenEmpty: "omit" },
+      }),
+    ),
+    // fork:
     networkProxy: TrimmedString.pipe(
       Schema.withDecodingDefault(Effect.succeed("")),
       Schema.annotateKey({
@@ -996,6 +1006,7 @@ export const AntigravitySettings = makeProviderSettingsSchema(
       "gcpProject",
       "gcpLocation",
       "accountRotation", // fork:
+      "backgroundAccountCheck", // fork:
       "networkProxy", // fork:
       "binaryPath",
     ],
