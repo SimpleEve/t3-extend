@@ -39,6 +39,7 @@ import {
   ProviderTurnId,
   RunId,
   ScheduledTaskId,
+  ThreadBookmarkId, // fork: message bookmarks
   ThreadId,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
@@ -7741,6 +7742,309 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
           admitted ? [original.id] : [],
         );
       }),
+  );
+
+  it.effect("bookmarks a message, edits and removes it, and keeps the shell summary short", () =>
+    Effect.gen(function* () {
+      const orchestrator = yield* Orchestrator.OrchestratorV2;
+      const threadId = ThreadId.make("runtime-layer-bookmark-thread");
+      const messageId = MessageId.make("runtime-layer-bookmark-message");
+      yield* orchestrator.dispatch({
+        type: "thread.create",
+        createdBy: "user",
+        creationSource: "web",
+        commandId: CommandId.make("runtime-layer-bookmark-create"),
+        threadId,
+        projectId: ProjectId.make("runtime-layer-bookmark-project"),
+        title: "Bookmarks",
+        modelSelection,
+        runtimeMode: "full-access",
+        interactionMode: "default",
+        branch: null,
+        worktreePath: "/tmp/runtime-layer-bookmark",
+      });
+      yield* orchestrator.dispatch({
+        type: "message.dispatch",
+        createdBy: "user",
+        creationSource: "web",
+        commandId: CommandId.make("runtime-layer-bookmark-message"),
+        threadId,
+        messageId,
+        text: "Remember this answer.",
+        attachments: [],
+        modelSelection,
+        dispatchMode: { type: "start_immediately" },
+      });
+      const shellOf = (shell: Pick<OrchestrationV2ShellSnapshot, "threads">) =>
+        shell.threads.find((thread) => thread.id === threadId)!;
+      const before = shellOf(yield* orchestrator.getShellSnapshot());
+      assert.isUndefined(before.bookmarkCount);
+
+      const bookmarkId = ThreadBookmarkId.make("bookmark-1");
+      const add = {
+        type: "thread.bookmark.add" as const,
+        threadId,
+        bookmarkId,
+        messageId,
+        kind: "message" as const,
+        excerpt: "Remember this answer.",
+      };
+      yield* TestClock.adjust("1 minute");
+      const addResult = yield* orchestrator.dispatch({
+        ...add,
+        commandId: CommandId.make("bookmark-add"),
+      });
+      const added = (yield* orchestrator.getThreadProjection(threadId)).bookmarks ?? [];
+      assert.lengthOf(added, 1);
+      assert.equal(added[0]?.id, bookmarkId);
+      assert.isNotNull(added[0]?.messageCreatedAt);
+      assert.deepEqual(shellOf(yield* orchestrator.getShellSnapshot()).bookmarkPreviews, [
+        { id: bookmarkId, label: "Remember this answer." },
+      ]);
+
+      // Other thread events never carry bookmarks: only the bookmark's own event holds one.
+      assert.deepEqual(
+        addResult.storedEvents.map((entry) => entry.event.type),
+        ["thread.bookmark-changed"],
+      );
+      assert.deepEqual(addResult.storedEvents[0]?.event.payload, {
+        kind: "upsert",
+        bookmark: added[0]!,
+      });
+      const renameResult = yield* orchestrator.dispatch({
+        type: "thread.metadata.update",
+        commandId: CommandId.make("bookmark-metadata-update"),
+        threadId,
+        title: "Bookmarks, renamed",
+      });
+      assert.isAbove(renameResult.storedEvents.length, 0);
+      for (const entry of renameResult.storedEvents) {
+        assert.notProperty(entry.event.payload, "bookmarks");
+      }
+      assert.deepEqual((yield* orchestrator.getThreadProjection(threadId)).bookmarks, added);
+      const renamedAt = shellOf(yield* orchestrator.getShellSnapshot()).updatedAt;
+      yield* TestClock.adjust("1 minute");
+
+      // A second device pressing the same button, or a retry under a new command id, adds nothing.
+      yield* orchestrator.dispatch({ ...add, commandId: CommandId.make("bookmark-add-again") });
+      yield* orchestrator.dispatch({
+        ...add,
+        bookmarkId: ThreadBookmarkId.make("bookmark-1-twin"),
+        commandId: CommandId.make("bookmark-add-twin"),
+      });
+      assert.lengthOf((yield* orchestrator.getThreadProjection(threadId)).bookmarks ?? [], 1);
+
+      const missingMessage = yield* orchestrator
+        .dispatch({
+          ...add,
+          bookmarkId: ThreadBookmarkId.make("bookmark-ghost"),
+          messageId: MessageId.make("runtime-layer-bookmark-no-such-message"),
+          commandId: CommandId.make("bookmark-add-ghost"),
+        })
+        .pipe(Effect.flip);
+      assert.instanceOf(missingMessage, Orchestrator.OrchestratorDispatchError);
+      const missingBookmark = yield* orchestrator
+        .dispatch({
+          type: "thread.bookmark.update",
+          commandId: CommandId.make("bookmark-update-ghost"),
+          threadId,
+          bookmarkId: ThreadBookmarkId.make("bookmark-ghost"),
+          title: "x",
+        })
+        .pipe(Effect.flip);
+      assert.instanceOf(missingBookmark, Orchestrator.OrchestratorDispatchError);
+
+      yield* orchestrator.dispatch({
+        type: "thread.bookmark.update",
+        commandId: CommandId.make("bookmark-update"),
+        threadId,
+        bookmarkId,
+        title: "  The answer  ",
+        note: "for the review",
+      });
+      const edited = (yield* orchestrator.getThreadProjection(threadId)).bookmarks?.[0];
+      assert.equal(edited?.title, "The answer");
+      assert.equal(edited?.note, "for the review");
+      assert.equal(
+        shellOf(yield* orchestrator.getShellSnapshot()).bookmarkPreviews?.[0]?.label,
+        "The answer",
+      );
+
+      yield* orchestrator.dispatch({
+        type: "thread.bookmark.remove",
+        commandId: CommandId.make("bookmark-remove"),
+        threadId,
+        bookmarkId,
+      });
+      // Removing what is already gone, as a second device would, is not an error.
+      yield* orchestrator.dispatch({
+        type: "thread.bookmark.remove",
+        commandId: CommandId.make("bookmark-remove-again"),
+        threadId,
+        bookmarkId,
+      });
+      assert.lengthOf((yield* orchestrator.getThreadProjection(threadId)).bookmarks ?? [], 0);
+      assert.isUndefined(shellOf(yield* orchestrator.getShellSnapshot()).bookmarkCount);
+
+      // Undo re-adds the bookmark under its own id and creation time.
+      yield* orchestrator.dispatch({
+        ...add,
+        commandId: CommandId.make("bookmark-undo"),
+        createdAt: added[0]!.createdAt,
+        title: "The answer",
+      });
+      const restored = (yield* orchestrator.getThreadProjection(threadId)).bookmarks?.[0];
+      assert.equal(restored?.id, bookmarkId);
+      assert.equal(restored?.createdAt, added[0]!.createdAt);
+      assert.equal(shellOf(yield* orchestrator.getShellSnapshot()).bookmarkCount, 1);
+
+      // Bookmarks are not activity, so the thread keeps its place in thread lists.
+      assert.equal(
+        DateTime.toEpochMillis(shellOf(yield* orchestrator.getShellSnapshot()).updatedAt),
+        DateTime.toEpochMillis(renamedAt),
+      );
+    }),
+  );
+
+  it.effect("bookmarks what a fork shows from its source, up to the fork point", () =>
+    Effect.gen(function* () {
+      const orchestrator = yield* Orchestrator.OrchestratorV2;
+      const eventSink = yield* EventSink.EventSinkV2;
+      const key = "runtime-layer-bookmark-fork";
+      const threadId = ThreadId.make(key);
+      yield* orchestrator.dispatch({
+        type: "thread.create",
+        createdBy: "user",
+        creationSource: "web",
+        commandId: CommandId.make(`${key}:create`),
+        threadId,
+        projectId: ProjectId.make(`${key}-project`),
+        title: "Bookmarks in forks",
+        modelSelection,
+        runtimeMode: "full-access",
+        interactionMode: "default",
+        branch: null,
+        worktreePath: null,
+      });
+      const writeRun = Effect.fn("test.writeBookmarkRun")(function* (
+        onThread: ThreadId,
+        name: string,
+        ordinal: number,
+      ) {
+        const now = yield* DateTime.now;
+        const runId = RunId.make(`${onThread}:${name}`);
+        const messageId = MessageId.make(`${onThread}:${name}`);
+        yield* eventSink.write({
+          events: [
+            {
+              id: EventId.make(`${onThread}:${name}:run`),
+              type: "run.created",
+              threadId: onThread,
+              runId,
+              occurredAt: now,
+              payload: {
+                id: runId,
+                threadId: onThread,
+                ordinal,
+                providerInstanceId: modelSelection.instanceId,
+                modelSelection,
+                providerThreadId: null,
+                userMessageId: messageId,
+                rootNodeId: null,
+                activeAttemptId: null,
+                status: "completed",
+                requestedAt: now,
+                startedAt: now,
+                completedAt: now,
+                checkpointId: null,
+                contextHandoffId: null,
+              },
+            },
+            {
+              id: EventId.make(`${onThread}:${name}:message`),
+              type: "message.updated",
+              threadId: onThread,
+              runId,
+              occurredAt: now,
+              payload: {
+                id: messageId,
+                threadId: onThread,
+                runId,
+                nodeId: null,
+                role: "user",
+                text: `Message ${name}`,
+                attachments: [],
+                streaming: false,
+                createdBy: "user",
+                creationSource: "web",
+                createdAt: now,
+                updatedAt: now,
+              },
+            },
+          ],
+        });
+        return { runId, messageId };
+      });
+      const fork = Effect.fn("test.forkAtRun")(function* (
+        sourceThreadId: ThreadId,
+        targetThreadId: ThreadId,
+        runId: RunId,
+      ) {
+        yield* orchestrator.dispatch({
+          type: "thread.fork",
+          commandId: CommandId.make(`${targetThreadId}:fork`),
+          sourceThreadId,
+          targetThreadId,
+          sourcePoint: { type: "run", runId },
+          createdBy: "user",
+          creationSource: "web",
+        });
+      });
+      const bookmark = (onThread: ThreadId, messageId: MessageId, name: string) =>
+        orchestrator.dispatch({
+          type: "thread.bookmark.add",
+          commandId: CommandId.make(`${onThread}:bookmark:${name}`),
+          threadId: onThread,
+          bookmarkId: ThreadBookmarkId.make(`${onThread}:bookmark:${name}`),
+          messageId,
+          kind: "message",
+          excerpt: name,
+        });
+      const bookmarkedIn = (onThread: ThreadId) =>
+        orchestrator
+          .getThreadProjection(onThread)
+          .pipe(
+            Effect.map((projection) =>
+              (projection.bookmarks ?? []).map((entry) => entry.messageId),
+            ),
+          );
+
+      const first = yield* writeRun(threadId, "first", 1);
+      const forkId = ThreadId.make(`${key}:fork`);
+      yield* fork(threadId, forkId, first.runId);
+      const second = yield* writeRun(threadId, "second", 2);
+      const forkOfForkId = ThreadId.make(`${key}:fork-of-fork`);
+      const own = yield* writeRun(forkId, "own", 2);
+      yield* fork(forkId, forkOfForkId, own.runId);
+
+      // The fork shows the first run from its source, so it can bookmark it; the source's
+      // later run it never received is not its to bookmark.
+      yield* bookmark(forkId, first.messageId, "inherited");
+      assert.deepEqual(yield* bookmarkedIn(forkId), [first.messageId]);
+      const afterForkPoint = yield* bookmark(forkId, second.messageId, "after").pipe(Effect.flip);
+      assert.instanceOf(afterForkPoint, Orchestrator.OrchestratorDispatchError);
+      assert.deepEqual(yield* bookmarkedIn(forkId), [first.messageId]);
+      assert.deepEqual(yield* bookmarkedIn(threadId), []);
+
+      // A fork of a fork reaches both its parent's own messages and the first source's.
+      yield* bookmark(forkOfForkId, own.messageId, "parent");
+      yield* bookmark(forkOfForkId, first.messageId, "grandparent");
+      assert.sameMembers(yield* bookmarkedIn(forkOfForkId), [own.messageId, first.messageId]);
+      const grandparentLater = yield* bookmark(forkOfForkId, second.messageId, "later").pipe(
+        Effect.flip,
+      );
+      assert.instanceOf(grandparentLater, Orchestrator.OrchestratorDispatchError);
+    }),
   );
 
   it.effect("rejects settling a thread while a run is active", () =>

@@ -50,6 +50,9 @@ import {
   reorderPinnedThread,
   reorderActiveThread,
   setThreadAutoSettle,
+  addThreadBookmark, // fork: message bookmarks
+  removeThreadBookmark, // fork: message bookmarks
+  updateThreadBookmark, // fork: message bookmarks
   settleThread,
   snoozeThread,
   startThreadTurn,
@@ -237,6 +240,25 @@ export function createThreadEnvironmentAtoms<R, E>(
     reorderPin: createEnvironmentCommand(runtime, {
       label: "environment-data:commands:thread:reorder-pin",
       execute: reorderPinnedThread,
+      scheduler,
+      concurrency,
+    }),
+    // fork: message bookmarks
+    addBookmark: createEnvironmentCommand(runtime, {
+      label: "environment-data:commands:thread:add-bookmark",
+      execute: addThreadBookmark,
+      scheduler,
+      concurrency,
+    }),
+    updateBookmark: createEnvironmentCommand(runtime, {
+      label: "environment-data:commands:thread:update-bookmark",
+      execute: updateThreadBookmark,
+      scheduler,
+      concurrency,
+    }),
+    removeBookmark: createEnvironmentCommand(runtime, {
+      label: "environment-data:commands:thread:remove-bookmark",
+      execute: removeThreadBookmark,
       scheduler,
       concurrency,
     }),

@@ -88,6 +88,8 @@ import { expandAssistantCitationsForProvider } from "@t3tools/shared/assistantCi
 import { modelSwitchSince } from "./modelSwitch.ts";
 import { contextBoundaryOrdinal, isScheduledFreshRun } from "./contextBoundary.ts";
 import { isPlaceholderThreadTitle } from "./placeholderThreadTitle.ts";
+import { decideThreadBookmark, isThreadBookmarkCommand } from "./ThreadBookmarks.ts"; // fork: message bookmarks
+import { findBookmarkableMessageCreatedAt } from "./ThreadBookmarkMessage.ts"; // fork: message bookmarks
 import { combinePullRequestWatchWakes, type PullRequestWatchWake } from "./pullRequestWatch.ts";
 import { recordThreadOpen } from "@t3tools/shared/paletteSearch";
 import {
@@ -649,6 +651,9 @@ function commandThreadId(command: OrchestrationV2ServerCommand): ThreadId {
     case "thread.pin.reorder":
     case "thread.active.reorder":
     case "thread.tag.set":
+    case "thread.bookmark.add": // fork: message bookmarks
+    case "thread.bookmark.update": // fork: message bookmarks
+    case "thread.bookmark.remove": // fork: message bookmarks
     case "thread.visit":
     case "thread.mark-unread":
     case "thread.metadata.update":
@@ -4341,6 +4346,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           | "thread.unpin"
           | "thread.pin.reorder"
           | "thread.tag.set"
+          | "thread.bookmark.add" // fork: message bookmarks
+          | "thread.bookmark.update" // fork: message bookmarks
+          | "thread.bookmark.remove" // fork: message bookmarks
           | "thread.active.reorder"
           | "thread.mark-unread"
           | "thread.metadata.update"
@@ -4896,6 +4904,46 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         });
       }
       markUnreadVisitedAt = DateTime.subtract(latestRunCompletedAt, { milliseconds: 1 });
+    }
+    // fork: message bookmarks. A bookmark is its own event, not a new copy of the thread.
+    if (isThreadBookmarkCommand(command)) {
+      const messageCreatedAt =
+        command.type === "thread.bookmark.add"
+          ? yield* findBookmarkableMessageCreatedAt(
+              projectionStore,
+              thread,
+              command.messageId,
+            ).pipe(mapDispatchError(command))
+          : null;
+      const decision = decideThreadBookmark({
+        threadId: command.threadId,
+        bookmarks: yield* projectionStore
+          .getThreadBookmarks(command.threadId)
+          .pipe(mapDispatchError(command)),
+        command,
+        messageCreatedAt,
+        now: DateTime.formatIso(now),
+      });
+      if (decision._tag === "Rejected") {
+        return yield* new OrchestratorDispatchError({
+          commandId: command.commandId,
+          commandType: command.type,
+          cause: decision.reason,
+        });
+      }
+      if (decision._tag === "Changed") {
+        yield* emit(
+          events,
+          command,
+        )({
+          type: "thread.bookmark-changed",
+          threadId: command.threadId,
+          providerInstanceId: thread.providerInstanceId,
+          occurredAt: now,
+          payload: decision.change,
+        });
+      }
+      return;
     }
     const updatedThread: OrchestrationV2AppThread = (() => {
       switch (command.type) {
@@ -15578,6 +15626,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       case "thread.pin.reorder":
       case "thread.active.reorder":
       case "thread.tag.set":
+      case "thread.bookmark.add": // fork: message bookmarks
+      case "thread.bookmark.update": // fork: message bookmarks
+      case "thread.bookmark.remove": // fork: message bookmarks
       case "thread.mark-unread":
       case "thread.pull-request.link":
       case "thread.pull-request.unlink":
@@ -15985,6 +16036,8 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           command.type === "subagent.stop" ||
           // Closing a share again, or after it ended, is not an error.
           command.type === "thread.guest-share.close" ||
+          // fork: a bookmark added twice, or removed after it is gone, is already as asked.
+          isThreadBookmarkCommand(command) ||
           (command.type === "thread.delete" && command.onlyIfUnused === true),
         (_planned) =>
           new OrchestratorDispatchError({

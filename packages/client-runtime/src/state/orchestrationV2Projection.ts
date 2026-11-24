@@ -1,6 +1,7 @@
 import { applyThreadPullRequestLinkUpdate } from "../threadPullRequests.ts";
 import {
   applyOrchestrationV2ThreadVisit,
+  applyThreadBookmarkChange, // fork: message bookmarks
   isQueuedProviderThreadPlaceholder,
 } from "@t3tools/contracts";
 import type {
@@ -298,6 +299,12 @@ export function applyOrchestrationV2ProjectionEvent(
       return {
         ...base,
         thread: applyThreadPullRequestLinkUpdate(projection.thread, event.payload),
+      };
+    // fork: message bookmarks. Not activity: no updatedAt bump.
+    case "thread.bookmark-changed":
+      return {
+        ...projection,
+        bookmarks: applyThreadBookmarkChange(projection.bookmarks ?? [], event.payload),
       };
     case "thread.created":
     case "thread.archived":

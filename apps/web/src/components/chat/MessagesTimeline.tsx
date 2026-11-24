@@ -74,6 +74,7 @@ import {
   resolveDisclosureRevealScrollDelta,
 } from "./timelineScrollAnchoring";
 import { AssistantSelectionToolbar } from "./AssistantSelectionToolbar";
+import { BookmarkMessageMarker } from "../../fork/bookmarks/BookmarkMessageMarker"; // fork: message bookmarks
 import type { AssistantCitationSourceAnchor } from "~/lib/assistantTextSelection";
 import { type AssistantCitationRequest } from "./AssistantCitationSource";
 import { useAssistantCitationTarget } from "./useAssistantCitationTarget";
@@ -684,6 +685,10 @@ const ConversationTimeline = memo(function ConversationTimeline({
           (entry) =>
             (entry.kind === "message" &&
               entry.message.role === "assistant" &&
+              entry.message.id === citationRequest.citation.messageId) ||
+            // fork: a bookmark reveals the user's own messages too
+            (entry.kind === "message" &&
+              entry.message.role === "user" &&
               entry.message.id === citationRequest.citation.messageId) ||
             (entry.kind === "sent-message" && entry.id === citationRequest.citation.messageId),
         )
@@ -1623,6 +1628,7 @@ function getItemType(item: MessagesTimelineRow) {
 }
 
 const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: TimelineRow }) {
+  const threadRef = use(TimelineRowCtx).threadRef; // fork: message bookmarks
   const isExpandedToolGroup = row.kind === "work" && row.isExpandedToolGroup;
   const isSubagentGroup = row.kind === "event" && row.projectedItem.item.type === "subagent";
   const isWorkLogRow =
@@ -1667,6 +1673,13 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
       }
       data-message-role={row.kind === "message" ? row.message.role : undefined}
     >
+      {row.kind === "message" ? (
+        <BookmarkMessageMarker
+          threadRef={threadRef}
+          messageId={row.message.id}
+          role={row.message.role}
+        /> // fork: message bookmarks
+      ) : null}
       {isWorkLogRow ? (
         <WorkLogBlock
           continues={row.continuesWorkLog}
