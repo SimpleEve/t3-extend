@@ -317,7 +317,6 @@ export default {
   "Stop {label}?": "停止 {label}？",
   "Provider-managed agent. Its work appears in the transcript.":
     "由 provider 管理的 Agent。其工作会显示在对话记录中。",
-  "Runs on {label}. Connect to it to open its thread.": "在 {label} 上运行。连接到它以打开其对话。",
   "Opens this agent's thread": "打开此 Agent 的对话",
   "Reorder {title}": "重新排序 {title}",
   "Move up and Move down reorder within this section. Other actions move between sections.":
@@ -544,7 +543,6 @@ export default {
   "Maximize thread": "最大化对话",
   "You:": "你：",
   "Agent:": "Agent：",
-  "Runs on {label}": "在 {label} 上运行",
   "Provider-managed agent": "由 provider 管理的 Agent",
   "Retry workspace preparation": "重试准备工作区",
   "Usage limit reached.": "已达到用量上限。",
