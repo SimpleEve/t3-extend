@@ -131,14 +131,10 @@ describe("command permissions", () => {
     }),
   );
 
-  // fork: reading another Antigravity account's quota needs the same grant as changing the accounts.
-  it.effect.each([
-    { name: "remove an incomplete connection", method: WS_METHODS.providerAuthRemoveMethod },
-    { name: "read the other Antigravity accounts", method: WS_METHODS.providerAuthRefreshAccounts },
-  ])("requires the destination provider grant to $name", ({ method }) =>
+  it.effect("requires the destination provider grant to remove an incomplete connection", () =>
     Effect.gen(function* () {
       const registry = yield* setup;
-      const remove = createCommandPermissions(runtime, method);
+      const remove = createCommandPermissions(runtime, WS_METHODS.providerAuthRemoveMethod);
       registry.set(sessions(env), AsyncResult.success(grant(true)));
       expect(registry.get(remove.permissionAtom(env))).toBe(false);
       expect((yield* remove.authorize(registry, env).pipe(Effect.flip))._tag).toBe(
@@ -157,6 +153,33 @@ describe("command permissions", () => {
       registry.set(sessions(other), AsyncResult.success(grant(false)));
       expect(registry.get(remove.permissionAtom(other))).toBe(false);
     }),
+  );
+
+  // fork: reading another Antigravity account's quota needs the same grant as changing the accounts.
+  it.effect(
+    "requires the destination provider grant to refresh the other Antigravity accounts",
+    () =>
+      Effect.gen(function* () {
+        const registry = yield* setup;
+        const refresh = createCommandPermissions(runtime, WS_METHODS.providerAuthRefreshAccounts);
+        registry.set(sessions(env), AsyncResult.success(grant(true)));
+        expect(registry.get(refresh.permissionAtom(env))).toBe(false);
+        expect((yield* refresh.authorize(registry, env).pipe(Effect.flip))._tag).toBe(
+          "EnvironmentAuthorizationError",
+        );
+        registry.set(
+          sessions(env),
+          AsyncResult.success({
+            ...grant(false),
+            scopes: [AuthProvidersManageScope],
+            permissions: [AuthProvidersManageScope],
+          }),
+        );
+        expect(registry.get(refresh.permissionAtom(env))).toBe(true);
+        yield* refresh.authorize(registry, env);
+        registry.set(sessions(other), AsyncResult.success(grant(false)));
+        expect(registry.get(refresh.permissionAtom(other))).toBe(false);
+      }),
   );
 
   it.effect.each([

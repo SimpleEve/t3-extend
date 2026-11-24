@@ -70,6 +70,8 @@ export const ServerProviderAccount = Schema.Struct({
   exhaustedUntil: Schema.optional(IsoDateTime),
   /** The last quota reading taken while this account was in use; `checkedAt` says how old it is. */
   usageLimits: Schema.optional(ServerProviderUsageLimits),
+  /** The server can read this account's quota on request; absent on a server that cannot. */
+  refreshable: Schema.optional(Schema.Boolean),
   /** Why the last background read of this account failed; absent after a read that worked. */
   usageProbeFailure: Schema.optional(
     Schema.Struct({

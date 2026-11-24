@@ -144,6 +144,9 @@ describe("the accounts a snapshot lists", () => {
         reason: "expired",
       });
       expect(listed.find((account) => account.id === a!.id)?.usageProbeFailure).toBeUndefined();
+      // Only an account that is not in use can be read on request; the client shows the button on that.
+      expect(listed.find((account) => account.id === lease.id)?.refreshable).toBe(true);
+      expect(listed.find((account) => account.current)?.refreshable).toBeUndefined();
     }).pipe(Effect.scoped, Effect.provide(layer)),
   );
 });

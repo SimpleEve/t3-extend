@@ -39,17 +39,19 @@ const provider: ServerProvider = {
         id: "aaaaaaaaaaaaaaaa",
         email: "far@example.com",
         current: false,
+        refreshable: true,
         usageProbeFailure: { at: "2026-09-03T11:30:00.000Z", reason: "expired" as const },
         usageLimits: {
           checkedAt: "2026-09-03T09:00:00.000Z",
           windows: [window("gemini-5h", "Gemini · 5-hour", 10, "2026-09-03T16:00:00.000Z")],
         },
       },
-      { id: "bbbbbbbbbbbbbbbb", email: "never@example.com", current: false },
+      { id: "bbbbbbbbbbbbbbbb", email: "never@example.com", current: false, refreshable: true },
       {
         id: "cccccccccccccccc",
         email: "soon@example.com",
         current: false,
+        refreshable: true,
         usageLimits: {
           checkedAt: "2026-09-03T11:00:00.000Z",
           windows: [window("gemini-5h", "Gemini · 5-hour", 50, "2026-09-03T13:00:00.000Z")],
@@ -169,5 +171,36 @@ describe("account usage rows", () => {
     expect(accountRefreshKey(accountRefreshTarget(by("far@example.com"))!, true)).toBe(
       "env:antigravity:*",
     );
+  });
+
+  // fork: a server that does not say it can refresh gets no button, so an old server is not asked.
+  it("offers no refresh when the server does not say the account can be refreshed", () => {
+    const accounts = collectLimitAccounts(
+      new Map([
+        [
+          EnvironmentId.make("env"),
+          {
+            entry: { target: { label: "Laptop" } },
+            serverConfig: {
+              providers: [
+                {
+                  ...provider,
+                  auth: {
+                    ...provider.auth,
+                    accounts: provider.auth.accounts?.map(({ refreshable: _, ...rest }) => rest),
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      ]),
+    );
+    expect(accounts.map((account) => accountRefreshTarget(account))).toEqual([
+      null,
+      null,
+      null,
+      null,
+    ]);
   });
 });

@@ -1,14 +1,15 @@
 // fork: reads the quota of Antigravity accounts that are not in use, from Usage > Limits.
 import { useAtomValue } from "@effect/atom-react";
 import {
+  accountRefreshFailed,
   accountRefreshKey,
+  accountRefreshRequest,
   accountRefreshTargets,
+  permittedRefreshTargets,
+  refreshEnvironmentsKey,
   type AccountRefreshTarget,
 } from "@t3tools/client-runtime/fork/antigravityAccounts/refresh";
-import {
-  isAtomCommandInterrupted,
-  type AtomCommandResult,
-} from "@t3tools/client-runtime/state/runtime";
+import type { AtomCommandResult } from "@t3tools/client-runtime/state/runtime";
 import type { LimitAccount } from "@t3tools/shared/usageLimits";
 import { useRef, useState } from "react";
 import { Pressable } from "react-native";
@@ -48,17 +49,11 @@ export function useAccountUsageRefresh(): AccountUsageRefresh {
     if (busyRef.current.has(key) || busyRef.current.has(accountRefreshKey(target, true))) return;
     mark(new Set([...busyRef.current, key]));
     setFailed(false);
-    const result: AtomCommandResult<unknown, unknown> | undefined = await command({
-      environmentId: target.environmentId,
-      input: {
-        instanceId: target.instanceId,
-        ...(target.accountId === undefined ? {} : { methodId: target.accountId }),
-      },
-    }).catch(() => undefined);
+    const result: AtomCommandResult<unknown, unknown> | undefined = await command(
+      accountRefreshRequest(target),
+    ).catch(() => undefined);
     mark(new Set([...busyRef.current].filter((entry) => entry !== key)));
-    if (result?._tag !== "Success" && !(result && isAtomCommandInterrupted(result))) {
-      setFailed(true);
-    }
+    if (accountRefreshFailed(result)) setFailed(true);
   };
   return { isBusy, refresh, failed };
 }
@@ -129,19 +124,22 @@ export function RefreshAllAccountsButton({
 }) {
   const t = useT();
   const targets = accountRefreshTargets(accounts);
-  const first = targets[0];
-  const canManage = useAtomValue(
-    serverEnvironment.refreshProviderAuthAccounts.permissionAtom(first?.environmentId ?? null),
+  // Each environment's own grant decides whether its accounts are refreshed with the rest.
+  const permitted = permittedRefreshTargets(
+    targets,
+    useAtomValue(
+      serverEnvironment.permittedRefreshEnvironmentsAtom(refreshEnvironmentsKey(targets)),
+    ),
   );
-  if (first === undefined) return null;
-  const busy = targets.some((target) => controller.isBusy(target));
+  if (targets.length === 0) return null;
+  const busy = permitted.some((target) => controller.isBusy(target));
   return (
     <RefreshPressable
       accessibilityLabel={busy ? t("Refreshing…") : t("Refresh other accounts")}
       busy={busy}
-      disabled={!canManage}
+      disabled={permitted.length === 0}
       onPress={() => {
-        for (const target of targets) void controller.refresh(target);
+        for (const target of permitted) void controller.refresh(target);
       }}
     />
   );

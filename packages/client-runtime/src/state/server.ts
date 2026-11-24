@@ -63,6 +63,7 @@ import {
 } from "../rpc/client.ts";
 import type { RpcSession } from "../rpc/session.ts";
 import { followStreamInEnvironment } from "./runtime.ts";
+import { permittedRefreshEnvironmentsAtom } from "../fork/antigravityAccounts/refresh.ts"; // fork:
 import {
   applyServerConfigProjection,
   reuseUnchanged,
@@ -1437,6 +1438,15 @@ export function createServerEnvironmentAtoms<R, E>(
     concurrency: configConcurrency,
   });
 
+  // fork: reads the quota of Antigravity accounts that are not in use.
+  const refreshProviderAuthAccounts = createEnvironmentRpcCommand(runtime, {
+    label: "environment-data:provider:auth-refresh-accounts",
+    tag: WS_METHODS.providerAuthRefreshAccounts,
+  });
+  const permittedRefreshEnvironments = permittedRefreshEnvironmentsAtom(
+    refreshProviderAuthAccounts.permissionAtom,
+  );
+
   return {
     configValueAtom,
     runStorageCleanup: createEnvironmentRpcCommand(runtime, {
@@ -1540,10 +1550,8 @@ export function createServerEnvironmentAtoms<R, E>(
       tag: WS_METHODS.providerAuthSelectMethod,
     }),
     // fork: reads the quota of Antigravity accounts that are not in use.
-    refreshProviderAuthAccounts: createEnvironmentRpcCommand(runtime, {
-      label: "environment-data:provider:auth-refresh-accounts",
-      tag: WS_METHODS.providerAuthRefreshAccounts,
-    }),
+    refreshProviderAuthAccounts,
+    permittedRefreshEnvironmentsAtom: permittedRefreshEnvironments,
     logoutProviderAuth: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:provider:auth-logout",
       tag: WS_METHODS.providerAuthLogout,

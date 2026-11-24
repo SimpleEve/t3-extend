@@ -140,9 +140,10 @@ export function mergeAntigravityAccounts(input: {
       current: account.current,
       exhaustedUntil: Number.isFinite(exhaustedUntil) ? exhaustedUntil : undefined,
       // The one in use is read live; the others can be read on request.
-      refresh: account.current
-        ? undefined
-        : { environmentId, instanceId: provider.instanceId, accountId: account.id },
+      refresh:
+        account.current || !account.refreshable
+          ? undefined
+          : { environmentId, instanceId: provider.instanceId, accountId: account.id },
       probeFailure:
         failure === undefined || !Number.isFinite(failedAt)
           ? undefined
