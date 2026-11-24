@@ -153,6 +153,15 @@ const ALLOWED: ReadonlyArray<Allowed> = [
     reason: "Internal argv flag between the app's own processes.",
   },
   {
+    path: "apps/desktop/src/window/RemoteRequestHeaders.ts",
+    line: "`t3code://app`",
+    reason: "Comment naming the official app's scheme that Electron puts in Origin.",
+  },
+  {
+    path: "scripts/scenarios/terminal-latched-modifier-reads-selected.e2e.ts",
+    reason: "Mobile scenario that drives upstream's own dev app by its bundle id and scheme.",
+  },
+  {
     path: "scripts/scenarios/add-project-tab-reaches-submit.e2e.ts",
     line: "pingdotgg/t3code.git",
     reason: "A public repository URL typed into the form to enable Continue; it is never cloned.",
@@ -243,6 +252,18 @@ const BRAND_SKIPPED_FILE = /(?:^|\/)i18n\/(?:catalogs|translations)\//u;
 const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*)/u;
 
 const ALLOWED_BRAND: ReadonlyArray<Allowed> = [
+  {
+    path: "apps/web/src/components/settings/LabsSettingsPanel.tsx",
+    line: "T3 Code",
+    reason:
+      "Agent feedback goes to the T3 team (upstream's telemetry), so the copy names upstream.",
+  },
+  {
+    path: "apps/mobile/src/features/settings/ThreadSettingsSections.tsx",
+    line: "T3 Code problems",
+    reason:
+      "Agent feedback goes to the T3 team (upstream's telemetry), so the copy names upstream.",
+  },
   {
     path: "packages/contracts/src/orchestrationV2.ts",
     line: "[T3 Code: ",

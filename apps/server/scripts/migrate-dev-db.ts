@@ -394,22 +394,30 @@ export const dropResumableFamilies = Effect.fn("dropResumableDevDbFamilies")(fun
       Effect.map((info) => Option.map(info.ino, (ino) => `${info.dev}:${ino}`)),
       Effect.orElseSucceed(() => Option.none<string>()),
     );
-  const sharedHome = path.resolve(options.sharedHome ?? path.join(NodeOS.homedir(), ".t3"));
-  const liveDatabase = path.join(sharedHome, "userdata", "statev2.sqlite");
-  const [target, live] = yield* Effect.all([resolve(databasePath), resolve(liveDatabase)]);
+  // fork: both homes' live databases are protected, as in runMigrateDevDb.
+  const sharedHomes = (
+    options.sharedHome === undefined
+      ? devSeedHomeCandidates(options.homeDirectory ?? NodeOS.homedir(), path.join)
+      : [options.sharedHome]
+  ).map((home) => path.resolve(home));
+  const target = yield* resolve(databasePath);
   const targetIdentity = yield* identity(target);
-  const liveIdentities = yield* Effect.forEach(
-    [liveDatabase, `${liveDatabase}-wal`, `${liveDatabase}-shm`],
-    identity,
-  );
-  if (
-    comparable(target) === comparable(live) ||
-    (Option.isSome(targetIdentity) &&
-      liveIdentities.some(
-        (candidate) => Option.isSome(candidate) && candidate.value === targetIdentity.value,
-      ))
-  ) {
-    return yield* new MigrateDevDbSharedHomeError();
+  for (const sharedHome of sharedHomes) {
+    const liveDatabase = path.join(sharedHome, "userdata", "statev2.sqlite");
+    const live = yield* resolve(liveDatabase);
+    const liveIdentities = yield* Effect.forEach(
+      [liveDatabase, `${liveDatabase}-wal`, `${liveDatabase}-shm`],
+      identity,
+    );
+    if (
+      comparable(target) === comparable(live) ||
+      (Option.isSome(targetIdentity) &&
+        liveIdentities.some(
+          (candidate) => Option.isSome(candidate) && candidate.value === targetIdentity.value,
+        ))
+    ) {
+      return yield* new MigrateDevDbSharedHomeError();
+    }
   }
   // Beside the real file, where a running server keeps its runtime state.
   yield* ensureNotInUse(target);

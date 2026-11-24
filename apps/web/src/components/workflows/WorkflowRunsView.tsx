@@ -1,4 +1,5 @@
 import { type EnvironmentId, type WorkflowRunReference } from "@t3tools/contracts";
+import { FORK } from "@t3tools/shared/forkIdentity"; // fork: own docs
 import { msg, T, useGT, useMessages } from "gt-react";
 import { WorkflowIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -33,7 +34,7 @@ import {
   workflowRunInvolves,
 } from "@t3tools/client-runtime/workflows";
 
-const WORKFLOWS_GUIDE_URL = "https://github.com/pingdotgg/t3code/blob/main/docs/user/workflows.md";
+const WORKFLOWS_GUIDE_URL = `https://github.com/${FORK.releaseRepository}/blob/main/docs/user/workflows.md`; // fork: own docs
 const EVERY_WORKFLOW = "";
 const TABS: ReadonlyArray<{ readonly value: WorkflowListTab; readonly label: string }> = [
   {
