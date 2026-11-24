@@ -24,7 +24,7 @@ import { Pressable, View } from "react-native";
 import { SymbolView } from "../components/ui/AppSymbol";
 import { AppText as Text } from "../components/ui/AppText";
 import { cn } from "../lib/cn";
-import { AccountChip, PACE_LABEL } from "../features/usage/UsageLimitsPooled";
+import { AccountChip, PACE_LABEL } from "./accountChip";
 import { refillLabel, resetLabels } from "../features/usage/UsageLimitsSection";
 import { useT } from "../hooks/useT";
 

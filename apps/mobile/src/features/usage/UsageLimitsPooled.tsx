@@ -38,47 +38,14 @@ import {
   paceIsMeaningful,
 } from "@t3tools/client-runtime/fork/antigravityAccounts/usageRows"; // fork:
 import { AccountUsageList } from "../../fork/AccountUsageList"; // fork:
+import { AccountChip, emailInitials, PACE_LABEL } from "../../fork/accountChip"; // fork:
 import { usageProviderKind, useProviderColors } from "./usageProviders";
-
-export const PACE_LABEL = {
-  ahead: msg("Ahead of pace"),
-  on: msg("On pace"),
-  under: msg("Under pace"),
-} as const;
 
 function accountName(account: LimitAccount, resolve: MessageResolver) {
   if (account.displayName) return account.displayName;
   if (!account.email) return providerClients.get(account.driver)?.label ?? account.driver;
   return (
     emailInitials(account.email) || resolve(msg("Account", { $context: "fallback account name" }))
-  );
-}
-
-function emailInitials(email: string) {
-  const [local = "", domain = ""] = email.split("@");
-  return `${local[0] ?? ""}${domain[0] ?? ""}`.toUpperCase();
-}
-
-function accountHue(email: string) {
-  let hash = 0;
-  for (let index = 0; index < email.length; index += 1) {
-    hash = (hash * 31 + email.charCodeAt(index)) | 0;
-  }
-  return Math.abs(hash) % 360;
-}
-
-// Same hashed hue as the web account chip, so an account keeps its color across clients.
-export function AccountChip({ email }: { readonly email: string }) {
-  const hue = accountHue(email);
-  return (
-    <View
-      className="size-5 items-center justify-center rounded-full"
-      style={{ backgroundColor: `hsl(${hue}, 45%, 82%)` }}
-    >
-      <Text className="text-[9px] font-t3-bold" style={{ color: `hsl(${hue}, 45%, 28%)` }}>
-        {emailInitials(email)}
-      </Text>
-    </View>
   );
 }
 
