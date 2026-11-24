@@ -1,3 +1,4 @@
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import {
   MessageId,
@@ -6,7 +7,10 @@ import {
   ThreadId,
   type ThreadBookmark,
 } from "@t3tools/contracts";
+import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
+import * as Path from "effect/Path";
 import * as SqlClient from "effect/sql/SqlClient";
 
 import * as Sqlite from "../persistence/Sqlite.ts";
@@ -98,5 +102,33 @@ it.layer(Sqlite.layerMemory)("ThreadBookmarkStore", (it) => {
         (yield* readThreadBookmarkShellFields(sql, [ThreadId.make("none")])).get(other),
       );
     }),
+  );
+
+  // The import reads official T3 Code's database read-only, through the same store layer.
+  it.effect("leaves a read-only database as it is instead of failing", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const dir = yield* fs.makeTempDirectoryScoped({ prefix: "bookmark-readonly-" });
+      const filename = path.join(dir, "official.sqlite");
+      yield* SqlClient.SqlClient.pipe(
+        Effect.flatMap((sql) => sql`CREATE TABLE unrelated (id INTEGER)`),
+        Effect.provide(NodeSqliteClient.layer({ filename })),
+        Effect.scoped,
+      );
+      const tables = yield* SqlClient.SqlClient.pipe(
+        Effect.flatMap((sql) =>
+          ensureThreadBookmarkTable(sql).pipe(
+            Effect.andThen(
+              sql<{ readonly name: string }>`
+                SELECT name FROM sqlite_master WHERE name = 'fork_thread_bookmarks'`,
+            ),
+          ),
+        ),
+        Effect.provide(NodeSqliteClient.layer({ filename, readonly: true })),
+        Effect.scoped,
+      );
+      assert.equal(tables.length, 0);
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });

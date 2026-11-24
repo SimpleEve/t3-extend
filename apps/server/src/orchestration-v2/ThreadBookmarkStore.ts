@@ -26,7 +26,8 @@ const parseJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknow
 export const ensureThreadBookmarkTable = Effect.fn("ThreadBookmarkStore.ensureTable")(function* (
   sql: SqlClient.SqlClient,
 ) {
-  yield* sql.unsafe(`CREATE TABLE IF NOT EXISTS ${TABLE} (
+  yield* sql
+    .unsafe(`CREATE TABLE IF NOT EXISTS ${TABLE} (
     thread_id TEXT NOT NULL,
     bookmark_id TEXT NOT NULL,
     message_id TEXT NOT NULL,
@@ -36,7 +37,15 @@ export const ensureThreadBookmarkTable = Effect.fn("ThreadBookmarkStore.ensureTa
     label TEXT NOT NULL,
     payload_json TEXT NOT NULL,
     PRIMARY KEY (thread_id, bookmark_id)
-  )`);
+  )`)
+    .pipe(
+      // The import reads official T3 Code's database through a read-only connection and never reads
+      // bookmarks there, so a database that cannot take the table is left as it is.
+      Effect.catchIf(
+        (error) => String(error.reason.cause).includes("readonly database"),
+        () => Effect.void,
+      ),
+    );
 });
 
 export const writeThreadBookmarkChange = Effect.fn("ThreadBookmarkStore.write")(function* (
