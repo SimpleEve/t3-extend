@@ -249,7 +249,7 @@ describe("the real server over the tunnel listener", () => {
         const client = yield* makeRpcClient.pipe(Effect.provide(protocol), Scope.provide(scope));
 
         // An ordinary RPC works through the tunnel with the device's session.
-        assert.deepEqual(yield* client["server.probe"]({}), {});
+        assert.property(yield* client["server.probe"]({}), "serverTime");
 
         // Device management is for the person at this computer, not for a paired device.
         const status = yield* client["devices.status"]({}).pipe(Effect.flip);

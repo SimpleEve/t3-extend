@@ -3728,7 +3728,15 @@ describe("CodexAdapterV2 post-settle continuation", () => {
       const transcript = makeCodexReplayTranscript({
         scenario: "codex-stop-pending-request",
         entries: [
-          ...codexReplayPreamble({ nativeThreadId, nativeTurnId, prompt: "Run it." }),
+          ...codexReplayPreamble({
+            nativeThreadId,
+            nativeTurnId,
+            prompt: "Run it.",
+            turnPolicy: {
+              approvalPolicy: "untrusted",
+              sandboxPolicy: { type: "readOnly" },
+            },
+          }),
           {
             type: "emit_inbound",
             label: "request",
@@ -3763,15 +3771,18 @@ describe("CodexAdapterV2 post-settle continuation", () => {
         ],
       });
       const harness = yield* makeCodexReplayHarness(transcript);
-      yield* harness.runtime.startTurn(
-        makeCodexTestTurnInput({
-          threadId: harness.threadId,
-          providerThread: harness.providerThread,
-          now: yield* DateTime.now,
-          attemptId: RunAttemptId.make("stop-pending-attempt"),
-          text: "Run it.",
-        }),
-      );
+      const turnInput = makeCodexTestTurnInput({
+        threadId: harness.threadId,
+        providerThread: harness.providerThread,
+        now: yield* DateTime.now,
+        attemptId: RunAttemptId.make("stop-pending-attempt"),
+        text: "Run it.",
+      });
+      // Full access answers a command approval itself, so nothing would be left pending to cancel.
+      yield* harness.runtime.startTurn({
+        ...turnInput,
+        runtimePolicy: { ...turnInput.runtimePolicy, runtimeMode: "approval-required" },
+      });
       const requestUpdates = () =>
         harness.events.flatMap((event) =>
           event.type === "runtime_request.updated" ? [event.runtimeRequest] : [],
