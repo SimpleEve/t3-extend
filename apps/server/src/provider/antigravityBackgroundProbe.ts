@@ -236,7 +236,11 @@ type ReaderServices =
 export const makeAntigravityAccountReader = Effect.fn("makeAntigravityAccountReader")(
   function* (input: {
     /** The executable, held (leased) until the read's scope closes. */
-    readonly acquireExecutablePath: Effect.Effect<string, { readonly detail: string }, Scope.Scope>;
+    readonly acquireExecutable: Effect.Effect<
+      { readonly executablePath: string; readonly version?: string | null },
+      { readonly detail: string },
+      Scope.Scope
+    >;
     readonly baseEnv: NodeJS.ProcessEnv;
     readonly auth: AntigravityAuthConfig;
     readonly userHome: string;
@@ -255,7 +259,7 @@ export const makeAntigravityAccountReader = Effect.fn("makeAntigravityAccountRea
 
     // Starts agy on the private copy and lets it renew the token there. Needs the scope it runs in.
     const renew = Effect.fn("AntigravityAccountReader.renew")(function* (home: string) {
-      const executablePath = yield* input.acquireExecutablePath.pipe(
+      const { executablePath, version } = yield* input.acquireExecutable.pipe(
         Effect.mapError((): AntigravityProbeFailureReason => "unavailable"),
       );
       const profile = yield* prepareAntigravityProfile({
@@ -283,15 +287,28 @@ export const makeAntigravityAccountReader = Effect.fn("makeAntigravityAccountRea
       // Leaving this scope stops agy, whether the answer came or the read was cut short.
       yield* Effect.gen(function* () {
         const runtime = yield* makeAntigravityAcpRuntime({
+          runtimeVersion: version ?? null,
           cwd: home,
           mcpServers: [],
           childProcessSpawner: spawner,
           spawn,
           authMethod: input.auth.authMethod,
         });
-        yield* runtime.authenticate?.(input.auth.authMethod) ?? Effect.void;
+        // agy 1.5.15 answers the ACP v1 `authenticate` and rejects `auth/login`, which the runtime's
+        // own call picks after a v2-shaped initialize. A sign-in that is gone stays a failure.
+        const methodId = input.auth.authMethod ?? "oauth-personal";
+        yield* runtime.initialize();
+        yield* runtime.request("authenticate", { methodId }).pipe(
+          Effect.catchIf(
+            (error) => !isAntigravitySignInRequiredError(error),
+            () => runtime.authenticate?.(methodId) ?? Effect.void,
+          ),
+        );
       }).pipe(
         Effect.scoped,
+        Effect.tapError((cause) =>
+          Effect.logWarning("Antigravity could not renew a saved account.", { cause }),
+        ),
         Effect.mapError((cause): AntigravityProbeFailureReason =>
           isAntigravitySignInRequiredError(cause) ? "expired" : "failed",
         ),

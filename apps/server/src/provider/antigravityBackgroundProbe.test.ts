@@ -597,11 +597,14 @@ process.stdin.on("data", (chunk) => {
     const message = JSON.parse(buffer.slice(0, newline));
     buffer = buffer.slice(newline + 1);
     if (message.id === undefined) continue;
-    const method = message.method === "auth/login" ? "authenticate" : message.method;
+    const method = message.method;
     log({ method });
     const reply = (body) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: message.id, ...body }) + "\\n");
+    // Like agy 1.5.15 seen from the probe: a v2-shaped greeting, then only the v1 \`authenticate\`.
     if (method === "initialize") {
-      reply({ result: { protocolVersion: 2, agentInfo: { name: "fake-agy", version: "1.5.16" }, agentCapabilities: {}, authMethods: [{ id: "oauth-personal", name: "Google" }] } });
+      reply({ result: { protocolVersion: 2, info: { name: "fake-agy", version: "1.5.15" }, capabilities: {}, authMethods: [{ id: "oauth-personal", name: "Google" }] } });
+    } else if (method === "auth/login") {
+      reply({ error: { code: -32601, message: "Method not found: auth/login" } });
     } else if (method === "authenticate") {
       log({ homeBytes: bytes(home), tmpBytes: bytes(process.env.TMPDIR) });
       if (process.env.FAKE_AGY_MODE === "hang") continue;
@@ -667,7 +670,7 @@ describe("reading a saved account with agy", () => {
         ),
     );
     const make = makeAntigravityAccountReader({
-      acquireExecutablePath: Effect.succeed(agy),
+      acquireExecutable: Effect.succeed({ executablePath: agy }),
       baseEnv: {
         ...(yield* HostProcess.Environment),
         FAKE_AGY_LOG: log,
@@ -875,7 +878,7 @@ describe("reading a saved account with agy", () => {
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped();
       const make = makeAntigravityAccountReader({
-        acquireExecutablePath: Effect.fail({ detail: "agy is not installed" }),
+        acquireExecutable: Effect.fail({ detail: "agy is not installed" }),
         baseEnv: {},
         auth: { authMethod: "oauth-personal", apiKey: "", gcpProject: "", gcpLocation: "" },
         userHome: root,

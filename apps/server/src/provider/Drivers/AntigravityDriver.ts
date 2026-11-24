@@ -712,9 +712,7 @@ export const AntigravityDriver: ProviderDriver<
           pool: accountPool,
           read: yield* makeAntigravityAccountReader({
             // The lease a real session holds, so a reinstall cannot remove the binary in use.
-            acquireExecutablePath: installation
-              .acquire(settings.binaryPath, processEnvironment)
-              .pipe(Effect.map((executable) => executable.executablePath)),
+            acquireExecutable: installation.acquire(settings.binaryPath, processEnvironment),
             baseEnv: processEnvironment,
             auth,
             userHome,
