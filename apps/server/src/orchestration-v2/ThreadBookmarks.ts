@@ -58,12 +58,14 @@ export function decideThreadBookmark(input: {
         return { _tag: "Rejected", reason: "A bookmarked selection needs a valid text range." };
       }
       // A message or passage is bookmarked once: a second device pressing the same button must
-      // not stack a duplicate on the first one's.
+      // not stack a duplicate on the first one's. Two passages with the same words are two
+      // bookmarks, told apart by where they start.
       const duplicate = bookmarks.some(
         (bookmark) =>
           bookmark.messageId === command.messageId &&
           bookmark.kind === command.kind &&
-          bookmark.excerpt === command.excerpt,
+          bookmark.excerpt === command.excerpt &&
+          (command.kind === "message" || bookmark.selectionStart === command.selectionStart),
       );
       if (duplicate) return { _tag: "Unchanged" };
       if (bookmarks.length >= THREAD_BOOKMARK_MAX_PER_THREAD) {

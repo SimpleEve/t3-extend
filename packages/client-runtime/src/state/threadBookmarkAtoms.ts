@@ -82,7 +82,16 @@ export function createThreadBookmarkAtoms(details: ThreadDetails) {
     }).pipe(Atom.withLabel(`bookmark-sources:${key}`));
   });
 
+  // A thread's bookmarks are empty until its detail arrives, so "none" is only known after.
+  const loadedFamily = Atom.family((key: string) => {
+    const ref = parseScopedThreadKey(key);
+    return Atom.make((get) => ref !== null && get(details.quietThreadAtom(ref)) !== null).pipe(
+      Atom.withLabel(`thread-bookmarks-loaded:${key}`),
+    );
+  });
+
   return {
+    loadedAtom: (ref: ScopedThreadRef) => loadedFamily(scopedThreadKey(ref)),
     bookmarksAtom: (ref: ScopedThreadRef) => bookmarksFamily(scopedThreadKey(ref)),
     messageKindAtom: (ref: ScopedThreadRef, messageId: string) =>
       messageKindFamily(`${scopedThreadKey(ref)}\u0000${messageId}`),

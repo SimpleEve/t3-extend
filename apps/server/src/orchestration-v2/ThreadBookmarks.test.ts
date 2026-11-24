@@ -107,6 +107,25 @@ describe("decideThreadBookmark", () => {
       decideThreadBookmark({ threadId, bookmarks: held, command: add(), messageCreatedAt, now })
         ._tag,
     ).toBe("Unchanged");
+    // The same words twice in one message are two passages; the same passage again is one.
+    const passage = [
+      stored("passage", { kind: "selection", excerpt: "npm install", selectionStart: 3 }),
+    ];
+    const addPassage = (selectionStart: number) =>
+      decideThreadBookmark({
+        threadId,
+        bookmarks: passage,
+        command: add({
+          kind: "selection",
+          excerpt: "npm install",
+          selectionStart,
+          selectionEnd: selectionStart + 11,
+        }),
+        messageCreatedAt,
+        now,
+      })._tag;
+    expect(addPassage(40)).toBe("Changed");
+    expect(addPassage(3)).toBe("Unchanged");
     expect(
       decideThreadBookmark({
         threadId,

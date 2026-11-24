@@ -89,6 +89,7 @@ import { modelSwitchSince } from "./modelSwitch.ts";
 import { contextBoundaryOrdinal, isScheduledFreshRun } from "./contextBoundary.ts";
 import { isPlaceholderThreadTitle } from "./placeholderThreadTitle.ts";
 import { decideThreadBookmark, isThreadBookmarkCommand } from "./ThreadBookmarks.ts"; // fork: message bookmarks
+import { findBookmarkableMessageCreatedAt } from "./ThreadBookmarkMessage.ts"; // fork: message bookmarks
 import { combinePullRequestWatchWakes, type PullRequestWatchWake } from "./pullRequestWatch.ts";
 import { recordThreadOpen } from "@t3tools/shared/paletteSearch";
 import {
@@ -4908,13 +4909,11 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     if (isThreadBookmarkCommand(command)) {
       const messageCreatedAt =
         command.type === "thread.bookmark.add"
-          ? yield* projectionStore.getMessagesById(command.threadId, [command.messageId]).pipe(
-              mapDispatchError(command),
-              Effect.map((messages) => {
-                const created = messages.get(command.messageId)?.createdAt;
-                return created === undefined ? null : DateTime.formatIso(created);
-              }),
-            )
+          ? yield* findBookmarkableMessageCreatedAt(
+              projectionStore,
+              thread,
+              command.messageId,
+            ).pipe(mapDispatchError(command))
           : null;
       const decision = decideThreadBookmark({
         threadId: command.threadId,

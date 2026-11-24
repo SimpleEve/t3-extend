@@ -7906,6 +7906,147 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
     }),
   );
 
+  it.effect("bookmarks what a fork shows from its source, up to the fork point", () =>
+    Effect.gen(function* () {
+      const orchestrator = yield* Orchestrator.OrchestratorV2;
+      const eventSink = yield* EventSink.EventSinkV2;
+      const key = "runtime-layer-bookmark-fork";
+      const threadId = ThreadId.make(key);
+      yield* orchestrator.dispatch({
+        type: "thread.create",
+        createdBy: "user",
+        creationSource: "web",
+        commandId: CommandId.make(`${key}:create`),
+        threadId,
+        projectId: ProjectId.make(`${key}-project`),
+        title: "Bookmarks in forks",
+        modelSelection,
+        runtimeMode: "full-access",
+        interactionMode: "default",
+        branch: null,
+        worktreePath: null,
+      });
+      const writeRun = Effect.fn("test.writeBookmarkRun")(function* (
+        onThread: ThreadId,
+        name: string,
+        ordinal: number,
+      ) {
+        const now = yield* DateTime.now;
+        const runId = RunId.make(`${onThread}:${name}`);
+        const messageId = MessageId.make(`${onThread}:${name}`);
+        yield* eventSink.write({
+          events: [
+            {
+              id: EventId.make(`${onThread}:${name}:run`),
+              type: "run.created",
+              threadId: onThread,
+              runId,
+              occurredAt: now,
+              payload: {
+                id: runId,
+                threadId: onThread,
+                ordinal,
+                providerInstanceId: modelSelection.instanceId,
+                modelSelection,
+                providerThreadId: null,
+                userMessageId: messageId,
+                rootNodeId: null,
+                activeAttemptId: null,
+                status: "completed",
+                requestedAt: now,
+                startedAt: now,
+                completedAt: now,
+                checkpointId: null,
+                contextHandoffId: null,
+              },
+            },
+            {
+              id: EventId.make(`${onThread}:${name}:message`),
+              type: "message.updated",
+              threadId: onThread,
+              runId,
+              occurredAt: now,
+              payload: {
+                id: messageId,
+                threadId: onThread,
+                runId,
+                nodeId: null,
+                role: "user",
+                text: `Message ${name}`,
+                attachments: [],
+                streaming: false,
+                createdBy: "user",
+                creationSource: "web",
+                createdAt: now,
+                updatedAt: now,
+              },
+            },
+          ],
+        });
+        return { runId, messageId };
+      });
+      const fork = Effect.fn("test.forkAtRun")(function* (
+        sourceThreadId: ThreadId,
+        targetThreadId: ThreadId,
+        runId: RunId,
+      ) {
+        yield* orchestrator.dispatch({
+          type: "thread.fork",
+          commandId: CommandId.make(`${targetThreadId}:fork`),
+          sourceThreadId,
+          targetThreadId,
+          sourcePoint: { type: "run", runId },
+          createdBy: "user",
+          creationSource: "web",
+        });
+      });
+      const bookmark = (onThread: ThreadId, messageId: MessageId, name: string) =>
+        orchestrator.dispatch({
+          type: "thread.bookmark.add",
+          commandId: CommandId.make(`${onThread}:bookmark:${name}`),
+          threadId: onThread,
+          bookmarkId: ThreadBookmarkId.make(`${onThread}:bookmark:${name}`),
+          messageId,
+          kind: "message",
+          excerpt: name,
+        });
+      const bookmarkedIn = (onThread: ThreadId) =>
+        orchestrator
+          .getThreadProjection(onThread)
+          .pipe(
+            Effect.map((projection) =>
+              (projection.bookmarks ?? []).map((entry) => entry.messageId),
+            ),
+          );
+
+      const first = yield* writeRun(threadId, "first", 1);
+      const forkId = ThreadId.make(`${key}:fork`);
+      yield* fork(threadId, forkId, first.runId);
+      const second = yield* writeRun(threadId, "second", 2);
+      const forkOfForkId = ThreadId.make(`${key}:fork-of-fork`);
+      const own = yield* writeRun(forkId, "own", 2);
+      yield* fork(forkId, forkOfForkId, own.runId);
+
+      // The fork shows the first run from its source, so it can bookmark it; the source's
+      // later run it never received is not its to bookmark.
+      yield* bookmark(forkId, first.messageId, "inherited");
+      assert.deepEqual(yield* bookmarkedIn(forkId), [first.messageId]);
+      const afterForkPoint = yield* bookmark(forkId, second.messageId, "after").pipe(Effect.flip);
+      assert.instanceOf(afterForkPoint, Orchestrator.OrchestratorDispatchError);
+      assert.deepEqual(yield* bookmarkedIn(forkId), [first.messageId]);
+      assert.deepEqual(yield* bookmarkedIn(threadId), []);
+
+      // A fork of a fork reaches both its parent's own messages and the first source's.
+      yield* bookmark(forkOfForkId, own.messageId, "parent");
+      yield* bookmark(forkOfForkId, first.messageId, "grandparent");
+      assert.sameMembers(yield* bookmarkedIn(forkOfForkId), [own.messageId, first.messageId]);
+      const grandparentLater = yield* bookmark(forkOfForkId, second.messageId, "later").pipe(
+        Effect.flip,
+      );
+      assert.instanceOf(grandparentLater, Orchestrator.OrchestratorDispatchError);
+    }),
+  );
+
   it.effect("rejects settling a thread while a run is active", () =>
     Effect.gen(function* () {
       const orchestrator = yield* Orchestrator.OrchestratorV2;

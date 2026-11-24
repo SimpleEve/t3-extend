@@ -8,6 +8,7 @@ import { useState } from "react";
 import { create } from "zustand";
 
 import { Button } from "../../components/ui/button";
+import { Spinner } from "../../components/ui/spinner";
 import {
   Dialog,
   DialogDescription,
@@ -18,7 +19,11 @@ import {
 } from "../../components/ui/dialog";
 import { readEnvironmentScope } from "../../state/session";
 import { ThreadBookmarkList } from "./ThreadBookmarkList";
-import { useBookmarkSources, useThreadBookmarks } from "./threadBookmarkState";
+import {
+  useBookmarkSources,
+  useThreadBookmarks,
+  useThreadBookmarksLoaded,
+} from "./threadBookmarkState";
 import { useThreadBookmarkActions } from "./useThreadBookmarkActions";
 
 const useBookmarksDialog = create<{ threadRef: ScopedThreadRef | null }>(() => ({
@@ -38,6 +43,7 @@ export function ThreadBookmarksDialogHost() {
 
 function ThreadBookmarksDialog({ threadRef }: { threadRef: ScopedThreadRef }) {
   const gt = useGT();
+  const loaded = useThreadBookmarksLoaded(threadRef);
   const bookmarks = useThreadBookmarks(threadRef);
   const sources = useBookmarkSources(threadRef);
   const actions = useThreadBookmarkActions(threadRef);
@@ -60,7 +66,11 @@ function ThreadBookmarksDialog({ threadRef }: { threadRef: ScopedThreadRef }) {
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>
-          {bookmarks.length === 0 ? (
+          {!loaded ? (
+            <div className="flex justify-center py-6">
+              <Spinner size="md" tone="muted" />
+            </div>
+          ) : bookmarks.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {gt("No bookmarks in this thread")}
             </p>

@@ -16,6 +16,13 @@ export function useThreadBookmarks(ref: ScopedThreadRef | null): ReadonlyArray<T
   return useAtomValue(ref === null ? NO_BOOKMARKS_ATOM : atoms.bookmarksAtom(ref));
 }
 
+const NOT_LOADED_ATOM = Atom.make(false);
+
+/** False until the thread's detail has arrived, when an empty list does not yet mean no bookmarks. */
+export function useThreadBookmarksLoaded(ref: ScopedThreadRef | null): boolean {
+  return useAtomValue(ref === null ? NOT_LOADED_ATOM : atoms.loadedAtom(ref));
+}
+
 /** `message`: the whole message is bookmarked. `selection`: only passages in it are. */
 export function useMessageBookmarkKind(
   ref: ScopedThreadRef | null,

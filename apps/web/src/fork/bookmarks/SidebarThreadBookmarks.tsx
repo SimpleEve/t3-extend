@@ -27,7 +27,7 @@ export function SidebarThreadBookmarks({ thread }: { thread: EnvironmentThreadSh
           <button
             type="button"
             aria-label={title}
-            className="inline-flex shrink-0 cursor-pointer items-center rounded-sm text-muted-foreground/65 outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            className="inline-flex shrink-0 cursor-pointer items-center rounded-sm text-sidebar-muted-foreground/75 outline-none transition-colors hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.preventDefault();
