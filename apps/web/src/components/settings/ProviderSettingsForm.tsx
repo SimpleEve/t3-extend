@@ -118,7 +118,7 @@ const ANTIGRAVITY_FORK_FIELD_TEXT: ReadonlyArray<readonly [string, string]> = [
       "For separate Google account sign-ins with more than one saved account. When a turn hits its usage limit, the next saved account takes over and the turn continues. Rotating accounts may breach Google's terms; you are responsible for that.",
     ),
   ],
-  ["Check other accounts in the background", msg("Check other accounts in the background")],
+  ["Update other accounts' quota automatically", msg("Update other accounts' quota automatically")],
   [
     "For separate Google account sign-ins with more than one saved account. About every 45 minutes T3 renews a saved account that is not in use and reads its quota, so its remembered reading stays current. This starts agy briefly but uses no quota. When off, only Refresh in Usage reads other accounts.",
     msg(
