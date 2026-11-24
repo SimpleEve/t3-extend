@@ -58,7 +58,7 @@ export function ThreadBookmarkList({
           <li
             key={bookmark.id}
             data-bookmark-id={bookmark.id}
-            className="group/bookmark flex min-w-0 flex-col rounded-lg px-1.5 py-1 hover:bg-accent/50 focus-within:bg-accent/50"
+            className="group/bookmark relative flex min-w-0 flex-col rounded-lg px-1.5 py-1 hover:bg-accent/50 focus-within:bg-accent/50"
           >
             {editingId === bookmark.id ? (
               <BookmarkEditor
@@ -108,7 +108,8 @@ export function ThreadBookmarkList({
                       </span>
                     ) : null}
                   </button>
-                  <div className="flex shrink-0 items-center opacity-0 transition-opacity duration-150 pointer-coarse:opacity-100 focus-within:opacity-100 group-hover/bookmark:opacity-100">
+                  {/* Floats over the text on hover so the list keeps its full width; touch keeps it in flow. */}
+                  <div className="pointer-events-none absolute end-1 top-1 flex items-center rounded-md border bg-popover opacity-0 shadow-xs transition-opacity duration-150 focus-within:pointer-events-auto focus-within:opacity-100 group-hover/bookmark:pointer-events-auto group-hover/bookmark:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:static pointer-coarse:shrink-0 pointer-coarse:border-0 pointer-coarse:bg-transparent pointer-coarse:opacity-100 pointer-coarse:shadow-none">
                     {canEdit ? (
                       <Tooltip>
                         <TooltipTrigger
