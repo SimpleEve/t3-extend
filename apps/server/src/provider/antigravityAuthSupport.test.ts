@@ -76,6 +76,7 @@ describe("Antigravity process environment", () => {
       GEMINI_HOME: "/shared-gemini-home",
       gemini_home: "/alias-shared-home",
       AGY_ACP_FORCE_FILE_STORAGE: "0",
+      AGY_CLI_FORCE_FILE_TOKEN_STORAGE: "0",
       agy_cli_disable_auto_update: "0",
       BROWSER: "open-real-browser",
       browser: "another-real-browser",
@@ -106,6 +107,7 @@ describe("Antigravity process environment", () => {
         SSH_CONNECTION: "127.0.0.1 0 127.0.0.1 0",
         GEMINI_HOME: profile.geminiHome,
         AGY_ACP_FORCE_FILE_STORAGE: "1",
+        AGY_CLI_FORCE_FILE_TOKEN_STORAGE: "1",
         AGY_CLI_DISABLE_AUTO_UPDATE: "1",
         BROWSER: profile.browserCommand,
         PYTHONUNBUFFERED: "1",
@@ -121,6 +123,7 @@ describe("Antigravity process environment", () => {
       PATH: "/usr/bin",
       AGY_ACP_FORCE_FILE_STORAGE: "1",
       agy_acp_force_file_storage: "1",
+      AGY_CLI_FORCE_FILE_TOKEN_STORAGE: "1",
     };
     const spawnFor = (sharedLogin: boolean) =>
       buildAntigravityAcpSpawnInput({
@@ -131,13 +134,16 @@ describe("Antigravity process environment", () => {
       });
 
     const shared = spawnFor(true);
-    expect(Object.keys(shared.env ?? {}).map((key) => key.toUpperCase())).not.toContain(
-      "AGY_ACP_FORCE_FILE_STORAGE",
-    );
+    const sharedKeys = Object.keys(shared.env ?? {}).map((key) => key.toUpperCase());
+    expect(sharedKeys).not.toContain("AGY_ACP_FORCE_FILE_STORAGE");
+    expect(sharedKeys).not.toContain("AGY_CLI_FORCE_FILE_TOKEN_STORAGE");
     // Only the login is shared: conversations, hooks and MCP stay in the private profile.
     expect(shared.args).toContain(profile.geminiHome);
     expect(shared.env).toMatchObject({ GEMINI_HOME: profile.geminiHome });
-    expect(spawnFor(false).env?.AGY_ACP_FORCE_FILE_STORAGE).toBe("1");
+    expect(spawnFor(false).env).toMatchObject({
+      AGY_ACP_FORCE_FILE_STORAGE: "1",
+      AGY_CLI_FORCE_FILE_TOKEN_STORAGE: "1",
+    });
   });
 
   it("passes only the configured method's credential and keeps the GCP pair out of the environment", () => {

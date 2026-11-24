@@ -81,6 +81,7 @@ const removedEnvironmentKeys = new Set([
   "AGY_ACP_ENABLE_OAUTH",
   "GEMINI_HOME",
   "AGY_ACP_FORCE_FILE_STORAGE",
+  "AGY_CLI_FORCE_FILE_TOKEN_STORAGE", // fork:
   "AGY_CLI_DISABLE_AUTO_UPDATE",
   "BROWSER",
   "PYTHONUNBUFFERED",
@@ -318,8 +319,11 @@ function antigravityEnvironment(
       ? { SSH_CONNECTION: baseEnv.SSH_CONNECTION || "127.0.0.1 0 127.0.0.1 0" }
       : {}),
     GEMINI_HOME: profile.geminiHome,
-    // fork: file storage hides the CLI's keyring login from the agent.
-    ...(profile.sharedLogin ? {} : { AGY_ACP_FORCE_FILE_STORAGE: "1" }),
+    // fork: file storage hides the CLI's keyring login from the agent. agy 1.5.16 renamed the switch
+    // and no longer reads it from the SSH marker, so both names are set.
+    ...(profile.sharedLogin
+      ? {}
+      : { AGY_ACP_FORCE_FILE_STORAGE: "1", AGY_CLI_FORCE_FILE_TOKEN_STORAGE: "1" }),
     AGY_CLI_DISABLE_AUTO_UPDATE: "1",
     BROWSER: profile.browserCommand,
     PYTHONUNBUFFERED: "1",
