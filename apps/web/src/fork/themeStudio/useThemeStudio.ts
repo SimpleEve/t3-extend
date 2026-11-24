@@ -34,13 +34,15 @@ import {
   restoreSchemeToPreset,
   schemeBase,
   schemeColors,
+  schemeCopyOf,
   STOCK_THEME_ID,
   studioOrigin,
+  uniqueSchemeLabel,
   withSchemeColors,
   withSchemeCss,
   withSchemeLook,
 } from "./studio.logic";
-import { themeDisplayLabel } from "./themeDisplayLabel";
+import { copyName, themeDisplayLabel } from "./themeDisplayLabel";
 import { useThemeStudioDraft, useThemeStudioIntent } from "./themeStudioStore";
 
 /** The stock T3 theme has no definition of its own, so editing it starts from its two palettes. */
@@ -88,6 +90,13 @@ export function useThemeStudio() {
   const setExplicitCopy = useThemeStudioDraft((state) => state.setExplicitCopy);
   const [hovered, setHovered] = useState<ThemeDefinition | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
+  // A switch to another theme that waits for an answer, because it would drop an unsaved draft.
+  const [pendingSwitch, setPendingSwitch] = useState<{
+    themeId: string | null;
+    targetName: string;
+    /** The theme chosen is the one being edited, or the preset it was made from. */
+    sameTheme: boolean;
+  } | null>(null);
   const colorEditSnapshot = useRef<ThemeDefinition | null | undefined>(undefined);
   const working = draft ?? base;
   const savedScheme = draft ? (customThemes.find((saved) => saved.id === draft.id) ?? null) : null;
@@ -201,24 +210,108 @@ export function useThemeStudio() {
     return setTheme(themeId ?? (appearanceMode === "system" ? "system" : appearanceMode));
   };
 
+  // Saves a copy of what is on screen under a name. A saved scheme the copy came from stays as it
+  // was, so versions of one preset never write over each other.
+  const saveAs = (name: string) => {
+    const copy = schemeCopyOf({
+      scheme:
+        draft ??
+        beginScheme({
+          base,
+          savedThemes: customThemes,
+          mineLabel: mineLabel(base),
+          restorable: applied !== null,
+        }),
+      name,
+      savedThemes: customThemes,
+      labelOf,
+    });
+    try {
+      installCustomTheme(copy);
+    } catch {
+      setSaveFailed(true);
+      return false;
+    }
+    if (!place(copy.id)) {
+      setSaveFailed(true);
+      return false;
+    }
+    setSaveFailed(false);
+    setDraft(null);
+    setExplicitCopy(false);
+    setHovered(null);
+    return true;
+  };
+
+  // The name a new version starts with: the fork's own name, or a copy of the scheme in use.
+  const suggestedName =
+    draft !== null && savedScheme === null
+      ? draft.label
+      : applied !== null && customThemes.some((saved) => saved.id === applied.id)
+        ? copyName(labelOf(applied), t)
+        : mineLabel(base);
+
+  const duplicate = (scheme: ThemeDefinition) => {
+    try {
+      installCustomTheme(
+        schemeCopyOf({
+          scheme,
+          name: copyName(labelOf(scheme), t),
+          savedThemes: customThemes,
+          labelOf,
+        }),
+      );
+    } catch {
+      setSaveFailed(true);
+    }
+  };
+
+  // A person's click on a theme. With unsaved changes it asks first instead of dropping them.
+  const choose = (themeId: string | null) => {
+    if (dirty) {
+      const target =
+        themeId === null
+          ? null
+          : (customThemes.find((saved) => saved.id === themeId) ?? getThemeDefinition(themeId));
+      setPendingSwitch({
+        themeId,
+        targetName: target === null ? stockDefinition().label : labelOf(target),
+        sameTheme: themeId !== null && (themeId === working.id || themeId === working.basedOn),
+      });
+      return;
+    }
+    select(themeId);
+  };
+  // A save that fails leaves the dialog open, where the error shows.
+  const resolveSwitch = (action: "save" | "discard" | "keep", name?: string) => {
+    const target = pendingSwitch;
+    if (target === null) return;
+    if (action === "save" && !(savedScheme ? apply() : saveAs(name ?? suggestedName))) return;
+    setPendingSwitch(null);
+    if (action !== "keep") select(target.themeId);
+  };
+
   const apply = () => {
-    if (draft === null) return;
+    if (draft === null) return false;
     try {
       if (savedScheme) updateCustomTheme(draft);
       else installCustomTheme(draft);
     } catch {
       setSaveFailed(true);
-      return;
+      return false;
     }
     if (applied?.id !== draft.id && !place(draft.id)) {
       setSaveFailed(true);
-      return;
+      return false;
     }
     setSaveFailed(false);
     // The effect repaints from the stored scheme once there is no draft.
     setDraft(null);
     setExplicitCopy(false);
+    return true;
   };
+
+  const clearSaveFailed = () => setSaveFailed(false);
 
   const revert = () => {
     setDraft(null);
@@ -227,8 +320,15 @@ export function useThemeStudio() {
   };
 
   const rename = (scheme: ThemeDefinition, label: string) => {
-    const name = label.trim();
-    if (name === "" || name === scheme.label) return;
+    const requested = label.trim();
+    if (requested === "" || requested === scheme.label) return;
+    const name = uniqueSchemeLabel({
+      name: requested,
+      savedThemes: customThemes,
+      labelOf,
+      exceptId: scheme.id,
+    });
+    if (name === scheme.label) return;
     try {
       updateCustomTheme({ ...scheme, label: name });
     } catch {
@@ -301,6 +401,13 @@ export function useThemeStudio() {
     startColorEdit,
     cancelColorEdit,
     select,
+    choose,
+    pendingSwitch,
+    resolveSwitch,
+    saveAs,
+    clearSaveFailed,
+    suggestedName,
+    duplicate,
     apply,
     revert,
     restoreToPreset,

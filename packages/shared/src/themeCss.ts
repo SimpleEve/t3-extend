@@ -88,13 +88,21 @@ export const THEME_CSS_HOOKS = [
   { selector: '[data-slot="tooltip-popup"]', styles: "tooltip" },
   { selector: '[data-slot="scroll-area-scrollbar"]', styles: "overlay scrollbar" },
   { selector: '[data-slot="scroll-area-thumb"]', styles: "overlay scrollbar thumb" },
-  // fork: hooks the style presets use. Each is an attribute the upstream components already set.
+  // fork: hooks the style presets use: attributes the upstream components set, and data-sidebar-topbar, which SidebarChrome adds.
   {
     selector: "[data-sidebar-row]",
     styles:
       'sidebar row; inside [data-thread-item] it is the thread row, ="page" in aria-current when open',
   },
   { selector: '[data-slot="sidebar-footer"]', styles: "sidebar footer" },
+  {
+    selector: '[data-sidebar="trigger"]',
+    styles: "sidebar toggle button; it floats over the top bars, beside the window buttons",
+  },
+  {
+    selector: "[data-sidebar-topbar]",
+    styles: "sidebar top bar: the logo and history arrows, beside the window buttons on desktop",
+  },
   { selector: "[data-timeline-root]", styles: "chat column: the messages' container" },
   { selector: "[data-assistant-outputs]", styles: "outputs list under a reply" },
   { selector: '[data-slot="textarea"]', styles: "multi-line text input" },

@@ -5,6 +5,12 @@ import { BLUEPRINT_SEED } from "./presetStyles/blueprint";
 import { BRUTALIST_SEED } from "./presetStyles/brutalist";
 import { BROADSHEET_SEED } from "./presetStyles/broadsheet";
 import { DOCS_SEED } from "./presetStyles/docs";
+import { EDITOR_SEED } from "./presetStyles/editor";
+import { GITHUB_SEED } from "./presetStyles/github";
+import { MOCHI_SEED } from "./presetStyles/mochi";
+import { NORD_SEED } from "./presetStyles/nord";
+import { ONE_DARK_SEED } from "./presetStyles/onedark";
+import { SOLARIZED_SEED } from "./presetStyles/solarized";
 import { INKWASH_SEED } from "./presetStyles/inkwash";
 import { MANUSCRIPT_SEED } from "./presetStyles/manuscript";
 import { NEON_SEED } from "./presetStyles/neon";
@@ -203,4 +209,10 @@ export const THEME_PRESET_SEEDS: ReadonlyArray<ThemePresetSeed> = [
   NEON_SEED,
   DOCS_SEED,
   QUIET_SEED,
+  EDITOR_SEED,
+  ONE_DARK_SEED,
+  SOLARIZED_SEED,
+  GITHUB_SEED,
+  NORD_SEED,
+  MOCHI_SEED,
 ];

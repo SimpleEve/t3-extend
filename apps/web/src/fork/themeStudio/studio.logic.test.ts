@@ -21,6 +21,9 @@ import {
   studioThemeKind,
   restoreSchemeToPreset,
   schemeBase,
+  schemeCopyOf,
+  schemesBasedOn,
+  uniqueSchemeLabel,
   sameAppearanceOf,
   withSchemeColors,
   withSchemeCss,
@@ -76,6 +79,100 @@ describe("editing a preset", () => {
     expect(forked.label.length).toBeLessThanOrEqual(48);
     expect(forked).not.toHaveProperty("basedOn");
     expect(() => parseThemeFile({ version: 1, ...asFile(forked) })).not.toThrow();
+  });
+});
+
+describe("saving my own versions", () => {
+  const withFont = (scheme: ReturnType<typeof mine>) =>
+    withSchemeLook(scheme, "fontUi", "Avenir Next");
+
+  it("names the copy, keeps every look setting and the preset it came from", () => {
+    const draft = withSchemeCss(
+      withSchemeLook(withFont(mine()), "radius", 12),
+      ":root { --x: 1; }",
+    );
+    const saved = schemeCopyOf({ scheme: draft, name: "  Night desk ", savedThemes: [] });
+    expect(saved).toMatchObject({
+      id: "studio-terminal-mine",
+      label: "Night desk",
+      basedOn: "studio-terminal",
+      look: { fontUi: "Avenir Next", radius: 12 },
+      css: ":root { --x: 1; }",
+    });
+  });
+
+  it("saves several versions of one preset side by side, without writing over another", () => {
+    const first = schemeCopyOf({ scheme: withFont(mine()), name: "Night desk", savedThemes: [] });
+    const second = schemeCopyOf({
+      scheme: withSchemeLook(first, "fontUi", "Menlo"),
+      name: "Night desk",
+      savedThemes: [first],
+    });
+    const third = schemeCopyOf({ scheme: second, name: "Plain", savedThemes: [first, second] });
+    expect([first.id, second.id, third.id]).toEqual([
+      "studio-terminal-mine",
+      "studio-terminal-mine-2",
+      "studio-terminal-mine-3",
+    ]);
+    expect([first.label, second.label, third.label]).toEqual([
+      "Night desk",
+      "Night desk 2",
+      "Plain",
+    ]);
+    expect(first.look?.fontUi).toBe("Avenir Next");
+    expect(second.look?.fontUi).toBe("Menlo");
+    expect(schemesBasedOn("studio-terminal", [first, second, third]).map((s) => s.id)).toEqual([
+      first.id,
+      second.id,
+      third.id,
+    ]);
+    expect(schemesBasedOn("studio-docs", [first])).toEqual([]);
+  });
+
+  it("leaves a collection, a managed flag and the sidebar artwork behind", () => {
+    const imported = {
+      ...mine(),
+      collection: { id: "vscode-pack", label: "Pack" },
+      managed: true,
+      sidebarArtwork: true,
+    };
+    const saved = schemeCopyOf({ scheme: imported, name: "Mine", savedThemes: [imported] });
+    expect(saved).not.toHaveProperty("collection");
+    expect(saved).not.toHaveProperty("managed");
+    expect(saved).not.toHaveProperty("sidebarArtwork");
+    expect(saved.basedOn).toBe("studio-terminal");
+    expect(schemesBasedOn("studio-terminal", [saved])).toEqual([saved]);
+  });
+
+  it("does not take a name another scheme shows, in the language on screen", () => {
+    const zh = (theme: { label: string }) =>
+      theme.label === "Terminal (mine)" ? "终端（我的）" : theme.label;
+    const english = { ...mine(), label: "Terminal (mine)" };
+    expect(
+      schemeCopyOf({ scheme: mine(), name: "终端（我的）", savedThemes: [english], labelOf: zh })
+        .label,
+    ).toBe("终端（我的） 2");
+    expect(
+      uniqueSchemeLabel({ name: "Terminal (mine)", savedThemes: [english], labelOf: zh }),
+    ).toBe("Terminal (mine) 2");
+  });
+
+  it("lets a scheme keep its own name when renamed, and renames to a free name as given", () => {
+    const a = { ...mine(), id: "a", label: "Alpha" };
+    const b = { ...mine(), id: "b", label: "Beta" };
+    const take = (name: string, exceptId: string) =>
+      uniqueSchemeLabel({ name, savedThemes: [a, b], exceptId });
+    expect(take("Alpha", "a")).toBe("Alpha");
+    expect(take("Alpha", "b")).toBe("Alpha 2");
+    expect(take("Gamma", "b")).toBe("Gamma");
+  });
+
+  it("falls back to the scheme's own name for an empty one, within the limits", () => {
+    const scheme = mine();
+    expect(schemeCopyOf({ scheme, name: "   ", savedThemes: [] }).label).toBe("Terminal (mine)");
+    expect(
+      schemeCopyOf({ scheme, name: "n".repeat(60), savedThemes: [] }).label.length,
+    ).toBeLessThanOrEqual(48);
   });
 });
 
@@ -236,7 +333,7 @@ describe("a preset that was retired", () => {
 
   it("keeps the new presets under their own ids", () => {
     const ids = getPresetThemes().map((preset) => preset.id);
-    expect(ids).toHaveLength(11);
+    expect(new Set(ids).size).toBe(ids.length);
     expect(ids.filter((id) => retired.includes(id))).toEqual([]);
   });
 });
