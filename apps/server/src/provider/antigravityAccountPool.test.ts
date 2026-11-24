@@ -1,6 +1,7 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { describe, expect, it } from "@effect/vitest";
+import type { ServerProviderUsageLimits } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
 import * as Effect from "effect/Effect";
@@ -402,6 +403,102 @@ describe("Antigravity account pool rotation", () => {
       const { pool } = yield* fixture();
       expect(yield* pool.markExhausted(1)).toEqual({ _tag: "NoAccount" });
       yield* pool.ensureAvailable({ rotate: true });
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+});
+
+describe("Antigravity account pool usage snapshots", () => {
+  const reading = (usedPercent: number): ServerProviderUsageLimits => ({
+    checkedAt: "2026-01-01T00:00:00.000Z",
+    windows: [
+      {
+        id: "gemini-5h",
+        kind: "session",
+        label: "Gemini · 5-hour",
+        usedPercent,
+        resetsAt: "2026-01-01T05:00:00.000Z",
+        windowDurationMins: 300,
+      },
+    ],
+  });
+
+  it.effect(
+    "remembers the reading of the account in use and keeps it once another takes over",
+    () =>
+      Effect.gen(function* () {
+        const { pool, agyWrites, addAccount } = yield* fixture();
+        yield* agyWrites(token("a@example.com"));
+        expect(yield* pool.observeUsage(Effect.succeed(reading(30)))).toEqual(reading(30));
+        yield* addAccount("b@example.com");
+        yield* pool.observeUsage(Effect.succeed(reading(70)));
+        const accounts = yield* pool.list;
+        expect(accounts.map((account) => account.usageLimits?.windows[0]?.usedPercent)).toEqual([
+          30, 70,
+        ]);
+        // A new reading replaces only the current account's snapshot.
+        yield* pool.observeUsage(Effect.succeed(reading(80)));
+        expect(
+          (yield* pool.list).map((account) => account.usageLimits?.windows[0]?.usedPercent),
+        ).toEqual([30, 80]);
+      }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
+  it.effect("lists no reading for an account that was never read", () =>
+    Effect.gen(function* () {
+      const { pool, agyWrites, addAccount } = yield* fixture();
+      yield* agyWrites(token("a@example.com"));
+      yield* addAccount("b@example.com");
+      expect((yield* pool.list).map((account) => account.usageLimits)).toEqual([null, null]);
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
+  it.effect("does not remember an unavailable reading or one that straddles a switch", () =>
+    Effect.gen(function* () {
+      const { pool, agyWrites, addAccount } = yield* fixture();
+      yield* agyWrites(token("a@example.com"));
+      yield* addAccount("b@example.com");
+      const [a, b] = yield* pool.list;
+      yield* pool.observeUsage(
+        Effect.succeed({
+          checkedAt: "2026-01-01T00:00:00.000Z",
+          windows: [],
+          unavailable: { reason: "probeFailed" as const },
+        }),
+      );
+      // The account in use changes while the read is in flight.
+      yield* pool.observeUsage(pool.select(a!.id).pipe(Effect.as(reading(55))));
+      const after = yield* pool.list;
+      expect(after.find((account) => account.id === b!.id)?.usageLimits).toBeNull();
+      expect(after.find((account) => account.id === a!.id)?.usageLimits).toBeNull();
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
+  it.effect("drops an account's reading with the account, and all of them on sign-out", () =>
+    Effect.gen(function* () {
+      const { pool, agyWrites, addAccount, fs, path, acp } = yield* fixture();
+      yield* agyWrites(token("a@example.com"));
+      yield* pool.observeUsage(Effect.succeed(reading(10)));
+      yield* addAccount("b@example.com");
+      yield* pool.observeUsage(Effect.succeed(reading(20)));
+      const [a] = yield* pool.list;
+      yield* pool.remove(a!.id);
+      expect(yield* fs.exists(path.join(acp, "accounts", a!.id))).toBe(false);
+      expect(
+        (yield* pool.list).map((account) => account.usageLimits?.windows[0]?.usedPercent),
+      ).toEqual([20]);
+      yield* pool.clear;
+      expect(yield* fs.exists(path.join(acp, "accounts"))).toBe(false);
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
+  it.effect("ignores a damaged snapshot file", () =>
+    Effect.gen(function* () {
+      const { pool, agyWrites, fs, path, acp } = yield* fixture();
+      yield* agyWrites(token("a@example.com"));
+      yield* pool.observeUsage(Effect.succeed(reading(10)));
+      const [a] = yield* pool.list;
+      yield* fs.writeFileString(path.join(acp, "accounts", a!.id, "usage.json"), "{not json");
+      expect((yield* pool.list)[0]?.usageLimits).toBeNull();
     }).pipe(Effect.scoped, Effect.provide(layer)),
   );
 });

@@ -1,3 +1,4 @@
+import { ServerProviderUsageLimits } from "@t3tools/contracts";
 import * as Clock from "effect/Clock";
 import * as Digest from "effect/crypto/Digest";
 import * as Effect from "effect/Effect";
@@ -13,6 +14,8 @@ import * as Semaphore from "effect/Semaphore";
 
 const TOKEN_FILE = "antigravity-oauth-token";
 const STATE_FILE = "state.json";
+// The last quota reading taken while the account was in use, beside its token in the slot.
+const USAGE_FILE = "usage.json";
 const ACCOUNT_ID = /^[0-9a-f]{16}$/;
 // A usage limit that names no reset time is treated as the length of agy's short window.
 const DEFAULT_EXHAUSTED_MS = 5 * 60 * 60_000;
@@ -40,6 +43,9 @@ type PoolState = typeof PoolState.Type;
 const decodePoolState = Schema.decodeUnknownOption(Schema.fromJsonString(PoolState));
 const encodePoolState = Schema.encodeSync(Schema.fromJsonString(PoolState));
 
+const decodeUsage = Schema.decodeUnknownOption(Schema.fromJsonString(ServerProviderUsageLimits));
+const encodeUsage = Schema.encodeSync(Schema.fromJsonString(ServerProviderUsageLimits));
+
 const emptyState = (): PoolState => ({
   version: 1,
   order: [],
@@ -63,6 +69,8 @@ export interface AntigravityAccount {
   readonly current: boolean;
   /** Epoch milliseconds until which the account's quota is spent; null when it is usable. */
   readonly exhaustedUntil: number | null;
+  /** The last quota reading taken while this account was in use; null before it ever was. */
+  readonly usageLimits: ServerProviderUsageLimits | null;
 }
 
 export type AntigravityRotationPlan =
@@ -90,6 +98,14 @@ export interface AntigravityAccountPool {
     /** When the failed prompt was sent; a change of account after it means another turn moved on. */
     promptSentAt?: number,
   ) => Effect.Effect<AntigravityRotationPlan>;
+  /**
+   * Runs a quota read for the account in use and remembers a usable result beside that account,
+   * so its reading outlives the moment it stops being current. Nothing is read or refreshed for
+   * any other account: its token is only renewed while agy runs on it.
+   */
+  readonly observeUsage: <E, R>(
+    read: Effect.Effect<ServerProviderUsageLimits, E, R>,
+  ) => Effect.Effect<ServerProviderUsageLimits, E, R>;
   /** Signing out leaves no saved account behind. */
   readonly clear: Effect.Effect<void, AntigravityAccountPoolError>;
   /**
@@ -121,6 +137,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
   const statePath = path.join(accountsDirectory, STATE_FILE);
   const slotDirectory = (id: string) => path.join(accountsDirectory, id);
   const slotPath = (id: string) => path.join(slotDirectory(id), TOKEN_FILE);
+  const usagePath = (id: string) => path.join(slotDirectory(id), USAGE_FILE);
 
   const poolError = (detail: string, cause?: unknown) =>
     new AntigravityAccountPoolError({ detail, ...(cause === undefined ? {} : { cause }) });
@@ -252,11 +269,13 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
       const accounts: Array<AntigravityAccount> = [];
       for (const id of ids) {
         const email = id === current?.id ? current.email : (yield* slotIdentity(id))?.email;
+        const usageText = yield* readText(usagePath(id));
         accounts.push({
           id,
           email: email ?? null,
           current: id === current?.id,
           exhaustedUntil: exhaustedAt(state, id, now),
+          usageLimits: usageText === undefined ? null : Option.getOrNull(decodeUsage(usageText)),
         });
       }
       return accounts;
@@ -384,6 +403,25 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
       }).pipe(Effect.orElseSucceed((): AntigravityRotationPlan => ({ _tag: "NoAccount" }))),
     );
 
+  const observeUsage = Effect.fn("AntigravityAccountPool.observeUsage")(function* <E, R>(
+    read: Effect.Effect<ServerProviderUsageLimits, E, R>,
+  ) {
+    const before = yield* currentIdentity.pipe(Effect.orElseSucceed(() => undefined));
+    const limits = yield* read;
+    if (before === undefined || limits.unavailable !== undefined || limits.windows.length === 0) {
+      return limits;
+    }
+    // The read takes seconds; a switch in between means it may describe the account left behind.
+    yield* synchronized(
+      Effect.gen(function* () {
+        const now = yield* currentIdentity;
+        if (now?.id !== before.id) return;
+        yield* writeAtomic(usagePath(before.id), `${encodeUsage(limits)}\n`);
+      }),
+    ).pipe(Effect.ignore);
+    return limits;
+  });
+
   const clear: AntigravityAccountPool["clear"] = synchronized(
     Effect.gen(function* () {
       yield* fs.remove(accountsDirectory, { recursive: true, force: true });
@@ -424,6 +462,7 @@ export const makeAntigravityAccountPool = Effect.fn("makeAntigravityAccountPool"
     select,
     remove,
     markExhausted,
+    observeUsage,
     clear,
     ensureAvailable,
   } satisfies AntigravityAccountPool;

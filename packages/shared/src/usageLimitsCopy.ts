@@ -191,6 +191,20 @@ export function resetCreditChoices(
 }
 
 /**
+ * fork: how old a remembered reading is, as "read 3h 5m ago".
+ * @public
+ */
+export function formatReadAgo(ms: number, resolve: MFunctionType = mFallback): string {
+  if (ms < MINUTE) return resolve(msg("read just now"));
+  return resolve(
+    msg("read {duration} ago", {
+      duration: formatDuration(ms, resolve),
+      $context: "how long ago a remembered usage reading was taken",
+    }),
+  );
+}
+
+/**
  * `full` reads "resets in 2h 5m", `in` reads "in 2h 5m", `refill` reads "↻ 2h 5m".
  * @public
  */

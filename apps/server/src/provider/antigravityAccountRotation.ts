@@ -37,6 +37,7 @@ export const antigravityServerAccounts = (pool: Pick<AntigravityAccountPool, "li
         ...(account.exhaustedUntil === null
           ? {}
           : { exhaustedUntil: DateTime.formatIso(DateTime.makeUnsafe(account.exhaustedUntil)) }),
+        ...(account.usageLimits === null ? {} : { usageLimits: account.usageLimits }),
       })),
     ),
   );

@@ -11,6 +11,7 @@ import { makeProviderFailure } from "@t3tools/provider-core/server/failure";
 
 import { makeAntigravityAccountPool } from "./antigravityAccountPool.ts";
 import {
+  antigravityServerAccounts,
   makeAntigravityUsageLimitRecovery,
   maskAntigravityEmail,
 } from "./antigravityAccountRotation.ts";
@@ -89,6 +90,21 @@ describe("Antigravity usage-limit recovery", () => {
     Effect.gen(function* () {
       const { recover } = yield* fixture(["alice@example.com"]);
       expect(yield* recover(quota(null))).toBeUndefined();
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+});
+
+describe("Antigravity provider account list", () => {
+  it.effect("carries each account's remembered quota reading", () =>
+    Effect.gen(function* () {
+      const { pool } = yield* fixture(["a@example.com", "b@example.com"]);
+      const reading = {
+        checkedAt: "2026-01-01T00:00:00.000Z",
+        windows: [{ id: "gemini-5h", kind: "session" as const, label: "Gemini", usedPercent: 40 }],
+      };
+      yield* pool.observeUsage(Effect.succeed(reading));
+      const accounts = yield* antigravityServerAccounts(pool);
+      expect(accounts.map((account) => account.usageLimits)).toEqual([reading, undefined]);
     }).pipe(Effect.scoped, Effect.provide(layer)),
   );
 });

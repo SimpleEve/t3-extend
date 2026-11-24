@@ -22,6 +22,8 @@ import * as DateTime from "effect/DateTime";
 import { isLocalLoopbackHost, isWildcardHost } from "./hostClassification.ts";
 
 const MINUTE = 60_000;
+/** fork: the reading time of an account that was never read. */
+const UNREAD_AT = "1970-01-01T00:00:00.000Z";
 
 export function exhaustedUsageWindow(
   provider: ServerProvider | undefined,
@@ -291,6 +293,12 @@ export interface LimitAccount {
     readonly input: ProviderConsumeResetCreditInput;
   } | null;
   readonly limits: ServerProviderUsageLimits;
+  /** fork: a remembered reading of an account that is not in use now; `limits.checkedAt` is its age. */
+  readonly snapshot?: boolean | undefined;
+  /** fork: epoch milliseconds until which the account's quota is spent. */
+  readonly exhaustedUntil?: number | undefined;
+  /** fork: the account an Antigravity instance runs on now. */
+  readonly current?: boolean | undefined;
 }
 
 export function collectLimitAccounts(presentations: LimitPresentations): readonly LimitAccount[] {
@@ -364,6 +372,9 @@ export function collectLimitAccounts(presentations: LimitPresentations): readonl
           ? { resetCredits: creditSource.limits.resetCredits }
           : { resetCredits: undefined }),
       },
+      snapshot: winner.snapshot, // fork:
+      current: winner.current, // fork:
+      exhaustedUntil: winner.exhaustedUntil, // fork:
     });
   };
   const resolveKey = accountKeyResolver(
@@ -377,6 +388,45 @@ export function collectLimitAccounts(presentations: LimitPresentations): readonl
   for (const [environmentId, presentation] of presentations) {
     const label = presentation.entry.target.label;
     for (const provider of providersWithLimits(presentation.serverConfig?.providers ?? [])) {
+      // fork: an Antigravity instance with several saved accounts reports each of them.
+      const saved = provider.auth.accounts;
+      if (provider.driver === "antigravity" && saved && saved.length > 1) {
+        for (const account of saved) {
+          const liveLimits =
+            account.current && provider.usageLimits && limitsNotice(provider.usageLimits) === null
+              ? provider.usageLimits
+              : undefined;
+          const readable = liveLimits ?? account.usageLimits;
+          // An account never read still has a place, with nothing to show yet. The epoch makes
+          // any real reading of the same account, from another environment, win the merge.
+          const limits =
+            readable && limitsNotice(readable) === null
+              ? readable
+              : { checkedAt: UNREAD_AT, windows: [] };
+          const key = `${environmentId}:${provider.instanceId}:${account.id}`;
+          const exhaustedUntil = account.exhaustedUntil ? Date.parse(account.exhaustedUntil) : NaN;
+          merge(
+            resolveKey({ driver: provider.driver, email: account.email, usageLimits: limits }) ??
+              key,
+            {
+              key,
+              driver: provider.driver,
+              displayName: null,
+              email: account.email,
+              plan: provider.auth.label,
+              accentColor: provider.accentColor,
+              environments: [{ environmentId, label }],
+              sourceLabel: null,
+              redeem: null,
+              limits,
+              snapshot: liveLimits === undefined ? true : undefined,
+              current: account.current,
+              exhaustedUntil: Number.isFinite(exhaustedUntil) ? exhaustedUntil : undefined,
+            },
+          );
+        }
+        continue;
+      }
       if (!provider.usageLimits || limitsNotice(provider.usageLimits) !== null) continue;
       merge(resolveKey(nativeReport(provider)) ?? `${environmentId}:${provider.instanceId}`, {
         key: `${environmentId}:${provider.instanceId}`,
@@ -569,7 +619,36 @@ function poolKey(driver: ServerProvider["driver"], window: ServerProviderUsageWi
   return driver === "codex" ? window.kind : `${window.kind}:${window.id}`;
 }
 
-function poolMember(account: LimitAccount, reported: ServerProviderUsageWindow, now: number) {
+/**
+ * fork: what a window of an account that is not being read right now stands for at `now`. A spent
+ * account is empty until it is back; a remembered window whose reset has passed has refilled, and
+ * the next reset is unknown until the account is used again.
+ */
+function windowAt(
+  account: LimitAccount,
+  window: ServerProviderUsageWindow,
+  now: number,
+): ServerProviderUsageWindow {
+  const exhaustedUntil = account.exhaustedUntil;
+  if (exhaustedUntil !== undefined && exhaustedUntil > now) {
+    const reset = resetMillis(window);
+    if (window.usedPercent >= 100 && reset !== null && reset > exhaustedUntil) return window;
+    return {
+      ...window,
+      usedPercent: 100,
+      resetsAt: DateTime.formatIso(DateTime.makeUnsafe(exhaustedUntil)),
+      windowDurationMins: undefined,
+    };
+  }
+  const reset = resetMillis(window);
+  if (account.snapshot && reset !== null && reset <= now) {
+    return { ...window, usedPercent: 0, resetsAt: undefined, windowDurationMins: undefined };
+  }
+  return window;
+}
+
+function poolMember(account: LimitAccount, original: ServerProviderUsageWindow, now: number) {
+  const reported = windowAt(account, original, now); // fork:
   const spentWeekly =
     reported.kind === "session"
       ? account.limits.windows.find(

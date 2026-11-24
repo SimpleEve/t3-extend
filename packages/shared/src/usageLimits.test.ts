@@ -1837,3 +1837,221 @@ describe("ChatGPT sharing presentation", () => {
     ).toBe(false);
   });
 });
+
+describe("Antigravity instances with several accounts", () => {
+  const antigravity = ProviderDriverKind.make("antigravity");
+  const environmentId = EnvironmentId.make("env-a");
+  const reading = (
+    checkedAt: string,
+    usedPercent: number,
+    resetsAt = "2026-09-03T14:00:00.000Z",
+  ) => ({
+    checkedAt,
+    windows: [
+      {
+        id: "gemini-5h",
+        kind: "session" as const,
+        label: "Gemini · 5-hour",
+        usedPercent,
+        windowDurationMins: 300,
+        resetsAt,
+      },
+    ],
+  });
+  const live = reading("2026-09-03T11:59:00.000Z", 40);
+  const instance = (
+    accounts: NonNullable<ServerProvider["auth"]["accounts"]>,
+    usageLimits: ServerProvider["usageLimits"] = live,
+  ) =>
+    provider({
+      driver: antigravity,
+      instanceId: ProviderInstanceId.make("antigravity"),
+      auth: { status: "authenticated", accounts },
+      usageLimits,
+    });
+  const presentations = (providers: ServerProvider[]) =>
+    new Map([
+      [environmentId, { entry: { target: { label: "Laptop" } }, serverConfig: { providers } }],
+    ]);
+  const accountsOf = (providers: ServerProvider[]) =>
+    collectLimitAccounts(presentations(providers));
+
+  it("lists every saved account once, the current one from the live reading", () => {
+    const accounts = accountsOf([
+      instance([
+        {
+          id: "aaaaaaaaaaaaaaaa",
+          email: "a@example.com",
+          current: false,
+          usageLimits: reading("2026-09-03T09:00:00.000Z", 70),
+        },
+        {
+          id: "bbbbbbbbbbbbbbbb",
+          email: "B@example.com",
+          current: true,
+          usageLimits: reading("2026-09-03T08:00:00.000Z", 5),
+        },
+        { id: "cccccccccccccccc", email: "c@example.com", current: false },
+      ]),
+    ]);
+    // The account never read is still listed, with nothing to show; every entry is distinct.
+    expect(accounts.map((account) => account.email)).toEqual([
+      "a@example.com",
+      "B@example.com",
+      "c@example.com",
+    ]);
+    expect(new Set(accounts.map((account) => account.key)).size).toBe(3);
+    expect(accounts.find((account) => account.email === "c@example.com")?.limits.windows).toEqual(
+      [],
+    );
+    expect(accounts.map((account) => account.current)).toEqual([false, true, false]);
+    const current = accounts.find((account) => account.email === "B@example.com");
+    expect(current?.snapshot).toBeUndefined();
+    expect(current?.limits.windows[0]?.usedPercent).toBe(40);
+    const remembered = accounts.find((account) => account.email === "a@example.com");
+    expect(remembered?.snapshot).toBe(true);
+    expect(remembered?.limits.checkedAt).toBe("2026-09-03T09:00:00.000Z");
+    expect(remembered?.environments).toEqual([{ environmentId, label: "Laptop" }]);
+  });
+
+  it("does not count the current account again through the instance's own reading", () => {
+    const accounts = accountsOf([
+      instance([
+        { id: "aaaaaaaaaaaaaaaa", email: "a@example.com", current: true },
+        {
+          id: "bbbbbbbbbbbbbbbb",
+          email: "b@example.com",
+          current: false,
+          usageLimits: reading("2026-09-03T09:00:00.000Z", 70),
+        },
+      ]),
+    ]);
+    expect(accounts).toHaveLength(2);
+    expect(accounts.filter((account) => account.snapshot !== true)).toHaveLength(1);
+  });
+
+  it("keeps one entry for an instance with a single account", () => {
+    const accounts = accountsOf([
+      instance([{ id: "aaaaaaaaaaaaaaaa", email: "a@example.com", current: true }]),
+    ]);
+    expect(accounts).toHaveLength(1);
+    expect(accounts[0]?.key).toBe("env-a:antigravity");
+  });
+
+  it("falls back to the remembered reading when the live one cannot be read", () => {
+    const accounts = accountsOf([
+      instance(
+        [
+          {
+            id: "aaaaaaaaaaaaaaaa",
+            email: "a@example.com",
+            current: true,
+            usageLimits: reading("2026-09-03T10:00:00.000Z", 25),
+          },
+          { id: "bbbbbbbbbbbbbbbb", email: "b@example.com", current: false },
+        ],
+        {
+          checkedAt: "2026-09-03T11:59:00.000Z",
+          windows: [],
+          unavailable: { reason: "probeFailed" },
+        },
+      ),
+    ]);
+    const current = accounts.find((account) => account.email === "a@example.com");
+    expect(current).toMatchObject({ snapshot: true, current: true });
+    expect(current?.limits.windows[0]?.usedPercent).toBe(25);
+  });
+
+  it("merges an account seen on two environments by e-mail, keeping the live reading's flag", () => {
+    const remembered = instance([
+      {
+        id: "aaaaaaaaaaaaaaaa",
+        email: "a@example.com",
+        current: false,
+        usageLimits: reading("2026-09-03T08:00:00.000Z", 70),
+      },
+      { id: "bbbbbbbbbbbbbbbb", email: "b@example.com", current: true },
+    ]);
+    const liveElsewhere = instance(
+      [
+        { id: "dddddddddddddddd", email: "A@example.com", current: true },
+        { id: "eeeeeeeeeeeeeeee", email: "e@example.com", current: false },
+      ],
+      reading("2026-09-03T11:30:00.000Z", 10),
+    );
+    const accounts = collectLimitAccounts(
+      new Map([
+        [
+          environmentId,
+          { entry: { target: { label: "Laptop" } }, serverConfig: { providers: [remembered] } },
+        ],
+        [
+          EnvironmentId.make("env-b"),
+          { entry: { target: { label: "Desktop" } }, serverConfig: { providers: [liveElsewhere] } },
+        ],
+      ]),
+    );
+    const merged = accounts.find((account) => account.email?.toLowerCase() === "a@example.com");
+    // The account on both machines is one entry next to b and the never-read e.
+    expect(accounts).toHaveLength(3);
+    expect(merged?.limits.windows[0]?.usedPercent).toBe(10);
+    expect(merged?.snapshot).toBeUndefined();
+    expect(merged?.environments).toHaveLength(2);
+  });
+
+  it("reads a remembered window whose reset has passed as refilled, and a live one as it is", () => {
+    const accounts = accountsOf([
+      instance(
+        [
+          {
+            id: "aaaaaaaaaaaaaaaa",
+            email: "a@example.com",
+            current: false,
+            usageLimits: reading("2026-09-03T05:00:00.000Z", 90, "2026-09-03T10:00:00.000Z"),
+          },
+          { id: "bbbbbbbbbbbbbbbb", email: "b@example.com", current: true },
+        ],
+        reading("2026-09-03T11:59:00.000Z", 90, "2026-09-03T11:00:00.000Z"),
+      ),
+    ]);
+    const [pool] = collectLimitPools(accounts, now);
+    const members = pool!.windows[0]!.members;
+    const byEmail = (email: string) => members.find((member) => member.account.email === email)!;
+    expect(byEmail("a@example.com").window).toMatchObject({ usedPercent: 0 });
+    expect(byEmail("a@example.com").window.resetsAt).toBeUndefined();
+    expect(byEmail("b@example.com").window.usedPercent).toBe(90);
+    // The report itself is not rewritten.
+    expect(
+      accounts.find((account) => account.email === "a@example.com")?.limits.windows[0],
+    ).toMatchObject({
+      usedPercent: 90,
+    });
+  });
+
+  it("shows an account that is out of quota as empty until it comes back", () => {
+    const accounts = accountsOf([
+      instance([
+        { id: "aaaaaaaaaaaaaaaa", email: "a@example.com", current: true },
+        {
+          id: "bbbbbbbbbbbbbbbb",
+          email: "b@example.com",
+          current: false,
+          exhaustedUntil: "2026-09-03T15:00:00.000Z",
+          usageLimits: reading("2026-09-03T08:00:00.000Z", 20, "2026-09-03T13:00:00.000Z"),
+        },
+      ]),
+    ]);
+    const [pool] = collectLimitPools(accounts, now);
+    const spent = pool!.windows[0]!.members.find(
+      (member) => member.account.email === "b@example.com",
+    )!;
+    expect(spent.window.usedPercent).toBe(100);
+    expect(spent.window.resetsAt).toBe("2026-09-03T15:00:00.000Z");
+    // Once the recorded time passes it is an ordinary remembered reading again.
+    const [later] = collectLimitPools(accounts, Date.parse("2026-09-03T15:00:01.000Z"));
+    expect(
+      later!.windows[0]!.members.find((member) => member.account.email === "b@example.com")!.window
+        .usedPercent,
+    ).toBe(0);
+  });
+});

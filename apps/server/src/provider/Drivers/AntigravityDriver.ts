@@ -700,7 +700,7 @@ export const AntigravityDriver: ProviderDriver<
       environment: processEnvironment,
       stampIdentity: classifyModels,
       probe,
-      probeUsage: usage.probe,
+      probeUsage: accountPool ? accountPool.observeUsage(usage.probe) : usage.probe, // fork:
       clearUsage: usage.clear,
       // fork: the health check never spawns the agent, so the stored token is its only sign-in signal.
       // A shared CLI login has no token here, so the agent is asked now and then instead.

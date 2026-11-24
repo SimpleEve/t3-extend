@@ -68,6 +68,8 @@ export const ServerProviderAccount = Schema.Struct({
   current: Schema.Boolean,
   /** When its quota is back; absent while it has quota. */
   exhaustedUntil: Schema.optional(IsoDateTime),
+  /** The last quota reading taken while this account was in use; `checkedAt` says how old it is. */
+  usageLimits: Schema.optional(ServerProviderUsageLimits),
 });
 export type ServerProviderAccount = typeof ServerProviderAccount.Type;
 
