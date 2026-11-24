@@ -55,7 +55,7 @@ describe("thread bookmarks", () => {
       [lateSecond, lateFirst, lateWhole, early]
         .sort(compareThreadBookmarks)
         .map((entry) => entry.id),
-    ).toEqual(["early", "late-whole", "late-a", "late-b"].map(ThreadBookmarkId.make));
+    ).toEqual(["early", "late-whole", "late-a", "late-b"].map((id) => ThreadBookmarkId.make(id)));
   });
 
   it("previews only the first few in order", () => {
