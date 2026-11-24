@@ -63,6 +63,7 @@ import { GuestMessageName, guestBubbleClassName } from "./guestMessageStyle";
 import { MessageCopyButton } from "./MessageCopyButton";
 import { AssistantCitationSource } from "./AssistantCitationSource"; // fork: message bookmarks
 import { BookmarkMessageButton } from "../../fork/bookmarks/BookmarkMessageButton"; // fork: message bookmarks
+import { BookmarkMessageMarker } from "../../fork/bookmarks/BookmarkMessageMarker"; // fork: message bookmarks
 import { promptLinkFor } from "../promptLinks/copyPromptLink";
 import { PierreEntryIcon } from "./PierreEntryIcon";
 import { formatBytes } from "../../lib/formatBytes";
@@ -960,6 +961,13 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
         )}
         data-user-message-bubble=""
       >
+        {/* fork: message bookmarks */}
+        <BookmarkMessageMarker
+          threadRef={ctx.threadRef ?? null}
+          messageId={row.message.id}
+          role="user"
+          placement="bubble"
+        />
         {/* Outside the fold so a collapsed message still has a heading to navigate to. */}
         {mediaAboveText ? null : (
           <MessageAuthorHeading>
