@@ -137,7 +137,8 @@ in from a terminal. **Sign in** also finishes at once, without a browser, when t
 signed in.
 
 Only the sign-in is shared. Threads, hooks, MCP servers, and rules stay in T3's own profile, and
-nothing in `~/.gemini` is changed.
+nothing in `~/.gemini` is changed. To share MCP servers too, see
+[Use your own MCP servers](#use-your-own-mcp-servers).
 
 Choose **Login source** in the Antigravity provider settings. It applies to Google account and
 Gemini Enterprise sign-in:
@@ -229,6 +230,24 @@ proxied. Leave it empty to use the machine's own network, including any proxy va
 has. A proxy that does not parse is reported as a configuration problem, and if the server cannot
 use the proxy the limits show as unavailable instead of going out directly. SOCKS5 support for the
 limit requests is Node's experimental one. The proxy is per instance, not per account.
+
+## Use your own MCP servers
+
+An instance has its own MCP configuration and MCP sign-ins, separate from the `agy` command's. To use
+the ones you already have, add each server and sign in to it in a terminal with `agy`, then turn on
+**Use global MCP servers** in the instance's settings. The instance then reads
+`~/.gemini/config/mcp_config.json` and the `agy` CLI's MCP sign-ins, so a token that either side
+refreshes is shared. The setting takes effect the next time Antigravity starts for that instance.
+Turning it off removes only the links the setting made.
+
+T3 cannot finish a first-time MCP sign-in itself, so authorize each server in the terminal first. A
+server that cannot connect, or whose sign-in has expired, is skipped without failing the thread.
+A sign-in that cannot be refreshed is removed from the shared file, as it would be in the terminal.
+If the instance already has MCP servers or sign-ins of its own, they are kept, the global ones are
+not used, and the server log says so. This is available on macOS and Linux only.
+
+While the global MCP configuration lists servers, Antigravity does not write titles or commit
+messages for that instance. Choose another model for them.
 
 ## Run a native goal
 

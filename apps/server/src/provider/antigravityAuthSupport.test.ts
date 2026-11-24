@@ -12,6 +12,7 @@ import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
@@ -805,6 +806,32 @@ it.layer(NodeServices.layer)("Antigravity profile preparation", (it) => {
         yield* fs.remove(cliSkills, { recursive: true });
         yield* prepareAntigravityProfile({ profileDirectory, userHome });
         expect(yield* isLink(cliLink)).toBe(false);
+      }),
+  );
+
+  it.effect.skipIf(!symlinksSupported)(
+    "links the user's MCP config and sign-ins only while the instance asks for them",
+    () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const temporaryDirectory = yield* fs.makeTempDirectoryScoped();
+        const userHome = path.join(temporaryDirectory, "home");
+        const profileDirectory = path.join(temporaryDirectory, "profile");
+        const config = path.join(profileDirectory, "config", "mcp_config.json");
+        const tokens = path.join(profileDirectory, "antigravity-acp", "mcp_oauth_tokens.json");
+
+        yield* prepareAntigravityProfile({ profileDirectory, userHome, globalMcp: true });
+        expect(yield* fs.readLink(config)).toBe(
+          path.join(userHome, ".gemini", "config", "mcp_config.json"),
+        );
+        expect(yield* fs.readLink(tokens)).toBe(
+          path.join(userHome, ".gemini", "antigravity-cli", "mcp_oauth_tokens.json"),
+        );
+
+        yield* prepareAntigravityProfile({ profileDirectory, userHome });
+        expect(yield* fs.exists(config)).toBe(false);
+        expect(yield* fs.readLink(tokens).pipe(Effect.option)).toEqual(Option.none());
       }),
   );
 

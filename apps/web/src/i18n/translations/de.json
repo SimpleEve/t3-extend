@@ -9096,6 +9096,8 @@
   "14feb09decd98a26": "Für getrennte Google-Konto-Anmeldungen mit mehr als einem gespeicherten Konto. Etwa alle 45 Minuten erneuert T3 ein gespeichertes Konto, das nicht verwendet wird, und liest dessen Kontingent, damit der gemerkte Stand aktuell bleibt. Dabei wird agy kurz gestartet, aber kein Kontingent verbraucht. Ist die Option aus, liest nur „Aktualisieren“ unter Nutzung die anderen Konten.",
   "4feec982aaf115bf": "Network proxy",
   "f3fb592635f8770b": "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
+  "a3ad11973b7cbbea": "Globale MCP-Server verwenden",
+  "555e5a94c342e9e4": "Nutzt die MCP-Server und Anmeldungen aus deinem eigenen agy-Setup (~/.gemini) statt der eigenen dieser Instanz. Richte MCP zuerst im agy-Terminal ein und melde dich dort an. Nur macOS und Linux. Solange diese Server konfiguriert sind, erstellt diese Instanz keine Titel und Commit-Nachrichten mehr.",
   "d118c06deaf33a65": "Startargumente",
   "9ebced15e0d0b234": "CLAUDE_CONFIG_DIR-Pfad",
   "178f36194b25e76d": "Automatisch komprimieren nach",

@@ -985,6 +985,16 @@ export const AntigravitySettings = makeProviderSettingsSchema(
         providerSettingsForm: { placeholder: "http://127.0.0.1:7890", clearWhenEmpty: "omit" },
       }),
     ),
+    // fork:
+    useGlobalMcp: Schema.Boolean.pipe(
+      Schema.withDecodingDefault(Effect.succeed(false)),
+      Schema.annotateKey({
+        title: "Use global MCP servers",
+        description:
+          "Uses the MCP servers and sign-ins from your own agy setup (~/.gemini) instead of this instance's own. Set up and sign in to MCP in the agy terminal first. macOS and Linux only. While those servers are configured, this instance no longer writes titles and commit messages.",
+        providerSettingsForm: { control: "switch", clearWhenEmpty: "omit" },
+      }),
+    ),
     binaryPath: TrimmedString.pipe(
       Schema.withDecodingDefault(Effect.succeed("")),
       Schema.annotateKey({
@@ -1008,6 +1018,7 @@ export const AntigravitySettings = makeProviderSettingsSchema(
       "accountRotation", // fork:
       "backgroundAccountCheck", // fork:
       "networkProxy", // fork:
+      "useGlobalMcp", // fork:
       "binaryPath",
     ],
   },

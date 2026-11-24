@@ -9054,6 +9054,8 @@
   "14feb09decd98a26": "Google アカウントを別々にサインインし、保存済みアカウントが複数ある場合向けです。約 45 分ごとに、使用中でない保存済みアカウントを T3 が更新してクォータを読み取り、記憶している値を最新に保ちます。agy を短時間起動しますが、クォータは消費しません。オフにすると、使用状況の「更新」だけが他のアカウントを読み取ります。",
   "4feec982aaf115bf": "Network proxy",
   "f3fb592635f8770b": "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
+  "a3ad11973b7cbbea": "グローバルの MCP サーバーを使う",
+  "555e5a94c342e9e4": "このインスタンス独自のものではなく、自分の agy 環境（~/.gemini）の MCP サーバーとサインインを使います。先に agy のターミナルで MCP を設定してサインインしてください。macOS と Linux のみ。これらのサーバーが設定されている間、このインスタンスはタイトルやコミットメッセージを作成しません。",
   "d118c06deaf33a65": "起動引数",
   "9ebced15e0d0b234": "CLAUDE_CONFIG_DIR のパス",
   "178f36194b25e76d": "自動圧縮のしきい値",

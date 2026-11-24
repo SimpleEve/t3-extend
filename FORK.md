@@ -257,6 +257,21 @@ agy 只预加载会话 `mcpServers` 里点名的 server，profile 的 `config/mc
 
 用隔离的 agy 1.5.15 副本和本地假 server 验证过：agy 按自己 config 里的定义启动被点名的 server，会话里的条目只起名字的作用，所以 header、`cwd`、`env` 都保留，`${VAR}` agy 本来就不展开。点名一个 401、OAuth 401、不存在、卡住的 server，会话和轮次都不会失败，只是没有它的工具；永远不回应的 server 会让会话启动和 resume 多等约 5 秒（agy 自己的上限）。1.5.16 没有测过。
 
+### 实例可以用全局的 MCP 配置和 MCP 登录
+
+实例设置 `useGlobalMcp`（Antigravity 设置里的“使用全局 MCP 服务器”，默认关）。每个实例有自己的 GEMINI_HOME，所以终端 agy 里配好并授权过的 MCP server 在实例里没有；ACP 下也走不完第一次 MCP OAuth（agy 注册客户端后等用户粘贴 code，不开浏览器）。打开后 `syncAntigravityGlobalMcp`（`antigravityGlobalMcp.ts`）把实例的 `config/mcp_config.json` 和 `antigravity-acp/mcp_oauth_tokens.json` 用符号链接指向 `~/.gemini/config/mcp_config.json` 和 `~/.gemini/antigravity-cli/mcp_oauth_tokens.json`。它在 `prepareAntigravityProfile`（每次启动 agy）和驱动创建时（设置一改就生效，关掉时立刻拆链接）各跑一次。上面“会话预加载”的逻辑读的就是链接后的文件，所以全局 server 也会被点名。
+
+用隔离的 agy 1.5.15 副本和本地假 OAuth server 验证过：
+
+- ACP 只读 `<home>/antigravity-acp/mcp_oauth_tokens.json`（放在 `antigravity-cli/`、根目录、`config/` 都不读）。格式按 server URL 做 key，值里要有 `token`（`access_token`、`refresh_token`、`expiry`）、`client_id`、`token_url`，缺 `token_url` 刷新会失败。
+- agy 原地改写这个文件（inode 不变，没有临时文件）。符号链接保留，目标收到刷新后的 token。agy 跟随指向别处的 `mcp_config.json` 链接，而且从不写它。目标不存在时是悬空链接，agy 当作没有登录，无害。
+- 刷新失败时 agy 会把目标里的条目清掉，通过链接就清了终端 agy 共用的那份；终端里同样如此。
+- 独立 agy 的 token 路径 `~/.gemini/antigravity-cli/mcp_oauth_tokens.json` 是推断的：独立模式要真实的 Google 登录，隔离实验里跑不了。配置路径 `~/.gemini/config/mcp_config.json` 是实测的。
+
+关闭只删除指向这两个目标的链接，不删真实文件。实例自己已有内容的文件（非空的 `mcp_config.json`、有登录的 token 文件）原样保留并记一条 warning，不用全局的；agy 1.5.8 写的 0 字节 `mcp_config.json` 会被替换。不链接 `hooks.json`。Windows 上文件链接要提权，所以不支持，打开时只记一条日志。
+
+副作用：`isAntigravityTextGenerationAvailable` 在 profile 的 `mcp_config.json` 非空时返回 false，所以全局配置里有 server 时这个实例不能再生成标题和提交信息。规则没改，设置的说明文字里写了。没测过：真实 OAuth 服务商，两个 agy 进程同时刷新同一条登录（轮换 refresh token 时其中一个会失败）。
+
 ## 侧边栏视图
 
 侧边栏有"按状态"（上游的 Inbox）和"按项目"两种视图，后者在项目文件夹下再按 worktree 分子组，是默认视图：`boringSidebarEnabled` 的默认值在 contracts 里改成了 true（带 `// fork:`），手机端偏好未设置时回落到 `"project"`（`threadListViewState.ts` 的 `DEFAULT_VIEW_MODE`）。默认值只对没存过这一项的设备生效：桌面版一旦存过任何客户端设置，整份设置（包括 `boringSidebarEnabled`）都会写进 `client-settings.json`，所以以前存过 `false` 的设备要手动切一次。用户说明见 `docs/user/thread-sidebar.md` 的 "Choose a sidebar view"。

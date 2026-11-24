@@ -9102,6 +9102,8 @@
   "14feb09decd98a26": "För separata Google-inloggningar med fler än ett sparat konto. Ungefär var 45:e minut förnyar T3 ett sparat konto som inte används och läser dess kvot, så att det sparade värdet håller sig aktuellt. Det startar agy en kort stund men förbrukar ingen kvot. När det är avstängt läser bara Uppdatera under Användning de andra kontona.",
   "4feec982aaf115bf": "Network proxy",
   "f3fb592635f8770b": "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
+  "a3ad11973b7cbbea": "Använd globala MCP-servrar",
+  "555e5a94c342e9e4": "Använder MCP-servrarna och inloggningarna från din egen agy-konfiguration (~/.gemini) i stället för den här instansens egna. Ställ in MCP och logga in i agy-terminalen först. Endast macOS och Linux. Så länge de servrarna är konfigurerade skriver den här instansen inte längre rubriker och commit-meddelanden.",
   "d118c06deaf33a65": "Startargument",
   "9ebced15e0d0b234": "Sökväg för CLAUDE_CONFIG_DIR",
   "178f36194b25e76d": "Komprimera automatiskt efter",

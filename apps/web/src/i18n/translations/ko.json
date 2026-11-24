@@ -9056,6 +9056,8 @@
   "14feb09decd98a26": "Google 계정을 별도로 로그인하고 저장된 계정이 둘 이상일 때 사용합니다. 약 45분마다 T3가 사용 중이 아닌 저장된 계정을 갱신하고 할당량을 읽어, 기억해 둔 값을 최신으로 유지합니다. agy를 잠깐 실행하지만 할당량은 쓰지 않습니다. 끄면 사용량의 새로고침만 다른 계정을 읽습니다.",
   "4feec982aaf115bf": "Network proxy",
   "f3fb592635f8770b": "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
+  "a3ad11973b7cbbea": "전역 MCP 서버 사용",
+  "555e5a94c342e9e4": "이 인스턴스 자체 설정 대신 내 agy 환경(~/.gemini)의 MCP 서버와 로그인을 사용합니다. 먼저 agy 터미널에서 MCP를 설정하고 로그인하세요. macOS와 Linux에서만 지원됩니다. 해당 서버가 설정되어 있는 동안 이 인스턴스는 제목과 커밋 메시지를 작성하지 않습니다.",
   "d118c06deaf33a65": "실행 인수",
   "9ebced15e0d0b234": "CLAUDE_CONFIG_DIR 경로",
   "178f36194b25e76d": "자동 압축 기준",
