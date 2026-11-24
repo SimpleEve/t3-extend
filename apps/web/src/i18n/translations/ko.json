@@ -9057,7 +9057,7 @@
   "4feec982aaf115bf": "Network proxy",
   "f3fb592635f8770b": "Sends this instance's Antigravity traffic through one proxy: http://, https://, socks5:// or socks5h://. Credentials in the URL are saved as plain settings. Empty uses this machine's network.",
   "a3ad11973b7cbbea": "전역 MCP 서버 사용",
-  "8fcf76af28041ff2": "이 인스턴스 자체 설정 대신 터미널 agy(~/.gemini)의 MCP 서버와 로그인을 사용합니다. 먼저 agy 터미널에서 MCP를 설정하고 로그인하세요. macOS와 Linux에서만 지원됩니다. 전역 설정에 서버가 하나라도 있으면 이 인스턴스는 제목과 커밋 메시지를 작성하지 않습니다. 스레드와 터미널 agy는 하나의 로그인을 공유하므로, 갱신에 실패하면 터미널에서 다시 로그인하세요.",
+  "edcae62d17f32425": "이 인스턴스 자체 설정 대신 터미널 agy(~/.gemini)의 MCP 서버와 로그인을 사용합니다. 먼저 agy 터미널에서 MCP를 설정하고 로그인하세요. macOS와 Linux에서만 지원됩니다. 전역 설정에 서버가 하나라도 있으면 이 인스턴스는 제목과 커밋 메시지를 작성하지 않습니다. 스레드와 터미널 agy는 하나의 MCP 로그인 파일을 공유하므로, 갱신에 실패하면 터미널에서 다시 로그인하세요.",
   "d118c06deaf33a65": "실행 인수",
   "9ebced15e0d0b234": "CLAUDE_CONFIG_DIR 경로",
   "178f36194b25e76d": "자동 압축 기준",

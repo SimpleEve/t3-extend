@@ -134,9 +134,9 @@ const ANTIGRAVITY_FORK_FIELD_TEXT: ReadonlyArray<readonly [string, string]> = [
   ],
   ["Use global MCP servers", msg("Use global MCP servers")],
   [
-    "Uses the MCP servers and sign-ins from your terminal agy (~/.gemini) instead of this instance's own. Set up and sign in to MCP in the agy terminal first. macOS and Linux only. While the global config lists any server, this instance no longer writes titles and commit messages. Threads and terminal agy share one sign-in; if a refresh fails, sign in again in the terminal.",
+    "Uses the MCP servers and sign-ins from your terminal agy (~/.gemini) instead of this instance's own. Set up and sign in to MCP in the agy terminal first. macOS and Linux only. While the global config lists any server, this instance no longer writes titles and commit messages. Threads and terminal agy share one MCP sign-in file; if a refresh fails, sign in again in the terminal.",
     msg(
-      "Uses the MCP servers and sign-ins from your terminal agy (~/.gemini) instead of this instance's own. Set up and sign in to MCP in the agy terminal first. macOS and Linux only. While the global config lists any server, this instance no longer writes titles and commit messages. Threads and terminal agy share one sign-in; if a refresh fails, sign in again in the terminal.",
+      "Uses the MCP servers and sign-ins from your terminal agy (~/.gemini) instead of this instance's own. Set up and sign in to MCP in the agy terminal first. macOS and Linux only. While the global config lists any server, this instance no longer writes titles and commit messages. Threads and terminal agy share one MCP sign-in file; if a refresh fails, sign in again in the terminal.",
     ),
   ],
 ];

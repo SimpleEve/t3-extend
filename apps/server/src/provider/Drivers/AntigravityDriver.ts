@@ -212,7 +212,7 @@ export const AntigravityDriver: ProviderDriver<
       ),
     );
     const profileDirectory = directories.profile;
-    // fork: switching the setting off removes its links now, not at the next agy launch.
+    // fork: switching the setting off removes its config copy and links now, not at the next agy launch.
     yield* syncAntigravityGlobalMcp({
       profileDirectory,
       userHome,

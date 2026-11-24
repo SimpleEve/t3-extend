@@ -1,11 +1,15 @@
+// @effect-diagnostics nodeBuiltinImport:off
+import * as NodeCrypto from "node:crypto";
+
+import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 
-/** Names T3 injects into every session; agy starts a named server from its config entry, so a global entry would replace T3's. */
-const RESERVED_NAMES: ReadonlySet<string> = new Set(["t3-code"]);
+/** The server T3 injects into every session; agy starts a named server from its config entry, so a global entry would replace it. */
+export const T3_MCP_SERVER_NAME = "t3-code";
 const COPY_RECORD = ".t3-global-mcp.json";
 const CONFIG_KEY = "config/mcp_config.json";
 const CONFIG_SEGMENTS = [".gemini", "config", "mcp_config.json"] as const;
@@ -27,9 +31,11 @@ const profileConfigFrom = (text: string | undefined): string | undefined => {
   if (typeof mcpServers !== "object" || mcpServers === null || Array.isArray(mcpServers)) {
     return undefined;
   }
-  const allowed = Object.entries(mcpServers).filter(([name]) => !RESERVED_NAMES.has(name));
+  const allowed = Object.entries(mcpServers).filter(([name]) => name !== T3_MCP_SERVER_NAME);
   return `${JSON.stringify({ ...config.value, mcpServers: Object.fromEntries(allowed) }, null, 2)}\n`;
 };
+
+const sha256 = (text: string) => NodeCrypto.createHash("sha256").update(text).digest("hex");
 
 /** agy 1.5.8 leaves an empty mcp_config.json, and agy leaves `{}` after a sign-in fails to refresh. */
 const isBlank = (text: string): boolean => {
@@ -91,7 +97,7 @@ export const syncAntigravityGlobalMcp = Effect.fn("syncAntigravityGlobalMcp")(fu
         { file },
       );
     });
-  const guarded = <E>(file: string, update: Effect.Effect<void, E>) =>
+  const guarded = <E, R>(file: string, update: Effect.Effect<void, E, R>) =>
     update.pipe(
       Effect.catch((error) =>
         Effect.logWarning("Antigravity global MCP could not be updated.", { file, error }),
@@ -114,18 +120,23 @@ export const syncAntigravityGlobalMcp = Effect.fn("syncAntigravityGlobalMcp")(fu
         Option.isSome(info) && info.value.type === "SymbolicLink"
           ? yield* linkInto(configPath, CONFIG_SEGMENTS)
           : Option.none();
+      const generated = profileConfigFrom(
+        yield* readText(path.join(userGemini, "config", "mcp_config.json")),
+      );
+      // The record holds a hash; the first version held the whole copy. A copy equal to what would
+      // be written now is ours even when the record is lost or stale.
+      const recorded = copies[CONFIG_KEY];
       const ours =
         (Option.isSome(earlierLink) && earlierLink.value.ours) ||
-        (current !== undefined && current === copies[CONFIG_KEY]);
+        (current !== undefined &&
+          (current === generated || recorded === current || recorded === sha256(current)));
       const blank = current !== undefined && isBlank(current);
       if (Option.isSome(info) && !ours && !(input.enabled && blank)) {
         delete copies[CONFIG_KEY];
         if (input.enabled && !blank) yield* keep(configPath);
         return;
       }
-      const wanted = input.enabled
-        ? profileConfigFrom(yield* readText(path.join(userGemini, "config", "mcp_config.json")))
-        : undefined;
+      const wanted = input.enabled ? generated : undefined;
       if (wanted === undefined) {
         if (ours) yield* fs.remove(configPath);
         delete copies[CONFIG_KEY];
@@ -134,9 +145,9 @@ export const syncAntigravityGlobalMcp = Effect.fn("syncAntigravityGlobalMcp")(fu
       if (current !== wanted) {
         if (Option.isSome(earlierLink)) yield* fs.remove(configPath);
         yield* fs.makeDirectory(path.dirname(configPath), { recursive: true, mode: 0o700 });
-        yield* fs.writeFileString(configPath, wanted, { mode: 0o600 });
+        yield* writeFileStringAtomically({ filePath: configPath, contents: wanted });
       }
-      copies[CONFIG_KEY] = wanted;
+      copies[CONFIG_KEY] = sha256(wanted);
     }),
   );
 
@@ -174,7 +185,11 @@ export const syncAntigravityGlobalMcp = Effect.fn("syncAntigravityGlobalMcp")(fu
         ? fs.remove(recordPath, { force: true })
         : fs
             .makeDirectory(input.profileDirectory, { recursive: true, mode: 0o700 })
-            .pipe(Effect.andThen(fs.writeFileString(recordPath, encoded, { mode: 0o600 }))),
+            .pipe(
+              Effect.andThen(
+                writeFileStringAtomically({ filePath: recordPath, contents: encoded }),
+              ),
+            ),
     );
   }
   return { kept };

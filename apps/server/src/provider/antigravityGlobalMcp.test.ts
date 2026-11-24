@@ -122,6 +122,45 @@ it.layer(NodeServices.layer)("Antigravity global MCP", (it) => {
   );
 
   it.effect.skipIf(!symlinksSupported)(
+    "records a hash of its copy, writes it owner-only, and still owns an identical copy without the record",
+    () =>
+      Effect.gen(function* () {
+        const { fs, path, profileDirectory, global, own, sync, read, write } = yield* fixture();
+        const record = path.join(profileDirectory, ".t3-global-mcp.json");
+        const mode = (file: string) =>
+          fs.stat(file).pipe(Effect.map((info) => (info.mode & 0o777).toString(8)));
+        yield* write(global.config, servers({ notes: { command: "notes-mcp" } }));
+
+        yield* sync(true);
+        const copy = yield* read(own.config);
+        expect(Object.values(JSON.parse((yield* read(record)) ?? "{}"))).toEqual([
+          expect.stringMatching(/^[0-9a-f]{64}$/),
+        ]);
+        expect(yield* read(record)).not.toContain("notes-mcp");
+        expect(yield* mode(own.config)).toBe("600");
+        expect(yield* mode(record)).toBe("600");
+        expect(yield* fs.readDirectory(path.dirname(own.config))).toEqual(["mcp_config.json"]);
+
+        // A lost record is no reason to keep a copy that is exactly what would be written.
+        yield* fs.remove(record);
+        expect(yield* sync(true)).toEqual({ kept: [] });
+        expect(yield* read(own.config)).toBe(copy);
+        expect(yield* fs.exists(record)).toBe(true);
+        yield* fs.remove(record);
+        yield* sync(false);
+        expect(yield* fs.exists(own.config)).toBe(false);
+
+        // The first version of the record held the whole copy.
+        yield* sync(true);
+        yield* fs.writeFileString(record, JSON.stringify({ "config/mcp_config.json": copy }));
+        yield* write(global.config, servers({ changed: { command: "changed-mcp" } }));
+        expect(yield* sync(true)).toEqual({ kept: [] });
+        expect(yield* read(own.config)).toContain("changed-mcp");
+        expect(yield* read(record)).not.toContain("changed-mcp");
+      }),
+  );
+
+  it.effect.skipIf(!symlinksSupported)(
     "links the MCP sign-ins, and turning off removes only what it made, from any home",
     () =>
       Effect.gen(function* () {
@@ -165,12 +204,12 @@ it.layer(NodeServices.layer)("Antigravity global MCP", (it) => {
     "replaces the config link an earlier version made, and an empty sign-in file",
     () =>
       Effect.gen(function* () {
-        const { fs, global, own, sync, linkValue, read, write } = yield* fixture();
+        const { fs, path, global, own, sync, linkValue, read, write } = yield* fixture();
         yield* write(
           global.config,
           servers({ "t3-code": { command: "x" }, notes: { command: "n" } }),
         );
-        yield* fs.makeDirectory(own.config.replace("/mcp_config.json", ""), { recursive: true });
+        yield* fs.makeDirectory(path.dirname(own.config), { recursive: true });
         yield* fs.symlink(global.config, own.config);
 
         yield* sync(true);

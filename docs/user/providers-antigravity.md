@@ -251,8 +251,10 @@ use the `agy` CLI sign-in as their login source are not verified for MCP sign-in
 Every thread runs its own `agy` process, and the terminal `agy` is another. They all use the one MCP
 sign-in file, and a process refreshes with the token it read when it started. When a server issues a
 new refresh token each time, a process that did not do the refresh fails when it tries, and `agy`
-removes that server's sign-in from the file. Sign in to that server again in the terminal. Other
-servers' sign-ins are not touched, and servers whose refresh tokens stay valid are not affected.
+removes that server's sign-in from the file. Sign in to that server again in the terminal, then
+restart the instance's running Antigravity threads: older processes still hold the revoked token
+and can delete the new sign-in. Other servers' sign-ins are not touched, and servers whose refresh
+tokens stay valid are not affected.
 
 While the global MCP configuration lists any server, even a disabled one, Antigravity does not write
 titles or commit messages for that instance. Choose another model for them.

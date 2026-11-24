@@ -30,6 +30,7 @@ import {
   readAntigravityProfileMcpServers, // fork:
   type AntigravityAcpRuntimeInput,
 } from "../../provider/acp/AntigravityAcpSupport.ts";
+import { T3_MCP_SERVER_NAME } from "../../provider/antigravityGlobalMcp.ts"; // fork:
 import {
   ANTIGRAVITY_SUBAGENT_BATCH_TITLE,
   antigravitySubagentLaunches,
@@ -174,7 +175,7 @@ export function makeAntigravityAcpAdapterFlavor(
         servers: T,
       ): T => {
         const taken = new Set([
-          "t3-code",
+          T3_MCP_SERVER_NAME, // fork:
           ...[
             ...(servers.mcpServers ?? []),
             ...(servers.acpMcpServers ?? []),
