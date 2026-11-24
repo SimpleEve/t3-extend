@@ -27,6 +27,7 @@ import {
   antigravitySteersWithPrompt,
   applyAntigravityAcpModelSelection,
   buildAntigravityPrompt,
+  readAntigravityProfileMcpServers, // fork:
   type AntigravityAcpRuntimeInput,
 } from "../../provider/acp/AntigravityAcpSupport.ts";
 import {
@@ -152,11 +153,51 @@ export function makeAntigravityAcpAdapterFlavor(
   const makeRuntime = Effect.fn("AntigravityAdapterV2.makeRuntime")(
     function* (input: AcpAdapterV2RuntimeInput) {
       const scope = yield* Scope.fork(yield* Effect.scope);
+      // fork: agy preloads only the servers a session names, so name the
+      // profile's own. The HTTP and ACP lists win in the runtime when non-empty, so extend those too.
+      const profileServers =
+        profileDirectory === undefined
+          ? []
+          : yield* readAntigravityProfileMcpServers(
+              profileDirectory,
+              new Set(
+                [
+                  ...input.mcpServers,
+                  ...(input.acpMcpServers ?? []),
+                  ...(input.httpMcpServers ?? []),
+                ].flatMap((server) => (typeof server.name === "string" ? [server.name] : [])),
+              ),
+            ).pipe(
+              Effect.provideService(FileSystem.FileSystem, options.fileSystem),
+              Effect.provideService(Path.Path, options.path),
+            );
+      const withProfileServers = <
+        T extends Pick<
+          AcpSessionRuntime.AcpSessionActivationOptions,
+          "mcpServers" | "acpMcpServers" | "httpMcpServers"
+        >,
+      >(
+        servers: T,
+      ): T => ({
+        ...servers,
+        ...(servers.mcpServers === undefined
+          ? {}
+          : { mcpServers: [...servers.mcpServers, ...profileServers] }),
+        ...(servers.acpMcpServers?.length
+          ? { acpMcpServers: [...servers.acpMcpServers, ...profileServers] }
+          : {}),
+        ...(servers.httpMcpServers?.length
+          ? { httpMcpServers: [...servers.httpMcpServers, ...profileServers] }
+          : {}),
+      });
+      const withProfileActivation = (
+        activation: AcpSessionRuntime.AcpSessionActivationOptions | undefined,
+      ) => (activation === undefined ? activation : withProfileServers(activation)); // fork:
       const runtime = yield* options
         .withProcess(
           Scope.close(scope, Exit.void),
           options.makeRuntime({
-            ...input,
+            ...withProfileServers(input), // fork:
             clientFileReads: true,
             sessionSystemPromptAppend: PULL_REQUEST_LINKING_INSTRUCTIONS,
           }),
@@ -190,6 +231,13 @@ export function makeAntigravityAcpAdapterFlavor(
               }),
             ),
           ),
+        // fork: sessions opened by load, resume, and fork name the profile's servers too.
+        loadSession: (sessionId, activation) =>
+          runtime.loadSession(sessionId, withProfileActivation(activation)),
+        resumeSession: (sessionId, activation) =>
+          runtime.resumeSession(sessionId, withProfileActivation(activation)),
+        forkSession: (sessionId, activation, meta) =>
+          runtime.forkSession(sessionId, withProfileActivation(activation), meta),
         prompt: (payload, promptOptions) =>
           Effect.sync(reads.reset).pipe(Effect.andThen(runtime.prompt(payload, promptOptions))),
         handleSessionUpdate: (handler) => {

@@ -71,6 +71,97 @@ function permissionRequest(
   };
 }
 
+it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))(
+  "AntigravityAdapterV2 profile MCP servers",
+  (it) => {
+    it.effect("names the profile's servers when creating, loading, resuming, and forking", () =>
+      Effect.gen(function* () {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const profile = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-ag-profile-mcp-" });
+        yield* fileSystem.makeDirectory(path.join(profile, "config"));
+        yield* fileSystem.writeFileString(
+          path.join(profile, "config", "mcp_config.json"),
+          JSON.stringify({
+            mcpServers: {
+              "t3-code": { command: "shadow" },
+              notes: { command: "notes-mcp" },
+              off: { command: "off-mcp", disabled: true },
+            },
+          }),
+        );
+        const bridge = { name: "t3-code", command: "t3", args: [], env: [] };
+        const http = {
+          type: "http",
+          name: "t3-code",
+          url: "http://127.0.0.1/mcp",
+          headers: [],
+        } as const;
+        const notes = { name: "notes", command: "notes-mcp", args: [], env: [] };
+        const activations: Array<unknown> = [];
+        let started: AntigravityAdapterV2RuntimeInput | undefined;
+        const fake = {
+          loadSession: (_id: string, activation: unknown) =>
+            Effect.sync(() => void activations.push(activation)),
+          resumeSession: (_id: string, activation: unknown) =>
+            Effect.sync(() => void activations.push(activation)),
+          forkSession: (_id: string, activation: unknown) =>
+            Effect.sync(() => void activations.push(activation)),
+        };
+        const withProfile = (profileDirectory: string | undefined) =>
+          makeAntigravityAcpAdapterFlavor({
+            instanceId: ProviderInstanceId.make("antigravity-profile-mcp"),
+            random: undefined as never,
+            fileSystem,
+            path,
+            host: undefined as never,
+            selfInvocation: undefined as never,
+            makeRuntime: (input) =>
+              Effect.sync(() => {
+                started = input;
+                return fake as never;
+              }),
+            withProcess: (_stop, task) => task,
+            defaultModel: Effect.undefined,
+            ...(profileDirectory === undefined ? {} : { profileDirectory }),
+          });
+        const input = {
+          cwd: "/tmp",
+          mcpServers: [bridge],
+          acpMcpServers: [{ type: "acp", name: "t3-code", serverId: "t3-code" }],
+          httpMcpServers: [http],
+        } as never;
+        const runtime = yield* withProfile(profile).makeRuntime(input);
+        assert.deepEqual(started?.mcpServers, [bridge, notes]);
+        assert.deepEqual(started?.httpMcpServers, [http, notes]);
+        assert.deepEqual(
+          started?.acpMcpServers?.map((server) => server.name),
+          ["t3-code", "notes"],
+        );
+
+        const activation = { mcpServers: [bridge], acpMcpServers: [], httpMcpServers: [http] };
+        yield* runtime.loadSession("s", activation);
+        yield* runtime.resumeSession("s", activation);
+        yield* runtime.forkSession("s", activation);
+        yield* runtime.resumeSession("s");
+        assert.deepEqual(activations, [
+          ...Array.from({ length: 3 }, () => ({
+            mcpServers: [bridge, notes],
+            acpMcpServers: [],
+            httpMcpServers: [http, notes],
+          })),
+          undefined,
+        ]);
+
+        const bare = yield* withProfile(undefined).makeRuntime(input);
+        yield* bare.resumeSession("s", activation);
+        assert.deepEqual(started?.mcpServers, [bridge]);
+        assert.deepEqual(activations.at(-1), activation);
+      }),
+    );
+  },
+);
+
 describe("AntigravityAdapterV2 flavor", () => {
   it("keeps a successful subagent launch running until the parent turn becomes idle", () => {
     const batch = flavor.extractSubagentUpdate?.({
