@@ -1,0 +1,78 @@
+import type { ThemePresetSeed } from "../presets";
+
+// fork: One Dark. Colors after Atom's One Dark and One Light UI themes (MIT, GitHub Inc.).
+// No decoration: flat panels, hairlines, the system fonts.
+const SANS =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif';
+const MONO = 'Menlo, Monaco, "Cascadia Mono", Consolas, "Courier New", monospace';
+
+export const ONE_DARK_SEED: ThemePresetSeed = {
+  id: "studio-one-dark",
+  label: "One Dark",
+  appearance: "dark",
+  palette: {
+    canvas: "#282c34",
+    accent: "#61afef",
+    colors: {
+      surface: "#282c34",
+      surfaceRaised: "#2c313a",
+      surfaceOverlay: "#21252b",
+      secondary: "#2c313a",
+      secondaryForeground: "#abb2bf",
+      muted: "#2c313a",
+      accentSurface: "#3e4451",
+      accentSurfaceForeground: "#d7dae0",
+      toolbarControl: "#2c313a",
+      toolbarControlHover: "#353b45",
+      text: "#abb2bf",
+      textMuted: "#98a1b0",
+      secondaryLabel: "#98a1b0",
+      mutedForeground: "#98a1b0",
+      border: "#3a3f4b",
+      input: "#3a3f4b",
+      focus: "#528bff",
+      accentForeground: "#21252b",
+      sidebar: "#21252b",
+      sidebarRowHover: "#262a31",
+      sidebarRowActive: "#2c313a",
+      sidebarRowSelected: "#2c313a",
+      sidebarForeground: "#abb2bf",
+      sidebarMutedForeground: "#98a1b0",
+      sidebarBorder: "#181a1f",
+      codeBackground: "#21252b",
+      codeForeground: "#abb2bf",
+    },
+  },
+  variant: {
+    canvas: "#fafafa",
+    accent: "#3a68d8",
+    colors: {
+      surface: "#fafafa",
+      surfaceRaised: "#f2f2f3",
+      surfaceOverlay: "#ffffff",
+      secondary: "#eaeaeb",
+      secondaryForeground: "#383a42",
+      muted: "#eaeaeb",
+      accentSurface: "#dde5f7",
+      accentSurfaceForeground: "#383a42",
+      toolbarControl: "#eaeaeb",
+      toolbarControlHover: "#dbdbdc",
+      text: "#383a42",
+      textMuted: "#62646c",
+      secondaryLabel: "#5b5d65",
+      mutedForeground: "#62646c",
+      border: "#dbdbdc",
+      input: "#c8c8ca",
+      focus: "#3a68d8",
+      accentForeground: "#ffffff",
+      warningForeground: "#8a3a00",
+      sidebar: "#eaeaeb",
+      sidebarForeground: "#383a42",
+      sidebarMutedForeground: "#5b5d65",
+      sidebarBorder: "#dbdbdc",
+      codeBackground: "#f2f2f3",
+      codeForeground: "#383a42",
+    },
+  },
+  look: { fontUi: SANS, fontCode: MONO, radius: 4, shadow: 20, density: 96 },
+};

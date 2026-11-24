@@ -1,13 +1,30 @@
 import type { ThemePresetSeed } from "../presets";
 
 // fork: Swiss grid. White, black and one red; numbered thread rows come from a CSS counter.
+// The sidebar is black on a white page, and its rows read the page's text colors (--contrast-*),
+// so the sidebar scope sets those again for a dark ground.
 const SANS =
   '"Helvetica Neue", Helvetica, Arial, "Nimbus Sans", "PingFang SC", "Microsoft YaHei", sans-serif';
 const MONO = 'Menlo, "SF Mono", Consolas, "Liberation Mono", monospace';
 
 const CSS = `:root { --t3x-red: #e30613; --t3x-black: #111111; }
 
-[data-slot="sidebar-inner"] { counter-reset: swiss-thread; --primary: #ff4d5a; }
+[data-slot="sidebar-inner"] {
+  counter-reset: swiss-thread;
+  --primary: #ff4d5a;
+  --contrast-foreground: #ffffff;
+  --contrast-muted-foreground: #b8b8b8;
+  --contrast-secondary-label: #b8b8b8;
+  --contrast-icon-muted: #b8b8b8;
+  --contrast-placeholder: #a0a0a0;
+  --warning: #ffb454;
+  --warning-foreground: #ffb454;
+  --error: #ff7b7b;
+  --error-foreground: #ff7b7b;
+  --destructive: #ff7b7b;
+  --info-foreground: #8ec5ff;
+  --success-foreground: #6ee7a0;
+}
 [data-thread-item] { counter-increment: swiss-thread; }
 [data-thread-item] [data-sidebar-row] { border-radius: 0 !important; font-weight: 500; }
 [data-thread-item] [data-sidebar-row]::before {

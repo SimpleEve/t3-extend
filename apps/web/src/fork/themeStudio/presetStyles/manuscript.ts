@@ -93,6 +93,7 @@ export const MANUSCRIPT_SEED: ThemePresetSeed = {
       input: "#cdc2a8",
       focus: "#b0281e",
       accentForeground: "#ffffff",
+      warningForeground: "#8a3a00",
       sidebar: "#f2ebd9",
       sidebarForeground: "#2a2a2a",
       sidebarMutedForeground: "#6a6252",

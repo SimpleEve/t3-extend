@@ -68,26 +68,32 @@ use, and the studio is where themes are made and changed. Appearance's **Edit in
 button and the **Edit** and **Duplicate** buttons on a theme card open the studio, and the studio
 links back to Appearance.
 
-The page goes from top to bottom: **Presets**, **Colors**, **Fonts**, **Layout**, **Background**,
-**Custom CSS** and **My schemes**. Hover a preset to preview it and click to use it. Changes you make
+The page goes from top to bottom: **Presets**, **My schemes**, **Colors**, **Fonts**, **Layout**,
+**Background** and **Custom CSS**. Hover a preset to preview it and click to use it. Changes you make
 preview live as you drag a slider or pick a color.
 
 Most presets are whole looks, not just palettes: type, borders, message shapes and decoration come
 with them. Broadsheet (newsprint and rules), Swiss grid, Brutalist, Blueprint, Manuscript, Retro
 windows, Ink wash and Neon each carry their own fonts, borders and message shapes, and Terminal does the
 same in green on black. Docs and Quiet page are plain reading layouts and have a dark
-version. Presets only use fonts already installed on your device, so on a machine without them
+version. Editor, One Dark, Solarized, GitHub and Nord are plain editor-style palettes with no
+decoration, each with a light and a dark half. Mochi is a soft cream-and-pink look with round
+corners, with a plum dark half. Presets only use fonts already installed on your device, so on a machine without them
 (Windows or Linux, for example) a close fallback shows instead. Some presets add small text to the
 chat, such as the label above your message. It is in Chinese when the interface is in Chinese, and in
 English in every other language. That text is decoration: copying a message does not include it and
 screen readers skip it.
 
-Change anything about a preset and your version is saved as a scheme of your own, named like
-"Terminal (mine)". The preset stays as it is. If a preset a scheme was made from is ever retired, the
-scheme keeps working and only **Restore to preset** goes away. Nothing is saved until you choose **Apply**;
-**Revert unsaved changes** drops the edits, and **Restore to preset** puts a scheme's colors, fonts
-and layout back to its preset. **Reset theme to default** goes back to the standard T3 theme without
-deleting your schemes. Picking another preset discards unsaved changes.
+Change anything about a preset and it becomes an unsaved draft; the preset itself never changes.
+Choose **Save as my scheme…**, give it a name, and it is kept in **My schemes** and in Appearance. Every
+save is a new scheme, so you can keep several versions of one preset side by side; a preset card says
+how many versions of yours it has. When you change a scheme you already saved, **Save** writes over it
+and **Save as new scheme…** keeps the original and makes another. **Revert unsaved changes** drops the
+edits, and **Restore to preset** puts a scheme's colors, fonts and layout back to its preset. **Reset
+theme to default** goes back to the standard T3 theme without deleting your schemes. If you pick
+another theme with unsaved changes, the studio asks whether to save, discard or keep editing. If a
+preset a scheme was made from is ever retired, the scheme keeps working and only **Restore to preset**
+goes away.
 
 If you set a different theme for light and dark in Appearance, the studio edits the one in use and
 leaves the other alone. Picking a preset or **Reset theme to default** replaces both, and the studio
@@ -97,7 +103,7 @@ says so above the presets.
 of the app, choose **Pick from the app**. Settings hides for a moment so you can see the whole app; click
 that part and Settings comes back with **All colors** open at the role it uses, and where the app
 uses that color is highlighted. **Esc** cancels. **My schemes** lists your
-schemes: use, rename, export as JSON or delete one, or **Import** a T3 Code or VS Code theme.
+schemes: use, rename, duplicate, export as JSON or delete one, or **Import** a T3 Code or VS Code theme.
 Importing a theme happens here, not in Appearance.
 **Duplicate** on a theme card makes an independent copy to edit.
 

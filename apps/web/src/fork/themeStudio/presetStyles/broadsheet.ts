@@ -142,6 +142,7 @@ export const BROADSHEET_SEED: ThemePresetSeed = {
       border: "#c9bfa6",
       input: "#b5aa8e",
       focus: "#8a1c1c",
+      warningForeground: "#8a3a00",
       sidebar: "#ece5d2",
       sidebarForeground: "#161616",
       sidebarMutedForeground: "#5a5343",

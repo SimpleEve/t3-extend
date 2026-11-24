@@ -1,0 +1,77 @@
+import type { ThemePresetSeed } from "../presets";
+
+// fork: Editor. Plain editor colors after VS Code's Dark Modern and Light Modern (MIT, Microsoft).
+// No decoration: flat panels, hairlines, the system fonts.
+const SANS =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif';
+const MONO = 'Menlo, Monaco, "Cascadia Mono", Consolas, "Courier New", monospace';
+
+export const EDITOR_SEED: ThemePresetSeed = {
+  id: "studio-editor",
+  label: "Editor",
+  appearance: "dark",
+  palette: {
+    canvas: "#1f1f1f",
+    accent: "#0078d4",
+    colors: {
+      surface: "#1f1f1f",
+      surfaceRaised: "#262626",
+      surfaceOverlay: "#252526",
+      secondary: "#313131",
+      secondaryForeground: "#cccccc",
+      muted: "#2b2b2b",
+      accentSurface: "#04395e",
+      accentSurfaceForeground: "#ffffff",
+      toolbarControl: "#313131",
+      toolbarControlHover: "#3c3c3c",
+      text: "#cccccc",
+      textMuted: "#9d9d9d",
+      secondaryLabel: "#a2a2a2",
+      mutedForeground: "#9d9d9d",
+      border: "#2b2b2b",
+      input: "#3c3c3c",
+      focus: "#0078d4",
+      accentForeground: "#ffffff",
+      sidebar: "#181818",
+      sidebarRowSelected: "#04395e",
+      sidebarRowActive: "#37373d",
+      sidebarRowHover: "#2a2d2e",
+      sidebarForeground: "#cccccc",
+      sidebarMutedForeground: "#a2a2a2",
+      sidebarBorder: "#2b2b2b",
+      codeBackground: "#181818",
+      codeForeground: "#cccccc",
+    },
+  },
+  variant: {
+    canvas: "#ffffff",
+    accent: "#005fb8",
+    colors: {
+      surface: "#ffffff",
+      surfaceRaised: "#f8f8f8",
+      surfaceOverlay: "#ffffff",
+      secondary: "#f3f3f3",
+      secondaryForeground: "#3b3b3b",
+      muted: "#f3f3f3",
+      accentSurface: "#e4eef8",
+      accentSurfaceForeground: "#3b3b3b",
+      toolbarControl: "#f3f3f3",
+      toolbarControlHover: "#e8e8e8",
+      text: "#3b3b3b",
+      textMuted: "#616161",
+      secondaryLabel: "#616161",
+      mutedForeground: "#616161",
+      border: "#e5e5e5",
+      input: "#cecece",
+      focus: "#005fb8",
+      accentForeground: "#ffffff",
+      sidebar: "#f8f8f8",
+      sidebarForeground: "#3b3b3b",
+      sidebarMutedForeground: "#616161",
+      sidebarBorder: "#e5e5e5",
+      codeBackground: "#f8f8f8",
+      codeForeground: "#3b3b3b",
+    },
+  },
+  look: { fontUi: SANS, fontCode: MONO, radius: 4, shadow: 20, density: 96 },
+};
