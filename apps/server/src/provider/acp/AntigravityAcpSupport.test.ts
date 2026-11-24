@@ -689,7 +689,7 @@ it.layer(NodeServices.layer)("readAntigravityProfileMcpServers", (it) => {
       const path = yield* Path.Path;
       const profile = yield* fs.makeTempDirectoryScoped({ prefix: "t3-antigravity-mcp-" });
       const configPath = path.join(profile, "config", "mcp_config.json");
-      const read = readAntigravityProfileMcpServers(profile, new Set(["t3-code"]));
+      const read = readAntigravityProfileMcpServers(profile);
       expect(yield* read).toEqual([]);
 
       yield* fs.makeDirectory(path.join(profile, "config"));
@@ -708,7 +708,6 @@ it.layer(NodeServices.layer)("readAntigravityProfileMcpServers", (it) => {
             zebra: { command: "zebra-mcp", args: ["--fast"], env: { TOKEN: "${TOKEN}" } },
             plain: { command: "plain-mcp" },
             off: { command: "off-mcp", disabled: true },
-            "t3-code": { command: "shadow-mcp" },
             remote: { url: "https://mcp.example.com/mcp", headers: { Authorization: "secret" } },
             legacy: { serverUrl: "https://legacy.example.com/mcp" },
             broken: { command: 7 },

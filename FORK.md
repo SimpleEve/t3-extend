@@ -248,6 +248,15 @@ Cmd+Q、SIGTERM 触发的退出，在 `DesktopLifecycle.ts` 里最多等 25 秒�
 
 fork 的 `continuationWithoutPromptEnd` 补丁已删除：上游 #38864（`12be92d034`，`enablePostSettleContinuation` + `wakeOnDetachedRequest` + `replyEndsWithUsageUpdate`）做了同一件事。`packages/provider-acp/src/server/adapter.ts` 和 `AntigravityAdapterV2.ts` 与上游一致。Codex 停止后清审批卡（`finalizeCodexTurn`）还在。
 
+## Antigravity 会话预加载 profile 的 MCP server
+
+agy 只预加载会话 `mcpServers` 里点名的 server，profile 的 `config/mcp_config.json` 里的其余 server 在后台加载，第一轮和委派任务的每一轮都用不上。`readAntigravityProfileMcpServers`（`AntigravityAcpSupport.ts`）读这个文件，`AntigravityAdapterV2.ts` 在启动、load、resume、fork 时把启用的 server 点名进会话。这是上游 #40300 的移植，和上游有两处不同，合并上游时按这个取舍：
+
+- 上游只扩 `mcpServers`。运行时一旦 agent 声明 HTTP 或 ACP MCP，会优先用 http / acp 列表，那时 profile 的 server 会被丢掉，所以 fork 在这两个列表非空时也追加。agy 1.5.15 两者都不声明，目前只用 `mcpServers`。上游如果采纳同样的修改就取上游。
+- 过滤放在每次调用里：列表里已有的名字和固定的 `t3-code` 不追加，读文件的函数不带过滤参数。
+
+用隔离的 agy 1.5.15 副本和本地假 server 验证过：agy 按自己 config 里的定义启动被点名的 server，会话里的条目只起名字的作用，所以 header、`cwd`、`env` 都保留，`${VAR}` agy 本来就不展开。点名一个 401、OAuth 401、不存在、卡住的 server，会话和轮次都不会失败，只是没有它的工具；永远不回应的 server 会让会话启动和 resume 多等约 5 秒（agy 自己的上限）。1.5.16 没有测过。
+
 ## 侧边栏视图
 
 侧边栏有"按状态"（上游的 Inbox）和"按项目"两种视图，后者在项目文件夹下再按 worktree 分子组，是默认视图：`boringSidebarEnabled` 的默认值在 contracts 里改成了 true（带 `// fork:`），手机端偏好未设置时回落到 `"project"`（`threadListViewState.ts` 的 `DEFAULT_VIEW_MODE`）。默认值只对没存过这一项的设备生效：桌面版一旦存过任何客户端设置，整份设置（包括 `boringSidebarEnabled`）都会写进 `client-settings.json`，所以以前存过 `false` 的设备要手动切一次。用户说明见 `docs/user/thread-sidebar.md` 的 "Choose a sidebar view"。

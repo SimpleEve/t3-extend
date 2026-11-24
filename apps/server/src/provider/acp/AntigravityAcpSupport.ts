@@ -517,7 +517,6 @@ export const buildAntigravityPrompt = Effect.fn("buildAntigravityPrompt")(functi
   return blocks;
 });
 
-// fork: profile MCP servers for agy sessions; `reserved` names are skipped.
 const AntigravityConfigMcpServer = Schema.Struct({
   command: Schema.optional(Schema.String),
   args: Schema.optional(Schema.Array(Schema.String)),
@@ -534,13 +533,13 @@ const decodeAntigravityMcpConfig = Schema.decodeEffect(
 const decodeAntigravityConfigMcpServer = Schema.decodeUnknownOption(AntigravityConfigMcpServer);
 
 /**
- * agy preloads only the servers a session names and loads the rest of `config/mcp_config.json`
- * after the first prompt has started. It resolves a named server from its own config, headers
- * and OAuth included, so naming the profile's servers puts their tools in the first model call.
- * agy 1.5.8+ writes an empty file, so a missing, empty, or malformed config names nothing.
+ * fork: the enabled servers of the profile's `config/mcp_config.json`, to name in a session.
+ * agy 1.5.15 preloads only the servers a session names and starts each from its own config entry,
+ * so headers, `cwd` and `env` stay agy's and the session entry is only a name. A missing, empty
+ * or malformed file names nothing.
  */
 export const readAntigravityProfileMcpServers = Effect.fn("readAntigravityProfileMcpServers")(
-  function* (profileDirectory: string, reserved: ReadonlySet<string> = new Set()) {
+  function* (profileDirectory: string) {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const config = yield* fs
@@ -549,7 +548,6 @@ export const readAntigravityProfileMcpServers = Effect.fn("readAntigravityProfil
     if (Option.isNone(config)) return [];
     const servers: EffectAcpSchema.McpServer[] = [];
     for (const [name, value] of Object.entries(config.value.mcpServers)) {
-      if (reserved.has(name)) continue;
       const server = decodeAntigravityConfigMcpServer(value);
       if (Option.isNone(server) || server.value.disabled === true) continue;
       const { command, args, env } = server.value;
@@ -565,7 +563,6 @@ export const readAntigravityProfileMcpServers = Effect.fn("readAntigravityProfil
           })),
         });
       } else if (url !== undefined) {
-        // Headers stay in agy's config; the session entry only names the server.
         servers.push({ type: "http", name, url, headers: [] });
       }
     }

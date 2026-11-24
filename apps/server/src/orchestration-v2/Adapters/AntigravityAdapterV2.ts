@@ -153,24 +153,18 @@ export function makeAntigravityAcpAdapterFlavor(
   const makeRuntime = Effect.fn("AntigravityAdapterV2.makeRuntime")(
     function* (input: AcpAdapterV2RuntimeInput) {
       const scope = yield* Scope.fork(yield* Effect.scope);
-      // fork: agy preloads only the servers a session names, so name the
-      // profile's own. The HTTP and ACP lists win in the runtime when non-empty, so extend those too.
+      // fork: agy 1.5.15 preloads only the servers a session names. In testing, a named server that
+      // was 401, missing or hung left the session working without its tools; one that never
+      // answers delayed session start and resume by about 5 s.
       const profileServers =
         profileDirectory === undefined
           ? []
-          : yield* readAntigravityProfileMcpServers(
-              profileDirectory,
-              new Set(
-                [
-                  ...input.mcpServers,
-                  ...(input.acpMcpServers ?? []),
-                  ...(input.httpMcpServers ?? []),
-                ].flatMap((server) => (typeof server.name === "string" ? [server.name] : [])),
-              ),
-            ).pipe(
+          : yield* readAntigravityProfileMcpServers(profileDirectory).pipe(
               Effect.provideService(FileSystem.FileSystem, options.fileSystem),
               Effect.provideService(Path.Path, options.path),
             );
+      // The runtime prefers the HTTP and ACP lists when non-empty, so extend those too. Names
+      // already in the lists, and always `t3-code`, are T3's own.
       const withProfileServers = <
         T extends Pick<
           AcpSessionRuntime.AcpSessionActivationOptions,
@@ -178,18 +172,31 @@ export function makeAntigravityAcpAdapterFlavor(
         >,
       >(
         servers: T,
-      ): T => ({
-        ...servers,
-        ...(servers.mcpServers === undefined
-          ? {}
-          : { mcpServers: [...servers.mcpServers, ...profileServers] }),
-        ...(servers.acpMcpServers?.length
-          ? { acpMcpServers: [...servers.acpMcpServers, ...profileServers] }
-          : {}),
-        ...(servers.httpMcpServers?.length
-          ? { httpMcpServers: [...servers.httpMcpServers, ...profileServers] }
-          : {}),
-      });
+      ): T => {
+        const taken = new Set([
+          "t3-code",
+          ...[
+            ...(servers.mcpServers ?? []),
+            ...(servers.acpMcpServers ?? []),
+            ...(servers.httpMcpServers ?? []),
+          ].flatMap((server) => (typeof server.name === "string" ? [server.name] : [])),
+        ]);
+        const extra = profileServers.filter(
+          (server) => typeof server.name === "string" && !taken.has(server.name),
+        );
+        return {
+          ...servers,
+          ...(servers.mcpServers === undefined
+            ? {}
+            : { mcpServers: [...servers.mcpServers, ...extra] }),
+          ...(servers.acpMcpServers?.length
+            ? { acpMcpServers: [...servers.acpMcpServers, ...extra] }
+            : {}),
+          ...(servers.httpMcpServers?.length
+            ? { httpMcpServers: [...servers.httpMcpServers, ...extra] }
+            : {}),
+        };
+      };
       const withProfileActivation = (
         activation: AcpSessionRuntime.AcpSessionActivationOptions | undefined,
       ) => (activation === undefined ? activation : withProfileServers(activation)); // fork:
