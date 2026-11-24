@@ -113,6 +113,8 @@ export function useColorInspector() {
           : inspectThemeRoleAtElement(target);
       if (!inspection) return;
       clearHover();
+      // preventDefault keeps focus put; blur so a focused color field commits its draft first (upstream 21d7feaff7).
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
       dispatch({ type: "picked", role: inspection.role });
       swallowClick = true;
     };

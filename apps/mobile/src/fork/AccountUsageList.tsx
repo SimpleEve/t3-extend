@@ -335,7 +335,6 @@ function AccountBlock({
                         windowId: poolWindow.id,
                         windowKind: poolWindow.kind,
                         environmentIds,
-                        now,
                       })
                     }
                   />
