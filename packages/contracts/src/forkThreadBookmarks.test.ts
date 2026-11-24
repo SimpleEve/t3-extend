@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import {
   THREAD_BOOKMARK_PREVIEW_COUNT,
@@ -53,7 +53,7 @@ describe("thread bookmarks", () => {
     });
     expect(
       [lateSecond, lateFirst, lateWhole, early]
-        .toSorted(compareThreadBookmarks)
+        .sort(compareThreadBookmarks)
         .map((entry) => entry.id),
     ).toEqual(["early", "late-whole", "late-a", "late-b"].map(ThreadBookmarkId.make));
   });
@@ -62,7 +62,7 @@ describe("thread bookmarks", () => {
     const many = Array.from({ length: THREAD_BOOKMARK_PREVIEW_COUNT + 3 }, (_, index) =>
       bookmark(`b${index}`, { messageCreatedAt: `2026-11-24T10:0${index}:00.000Z` }),
     );
-    expect(threadBookmarkPreviews(many.toReversed()).map((preview) => preview.id)).toEqual(
+    expect(threadBookmarkPreviews([...many].reverse()).map((preview) => preview.id)).toEqual(
       many.slice(0, THREAD_BOOKMARK_PREVIEW_COUNT).map((entry) => entry.id),
     );
   });

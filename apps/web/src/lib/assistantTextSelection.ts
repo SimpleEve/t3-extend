@@ -171,6 +171,27 @@ export function captureAssistantTextSelection(
   return selector === null ? null : { source, selector, range };
 }
 
+/** The text of a message as it renders, which is what a bookmark's reveal looks for. */
+export function readRenderedMessageText(source: HTMLElement | null): string {
+  return source ? readAssistantText(source).text : "";
+}
+
+/** The rendered body of a message, when its row is mounted. */
+export function findMessageTextSource(
+  document: Document,
+  ref: { readonly environmentId: string; readonly threadId: string },
+  messageId: string,
+): HTMLElement | null {
+  return (
+    [...document.querySelectorAll<HTMLElement>("[data-assistant-citation-source]")].find(
+      (element) =>
+        element.dataset.assistantCitationSource === messageId &&
+        element.dataset.assistantCitationThread === ref.threadId &&
+        element.dataset.assistantCitationEnvironment === ref.environmentId,
+    ) ?? null
+  );
+} // fork: message bookmarks
+
 /** How much of a response a reply carries: enough to recognise it, not to resend it. */
 const RESPONSE_OPENING_LENGTH = 300;
 

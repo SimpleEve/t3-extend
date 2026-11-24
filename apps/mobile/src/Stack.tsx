@@ -53,6 +53,7 @@ import { ConnectOnboardingRouteScreen } from "./features/cloud/ConnectOnboarding
 import { AttachmentFileScreen } from "./features/files/AttachmentFileScreen";
 import { ThreadFilesTreeScreen, ThreadFileScreen } from "./features/files/ThreadFilesRouteScreen";
 import { ThreadOutputsRouteScreen } from "./features/outputs/ThreadOutputsRouteScreen"; // fork: outputs
+import { ThreadBookmarksRouteScreen } from "./features/bookmarks/ThreadBookmarksRouteScreen"; // fork: message bookmarks
 import { AdaptiveWorkspaceLayout } from "./features/layout/AdaptiveWorkspaceLayout";
 import {
   HardwareKeyboardCommandOverlay,
@@ -763,6 +764,11 @@ const RootStackConfig = createWorkspaceStackNavigator({
     ThreadOutputs: createNativeStackScreen({
       screen: ThreadOutputsRouteScreen,
       linking: `${THREAD_LINKING_PREFIX}/outputs`,
+      options: pageRoute({ header: "solid" }),
+    }),
+    // fork: message bookmarks
+    ThreadBookmarks: createNativeStackScreen({
+      screen: ThreadBookmarksRouteScreen,
       options: pageRoute({ header: "solid" }),
     }),
     ThreadMcpApp: createNativeStackScreen({

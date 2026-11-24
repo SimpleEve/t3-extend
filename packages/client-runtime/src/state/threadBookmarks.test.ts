@@ -5,7 +5,7 @@ import {
   ThreadId,
   type ThreadBookmark,
 } from "@t3tools/contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import {
   bookmarkCitation,

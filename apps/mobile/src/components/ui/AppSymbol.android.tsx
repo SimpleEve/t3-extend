@@ -26,6 +26,7 @@ import IconBan from "@tabler/icons-react-native/IconBan";
 import IconBellRinging from "@tabler/icons-react-native/IconBellRinging";
 import IconBolt from "@tabler/icons-react-native/IconBolt";
 import IconBox from "@tabler/icons-react-native/IconBox";
+import IconBookmark from "@tabler/icons-react-native/IconBookmark"; // fork: message bookmarks
 import IconBrain from "@tabler/icons-react-native/IconBrain";
 import IconCamera from "@tabler/icons-react-native/IconCamera";
 import IconCar from "@tabler/icons-react-native/IconCar";
@@ -199,6 +200,7 @@ const ANDROID_ICON_BY_SF_SYMBOL = {
   ticket: IconTicket,
   cloud: IconCloud,
   cube: IconBox,
+  bookmark: IconBookmark, // fork: message bookmarks
   "chevron.down": IconChevronDown,
   "chevron.left": IconChevronLeft,
   "chevron.left.forwardslash.chevron.right": IconCode,

@@ -411,6 +411,10 @@
       "types": "./src/state/threadInbox.ts",
       "default": "./src/state/threadInbox.ts"
     },
+    "./state/thread-bookmark-atoms": {
+      "types": "./src/state/threadBookmarkAtoms.ts",
+      "default": "./src/state/threadBookmarkAtoms.ts"
+    },
     "./state/thread-bookmarks": {
       "types": "./src/state/threadBookmarks.ts",
       "default": "./src/state/threadBookmarks.ts"

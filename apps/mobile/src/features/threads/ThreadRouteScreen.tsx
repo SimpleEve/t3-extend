@@ -619,6 +619,14 @@ function ThreadRouteContent(
     });
   };
   // fork: outputs
+  // fork: message bookmarks
+  const handleOpenBookmarks = () => {
+    if (selectedThread === null) return;
+    navigation.navigate("ThreadBookmarks", {
+      environmentId: String(selectedThread.environmentId),
+      threadId: String(selectedThread.id),
+    });
+  };
   const handleOpenOutputs = () => {
     if (selectedThread === null) return;
     navigation.navigate("ThreadOutputs", {
@@ -1064,6 +1072,11 @@ function ThreadRouteContent(
                   threadRef: scopeThreadRef(selectedThread.environmentId, selectedThread.id),
                   cwd: selectedThreadCwd,
                   onOpen: handleOpenOutputs,
+                }}
+                bookmarks={{
+                  // fork: message bookmarks
+                  threadRef: scopeThreadRef(selectedThread.environmentId, selectedThread.id),
+                  onOpen: handleOpenBookmarks,
                 }}
                 onOpenNewBrowserTab={
                   // fork: the new tab panel opens pages in the host's headless browser.

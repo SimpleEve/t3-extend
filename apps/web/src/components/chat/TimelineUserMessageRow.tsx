@@ -61,6 +61,8 @@ import {
 } from "./SnapShotAttachmentDetails";
 import { GuestMessageName, guestBubbleClassName } from "./guestMessageStyle";
 import { MessageCopyButton } from "./MessageCopyButton";
+import { AssistantCitationSource } from "./AssistantCitationSource"; // fork: message bookmarks
+import { BookmarkMessageButton } from "../../fork/bookmarks/BookmarkMessageButton"; // fork: message bookmarks
 import { promptLinkFor } from "../promptLinks/copyPromptLink";
 import { PierreEntryIcon } from "./PierreEntryIcon";
 import { formatBytes } from "../../lib/formatBytes";
@@ -897,6 +899,14 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
             variant="ghost"
           />
         )}
+        {/* fork: message bookmarks */}
+        {ctx.threadRef && plainText.trim() ? (
+          <BookmarkMessageButton
+            threadRef={ctx.threadRef}
+            messageId={row.message.id}
+            fallbackText={plainText}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -1097,13 +1107,23 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
             ) : null}
             {fileCardsOnly || audioOnly ? null : (
               <div onCopyCapture={onBodyCopyCapture}>
-                <CollapsibleUserMessageBody
-                  text={resolvedContext.text}
-                  renderContextReference={renderContextReference}
-                  skills={ctx.skills}
-                  markdownCwd={ctx.markdownCwd}
-                  collapsible={!folded}
-                />
+                {/* fork: message bookmarks mark and reveal passages of the user's own message */}
+                <AssistantCitationSource
+                  messageId={row.message.id}
+                  {...(ctx.threadRef ? { threadRef: ctx.threadRef } : {})}
+                  itemKey={row.id}
+                  request={ctx.citationRequest}
+                  listRef={ctx.listRef}
+                  bookmarkOnly
+                >
+                  <CollapsibleUserMessageBody
+                    text={resolvedContext.text}
+                    renderContextReference={renderContextReference}
+                    skills={ctx.skills}
+                    markdownCwd={ctx.markdownCwd}
+                    collapsible={!folded}
+                  />
+                </AssistantCitationSource>
               </div>
             )}
           </div>

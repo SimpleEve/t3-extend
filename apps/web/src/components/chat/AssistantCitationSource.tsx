@@ -348,6 +348,7 @@ export function AssistantCitationSource({
   itemKey,
   request,
   listRef,
+  bookmarkOnly = false,
   children,
 }: {
   messageId: MessageId;
@@ -355,6 +356,8 @@ export function AssistantCitationSource({
   itemKey: string;
   request: AssistantCitationTarget | null;
   listRef: RefObject<LegendListRef | null>;
+  /** The user's own message: a bookmark can mark it, but "Cite" is for responses. */
+  bookmarkOnly?: boolean; // fork: message bookmarks
   children: ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -372,6 +375,7 @@ export function AssistantCitationSource({
       tabIndex={-1}
       className="outline-none"
       data-assistant-citation-source={messageId}
+      data-bookmark-only={bookmarkOnly ? "true" : undefined} // fork: message bookmarks
       data-assistant-citation-environment={threadRef?.environmentId}
       data-assistant-citation-thread={threadRef?.threadId}
     >

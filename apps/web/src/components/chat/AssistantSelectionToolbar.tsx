@@ -5,7 +5,7 @@ import {
   type ScopedThreadRef,
 } from "@t3tools/contracts";
 import { useGT } from "gt-react";
-import { QuoteIcon } from "lucide-react";
+import { BookmarkIcon, QuoteIcon } from "lucide-react";
 import { use, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -20,6 +20,8 @@ import {
 } from "~/lib/selectionActions";
 import { Button } from "../ui/button";
 import { BackgroundThreadContext } from "./backgroundThread";
+import { selectionBookmarkDraft } from "@t3tools/client-runtime/state/thread-bookmarks"; // fork: message bookmarks
+import { useThreadBookmarkActions } from "../../fork/bookmarks/useThreadBookmarkActions"; // fork: message bookmarks
 
 export function AssistantSelectionToolbar({
   viewport,
@@ -34,8 +36,11 @@ export function AssistantSelectionToolbar({
     citation: AssistantCitation;
     position: SelectionActionPoint;
     sourceAnchor: AssistantCitationSourceAnchor;
+    /** The user's own message: it can be bookmarked, not cited. */
+    bookmarkOnly: boolean;
   } | null>(null);
-  const toolbarRef = useRef<HTMLButtonElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const bookmarkActions = useThreadBookmarkActions(threadRef); // fork: message bookmarks
   const actionsRef = useRef<ReturnType<typeof observeSelectionActions> | null>(null);
   const backgroundThread = use(BackgroundThreadContext);
   const gt = useGT();
@@ -124,6 +129,7 @@ export function AssistantSelectionToolbar({
             pointer.y <= line.bottom + 8,
         );
       setSelection({
+        bookmarkOnly: captured.source.dataset.bookmarkOnly === "true",
         sourceAnchor: { source: captured.source, range: captured.range, viewport },
         citation: {
           version: 1,
@@ -162,10 +168,11 @@ export function AssistantSelectionToolbar({
       ) {
         return;
       }
-      if (toolbar.disabled) return;
+      const action = toolbar.querySelector<HTMLButtonElement>("button:not(:disabled)");
+      if (!action) return;
       event.preventDefault();
       event.stopPropagation();
-      toolbar.focus({ preventScroll: true });
+      action.focus({ preventScroll: true });
     };
     // Tab belongs to the foreground chat; a background timeline only follows its selection.
     if (!backgroundThread) document.addEventListener("keydown", focusActions, true);
@@ -190,31 +197,68 @@ export function AssistantSelectionToolbar({
     dismiss();
     return true;
   };
+  // fork: message bookmarks
+  const bookmark = () => {
+    const { citation } = selection;
+    const draft = selectionBookmarkDraft({
+      messageId: citation.messageId,
+      selector: {
+        text: citation.text,
+        start: citation.start,
+        end: citation.end,
+        prefix: citation.prefix,
+        suffix: citation.suffix,
+      },
+    });
+    if (tooLong || draft === null) return;
+    window.getSelection()?.removeAllRanges();
+    dismiss();
+    void bookmarkActions.add(draft);
+  };
+  const keyDown = (event: React.KeyboardEvent) => {
+    event.stopPropagation();
+    if (event.key === "Escape" && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      dismiss();
+    }
+  };
   return createPortal(
-    <Button
+    <div
       ref={toolbarRef}
-      type="button"
-      size="xs"
-      variant="glass"
-      disabled={tooLong}
-      aria-label={tooLong ? gt("Selection is too long to cite") : gt("Cite selection in composer")}
-      className="fixed z-50 max-w-[calc(100vw-1rem)]"
+      className="fixed z-50 flex max-w-[calc(100vw-1rem)] items-center gap-1"
       style={{ left: selection.position.x, top: selection.position.y }}
       onPointerDown={(event) => event.preventDefault()}
-      onClick={cite}
-      onKeyDown={(event) => {
-        event.stopPropagation();
-        if (event.key === "Escape" && !event.nativeEvent.isComposing) {
-          event.preventDefault();
-          dismiss();
-        }
-      }}
+      onKeyDown={keyDown}
     >
-      <QuoteIcon aria-hidden="true" className="size-3.5" />
-      {tooLong
-        ? gt("Shorten selection")
-        : gt("Cite", { $context: "verb, button that quotes the selected text" })}
-    </Button>,
+      {selection.bookmarkOnly ? null : (
+        <Button
+          type="button"
+          size="xs"
+          variant="glass"
+          disabled={tooLong}
+          aria-label={
+            tooLong ? gt("Selection is too long to cite") : gt("Cite selection in composer")
+          }
+          onClick={cite}
+        >
+          <QuoteIcon aria-hidden="true" className="size-3.5" />
+          {tooLong
+            ? gt("Shorten selection")
+            : gt("Cite", { $context: "verb, button that quotes the selected text" })}
+        </Button>
+      )}
+      <Button
+        type="button"
+        size="xs"
+        variant="glass"
+        disabled={tooLong}
+        aria-label={tooLong ? gt("Selection is too long to bookmark") : gt("Bookmark selection")}
+        onClick={bookmark}
+      >
+        <BookmarkIcon aria-hidden="true" className="size-3.5" />
+        {gt("Bookmark")}
+      </Button>
+    </div>,
     document.body,
   );
 }

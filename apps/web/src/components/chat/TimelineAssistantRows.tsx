@@ -24,6 +24,7 @@ import {
   useQuietThreadShell,
 } from "../../state/entities";
 import { MessageCopyButton } from "./MessageCopyButton";
+import { BookmarkMessageButton } from "../../fork/bookmarks/BookmarkMessageButton"; // fork: message bookmarks
 import { AssistantCitationSource } from "./AssistantCitationSource";
 import { resolveAssistantMessageCopyState } from "./MessagesTimeline.logic";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -258,6 +259,13 @@ function AssistantMessageMeta({
       ) : null}
       {!message.streaming && projectedItem ? (
         <AssistantReplyButton message={message} itemId={projectedItem.sourceItemId} />
+      ) : null}
+      {!message.streaming && ctx.threadRef && message.text.trim() ? (
+        <BookmarkMessageButton
+          threadRef={ctx.threadRef}
+          messageId={message.id}
+          fallbackText={message.text}
+        />
       ) : null}
       {!message.streaming && (
         <Tooltip>
