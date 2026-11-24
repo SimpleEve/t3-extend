@@ -88,6 +88,11 @@ import { expandAssistantCitationsForProvider } from "@t3tools/shared/assistantCi
 import { modelSwitchSince } from "./modelSwitch.ts";
 import { contextBoundaryOrdinal, isScheduledFreshRun } from "./contextBoundary.ts";
 import { isPlaceholderThreadTitle } from "./placeholderThreadTitle.ts";
+import {
+  decideThreadBookmark,
+  isThreadBookmarkCommand,
+  type ThreadBookmarkDecision,
+} from "./ThreadBookmarks.ts"; // fork: message bookmarks
 import { combinePullRequestWatchWakes, type PullRequestWatchWake } from "./pullRequestWatch.ts";
 import { recordThreadOpen } from "@t3tools/shared/paletteSearch";
 import {
@@ -649,6 +654,9 @@ function commandThreadId(command: OrchestrationV2ServerCommand): ThreadId {
     case "thread.pin.reorder":
     case "thread.active.reorder":
     case "thread.tag.set":
+    case "thread.bookmark.add": // fork: message bookmarks
+    case "thread.bookmark.update": // fork: message bookmarks
+    case "thread.bookmark.remove": // fork: message bookmarks
     case "thread.visit":
     case "thread.mark-unread":
     case "thread.metadata.update":
@@ -4341,6 +4349,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           | "thread.unpin"
           | "thread.pin.reorder"
           | "thread.tag.set"
+          | "thread.bookmark.add" // fork: message bookmarks
+          | "thread.bookmark.update" // fork: message bookmarks
+          | "thread.bookmark.remove" // fork: message bookmarks
           | "thread.active.reorder"
           | "thread.mark-unread"
           | "thread.metadata.update"
@@ -4897,6 +4908,33 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       }
       markUnreadVisitedAt = DateTime.subtract(latestRunCompletedAt, { milliseconds: 1 });
     }
+    // fork: message bookmarks. The decision needs the bookmarked message's creation time.
+    let bookmarkDecision: ThreadBookmarkDecision | null = null;
+    if (isThreadBookmarkCommand(command)) {
+      const messageCreatedAt =
+        command.type === "thread.bookmark.add"
+          ? yield* projectionStore.getMessagesById(command.threadId, [command.messageId]).pipe(
+              mapDispatchError(command),
+              Effect.map((messages) => {
+                const created = messages.get(command.messageId)?.createdAt;
+                return created === undefined ? null : DateTime.formatIso(created);
+              }),
+            )
+          : null;
+      bookmarkDecision = decideThreadBookmark({
+        thread,
+        command,
+        messageCreatedAt,
+        now: DateTime.formatIso(now),
+      });
+      if (bookmarkDecision._tag === "Rejected") {
+        return yield* new OrchestratorDispatchError({
+          commandId: command.commandId,
+          commandType: command.type,
+          cause: bookmarkDecision.reason,
+        });
+      }
+    }
     const updatedThread: OrchestrationV2AppThread = (() => {
       switch (command.type) {
         case "thread.archive":
@@ -5031,6 +5069,10 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
               : current.filter((tag) => tag !== command.tag),
           };
         }
+        case "thread.bookmark.add":
+        case "thread.bookmark.update":
+        case "thread.bookmark.remove":
+          return bookmarkDecision?._tag === "Updated" ? bookmarkDecision.thread : thread; // fork: message bookmarks
         case "thread.mark-unread": {
           // Retire the wake before rewinding the visit, preserving its settlement timer.
           const snoozeExpired =
@@ -5465,6 +5507,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       });
       return;
     }
+    if (bookmarkDecision?._tag === "Unchanged") return; // fork: message bookmarks
     const eventType = (() => {
       switch (command.type) {
         case "thread.archive":
@@ -5491,6 +5534,10 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           return "thread.active-reordered" as const;
         case "thread.tag.set":
           return "thread.tags-updated" as const;
+        case "thread.bookmark.add":
+        case "thread.bookmark.update":
+        case "thread.bookmark.remove":
+          return "thread.bookmarks-updated" as const; // fork: message bookmarks
         case "thread.mark-unread":
           return "thread.marked-unread" as const;
         case "thread.metadata.update":
@@ -15578,6 +15625,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       case "thread.pin.reorder":
       case "thread.active.reorder":
       case "thread.tag.set":
+      case "thread.bookmark.add": // fork: message bookmarks
+      case "thread.bookmark.update": // fork: message bookmarks
+      case "thread.bookmark.remove": // fork: message bookmarks
       case "thread.mark-unread":
       case "thread.pull-request.link":
       case "thread.pull-request.unlink":
@@ -15985,6 +16035,8 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           command.type === "subagent.stop" ||
           // Closing a share again, or after it ended, is not an error.
           command.type === "thread.guest-share.close" ||
+          // fork: a bookmark added twice, or removed after it is gone, is already as asked.
+          isThreadBookmarkCommand(command) ||
           (command.type === "thread.delete" && command.onlyIfUnused === true),
         (_planned) =>
           new OrchestratorDispatchError({

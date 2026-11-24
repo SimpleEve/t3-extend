@@ -411,6 +411,10 @@
       "types": "./src/state/threadInbox.ts",
       "default": "./src/state/threadInbox.ts"
     },
+    "./state/thread-bookmarks": {
+      "types": "./src/state/threadBookmarks.ts",
+      "default": "./src/state/threadBookmarks.ts"
+    },
     "./state/thread-grouping": {
       "types": "./src/state/threadGrouping.ts",
       "default": "./src/state/threadGrouping.ts"

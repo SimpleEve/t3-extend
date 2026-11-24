@@ -39,6 +39,7 @@ import {
   ProviderTurnId,
   RunId,
   ScheduledTaskId,
+  ThreadBookmarkId, // fork: message bookmarks
   ThreadId,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
@@ -7741,6 +7742,148 @@ it.layer(layerTest)("OrchestrationV2LayerLive lifecycle", (it) => {
           admitted ? [original.id] : [],
         );
       }),
+  );
+
+  it.effect("bookmarks a message, edits and removes it, and keeps the shell summary short", () =>
+    Effect.gen(function* () {
+      const orchestrator = yield* Orchestrator.OrchestratorV2;
+      const threadId = ThreadId.make("runtime-layer-bookmark-thread");
+      const messageId = MessageId.make("runtime-layer-bookmark-message");
+      yield* orchestrator.dispatch({
+        type: "thread.create",
+        createdBy: "user",
+        creationSource: "web",
+        commandId: CommandId.make("runtime-layer-bookmark-create"),
+        threadId,
+        projectId: ProjectId.make("runtime-layer-bookmark-project"),
+        title: "Bookmarks",
+        modelSelection,
+        runtimeMode: "full-access",
+        interactionMode: "default",
+        branch: null,
+        worktreePath: "/tmp/runtime-layer-bookmark",
+      });
+      yield* orchestrator.dispatch({
+        type: "message.dispatch",
+        createdBy: "user",
+        creationSource: "web",
+        commandId: CommandId.make("runtime-layer-bookmark-message"),
+        threadId,
+        messageId,
+        text: "Remember this answer.",
+        attachments: [],
+        modelSelection,
+        dispatchMode: { type: "start_immediately" },
+      });
+      const shellOf = (shell: Pick<OrchestrationV2ShellSnapshot, "threads">) =>
+        shell.threads.find((thread) => thread.id === threadId)!;
+      const before = shellOf(yield* orchestrator.getShellSnapshot());
+      assert.isUndefined(before.bookmarkCount);
+
+      const bookmarkId = ThreadBookmarkId.make("bookmark-1");
+      const add = {
+        type: "thread.bookmark.add" as const,
+        threadId,
+        bookmarkId,
+        messageId,
+        kind: "message" as const,
+        excerpt: "Remember this answer.",
+      };
+      yield* TestClock.adjust("1 minute");
+      yield* orchestrator.dispatch({ ...add, commandId: CommandId.make("bookmark-add") });
+      const added = (yield* orchestrator.getThreadProjection(threadId)).thread.bookmarks ?? [];
+      assert.lengthOf(added, 1);
+      assert.equal(added[0]?.id, bookmarkId);
+      assert.isNotNull(added[0]?.messageCreatedAt);
+      assert.deepEqual(shellOf(yield* orchestrator.getShellSnapshot()).bookmarkPreviews, [
+        { id: bookmarkId, label: "Remember this answer." },
+      ]);
+
+      // A second device pressing the same button, or a retry under a new command id, adds nothing.
+      yield* orchestrator.dispatch({ ...add, commandId: CommandId.make("bookmark-add-again") });
+      yield* orchestrator.dispatch({
+        ...add,
+        bookmarkId: ThreadBookmarkId.make("bookmark-1-twin"),
+        commandId: CommandId.make("bookmark-add-twin"),
+      });
+      assert.lengthOf(
+        (yield* orchestrator.getThreadProjection(threadId)).thread.bookmarks ?? [],
+        1,
+      );
+
+      const missingMessage = yield* orchestrator
+        .dispatch({
+          ...add,
+          bookmarkId: ThreadBookmarkId.make("bookmark-ghost"),
+          messageId: MessageId.make("runtime-layer-bookmark-no-such-message"),
+          commandId: CommandId.make("bookmark-add-ghost"),
+        })
+        .pipe(Effect.flip);
+      assert.instanceOf(missingMessage, Orchestrator.OrchestratorDispatchError);
+      const missingBookmark = yield* orchestrator
+        .dispatch({
+          type: "thread.bookmark.update",
+          commandId: CommandId.make("bookmark-update-ghost"),
+          threadId,
+          bookmarkId: ThreadBookmarkId.make("bookmark-ghost"),
+          title: "x",
+        })
+        .pipe(Effect.flip);
+      assert.instanceOf(missingBookmark, Orchestrator.OrchestratorDispatchError);
+
+      yield* orchestrator.dispatch({
+        type: "thread.bookmark.update",
+        commandId: CommandId.make("bookmark-update"),
+        threadId,
+        bookmarkId,
+        title: "  The answer  ",
+        note: "for the review",
+      });
+      const edited = (yield* orchestrator.getThreadProjection(threadId)).thread.bookmarks?.[0];
+      assert.equal(edited?.title, "The answer");
+      assert.equal(edited?.note, "for the review");
+      assert.equal(
+        shellOf(yield* orchestrator.getShellSnapshot()).bookmarkPreviews?.[0]?.label,
+        "The answer",
+      );
+
+      yield* orchestrator.dispatch({
+        type: "thread.bookmark.remove",
+        commandId: CommandId.make("bookmark-remove"),
+        threadId,
+        bookmarkId,
+      });
+      // Removing what is already gone, as a second device would, is not an error.
+      yield* orchestrator.dispatch({
+        type: "thread.bookmark.remove",
+        commandId: CommandId.make("bookmark-remove-again"),
+        threadId,
+        bookmarkId,
+      });
+      assert.lengthOf(
+        (yield* orchestrator.getThreadProjection(threadId)).thread.bookmarks ?? [],
+        0,
+      );
+      assert.isUndefined(shellOf(yield* orchestrator.getShellSnapshot()).bookmarkCount);
+
+      // Undo re-adds the bookmark under its own id and creation time.
+      yield* orchestrator.dispatch({
+        ...add,
+        commandId: CommandId.make("bookmark-undo"),
+        createdAt: added[0]!.createdAt,
+        title: "The answer",
+      });
+      const restored = (yield* orchestrator.getThreadProjection(threadId)).thread.bookmarks?.[0];
+      assert.equal(restored?.id, bookmarkId);
+      assert.equal(restored?.createdAt, added[0]!.createdAt);
+      assert.equal(shellOf(yield* orchestrator.getShellSnapshot()).bookmarkCount, 1);
+
+      // Bookmarks are not activity, so the thread keeps its place in thread lists.
+      assert.equal(
+        DateTime.toEpochMillis(shellOf(yield* orchestrator.getShellSnapshot()).updatedAt),
+        DateTime.toEpochMillis(before.updatedAt),
+      );
+    }),
   );
 
   it.effect("rejects settling a thread while a run is active", () =>
