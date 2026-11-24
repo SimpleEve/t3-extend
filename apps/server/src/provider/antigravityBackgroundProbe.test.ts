@@ -5,13 +5,18 @@ import { describe, expect, it } from "@effect/vitest";
 import { ProviderInstanceId, type ServerProviderUsageLimits } from "@t3tools/contracts";
 import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
 import * as Path from "effect/Path";
+import * as Scope from "effect/Scope";
 import { HttpClient, HttpClientResponse } from "effect/http";
+import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as TestClock from "effect/testing/TestClock";
 
 import {
@@ -127,13 +132,24 @@ describe("when an account is next read", () => {
  * that finishes outside the test clock, so a tick could register its next sleep after the test has
  * already moved on. The real pool's behaviour has its own tests.
  */
-const memoryPool = () => {
+const memoryPool = (
+  options: {
+    readonly list?: (
+      all: Effect.Effect<ReadonlyArray<AntigravityAccount>>,
+    ) => Effect.Effect<ReadonlyArray<AntigravityAccount>>;
+  } = {},
+) => {
   const accounts = new Map<string, AntigravityAccount>(
     ["a", "b", "c"].map((id) => [id, account(id, { current: id === "b", usageLimits: null })]),
   );
   const lent = new Set<string>();
+  const everyone = Effect.sync((): ReadonlyArray<AntigravityAccount> => [...accounts.values()]);
   const pool = {
-    list: Effect.sync(() => [...accounts.values()]),
+    list: Effect.suspend(() => (options.list === undefined ? everyone : options.list(everyone))),
+    cancelProbe: (lease: { readonly id: string }) =>
+      Effect.sync(() => {
+        lent.delete(lease.id);
+      }),
     beginProbe: (id: string) =>
       Effect.sync(() => {
         const found = accounts.get(id);
@@ -175,9 +191,12 @@ const memoryPool = () => {
 const scheduleHarness = Effect.fn("AntigravityBackgroundProbeTest.scheduleHarness")(function* (
   options: {
     readonly outcome?: (email: string, reads: number) => AntigravityProbeOutcome | "hang";
+    readonly list?: (
+      all: Effect.Effect<ReadonlyArray<AntigravityAccount>>,
+    ) => Effect.Effect<ReadonlyArray<AntigravityAccount>>;
   } = {},
 ) {
-  const { pool, accounts } = memoryPool();
+  const { pool, accounts } = memoryPool(options.list === undefined ? {} : { list: options.list });
   const reads: Array<string> = [];
   const read = (text: string): Effect.Effect<AntigravityProbeOutcome> => {
     const email = emailOf(text);
@@ -195,6 +214,7 @@ const scheduleHarness = Effect.fn("AntigravityBackgroundProbeTest.scheduleHarnes
     onProbed: Effect.sync(() => {
       probed++;
     }),
+    lifetime: yield* Effect.scope,
   });
   return { pool, accounts, prober, reads, probed: () => probed };
 });
@@ -234,6 +254,7 @@ const harness = Effect.fn("AntigravityBackgroundProbeTest.harness")(function* (
     onProbed: Effect.sync(() => {
       probed++;
     }),
+    lifetime: yield* Effect.scope,
   });
   return { pool, prober, reads, probed: () => probed, a: a!, b: b!, c: c! };
 });
@@ -330,6 +351,7 @@ describe("the background reader's schedule", () => {
         pool,
         read: () => Deferred.succeed(started, undefined).pipe(Effect.andThen(Effect.never)),
         onProbed: Effect.void,
+        lifetime: yield* Effect.scope,
       });
       const fiber = yield* Effect.forkChild(prober.probe(a.id));
       yield* Deferred.await(started);
@@ -393,6 +415,7 @@ describe("manual refresh", () => {
         onProbed: Effect.sync(() => {
           published++;
         }),
+        lifetime: yield* Effect.scope,
       });
       const fiber = yield* Effect.forkChild(watched.probe(a.id));
       yield* Deferred.await(started);
@@ -405,6 +428,138 @@ describe("manual refresh", () => {
   );
 });
 
+describe("an interrupted read", () => {
+  /** A prober over the harness's real pool whose reader says it has started, then never answers. */
+  const stuck = Effect.fn("AntigravityBackgroundProbeTest.stuck")(function* (
+    lifetime: Scope.Scope,
+  ) {
+    const base = yield* harness();
+    const started = yield* Deferred.make<void>();
+    const reads: Array<string> = [];
+    const prober = yield* makeAntigravityAccountProber({
+      instanceId,
+      pool: base.pool,
+      read: (text) => {
+        reads.push(emailOf(text));
+        return Deferred.succeed(started, undefined).pipe(Effect.andThen(Effect.never));
+      },
+      onProbed: Effect.void,
+      lifetime,
+    });
+    const untouched = (id: string) =>
+      base.pool.list.pipe(
+        Effect.map((accounts) => accounts.find((account) => account.id === id)!),
+        Effect.map((account) => ({
+          probe: account.probe,
+          due: nextAntigravityProbeAt(account),
+          usageLimits: account.usageLimits,
+        })),
+      );
+    return { ...base, prober, started, reads, untouched };
+  });
+  const NEVER = { lastAttemptAt: null, failures: 0, failure: null };
+
+  it.effect("is not a failure: the token comes back and the schedule stays as it was", () =>
+    Effect.gen(function* () {
+      const { pool, prober, started, a, untouched } = yield* stuck(yield* Effect.scope);
+      const fiber = yield* Effect.forkChild(prober.probe(a.id));
+      yield* Deferred.await(started);
+      yield* Fiber.interrupt(fiber);
+      expect(yield* untouched(a.id)).toEqual({ probe: NEVER, due: 0, usageLimits: null });
+      expect(yield* pool.beginProbe(a.id)).toBeDefined();
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
+  it.effect("gives the token back when it is cut short while the verdict is being saved", () =>
+    Effect.gen(function* () {
+      const { pool, a } = yield* harness();
+      const finishing = yield* Deferred.make<void>();
+      const prober = yield* makeAntigravityAccountProber({
+        instanceId,
+        // The gap the review found: the read is over, the lease still held, the pool busy.
+        pool: {
+          ...pool,
+          finishProbe: () =>
+            Deferred.succeed(finishing, undefined).pipe(
+              Effect.andThen(Effect.never),
+              Effect.as("saved" as const),
+            ),
+        },
+        read: (text) => Effect.succeed({ _tag: "Read", token: text, limits: reading(5) }),
+        onProbed: Effect.void,
+        lifetime: yield* Effect.scope,
+      });
+      const fiber = yield* Effect.forkChild(prober.probe(a.id));
+      yield* Deferred.await(finishing);
+      yield* Fiber.interrupt(fiber);
+      const listed = (yield* pool.list).find((account) => account.id === a.id)!;
+      expect(listed.probe).toEqual(NEVER);
+      expect(listed.usageLimits).toBeNull();
+      expect(yield* pool.beginProbe(a.id)).toBeDefined();
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
+  it.effect("stops a refresh of every account when the instance goes away, and no one failed", () =>
+    Effect.gen(function* () {
+      const lifetime = yield* Scope.make();
+      const { pool, prober, started, reads, a, c, untouched } = yield* stuck(lifetime);
+      const refreshing = yield* Effect.forkChild(prober.refresh());
+      yield* Deferred.await(started);
+      yield* Scope.close(lifetime, Exit.void);
+      // The request ends quietly, the second account is never read, and nothing is recorded.
+      yield* Fiber.join(refreshing);
+      expect(reads).toEqual(["a@example.com"]);
+      expect(yield* untouched(a.id)).toEqual({ probe: NEVER, due: 0, usageLimits: null });
+      expect((yield* untouched(c.id)).probe).toEqual(NEVER);
+      expect(yield* pool.beginProbe(a.id)).toBeDefined();
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
+  it.effect("stops a refresh when the request that asked for it goes away", () =>
+    Effect.gen(function* () {
+      const { pool, prober, started, reads, a, untouched } = yield* stuck(yield* Effect.scope);
+      const refreshing = yield* Effect.forkChild(prober.refresh());
+      yield* Deferred.await(started);
+      yield* Fiber.interrupt(refreshing);
+      expect(reads).toEqual(["a@example.com"]);
+      expect(yield* untouched(a.id)).toEqual({ probe: NEVER, due: 0, usageLimits: null });
+      expect(yield* pool.beginProbe(a.id)).toBeDefined();
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+});
+
+describe("the scheduler", () => {
+  it.effect("logs a tick that goes wrong and carries on with the next one", () => {
+    const logged: Array<string> = [];
+    return Effect.gen(function* () {
+      let lists = 0;
+      const { prober, reads } = yield* scheduleHarness({
+        list: (all) => (++lists === 1 ? Effect.die("the pool broke") : all),
+      });
+      yield* startAntigravityBackgroundProbe({
+        enabled: true,
+        settings: { backgroundAccountCheck: true },
+        prober,
+      });
+      yield* TestClock.adjust(ANTIGRAVITY_BACKGROUND_PROBE_START_DELAY_MS);
+      expect(reads).toEqual([]);
+      expect(logged).toHaveLength(1);
+      yield* TestClock.adjust(ANTIGRAVITY_BACKGROUND_PROBE_TICK_MS);
+      expect(reads).toEqual(["a@example.com"]);
+      expect(logged).toHaveLength(1);
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        Logger.layer([
+          Logger.make((options) => {
+            logged.push(String(options.message));
+          }),
+        ]),
+      ),
+    );
+  });
+});
+
 // A stand-in for `agy acp`: answers initialize and authenticate, and rewrites the token file the way
 // agy does when it renews a sign-in. It logs what it was asked and the environment it was given.
 const FAKE_AGY = `#!/usr/bin/env node
@@ -412,13 +567,27 @@ const fs = require("node:fs");
 const path = require("node:path");
 const home = process.env.GEMINI_HOME;
 const log = (entry) => fs.appendFileSync(process.env.FAKE_AGY_LOG, JSON.stringify(entry) + "\\n");
+const tokenFile = path.join(home, "antigravity-acp", "antigravity-oauth-token");
+const bytes = (dir) => {
+  let total = 0;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    total += entry.isDirectory() ? bytes(full) : fs.lstatSync(full).size;
+  }
+  return total;
+};
 log({
   argv: process.argv.slice(2),
   home,
+  pid: process.pid,
   fileStorage: process.env.AGY_CLI_FORCE_FILE_TOKEN_STORAGE,
+  acpFileStorage: process.env.AGY_ACP_FORCE_FILE_STORAGE,
   autoUpdate: process.env.AGY_CLI_DISABLE_AUTO_UPDATE,
   ssh: Boolean(process.env.SSH_CONNECTION),
   browser: Boolean(process.env.BROWSER),
+  proxy: process.env.HTTPS_PROXY,
+  noProxy: process.env.NO_PROXY,
+  tokenMode: (fs.statSync(tokenFile).mode & 0o777).toString(8),
 });
 let buffer = "";
 process.stdin.on("data", (chunk) => {
@@ -434,6 +603,8 @@ process.stdin.on("data", (chunk) => {
     if (method === "initialize") {
       reply({ result: { protocolVersion: 2, agentInfo: { name: "fake-agy", version: "1.5.16" }, agentCapabilities: {}, authMethods: [{ id: "oauth-personal", name: "Google" }] } });
     } else if (method === "authenticate") {
+      log({ homeBytes: bytes(home), tmpBytes: bytes(process.env.TMPDIR) });
+      if (process.env.FAKE_AGY_MODE === "hang") continue;
       if (process.env.FAKE_AGY_MODE === "signed-out") {
         reply({ error: { code: -32603, message: "No browser is available here" } });
         continue;
@@ -462,7 +633,7 @@ describe("reading a saved account with agy", () => {
   };
 
   const reader = Effect.fn("AntigravityBackgroundProbeTest.reader")(function* (
-    mode?: "signed-out",
+    options: { readonly mode?: "signed-out" | "hang"; readonly networkProxy?: string } = {},
   ) {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
@@ -481,22 +652,47 @@ describe("reading a saved account with agy", () => {
         );
       }),
     );
+    // Tells the test when agy itself (not the browser helper) has been started, and keeps its handle.
+    const base = yield* ChildProcessSpawner.ChildProcessSpawner;
+    const agyStarted = yield* Deferred.make<ChildProcessSpawner.ChildProcessHandle>();
+    const spawner = ChildProcessSpawner.make((command) =>
+      base
+        .spawn(command)
+        .pipe(
+          Effect.tap((handle) =>
+            command._tag === "StandardCommand" && command.command === agy
+              ? Deferred.succeed(agyStarted, handle)
+              : Effect.void,
+          ),
+        ),
+    );
     const make = makeAntigravityAccountReader({
-      resolveExecutablePath: Effect.succeed(agy),
+      acquireExecutablePath: Effect.succeed(agy),
       baseEnv: {
         ...(yield* HostProcess.Environment),
         FAKE_AGY_LOG: log,
-        ...(mode === undefined ? {} : { FAKE_AGY_MODE: mode }),
+        ...(options.mode === undefined ? {} : { FAKE_AGY_MODE: options.mode }),
       },
-      auth: { authMethod: "oauth-personal", apiKey: "", gcpProject: "", gcpLocation: "" },
+      auth: {
+        authMethod: "oauth-personal",
+        apiKey: "",
+        gcpProject: "",
+        gcpLocation: "",
+        ...(options.networkProxy === undefined ? {} : { networkProxy: options.networkProxy }),
+      },
       userHome: path.join(root, "home"),
       tempRoot: path.join(root, "tmp"),
       proxyDispatcher: undefined,
-    }).pipe(Effect.provideService(HttpClient.HttpClient, http));
+    }).pipe(
+      Effect.provideService(HttpClient.HttpClient, http),
+      Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
+    );
     return {
       root,
       requests,
+      agyStarted,
       read: yield* make,
+      agyRan: fs.exists(log),
       agyLog: fs.readFileString(log).pipe(
         Effect.map((text) =>
           text
@@ -505,9 +701,25 @@ describe("reading a saved account with agy", () => {
             .map((line) => JSON.parse(line)),
         ),
       ),
-      leftovers: fs.readDirectory(path.join(root, "tmp")),
+      leftovers: fs
+        .readDirectory(path.join(root, "tmp"))
+        .pipe(Effect.orElseSucceed((): Array<string> => [])),
     };
   });
+
+  const tokenExpiringIn = (millis: number, accessToken = "access-a") =>
+    Clock.currentTimeMillis.pipe(
+      Effect.map((now) =>
+        JSON.stringify({
+          token: {
+            access_token: accessToken,
+            refresh_token: "refresh-a",
+            expiry: DateTime.formatIso(DateTime.makeUnsafe(now + millis)),
+          },
+          id_token_email: "a@example.com",
+        }),
+      ),
+    );
 
   const secretToken = JSON.stringify({
     token: {
@@ -523,7 +735,9 @@ describe("reading a saved account with agy", () => {
     "renews the copy with initialize and authenticate only, reads the quota with it, and cleans up",
     () =>
       Effect.gen(function* () {
-        const { read, requests, agyLog, leftovers } = yield* reader();
+        const { read, requests, agyLog, leftovers } = yield* reader({
+          networkProxy: "http://127.0.0.1:7890",
+        });
         const outcome = yield* read(secretToken);
         expect(outcome._tag).toBe("Read");
         if (outcome._tag !== "Read") return;
@@ -545,10 +759,19 @@ describe("reading a saved account with agy", () => {
         // agy runs the way Extend runs a profile of its own: file storage, no update, no browser.
         expect(started).toMatchObject({
           fileStorage: "1",
+          acpFileStorage: "1",
           autoUpdate: "1",
           ssh: true,
           browser: true,
+          // The instance's proxy reaches agy, and the saved token it is handed is private.
+          proxy: "http://127.0.0.1:7890/",
+          tokenMode: "600",
         });
+        expect(started.noProxy).toContain("127.0.0.1");
+        // What one launch writes by itself: the private home and the run directory stay tiny. The real
+        // runtime's own unpacking happens inside its run directory and still needs measuring with it.
+        const sizes = entries.find((entry) => entry.homeBytes !== undefined);
+        expect(sizes.homeBytes + sizes.tmpBytes).toBeLessThan(64 * 1024);
         expect(started.argv.slice(0, 1)).toEqual(["acp"]);
         expect(started.argv).toContain("--gemini-dir");
         expect(started.argv[started.argv.indexOf("--gemini-dir") + 1]).toBe(started.home);
@@ -559,10 +782,91 @@ describe("reading a saved account with agy", () => {
 
   it.live("reports an expired sign-in when agy has to ask for a browser", () =>
     Effect.gen(function* () {
-      const { read, leftovers } = yield* reader("signed-out");
+      const { read, leftovers } = yield* reader({ mode: "signed-out" });
       expect(yield* read(secretToken)).toEqual({ _tag: "Failed", reason: "expired" });
       expect(yield* leftovers).toEqual([]);
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+  );
+
+  const liveLayer = Layer.mergeAll(NodeServices.layer, NodeCrypto.layer);
+
+  // fork: agy is a heavy launch, so a token that is still good is read with as it is.
+  it.live("does not start agy for a token that stays valid, and reads the quota with it", () =>
+    Effect.gen(function* () {
+      const { read, requests, agyRan, leftovers } = yield* reader();
+      const valid = yield* tokenExpiringIn(30 * 60_000, "good-access");
+      const outcome = yield* read(valid);
+      expect(outcome._tag).toBe("Read");
+      if (outcome._tag !== "Read") return;
+      // The token goes back unchanged, so nothing is rewritten in the slot.
+      expect(outcome.token).toBe(valid);
+      expect(requests.some((request) => request.authorization === "Bearer good-access")).toBe(true);
+      expect(yield* agyRan).toBe(false);
+      expect(yield* leftovers).toEqual([]);
+    }).pipe(Effect.scoped, Effect.provide(liveLayer)),
+  );
+
+  it.live("starts agy for a token that is about to expire, and for one without an expiry", () =>
+    Effect.gen(function* () {
+      const nearly = yield* reader();
+      expect((yield* nearly.read(yield* tokenExpiringIn(4 * 60_000)))._tag).toBe("Read");
+      expect(yield* nearly.agyRan).toBe(true);
+      const unknown = yield* reader();
+      yield* unknown.read(
+        JSON.stringify({
+          token: { access_token: "x", refresh_token: "r" },
+          id_token_email: "a@example.com",
+        }),
+      );
+      expect(yield* unknown.agyRan).toBe(true);
+    }).pipe(Effect.scoped, Effect.provide(liveLayer)),
+  );
+
+  it.live("stops agy and removes the private home when the read is interrupted", () =>
+    Effect.gen(function* () {
+      const { read, agyStarted, leftovers } = yield* reader({ mode: "hang" });
+      const fiber = yield* Effect.forkChild(read(secretToken));
+      const handle = yield* Deferred.await(agyStarted);
+      expect(yield* handle.isRunning).toBe(true);
+      yield* Fiber.interrupt(fiber);
+      expect(yield* handle.isRunning).toBe(false);
+      expect(yield* leftovers).toEqual([]);
+    }).pipe(Effect.scoped, Effect.provide(liveLayer)),
+  );
+
+  // A real prober over a real pool and the real reader, with agy that never answers.
+  it.live("times out a read that hangs: agy is stopped, the home is gone, the lease is free", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const { read, agyStarted, leftovers } = yield* reader({ mode: "hang" });
+      const profile = yield* fs.makeTempDirectoryScoped();
+      yield* fs.makeDirectory(`${profile}/antigravity-acp`, { recursive: true });
+      const pool = yield* makeAntigravityAccountPool(profile);
+      for (const email of ["a@example.com", "b@example.com"]) {
+        yield* pool.beginAdd;
+        yield* fs.writeFileString(
+          `${profile}/antigravity-acp/antigravity-oauth-token`,
+          secretToken.replace("a@example.com", email),
+        );
+        yield* pool.settleAdd;
+      }
+      const [first] = yield* pool.list;
+      const prober = yield* makeAntigravityAccountProber({
+        instanceId,
+        pool,
+        read,
+        onProbed: Effect.void,
+        lifetime: yield* Effect.scope,
+        timeout: Duration.seconds(2),
+      });
+      expect(yield* prober.probe(first!.id)).toBe("failed");
+      const handle = yield* Deferred.await(agyStarted);
+      expect(yield* handle.isRunning).toBe(false);
+      expect(yield* leftovers).toEqual([]);
+      const listed = (yield* pool.list).find((account) => account.id === first!.id)!;
+      expect(listed.probe.failure?.reason).toBe("timeout");
+      expect(yield* pool.beginProbe(first!.id)).toBeDefined();
+    }).pipe(Effect.scoped, Effect.provide(liveLayer)),
   );
 
   it.live("reports an unavailable agy without starting anything", () =>
@@ -571,7 +875,7 @@ describe("reading a saved account with agy", () => {
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped();
       const make = makeAntigravityAccountReader({
-        resolveExecutablePath: Effect.fail({ detail: "agy is not installed" }),
+        acquireExecutablePath: Effect.fail({ detail: "agy is not installed" }),
         baseEnv: {},
         auth: { authMethod: "oauth-personal", apiKey: "", gcpProject: "", gcpLocation: "" },
         userHome: root,

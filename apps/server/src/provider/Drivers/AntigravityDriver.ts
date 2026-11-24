@@ -711,8 +711,9 @@ export const AntigravityDriver: ProviderDriver<
           instanceId,
           pool: accountPool,
           read: yield* makeAntigravityAccountReader({
-            resolveExecutablePath: installation
-              .resolve(settings.binaryPath, processEnvironment)
+            // The lease a real session holds, so a reinstall cannot remove the binary in use.
+            acquireExecutablePath: installation
+              .acquire(settings.binaryPath, processEnvironment)
               .pipe(Effect.map((executable) => executable.executablePath)),
             baseEnv: processEnvironment,
             auth,
@@ -729,6 +730,8 @@ export const AntigravityDriver: ProviderDriver<
           ),
           // The provider is made below; the account list is republished once per finished read.
           onProbed: Effect.suspend(() => provider.onAccountsChanged),
+          // A manual refresh stops with the instance, so it never outlives its proxy or pool.
+          lifetime: yield* Effect.scope,
         })
       : undefined;
     const provider = yield* makeAntigravityProvider(settings, {

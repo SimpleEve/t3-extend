@@ -1,16 +1,19 @@
 import type * as Undici from "undici";
 import type { AntigravitySettings } from "@t3tools/contracts";
 import { ProviderSetupError, type ProviderInstanceId } from "@t3tools/contracts";
+import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Digest from "effect/crypto/Digest";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
-import * as Schedule from "effect/Schedule";
+import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 import type * as Scope from "effect/Scope";
+import * as Option from "effect/Option";
 import { HttpClient } from "effect/http";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
@@ -19,6 +22,7 @@ import type {
   AntigravityAccount,
   AntigravityAccountPool,
   AntigravityProbeFailureReason,
+  AntigravityProbeLease,
   AntigravityProbeOutcome,
   AntigravityProbeResult,
 } from "./antigravityAccountPool.ts";
@@ -43,6 +47,8 @@ export const ANTIGRAVITY_BACKGROUND_PROBE_TICK_MS = 60_000;
 /** A dead sign-in stays dead until the account signs in again, so it is retried rarely. */
 export const ANTIGRAVITY_BACKGROUND_PROBE_BACKOFF_CAP_MS = 6 * 60 * 60_000;
 const ANTIGRAVITY_BACKGROUND_PROBE_TIMEOUT = Duration.seconds(60);
+/** A saved token that stays valid this long is read with directly; agy is only started to renew one. */
+const TOKEN_EXPIRY_MARGIN_MS = 5 * 60_000;
 
 const reasonOf = (account: AntigravityAccount) => account.probe.failure?.reason ?? null;
 
@@ -93,35 +99,46 @@ export interface AntigravityAccountProber {
 export const makeAntigravityAccountProber = Effect.fn("makeAntigravityAccountProber")(
   function* (input: {
     readonly instanceId: ProviderInstanceId;
-    readonly pool: Pick<AntigravityAccountPool, "list" | "beginProbe" | "finishProbe">;
+    readonly pool: Pick<
+      AntigravityAccountPool,
+      "list" | "beginProbe" | "cancelProbe" | "finishProbe"
+    >;
     /** Renews a lent token and reads the account's quota. Never fails; a failure is an outcome. */
     readonly read: (token: string) => Effect.Effect<AntigravityProbeOutcome>;
     /** Runs once after each read that changed what the account list shows. */
     readonly onProbed: Effect.Effect<void>;
+    /** The instance's lifetime: leaving it stops a manual refresh that is still running. */
+    readonly lifetime: Scope.Scope;
+    readonly timeout?: Duration.Duration;
   }) {
     // One agy at a time, however the read was asked for.
     const turn = yield* Semaphore.make(1);
+    const timeout = input.timeout ?? ANTIGRAVITY_BACKGROUND_PROBE_TIMEOUT;
 
-    const probe: AntigravityAccountProber["probe"] = (id) =>
-      turn.withPermits(1)(
-        Effect.gen(function* () {
-          const lease = yield* input.pool.beginProbe(id);
-          if (lease === undefined) return "skipped" as const;
-          const outcome = yield* input.read(lease.token).pipe(
-            Effect.timeoutOption(ANTIGRAVITY_BACKGROUND_PROBE_TIMEOUT),
-            Effect.map((result): AntigravityProbeOutcome =>
-              result._tag === "Some" ? result.value : { _tag: "Failed", reason: "timeout" },
-            ),
-            // An interrupted read still gives the token back.
-            Effect.onInterrupt(() =>
-              input.pool.finishProbe(lease, { _tag: "Failed", reason: "failed" }),
-            ),
-          );
-          const result = yield* input.pool.finishProbe(lease, outcome);
-          if (result !== "discarded") yield* input.onProbed;
-          return result;
-        }),
+    const readAndFinish = Effect.fnUntraced(function* (lease: AntigravityProbeLease) {
+      const outcome = yield* input.read(lease.token).pipe(
+        Effect.timeoutOption(timeout),
+        Effect.map((result): AntigravityProbeOutcome =>
+          result._tag === "Some" ? result.value : { _tag: "Failed", reason: "timeout" },
+        ),
       );
+      const result = yield* input.pool.finishProbe(lease, outcome);
+      if (result !== "discarded") yield* input.onProbed;
+      return result;
+    });
+
+    // The lease is taken and its release registered in one uninterruptible step, so an interruption
+    // at any point gives the token back. An interrupted read is not a failed one: nothing is recorded.
+    const probe = Effect.fn("AntigravityAccountProber.probe")(function* (id: string) {
+      return yield* turn.withPermits(1)(
+        Effect.acquireUseRelease(
+          input.pool.beginProbe(id),
+          (lease) =>
+            lease === undefined ? Effect.succeed("skipped" as const) : readAndFinish(lease),
+          (lease) => (lease === undefined ? Effect.void : input.pool.cancelProbe(lease)),
+        ),
+      );
+    });
 
     const refresh: AntigravityAccountProber["refresh"] = Effect.fn(
       "AntigravityAccountProber.refresh",
@@ -134,20 +151,41 @@ export const makeAntigravityAccountProber = Effect.fn("makeAntigravityAccountPro
           detail: "Unknown Antigravity account.",
         });
       }
-      for (const account of accounts) {
-        if (account.current || (id !== undefined && account.id !== id)) continue;
-        yield* probe(account.id);
-      }
+      const sweep = Effect.forEach(
+        accounts.filter((account) => !account.current && (id === undefined || account.id === id)),
+        (account) => probe(account.id),
+        { discard: true },
+      );
+      // The sweep belongs to the instance, not to the request: a request that goes away stops it, and
+      // so does an instance that is disabled or rebuilt, so it never runs on an old proxy or pool.
+      const fiber = yield* Effect.forkIn(sweep, input.lifetime);
+      const exit = yield* Fiber.await(fiber).pipe(Effect.onInterrupt(() => Fiber.interrupt(fiber)));
+      if (exit._tag === "Failure" && Cause.hasInterruptsOnly(exit.cause)) return;
+      yield* exit;
     });
 
-    const schedule = Effect.gen(function* () {
+    // A tick that goes wrong is logged and the next one still runs: the check must not die quietly.
+    const tick = Effect.gen(function* () {
       const now = yield* Clock.currentTimeMillis;
       const id = pickNextAntigravityProbe(yield* input.pool.list, now);
       if (id !== undefined) yield* probe(id);
     }).pipe(
-      Effect.repeat(Schedule.spaced(Duration.millis(ANTIGRAVITY_BACKGROUND_PROBE_TICK_MS))),
-      Effect.delay(Duration.millis(ANTIGRAVITY_BACKGROUND_PROBE_START_DELAY_MS)),
-    ) as Effect.Effect<never>;
+      Effect.catchCauseIf(
+        (cause) => !Cause.hasInterruptsOnly(cause),
+        (cause) => Effect.logWarning("Antigravity background account check failed.", { cause }),
+      ),
+    );
+    const schedule = Effect.sleep(
+      Duration.millis(ANTIGRAVITY_BACKGROUND_PROBE_START_DELAY_MS),
+    ).pipe(
+      Effect.andThen(
+        Effect.forever(
+          tick.pipe(
+            Effect.andThen(Effect.sleep(Duration.millis(ANTIGRAVITY_BACKGROUND_PROBE_TICK_MS))),
+          ),
+        ),
+      ),
+    );
 
     return { probe, refresh, schedule } satisfies AntigravityAccountProber;
   },
@@ -168,6 +206,20 @@ export const startAntigravityBackgroundProbe = (input: {
 
 const TOKEN_FILE = "antigravity-oauth-token";
 
+const SavedToken = Schema.Struct({
+  token: Schema.Struct({ expiry: Schema.optional(Schema.String) }),
+});
+const decodeSavedToken = Schema.decodeUnknownOption(Schema.fromJsonString(SavedToken));
+
+/** Whether the token's own access token still has `margin` left, so agy need not renew it. */
+const tokenStaysValid = (token: string, now: number): boolean => {
+  const saved = decodeSavedToken(token);
+  return (
+    Option.isSome(saved) &&
+    Date.parse(saved.value.token.expiry ?? "") > now + TOKEN_EXPIRY_MARGIN_MS
+  );
+};
+
 type ReaderServices =
   | FileSystem.FileSystem
   | Path.Path
@@ -177,13 +229,14 @@ type ReaderServices =
   | ChildProcessSpawner.ChildProcessSpawner;
 
 /**
- * Renews a copy of a saved token with `agy acp` and reads that account's quota. Only `initialize` and
- * `authenticate` are sent, so no session starts and no quota is used. Everything it makes lives in a
- * private directory that goes with the scope, and the agy it starts is stopped through its handle.
+ * Reads a saved account's quota. A good token is used as it is; an expired one is first renewed in a
+ * private copy by `agy acp`, sent only `initialize` and `authenticate`, under the installation lease
+ * a real session holds. Everything it makes goes with the scope, and agy is stopped by its handle.
  */
 export const makeAntigravityAccountReader = Effect.fn("makeAntigravityAccountReader")(
   function* (input: {
-    readonly resolveExecutablePath: Effect.Effect<string, { readonly detail: string }>;
+    /** The executable, held (leased) until the read's scope closes. */
+    readonly acquireExecutablePath: Effect.Effect<string, { readonly detail: string }, Scope.Scope>;
     readonly baseEnv: NodeJS.ProcessEnv;
     readonly auth: AntigravityAuthConfig;
     readonly userHome: string;
@@ -200,23 +253,11 @@ export const makeAntigravityAccountReader = Effect.fn("makeAntigravityAccountRea
     const removeQuietly = (directory: string) =>
       fs.remove(directory, { recursive: true, force: true }).pipe(Effect.ignore);
 
-    const read = Effect.fn("AntigravityAccountReader.read")(function* (token: string) {
-      const executablePath = yield* input.resolveExecutablePath.pipe(
+    // Starts agy on the private copy and lets it renew the token there. Needs the scope it runs in.
+    const renew = Effect.fn("AntigravityAccountReader.renew")(function* (home: string) {
+      const executablePath = yield* input.acquireExecutablePath.pipe(
         Effect.mapError((): AntigravityProbeFailureReason => "unavailable"),
       );
-      yield* fs
-        .makeDirectory(input.tempRoot, { recursive: true, mode: 0o700 })
-        .pipe(Effect.mapError(failed));
-      const home = yield* Effect.acquireRelease(
-        fs.makeTempDirectory({ directory: input.tempRoot, prefix: "probe-" }),
-        removeQuietly,
-      ).pipe(Effect.mapError(failed));
-      const tokenPath = path.join(home, "antigravity-acp", TOKEN_FILE);
-      yield* Effect.gen(function* () {
-        yield* fs.makeDirectory(path.dirname(tokenPath), { recursive: true, mode: 0o700 });
-        yield* fs.writeFileString(tokenPath, token, { mode: 0o600 });
-        yield* fs.chmod(tokenPath, 0o600).pipe(Effect.ignore);
-      }).pipe(Effect.mapError(failed));
       const profile = yield* prepareAntigravityProfile({
         profileDirectory: home,
         baseEnv: input.baseEnv,
@@ -239,7 +280,7 @@ export const makeAntigravityAccountReader = Effect.fn("makeAntigravityAccountRea
         auth: input.auth,
         runtimeTempDirectory: runtimeTemp,
       });
-      // Leaving this scope stops agy, whether the answer came or the read ran out of time.
+      // Leaving this scope stops agy, whether the answer came or the read was cut short.
       yield* Effect.gen(function* () {
         const runtime = yield* makeAntigravityAcpRuntime({
           cwd: home,
@@ -255,7 +296,28 @@ export const makeAntigravityAccountReader = Effect.fn("makeAntigravityAccountRea
           isAntigravitySignInRequiredError(cause) ? "expired" : "failed",
         ),
       );
-      const renewed = yield* fs.readFileString(tokenPath).pipe(Effect.mapError(failed));
+    });
+
+    const read = Effect.fn("AntigravityAccountReader.read")(function* (token: string) {
+      const now = yield* Clock.currentTimeMillis;
+      const needsAgy = !tokenStaysValid(token, now);
+      yield* fs
+        .makeDirectory(input.tempRoot, { recursive: true, mode: 0o700 })
+        .pipe(Effect.mapError(failed));
+      const home = yield* Effect.acquireRelease(
+        fs.makeTempDirectory({ directory: input.tempRoot, prefix: "probe-" }),
+        removeQuietly,
+      ).pipe(Effect.mapError(failed));
+      const tokenPath = path.join(home, "antigravity-acp", TOKEN_FILE);
+      yield* Effect.gen(function* () {
+        yield* fs.makeDirectory(path.dirname(tokenPath), { recursive: true, mode: 0o700 });
+        yield* fs.writeFileString(tokenPath, token, { mode: 0o600 });
+        yield* fs.chmod(tokenPath, 0o600).pipe(Effect.ignore);
+      }).pipe(Effect.mapError(failed));
+      if (needsAgy) yield* renew(home);
+      const renewed = needsAgy
+        ? yield* fs.readFileString(tokenPath).pipe(Effect.mapError(failed))
+        : token;
       const usage = yield* makeAntigravityUsageProbe({
         profileDirectory: home,
         authMethod: input.auth.authMethod,
