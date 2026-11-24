@@ -1,4 +1,4 @@
-import { DownloadIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { CopyPlusIcon, DownloadIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
 import { useT } from "../../hooks/useT";
@@ -87,7 +87,7 @@ function SchemeRow({
             disabled={active}
             size="xs"
             variant="outline"
-            onClick={() => studio.select(scheme.id)}
+            onClick={() => studio.choose(scheme.id)}
           >
             {t("Use")}
           </Button>
@@ -98,6 +98,14 @@ function SchemeRow({
             onClick={() => setRenaming(scheme.label)}
           >
             <PencilIcon />
+          </Button>
+          <Button
+            aria-label={t("Duplicate {name}", { name: studio.labelOf(scheme) })}
+            size="icon-xs"
+            variant="ghost"
+            onClick={() => studio.duplicate(scheme)}
+          >
+            <CopyPlusIcon />
           </Button>
           <Button
             aria-label={t("Export {name} as JSON", { name: studio.labelOf(scheme) })}
@@ -167,7 +175,9 @@ export function MySchemes({ studio }: { studio: Studio }) {
       ))}
       {schemes.length === 0 && pending === null ? (
         <p className="px-3 py-4 text-sm text-muted-foreground sm:px-4">
-          {t("Nothing here yet. Change a preset above and your version is saved here.")}
+          {t(
+            "Nothing here yet. Change a preset, then choose Save as my scheme to keep your version here.",
+          )}
         </p>
       ) : null}
       <ThemeImportDialog

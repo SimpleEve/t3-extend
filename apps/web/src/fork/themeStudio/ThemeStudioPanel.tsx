@@ -8,6 +8,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  CopyPlusIcon,
   ImageIcon,
   MousePointer2Icon,
   RotateCcwIcon,
@@ -54,6 +55,7 @@ import { isThemeColor, themeColorToHex } from "../../themePalette";
 import { COLOR_GROUPS, colorFamilyOfRole, locateColorRole } from "./colorFamilies";
 import { HalvesNotice } from "./HalvesNotice";
 import { MySchemes } from "./MySchemes";
+import { SaveSchemeDialog, UnsavedSwitchDialog } from "./SchemeDialogs";
 import { THEME_BACKGROUND_ACCEPT, type BackgroundRefusal } from "./backgroundUpload.logic";
 import { themeBackgroundUpload, uploadThemeBackground } from "./backgroundUpload";
 import {
@@ -64,7 +66,7 @@ import {
   type FontKind,
 } from "./fontChoice.logic";
 import { THEME_PRESET_SEEDS } from "./presets";
-import { overriddenSettings, schemeColors, studioThemeKind } from "./studio.logic";
+import { overriddenSettings, schemeColors, schemesBasedOn, studioThemeKind } from "./studio.logic";
 import { PickHint } from "./PickHint";
 import { useColorInspector } from "./useColorInspector";
 import { useThemeStudio } from "./useThemeStudio";
@@ -400,6 +402,7 @@ function PresetCard({
   definition,
   active,
   modified,
+  mineCount,
   note,
   onUse,
   onHover,
@@ -407,6 +410,8 @@ function PresetCard({
   definition: ThemeDefinition;
   active: boolean;
   modified: boolean;
+  /** How many saved schemes of the person's came from this preset. */
+  mineCount: number;
   note: string | null;
   onUse: () => void;
   onHover: (hovered: boolean) => void;
@@ -451,6 +456,11 @@ function PresetCard({
         {active ? <CheckIcon aria-hidden className="size-3.5 shrink-0 text-foreground" /> : null}
       </span>
       {note ? <span className="px-0.5 text-xs text-muted-foreground">{note}</span> : null}
+      {mineCount > 0 ? (
+        <span className="px-0.5 text-xs text-muted-foreground">
+          {t("My versions: {count}", { count: mineCount })}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -468,7 +478,7 @@ function PresetsSection({ studio }: { studio: Studio }) {
       <div className="space-y-3 p-3 sm:p-4">
         <p className="text-xs text-muted-foreground">
           {t(
-            "Hover to preview, click to use. Changing a preset afterwards saves your version as a scheme and leaves the preset as it is.",
+            "Hover to preview, click to use. Change a preset, then save your version as a scheme; the preset stays as it is.",
           )}
         </p>
         <HalvesNotice studio={studio} />
@@ -483,7 +493,7 @@ function PresetsSection({ studio }: { studio: Studio }) {
               stockActive && "border-ring bg-accent/20",
             )}
             data-theme-preset="default"
-            onClick={() => studio.select(null)}
+            onClick={() => studio.choose(null)}
             type="button"
           >
             <ThemeWireframe
@@ -506,9 +516,10 @@ function PresetsSection({ studio }: { studio: Studio }) {
               definition={definition}
               key={definition.id}
               modified={activeId === definition.id && studio.draft !== null}
+              mineCount={schemesBasedOn(definition.id, studio.customThemes).length}
               note={needsBackground.has(definition.id) ? t("Needs a background image") : null}
               onHover={(hovered) => studio.setHovered(hovered ? definition : null)}
-              onUse={() => studio.select(definition.id)}
+              onUse={() => studio.choose(definition.id)}
             />
           ))}
         </div>
@@ -850,6 +861,7 @@ function StudioHeader({ studio }: { studio: Studio }) {
   });
   const isPreset = kind === "preset";
   const customLook = working.look !== undefined;
+  const [saveOpen, setSaveOpen] = useState(false);
   return (
     <div
       className="sticky top-0 z-10 -mx-1 rounded-xl border border-border/60 bg-background px-3 py-2.5 sm:px-4"
@@ -910,9 +922,21 @@ function StudioHeader({ studio }: { studio: Studio }) {
             <RotateCcwIcon />
             {t("Reset theme to default")}
           </Button>
-          <Button disabled={!studio.dirty} size="xs" onClick={studio.apply}>
-            {t("Apply")}
-          </Button>
+          {studio.isFork ? null : (
+            <Button size="xs" variant="outline" onClick={() => setSaveOpen(true)}>
+              <CopyPlusIcon />
+              {t("Save as new scheme…")}
+            </Button>
+          )}
+          {studio.isFork ? (
+            <Button disabled={!studio.dirty} size="xs" onClick={() => setSaveOpen(true)}>
+              {t("Save as my scheme…")}
+            </Button>
+          ) : studio.draft !== null || kind === "scheme" ? (
+            <Button disabled={!studio.dirty} size="xs" onClick={studio.apply}>
+              {t("Save")}
+            </Button>
+          ) : null}
         </div>
       </div>
       {studio.saveFailed ? (
@@ -920,6 +944,7 @@ function StudioHeader({ studio }: { studio: Studio }) {
           {t("Could not save the scheme. Browser storage may be unavailable or full.")}
         </p>
       ) : null}
+      <SaveSchemeDialog onOpenChange={setSaveOpen} open={saveOpen} studio={studio} />
     </div>
   );
 }
@@ -952,12 +977,13 @@ export function ThemeStudioPanel() {
       <StudioIntro />
       <StudioHeader studio={studio} />
       <PresetsSection studio={studio} />
+      <MySchemes studio={studio} />
       <ColorsSection studio={studio} />
       <FontsSection studio={studio} />
       <LayoutSection studio={studio} />
       <BackgroundSection studio={studio} />
       <CssSection studio={studio} />
-      <MySchemes studio={studio} />
+      <UnsavedSwitchDialog studio={studio} />
     </SettingsPageContainer>
   );
 }

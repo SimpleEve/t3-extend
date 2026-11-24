@@ -27,8 +27,9 @@ export default {
   Docs: "文档",
   "Quiet page": "留白",
   "Needs a background image": "需要背景图",
-  "Hover to preview, click to use. Changing a preset afterwards saves your version as a scheme and leaves the preset as it is.":
-    "悬停预览，点击使用。之后再改预设，会把你的版本存成一个方案，预设本身不变。",
+  "Hover to preview, click to use. Change a preset, then save your version as a scheme; the preset stays as it is.":
+    "悬停预览，点击使用。改过预设之后，把你的版本存成方案，预设本身不变。",
+  "My versions: {count}": "我的版本：{count}",
   "{name} (mine)": "{name}（我的）",
   "{name} copy": "{name}（副本）",
   "Based on {name}": "基于{name}",
@@ -41,7 +42,15 @@ export default {
   "Restore to preset": "恢复为预设",
   "Revert unsaved changes": "还原未保存的改动",
   "Reset theme to default": "恢复默认",
-  Apply: "应用",
+  "Save as my scheme…": "保存为我的方案…",
+  "Save as new scheme…": "另存为新方案…",
+  "Save as a new scheme": "另存为新方案",
+  "Keeps these colors, fonts, layout and CSS under this name. The preset and your other schemes stay as they are.":
+    "把当前的颜色、字体、布局和 CSS 存在这个名字下。预设和你的其他方案都不会变。",
+  "Save your changes first?": "先保存你的改动吗？",
+  "Switching to another theme drops the changes you made to {name}. Save them as a scheme to keep them.":
+    "切换到其他主题会丢掉你对 {name} 的改动。存成方案就能保留。",
+  "Save and switch": "保存并切换",
   "Could not save the scheme. Browser storage may be unavailable or full.":
     "无法保存方案。浏览器存储可能不可用或已满。",
 
@@ -118,6 +127,7 @@ export default {
   "Scheme name": "方案名称",
   "Not applied yet": "尚未应用",
   "Export {name} as JSON": "把 {name} 导出为 JSON",
-  "Nothing here yet. Change a preset above and your version is saved here.":
-    "这里还没有内容。改一下上面的预设，你的版本就会存到这里。",
+  "Nothing here yet. Change a preset, then choose Save as my scheme to keep your version here.":
+    "这里还没有内容。改一下预设，再选“保存为我的方案”，你的版本就会存到这里。",
+  "Duplicate {name}": "复制 {name}",
 };

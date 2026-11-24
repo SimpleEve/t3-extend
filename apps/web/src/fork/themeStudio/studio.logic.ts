@@ -59,6 +59,42 @@ export function beginScheme(input: {
   return forked;
 }
 
+const FORK_ID_SUFFIX = /-mine(?:-\d+)?$/;
+
+/**
+ * A copy of a scheme under a name the person chose. It gets its own id and a name no other scheme
+ * has, and remembers the same preset, so several versions of one preset sit side by side and
+ * saving one never writes over another. `scheme` is the draft, a saved scheme or a preset's fork.
+ */
+export function schemeCopyOf(input: {
+  scheme: ThemeDefinition;
+  name: string;
+  savedThemes: ReadonlyArray<ThemeDefinition>;
+}): ThemeDefinition {
+  const { scheme, savedThemes } = input;
+  return {
+    ...scheme,
+    id: forkId(
+      scheme.id.replace(FORK_ID_SUFFIX, ""),
+      new Set(savedThemes.map((saved) => saved.id)),
+    ),
+    label: forkLabel(
+      input.name.trim() || scheme.label,
+      new Set(savedThemes.map((saved) => saved.label)),
+    ),
+  };
+}
+
+/** The saved versions made from a preset, for the hint on its card. */
+export function schemesBasedOn(
+  presetId: string,
+  savedThemes: ReadonlyArray<ThemeDefinition>,
+): ReadonlyArray<ThemeDefinition> {
+  return savedThemes.filter(
+    (saved) => saved.basedOn === presetId && saved.collection === undefined,
+  );
+}
+
 export function schemeColors(
   scheme: ThemeDefinition,
   appearance: ThemeAppearance,
