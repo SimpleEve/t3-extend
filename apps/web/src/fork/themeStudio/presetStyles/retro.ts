@@ -30,7 +30,15 @@ const CSS = `:root {
   box-shadow: var(--t3x-w-raised);
 }
 [data-sidebar-topbar] *, [data-sidebar-topbar] svg.lucide { color: #ffffff !important; }
-[data-sidebar-topbar] [data-slot="button"], [data-sidebar="trigger"] { color: #ffffff !important; --control-icon-color: #ffffff; }
+[data-sidebar-topbar] [data-slot="button"] { color: #ffffff !important; --control-icon-color: #ffffff; }
+/* The floating sidebar toggle sits on the blue bars and, on pages without one, on the teal desktop: a grey bevelled button reads on both. */
+[data-sidebar="trigger"] {
+  background-color: var(--t3x-w-face) !important;
+  color: #000000 !important;
+  --control-icon-color: #000000;
+  border-radius: 0 !important;
+  box-shadow: var(--t3x-w-raised) !important;
+}
 [data-sidebar-topbar] [data-slot="badge"], [data-sidebar-topbar] [data-slot="badge"] * { color: #000000 !important; }
 [data-sidebar-topbar] [data-slot="badge"] { background: var(--t3x-w-face) !important; }
 
