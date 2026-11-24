@@ -24,6 +24,7 @@ import { useState, type ComponentProps } from "react";
 import { ThreadDetailsCard } from "./ThreadDetailsCard";
 import { OpenInPicker } from "./OpenInPicker";
 import { ThreadDetailsSection } from "./ThreadDetailsSection";
+import { ThreadBookmarksPanel } from "../../fork/bookmarks/ThreadBookmarksPanel"; // fork: message bookmarks
 import { ThreadAutomationsPanel } from "./ThreadAutomationsPanel";
 import { ThreadRelationshipsPanel } from "./ThreadRelationshipsControl";
 import { ThreadServersPanel } from "./ThreadServersPanel";
@@ -282,6 +283,13 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
                   showLineage={visible.lineage}
                   showSideChats={visible.sideChats}
                 />
+              ) : null}
+
+              {density === "full" && !props.draftId ? (
+                <ThreadBookmarksPanel
+                  environmentId={props.environmentId}
+                  threadId={props.threadId}
+                /> // fork: message bookmarks
               ) : null}
 
               {visible.usage ? <ThreadDetailsUsage {...props.usage} /> : null}

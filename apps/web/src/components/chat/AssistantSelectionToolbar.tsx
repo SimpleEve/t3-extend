@@ -20,6 +20,7 @@ import {
 } from "~/lib/selectionActions";
 import { Button } from "../ui/button";
 import { BackgroundThreadContext } from "./backgroundThread";
+import { SelectionBookmarkButton } from "../../fork/bookmarks/SelectionBookmarkButton"; // fork: message bookmarks
 
 export function AssistantSelectionToolbar({
   viewport,
@@ -34,8 +35,9 @@ export function AssistantSelectionToolbar({
     citation: AssistantCitation;
     position: SelectionActionPoint;
     sourceAnchor: AssistantCitationSourceAnchor;
+    bookmarkOnly: boolean; // fork: the user's own message can be bookmarked, not cited
   } | null>(null);
-  const toolbarRef = useRef<HTMLButtonElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null); // fork: message bookmarks, holds Cite and Bookmark
   const actionsRef = useRef<ReturnType<typeof observeSelectionActions> | null>(null);
   const backgroundThread = use(BackgroundThreadContext);
   const gt = useGT();
@@ -124,6 +126,7 @@ export function AssistantSelectionToolbar({
             pointer.y <= line.bottom + 8,
         );
       setSelection({
+        bookmarkOnly: captured.source.dataset.bookmarkOnly === "true", // fork: message bookmarks
         sourceAnchor: { source: captured.source, range: captured.range, viewport },
         citation: {
           version: 1,
@@ -162,10 +165,11 @@ export function AssistantSelectionToolbar({
       ) {
         return;
       }
-      if (toolbar.disabled) return;
+      const action = toolbar.querySelector<HTMLButtonElement>("button:not(:disabled)"); // fork: message bookmarks
+      if (!action) return;
       event.preventDefault();
       event.stopPropagation();
-      toolbar.focus({ preventScroll: true });
+      action.focus({ preventScroll: true });
     };
     // Tab belongs to the foreground chat; a background timeline only follows its selection.
     if (!backgroundThread) document.addEventListener("keydown", focusActions, true);
@@ -191,30 +195,44 @@ export function AssistantSelectionToolbar({
     return true;
   };
   return createPortal(
-    <Button
+    // fork: message bookmarks. One fixed box holds Cite and, beside it, Bookmark.
+    <div
       ref={toolbarRef}
-      type="button"
-      size="xs"
-      variant="glass"
-      disabled={tooLong}
-      aria-label={tooLong ? gt("Selection is too long to cite") : gt("Cite selection in composer")}
-      className="fixed z-50 max-w-[calc(100vw-1rem)]"
+      className="fixed z-50 flex max-w-[calc(100vw-1rem)] items-center gap-1"
       style={{ left: selection.position.x, top: selection.position.y }}
       onPointerDown={(event) => event.preventDefault()}
-      onClick={cite}
-      onKeyDown={(event) => {
-        event.stopPropagation();
-        if (event.key === "Escape" && !event.nativeEvent.isComposing) {
-          event.preventDefault();
-          dismiss();
-        }
-      }}
     >
-      <QuoteIcon aria-hidden="true" className="size-3.5" />
-      {tooLong
-        ? gt("Shorten selection")
-        : gt("Cite", { $context: "verb, button that quotes the selected text" })}
-    </Button>,
+      <Button
+        type="button"
+        size="xs"
+        variant="glass"
+        disabled={tooLong || selection.bookmarkOnly} // fork: message bookmarks
+        aria-label={
+          tooLong ? gt("Selection is too long to cite") : gt("Cite selection in composer")
+        }
+        className={selection.bookmarkOnly ? "hidden" : undefined} // fork: message bookmarks
+        onPointerDown={(event) => event.preventDefault()}
+        onClick={cite}
+        onKeyDown={(event) => {
+          event.stopPropagation();
+          if (event.key === "Escape" && !event.nativeEvent.isComposing) {
+            event.preventDefault();
+            dismiss();
+          }
+        }}
+      >
+        <QuoteIcon aria-hidden="true" className="size-3.5" />
+        {tooLong
+          ? gt("Shorten selection")
+          : gt("Cite", { $context: "verb, button that quotes the selected text" })}
+      </Button>
+      <SelectionBookmarkButton
+        threadRef={threadRef}
+        citation={selection.citation}
+        onDone={dismiss}
+      />
+      {/* fork: message bookmarks */}
+    </div>,
     document.body,
   );
 }

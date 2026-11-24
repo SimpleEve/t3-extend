@@ -1,3 +1,4 @@
+import { SidebarThreadBookmarks } from "../../fork/bookmarks/SidebarThreadBookmarks"; // fork: message bookmarks
 import { useAtomMount } from "@effect/atom-react";
 import { asLaunchingThread } from "@t3tools/client-runtime/state/thread-inbox";
 import { ThreadHoverCard, ThreadHoverCardPopup } from "../ThreadHoverCard";
@@ -1396,6 +1397,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               {title}
               {multiline ? titleLineIcons : null}
               {pinIndicator}
+              <SidebarThreadBookmarks thread={thread} /> {/* fork: message bookmarks */}
               {multiline ? null : terminalStatusIcon}
               {multiline ? null : issueBadge}
               {isRegeneratingTitle ? (
@@ -1590,6 +1592,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               {/* Left of the status slot, the pin would slide when hover swaps the
                 label for the wider row controls. */}
               {pinIndicator}
+              <SidebarThreadBookmarks thread={thread} /> {/* fork: message bookmarks */}
               {props.projectDisplayName ? (
                 <span
                   className={cn("min-w-0 flex-1 truncate font-normal text-secondary-label text-xs")}

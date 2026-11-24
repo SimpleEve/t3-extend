@@ -45,6 +45,14 @@ import { AuthMcpClientAccess } from "./auth.ts";
 import { ChatAttachment } from "./chatAttachment.ts";
 import { ThreadGuestShare } from "./guestShare.ts";
 import { StoredThreadTags, ThreadTag } from "./threadTags.ts";
+import {
+  StoredThreadBookmarks,
+  ThreadBookmarkAddFields,
+  ThreadBookmarkChange,
+  ThreadBookmarkId,
+  ThreadBookmarkPreview,
+  ThreadBookmarkUpdateFields,
+} from "./forkThreadBookmarks.ts"; // fork: message bookmarks
 import { ThreadTitleRegenerationOutcome } from "./threadTitle.ts";
 import {
   OrchestrationSearchThreadsInput,
@@ -2069,6 +2077,12 @@ export const OrchestrationV2DomainEvent = Schema.Union([
     type: Schema.Literal("thread.visit-recorded"),
     payload: OrchestrationV2ThreadVisit,
   }),
+  // fork: message bookmarks
+  Schema.Struct({
+    ...OrchestrationV2EventBase.fields,
+    type: Schema.Literal("thread.bookmark-changed"),
+    payload: ThreadBookmarkChange,
+  }),
   Schema.Struct({
     ...OrchestrationV2EventBase.fields,
     type: Schema.Literal("run.created"),
@@ -2201,6 +2215,7 @@ export const OrchestrationV2ThreadProjection = Schema.Struct({
       item: ForwardCompatibleUnion(OrchestrationV2TurnItem.members, "type"),
     })),
   ),
+  bookmarks: Schema.optional(StoredThreadBookmarks), // fork: message bookmarks
   updatedAt: Schema.DateTimeUtc,
 });
 export type OrchestrationV2ThreadProjection = typeof OrchestrationV2ThreadProjection.Type;
@@ -2312,6 +2327,9 @@ export const OrchestrationV2ThreadShell = Schema.Struct({
   activeOrderKey: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   /** Absent on threads written before tags existed; read as empty. */
   tags: Schema.optional(StoredThreadTags),
+  // fork: message bookmarks. The shell carries the count and short previews, never the excerpts.
+  bookmarkCount: Schema.optional(NonNegativeInt),
+  bookmarkPreviews: Schema.optional(Schema.Array(ThreadBookmarkPreview)),
   lastVisitedAt: Schema.optional(Schema.NullOr(Schema.DateTimeUtc)),
   opens: Schema.optional(LenientThreadOpens),
   titleRegeneration: Schema.optional(
@@ -3016,6 +3034,12 @@ export const OrchestrationV2DomainEventJson = Schema.Union([
     type: Schema.Literal("thread.visit-recorded"),
     payload: OrchestrationV2ThreadVisitJson,
   }),
+  // fork: message bookmarks
+  Schema.Struct({
+    ...OrchestrationV2JsonEventBaseFields,
+    type: Schema.Literal("thread.bookmark-changed"),
+    payload: ThreadBookmarkChange,
+  }),
   Schema.Struct({
     ...OrchestrationV2JsonEventBaseFields,
     type: Schema.Literal("run.created"),
@@ -3265,6 +3289,25 @@ export const OrchestrationV2Command = Schema.Union([
     threadId: ThreadId,
     tag: ThreadTag,
     tagged: Schema.Boolean,
+  }),
+  // fork: message bookmarks
+  Schema.Struct({
+    type: Schema.Literal("thread.bookmark.add"),
+    commandId: CommandId,
+    threadId: ThreadId,
+    ...ThreadBookmarkAddFields,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("thread.bookmark.update"),
+    commandId: CommandId,
+    threadId: ThreadId,
+    ...ThreadBookmarkUpdateFields,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("thread.bookmark.remove"),
+    commandId: CommandId,
+    threadId: ThreadId,
+    bookmarkId: ThreadBookmarkId,
   }),
   Schema.Struct({
     type: Schema.Literal("thread.pin.reorder"),

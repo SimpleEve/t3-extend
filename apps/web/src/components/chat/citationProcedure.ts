@@ -24,7 +24,8 @@ export type CitationPhase =
   | { readonly _tag: "failed" };
 
 export interface CitedThreadSnapshot {
-  readonly message: "assistant" | "other" | null;
+  /** The loaded message the citation names; a bookmark can name the user's own message too. */
+  readonly message: "assistant" | "user" | null; // fork: message bookmarks
   readonly hasMoreHistory: boolean;
   readonly loadFailed?: true;
 }
@@ -71,14 +72,7 @@ export async function loadCitedHistory(input: {
     const thread = await input.readThread();
     if (thread === null || input.signal.aborted) return { _tag: "aborted" };
     if (thread.loadFailed) return COULD_NOT_LOAD;
-    if (thread.message === "assistant") return { _tag: "found" };
-    if (thread.message === "other") {
-      return {
-        _tag: "failed",
-        title: msg("The citation does not refer to an assistant response"),
-        description: msg("The selected text is still saved in your citation."),
-      };
-    }
+    if (thread.message !== null) return { _tag: "found" }; // fork: message bookmarks
     if (!thread.hasMoreHistory) return UNAVAILABLE;
     if (attempts >= MAX_CITATION_PAGES) return COULD_NOT_LOAD;
     const result = await input.loadThrough();
@@ -105,7 +99,13 @@ export function resolveCitationPhase(input: {
   );
   // The history store can hold the message a render before the entries do.
   if (!source) return { _tag: "loading" };
-  if (source.kind === "message" && source.message.role !== "assistant") return { _tag: "failed" };
+  if (
+    source.kind === "message" &&
+    source.message.role !== "assistant" &&
+    source.message.role !== "user"
+  ) {
+    return { _tag: "failed" }; // fork: message bookmarks reveal the user's own messages too
+  }
   const row = input.rows.find(
     (candidate) =>
       (candidate.kind === "message" && candidate.message.id === input.messageId) ||
@@ -147,7 +147,7 @@ export function citedThreadSnapshot(input: {
         sentMessageFromToolItem(item) !== undefined),
   )?.item;
   return {
-    message: item === undefined ? null : item.type === "user_message" ? "other" : "assistant",
+    message: item === undefined ? null : item.type === "user_message" ? "user" : "assistant",
     hasMoreHistory: input.history.hasMoreHistory,
   };
 }

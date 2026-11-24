@@ -29,6 +29,7 @@ import {
   type ThreadEnvMode,
   type UploadChatAttachment,
   type GuestMessageId,
+  type ThreadBookmarkId, // fork: message bookmarks
 } from "@t3tools/contracts";
 import { derivePendingBackgroundWork } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
@@ -47,6 +48,12 @@ import {
   isRpcClientError,
   request,
 } from "../rpc/client.ts";
+
+// fork: message bookmarks
+type ThreadBookmarkAddInput = Extract<
+  OrchestrationV2Command,
+  { readonly type: "thread.bookmark.add" }
+>;
 
 interface CommandMetadata {
   readonly commandId?: CommandId;
@@ -584,6 +591,53 @@ export const pinThread = Effect.fn("EnvironmentCommands.pinThread")(function* (
     ...(input.orderKey === undefined ? {} : { orderKey: input.orderKey }),
   });
 });
+
+// fork: message bookmarks
+export interface AddThreadBookmarkInput extends ThreadCommandInput {
+  readonly bookmark: Omit<ThreadBookmarkAddInput, "type" | "commandId" | "threadId">;
+}
+export const addThreadBookmark = Effect.fn("EnvironmentCommands.addThreadBookmark")(function* (
+  input: AddThreadBookmarkInput,
+) {
+  return yield* dispatch({
+    type: "thread.bookmark.add",
+    commandId: yield* allocateCommandId(input),
+    threadId: input.threadId,
+    ...input.bookmark,
+  });
+});
+
+export interface UpdateThreadBookmarkInput extends ThreadCommandInput {
+  readonly bookmarkId: ThreadBookmarkId;
+  readonly title?: string | null;
+  readonly note?: string | null;
+}
+export const updateThreadBookmark = Effect.fn("EnvironmentCommands.updateThreadBookmark")(
+  function* (input: UpdateThreadBookmarkInput) {
+    return yield* dispatch({
+      type: "thread.bookmark.update",
+      commandId: yield* allocateCommandId(input),
+      threadId: input.threadId,
+      bookmarkId: input.bookmarkId,
+      ...(input.title === undefined ? {} : { title: input.title }),
+      ...(input.note === undefined ? {} : { note: input.note }),
+    });
+  },
+);
+
+export interface RemoveThreadBookmarkInput extends ThreadCommandInput {
+  readonly bookmarkId: ThreadBookmarkId;
+}
+export const removeThreadBookmark = Effect.fn("EnvironmentCommands.removeThreadBookmark")(
+  function* (input: RemoveThreadBookmarkInput) {
+    return yield* dispatch({
+      type: "thread.bookmark.remove",
+      commandId: yield* allocateCommandId(input),
+      threadId: input.threadId,
+      bookmarkId: input.bookmarkId,
+    });
+  },
+);
 
 export interface SetThreadAutoSettleInput extends ThreadCommandInput {
   readonly enabled: boolean;

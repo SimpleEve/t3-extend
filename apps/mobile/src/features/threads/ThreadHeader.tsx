@@ -16,6 +16,7 @@ import {
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { useT } from "../../hooks/useT";
 import { useThreadOutputs } from "../../state/outputs"; // fork: outputs
+import { useThreadBookmarks } from "../bookmarks/threadBookmarkState"; // fork: message bookmarks
 
 export function ThreadHeader(props: {
   readonly title: string;
@@ -34,12 +35,18 @@ export function ThreadHeader(props: {
     readonly cwd: string | null;
     readonly onOpen: () => void;
   };
+  // fork: message bookmarks. Shown only while the thread has some.
+  readonly bookmarks?: {
+    readonly threadRef: ScopedThreadRef;
+    readonly onOpen: () => void;
+  };
 }) {
   const gt = useGT();
   const m = useMessages();
   const t = useT(); // fork: new browser tab, outputs
   const outputs = useThreadOutputs(props.outputs?.threadRef ?? null, props.outputs?.cwd); // fork: outputs
   const outputsCount = outputs.filesTotal + outputs.linksTotal; // fork: outputs
+  const bookmarkCount = useThreadBookmarks(props.bookmarks?.threadRef ?? null).length; // fork: message bookmarks
   const goBack = useWorkspaceBackNavigation();
   const { toggleAuxiliaryPane, startNewTask } = useAdaptiveWorkspaceLayout();
   const { panes } = useWorkspacePaneState();
@@ -72,6 +79,14 @@ export function ThreadHeader(props: {
       accessibilityLabel: t("Outputs, {count}", { count: outputsCount }),
       icon: "doc.text",
       onPress: props.outputs.onOpen,
+    });
+  }
+  // fork: message bookmarks
+  if (props.bookmarks && bookmarkCount > 0) {
+    actions.push({
+      accessibilityLabel: gt("Bookmarks, {count}", { count: bookmarkCount }),
+      icon: "bookmark",
+      onPress: props.bookmarks.onOpen,
     });
   }
   const menus = [gitMenu, terminalMenu].filter((menu): menu is AppBarMenu => menu !== null);
