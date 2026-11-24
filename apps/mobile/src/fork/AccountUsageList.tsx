@@ -131,11 +131,14 @@ function AccountCell({
       onPress={onOpen}
       className="min-h-6 flex-row items-center gap-2 active:opacity-60"
     >
-      <Text numberOfLines={1} className="w-12 text-xs text-foreground-muted">
+      <Text numberOfLines={1} className="w-16 text-xs text-foreground-muted">
         {name}
       </Text>
       <Bar remaining={remaining} color={color} refillPercent={refillPercent} paceLeft={timeLeft} />
-      <Text className="w-9 text-right text-xs font-t3-medium tabular-nums text-foreground">
+      <Text
+        numberOfLines={1}
+        className="w-11 text-right text-xs font-t3-medium tabular-nums text-foreground"
+      >
         {remaining}%
       </Text>
       {resets ? (
@@ -190,7 +193,7 @@ function PooledBlock({
               const nextRefill = window.resets.find((reset) => reset.restoresPercent > 0);
               return (
                 <View key={index} className="min-h-6 flex-row flex-wrap items-center gap-x-2">
-                  <Text numberOfLines={1} className="w-12 text-xs text-foreground-muted">
+                  <Text numberOfLines={1} className="w-16 text-xs text-foreground-muted">
                     {name}
                   </Text>
                   <Bar
@@ -199,7 +202,10 @@ function PooledBlock({
                     refillPercent={0}
                     paceLeft={null}
                   />
-                  <Text className="w-9 text-right text-xs font-t3-bold tabular-nums text-foreground">
+                  <Text
+                    numberOfLines={1}
+                    className="w-11 text-right text-xs font-t3-bold tabular-nums text-foreground"
+                  >
                     {window.remainingPercent}%
                   </Text>
                   {window.pace ? (
