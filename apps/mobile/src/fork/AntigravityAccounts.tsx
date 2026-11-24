@@ -1,6 +1,8 @@
 // fork: Settings → Providers → the Google accounts a separate Antigravity sign-in keeps.
+import { minuteTick } from "@t3tools/client-runtime/clock";
 import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
 import {
+  antigravityAccountLowest,
   antigravityAccountRows,
   formatAntigravityReset,
   maskAntigravityAccountEmail,
@@ -12,9 +14,10 @@ import {
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId, ServerProvider } from "@t3tools/contracts";
+import { formatReadAgo } from "@t3tools/shared/usageLimitsCopy";
 import { useAtomValue } from "@effect/atom-react";
 import type { MenuAction } from "@react-native-menu/menu";
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { Pressable, View } from "react-native";
 
 import * as Dialog from "../components/ui/Dialog";
@@ -27,6 +30,8 @@ import { m } from "../i18n/messages";
 import { serverEnvironment } from "../state/server";
 import { useAtomCommand } from "../state/use-atom-command";
 
+const STALE_LIVE_READING_MS = 15 * 60_000;
+
 export function AntigravityAccounts({
   environmentId,
   provider,
@@ -36,6 +41,9 @@ export function AntigravityAccounts({
 }) {
   const t = useT();
   const locale = useUiLocale();
+  const now = Date.parse(
+    `${useSyncExternalStore(minuteTick.subscribe, minuteTick.getSnapshot, minuteTick.getSnapshot)}Z`,
+  );
   const rows = antigravityAccountRows(provider);
   const options = { reportFailure: false, reportDefect: false };
   const select = useAtomCommand(serverEnvironment.selectProviderAuthMethod, options);
@@ -109,13 +117,23 @@ export function AntigravityAccounts({
           ...(row.current ? [] : [{ id: "use", title: t("Use") }]),
           { id: "remove", title: t("Remove"), attributes: { destructive: true } },
         ];
-        const status = row.current
+        const found =
+          row.exhaustedUntil === null ? antigravityAccountLowest(row.usageLimits, now) : null;
+        // The account in use is read live; only a reading that has stopped refreshing is dated.
+        const left =
+          found === null
+            ? null
+            : row.current && found.readAgoMs < STALE_LIVE_READING_MS
+              ? t("{remaining}% left", { remaining: found.remaining })
+              : `${t("{remaining}% left", { remaining: found.remaining })} · ${formatReadAgo(found.readAgoMs, m)}`;
+        const base = row.current
           ? t("In use")
           : row.exhaustedUntil !== null
             ? t("Out of quota until {time}", {
                 time: formatAntigravityReset(row.exhaustedUntil, locale),
               })
             : t("Saved");
+        const status = left === null ? base : `${base} · ${left}`;
         return (
           <View key={row.id} className="min-h-14 flex-row items-center gap-3 px-4 py-2">
             <Pressable

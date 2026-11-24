@@ -31,6 +31,8 @@ const FEATURES: Readonly<Record<string, ReadonlyArray<string>>> = {
   "antigravity accounts": [
     "apps/web/src/fork/AntigravityAccounts.tsx",
     "apps/mobile/src/fork/AntigravityAccounts.tsx",
+    "apps/web/src/fork/AccountUsageList.tsx",
+    "apps/mobile/src/fork/AccountUsageList.tsx",
   ],
   "sidebar by project": [
     "apps/web/src/components/sidebar/SidebarViewToggle.tsx",

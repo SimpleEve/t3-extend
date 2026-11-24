@@ -32,6 +32,8 @@ import type { MessageResolver } from "../../i18n/messages";
 import { SettingsScreen } from "../settings/components/SettingsScreen";
 import { environmentPresentations } from "../../state/presentation";
 import { refillLabel, ResetCredits, resetLabels } from "./UsageLimitsSection";
+import { listsAccountUsage } from "@t3tools/client-runtime/fork/antigravityAccounts/usageRows"; // fork:
+import { AccountUsageList } from "../../fork/AccountUsageList"; // fork:
 import { usageProviderKind, useProviderColors } from "./usageProviders";
 
 const PACE_LABEL = {
@@ -62,7 +64,7 @@ function accountHue(email: string) {
 }
 
 // Same hashed hue as the web account chip, so an account keeps its color across clients.
-function AccountChip({ email }: { readonly email: string }) {
+export function AccountChip({ email }: { readonly email: string }) {
   const hue = accountHue(email);
   return (
     <View
@@ -510,7 +512,15 @@ export function UsageLimitsSection({
                   {providerClients.get(pool.driver)?.label ?? pool.driver}
                 </Text>
               </View>
-              {windows.map((window) => {
+              {listsAccountUsage(pool) ? (
+                <AccountUsageList
+                  pool={pool}
+                  color={colors[usageProviderKind(pool.driver) ?? "codex"]}
+                  now={now}
+                />
+              ) : null}
+              {(listsAccountUsage(pool) ? [] : windows).map((window) => {
+                // fork:
                 const details =
                   pool.driver === "cursor"
                     ? cursorUsageWindowDetails(window.id, pool, m)
