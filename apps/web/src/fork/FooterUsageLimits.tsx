@@ -57,7 +57,7 @@ export function useFooterLimits(environmentId: EnvironmentId | null): readonly F
   const settings = useAtomValue(
     environmentId === null ? NO_SETTINGS_ATOM : serverEnvironment.settingsValueAtom(environmentId),
   );
-  const now = Date.parse(useNowMinute());
+  const now = Date.parse(`${useNowMinute()}Z`);
   const refreshInterval = resolveServerBackgroundActivitySettings(
     settings ?? DEFAULT_SERVER_SETTINGS,
   ).providerHealthRefreshInterval;
@@ -90,7 +90,7 @@ function LimitsPanel(props: {
   const navigate = useNavigate();
   const timestampFormat = usePrimarySettings((settings) => settings.timestampFormat);
   // Only mounted while the panel is open, so the minute clock runs only then.
-  const now = Date.parse(useNowMinute());
+  const now = Date.parse(`${useNowMinute()}Z`);
   return (
     <>
       <FooterPanelHeader title={t("Subscription limits")} machineLabel={machineLabel} />

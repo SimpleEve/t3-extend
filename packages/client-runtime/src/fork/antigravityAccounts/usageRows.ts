@@ -65,3 +65,28 @@ export function accountUsageRows(
     rows: [...rows.filter((row) => row.current), ...rows.filter((row) => !row.current)],
   };
 }
+
+export interface AccountUsageGroup {
+  /** The model family a window belongs to ("Gemini"); null for a label that names none. */
+  readonly family: string | null;
+  readonly windows: ReadonlyArray<{
+    /** Position in `columns`, and so in a row's `cells`. */
+    readonly index: number;
+    /** What is left of the label once the family is taken off ("5-hour"). */
+    readonly name: string;
+  }>;
+}
+
+/** Windows are labelled "Family · Window"; the list shows each family once, over its windows. */
+export function accountUsageGroups(
+  columns: ReadonlyArray<AccountUsageColumn>,
+): ReadonlyArray<AccountUsageGroup> {
+  const groups = new Map<string | null, AccountUsageGroup["windows"][number][]>();
+  columns.forEach((column, index) => {
+    const separator = column.label.lastIndexOf(" · ");
+    const family = separator > 0 ? column.label.slice(0, separator) : null;
+    const name = separator > 0 ? column.label.slice(separator + 3) : column.label;
+    groups.set(family, [...(groups.get(family) ?? []), { index, name }]);
+  });
+  return [...groups].map(([family, windows]) => ({ family, windows }));
+}

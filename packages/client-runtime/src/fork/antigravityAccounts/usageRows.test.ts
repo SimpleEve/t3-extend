@@ -7,7 +7,7 @@ import {
 } from "@t3tools/contracts";
 import { collectLimitAccounts, collectLimitPools } from "@t3tools/shared/usageLimits";
 
-import { accountUsageRows, listsAccountUsage } from "./usageRows.ts";
+import { accountUsageGroups, accountUsageRows, listsAccountUsage } from "./usageRows.ts";
 
 const now = Date.parse("2026-09-03T12:00:00.000Z");
 const window = (id: string, label: string, usedPercent: number, resetsAt: string) => ({
@@ -98,5 +98,27 @@ describe("account usage rows", () => {
     expect(listsAccountUsage(pool!)).toBe(true);
     expect(listsAccountUsage({ ...pool!, accounts: pool!.accounts.slice(0, 1) })).toBe(false);
     expect(listsAccountUsage({ ...pool!, driver: ProviderDriverKind.make("codex") })).toBe(false);
+  });
+
+  it("groups windows under their model family, keeping each window's column", () => {
+    const column = (id: string, label: string) => ({ id, kind: "session" as const, label });
+    expect(
+      accountUsageGroups([
+        column("gemini-5h", "Gemini · 5-hour"),
+        column("3p-5h", "Claude & GPT (shared) · 5-hour"),
+        column("gemini-weekly", "Gemini · Weekly"),
+        column("quota", "Reported quota"),
+      ]),
+    ).toEqual([
+      {
+        family: "Gemini",
+        windows: [
+          { index: 0, name: "5-hour" },
+          { index: 2, name: "Weekly" },
+        ],
+      },
+      { family: "Claude & GPT (shared)", windows: [{ index: 1, name: "5-hour" }] },
+      { family: null, windows: [{ index: 3, name: "Reported quota" }] },
+    ]);
   });
 });

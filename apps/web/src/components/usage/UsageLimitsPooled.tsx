@@ -45,6 +45,8 @@ import {
   formatResetsIn,
   resetCreditChoices,
 } from "@t3tools/shared/usageLimitsCopy";
+import { listsAccountUsage } from "@t3tools/client-runtime/fork/antigravityAccounts/usageRows"; // fork:
+import { AccountUsageList } from "../../fork/AccountUsageList"; // fork:
 
 function accountInitials(email: string): string {
   const [local = "", domain = ""] = email.split("@");
@@ -59,7 +61,7 @@ function accountHue(email: string): number {
   return Math.abs(hash) % 360;
 }
 
-function AccountChip({ email }: { readonly email: string }) {
+export function AccountChip({ email }: { readonly email: string }) {
   const hue = accountHue(email);
   const gt = useGT();
   return (
@@ -403,7 +405,7 @@ function SegmentTriggers({
             type="button"
             style={{ gridColumn: index, gridRow: 1, ...paceMark?.gappedTrack }}
             aria-label={segmentLabel}
-            className="relative h-5 min-w-0 cursor-pointer rounded-md bg-muted text-start outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[popup-open]:ring-1 data-[popup-open]:ring-inset data-[popup-open]:ring-border @2xl/pool:h-8"
+            className="relative h-5 min-w-0 cursor-pointer rounded-md bg-muted text-start outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[popup-open]:ring-1 data-[popup-open]:ring-inset data-[popup-open]:ring-border @2xl/pool:h-6"
           />
         }
       >
@@ -574,7 +576,7 @@ function PoolBar({
             <div
               key={member.account.key}
               style={{ gridColumn: position + 1, gridRow: 1 }}
-              className="flex h-5 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-md border border-dashed border-border text-3xs whitespace-nowrap text-muted-foreground @2xl/pool:h-8 @2xl/pool:justify-start @2xl/pool:px-2 @2xl/pool:text-xs"
+              className="flex h-5 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-md border border-dashed border-border text-3xs whitespace-nowrap text-muted-foreground @2xl/pool:h-6 @2xl/pool:justify-start @2xl/pool:px-2 @2xl/pool:text-xs"
             >
               <AccountName
                 account={member.account}
@@ -604,13 +606,13 @@ function PoolWindowCard({
 }) {
   const nextRefill = pool.resets.find((reset) => reset.restoresPercent > 0);
   return (
-    <div className="grid items-center gap-x-6 gap-y-3 rounded-lg border border-border/60 p-4 md:grid-cols-[11rem_minmax(0,1fr)]">
+    <div className="grid items-center gap-x-6 gap-y-2 rounded-lg border border-border/60 p-3 md:grid-cols-[11rem_minmax(0,1fr)]">
       <div className="flex flex-col gap-1">
         {label !== null ? (
           <span className="text-sm font-medium text-foreground">{label ?? pool.label}</span>
         ) : null}
         <span className="flex items-baseline gap-2">
-          <span className="text-3xl font-semibold text-foreground tabular-nums">
+          <span className="text-2xl font-semibold text-foreground tabular-nums">
             {pool.remainingPercent}%
           </span>
           <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
@@ -639,6 +641,8 @@ function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: nu
   const label = providerClients.get(pool.driver)?.label ?? String(pool.driver);
   const windows = displayLimitWindows(pool);
   const m = useMessages();
+  const gt = useGT();
+  const listed = listsAccountUsage(pool); // fork:
   return (
     <section className="flex flex-col gap-3">
       <h2 className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -650,8 +654,16 @@ function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: nu
           iconClassName="size-4 text-foreground/80"
         />
         {label}
+        {listed ? (
+          <span className="text-xs font-normal text-muted-foreground tabular-nums">
+            {gt("{count, plural, one {{count} account} other {{count} accounts}}", {
+              count: pool.accounts.length,
+            })}
+          </span>
+        ) : null}
       </h2>
-      {windows.map((window) => {
+      {listed ? <AccountUsageList pool={pool} color={color} now={now} /> : null}
+      {(listed ? [] : windows).map((window) => {
         const details =
           pool.driver === "cursor" ? cursorUsageWindowDetails(window.id, pool, m) : undefined;
         return (

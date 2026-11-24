@@ -1,4 +1,5 @@
-import type { ServerProvider } from "@t3tools/contracts";
+import type { ServerProvider, ServerProviderUsageLimits } from "@t3tools/contracts";
+import { remainingPercent } from "@t3tools/shared/usageLimits";
 
 // fork: the saved Google accounts of a separate Antigravity sign-in, as web and mobile list them.
 
@@ -9,6 +10,8 @@ export interface AntigravityAccountRow {
   readonly current: boolean;
   /** When the account's quota is back, as an ISO time; null while it has quota. */
   readonly exhaustedUntil: string | null;
+  /** The last quota reading taken while the account was in use. */
+  readonly usageLimits: ServerProviderUsageLimits | null;
   readonly position: number;
 }
 
@@ -22,8 +25,27 @@ export function antigravityAccountRows(
     email: account.email ?? null,
     current: account.current,
     exhaustedUntil: account.exhaustedUntil ?? null,
+    usageLimits: account.usageLimits ?? null,
     position: index + 1,
   }));
+}
+
+/**
+ * The least left in any window of a remembered reading, and how old the reading is. A window whose
+ * reset has passed counts as full again; an account never read has nothing to say.
+ */
+export function antigravityAccountLowest(
+  limits: ServerProviderUsageLimits | null,
+  now: number,
+): { readonly remaining: number; readonly readAgoMs: number } | null {
+  if (limits === null || limits.windows.length === 0) return null;
+  const remaining = Math.min(
+    ...limits.windows.map((window) => {
+      const resetsAt = window.resetsAt === undefined ? Number.NaN : Date.parse(window.resetsAt);
+      return resetsAt <= now ? 100 : remainingPercent(window);
+    }),
+  );
+  return { remaining, readAgoMs: Math.max(0, now - Date.parse(limits.checkedAt)) };
 }
 
 /** A short local date and time for when quota returns, in the language the caller names. */

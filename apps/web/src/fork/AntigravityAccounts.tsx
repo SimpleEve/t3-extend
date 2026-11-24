@@ -1,6 +1,7 @@
 // fork: Settings → Antigravity → the Google accounts a separate sign-in keeps.
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import {
+  antigravityAccountLowest,
   antigravityAccountRows,
   formatAntigravityReset,
   type AntigravityAccountRow,
@@ -11,16 +12,20 @@ import {
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId, ServerProvider } from "@t3tools/contracts";
+import { formatReadAgo } from "@t3tools/shared/usageLimitsCopy";
 import { useAtomValue } from "@effect/atom-react";
+import { useMessages } from "gt-react";
 import { useRef, useState } from "react";
 
-import { m } from "~/i18n/messages";
 import { Button } from "../components/ui/button";
 import { SettingsRow } from "../components/settings/settingsLayout";
+import { useNowMinute } from "../hooks/useNowMinute";
 import { useT, useUiLocale } from "../hooks/useT";
 import { ensureLocalApi } from "../localApi";
 import { serverEnvironment } from "../state/server";
 import { useAtomCommand } from "../state/use-atom-command";
+
+const STALE_LIVE_READING_MS = 15 * 60_000;
 
 export function AntigravityAccounts({
   environmentId,
@@ -32,7 +37,9 @@ export function AntigravityAccounts({
   readonly readOnly: boolean;
 }) {
   const t = useT();
+  const m = useMessages();
   const locale = useUiLocale();
+  const now = Date.parse(`${useNowMinute()}Z`);
   const rows = antigravityAccountRows(provider);
   const commands = { reportFailure: false, reportDefect: false };
   const select = useAtomCommand(serverEnvironment.selectProviderAuthMethod, commands);
@@ -47,6 +54,17 @@ export function AntigravityAccounts({
 
   const label = (row: AntigravityAccountRow) =>
     row.email === null ? t("Account {number}", { number: row.position }) : row.email;
+  // What is left of the account's quota; a reading of an account not in use says how old it is.
+  const lowest = (row: AntigravityAccountRow) => {
+    const found =
+      row.exhaustedUntil === null ? antigravityAccountLowest(row.usageLimits, now) : null;
+    if (found === null) return null;
+    const left = t("{remaining}% left", { remaining: found.remaining });
+    // The account in use is read live; only a reading that has stopped refreshing is dated.
+    return row.current && found.readAgoMs < STALE_LIVE_READING_MS
+      ? left
+      : `${left} · ${formatReadAgo(found.readAgoMs, m)}`;
+  };
 
   async function run(command: () => Promise<AtomCommandResult<unknown, unknown>>) {
     if (pendingRef.current) return;
@@ -101,63 +119,67 @@ export function AntigravityAccounts({
       }
     >
       <ul className="divide-y divide-border/60">
-        {rows.map((row) => (
-          <li key={row.id} className="flex min-w-0 items-center gap-2 py-2 text-sm">
-            <div className="min-w-0 flex-1">
-              <div className="truncate">{label(row)}</div>
-              <div className="text-xs text-muted-foreground">
-                {row.current
-                  ? t("In use")
-                  : row.exhaustedUntil !== null
-                    ? t("Out of quota until {time}", {
+        {rows.map((row) => {
+          const left = lowest(row);
+          return (
+            <li key={row.id} className="flex min-w-0 items-center gap-2 py-2 text-sm">
+              <div className="min-w-0 flex-1">
+                <div className="truncate">{label(row)}</div>
+                <div className="text-xs text-muted-foreground">
+                  {row.current
+                    ? t("In use")
+                    : row.exhaustedUntil !== null
+                      ? t("Out of quota until {time}", {
+                          time: formatAntigravityReset(row.exhaustedUntil, locale),
+                        })
+                      : t("Saved")}
+                  {row.current && row.exhaustedUntil !== null
+                    ? ` · ${t("Out of quota until {time}", {
                         time: formatAntigravityReset(row.exhaustedUntil, locale),
-                      })
-                    : t("Saved")}
-                {row.current && row.exhaustedUntil !== null
-                  ? ` · ${t("Out of quota until {time}", {
-                      time: formatAntigravityReset(row.exhaustedUntil, locale),
-                    })}`
-                  : null}
+                      })}`
+                    : null}
+                  {left ? ` · ${left}` : null}
+                </div>
               </div>
-            </div>
-            {row.current ? null : (
+              {row.current ? null : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={() =>
+                    act(
+                      row,
+                      select,
+                      t(
+                        "Use {account}? Running threads on this instance stop, and new turns use this account.",
+                        { account: label(row) },
+                      ),
+                    )
+                  }
+                >
+                  {t("Use")}
+                </Button>
+              )}
               <Button
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 disabled={disabled}
                 onClick={() =>
                   act(
                     row,
-                    select,
+                    remove,
                     t(
-                      "Use {account}? Running threads on this instance stop, and new turns use this account.",
+                      "Remove {account}? Running threads on this instance stop. Sign in again to add it back.",
                       { account: label(row) },
                     ),
                   )
                 }
               >
-                {t("Use")}
+                {t("Remove")}
               </Button>
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={disabled}
-              onClick={() =>
-                act(
-                  row,
-                  remove,
-                  t(
-                    "Remove {account}? Running threads on this instance stop. Sign in again to add it back.",
-                    { account: label(row) },
-                  ),
-                )
-              }
-            >
-              {t("Remove")}
-            </Button>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </SettingsRow>
   );
