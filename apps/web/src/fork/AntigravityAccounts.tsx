@@ -17,6 +17,7 @@ import { useAtomValue } from "@effect/atom-react";
 import { useMessages } from "gt-react";
 import { useRef, useState } from "react";
 
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { SettingsRow } from "../components/settings/settingsLayout";
 import { useNowMinute } from "../hooks/useNowMinute";
@@ -124,7 +125,14 @@ export function AntigravityAccounts({
           return (
             <li key={row.id} className="flex min-w-0 items-center gap-2 py-2 text-sm">
               <div className="min-w-0 flex-1">
-                <div className="truncate">{label(row)}</div>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate">{label(row)}</span>
+                  {row.current ? (
+                    <Badge size="sm" variant="secondary">
+                      {t("In use")}
+                    </Badge>
+                  ) : null}
+                </div>
                 <div className="text-xs text-muted-foreground">
                   {row.current
                     ? t("In use")

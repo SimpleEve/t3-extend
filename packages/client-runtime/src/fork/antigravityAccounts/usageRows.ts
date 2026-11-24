@@ -3,6 +3,7 @@ import {
   type LimitAccount,
   type LimitPool,
   type LimitPoolMember,
+  type LimitPoolWindow,
 } from "@t3tools/shared/usageLimits";
 
 // fork: one row per Google account of an Antigravity pool, as the Usage screens list them.
@@ -22,8 +23,23 @@ export interface AccountUsageRow {
   readonly unread: boolean;
   /** Epoch milliseconds until which the account's quota is spent; null while it has quota. */
   readonly exhaustedUntil: number | null;
+  /** Whether pace marks may be drawn for this row; false for an old remembered reading. */
+  readonly paceMeaningful: boolean;
   /** One per column, in column order; null where the account reports no such window. */
   readonly cells: ReadonlyArray<LimitPoolMember | null>;
+}
+
+/**
+ * How old a remembered reading may be and still say anything about pace. Pace compares what was
+ * used with how much of the window has passed, so a reading that stopped refreshing misleads.
+ */
+const PACE_STALE_AFTER_MS = 30 * 60_000;
+
+/** A live reading, or a remembered one young enough that the pace it implies still holds. */
+export function paceIsMeaningful(account: LimitAccount, now: number): boolean {
+  if (!account.snapshot) return true;
+  const checkedAt = Date.parse(account.limits.checkedAt);
+  return Number.isFinite(checkedAt) && now - checkedAt <= PACE_STALE_AFTER_MS;
 }
 
 /** The compact list is for an Antigravity pool with several accounts; others keep the segment bars. */
@@ -37,6 +53,8 @@ export function accountUsageRows(
   now: number,
 ): {
   readonly columns: ReadonlyArray<AccountUsageColumn>;
+  /** The pool's own windows, in column order: the pooled share left, its pace and next refill. */
+  readonly windows: ReadonlyArray<LimitPoolWindow>;
   readonly rows: ReadonlyArray<AccountUsageRow>;
 } {
   const windows = displayLimitWindows(pool);
@@ -55,6 +73,7 @@ export function accountUsageRows(
         account.exhaustedUntil !== undefined && account.exhaustedUntil > now
           ? account.exhaustedUntil
           : null,
+      paceMeaningful: paceIsMeaningful(account, now),
       cells: windows.map(
         (window) => window.members.find((member) => member.account.key === account.key) ?? null,
       ),
@@ -62,6 +81,7 @@ export function accountUsageRows(
   });
   return {
     columns,
+    windows,
     rows: [...rows.filter((row) => row.current), ...rows.filter((row) => !row.current)],
   };
 }

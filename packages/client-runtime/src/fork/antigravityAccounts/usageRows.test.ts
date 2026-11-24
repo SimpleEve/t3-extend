@@ -7,7 +7,12 @@ import {
 } from "@t3tools/contracts";
 import { collectLimitAccounts, collectLimitPools } from "@t3tools/shared/usageLimits";
 
-import { accountUsageGroups, accountUsageRows, listsAccountUsage } from "./usageRows.ts";
+import {
+  accountUsageGroups,
+  accountUsageRows,
+  listsAccountUsage,
+  paceIsMeaningful,
+} from "./usageRows.ts";
 
 const now = Date.parse("2026-09-03T12:00:00.000Z");
 const window = (id: string, label: string, usedPercent: number, resetsAt: string) => ({
@@ -120,5 +125,21 @@ describe("account usage rows", () => {
       { family: "Claude & GPT (shared)", windows: [{ index: 1, name: "5-hour" }] },
       { family: null, windows: [{ index: 3, name: "Reported quota" }] },
     ]);
+  });
+
+  it("keeps pace marks for a live or recent reading and drops them for an old remembered one", () => {
+    const { rows, windows } = accountUsageRows(pool!, now);
+    const by = (email: string) => rows.find((row) => row.account.email === email)!;
+    expect(by("live@example.com").paceMeaningful).toBe(true);
+    // Read an hour ago: used share and elapsed time no longer line up.
+    expect(by("soon@example.com").paceMeaningful).toBe(false);
+    expect(by("far@example.com").paceMeaningful).toBe(false);
+    const fresh = {
+      ...by("soon@example.com").account,
+      limits: { ...by("soon@example.com").account.limits, checkedAt: "2026-09-03T11:45:00.000Z" },
+    };
+    expect(paceIsMeaningful(fresh, now)).toBe(true);
+    // The pooled summary keeps its own windows, in the columns' order.
+    expect(windows.map((window) => window.id)).toEqual(["gemini-5h"]);
   });
 });

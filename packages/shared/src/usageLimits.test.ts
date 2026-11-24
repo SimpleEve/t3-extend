@@ -1936,6 +1936,35 @@ describe("Antigravity instances with several accounts", () => {
     ]);
     expect(accounts).toHaveLength(1);
     expect(accounts[0]?.key).toBe("env-a:antigravity");
+    expect(accounts[0]?.email).toBe("a@example.com");
+  });
+
+  it("shows a lone account's remembered reading when the live one cannot be read", () => {
+    const accounts = accountsOf([
+      instance(
+        [
+          {
+            id: "aaaaaaaaaaaaaaaa",
+            email: "a@example.com",
+            current: true,
+            usageLimits: reading("2026-09-03T10:00:00.000Z", 25),
+          },
+        ],
+        {
+          checkedAt: "2026-09-03T11:59:00.000Z",
+          windows: [],
+          unavailable: { reason: "probeFailed" },
+        },
+      ),
+    ]);
+    expect(accounts).toHaveLength(1);
+    expect(accounts[0]).toMatchObject({
+      key: "env-a:antigravity",
+      email: "a@example.com",
+      snapshot: true,
+      current: true,
+    });
+    expect(accounts[0]?.limits.windows[0]?.usedPercent).toBe(25);
   });
 
   it("falls back to the remembered reading when the live one cannot be read", () => {

@@ -15,12 +15,12 @@ export interface AntigravityAccountRow {
   readonly position: number;
 }
 
-/** Nothing for other providers, and nothing before an instance has a saved account. */
+/** The account in use first. Nothing for other providers, nor before an instance has a saved account. */
 export function antigravityAccountRows(
   provider: Pick<ServerProvider, "driver" | "auth">,
 ): ReadonlyArray<AntigravityAccountRow> {
   if (provider.driver !== "antigravity") return [];
-  return (provider.auth.accounts ?? []).map((account, index) => ({
+  const rows = (provider.auth.accounts ?? []).map((account, index) => ({
     id: account.id,
     email: account.email ?? null,
     current: account.current,
@@ -28,6 +28,8 @@ export function antigravityAccountRows(
     usageLimits: account.usageLimits ?? null,
     position: index + 1,
   }));
+  // The account in use comes first; `position` keeps the order the accounts take over in.
+  return [...rows.filter((row) => row.current), ...rows.filter((row) => !row.current)];
 }
 
 /**

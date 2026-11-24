@@ -141,9 +141,18 @@ export function AntigravityAccounts({
               onPress={() => setRevealed((current) => (current === row.id ? null : row.id))}
               className="min-w-0 shrink grow gap-0.5"
             >
-              <Text textRole="body" className="text-foreground" numberOfLines={1}>
-                {shown(row)}
-              </Text>
+              <View className="flex-row items-center gap-1.5">
+                <Text textRole="body" className="min-w-0 shrink text-foreground" numberOfLines={1}>
+                  {shown(row)}
+                </Text>
+                {row.current ? (
+                  <View className="rounded bg-subtle-strong px-1.5 py-0.5">
+                    <Text textRole="footnote" className="text-foreground">
+                      {t("In use")}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
               <Text textRole="footnote" className="text-foreground-muted">
                 {status}
               </Text>

@@ -14,6 +14,25 @@ const accounts = [
   { id: "b", current: false, exhaustedUntil: "2026-11-21T20:00:00.000Z" },
 ];
 
+it("lists the account in use first and keeps each one's takeover position", () => {
+  const rows = antigravityAccountRows({
+    driver: antigravity,
+    auth: {
+      status: "authenticated",
+      accounts: [
+        { id: "a", email: "a@example.com", current: false },
+        { id: "b", email: "b@example.com", current: true },
+        { id: "c", email: "c@example.com", current: false },
+      ],
+    },
+  });
+  expect(rows.map((row) => [row.id, row.position])).toEqual([
+    ["b", 2],
+    ["a", 1],
+    ["c", 3],
+  ]);
+});
+
 describe("Antigravity account rows", () => {
   it("lists a separate sign-in's accounts in order, with the position for an account without an email", () => {
     const rows = antigravityAccountRows({

@@ -427,18 +427,30 @@ export function collectLimitAccounts(presentations: LimitPresentations): readonl
         }
         continue;
       }
-      if (!provider.usageLimits || limitsNotice(provider.usageLimits) !== null) continue;
+      // fork: a lone saved Antigravity account falls back to its remembered reading too.
+      const lone = provider.driver === "antigravity" && saved?.length === 1 ? saved[0] : undefined;
+      const live =
+        provider.usageLimits && limitsNotice(provider.usageLimits) === null
+          ? provider.usageLimits
+          : undefined;
+      const remembered =
+        lone?.usageLimits && limitsNotice(lone.usageLimits) === null ? lone.usageLimits : undefined;
+      const limits = live ?? remembered;
+      if (!limits) continue;
       merge(resolveKey(nativeReport(provider)) ?? `${environmentId}:${provider.instanceId}`, {
         key: `${environmentId}:${provider.instanceId}`,
         driver: provider.driver,
         displayName: provider.displayName?.trim() || null,
-        email: provider.auth.email,
+        // fork: a lone saved Antigravity account still names who is signed in.
+        email: provider.auth.email ?? lone?.email,
         plan: provider.auth.label,
         accentColor: provider.accentColor,
         environments: [{ environmentId, label }],
         sourceLabel: null,
         redeem: { environmentId, input: { instanceId: provider.instanceId } },
-        limits: provider.usageLimits,
+        limits,
+        snapshot: live === undefined && remembered !== undefined ? true : undefined, // fork:
+        current: lone ? true : undefined, // fork:
       });
     }
   }

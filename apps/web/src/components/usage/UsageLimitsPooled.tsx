@@ -33,6 +33,7 @@ import { formatUpcomingTimestamp } from "../../timestampFormat";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
 import { providerClients } from "../settings/providerDriverMeta";
 import { RedactedSensitiveText } from "../settings/RedactedSensitiveText";
+import { Badge } from "../ui/badge"; // fork:
 import { Button } from "../ui/button";
 import { OpenAI } from "../Icons";
 import { Alert, AlertTitle } from "../ui/alert";
@@ -42,6 +43,7 @@ import {
   collectExternalUsageLinks,
   collectLimitNotices,
   cursorUsageWindowDetails,
+  formatReadAgo, // fork:
   formatResetsIn,
   resetCreditChoices,
 } from "@t3tools/shared/usageLimitsCopy";
@@ -141,6 +143,8 @@ function SegmentPopover({
   now,
   redeem,
   onRedeem,
+  readAgoMs,
+  paceMeaningful,
 }: {
   readonly account: LimitAccount;
   readonly window: LimitPoolMember["window"];
@@ -148,12 +152,16 @@ function SegmentPopover({
   readonly now: number;
   readonly redeem: ReturnType<typeof useResetCredit> | null;
   readonly onRedeem: (choice: ResetCreditChoice) => void;
+  /** fork: how old a remembered reading is; absent for a live one. */
+  readonly readAgoMs?: number | null | undefined;
+  /** fork: false when the reading is too old for its pace to mean anything. */
+  readonly paceMeaningful?: boolean | undefined;
 }) {
   const timestampFormat = usePrimarySettings((settings) => settings.timestampFormat);
   const gt = useGT();
   const m = useMessages();
   const remaining = remainingPercent(window);
-  const timeLeft = paceRemainingPercent(window, now);
+  const timeLeft = paceMeaningful === false ? null : paceRemainingPercent(window, now); // fork:
   const resetsIn = formatResetsIn(window, now, m, "in");
   const where =
     account.environments.length > 0
@@ -171,6 +179,11 @@ function SegmentPopover({
           <span className="truncate">
             {account.displayName ?? providerClients.get(account.driver)?.label ?? account.driver}
           </span>
+          {account.current ? ( // fork:
+            <Badge size="sm" variant="secondary">
+              {gt("Current", { $context: "the account in use" })}
+            </Badge>
+          ) : null}
         </span>
         {account.email ? (
           <RedactedSensitiveText
@@ -200,6 +213,12 @@ function SegmentPopover({
       </div>
       <div className="flex flex-col gap-1 border-t border-border/60 pt-2.5">
         <Row label={gt("Left", { $context: "remaining usage" })}>{remaining}%</Row>
+        {readAgoMs !== null && readAgoMs !== undefined ? ( // fork:
+          <Row label={gt("Reading", { $context: "when the usage was last read" })}>
+            {formatReadAgo(readAgoMs, m)}
+            {paceMeaningful === false ? ` · ${gt("may be out of date")}` : ""}
+          </Row>
+        ) : null}
         {window.resetsAt ? (
           <Row label={gt("Resets", { $context: "when the usage window resets" })}>
             {formatUpcomingTimestamp(window.resetsAt, timestampFormat, now, undefined, m)}
@@ -244,8 +263,8 @@ function SegmentPopover({
  * segment moves it instead of opening a second one. The payload is the segment
  * it currently describes.
  */
-type SegmentPayload = Omit<Parameters<typeof SegmentPopover>[0], "now" | "onRedeem">;
-const SegmentPopoverContext = createContext<ReturnType<
+export type SegmentPayload = Omit<Parameters<typeof SegmentPopover>[0], "now" | "onRedeem">;
+export const SegmentPopoverContext = createContext<ReturnType<
   typeof PopoverCreateHandle<SegmentPayload>
 > | null>(null);
 
@@ -659,6 +678,20 @@ function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: nu
             {gt("{count, plural, one {{count} account} other {{count} accounts}}", {
               count: pool.accounts.length,
             })}
+          </span>
+        ) : null}
+        {!listed && pool.driver === "antigravity" && pool.accounts[0]?.email ? ( // fork:
+          <span className="flex min-w-0 items-center gap-1.5 text-xs font-normal text-muted-foreground">
+            <AccountChip email={pool.accounts[0].email} />
+            <span className="truncate">{pool.accounts[0].email}</span>
+            <Badge size="sm" variant="secondary">
+              {gt("Current", { $context: "the account in use" })}
+            </Badge>
+            {pool.accounts[0].snapshot ? (
+              <span className="shrink-0 tabular-nums">
+                {formatReadAgo(Math.max(0, now - Date.parse(pool.accounts[0].limits.checkedAt)), m)}
+              </span>
+            ) : null}
           </span>
         ) : null}
       </h2>

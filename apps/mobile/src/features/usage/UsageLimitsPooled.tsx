@@ -16,6 +16,7 @@ import {
   collectExternalUsageLinks,
   collectLimitNotices,
   cursorUsageWindowDetails,
+  formatReadAgo, // fork:
 } from "@t3tools/shared/usageLimitsCopy";
 import { msg, T, useGT, useMessages, Var } from "gt-react-native";
 import { Fragment, type ReactNode, useId, useState } from "react";
@@ -32,11 +33,14 @@ import type { MessageResolver } from "../../i18n/messages";
 import { SettingsScreen } from "../settings/components/SettingsScreen";
 import { environmentPresentations } from "../../state/presentation";
 import { refillLabel, ResetCredits, resetLabels } from "./UsageLimitsSection";
-import { listsAccountUsage } from "@t3tools/client-runtime/fork/antigravityAccounts/usageRows"; // fork:
+import {
+  listsAccountUsage,
+  paceIsMeaningful,
+} from "@t3tools/client-runtime/fork/antigravityAccounts/usageRows"; // fork:
 import { AccountUsageList } from "../../fork/AccountUsageList"; // fork:
 import { usageProviderKind, useProviderColors } from "./usageProviders";
 
-const PACE_LABEL = {
+export const PACE_LABEL = {
   ahead: msg("Ahead of pace"),
   on: msg("On pace"),
   under: msg("Under pace"),
@@ -511,12 +515,41 @@ export function UsageLimitsSection({
                 <Text className="text-base font-t3-medium text-foreground">
                   {providerClients.get(pool.driver)?.label ?? pool.driver}
                 </Text>
+                {!listsAccountUsage(pool) && // fork:
+                pool.driver === "antigravity" &&
+                pool.accounts[0]?.email ? (
+                  <View className="min-w-0 shrink flex-row items-center gap-1.5">
+                    <AccountChip email={pool.accounts[0].email} />
+                    <Text
+                      numberOfLines={1}
+                      className="min-w-0 shrink text-xs text-foreground-muted"
+                    >
+                      {pool.accounts[0].email}
+                    </Text>
+                    <View className="rounded bg-subtle-strong px-1.5 py-0.5">
+                      <Text className="text-xs font-t3-medium text-foreground">
+                        {gt("Current", { $context: "the account in use" })}
+                      </Text>
+                    </View>
+                    {pool.accounts[0].snapshot ? (
+                      <Text className="text-xs text-foreground-muted">
+                        {formatReadAgo(
+                          Math.max(0, now - Date.parse(pool.accounts[0].limits.checkedAt)),
+                          m,
+                        )}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
               </View>
               {listsAccountUsage(pool) ? (
                 <AccountUsageList
                   pool={pool}
                   color={colors[usageProviderKind(pool.driver) ?? "codex"]}
                   now={now}
+                  environmentIds={
+                    selectedEnvironmentIds === null ? null : [...selectedEnvironmentIds]
+                  }
                 />
               ) : null}
               {(listsAccountUsage(pool) ? [] : windows).map((window) => {
@@ -619,10 +652,12 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
     .find((candidate) => candidate.driver === account?.driver)
     ?.windows.find((candidate) => candidate.id === windowId && candidate.kind === windowKind);
   const window = pool?.members.find((member) => member.account.key === accountKey)?.window;
-  const evenPace = window ? paceRemainingPercent(window, now) : null;
+  const evenPace =
+    window && account && paceIsMeaningful(account, now) ? paceRemainingPercent(window, now) : null; // fork:
   const reset = pool?.resets.find((candidate) => candidate.member.account.key === accountKey);
   const [revealed, setRevealed] = useState(false);
   const gt = useGT();
+  const m = useMessages(); // fork:
   return (
     <SettingsScreen title={gt("Account", { $context: "screen title" })}>
       <ScrollView
@@ -662,6 +697,19 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
               {account.plan ? (
                 <Text selectable className="text-sm text-foreground-muted">
                   {account.plan}
+                </Text>
+              ) : null}
+              {account.current ? ( // fork:
+                <View className="self-start rounded bg-subtle-strong px-1.5 py-0.5">
+                  <Text className="text-xs font-t3-medium text-foreground">
+                    {gt("Current", { $context: "the account in use" })}
+                  </Text>
+                </View>
+              ) : null}
+              {account.snapshot ? (
+                <Text className="text-sm text-foreground-muted">
+                  {formatReadAgo(Math.max(0, now - Date.parse(account.limits.checkedAt)), m)}
+                  {paceIsMeaningful(account, now) ? "" : ` · ${gt("may be out of date")}`}
                 </Text>
               ) : null}
             </View>
