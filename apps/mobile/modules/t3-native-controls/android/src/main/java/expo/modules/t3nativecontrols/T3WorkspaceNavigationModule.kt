@@ -299,7 +299,7 @@ class T3WorkspaceNavigationView(
       val railShape = RoundedCornerShape(topEnd = 16.dp * fraction, bottomEnd = 16.dp * fraction)
       if (fraction > 0f) {
         Scrim(
-          contentDescription = label("closeRail", "Close navigation rail"),
+          contentDescription = "Close navigation rail",
           onClick = { expanded = false },
           alpha = { fraction },
         )
@@ -322,8 +322,7 @@ class T3WorkspaceNavigationView(
             onClick = { expanded = !expanded },
             modifier = Modifier.semantics {
               contentDescription =
-                if (expanded) label("collapseRail", "Collapse navigation rail")
-                else label("expandRail", "Expand navigation rail")
+                if (expanded) "Collapse navigation rail" else "Expand navigation rail"
             },
           ) {
             Icon(

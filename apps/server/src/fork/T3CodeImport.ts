@@ -93,6 +93,9 @@ const EXCLUDED_TABLES: ReadonlySet<string> = new Set([
   "orchestration_v2_projection_turn_item_counts",
   // The same, one level up: triggers on the table above keep it. It is WITHOUT ROWID too.
   "orchestration_v2_projection_thread_item_counts",
+  // The source's unfinished workflow runs and its agent feedback reports, which the fork hides.
+  "workflow_steps",
+  "agent_feedback",
 ]);
 
 const THREADS_TABLE = "orchestration_v2_projection_threads";
