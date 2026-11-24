@@ -1,5 +1,6 @@
-// fork: the account chip and pace labels the Usage screen and the compact account list share. A leaf
-// module, so the list does not have to import the screen that renders it.
+// fork: the account chip and pace labels for the compact account list. They copy the ones in
+// `features/usage/UsageLimitsPooled.tsx` (keep them alike); the list cannot import them from there,
+// because that screen imports the list and the two would form an import cycle.
 import { msg } from "gt-react-native";
 import { View } from "react-native";
 
@@ -11,7 +12,7 @@ export const PACE_LABEL = {
   under: msg("Under pace"),
 } as const;
 
-export function emailInitials(email: string) {
+function emailInitials(email: string) {
   const [local = "", domain = ""] = email.split("@");
   return `${local[0] ?? ""}${domain[0] ?? ""}`.toUpperCase();
 }
