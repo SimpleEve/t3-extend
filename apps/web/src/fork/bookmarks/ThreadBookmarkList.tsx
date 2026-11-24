@@ -28,6 +28,7 @@ export function ThreadBookmarkList({
   sources,
   canEdit,
   onRevealed,
+  onRemoved,
 }: {
   threadRef: ScopedThreadRef;
   bookmarks: ReadonlyArray<ThreadBookmark>;
@@ -35,6 +36,8 @@ export function ThreadBookmarkList({
   canEdit: boolean;
   /** Called after a bookmark is opened, so a dialog can get out of the way. */
   onRevealed?: () => void;
+  /** A list in a modal dialog says so, and offers Undo itself: the dialog covers toasts. */
+  onRemoved?: (bookmark: ThreadBookmark) => void;
 }) {
   const gt = useGT();
   const actions = useThreadBookmarkActions(threadRef);
@@ -48,6 +51,9 @@ export function ThreadBookmarkList({
         const missing = sources.get(bookmark.id) === "missing";
         const expanded = expandedId === bookmark.id;
         const label = threadBookmarkLabel(bookmark, LABEL_LENGTH);
+        // Without a title the label is the start of the text, so the open row shows the text once.
+        const titled = (bookmark.title?.trim() ?? "") !== "";
+        const textInLabel = expanded && !titled;
         return (
           <li
             key={bookmark.id}
@@ -87,9 +93,15 @@ export function ThreadBookmarkList({
                       missing ? "cursor-default text-muted-foreground" : "cursor-pointer",
                     )}
                   >
-                    <span className={cn("block", expanded ? "break-words" : "truncate")}>
-                      {label}
-                    </span>
+                    {textInLabel ? (
+                      <span className="block max-h-48 overflow-y-auto text-xs break-words whitespace-pre-wrap text-muted-foreground">
+                        {bookmark.excerpt}
+                      </span>
+                    ) : (
+                      <span className={cn("block", expanded ? "break-words" : "truncate")}>
+                        {label}
+                      </span>
+                    )}
                     {missing ? (
                       <span className="block text-xs text-muted-foreground">
                         {gt("The original message is no longer in this thread")}
@@ -133,7 +145,16 @@ export function ThreadBookmarkList({
                               size="icon-xs"
                               variant="ghost-muted"
                               aria-label={gt("Delete bookmark")}
-                              onClick={() => void actions.remove(bookmark)}
+                              onClick={() =>
+                                void actions
+                                  .remove(
+                                    bookmark,
+                                    onRemoved === undefined ? undefined : { undoToast: false },
+                                  )
+                                  .then((removed) => {
+                                    if (removed) onRemoved?.(bookmark);
+                                  })
+                              }
                             />
                           }
                         >
@@ -144,11 +165,13 @@ export function ThreadBookmarkList({
                     ) : null}
                   </div>
                 </div>
-                {expanded ? (
+                {expanded && (titled || bookmark.note) ? (
                   <div className="ms-7 mt-0.5 flex min-w-0 flex-col gap-1.5 pb-1">
-                    <p className="max-h-48 overflow-y-auto text-xs break-words whitespace-pre-wrap text-muted-foreground">
-                      {bookmark.excerpt}
-                    </p>
+                    {titled ? (
+                      <p className="max-h-48 overflow-y-auto text-xs break-words whitespace-pre-wrap text-muted-foreground">
+                        {bookmark.excerpt}
+                      </p>
+                    ) : null}
                     {bookmark.note ? (
                       <p className="text-xs break-words whitespace-pre-wrap">{bookmark.note}</p>
                     ) : null}

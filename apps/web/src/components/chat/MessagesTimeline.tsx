@@ -683,7 +683,13 @@ const ConversationTimeline = memo(function ConversationTimeline({
     citationHistory._tag !== "failed"
       ? timelineEntries.find(
           (entry) =>
-            (entry.kind === "message" && entry.message.id === citationRequest.citation.messageId) ||
+            (entry.kind === "message" &&
+              entry.message.role === "assistant" &&
+              entry.message.id === citationRequest.citation.messageId) ||
+            // fork: a bookmark reveals the user's own messages too
+            (entry.kind === "message" &&
+              entry.message.role === "user" &&
+              entry.message.id === citationRequest.citation.messageId) ||
             (entry.kind === "sent-message" && entry.id === citationRequest.citation.messageId),
         )
       : undefined;

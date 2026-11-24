@@ -78,8 +78,35 @@ export function useThreadBookmarkActions(threadRef: ScopedThreadRef) {
     return false;
   };
 
-  /** Removing never asks: the toast offers Undo, which adds the same bookmark back. */
-  const remove = async (bookmark: ThreadBookmark): Promise<boolean> => {
+  /** Puts a removed bookmark back under its own id, creation time, title and note. */
+  const restore = (bookmark: ThreadBookmark): Promise<boolean> =>
+    add(
+      {
+        messageId: bookmark.messageId,
+        kind: bookmark.kind,
+        excerpt: bookmark.excerpt,
+        ...(bookmark.selectionStart === undefined
+          ? {}
+          : { selectionStart: bookmark.selectionStart }),
+        ...(bookmark.selectionEnd === undefined ? {} : { selectionEnd: bookmark.selectionEnd }),
+        ...(bookmark.selectionPrefix === undefined
+          ? {}
+          : { selectionPrefix: bookmark.selectionPrefix }),
+        ...(bookmark.selectionSuffix === undefined
+          ? {}
+          : { selectionSuffix: bookmark.selectionSuffix }),
+      },
+      bookmark,
+    );
+
+  /**
+   * Removing never asks: a toast offers Undo. A modal dialog covers the toast and takes its
+   * clicks, so a caller inside one passes `undoToast: false` and offers Undo itself.
+   */
+  const remove = async (
+    bookmark: ThreadBookmark,
+    options?: { readonly undoToast?: boolean },
+  ): Promise<boolean> => {
     const result = await removeBookmark({
       environmentId,
       input: { threadId, bookmarkId: bookmark.id },
@@ -90,6 +117,7 @@ export function useThreadBookmarkActions(threadRef: ScopedThreadRef) {
       }
       return false;
     }
+    if (options?.undoToast === false) return true;
     const toastId = toastManager.add(
       stackedThreadToast({
         type: "info",
@@ -99,26 +127,7 @@ export function useThreadBookmarkActions(threadRef: ScopedThreadRef) {
           children: gt("Undo"),
           onClick: () => {
             toastManager.close(toastId);
-            void add(
-              {
-                messageId: bookmark.messageId,
-                kind: bookmark.kind,
-                excerpt: bookmark.excerpt,
-                ...(bookmark.selectionStart === undefined
-                  ? {}
-                  : { selectionStart: bookmark.selectionStart }),
-                ...(bookmark.selectionEnd === undefined
-                  ? {}
-                  : { selectionEnd: bookmark.selectionEnd }),
-                ...(bookmark.selectionPrefix === undefined
-                  ? {}
-                  : { selectionPrefix: bookmark.selectionPrefix }),
-                ...(bookmark.selectionSuffix === undefined
-                  ? {}
-                  : { selectionSuffix: bookmark.selectionSuffix }),
-              },
-              bookmark,
-            );
+            void restore(bookmark);
           },
         },
       }),
@@ -141,5 +150,5 @@ export function useThreadBookmarkActions(threadRef: ScopedThreadRef) {
     if (next !== null) await add(next);
   };
 
-  return { add, update, remove, toggleMessage };
+  return { add, update, remove, restore, toggleMessage };
 }

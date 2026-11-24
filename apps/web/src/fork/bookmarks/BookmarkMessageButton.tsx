@@ -1,10 +1,11 @@
 import { messageBookmarkDraft } from "@t3tools/client-runtime/state/thread-bookmarks";
-import { MessageId, type ScopedThreadRef } from "@t3tools/contracts";
+import { AuthOrchestrationOperateScope, MessageId, type ScopedThreadRef } from "@t3tools/contracts";
 import { useGT } from "gt-react";
 import { BookmarkIcon } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../../components/ui/tooltip";
+import { useEnvironmentScope } from "../../state/session";
 import { findMessageTextSource, readRenderedMessageText } from "../../lib/assistantTextSelection";
 import { useMessageBookmarkKind, useThreadBookmarks } from "./threadBookmarkState";
 import { useThreadBookmarkActions } from "./useThreadBookmarkActions";
@@ -20,9 +21,11 @@ export function BookmarkMessageButton({
   fallbackText: string;
 }) {
   const gt = useGT();
+  const canOperate = useEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope);
   const kind = useMessageBookmarkKind(threadRef, messageId);
   const bookmarks = useThreadBookmarks(threadRef);
   const actions = useThreadBookmarkActions(threadRef);
+  if (!canOperate) return null;
   const bookmarked = kind === "message";
   const label = bookmarked ? gt("Remove bookmark") : gt("Bookmark this message");
   return (
