@@ -410,7 +410,6 @@ function PresetCard({
   definition: ThemeDefinition;
   active: boolean;
   modified: boolean;
-  /** How many saved schemes of the person's came from this preset. */
   mineCount: number;
   note: string | null;
   onUse: () => void;
@@ -862,6 +861,10 @@ function StudioHeader({ studio }: { studio: Studio }) {
   const isPreset = kind === "preset";
   const customLook = working.look !== undefined;
   const [saveOpen, setSaveOpen] = useState(false);
+  const openSave = () => {
+    studio.clearSaveFailed();
+    setSaveOpen(true);
+  };
   return (
     <div
       className="sticky top-0 z-10 -mx-1 rounded-xl border border-border/60 bg-background px-3 py-2.5 sm:px-4"
@@ -917,19 +920,19 @@ function StudioHeader({ studio }: { studio: Studio }) {
             disabled={studio.applied === null && studio.draft === null}
             size="xs"
             variant="outline"
-            onClick={() => studio.select(null)}
+            onClick={() => studio.choose(null)}
           >
             <RotateCcwIcon />
             {t("Reset theme to default")}
           </Button>
           {studio.isFork ? null : (
-            <Button size="xs" variant="outline" onClick={() => setSaveOpen(true)}>
+            <Button size="xs" variant="outline" onClick={openSave}>
               <CopyPlusIcon />
               {t("Save as new scheme…")}
             </Button>
           )}
           {studio.isFork ? (
-            <Button disabled={!studio.dirty} size="xs" onClick={() => setSaveOpen(true)}>
+            <Button disabled={!studio.dirty} size="xs" onClick={openSave}>
               {t("Save as my scheme…")}
             </Button>
           ) : studio.draft !== null || kind === "scheme" ? (

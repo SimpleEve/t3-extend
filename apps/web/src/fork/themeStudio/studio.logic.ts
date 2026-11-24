@@ -61,27 +61,61 @@ export function beginScheme(input: {
 
 const FORK_ID_SUFFIX = /-mine(?:-\d+)?$/;
 
+type LabelOf = (theme: ThemeDefinition) => string;
+
+/** Names already taken: each scheme's stored name and the one it shows in the language on screen. */
+function takenNames(
+  savedThemes: ReadonlyArray<ThemeDefinition>,
+  labelOf: LabelOf | undefined,
+  exceptId: string | undefined,
+): ReadonlySet<string> {
+  const taken = new Set<string>();
+  for (const saved of savedThemes) {
+    if (saved.id === exceptId) continue;
+    taken.add(saved.label);
+    if (labelOf) taken.add(labelOf(saved));
+  }
+  return taken;
+}
+
+/** `name` if no other scheme shows it, else the name with a number. `exceptId` is a scheme being renamed. */
+export function uniqueSchemeLabel(input: {
+  name: string;
+  savedThemes: ReadonlyArray<ThemeDefinition>;
+  labelOf?: LabelOf;
+  exceptId?: string;
+}): string {
+  return forkLabel(input.name, takenNames(input.savedThemes, input.labelOf, input.exceptId));
+}
+
 /**
- * A copy of a scheme under a name the person chose. It gets its own id and a name no other scheme
- * has, and remembers the same preset, so several versions of one preset sit side by side and
- * saving one never writes over another. `scheme` is the draft, a saved scheme or a preset's fork.
+ * A copy of a scheme under a name the person chose: its own id, a name no other scheme shows, the
+ * same preset. A collection, the managed flag and the sidebar artwork stay behind, as in a rename.
  */
 export function schemeCopyOf(input: {
   scheme: ThemeDefinition;
   name: string;
   savedThemes: ReadonlyArray<ThemeDefinition>;
+  labelOf?: LabelOf;
 }): ThemeDefinition {
-  const { scheme, savedThemes } = input;
+  const { savedThemes } = input;
+  const {
+    collection: _collection,
+    managed: _managed,
+    sidebarArtwork: _artwork,
+    ...scheme
+  } = input.scheme;
   return {
     ...scheme,
     id: forkId(
       scheme.id.replace(FORK_ID_SUFFIX, ""),
       new Set(savedThemes.map((saved) => saved.id)),
     ),
-    label: forkLabel(
-      input.name.trim() || scheme.label,
-      new Set(savedThemes.map((saved) => saved.label)),
-    ),
+    label: uniqueSchemeLabel({
+      name: input.name.trim() || scheme.label,
+      savedThemes,
+      ...(input.labelOf ? { labelOf: input.labelOf } : {}),
+    }),
   };
 }
 

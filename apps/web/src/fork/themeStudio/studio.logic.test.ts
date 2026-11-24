@@ -23,6 +23,7 @@ import {
   schemeBase,
   schemeCopyOf,
   schemesBasedOn,
+  uniqueSchemeLabel,
   sameAppearanceOf,
   withSchemeColors,
   withSchemeCss,
@@ -126,6 +127,44 @@ describe("saving my own versions", () => {
       third.id,
     ]);
     expect(schemesBasedOn("studio-docs", [first])).toEqual([]);
+  });
+
+  it("leaves a collection, a managed flag and the sidebar artwork behind", () => {
+    const imported = {
+      ...mine(),
+      collection: { id: "vscode-pack", label: "Pack" },
+      managed: true,
+      sidebarArtwork: true,
+    };
+    const saved = schemeCopyOf({ scheme: imported, name: "Mine", savedThemes: [imported] });
+    expect(saved).not.toHaveProperty("collection");
+    expect(saved).not.toHaveProperty("managed");
+    expect(saved).not.toHaveProperty("sidebarArtwork");
+    expect(saved.basedOn).toBe("studio-terminal");
+    expect(schemesBasedOn("studio-terminal", [saved])).toEqual([saved]);
+  });
+
+  it("does not take a name another scheme shows, in the language on screen", () => {
+    const zh = (theme: { label: string }) =>
+      theme.label === "Terminal (mine)" ? "终端（我的）" : theme.label;
+    const english = { ...mine(), label: "Terminal (mine)" };
+    expect(
+      schemeCopyOf({ scheme: mine(), name: "终端（我的）", savedThemes: [english], labelOf: zh })
+        .label,
+    ).toBe("终端（我的） 2");
+    expect(
+      uniqueSchemeLabel({ name: "Terminal (mine)", savedThemes: [english], labelOf: zh }),
+    ).toBe("Terminal (mine) 2");
+  });
+
+  it("lets a scheme keep its own name when renamed, and renames to a free name as given", () => {
+    const a = { ...mine(), id: "a", label: "Alpha" };
+    const b = { ...mine(), id: "b", label: "Beta" };
+    const take = (name: string, exceptId: string) =>
+      uniqueSchemeLabel({ name, savedThemes: [a, b], exceptId });
+    expect(take("Alpha", "a")).toBe("Alpha");
+    expect(take("Alpha", "b")).toBe("Alpha 2");
+    expect(take("Gamma", "b")).toBe("Gamma");
   });
 
   it("falls back to the scheme's own name for an empty one, within the limits", () => {

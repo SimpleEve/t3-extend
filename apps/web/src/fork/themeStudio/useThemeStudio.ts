@@ -37,6 +37,7 @@ import {
   schemeCopyOf,
   STOCK_THEME_ID,
   studioOrigin,
+  uniqueSchemeLabel,
   withSchemeColors,
   withSchemeCss,
   withSchemeLook,
@@ -90,7 +91,12 @@ export function useThemeStudio() {
   const [hovered, setHovered] = useState<ThemeDefinition | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
   // A switch to another theme that waits for an answer, because it would drop an unsaved draft.
-  const [pendingSwitch, setPendingSwitch] = useState<{ themeId: string | null } | null>(null);
+  const [pendingSwitch, setPendingSwitch] = useState<{
+    themeId: string | null;
+    targetName: string;
+    /** The theme chosen is the one being edited, or the preset it was made from. */
+    sameTheme: boolean;
+  } | null>(null);
   const colorEditSnapshot = useRef<ThemeDefinition | null | undefined>(undefined);
   const working = draft ?? base;
   const savedScheme = draft ? (customThemes.find((saved) => saved.id === draft.id) ?? null) : null;
@@ -218,6 +224,7 @@ export function useThemeStudio() {
         }),
       name,
       savedThemes: customThemes,
+      labelOf,
     });
     try {
       installCustomTheme(copy);
@@ -251,6 +258,7 @@ export function useThemeStudio() {
           scheme,
           name: copyName(labelOf(scheme), t),
           savedThemes: customThemes,
+          labelOf,
         }),
       );
     } catch {
@@ -261,17 +269,26 @@ export function useThemeStudio() {
   // A person's click on a theme. With unsaved changes it asks first instead of dropping them.
   const choose = (themeId: string | null) => {
     if (dirty) {
-      setPendingSwitch({ themeId });
+      const target =
+        themeId === null
+          ? null
+          : (customThemes.find((saved) => saved.id === themeId) ?? getThemeDefinition(themeId));
+      setPendingSwitch({
+        themeId,
+        targetName: target === null ? stockDefinition().label : labelOf(target),
+        sameTheme: themeId !== null && (themeId === working.id || themeId === working.basedOn),
+      });
       return;
     }
     select(themeId);
   };
-  const resolveSwitch = (action: "save" | "discard" | "keep") => {
+  // A save that fails leaves the dialog open, where the error shows.
+  const resolveSwitch = (action: "save" | "discard" | "keep", name?: string) => {
     const target = pendingSwitch;
+    if (target === null) return;
+    if (action === "save" && !(savedScheme ? apply() : saveAs(name ?? suggestedName))) return;
     setPendingSwitch(null);
-    if (target === null || action === "keep") return;
-    if (action === "save" && !(savedScheme ? apply() : saveAs(suggestedName))) return;
-    select(target.themeId);
+    if (action !== "keep") select(target.themeId);
   };
 
   const apply = () => {
@@ -294,6 +311,8 @@ export function useThemeStudio() {
     return true;
   };
 
+  const clearSaveFailed = () => setSaveFailed(false);
+
   const revert = () => {
     setDraft(null);
     setExplicitCopy(false);
@@ -301,8 +320,15 @@ export function useThemeStudio() {
   };
 
   const rename = (scheme: ThemeDefinition, label: string) => {
-    const name = label.trim();
-    if (name === "" || name === scheme.label) return;
+    const requested = label.trim();
+    if (requested === "" || requested === scheme.label) return;
+    const name = uniqueSchemeLabel({
+      name: requested,
+      savedThemes: customThemes,
+      labelOf,
+      exceptId: scheme.id,
+    });
+    if (name === scheme.label) return;
     try {
       updateCustomTheme({ ...scheme, label: name });
     } catch {
@@ -379,6 +405,7 @@ export function useThemeStudio() {
     pendingSwitch,
     resolveSwitch,
     saveAs,
+    clearSaveFailed,
     suggestedName,
     duplicate,
     apply,

@@ -70,7 +70,7 @@ function SchemeRow({
             ) : null}
             {pending ? (
               <Badge size="sm" variant="warning">
-                {t("Not applied yet")}
+                {t("Not saved yet")}
               </Badge>
             ) : null}
           </div>

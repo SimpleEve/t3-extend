@@ -54,8 +54,10 @@ export default {
   "Keeps these colors, fonts, layout and CSS under this name. The preset and your other schemes stay as they are.":
     "把当前的颜色、字体、布局和 CSS 存在这个名字下。预设和你的其他方案都不会变。",
   "Save your changes first?": "先保存你的改动吗？",
-  "Switching to another theme drops the changes you made to {name}. Save them as a scheme to keep them.":
-    "切换到其他主题会丢掉你对 {name} 的改动。存成方案就能保留。",
+  "Switching to {target} drops the changes you made to {name}. Save them as a scheme to keep them.":
+    "切换到{target}会丢掉你对{name}的改动。存成方案就能保留。",
+  "Going back to {target} drops the changes you made to {name}. Save them as a scheme to keep them.":
+    "回到{target}会丢掉你对{name}的改动。存成方案就能保留。",
   "Save and switch": "保存并切换",
   "Could not save the scheme. Browser storage may be unavailable or full.":
     "无法保存方案。浏览器存储可能不可用或已满。",
@@ -131,7 +133,7 @@ export default {
     "随这个方案一起保存，导出时也会带上。只在网页和桌面端生效。会加载远程文件的规则会被忽略。",
 
   "Scheme name": "方案名称",
-  "Not applied yet": "尚未应用",
+  "Not saved yet": "尚未保存",
   "Export {name} as JSON": "把 {name} 导出为 JSON",
   "Nothing here yet. Change a preset, then choose Save as my scheme to keep your version here.":
     "这里还没有内容。改一下预设，再选“保存为我的方案”，你的版本就会存到这里。",
