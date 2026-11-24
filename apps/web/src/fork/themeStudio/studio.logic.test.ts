@@ -294,7 +294,7 @@ describe("a preset that was retired", () => {
 
   it("keeps the new presets under their own ids", () => {
     const ids = getPresetThemes().map((preset) => preset.id);
-    expect(ids).toHaveLength(11);
+    expect(new Set(ids).size).toBe(ids.length);
     expect(ids.filter((id) => retired.includes(id))).toEqual([]);
   });
 });

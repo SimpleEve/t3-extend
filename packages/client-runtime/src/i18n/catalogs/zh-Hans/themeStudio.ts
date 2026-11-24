@@ -26,6 +26,12 @@ export default {
   Neon: "霓虹",
   Docs: "文档",
   "Quiet page": "留白",
+  Editor: "编辑器",
+  "One Dark": "One Dark",
+  Solarized: "Solarized",
+  GitHub: "GitHub",
+  Nord: "Nord",
+  Mochi: "麻薯",
   "Needs a background image": "需要背景图",
   "Hover to preview, click to use. Change a preset, then save your version as a scheme; the preset stays as it is.":
     "悬停预览，点击使用。改过预设之后，把你的版本存成方案，预设本身不变。",

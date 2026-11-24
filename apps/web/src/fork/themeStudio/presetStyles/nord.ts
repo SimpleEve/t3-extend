@@ -1,0 +1,74 @@
+import type { ThemePresetSeed } from "../presets";
+
+// fork: Nord. Colors after Arctic Ice Studio's Nord (MIT): Polar Night for the dark half, Snow
+// Storm for the light half. No decoration: flat panels, hairlines, the system fonts.
+const SANS =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif';
+const MONO = 'Menlo, Monaco, "Cascadia Mono", Consolas, "Courier New", monospace';
+
+export const NORD_SEED: ThemePresetSeed = {
+  id: "studio-nord",
+  label: "Nord",
+  appearance: "dark",
+  palette: {
+    canvas: "#2e3440",
+    accent: "#88c0d0",
+    colors: {
+      surface: "#2e3440",
+      surfaceRaised: "#353c4a",
+      surfaceOverlay: "#3b4252",
+      secondary: "#3b4252",
+      secondaryForeground: "#d8dee9",
+      muted: "#353c4a",
+      accentSurface: "#434c5e",
+      accentSurfaceForeground: "#eceff4",
+      toolbarControl: "#3b4252",
+      toolbarControlHover: "#434c5e",
+      text: "#d8dee9",
+      textMuted: "#a3aec2",
+      secondaryLabel: "#a3aec2",
+      mutedForeground: "#a3aec2",
+      border: "#3b4252",
+      input: "#4c566a",
+      focus: "#88c0d0",
+      accentForeground: "#2e3440",
+      sidebar: "#292e39",
+      sidebarForeground: "#d8dee9",
+      sidebarMutedForeground: "#a3aec2",
+      sidebarBorder: "#3b4252",
+      codeBackground: "#292e39",
+      codeForeground: "#d8dee9",
+    },
+  },
+  variant: {
+    canvas: "#eceff4",
+    accent: "#4c6f9b",
+    colors: {
+      surface: "#eceff4",
+      surfaceRaised: "#e5e9f0",
+      surfaceOverlay: "#f6f8fb",
+      secondary: "#e5e9f0",
+      secondaryForeground: "#2e3440",
+      muted: "#e5e9f0",
+      accentSurface: "#d8dee9",
+      accentSurfaceForeground: "#2e3440",
+      toolbarControl: "#e5e9f0",
+      toolbarControlHover: "#d8dee9",
+      text: "#2e3440",
+      textMuted: "#4c566a",
+      secondaryLabel: "#4c566a",
+      mutedForeground: "#4c566a",
+      border: "#d8dee9",
+      input: "#c3cbd9",
+      focus: "#5e81ac",
+      accentForeground: "#ffffff",
+      sidebar: "#e5e9f0",
+      sidebarForeground: "#2e3440",
+      sidebarMutedForeground: "#4c566a",
+      sidebarBorder: "#d8dee9",
+      codeBackground: "#e5e9f0",
+      codeForeground: "#2e3440",
+    },
+  },
+  look: { fontUi: SANS, fontCode: MONO, radius: 6, shadow: 20, density: 100 },
+};
