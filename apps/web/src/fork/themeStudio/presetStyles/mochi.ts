@@ -2,10 +2,10 @@ import type { ThemePresetSeed } from "../presets";
 
 // fork: Mochi. A soft, friendly look of our own: cream paper, candy pink, lilac, big round corners
 // and rounded line icons. The user's message is a lilac bubble. It has a dark pair (plum).
-// Only the mood is borrowed from playful chat apps; no names, marks or pictures. Fonts are installed
-// or system ones; Trebuchet MS is the friendly face that ships with macOS and Windows.
+// Only the mood is borrowed from playful chat apps; no names, marks or pictures. Fonts are system ones;
+// Trebuchet MS is the friendly face that ships with macOS and Windows.
 const SANS =
-  '"Nunito", "Quicksand", "SF Pro Rounded", "Trebuchet MS", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif';
+  '"SF Pro Rounded", "Trebuchet MS", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif';
 const MONO = 'Menlo, "SF Mono", "Cascadia Mono", Consolas, "Courier New", monospace';
 
 const CSS = `:root {

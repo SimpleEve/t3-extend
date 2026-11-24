@@ -88,7 +88,7 @@ export const THEME_CSS_HOOKS = [
   { selector: '[data-slot="tooltip-popup"]', styles: "tooltip" },
   { selector: '[data-slot="scroll-area-scrollbar"]', styles: "overlay scrollbar" },
   { selector: '[data-slot="scroll-area-thumb"]', styles: "overlay scrollbar thumb" },
-  // fork: hooks the style presets use. Each is an attribute the upstream components already set.
+  // fork: hooks the style presets use: attributes the upstream components set, and data-sidebar-topbar, which SidebarChrome adds.
   {
     selector: "[data-sidebar-row]",
     styles:
