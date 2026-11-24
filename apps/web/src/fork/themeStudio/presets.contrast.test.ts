@@ -76,6 +76,46 @@ function contrast(foreground: string, background: string): number {
   return (light! + 0.05) / (dark! + 0.05);
 }
 
+// What the sidebar rows paint: thread titles, project names and chrome use the page's text roles
+// (not the sidebar* roles), times and icons the muted ones, and the Approval chip the warning one.
+// A preset whose sidebar has a different ground than its page sets these again inside
+// `[data-slot="sidebar-inner"]`, so what is checked is that scope's value or else the page role.
+const SIDEBAR_TEXT: ReadonlyArray<{
+  role: ThemeColorRole;
+  variable: string;
+}> = [
+  { role: "text", variable: "--contrast-foreground" },
+  { role: "textMuted", variable: "--contrast-muted-foreground" },
+  { role: "secondaryLabel", variable: "--contrast-secondary-label" },
+  { role: "iconMuted", variable: "--contrast-icon-muted" },
+  { role: "warningForeground", variable: "--warning-foreground" },
+  { role: "errorForeground", variable: "--error-foreground" },
+];
+
+function sidebarScopeVariables(css: string | undefined): ReadonlyMap<string, string> {
+  const found = new Map<string, string>();
+  for (const rule of (css ?? "").replace(/\/\*[\s\S]*?\*\//g, "").split("}")) {
+    const open = rule.lastIndexOf("{");
+    if (open < 0 || rule.slice(0, open).trim() !== '[data-slot="sidebar-inner"]') continue;
+    for (const [, name, value] of rule.slice(open + 1).matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+      found.set(name!, value!.trim());
+    }
+  }
+  return found;
+}
+
+function sidebarFailures(colors: ThemeColors, css: string | undefined): string[] {
+  const scope = sidebarScopeVariables(css);
+  return SIDEBAR_TEXT.flatMap(({ role, variable }) => {
+    const color = scope.get(variable) ?? colors[role];
+    const ratio = contrast(color, colors.sidebar);
+    // Icons are graphics, not text: WCAG asks 3:1 of them.
+    return ratio >= (role === "iconMuted" ? 3 : 4.5)
+      ? []
+      : [`${role} on sidebar: ${ratio.toFixed(2)}`];
+  });
+}
+
 function failures(colors: ThemeColors): string[] {
   return PAIRS.flatMap(([fg, bg]) => {
     const ratio = contrast(colors[fg], colors[bg]);
@@ -91,11 +131,19 @@ const CASES = getPresetThemes()
         [preset.appearance, preset.colors],
         ...Object.entries(preset.variants ?? {}),
       ] as ReadonlyArray<readonly [string, ThemeColors]>
-    ).map(([appearance, colors]) => ({ name: `${preset.id} (${appearance})`, colors })),
+    ).map(([appearance, colors]) => ({
+      name: `${preset.id} (${appearance})`,
+      colors,
+      css: preset.css,
+    })),
   );
 
 describe("preset colors", () => {
   it.each(CASES)("$name keeps its text readable", ({ colors }) => {
     expect(failures(colors)).toEqual([]);
+  });
+
+  it.each(CASES)("$name keeps the sidebar rows readable on the sidebar", ({ colors, css }) => {
+    expect(sidebarFailures(colors, css)).toEqual([]);
   });
 });

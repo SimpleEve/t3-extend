@@ -106,6 +106,7 @@ export const BRUTALIST_SEED: ThemePresetSeed = {
       messageActionHover: "#ff3d95",
       codeBackground: "#ffffff",
       codeForeground: "#000000",
+      warningForeground: "#8a3a00",
       sidebar: "#7cf0d0",
       sidebarForeground: "#000000",
       sidebarMutedForeground: "#1a1a1a",
