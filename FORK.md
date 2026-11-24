@@ -240,6 +240,8 @@ Cmd+Q、SIGTERM 触发的退出，在 `DesktopLifecycle.ts` 里最多等 25 秒�
 
 适配器侧只有一个可选 flavor 钩子 `recoverFromUsageLimit`（`packages/provider-acp/src/server/adapter.ts` 里 `followPrompt` 的 `hiddenFailure` 分支和新函数 `resendAfterAccountSwitch`，都带 `// fork:`），只有 Antigravity 设置，其他 provider 行为不变。重发沿用 steer 重发提示的写法（重置 `foregroundIdle`/`promptWireSettled`、新 watchdog、新的 `followPrompt`），激活会话时临时把 `activeTurn` 置空，和 `startTurn` 一样，加载历史的回放只填快照，不进当前轮。有后台命令或子 agent 还在跑时不切（旧进程一关它们就没了），按普通失败处理。
 
+**每个账号的用量**：只有当前账号能读到实时用量。其余账号的 access token 在不再是当前账号约一小时后过期，续期需要 agy 的 OAuth client secret，T3 没有，所以不为别的账号刷新 token、不起 agy、也不换 token 去探测，而是记住最后一次读数：`probeUsage` 经池的 `observeUsage` 包一层，读成功就把整份 `ServerProviderUsageLimits`（含 `checkedAt`）写到 `accounts/<id>/usage.json`（临时文件加 rename，读的几秒里账号被换走就不写）；删除账号或退出登录一并清掉。`ServerProviderAccount.usageLimits` 带出来，当前账号用实时读数，其余是快照。`collectLimitAccounts` 把有两个以上账号的 Antigravity 实例展开成每个账号一条（key 带账号 id，当前账号不和实例自己的读数重复计）；只有一个账号时仍是一条，但用 `saved[0].email` 命名，并在实时读数不可用时退回它的快照。快照里 `resetsAt` 已过的窗口读作已重置（0% 已用、无重置时间），`exhaustedUntil` 未到的账号读作 100% 已用、重置时间取 `exhaustedUntil`。快照超过 30 分钟（`paceIsMeaningful`）就不再画配速标记和图标，弹层写明读数可能过期。页脚的底栏颜色只看实例自己的实时读数，快照不影响。`useNowMinute()` 返回的是不带时区的 `YYYY-MM-DDTHH:mm`，要 `Date.parse(\`${…}Z\`)`，否则非 UTC 时区的"现在"会偏几个小时。
+
 没处理的：同一实例里别的线程还在跑的 agy 进程仍持有旧账号，它们刷新 token 时可能把旧账号写回当前文件，下一次起 agy 前会按 `exhaustedUntil` 再换一次；这是同一个 token 文件被多个 agy 进程共用的固有问题。新增的 web 和 mobile 界面没有在真实客户端里跑过，只过了类型检查和相关的现有测试。
 
 ## Antigravity 后台命令续跑

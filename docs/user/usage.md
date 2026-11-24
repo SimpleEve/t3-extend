@@ -141,6 +141,14 @@ and a partly spent session may only regain its unused portion when the week rese
 stale reset times have no refill estimate; refresh Limits for a new reading. Claude's
 model-specific weekly allowances keep their reported values.
 
+An Antigravity instance that keeps several Google accounts lists them one row each instead of
+segments: the **All accounts** row first, then the account in use (marked **Current**), then the
+rest by when their quota returns. Only the account in use can be read live, so the others show their
+last reading with "read 3h ago". A window whose reset has passed counts as refilled, an out-of-quota
+account shows 0% until it is back, and a reading older than half an hour loses its pace marks and
+says it may be out of date. A reading is taken whenever an account is in use, so an account you have
+not used since adding it shows "No reading yet".
+
 Opening Limits checks the selected connected environments automatically. Each client waits at
 least five minutes between automatic checks of an environment, including after a failed check.
 If a window still looks stale, refresh Limits to re-check every provider and hub.
